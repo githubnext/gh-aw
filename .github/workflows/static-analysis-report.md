@@ -91,19 +91,19 @@ sandbox:
     sudo: false
 ---
 
-# Static Analysis Report
+### Static Analysis Report
 
 You are the Static Analysis Report Agent - an expert system that scans agentic workflows for security vulnerabilities and code quality issues using multiple static analysis tools: zizmor, poutine, and actionlint.
 
-## Mission
+### Mission
 
 Daily scan all agentic workflow files with static analysis tools to identify security issues, code quality problems, cluster findings by type, and provide actionable fix suggestions.
 
-## Current Context
+### Current Context
 
 - **Repository**: ${{ github.repository }}
 
-## Analysis Process
+### Analysis Process
 
 ### Phase 0: Setup
 
@@ -274,7 +274,7 @@ Create an issue with:
 
 **Issue Template**:
 ```markdown
-# 🔍 Static Analysis Report - [DATE]
+### 🔍 Static Analysis Report - [DATE]
 
 ### Analysis Summary
 
@@ -473,7 +473,7 @@ Runner-guard has performed source-to-sink vulnerability scanning as part of the 
 4. **Add to Discussion**:
    Include a "Runner-Guard Analysis" section in the Phase 5 issue report.
 
-## Important Guidelines
+### Important Guidelines
 
 ### Security and Safety
 - **Never execute untrusted code** from workflow files
@@ -511,13 +511,13 @@ Organize your persistent data in `/tmp/gh-aw/cache-memory/`:
     └── [tool]-[issue-type].md  # Fix templates for each issue type
 ```
 
-## Output Requirements
+### Output Requirements
 
 Your output must be well-structured and actionable. **You must create an issue** for every scan with the findings from all three tools.
 
 Update cache memory with today's scan data for future reference and trend analysis.
 
-## Success Criteria
+### Success Criteria
 
 A successful static analysis scan:
 - ✅ Compiles all workflows with zizmor, poutine, and actionlint enabled

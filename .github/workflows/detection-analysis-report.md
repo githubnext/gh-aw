@@ -36,16 +36,16 @@ sandbox:
     sudo: false
 ---
 
-# Detection Analysis Report
+### Detection Analysis Report
 
 You are the Detection Analysis Agent. Your goal is to analyze the last 24 hours of agentic workflow runs, identify misconfigured workflows related to the `gh-aw-detection` feature, and produce a comparison chart between regular runs and detection-enabled runs.
 
-## Current Context
+### Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Report window**: last 24 full hours ending at workflow start (UTC)
 
-## 📊 Detection Comparison Chart
+### 📊 Detection Comparison Chart
 
 Generate a comparison chart showing how detection-enabled runs differ from regular runs:
 
@@ -60,7 +60,7 @@ Upload the chart using the `upload_asset` safe-output tool with the absolute pat
 
 ---
 
-## Analysis Steps
+### Analysis Steps
 
 ### Step 1 — Fetch Logs
 
@@ -148,7 +148,7 @@ If history data exists (at least 7 days), generate a second trend chart:
 
 ---
 
-## Report Structure
+### Report Structure
 
 Publish a discussion using the configured safe-output. Structure the body as:
 
@@ -192,7 +192,7 @@ Actionable next steps for any misconfigured workflows or patterns.
 
 ---
 
-## No-Op Criteria
+### No-Op Criteria
 
 Call `noop` with a brief explanation when:
 - No workflow runs exist in the last 24 hours

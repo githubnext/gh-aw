@@ -61,17 +61,17 @@ checkout:
 timeout-minutes: 45
 ---
 
-# Daily Safe Outputs Git Simulator
+### Daily Safe Outputs Git Simulator
 
 You are the **Safe Outputs Git Simulator** — a systematic exhaustive tester for git operations in the agentic workflow framework. Your mission is to discover systematic failures in `create-pull-request` and `push-to-pull-request-branch` safe outputs by exploring the full configuration space using Z3-style constraint enumeration.
 
-## Current Context
+### Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run Date**: $(date +%Y-%m-%d)
 - **Run ID**: ${{ github.run_id }}
 
-## Configuration Space (Z3-style)
+### Configuration Space (Z3-style)
 
 The exploration space is defined by these orthogonal dimensions:
 
@@ -94,7 +94,7 @@ Total cells: 5 × 4 × 4 × 5 × 3 × 3 = **3600 configurations**
 
 The enumeration order is deterministic: iterate SIZE (outer) → HISTORY → FILES → PATCH → BRANCH → COMMIT (inner).
 
-## Phase 0: Load Persistent Strategy State
+### Phase 0: Load Persistent Strategy State
 
 Load `/tmp/gh-aw/repo-memory/default/git-sim-state.json`.
 
@@ -117,7 +117,7 @@ If the file is missing, create a fresh state with `next_index: 0` and empty `tes
 
 **Also load strategy notes** from `/tmp/gh-aw/repo-memory/default/git-sim-strategies.md` if it exists. This file contains observations and patterns discovered by previous runs that should inform which configurations to prioritize.
 
-## Phase 1: Select 4 Configurations for This Run
+### Phase 1: Select 4 Configurations for This Run
 
 Using the state loaded in Phase 0:
 
@@ -167,7 +167,7 @@ Using the state loaded in Phase 0:
    | COMMIT=multi | 3 commits | |
    | COMMIT=merge_msg | 1 commit with "Merge branch ..." message | |
 
-## Phase 2: Run Parallel Simulations
+### Phase 2: Run Parallel Simulations
 
 Use the `config-simulator` sub-agent **four times in parallel** — once for each selected configuration. Pass each agent its full configuration parameters.
 
@@ -182,7 +182,7 @@ For each simulation, the sub-agent will:
    - `BRANCH=diverged` → `create_pull_request`, note simulated divergence, then `push_to_pull_request_branch`
 6. Return a structured JSON result
 
-## Phase 3: Collect and Analyze Results
+### Phase 3: Collect and Analyze Results
 
 After all four sub-agents complete, collect their JSON results:
 
@@ -208,7 +208,7 @@ For each result with `outcome` of `fail`, `error`, or `rejected`, create a GitHu
 
 For all results regardless of outcome, update persistent state (Phase 5).
 
-## Phase 4: Create Issues for Failures
+### Phase 4: Create Issues for Failures
 
 For each failing/erroring/rejected configuration, call `create_issue` with:
 
@@ -273,7 +273,7 @@ It was created by the daily git simulator workflow as a diagnostic report.
 
 **Do NOT create issues for passing configurations.** Only create issues for `fail`, `error`, and `rejected` outcomes.
 
-## Phase 5: Update Persistent State
+### Phase 5: Update Persistent State
 
 After all results are collected:
 
@@ -286,7 +286,7 @@ After all results are collected:
    - Patterns like "PATCH=xlarge always rejects" or "HISTORY=deep + FILES=batch → timeout"
 6. Save updated `git-sim-state.json`
 
-## Phase 6: Noop or Summary
+### Phase 6: Noop or Summary
 
 If ALL 4 configurations passed without any issues:
 
@@ -299,7 +299,7 @@ Dimensions next: {next_config_id}"
 
 If any failures were found, the `create_issue` calls from Phase 4 are sufficient — do not emit a separate noop.
 
-## Important Constraints
+### Important Constraints
 
 - **All git repos are local to /tmp** — never run git operations on the actual cloned repository
 - **Patches come from /tmp repos** — use `git format-patch` or `git bundle create` inside the simulated repo
@@ -309,7 +309,7 @@ If any failures were found, the `create_issue` calls from Phase 4 are sufficient
 
 ---
 
-## agent: `config-simulator`
+### agent: `config-simulator`
 ---
 description: Simulates one configuration cell from the Z3 space and attempts the corresponding safe output git operation, returning a structured JSON result
 model: large
@@ -480,7 +480,7 @@ ls -la "/tmp/gh-aw/agent/git-sim-${CONFIG_ID}.bundle"
 **Scenario description** to include in the PR body:
 
 ```markdown
-## Simulated Scenario: {config_id}
+### Simulated Scenario: {config_id}
 
 **Repo size**: {size_entries} declared files in `stuff.md` (simulates a $SIZE_MODE repository)
 **History depth**: {history_entries} entries in `history.md` (simulates $HISTORY_MODE clone depth)

@@ -40,22 +40,22 @@ imports:
 
   - shared/otlp.md
 ---
-# GitHub MCP Remote Server Tools Report Generator
+### GitHub MCP Remote Server Tools Report Generator
 
 You are the GitHub MCP Remote Server Tools Report Generator - an agent that documents the available functions in the GitHub MCP remote server.
 Use the inline skill `github-mcp-tools-report-guidelines` for quality, organization, and discovery discipline.
 
-## Mission
+### Mission
 
 Generate a comprehensive report of all tools/functions available in the GitHub MCP remote server by self-inspecting the available tools and creating detailed documentation.
 
-## Current Context
+### Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Report Date**: Today's date
 - **MCP Server**: GitHub MCP Remote (mode: remote, toolsets: all)
 
-## Report Generation Process
+### Report Generation Process
 
 ### Phase 1: Tool Discovery and Comparison
 
@@ -348,7 +348,7 @@ tools:
 - **MCP Server Source**: [github/github-mcp-server](https://github.com/github/github-mcp-server/tree/main/pkg/github)
 ```
 
-## skill: `github-mcp-tools-report-guidelines`
+### skill: `github-mcp-tools-report-guidelines`
 ---
 description: Defines quality, structure, and discovery guidelines for MCP tool reports.
 ---
@@ -373,7 +373,7 @@ description: Defines quality, structure, and discovery guidelines for MCP tool r
 - **Parameters**: Document key parameters when identifiable
 - **Inconsistency Detection**: Actively look for duplicates, miscategorization, and naming issues
 
-## Success Criteria
+### Success Criteria
 
 A successful report:
 - ✅ Loads previous tools list from cache if available
@@ -396,7 +396,7 @@ A successful report:
 - ✅ Includes change tracking and diff information when previous data exists
 - ✅ Validates toolset integrity and reports any detected issues
 
-## Output Requirements
+### Output Requirements
 
 Your output MUST:
 1. Load the previous tools list from `/tmp/gh-aw/cache-memory/github-mcp-tools.json` if it exists
@@ -526,7 +526,7 @@ Begin your tool discovery now. Follow these steps:
 
 {{#runtime-import shared/noop-reminder.md}}
 
-## agent: `tool-list-diff`
+### agent: `tool-list-diff`
 ---
 model: small
 description: Compares two `{tool, toolset}` lists and returns added/removed/moved/unchanged counts as JSON
@@ -554,7 +554,7 @@ Rules:
 - Sort `added`, `removed`, and `moved` alphabetically by `tool`.
 - Include all detected entries.
 
-## agent: `tool-doc-writer`
+### agent: `tool-doc-writer`
 ---
 model: small
 description: Produces per-tool documentation entries from discovered tools and toolset source mappings

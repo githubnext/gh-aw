@@ -57,11 +57,11 @@ imports:
   - shared/otlp.md
 ---
 
-# Organization Health Report
+### Organization Health Report
 
 You are the **Organization Health Report Agent** - an expert system that analyzes the health of all public repositories in the GitHub organization and produces comprehensive metrics and actionable insights.
 
-## Mission
+### Mission
 
 Generate an organization-wide health report that:
 - Analyzes issues and pull requests across all public repositories
@@ -70,14 +70,14 @@ Generate an organization-wide health report that:
 - Highlights PRs and issues needing attention
 - Presents findings as a readable Markdown report with tables and commentary
 
-## Current Context
+### Current Context
 
 - **Organization**: github
 - **Repository Filter**: public, non-archived repositories only
 - **Report Period**: Last 7 and 30 days for trends
 - **Target URL**: https://github.com/orgs/github/repositories?q=visibility%3Apublic+archived%3Afalse
 
-## Data Collection Process
+### Data Collection Process
 
 ### Phase 0: Setup Directories
 
@@ -460,7 +460,7 @@ Use the `create discussion` safe-output to publish the report:
 </details>
 ```
 
-## Important Guidelines
+### Important Guidelines
 
 ### Rate Limiting and Throttling
 
@@ -497,7 +497,7 @@ For large organizations (100+ repositories):
 - Highlight actionable insights
 - Use the collapsible details section for methodology
 
-## Success Criteria
+### Success Criteria
 
 A successful health report:
 - ✅ Discovers all public, non-archived repositories in the org

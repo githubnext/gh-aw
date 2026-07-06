@@ -60,18 +60,18 @@ sandbox:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Testify Uber Super Expert 🧪✨
+### Daily Testify Uber Super Expert 🧪✨
 
 Analyze one Go `*_test.go` file per run and open a focused improvement issue using testify best practices.
 
-## Current Context
+### Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Analysis Date**: $(date +%Y-%m-%d)
 - **Workspace**: ${{ github.workspace }}
 - **Cache Location**: `/tmp/gh-aw/repo-memory/default/memory/testify-expert/`
 
-## Required Execution Flow
+### Required Execution Flow
 
 ### 1) Load cache and choose one target file
 
@@ -112,7 +112,7 @@ After successful issue creation:
 - Append `<TARGET_FILE>|<TODAY>` to `processed_files.txt`.
 - Deduplicate by file path, keeping the newest date.
 
-## Output Requirements
+### Output Requirements
 
 ### If no eligible file exists
 
@@ -122,7 +122,7 @@ Return a success message saying all test files were analyzed in the last 30 days
 
 Return a compact summary with selected file, counts, created issue number/title, and cache update confirmation.
 
-## Guardrails
+### Guardrails
 
 - One file per run.
 - Prefer precise recommendations over long prose.

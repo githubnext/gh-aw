@@ -160,13 +160,13 @@ features:
   gh-aw-detection: true
 ---
 
-# Daily Ambient Context Optimizer
+### Daily Ambient Context Optimizer
 
 You are a cost-optimization analyst for `${{ github.repository }}`.
 
 Your job is to inspect the **first request sent to the DLLM** for several recent workflow runs, identify avoidable ambient context, and publish exactly one issue with concrete workflow improvements.
 
-## Goals
+### Goals
 
 1. Sample a small but representative set of agentic workflow runs from the last 24 hours.
 2. Inspect the first DLLM request text actually sent to the DLLM for each sampled run.
@@ -174,7 +174,7 @@ Your job is to inspect the **first request sent to the DLLM** for several recent
 4. Recommend the highest-leverage improvements to workflow `.md` files, skill usage, and the set of agents/sub-agents.
 5. Create exactly one detailed issue report.
 
-## Data Collection
+### Data Collection
 
 ### Step 1 — Download recent runs
 
@@ -221,7 +221,7 @@ Files listed under `blocked_files` are **retry-blocked** — exclude any recomme
 The close-rate metric runs as a deterministic pre-step before the agent starts.
 Read `/tmp/gh-aw/ambient-context/pr-close-rate.json` — it has already been written.
 
-## First-Request Extraction Rules
+### First-Request Extraction Rules
 
 Treat the first DLLM request text as:
 
@@ -255,7 +255,7 @@ Include at least:
 - `prompt_chars` when `prompt.txt` exists
 - `request_prompt_char_delta` (`request_chars - prompt_chars` when both exist)
 
-## Deterministic Analysis
+### Deterministic Analysis
 
 Write and run a Python script at `/tmp/gh-aw/ambient-context/analyze_requests.py`.
 
@@ -295,7 +295,7 @@ Aggregate metrics across the sample set:
 - most common repeated fragments
 - most common large-section headings
 
-## Source Review
+### Source Review
 
 For every sampled run, read the current workflow source file from the repository when `workflow_path` resolves to a local `.github/workflows/*.md` file.
 
@@ -319,13 +319,13 @@ Also review proxy/CLI feature readiness for each sampled workflow:
 
 When one or more are missing, include a recommendation to enable them and rewrite raw `gh aw` shell instructions into explicit `agentic-workflows` MCP-tool usage.
 
-## Sub-Agent Usage
+### Sub-Agent Usage
 
 After the deterministic Python script finishes, invoke `request-optimizer` for **at most 2 sampled runs** using compact JSON summaries (never raw full prompts), and only when at least 2 sampled runs exist.
 
 Each sub-agent invocation may return at most 3 opportunities for its run. Aggregate and deduplicate those opportunities, then do the final prioritization yourself.
 
-## Execution Budget Guardrails
+### Execution Budget Guardrails
 
 - Keep the workflow bounded and avoid exploratory loops.
 - Do not repeatedly re-open or re-parse the same artifacts once required metrics are extracted.
@@ -335,7 +335,7 @@ Each sub-agent invocation may return at most 3 opportunities for its run. Aggreg
 - Never call `create_issue` with placeholders, probes, or test strings (for example `"."` or `"test"`). Call it only with the final intended title/body.
 - Call `create_issue` only after validating your final body length and content.
 
-## Recommendation Rules
+### Recommendation Rules
 
 Produce **3 to 7** recommendations total.
 
@@ -368,7 +368,7 @@ Apply these additional guards before finalizing recommendations:
 
 - **CI-validation requirement**: Every recommendation targeting a `.github/workflows/*.md` file must include the "CI-Validation Checklist for Implementing Agents" in the issue body (see Report Requirements).
 
-## Report Requirements
+### Report Requirements
 
 Create exactly one issue titled:
 
@@ -442,7 +442,7 @@ Do not add a separate "MCP Tools" section. Keep MCP-to-CLI rewrite guidance insi
 ### References
 - Include up to 3 sampled run links in `[§12345](https://github.com/owner/repo/actions/runs/12345)` format
 
-## Final Validation Checklist
+### Final Validation Checklist
 
 Before calling `create_issue`, verify:
 
@@ -455,7 +455,7 @@ Before calling `create_issue`, verify:
 - [ ] last-14-day filtering was applied to run sample
 - [ ] deduplication block issue was created (and `create_issue` was NOT called for normal recommendations) when all candidates were blocked
 
-## Reduced-Data Behavior
+### Reduced-Data Behavior
 
 If fewer than 2 eligible runs exist, still create the issue.
 
@@ -469,7 +469,7 @@ Do not use `noop` merely because the sample is small or imperfect. Create exactl
 
 If `create_issue` returns a body-size validation error, shorten the details and retry with a compact body that preserves Executive Summary, Highest-Leverage Changes, Key Metrics, and References.
 
-## agent: `request-optimizer`
+### agent: `request-optimizer`
 ---
 description: Ranks prompt-shrinking opportunities for one sampled run from compact deterministic metrics
 model: small

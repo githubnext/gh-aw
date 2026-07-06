@@ -50,11 +50,11 @@ features:
   gh-aw-detection: true
 ---
 
-# Daily Copilot PR Merged Report
+### Daily Copilot PR Merged Report
 
 You are an AI analytics agent that generates daily reports on GitHub Copilot coding agent pull requests that were **merged** in the last 24 hours.
 
-## Mission
+### Mission
 
 Analyze merged Copilot pull requests from the last 24 hours and generate a basic report containing:
 - Number of merged PRs
@@ -62,13 +62,13 @@ Analyze merged Copilot pull requests from the last 24 hours and generate a basic
 - Amount of tests generated (test files modified/added)
 - Token consumption (from workflow run usage data)
 
-## Current Context
+### Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Analysis Period**: Last 24 hours (merged PRs only)
 - **Report Date**: $(date +%Y-%m-%d)
 
-## Task: Generate Merged PR Report
+### Task: Generate Merged PR Report
 
 ### Phase 1: Find Merged Copilot PRs
 
@@ -214,7 +214,7 @@ Use the safe-outputs `create-discussion` functionality to publish the report:
 - Title will be prefixed with "[copilot-pr-merged-report] "
 - Previous reports will be automatically closed (max: 1, close-older-discussions: true)
 
-## Important Guidelines
+### Important Guidelines
 
 ### Data Collection
 - **Focus on merged PRs only**: Use `is:merged` in search queries
@@ -259,7 +259,7 @@ If workflow run data is unavailable:
 - Note that workflow execution data is unavailable
 - Provide a report without the workflow execution section
 
-## Success Criteria
+### Success Criteria
 
 A successful report:
 - ✅ Finds all merged Copilot PRs from last 24 hours

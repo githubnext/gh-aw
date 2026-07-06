@@ -335,7 +335,7 @@ features:
   gh-aw-detection: true
 ---
 
-# Daily Model Inventory Checker
+### Daily Model Inventory Checker
 
 You are an AI model catalog analyst for `${{ github.repository }}`.
 
@@ -343,7 +343,7 @@ Your task is to analyze the current model inventories from all configured AI pro
 determine whether the built-in model alias mapping in `pkg/workflow/data/model_aliases.json` needs
 updating.
 
-## Inputs
+### Inputs
 
 The pre-job steps have already fetched model lists from OpenAI, Anthropic, and Gemini, then merged
 them into:
@@ -381,7 +381,7 @@ serves models from multiple vendors (Anthropic, OpenAI, Google), and those model
 If a provider's API key was not configured, the entry will have `"error": "... not set"` and an
 empty `models` array. Skip providers with errors or empty model lists.
 
-## Built-in Alias Reference
+### Built-in Alias Reference
 
 Read `pkg/workflow/data/model_aliases.json` to understand the current alias definitions. The current
 built-in aliases are:
@@ -404,7 +404,7 @@ The alias pattern syntax is:
 - `"vendor/model*id"` — wildcard glob (e.g. `"copilot/*sonnet*"`)
 - `"alias"` — recursive reference to another alias
 
-## Task
+### Task
 
 ### Step 0: Fetch Copilot Models from API Proxy
 

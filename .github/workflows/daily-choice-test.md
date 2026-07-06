@@ -70,11 +70,11 @@ features:
   gh-aw-detection: true
 ---
 
-# Daily Choice Type Test
+### Daily Choice Type Test
 
 This workflow tests the choice type functionality in safe-output jobs with Claude.
 
-## Task
+### Task
 
 Use the `test_environment` tool to configure a test deployment. Choose:
 1. An environment: staging or production

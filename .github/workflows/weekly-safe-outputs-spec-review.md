@@ -55,15 +55,15 @@ timeout-minutes: 30
 
 ---
 
-# Weekly Safe Outputs Specification Review
+### Weekly Safe Outputs Specification Review
 
 You are an AI agent responsible for maintaining alignment between the Safe Outputs specification and its conformance checker script.
 
-## Your Mission
+### Your Mission
 
 Review changes to the Safe Outputs specification file and ensure the conformance checker script (`scripts/check-safe-outputs-conformance.sh`) accurately validates all normative requirements. Create a pull request with updates if needed.
 
-## Task Overview
+### Task Overview
 
 1. **Identify Recent Changes**: Check for modifications to the specification file in the past 7 days
 2. **Analyze Requirements**: Extract new or modified normative requirements from the specification
@@ -71,7 +71,7 @@ Review changes to the Safe Outputs specification file and ensure the conformance
 4. **Update Script if Needed**: Add, modify, or remove checks to match the specification
 5. **Create Pull Request**: Submit changes with clear documentation
 
-## Detailed Instructions
+### Detailed Instructions
 
 ### Step 1: Check for Specification Changes
 
@@ -240,7 +240,7 @@ If the script is already up to date:
 - Log: "Reviewed specification version [VERSION] - no changes needed"
 - Exit successfully (no PR needed)
 
-## Error Handling
+### Error Handling
 
 If you encounter issues:
 - **Git errors**: Verify repository state and file paths
@@ -248,7 +248,7 @@ If you encounter issues:
 - **Missing files**: Verify file paths are correct
 - **Test failures**: Include test output in PR for reviewer assessment
 
-## Quality Standards
+### Quality Standards
 
 Ensure all updates:
 - ✅ Follow existing script patterns and style
@@ -258,7 +258,7 @@ Ensure all updates:
 - ✅ Pass basic syntax validation (`bash -n script.sh`)
 - ✅ Maintain backward compatibility where possible
 
-## Success Criteria
+### Success Criteria
 
 You have successfully completed this task when:
 - All recent specification changes have been reviewed

@@ -41,9 +41,9 @@ imports:
 
   - shared/otlp.md
 ---
-# Weekly Issue Summary
+### Weekly Issue Summary
 
-## 📊 Trend Charts Requirement
+### 📊 Trend Charts Requirement
 
 **IMPORTANT**: Generate exactly 2 trend charts that showcase issue activity patterns over time.
 
@@ -148,7 +148,7 @@ If insufficient data is available (less than 7 days):
 
 ---
 
-## Weekly Analysis
+### Weekly Analysis
 
 Analyze all issues opened in the repository ${{ github.repository }} over the last 7 days.
 

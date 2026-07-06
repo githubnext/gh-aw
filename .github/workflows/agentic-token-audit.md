@@ -76,17 +76,17 @@ timeout-minutes: 25
 source: githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473
 ---
 
-# Daily Agentic Workflow AIC Usage Audit
+### Daily Agentic Workflow AIC Usage Audit
 
 You are the Agentic Workflow AIC Auditor — a workflow that tracks daily AI Credit (AIC) consumption across all agentic workflows in this repository and maintains a historical record for trend analysis.
 
-## Mission
+### Mission
 
 1. Parse the pre-downloaded agentic workflow logs and compute per-workflow AIC usage metrics.
 2. Persist today's snapshot to repo-memory so the optimizer (and future runs of this audit) can read historical data.
 3. Publish a concise audit issue summarizing today's usage and trend highlights.
 
-## Data Sources
+### Data Sources
 
 ### Pre-downloaded logs
 
@@ -127,7 +127,7 @@ Each element of `.runs` is a `RunData` object with (among others):
 
 Previous snapshots live at `/tmp/gh-aw/repo-memory/default/`. Each daily snapshot is stored as a JSON file named `YYYY-MM-DD.json` with the schema below.
 
-## Phase 1 — Process Logs
+### Phase 1 — Process Logs
 
 Write a Python script to `/tmp/gh-aw/token-audit/process_audit.py` and run it. The script must:
 
@@ -167,7 +167,7 @@ Write a Python script to `/tmp/gh-aw/token-audit/process_audit.py` and run it. T
 
 Use `aic` as the primary cost metric and treat null/missing `aic` as `0`.
 
-## Phase 2 — Persist Snapshot to Repo-Memory
+### Phase 2 — Persist Snapshot to Repo-Memory
 
 1. Read the snapshot from `/tmp/gh-aw/token-audit/audit_snapshot.json`.
 2. Copy it to `/tmp/gh-aw/repo-memory/default/YYYY-MM-DD.json` (today's UTC date).
@@ -182,7 +182,7 @@ Do not append a synthetic zero-valued entry to `rolling-summary.json` when eithe
 
 Report those two cases differently in the issue as described below so the empty-window diagnosis stays precise while the historical trend remains unchanged.
 
-## Phase 3 — Generate Charts
+### Phase 3 — Generate Charts
 
 Create up to two chart images in `/tmp/gh-aw/token-audit/charts/` using Python, `matplotlib`, and `seaborn` with `whitegrid` styling:
 
@@ -201,7 +201,7 @@ Chart requirements:
 - In the issue template below, replace `UPLOAD_URL_TREND_PLACEHOLDER` with the URL returned for `token_trend.png`.
 - If a chart is skipped, omit that image markdown line entirely instead of leaving a placeholder behind.
 
-## Phase 4 — Publish Audit Issue
+### Phase 4 — Publish Audit Issue
 
 Create an issue with these sections:
 
@@ -255,7 +255,7 @@ Summarize AIC changes from `rolling-summary.json` when historical data is availa
 **Data snapshot**: `memory/token-audit/YYYY-MM-DD.json`
 ```
 
-## Important Notes
+### Important Notes
 
 - Use `// 0` (null coalescing) in jq and `.get(field, 0)` in Python for nullable numeric fields.
 - Distinguish between these two cases in the issue:
@@ -267,7 +267,7 @@ Summarize AIC changes from `rolling-summary.json` when historical data is availa
 - Do not claim the raw log file was empty unless you verified `len(runs) == 0` (or `jq '.runs | length' == 0`).
 - Keep the issue concise — the optimizer workflow will do the deep analysis.
 
-## Experiment OTEL Span Attributes
+### Experiment OTEL Span Attributes
 
 If the file `/tmp/gh-aw/experiments/assignments.json` exists, read it and emit one OTEL span
 attribute per experiment using the `otlp.cjs` `logSpan` helper:

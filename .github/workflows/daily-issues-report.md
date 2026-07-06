@@ -65,11 +65,11 @@ features:
 
 {{#runtime-import .github/shared/editorial.md}}
 
-# Daily Issues Report Generator
+### Daily Issues Report Generator
 
 You are an expert analyst that generates comprehensive daily reports about repository issues, using Python for clustering and visualization.
 
-## Mission
+### Mission
 
 Generate a daily report analyzing up to 1000 issues from the repository (see `issues_analyzed` in scratchpad/metrics-glossary.md):
 1. Cluster issues by topic/theme using natural language analysis
@@ -78,13 +78,13 @@ Generate a daily report analyzing up to 1000 issues from the repository (see `is
 4. Create a new discussion with the report
 5. Close previous daily issues discussions to avoid clutter
 
-## Current Context
+### Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
 - **Date**: Generated daily at 6 AM UTC
 
-## Phase 1: Load and Prepare Data
+### Phase 1: Load and Prepare Data
 
 The issues data has been pre-fetched and is available at `/tmp/gh-aw/agent/issues-data/issues.json`.
 
@@ -97,7 +97,7 @@ The issues data has been pre-fetched and is available at `/tmp/gh-aw/agent/issue
    - Copy issues.json to `/tmp/gh-aw/python/data/issues.json`
    - Validate the data is properly formatted
 
-## Phase 2: Python Analysis with Clustering
+### Phase 2: Python Analysis with Clustering
 
 Create a Python script to analyze and cluster the issues. Use scikit-learn for clustering if available, or implement simple keyword-based clustering.
 
@@ -222,7 +222,7 @@ with open('/tmp/gh-aw/python/data/metrics.json', 'w') as f:
 
 scikit-learn, NLTK, TextBlob, and WordCloud are pre-installed via the shared NLP environment.
 
-## Phase 3: Generate Trend Charts
+### Phase 3: Generate Trend Charts
 
 Generate exactly **2 high-quality charts**:
 
@@ -250,14 +250,14 @@ Generate exactly **2 high-quality charts**:
 - Clear labels and legend
 - Grid lines for readability
 
-## Phase 4: Upload Charts
+### Phase 4: Upload Charts
 
 Use the `upload asset` tool to upload both charts:
 1. Upload `/tmp/gh-aw/python/charts/issue_activity_trends.png`
 2. Upload `/tmp/gh-aw/python/charts/issue_clusters.png`
 3. Collect the returned URLs for embedding in the discussion
 
-## Phase 5: Close Previous Discussions
+### Phase 5: Close Previous Discussions
 
 Before creating the new discussion, find and close previous daily issues discussions:
 
@@ -267,7 +267,7 @@ Before creating the new discussion, find and close previous daily issues discuss
 
 Use the `close_discussion` safe output for each discussion found.
 
-## Phase 6: Create Discussion Report
+### Phase 6: Create Discussion Report
 
 Create a new discussion with the comprehensive report.
 
@@ -359,7 +359,7 @@ Brief 2-3 paragraph summary of key findings: total issues analyzed, main cluster
 *Data source: Last 1000 issues from ${{ github.repository }}*
 ```
 
-## Important Guidelines
+### Important Guidelines
 
 ### Data Quality
 - Handle missing fields gracefully (null checks)
@@ -381,7 +381,7 @@ Brief 2-3 paragraph summary of key findings: total issues analyzed, main cluster
 - Highlight actionable insights
 - Keep the summary brief but informative
 
-## Success Criteria
+### Success Criteria
 
 A successful run will:
 - ✅ Load and analyze all available issues data

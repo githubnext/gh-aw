@@ -46,17 +46,17 @@ safe-outputs:
 
 ---
 
-# Weekly Editors Health Check
+### Weekly Editors Health Check
 
 Monitor the health of all workflow editors listed in the documentation and keep their preview screenshots up to date.
 
 **Repository**: ${{ github.repository }} | **Run**: ${{ github.run_id }}
 
-## Editors to Check
+### Editors to Check
 
 The editors are documented in `docs/src/content/docs/reference/editors.mdx`.
 
-## Process
+### Process
 
 ### Step 0: Discover Editors
 
@@ -137,7 +137,7 @@ Example body (rows reflect whatever editors were discovered in Step 0):
 </details>
 ```
 
-## Error Handling
+### Error Handling
 
 - If a URL is unreachable (non-200 status or connection error), skip the screenshot step for that editor but still include the editor in the PR body with its error status.
 - If a screenshot cannot be taken (Playwright error), log the error and continue with the remaining editors.
