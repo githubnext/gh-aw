@@ -58,9 +58,8 @@ type PolicyCondition struct {
 	Org      string `json:"org,omitempty"`
 }
 
-// PolicyCompiler compiles a set of rules into an ExecutionPolicy for a given intent.
-// Rules are sorted by scope precedence (organization > repository > intent > workflow)
-// before merging; within the same scope, declaration order is preserved.
+// PolicyCompiler holds policy rules for callers that still exchange policy compiler
+// configuration data.
 //
 // WARNING: the compiled policy is advisory only. Runtime enforcement is not yet
 // wired to the orchestrator — see the intent-attribution-agent-governance spec for

@@ -1,22 +1,10 @@
 package workflow
 
-import (
-	"os"
-	"sync"
-)
-
-type envLookupFunc func(string) (string, bool)
-
-var (
-	processEnvLookupMu sync.RWMutex
-	processEnvLookup   envLookupFunc = os.LookupEnv
-)
+import "os"
 
 func lookupProcessEnv(key string) string {
-	processEnvLookupMu.RLock()
-	defer processEnvLookupMu.RUnlock()
 	// Intentionally ignore the existence flag to preserve os.Getenv semantics:
 	// missing variables and explicitly empty variables are both treated as "".
-	value, _ := processEnvLookup(key)
+	value, _ := os.LookupEnv(key)
 	return value
 }
