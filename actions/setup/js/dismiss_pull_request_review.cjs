@@ -29,22 +29,67 @@ function getEffectiveActor() {
  */
 function findLatestDismissibleReviewForActor(reviews, expectedAuthor) {
   if (!Array.isArray(reviews) || !expectedAuthor) return null;
-  const actor = expectedAuthor.toLowerCase();
+  const expectedAuthorLower = expectedAuthor.toLowerCase();
   const dismissibleStates = new Set(["CHANGES_REQUESTED", "APPROVED"]);
+  const getSubmittedAtTimestamp = review => {
+    if (typeof review?.submitted_at !== "string") return -1;
+    const parsed = Date.parse(review.submitted_at);
+    // Invalid/missing timestamps use -1 as a sentinel so they sort as older
+    // than valid submitted_at values. Deterministic ordering is preserved by
+    // the ID tie-breaker below.
+    return Number.isFinite(parsed) ? parsed : -1;
+  };
   return (
     reviews
       .filter(review => {
         const login = typeof review?.user?.login === "string" ? review.user.login.trim().toLowerCase() : "";
         const state = typeof review?.state === "string" ? review.state.trim().toUpperCase() : "";
-        return login === actor && dismissibleStates.has(state);
+        return login === expectedAuthorLower && dismissibleStates.has(state);
       })
       .sort((a, b) => {
-        const aTime = Date.parse(a?.submitted_at || "") || 0;
-        const bTime = Date.parse(b?.submitted_at || "") || 0;
+        const aTime = getSubmittedAtTimestamp(a);
+        const bTime = getSubmittedAtTimestamp(b);
         if (aTime !== bTime) return bTime - aTime;
         return Number(b?.id || 0) - Number(a?.id || 0);
       })[0] || null
   );
+}
+
+/**
+ * @param {any} pullRequest
+ * @returns {boolean}
+ */
+function hasNoRequestedReviewersOrTeams(pullRequest) {
+  const hasNoRequestedReviewers = Array.isArray(pullRequest?.requested_reviewers) && pullRequest.requested_reviewers.length === 0;
+  const hasNoRequestedTeams = Array.isArray(pullRequest?.requested_teams) && pullRequest.requested_teams.length === 0;
+  return hasNoRequestedReviewers && hasNoRequestedTeams;
+}
+
+/**
+ * @param {any} githubClient
+ * @param {string} owner
+ * @param {string} repo
+ * @param {number} pullRequestNumber
+ * @returns {Promise<any[]>}
+ */
+async function listAllPullRequestReviews(githubClient, owner, repo, pullRequestNumber) {
+  const all = [];
+  const maxPages = 10;
+  let page = 1;
+  while (page <= maxPages) {
+    const { data } = await githubClient.rest.pulls.listReviews({
+      owner,
+      repo,
+      pull_number: pullRequestNumber,
+      per_page: 100,
+      page,
+    });
+    if (!Array.isArray(data) || data.length === 0) break;
+    all.push(...data);
+    if (data.length < 100) break;
+    page++;
+  }
+  return all;
 }
 
 /**
@@ -142,25 +187,19 @@ async function main(config = {}) {
 
     try {
       if (useAutoReviewId) {
-        const [{ data: pullRequest }, { data: reviews }] = await Promise.all([
+        const [{ data: pullRequest }, reviews] = await Promise.all([
           githubClient.rest.pulls.get({
             owner,
             repo,
             pull_number: pullRequestNumber,
           }),
-          githubClient.rest.pulls.listReviews({
-            owner,
-            repo,
-            pull_number: pullRequestNumber,
-            per_page: 100,
-          }),
+          listAllPullRequestReviews(githubClient, owner, repo, pullRequestNumber),
         ]);
 
         const autoReview = findLatestDismissibleReviewForActor(reviews, expectedAuthor);
         if (!autoReview || !Number.isInteger(autoReview.id) || autoReview.id <= 0) {
-          const noRequestedReviewers = Array.isArray(pullRequest?.requested_reviewers) && pullRequest.requested_reviewers.length === 0 && Array.isArray(pullRequest?.requested_teams) && pullRequest.requested_teams.length === 0;
-          const reviewRequiredBlockedState = noRequestedReviewers && pullRequest?.mergeable_state === "blocked";
-          if (reviewRequiredBlockedState) {
+          const isBlockedWithoutReviewers = hasNoRequestedReviewersOrTeams(pullRequest) && pullRequest?.mergeable_state === "blocked";
+          if (isBlockedWithoutReviewers) {
             return {
               success: false,
               error: "detected a degenerate review-required state (PR is blocked but has no requested reviewers/teams); no dismissible actor-authored review was found",

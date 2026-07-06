@@ -192,4 +192,117 @@ describe("dismiss_pull_request_review", () => {
     expect(result.error).toContain("degenerate review-required state");
     expect(mockDismissReview).not.toHaveBeenCalled();
   });
+
+  it("returns actor-specific error when review_id=auto finds no reviews by current actor", async () => {
+    mockListReviews.mockResolvedValueOnce({
+      data: [
+        {
+          id: 900,
+          state: "CHANGES_REQUESTED",
+          submitted_at: "2026-07-03T00:00:00Z",
+          user: { login: "octocat" },
+        },
+      ],
+    });
+
+    const result = await handler({
+      type: "dismiss_pull_request_review",
+      review_id: "auto",
+      justification: "This stale review no longer reflects the updated implementation.",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("did not find a dismissible review authored by github-actions[bot]");
+    expect(mockDismissReview).not.toHaveBeenCalled();
+  });
+
+  it("paginates reviews when resolving review_id=auto", async () => {
+    const firstPage = Array.from({ length: 100 }, (_, i) => ({
+      id: i + 1,
+      state: "COMMENTED",
+      submitted_at: "2026-07-01T00:00:00Z",
+      user: { login: "octocat" },
+    }));
+    mockListReviews.mockResolvedValueOnce({ data: firstPage }).mockResolvedValueOnce({
+      data: [
+        {
+          id: 1001,
+          state: "APPROVED",
+          submitted_at: "2026-07-04T00:00:00Z",
+          user: { login: "github-actions[bot]" },
+        },
+      ],
+    });
+    mockGetReview.mockResolvedValueOnce({
+      data: {
+        html_url: "https://github.com/test-owner/test-repo/pull/42#pullrequestreview-1001",
+        user: { login: "github-actions[bot]" },
+      },
+    });
+
+    const result = await handler({
+      type: "dismiss_pull_request_review",
+      review_id: "auto",
+      justification: "This stale review no longer reflects the updated implementation.",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockListReviews).toHaveBeenCalledTimes(2);
+    expect(mockDismissReview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        review_id: 1001,
+      })
+    );
+  });
+
+  it("uses GITHUB_ACTOR for review_id=auto actor matching", async () => {
+    process.env.GITHUB_ACTOR = "custom-bot";
+    const { main } = require("./dismiss_pull_request_review.cjs");
+    handler = await main({ max: 10 });
+
+    mockListReviews.mockResolvedValueOnce({
+      data: [
+        {
+          id: 777,
+          state: "APPROVED",
+          submitted_at: "2026-07-04T00:00:00Z",
+          user: { login: "custom-bot" },
+        },
+      ],
+    });
+    mockGetReview.mockResolvedValueOnce({
+      data: {
+        html_url: "https://github.com/test-owner/test-repo/pull/42#pullrequestreview-777",
+        user: { login: "custom-bot" },
+      },
+    });
+
+    const result = await handler({
+      type: "dismiss_pull_request_review",
+      review_id: "auto",
+      justification: "This stale review no longer reflects the updated implementation.",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockDismissReview).toHaveBeenCalledWith(expect.objectContaining({ review_id: 777 }));
+  });
+
+  it("caps review pagination to avoid excessive API calls", async () => {
+    const pageData = Array.from({ length: 100 }, (_, i) => ({
+      id: i + 1,
+      state: "COMMENTED",
+      submitted_at: "2026-07-01T00:00:00Z",
+      user: { login: "octocat" },
+    }));
+    mockListReviews.mockImplementation(() => Promise.resolve({ data: pageData }));
+
+    const result = await handler({
+      type: "dismiss_pull_request_review",
+      review_id: "auto",
+      justification: "This stale review no longer reflects the updated implementation.",
+    });
+
+    expect(result.success).toBe(false);
+    expect(mockListReviews).toHaveBeenCalledTimes(10);
+  });
 });
