@@ -9,6 +9,7 @@
       "category": "S-CORE",
       "requirement": "§6.1 S-CORE-1",
       "function": "splitOnPipelineOperators",
+      "note": "Intentionally includes a literal newline to cover the top-level newline split case in the minimal suite.",
       "input": "echo a && printf b || cat file | sed 's/x/y/' ; pwd\necho done",
       "expected": ["echo a", "printf b", "cat file", "sed 's/x/y/'", "pwd", "echo done"]
     },

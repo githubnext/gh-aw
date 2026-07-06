@@ -9,6 +9,7 @@
       "category": "R-CORE",
       "requirement": "§6.1 R-CORE-1",
       "function": "splitOnPipelineOperators",
+      "note": "Intentionally contains an unterminated double quote to verify malformed-input tolerance without throwing.",
       "input": "echo \"unterminated && text",
       "expected": ["echo \"unterminated && text"],
       "nonThrowing": true
