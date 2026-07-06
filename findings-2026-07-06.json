@@ -1,0 +1,40 @@
+{
+  "date": "2026-07-06",
+  "files_analyzed": {
+    "documentation": [
+      "docs/src/content/docs/reference/cross-repository.md",
+      "docs/src/content/docs/blog/2026-01-13-meet-the-workflows-continuous-simplicity.md"
+    ],
+    "cli": [],
+    "messages": [
+      ".github/workflows/outcome-collector.md",
+      ".github/workflows/necromancer.md"
+    ],
+    "validation": [
+      "pkg/workflow/permissions_validation.go"
+    ]
+  },
+  "overall_quality": "needs-minor-work",
+  "quality_highlights": [
+    {
+      "file": "docs/src/content/docs/reference/cross-repository.md",
+      "aspect": "Comprehensive reference with three clearly delineated feature categories, working YAML examples for every major use case, :::note admonition for safe-output limitation, and a full Related Documentation footer."
+    },
+    {
+      "file": "pkg/workflow/permissions_validation.go",
+      "aspect": "formatMissingPermissionsMessage provides two distinct resolution paths (add permissions vs reduce toolsets) with concrete YAML examples and a docs URL - textbook enterprise error design."
+    }
+  ],
+  "single_file_improvements": [
+    {
+      "file": "pkg/workflow/permissions_validation.go",
+      "priority": "high",
+      "issue": "ValidateIncludedPermissions error message (line 338) opens with redundant 'ERROR:' prefix and follows with vague 'The permission set must be explicitly declared' - misleading because 'permission set' implies ALL permissions, not just the missing ones."
+    },
+    {
+      "file": ".github/workflows/necromancer.md",
+      "priority": "medium",
+      "issue": "run-started message 'is exhuming regressions for this {event_type}...' uses thematic language that misrepresents the activity (exhume = dig up corpse; the workflow investigates future regression risk, not existing regressions). Confusing to PR reviewers unfamiliar with the zombie theme."
+    }
+  ]
+}

@@ -1,6 +1,12 @@
 {
-  "last_updated": "2026-07-05",
+  "last_updated": "2026-07-06",
   "pending_tasks": [
+    {
+      "file": "pkg/workflow/permissions_validation.go",
+      "created": "2026-07-06",
+      "priority": "high",
+      "title": "Rewrite ValidateIncludedPermissions error header (line 338): remove 'ERROR:' prefix and clarify 'imported workflows require additional permissions not declared in the main workflow'"
+    },
     {
       "file": "docs/src/content/docs/reference/rate-limiting-controls.md",
       "created": "2026-07-05",
