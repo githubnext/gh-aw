@@ -31,8 +31,8 @@ func (c *Compiler) buildEvalsJob(data *WorkflowData) (*Job, error) {
 	}
 
 	// Download agent output artifact to access output files (prompt.txt, agent_output.json).
-	// Use agent-downstream prefix since this job depends on the agent job (via safe_outputs).
-	agentArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
+	// Use activation-derived prefix since this job always depends on activation.
+	agentArtifactPrefix := artifactPrefixExprForDownstreamJob(data)
 	steps = append(steps, buildAgentOutputDownloadSteps(agentArtifactPrefix, c.getActionPin)...)
 
 	// Download experiment artifact so the evals agent can read the current variant assignments.
