@@ -44,7 +44,6 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 	noLintLinesByFile := nolint.BuildLineIndex(pass, "httpnoctx")
-	ctxType := astutil.ContextContextType(pass)
 
 	for cursor := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
 		call, ok := cursor.Node().(*ast.CallExpr)
@@ -82,7 +81,7 @@ func run(pass *analysis.Pass) (any, error) {
 			}
 		}
 
-		if sel.Sel.Name == "NewRequest" && isHTTPPackage(pass, sel.X) && hasContextInEnclosingFunc(pass, cursor, ctxType) {
+		if sel.Sel.Name == "NewRequest" && isHTTPPackage(pass, sel.X) && hasContextInEnclosingFunc(pass, cursor) {
 			pass.ReportRangef(call,
 				"http.NewRequest does not propagate context; use http.NewRequestWithContext when context.Context is in scope",
 			)
@@ -134,11 +133,7 @@ func isHTTPPackage(pass *analysis.Pass, expr ast.Expr) bool {
 	return pkgName.Imported().Path() == "net/http"
 }
 
-func hasContextInEnclosingFunc(pass *analysis.Pass, cursor inspector.Cursor, ctxType types.Type) bool {
-	if ctxType == nil {
-		return false
-	}
-
+func hasContextInEnclosingFunc(pass *analysis.Pass, cursor inspector.Cursor) bool {
 	for enclosing := range cursor.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
 		fnType := astutil.EnclosingFuncType(enclosing.Node())
 		if fnType == nil || fnType.Params == nil {

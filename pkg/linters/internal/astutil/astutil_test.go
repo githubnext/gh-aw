@@ -1,3 +1,5 @@
+//go:build !integration
+
 package astutil
 
 import (
@@ -211,6 +213,12 @@ func TestContextHelpers(t *testing.T) {
 		t.Fatalf("ContextParamName() = (%q, %v), want (%q, true)", name, ok, "ctx")
 	}
 
+	// blank identifier: a context param named "_" should not be found.
+	passWithBlank, fnTypeWithBlank := makePassWithFuncType(true, "_")
+	if _, ok := ContextParamName(passWithBlank, fnTypeWithBlank); ok {
+		t.Fatal("ContextParamName() = ok=true for blank-identifier param, want false")
+	}
+
 	passWithoutContext, fnTypeWithoutContext := makePassWithFuncType(false, "ctx")
 	if got := ContextContextType(passWithoutContext); got != nil {
 		t.Fatalf("ContextContextType() = %#v, want nil without context import", got)
@@ -249,6 +257,14 @@ func TestCalledOSFunc(t *testing.T) {
 	pass.TypesInfo.Uses[selIdent] = otherFunc
 	if _, ok := CalledOSFunc(pass, call); ok {
 		t.Fatal("CalledOSFunc() = ok=true for non-os package, want false")
+	}
+
+	// direct *ast.Ident call (e.g. via dot-import): CalledOSFunc resolves Uses on the Ident.
+	directIdent := ast.NewIdent("Getenv")
+	pass.TypesInfo.Uses[directIdent] = osFunc
+	directCall := &ast.CallExpr{Fun: directIdent}
+	if fn, ok := CalledOSFunc(pass, directCall, "Getenv"); !ok || fn != osFunc {
+		t.Fatalf("CalledOSFunc() direct ident = (%#v, %v), want (%#v, true)", fn, ok, osFunc)
 	}
 }
 
