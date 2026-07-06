@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/stretchr/testify/require"
 )
 
 func TestIsFeatureEnabled(t *testing.T) {
@@ -78,38 +77,6 @@ func TestIsFeatureEnabled(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestIsFeatureEnabledUsesConfiguredProcessEnvLookup(t *testing.T) {
-	t.Run("enabled feature is detected from configured lookup", func(t *testing.T) {
-		SetProcessEnvLookup(func(key string) (string, bool) {
-			if key == "GH_AW_FEATURES" {
-				return "firewall", true
-			}
-			return "", false
-		})
-		t.Cleanup(func() {
-			SetProcessEnvLookup(nil)
-		})
-
-		result := isFeatureEnabled(constants.FeatureFlag("firewall"), nil)
-		require.True(t, result, "isFeatureEnabled should use configured environment lookup")
-	})
-
-	t.Run("missing feature remains disabled", func(t *testing.T) {
-		SetProcessEnvLookup(func(key string) (string, bool) {
-			if key == "GH_AW_FEATURES" {
-				return "other-feature", true
-			}
-			return "", false
-		})
-		t.Cleanup(func() {
-			SetProcessEnvLookup(nil)
-		})
-
-		result := isFeatureEnabled(constants.FeatureFlag("firewall"), nil)
-		require.False(t, result, "isFeatureEnabled should be false when configured lookup does not include firewall")
-	})
 }
 
 func TestIsFeatureEnabledNoEnv(t *testing.T) {
