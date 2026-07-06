@@ -127,8 +127,11 @@ func TestSleepWithContextTimerFires(t *testing.T) {
 
 func TestSleepWithContextNilContext(t *testing.T) {
 	var nilCtx context.Context
+	start := time.Now()
 	err := sleepWithContext(nilCtx, 2*time.Millisecond)
+	elapsed := time.Since(start)
 	require.NoError(t, err, "nil context should fall back to background context")
+	assert.Less(t, elapsed, time.Second, "nil context should not block longer than timer duration")
 }
 
 func TestCheckAndWaitForRateLimitContextCancelled(t *testing.T) {
@@ -153,7 +156,7 @@ func TestCheckAndWaitForRateLimitContextCancelled(t *testing.T) {
 	assert.Less(t, elapsed, 100*time.Millisecond, "cancelled context should interrupt rate-limit wait promptly")
 }
 
-func TestCheckAndWaitForRateLimitFetchErrorAndCancelledContext(t *testing.T) {
+func TestCheckAndWaitForRateLimitFetchErrorAndCanceledContext(t *testing.T) {
 	oldFetchRateLimitFunc := fetchRateLimitFunc
 	expectedFetchErr := stderrors.New("fetch failure")
 	fetchRateLimitFunc = func() (rateLimitResource, error) {
