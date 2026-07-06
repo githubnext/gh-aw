@@ -33,6 +33,10 @@ describe("require-error-cause-in-rethrow", () => {
         `try { doSomething(); } catch (err) { throw new Error(\`Outer: \${err.message}\`, { cause: err }); }`,
         // Nested function inside catch — should NOT flag (deferred execution boundary)
         `try { doSomething(); } catch (err) { const fn = function() { throw new Error(\`msg: \${getErrorMessage(err)}\`); }; }`,
+        // Nested arrow function inside catch — should NOT flag (deferred execution boundary)
+        `try { doSomething(); } catch (err) { const fn = () => { throw new Error(\`msg: \${getErrorMessage(err)}\`); }; }`,
+        // Constructing Error without throw is not a rethrow
+        `try { doSomething(); } catch (err) { const e = new Error(\`msg: \${getErrorMessage(err)}\`); log(e); }`,
       ],
       invalid: [],
     });
@@ -114,6 +118,22 @@ describe("require-error-cause-in-rethrow", () => {
                 {
                   messageId: "addCause",
                   output: `try { doSomething(); } catch (err) { throw new Error(\`Failed: \${err}\`, { cause: err }); }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          // Catch var reference via member access in message
+          code: `try { doSomething(); } catch (err) { throw new Error(\`Failed: \${err.message}\`); }`,
+          errors: [
+            {
+              messageId: "missingCause",
+              data: { catchVar: "err" },
+              suggestions: [
+                {
+                  messageId: "addCause",
+                  output: `try { doSomething(); } catch (err) { throw new Error(\`Failed: \${err.message}\`, { cause: err }); }`,
                 },
               ],
             },

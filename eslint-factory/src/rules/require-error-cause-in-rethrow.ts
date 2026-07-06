@@ -45,6 +45,12 @@ function expressionReferencesCatchVar(node: TSESTree.Expression, varName: string
     const leftResult = left.type !== AST_NODE_TYPES.PrivateIdentifier && expressionReferencesCatchVar(left, varName);
     return leftResult || expressionReferencesCatchVar(right, varName);
   }
+  if (node.type === AST_NODE_TYPES.MemberExpression) {
+    if (node.object.type !== AST_NODE_TYPES.Super && expressionReferencesCatchVar(node.object, varName)) return true;
+    if (node.computed) {
+      return expressionReferencesCatchVar(node.property as TSESTree.Expression, varName);
+    }
+  }
   return false;
 }
 
@@ -79,11 +85,8 @@ export const requireErrorCauseInRethrowRule = createRule({
     },
     schema: [],
     messages: {
-      missingCause:
-        "`new Error(...)` inside catch({{catchVar}}) references {{catchVar}} but omits `{ cause: {{catchVar}} }` — the original stack trace will be lost. " +
-        "Add `{ cause: {{catchVar}} }` as the second argument.",
-      addCause:
-        "Add `{ cause: {{catchVar}} }` as the second argument to preserve the original error chain.",
+      missingCause: "`new Error(...)` inside catch ({{catchVar}}) references {{catchVar}} but omits `{ cause: {{catchVar}} }` — the original stack trace will be lost. " + "Add `{ cause: {{catchVar}} }` as the second argument.",
+      addCause: "Add `{ cause: {{catchVar}} }` as the second argument to preserve the original error chain.",
     },
   },
   defaultOptions: [],
@@ -116,7 +119,7 @@ export const requireErrorCauseInRethrowRule = createRule({
       // protects the node (deferred execution).
       for (let i = ancestors.length - 1; i >= 0; i--) {
         const a = ancestors[i];
-        if (a.type === AST_NODE_TYPES.FunctionDeclaration || a.type === AST_NODE_TYPES.FunctionExpression) {
+        if (a.type === AST_NODE_TYPES.FunctionDeclaration || a.type === AST_NODE_TYPES.FunctionExpression || a.type === AST_NODE_TYPES.ArrowFunctionExpression) {
           // Crossed a function boundary — outer catch no longer in scope for execution
           return false;
         }
@@ -143,6 +146,8 @@ export const requireErrorCauseInRethrowRule = createRule({
       },
 
       NewExpression(node) {
+        if (node.parent?.type !== AST_NODE_TYPES.ThrowStatement || node.parent.argument !== node) return;
+
         // Only flag `new Error(...)` — not subclasses like `new TypeError(...)`.
         const callee = node.callee;
         if (callee.type !== AST_NODE_TYPES.Identifier || callee.name !== "Error") return;
