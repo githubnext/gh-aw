@@ -286,12 +286,12 @@ describe("log_parser_shared.cjs", () => {
         formatInitCallback,
       });
 
-      expect(result.markdown).toContain("## 🚀 Initialization");
+      expect(result.markdown).toContain("<summary>Initialization</summary>");
       expect(result.markdown).toContain("Model: test-model");
-      expect(result.markdown).toContain("## 🤖 Reasoning");
+      expect(result.markdown).toContain("<summary>Reasoning</summary>");
       expect(result.markdown).toContain("Let me help with that.");
       expect(result.markdown).toContain("Tool: Bash");
-      expect(result.markdown).toContain("## 🤖 Commands and Tools");
+      expect(result.markdown).toContain("<summary>Commands and Tools</summary>");
       expect(result.commandSummary).toHaveLength(1);
       expect(result.commandSummary[0]).toContain("✅");
       expect(result.commandSummary[0]).toContain("echo hello");
@@ -305,8 +305,8 @@ describe("log_parser_shared.cjs", () => {
         formatInitCallback: () => "",
       });
 
-      expect(result.markdown).toContain("## 🤖 Reasoning");
-      expect(result.markdown).toContain("## 🤖 Commands and Tools");
+      expect(result.markdown).toContain("<summary>Reasoning</summary>");
+      expect(result.markdown).toContain("<summary>Commands and Tools</summary>");
       expect(result.markdown).toContain("No commands or tools used.");
       expect(result.commandSummary).toHaveLength(0);
     });
@@ -375,7 +375,7 @@ describe("log_parser_shared.cjs", () => {
 
       const result = generateInformationSection(lastEntry);
 
-      expect(result).toContain("## 📊 Information");
+      expect(result).toContain("<summary>Information</summary>");
       expect(result).toContain("**Turns:** 5");
       expect(result).toContain("**Duration:** 2m 5s");
       expect(result).toContain("**Total Cost:** $0.0123");
@@ -475,7 +475,8 @@ describe("log_parser_shared.cjs", () => {
 
       const result = generateInformationSection(null);
 
-      expect(result).toBe("\n## 📊 Information\n\n");
+      expect(result).toContain("<summary>Information</summary>");
+      expect(result).toContain("No information available.");
     });
   });
 
