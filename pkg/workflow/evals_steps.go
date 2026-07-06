@@ -322,9 +322,9 @@ await main();`
 }
 
 // buildUploadEvalsArtifactStep creates the step that uploads evals.jsonl as the
-// evals artifact so it can be downloaded by the push_evals job.
+// evals artifact for downstream consumption.
 func (c *Compiler) buildUploadEvalsArtifactStep(data *WorkflowData) []string {
-	evalsArtifactName := artifactPrefixExprForAgentDownstreamJob(data) + constants.EvalsArtifactName
+	evalsArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.EvalsArtifactName
 	return []string{
 		"      - name: Upload evals results\n",
 		"        if: always()\n",
@@ -394,7 +394,12 @@ func jsonStringLiteral(s string) string {
 		case '\t':
 			sb.WriteString(`\t`)
 		default:
-			sb.WriteRune(r)
+			// Escape control characters (< 0x20) that JSON doesn't allow
+			if r < 0x20 {
+				fmt.Fprintf(&sb, `\u%04x`, r)
+			} else {
+				sb.WriteRune(r)
+			}
 		}
 	}
 	sb.WriteByte('"')

@@ -26,6 +26,7 @@ var runtimeFeaturesBuiltInJobNames = map[string]struct{}{
 	string(constants.ActivationJobName):         {},
 	string(constants.PreActivationJobName):      {},
 	string(constants.DetectionJobName):          {},
+	string(constants.EvalsJobName):              {},
 	string(constants.SafeOutputsJobName):        {},
 	string(constants.UploadAssetsJobName):       {},
 	string(constants.UploadCodeScanningJobName): {},
