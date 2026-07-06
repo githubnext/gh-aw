@@ -945,7 +945,7 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
           normalizedEntries.push({
             type: "assistant",
             message: {
-              content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: buildToolInput(data) }],
+              content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: {} }],
             },
           });
         }
