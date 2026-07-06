@@ -56,7 +56,7 @@ gh extension install github/gh-aw
 
 ### Step 2 - Add the sample workflow and trigger a run
 
-`add-wizard` accepts workflow references in `<owner>/<repo>/<workflow-name>` format. In this guide, `githubnext/agentics` is the public [githubnext/agentics](https://github.com/githubnext/agentics) examples repository, and `daily-repo-status` is one of the sample workflows it publishes.
+`add-wizard` accepts workflow references in `<owner>/<repo>/<workflow-name>` format. In this guide, `githubnext/agentics` is the public [githubnext/agentics](https://github.com/githubnext/agentics) examples repository, and `daily-repo-status` is one of the sample workflows it publishes. Use `gh aw add-wizard` for guided interactive setup; use [`gh aw add`](/gh-aw/setup/cli/#add) when you want the non-interactive add command instead.
 
 From your repository root, run one of these commands:
 
@@ -71,7 +71,7 @@ gh aw add-wizard githubnext/agentics/daily-repo-status --engine claude
 > [!IMPORTANT]
 > Passing `--engine claude` pre-selects Claude and skips the interactive engine-selection step (Step 2 below).
 > If you omit the flag, the wizard will ask you to choose.
-> Note: if `engine:` is later removed from the workflow frontmatter manually, the runtime defaults to Copilot.
+> Note: if `engine:` is later removed manually from the workflow frontmatter (the YAML configuration block between the `---` markers at the top of the file), the runtime defaults to Copilot.
 
 This will take you through an interactive process to:
 
