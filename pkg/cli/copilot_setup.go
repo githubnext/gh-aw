@@ -152,14 +152,15 @@ jobs:
       - name: Install gh-aw extension
         run: |
           mkdir -p /tmp/gh-aw
-          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/%s/install-gh-aw.sh -o /tmp/gh-aw/install-gh-aw.sh
-%s          bash /tmp/gh-aw/install-gh-aw.sh
-`, installRef, sha256Line)
+          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/%s/install-gh-aw.sh -o %s
+%s          bash %s
+`, installRef, installScriptTempPath, sha256Line, installScriptTempPath)
 }
 
 // copilotSetupStepsYAML is a static dev-mode template used only for YAML validity tests.
 // The URL is pinned to an immutable commit SHA as a representative example; the runtime
 // function generateCopilotSetupStepsYAML resolves the ref dynamically via ResolveGhAwRef.
+// NOTE: The temp path used here must match the installScriptTempPath constant.
 const copilotSetupStepsYAML = `name: "Copilot Setup Steps"
 
 # This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
