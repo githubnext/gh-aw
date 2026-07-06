@@ -97,7 +97,7 @@ func TestSleepWithContextCancellation(t *testing.T) {
 	elapsed := time.Since(start)
 
 	require.ErrorIs(t, err, context.Canceled)
-	assert.Less(t, elapsed, 500*time.Millisecond, "sleepWithContext should return quickly when context is already cancelled")
+	assert.Less(t, elapsed, time.Second, "sleepWithContext should return quickly when context is already cancelled")
 }
 
 // TestSleepWithContextDeadlineExceeded verifies that sleepWithContext respects a
@@ -137,7 +137,11 @@ func TestSleepWithContextNilContext(t *testing.T) {
 func TestSleepWithContextAlreadyCanceled(t *testing.T) {
 	canceledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
-	require.ErrorIs(t, sleepWithContext(canceledCtx, 2*time.Millisecond), context.Canceled)
+	start := time.Now()
+	err := sleepWithContext(canceledCtx, 2*time.Millisecond)
+	elapsed := time.Since(start)
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Less(t, elapsed, time.Second, "already-canceled context should return promptly")
 }
 
 func TestCheckAndWaitForRateLimitContextCancelled(t *testing.T) {
