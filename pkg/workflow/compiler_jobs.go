@@ -348,6 +348,11 @@ func (c *Compiler) buildMemoryManagementJobs(data *WorkflowData) error {
 		return err
 	}
 
+	// Build push_evals job when evals are declared
+	if err := c.buildPushEvalsJobAndAdd(data); err != nil {
+		return err
+	}
+
 	// Update conclusion job dependencies
 	if err := c.updateConclusionJobDependencies(pushRepoMemoryJobName, updateCacheMemoryJobName, pushExperimentsJobName); err != nil {
 		return err
@@ -436,6 +441,30 @@ func (c *Compiler) buildPushExperimentsStateJobWrapper(data *WorkflowData) (stri
 
 	compilerJobsLog.Printf("Successfully added push_experiments_state job: %s", job.Name)
 	return job.Name, nil
+}
+
+// buildPushEvalsJobAndAdd builds the push_evals job (if evals are declared) and
+// adds it to the job manager.  The conclusion job picks it up via ensureConclusionIsLastJob.
+func (c *Compiler) buildPushEvalsJobAndAdd(data *WorkflowData) error {
+	if !data.Evals.HasEvals() {
+		return nil
+	}
+
+	compilerJobsLog.Print("Building push_evals job")
+	job, err := c.buildPushEvalsJob(data)
+	if err != nil {
+		return fmt.Errorf("failed to build push_evals job: %w", err)
+	}
+	if job == nil {
+		return nil
+	}
+
+	if err := c.jobManager.AddJob(job); err != nil {
+		return fmt.Errorf("failed to add push_evals job: %w", err)
+	}
+
+	compilerJobsLog.Printf("Successfully added push_evals job: %s", job.Name)
+	return nil
 }
 
 // updateConclusionJobDependencies updates the conclusion job to depend on memory management jobs if they exist.
