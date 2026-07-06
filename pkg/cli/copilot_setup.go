@@ -82,8 +82,15 @@ jobs:
 `, actionRepo, actionRef, version)
 	}
 
-	// Default (dev/script mode): download install script to file before executing
-	return `name: "Copilot Setup Steps"
+	// Default (dev/script mode): try to resolve the main branch to a pinned SHA so the
+	// downloaded script is immutable; fall back to the mutable branch ref if unavailable.
+	installRef := "refs/heads/main"
+	if sha, err := workflow.ResolveGhAwRef(ctx, "main"); err == nil && sha != "" {
+		installRef = sha
+	} else {
+		copilotSetupLog.Printf("Could not resolve github/gh-aw main SHA for dev-mode template, falling back to mutable ref: %v", err)
+	}
+	return fmt.Sprintf(`name: "Copilot Setup Steps"
 
 # This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
 on:
@@ -106,11 +113,14 @@ jobs:
       - name: Install gh-aw extension
         run: |
           mkdir -p /tmp/gh-aw
-          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh -o /tmp/gh-aw/install-gh-aw.sh
+          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/%s/install-gh-aw.sh -o /tmp/gh-aw/install-gh-aw.sh
           bash /tmp/gh-aw/install-gh-aw.sh
-`
+`, installRef)
 }
 
+// copilotSetupStepsYAML is a static dev-mode template used only for YAML validity tests.
+// It deliberately uses the mutable branch ref as a fallback; the runtime function
+// generateCopilotSetupStepsYAML resolves the ref to an immutable commit SHA whenever possible.
 const copilotSetupStepsYAML = `name: "Copilot Setup Steps"
 
 # This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
@@ -282,10 +292,16 @@ func renderCopilotSetupUpdateInstructions(ctx context.Context, filePath string, 
 		fmt.Fprintln(os.Stderr, "        with:")
 		fmt.Fprintln(os.Stderr, "          version: "+version)
 	} else {
+		// Dev/script mode: try to resolve main to a pinned SHA so the instructions emit an
+		// immutable URL; fall back to the mutable branch ref if resolution is unavailable.
+		installRef := "refs/heads/main"
+		if sha, err := workflow.ResolveGhAwRef(ctx, "main"); err == nil && sha != "" {
+			installRef = sha
+		}
 		fmt.Fprintln(os.Stderr, "      - name: Install gh-aw extension")
 		fmt.Fprintln(os.Stderr, "        run: |")
 		fmt.Fprintln(os.Stderr, "          mkdir -p /tmp/gh-aw")
-		fmt.Fprintln(os.Stderr, "          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh -o /tmp/gh-aw/install-gh-aw.sh")
+		fmt.Fprintln(os.Stderr, "          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/"+installRef+"/install-gh-aw.sh -o /tmp/gh-aw/install-gh-aw.sh")
 		fmt.Fprintln(os.Stderr, "          bash /tmp/gh-aw/install-gh-aw.sh")
 	}
 	fmt.Fprintln(os.Stderr)
