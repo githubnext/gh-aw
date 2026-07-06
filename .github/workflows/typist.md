@@ -106,7 +106,7 @@ When you're done, create a discussion that explains what you found and how to fi
 First things first—let's activate Serena and discover all the Go files we need to analyze.
 {{/if}}
 
-> **Bash constraint:** Run one logical operation per Bash call. Chain with `&&` or pipe with `|` only when both parts are on the configured allowlist.
+> **Bash constraint:** Run one logical operation per Bash call. Chain with `&&` or pipe with `|` only when both parts are on the configured allowlist (for example, `serena ... | tail -20`).
 
 1. **Activate Serena** (skip any help-check):
    ```bash
