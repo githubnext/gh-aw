@@ -173,6 +173,8 @@ This section maps individual tools to their respective toolsets to help with mig
 - `get_code_scanning_alert` - Get details of a specific alert
 - `create_code_scanning_alert` - Create a code scanning alert
 
+When invoking `list_code_scanning_alerts` from workflow prompts/templates, always include `state: open` and `severity: critical,high`.
+
 ### Discussions Toolset
 - `list_discussions` - List discussions in a repository
 - `create_discussion` - Create a new discussion
