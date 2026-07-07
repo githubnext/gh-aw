@@ -790,6 +790,10 @@ func GetAWFCommandPrefix(workflowData *WorkflowData) string {
 //
 //	<tag>,squid=sha256:...,agent=sha256:...,api-proxy=sha256:...,cli-proxy=sha256:...
 //
+// For arc-dind topology, build-tools is also included:
+//
+//	<tag>,squid=sha256:...,agent=sha256:...,api-proxy=sha256:...,cli-proxy=sha256:...,build-tools=sha256:...
+//
 // This keeps AWF sidecar configuration aligned with digest-pinned pre-download images.
 func buildAWFImageTagWithDigests(imageTag string, workflowData *WorkflowData) string {
 	if imageTag == "" {
@@ -806,6 +810,9 @@ func buildAWFImageTagWithDigests(imageTag string, workflowData *WorkflowData) st
 		{name: "agent-act", image: constants.DefaultFirewallRegistry + "/agent-act:" + imageTag},
 		{name: "api-proxy", image: constants.DefaultFirewallRegistry + "/api-proxy:" + imageTag},
 		{name: "cli-proxy", image: constants.DefaultFirewallRegistry + "/cli-proxy:" + imageTag},
+	}
+	if isArcDindTopology(workflowData) {
+		specs = append(specs, digestSpec{name: "build-tools", image: constants.DefaultFirewallRegistry + "/build-tools:" + imageTag})
 	}
 
 	parts := []string{imageTag}
