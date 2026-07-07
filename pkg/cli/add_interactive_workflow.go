@@ -87,7 +87,7 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 	}
 
 	// In Codespaces, don't offer to trigger - provide link to Actions page instead
-	if os.Getenv("CODESPACES") == "true" {
+	if os.Getenv("CODESPACES") == "true" { //nolint:osgetenvlibrary
 		addInteractiveLog.Print("Running in Codespaces, skipping run offer and showing Actions link")
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Running in GitHub Codespaces - please trigger the workflow manually from the Actions page"))
