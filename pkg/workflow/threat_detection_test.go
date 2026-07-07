@@ -1564,9 +1564,11 @@ func TestDetectionJobPermissionsIndentation(t *testing.T) {
 					ThreatDetection: &ThreatDetectionConfig{},
 				},
 			},
-			// copilot-requests should not be in the output when the permission is not set
+			// copilot-requests should not be in the output when the permission is not set.
+			// Use 6-space indented form to match the YAML permissions block specifically;
+			// the diagnostic step script contains "copilot-requests: write" in comments/errors.
 			wantContains:    []string{},
-			wantNotContains: []string{"copilot-requests: write"},
+			wantNotContains: []string{"      copilot-requests: write"},
 		},
 		{
 			name: "github-oidc engine auth adds id-token: write to detection job",

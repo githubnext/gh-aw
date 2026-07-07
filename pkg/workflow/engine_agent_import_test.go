@@ -24,11 +24,11 @@ func TestCopilotEngineWithAgentFromEngineConfig(t *testing.T) {
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 execution steps (diagnostic + execution), got %d", len(steps))
 	}
 
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	// Copilot CLI expects agent identifier
 	if !strings.Contains(stepContent, `--agent my-custom-agent`) {
@@ -50,11 +50,11 @@ func TestCopilotEngineWithAgentFromImports(t *testing.T) {
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 execution steps (diagnostic + execution), got %d", len(steps))
 	}
 
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	// Agent imports should NOT set --agent flag (only engine.agent does)
 	if strings.Contains(stepContent, `--agent`) {
@@ -76,11 +76,11 @@ func TestCopilotEngineAgentOnlyFromEngineConfig(t *testing.T) {
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 execution steps (diagnostic + execution), got %d", len(steps))
 	}
 
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	// Should only use explicit agent from engine.agent
 	if !strings.Contains(stepContent, `--agent explicit-agent`) {
@@ -104,11 +104,11 @@ func TestCopilotEngineWithoutAgentFlag(t *testing.T) {
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 execution steps (diagnostic + execution), got %d", len(steps))
 	}
 
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	if strings.Contains(stepContent, "--agent") {
 		t.Errorf("Did not expect '--agent' flag when agent file is not specified, got:\n%s", stepContent)

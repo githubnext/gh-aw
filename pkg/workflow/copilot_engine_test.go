@@ -132,12 +132,12 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// GetExecutionSteps returns 1 step: copilot execution
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 execution steps (diagnostic + execution), got %d", len(steps))
 	}
 
 	// Check the execution step
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 	if !strings.Contains(stepContent, "name: Execute GitHub Copilot CLI") {
 		t.Errorf("Expected step name 'Execute GitHub Copilot CLI' in step content:\n%s", stepContent)
@@ -237,11 +237,11 @@ func TestCopilotEngineDisablesRubberDuck(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 execution steps (diagnostic + execution), got %d", len(steps))
 	}
 
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 	// The step should create the Copilot config directory and write a settings file
 	// that disables the rubber-duck sub-agent.
@@ -275,11 +275,11 @@ func TestCopilotEngineExecutionSteps_WithLSPConfig(t *testing.T) {
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 execution steps (diagnostic + execution), got %d", len(steps))
 	}
 
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 	if !strings.Contains(stepContent, `"lspServers":{"typescript":{"command":"typescript-language-server","args":["--stdio"],"fileExtensions":{".ts":"typescript"}}}`) {
 		t.Fatalf("Expected lspServers config in step content, got:\n%s", stepContent)
 	}
@@ -323,13 +323,13 @@ func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	// GetExecutionSteps returns 1 step: execution
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	// GetExecutionSteps returns 2 steps: diagnostic + execution
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 execution steps (diagnostic + execution), got %d", len(steps))
 	}
 
 	// Check the execution step
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 	// Test that GH_AW_SAFE_OUTPUTS is present when SafeOutputs is not nil
 	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}") {
@@ -650,11 +650,11 @@ func TestCopilotEngineExecutionStepsAlwaysInjectsIntegrationIDAfterEnvMerges(t *
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 execution steps (diagnostic + execution), got %d", len(steps))
 	}
 
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 	expected := constants.CopilotCLIIntegrationIDEnvVar + ": " + constants.CopilotCLIIntegrationIDValue
 	if !strings.Contains(stepContent, expected) {
 		t.Fatalf("Expected integration ID env to be forced to %q, got:\n%s", expected, stepContent)
@@ -1295,12 +1295,12 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 execution steps (diagnostic + execution), got %d", len(steps))
 	}
 
 	// Check the execution step contains tool arguments
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 	// Should contain the tool arguments in the command line
 	if !strings.Contains(stepContent, "--allow-tool shell(echo)") {
@@ -1380,11 +1380,11 @@ func TestCopilotEngineEditToolAddsAllowAllPaths(t *testing.T) {
 			}
 			steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-			if len(steps) != 1 {
-				t.Fatalf("Expected 1 step, got %d", len(steps))
+			if len(steps) != 2 {
+				t.Fatalf("Expected 2 steps (diagnostic + execution), got %d", len(steps))
 			}
 
-			stepContent := strings.Join([]string(steps[0]), "\n")
+			stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 			// Check for --allow-all-paths flag
 			hasAllowAllPaths := strings.Contains(stepContent, "--allow-all-paths")
@@ -1426,12 +1426,12 @@ func TestCopilotEngineShellEscaping(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (diagnostic + execution), got %d", len(steps))
 	}
 
 	// Get the full command from the execution step
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 	// Find the line that contains the copilot command
 	// When firewall is disabled, it uses 'copilot' instead of 'npx'
@@ -1472,12 +1472,12 @@ func TestCopilotEnginePromptFilePath(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (diagnostic + execution), got %d", len(steps))
 	}
 
 	// Get the full command from the execution step
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 	// Find the line that contains the copilot command
 	// When firewall is disabled, it uses 'copilot' instead of 'npx'
@@ -1600,12 +1600,12 @@ func TestCopilotEngineGitHubToolsShellEscaping(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (diagnostic + execution), got %d", len(steps))
 	}
 
 	// Get the full command from the execution step
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 	// Find the line that contains the copilot command
 	// When firewall is disabled, it uses 'copilot' instead of 'npx'
@@ -1759,11 +1759,11 @@ func TestCopilotEngineExecutionStepsWithCacheMemory(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (diagnostic + execution), got %d", len(steps))
 	}
 
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 	// Test that mkdir commands are present for cache-memory directories
 	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/cache-memory/") {
@@ -1798,11 +1798,11 @@ func TestCopilotEngineExecutionStepsWithCustomAddDirArgs(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (diagnostic + execution), got %d", len(steps))
 	}
 
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 	// Test that mkdir commands are present for custom --add-dir path
 	if !strings.Contains(stepContent, "mkdir -p /custom/path/") {
@@ -2394,11 +2394,11 @@ func TestCopilotEngineEnvOverridesTokenExpression(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-		if len(steps) != 1 {
-			t.Fatalf("Expected 1 step, got %d", len(steps))
+		if len(steps) != 2 {
+			t.Fatalf("Expected 2 steps (diagnostic + execution), got %d", len(steps))
 		}
 
-		stepContent := strings.Join([]string(steps[0]), "\n")
+		stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 		// engine.env override should replace the default token expression
 		if !strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.MY_ORG_COPILOT_TOKEN }}") {
@@ -2420,11 +2420,11 @@ func TestCopilotEngineEnvOverridesTokenExpression(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-		if len(steps) != 1 {
-			t.Fatalf("Expected 1 step, got %d", len(steps))
+		if len(steps) != 2 {
+			t.Fatalf("Expected 2 steps (diagnostic + execution), got %d", len(steps))
 		}
 
-		stepContent := strings.Join([]string(steps[0]), "\n")
+		stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 		if !strings.Contains(stepContent, "CUSTOM_VAR: custom-value") {
 			t.Errorf("Expected engine.env to add CUSTOM_VAR, got:\n%s", stepContent)
@@ -2451,11 +2451,11 @@ func TestCopilotEngineBYOKOmitsCopilotGitHubToken(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-		if len(steps) != 1 {
-			t.Fatalf("Expected 1 step, got %d", len(steps))
+		if len(steps) != 2 {
+			t.Fatalf("Expected 2 steps (diagnostic + execution), got %d", len(steps))
 		}
 
-		stepContent := strings.Join([]string(steps[0]), "\n")
+		stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 		// COPILOT_GITHUB_TOKEN must not appear at all — not even its default expression.
 		if strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN:") {
@@ -2474,11 +2474,11 @@ func TestCopilotEngineBYOKOmitsCopilotGitHubToken(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-		if len(steps) != 1 {
-			t.Fatalf("Expected 1 step, got %d", len(steps))
+		if len(steps) != 2 {
+			t.Fatalf("Expected 2 steps (diagnostic + execution), got %d", len(steps))
 		}
 
-		stepContent := strings.Join([]string(steps[0]), "\n")
+		stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 		if strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN:") {
 			t.Errorf("COPILOT_GITHUB_TOKEN should be absent in BYOK mode (local provider), got:\n%s", stepContent)
@@ -2492,11 +2492,11 @@ func TestCopilotEngineBYOKOmitsCopilotGitHubToken(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-		if len(steps) != 1 {
-			t.Fatalf("Expected 1 step, got %d", len(steps))
+		if len(steps) != 2 {
+			t.Fatalf("Expected 2 steps (diagnostic + execution), got %d", len(steps))
 		}
 
-		stepContent := strings.Join([]string(steps[0]), "\n")
+		stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 		if !strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}") {
 			t.Errorf("COPILOT_GITHUB_TOKEN should be present in standard (non-BYOK) mode, got:\n%s", stepContent)
@@ -2517,11 +2517,11 @@ func TestCopilotEngineBYOKOmitsCopilotGitHubToken(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-		if len(steps) != 1 {
-			t.Fatalf("Expected 1 step, got %d", len(steps))
+		if len(steps) != 2 {
+			t.Fatalf("Expected 2 steps (diagnostic + execution), got %d", len(steps))
 		}
 
-		stepContent := strings.Join([]string(steps[0]), "\n")
+		stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 		if strings.Contains(stepContent, "--exclude-env COPILOT_GITHUB_TOKEN") {
 			t.Errorf("AWF command should not exclude COPILOT_GITHUB_TOKEN in BYOK mode, got:\n%s", stepContent)
 		}
@@ -2541,11 +2541,11 @@ func TestCopilotEngineSetsDummyAPIKey(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-		if len(steps) != 1 {
-			t.Fatalf("Expected 1 step, got %d", len(steps))
+		if len(steps) != 2 {
+			t.Fatalf("Expected 2 steps (diagnostic + execution), got %d", len(steps))
 		}
 
-		stepContent := strings.Join([]string(steps[0]), "\n")
+		stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 		// COPILOT_DUMMY_BYOK holds the literal sentinel in the env: block (not *_API_KEY shaped).
 		expectedDummyVar := constants.CopilotBYOKDummyAPIKeyEnvVar + ": " + constants.CopilotBYOKDummyAPIKey
@@ -2581,11 +2581,11 @@ func TestCopilotEngineSetsDummyAPIKey(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-		if len(steps) != 1 {
-			t.Fatalf("Expected 1 step, got %d", len(steps))
+		if len(steps) != 2 {
+			t.Fatalf("Expected 2 steps (diagnostic + execution), got %d", len(steps))
 		}
 
-		stepContent := strings.Join([]string(steps[0]), "\n")
+		stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 		if strings.Contains(stepContent, "COPILOT_API_KEY") {
 			t.Errorf("Expected COPILOT_API_KEY to be absent when sandbox.agent: false, got:\n%s", stepContent)
 		}
@@ -2620,7 +2620,7 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 			t.Fatal("Expected at least one step")
 		}
 
-		stepContent := strings.Join([]string(steps[0]), "\n")
+		stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 		// The driver should be used in the command
 		if !strings.Contains(stepContent, "copilot_harness.cjs") {
@@ -2656,7 +2656,7 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 			t.Fatal("Expected at least one step")
 		}
 
-		stepContent := strings.Join([]string(steps[0]), "\n")
+		stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 		if !strings.Contains(stepContent, "custom_copilot_harness.cjs") {
 			t.Errorf("Expected custom driver in execution step, got:\n%s", stepContent)
@@ -2685,7 +2685,7 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 			t.Fatal("Expected at least one step")
 		}
 
-		stepContent := strings.Join([]string(steps[0]), "\n")
+		stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 		if !strings.Contains(stepContent, "copilot_harness.cjs /tmp/gh-aw/engine-command.sh") {
 			t.Errorf("Expected driver to run serialized engine command script, got:\n%s", stepContent)
@@ -2783,7 +2783,7 @@ func TestCopilotEngineNoAskUser(t *testing.T) {
 				t.Fatal("Expected at least one step")
 			}
 
-			stepContent := strings.Join([]string(steps[0]), "\n")
+			stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 			hasNoAsk := strings.Contains(stepContent, "--no-ask-user")
 
 			if tt.expectNoAsk && !hasNoAsk {
@@ -2972,10 +2972,10 @@ func TestCopilotEngineLLMProviderAnthropicAutoBYOK(t *testing.T) {
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 execution steps (diagnostic + execution), got %d", len(steps))
 	}
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
 	if !strings.Contains(stepContent, "GH_AW_LLM_PROVIDER: anthropic") {
 		t.Errorf("Expected GH_AW_LLM_PROVIDER override, got:\n%s", stepContent)

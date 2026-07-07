@@ -1575,6 +1575,39 @@ jobs:
           GH_HOST: github.com
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.24
+      - name: Probe Copilot CLI readiness
+        if: always() && steps.detection_guard.outputs.run_detection == 'true'
+        continue-on-error: true
+        id: copilot_startup_check
+        run: |
+          set -eo pipefail
+          # Fast-fail Copilot CLI startup diagnostic: surfaces CLI readiness failures before main execution.
+          _fail() {
+            local category="$1" message="$2"
+            printf '## Copilot CLI startup check failed: %s\n\n%s\n' "$category" "$message" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error title=Copilot CLI startup check [${category}]::${message}"
+            exit 1
+          }
+          # 1. Binary availability
+          if ! command -v copilot >/dev/null 2>&1; then
+            _fail "availability" "Copilot CLI binary not found in PATH. Check that installation succeeded."
+          fi
+          # 2. Version probe (confirms the binary executes cleanly)
+          if ! COPILOT_VERSION=$(copilot --version 2>&1); then
+            _fail "availability" "Copilot CLI binary failed to run (exit non-zero on --version). The binary may be corrupt or incompatible with the runner OS."
+          fi
+          echo "Copilot CLI version: ${COPILOT_VERSION}"
+          # 3. Auth credentials
+          # Skip when S2STOKENS=true (copilot-requests: write — uses the GitHub Actions token)
+          # Skip when COPILOT_PROVIDER_BASE_URL is set (BYOK mode — external provider handles auth)
+          if [ "${S2STOKENS:-}" != "true" ] && [ -z "${COPILOT_PROVIDER_BASE_URL:-}" ]; then
+            if [ -z "${COPILOT_GITHUB_TOKEN:-}" ]; then
+              _fail "auth" "COPILOT_GITHUB_TOKEN is empty. Add a valid token via the COPILOT_GITHUB_TOKEN repository secret, or set permissions.copilot-requests: write."
+            fi
+          fi
+          echo "Copilot CLI startup check passed."
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Execute GitHub Copilot CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true

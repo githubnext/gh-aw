@@ -146,7 +146,91 @@ func copilotSDKDriverExecArgs(driverName string) (runtimeCmd, driverArg string) 
 	}
 }
 
-// GetExecutionSteps returns the GitHub Actions steps for executing GitHub Copilot CLI
+// copilotStartupDiagnosticScript is the shell script for the fast-fail Copilot CLI startup
+// diagnostic step. It probes three readiness conditions before the main execution begins:
+//
+//  1. Binary availability — verifies "copilot" is in PATH.
+//  2. Version probe — runs "copilot --version" to confirm the binary executes without error.
+//  3. Auth credentials — checks that COPILOT_GITHUB_TOKEN is non-empty (skipped when
+//     S2STOKENS=true for copilot-requests: write mode, or when COPILOT_PROVIDER_BASE_URL
+//     is set for BYOK mode where an external provider handles authentication).
+//
+// On any failure the script writes a diagnostic entry to $GITHUB_STEP_SUMMARY, emits a
+// GitHub Actions error annotation, and exits non-zero so the subsequent Execute step is
+// skipped. This converts opaque 0-turn failures into actionable diagnostics and avoids
+// burning action-minutes on installation and agent setup when the CLI will not start.
+const copilotStartupDiagnosticScript = `set -eo pipefail
+# Fast-fail Copilot CLI startup diagnostic: surfaces CLI readiness failures before main execution.
+_fail() {
+  local category="$1" message="$2"
+  printf '## Copilot CLI startup check failed: %s\n\n%s\n' "$category" "$message" >> "$GITHUB_STEP_SUMMARY"
+  echo "::error title=Copilot CLI startup check [${category}]::${message}"
+  exit 1
+}
+# 1. Binary availability
+if ! command -v copilot >/dev/null 2>&1; then
+  _fail "availability" "Copilot CLI binary not found in PATH. Check that installation succeeded."
+fi
+# 2. Version probe (confirms the binary executes cleanly)
+if ! COPILOT_VERSION=$(copilot --version 2>&1); then
+  _fail "availability" "Copilot CLI binary failed to run (exit non-zero on --version). The binary may be corrupt or incompatible with the runner OS."
+fi
+echo "Copilot CLI version: ${COPILOT_VERSION}"
+# 3. Auth credentials
+# Skip when S2STOKENS=true (copilot-requests: write — uses the GitHub Actions token)
+# Skip when COPILOT_PROVIDER_BASE_URL is set (BYOK mode — external provider handles auth)
+if [ "${S2STOKENS:-}" != "true" ] && [ -z "${COPILOT_PROVIDER_BASE_URL:-}" ]; then
+  if [ -z "${COPILOT_GITHUB_TOKEN:-}" ]; then
+    _fail "auth" "COPILOT_GITHUB_TOKEN is empty. Add a valid token via the COPILOT_GITHUB_TOKEN repository secret, or set permissions.copilot-requests: write."
+  fi
+fi
+echo "Copilot CLI startup check passed."`
+
+// buildCopilotStartupDiagnosticStep returns a fast-fail GitHub Actions step that probes
+// Copilot CLI readiness before the main execution step. It checks binary availability,
+// executable health, and auth credentials (unless BYOK or copilot-requests mode).
+//
+// The step is skipped (returns an empty GitHubActionStep) when:
+//   - engine.command is set — a custom executable replaces the standard copilot binary
+//   - engine.copilot-sdk is set — the SDK driver uses a fundamentally different execution model
+func (e *CopilotEngine) buildCopilotStartupDiagnosticStep(workflowData *WorkflowData, env map[string]string) GitHubActionStep {
+	// Skip for custom command mode — the binary under test may not be 'copilot'
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		copilotExecLog.Print("Skipping startup diagnostic: custom engine command configured")
+		return GitHubActionStep{}
+	}
+	// Skip for Copilot SDK mode — the execution model is fundamentally different
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK {
+		copilotExecLog.Print("Skipping startup diagnostic: Copilot SDK mode active")
+		return GitHubActionStep{}
+	}
+
+	// Build minimal env for the diagnostic — only expose vars needed for the startup checks.
+	// The diagnostic writes to the real $GITHUB_STEP_SUMMARY (not AgentStepSummaryPath),
+	// so GITHUB_STEP_SUMMARY must NOT be overridden here.
+	diagEnvKeys := []string{
+		"COPILOT_GITHUB_TOKEN",           // for auth check in standard mode
+		"S2STOKENS",                      // to detect copilot-requests: write mode
+		constants.CopilotProviderBaseURL, // to detect BYOK mode (skip auth check)
+	}
+	diagEnv := map[string]string{}
+	for _, key := range diagEnvKeys {
+		if val, ok := env[key]; ok {
+			diagEnv[key] = val
+		}
+	}
+
+	copilotExecLog.Print("Adding Copilot CLI startup diagnostic step")
+	stepLines := []string{
+		"      - name: Probe Copilot CLI readiness",
+		"        id: copilot_startup_check",
+	}
+	return GitHubActionStep(FormatStepWithCommandAndEnv(stepLines, copilotStartupDiagnosticScript, diagEnv))
+}
+
+// GetExecutionSteps returns the GitHub Actions steps for executing GitHub Copilot CLI.
+// It prepends a fast-fail startup diagnostic step before the main execution step
+// (except when using a custom engine command or Copilot SDK driver).
 func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	copilotExecLog.Printf("Generating execution steps for Copilot: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
 
@@ -169,7 +253,12 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		workflowData, llmProvider, modelEnvVar, timeoutValue, isBYOKMode, sandboxEnabled, modelConfigured, copilotSDKServerArgsJSON,
 	)
 
-	return []GitHubActionStep{e.buildCopilotExecutionStep(workflowData, command, env, timeoutValue)}
+	var steps []GitHubActionStep
+	if diagStep := e.buildCopilotStartupDiagnosticStep(workflowData, env); len(diagStep) > 0 {
+		steps = append(steps, diagStep)
+	}
+	steps = append(steps, e.buildCopilotExecutionStep(workflowData, command, env, timeoutValue))
+	return steps
 }
 
 // buildCopilotArgs builds the Copilot CLI argument list based on workflow configuration.

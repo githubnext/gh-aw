@@ -1053,7 +1053,7 @@ func TestCopilotEngineIncludesCopilotAPITargetFromEnvVar(t *testing.T) {
 
 	assert.NotEmpty(t, steps, "Should generate execution steps")
 
-	stepContent := strings.Join(steps[0], "\n")
+	stepContent := strings.Join(steps[len(steps)-1], "\n")
 
 	// With config file support, Copilot API target is in the JSON config (not as CLI flag)
 	assert.Contains(t, stepContent, `\"copilot\"`, "Should include copilot target in config JSON")

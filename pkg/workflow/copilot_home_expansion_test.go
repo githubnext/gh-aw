@@ -263,9 +263,9 @@ func TestGetExecutionSteps_NoLiteralHomeRunner(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			engine := NewCopilotEngine()
 			steps := engine.GetExecutionSteps(tt.wd, "/tmp/gh-aw/test.log")
-			require.Len(t, steps, 1)
+			require.NotEmpty(t, steps)
 
-			stepContent := strings.Join([]string(steps[0]), "\n")
+			stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 			for _, pat := range forbidden {
 				assert.NotContains(t, stepContent, pat,
 					"generated step content must not contain %q (Copilot CLI config must use $HOME so self-hosted runners with HOME != /home/runner work)",

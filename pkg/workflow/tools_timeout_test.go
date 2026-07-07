@@ -345,7 +345,7 @@ func TestCopilotEngineWithToolsTimeout(t *testing.T) {
 			}
 
 			// Get the execution step
-			stepContent := strings.Join([]string(executionSteps[0]), "\n")
+			stepContent := strings.Join([]string(executionSteps[len(executionSteps)-1]), "\n")
 
 			// Check for GH_AW_TOOL_TIMEOUT if expected
 			if tt.expectedEnvVar != "" {

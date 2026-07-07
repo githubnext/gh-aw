@@ -10,11 +10,11 @@ import (
 func requireCopilotExecutionStep(t *testing.T, steps []GitHubActionStep) string {
 	t.Helper()
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	if len(steps) < 2 {
+		t.Fatalf("Expected at least 2 steps (diagnostic + execution), got %d", len(steps))
 	}
 
-	executionContent := strings.Join(steps[0], "\n")
+	executionContent := strings.Join(steps[len(steps)-1], "\n")
 	if !strings.Contains(executionContent, "Execute GitHub Copilot CLI") {
 		t.Fatalf("Expected Copilot step to execute the CLI, got:\n%s", executionContent)
 	}
