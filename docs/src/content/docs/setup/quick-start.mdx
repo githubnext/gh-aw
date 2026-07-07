@@ -72,14 +72,14 @@ gh aw add-wizard githubnext/agentics/daily-repo-status --engine claude
 > [!IMPORTANT]
 > Passing `--engine claude` pre-selects Claude and skips the interactive engine-selection step (Step 2 below).
 > If you omit the flag, the wizard will ask you to choose.
-> Note: if `engine:` is later removed manually from the workflow frontmatter (the YAML configuration block between the `---` markers at the top of the file), the runtime defaults to Copilot.
+> Note: if `engine:` is later removed manually from the workflow frontmatter (the settings block at the top of the file, between the `---` lines), the runtime defaults to Copilot.
 
 This will take you through an interactive process to:
 
 1. **Check prerequisites** - Verify repository permissions.
 2. **Select an AI Engine** - Choose between Copilot, Claude, Codex, or Gemini.
 3. **Set up the required secret** - [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) (a separate GitHub token with Copilot access — distinct from the default `GITHUB_TOKEN`), [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key), [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key), or [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key). See [Authentication](/gh-aw/reference/auth/) for setup instructions.
-4. **Add the workflow** - Adds the workflow file (`.md`) and its generated GitHub Actions lock file (`.lock.yml`) to `.github/workflows/`.
+4. **Add the workflow** - Adds the workflow file (`.md`) and its generated GitHub Actions lock file (`.lock.yml`, the compiled workflow that GitHub Actions actually runs) to `.github/workflows/`.
 5. **Optionally trigger an initial run** - Starts the workflow immediately.
 
 > [!NOTE]
