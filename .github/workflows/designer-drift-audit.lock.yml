@@ -448,6 +448,11 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Download activation artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: activation
+          path: /tmp/gh-aw
       - name: Extract reference doc metadata
         run: "mkdir -p /tmp/gh-aw/data\n\n# Core reference docs the designer depends on\nREFS=(\n  \".github/aw/syntax.md\"\n  \".github/aw/safe-outputs.md\"\n  \".github/aw/network.md\"\n  \".github/aw/patterns.md\"\n  \".github/aw/subagents.md\"\n  \".github/aw/token-optimization.md\"\n  \".github/aw/triggers.md\"\n  \".github/aw/create-agentic-workflow.md\"\n)\n\n# Extract key sections from each reference doc:\n# - H2/H3 headings (structural outline)\n# - YAML frontmatter field names\n# - Table rows containing mapping keywords\nfor ref in \"${REFS[@]}\"; do\n  if [ -f \"$ref\" ]; then\n    basename=$(basename \"$ref\" .md)\n    {\n      echo \"=== $ref ===\"\n      # Headings\n      grep -n '^##' \"$ref\" | head -50\n      echo \"---\"\n      # Frontmatter keys (between --- delimiters)\n      sed -n '/^---$/,/^---$/p' \"$ref\" | grep -E '^\\w+:' | head -30\n      echo \"---\"\n      # Table rows with config keywords\n      grep -E '^\\|.*\\|' \"$ref\" | grep -ivE '^\\|[\\s-]+\\|' | head -40\n      echo \"===\"\n    } > \"/tmp/gh-aw/data/ref-${basename}.txt\"\n  fi\ndone\n"
       - name: Extract designer file metadata
@@ -491,11 +496,6 @@ jobs:
           script: |
             const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
-      - name: Download activation artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: activation
-          path: /tmp/gh-aw
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:
