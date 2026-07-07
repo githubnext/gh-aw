@@ -36,3 +36,11 @@
 
 ## Do Not Re-File (cumulative through Jul 7)
 #41827,#41987,#41988,#42032,#42033,#42095,#42329,#42332,#42333,#42342,#42356,#42398,#42423,#42442,#42482,#42598,#42607,#42637,#42652,#42824,#42867,#42872,#42883,#42889,#42890,#42899,#42908,#42918,#42919,#42921,#42930,#42943,#42960,#43031,#43040,#43045,#43065,#43066,#43079,#43084,#43087,#43101,#43108,#43110,#43122,#43138,#43141,#43143,#43146,#43159,#43161,#43179,#43182,#43191,#43194,#43277,#43281,#43292,#43308,#43309,#43317,#43319,#43323,#43330,#43335,#43336,#43352,#43353,#43355,#43368,#43379,#43883,#43894,#43895,#43925,#43927,#43930,#aw_ci_parser_ctx,#aw_quality_plateau,#aw_whd_jul4,#aw_whd_jul5,#aw_whd_jul6
+
+## Update — 2026-07-07T13:26Z (Agent Performance Analyzer)
+- **CGO worsening**: 2 failures + 1 AR today (was 0 fail AM). Watch for WHM issue if pattern persists.
+- **yamllint Fixer**: PR #43950 (revert to Claude) merged Jul 7 — expect success rate improvement next cycle.
+- **Smoke AOAI**: incomplete/missing-tool errors (#44031, #44032, #44035) — newly tracked.
+- **AB Advisor**: Healthy, 2 experiment issues filed (#44011, #44012).
+- **Q workflow**: 7/10 AR today — quality gate PR #43527 not yet producing improvement.
+- **Agentic Commands**: 7/10 AR today (was persistent) — systemic issue unresolved.
