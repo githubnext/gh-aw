@@ -29,7 +29,7 @@ func GetGitHubHost() string {
 	envVars := []string{"GITHUB_SERVER_URL", "GITHUB_ENTERPRISE_HOST", "GITHUB_HOST", "GH_HOST"}
 
 	for _, envVar := range envVars {
-		if value := os.Getenv(envVar); value != "" { //nolint:osgetenvlibrary
+		if value := os.Getenv(envVar); value != "" { //nolint:osgetenvlibrary // GitHub host detection intentionally honors standard host env overrides.
 			githubLog.Printf("Resolved GitHub host from %s: %s", envVar, value)
 			return stringutil.NormalizeGitHubHostURL(value)
 		}
@@ -62,11 +62,11 @@ func GetGitHubToken() (string, error) {
 	githubLog.Print("Getting GitHub token")
 
 	// First try environment variable
-	if token := os.Getenv("GITHUB_TOKEN"); token != "" { //nolint:osgetenvlibrary
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" { //nolint:osgetenvlibrary // GitHub auth intentionally prefers the runner-provided token environment.
 		githubLog.Print("Found GITHUB_TOKEN environment variable")
 		return token, nil
 	}
-	if token := os.Getenv("GH_TOKEN"); token != "" { //nolint:osgetenvlibrary
+	if token := os.Getenv("GH_TOKEN"); token != "" { //nolint:osgetenvlibrary // gh CLI auth intentionally honors the user's GH_TOKEN environment.
 		githubLog.Print("Found GH_TOKEN environment variable")
 		return token, nil
 	}

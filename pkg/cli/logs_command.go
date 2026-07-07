@@ -452,7 +452,7 @@ func repoIsLocal(repo string) bool {
 	ownerRepo, _ := repoutil.NormalizeRepoForAPI(repo)
 
 	// Fast path: GITHUB_REPOSITORY is always the current repo in MCP server containers.
-	if envRepo := os.Getenv("GITHUB_REPOSITORY"); envRepo != "" { //nolint:osgetenvlibrary
+	if envRepo := os.Getenv("GITHUB_REPOSITORY"); envRepo != "" { //nolint:osgetenvlibrary // MCP containers intentionally trust GitHub's repository env for fast-path matching.
 		return strings.EqualFold(ownerRepo, envRepo)
 	}
 

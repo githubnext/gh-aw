@@ -162,7 +162,7 @@ func normalizeSecretSetAPIHost(apiBase string) string {
 
 func resolveSecretValueForSet(fromEnv, fromFlag string) (string, error) {
 	if fromEnv != "" {
-		v := os.Getenv(fromEnv) //nolint:osgetenvlibrary
+		v := os.Getenv(fromEnv) //nolint:osgetenvlibrary // --from-env intentionally copies a user-selected process-env secret.
 		if v == "" {
 			return "", fmt.Errorf("environment variable %s is not set or empty", fromEnv)
 		}

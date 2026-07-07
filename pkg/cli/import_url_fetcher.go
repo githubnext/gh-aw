@@ -305,7 +305,7 @@ func logResponseBodyVerbose(resp *http.Response) {
 }
 
 func importAuthGHHost() string {
-	ghHost := os.Getenv("GH_HOST") //nolint:osgetenvlibrary
+	ghHost := os.Getenv("GH_HOST") //nolint:osgetenvlibrary // import auth intentionally follows the gh CLI host environment.
 	if ghHost == "" {
 		return ""
 	}

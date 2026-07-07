@@ -108,7 +108,7 @@ func shouldRunCompileUpdateCheck(noCheckUpdate bool) bool {
 		compileUpdateCheckLog.Print("Update check disabled via --no-check-update flag")
 		return false
 	}
-	if os.Getenv(compileUpdateCheckDisableEnv) != "" { //nolint:osgetenvlibrary
+	if os.Getenv(compileUpdateCheckDisableEnv) != "" { //nolint:osgetenvlibrary // update checks intentionally support an env-based opt-out for automation.
 		compileUpdateCheckLog.Printf("Update check disabled via %s", compileUpdateCheckDisableEnv)
 		return false
 	}

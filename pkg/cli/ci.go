@@ -18,7 +18,7 @@ func IsRunningInCI() bool {
 	}
 
 	for _, v := range ciVars {
-		if os.Getenv(v) != "" { //nolint:osgetenvlibrary
+		if os.Getenv(v) != "" { //nolint:osgetenvlibrary // CI detection intentionally checks conventional process-env markers.
 			ciLog.Printf("CI environment detected via %s", v)
 			return true
 		}

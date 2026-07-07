@@ -71,7 +71,7 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	addInteractiveLog.Print("Starting interactive add workflow")
 
 	// Assert this function is not running in automated unit tests or CI
-	if os.Getenv("GO_TEST_MODE") == "true" || os.Getenv("CI") != "" { //nolint:osgetenvlibrary
+	if os.Getenv("GO_TEST_MODE") == "true" || os.Getenv("CI") != "" { //nolint:osgetenvlibrary // interactive guards intentionally honor test and CI process-env markers.
 		return errors.New("interactive add cannot be used in automated tests or CI environments")
 	}
 
@@ -79,7 +79,7 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	config.Ctx = ctx
 
 	// Auto-detect GHES host from git remote if not already set
-	if os.Getenv("GH_HOST") == "" { //nolint:osgetenvlibrary
+	if os.Getenv("GH_HOST") == "" { //nolint:osgetenvlibrary // auto-detection only applies when the gh CLI host env is absent.
 		detectedHost := getHostFromOriginRemote()
 		if detectedHost != "github.com" {
 			addInteractiveLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)

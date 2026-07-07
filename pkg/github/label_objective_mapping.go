@@ -149,7 +149,7 @@ func LoadObjectiveMappingFromConfig() *ObjectiveMapping {
 	labelObjectiveMappingLog.Print("Loading objective mapping configuration")
 
 	// Try loading from OBJECTIVE_MAPPING_JSON env var
-	if mappingJSON := os.Getenv("OBJECTIVE_MAPPING_JSON"); mappingJSON != "" { //nolint:osgetenvlibrary
+	if mappingJSON := os.Getenv("OBJECTIVE_MAPPING_JSON"); mappingJSON != "" { //nolint:osgetenvlibrary // objective mapping test and override payloads are intentionally injected via env.
 		labelObjectiveMappingLog.Print("Attempting to load from OBJECTIVE_MAPPING_JSON env var")
 		var om ObjectiveMapping
 		if err := json.Unmarshal([]byte(mappingJSON), &om); err == nil {

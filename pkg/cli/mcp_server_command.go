@@ -72,7 +72,7 @@ func runMCPServer(ctx context.Context, port int, cmdPath string, validateActor b
 	mcpServerEnv := withNonInteractiveCIEnv(nil)
 
 	// Get actor from environment variable
-	actor := os.Getenv("GITHUB_ACTOR") //nolint:osgetenvlibrary
+	actor := os.Getenv("GITHUB_ACTOR") //nolint:osgetenvlibrary // actor validation intentionally uses the GitHub Actions runtime environment.
 
 	if validateActor {
 		mcpLog.Printf("Actor validation enabled (--validate-actor flag)")

@@ -29,7 +29,7 @@ var (
 	debugEnv = initDebugEnv()
 
 	// DEBUG_COLORS environment variable to control color output.
-	debugColors = os.Getenv("DEBUG_COLORS") != "0" //nolint:osgetenvlibrary
+	debugColors = os.Getenv("DEBUG_COLORS") != "0" //nolint:osgetenvlibrary // logger debug color toggles intentionally follow process-wide env switches.
 
 	basePaletteColors = []color.Color{
 		styles.ColorInfo,
@@ -60,10 +60,10 @@ func buildColorPalette() []lipgloss.Style {
 // If DEBUG is set, it takes precedence. Otherwise, if ACTIONS_RUNNER_DEBUG=true,
 // all loggers are enabled (equivalent to DEBUG=*).
 func initDebugEnv() string {
-	if d := os.Getenv("DEBUG"); d != "" { //nolint:osgetenvlibrary
+	if d := os.Getenv("DEBUG"); d != "" { //nolint:osgetenvlibrary // logger debug selectors intentionally come from standard DEBUG env configuration.
 		return d
 	}
-	if os.Getenv("ACTIONS_RUNNER_DEBUG") == "true" { //nolint:osgetenvlibrary
+	if os.Getenv("ACTIONS_RUNNER_DEBUG") == "true" { //nolint:osgetenvlibrary // GitHub Actions runner debug mode is intentionally inherited from the job environment.
 		return "*"
 	}
 	return ""

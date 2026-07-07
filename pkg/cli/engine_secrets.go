@@ -231,11 +231,11 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 	}
 
 	// Check environment variable
-	envValue := os.Getenv(req.Name) //nolint:osgetenvlibrary
+	envValue := os.Getenv(req.Name) //nolint:osgetenvlibrary // secret setup intentionally checks inherited env values before prompting or uploading.
 	if envValue == "" {
 		// Check alternative environment variables
 		for _, alt := range req.AlternativeEnvVars {
-			envValue = os.Getenv(alt) //nolint:osgetenvlibrary
+			envValue = os.Getenv(alt) //nolint:osgetenvlibrary // secret setup intentionally checks inherited env aliases before prompting or uploading.
 			if envValue != "" {
 				engineSecretsLog.Printf("Found secret in alternative env var: %s", alt)
 				break
@@ -439,7 +439,7 @@ func checkOptionalSecret(req SecretRequirement, config EngineSecretConfig) error
 	}
 
 	// Check environment
-	if os.Getenv(req.Name) != "" { //nolint:osgetenvlibrary
+	if os.Getenv(req.Name) != "" { //nolint:osgetenvlibrary // optional secret discovery intentionally checks inherited env values.
 		if config.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Optional secret %s found in environment", req.Name)))
 		}
@@ -552,11 +552,11 @@ func GetEngineSecretNameAndValue(engine string, existingSecrets map[string]struc
 		envVar = opt.EnvVarName
 	}
 
-	value := os.Getenv(envVar) //nolint:osgetenvlibrary
+	value := os.Getenv(envVar) //nolint:osgetenvlibrary // engine secret export intentionally reads inherited env values for upload.
 	if value == "" {
 		// Check alternative environment variables
 		for _, alt := range opt.AlternativeSecrets {
-			value = os.Getenv(alt) //nolint:osgetenvlibrary
+			value = os.Getenv(alt) //nolint:osgetenvlibrary // engine secret export intentionally reads inherited env aliases for upload.
 			if value != "" {
 				engineSecretsLog.Printf("Found secret in alternative env var: %s", alt)
 				break

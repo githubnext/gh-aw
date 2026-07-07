@@ -103,7 +103,7 @@ func validateServerSecrets(config parser.RegistryMCPServerConfig, verbose bool, 
 				} else {
 					// Automatically try to get GitHub token for GitHub-related environment variables
 					if key == "GITHUB_PERSONAL_ACCESS_TOKEN" || key == "GITHUB_TOKEN" || key == "GH_TOKEN" {
-						if actualValue := os.Getenv(key); actualValue == "" { //nolint:osgetenvlibrary
+						if actualValue := os.Getenv(key); actualValue == "" { //nolint:osgetenvlibrary // validation intentionally checks the current process env before token fallback.
 							// Try to automatically get the GitHub token
 							if token, err := parser.GetGitHubToken(); err == nil {
 								config.Env[key] = token
@@ -114,7 +114,7 @@ func validateServerSecrets(config parser.RegistryMCPServerConfig, verbose bool, 
 					} else {
 						// For backward compatibility: check if environment variable with this name exists
 						// This preserves the original behavior for existing tests
-						if actualValue := os.Getenv(key); actualValue == "" { //nolint:osgetenvlibrary
+						if actualValue := os.Getenv(key); actualValue == "" { //nolint:osgetenvlibrary // validation intentionally checks inherited env vars for backward compatibility.
 							return fmt.Errorf("environment variable '%s' not set", key)
 						}
 					}

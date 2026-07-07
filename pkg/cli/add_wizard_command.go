@@ -84,7 +84,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 
 			// add-wizard requires an interactive terminal
 			isTerminal := tty.IsStdoutTerminal()
-			isCIEnv := os.Getenv("CI") != "" //nolint:osgetenvlibrary
+			isCIEnv := os.Getenv("CI") != "" //nolint:osgetenvlibrary // wizard interactivity intentionally checks the standard CI environment marker.
 			addWizardLog.Printf("Terminal check: is_terminal=%v, is_ci=%v", isTerminal, isCIEnv)
 			if !isTerminal || isCIEnv {
 				return errors.New("add-wizard requires an interactive terminal; use 'add' for non-interactive environments")

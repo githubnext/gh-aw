@@ -27,7 +27,7 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 	default:
 	}
 
-	if os.Getenv("GH_HOST") == "" { //nolint:osgetenvlibrary
+	if os.Getenv("GH_HOST") == "" { //nolint:osgetenvlibrary // auto-detection only applies when the gh CLI host env is absent.
 		if detectedHost := getHostFromOriginRemote(); detectedHost != "github.com" && detectedHost != "" {
 			compileOrchestratorLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)
 			workflow.SetDefaultGHHost(detectedHost)
