@@ -103,7 +103,7 @@ func extractSecretsFromConfig(config parser.RegistryMCPServerConfig) []SecretInf
 func checkSecretsAvailability(secrets []SecretInfo, useActionsSecrets bool) []SecretInfo {
 	for i := range secrets {
 		// First check if it's in environment variables
-		if value := os.Getenv(secrets[i].Name); value != "" {
+		if value := os.Getenv(secrets[i].Name); value != "" { //nolint:osgetenvlibrary
 			secrets[i].Available = true
 			secrets[i].Source = "env"
 			secrets[i].Value = value

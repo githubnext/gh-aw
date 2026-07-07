@@ -36,21 +36,21 @@ func DetectShell() ShellType {
 	shellCompletionLog.Print("Detecting current shell")
 
 	// Check shell-specific version variables first (most reliable)
-	if os.Getenv("ZSH_VERSION") != "" {
+	if os.Getenv("ZSH_VERSION") != "" { //nolint:osgetenvlibrary
 		shellCompletionLog.Print("Detected zsh from ZSH_VERSION")
 		return ShellZsh
 	}
-	if os.Getenv("BASH_VERSION") != "" {
+	if os.Getenv("BASH_VERSION") != "" { //nolint:osgetenvlibrary
 		shellCompletionLog.Print("Detected bash from BASH_VERSION")
 		return ShellBash
 	}
-	if os.Getenv("FISH_VERSION") != "" {
+	if os.Getenv("FISH_VERSION") != "" { //nolint:osgetenvlibrary
 		shellCompletionLog.Print("Detected fish from FISH_VERSION")
 		return ShellFish
 	}
 
 	// Fall back to $SHELL environment variable
-	shell := os.Getenv("SHELL")
+	shell := os.Getenv("SHELL") //nolint:osgetenvlibrary
 	if shell == "" {
 		shellCompletionLog.Print("SHELL environment variable not set, checking platform")
 		// On Windows, check for PowerShell
@@ -143,7 +143,7 @@ func installBashCompletion(verbose bool, cmd *cobra.Command) error {
 	// Try to determine the best location for bash completions
 	if runtime.GOOS == "darwin" {
 		// macOS with Homebrew
-		brewPrefix := os.Getenv("HOMEBREW_PREFIX")
+		brewPrefix := os.Getenv("HOMEBREW_PREFIX") //nolint:osgetenvlibrary
 		if brewPrefix == "" {
 			// Try common locations
 			for _, prefix := range []string{constants.HomebrewPrefix, constants.UsrLocalPrefix} {
@@ -425,7 +425,7 @@ func uninstallBashCompletion(verbose bool) error {
 
 	// macOS with Homebrew
 	if runtime.GOOS == "darwin" {
-		brewPrefix := os.Getenv("HOMEBREW_PREFIX")
+		brewPrefix := os.Getenv("HOMEBREW_PREFIX") //nolint:osgetenvlibrary
 		if brewPrefix == "" {
 			for _, prefix := range []string{constants.HomebrewPrefix, constants.UsrLocalPrefix} {
 				if fileutil.DirExists(filepath.Join(prefix, "etc", "bash_completion.d")) {
