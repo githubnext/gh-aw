@@ -272,7 +272,7 @@ func (c *ActionCache) marshalSorted() ([]byte, error) {
 
 	// Manually construct JSON with sorted keys
 	var result []byte
-	result = append(result, []byte("{\n  \"entries\": {\n")...)
+	result = append(result, "{\n  \"entries\": {\n"...)
 
 	for i, key := range keys {
 		entry := c.Entries[key]
@@ -284,7 +284,7 @@ func (c *ActionCache) marshalSorted() ([]byte, error) {
 		}
 
 		// Add the key and entry
-		result = append(result, []byte("    \""+key+"\": ")...)
+		result = append(result, "    \""+key+"\": "...)
 		result = append(result, entryJSON...)
 
 		// Add comma if not the last entry
@@ -294,27 +294,27 @@ func (c *ActionCache) marshalSorted() ([]byte, error) {
 		result = append(result, '\n')
 	}
 
-	result = append(result, []byte("  }")...)
+	result = append(result, "  }"...)
 
 	// Add containers section if non-empty
 	if len(c.ContainerPins) > 0 {
 		pinKeys := sliceutil.SortedKeys(c.ContainerPins)
 
-		result = append(result, []byte(",\n  \"containers\": {\n")...)
+		result = append(result, ",\n  \"containers\": {\n"...)
 		for i, k := range pinKeys {
 			pin := c.ContainerPins[k]
 			pinJSON, err := json.MarshalIndent(pin, "    ", "  ")
 			if err != nil {
 				return nil, err
 			}
-			result = append(result, []byte("    \""+k+"\": ")...)
+			result = append(result, "    \""+k+"\": "...)
 			result = append(result, pinJSON...)
 			if i < len(pinKeys)-1 {
 				result = append(result, ',')
 			}
 			result = append(result, '\n')
 		}
-		result = append(result, []byte("  }")...)
+		result = append(result, "  }"...)
 	}
 
 	result = append(result, '\n', '}')

@@ -210,7 +210,15 @@ func resolveRemoteSymlinks(ctx context.Context, client *api.RESTClient, owner, r
 
 	for i := 1; i < len(parts); i++ {
 		dirPath := strings.Join(parts[:i], "/")
-		resolvedPath, found, err := resolveRemoteSymlinkComponent(ctx, client, owner, repo, filePath, ref, parts, i, dirPath)
+		resolvedPath, found, err := resolveRemoteSymlinkComponent(ctx, client, remoteSymlinkComponentParams{
+			owner:    owner,
+			repo:     repo,
+			filePath: filePath,
+			ref:      ref,
+			parts:    parts,
+			index:    i,
+			dirPath:  dirPath,
+		})
 		if err != nil {
 			return "", err
 		}
@@ -223,39 +231,46 @@ func resolveRemoteSymlinks(ctx context.Context, client *api.RESTClient, owner, r
 	return "", fmt.Errorf("no symlinks found in path: %s", filePath)
 }
 
+type remoteSymlinkComponentParams struct {
+	owner    string
+	repo     string
+	filePath string
+	ref      string
+	parts    []string
+	index    int
+	dirPath  string
+}
+
 func resolveRemoteSymlinkComponent(
 	ctx context.Context,
 	client *api.RESTClient,
-	owner, repo, filePath, ref string,
-	parts []string,
-	index int,
-	dirPath string,
+	params remoteSymlinkComponentParams,
 ) (string, bool, error) {
-	target, isSymlink, err := checkRemoteSymlink(ctx, client, owner, repo, dirPath, ref)
+	target, isSymlink, err := checkRemoteSymlink(ctx, client, params.owner, params.repo, params.dirPath, params.ref)
 	if err != nil {
 		if errorutil.IsNotFoundError(err) {
-			remoteLog.Printf("Path component %s returned 404, skipping", dirPath)
+			remoteLog.Printf("Path component %s returned 404, skipping", params.dirPath)
 			return "", false, nil
 		}
-		return "", false, fmt.Errorf("failed to check path component %s for symlinks: %w", dirPath, err)
+		return "", false, fmt.Errorf("failed to check path component %s for symlinks: %w", params.dirPath, err)
 	}
 	if !isSymlink {
 		return "", false, nil
 	}
 	parentDir := ""
-	if index > 1 {
-		parentDir = strings.Join(parts[:index-1], "/")
+	if params.index > 1 {
+		parentDir = strings.Join(params.parts[:params.index-1], "/")
 	}
-	resolvedBase, err := resolveAndValidateRemoteSymlinkBase(parentDir, target, dirPath)
+	resolvedBase, err := resolveAndValidateRemoteSymlinkBase(parentDir, target, params.dirPath)
 	if err != nil {
 		return "", false, err
 	}
-	remaining := strings.Join(parts[index:], "/")
+	remaining := strings.Join(params.parts[params.index:], "/")
 	resolvedPath := pathpkg.Clean(pathpkg.Join(resolvedBase, remaining))
 	if resolvedPath == "" || resolvedPath == "." || pathpkg.IsAbs(resolvedPath) || strings.HasPrefix(resolvedPath, "..") {
 		return "", false, fmt.Errorf("resolved symlink path escapes repository root: %s", resolvedPath)
 	}
-	remoteLog.Printf("Resolved symlink in remote path: %s -> %s (full: %s -> %s)", dirPath, target, filePath, resolvedPath)
+	remoteLog.Printf("Resolved symlink in remote path: %s -> %s (full: %s -> %s)", params.dirPath, target, params.filePath, resolvedPath)
 	return resolvedPath, true, nil
 }
 
