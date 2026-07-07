@@ -43,5 +43,7 @@ func TestPRSousChefWorkflowAddCommentTargetContract(t *testing.T) {
 	assert.Contains(t, text, "Do not skip this acknowledgement due to cooldown, pending checks, or duplicate-comment safeguards", "Workflow must make slash-command acknowledgement unconditional")
 	assert.Contains(t, text, "now - 3600", "Workflow must define a 1-hour cutoff for long-running checks")
 	assert.Contains(t, text, "fromdateiso8601", "Workflow must parse startedAt timestamps to implement long-running check guard")
+	assert.Contains(t, text, ".startedAt | fromdateiso8601", "Workflow must compare startedAt against the 1-hour cutoff")
+	assert.Contains(t, text, `(.startedAt // "") == ""`, "Workflow must treat missing startedAt as pending to gate freshly queued checks")
 	assert.Contains(t, text, "Long-running checks (running > 1 hour) are intentionally ignored", "Workflow instructions must document the long-running check exception")
 }

@@ -84,6 +84,9 @@ steps:
         # Checks that have been running for more than 1 hour are ignored so that
         # long-running agentic checks (Q, coding agents) do not permanently block
         # nudges.  Short CI checks (< 1 hour) still gate nudges correctly.
+        # Note: when startedAt is absent (e.g. freshly QUEUED), we treat the check
+        # as pending (blocking) rather than allowing it through, so that a PR with
+        # brand-new checks is not nudged before those checks have a chance to start.
         checks_pending="$(
           jq -r '
             (.statusCheckRollup // []) as $checks |
