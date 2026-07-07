@@ -919,8 +919,10 @@ if err != nil || !confirmed {
 ## Dependencies
 
 **Internal**:
+- `github.com/github/gh-aw/pkg/colorwriter` — color-profile-aware output writer selection for terminal rendering
 - `github.com/github/gh-aw/pkg/logger` — debug-level console logging
 - `github.com/github/gh-aw/pkg/styles` — adaptive color constants and pre-configured lipgloss styles
+- `github.com/github/gh-aw/pkg/stringutil` — whitespace normalization used by reflection-based rendering helpers
 - `github.com/github/gh-aw/pkg/tty` — terminal detection for spinner and progress bar
 
 **Test-only**:
