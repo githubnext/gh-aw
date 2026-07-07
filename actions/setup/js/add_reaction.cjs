@@ -30,9 +30,8 @@ async function main() {
   core.info(`Adding reaction: ${reaction}`);
 
   // Validate reaction type
-  const validReactions = Object.keys(REACTION_MAP);
-  if (!validReactions.includes(reaction)) {
-    core.setFailed(`${ERR_VALIDATION}: Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
+  if (!Object.prototype.hasOwnProperty.call(REACTION_MAP, reaction)) {
+    core.setFailed(`${ERR_VALIDATION}: Invalid reaction type: ${reaction}. Valid reactions are: ${Object.keys(REACTION_MAP).join(", ")}`);
     return;
   }
 

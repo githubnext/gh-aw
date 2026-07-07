@@ -105,7 +105,7 @@ func registerAuditCommandFlags(cmd *cobra.Command) {
 	addRepoFlag(cmd)
 	cmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	cmd.Flags().String("format", "pretty", "Diff output format for multi-run mode: pretty, markdown")
-	cmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
+	cmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all, because auditing requires comprehensive artifacts for analysis). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
 	cmd.Flags().Bool("stdin", false, "Read workflow run IDs or URLs from stdin (one per line) instead of positional arguments")
 	cmd.Flags().String("experiment", "", "Filter to runs that include this experiment name")
 	cmd.Flags().String("variant", "", "Filter to runs with a specific variant value (requires --experiment)")
