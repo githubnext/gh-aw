@@ -117,10 +117,10 @@ Check repo-memory for previously processed discussions:
 
 ```bash
 # Load processed discussions log
-cat memory/discussion-task-miner/processed-discussions.json 2>/dev/null || echo "[]"
+cat memory/processed-discussions.json 2>/dev/null || echo "[]"
 
 # Load extracted tasks log
-cat memory/discussion-task-miner/extracted-tasks.json 2>/dev/null || echo "[]"
+cat memory/extracted-tasks.json 2>/dev/null || echo "[]"
 ```
 
 This helps avoid re-processing the same discussions and creating duplicate issues.
@@ -202,7 +202,7 @@ Save progress to repo-memory:
 
 ```bash
 # Update processed discussions log
-cat > memory/discussion-task-miner/processed-discussions.json << 'EOF'
+cat > memory/processed-discussions.json << 'EOF'
 {
   "last_run": "2026-01-08T09:00:00Z",
   "discussions_processed": [
@@ -213,7 +213,7 @@ cat > memory/discussion-task-miner/processed-discussions.json << 'EOF'
 EOF
 
 # Update extracted tasks log
-cat > memory/discussion-task-miner/extracted-tasks.json << 'EOF'
+cat > memory/extracted-tasks.json << 'EOF'
 {
   "last_run": "2026-01-08T09:00:00Z",
   "tasks": [
@@ -230,7 +230,7 @@ cat > memory/discussion-task-miner/extracted-tasks.json << 'EOF'
 EOF
 
 # Create a summary report
-cat > memory/discussion-task-miner/latest-run.md << 'EOF'
+cat > memory/latest-run.md << 'EOF'
 # Task Mining Run - 2026-01-08
 
 ## Summary
