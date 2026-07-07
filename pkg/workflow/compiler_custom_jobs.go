@@ -549,7 +549,7 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 	for jobName, jobConfig := range data.Jobs {
 		configMap, ok := jobConfig.(map[string]any)
 		if !ok {
-			return fmt.Errorf("jobs.%s must be an object, got %T. Example: jobs:\n  %s:\n    pre-steps: []", jobName, jobConfig, jobName)
+			return fmt.Errorf("jobs.%s must be an object, got %T. Example: jobs.%s.setup-steps: []", jobName, jobConfig, jobName)
 		}
 
 		_, hasSetupSteps := configMap["setup-steps"]
@@ -624,7 +624,7 @@ func extractBuiltinJobNeedsAugmentation(jobName string, configMap map[string]any
 		for i, rawNeed := range typedNeeds {
 			need, ok := rawNeed.(string)
 			if !ok {
-				return nil, fmt.Errorf("jobs.%s.needs[%d] must be a string, got %T. Example: jobs:\n  %s:\n    needs: [build, test]", jobName, i, rawNeed, jobName)
+				return nil, fmt.Errorf("jobs.%s.needs[%d] must be a string, got %T. Example: needs: [build, test]", jobName, i, rawNeed)
 			}
 			needs = append(needs, need)
 		}
