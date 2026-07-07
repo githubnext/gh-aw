@@ -105,6 +105,9 @@ func TestResponseWriter_EmbeddedResponseWriter(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Errorf("embedded ResponseWriter code = %d, want %d", rec.Code, http.StatusCreated)
 	}
+	if rw.statusCode != http.StatusCreated {
+		t.Errorf("responseWriter statusCode = %d, want %d", rw.statusCode, http.StatusCreated)
+	}
 }
 
 func TestLoggingHandler_PassesRequestToHandler(t *testing.T) {

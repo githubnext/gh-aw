@@ -29,6 +29,11 @@ type responseWriter struct {
 	statusCode int
 }
 
+func (w *responseWriter) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
+	w.ResponseWriter.WriteHeader(statusCode)
+}
+
 func mcpHTTPServerAddr(port int) string {
 	return fmt.Sprintf("127.0.0.1:%d", port)
 }
