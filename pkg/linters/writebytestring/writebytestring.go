@@ -90,7 +90,7 @@ func run(pass *analysis.Pass) (any, error) {
 		// the pointer type (e.g. var buf bytes.Buffer), io.WriteString requires
 		// the pointer form so that the interface conversion compiles.
 		writerArg := wText
-		if t := pass.TypesInfo.TypeOf(sel.X); t != nil && !hasWriteMethod(t) {
+		if t := pass.TypesInfo.TypeOf(sel.X); t != nil && !hasWriteMethod(t) && hasWriteMethod(types.NewPointer(t)) {
 			writerArg = "&" + wText
 		}
 
