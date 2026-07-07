@@ -438,7 +438,14 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 
 	// Detect symlinks for well-known .github sub-paths and add their resolved targets
 	// so that sparse checkout fetches the target directory, not just the symlink blob.
-	extraPaths = resolveSymlinkExtraPaths(extraPaths)
+	// Use c.gitRoot so detection works regardless of the process CWD.
+	repoRoot := c.gitRoot
+	if repoRoot == "" {
+		if cwd, err := os.Getwd(); err == nil {
+			repoRoot = cwd
+		}
+	}
+	extraPaths = resolveSymlinkExtraPaths(repoRoot, extraPaths)
 
 	cm := NewCheckoutManager(nil)
 	activationToken := c.resolveActivationToken(data)
@@ -542,9 +549,13 @@ func injectIfConditionAfterName(step, condition string) string {
 // symlinked (e.g. .github/agents -> ../.ai/agents). When a path is a symlink, the
 // resolved target directory (relative to the repo root) is appended to extraPaths so
 // that the sparse-checkout step fetches the target files, not just the dangling symlink
-// blob. Symlink targets that would escape the repository root (path starts with "..") are
-// silently ignored to prevent path traversal. Already-present paths are not duplicated.
-func resolveSymlinkExtraPaths(extraPaths []string) []string {
+// blob. Symlink targets that escape the repository root are silently ignored to prevent
+// path traversal. Already-present paths are not duplicated.
+// repoRoot must be an absolute path to the repository root; when empty, the function is a no-op.
+func resolveSymlinkExtraPaths(repoRoot string, extraPaths []string) []string {
+	if repoRoot == "" {
+		return extraPaths
+	}
 	candidates := []string{
 		".github/agents",
 		".github/skills",
@@ -555,27 +566,46 @@ func resolveSymlinkExtraPaths(extraPaths []string) []string {
 		existing[p] = struct{}{}
 	}
 	for _, candidate := range candidates {
-		info, err := os.Lstat(candidate)
+		absCandidate := filepath.Join(repoRoot, candidate)
+		info, err := os.Lstat(absCandidate)
 		if err != nil || info.Mode()&os.ModeSymlink == 0 {
 			continue // not a symlink or doesn't exist
 		}
-		target, err := os.Readlink(candidate)
+		target, err := os.Readlink(absCandidate)
 		if err != nil {
 			continue
 		}
-		// Resolve relative to the parent directory of the symlink
-		resolved := filepath.Clean(filepath.Join(filepath.Dir(candidate), target))
-		// Reject paths that escape the repository root (e.g. ../../etc)
-		if strings.HasPrefix(resolved, "..") {
-			compilerActivationJobLog.Printf("Ignoring symlink %s -> %s: resolved path %q escapes the repository root", candidate, target, resolved)
+		// Resolve target to an absolute path.
+		// When the symlink target is absolute (e.g. /etc/passwd), use it directly.
+		// When relative, resolve it against the directory that contains the symlink.
+		var absResolved string
+		if filepath.IsAbs(target) {
+			absResolved = filepath.Clean(target)
+		} else {
+			absResolved = filepath.Clean(filepath.Join(filepath.Dir(absCandidate), target))
+		}
+		rel, err := filepath.Rel(repoRoot, absResolved)
+		if err != nil {
 			continue
 		}
-		if _, alreadyPresent := existing[resolved]; alreadyPresent {
+		// Reject paths that escape the repository root using a segment-aware check.
+		// strings.HasPrefix would incorrectly reject names like "..foo".
+		firstSeg := rel
+		if i := strings.IndexByte(rel, filepath.Separator); i >= 0 {
+			firstSeg = rel[:i]
+		}
+		if firstSeg == ".." {
+			compilerActivationJobLog.Printf("Ignoring symlink %s -> %s: resolved path %q escapes the repository root", candidate, target, rel)
 			continue
 		}
-		compilerActivationJobLog.Printf("Symlink detected: %s -> %s (adding %s to sparse checkout)", candidate, target, resolved)
-		extraPaths = append(extraPaths, resolved)
-		existing[resolved] = struct{}{}
+		// Normalise to forward slashes for use in YAML sparse-checkout paths.
+		rel = filepath.ToSlash(rel)
+		if _, alreadyPresent := existing[rel]; alreadyPresent {
+			continue
+		}
+		compilerActivationJobLog.Printf("Symlink detected: %s -> %s (adding %s to sparse checkout)", candidate, target, rel)
+		extraPaths = append(extraPaths, rel)
+		existing[rel] = struct{}{}
 	}
 	return extraPaths
 }
