@@ -26,6 +26,13 @@ import (
 var logsRateLimitLog = logger.New("cli:logs_rate_limit")
 var fetchRateLimitFunc = fetchRateLimit
 
+func contextCause(ctx context.Context) error {
+	if ctx == nil {
+		return nil
+	}
+	return context.Cause(ctx)
+}
+
 // rateLimitResponse models the JSON returned by `gh api rate_limit`.
 // Only the "core" resource bucket is used because log downloads and
 // workflow-run listing both draw from the core quota.
@@ -81,9 +88,11 @@ func sleepWithContext(ctx context.Context, d time.Duration) error {
 	if ctx != nil {
 		done = ctx.Done()
 	}
+	// When ctx is nil, done remains nil. A nil channel is never selected, which
+	// intentionally makes cancellation checks a no-op and preserves prior behavior.
 	select {
 	case <-done:
-		return context.Cause(ctx)
+		return contextCause(ctx)
 	default:
 	}
 
@@ -93,7 +102,7 @@ func sleepWithContext(ctx context.Context, d time.Duration) error {
 	case <-timer.C:
 		return nil
 	case <-done:
-		return context.Cause(ctx)
+		return contextCause(ctx)
 	}
 }
 

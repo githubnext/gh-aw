@@ -29,6 +29,14 @@ type frontmatterParseResult struct {
 	redirectTarget string
 }
 
+type frontmatterReadError struct {
+	message string
+}
+
+func (e frontmatterReadError) Error() string {
+	return e.message
+}
+
 func (c *Compiler) validateEngineBeforeSchema(
 	cleanPath string,
 	content []byte,
@@ -85,7 +93,7 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 	if err != nil {
 		orchestratorFrontmatterLog.Printf("Failed to read file: %s, error: %v", cleanPath, err)
 		// Keep the user-facing message while avoiding exposure of os.PathError internals.
-		return nil, fmt.Errorf("failed to read file: %w", errors.New(err.Error()))
+		return nil, fmt.Errorf("failed to read file: %w", frontmatterReadError{message: err.Error()})
 	}
 	contentString := string(content)
 
