@@ -517,6 +517,16 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          BRANCH_NAME: memory/token-audit
+          TARGET_REPO: ${{ github.repository }}
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
+          CREATE_ORPHAN: true
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
       - name: Setup Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
@@ -532,16 +542,6 @@ jobs:
         name: Download agentic workflow logs
         run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/token-audit\n\n# Download last 24 hours of agentic workflow logs as JSON\n# Allow partial results — gh aw logs streams incrementally, so even if\n# it hits an API rate limit partway through, the JSON written so far is\n# still valid and should be processed by the agent.\nLOGS_EXIT=0\ngh aw logs \\\n  --start-date -1d \\\n  --json \\\n  -c 100 \\\n  > /tmp/gh-aw/token-audit/workflow-logs.json || LOGS_EXIT=$?\n\nif [ -s /tmp/gh-aw/token-audit/workflow-logs.json ]; then\n  TOTAL=$(jq '.runs | length' /tmp/gh-aw/token-audit/workflow-logs.json)\n  echo \"✅ Downloaded $TOTAL agentic workflow runs (last 24 hours)\"\n  if [ \"$LOGS_EXIT\" -ne 0 ]; then\n    echo \"⚠️ gh aw logs exited with code $LOGS_EXIT (partial results — likely API rate limit)\"\n  fi\nelse\n  echo \"❌ No log data downloaded (exit code $LOGS_EXIT)\"\n  echo '{\"runs\":[],\"summary\":{}}' > /tmp/gh-aw/token-audit/workflow-logs.json\nfi"
 
-      # Repo memory git-based storage configuration from frontmatter processed below
-      - name: Clone repo-memory branch (default)
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-          BRANCH_NAME: memory/token-audit
-          TARGET_REPO: ${{ github.repository }}
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
-          CREATE_ORPHAN: true
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}

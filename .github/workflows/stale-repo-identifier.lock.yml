@@ -531,6 +531,22 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
+      - name: Restore cache-memory file share data
+        id: restore_cache_memory_0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: memory-approved-6f25a3c0-stale-repos-analysis-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            memory-approved-6f25a3c0-stale-repos-analysis-${{ github.workflow }}-
+      - name: Setup cache-memory git repository
+        env:
+          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
+          GH_AW_MIN_INTEGRITY: approved
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
       - name: Setup Python environment
         run: |
           mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
@@ -591,22 +607,6 @@ jobs:
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
           INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
           NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
-      - name: Restore cache-memory file share data
-        id: restore_cache_memory_0
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          key: memory-approved-6f25a3c0-stale-repos-analysis-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            memory-approved-6f25a3c0-stale-repos-analysis-${{ github.workflow }}-
-      - name: Setup cache-memory git repository
-        env:
-          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
-          GH_AW_MIN_INTEGRITY: approved
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
