@@ -900,6 +900,24 @@ refresh-models-json:
 	cp "$$tmp" actions/setup/js/models.json; \
 	echo "✓ Refreshed pkg/cli/data/models.json and actions/setup/js/models.json (catalog providers: anthropic, openai, github-copilot)"
 
+.PHONY: validate-models-json-sync
+validate-models-json-sync:
+	@echo "Validating models.json mirror consistency..."
+	@set -e; \
+	command -v jq >/dev/null 2>&1 || { echo "jq is required for validate-models-json-sync"; exit 1; }; \
+	tmp1=$$(mktemp); tmp2=$$(mktemp); \
+	trap 'rm -f "$$tmp1" "$$tmp2"' EXIT; \
+	jq -S . pkg/cli/data/models.json > "$$tmp1"; \
+	jq -S . actions/setup/js/models.json > "$$tmp2"; \
+	cmp -s "$$tmp1" "$$tmp2" || { \
+		echo "models.json mirrors diverged:"; \
+		echo "  pkg/cli/data/models.json and actions/setup/js/models.json must remain semantically identical after key sorting."; \
+		echo "  Run 'make refresh-models-json' to synchronize the mirrors."; \
+		diff -u "$$tmp1" "$$tmp2" || true; \
+		exit 1; \
+	}
+	@echo "✓ models.json mirrors are synchronized"
+
 # Check file sizes and function counts
 .PHONY: check-file-sizes
 check-file-sizes:
