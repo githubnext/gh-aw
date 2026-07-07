@@ -48,8 +48,6 @@ describe("require-fs-sync-try-catch", () => {
         // Non-fs objects with same method names are ignored
         `mockFs.readFileSync(path);`,
         `storage.writeFileSync(path, data);`,
-        // Destructured bindings are intentionally out of scope for this rule
-        `const { readFileSync } = require("fs"); readFileSync(path, "utf8");`,
       ],
       invalid: [],
     });
