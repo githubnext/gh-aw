@@ -1,5 +1,5 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
-import { buildTryCatchSuggestion, isDeferredCallback } from "./try-catch-rule-utils";
+import { buildTryCatchSuggestion, isDeferredCallback, SAFE_WRAPPABLE_STATEMENT_TYPES } from "./try-catch-rule-utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -10,7 +10,7 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 const FS_SYNC_METHODS = new Set(["readFileSync", "writeFileSync", "appendFileSync"]);
 
 // Statement node types that can be directly wrapped in a try/catch block.
-const WRAPPABLE_STATEMENT_TYPES = new Set<AST_NODE_TYPES>([AST_NODE_TYPES.ExpressionStatement, AST_NODE_TYPES.ReturnStatement]);
+const WRAPPABLE_STATEMENT_TYPES = SAFE_WRAPPABLE_STATEMENT_TYPES;
 
 export const requireFsSyncTryCatchRule = createRule({
   name: "require-fs-sync-try-catch",

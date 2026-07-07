@@ -1,10 +1,10 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
-import { buildTryCatchSuggestion, isDeferredCallback } from "./try-catch-rule-utils";
+import { buildTryCatchSuggestion, isDeferredCallback, SAFE_WRAPPABLE_STATEMENT_TYPES } from "./try-catch-rule-utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
 // Statement node types that can be directly wrapped in a try/catch block.
-const WRAPPABLE_STATEMENT_TYPES = new Set<AST_NODE_TYPES>([AST_NODE_TYPES.ExpressionStatement, AST_NODE_TYPES.VariableDeclaration, AST_NODE_TYPES.ReturnStatement, AST_NODE_TYPES.ThrowStatement]);
+const WRAPPABLE_STATEMENT_TYPES = new Set<AST_NODE_TYPES>([...SAFE_WRAPPABLE_STATEMENT_TYPES, AST_NODE_TYPES.VariableDeclaration, AST_NODE_TYPES.ThrowStatement]);
 
 export const requireJsonParseTryCatchRule = createRule({
   name: "require-json-parse-try-catch",
