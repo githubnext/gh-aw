@@ -21,6 +21,7 @@ module.exports = [
       "gh-aw-custom/require-async-entrypoint-catch": "warn",
       "gh-aw-custom/require-await-core-summary-write": "warn",
       "gh-aw-custom/require-error-cause-in-rethrow": "warn",
+      "gh-aw-custom/require-fs-sync-try-catch": "warn",
       "gh-aw-custom/require-json-parse-try-catch": "warn",
       "gh-aw-custom/require-parseInt-radix": "warn",
     },
