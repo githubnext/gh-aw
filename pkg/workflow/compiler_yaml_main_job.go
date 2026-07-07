@@ -190,8 +190,9 @@ func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *
 }
 
 // generateRuntimeAndWorkspaceSetupSteps emits runtime setup steps, the gh-aw temp directory
-// creation step, GitHub Enterprise CLI configuration, DIFC proxy start, custom steps, cache
-// steps, cache-memory steps, and repo-memory steps.
+// creation step, GitHub Enterprise CLI configuration, DIFC proxy start, activation artifact
+// download, comment-memory file preparation, custom steps, cache steps, cache-memory steps,
+// and repo-memory steps.
 // It mutates data.CustomSteps (via deduplication) and returns whether the custom steps
 // themselves contain a checkout action (used by the caller to compute needsGitConfig).
 func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, data *WorkflowData, needsCheckout bool) bool {
@@ -223,6 +224,12 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 	// and pre-agent steps with GH_TOKEN are present). The proxy routes gh CLI calls through
 	// integrity filtering before the agent runs. Must start before custom steps.
 	c.generateStartDIFCProxyStep(yaml, data)
+
+	// Download the activation artifact and prepare comment-memory files BEFORE user steps
+	// so that deterministic steps: blocks can read prior comment-memory state without an LLM
+	// turn. Unlike cache-memory/repo-memory (pure restores), comment-memory fetches comment
+	// content via the GitHub API, which is available at this point in the job.
+	c.generateActivationArtifactAndCommentMemorySteps(yaml, data)
 
 	c.emitCustomSteps(yaml, data, customStepsContainCheckout, runtimeSetupSteps)
 
@@ -356,10 +363,110 @@ func (c *Compiler) emitCustomSteps(yaml *strings.Builder, data *WorkflowData, cu
 	}
 }
 
+// generateActivationArtifactAndCommentMemorySteps emits the activation artifact download and,
+// when comment-memory is configured, the minimal config write and comment-memory file preparation
+// steps. These steps are placed BEFORE the user's custom steps: block so that deterministic
+// steps can read prior comment-memory state without an LLM turn.
+//
+// The activation artifact (aw-prompts/prompt.txt, base/ snapshot, etc.) is downloaded here so
+// the comment-memory setup can inject prompt guidance into prompt.txt. The rest of the agent
+// setup (git config, engine install, MCP) still runs in generateEngineInstallAndPreAgentSteps.
+func (c *Compiler) generateActivationArtifactAndCommentMemorySteps(yaml *strings.Builder, data *WorkflowData) {
+	// Download activation artifact from activation job (contains aw_info.json, prompt.txt,
+	// base/ snapshot and engine-specific sub-agent/skill dirs).
+	// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
+	// Must happen before comment-memory preparation (needs prompt.txt for injection) and
+	// before the base-branch restore in generateEngineInstallAndPreAgentSteps.
+	compilerYamlLog.Print("Adding activation artifact download step")
+	activationArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.ActivationArtifactName
+	yaml.WriteString("      - name: Download activation artifact\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", c.getActionPin("actions/download-artifact"))
+	yaml.WriteString("        with:\n")
+	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName)
+	yaml.WriteString("          path: /tmp/gh-aw\n")
+
+	// Materialize comment-memory safe outputs as editable markdown files BEFORE user steps.
+	// This prepares /tmp/gh-aw/comment-memory/*.md from prior comment history and injects
+	// prompt guidance so the agent can update files directly and persist them via the
+	// comment_memory safe output.
+	if data.SafeOutputs == nil || data.SafeOutputs.CommentMemory == nil {
+		return
+	}
+
+	// Write a minimal comment-memory config so setup_comment_memory_files.cjs can locate the
+	// comment_memory section. The full safeoutputs config (generated in MCP setup) is written
+	// later; this early write provides only what the read step needs.
+	if !c.generateCommentMemoryEarlyConfigStep(yaml, data) {
+		return
+	}
+
+	yaml.WriteString("      - name: Prepare comment memory files\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	yaml.WriteString("        with:\n")
+	fmt.Fprintf(yaml, "          github-token: %s\n", getEffectiveSafeOutputGitHubToken(data.SafeOutputs.CommentMemory.GitHubToken))
+	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/setup_comment_memory_files.cjs');\n")
+	yaml.WriteString("            await main();\n")
+}
+
+// generateCommentMemoryEarlyConfigStep emits a step that writes a minimal comment-memory
+// configuration to ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json so that the
+// "Prepare comment memory files" step can read the comment_memory handler config before the
+// full "Generate Safe Outputs Config" step runs later in MCP setup.
+// The full safeoutputs config written by MCP setup will overwrite this file.
+// Returns true if the step was emitted, false if the step was skipped (e.g. handler missing).
+func (c *Compiler) generateCommentMemoryEarlyConfigStep(yaml *strings.Builder, data *WorkflowData) bool {
+	builder := handlerRegistry[commentMemoryHandlerKey]
+	if builder == nil {
+		compilerYamlLog.Printf("Warning: %s handler not found in registry; skipping early config write", commentMemoryHandlerKey)
+		return false
+	}
+	cfg := builder(data.SafeOutputs)
+	if cfg == nil {
+		return false
+	}
+	// INTENTIONALLY MINIMAL: this config contains only the comment_memory section and
+	// deliberately omits workspace-path injections and checkout mappings, which are not
+	// needed by setup_comment_memory_files.cjs. The full safeoutputs config (generated by
+	// generateSafeOutputsConfig later in MCP setup) will overwrite this file. Do not add
+	// handler-registry-wide iterations here.
+	// github-token is stripped from the early config: the github-script step supplies the
+	// token directly via its `github-token:` input, so embedding it here would be redundant
+	// and could embed a secret or context expression into the YAML shell script body.
+	delete(cfg, "github-token")
+	configMap := map[string]any{commentMemoryHandlerKey: cfg}
+	jsonBytes, err := json.Marshal(configMap)
+	if err != nil {
+		compilerYamlLog.Printf("Warning: failed to marshal comment-memory config: %v", err)
+		return false
+	}
+	configJSON := string(jsonBytes)
+	delimiter := GenerateHeredocDelimiterFromContent("COMMENT_MEMORY_CONFIG", configJSON)
+	if err := ValidateHeredocContent(configJSON, delimiter); err != nil {
+		compilerYamlLog.Printf("Warning: comment-memory config contains heredoc delimiter; skipping early config write: %v", err)
+		return false
+	}
+	yaml.WriteString("      - name: Write comment-memory configuration\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/safeoutputs\"\n")
+	fmt.Fprintf(yaml, "          cat > \"${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" << '%s'\n", delimiter)
+	// The 10-space YAML block-scalar indentation is stripped by the YAML parser before the
+	// shell script is executed, so the JSON content lands at column 0 inside the heredoc.
+	// This matches the pattern used by mcp_setup_generator.go for the full config write.
+	fmt.Fprintf(yaml, "          %s\n", configJSON)
+	fmt.Fprintf(yaml, "          %s\n", delimiter)
+	return true
+}
+
 // generateEngineInstallAndPreAgentSteps emits git credential configuration, the PR-ready-for-review
 // checkout, engine installation steps, GitHub MCP app token minting, MCP lockdown detection, guard
-// variable parsing, DIFC proxy stop, activation artifact download, comment-memory file preparation,
-// base-.github-folder restore, pre-agent steps, MCP gateway setup, and MCP CLI mount.
+// variable parsing, DIFC proxy stop, base-.github-folder restore, pre-agent steps, MCP gateway
+// setup, and MCP CLI mount.
+// The activation artifact download and comment-memory file preparation are emitted earlier (in
+// generateActivationArtifactAndCommentMemorySteps) so that user steps: can access prior
+// comment-memory state.
 // It returns the resolved CodingAgentEngine for use in subsequent phases.
 func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, data *WorkflowData, needsGitConfig bool) (CodingAgentEngine, error) {
 	// Configure git credentials for agentic workflows.
@@ -433,33 +540,6 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 
 	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
 	// No longer generated in the main job steps
-
-	// Download activation artifact from activation job (contains aw_info.json and prompt.txt).
-	// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
-	// This must happen BEFORE pre-agent-steps so the base-branch snapshot
-	// (saved in /tmp/gh-aw/base/ inside the artifact) is available for the restore step below.
-	compilerYamlLog.Print("Adding activation artifact download step")
-	activationArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.ActivationArtifactName
-	yaml.WriteString("      - name: Download activation artifact\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", c.getActionPin("actions/download-artifact"))
-	yaml.WriteString("        with:\n")
-	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName)
-	yaml.WriteString("          path: /tmp/gh-aw\n")
-
-	// Materialize comment-memory safe outputs as editable markdown files for the agent.
-	// This prepares /tmp/gh-aw/comment-memory/*.md and injects prompt guidance so the agent
-	// can edit memory content directly and persist it via comment_memory safe outputs.
-	if data.SafeOutputs != nil && data.SafeOutputs.CommentMemory != nil {
-		yaml.WriteString("      - name: Prepare comment memory files\n")
-		fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
-		yaml.WriteString("        with:\n")
-		fmt.Fprintf(yaml, "          github-token: %s\n", getEffectiveSafeOutputGitHubToken(data.SafeOutputs.CommentMemory.GitHubToken))
-		yaml.WriteString("          script: |\n")
-		yaml.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
-		yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-		yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/setup_comment_memory_files.cjs');\n")
-		yaml.WriteString("            await main();\n")
-	}
 
 	// Restore agent config folders from the base branch snapshot in the activation artifact.
 	// The activation job saved these before the PR checkout ran, so this step overwrites any
