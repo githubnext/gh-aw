@@ -4,6 +4,9 @@ on:
 permissions:
   pull-requests: read
 engine: copilot
+safe-outputs:
+  create-pull-request-review-comment:
+    max: 10
 ---
 
 # Test Copilot Create Pull Request Review Comment

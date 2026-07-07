@@ -1,0 +1,57 @@
+{
+  "version": "1.1.0",
+  "source": "verification",
+  "canonicalPath": "specs/test-vectors/bash-command-parser/",
+  "spec": "docs/src/content/docs/specs/bash-command-parser-specification.md",
+  "vectors": [
+    {
+      "id": "BP-VF-R-001",
+      "category": "R-CORE",
+      "requirement": "§6.1 R-CORE-1",
+      "function": "splitOnPipelineOperators",
+      "note": "Intentionally contains an unterminated double quote to verify malformed-input tolerance without throwing.",
+      "input": "echo \"unterminated && text",
+      "expected": ["echo \"unterminated && text"],
+      "nonThrowing": true
+    },
+    {
+      "id": "BP-VF-R-002",
+      "category": "R-CORE",
+      "requirement": "§6.1 R-CORE-2",
+      "function": "splitOnPipelineOperators",
+      "input": "echo $(printf '%s' foo && cat",
+      "expected": ["echo $(printf '%s' foo && cat"],
+      "nonThrowing": true
+    },
+    {
+      "id": "BP-VF-MR-001",
+      "category": "MR",
+      "requirement": "§8.1",
+      "function": "splitOnPipelineOperators",
+      "relation": "whitespace-invariance",
+      "left": "ls /tmp&&cat file",
+      "right": "  ls /tmp  &&  cat file  ",
+      "expected": ["ls /tmp", "cat file"]
+    },
+    {
+      "id": "BP-VF-MR-002",
+      "category": "MR",
+      "requirement": "§8.2",
+      "function": "extractCommandNamesFromPipeline",
+      "relation": "quoted-operator-shielding",
+      "left": "echo \"a && b\"",
+      "right": "echo 'a && b'",
+      "expected": ["echo"]
+    },
+    {
+      "id": "BP-VF-MR-003",
+      "category": "MR",
+      "requirement": "§8.5",
+      "function": "extractCommandNamesFromPipeline",
+      "relation": "duplicate-collapse-invariance",
+      "left": "echo a && cat b && echo c",
+      "right": "echo a && cat b",
+      "expected": ["echo", "cat"]
+    }
+  ]
+}

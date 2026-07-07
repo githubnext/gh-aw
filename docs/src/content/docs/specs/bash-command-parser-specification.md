@@ -36,6 +36,8 @@ This document is a draft extracted from the current production parser behavior a
 10. [Testing Strategies](#10-testing-strategies)
 11. [Security Considerations](#11-security-considerations)
 12. [References](#12-references)
+13. [Sync Notes](#sync-notes)
+14. [Change Log](#change-log)
 
 ---
 
@@ -332,3 +334,30 @@ A Class I (Integration Consumer) conforming implementation MUST NOT treat any pa
 
 - Copilot SDK Shell Permission Integration (implementation-defined binding)
 - Repository Conformance Vectors (implementation-defined location)
+
+---
+
+<a id="sync-notes"></a>
+## Sync Notes
+
+The canonical machine-readable vector collection for this specification is `specs/test-vectors/bash-command-parser/`.
+
+For version `1.1.0`, the canonical seed files are:
+
+- `specs/test-vectors/bash-command-parser/v1.1.0-model-based.json`
+- `specs/test-vectors/bash-command-parser/v1.1.0-verification.json`
+
+These vectors MUST be revalidated whenever either of the following occurs:
+
+1. This specification is incremented to a new version.
+2. The parser behavior changes in `actions/setup/js/bash_command_parser.cjs`, including updates to `splitOnPipelineOperators`, `extractCommandName`, or `extractCommandNamesFromPipeline`.
+
+---
+
+<a id="change-log"></a>
+## Change Log
+
+### Version 1.1.0 (2026-07-06 maintenance update)
+
+- Added canonical versioned machine-readable vector files at `specs/test-vectors/bash-command-parser/v1.1.0-model-based.json` and `specs/test-vectors/bash-command-parser/v1.1.0-verification.json`.
+- Added Sync Notes identifying the canonical vector path and the required revalidation triggers for parser behavior and specification version changes.
