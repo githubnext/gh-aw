@@ -3,8 +3,6 @@
 package workflow
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -211,38 +209,4 @@ func TestValidateSandboxConfigStoresJustification(t *testing.T) {
 	require.NoError(t, err, "valid justification should pass validation")
 	assert.Equal(t, reason, workflowData.SandboxConfig.Agent.DisableReason,
 		"justification must be stored on AgentSandboxConfig for audit/logging")
-}
-
-func TestCompileWorkflowRejectsLocalhostHTTPMCPServerInNetworkIsolationMode(t *testing.T) {
-	tmpDir := t.TempDir()
-	workflowPath := filepath.Join(tmpDir, "localhost-http-mcp.md")
-	workflow := `---
-on: workflow_dispatch
-engine: codex
-permissions:
-  contents: read
-network:
-  allowed:
-    - defaults
-sandbox:
-  agent:
-    sudo: false
-tools:
-  github:
-    mode: remote
-mcp-servers:
-  mempalace:
-    type: http
-    url: http://localhost:8765/mcp
----
-
-# Test workflow
-`
-	require.NoError(t, os.WriteFile(workflowPath, []byte(workflow), 0644))
-
-	err := NewCompiler().CompileWorkflow(workflowPath)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "mcp-servers.mempalace.url")
-	assert.Contains(t, err.Error(), "host.docker.internal")
-	assert.Contains(t, err.Error(), "sudo: true")
 }

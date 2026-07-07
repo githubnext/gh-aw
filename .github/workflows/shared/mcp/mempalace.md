@@ -51,7 +51,7 @@ steps:
       python -m mempalace.mcp_server \
         --palace /tmp/gh-aw/cache-memory/palace \
         --transport streamable-http \
-        --host 127.0.0.1 \
+        --host 0.0.0.0 \
         --port 8765 \
         > /tmp/gh-aw/mcp-logs/mempalace/server.log 2>&1 &
       echo "MemPalace MCP server started (PID $!)"
