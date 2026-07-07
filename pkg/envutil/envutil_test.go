@@ -455,24 +455,28 @@ func TestGetStringFromEnv(t *testing.T) {
 
 	tests := []struct {
 		name         string
+		setEnv       bool
 		envValue     string
 		defaultValue string
 		expected     string
 	}{
 		{
 			name:         "default when env var not set",
+			setEnv:       false,
 			envValue:     "",
 			defaultValue: "fallback",
 			expected:     "fallback",
 		},
 		{
 			name:         "default when env var empty",
+			setEnv:       true,
 			envValue:     "",
 			defaultValue: "fallback",
 			expected:     "fallback",
 		},
 		{
 			name:         "returns env value",
+			setEnv:       true,
 			envValue:     "value",
 			defaultValue: "fallback",
 			expected:     "value",
@@ -481,10 +485,10 @@ func TestGetStringFromEnv(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.name == "default when env var not set" {
-				os.Unsetenv(testEnvVar)
-			} else {
+			if tt.setEnv {
 				os.Setenv(testEnvVar, tt.envValue)
+			} else {
+				os.Unsetenv(testEnvVar)
 			}
 
 			result := GetStringFromEnv(testEnvVar, tt.defaultValue, nil)

@@ -14,7 +14,7 @@ var codespaceLog = logger.New("cli:codespace")
 // by checking for the CODESPACES environment variable
 func isRunningInCodespace() bool {
 	// GitHub Codespaces sets CODESPACES=true environment variable
-	isCodespace := envutil.GetBoolFromEnv("CODESPACES", false, codespaceLog)
+	isCodespace := strings.EqualFold(envutil.GetStringFromEnv("CODESPACES", "", codespaceLog), "true")
 	codespaceLog.Printf("Codespace detection: is_codespace=%v", isCodespace)
 	return isCodespace
 }
