@@ -21,7 +21,7 @@ func getRepository(ctx context.Context) (string, error) {
 	}
 
 	// Try GITHUB_REPOSITORY environment variable first
-	repo := os.Getenv("GITHUB_REPOSITORY")
+	repo := os.Getenv("GITHUB_REPOSITORY") //nolint:osgetenvlibrary
 	if repo != "" {
 		mcpLog.Printf("Got repository from GITHUB_REPOSITORY: %s", repo)
 		mcpCache.SetRepo(repo)

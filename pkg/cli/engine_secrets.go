@@ -231,11 +231,11 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 	}
 
 	// Check environment variable
-	envValue := os.Getenv(req.Name)
+	envValue := os.Getenv(req.Name) //nolint:osgetenvlibrary
 	if envValue == "" {
 		// Check alternative environment variables
 		for _, alt := range req.AlternativeEnvVars {
-			envValue = os.Getenv(alt)
+			envValue = os.Getenv(alt) //nolint:osgetenvlibrary
 			if envValue != "" {
 				engineSecretsLog.Printf("Found secret in alternative env var: %s", alt)
 				break
@@ -439,7 +439,7 @@ func checkOptionalSecret(req SecretRequirement, config EngineSecretConfig) error
 	}
 
 	// Check environment
-	if os.Getenv(req.Name) != "" {
+	if os.Getenv(req.Name) != "" { //nolint:osgetenvlibrary
 		if config.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Optional secret %s found in environment", req.Name)))
 		}
@@ -552,11 +552,11 @@ func GetEngineSecretNameAndValue(engine string, existingSecrets map[string]struc
 		envVar = opt.EnvVarName
 	}
 
-	value := os.Getenv(envVar)
+	value := os.Getenv(envVar) //nolint:osgetenvlibrary
 	if value == "" {
 		// Check alternative environment variables
 		for _, alt := range opt.AlternativeSecrets {
-			value = os.Getenv(alt)
+			value = os.Getenv(alt) //nolint:osgetenvlibrary
 			if value != "" {
 				engineSecretsLog.Printf("Found secret in alternative env var: %s", alt)
 				break
