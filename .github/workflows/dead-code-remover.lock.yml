@@ -507,9 +507,6 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
-      - name: Install deadcode analyzer
-        run: go install golang.org/x/tools/cmd/deadcode@latest
-
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
@@ -526,6 +523,9 @@ jobs:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: none
         run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
+      - name: Install deadcode analyzer
+        run: go install golang.org/x/tools/cmd/deadcode@latest
+
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}

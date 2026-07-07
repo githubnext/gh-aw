@@ -543,6 +543,22 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
+      - name: Restore cache-memory file share data
+        id: restore_cache_memory_0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
+      - name: Setup cache-memory git repository
+        env:
+          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
+          GH_AW_MIN_INTEGRITY: none
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
       - name: Setup Python environment
         run: "# Create working directory for Python scripts\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Artifacts directory: /tmp/gh-aw/python/artifacts\"\n"
       - name: Install Python scientific libraries
@@ -584,22 +600,6 @@ jobs:
         name: Download integrity-filtered logs
         run: "mkdir -p /tmp/gh-aw/agent/integrity\nmkdir -p /tmp/gh-aw/cache-memory/security-observability\n\nCACHE_FILE=/tmp/gh-aw/cache-memory/security-observability/filtered-logs.snapshot.json\nRUN_FILE=/tmp/gh-aw/agent/integrity/filtered-logs.json\nFRESH_LOGS=/tmp/gh-aw/agent/integrity/filtered-logs.fresh.json\nEMPTY_DATA='{\"runs\":[],\"summary\":{\"total_runs\":0}}'\nNOW_EPOCH=$(date +%s)\nMAX_CACHE_AGE_SECONDS=$((7 * 24 * 60 * 60))\n\n# Warm start from cached 7-day snapshot when available and fresh.\nif [ -f \"$CACHE_FILE\" ] && jq -e '.runs and .updated_at' \"$CACHE_FILE\" > /dev/null 2>&1; then\n  cache_updated_at=$(jq -r '.updated_at' \"$CACHE_FILE\")\n  cache_updated_epoch=$(\n    date -d \"$cache_updated_at\" +%s 2>/dev/null \\\n      || date -j -f \"%Y-%m-%dT%H:%M:%SZ\" \"$cache_updated_at\" +%s 2>/dev/null \\\n      || echo 0\n  )\n  cache_age_seconds=$((NOW_EPOCH - cache_updated_epoch))\n  if [ \"$cache_updated_epoch\" -gt 0 ] && [ \"$cache_age_seconds\" -le \"$MAX_CACHE_AGE_SECONDS\" ]; then\n    jq '{runs: (.runs // []), summary: (.summary // {\"total_runs\": 0})}' \"$CACHE_FILE\" > \"$RUN_FILE\"\n    echo \"✅ Warm cache restored (${cache_age_seconds}s old)\"\n  else\n    echo \"⚠️ Cache snapshot is stale (${cache_age_seconds}s old); starting fresh\"\n  fi\nfi\n\n# Download logs filtered to only runs with DIFC integrity-filtered events.\n# --artifacts mcp: only download the MCP gateway log artifact (sufficient for DIFC checking).\n# --timeout 8: cap execution at 8 minutes to prevent runaway downloads.\ngh aw logs --filtered-integrity --start-date -7d --json -c 200 \\\n  --artifacts mcp --timeout 8 \\\n  > \"$FRESH_LOGS\" || true\n\n# Validate JSON output and fall back to an empty dataset on failure\nif ! jq -e '.runs' \"$FRESH_LOGS\" > /dev/null 2>&1; then\n  echo \"⚠️ No valid logs produced; continuing with empty dataset\"\n  echo \"$EMPTY_DATA\" > \"$FRESH_LOGS\"\nfi\n\n# Merge warm-start and fresh runs; fresh entries override warm-cache entries with the same run_id.\nif [ -f \"$RUN_FILE\" ] && jq -e '.runs' \"$RUN_FILE\" > /dev/null 2>&1; then\n  jq -s '\n    {\n      runs: (\n        ((.[0].runs // []) + (.[1].runs // []))\n        | sort_by(.run_id)\n        | group_by(.run_id)\n        | map(.[-1])\n      ),\n      summary: {\n        total_runs: (\n          ((.[0].runs // []) + (.[1].runs // []) | sort_by(.run_id) | group_by(.run_id) | length)\n        )\n      }\n    }\n  ' \"$RUN_FILE\" \"$FRESH_LOGS\" > \"$RUN_FILE.merged\"\n  mv \"$RUN_FILE.merged\" \"$RUN_FILE\"\nelse\n  mv \"$FRESH_LOGS\" \"$RUN_FILE\"\nfi\n\ncount=$(jq '.runs | length' \"$RUN_FILE\" 2>/dev/null || echo 0)\necho \"✅ Downloaded $count runs with integrity-filtered events\"\n\n# Persist updated 7-day snapshot back to cache-memory every run.\njq -n \\\n  --arg updated_at \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\" \\\n  --slurpfile payload \"$RUN_FILE\" \\\n  '{\n    updated_at: $updated_at,\n    runs: ($payload[0].runs // []),\n    summary: {\n      total_runs: (($payload[0].runs // []) | length)\n    }\n  }' > \"$CACHE_FILE\""
 
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
-      - name: Restore cache-memory file share data
-        id: restore_cache_memory_0
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
-      - name: Setup cache-memory git repository
-        env:
-          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
-          GH_AW_MIN_INTEGRITY: none
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}

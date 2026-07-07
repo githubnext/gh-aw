@@ -492,14 +492,6 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
-      - name: Install sentrux
-        run: |
-          SENTRUX_VERSION="0.5.7"
-          curl -fsSL -o /tmp/gh-aw/agent/sentrux "https://github.com/sentrux/sentrux/releases/download/v${SENTRUX_VERSION}/sentrux-linux-x86_64"
-          chmod +x /tmp/gh-aw/agent/sentrux
-          sudo mv /tmp/gh-aw/agent/sentrux /usr/local/bin/sentrux
-          sentrux --version
-
       # Repo memory git-based storage configuration from frontmatter processed below
       - name: Clone repo-memory branch (default)
         env:
@@ -510,6 +502,14 @@ jobs:
           MEMORY_DIR: /tmp/gh-aw/repo-memory/default
           CREATE_ORPHAN: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
+      - name: Install sentrux
+        run: |
+          SENTRUX_VERSION="0.5.7"
+          curl -fsSL -o /tmp/gh-aw/agent/sentrux "https://github.com/sentrux/sentrux/releases/download/v${SENTRUX_VERSION}/sentrux-linux-x86_64"
+          chmod +x /tmp/gh-aw/agent/sentrux
+          sudo mv /tmp/gh-aw/agent/sentrux /usr/local/bin/sentrux
+          sentrux --version
+
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
