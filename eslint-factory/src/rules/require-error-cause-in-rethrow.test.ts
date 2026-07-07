@@ -41,6 +41,12 @@ describe("require-error-cause-in-rethrow", () => {
         `try { doSomething(); } catch (err) { const e = new Error(\`msg: \${getErrorMessage(err)}\`); log(e); }`,
         // Existing cause property with wrapped expression should not be flagged.
         `try { doSomething(); } catch (err) { throw new Error("Failed: " + getErrorMessage(err), { cause: new Error(err.message), code: 500 }); }`,
+        // Alias initialized from unrelated value should not be treated as catch alias.
+        `try { doSomething(); } catch (deleteError) { const err = getFallbackError(); throw new Error(\`Failed to delete: \${String(err)}\`); }`,
+        // Reassigned alias is intentionally not tracked (too complex to follow safely).
+        `try { doSomething(); } catch (deleteError) { let err = deleteError; err = normalizeError(err); throw new Error(\`Failed to delete: \${String(err)}\`); }`,
+        // Alias + cause should pass.
+        `try { doSomething(); } catch (deleteError) { const err = deleteError; throw new Error(\`Failed to delete existing remote branch: \${message || String(err)}\`, { cause: err }); }`,
       ],
       invalid: [],
     });
@@ -138,6 +144,22 @@ describe("require-error-cause-in-rethrow", () => {
                 {
                   messageId: "addCause",
                   output: `try { doSomething(); } catch (err) { throw new Error(\`Failed: \${err.message}\`, { cause: err }); }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          // Aliased catch var + logical expression branch should be detected.
+          code: `try { doSomething(); } catch (deleteError) { const err = deleteError; throw new Error(\`Failed to delete existing remote branch: \${message || String(err)}\`); }`,
+          errors: [
+            {
+              messageId: "missingCause",
+              data: { catchVar: "err" },
+              suggestions: [
+                {
+                  messageId: "addCause",
+                  output: `try { doSomething(); } catch (deleteError) { const err = deleteError; throw new Error(` + `\`Failed to delete existing remote branch: \${message || String(err)}\`, { cause: err }); }`,
                 },
               ],
             },
