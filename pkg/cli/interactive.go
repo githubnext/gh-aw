@@ -15,6 +15,7 @@ import (
 	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/envutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
@@ -64,7 +65,7 @@ func CreateWorkflowInteractively(ctx context.Context, workflowName string, verbo
 	interactiveLog.Printf("Starting interactive workflow creation: workflowName=%s, force=%v", workflowName, force)
 
 	// Assert this function is not running in automated unit tests
-	if os.Getenv("GO_TEST_MODE") == "true" || os.Getenv("CI") != "" { //nolint:osgetenvlibrary
+	if envutil.GetBoolFromEnv("GO_TEST_MODE", false, interactiveLog) || IsRunningInCI() {
 		return errors.New("interactive workflow creation cannot be used in automated tests or CI environments")
 	}
 
