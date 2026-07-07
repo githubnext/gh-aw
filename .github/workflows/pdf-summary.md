@@ -50,6 +50,7 @@ safe-outputs:
     max: 1
   create-discussion:
     expires: 1d
+    category: "audits"
     max: 1
   messages:
     footer: "> 📄 *Summary compiled by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
