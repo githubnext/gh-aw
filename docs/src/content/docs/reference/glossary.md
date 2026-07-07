@@ -444,6 +444,23 @@ engine:
   bare: true
 ```
 
+### Built-in Job Needs Augmentation (`jobs.<built-in>.needs`)
+
+A frontmatter field that adds explicit dependency ordering for compiler-generated jobs (`activation`, `agent`, `detection`, `safe_outputs`, `conclusion`). When `jobs.<built-in>.needs` is set, the listed jobs are merged additively into the compiler's computed dependency list for that built-in job — compiler-required dependencies are never removed. Use this when implicit `engine.env` inference does not detect a dependency, for example when a custom job's output is consumed inside a built-in job's configuration via `${{ jobs.my_job.outputs.value }}`. Both hyphen and underscore forms are accepted (`safe-outputs` or `safe_outputs`). Validation at compile time rejects unknown targets, self-dependencies, and augmentation of built-in jobs not present in the current workflow. See [Custom Steps and Jobs Reference](/gh-aw/reference/steps-jobs/).
+
+```aw wrap
+jobs:
+  select_model:
+    runs-on: ubuntu-latest
+    outputs:
+      model: ${{ steps.pick.outputs.model }}
+    steps:
+      - id: pick
+        run: echo "model=gpt-4o" >> $GITHUB_OUTPUT
+  agent:
+    needs: [select_model]
+```
+
 ### BYOK (Bring Your Own Key)
 
 A Copilot engine mode that routes AI requests to an external LLM provider (such as OpenAI, Anthropic, or a self-hosted Ollama/vLLM instance) instead of the default GitHub Copilot backend. Activated by setting `COPILOT_PROVIDER_BASE_URL` in `engine.env`. The three BYOK credential variables (`COPILOT_PROVIDER_BASE_URL`, `COPILOT_PROVIDER_API_KEY`, `COPILOT_PROVIDER_BEARER_TOKEN`) accept `${{ secrets.* }}` references under strict mode and are never exposed to the agent container. gh-aw automatically adds the provider hostname to the AWF allow-list when it can resolve a literal BYOK URL, and otherwise reuses the concrete provider hostname from `network.allowed` for the threat-detection Copilot step. Use `COPILOT_MODEL` to specify the target model. See [AI Engines Reference](/gh-aw/reference/engines/#copilot-bring-your-own-key-byok-mode).

@@ -16,9 +16,9 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - Key names limited to 64 characters
   - Values limited to 1024 characters
   - Example: `metadata: { team: "platform", priority: "high" }`
-- **`github-token:`** - Default GitHub token for workflow (must use `${{ secrets.* }}` syntax)
+- **`github-token:`** - GitHub token override (must use `${{ secrets.* }}` syntax). Not a top-level field: set it under `on:` (trigger checks), `tools.github`, or `safe-outputs`.
 - **`on.roles:`** - Repository access roles that can trigger workflow (array or `"all"`). Default `[admin, maintainer, write]`; available roles: `admin`, `maintainer`, `write`, `read`, `all`.
-- **`bots:`** - Bot identifiers allowed to trigger workflow regardless of role permissions (array; e.g. `[dependabot[bot], renovate[bot], github-actions[bot]]`). The bot must be active (installed) on the repository to trigger.
+- **`on.bots:`** - Bot identifiers allowed to trigger workflow regardless of role permissions (array; e.g. `[dependabot[bot], renovate[bot], github-actions[bot]]`). The bot must be active (installed) on the repository to trigger.
 - **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`; strongly recommended)
   - Prefer `strict: true`; `strict: false` is dangerous, should be extremely rare, and must be carefully security reviewed before use
 - **`max-turns:`** - AWF turn cap applied consistently across all agentic engines (integer or expression, e.g. `${{ inputs.max-turns }}`). The engine-level `engine.max-turns` is a deprecated alias kept for backward compatibility — prefer this top-level field. Not supported by the `gemini` engine.
@@ -81,6 +81,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
 
   - Selected variant available as `${{ experiments.<name> }}` and in `{{#if experiments.<name> }}` template blocks
   - See [A/B Testing Experiments](experiments.md) for full design guidance
+- **`evals:`** - ⚠️ Experimental. BinEval binary (YES/NO) evaluation questions run after safe-outputs and before the conclusion job. Shorthand: a list of `{ id, question, model? }` objects. Extended form: object with `questions`, plus optional `model` (default alias/ID for all questions) and `runs-on`.
 
 - **`imports:`** - Array of workflow specifications to import (array)
   - Format: `owner/repo/path@ref` or local paths like `shared/common.md`
