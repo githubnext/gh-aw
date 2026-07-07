@@ -13,9 +13,9 @@ func (c *customWriter) Write(p []byte) (int, error) { return len(p), nil }
 func bad() {
 	var buf bytes.Buffer
 	s := "hello"
-	buf.Write([]byte(s)) // want `buf\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(&buf, s\) to avoid a \[\]byte allocation when the writer implements io\.StringWriter`
+	buf.Write([]byte(s)) // want `buf\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(&buf, s\) to potentially avoid a \[\]byte allocation if the writer implements io\.StringWriter`
 
-	buf.Write([]byte("world")) // want `buf\.Write\(\[\]byte\("world"\)\) can be replaced with io\.WriteString\(&buf, "world"\) to avoid a \[\]byte allocation when the writer implements io\.StringWriter`
+	buf.Write([]byte("world")) // want `buf\.Write\(\[\]byte\("world"\)\) can be replaced with io\.WriteString\(&buf, "world"\) to potentially avoid a \[\]byte allocation if the writer implements io\.StringWriter`
 }
 
 type myString string
@@ -23,7 +23,7 @@ type myString string
 func badNamedString() {
 	var buf bytes.Buffer
 	s := myString("hello")
-	buf.Write([]byte(s)) // want `buf\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(&buf, s\) to avoid a \[\]byte allocation when the writer implements io\.StringWriter`
+	buf.Write([]byte(s)) // want `buf\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(&buf, s\) to potentially avoid a \[\]byte allocation if the writer implements io\.StringWriter`
 }
 
 func badFile() {
@@ -33,18 +33,18 @@ func badFile() {
 	}
 	defer f.Close()
 	msg := "hello"
-	f.Write([]byte(msg)) // want `f\.Write\(\[\]byte\(msg\)\) can be replaced with io\.WriteString\(f, msg\) to avoid a \[\]byte allocation when the writer implements io\.StringWriter`
+	f.Write([]byte(msg)) // want `f\.Write\(\[\]byte\(msg\)\) can be replaced with io\.WriteString\(f, msg\) to potentially avoid a \[\]byte allocation if the writer implements io\.StringWriter`
 }
 
 func badCustomWriter() {
 	w := &customWriter{}
 	s := "hello"
-	w.Write([]byte(s)) // want `w\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(w, s\) to avoid a \[\]byte allocation when the writer implements io\.StringWriter`
+	w.Write([]byte(s)) // want `w\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(w, s\) to potentially avoid a \[\]byte allocation if the writer implements io\.StringWriter`
 }
 
 func badInterfaceWriter(w io.Writer) {
 	s := "hello"
-	w.Write([]byte(s)) // want `w\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(w, s\) to avoid a \[\]byte allocation when the writer implements io\.StringWriter`
+	w.Write([]byte(s)) // want `w\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(w, s\) to potentially avoid a \[\]byte allocation if the writer implements io\.StringWriter`
 }
 
 func goodBytes() {

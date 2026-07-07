@@ -108,14 +108,16 @@ func run(pass *analysis.Pass) (any, error) {
 		// the pointer type (e.g. var buf bytes.Buffer), io.WriteString requires
 		// the pointer form so that the interface conversion compiles.
 		writerArg := wText
-		if t := pass.TypesInfo.TypeOf(sel.X); t != nil && !types.Implements(t, writerIface) {
+		if t := pass.TypesInfo.TypeOf(sel.X); t != nil &&
+			!types.Implements(t, writerIface) &&
+			types.Implements(types.NewPointer(t), writerIface) {
 			writerArg = "&" + wText
 		}
 
 		pass.Report(analysis.Diagnostic{
 			Pos:            call.Pos(),
 			End:            call.End(),
-			Message:        fmt.Sprintf("%s.Write([]byte(%s)) can be replaced with io.WriteString(%s, %s) to avoid a []byte allocation when the writer implements io.StringWriter", wText, sText, writerArg, sText),
+			Message:        fmt.Sprintf("%s.Write([]byte(%s)) can be replaced with io.WriteString(%s, %s) to potentially avoid a []byte allocation if the writer implements io.StringWriter", wText, sText, writerArg, sText),
 			SuggestedFixes: buildFix(call, writerArg, sText),
 		})
 	})
@@ -171,7 +173,7 @@ func implementsWriter(pass *analysis.Pass, expr ast.Expr) bool {
 	}
 	// Only add a pointer wrapper when t is not already a pointer, to avoid
 	// constructing a semantically meaningless **T type.
-	if _, isPtr := t.Underlying().(*types.Pointer); isPtr {
+	if _, alreadyPtr := t.Underlying().(*types.Pointer); alreadyPtr {
 		return false
 	}
 	return types.Implements(types.NewPointer(t), writerIface)
