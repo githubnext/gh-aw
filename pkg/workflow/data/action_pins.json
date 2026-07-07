@@ -392,6 +392,11 @@
       "digest": "sha256:9fec93937dc9d3e04f3954705c2c42f58976ebb8479b10778602631b5316e1e2",
       "pinned_image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.27.9@sha256:9fec93937dc9d3e04f3954705c2c42f58976ebb8479b10778602631b5316e1e2"
     },
+    "ghcr.io/github/gh-aw-firewall/build-tools:0.27.26": {
+      "image": "ghcr.io/github/gh-aw-firewall/build-tools:0.27.26",
+      "digest": "sha256:5823f6cec65210cd6e3e6320c165979fb46f78c76600f58f4189d2c89c2be8da",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/build-tools:0.27.26@sha256:5823f6cec65210cd6e3e6320c165979fb46f78c76600f58f4189d2c89c2be8da"
+    },
     "ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.28": {
       "image": "ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.28",
       "digest": "sha256:fdf310e4678ce58d248c466b89399e9680a3003038fd19322c388559016aaac7",
