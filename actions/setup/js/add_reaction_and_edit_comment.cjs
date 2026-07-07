@@ -9,7 +9,7 @@ const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { createDiscussionComment, resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
-const { addReaction, addDiscussionReaction, getDiscussionNodeId } = require("./add_reaction.cjs");
+const { addReaction, addDiscussionReaction, getDiscussionNodeId, REACTION_MAP } = require("./add_reaction.cjs");
 
 /**
  * Event type descriptions for comment messages
@@ -25,7 +25,7 @@ const EVENT_TYPE_DESCRIPTIONS = {
 };
 
 /** Valid GitHub reaction types */
-const VALID_REACTIONS = Object.freeze(["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"]);
+const VALID_REACTIONS = Object.freeze(Object.keys(REACTION_MAP));
 
 /**
  * Resolve the reaction and comment API endpoints for a given event.
