@@ -51,20 +51,21 @@ func extractRestoreMemoryConfig(configMap map[string]any, jobName string, data *
 //   - memoryLines: the actual memory restore/clone/prepare steps
 //
 // No write-back steps are ever emitted; all injected steps are read-only.
-func (c *Compiler) buildRestoreMemorySteps(cfg *restoreMemoryConfig, data *WorkflowData) (setupLines []string, memoryLines []string) {
+func (c *Compiler) buildRestoreMemorySteps(cfg *restoreMemoryConfig, jobName string, data *WorkflowData) (setupLines []string, memoryLines []string, err error) {
 	if cfg == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// repo-memory and comment-memory rely on scripts installed by the gh-aw setup action.
 	// Inject the setup step before any memory steps so those scripts are available.
 	if cfg.RepoMemory || cfg.CommentMemory {
 		setupActionRef := c.resolveActionReference("./actions/setup", data)
-		if setupActionRef != "" || c.actionMode.IsScript() {
-			setupLines = append(setupLines, c.generateCheckoutActionsFolder(data)...)
-			// Pass empty trace IDs — custom jobs do not inherit the activation span.
-			setupLines = append(setupLines, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, "", "")...)
+		if setupActionRef == "" && !c.actionMode.IsScript() {
+			return nil, nil, fmt.Errorf("jobs.%s.restore-memory: repo-memory/comment-memory require the setup action but no action ref was found", jobName)
 		}
+		setupLines = append(setupLines, c.generateCheckoutActionsFolder(data)...)
+		// Pass empty trace IDs — custom jobs do not inherit the activation span.
+		setupLines = append(setupLines, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, "", "")...)
 	}
 
 	if cfg.CacheMemory {
@@ -77,7 +78,7 @@ func (c *Compiler) buildRestoreMemorySteps(cfg *restoreMemoryConfig, data *Workf
 		memoryLines = append(memoryLines, generateCommentMemoryRestoreLines(data)...)
 	}
 
-	return setupLines, memoryLines
+	return setupLines, memoryLines, nil
 }
 
 // generateCacheMemoryRestoreLines produces read-only cache-memory restore steps for a
@@ -118,29 +119,8 @@ func generateCacheMemoryRestoreLines(data *WorkflowData) []string {
 		lines = append(lines, fmt.Sprintf("          key: %s\n", cacheKey))
 		lines = append(lines, fmt.Sprintf("          path: %s\n", cacheDir))
 
-		// Build restore keys using the same logic as generateCacheMemorySteps.
-		var restoreKeys []string
-		runIDSuffix := "-${{ github.run_id }}"
-		if strings.HasSuffix(cacheKey, runIDSuffix) {
-			restoreKeys = append(restoreKeys, strings.TrimSuffix(cacheKey, "${{ github.run_id }}"))
-		} else {
-			keyParts := strings.Split(cacheKey, "-")
-			if len(keyParts) >= 2 {
-				restoreKeys = append(restoreKeys, strings.Join(keyParts[:len(keyParts)-1], "-")+"-")
-			}
-		}
-
-		scope := cache.Scope
-		if scope == "" {
-			scope = "workflow"
-		}
-		if scope == "repo" {
-			repoKey := strings.TrimSuffix(cacheKey, "${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}")
-			if repoKey != cacheKey && repoKey != "" {
-				restoreKeys = append(restoreKeys, repoKey)
-			}
-		}
-
+		// Build restore keys using the shared helper (same semantics as the agent job).
+		restoreKeys := buildCacheRestoreKeys(cacheKey, cache.Scope)
 		lines = append(lines, "          restore-keys: |\n")
 		for _, key := range restoreKeys {
 			lines = append(lines, fmt.Sprintf("            %s\n", key))
@@ -165,11 +145,14 @@ func generateRepoMemoryRestoreLines(data *WorkflowData) []string {
 		return nil
 	}
 
-	// Split into individual lines, preserving their trailing newlines.
-	parts := strings.Split(raw, "\n")
+	// SplitAfter keeps each line's trailing newline; skip any empty final element
+	// that strings.Split would produce for a newline-terminated string.
+	parts := strings.SplitAfter(raw, "\n")
 	lines := make([]string, 0, len(parts))
 	for _, p := range parts {
-		lines = append(lines, p+"\n")
+		if p != "" {
+			lines = append(lines, p)
+		}
 	}
 	return lines
 }

@@ -404,6 +404,7 @@ jobs:
 
 	assert.Contains(t, section, "Restore cache-memory", "restore step must be present")
 	assert.Contains(t, section, "Configure GH_HOST", "GHES config step must be present")
+	assert.Contains(t, section, "steps:", "steps key must be present even with no explicit steps")
 }
 
 // TestExtractRestoreMemoryConfig unit-tests the config extraction logic.
@@ -517,4 +518,20 @@ func TestGenerateCacheMemoryRestoreLines(t *testing.T) {
 // TestGenerateCacheMemoryRestoreLinesNilData verifies graceful handling of nil config.
 func TestGenerateCacheMemoryRestoreLinesNilData(t *testing.T) {
 	assert.Nil(t, generateCacheMemoryRestoreLines(&WorkflowData{}))
+}
+
+// TestGenerateRepoMemoryRestoreLinesNilData verifies nil/empty RepoMemoryConfig returns nil.
+func TestGenerateRepoMemoryRestoreLinesNilData(t *testing.T) {
+	assert.Nil(t, generateRepoMemoryRestoreLines(&WorkflowData{}))
+	assert.Nil(t, generateRepoMemoryRestoreLines(&WorkflowData{
+		RepoMemoryConfig: &RepoMemoryConfig{},
+	}))
+}
+
+// TestGenerateCommentMemoryRestoreLinesNilData verifies nil/empty SafeOutputs returns nil.
+func TestGenerateCommentMemoryRestoreLinesNilData(t *testing.T) {
+	assert.Nil(t, generateCommentMemoryRestoreLines(&WorkflowData{}))
+	assert.Nil(t, generateCommentMemoryRestoreLines(&WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{},
+	}))
 }

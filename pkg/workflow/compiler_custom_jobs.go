@@ -517,6 +517,19 @@ func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap m
 
 	hasRestoreMemory := restoreMemCfg != nil
 
+	// When cache-memory restore is requested, inject GH_AW_WORKFLOW_ID_SANITIZED so that
+	// restore keys match those used by the agent job.  Only set it when the user has not
+	// already provided the variable in their job's env: block.
+	if hasRestoreMemory && restoreMemCfg.CacheMemory && data.WorkflowID != "" {
+		sanitized := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
+		if job.Env == nil {
+			job.Env = make(map[string]string)
+		}
+		if _, alreadySet := job.Env["GH_AW_WORKFLOW_ID_SANITIZED"]; !alreadySet {
+			job.Env["GH_AW_WORKFLOW_ID_SANITIZED"] = sanitized
+		}
+	}
+
 	if hasSetupStepsField || hasPreStepsField || hasStepsField || hasRestoreMemory {
 		job.Steps = append(job.Steps, setupSteps...)
 		// Prepend GH_HOST configuration step for GHES/GHEC compatibility.
@@ -529,7 +542,10 @@ func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap m
 		// Setup lines come first (they install scripts needed by repo/comment memory).
 		// Memory lines follow immediately after (restore/clone/prepare steps).
 		if hasRestoreMemory {
-			memorySetupLines, memoryRestoreLines := c.buildRestoreMemorySteps(restoreMemCfg, data)
+			memorySetupLines, memoryRestoreLines, memErr := c.buildRestoreMemorySteps(restoreMemCfg, jobName, data)
+			if memErr != nil {
+				return memErr
+			}
 			job.Steps = append(job.Steps, memorySetupLines...)
 			job.Steps = append(job.Steps, memoryRestoreLines...)
 		}
