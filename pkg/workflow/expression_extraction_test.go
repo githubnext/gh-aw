@@ -578,7 +578,10 @@ func TestExpressionExtractor_DeprecationWarning(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Capture stderr to check for warnings
 			oldStderr := os.Stderr
-			r, w, _ := os.Pipe()
+			r, w, pipeErr := os.Pipe()
+			if pipeErr != nil {
+				t.Fatalf("os.Pipe() error = %v", pipeErr)
+			}
 			os.Stderr = w
 
 			extractor := NewExpressionExtractor()
@@ -587,7 +590,9 @@ func TestExpressionExtractor_DeprecationWarning(t *testing.T) {
 			w.Close()
 			os.Stderr = oldStderr
 			var buf bytes.Buffer
-			io.Copy(&buf, r)
+			if _, copyErr := io.Copy(&buf, r); copyErr != nil {
+				t.Fatalf("io.Copy() error = %v", copyErr)
+			}
 			stderrOutput := buf.String()
 
 			if err != nil {
