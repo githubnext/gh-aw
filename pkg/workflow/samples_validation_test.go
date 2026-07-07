@@ -18,8 +18,9 @@ func TestGetSortedSafeOutputFieldNames_MatchesSortedKeys(t *testing.T) {
 
 	assert.Equal(t, expected, first)
 	assert.Equal(t, expected, second)
-	require.NotEmpty(t, first)
-	assert.Equal(t, &first[0], &second[0], "expected cached field names to reuse the same backing slice")
+	if assert.NotEmpty(t, first) && assert.NotEmpty(t, second) {
+		assert.Equal(t, &first[0], &second[0], "expected cached field names to reuse the same backing slice")
+	}
 }
 
 // TestValidateSafeOutputsSamples_Valid covers the happy path for the
