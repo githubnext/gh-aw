@@ -169,13 +169,10 @@ Rules:
 
 ### 8. Add cost-aware triage and context flow
 
-- For high-volume inputs, design a cheap triage step before expensive analysis.
-- Require explicit `noop` or safe-output behavior for known, duplicate, stale, or low-value cases.
-- Reserve frontier-model reasoning for ambiguous/high-value cases and final synthesis.
-- Prefer pull-on-demand context retrieval over prompt-stuffing large logs or API payloads.
+- For high-volume inputs, apply the [High-Volume Triage and Escalation Pattern](workflow-patterns.md#high-volume-triage-and-escalation-pattern): cheap triage first, `noop`/safe output for known/duplicate/stale/low-value cases, frontier reasoning reserved for ambiguous/high-value cases, and context pulled on demand.
 - Use deterministic `steps:` plus compact files under `/tmp/gh-aw/` when large data must be preprocessed.
 
-See also: [workflow-patterns.md](workflow-patterns.md), [subagents.md](subagents.md), and [token-optimization.md](token-optimization.md).
+See also: [subagents.md](subagents.md) and [token-optimization.md](token-optimization.md).
 
 ### 9. Omit unnecessary defaults
 
