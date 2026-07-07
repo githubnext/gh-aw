@@ -59,7 +59,7 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		// Match strings.<BrittleFunc>(X, Y)
-		funcName, matched := brittleErrStringFuncName(outer)
+		funcName, matched := brittleErrStringFuncName(pass, outer)
 		if !matched {
 			return
 		}
@@ -88,16 +88,12 @@ func run(pass *analysis.Pass) (any, error) {
 
 // brittleErrStringFuncName returns the matched strings function name and true
 // when call is a strings.<BrittleFunc>(...) call expression.
-func brittleErrStringFuncName(call *ast.CallExpr) (string, bool) {
+func brittleErrStringFuncName(pass *analysis.Pass, call *ast.CallExpr) (string, bool) {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return "", false
 	}
-	ident, ok := sel.X.(*ast.Ident)
-	if !ok {
-		return "", false
-	}
-	if ident.Name != "strings" {
+	if !astutil.IsPkgSelector(pass, sel, "strings") {
 		return "", false
 	}
 	if brittleErrStringFuncs[sel.Sel.Name] {
