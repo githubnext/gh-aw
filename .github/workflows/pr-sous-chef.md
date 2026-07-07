@@ -84,9 +84,10 @@ steps:
         # Checks that have been running for more than 1 hour are ignored so that
         # long-running agentic checks (Q, coding agents) do not permanently block
         # nudges.  Short CI checks (< 1 hour) still gate nudges correctly.
-        # Note: when startedAt is absent (e.g. freshly QUEUED), we treat the check
-        # as pending (blocking) rather than allowing it through, so that a PR with
-        # brand-new checks is not nudged before those checks have a chance to start.
+        # Timestamp resolution order: startedAt → createdAt → absent.  Using
+        # createdAt as a fallback means a check stuck in QUEUED (never started)
+        # will also be ignored after 1 hour, preventing a stalled queue from
+        # permanently blocking nudges.
         checks_pending="$(
           jq -r '
             (.statusCheckRollup // []) as $checks |
@@ -94,7 +95,10 @@ steps:
             if ($checks | any(
               if .__typename == "CheckRun" then
                 ((.status // "COMPLETED") | IN("QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED", "PENDING")) and
-                ((.startedAt // "") == "" or ((.startedAt | fromdateiso8601) > $cutoff))
+                (
+                  (.startedAt // .createdAt // "") == "" or
+                  (((.startedAt // .createdAt) | fromdateiso8601) > $cutoff)
+                )
               elif .__typename == "StatusContext" then
                 (.state // "") == "PENDING"
               else false end
