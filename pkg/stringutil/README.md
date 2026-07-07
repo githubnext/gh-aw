@@ -150,19 +150,43 @@ Sanitizes a string for use as a programming-language identifier by replacing inv
 
 ### `SanitizeParameterName(name string) string`
 
-Sanitizes a parameter name for use as a GitHub Actions output or environment variable name. Preserves letters, digits, `$`, and `_`, and replaces all other characters with underscores.
+Sanitizes a parameter name for use as a JavaScript/GitHub Actions identifier. Preserves letters, digits, `$`, and `_`, prepends `_` when the name starts with a digit, and replaces all other characters with underscores.
+
+```go
+stringutil.SanitizeParameterName("my-param")  // "my_param"
+stringutil.SanitizeParameterName("$special")  // "$special"
+stringutil.SanitizeParameterName("123param")  // "_123param"
+```
 
 ### `SanitizePythonVariableName(name string) string`
 
-Sanitizes a string for use as a Python variable name. Similar to `SanitizeParameterName` but follows Python identifier rules.
+Sanitizes a string for use as a Python variable name. Preserves letters, digits, and `_` (no `$`), prepends `_` when the name starts with a digit, and replaces all other characters with underscores.
+
+```go
+stringutil.SanitizePythonVariableName("my-param") // "my_param"
+stringutil.SanitizePythonVariableName("123param")  // "_123param"
+```
 
 ### `SanitizeToolID(toolID string) string`
 
-Sanitizes a tool identifier for safe use in generated code. Replaces characters that are not valid in identifiers with underscores.
+Removes common MCP prefixes (`mcp-`) and suffixes (`-mcp`) from tool identifiers. Returns the original ID if the cleaned result would be empty.
+
+```go
+stringutil.SanitizeToolID("notion-mcp")      // "notion"
+stringutil.SanitizeToolID("mcp-notion")      // "notion"
+stringutil.SanitizeToolID("some-mcp-server") // "some-mcp-server" (middle occurrence unchanged)
+stringutil.SanitizeToolID("mcp")             // "mcp" (prevents empty result)
+```
 
 ### `SanitizeForFilename(slug string) string`
 
-Converts a string into a filesystem-safe filename by lowercasing and replacing non-alphanumeric characters with hyphens.
+Converts a repository slug (e.g. `owner/repo`) to a filesystem-safe string. Replaces `/` with `-` and any remaining non-alphanumeric characters (except `-`, `_`, `.`) with `-`. Returns `"clone-mode"` if the slug is empty. Does **not** change the letter case.
+
+```go
+stringutil.SanitizeForFilename("owner/repo")     // "owner-repo"
+stringutil.SanitizeForFilename("my.org/my_repo") // "my.org-my_repo"
+stringutil.SanitizeForFilename("")               // "clone-mode"
+```
 
 ## URL Utilities (`urls.go`)
 

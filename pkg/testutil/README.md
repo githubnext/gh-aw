@@ -20,7 +20,7 @@ This package is imported only in test files (`_test.go`). It provides:
 |----------|-----------|-------------|
 | `GetTestRunDir` | `func() string` | Returns the path to the unique top-level directory for the current test run, created once per process under `$TMPDIR/gh-aw-test-runs/<timestamp>-<pid>` |
 | `TempDir` | `func(t *testing.T, pattern string) string` | Creates a temporary subdirectory inside the test run directory matching `pattern`; the directory is automatically removed when the test completes via `t.Cleanup` |
-| `CaptureStderr` | `func(t *testing.T, fn func()) string` | Runs `fn` and returns everything written to `os.Stderr` during its execution; `os.Stderr` is restored automatically via `t.Cleanup` |
+| `CaptureStderr` | `func(t *testing.T, fn func()) string` | Runs `fn` and returns everything written to `os.Stderr` during its execution; `os.Stderr` is restored via `defer` when `fn` returns |
 | `StripYAMLCommentHeader` | `func(yamlContent string) string` | Removes the leading comment block from a generated YAML file and returns only the non-comment content |
 
 ## Usage Examples
