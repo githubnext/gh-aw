@@ -263,8 +263,170 @@ This workflow tests pre-steps without custom steps or post-steps.
 	}
 }
 
-// TestPreStepsSecretsValidation verifies that secrets in pre-steps trigger the same
-// strict-mode error and non-strict warning as secrets in steps and post-steps.
+// TestCommentMemoryBeforeCustomSteps verifies that the comment-memory preparation steps
+// (activation artifact download, config write, and prepare comment memory files) are
+// emitted BEFORE any user custom steps: block. This ensures deterministic steps can
+// read prior comment-memory state without requiring an LLM turn.
+func TestCommentMemoryBeforeCustomSteps(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "comment-memory-order-test")
+
+	testContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+safe-outputs:
+  add-comment:
+    max: 1
+tools:
+  comment-memory: true
+steps:
+  - name: Custom Step
+    run: echo "I should run after comment-memory is ready"
+engine: claude
+strict: false
+---
+
+# Test Comment Memory Ordering
+
+This workflow tests that comment-memory files are prepared before custom steps run.
+`
+
+	testFile := filepath.Join(tmpDir, "test-comment-memory-order.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test-comment-memory-order.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockContent := string(content)
+	agentSection := extractJobSection(lockContent, "agent")
+	if agentSection == "" {
+		t.Fatal("Agent job section not found in generated workflow")
+	}
+
+	// All three comment-memory-related steps must be present
+	if !strings.Contains(agentSection, "name: Download activation artifact") {
+		t.Error("Expected 'Download activation artifact' step in agent job")
+	}
+	if !strings.Contains(agentSection, "name: Write comment-memory configuration") {
+		t.Error("Expected 'Write comment-memory configuration' step in agent job")
+	}
+	if !strings.Contains(agentSection, "name: Prepare comment memory files") {
+		t.Error("Expected 'Prepare comment memory files' step in agent job")
+	}
+	if !strings.Contains(agentSection, "name: Custom Step") {
+		t.Error("Expected 'Custom Step' in agent job")
+	}
+
+	// Verify ordering: all comment-memory steps before the custom step
+	downloadIdx := indexInNonCommentLines(agentSection, "- name: Download activation artifact")
+	configIdx := indexInNonCommentLines(agentSection, "- name: Write comment-memory configuration")
+	prepareIdx := indexInNonCommentLines(agentSection, "- name: Prepare comment memory files")
+	customIdx := indexInNonCommentLines(agentSection, "- name: Custom Step")
+
+	if downloadIdx == -1 {
+		t.Fatal("Could not find 'Download activation artifact' step")
+	}
+	if configIdx == -1 {
+		t.Fatal("Could not find 'Write comment-memory configuration' step")
+	}
+	if prepareIdx == -1 {
+		t.Fatal("Could not find 'Prepare comment memory files' step")
+	}
+	if customIdx == -1 {
+		t.Fatal("Could not find 'Custom Step'")
+	}
+
+	if downloadIdx >= customIdx {
+		t.Errorf("Activation artifact download (%d) must come before custom step (%d)", downloadIdx, customIdx)
+	}
+	if configIdx >= customIdx {
+		t.Errorf("Comment-memory config write (%d) must come before custom step (%d)", configIdx, customIdx)
+	}
+	if prepareIdx >= customIdx {
+		t.Errorf("Comment-memory prepare (%d) must come before custom step (%d)", prepareIdx, customIdx)
+	}
+
+	// Verify intra-group ordering: download < config < prepare
+	if downloadIdx >= configIdx {
+		t.Errorf("Activation artifact download (%d) must come before config write (%d)", downloadIdx, configIdx)
+	}
+	if configIdx >= prepareIdx {
+		t.Errorf("Config write (%d) must come before prepare comment memory files (%d)", configIdx, prepareIdx)
+	}
+
+	t.Logf("Step order verified: download(%d) < config(%d) < prepare(%d) < custom(%d)",
+		downloadIdx, configIdx, prepareIdx, customIdx)
+}
+
+// TestActivationArtifactWithoutCommentMemory verifies that the activation artifact download
+// step is always emitted even when comment-memory is not configured, and that the
+// comment-memory config/prepare steps are not emitted in that case.
+func TestActivationArtifactWithoutCommentMemory(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "no-comment-memory-test")
+
+	testContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: claude
+strict: false
+---
+
+# Test Without Comment Memory
+
+This workflow has no comment-memory configured.
+`
+
+	testFile := filepath.Join(tmpDir, "test-no-comment-memory.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test-no-comment-memory.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockContent := string(content)
+	agentSection := extractJobSection(lockContent, "agent")
+	if agentSection == "" {
+		t.Fatal("Agent job section not found in generated workflow")
+	}
+
+	// Activation artifact download must always be present
+	if !strings.Contains(agentSection, "name: Download activation artifact") {
+		t.Error("Expected 'Download activation artifact' step even without comment-memory")
+	}
+
+	// Comment-memory-specific steps must NOT be present
+	if strings.Contains(agentSection, "name: Write comment-memory configuration") {
+		t.Error("Did not expect 'Write comment-memory configuration' step when comment-memory is not configured")
+	}
+	if strings.Contains(agentSection, "name: Prepare comment memory files") {
+		t.Error("Did not expect 'Prepare comment memory files' step when comment-memory is not configured")
+	}
+}
+
 func TestPreStepsSecretsValidation(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.strictMode = true
