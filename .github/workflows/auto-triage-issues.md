@@ -172,6 +172,18 @@ This label identifies issues opened by external community members and read-only 
 - `dependencies` - Mentions dependency updates, version bumps, package management
 - `refactoring` - Discusses code restructuring without behavior changes
 
+### Known Automation Title Patterns (high-confidence, apply immediately)
+
+These title patterns identify machine-generated operational issues. Apply `automation` without further analysis and **do not** apply `needs-triage`:
+
+| Title prefix / pattern | Label(s) to apply |
+|---|---|
+| `[pr-sous-chef]` | `automation` |
+| `[deep-report]` | `automation` |
+| `[auto-triage]` (case-insensitive) | `automation` |
+
+When an issue title matches one of these patterns, apply the specified label(s) and skip all other classification rules for that issue.
+
 ### Uncertainty Handling
 
 - Apply `needs-triage` when the issue doesn't clearly fit any category

@@ -367,7 +367,13 @@ outerLoop:
 		// always sleeps at least APICallCooldown but will also block until the
 		// reset window when the remaining budget is nearly exhausted.
 		if iteration > 0 {
-			if rlErr := checkAndWaitForRateLimit(verbose); rlErr != nil {
+			if rlErr := checkAndWaitForRateLimit(activeCtx, verbose); rlErr != nil {
+				if errors.Is(rlErr, context.Canceled) || errors.Is(rlErr, context.DeadlineExceeded) {
+					// Context was cancelled or timed out during the rate-limit wait.
+					// Use continue (not break) so the top-of-loop activeCtx.Done() path
+					// preserves Canceled vs DeadlineExceeded behavior.
+					continue
+				}
 				logsOrchestratorLog.Printf("Rate limit check failed (using static cooldown): %v", rlErr)
 			}
 		}

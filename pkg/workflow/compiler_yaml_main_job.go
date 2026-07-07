@@ -244,7 +244,7 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 func (c *Compiler) prepareRuntimeSetupAndCheckoutInfo(data *WorkflowData) ([]GitHubActionStep, bool) {
 	// Add automatic runtime setup steps if needed
 	// This detects runtimes from custom steps and MCP configs
-	runtimeRequirements := DetectRuntimeRequirements(data)
+	runtimeRequirements := detectRuntimeRequirementsCached(data)
 
 	// Deduplicate runtime setup steps from custom steps
 	// This removes any runtime setup action steps (like actions/setup-go) from custom steps
