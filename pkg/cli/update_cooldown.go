@@ -66,7 +66,7 @@ func getReleasePublishedAt(ctx context.Context, repo, tag string) (time.Time, er
 		return time.Time{}, fmt.Errorf("failed to create GitHub client: %w", err)
 	}
 	var release githubReleaseInfo
-	if err := client.Get(fmt.Sprintf("repos/%s/releases/tags/%s", repo, url.PathEscape(tag)), &release); err != nil {
+	if err := client.DoWithContext(ctx, "GET", fmt.Sprintf("repos/%s/releases/tags/%s", repo, url.PathEscape(tag)), nil, &release); err != nil {
 		return time.Time{}, fmt.Errorf("failed to fetch release info for %s@%s: %w", repo, tag, err)
 	}
 	return release.PublishedAt, nil
