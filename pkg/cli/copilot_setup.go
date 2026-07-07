@@ -50,7 +50,15 @@ func resolveInstallScriptSHA256(ctx context.Context, commitSHA string) string {
 	return digest
 }
 
-// getActionRef returns the action reference string based on action mode and version.
+// sha256CheckLine returns a YAML-indented shell command that verifies digest against path
+// using sha256sum. Returns an empty string if digest is empty.
+func sha256CheckLine(digest, path string) string {
+	if digest == "" {
+		return ""
+	}
+	return fmt.Sprintf(`          echo "%s  %s" | sha256sum -c -`+"\n", digest, path)
+}
+
 // If a resolver is provided and mode is release or action, attempts to resolve the SHA for a SHA-pinned reference.
 // Falls back to a version tag reference if SHA resolution fails or resolver is nil.
 func getActionRef(ctx context.Context, actionMode workflow.ActionMode, version string, resolver workflow.SHAResolver) string {
@@ -125,10 +133,7 @@ jobs:
 	} else {
 		copilotSetupLog.Printf("Could not resolve github/gh-aw main SHA for dev-mode template, falling back to mutable ref: %v", err)
 	}
-	sha256Line := ""
-	if installSHA256 != "" {
-		sha256Line = `          echo "` + installSHA256 + `  ` + installScriptTempPath + `" | sha256sum -c -` + "\n"
-	}
+	sha256Cmd := sha256CheckLine(installSHA256, installScriptTempPath)
 	return fmt.Sprintf(`name: "Copilot Setup Steps"
 
 # This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
@@ -154,7 +159,7 @@ jobs:
           mkdir -p /tmp/gh-aw
           curl -fsSL https://raw.githubusercontent.com/github/gh-aw/%s/install-gh-aw.sh -o %s
 %s          bash %s
-`, installRef, installScriptTempPath, sha256Line, installScriptTempPath)
+`, installRef, installScriptTempPath, sha256Cmd, installScriptTempPath)
 }
 
 // copilotSetupStepsYAML is a static dev-mode template used only for YAML validity tests.
@@ -345,8 +350,8 @@ func renderCopilotSetupUpdateInstructions(ctx context.Context, filePath string, 
 		fmt.Fprintln(os.Stderr, "        run: |")
 		fmt.Fprintln(os.Stderr, "          mkdir -p /tmp/gh-aw")
 		fmt.Fprintln(os.Stderr, "          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/"+installRef+"/install-gh-aw.sh -o "+installScriptTempPath)
-		if installSHA256 != "" {
-			fmt.Fprintln(os.Stderr, `          echo "`+installSHA256+`  `+installScriptTempPath+`" | sha256sum -c -`)
+		if line := sha256CheckLine(installSHA256, installScriptTempPath); line != "" {
+			fmt.Fprint(os.Stderr, line)
 		}
 		fmt.Fprintln(os.Stderr, "          bash "+installScriptTempPath)
 	}
