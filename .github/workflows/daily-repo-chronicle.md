@@ -44,7 +44,7 @@ safe-outputs:
     allowed-exts: [.png, .jpg, .jpeg, .svg]
   create-discussion:
     expires: 3d
-    category: "announcements"
+    category: "audits"
     title-prefix: "📰 "
     close-older-discussions: true
 imports:

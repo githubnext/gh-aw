@@ -49,7 +49,7 @@ tools:
 safe-outputs:
   create-discussion:
     expires: 3d
-    category: "announcements"
+    category: "audits"
     title-prefix: "🦛 "
     close-older-discussions: true
     max: 1
