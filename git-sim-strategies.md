@@ -1,7 +1,7 @@
 # Git Simulator Strategy Notes
 
 Z3 sweep of 3600 cells (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT, COMMIT innermost).
-Condensed 06-30 to fit the 10 KB repo-memory budget. **72/3600 tested, all PASS.**
+Condensed 06-30 to fit the 10 KB repo-memory budget. **76/3600 tested, all PASS.**
 
 ## Coverage map
 
@@ -31,6 +31,14 @@ Condensed 06-30 to fit the 10 KB repo-memory budget. **72/3600 tested, all PASS.
   diverged-multi(70) 205.32/3f **1.027×** (disjoint whole-file adds, NOT 2× — see law),
   FF 4; diverged-merge_msg(71) 204.16/1f leak, --merges empty, FF. bundle ~153 KB
   (~25%<patch). All KB. **few tier micro/small/medium DONE — all PASS.**
+- **tiny-none-few-large (idx 72-75, partial): all PASS.** 5×204800 B base64 (~1000 KB).
+  clean-single(72) 1001.35/1f, bundle 758 (-24%), overhead <0.14%; clean-multi(73)
+  1015.13/3f **1.015×** (disjoint 2/2/1 whole-file adds → ~1× not 2×, reconfirms
+  same-file-re-touch law), bundle 761; clean-merge_msg(74) 1016/1f leak
+  0001-Merge-branch-topic-into-feature.patch, --merges empty parent=1, bundle 764;
+  ahead-single(75) PR 1016/1f + push delta 8 KB (FF is-ancestor OK, commit_count=2),
+  bundle 768. All ~25% of 4096 cap. large tier 76-80 (ahead-multi/merge_msg,
+  diverged) remain.
 
 ## The cap (grounded in source)
 
@@ -97,7 +105,8 @@ it's a real bug (over-count, or runtime measuring excluded commits).
 
 ## Next
 
-Next index: **72** → `tiny-none-few-large-*` (72-80) ~1 MB/9 cells → PASS predicted;
+Next index: **76** → `tiny-none-few-large-ahead-multi` (76), then ahead-merge_msg(77),
+diverged(78-80) finish the large tier (all ~1 MB → PASS predicted);
 few-xlarge (81-89) predicted ~4054 KB → PASS (near 99% cap but header math shows
 few lands ~4054, under 4096). That FINISHES FILES=few. FILES=many (idx 90-179) &
 batch (180-269) next — many/batch × xlarge is the first place `max_patch_files`
