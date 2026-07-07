@@ -85,13 +85,15 @@ This is a test workflow.
 	serverCmd.Dir = tmpDir
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	connectCtx, connectCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer connectCancel()
 
-	session, err := client.Connect(ctx, transport, nil)
+	session, err := client.Connect(connectCtx, transport, nil)
 	if err != nil {
-		cancel()
 		t.Fatalf("Failed to connect to MCP server: %v", err)
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 
 	return session, originalDir, ctx, cancel
 }
