@@ -37,12 +37,11 @@ Rejected because this approach requires the agent job to run first and explicitl
 - Validation at compile time rejects requests for memory types not declared in `tools:`, surfacing misconfiguration early.
 
 #### Negative
-- Increases compiler complexity: a new source file (`compiler_custom_job_memory.go`), new config parsing, validation, and injection plumbing into `configureCustomJobSteps`.
-- Job authors must explicitly enumerate every memory type they need under `restore-memory:`; there is no auto-detection based on what the workflow's `tools:` section declares.
+- Increases compiler complexity: a new source file (`compiler_custom_job_memory.go`), new config parsing, and injection plumbing into `configureCustomJobSteps`.
 - The injected setup action step (required for repo-memory and comment-memory scripts) adds overhead to custom jobs that may not otherwise need the full gh-aw setup.
 
 #### Neutral
-- The JSON schema for the custom job `additionalProperties` definition gains a new `restore-memory` object property; existing workflows without this field are unaffected.
+- The JSON schema for the custom job `additionalProperties` definition gains a new `restore-memory` boolean property; existing workflows without this field are unaffected.
 - Step ordering is deterministic: GHES host config → gh-aw setup (if needed) → memory restore steps → pre-steps → regular steps.
 
 ---
