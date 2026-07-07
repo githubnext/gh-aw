@@ -4,9 +4,21 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGetSortedSafeOutputFieldNames_MatchesSortedKeys(t *testing.T) {
+	t.Parallel()
+
+	expected := sliceutil.SortedKeys(safeOutputFieldMapping)
+	first := getSortedSafeOutputFieldNames()
+	second := getSortedSafeOutputFieldNames()
+
+	assert.Equal(t, expected, first)
+	assert.Equal(t, expected, second)
+}
 
 // TestValidateSafeOutputsSamples_Valid covers the happy path for the
 // strict schema validation of samples entries. We use create_issue (no
