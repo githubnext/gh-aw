@@ -591,6 +591,32 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
+      - name: Restore cache-memory file share data
+        id: restore_cache_memory_0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: memory-none-nopolicy-discussions-data-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            memory-none-nopolicy-discussions-data-
+      - name: Setup cache-memory git repository
+        env:
+          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
+          GH_AW_MIN_INTEGRITY: none
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          BRANCH_NAME: memory/deep-report
+          TARGET_REPO: ${{ github.repository }}
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
+          CREATE_ORPHAN: true
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
       - name: Install gh CLI
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh"
@@ -795,32 +821,6 @@ jobs:
           echo "Weekly issues data available at: /tmp/gh-aw/agent/weekly-issues-data/issues.json"
           echo "Schema available at: /tmp/gh-aw/agent/weekly-issues-data/issues-schema.json"
 
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
-      - name: Restore cache-memory file share data
-        id: restore_cache_memory_0
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          key: memory-none-nopolicy-discussions-data-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            memory-none-nopolicy-discussions-data-
-      - name: Setup cache-memory git repository
-        env:
-          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
-          GH_AW_MIN_INTEGRITY: none
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
-      # Repo memory git-based storage configuration from frontmatter processed below
-      - name: Clone repo-memory branch (default)
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-          BRANCH_NAME: memory/deep-report
-          TARGET_REPO: ${{ github.repository }}
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
-          CREATE_ORPHAN: true
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
