@@ -2047,6 +2047,23 @@ func TestBuildAWFImageTagWithDigests(t *testing.T) {
 		tag := buildAWFImageTagWithDigests("0.0.1", nil)
 		assert.Equal(t, "0.0.1", tag, "should not append digest metadata when no pins are available")
 	})
+
+	t.Run("includes build-tools digest for arc-dind topology", func(t *testing.T) {
+		imageTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+		workflowData := &WorkflowData{
+			RunnerConfig: &RunnerConfig{Topology: RunnerTopologyArcDind},
+		}
+		tag := buildAWFImageTagWithDigests(imageTag, workflowData)
+
+		assert.Contains(t, tag, "build-tools=sha256:", "should include build-tools digest metadata for arc-dind topology")
+	})
+
+	t.Run("excludes build-tools digest without arc-dind topology", func(t *testing.T) {
+		imageTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+		tag := buildAWFImageTagWithDigests(imageTag, nil)
+
+		assert.NotContains(t, tag, "build-tools=", "should not include build-tools digest metadata without arc-dind topology")
+	})
 }
 
 func TestBuildAWFArgs_ImageTagIncludesDigests(t *testing.T) {
