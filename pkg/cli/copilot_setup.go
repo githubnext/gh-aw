@@ -24,6 +24,15 @@ var copilotSetupLog = logger.New("cli:copilot_setup")
 // installScriptTempPath is the temporary file path used for the downloaded gh-aw install script.
 const installScriptTempPath = "/tmp/gh-aw/install-gh-aw.sh"
 
+// copilotSetupStepsStaticSHA is the pinned commit SHA of install-gh-aw.sh used in the static
+// YAML test template and as the fallback when ResolveGhAwRef is unavailable.
+// Run scripts/update-install-script-hashes.sh to refresh both this value and copilotSetupStepsStaticSHA256.
+const copilotSetupStepsStaticSHA = "21a6827c430f89d3b7443074cfc8bd25b84d278f"
+
+// copilotSetupStepsStaticSHA256 is the SHA256 hex digest of install-gh-aw.sh at copilotSetupStepsStaticSHA.
+// Run scripts/update-install-script-hashes.sh to refresh both this value and copilotSetupStepsStaticSHA.
+const copilotSetupStepsStaticSHA256 = "248ccebcb998c6a506548156e1bf9f02429cbbaec407d5adbdfd316ab0f866a0"
+
 // sha256HexRegex matches a valid lowercase SHA256 hex digest (exactly 64 hex chars).
 var sha256HexRegex = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
@@ -164,10 +173,10 @@ jobs:
 }
 
 // copilotSetupStepsYAML is a static dev-mode template used only for YAML validity tests.
-// The URL is pinned to an immutable commit SHA as a representative example; the runtime
-// function generateCopilotSetupStepsYAML resolves the ref dynamically via ResolveGhAwRef.
-// NOTE: The temp path used here must match the installScriptTempPath constant.
-const copilotSetupStepsYAML = `name: "Copilot Setup Steps"
+// It is built from copilotSetupStepsStaticSHA and copilotSetupStepsStaticSHA256 so that
+// scripts/update-install-script-hashes.sh can refresh both values in a single place.
+// The runtime function generateCopilotSetupStepsYAML resolves the ref dynamically via ResolveGhAwRef.
+var copilotSetupStepsYAML = fmt.Sprintf(`name: "Copilot Setup Steps"
 
 # This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
 on:
@@ -190,10 +199,10 @@ jobs:
       - name: Install gh-aw extension
         run: |
           mkdir -p /tmp/gh-aw
-          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/21a6827c430f89d3b7443074cfc8bd25b84d278f/install-gh-aw.sh -o /tmp/gh-aw/install-gh-aw.sh
-          echo "248ccebcb998c6a506548156e1bf9f02429cbbaec407d5adbdfd316ab0f866a0  /tmp/gh-aw/install-gh-aw.sh" | sha256sum -c -
-          bash /tmp/gh-aw/install-gh-aw.sh
-`
+          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/%s/install-gh-aw.sh -o %s
+          echo "%s  %s" | sha256sum -c -
+          bash %s
+`, copilotSetupStepsStaticSHA, installScriptTempPath, copilotSetupStepsStaticSHA256, installScriptTempPath, installScriptTempPath)
 
 // CopilotWorkflowStep represents a GitHub Actions workflow step for Copilot setup scaffolding
 type CopilotWorkflowStep struct {
