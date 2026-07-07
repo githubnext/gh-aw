@@ -1,93 +1,128 @@
 {
-  "run_date": "2026-07-07T01:03:38Z",
-  "run_id": "28834001067",
-  "prior_run_id": "28815219785",
+  "run_date": "2026-07-07T07:25:16Z",
+  "run_id": "28848998303",
+  "prior_run_id": "28834001067",
   "summary": {
-    "total": 6,
-    "new": 1,
-    "carry_over": 5,
+    "total": 11,
+    "new": 8,
+    "carry_over": 3,
     "fast_track": 3,
-    "auto_merge": 1,
-    "batch_review": 2,
-    "defer": 0,
-    "close": 0,
-    "drafts": 0
-  },
-  "prior_run_resolution": {
-    "total": 12,
-    "merged": 7,
-    "closed": 1,
-    "merged_prs": [43850, 43848, 43833, 43839, 43849, 43843],
-    "closed_prs": [43826],
-    "note": "43826 closed without merge (typist optimization)"
+    "batch_review": 4,
+    "defer": 4,
+    "close": 1,
+    "drafts": 4
   },
   "prs": [
     {
       "number": 43766,
       "title": "fix(mcp-server): bind HTTP server to 127.0.0.1; document validation escalation",
       "category": "bug", "risk": "high", "score": 82, "action": "fast_track",
-      "batch": "pr-batch:go-security", "draft": false, "carry_over": true, "carry_over_count": 3,
-      "reviews": "CHANGES_REQUESTED(bot)", "ci": "no-ci",
-      "note": "Security: DNS-rebinding fix, bind MCP HTTP to loopback. Carry-over x3."
+      "batch": "pr-batch:go-security", "draft": false, "carry_over": true, "carry_over_count": 4,
+      "ci": "passing", "reviews": "swe-agent COMMENTED",
+      "note": "Security: DNS-rebinding fix. Carry-over x4. Bot change requests unresolved."
     },
     {
       "number": 43716,
       "title": "fix(security): replace curl|sh installer pipes with download+verify (RGS-018)",
       "category": "bug", "risk": "high", "score": 75, "action": "fast_track",
-      "batch": "pr-batch:go-security", "draft": false, "carry_over": true, "carry_over_count": 3,
-      "reviews": "CHANGES_REQUESTED(bot)x2", "ci": "no-ci",
-      "note": "Security: RGS-018 curl|sh -> download+verify. Carry-over x3."
-    },
-    {
-      "number": 43871,
-      "title": "Improve actionpins spec coverage for fallback, mapping, and context propagation",
-      "category": "test", "risk": "low", "score": 62, "action": "auto_merge",
-      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
-      "reviews": "APPROVED(github-actions[bot])", "ci": "approved",
-      "note": "New PR. Pure test + ADR doc. Bot-approved. Auto-merge candidate."
-    },
-    {
-      "number": 43802,
-      "title": "fix: address 7 CLI consistency issues from automated inspection",
-      "category": "bug", "risk": "medium", "score": 60, "action": "fast_track",
-      "batch": null, "draft": false, "carry_over": true, "carry_over_count": 2,
-      "reviews": "CHANGES_REQUESTED/APPROVED(dismissed)", "ci": "mixed",
-      "note": "7 CLI consistency fixes. Bot approved then dismissed. swe-agent engaged 23:49Z."
+      "batch": "pr-batch:go-security", "draft": false, "carry_over": true, "carry_over_count": 4,
+      "ci": "no-ci", "reviews": "swe-agent+pelikhan COMMENTED",
+      "note": "Security: RGS-018. Carry-over x4. Review with 43766."
     },
     {
       "number": 43700,
       "title": "compiler: add evals job for BinEval binary evaluations",
       "category": "feature", "risk": "high", "score": 53, "action": "batch_review",
-      "batch": null, "draft": false, "carry_over": true, "carry_over_count": 3,
-      "reviews": "CHANGES_REQUESTED(dismissed)+pelikhan+swe-agent", "ci": "no-ci",
-      "note": "Large feature +780 lines. pelikhan engaged x3. Needs human merge/close decision."
+      "batch": "pr-batch:compiler-features", "draft": false, "carry_over": true, "carry_over_count": 4,
+      "ci": "passing", "reviews": "pelikhan+swe-agent COMMENTED",
+      "note": "Large +778 feature. Carry-over x4. @pelikhan decision needed."
     },
     {
-      "number": 43834,
-      "title": "refactor(parser): split remote_fetch.go (1553 lines) into focused modules",
-      "category": "refactor", "risk": "medium", "score": 47, "action": "batch_review",
-      "batch": "pr-batch:go-refactor", "draft": false, "carry_over": true, "carry_over_count": 2,
-      "reviews": "CHANGES_REQUESTED(bot)x2", "ci": "no-ci",
-      "note": "Pure refactor 12 files. 2x bot CHANGES_REQUESTED. Needs agent to address feedback."
+      "number": 43957,
+      "title": "Recreate AWF firewall v0.27.26 integration and artifact refresh",
+      "category": "chore", "risk": "low", "score": 30, "action": "defer",
+      "batch": "pr-batch:awf-firewall", "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "no-ci", "note": "Draft. Recreates 43915. Large generated diff (4585 lines, 100 files)."
+    },
+    {
+      "number": 43952,
+      "title": "[WIP] Prepare comment-memory before user steps in agent job",
+      "category": "feature", "risk": "medium", "score": 20, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "no-ci", "note": "Draft/WIP. 0 files committed."
+    },
+    {
+      "number": 43951,
+      "title": "[WIP] Fix expressionReferencesCatchVar to handle LogicalExpression",
+      "category": "bug", "risk": "low", "score": 20, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "no-ci", "note": "Draft/WIP. 0 files committed."
+    },
+    {
+      "number": 43940,
+      "title": "Allow jobs.<generated>.needs to augment compiler-generated job dependencies",
+      "category": "feature", "risk": "medium", "score": 65, "action": "batch_review",
+      "batch": "pr-batch:compiler-features", "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "pending", "note": "New. +204 lines. CI pending. Review with 43700."
+    },
+    {
+      "number": 43939,
+      "title": "fix: migrate 5 linters from syntactic stdlib-package matching to astutil.IsPkgSelector",
+      "category": "bug", "risk": "medium", "score": 68, "action": "fast_track",
+      "batch": "pr-batch:lint-fixes", "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "mixed", "reviews": "copilot-pull-request-reviewer COMMENTED",
+      "note": "New. 11 files. Fixes CI-blocking false positives."
+    },
+    {
+      "number": 43938,
+      "title": "Targeted custom-lint cleanup: append byte conversion, context propagation, error wrapping",
+      "category": "chore", "risk": "low", "score": 42, "action": "batch_review",
+      "batch": "pr-batch:lint-fixes", "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "mixed", "note": "New. 4 files. Non-functional lint cleanup."
+    },
+    {
+      "number": 43915,
+      "title": "Bump AWF firewall to v0.27.26 and refresh pinned workflow artifacts",
+      "category": "chore", "risk": "low", "score": 25, "action": "close",
+      "batch": "pr-batch:awf-firewall", "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "passing", "note": "Superseded by 43957. Recommend close."
+    },
+    {
+      "number": 43909,
+      "title": "fix: follow symlinks when generating sparse checkout for .github subdirs",
+      "category": "bug", "risk": "medium", "score": 55, "action": "defer",
+      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "no-ci", "reviews": "github-actions CHANGES_REQUESTED x3",
+      "note": "New. 3 files. Bot CHANGES_REQUESTED x3. Needs agent to address feedback."
     }
   ],
   "batches": [
     {
       "id": "pr-batch:go-security",
       "prs": [43766, 43716],
-      "note": "Security fixes: DNS-rebinding (43766) + RGS-018 curl|sh (43716). Review together. Carry-over x3."
+      "note": "Security fixes: DNS-rebinding (43766) + RGS-018 curl|sh (43716). Review together. Carry-over x4."
     },
     {
-      "id": "pr-batch:go-refactor",
-      "prs": [43834],
-      "note": "Go refactoring: parser split (43834). Partner #43833 was merged this cycle."
+      "id": "pr-batch:lint-fixes",
+      "prs": [43939, 43938],
+      "note": "Linter fixes: AST-based selector migration (43939) + targeted cleanup (43938)."
+    },
+    {
+      "id": "pr-batch:compiler-features",
+      "prs": [43940, 43700],
+      "note": "Compiler feature additions: needs augmentation (43940) + evals job (43700 carry-over x4)."
+    },
+    {
+      "id": "pr-batch:awf-firewall",
+      "prs": [43957, 43915],
+      "note": "AWF firewall v0.27.26 pin. 43915 superseded by 43957 (draft). Close 43915."
     }
   ],
   "flags": [
-    "SECURITY BATCH pr-batch:go-security: #43766 + #43716 carry-over x3 — DNS-rebinding + RGS-018. Bot changes requests unresolved. Human action required.",
-    "PR #43871: NEW, auto-merge candidate (test+doc only, bot-approved). Easiest win.",
-    "PR #43700: Carry-over x3 feature. @pelikhan engaged but no merge decision. Escalate or close.",
-    "PR #43834: Refactor blocked by 2x bot CHANGES_REQUESTED. Agent should address before next review."
-  ],
-  "report_issue": "aw_triage_0707"
+    "SECURITY BATCH pr-batch:go-security: #43766 + #43716 carry-over x4. Human action required.",
+    "PR #43915: Superseded by #43957 (draft). Recommend close.",
+    "PR #43700: Carry-over x4 feature. @pelikhan decision needed.",
+    "4 DRAFT PRs (43957,43952,43951 committed 0 files + 43915 draft). Re-triage when ready.",
+    "PR #43939: Fast-track — fixes CI-blocking linter false positives."
+  ]
 }
