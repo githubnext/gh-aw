@@ -50,8 +50,10 @@ func resolveInstallScriptSHA256(ctx context.Context, commitSHA string) string {
 	return digest
 }
 
-// sha256CheckLine returns a YAML-indented shell command that verifies digest against path
-// using sha256sum. Returns an empty string if digest is empty.
+// sha256CheckLine returns a YAML-indented shell command (with trailing newline) that verifies
+// digest against path using sha256sum. Returns an empty string if digest is empty.
+// Both parameters must be pre-validated: digest via sha256HexRegex ([0-9a-f]{64}) and path
+// must be a safe filesystem path (e.g., the installScriptTempPath constant).
 func sha256CheckLine(digest, path string) string {
 	if digest == "" {
 		return ""
@@ -351,7 +353,7 @@ func renderCopilotSetupUpdateInstructions(ctx context.Context, filePath string, 
 		fmt.Fprintln(os.Stderr, "          mkdir -p /tmp/gh-aw")
 		fmt.Fprintln(os.Stderr, "          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/"+installRef+"/install-gh-aw.sh -o "+installScriptTempPath)
 		if line := sha256CheckLine(installSHA256, installScriptTempPath); line != "" {
-			fmt.Fprint(os.Stderr, line)
+			fmt.Fprint(os.Stderr, line) // sha256CheckLine includes trailing newline
 		}
 		fmt.Fprintln(os.Stderr, "          bash "+installScriptTempPath)
 	}
