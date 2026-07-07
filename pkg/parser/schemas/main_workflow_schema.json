@@ -2690,6 +2690,25 @@
                 }
               }
             ]
+          },
+          "restore-memory": {
+            "type": "object",
+            "description": "Inject read-only memory restore steps into this custom job. Each enabled memory type must already be configured in the workflow's tools: section. No write-back or commit steps are ever emitted.",
+            "additionalProperties": false,
+            "properties": {
+              "cache-memory": {
+                "type": "boolean",
+                "description": "Restore cache-memory file share data (read-only). Requires cache-memory to be configured in tools:."
+              },
+              "repo-memory": {
+                "type": "boolean",
+                "description": "Clone repo-memory branch for reading (read-only). Requires repo-memory to be configured in tools:."
+              },
+              "comment-memory": {
+                "type": "boolean",
+                "description": "Prepare comment-memory files for reading (read-only). Requires comment-memory to be configured in tools:."
+              }
+            }
           }
         }
       }

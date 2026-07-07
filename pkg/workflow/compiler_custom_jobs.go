@@ -507,13 +507,36 @@ func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap m
 		}
 	}
 
-	if hasSetupStepsField || hasPreStepsField || hasStepsField {
+	// Parse and validate restore-memory configuration.
+	// restore-memory injects read-only memory restore steps into the custom job.
+	// No write-back or commit steps are ever emitted for memory in custom jobs.
+	restoreMemCfg, err := extractRestoreMemoryConfig(configMap, jobName)
+	if err != nil {
+		return err
+	}
+	if err := validateRestoreMemoryConfig(restoreMemCfg, data, jobName); err != nil {
+		return err
+	}
+
+	hasRestoreMemory := restoreMemCfg != nil
+
+	if hasSetupStepsField || hasPreStepsField || hasStepsField || hasRestoreMemory {
 		job.Steps = append(job.Steps, setupSteps...)
 		// Prepend GH_HOST configuration step for GHES/GHEC compatibility.
 		// Custom frontmatter jobs run as independent GitHub Actions jobs that
 		// don't inherit GITHUB_ENV from the agent job, so the gh CLI won't
 		// know which host to target without this step.
 		job.Steps = append(job.Steps, generateGHESHostConfigurationStep())
+
+		// Inject gh-aw setup + memory restore steps when restore-memory is requested.
+		// Setup lines come first (they install scripts needed by repo/comment memory).
+		// Memory lines follow immediately after (restore/clone/prepare steps).
+		if hasRestoreMemory {
+			memorySetupLines, memoryRestoreLines := c.buildRestoreMemorySteps(restoreMemCfg, data)
+			job.Steps = append(job.Steps, memorySetupLines...)
+			job.Steps = append(job.Steps, memoryRestoreLines...)
+		}
+
 		job.Steps = append(job.Steps, preSteps...)
 		job.Steps = append(job.Steps, regularSteps...)
 	}
