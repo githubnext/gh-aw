@@ -15,6 +15,8 @@ The catalog is loaded once per process via a singleton cache (`syncutil.OnceLoad
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `FindPricing` | `func(ctx context.Context, provider, model string) (map[string]float64, bool)` | Returns normalized per-token pricing for a provider/model pair. Falls back to cross-provider matching when provider lookup fails. Returns `(nil, false)` when no pricing is available |
+| `NormalizeProvider` | `func(provider string) string` | Normalizes provider aliases such as `github`, `copilot`, and `github_models` to `github-copilot`, and lower-cases other provider identifiers |
+| `NormalizeComparableModelID` | `func(value string) string` | Lower-cases a model identifier, trims surrounding whitespace, and replaces `.` and `_` with `-` so equivalent model IDs compare consistently |
 
 ## Usage Examples
 
