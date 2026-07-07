@@ -1,0 +1,42 @@
+{
+  "date": "2026-07-07",
+  "files_analyzed": {
+    "documentation": [
+      "docs/src/content/docs/reference/gh-aw-as-mcp-server.md",
+      "docs/src/content/docs/blog/2026-04-20-weekly-update.md"
+    ],
+    "cli": [
+      "pkg/cli/audit_diff_command.go"
+    ],
+    "messages": [
+      ".github/workflows/smoke-copilot-aoai-apikey.md",
+      ".github/workflows/smoke-pi.md"
+    ],
+    "validation": [
+      "pkg/parser/schema_validation.go"
+    ]
+  },
+  "overall_quality": "needs-minor-work",
+  "quality_highlights": [
+    {
+      "file": "docs/src/content/docs/reference/gh-aw-as-mcp-server.md",
+      "aspect": "Well-structured MCP server reference: quick-start -> transport options -> per-client setup -> Available Tools. Thorough parameter tables, clean deprecation guidance for run_id_or_url alias."
+    },
+    {
+      "file": "pkg/parser/schema_validation.go",
+      "aspect": "Single-field forbidden-field error is clean and professional: \"field 'engine' cannot be used in shared workflows (only allowed in main workflows with 'on' trigger)\"."
+    }
+  ],
+  "single_file_improvements": [
+    {
+      "file": "pkg/parser/schema_validation.go",
+      "priority": "high",
+      "issue": "Line 71: multi-field forbidden-fields error uses %v on []string, producing bracket-wrapped unquoted output [field1 field2]. Inconsistent with single-field %s style and validateSharedWorkflowOnField strings.Join usage."
+    },
+    {
+      "file": ".github/workflows/smoke-copilot-aoai-apikey.md",
+      "priority": "medium",
+      "issue": "run-success message says 'All systems operational. This is a developing story.' - contradictory terminal-success vs in-progress language in same sentence."
+    }
+  ]
+}
