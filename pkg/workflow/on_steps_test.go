@@ -303,6 +303,8 @@ Test on.steps with memory stores restored in pre-activation
 		// Pre-activation must not include write-back/commit steps.
 		assert.NotContains(t, preActivationSection, "Commit cache-memory changes")
 		assert.NotContains(t, preActivationSection, "Push repo-memory changes")
+		assert.Contains(t, preActivationSection, "uses: "+getActionPin("actions/cache/restore"))
+		assert.NotContains(t, preActivationSection, "uses: "+getActionPin("actions/cache"))
 	})
 }
 

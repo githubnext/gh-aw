@@ -240,7 +240,7 @@ func (c *Compiler) buildPreActivationMemoryRestoreSteps(data *WorkflowData, step
 
 	var memorySteps strings.Builder
 
-	generateCacheMemorySteps(&memorySteps, data)
+	generatePreActivationCacheMemoryRestoreSteps(&memorySteps, data)
 	generateRepoMemorySteps(&memorySteps, data)
 
 	if data.SafeOutputs != nil && data.SafeOutputs.CommentMemory != nil {
@@ -260,6 +260,23 @@ func (c *Compiler) buildPreActivationMemoryRestoreSteps(data *WorkflowData, step
 	}
 
 	return steps
+}
+
+func generatePreActivationCacheMemoryRestoreSteps(builder *strings.Builder, data *WorkflowData) {
+	if data.CacheMemoryConfig == nil || len(data.CacheMemoryConfig.Caches) == 0 {
+		return
+	}
+
+	preActivationData := *data
+	preActivationData.CacheMemoryConfig = &CacheMemoryConfig{
+		Caches: make([]CacheMemoryEntry, len(data.CacheMemoryConfig.Caches)),
+	}
+	copy(preActivationData.CacheMemoryConfig.Caches, data.CacheMemoryConfig.Caches)
+	for i := range preActivationData.CacheMemoryConfig.Caches {
+		preActivationData.CacheMemoryConfig.Caches[i].RestoreOnly = true
+	}
+
+	generateCacheMemorySteps(builder, &preActivationData)
 }
 
 func (c *Compiler) appendPreActivationSkipRolesStep(data *WorkflowData, steps []string) []string {
