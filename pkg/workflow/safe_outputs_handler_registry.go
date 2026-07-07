@@ -1,5 +1,9 @@
 package workflow
 
+// commentMemoryHandlerKey is the registry key for the comment_memory safe output handler.
+// Using a constant here prevents silent regressions if the key is ever renamed.
+const commentMemoryHandlerKey = "comment_memory"
+
 // handlerRegistry maps handler names to their builder functions.
 // Each entry is keyed by the handler name used in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
 // and returns a config map (nil means the handler is disabled).
@@ -52,7 +56,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},
-	"comment_memory": func(cfg *SafeOutputsConfig) map[string]any {
+	commentMemoryHandlerKey: func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.CommentMemory == nil {
 			return nil
 		}

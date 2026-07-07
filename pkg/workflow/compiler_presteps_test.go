@@ -358,11 +358,75 @@ This workflow tests that comment-memory files are prepared before custom steps r
 		t.Errorf("Comment-memory prepare (%d) must come before custom step (%d)", prepareIdx, customIdx)
 	}
 
-	t.Logf("Step order verified: download(%d), config(%d), prepare(%d) all < custom(%d)",
+	// Verify intra-group ordering: download < config < prepare
+	if downloadIdx >= configIdx {
+		t.Errorf("Activation artifact download (%d) must come before config write (%d)", downloadIdx, configIdx)
+	}
+	if configIdx >= prepareIdx {
+		t.Errorf("Config write (%d) must come before prepare comment memory files (%d)", configIdx, prepareIdx)
+	}
+
+	t.Logf("Step order verified: download(%d) < config(%d) < prepare(%d) < custom(%d)",
 		downloadIdx, configIdx, prepareIdx, customIdx)
 }
 
-// strict-mode error and non-strict warning as secrets in steps and post-steps.
+// TestActivationArtifactWithoutCommentMemory verifies that the activation artifact download
+// step is always emitted even when comment-memory is not configured, and that the
+// comment-memory config/prepare steps are not emitted in that case.
+func TestActivationArtifactWithoutCommentMemory(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "no-comment-memory-test")
+
+	testContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: claude
+strict: false
+---
+
+# Test Without Comment Memory
+
+This workflow has no comment-memory configured.
+`
+
+	testFile := filepath.Join(tmpDir, "test-no-comment-memory.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test-no-comment-memory.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockContent := string(content)
+	agentSection := extractJobSection(lockContent, "agent")
+	if agentSection == "" {
+		t.Fatal("Agent job section not found in generated workflow")
+	}
+
+	// Activation artifact download must always be present
+	if !strings.Contains(agentSection, "name: Download activation artifact") {
+		t.Error("Expected 'Download activation artifact' step even without comment-memory")
+	}
+
+	// Comment-memory-specific steps must NOT be present
+	if strings.Contains(agentSection, "name: Write comment-memory configuration") {
+		t.Error("Did not expect 'Write comment-memory configuration' step when comment-memory is not configured")
+	}
+	if strings.Contains(agentSection, "name: Prepare comment memory files") {
+		t.Error("Did not expect 'Prepare comment memory files' step when comment-memory is not configured")
+	}
+}
+
 func TestPreStepsSecretsValidation(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.strictMode = true
