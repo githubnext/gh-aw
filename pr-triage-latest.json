@@ -1,128 +1,119 @@
 {
-  "run_date": "2026-07-07T07:25:16Z",
-  "run_id": "28848998303",
-  "prior_run_id": "28834001067",
+  "run_date": "2026-07-07T13:02:47Z",
+  "run_id": "28868091227",
+  "prior_run_id": "28848998303",
   "summary": {
-    "total": 11,
-    "new": 8,
+    "total": 9,
+    "new": 6,
     "carry_over": 3,
-    "fast_track": 3,
+    "auto_merge": 1,
+    "fast_track": 2,
     "batch_review": 4,
-    "defer": 4,
-    "close": 1,
-    "drafts": 4
+    "defer": 2,
+    "drafts": 2,
+    "prior_closed": 8
   },
   "prs": [
     {
-      "number": 43766,
-      "title": "fix(mcp-server): bind HTTP server to 127.0.0.1; document validation escalation",
-      "category": "bug", "risk": "high", "score": 82, "action": "fast_track",
-      "batch": "pr-batch:go-security", "draft": false, "carry_over": true, "carry_over_count": 4,
-      "ci": "passing", "reviews": "swe-agent COMMENTED",
-      "note": "Security: DNS-rebinding fix. Carry-over x4. Bot change requests unresolved."
+      "number": 44015,
+      "title": "Expose memory stores to on.steps in pre-activation for deterministic dispatch gating",
+      "category": "feature", "risk": "medium", "score": 38, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "reviews": [], "additions": 121, "deletions": 0, "changed_files": 3,
+      "note": "Draft. Depends on #43984 (memory-ordering) landing first."
+    },
+    {
+      "number": 44008,
+      "title": "refactor(workflow): extract helpers to fix function-length lint violations",
+      "category": "refactor", "risk": "low", "score": 28, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "reviews": [], "additions": 135, "deletions": 109, "changed_files": 4,
+      "note": "Draft. Pure refactor, no behavior change."
+    },
+    {
+      "number": 43985,
+      "title": "feat(go-gh): modernize go-gh API usage — drop gh.Exec for GraphQL, add timeouts, tidy DefaultRESTClient",
+      "category": "refactor", "risk": "medium", "score": 72, "action": "fast_track",
+      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "passing", "reviews": "bot CHANGES_REQUESTED", "additions": 27, "deletions": 22, "changed_files": 3,
+      "note": "CI passing. Bot CR unresolved. Small footprint. Fast-track."
+    },
+    {
+      "number": 43984,
+      "title": "Move cache-memory and repo-memory restore steps before user steps: in agent job",
+      "category": "bug", "risk": "high", "score": 78, "action": "batch_review",
+      "batch": "pr-batch:memory-ordering", "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "passing", "reviews": "bot COMMENTED", "additions": 704, "deletions": 648, "changed_files": 56,
+      "note": "Fixes critical memory ordering. Large generated diff. Batch with #43952."
+    },
+    {
+      "number": 43966,
+      "title": "eslint-factory: detect catch-variable aliases in require-error-cause-in-rethrow",
+      "category": "bug", "risk": "low", "score": 80, "action": "auto_merge",
+      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "passing", "reviews": "github-actions APPROVED", "additions": 125, "deletions": 33, "changed_files": 2,
+      "note": "CI passing, bot-approved, clean merge state. Auto-merge candidate."
+    },
+    {
+      "number": 43952,
+      "title": "Move comment-memory preparation before user steps: in agent job",
+      "category": "feature", "risk": "medium", "score": 65, "action": "batch_review",
+      "batch": "pr-batch:memory-ordering", "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "passing", "reviews": "github-actions APPROVED+CR cycle", "additions": 1756, "deletions": 1426, "changed_files": 272,
+      "note": "Memory ordering theme. Large generated diff. Batch with #43984."
+    },
+    {
+      "number": 43938,
+      "title": "Targeted custom-lint cleanup: append byte conversion, context propagation, error wrapping",
+      "category": "chore", "risk": "low", "score": 40, "action": "batch_review",
+      "batch": "pr-batch:lint-fixes", "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "passing", "reviews": [], "additions": 62, "deletions": 28, "changed_files": 4,
+      "note": "Non-functional lint cleanup. Carry-over from prior batch."
     },
     {
       "number": 43716,
       "title": "fix(security): replace curl|sh installer pipes with download+verify (RGS-018)",
       "category": "bug", "risk": "high", "score": 75, "action": "fast_track",
-      "batch": "pr-batch:go-security", "draft": false, "carry_over": true, "carry_over_count": 4,
-      "ci": "no-ci", "reviews": "swe-agent+pelikhan COMMENTED",
-      "note": "Security: RGS-018. Carry-over x4. Review with 43766."
+      "batch": "pr-batch:go-security", "draft": false, "carry_over": true, "carry_over_count": 5,
+      "ci": "passing", "reviews": "pelikhan+bot COMMENTED, CR cycles dismissed", "additions": 216, "deletions": 20, "changed_files": 8,
+      "note": "Security fix RGS-018. Carry-over x5. Needs human merge decision."
     },
     {
       "number": 43700,
       "title": "compiler: add evals job for BinEval binary evaluations",
       "category": "feature", "risk": "high", "score": 53, "action": "batch_review",
-      "batch": "pr-batch:compiler-features", "draft": false, "carry_over": true, "carry_over_count": 4,
-      "ci": "passing", "reviews": "pelikhan+swe-agent COMMENTED",
-      "note": "Large +778 feature. Carry-over x4. @pelikhan decision needed."
-    },
-    {
-      "number": 43957,
-      "title": "Recreate AWF firewall v0.27.26 integration and artifact refresh",
-      "category": "chore", "risk": "low", "score": 30, "action": "defer",
-      "batch": "pr-batch:awf-firewall", "draft": true, "carry_over": false, "carry_over_count": 0,
-      "ci": "no-ci", "note": "Draft. Recreates 43915. Large generated diff (4585 lines, 100 files)."
-    },
-    {
-      "number": 43952,
-      "title": "[WIP] Prepare comment-memory before user steps in agent job",
-      "category": "feature", "risk": "medium", "score": 20, "action": "defer",
-      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
-      "ci": "no-ci", "note": "Draft/WIP. 0 files committed."
-    },
-    {
-      "number": 43951,
-      "title": "[WIP] Fix expressionReferencesCatchVar to handle LogicalExpression",
-      "category": "bug", "risk": "low", "score": 20, "action": "defer",
-      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
-      "ci": "no-ci", "note": "Draft/WIP. 0 files committed."
-    },
-    {
-      "number": 43940,
-      "title": "Allow jobs.<generated>.needs to augment compiler-generated job dependencies",
-      "category": "feature", "risk": "medium", "score": 65, "action": "batch_review",
-      "batch": "pr-batch:compiler-features", "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "pending", "note": "New. +204 lines. CI pending. Review with 43700."
-    },
-    {
-      "number": 43939,
-      "title": "fix: migrate 5 linters from syntactic stdlib-package matching to astutil.IsPkgSelector",
-      "category": "bug", "risk": "medium", "score": 68, "action": "fast_track",
-      "batch": "pr-batch:lint-fixes", "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "mixed", "reviews": "copilot-pull-request-reviewer COMMENTED",
-      "note": "New. 11 files. Fixes CI-blocking false positives."
-    },
-    {
-      "number": 43938,
-      "title": "Targeted custom-lint cleanup: append byte conversion, context propagation, error wrapping",
-      "category": "chore", "risk": "low", "score": 42, "action": "batch_review",
-      "batch": "pr-batch:lint-fixes", "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "mixed", "note": "New. 4 files. Non-functional lint cleanup."
-    },
-    {
-      "number": 43915,
-      "title": "Bump AWF firewall to v0.27.26 and refresh pinned workflow artifacts",
-      "category": "chore", "risk": "low", "score": 25, "action": "close",
-      "batch": "pr-batch:awf-firewall", "draft": true, "carry_over": false, "carry_over_count": 0,
-      "ci": "passing", "note": "Superseded by 43957. Recommend close."
-    },
-    {
-      "number": 43909,
-      "title": "fix: follow symlinks when generating sparse checkout for .github subdirs",
-      "category": "bug", "risk": "medium", "score": 55, "action": "defer",
-      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "no-ci", "reviews": "github-actions CHANGES_REQUESTED x3",
-      "note": "New. 3 files. Bot CHANGES_REQUESTED x3. Needs agent to address feedback."
+      "batch": "pr-batch:compiler-features", "draft": false, "carry_over": true, "carry_over_count": 5,
+      "ci": "passing", "reviews": "pelikhan+bot COMMENTED, CR cycle", "additions": 778, "deletions": 11, "changed_files": 5,
+      "note": "Large feature. Carry-over x5. @pelikhan decision needed."
     }
   ],
   "batches": [
     {
-      "id": "pr-batch:go-security",
-      "prs": [43766, 43716],
-      "note": "Security fixes: DNS-rebinding (43766) + RGS-018 curl|sh (43716). Review together. Carry-over x4."
+      "id": "pr-batch:memory-ordering",
+      "prs": [43984, 43952],
+      "note": "Memory hydration ordering before user steps. Review #43984 first."
     },
     {
-      "id": "pr-batch:lint-fixes",
-      "prs": [43939, 43938],
-      "note": "Linter fixes: AST-based selector migration (43939) + targeted cleanup (43938)."
+      "id": "pr-batch:go-security",
+      "prs": [43716],
+      "note": "Security: RGS-018 curl|sh fix. Carry-over x5."
     },
     {
       "id": "pr-batch:compiler-features",
-      "prs": [43940, 43700],
-      "note": "Compiler feature additions: needs augmentation (43940) + evals job (43700 carry-over x4)."
+      "prs": [43700],
+      "note": "Compiler evals job. Carry-over x5. @pelikhan decision needed."
     },
     {
-      "id": "pr-batch:awf-firewall",
-      "prs": [43957, 43915],
-      "note": "AWF firewall v0.27.26 pin. 43915 superseded by 43957 (draft). Close 43915."
+      "id": "pr-batch:lint-fixes",
+      "prs": [43938],
+      "note": "Custom-lint cleanup batch. Ready for batch merge."
     }
   ],
   "flags": [
-    "SECURITY BATCH pr-batch:go-security: #43766 + #43716 carry-over x4. Human action required.",
-    "PR #43915: Superseded by #43957 (draft). Recommend close.",
-    "PR #43700: Carry-over x4 feature. @pelikhan decision needed.",
-    "4 DRAFT PRs (43957,43952,43951 committed 0 files + 43915 draft). Re-triage when ready.",
-    "PR #43939: Fast-track — fixes CI-blocking linter false positives."
+    "AUTO_MERGE candidate: #43966 (CI passing, bot-approved, clean state)",
+    "SECURITY carry-over x5: #43716 — needs human merge decision",
+    "MEMORY ORDERING batch: #43984 + #43952 + #44015 (draft) — review #43984 first",
+    "FEATURE carry-over x5: #43700 — @pelikhan go/no-go needed",
+    "2 DRAFT PRs: #44015, #44008 — defer until ready"
   ]
 }
