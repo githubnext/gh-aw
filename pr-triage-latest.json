@@ -1,119 +1,160 @@
 {
-  "run_date": "2026-07-07T13:02:47Z",
-  "run_id": "28868091227",
-  "prior_run_id": "28848998303",
+  "run_date": "2026-07-07T18:52:09Z",
+  "run_id": "28890623742",
+  "prior_run_id": "28868091227",
   "summary": {
-    "total": 9,
-    "new": 6,
-    "carry_over": 3,
-    "auto_merge": 1,
-    "fast_track": 2,
+    "total": 14,
+    "new": 10,
+    "carry_over": 4,
+    "auto_merge": 0,
+    "fast_track": 1,
     "batch_review": 4,
-    "defer": 2,
-    "drafts": 2,
-    "prior_closed": 8
+    "defer": 9,
+    "drafts": 9,
+    "prior_merged": 5
   },
   "prs": [
+    {
+      "number": 44097,
+      "title": "[WIP] Add GetBoolFromEnv and GetStringFromEnv to envutil",
+      "category": "feature", "risk": "low", "score": 35, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "reviews": [], "additions": 342, "deletions": 27, "changed_files": 11,
+      "note": "Draft. Feature addition with tests. No CI triggered."
+    },
+    {
+      "number": 44096,
+      "title": "Add rationale comments to production osgetenvlibrary suppressions",
+      "category": "chore", "risk": "low", "score": 28, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "reviews": [], "additions": 45, "deletions": 45, "changed_files": 27,
+      "note": "Draft. Docs-only, no logic change."
+    },
+    {
+      "number": 44095,
+      "title": "Enable detection on three audit workflows missing gh-aw-detection",
+      "category": "chore", "risk": "medium", "score": 50, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "reviews": [], "additions": 78, "deletions": 171, "changed_files": 6,
+      "note": "Draft. Recompiled workflows output."
+    },
+    {
+      "number": 44093,
+      "title": "feat(pr-sous-chef): use group-by-day to collapse run reports into one issue per day",
+      "category": "bug", "risk": "low", "score": 48, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "reviews": [], "additions": 6, "deletions": 5, "changed_files": 2,
+      "note": "Draft. Noise reduction fix."
+    },
+    {
+      "number": 44092,
+      "title": "Route pdf-summary discussions to Audits category",
+      "category": "chore", "risk": "low", "score": 30, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "reviews": [], "additions": 7, "deletions": 6, "changed_files": 2,
+      "note": "Draft. Config-only."
+    },
+    {
+      "number": 44090,
+      "title": "Reduce BenchmarkValidation overhead by caching safe-output field order",
+      "category": "chore", "risk": "low", "score": 32, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "reviews": [], "additions": 27, "deletions": 4, "changed_files": 3,
+      "note": "Draft. Perf fix. Needs benchmark verification."
+    },
+    {
+      "number": 44081,
+      "title": "Gracefully fall back to patch apply when bundle push transport fails",
+      "category": "bug", "risk": "medium", "score": 45, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "copilot:success", "reviews": [], "additions": 0, "deletions": 0, "changed_files": 0,
+      "note": "Draft. EMPTY DIFF — needs commit push."
+    },
+    {
+      "number": 44051,
+      "title": "refactor: split logs_orchestrator.go (1284 lines) into 5 focused modules",
+      "category": "refactor", "risk": "medium", "score": 55, "action": "batch_review",
+      "batch": "pr-batch:code-quality", "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "reviews": "CHANGES_REQUESTED x2", "additions": 974, "deletions": 700, "changed_files": 7,
+      "note": "Large refactor. Unresolved bot CRs. No CI."
+    },
+    {
+      "number": 44050,
+      "title": "fix: correct --yes verb, --dir env hint, and add-wizard docs across 9 commands",
+      "category": "chore", "risk": "low", "score": 52, "action": "batch_review",
+      "batch": "pr-batch:cli-consistency", "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "passing", "reviews": "bot COMMENTED", "additions": 12, "deletions": 12, "changed_files": 9,
+      "note": "CI passing. Near auto-merge quality. Consider fast-tracking next run if unmerged."
+    },
+    {
+      "number": 44037,
+      "title": "Add restore-memory step injection for custom jobs",
+      "category": "feature", "risk": "high", "score": 68, "action": "batch_review",
+      "batch": "pr-batch:memory-runtime", "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "reviews": "CHANGES_REQUESTED x3", "additions": 884, "deletions": 35, "changed_files": 6,
+      "note": "Large feature. Unresolved CRs. No CI. Review after memory-ordering dust settles."
+    },
     {
       "number": 44015,
       "title": "Expose memory stores to on.steps in pre-activation for deterministic dispatch gating",
       "category": "feature", "risk": "medium", "score": 38, "action": "defer",
-      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "batch": null, "draft": true, "carry_over": true, "carry_over_count": 1,
       "ci": "none", "reviews": [], "additions": 121, "deletions": 0, "changed_files": 3,
-      "note": "Draft. Depends on #43984 (memory-ordering) landing first."
+      "note": "Draft. Depends on memory-ordering (now merged). May be promotable soon."
     },
     {
       "number": 44008,
       "title": "refactor(workflow): extract helpers to fix function-length lint violations",
       "category": "refactor", "risk": "low", "score": 28, "action": "defer",
-      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "batch": null, "draft": true, "carry_over": true, "carry_over_count": 1,
       "ci": "none", "reviews": [], "additions": 135, "deletions": 109, "changed_files": 4,
-      "note": "Draft. Pure refactor, no behavior change."
-    },
-    {
-      "number": 43985,
-      "title": "feat(go-gh): modernize go-gh API usage — drop gh.Exec for GraphQL, add timeouts, tidy DefaultRESTClient",
-      "category": "refactor", "risk": "medium", "score": 72, "action": "fast_track",
-      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "passing", "reviews": "bot CHANGES_REQUESTED", "additions": 27, "deletions": 22, "changed_files": 3,
-      "note": "CI passing. Bot CR unresolved. Small footprint. Fast-track."
-    },
-    {
-      "number": 43984,
-      "title": "Move cache-memory and repo-memory restore steps before user steps: in agent job",
-      "category": "bug", "risk": "high", "score": 78, "action": "batch_review",
-      "batch": "pr-batch:memory-ordering", "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "passing", "reviews": "bot COMMENTED", "additions": 704, "deletions": 648, "changed_files": 56,
-      "note": "Fixes critical memory ordering. Large generated diff. Batch with #43952."
-    },
-    {
-      "number": 43966,
-      "title": "eslint-factory: detect catch-variable aliases in require-error-cause-in-rethrow",
-      "category": "bug", "risk": "low", "score": 80, "action": "auto_merge",
-      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "passing", "reviews": "github-actions APPROVED", "additions": 125, "deletions": 33, "changed_files": 2,
-      "note": "CI passing, bot-approved, clean merge state. Auto-merge candidate."
-    },
-    {
-      "number": 43952,
-      "title": "Move comment-memory preparation before user steps: in agent job",
-      "category": "feature", "risk": "medium", "score": 65, "action": "batch_review",
-      "batch": "pr-batch:memory-ordering", "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "passing", "reviews": "github-actions APPROVED+CR cycle", "additions": 1756, "deletions": 1426, "changed_files": 272,
-      "note": "Memory ordering theme. Large generated diff. Batch with #43984."
-    },
-    {
-      "number": 43938,
-      "title": "Targeted custom-lint cleanup: append byte conversion, context propagation, error wrapping",
-      "category": "chore", "risk": "low", "score": 40, "action": "batch_review",
-      "batch": "pr-batch:lint-fixes", "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "passing", "reviews": [], "additions": 62, "deletions": 28, "changed_files": 4,
-      "note": "Non-functional lint cleanup. Carry-over from prior batch."
+      "note": "Draft. Pure refactor."
     },
     {
       "number": 43716,
       "title": "fix(security): replace curl|sh installer pipes with download+verify (RGS-018)",
       "category": "bug", "risk": "high", "score": 75, "action": "fast_track",
-      "batch": "pr-batch:go-security", "draft": false, "carry_over": true, "carry_over_count": 5,
+      "batch": null, "draft": false, "carry_over": true, "carry_over_count": 6,
       "ci": "passing", "reviews": "pelikhan+bot COMMENTED, CR cycles dismissed", "additions": 216, "deletions": 20, "changed_files": 8,
-      "note": "Security fix RGS-018. Carry-over x5. Needs human merge decision."
+      "note": "Security fix RGS-018. Carry-over x6. @pelikhan MUST decide this run."
     },
     {
       "number": 43700,
       "title": "compiler: add evals job for BinEval binary evaluations",
       "category": "feature", "risk": "high", "score": 53, "action": "batch_review",
-      "batch": "pr-batch:compiler-features", "draft": false, "carry_over": true, "carry_over_count": 5,
+      "batch": "pr-batch:compiler-features", "draft": false, "carry_over": true, "carry_over_count": 6,
       "ci": "passing", "reviews": "pelikhan+bot COMMENTED, CR cycle", "additions": 778, "deletions": 11, "changed_files": 5,
-      "note": "Large feature. Carry-over x5. @pelikhan decision needed."
+      "note": "Large feature. Carry-over x6. @pelikhan decision needed."
     }
   ],
+  "merged_since_last_run": [43984, 43966, 43952, 43938, 43985],
   "batches": [
     {
-      "id": "pr-batch:memory-ordering",
-      "prs": [43984, 43952],
-      "note": "Memory hydration ordering before user steps. Review #43984 first."
+      "id": "pr-batch:memory-runtime",
+      "prs": [44037],
+      "note": "Custom job memory injection. Review after CI + CR resolution."
     },
     {
-      "id": "pr-batch:go-security",
-      "prs": [43716],
-      "note": "Security: RGS-018 curl|sh fix. Carry-over x5."
+      "id": "pr-batch:code-quality",
+      "prs": [44051],
+      "note": "Large refactor. Review after CI + CR resolution."
+    },
+    {
+      "id": "pr-batch:cli-consistency",
+      "prs": [44050],
+      "note": "CLI consistency fixes. CI passing. Near auto-merge."
     },
     {
       "id": "pr-batch:compiler-features",
       "prs": [43700],
-      "note": "Compiler evals job. Carry-over x5. @pelikhan decision needed."
-    },
-    {
-      "id": "pr-batch:lint-fixes",
-      "prs": [43938],
-      "note": "Custom-lint cleanup batch. Ready for batch merge."
+      "note": "Compiler evals. Carry-over x6. @pelikhan go/no-go needed."
     }
   ],
   "flags": [
-    "AUTO_MERGE candidate: #43966 (CI passing, bot-approved, clean state)",
-    "SECURITY carry-over x5: #43716 — needs human merge decision",
-    "MEMORY ORDERING batch: #43984 + #43952 + #44015 (draft) — review #43984 first",
-    "FEATURE carry-over x5: #43700 — @pelikhan go/no-go needed",
-    "2 DRAFT PRs: #44015, #44008 — defer until ready"
+    "SECURITY OVERDUE x6: #43716 — @pelikhan must act",
+    "MEMORY-RUNTIME batch: #44037 — resolve CRs and trigger CI",
+    "DRAFT BACKLOG: 9 drafts open — several near-ready (#44093, #44092, #44095)",
+    "EMPTY DIFF: #44081 — author must push commits",
+    "CLI NEAR AUTOMERGE: #44050 — fast-track next run if still open"
   ]
 }
