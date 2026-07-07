@@ -12,7 +12,48 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-// TestRestoreMemoryScheduledOrchestrator covers the primary use-case described in
+// TestRestoreMemoryWithUsesError verifies that restore-memory: true on a reusable
+// workflow call job (one that has a `uses:` key) produces a compile-time error with
+// a clear message, rather than being silently ignored.
+func TestRestoreMemoryWithUsesError(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "restore-memory-uses-error")
+	workflowPath := filepath.Join(tmpDir, "restore-memory-uses.md")
+
+	content := `---
+name: Restore Memory Uses Error
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+strict: false
+tools:
+  cache-memory: true
+jobs:
+  reusable-caller:
+    uses: ./.github/workflows/called.yml
+    restore-memory: true
+---
+
+# Restore Memory Uses Error
+`
+
+	if err := os.WriteFile(workflowPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(workflowPath)
+	if err == nil {
+		t.Fatal("Expected compile error for restore-memory on reusable workflow job, got nil")
+	}
+	if !strings.Contains(err.Error(), "restore-memory") {
+		t.Errorf("Error should mention restore-memory, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "reusable") || !strings.Contains(err.Error(), "reusable-caller") {
+		t.Errorf("Error should mention the job name and reusable context, got: %v", err)
+	}
+}
+
 // the PR: a scheduled job that reads cache-memory to build a dispatch list before
 // the agent job runs.  The agent job must still carry its own full cache write-path;
 // the orchestrator job must carry only read-only restore steps.

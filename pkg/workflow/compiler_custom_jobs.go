@@ -438,6 +438,12 @@ func (c *Compiler) configureCustomJobExecution(job *Job, jobName string, configM
 
 func configureCustomReusableWorkflow(job *Job, jobName string, usesStr string, configMap map[string]any) error {
 	compilerJobsLog.Printf("Custom job '%s' is a reusable workflow call: %s", jobName, usesStr)
+
+	// restore-memory cannot inject steps into reusable-workflow call jobs (no steps block).
+	if rm, ok := configMap["restore-memory"]; ok && rm != nil && rm != false {
+		return fmt.Errorf("jobs.%s.restore-memory: not supported for reusable workflow call jobs (uses: %s)", jobName, usesStr)
+	}
+
 	job.Uses = usesStr
 
 	// Extract with parameters for reusable workflow
