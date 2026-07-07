@@ -38,7 +38,7 @@ func matchEngineFilter(awInfo *AwInfo, awInfoErr error, filterEngine string) (bo
 // It parses aw_info.json once (lazily) when any filter that needs it is active.
 // Returns true when the run should be skipped / excluded from results.
 func applyRunFilters(result DownloadResult, opts runFilterOpts, verbose bool) bool {
-	// Parse aw_info.json once for all filters that need it (optimisation).
+	// Parse aw_info.json once for all filters that need it (optimization).
 	var awInfo *AwInfo
 	var awInfoErr error
 	if opts.engine != "" || opts.noStaged || opts.firewallOnly || opts.noFirewall {
