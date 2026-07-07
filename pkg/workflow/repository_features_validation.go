@@ -273,7 +273,6 @@ func checkRepositoryHasDiscussionsUncached(repo string) (bool, error) {
 	owner, name := parts[0], parts[1]
 
 	// Use native GraphQL client — no gh binary dependency, native context/cancel support.
-	// checkRepositoryHasDiscussionsQuery is a package-level constant — not user-controlled.
 	client, err := api.DefaultGraphQLClient()
 	if err != nil {
 		return false, fmt.Errorf("failed to create GraphQL client: %w", err)
@@ -306,16 +305,21 @@ func checkRepositoryHasIssues(repo string, verbose bool) (bool, error) {
 
 // checkRepositoryHasIssuesUncached checks if a repository has issues enabled (no caching)
 func checkRepositoryHasIssuesUncached(repo string) (bool, error) {
-	// Use GitHub REST API to check if issues are enabled
-	// The has_issues field indicates if issues are enabled
-	type RepositoryResponse struct {
-		HasIssues bool `json:"has_issues"`
-	}
-
 	// Create REST client
 	client, err := api.DefaultRESTClient()
 	if err != nil {
 		return false, fmt.Errorf("failed to create REST client: %w", err)
+	}
+	return checkRepositoryHasIssuesUncachedWithClient(repo, client)
+}
+
+// checkRepositoryHasIssuesUncachedWithClient is the testable core of checkRepositoryHasIssuesUncached.
+// It accepts an injectable REST client so unit tests can pass a stub without live credentials.
+func checkRepositoryHasIssuesUncachedWithClient(repo string, client *api.RESTClient) (bool, error) {
+	// Use GitHub REST API to check if issues are enabled
+	// The has_issues field indicates if issues are enabled
+	type RepositoryResponse struct {
+		HasIssues bool `json:"has_issues"`
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), repositoryFeaturesTimeout)
