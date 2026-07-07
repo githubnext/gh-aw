@@ -179,8 +179,9 @@ func validateImportInputType(name string, value any, declaredType string, paramD
 
 // applyImportSchemaDefaultsFromFrontmatter applies import-schema defaults from an
 // already-parsed frontmatter map, avoiding a redundant YAML parse when the caller
-// has already extracted the frontmatter. Returns a copy of inputs augmented with
-// default values for any schema parameters declared with a "default" field but not
+// has already extracted the frontmatter. Returns the original inputs map unchanged
+// when no import-schema defaults apply; otherwise returns a copy augmented with
+// default values for schema parameters declared with a "default" field but not
 // present in the provided inputs map. Parameters already in inputs are left unchanged.
 func applyImportSchemaDefaultsFromFrontmatter(frontmatter map[string]any, inputs map[string]any) map[string]any {
 	rawSchema, ok := frontmatter["import-schema"]
