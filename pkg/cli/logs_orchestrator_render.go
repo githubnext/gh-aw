@@ -101,10 +101,7 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 						retErr = cerr
 					}
 				}()
-				oldStdout := os.Stdout
-				defer func() { os.Stdout = oldStdout }()
-				os.Stdout = f
-				renderCrossRunReportMarkdown(report)
+				renderCrossRunReportMarkdownToWriter(f, report)
 				return nil
 			}(); err != nil {
 				return fmt.Errorf("failed to write report file: %w", err)

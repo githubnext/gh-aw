@@ -463,7 +463,7 @@ outerLoop:
 					continue
 				}
 
-				processedRun := buildProcessedRun(result, verbose)
+				processedRun := buildProcessedRun(result, verbose, true)
 
 				// If --parse flag is set, parse the agent log and write to log.md
 				if parse {

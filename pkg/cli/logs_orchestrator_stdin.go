@@ -177,7 +177,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 			continue
 		}
 
-		processedRun := buildProcessedRun(result, opts.Verbose)
+		processedRun := buildProcessedRun(result, opts.Verbose, false)
 
 		if opts.Parse {
 			awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")

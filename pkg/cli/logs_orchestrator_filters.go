@@ -24,6 +24,8 @@ type runFilterOpts struct {
 	filteredIntegrity bool
 }
 
+var fetchJobStatusesForProcessedRun = fetchJobStatuses
+
 // matchEngineFilter checks whether the run recorded in awInfo matches the
 // requested engine filter string.  It returns (matches, detectedEngineID).
 // detectedEngineID is "" when awInfo is unavailable or carries no engine_id.
@@ -134,7 +136,7 @@ func applyRunFilters(result DownloadResult, opts runFilterOpts, verbose bool) bo
 
 // buildProcessedRun constructs a ProcessedRun from a DownloadResult, computing
 // duration, action minutes, effective tokens, and job-failure counts.
-func buildProcessedRun(result DownloadResult, verbose bool) ProcessedRun {
+func buildProcessedRun(result DownloadResult, verbose, logFailedJobs bool) ProcessedRun {
 	run := result.Run
 	run.TokenUsage = result.Metrics.TokenUsage
 	applyMetricsTurnsToRun(&run, result.Metrics)
@@ -149,9 +151,9 @@ func buildProcessedRun(result DownloadResult, verbose bool) ProcessedRun {
 	}
 
 	// Add failed jobs to error count.
-	if failedJobCount, err := fetchJobStatuses(run.DatabaseID, verbose); err == nil {
+	if failedJobCount, err := fetchJobStatusesForProcessedRun(run.DatabaseID, verbose); err == nil {
 		run.ErrorCount += failedJobCount
-		if verbose && failedJobCount > 0 {
+		if verbose && logFailedJobs && failedJobCount > 0 {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Added %d failed jobs to error count for run %d", failedJobCount, run.DatabaseID)))
 		}
 	}
