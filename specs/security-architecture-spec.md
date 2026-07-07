@@ -617,6 +617,8 @@ roles: all                         # Least restrictive
 
 **PM-11**: Role checks MUST be performed at runtime using membership validation.
 
+The separate `pre_activation` job defined in Section 7.6.1 is the normative runtime mechanism that satisfies **PM-11**. Role validation MUST complete in `pre_activation` before the `activation` job begins. Implementations MUST NOT replace this gate with a later best-effort check in `activation`, `agent`, or `safe_outputs`.
+
 **PM-12**: Failed role checks MUST cancel workflow execution with a warning message.
 
 #### 7.6.1 Pre-Activation Pattern
@@ -745,6 +747,8 @@ The sandbox isolation layer provides process-level and container-level isolation
 ### 9.1 Overview
 
 The threat detection layer analyzes AI agent output for security threats before safe output jobs execute.
+
+> Note: Repository-specific GitHub-tool access-control policies such as `trusted-users` are complementary runtime controls, but they are specified in the companion GitHub MCP access-control documents (`scratchpad/github-mcp-access-control-specification.md` and `scratchpad/guard-policies-specification.md`), not in the threat-detection requirements below.
 
 ### 9.2 Threat Detection Requirements
 
@@ -1336,6 +1340,8 @@ conclusion (cleanup, summary — optional)
 
 The `detection` job acts as a security gate: `safe_outputs` only runs when `needs.detection.outputs.success == 'true'`.
 
+> Note: The optional `conclusion` job shown above is non-normative. Implementations MAY add cleanup or reporting jobs after `safe_outputs`, but conformance does not require a `conclusion` job and such jobs MUST NOT weaken the required isolation or permission boundaries.
+
 ### Appendix B: Sanitization Examples
 
 #### Example 1: @Mention Neutralization
@@ -1532,6 +1538,8 @@ safe-outputs:
 ```
 
 **Behavior**: AI detection + TruffleHog scan before PR creation.
+
+In compiled workflows, this pattern yields a dedicated `detection` job that serves as the runtime threat-detection layer between the `agent` job and any `safe_outputs` write operations.
 
 #### Example 4: Concurrency Control
 
