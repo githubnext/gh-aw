@@ -50,6 +50,7 @@ This docs site is deployed as a GitHub Pages **project site** under `/gh-aw/` (s
 
 - `robots.txt` is served at `/gh-aw/robots.txt`
 - AI discovery file is served at `/gh-aw/.well-known/ai.txt`
+- LLM index files are served at `/gh-aw/llms.txt` and `/gh-aw/llms-full.txt`
 - AI metadata files are served under `/gh-aw/ai/`
 
 Root-level endpoints on `https://github.github.com/` (for example `/robots.txt`) are controlled by the main `github.github.com` site, not this repository.

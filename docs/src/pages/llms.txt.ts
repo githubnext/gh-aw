@@ -1,24 +1,33 @@
 import type { APIRoute } from 'astro';
-import { getAwPrompts } from './_aw-prompts.js';
+import { getLlmsDocPages, getLlmsSiteBaseUrl } from './_llms-docs.js';
 
-export const GET: APIRoute = () => {
-	const prompts = getAwPrompts();
+export const prerender = true;
+
+export const GET: APIRoute = async () => {
+	const pages = await getLlmsDocPages();
+	const sectionKeys = [...new Set(pages.map((page) => page.sectionKey))];
 
 	const lines = [
-		'# GitHub Agentic Workflows',
+		'# GitHub Agentic Workflows Documentation',
 		'',
-		'> Agent-optimised prompt files for GitHub Agentic Workflows (gh-aw).',
-		'> These markdown files are designed for AI agents and LLMs, not human readers.',
+		'> Canonical documentation index for GitHub Agentic Workflows (gh-aw), the GitHub CLI extension that compiles markdown workflows into GitHub Actions.',
+		`> Base URL: ${getLlmsSiteBaseUrl()}`,
+		`> Published pages: ${pages.length}`,
 		'',
-		'## Agent Prompts',
+		'## Sections',
 		'',
-		...prompts.map(({ file, description, rawUrl }) => {
-			const label = file.replace(/\.md$/, '');
-			return description
-				? `- [${label}](${rawUrl}): ${description}`
-				: `- [${label}](${rawUrl})`;
-		}),
 	];
+
+	for (const sectionKey of sectionKeys) {
+		const sectionPages = pages.filter((page) => page.sectionKey === sectionKey);
+		lines.push(`### ${sectionPages[0].sectionTitle}`, '');
+
+		for (const page of sectionPages) {
+			lines.push(`- [${page.title}](${page.url}): ${page.description}`);
+		}
+
+		lines.push('');
+	}
 
 	return new Response(lines.join('\n'), {
 		headers: { 'Content-Type': 'text/plain; charset=utf-8' },

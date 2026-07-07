@@ -1,28 +1,34 @@
 import type { APIRoute } from 'astro';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { getAwDir, getAwPromptFiles } from './_aw-prompts.js';
+import { getLlmsDocPages, getLlmsSiteBaseUrl } from './_llms-docs.js';
 
 export const prerender = true;
 
-export const GET: APIRoute = () => {
-	const awDir = getAwDir();
-	const files = getAwPromptFiles();
+export const GET: APIRoute = async () => {
+	const pages = await getLlmsDocPages();
 
 	const sections: string[] = [
-		'# GitHub Agentic Workflows — Full Corpus',
+		'# GitHub Agentic Workflows Documentation — Full Corpus',
 		'',
-		'> Full content of the agent instruction files for GitHub Agentic Workflows (gh-aw).',
-		'> This file is intended for AI agents and LLMs that need the complete instruction material.',
+		'> Full text index of the published GitHub Agentic Workflows (gh-aw) documentation site.',
+		`> Base URL: ${getLlmsSiteBaseUrl()}`,
+		`> Published pages: ${pages.length}`,
 		'',
 	];
 
-	if (!awDir || files.length === 0) {
+	if (pages.length === 0) {
 		sections.push('(No content available.)');
 	} else {
-		for (const file of files) {
-			const content = readFileSync(join(awDir, file), 'utf-8');
-			sections.push(`<!-- file: ${file} -->`, ``, content, ``);
+		for (const page of pages) {
+			sections.push(
+				`## ${page.title}`,
+				'',
+				`URL: ${page.url}`,
+				`Description: ${page.description}`,
+				`Section: ${page.sectionTitle}`,
+				'',
+				page.body || '(No page body content available.)',
+				'',
+			);
 		}
 	}
 
