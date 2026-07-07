@@ -47,6 +47,8 @@ describe("require-error-cause-in-rethrow", () => {
         `try { doSomething(); } catch (deleteError) { let err = deleteError; err = normalizeError(err); throw new Error(\`Failed to delete: \${String(err)}\`); }`,
         // Alias + cause should pass.
         `try { doSomething(); } catch (deleteError) { const err = deleteError; throw new Error(\`Failed to delete existing remote branch: \${message || String(err)}\`, { cause: err }); }`,
+        // Alias name shadowed in nested block — inner `err` is unrelated, should not flag.
+        `try { doSomething(); } catch (deleteError) { const err = deleteError; { const err = getFallbackError(); throw new Error(String(err)); } }`,
       ],
       invalid: [],
     });
@@ -61,7 +63,7 @@ describe("require-error-cause-in-rethrow", () => {
           errors: [
             {
               messageId: "missingCause",
-              data: { catchVar: "err" },
+              data: { catchParam: "err", refName: "err" },
               suggestions: [
                 {
                   messageId: "addCause",
@@ -76,7 +78,7 @@ describe("require-error-cause-in-rethrow", () => {
           errors: [
             {
               messageId: "missingCause",
-              data: { catchVar: "err" },
+              data: { catchParam: "err", refName: "err" },
               suggestions: [
                 {
                   messageId: "addCause",
@@ -91,7 +93,7 @@ describe("require-error-cause-in-rethrow", () => {
           errors: [
             {
               messageId: "missingCause",
-              data: { catchVar: "error" },
+              data: { catchParam: "error", refName: "error" },
               suggestions: [
                 {
                   messageId: "addCause",
@@ -107,7 +109,7 @@ describe("require-error-cause-in-rethrow", () => {
           errors: [
             {
               messageId: "missingCause",
-              data: { catchVar: "err" },
+              data: { catchParam: "err", refName: "err" },
               suggestions: [
                 {
                   messageId: "addCause",
@@ -123,7 +125,7 @@ describe("require-error-cause-in-rethrow", () => {
           errors: [
             {
               messageId: "missingCause",
-              data: { catchVar: "err" },
+              data: { catchParam: "err", refName: "err" },
               suggestions: [
                 {
                   messageId: "addCause",
@@ -139,7 +141,7 @@ describe("require-error-cause-in-rethrow", () => {
           errors: [
             {
               messageId: "missingCause",
-              data: { catchVar: "err" },
+              data: { catchParam: "err", refName: "err" },
               suggestions: [
                 {
                   messageId: "addCause",
@@ -155,7 +157,7 @@ describe("require-error-cause-in-rethrow", () => {
           errors: [
             {
               messageId: "missingCause",
-              data: { catchVar: "err" },
+              data: { catchParam: "deleteError", refName: "err" },
               suggestions: [
                 {
                   messageId: "addCause",
