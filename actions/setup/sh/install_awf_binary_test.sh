@@ -37,20 +37,7 @@ parse_and_override() {
 
 run_node_preflight() {
   local node_script_dir="$1"
-  PATH="${node_script_dir}:$PATH" bash -c '
-    GH_AW_NODE_BIN="$(command -v node 2>/dev/null || true)"
-    if [ -z "${GH_AW_NODE_BIN}" ]; then
-      echo "ERROR: missing node" >&2
-      exit 1
-    fi
-    GH_AW_NODE_VERSION="$("${GH_AW_NODE_BIN}" --version 2>/dev/null || true)"
-    GH_AW_NODE_MAJOR=$(printf "%s" "${GH_AW_NODE_VERSION#v}" | cut -d. -f1)
-    echo "Detected Node.js runtime: ${GH_AW_NODE_VERSION:-unknown} (${GH_AW_NODE_BIN})"
-    if [ -z "${GH_AW_NODE_VERSION}" ] || ! [ "${GH_AW_NODE_MAJOR}" -ge 22 ] 2>/dev/null; then
-      echo "ERROR: AWF installation requires Node.js 22 or newer on PATH, but detected ${GH_AW_NODE_VERSION:-an unusable node executable}." >&2
-      exit 1
-    fi
-  '
+  PATH="${node_script_dir}:$PATH" bash -c 'source "'"${SCRIPT_DIR}"'/install_awf_binary.sh"; require_node_22'
 }
 
 echo "Running install_awf_binary.sh tests..."

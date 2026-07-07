@@ -29,29 +29,11 @@ set -euo pipefail
 NODE_22_REMEDIATION="This commonly affects self-hosted or GPU runners. Install Node.js 22+ on the runner image or add an earlier actions/setup-node step."
 
 # Configuration
-AWF_VERSION="${1:-}"
 AWF_REPO="github/gh-aw-firewall"
 AWF_INSTALL_DIR="/usr/local/bin"
 AWF_INSTALL_NAME="awf"
 AWF_LIB_DIR="/usr/local/lib/awf"
-
-# Parse flags from remaining arguments
 ROOTLESS=false
-for arg in "${@:2}"; do
-  case "$arg" in
-    --rootless) ROOTLESS=true ;;
-    *) echo "WARNING: Unknown argument: $arg" >&2 ;;
-  esac
-done
-
-# In rootless mode, install into the user's home directory instead of /usr/local
-# so that standard GitHub-hosted runners (where /usr/local is root-owned) work
-# without requiring any pre-chowning or sudo.
-if [ "$ROOTLESS" = "true" ]; then
-  AWF_USER_PREFIX="${HOME}/.local"
-  AWF_INSTALL_DIR="${AWF_USER_PREFIX}/bin"
-  AWF_LIB_DIR="${AWF_USER_PREFIX}/lib/awf"
-fi
 
 # maybe_sudo runs a command with sudo unless --rootless was specified.
 # In network-isolation mode, AWF runs rootless so sudo is not available or needed.
@@ -62,34 +44,6 @@ maybe_sudo() {
     sudo "$@"
   fi
 }
-
-if [ -z "$AWF_VERSION" ]; then
-  echo "ERROR: AWF version is required"
-  echo "Usage: $0 VERSION [--rootless]"
-  exit 1
-fi
-
-# Detect OS and architecture
-OS="$(uname -s)"
-ARCH="$(uname -m)"
-
-echo "Installing awf with checksum verification (version: ${AWF_VERSION}, os: ${OS}, arch: ${ARCH})"
-
-# Rootless mode preflight: create and verify write access to install directories
-if [ "$ROOTLESS" = "true" ]; then
-  if ! { mkdir -p "${AWF_INSTALL_DIR}" && [ -w "${AWF_INSTALL_DIR}" ]; }; then
-    echo "ERROR: --rootless could not create a writable install directory at ${AWF_INSTALL_DIR}" >&2
-    exit 1
-  fi
-  if ! { mkdir -p "${AWF_LIB_DIR}" && [ -w "${AWF_LIB_DIR}" ]; }; then
-    echo "ERROR: --rootless could not create a writable lib directory at ${AWF_LIB_DIR}" >&2
-    exit 1
-  fi
-fi
-
-# Download URLs
-BASE_URL="https://github.com/${AWF_REPO}/releases/download/${AWF_VERSION}"
-CHECKSUMS_URL="${BASE_URL}/checksums.txt"
 
 # Platform-portable SHA256 function
 sha256_hash() {
@@ -103,14 +57,6 @@ sha256_hash() {
     exit 1
   fi
 }
-
-# Create temp directory
-TEMP_DIR=$(mktemp -d)
-trap 'rm -rf "$TEMP_DIR"' EXIT
-
-# Download checksums
-echo "Downloading checksums from ${CHECKSUMS_URL@Q}..."
-curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 -o "${TEMP_DIR}/checksums.txt" "${CHECKSUMS_URL}"
 
 verify_checksum() {
   local file="$1"
@@ -137,8 +83,8 @@ verify_checksum() {
   echo "✓ Checksum verification passed for ${fname}"
 }
 
-# Require Node.js >= 22 so self-hosted and GPU runners fail fast before later
-# runtime setup tries to invoke Node-dependent bootstrap code.
+# Require Node.js >= 22 so self-hosted and GPU runners fail fast before AWF
+# installation tries to configure the Node-backed bundle wrapper.
 require_node_22() {
   GH_AW_NODE_BIN="$(command -v node 2>/dev/null || true)"
   if [ -z "${GH_AW_NODE_BIN}" ]; then
@@ -154,6 +100,100 @@ require_node_22() {
     echo "ERROR: AWF installation requires Node.js 22 or newer on PATH, but detected ${GH_AW_NODE_VERSION:-an unusable node executable}. ${NODE_22_REMEDIATION}" >&2
     exit 1
   fi
+}
+
+main() {
+  AWF_VERSION="${1:-}"
+  ROOTLESS=false
+  AWF_INSTALL_DIR="/usr/local/bin"
+  AWF_LIB_DIR="/usr/local/lib/awf"
+
+  for arg in "${@:2}"; do
+    case "$arg" in
+      --rootless) ROOTLESS=true ;;
+      *) echo "WARNING: Unknown argument: $arg" >&2 ;;
+    esac
+  done
+
+  # In rootless mode, install into the user's home directory instead of /usr/local
+  # so that standard GitHub-hosted runners (where /usr/local is root-owned) work
+  # without requiring any pre-chowning or sudo.
+  if [ "$ROOTLESS" = "true" ]; then
+    AWF_USER_PREFIX="${HOME}/.local"
+    AWF_INSTALL_DIR="${AWF_USER_PREFIX}/bin"
+    AWF_LIB_DIR="${AWF_USER_PREFIX}/lib/awf"
+  fi
+
+  if [ -z "$AWF_VERSION" ]; then
+    echo "ERROR: AWF version is required"
+    echo "Usage: $0 VERSION [--rootless]"
+    exit 1
+  fi
+
+  # Detect OS and architecture
+  OS="$(uname -s)"
+  ARCH="$(uname -m)"
+
+  echo "Installing awf with checksum verification (version: ${AWF_VERSION}, os: ${OS}, arch: ${ARCH})"
+
+  # Rootless mode preflight: create and verify write access to install directories
+  if [ "$ROOTLESS" = "true" ]; then
+    if ! { mkdir -p "${AWF_INSTALL_DIR}" && [ -w "${AWF_INSTALL_DIR}" ]; }; then
+      echo "ERROR: --rootless could not create a writable install directory at ${AWF_INSTALL_DIR}" >&2
+      exit 1
+    fi
+    if ! { mkdir -p "${AWF_LIB_DIR}" && [ -w "${AWF_LIB_DIR}" ]; }; then
+      echo "ERROR: --rootless could not create a writable lib directory at ${AWF_LIB_DIR}" >&2
+      exit 1
+    fi
+  fi
+
+  # Download URLs
+  BASE_URL="https://github.com/${AWF_REPO}/releases/download/${AWF_VERSION}"
+  CHECKSUMS_URL="${BASE_URL}/checksums.txt"
+
+  # Create temp directory
+  TEMP_DIR=$(mktemp -d)
+  trap 'rm -rf "$TEMP_DIR"' EXIT
+
+  # Download checksums
+  echo "Downloading checksums from ${CHECKSUMS_URL@Q}..."
+  curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 -o "${TEMP_DIR}/checksums.txt" "${CHECKSUMS_URL}"
+
+  # Try lightweight bundle first, fall back to platform binary
+  require_node_22
+  if ! install_bundle; then
+    echo "⚠ Bundle install failed, falling back to platform binary..."
+    install_platform_binary
+  fi
+
+  # In rootless mode, add the install dir to PATH for subsequent steps.
+  # $GITHUB_PATH is the mechanism for persisting PATH additions across steps in GitHub Actions.
+  if [ "$ROOTLESS" = "true" ]; then
+    if [ -n "${GITHUB_PATH:-}" ]; then
+      echo "${AWF_INSTALL_DIR}" >> "${GITHUB_PATH}"
+    else
+      echo "WARNING: --rootless install complete but \$GITHUB_PATH is unset; add ${AWF_INSTALL_DIR} to PATH manually" >&2
+    fi
+  fi
+
+  # Verify installation by running --version.
+  # In legacy (non-rootless) mode, run with sudo (without -E, since we explicitly unset
+  # environment variables below). On GPU runners (e.g. aw-gpu-runner-T4), /usr/local/bin
+  # may be inaccessible to the current non-root user due to filesystem or security
+  # policy restrictions, so running the version check without sudo would fail with
+  # "Permission denied".
+  # In rootless (network-isolation) mode, run without sudo since AWF is rootless.
+  # A successful run prints the version string (e.g. "0.25.13") to stdout.
+  # Also clear DIFC (Data Integrity and Filtering Controls) proxy env vars
+  # set by start_difc_proxy.sh. When the DIFC proxy is active, GITHUB_API_URL
+  # and GITHUB_GRAPHQL_URL point to localhost:18443 and GH_HOST is overridden.
+  # The AWF bundle may try to reach these endpoints on startup, causing the
+  # version check to fail with a connection error if the proxy rejects the request.
+  maybe_sudo env -u GITHUB_API_URL -u GITHUB_GRAPHQL_URL -u GH_HOST \
+      "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" --version
+
+  echo "✓ AWF installation complete"
 }
 
 install_bundle() {
@@ -256,37 +296,6 @@ install_platform_binary() {
   esac
 }
 
-# Try lightweight bundle first, fall back to platform binary
-require_node_22
-if ! install_bundle; then
-  echo "⚠ Bundle install failed, falling back to platform binary..."
-  install_platform_binary
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
 fi
-
-# In rootless mode, add the install dir to PATH for subsequent steps.
-# $GITHUB_PATH is the mechanism for persisting PATH additions across steps in GitHub Actions.
-if [ "$ROOTLESS" = "true" ]; then
-  if [ -n "${GITHUB_PATH:-}" ]; then
-    echo "${AWF_INSTALL_DIR}" >> "${GITHUB_PATH}"
-  else
-    echo "WARNING: --rootless install complete but \$GITHUB_PATH is unset; add ${AWF_INSTALL_DIR} to PATH manually" >&2
-  fi
-fi
-
-# Verify installation by running --version.
-# In legacy (non-rootless) mode, run with sudo (without -E, since we explicitly unset
-# environment variables below). On GPU runners (e.g. aw-gpu-runner-T4), /usr/local/bin
-# may be inaccessible to the current non-root user due to filesystem or security
-# policy restrictions, so running the version check without sudo would fail with
-# "Permission denied".
-# In rootless (network-isolation) mode, run without sudo since AWF is rootless.
-# A successful run prints the version string (e.g. "0.25.13") to stdout.
-# Also clear DIFC (Data Integrity and Filtering Controls) proxy env vars
-# set by start_difc_proxy.sh. When the DIFC proxy is active, GITHUB_API_URL
-# and GITHUB_GRAPHQL_URL point to localhost:18443 and GH_HOST is overridden.
-# The AWF bundle may try to reach these endpoints on startup, causing the
-# version check to fail with a connection error if the proxy rejects the request.
-maybe_sudo env -u GITHUB_API_URL -u GITHUB_GRAPHQL_URL -u GH_HOST \
-    "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" --version
-
-echo "✓ AWF installation complete"
