@@ -42,8 +42,8 @@ func TestPRSousChefWorkflowAddCommentTargetContract(t *testing.T) {
 	assert.Contains(t, text, "you must always post a comment on the same PR as that triggering comment", "Workflow must require comment acknowledgement on slash-command PR comments")
 	assert.Contains(t, text, "Do not skip this acknowledgement due to cooldown, pending checks, or duplicate-comment safeguards", "Workflow must make slash-command acknowledgement unconditional")
 	assert.Contains(t, text, "now - 3600", "Workflow must define a 1-hour cutoff for long-running checks")
-	assert.Contains(t, text, "fromdateiso8601", "Workflow must parse startedAt timestamps to implement long-running check guard")
-	assert.Contains(t, text, ".startedAt // .createdAt) | fromdateiso8601", "Workflow must compare startedAt (or createdAt fallback) against the 1-hour cutoff")
-	assert.Contains(t, text, ".startedAt // .createdAt //", "Workflow must fall back to createdAt when startedAt is absent")
+	assert.Contains(t, text, "fromdateiso8601", "Workflow must parse timestamps to implement long-running check guard")
+	assert.Contains(t, text, ".startedAt // .createdAt) | fromdateiso8601) > $cutoff", "Workflow must compare startedAt (or createdAt fallback) against the 1-hour cutoff")
+	assert.Contains(t, text, "(.startedAt // .createdAt) == null", "Workflow must treat absent timestamps as pending (brand-new checks block nudges)")
 	assert.Contains(t, text, "Long-running checks (running > 1 hour) are intentionally ignored", "Workflow instructions must document the long-running check exception")
 }

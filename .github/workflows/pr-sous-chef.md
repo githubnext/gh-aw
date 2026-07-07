@@ -96,7 +96,7 @@ steps:
               if .__typename == "CheckRun" then
                 ((.status // "COMPLETED") | IN("QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED", "PENDING")) and
                 (
-                  (.startedAt // .createdAt // "") == "" or
+                  (.startedAt // .createdAt) == null or
                   (((.startedAt // .createdAt) | fromdateiso8601) > $cutoff)
                 )
               elif .__typename == "StatusContext" then
