@@ -145,5 +145,3 @@ Use progressive disclosure. Keep `Executive Summary`, `Top Reliability Findings`
 - Do not invent failure counts, trace links, or missing attributes.
 - Be explicit when a finding is inconclusive.
 - Prefer high-signal recurring problems over one-off outliers.
-
-{{#runtime-import shared/noop-reminder.md}}

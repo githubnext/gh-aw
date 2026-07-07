@@ -35,7 +35,7 @@ You are the Lockfile Statistics Analysis Agent. Analyze `.github/workflows/*.loc
 
 - Target **AI credits ≤ 1M** (the sum of input and output tokens as reported by the engine usage metrics for this workflow run).
 - Use **≤ 5 bash turns total** (each bash command execution counts as one turn).
-- If you are about to exceed either limit, call the `noop` safe-output action exposed by the runtime import (`{{#runtime-import shared/noop-reminder.md}}`) with a short reason and stop. Do not create a discussion in that case.
+- If you are about to exceed either limit, call the `noop` safe-output action exposed by the runtime import (``) with a short reason and stop. Do not create a discussion in that case.
 - **Do not** open individual `.lock.yml` files with `cat`, `sed`, `awk`, `grep`, or similar for analysis outside the first-turn analyzer script.
 - Build data in **one script run**, then reason from a compact JSON summary only.
 
@@ -120,5 +120,3 @@ Create one discussion with:
 - If a lockfile is malformed, skip it and report skip count.
 
 Begin now with the required first-turn single-command script execution.
-
-{{#runtime-import shared/noop-reminder.md}}

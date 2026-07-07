@@ -61,7 +61,6 @@ imports:
     with:
       toolsets: [default, actions]
   - shared/reporting.md
-  - shared/noop-reminder.md
   - shared/otlp.md
 features:
   gh-aw-detection: true
@@ -458,5 +457,3 @@ A successful run:
 - ✅ Creates up to 5 GitHub issues for Critical/High findings not already tracked
 - ✅ Creates a discussion summarizing all findings
 - ✅ Avoids duplicate issues by checking `known-issues.json`
-
-{{#runtime-import shared/noop-reminder.md}}

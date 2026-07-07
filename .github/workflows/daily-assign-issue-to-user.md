@@ -59,5 +59,3 @@ If you find a match:
 2. Use `add-comment` with a short explanation (1-2 sentences)
 
 If no unassigned issue exists, exit successfully without taking action.
-
-{{#runtime-import shared/noop-reminder.md}}

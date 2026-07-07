@@ -189,5 +189,3 @@ Create a summary comment or discussion showing:
 5. Focus on actionable improvements, not nitpicking
 
 Remember: The goal is to create a consistent, delightful user experience across all workflow reports by applying sound design principles and clear communication patterns.
-
-{{#runtime-import shared/noop-reminder.md}}

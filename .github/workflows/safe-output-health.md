@@ -375,5 +375,3 @@ A successful audit:
 - ✅ Focuses exclusively on safe output job health (not agent or detection jobs)
 
 Begin your audit now. Collect the logs, analyze safe output job failures thoroughly, cluster errors, identify root causes, and create a discussion with your findings and recommendations.
-
-{{#runtime-import shared/noop-reminder.md}}

@@ -331,5 +331,3 @@ This helps improve efficiency over time and avoids re-discovering the same patte
 - Document is useful as a reference for developers
 
 Good luck maintaining our layout specification!
-
-{{#runtime-import shared/noop-reminder.md}}

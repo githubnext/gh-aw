@@ -570,5 +570,3 @@ For additional examples, see the [tools documentation](/tools/overview).
 ---
 
 Begin your targeted analysis now! Select 1-2 files per category, evaluate them against enterprise software design principles, create a focused report, and generate 1-2 single-file improvement tasks.
-
-{{#runtime-import shared/noop-reminder.md}}

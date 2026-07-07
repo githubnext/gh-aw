@@ -282,9 +282,6 @@ Thresholds (from `.architecture.yml` or defaults):
 
 > 🏛️ *To configure thresholds, add a `.architecture.yml` file to the repository root.*
 ```
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `violation-classifier`
 ---
 description: Applies numeric thresholds to the pre-computed metrics JSON and returns a structured list of violations grouped by severity

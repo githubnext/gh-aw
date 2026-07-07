@@ -470,5 +470,3 @@ A successful research report should:
 - ✅ Consider security, performance, and developer experience
 
 **Remember**: The goal is to help the team make better use of Copilot CLI's capabilities and improve the overall quality of agentic workflows in this repository.
-
-{{#runtime-import shared/noop-reminder.md}}

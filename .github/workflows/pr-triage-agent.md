@@ -144,5 +144,3 @@ Write `/tmp/gh-aw/repo-memory/default/pr-triage-latest.json` containing run meta
 - Report is easy to act on and concise.
 
 {{#runtime-import .github/triage.md}}
-
-{{#runtime-import shared/noop-reminder.md}}

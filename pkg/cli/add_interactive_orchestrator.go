@@ -18,17 +18,19 @@ var addInteractiveLog = logger.New("cli:add_interactive")
 
 // AddInteractiveConfig holds configuration for interactive add mode
 type AddInteractiveConfig struct {
-	Ctx             context.Context // Context for cancellation (Ctrl-C handling)
-	WorkflowSpecs   []string
-	Verbose         bool
-	EngineOverride  string
-	NoGitattributes bool
-	WorkflowDir     string
-	NoStopAfter     bool
-	StopAfter       string
-	SkipWorkflowRun bool
-	SkipSecret      bool   // Skip the API secret prompt (useful when secret is set at org level)
-	RepoOverride    string // owner/repo format, if user provides it
+	Ctx                    context.Context // Context for cancellation (Ctrl-C handling)
+	WorkflowSpecs          []string
+	Verbose                bool
+	EngineOverride         string
+	NoGitattributes        bool
+	WorkflowDir            string
+	NoStopAfter            bool
+	StopAfter              string
+	SkipWorkflowRun        bool
+	SkipSecret             bool   // Skip the API secret prompt (useful when secret is set at org level)
+	RepoOverride           string // owner/repo format, if user provides it
+	AppendText             string // Extra content to append to the workflow on installation
+	DisableSecurityScanner bool   // Disable security scanning of workflow markdown content
 
 	// UseCopilotRequests indicates the user chose org-billing (copilot-requests) auth
 	// instead of a PAT when setting up the Copilot engine during the wizard.

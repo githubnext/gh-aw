@@ -612,5 +612,3 @@ make test-unit
 ```
 
 {{#endif}}
-
-{{#runtime-import shared/noop-reminder.md}}

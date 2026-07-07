@@ -453,5 +453,3 @@ A successful run:
 - ✅ Skips issue creation if no tool description issues found
 
 Begin your analysis now. Download logs, identify safe output tool errors, classify root causes, and create an issue if tool description improvements are needed.
-
-{{#runtime-import shared/noop-reminder.md}}

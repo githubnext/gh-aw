@@ -702,5 +702,3 @@ Each entry contains:
 ```
 
 Begin your daily performance analysis now!
-
-{{#runtime-import shared/noop-reminder.md}}

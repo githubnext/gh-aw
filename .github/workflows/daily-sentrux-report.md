@@ -151,5 +151,3 @@ Provide a text summary of the trend over the last 30 days. Include the highest a
 - Highlight any metric above 8000 as healthy (✅).
 - Store today's metrics to repo memory before publishing the report.
 - If sentrux plugins are missing for some languages, note which ones and continue with available data.
-
-{{#runtime-import shared/noop-reminder.md}}

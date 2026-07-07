@@ -234,9 +234,6 @@ Run these checks and mark each as ✅/❌:
 If all tests pass and this workflow was triggered by a pull_request event:
 - Use the `add_labels` safe-output tool to add the label `smoke-copilot` to the pull request (omit the `item_number` parameter to auto-target the triggering PR)
 - Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request (omit the `item_number` parameter to auto-target the triggering PR)
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `file-summarizer`
 ---
 model: ${{ experiments.subagent_model }}

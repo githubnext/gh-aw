@@ -180,5 +180,3 @@ Regardless of strategy, add a comment to the parent issue summarizing test resul
 5. Comment added to parent verifying the test results
 
 **Success Criteria**: All 3 issues created, all temporary ID references resolved, parent-child relationships established.
-
-{{#runtime-import shared/noop-reminder.md}}

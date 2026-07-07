@@ -325,5 +325,3 @@ A successful **concise** analysis:
 - ✅ Provides 1-2 actionable insights maximum
 
 **Remember**: Less is more. Focus on key metrics and notable changes only.
-
-{{#runtime-import shared/noop-reminder.md}}

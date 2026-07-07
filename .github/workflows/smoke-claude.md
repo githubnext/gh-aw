@@ -245,5 +245,3 @@ For tests below, mark a test as passed only if the required tool call succeeds.
    - If step 8 failed to extract a discussion number, skip this step
 
 If all non-skipped tests pass, use the `add_labels` tool to add the label `smoke-claude` to the pull request (omit the `item_number` parameter to auto-target the triggering PR if this workflow was triggered by a pull_request event).
-
-{{#runtime-import shared/noop-reminder.md}}

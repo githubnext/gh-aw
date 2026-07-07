@@ -245,5 +245,3 @@ A successful Archie run:
 ## Begin Your Analysis
 
 Examine the current context, analyze any linked references, generate your Mermaid diagrams using Serena, validate them, and post your visualization comment!
-
-{{#runtime-import shared/noop-reminder.md}}

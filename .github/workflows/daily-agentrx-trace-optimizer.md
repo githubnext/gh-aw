@@ -213,9 +213,6 @@ Cover the same sections (IR summary, invariant/checker highlights, judge classif
 - Prefer concrete evidence over broad advice.
 - If telemetry is unavailable or unusable, call `noop` with a clear reason.
 - Otherwise, always call `create_issue` once.
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `trajectory-builder`
 ---
 description: Builds AgentRx trajectory input from MCP run and log data

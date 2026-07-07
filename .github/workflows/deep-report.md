@@ -315,9 +315,6 @@ List all reports and data sources analyzed:
 
 1. **Create GitHub Issues**: For each of the 7 actionable tasks identified (if any), create a GitHub issue using the safe-outputs create-issue capability
 2. **Create Discussion Report**: Create a new GitHub discussion titled "DeepReport Intelligence Briefing - [Today's Date]" in the "audits" category with your full analysis (including the identified actionable tasks)
-
-{{#runtime-import shared/noop-reminder.md}}
-
 #### agent: `issues-analyst`
 ---
 model: small

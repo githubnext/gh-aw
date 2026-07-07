@@ -152,5 +152,3 @@ During processing, maintain clear logging:
 - Be careful with recursive processing to avoid infinite loops
 - Always verify the completion status before closing an issue
 - Add clear, informative comments when closing issues for transparency
-
-{{#runtime-import shared/noop-reminder.md}}

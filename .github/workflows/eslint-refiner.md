@@ -94,5 +94,3 @@ Out of scope:
 - Daily discussion generated.
 
 Begin analysis now.
-
-{{#runtime-import shared/noop-reminder.md}}
