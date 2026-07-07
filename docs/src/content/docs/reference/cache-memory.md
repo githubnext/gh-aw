@@ -80,21 +80,15 @@ Merge rules: **Single→Single** (local overrides), **Single→Multiple** (local
 
 ## Behavior
 
-GitHub Actions cache provides 7-day retention, a 10GB per-repository limit, and LRU eviction. Add `retention-days` to upload artifacts (1-90 days) for extended access.
+GitHub Actions cache provides 7-day retention, a 10GB per-repository limit, and LRU eviction. Add `retention-days` to upload artifacts (1-90 days) when you need access beyond normal cache expiration.
 
-Cache memory is branch-scoped. A run can restore from caches created on the same branch, and GitHub Actions also allows restore lookup from the default branch (typically `main`).
+Cache memory is branch-scoped. Runs restore from caches on the same branch and can also fall back to the default branch. On a non-default branch, the first restore often comes from the default branch; later saves then create a branch-local cache lineage.
 
-For non-default branches, the first successful restore often comes from the default branch. After that restore, subsequent saves on the non-default branch create a branch-local cache lineage (effectively a fork of the default-branch cache state).
-
-The compiler generates restore keys by stripping `${{ github.run_id }}` from the save key so each run can fall back to earlier runs. For `scope: repo`, the additional broader restore key enables cross-workflow sharing within the same branch scope.
-
-Custom user-supplied keys auto-append `-${{ github.run_id }}` if not already present.
+The compiler strips `${{ github.run_id }}` from restore keys so each run can fall back to earlier runs, and for `scope: repo` it adds a broader restore key for cross-workflow sharing within the same branch scope. Custom user-supplied keys automatically append `-${{ github.run_id }}` when needed.
 
 ## Best Practices
 
-Use cache-memory for short-lived, branch-local state. For workflows that rely on warmed caches, prefer scheduled runs on the default branch so each scheduled run reuses and updates the same cache lineage instead of fragmenting state across feature branches.
-
-Use descriptive file/directory names, hierarchical cache keys (`project-${{ github.repository_owner }}-${{ github.workflow }}`), and appropriate scope (workflow-specific default or repository-wide within branch scope). Monitor growth within the 10GB repository limit.
+Use cache-memory for short-lived, branch-local state. Prefer scheduled runs on the default branch when a workflow depends on warmed caches, and use descriptive file names, hierarchical keys such as `project-${{ github.repository_owner }}-${{ github.workflow }}`, and the narrowest practical scope. Monitor total cache growth within the 10GB repository limit.
 
 ## Comparison with Repo Memory
 
@@ -111,16 +105,13 @@ For unlimited retention with version control, see [Repo Memory](/gh-aw/reference
 
 ## Automatic Cleanup
 
-The [agentic maintenance](/gh-aw/reference/ephemerals/#cache-memory-cleanup) workflow automatically cleans up outdated cache-memory entries on a schedule. Caches are grouped by key prefix (everything before the run ID), and only the latest entry per group is kept. Older entries are deleted to prevent unbounded storage growth.
-
-You can also trigger cleanup manually from the GitHub Actions UI by running the `Agentic Maintenance` workflow with the `clean_cache_memories` operation.
+The [agentic maintenance](/gh-aw/reference/ephemerals/#cache-memory-cleanup) workflow automatically removes outdated cache-memory entries on a schedule by grouping caches by key prefix (everything before the run ID) and keeping only the latest entry in each group. You can also trigger the same cleanup manually from the GitHub Actions UI by running the `Agentic Maintenance` workflow with the `clean_cache_memories` operation.
 
 ## Troubleshooting
 
-- **Files not persisting**: Check cache key consistency and logs for restore/save messages.
-- **File access issues**: Create subdirectories first, verify permissions, use absolute paths.
-- **Cache size issues**: Track growth, clear periodically, or use time-based keys for auto-expiration.
-- **Cache path misconfiguration**: When the agent calls `missing_data` with `reason: "cache_memory_miss"`, the conclusion handler automatically opens a failure issue flagging a likely cache path problem. Check that the agent prompt references the correct path (`/tmp/gh-aw/cache-memory/` by default, or `/tmp/gh-aw/cache-memory-{id}/` for named caches) and that the cache key is consistent across runs.
+If files are not persisting, check cache key consistency and the restore/save log messages. For file access issues, create subdirectories first, verify permissions, and use absolute paths. If cache growth becomes a problem, clear old entries periodically or use time-based keys for auto-expiration.
+
+When an agent calls `missing_data` with `reason: `cache_memory_miss``, the conclusion handler automatically opens a failure issue that points to a likely cache path problem. Verify that the prompt uses the correct path (`/tmp/gh-aw/cache-memory/` by default or `/tmp/gh-aw/cache-memory-{id}/` for named caches) and that the cache key stays consistent across runs.
 
 ## Integrity-Aware Caching
 
@@ -144,9 +135,7 @@ This prevents a lower-integrity agent from poisoning data that a higher-integrit
 
 ## Security
 
-Don't store sensitive data in cache memory. Cache memory follows repository permissions.
-
-Logs access. With [threat detection](/gh-aw/reference/threat-detection/), cache saves only after validation succeeds (restore→modify→upload artifact→validate→save).
+Do not store sensitive data in cache memory. It follows repository permissions, and with [threat detection](/gh-aw/reference/threat-detection/) enabled, caches save only after validation succeeds (`restore → modify → upload artifact → validate → save`).
 
 ## Examples
 
