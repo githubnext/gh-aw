@@ -574,11 +574,6 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Download logs from last 24 hours
-        run: ./gh-aw logs --start-date -1d -o /tmp/gh-aw/aw-mcp/logs
-
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
@@ -595,6 +590,11 @@ jobs:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: none
         run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Download logs from last 24 hours
+        run: ./gh-aw logs --start-date -1d -o /tmp/gh-aw/aw-mcp/logs
+
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}

@@ -483,9 +483,6 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
-      - name: Build step alignment manifest
-        run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/agent\n\nMANIFEST_JSONL=\"/tmp/gh-aw/agent/step-alignment-input.jsonl\"\nMANIFEST_JSON=\"/tmp/gh-aw/agent/step-alignment-input.json\"\n: > \"$MANIFEST_JSONL\"\n\nwhile IFS= read -r workflow_file; do\n  yq -o=json \\\n    '.jobs | to_entries[] | .value.steps[]? | {\"workflow_file\": \"'\"$workflow_file\"'\", \"step_name\": (.name // \"\"), \"action_uses\": (.uses // \"\")}' \\\n    \"$workflow_file\" >> \"$MANIFEST_JSONL\"\ndone < <(find .github/workflows -name \"*.lock.yml\" -type f | sort)\n\njq -s '.' \"$MANIFEST_JSONL\" > \"$MANIFEST_JSON\"\nrm -f \"$MANIFEST_JSONL\"\n\necho \"Wrote $(jq 'length' \"$MANIFEST_JSON\") step records to $MANIFEST_JSON\""
-
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
@@ -502,6 +499,9 @@ jobs:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: none
         run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
+      - name: Build step alignment manifest
+        run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/agent\n\nMANIFEST_JSONL=\"/tmp/gh-aw/agent/step-alignment-input.jsonl\"\nMANIFEST_JSON=\"/tmp/gh-aw/agent/step-alignment-input.json\"\n: > \"$MANIFEST_JSONL\"\n\nwhile IFS= read -r workflow_file; do\n  yq -o=json \\\n    '.jobs | to_entries[] | .value.steps[]? | {\"workflow_file\": \"'\"$workflow_file\"'\", \"step_name\": (.name // \"\"), \"action_uses\": (.uses // \"\")}' \\\n    \"$workflow_file\" >> \"$MANIFEST_JSONL\"\ndone < <(find .github/workflows -name \"*.lock.yml\" -type f | sort)\n\njq -s '.' \"$MANIFEST_JSONL\" > \"$MANIFEST_JSON\"\nrm -f \"$MANIFEST_JSONL\"\n\necho \"Wrote $(jq 'length' \"$MANIFEST_JSON\") step records to $MANIFEST_JSON\""
+
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
