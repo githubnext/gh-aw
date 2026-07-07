@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -260,25 +261,27 @@ Test on.steps with memory stores restored in pre-activation
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 		lockContentStr := string(lockContent)
-		var preActivationSectionBuilder strings.Builder
-		inPreActivation := false
-		for line := range strings.SplitSeq(lockContentStr, "\n") {
-			if strings.HasPrefix(line, "  pre_activation:") {
-				inPreActivation = true
-			}
-			if inPreActivation {
-				// Next top-level job (2 spaces, not deeper indentation) ends pre_activation section.
-				if strings.HasPrefix(line, "  ") &&
-					!strings.HasPrefix(line, "    ") &&
-					strings.HasSuffix(line, ":") &&
-					!strings.HasPrefix(line, "  pre_activation:") {
-					break
-				}
-				preActivationSectionBuilder.WriteString(line)
-				preActivationSectionBuilder.WriteByte('\n')
-			}
+		preActivationStart := strings.Index(lockContentStr, "\n  pre_activation:\n")
+		if preActivationStart == -1 {
+			preActivationStart = strings.Index(lockContentStr, "  pre_activation:\n")
 		}
-		preActivationSection := preActivationSectionBuilder.String()
+		if preActivationStart == -1 {
+			t.Fatalf("Expected pre_activation section in lock file. Lock file:\n%s", lockContentStr)
+		}
+
+		sectionBodyStart := preActivationStart
+		if strings.HasPrefix(lockContentStr[preActivationStart:], "\n") {
+			sectionBodyStart++
+		}
+		jobStartPattern := regexp.MustCompile(`\n  [A-Za-z0-9_-]+:\n`)
+		searchStart := sectionBodyStart + len("  pre_activation:\n")
+		nextJobLoc := jobStartPattern.FindStringIndex(lockContentStr[searchStart:])
+		var preActivationSection string
+		if nextJobLoc == nil {
+			preActivationSection = lockContentStr[sectionBodyStart:]
+		} else {
+			preActivationSection = lockContentStr[sectionBodyStart : searchStart+nextJobLoc[0]+1]
+		}
 		if preActivationSection == "" {
 			t.Fatalf("Expected pre_activation section in lock file. Lock file:\n%s", lockContentStr)
 		}

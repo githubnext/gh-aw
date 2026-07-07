@@ -238,25 +238,30 @@ func (c *Compiler) buildPreActivationMemoryRestoreSteps(data *WorkflowData, step
 		return steps
 	}
 
-	var memorySteps strings.Builder
-
-	generatePreActivationCacheMemoryRestoreSteps(&memorySteps, data)
-	generateRepoMemorySteps(&memorySteps, data)
-
-	if data.SafeOutputs != nil && data.SafeOutputs.CommentMemory != nil {
-		memorySteps.WriteString("      - name: Prepare comment memory files\n")
-		fmt.Fprintf(&memorySteps, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
-		memorySteps.WriteString("        with:\n")
-		fmt.Fprintf(&memorySteps, "          github-token: %s\n", getEffectiveSafeOutputGitHubToken(data.SafeOutputs.CommentMemory.GitHubToken))
-		memorySteps.WriteString("          script: |\n")
-		memorySteps.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
-		memorySteps.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-		memorySteps.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/setup_comment_memory_files.cjs');\n")
-		memorySteps.WriteString("            await main();\n")
+	var cacheMemorySteps strings.Builder
+	generatePreActivationCacheMemoryRestoreSteps(&cacheMemorySteps, data)
+	if cacheMemorySteps.Len() > 0 {
+		steps = append(steps, cacheMemorySteps.String())
 	}
 
-	if memorySteps.Len() > 0 {
-		steps = append(steps, memorySteps.String())
+	var repoMemorySteps strings.Builder
+	generateRepoMemorySteps(&repoMemorySteps, data)
+	if repoMemorySteps.Len() > 0 {
+		steps = append(steps, repoMemorySteps.String())
+	}
+
+	if data.SafeOutputs != nil && data.SafeOutputs.CommentMemory != nil {
+		var commentMemorySteps strings.Builder
+		commentMemorySteps.WriteString("      - name: Prepare comment memory files\n")
+		fmt.Fprintf(&commentMemorySteps, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+		commentMemorySteps.WriteString("        with:\n")
+		fmt.Fprintf(&commentMemorySteps, "          github-token: %s\n", getEffectiveSafeOutputGitHubToken(data.SafeOutputs.CommentMemory.GitHubToken))
+		commentMemorySteps.WriteString("          script: |\n")
+		commentMemorySteps.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
+		commentMemorySteps.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+		commentMemorySteps.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/setup_comment_memory_files.cjs');\n")
+		commentMemorySteps.WriteString("            await main();\n")
+		steps = append(steps, commentMemorySteps.String())
 	}
 
 	return steps
