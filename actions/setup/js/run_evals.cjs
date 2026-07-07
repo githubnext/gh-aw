@@ -90,10 +90,8 @@ async function setupMain() {
 
   core.info(`BinEval setup complete: wrote prompt with ${questions.length} question(s)`);
 
-  await core.summary
-    .addRaw("<details>\n<summary>BinEval Evaluation Prompt</summary>\n\n")
-    .addRaw("``````markdown\n" + prompt + "\n``````\n\n</details>\n")
-    .write();
+  core.summary.addDetails("BinEval Evaluation Prompt", "\n\n``````markdown\n" + prompt + "\n``````\n\n");
+  await core.summary.write();
 }
 
 // ---------------------------------------------------------------------------
