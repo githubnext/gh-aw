@@ -316,5 +316,3 @@ A successful analysis:
 - ✅ Includes concrete examples of good and poor prompts
 
 **Remember**: The goal is to help developers write better prompts that lead to more successful PR merges.
-
-{{#runtime-import shared/noop-reminder.md}}

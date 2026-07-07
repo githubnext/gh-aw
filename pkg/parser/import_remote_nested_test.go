@@ -277,7 +277,7 @@ func TestRemoteOriginPropagation(t *testing.T) {
 
 	t.Run("workflowspec import gets remote origin", func(t *testing.T) {
 		spec := "elastic/ai-github-actions/gh-agent-workflows/mention-in-pr/rwxp.md@main"
-		assert.True(t, isWorkflowSpec(spec), "Should be recognized as workflowspec")
+		assert.True(t, IsWorkflowSpec(spec), "Should be recognized as workflowspec")
 
 		origin := parseRemoteOrigin(spec)
 		require.NotNil(t, origin, "Should parse remote origin")
@@ -289,7 +289,7 @@ func TestRemoteOriginPropagation(t *testing.T) {
 
 	t.Run("local import does not get remote origin", func(t *testing.T) {
 		localPath := "shared/tools.md"
-		assert.False(t, isWorkflowSpec(localPath), "Should not be recognized as workflowspec")
+		assert.False(t, IsWorkflowSpec(localPath), "Should not be recognized as workflowspec")
 
 		origin := parseRemoteOrigin(localPath)
 		assert.Nil(t, origin, "Local paths should not produce remote origin")
@@ -320,7 +320,7 @@ func TestRemoteOriginPropagation(t *testing.T) {
 		)
 
 		// The constructed spec should be recognized as a workflowspec
-		assert.True(t, isWorkflowSpec(expectedSpec), "Constructed path should be a valid workflowspec")
+		assert.True(t, IsWorkflowSpec(expectedSpec), "Constructed path should be a valid workflowspec")
 	})
 
 	t.Run("nested relative path from remote parent without BasePath uses .github/workflows", func(t *testing.T) {
@@ -347,7 +347,7 @@ func TestRemoteOriginPropagation(t *testing.T) {
 		)
 
 		// The constructed spec should be recognized as a workflowspec
-		assert.True(t, isWorkflowSpec(expectedSpec), "Constructed path should be a valid workflowspec")
+		assert.True(t, IsWorkflowSpec(expectedSpec), "Constructed path should be a valid workflowspec")
 	})
 
 	t.Run("nested relative path with ./ prefix is cleaned", func(t *testing.T) {
@@ -383,7 +383,7 @@ func TestRemoteOriginPropagation(t *testing.T) {
 		// If a remote file references another workflowspec, it should
 		// get its own origin, not inherit the parent's
 		nestedSpec := "other-org/other-repo/path/file.md@v2.0"
-		assert.True(t, isWorkflowSpec(nestedSpec), "Should be recognized as workflowspec")
+		assert.True(t, IsWorkflowSpec(nestedSpec), "Should be recognized as workflowspec")
 
 		origin := parseRemoteOrigin(nestedSpec)
 		require.NotNil(t, origin, "Should parse remote origin for nested workflowspec")
@@ -694,7 +694,7 @@ func TestParseRemoteOriginWithURLFormats(t *testing.T) {
 
 		for _, urlPath := range urlPaths {
 			// Currently, isWorkflowSpec accepts URLs (they have >3 slash-separated parts)
-			isSpec := isWorkflowSpec(urlPath)
+			isSpec := IsWorkflowSpec(urlPath)
 			assert.True(t, isSpec, "URL is currently accepted as workflowspec: %s", urlPath)
 
 			// parseRemoteOrigin will parse the URL parts literally

@@ -506,5 +506,3 @@ To keep token consumption predictable:
 - **Failure**: Cache memory corruption (create new cache)
 
 Good luck! Your work helps maintain a consistent, professional codebase with clear, accurate step names that align with project terminology.
-
-{{#runtime-import shared/noop-reminder.md}}

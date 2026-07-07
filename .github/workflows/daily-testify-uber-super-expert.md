@@ -128,5 +128,3 @@ Return a compact summary with selected file, counts, created issue number/title,
 - Prefer precise recommendations over long prose.
 - Follow patterns in `scratchpad/testing.md` and nearby `pkg/**/_test.go` files.
 - Always update cache after successful analysis.
-
-{{#runtime-import shared/noop-reminder.md}}

@@ -307,5 +307,3 @@ Begin your analysis now. Gather the data, identify the patterns, and create an i
 ### Output Format
 
 Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
-
-{{#runtime-import shared/noop-reminder.md}}

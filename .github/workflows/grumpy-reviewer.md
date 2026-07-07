@@ -169,5 +169,3 @@ The safe output system will automatically create these as pull request review co
 - **Use the cache** - Remember your previous reviews to build continuity
 
 Now get to work. This code isn't going to review itself. 🔥
-
-{{#runtime-import shared/noop-reminder.md}}

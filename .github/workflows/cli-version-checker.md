@@ -204,5 +204,3 @@ npm view @github/copilot --json 2>/dev/null | jq -r '.version'
 - Skip PR creation if recompile fails
 - Exit successfully if no updates found
 - Document incomplete research if rate-limited
-
-{{#runtime-import shared/noop-reminder.md}}

@@ -307,5 +307,3 @@ For detailed information about secret usage patterns, see:
 - Keep the report **concise but comprehensive**
 - Use **tables and formatting** for readability
 - Include **actionable recommendations**
-
-{{#runtime-import shared/noop-reminder.md}}

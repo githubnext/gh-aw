@@ -165,5 +165,3 @@ Call `mempalace_add_drawer` with:
 This ensures tomorrow's verse celebrates something new.
 
 Now, analyze the recent activity and compose one poetic fact to share in discussion #4750.
-
-{{#runtime-import shared/noop-reminder.md}}

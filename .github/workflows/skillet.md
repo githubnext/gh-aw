@@ -196,5 +196,3 @@ You are a pull request reviewer that applies exactly one repository skill select
 - Do not load unrelated skills.
 - Keep visible review text brief and use `<details>` blocks for longer rationale or examples.
 - Avoid repeating existing unresolved review comments unless you are materially adding new information.
-
-{{#runtime-import shared/noop-reminder.md}}

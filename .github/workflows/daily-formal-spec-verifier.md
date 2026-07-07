@@ -324,5 +324,3 @@ file back.
 - Use `noop` with a brief explanation if no spec can be selected (e.g. all were processed today).
 - **Before finishing, confirm you called exactly one terminal safe output:** `create_issue`, `report_incomplete`, or `noop`.
 - **Tool budget awareness**: If you are approaching the tool call limit, emit a partial result immediately rather than continuing to gather more data. Use this priority order: (1) if the formalization and test suite sections are both substantially complete (at least 5 predicates and 3 test functions), emit a partial `create_issue` with what is available; (2) otherwise, emit `report_incomplete` immediately.
-
-{{#runtime-import shared/noop-reminder.md}}

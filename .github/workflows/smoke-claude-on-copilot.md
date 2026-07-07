@@ -43,5 +43,3 @@ Goal: validate that Claude with `model-provider: github` can read the current pu
 4. Post exactly one `add_comment` safe output to the current PR with this summary.
 
 Keep the comment compact (max 8 lines).
-
-{{#runtime-import shared/noop-reminder.md}}

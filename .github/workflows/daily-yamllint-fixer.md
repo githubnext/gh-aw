@@ -2,19 +2,18 @@
 private: true
 emoji: "🧹"
 name: Daily yamllint Fixer
-description: Daily Copilot workflow that runs yamllint on generated *.lock.yml files, analyzes noise (trailing spaces, indentation), and opens a pull-request with Go generator fixes
+description: Daily workflow that runs yamllint on generated *.lock.yml files, analyzes noise (trailing spaces, indentation), and opens a pull-request with Go generator fixes
 on:
   schedule: daily on weekdays
   workflow_dispatch:
   skip-if-match: 'is:pr is:open label:yamllint-fixer in:title "[yamllint-fixer]"'
 max-daily-ai-credits: 10000
 permissions:
-  copilot-requests: write
   contents: read
   pull-requests: read
   issues: read
 engine:
-  id: copilot
+  id: claude
 max-turns: 120
 network:
   allowed:

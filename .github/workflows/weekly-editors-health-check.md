@@ -148,5 +148,3 @@ Example body (rows reflect whatever editors were discovered in Step 0):
 ### Output Format
 
 Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
-
-{{#runtime-import shared/noop-reminder.md}}

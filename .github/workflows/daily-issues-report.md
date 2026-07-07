@@ -393,5 +393,3 @@ A successful run will:
 - ✅ Include all required metrics and visualizations
 
 Begin your analysis now. Load the data, run the Python analysis, generate charts, and create the discussion report.
-
-{{#runtime-import shared/noop-reminder.md}}

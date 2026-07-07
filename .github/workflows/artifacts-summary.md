@@ -105,5 +105,3 @@ Create an issue with a markdown table like this:
 - Convert sizes to human-readable formats (MB, GB)
 - Consider artifact retention policies in your analysis
 - Include both successful and failed runs in the analysis, ignore cancelled runs
-
-{{#runtime-import shared/noop-reminder.md}}

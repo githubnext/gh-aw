@@ -256,5 +256,3 @@ Only create an agent task if ALL of these are true:
 If any are false, provide analysis in comment but don't create a task.
 
 **Security**: Process only workflow_dispatch runs (filtered by `if`), same-repo PRs only, don't execute untrusted code from logs
-
-{{#runtime-import shared/noop-reminder.md}}

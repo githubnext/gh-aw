@@ -279,5 +279,3 @@ Make the error message helpful so the user knows how to correct the input.
 ### Output Format
 
 Wrap long content with `<details><summary><b>View Details</b></summary>...</details>`.
-
-{{#runtime-import shared/noop-reminder.md}}

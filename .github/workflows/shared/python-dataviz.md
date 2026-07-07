@@ -75,24 +75,17 @@ steps:
       retention-days: 30
 ---
 
-# Python Data Visualization Guide
+# Python Data Visualization
 
-Python scientific libraries have been installed and are ready for use. Working directories: `/tmp/gh-aw/python/` (scripts), `/tmp/gh-aw/python/data/` (inputs), `/tmp/gh-aw/python/charts/` (outputs).
+Dirs: `/tmp/gh-aw/python/` (scripts), `/tmp/gh-aw/python/data/` (inputs), `/tmp/gh-aw/python/charts/` (outputs).
 
-## Data Separation Requirement
+**Data**: Never inline data. Write to `/tmp/gh-aw/python/data/` and load with `pd.read_csv()`/`pd.read_json()`.
 
-**CRITICAL**: Never inline data in Python code. Always write data to `/tmp/gh-aw/python/data/` first and load it with `pd.read_csv()`/`pd.read_json()`.
+**Charts**: `fig, ax = plt.subplots(figsize=(10,6), dpi=300)` + `sns.set_style("whitegrid")`, save PNG to `/tmp/gh-aw/python/charts/`, DPI ≥ 300, `bbox_inches='tight'`.
 
-## Chart Generation
+**Upload**:
+1. `plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')`
+2. `{ "type": "upload_asset", "path": "/tmp/gh-aw/python/charts/my_chart.png" }`
+3. `![Description](ASSET_URL_FROM_UPLOAD)` in report
 
-**Pattern**: load data from `/tmp/gh-aw/python/data/`, plot with `fig, ax = plt.subplots(figsize=(10,6), dpi=300)` using `sns.set_style("whitegrid")`, save PNG to `/tmp/gh-aw/python/charts/`, upload via `upload_asset` safe-output tool.
-
-**Quality standards**: DPI ≥ 300, clear axis labels and titles, `bbox_inches='tight'`, colorblind-friendly palettes (seaborn defaults).
-
-## Including Images in Reports
-
-1. Save chart: `plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')`
-2. Upload: `{ "type": "upload_asset", "path": "/tmp/gh-aw/python/charts/my_chart.png" }`
-3. Embed: `![Description](ASSET_URL_FROM_UPLOAD)` in issue/discussion/step summary
-
-Asset URLs are persistent. Up to 5 uploads per run; PNG, JPG, JPEG, SVG allowed.
+Up to 5 uploads per run; PNG, JPG, JPEG, SVG allowed.

@@ -558,5 +558,3 @@ Create a new GitHub discussion with a title containing today's date (e.g., "Dail
 
 Only a new discussion should be created, do not close or update any existing discussions.
 {{/if}}
-
-{{#runtime-import shared/noop-reminder.md}}

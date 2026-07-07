@@ -341,5 +341,3 @@ Your output MUST include:
 If you cannot find any improvements, still create an issue noting the module is well-utilized and document your analysis in `scratchpad/mods/`.
 
 Begin your analysis! Pick the next module and start your deep review.
-
-{{#runtime-import shared/noop-reminder.md}}

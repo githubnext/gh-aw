@@ -257,9 +257,6 @@ You MUST finish by calling exactly one safe-output tool:
 6. `missing_data` when blocked by missing required data
 
 Do not finish with plain text only. The safe-output tool call is required.
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `scope-filter`
 ---
 description: Decides whether a candidate file should be simplified and labels its primary language

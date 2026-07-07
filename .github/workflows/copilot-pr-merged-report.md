@@ -271,5 +271,3 @@ A successful report:
 - ✅ Completes within 10-minute timeout
 
 Begin your analysis now. Use the `gh` mcp-script tool for all GitHub CLI operations.
-
-{{#runtime-import shared/noop-reminder.md}}

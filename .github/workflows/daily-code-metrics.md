@@ -56,6 +56,32 @@ experiments:
     weight: [50, 50]
     start_date: "2026-05-16"
     issue: 1
+pre-agent-steps:
+  - name: Write chart specs
+    env:
+      VARIANT: ${{ env.GH_AW_EXPERIMENTS_OUTPUT_FORMAT }}
+    run: |
+      mkdir -p /tmp/gh-aw/agent
+      VARIANT="${VARIANT:-full_detail}"
+      if [ "$VARIANT" = "full_detail" ]; then
+        cat > /tmp/gh-aw/agent/chart-specs.md << 'SPECS'
+      | # | Filename | Description |
+      |---|----------|-------------|
+      | 1 | `loc_by_language.png` | Horizontal bar chart of LOC by language (sorted descending, percentage labels, language-type colors, total LOC in title). |
+      | 2 | `top_directories.png` | Horizontal bar chart of top 10 directories by LOC (full paths, LOC and percent, highlight `cmd`/`pkg`/`docs`/`workflows`, distinct directory-type colors). |
+      | 3 | `quality_score_breakdown.png` | Stacked bar or pie breakdown: Test Coverage 30%, Code Organization 25%, Documentation 20%, Churn Stability 15%, Comment Density 10%; show current vs target with red→green gradient. |
+      | 4 | `test_coverage.png` | Grouped comparison of test vs source LOC by language, ratio visualization, optional trend indicator, recommended ratio marker (0.5–1.0). |
+      | 5 | `code_churn.png` | Diverging bars for top 10 most changed source files (7d); exclude `*.lock.yml` and `actions-lock.json`; show added/deleted/net, color by file type. |
+      | 6 | `historical_trends.png` | Multi-line 30-day trends for total LOC, test coverage %, and quality score with optional multi-axis scales, 7-day moving averages, and >10% annotations. |
+      SPECS
+      else
+        cat > /tmp/gh-aw/agent/chart-specs.md << 'SPECS'
+      | # | Filename | Description |
+      |---|----------|-------------|
+      | 1 | `quality_score_breakdown.png` | Stacked bar or pie breakdown: Test Coverage 30%, Code Organization 25%, Documentation 20%, Churn Stability 15%, Comment Density 10%; show current vs target with red→green gradient. |
+      | 2 | `historical_trends.png` | Multi-line 30-day trends for total LOC, test coverage %, and quality score with optional multi-axis scales, 7-day moving averages, and >10% annotations. |
+      SPECS
+      fi
 features:
   gh-aw-detection: true
 ---
@@ -157,21 +183,7 @@ Generate **2 high-quality charts** focusing on the most actionable signals:
 
 ### Required Charts
 
-| # | Filename | Description |
-|---|----------|-------------|
-{{#if experiments.output_format == 'full_detail' }}
-| 1 | `loc_by_language.png` | Horizontal bar chart of LOC by language (sorted descending, percentage labels, language-type colors, total LOC in title). |
-| 2 | `top_directories.png` | Horizontal bar chart of top 10 directories by LOC (full paths, LOC and percent, highlight `cmd`/`pkg`/`docs`/`workflows`, distinct directory-type colors). |
-| 3 | `quality_score_breakdown.png` | Stacked bar or pie breakdown: Test Coverage 30%, Code Organization 25%, Documentation 20%, Churn Stability 15%, Comment Density 10%; show current vs target with red→green gradient. |
-| 4 | `test_coverage.png` | Grouped comparison of test vs source LOC by language, ratio visualization, optional trend indicator, recommended ratio marker (0.5–1.0). |
-| 5 | `code_churn.png` | Diverging bars for top 10 most changed source files (7d); **exclude** `*.lock.yml` and `actions-lock.json`; show added/deleted/net, color by file type. |
-| 6 | `historical_trends.png` | Multi-line 30-day trends for total LOC, test coverage %, and quality score with optional multi-axis scales, 7-day moving averages, and >10% annotations. |
-{{#else}}
-| 1 | `quality_score_breakdown.png` | Stacked bar or pie breakdown: Test Coverage 30%, Code Organization 25%, Documentation 20%, Churn Stability 15%, Comment Density 10%; show current vs target with red→green gradient. |
-| 2 | `historical_trends.png` | Multi-line 30-day trends for total LOC, test coverage %, and quality score with optional multi-axis scales, 7-day moving averages, and >10% annotations. |
-{{/if}}
-
-All charts save to `/tmp/gh-aw/python/charts/<filename>`.
+Read `/tmp/gh-aw/agent/chart-specs.md` for the variant-appropriate list of required charts (pre-written by the setup step). All charts save to `/tmp/gh-aw/python/charts/<filename>`.
 
 ### Python Script
 
@@ -227,18 +239,6 @@ One compact table per category (Size, Quality, Tests, Churn-source, Churn-genera
 {{/if}}
 ```
 
-### Report Guidelines
-
-- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
-- Include variant-appropriate visualization charts as embedded images (6 for `full_detail`, 2 for `executive_summary`)
-- Upload charts using `upload asset` tool for permanent URLs
-- Provide brief analysis for each chart
-- Use collapsible details section for detailed metrics tables in `full_detail` mode
-- Highlight trends with emoji indicators (⬆️/➡️/⬇️)
-- Calculate and display quality score prominently
-- Provide 3-5 actionable recommendations
-- Include metadata footer with generation info
-
 ## Quality Score
 
 Weighted average: Test coverage (30%), Code organization (25%), Documentation (20%), Churn stability (15%), Comment density (10%)
@@ -266,5 +266,3 @@ This ensures the quality score reflects actionable source code volatility, not n
 - Upload charts as assets for permanent URLs
 - Embed charts in discussion report with analysis
 - Store metrics to repo memory, create discussion report with visualizations
-
-{{#runtime-import shared/noop-reminder.md}}

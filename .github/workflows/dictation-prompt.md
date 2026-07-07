@@ -170,5 +170,3 @@ Use the create-pull-request tool to submit your changes with:
 - ✅ Focuses on fixing speech-to-text errors
 - ✅ Includes instructions for removing filler words and improving text clarity
 - ✅ Pull request created with changes
-
-{{#runtime-import shared/noop-reminder.md}}

@@ -148,5 +148,3 @@ A successful run MUST:
 ### Output Format
 
 Wrap long content with `<details><summary><b>View Details</b></summary>...</details>`.
-
-{{#runtime-import shared/noop-reminder.md}}

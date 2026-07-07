@@ -333,5 +333,3 @@ Begin your analysis now. Focus on evaluating error messages from a developer exp
 ### Output Format
 
 Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
-
-{{#runtime-import shared/noop-reminder.md}}

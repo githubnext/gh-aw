@@ -98,5 +98,3 @@ Generate:
 ```
 
 Save to `/tmp/gh-aw/cache-memory/mcp-inspections/[DATE].json` and create discussion in "audits" category.
-
-{{#runtime-import shared/noop-reminder.md}}

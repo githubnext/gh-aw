@@ -308,5 +308,3 @@ This PR updates README.md specifications for the following packages:
 - ✅ Cache memory updated with extraction state
 - ✅ Round-robin rotation advances correctly
 - ✅ PR created with specification changes
-
-{{#runtime-import shared/noop-reminder.md}}

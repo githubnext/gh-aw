@@ -249,9 +249,6 @@ Ensure the discussion body:
 ## Expected Output
 
 A GitHub discussion in the "audits" category containing a comprehensive daily firewall analysis report.
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `firewall-chart-generator`
 ---
 model: small

@@ -113,5 +113,3 @@ This issue has been assigned to an AI agent for workflow design. The agent will:
 2. Use **assign-to-agent** safe output to assign the Copilot coding agent who will design and implement the workflow
 
 The workflow designer agent will have clear instructions in the issue body about what it needs to do.
-
-{{#runtime-import shared/noop-reminder.md}}

@@ -89,5 +89,3 @@ This provides both per-issue context and batch visibility.
 - `help-wanted`: Indicates that the issue is a good candidate for external contributions and help
 - `good-first-issue`: Marks issues that are suitable for newcomers to the project, often with simpler scope.
 - `community`: Indicates that the issue is related to community engagement, such as events, discussions, or contributions that don't fit into the other categories. From authors who are not contributors to the codebase but are engaging with the project in other ways.
-
-{{#runtime-import shared/noop-reminder.md}}

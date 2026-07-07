@@ -259,5 +259,3 @@ Output the following summary to stdout after processing:
 - No PRs incorrectly closed (low reopen rate for non-user errors)
 - Clear communication on every action taken
 - Full coverage of eligible PRs within safe-output limits
-
-{{#runtime-import shared/noop-reminder.md}}
