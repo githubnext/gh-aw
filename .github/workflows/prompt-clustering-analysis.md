@@ -48,6 +48,8 @@ cache:
 tools:
   cache-memory: true
   bash: ["*"]
+features:
+  gh-aw-detection: true
 
 steps:
   - name: Download full PR data with comments and reviews

@@ -56,6 +56,8 @@ tools:
     mode: gh-proxy
     toolsets:
     - default
+features:
+  gh-aw-detection: true
 sandbox:
   agent:
     sudo: false

@@ -24,6 +24,8 @@ tools:
     toolsets: [all]
   cache-memory:
     key: mcp-response-analysis-${{ github.workflow }}
+features:
+  gh-aw-detection: true
 imports:
   - uses: shared/daily-audit-base.md
     with:
