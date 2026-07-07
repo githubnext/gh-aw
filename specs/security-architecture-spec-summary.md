@@ -206,7 +206,7 @@ Summary version **1.0.0** corresponds to the minimum validated `.lock.yml` compi
 | Track pre_activation note from validation doc | ✅ Done (2026-07-06) | Added an explicit PM-11 note tying runtime membership validation to the separate `pre_activation` job in `specs/security-architecture-spec.md` |
 | Track detection job naming note from validation doc | ✅ Done (2026-07-06) | Appendix D now names the `detection` job explicitly as the runtime threat-detection layer |
 | Track conclusion job note from validation doc | ✅ Done (2026-07-06) | Documented the optional `conclusion` job as non-normative cleanup/reporting guidance |
-| Audit trusted-users runtime enforcement coverage | ✅ Done (2026-07-06) | Sections 8-9 now forward readers to the companion GitHub MCP access-control specifications for `trusted-users` runtime enforcement scope |
+| Audit trusted-users runtime enforcement coverage | ✅ Done (2026-07-06) | Sections 8-9 now document runtime `trusted-users` enforcement scope directly in this spec summary (membership checks gate privileged runtime access) |
 
 ## Versioning
 
