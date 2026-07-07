@@ -1,6 +1,6 @@
 import { getCollection } from 'astro:content';
 
-const SITE_BASE_URL = 'https://github.github.com/gh-aw';
+export const LLMS_SITE_BASE_URL = 'https://github.github.com/gh-aw/';
 
 const SECTION_TITLES: Record<string, string> = {
 	overview: 'Overview',
@@ -40,21 +40,22 @@ function getSectionKey(id: string): string {
 
 function getSectionTitle(sectionKey: string): string {
 	return SECTION_TITLES[sectionKey] ?? sectionKey
-		.split(/[-_]/g)
+		.replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+		.split(/[-_\s]+/g)
 		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
 		.join(' ');
 }
 
 function getPageUrl(id: string): string {
 	if (id === 'index' || id === 'index.md' || id === 'index.mdx') {
-		return `${SITE_BASE_URL}/`;
+		return LLMS_SITE_BASE_URL;
 	}
 
 	const path = id
 		.replace(/\/index\.(md|mdx)$/, '')
 		.replace(/\.(md|mdx)$/, '');
 
-	return `${SITE_BASE_URL}/${path}/`;
+	return `${LLMS_SITE_BASE_URL}${path}/`;
 }
 
 function cleanBody(body: string): string {
@@ -101,13 +102,9 @@ export async function getLlmsDocPages(): Promise<LlmsDocPage[]> {
 			const sectionCompare = compareSectionKeys(left.sectionKey, right.sectionKey);
 			if (sectionCompare !== 0) return sectionCompare;
 
-			if (left.url === `${SITE_BASE_URL}/`) return -1;
-			if (right.url === `${SITE_BASE_URL}/`) return 1;
+			if (left.url === LLMS_SITE_BASE_URL) return -1;
+			if (right.url === LLMS_SITE_BASE_URL) return 1;
 
 			return left.url.localeCompare(right.url);
 		});
-}
-
-export function getLlmsSiteBaseUrl(): string {
-	return `${SITE_BASE_URL}/`;
 }

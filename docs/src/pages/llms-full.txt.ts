@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { getLlmsDocPages, getLlmsSiteBaseUrl } from './_llms-docs.js';
+import { getLlmsDocPages, LLMS_SITE_BASE_URL } from './_llms-docs.js';
 
 export const prerender = true;
 
@@ -10,7 +10,7 @@ export const GET: APIRoute = async () => {
 		'# GitHub Agentic Workflows Documentation — Full Corpus',
 		'',
 		'> Full text index of the published GitHub Agentic Workflows (gh-aw) documentation site.',
-		`> Base URL: ${getLlmsSiteBaseUrl()}`,
+		`> Base URL: ${LLMS_SITE_BASE_URL}`,
 		`> Published pages: ${pages.length}`,
 		'',
 	];
