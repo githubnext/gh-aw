@@ -278,7 +278,7 @@ func extractCustomJobTimeoutMinutes(job *Job, jobName string, configMap map[stri
 			job.TimeoutMinutesExpression = v
 		} else {
 			return fmt.Errorf(
-				"job '%s' timeout-minutes must be an integer or a GitHub Actions expression (e.g. '${{ inputs.timeout }}'), got %q",
+				"job '%s' timeout-minutes must be an integer or a GitHub Actions expression (e.g. '${{ inputs.timeout }}'), got %q. Example: timeout-minutes: 30",
 				jobName,
 				v,
 			)
@@ -549,7 +549,7 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 	for jobName, jobConfig := range data.Jobs {
 		configMap, ok := jobConfig.(map[string]any)
 		if !ok {
-			return fmt.Errorf("jobs.%s must be an object, got %T", jobName, jobConfig)
+			return fmt.Errorf("jobs.%s must be an object, got %T. Example: jobs:\n  %s:\n    pre-steps: []", jobName, jobConfig, jobName)
 		}
 
 		_, hasSetupSteps := configMap["setup-steps"]
@@ -624,7 +624,7 @@ func extractBuiltinJobNeedsAugmentation(jobName string, configMap map[string]any
 		for i, rawNeed := range typedNeeds {
 			need, ok := rawNeed.(string)
 			if !ok {
-				return nil, fmt.Errorf("jobs.%s.needs[%d] must be a string, got %T", jobName, i, rawNeed)
+				return nil, fmt.Errorf("jobs.%s.needs[%d] must be a string, got %T. Example: jobs:\n  %s:\n    needs: [build, test]", jobName, i, rawNeed, jobName)
 			}
 			needs = append(needs, need)
 		}
