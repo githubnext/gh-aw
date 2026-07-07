@@ -42,12 +42,7 @@ func resolveInstallScriptSHA256(ctx context.Context, commitSHA string) string {
 		return ""
 	}
 	h := sha256.Sum256(res.Body)
-	digest := hex.EncodeToString(h[:])
-	if !sha256HexRegex.MatchString(digest) {
-		copilotSetupLog.Printf("resolveInstallScriptSHA256: unexpected digest format %q", digest)
-		return ""
-	}
-	return digest
+	return hex.EncodeToString(h[:])
 }
 
 // sha256CheckLine returns a YAML-indented shell command (with trailing newline) that verifies
@@ -58,7 +53,7 @@ func sha256CheckLine(digest, path string) string {
 	if !sha256HexRegex.MatchString(digest) {
 		return ""
 	}
-	if path == "" || strings.ContainsAny(path, " \t\n\"'\\$`;&|<>(){}") {
+	if path == "" || strings.ContainsAny(path, " \t\n\"'\\$`;&|<>(){}*?") {
 		copilotSetupLog.Printf("sha256CheckLine: unsafe path %q, skipping", path)
 		return ""
 	}
