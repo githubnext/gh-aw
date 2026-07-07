@@ -1176,6 +1176,8 @@ func TestResolveSymlinkExtraPaths(t *testing.T) {
 	t.Run("empty repoRoot is a no-op", func(t *testing.T) {
 		result := resolveSymlinkExtraPaths("", []string{"existing"})
 		assert.Equal(t, []string{"existing"}, result, "empty repoRoot should return extraPaths unchanged")
+		result = resolveSymlinkExtraPaths("", nil)
+		assert.Nil(t, result, "empty repoRoot with nil extraPaths should return nil")
 	})
 
 	t.Run("symlink target escaping repo root is ignored", func(t *testing.T) {

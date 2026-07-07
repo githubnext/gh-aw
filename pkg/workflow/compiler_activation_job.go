@@ -598,7 +598,7 @@ func resolveSymlinkExtraPaths(repoRoot string, extraPaths []string) []string {
 			compilerActivationJobLog.Printf("Ignoring symlink %s -> %s: resolved path %q escapes the repository root", candidate, target, rel)
 			continue
 		}
-		// Normalise to forward slashes for use in YAML sparse-checkout paths.
+		// Normalize to forward slashes for use in YAML sparse-checkout paths.
 		rel = filepath.ToSlash(rel)
 		if _, alreadyPresent := existing[rel]; alreadyPresent {
 			continue
