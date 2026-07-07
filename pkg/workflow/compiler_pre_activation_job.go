@@ -47,6 +47,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	steps = c.buildPreActivationSkipIfQuerySteps(data, steps, skipIfToken)
 	steps = c.buildPreActivationSkipIfCheckFailingStep(data, steps)
 	steps = c.buildPreActivationRolesBotsCmdSteps(data, steps)
+	steps = c.buildPreActivationMemoryRestoreSteps(data, steps)
 	steps, onStepIDs, err := c.injectPreActivationOnSteps(data, steps, customSteps)
 	if err != nil {
 		return nil, err
@@ -227,6 +228,37 @@ func (c *Compiler) buildPreActivationRolesBotsCmdSteps(data *WorkflowData, steps
 	if len(data.Command) > 0 {
 		steps = c.appendPreActivationCommandPositionStep(data, steps)
 	}
+	return steps
+}
+
+// buildPreActivationMemoryRestoreSteps restores memory stores before on.steps run in pre-activation.
+// This is a read-only surface: it restores/loads memory data but does not emit write-back or commit steps.
+func (c *Compiler) buildPreActivationMemoryRestoreSteps(data *WorkflowData, steps []string) []string {
+	if len(data.OnSteps) == 0 {
+		return steps
+	}
+
+	var memorySteps strings.Builder
+
+	generateCacheMemorySteps(&memorySteps, data)
+	generateRepoMemorySteps(&memorySteps, data)
+
+	if data.SafeOutputs != nil && data.SafeOutputs.CommentMemory != nil {
+		memorySteps.WriteString("      - name: Prepare comment memory files\n")
+		fmt.Fprintf(&memorySteps, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+		memorySteps.WriteString("        with:\n")
+		fmt.Fprintf(&memorySteps, "          github-token: %s\n", getEffectiveSafeOutputGitHubToken(data.SafeOutputs.CommentMemory.GitHubToken))
+		memorySteps.WriteString("          script: |\n")
+		memorySteps.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
+		memorySteps.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+		memorySteps.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/setup_comment_memory_files.cjs');\n")
+		memorySteps.WriteString("            await main();\n")
+	}
+
+	if memorySteps.Len() > 0 {
+		steps = append(steps, memorySteps.String())
+	}
+
 	return steps
 }
 

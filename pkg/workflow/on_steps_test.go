@@ -225,6 +225,85 @@ Test on.steps are appended after built-in checks
 			t.Error("Expected membership check step to appear before on.steps gate step in pre_activation job")
 		}
 	})
+
+	t.Run("on_steps_with_memory_stores_restored_in_pre_activation", func(t *testing.T) {
+		workflowContent := `---
+on:
+  workflow_dispatch: null
+  roles: all
+  steps:
+    - name: Gate check
+      id: gate
+      run: echo "checking..."
+tools:
+  cache-memory: true
+  repo-memory: true
+  comment-memory: true
+engine: copilot
+---
+
+Test on.steps with memory stores restored in pre-activation
+`
+		workflowFile := filepath.Join(tmpDir, "test-on-steps-memory-pre-activation.md")
+		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("CompileWorkflow() returned error: %v", err)
+		}
+
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+		lockContentStr := string(lockContent)
+		var preActivationSectionBuilder strings.Builder
+		inPreActivation := false
+		for line := range strings.SplitSeq(lockContentStr, "\n") {
+			if strings.HasPrefix(line, "  pre_activation:") {
+				inPreActivation = true
+			}
+			if inPreActivation {
+				// Next top-level job (2 spaces, not deeper indentation) ends pre_activation section.
+				if strings.HasPrefix(line, "  ") &&
+					!strings.HasPrefix(line, "    ") &&
+					strings.HasSuffix(line, ":") &&
+					!strings.HasPrefix(line, "  pre_activation:") {
+					break
+				}
+				preActivationSectionBuilder.WriteString(line)
+				preActivationSectionBuilder.WriteByte('\n')
+			}
+		}
+		preActivationSection := preActivationSectionBuilder.String()
+		if preActivationSection == "" {
+			t.Fatalf("Expected pre_activation section in lock file. Lock file:\n%s", lockContentStr)
+		}
+
+		// Memory stores should be restored before on.steps run in pre-activation.
+		assert.Contains(t, preActivationSection, "Restore cache-memory file share data")
+		assert.Contains(t, preActivationSection, "Clone repo-memory branch (default)")
+		assert.Contains(t, preActivationSection, "Prepare comment memory files")
+		assert.Contains(t, preActivationSection, "        id: gate")
+
+		cacheRestoreIdx := strings.Index(preActivationSection, "Restore cache-memory file share data")
+		repoRestoreIdx := strings.Index(preActivationSection, "Clone repo-memory branch (default)")
+		commentMemoryIdx := strings.Index(preActivationSection, "Prepare comment memory files")
+		gateStepIdx := strings.Index(preActivationSection, "        id: gate")
+		if cacheRestoreIdx == -1 || repoRestoreIdx == -1 || commentMemoryIdx == -1 || gateStepIdx == -1 {
+			t.Fatalf("Expected memory restore steps and gate step in pre_activation section. Section:\n%s", preActivationSection)
+		}
+		assert.Less(t, cacheRestoreIdx, gateStepIdx, "cache-memory should be restored before on.steps")
+		assert.Less(t, repoRestoreIdx, gateStepIdx, "repo-memory should be restored before on.steps")
+		assert.Less(t, commentMemoryIdx, gateStepIdx, "comment-memory should be restored before on.steps")
+
+		// Pre-activation must not include write-back/commit steps.
+		assert.NotContains(t, preActivationSection, "Commit cache-memory changes")
+		assert.NotContains(t, preActivationSection, "Push repo-memory changes")
+	})
 }
 
 // TestExtractOnSteps tests the extractOnSteps function directly
