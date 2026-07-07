@@ -97,13 +97,23 @@ debug_log "Created directory: ${DESTINATION}"
 # so we fall back to sudo rm -rf which is available passwordless on GitHub-hosted runners.
 if [ -d /tmp/gh-aw ] && [ ! -w /tmp/gh-aw ]; then
   debug_log "/tmp/gh-aw exists but is not writable (likely root-owned from prior run); using sudo to remove"
-  sudo rm -rf /tmp/gh-aw
+  if command -v sudo >/dev/null 2>&1; then
+    sudo -n rm -rf /tmp/gh-aw
+  else
+    echo "::error::/tmp/gh-aw exists but is not writable, and sudo is not available to reclaim it."
+    exit 1
+  fi
 elif [ -d /tmp/gh-aw ]; then
   # Directory is writable — but subdirectories may not be (e.g., sandbox/firewall/ owned by root).
   # Attempt plain rm first; if it fails, escalate to sudo.
   if ! rm -rf /tmp/gh-aw 2>/dev/null; then
     debug_log "/tmp/gh-aw has non-writable children (likely root-owned from prior AWF run); using sudo to remove"
-    sudo rm -rf /tmp/gh-aw
+    if command -v sudo >/dev/null 2>&1; then
+      sudo -n rm -rf /tmp/gh-aw
+    else
+      echo "::error::/tmp/gh-aw contains non-writable children, and sudo is not available to reclaim it."
+      exit 1
+    fi
   fi
 fi
 mkdir -p /tmp/gh-aw
