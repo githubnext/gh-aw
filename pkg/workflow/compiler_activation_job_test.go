@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -1138,4 +1140,87 @@ func TestInjectIfConditionAfterName(t *testing.T) {
 		got := injectIfConditionAfterName(step, cond)
 		assert.Equal(t, step, got, "step without - name: should be returned unchanged")
 	})
+}
+
+// TestResolveSymlinkExtraPaths verifies that symlinks under .github/ are resolved and
+// their targets appended to the extraPaths list, while non-symlinks and escape paths are ignored.
+func TestResolveSymlinkExtraPaths(t *testing.T) {
+	// Create a temp dir that acts as the working directory for the test.
+	tmpDir := t.TempDir()
+
+	// Helper: create a symlink <linkName> -> <target> inside tmpDir and chdir to tmpDir.
+	mkSymlink := func(t *testing.T, linkRel, target string) {
+		t.Helper()
+		linkPath := filepath.Join(tmpDir, linkRel)
+		if err := os.MkdirAll(filepath.Dir(linkPath), 0o755); err != nil {
+			t.Fatalf("MkdirAll: %v", err)
+		}
+		if err := os.Symlink(target, linkPath); err != nil {
+			t.Fatalf("Symlink: %v", err)
+		}
+	}
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	t.Run("symlink .github/agents resolved to inner path", func(t *testing.T) {
+		dir := t.TempDir()
+		// Create the symlink target directory so Lstat sees the symlink, not a dangling one.
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, ".ai", "agents"), 0o755))
+		// Create .github/agents as a symlink -> ../.ai/agents
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, ".github"), 0o755))
+		require.NoError(t, os.Symlink(filepath.Join("..", ".ai", "agents"), filepath.Join(dir, ".github", "agents")))
+
+		require.NoError(t, os.Chdir(dir))
+		result := resolveSymlinkExtraPaths(nil)
+		assert.Contains(t, result, ".ai/agents", "symlink target should be appended")
+	})
+
+	t.Run("non-symlink .github/agents produces no extra entry", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, ".github", "agents"), 0o755))
+
+		require.NoError(t, os.Chdir(dir))
+		result := resolveSymlinkExtraPaths(nil)
+		assert.Empty(t, result, "regular directory should not produce extra paths")
+	})
+
+	t.Run("missing .github/agents produces no extra entry", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.Chdir(dir))
+		result := resolveSymlinkExtraPaths(nil)
+		assert.Empty(t, result, "absent path should produce no extra paths")
+	})
+
+	t.Run("symlink target escaping repo root is ignored", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, ".github"), 0o755))
+		// Symlink points outside the repo root
+		require.NoError(t, os.Symlink(filepath.Join("..", "..", "etc", "passwd"), filepath.Join(dir, ".github", "agents")))
+
+		require.NoError(t, os.Chdir(dir))
+		result := resolveSymlinkExtraPaths(nil)
+		assert.Empty(t, result, "symlink escaping repo root should be silently ignored")
+	})
+
+	t.Run("already-present path is not duplicated", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, ".ai", "agents"), 0o755))
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, ".github"), 0o755))
+		require.NoError(t, os.Symlink(filepath.Join("..", ".ai", "agents"), filepath.Join(dir, ".github", "agents")))
+
+		require.NoError(t, os.Chdir(dir))
+		result := resolveSymlinkExtraPaths([]string{".ai/agents"})
+		count := 0
+		for _, p := range result {
+			if p == ".ai/agents" {
+				count++
+			}
+		}
+		assert.Equal(t, 1, count, "already-present path should not be duplicated")
+	})
+
+	_ = tmpDir
+	_ = mkSymlink
 }
