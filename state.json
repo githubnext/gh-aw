@@ -3,7 +3,7 @@
     "model_size": {
       "small": 1,
       "claude-sonnet-4.6": 22,
-      "claude-haiku-4.5": 23
+      "claude-haiku-4.5": 24
     }
   },
   "runs": [
@@ -327,6 +327,13 @@
       "timestamp": "2026-07-07T07:23:55.829Z",
       "assignments": {
         "model_size": "claude-sonnet-4.6"
+      }
+    },
+    {
+      "run_id": "28849045958",
+      "timestamp": "2026-07-07T07:36:48.149Z",
+      "assignments": {
+        "model_size": "claude-haiku-4.5"
       }
     }
   ]
