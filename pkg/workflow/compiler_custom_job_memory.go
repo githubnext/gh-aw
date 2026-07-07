@@ -145,8 +145,9 @@ func generateRepoMemoryRestoreLines(data *WorkflowData) []string {
 		return nil
 	}
 
-	// SplitAfter keeps each line's trailing newline; skip any empty final element
-	// that strings.Split would produce for a newline-terminated string.
+	// SplitAfter keeps each line's trailing newline, so no phantom extra newline is
+	// appended (unlike strings.Split + "\n" which adds a spurious blank line for the
+	// empty trailing element produced by a newline-terminated string).
 	parts := strings.SplitAfter(raw, "\n")
 	lines := make([]string, 0, len(parts))
 	for _, p := range parts {
