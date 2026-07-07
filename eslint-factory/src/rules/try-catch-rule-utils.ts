@@ -6,6 +6,10 @@ const MEMBER_ONLY_DEFERRED_SINK_NAMES = new Set(["nextTick"]);
 
 export const SAFE_WRAPPABLE_STATEMENT_TYPES = new Set<AST_NODE_TYPES>([AST_NODE_TYPES.ExpressionStatement, AST_NODE_TYPES.ReturnStatement]);
 
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function isFunctionExpressionLike(node: TSESTree.Node): node is TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression {
   return node.type === AST_NODE_TYPES.ArrowFunctionExpression || node.type === AST_NODE_TYPES.FunctionExpression;
 }
@@ -46,7 +50,7 @@ type TryCatchSuggestionOptions = {
 
 export function buildTryCatchSuggestion(stmtText: string, options: TryCatchSuggestionOptions): string {
   const { indent, todoComment, errorPrefix } = options;
-  const normalizedIndent = indent.length > 0 ? new RegExp(`^${indent.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`) : null;
+  const normalizedIndent = indent.length > 0 ? new RegExp(`^${escapeRegex(indent)}`) : null;
   const indentedStatement = stmtText
     .split("\n")
     .map((line, index) => {

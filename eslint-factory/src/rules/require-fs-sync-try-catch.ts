@@ -9,9 +9,6 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 // now to keep FP risk low on the first iteration.
 const FS_SYNC_METHODS = new Set(["readFileSync", "writeFileSync", "appendFileSync"]);
 
-// Statement node types that can be directly wrapped in a try/catch block.
-const WRAPPABLE_STATEMENT_TYPES = SAFE_WRAPPABLE_STATEMENT_TYPES;
-
 export const requireFsSyncTryCatchRule = createRule({
   name: "require-fs-sync-try-catch",
   meta: {
@@ -61,7 +58,7 @@ export const requireFsSyncTryCatchRule = createRule({
       const ancestors = sourceCode.getAncestors(node);
       for (let i = ancestors.length - 1; i >= 0; i--) {
         const ancestor = ancestors[i];
-        if (WRAPPABLE_STATEMENT_TYPES.has(ancestor.type)) {
+        if (SAFE_WRAPPABLE_STATEMENT_TYPES.has(ancestor.type)) {
           return ancestor as TSESTree.Statement;
         }
       }
