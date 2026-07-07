@@ -1006,3 +1006,55 @@ func TestGenerateMainJobStepsRestoreActionsFolder(t *testing.T) {
 		assert.NotContains(t, result, "Restore actions folder", "agent job should NOT have restore step in action mode")
 	})
 }
+
+// TestMemoryRestoreStepsOrderBeforeCustomSteps asserts that cache-memory and repo-memory
+// restore steps are emitted before user custom steps so that deterministic steps: code
+// can read memory without requiring an LLM turn.
+func TestMemoryRestoreStepsOrderBeforeCustomSteps(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	data := &WorkflowData{
+		Name:            "Test Workflow",
+		AI:              "copilot",
+		MarkdownContent: "Test prompt",
+		EngineConfig:    &EngineConfig{ID: "copilot"},
+		ParsedTools:     &ToolsConfig{},
+		CustomSteps: `steps:
+  - name: My Custom Step
+    run: echo "hello"`,
+		CacheMemoryConfig: &CacheMemoryConfig{
+			Caches: []CacheMemoryEntry{
+				{ID: "default", Key: "memory-test-${{ github.run_id }}"},
+			},
+		},
+		RepoMemoryConfig: &RepoMemoryConfig{
+			Memories: []RepoMemoryEntry{
+				{
+					ID:         "default",
+					BranchName: "memory/default",
+				},
+			},
+		},
+	}
+
+	var buf strings.Builder
+	err := compiler.generateMainJobSteps(&buf, data)
+	require.NoError(t, err, "generateMainJobSteps should not error")
+
+	result := buf.String()
+
+	// Locate the positions of the key markers in the generated YAML.
+	cacheMemoryPos := strings.Index(result, "Cache memory file share")
+	repoMemoryPos := strings.Index(result, "Clone repo-memory branch")
+	customStepPos := strings.Index(result, "My Custom Step")
+
+	require.Greater(t, cacheMemoryPos, -1, "cache-memory setup comment should be present in output")
+	require.Greater(t, repoMemoryPos, -1, "repo-memory clone step should be present in output")
+	require.Greater(t, customStepPos, -1, "custom step should be present in output")
+
+	assert.Less(t, cacheMemoryPos, customStepPos,
+		"cache-memory restore steps must appear before custom steps")
+	assert.Less(t, repoMemoryPos, customStepPos,
+		"repo-memory restore steps must appear before custom steps")
+}

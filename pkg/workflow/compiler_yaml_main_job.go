@@ -190,8 +190,10 @@ func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *
 }
 
 // generateRuntimeAndWorkspaceSetupSteps emits runtime setup steps, the gh-aw temp directory
-// creation step, GitHub Enterprise CLI configuration, DIFC proxy start, custom steps, cache
-// steps, cache-memory steps, and repo-memory steps.
+// creation step, GitHub Enterprise CLI configuration, DIFC proxy start, cache steps,
+// cache-memory steps, repo-memory steps, and then the user's custom steps.
+// Memory restore steps (cache-memory, repo-memory) intentionally run before custom steps so
+// that deterministic steps: code can read memory without requiring an LLM turn.
 // It mutates data.CustomSteps (via deduplication) and returns whether the custom steps
 // themselves contain a checkout action (used by the caller to compute needsGitConfig).
 func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, data *WorkflowData, needsCheckout bool) bool {
@@ -224,19 +226,21 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 	// integrity filtering before the agent runs. Must start before custom steps.
 	c.generateStartDIFCProxyStep(yaml, data)
 
-	c.emitCustomSteps(yaml, data, customStepsContainCheckout, runtimeSetupSteps)
-
 	// Add cache steps if cache configuration is present
 	compilerYamlLog.Printf("Generating cache steps for workflow")
 	generateCacheSteps(yaml, data, c.verbose)
 
-	// Add cache-memory steps if cache-memory configuration is present
+	// Add cache-memory steps before custom steps so that user steps: code can read
+	// /tmp/gh-aw/cache-memory/<key>/ without an LLM turn.
 	compilerYamlLog.Printf("Generating cache-memory steps for workflow")
 	generateCacheMemorySteps(yaml, data)
 
-	// Add repo-memory clone steps if repo-memory configuration is present
+	// Add repo-memory clone steps before custom steps so that user steps: code can read
+	// /tmp/gh-aw/repo-memory/<name>/ without an LLM turn.
 	compilerYamlLog.Printf("Generating repo-memory steps for workflow")
 	generateRepoMemorySteps(yaml, data)
+
+	c.emitCustomSteps(yaml, data, customStepsContainCheckout, runtimeSetupSteps)
 
 	return customStepsContainCheckout
 }

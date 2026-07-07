@@ -486,11 +486,6 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Build Inventory
-        run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/agent\n# Run compilation validation and capture output\ngh aw compile --validate > /tmp/gh-aw/agent/compile-validate.txt 2>&1 || true\n# List executable workflow files (exclude shared/ subdirectory)\nls .github/workflows/*.md 2>/dev/null > /tmp/gh-aw/agent/workflow-list.txt || true\necho \"Inventory complete: $(wc -l < /tmp/gh-aw/agent/workflow-list.txt | tr -d ' ') workflows found\""
-
       # Repo memory git-based storage configuration from frontmatter processed below
       - name: Clone repo-memory branch (default)
         env:
@@ -501,6 +496,11 @@ jobs:
           MEMORY_DIR: /tmp/gh-aw/repo-memory/default
           CREATE_ORPHAN: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Build Inventory
+        run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/agent\n# Run compilation validation and capture output\ngh aw compile --validate > /tmp/gh-aw/agent/compile-validate.txt 2>&1 || true\n# List executable workflow files (exclude shared/ subdirectory)\nls .github/workflows/*.md 2>/dev/null > /tmp/gh-aw/agent/workflow-list.txt || true\necho \"Inventory complete: $(wc -l < /tmp/gh-aw/agent/workflow-list.txt | tr -d ' ') workflows found\""
+
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
