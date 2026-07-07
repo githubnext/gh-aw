@@ -53,8 +53,8 @@ export function buildTryCatchSuggestion(stmtText: string, options: TryCatchSugge
   const normalizedIndent = indent.length > 0 ? new RegExp(`^${escapeRegex(indent)}`) : null;
   const indentedStatement = stmtText
     .split("\n")
-    .map((line, index) => {
-      const normalizedLine = index === 0 || !normalizedIndent ? line : line.replace(normalizedIndent, "");
+    .map(line => {
+      const normalizedLine = normalizedIndent ? line.replace(normalizedIndent, "") : line;
       return `${indent}  ${normalizedLine}`;
     })
     .join("\n");

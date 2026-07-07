@@ -55,6 +55,13 @@ describe("require-fs-sync-try-catch", () => {
     });
   });
 
+  it("valid: destructured fs bindings stay out of scope", () => {
+    cjsRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
+      valid: [`const { readFileSync } = require("fs"); readFileSync(path, "utf8");`],
+      invalid: [],
+    });
+  });
+
   it("valid: fs inside try block (ES module) passes", () => {
     esmRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
       valid: [`try { const x = fs.readFileSync(path, "utf8"); } catch (e) {}`],
@@ -203,6 +210,22 @@ describe("require-fs-sync-try-catch", () => {
                 {
                   messageId: "wrapInTryCatch",
                   output: `try { setTimeout(() => { try {\n  fs.writeFileSync(p, d);\n} catch (err) {\n  // TODO: handle I/O failure for this fs.writeFileSync call.\n  throw new Error(\n    "fs.writeFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }, 0); } catch (e) {}`,
+                },
+              ],
+            },
+          ],
+        },
+        // process.nextTick — callback runs after the surrounding try has returned
+        {
+          code: `try { process.nextTick(() => { fs.readFileSync(path, "utf8"); }); } catch (e) {}`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "readFileSync", arg: "path" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `try { process.nextTick(() => { try {\n  fs.readFileSync(path, "utf8");\n} catch (err) {\n  // TODO: handle I/O failure for this fs.readFileSync call.\n  throw new Error(\n    "fs.readFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }); } catch (e) {}`,
                 },
               ],
             },
