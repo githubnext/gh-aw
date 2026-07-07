@@ -530,6 +530,21 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Download activation artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: activation
+          path: /tmp/gh-aw
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone wiki-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          BRANCH_NAME: master
+          TARGET_REPO: ${{ github.repository }}.wiki
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
+          CREATE_ORPHAN: false
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -548,16 +563,6 @@ jobs:
       - name: Format attribution data for agent
         run: "DATA_DIR=/tmp/gh-aw/agent/community-data\n\n# Group Tier 0-2 attributions by author for agent-ready consumption.\n# Produces a structured JSON the agent can read with `cat` — no jq needed.\njq '\n  group_by(.author.login) |\n  sort_by(.[0].author.login | ascii_downcase) |\n  map({\n    author: .[0].author.login,\n    count: length,\n    issues: (sort_by(-.number))\n  })\n' \"$DATA_DIR/pre_attributed.json\" \\\n  > \"$DATA_DIR/attribution_by_author.json\" 2>/dev/null \\\n  || echo \"[]\" > \"$DATA_DIR/attribution_by_author.json\"\n\nAUTHOR_COUNT=$(jq length \"$DATA_DIR/attribution_by_author.json\")\nISSUE_COUNT=$(jq length \"$DATA_DIR/pre_attributed.json\")\necho \"✓ Grouped: $AUTHOR_COUNT authors, $ISSUE_COUNT issues\"\n\n# Generate the pre-formatted README community section (Tier 0-2 only).\n# The agent reads this file directly, appends Tier 3 results, and inserts\n# the result into README.md — no bash data-processing required.\n{\n  REPO_URL=\"https://github.com/${GITHUB_REPOSITORY:-github/gh-aw}\"\n  SEARCH_BASE=\"${REPO_URL}/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3A\"\n  echo \"## 🌍 Community Contributions\"\n  echo \"\"\n  echo \"<sup>Community members whose issues were resolved — updated automatically.</sup>\"\n  echo \"\"\n  jq -r --arg base \"$SEARCH_BASE\" '\n    .[] |\n    \"[@\\(.author) (\\(.count))](\\($base + .author))\"\n  ' \"$DATA_DIR/attribution_by_author.json\"\n  echo \"\"\n} > \"$DATA_DIR/readme_community_section_tier012.md\"\n\necho \"✓ Generated readme_community_section_tier012.md\"\necho \"\"\necho \"Data available in $DATA_DIR/:\"\necho \"  attribution_by_author.json          — Tier 0-2 issues grouped by author (agent-ready)\"\necho \"  readme_community_section_tier012.md — pre-formatted README section (Tier 0-2 only)\""
 
-      # Repo memory git-based storage configuration from frontmatter processed below
-      - name: Clone wiki-memory branch (default)
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-          BRANCH_NAME: master
-          TARGET_REPO: ${{ github.repository }}.wiki
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
-          CREATE_ORPHAN: false
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -594,11 +599,6 @@ jobs:
           script: |
             const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
-      - name: Download activation artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: activation
-          path: /tmp/gh-aw
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:
@@ -1116,6 +1116,8 @@ jobs:
         env:
           AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
         run: |
+          # Best-effort permission fix for artifact upload (AWF cleanup may not have run)
+          sudo -n chmod -R a+rX /tmp/gh-aw/sandbox/firewall 2>/dev/null || chmod -R a+rX /tmp/gh-aw/sandbox/firewall 2>/dev/null || true
           # Only run awf logs summary if awf command exists (it may not be installed if workflow failed before install step)
           if command -v awf &> /dev/null; then
             awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
