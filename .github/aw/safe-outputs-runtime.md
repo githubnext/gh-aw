@@ -4,8 +4,7 @@ description: Safe-output reference for runtime defaults, custom jobs, scripts, a
 
 # Safe Outputs: Runtime and Extensibility
 
-
-  The report-incomplete safe-output is automatically enabled by default and is distinct from `noop`. Use it when required tools or data are unavailable and the task cannot be meaningfully performed (e.g., MCP server crash, missing authentication, inaccessible repository). When an agent emits `report_incomplete`, gh-aw activates failure handling even when the agent process exits 0 — preventing empty outputs from being classified as successful. This ensures every unrecoverable failure is tracked.
+The `report-incomplete` safe-output is enabled by default and is distinct from `noop`. Use it when required tools or data are unavailable and the task cannot be meaningfully performed (e.g., MCP server crash, missing authentication, inaccessible repository). When an agent emits `report_incomplete`, gh-aw activates failure handling even when the agent process exits 0 — preventing empty outputs from being classified as successful, so every unrecoverable failure is tracked.
 
 - `jobs:` - Custom safe-output jobs registered as MCP tools for third-party integrations
 
