@@ -36,7 +36,8 @@ This document is governed by the GitHub Agentic Workflows project specifications
 8. [Compliance Testing](#8-compliance-testing)
 9. [Appendices](#9-appendices)
 10. [References](#10-references)
-11. [Change Log](#11-change-log)
+11. [Sync Notes](#sync-notes)
+12. [Change Log](#change-log)
 
 ---
 
@@ -181,11 +182,13 @@ A conforming driver implementation MUST treat `COPILOT_SDK_SEND_TIMEOUT_MS` as m
 ### 4.5 Tool-Denials Guardrail Environment Variable
 
 `GH_AW_MAX_TOOL_DENIALS` controls the catastrophic tool-denials
-guardrail in SDK mode. A conforming driver implementation SHOULD count
+guardrail in SDK mode. A conforming driver implementation MUST count
 repeated tool refusals (permission denials), and MUST stop
 inference once the configured threshold is reached. When unset,
 non-numeric, or non-positive, implementations MUST apply the default
 value (`5`).
+
+This counting requirement tightens the specification to match the existing gh-aw reference implementation in `actions/setup/js/copilot_sdk_session.cjs` and the current `copilot_sdk_driver.test.cjs` guardrail coverage. It does not change gh-aw runtime behavior, but implementations that previously treated denial counting as optional would need to align with this clarified conformance requirement.
 
 ### 4.6 TypeScript Example (Non-Normative)
 
@@ -495,7 +498,26 @@ A conforming implementation SHOULD:
 
 ---
 
-## 11. Change Log
+<a id="sync-notes"></a>
+## Sync Notes
+
+The canonical gh-aw harness implementation for this specification is centered in:
+
+- `actions/setup/js/copilot_sdk_driver.cjs`
+- `actions/setup/js/copilot_sdk_session.cjs`
+- `actions/setup/js/copilot_harness.cjs`
+- `actions/setup/js/copilot_sdk_driver.test.cjs`
+
+This specification MUST be revalidated whenever any of the following occurs:
+
+1. The standalone environment-variable contract changes.
+2. The permission-request handling or tool-denial guardrail semantics change.
+3. Harness token propagation or secret-isolation behavior changes.
+
+---
+
+<a id="change-log"></a>
+## Change Log
 
 ### Version 1.0.2 (Draft Specification)
 

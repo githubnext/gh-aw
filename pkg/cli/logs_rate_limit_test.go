@@ -3,7 +3,9 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
+	stderrors "errors"
 	"strconv"
 	"testing"
 	"time"
@@ -82,4 +84,101 @@ func TestRateLimitResourceIsBelowThreshold(t *testing.T) {
 // jsonInt is a helper that converts an int64 to its JSON number representation.
 func jsonInt(n int64) string {
 	return strconv.FormatInt(n, 10)
+}
+
+// TestSleepWithContextCancellation verifies that sleepWithContext returns ctx.Err()
+// immediately when the context is cancelled before the timer fires.
+func TestSleepWithContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately
+
+	start := time.Now()
+	err := sleepWithContext(ctx, 10*time.Second)
+	elapsed := time.Since(start)
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Less(t, elapsed, time.Second, "sleepWithContext should return quickly when context is already cancelled")
+}
+
+// TestSleepWithContextDeadlineExceeded verifies that sleepWithContext respects a
+// deadline that expires before the sleep duration.
+func TestSleepWithContextDeadlineExceeded(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	err := sleepWithContext(ctx, 10*time.Second)
+	elapsed := time.Since(start)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Less(t, elapsed, time.Second, "sleepWithContext should return as soon as the deadline expires")
+}
+
+// TestSleepWithContextTimerFires verifies that sleepWithContext returns nil when the
+// timer fires before context cancellation.
+func TestSleepWithContextTimerFires(t *testing.T) {
+	ctx := context.Background()
+	start := time.Now()
+	err := sleepWithContext(ctx, 5*time.Millisecond)
+	elapsed := time.Since(start)
+	require.NoError(t, err, "sleepWithContext should return nil when timer fires normally")
+	assert.Less(t, elapsed, time.Second, "timer should have fired and returned promptly")
+}
+
+func TestSleepWithContextNilContext(t *testing.T) {
+	var nilCtx context.Context
+	start := time.Now()
+	err := sleepWithContext(nilCtx, 2*time.Millisecond)
+	elapsed := time.Since(start)
+	require.NoError(t, err, "nil context should fall back to background context")
+	assert.Less(t, elapsed, time.Second, "nil context should not block longer than timer duration")
+}
+
+func TestSleepWithContextAlreadyCanceled(t *testing.T) {
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	start := time.Now()
+	err := sleepWithContext(canceledCtx, 2*time.Millisecond)
+	elapsed := time.Since(start)
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Less(t, elapsed, time.Second, "already-canceled context should return promptly")
+}
+
+func TestCheckAndWaitForRateLimitContextCancelled(t *testing.T) {
+	oldFetchRateLimitFunc := fetchRateLimitFunc
+	fetchRateLimitFunc = func() (rateLimitResource, error) {
+		return rateLimitResource{
+			Limit:     5000,
+			Remaining: 0,
+			Reset:     time.Now().Add(10 * time.Minute).Unix(),
+		}, nil
+	}
+	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	start := time.Now()
+	err := checkAndWaitForRateLimit(ctx, false)
+	elapsed := time.Since(start)
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Less(t, elapsed, 100*time.Millisecond, "cancelled context should interrupt rate-limit wait promptly")
+}
+
+func TestCheckAndWaitForRateLimitFetchErrorAndContextDone(t *testing.T) {
+	oldFetchRateLimitFunc := fetchRateLimitFunc
+	expectedFetchErr := stderrors.New("fetch failure")
+	fetchRateLimitFunc = func() (rateLimitResource, error) {
+		return rateLimitResource{}, expectedFetchErr
+	}
+	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := checkAndWaitForRateLimit(ctx, false)
+	require.Error(t, err)
+	require.ErrorIs(t, err, expectedFetchErr)
+	require.ErrorIs(t, err, context.Canceled)
 }
