@@ -51,11 +51,15 @@ func resolveInstallScriptSHA256(ctx context.Context, commitSHA string) string {
 }
 
 // sha256CheckLine returns a YAML-indented shell command (with trailing newline) that verifies
-// digest against path using sha256sum. Returns an empty string if digest is empty.
-// Both parameters must be pre-validated: digest via sha256HexRegex ([0-9a-f]{64}) and path
-// must be a safe filesystem path (e.g., the installScriptTempPath constant).
+// digest against path using sha256sum. Returns an empty string if either parameter is invalid.
+// digest must be a 64-char lowercase hex string (sha256HexRegex); path must contain only
+// safe filesystem characters (no spaces, quotes, or shell metacharacters).
 func sha256CheckLine(digest, path string) string {
-	if digest == "" {
+	if !sha256HexRegex.MatchString(digest) {
+		return ""
+	}
+	if path == "" || strings.ContainsAny(path, " \t\n\"'\\$`;&|<>(){}") {
+		copilotSetupLog.Printf("sha256CheckLine: unsafe path %q, skipping", path)
 		return ""
 	}
 	return fmt.Sprintf(`          echo "%s  %s" | sha256sum -c -`+"\n", digest, path)
