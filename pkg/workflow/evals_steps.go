@@ -131,26 +131,19 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 	// Determine engine ID (same resolution order as detection).
 	engineID := c.getEvalsEngineID(data)
 
-	engineConfig := data.EngineConfig
-	// Build the evals engine config inheriting from the main engine config.
-	evalsEngineConfig := engineConfig
-	if evalsEngineConfig == nil {
+	// Build the evals engine config by shallow-copying the main engine config.
+	// This preserves all fields including Auth (OIDC/Azure), LLMProvider, permissions,
+	// token weights, and other engine settings that should apply to eval runs.
+	var evalsEngineConfig *EngineConfig
+	if data.EngineConfig == nil {
 		evalsEngineConfig = &EngineConfig{ID: engineID}
 	} else {
-		evalsEngineConfig = &EngineConfig{
-			ID:            evalsEngineConfig.ID,
-			Model:         evalsEngineConfig.Model,
-			Version:       evalsEngineConfig.Version,
-			Env:           evalsEngineConfig.Env,
-			Config:        evalsEngineConfig.Config,
-			Args:          evalsEngineConfig.Args,
-			APITarget:     evalsEngineConfig.APITarget,
-			HarnessScript: evalsEngineConfig.HarnessScript,
-			Driver:        evalsEngineConfig.Driver,
+		// Shallow copy all fields from the main engine config
+		copy := *data.EngineConfig
+		evalsEngineConfig = &copy
+		if evalsEngineConfig.ID == "" {
+			evalsEngineConfig.ID = engineID
 		}
-	}
-	if evalsEngineConfig.ID == "" {
-		evalsEngineConfig.ID = engineID
 	}
 
 	// Override model from evals frontmatter if specified.
@@ -247,7 +240,9 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 	// Execute the engine through AWF; output is written to evalsLogPath.
 	executionSteps := engine.GetExecutionSteps(evalsData, evalsLogPath)
 	for _, step := range executionSteps {
-		for i, line := range step {
+		// Track whether we've injected the if/continue-on-error fields yet
+		injected := false
+		for _, line := range step {
 			// Prefix the agentic_execution step ID to avoid collisions with the agent job step
 			// IDs — job managers validate for duplicate step IDs across the compiled YAML.
 			// This mirrors the same pattern used in buildDetectionEngineExecutionStep (see
@@ -255,11 +250,14 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 			// produced by every engine's GetExecutionSteps implementation.
 			prefixed := strings.Replace(line, "id: agentic_execution", "id: evals_agentic_execution", 1)
 			steps = append(steps, prefixed+"\n")
-			// Inject always() condition and continue-on-error after the first line (- name:)
+			// Inject always() condition and continue-on-error after the "- name:" line
 			// so that infrastructure failures do not block the parse step that follows.
-			if i == 0 {
+			// Search for the name field instead of assuming it's always at index 0 to handle
+			// engines that might emit comments or other fields before the name.
+			if !injected && strings.Contains(strings.TrimSpace(line), "- name:") {
 				steps = append(steps, "        if: always()\n")
 				steps = append(steps, "        continue-on-error: true\n")
+				injected = true
 			}
 		}
 	}
