@@ -880,3 +880,35 @@ func TestScatterScheduleUsesPreferredWindows(t *testing.T) {
 		}
 	}
 }
+
+func TestWeightedDailyTimeSlotBestTierFrequency(t *testing.T) {
+	const sampleSize = 50000
+
+	var bestTotal, okTotal int
+
+	for i := range sampleSize {
+		identifier := fmt.Sprintf("scope-check-workflow-%05d", i)
+		hour, _ := weightedDailyTimeSlot(identifier)
+
+		if hour >= 2 && hour <= 5 {
+			bestTotal++
+		}
+		if hour >= 19 && hour <= 23 {
+			okTotal++
+		}
+	}
+
+	if okTotal == 0 {
+		t.Fatalf("unexpected zero OK-tier samples in weighted scatter distribution")
+	}
+
+	bestPerHour := float64(bestTotal) / 4.0 // BEST hours: 02-05
+	okPerHour := float64(okTotal) / 5.0     // OK hours: 19-23
+	ratio := bestPerHour / okPerHour
+
+	// The weighted pool gives each BEST hour weight 3 versus weight 1 for each OK hour.
+	// Allow tolerance for deterministic hash-modulo skew while preserving the intended 3x shape.
+	if ratio < 2.7 {
+		t.Fatalf("expected BEST-hour frequency to be near 3x OK-hour frequency, got ratio=%.3f (best_total=%d ok_total=%d)", ratio, bestTotal, okTotal)
+	}
+}

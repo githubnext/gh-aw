@@ -18,7 +18,7 @@ sidebar:
 ---
 
 > [!CAUTION]
-> **Deprecated.** The Effective Tokens (ET) metric is deprecated and is superseded by **AI Credits (AIC)**. AIC is a direct monetary metric (1 AIC = $0.01 USD) derived from actual provider pricing and provides a more actionable measure of inference cost. Effective Tokens remain available in `gh aw logs` and `gh aw audit` output for backward compatibility, but AIC is now the preferred metric for monitoring and budgeting. See [Cost Management](/gh-aw/reference/cost-management/) for AIC usage examples.
+> **Deprecated.** The Effective Tokens (ET) metric is deprecated and is superseded by **AI Credits (AIC)**. AIC is a direct monetary metric (1 AIC = $0.01 USD) derived from actual provider pricing and provides a more actionable measure of inference cost. Effective Tokens remain available in `gh aw logs` and `gh aw audit` output for backward compatibility, but AIC is now the preferred metric for monitoring and budgeting. See [Cost Management](/gh-aw/reference/cost-management/) for AIC usage examples. Migration path: [AI Credits Specification](/gh-aw/specs/ai-credits-specification/).
 
 ---
 

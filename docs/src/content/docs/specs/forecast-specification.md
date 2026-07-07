@@ -1040,6 +1040,7 @@ This section maps normative forecast requirements to implementation files.
 | Monte Carlo engine (Poisson/Bootstrap/Bernoulli) | `pkg/cli/forecast_montecarlo.go` |
 | Forecast command orchestration and output fields | `pkg/cli/forecast.go`, `pkg/cli/forecast_command.go` |
 | Workflow discovery, rate-limit backoff, and run sampling | `pkg/cli/forecast.go` |
+| §10.7 Safeguards and Appendix F cross-reference | `pkg/cli/forecast.go`, `pkg/cli/forecast_render.go` |
 | Forecast compliance tests (including rate-limit backoff and λ thresholds) | `pkg/cli/forecast_montecarlo_test.go` |
 
 Sync procedure:
@@ -1049,8 +1050,13 @@ Sync procedure:
 
 Sync follow-up tasks:
 
-- **[Open]** Add and verify explicit AIC-primary / ET-legacy migration assertions for forecast
-  reporting paths so that ET-facing surfaces remain compatibility-only where applicable.
+- **[Resolved 2026-07-07]** Added explicit AIC-primary / ET-legacy migration assertions for
+  forecast reporting paths. For `pkg/cli/forecast.go` output wiring, AIC-primary fields are:
+  `avg_aic`, `p50_aic_per_run`, `p95_aic_per_run`, `projected_aic`, `weekly_projected_aic`,
+  `monthly_projected_aic`, `actual_aic`, and Monte Carlo summary fields ending in
+  `_projected_aic`. ET-legacy compatibility-only status: no ET-named forecast output fields are
+  emitted by `gh aw forecast`; ET remains legacy compatibility surface in `gh aw logs`/`gh aw audit`.
+  Tracking: [#44083](https://github.com/github/gh-aw/issues/44083).
 - **[Open]** Track promotion-gate evidence until three confirmed production runs are documented in
   the Promotion Tracking table (§Status of This Document, criterion 1).
 - **[Open]** Close the forecast compliance-test gap for promotion criterion 3 by recording sustained

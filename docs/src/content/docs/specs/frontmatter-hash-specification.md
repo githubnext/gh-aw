@@ -509,6 +509,17 @@ those prerequisites are met and the migration milestone is approved.
 **Sync verification (2026-05-12)**: SPDD review reconfirmed that the 2026-05-08 text-based
 resolution remains in force.
 
+### Deferral acceptance criteria (Section 2 / v2.0.0)
+
+Section 2 ("Field Selection") remains deferred pending completion of
+[#31983](https://github.com/github/gh-aw/issues/31983). Reviewers SHOULD use this subsection as
+the canonical acceptance checklist during Sync Notes review (without requiring issue-context lookup).
+
+- [ ] Confirm and document a selective field-exclusion use case in [#31983](https://github.com/github/gh-aw/issues/31983).
+- [ ] Draft a migration guide in [#31983](https://github.com/github/gh-aw/issues/31983), including lock-file invalidation and recompilation steps.
+- [ ] Write candidate v2.0.0 cross-language test vectors in [#31983](https://github.com/github/gh-aw/issues/31983) and verify they pass in CI.
+- [ ] Approve a rollout plan in [#31983](https://github.com/github/gh-aw/issues/31983), including backward-compatibility impact analysis.
+
 **S-6 sync verification (2026-05-28)**: The 1 MiB cumulative input-size guard (S-6) is confirmed
 implemented in `pkg/parser/frontmatter_hash.go` via `validateFrontmatterHashInputSize`. The function
 accumulates normalized byte lengths across the main and all imported frontmatter texts and returns a

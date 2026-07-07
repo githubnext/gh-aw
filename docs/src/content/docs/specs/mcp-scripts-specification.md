@@ -1638,6 +1638,7 @@ and run `go test ./pkg/workflow/...` to verify conformance.
 | §9 | Integration with MCP Gateway | `pkg/workflow/mcp_scripts_renderer.go` (`renderMCPScriptsMCPConfigWithOptions`), `pkg/workflow/mcp_scripts_generator.go` (`GenerateMCPScriptsMCPServerScript`, `GenerateMCPScriptsToolsConfig`) |
 | §10 | Safeguards | `pkg/workflow/mcp_scripts_renderer.go`, `pkg/workflow/mcp_scripts_generator.go`, `actions/setup/js/mcp_scripts_mcp_server_http.cjs` |
 | §11 | Norms | `pkg/workflow/mcp_scripts_renderer.go`, `pkg/workflow/mcp_scripts_parser.go` |
+| §12.1.4 / T-MCP-051 | Secret-scope isolation conformance (SN-SCOPE-01..04) | `pkg/workflow/mcp_scripts_renderer_test.go` (`TestMCPScriptsScopeConformance`) — **[Open]** |
 
 Sync follow-up tasks:
 
@@ -1694,7 +1695,7 @@ Sync follow-up tasks:
 ### Go Sandbox Constraints for `go` Language Tools
 
 When `implementation: go` is specified, the tool executes inside a containerized Go
-sandbox with the following constraints:
+sandbox with the following constraints (see also §10 Safeguards for normative controls):
 
 - **Network access**: No outbound network calls are permitted from within the Go tool sandbox
   unless the workflow's `network.allowed` list explicitly includes the target host. The
