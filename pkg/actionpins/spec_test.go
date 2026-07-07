@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,6 +14,12 @@ import (
 
 	"github.com/github/gh-aw/pkg/actionpins"
 )
+
+type testContextKey string
+
+const testContextPropagationKey testContextKey = "actionpins.resolve.ctx"
+
+const testResolvedSHA = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
 // TestSpec_PublicAPI_FormatPinnedActionReference validates the documented format "repo@sha # version".
 func TestSpec_PublicAPI_FormatPinnedActionReference(t *testing.T) {
@@ -227,53 +234,89 @@ func TestSpec_PublicAPI_ResolveActionPin_NilContext(t *testing.T) {
 		"nil ctx should resolve from embedded pins with correct SHA and format")
 }
 
+// TestSpec_PublicAPI_ResolveActionPin_UnknownFullSHAReturnsFormattedReference validates that
+// an unknown full SHA is returned in the formatted "repo@sha # sha" form when it does not
+// appear in the embedded pins.
+func TestSpec_PublicAPI_ResolveActionPin_UnknownFullSHAReturnsFormattedReference(t *testing.T) {
+	unknownSHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+	result, err := actionpins.ResolveActionPin("actions/checkout", unknownSHA, nil)
+	require.NoError(t, err)
+	assert.Equal(t,
+		actionpins.FormatPinnedActionReference("actions/checkout", unknownSHA, unknownSHA),
+		result,
+		"unknown SHA should be returned as repo@sha # sha")
+}
+
 // TestSpec_PublicAPI_ResolveActionPin_EnforcePinned validates unresolved pin handling in enforce mode.
 func TestSpec_PublicAPI_ResolveActionPin_EnforcePinned(t *testing.T) {
-	t.Run("returns error when EnforcePinned=true and pin is unresolved", func(t *testing.T) {
-		var failures []actionpins.ResolutionFailure
-		ctx := &actionpins.PinContext{
-			EnforcePinned: true,
-			Warnings:      make(map[string]bool),
-			RecordResolutionFailure: func(f actionpins.ResolutionFailure) {
-				failures = append(failures, f)
-			},
-		}
-		_, err := actionpins.ResolveActionPin("does-not-exist/x", "v1", ctx)
-		require.Error(t, err, "enforce mode should return an error when pin is unresolved")
-		assert.Contains(t, err.Error(), "unable to pin action",
-			"enforce mode error should mention unable to pin action")
-		require.Len(t, failures, 1, "failure should be audited when enforce mode errors")
-		assert.Equal(t, actionpins.ResolutionErrorTypePinNotFound, failures[0].ErrorType,
-			"unresolved pin in enforce mode should audit pin_not_found")
-	})
+	tests := []struct {
+		name             string
+		resolver         actionpins.SHAResolver
+		allowActionRefs  bool
+		wantErr          bool
+		wantErrContains  string
+		wantFailureType  actionpins.ResolutionErrorType
+		wantFailureCount int
+		wantWarningKey   bool
+	}{
+		{
+			name:             "returns error when EnforcePinned=true and pin is unresolved",
+			wantErr:          true,
+			wantErrContains:  "unable to pin action",
+			wantFailureType:  actionpins.ResolutionErrorTypePinNotFound,
+			wantFailureCount: 1,
+		},
+		{
+			name:             "AllowActionRefs downgrades to warning with no error",
+			allowActionRefs:  true,
+			wantFailureType:  actionpins.ResolutionErrorTypePinNotFound,
+			wantFailureCount: 1,
+			wantWarningKey:   true,
+		},
+		{
+			name:             "dynamic resolver fails with EnforcePinned=true returns error",
+			resolver:         &testSHAResolver{err: errors.New("network error")},
+			wantErr:          true,
+			wantErrContains:  "unable to pin action",
+			wantFailureType:  actionpins.ResolutionErrorTypeDynamicResolutionFailed,
+			wantFailureCount: 1,
+		},
+	}
 
-	t.Run("AllowActionRefs downgrades to warning with no error", func(t *testing.T) {
-		ctx := &actionpins.PinContext{EnforcePinned: true, AllowActionRefs: true, Warnings: make(map[string]bool)}
-		result, err := actionpins.ResolveActionPin("does-not-exist/x", "v1", ctx)
-		require.NoError(t, err, "AllowActionRefs should downgrade unresolved pin enforcement to warning")
-		assert.Empty(t, result, "AllowActionRefs downgrade should keep unresolved result empty")
-		assert.True(t, ctx.Warnings[actionpins.FormatCacheKey("does-not-exist/x", "v1")],
-			"AllowActionRefs should record warning dedup key")
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var failures []actionpins.ResolutionFailure
+			ctx := &actionpins.PinContext{
+				Resolver:        tt.resolver,
+				EnforcePinned:   true,
+				AllowActionRefs: tt.allowActionRefs,
+				Warnings:        make(map[string]bool),
+				RecordResolutionFailure: func(f actionpins.ResolutionFailure) {
+					failures = append(failures, f)
+				},
+			}
 
-	t.Run("dynamic resolver fails with EnforcePinned=true returns error", func(t *testing.T) {
-		var failures []actionpins.ResolutionFailure
-		ctx := &actionpins.PinContext{
-			Resolver:      &testSHAResolver{err: errors.New("network error")},
-			EnforcePinned: true,
-			Warnings:      make(map[string]bool),
-			RecordResolutionFailure: func(f actionpins.ResolutionFailure) {
-				failures = append(failures, f)
-			},
-		}
-		_, err := actionpins.ResolveActionPin("does-not-exist/x", "v1", ctx)
-		require.Error(t, err, "EnforcePinned should return an error when dynamic resolution fails")
-		assert.Contains(t, err.Error(), "unable to pin action",
-			"error message should mention unable to pin action")
-		require.Len(t, failures, 1, "failure should be audited when dynamic resolution fails in enforce mode")
-		assert.Equal(t, actionpins.ResolutionErrorTypeDynamicResolutionFailed, failures[0].ErrorType,
-			"dynamic resolver failure should classify as dynamic_resolution_failed")
-	})
+			result, err := actionpins.ResolveActionPin("does-not-exist/x", "v1", ctx)
+			if tt.wantErr {
+				require.Error(t, err, "enforce mode should return an error for this scenario")
+				assert.Contains(t, err.Error(), tt.wantErrContains)
+				assert.Empty(t, result, "erroring enforce mode should not return a pinned reference")
+			} else {
+				require.NoError(t, err, "AllowActionRefs should downgrade unresolved pin enforcement to a warning")
+				assert.Empty(t, result, "downgraded unresolved result should remain empty")
+			}
+
+			require.Len(t, failures, tt.wantFailureCount, "resolution failures should be audited consistently")
+			if tt.wantFailureCount > 0 {
+				assert.Equal(t, tt.wantFailureType, failures[0].ErrorType)
+			}
+			if tt.wantWarningKey {
+				assert.True(t, ctx.Warnings[actionpins.FormatCacheKey("does-not-exist/x", "v1")],
+					"warning downgrade should record the dedup key")
+			}
+		})
+	}
 }
 
 // TestSpec_PublicAPI_ResolveActionPin_SkipHardcodedFallback validates that setting
@@ -300,7 +343,7 @@ func TestSpec_PublicAPI_ResolveActionPin_SkipHardcodedFallback(t *testing.T) {
 		}
 		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
 		require.NoError(t, err, "hardcoded pin lookup should succeed when SkipHardcodedFallback is false")
-		assert.NotEmpty(t, result, "SkipHardcodedFallback=false should allow hardcoded pin lookup")
+		require.NotEmpty(t, result, "SkipHardcodedFallback=false should allow hardcoded pin lookup")
 		assert.Contains(t, result, "actions/checkout@", "result should reference actions/checkout")
 	})
 }
@@ -320,6 +363,36 @@ func TestSpec_PublicAPI_ResolveLatestActionPin(t *testing.T) {
 	t.Run("returns empty string for unknown repository", func(t *testing.T) {
 		result := actionpins.ResolveLatestActionPin("does-not-exist/x", nil)
 		assert.Empty(t, result, "unknown repo should return empty pin")
+	})
+}
+
+// TestSpec_PublicAPI_ResolveLatestActionPin_FallbackOnEnforceError validates that
+// ResolveLatestActionPin falls back to the embedded latest-pin reference when ResolveActionPin
+// errors, and returns empty when no embedded fallback exists.
+func TestSpec_PublicAPI_ResolveLatestActionPin_FallbackOnEnforceError(t *testing.T) {
+	t.Run("known repo falls back to embedded latest pin after enforce error", func(t *testing.T) {
+		known := "actions/checkout"
+		latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
+		require.True(t, ok, "expected embedded pins for known repository")
+
+		ctx := &actionpins.PinContext{
+			Resolver:              &testSHAResolver{err: errors.New("network error")},
+			EnforcePinned:         true,
+			SkipHardcodedFallback: true,
+			Warnings:              make(map[string]bool),
+		}
+		result := actionpins.ResolveLatestActionPin(known, ctx)
+		assert.Equal(t,
+			actionpins.FormatPinnedActionReference(known, latestPin.SHA, latestPin.Version),
+			result,
+			"known repo should fall back to the embedded latest pin when ResolveActionPin errors")
+	})
+
+	t.Run("unknown repo returns empty when no embedded fallback exists", func(t *testing.T) {
+		ctx := &actionpins.PinContext{EnforcePinned: true, Warnings: make(map[string]bool)}
+
+		result := actionpins.ResolveLatestActionPin("does-not-exist/x", ctx)
+		assert.Empty(t, result, "unknown repo should return empty when no embedded fallback exists")
 	})
 }
 
@@ -363,33 +436,6 @@ func TestSpec_DesignDecision_FormatConsistency(t *testing.T) {
 	assert.Contains(t, reference, version, "reference should contain version comment")
 }
 
-// TestSpec_Types_ActionPin validates the documented ActionPin type structure.
-// Spec: Repo, Version, SHA fields plus optional Inputs map.
-func TestSpec_Types_ActionPin(t *testing.T) {
-	pin := actionpins.ActionPin{
-		Repo:    "actions/checkout",
-		Version: "v5",
-		SHA:     "abcdef1234567890abcdef1234567890abcdef12",
-	}
-	assert.Equal(t, "actions/checkout", pin.Repo, "ActionPin.Repo field")
-	assert.Equal(t, "v5", pin.Version, "ActionPin.Version field")
-	assert.Equal(t, "abcdef1234567890abcdef1234567890abcdef12", pin.SHA, "ActionPin.SHA field")
-	assert.Nil(t, pin.Inputs, "ActionPin.Inputs should be nil when not set")
-}
-
-// TestSpec_Types_ActionYAMLInput validates the documented ActionYAMLInput type structure.
-// Spec: Description, Required, Default fields.
-func TestSpec_Types_ActionYAMLInput(t *testing.T) {
-	input := actionpins.ActionYAMLInput{
-		Description: "The branch to checkout",
-		Required:    true,
-		Default:     "main",
-	}
-	assert.Equal(t, "The branch to checkout", input.Description, "ActionYAMLInput.Description field")
-	assert.True(t, input.Required, "ActionYAMLInput.Required field")
-	assert.Equal(t, "main", input.Default, "ActionYAMLInput.Default field")
-}
-
 // TestSpec_Types_ActionPinsData validates the documented ActionPinsData container type.
 // Spec: ActionPinsData is a JSON container used to load embedded pin entries.
 func TestSpec_Types_ActionPinsData(t *testing.T) {
@@ -421,17 +467,23 @@ func TestSpec_PublicAPI_ResolveActionPin_EmbeddedMatch(t *testing.T) {
 	ctx := &actionpins.PinContext{StrictMode: false, Warnings: make(map[string]bool)}
 	result, err := actionpins.ResolveActionPin(known, latestPin.Version, ctx)
 	require.NoError(t, err, "embedded-only ResolveActionPin should not error for known pin")
-	assert.NotEmpty(t, result, "should return non-empty pinned reference for known embedded pin")
+	require.NotEmpty(t, result, "should return non-empty pinned reference for known embedded pin")
 	assert.Contains(t, result, latestPin.SHA, "resolved reference should contain the pin SHA")
 }
 
 // testSHAResolver is a fake SHAResolver used in tests.
 type testSHAResolver struct {
-	sha string
-	err error
+	sha          string
+	err          error
+	capturedCtx  context.Context
+	capturedRepo string
+	capturedRef  string
 }
 
-func (r *testSHAResolver) ResolveSHA(_ context.Context, _, _ string) (string, error) {
+func (r *testSHAResolver) ResolveSHA(ctx context.Context, repo, version string) (string, error) {
+	r.capturedCtx = ctx
+	r.capturedRepo = repo
+	r.capturedRef = version
 	return r.sha, r.err
 }
 
@@ -499,19 +551,6 @@ func TestSpec_PublicAPI_GetContainerPin(t *testing.T) {
 	})
 }
 
-// TestSpec_Types_ContainerPin validates the documented ContainerPin type structure.
-// Spec: Image, Digest, PinnedImage fields.
-func TestSpec_Types_ContainerPin(t *testing.T) {
-	pin := actionpins.ContainerPin{
-		Image:       "ghcr.io/some/image:v1",
-		Digest:      "sha256:abc123",
-		PinnedImage: "ghcr.io/some/image@sha256:abc123",
-	}
-	assert.Equal(t, "ghcr.io/some/image:v1", pin.Image, "ContainerPin.Image field")
-	assert.Equal(t, "sha256:abc123", pin.Digest, "ContainerPin.Digest field")
-	assert.Equal(t, "ghcr.io/some/image@sha256:abc123", pin.PinnedImage, "ContainerPin.PinnedImage field")
-}
-
 // TestSpec_Constants_ResolutionErrorType validates the documented ResolutionErrorType constant values.
 // Spec table: ResolutionErrorTypeDynamicResolutionFailed="dynamic_resolution_failed",
 // ResolutionErrorTypePinNotFound="pin_not_found".
@@ -520,19 +559,6 @@ func TestSpec_Constants_ResolutionErrorType(t *testing.T) {
 		"ResolutionErrorTypeDynamicResolutionFailed should equal the documented value")
 	assert.Equal(t, "pin_not_found", string(actionpins.ResolutionErrorTypePinNotFound),
 		"ResolutionErrorTypePinNotFound should equal the documented value")
-}
-
-// TestSpec_Types_ResolutionFailure validates the documented ResolutionFailure type structure.
-// Spec: "Captures an unresolved action-ref pinning event (repo, ref, error type)".
-func TestSpec_Types_ResolutionFailure(t *testing.T) {
-	failure := actionpins.ResolutionFailure{
-		Repo:      "unknown/action",
-		Ref:       "v1",
-		ErrorType: actionpins.ResolutionErrorTypePinNotFound,
-	}
-	assert.Equal(t, "unknown/action", failure.Repo, "ResolutionFailure.Repo field")
-	assert.Equal(t, "v1", failure.Ref, "ResolutionFailure.Ref field")
-	assert.Equal(t, actionpins.ResolutionErrorTypePinNotFound, failure.ErrorType, "ResolutionFailure.ErrorType field")
 }
 
 // TestSpec_PublicAPI_RecordResolutionFailure validates the documented auditing behavior:
@@ -585,18 +611,17 @@ func TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo(t *testing.T) {
 	const goroutines = 10
 	const repo = "actions/checkout"
 	results := make([][]actionpins.ActionPin, goroutines)
-	done := make(chan int, goroutines)
+	var wg sync.WaitGroup
 
 	for i := range goroutines {
+		wg.Add(1)
 		go func(idx int) {
+			defer wg.Done()
 			results[idx] = actionpins.GetActionPinsByRepo(repo)
-			done <- idx
 		}(i)
 	}
 
-	for range goroutines {
-		<-done
-	}
+	wg.Wait()
 
 	require.NotEmpty(t, results[0], "baseline goroutine 0 should return pins")
 	for i := 1; i < goroutines; i++ {
@@ -621,10 +646,34 @@ func TestSpec_PublicAPI_ResolveActionPin_DynamicHappyPath(t *testing.T) {
 	}
 	result, err := actionpins.ResolveActionPin(known, "v4", ctx)
 	require.NoError(t, err, "dynamic resolver success should not return an error")
-	assert.NotEmpty(t, result, "should return a non-empty pinned reference when resolver succeeds")
+	require.NotEmpty(t, result, "should return a non-empty pinned reference when resolver succeeds")
 	assert.Contains(t, result, latestPin.SHA, "result should contain the SHA returned by the resolver")
 	assert.True(t, strings.HasPrefix(result, known+"@"),
 		"result should start with repo@sha in the documented format")
+}
+
+// TestSpec_PublicAPI_ResolveActionPin_UsesProvidedContext validates that PinContext.Ctx
+// is forwarded to the resolver instead of being replaced with context.Background().
+func TestSpec_PublicAPI_ResolveActionPin_UsesProvidedContext(t *testing.T) {
+	resolver := &testSHAResolver{sha: testResolvedSHA}
+	baseCtx := context.WithValue(context.Background(), testContextPropagationKey, "context-propagation-marker")
+	providedCtx, cancel := context.WithCancel(baseCtx)
+	// Pre-cancel the context so the resolver can verify that ResolveActionPin forwards the
+	// exact caller-provided context object, including its cancellation state, not just values.
+	cancel()
+
+	result, err := actionpins.ResolveActionPin("actions/checkout", "v4", &actionpins.PinContext{
+		Ctx:      providedCtx,
+		Resolver: resolver,
+		Warnings: make(map[string]bool),
+	})
+	require.NoError(t, err)
+	assert.Same(t, providedCtx, resolver.capturedCtx, "resolver should receive the exact PinContext.Ctx value")
+	assert.Equal(t, context.Canceled, resolver.capturedCtx.Err(), "resolver should observe the canceled context")
+	assert.Equal(t, "context-propagation-marker", resolver.capturedCtx.Value(testContextPropagationKey), "resolver should receive context values")
+	assert.Equal(t, "actions/checkout", resolver.capturedRepo, "resolver should receive the original repo")
+	assert.Equal(t, "v4", resolver.capturedRef, "resolver should receive the original version")
+	assert.Contains(t, result, resolver.sha, "successful resolution should use the resolver-provided SHA")
 }
 
 // TestSpec_PublicAPI_ResolveLatestActionPin_NonNilContext validates that a non-nil PinContext
@@ -707,5 +756,23 @@ func TestSpec_PublicAPI_ResolveActionPin_AppliesMapping(t *testing.T) {
 		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
 		require.NoError(t, err)
 		assert.Contains(t, result, "actions/checkout@", "result should reference the original repo when no mapping exists")
+	})
+
+	t.Run("invalid mapping value is skipped", func(t *testing.T) {
+		baseline, err := actionpins.ResolveActionPin("actions/checkout", "v4", &actionpins.PinContext{
+			Warnings: make(map[string]bool),
+		})
+		require.NoError(t, err)
+
+		ctx := &actionpins.PinContext{
+			Warnings: make(map[string]bool),
+			Mappings: map[string]string{
+				"actions/checkout@v4": "actions/checkout",
+			},
+		}
+		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
+		require.NoError(t, err, "invalid mapping should be skipped without error")
+		assert.Equal(t, baseline, result, "invalid mapping should leave resolution behavior unchanged")
+		assert.NotContains(t, ctx.Warnings, "map:actions/checkout@v4", "invalid mappings should not record mapping notifications")
 	})
 }
