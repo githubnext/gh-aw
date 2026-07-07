@@ -191,8 +191,11 @@ func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *
 
 // generateRuntimeAndWorkspaceSetupSteps emits runtime setup steps, the gh-aw temp directory
 // creation step, GitHub Enterprise CLI configuration, DIFC proxy start, activation artifact
-// download, comment-memory file preparation, custom steps, cache steps, cache-memory steps,
-// and repo-memory steps.
+// download, comment-memory file preparation, cache-memory steps, repo-memory steps, the user's
+// custom steps, and cache steps.
+// Memory restore steps (comment-memory, cache-memory, repo-memory) intentionally run before
+// custom steps so that deterministic steps: code can read prior state without requiring an LLM
+// turn.
 // It mutates data.CustomSteps (via deduplication) and returns whether the custom steps
 // themselves contain a checkout action (used by the caller to compute needsGitConfig).
 func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, data *WorkflowData, needsCheckout bool) bool {
@@ -231,19 +234,22 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 	// content via the GitHub API, which is available at this point in the job.
 	c.generateActivationArtifactAndCommentMemorySteps(yaml, data)
 
-	c.emitCustomSteps(yaml, data, customStepsContainCheckout, runtimeSetupSteps)
-
-	// Add cache steps if cache configuration is present
-	compilerYamlLog.Printf("Generating cache steps for workflow")
-	generateCacheSteps(yaml, data, c.verbose)
-
-	// Add cache-memory steps if cache-memory configuration is present
+	// Add cache-memory steps before custom steps so that user steps: code can read
+	// /tmp/gh-aw/cache-memory/<key>/ without an LLM turn.
 	compilerYamlLog.Printf("Generating cache-memory steps for workflow")
 	generateCacheMemorySteps(yaml, data)
 
-	// Add repo-memory clone steps if repo-memory configuration is present
+	// Add repo-memory clone steps before custom steps so that user steps: code can read
+	// /tmp/gh-aw/repo-memory/<name>/ without an LLM turn.
 	compilerYamlLog.Printf("Generating repo-memory steps for workflow")
 	generateRepoMemorySteps(yaml, data)
+
+	c.emitCustomSteps(yaml, data, customStepsContainCheckout, runtimeSetupSteps)
+
+	// Add cache steps if cache configuration is present. Keep workspace caches after user
+	// steps so a user-provided checkout step cannot wipe restored repository paths.
+	compilerYamlLog.Printf("Generating cache steps for workflow")
+	generateCacheSteps(yaml, data, c.verbose)
 
 	return customStepsContainCheckout
 }

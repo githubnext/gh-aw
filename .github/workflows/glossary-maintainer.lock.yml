@@ -537,9 +537,6 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
-      - name: Fetch recent changes
-        run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/agent\n\n# Determine scan scope: Monday = full weekly scan, other weekdays = daily\nDAY=$(date +%u)\nif [ \"$DAY\" -eq 1 ]; then\n  SINCE=\"7 days ago\"\n  SCOPE=\"weekly\"\nelse\n  SINCE=\"24 hours ago\"\n  SCOPE=\"daily\"\nfi\n\necho \"Scan scope: $SCOPE (since: $SINCE)\"\n\n# Fetch recent commits (all files) — includes file names for context\ngit log --since=\"$SINCE\" --oneline --name-only \\\n  > /tmp/gh-aw/agent/recent-commits.txt\n\n# Fetch commits that touched docs\ngit log --since=\"$SINCE\" --name-only \\\n  --format=\"%H %s\" -- 'docs/**/*.md' 'docs/**/*.mdx' \\\n  > /tmp/gh-aw/agent/doc-changes.txt\n\necho \"Recent commits: $(wc -l < /tmp/gh-aw/agent/recent-commits.txt)\"\necho \"Doc file changes: $(wc -l < /tmp/gh-aw/agent/doc-changes.txt)\"\necho \"$SCOPE\" > /tmp/gh-aw/agent/scan-scope.txt"
-
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
@@ -566,6 +563,9 @@ jobs:
           MEMORY_DIR: /tmp/gh-aw/repo-memory/default
           CREATE_ORPHAN: false
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
+      - name: Fetch recent changes
+        run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/agent\n\n# Determine scan scope: Monday = full weekly scan, other weekdays = daily\nDAY=$(date +%u)\nif [ \"$DAY\" -eq 1 ]; then\n  SINCE=\"7 days ago\"\n  SCOPE=\"weekly\"\nelse\n  SINCE=\"24 hours ago\"\n  SCOPE=\"daily\"\nfi\n\necho \"Scan scope: $SCOPE (since: $SINCE)\"\n\n# Fetch recent commits (all files) — includes file names for context\ngit log --since=\"$SINCE\" --oneline --name-only \\\n  > /tmp/gh-aw/agent/recent-commits.txt\n\n# Fetch commits that touched docs\ngit log --since=\"$SINCE\" --name-only \\\n  --format=\"%H %s\" -- 'docs/**/*.md' 'docs/**/*.mdx' \\\n  > /tmp/gh-aw/agent/doc-changes.txt\n\necho \"Recent commits: $(wc -l < /tmp/gh-aw/agent/recent-commits.txt)\"\necho \"Doc file changes: $(wc -l < /tmp/gh-aw/agent/doc-changes.txt)\"\necho \"$SCOPE\" > /tmp/gh-aw/agent/scan-scope.txt"
+
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}

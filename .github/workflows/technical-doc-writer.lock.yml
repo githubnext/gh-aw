@@ -525,15 +525,6 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
-      - name: Install dependencies
-        run: npm ci
-        working-directory: ./docs
-      - env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Build documentation
-        run: npm run build
-        working-directory: ./docs
-
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
@@ -560,6 +551,15 @@ jobs:
           MEMORY_DIR: /tmp/gh-aw/repo-memory/default
           CREATE_ORPHAN: false
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./docs
+      - env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Build documentation
+        run: npm run build
+        working-directory: ./docs
+
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
