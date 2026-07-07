@@ -143,13 +143,21 @@ func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowD
 		"        run: |",
 	}
 
-	// When sudo is false (network isolation mode), AWF runs rootless so firewall files
-	// are not owned by root — skip the sudo chmod permission-fix step.
+	// When sudo is false (network isolation mode), AWF runs rootless but Docker
+	// containers still write files as non-runner UIDs (e.g., Squid writes as UID 13).
+	// AWF's own post-run cleanup (fixArtifactPermissionsForRootless) normally handles
+	// this, but if AWF is killed by timeout or OOM, the cleanup never runs.
+	// Use a non-sudo chmod as a best-effort fallback for artifact upload accessibility.
 	if !isAWFNetworkIsolationEnabled(workflowData) {
 		stepLines = append(stepLines,
 			"          # Fix permissions on firewall logs/audit dirs so they can be uploaded as artifacts",
 			"          # AWF runs with sudo, creating files owned by root",
 			fmt.Sprintf("          sudo chmod -R a+rX %s 2>/dev/null || true", firewallDir),
+		)
+	} else {
+		stepLines = append(stepLines,
+			"          # Best-effort permission fix for artifact upload (AWF cleanup may not have run)",
+			fmt.Sprintf("          sudo -n chmod -R a+rX %[1]s 2>/dev/null || chmod -R a+rX %[1]s 2>/dev/null || true", firewallDir),
 		)
 	}
 
