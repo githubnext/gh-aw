@@ -135,12 +135,12 @@ Store all scenarios in cache memory.
 
 ### Preflight: Verify Agent Tool Availability
 
-Before running any scenario, probe the "agentic-workflows" custom agent with a single minimal prompt (for example: "What trigger should I use for a weekly digest?").
+Before running any scenario, probe the "agentic-workflows" custom agent with a minimal availability prompt such as "Are you available? Reply with yes or no.".
 
 - **If the probe succeeds** (non-empty, error-free response): proceed with scenario testing below.
 - **If the probe fails** (for example `Copilot CLI not installed`, timeout, or empty response):
   1. Record `{ "status": "tool-unavailable", "reason": "<exact error>" }` in cache memory.
-  2. For each selected scenario, derive the expected design recommendation using direct reasoning from `.github/aw/*.md` reference files and label it **inferred**.
+  2. Derive the design recommendation using direct reasoning from the `.github/aw/*.md` reference files and label it **inferred**.
   3. Skip the scenario-by-scenario agent invocations below and proceed directly to Phase 4 and Phase 5.
   4. Set the average quality score to `N/A` (tool-unavailable) rather than a numeric rating.
   5. Include a `### Tooling Availability` subsection in the published report that states which tools were probed, the outcome, and the exact error message.

@@ -64,7 +64,7 @@ Use this mode for exploratory testing, persona walkthroughs, and "what workflow 
 
 When the evaluation workflow depends on a custom agent tool (for example the `agentic-workflows` tool), run a preflight check before executing scenarios:
 
-1. **Probe the tool** — make a single minimal call (for example a one-sentence prompt) and confirm the response is non-empty and error-free.
+1. **Probe the tool** — make a single minimal call (for example `"Are you available?"`) and confirm the response is non-empty, error-free, and contains a recognisable affirmative or workflow guidance signal.
 2. **On success** — proceed with evaluation scenarios normally.
 3. **On failure** — record `{ "status": "tool-unavailable", "reason": "<error>" }`, switch to direct design reasoning using `.github/aw/*.md` reference files, and label all derived recommendations as **inferred**.
 4. **Always publish a result** — emit the report regardless of tool availability; include a `Tooling Availability` note that lists which tools succeeded, which failed, and the exact errors observed.

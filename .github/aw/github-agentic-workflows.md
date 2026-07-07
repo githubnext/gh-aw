@@ -105,7 +105,7 @@ Workflows that invoke a custom agent tool (for example `tools.agentic-workflows:
 When a custom agent tool call fails or is unavailable:
 
 1. Record the outcome as `{ "status": "tool-unavailable", "reason": "<error message>" }` alongside the other scenario results.
-2. Derive the expected design recommendation using direct reasoning from the `.github/aw/*.md` reference files.
+2. Derive the design recommendation using direct reasoning from the `.github/aw/*.md` reference files.
 3. Label the derived recommendation as **inferred** (not agent-produced) so aggregate quality scores remain comparable across runs.
 4. Include a `## Tooling Availability` section in the published report summarising which tools succeeded, which failed, and the exact error messages received.
 
