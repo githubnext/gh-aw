@@ -28,7 +28,7 @@ const (
 // GITHUB_REPOSITORY is forwarded to the agentic-workflows MCP server container via
 // env_vars in the MCP configuration and inherited by spawned subprocesses.
 func appendRepoFlagFromEnv(args []string) []string {
-	if repo := os.Getenv("GITHUB_REPOSITORY"); repo != "" {
+	if repo := os.Getenv("GITHUB_REPOSITORY"); repo != "" { //nolint:osgetenvlibrary
 		return append(args, "--repo", repo)
 	}
 	return args

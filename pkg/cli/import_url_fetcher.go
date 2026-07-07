@@ -305,7 +305,7 @@ func logResponseBodyVerbose(resp *http.Response) {
 }
 
 func importAuthGHHost() string {
-	ghHost := os.Getenv("GH_HOST")
+	ghHost := os.Getenv("GH_HOST") //nolint:osgetenvlibrary
 	if ghHost == "" {
 		return ""
 	}

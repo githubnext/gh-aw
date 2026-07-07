@@ -338,7 +338,7 @@ func isGHESHost(host string) bool {
 //  3. The hostname extracted from the git origin remote URL
 func detectGHESDeployment() string {
 	// Check GITHUB_SERVER_URL first (set inside GitHub Actions runners)
-	if serverURL := os.Getenv("GITHUB_SERVER_URL"); serverURL != "" {
+	if serverURL := os.Getenv("GITHUB_SERVER_URL"); serverURL != "" { //nolint:osgetenvlibrary
 		// serverURL is like "https://ghes.example.com", extract just the host.
 		host := serverURL
 		for _, scheme := range []string{"https://", "http://"} {
@@ -352,7 +352,7 @@ func detectGHESDeployment() string {
 	}
 
 	// Check GH_HOST (set when using the gh CLI against an enterprise instance)
-	if ghHost := os.Getenv("GH_HOST"); ghHost != "" {
+	if ghHost := os.Getenv("GH_HOST"); ghHost != "" { //nolint:osgetenvlibrary
 		if isGHESHost(ghHost) {
 			initLog.Printf("Detected GHES deployment from GH_HOST: %s", ghHost)
 			return ghHost
