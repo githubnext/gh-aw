@@ -1,0 +1,22 @@
+package fprintlnsprintf
+
+import (
+	xfmt "fmt"
+	"os"
+)
+
+// flagged: aliased fmt import still resolves to fmt package
+func flaggedAliased(name string) {
+	xfmt.Fprintln(os.Stderr, xfmt.Sprintf("hello %s", name)) // want "use fmt.Fprintf"
+}
+
+// not flagged: shadowing local named "fmt" — not the stdlib package
+type fakeFmt struct{}
+
+func (fakeFmt) Fprintln(_ interface{}, args ...interface{}) {}
+func (fakeFmt) Sprintf(format string, args ...interface{}) string { return "" }
+
+func notFlaggedShadowedFmt(name string) {
+	var fmt fakeFmt
+	fmt.Fprintln(os.Stderr, fmt.Sprintf("hello %s", name))
+}

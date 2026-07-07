@@ -121,7 +121,7 @@ func analyzeASTNodeForFileClosePatterns(pass *analysis.Pass, fileVars map[types.
 func trackFileOpenAssignment(pass *analysis.Pass, fileVars map[types.Object]*fileVarState, assign *ast.AssignStmt, noLintLinesByFile map[string]map[int]struct{}) {
 	for i, rhs := range assign.Rhs {
 		call, ok := rhs.(*ast.CallExpr)
-		if !ok || !isFileOpenCall(call) {
+		if !ok || !isFileOpenCall(pass, call) {
 			continue
 		}
 		if i >= len(assign.Lhs) {
@@ -165,13 +165,12 @@ type fileVarState struct {
 }
 
 // isFileOpenCall returns true if the call is os.Open, os.Create, or os.OpenFile
-func isFileOpenCall(call *ast.CallExpr) bool {
+func isFileOpenCall(pass *analysis.Pass, call *ast.CallExpr) bool {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
-	ident, ok := sel.X.(*ast.Ident)
-	if !ok || ident.Name != "os" {
+	if !astutil.IsPkgSelector(pass, sel, "os") {
 		return false
 	}
 	return sel.Sel.Name == "Open" || sel.Sel.Name == "Create" || sel.Sel.Name == "OpenFile"

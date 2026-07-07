@@ -81,7 +81,7 @@ func inspectCancelNode(pass *analysis.Pass, cancelVars map[types.Object]*cancelV
 	if assign, ok := node.(*ast.AssignStmt); ok {
 		for i, rhs := range assign.Rhs {
 			call, ok := rhs.(*ast.CallExpr)
-			if !ok || !isContextWithCancelCall(call) {
+			if !ok || !isContextWithCancelCall(pass, call) {
 				continue
 			}
 			if len(assign.Rhs) == 1 && i == 0 && len(assign.Lhs) >= 2 {
@@ -131,13 +131,12 @@ type cancelVarState struct {
 	hasDirectCancel bool
 }
 
-func isContextWithCancelCall(call *ast.CallExpr) bool {
+func isContextWithCancelCall(pass *analysis.Pass, call *ast.CallExpr) bool {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
-	pkgIdent, ok := sel.X.(*ast.Ident)
-	if !ok || pkgIdent.Name != "context" {
+	if !astutil.IsPkgSelector(pass, sel, "context") {
 		return false
 	}
 	switch sel.Sel.Name {
