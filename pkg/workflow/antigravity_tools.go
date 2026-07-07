@@ -87,27 +87,31 @@ func appendBashTools(toolsCore []string, bashConfig any) []string {
 		return append(toolsCore, "run_shell_command")
 	}
 
-	// Check for wildcard (* or :*)
+	// Single pass over bashCommands. A separate accumulator (specific) collects
+	// per-command entries so that if a wildcard ("*" or ":*") is found anywhere
+	// in the list — even after specific commands — only "run_shell_command" is
+	// appended and the pre-wildcard entries are discarded. This preserves the
+	// semantics of "any wildcard means allow all shell commands" regardless of
+	// command ordering.
+	var specific []string
 	for _, cmd := range bashCommands {
-		if cmdStr, ok := cmd.(string); ok && (cmdStr == "*" || cmdStr == ":*") {
+		cmdStr, ok := cmd.(string)
+		if !ok {
+			continue
+		}
+		if cmdStr == "*" || cmdStr == ":*" {
 			antigravityToolsLog.Print("bash wildcard → run_shell_command")
 			return append(toolsCore, "run_shell_command")
 		}
+		// Normalize trailing " *" wildcard (e.g. "jq *" → "jq") so that
+		// all engines emit the canonical prefix form (run_shell_command(jq))
+		// regardless of whether the command was written with or without the wildcard.
+		normalized, _ := normalizeBashCommand(cmdStr)
+		entry := fmt.Sprintf("run_shell_command(%s)", normalized)
+		antigravityToolsLog.Printf("bash %q → %s", cmdStr, entry)
+		specific = append(specific, entry)
 	}
-
-	// Add an entry for each specific command: run_shell_command(cmd)
-	for _, cmd := range bashCommands {
-		if cmdStr, ok := cmd.(string); ok {
-			// Normalize trailing " *" wildcard (e.g. "jq *" → "jq") so that
-			// all engines emit the canonical prefix form (run_shell_command(jq))
-			// regardless of whether the command was written with or without the wildcard.
-			normalized, _ := normalizeBashCommand(cmdStr)
-			entry := fmt.Sprintf("run_shell_command(%s)", normalized)
-			antigravityToolsLog.Printf("bash %q → %s", cmdStr, entry)
-			toolsCore = append(toolsCore, entry)
-		}
-	}
-	return toolsCore
+	return append(toolsCore, specific...)
 }
 
 // generateAntigravitySettingsStep creates a GitHub Actions step that writes the
