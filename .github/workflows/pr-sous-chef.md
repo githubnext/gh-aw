@@ -81,12 +81,17 @@ steps:
         # Determine pending-check state from the statusCheckRollup data already
         # fetched in the gh pr list call above — no per-PR REST calls needed.
         # CheckRun statuses are UPPERCASE in the GraphQL response.
+        # Checks that have been running for more than 1 hour are ignored so that
+        # long-running agentic checks (Q, coding agents) do not permanently block
+        # nudges.  Short CI checks (< 1 hour) still gate nudges correctly.
         checks_pending="$(
           jq -r '
             (.statusCheckRollup // []) as $checks |
+            (now - 3600) as $cutoff |
             if ($checks | any(
               if .__typename == "CheckRun" then
-                (.status // "COMPLETED") | IN("QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED", "PENDING")
+                ((.status // "COMPLETED") | IN("QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED", "PENDING")) and
+                ((.startedAt // "") == "" or ((.startedAt | fromdateiso8601) > $cutoff))
               elif .__typename == "StatusContext" then
                 (.state // "") == "PENDING"
               else false end
@@ -267,9 +272,9 @@ When this workflow is triggered by the `/souschef` slash command on a PR comment
 Before any nudge for a PR:
 
 1. **Skip when checks/actions are running on the PR head branch**
-   - Candidate prefilter already uses `statusCheckRollup` from the batch `gh pr list` call and removes PRs with any pending/in-progress checks.
+   - Candidate prefilter already uses `statusCheckRollup` from the batch `gh pr list` call and removes PRs with any pending/in-progress checks that started within the last hour. Long-running checks (running > 1 hour) are intentionally ignored so that agentic checks (Q, coding agents) do not permanently block nudges.
    - Detect pending/running checks via GitHub PR check runs / statuses for the head SHA.
-   - If any check is `queued`, `in_progress`, or `pending`, skip this PR.
+   - If any check is `queued`, `in_progress`, or `pending` and started within the last hour, skip this PR.
    - When calling `gh aw checks` directly, pass `--head-sha <headRefOid>` to avoid a redundant PR-detail fetch (the `headRefOid` is available in the compact JSON).
 
 2. **Skip when the latest PR comment is from pr-sous-chef itself (unless the PR is in a merge-conflict state)**
@@ -392,7 +397,7 @@ model: sonnet
 Given one PR number and compact metadata:
 
 1. Check skip conditions in this order:
-   - checks/actions running — note: the candidate prefilter already excluded PRs with pending checks via `statusCheckRollup`; only re-verify if you have reason to believe state changed since the prefilter ran
+   - checks/actions running — note: the candidate prefilter already excluded PRs with short-running pending checks (running < 1 hour) via `statusCheckRollup`; only re-verify if you have reason to believe state changed since the prefilter ran; long-running checks (> 1 hour) are intentionally ignored
    - latest comment contains both `<!-- gh-aw-pr-sous-chef-nudge -->` **and** `@copilot`, **and** `mergeStateStatus` is **not** `CONFLICTING` (when the branch has merge conflicts, do NOT skip even if the last actionable comment is from sous-chef — it must nudge Copilot to resolve them; also, comments with the marker but without `@copilot` are purely informational and do NOT count as a sous-chef nudge for this check)
    - any recent comment contains both `<!-- gh-aw-pr-sous-chef-nudge -->` and `@copilot` and was posted within the last 30 minutes (informational comments without `@copilot` do not count toward cooldown)
 2. If skipped, return `skip_reason` only.
