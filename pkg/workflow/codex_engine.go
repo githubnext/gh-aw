@@ -584,43 +584,7 @@ func (e *CodexEngine) getShellEnvironmentPolicyVars(tools map[string]any, mcpToo
 
 	// Check each MCP tool for required environment variables
 	for _, toolName := range mcpTools {
-		switch toolName {
-		case "github":
-			// GitHub MCP server needs GITHUB_PERSONAL_ACCESS_TOKEN
-			envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = struct {
-			}{}
-		case "agentic-workflows":
-			// Agentic workflows MCP server needs GITHUB_TOKEN
-			envVars["GITHUB_TOKEN"] = struct {
-			}{}
-		case "safe-outputs":
-			// Safe outputs MCP server needs several environment variables
-			envVars["GH_AW_SAFE_OUTPUTS"] = struct {
-			}{}
-			envVars["GH_AW_ASSETS_BRANCH"] = struct {
-			}{}
-			envVars["GH_AW_ASSETS_MAX_SIZE_KB"] = struct {
-			}{}
-			envVars["GH_AW_ASSETS_ALLOWED_EXTS"] = struct {
-			}{}
-			envVars["GITHUB_REPOSITORY"] = struct {
-			}{}
-			envVars["GITHUB_SERVER_URL"] = struct {
-			}{}
-		default:
-			// For custom MCP tools, check if they have env configuration
-			if toolValue, ok := tools[toolName]; ok {
-				if toolConfig, ok := toolValue.(map[string]any); ok {
-					// Extract environment variable names from env configuration
-					if env, hasEnv := toolConfig["env"].(map[string]any); hasEnv {
-						for envKey := range env {
-							envVars[envKey] = struct {
-							}{}
-						}
-					}
-				}
-			}
-		}
+		addMCPToolEnvVars(toolName, tools, envVars)
 	}
 
 	sortedEnvVars := sliceutil.SortedKeys(envVars)
@@ -632,6 +596,39 @@ func (e *CodexEngine) getShellEnvironmentPolicyVars(tools map[string]any, mcpToo
 		includeOnlyPatterns = append(includeOnlyPatterns, "^"+regexp.QuoteMeta(envVar)+"$")
 	}
 	return includeOnlyPatterns
+}
+
+// addMCPToolEnvVars adds the environment variables required by the named MCP tool
+// to the envVars set. For custom tools, it reads the "env" configuration map.
+func addMCPToolEnvVars(toolName string, tools map[string]any, envVars map[string]struct{}) {
+	switch toolName {
+	case "github":
+		// GitHub MCP server needs GITHUB_PERSONAL_ACCESS_TOKEN
+		envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = struct{}{}
+	case "agentic-workflows":
+		// Agentic workflows MCP server needs GITHUB_TOKEN
+		envVars["GITHUB_TOKEN"] = struct{}{}
+	case "safe-outputs":
+		// Safe outputs MCP server needs several environment variables
+		envVars["GH_AW_SAFE_OUTPUTS"] = struct{}{}
+		envVars["GH_AW_ASSETS_BRANCH"] = struct{}{}
+		envVars["GH_AW_ASSETS_MAX_SIZE_KB"] = struct{}{}
+		envVars["GH_AW_ASSETS_ALLOWED_EXTS"] = struct{}{}
+		envVars["GITHUB_REPOSITORY"] = struct{}{}
+		envVars["GITHUB_SERVER_URL"] = struct{}{}
+	default:
+		// For custom MCP tools, check if they have env configuration
+		if toolValue, ok := tools[toolName]; ok {
+			if toolConfig, ok := toolValue.(map[string]any); ok {
+				// Extract environment variable names from env configuration
+				if env, hasEnv := toolConfig["env"].(map[string]any); hasEnv {
+					for envKey := range env {
+						envVars[envKey] = struct{}{}
+					}
+				}
+			}
+		}
+	}
 }
 
 // renderShellEnvironmentPolicy generates the [shell_environment_policy] section for config.toml
