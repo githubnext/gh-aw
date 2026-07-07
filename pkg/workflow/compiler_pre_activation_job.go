@@ -267,16 +267,32 @@ func generatePreActivationCacheMemoryRestoreSteps(builder *strings.Builder, data
 		return
 	}
 
-	preActivationData := *data
-	preActivationData.CacheMemoryConfig = &CacheMemoryConfig{
-		Caches: make([]CacheMemoryEntry, len(data.CacheMemoryConfig.Caches)),
+	preActivationData := &WorkflowData{
+		ParsedTools: data.ParsedTools,
+		SafeOutputs: data.SafeOutputs,
+		CacheMemoryConfig: &CacheMemoryConfig{
+			Caches: make([]CacheMemoryEntry, len(data.CacheMemoryConfig.Caches)),
+		},
 	}
-	copy(preActivationData.CacheMemoryConfig.Caches, data.CacheMemoryConfig.Caches)
-	for i := range preActivationData.CacheMemoryConfig.Caches {
-		preActivationData.CacheMemoryConfig.Caches[i].RestoreOnly = true
+	for i, cache := range data.CacheMemoryConfig.Caches {
+		cacheCopy := CacheMemoryEntry{
+			ID:          cache.ID,
+			Key:         cache.Key,
+			Description: cache.Description,
+			RestoreOnly: true,
+			Scope:       cache.Scope,
+		}
+		if cache.AllowedExtensions != nil {
+			cacheCopy.AllowedExtensions = append([]string(nil), cache.AllowedExtensions...)
+		}
+		if cache.RetentionDays != nil {
+			retentionDays := *cache.RetentionDays
+			cacheCopy.RetentionDays = &retentionDays
+		}
+		preActivationData.CacheMemoryConfig.Caches[i] = cacheCopy
 	}
 
-	generateCacheMemorySteps(builder, &preActivationData)
+	generateCacheMemorySteps(builder, preActivationData)
 }
 
 func (c *Compiler) appendPreActivationSkipRolesStep(data *WorkflowData, steps []string) []string {
