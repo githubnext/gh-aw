@@ -1145,21 +1145,6 @@ func TestInjectIfConditionAfterName(t *testing.T) {
 // TestResolveSymlinkExtraPaths verifies that symlinks under .github/ are resolved and
 // their targets appended to the extraPaths list, while non-symlinks and escape paths are ignored.
 func TestResolveSymlinkExtraPaths(t *testing.T) {
-	// Create a temp dir that acts as the working directory for the test.
-	tmpDir := t.TempDir()
-
-	// Helper: create a symlink <linkName> -> <target> inside tmpDir and chdir to tmpDir.
-	mkSymlink := func(t *testing.T, linkRel, target string) {
-		t.Helper()
-		linkPath := filepath.Join(tmpDir, linkRel)
-		if err := os.MkdirAll(filepath.Dir(linkPath), 0o755); err != nil {
-			t.Fatalf("MkdirAll: %v", err)
-		}
-		if err := os.Symlink(target, linkPath); err != nil {
-			t.Fatalf("Symlink: %v", err)
-		}
-	}
-
 	origDir, err := os.Getwd()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = os.Chdir(origDir) })
@@ -1220,7 +1205,4 @@ func TestResolveSymlinkExtraPaths(t *testing.T) {
 		}
 		assert.Equal(t, 1, count, "already-present path should not be duplicated")
 	})
-
-	_ = tmpDir
-	_ = mkSymlink
 }
