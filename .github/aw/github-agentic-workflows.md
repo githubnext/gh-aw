@@ -83,6 +83,32 @@ Use the smallest trigger that matches the requested automation.
 
 See also: [workflow-constraints.md](workflow-constraints.md)
 
+## Custom Agent Tool Prerequisites
+
+Workflows that invoke a custom agent tool (for example `tools.agentic-workflows:`) depend on the corresponding CLI runtime being present in the workflow sandbox.
+
+### Prerequisites
+
+- **Copilot CLI**: Required for the default `copilot` engine. If not installed, custom agent tool calls return `Copilot CLI not installed` and the tool is unavailable.
+- Verify availability at runtime by attempting a lightweight probe call before committing to a full evaluation run.
+
+### Common Failure Modes
+
+| Failure | Cause | Recovery |
+|---|---|---|
+| `Copilot CLI not installed` | The Copilot CLI binary is absent from the sandbox | Record explicitly; fall back to direct design reasoning |
+| Tool call timeout | Agent invocation exceeded the allowed time window | Record as `tool-unavailable`; continue with remaining scenarios |
+| Empty or malformed response | CLI is present but the agent returned no usable content | Record the raw error; mark quality score as `N/A` |
+
+### Tool-Unavailable Fallback Pattern
+
+When a custom agent tool call fails or is unavailable:
+
+1. Record the outcome as `{ "status": "tool-unavailable", "reason": "<error message>" }` alongside the other scenario results.
+2. Derive the expected design recommendation using direct reasoning from the `.github/aw/*.md` reference files.
+3. Label the derived recommendation as **inferred** (not agent-produced) so aggregate quality scores remain comparable across runs.
+4. Include a `## Tooling Availability` section in the published report summarising which tools succeeded, which failed, and the exact error messages received.
+
 ## Ad Hoc Scenario Evaluation
 
 Installed gh-aw agents should support scenario evaluation requests that do not create workflow files.

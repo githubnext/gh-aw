@@ -60,6 +60,17 @@ Use this mode for exploratory testing, persona walkthroughs, and "what workflow 
 - Exit ad hoc evaluation mode only when the user explicitly asks to create, implement, or write the workflow file.
 - End by offering to turn the recommendation into `.github/workflows/<workflow-id>.md` if the user wants to proceed.
 
+### Preflight Check for Custom Agent Runtimes
+
+When the evaluation workflow depends on a custom agent tool (for example the `agentic-workflows` tool), run a preflight check before executing scenarios:
+
+1. **Probe the tool** — make a single minimal call (for example a one-sentence prompt) and confirm the response is non-empty and error-free.
+2. **On success** — proceed with evaluation scenarios normally.
+3. **On failure** — record `{ "status": "tool-unavailable", "reason": "<error>" }`, switch to direct design reasoning using `.github/aw/*.md` reference files, and label all derived recommendations as **inferred**.
+4. **Always publish a result** — emit the report regardless of tool availability; include a `Tooling Availability` note that lists which tools succeeded, which failed, and the exact errors observed.
+
+See [github-agentic-workflows.md](github-agentic-workflows.md#custom-agent-tool-prerequisites) for the full failure-mode table and fallback pattern.
+
 ## Design Checklist
 
 ### 1. Pick the workflow ID

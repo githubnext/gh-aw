@@ -133,6 +133,18 @@ Store all scenarios in cache memory.
 
 **Token Budget Optimization**: Test a **representative subset of 3-4 scenarios** from the 6 generated above (not all) to reduce token consumption and ensure budget remains for Phase 5 publishing.
 
+### Preflight: Verify Agent Tool Availability
+
+Before running any scenario, probe the "agentic-workflows" custom agent with a single minimal prompt (for example: "What trigger should I use for a weekly digest?").
+
+- **If the probe succeeds** (non-empty, error-free response): proceed with scenario testing below.
+- **If the probe fails** (for example `Copilot CLI not installed`, timeout, or empty response):
+  1. Record `{ "status": "tool-unavailable", "reason": "<exact error>" }` in cache memory.
+  2. For each selected scenario, derive the expected design recommendation using direct reasoning from `.github/aw/*.md` reference files and label it **inferred**.
+  3. Skip the scenario-by-scenario agent invocations below and proceed directly to Phase 4 and Phase 5.
+  4. Set the average quality score to `N/A` (tool-unavailable) rather than a numeric rating.
+  5. Include a `### Tooling Availability` subsection in the published report that states which tools were probed, the outcome, and the exact error message.
+
 {{#if experiments.sub_agent_strategy == 'batch' }}
 Invoke the "agentic-workflows" custom agent **once** with all 3-4 selected scenarios presented together in a structured list:
 
@@ -238,7 +250,11 @@ Example:
 - **Agent**: [name]
 - **Personas This Run**: [3 persona names]
 - **Scenarios Tested**: [count - should be 3-4, selected from the 6 generated in Phase 2 (2 per persona × 3 personas)]
-- **Average Quality Score**: [X.X/5.0]
+- **Average Quality Score**: [X.X/5.0 or N/A (tool-unavailable)]
+
+### Tooling Availability
+- **agentic-workflows tool**: [available | unavailable — reason: "<exact error>"]
+- *(list any other tools probed)*
 
 ### Key Findings (3-5 bullet points max)
 [High-level insights - keep concise]
