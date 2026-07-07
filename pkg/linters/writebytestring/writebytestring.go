@@ -86,10 +86,18 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
+		// When the receiver is an addressable value whose Write method lives on
+		// the pointer type (e.g. var buf bytes.Buffer), io.WriteString requires
+		// the pointer form so that the interface conversion compiles.
+		writerArg := wText
+		if t := pass.TypesInfo.TypeOf(sel.X); t != nil && !hasWriteMethod(t) {
+			writerArg = "&" + wText
+		}
+
 		pass.Report(analysis.Diagnostic{
 			Pos:     call.Pos(),
 			End:     call.End(),
-			Message: fmt.Sprintf("%s.Write([]byte(%s)) can be replaced with io.WriteString(%s, %s) to avoid a []byte allocation", wText, sText, wText, sText),
+			Message: fmt.Sprintf("%s.Write([]byte(%s)) can be replaced with io.WriteString(%s, %s) to avoid a []byte allocation", wText, sText, writerArg, sText),
 		})
 	})
 

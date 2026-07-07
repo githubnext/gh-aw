@@ -12,9 +12,9 @@ func (c *customWriter) Write(p []byte) (int, error) { return len(p), nil }
 func bad() {
 	var buf bytes.Buffer
 	s := "hello"
-	buf.Write([]byte(s)) // want `buf\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(buf, s\) to avoid a \[\]byte allocation`
+	buf.Write([]byte(s)) // want `buf\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(&buf, s\) to avoid a \[\]byte allocation`
 
-	buf.Write([]byte("world")) // want `buf\.Write\(\[\]byte\("world"\)\) can be replaced with io\.WriteString\(buf, "world"\) to avoid a \[\]byte allocation`
+	buf.Write([]byte("world")) // want `buf\.Write\(\[\]byte\("world"\)\) can be replaced with io\.WriteString\(&buf, "world"\) to avoid a \[\]byte allocation`
 }
 
 type myString string
@@ -22,7 +22,7 @@ type myString string
 func badNamedString() {
 	var buf bytes.Buffer
 	s := myString("hello")
-	buf.Write([]byte(s)) // want `buf\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(buf, s\) to avoid a \[\]byte allocation`
+	buf.Write([]byte(s)) // want `buf\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(&buf, s\) to avoid a \[\]byte allocation`
 }
 
 func badFile() {
