@@ -157,7 +157,7 @@ func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowD
 	} else {
 		stepLines = append(stepLines,
 			"          # Best-effort permission fix for artifact upload (AWF cleanup may not have run)",
-			fmt.Sprintf("          chmod -R a+rX %s 2>/dev/null || true", firewallDir),
+			fmt.Sprintf("          sudo -n chmod -R a+rX %[1]s 2>/dev/null || chmod -R a+rX %[1]s 2>/dev/null || true", firewallDir),
 		)
 	}
 
