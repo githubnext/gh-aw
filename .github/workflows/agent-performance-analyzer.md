@@ -37,6 +37,7 @@ safe-outputs:
     labels: [cookie]
   create-discussion:
     expires: 1d
+    category: "audits"
     max: 1
   add-comment:
     max: 10
