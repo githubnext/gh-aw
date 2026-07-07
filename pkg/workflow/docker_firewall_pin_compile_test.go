@@ -174,3 +174,62 @@ Test workflow.`
 		}
 	}
 }
+
+// TestCompileWorkflow_BuildToolsImagePinnedForArcDind is a regression test for
+// gh-aw#44040: when runner.topology is arc-dind, the build-tools image must be
+// digest-pinned in the compiled lock file the same way the other four gh-aw-firewall
+// images (agent, api-proxy, cli-proxy, squid) are.
+func TestCompileWorkflow_BuildToolsImagePinnedForArcDind(t *testing.T) {
+	// Strip the leading "v" to get the Docker image tag (mirrors getAWFImageTag).
+	imageTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+
+	frontmatter := `---
+on: workflow_dispatch
+engine: claude
+runner:
+  topology: arc-dind
+network:
+  allowed:
+    - defaults
+---
+
+# Test
+Test workflow.`
+
+	tmpDir := testutil.TempDir(t, "docker-firewall-pins-arc-dind-test")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	yaml, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(yaml)
+
+	buildToolsImage := "ghcr.io/github/gh-aw-firewall/build-tools:" + imageTag
+	buildToolsDigest := "sha256:5823f6cec65210cd6e3e6320c165979fb46f78c76600f58f4189d2c89c2be8da"
+	pinnedBuildTools := buildToolsImage + "@" + buildToolsDigest
+
+	if !strings.Contains(yamlStr, `"image":"`+buildToolsImage+`","digest":"`+buildToolsDigest+`","pinned_image":"`+pinnedBuildTools+`"`) {
+		t.Errorf("Expected manifest header to include pinned metadata for %s", buildToolsImage)
+	}
+	if !strings.Contains(yamlStr, "#   - "+pinnedBuildTools) {
+		t.Errorf("Expected pinned container comment for %s", buildToolsImage)
+	}
+	if !strings.Contains(yamlStr, pinnedBuildTools) {
+		t.Errorf("Expected pinned download reference for %s", buildToolsImage)
+	}
+
+	if !strings.Contains(yamlStr, `build-tools=`+buildToolsDigest) {
+		t.Errorf("Expected AWF config JSON to include build-tools=%s", buildToolsDigest)
+	}
+}
