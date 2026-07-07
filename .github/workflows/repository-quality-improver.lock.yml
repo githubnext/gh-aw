@@ -491,6 +491,11 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Download activation artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: activation
+          path: /tmp/gh-aw
       - name: Collect quality metrics
         run: "mkdir -p /tmp/gh-aw/agent\n{\n  echo \"## Focus Area History\"\n  if [ -f /tmp/gh-aw/cache-memory-focus-areas/history.json ]; then\n    cat /tmp/gh-aw/cache-memory-focus-areas/history.json\n  else\n    echo '{\"runs\":[],\"recent_areas\":[],\"statistics\":{\"total_runs\":0,\"custom_rate\":0,\"reuse_rate\":0,\"unique_areas_explored\":0}}'\n  fi\n\n  echo \"\"\n  echo \"## Code Metrics\"\n  echo \"### Largest Go source files (top 20)\"\n  find . -type f -name \"*.go\" ! -name \"*_test.go\" ! -path \"./.git/*\" | xargs wc -l 2>/dev/null | sort -rn | head -21 | tail -20\n\n  echo \"### Test ratio\"\n  TEST_LOC=$(find . -type f -name \"*_test.go\" ! -path \"./.git/*\" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')\n  SRC_LOC=$(find . -type f -name \"*.go\" ! -name \"*_test.go\" ! -path \"./.git/*\" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')\n  echo \"Test LOC: $TEST_LOC | Source LOC: $SRC_LOC\"\n\n  echo \"### Directory file counts\"\n  for dir in cmd pkg docs .github; do\n    if [ -d \"$dir\" ]; then\n      echo \"$dir: $(find \"$dir\" -type f | wc -l) files\"\n    fi\n  done\n\n  echo \"### TODO/FIXME count\"\n  grep -r \"TODO\\|FIXME\" --include=\"*.go\" --include=\"*.cjs\" . 2>/dev/null | wc -l\n\n  echo \"### README size\"\n  wc -l README.md 2>/dev/null || echo \"No README.md\"\n} > /tmp/gh-aw/agent/analysis-context.md\necho \"✅ Quality metrics collected → /tmp/gh-aw/agent/analysis-context.md\""
 
@@ -547,11 +552,6 @@ jobs:
           script: |
             const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
-      - name: Download activation artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: activation
-          path: /tmp/gh-aw
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:

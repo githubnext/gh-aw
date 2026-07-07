@@ -532,6 +532,11 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Download activation artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: activation
+          path: /tmp/gh-aw
       - name: Fetch recent changes
         run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/agent\n\n# Determine scan scope: Monday = full weekly scan, other weekdays = daily\nDAY=$(date +%u)\nif [ \"$DAY\" -eq 1 ]; then\n  SINCE=\"7 days ago\"\n  SCOPE=\"weekly\"\nelse\n  SINCE=\"24 hours ago\"\n  SCOPE=\"daily\"\nfi\n\necho \"Scan scope: $SCOPE (since: $SINCE)\"\n\n# Fetch recent commits (all files) — includes file names for context\ngit log --since=\"$SINCE\" --oneline --name-only \\\n  > /tmp/gh-aw/agent/recent-commits.txt\n\n# Fetch commits that touched docs\ngit log --since=\"$SINCE\" --name-only \\\n  --format=\"%H %s\" -- 'docs/**/*.md' 'docs/**/*.mdx' \\\n  > /tmp/gh-aw/agent/doc-changes.txt\n\necho \"Recent commits: $(wc -l < /tmp/gh-aw/agent/recent-commits.txt)\"\necho \"Doc file changes: $(wc -l < /tmp/gh-aw/agent/doc-changes.txt)\"\necho \"$SCOPE\" > /tmp/gh-aw/agent/scan-scope.txt"
 
@@ -597,11 +602,6 @@ jobs:
           script: |
             const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
-      - name: Download activation artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: activation
-          path: /tmp/gh-aw
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:
