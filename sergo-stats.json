@@ -1,11 +1,11 @@
 {
-  "total_runs": 58,
-  "total_findings": 395,
-  "total_tasks": 107,
+  "total_runs": 59,
+  "total_findings": 402,
+  "total_tasks": 108,
   "avg_success_score": 8.75,
-  "last_run": "2026-07-06",
+  "last_run": "2026-07-07",
   "serena_lsp": "23 tools stable. activate_project --project. find_symbol broad 70s+ (prefer Grep). gh issue list --search BROKEN -> gh api issues?labels=sergo. gh api sergo BEFORE strategy + grep code (OPEN!=fixed).",
-  "open_issues": "R58 OPEN(gh api verified): 42174(hardcodedfilepath verb-set) + NEW sg58a1=#aw_sg58a1(execcommandwithoutcontext FuncLit over-attribution FP, ctx-family). Team CLOSED nearly EVERYTHING since R57: sg57a1#43465, sg56a1#43313, fprintlnsprintf#43113, 42004,41845,41844, +42901,42645,42644,42416 all CLOSED. ctx-family FuncLit precedents ALL FIXED: #42901(timesleepnocontext),#41164(ctxbackground),#43465(httprespbodyclose),#41606(panic),#40947(wgdone). sg58a1 is the LAST ctx-family linter w/ unguarded FuncLit-boundary crossing. ALWAYS gh api reconcile before refile; landed-but-open common but team is FAST now.",
+  "open_issues": "R59 pre-run: ZERO open sergo issues (gh api verified) - team CLOSED everything incl 42174 + sg58a1(#43683 execcommandwithoutcontext). R59 filed sg59a1=#aw_sg59a1: 5 syntactic-stdlib-pkg-match holdouts remain at HEAD (errstringmatch:100 fprintlnsprintf:132 osexitinlibrary:59 = ENFORCED; fileclosenotdeferred:174 contextcancelnotdeferred:140 = not-enf). Both prior issues #40243(os/fmt/strings)+#40435(os/context) AUTO-EXPIRED w/ ZERO migrations applied. astutil.IsPkgSelector proven+used by 5 already-migrated linters. R60: re-verify sg59a1 landed; ALWAYS gh api reconcile (team FAST).",
   "patterns": {
     "phantom_reconcile": "gh api sergo issues BEFORE strategy + grep CODE for fix (team rarely auto-closes; landed-but-open common).",
     "registry_delta_detect": "main.go grep -c 'Analyzer' vs doc.go:3 'NN active' header = new-linter detector. R42-44: 30,31,32. doc.go drifts=#40436. New linter=fresh audit target.",
