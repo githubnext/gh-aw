@@ -6,6 +6,7 @@ package writebytestring
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
@@ -15,6 +16,26 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
+
+// writerIface is a synthetic *types.Interface matching io.Writer:
+//
+//	Write(p []byte) (n int, err error)
+//
+// Built once at package init so it can be reused across analysis passes.
+var writerIface = func() *types.Interface {
+	byteSlice := types.NewSlice(types.Typ[types.Byte])
+	errType := types.Universe.Lookup("error").Type()
+	params := types.NewTuple(types.NewVar(token.NoPos, nil, "p", byteSlice))
+	results := types.NewTuple(
+		types.NewVar(token.NoPos, nil, "n", types.Typ[types.Int]),
+		types.NewVar(token.NoPos, nil, "err", errType),
+	)
+	sig := types.NewSignatureType(nil, nil, nil, params, results, false)
+	method := types.NewFunc(token.NoPos, nil, "Write", sig)
+	iface := types.NewInterfaceType([]*types.Func{method}, nil)
+	iface.Complete()
+	return iface
+}()
 
 // Analyzer is the write-byte-string analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -67,15 +88,12 @@ func run(pass *analysis.Pass) (any, error) {
 		if !isByteSliceConversion(pass, conv) {
 			return
 		}
-		if len(conv.Args) != 1 {
-			return
-		}
 		strArg := conv.Args[0]
 		if !isStringType(pass, strArg) {
 			return
 		}
 
-		// The receiver must implement io.Writer (has a Write([]byte) (int, error) method).
+		// The receiver must implement io.Writer.
 		if !implementsWriter(pass, sel.X) {
 			return
 		}
@@ -90,14 +108,15 @@ func run(pass *analysis.Pass) (any, error) {
 		// the pointer type (e.g. var buf bytes.Buffer), io.WriteString requires
 		// the pointer form so that the interface conversion compiles.
 		writerArg := wText
-		if t := pass.TypesInfo.TypeOf(sel.X); t != nil && !hasWriteMethod(t) && hasWriteMethod(types.NewPointer(t)) {
+		if t := pass.TypesInfo.TypeOf(sel.X); t != nil && !types.Implements(t, writerIface) {
 			writerArg = "&" + wText
 		}
 
 		pass.Report(analysis.Diagnostic{
-			Pos:     call.Pos(),
-			End:     call.End(),
-			Message: fmt.Sprintf("%s.Write([]byte(%s)) can be replaced with io.WriteString(%s, %s) to avoid a []byte allocation", wText, sText, writerArg, sText),
+			Pos:            call.Pos(),
+			End:            call.End(),
+			Message:        fmt.Sprintf("%s.Write([]byte(%s)) can be replaced with io.WriteString(%s, %s) to avoid a []byte allocation when the writer implements io.StringWriter", wText, sText, writerArg, sText),
+			SuggestedFixes: buildFix(call, writerArg, sText),
 		})
 	})
 
@@ -137,49 +156,37 @@ func isStringType(pass *analysis.Pass, expr ast.Expr) bool {
 	return ok && basic.Kind() == types.String
 }
 
-// implementsWriter reports whether expr's type implements io.Writer
-// (i.e., has a method Write([]byte) (int, error)).
+// implementsWriter reports whether expr's type implements io.Writer.
+// It uses types.Implements against a synthetic io.Writer interface so the check
+// is idiomatic and avoids manually re-implementing the signature comparison.
+// Only T and *T are tried; **T is never constructed so pointer types are not
+// double-wrapped.
 func implementsWriter(pass *analysis.Pass, expr ast.Expr) bool {
 	t := pass.TypesInfo.TypeOf(expr)
 	if t == nil {
 		return false
 	}
-	return hasWriteMethod(t) || hasWriteMethod(types.NewPointer(t))
+	if types.Implements(t, writerIface) {
+		return true
+	}
+	// Only add a pointer wrapper when t is not already a pointer, to avoid
+	// constructing a semantically meaningless **T type.
+	if _, isPtr := t.Underlying().(*types.Pointer); isPtr {
+		return false
+	}
+	return types.Implements(types.NewPointer(t), writerIface)
 }
 
-// hasWriteMethod reports whether t (or *t) has a Write([]byte)(int,error) method.
-func hasWriteMethod(t types.Type) bool {
-	ms := types.NewMethodSet(t)
-	sel := ms.Lookup(nil, "Write")
-	if sel == nil {
-		return false
-	}
-	fn, ok := sel.Obj().(*types.Func)
-	if !ok {
-		return false
-	}
-	sig, ok := fn.Type().(*types.Signature)
-	if !ok {
-		return false
-	}
-	params := sig.Params()
-	results := sig.Results()
-	if params.Len() != 1 || results.Len() != 2 {
-		return false
-	}
-	// Parameter must be []byte
-	sl, ok := params.At(0).Type().Underlying().(*types.Slice)
-	if !ok {
-		return false
-	}
-	elem, ok := sl.Elem().(*types.Basic)
-	if !ok || elem.Kind() != types.Byte {
-		return false
-	}
-	// Results must be (int, error)
-	intBasic, ok := results.At(0).Type().Underlying().(*types.Basic)
-	if !ok || intBasic.Kind() != types.Int {
-		return false
-	}
-	return nolint.ImplementsError(results.At(1).Type())
+// buildFix returns a SuggestedFix rewriting w.Write([]byte(s)) to io.WriteString(w, s).
+// Note: if the file does not already import "io", tools such as gopls will add the import automatically.
+func buildFix(call *ast.CallExpr, writerArg, sText string) []analysis.SuggestedFix {
+	replacement := fmt.Sprintf("io.WriteString(%s, %s)", writerArg, sText)
+	return []analysis.SuggestedFix{{
+		Message: "Replace with " + replacement,
+		TextEdits: []analysis.TextEdit{{
+			Pos:     call.Pos(),
+			End:     call.End(),
+			NewText: []byte(replacement),
+		}},
+	}}
 }
