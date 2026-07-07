@@ -278,7 +278,7 @@ func extractCustomJobTimeoutMinutes(job *Job, jobName string, configMap map[stri
 			job.TimeoutMinutesExpression = v
 		} else {
 			return fmt.Errorf(
-				"job '%s' timeout-minutes must be an integer or a GitHub Actions expression (e.g. '${{ inputs.timeout }}'), got %q",
+				"job '%s' timeout-minutes must be an integer or a GitHub Actions expression, got %q. Example: timeout-minutes: 30 or ${{ inputs.timeout }}",
 				jobName,
 				v,
 			)
@@ -549,7 +549,7 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 	for jobName, jobConfig := range data.Jobs {
 		configMap, ok := jobConfig.(map[string]any)
 		if !ok {
-			return fmt.Errorf("jobs.%s must be an object, got %T", jobName, jobConfig)
+			return fmt.Errorf("jobs.%s must be an object, got %T. Example: jobs:\n  job-name:\n    setup-steps: []", jobName, jobConfig)
 		}
 
 		_, hasSetupSteps := configMap["setup-steps"]
@@ -594,6 +594,108 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 		job.Steps = insertPreStepsAtEarliestBoundary(job.Steps, preSteps)
 		job.Steps = insertSetupStepsAtStart(job.Steps, setupSteps)
 		compilerJobsLog.Printf("Inserted %d setup-step(s) and %d pre-step(s) into built-in job '%s'", len(setupSteps), len(preSteps), targetJobName)
+	}
+
+	return nil
+}
+
+func normalizeBuiltinJobAlias(jobName string) string {
+	switch jobName {
+	case string(constants.PreActivationHyphenJobName):
+		return string(constants.PreActivationJobName)
+	case string(constants.SafeOutputsHyphenJobName):
+		return string(constants.SafeOutputsJobName)
+	default:
+		return jobName
+	}
+}
+
+func extractBuiltinJobNeedsAugmentation(jobName string, configMap map[string]any) ([]string, error) {
+	needsValue, exists := configMap["needs"]
+	if !exists || needsValue == nil {
+		return nil, nil
+	}
+
+	switch typedNeeds := needsValue.(type) {
+	case string:
+		return []string{typedNeeds}, nil
+	case []any:
+		needs := make([]string, 0, len(typedNeeds))
+		for i, rawNeed := range typedNeeds {
+			need, ok := rawNeed.(string)
+			if !ok {
+				return nil, fmt.Errorf("jobs.%s.needs[%d] must be a string, got %T. Example: needs: ['build', 'test']", jobName, i, rawNeed)
+			}
+			needs = append(needs, need)
+		}
+		return needs, nil
+	default:
+		return nil, fmt.Errorf("jobs.%s.needs must be a string or array of strings, got %T", jobName, needsValue)
+	}
+}
+
+// applyBuiltinJobNeedsAugmentations merges jobs.<built-in>.needs into compiler-generated job needs.
+// This is additive-only and de-duplicated, and never removes compiler-computed dependencies.
+func (c *Compiler) applyBuiltinJobNeedsAugmentations(data *WorkflowData) error {
+	if data == nil || data.Jobs == nil {
+		return nil
+	}
+
+	allJobs := c.jobManager.GetAllJobs()
+	for configuredJobName, rawConfig := range data.Jobs {
+		targetJobName := normalizeBuiltinJobAlias(configuredJobName)
+		if !isBuiltinJobName(targetJobName) {
+			continue
+		}
+
+		configMap, ok := rawConfig.(map[string]any)
+		if !ok {
+			return fmt.Errorf("jobs.%s must be an object, got %T", configuredJobName, rawConfig)
+		}
+
+		augmentedNeeds, err := extractBuiltinJobNeedsAugmentation(configuredJobName, configMap)
+		if err != nil {
+			return err
+		}
+		if len(augmentedNeeds) == 0 {
+			continue
+		}
+
+		targetJob, exists := c.jobManager.GetJob(targetJobName)
+		if !exists {
+			return fmt.Errorf("jobs.%s.needs: cannot augment %q because this workflow does not generate that job", configuredJobName, targetJobName)
+		}
+
+		normalizedNeeds := make([]string, 0, len(augmentedNeeds))
+		for _, rawNeed := range augmentedNeeds {
+			need := normalizeBuiltinJobAlias(rawNeed)
+			if need == targetJobName {
+				return fmt.Errorf("jobs.%s.needs: %q cannot depend on itself", configuredJobName, rawNeed)
+			}
+			if _, known := allJobs[need]; !known {
+				return fmt.Errorf("jobs.%s.needs: unknown job %q", configuredJobName, rawNeed)
+			}
+			normalizedNeeds = append(normalizedNeeds, need)
+		}
+
+		seen := make(map[string]struct{}, len(targetJob.Needs)+len(normalizedNeeds))
+		mergedNeeds := make([]string, 0, len(targetJob.Needs)+len(normalizedNeeds))
+		for _, need := range targetJob.Needs {
+			if _, alreadySeen := seen[need]; alreadySeen {
+				continue
+			}
+			seen[need] = struct{}{}
+			mergedNeeds = append(mergedNeeds, need)
+		}
+		for _, need := range normalizedNeeds {
+			if _, alreadySeen := seen[need]; alreadySeen {
+				continue
+			}
+			seen[need] = struct{}{}
+			mergedNeeds = append(mergedNeeds, need)
+		}
+		targetJob.Needs = mergedNeeds
+		compilerJobsLog.Printf("Applied jobs.%s.needs augmentation to %q: %v", configuredJobName, targetJobName, normalizedNeeds)
 	}
 
 	return nil

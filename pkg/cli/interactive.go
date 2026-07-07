@@ -64,7 +64,7 @@ func CreateWorkflowInteractively(ctx context.Context, workflowName string, verbo
 	interactiveLog.Printf("Starting interactive workflow creation: workflowName=%s, force=%v", workflowName, force)
 
 	// Assert this function is not running in automated unit tests
-	if os.Getenv("GO_TEST_MODE") == "true" || os.Getenv("CI") != "" {
+	if os.Getenv("GO_TEST_MODE") == "true" || os.Getenv("CI") != "" { //nolint:osgetenvlibrary
 		return errors.New("interactive workflow creation cannot be used in automated tests or CI environments")
 	}
 
