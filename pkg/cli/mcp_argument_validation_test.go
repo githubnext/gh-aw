@@ -296,9 +296,9 @@ func TestArgumentValidationMiddleware_PassesThroughSuccessResults(t *testing.T) 
 	assert.False(t, toolResult.IsError)
 }
 
-// TestArgumentValidationMiddleware_UnknownToolReturnsMethodNotFound verifies
-// that an unregistered tool name is reported as method-not-found.
-func TestArgumentValidationMiddleware_UnknownToolReturnsMethodNotFound(t *testing.T) {
+// TestArgumentValidationMiddleware_UnknownToolReturnsInternalError verifies
+// that an unregistered tool name is reported as an internal server error.
+func TestArgumentValidationMiddleware_UnknownToolReturnsInternalError(t *testing.T) {
 	toolParams := map[string]toolParamEntry{
 		"compile": {"workflows"},
 	}
@@ -318,7 +318,7 @@ func TestArgumentValidationMiddleware_UnknownToolReturnsMethodNotFound(t *testin
 
 	var rpcErr *jsonrpc.Error
 	require.ErrorAs(t, err, &rpcErr, "error should be a JSON-RPC error")
-	assert.Equal(t, int64(jsonrpc.CodeMethodNotFound), rpcErr.Code, "unknown tool should use method-not-found code")
+	assert.Equal(t, int64(jsonrpc.CodeInternalError), rpcErr.Code, "unknown tool should use internal-error code")
 }
 
 // TestArgumentValidationMiddleware_PassesThroughNonToolCallMethods verifies

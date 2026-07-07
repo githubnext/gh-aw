@@ -241,6 +241,12 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		return err
 	}
 
+	// Apply additive jobs.<built-in>.needs augmentations once all jobs are created,
+	// so referenced custom/imported jobs can be validated against the final job set.
+	if err := c.applyBuiltinJobNeedsAugmentations(data); err != nil {
+		return fmt.Errorf("failed to apply built-in job needs augmentations: %w", err)
+	}
+
 	// Final pass: ensure conclusion job depends on ALL remaining workflow jobs.
 	// This guarantees conclusion always runs last, even for custom user-defined jobs
 	// (e.g. post-issue, super_linter) that were not explicitly added to its needs.

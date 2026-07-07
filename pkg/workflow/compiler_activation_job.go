@@ -2,6 +2,8 @@ package workflow
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/goccy/go-yaml"
@@ -434,6 +436,17 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	}
 	compilerActivationJobLog.Printf("Adding %d engine-specific dirs to sparse-checkout: %v", len(extraPaths), extraPaths)
 
+	// Detect symlinks for well-known .github sub-paths and add their resolved targets
+	// so that sparse checkout fetches the target directory, not just the symlink blob.
+	// Use c.gitRoot so detection works regardless of the process CWD.
+	repoRoot := c.gitRoot
+	if repoRoot == "" {
+		if cwd, err := os.Getwd(); err == nil {
+			repoRoot = cwd
+		}
+	}
+	extraPaths = resolveSymlinkExtraPaths(repoRoot, extraPaths)
+
 	cm := NewCheckoutManager(nil)
 	activationToken := c.resolveActivationToken(data)
 	if data != nil && hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
@@ -530,4 +543,69 @@ func injectIfConditionAfterName(step, condition string) string {
 	newLines = append(newLines, fieldIndent+"if: "+condition)
 	newLines = append(newLines, lines[nameLineIdx+1:]...)
 	return strings.Join(newLines, "\n")
+}
+
+// resolveSymlinkExtraPaths inspects well-known .github sub-paths that are commonly
+// symlinked (e.g. .github/agents -> ../.ai/agents). When a path is a symlink, the
+// resolved target directory (relative to the repo root) is appended to extraPaths so
+// that the sparse-checkout step fetches the target files, not just the dangling symlink
+// blob. Symlink targets that escape the repository root are silently ignored to prevent
+// path traversal. Already-present paths are not duplicated.
+// repoRoot must be an absolute path to the repository root; when empty, the function is a no-op.
+func resolveSymlinkExtraPaths(repoRoot string, extraPaths []string) []string {
+	if repoRoot == "" {
+		return extraPaths
+	}
+	candidates := []string{
+		".github/agents",
+		".github/skills",
+		".github/prompts",
+	}
+	existing := make(map[string]struct{}, len(extraPaths))
+	for _, p := range extraPaths {
+		existing[p] = struct{}{}
+	}
+	for _, candidate := range candidates {
+		absCandidate := filepath.Join(repoRoot, candidate)
+		info, err := os.Lstat(absCandidate)
+		if err != nil || info.Mode()&os.ModeSymlink == 0 {
+			continue // not a symlink or doesn't exist
+		}
+		target, err := os.Readlink(absCandidate)
+		if err != nil {
+			continue
+		}
+		// Resolve target to an absolute path.
+		// When the symlink target is absolute (e.g. /etc/passwd), use it directly.
+		// When relative, resolve it against the directory that contains the symlink.
+		var absResolved string
+		if filepath.IsAbs(target) {
+			absResolved = filepath.Clean(target)
+		} else {
+			absResolved = filepath.Clean(filepath.Join(filepath.Dir(absCandidate), target))
+		}
+		rel, err := filepath.Rel(repoRoot, absResolved)
+		if err != nil {
+			continue
+		}
+		// Reject paths that escape the repository root using a segment-aware check.
+		// strings.HasPrefix would incorrectly reject names like "..foo".
+		firstSeg := rel
+		if i := strings.IndexByte(rel, filepath.Separator); i >= 0 {
+			firstSeg = rel[:i]
+		}
+		if firstSeg == ".." {
+			compilerActivationJobLog.Printf("Ignoring symlink %s -> %s: resolved path %q escapes the repository root", candidate, target, rel)
+			continue
+		}
+		// Normalize to forward slashes for use in YAML sparse-checkout paths.
+		rel = filepath.ToSlash(rel)
+		if _, alreadyPresent := existing[rel]; alreadyPresent {
+			continue
+		}
+		compilerActivationJobLog.Printf("Symlink detected: %s -> %s (adding %s to sparse checkout)", candidate, target, rel)
+		extraPaths = append(extraPaths, rel)
+		existing[rel] = struct{}{}
+	}
+	return extraPaths
 }
