@@ -520,6 +520,16 @@ func TestGenerateCacheMemoryRestoreLinesNilData(t *testing.T) {
 	assert.Nil(t, generateCacheMemoryRestoreLines(&WorkflowData{}))
 }
 
+// TestBuildCacheRestoreKeysEmptyForSinglePartKey verifies that buildCacheRestoreKeys
+// returns nil when the cache key has no separators and does not end with the run_id
+// suffix — ensuring the guard in generateCacheMemoryRestoreLines is exercised correctly.
+func TestBuildCacheRestoreKeysEmptyForSinglePartKey(t *testing.T) {
+	// A single-part key (no dashes) that doesn't end with the run_id suffix
+	// must produce no restore keys, confirming the len>0 guard is needed.
+	keys := buildCacheRestoreKeys("noseparator", "workflow")
+	assert.Empty(t, keys, "single-part key with no dashes must produce no restore keys")
+}
+
 // TestGenerateRepoMemoryRestoreLinesNilData verifies nil/empty RepoMemoryConfig returns nil.
 func TestGenerateRepoMemoryRestoreLinesNilData(t *testing.T) {
 	assert.Nil(t, generateRepoMemoryRestoreLines(&WorkflowData{}))

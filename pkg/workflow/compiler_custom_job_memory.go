@@ -120,10 +120,13 @@ func generateCacheMemoryRestoreLines(data *WorkflowData) []string {
 		lines = append(lines, fmt.Sprintf("          path: %s\n", cacheDir))
 
 		// Build restore keys using the shared helper (same semantics as the agent job).
-		restoreKeys := buildCacheRestoreKeys(cacheKey, cache.Scope)
-		lines = append(lines, "          restore-keys: |\n")
-		for _, key := range restoreKeys {
-			lines = append(lines, fmt.Sprintf("            %s\n", key))
+		// Only emit the restore-keys block when there is at least one key; an empty
+		// literal block scalar (restore-keys: | with no lines) is invalid YAML.
+		if restoreKeys := buildCacheRestoreKeys(cacheKey, cache.Scope); len(restoreKeys) > 0 {
+			lines = append(lines, "          restore-keys: |\n")
+			for _, key := range restoreKeys {
+				lines = append(lines, fmt.Sprintf("            %s\n", key))
+			}
 		}
 	}
 
