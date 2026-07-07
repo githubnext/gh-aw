@@ -82,7 +82,8 @@ func fetchRateLimit() (rateLimitResource, error) {
 
 // sleepWithContext pauses for duration d and returns nil when the timer fires.
 // If ctx is cancelled before the timer expires, it stops the timer and returns
-// ctx.Err() so callers can propagate cancellation immediately.
+// context.Cause(ctx) so callers can propagate cancellation (and any wrapped
+// cause) immediately.
 func sleepWithContext(ctx context.Context, d time.Duration) error {
 	var done <-chan struct{}
 	if ctx != nil {
