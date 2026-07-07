@@ -40,7 +40,8 @@ This document is governed by the GitHub Agentic Workflows project specifications
 10. [Per-Run AI Credits Budget](#10-per-run-ai-credits-budget)
 11. [Appendices](#appendices)
 12. [References](#references)
-13. [Change Log](#change-log)
+13. [Sync Notes](#sync-notes)
+14. [Change Log](#change-log)
 
 ---
 
@@ -249,7 +250,9 @@ A conforming implementation MUST define and enforce behavior for catalog synchro
 
 3. **Missing required fields**: When a catalog entry is missing required fields (`input` or `output` cost values), the implementation MUST treat that entry as invalid and MUST NOT compute AIC using zero or undefined costs for that model. The entry MUST be skipped or flagged, and a diagnostic MUST be emitted.
 
-4. **Catalog version mismatch**: When the two required catalog paths (`pkg/cli/data/models.json` and `actions/setup/js/models.json`) diverge in content after a sync operation, the sync tooling/CI gate MUST treat this as a sync failure and MUST fail the refresh operation until consistency is restored.
+4. **Catalog version mismatch**: When the two required catalog paths (`pkg/cli/data/models.json` and `actions/setup/js/models.json`) diverge in content after a sync operation, the sync tooling/CI gate MUST treat this as a sync failure. The refresh operation MUST fail until consistency is restored. In the gh-aw repository:
+   - CI MUST run `make validate-models-json-sync` (or an equivalent normalized-content comparison gate).
+   - That gate MUST fail whenever these mirror files cease to represent the same JSON dataset.
 
 ---
 
@@ -541,6 +544,25 @@ Pricing catalogs are configuration inputs. Implementations MUST:
 
 ---
 
+<a id="sync-notes"></a>
+## Sync Notes
+
+The canonical gh-aw mirror files for this specification are:
+
+- `pkg/cli/data/models.json`
+- `actions/setup/js/models.json`
+
+The repository validation target for mirror consistency is `make validate-models-json-sync`.
+
+This specification MUST be revalidated when any of the following occurs:
+
+1. A new model or provider entry is added to either mirror.
+2. A pricing value or billing-related field changes in either mirror.
+3. This specification is incremented to a new minor version.
+
+---
+
+<a id="change-log"></a>
 ## Change Log
 
 ### Version 1.4.0 (2026-06-09)

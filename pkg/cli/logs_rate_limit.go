@@ -11,7 +11,9 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -22,6 +24,7 @@ import (
 )
 
 var logsRateLimitLog = logger.New("cli:logs_rate_limit")
+var fetchRateLimitFunc = fetchRateLimit
 
 // rateLimitResponse models the JSON returned by `gh api rate_limit`.
 // Only the "core" resource bucket is used because log downloads and
@@ -70,21 +73,49 @@ func fetchRateLimit() (rateLimitResource, error) {
 	return resp.Resources.Core, nil
 }
 
+// sleepWithContext pauses for duration d and returns nil when the timer fires.
+// If ctx is cancelled before the timer expires, it stops the timer and returns
+// ctx.Err() so callers can propagate cancellation immediately.
+func sleepWithContext(ctx context.Context, d time.Duration) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 // checkAndWaitForRateLimit queries the GitHub API rate limit and sleeps until
 // the reset window when the remaining core request budget falls at or below
 // RateLimitThreshold.  It always waits at least APICallCooldown between
 // successive calls so that even when requests are plentiful the orchestrator
 // does not hammer the API.
 //
+// ctx is checked on every sleep so that a user cancellation (Ctrl-C) or
+// deadline expiry wakes the function early and propagates the context error.
+//
 // If the rate limit cannot be fetched (e.g. network error) the function falls
 // back to the static APICallCooldown sleep and returns the error so callers
 // can decide whether to surface it.
-func checkAndWaitForRateLimit(verbose bool) error {
-	rl, err := fetchRateLimit()
+func checkAndWaitForRateLimit(ctx context.Context, verbose bool) error {
+	rl, err := fetchRateLimitFunc()
 	if err != nil {
 		// Best-effort: fall back to static cooldown so the caller can continue.
 		logsRateLimitLog.Printf("Could not fetch rate limit, using static cooldown: %v", err)
-		time.Sleep(APICallCooldown)
+		if sleepErr := sleepWithContext(ctx, APICallCooldown); sleepErr != nil {
+			return fmt.Errorf("rate-limit fetch failed and context was canceled or timed out during fallback cooldown: %w", errors.Join(err, sleepErr))
+		}
 		return err
 	}
 
@@ -94,8 +125,7 @@ func checkAndWaitForRateLimit(verbose bool) error {
 		if waitDur <= 0 {
 			// Reset has already passed; apply minimal cooldown and carry on.
 			logsRateLimitLog.Print("Rate limit reset has already passed, applying minimal cooldown")
-			time.Sleep(APICallCooldown)
-			return nil
+			return sleepWithContext(ctx, APICallCooldown)
 		}
 
 		// Add a small buffer so we don't resume right on the boundary.
@@ -107,8 +137,7 @@ func checkAndWaitForRateLimit(verbose bool) error {
 		)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
 		logsRateLimitLog.Printf("Sleeping for rate limit reset: duration=%s", waitDur)
-		time.Sleep(waitDur)
-		return nil
+		return sleepWithContext(ctx, waitDur)
 	}
 
 	if verbose {
@@ -118,6 +147,5 @@ func checkAndWaitForRateLimit(verbose bool) error {
 	}
 
 	// Even when budget is healthy, apply the minimum inter-call cooldown.
-	time.Sleep(APICallCooldown)
-	return nil
+	return sleepWithContext(ctx, APICallCooldown)
 }

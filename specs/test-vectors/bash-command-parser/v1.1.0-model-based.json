@@ -1,0 +1,129 @@
+{
+  "version": "1.1.0",
+  "source": "model-based",
+  "canonicalPath": "specs/test-vectors/bash-command-parser/",
+  "spec": "docs/src/content/docs/specs/bash-command-parser-specification.md",
+  "vectors": [
+    {
+      "id": "BP-MB-S-001",
+      "category": "S-CORE",
+      "requirement": "§6.1 S-CORE-1",
+      "function": "splitOnPipelineOperators",
+      "note": "Intentionally includes a literal newline to cover the top-level newline split case in the minimal suite.",
+      "input": "echo a && printf b || cat file | sed 's/x/y/' ; pwd\necho done",
+      "expected": ["echo a", "printf b", "cat file", "sed 's/x/y/'", "pwd", "echo done"]
+    },
+    {
+      "id": "BP-MB-S-002",
+      "category": "S-CORE",
+      "requirement": "§6.1 S-CORE-2",
+      "function": "splitOnPipelineOperators",
+      "input": "echo 'a && b || c | d ; e'",
+      "expected": ["echo 'a && b || c | d ; e'"]
+    },
+    {
+      "id": "BP-MB-S-003",
+      "category": "S-CORE",
+      "requirement": "§6.1 S-CORE-3",
+      "function": "splitOnPipelineOperators",
+      "input": "echo \"a && b || c | d ; e\"",
+      "expected": ["echo \"a && b || c | d ; e\""]
+    },
+    {
+      "id": "BP-MB-S-004",
+      "category": "S-CORE",
+      "requirement": "§6.1 S-CORE-4",
+      "function": "splitOnPipelineOperators",
+      "input": "echo $(printf 'a && b | c ; d') && date",
+      "expected": ["echo $(printf 'a && b | c ; d')", "date"]
+    },
+    {
+      "id": "BP-MB-E-001",
+      "category": "E-CORE",
+      "requirement": "§6.1 E-CORE-1",
+      "function": "extractCommandName",
+      "input": "git status",
+      "expected": "git"
+    },
+    {
+      "id": "BP-MB-E-002",
+      "category": "E-CORE",
+      "requirement": "§6.1 E-CORE-2",
+      "function": "extractCommandName",
+      "input": "FOO=1 BAR='two words' env | grep FOO",
+      "expected": "env"
+    },
+    {
+      "id": "BP-MB-E-003",
+      "category": "E-CORE",
+      "requirement": "§6.1 E-CORE-3",
+      "function": "extractCommandName",
+      "input": "2>&1",
+      "expected": null
+    },
+    {
+      "id": "BP-MB-E-004",
+      "category": "E-CORE",
+      "requirement": "§6.1 E-CORE-4 (clause keyword branch)",
+      "function": "extractCommandName",
+      "input": "then cat file",
+      "expected": "cat"
+    },
+    {
+      "id": "BP-MB-E-005",
+      "category": "E-CORE",
+      "requirement": "§6.1 E-CORE-4 (structural keyword branch)",
+      "function": "extractCommandName",
+      "input": "if true; then echo done; fi",
+      "expected": null
+    },
+    {
+      "id": "BP-MB-E-006",
+      "category": "E-CORE",
+      "requirement": "§6.1 E-CORE-5",
+      "function": "extractCommandName",
+      "input": "! { printf '%s' ok; }",
+      "expected": "printf"
+    },
+    {
+      "id": "BP-MB-P-001",
+      "category": "P-CORE",
+      "requirement": "§6.1 P-CORE-1",
+      "function": "extractCommandNamesFromPipeline",
+      "input": "FOO=1 env && grep FOO file || awk '{print $1}' file | sort ; uniq",
+      "expected": ["env", "grep", "awk", "sort", "uniq"]
+    },
+    {
+      "id": "BP-MB-P-002",
+      "category": "P-CORE",
+      "requirement": "§6.1 P-CORE-2",
+      "function": "extractCommandNamesFromPipeline",
+      "input": "2>/dev/null ; ls /tmp",
+      "expected": ["ls"]
+    },
+    {
+      "id": "BP-MB-P-003",
+      "category": "P-CORE",
+      "requirement": "§6.1 P-CORE-3",
+      "function": "extractCommandNamesFromPipeline",
+      "input": "echo a && echo b | echo c ; printf done",
+      "expected": ["echo", "printf"]
+    },
+    {
+      "id": "BP-MB-P-004",
+      "category": "P-CORE",
+      "requirement": "§6.1 P-CORE-4 (blank input branch)",
+      "function": "extractCommandNamesFromPipeline",
+      "input": "",
+      "expected": []
+    },
+    {
+      "id": "BP-MB-P-005",
+      "category": "P-CORE",
+      "requirement": "§6.1 P-CORE-4 (non-string branch)",
+      "function": "extractCommandNamesFromPipeline",
+      "input": null,
+      "expected": []
+    }
+  ]
+}

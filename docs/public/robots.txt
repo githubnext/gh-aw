@@ -16,6 +16,9 @@ Allow: /
 User-agent: ClaudeBot
 Allow: /
 
+User-agent: Claude-SearchBot
+Allow: /
+
 User-agent: PerplexityBot
 Allow: /
 
@@ -26,6 +29,30 @@ User-agent: Google-Extended
 Allow: /
 
 User-agent: Google-CloudVertexBot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: DuckAssistBot
+Allow: /
+
+User-agent: xAI-Bot
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: AI2Bot
+Allow: /
+
+User-agent: YouBot
+Allow: /
+
+User-agent: CCBot
 Allow: /
 
 Sitemap: https://github.github.com/gh-aw/sitemap-index.xml

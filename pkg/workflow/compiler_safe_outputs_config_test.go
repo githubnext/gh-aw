@@ -851,6 +851,36 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			checkJSON:    true,
 			expectedKeys: []string{"comment_memory"},
 		},
+		{
+			name: "dismiss_pull_request_review config",
+			safeOutputs: &SafeOutputsConfig{
+				DismissPullRequestReview: &DismissPullRequestReviewConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("10"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"dismiss_pull_request_review"},
+		},
+		{
+			name: "replace_label config",
+			safeOutputs: &SafeOutputsConfig{
+				ReplaceLabel: &ReplaceLabelConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("5"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"replace_label"},
+		},
 	}
 
 	for _, tt := range tests {

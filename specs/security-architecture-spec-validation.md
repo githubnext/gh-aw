@@ -1,7 +1,7 @@
 # Security Architecture Specification Validation
 
 **Document**: Validation of `security-architecture-spec.md` against compiled `.lock.yml` files  
-**Date**: May 15, 2026  
+**Date**: July 6, 2026  
 **Validator**: GitHub Copilot Agent  
 **Scope**: Cross-reference specification requirements with actual implementation
 
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-✅ **VALIDATION RESULT**: The specification accurately reflects the implementation in compiled `.lock.yml` files and JavaScript implementation (revalidated on 2026-05-15).
+✅ **VALIDATION RESULT**: The specification accurately reflects the implementation in compiled `.lock.yml` files and JavaScript implementation (revalidated on 2026-07-06).
 
 All major security architecture claims in the specification have been verified against actual workflow implementations:
 - ✅ Job architecture (activation, agent, safe_outputs)
@@ -21,6 +21,7 @@ All major security architecture claims in the specification have been verified a
 - ✅ Action pinning to SHAs
 - ✅ Timestamp validation at runtime
 - ✅ Concurrency control (context-aware grouping with cancel-in-progress)
+- ✅ Documentation maintenance follow-ups for `pre_activation`, `detection`, optional `conclusion`, and companion `trusted-users` references remain aligned with implementation behavior
 
 ---
 
@@ -245,6 +246,19 @@ pre_activation:
 ```
 
 **Status**: ✅ **VERIFIED** - Role-based access control with runtime membership validation via `check_membership.cjs`.
+
+---
+
+### 4a. Documentation Maintenance Follow-ups (2026-07-06)
+
+The July 2026 maintenance pass rechecked the documentation-only clarifications requested by the summary tracker against the same compiled workflow behavior:
+
+- The new PM-11 note is consistent with the verified `pre_activation -> activation` gate shown above.
+- Appendix D now names the compiled `detection` job explicitly as the runtime threat-detection layer that gates `safe_outputs`.
+- The optional `conclusion` job remains a non-normative cleanup/reporting example and is not required by the compiled architecture.
+- `trusted-users` runtime enforcement continues to live in the companion GitHub MCP access-control specifications and tests; the new Section 9 note accurately scopes that behavior without changing the top-level threat-detection contract.
+
+**Status**: ✅ **VERIFIED** - The specification clarifications match current implementation and companion-spec boundaries.
 
 ---
 
