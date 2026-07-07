@@ -141,9 +141,6 @@ Before finishing, write:
 - Do not create duplicate issues for already-tracked feature IDs.
 - Prefer fewer high-confidence items over broad speculation.
 - Never finish without either `create_issue` or `noop`.
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `awf-change-detector`
 ---
 description: Extracts user-relevant feature candidates from schema/compiler diffs

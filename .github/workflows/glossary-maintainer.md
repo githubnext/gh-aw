@@ -304,9 +304,6 @@ To keep this workflow efficient, adhere to these hard limits:
 - Focus on user-facing terminology and concepts
 
 Good luck! Your work helps users understand GitHub Agentic Workflows terminology.
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `discover-terms`
 ---
 model: claude-haiku-4.5

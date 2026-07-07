@@ -120,5 +120,3 @@ Then create an issue with:
 
   <your haiku here>
   ```
-
-{{#runtime-import shared/noop-reminder.md}}

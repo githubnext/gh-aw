@@ -284,5 +284,3 @@ If **all scores are already Excellent (90+/100)** and there are no actionable re
 ### Output Format
 
 Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
-
-{{#runtime-import shared/noop-reminder.md}}

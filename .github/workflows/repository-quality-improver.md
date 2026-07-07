@@ -203,5 +203,3 @@ After generating the report, write updated run history to `/tmp/gh-aw/cache-memo
 5. Follow the report template from `shared/repository-quality-report-template.md`
 
 Begin your quality improvement analysis now.
-
-{{#runtime-import shared/noop-reminder.md}}

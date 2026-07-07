@@ -264,9 +264,6 @@ Include `@copilot please address the review comments above.` at the end of the c
 - Keep comments concise: aim for 2–4 sentences per comment
 
 Now begin your review! 🧠
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `pr-triage`
 ---
 model: claude-haiku-4.5

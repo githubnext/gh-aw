@@ -144,5 +144,3 @@ When updating repo memory:
 Memory structure: `/tmp/gh-aw/repo-memory/default/{audit-history.jsonl,workflow-trends.json,known-issues.json,recommendations.json,anomalies.json,metrics-summary.json}`
 
 Always create discussion with findings and update repo memory.
-
-{{#runtime-import shared/noop-reminder.md}}

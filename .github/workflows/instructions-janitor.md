@@ -155,5 +155,3 @@ Include:
 - if no documentation changed, still run the size, duplication, and safe-output accuracy audits
 - if instructions are already current, exit without edits
 - if a file needs more than one new topic section to stay compact, create more than one focused sub-file instead of keeping one large catch-all file
-
-{{#runtime-import shared/noop-reminder.md}}

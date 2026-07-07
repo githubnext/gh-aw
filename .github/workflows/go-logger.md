@@ -276,5 +276,3 @@ When proposing per-file logger changes, use this compact schema in your reasonin
 ```
 
 Good luck enhancing the codebase with better logging!
-
-{{#runtime-import shared/noop-reminder.md}}

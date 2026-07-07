@@ -195,5 +195,3 @@ Authentication test passed: successfully retrieved 3 open issues via GitHub remo
 
 **On Failure**:
 Create a discussion with the error details as described above.
-
-{{#runtime-import shared/noop-reminder.md}}

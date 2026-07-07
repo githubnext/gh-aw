@@ -161,5 +161,3 @@ Follow the **Report Formatting Guidelines** in `shared/reporting.md` to structur
 - h3 (###) for main section headers
 - Detailed issue lists wrapped in `<details>` tags
 - Critical information (overview, trends, statistics, recommendations) always visible
-
-{{#runtime-import shared/noop-reminder.md}}

@@ -377,9 +377,6 @@ Propose how experiments should integrate with `gh aw audit` and OTEL observabili
 - The experiment campaign issue title must clearly identify the workflow and dimension
 - Do not create issues for workflows that already have `experiments:` defined
 - If all eligible workflows are filtered out (all have experiments), create a single issue celebrating this and suggesting advanced multi-experiment designs
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `workflow-characterizer`
 ---
 description: Read a selected workflow file and return a concise structured characterization for experiment design

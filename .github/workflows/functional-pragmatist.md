@@ -693,5 +693,3 @@ Begin your functional/immutability analysis now:
 3. **Systematically identify opportunities** for immutability, functional initialization, and transformative operations
 4. **Apply tasteful, moderate improvements** that enhance clarity and safety while maintaining Go's pragmatic style
 5. **Update cache** with the processed package before finishing
-
-{{#runtime-import shared/noop-reminder.md}}

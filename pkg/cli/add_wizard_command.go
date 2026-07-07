@@ -53,6 +53,8 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard https://example.com/workflow.json        # Import JSON workflow definition with guided setup
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --engine copilot   # Pre-select engine
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-secret        # Skip secret prompt
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --append "custom footer"            # Append custom content
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-security-scanner             # Skip security scan
 `,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
@@ -71,6 +73,8 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			noSecret, _ := cmd.Flags().GetBool("no-secret")
 			skipSecretLegacy, _ := cmd.Flags().GetBool("skip-secret")
 			skipSecret := noSecret || skipSecretLegacy
+			appendText, _ := cmd.Flags().GetString("append")
+			disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
 
 			addWizardLog.Printf("Starting add-wizard: workflows=%v, engine=%s, verbose=%v", workflows, engineOverride, verbose)
 
@@ -87,14 +91,16 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			}
 
 			return RunAddInteractive(cmd.Context(), &AddInteractiveConfig{
-				WorkflowSpecs:   workflows,
-				Verbose:         verbose,
-				EngineOverride:  engineOverride,
-				NoGitattributes: noGitattributes,
-				WorkflowDir:     workflowDir,
-				NoStopAfter:     noStopAfter,
-				StopAfter:       stopAfter,
-				SkipSecret:      skipSecret,
+				WorkflowSpecs:          workflows,
+				Verbose:                verbose,
+				EngineOverride:         engineOverride,
+				NoGitattributes:        noGitattributes,
+				WorkflowDir:            workflowDir,
+				NoStopAfter:            noStopAfter,
+				StopAfter:              stopAfter,
+				SkipSecret:             skipSecret,
+				AppendText:             appendText,
+				DisableSecurityScanner: disableSecurityScanner,
 			})
 		},
 	}
@@ -118,6 +124,12 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	cmd.Flags().Bool("no-secret", false, "Skip the API secret prompt (use when the secret is already set at the org or repo level)")
 	cmd.Flags().Bool("skip-secret", false, "Skip the API secret prompt (use when the secret is already set at the org or repo level)")
 	_ = cmd.Flags().MarkHidden("skip-secret")
+
+	// Add append flag (matches --append in add command)
+	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
+
+	// Add no-security-scanner flag (matches --no-security-scanner in add command)
+	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
 
 	// Register completions
 	RegisterEngineFlagCompletion(cmd)

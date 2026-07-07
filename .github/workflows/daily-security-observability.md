@@ -667,5 +667,3 @@ Create a single GitHub discussion combining both signals.
 ### Output Format
 
 Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
-
-{{#runtime-import shared/noop-reminder.md}}

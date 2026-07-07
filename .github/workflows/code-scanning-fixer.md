@@ -198,5 +198,3 @@ After successfully creating the pull request:
 - This ensures the alert won't be selected again in future runs
 
 Remember: Your goal is to provide a secure, well-tested fix that can be reviewed and merged safely. Focus on quality and correctness over speed.
-
-{{#runtime-import shared/noop-reminder.md}}

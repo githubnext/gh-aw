@@ -780,5 +780,3 @@ Your output MUST:
 7. Include repository-specific insights and recommendations
 
 Begin your repository audit analysis now!
-
-{{#runtime-import shared/noop-reminder.md}}

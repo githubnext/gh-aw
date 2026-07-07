@@ -931,5 +931,3 @@ Map score → severity:
 - `None`: `0` (do not include)
 
 If you cannot verify a signal from available data, score it as `0` and do not infer.
-
-{{#runtime-import shared/noop-reminder.md}}

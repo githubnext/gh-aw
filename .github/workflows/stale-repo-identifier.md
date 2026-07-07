@@ -376,5 +376,3 @@ To avoid GitHub API rate limits:
 - Create GitHub issues for repositories needing attention (max 10)
 - Print summary statistics to stdout
 - Be clear and actionable in recommendations
-
-{{#runtime-import shared/noop-reminder.md}}

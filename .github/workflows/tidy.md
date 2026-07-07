@@ -147,5 +147,3 @@ The repository has all necessary tools installed:
 - All dependencies are already installed
 
 Start by checking for existing tidy pull requests, then proceed with the tidying process.
-
-{{#runtime-import shared/noop-reminder.md}}

@@ -9,10 +9,14 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var forecastRenderLog = logger.New("cli:forecast_render")
 
 // renderForecastJSON outputs the forecast result as pretty-printed JSON.
 func renderForecastJSON(output ForecastResult) error {
+	forecastRenderLog.Printf("Rendering forecast as JSON: workflows=%d, eval_mode=%v", len(output.Workflows), output.EvalMode)
 	b, err := json.MarshalIndent(output, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal forecast JSON: %w", err)
@@ -23,6 +27,8 @@ func renderForecastJSON(output ForecastResult) error {
 
 // renderForecastTable renders the forecast result as a human-readable table.
 func renderForecastTable(output ForecastResult, config ForecastConfig) error {
+	forecastRenderLog.Printf("Rendering forecast table: workflows=%d, days=%d, eval_mode=%v", len(output.Workflows), config.Days, output.EvalMode)
+
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 		fmt.Sprintf("Workflow Forecast — weekly & monthly projections (based on last %d days of history)", config.Days)))
 	fmt.Fprintln(os.Stderr, "")
@@ -61,6 +67,8 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 		}
 		rows = append(rows, row)
 	}
+
+	forecastRenderLog.Printf("Forecast aggregates: total_weekly_p50=%.3f, total_monthly_p50=%.3f, any_unreliable=%v", totalWeeklyP50, totalMonthlyP50, anyUnreliable)
 
 	// Append a totals row when more than one workflow is present.
 	if len(output.Workflows) > 1 {

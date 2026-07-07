@@ -523,9 +523,6 @@ Begin your tool discovery now. Follow these steps:
 13. **Save for next run**: Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json`
 14. **Generate report**: Create the final markdown report including change tracking, source links, and inconsistency detection
 15. **Publish**: Create a GitHub discussion with the complete tools report
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `tool-list-diff`
 ---
 model: small

@@ -474,5 +474,3 @@ This analysis is successful when:
 7. ✅ A detailed issue is created with actionable findings
 
 **Objective**: Improve code organization and reduce duplication by identifying refactoring opportunities through semantic function clustering and duplicate detection. Focus on high-impact, actionable findings that developers can implement.
-
-{{#runtime-import shared/noop-reminder.md}}

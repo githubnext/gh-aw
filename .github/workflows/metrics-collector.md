@@ -296,5 +296,3 @@ After successfully collecting and storing all metrics data, you **MUST** call `n
 ```json
 {"noop": {"message": "Metrics collection complete: [N] workflows analyzed, overall success rate [X]%, data stored to metrics/daily/YYYY-MM-DD.json (date-only filename, no colons)"}}
 ```
-
-{{#runtime-import shared/noop-reminder.md}}

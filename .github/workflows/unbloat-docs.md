@@ -445,9 +445,6 @@ A successful run:
 - ✅ Explains the improvements made
 
 Begin by scanning the docs directory and selecting the best candidate for improvement!
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `file-bloat-analyzer`
 ---
 model: small

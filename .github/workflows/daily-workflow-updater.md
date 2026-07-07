@@ -220,5 +220,3 @@ Good luck keeping our GitHub Actions up to date!
 ### Output Format
 
 Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
-
-{{#runtime-import shared/noop-reminder.md}}

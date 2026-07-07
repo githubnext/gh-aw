@@ -250,5 +250,3 @@ You are done only when one of these is true:
 4. The task cannot be completed, and the safe output explains the blocker, evidence, and next step.
 
 Do not end with only an internal summary. Emit the appropriate safe output.
-
-{{#runtime-import shared/noop-reminder.md}}
