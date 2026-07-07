@@ -18,7 +18,7 @@ tools:
 mcp-servers:
   mempalace:
     type: http
-    url: http://localhost:8765/mcp
+    url: http://host.docker.internal:8765/mcp
     allowed:
       - "mempalace_status"
       - "mempalace_list_wings"

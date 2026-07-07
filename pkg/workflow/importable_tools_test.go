@@ -1080,7 +1080,7 @@ func TestImportEngineMCPToolTimeout(t *testing.T) {
 description: "Shared MCP timeout configuration"
 mcp-servers:
   test-server:
-    url: http://127.0.0.1:8000/mcp
+    url: http://host.docker.internal:8000/mcp
     allowed:
       - query
 engine:

@@ -13,7 +13,9 @@ package workflow
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -125,6 +127,10 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		sandboxValidationLog.Printf("Validated MCP gateway port: %d", sandboxConfig.MCP.Port)
 	}
 
+	if err := validateNetworkIsolationLoopbackMCPServers(workflowData); err != nil {
+		return err
+	}
+
 	// Validate that if agent sandbox is enabled, MCP gateway is always enabled.
 	// The MCP gateway is enabled when MCP servers are configured (tools that use MCP).
 	// Note: Even if agent sandbox is disabled (sandbox.agent: false), the MCP gateway
@@ -142,6 +148,62 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 	}
 
 	return nil
+}
+
+func validateNetworkIsolationLoopbackMCPServers(workflowData *WorkflowData) error {
+	if workflowData == nil || !isAWFNetworkIsolationEnabled(workflowData) || len(workflowData.ResolvedMCPServers) == 0 {
+		return nil
+	}
+
+	serverNames := make([]string, 0, len(workflowData.ResolvedMCPServers))
+	for serverName := range workflowData.ResolvedMCPServers {
+		serverNames = append(serverNames, serverName)
+	}
+	sort.Strings(serverNames)
+
+	for _, serverName := range serverNames {
+		serverConfig, ok := workflowData.ResolvedMCPServers[serverName].(map[string]any)
+		if !ok {
+			continue
+		}
+
+		mcpConfig, err := getRawMCPConfig(serverConfig)
+		if err != nil || inferMCPType(mcpConfig) != "http" {
+			continue
+		}
+
+		rawURL, _ := mcpConfig["url"].(string)
+		if !isLoopbackHTTPURL(rawURL) {
+			continue
+		}
+
+		return NewValidationError(
+			fmt.Sprintf("mcp-servers.%s.url", serverName),
+			rawURL,
+			"localhost HTTP MCP servers are incompatible with sandbox.agent.sudo: false because AWF auto-enables host access for loopback URLs, and host access cannot be combined with network isolation",
+			"Replace localhost with host.docker.internal (for example, `http://host.docker.internal:8765/mcp`) or disable network isolation:\n\nsandbox:\n  agent:\n    sudo: true",
+		)
+	}
+
+	return nil
+}
+
+func isLoopbackHTTPURL(rawURL string) bool {
+	if rawURL == "" {
+		return false
+	}
+
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+
+	switch strings.ToLower(parsedURL.Hostname()) {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	default:
+		return false
+	}
 }
 
 func getSandboxDisableJustification(workflowData *WorkflowData) (string, error) {
