@@ -104,7 +104,7 @@ analyzes their data, and produces a diff showing:
 	addJSONFlag(cmd)
 	addRepoFlag(cmd)
 	cmd.Flags().String("format", "pretty", "Output format: pretty, markdown")
-	cmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
+	cmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all, because auditing requires comprehensive artifacts for analysis). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
 
 	return cmd
 }
