@@ -637,11 +637,11 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Install MemPalace
-        run: pip install "mempalace==3.2.0"
-      - name: Start MemPalace MCP Server
-        run: "set -e\nmkdir -p /tmp/gh-aw/mcp-logs/mempalace\nmkdir -p /tmp/gh-aw/cache-memory/palace\npython -m mempalace.mcp_server \\\n  --palace /tmp/gh-aw/cache-memory/palace \\\n  --transport streamable-http \\\n  --host 127.0.0.1 \\\n  --port 8765 \\\n  > /tmp/gh-aw/mcp-logs/mempalace/server.log 2>&1 &\necho \"MemPalace MCP server started (PID $!)\"\n"
-
+      - name: Download activation artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: activation
+          path: /tmp/gh-aw
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
@@ -658,6 +658,11 @@ jobs:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: none
         run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
+      - name: Install MemPalace
+        run: pip install "mempalace==3.2.0"
+      - name: Start MemPalace MCP Server
+        run: "set -e\nmkdir -p /tmp/gh-aw/mcp-logs/mempalace\nmkdir -p /tmp/gh-aw/cache-memory/palace\npython -m mempalace.mcp_server \\\n  --palace /tmp/gh-aw/cache-memory/palace \\\n  --transport streamable-http \\\n  --host 127.0.0.1 \\\n  --port 8765 \\\n  > /tmp/gh-aw/mcp-logs/mempalace/server.log 2>&1 &\necho \"MemPalace MCP server started (PID $!)\"\n"
+
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -697,11 +702,6 @@ jobs:
           script: |
             const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
-      - name: Download activation artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: activation
-          path: /tmp/gh-aw
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:
@@ -1197,6 +1197,8 @@ jobs:
         env:
           AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
         run: |
+          # Best-effort permission fix for artifact upload (AWF cleanup may not have run)
+          sudo -n chmod -R a+rX /tmp/gh-aw/sandbox/firewall 2>/dev/null || chmod -R a+rX /tmp/gh-aw/sandbox/firewall 2>/dev/null || true
           # Only run awf logs summary if awf command exists (it may not be installed if workflow failed before install step)
           if command -v awf &> /dev/null; then
             awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
