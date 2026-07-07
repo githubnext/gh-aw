@@ -13,6 +13,7 @@
         "body": {
           "type": "string",
           "minLength": 20,
+          "maxLength": 65536,
           "description": "Detailed issue description in Markdown. Must be the final intended body \u2014 not a placeholder or test value. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate."
         },
         "labels": {
@@ -99,7 +100,8 @@
         },
         "body": {
           "type": "string",
-          "description": "Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions. Maximum 10 KB (10240 bytes). If your content is larger, trim it, link to an external artifact (for example a gist), or upload content via upload_asset instead of inlining."
+          "maxLength": 65536,
+          "description": "Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions."
         },
         "category": {
           "type": "string",
