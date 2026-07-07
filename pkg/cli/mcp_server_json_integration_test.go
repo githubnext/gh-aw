@@ -86,9 +86,8 @@ This is a test workflow.
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
 	connectCtx, connectCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer connectCancel()
-
 	session, err := client.Connect(connectCtx, transport, nil)
+	connectCancel()
 	if err != nil {
 		t.Fatalf("Failed to connect to MCP server: %v", err)
 	}
