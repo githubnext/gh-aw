@@ -72,6 +72,8 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	addInteractiveLog.Print("Starting interactive add workflow")
 
 	// Assert this function is not running in automated unit tests or CI
+	// GO_TEST_MODE intentionally uses GetBoolFromEnv so common boolean spellings
+	// are treated consistently across test and automation environments.
 	if envutil.GetBoolFromEnv("GO_TEST_MODE", false, addInteractiveLog) || IsRunningInCI() {
 		return errors.New("interactive add cannot be used in automated tests or CI environments")
 	}

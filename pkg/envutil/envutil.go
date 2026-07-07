@@ -10,7 +10,8 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-// warn routes environment parsing warnings through the provided logger when
+// warn is an internal helper shared by GetIntFromEnv and GetBoolFromEnv. It
+// routes environment parsing warnings through the provided logger when
 // available, or to stderr using the standard console warning format otherwise.
 func warn(debugLog *logger.Logger, msg string) {
 	if debugLog != nil {
