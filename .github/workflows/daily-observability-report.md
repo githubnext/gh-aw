@@ -420,5 +420,3 @@ A successful run will:
 - ✅ Include actionable recommendations
 
 Begin your analysis now. Download the logs, analyze observability coverage, and create the discussion report.
-
-{{#runtime-import shared/noop-reminder.md}}

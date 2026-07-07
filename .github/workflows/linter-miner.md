@@ -112,28 +112,8 @@ Read `/tmp/gh-aw/agent/prior-linters.json` (preloaded from cache-memory) to load
 
 Use the `discussion-miner` sub-agent and the `code-pattern-scanner` sub-agent **sequentially** to gather raw evidence. Run one, wait for completion, then run the other.
 
-### Discussion mining (sub-agent output)
-
-Mine the last **14 days** of GitHub Discussions and Issues in `${{ github.repository }}` for:
-- Recurring code review comments about Go style or patterns
-- Bug reports that mention a specific Go construct (e.g. "forgot to close", "nil dereference", "error ignored")
-- Discussions labelled `go`, `code-quality`, `linting`, or `static-analysis`
-- Any issue or discussion that describes a pattern that *should* be caught automatically
-
-First query 14 days and count relevant discussions/issues from the results. If fewer than 5 relevant items are found, rerun discussion mining with a 30-day window.
-
-Extract a bullet list of **candidate linter ideas** from these sources, each including:
-- A short name (kebab-case, e.g. `unchecked-error`)
-- A one-sentence description of what the linter would catch
-- The source (discussion/issue number)
-
-### Code pattern scanning (sub-agent output)
-
-Using Serena, scan the non-test Go files under `pkg/` and `cmd/` for:
-- Repeated patterns that are error-prone (e.g. `os.Open` without a deferred `Close`, ignored return values of `fmt.Errorf`, unused exported identifiers)
-- Functions with suspicious patterns that a linter rule could flag
-
-Extract additional candidate linter ideas in the same format as above (without source if originated from code scanning).
+- **`discussion-miner`**: mines last 14 days of Discussions and Issues for recurring Go code patterns, bug reports, and linting discussions. Returns a JSON array of candidate linter ideas with `name`, `description`, and `source`.
+- **`code-pattern-scanner`**: scans non-test Go files under `pkg/` and `cmd/` using Serena for error-prone patterns. Returns a JSON array of candidate linter ideas (same schema, no `source` field required).
 
 ---
 

@@ -412,5 +412,3 @@ Your effectiveness is measured by:
 - **Usefulness**: PRs are actually helpful and worth merging
 
 Execute all phases systematically and produce high-quality refinement pull requests that genuinely improve the codebase.
-
-{{#runtime-import shared/noop-reminder.md}}

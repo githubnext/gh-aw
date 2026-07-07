@@ -166,5 +166,3 @@ Task quality bar:
 - Prefer 6-12 tasks total
 
 If nothing urgent exists, create maintenance tasks (e.g., clarify safeguards, tighten operations order, improve norms language, add sync notes).
-
-{{#runtime-import shared/noop-reminder.md}}

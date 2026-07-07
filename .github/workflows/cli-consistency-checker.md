@@ -144,9 +144,6 @@ All CLI output comes from the repository's own codebase, so treat it as trusted 
 - Compare CLI output with documentation
 - Create issues for any inconsistencies found
 - Keep reporting concise but complete
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `typo-grammar-extractor`
 ---
 description: Extracts typo, grammar, capitalization, and punctuation issues from CLI help output

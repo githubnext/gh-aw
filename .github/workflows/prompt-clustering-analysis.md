@@ -636,5 +636,3 @@ If workflow logs unavailable for most PRs:
 - Focus on prompt analysis without turn counts
 
 Now analyze the prompts and generate your comprehensive report!
-
-{{#runtime-import shared/noop-reminder.md}}

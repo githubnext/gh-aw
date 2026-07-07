@@ -325,9 +325,6 @@ If the pull request cannot be created (e.g., one already exists, validation fail
 - **Cache State File**: `/tmp/gh-aw/cache-memory/jsweep-state.json`
 
 Begin by running the cache load script in **Step 1** to determine cold-start vs. cache-hit status, then find and clean the next `.cjs` file!
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `file-triage`
 ---
 description: Reads only the first 80 lines of the selected .cjs file and returns a compact cleanup decision.

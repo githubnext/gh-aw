@@ -141,5 +141,3 @@ Do not call `missing_data` for absent local cache files on startup.
 - Comprehensive discussion created.
 
 Begin analysis now.
-
-{{#runtime-import shared/noop-reminder.md}}

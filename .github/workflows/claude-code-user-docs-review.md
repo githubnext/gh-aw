@@ -134,9 +134,6 @@ Quote specific file + line references for every finding.
 - Write findings summary ONLY to `review-history.jsonl` (append one JSON line per run). Do not create new history file names. Ignore legacy files if they exist.
 
 Execute your review systematically and provide a comprehensive report that helps make gh-aw accessible to all AI tool users, not just Copilot users.
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `doc-reader`
 ---
 description: Extracts structured documentation facts, tool classifications, and auth setup details from six core docs

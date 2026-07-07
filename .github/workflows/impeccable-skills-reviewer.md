@@ -130,5 +130,3 @@ A successful review:
 - Keep visible text concise; put long reasoning in `<details>` blocks.
 - End each actionable inline comment with `@copilot please address this.`
 - If no visible action is needed, call `noop` with a brief explanation.
-
-{{#runtime-import shared/noop-reminder.md}}

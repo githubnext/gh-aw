@@ -160,5 +160,3 @@ Use this priority rubric:
 - Do **NOT** repeatedly retry variations of the same blocked command.
 - If a command fails due to permission/policy, stop that approach immediately and use `report_incomplete` with the blocked command and error.
 - If you hit repeated permission-denied errors for the same action, short-circuit instead of continuing retries.
-
-{{#runtime-import shared/noop-reminder.md}}

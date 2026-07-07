@@ -396,9 +396,6 @@ All tests are derived from README.md specifications, not from implementation sou
 - ✅ Cache memory updated with enforcement state
 - ✅ Round-robin rotation advances correctly
 - ✅ PR created with test changes **OR** `noop` called when all tests are already up-to-date
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `rotation-state-recoverer`
 ---
 description: Parse merged PR body text to recover package rotation state.

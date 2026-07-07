@@ -247,5 +247,3 @@ You are the Issue Arborist. Pre-downloaded issue data is at `/tmp/gh-aw/agent/is
 
 Constraints: max 5 parent issues created, max 50 sub-issue links, only link when relationship is clear and unambiguous.
 {{/if}}
-
-{{#runtime-import shared/noop-reminder.md}}

@@ -304,5 +304,3 @@ gh issue list --label "campaign:security-compliance-${{ github.run_id }}" --json
 # Daily metrics
 cat memory/campaigns/security-compliance-${{ github.run_id }}/metrics/$(date +%Y-%m-%d).json
 ```
-
-{{#runtime-import shared/noop-reminder.md}}

@@ -1150,5 +1150,3 @@ safeoutputs/update_release(
 - Setup: `https://github.github.com/gh-aw/setup/`
 
 Verify paths exist in `docs_files.txt` before linking.
-
-{{#runtime-import shared/noop-reminder.md}}

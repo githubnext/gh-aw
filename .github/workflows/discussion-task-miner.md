@@ -330,5 +330,3 @@ Good examples of discussions to mine:
 ❌ Not linking back to source discussion
 ❌ Creating more than 5 issues per run
 ❌ Creating issues already tracked in processed-discussions.json or extracted-tasks.json
-
-{{#runtime-import shared/noop-reminder.md}}

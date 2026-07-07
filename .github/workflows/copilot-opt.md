@@ -301,5 +301,3 @@ Before creating issues, verify:
 ## Usage
 
 Run manually with `workflow_dispatch`, or let the weekly schedule generate a fresh optimization triage.
-
-{{#runtime-import shared/noop-reminder.md}}

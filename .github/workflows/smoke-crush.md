@@ -81,5 +81,3 @@ Add a **very brief** comment (max 5-10 lines) to the current pull request with:
 - Overall status: PASS or FAIL
 
 If all tests pass, use the `add_labels` safe-output tool to add the label `smoke-crush` to the pull request.
-
-{{#runtime-import shared/noop-reminder.md}}

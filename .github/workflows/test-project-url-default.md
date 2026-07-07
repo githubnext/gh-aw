@@ -71,5 +71,3 @@ running the workflow.
 ```
 
 The agent must always provide the project URL explicitly in the output message.
-
-{{#runtime-import shared/noop-reminder.md}}

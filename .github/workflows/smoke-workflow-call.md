@@ -74,5 +74,3 @@ Add a comment summarizing the checkout validation results:
 - Whether the workspace is clean or has changes
 - Whether the checkout succeeded (based on git commands working without errors)
 - Overall status: ✅ PASS or ❌ FAIL
-
-{{#runtime-import shared/noop-reminder.md}}

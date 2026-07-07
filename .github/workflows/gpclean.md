@@ -447,5 +447,3 @@ After creating the issue:
 **Run 5**: All modules from SBOM checked → Reset checked_modules, start from beginning
 
 This ensures systematic coverage without duplicate work.
-
-{{#runtime-import shared/noop-reminder.md}}

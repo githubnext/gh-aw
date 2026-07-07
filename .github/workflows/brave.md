@@ -140,5 +140,3 @@ Your search summary should be formatted as a comment with:
 - **Attribution**: Always cite your sources with proper links
 
 Remember: Your goal is to provide valuable, actionable information from web searches that helps resolve the issue or improve the pull request.
-
-{{#runtime-import shared/noop-reminder.md}}

@@ -610,5 +610,3 @@ A successful run:
 - ✅ Provides actionable recommendations
 
 Begin your analysis now. Check the cache, choose a strategy, execute it, and **call `create_discussion` with your findings** to complete the workflow.
-
-{{#runtime-import shared/noop-reminder.md}}

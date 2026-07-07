@@ -221,5 +221,3 @@ docker run --rm \
 ## Security Note
 
 Treat linter output as potentially sensitive. Do not expose credentials, API keys, or other secrets that might appear in file paths or error messages.
-
-{{#runtime-import shared/noop-reminder.md}}
