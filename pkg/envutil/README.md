@@ -80,7 +80,7 @@ Reads `envVar` from the process environment and returns `defaultValue` when the 
 **Behavioral contract**:
 - MUST return `defaultValue` when the environment variable is not set (empty string).
 - MUST return the environment variable value unchanged when it is non-empty.
-- SHOULD log only the variable name, not the resolved value, via `debugLog` when `debugLog` is non-nil.
+- SHOULD log only that the variable was found, without logging its value, via `debugLog` when `debugLog` is non-nil.
 
 ## Usage Examples
 
