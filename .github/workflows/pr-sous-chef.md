@@ -233,6 +233,7 @@ safe-outputs:
     labels: ["automation"]
     expires: 3d
     close-older-issues: true
+    group-by-day: true
   mentions:
     allowed: ["@copilot"]
   noop:
