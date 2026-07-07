@@ -586,6 +586,16 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone wiki-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          BRANCH_NAME: master
+          TARGET_REPO: ${{ github.repository }}.wiki
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
+          CREATE_ORPHAN: false
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
       - name: Pre-fetch release and merged PR data
         if: ${{ needs.activation.outputs.prefetch_strategy == 'eager' }}
         run: |-
@@ -612,16 +622,6 @@ jobs:
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
-      # Repo memory git-based storage configuration from frontmatter processed below
-      - name: Clone wiki-memory branch (default)
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-          BRANCH_NAME: master
-          TARGET_REPO: ${{ github.repository }}.wiki
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
-          CREATE_ORPHAN: false
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}

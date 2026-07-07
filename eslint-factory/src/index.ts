@@ -6,6 +6,7 @@ import { preferGetErrorMessageRule } from "./rules/prefer-get-error-message";
 import { preferNumberIsNanRule } from "./rules/prefer-number-isnan";
 import { requireAsyncEntrypointCatchRule } from "./rules/require-async-entrypoint-catch";
 import { requireAwaitCoreSummaryWriteRule } from "./rules/require-await-core-summary-write";
+import { requireFsSyncTryCatchRule } from "./rules/require-fs-sync-try-catch";
 import { requireJsonParseTryCatchRule } from "./rules/require-json-parse-try-catch";
 import { requireErrorCauseInRethrowRule } from "./rules/require-error-cause-in-rethrow";
 import { requireParseIntRadixRule } from "./rules/require-parseInt-radix";
@@ -25,6 +26,7 @@ const plugin = {
     "require-async-entrypoint-catch": requireAsyncEntrypointCatchRule,
     "require-await-core-summary-write": requireAwaitCoreSummaryWriteRule,
     "require-error-cause-in-rethrow": requireErrorCauseInRethrowRule,
+    "require-fs-sync-try-catch": requireFsSyncTryCatchRule,
     "require-json-parse-try-catch": requireJsonParseTryCatchRule,
     "require-parseInt-radix": requireParseIntRadixRule,
   },
