@@ -482,14 +482,6 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
-      - name: Install hippo-memory
-        run: |
-          npm install -g hippo-memory
-      - name: Initialize hippo store
-        run: "# Symlink .hippo into cache-memory so the SQLite store persists across runs.\n# All writes to .hippo/ land in /tmp/gh-aw/cache-memory/hippo-store/ and are\n# saved/restored automatically by the cache-memory mechanism.\nmkdir -p /tmp/gh-aw/cache-memory/hippo-store\n\nif [ ! -e \".hippo\" ]; then\n  ln -s /tmp/gh-aw/cache-memory/hippo-store .hippo\n  echo \"🔗 Created .hippo → cache-memory/hippo-store\"\nelif [ -d \".hippo\" ] && [ ! -L \".hippo\" ]; then\n  # Plain directory present (e.g. first run after adding this import) — migrate\n  cp -r .hippo/. /tmp/gh-aw/cache-memory/hippo-store/ 2>/dev/null || true\n  rm -rf .hippo\n  ln -s /tmp/gh-aw/cache-memory/hippo-store .hippo\n  echo \"🔗 Migrated existing .hippo/ → cache-memory/hippo-store\"\nelse\n  echo \"✅ .hippo already linked to cache-memory/hippo-store\"\nfi\n\n# Initialise if the store has never been set up. Perform a one-time\n# repository scan to seed the memory store with historical incidents.\n# Set HIPPO_SCAN_DAYS to override the default 365-day scan window.\nHIPPO_SCAN_DAYS=\"${HIPPO_SCAN_DAYS:-365}\"\nif [ ! -f \".hippo/config.json\" ]; then\n  hippo init --scan --days \"$HIPPO_SCAN_DAYS\"\n  echo \"✅ Hippo memory store initialised (scan days: $HIPPO_SCAN_DAYS)\"\nelse\n  echo \"✅ Hippo store restored from cache\"\n  hippo list 2>/dev/null | head -5 || true\nfi\n\n# One-time bootstrap for repositories with an empty or freshly initialised\n# store. This seeds memory with key project docs and recurring incidents.\nif [ ! -f \".hippo/.gh-aw-bootstrap-v1\" ]; then\n  if [ -f \"AGENTS.md\" ]; then\n    hippo import --markdown AGENTS.md\n  fi\n\n  INCIDENTS=(\n    'Recurring incident: Codex auth failures can break agent jobs; verify auth/mode/token setup before reruns.'\n    'Recurring incident: stale workflow .lock.yml files cause churn and CI friction; run make recompile after markdown workflow edits.'\n    'Recurring incident: node: command not found on GPU/self-hosted paths when node runtime/tooling is missing; validate runtimes and PATH early.'\n  )\n  for incident in \"${INCIDENTS[@]}\"; do\n    hippo remember \"$incident\" --tag incident\n  done\n\n  touch \".hippo/.gh-aw-bootstrap-v1\"\n  echo \"✅ Hippo store bootstrap complete (.gh-aw-bootstrap-v1)\"\nfi\n"
-      - name: Install @xenova/transformers
-        run: npm install -g @xenova/transformers
-
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
@@ -506,6 +498,14 @@ jobs:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: none
         run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
+      - name: Install hippo-memory
+        run: |
+          npm install -g hippo-memory
+      - name: Initialize hippo store
+        run: "# Symlink .hippo into cache-memory so the SQLite store persists across runs.\n# All writes to .hippo/ land in /tmp/gh-aw/cache-memory/hippo-store/ and are\n# saved/restored automatically by the cache-memory mechanism.\nmkdir -p /tmp/gh-aw/cache-memory/hippo-store\n\nif [ ! -e \".hippo\" ]; then\n  ln -s /tmp/gh-aw/cache-memory/hippo-store .hippo\n  echo \"🔗 Created .hippo → cache-memory/hippo-store\"\nelif [ -d \".hippo\" ] && [ ! -L \".hippo\" ]; then\n  # Plain directory present (e.g. first run after adding this import) — migrate\n  cp -r .hippo/. /tmp/gh-aw/cache-memory/hippo-store/ 2>/dev/null || true\n  rm -rf .hippo\n  ln -s /tmp/gh-aw/cache-memory/hippo-store .hippo\n  echo \"🔗 Migrated existing .hippo/ → cache-memory/hippo-store\"\nelse\n  echo \"✅ .hippo already linked to cache-memory/hippo-store\"\nfi\n\n# Initialise if the store has never been set up. Perform a one-time\n# repository scan to seed the memory store with historical incidents.\n# Set HIPPO_SCAN_DAYS to override the default 365-day scan window.\nHIPPO_SCAN_DAYS=\"${HIPPO_SCAN_DAYS:-365}\"\nif [ ! -f \".hippo/config.json\" ]; then\n  hippo init --scan --days \"$HIPPO_SCAN_DAYS\"\n  echo \"✅ Hippo memory store initialised (scan days: $HIPPO_SCAN_DAYS)\"\nelse\n  echo \"✅ Hippo store restored from cache\"\n  hippo list 2>/dev/null | head -5 || true\nfi\n\n# One-time bootstrap for repositories with an empty or freshly initialised\n# store. This seeds memory with key project docs and recurring incidents.\nif [ ! -f \".hippo/.gh-aw-bootstrap-v1\" ]; then\n  if [ -f \"AGENTS.md\" ]; then\n    hippo import --markdown AGENTS.md\n  fi\n\n  INCIDENTS=(\n    'Recurring incident: Codex auth failures can break agent jobs; verify auth/mode/token setup before reruns.'\n    'Recurring incident: stale workflow .lock.yml files cause churn and CI friction; run make recompile after markdown workflow edits.'\n    'Recurring incident: node: command not found on GPU/self-hosted paths when node runtime/tooling is missing; validate runtimes and PATH early.'\n  )\n  for incident in \"${INCIDENTS[@]}\"; do\n    hippo remember \"$incident\" --tag incident\n  done\n\n  touch \".hippo/.gh-aw-bootstrap-v1\"\n  echo \"✅ Hippo store bootstrap complete (.gh-aw-bootstrap-v1)\"\nfi\n"
+      - name: Install @xenova/transformers
+        run: npm install -g @xenova/transformers
+
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}

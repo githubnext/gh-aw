@@ -53,7 +53,7 @@ type orgCopilotBillingProbeResult struct {
 // probeCopilotBillingForOrg probes the org's Copilot CLI billing status and
 // returns derived UI hints for the auth method selection form.
 func probeCopilotBillingForOrg(ctx context.Context, orgLogin string) orgCopilotBillingProbeResult {
-	client, err := api.NewRESTClient(api.ClientOptions{})
+	client, err := api.DefaultRESTClient()
 	if err != nil {
 		return orgCopilotBillingProbeResult{
 			InfoNote: copilotBillingInconclusiveNote,

@@ -543,6 +543,22 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
+      - name: Restore cache-memory file share data
+        id: restore_cache_memory_0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
+      - name: Setup cache-memory git repository
+        env:
+          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
+          GH_AW_MIN_INTEGRITY: none
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Download CI workflow runs from last 7 days
@@ -561,22 +577,6 @@ jobs:
         name: Pre-flight validation (non-fatal)
         run: "set +e\nmkdir -p /tmp/gh-aw/agent/validation\nSTATUS_FILE=/tmp/gh-aw/agent/validation/validation-status.json\necho '{\"steps\":[]}' > \"$STATUS_FILE\"\n\nrun_step() {\n  local name=\"$1\"; shift\n  local workdir=\"$1\"; shift\n  local log=\"/tmp/gh-aw/agent/validation/${name}.log\"\n  echo \"::group::preflight: $name\"\n  echo \"+ $*\" | tee \"$log\"\n  if [ -n \"$workdir\" ]; then\n    (cd \"$workdir\" && \"$@\") >>\"$log\" 2>&1\n  else\n    \"$@\" >>\"$log\" 2>&1\n  fi\n  local code=$?\n  echo \"::endgroup::\"\n  echo \"preflight: $name exit=$code\"\n  # tail kept short so the agent can read all logs cheaply\n  tail -c 8000 \"$log\" > \"${log}.tail\"\n  jq --arg n \"$name\" --arg log \"$log\" --argjson code \"$code\" \\\n     '.steps += [{name:$n, exit_code:$code, log:$log, ok:($code==0)}]' \\\n     \"$STATUS_FILE\" > \"$STATUS_FILE.tmp\" && mv \"$STATUS_FILE.tmp\" \"$STATUS_FILE\"\n}\n\nrun_step deps-dev    \"\"                       make deps-dev\nrun_step lint        \"\"                       make lint\nrun_step lint-errors \"\"                       make lint-errors\nrun_step npm-ci      ./actions/setup/js       npm ci\nrun_step build       \"\"                       make build\nrun_step recompile   \"\"                       make recompile\n\nmkdir -p /tmp/gh-aw/agent\ngo test -v -json -count=1 -timeout=3m -tags '!integration' -run='^Test' ./... \\\n  | tee /tmp/gh-aw/agent/test-results.json >/dev/null\nTEST_EXIT=${PIPESTATUS[0]}\njq --argjson code \"$TEST_EXIT\" \\\n   '.steps += [{name:\"test-unit\", exit_code:$code, log:\"/tmp/gh-aw/agent/test-results.json\", ok:($code==0)}]' \\\n   \"$STATUS_FILE\" > \"$STATUS_FILE.tmp\" && mv \"$STATUS_FILE.tmp\" \"$STATUS_FILE\"\n\n# Summary line for the agent and step summary\nOK=$(jq '[.steps[] | select(.ok)] | length' \"$STATUS_FILE\")\nTOTAL=$(jq '.steps | length' \"$STATUS_FILE\")\nFAILED=$(jq -r '[.steps[] | select(.ok|not) | .name] | join(\",\")' \"$STATUS_FILE\")\necho \"preflight summary: $OK/$TOTAL ok; failed=[$FAILED]\"\n{\n  echo \"## Pre-flight validation\"\n  echo \"\"\n  echo \"- passed: $OK / $TOTAL\"\n  echo \"- failed: ${FAILED:-none}\"\n} >> \"$GITHUB_STEP_SUMMARY\"\n\n# Always succeed: the agent owns the decision about how to react.\nexit 0\n"
 
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
-      - name: Restore cache-memory file share data
-        id: restore_cache_memory_0
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
-      - name: Setup cache-memory git repository
-        env:
-          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
-          GH_AW_MIN_INTEGRITY: none
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
