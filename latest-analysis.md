@@ -1,9 +1,9 @@
-# NLP Analysis - 2026-07-06
+# NLP Analysis - 2026-07-07
 
-- PRs analyzed: 56
-- Avg sentiment: +0.046 (neutral/slightly positive)
-- Positive: 29 (52%), Neutral: 1 (2%), Negative: 26 (46%)
-- Top topic: workflow / output / model (22 PRs, 39%)
-- Top keywords: workflow, sous, chef, sub, aic, output, engine, model, copilot
-- Notable bigrams: sous chef, agentic workflow
-- Run: https://github.com/github/gh-aw/actions/runs/28788830556
+- PRs analyzed: 28
+- Avg sentiment: -0.099 (neutral/slightly negative)
+- Positive: 12 (43%), Neutral: 1 (4%), Negative: 15 (54%)
+- Top topic: cap / agent / report (28 PRs)
+- Top keywords: run, workflow, aic, sub, sous, chef, generated, ---
+- Notable bigrams: sous chef, aic aic, aic sub
+- Run: https://github.com/github/gh-aw/actions/runs/28861695752
