@@ -41,7 +41,7 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		// Check if this is exactly fmt.Fprintln(w, fmt.Sprintf(...)).
-		if !isFmtFunc(call, "Fprintln") {
+		if !isFmtFunc(pass, call, "Fprintln") {
 			return
 		}
 		if len(call.Args) != 2 {
@@ -59,7 +59,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
-		if !isFmtFunc(printedArg, "Sprintf") {
+		if !isFmtFunc(pass, printedArg, "Sprintf") {
 			return
 		}
 		if nolint.HasDirective(pos, noLintLinesByFile) {
@@ -120,14 +120,10 @@ func buildFprintfFix(call *ast.CallExpr, sprintfCall *ast.CallExpr) []analysis.S
 }
 
 // isFmtFunc returns true if call is a call to fmt.<name>.
-func isFmtFunc(call *ast.CallExpr, name string) bool {
+func isFmtFunc(pass *analysis.Pass, call *ast.CallExpr, name string) bool {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
-	ident, ok := sel.X.(*ast.Ident)
-	if !ok {
-		return false
-	}
-	return ident.Name == "fmt" && sel.Sel.Name == name
+	return astutil.IsPkgSelector(pass, sel, "fmt") && sel.Sel.Name == name
 }
