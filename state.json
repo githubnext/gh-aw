@@ -3,7 +3,7 @@
     "reasoning_depth": {
       "shallow": 1,
       "baseline": 3,
-      "deep": 1
+      "deep": 2
     }
   },
   "runs": [
@@ -40,6 +40,13 @@
       "timestamp": "2026-07-06T05:28:41.131Z",
       "assignments": {
         "reasoning_depth": "baseline"
+      }
+    },
+    {
+      "run_id": "28846335984",
+      "timestamp": "2026-07-07T06:29:33.840Z",
+      "assignments": {
+        "reasoning_depth": "deep"
       }
     }
   ]
