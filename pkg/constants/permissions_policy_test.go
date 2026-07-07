@@ -12,97 +12,105 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPermissionConstantsValues(t *testing.T) {
-	if FilePermSensitive != 0o600 {
-		t.Fatalf("FilePermSensitive = %v, want 0o600", FilePermSensitive)
+	tests := []struct {
+		name string
+		got  fs.FileMode
+		want fs.FileMode
+	}{
+		{name: "FilePermSensitive", got: FilePermSensitive, want: 0o600},
+		{name: "FilePermPublic", got: FilePermPublic, want: 0o644},
+		{name: "FilePermExecutable", got: FilePermExecutable, want: 0o755},
+		{name: "DirPermSensitive", got: DirPermSensitive, want: 0o750},
+		{name: "DirPermPublic", got: DirPermPublic, want: 0o755},
 	}
-	if FilePermPublic != 0o644 {
-		t.Fatalf("FilePermPublic = %v, want 0o644", FilePermPublic)
-	}
-	if FilePermExecutable != 0o755 {
-		t.Fatalf("FilePermExecutable = %v, want 0o755", FilePermExecutable)
-	}
-	if DirPermSensitive != 0o750 {
-		t.Fatalf("DirPermSensitive = %v, want 0o750", DirPermSensitive)
-	}
-	if DirPermPublic != 0o755 {
-		t.Fatalf("DirPermPublic = %v, want 0o755", DirPermPublic)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.got)
+		})
 	}
 }
 
 func TestNoRawOctalPermissionLiteralsInOSCalls(t *testing.T) {
 	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
+	require.True(t, ok, "runtime.Caller failed")
 
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
-	pkgRoot := filepath.Join(repoRoot, "pkg")
 	octalPattern := regexp.MustCompile(`^0o?[0-7]+$`)
 
+	roots := []string{
+		filepath.Join(repoRoot, "pkg"),
+		filepath.Join(repoRoot, "cmd"),
+	}
+
 	fset := token.NewFileSet()
-	err := filepath.Walk(pkgRoot, func(path string, info fs.FileInfo, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if info.IsDir() {
+	for _, root := range roots {
+		err := filepath.Walk(root, func(path string, info fs.FileInfo, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if info.IsDir() {
+				return nil
+			}
+			if filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") || filepath.Base(path) == "permissions_policy_test.go" {
+				return nil
+			}
+
+			file, parseErr := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
+			if parseErr != nil {
+				t.Fatalf("failed to parse %s: %v", path, parseErr)
+			}
+
+			ast.Inspect(file, func(n ast.Node) bool {
+				call, ok := n.(*ast.CallExpr)
+				if !ok {
+					return true
+				}
+
+				sel, ok := call.Fun.(*ast.SelectorExpr)
+				if !ok {
+					return true
+				}
+				x, ok := sel.X.(*ast.Ident)
+				if !ok || x.Name != "os" {
+					return true
+				}
+
+				var argIndex int
+				switch sel.Sel.Name {
+				case "MkdirAll", "Mkdir", "Chmod":
+					argIndex = 1
+				case "WriteFile", "OpenFile":
+					argIndex = 2
+				default:
+					return true
+				}
+
+				if argIndex >= len(call.Args) {
+					return true
+				}
+
+				lit, ok := call.Args[argIndex].(*ast.BasicLit)
+				if !ok || lit.Kind != token.INT {
+					return true
+				}
+
+				if octalPattern.MatchString(lit.Value) {
+					t.Errorf("raw octal permission literal %s in %s", lit.Value, path)
+				}
+
+				return true
+			})
+
 			return nil
-		}
-		if filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") || filepath.Base(path) == "permissions_policy_test.go" {
-			return nil
-		}
-
-		file, parseErr := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
-		if parseErr != nil {
-			t.Fatalf("failed to parse %s: %v", path, parseErr)
-		}
-
-		ast.Inspect(file, func(n ast.Node) bool {
-			call, ok := n.(*ast.CallExpr)
-			if !ok {
-				return true
-			}
-
-			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok {
-				return true
-			}
-			x, ok := sel.X.(*ast.Ident)
-			if !ok || x.Name != "os" {
-				return true
-			}
-
-			var argIndex int
-			switch sel.Sel.Name {
-			case "MkdirAll", "Mkdir", "Chmod":
-				argIndex = 1
-			case "WriteFile", "OpenFile":
-				argIndex = 2
-			default:
-				return true
-			}
-
-			if argIndex >= len(call.Args) {
-				return true
-			}
-
-			lit, ok := call.Args[argIndex].(*ast.BasicLit)
-			if !ok || lit.Kind != token.INT {
-				return true
-			}
-
-			if octalPattern.MatchString(lit.Value) {
-				t.Errorf("raw octal permission literal %s in %s", lit.Value, path)
-			}
-
-			return true
 		})
-
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("failed to walk pkg tree: %v", err)
+		if err != nil {
+			t.Fatalf("failed to walk %s tree: %v", root, err)
+		}
 	}
 }
