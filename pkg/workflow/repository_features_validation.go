@@ -39,18 +39,22 @@
 package workflow
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"os"
 	"strings"
 	"sync"
+	"time"
 
-	"github.com/cli/go-gh/v2"
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/syncutil"
 )
+
+// repositoryFeaturesTimeout is the per-request timeout for repository feature API calls
+// (mirrors the copilot-billing probe timeout).
+const repositoryFeaturesTimeout = 3 * time.Second
 
 var repositoryFeaturesLog = newValidationLogger("repository_features")
 
@@ -268,28 +272,27 @@ func checkRepositoryHasDiscussionsUncached(repo string) (bool, error) {
 	}
 	owner, name := parts[0], parts[1]
 
-	// Execute GraphQL query using gh CLI.
+	// Use native GraphQL client — no gh binary dependency, native context/cancel support.
 	// checkRepositoryHasDiscussionsQuery is a package-level constant — not user-controlled.
-	type GraphQLResponse struct {
-		Data struct {
-			Repository struct {
-				HasDiscussionsEnabled bool `json:"hasDiscussionsEnabled"`
-			} `json:"repository"`
-		} `json:"data"`
+	client, err := api.DefaultGraphQLClient()
+	if err != nil {
+		return false, fmt.Errorf("failed to create GraphQL client: %w", err)
 	}
 
-	stdOut, _, err := gh.Exec("api", "graphql", "-f", "query="+checkRepositoryHasDiscussionsQuery,
-		"-f", "owner="+owner, "-f", "name="+name)
-	if err != nil {
+	var response struct {
+		Repository struct {
+			HasDiscussionsEnabled bool `json:"hasDiscussionsEnabled"`
+		} `json:"repository"`
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), repositoryFeaturesTimeout)
+	defer cancel()
+
+	if err := client.DoWithContext(ctx, checkRepositoryHasDiscussionsQuery, map[string]any{"owner": owner, "name": name}, &response); err != nil {
 		return false, fmt.Errorf("failed to query discussions status: %w", err)
 	}
 
-	var response GraphQLResponse
-	if err := json.Unmarshal(stdOut.Bytes(), &response); err != nil {
-		return false, fmt.Errorf("failed to parse GraphQL response: %w", err)
-	}
-
-	return response.Data.Repository.HasDiscussionsEnabled, nil
+	return response.Repository.HasDiscussionsEnabled, nil
 }
 
 // checkRepositoryHasIssues checks if a repository has issues enabled (with caching)
@@ -315,10 +318,12 @@ func checkRepositoryHasIssuesUncached(repo string) (bool, error) {
 		return false, fmt.Errorf("failed to create REST client: %w", err)
 	}
 
-	// Fetch repository data using REST client
+	ctx, cancel := context.WithTimeout(context.Background(), repositoryFeaturesTimeout)
+	defer cancel()
+
+	// Fetch repository data using REST client with timeout context
 	var response RepositoryResponse
-	err = client.Get("repos/"+repo, &response)
-	if err != nil {
+	if err := client.DoWithContext(ctx, "GET", "repos/"+repo, nil, &response); err != nil {
 		return false, fmt.Errorf("failed to query repository: %w", err)
 	}
 

@@ -61,7 +61,7 @@ func defaultCoolDownDeps() coolDownDeps {
 }
 
 func getReleasePublishedAt(ctx context.Context, repo, tag string) (time.Time, error) {
-	client, err := api.NewRESTClient(api.ClientOptions{})
+	client, err := api.DefaultRESTClient()
 	if err != nil {
 		return time.Time{}, fmt.Errorf("failed to create GitHub client: %w", err)
 	}
