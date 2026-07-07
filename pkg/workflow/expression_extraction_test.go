@@ -3,6 +3,9 @@
 package workflow
 
 import (
+	"bytes"
+	"io"
+	"os"
 	"strings"
 	"testing"
 )
@@ -505,6 +508,105 @@ Other: ${{ needs.activation.outputs.comment_id }}
 			if tt.shouldExist {
 				if _, found := contentMap[tt.transformed]; !found {
 					t.Errorf("Expected transformed expression %q in mappings", tt.transformed)
+				}
+			}
+		})
+	}
+}
+
+func TestExpressionExtractor_DeprecationWarning(t *testing.T) {
+	tests := []struct {
+		name                 string
+		markdown             string
+		wantDeprecationCount int
+		wantWarningPhrases   []string
+		wantNoWarningPhrases []string
+	}{
+		{
+			name:                 "single deprecated text expression emits warning",
+			markdown:             `${{ needs.activation.outputs.text }}`,
+			wantDeprecationCount: 1,
+			wantWarningPhrases: []string{
+				"needs.activation.outputs.text",
+				"steps.sanitized.outputs.text",
+				"gh aw fix",
+			},
+		},
+		{
+			name:                 "all three deprecated expressions each emit a warning",
+			markdown:             `${{ needs.activation.outputs.text }} ${{ needs.activation.outputs.title }} ${{ needs.activation.outputs.body }}`,
+			wantDeprecationCount: 3,
+			wantWarningPhrases: []string{
+				"needs.activation.outputs.text",
+				"steps.sanitized.outputs.text",
+				"needs.activation.outputs.title",
+				"steps.sanitized.outputs.title",
+				"needs.activation.outputs.body",
+				"steps.sanitized.outputs.body",
+				"gh aw fix",
+			},
+		},
+		{
+			name:                 "duplicate deprecated expression emits only one warning",
+			markdown:             `${{ needs.activation.outputs.text }} ${{ needs.activation.outputs.text }}`,
+			wantDeprecationCount: 1,
+		},
+		{
+			name:                 "non-deprecated activation output emits no warning",
+			markdown:             `${{ needs.activation.outputs.comment_id }}`,
+			wantDeprecationCount: 0,
+			wantNoWarningPhrases: []string{"deprecated", "gh aw fix"},
+		},
+		{
+			name:                 "non-activation expression emits no warning",
+			markdown:             `${{ github.repository }}`,
+			wantDeprecationCount: 0,
+			wantNoWarningPhrases: []string{"deprecated", "gh aw fix"},
+		},
+		{
+			name:                 "warning includes exact replacement form",
+			markdown:             `${{ needs.activation.outputs.body }}`,
+			wantDeprecationCount: 1,
+			wantWarningPhrases: []string{
+				"${{ needs.activation.outputs.body }}",
+				"${{ steps.sanitized.outputs.body }}",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Capture stderr to check for warnings
+			oldStderr := os.Stderr
+			r, w, _ := os.Pipe()
+			os.Stderr = w
+
+			extractor := NewExpressionExtractor()
+			_, err := extractor.ExtractExpressions(tt.markdown)
+
+			w.Close()
+			os.Stderr = oldStderr
+			var buf bytes.Buffer
+			io.Copy(&buf, r)
+			stderrOutput := buf.String()
+
+			if err != nil {
+				t.Fatalf("ExtractExpressions() error = %v", err)
+			}
+
+			if count := extractor.GetDeprecationWarningCount(); count != tt.wantDeprecationCount {
+				t.Errorf("GetDeprecationWarningCount() = %d, want %d", count, tt.wantDeprecationCount)
+			}
+
+			for _, phrase := range tt.wantWarningPhrases {
+				if !strings.Contains(stderrOutput, phrase) {
+					t.Errorf("Expected stderr to contain %q, got:\n%s", phrase, stderrOutput)
+				}
+			}
+
+			for _, phrase := range tt.wantNoWarningPhrases {
+				if strings.Contains(stderrOutput, phrase) {
+					t.Errorf("Did not expect stderr to contain %q, got:\n%s", phrase, stderrOutput)
 				}
 			}
 		})

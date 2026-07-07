@@ -32,8 +32,9 @@ type ExpressionMapping struct {
 // ExpressionExtractor extracts GitHub Actions expressions from markdown content
 // and creates environment variable mappings for them
 type ExpressionExtractor struct {
-	mappings map[string]*ExpressionMapping // key is the original expression
-	counter  int
+	mappings                map[string]*ExpressionMapping // key is the original expression
+	counter                 int
+	deprecationWarningCount int // number of deprecated activation-output expressions detected
 }
 
 // NewExpressionExtractor creates a new ExpressionExtractor
@@ -42,6 +43,13 @@ func NewExpressionExtractor() *ExpressionExtractor {
 		mappings: make(map[string]*ExpressionMapping),
 		counter:  0,
 	}
+}
+
+// GetDeprecationWarningCount returns the number of deprecated activation-output
+// expressions that were detected (and warned about) during extraction.
+// Callers should propagate this count to the compiler's warning counter.
+func (e *ExpressionExtractor) GetDeprecationWarningCount() int {
+	return e.deprecationWarningCount
 }
 
 // contentTransformer is a function that rewrites an expression's content string.
@@ -122,8 +130,9 @@ func (e *ExpressionExtractor) processMatch(originalExpr, rawContent string) {
 	// Emit deprecation warning once per unique deprecated activation-output expression
 	if content != originalContent && strings.HasPrefix(content, "steps.sanitized.outputs.") {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-			fmt.Sprintf("Deprecated expression ${{ %s }}: use ${{ %s }} instead.", originalContent, content),
+			fmt.Sprintf("Deprecated expression ${{ %s }}: use ${{ %s }} instead. Run `gh aw fix` to automatically update this workflow.", originalContent, content),
 		))
+		e.deprecationWarningCount++
 	}
 
 	e.mappings[originalExpr] = &ExpressionMapping{

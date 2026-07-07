@@ -529,9 +529,12 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 				if hasImportInputs {
 					cleaned = SubstituteImportInputs(cleaned, data.ImportInputs)
 				}
-				chunks, exprMaps := extractPromptChunksFromMarkdown(cleaned)
+				chunks, exprMaps, deprecationCount := extractPromptChunksFromMarkdown(cleaned)
 				userPromptChunks = append(userPromptChunks, chunks...)
 				expressionMappings = append(expressionMappings, exprMaps...)
+				for range deprecationCount {
+					c.IncrementWarningCount()
+				}
 				continue
 			}
 			if entry.ImportPath == "" {
@@ -549,9 +552,12 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 				if extractErr != nil {
 					importedBody = string(rawContent)
 				}
-				chunks, exprMaps := extractPromptChunksFromMarkdown(importedBody)
+				chunks, exprMaps, deprecationCount := extractPromptChunksFromMarkdown(importedBody)
 				userPromptChunks = append(userPromptChunks, chunks...)
 				expressionMappings = append(expressionMappings, exprMaps...)
+				for range deprecationCount {
+					c.IncrementWarningCount()
+				}
 				continue
 			}
 			userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#runtime-import %s}}", importPath))
@@ -568,9 +574,12 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 				compilerYamlLog.Printf("Substituting %d import input values", len(data.ImportInputs))
 				cleaned = SubstituteImportInputs(cleaned, data.ImportInputs)
 			}
-			chunks, exprMaps := extractPromptChunksFromMarkdown(cleaned)
+			chunks, exprMaps, deprecationCount := extractPromptChunksFromMarkdown(cleaned)
 			userPromptChunks = append(userPromptChunks, chunks...)
 			expressionMappings = append(expressionMappings, exprMaps...)
+			for range deprecationCount {
+				c.IncrementWarningCount()
+			}
 			compilerYamlLog.Printf("Inlined imported markdown with inputs in %d chunks", len(chunks))
 		}
 
@@ -595,9 +604,12 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 					if extractErr != nil {
 						importedBody = string(rawContent)
 					}
-					chunks, exprMaps := extractPromptChunksFromMarkdown(importedBody)
+					chunks, exprMaps, deprecationCount := extractPromptChunksFromMarkdown(importedBody)
 					userPromptChunks = append(userPromptChunks, chunks...)
 					expressionMappings = append(expressionMappings, exprMaps...)
+					for range deprecationCount {
+						c.IncrementWarningCount()
+					}
 					compilerYamlLog.Printf("Inlined import without inputs: %s", importPath)
 				}
 			} else {
@@ -628,6 +640,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 			compilerYamlLog.Printf("Extracted %d expressions from main workflow markdown", len(mainExprMappings))
 			// Merge with imported expressions (append to existing mappings)
 			expressionMappings = append(expressionMappings, mainExprMappings...)
+		}
+		for range mainExtractor.GetDeprecationWarningCount() {
+			c.IncrementWarningCount()
 		}
 	}
 
@@ -666,6 +681,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 			if err == nil && len(inlineExprMappings) > 0 {
 				inlinedMarkdown = inlineExtractor.ReplaceExpressionsWithEnvVars(inlinedMarkdown)
 				expressionMappings = append(expressionMappings, inlineExprMappings...)
+			}
+			for range inlineExtractor.GetDeprecationWarningCount() {
+				c.IncrementWarningCount()
 			}
 
 			inlinedChunks := splitContentIntoChunks(inlinedMarkdown)
@@ -1097,8 +1115,9 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 // processMarkdownBody applies the standard post-processing pipeline to a markdown body:
 // XML comment removal, expression wrapping, expression extraction/substitution, and chunking.
-// It returns the prompt chunks and expression mappings extracted from the content.
-func extractPromptChunksFromMarkdown(body string) ([]string, []*ExpressionMapping) {
+// It returns the prompt chunks, expression mappings, and the number of deprecation warnings
+// emitted for deprecated activation-output expressions.
+func extractPromptChunksFromMarkdown(body string) ([]string, []*ExpressionMapping, int) {
 	body = removeXMLComments(body)
 	body = wrapExpressionsInTemplateConditionals(body)
 	extractor := NewExpressionExtractor()
@@ -1108,7 +1127,7 @@ func extractPromptChunksFromMarkdown(body string) ([]string, []*ExpressionMappin
 	} else {
 		exprMappings = nil
 	}
-	return splitContentIntoChunks(body), exprMappings
+	return splitContentIntoChunks(body), exprMappings, extractor.GetDeprecationWarningCount()
 }
 
 // resolveWorkspaceRoot returns the workspace root directory given the path to a workflow markdown
