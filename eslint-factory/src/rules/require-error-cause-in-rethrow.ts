@@ -85,6 +85,7 @@ function collectCatchAliases(catchBody: TSESTree.BlockStatement, catchVarName: s
       if (decl.id.type !== AST_NODE_TYPES.Identifier) continue;
       if (!decl.init || decl.init.type !== AST_NODE_TYPES.Identifier) continue;
       if (decl.init.name !== catchVarName) continue;
+      if (decl.id.name === catchVarName) continue;
       aliases.add(decl.id.name);
     }
   }
