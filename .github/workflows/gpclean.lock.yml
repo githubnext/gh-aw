@@ -529,12 +529,6 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Download SBOM from GitHub Dependency Graph API
-        run: "set -e\necho \"📦 Downloading SBOM from GitHub Dependency Graph API...\"\n\n# Download SBOM using gh CLI (requires contents: read permission)\ngh api \\\n  -H \"Accept: application/vnd.github+json\" \\\n  -H \"X-GitHub-Api-Version: 2022-11-28\" \\\n  \"/repos/$GITHUB_REPOSITORY/dependency-graph/sbom\" \\\n  > /tmp/gh-aw/agent/sbom.json\n\necho \"✅ SBOM downloaded successfully to /tmp/gh-aw/agent/sbom.json\"\n\n# Show SBOM summary\nif command -v jq &> /dev/null; then\n  PACKAGE_COUNT=$(jq '.sbom.packages | length' /tmp/gh-aw/agent/sbom.json 2>/dev/null || echo \"unknown\")\n  echo \"📊 SBOM contains ${PACKAGE_COUNT} packages\"\nfi"
-
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
@@ -551,6 +545,12 @@ jobs:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: none
         run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Download SBOM from GitHub Dependency Graph API
+        run: "set -e\necho \"📦 Downloading SBOM from GitHub Dependency Graph API...\"\n\n# Download SBOM using gh CLI (requires contents: read permission)\ngh api \\\n  -H \"Accept: application/vnd.github+json\" \\\n  -H \"X-GitHub-Api-Version: 2022-11-28\" \\\n  \"/repos/$GITHUB_REPOSITORY/dependency-graph/sbom\" \\\n  > /tmp/gh-aw/agent/sbom.json\n\necho \"✅ SBOM downloaded successfully to /tmp/gh-aw/agent/sbom.json\"\n\n# Show SBOM summary\nif command -v jq &> /dev/null; then\n  PACKAGE_COUNT=$(jq '.sbom.packages | length' /tmp/gh-aw/agent/sbom.json 2>/dev/null || echo \"unknown\")\n  echo \"📊 SBOM contains ${PACKAGE_COUNT} packages\"\nfi"
+
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
