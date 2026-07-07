@@ -29,7 +29,7 @@ func warn(debugLog *logger.Logger, msg string) {
 //   - defaultValue: The default value to return if env var is not set or invalid
 //   - minValue: Minimum allowed value (inclusive)
 //   - maxValue: Maximum allowed value (inclusive)
-//   - log: Optional logger for debug output
+//   - debugLog: Optional logger for debug output
 //
 // Returns the parsed integer value, or defaultValue if:
 //   - Environment variable is not set
@@ -66,7 +66,7 @@ func GetIntFromEnv(envVar string, defaultValue, minValue, maxValue int, debugLog
 // Parameters:
 //   - envVar: The environment variable name (e.g., "CI")
 //   - defaultValue: The default value to return if env var is not set or invalid
-//   - log: Optional logger for debug output
+//   - debugLog: Optional logger for debug output
 //
 // Returns the parsed boolean value, or defaultValue if:
 //   - Environment variable is not set
@@ -97,7 +97,7 @@ func GetBoolFromEnv(envVar string, defaultValue bool, debugLog *logger.Logger) b
 // Parameters:
 //   - envVar: The environment variable name (e.g., "GITHUB_TOKEN")
 //   - defaultValue: The default value to return if env var is not set
-//   - log: Optional logger for debug output
+//   - debugLog: Optional logger for debug output
 //
 // Returns the environment variable value, or defaultValue when the variable is
 // not set. Empty string values are treated the same as unset variables.

@@ -114,7 +114,7 @@ timeout := envutil.GetIntFromEnv("GH_AW_TIMEOUT", 60, 1, 3600, nil)
 - Warning messages use `console.FormatWarningMessage` so they render consistently in terminals.
 - All warnings go to `os.Stderr` to avoid polluting structured stdout output.
 - Typed helpers use Go standard library parsing rules (`strconv.Atoi`, `strconv.ParseBool`) for predictable behavior.
-- `GetStringFromEnv` logs only that the variable was found, not its value, so secret-like values can be read without echoing their contents.
+- `GetStringFromEnv` logs only the variable name when a value is found, never the value itself, so secret-like values can be read without echoing their contents.
 - When `debugLog` is non-nil, warnings are routed through the logger rather than written directly to stderr, allowing callers to control output formatting.
 
 ## Dependencies
