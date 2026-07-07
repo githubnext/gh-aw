@@ -18,7 +18,7 @@ import (
 // ========================================
 
 // TestCustomJobRestoreMemoryCacheMemory verifies that a custom job with
-// restore-memory.cache-memory: true gets cache restore steps injected.
+// restore-memory: true gets cache restore steps injected when cache-memory is configured.
 // No artifact-upload or cache-save steps should be emitted.
 func TestCustomJobRestoreMemoryCacheMemory(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "custom-job-restore-cache-memory")
@@ -35,8 +35,7 @@ tools:
 jobs:
   orchestrator:
     runs-on: ubuntu-latest
-    restore-memory:
-      cache-memory: true
+    restore-memory: true
     steps:
       - name: Read memory and dispatch
         run: echo "dispatching"
@@ -83,7 +82,7 @@ Reads cache memory and dispatches tasks.
 }
 
 // TestCustomJobRestoreMemoryRepoMemory verifies that a custom job with
-// restore-memory.repo-memory: true gets repo-memory clone steps injected.
+// restore-memory: true gets repo-memory clone steps injected when repo-memory is configured.
 func TestCustomJobRestoreMemoryRepoMemory(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "custom-job-restore-repo-memory")
 
@@ -99,8 +98,7 @@ tools:
 jobs:
   orchestrator:
     runs-on: ubuntu-latest
-    restore-memory:
-      repo-memory: true
+    restore-memory: true
     steps:
       - name: Read repo memory
         run: cat /tmp/gh-aw/repo-memory/default/state.json || echo "{}"
@@ -133,7 +131,7 @@ jobs:
 }
 
 // TestCustomJobRestoreMemoryCommentMemory verifies that a custom job with
-// restore-memory.comment-memory: true gets the prepare-comment-memory step injected.
+// restore-memory: true gets the prepare-comment-memory step injected when comment-memory is configured.
 func TestCustomJobRestoreMemoryCommentMemory(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "custom-job-restore-comment-memory")
 
@@ -150,8 +148,7 @@ tools:
 jobs:
   orchestrator:
     runs-on: ubuntu-latest
-    restore-memory:
-      comment-memory: true
+    restore-memory: true
     steps:
       - name: Process comment memory
         run: ls /tmp/gh-aw/comment-memory/ || echo "empty"
@@ -180,8 +177,8 @@ jobs:
 	assert.Contains(t, section, "actions/github-script@", "github-script action should be used")
 }
 
-// TestCustomJobRestoreMemoryMultipleTypes verifies that a custom job can request
-// multiple memory types at once.
+// TestCustomJobRestoreMemoryMultipleTypes verifies that a custom job with
+// restore-memory: true restores all configured memory types at once.
 func TestCustomJobRestoreMemoryMultipleTypes(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "custom-job-restore-multiple-memory")
 
@@ -199,9 +196,7 @@ tools:
 jobs:
   orchestrator:
     runs-on: ubuntu-latest
-    restore-memory:
-      cache-memory: true
-      repo-memory: true
+    restore-memory: true
     steps:
       - name: Process memories
         run: echo "done"
@@ -245,8 +240,7 @@ tools:
 jobs:
   orchestrator:
     runs-on: ubuntu-latest
-    restore-memory:
-      cache-memory: true
+    restore-memory: true
     pre-steps:
       - name: My pre-step
         run: echo "pre"
@@ -287,17 +281,10 @@ jobs:
 	)
 }
 
-// TestCustomJobRestoreMemoryErrorWhenNotConfigured verifies that a custom job
-// requesting restore-memory for a type not configured in tools: produces an error.
+// TestCustomJobRestoreMemoryErrorWhenNotConfigured verifies that a custom job with
+// restore-memory: true fails when no memory stores are configured in tools:.
 func TestCustomJobRestoreMemoryErrorWhenNotConfigured(t *testing.T) {
-	tests := []struct {
-		name        string
-		frontmatter string
-		wantErrMsg  string
-	}{
-		{
-			name: "cache-memory not configured",
-			frontmatter: `---
+	frontmatter := `---
 name: Test
 on: workflow_dispatch
 permissions:
@@ -307,74 +294,21 @@ strict: false
 jobs:
   orchestrator:
     runs-on: ubuntu-latest
-    restore-memory:
-      cache-memory: true
+    restore-memory: true
     steps:
       - name: Step
         run: echo hi
 ---
 # Test
-`,
-			wantErrMsg: "cache-memory must be configured in tools:",
-		},
-		{
-			name: "repo-memory not configured",
-			frontmatter: `---
-name: Test
-on: workflow_dispatch
-permissions:
-  contents: read
-engine: copilot
-strict: false
-jobs:
-  orchestrator:
-    runs-on: ubuntu-latest
-    restore-memory:
-      repo-memory: true
-    steps:
-      - name: Step
-        run: echo hi
----
-# Test
-`,
-			wantErrMsg: "repo-memory must be configured in tools:",
-		},
-		{
-			name: "comment-memory not configured",
-			frontmatter: `---
-name: Test
-on: workflow_dispatch
-permissions:
-  contents: read
-engine: copilot
-strict: false
-jobs:
-  orchestrator:
-    runs-on: ubuntu-latest
-    restore-memory:
-      comment-memory: true
-    steps:
-      - name: Step
-        run: echo hi
----
-# Test
-`,
-			wantErrMsg: "comment-memory must be configured in tools:",
-		},
-	}
+`
+	tmpDir := testutil.TempDir(t, "restore-memory-error-*")
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(frontmatter), 0644))
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			tmpDir := testutil.TempDir(t, "restore-memory-error-*")
-			testFile := filepath.Join(tmpDir, "test.md")
-			require.NoError(t, os.WriteFile(testFile, []byte(tc.frontmatter), 0644))
-
-			compiler := NewCompiler()
-			err := compiler.CompileWorkflow(testFile)
-			require.Error(t, err, "expected compilation to fail")
-			assert.Contains(t, err.Error(), tc.wantErrMsg)
-		})
-	}
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(testFile)
+	require.Error(t, err, "expected compilation to fail")
+	assert.Contains(t, err.Error(), "no memory stores are configured in tools")
 }
 
 // TestCustomJobRestoreMemoryOnlyEmitsRestoreSteps verifies that when restore-memory
@@ -396,9 +330,7 @@ tools:
 jobs:
   orchestrator:
     runs-on: ubuntu-latest
-    restore-memory:
-      cache-memory: true
-      repo-memory: true
+    restore-memory: true
     steps:
       - name: Process data
         run: echo "processing"
@@ -450,8 +382,7 @@ tools:
 jobs:
   orchestrator:
     runs-on: ubuntu-latest
-    restore-memory:
-      cache-memory: true
+    restore-memory: true
 ---
 
 # Orchestrator Workflow
@@ -477,112 +408,84 @@ jobs:
 
 // TestExtractRestoreMemoryConfig unit-tests the config extraction logic.
 func TestExtractRestoreMemoryConfig(t *testing.T) {
+	cacheData := &WorkflowData{
+		CacheMemoryConfig: &CacheMemoryConfig{
+			Caches: []CacheMemoryEntry{{ID: "default"}},
+		},
+	}
+	allData := &WorkflowData{
+		CacheMemoryConfig: &CacheMemoryConfig{
+			Caches: []CacheMemoryEntry{{ID: "default"}},
+		},
+		RepoMemoryConfig: &RepoMemoryConfig{
+			Memories: []RepoMemoryEntry{{ID: "default"}},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			CommentMemory: &CommentMemoryConfig{},
+		},
+	}
+	emptyData := &WorkflowData{}
+
 	tests := []struct {
 		name      string
 		configMap map[string]any
+		data      *WorkflowData
 		want      *restoreMemoryConfig
 		wantErr   bool
 	}{
 		{
 			name:      "no restore-memory field",
 			configMap: map[string]any{},
+			data:      emptyData,
 			want:      nil,
 		},
 		{
-			name: "all false values returns nil",
-			configMap: map[string]any{
-				"restore-memory": map[string]any{
-					"cache-memory":   false,
-					"repo-memory":    false,
-					"comment-memory": false,
-				},
-			},
-			want: nil,
+			name:      "false disables restore-memory",
+			configMap: map[string]any{"restore-memory": false},
+			data:      cacheData,
+			want:      nil,
 		},
 		{
-			name: "cache-memory only",
-			configMap: map[string]any{
-				"restore-memory": map[string]any{
-					"cache-memory": true,
-				},
-			},
-			want: &restoreMemoryConfig{CacheMemory: true},
+			name:      "true with cache-memory only",
+			configMap: map[string]any{"restore-memory": true},
+			data:      cacheData,
+			want:      &restoreMemoryConfig{CacheMemory: true},
 		},
 		{
-			name: "all enabled",
-			configMap: map[string]any{
-				"restore-memory": map[string]any{
-					"cache-memory":   true,
-					"repo-memory":    true,
-					"comment-memory": true,
-				},
-			},
-			want: &restoreMemoryConfig{CacheMemory: true, RepoMemory: true, CommentMemory: true},
+			name:      "true with all memory types",
+			configMap: map[string]any{"restore-memory": true},
+			data:      allData,
+			want:      &restoreMemoryConfig{CacheMemory: true, RepoMemory: true, CommentMemory: true},
 		},
 		{
-			name: "invalid type returns error",
-			configMap: map[string]any{
-				"restore-memory": "true",
-			},
-			wantErr: true,
+			name:      "true with no memory configured returns error",
+			configMap: map[string]any{"restore-memory": true},
+			data:      emptyData,
+			wantErr:   true,
+		},
+		{
+			name:      "non-boolean value returns error",
+			configMap: map[string]any{"restore-memory": "true"},
+			data:      emptyData,
+			wantErr:   true,
+		},
+		{
+			name:      "object value returns error",
+			configMap: map[string]any{"restore-memory": map[string]any{"cache-memory": true}},
+			data:      emptyData,
+			wantErr:   true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := extractRestoreMemoryConfig(tc.configMap, "test_job")
+			got, err := extractRestoreMemoryConfig(tc.configMap, "test_job", tc.data)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
-		})
-	}
-}
-
-// TestValidateRestoreMemoryConfig unit-tests the config validation logic.
-func TestValidateRestoreMemoryConfig(t *testing.T) {
-	emptyCacheData := &WorkflowData{}
-	cacheData := &WorkflowData{
-		CacheMemoryConfig: &CacheMemoryConfig{
-			Caches: []CacheMemoryEntry{{ID: "default"}},
-		},
-	}
-	repoData := &WorkflowData{
-		RepoMemoryConfig: &RepoMemoryConfig{
-			Memories: []RepoMemoryEntry{{ID: "default"}},
-		},
-	}
-	commentData := &WorkflowData{
-		SafeOutputs: &SafeOutputsConfig{
-			CommentMemory: &CommentMemoryConfig{},
-		},
-	}
-
-	tests := []struct {
-		name    string
-		cfg     *restoreMemoryConfig
-		data    *WorkflowData
-		wantErr bool
-	}{
-		{name: "nil config is ok", cfg: nil, data: emptyCacheData, wantErr: false},
-		{name: "cache-memory configured correctly", cfg: &restoreMemoryConfig{CacheMemory: true}, data: cacheData, wantErr: false},
-		{name: "cache-memory missing from tools", cfg: &restoreMemoryConfig{CacheMemory: true}, data: emptyCacheData, wantErr: true},
-		{name: "repo-memory configured correctly", cfg: &restoreMemoryConfig{RepoMemory: true}, data: repoData, wantErr: false},
-		{name: "repo-memory missing from tools", cfg: &restoreMemoryConfig{RepoMemory: true}, data: emptyCacheData, wantErr: true},
-		{name: "comment-memory configured correctly", cfg: &restoreMemoryConfig{CommentMemory: true}, data: commentData, wantErr: false},
-		{name: "comment-memory missing from tools", cfg: &restoreMemoryConfig{CommentMemory: true}, data: emptyCacheData, wantErr: true},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := validateRestoreMemoryConfig(tc.cfg, tc.data, "test_job")
-			if tc.wantErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
 		})
 	}
 }

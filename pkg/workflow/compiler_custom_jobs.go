@@ -507,14 +507,11 @@ func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap m
 		}
 	}
 
-	// Parse and validate restore-memory configuration.
+	// Parse restore-memory configuration.
 	// restore-memory injects read-only memory restore steps into the custom job.
 	// No write-back or commit steps are ever emitted for memory in custom jobs.
-	restoreMemCfg, err := extractRestoreMemoryConfig(configMap, jobName)
+	restoreMemCfg, err := extractRestoreMemoryConfig(configMap, jobName, data)
 	if err != nil {
-		return err
-	}
-	if err := validateRestoreMemoryConfig(restoreMemCfg, data, jobName); err != nil {
 		return err
 	}
 

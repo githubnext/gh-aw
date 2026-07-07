@@ -6,7 +6,7 @@ import (
 )
 
 // restoreMemoryConfig holds the parsed restore-memory configuration for a custom job.
-// When a memory type is true, the compiler injects read-only restore steps for that store.
+// Each field is set to true only when the corresponding memory store is configured in tools:.
 // No write-back or commit steps are ever emitted for restore-memory.
 type restoreMemoryConfig struct {
 	CacheMemory   bool
@@ -15,59 +15,34 @@ type restoreMemoryConfig struct {
 }
 
 // extractRestoreMemoryConfig parses the restore-memory field from a custom job config map.
-// Returns nil if the field is absent or all values are false.
-func extractRestoreMemoryConfig(configMap map[string]any, jobName string) (*restoreMemoryConfig, error) {
+// The field accepts a boolean: true enables all memory stores that are configured in tools:,
+// false (or absent) disables restore-memory entirely.
+// Returns nil if the field is absent or false, an error if the value is not a boolean,
+// and an error if true is set but no memory stores are configured in tools:.
+func extractRestoreMemoryConfig(configMap map[string]any, jobName string, data *WorkflowData) (*restoreMemoryConfig, error) {
 	rawVal, hasField := configMap["restore-memory"]
 	if !hasField {
 		return nil, nil
 	}
 
-	rmMap, ok := rawVal.(map[string]any)
+	enabled, ok := rawVal.(bool)
 	if !ok {
-		return nil, fmt.Errorf("jobs.%s.restore-memory must be an object with memory-type keys (cache-memory, repo-memory, comment-memory)", jobName)
+		return nil, fmt.Errorf("jobs.%s.restore-memory must be a boolean (true or false)", jobName)
+	}
+	if !enabled {
+		return nil, nil
 	}
 
-	cfg := &restoreMemoryConfig{}
-
-	if v, ok := rmMap["cache-memory"]; ok {
-		if b, ok := v.(bool); ok {
-			cfg.CacheMemory = b
-		}
-	}
-	if v, ok := rmMap["repo-memory"]; ok {
-		if b, ok := v.(bool); ok {
-			cfg.RepoMemory = b
-		}
-	}
-	if v, ok := rmMap["comment-memory"]; ok {
-		if b, ok := v.(bool); ok {
-			cfg.CommentMemory = b
-		}
+	cfg := &restoreMemoryConfig{
+		CacheMemory:   data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0,
+		RepoMemory:    data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0,
+		CommentMemory: data.SafeOutputs != nil && data.SafeOutputs.CommentMemory != nil,
 	}
 
 	if !cfg.CacheMemory && !cfg.RepoMemory && !cfg.CommentMemory {
-		return nil, nil
+		return nil, fmt.Errorf("jobs.%s.restore-memory: no memory stores are configured in tools", jobName)
 	}
 	return cfg, nil
-}
-
-// validateRestoreMemoryConfig ensures that every requested memory type is actually
-// configured in the workflow's tools: section. Custom jobs cannot declare memory
-// stores independently; they can only restore from stores the workflow already uses.
-func validateRestoreMemoryConfig(cfg *restoreMemoryConfig, data *WorkflowData, jobName string) error {
-	if cfg == nil {
-		return nil
-	}
-	if cfg.CacheMemory && (data.CacheMemoryConfig == nil || len(data.CacheMemoryConfig.Caches) == 0) {
-		return fmt.Errorf("jobs.%s.restore-memory.cache-memory: cache-memory must be configured in tools: to use restore-memory", jobName)
-	}
-	if cfg.RepoMemory && (data.RepoMemoryConfig == nil || len(data.RepoMemoryConfig.Memories) == 0) {
-		return fmt.Errorf("jobs.%s.restore-memory.repo-memory: repo-memory must be configured in tools: to use restore-memory", jobName)
-	}
-	if cfg.CommentMemory && (data.SafeOutputs == nil || data.SafeOutputs.CommentMemory == nil) {
-		return fmt.Errorf("jobs.%s.restore-memory.comment-memory: comment-memory must be configured in tools: to use restore-memory", jobName)
-	}
-	return nil
 }
 
 // buildRestoreMemorySteps returns two slices:
