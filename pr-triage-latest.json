@@ -1,143 +1,93 @@
 {
-  "run_date": "2026-07-06T18:49:02Z",
-  "run_id": "28815219785",
-  "prior_run_id": "28795034579",
+  "run_date": "2026-07-07T01:03:38Z",
+  "run_id": "28834001067",
+  "prior_run_id": "28815219785",
   "summary": {
-    "total": 12,
-    "new": 9,
-    "carry_over": 3,
-    "fast_track": 4,
+    "total": 6,
+    "new": 1,
+    "carry_over": 5,
+    "fast_track": 3,
     "auto_merge": 1,
-    "batch_review": 3,
-    "defer": 4,
+    "batch_review": 2,
+    "defer": 0,
     "close": 0,
-    "drafts": 5
+    "drafts": 0
   },
   "prior_run_resolution": {
-    "total": 9,
-    "merged": 9,
-    "closed": 0,
-    "merged_prs": [43750, 43758, 43747, 43744, 43748, 43776, 43754, 43774, 43779]
+    "total": 12,
+    "merged": 7,
+    "closed": 1,
+    "merged_prs": [43850, 43848, 43833, 43839, 43849, 43843],
+    "closed_prs": [43826],
+    "note": "43826 closed without merge (typist optimization)"
   },
   "prs": [
     {
       "number": 43766,
       "title": "fix(mcp-server): bind HTTP server to 127.0.0.1; document validation escalation",
       "category": "bug", "risk": "high", "score": 82, "action": "fast_track",
-      "batch": "pr-batch:go-security", "draft": false, "carry_over": true,
+      "batch": "pr-batch:go-security", "draft": false, "carry_over": true, "carry_over_count": 3,
       "reviews": "CHANGES_REQUESTED(bot)", "ci": "no-ci",
-      "note": "Security: DNS-rebinding fix, bind MCP HTTP to loopback."
+      "note": "Security: DNS-rebinding fix, bind MCP HTTP to loopback. Carry-over x3."
     },
     {
       "number": 43716,
       "title": "fix(security): replace curl|sh installer pipes with download+verify (RGS-018)",
       "category": "bug", "risk": "high", "score": 75, "action": "fast_track",
-      "batch": "pr-batch:go-security", "draft": false, "carry_over": true,
+      "batch": "pr-batch:go-security", "draft": false, "carry_over": true, "carry_over_count": 3,
       "reviews": "CHANGES_REQUESTED(bot)x2", "ci": "no-ci",
-      "note": "Security: RGS-018 curl|sh → download+verify."
+      "note": "Security: RGS-018 curl|sh -> download+verify. Carry-over x3."
+    },
+    {
+      "number": 43871,
+      "title": "Improve actionpins spec coverage for fallback, mapping, and context propagation",
+      "category": "test", "risk": "low", "score": 62, "action": "auto_merge",
+      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
+      "reviews": "APPROVED(github-actions[bot])", "ci": "approved",
+      "note": "New PR. Pure test + ADR doc. Bot-approved. Auto-merge candidate."
     },
     {
       "number": 43802,
       "title": "fix: address 7 CLI consistency issues from automated inspection",
       "category": "bug", "risk": "medium", "score": 60, "action": "fast_track",
-      "batch": null, "draft": false, "carry_over": false,
-      "reviews": "CHANGES_REQUESTED(bot)/APPROVED(bot,dismissed)", "ci": "29/30",
-      "note": "7 CLI consistency fixes. CI clean."
-    },
-    {
-      "number": 43850,
-      "title": "fix(pr-code-quality-reviewer): add Go ecosystem to firewall allow-list",
-      "category": "chore", "risk": "low", "score": 57, "action": "fast_track",
-      "batch": "pr-batch:workflow-chore", "draft": true, "carry_over": false,
-      "reviews": "none", "ci": "no-ci",
-      "note": "Fixes 50-62% failure rate in PR review family. DRAFT."
-    },
-    {
-      "number": 43848,
-      "title": "fix: make checkAndWaitForRateLimit context-cancellable",
-      "category": "bug", "risk": "medium", "score": 55, "action": "defer",
-      "batch": null, "draft": true, "carry_over": false,
-      "reviews": "none", "ci": "no-ci",
-      "note": "Ctrl-C fix during rate-limit waits. DRAFT."
+      "batch": null, "draft": false, "carry_over": true, "carry_over_count": 2,
+      "reviews": "CHANGES_REQUESTED/APPROVED(dismissed)", "ci": "mixed",
+      "note": "7 CLI consistency fixes. Bot approved then dismissed. swe-agent engaged 23:49Z."
     },
     {
       "number": 43700,
       "title": "compiler: add evals job for BinEval binary evaluations",
       "category": "feature", "risk": "high", "score": 53, "action": "batch_review",
-      "batch": null, "draft": false, "carry_over": true,
-      "reviews": "CHANGES_REQUESTED(dismissed)", "ci": "no-ci",
-      "note": "Carry-over. +774 lines. @pelikhan engaged."
+      "batch": null, "draft": false, "carry_over": true, "carry_over_count": 3,
+      "reviews": "CHANGES_REQUESTED(dismissed)+pelikhan+swe-agent", "ci": "no-ci",
+      "note": "Large feature +780 lines. pelikhan engaged x3. Needs human merge/close decision."
     },
     {
       "number": 43834,
       "title": "refactor(parser): split remote_fetch.go (1553 lines) into focused modules",
       "category": "refactor", "risk": "medium", "score": 47, "action": "batch_review",
-      "batch": "pr-batch:go-refactor", "draft": false, "carry_over": false,
+      "batch": "pr-batch:go-refactor", "draft": false, "carry_over": true, "carry_over_count": 2,
       "reviews": "CHANGES_REQUESTED(bot)x2", "ci": "no-ci",
-      "note": "Pure refactor, no logic changes. 8 files."
-    },
-    {
-      "number": 43826,
-      "title": "[typist] Optimize prompt: tighten bash allowlist, fix multi-op rejection, trim Phase 4",
-      "category": "chore", "risk": "low", "score": 45, "action": "auto_merge",
-      "batch": "pr-batch:workflow-chore", "draft": false, "carry_over": false,
-      "reviews": "APPROVED(bot)", "ci": "25/30 (1 agent fail)",
-      "note": "Workflow optimization. APPROVED."
-    },
-    {
-      "number": 43833,
-      "title": "Reduce CompileMCPWorkflow overhead by caching runtime requirement detection",
-      "category": "bug", "risk": "medium", "score": 45, "action": "batch_review",
-      "batch": "pr-batch:go-refactor", "draft": false, "carry_over": false,
-      "reviews": "CHANGES_REQUESTED(bot)x3", "ci": "27/30 (1 agent fail)",
-      "note": "~10% benchmark improvement via caching. 3x CHANGES_REQUESTED."
-    },
-    {
-      "number": 43839,
-      "title": "Close 2026-07-06 spec maintenance gaps",
-      "category": "docs", "risk": "low", "score": 37, "action": "defer",
-      "batch": null, "draft": true, "carry_over": false,
-      "reviews": "none", "ci": "no-ci",
-      "note": "Spec maintenance: 4 areas, 9 files. DRAFT."
-    },
-    {
-      "number": 43849,
-      "title": "Auto-label [pr-sous-chef] run-report issues",
-      "category": "chore", "risk": "low", "score": 37, "action": "defer",
-      "batch": null, "draft": true, "carry_over": false,
-      "reviews": "none", "ci": "no-ci",
-      "note": "Auto-label workflow fix. DRAFT."
-    },
-    {
-      "number": 43843,
-      "title": "feat(docs): expand robots.txt with full AI crawler coverage",
-      "category": "docs", "risk": "low", "score": 27, "action": "defer",
-      "batch": null, "draft": true, "carry_over": false,
-      "reviews": "none", "ci": "no-ci",
-      "note": "robots.txt 9 crawler entries. DRAFT."
+      "note": "Pure refactor 12 files. 2x bot CHANGES_REQUESTED. Needs agent to address feedback."
     }
   ],
   "batches": [
     {
       "id": "pr-batch:go-security",
       "prs": [43766, 43716],
-      "note": "Security fixes: DNS-rebinding (43766) + RGS-018 curl|sh (43716). Review together."
+      "note": "Security fixes: DNS-rebinding (43766) + RGS-018 curl|sh (43716). Review together. Carry-over x3."
     },
     {
       "id": "pr-batch:go-refactor",
-      "prs": [43834, 43833],
-      "note": "Go refactoring: parser split (43834) + compile caching (43833). Review together."
-    },
-    {
-      "id": "pr-batch:workflow-chore",
-      "prs": [43850, 43826],
-      "note": "Workflow improvements: firewall allow-list (43850, draft) + typist optimization (43826)."
+      "prs": [43834],
+      "note": "Go refactoring: parser split (43834). Partner #43833 was merged this cycle."
     }
   ],
   "flags": [
-    "SECURITY BATCH pr-batch:go-security: #43766 + #43716 — DNS-rebinding + RGS-018. Fast-track together.",
-    "PR 43700: Large compiler feature (+774 lines), carry-over ×3, @pelikhan engaged. Needs careful review.",
-    "PR 43850: DRAFT — firewall fix with high operational impact. Promote from draft to fast-track.",
-    "5 PRs still in DRAFT: 43850, 43848, 43839, 43849, 43843 — monitor for promotion."
-  ]
+    "SECURITY BATCH pr-batch:go-security: #43766 + #43716 carry-over x3 — DNS-rebinding + RGS-018. Bot changes requests unresolved. Human action required.",
+    "PR #43871: NEW, auto-merge candidate (test+doc only, bot-approved). Easiest win.",
+    "PR #43700: Carry-over x3 feature. @pelikhan engaged but no merge decision. Escalate or close.",
+    "PR #43834: Refactor blocked by 2x bot CHANGES_REQUESTED. Agent should address before next review."
+  ],
+  "report_issue": "aw_triage_0707"
 }
