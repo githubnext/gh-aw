@@ -31,11 +31,7 @@ describe("require-fs-sync-try-catch", () => {
 
   it("valid: fs.writeFileSync and fs.appendFileSync inside try block pass", () => {
     cjsRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
-      valid: [
-        `try { fs.writeFileSync(path, data); } catch (e) {}`,
-        `try { fs.appendFileSync(path, data); } catch (e) {}`,
-        `try { fs["writeFileSync"](path, data); } catch (e) {}`,
-      ],
+      valid: [`try { fs.writeFileSync(path, data); } catch (e) {}`, `try { fs.appendFileSync(path, data); } catch (e) {}`, `try { fs["writeFileSync"](path, data); } catch (e) {}`],
       invalid: [],
     });
   });
@@ -52,6 +48,8 @@ describe("require-fs-sync-try-catch", () => {
         // Non-fs objects with same method names are ignored
         `mockFs.readFileSync(path);`,
         `storage.writeFileSync(path, data);`,
+        // Destructured bindings are intentionally out of scope for this rule
+        `const { readFileSync } = require("fs"); readFileSync(path, "utf8");`,
       ],
       invalid: [],
     });
@@ -70,6 +68,8 @@ describe("require-fs-sync-try-catch", () => {
         // Array map is synchronous — try block is genuinely protective
         `try { const results = paths.map(p => fs.readFileSync(p, "utf8")); } catch (e) {}`,
         `try { items.forEach(p => { fs.writeFileSync(p, data); }); } catch (e) {}`,
+        // Locally-defined nextTick can be synchronous, so the surrounding try is protective
+        `try { const nextTick = fn => fn(); nextTick(() => { fs.readFileSync(path, "utf8"); }); } catch (e) {}`,
       ],
       invalid: [],
     });
@@ -85,12 +85,7 @@ describe("require-fs-sync-try-catch", () => {
             {
               messageId: "requireTryCatch",
               data: { method: "readFileSync", arg: "filePath" },
-              suggestions: [
-                {
-                  messageId: "wrapInTryCatch",
-                  output: `try {\n  const content = fs.readFileSync(filePath, "utf8");\n} catch (err) {\n  // TODO: handle I/O failure for this fs.readFileSync call.\n  throw new Error(\n    "fs.readFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
-                },
-              ],
+              suggestions: [],
             },
           ],
         },
@@ -169,12 +164,7 @@ describe("require-fs-sync-try-catch", () => {
             {
               messageId: "requireTryCatch",
               data: { method: "readFileSync", arg: "path" },
-              suggestions: [
-                {
-                  messageId: "wrapInTryCatch",
-                  output: `try {\n  const data = fs["readFileSync"](path, "utf8");\n} catch (err) {\n  // TODO: handle I/O failure for this fs.readFileSync call.\n  throw new Error(\n    "fs.readFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
-                },
-              ],
+              suggestions: [],
             },
           ],
         },
@@ -218,6 +208,22 @@ describe("require-fs-sync-try-catch", () => {
             },
           ],
         },
+        // async function bodies are still synchronous relative to their own frame
+        {
+          code: `async function load() { fs.readFileSync(path, "utf8"); }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "readFileSync", arg: "path" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `async function load() { try {\n  fs.readFileSync(path, "utf8");\n} catch (err) {\n  // TODO: handle I/O failure for this fs.readFileSync call.\n  throw new Error(\n    "fs.readFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }`,
+                },
+              ],
+            },
+          ],
+        },
         // new Promise executor — Promise captures throws
         {
           code: `try { new Promise(resolve => { fs.readFileSync(path); }); } catch (e) {}`,
@@ -248,10 +254,38 @@ describe("require-fs-sync-try-catch", () => {
             {
               messageId: "requireTryCatch",
               data: { method: "readFileSync", arg: "p" },
+              suggestions: [],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: unsupported positions and multi-line expressions handle suggestions safely", () => {
+    esmRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `export default fs.readFileSync(config, "utf8");`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "readFileSync", arg: "config" },
+              suggestions: [],
+            },
+          ],
+        },
+        {
+          code: `fs.readFileSync(\n  config,\n  "utf8",\n);`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "readFileSync", arg: "config" },
               suggestions: [
                 {
                   messageId: "wrapInTryCatch",
-                  output: `if (cond) {\n  try {\n    const raw = fs.readFileSync(p, "utf8");\n  } catch (err) {\n    // TODO: handle I/O failure for this fs.readFileSync call.\n    throw new Error(\n      "fs.readFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n      { cause: err },\n    );\n  }\n}`,
+                  output: `try {\n  fs.readFileSync(\n    config,\n    "utf8",\n  );\n} catch (err) {\n  // TODO: handle I/O failure for this fs.readFileSync call.\n  throw new Error(\n    "fs.readFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
                 },
               ],
             },

@@ -1,4 +1,5 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { buildTryCatchSuggestion, isDeferredCallback } from "./try-catch-rule-utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -9,75 +10,7 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 const FS_SYNC_METHODS = new Set(["readFileSync", "writeFileSync", "appendFileSync"]);
 
 // Statement node types that can be directly wrapped in a try/catch block.
-const WRAPPABLE_STATEMENT_TYPES = new Set<AST_NODE_TYPES>([
-  AST_NODE_TYPES.ExpressionStatement,
-  AST_NODE_TYPES.VariableDeclaration,
-  AST_NODE_TYPES.ReturnStatement,
-  AST_NODE_TYPES.ThrowStatement,
-]);
-
-// Callback sinks whose callbacks run outside the dynamic extent of the surrounding try/catch.
-// Mirrors the same constant in require-json-parse-try-catch for consistency.
-const DEFERRED_SINK_NAMES = new Set([
-  "then",
-  "catch",
-  "finally",
-  "on",
-  "once",
-  "addEventListener",
-  "setTimeout",
-  "setInterval",
-  "setImmediate",
-  "queueMicrotask",
-  "nextTick",
-]);
-
-function isFunctionExpressionLike(node: TSESTree.Node): node is TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression {
-  return node.type === AST_NODE_TYPES.ArrowFunctionExpression || node.type === AST_NODE_TYPES.FunctionExpression;
-}
-
-/**
- * Returns true when funcNode is passed as a callback to a sink that will execute it
- * outside the dynamic extent of the surrounding try block.
- */
-function isDeferredCallback(funcNode: TSESTree.Node): boolean {
-  if (!isFunctionExpressionLike(funcNode)) return false;
-
-  const parent = funcNode.parent;
-  if (!parent) return false;
-
-  const isCallLikeParent = parent.type === "NewExpression" || parent.type === "CallExpression";
-  const args = isCallLikeParent ? parent.arguments : undefined;
-  const isArgument = args?.includes(funcNode) ?? false;
-
-  // new Promise(executor) — Promise captures executor throws rather than propagating them
-  const isPromiseConstructor = parent.type === "NewExpression" && parent.callee.type === "Identifier" && parent.callee.name === "Promise";
-  if (isPromiseConstructor && isArgument) return true;
-
-  if (parent.type === "CallExpression" && isArgument) {
-    const callee = parent.callee;
-    if (callee.type === "Identifier" && DEFERRED_SINK_NAMES.has(callee.name)) return true;
-    if (callee.type === "MemberExpression" && !callee.computed && callee.property.type === "Identifier") {
-      return DEFERRED_SINK_NAMES.has(callee.property.name);
-    }
-  }
-
-  return false;
-}
-
-function buildTryCatchSuggestion(stmtText: string, indent: string, method: string): string {
-  return [
-    "try {",
-    `${indent}  ${stmtText}`,
-    `${indent}} catch (err) {`,
-    `${indent}  // TODO: handle I/O failure for this fs.${method} call.`,
-    `${indent}  throw new Error(`,
-    `${indent}    "fs.${method} failed: " + (err instanceof Error ? err.message : String(err)),`,
-    `${indent}    { cause: err },`,
-    `${indent}  );`,
-    `${indent}}`,
-  ].join("\n");
-}
+const WRAPPABLE_STATEMENT_TYPES = new Set<AST_NODE_TYPES>([AST_NODE_TYPES.ExpressionStatement, AST_NODE_TYPES.ReturnStatement]);
 
 export const requireFsSyncTryCatchRule = createRule({
   name: "require-fs-sync-try-catch",
@@ -92,9 +25,7 @@ export const requireFsSyncTryCatchRule = createRule({
     },
     schema: [],
     messages: {
-      requireTryCatch:
-        "Wrap fs.{{method}}({{arg}}) in try/catch — synchronous fs methods throw on I/O errors " +
-        "(missing file, permission denied, disk full) and will crash the action if unhandled.",
+      requireTryCatch: "Wrap fs.{{method}}({{arg}}) in try/catch — synchronous fs methods throw on I/O errors " + "(missing file, permission denied, disk full) and will crash the action if unhandled.",
       wrapInTryCatch: "Wrap in try { ... } catch { ... } and re-throw with { cause: err } to preserve context.",
     },
   },
@@ -117,7 +48,7 @@ export const requireFsSyncTryCatchRule = createRule({
 
         if (ancestor.type === "TryStatement" && !crossedDeferredBoundary) {
           const block = ancestor.block;
-          if (node.range[0] >= block.range[0] && node.range[1] <= block.range[1]) {
+          if (node.range != null && block.range != null && node.range[0] >= block.range[0] && node.range[1] <= block.range[1]) {
             return true;
           }
         }
@@ -162,25 +93,33 @@ export const requireFsSyncTryCatchRule = createRule({
 
         const argText = node.arguments.length > 0 ? sourceCode.getText(node.arguments[0]) : "";
         const method = methodName;
+        const stmt = findEnclosingStatement(node);
 
         context.report({
           node,
           messageId: "requireTryCatch",
           data: { method, arg: argText },
-          suggest: [
-            {
-              messageId: "wrapInTryCatch",
-              fix(fixer) {
-                const stmt = findEnclosingStatement(node);
-                if (!stmt) return null;
-                const stmtText = sourceCode.getText(stmt);
-                const startLine = stmt.loc?.start.line;
-                const stmtLine = startLine !== undefined ? (sourceCode.lines[startLine - 1] ?? "") : "";
-                const indent = stmtLine.match(/^(\s*)/)?.[1] ?? "";
-                return fixer.replaceText(stmt, buildTryCatchSuggestion(stmtText, indent, method));
-              },
-            },
-          ],
+          suggest: stmt
+            ? [
+                {
+                  messageId: "wrapInTryCatch",
+                  fix(fixer) {
+                    const stmtText = sourceCode.getText(stmt);
+                    const startLine = stmt.loc?.start.line;
+                    const stmtLine = startLine !== undefined ? (sourceCode.lines[startLine - 1] ?? "") : "";
+                    const indent = stmtLine.match(/^(\s*)/)?.[1] ?? "";
+                    return fixer.replaceText(
+                      stmt,
+                      buildTryCatchSuggestion(stmtText, {
+                        indent,
+                        todoComment: `TODO: handle I/O failure for this fs.${method} call.`,
+                        errorPrefix: `fs.${method} failed: `,
+                      })
+                    );
+                  },
+                },
+              ]
+            : [],
         });
       },
     };
