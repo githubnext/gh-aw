@@ -53,5 +53,3 @@ Please call the `create_pull_request` tool with:
 - body: "This is a test PR that should fail due to no commits"
 
 Then report the exact error message you received.
-
-{{#runtime-import shared/noop-reminder.md}}

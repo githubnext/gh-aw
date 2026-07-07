@@ -8,6 +8,40 @@ import (
 	"testing"
 )
 
+func TestMCPHTTPServerAddr_BindsToLoopback(t *testing.T) {
+	testCases := []struct {
+		port int
+		want string
+	}{
+		{port: 0, want: "127.0.0.1:0"},
+		{port: 12345, want: "127.0.0.1:12345"},
+		{port: 65535, want: "127.0.0.1:65535"},
+	}
+
+	for _, tc := range testCases {
+		if got := mcpHTTPServerAddr(tc.port); got != tc.want {
+			t.Errorf("mcpHTTPServerAddr(%d) = %q, want %q", tc.port, got, tc.want)
+		}
+	}
+}
+
+func TestMCPHTTPServerDisplayURL_UsesLoopbackAddress(t *testing.T) {
+	testCases := []struct {
+		port int
+		want string
+	}{
+		{port: 0, want: "http://127.0.0.1:0"},
+		{port: 12345, want: "http://127.0.0.1:12345"},
+		{port: 65535, want: "http://127.0.0.1:65535"},
+	}
+
+	for _, tc := range testCases {
+		if got := mcpHTTPServerDisplayURL(tc.port); got != tc.want {
+			t.Errorf("mcpHTTPServerDisplayURL(%d) = %q, want %q", tc.port, got, tc.want)
+		}
+	}
+}
+
 func TestSanitizeForLog_NoSpecialChars(t *testing.T) {
 	input := "/api/v1/workflows"
 	got := sanitizeForLog(input)
@@ -70,6 +104,9 @@ func TestResponseWriter_EmbeddedResponseWriter(t *testing.T) {
 	rw.WriteHeader(http.StatusCreated)
 	if rec.Code != http.StatusCreated {
 		t.Errorf("embedded ResponseWriter code = %d, want %d", rec.Code, http.StatusCreated)
+	}
+	if rw.statusCode != http.StatusCreated {
+		t.Errorf("responseWriter statusCode = %d, want %d", rw.statusCode, http.StatusCreated)
 	}
 }
 

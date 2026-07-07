@@ -75,7 +75,7 @@ Project Setup:
   - Custom fields (Tracker Id, Worker Workflow, Target Repo, Priority, Size, dates)
   - Enhanced Status field with "Review Required" option`,
 		Example: `  gh aw project new "My Project" --owner @me                           # Create user project
-  gh aw project new "Team Board" --owner myorg                         # Create org project  
+  gh aw project new "Team Board" --owner myorg                         # Create org project
   gh aw project new "Bugs" --owner myorg --link myorg/myrepo           # Create and link to repo
   gh aw project new "Project Q1" --owner myorg --with-project-setup     # With project setup`,
 		Args: cobra.ExactArgs(1),

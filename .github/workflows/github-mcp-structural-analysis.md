@@ -371,5 +371,3 @@ A successful analysis:
 - ✅ Creates a discussion with statistics, ratings, and charts
 - ✅ Provides recommendations for tool selection
 - ✅ Maintains 30-day rolling window of data
-
-{{#runtime-import shared/noop-reminder.md}}

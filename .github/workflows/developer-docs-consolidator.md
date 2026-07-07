@@ -531,9 +531,6 @@ A successful consolidation run:
 - ✅ **Makes actual file changes that will be included in the automatic PR**
 
 Begin the consolidation process now. Use Serena for analysis, **directly apply changes** to adjust tone and formatting, add helpful Mermaid diagrams, consolidate into the instructions file, and report your findings through both a discussion and pull request.
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `file-cataloger`
 ---
 description: Discover and catalog all markdown files in specs/ and scratchpad/

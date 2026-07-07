@@ -224,9 +224,6 @@ declaration matches.
 You **MUST** call one safe-output tool before finishing:
 - `create_issue` with the model-resolution report.
 - `noop` only when zero runs were downloaded or zero workflows use sub-agents.
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ---
 
 ## agent: `run-analyzer`

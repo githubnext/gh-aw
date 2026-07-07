@@ -77,7 +77,12 @@ func argumentValidationMiddleware(toolParams map[string]toolParamEntry) mcp.Midd
 			toolName := extractMCPToolName(req)
 			validParams, ok := toolParams[toolName]
 			if !ok {
-				return nil, newMCPError(jsonrpc.CodeMethodNotFound, fmt.Sprintf("unknown MCP tool: %q", toolName), nil)
+				// The tool name is not in the hardcoded registry (mcpToolParams).
+				// This should not happen in practice because the registry is
+				// exhaustive. Escalating to a protocol-level internal error
+				// makes any registry gap fail loudly as a server bug instead of
+				// surfacing as an ordinary tool-level validation failure.
+				return nil, newMCPError(jsonrpc.CodeInternalError, fmt.Sprintf("unknown MCP tool: %q", toolName), nil)
 			}
 
 			mcpArgValidationLog.Printf("Intercepted unknown param error: tool=%s, unknown_params=%v", toolName, unknownParams)

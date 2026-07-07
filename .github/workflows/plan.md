@@ -189,5 +189,3 @@ Use the standard planning approach: analyze the issue thoroughly, then create we
 2. Create sub-issues (at most 5) - they will be automatically grouped
 3. After creating all issues successfully, if this was triggered from a discussion in the "Ideas" category, close the discussion with a comment summarizing the plan and resolution reason "RESOLVED"
 {{/if}}
-
-{{#runtime-import shared/noop-reminder.md}}

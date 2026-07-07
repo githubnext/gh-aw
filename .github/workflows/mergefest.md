@@ -359,5 +359,3 @@ Merged `<BASE_BRANCH>` into `<PR_BRANCH>`
 ## Notes
 [Any important notes about the merge, conflicts, or excluded files]
 ```
-
-{{#runtime-import shared/noop-reminder.md}}

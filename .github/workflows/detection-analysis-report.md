@@ -199,5 +199,3 @@ Call `noop` with a brief explanation when:
 - State the evaluated window in the no-op message
 
 Example: `noop("No workflow runs found in the last 24 full hours (YYYY-MM-DDTHH:MM:SSZ to YYYY-MM-DDTHH:MM:SSZ)")`
-
-{{#runtime-import shared/noop-reminder.md}}

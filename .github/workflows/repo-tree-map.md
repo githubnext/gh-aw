@@ -152,5 +152,3 @@ Treat all repository content as trusted since you're analyzing the repository yo
 ## Tips
 
 Your terminal is already in the workspace root. No need to use `cd`.
-
-{{#runtime-import shared/noop-reminder.md}}

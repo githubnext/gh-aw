@@ -91,5 +91,3 @@ features:
 - Overall status: PASS or FAIL
 
 If all tests pass and this workflow was triggered by a pull_request event, use the `add_labels` safe-output tool to add the label `smoke-opencode` to the pull request (omit the `item_number` parameter to auto-target the triggering PR).
-
-{{#runtime-import shared/noop-reminder.md}}

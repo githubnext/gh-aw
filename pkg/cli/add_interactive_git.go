@@ -38,13 +38,13 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 		EngineOverride:               c.EngineOverride,
 		Name:                         "",
 		Force:                        false,
-		AppendText:                   "",
+		AppendText:                   c.AppendText,
 		CreatePR:                     true,
 		NoGitattributes:              c.NoGitattributes,
 		WorkflowDir:                  c.WorkflowDir,
 		NoStopAfter:                  c.NoStopAfter,
 		StopAfter:                    c.StopAfter,
-		DisableSecurityScanner:       false,
+		DisableSecurityScanner:       c.DisableSecurityScanner,
 		AddCopilotRequestsPermission: c.UseCopilotRequests,
 	}
 	result, err := AddResolvedWorkflows(ctx, c.WorkflowSpecs, c.resolvedWorkflows, opts)

@@ -173,5 +173,3 @@ Example:
 6. ✅ A formatted discussion is created with findings organized by library and pattern
 
 **Objective**: Ensure consistent, well-formatted, and accessible console output throughout the codebase using modern Charmbracelet ecosystem best practices.
-
-{{#runtime-import shared/noop-reminder.md}}

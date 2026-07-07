@@ -70,5 +70,3 @@ Create a GitHub discussion with your research summary including:
 - Relevant sources and links
 
 Keep your summary concise and focused on the most important information.
-
-{{#runtime-import shared/noop-reminder.md}}

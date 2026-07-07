@@ -395,5 +395,3 @@ Append your techniques to the log (use `- [x]` for completed techniques):
 **Instructions**: Replace `[YOUR_RUN_ID]` with the actual GitHub run ID and `[TODAY'S_DATE]` with the current date. Document all techniques you attempted with their results. Use checked boxes `- [x]` since these are completed attempts.
 
 **Remember: This is authorized security testing. Study the implementation, think creatively, reference prior attempts, and try your absolute best to break out with NEW innovative techniques!**
-
-{{#runtime-import shared/noop-reminder.md}}

@@ -268,5 +268,3 @@ The following specifications are outdated:
 - ✅ Cross-package consistency verified
 - ✅ Quality scores assigned to each specification
 - ✅ Issue created if problems found, or noop if all is well
-
-{{#runtime-import shared/noop-reminder.md}}

@@ -161,5 +161,3 @@ When reviewing documentation for the specified topic in the **docs/** folder:
 Keep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements for the topic: "${{ github.event.inputs.topic }}"
 
 You have access to cache-memory for persistent storage across runs, which you can use to track documentation patterns and improvement suggestions.
-
-{{#runtime-import shared/noop-reminder.md}}

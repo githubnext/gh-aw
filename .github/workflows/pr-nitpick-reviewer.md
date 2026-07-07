@@ -393,5 +393,3 @@ A successful review:
 - **Respect time** - Author's time is valuable; make feedback count
 
 Now begin your review! 🔍
-
-{{#runtime-import shared/noop-reminder.md}}

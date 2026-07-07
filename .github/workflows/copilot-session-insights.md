@@ -623,5 +623,3 @@ A successful analysis includes:
 ---
 
 Begin your analysis by verifying the downloaded session data, loading historical context from cache memory, and proceeding through the analysis phases systematically.
-
-{{#runtime-import shared/noop-reminder.md}}

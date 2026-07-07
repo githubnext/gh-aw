@@ -228,9 +228,6 @@ Create at most **2** GitHub issues per run for the highest-priority Tier B/C/D f
 - Prefer concrete, verifiable findings over speculative claims.
 - Never recommend permanent hidden-repo exceptions; all exceptions must be temporary and auditable.
 - Prioritize actions that improve remediation velocity and operational resilience.
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `asset-tier-classifier`
 ---
 description: Builds recent-change-scoped asset graph candidates and proposes initial A/B/C/D tier hypotheses

@@ -245,5 +245,3 @@ You've successfully completed this task if you:
 - Identified specific pain points with examples
 - Provided actionable recommendations
 - Created a discussion with clear findings and screenshots
-
-{{#runtime-import shared/noop-reminder.md}}

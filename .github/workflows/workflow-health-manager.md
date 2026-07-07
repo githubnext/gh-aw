@@ -380,5 +380,3 @@ Execute all phases systematically and maintain a proactive approach to workflow 
 - Prioritize P0/P1 issues; skip detailed analysis for P3 and lower unless the budget allows.
 - Create at most 5 issues per run; batch minor warnings into a single summary issue.
 - Stop immediately after issues are created and shared memory is updated; no extra validation passes.
-
-{{#runtime-import shared/noop-reminder.md}}

@@ -245,5 +245,3 @@ Use cache memory at `/tmp/gh-aw/cache-memory/` to:
 - Acknowledge when security improvements are made (not just concerns)
 
 Begin your security review. 🔒
-
-{{#runtime-import shared/noop-reminder.md}}

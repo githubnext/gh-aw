@@ -503,9 +503,6 @@ This analysis is successful when:
 7. ✅ Recommendations are prioritized by impact and effort
 
 **Objective**: Improve type safety and code maintainability by identifying and recommending fixes for duplicated type definitions and untyped usages in the Go codebase.
-
-{{#runtime-import shared/noop-reminder.md}}
-
 ## agent: `duplicate-type-finder`
 ---
 description: Collects all Go type definitions under pkg/ and groups them into exact, near, and semantic duplicate clusters

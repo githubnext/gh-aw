@@ -382,5 +382,3 @@ Good luck! Your documentation updates help keep our project accessible and up-to
 ### Output Format
 
 Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
-
-{{#runtime-import shared/noop-reminder.md}}

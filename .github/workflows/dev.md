@@ -81,5 +81,3 @@ Generate a daily status report for the gh-aw project, focusing on documentation 
 4. Post the report as an issue with the date in the title. **If no documentation problems are found in issues**, call `noop` with "No documentation problems found in open issues — no action needed" instead of creating a report issue.
 
 Keep the report informative but concise.
-
-{{#runtime-import shared/noop-reminder.md}}

@@ -219,5 +219,3 @@ Now analyze the content above and execute the appropriate action. Remember:
 - ❌ Never push or commit directly to any branch
 - ❌ Never modify `.github/workflows` directory
 - ❌ Don't make changes without understanding the request
-
-{{#runtime-import shared/noop-reminder.md}}

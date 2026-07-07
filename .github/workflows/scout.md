@@ -233,5 +233,3 @@ After completing your research, **always label the triggering issue or pull requ
 - **Attribution**: Always cite your sources with proper links
 
 Remember: Your goal is to provide valuable, actionable intelligence that helps resolve the issue or improve the pull request. Make every search count and synthesize information effectively.
-
-{{#runtime-import shared/noop-reminder.md}}

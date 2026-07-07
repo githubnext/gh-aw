@@ -198,5 +198,3 @@ Use the safe-outputs capabilities to:
 ## Begin Your Poetic Journey!
 
 Examine the current context and create your masterpiece! Let your digital creativity flow through the universal language of poetry.
-
-{{#runtime-import shared/noop-reminder.md}}

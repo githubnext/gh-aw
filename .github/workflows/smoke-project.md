@@ -191,5 +191,3 @@ Execute each step in order:
     - `start_date`: Optional date in "YYYY-MM-DD" format (if you want to represent the run start)
     - `target_date`: Optional date in "YYYY-MM-DD" format (if you want to represent the run target/end)
 {{/if}}
-
-{{#runtime-import shared/noop-reminder.md}}

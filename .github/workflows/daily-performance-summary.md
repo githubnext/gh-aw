@@ -508,5 +508,3 @@ This workflow uses mcp-script tools imported from `shared/github-queries-mcp-scr
 4. Call tools with parameters like: `github-pr-query with state: "all", limit: 1000, jq: "."`
 
 Begin your analysis now. **Use the mcp-script tools** to gather data, run Python analysis, generate charts, and create the discussion report.
-
-{{#runtime-import shared/noop-reminder.md}}

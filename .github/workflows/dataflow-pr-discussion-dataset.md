@@ -673,7 +673,4 @@ gh aw run dataflow-pr-discussion-dataset
 The resulting JSONL dataset is suitable for:
 - **LLM fine-tuning**: Supervised fine-tuning (SFT) datasets from real developer discussions
 - **RAG indexing**: Embedding-ready clean text chunks from the repository's knowledge base
-- **Analytics**: Deduplicated corpus for topic modelling, sentiment analysis, clustering
-
-{{#runtime-import shared/noop-reminder.md}}
-{{/if}}
+- **Analytics**: Deduplicated corpus for topic modelling, sentiment analysis, clustering{{/if}}

@@ -346,5 +346,3 @@ Use `###` (or lower) headers only.
 Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
 
 Wrap long content with `<details><summary><b>View Details</b></summary>...</details>`.
-
-{{#runtime-import shared/noop-reminder.md}}

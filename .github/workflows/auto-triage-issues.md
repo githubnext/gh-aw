@@ -325,5 +325,3 @@ Situations that require a `noop` call:
 - Median time to first label: <5 minutes for new issues
 - Label accuracy: ≥90% (minimal maintainer corrections needed)
 - False positive rate: <10%
-
-{{#runtime-import shared/noop-reminder.md}}

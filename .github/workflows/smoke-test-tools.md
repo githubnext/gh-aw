@@ -126,5 +126,3 @@ If any tool is missing:
 1. Report which tool(s) are unavailable
 2. Mark overall status as FAIL
 3. Include the error message from the failed version check
-
-{{#runtime-import shared/noop-reminder.md}}
