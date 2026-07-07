@@ -69,7 +69,7 @@ func TestSetupActionRequiresNode22(t *testing.T) {
 	fakeBin := filepath.Join(t.TempDir(), "fake-bin")
 	require.NoError(t, os.MkdirAll(fakeBin, 0o755), "Failed to create fake bin directory")
 	fakeNode := filepath.Join(fakeBin, "node")
-	require.NoError(t, os.WriteFile(fakeNode, []byte("#!/usr/bin/env bash\necho v20.19.0\n"), 0o755), "Failed to write fake node")
+	require.NoError(t, os.WriteFile(fakeNode, []byte("#!/usr/bin/env bash\necho v20.19.0\nexit 0\n"), 0o755), "Failed to write fake node")
 
 	cmd := exec.Command("bash", setupScript)
 	cmd.Env = append(os.Environ(),

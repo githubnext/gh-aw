@@ -26,6 +26,8 @@ set +o histexpand
 
 set -euo pipefail
 
+NODE_22_REMEDIATION="This commonly affects self-hosted or GPU runners. Install Node.js 22+ on the runner image or add an earlier actions/setup-node step."
+
 # Configuration
 AWF_VERSION="${1:-}"
 AWF_REPO="github/gh-aw-firewall"
@@ -140,7 +142,7 @@ verify_checksum() {
 require_node_22() {
   GH_AW_NODE_BIN="$(command -v node 2>/dev/null || true)"
   if [ -z "${GH_AW_NODE_BIN}" ]; then
-    echo "ERROR: AWF installation requires Node.js 22 or newer on PATH, but 'node' was not found. This commonly affects self-hosted or GPU runners. Install Node.js 22+ on the runner image or add an earlier actions/setup-node step." >&2
+    echo "ERROR: AWF installation requires Node.js 22 or newer on PATH, but 'node' was not found. ${NODE_22_REMEDIATION}" >&2
     exit 1
   fi
 
@@ -149,7 +151,7 @@ require_node_22() {
   echo "Detected Node.js runtime: ${GH_AW_NODE_VERSION:-unknown} (${GH_AW_NODE_BIN})"
 
   if [ -z "${GH_AW_NODE_VERSION}" ] || ! [ "${GH_AW_NODE_MAJOR}" -ge 22 ] 2>/dev/null; then
-    echo "ERROR: AWF installation requires Node.js 22 or newer on PATH, but detected ${GH_AW_NODE_VERSION:-an unusable node executable}. This commonly affects self-hosted or GPU runners. Install Node.js 22+ on the runner image or add an earlier actions/setup-node step." >&2
+    echo "ERROR: AWF installation requires Node.js 22 or newer on PATH, but detected ${GH_AW_NODE_VERSION:-an unusable node executable}. ${NODE_22_REMEDIATION}" >&2
     exit 1
   fi
 }
