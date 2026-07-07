@@ -18,9 +18,28 @@ set +o histexpand
 
 set -e
 
-# Capture start time immediately so the OTLP setup span reflects actual setup duration.
-# Falls back to 0 when node is unavailable.
-SETUP_START_MS=$(node -e "process.stdout.write(String(Date.now()))" 2>/dev/null || echo "0")
+require_node_22() {
+  GH_AW_NODE_BIN="$(command -v node 2>/dev/null || true)"
+  if [ -z "${GH_AW_NODE_BIN}" ]; then
+    echo "::error::gh-aw setup requires Node.js 22 or newer on PATH, but 'node' was not found. This commonly affects self-hosted or GPU runners. Install Node.js 22+ on the runner image or add an earlier actions/setup-node step." >&2
+    exit 1
+  fi
+
+  GH_AW_NODE_VERSION="$("${GH_AW_NODE_BIN}" --version 2>/dev/null || true)"
+  GH_AW_NODE_MAJOR=$(printf '%s' "${GH_AW_NODE_VERSION#v}" | cut -d. -f1)
+  echo "Detected Node.js runtime: ${GH_AW_NODE_VERSION:-unknown} (${GH_AW_NODE_BIN})"
+
+  if [ -z "${GH_AW_NODE_VERSION}" ] || ! [ "${GH_AW_NODE_MAJOR}" -ge 22 ] 2>/dev/null; then
+    echo "::error::gh-aw setup requires Node.js 22 or newer on PATH, but detected ${GH_AW_NODE_VERSION:-an unusable node executable}. This commonly affects self-hosted or GPU runners. Install Node.js 22+ on the runner image or add an earlier actions/setup-node step." >&2
+    exit 1
+  fi
+}
+
+require_node_22
+
+# Capture start time immediately after the Node.js preflight so the OTLP setup span
+# still reflects actual setup duration while using the validated runtime.
+SETUP_START_MS=$("${GH_AW_NODE_BIN}" -e "process.stdout.write(String(Date.now()))" 2>/dev/null || echo "0")
 
 # Log a message only when GitHub Actions debug mode is active.
 # Handles both RUNNER_DEBUG=1 and RUNNER_DEBUG=true (GitHub Actions sets 'true').
@@ -433,9 +452,9 @@ echo "Successfully copied ${SAFE_OUTPUTS_COUNT} safe-outputs files to ${SAFE_OUT
 # Delegates to action_setup_otlp.cjs (same file used by actions/setup/index.js)
 # to keep dev/release and script mode behavior in sync.
 # Skipped when GH_AW_SKIP_SETUP_OTLP=1 because index.js will send the span itself.
-if [ -z "${GH_AW_SKIP_SETUP_OTLP}" ] && command -v node &>/dev/null && [ -f "${DESTINATION}/action_setup_otlp.cjs" ]; then
+if [ -z "${GH_AW_SKIP_SETUP_OTLP}" ] && [ -f "${DESTINATION}/action_setup_otlp.cjs" ]; then
   debug_log "Sending OTLP setup span..."
-  SETUP_START_MS="${SETUP_START_MS}" INPUT_TRACE_ID="${INPUT_TRACE_ID:-}" INPUT_PARENT_SPAN_ID="${INPUT_PARENT_SPAN_ID:-}" INPUT_JOB_NAME="${INPUT_JOB_NAME:-}" node "${DESTINATION}/action_setup_otlp.cjs" || true
+  SETUP_START_MS="${SETUP_START_MS}" INPUT_TRACE_ID="${INPUT_TRACE_ID:-}" INPUT_PARENT_SPAN_ID="${INPUT_PARENT_SPAN_ID:-}" INPUT_JOB_NAME="${INPUT_JOB_NAME:-}" "${GH_AW_NODE_BIN}" "${DESTINATION}/action_setup_otlp.cjs" || true
   debug_log "OTLP setup span step complete"
 fi
 

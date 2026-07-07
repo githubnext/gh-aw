@@ -11,8 +11,8 @@ set +o histexpand
 #   VERSION - AWF version to install (e.g., v0.25.10)
 #
 # Install strategy:
-#   1. If Node.js >= 20 is available, download the lightweight awf-bundle.js (~357KB)
-#   2. Otherwise, fall back to platform-specific pkg binary (~50MB)
+#   1. Require Node.js >= 22 on PATH
+#   2. Download the lightweight awf-bundle.js (~357KB), falling back to a platform binary if the bundle asset is unavailable
 #
 # Platform support (fallback binary):
 #   - Linux (x64, arm64): Downloads pre-built binary
@@ -135,17 +135,23 @@ verify_checksum() {
   echo "✓ Checksum verification passed for ${fname}"
 }
 
-# Check if Node.js >= 20 is available
-has_node_20() {
-  if ! command -v node &>/dev/null; then
-    return 1
+# Require Node.js >= 22 so self-hosted and GPU runners fail fast before later
+# runtime setup tries to invoke Node-dependent bootstrap code.
+require_node_22() {
+  GH_AW_NODE_BIN="$(command -v node 2>/dev/null || true)"
+  if [ -z "${GH_AW_NODE_BIN}" ]; then
+    echo "ERROR: AWF installation requires Node.js 22 or newer on PATH, but 'node' was not found. This commonly affects self-hosted or GPU runners. Install Node.js 22+ on the runner image or add an earlier actions/setup-node step." >&2
+    exit 1
   fi
-  local node_major
-  node_major=$(node --version | sed 's/^v//' | cut -d. -f1)
-  if [ "$node_major" -ge 20 ] 2>/dev/null; then
-    return 0
+
+  GH_AW_NODE_VERSION="$("${GH_AW_NODE_BIN}" --version 2>/dev/null || true)"
+  GH_AW_NODE_MAJOR=$(printf '%s' "${GH_AW_NODE_VERSION#v}" | cut -d. -f1)
+  echo "Detected Node.js runtime: ${GH_AW_NODE_VERSION:-unknown} (${GH_AW_NODE_BIN})"
+
+  if [ -z "${GH_AW_NODE_VERSION}" ] || ! [ "${GH_AW_NODE_MAJOR}" -ge 22 ] 2>/dev/null; then
+    echo "ERROR: AWF installation requires Node.js 22 or newer on PATH, but detected ${GH_AW_NODE_VERSION:-an unusable node executable}. This commonly affects self-hosted or GPU runners. Install Node.js 22+ on the runner image or add an earlier actions/setup-node step." >&2
+    exit 1
   fi
-  return 1
 }
 
 install_bundle() {
@@ -155,10 +161,9 @@ install_bundle() {
   # Capture the absolute path to node so the wrapper works correctly when
   # invoked via sudo (where PATH may not include the setup-node install dir,
   # e.g. ~/.nvm/versions/node/v24.x.x/bin).
-  local node_bin
-  node_bin=$(command -v node)
+  local node_bin="${GH_AW_NODE_BIN}"
 
-  echo "Node.js >= 20 detected ($(node --version)), using lightweight bundle..."
+  echo "Node.js >= 22 detected (${GH_AW_NODE_VERSION}), using lightweight bundle..."
   echo "Downloading bundle from ${bundle_url@Q}..."
   if ! curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 -o "${TEMP_DIR}/${bundle_name}" "${bundle_url}"; then
     echo "⚠ Bundle download failed (asset may not exist for this version)"
@@ -250,13 +255,9 @@ install_platform_binary() {
 }
 
 # Try lightweight bundle first, fall back to platform binary
-if has_node_20; then
-  if ! install_bundle; then
-    echo "⚠ Bundle install failed, falling back to platform binary..."
-    install_platform_binary
-  fi
-else
-  echo "Node.js >= 20 not available, falling back to platform binary..."
+require_node_22
+if ! install_bundle; then
+  echo "⚠ Bundle install failed, falling back to platform binary..."
   install_platform_binary
 fi
 

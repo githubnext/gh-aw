@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set +o histexpand
 
-# Tests for install_awf_binary.sh flag-parsing and variable-override logic.
+# Tests for install_awf_binary.sh flag-parsing, Node.js preflight, and variable-override logic.
 # Run: bash install_awf_binary_test.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,6 +33,24 @@ parse_and_override() {
     echo "AWF_INSTALL_DIR=${AWF_INSTALL_DIR}"
     echo "AWF_LIB_DIR=${AWF_LIB_DIR}"
   ' -- "${args[@]}"
+}
+
+run_node_preflight() {
+  local node_script_dir="$1"
+  PATH="${node_script_dir}:$PATH" bash -c '
+    GH_AW_NODE_BIN="$(command -v node 2>/dev/null || true)"
+    if [ -z "${GH_AW_NODE_BIN}" ]; then
+      echo "ERROR: missing node" >&2
+      exit 1
+    fi
+    GH_AW_NODE_VERSION="$("${GH_AW_NODE_BIN}" --version 2>/dev/null || true)"
+    GH_AW_NODE_MAJOR=$(printf "%s" "${GH_AW_NODE_VERSION#v}" | cut -d. -f1)
+    echo "Detected Node.js runtime: ${GH_AW_NODE_VERSION:-unknown} (${GH_AW_NODE_BIN})"
+    if [ -z "${GH_AW_NODE_VERSION}" ] || ! [ "${GH_AW_NODE_MAJOR}" -ge 22 ] 2>/dev/null; then
+      echo "ERROR: AWF installation requires Node.js 22 or newer on PATH, but detected ${GH_AW_NODE_VERSION:-an unusable node executable}." >&2
+      exit 1
+    fi
+  '
 }
 
 echo "Running install_awf_binary.sh tests..."
@@ -116,6 +134,38 @@ if echo "$warning_output" | grep -q "WARNING"; then
 else
   fail "No WARNING when GITHUB_PATH is unset" "$warning_output"
 fi
+
+# Test 7: Node.js 22 preflight accepts a supported runtime
+echo "Test 7: Node.js 22+ preflight accepts a supported runtime..."
+FAKE_NODE_OK_DIR=$(mktemp -d)
+cat > "${FAKE_NODE_OK_DIR}/node" <<'EOF'
+#!/usr/bin/env bash
+echo v22.17.1
+EOF
+chmod +x "${FAKE_NODE_OK_DIR}/node"
+preflight_output=$(run_node_preflight "${FAKE_NODE_OK_DIR}" 2>&1)
+if echo "$preflight_output" | grep -q "Detected Node.js runtime: v22.17.1"; then
+  pass "Node.js 22+ preflight accepted v22.17.1"
+else
+  fail "Node.js 22+ preflight did not accept v22.17.1" "$preflight_output"
+fi
+rm -rf "${FAKE_NODE_OK_DIR}"
+
+# Test 8: Node.js 22 preflight rejects an older runtime with a clear message
+echo "Test 8: Node.js 22+ preflight rejects Node.js 20..."
+FAKE_NODE_OLD_DIR=$(mktemp -d)
+cat > "${FAKE_NODE_OLD_DIR}/node" <<'EOF'
+#!/usr/bin/env bash
+echo v20.19.0
+EOF
+chmod +x "${FAKE_NODE_OLD_DIR}/node"
+preflight_output=$(run_node_preflight "${FAKE_NODE_OLD_DIR}" 2>&1 || true)
+if echo "$preflight_output" | grep -q "Detected Node.js runtime: v20.19.0" && echo "$preflight_output" | grep -q "requires Node.js 22 or newer"; then
+  pass "Node.js 22+ preflight rejected v20.19.0 with a clear remediation message"
+else
+  fail "Node.js 22+ preflight did not reject v20.19.0 as expected" "$preflight_output"
+fi
+rm -rf "${FAKE_NODE_OLD_DIR}"
 
 echo
 echo "Tests passed: $TESTS_PASSED"
