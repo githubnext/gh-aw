@@ -118,39 +118,6 @@ func TestBuildInitialWorkflowData_EmptyFields(t *testing.T) {
 	assert.Empty(t, workflowData.ImportedFiles)
 }
 
-func TestBuildInitialWorkflowData_SetsRepositoryVisibilityForGitHubTool(t *testing.T) {
-	compiler := NewCompiler()
-	compiler.SetRepositorySlug("github/gh-aw")
-
-	originalFetchRepositoryVisibility := fetchRepositoryVisibility
-	fetchRepositoryVisibility = func(slug string) (string, error) {
-		assert.Equal(t, "github/gh-aw", slug)
-		return "public", nil
-	}
-	defer func() { fetchRepositoryVisibility = originalFetchRepositoryVisibility }()
-
-	frontmatterResult := &parser.FrontmatterResult{
-		Frontmatter:      map[string]any{},
-		FrontmatterLines: []string{},
-	}
-
-	toolsResult := &toolsProcessingResult{
-		tools:             map[string]any{"github": map[string]any{}},
-		runtimes:          map[string]any{},
-		parsedFrontmatter: &FrontmatterConfig{},
-	}
-
-	engineSetup := &engineSetupResult{
-		engineSetting:      "copilot",
-		engineConfig:       &EngineConfig{},
-		networkPermissions: &NetworkPermissions{},
-		importsResult:      &parser.ImportsResult{},
-	}
-
-	workflowData := compiler.buildInitialWorkflowData(frontmatterResult, toolsResult, engineSetup, engineSetup.importsResult)
-	assert.Equal(t, "public", workflowData.RepositoryVisibility)
-}
-
 // TestExtractYAMLSections_AllSections tests extraction of all YAML sections
 func TestExtractYAMLSections_AllSections(t *testing.T) {
 	compiler := NewCompiler()

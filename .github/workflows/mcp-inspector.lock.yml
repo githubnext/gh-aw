@@ -925,7 +925,7 @@ jobs:
 
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_f9e9b26c403642df_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_b813d0d085d882e5_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -943,7 +943,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -959,7 +960,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -973,7 +975,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -990,7 +993,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -1008,7 +1012,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -1038,7 +1043,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -1054,7 +1060,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -1089,7 +1096,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -1119,7 +1127,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -1140,7 +1149,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -1154,7 +1164,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -1174,7 +1185,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -1206,7 +1218,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -1244,7 +1257,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -1273,7 +1287,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -1293,7 +1308,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               }
@@ -1310,7 +1326,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_f9e9b26c403642df_EOF
+          GH_AW_MCP_CONFIG_b813d0d085d882e5_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

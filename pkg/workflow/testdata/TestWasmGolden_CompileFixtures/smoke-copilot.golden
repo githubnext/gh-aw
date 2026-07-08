@@ -682,7 +682,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -712,7 +713,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -741,7 +743,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               }
