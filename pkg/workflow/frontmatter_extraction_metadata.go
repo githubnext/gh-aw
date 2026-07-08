@@ -306,12 +306,12 @@ func extractToolsMapFromFrontmatter(frontmatter map[string]any) map[string]any {
 	return ExtractMapField(frontmatter, "tools")
 }
 
-// extractMCPServersFromFrontmatter extracts mcp-servers section from frontmatter
-func extractMCPServersFromFrontmatter(frontmatter map[string]any) map[string]any {
+// extractMCPServersMapFromFrontmatter extracts mcp-servers section from frontmatter
+func extractMCPServersMapFromFrontmatter(frontmatter map[string]any) map[string]any {
 	return ExtractMapField(frontmatter, "mcp-servers")
 }
 
-// extractRuntimesFromFrontmatter extracts runtimes section from frontmatter map
-func extractRuntimesFromFrontmatter(frontmatter map[string]any) map[string]any {
+// extractRuntimesMapFromFrontmatter extracts runtimes section from frontmatter map
+func extractRuntimesMapFromFrontmatter(frontmatter map[string]any) map[string]any {
 	return ExtractMapField(frontmatter, "runtimes")
 }

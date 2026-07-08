@@ -185,7 +185,7 @@ func (c *Compiler) resolveToolsConfiguration(
 		return nil, fmt.Errorf("failed to expand includes for tools: %w", err)
 	}
 	allIncludedTools := strings.Join(nonEmptyStrings(importsResult.MergedTools, includedTools), "\n")
-	mcpServers := extractMCPServersFromFrontmatter(result.Frontmatter)
+	mcpServers := extractMCPServersMapFromFrontmatter(result.Frontmatter)
 	resolvedMCPServers, err := c.mergeImportedMCPServers(mcpServers, importsResult.MergedMCPServers)
 	if err != nil {
 		return nil, err
@@ -264,7 +264,7 @@ func (c *Compiler) extractToolTimeouts(tools map[string]any) (string, string, er
 }
 
 func (c *Compiler) resolveRuntimes(frontmatter map[string]any, importsResult *parser.ImportsResult) (map[string]any, bool, error) {
-	topRuntimes := extractRuntimesFromFrontmatter(frontmatter)
+	topRuntimes := extractRuntimesMapFromFrontmatter(frontmatter)
 	orchestratorToolsLog.Printf("Merging runtimes")
 	runtimes, err := mergeRuntimes(topRuntimes, importsResult.MergedRuntimes)
 	if err != nil {
