@@ -251,6 +251,9 @@ func (c *Compiler) buildPreActivationMemoryRestoreSteps(data *WorkflowData, step
 	}
 
 	if data.SafeOutputs != nil && data.SafeOutputs.CommentMemory != nil {
+		if configLines, ok := c.generateCommentMemoryEarlyConfigLines(data); ok {
+			steps = append(steps, strings.Join(configLines, ""))
+		}
 		var commentMemorySteps strings.Builder
 		commentMemorySteps.WriteString("      - name: Prepare comment memory files\n")
 		fmt.Fprintf(&commentMemorySteps, "        uses: %s\n", getCachedActionPin("actions/github-script", data))

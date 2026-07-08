@@ -82,6 +82,9 @@ func (c *Compiler) buildRestoreMemorySteps(cfg *restoreMemoryConfig, jobName str
 		memoryLines = append(memoryLines, generateRepoMemoryRestoreLines(data)...)
 	}
 	if cfg.CommentMemory {
+		if configLines, ok := c.generateCommentMemoryEarlyConfigLines(data); ok {
+			memoryLines = append(memoryLines, configLines...)
+		}
 		memoryLines = append(memoryLines, generateCommentMemoryRestoreLines(data)...)
 	}
 
