@@ -37,8 +37,15 @@ Condensed 06-30 to fit the 10 KB repo-memory budget. **76/3600 tested, all PASS.
   same-file-re-touch law), bundle 761; clean-merge_msg(74) 1016/1f leak
   0001-Merge-branch-topic-into-feature.patch, --merges empty parent=1, bundle 764;
   ahead-single(75) PR 1016/1f + push delta 8 KB (FF is-ancestor OK, commit_count=2),
-  bundle 768. All ~25% of 4096 cap. large tier 76-80 (ahead-multi/merge_msg,
-  diverged) remain.
+  bundle 768. **07-08 idx76-79 all PASS**, all ~25% of 4096 cap (~3080 KB headroom),
+  all FF clean (is-ancestor=0), --merges empty: ahead-multi(76) 1016.20/4f/4c
+  **1.016×** disjoint, bundle 762.22 (~75%); ahead-merge_msg(77) 1015.64/2f/2c,
+  filename leak RECONFIRMED 0001-Merge-branch-topic-into-feature.patch parent=1,
+  bundle 761.70; diverged-single(78) 1015.62/2f/2c, **two-dot==three-dot delta 0 B**
+  (format-patch main..feature already walks merge-base..feature; main's history.md
+  commit off feature ancestry), bundle 761.73; diverged-multi(79) 1016.21/4f/4c
+  **1.016×** disjoint, delta 0 B, bundle 762.30. Bundle ~75% of patch throughout.
+  Only idx80 (tiny-none-few-large-diverged-merge_msg) remains in large tier.
 
 ## The cap (grounded in source)
 
@@ -105,8 +112,8 @@ it's a real bug (over-count, or runtime measuring excluded commits).
 
 ## Next
 
-Next index: **76** → `tiny-none-few-large-ahead-multi` (76), then ahead-merge_msg(77),
-diverged(78-80) finish the large tier (all ~1 MB → PASS predicted);
+Next index: **80** → `tiny-none-few-large-diverged-merge_msg` (80, last large-tier
+cell; ~1 MB + filename leak → PASS predicted). Then
 few-xlarge (81-89) predicted ~4054 KB → PASS (near 99% cap but header math shows
 few lands ~4054, under 4096). That FINISHES FILES=few. FILES=many (idx 90-179) &
 batch (180-269) next — many/batch × xlarge is the first place `max_patch_files`
