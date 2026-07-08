@@ -224,6 +224,7 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 	}
 	c.addActivationReactionStep(ctx)
 	c.addActivationSecretValidationStep(ctx)
+	c.addActivationOAuthTokenCheckStep(ctx)
 	c.addActivationCrossRepoGuidanceStep(ctx)
 	return nil
 }
@@ -369,6 +370,30 @@ func (c *Compiler) addActivationSecretValidationStep(ctx *activationJobBuildCont
 	}
 	ctx.outputs["secret_verification_result"] = "${{ steps.validate-secret.outputs.verification_result }}"
 	compilerActivationJobLog.Printf("Added validate-secret step to activation job")
+}
+
+// addActivationOAuthTokenCheckStep adds a step to the activation job that checks
+// COPILOT_GITHUB_TOKEN, GH_AW_GITHUB_TOKEN, and GH_AW_GITHUB_MCP_SERVER_TOKEN are not
+// OAuth tokens. OAuth tokens (gho_...) are not suitable for automation as they are
+// typically over-provisioned.
+func (c *Compiler) addActivationOAuthTokenCheckStep(ctx *activationJobBuildContext) {
+	compilerActivationJobLog.Print("Adding OAuth token check step to activation job")
+
+	// Resolve COPILOT_GITHUB_TOKEN expression, respecting engine.env overrides.
+	copilotTokenExpr := fmt.Sprintf("${{ secrets.%s }}", constants.CopilotGitHubToken)
+	if overrides := getEngineEnvOverrides(ctx.data); overrides != nil {
+		if override, ok := overrides[constants.CopilotGitHubToken]; ok {
+			copilotTokenExpr = override
+		}
+	}
+
+	ctx.steps = append(ctx.steps, "      - name: Check for OAuth tokens\n")
+	ctx.steps = append(ctx.steps, "        id: check-oauth-tokens\n")
+	ctx.steps = append(ctx.steps, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/check_oauth_tokens.sh\"\n")
+	ctx.steps = append(ctx.steps, "        env:\n")
+	ctx.steps = append(ctx.steps, fmt.Sprintf("          %s: %s\n", constants.CopilotGitHubToken, copilotTokenExpr))
+	ctx.steps = append(ctx.steps, fmt.Sprintf("          %s: ${{ secrets.%s }}\n", constants.EnvVarGitHubToken, constants.EnvVarGitHubToken))
+	ctx.steps = append(ctx.steps, fmt.Sprintf("          %s: ${{ secrets.%s }}\n", constants.EnvVarGitHubMCPServerToken, constants.EnvVarGitHubMCPServerToken))
 }
 
 func (c *Compiler) addActivationCrossRepoGuidanceStep(ctx *activationJobBuildContext) {
