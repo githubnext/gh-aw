@@ -18,6 +18,9 @@ import (
 // properly JSON-encoded at runtime even if it contains double quotes or backslashes.
 const guardExprSentinel = "__GH_AW_GUARD_EXPR:"
 
+// sinkVisibilityRuntimeExpr resolves repository visibility at workflow runtime for MCP guard policies.
+const sinkVisibilityRuntimeExpr = guardExprSentinel + "${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}"
+
 // guardExprRE matches sentinel-prefixed expression values in the JSON output:
 //
 //	"__GH_AW_GUARD_EXPR:${{ expr }}"  →  ${{ expr }}

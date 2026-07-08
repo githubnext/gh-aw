@@ -51,14 +51,25 @@ function setupGlobals(coreModule, githubModule, contextModule, execModule, ioMod
   // Wrap getOctokit so every client created via global.getOctokit(token) also
   // carries X-GitHub-Api-Version, suppressing the deprecation warning for
   // per-handler authenticated clients (cross-repo PAT operations, etc.).
-  global.getOctokit = (token, options = {}) =>
-    getOctokitFn(token, {
+  // Also validates that the token is not an OAuth token (gho_...) which is
+  // unsuitable for automation.
+  global.getOctokit = (token, options = {}) => {
+    if (typeof token === "string" && token.startsWith("gho_")) {
+      throw new Error(
+        "OAuth token (gho_...) detected. OAuth tokens are not suitable for automation: " +
+          "they are typically over-provisioned, may expire when the user logs out, and cannot be " +
+          "scoped to specific repositories. Replace the token with a fine-grained Personal Access Token " +
+          "at: https://github.com/settings/personal-access-tokens/new"
+      );
+    }
+    return getOctokitFn(token, {
       ...options,
       headers: {
         "X-GitHub-Api-Version": "2022-11-28",
         ...(options.headers || {}),
       },
     });
+  };
 }
 
 module.exports = { setupGlobals };
