@@ -14,6 +14,42 @@ const { parseAllowedIssueFields, validateAllowedIssueFieldName } = require("./al
 const { resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
 const { hasIssueIntentsRuntimeFeature, normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
 
+/**
+ * Built-in GitHub issue fields that are updated via REST API (issues.update)
+ * rather than the GraphQL issue fields (project custom fields) API.
+ * @type {Set<string>}
+ */
+const BUILTIN_ISSUE_FIELDS = new Set(["body", "title", "state"]);
+
+/**
+ * Updates a built-in GitHub issue field (body, title, state) using the REST API.
+ * @param {Object} githubClient - Authenticated GitHub client
+ * @param {{owner: string, repo: string}} repoParts - Repository owner and name
+ * @param {number} issueNumber - Issue number
+ * @param {string} fieldName - Built-in field name (body, title, state)
+ * @param {string} value - Value to set
+ * @param {string} itemRepo - Full repo string for logging
+ * @returns {Promise<{success: boolean, issue_number: number, field_name: string, value: string, repo: string} | {success: false, error: string}>}
+ */
+async function updateBuiltinIssueField(githubClient, repoParts, issueNumber, fieldName, value, itemRepo) {
+  const { owner, repo } = repoParts;
+  core.info(`Setting built-in issue field "${fieldName}" on issue #${issueNumber} via REST API`);
+  await githubClient.rest.issues.update({
+    owner,
+    repo,
+    issue_number: issueNumber,
+    [fieldName]: value,
+  });
+  core.info(`Successfully set built-in issue field "${fieldName}" to ${JSON.stringify(value)} on issue #${issueNumber}`);
+  return {
+    success: true,
+    issue_number: issueNumber,
+    field_name: fieldName,
+    value,
+    repo: itemRepo,
+  };
+}
+
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "set_issue_field";
 
@@ -263,6 +299,19 @@ async function main(config = {}) {
           repo: itemRepo,
         },
       };
+    }
+
+    // Handle built-in issue fields (body, title, state) via REST API before
+    // attempting GraphQL project custom field discovery.
+    if (fieldName && BUILTIN_ISSUE_FIELDS.has(fieldName.toLowerCase())) {
+      try {
+        validateAllowedIssueFieldName(fieldName, allowedIssueFields);
+        return await updateBuiltinIssueField(githubClient, repoParts, issueNumber, fieldName.toLowerCase(), value, itemRepo);
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
+        core.error(`Failed to set built-in issue field "${fieldName}" on issue #${issueNumber}: ${errorMessage}`);
+        return { success: false, error: errorMessage };
+      }
     }
 
     try {

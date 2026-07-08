@@ -32,6 +32,7 @@ const mockGithub = {
   rest: {
     issues: {
       get: vi.fn(),
+      update: vi.fn(),
     },
   },
   graphql: mockGraphql,
@@ -79,6 +80,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     vi.clearAllMocks();
 
     mockGithub.rest.issues.get.mockResolvedValue({ data: { node_id: issueNodeId } });
+    mockGithub.rest.issues.update.mockResolvedValue({ data: { number: 42 } });
     mockGraphql.mockImplementation(query => {
       if (query.includes("issueFields")) {
         return Promise.resolve(mockIssueFieldsQuery);
@@ -450,5 +452,111 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     } finally {
       delete process.env.GH_AW_RUNTIME_FEATURES;
     }
+  });
+
+  describe("built-in issue field handling", () => {
+    it("should update 'body' via REST API without GraphQL field discovery", async () => {
+      const message = {
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "body",
+        value: "New issue body content",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.issue_number).toBe(42);
+      expect(result.field_name).toBe("body");
+      expect(result.value).toBe("New issue body content");
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: "test-owner",
+          repo: "test-repo",
+          issue_number: 42,
+          body: "New issue body content",
+        })
+      );
+      // GraphQL project field discovery must NOT be called for built-in fields
+      expect(mockGraphql).not.toHaveBeenCalledWith(expect.stringContaining("issueFields"), expect.anything());
+    });
+
+    it("should update 'title' via REST API without GraphQL field discovery", async () => {
+      const message = {
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "title",
+        value: "Updated issue title",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.field_name).toBe("title");
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 42, title: "Updated issue title" }));
+      expect(mockGraphql).not.toHaveBeenCalledWith(expect.stringContaining("issueFields"), expect.anything());
+    });
+
+    it("should update 'state' via REST API without GraphQL field discovery", async () => {
+      const message = {
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "state",
+        value: "closed",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.field_name).toBe("state");
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 42, state: "closed" }));
+      expect(mockGraphql).not.toHaveBeenCalledWith(expect.stringContaining("issueFields"), expect.anything());
+    });
+
+    it("should handle built-in field names case-insensitively (Body, TITLE)", async () => {
+      const message = {
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "Body",
+        value: "Some body text",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ body: "Some body text" }));
+    });
+
+    it("should reject built-in field when not in allowed-fields list", async () => {
+      const { main } = require("./set_issue_field.cjs");
+      const restrictedHandler = await main({ allowed_fields: ["Priority"] });
+
+      const result = await restrictedHandler({
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "body",
+        value: "Should be blocked",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("body");
+      expect(result.error).toContain("allowed-fields");
+      expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
+    });
+
+    it("should allow built-in field when allowed-fields includes wildcard", async () => {
+      const { main } = require("./set_issue_field.cjs");
+      const unrestrictedHandler = await main({ allowed_fields: ["*"] });
+
+      const result = await unrestrictedHandler({
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "body",
+        value: "Allowed by wildcard",
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ body: "Allowed by wildcard" }));
+    });
   });
 });
