@@ -141,7 +141,7 @@ The `report-incomplete` safe-output is enabled by default and is distinct from `
     ```yaml
     safe-outputs:
       mentions:
-        allow-team-members: true    # Allow repository collaborators (default: true)
+        allowed-collaborators: true # Allow repository collaborators (default: true; `allow-team-members` is a deprecated alias)
         allow-context: true          # Allow mentions from event context (default: true)
         allowed: [copilot, user1]    # Always allow specific users/bots
         allowed-teams:               # Allow all members of named GitHub teams

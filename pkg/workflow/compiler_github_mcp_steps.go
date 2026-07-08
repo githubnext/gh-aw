@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -9,11 +10,11 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 )
 
-// generateGitHubMCPLockdownDetectionStep generates a step to determine automatic guard policy
-// for GitHub MCP server based on repository visibility.
-// This step is added when:
-//   - GitHub tool is enabled AND
-//   - guard policy (repos/min-integrity) is not fully configured in the workflow
+// generateGitHubMCPLockdownDetectionStep generates a step to determine the repository visibility
+// and automatic guard policy for the GitHub MCP server.
+// This step is added when GitHub tool is enabled. It always runs to:
+//   - Output the repository visibility (used as sink-visibility in the mcpg config at runtime)
+//   - Auto-configure guard policies (min-integrity, repos) when not explicitly set in the workflow
 //
 // For public repositories, the step automatically sets min-integrity to "approved" and
 // repos to "all" if they are not already configured.
@@ -26,15 +27,13 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 		githubConfigLog.Print("Skipping GitHub MCP lockdown detection step: GitHub tool not enabled")
 		return
 	}
-	githubToolMap, _ := githubTool.(map[string]any)
 
-	// Skip when guard policy is already fully configured in the workflow.
-	// The step is only needed to auto-configure guard policies for public repos.
-	if len(getGitHubGuardPolicies(githubToolMap)) > 0 {
-		githubConfigLog.Print("Guard policy already configured in workflow, skipping automatic guard policy determination")
-		return
-	}
-
+	// NOTE: Do NOT skip this step when guard policies are explicitly configured.
+	// Even when min-integrity/repos are hardcoded, the step must still run to output
+	// the repository visibility via steps.determine-automatic-lockdown.outputs.visibility,
+	// which is referenced as sink-visibility in safe-outputs and other MCP server guard
+	// policies. Removing the step while leaving those references in place breaks workflows
+	// at runtime with undefined step output errors.
 	githubConfigLog.Print("Generating automatic guard policy determination step for GitHub MCP server")
 
 	// Resolve the latest version of actions/github-script
@@ -54,13 +53,13 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	configuredRepos := ""
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if v, exists := toolConfig["min-integrity"]; exists {
-			configuredMinIntegrity = fmt.Sprintf("%v", v)
+			configuredMinIntegrity = serializeEnvStringValue(v)
 		}
 		// Support both 'allowed-repos' (preferred) and deprecated 'repos'
 		if v, exists := toolConfig["allowed-repos"]; exists {
-			configuredRepos = fmt.Sprintf("%v", v)
+			configuredRepos = serializeEnvStringValue(v)
 		} else if v, exists := toolConfig["repos"]; exists {
-			configuredRepos = fmt.Sprintf("%v", v)
+			configuredRepos = serializeEnvStringValue(v)
 		}
 	}
 
@@ -72,15 +71,40 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	yaml.WriteString("          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}\n")
 	yaml.WriteString("          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}\n")
 	if configuredMinIntegrity != "" {
-		fmt.Fprintf(yaml, "          GH_AW_GITHUB_MIN_INTEGRITY: %s\n", configuredMinIntegrity)
+		fmt.Fprintf(yaml, "          GH_AW_GITHUB_MIN_INTEGRITY: %s\n", quoteYAMLEnvValue(configuredMinIntegrity))
 	}
 	if configuredRepos != "" {
-		fmt.Fprintf(yaml, "          GH_AW_GITHUB_REPOS: %s\n", configuredRepos)
+		fmt.Fprintf(yaml, "          GH_AW_GITHUB_REPOS: %s\n", quoteYAMLEnvValue(configuredRepos))
 	}
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');\n")
 	yaml.WriteString("            await determineAutomaticLockdown(github, context, core);\n")
+}
+
+// serializeEnvStringValue converts a workflow config value to a string suitable for a
+// YAML env variable. Strings are returned as-is; slices are JSON-encoded so that
+// e.g. ["github/gh-aw", "github/*"] becomes `["github/gh-aw","github/*"]`.
+func serializeEnvStringValue(v any) string {
+	switch val := v.(type) {
+	case string:
+		return val
+	default:
+		encoded, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Sprintf("%v", v)
+		}
+		return string(encoded)
+	}
+}
+
+// quoteYAMLEnvValue wraps a string in single quotes for safe use as a YAML scalar env value.
+// This prevents YAML from misinterpreting values that look like sequences (e.g. JSON arrays).
+// Single quotes in the value are escaped by doubling them per YAML 1.2 spec.
+func quoteYAMLEnvValue(s string) string {
+	// Escape embedded single quotes by doubling them
+	escaped := strings.ReplaceAll(s, "'", "''")
+	return "'" + escaped + "'"
 }
 
 // generateGitHubMCPAppTokenMintingSteps returns the YAML steps to mint a GitHub App token

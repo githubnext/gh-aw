@@ -218,6 +218,9 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 						// Allow single string to be treated as array of one
 						entry.FileGlob = []string{globStr}
 					}
+					if err := validateFileGlobPatterns(entry.FileGlob); err != nil {
+						return nil, err
+					}
 				}
 
 				// Parse max-file-size
@@ -381,6 +384,9 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 			} else if globStr, ok := fileGlob.(string); ok {
 				// Allow single string to be treated as array of one
 				entry.FileGlob = []string{globStr}
+			}
+			if err := validateFileGlobPatterns(entry.FileGlob); err != nil {
+				return nil, err
 			}
 		}
 

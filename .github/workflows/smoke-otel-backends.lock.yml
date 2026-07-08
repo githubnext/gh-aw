@@ -252,6 +252,13 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh" COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://github.github.com/gh-aw/reference/engines/#github-copilot-default
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      - name: Check for OAuth tokens
+        id: check-oauth-tokens
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/check_oauth_tokens.sh"
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
       - name: Checkout .github and .agents folders
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -814,7 +821,7 @@ jobs:
 
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_58218cfe7d58fa3c_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_0992b86d950f4518_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "datadog": {
@@ -844,7 +851,7 @@ jobs:
                     "accept": [
                       "*"
                     ],
-                    "sink-visibility": "public"
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -874,7 +881,7 @@ jobs:
                     "accept": [
                       "*"
                     ],
-                    "sink-visibility": "public"
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -907,7 +914,7 @@ jobs:
                     "accept": [
                       "*"
                     ],
-                    "sink-visibility": "public"
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -946,7 +953,7 @@ jobs:
                     "accept": [
                       "*"
                     ],
-                    "sink-visibility": "public"
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               }
@@ -963,7 +970,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_58218cfe7d58fa3c_EOF
+          GH_AW_MCP_CONFIG_0992b86d950f4518_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

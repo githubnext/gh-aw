@@ -172,9 +172,15 @@ jobs:
 	require.NotEmpty(t, section, "Expected orchestrator job section in lock file")
 
 	// Must contain prepare comment memory step
+	assert.Contains(t, section, "Write comment-memory configuration", "comment memory config step should be present")
 	assert.Contains(t, section, "Prepare comment memory files", "comment memory prepare step should be present")
 	assert.Contains(t, section, "setup_comment_memory_files.cjs", "comment memory CJS script should be referenced")
 	assert.Contains(t, section, "actions/github-script@", "github-script action should be used")
+	assertStepOrderInSection(t, section,
+		"- name: Write comment-memory configuration",
+		"- name: Prepare comment memory files",
+		"- name: Process comment memory",
+	)
 }
 
 // TestCustomJobRestoreMemoryMultipleTypes verifies that a custom job with

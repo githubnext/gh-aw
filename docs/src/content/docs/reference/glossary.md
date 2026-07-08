@@ -270,6 +270,10 @@ A recognized "magic" repository secret name that GitHub Agentic Workflows automa
 
 A recognized "magic" repository secret name used as the default fallback token for GitHub operations outside engine inference when no explicit `github-token:` is configured. Commonly used for safe outputs and tool operations that require permissions beyond the default `GITHUB_TOKEN`, and as the non-App fallback when `github-app.ignore-if-missing: true` is enabled. Fallback chain: `custom github-token` → `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN`. See [Authentication Reference](/gh-aw/reference/auth/).
 
+### COPILOT_GITHUB_TOKEN
+
+A repository secret name used to authenticate Copilot inference with a specific user's fine-grained Personal Access Token (PAT). Required in personal repositories or when centralized organization billing is unavailable. The activation job validates that this token is not a GitHub OAuth token (`gho_` prefix) — OAuth tokens are rejected with an actionable error because they cannot be scoped to a specific repository. When `permissions: copilot-requests: write` is set in the workflow, this secret is ignored for inference and `GITHUB_TOKEN` is used instead. See [Authentication Reference](/gh-aw/reference/auth/#copilot_github_token).
+
 ### Custom Safe Outputs
 
 An extension mechanism for safe outputs that enables integration with third-party services beyond built-in GitHub operations. Defined under `safe-outputs.jobs:`, custom safe outputs separate read and write operations: agents use read-only MCP tools for queries, while custom jobs execute write operations with secret access after agent completion. Supports services like Slack, Notion, Jira, or any external API. See [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/).
@@ -391,6 +395,10 @@ A safe output capability for replying to existing review comments on pull reques
 ### Resolve PR Review Thread (`resolve-pull-request-review-thread:`)
 
 A safe output capability for marking GitHub PR review threads as resolved. Uses the GitHub GraphQL `resolveReviewThread` mutation, requiring the thread's node ID. Allows AI agents to clean up addressed review comments after implementing feedback. Accepts the same `target`, `target-repo`, and `allowed-repos` options as other pull-request safe outputs. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#resolve-pr-review-thread-resolve-pull-request-review-thread).
+
+### Dismiss Pull Request Review (`dismiss-pull-request-review:`)
+
+A safe output capability for dismissing existing pull request reviews authored by the workflow actor. Configured via `dismiss-pull-request-review:` in `safe-outputs`. Also accepts the legacy alias `dismiss-review:`. Supports the standard target, filter, and base safe-output fields: `target` (`"triggering"`, `"*"`, or a specific PR number), `target-repo`, `allowed-repos`, `required-labels`, `required-title-prefix`, and `max` (default 10). Useful for clearing stale `REQUEST_CHANGES` reviews before submitting a replacement, or for workflows that programmatically manage the PR review lifecycle. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/).
 
 ### Report Incomplete (`report_incomplete`)
 
@@ -796,6 +804,10 @@ Steps injected immediately after the compiler-generated `actions/setup` step for
 ### Pre-Steps (`jobs.<job-id>.pre-steps`)
 
 Steps injected after any compiler setup scaffolding and job-level `setup-steps`, but before the main work for that job. Defined under `jobs.<job-id>.pre-steps` in workflow frontmatter. When both a main workflow and an imported workflow define `pre-steps` for the same job, imported pre-steps run first. This is distinct from both `jobs.<job-id>.setup-steps` and the top-level `pre-steps` field, which injects steps into the agent job only. See [Custom Jobs](/gh-aw/reference/steps-jobs/#jobs-and-steps).
+
+### Restore Memory (`jobs.<job-id>.restore-memory`)
+
+A custom job field that restores configured memory stores (`cache-memory`, `repo-memory`, `comment-memory`) in read-only mode before a deterministic job's steps execute. Set `jobs.<job-id>.restore-memory: true` to have gh-aw inject restore, clone, and prepare steps immediately before `pre-steps` and `steps`. This surface is read-only — gh-aw never emits cache save, repo push, or safe-output write-back steps for custom jobs, preventing accidental state mutation. Useful when a deterministic job (for example, a reporting or analysis job) needs to read prior agent state without participating in memory writes. See [Custom Jobs](/gh-aw/reference/steps-jobs/#jobs-and-steps).
 
 ### Pre-Activation Dependencies (`on.needs:`)
 

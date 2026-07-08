@@ -3274,8 +3274,11 @@ tools:
     # (optional)
     branch-name: "example-value"
 
-    # Glob patterns for files to include in repository memory. Supports wildcards
-    # (e.g., '**/*.md', 'docs/**/*.json') to filter cached files.
+    # Glob patterns for files to include in repository memory. Slashless patterns
+    # (e.g., '*.json', '*.md') match files at the root of a single memory subfolder
+    # (depth 1 only). Patterns containing '/' (e.g., 'metrics/**', 'data/*.csv')
+    # match against the full relative path. Absolute paths starting with '/' are
+    # rejected. Do not include the branch name in patterns.
     # (optional)
     # Accepted formats:
 

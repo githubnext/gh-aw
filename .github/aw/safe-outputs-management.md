@@ -151,7 +151,7 @@ description: Safe-output reference for update, label, milestone, project, releas
       parent-title-prefix: "[Epic]"      # Optional: parent must match this prefix
       sub-required-labels: [task]        # Optional: sub-issue must have these labels
       sub-title-prefix: "[Task]"         # Optional: sub-issue must match this prefix
-      max: 1                             # Optional: maximum number of links (default: 1)
+      max: 5                             # Optional: maximum number of links (default: 5)
       target-repo: "owner/repo"          # Optional: cross-repository
   ```
 

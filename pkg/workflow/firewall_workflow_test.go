@@ -98,7 +98,7 @@ func TestFirewallWorkflowCompilation(t *testing.T) {
 	c.SetSkipValidation(true)
 
 	// Extract and verify tools
-	tools := extractToolsFromFrontmatter(frontmatter)
+	tools := extractToolsMapFromFrontmatter(frontmatter)
 	if _, exists := tools["web-fetch"]; !exists {
 		t.Error("web-fetch tool should be present in firewall workflow")
 	}

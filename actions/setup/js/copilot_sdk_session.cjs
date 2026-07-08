@@ -50,14 +50,19 @@ const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
 // Keep in sync with SDK_SESSION_IDLE_TIMEOUT_PATTERN in copilot_harness.cjs.
 const SDK_IDLE_TIMEOUT_PATTERN = /Timeout after \d+ms waiting for session\.idle/;
 
-// Default idle period for the post-completion watchdog: 5 minutes.
+// Default idle period for the post-completion watchdog: 30 seconds.
 // When the agent has produced output and all tracked tool calls have completed,
 // the driver arms a watchdog timer.  If no new SDK events arrive within this
 // window, the driver force-disconnects the session and treats it as a successful
 // completion — covering the SDK driver bug where sendAndWait never resolves after
 // the final tool result is returned.
+// 30 s is chosen to be well under typical step timeouts (≥ 5 min) while still
+// being long enough to avoid false-positives during legitimate LLM inference gaps
+// (the session.on handler disarms the watchdog on every assistant.turn_start event,
+// so the timer only fires when the session is truly quiescent: output collected,
+// no tool calls in flight, and no active inference turn).
 // Override via the GH_AW_SDK_IDLE_MS environment variable.
-const SDK_POST_COMPLETION_IDLE_MS_DEFAULT = 5 * 60 * 1000;
+const SDK_POST_COMPLETION_IDLE_MS_DEFAULT = 30 * 1000;
 
 /**
  * Extract the prompt text from a resolved args array.
@@ -479,16 +484,51 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     if (stream) {
       await new Promise(resolve => stream.end(resolve));
     }
+    // Timeout budget for each cleanup operation.  Prevents the driver from
+    // hanging indefinitely when the server is unresponsive after sendAndWait
+    // times out or the watchdog force-disconnects the session.
+    // The helper resolves normally on success and also on timeout (signalling
+    // timeout via the returned boolean) so the caller can log a warning.
+    const CLEANUP_TIMEOUT_MS = 5_000;
+    /**
+     * Race a cleanup promise against a fixed deadline.
+     * Resolves to true when the promise settled in time, false on timeout.
+     * @param {Promise<unknown>} p
+     * @returns {Promise<boolean>}
+     */
+    const withCleanupTimeout = p => {
+      let timeoutId = null;
+      const deadline = new Promise(resolve => {
+        timeoutId = setTimeout(() => {
+          timeoutId = null;
+          resolve(false);
+        }, CLEANUP_TIMEOUT_MS);
+        if (typeof timeoutId?.unref === "function") timeoutId.unref();
+      });
+      return Promise.race([
+        p.then(
+          () => true,
+          () => true
+        ),
+        deadline,
+      ]).then(settled => {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (!settled) {
+          log(`warning: cleanup operation timed out after ${CLEANUP_TIMEOUT_MS}ms`);
+        }
+        return settled;
+      });
+    };
     if (session) {
       try {
-        await session.disconnect();
+        await withCleanupTimeout(session.disconnect());
       } catch {
         // best-effort cleanup
       }
     }
     if (clientStarted) {
       try {
-        await client.stop();
+        await withCleanupTimeout(client.stop());
       } catch {
         // best-effort cleanup
       }

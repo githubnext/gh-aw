@@ -424,14 +424,29 @@ func (c *Compiler) generateActivationArtifactAndCommentMemorySteps(yaml *strings
 // The full safeoutputs config written by MCP setup will overwrite this file.
 // Returns true if the step was emitted, false if the step was skipped (e.g. handler missing).
 func (c *Compiler) generateCommentMemoryEarlyConfigStep(yaml *strings.Builder, data *WorkflowData) bool {
+	lines, ok := c.generateCommentMemoryEarlyConfigLines(data)
+	if !ok {
+		return false
+	}
+	for _, line := range lines {
+		yaml.WriteString(line)
+	}
+	return true
+}
+
+// generateCommentMemoryEarlyConfigLines returns the formatted YAML lines for the
+// early comment-memory config write step. This is shared by the agent job, custom
+// jobs, and pre-activation memory restore so all deterministic paths can prepare
+// comment-memory files before the full safe-outputs config exists.
+func (c *Compiler) generateCommentMemoryEarlyConfigLines(data *WorkflowData) ([]string, bool) {
 	builder := handlerRegistry[commentMemoryHandlerKey]
 	if builder == nil {
 		compilerYamlLog.Printf("Warning: %s handler not found in registry; skipping early config write", commentMemoryHandlerKey)
-		return false
+		return nil, false
 	}
 	cfg := builder(data.SafeOutputs)
 	if cfg == nil {
-		return false
+		return nil, false
 	}
 	// INTENTIONALLY MINIMAL: this config contains only the comment_memory section and
 	// deliberately omits workspace-path injections and checkout mappings, which are not
@@ -446,24 +461,25 @@ func (c *Compiler) generateCommentMemoryEarlyConfigStep(yaml *strings.Builder, d
 	jsonBytes, err := json.Marshal(configMap)
 	if err != nil {
 		compilerYamlLog.Printf("Warning: failed to marshal comment-memory config: %v", err)
-		return false
+		return nil, false
 	}
 	configJSON := string(jsonBytes)
 	delimiter := GenerateHeredocDelimiterFromContent("COMMENT_MEMORY_CONFIG", configJSON)
 	if err := ValidateHeredocContent(configJSON, delimiter); err != nil {
 		compilerYamlLog.Printf("Warning: comment-memory config contains heredoc delimiter; skipping early config write: %v", err)
-		return false
+		return nil, false
 	}
-	yaml.WriteString("      - name: Write comment-memory configuration\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/safeoutputs\"\n")
-	fmt.Fprintf(yaml, "          cat > \"${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" << '%s'\n", delimiter)
+	var lines []string
+	lines = append(lines, "      - name: Write comment-memory configuration\n")
+	lines = append(lines, "        run: |\n")
+	lines = append(lines, "          mkdir -p \"${RUNNER_TEMP}/gh-aw/safeoutputs\"\n")
+	lines = append(lines, fmt.Sprintf("          cat > \"${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" << '%s'\n", delimiter))
 	// The 10-space YAML block-scalar indentation is stripped by the YAML parser before the
 	// shell script is executed, so the JSON content lands at column 0 inside the heredoc.
 	// This matches the pattern used by mcp_setup_generator.go for the full config write.
-	fmt.Fprintf(yaml, "          %s\n", configJSON)
-	fmt.Fprintf(yaml, "          %s\n", delimiter)
-	return true
+	lines = append(lines, fmt.Sprintf("          %s\n", configJSON))
+	lines = append(lines, fmt.Sprintf("          %s\n", delimiter))
+	return lines, true
 }
 
 // generateEngineInstallAndPreAgentSteps emits git credential configuration, the PR-ready-for-review
