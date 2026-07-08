@@ -513,6 +513,56 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
       expect(mockGraphql).not.toHaveBeenCalledWith(expect.stringContaining("issueFields"), expect.anything());
     });
 
+    it("should update 'state' to 'open' via REST API", async () => {
+      const result = await handler({
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "state",
+        value: "open",
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 42, state: "open" }));
+    });
+
+    it("should normalize 'state' value case for REST API", async () => {
+      const result = await handler({
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "state",
+        value: "Closed",
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 42, state: "closed" }));
+    });
+
+    it("should reject invalid 'state' value before REST API call", async () => {
+      const result = await handler({
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "state",
+        value: "resolved",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('built-in field "state"');
+      expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
+    });
+
+    it("should reject empty 'title' before REST API call", async () => {
+      const result = await handler({
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "title",
+        value: "   ",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('built-in field "title"');
+      expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
+    });
+
     it("should handle built-in field names case-insensitively (Body, TITLE)", async () => {
       const message = {
         type: "set_issue_field",
@@ -557,6 +607,72 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
 
       expect(result.success).toBe(true);
       expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ body: "Allowed by wildcard" }));
+    });
+
+    it("should prioritize field_node_id over built-in field_name", async () => {
+      const result = await handler({
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "state",
+        field_node_id: effortFieldId,
+        value: "3.5",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.field_node_id).toBe(effortFieldId);
+      expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
+      expect(mockGraphql).toHaveBeenCalledWith(
+        expect.stringContaining("setIssueFieldValue"),
+        expect.objectContaining({
+          issueFields: [expect.objectContaining({ fieldId: effortFieldId, numberValue: 3.5 })],
+        })
+      );
+    });
+
+    it("should return staged preview (not call REST) for built-in field in staged mode", async () => {
+      const { main } = require("./set_issue_field.cjs");
+      const stagedHandler = await main({ staged: true });
+
+      const result = await stagedHandler({
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "body",
+        value: "Would be set",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.staged).toBe(true);
+      expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
+    });
+
+    it("should surface error when REST API update fails for built-in field", async () => {
+      mockGithub.rest.issues.update.mockRejectedValueOnce(new Error("API rate limit exceeded"));
+
+      const result = await handler({
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "body",
+        value: "Some body content",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("rate limit");
+    });
+
+    it("should use warning log for built-in allowlist validation rejection", async () => {
+      const { main } = require("./set_issue_field.cjs");
+      const restrictedHandler = await main({ allowed_fields: ["Priority"] });
+
+      const result = await restrictedHandler({
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "body",
+        value: "Should be blocked",
+      });
+
+      expect(result.success).toBe(false);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("ERR_VALIDATION"));
+      expect(mockCore.error).not.toHaveBeenCalledWith(expect.stringContaining('Failed to set built-in issue field "body"'));
     });
   });
 });

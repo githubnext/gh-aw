@@ -40,7 +40,11 @@ async function updateBuiltinIssueField(githubClient, repoParts, issueNumber, fie
     issue_number: issueNumber,
     [fieldName]: value,
   });
-  core.info(`Successfully set built-in issue field "${fieldName}" to ${JSON.stringify(value)} on issue #${issueNumber}`);
+  if (fieldName === "body") {
+    core.info(`Successfully set built-in issue field "${fieldName}" on issue #${issueNumber} (body length: ${value.length})`);
+  } else {
+    core.info(`Successfully set built-in issue field "${fieldName}" on issue #${issueNumber}`);
+  }
   return {
     success: true,
     issue_number: issueNumber,
@@ -48,6 +52,34 @@ async function updateBuiltinIssueField(githubClient, repoParts, issueNumber, fie
     value,
     repo: itemRepo,
   };
+}
+
+/**
+ * Validates and normalizes values for built-in issue fields.
+ * @param {string} fieldName - Built-in field name (lowercase)
+ * @param {string} value - Raw value
+ * @returns {{success: true, value: string} | {success: false, error: string}}
+ */
+function normalizeBuiltinIssueFieldValue(fieldName, value) {
+  if (fieldName === "state") {
+    const normalizedState = value.trim().toLowerCase();
+    if (normalizedState !== "open" && normalizedState !== "closed") {
+      return {
+        success: false,
+        error: `Invalid value ${JSON.stringify(value)} for built-in field "state". Accepted values: "open", "closed".`,
+      };
+    }
+    return { success: true, value: normalizedState };
+  }
+
+  if (fieldName === "title" && value.trim().length === 0) {
+    return {
+      success: false,
+      error: `Invalid value ${JSON.stringify(value)} for built-in field "title". Title cannot be empty.`,
+    };
+  }
+
+  return { success: true, value };
 }
 
 /** @type {string} Safe output type handled by this module */
@@ -303,13 +335,22 @@ async function main(config = {}) {
 
     // Handle built-in issue fields (body, title, state) via REST API before
     // attempting GraphQL project custom field discovery.
-    if (fieldName && BUILTIN_ISSUE_FIELDS.has(fieldName.toLowerCase())) {
+    if (!fieldNodeId && fieldName && BUILTIN_ISSUE_FIELDS.has(fieldName.toLowerCase())) {
       try {
+        const normalizedFieldName = fieldName.toLowerCase();
         validateAllowedIssueFieldName(fieldName, allowedIssueFields);
-        return await updateBuiltinIssueField(githubClient, repoParts, issueNumber, fieldName.toLowerCase(), value, itemRepo);
+        const normalizedValueResult = normalizeBuiltinIssueFieldValue(normalizedFieldName, value);
+        if (!normalizedValueResult.success) {
+          return { success: false, error: normalizedValueResult.error };
+        }
+        return await updateBuiltinIssueField(githubClient, repoParts, issueNumber, normalizedFieldName, normalizedValueResult.value, itemRepo);
       } catch (error) {
         const errorMessage = getErrorMessage(error);
-        core.error(`Failed to set built-in issue field "${fieldName}" on issue #${issueNumber}: ${errorMessage}`);
+        if (errorMessage.startsWith("ERR_VALIDATION")) {
+          core.warning(`set_issue_field: ${errorMessage}`);
+        } else {
+          core.error(`Failed to set built-in issue field "${fieldName}" on issue #${issueNumber}: ${errorMessage}`);
+        }
         return { success: false, error: errorMessage };
       }
     }
@@ -329,8 +370,9 @@ async function main(config = {}) {
         return { success: false, skipped: true, error: warning };
       }
 
+      const isBuiltinFieldName = Boolean(fieldName && BUILTIN_ISSUE_FIELDS.has(fieldName.toLowerCase()));
       let resolvedFieldByName = null;
-      if (fieldName) {
+      if (fieldName && !isBuiltinFieldName) {
         resolvedFieldByName = availableFields.find(field => field.name.toLowerCase() === fieldName.toLowerCase()) || null;
         if (!resolvedFieldByName) {
           const availableNames = availableFields.map(field => field.name).join(", ");
