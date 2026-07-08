@@ -576,6 +576,7 @@ Detects dangerous patterns in externally-sourced markdown files (e.g., from `gh 
 |----------|-----------|-------------|
 | `ValidateEventFilters` | `func(map[string]any) error` | Validates `on:` event filter patterns |
 | `ValidateGlobPatterns` | `func(map[string]any) error` | Validates glob patterns in trigger filters |
+| `validateFileGlobPatterns` | `func([]string) error` | Validates `file-glob` patterns for a repo-memory entry; rejects absolute paths (starting with `/`) |
 
 ### Step Types
 
