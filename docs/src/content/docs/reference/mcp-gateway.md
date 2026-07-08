@@ -562,7 +562,7 @@ The gateway MUST NOT fail to start if the OpenTelemetry collector endpoint is un
 
 When `forcePublicRepos` is `true` (the default), the gateway overrides the compiled allow-only policy to `repos="public"` at startup if it detects the workflow is running in a public repository. This prevents agents from accumulating private-data secrecy tags in the first place — even when the compiled config grants broader access.
 
-**Applies to both modes**: This runtime check applies to both the MCP gateway (unified/routed mode, via `gateway.forcePublicRepos` config) and the CLI proxy (`awmg proxy`, via the `--force-public-repos` flag). In proxy mode, the override modifies the `--policy` JSON before passing it to the WASM guard.
+**Applies to both modes**: This runtime check applies to both the MCP gateway (unified/routed mode, via `gateway.forcePublicRepos` config) and the CLI proxy (`awmg proxy`, via the `--force-public-repos` flag, which defaults from `MCP_GATEWAY_FORCE_PUBLIC_REPOS`). In proxy mode, the override modifies the `--policy` JSON before passing it to the WASM guard.
 
 **Detection mechanism**: The gateway reads `GITHUB_REPOSITORY` and calls `GET /repos/{owner}/{repo}` at startup to determine repository visibility. Proxy mode uses the same check only when the launcher forwards `GITHUB_REPOSITORY` and a GitHub token into the proxy process/container. If the repository is public and `forcePublicRepos` is `true`, the override is applied — subject to those inputs and a successful API response (see Precedence rules below).
 
@@ -1614,7 +1614,7 @@ The gateway performs a runtime visibility check at startup as defense-in-depth:
 
 1. Reads `GITHUB_REPOSITORY` and calls `GET /repos/{owner}/{repo}` to verify actual visibility.
 2. If the repo is public but `sink-visibility` is set to `"private"` or `"internal"` → overrides `sink-visibility` to `"public"` with a warning.
-3. **Skipped** when `sink-visibility` is omitted (preserves backward compatibility; omitted means no write-sink enforcement change).
+3. **Skipped** when `sink-visibility` is omitted (preserves backward compatibility by skipping this runtime verification step; defaulting behavior is defined in Sections 10.8.6 and 10.8.7).
 4. **Skipped** when `GITHUB_REPOSITORY` or the GitHub token is unavailable.
 5. Falls back to the configured value on API errors (non-fatal); this is logged as a warning. When `sink-visibility` is omitted, fallback means enforcement remains skipped.
 6. Never relaxes: a configured `"public"` stays `"public"` even if the repo is actually private.
@@ -1731,7 +1731,7 @@ When the compiler encounters `private-to-public-flows`:
 
 #### 10.9.4 Interaction Matrix
 
-| `guards_mode` | `private-to-public-flows` | Forced `repos=public` | Default `sink-visibility` enforced | Strict-mode compatible |
+| `guards_mode` | `private-to-public-flows` | Forced `repos="public"` | Default `sink-visibility` enforced | Strict-mode compatible |
 |---|---|---|---|---|
 | `strict` | `allow` | ❌ **Rejected** (compile error) | — | ❌ |
 | `strict` | `[servers...]` | ✅ Yes | ✅ Yes (except listed servers) | ✅ |
