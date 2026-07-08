@@ -64,11 +64,9 @@ func GetGitHubToken() (string, error) {
 
 	// First try environment variable
 	if token := envutil.GetStringFromEnv("GITHUB_TOKEN", "", githubLog); token != "" {
-		githubLog.Print("Found GITHUB_TOKEN environment variable")
 		return token, nil
 	}
 	if token := envutil.GetStringFromEnv("GH_TOKEN", "", githubLog); token != "" {
-		githubLog.Print("Found GH_TOKEN environment variable")
 		return token, nil
 	}
 

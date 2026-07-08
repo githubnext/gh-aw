@@ -379,9 +379,9 @@ func TestGetIntFromEnv_EmptyString(t *testing.T) {
 
 func TestGetBoolFromEnv(t *testing.T) {
 	const testEnvVar = "GH_AW_TEST_BOOL_VALUE"
-	originalValue := os.Getenv(testEnvVar)
+	originalValue, hadOriginalValue := os.LookupEnv(testEnvVar)
 	defer func() {
-		if originalValue != "" {
+		if hadOriginalValue {
 			os.Setenv(testEnvVar, originalValue)
 		} else {
 			os.Unsetenv(testEnvVar)
@@ -444,9 +444,9 @@ func TestGetBoolFromEnv(t *testing.T) {
 
 func TestGetStringFromEnv(t *testing.T) {
 	const testEnvVar = "GH_AW_TEST_STRING_VALUE"
-	originalValue := os.Getenv(testEnvVar)
+	originalValue, hadOriginalValue := os.LookupEnv(testEnvVar)
 	defer func() {
-		if originalValue != "" {
+		if hadOriginalValue {
 			os.Setenv(testEnvVar, originalValue)
 		} else {
 			os.Unsetenv(testEnvVar)
