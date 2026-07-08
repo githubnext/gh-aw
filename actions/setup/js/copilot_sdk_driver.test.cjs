@@ -413,6 +413,76 @@ describe("copilot_sdk_driver.cjs", () => {
       }
     });
 
+    it("cleanup timeout prevents hang when client.stop() never resolves", async () => {
+      // Regression: when the SDK server is unresponsive, client.stop() in the
+      // finally block can hang indefinitely, causing the process to be killed by
+      // the step timeout instead of exiting cleanly with success.
+      // The 5-second cleanup timeout must bound the hang and allow the function
+      // to return with exitCode 0 within a reasonable wall-clock budget.
+      let onEvent = () => {};
+      let resolveDisconnect;
+      const disconnectCalled = new Promise(resolve => {
+        resolveDisconnect = resolve;
+      });
+      const disconnectWithSignal = vi.fn().mockImplementation(() => {
+        resolveDisconnect();
+        return Promise.resolve(undefined);
+      });
+      // stop() never resolves — simulates a hung SDK server.
+      const hangingStop = vi.fn().mockReturnValue(new Promise(() => {}));
+
+      const session = {
+        sessionId: "session-cleanup-timeout",
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "work done" },
+          });
+          await disconnectCalled;
+          throw new Error("transport disconnected");
+        }),
+        disconnect: disconnectWithSignal,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = hangingStop;
+      }
+
+      const prevIdleMs = process.env.GH_AW_SDK_IDLE_MS;
+      process.env.GH_AW_SDK_IDLE_MS = "20";
+      try {
+        const start = Date.now();
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+        const elapsed = Date.now() - start;
+
+        expect(result.exitCode).toBe(0);
+        expect(result.hasOutput).toBe(true);
+        expect(result.output).toContain("work done");
+        // stop() was called but hung — the cleanup timeout must have unblocked.
+        expect(hangingStop).toHaveBeenCalledTimes(1);
+        // Should complete well within 10 seconds (5s cleanup timeout + overhead).
+        expect(elapsed).toBeLessThan(10_000);
+      } finally {
+        if (prevIdleMs === undefined) delete process.env.GH_AW_SDK_IDLE_MS;
+        else process.env.GH_AW_SDK_IDLE_MS = prevIdleMs;
+      }
+    });
+
     it("post-completion watchdog does not fire when tool calls are still pending", async () => {
       // When a new tool call starts after the watchdog would have been armed,
       // the watchdog must be disarmed so it does not fire while work is in progress.
