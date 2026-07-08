@@ -1,7 +1,7 @@
 {
   "counts": {
     "tone_variant": {
-      "urgent": 1,
+      "urgent": 2,
       "neutral": 4
     }
   },
@@ -39,6 +39,13 @@
       "timestamp": "2026-07-07T15:47:11.360Z",
       "assignments": {
         "tone_variant": "neutral"
+      }
+    },
+    {
+      "run_id": "28955269758",
+      "timestamp": "2026-07-08T15:38:51.467Z",
+      "assignments": {
+        "tone_variant": "urgent"
       }
     }
   ]
