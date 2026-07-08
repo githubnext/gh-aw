@@ -26,6 +26,7 @@ describe("extra_empty_commit.cjs", () => {
     // Default exec mock: resolves successfully, no stdout output
     mockExec = {
       exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ stdout: "", stderr: "", exitCode: 1 }),
     };
 
     global.core = mockCore;
@@ -154,11 +155,33 @@ describe("extra_empty_commit.cjs", () => {
       // Find remote add call
       const addRemote = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "add");
       expect(addRemote).toBeDefined();
-      expect(addRemote[1]).toEqual(["remote", "add", "ci-trigger", expect.stringContaining("x-access-token:ghp_test_token_123")]);
+      expect(addRemote[1]).toEqual(["remote", "add", "ci-trigger", "https://github.com/test-owner/test-repo.git"]);
 
       // Find remote remove cleanup call (after push)
       const removeRemoteCalls = execCalls.filter(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "remove");
       expect(removeRemoteCalls.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("should replace extraheader auth before push and restore it after push", async () => {
+      await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      const execCalls = mockExec.exec.mock.calls;
+      const replaceCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--replace-all");
+      expect(replaceCall).toBeDefined();
+      expect(replaceCall[1][2]).toBe("http.https://github.com/.extraheader");
+      expect(replaceCall[1][3]).toBe(`Authorization: basic ${Buffer.from("x-access-token:ghp_test_token_123").toString("base64")}`);
+
+      const pushCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "push");
+      expect(pushCall).toBeDefined();
+      expect(execCalls.indexOf(replaceCall)).toBeLessThan(execCalls.indexOf(pushCall));
+
+      const unsetCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--unset-all");
+      expect(unsetCall).toBeDefined();
+      expect(execCalls.indexOf(unsetCall)).toBeGreaterThan(execCalls.indexOf(pushCall));
     });
 
     it("should fetch and reset to remote branch before committing", async () => {
@@ -244,7 +267,7 @@ describe("extra_empty_commit.cjs", () => {
 
       const addRemote = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "add");
       expect(addRemote).toBeDefined();
-      expect(addRemote[1][3]).toContain("github.com/test-owner/test-repo.git");
+      expect(addRemote[1][3]).toBe("https://github.com/test-owner/test-repo.git");
     });
 
     it("should use GITHUB_SERVER_URL hostname for GitHub Enterprise", async () => {
@@ -260,8 +283,7 @@ describe("extra_empty_commit.cjs", () => {
 
       const addRemote = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "add");
       expect(addRemote).toBeDefined();
-      expect(addRemote[1][3]).toContain("github.example.com/test-owner/test-repo.git");
-      expect(addRemote[1][3]).not.toContain("github.com/test-owner/test-repo.git");
+      expect(addRemote[1][3]).toBe("https://github.example.com/test-owner/test-repo.git");
     });
 
     it("should use default commit message when none provided", async () => {
