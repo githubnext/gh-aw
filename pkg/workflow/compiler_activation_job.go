@@ -15,6 +15,11 @@ import (
 
 var compilerActivationJobLog = logger.New("workflow:compiler_activation_job")
 
+const (
+	activationSymlinkSkillDir  = constants.GithubDir + "skills"
+	activationSymlinkPromptDir = constants.GithubDir + "prompts"
+)
+
 var activationMetadataTriggerFields = map[string]struct{}{
 	"reaction":       {},
 	"status-comment": {},
@@ -557,9 +562,9 @@ func resolveSymlinkExtraPaths(repoRoot string, extraPaths []string) []string {
 		return extraPaths
 	}
 	candidates := []string{
-		".github/agents",
-		".github/skills",
-		".github/prompts",
+		strings.TrimSuffix(constants.AgentsDir, "/"),
+		activationSymlinkSkillDir,
+		activationSymlinkPromptDir,
 	}
 	existing := make(map[string]struct{}, len(extraPaths))
 	for _, p := range extraPaths {
