@@ -53,9 +53,21 @@ describe("require-fs-sync-try-catch", () => {
     });
   });
 
-  it("valid: destructured fs bindings stay out of scope", () => {
+  it("valid: destructured fs bindings inside try block pass", () => {
     cjsRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
-      valid: [`const { readFileSync } = require("fs"); readFileSync(path, "utf8");`],
+      valid: [
+        `const { readFileSync } = require("fs"); try { readFileSync(path, "utf8"); } catch (e) {}`,
+        `const { appendFileSync } = require("node:fs"); try { appendFileSync(p, data); } catch (e) {}`,
+        `const { appendFileSync: append } = require("fs"); try { append(p, data); } catch (e) {}`,
+        `const { appendFileSync } = require("custom-logger"); appendFileSync(filePath, data);`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("valid: member-expression alias inside try block passes", () => {
+    cjsRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
+      valid: [`const fs = require("fs"); const append = fs.appendFileSync; try { append(p, data); } catch (e) {}`],
       invalid: [],
     });
   });
@@ -64,6 +76,51 @@ describe("require-fs-sync-try-catch", () => {
     esmRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
       valid: [`try { const x = fs.readFileSync(path, "utf8"); } catch (e) {}`],
       invalid: [],
+    });
+  });
+
+  it("valid: try/catch/finally is treated as protective", () => {
+    cjsRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
+      valid: [`try { fs.writeFileSync(path, data); } catch (e) {} finally { cleanup(); }`, `try { fs.readFileSync(path, "utf8"); } catch (e) { handleErr(e); } finally { releaseLock(); }`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: try/finally without catch is not protective", () => {
+    cjsRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { fs.writeFileSync(path, data); } finally { cleanup(); }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "writeFileSync", arg: "path" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `try { try {\n  fs.writeFileSync(path, data);\n} catch (err) {\n  // TODO: handle I/O failure for this fs.writeFileSync call.\n  throw new Error(\n    "fs.writeFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} } finally { cleanup(); }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `try { fs.readFileSync(path, "utf8"); } finally { releaseLock(); }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "readFileSync", arg: "path" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `try { try {\n  fs.readFileSync(path, "utf8");\n} catch (err) {\n  // TODO: handle I/O failure for this fs.readFileSync call.\n  throw new Error(\n    "fs.readFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} } finally { releaseLock(); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
     });
   });
 
@@ -159,7 +216,7 @@ describe("require-fs-sync-try-catch", () => {
     });
   });
 
-  it('invalid: computed fs["readFileSync"] access is flagged when not in try block', () => {
+  it('invalid: computed fs["readFileSync"] and aliased fs member access are flagged when not in try block', () => {
     cjsRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
       valid: [],
       invalid: [
@@ -170,6 +227,21 @@ describe("require-fs-sync-try-catch", () => {
               messageId: "requireTryCatch",
               data: { method: "readFileSync", arg: "path" },
               suggestions: [],
+            },
+          ],
+        },
+        {
+          code: `const fileSystem = require("fs"); fileSystem.readFileSync(path, "utf8");`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "readFileSync", arg: "path" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `const fileSystem = require("fs"); try {\n  fileSystem.readFileSync(path, "utf8");\n} catch (err) {\n  // TODO: handle I/O failure for this fs.readFileSync call.\n  throw new Error(\n    "fs.readFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
+                },
+              ],
             },
           ],
         },
@@ -307,6 +379,114 @@ describe("require-fs-sync-try-catch", () => {
                 {
                   messageId: "wrapInTryCatch",
                   output: `try {\n  fs.readFileSync(\n    config,\n    "utf8",\n  );\n} catch (err) {\n  // TODO: handle I/O failure for this fs.readFileSync call.\n  throw new Error(\n    "fs.readFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: destructured fs binding (shorthand) not in try is flagged", () => {
+    cjsRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          // Regression: was a live false negative in actions/setup/js/action_setup_otlp.cjs.
+          code: `const { appendFileSync } = require("fs"); appendFileSync(filePath, \`\${key}=\${value}\\n\`);`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "appendFileSync", arg: "filePath" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `const { appendFileSync } = require("fs"); try {\n  appendFileSync(filePath, \`\${key}=\${value}\\n\`);\n} catch (err) {\n  // TODO: handle I/O failure for this fs.appendFileSync call.\n  throw new Error(\n    "fs.appendFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: destructured fs binding via node:fs not in try is flagged", () => {
+    cjsRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const { readFileSync } = require("node:fs"); readFileSync(path, "utf8");`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "readFileSync", arg: "path" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `const { readFileSync } = require("node:fs"); try {\n  readFileSync(path, "utf8");\n} catch (err) {\n  // TODO: handle I/O failure for this fs.readFileSync call.\n  throw new Error(\n    "fs.readFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: renamed destructured fs binding not in try is flagged", () => {
+    cjsRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const { appendFileSync: append } = require("fs"); append(filePath, data);`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "appendFileSync", arg: "filePath" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `const { appendFileSync: append } = require("fs"); try {\n  append(filePath, data);\n} catch (err) {\n  // TODO: handle I/O failure for this fs.appendFileSync call.\n  throw new Error(\n    "fs.appendFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: member-expression alias (const alias = fs.method) not in try is flagged", () => {
+    cjsRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const fs = require("fs"); const append = fs.appendFileSync; append(filePath, data);`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "appendFileSync", arg: "filePath" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `const fs = require("fs"); const append = fs.appendFileSync; try {\n  append(filePath, data);\n} catch (err) {\n  // TODO: handle I/O failure for this fs.appendFileSync call.\n  throw new Error(\n    "fs.appendFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `const fs = require("fs"); const append = fs.appendFileSync; function inner() { const fs = {}; append(filePath, data); }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "appendFileSync", arg: "filePath" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `const fs = require("fs"); const append = fs.appendFileSync; function inner() { const fs = {}; try {\n  append(filePath, data);\n} catch (err) {\n  // TODO: handle I/O failure for this fs.appendFileSync call.\n  throw new Error(\n    "fs.appendFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }`,
                 },
               ],
             },

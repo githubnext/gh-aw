@@ -104,6 +104,14 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
+		// io.WriteString requires an exact predeclared string argument. If the
+		// argument is a named string type (e.g. type MyStr string), wrap it with
+		// string(...) so the emitted fix compiles.
+		sExpr := sText
+		if st := pass.TypesInfo.TypeOf(strArg); st != nil && !isExactString(st) {
+			sExpr = "string(" + sText + ")"
+		}
+
 		// When the receiver is an addressable value whose Write method lives on
 		// the pointer type (e.g. var buf bytes.Buffer), io.WriteString requires
 		// the pointer form so that the interface conversion compiles.
@@ -117,8 +125,8 @@ func run(pass *analysis.Pass) (any, error) {
 		pass.Report(analysis.Diagnostic{
 			Pos:            call.Pos(),
 			End:            call.End(),
-			Message:        fmt.Sprintf("%s.Write([]byte(%s)) can be replaced with io.WriteString(%s, %s) to potentially avoid a []byte allocation if the writer implements io.StringWriter", wText, sText, writerArg, sText),
-			SuggestedFixes: buildFix(call, writerArg, sText),
+			Message:        fmt.Sprintf("%s.Write([]byte(%s)) can be replaced with io.WriteString(%s, %s) to potentially avoid a []byte allocation if the writer implements io.StringWriter", wText, sText, writerArg, sExpr),
+			SuggestedFixes: buildFix(call, writerArg, sExpr),
 		})
 	})
 
@@ -156,6 +164,15 @@ func isStringType(pass *analysis.Pass, expr ast.Expr) bool {
 	}
 	basic, ok := t.Underlying().(*types.Basic)
 	return ok && basic.Kind() == types.String
+}
+
+// isExactString reports whether t is the predeclared string type, not a named
+// type whose underlying type is string. io.WriteString(w Writer, s string)
+// requires a predeclared string; named string types need an explicit string(...)
+// conversion to satisfy the parameter type.
+func isExactString(t types.Type) bool {
+	b, ok := t.(*types.Basic)
+	return ok && b.Kind() == types.String
 }
 
 // implementsWriter reports whether expr's type implements io.Writer.

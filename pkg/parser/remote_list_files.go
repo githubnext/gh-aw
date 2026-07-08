@@ -33,10 +33,21 @@ var gitListCloneCache = struct {
 
 var gitListCloneGroup singleflight.Group
 
-func getOrCreateListRepoClone(ctx context.Context, owner, repo, ref, host string) (string, error) {
+// listRepoCloneConfig holds the fully-resolved identity of a shallow clone used
+// for directory listing. owner and repo are included so callers can pass the
+// entire struct without re-expanding individual fields.
+type listRepoCloneConfig struct {
+	owner    string
+	repo     string
+	ref      string
+	repoURL  string
+	cacheKey string
+}
+
+func resolveListRepoCloneConfig(owner, repo, ref, host string) (listRepoCloneConfig, error) {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
-		return "", errors.New("git fallback requires a non-empty ref")
+		return listRepoCloneConfig{}, errors.New("git fallback requires a non-empty ref")
 	}
 
 	githubHost := GetGitHubHostForRepo(owner, repo)
@@ -45,55 +56,103 @@ func getOrCreateListRepoClone(ctx context.Context, owner, repo, ref, host string
 	}
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 	cacheKey := fmt.Sprintf("%s|%s|%s|%s", githubHost, owner, repo, ref)
+	return listRepoCloneConfig{
+		owner:    owner,
+		repo:     repo,
+		ref:      ref,
+		repoURL:  repoURL,
+		cacheKey: cacheKey,
+	}, nil
+}
 
-	if cloneDir, found := func() (string, bool) {
-		gitListCloneCache.mu.Lock()
-		defer gitListCloneCache.mu.Unlock()
-		if cloneDir, ok := gitListCloneCache.dirs[cacheKey]; ok {
-			if stat, err := os.Stat(filepath.Join(cloneDir, ".git")); err == nil && stat.IsDir() {
-				return cloneDir, true
-			}
-			delete(gitListCloneCache.dirs, cacheKey)
-		}
+// readCloneFromCache returns the cached clone directory for cacheKey under lock.
+func readCloneFromCache(cacheKey string) (string, bool) {
+	gitListCloneCache.mu.Lock()
+	defer gitListCloneCache.mu.Unlock()
+	cloneDir, ok := gitListCloneCache.dirs[cacheKey]
+	return cloneDir, ok
+}
+
+// evictCloneFromCache removes the cache entry for cacheKey only if it still maps to
+// cloneDir, preventing incorrect eviction of a fresh entry written by another goroutine.
+func evictCloneFromCache(cacheKey, cloneDir string) {
+	gitListCloneCache.mu.Lock()
+	defer gitListCloneCache.mu.Unlock()
+	if gitListCloneCache.dirs[cacheKey] == cloneDir {
+		delete(gitListCloneCache.dirs, cacheKey)
+	}
+}
+
+// getCachedListRepoClone reads the cached clone path without holding the mutex during
+// filesystem I/O to avoid serializing concurrent callers. If the entry is stale it is
+// evicted via evictCloneFromCache with a path-equality guard.
+// Do not call from code that already holds gitListCloneCache.mu.
+func getCachedListRepoClone(cacheKey string) (string, bool) {
+	cloneDir, ok := readCloneFromCache(cacheKey)
+	if !ok {
 		return "", false
-	}(); found {
+	}
+	if stat, err := os.Stat(filepath.Join(cloneDir, ".git")); err == nil && stat.IsDir() {
+		return cloneDir, true
+	}
+	// Entry appears stale — evict under lock, but only if it still maps to the same
+	// path we checked above. A concurrent goroutine may have replaced the entry with a
+	// fresh clone in the window between the stat and this lock acquisition.
+	evictCloneFromCache(cacheKey, cloneDir)
+	return "", false
+}
+
+// cloneAndCacheListRepoClone performs the clone and writes the result to the cache.
+// It must only be called from within a singleflight.Group.Do callback to prevent
+// concurrent duplicate clones for the same cache key. The final cache write is
+// performed under gitListCloneCache.mu with a defensive check: if another goroutine
+// has already populated the entry (e.g. due to incorrect direct invocation), the
+// redundant tmpDir is discarded and the existing entry is returned.
+// Do not call from code that already holds gitListCloneCache.mu.
+func cloneAndCacheListRepoClone(ctx context.Context, cfg listRepoCloneConfig) (string, error) {
+	tmpDir, err := os.MkdirTemp("", "gh-aw-list-*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp directory: %w", err)
+	}
+
+	cloneCmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", cfg.ref, "--single-branch", "--filter=blob:none", "--no-checkout", cfg.repoURL, tmpDir)
+	cloneOutput, err := cloneCmd.CombinedOutput()
+	if err != nil {
+		if cleanupErr := os.RemoveAll(tmpDir); cleanupErr != nil {
+			remoteLog.Printf("Failed to clean up temp directory %q: %v", tmpDir, cleanupErr)
+		}
+		remoteLog.Printf("Failed to clone repository: %s", string(cloneOutput))
+		return "", fmt.Errorf("failed to clone repository for %s/%s@%s: %w", cfg.owner, cfg.repo, cfg.ref, err)
+	}
+
+	gitListCloneCache.mu.Lock()
+	defer gitListCloneCache.mu.Unlock()
+	if existing, ok := gitListCloneCache.dirs[cfg.cacheKey]; ok {
+		// Another goroutine finished first; discard our redundant clone.
+		if cleanupErr := os.RemoveAll(tmpDir); cleanupErr != nil {
+			remoteLog.Printf("Failed to clean up redundant temp directory %q: %v", tmpDir, cleanupErr)
+		}
+		return existing, nil
+	}
+	gitListCloneCache.dirs[cfg.cacheKey] = tmpDir
+	return tmpDir, nil
+}
+
+func getOrCreateListRepoClone(ctx context.Context, owner, repo, ref, host string) (string, error) {
+	config, err := resolveListRepoCloneConfig(owner, repo, ref, host)
+	if err != nil {
+		return "", err
+	}
+
+	if cloneDir, found := getCachedListRepoClone(config.cacheKey); found {
 		return cloneDir, nil
 	}
 
-	cloneDir, err, _ := gitListCloneGroup.Do(cacheKey, func() (any, error) {
-		if cloneDir, found := func() (string, bool) {
-			gitListCloneCache.mu.Lock()
-			defer gitListCloneCache.mu.Unlock()
-			if cloneDir, ok := gitListCloneCache.dirs[cacheKey]; ok {
-				if stat, err := os.Stat(filepath.Join(cloneDir, ".git")); err == nil && stat.IsDir() {
-					return cloneDir, true
-				}
-				delete(gitListCloneCache.dirs, cacheKey)
-			}
-			return "", false
-		}(); found {
+	cloneDir, err, _ := gitListCloneGroup.Do(config.cacheKey, func() (any, error) {
+		if cloneDir, found := getCachedListRepoClone(config.cacheKey); found {
 			return cloneDir, nil
 		}
-
-		tmpDir, err := os.MkdirTemp("", "gh-aw-list-*")
-		if err != nil {
-			return "", fmt.Errorf("failed to create temp directory: %w", err)
-		}
-
-		cloneCmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", ref, "--single-branch", "--filter=blob:none", "--no-checkout", repoURL, tmpDir)
-		cloneOutput, err := cloneCmd.CombinedOutput()
-		if err != nil {
-			if cleanupErr := os.RemoveAll(tmpDir); cleanupErr != nil {
-				remoteLog.Printf("Failed to clean up temp directory %q: %v", tmpDir, cleanupErr)
-			}
-			remoteLog.Printf("Failed to clone repository: %s", string(cloneOutput))
-			return "", fmt.Errorf("failed to clone repository for %s/%s@%s: %w", owner, repo, ref, err)
-		}
-
-		gitListCloneCache.mu.Lock()
-		gitListCloneCache.dirs[cacheKey] = tmpDir
-		gitListCloneCache.mu.Unlock()
-		return tmpDir, nil
+		return cloneAndCacheListRepoClone(ctx, config)
 	})
 	if err != nil {
 		return "", err
