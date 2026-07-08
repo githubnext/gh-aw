@@ -96,6 +96,7 @@ type WorkflowData struct {
 	SkipAuthorAssociations         map[string][]string             // author associations to skip by event name (on.skip-author-associations)
 	AllowBotAuthoredTriggerComment bool                            // allow bot-posted-menu / user-checks-box pattern (on.allow-bot-authored-trigger-comment)
 	OnSteps                        []map[string]any                // steps to inject into the pre-activation job from on.steps
+	OnRestoreMemory                bool                            // enable memory restore in pre-activation for on.steps via on.restore-memory (default false)
 	OnPermissions                  *Permissions                    // additional permissions for the pre-activation job from on.permissions
 	OnNeeds                        []string                        // custom workflow jobs that pre_activation/activation should depend on from on.needs
 	ManualApproval                 string                          // environment name for manual approval from on: section

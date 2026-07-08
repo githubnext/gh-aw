@@ -232,6 +232,7 @@ Test on.steps are appended after built-in checks
 on:
   workflow_dispatch: null
   roles: all
+  restore-memory: true
   steps:
     - name: Gate check
       id: gate
@@ -309,6 +310,71 @@ Test on.steps with memory stores restored in pre-activation
 		assert.Contains(t, preActivationSection, "uses: "+getActionPin("actions/cache/restore"))
 		assert.NotContains(t, preActivationSection, "uses: actions/cache@")
 		assert.NotContains(t, preActivationSection, "uses: "+getActionPin("actions/cache"))
+	})
+
+	t.Run("on_steps_without_restore_memory_does_not_restore_stores_in_pre_activation", func(t *testing.T) {
+		workflowContent := `---
+on:
+  workflow_dispatch: null
+  roles: all
+  steps:
+    - name: Gate check
+      id: gate
+      run: echo "checking..."
+tools:
+  cache-memory: true
+  repo-memory: true
+  comment-memory: true
+engine: copilot
+---
+
+Test on.steps without on.restore-memory
+`
+		workflowFile := filepath.Join(tmpDir, "test-on-steps-memory-pre-activation-disabled.md")
+		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("CompileWorkflow() returned error: %v", err)
+		}
+
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+		lockContentStr := string(lockContent)
+		preActivationStart := strings.Index(lockContentStr, "\n  pre_activation:\n")
+		if preActivationStart == -1 {
+			preActivationStart = strings.Index(lockContentStr, "  pre_activation:\n")
+		}
+		if preActivationStart == -1 {
+			t.Fatalf("Expected pre_activation section in lock file. Lock file:\n%s", lockContentStr)
+		}
+
+		sectionBodyStart := preActivationStart
+		if strings.HasPrefix(lockContentStr[preActivationStart:], "\n") {
+			sectionBodyStart++
+		}
+		jobStartPattern := regexp.MustCompile(`\n  [A-Za-z0-9_-]+:\n`)
+		searchStart := sectionBodyStart + len("  pre_activation:\n")
+		nextJobLoc := jobStartPattern.FindStringIndex(lockContentStr[searchStart:])
+		var preActivationSection string
+		if nextJobLoc == nil {
+			preActivationSection = lockContentStr[sectionBodyStart:]
+		} else {
+			preActivationSection = lockContentStr[sectionBodyStart : searchStart+nextJobLoc[0]+1]
+		}
+		if preActivationSection == "" {
+			t.Fatalf("Expected pre_activation section in lock file. Lock file:\n%s", lockContentStr)
+		}
+
+		assert.Contains(t, preActivationSection, "        id: gate")
+		assert.NotContains(t, preActivationSection, "Restore cache-memory file share data")
+		assert.NotContains(t, preActivationSection, "Clone repo-memory branch (default)")
+		assert.NotContains(t, preActivationSection, "Prepare comment memory files")
 	})
 }
 
@@ -566,6 +632,80 @@ func TestExtractOnNeeds(t *testing.T) {
 
 			require.NoError(t, err, "expected extraction to succeed")
 			assert.Equal(t, tt.expected, needs, "unexpected on.needs result")
+		})
+	}
+}
+
+func TestExtractOnRestoreMemory(t *testing.T) {
+	tests := []struct {
+		name          string
+		frontmatter   map[string]any
+		expected      bool
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name:        "no_on_section",
+			frontmatter: map[string]any{},
+			expected:    false,
+		},
+		{
+			name: "on_section_string",
+			frontmatter: map[string]any{
+				"on": "push",
+			},
+			expected: false,
+		},
+		{
+			name: "on_without_restore_memory",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_dispatch": nil,
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "restore_memory_true",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"restore-memory": true,
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "restore_memory_false",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"restore-memory": false,
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "restore_memory_wrong_type",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"restore-memory": "true",
+				},
+			},
+			expectError:   true,
+			errorContains: "on.restore-memory must be a boolean",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			restoreMemory, err := extractOnRestoreMemory(tt.frontmatter)
+			if tt.expectError {
+				require.Error(t, err, "expected extraction error")
+				assert.Contains(t, err.Error(), tt.errorContains, "error should contain expected text")
+				return
+			}
+
+			require.NoError(t, err, "expected extraction to succeed")
+			assert.Equal(t, tt.expected, restoreMemory, "unexpected on.restore-memory result")
 		})
 	}
 }

@@ -234,7 +234,7 @@ func (c *Compiler) buildPreActivationRolesBotsCmdSteps(data *WorkflowData, steps
 // buildPreActivationMemoryRestoreSteps restores memory stores before on.steps run in pre-activation.
 // This is a read-only surface: it restores/loads memory data but does not emit write-back or commit steps.
 func (c *Compiler) buildPreActivationMemoryRestoreSteps(data *WorkflowData, steps []string) []string {
-	if len(data.OnSteps) == 0 {
+	if len(data.OnSteps) == 0 || !data.OnRestoreMemory {
 		return steps
 	}
 
@@ -851,6 +851,32 @@ func extractOnNeeds(frontmatter map[string]any) ([]string, error) {
 	}
 
 	return parseOnNeedsValues(onMap)
+}
+
+// extractOnRestoreMemory extracts the optional 'restore-memory' field from the 'on:' section.
+// Default is false when unset.
+func extractOnRestoreMemory(frontmatter map[string]any) (bool, error) {
+	onValue, exists := frontmatter["on"]
+	if !exists || onValue == nil {
+		return false, nil
+	}
+
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return false, nil
+	}
+
+	restoreMemoryValue, exists := onMap["restore-memory"]
+	if !exists || restoreMemoryValue == nil {
+		return false, nil
+	}
+
+	restoreMemory, ok := restoreMemoryValue.(bool)
+	if !ok {
+		return false, fmt.Errorf("on.restore-memory must be a boolean, got %T", restoreMemoryValue)
+	}
+
+	return restoreMemory, nil
 }
 
 func parseOnNeedsValues(onMap map[string]any) ([]string, error) {
