@@ -487,8 +487,30 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     // Timeout budget for each cleanup operation.  Prevents the driver from
     // hanging indefinitely when the server is unresponsive after sendAndWait
     // times out or the watchdog force-disconnects the session.
+    // The helper resolves normally on success and also on timeout (signalling
+    // timeout via the returned boolean) so the caller can log a warning.
     const CLEANUP_TIMEOUT_MS = 5_000;
-    const withCleanupTimeout = p => Promise.race([p, new Promise(resolve => setTimeout(resolve, CLEANUP_TIMEOUT_MS))]);
+    /**
+     * Race a cleanup promise against a fixed deadline.
+     * Resolves to true when the promise settled in time, false on timeout.
+     * @param {Promise<unknown>} p
+     * @returns {Promise<boolean>}
+     */
+    const withCleanupTimeout = p => {
+      let timedOut = false;
+      const deadline = new Promise(resolve =>
+        setTimeout(() => {
+          timedOut = true;
+          resolve(false);
+        }, CLEANUP_TIMEOUT_MS)
+      );
+      return Promise.race([p.then(() => true, () => true), deadline]).then(settled => {
+        if (!settled && timedOut) {
+          log(`warning: cleanup operation timed out after ${CLEANUP_TIMEOUT_MS}ms`);
+        }
+        return settled;
+      });
+    };
     if (session) {
       try {
         await withCleanupTimeout(session.disconnect());
