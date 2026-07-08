@@ -1614,7 +1614,7 @@ The gateway performs a runtime visibility check at startup as defense-in-depth:
 
 1. Reads `GITHUB_REPOSITORY` and calls `GET /repos/{owner}/{repo}` to verify actual visibility.
 2. If the repo is public but `sink-visibility` is set to `"private"` or `"internal"` → overrides `sink-visibility` to `"public"` with a warning.
-3. **Skipped** when `sink-visibility` is omitted (preserves backward compatibility; omitted means no write-sink enforcement change).
+3. **Skipped** when `sink-visibility` is omitted (preserves backward compatibility by skipping this runtime verification step; defaulting behavior is defined in Sections 10.8.6 and 10.8.7).
 4. **Skipped** when `GITHUB_REPOSITORY` or the GitHub token is unavailable.
 5. Falls back to the configured value on API errors (non-fatal); this is logged as a warning. When `sink-visibility` is omitted, fallback means enforcement remains skipped.
 6. Never relaxes: a configured `"public"` stays `"public"` even if the repo is actually private.
