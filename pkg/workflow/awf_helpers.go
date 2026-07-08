@@ -38,15 +38,15 @@ import (
 var awfHelpersLog = logger.New("workflow:awf_helpers")
 
 const (
-	awfDockerHostVarName     = "GH_AW_DOCKER_HOST"
-	awfToolCacheMountVarName = "GH_AW_TOOL_CACHE_MOUNT"
-	awfMaxAICreditsVarName   = "GH_AW_MAX_AI_CREDITS"
-	awfConfigRuntimePathExpr    = "${RUNNER_TEMP}/gh-aw/awf-config.json"
-	awfModelsJSONPathExpr       = "/tmp/gh-aw/models.json"
-	awfArcDindRootPathExpr      = "${RUNNER_TEMP}/gh-aw"
-	awfArcDindHomePathExpr      = "${RUNNER_TEMP}/gh-aw/home"
-	awfArcDindProxyLogsDirExpr  = "${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs"
-	awfArcDindAuditDirExpr      = "${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit"
+	awfDockerHostVarName       = "GH_AW_DOCKER_HOST"
+	awfToolCacheMountVarName   = "GH_AW_TOOL_CACHE_MOUNT"
+	awfMaxAICreditsVarName     = "GH_AW_MAX_AI_CREDITS"
+	awfConfigRuntimePathExpr   = "${RUNNER_TEMP}/gh-aw/awf-config.json"
+	awfModelsJSONPathExpr      = "/tmp/gh-aw/models.json"
+	awfArcDindRootPathExpr     = "${RUNNER_TEMP}/gh-aw"
+	awfArcDindHomePathExpr     = "${RUNNER_TEMP}/gh-aw/home"
+	awfArcDindProxyLogsDirExpr = "${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs"
+	awfArcDindAuditDirExpr     = "${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit"
 	// Bash regex used in [[ ... =~ ... ]] to detect TCP Docker hosts (ARC/DinD).
 	// Any tcp:// DOCKER_HOST indicates the Docker daemon runs on a separate filesystem,
 	// requiring --docker-host so AWF connects to the correct daemon.
@@ -237,13 +237,11 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	firewallConfig := getFirewallConfig(config.WorkflowData)
 
 	// Auto-detect ARC/DinD split daemon topology at runtime: probe DOCKER_HOST for a
-	// tcp:// scheme and pass it through to AWF via --docker-host, and emit
-	// --docker-host-path-prefix when supported by the selected AWF version.
+	// tcp:// scheme and pass it through to AWF via --docker-host.
 	// All behaviors avoid requiring workflow-authored sandbox.agent.args for standard ARC DinD setups.
 	// When AWF also supports chroot config (v0.27.1+), the Python patch body is embedded inside
 	// the same if-block so the script only contains one DOCKER_HOST condition check.
 	arcDindPrefixProbe := ""
-	arcDindPrefixArgsRef := ""
 	arcDindDockerHostProbe := fmt.Sprintf(`%s=""
 if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
   %s="${DOCKER_HOST}"
@@ -461,7 +459,7 @@ fi`,
 	//     that include single quotes and must survive into runtime unchanged.
 	//   - SC2086 is expected because a subset of AWF arguments are intentionally emitted
 	//     as expandable shell fragments (for example ${GH_AW_TOOL_CACHE_MOUNT:+...} and
-	//     ${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}). These fragments are produced by trusted
+	//     ${GH_AW_DOCKER_HOST:+...}). These fragments are produced by trusted
 	//     compiler-owned probes above and are not user-provided free-form shell input.
 	//
 	// We keep normal quoting for all user-controlled values via shellEscapeArg/shellJoinArgs
@@ -478,7 +476,7 @@ fi`,
 %s
 %s
 %s
-%s %s %s %s %s %s \
+%s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
@@ -493,7 +491,6 @@ fi`,
 			expandableArgs,
 			toolCacheMountRef,
 			arcDindDockerHostRef,
-			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
@@ -508,7 +505,7 @@ fi`,
 %s
 %s
 %s
-%s %s %s %s %s %s \
+%s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
@@ -522,7 +519,6 @@ fi`,
 			expandableArgs,
 			toolCacheMountRef,
 			arcDindDockerHostRef,
-			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
@@ -536,7 +532,7 @@ fi`,
 %s
 %s
 %s
-%s %s %s %s %s %s \
+%s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
@@ -550,7 +546,6 @@ fi`,
 			expandableArgs,
 			toolCacheMountRef,
 			arcDindDockerHostRef,
-			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
@@ -563,7 +558,7 @@ fi`,
 %s
 %s
 %s
-%s %s %s %s %s %s \
+%s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
@@ -576,7 +571,6 @@ fi`,
 			expandableArgs,
 			toolCacheMountRef,
 			arcDindDockerHostRef,
-			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))

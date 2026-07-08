@@ -45,7 +45,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		}
 
 		// docker-host-path-prefix is no longer emitted (removed for sysroot, gh-aw#34896)
-		if strings.Contains(stepContent, `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix`) {
+		if strings.Contains(stepContent, "--docker-host-path-prefix") {
 			t.Error("Expected command NOT to emit --docker-host-path-prefix (sysroot handles path visibility)")
 		}
 
