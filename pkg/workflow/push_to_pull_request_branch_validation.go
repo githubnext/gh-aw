@@ -37,12 +37,27 @@ func (c *Compiler) computeRepositoryVisibility() string {
 		return ""
 	}
 
+	if c.repositoryVisibility == nil {
+		c.repositoryVisibility = make(map[string]string)
+	}
+	if c.repositoryVisibilitySet == nil {
+		c.repositoryVisibilitySet = make(map[string]bool)
+	}
+	if c.repositoryVisibilitySet[slug] {
+		visibility := c.repositoryVisibility[slug]
+		pushToPullRequestBranchValidationLog.Printf("Using cached repository visibility for %s: %q", slug, visibility)
+		return visibility
+	}
+
 	pushToPullRequestBranchValidationLog.Printf("Checking repository visibility for: %s", slug)
 	visibility, err := fetchRepositoryVisibility(slug)
+	c.repositoryVisibilitySet[slug] = true
 	if err != nil {
 		pushToPullRequestBranchValidationLog.Printf("Could not determine repository visibility: %v", err)
+		c.repositoryVisibility[slug] = ""
 		return ""
 	}
+	c.repositoryVisibility[slug] = visibility
 	pushToPullRequestBranchValidationLog.Printf("Repository visibility: %s", visibility)
 	return visibility
 }

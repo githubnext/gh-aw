@@ -107,6 +107,8 @@ type Compiler struct {
 	ghesCompatFromCLI       bool                     // If true, GHES compat was requested via --ghes CLI flag (takes precedence over aw.json)
 	ghesArtifactCompat      bool                     // If true, GHES compatibility mode is enabled; artifact actions still use latest non-v3 pins
 	ownerTypeCache          map[string]string        // Cached GitHub owner type ("User"/"Organization"/"") keyed by owner login; not goroutine-safe (Compiler is used sequentially)
+	repositoryVisibility    map[string]string        // Cached repository visibility keyed by slug; empty string means unknown
+	repositoryVisibilitySet map[string]bool          // Tracks repository visibility lookups already attempted for a slug
 	copilotRequestsTipShown map[string]bool          // Tracks markdown paths that already emitted the copilot-requests enable tip in this compiler instance
 	// modelPricingResolver is an optional callback for resolving per-token pricing of models that
 	// are absent from the embedded models.json catalog. When non-nil it is called during
@@ -143,6 +145,8 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 		actionPinWarnings:       make(map[string]bool), // Initialize warning cache
 		priorManifests:          make(map[string]*GHAWManifest),
 		ownerTypeCache:          make(map[string]string), // Initialize owner-type cache (keyed by owner login)
+		repositoryVisibility:    make(map[string]string), // Initialize repository visibility cache (keyed by slug)
+		repositoryVisibilitySet: make(map[string]bool),   // Initialize repository visibility lookup tracker
 		copilotRequestsTipShown: make(map[string]bool),   // Initialize one-time tip tracking (keyed by markdown path)
 		gitRoot:                 gitRoot,                 // Auto-detected git root
 	}
