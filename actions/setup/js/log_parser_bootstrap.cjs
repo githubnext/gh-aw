@@ -33,21 +33,28 @@ function buildClaudeStartupDiagnostics(rawContent) {
   const tailText = tailLines.join("\n");
 
   let exitCode = "unknown";
-  const doneMatches = [...content.matchAll(/done:\s*exitCode=(\d+)/g)];
-  if (doneMatches.length > 0) {
-    exitCode = doneMatches[doneMatches.length - 1][1];
+  const donePrefix = "done: exitCode=";
+  const doneIdx = content.lastIndexOf(donePrefix);
+  if (doneIdx !== -1) {
+    const doneTail = content.slice(doneIdx + donePrefix.length);
+    const doneCode = doneTail.match(/^(\d+)/);
+    if (doneCode) {
+      exitCode = doneCode[1];
+    }
   } else {
-    const attemptMatches = [...content.matchAll(/attempt\s+\d+\s+failed:\s+exitCode=(\d+)/g)];
-    if (attemptMatches.length > 0) {
-      exitCode = attemptMatches[attemptMatches.length - 1][1];
+    const failedPrefix = "failed: exitCode=";
+    const failedIdx = content.lastIndexOf(failedPrefix);
+    if (failedIdx !== -1) {
+      const failedTail = content.slice(failedIdx + failedPrefix.length);
+      const failedCode = failedTail.match(/^(\d+)/);
+      if (failedCode) {
+        exitCode = failedCode[1];
+      }
     }
   }
 
   const inferenceAccessError = INFERENCE_ACCESS_ERROR_PATTERN.test(content);
-  const matchedRateLimit = CLAUDE_RATE_LIMIT_PATTERN.test(content);
-  const matchedOverload = CLAUDE_OVERLOAD_PATTERN.test(content);
-  const matchedHTTP5xx = CLAUDE_HTTP_5XX_PATTERN.test(content);
-  const aiCreditsRateLimitError = matchedRateLimit || matchedOverload || matchedHTTP5xx;
+  const aiCreditsRateLimitError = CLAUDE_RATE_LIMIT_PATTERN.test(content) || CLAUDE_OVERLOAD_PATTERN.test(content) || CLAUDE_HTTP_5XX_PATTERN.test(content);
   const summaryLine = `Claude startup failed before structured logging (exitCode=${exitCode}).`;
   const summaryMarkdown = tailText ? `<details><summary>Claude startup diagnostics</summary>\n\n\`\`\`text\n${tailText}\n\`\`\`\n</details>` : "";
 
