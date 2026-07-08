@@ -4071,3 +4071,236 @@ func TestBuildMainJobEngineEnvActivationNoFalseWarning(t *testing.T) {
 	assert.Equal(t, initialWarnings, compiler.GetWarningCount(),
 		"no warning should be emitted for activation which is already a direct agent dependency")
 }
+
+// TestBuildDetectionJobEngineEnvBuiltinWarning verifies that detection-job engine.env
+// references to built-in jobs that are not direct detection dependencies emit a compiler warning.
+func TestBuildDetectionJobEngineEnvBuiltinWarning(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	workflowData := &WorkflowData{
+		Name:        "Test Workflow",
+		AI:          "copilot",
+		RunsOn:      "runs-on: ubuntu-latest",
+		Permissions: "permissions:\n  contents: read",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						"BUILTIN_JOB_REF": "${{ needs.safe_outputs.outputs.anything }}",
+					},
+				},
+			},
+			Jobs: map[string]*SafeJobConfig{"create-issue": {}},
+		},
+	}
+
+	initialWarnings := compiler.GetWarningCount()
+	_, err := compiler.buildDetectionJob(workflowData)
+	require.NoError(t, err, "buildDetectionJob should succeed")
+
+	assert.Equal(t, initialWarnings+1, compiler.GetWarningCount(),
+		"built-in jobs that cannot become direct detection dependencies should emit a warning")
+}
+
+// TestBuildDetectionJobEngineEnvNeedsExpression verifies that the detection job scans the
+// effective detection engine env, so safe-outputs.threat-detection.engine overrides the
+// top-level engine env when resolving custom job dependencies.
+func TestBuildDetectionJobEngineEnvNeedsExpression(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	workflowData := &WorkflowData{
+		Name:        "Test Workflow",
+		AI:          "copilot",
+		RunsOn:      "runs-on: ubuntu-latest",
+		Permissions: "permissions:\n  contents: read",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+			Env: map[string]string{
+				"IGNORED_MODEL": "${{ needs.ignored_job.outputs.model }}",
+			},
+		},
+		Jobs: map[string]any{
+			"ignored_job": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"steps": []any{
+					map[string]any{"run": `echo "model=ignored" >> "$GITHUB_OUTPUT"`},
+				},
+			},
+			"select_model": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"needs":   "pre_activation",
+				"outputs": map[string]any{
+					"model": "${{ steps.pick.outputs.model }}",
+				},
+				"steps": []any{
+					map[string]any{
+						"id":  "pick",
+						"run": `echo "model=claude-sonnet-4.6" >> "$GITHUB_OUTPUT"`,
+					},
+				},
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						"COPILOT_MODEL": "${{ needs.select_model.outputs.model }}",
+					},
+				},
+			},
+			Jobs: map[string]*SafeJobConfig{
+				"create-issue": {},
+			},
+		},
+	}
+
+	job, err := compiler.buildDetectionJob(workflowData)
+	require.NoError(t, err, "buildDetectionJob should succeed")
+	require.NotNil(t, job, "detection job should be created")
+
+	// The detection job must use the threat-detection override env, not the top-level env.
+	assert.Contains(t, job.Needs, "select_model",
+		"detection job must directly depend on select_model referenced in threat-detection.engine.env")
+	assert.NotContains(t, job.Needs, "ignored_job",
+		"detection job must ignore top-level engine.env references when threat-detection.engine overrides env")
+	assert.Contains(t, job.Needs, string(constants.AgentJobName),
+		"detection job must still depend on agent")
+	assert.Contains(t, job.Needs, string(constants.ActivationJobName),
+		"detection job must still depend on activation")
+}
+
+// TestBuildDetectionJobEngineEnvNeedsNotDuplicated verifies that a job referenced in
+// engine.env is not duplicated in the detection job's needs list.
+func TestBuildDetectionJobEngineEnvNeedsNotDuplicated(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	workflowData := &WorkflowData{
+		Name:        "Test Workflow",
+		AI:          "copilot",
+		RunsOn:      "runs-on: ubuntu-latest",
+		Permissions: "permissions:\n  contents: read",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+			Env: map[string]string{
+				"VALUE_A": "${{ needs.custom_job.outputs.result }}",
+				"VALUE_B": "${{ needs.custom_job.outputs.other }}",
+			},
+		},
+		Jobs: map[string]any{
+			"custom_job": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"steps": []any{
+					map[string]any{"run": "echo result=hello >> $GITHUB_OUTPUT"},
+				},
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+			Jobs:            map[string]*SafeJobConfig{"create-issue": {}},
+		},
+	}
+
+	job, err := compiler.buildDetectionJob(workflowData)
+	require.NoError(t, err, "buildDetectionJob should succeed")
+	require.NotNil(t, job, "detection job should be created")
+
+	count := 0
+	for _, need := range job.Needs {
+		if need == "custom_job" {
+			count++
+		}
+	}
+	assert.Equal(t, 1, count, "custom_job should appear exactly once in detection needs")
+}
+
+// TestBuildDetectionJobEngineEnvNeedsIntegration is an end-to-end integration test that
+// compiles a workflow where engine.env references a custom job output, and verifies that the
+// compiled lock file includes the custom job as a direct dependency of the detection job.
+func TestBuildDetectionJobEngineEnvNeedsIntegration(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "detection_engine_env_needs_test")
+
+	frontmatter := `---
+on:
+  issues:
+    types: [opened]
+  permissions: {}
+permissions:
+  contents: read
+  issues: read
+engine:
+  id: copilot
+  env:
+    IGNORED_MODEL: ${{ needs.ignored_job.outputs.model }}
+strict: false
+jobs:
+  ignored_job:
+    runs-on: ubuntu-latest
+    outputs:
+      model: ${{ steps.pick.outputs.model }}
+    steps:
+      - id: pick
+        run: echo "model=ignored" >> "$GITHUB_OUTPUT"
+  select_model:
+    runs-on: ubuntu-latest
+    needs: pre_activation
+    outputs:
+      model: ${{ steps.pick.outputs.model }}
+    steps:
+      - id: pick
+        run: echo "model=claude-sonnet-4.6" >> "$GITHUB_OUTPUT"
+safe-outputs:
+  create-issue: {}
+  threat-detection:
+    engine:
+      id: copilot
+      env:
+        COPILOT_MODEL: ${{ needs.select_model.outputs.model }}
+---
+
+# Test Detection Needs
+
+This workflow tests that engine.env needs expressions create detection job dependencies.
+`
+
+	testFile := filepath.Join(tmpDir, "detection-engine-env-needs.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(frontmatter), 0644), "write test file")
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile), "compile workflow")
+
+	lockFile := filepath.Join(tmpDir, "detection-engine-env-needs.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "read lock file")
+
+	var lockFileYAML map[string]any
+	require.NoError(t, yaml.Unmarshal(content, &lockFileYAML), "parse lock file yaml")
+
+	jobsNode, ok := lockFileYAML["jobs"].(map[string]any)
+	require.True(t, ok, "lock file should contain jobs map")
+
+	detectionNode, ok := jobsNode["detection"].(map[string]any)
+	require.True(t, ok, "lock file should contain detection job")
+
+	rawNeeds, ok := detectionNode["needs"].([]any)
+	require.True(t, ok, "detection job should render needs as a YAML list")
+
+	detectionNeeds := make([]string, 0, len(rawNeeds))
+	for _, need := range rawNeeds {
+		needStr, ok := need.(string)
+		require.True(t, ok, "detection job needs entries should be strings")
+		detectionNeeds = append(detectionNeeds, needStr)
+	}
+
+	assert.Contains(t, detectionNeeds, "select_model",
+		"detection job must list select_model in needs when referenced via threat-detection.engine.env")
+	assert.NotContains(t, detectionNeeds, "ignored_job",
+		"detection job must not inherit top-level engine.env dependencies when threat-detection.engine overrides env")
+}

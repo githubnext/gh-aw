@@ -275,7 +275,7 @@ The input sanitization layer protects against template injection and prompt inje
 - Commit messages
 - User-provided input fields
 
-**IS-02**: Sanitized content MUST be made available through a dedicated output variable (e.g., `needs.activation.outputs.text`).
+**IS-02**: Sanitized content MUST be made available through a dedicated output variable (e.g., `steps.sanitized.outputs.text`).
 
 **IS-03**: Workflows MUST NOT use raw GitHub event context (e.g., `github.event.issue.title`) directly in AI agent prompts.
 
@@ -388,7 +388,7 @@ The output isolation layer enforces separation between AI agent operations (read
 
 **OI-01**: A conforming implementation MUST separate workflow execution into distinct job types:
 
-1. **Activation Job**: Performs sanitization and produces `needs.activation.outputs.text`
+1. **Activation Job**: Performs sanitization and produces `steps.sanitized.outputs.text`
 2. **Agent Job**: Executes AI agent with read-only permissions
 3. **Safe Output Jobs**: Perform validated GitHub API operations with write permissions
 
@@ -875,7 +875,7 @@ Compilation-time security checks validate workflow definitions before generating
 - `${{ github.actor }}`
 - `${{ github.repository }}`
 - `${{ github.run_id }}`
-- `${{ needs.activation.outputs.text }}` (sanitized)
+- `${{ steps.sanitized.outputs.text }}` (sanitized)
 
 **CS-05**: Expression safety violations MUST cause compilation failure with suggestions for safe alternatives.
 
@@ -1735,7 +1735,7 @@ Use this checklist to verify that a compiled `.lock.yml` workflow file meets all
 
 - [ ] `activation` job runs the timestamp validation step (`check_workflow_timestamp_api.cjs`)
 - [ ] `activation` job runs the sanitize content step (`sanitize_content_core.cjs`)
-- [ ] Agent prompts use `needs.activation.outputs.text` (sanitized), not raw `github.event.*` context
+- [ ] Agent prompts use `steps.sanitized.outputs.text` (sanitized), not raw `github.event.*` context
 
 #### G.5 Threat Detection
 
@@ -1781,7 +1781,7 @@ prompt: |
 **Do**:
 ```yaml
 prompt: |
-  Analyze this issue: ${{ needs.activation.outputs.text }}
+  Analyze this issue: ${{ steps.sanitized.outputs.text }}
 ```
 
 #### BP-02: Enable Strict Mode for Production

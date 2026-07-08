@@ -152,6 +152,36 @@ describe("require-json-parse-try-catch", () => {
     });
   });
 
+  it("valid: try/catch/finally is treated as protective", () => {
+    cjsRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
+      valid: [`try { const x = JSON.parse(str); } catch (e) {} finally { cleanup(); }`, `try { JSON.parse(str); } catch (e) { handleErr(e); } finally { release(); }`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: try/finally without catch is not protective", () => {
+    cjsRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { const x = JSON.parse(str); } finally { cleanup(); }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { arg: "str" },
+              suggestions: [
+                {
+                  messageId: "useHelper",
+                  output: `try { try {\n  const x = JSON.parse(str);\n} catch (err) {\n  // TODO: handle parse failure for this code path.\n  throw new Error(\n    "Failed to parse JSON: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} } finally { cleanup(); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it("valid: synchronous callbacks inside try block are protected", () => {
     cjsRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
       valid: [

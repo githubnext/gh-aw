@@ -85,6 +85,7 @@ jobs:
 | `setup-steps` | Steps injected immediately after the compiler-generated `actions/setup` step for that job (except `activation` and `pre_activation`, where compile fails) |
 | `pre-steps` | Steps injected after compiler setup steps and before checkout/`steps` in that job |
 | `steps` | List of steps — supports complete GitHub Actions step specification |
+| `restore-memory` | Restore configured memory stores read-only before `pre-steps`/`steps` so deterministic jobs can read prior state |
 | `uses` | Reusable workflow to call |
 | `with` | Input parameters for a reusable workflow |
 | `secrets` | Secrets passed to a reusable workflow |
@@ -115,8 +116,11 @@ Use this map to see where compiler-inserted steps land for each job type.
 
 1. `jobs.<job-id>.setup-steps`
 2. Compiler host setup (`Configure GH_HOST for enterprise compatibility`)
-3. `jobs.<job-id>.pre-steps`
-4. `jobs.<job-id>.steps`
+3. `restore-memory` injected setup/restore steps (when enabled)
+4. `jobs.<job-id>.pre-steps`
+5. `jobs.<job-id>.steps`
+
+Set `jobs.<job-id>.restore-memory: true` to restore any configured `cache-memory`, `repo-memory`, and `comment-memory` stores before deterministic job steps run. This surface is read-only: gh-aw injects restore/clone/prepare steps, but never emits cache save, repo push, or safe-output write-back steps for custom jobs.
 
 ### Built-in jobs
 

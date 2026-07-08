@@ -75,7 +75,7 @@ func TestAgenticWorkflowsSyntaxVariations(t *testing.T) {
 			c := testCompiler()
 
 			// Extract tools from frontmatter
-			tools := extractToolsFromFrontmatter(frontmatter)
+			tools := extractToolsMapFromFrontmatter(frontmatter)
 
 			// Merge tools
 			mergedTools, err := c.mergeToolsAndMCPServers(tools, make(map[string]any), "")
@@ -268,7 +268,7 @@ func TestAgenticWorkflowsErrorCases(t *testing.T) {
 			c := testCompiler()
 
 			// Extract tools from frontmatter
-			tools := extractToolsFromFrontmatter(frontmatter)
+			tools := extractToolsMapFromFrontmatter(frontmatter)
 
 			// Merge tools
 			mergedTools, err := c.mergeToolsAndMCPServers(tools, make(map[string]any), "")
@@ -360,7 +360,7 @@ func TestAgenticWorkflowsNilSafety(t *testing.T) {
 	}
 }
 
-// TestAgenticWorkflowsExtractToolsEdgeCases tests edge cases in extractToolsFromFrontmatter
+// TestAgenticWorkflowsExtractToolsEdgeCases tests edge cases in extractToolsMapFromFrontmatter
 func TestAgenticWorkflowsExtractToolsEdgeCases(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -418,11 +418,11 @@ func TestAgenticWorkflowsExtractToolsEdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Test that extractToolsFromFrontmatter doesn't panic
+			// Test that extractToolsMapFromFrontmatter doesn't panic
 			var result map[string]any
 			assert.NotPanics(t, func() {
-				result = extractToolsFromFrontmatter(tt.frontmatter)
-			}, "extractToolsFromFrontmatter should handle edge cases without panicking")
+				result = extractToolsMapFromFrontmatter(tt.frontmatter)
+			}, "extractToolsMapFromFrontmatter should handle edge cases without panicking")
 
 			// Verify the expected result
 			if tt.expectTools {
@@ -432,7 +432,7 @@ func TestAgenticWorkflowsExtractToolsEdgeCases(t *testing.T) {
 					"extracted tools should contain agentic-workflows for: %s", tt.description)
 			} else {
 				// ExtractMapField returns empty map (not nil) when field is missing or invalid
-				assert.NotNil(t, result, "extractToolsFromFrontmatter should always return non-nil map")
+				assert.NotNil(t, result, "extractToolsMapFromFrontmatter should always return non-nil map")
 				assert.Empty(t, result, "should return empty tools map for: %s", tt.description)
 			}
 		})
