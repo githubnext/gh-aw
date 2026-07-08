@@ -1,142 +1,124 @@
 {
-  "run_date": "2026-07-08T00:53:55Z",
-  "run_id": "28909358158",
-  "prior_run_id": "28890623742",
+  "run_date": "2026-07-08T07:03:16Z",
+  "run_id": "28924016278",
+  "prior_run_id": "28909358158",
   "summary": {
-    "total": 15,
-    "new": 4,
-    "carry_over": 11,
-    "auto_merge": 2,
-    "fast_track": 2,
-    "batch_review": 5,
-    "defer": 6,
-    "drafts": 5,
-    "prior_merged": 1,
+    "total": 11,
+    "new": 11,
+    "carry_over": 0,
+    "auto_merge": 0,
+    "fast_track": 5,
+    "batch_review": 3,
+    "defer": 2,
+    "close": 0,
+    "drafts": 3,
+    "prior_merged": 13,
     "prior_closed": 2
   },
   "prs": [
     {
-      "number": 44134, "title": "fix(doc-healer): gate artifact constant check on actual artifact production",
-      "category": "bug", "risk": "low", "score": 23, "action": "defer",
+      "number": 44225, "title": "Add formal checkout behavior specification for agent and safe_outputs jobs",
+      "category": "docs", "risk": "low", "score": 22, "action": "defer",
       "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
-      "ci": "none", "additions": 17, "deletions": 2, "changed_files": 2,
-      "note": "Draft. Small doc-healer false-positive fix for nil-returning builders."
+      "ci": "none", "additions": 936, "deletions": 924, "changed_files": 196,
+      "note": "Draft. Pure docs spec. No code logic changes."
     },
     {
-      "number": 44114, "title": "test(constants): table-driven assertions and extend octal-literal check to cmd/",
-      "category": "test", "risk": "low", "score": 48, "action": "auto_merge",
+      "number": 44224, "title": "Cache checkout repository visibility during compile",
+      "category": "chore", "risk": "low", "score": 62, "action": "fast_track",
       "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "passing", "additions": 76, "deletions": 68, "changed_files": 1,
-      "note": "CI passing. Auto-merge candidate."
+      "ci": "pending", "additions": 784, "deletions": 924, "changed_files": 197,
+      "note": "Compiler-local cache for visibility lookups. Approved by CI bots. Await CI green."
     },
     {
-      "number": 44113, "title": "Reject loopback HTTP MCP servers in network isolation mode",
-      "category": "bug", "risk": "medium", "score": 67, "action": "fast_track",
+      "number": 44215, "title": "Fix repo-memory glob matching for nested memory files",
+      "category": "bug", "risk": "medium", "score": 65, "action": "fast_track",
       "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "none", "additions": 68, "deletions": 9, "changed_files": 5,
-      "note": "Compiler validation for localhost+network-isolation conflict. Needs CI."
+      "ci": "pending", "additions": 932, "deletions": 664, "changed_files": 194,
+      "note": "Silent data loss — nested files skipped on persist. Regression tests added."
     },
     {
-      "number": 44101, "title": "[linter-miner] linters: add writebytestring",
-      "category": "feature", "risk": "medium", "score": 35, "action": "batch_review",
-      "batch": "pr-batch:linter-miner", "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "none", "additions": 346, "deletions": 3, "changed_files": 8,
-      "note": "New go/analysis linter from linter-miner bot."
+      "number": 44214, "title": "Restore comment-memory config for deterministic memory-read jobs",
+      "category": "bug", "risk": "medium", "score": 48, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "additions": 705, "deletions": 938, "changed_files": 200,
+      "note": "Draft. Deterministic path memory-restore fix. Needs CI and undraft."
     },
     {
-      "number": 44097, "title": "Extend envutil for bool/string access and remove direct CI bypasses",
-      "category": "feature", "risk": "low", "score": 35, "action": "defer",
-      "batch": null, "draft": true, "carry_over": true, "carry_over_count": 1,
-      "ci": "none", "additions": 342, "deletions": 27, "changed_files": 11,
-      "note": "Draft."
+      "number": 44208, "title": "fix(writebytestring): emit string() cast for named string types; add RunWithSuggestedFixes",
+      "category": "bug", "risk": "low", "score": 55, "action": "batch_review",
+      "batch": "pr-batch:linter-fixes", "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "failing", "additions": 103, "deletions": 12, "changed_files": 6,
+      "note": "Fixes non-compiling linter suggested fix for named string types. CI failing."
     },
     {
-      "number": 44096, "title": "Add rationale comments to production osgetenvlibrary suppressions",
-      "category": "chore", "risk": "low", "score": 28, "action": "defer",
-      "batch": null, "draft": true, "carry_over": true, "carry_over_count": 1,
-      "ci": "none", "additions": 45, "deletions": 45, "changed_files": 27,
-      "note": "Draft. Doc-only."
+      "number": 44207, "title": "fix: switch AI Moderator engine from codex to copilot",
+      "category": "bug", "risk": "medium", "score": 72, "action": "fast_track",
+      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "additions": 99, "deletions": 138, "changed_files": 4,
+      "note": "URGENT DRAFT: AI Moderator 100% broken. Trivial 1-line fix. Undraft immediately."
     },
     {
-      "number": 44090, "title": "Reduce BenchmarkValidation overhead by caching safe-output field order",
-      "category": "chore", "risk": "low", "score": 30, "action": "defer",
-      "batch": null, "draft": true, "carry_over": true, "carry_over_count": 1,
-      "ci": "none", "additions": 27, "deletions": 4, "changed_files": 3,
-      "note": "Draft. Perf improvement."
+      "number": 44204, "title": "feat: detect OAuth tokens in activation job for COPILOT_GITHUB_TOKEN and GH_AW_GITHUB_TOKEN",
+      "category": "feature", "risk": "high", "score": 75, "action": "fast_track",
+      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "additions": 3061, "deletions": 1067, "changed_files": 273,
+      "note": "Security-adjacent. Detects OAuth tokens unsuitable for automation. CHANGES_REQUESTED."
     },
     {
-      "number": 44081, "title": "Gracefully fall back to patch apply when bundle push transport fails",
-      "category": "bug", "risk": "medium", "score": 32, "action": "defer",
-      "batch": null, "draft": true, "carry_over": true, "carry_over_count": 2,
-      "ci": "none", "additions": 0, "deletions": 0, "changed_files": 0,
-      "note": "EMPTY DIFF carry-over x2. Author must push commits or PR will be closed next run."
+      "number": 44202, "title": "fix: detection job missing engine.env job dependencies in needs list",
+      "category": "bug", "risk": "medium", "score": 68, "action": "fast_track",
+      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "additions": 992, "deletions": 924, "changed_files": 197,
+      "note": "Runtime bug: engine.env needs.*.outputs.* resolved to empty string in detection job."
     },
     {
-      "number": 44051, "title": "refactor: split logs_orchestrator.go (1284 lines) into 5 focused modules",
-      "category": "refactor", "risk": "medium", "score": 48, "action": "batch_review",
-      "batch": "pr-batch:code-quality", "draft": false, "carry_over": true, "carry_over_count": 1,
-      "ci": "none", "additions": 974, "deletions": 700, "changed_files": 7,
-      "note": "CHANGES_REQUESTED. Large refactor."
+      "number": 44180, "title": "Ensure extra-empty-commit CI trigger push authenticates as CI token",
+      "category": "bug", "risk": "high", "score": 78, "action": "fast_track",
+      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "pending", "additions": 216, "deletions": 73, "changed_files": 6,
+      "note": "Auth correctness — wrong credentials used for CI trigger push. CHANGES_REQUESTED."
     },
     {
-      "number": 44050, "title": "fix: correct --yes verb, --dir env hint, and add-wizard docs across 9 commands",
-      "category": "chore", "risk": "low", "score": 56, "action": "auto_merge",
-      "batch": null, "draft": false, "carry_over": true, "carry_over_count": 2,
-      "ci": "passing", "additions": 12, "deletions": 12, "changed_files": 9,
-      "note": "Promoted to auto_merge. CI passing."
+      "number": 44179, "title": "Refactor `getOrCreateListRepoClone` into focused helpers in parser remote file listing",
+      "category": "refactor", "risk": "low", "score": 32, "action": "batch_review",
+      "batch": "pr-batch:code-quality", "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "pending", "additions": 880, "deletions": 966, "changed_files": 196,
+      "note": "Function-length lint fix. Behavior-preserving. Batch with #44149."
     },
     {
-      "number": 44037, "title": "Add restore-memory step injection for custom jobs",
-      "category": "feature", "risk": "high", "score": 55, "action": "batch_review",
-      "batch": "pr-batch:memory-runtime", "draft": false, "carry_over": true, "carry_over_count": 1,
-      "ci": "none", "additions": 884, "deletions": 35, "changed_files": 6,
-      "note": "CHANGES_REQUESTED x3."
-    },
-    {
-      "number": 44015, "title": "Expose memory stores to on.steps in pre-activation for deterministic dispatch gating",
-      "category": "feature", "risk": "medium", "score": 43, "action": "defer",
-      "batch": null, "draft": false, "carry_over": true, "carry_over_count": 2,
-      "ci": "none", "additions": 213, "deletions": 0, "changed_files": 4,
-      "note": "Promoted from draft. CHANGES_REQUESTED."
-    },
-    {
-      "number": 44008, "title": "refactor(workflow): extract helpers to fix function-length lint violations",
-      "category": "refactor", "risk": "low", "score": 35, "action": "batch_review",
-      "batch": "pr-batch:code-quality", "draft": false, "carry_over": true, "carry_over_count": 2,
-      "ci": "none", "additions": 230, "deletions": 109, "changed_files": 6,
-      "note": "Promoted from draft. Added to code-quality batch."
-    },
-    {
-      "number": 43716, "title": "fix(security): replace curl|sh installer pipes with download+verify (RGS-018)",
-      "category": "bug", "risk": "high", "score": 83, "action": "fast_track",
-      "batch": null, "draft": false, "carry_over": true, "carry_over_count": 7,
-      "ci": "passing", "additions": 216, "deletions": 20, "changed_files": 8,
-      "note": "SECURITY OVERDUE x7. CI passing. @pelikhan must decide or will recommend close next run."
-    },
-    {
-      "number": 43700, "title": "compiler: add evals job for BinEval binary evaluations",
-      "category": "feature", "risk": "high", "score": 55, "action": "batch_review",
-      "batch": "pr-batch:compiler-features", "draft": false, "carry_over": true, "carry_over_count": 7,
-      "ci": "passing", "additions": 778, "deletions": 11, "changed_files": 5,
-      "note": "Carry-over x7. @pelikhan decision needed."
+      "number": 44149, "title": "refactor(workflow): rename same-name/different-semantics helpers to eliminate navigation confusion",
+      "category": "refactor", "risk": "low", "score": 32, "action": "batch_review",
+      "batch": "pr-batch:code-quality", "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "pending", "additions": 684, "deletions": 952, "changed_files": 202,
+      "note": "Pure identifier renames. Batch with #44179. CHANGES_REQUESTED."
     }
   ],
   "resolved_since_last_run": [
-    {"number": 44092, "resolution": "merged"},
-    {"number": 44093, "resolution": "closed"},
-    {"number": 44095, "resolution": "closed"}
+    {"number": 44134, "resolution": "merged"},
+    {"number": 44114, "resolution": "merged"},
+    {"number": 44113, "resolution": "merged"},
+    {"number": 44101, "resolution": "merged"},
+    {"number": 44097, "resolution": "merged"},
+    {"number": 44096, "resolution": "closed"},
+    {"number": 44090, "resolution": "merged"},
+    {"number": 44081, "resolution": "closed"},
+    {"number": 44051, "resolution": "merged"},
+    {"number": 44050, "resolution": "merged"},
+    {"number": 44037, "resolution": "merged"},
+    {"number": 44015, "resolution": "merged"},
+    {"number": 44008, "resolution": "merged"},
+    {"number": 43716, "resolution": "merged"},
+    {"number": 43700, "resolution": "merged"}
   ],
   "batches": [
-    {"id": "pr-batch:code-quality", "prs": [44051, 44008], "note": "Refactor batch. Resolve CRs on 44051 first."},
-    {"id": "pr-batch:memory-runtime", "prs": [44037], "note": "Resolve CRs x3 before review."},
-    {"id": "pr-batch:compiler-features", "prs": [43700], "note": "Carry-over x7. Needs @pelikhan go/no-go."},
-    {"id": "pr-batch:linter-miner", "prs": [44101], "note": "New batch. Await CI."}
+    {"id": "pr-batch:code-quality", "prs": [44179, 44149], "note": "Behavior-preserving refactors. Review together after CI passes."},
+    {"id": "pr-batch:linter-fixes", "prs": [44208], "note": "CI failing — investigate before review."}
   ],
   "flags": [
-    "SECURITY OVERDUE x7: #43716 — @pelikhan must act or recommend close next run",
-    "EMPTY DIFF x2: #44081 — close if no commits next run",
-    "AUTO_MERGE READY: #44050, #44114",
-    "FAST_TRACK NEEDS CI: #44113",
-    "CARRY_OVER_HIGH: #43700 x7 — @pelikhan go/no-go needed"
+    "URGENT DRAFT: #44207 — AI Moderator 100% broken (codex 404). Undraft and merge immediately.",
+    "CI FAILING: #44208 — investigate before batch review.",
+    "CHANGES_REQUESTED: #44180, #44204, #44149 — resolve CRs before merge.",
+    "LARGE PR: #44204 (+3061/-1067 over 273 files) — may include lock file regeneration."
   ]
 }
