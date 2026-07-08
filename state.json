@@ -1,50 +1,37 @@
 {
-  "lastRun": "2026-07-07",
-  "ruleCount": 11,
-  "rules": ["no-core-setoutput-non-string", "no-json-stringify-error", "no-unsafe-catch-error-property", "no-unsafe-promise-catch-error-property", "prefer-get-error-message", "prefer-number-isnan", "require-async-entrypoint-catch", "require-await-core-summary-write", "require-error-cause-in-rethrow", "require-json-parse-try-catch", "require-parseInt-radix"],
-  "newRuleThisPeriod": "require-error-cause-in-rethrow added since 2026-07-06 run (was 10, now 11). Pattern still holds: ~1 new rule/day. This 11th rule was never-reviewed; focused this run on it (led with index.ts diff vs state rules[], per prior nextPriorities).",
-  "focusThisRun": "First review of NEW 11th rule require-error-cause-in-rethrow. Filed 2 grounded precision issues (kept to 2 not 3 - quality-over-cap discipline, same as prior runs). No open dupes existed for this rule.",
-  "requireErrorCauseInRethrowFindings": {
-    "design": "NewExpression handler: flags `throw new Error(...)` inside try/catch when msgArg references catch PARAM name (via expressionReferencesCatchVar) and 2nd arg lacks a `cause` key (hasCauseProperty checks key name only, any value ok - intentional per docstring to allow {cause: ensureError(err)}). Only `new Error`, not subclasses (documented). isInsideCatchBody stops at ANY function boundary incl arrow.",
-    "liveTruePositives_ruleFiresCorrectly": "apply_samples.cjs:67 & :443 catch(err){throw new Error(`...${getErrorMessage(err)}`)} no cause -> correctly flagged. claude_harness.cjs:243 err.message no cause -> flagged. Rule does real work.",
-    "gap1_aliasBlindspot_FILED": "Rule tracks catch PARAM name only; misses `/** @type {any} */ const err = <catchError>;` normalization idiom used in 5 files (create_pull_request:575, push_signed_commits:673, dispatch_workflow:274, route_slash_command:341, mcp_server_core:830). LIVE FN: create_pull_request.cjs:589 throw new Error(...${message||String(err)}) referencing alias `err` not param `deleteError`, no cause. GROWING blindspot as @type any idiom spreads.",
-    "gap2_exprTraversal_FILED": "expressionReferencesCatchVar (lines 27-56) handles Identifier/CallExpression/TemplateLiteral/BinaryExpression/MemberExpression but NOT LogicalExpression(||,&&,??), ConditionalExpression, SequenceExpression. ESTree: ||/??/&& are LogicalExpression NOT BinaryExpression. `err.message||'x'` and `cond?err.message:'y'` escape. Partially grounded at :589 (${message||String(err)}); both gap1+gap2 independently hide 589.",
-    "unfiledObservations": {
-      "docCodeArrowMismatch": "docstring line 105-107/119-120 says 'non-arrow function boundary' but code line 118 treats ArrowFunctionExpression AS a boundary (returns false). So throw inside synchronous arrow (forEach/map) in catch body not flagged. UNGROUNDED in corpus (0 sites). Doc/code inconsistency - low pri.",
-      "subclassFN": "Only `new Error` flagged; new TypeError/custom error classes rethrown-without-cause skipped (documented+tested valid). No grounded corpus subclass-rethrow-in-catch site found.",
-      "hasCausePropertyFPs": "2nd arg as Identifier (prebuilt options ref) or spread-only {...opts} or computed key {[k]:err} -> hasCauseProperty returns false -> would flag (FP). UNGROUNDED (0 corpus sites).",
-      "readmeGap": "README documents only 2 of 11 rules (no-json-stringify-error, prefer-number-isnan). require-error-cause-in-rethrow + 8 others have NO README section. Broad doc debt - mention in discussion not issue."
-    }
+  "lastRun": "2026-07-08",
+  "ruleCount": 12,
+  "rules": ["no-core-setoutput-non-string", "no-json-stringify-error", "no-unsafe-catch-error-property", "no-unsafe-promise-catch-error-property", "prefer-get-error-message", "prefer-number-isnan", "require-async-entrypoint-catch", "require-await-core-summary-write", "require-error-cause-in-rethrow", "require-fs-sync-try-catch", "require-json-parse-try-catch", "require-parseInt-radix"],
+  "cadence": "~1 new rule/day. Detect newest via index.ts imports diff vs rules[]. All 12 reviewed >=1x. Next likely: a 13th rule appears; lead with it.",
+  "thisRun_2026-07-08": "First review of 12th rule require-fs-sync-try-catch. Filed 2 (quality-over-cap). No fs-sync dupes.",
+  "requireFsSyncTryCatchFindings": {
+    "design": "Flags fs.readFileSync/writeFileSync/appendFileSync (3 methods) NOT in a try block. Matches fs.method + computed fs['method'] literal; excludes fs[varName]. callee.object must be Identifier 'fs' - PURE SYNTACTIC, no scope resolution. isInsideTryBlock walks ancestors, crossedDeferredBoundary via shared isDeferredCallback util. Suggestion only for Expression/ReturnStatement (VariableDeclaration -> suggestions:[], correct). mkdir/unlink/readdir/... out-of-scope 1st iteration.",
+    "trueNegatives": "send_otlp_span.cjs:662/1628/1408 + apply_samples.cjs:274 correctly unflagged (wrapped). Codebase disciplined; rule guards regressions.",
+    "issue1_FILED_grounded_MED": "destructured/named fs binding FN: rule matches fs.<method> only; const {appendFileSync}=require('fs') + bare appendFileSync() escapes. GROUNDED: action_setup_otlp.cjs:43 unwrapped appendFileSync->GITHUB_OUTPUT/ENV. Ask: scope-resolve fs/node:fs bindings incl destructure+alias, tests, re-verify :43.",
+    "issue2_FILED_soundness_MED": "isInsideTryBlock never checks ancestor.handler!=null; catch-less try/finally treated protective but still crashes. UNGROUNDED (0 live sites), cheap fix. Ask: require handler; try{fs}finally invalid + try{}catch{}finally valid tests. Audit same in sibling try/catch rules.",
+    "unfiled": "method-scope expansion (mkdirSync/readdirSync/... 438 occ, out-of-scope by design; discussion not issue); fs name-shadow FP (ungrounded, closed by issue1 fix); README documents only 2/12 rules (doc debt)."
   },
-  "issuesFiledThisRun": [
-    "require-error-cause-in-rethrow MED (grounded live @create_pull_request.cjs:589): alias blindspot - rule tracks catch param name only, misses `const err = catchError` normalization idiom in 5 files. Ask: resolve simple in-catch aliases + test matrix + re-verify 589.",
-    "require-error-cause-in-rethrow MED (grounded partial @:589): expressionReferencesCatchVar skips LogicalExpression/ConditionalExpression/SequenceExpression; idiomatic `err.message||'x'` & ternary fallbacks escape. Ask: traverse those node types + tests + FP guard."
-  ],
-  "priorOpenIssues_stillValid_notRefiled": {
-    "43486": "prefer-number-isnan HIGH: misleading Number() caveat + suggestion-only on already-numeric args (OPEN)",
-    "43486_MED_sibling": "prefer-number-isnan hasLocalBinding excludes ImportBinding (OPEN)",
-    "no-json-stringify-error_2issues_2026-07-06": "getErrorMessage message-only suggestion @expired_entity_cleanup:134; + undocumented .then(_,onRejected)/named-handler exclusion. (Filed last run, likely still open.)",
-    "43326": "await-summary FN: discarded promise in non-bare-call statement positions (OPEN)",
-    "42915": "no-unsafe-promise-catch-error-property whole-callback branch-order FN",
-    "42682": "setoutput only .length, misses .number/.size",
-    "42680": "setoutput misses negative/unary numeric literals -1/+5",
-    "42190/42189/42188": "no-unsafe-catch-error-property: add stack/code suggestions+computed; whole-block branch-order FN; broaden beyond message/stack/code"
+  "priorOpenIssues": {
+    "43948+sibling": "require-error-cause-in-rethrow: expressionReferencesCatchVar skips Logical/Conditional/Sequence FN; + alias-blindspot FN (grounded create_pull_request.cjs:589). Filed 07-07.",
+    "43486+sibling": "prefer-number-isnan: misleading Number() caveat + suggestion-only on numeric args; hasLocalBinding excludes ImportBinding.",
+    "43326": "await-summary FN: discarded promise in non-bare-call statement positions.",
+    "42915": "no-unsafe-promise-catch-error-property whole-callback branch-order FN.",
+    "42682/42680": "setoutput: only .length (misses .number/.size); misses unary/negative numeric literals.",
+    "42190/42189/42188": "no-unsafe-catch-error-property: stack/code suggestions+computed; whole-block branch-order FN; broaden beyond message/stack/code."
   },
-  "note_issueLimit": "create_issue max 3/run. Filed 2 (both require-error-cause-in-rethrow). All 11 known rules now reviewed at least once.",
   "nextPriorities": [
-    "Re-read src/index.ts FIRST: diff against state.json rules[] (now 11) to find the newest never-reviewed rule (repo adds ~1/day, 8->9->10->11 over 4 runs) and lead with it.",
-    "If require-error-cause-in-rethrow gets alias-resolution OR logical-expr traversal, re-verify create_pull_request.cjs:589 is now flagged or fixed with {cause}.",
-    "Mine a NEW defect class (all 11 rules reviewed): core.setFailed(non-string) twin of no-core-setoutput-non-string; String.prototype.replace w/o /g on repeated tokens; unchecked fs.promises rejections. Ground before filing.",
-    "README doc debt: only 2/11 rules documented. Could file 1 doc issue OR raise in discussion. Consider next run.",
-    "Watch regressions in oldest-reviewed rules (require-json-parse-try-catch, require-parseInt-radix) after refinement churn.",
-    "Cannot close issues (safe outputs: create_issue/create_discussion/missing_tool/missing_data/noop/push_repo_memory/report_incomplete). Close-recs -> discussion only."
+    "Re-read index.ts FIRST; diff vs rules[] (12) to find newest never-reviewed rule; lead with it.",
+    "If fs-sync gets scope-resolution: re-verify action_setup_otlp.cjs:43 flagged/wrapped. If catch-less-try fix lands: confirm plain try/catch valid cases unregressed.",
+    "New grounded defect class once rules stable: fs sync method-scope expansion (mkdirSync/readdirSync unwrapped, 438 occ); core.setFailed(non-string) twin of setoutput rule; String.replace w/o /g. Ground before filing.",
+    "README doc debt (2/12 documented): file 1 doc issue OR raise in discussion.",
+    "Cannot close issues (safe outputs limited); close-recs -> discussion only."
   ],
   "ops": [
-    "repo-memory: Read/Write/Glob tools ONLY. Bash ls/cat/find on /tmp BLOCKED (scoped to working dir). Read tool WORKS on /tmp/gh-aw/repo-memory paths; Write WORKS. After Write, call `safeoutputs push_repo_memory` to validate size.",
-    "create issue: Write JSON {title,body,labels} to file INSIDE working dir (e.g. eslint-factory/.tmp_issueN.json), then `cd <dir> && safeoutputs create_issue . < file 2>/dev/null`. {\"result\":\"success\"}==accepted. rm temp after. Params: title*,body*,labels,fields,parent,temporary_id.",
-    "dedupe: `gh api \"repos/github/gh-aw/issues?state=open&per_page=100\" --jq '.[]|select((.title//\"\")|test(\"pat\";\"i\"))|\"\\(.number)\\t\\(.title)\"'`. gh issue list --search --json throws 'malformed version'; plain gh issue list --json (no --search) WORKS. gh api issues endpoint + jq is reliable.",
-    "Bash blocks compound cmds (&&, ;, echo-chains, 2>&1|head, glob-in-cat) needing approval - run single commands. Grep/Glob/Read tools preferred for search. create_discussion: check --help for params (title/body/category?).",
-    "eslint-factory has NO node_modules/dist; npm firewalled - cannot run linter live. Ground findings statically via Grep on .cjs + reading rule src + tests.",
-    "patch limit ~10KB per push - keep state.json lean, prune old verbatim finding lists."
+    "repo-memory: Read/Write/Glob/Edit tools ONLY (Bash on /tmp blocked). After Write, `safeoutputs push_repo_memory --memory_id default` to validate. TOTAL memory must be <=12KB (10KB patch limit) - keep lean, stub old findings files (see findings-2026-06-30/07-01/07-05 stub pattern).",
+    "create issue: Write JSON {title,body,labels} to file in working dir (eslint-factory/.tmp_issueN.json), then `cd eslint-factory && safeoutputs create_issue . < file 2>/dev/null`. {\"result\":\"success\"}==accepted. rm temp after. Params: title*,body*,labels,fields,parent,temporary_id.",
+    "dedupe: gh api repos/github/gh-aw/issues?state=open&per_page=100 --jq select title test(pat;i). Reliable. gh issue list --search --json throws 'malformed version'.",
+    "Bash BLOCKS: compound (&&,;), heredocs w/ braces, ${var}, brace-in-quote, backslash-escaped braces in grep. Use single simple cmds; Grep/Glob/Read/Edit tools for search+memory edits.",
+    "eslint-factory: NO node_modules/dist, npm firewalled - no live lint. Ground statically via Grep on non-test .cjs (config ignores *.test.cjs) + rule src/tests. Rules registered gh-aw-custom/<name>, warn.",
+    "create_discussion params: title*, body*, category, integrity, secrecy."
   ]
 }

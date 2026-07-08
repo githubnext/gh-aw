@@ -1,0 +1,13 @@
+{
+  "date": "2026-07-08",
+  "rule": "require-fs-sync-try-catch",
+  "context": "12th rule, NEW since 2026-07-07 (index.ts now imports requireFsSyncTryCatchRule; was 11). First review. ~1 new rule/day cadence holds.",
+  "method": "static review of rule + test + try-catch-rule-utils; grep grounding on non-test actions/setup/js/**/*.cjs (no node_modules/dist, npm firewalled).",
+  "findings": [
+    {"id": "fssync-destructured-named-binding-FN", "severity": "medium", "class": "false-negative (grounded)", "filed": true, "grounded": "action_setup_otlp.cjs:43 bare appendFileSync (from const {appendFileSync}=require('fs') :28) writing GITHUB_OUTPUT/ENV, not in try. Rule matches fs.<method> only.", "ask": "scope-resolve fs/node:fs bindings incl destructure+alias; tests; re-verify :43."},
+    {"id": "fssync-catchless-tryfinally-protective-FN", "severity": "medium", "class": "soundness gap (ungrounded, latent)", "filed": true, "detail": "isInsideTryBlock returns true for any enclosing TryStatement.block, never checks ancestor.handler!=null. Catch-less try/finally still crashes. 0 live sites; cheap fix.", "ask": "require handler!=null; add try{fs}finally invalid + try{}catch{}finally valid tests."}
+  ],
+  "trueNegatives": "send_otlp_span.cjs:662/1628/1408 + apply_samples.cjs:274 correctly NOT flagged (wrapped). Codebase disciplined; rule mainly guards regressions.",
+  "unfiled": "method-scope expansion (mkdirSync/readdirSync/... 438 occ, out-of-scope by design); fs name-shadow FP (ungrounded, closed by finding1 fix); README documents only 2/12 rules.",
+  "see": "state.json requireFsSyncTryCatchFindings for full detail."
+}
