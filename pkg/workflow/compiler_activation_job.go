@@ -15,11 +15,10 @@ import (
 
 var compilerActivationJobLog = logger.New("workflow:compiler_activation_job")
 
-var (
-	activationSymlinkBaseDir   = strings.TrimSuffix(constants.GithubDir, "/")
-	activationSymlinkAgentDir  = activationSymlinkBaseDir + "/agents"
-	activationSymlinkSkillDir  = activationSymlinkBaseDir + "/skills"
-	activationSymlinkPromptDir = activationSymlinkBaseDir + "/prompts"
+const (
+	activationSymlinkAgentDir  = constants.GithubDir + "agents"
+	activationSymlinkSkillDir  = constants.GithubDir + "skills"
+	activationSymlinkPromptDir = constants.GithubDir + "prompts"
 )
 
 var activationMetadataTriggerFields = map[string]struct{}{
