@@ -4,6 +4,13 @@
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
+ * Builtin GitHub issue fields that have dedicated safe-output tools (e.g. update_issue).
+ * The set_issue_field handler must refuse these fields to avoid confusion.
+ * @type {Set<string>}
+ */
+const BUILTIN_ISSUE_FIELD_NAMES = new Set(["title", "body", "state", "labels", "assignees", "milestone"]);
+
+/**
  * Parse allowed issue field names from config.
  * @param {string[]|string|undefined} value
  * @returns {string[]}
@@ -58,6 +65,7 @@ function validateAllowedIssueFields(issueFields, allowedFields) {
 }
 
 module.exports = {
+  BUILTIN_ISSUE_FIELD_NAMES,
   parseAllowedIssueFields,
   validateAllowedIssueFieldName,
   validateAllowedIssueFields,
