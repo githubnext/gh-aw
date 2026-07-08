@@ -406,6 +406,10 @@ This workflow tests the update-issue title-prefix configuration.
 	if workflowData.SafeOutputs.UpdateIssues.TitlePrefix != "[bot] " {
 		t.Fatalf("Expected title-prefix to be '[bot] ', got '%s'", workflowData.SafeOutputs.UpdateIssues.TitlePrefix)
 	}
+
+	if workflowData.SafeOutputs.UpdateIssues.RequiredTitlePrefix != "" {
+		t.Errorf("Expected RequiredTitlePrefix to be empty when only title-prefix is set, got %q", workflowData.SafeOutputs.UpdateIssues.RequiredTitlePrefix)
+	}
 }
 
 func TestUpdateIssueRequiredFilters(t *testing.T) {
