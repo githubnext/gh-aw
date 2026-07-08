@@ -48,6 +48,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `tolowerequalfold` — reports case-insensitive string comparisons using `strings.ToLower`/`ToUpper` that should use `strings.EqualFold`.
 - `uncheckedtypeassertion` — reports single-value type assertions where unchecked panics are possible.
 - `wgdonenotdeferred` — reports non-deferred `sync.WaitGroup.Done()` calls that can deadlock on panics or early returns.
+- `writebytestring` — reports `w.Write([]byte(s))` calls where `s` is a string, which can be replaced with `io.WriteString` to avoid an unnecessary `[]byte` allocation.
 - `internal` — shared helper packages for analyzers (file checks and `nolint` handling).
 
 ## Public API
@@ -98,6 +99,7 @@ This package currently provides custom Go analyzers in the following subpackages
 | `tolowerequalfold` | Custom `go/analysis` analyzer that flags case-insensitive comparisons via `strings.ToLower`/`ToUpper` that should use `strings.EqualFold` |
 | `uncheckedtypeassertion` | Custom `go/analysis` analyzer that flags unchecked single-value type assertions |
 | `wgdonenotdeferred` | Custom `go/analysis` analyzer that flags non-deferred `sync.WaitGroup.Done()` calls |
+| `writebytestring` | Custom `go/analysis` analyzer that flags `w.Write([]byte(s))` calls where `s` is a string that can be replaced with `io.WriteString` |
 | `internal` | Shared helper subpackages used by analyzers (`internal/filecheck`, `internal/nolint`) |
 
 ### Namespace exports
@@ -208,6 +210,7 @@ _ = timesleepnocontext.Analyzer
 - `github.com/github/gh-aw/pkg/linters/tolowerequalfold` — to-lower-equal-fold analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion` — unchecked-type-assertion analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/wgdonenotdeferred` — wg-done-not-deferred analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/writebytestring` — write-byte-string analyzer subpackage
 
 **Transitive / Internal helpers**:
 - `github.com/github/gh-aw/pkg/linters/internal/filecheck` — shared file-path filtering helpers used by multiple analyzers

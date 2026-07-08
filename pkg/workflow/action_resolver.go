@@ -113,29 +113,12 @@ func (r *ActionResolver) ResolveSHA(ctx context.Context, repo, version string) (
 	resolverLog.Printf("Cache miss for %s@%s, checking embedded action pins", repo, version)
 
 	// Check embedded action pins for a semver-compatible version before making
-	// a network call. The embedded pins are the source-of-truth for known versions
-	// and are always available without network access. This avoids a ~1s gh-api
-	// subprocess for any action that is already covered by the embedded pin set.
-	requested := semverutil.EnsureVPrefix(version)
-	requestedVer := semverutil.ParseVersion(requested)
-	requestedIsPrecise := requestedVer != nil && requestedVer.IsPreciseVersion()
-
-	for _, pin := range actionpins.GetActionPinsByRepo(repo) {
-		pinVersion := semverutil.EnsureVPrefix(pin.Version)
-		if requestedIsPrecise {
-			if pinVersion != requested {
-				continue
-			}
-		} else if !semverutil.IsCompatible(pinVersion, requested) {
-			continue
-		}
-
-		resolverLog.Printf("Embedded pin hit for %s@%s → %s (%s)", repo, version, pin.SHA, pin.Version)
-		// Note: we intentionally do NOT call r.cache.Set() here. The embedded pins
-		// are always available in memory so there is nothing to persist, and writing
-		// to the on-disk cache would create root-owned files when compiling inside
-		// Docker containers (e.g. the Alpine CI test), preventing cleanup by the host.
-		return pin.SHA, nil
+	// a network call. Note: we intentionally do NOT call r.cache.Set() for
+	// embedded pins — they are always available in memory, and writing to the
+	// on-disk cache would create root-owned files inside Docker containers
+	// (e.g. the Alpine CI test), preventing cleanup by the host.
+	if sha, found := lookupEmbeddedActionPin(repo, version); found {
+		return sha, nil
 	}
 
 	resolverLog.Printf("No embedded pin for %s@%s, querying GitHub API", repo, version)
@@ -158,6 +141,33 @@ func (r *ActionResolver) ResolveSHA(ctx context.Context, repo, version string) (
 	r.cache.Set(repo, version, sha)
 
 	return sha, nil
+}
+
+// lookupEmbeddedActionPin returns the pinned SHA for repo@version from the
+// embedded action pin set. It returns ("", false) if no matching pin is found.
+// The embedded pins are the source-of-truth for known versions and are always
+// available without network access, avoiding a ~1s gh-api subprocess for any
+// action covered by the embedded pin set.
+func lookupEmbeddedActionPin(repo, version string) (string, bool) {
+	requested := semverutil.EnsureVPrefix(version)
+	requestedVer := semverutil.ParseVersion(requested)
+	requestedIsPrecise := requestedVer != nil && requestedVer.IsPreciseVersion()
+
+	for _, pin := range actionpins.GetActionPinsByRepo(repo) {
+		pinVersion := semverutil.EnsureVPrefix(pin.Version)
+		if requestedIsPrecise {
+			if pinVersion != requested {
+				continue
+			}
+		} else if !semverutil.IsCompatible(pinVersion, requested) {
+			continue
+		}
+
+		resolverLog.Printf("Embedded pin hit for %s@%s → %s (%s)", repo, version, pin.SHA, pin.Version)
+		return pin.SHA, true
+	}
+
+	return "", false
 }
 
 // ParseTagRefTSV parses the tab-separated output from the GitHub API

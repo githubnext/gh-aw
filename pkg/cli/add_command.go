@@ -185,7 +185,7 @@ func registerAddCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("no-gitattributes", false, "Skip updating .gitattributes file")
 
 	// Add workflow directory flag to add command
-	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
+	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: $GH_AW_WORKFLOWS_DIR or .github/workflows)")
 
 	// Add no-stop-after flag to add command
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")

@@ -46,34 +46,20 @@ func buildInputSchema(inputs map[string]any, descriptionFn func(inputName string
 			case "boolean":
 				inputType = "boolean"
 			case "choice":
-				inputType = "string"
-				if options, ok := inputDefMap["options"].([]any); ok && len(options) > 0 {
-					prop := map[string]any{
-						"type":        inputType,
-						"description": inputDescription,
-						"enum":        options,
-					}
-					if defaultVal, ok := inputDefMap["default"]; ok {
-						prop["default"] = defaultVal
-					}
+				if prop, isChoice := buildChoiceInputProperty(inputDefMap, inputDescription); isChoice {
 					properties[inputName] = prop
 					if inputRequired {
 						required = append(required, inputName)
 					}
 					continue
 				}
+				inputType = "string"
 			case "environment":
 				inputType = "string"
 			}
 		}
 
-		prop := map[string]any{
-			"type":        inputType,
-			"description": inputDescription,
-		}
-		if defaultVal, ok := inputDefMap["default"]; ok {
-			prop["default"] = defaultVal
-		}
+		prop := buildInputProperty(inputType, inputDescription, inputDefMap)
 		buildInputSchemaLog.Printf("Input %q: type=%s, required=%v", inputName, inputType, inputRequired)
 		properties[inputName] = prop
 
@@ -84,4 +70,35 @@ func buildInputSchema(inputs map[string]any, descriptionFn func(inputName string
 
 	buildInputSchemaLog.Printf("Built input schema: %d properties, %d required", len(properties), len(required))
 	return properties, required
+}
+
+// buildChoiceInputProperty builds a JSON Schema property for a "choice" input type.
+// It returns (property, true) when options are available, or (nil, false) otherwise.
+func buildChoiceInputProperty(inputDefMap map[string]any, inputDescription string) (map[string]any, bool) {
+	options, ok := inputDefMap["options"].([]any)
+	if !ok || len(options) == 0 {
+		return nil, false
+	}
+	prop := map[string]any{
+		"type":        "string",
+		"description": inputDescription,
+		"enum":        options,
+	}
+	if defaultVal, ok := inputDefMap["default"]; ok {
+		prop["default"] = defaultVal
+	}
+	return prop, true
+}
+
+// buildInputProperty builds a JSON Schema property map for a scalar input (string,
+// number, or boolean). Use buildChoiceInputProperty for "choice" inputs instead.
+func buildInputProperty(inputType, inputDescription string, inputDefMap map[string]any) map[string]any {
+	prop := map[string]any{
+		"type":        inputType,
+		"description": inputDescription,
+	}
+	if defaultVal, ok := inputDefMap["default"]; ok {
+		prop["default"] = defaultVal
+	}
+	return prop
 }

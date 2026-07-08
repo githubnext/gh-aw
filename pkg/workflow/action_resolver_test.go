@@ -115,6 +115,49 @@ func TestActionResolverFailedResolutionCache(t *testing.T) {
 // Note: Testing the actual GitHub API resolution requires network access
 // and is tested in integration tests or with network-dependent test tags
 
+// TestLookupEmbeddedActionPin exercises the semver matching logic inside
+// lookupEmbeddedActionPin directly — independently of the cache and network
+// layers. It covers the three reachable code paths: precise-version match,
+// range (major/minor) match, and no match.
+func TestLookupEmbeddedActionPin(t *testing.T) {
+	t.Run("precise version returns SHA", func(t *testing.T) {
+		// actions/checkout@v7.0.0 is in the embedded pin set.
+		sha, found := lookupEmbeddedActionPin("actions/checkout", "v7.0.0")
+		if !found {
+			t.Fatal("expected embedded pin hit for actions/checkout@v7.0.0, got not-found")
+		}
+		if sha == "" {
+			t.Error("expected non-empty SHA for actions/checkout@v7.0.0")
+		}
+	})
+
+	t.Run("semver range returns SHA for compatible pin", func(t *testing.T) {
+		// v7 is compatible with the pinned v7.0.0.
+		sha, found := lookupEmbeddedActionPin("actions/checkout", "v7")
+		if !found {
+			t.Fatal("expected embedded pin hit for actions/checkout@v7 (compatible with v7.0.0), got not-found")
+		}
+		if sha == "" {
+			t.Error("expected non-empty SHA for actions/checkout@v7")
+		}
+	})
+
+	t.Run("unknown repo returns not-found", func(t *testing.T) {
+		_, found := lookupEmbeddedActionPin("nonexistent/action", "v1")
+		if found {
+			t.Error("expected not-found for nonexistent/action@v1")
+		}
+	})
+
+	t.Run("known repo but incompatible version returns not-found", func(t *testing.T) {
+		// actions/checkout has no v1.x.x in the embedded pin set.
+		_, found := lookupEmbeddedActionPin("actions/checkout", "v1")
+		if found {
+			t.Error("expected not-found for actions/checkout@v1 (no such pin)")
+		}
+	})
+}
+
 // TestParseTagRefTSV verifies that ParseTagRefTSV correctly parses the tab-separated
 // output produced by the GitHub API jq expression `[.object.sha, .object.type] | @tsv`.
 // This is the core parsing step used when resolving action tags to SHAs; it must

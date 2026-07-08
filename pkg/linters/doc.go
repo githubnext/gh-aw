@@ -1,6 +1,6 @@
 // Package linters is a namespace for gh-aw's custom Go analysis linters.
 //
-// The actual analyzers are implemented in subpackages. All 38 active analyzers:
+// The actual analyzers are implemented in subpackages. All 39 active analyzers:
 //
 //   - appendbytestring — flags append(b, []byte(s)...) calls where s is a string that can be simplified to append(b, s...)
 //   - contextcancelnotdeferred — flags context cancel functions called directly instead of deferred
@@ -40,6 +40,7 @@
 //   - tolowerequalfold — flags case-insensitive comparisons via ToLower/ToUpper that should use EqualFold
 //   - uncheckedtypeassertion — flags unchecked single-value type assertions
 //   - wgdonenotdeferred — flags non-deferred sync.WaitGroup.Done() calls
+//   - writebytestring — flags w.Write([]byte(s)) calls where s is a string that can be replaced with io.WriteString(w, s)
 //
 // The package also exposes a compatibility alias (ErrorMessageAnalyzer) that
 // points to the errormessage subpackage analyzer.

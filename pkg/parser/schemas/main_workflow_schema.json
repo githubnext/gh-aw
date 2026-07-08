@@ -2690,6 +2690,10 @@
                 }
               }
             ]
+          },
+          "restore-memory": {
+            "type": "boolean",
+            "description": "When true, injects read-only restore steps for all memory stores configured in the workflow's tools: section into this custom job. No write-back or commit steps are ever emitted."
           }
         }
       }

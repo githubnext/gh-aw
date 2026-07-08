@@ -456,6 +456,39 @@ func writeCachePath(builder *strings.Builder, path any) {
 	fmt.Fprintf(builder, "          path: %v\n", path)
 }
 
+// buildCacheRestoreKeys derives the ordered list of restore-keys for a cache entry.
+// The primary key (without the run_id suffix) is always included.
+// For "repo" scope, a second key that also strips the workflow ID is appended to allow
+// cross-workflow cache sharing.
+//
+// cacheKey must be the fully-formed primary key (e.g. as returned by
+// computeIntegrityCacheKey) and scope is the cache entry's scope field
+// ("workflow" or "repo"; empty is treated as "workflow").
+func buildCacheRestoreKeys(cacheKey, scope string) []string {
+	if scope == "" {
+		scope = "workflow"
+	}
+	const runIDSuffix = "-${{ github.run_id }}"
+
+	var keys []string
+	if strings.HasSuffix(cacheKey, runIDSuffix) {
+		keys = append(keys, strings.TrimSuffix(cacheKey, "${{ github.run_id }}"))
+	} else {
+		parts := strings.Split(cacheKey, "-")
+		if len(parts) >= 2 {
+			keys = append(keys, strings.Join(parts[:len(parts)-1], "-")+"-")
+		}
+	}
+
+	if scope == "repo" {
+		repoKey := strings.TrimSuffix(cacheKey, "${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}")
+		if repoKey != cacheKey && repoKey != "" {
+			keys = append(keys, repoKey)
+		}
+	}
+	return keys
+}
+
 func writeCacheRestoreKeys(builder *strings.Builder, restoreKeys any) {
 	if restoreKeys == nil {
 		return
@@ -526,40 +559,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		// Generate restore keys based on scope
 		// - "workflow" (default): Single restore key with workflow ID (secure)
 		// - "repo": Two restore keys - with and without workflow ID (allows cross-workflow sharing)
-		var restoreKeys []string
-
-		// Determine scope (default to "workflow" for safety)
-		scope := cache.Scope
-		if scope == "" {
-			scope = "workflow"
-		}
-
-		// First restore key: remove the run_id suffix as a single unit (don't split the key)
-		// The cacheKey always ends with "-${{ github.run_id }}" (ensured by code above)
-		if strings.HasSuffix(cacheKey, runIdSuffix) {
-			// Remove the run_id suffix to create the restore key
-			restoreKey := strings.TrimSuffix(cacheKey, "${{ github.run_id }}") // Keep the trailing "-"
-			restoreKeys = append(restoreKeys, restoreKey)
-		} else {
-			// Fallback: split on last dash if run_id suffix not found
-			// This handles edge cases where the key format might be different
-			keyParts := strings.Split(cacheKey, "-")
-			if len(keyParts) >= 2 {
-				workflowLevelKey := strings.Join(keyParts[:len(keyParts)-1], "-") + "-"
-				restoreKeys = append(restoreKeys, workflowLevelKey)
-			}
-		}
-
-		// For repo scope, add an additional restore key without the workflow ID
-		// This allows cache sharing across all workflows in the repository
-		if scope == "repo" {
-			// Remove both workflow and run_id to create a repo-wide restore key
-			// For example: "memory-none-nopolicy-chroma-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}" -> "memory-none-nopolicy-chroma-"
-			repoKey := strings.TrimSuffix(cacheKey, "${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}")
-			if repoKey != cacheKey && repoKey != "" {
-				restoreKeys = append(restoreKeys, repoKey)
-			}
-		}
+		restoreKeys := buildCacheRestoreKeys(cacheKey, cache.Scope)
 
 		// Step name and action
 		// Use actions/cache/restore for restore-only caches or when threat detection is enabled
