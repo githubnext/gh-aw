@@ -137,6 +137,19 @@ async function main() {
     return;
   }
 
+  // Validate FILE_GLOB_FILTER patterns: absolute paths (starting with "/") are not supported.
+  if (fileGlobFilter) {
+    const allPatternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
+    for (const pat of allPatternStrs) {
+      if (pat.startsWith("/")) {
+        core.setFailed(
+          `FILE_GLOB_FILTER contains an unsupported pattern: "${pat}". Patterns must not start with "/" (absolute paths are not allowed).`
+        );
+        return;
+      }
+    }
+  }
+
   // Source directory with memory files (artifact location)
   // The artifactDir IS the memory directory (no nested structure needed)
   const sourceMemoryPath = artifactDir;
