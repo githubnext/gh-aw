@@ -59,7 +59,7 @@ Test with explicit lockdown enabled.
 			description:             "When lockdown is explicitly true but no guard policy, auto detection step should still run",
 		},
 		{
-			name: "No auto detection when guard policy explicitly configured",
+			name: "Detection step still generated when guard policy explicitly configured",
 			workflow: `---
 on: issues
 engine: copilot
@@ -75,9 +75,12 @@ tools:
 
 Test with explicit guard policy configured.
 `,
-			expectedGuardPolicy:     "static",
-			expectAutoDetectionStep: false,
-			description:             "When guard policy is explicitly configured, no auto detection step",
+			expectedGuardPolicy: "static",
+			// The detection step must still be generated even when guard policies are explicit
+			// because it outputs repository visibility used by sink-visibility in safe-outputs
+			// and other MCP server guard policies. Removing the step breaks those references.
+			expectAutoDetectionStep: true,
+			description:             "When guard policy is explicitly configured, detection step still generated for visibility output",
 		},
 		{
 			name: "Automatic detection with remote mode when not specified",
