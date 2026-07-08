@@ -148,15 +148,25 @@ func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowD
 	// AWF's own post-run cleanup (fixArtifactPermissionsForRootless) normally handles
 	// this, but if AWF is killed by timeout or OOM, the cleanup never runs.
 	// Use a non-sudo chmod as a best-effort fallback for artifact upload accessibility.
+	//
+	// The chown reclaims ownership back to the runner user so the NEXT run's setup.sh
+	// can remove /tmp/gh-aw with a plain `rm -rf` (no sudo required). Without chown,
+	// the root-owned sandbox/firewall tree causes EACCES in consecutive runs on reused
+	// runners and the agent never starts.
 	if !isAWFNetworkIsolationEnabled(workflowData) {
 		stepLines = append(stepLines,
-			"          # Fix permissions on firewall logs/audit dirs so they can be uploaded as artifacts",
-			"          # AWF runs with sudo, creating files owned by root",
-			fmt.Sprintf("          sudo chmod -R a+rX %s 2>/dev/null || true", firewallDir),
+			"          # Reclaim ownership and fix permissions on firewall dirs for artifact upload and next-run cleanup.",
+			"          # AWF runs with sudo, creating files owned by root; chown transfers ownership back to the runner",
+			"          # user so the next run's setup.sh can rm -rf /tmp/gh-aw without requiring sudo.",
+			fmt.Sprintf("          sudo chown -R \"$(id -u):$(id -g)\" %[1]s 2>/dev/null || true", firewallDir),
+			fmt.Sprintf("          sudo chmod -R a+rX %[1]s 2>/dev/null || true", firewallDir),
 		)
 	} else {
 		stepLines = append(stepLines,
-			"          # Best-effort permission fix for artifact upload (AWF cleanup may not have run)",
+			"          # Best-effort: reclaim ownership and fix permissions (AWF cleanup may not have run).",
+			"          # Chown transfers ownership back to the runner user so the next run can rm -rf /tmp/gh-aw",
+			"          # without requiring sudo, preventing EACCES failures on reused runners.",
+			fmt.Sprintf("          sudo -n chown -R \"$(id -u):$(id -g)\" %[1]s 2>/dev/null || true", firewallDir),
 			fmt.Sprintf("          sudo -n chmod -R a+rX %[1]s 2>/dev/null || chmod -R a+rX %[1]s 2>/dev/null || true", firewallDir),
 		)
 	}

@@ -284,6 +284,11 @@ func TestGenerateFirewallLogParsingStepFixesFirewallPermissions(t *testing.T) {
 	if !strings.Contains(stepContent, "sudo chmod -R a+rX "+expectedFirewallDir+" 2>/dev/null || true") {
 		t.Error("Expected firewall log parsing step to chmod the parent firewall directory for logs and audit upload")
 	}
+
+	// chown reclaims ownership back to the runner user so the next run can rm -rf /tmp/gh-aw without sudo
+	if !strings.Contains(stepContent, `sudo chown -R "$(id -u):$(id -g)" `+expectedFirewallDir) {
+		t.Error("Expected firewall log parsing step to chown the firewall directory back to runner user to prevent EACCES on reused runners")
+	}
 }
 
 func TestGenerateFirewallLogParsingStepNetworkIsolationOmitsSudo(t *testing.T) {
@@ -308,6 +313,11 @@ func TestGenerateFirewallLogParsingStepNetworkIsolationOmitsSudo(t *testing.T) {
 		t.Error("Expected firewall log parsing step to contain best-effort chmod for artifact upload even in network-isolation mode")
 	}
 
+	// Should contain best-effort non-sudo chown to reclaim ownership for next run
+	if !strings.Contains(stepContent, `sudo -n chown -R "$(id -u):$(id -g)"`) {
+		t.Error("Expected firewall log parsing step to contain best-effort chown to reclaim ownership for next-run cleanup")
+	}
+
 	// Should still contain the awf logs summary logic
 	if !strings.Contains(stepContent, "awf logs summary") {
 		t.Error("Expected firewall log parsing step to contain awf logs summary")
@@ -330,5 +340,10 @@ func TestGenerateFirewallLogParsingStepWithNetworkIsolationFalse(t *testing.T) {
 	// With NetworkIsolation explicitly false, should still use sudo chmod
 	if !strings.Contains(stepContent, "sudo chmod -R a+rX") {
 		t.Error("Expected sudo chmod when NetworkIsolation is explicitly false")
+	}
+
+	// And sudo chown to reclaim ownership for next run
+	if !strings.Contains(stepContent, `sudo chown -R "$(id -u):$(id -g)"`) {
+		t.Error("Expected sudo chown to reclaim ownership when NetworkIsolation is explicitly false")
 	}
 }
