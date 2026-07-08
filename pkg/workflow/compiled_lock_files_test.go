@@ -434,14 +434,14 @@ func TestCompiledLockFiles_SmokeWorkflowCallHasExpectedOutputs(t *testing.T) {
 	})
 }
 
-func TestCompiledLockFiles_SmokeCallWorkflowForwardsAwContext(t *testing.T) {
+func TestCompiledLockFiles_SmokeCallWorkflowForwardsPayload(t *testing.T) {
 	lockPath := filepath.Join(workflowsDir, "smoke-call-workflow.lock.yml")
 
 	lockBytes, err := os.ReadFile(lockPath)
 	require.NoError(t, err, "smoke-call-workflow.lock.yml should be readable")
 	lockContent := string(lockBytes)
 
-	t.Run("CallWorkflowJobForwardsGeneratedAwContext", func(t *testing.T) {
+	t.Run("CallWorkflowJobForwardsPayloadAndTaskDescription", func(t *testing.T) {
 		assert.Contains(t, lockContent, "call-smoke-workflow-call:", "lock file should contain the call-workflow job")
 		// smoke-workflow-call.md declares 'payload' and 'task-description' as workflow_call inputs;
 		// the caller job forwards both from the safe_outputs payload.

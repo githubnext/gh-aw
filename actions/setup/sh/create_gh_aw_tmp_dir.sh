@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set +o histexpand
+set -euo pipefail
 
 # Reclaim stale root-owned /tmp/gh-aw/sandbox/firewall before creating it fresh.
 # A previous AWF run can leave this directory owned by root (Docker containers run as root,

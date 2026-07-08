@@ -143,16 +143,18 @@ func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowD
 		"        run: |",
 	}
 
-	// When sudo is false (network isolation mode), AWF runs rootless but Docker
-	// containers still write files as non-runner UIDs (e.g., Squid writes as UID 13).
+	// Docker containers write files as non-runner UIDs (e.g., Squid as UID 13).
 	// AWF's own post-run cleanup (fixArtifactPermissionsForRootless) normally handles
 	// this, but if AWF is killed by timeout or OOM, the cleanup never runs.
-	// Use a non-sudo chmod as a best-effort fallback for artifact upload accessibility.
 	//
-	// The chown reclaims ownership back to the runner user so the NEXT run's setup.sh
+	// chown reclaims ownership back to the runner user so the NEXT run's setup.sh
 	// can remove /tmp/gh-aw with a plain `rm -rf` (no sudo required). Without chown,
 	// the root-owned sandbox/firewall tree causes EACCES in consecutive runs on reused
 	// runners and the agent never starts.
+	//
+	// When AWF runs with sudo (non-network-isolation mode), plain `sudo chown/chmod` are
+	// used. In network-isolation (rootless) mode, `sudo -n` (non-interactive) is used with
+	// a non-sudo chmod as a best-effort fallback for artifact upload accessibility.
 	if !isAWFNetworkIsolationEnabled(workflowData) {
 		stepLines = append(stepLines,
 			"          # Reclaim ownership and fix permissions on firewall dirs for artifact upload and next-run cleanup.",

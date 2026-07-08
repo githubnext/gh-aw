@@ -313,7 +313,7 @@ func TestGenerateFirewallLogParsingStepNetworkIsolationOmitsSudo(t *testing.T) {
 		t.Error("Expected firewall log parsing step to contain best-effort chmod for artifact upload even in network-isolation mode")
 	}
 
-	// Should contain best-effort non-sudo chown to reclaim ownership for next run
+	// Should contain best-effort sudo -n chown (non-interactive sudo) to reclaim ownership for next run
 	if !strings.Contains(stepContent, `sudo -n chown -R "$(id -u):$(id -g)"`) {
 		t.Error("Expected firewall log parsing step to contain best-effort chown to reclaim ownership for next-run cleanup")
 	}
