@@ -348,7 +348,7 @@ describe("require-fs-sync-try-catch", () => {
       valid: [],
       invalid: [
         {
-          // Regression: was a live false-negative in actions/setup/js/action_setup_otlp.cjs.
+          // Regression: was a live false negative in actions/setup/js/action_setup_otlp.cjs.
           code: `const { appendFileSync } = require("fs"); appendFileSync(filePath, \`\${key}=\${value}\\n\`);`,
           errors: [
             {
