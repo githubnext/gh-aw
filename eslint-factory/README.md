@@ -16,6 +16,21 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 
 ## Rules
 
+### `no-github-request-interpolated-route`
+
+Disallow template literals with interpolations or string concatenation expressions as the route argument of Octokit `github` / `octokit` / `githubClient` / `octokitClient` `.request()` calls.
+
+Using an interpolated route bypasses Octokit's typed route dispatch, can silently produce malformed paths when values contain special characters, and prevents static analysis of the route string.
+
+**Flagged forms:**
+- `` github.request(`GET /repos/${owner}/${repo}`, ...) `` — template literal with interpolations.
+- `github.request("GET /repos/" + owner + "/" + repo, ...)` — string concatenation.
+
+**Safe alternative:**
+```js
+github.request("GET /repos/{owner}/{repo}", { owner, repo });
+```
+
 ### `no-json-stringify-error`
 
 Disallow `JSON.stringify()` on caught error variables. `Error` properties (`message`, `stack`, etc.) are non-enumerable, so `JSON.stringify(err)` silently produces `{}`.

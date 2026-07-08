@@ -1,4 +1,5 @@
 import { noCoreSetOutputNonStringRule } from "./rules/no-core-setoutput-non-string";
+import { noGithubRequestInterpolatedRouteRule } from "./rules/no-github-request-interpolated-route";
 import { noJsonStringifyErrorRule } from "./rules/no-json-stringify-error";
 import { noUnsafeCatchErrorPropertyRule } from "./rules/no-unsafe-catch-error-property";
 import { noUnsafePromiseCatchErrorPropertyRule } from "./rules/no-unsafe-promise-catch-error-property";
@@ -18,6 +19,7 @@ const plugin = {
   },
   rules: {
     "no-core-setoutput-non-string": noCoreSetOutputNonStringRule,
+    "no-github-request-interpolated-route": noGithubRequestInterpolatedRouteRule,
     "no-json-stringify-error": noJsonStringifyErrorRule,
     "no-unsafe-catch-error-property": noUnsafeCatchErrorPropertyRule,
     "no-unsafe-promise-catch-error-property": noUnsafePromiseCatchErrorPropertyRule,
