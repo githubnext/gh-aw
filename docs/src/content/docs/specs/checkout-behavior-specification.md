@@ -121,13 +121,13 @@ For each checkout step, token resolution MUST be:
 2. Entry `github-token`
 3. Default token fallback when required by context
 
-Top-level `github-app` fallback SHOULD be applied to checkout entries only when that entry has neither `github-app` nor `github-token`.
+Top-level `github-app` fallback MUST be applied to checkout entries only when that entry has neither `github-app` nor `github-token`.
 
 ### 4.2 Activation Job Token
 
 Activation token precedence MUST be:
 
-1. `on.github-app` minted token (or app-token OR `secrets.GITHUB_TOKEN` when `ignore-if-missing: true`)
+1. `on.github-app` minted token; when `ignore-if-missing: true`, this resolves to `steps.activation-app-token.outputs.token || secrets.GITHUB_TOKEN`
 2. `on.github-token`
 3. `secrets.GITHUB_TOKEN`
 
