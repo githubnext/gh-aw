@@ -1,5 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+// This module relies on the `exec` and `core` globals injected by github-script at runtime.
+// All callers must ensure these globals are set before invoking any helper.
 
 /**
  * Normalize a server URL by stripping any trailing slash so the git config key
@@ -58,7 +60,13 @@ async function checkoutHasPersistedExtraheader(serverUrl) {
  */
 async function overridePersistedExtraheader(serverUrl, token) {
   const normalizedUrl = normalizeServerUrl(serverUrl);
-  const previousValues = await getExtraheaderValues(normalizedUrl);
+  let previousValues;
+  try {
+    previousValues = await getExtraheaderValues(normalizedUrl);
+  } catch (err) {
+    core.warning(`git_auth_helpers: could not read existing extraheader — previous values will not be restored: ${err.message}`);
+    previousValues = [];
+  }
   const tokenBase64 = Buffer.from(`x-access-token:${token.trim()}`).toString("base64");
   await exec.exec("git", ["config", "--replace-all", `http.${normalizedUrl}/.extraheader`, `Authorization: basic ${tokenBase64}`], { silent: true });
   return previousValues;
@@ -82,6 +90,9 @@ async function restorePersistedExtraheader(serverUrl, previousValues) {
     return;
   }
 
+  // --replace-all removes any existing values for the key (including the CI-token
+  // entry) and writes previousValues[0]. Subsequent --add calls stack the remaining
+  // previous values onto the same key without removing any already written.
   await exec.exec("git", ["config", "--replace-all", key, previousValues[0]]);
   for (const value of previousValues.slice(1)) {
     await exec.exec("git", ["config", "--add", key, value]);

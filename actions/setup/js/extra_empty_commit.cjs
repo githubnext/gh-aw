@@ -148,9 +148,14 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
     // a single replaced extraheader value to avoid duplicate Authorization headers.
     const githubServerUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/+$/, "");
     const remoteUrl = `${githubServerUrl}/${repoOwner}/${repoName}.git`;
-    const previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, token);
 
+    // Declare previousExtraheaders before the try block so the finally clause can
+    // always restore, even if overridePersistedExtraheader only partially mutated
+    // git config before throwing.
+    let previousExtraheaders = [];
     try {
+      previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, token);
+
       // Add a temporary remote with the tokenless URL.
       try {
         await exec.exec("git", ["remote", "remove", "ci-trigger"]);

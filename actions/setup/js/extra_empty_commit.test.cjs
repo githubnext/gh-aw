@@ -170,18 +170,42 @@ describe("extra_empty_commit.cjs", () => {
       });
 
       const execCalls = mockExec.exec.mock.calls;
-      const replaceCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--replace-all");
-      expect(replaceCall).toBeDefined();
+      // Use findIndex so the assertion stays correct even if restorePersistedExtraheader
+      // also emits a --replace-all call (e.g. when restoring previous values).
+      const replaceIdx = execCalls.findIndex(c => c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--replace-all");
+      expect(replaceIdx).toBeGreaterThanOrEqual(0);
+      const replaceCall = execCalls[replaceIdx];
       expect(replaceCall[1][2]).toBe("http.https://github.com/.extraheader");
       expect(replaceCall[1][3]).toBe(`Authorization: basic ${Buffer.from("x-access-token:ghp_test_token_123").toString("base64")}`);
 
-      const pushCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "push");
-      expect(pushCall).toBeDefined();
-      expect(execCalls.indexOf(replaceCall)).toBeLessThan(execCalls.indexOf(pushCall));
+      const pushIdx = execCalls.findIndex(c => c[0] === "git" && c[1] && c[1][0] === "push");
+      expect(pushIdx).toBeGreaterThan(-1);
+      expect(replaceIdx).toBeLessThan(pushIdx);
 
       const unsetCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--unset-all");
       expect(unsetCall).toBeDefined();
-      expect(execCalls.indexOf(unsetCall)).toBeGreaterThan(execCalls.indexOf(pushCall));
+      expect(execCalls.indexOf(unsetCall)).toBeGreaterThan(pushIdx);
+    });
+
+    it("should restore a previously-set extraheader after push", async () => {
+      const prevHeader = `Authorization: basic ${Buffer.from("x-access-token:old_token").toString("base64")}`;
+      // Override getExecOutput so it returns the previous header when reading the extraheader key.
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: prevHeader + "\n", stderr: "" });
+
+      await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      const execCalls = mockExec.exec.mock.calls;
+      const pushIdx = execCalls.findIndex(c => c[0] === "git" && c[1] && c[1][0] === "push");
+      expect(pushIdx).toBeGreaterThan(-1);
+
+      // After push, there should be a --replace-all that restores the old header.
+      const restoreCall = execCalls.find((c, i) => i > pushIdx && c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--replace-all");
+      expect(restoreCall).toBeDefined();
+      expect(restoreCall[1][3]).toBe(prevHeader);
     });
 
     it("should fetch and reset to remote branch before committing", async () => {
