@@ -4072,9 +4072,9 @@ func TestBuildMainJobEngineEnvActivationNoFalseWarning(t *testing.T) {
 		"no warning should be emitted for activation which is already a direct agent dependency")
 }
 
-// TestBuildDetectionJobEngineEnvNeedsExpression verifies that when engine.env values contain
-// needs.<customJob>.outputs.* expressions, the referenced custom job is added as a direct
-// dependency of the detection job (mirrors the same fix applied to the agent job).
+// TestBuildDetectionJobEngineEnvNeedsExpression verifies that the detection job scans the
+// effective detection engine env, so safe-outputs.threat-detection.engine overrides the
+// top-level engine env when resolving custom job dependencies.
 func TestBuildDetectionJobEngineEnvNeedsExpression(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.stepOrderTracker = NewStepOrderTracker()
@@ -4087,10 +4087,16 @@ func TestBuildDetectionJobEngineEnvNeedsExpression(t *testing.T) {
 		EngineConfig: &EngineConfig{
 			ID: "copilot",
 			Env: map[string]string{
-				"COPILOT_MODEL": "${{ needs.select_model.outputs.model }}",
+				"IGNORED_MODEL": "${{ needs.ignored_job.outputs.model }}",
 			},
 		},
 		Jobs: map[string]any{
+			"ignored_job": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"steps": []any{
+					map[string]any{"run": `echo "model=ignored" >> "$GITHUB_OUTPUT"`},
+				},
+			},
 			"select_model": map[string]any{
 				"runs-on": "ubuntu-latest",
 				"needs":   "pre_activation",
@@ -4106,7 +4112,14 @@ func TestBuildDetectionJobEngineEnvNeedsExpression(t *testing.T) {
 			},
 		},
 		SafeOutputs: &SafeOutputsConfig{
-			ThreatDetection: &ThreatDetectionConfig{},
+			ThreatDetection: &ThreatDetectionConfig{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						"COPILOT_MODEL": "${{ needs.select_model.outputs.model }}",
+					},
+				},
+			},
 			Jobs: map[string]*SafeJobConfig{
 				"create-issue": {},
 			},
@@ -4117,10 +4130,11 @@ func TestBuildDetectionJobEngineEnvNeedsExpression(t *testing.T) {
 	require.NoError(t, err, "buildDetectionJob should succeed")
 	require.NotNil(t, job, "detection job should be created")
 
-	// The detection job must directly depend on select_model because engine.env
-	// references its outputs; without this, needs.select_model would be undefined.
+	// The detection job must use the threat-detection override env, not the top-level env.
 	assert.Contains(t, job.Needs, "select_model",
-		"detection job must directly depend on select_model referenced in engine.env")
+		"detection job must directly depend on select_model referenced in threat-detection.engine.env")
+	assert.NotContains(t, job.Needs, "ignored_job",
+		"detection job must ignore top-level engine.env references when threat-detection.engine overrides env")
 	assert.Contains(t, job.Needs, string(constants.AgentJobName),
 		"detection job must still depend on agent")
 	assert.Contains(t, job.Needs, string(constants.ActivationJobName),
@@ -4189,9 +4203,16 @@ permissions:
 engine:
   id: copilot
   env:
-    COPILOT_MODEL: ${{ needs.select_model.outputs.model }}
+    IGNORED_MODEL: ${{ needs.ignored_job.outputs.model }}
 strict: false
 jobs:
+  ignored_job:
+    runs-on: ubuntu-latest
+    outputs:
+      model: ${{ steps.pick.outputs.model }}
+    steps:
+      - id: pick
+        run: echo "model=ignored" >> "$GITHUB_OUTPUT"
   select_model:
     runs-on: ubuntu-latest
     needs: pre_activation
@@ -4202,6 +4223,11 @@ jobs:
         run: echo "model=claude-sonnet-4.6" >> "$GITHUB_OUTPUT"
 safe-outputs:
   create-issue: {}
+  threat-detection:
+    engine:
+      id: copilot
+      env:
+        COPILOT_MODEL: ${{ needs.select_model.outputs.model }}
 ---
 
 # Test Detection Needs
@@ -4219,12 +4245,27 @@ This workflow tests that engine.env needs expressions create detection job depen
 	content, err := os.ReadFile(lockFile)
 	require.NoError(t, err, "read lock file")
 
-	yamlStr := string(content)
+	var lockFileYAML map[string]any
+	require.NoError(t, yaml.Unmarshal(content, &lockFileYAML), "parse lock file yaml")
 
-	// The detection job must directly depend on select_model
-	detectionSection := extractJobSection(yamlStr, "detection")
-	require.NotEmpty(t, detectionSection, "detection job section should be present in lock file")
+	jobsNode, ok := lockFileYAML["jobs"].(map[string]any)
+	require.True(t, ok, "lock file should contain jobs map")
 
-	assert.Contains(t, detectionSection, "select_model",
-		"detection job must list select_model in its needs (referenced via engine.env)")
+	detectionNode, ok := jobsNode["detection"].(map[string]any)
+	require.True(t, ok, "lock file should contain detection job")
+
+	rawNeeds, ok := detectionNode["needs"].([]any)
+	require.True(t, ok, "detection job should render needs as a YAML list")
+
+	detectionNeeds := make([]string, 0, len(rawNeeds))
+	for _, need := range rawNeeds {
+		needStr, ok := need.(string)
+		require.True(t, ok, "detection job needs entries should be strings")
+		detectionNeeds = append(detectionNeeds, needStr)
+	}
+
+	assert.Contains(t, detectionNeeds, "select_model",
+		"detection job must list select_model in needs when referenced via threat-detection.engine.env")
+	assert.NotContains(t, detectionNeeds, "ignored_job",
+		"detection job must not inherit top-level engine.env dependencies when threat-detection.engine overrides env")
 }

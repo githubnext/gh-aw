@@ -70,14 +70,17 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	// Detection job depends on agent job and activation job (for trace ID)
 	needs := []string{string(constants.AgentJobName), string(constants.ActivationJobName)}
 
-	// Scan engine.env values for needs.<customJob>.outputs.* expressions and add the
-	// referenced custom jobs as direct dependencies of the detection job.
-	// The detection job inherits the engine.env mapping from the main engine config, so
-	// it must also inherit the corresponding job dependencies to ensure those expressions
-	// evaluate correctly at runtime (mirrors the same scan done for the agent job).
-	if data.EngineConfig != nil && len(data.EngineConfig.Env) > 0 && len(data.Jobs) > 0 {
+	// Scan the effective detection engine env values for needs.<customJob>.outputs.*
+	// expressions and add the referenced custom jobs as direct dependencies of the
+	// detection job. safe-outputs.threat-detection.engine overrides the top-level
+	// engine config for detection execution, so its env map must win here as well.
+	detectionEngineConfig := data.EngineConfig
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.EngineConfig != nil {
+		detectionEngineConfig = data.SafeOutputs.ThreatDetection.EngineConfig
+	}
+	if detectionEngineConfig != nil && len(detectionEngineConfig.Env) > 0 && len(data.Jobs) > 0 {
 		var engineEnvBuilder strings.Builder
-		for _, envValue := range data.EngineConfig.Env {
+		for _, envValue := range detectionEngineConfig.Env {
 			engineEnvBuilder.WriteByte('\n')
 			engineEnvBuilder.WriteString(envValue)
 		}
