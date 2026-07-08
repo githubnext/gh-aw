@@ -50,7 +50,7 @@ steps:
             sed -n '/^---$/,/^---$/p' "$ref" | grep -E '^\w+:' | head -30
             echo "---"
             # Table rows with config keywords
-            grep -E '^\|.*\|' "$ref" | grep -ivE '^\|[\s-]+\|' | head -40
+            grep -E '^\|.*\|' "$ref" | grep -ivE '^\|[\s-]+\|' | head -80
             echo "==="
           } > "/tmp/gh-aw/data/ref-${basename}.txt"
         fi
@@ -66,7 +66,7 @@ steps:
           grep -n '^##' "$SKILL" | head -50
           echo "---"
           # Decision heuristic tables
-          grep -E '^\|.*\|' "$SKILL" | grep -ivE '^\|[\s-]+\|' | head -60
+          grep -E '^\|.*\|' "$SKILL" | grep -ivE '^\|[\s-]+\|' | head -150
           echo "---"
           # Explicit references to .github/aw/ files
           grep -n '\.github/aw/' "$SKILL" || true
