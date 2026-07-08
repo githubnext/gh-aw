@@ -2,6 +2,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -113,7 +114,7 @@ await main();`
 		"        if: always()\n",
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",
-		fmt.Sprintf("          GH_AW_EVALS_QUESTIONS: %s\n", quoteSingleLineYAML(questionsJSON)),
+		fmt.Sprintf("          GH_AW_EVALS_QUESTIONS: '%s'\n", escapeYAMLSingleQuoted(questionsJSON)),
 		fmt.Sprintf("          GH_AW_EVALS_MODEL: %q\n", model),
 		"          GH_AW_EVALS_PHASE: setup\n",
 		"        with:\n",
@@ -289,7 +290,7 @@ await main();`
 		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",
-		fmt.Sprintf("          GH_AW_EVALS_QUESTIONS: %s\n", quoteSingleLineYAML(questionsJSON)),
+		fmt.Sprintf("          GH_AW_EVALS_QUESTIONS: '%s'\n", escapeYAMLSingleQuoted(questionsJSON)),
 		fmt.Sprintf("          GH_AW_EVALS_MODEL: %q\n", model),
 		"          GH_AW_EVALS_PHASE: parse\n",
 		"        with:\n",
@@ -366,47 +367,11 @@ func marshalEvalsQuestions(questions []EvalDefinition) string {
 		if i > 0 {
 			sb.WriteString(",")
 		}
-		fmt.Fprintf(&sb, `{"id":%s,"question":%s}`,
-			jsonStringLiteral(q.ID),
-			jsonStringLiteral(q.Question),
-		)
+		// Use json.Marshal for robust string quoting (handles all JSON escape sequences)
+		idJSON, _ := json.Marshal(q.ID)             //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
+		questionJSON, _ := json.Marshal(q.Question) //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
+		fmt.Fprintf(&sb, `{"id":%s,"question":%s}`, idJSON, questionJSON)
 	}
 	sb.WriteString("]")
 	return sb.String()
-}
-
-// jsonStringLiteral returns a JSON-encoded string literal (with double quotes).
-func jsonStringLiteral(s string) string {
-	var sb strings.Builder
-	sb.WriteByte('"')
-	for _, r := range s {
-		switch r {
-		case '"':
-			sb.WriteString(`\"`)
-		case '\\':
-			sb.WriteString(`\\`)
-		case '\n':
-			sb.WriteString(`\n`)
-		case '\r':
-			sb.WriteString(`\r`)
-		case '\t':
-			sb.WriteString(`\t`)
-		default:
-			// Escape control characters (< 0x20) that JSON doesn't allow
-			if r < 0x20 {
-				fmt.Fprintf(&sb, `\u%04x`, r)
-			} else {
-				sb.WriteRune(r)
-			}
-		}
-	}
-	sb.WriteByte('"')
-	return sb.String()
-}
-
-// quoteSingleLineYAML wraps a value in single quotes for use in a YAML scalar,
-// escaping any embedded single quotes by doubling them.
-func quoteSingleLineYAML(v string) string {
-	escaped := strings.ReplaceAll(v, "'", "''")
-	return "'" + escaped + "'"
 }
