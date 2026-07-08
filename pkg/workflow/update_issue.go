@@ -35,5 +35,9 @@ func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssu
 			}
 		}, func(configMap map[string]any, cfg *UpdateIssuesConfig) {
 			cfg.TitlePrefix = extractStringFromMap(configMap, "title-prefix", updateIssueLog)
+			// Parse required-labels and required-title-prefix filter fields
+			filter := ParseFilterConfig(configMap)
+			cfg.RequiredLabels = filter.RequiredLabels
+			cfg.RequiredTitlePrefix = filter.RequiredTitlePrefix
 		})
 }

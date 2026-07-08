@@ -40,5 +40,7 @@ func (c *Compiler) parseUpdatePullRequestsConfig(outputMap map[string]any) *Upda
 					cfg.Operation = &operationStr
 				}
 			}
+			// Parse required-labels and required-title-prefix filter fields
+			cfg.SafeOutputFilterConfig = ParseFilterConfig(configMap)
 		})
 }
