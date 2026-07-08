@@ -359,7 +359,7 @@ func TestPlaywrightConfigParsing(t *testing.T) {
 	})
 }
 
-func TestExtractToolsFromFrontmatter(t *testing.T) {
+func TestExtractToolsMapFromFrontmatter(t *testing.T) {
 	frontmatter := map[string]any{
 		"tools": map[string]any{
 			"github": nil,
@@ -370,7 +370,7 @@ func TestExtractToolsFromFrontmatter(t *testing.T) {
 		},
 	}
 
-	result := extractToolsFromFrontmatter(frontmatter)
+	result := extractToolsMapFromFrontmatter(frontmatter)
 
 	if len(result) != 2 {
 		t.Errorf("expected 2 tools, got %d", len(result))
@@ -390,7 +390,7 @@ func TestExtractToolsFromFrontmatter(t *testing.T) {
 	}
 }
 
-func TestExtractMCPServersFromFrontmatter(t *testing.T) {
+func TestExtractMCPServersMapFromFrontmatter(t *testing.T) {
 	frontmatter := map[string]any{
 		"tools": map[string]any{
 			"github": nil,
@@ -401,7 +401,7 @@ func TestExtractMCPServersFromFrontmatter(t *testing.T) {
 		},
 	}
 
-	result := extractMCPServersFromFrontmatter(frontmatter)
+	result := extractMCPServersMapFromFrontmatter(frontmatter)
 
 	if len(result) != 2 {
 		t.Errorf("expected 2 MCP servers, got %d", len(result))
@@ -421,7 +421,7 @@ func TestExtractMCPServersFromFrontmatter(t *testing.T) {
 	}
 }
 
-func TestExtractRuntimesFromFrontmatter(t *testing.T) {
+func TestExtractRuntimesMapFromFrontmatter(t *testing.T) {
 	frontmatter := map[string]any{
 		"tools": map[string]any{
 			"github": nil,
@@ -432,7 +432,7 @@ func TestExtractRuntimesFromFrontmatter(t *testing.T) {
 		},
 	}
 
-	result := extractRuntimesFromFrontmatter(frontmatter)
+	result := extractRuntimesMapFromFrontmatter(frontmatter)
 
 	if len(result) != 2 {
 		t.Errorf("expected 2 runtimes, got %d", len(result))

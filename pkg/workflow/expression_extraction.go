@@ -493,7 +493,7 @@ func SubstituteImportInputs(content string, importInputs map[string]any) string 
 			}
 			path := matches[1]
 			// Resolve potentially dotted path (e.g. "config.apiKey" for object inputs)
-			if value, found := resolveImportInputPath(importInputs, path); found {
+			if value, found := resolveImportInputByPath(importInputs, path); found {
 				strValue := marshalImportInputValue(value)
 				expressionExtractionLog.Printf("Substituting github.aw.%s.%s with value: %s", inputCategory, path, strValue)
 				return strValue
@@ -529,11 +529,11 @@ func marshalImportInputValue(value any) string {
 	return fmt.Sprintf("%v", value)
 }
 
-// resolveImportInputPath resolves a potentially dotted key path from the importInputs map.
+// resolveImportInputByPath resolves a potentially dotted key path from the importInputs map.
 // For scalar inputs ("count"), it looks up importInputs["count"] directly.
 // For object sub-key paths ("config.apiKey"), it looks up importInputs["config"]["apiKey"],
 // supporting one level of nesting as defined by import-schema object types.
 // Returns the resolved value and true on success, or nil and false when the path is not found.
-func resolveImportInputPath(importInputs map[string]any, path string) (any, bool) {
+func resolveImportInputByPath(importInputs map[string]any, path string) (any, bool) {
 	return importinpututil.ResolvePathValue(importInputs, path)
 }
