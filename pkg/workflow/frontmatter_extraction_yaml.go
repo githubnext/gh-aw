@@ -125,7 +125,7 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	return yamlStr
 }
 
-// commentOutProcessedFieldsInOnSection comments out draft, fork, forks, names, labels, manual-approval, stop-after, skip-if-match, skip-if-no-match, skip-roles, reaction, lock-for-agent, steps, permissions, needs, and stale-check fields in the on section
+// commentOutProcessedFieldsInOnSection comments out draft, fork, forks, names, labels, manual-approval, stop-after, skip-if-match, skip-if-no-match, skip-roles, reaction, lock-for-agent, steps, permissions, needs, restore-memory, and stale-check fields in the on section
 // These fields are processed separately and should be commented for documentation
 // Exception: names fields in sections with __gh_aw_native_label_filter__ marker in frontmatter are NOT commented out
 func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmatter map[string]any) string {
@@ -648,6 +648,9 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				// Comment out array items in needs
 				shouldComment = true
 				commentReason = " # Needs processed as dependency in pre-activation job"
+			} else if strings.HasPrefix(trimmedLine, "restore-memory:") {
+				shouldComment = true
+				commentReason = " # Restore-memory enables pre-activation memory restore"
 			} else if strings.HasPrefix(trimmedLine, "steps:") {
 				shouldComment = true
 				commentReason = " # Steps injected into pre-activation job"

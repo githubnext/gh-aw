@@ -288,6 +288,7 @@ Test on.steps with memory stores restored in pre-activation
 		}
 
 		// Memory stores should be restored before on.steps run in pre-activation.
+		assert.Contains(t, lockContentStr, "# restore-memory: true # Restore-memory enables pre-activation memory restore")
 		assert.Contains(t, preActivationSection, "Restore cache-memory file share data")
 		assert.Contains(t, preActivationSection, "Clone repo-memory branch (default)")
 		assert.Contains(t, preActivationSection, "Prepare comment memory files")

@@ -2,7 +2,8 @@
 private: true
 emoji: "🧪"
 description: Smoke Copilot
-on: 
+on:
+  restore-memory: true
   slash_command:
     name: smoke-copilot
     strategy: centralized
