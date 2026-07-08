@@ -44,7 +44,6 @@ func TestDeriveWriteSinkGuardPolicyFromWorkflow(t *testing.T) {
 		{
 			name: "github tool without guard policy (auto-lockdown)",
 			workflowData: &WorkflowData{
-				RepositoryVisibility: "public",
 				Tools: map[string]any{
 					"github": map[string]any{
 						"toolsets": []string{"default"},
@@ -69,7 +68,6 @@ func TestDeriveWriteSinkGuardPolicyFromWorkflow(t *testing.T) {
 		{
 			name: "github tool with repos=all",
 			workflowData: &WorkflowData{
-				RepositoryVisibility: "public",
 				Tools: map[string]any{
 					"github": map[string]any{
 						"repos":         "all",
@@ -84,7 +82,6 @@ func TestDeriveWriteSinkGuardPolicyFromWorkflow(t *testing.T) {
 		{
 			name: "github tool with specific repo",
 			workflowData: &WorkflowData{
-				RepositoryVisibility: "internal",
 				Tools: map[string]any{
 					"github": map[string]any{
 						"repos":         "myorg/myrepo",
@@ -108,9 +105,7 @@ func TestDeriveWriteSinkGuardPolicyFromWorkflow(t *testing.T) {
 				assert.Contains(t, result, tt.expectedKey, "Expected write-sink key in policies for: %s", tt.description)
 				writeSink, ok := result[tt.expectedKey].(map[string]any)
 				require.True(t, ok, "Expected write-sink policy map for: %s", tt.description)
-				if tt.workflowData.RepositoryVisibility != "" {
-					assert.Equal(t, tt.workflowData.RepositoryVisibility, writeSink["sink-visibility"], "Expected sink-visibility to be propagated for: %s", tt.description)
-				}
+				assert.Equal(t, sinkVisibilityExpr, writeSink["sink-visibility"], "Expected runtime expression for sink-visibility: %s", tt.description)
 			}
 		})
 	}
@@ -331,7 +326,8 @@ func TestNonGitHubMCPServersGetGuardPoliciesFromAutoLockdown(t *testing.T) {
 
 	expectedPolicies := map[string]any{
 		"write-sink": map[string]any{
-			"accept": []string{"*"},
+			"accept":          []string{"*"},
+			"sink-visibility": sinkVisibilityExpr,
 		},
 	}
 	assert.Equal(t, expectedPolicies, policies, "auto-lockdown should produce write-sink with accept=*")
@@ -375,7 +371,6 @@ func TestAllNonGitHubMCPServersGetWriteSinkWhenGitHubHasAllowOnly(t *testing.T) 
 	tests := []struct {
 		name           string
 		githubConfig   map[string]any
-		sinkVisibility string
 		expectedAccept []string
 		description    string
 	}{
@@ -385,7 +380,6 @@ func TestAllNonGitHubMCPServersGetWriteSinkWhenGitHubHasAllowOnly(t *testing.T) 
 				"repos":         "all",
 				"min-integrity": "none",
 			},
-			sinkVisibility: "public",
 			expectedAccept: []string{"*"},
 			description:    "repos=all should produce accept=[*]",
 		},
@@ -395,7 +389,6 @@ func TestAllNonGitHubMCPServersGetWriteSinkWhenGitHubHasAllowOnly(t *testing.T) 
 				"repos":         "public",
 				"min-integrity": "approved",
 			},
-			sinkVisibility: "public",
 			expectedAccept: []string{"*"},
 			description:    "repos=public should produce accept=[*]",
 		},
@@ -405,7 +398,6 @@ func TestAllNonGitHubMCPServersGetWriteSinkWhenGitHubHasAllowOnly(t *testing.T) 
 				"repos":         "myorg/myrepo",
 				"min-integrity": "approved",
 			},
-			sinkVisibility: "private",
 			expectedAccept: []string{"private:myorg/myrepo"},
 			description:    "specific repo should produce accept=[private:myorg/myrepo]",
 		},
@@ -415,7 +407,6 @@ func TestAllNonGitHubMCPServersGetWriteSinkWhenGitHubHasAllowOnly(t *testing.T) 
 				"repos":         "myorg/*",
 				"min-integrity": "merged",
 			},
-			sinkVisibility: "internal",
 			expectedAccept: []string{"private:myorg"},
 			description:    "owner/* should produce accept=[private:myorg]",
 		},
@@ -424,7 +415,6 @@ func TestAllNonGitHubMCPServersGetWriteSinkWhenGitHubHasAllowOnly(t *testing.T) 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{
-				RepositoryVisibility: tt.sinkVisibility,
 				Tools: map[string]any{
 					"github":            tt.githubConfig,
 					"playwright":        nil,
@@ -439,7 +429,7 @@ func TestAllNonGitHubMCPServersGetWriteSinkWhenGitHubHasAllowOnly(t *testing.T) 
 			writeSink, ok := policies["write-sink"].(map[string]any)
 			require.True(t, ok, "write-sink should be a map: %s", tt.description)
 			assert.Equal(t, tt.expectedAccept, writeSink["accept"], "accept list should match: %s", tt.description)
-			assert.Equal(t, tt.sinkVisibility, writeSink["sink-visibility"], "sink-visibility should match workflow repository visibility: %s", tt.description)
+			assert.Equal(t, sinkVisibilityExpr, writeSink["sink-visibility"], "sink-visibility should be the runtime expression: %s", tt.description)
 
 			// Verify every non-GitHub MCP server type gets the guard policies via the renderer
 			serverChecks := []struct {
@@ -491,8 +481,9 @@ func TestAllNonGitHubMCPServersGetWriteSinkWhenGitHubHasAllowOnly(t *testing.T) 
 						"%s should have accept field: %s", check.serverName, tt.description)
 					assert.Contains(t, result, "\"sink-visibility\"",
 						"%s should have sink-visibility field: %s", check.serverName, tt.description)
-					assert.Contains(t, result, "\""+tt.sinkVisibility+"\"",
-						"%s should render sink-visibility=%s: %s", check.serverName, tt.sinkVisibility, tt.description)
+					// The sink-visibility value is a runtime expression (not a static visibility string)
+					assert.Contains(t, result, "steps.determine-automatic-lockdown.outputs.visibility",
+						"%s should render sink-visibility as runtime expression: %s", check.serverName, tt.description)
 				})
 			}
 
@@ -518,7 +509,8 @@ func TestNonGitHubMCPServersGetGuardPoliciesWhenGitHubConfigured(t *testing.T) {
 
 	expectedPolicies := map[string]any{
 		"write-sink": map[string]any{
-			"accept": []string{"*"},
+			"accept":          []string{"*"},
+			"sink-visibility": sinkVisibilityExpr,
 		},
 	}
 	assert.Equal(t, expectedPolicies, policies, "policies should match expected write-sink with accept=*")

@@ -14,7 +14,10 @@
 function formatCompactInteger(value) {
   const normalized = Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
   if (normalized < 1000) return String(normalized);
-  if (normalized < 1_000_000) return `${(normalized / 1000).toFixed(1).replace(/\.0$/, "")}K`;
+  if (normalized < 1_000_000) {
+    const k = (normalized / 1000).toFixed(1).replace(/\.0$/, "");
+    return k === "1000" ? "1M" : `${k}K`;
+  }
   return `${(normalized / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
 }
 

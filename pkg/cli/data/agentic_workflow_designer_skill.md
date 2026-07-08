@@ -140,6 +140,7 @@ Present a structured summary and ask for approval before generation.
 | "mark PR ready", "sync PR branch" | `mark-pull-request-as-ready-for-review`, `update-branch` |
 | "commit a fix to the PR branch" | `push-to-pull-request-branch` |
 | "approve / request changes" | `submit-pull-request-review` |
+| "dismiss a PR review" | `dismiss-pull-request-review` |
 | "inline review comment", "reply to review thread" | `create-pull-request-review-comment`, `reply-to-pull-request-review-comment`, `resolve-pull-request-review-thread` |
 | "start or edit discussion", "close discussion" | `create-discussion`, `update-discussion`, `close-discussion` |
 | "request reviewer", "hide comment" | `add-reviewer`, `hide-comment` |

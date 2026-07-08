@@ -35,11 +35,6 @@ func (c *Compiler) buildInitialWorkflowData(
 		agentImportSpec = ""
 	}
 
-	repositoryVisibility := ""
-	if rawGitHubTool, hasGitHubTool := toolsResult.tools["github"]; hasGitHubTool && rawGitHubTool != false {
-		repositoryVisibility = c.computeRepositoryVisibility()
-	}
-
 	workflowData := &WorkflowData{
 		Name:                       toolsResult.workflowName,
 		FrontmatterName:            toolsResult.frontmatterName,
@@ -81,7 +76,6 @@ func (c *Compiler) buildInitialWorkflowData(
 		ToolsStartupTimeout:        toolsResult.toolsStartupTimeout,
 		TrialMode:                  c.trialMode,
 		TrialLogicalRepo:           c.trialLogicalRepoSlug,
-		RepositoryVisibility:       repositoryVisibility,
 		UseSamples:                 c.useSamples,
 		StrictMode:                 c.strictMode,
 		AllowActionRefs:            c.allowActionRefs,
