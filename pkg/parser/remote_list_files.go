@@ -33,7 +33,12 @@ var gitListCloneCache = struct {
 
 var gitListCloneGroup singleflight.Group
 
+// listRepoCloneConfig holds the fully-resolved identity of a shallow clone used
+// for directory listing. owner and repo are included so callers can pass the
+// entire struct without re-expanding individual fields.
 type listRepoCloneConfig struct {
+	owner    string
+	repo     string
 	ref      string
 	repoURL  string
 	cacheKey string
@@ -52,12 +57,16 @@ func resolveListRepoCloneConfig(owner, repo, ref, host string) (listRepoCloneCon
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 	cacheKey := fmt.Sprintf("%s|%s|%s|%s", githubHost, owner, repo, ref)
 	return listRepoCloneConfig{
+		owner:    owner,
+		repo:     repo,
 		ref:      ref,
 		repoURL:  repoURL,
 		cacheKey: cacheKey,
 	}, nil
 }
 
+// getCachedListRepoClone acquires gitListCloneCache.mu.
+// Do not call from code that already holds gitListCloneCache.mu.
 func getCachedListRepoClone(cacheKey string) (string, bool) {
 	gitListCloneCache.mu.Lock()
 	defer gitListCloneCache.mu.Unlock()
@@ -71,25 +80,29 @@ func getCachedListRepoClone(cacheKey string) (string, bool) {
 	return "", false
 }
 
-func cloneAndCacheListRepoClone(ctx context.Context, owner, repo, ref, repoURL, cacheKey string) (string, error) {
+// cloneAndCacheListRepoClone acquires gitListCloneCache.mu for the final cache write.
+// Do not call from code that already holds gitListCloneCache.mu.
+// This function must only be called from within a singleflight.Group.Do callback
+// to prevent concurrent duplicate clones for the same cache key.
+func cloneAndCacheListRepoClone(ctx context.Context, cfg listRepoCloneConfig) (string, error) {
 	tmpDir, err := os.MkdirTemp("", "gh-aw-list-*")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp directory: %w", err)
 	}
 
-	cloneCmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", ref, "--single-branch", "--filter=blob:none", "--no-checkout", repoURL, tmpDir)
+	cloneCmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", cfg.ref, "--single-branch", "--filter=blob:none", "--no-checkout", cfg.repoURL, tmpDir)
 	cloneOutput, err := cloneCmd.CombinedOutput()
 	if err != nil {
 		if cleanupErr := os.RemoveAll(tmpDir); cleanupErr != nil {
 			remoteLog.Printf("Failed to clean up temp directory %q: %v", tmpDir, cleanupErr)
 		}
 		remoteLog.Printf("Failed to clone repository: %s", string(cloneOutput))
-		return "", fmt.Errorf("failed to clone repository for %s/%s@%s: %w", owner, repo, ref, err)
+		return "", fmt.Errorf("failed to clone repository for %s/%s@%s: %w", cfg.owner, cfg.repo, cfg.ref, err)
 	}
 
 	gitListCloneCache.mu.Lock()
 	defer gitListCloneCache.mu.Unlock()
-	gitListCloneCache.dirs[cacheKey] = tmpDir
+	gitListCloneCache.dirs[cfg.cacheKey] = tmpDir
 	return tmpDir, nil
 }
 
@@ -107,7 +120,7 @@ func getOrCreateListRepoClone(ctx context.Context, owner, repo, ref, host string
 		if cloneDir, found := getCachedListRepoClone(config.cacheKey); found {
 			return cloneDir, nil
 		}
-		return cloneAndCacheListRepoClone(ctx, owner, repo, config.ref, config.repoURL, config.cacheKey)
+		return cloneAndCacheListRepoClone(ctx, config)
 	})
 	if err != nil {
 		return "", err
