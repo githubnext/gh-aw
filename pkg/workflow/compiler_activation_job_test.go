@@ -1159,6 +1159,30 @@ func TestResolveSymlinkExtraPaths(t *testing.T) {
 		assert.Contains(t, result, ".ai/agents", "symlink target should be appended")
 	})
 
+	t.Run("symlink .github/skills resolved to inner path", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, ".ai", "skills"), 0o755))
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, ".github"), 0o755))
+		if err := os.Symlink(filepath.Join("..", ".ai", "skills"), filepath.Join(dir, ".github", "skills")); err != nil {
+			t.Skipf("symlinks not supported: %v", err)
+		}
+
+		result := resolveSymlinkExtraPaths(dir, nil)
+		assert.Contains(t, result, ".ai/skills", "symlink target should be appended")
+	})
+
+	t.Run("symlink .github/prompts resolved to inner path", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, ".ai", "prompts"), 0o755))
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, ".github"), 0o755))
+		if err := os.Symlink(filepath.Join("..", ".ai", "prompts"), filepath.Join(dir, ".github", "prompts")); err != nil {
+			t.Skipf("symlinks not supported: %v", err)
+		}
+
+		result := resolveSymlinkExtraPaths(dir, nil)
+		assert.Contains(t, result, ".ai/prompts", "symlink target should be appended")
+	})
+
 	t.Run("non-symlink .github/agents produces no extra entry", func(t *testing.T) {
 		dir := t.TempDir()
 		require.NoError(t, os.MkdirAll(filepath.Join(dir, ".github", "agents"), 0o755))

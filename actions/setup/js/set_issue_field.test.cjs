@@ -252,6 +252,70 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     expect(result.error).toContain('issue field "Customer Impact" is not in the allowed-fields list: Status');
   });
 
+  it("should refuse builtin field 'title' with a helpful error", async () => {
+    const { main } = require("./set_issue_field.cjs");
+    const h = await main({});
+
+    const result = await h({
+      type: "set_issue_field",
+      issue_number: 42,
+      field_name: "title",
+      value: "New Title",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("update_issue");
+    expect(result.error).toContain('"title"');
+  });
+
+  it("should refuse builtin field 'body' with a helpful error", async () => {
+    const { main } = require("./set_issue_field.cjs");
+    const h = await main({});
+
+    const result = await h({
+      type: "set_issue_field",
+      issue_number: 42,
+      field_name: "body",
+      value: "New body",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("update_issue");
+    expect(result.error).toContain('"body"');
+  });
+
+  it("should refuse builtin field 'state' with a helpful error", async () => {
+    const { main } = require("./set_issue_field.cjs");
+    const h = await main({});
+
+    const result = await h({
+      type: "set_issue_field",
+      issue_number: 42,
+      field_name: "state",
+      value: "closed",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("update_issue");
+    expect(result.error).toContain('"state"');
+    expect(result.error).toContain("update_issue.status");
+  });
+
+  it("should refuse builtin fields case-insensitively", async () => {
+    const { main } = require("./set_issue_field.cjs");
+    const h = await main({});
+
+    const result = await h({
+      type: "set_issue_field",
+      issue_number: 42,
+      field_name: "Title",
+      value: "New Title",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("update_issue");
+  });
+
   it("should allow any field when allowed-fields includes wildcard", async () => {
     const { main } = require("./set_issue_field.cjs");
     const unrestrictedHandler = await main({

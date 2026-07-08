@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { createRequire } from "module";
 
 const req = createRequire(import.meta.url);
-const { parseAllowedIssueFields, validateAllowedIssueFieldName, validateAllowedIssueFields } = req("./allowed_issue_fields.cjs");
+const { parseAllowedIssueFields, validateAllowedIssueFieldName, validateAllowedIssueFields, BUILTIN_ISSUE_FIELD_NAMES } = req("./allowed_issue_fields.cjs");
 
 describe("parseAllowedIssueFields", () => {
   it("returns empty array for undefined", () => {
@@ -123,5 +123,23 @@ describe("validateAllowedIssueFields", () => {
       { name: "milestone", value: "v2.0" },
     ];
     expect(() => validateAllowedIssueFields(fields, ["*"])).not.toThrow();
+  });
+});
+
+describe("BUILTIN_ISSUE_FIELD_NAMES", () => {
+  it("is a Set", () => {
+    expect(BUILTIN_ISSUE_FIELD_NAMES).toBeInstanceOf(Set);
+  });
+
+  it("contains title, body, and state", () => {
+    expect(BUILTIN_ISSUE_FIELD_NAMES.has("title")).toBe(true);
+    expect(BUILTIN_ISSUE_FIELD_NAMES.has("body")).toBe(true);
+    expect(BUILTIN_ISSUE_FIELD_NAMES.has("state")).toBe(true);
+  });
+
+  it("entries are all lowercase", () => {
+    for (const name of BUILTIN_ISSUE_FIELD_NAMES) {
+      expect(name).toBe(name.toLowerCase());
+    }
   });
 });

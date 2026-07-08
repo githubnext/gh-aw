@@ -10,7 +10,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
-const { parseAllowedIssueFields, validateAllowedIssueFieldName } = require("./allowed_issue_fields.cjs");
+const { parseAllowedIssueFields, validateAllowedIssueFieldName, BUILTIN_ISSUE_FIELD_NAMES } = require("./allowed_issue_fields.cjs");
 const { resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
 const { hasIssueIntentsRuntimeFeature, normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
 
@@ -246,6 +246,14 @@ async function main(config = {}) {
       return {
         success: false,
         error: "Missing field identifier. Provide field_name or field_node_id.",
+      };
+    }
+
+    if (fieldName && BUILTIN_ISSUE_FIELD_NAMES.has(fieldName.toLowerCase())) {
+      const stateHint = fieldName.toLowerCase() === "state" ? ' For open/closed status, use update_issue.status ("open" or "closed").' : "";
+      return {
+        success: false,
+        error: `Cannot set builtin issue field "${fieldName}" with set_issue_field. Use the update_issue tool instead.${stateHint}`,
       };
     }
 
