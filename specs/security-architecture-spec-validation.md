@@ -31,7 +31,7 @@ All major security architecture claims in the specification have been verified a
 
 **Specification Claim**:
 > **OI-01**: A conforming implementation MUST separate workflow execution into distinct job types:
-> 1. **Activation Job**: Performs sanitization and produces `needs.activation.outputs.text`
+> 1. **Activation Job**: Performs sanitization and produces `steps.sanitized.outputs.text`
 > 2. **Agent Job**: Executes AI agent with read-only permissions
 > 3. **Safe Output Jobs**: Perform validated GitHub API operations with write permissions
 

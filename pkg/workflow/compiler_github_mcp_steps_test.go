@@ -39,7 +39,7 @@ func TestQuoteYAMLEnvValue(t *testing.T) {
 	assert.Equal(t, `'["a","b"]'`, quoteYAMLEnvValue(`["a","b"]`))
 }
 
-func TestGenerateGitHubMCPLockdownDetectionStepQuotesConfiguredEnvValues(t *testing.T) {
+func TestGenerateGitHubMCPLockdownDetectionStepSkipsWhenGuardPolicyExplicit(t *testing.T) {
 	t.Parallel()
 
 	var yaml strings.Builder
@@ -55,6 +55,26 @@ func TestGenerateGitHubMCPLockdownDetectionStepQuotesConfiguredEnvValues(t *test
 	NewCompiler().generateGitHubMCPLockdownDetectionStep(&yaml, data)
 	output := yaml.String()
 
-	assert.Contains(t, output, "GH_AW_GITHUB_MIN_INTEGRITY: 'approved'")
-	assert.Contains(t, output, `GH_AW_GITHUB_REPOS: '["github/gh-aw","github/*"]'`)
+	// When guard policies are explicitly configured, the detection step must not be generated.
+	assert.Empty(t, output, "detection step should be skipped when guard policy is explicitly configured")
+}
+
+func TestGenerateGitHubMCPLockdownDetectionStepGeneratedWhenNoGuardPolicy(t *testing.T) {
+	t.Parallel()
+
+	var yaml strings.Builder
+	data := &WorkflowData{
+		Tools: map[string]any{
+			"github": map[string]any{
+				"mode": "local",
+			},
+		},
+	}
+
+	NewCompiler().generateGitHubMCPLockdownDetectionStep(&yaml, data)
+	output := yaml.String()
+
+	assert.Contains(t, output, "determine-automatic-lockdown", "detection step should be generated when no explicit guard policy")
+	assert.NotContains(t, output, "GH_AW_GITHUB_MIN_INTEGRITY", "env var should not be present when min-integrity is not set")
+	assert.NotContains(t, output, "GH_AW_GITHUB_REPOS", "env var should not be present when repos is not set")
 }

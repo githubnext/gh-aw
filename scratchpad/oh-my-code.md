@@ -586,7 +586,7 @@ on:
 | **Sandboxing** | GitHub Actions containers | Limited blast radius |
 | **SHA pinning** | `actions/checkout@abc123...` | Supply chain security |
 | **Expression limits** | Max 120 chars per expression | Prevent injection attacks |
-| **Context sanitization** | `needs.activation.outputs.text` | Neutralized @mentions, safe XML |
+| **Context sanitization** | `steps.sanitized.outputs.text` | Neutralized @mentions, safe XML |
 | **Audit logging** | GitHub Actions logs | Full traceability |
 
 **Risk Profile**: **Low trust, controlled power** - Suitable for team/org automation with strict security requirements
