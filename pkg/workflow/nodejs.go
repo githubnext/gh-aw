@@ -210,7 +210,14 @@ func GetNpmBinPathSetup() string {
 	// alphabetically, so go/1.23.12 shadows go/1.25.0. Re-prepending GOROOT/bin
 	// ensures the Go version set by actions/setup-go takes precedence.
 	// AWF's entrypoint.sh exports GOROOT before the user command runs.
-	return `: "${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"; GH_AW_TOOL_CACHE="$RUNNER_TOOL_CACHE"; export PATH="$(find "$GH_AW_TOOL_CACHE" -maxdepth 5 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true`
+	//
+	// Re-prepend ERLANG_HOME/bin if set. erlef/setup-beam installs OTP to
+	// ${RUNNER_TEMP}/.setup-beam/otp/ via core.addPath(), which is not under
+	// RUNNER_TOOL_CACHE and therefore missed by the find above. ERLANG_HOME is
+	// captured by the elixir runtime capture step and exported to GITHUB_ENV,
+	// making it available inside the AWF container. Without this, mix commands
+	// fail because Elixir tries to exec erl which is not found via the find.
+	return `: "${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"; GH_AW_TOOL_CACHE="$RUNNER_TOOL_CACHE"; export PATH="$(find "$GH_AW_TOOL_CACHE" -maxdepth 5 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true; [ -n "$ERLANG_HOME" ] && export PATH="$ERLANG_HOME/bin:$PATH" || true`
 }
 
 // GenerateNpmInstallStepsWithScope generates npm installation steps with control over global vs local installation.
