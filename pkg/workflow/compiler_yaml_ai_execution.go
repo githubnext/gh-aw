@@ -55,6 +55,14 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, data *WorkflowData,
 	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GH_AW_AGENT_OUTPUT: %s\n", logFileForParsing)
+	// GH_AW_SAFE_OUTPUTS lets the log parser detect safe-output entries written by the agent
+	// so it can downgrade a "no structured log entries" failure to a warning when the agent
+	// demonstrably completed (e.g. emitted a noop). Without this, runs where the container
+	// debug log overwrites the JSON stream in agent-stdio.log are permanently red even though
+	// the agent ran to completion.
+	if data.SafeOutputs != nil {
+		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}\n")
+	}
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
