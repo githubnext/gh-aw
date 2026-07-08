@@ -393,8 +393,12 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if config.Target != "" {
 				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
 			}
-			if config.TitlePrefix != "" {
-				constraints = append(constraints, fmt.Sprintf("The target issue title must start with %q.", config.TitlePrefix))
+			titlePrefix := config.TitlePrefix
+			if config.RequiredTitlePrefix != "" {
+				titlePrefix = config.RequiredTitlePrefix
+			}
+			if titlePrefix != "" {
+				constraints = append(constraints, fmt.Sprintf("The target issue title must start with %q.", titlePrefix))
 			}
 			if config.Title != nil && *config.Title {
 				constraints = append(constraints, "Title updates are allowed.")
@@ -414,6 +418,12 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 			if config.Target != "" {
 				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
+			}
+			if len(config.RequiredLabels) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Only PRs with labels %v can be updated.", config.RequiredLabels))
+			}
+			if config.RequiredTitlePrefix != "" {
+				constraints = append(constraints, fmt.Sprintf("Only PRs with title prefix %q can be updated.", config.RequiredTitlePrefix))
 			}
 		}
 

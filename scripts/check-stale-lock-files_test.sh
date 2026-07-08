@@ -1,0 +1,194 @@
+#!/bin/bash
+set +o histexpand
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+STALE_SCRIPT="$SCRIPT_DIR/check-stale-lock-files.sh"
+
+TESTS_PASSED=0
+TESTS_FAILED=0
+
+pass() { echo "PASS: $1"; TESTS_PASSED=$((TESTS_PASSED + 1)); }
+fail() { echo "FAIL: $1"; echo "  $2"; TESTS_FAILED=$((TESTS_FAILED + 1)); }
+
+# Initialise a minimal git repo and commit a matching .md/.lock.yml pair.
+# All further per-test modifications are made in the working tree (not staged)
+# so that git diff HEAD reports them as modified.
+create_fixture_repo() {
+    local repo_dir="$1"
+    local base="${2:-example}"
+
+    git -C "$repo_dir" init -q
+    git -C "$repo_dir" config user.email "test@test.com"
+    git -C "$repo_dir" config user.name "Test"
+
+    mkdir -p "$repo_dir/.github/workflows"
+    printf '%s\n' "# $base workflow" > "$repo_dir/.github/workflows/$base.md"
+    printf '%s\n' "lock: original"   > "$repo_dir/.github/workflows/$base.lock.yml"
+    git -C "$repo_dir" add .
+    git -C "$repo_dir" commit -q -m "initial commit"
+}
+
+echo "Running check-stale-lock-files.sh tests..."
+echo
+
+TMP_ROOT=$(mktemp -d)
+trap 'rm -rf "$TMP_ROOT"' EXIT
+
+# ---------------------------------------------------------------------------
+# Test 1: no modified .md files — should exit 0 (clean working tree).
+# ---------------------------------------------------------------------------
+echo "Test 1: clean working tree exits 0..."
+T1="$TMP_ROOT/t1"
+mkdir -p "$T1"
+create_fixture_repo "$T1"
+T1_OUT="$TMP_ROOT/t1-output.txt"
+if (cd "$T1" && bash "$STALE_SCRIPT" >"$T1_OUT" 2>&1); then
+    pass "clean working tree exits 0"
+else
+    fail "clean working tree should exit 0" "$(cat "$T1_OUT")"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 2: .md modified without recompiling .lock.yml — should exit 1 and
+# name the file.
+# ---------------------------------------------------------------------------
+echo "Test 2: stale .md exits 1 and names the file..."
+T2="$TMP_ROOT/t2"
+mkdir -p "$T2"
+create_fixture_repo "$T2" "stale-workflow"
+# Modify the .md without touching the .lock.yml
+printf '%s\n' "# stale-workflow (edited)" > "$T2/.github/workflows/stale-workflow.md"
+T2_OUT="$TMP_ROOT/t2-output.txt"
+if (cd "$T2" && bash "$STALE_SCRIPT" >"$T2_OUT" 2>&1); then
+    fail "stale .md should exit 1" "$(cat "$T2_OUT")"
+elif grep -q "stale-workflow.md" "$T2_OUT"; then
+    pass "stale .md exits 1 and names the file"
+else
+    fail "stale .md output did not name the stale file" "$(cat "$T2_OUT")"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 3: both .md and .lock.yml modified — should exit 0 (recompile was run).
+# ---------------------------------------------------------------------------
+echo "Test 3: both files modified exits 0..."
+T3="$TMP_ROOT/t3"
+mkdir -p "$T3"
+create_fixture_repo "$T3" "recompiled-workflow"
+printf '%s\n' "# recompiled-workflow (edited)" > "$T3/.github/workflows/recompiled-workflow.md"
+printf '%s\n' "lock: updated"                  > "$T3/.github/workflows/recompiled-workflow.lock.yml"
+T3_OUT="$TMP_ROOT/t3-output.txt"
+if (cd "$T3" && bash "$STALE_SCRIPT" >"$T3_OUT" 2>&1); then
+    pass "both files modified exits 0"
+else
+    fail "both files modified should exit 0" "$(cat "$T3_OUT")"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 4: .md modified, .lock.yml missing — should exit 1 and name the .md.
+# ---------------------------------------------------------------------------
+echo "Test 4: missing .lock.yml exits 1 and names the .md file..."
+T4="$TMP_ROOT/t4"
+mkdir -p "$T4"
+create_fixture_repo "$T4" "no-lock"
+# Remove the lock file so it appears missing AND edit the .md
+rm "$T4/.github/workflows/no-lock.lock.yml"
+printf '%s\n' "# no-lock (edited)" > "$T4/.github/workflows/no-lock.md"
+T4_OUT="$TMP_ROOT/t4-output.txt"
+if (cd "$T4" && bash "$STALE_SCRIPT" >"$T4_OUT" 2>&1); then
+    fail "missing lock should exit 1" "$(cat "$T4_OUT")"
+elif grep -q "no-lock.md" "$T4_OUT"; then
+    pass "missing .lock.yml exits 1 and names the .md file"
+else
+    fail "missing .lock.yml output did not name the .md file" "$(cat "$T4_OUT")"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 5: mixed — one stale, one up to date — only the stale one is reported.
+# ---------------------------------------------------------------------------
+echo "Test 5: mixed pair only reports the stale file..."
+T5="$TMP_ROOT/t5"
+mkdir -p "$T5"
+create_fixture_repo "$T5" "ok-workflow"
+# Add a second workflow pair in the same commit
+printf '%s\n' "# stale-workflow" > "$T5/.github/workflows/stale-workflow.md"
+printf '%s\n' "lock: original"   > "$T5/.github/workflows/stale-workflow.lock.yml"
+git -C "$T5" add .
+git -C "$T5" commit -q -m "add stale-workflow"
+# Modify only the stale one's .md
+printf '%s\n' "# stale-workflow (edited)" > "$T5/.github/workflows/stale-workflow.md"
+T5_OUT="$TMP_ROOT/t5-output.txt"
+if (cd "$T5" && bash "$STALE_SCRIPT" >"$T5_OUT" 2>&1); then
+    fail "mixed pair should exit 1" "$(cat "$T5_OUT")"
+elif grep -q "stale-workflow.md" "$T5_OUT" && ! grep -q "ok-workflow.md" "$T5_OUT"; then
+    pass "mixed pair only reports the stale file"
+else
+    fail "mixed pair reported unexpected files" "$(cat "$T5_OUT")"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 6: remediation message includes 'make recompile'.
+# ---------------------------------------------------------------------------
+echo "Test 6: remediation message mentions 'make recompile'..."
+T6="$TMP_ROOT/t6"
+mkdir -p "$T6"
+create_fixture_repo "$T6" "stale-workflow"
+printf '%s\n' "# stale-workflow (edited)" > "$T6/.github/workflows/stale-workflow.md"
+T6_OUT="$TMP_ROOT/t6-output.txt"
+(cd "$T6" && bash "$STALE_SCRIPT" >"$T6_OUT" 2>&1) || true
+if grep -q "make recompile" "$T6_OUT"; then
+    pass "remediation message mentions 'make recompile'"
+else
+    fail "remediation message did not mention 'make recompile'" "$(cat "$T6_OUT")"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 7: --dir flag points to a custom directory.
+# ---------------------------------------------------------------------------
+echo "Test 7: --dir flag works with a custom directory..."
+T7="$TMP_ROOT/t7"
+mkdir -p "$T7"
+git -C "$T7" init -q
+git -C "$T7" config user.email "test@test.com"
+git -C "$T7" config user.name "Test"
+mkdir -p "$T7/custom/workflows"
+printf '%s\n' "# custom-workflow"  > "$T7/custom/workflows/custom-workflow.md"
+printf '%s\n' "lock: original"     > "$T7/custom/workflows/custom-workflow.lock.yml"
+git -C "$T7" add .
+git -C "$T7" commit -q -m "initial"
+printf '%s\n' "# custom-workflow (edited)" > "$T7/custom/workflows/custom-workflow.md"
+T7_OUT="$TMP_ROOT/t7-output.txt"
+if (cd "$T7" && bash "$STALE_SCRIPT" --dir custom/workflows >"$T7_OUT" 2>&1); then
+    fail "custom --dir with stale file should exit 1" "$(cat "$T7_OUT")"
+elif grep -q "custom-workflow.md" "$T7_OUT"; then
+    pass "--dir flag works with a custom directory"
+else
+    fail "--dir output did not name the stale file" "$(cat "$T7_OUT")"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 8: missing workflows directory is an error.
+# ---------------------------------------------------------------------------
+echo "Test 8: missing workflows directory exits 1 with an error..."
+T8="$TMP_ROOT/t8"
+mkdir -p "$T8"
+git -C "$T8" init -q
+T8_OUT="$TMP_ROOT/t8-output.txt"
+if (cd "$T8" && bash "$STALE_SCRIPT" >"$T8_OUT" 2>&1); then
+    fail "missing directory should exit 1" "$(cat "$T8_OUT")"
+elif grep -qi "not found\|no such" "$T8_OUT"; then
+    pass "missing workflows directory exits with an error"
+else
+    fail "missing directory error message was unexpected" "$(cat "$T8_OUT")"
+fi
+
+echo
+echo "Tests passed: $TESTS_PASSED"
+echo "Tests failed: $TESTS_FAILED"
+
+if [ "$TESTS_FAILED" -gt 0 ]; then
+    exit 1
+fi
+
+echo "✓ All tests passed!"

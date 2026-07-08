@@ -5,7 +5,10 @@ import (
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var evalsJobLog = logger.New("workflow:evals_job")
 
 // buildEvalsJob creates a separate evals job that runs after the safe_outputs job
 // (or directly after the agent job if safe_outputs is not configured).
@@ -14,8 +17,10 @@ import (
 // Returns nil if evals are not declared in the workflow frontmatter.
 func (c *Compiler) buildEvalsJob(data *WorkflowData) (*Job, error) {
 	if !data.Evals.HasEvals() {
+		evalsJobLog.Print("No evals declared; skipping evals job")
 		return nil, nil
 	}
+	evalsJobLog.Print("Building evals job")
 
 	var steps []string
 
@@ -49,6 +54,7 @@ func (c *Compiler) buildEvalsJob(data *WorkflowData) (*Job, error) {
 	} else {
 		needs = []string{string(constants.AgentJobName), string(constants.ActivationJobName)}
 	}
+	evalsJobLog.Printf("Evals job dependencies resolved: needs=%v", needs)
 
 	// Evals job condition: always run but skip if the upstream job was skipped.
 	// This matches the detection job pattern so conclusion still sees a non-skipped evals result.

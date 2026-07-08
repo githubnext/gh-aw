@@ -81,6 +81,40 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 			},
 		},
 		{
+			name: "skips update when new download+verify install already exists",
+			existingWorkflow: &Workflow{
+				Name: "Copilot Setup Steps",
+				On:   "workflow_dispatch",
+				Jobs: map[string]WorkflowJob{
+					"copilot-setup-steps": {
+						RunsOn: "ubuntu-latest",
+						Steps: []CopilotWorkflowStep{
+							{
+								Name: "Install gh-aw extension",
+								Run: "mkdir -p /tmp/gh-aw\n" +
+									"curl -fsSL https://raw.githubusercontent.com/github/gh-aw/" + copilotSetupStepsStaticSHA + "/install-gh-aw.sh -o " + installScriptTempPath + "\n" +
+									"echo \"" + copilotSetupStepsStaticSHA256 + "  " + installScriptTempPath + "\" | sha256sum -c -\n" +
+									"bash " + installScriptTempPath,
+							},
+						},
+					},
+				},
+			},
+			verbose: true,
+			wantErr: false,
+			validateContent: func(t *testing.T, content []byte) {
+				// File should remain unchanged when download+verify syntax is already present
+				count := strings.Count(string(content), "Install gh-aw extension")
+				if count != 1 {
+					t.Errorf("Expected exactly 1 occurrence of 'Install gh-aw extension', got %d", count)
+				}
+				// sha256sum check should be preserved
+				if !strings.Contains(string(content), "sha256sum") {
+					t.Error("Expected sha256sum check to be preserved in existing download+verify file")
+				}
+			},
+		},
+		{
 			name: "renders instructions for existing workflow without install step",
 			existingWorkflow: &Workflow{
 				Name: "Copilot Setup Steps",
@@ -265,15 +299,28 @@ func TestCopilotSetupStepsYAMLConstant(t *testing.T) {
 
 	// Verify it has the extension install step
 	hasExtensionInstall := false
+	hasSecurePattern := false
 	for _, step := range job.Steps {
 		if strings.Contains(step.Run, "install-gh-aw.sh") || strings.Contains(step.Run, "curl -fsSL") {
 			hasExtensionInstall = true
-			break
+		}
+		// Secure pattern: download to temp file (-o <path>) AND sha256sum integrity check
+		if strings.Contains(step.Run, " -o ") && strings.Contains(step.Run, "sha256sum") {
+			hasSecurePattern = true
+		}
+		// Ensure no direct curl|bash pipe on the same line (RGS-018 security issue)
+		for line := range strings.SplitSeq(step.Run, "\n") {
+			if strings.Contains(line, "curl") && strings.Contains(line, "| bash") {
+				t.Errorf("Template must not use curl|bash direct pipe pattern on line %q (RGS-018 security issue)", line)
+			}
 		}
 	}
 
 	if !hasExtensionInstall {
 		t.Error("Expected copilotSetupStepsYAML to contain extension install step with bash script")
+	}
+	if !hasSecurePattern {
+		t.Error("Expected copilotSetupStepsYAML to use download-to-file (-o) with sha256sum integrity verification (RGS-018 fix)")
 	}
 
 	// Verify it does NOT have checkout, Go setup or build steps (for universal use)
@@ -611,6 +658,15 @@ func TestEnsureCopilotSetupSteps_CreateWithDevMode(t *testing.T) {
 	if strings.Contains(contentStr, "actions/checkout") {
 		t.Errorf("Did not expect checkout step in dev mode")
 	}
+	// Verify download-to-file pattern (not direct curl pipe)
+	for line := range strings.SplitSeq(contentStr, "\n") {
+		if strings.Contains(line, "curl") && strings.Contains(line, "| bash") {
+			t.Errorf("Expected download-to-file pattern, not direct curl|bash pipe on line %q (RGS-018 security fix)", line)
+		}
+	}
+	if !strings.Contains(contentStr, "-o "+installScriptTempPath) {
+		t.Errorf("Expected download to temp file %s in dev mode", installScriptTempPath)
+	}
 }
 
 func TestEnsureCopilotSetupSteps_UsesWorkflowDirEnvOverride(t *testing.T) {
@@ -885,6 +941,66 @@ jobs:
 
 	if string(content) != existingContent {
 		t.Errorf("Expected file to remain unchanged")
+	}
+}
+
+// TestEnsureCopilotSetupSteps_SkipsUpdateWhenDownloadVerifyExists tests that update is skipped
+// when the new download+verify syntax (RGS-018 fix) already exists in the file.
+func TestEnsureCopilotSetupSteps_SkipsUpdateWhenDownloadVerifyExists(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(originalDir) }()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Write existing workflow WITH the new download+verify syntax (no direct curl|bash pipe)
+	existingContent := "name: \"Copilot Setup Steps\"\n" +
+		"on: workflow_dispatch\n" +
+		"jobs:\n" +
+		"  copilot-setup-steps:\n" +
+		"    runs-on: ubuntu-latest\n" +
+		"    steps:\n" +
+		"      - name: Install gh-aw extension\n" +
+		"        run: |\n" +
+		"          mkdir -p /tmp/gh-aw\n" +
+		"          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/" + copilotSetupStepsStaticSHA + "/install-gh-aw.sh -o " + installScriptTempPath + "\n" +
+		"          echo \"" + copilotSetupStepsStaticSHA256 + "  " + installScriptTempPath + "\" | sha256sum -c -\n" +
+		"          bash " + installScriptTempPath + "\n"
+
+	setupStepsPath := filepath.Join(workflowsDir, "copilot-setup-steps.yml")
+	if err := os.WriteFile(setupStepsPath, []byte(existingContent), 0644); err != nil {
+		t.Fatalf("Failed to write existing workflow: %v", err)
+	}
+
+	// Attempt to update - should skip since install step already exists
+	err = ensureCopilotSetupSteps(context.Background(), false, workflow.ActionModeDev, "dev")
+	if err != nil {
+		t.Fatalf("ensureCopilotSetupSteps(context.Background()) failed: %v", err)
+	}
+
+	// Verify file content is unchanged (download+verify syntax is recognized as already configured)
+	content, err := os.ReadFile(setupStepsPath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+
+	if string(content) != existingContent {
+		t.Errorf("Expected file to remain unchanged when download+verify syntax already present,\ngot:\n%s", string(content))
+	}
+	// Confirm sha256sum check is still there
+	if !strings.Contains(string(content), "sha256sum") {
+		t.Error("Expected sha256sum integrity check to be preserved")
 	}
 }
 

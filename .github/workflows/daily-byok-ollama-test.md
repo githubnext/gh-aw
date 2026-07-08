@@ -20,8 +20,17 @@ strict: true
 timeout-minutes: 20
 steps:
   - name: Install Ollama
+    env:
+      OLLAMA_VERSION: "0.31.1"
+      # SHA256 of install.sh from https://github.com/ollama/ollama/releases/download/v${OLLAMA_VERSION}/install.sh
+      # To update: curl -fsSL https://github.com/ollama/ollama/releases/download/vNEW_VERSION/install.sh | sha256sum
+      OLLAMA_INSTALL_SHA256: "25f64b810b947145095956533e1bdf56eacea2673c55a7e586be4515fc882c9f"
     run: |
-      curl -fsSL https://ollama.com/install.sh | sh
+      echo "Downloading Ollama v${OLLAMA_VERSION} install script..."
+      mkdir -p /tmp/gh-aw
+      curl -fsSL "https://github.com/ollama/ollama/releases/download/v${OLLAMA_VERSION}/install.sh" -o /tmp/gh-aw/ollama-install.sh
+      echo "${OLLAMA_INSTALL_SHA256}  /tmp/gh-aw/ollama-install.sh" | sha256sum -c -
+      bash /tmp/gh-aw/ollama-install.sh
   - name: Generate Ollama API key
     run: |
       OLLAMA_API_KEY="$(openssl rand -hex 16)"

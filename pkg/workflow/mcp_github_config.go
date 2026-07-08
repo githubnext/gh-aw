@@ -448,10 +448,10 @@ func mcpgSupportsIntegrityReactions(gatewayConfig *MCPGatewayRuntimeConfig) bool
 //   - repos=["O/R"]: accept=["private:O/R"] (specific repo → keep as-is)
 //
 // This allows the gateway to read data from the GitHub MCP server and still write to safeoutputs.
-// When sinkVisibility is known at compile time, it is emitted as sink-visibility so the write-sink
-// guard can enforce public/private/internal semantics without relying on runtime detection.
+// sink-visibility is emitted as a runtime expression so that the write-sink guard can enforce
+// public/private/internal semantics based on the actual repository visibility at workflow execution time.
 // Returns nil if no GitHub guard policies are configured.
-func deriveSafeOutputsGuardPolicyFromGitHub(githubTool map[string]any, sinkVisibility string) map[string]any {
+func deriveSafeOutputsGuardPolicyFromGitHub(githubTool map[string]any) map[string]any {
 	githubPolicies := getGitHubGuardPolicies(githubTool)
 	if githubPolicies == nil {
 		return nil
@@ -504,10 +504,8 @@ func deriveSafeOutputsGuardPolicyFromGitHub(githubTool map[string]any, sinkVisib
 	}
 
 	writeSink := map[string]any{
-		"accept": acceptList,
-	}
-	if sinkVisibility != "" {
-		writeSink["sink-visibility"] = sinkVisibility
+		"accept":          acceptList,
+		"sink-visibility": sinkVisibilityRuntimeExpr,
 	}
 
 	// Build the write-sink policy for safeoutputs
@@ -555,10 +553,9 @@ func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[stri
 	}
 
 	toolConfig, _ := rawGithubTool.(map[string]any)
-	sinkVisibility := workflowData.RepositoryVisibility
 
 	// Try to derive from explicit guard policy first
-	policy := deriveSafeOutputsGuardPolicyFromGitHub(toolConfig, sinkVisibility)
+	policy := deriveSafeOutputsGuardPolicyFromGitHub(toolConfig)
 	if policy != nil {
 		return policy
 	}
@@ -566,15 +563,14 @@ func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[stri
 	// When no explicit guard policy is configured but automatic lockdown detection would run
 	// (GitHub tool present and not disabled, no GitHub App configured), return accept=["*"]
 	// because automatic lockdown always sets repos=all at runtime.
+	// sink-visibility is set as a runtime expression so that the write-sink guard can enforce
+	// public/private/internal semantics based on the actual repository visibility at workflow execution time.
 	if rawGithubTool != false && len(getGitHubGuardPolicies(toolConfig)) == 0 && !hasGitHubApp(toolConfig) {
-		writeSink := map[string]any{
-			"accept": []string{"*"},
-		}
-		if sinkVisibility != "" {
-			writeSink["sink-visibility"] = sinkVisibility
-		}
 		return map[string]any{
-			"write-sink": writeSink,
+			"write-sink": map[string]any{
+				"accept":          []string{"*"},
+				"sink-visibility": sinkVisibilityRuntimeExpr,
+			},
 		}
 	}
 

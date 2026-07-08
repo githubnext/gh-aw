@@ -23,7 +23,7 @@ type myString string
 func badNamedString() {
 	var buf bytes.Buffer
 	s := myString("hello")
-	buf.Write([]byte(s)) // want `buf\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(&buf, s\) to potentially avoid a \[\]byte allocation if the writer implements io\.StringWriter`
+	buf.Write([]byte(s)) // want `buf\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(&buf, string\(s\)\) to potentially avoid a \[\]byte allocation if the writer implements io\.StringWriter`
 }
 
 func badFile() {

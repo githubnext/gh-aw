@@ -775,6 +775,14 @@ lint-lock: build
 	@echo "Linting committed lock files with gh aw lint..."
 	./$(BINARY_NAME) lint
 
+# Fast pre-build guard: detects workflow .md files modified in the working tree
+# without their .lock.yml being regenerated.  Uses git to identify modified files
+# and does not require the gh-aw binary.  Complements check-workflow-drift (which
+# does a full recompile) by catching the obvious staleness case early.
+.PHONY: check-stale-lock-files
+check-stale-lock-files:
+	@bash scripts/check-stale-lock-files.sh
+
 # Check for drift between workflow markdown sources and generated lock files.
 # Compiles all .github/workflows/*.md files and fails if any .lock.yml would
 # change, reminding contributors to run 'make recompile' before committing.
@@ -1013,6 +1021,13 @@ sync-action-scripts:
 	@chmod +x actions/setup-cli/install.sh
 	@echo "✓ Action scripts synced successfully"
 
+# Sync install-gh-aw.sh SHA/hash constants in pkg/cli/copilot_setup.go
+.PHONY: sync-install-script-hashes
+sync-install-script-hashes:
+	@echo "Updating install-gh-aw.sh SHA and SHA256 constants..."
+	@bash scripts/update-install-script-hashes.sh
+	@echo "✓ Install script hashes synced successfully"
+
 # Recompile all workflow files
 .PHONY: recompile
 recompile: build
@@ -1052,6 +1067,7 @@ dependabot: build
 update: build
 	./$(BINARY_NAME) update
 	$(MAKE) sync-action-pins
+	$(MAKE) sync-install-script-hashes
 	$(MAKE) build
 
 # Run development server
@@ -1112,9 +1128,9 @@ agent-finish: deps-dev fmt lint build build-wasm test-all validate-otel-contract
 
 # Lightweight pre-PR gate — run before every report_progress / create_pull_request call.
 # Includes formatting + lint validation to prevent lint-fix PR churn:
-# build + fmt + lint + test-unit + workflow drift check.
+# stale-lock guard (fast, no binary) + build + fmt + lint + test-unit + workflow drift check.
 .PHONY: agent-report-progress
-agent-report-progress: build fmt lint test-unit check-workflow-drift
+agent-report-progress: check-stale-lock-files build fmt lint test-unit check-workflow-drift
 	@echo "Pre-PR validation passed (zero lint errors, lock files in sync). Safe to call report_progress."
 
 # Extended pre-PR gate with lock-file-only linting.
@@ -1187,9 +1203,11 @@ help:
 	@echo "  lint-lock        - Run lock-file-only lint with gh aw lint (depends on build)"
 	@echo "  validate-workflows - Validate compiled workflow lock files (depends on build)"
 	@echo "  check-workflow-drift - Check for drift between .md sources and .lock.yml files (builds binary if missing)"
+	@echo "  check-stale-lock-files - Fast guard: detect modified .md files without regenerated .lock.yml (no binary needed)"
 	@echo "  install          - Install binary locally"
 	@echo "  sync-action-pins - Sync actions-lock.json from .github/aw to pkg/actionpins/data and pkg/workflow/data (runs automatically during build)"
 	@echo "  sync-action-scripts - Sync install-gh-aw.sh to actions/setup-cli/install.sh (runs automatically during build)"
+	@echo "  sync-install-script-hashes - Update install-gh-aw.sh SHA and SHA256 constants in pkg/cli/copilot_setup.go (runs automatically during update)"
 	@echo "  update           - Update GitHub Actions and workflows, sync action pins, and rebuild binary"
 	@echo "  fix              - Apply automatic codemod-style fixes to workflow files (depends on build)"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
@@ -1206,7 +1224,7 @@ help:
 	@echo "  clean-docs       - Clean documentation artifacts (dist, node_modules, .astro)"
 
 	@echo "  agent-finish            - Complete validation sequence (build, test, fix, recompile, fmt, lint, security-scan)"
-	@echo "  agent-report-progress   - Lightweight pre-PR gate: build + fmt + lint + test-unit + check-workflow-drift"
+	@echo "  agent-report-progress   - Lightweight pre-PR gate: check-stale-lock-files + build + fmt + lint + test-unit + check-workflow-drift"
 	@echo "  agent-report-progress-lint - Pre-PR gate + gh aw lint lock-file check"
 	@echo "  sbom             - Generate SBOM in SPDX and CycloneDX formats (requires syft)"
 	@echo "  help             - Show this help message"

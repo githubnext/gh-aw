@@ -406,4 +406,70 @@ This workflow tests the update-issue title-prefix configuration.
 	if workflowData.SafeOutputs.UpdateIssues.TitlePrefix != "[bot] " {
 		t.Fatalf("Expected title-prefix to be '[bot] ', got '%s'", workflowData.SafeOutputs.UpdateIssues.TitlePrefix)
 	}
+
+	if workflowData.SafeOutputs.UpdateIssues.RequiredTitlePrefix != "" {
+		t.Errorf("Expected RequiredTitlePrefix to be empty when only title-prefix is set, got %q", workflowData.SafeOutputs.UpdateIssues.RequiredTitlePrefix)
+	}
+}
+
+func TestUpdateIssueRequiredFilters(t *testing.T) {
+	// Test that required-labels and required-title-prefix are parsed correctly
+	tmpDir := testutil.TempDir(t, "output-update-issue-required-filters-test")
+
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: claude
+strict: false
+safe-outputs:
+  update-issue:
+    required-title-prefix: "[ci] "
+    required-labels: [automation, bot]
+    body: true
+---
+
+# Test Update Issue Required Filters
+
+This workflow tests the update-issue required-labels and required-title-prefix configuration.
+`
+
+	testFile := filepath.Join(tmpDir, "test-update-issue-required-filters.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with required filters: %v", err)
+	}
+
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected output configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.UpdateIssues == nil {
+		t.Fatal("Expected update-issue configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.UpdateIssues.RequiredTitlePrefix != "[ci] " {
+		t.Fatalf("Expected required-title-prefix to be '[ci] ', got '%s'", workflowData.SafeOutputs.UpdateIssues.RequiredTitlePrefix)
+	}
+
+	if len(workflowData.SafeOutputs.UpdateIssues.RequiredLabels) != 2 {
+		t.Fatalf("Expected 2 required-labels, got %d", len(workflowData.SafeOutputs.UpdateIssues.RequiredLabels))
+	}
+
+	if workflowData.SafeOutputs.UpdateIssues.RequiredLabels[0] != "automation" {
+		t.Fatalf("Expected first required label to be 'automation', got '%s'", workflowData.SafeOutputs.UpdateIssues.RequiredLabels[0])
+	}
+
+	if workflowData.SafeOutputs.UpdateIssues.RequiredLabels[1] != "bot" {
+		t.Fatalf("Expected second required label to be 'bot', got '%s'", workflowData.SafeOutputs.UpdateIssues.RequiredLabels[1])
+	}
 }

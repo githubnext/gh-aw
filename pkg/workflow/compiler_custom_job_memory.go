@@ -3,7 +3,11 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var customJobMemoryLog = logger.New("workflow:compiler_custom_job_memory")
 
 // restoreMemoryConfig holds the parsed restore-memory configuration for a custom job.
 // Each field is set to true only when the corresponding memory store is configured in tools:.
@@ -42,6 +46,7 @@ func extractRestoreMemoryConfig(configMap map[string]any, jobName string, data *
 	if !cfg.CacheMemory && !cfg.RepoMemory && !cfg.CommentMemory {
 		return nil, fmt.Errorf("jobs.%s.restore-memory: no memory stores are configured in tools", jobName)
 	}
+	customJobMemoryLog.Printf("restore-memory enabled for job %s: cache=%t repo=%t comment=%t", jobName, cfg.CacheMemory, cfg.RepoMemory, cfg.CommentMemory)
 	return cfg, nil
 }
 
@@ -55,6 +60,8 @@ func (c *Compiler) buildRestoreMemorySteps(cfg *restoreMemoryConfig, jobName str
 	if cfg == nil {
 		return nil, nil, nil
 	}
+
+	customJobMemoryLog.Printf("Building restore-memory steps for job %s", jobName)
 
 	// repo-memory and comment-memory rely on scripts installed by the gh-aw setup action.
 	// Inject the setup step before any memory steps so those scripts are available.
