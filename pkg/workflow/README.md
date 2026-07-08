@@ -75,7 +75,16 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `AntigravityEngine` | struct | Antigravity coding agent engine |
 | `UniversalLLMBackend` | string alias | Universal LLM backend identifier (`claude`, `codex`) |
 | `UniversalLLMConsumerEngine` | struct | Shared implementation for universal LLM backends |
+| `UniversalCLIEngineExecutionConfig` | struct | Execution configuration for universal LLM CLI engines |
 | `EngineCatalog` | struct | Catalog of engine definitions with lookup and resolution helpers |
+| `EngineDefinition` | struct | Declarative metadata for an AI engine (ID, display name, provider, models) |
+| `ResolvedEngineTarget` | struct | Result of `EngineCatalog.Resolve()`: definition + config + runtime adapter |
+| `AuthStrategy` | string alias | Authentication strategy (`"api-key"`, `"oauth-client-credentials"`, `"bearer"`) |
+| `AuthDefinition` | struct | Authentication configuration for an engine provider (strategy, secret, OAuth params) |
+| `RequestShape` | struct | Non-standard URL and body transformations for provider API calls |
+| `ProviderSelection` | struct | AI provider identity with optional auth and request-shaping configuration |
+| `ModelSelection` | struct | Default and supported model names for an engine |
+| `EngineInstallConfig` | struct | Configuration for engine installation steps (secrets, npm package, version) |
 
 #### Engine Registry Functions
 
@@ -186,6 +195,7 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `Tools` | type alias | Alias for `ToolsConfig` |
 | `GitHubToolConfig` | struct | GitHub MCP tool configuration (toolsets, allowed tools, integrity) |
 | `PlaywrightToolConfig` | struct | Playwright browser automation tool config |
+| `PlaywrightDockerArgs` | struct | Docker image version and MCP package version for Playwright container configuration |
 | `BashToolConfig` | struct | Bash execution tool config |
 | `WebFetchToolConfig` | struct | Web fetch tool config |
 | `WebSearchToolConfig` | struct | Web search tool config |
@@ -297,6 +307,10 @@ Each safe-output tool type has its own configuration struct parsed from the `saf
 | `ReplaceLabelConfig` | struct | Configuration for replacing one label with another on issues/PRs |
 | `LabelTransition` | struct | An allowed label state transition (`from` → `to` pair) |
 | `SafeScriptConfig` | struct | A custom safe-output handler script that runs inside the consolidated safe-outputs job |
+| `DismissPullRequestReviewConfig` | struct | Configuration for dismissing pull request reviews |
+| `CommentEventMapping` | struct | Maps comment event types to trigger conditions |
+| `CreateParseOptions` | struct | Options controlling `create-*` safe-output parsing behavior |
+| `GitHubToolsetValidationError` | struct | Validation error for unknown GitHub MCP toolsets |
 
 ### Sandbox Configuration
 
@@ -350,6 +364,20 @@ The MCP Scripts subsystem provides inline custom tool definitions (JavaScript, s
 | `GenerateMCPScriptPythonToolScript` | `func(*MCPScriptToolConfig) string` | Generates the `.py` tool handler for a `py:` Python tool |
 | `GenerateMCPScriptGoToolScript` | `func(*MCPScriptToolConfig) string` | Generates the `.go` tool handler for a `go:` Go tool |
 
+### MCP Renderer
+
+The MCP renderer subsystem provides unified rendering for MCP server configurations across engines (Claude, Copilot, Codex, custom).
+
+| Type | Kind | Description |
+|------|------|-------------|
+| `MCPRendererOptions` | struct | Options for the unified MCP renderer (format, inline args, write-sink guard policies) |
+| `MCPConfigRendererUnified` | struct | Provides unified rendering methods across all engines |
+| `MCPToolRenderers` | struct | Holds engine-specific rendering functions for each MCP tool type |
+| `JSONMCPConfigOptions` | struct | Configuration for JSON-based MCP config rendering (path, renderers, gateway) |
+| `GitHubMCPDockerOptions` | struct | Options for rendering the GitHub MCP server in Docker/stdio mode |
+| `GitHubMCPRemoteOptions` | struct | Options for rendering the GitHub MCP server in remote/HTTP mode |
+| `RenderCustomMCPToolConfigHandler` | func type | Function type for rendering custom MCP tool configurations |
+
 ### Network Permissions
 
 | Type | Kind | Description |
@@ -376,6 +404,8 @@ The MCP Scripts subsystem provides inline custom tool definitions (JavaScript, s
 | `ConfigurationError` | struct | Configuration error with config key and suggested fix |
 | `ErrorCollector` | struct | Collects multiple errors; supports `failFast` mode |
 | `SharedWorkflowError` | struct | Error for shared/reusable workflow violations |
+| `RedirectOnlyWorkflowError` | struct | Error indicating a workflow only contains redirect/import steps |
+| `FieldLocation` | type alias | `= console.ErrorPosition` — source location for validation errors |
 
 #### Error Functions
 
@@ -395,6 +425,31 @@ The MCP Scripts subsystem provides inline custom tool definitions (JavaScript, s
 | `GetWorkflowLockFileName` | `func(string) (string, error)` | Returns the `.lock.yml` path for a workflow |
 | `GetAllWorkflows` | `func() ([]WorkflowNameMatch, error)` | Returns all installed workflow names |
 | `GetWorkflowIDFromPath` | `func(string) string` | Derives the workflow ID from its markdown path |
+
+### Markdown Security Scanner
+
+Detects dangerous patterns in externally-sourced markdown files (e.g., from `gh aw add` or `gh aw trial`) and produces hard errors that cannot be overridden.
+
+| Type | Kind | Description |
+|------|------|-------------|
+| `SecurityFindingCategory` | string alias | Category of a security finding (`"unicode-abuse"`, `"html-abuse"`, etc.) |
+| `SecurityFinding` | struct | A single security issue (category, description, 1-based line, snippet) |
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `ScanMarkdownSecurity` | `func(content string) []SecurityFinding` | Scans markdown body for dangerous patterns; non-empty result means the content MUST be rejected |
+
+### Package Extraction
+
+| Type | Kind | Description |
+|------|------|-------------|
+| `PackageExtractor` | struct | Reusable parser for extracting package names from package-manager command strings (npm, pip, uv, go, etc.) |
+
+### Expression Safety Validation
+
+| Type | Kind | Description |
+|------|------|-------------|
+| `ExpressionValidationOptions` | struct | Options for validating a single GitHub Actions expression (compiled regex patterns for allowed expression shapes) |
 
 ### Action Pinning
 
@@ -484,6 +539,10 @@ The MCP Scripts subsystem provides inline custom tool definitions (JavaScript, s
 | `ParseTriggerShorthand` | `func(string) (*TriggerIR, error)` | Parses a trigger shorthand string |
 
 ### AWF Command Building
+
+| Type | Kind | Description |
+|------|------|-------------|
+| `AWFCommandConfig` | struct | Configuration for building `gh aw` CLI commands (workflow path, flags, engine override) |
 
 | Function | Signature | Description |
 |----------|-----------|-------------|

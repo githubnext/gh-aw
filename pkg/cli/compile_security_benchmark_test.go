@@ -93,7 +93,7 @@ timeout-minutes: 10
 
 Analyze the issue and provide feedback.
 
-Issue: ${{ needs.activation.outputs.text }}
+Issue: ${{ steps.sanitized.outputs.text }}
 `
 
 	testFile := filepath.Join(tmpDir, "test-workflow.md")

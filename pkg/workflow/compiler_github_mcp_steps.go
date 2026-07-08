@@ -28,6 +28,16 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 		return
 	}
 
+	// Skip the detection step when guard policies are already explicitly configured.
+	// Explicit guard policies mean the compiler already knows the min-integrity and repos values,
+	// so there is nothing for the runtime detection script to determine.
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if len(getGitHubGuardPolicies(toolConfig)) > 0 {
+			githubConfigLog.Print("Skipping GitHub MCP lockdown detection step: guard policy explicitly configured")
+			return
+		}
+	}
+
 	githubConfigLog.Print("Generating automatic guard policy determination step for GitHub MCP server")
 
 	// Resolve the latest version of actions/github-script

@@ -68,10 +68,10 @@ jobs:
 ```yaml
 # SECURE: Use sanitized context output
 # For GitHub Agentic Workflows
-Analyze this content: "${{ needs.activation.outputs.text }}"
+Analyze this content: "${{ steps.sanitized.outputs.text }}"
 ```
 
-**Why it's secure**: The `needs.activation.outputs.text` output is automatically sanitized:
+**Why it's secure**: The `steps.sanitized.outputs.text` output is automatically sanitized:
 - @mentions neutralized (`` `@user` ``)
 - Bot triggers protected (`` `fixes #123` ``)
 - XML tags converted to safe format
@@ -929,7 +929,7 @@ Use this checklist when creating or reviewing GitHub Actions workflows:
 - [ ] No untrusted input in `${{ }}` expressions
 - [ ] Untrusted data passed via environment variables
 - [ ] Safe context variables used where possible
-- [ ] Sanitized context used (gh-aw: `needs.activation.outputs.text`)
+- [ ] Sanitized context used (gh-aw: `steps.sanitized.outputs.text`)
 
 ### Shell Scripts
 - [ ] All variables quoted: `"$VAR"`

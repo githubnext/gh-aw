@@ -108,10 +108,10 @@ When writing GitHub Actions workflows:
    - ❌ `${{ github.event.head_commit.message }}`
    - ❌ `${{ github.head_ref }}` (can be controlled by PR authors)
    - ❌ `${{ github.ref_name }}` (branch/tag names)
-   - ❌ `${{ steps.*.outputs.* }}` (step outputs may contain user data)
+   - ❌ `${{ steps.*.outputs.* }}` (generic step outputs may contain user data; exception: `steps.sanitized.outputs.*` below)
 
 2. **Use sanitized context instead:**
-   - ✅ `${{ needs.activation.outputs.text }}` (sanitized by gh-aw)
+   - ✅ `${{ steps.sanitized.outputs.text }}` (sanitized by gh-aw — this is the explicit exception to the rule above)
 
 3. **Pass data through environment variables:**
    ```yaml
