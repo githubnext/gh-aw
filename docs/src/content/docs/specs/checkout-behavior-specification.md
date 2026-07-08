@@ -82,7 +82,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 ### 3.1 Checkout Entry Parsing
 
 `checkout:` MUST accept either a single object or an array of objects.  
-Each entry MAY define: `repository`, `ref`, `path`, `github-token` (or legacy `token`), `github-app`, `safe-output-github-app`, `fetch-depth`, `fetch`, `sparse-checkout`, `submodules`, `lfs`, `current`, `wiki`, and `force-clean-git-credentials`.
+Each entry MAY define: `repository`, `ref`, `path`, `github-token` (or legacy `token`), `github-app` (or deprecated alias `app`), `safe-output-github-app`, `fetch-depth`, `fetch`, `sparse-checkout`, `submodules`, `lfs`, `current`, `wiki`, and `force-clean-git-credentials`.
 
 `github-token` and `github-app` MUST be mutually exclusive per entry.
 
@@ -100,7 +100,7 @@ Entries with the same `(repository, path, wiki)` key MUST merge with these rules
 - fetch refs: union
 - `lfs`: OR
 - `submodules`: first non-empty wins
-- `cleanCreds`: OR
+- `force-clean-git-credentials`: OR
 
 ### 3.3 Job-specific Checkout Generation
 
