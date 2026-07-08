@@ -125,7 +125,7 @@ export const requireFsSyncTryCatchRule = createRule({
             // Only matches when the `fs` identifier is itself bound to require("fs") / require("node:fs").
             if (declarator.id.type === AST_NODE_TYPES.Identifier && declarator.init?.type === AST_NODE_TYPES.MemberExpression) {
               const init = declarator.init;
-              if (init.object.type === AST_NODE_TYPES.Identifier && isIdentifierBoundToFsModule(init.object.name, node)) {
+              if (init.object.type === AST_NODE_TYPES.Identifier && isIdentifierBoundToFsModule(init.object.name, init.object)) {
                 const methodName = getFsSyncMethodFromProperty(init);
                 if (methodName !== null) return methodName;
               }
@@ -183,8 +183,9 @@ export const requireFsSyncTryCatchRule = createRule({
         let methodName: string | null = null;
 
         if (callee.type === AST_NODE_TYPES.MemberExpression) {
-          // Object must be the `fs` identifier (the standard import alias in actions/setup/js).
-          if (callee.object.type !== AST_NODE_TYPES.Identifier || callee.object.name !== "fs") return;
+          // Object may be `fs` or any identifier bound to require("fs") / require("node:fs").
+          if (callee.object.type !== AST_NODE_TYPES.Identifier) return;
+          if (callee.object.name !== "fs" && !isIdentifierBoundToFsModule(callee.object.name, callee.object)) return;
 
           // Accept both direct property access (fs.readFileSync) and computed string-literal access
           // (fs["readFileSync"]). Dynamic computed access (fs[varName]) is excluded.
