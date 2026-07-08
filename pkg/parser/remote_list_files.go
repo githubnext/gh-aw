@@ -65,25 +65,35 @@ func resolveListRepoCloneConfig(owner, repo, ref, host string) (listRepoCloneCon
 	}, nil
 }
 
-// getCachedListRepoClone acquires gitListCloneCache.mu.
+// getCachedListRepoClone acquires gitListCloneCache.mu briefly to read the cached path,
+// then performs filesystem validation outside the lock to avoid serializing I/O across
+// concurrent callers. If the entry is stale it is evicted under a second lock acquisition.
 // Do not call from code that already holds gitListCloneCache.mu.
 func getCachedListRepoClone(cacheKey string) (string, bool) {
 	gitListCloneCache.mu.Lock()
-	defer gitListCloneCache.mu.Unlock()
+	cloneDir, ok := gitListCloneCache.dirs[cacheKey]
+	gitListCloneCache.mu.Unlock()
 
-	if cloneDir, ok := gitListCloneCache.dirs[cacheKey]; ok {
-		if stat, err := os.Stat(filepath.Join(cloneDir, ".git")); err == nil && stat.IsDir() {
-			return cloneDir, true
-		}
-		delete(gitListCloneCache.dirs, cacheKey)
+	if !ok {
+		return "", false
 	}
+	if stat, err := os.Stat(filepath.Join(cloneDir, ".git")); err == nil && stat.IsDir() {
+		return cloneDir, true
+	}
+	// Entry is stale — evict under lock.
+	gitListCloneCache.mu.Lock()
+	delete(gitListCloneCache.dirs, cacheKey)
+	gitListCloneCache.mu.Unlock()
 	return "", false
 }
 
-// cloneAndCacheListRepoClone acquires gitListCloneCache.mu for the final cache write.
+// cloneAndCacheListRepoClone performs the clone and writes the result to the cache.
+// It must only be called from within a singleflight.Group.Do callback to prevent
+// concurrent duplicate clones for the same cache key. The final cache write is
+// performed under gitListCloneCache.mu with a defensive check: if another goroutine
+// has already populated the entry (e.g. due to incorrect direct invocation), the
+// redundant tmpDir is discarded and the existing entry is returned.
 // Do not call from code that already holds gitListCloneCache.mu.
-// This function must only be called from within a singleflight.Group.Do callback
-// to prevent concurrent duplicate clones for the same cache key.
 func cloneAndCacheListRepoClone(ctx context.Context, cfg listRepoCloneConfig) (string, error) {
 	tmpDir, err := os.MkdirTemp("", "gh-aw-list-*")
 	if err != nil {
@@ -102,6 +112,11 @@ func cloneAndCacheListRepoClone(ctx context.Context, cfg listRepoCloneConfig) (s
 
 	gitListCloneCache.mu.Lock()
 	defer gitListCloneCache.mu.Unlock()
+	if existing, ok := gitListCloneCache.dirs[cfg.cacheKey]; ok {
+		// Another goroutine finished first; discard our redundant clone.
+		_ = os.RemoveAll(tmpDir)
+		return existing, nil
+	}
 	gitListCloneCache.dirs[cfg.cacheKey] = tmpDir
 	return tmpDir, nil
 }
