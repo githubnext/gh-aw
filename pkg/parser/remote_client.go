@@ -45,6 +45,7 @@ func buildContentsAPIPath(owner, repo, path, ref string) string {
 }
 
 func fetchRemoteFileContent(ctx context.Context, client *api.RESTClient, owner, repo, path, ref string, fileContent any) error {
+	remoteLog.Printf("Fetching remote file via REST API: %s/%s path=%s ref=%s", owner, repo, path, ref)
 	return client.DoWithContext(ctx, http.MethodGet, buildContentsAPIPath(owner, repo, path, ref), nil, fileContent)
 }
 
@@ -65,6 +66,7 @@ func fetchPublicGitHubContentsAPI(ctx context.Context, owner, repo, path, ref st
 	}
 	endpoint := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s?ref=%s",
 		owner, repo, strings.Join(encodedSegments, "/"), url.QueryEscape(ref))
+	remoteLog.Printf("Unauthenticated public API fallback fetch: %s/%s path=%s ref=%s", owner, repo, path, ref)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
@@ -82,6 +84,7 @@ func fetchPublicGitHubContentsAPI(ctx context.Context, owner, repo, path, ref st
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
+		remoteLog.Printf("Public API fallback returned non-OK status: %d for %s/%s", resp.StatusCode, owner, repo)
 		return nil, fmt.Errorf("GitHub API returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	return body, nil
