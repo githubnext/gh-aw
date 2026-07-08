@@ -11,9 +11,7 @@ const cjsRuleTester = new RuleTester({
 
 describe("no-github-request-interpolated-route", () => {
   it("uses the correct docs URL", () => {
-    expect(noGithubRequestInterpolatedRouteRule.meta.docs.url).toBe(
-      "https://github.com/github/gh-aw/tree/main/eslint-factory#no-github-request-interpolated-route",
-    );
+    expect(noGithubRequestInterpolatedRouteRule.meta.docs.url).toBe("https://github.com/github/gh-aw/tree/main/eslint-factory#no-github-request-interpolated-route");
   });
 
   it("valid: plain string literal route is accepted", () => {
@@ -40,11 +38,7 @@ describe("no-github-request-interpolated-route", () => {
 
   it("valid: unrelated method calls on known client names are not flagged", () => {
     cjsRuleTester.run("no-github-request-interpolated-route", noGithubRequestInterpolatedRouteRule, {
-      valid: [
-        "github.rest.issues.create({ owner, repo, title });",
-        "octokit.paginate(octokit.rest.pulls.list, { owner, repo });",
-        `github.graphql(\`{ viewer { login } }\`);`,
-      ],
+      valid: ["github.rest.issues.create({ owner, repo, title });", "octokit.paginate(octokit.rest.pulls.list, { owner, repo });", `github.graphql(\`{ viewer { login } }\`);`],
       invalid: [],
     });
   });
@@ -140,6 +134,15 @@ describe("no-github-request-interpolated-route", () => {
             {
               messageId: "interpolatedRoute",
               data: { kind: "string concatenation expression", client: "githubClient" },
+            },
+          ],
+        },
+        {
+          code: `octokitClient.request("GET /repos/" + owner + "/" + repo, { });`,
+          errors: [
+            {
+              messageId: "interpolatedRoute",
+              data: { kind: "string concatenation expression", client: "octokitClient" },
             },
           ],
         },

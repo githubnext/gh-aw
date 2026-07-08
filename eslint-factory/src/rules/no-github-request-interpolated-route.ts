@@ -15,8 +15,10 @@ function isInterpolatedTemplateLiteral(node: TSESTree.Node): boolean {
 
 /**
  * Returns true when the node is a binary `+` expression, which indicates
- * string concatenation. Walks recursively so nested concatenations such as
- * `"GET /repos/" + owner + "/" + repo` are also caught.
+ * string concatenation. Nested concatenations such as
+ * `"GET /repos/" + owner + "/" + repo` parse as left-associative
+ * BinaryExpressions, so the outermost node is still a `+` BinaryExpression
+ * and is caught by this check.
  */
 function isStringConcatenation(node: TSESTree.Node): boolean {
   return node.type === "BinaryExpression" && node.operator === "+";
