@@ -21,6 +21,7 @@ const {
   extractDeniedCommands,
   buildMissingToolPermissionIssuePayload,
   resolveRetryConfig,
+  resolveStartupRetryLimit,
 } = require("./claude_harness.cjs");
 
 const agentTempDir = "/tmp/gh-aw/agent";
@@ -448,6 +449,24 @@ process.exit(0);
       expect(result.stderr).toContain("failure_reason=cancelled_or_timed_out");
     }, 30000);
 
+    it("retries one no-output startup failure as a fresh run by default", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+if (priorCalls === 0) process.exit(1);
+process.stdout.write("startup retry succeeded\\n");
+process.exit(0);
+`;
+      const { result, calls } = runHarnessWithStub({ stubScript });
+      expect(result.status, result.stderr).toBe(0);
+      expect(calls.length).toBe(2);
+      expect(calls[1].args.includes("--continue")).toBe(false);
+      expect(result.stderr).toContain("no output produced — retrying startup as fresh run");
+    });
+
     it("returns true for normal partial-execution retry", () => {
       const result = shouldRetryWithContinue({
         attempt: 0,
@@ -558,6 +577,14 @@ process.exit(0);
       expect(config1.maxRetries).toBe(3);
       const config2 = resolveRetryConfig({ GH_AW_HARNESS_INITIAL_DELAY_MS: "0x10" });
       expect(config2.initialDelayMs).toBe(5000);
+    });
+
+    it("uses startup retry default and clamps overrides to [0..2]", () => {
+      expect(resolveStartupRetryLimit({})).toBe(1);
+      expect(resolveStartupRetryLimit({ GH_AW_CLAUDE_STARTUP_RETRIES: "2" })).toBe(2);
+      expect(resolveStartupRetryLimit({ GH_AW_CLAUDE_STARTUP_RETRIES: "-5" })).toBe(0);
+      expect(resolveStartupRetryLimit({ GH_AW_CLAUDE_STARTUP_RETRIES: "9" })).toBe(2);
+      expect(resolveStartupRetryLimit({ GH_AW_CLAUDE_STARTUP_RETRIES: "nope" })).toBe(1);
     });
   });
 

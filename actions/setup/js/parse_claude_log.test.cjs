@@ -441,7 +441,9 @@ describe("parse_claude_log.cjs", () => {
 
     it("should fail when Claude log has no structured entries", async () => {
       await runScript("this is not structured Claude JSON output");
-      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.`);
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        `${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. Claude startup failed before structured logging (exitCode=unknown). startup/configuration failure detected.`
+      );
     });
   });
 

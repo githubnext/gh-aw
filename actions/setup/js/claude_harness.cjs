@@ -100,6 +100,35 @@ function resolveRetryConfig(env = process.env, logger = log) {
 }
 
 /**
+ * Parse bounded startup retries for zero-output startup failures.
+ * Retries are always fresh runs (never --continue).
+ *
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {(message: string) => void} [logger]
+ * @returns {number}
+ */
+function resolveStartupRetryLimit(env = process.env, logger = log) {
+  const raw = env.GH_AW_CLAUDE_STARTUP_RETRIES;
+  if (raw == null || raw === "") {
+    return 1;
+  }
+  if (!/^[+-]?\d+$/.test(raw)) {
+    logger(`invalid GH_AW_CLAUDE_STARTUP_RETRIES='${raw}' (expected integer); using default startup retries=1`);
+    return 1;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) {
+    logger(`invalid GH_AW_CLAUDE_STARTUP_RETRIES='${raw}' (not finite); using default startup retries=1`);
+    return 1;
+  }
+  const clamped = Math.min(Math.max(parsed, 0), 2);
+  if (clamped !== parsed) {
+    logger(`GH_AW_CLAUDE_STARTUP_RETRIES=${parsed} out of range; clamped to ${clamped}`);
+  }
+  return clamped;
+}
+
+/**
  * Determines if the collected output contains an Anthropic overload error.
  * @param {string} output - Collected stdout+stderr from the process
  * @returns {boolean}
@@ -297,6 +326,7 @@ async function main() {
   const [, , command, ...args] = process.argv;
   const retryConfig = resolveRetryConfig(process.env, log);
   const { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs } = retryConfig;
+  const startupRetryLimit = resolveStartupRetryLimit(process.env, log);
 
   if (!command) {
     process.stderr.write("claude-harness: Usage: node claude_harness.cjs <command> [args...]\n");
@@ -347,6 +377,7 @@ async function main() {
   let lastExitCode = 1;
   let useContinueOnRetry = false;
   let continueDisabledPermanently = false;
+  let startupRetriesUsed = 0;
   const driverStartTime = Date.now();
   // Soft-timeout guard: polled at the top of the retry loop and after each backoff sleep.
   // It does not preempt a running attempt — if a single invocation runs past the soft
@@ -519,7 +550,18 @@ async function main() {
     if (attempt >= maxRetries) {
       log(`all ${maxRetries} retries exhausted — giving up (exitCode=${lastExitCode})`);
     } else {
-      log(`attempt ${attempt + 1}: no output produced — not retrying` + ` (possible causes: binary not found, permission denied, auth failure, or silent startup crash)`);
+      if (startupRetriesUsed < startupRetryLimit) {
+        startupRetriesUsed++;
+        useContinueOnRetry = false;
+        continueDisabledPermanently = true;
+        log(`attempt ${attempt + 1}: no output produced — retrying startup as fresh run ` + `(startup retry ${startupRetriesUsed}/${startupRetryLimit}, attempt ${attempt + 2}/${maxRetries + 1})`);
+        continue;
+      }
+      log(
+        `attempt ${attempt + 1}: no output produced — not retrying` +
+          ` (startup retry budget exhausted: ${startupRetriesUsed}/${startupRetryLimit};` +
+          ` possible causes: binary not found, permission denied, auth failure, or silent startup crash)`
+      );
     }
 
     break;
@@ -551,6 +593,7 @@ if (typeof module !== "undefined" && module.exports) {
     hasNoopInSafeOutputs,
     hasExpectedSafeOutputs,
     resolveRetryConfig,
+    resolveStartupRetryLimit,
   };
 }
 

@@ -71,7 +71,9 @@ describe("log_parser_bootstrap.cjs", () => {
             process.env.GH_AW_AGENT_OUTPUT = logFile;
             const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
             await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
-            expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.`);
+            expect(mockCore.setFailed).toHaveBeenCalledWith(
+              `${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. Claude startup failed before structured logging (exitCode=unknown). startup/configuration failure detected.`
+            );
           } finally {
             fs.unlinkSync(logFile);
             fs.rmdirSync(tmpDir);
@@ -237,7 +239,9 @@ describe("log_parser_bootstrap.cjs", () => {
             delete process.env.GH_AW_SAFE_OUTPUTS;
             const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
             await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
-            expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.`);
+            expect(mockCore.setFailed).toHaveBeenCalledWith(
+              `${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. Claude startup failed before structured logging (exitCode=unknown). startup/configuration failure detected.`
+            );
           } finally {
             fs.unlinkSync(logFile);
             fs.rmdirSync(tmpDir);
@@ -274,7 +278,28 @@ describe("log_parser_bootstrap.cjs", () => {
             delete process.env.GH_AW_SAFE_OUTPUTS;
             const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: null });
             await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
-            expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.`);
+            expect(mockCore.setFailed).toHaveBeenCalledWith(
+              `${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. Claude startup failed before structured logging (exitCode=unknown). startup/configuration failure detected.`
+            );
+          } finally {
+            fs.unlinkSync(logFile);
+            delete process.env.GH_AW_AGENT_OUTPUT;
+            fs.rmdirSync(tmpDir);
+          }
+        }),
+        it("should classify Claude empty-log startup rate-limit signatures as transient inference availability", async () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const logFile = path.join(tmpDir, "test.log");
+          try {
+            fs.writeFileSync(logFile, `[claude-harness] attempt 1 failed: exitCode=1 isRateLimitError=true hasOutput=false\n[claude-harness] done: exitCode=1\nAPI Error: Request rejected (429)`);
+            process.env.GH_AW_AGENT_OUTPUT = logFile;
+            delete process.env.GH_AW_SAFE_OUTPUTS;
+            const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
+            await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            expect(mockCore.setFailed).toHaveBeenCalledWith(
+              `${ERR_API}: Claude execution failed: no structured log entries were produced. Claude startup failed before structured logging (exitCode=1). transient inference availability signal detected.`
+            );
+            expect(mockCore.setOutput).toHaveBeenCalledWith("ai_credits_rate_limit_error", "true");
           } finally {
             fs.unlinkSync(logFile);
             delete process.env.GH_AW_AGENT_OUTPUT;
