@@ -91,6 +91,15 @@ func TestNewAddCommand_MentionsEnterpriseSourceResolution(t *testing.T) {
 	assert.Contains(t, cmd.Long, "Use full https://github.com/... source URLs for other public github.com workflows.")
 }
 
+func TestNewAddCommand_DeprecatesDisableSecurityScannerFlag(t *testing.T) {
+	cmd := NewAddCommand(validateEngineStub)
+	require.NotNil(t, cmd)
+
+	flag := cmd.Flags().Lookup("disable-security-scanner")
+	require.NotNil(t, flag, "add command should keep --disable-security-scanner as a deprecated alias")
+	assert.Equal(t, "use --no-security-scanner instead", flag.Deprecated)
+}
+
 func TestAddWorkflows(t *testing.T) {
 	tests := []struct {
 		name          string

@@ -101,7 +101,7 @@ func registerDeployFlags(cmd *cobra.Command) {
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
 	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
-	_ = cmd.Flags().MarkHidden("disable-security-scanner")
+	_ = cmd.Flags().MarkDeprecated("disable-security-scanner", "use --no-security-scanner instead")
 	cmd.Flags().String("cool-down", defaultDeployCooldown, coolDownFlagUsage)
 	cmd.Flags().String("org", "", "Deploy workflows across repositories in an organization")
 	cmd.Flags().StringSlice("repos", nil, "Limit --org mode to repositories matching one or more glob patterns")

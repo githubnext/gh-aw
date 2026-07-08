@@ -246,6 +246,8 @@ Action mode controls how gh-aw action scripts are referenced in compiled workflo
 Three flags govern this. --gh-aw-ref is mutually exclusive with the other two;
 --action-tag and --action-mode may be combined (e.g. --action-mode action --action-tag v1.2.3):
 
+Unlike 'upgrade', compilation only applies codemods when you opt in with --fix.
+
   --action-mode <mode>
     Explicit mode selection. Values:
       dev      Local paths (./actions/...). For developing inside the gh-aw repo.

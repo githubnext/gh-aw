@@ -193,10 +193,10 @@ func registerAddCommandFlags(cmd *cobra.Command) {
 	// Add stop-after flag to add command
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 
-	// Add no-security-scanner flag to add command (--disable-security-scanner is kept as an undocumented alias)
+	// Add no-security-scanner flag to add command (--disable-security-scanner is kept as a deprecated alias)
 	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
 	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
-	_ = cmd.Flags().MarkHidden("disable-security-scanner")
+	_ = cmd.Flags().MarkDeprecated("disable-security-scanner", "use --no-security-scanner instead")
 
 	// Register completions for add command
 	RegisterEngineFlagCompletion(cmd)

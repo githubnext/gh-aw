@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewTrialCommandCloneRepoFlagDescription(t *testing.T) {
@@ -43,6 +45,15 @@ func TestNewTrialCommandNoArgsErrorIncludesExample(t *testing.T) {
 	if !strings.Contains(err.Error(), "Example:") {
 		t.Fatalf("expected trial usage error to include an Example section, got: %s", err)
 	}
+}
+
+func TestNewTrialCommand_DeprecatesDisableSecurityScannerFlag(t *testing.T) {
+	cmd := NewTrialCommand(func(string) error { return nil })
+	require.NotNil(t, cmd)
+
+	flag := cmd.Flags().Lookup("disable-security-scanner")
+	require.NotNil(t, flag, "trial command should keep --disable-security-scanner as a deprecated alias")
+	assert.Equal(t, "use --no-security-scanner instead", flag.Deprecated)
 }
 
 // Test the host repo slug processing logic with dot notation
