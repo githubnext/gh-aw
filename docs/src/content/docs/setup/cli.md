@@ -419,7 +419,7 @@ Fast enumeration without GitHub API queries. For detailed status including enabl
 
 #### `status`
 
-List workflows with state, enabled/disabled status, and labels. With `--ref`, includes latest run status.
+List workflows with state, enabled/disabled status, and labels. With `--ref`, includes latest run status. Use `--json` to inspect the raw `on` data, including schedules.
 
 ```bash wrap
 gh aw status                                # All workflows
