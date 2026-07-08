@@ -18,6 +18,13 @@ const { hasIssueIntentsRuntimeFeature, normalizeIssueIntentMetadata } = require(
 const HANDLER_TYPE = "set_issue_field";
 
 /**
+ * Built-in issue fields that are REST properties, not custom project fields.
+ * These are handled via issues.update() instead of the GraphQL setIssueFieldValue mutation.
+ * @type {Set<string>}
+ */
+const BUILTIN_ISSUE_FIELDS = new Set(["body", "title"]);
+
+/**
  * Fetches the node ID of an issue for use in GraphQL mutations.
  * @param {Object} githubClient - Authenticated GitHub client
  * @param {string} owner - Repository owner
@@ -263,6 +270,37 @@ async function main(config = {}) {
           repo: itemRepo,
         },
       };
+    }
+
+    const fieldNameLower = fieldName.toLowerCase();
+
+    // Handle built-in issue properties (body, title) via REST API instead of the custom fields GraphQL API.
+    if (fieldName && BUILTIN_ISSUE_FIELDS.has(fieldNameLower)) {
+      try {
+        validateAllowedIssueFieldName(fieldName, allowedIssueFields);
+
+        const { owner, repo } = repoParts;
+        await githubClient.rest.issues.update({
+          owner,
+          repo,
+          issue_number: issueNumber,
+          [fieldNameLower]: value,
+        });
+
+        core.info(`Successfully set builtin issue field ${JSON.stringify(fieldName)} on issue #${issueNumber}`);
+
+        return {
+          success: true,
+          issue_number: issueNumber,
+          field_name: fieldName,
+          value,
+          repo: itemRepo,
+        };
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
+        core.error(`Failed to set builtin issue field ${JSON.stringify(fieldName)} on issue #${issueNumber}: ${errorMessage}`);
+        return { success: false, error: errorMessage };
+      }
     }
 
     try {
