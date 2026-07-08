@@ -44,8 +44,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/goccy/go-yaml"
 	"github.com/santhosh-tekuri/jsonschema/v6"
+	yamlv3 "gopkg.in/yaml.v3"
 )
 
 var schemaValidationLog = newValidationLogger("schema")
@@ -77,10 +77,11 @@ func getCompiledSchema() (*jsonschema.Schema, error) {
 func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 	schemaValidationLog.Print("Validating workflow YAML against GitHub Actions schema")
 
-	// Parse YAML directly into any type for schema validation
-	// The jsonschema library accepts any type directly, no JSON conversion needed
+	// Parse YAML into any type for schema validation.
+	// gopkg.in/yaml.v3 is used here for its lower allocation overhead vs goccy/go-yaml;
+	// both libraries produce compatible map[string]any representations.
 	var workflowData any
-	if err := yaml.Unmarshal([]byte(yamlContent), &workflowData); err != nil {
+	if err := yamlv3.Unmarshal([]byte(yamlContent), &workflowData); err != nil {
 		return fmt.Errorf("failed to parse YAML for schema validation: %w", err)
 	}
 

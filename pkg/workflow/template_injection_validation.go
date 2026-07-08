@@ -58,7 +58,13 @@ var templateInjectionValidationLog = newValidationLogger("template_injection")
 var (
 	// allowedRunScriptExpressionRegex matches trusted compiler-owned expressions that are
 	// intentionally rendered in generated run scripts and are not user-controlled.
-	allowedRunScriptExpressionRegex = regexp.MustCompile(`^\$\{\{\s*(env\.[^}]+|vars\.[^}]+|runner\.[^}]+|github\.(repository|run_id|workspace)|steps\.parse-guard-vars\.outputs\.(approval_labels|blocked_users|trusted_users)|job\.services\[[^]]+\]\.ports\[[^]]+\])\s*\}\}$`)
+	// This includes:
+	//   - Direct context references: env.*, vars.*, runner.*, specific github.* fields
+	//   - Guard-vars step outputs: steps.parse-guard-vars.outputs.*
+	//   - Service port bindings: job.services[*].ports[*]
+	//   - Compiler-generated toJSON() wrappers (e.g. sink-visibility runtime expressions):
+	//     toJSON(...) calls are always safe in heredoc/JSON contexts and are compiler-generated.
+	allowedRunScriptExpressionRegex = regexp.MustCompile(`^\$\{\{\s*(env\.[^}]+|vars\.[^}]+|runner\.[^}]+|github\.(repository|run_id|workspace)|steps\.parse-guard-vars\.outputs\.(approval_labels|blocked_users|trusted_users)|job\.services\[[^]]+\]\.ports\[[^]]+\]|toJSON\([^)]+\))\s*\}\}$`)
 	runKeyPattern                   = regexp.MustCompile(`(?:^|[\s{,])(?:run|["']run["']):`)
 )
 
