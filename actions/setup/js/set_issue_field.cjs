@@ -250,9 +250,10 @@ async function main(config = {}) {
     }
 
     if (fieldName && BUILTIN_ISSUE_FIELD_NAMES.has(fieldName.toLowerCase())) {
+      const stateHint = fieldName.toLowerCase() === "state" ? ' For open/closed status, use update_issue.status ("open" or "closed").' : "";
       return {
         success: false,
-        error: `Cannot set builtin issue field "${fieldName}" with set_issue_field. Use the update_issue tool instead.`,
+        error: `Cannot set builtin issue field "${fieldName}" with set_issue_field. Use the update_issue tool instead.${stateHint}`,
       };
     }
 

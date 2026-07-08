@@ -298,6 +298,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("update_issue");
     expect(result.error).toContain('"state"');
+    expect(result.error).toContain("update_issue.status");
   });
 
   it("should refuse builtin fields case-insensitively", async () => {
