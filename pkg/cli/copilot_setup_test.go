@@ -309,7 +309,7 @@ func TestCopilotSetupStepsYAMLConstant(t *testing.T) {
 			hasSecurePattern = true
 		}
 		// Ensure no direct curl|bash pipe on the same line (RGS-018 security issue)
-		for _, line := range strings.Split(step.Run, "\n") {
+		for line := range strings.SplitSeq(step.Run, "\n") {
 			if strings.Contains(line, "curl") && strings.Contains(line, "| bash") {
 				t.Errorf("Template must not use curl|bash direct pipe pattern on line %q (RGS-018 security issue)", line)
 			}
@@ -659,7 +659,7 @@ func TestEnsureCopilotSetupSteps_CreateWithDevMode(t *testing.T) {
 		t.Errorf("Did not expect checkout step in dev mode")
 	}
 	// Verify download-to-file pattern (not direct curl pipe)
-	for _, line := range strings.Split(contentStr, "\n") {
+	for line := range strings.SplitSeq(contentStr, "\n") {
 		if strings.Contains(line, "curl") && strings.Contains(line, "| bash") {
 			t.Errorf("Expected download-to-file pattern, not direct curl|bash pipe on line %q (RGS-018 security fix)", line)
 		}
