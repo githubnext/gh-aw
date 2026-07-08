@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -97,6 +98,15 @@ func (c *Compiler) buildPreActivationPermissions(data *WorkflowData, setupAction
 			perms = NewPermissions()
 		}
 		perms.Set(PermissionActions, PermissionRead)
+	}
+	// Auto-grant pull-requests: read when label_command uses decentralized strategy
+	// with pull_request events. The check_membership.cjs script calls the pulls API
+	// to verify PR provenance, which requires pull-requests: read.
+	if data.LabelCommandDecentralized && slices.Contains(FilterLabelCommandEvents(data.LabelCommandEvents), "pull_request") {
+		if perms == nil {
+			perms = NewPermissions()
+		}
+		perms.Set(PermissionPullRequests, PermissionRead)
 	}
 	// Merge on.permissions into the pre-activation job permissions.
 	// on.permissions lets users declare extra scopes required by their on.steps steps.
