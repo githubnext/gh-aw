@@ -285,12 +285,24 @@ async function main() {
 
   // Recursively scan and collect files from artifact directory
   let filesToCopy = [];
+  /** @type {Array<{path: string, reason: string}>} */
+  let filteredOutFiles = [];
 
-  // Log the file glob filter configuration
+  // Compile glob patterns once, outside the scan loop
+  /** @type {string[]} */
+  let patternStrs = [];
+  /** @type {RegExp[]} */
+  let compiledPatterns = [];
   if (fileGlobFilter) {
-    core.info(`File glob filter enabled: ${fileGlobFilter}`);
-    const patternCount = fileGlobFilter.trim().split(/\s+/).filter(Boolean).length;
-    core.info(`Number of patterns: ${patternCount}`);
+    patternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
+    // Slashless patterns (e.g. "*.json") are matched at the root of a single memory subfolder
+    // (depth 1 only).  Patterns that already contain "/" are matched against the full relative
+    // path unchanged.
+    compiledPatterns = patternStrs.map(pattern => globPatternToRegex(pattern, { matchSubfolderRoot: !pattern.includes("/") }));
+    core.info(`File glob filter enabled with ${patternStrs.length} pattern(s):`);
+    patternStrs.forEach((pat, idx) => {
+      core.info(`  [${idx + 1}] "${pat}" -> regex: ${compiledPatterns[idx].source}`);
+    });
   } else {
     core.info("No file glob filter - all files will be accepted");
   }
@@ -308,44 +320,24 @@ async function main() {
       const relativeFilePath = relativePath ? path.join(relativePath, entry.name) : entry.name;
 
       if (entry.isDirectory()) {
+        core.info(`  [dir]  ${relativeFilePath}/`);
         // Recursively scan subdirectory
         scanDirectory(fullPath, relativeFilePath);
       } else if (entry.isFile()) {
         const stats = fs.statSync(fullPath);
+        const normalizedRelPath = relativeFilePath.replace(/\\/g, "/");
 
         // Validate file name patterns if filter is set
-        if (fileGlobFilter) {
-          const patternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
-          // Slashless patterns (e.g. "*.json") are matched at the root of a single memory subfolder
-          // (depth 1 only).  Patterns that already contain "/" are matched against the full relative
-          // path unchanged.
-          const patterns = patternStrs.map(pattern => globPatternToRegex(pattern, { matchSubfolderRoot: !pattern.includes("/") }));
-
-          // Test patterns against the relative file path within the memory directory
-          // Patterns are specified relative to the memory artifact directory, not the branch path
-          const normalizedRelPath = relativeFilePath.replace(/\\/g, "/");
-
-          // Enhanced logging: Show what we're testing (use info for first file to aid debugging)
-          core.debug(`Testing file: ${normalizedRelPath}`);
-          core.debug(`File glob filter: ${fileGlobFilter}`);
-          core.debug(`Number of patterns: ${patterns.length}`);
-
-          const matchResults = patterns.map((pattern, idx) => {
+        if (compiledPatterns.length > 0) {
+          const matchResults = compiledPatterns.map((pattern, idx) => {
             const matches = pattern.test(normalizedRelPath);
-            core.debug(`  Pattern ${idx + 1}: "${patternStrs[idx]}" -> ${pattern.source} -> ${matches ? "✓ MATCH" : "✗ NO MATCH"}`);
+            core.info(`  [test] ${normalizedRelPath}  pattern[${idx + 1}] "${patternStrs[idx]}" -> ${matches ? "✓ match" : "✗ no match"}`);
             return matches;
           });
 
           if (!matchResults.some(m => m)) {
-            // Enhanced warning with more context about the filtering issue
-            core.warning(`Skipping file that does not match allowed patterns: ${normalizedRelPath}`);
-            core.info(`  File path being tested (relative to artifact): ${normalizedRelPath}`);
-            core.info(`  Configured patterns: ${fileGlobFilter}`);
-            patterns.forEach((pattern, idx) => {
-              core.info(`    Pattern: "${patternStrs[idx]}" -> Regex: ${pattern.source} -> ${matchResults[idx] ? "✅ MATCH" : "❌ NO MATCH"}`);
-            });
-            core.info(`  Note: Patterns are matched against the full relative file path from the artifact directory.`);
-            core.info(`  If patterns include directory prefixes (like 'branch-name/'), ensure files are organized that way in the artifact.`);
+            core.info(`  [skip] ${normalizedRelPath} (${stats.size} bytes) — no pattern matched`);
+            filteredOutFiles.push({ path: normalizedRelPath, reason: "no pattern matched" });
             // Skip this file instead of failing - it may be from a previous run with different patterns
             return;
           }
@@ -358,6 +350,7 @@ async function main() {
           throw new Error("File size validation failed");
         }
 
+        core.info(`  [keep] ${normalizedRelPath} (${stats.size} bytes)`);
         filesToCopy.push({
           relativePath: relativeFilePath,
           source: fullPath,
@@ -368,13 +361,18 @@ async function main() {
   }
 
   try {
+    core.info(`Scanning artifact directory: ${sourceMemoryPath}`);
     scanDirectory(sourceMemoryPath);
-    core.info(`Scan complete: Found ${filesToCopy.length} file(s) to copy`);
+    core.info(`Scan complete: ${filesToCopy.length} file(s) accepted, ${filteredOutFiles.length} file(s) filtered out`);
+    if (filteredOutFiles.length > 0) {
+      core.info(`Filtered-out files (${filteredOutFiles.length}):`);
+      filteredOutFiles.forEach(f => core.info(`  - ${f.path} (${f.reason})`));
+    }
     if (filesToCopy.length > 0 && filesToCopy.length <= 10) {
-      core.info("Files found:");
+      core.info("Accepted files:");
       filesToCopy.forEach(f => core.info(`  - ${f.relativePath} (${f.size} bytes)`));
     } else if (filesToCopy.length > 10) {
-      core.info(`First 10 files:`);
+      core.info(`Accepted files (first 10 of ${filesToCopy.length}):`);
       filesToCopy.slice(0, 10).forEach(f => core.info(`  - ${f.relativePath} (${f.size} bytes)`));
       core.info(`  ... and ${filesToCopy.length - 10} more`);
     }
