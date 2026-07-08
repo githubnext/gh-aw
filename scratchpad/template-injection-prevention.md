@@ -111,7 +111,7 @@ When writing GitHub Actions workflows:
    - ❌ `${{ steps.*.outputs.* }}` (step outputs may contain user data)
 
 2. **Use sanitized context instead:**
-   - ✅ `${{ needs.activation.outputs.text }}` (sanitized by gh-aw)
+   - ✅ `${{ steps.sanitized.outputs.text }}` (sanitized by gh-aw)
 
 3. **Pass data through environment variables:**
    ```yaml
