@@ -3,7 +3,6 @@
 package workflow
 
 import (
-	"path"
 	"strings"
 	"testing"
 
@@ -275,19 +274,19 @@ func TestGenerateFirewallLogParsingStepFixesFirewallPermissions(t *testing.T) {
 	step := generateFirewallLogParsingStep("test-workflow", nil)
 	stepContent := strings.Join(step, "\n")
 	expectedLogsDir := constants.AWFProxyLogsDir
-	expectedFirewallDir := path.Dir(expectedLogsDir)
 
 	if !strings.Contains(stepContent, "AWF_LOGS_DIR: "+expectedLogsDir) {
 		t.Error("Expected firewall log parsing step to keep AWF_LOGS_DIR set to logs directory")
 	}
 
-	if !strings.Contains(stepContent, "sudo chmod -R a+rX "+expectedFirewallDir+" 2>/dev/null || true") {
-		t.Error("Expected firewall log parsing step to chmod the parent firewall directory for logs and audit upload")
+	// Step should invoke the extracted script (not --rootless for non-network-isolation)
+	if !strings.Contains(stepContent, `bash "${RUNNER_TEMP}/gh-aw/actions/print_firewall_logs.sh"`) {
+		t.Error("Expected firewall log parsing step to invoke print_firewall_logs.sh")
 	}
 
-	// chown reclaims ownership back to the runner user so the next run can rm -rf /tmp/gh-aw without sudo
-	if !strings.Contains(stepContent, `sudo chown -R "$(id -u):$(id -g)" `+expectedFirewallDir) {
-		t.Error("Expected firewall log parsing step to chown the firewall directory back to runner user to prevent EACCES on reused runners")
+	// Default (non-network-isolation) mode must NOT pass --rootless
+	if strings.Contains(stepContent, "--rootless") {
+		t.Error("Expected firewall log parsing step to not pass --rootless when network isolation is disabled")
 	}
 }
 
@@ -304,23 +303,9 @@ func TestGenerateFirewallLogParsingStepNetworkIsolationOmitsSudo(t *testing.T) {
 	step := generateFirewallLogParsingStep("test-workflow", workflowData)
 	stepContent := strings.Join(step, "\n")
 
-	if strings.Contains(stepContent, "sudo chmod") {
-		t.Error("Expected firewall log parsing step to use non-sudo chmod when network isolation is enabled")
-	}
-
-	// Should contain best-effort non-sudo chmod for artifact upload
-	if !strings.Contains(stepContent, "chmod -R a+rX") {
-		t.Error("Expected firewall log parsing step to contain best-effort chmod for artifact upload even in network-isolation mode")
-	}
-
-	// Should contain best-effort sudo -n chown (non-interactive sudo) to reclaim ownership for next run
-	if !strings.Contains(stepContent, `sudo -n chown -R "$(id -u):$(id -g)"`) {
-		t.Error("Expected firewall log parsing step to contain best-effort chown to reclaim ownership for next-run cleanup")
-	}
-
-	// Should still contain the awf logs summary logic
-	if !strings.Contains(stepContent, "awf logs summary") {
-		t.Error("Expected firewall log parsing step to contain awf logs summary")
+	// Step should invoke the extracted script with --rootless for network-isolation mode
+	if !strings.Contains(stepContent, `bash "${RUNNER_TEMP}/gh-aw/actions/print_firewall_logs.sh" --rootless`) {
+		t.Error("Expected firewall log parsing step to invoke print_firewall_logs.sh --rootless in network-isolation mode")
 	}
 }
 
@@ -337,13 +322,11 @@ func TestGenerateFirewallLogParsingStepWithNetworkIsolationFalse(t *testing.T) {
 	step := generateFirewallLogParsingStep("test-workflow", workflowData)
 	stepContent := strings.Join(step, "\n")
 
-	// With NetworkIsolation explicitly false, should still use sudo chmod
-	if !strings.Contains(stepContent, "sudo chmod -R a+rX") {
-		t.Error("Expected sudo chmod when NetworkIsolation is explicitly false")
+	// With NetworkIsolation explicitly false, should invoke script without --rootless
+	if !strings.Contains(stepContent, `bash "${RUNNER_TEMP}/gh-aw/actions/print_firewall_logs.sh"`) {
+		t.Error("Expected firewall log parsing step to invoke print_firewall_logs.sh when NetworkIsolation is explicitly false")
 	}
-
-	// And sudo chown to reclaim ownership for next run
-	if !strings.Contains(stepContent, `sudo chown -R "$(id -u):$(id -g)"`) {
-		t.Error("Expected sudo chown to reclaim ownership when NetworkIsolation is explicitly false")
+	if strings.Contains(stepContent, "--rootless") {
+		t.Error("Expected no --rootless flag when NetworkIsolation is explicitly false")
 	}
 }
