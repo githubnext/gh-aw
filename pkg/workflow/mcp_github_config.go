@@ -448,8 +448,10 @@ func mcpgSupportsIntegrityReactions(gatewayConfig *MCPGatewayRuntimeConfig) bool
 //   - repos=["O/R"]: accept=["private:O/R"] (specific repo → keep as-is)
 //
 // This allows the gateway to read data from the GitHub MCP server and still write to safeoutputs.
+// When sinkVisibility is known at compile time, it is emitted as sink-visibility so the write-sink
+// guard can enforce public/private/internal semantics without relying on runtime detection.
 // Returns nil if no GitHub guard policies are configured.
-func deriveSafeOutputsGuardPolicyFromGitHub(githubTool map[string]any) map[string]any {
+func deriveSafeOutputsGuardPolicyFromGitHub(githubTool map[string]any, sinkVisibility string) map[string]any {
 	githubPolicies := getGitHubGuardPolicies(githubTool)
 	if githubPolicies == nil {
 		return nil
@@ -501,11 +503,16 @@ func deriveSafeOutputsGuardPolicyFromGitHub(githubTool map[string]any) map[strin
 		return nil
 	}
 
+	writeSink := map[string]any{
+		"accept": acceptList,
+	}
+	if sinkVisibility != "" {
+		writeSink["sink-visibility"] = sinkVisibility
+	}
+
 	// Build the write-sink policy for safeoutputs
 	return map[string]any{
-		"write-sink": map[string]any{
-			"accept": acceptList,
-		},
+		"write-sink": writeSink,
 	}
 }
 
@@ -548,9 +555,10 @@ func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[stri
 	}
 
 	toolConfig, _ := rawGithubTool.(map[string]any)
+	sinkVisibility := workflowData.RepositoryVisibility
 
 	// Try to derive from explicit guard policy first
-	policy := deriveSafeOutputsGuardPolicyFromGitHub(toolConfig)
+	policy := deriveSafeOutputsGuardPolicyFromGitHub(toolConfig, sinkVisibility)
 	if policy != nil {
 		return policy
 	}
@@ -559,10 +567,14 @@ func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[stri
 	// (GitHub tool present and not disabled, no GitHub App configured), return accept=["*"]
 	// because automatic lockdown always sets repos=all at runtime.
 	if rawGithubTool != false && len(getGitHubGuardPolicies(toolConfig)) == 0 && !hasGitHubApp(toolConfig) {
+		writeSink := map[string]any{
+			"accept": []string{"*"},
+		}
+		if sinkVisibility != "" {
+			writeSink["sink-visibility"] = sinkVisibility
+		}
 		return map[string]any{
-			"write-sink": map[string]any{
-				"accept": []string{"*"},
-			},
+			"write-sink": writeSink,
 		}
 	}
 

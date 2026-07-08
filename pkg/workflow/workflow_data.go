@@ -38,6 +38,7 @@ type WorkflowData struct {
 	WorkflowID                     string           // workflow identifier derived from markdown filename (basename without extension)
 	TrialMode                      bool             // whether the workflow is running in trial mode
 	TrialLogicalRepo               string           // target repository slug for trial mode (owner/repo)
+	RepositoryVisibility           string           // repository visibility for the workflow target repo: public, private, or internal
 	UseSamples                     bool             // whether the agentic step should be replaced by a deterministic samples replay driver (hidden feature)
 	FrontmatterName                string           // name field from frontmatter (for code scanning alert driver default)
 	FrontmatterEmoji               string           // emoji field from frontmatter (for display in footers and UI)
