@@ -505,7 +505,7 @@ func deriveSafeOutputsGuardPolicyFromGitHub(githubTool map[string]any) map[strin
 
 	writeSink := map[string]any{
 		"accept":          acceptList,
-		"sink-visibility": guardExprSentinel + "${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}",
+		"sink-visibility": sinkVisibilityRuntimeExpr,
 	}
 
 	// Build the write-sink policy for safeoutputs
@@ -569,7 +569,7 @@ func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[stri
 		return map[string]any{
 			"write-sink": map[string]any{
 				"accept":          []string{"*"},
-				"sink-visibility": guardExprSentinel + "${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}",
+				"sink-visibility": sinkVisibilityRuntimeExpr,
 			},
 		}
 	}

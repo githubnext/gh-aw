@@ -47,7 +47,7 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	configuredRepos := ""
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if v, exists := toolConfig["min-integrity"]; exists {
-			configuredMinIntegrity = fmt.Sprintf("%v", v)
+			configuredMinIntegrity = serializeEnvStringValue(v)
 		}
 		// Support both 'allowed-repos' (preferred) and deprecated 'repos'
 		if v, exists := toolConfig["allowed-repos"]; exists {
@@ -65,7 +65,7 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	yaml.WriteString("          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}\n")
 	yaml.WriteString("          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}\n")
 	if configuredMinIntegrity != "" {
-		fmt.Fprintf(yaml, "          GH_AW_GITHUB_MIN_INTEGRITY: %s\n", configuredMinIntegrity)
+		fmt.Fprintf(yaml, "          GH_AW_GITHUB_MIN_INTEGRITY: %s\n", quoteYAMLEnvValue(configuredMinIntegrity))
 	}
 	if configuredRepos != "" {
 		fmt.Fprintf(yaml, "          GH_AW_GITHUB_REPOS: %s\n", quoteYAMLEnvValue(configuredRepos))
@@ -84,7 +84,7 @@ func serializeEnvStringValue(v any) string {
 	case string:
 		return val
 	default:
-		encoded, err := json.Marshal(val)
+		encoded, err := json.Marshal(v)
 		if err != nil {
 			return fmt.Sprintf("%v", v)
 		}

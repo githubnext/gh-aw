@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// sinkVisibilityExpr is the runtime expression emitted for sink-visibility in guard policies.
-const sinkVisibilityExpr = guardExprSentinel + "${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}"
+// sinkVisibilityExpr aliases the production runtime expression emitted for sink-visibility in guard policies.
+const sinkVisibilityExpr = sinkVisibilityRuntimeExpr
 
 // TestDeriveSafeOutputsGuardPolicyFromGitHub tests the guard-policy linking logic
 // that generates safeoutputs guard-policies from GitHub guard-policies
