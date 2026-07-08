@@ -3,10 +3,13 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 // buildDetectionJob creates a separate detection job that runs after the agent job.
@@ -78,20 +81,38 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.EngineConfig != nil {
 		detectionEngineConfig = data.SafeOutputs.ThreatDetection.EngineConfig
 	}
-	if detectionEngineConfig != nil && len(detectionEngineConfig.Env) > 0 && len(data.Jobs) > 0 {
+	if detectionEngineConfig != nil && len(detectionEngineConfig.Env) > 0 {
 		var engineEnvBuilder strings.Builder
 		for _, envValue := range detectionEngineConfig.Env {
 			engineEnvBuilder.WriteByte('\n')
 			engineEnvBuilder.WriteString(envValue)
 		}
-		engineEnvJobs := c.getReferencedCustomJobs(engineEnvBuilder.String(), data.Jobs)
-		for _, jobName := range engineEnvJobs {
-			if isBuiltinJobName(jobName) {
+		engineEnvContent := engineEnvBuilder.String()
+		if len(data.Jobs) > 0 {
+			engineEnvJobs := c.getReferencedCustomJobs(engineEnvContent, data.Jobs)
+			for _, jobName := range engineEnvJobs {
+				if isBuiltinJobName(jobName) {
+					continue
+				}
+				if !slices.Contains(needs, jobName) {
+					needs = append(needs, jobName)
+					threatLog.Printf("Added custom job '%s' to detection needs because it's referenced in engine.env", jobName)
+				}
+			}
+		}
+		for _, builtinJobName := range sliceutil.SortedKeys(constants.KnownBuiltInJobNames) {
+			if slices.Contains(needs, builtinJobName) {
 				continue
 			}
-			if !slices.Contains(needs, jobName) {
-				needs = append(needs, jobName)
-				threatLog.Printf("Added custom job '%s' to detection needs because it's referenced in engine.env", jobName)
+			if strings.Contains(engineEnvContent, fmt.Sprintf("needs.%s.", builtinJobName)) {
+				warningMsg := fmt.Sprintf(
+					"engine.env references built-in job '%s' in a detection-job needs expression. "+
+						"Built-in jobs are managed by the compiler and cannot be added as direct detection dependencies; "+
+						"this expression will silently evaluate to an empty string at runtime.",
+					builtinJobName,
+				)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+				c.IncrementWarningCount()
 			}
 		}
 	}

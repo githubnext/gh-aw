@@ -4072,6 +4072,41 @@ func TestBuildMainJobEngineEnvActivationNoFalseWarning(t *testing.T) {
 		"no warning should be emitted for activation which is already a direct agent dependency")
 }
 
+// TestBuildDetectionJobEngineEnvBuiltinWarning verifies that detection-job engine.env
+// references to built-in jobs that are not direct detection dependencies emit a compiler warning.
+func TestBuildDetectionJobEngineEnvBuiltinWarning(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	workflowData := &WorkflowData{
+		Name:        "Test Workflow",
+		AI:          "copilot",
+		RunsOn:      "runs-on: ubuntu-latest",
+		Permissions: "permissions:\n  contents: read",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						"INVALID": "${{ needs.safe_outputs.outputs.anything }}",
+					},
+				},
+			},
+			Jobs: map[string]*SafeJobConfig{"create-issue": {}},
+		},
+	}
+
+	initialWarnings := compiler.GetWarningCount()
+	_, err := compiler.buildDetectionJob(workflowData)
+	require.NoError(t, err, "buildDetectionJob should succeed")
+
+	assert.Equal(t, initialWarnings+1, compiler.GetWarningCount(),
+		"built-in jobs that cannot become direct detection dependencies should emit a warning")
+}
+
 // TestBuildDetectionJobEngineEnvNeedsExpression verifies that the detection job scans the
 // effective detection engine env, so safe-outputs.threat-detection.engine overrides the
 // top-level engine env when resolving custom job dependencies.
