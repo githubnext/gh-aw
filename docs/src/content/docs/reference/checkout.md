@@ -51,6 +51,8 @@ checkout:
 | `path` | string | Path within `GITHUB_WORKSPACE` to place the checkout. Defaults to workspace root. |
 | `github-token` | string | Token for authentication. Use `${{ secrets.MY_TOKEN }}` syntax. |
 | `github-app` | object | GitHub App credentials (`client-id` or `app-id` (deprecated), `private-key`, optional `owner`, `repositories`). Mutually exclusive with `github-token`. `app` is a deprecated alias for the field name. Run `gh aw fix` to auto-migrate `app-id` to `client-id`. |
+| `safe-output-github-token` | string | Optional safe_outputs-only token override for this checkout target (used by safe-output handlers and checkout-manifest generation paths). Does not change agent/activation checkout auth. Mutually exclusive with `safe-output-github-app`. |
+| `safe-output-github-app` | object | Optional safe_outputs-only GitHub App credentials for this checkout target (`client-id` or `app-id` (deprecated), `private-key`, optional `owner`, `repositories`). Does not change agent/activation checkout auth. Mutually exclusive with `safe-output-github-token`. |
 | `fetch-depth` | integer | Commits to fetch. `0` = full history, `1` = shallow clone (default). |
 | `fetch` | string \| string[] | Additional Git refs to fetch after checkout. See [Fetching Additional Refs](#fetching-additional-refs). |
 | `sparse-checkout` | string | Newline-separated patterns for sparse checkout (e.g., `.github/\nsrc/`). |
