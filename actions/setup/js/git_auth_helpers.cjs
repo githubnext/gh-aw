@@ -63,12 +63,15 @@ async function overridePersistedExtraheader(serverUrl, token) {
   let previousValues;
   try {
     previousValues = await getExtraheaderValues(normalizedUrl);
+    core.info(`git_auth_helpers: read ${previousValues.length} existing extraheader value(s) for ${normalizedUrl}`);
   } catch (err) {
     core.warning(`git_auth_helpers: could not read existing extraheader — previous values will not be restored: ${err.message}`);
     previousValues = [];
   }
+  core.info(`git_auth_helpers: overriding http.${normalizedUrl}/.extraheader with CI trigger token`);
   const tokenBase64 = Buffer.from(`x-access-token:${token.trim()}`).toString("base64");
   await exec.exec("git", ["config", "--replace-all", `http.${normalizedUrl}/.extraheader`, `Authorization: basic ${tokenBase64}`], { silent: true });
+  core.info(`git_auth_helpers: extraheader override applied`);
   return previousValues;
 }
 
@@ -82,6 +85,7 @@ async function overridePersistedExtraheader(serverUrl, token) {
 async function restorePersistedExtraheader(serverUrl, previousValues) {
   const key = `http.${normalizeServerUrl(serverUrl)}/.extraheader`;
   if (!previousValues || previousValues.length === 0) {
+    core.info(`git_auth_helpers: no previous extraheader values — unsetting ${key}`);
     try {
       await exec.exec("git", ["config", "--unset-all", key]);
     } catch {
@@ -90,6 +94,7 @@ async function restorePersistedExtraheader(serverUrl, previousValues) {
     return;
   }
 
+  core.info(`git_auth_helpers: restoring ${previousValues.length} previous extraheader value(s) for ${key}`);
   // --replace-all removes any existing values for the key (including the CI-token
   // entry) and writes previousValues[0]. Subsequent --add calls stack the remaining
   // previous values onto the same key without removing any already written.
@@ -97,6 +102,7 @@ async function restorePersistedExtraheader(serverUrl, previousValues) {
   for (const value of previousValues.slice(1)) {
     await exec.exec("git", ["config", "--add", key, value]);
   }
+  core.info(`git_auth_helpers: extraheader restored`);
 }
 
 module.exports = {

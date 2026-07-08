@@ -154,11 +154,14 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
     // git config before throwing.
     let previousExtraheaders = [];
     try {
+      core.info(`Overriding git extraheader for CI trigger push to ${repoOwner}/${repoName} on branch ${branchName}`);
       previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, token);
 
       // Add a temporary remote with the tokenless URL.
+      core.info(`Setting up temporary ci-trigger remote: ${remoteUrl}`);
       try {
         await exec.exec("git", ["remote", "remove", "ci-trigger"]);
+        core.info("Removed pre-existing ci-trigger remote");
       } catch {
         // Remote doesn't exist yet, that's fine
       }
@@ -170,8 +173,10 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
       // then has a different SHA than the local branch tip. Without this sync, git
       // would reject the subsequent push as non-fast-forward.
       try {
+        core.info(`Fetching and syncing with remote branch ${branchName}`);
         await exec.exec("git", ["fetch", "ci-trigger", branchName]);
         await exec.exec("git", ["reset", "--hard", `ci-trigger/${branchName}`]);
+        core.info(`Synced local branch with remote ${branchName}`);
       } catch (error) {
         // Non-fatal: if fetch/reset fails (e.g. branch not yet on remote), continue
         // with the local HEAD and attempt the push anyway.
@@ -191,11 +196,13 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
       // Clean up the temporary remote and restore previous checkout auth state.
       try {
         await exec.exec("git", ["remote", "remove", "ci-trigger"]);
+        core.info("Removed ci-trigger remote");
       } catch {
         // Non-fatal cleanup error
       }
 
       try {
+        core.info("Restoring previous git auth configuration");
         await restorePersistedExtraheader(githubServerUrl, previousExtraheaders);
       } catch (restoreError) {
         core.warning(`Failed to restore git auth configuration after CI trigger push: ${getErrorMessage(restoreError)}`);
