@@ -1,124 +1,102 @@
 {
-  "run_date": "2026-07-08T07:03:16Z",
-  "run_id": "28924016278",
-  "prior_run_id": "28909358158",
+  "run_date": "2026-07-08T12:47:18Z",
+  "run_id": "28943607052",
+  "prior_run_id": "28924016278",
   "summary": {
-    "total": 11,
-    "new": 11,
-    "carry_over": 0,
-    "auto_merge": 0,
-    "fast_track": 5,
-    "batch_review": 3,
-    "defer": 2,
+    "total": 9,
+    "new": 6,
+    "carry_over": 3,
+    "auto_merge": 1,
+    "fast_track": 3,
+    "batch_review": 0,
+    "defer": 3,
     "close": 0,
-    "drafts": 3,
-    "prior_merged": 13,
-    "prior_closed": 2
+    "drafts": 4,
+    "prior_merged": 7,
+    "prior_closed": 1
   },
   "prs": [
     {
-      "number": 44225, "title": "Add formal checkout behavior specification for agent and safe_outputs jobs",
-      "category": "docs", "risk": "low", "score": 22, "action": "defer",
-      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
-      "ci": "none", "additions": 936, "deletions": 924, "changed_files": 196,
-      "note": "Draft. Pure docs spec. No code logic changes."
+      "number": 44254, "title": "fix: reduce post-completion idle watchdog and add cleanup timeouts to prevent Copilot CLI hang on exit",
+      "category": "bug", "risk": "medium", "score": 74, "action": "fast_track",
+      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "unknown", "additions": 175, "deletions": 482, "changed_files": null,
+      "note": "High urgency — every successful run marked failed. AI reviewer approved."
     },
     {
-      "number": 44224, "title": "Cache checkout repository visibility during compile",
-      "category": "chore", "risk": "low", "score": 62, "action": "fast_track",
+      "number": 44283, "title": "fix: expose erl in AWF sandbox when using runtimes.elixir",
+      "category": "bug", "risk": "medium", "score": 62, "action": "fast_track",
       "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "pending", "additions": 784, "deletions": 924, "changed_files": 197,
-      "note": "Compiler-local cache for visibility lookups. Approved by CI bots. Await CI green."
+      "ci": "unknown", "additions": 607, "deletions": 995, "changed_files": null,
+      "note": "Elixir workflows fully broken. AI reviewer approved."
+    },
+    {
+      "number": 44282, "title": "Compiler: auto-grant pull-requests:read to pre_activation for decentralized label_command on pull_request events",
+      "category": "bug", "risk": "medium", "score": 60, "action": "fast_track",
+      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "additions": 51, "deletions": 478, "changed_files": null,
+      "note": "DRAFT. Silent job-skip bug. Needs undraft and CI."
+    },
+    {
+      "number": 44277, "title": "Add unit tests for StripANSI in pkg/stringutil",
+      "category": "test", "risk": "low", "score": 32, "action": "auto_merge",
+      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
+      "ci": "unknown", "additions": 187, "deletions": 17, "changed_files": null,
+      "note": "Pure test addition. AI reviewer approved. Auto-merge when CI passes."
+    },
+    {
+      "number": 44276, "title": "fix: reclaim root-owned sandbox firewall dirs to prevent EACCES on reused runners",
+      "category": "bug", "risk": "medium", "score": 45, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "additions": 1124, "deletions": 751, "changed_files": null,
+      "note": "DRAFT. Infra-touching fix. Lower urgency."
+    },
+    {
+      "number": 44288, "title": "add smoke-copilot-small workflow to validate model: small alias resolution",
+      "category": "test", "risk": "low", "score": 38, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
+      "ci": "none", "additions": 1841, "deletions": 482, "changed_files": null,
+      "note": "DRAFT. Surfacing unfixed issue. Defer until alias resolution confirmed."
     },
     {
       "number": 44215, "title": "Fix repo-memory glob matching for nested memory files",
       "category": "bug", "risk": "medium", "score": 65, "action": "fast_track",
-      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "pending", "additions": 932, "deletions": 664, "changed_files": 194,
-      "note": "Silent data loss — nested files skipped on persist. Regression tests added."
-    },
-    {
-      "number": 44214, "title": "Restore comment-memory config for deterministic memory-read jobs",
-      "category": "bug", "risk": "medium", "score": 48, "action": "defer",
-      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
-      "ci": "none", "additions": 705, "deletions": 938, "changed_files": 200,
-      "note": "Draft. Deterministic path memory-restore fix. Needs CI and undraft."
-    },
-    {
-      "number": 44208, "title": "fix(writebytestring): emit string() cast for named string types; add RunWithSuggestedFixes",
-      "category": "bug", "risk": "low", "score": 55, "action": "batch_review",
-      "batch": "pr-batch:linter-fixes", "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "failing", "additions": 103, "deletions": 12, "changed_files": 6,
-      "note": "Fixes non-compiling linter suggested fix for named string types. CI failing."
-    },
-    {
-      "number": 44207, "title": "fix: switch AI Moderator engine from codex to copilot",
-      "category": "bug", "risk": "medium", "score": 72, "action": "fast_track",
-      "batch": null, "draft": true, "carry_over": false, "carry_over_count": 0,
-      "ci": "none", "additions": 99, "deletions": 138, "changed_files": 4,
-      "note": "URGENT DRAFT: AI Moderator 100% broken. Trivial 1-line fix. Undraft immediately."
-    },
-    {
-      "number": 44204, "title": "feat: detect OAuth tokens in activation job for COPILOT_GITHUB_TOKEN and GH_AW_GITHUB_TOKEN",
-      "category": "feature", "risk": "high", "score": 75, "action": "fast_track",
-      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "none", "additions": 3061, "deletions": 1067, "changed_files": 273,
-      "note": "Security-adjacent. Detects OAuth tokens unsuitable for automation. CHANGES_REQUESTED."
-    },
-    {
-      "number": 44202, "title": "fix: detection job missing engine.env job dependencies in needs list",
-      "category": "bug", "risk": "medium", "score": 68, "action": "fast_track",
-      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "none", "additions": 992, "deletions": 924, "changed_files": 197,
-      "note": "Runtime bug: engine.env needs.*.outputs.* resolved to empty string in detection job."
+      "batch": null, "draft": false, "carry_over": true, "carry_over_count": 1,
+      "ci": "unknown", "additions": 932, "deletions": 664, "changed_files": 194,
+      "note": "Carry-over. Still open. Awaiting CI and review."
     },
     {
       "number": 44180, "title": "Ensure extra-empty-commit CI trigger push authenticates as CI token",
       "category": "bug", "risk": "high", "score": 78, "action": "fast_track",
-      "batch": null, "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "pending", "additions": 216, "deletions": 73, "changed_files": 6,
-      "note": "Auth correctness — wrong credentials used for CI trigger push. CHANGES_REQUESTED."
+      "batch": null, "draft": false, "carry_over": true, "carry_over_count": 1,
+      "ci": "unknown", "additions": 216, "deletions": 73, "changed_files": 6,
+      "note": "Carry-over. Auth correctness. Still open. CHANGES_REQUESTED."
     },
     {
-      "number": 44179, "title": "Refactor `getOrCreateListRepoClone` into focused helpers in parser remote file listing",
-      "category": "refactor", "risk": "low", "score": 32, "action": "batch_review",
-      "batch": "pr-batch:code-quality", "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "pending", "additions": 880, "deletions": 966, "changed_files": 196,
-      "note": "Function-length lint fix. Behavior-preserving. Batch with #44149."
-    },
-    {
-      "number": 44149, "title": "refactor(workflow): rename same-name/different-semantics helpers to eliminate navigation confusion",
-      "category": "refactor", "risk": "low", "score": 32, "action": "batch_review",
-      "batch": "pr-batch:code-quality", "draft": false, "carry_over": false, "carry_over_count": 0,
-      "ci": "pending", "additions": 684, "deletions": 952, "changed_files": 202,
-      "note": "Pure identifier renames. Batch with #44179. CHANGES_REQUESTED."
+      "number": 44225, "title": "Add formal checkout behavior specification for agent and safe_outputs jobs",
+      "category": "docs", "risk": "low", "score": 22, "action": "defer",
+      "batch": null, "draft": true, "carry_over": true, "carry_over_count": 1,
+      "ci": "none", "additions": 936, "deletions": 924, "changed_files": 196,
+      "note": "Carry-over. Pure docs spec, draft."
     }
   ],
   "resolved_since_last_run": [
-    {"number": 44134, "resolution": "merged"},
-    {"number": 44114, "resolution": "merged"},
-    {"number": 44113, "resolution": "merged"},
-    {"number": 44101, "resolution": "merged"},
-    {"number": 44097, "resolution": "merged"},
-    {"number": 44096, "resolution": "closed"},
-    {"number": 44090, "resolution": "merged"},
-    {"number": 44081, "resolution": "closed"},
-    {"number": 44051, "resolution": "merged"},
-    {"number": 44050, "resolution": "merged"},
-    {"number": 44037, "resolution": "merged"},
-    {"number": 44015, "resolution": "merged"},
-    {"number": 44008, "resolution": "merged"},
-    {"number": 43716, "resolution": "merged"},
-    {"number": 43700, "resolution": "merged"}
+    {"number": 44224, "resolution": "closed"},
+    {"number": 44214, "resolution": "merged"},
+    {"number": 44208, "resolution": "merged"},
+    {"number": 44207, "resolution": "closed"},
+    {"number": 44204, "resolution": "merged"},
+    {"number": 44202, "resolution": "merged"},
+    {"number": 44179, "resolution": "merged"},
+    {"number": 44149, "resolution": "merged"}
   ],
-  "batches": [
-    {"id": "pr-batch:code-quality", "prs": [44179, 44149], "note": "Behavior-preserving refactors. Review together after CI passes."},
-    {"id": "pr-batch:linter-fixes", "prs": [44208], "note": "CI failing — investigate before review."}
-  ],
+  "batches": [],
   "flags": [
-    "URGENT DRAFT: #44207 — AI Moderator 100% broken (codex 404). Undraft and merge immediately.",
-    "CI FAILING: #44208 — investigate before batch review.",
-    "CHANGES_REQUESTED: #44180, #44204, #44149 — resolve CRs before merge.",
-    "LARGE PR: #44204 (+3061/-1067 over 273 files) — may include lock file regeneration."
+    "HIGH URGENCY: #44254 — Copilot CLI hangs, every run marked failed. Fast-track.",
+    "RUNTIME BROKEN: #44283 — Elixir AWF workflows fully broken (erl missing from PATH). Fast-track.",
+    "DRAFT NEEDS UNDRAFT: #44282 — silent job-skip bug for decentralized label_command.",
+    "AUTO_MERGE CANDIDATE: #44277 — pure test addition, no code changes.",
+    "CARRY-OVER STALE: #44180 — CHANGES_REQUESTED, been open 2 runs.",
+    "CARRY-OVER STALE: #44215 — been open 2 runs, fast-track candidate."
   ]
 }
