@@ -140,14 +140,12 @@ Activation token precedence MUST be:
 
 ### 4.3 safe_outputs PR Checkout Token
 
+`safe-outputs.github-app` and `safe-outputs.github-token` MUST NOT be used as checkout tokens in the safe_outputs job. They govern safe_outputs operations (PR creation, push) only. Using a safe_outputs-scoped app token for checkout is unsafe when that token is scoped to a target organization that differs from the workflow repository's organization.
+
 `resolvePRCheckoutToken` precedence MUST be:
 
 1. Checkout target `safe-output-github-app` minted token (with fallback chain when `ignore-if-missing: true`)
-2. `safe-outputs.create-pull-request.github-token`
-3. `safe-outputs.push-to-pull-request-branch.github-token`
-4. `safe-outputs.github-app` minted token (with fallback chain when `ignore-if-missing: true`)
-5. `safe-outputs.github-token`
-6. `${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`
+2. `${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`
 
 When safe_outputs checkout retention is enabled, checkouts without explicit entry tokens MUST persist the resolved PR checkout token so local git credentials match push/fetch token usage.
 
@@ -239,7 +237,7 @@ Effective side-repo token precedence MUST be:
 - **T-CHK-009**: Side-repo target extraction and auth precedence
 - **T-CHK-010**: `force-clean-git-credentials` cleanup covers `.git/modules/**/config`
 - **T-CHK-011**: `checkout.safe-output-github-app` is the sole supported safe_outputs auth override per checkout entry
-- **T-CHK-012**: safe_outputs token precedence applies checkout-level `safe-output-github-app` override first
+- **T-CHK-012**: safe_outputs checkout token MUST NOT use `safe-outputs.github-app` or `safe-outputs.github-token`; only `safe-output-github-app` (per entry) or `GITHUB_TOKEN` are permitted
 - **T-CHK-013**: Checkout-manifest generation includes safe_outputs auth metadata without persisting resolved tokens
 
 ### 7.2 Compliance Checklist
