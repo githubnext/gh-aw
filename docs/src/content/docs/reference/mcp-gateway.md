@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.14.0  
+**Version**: 1.15.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -254,6 +254,8 @@ The `gateway` section is required and configures gateway-specific behavior:
 | `keepaliveInterval` | integer | No | Keepalive ping interval in seconds for HTTP MCP backends. Prevents session expiry during long-running tasks. Use `-1` to disable, `0` or unset for gateway default (1500s = 25 min), or a positive integer for a custom interval. |
 | `sessionTimeout` | string | No | Session timeout for MCP gateway sessions as a Go duration string (e.g. `"30m"`, `"4h"`, `"24h"`). Empty or omitted uses the gateway default (6h). Must be at least 5m when set by the workflow compiler (no upper bound; infrastructure operators may override via `MCP_GATEWAY_SESSION_TIMEOUT` env var). |
 | `opentelemetry` | object | No | OpenTelemetry configuration for emitting distributed tracing events for MCP calls. See Section 4.1.3.7 for details. |
+| `forcePublicRepos` | boolean | No | When `true` (default), forces the allow-only policy to `repos="public"` at runtime if the gateway detects it is running in a public repository. When `false`, disables this override — set by the compiler when `private-to-public-flows: allow` is declared in workflow frontmatter. See Section 4.1.3.8 for details. |
+| `sinkVisibilityExemptServers` | array[string] | No | List of server IDs exempt from the default `sink-visibility="public"` enforcement. Use `["*"]` to exempt all servers. Set by the compiler when `private-to-public-flows` lists specific server IDs in workflow frontmatter. See Section 10.9 for details. |
 
 #### 4.1.3.1 Payload Directory Path Validation
 
@@ -555,6 +557,40 @@ The gateway MUST NOT fail to start if the OpenTelemetry collector endpoint is un
 - Authentication headers MUST be provided via `OTEL_EXPORTER_OTLP_HEADERS` env var; the `headers` field is no longer accepted in the JSON config
 
 **Compliance Test**: T-OTEL-001 through T-OTEL-010 (Section 11.1.10)
+
+#### 4.1.3.8 `forcePublicRepos` Configuration
+
+When `forcePublicRepos` is `true` (the default), the gateway overrides the compiled allow-only policy to `repos="public"` at startup if it detects the workflow is running in a public repository. This prevents agents from accumulating private-data secrecy tags in the first place — even when the compiled config grants broader access.
+
+**Detection mechanism**: The gateway reads `GITHUB_REPOSITORY` and calls `GET /repos/{owner}/{repo}` at startup to determine repository visibility. If the repository is public and `forcePublicRepos` is `true`, the override is applied — subject to the availability of `GITHUB_REPOSITORY`, the GitHub token, and a successful API response (see Precedence rules below).
+
+**Scope of the override**: Only the allow-only policy is affected. Guard policies, tool permissions, and other configuration are unchanged.
+
+**Precedence rules**:
+- Configured `repos="public"` (explicit in the allow-only policy) is always preserved — the gateway never relaxes an explicit public constraint.
+- Runtime detection of a public repo with `forcePublicRepos: true` **adds** the public restriction; it does not relax any existing constraint.
+- `forcePublicRepos: false` disables the runtime override entirely — the compiled allow-only policy is used as-is.
+- This override is **skipped** when `GITHUB_REPOSITORY` or the GitHub token is unavailable.
+- API errors during visibility detection result in a non-fatal warning; the gateway falls back to the compiled policy.
+
+**Opt-out**: Workflow authors who intentionally allow private→public data flows set `private-to-public-flows: allow` in frontmatter (Section 10.9). The compiler translates this to `forcePublicRepos: false` in the generated gateway config. See Section 10.8 and 10.9 for the write-sink guard policy interaction.
+
+**Environment variable override**: `MCP_GATEWAY_FORCE_PUBLIC_REPOS=false` disables the override without requiring a config change.
+
+**Configuration Example**:
+
+```json
+{
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "${MCP_GATEWAY_API_KEY}",
+    "forcePublicRepos": false
+  }
+}
+```
+
+**Compliance Test**: T-WS-004 (Section 11.1.12)
 
 #### 4.1.3a Top-Level Configuration Fields
 
@@ -1533,6 +1569,186 @@ Each guard policy list field (`blocked-users`, `trusted-users`, `approval-labels
 
 Variables are split on commas and newlines, trimmed of whitespace, and deduplicated. The union of workflow-declared values and variable values forms the effective list used at runtime.
 
+### 10.8 Write-Sink Guard Policy (`sink-visibility`)
+
+The write-sink guard policy controls whether an agent may write to the safe-outputs sink based on **DIFC secrecy** — a data-flow integrity property that prevents private-origin data from leaking into public repositories. This addresses the GitLost vulnerability class, where an agent accumulates private-data secrecy tags by reading private repositories and then writes that tainted content to a public output.
+
+#### 10.8.1 Overview
+
+The write-sink guard policy applies at the **output side**: it is checked immediately before the safe-outputs MCP server accepts a write operation. Unlike the integrity guard policy (Section 10), which filters *inputs* to the agent, the write-sink guard filters *outputs* from the agent.
+
+**Key assumption**: The safe-outputs target is always the workflow's own repository (`GITHUB_REPOSITORY`). Under this assumption, "sink visibility" and "workflow repository visibility" are the same value. The runtime determines sink visibility by reading `GITHUB_REPOSITORY` and calling `GET /repos/{owner}/{repo}` at startup.
+
+#### 10.8.2 `sink-visibility` Field
+
+The `write-sink` object inside `guard-policies` for a safe-outputs (or equivalent) MCP server accepts the following fields:
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `accept` | array[string] | Yes | — | Secrecy tag patterns that are permitted to write to this sink. Use `["*"]` to accept all secrecy levels. |
+| `sink-visibility` | string | No | (omitted) | Declares the visibility of the safe-outputs target repository. Values: `"public"`, `"private"`, `"internal"`. When `"public"`, any agent with non-empty secrecy is blocked. |
+
+**Values**:
+
+| Value | Enforcement |
+|-------|-------------|
+| `"public"` | Target is a public repo; agents with **non-empty secrecy** are BLOCKED. Resource secrecy is unconditionally set to empty (`{}`), overriding `accept` patterns. |
+| `"private"` | Target is a private repo; standard `accept`-pattern matching applies. |
+| `"internal"` | Target is an org-internal repo; semantically equivalent to `"private"` — standard `accept`-pattern matching applies. |
+| (omitted) | Backward-compatible default; standard `accept`-pattern matching applies. |
+
+**Enforcement model**: Only `"public"` alters DIFC enforcement. Both `"private"` and `"internal"` are semantically equivalent to each other and to the omitted case. The `"internal"` value exists for configuration fidelity (matching GitHub's three-tier visibility model) rather than distinct enforcement behavior. Implementations MUST treat any non-`"public"` value or an omitted `sink-visibility` as "use accept patterns normally."
+
+#### 10.8.3 Interaction with `accept`
+
+- When `sink-visibility` is `"public"`: the `accept` array is **ignored for enforcement** — resource secrecy is unconditionally set to empty (`{}`). The DIFC write check (`agentSecrecy ⊆ resourceSecrecy`) fails for any agent with non-empty secrecy. `accept` is still syntactically required by validation but has no runtime effect.
+- When `sink-visibility` is `"private"`, `"internal"`, or omitted: `accept` is the sole determinant of resource secrecy and controls which agents may write to the sink.
+
+**Precedence**: `sink-visibility: "public"` is a hard override that trumps `accept`.
+
+#### 10.8.4 Runtime Verification (Defense-in-Depth)
+
+The gateway performs a runtime visibility check at startup as defense-in-depth:
+
+1. Reads `GITHUB_REPOSITORY` and calls `GET /repos/{owner}/{repo}` to verify actual visibility.
+2. If the repo is public but `sink-visibility` is set to `"private"` or `"internal"` → overrides `sink-visibility` to `"public"` with a warning.
+3. **Skipped** when `sink-visibility` is omitted (preserves backward compatibility; omitted means no write-sink enforcement change).
+4. **Skipped** when `GITHUB_REPOSITORY` or the GitHub token is unavailable.
+5. Falls back to the configured value on API errors (non-fatal); this is logged as a warning. When `sink-visibility` is omitted, fallback means enforcement remains skipped.
+6. Never relaxes: a configured `"public"` stays `"public"` even if the repo is actually private.
+
+#### 10.8.5 Compiler Behavior
+
+The gh-aw compiler automatically sets `sink-visibility` as a runtime expression in the generated gateway config when the GitHub tool is configured with safe-outputs:
+
+```
+"sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
+```
+
+This runtime expression resolves to the actual repository visibility at workflow execution time (as determined by the automatic lockdown detection step). Workflow authors do not need to set `sink-visibility` manually — it is derived from the repository context automatically.
+
+**Configuration Example** (resolved runtime value — `"public"` shown as an example after the expression is evaluated):
+
+```json
+{
+  "mcpServers": {
+    "safe-outputs": {
+      "container": "ghcr.io/github/safe-outputs:latest",
+      "guard-policies": {
+        "write-sink": {
+          "accept": ["*"],
+          "sink-visibility": "public"
+        }
+      }
+    }
+  }
+}
+```
+
+**Compliance Tests**: T-WS-001 through T-WS-003 (Section 11.1.12)
+
+#### 10.8.6 Default Sink Visibility (Security-by-Default)
+
+Non-safe-outputs write-sink servers receive a default `sink-visibility="public"` when no explicit value is configured. This security-by-default behavior assumes that external sinks (e.g., Playwright, Slack, third-party services) release data publicly unless proven otherwise.
+
+**Rules:**
+1. If a write-sink server is NOT safe-outputs (or its legacy `safeoutputs` form) and has no explicit `sink-visibility` configured → the gateway defaults to `"public"`.
+2. If the server ID appears in `gateway.sinkVisibilityExemptServers` → the default is NOT applied.
+3. If `sinkVisibilityExemptServers` contains `"*"` → no server receives the default.
+4. If `forcePublicRepos` is `false` → all servers are implicitly exempt (blanket opt-out).
+
+**Rationale**: External MCP servers (Playwright, Slack, email services) typically publish outputs to locations beyond the workflow author's control. Treating them as public sinks by default prevents accidental data exfiltration through these channels.
+
+#### 10.8.7 Safe-Outputs Runtime Safety Net
+
+As a defense-in-depth measure, the gateway applies a runtime safety net specifically for safe-outputs when all of the following are true:
+- The server ID is `"safe-outputs"` (or the legacy `"safeoutputs"` form)
+- No `sink-visibility` is configured (compiler omitted it)
+- `GITHUB_REPOSITORY` is set and a GitHub token is available
+- The GitHub API confirms the workflow repository is **public**
+
+In this case, the gateway forces `sink-visibility="public"` on safe-outputs with a warning log. This makes the gateway self-defending even without compiler cooperation — if the compiler fails to set sink-visibility for any reason (legacy workflows, misconfiguration), the gateway still prevents exfiltration to public repos.
+
+**Note**: This safety net does NOT fire when `sink-visibility` is explicitly set to `"private"` or `"internal"` — the runtime verification in Section 10.8.4 handles that case instead.
+
+### 10.9 Cross-Visibility Opt-Out (`private-to-public-flows`)
+
+Workflow authors who intentionally allow private→public data flows can opt out of cross-visibility protections by declaring `private-to-public-flows` in workflow frontmatter. This field accepts two forms:
+
+- **`allow`** (string) — blanket opt-out that disables both `forcePublicRepos` and all sink-visibility enforcement
+- **`[server1, server2, ...]`** (list) — targeted opt-out that exempts only the listed servers from default sink-visibility enforcement
+
+#### 10.9.1 Workflow Frontmatter
+
+**Blanket opt-out:**
+```yaml
+---
+tools:
+  - github
+  - safe-outputs
+private-to-public-flows: allow
+---
+```
+
+**Targeted opt-out (list form):**
+```yaml
+---
+tools:
+  - github
+  - safe-outputs
+  - playwright
+private-to-public-flows:
+  - playwright
+---
+```
+
+#### 10.9.2 Constraints
+
+- **Blanket `allow` is incompatible with `guards_mode: strict`** — the compiler MUST reject this combination at compile time with an error.
+- **List form IS compatible with `guards_mode: strict`** — it only relaxes the default sink-visibility for named servers while keeping all other protections active.
+- Server IDs in the list form MUST map to actual MCP servers declared in the workflow's `tools` list. The compiler MUST reject unknown server IDs at compile time.
+- When paired with non-strict mode (`filter` or `propagate`), the blanket form disables both:
+  - Forced `repos="public"` override (Section 4.1.3.8)
+  - `sink-visibility` runtime verification override (Section 10.8.4)
+
+#### 10.9.3 Compiler Responsibilities
+
+When the compiler encounters `private-to-public-flows`:
+
+**Blanket `allow`:**
+1. **Validate**: If `guards_mode` is `strict`, emit a compile error.
+2. **Emit config**: Set `gateway.forcePublicRepos: false` in the generated JSON stdin config.
+3. **Skip sink-visibility override**: Do not set `sink-visibility: "public"` even if the target repo is public at compile time.
+4. **Audit trail**: Log that the workflow author opted out of cross-visibility protection.
+
+**List form `[server1, server2, ...]`:**
+1. **Validate**: Each server ID MUST exist in the workflow's declared `tools` list. Reject unknown IDs at compile time.
+2. **Emit config**: Set `gateway.sinkVisibilityExemptServers: ["server1", "server2"]` in the generated JSON stdin config.
+3. **Do NOT set `forcePublicRepos: false`** — the forced repos="public" override remains active.
+4. **Audit trail**: Log which servers are exempt from default sink-visibility.
+
+#### 10.9.4 Interaction Matrix
+
+| `guards_mode` | `private-to-public-flows` | Forced `repos=public` | Default `sink-visibility` enforced | Strict-mode compatible |
+|---|---|---|---|---|
+| `strict` | `allow` | ❌ **Rejected** (compile error) | — | ❌ |
+| `strict` | `[servers...]` | ✅ Yes | ✅ Yes (except listed servers) | ✅ |
+| `strict` | *(omitted)* | ✅ Yes | ✅ Yes | ✅ |
+| `filter` / `propagate` | `allow` | ❌ Disabled | ❌ Disabled | N/A |
+| `filter` / `propagate` | `[servers...]` | ✅ Yes | ✅ Yes (except listed servers) | N/A |
+| `filter` / `propagate` | *(omitted)* | ✅ Yes | ✅ Yes | N/A |
+
+#### 10.9.5 Security Rationale
+
+This opt-out exists for workflows that legitimately need to:
+- Read from private repos and post summaries to public issue trackers
+- Aggregate private data into public dashboards
+- Cross-post between private and public repos
+
+The strict-mode incompatibility ensures organizations requiring maximum security cannot accidentally enable this escape hatch.
+
+**Compliance Test**: T-WS-005 (Section 11.1.12)
+
 ---
 
 ## 11. Compliance Testing
@@ -1668,6 +1884,17 @@ A conforming implementation MUST pass the following test categories:
 - **T-GP-009**: `refusal-labels` accepts a GitHub Actions expression (comma- or newline-separated list)
 - **T-GP-010**: `min-integrity: none` allows items at `none` integrity through; items downgraded by `refusal-labels` to `none` are visible when `min-integrity: none`
 
+#### 11.1.12 Write-Sink Guard Policy Tests
+
+- **T-WS-001**: Agent with non-empty secrecy is blocked when `sink-visibility` is `"public"` — DIFC write check fails regardless of `accept` patterns
+- **T-WS-002**: Agent with empty secrecy is allowed when `sink-visibility` is `"public"` — DIFC write check passes
+- **T-WS-003**: `accept` patterns are used normally when `sink-visibility` is `"private"`, `"internal"`, or omitted
+- **T-WS-004**: Gateway overrides allow-only policy to `repos="public"` at startup when repository is public and `forcePublicRepos` is `true`
+- **T-WS-005**: `forcePublicRepos: false` disables the runtime override — compiled allow-only policy is used as-is
+- **T-WS-006**: Runtime verification overrides `sink-visibility` to `"public"` when configured value is `"private"` or `"internal"` but actual repo is public
+- **T-WS-007**: Runtime verification is skipped when `sink-visibility` is omitted (backward compatibility)
+- **T-WS-008**: Configured `"public"` is never relaxed by runtime verification even if API returns private visibility
+
 ### 11.2 Compliance Checklist
 
 | Requirement | Test ID | Level | Status |
@@ -1685,6 +1912,7 @@ A conforming implementation MUST pass the following test categories:
 | Gateway lifecycle | T-LIFE-* | 2 | Standard |
 | OpenTelemetry | T-OTEL-* | 3 | Optional |
 | Guard policy | T-GP-* | 2 | Standard |
+| Write-sink guard policy | T-WS-* | 2 | Standard |
 
 ### 11.3 Test Execution
 
@@ -2021,6 +2249,31 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.15.0 (Draft)
+
+- **Added**: Section 4.1.3.8 — `forcePublicRepos` Configuration
+  - New optional boolean gateway config field (default: `true`) that forces the allow-only policy to `repos="public"` at runtime when the gateway detects it is running in a public repository
+  - Prevents agents from accumulating private-data secrecy tags by restricting repository access at the input side
+  - Set to `false` by the compiler when `private-to-public-flows: allow` is declared in workflow frontmatter
+  - Can also be overridden via `MCP_GATEWAY_FORCE_PUBLIC_REPOS=false` environment variable
+- **Added**: `forcePublicRepos` field to the gateway configuration fields table (Section 4.1.3)
+- **Added**: Section 10.8 — Write-Sink Guard Policy (`sink-visibility`)
+  - Formal specification of the `write-sink` guard policy for DIFC-based output filtering
+  - Section 10.8.1 — Overview: describes the write-sink guard as output-side filtering complementary to input-side integrity filtering
+  - Section 10.8.2 — `sink-visibility` field reference: values `"public"`, `"private"`, `"internal"`, and omitted; enforcement model per value
+  - Section 10.8.3 — Interaction with `accept`: `"public"` unconditionally overrides accept patterns; non-public values delegate to accept patterns
+  - Section 10.8.4 — Runtime Verification (defense-in-depth): gateway reads `GITHUB_REPOSITORY` at startup and overrides misconfigured `sink-visibility` when the actual repo is public; skipped when `sink-visibility` is omitted
+  - Section 10.8.5 — Compiler Behavior: documents the runtime expression emitted for `sink-visibility` using `determine-automatic-lockdown` step output
+- **Added**: Section 10.9 — Cross-Visibility Opt-Out (`private-to-public-flows: allow`)
+  - Workflow frontmatter field that disables both `forcePublicRepos` override and `sink-visibility` runtime verification
+  - Section 10.9.2 — Constraints: incompatible with `guards_mode: strict` (compile error); only allowed with `filter`/`propagate`
+  - Section 10.9.3 — Compiler Responsibilities: validate, emit `forcePublicRepos: false`, skip `sink-visibility` override, and log opt-out
+  - Section 10.9.4 — Interaction Matrix: defines enforced/disabled combinations per `guards_mode` and `private-to-public-flows` setting
+  - Section 10.9.5 — Security Rationale: documents legitimate use cases for cross-visibility flows
+- **Added**: Compliance test category 11.1.12 — Write-Sink Guard Policy Tests (T-WS-001 through T-WS-008)
+- **Updated**: Compliance Checklist (Section 11.2) — added Write-Sink Guard Policy row (T-WS-*, Level 2, Standard)
+- **Updated**: JSON Schema — added typed `write-sink` property to `guard-policies` in both `stdioServerConfig` and `httpServerConfig`; added `forcePublicRepos` property to `gatewayConfig`
 
 ### Version 1.14.0 (Draft)
 
