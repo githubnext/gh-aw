@@ -33,10 +33,16 @@ var gitListCloneCache = struct {
 
 var gitListCloneGroup singleflight.Group
 
-func getOrCreateListRepoClone(ctx context.Context, owner, repo, ref, host string) (string, error) {
+type listRepoCloneConfig struct {
+	ref      string
+	repoURL  string
+	cacheKey string
+}
+
+func resolveListRepoCloneConfig(owner, repo, ref, host string) (listRepoCloneConfig, error) {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
-		return "", errors.New("git fallback requires a non-empty ref")
+		return listRepoCloneConfig{}, errors.New("git fallback requires a non-empty ref")
 	}
 
 	githubHost := GetGitHubHostForRepo(owner, repo)
@@ -45,55 +51,63 @@ func getOrCreateListRepoClone(ctx context.Context, owner, repo, ref, host string
 	}
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 	cacheKey := fmt.Sprintf("%s|%s|%s|%s", githubHost, owner, repo, ref)
+	return listRepoCloneConfig{
+		ref:      ref,
+		repoURL:  repoURL,
+		cacheKey: cacheKey,
+	}, nil
+}
 
-	if cloneDir, found := func() (string, bool) {
-		gitListCloneCache.mu.Lock()
-		defer gitListCloneCache.mu.Unlock()
-		if cloneDir, ok := gitListCloneCache.dirs[cacheKey]; ok {
-			if stat, err := os.Stat(filepath.Join(cloneDir, ".git")); err == nil && stat.IsDir() {
-				return cloneDir, true
-			}
-			delete(gitListCloneCache.dirs, cacheKey)
+func getCachedListRepoClone(cacheKey string) (string, bool) {
+	gitListCloneCache.mu.Lock()
+	defer gitListCloneCache.mu.Unlock()
+
+	if cloneDir, ok := gitListCloneCache.dirs[cacheKey]; ok {
+		if stat, err := os.Stat(filepath.Join(cloneDir, ".git")); err == nil && stat.IsDir() {
+			return cloneDir, true
 		}
-		return "", false
-	}(); found {
+		delete(gitListCloneCache.dirs, cacheKey)
+	}
+	return "", false
+}
+
+func cloneAndCacheListRepoClone(ctx context.Context, owner, repo, ref, repoURL, cacheKey string) (string, error) {
+	tmpDir, err := os.MkdirTemp("", "gh-aw-list-*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp directory: %w", err)
+	}
+
+	cloneCmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", ref, "--single-branch", "--filter=blob:none", "--no-checkout", repoURL, tmpDir)
+	cloneOutput, err := cloneCmd.CombinedOutput()
+	if err != nil {
+		if cleanupErr := os.RemoveAll(tmpDir); cleanupErr != nil {
+			remoteLog.Printf("Failed to clean up temp directory %q: %v", tmpDir, cleanupErr)
+		}
+		remoteLog.Printf("Failed to clone repository: %s", string(cloneOutput))
+		return "", fmt.Errorf("failed to clone repository for %s/%s@%s: %w", owner, repo, ref, err)
+	}
+
+	gitListCloneCache.mu.Lock()
+	defer gitListCloneCache.mu.Unlock()
+	gitListCloneCache.dirs[cacheKey] = tmpDir
+	return tmpDir, nil
+}
+
+func getOrCreateListRepoClone(ctx context.Context, owner, repo, ref, host string) (string, error) {
+	config, err := resolveListRepoCloneConfig(owner, repo, ref, host)
+	if err != nil {
+		return "", err
+	}
+
+	if cloneDir, found := getCachedListRepoClone(config.cacheKey); found {
 		return cloneDir, nil
 	}
 
-	cloneDir, err, _ := gitListCloneGroup.Do(cacheKey, func() (any, error) {
-		if cloneDir, found := func() (string, bool) {
-			gitListCloneCache.mu.Lock()
-			defer gitListCloneCache.mu.Unlock()
-			if cloneDir, ok := gitListCloneCache.dirs[cacheKey]; ok {
-				if stat, err := os.Stat(filepath.Join(cloneDir, ".git")); err == nil && stat.IsDir() {
-					return cloneDir, true
-				}
-				delete(gitListCloneCache.dirs, cacheKey)
-			}
-			return "", false
-		}(); found {
+	cloneDir, err, _ := gitListCloneGroup.Do(config.cacheKey, func() (any, error) {
+		if cloneDir, found := getCachedListRepoClone(config.cacheKey); found {
 			return cloneDir, nil
 		}
-
-		tmpDir, err := os.MkdirTemp("", "gh-aw-list-*")
-		if err != nil {
-			return "", fmt.Errorf("failed to create temp directory: %w", err)
-		}
-
-		cloneCmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", ref, "--single-branch", "--filter=blob:none", "--no-checkout", repoURL, tmpDir)
-		cloneOutput, err := cloneCmd.CombinedOutput()
-		if err != nil {
-			if cleanupErr := os.RemoveAll(tmpDir); cleanupErr != nil {
-				remoteLog.Printf("Failed to clean up temp directory %q: %v", tmpDir, cleanupErr)
-			}
-			remoteLog.Printf("Failed to clone repository: %s", string(cloneOutput))
-			return "", fmt.Errorf("failed to clone repository for %s/%s@%s: %w", owner, repo, ref, err)
-		}
-
-		gitListCloneCache.mu.Lock()
-		gitListCloneCache.dirs[cacheKey] = tmpDir
-		gitListCloneCache.mu.Unlock()
-		return tmpDir, nil
+		return cloneAndCacheListRepoClone(ctx, owner, repo, config.ref, config.repoURL, config.cacheKey)
 	})
 	if err != nil {
 		return "", err
