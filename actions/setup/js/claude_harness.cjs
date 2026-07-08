@@ -553,7 +553,6 @@ async function main() {
       if (startupRetriesUsed < startupRetryLimit) {
         startupRetriesUsed++;
         useContinueOnRetry = false;
-        continueDisabledPermanently = true;
         log(`attempt ${attempt + 1}: no output produced — retrying startup as fresh run ` + `(startup retry ${startupRetriesUsed}/${startupRetryLimit}, attempt ${attempt + 2}/${maxRetries + 1})`);
         continue;
       }

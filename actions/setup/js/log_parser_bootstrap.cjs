@@ -5,7 +5,7 @@ const { generatePlainTextSummary, generateCopilotCliStyleSummary, wrapAgentLogIn
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/i;
-const CLAUDE_RATE_LIMIT_OR_OVERLOAD_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit|overloaded_error|"overloaded"|5\d\d/i;
+const CLAUDE_RATE_LIMIT_OR_OVERLOAD_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit|overloaded_error|"overloaded"|(?:HTTP|status|error)[^\n]{0,60}\b5\d\d\b/i;
 
 /**
  * Build startup diagnostics for Claude failures with no structured entries.
