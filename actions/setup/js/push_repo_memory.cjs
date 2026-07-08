@@ -305,7 +305,12 @@ async function main() {
         // Validate file name patterns if filter is set
         if (fileGlobFilter) {
           const patternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
-          const patterns = patternStrs.map(pattern => globPatternToRegex(pattern));
+          // Slashless patterns (e.g. "*.json") are matched at the root of a single memory subfolder
+          // (depth 1 only).  Patterns that already contain "/" are matched against the full relative
+          // path unchanged.
+          const patterns = patternStrs.map(pattern =>
+            globPatternToRegex(pattern, { matchSubfolderRoot: !pattern.includes("/") })
+          );
 
           // Test patterns against the relative file path within the memory directory
           // Patterns are specified relative to the memory artifact directory, not the branch path
