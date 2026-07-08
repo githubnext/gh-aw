@@ -14,18 +14,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/envutil"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/parser"
 )
 
 var logsOrchestratorLog = logger.New("cli:logs_orchestrator")
@@ -96,45 +93,6 @@ func getMaxConcurrentDownloads() int {
 	return envutil.GetIntFromEnv("GH_AW_MAX_CONCURRENT_DOWNLOADS", MaxConcurrentDownloads, 1, 100, logsOrchestratorLog)
 }
 
-// matchEngineFilter checks whether the run recorded in awInfo matches the
-// requested engine filter string.  It returns (matches, detectedEngineID).
-// detectedEngineID is "" when awInfo is unavailable or carries no engine_id.
-func matchEngineFilter(awInfo *AwInfo, awInfoErr error, filterEngine string) (bool, string) {
-	if awInfoErr != nil || awInfo == nil || awInfo.EngineID == "" {
-		return false, ""
-	}
-	return awInfo.EngineID == filterEngine, awInfo.EngineID
-}
-
-type LogsDownloadOptions struct {
-	WorkflowName      string
-	Count             int
-	StartDate         string
-	EndDate           string
-	OutputDir         string
-	Engine            string
-	Ref               string
-	BeforeRunID       int64
-	AfterRunID        int64
-	RepoOverride      string
-	Verbose           bool
-	ToolGraph         bool
-	NoStaged          bool
-	FirewallOnly      bool
-	NoFirewall        bool
-	Parse             bool
-	JSONOutput        bool
-	TimeoutMinutes    int
-	SummaryFile       string
-	SafeOutputType    string
-	FilteredIntegrity bool
-	Train             bool
-	Format            string
-	ArtifactSets      []string
-	After             string
-	ReportFile        string
-}
-
 func shouldStopPagination(totalFetched, batchSize int) bool {
 	return totalFetched < batchSize
 }
@@ -158,17 +116,6 @@ func selectPaginationCursorDate(filteredRuns []WorkflowRun, oldestFetchedCreated
 //   - countLimitReached: in fetchAllInRange mode the count cap was hit before the
 //     date window was exhausted; the next page starts just before the oldest run
 //     returned in this batch.
-type continuationOptions struct {
-	workflowName   string
-	startDate      string
-	endDate        string
-	engine         string
-	branch         string
-	afterRunID     int64
-	count          int
-	timeoutMinutes int
-}
-
 func buildContinuationIfNeeded(
 	processedRuns []ProcessedRun,
 	timeoutReached, countLimitReached bool,
@@ -317,6 +264,15 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	// fetchAllInRange mode.  It signals that more runs may be available in the date window
 	// and drives continuation-data generation so callers can page through the full range.
 	var countLimitReached bool
+
+	filters := runFilterOpts{
+		engine:            engine,
+		noStaged:          noStaged,
+		firewallOnly:      firewallOnly,
+		noFirewall:        noFirewall,
+		safeOutputType:    safeOutputType,
+		filteredIntegrity: filteredIntegrity,
+	}
 
 	// Iterative algorithm: keep fetching runs until we have enough or exhaust available runs
 outerLoop:
@@ -503,154 +459,11 @@ outerLoop:
 					continue
 				}
 
-				// Parse aw_info.json once for all filters that need it (optimization)
-				var awInfo *AwInfo
-				var awInfoErr error
-				awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
-
-				// Only parse if we need it for any filter
-				if engine != "" || noStaged || firewallOnly || noFirewall {
-					awInfo, awInfoErr = parseAwInfo(awInfoPath, verbose)
+				if applyRunFilters(result, filters, verbose) {
+					continue
 				}
 
-				// Apply engine filtering if specified
-				if engine != "" {
-					engineMatches, detectedEngineID := matchEngineFilter(awInfo, awInfoErr, engine)
-					if !engineMatches {
-						if detectedEngineID == "" {
-							detectedEngineID = "unknown"
-						}
-						logsOrchestratorLog.Printf("Skipping run %d: engine filter=%s, detected=%s", result.Run.DatabaseID, engine, detectedEngineID)
-						if verbose {
-							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, detectedEngineID, engine)))
-						}
-						continue
-					}
-				}
-
-				// Apply staged filtering if --no-staged flag is specified
-				if noStaged {
-					var isStaged bool
-					if awInfoErr == nil && awInfo != nil {
-						isStaged = awInfo.Staged
-					}
-
-					if isStaged {
-						logsOrchestratorLog.Printf("Skipping run %d: staged workflow filtered by --no-staged", result.Run.DatabaseID)
-						if verbose {
-							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered out by --no-staged)", result.Run.DatabaseID)))
-						}
-						continue
-					}
-				}
-
-				// Apply firewall filtering if --firewall or --no-firewall flag is specified
-				if firewallOnly || noFirewall {
-					var hasFirewall bool
-					if awInfoErr == nil && awInfo != nil {
-						// Firewall is enabled if steps.firewall is non-empty (e.g., "squid")
-						hasFirewall = awInfo.Steps.Firewall != ""
-					}
-
-					// Check if the run matches the filter
-					if firewallOnly && !hasFirewall {
-						logsOrchestratorLog.Printf("Skipping run %d: no firewall detected, filtered by --firewall", result.Run.DatabaseID)
-						if verbose {
-							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not use firewall (filtered by --firewall)", result.Run.DatabaseID)))
-						}
-						continue
-					}
-					if noFirewall && hasFirewall {
-						logsOrchestratorLog.Printf("Skipping run %d: firewall detected, filtered by --no-firewall", result.Run.DatabaseID)
-						if verbose {
-							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow uses firewall (filtered by --no-firewall)", result.Run.DatabaseID)))
-						}
-						continue
-					}
-				}
-
-				// Apply safe output type filtering if --safe-output flag is specified
-				if safeOutputType != "" {
-					hasSafeOutputType, checkErr := runContainsSafeOutputType(result.LogsPath, safeOutputType, verbose)
-					if checkErr != nil && verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check safe output type for run %d: %v", result.Run.DatabaseID, checkErr)))
-					}
-
-					if !hasSafeOutputType {
-						if verbose {
-							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: no '%s' safe output messages found", result.Run.DatabaseID, safeOutputType)))
-						}
-						continue
-					}
-				}
-
-				// Apply filtered-integrity filtering if --filtered-integrity flag is specified
-				if filteredIntegrity {
-					hasFiltered, checkErr := runHasDifcFilteredItems(result.LogsPath, verbose)
-					if checkErr != nil {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check DIFC filtered items for run %d: %v", result.Run.DatabaseID, checkErr)))
-						continue
-					}
-
-					if !hasFiltered {
-						logsOrchestratorLog.Printf("Skipping run %d: no DIFC filtered items found", result.Run.DatabaseID)
-						if verbose {
-							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: no DIFC integrity-filtered items found in gateway logs", result.Run.DatabaseID)))
-						}
-						continue
-					}
-				}
-
-				// Update run with metrics and path
-				run := result.Run
-				run.TokenUsage = result.Metrics.TokenUsage
-				applyMetricsTurnsToRun(&run, result.Metrics)
-				run.AvgTimeBetweenTurns = result.Metrics.AvgTimeBetweenTurns
-				run.ErrorCount = 0
-				run.WarningCount = 0
-				run.LogsPath = result.LogsPath
-
-				// Propagate effective tokens from cached firewall proxy summary when available
-				if result.TokenUsage != nil && result.TokenUsage.TotalEffectiveTokens > 0 {
-					run.EffectiveTokens = result.TokenUsage.TotalEffectiveTokens
-				}
-
-				// Add failed jobs to error count
-				if failedJobCount, err := fetchJobStatuses(run.DatabaseID, verbose); err == nil {
-					run.ErrorCount += failedJobCount
-					if verbose && failedJobCount > 0 {
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Added %d failed jobs to error count for run %d", failedJobCount, run.DatabaseID)))
-					}
-				}
-
-				// Always use GitHub API timestamps for duration calculation
-				if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
-					run.Duration = run.UpdatedAt.Sub(run.StartedAt)
-					// Estimate billable Actions minutes from wall-clock time.
-					// GitHub Actions bills per minute, rounded up per job.
-					run.ActionMinutes = math.Ceil(run.Duration.Minutes())
-				}
-
-				processedRun := ProcessedRun{
-					Run:                     run,
-					AwContext:               result.AwContext,
-					TaskDomain:              result.TaskDomain,
-					BehaviorFingerprint:     result.BehaviorFingerprint,
-					AgenticAssessments:      result.AgenticAssessments,
-					AccessAnalysis:          result.AccessAnalysis,
-					FirewallAnalysis:        result.FirewallAnalysis,
-					RedactedDomainsAnalysis: result.RedactedDomainsAnalysis,
-					MissingTools:            result.MissingTools,
-					MissingData:             result.MissingData,
-					Noops:                   result.Noops,
-					MCPFailures:             result.MCPFailures,
-					MCPToolUsage:            result.MCPToolUsage,
-					TokenUsage:              result.TokenUsage,
-					GitHubRateLimitUsage:    result.GitHubRateLimitUsage,
-					JobDetails:              result.JobDetails,
-				}
-				processedRuns = append(processedRuns, processedRun)
-				batchProcessed++
+				processedRun := buildProcessedRun(result, verbose, true)
 
 				// If --parse flag is set, parse the agent log and write to log.md
 				if parse {
@@ -659,26 +472,29 @@ outerLoop:
 					detectedEngine := extractEngineFromAwInfo(awInfoPath, verbose)
 
 					if err := parseAgentLog(result.LogsPath, detectedEngine, verbose); err != nil {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log for run %d: %v", run.DatabaseID, err)))
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log for run %d: %v", processedRun.Run.DatabaseID, err)))
 					} else {
 						// Always show success message for parsing, not just in verbose mode
 						logMdPath := filepath.Join(result.LogsPath, "log.md")
 						if fileutil.FileExists(logMdPath) {
-							fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", run.DatabaseID, logMdPath)))
+							fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", processedRun.Run.DatabaseID, logMdPath)))
 						}
 					}
 
 					// Also parse firewall logs if they exist
 					if err := parseFirewallLogs(result.LogsPath, verbose); err != nil {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse firewall logs for run %d: %v", run.DatabaseID, err)))
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse firewall logs for run %d: %v", processedRun.Run.DatabaseID, err)))
 					} else {
 						// Show success message if firewall.md was created
 						firewallMdPath := filepath.Join(result.LogsPath, "firewall.md")
 						if fileutil.FileExists(firewallMdPath) {
-							fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed firewall logs for run %d → %s", run.DatabaseID, firewallMdPath)))
+							fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed firewall logs for run %d → %s", processedRun.Run.DatabaseID, firewallMdPath)))
 						}
 					}
 				}
+
+				processedRuns = append(processedRuns, processedRun)
+				batchProcessed++
 
 				// Stop processing this batch once we've collected enough runs.
 				if len(processedRuns) >= count {
@@ -782,503 +598,6 @@ outerLoop:
 		train:          train,
 		continuation:   continuation,
 		verbose:        verbose,
-		artifactFilter: artifactFilter,
-	})
-}
-
-// renderLogsOutputOptions holds configuration for renderLogsOutput.
-type renderLogsOutputOptions struct {
-	outputDir      string
-	summaryFile    string
-	format         string
-	reportFile     string
-	jsonOutput     bool
-	toolGraph      bool
-	train          bool
-	continuation   *ContinuationData
-	verbose        bool
-	artifactFilter []string
-}
-
-// renderLogsOutput finalizes processedRuns and renders them in the appropriate output
-// format: JSON, console metrics table, or cross-run audit report (pretty/markdown).
-// continuation is optional and only set when a timeout was reached during a paginated download.
-func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions) error {
-	// Update MissingToolCount, MissingDataCount, and NoopCount in runs
-	for i := range processedRuns {
-		processedRuns[i].Run.MissingToolCount = len(processedRuns[i].MissingTools)
-		processedRuns[i].Run.MissingDataCount = len(processedRuns[i].MissingData)
-		processedRuns[i].Run.NoopCount = len(processedRuns[i].Noops)
-	}
-
-	// Build structured logs data
-	logsOrchestratorLog.Printf("Building logs data from %d processed runs (continuation=%t)", len(processedRuns), opts.continuation != nil)
-	logsData := buildLogsData(processedRuns, opts.outputDir, opts.continuation)
-
-	// When only the usage artifact was downloaded, add a hint so consumers know how
-	// to fetch additional artifact sets (agent logs, firewall data, etc.).
-	if isUsageOnlyArtifactFilter(opts.artifactFilter) {
-		logsData.Message = usageOnlyArtifactHintMessage()
-	}
-
-	// Write summary file if requested (default behavior unless disabled with empty string)
-	if opts.summaryFile != "" {
-		summaryPath := filepath.Join(opts.outputDir, opts.summaryFile)
-		if err := writeSummaryFile(summaryPath, logsData, opts.verbose); err != nil {
-			return fmt.Errorf("failed to write summary file: %w", err)
-		}
-	}
-
-	// Train drain3 weights if requested.
-	if opts.train {
-		if err := TrainDrain3Weights(processedRuns, opts.outputDir, opts.verbose); err != nil {
-			return fmt.Errorf("log pattern training: %w", err)
-		}
-	}
-
-	// Render output based on format preference.
-	switch opts.format {
-	case "tsv":
-		if opts.verbose {
-			renderLogsTSVVerbose(logsData)
-		} else {
-			renderLogsTSV(logsData)
-		}
-		renderLogsArtifactHint(os.Stderr, logsData.Message)
-		return nil
-
-	case "markdown", "pretty":
-		inputs := make([]crossRunInput, 0, len(processedRuns))
-		for _, pr := range processedRuns {
-			inputs = append(inputs, crossRunInput{
-				RunID:            pr.Run.DatabaseID,
-				WorkflowName:     pr.Run.WorkflowName,
-				Conclusion:       pr.Run.Conclusion,
-				Duration:         pr.Run.Duration,
-				FirewallAnalysis: pr.FirewallAnalysis,
-				Metrics: LogMetrics{
-					TokenUsage: pr.Run.TokenUsage,
-					Turns:      pr.Run.Turns,
-				},
-				MCPToolUsage: pr.MCPToolUsage,
-				MCPFailures:  pr.MCPFailures,
-				ErrorCount:   pr.Run.ErrorCount,
-			})
-		}
-		report := buildCrossRunAuditReport(inputs)
-		if opts.jsonOutput {
-			return renderCrossRunReportJSON(report)
-		}
-		if opts.format == "pretty" {
-			renderCrossRunReportPretty(report)
-			renderLogsArtifactHint(os.Stderr, logsData.Message)
-			return nil
-		}
-		if opts.reportFile != "" {
-			if err := os.MkdirAll(filepath.Dir(opts.reportFile), constants.DirPermPublic); err != nil {
-				return fmt.Errorf("failed to create report file directory: %w", err)
-			}
-			f, err := os.Create(opts.reportFile)
-			if err != nil {
-				return fmt.Errorf("failed to create report file: %w", err)
-			}
-			if err := func() (retErr error) {
-				defer func() {
-					if cerr := f.Close(); cerr != nil && retErr == nil {
-						retErr = cerr
-					}
-				}()
-				oldStdout := os.Stdout
-				defer func() { os.Stdout = oldStdout }()
-				os.Stdout = f
-				renderCrossRunReportMarkdown(report)
-				return nil
-			}(); err != nil {
-				return fmt.Errorf("failed to write report file: %w", err)
-			}
-		} else {
-			renderCrossRunReportMarkdown(report)
-		}
-		renderLogsArtifactHint(os.Stderr, logsData.Message)
-		return nil
-
-	case "console":
-		// Explicit console format: decorated tables for human reading
-		if opts.jsonOutput {
-			if err := renderLogsJSON(logsData, opts.verbose); err != nil {
-				return fmt.Errorf("failed to render JSON output: %w", err)
-			}
-		} else {
-			renderLogsConsole(logsData)
-			displayAggregatedGatewayMetrics(processedRuns, opts.outputDir, opts.verbose)
-			displayUnifiedTimeline(processedRuns, opts.verbose)
-			if opts.toolGraph {
-				generateToolGraph(processedRuns, opts.verbose)
-			}
-			renderLogsArtifactHint(os.Stderr, logsData.Message)
-		}
-		return nil
-	}
-
-	// Default: compact format optimized for agentic consumption
-	if opts.jsonOutput {
-		if err := renderLogsJSON(logsData, opts.verbose); err != nil {
-			return fmt.Errorf("failed to render JSON output: %w", err)
-		}
-	} else {
-		if opts.verbose {
-			renderLogsCompactVerbose(logsData)
-		} else {
-			renderLogsCompact(logsData)
-		}
-	}
-
-	return nil
-}
-
-func renderLogsArtifactHint(w *os.File, message string) {
-	if message == "" {
-		return
-	}
-	fmt.Fprintf(w, "[hint] %s\n", message)
-}
-
-// StdinLogsOptions holds parameters for DownloadWorkflowLogsFromStdin.
-type StdinLogsOptions struct {
-	RunURLs           []string
-	OutputDir         string
-	Engine            string
-	RepoOverride      string
-	Verbose           bool
-	ToolGraph         bool
-	NoStaged          bool
-	FirewallOnly      bool
-	NoFirewall        bool
-	Parse             bool
-	JSONOutput        bool
-	Timeout           int
-	SummaryFile       string
-	SafeOutputType    string
-	FilteredIntegrity bool
-	Train             bool
-	Format            string
-	ReportFile        string
-	// ArtifactSets defaults to nil (download all artifacts) when this API is used
-	// programmatically. The CLI passes ["usage"] to match the logs command default.
-	ArtifactSets []string
-}
-
-// DownloadWorkflowLogsFromStdin fetches and processes workflow run logs for runs
-// provided as IDs or URLs, bypassing the GitHub API run-discovery step.
-// This is used when the --stdin flag is passed to the logs command.
-func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) error {
-	logsOrchestratorLog.Printf("Starting stdin log download: runs=%d, outputDir=%s", len(opts.RunURLs), opts.OutputDir)
-
-	if err := ValidateArtifactSets(opts.ArtifactSets); err != nil {
-		return err
-	}
-	artifactFilter := ResolveArtifactFilter(opts.ArtifactSets)
-	if len(artifactFilter) > 0 {
-		logsOrchestratorLog.Printf("Artifact filter active: %v", artifactFilter)
-		if opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Artifact filter: downloading only "+strings.Join(artifactFilter, ", ")))
-		}
-	}
-
-	if err := ensureLogsGitignore(); err != nil {
-		logsOrchestratorLog.Printf("Failed to ensure logs .gitignore: %v", err)
-		if opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to ensure .github/aw/logs/.gitignore: %v", err)))
-		}
-	}
-
-	select {
-	case <-ctx.Done():
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
-		return ctx.Err()
-	default:
-	}
-
-	if len(opts.RunURLs) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No run IDs or URLs provided on stdin"))
-		return nil
-	}
-
-	// Parse owner/repo (and optional GHES host) from --repo override if provided.
-	// Accepted formats: "owner/repo" or "HOST/owner/repo".
-	var hostOverride, ownerOverride, repoNameOverride string
-	if opts.RepoOverride != "" {
-		parts := strings.SplitN(opts.RepoOverride, "/", 3)
-		switch len(parts) {
-		case 3: // HOST/owner/repo
-			if parts[0] == "" || parts[1] == "" || parts[2] == "" {
-				return fmt.Errorf("invalid repository format '%s': expected '[HOST/]owner/repo'", opts.RepoOverride)
-			}
-			hostOverride, ownerOverride, repoNameOverride = parts[0], parts[1], parts[2]
-		case 2: // owner/repo
-			if parts[0] == "" || parts[1] == "" {
-				return fmt.Errorf("invalid repository format '%s': expected '[HOST/]owner/repo'", opts.RepoOverride)
-			}
-			ownerOverride, repoNameOverride = parts[0], parts[1]
-		default:
-			return fmt.Errorf("invalid repository format '%s': expected '[HOST/]owner/repo'", opts.RepoOverride)
-		}
-	}
-
-	// Start timeout timer if specified
-	var startTime time.Time
-	if opts.Timeout > 0 {
-		startTime = time.Now()
-		if opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout set to %d minutes", opts.Timeout)))
-		}
-	}
-
-	if opts.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Fetching metadata for %d runs from stdin...", len(opts.RunURLs))))
-	}
-
-	// Build WorkflowRun objects by fetching metadata for each provided URL
-	var runs []WorkflowRun
-	for _, rawURL := range opts.RunURLs {
-		select {
-		case <-ctx.Done():
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
-			return ctx.Err()
-		default:
-		}
-
-		if opts.Timeout > 0 && time.Since(startTime).Seconds() >= float64(opts.Timeout)*60 {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Timeout reached before all run metadata could be fetched"))
-			break
-		}
-
-		components, err := parser.ParseRunURLExtended(rawURL)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping invalid run %q: %v", rawURL, err)))
-			continue
-		}
-
-		// Prefer owner/repo embedded in the URL; fall back to --repo override.
-		// If neither source provides owner, the run cannot be fetched — return an
-		// actionable error rather than silently continuing with a broken API call.
-		owner := components.Owner
-		repo := components.Repo
-		host := components.Host
-		if owner == "" {
-			owner = ownerOverride
-			repo = repoNameOverride
-			if host == "" {
-				host = hostOverride
-			}
-		}
-		if owner == "" {
-			return fmt.Errorf("run %q does not include repository information; pass --repo owner/repo or provide full run URLs", rawURL)
-		}
-
-		run, err := fetchWorkflowRunMetadata(ctx, components.Number, owner, repo, host, opts.Verbose)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping run %d: failed to fetch metadata: %v", components.Number, err)))
-			continue
-		}
-		runs = append(runs, run)
-	}
-
-	if len(runs) == 0 {
-		if opts.JSONOutput {
-			logsData := buildLogsData([]ProcessedRun{}, opts.OutputDir, nil)
-			logsData.Message = "No runs found. No valid runs could be loaded from the provided input."
-			if err := renderLogsJSON(logsData, opts.Verbose); err != nil {
-				return fmt.Errorf("failed to render JSON output: %w", err)
-			}
-		}
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No valid runs could be loaded from stdin"))
-		return nil
-	}
-
-	// Download artifacts for all runs concurrently
-	downloadResults := downloadRunArtifactsConcurrent(ctx, runs, opts.OutputDir, opts.Verbose, len(runs), opts.RepoOverride, artifactFilter)
-
-	// Process download results applying the same filters as DownloadWorkflowLogs
-	var processedRuns []ProcessedRun
-	for _, result := range downloadResults {
-		if result.Skipped {
-			if opts.Verbose && result.Error != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping run %d: %v", result.Run.DatabaseID, result.Error)))
-			}
-			continue
-		}
-
-		if result.Error != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download artifacts for run %d: %v", result.Run.DatabaseID, result.Error)))
-			continue
-		}
-
-		awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
-		var awInfo *AwInfo
-		var awInfoErr error
-		if opts.Engine != "" || opts.NoStaged || opts.FirewallOnly || opts.NoFirewall {
-			awInfo, awInfoErr = parseAwInfo(awInfoPath, opts.Verbose)
-		}
-
-		if opts.Engine != "" {
-			engineMatches, detectedEngineID := matchEngineFilter(awInfo, awInfoErr, opts.Engine)
-			if !engineMatches {
-				if detectedEngineID == "" {
-					detectedEngineID = "unknown"
-				}
-				logsOrchestratorLog.Printf("Skipping run %d: engine filter=%s, detected=%s", result.Run.DatabaseID, opts.Engine, detectedEngineID)
-				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, detectedEngineID, opts.Engine)))
-				}
-				continue
-			}
-		}
-
-		if opts.NoStaged {
-			var isStaged bool
-			if awInfoErr == nil && awInfo != nil {
-				isStaged = awInfo.Staged
-			}
-			if isStaged {
-				logsOrchestratorLog.Printf("Skipping run %d: staged workflow filtered by --no-staged", result.Run.DatabaseID)
-				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered by --no-staged)", result.Run.DatabaseID)))
-				}
-				continue
-			}
-		}
-
-		if opts.FirewallOnly || opts.NoFirewall {
-			var hasFirewall bool
-			if awInfoErr == nil && awInfo != nil {
-				hasFirewall = awInfo.Steps.Firewall != ""
-			}
-			if opts.FirewallOnly && !hasFirewall {
-				logsOrchestratorLog.Printf("Skipping run %d: no firewall detected, filtered by --firewall", result.Run.DatabaseID)
-				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not use firewall (filtered by --firewall)", result.Run.DatabaseID)))
-				}
-				continue
-			}
-			if opts.NoFirewall && hasFirewall {
-				logsOrchestratorLog.Printf("Skipping run %d: firewall detected, filtered by --no-firewall", result.Run.DatabaseID)
-				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow uses firewall (filtered by --no-firewall)", result.Run.DatabaseID)))
-				}
-				continue
-			}
-		}
-
-		if opts.SafeOutputType != "" {
-			hasSafeOutputType, checkErr := runContainsSafeOutputType(result.LogsPath, opts.SafeOutputType, opts.Verbose)
-			if checkErr != nil && opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check safe output type for run %d: %v", result.Run.DatabaseID, checkErr)))
-			}
-			if !hasSafeOutputType {
-				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: no '%s' safe output messages found", result.Run.DatabaseID, opts.SafeOutputType)))
-				}
-				continue
-			}
-		}
-
-		if opts.FilteredIntegrity {
-			hasFiltered, checkErr := runHasDifcFilteredItems(result.LogsPath, opts.Verbose)
-			if checkErr != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check DIFC filtered items for run %d: %v", result.Run.DatabaseID, checkErr)))
-				continue
-			}
-			if !hasFiltered {
-				logsOrchestratorLog.Printf("Skipping run %d: no DIFC filtered items found", result.Run.DatabaseID)
-				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: no DIFC integrity-filtered items found in gateway logs", result.Run.DatabaseID)))
-				}
-				continue
-			}
-		}
-
-		run := result.Run
-		run.TokenUsage = result.Metrics.TokenUsage
-		applyMetricsTurnsToRun(&run, result.Metrics)
-		run.AvgTimeBetweenTurns = result.Metrics.AvgTimeBetweenTurns
-		run.ErrorCount = 0
-		run.WarningCount = 0
-		run.LogsPath = result.LogsPath
-
-		if result.TokenUsage != nil && result.TokenUsage.TotalEffectiveTokens > 0 {
-			run.EffectiveTokens = result.TokenUsage.TotalEffectiveTokens
-		}
-		if failedJobCount, err := fetchJobStatuses(run.DatabaseID, opts.Verbose); err == nil {
-			run.ErrorCount += failedJobCount
-		}
-		if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
-			run.Duration = run.UpdatedAt.Sub(run.StartedAt)
-			run.ActionMinutes = math.Ceil(run.Duration.Minutes())
-		}
-
-		processedRun := ProcessedRun{
-			Run:                     run,
-			AwContext:               result.AwContext,
-			TaskDomain:              result.TaskDomain,
-			BehaviorFingerprint:     result.BehaviorFingerprint,
-			AgenticAssessments:      result.AgenticAssessments,
-			AccessAnalysis:          result.AccessAnalysis,
-			FirewallAnalysis:        result.FirewallAnalysis,
-			RedactedDomainsAnalysis: result.RedactedDomainsAnalysis,
-			MissingTools:            result.MissingTools,
-			MissingData:             result.MissingData,
-			Noops:                   result.Noops,
-			MCPFailures:             result.MCPFailures,
-			MCPToolUsage:            result.MCPToolUsage,
-			TokenUsage:              result.TokenUsage,
-			GitHubRateLimitUsage:    result.GitHubRateLimitUsage,
-			JobDetails:              result.JobDetails,
-		}
-		processedRuns = append(processedRuns, processedRun)
-
-		if opts.Parse {
-			detectedEngine := extractEngineFromAwInfo(awInfoPath, opts.Verbose)
-			if err := parseAgentLog(result.LogsPath, detectedEngine, opts.Verbose); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log for run %d: %v", run.DatabaseID, err)))
-			} else {
-				logMdPath := filepath.Join(result.LogsPath, "log.md")
-				if fileutil.FileExists(logMdPath) {
-					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", run.DatabaseID, logMdPath)))
-				}
-			}
-			if err := parseFirewallLogs(result.LogsPath, opts.Verbose); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse firewall logs for run %d: %v", run.DatabaseID, err)))
-			} else {
-				firewallMdPath := filepath.Join(result.LogsPath, "firewall.md")
-				if fileutil.FileExists(firewallMdPath) {
-					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed firewall logs for run %d → %s", run.DatabaseID, firewallMdPath)))
-				}
-			}
-		}
-	}
-
-	if len(processedRuns) == 0 {
-		if opts.JSONOutput {
-			logsData := buildLogsData([]ProcessedRun{}, opts.OutputDir, nil)
-			logsData.Message = "No runs found matching the specified criteria."
-			if err := renderLogsJSON(logsData, opts.Verbose); err != nil {
-				return fmt.Errorf("failed to render JSON output: %w", err)
-			}
-		}
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No workflow runs with artifacts found matching the specified criteria"))
-		return nil
-	}
-
-	return renderLogsOutput(processedRuns, renderLogsOutputOptions{
-		outputDir:      opts.OutputDir,
-		summaryFile:    opts.SummaryFile,
-		format:         opts.Format,
-		reportFile:     opts.ReportFile,
-		jsonOutput:     opts.JSONOutput,
-		toolGraph:      opts.ToolGraph,
-		train:          opts.Train,
-		verbose:        opts.Verbose,
 		artifactFilter: artifactFilter,
 	})
 }
