@@ -266,6 +266,13 @@
           "type": "boolean",
           "description": "When true (default), forces the allow-only policy to repos=\"public\" at runtime if the gateway detects it is running in a public repository. Set to false by the compiler when private-to-public-flows: allow is declared in workflow frontmatter, or via MCP_GATEWAY_FORCE_PUBLIC_REPOS=false environment variable. See MCP Gateway Specification section 4.1.3.8.",
           "default": true
+        },
+        "sinkVisibilityExemptServers": {
+          "type": "array",
+          "description": "List of server IDs exempt from the default sink-visibility=\"public\" enforcement. Use [\"*\"] to exempt all servers. Set by the compiler when private-to-public-flows lists specific server IDs in workflow frontmatter. See MCP Gateway Specification section 10.9.",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": ["port", "domain", "apiKey"],

@@ -255,6 +255,7 @@ The `gateway` section is required and configures gateway-specific behavior:
 | `sessionTimeout` | string | No | Session timeout for MCP gateway sessions as a Go duration string (e.g. `"30m"`, `"4h"`, `"24h"`). Empty or omitted uses the gateway default (6h). Must be at least 5m when set by the workflow compiler (no upper bound; infrastructure operators may override via `MCP_GATEWAY_SESSION_TIMEOUT` env var). |
 | `opentelemetry` | object | No | OpenTelemetry configuration for emitting distributed tracing events for MCP calls. See Section 4.1.3.7 for details. |
 | `forcePublicRepos` | boolean | No | When `true` (default), forces the allow-only policy to `repos="public"` at runtime if the gateway detects it is running in a public repository. When `false`, disables this override — set by the compiler when `private-to-public-flows: allow` is declared in workflow frontmatter. See Section 4.1.3.8 for details. |
+| `sinkVisibilityExemptServers` | array[string] | No | List of server IDs exempt from the default `sink-visibility="public"` enforcement. Use `["*"]` to exempt all servers. Set by the compiler when `private-to-public-flows` lists specific server IDs in workflow frontmatter. See Section 10.9 for details. |
 
 #### 4.1.3.1 Payload Directory Path Validation
 
@@ -1646,12 +1647,40 @@ This runtime expression resolves to the actual repository visibility at workflow
 
 **Compliance Tests**: T-WS-001 through T-WS-003 (Section 11.1.12)
 
-### 10.9 Cross-Visibility Opt-Out (`private-to-public-flows: allow`)
+#### 10.8.6 Default Sink Visibility (Security-by-Default)
 
-Workflow authors who intentionally allow private→public data flows can opt out of both cross-visibility protections (the `forcePublicRepos` override in Section 4.1.3.8 and the `sink-visibility` runtime verification in Section 10.8.4) by declaring `private-to-public-flows: allow` in workflow frontmatter.
+Non-safe-outputs write-sink servers receive a default `sink-visibility="public"` when no explicit value is configured. This security-by-default behavior assumes that external sinks (e.g., Playwright, Slack, third-party services) release data publicly unless proven otherwise.
+
+**Rules:**
+1. If a write-sink server is NOT safe-outputs (or its legacy `safeoutputs` form) and has no explicit `sink-visibility` configured → the gateway defaults to `"public"`.
+2. If the server ID appears in `gateway.sinkVisibilityExemptServers` → the default is NOT applied.
+3. If `sinkVisibilityExemptServers` contains `"*"` → no server receives the default.
+4. If `forcePublicRepos` is `false` → all servers are implicitly exempt (blanket opt-out).
+
+**Rationale**: External MCP servers (Playwright, Slack, email services) typically publish outputs to locations beyond the workflow author's control. Treating them as public sinks by default prevents accidental data exfiltration through these channels.
+
+#### 10.8.7 Safe-Outputs Runtime Safety Net
+
+As a defense-in-depth measure, the gateway applies a runtime safety net specifically for safe-outputs when all of the following are true:
+- The server ID is `"safe-outputs"` (or the legacy `"safeoutputs"` form)
+- No `sink-visibility` is configured (compiler omitted it)
+- `GITHUB_REPOSITORY` is set and a GitHub token is available
+- The GitHub API confirms the workflow repository is **public**
+
+In this case, the gateway forces `sink-visibility="public"` on safe-outputs with a warning log. This makes the gateway self-defending even without compiler cooperation — if the compiler fails to set sink-visibility for any reason (legacy workflows, misconfiguration), the gateway still prevents exfiltration to public repos.
+
+**Note**: This safety net does NOT fire when `sink-visibility` is explicitly set to `"private"` or `"internal"` — the runtime verification in Section 10.8.4 handles that case instead.
+
+### 10.9 Cross-Visibility Opt-Out (`private-to-public-flows`)
+
+Workflow authors who intentionally allow private→public data flows can opt out of cross-visibility protections by declaring `private-to-public-flows` in workflow frontmatter. This field accepts two forms:
+
+- **`allow`** (string) — blanket opt-out that disables both `forcePublicRepos` and all sink-visibility enforcement
+- **`[server1, server2, ...]`** (list) — targeted opt-out that exempts only the listed servers from default sink-visibility enforcement
 
 #### 10.9.1 Workflow Frontmatter
 
+**Blanket opt-out:**
 ```yaml
 ---
 tools:
@@ -1661,30 +1690,53 @@ private-to-public-flows: allow
 ---
 ```
 
+**Targeted opt-out (list form):**
+```yaml
+---
+tools:
+  - github
+  - safe-outputs
+  - playwright
+private-to-public-flows:
+  - playwright
+---
+```
+
 #### 10.9.2 Constraints
 
-- **Incompatible with `guards_mode: strict`** — the compiler MUST reject this combination at compile time with an error.
-- When paired with non-strict mode (`filter` or `propagate`), disables both:
+- **Blanket `allow` is incompatible with `guards_mode: strict`** — the compiler MUST reject this combination at compile time with an error.
+- **List form IS compatible with `guards_mode: strict`** — it only relaxes the default sink-visibility for named servers while keeping all other protections active.
+- Server IDs in the list form MUST map to actual MCP servers declared in the workflow's `tools` list. The compiler MUST reject unknown server IDs at compile time.
+- When paired with non-strict mode (`filter` or `propagate`), the blanket form disables both:
   - Forced `repos="public"` override (Section 4.1.3.8)
   - `sink-visibility` runtime verification override (Section 10.8.4)
 
 #### 10.9.3 Compiler Responsibilities
 
-When the compiler encounters `private-to-public-flows: allow`:
+When the compiler encounters `private-to-public-flows`:
 
+**Blanket `allow`:**
 1. **Validate**: If `guards_mode` is `strict`, emit a compile error.
 2. **Emit config**: Set `gateway.forcePublicRepos: false` in the generated JSON stdin config.
 3. **Skip sink-visibility override**: Do not set `sink-visibility: "public"` even if the target repo is public at compile time.
 4. **Audit trail**: Log that the workflow author opted out of cross-visibility protection.
 
+**List form `[server1, server2, ...]`:**
+1. **Validate**: Each server ID MUST exist in the workflow's declared `tools` list. Reject unknown IDs at compile time.
+2. **Emit config**: Set `gateway.sinkVisibilityExemptServers: ["server1", "server2"]` in the generated JSON stdin config.
+3. **Do NOT set `forcePublicRepos: false`** — the forced repos="public" override remains active.
+4. **Audit trail**: Log which servers are exempt from default sink-visibility.
+
 #### 10.9.4 Interaction Matrix
 
-| `guards_mode` | `private-to-public-flows` | Forced `repos=public` | `sink-visibility` enforced |
-|---|---|---|---|
-| `strict` | `allow` | ❌ **Rejected** (compile error) | — |
-| `strict` | *(omitted)* | ✅ Yes | ✅ Yes |
-| `filter` / `propagate` | `allow` | ❌ Disabled | ❌ Disabled |
-| `filter` / `propagate` | *(omitted)* | ✅ Yes | ✅ Yes |
+| `guards_mode` | `private-to-public-flows` | Forced `repos=public` | Default `sink-visibility` enforced | Strict-mode compatible |
+|---|---|---|---|---|
+| `strict` | `allow` | ❌ **Rejected** (compile error) | — | ❌ |
+| `strict` | `[servers...]` | ✅ Yes | ✅ Yes (except listed servers) | ✅ |
+| `strict` | *(omitted)* | ✅ Yes | ✅ Yes | ✅ |
+| `filter` / `propagate` | `allow` | ❌ Disabled | ❌ Disabled | N/A |
+| `filter` / `propagate` | `[servers...]` | ✅ Yes | ✅ Yes (except listed servers) | N/A |
+| `filter` / `propagate` | *(omitted)* | ✅ Yes | ✅ Yes | N/A |
 
 #### 10.9.5 Security Rationale
 
