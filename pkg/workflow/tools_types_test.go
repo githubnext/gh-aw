@@ -370,7 +370,7 @@ func TestExtractToolsFromFrontmatter(t *testing.T) {
 		},
 	}
 
-	result := extractToolsFromFrontmatter(frontmatter)
+	result := extractToolsMapFromFrontmatter(frontmatter)
 
 	if len(result) != 2 {
 		t.Errorf("expected 2 tools, got %d", len(result))

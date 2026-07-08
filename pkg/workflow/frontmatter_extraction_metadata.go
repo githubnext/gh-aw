@@ -301,8 +301,8 @@ func (c *Compiler) extractToolsStartupTimeout(tools map[string]any) (string, err
 	return "", nil
 }
 
-// extractToolsFromFrontmatter extracts tools section from frontmatter map
-func extractToolsFromFrontmatter(frontmatter map[string]any) map[string]any {
+// extractToolsMapFromFrontmatter extracts tools section from frontmatter map
+func extractToolsMapFromFrontmatter(frontmatter map[string]any) map[string]any {
 	return ExtractMapField(frontmatter, "tools")
 }
 

@@ -175,7 +175,7 @@ func (c *Compiler) resolveToolsConfiguration(
 	importsResult *parser.ImportsResult,
 	agenticEngine CodingAgentEngine,
 ) (*mergedToolsData, error) {
-	topTools := extractToolsFromFrontmatter(result.Frontmatter)
+	topTools := extractToolsMapFromFrontmatter(result.Frontmatter)
 	if err := ValidateToolsSection(topTools); err != nil {
 		return nil, err
 	}
