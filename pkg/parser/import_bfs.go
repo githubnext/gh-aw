@@ -5,6 +5,7 @@
 package parser
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -563,7 +564,7 @@ func importInputsEqual(a, b map[string]any) bool {
 	if err != nil {
 		return false
 	}
-	return string(aJSON) == string(bJSON)
+	return bytes.Equal(aJSON, bJSON)
 }
 
 // formatImportInputs serializes an import input map to a compact JSON string for

@@ -18,6 +18,8 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
+const bytesPkg = "bytes"
+
 // Analyzer is the bytes-compare-string analysis pass.
 var Analyzer = &analysis.Analyzer{
 	Name:     "bytescomparestring",
@@ -76,36 +78,83 @@ func run(pass *analysis.Pass) (any, error) {
 		op := bin.Op.String()
 		if bin.Op == token.EQL {
 			pass.Report(analysis.Diagnostic{
-				Pos:     bin.Pos(),
-				End:     bin.End(),
-				Message: fmt.Sprintf("string(%s) == string(%s) allocates; use bytes.Equal(%s, %s) instead", lText, rText, lText, rText),
-				SuggestedFixes: []analysis.SuggestedFix{{
-					Message: fmt.Sprintf("Replace with bytes.Equal(%s, %s)", lText, rText),
-					TextEdits: []analysis.TextEdit{{
-						Pos:     bin.Pos(),
-						End:     bin.End(),
-						NewText: []byte(fmt.Sprintf("bytes.Equal(%s, %s)", lText, rText)),
-					}},
-				}},
+				Pos:            bin.Pos(),
+				End:            bin.End(),
+				Message:        fmt.Sprintf("string(%s) == string(%s) allocates; use bytes.Equal(%s, %s) instead", lText, rText, lText, rText),
+				SuggestedFixes: buildFix(pass, bin, fmt.Sprintf("bytes.Equal(%s, %s)", lText, rText)),
 			})
 		} else {
 			pass.Report(analysis.Diagnostic{
-				Pos:     bin.Pos(),
-				End:     bin.End(),
-				Message: fmt.Sprintf("string(%s) %s string(%s) allocates; use !bytes.Equal(%s, %s) instead", lText, op, rText, lText, rText),
-				SuggestedFixes: []analysis.SuggestedFix{{
-					Message: fmt.Sprintf("Replace with !bytes.Equal(%s, %s)", lText, rText),
-					TextEdits: []analysis.TextEdit{{
-						Pos:     bin.Pos(),
-						End:     bin.End(),
-						NewText: []byte(fmt.Sprintf("!bytes.Equal(%s, %s)", lText, rText)),
-					}},
-				}},
+				Pos:            bin.Pos(),
+				End:            bin.End(),
+				Message:        fmt.Sprintf("string(%s) %s string(%s) allocates; use !bytes.Equal(%s, %s) instead", lText, op, rText, lText, rText),
+				SuggestedFixes: buildFix(pass, bin, fmt.Sprintf("!bytes.Equal(%s, %s)", lText, rText)),
 			})
 		}
 	})
 
 	return nil, nil
+}
+
+// buildFix returns the SuggestedFix for rewriting bin to replacement, adding a
+// "bytes" import TextEdit when the file containing bin does not yet import it.
+func buildFix(pass *analysis.Pass, bin *ast.BinaryExpr, replacement string) []analysis.SuggestedFix {
+	edits := []analysis.TextEdit{{
+		Pos:     bin.Pos(),
+		End:     bin.End(),
+		NewText: []byte(replacement),
+	}}
+	if importEdit, ok := addBytesImportEdit(pass, bin.Pos()); ok {
+		edits = append(edits, importEdit)
+	}
+	return []analysis.SuggestedFix{{
+		Message:   "Replace with " + replacement,
+		TextEdits: edits,
+	}}
+}
+
+// addBytesImportEdit returns a TextEdit that inserts an import for "bytes" into
+// the file containing pos, unless "bytes" is already imported in that file.
+// Returns (TextEdit{}, false) when no edit is needed.
+func addBytesImportEdit(pass *analysis.Pass, pos token.Pos) (analysis.TextEdit, bool) {
+	var file *ast.File
+	for _, f := range pass.Files {
+		if f.Pos() <= pos && pos <= f.End() {
+			file = f
+			break
+		}
+	}
+	if file == nil {
+		return analysis.TextEdit{}, false
+	}
+
+	// Check if "bytes" is already imported in this file.
+	for _, imp := range file.Imports {
+		if imp.Path.Value == `"`+bytesPkg+`"` {
+			return analysis.TextEdit{}, false
+		}
+	}
+
+	// Find an existing grouped import declaration to add into.
+	for _, decl := range file.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok || genDecl.Tok != token.IMPORT || !genDecl.Lparen.IsValid() {
+			continue
+		}
+		// Insert "bytes" before the closing paren of the import block.
+		return analysis.TextEdit{
+			Pos:     genDecl.Rparen,
+			End:     genDecl.Rparen,
+			NewText: []byte("\t\"" + bytesPkg + "\"\n"),
+		}, true
+	}
+
+	// No grouped import block; insert a standalone import after the package name.
+	return analysis.TextEdit{
+		Pos:     file.Name.End(),
+		End:     file.Name.End(),
+		NewText: []byte("\n\nimport \"" + bytesPkg + "\""),
+	}, true
 }
 
 // extractByteSliceStringConv checks whether expr is a string(x) conversion

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -143,7 +144,7 @@ func copyIncludeDependenciesFromPackageWithForce(dependencies []IncludeDependenc
 		if existingContent, err := os.ReadFile(targetPath); err == nil {
 			fileExists = true
 			// File exists, compare contents
-			if string(existingContent) == string(sourceContent) {
+			if bytes.Equal(existingContent, sourceContent) {
 				// Contents are the same, skip
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Include file %s already exists with same content, skipping", dep.TargetPath)))

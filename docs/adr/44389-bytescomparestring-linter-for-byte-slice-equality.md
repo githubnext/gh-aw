@@ -1,7 +1,7 @@
 # ADR-44389: Add `bytescomparestring` Linter to Flag Allocating `[]byte` Equality Checks
 
 **Date**: 2026-07-08
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: Unknown (automated PR by Linter Miner)
 
 ---
@@ -33,13 +33,12 @@ Staticcheck's `SA4010` and similar rules cover some allocation patterns, but non
 - Consistent enforcement: future `string(a) == string(b)` regressions are caught at lint time rather than discovered in code review.
 
 #### Negative
-- Callers that are auto-fixed will need the `bytes` package imported; though `goimports` handles this automatically, editors without import management will see a compile error until the import is added manually.
-- Adds a new linter to maintain: API-breaking changes in `golang.org/x/tools/go/analysis` would require updating this analyzer alongside the 39 others.
+- Adds a new linter to maintain: API-breaking changes in `golang.org/x/tools/go/analysis` would require updating this analyzer alongside the 43 others.
 
 #### Neutral
 - The linter skips test files (`filecheck.IsTestFile`) consistent with the project's convention; `string(a) == string(b)` patterns in test code are not flagged.
-- The linter count in `pkg/linters/doc.go` increases from 39 to 40; this counter must be updated whenever analyzers are added or removed.
+- The linter count in `pkg/linters/doc.go` increases from 43 to 44; this counter must be updated whenever analyzers are added or removed.
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR finalized: implementation complete, all known violations fixed, and suggested fixes include the `bytes` import when not already present.*
