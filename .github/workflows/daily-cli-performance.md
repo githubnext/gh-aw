@@ -3,6 +3,7 @@ private: true
 emoji: "⚡"
 description: Daily CLI Performance - Runs benchmarks, tracks performance trends, and reports regressions
 on:
+  restore-memory: true
   schedule: daily
   workflow_dispatch:
   permissions:

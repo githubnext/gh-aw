@@ -4,7 +4,6 @@ package workflow
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -1554,25 +1553,23 @@ func TestAWFSupportsDockerHostPathPrefix(t *testing.T) {
 }
 
 // TestArcDindDockerHostDetection exercises the generated shell snippet that probes
-// DOCKER_HOST and conditionally sets both the --docker-host passthrough value and
-// --docker-host-path-prefix. It runs the snippet in a real bash subprocess with
-// various DOCKER_HOST values to verify runtime behavior.
+// DOCKER_HOST and conditionally sets the --docker-host passthrough value.
+// NOTE: --docker-host-path-prefix is no longer emitted (removed for sysroot, gh-aw#34896).
 func TestArcDindDockerHostDetection(t *testing.T) {
 	tests := []struct {
 		name            string
 		dockerHost      string
-		wantPrefixSet   bool
 		wantDockerHost  bool
 		wantDockerHostV string
 	}{
-		{"tcp://localhost:2375", "tcp://localhost:2375", true, true, "tcp://localhost:2375"},
-		{"tcp://127.0.0.1:2375", "tcp://127.0.0.1:2375", true, true, "tcp://127.0.0.1:2375"},
-		{"tcp://dind:2375 (K8s service name)", "tcp://dind:2375", true, true, "tcp://dind:2375"},
-		{"tcp://172.30.0.5:2375 (pod IP)", "tcp://172.30.0.5:2375", true, true, "tcp://172.30.0.5:2375"},
-		{"tcp://dind-sidecar.default.svc:2376", "tcp://dind-sidecar.default.svc:2376", true, true, "tcp://dind-sidecar.default.svc:2376"},
-		{"unix socket (not tcp)", "unix:///var/run/docker.sock", false, false, ""},
-		{"bare path", "/var/run/docker.sock", false, false, ""},
-		{"empty (unset)", "", false, false, ""},
+		{"tcp://localhost:2375", "tcp://localhost:2375", true, "tcp://localhost:2375"},
+		{"tcp://127.0.0.1:2375", "tcp://127.0.0.1:2375", true, "tcp://127.0.0.1:2375"},
+		{"tcp://dind:2375 (K8s service name)", "tcp://dind:2375", true, "tcp://dind:2375"},
+		{"tcp://172.30.0.5:2375 (pod IP)", "tcp://172.30.0.5:2375", true, "tcp://172.30.0.5:2375"},
+		{"tcp://dind-sidecar.default.svc:2376", "tcp://dind-sidecar.default.svc:2376", true, "tcp://dind-sidecar.default.svc:2376"},
+		{"unix socket (not tcp)", "unix:///var/run/docker.sock", false, ""},
+		{"bare path", "/var/run/docker.sock", false, ""},
+		{"empty (unset)", "", false, ""},
 	}
 
 	// Build the shell snippet from the constant (same code the compiler emits).
@@ -1582,18 +1579,8 @@ GH_AW_DOCKER_HOST=""
 if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
   GH_AW_DOCKER_HOST="${DOCKER_HOST}"
 fi
-GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""
-if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
-  GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="%s"
-fi
 printf 'docker-host=%%%%s\n' "$GH_AW_DOCKER_HOST"
-printf 'docker-host-path-prefix=%%%%s\n' "$GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
-`, awfArcDindDockerHostRegex, awfArcDindDockerHostRegex, awfArcDindHostPathPrefixFlag)
-
-	expectedPrefix := awfArcDindHostPathPrefixFlag
-	if runnerTemp := os.Getenv("RUNNER_TEMP"); runnerTemp != "" {
-		expectedPrefix = strings.ReplaceAll(expectedPrefix, "${RUNNER_TEMP}", runnerTemp)
-	}
+`, awfArcDindDockerHostRegex)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1602,23 +1589,13 @@ printf 'docker-host-path-prefix=%%%%s\n' "$GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
 			out, err := cmd.CombinedOutput()
 			require.NoError(t, err, "bash script should succeed, output: %s", string(out))
 
-			lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-			require.Len(t, lines, 2)
-			gotDockerHost := strings.TrimPrefix(lines[0], "docker-host=")
-			gotPrefix := strings.TrimPrefix(lines[1], "docker-host-path-prefix=")
+			gotDockerHost := strings.TrimPrefix(strings.TrimSpace(string(out)), "docker-host=")
 			if tt.wantDockerHost {
 				assert.Equal(t, tt.wantDockerHostV, gotDockerHost,
 					"expected docker host passthrough value to be set for DOCKER_HOST=%s", tt.dockerHost)
 			} else {
 				assert.Empty(t, gotDockerHost,
 					"expected docker host passthrough value to NOT be set for DOCKER_HOST=%s", tt.dockerHost)
-			}
-			if tt.wantPrefixSet {
-				assert.Equal(t, expectedPrefix, gotPrefix,
-					"expected --docker-host-path-prefix to be set for DOCKER_HOST=%s", tt.dockerHost)
-			} else {
-				assert.Empty(t, gotPrefix,
-					"expected --docker-host-path-prefix to NOT be set for DOCKER_HOST=%s", tt.dockerHost)
 			}
 		})
 	}

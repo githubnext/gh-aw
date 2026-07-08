@@ -42,6 +42,28 @@ func TestValidateSandboxConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "network isolation allows host.docker.internal HTTP MCP server URL",
+			data: &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type:             SandboxTypeAWF,
+						NetworkIsolation: true,
+					},
+				},
+				Tools: map[string]any{
+					"github": map[string]any{
+						"mode": "remote",
+					},
+				},
+				ResolvedMCPServers: map[string]any{
+					"mempalace": map[string]any{
+						"type": "http",
+						"url":  "http://host.docker.internal:8765/mcp",
+					},
+				},
+			},
+		},
+		{
 			name: "sandbox.agent false with valid justification",
 			data: &WorkflowData{
 				Features: map[string]any{

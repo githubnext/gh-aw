@@ -2,7 +2,6 @@ package cli
 
 import (
 	"errors"
-	"os"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -84,7 +83,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 
 			// add-wizard requires an interactive terminal
 			isTerminal := tty.IsStdoutTerminal()
-			isCIEnv := os.Getenv("CI") != "" //nolint:osgetenvlibrary
+			isCIEnv := IsRunningInCI()
 			addWizardLog.Printf("Terminal check: is_terminal=%v, is_ci=%v", isTerminal, isCIEnv)
 			if !isTerminal || isCIEnv {
 				return errors.New("add-wizard requires an interactive terminal; use 'add' for non-interactive environments")

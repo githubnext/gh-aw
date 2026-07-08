@@ -105,10 +105,6 @@ const EvalsArtifactName = "evals"
 // EvalsResultFilename is the filename of the evaluation results JSONL file.
 const EvalsResultFilename = "evals.jsonl"
 
-// EvalsBranchPrefix is the git branch prefix for persisting evaluation results.
-// Results are stored in branches named evals/<workflow-id>/evals.jsonl.
-const EvalsBranchPrefix = "evals"
-
 // LegacyDetectionArtifactName is the old artifact name used before the rename.
 // Kept for backward compatibility when downloading artifacts from older workflow runs.
 const LegacyDetectionArtifactName = "threat-detection.log"

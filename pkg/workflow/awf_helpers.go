@@ -38,23 +38,21 @@ import (
 var awfHelpersLog = logger.New("workflow:awf_helpers")
 
 const (
-	awfArcDindPrefixArgsVarName = "GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
-	awfDockerHostVarName        = "GH_AW_DOCKER_HOST"
-	awfToolCacheMountVarName    = "GH_AW_TOOL_CACHE_MOUNT"
-	awfMaxAICreditsVarName      = "GH_AW_MAX_AI_CREDITS"
-	awfConfigRuntimePathExpr    = "${RUNNER_TEMP}/gh-aw/awf-config.json"
-	awfModelsJSONPathExpr       = "/tmp/gh-aw/models.json"
-	awfArcDindRootPathExpr      = "${RUNNER_TEMP}/gh-aw"
-	awfArcDindHomePathExpr      = "${RUNNER_TEMP}/gh-aw/home"
-	awfArcDindProxyLogsDirExpr  = "${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs"
-	awfArcDindAuditDirExpr      = "${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit"
+	awfDockerHostVarName       = "GH_AW_DOCKER_HOST"
+	awfToolCacheMountVarName   = "GH_AW_TOOL_CACHE_MOUNT"
+	awfMaxAICreditsVarName     = "GH_AW_MAX_AI_CREDITS"
+	awfConfigRuntimePathExpr   = "${RUNNER_TEMP}/gh-aw/awf-config.json"
+	awfModelsJSONPathExpr      = "/tmp/gh-aw/models.json"
+	awfArcDindRootPathExpr     = "${RUNNER_TEMP}/gh-aw"
+	awfArcDindHomePathExpr     = "${RUNNER_TEMP}/gh-aw/home"
+	awfArcDindProxyLogsDirExpr = "${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs"
+	awfArcDindAuditDirExpr     = "${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit"
 	// Bash regex used in [[ ... =~ ... ]] to detect TCP Docker hosts (ARC/DinD).
 	// Any tcp:// DOCKER_HOST indicates the Docker daemon runs on a separate filesystem,
-	// requiring --docker-host-path-prefix so AWF bind-mounts resolve against the daemon.
+	// requiring --docker-host so AWF connects to the correct daemon.
 	// This covers localhost, pod IPs, K8s service names (e.g., tcp://dind:2375), and
 	// any other TCP Docker daemon configuration.
-	awfArcDindDockerHostRegex    = `^tcp://`
-	awfArcDindHostPathPrefixFlag = "--docker-host-path-prefix ${RUNNER_TEMP}/gh-aw"
+	awfArcDindDockerHostRegex = `^tcp://`
 
 	// awfArcDindChrootBinariesSourcePath is the runner-side directory that AWF overlays
 	// at /usr/local/bin inside chroot mode for ARC/DinD split-filesystem runners.
@@ -75,7 +73,7 @@ const (
 	//     by the outer runner shell before AWF receives them, not by the inner bash -c.
 	//   - SC2086 is expected because compiler-owned AWF argument fragments are emitted
 	//     as intentional expandable shell snippets (for example ${GH_AW_TOOL_CACHE_MOUNT:+...}
-	//     and ${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}).
+	//     and ${GH_AW_DOCKER_HOST:+...}).
 	//
 	// User-controlled values remain quoted via shellEscapeArg/shellJoinArgs.
 	awfShellcheckDirective = "# shellcheck disable=SC1003,SC2016,SC2086"
@@ -239,13 +237,11 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	firewallConfig := getFirewallConfig(config.WorkflowData)
 
 	// Auto-detect ARC/DinD split daemon topology at runtime: probe DOCKER_HOST for a
-	// tcp:// scheme and pass it through to AWF via --docker-host, and emit
-	// --docker-host-path-prefix when supported by the selected AWF version.
+	// tcp:// scheme and pass it through to AWF via --docker-host.
 	// All behaviors avoid requiring workflow-authored sandbox.agent.args for standard ARC DinD setups.
 	// When AWF also supports chroot config (v0.27.1+), the Python patch body is embedded inside
 	// the same if-block so the script only contains one DOCKER_HOST condition check.
 	arcDindPrefixProbe := ""
-	arcDindPrefixArgsRef := ""
 	arcDindDockerHostProbe := fmt.Sprintf(`%s=""
 if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
   %s="${DOCKER_HOST}"
@@ -264,16 +260,18 @@ fi`,
 				chrootPatchBody = "\n" + buildArcDindChrootConfigPatchBody()
 			}
 		}
-		arcDindPrefixProbe = fmt.Sprintf(`%s=""
-if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
-  %s="%s"%s
+		// NOTE: --docker-host-path-prefix is intentionally NOT passed. With sysroot-stage
+		// active, all bind-mount source paths are on the shared work volume and visible to
+		// the Docker daemon without translation. The prefix caused AWF to translate
+		// GITHUB_WORKSPACE to a non-existent path, resulting in an empty workspace (gh-aw#34896).
+		// The probe block is preserved for the chroot config patch which still requires the
+		// DOCKER_HOST guard.
+		if chrootPatchBody != "" {
+			arcDindPrefixProbe = fmt.Sprintf(`if [[ "${DOCKER_HOST:-}" =~ %s ]]; then%s
 fi`,
-			awfArcDindPrefixArgsVarName,
-			awfArcDindDockerHostRegex,
-			awfArcDindPrefixArgsVarName,
-			awfArcDindHostPathPrefixFlag,
-			chrootPatchBody)
-		arcDindPrefixArgsRef = fmt.Sprintf("${%s}", awfArcDindPrefixArgsVarName)
+				awfArcDindDockerHostRegex,
+				chrootPatchBody)
+		}
 	}
 	toolCacheMountProbe := fmt.Sprintf(`%s=""
 GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"
@@ -301,6 +299,9 @@ fi`,
 			awfArcDindHomePathExpr, awfArcDindHomePathExpr,
 			awfArcDindRootPathExpr+"/sandbox/agent", awfArcDindRootPathExpr+"/sandbox/agent",
 		)
+		// Explicitly mount the workspace so AWF can see it without path-prefix translation.
+		// GITHUB_WORKSPACE is on the shared work volume, so the Docker daemon can access it.
+		expandableArgs += ` --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw"`
 		// Pre-create the rw mount source directories. AWF validates that mount source
 		// paths exist before starting containers, so these must be created on the host
 		// before the AWF invocation. The parent ${RUNNER_TEMP}/gh-aw/ already exists
@@ -458,7 +459,7 @@ fi`,
 	//     that include single quotes and must survive into runtime unchanged.
 	//   - SC2086 is expected because a subset of AWF arguments are intentionally emitted
 	//     as expandable shell fragments (for example ${GH_AW_TOOL_CACHE_MOUNT:+...} and
-	//     ${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}). These fragments are produced by trusted
+	//     ${GH_AW_DOCKER_HOST:+...}). These fragments are produced by trusted
 	//     compiler-owned probes above and are not user-provided free-form shell input.
 	//
 	// We keep normal quoting for all user-controlled values via shellEscapeArg/shellJoinArgs
@@ -475,7 +476,7 @@ fi`,
 %s
 %s
 %s
-%s %s %s %s %s %s \
+%s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
@@ -490,7 +491,6 @@ fi`,
 			expandableArgs,
 			toolCacheMountRef,
 			arcDindDockerHostRef,
-			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
@@ -505,7 +505,7 @@ fi`,
 %s
 %s
 %s
-%s %s %s %s %s %s \
+%s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
@@ -519,7 +519,6 @@ fi`,
 			expandableArgs,
 			toolCacheMountRef,
 			arcDindDockerHostRef,
-			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
@@ -533,7 +532,7 @@ fi`,
 %s
 %s
 %s
-%s %s %s %s %s %s \
+%s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
@@ -547,7 +546,6 @@ fi`,
 			expandableArgs,
 			toolCacheMountRef,
 			arcDindDockerHostRef,
-			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
@@ -560,7 +558,7 @@ fi`,
 %s
 %s
 %s
-%s %s %s %s %s %s \
+%s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
@@ -573,7 +571,6 @@ fi`,
 			expandableArgs,
 			toolCacheMountRef,
 			arcDindDockerHostRef,
-			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))

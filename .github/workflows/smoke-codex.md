@@ -3,6 +3,7 @@ private: true
 emoji: "🧪"
 description: Smoke test workflow that validates Codex engine functionality by reviewing recent PRs twice daily
 on:
+  restore-memory: true
   slash_command:
     name: smoke-codex
     strategy: centralized

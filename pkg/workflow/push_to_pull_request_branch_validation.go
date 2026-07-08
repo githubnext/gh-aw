@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -10,6 +11,13 @@ import (
 
 var pushToPullRequestBranchValidationLog = newValidationLogger("push_to_pull_request_branch_validation")
 
+var fetchRepositoryVisibility = getRepositoryVisibilityForSlug
+
+type repositoryVisibilityResponse struct {
+	Visibility string `json:"visibility"`
+	Private    *bool  `json:"private"`
+}
+
 // computeIsPublicRepo queries the GitHub API to determine whether the repository
 // associated with this compiler instance is publicly visible.
 //
@@ -17,29 +25,64 @@ var pushToPullRequestBranchValidationLog = newValidationLogger("push_to_pull_req
 // for private/internal repos, when no repository slug is set, or when the API
 // call fails (e.g. no authentication, network error). This fail-safe default
 // ensures safety warnings are always shown when visibility cannot be determined.
-func (c *Compiler) computeIsPublicRepo() bool {
+func (c *Compiler) computeRepositoryVisibility() string {
 	slug := c.repositorySlug
 	if slug == "" || strings.Count(slug, "/") != 1 {
-		pushToPullRequestBranchValidationLog.Printf("Skipping public-repo check: slug %q is not in owner/repo format", slug)
-		return false
+		pushToPullRequestBranchValidationLog.Printf("Skipping repository visibility check: slug %q is not in owner/repo format", slug)
+		return ""
 	}
 	owner, repo, _ := strings.Cut(slug, "/")
 	if owner == "" || repo == "" {
-		pushToPullRequestBranchValidationLog.Printf("Skipping public-repo check: slug %q has empty owner or repo", slug)
-		return false
+		pushToPullRequestBranchValidationLog.Printf("Skipping repository visibility check: slug %q has empty owner or repo", slug)
+		return ""
 	}
 
 	pushToPullRequestBranchValidationLog.Printf("Checking repository visibility for: %s", slug)
-	output, err := RunGH("Checking repository visibility...", "api", "/repos/"+slug, "--jq", ".visibility")
+	visibility, err := fetchRepositoryVisibility(slug)
 	if err != nil {
 		pushToPullRequestBranchValidationLog.Printf("Could not determine repository visibility: %v", err)
-		return false
+		return ""
 	}
+	pushToPullRequestBranchValidationLog.Printf("Repository visibility: %s", visibility)
+	return visibility
+}
 
-	visibility := strings.TrimSpace(string(output))
+func (c *Compiler) computeIsPublicRepo() bool {
+	visibility := c.computeRepositoryVisibility()
 	isPublic := visibility == "public"
 	pushToPullRequestBranchValidationLog.Printf("Repository visibility: %s (isPublic=%v)", visibility, isPublic)
 	return isPublic
+}
+
+func getRepositoryVisibilityForSlug(slug string) (string, error) {
+	output, err := RunGH("Checking repository visibility...", "api", "/repos/"+slug)
+	if err != nil {
+		return "", err
+	}
+	return parseRepositoryVisibility(output), nil
+}
+
+func parseRepositoryVisibility(output []byte) string {
+	var response repositoryVisibilityResponse
+	if err := json.Unmarshal(output, &response); err != nil {
+		return ""
+	}
+
+	visibility := strings.ToLower(strings.TrimSpace(response.Visibility))
+	switch visibility {
+	case "public", "private", "internal":
+		return visibility
+	}
+
+	if response.Private != nil {
+		if *response.Private {
+			return "private"
+		} else {
+			return "public"
+		}
+	}
+
+	return ""
 }
 
 // validatePushToPullRequestBranchWarnings emits warnings for common misconfiguration

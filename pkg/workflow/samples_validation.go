@@ -61,6 +61,9 @@ var (
 	compiledToolSchemasOnce sync.Once
 	compiledToolSchemas     map[string]toolSchemaEntry
 	compiledToolSchemasErr  error
+
+	sortedSafeOutputFieldNamesOnce sync.Once
+	sortedSafeOutputFieldNames     []string
 )
 
 func getCompiledToolSchemas() (map[string]toolSchemaEntry, error) {
@@ -97,6 +100,13 @@ func getCompiledToolSchemas() (map[string]toolSchemaEntry, error) {
 	return compiledToolSchemas, compiledToolSchemasErr
 }
 
+func getSortedSafeOutputFieldNames() []string {
+	sortedSafeOutputFieldNamesOnce.Do(func() {
+		sortedSafeOutputFieldNames = sliceutil.SortedKeys(safeOutputFieldMapping)
+	})
+	return sortedSafeOutputFieldNames
+}
+
 // validateSafeOutputsSamples validates every `samples` entry on every
 // enabled safe-output handler against the corresponding MCP tool's inputSchema.
 // Sample sidecar fields (e.g. `patch`) are stripped before validation. Returns
@@ -107,7 +117,7 @@ func validateSafeOutputsSamples(config *SafeOutputsConfig) error {
 		return nil
 	}
 
-	fieldNames := sliceutil.SortedKeys(safeOutputFieldMapping)
+	fieldNames := getSortedSafeOutputFieldNames()
 	samplesValidationLog.Printf("Validating safe-outputs samples across %d candidate fields", len(fieldNames))
 
 	for _, fieldName := range fieldNames {

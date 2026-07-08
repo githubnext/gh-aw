@@ -1,10 +1,10 @@
 package cli
 
 import (
-	"os"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/envutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -14,7 +14,7 @@ var codespaceLog = logger.New("cli:codespace")
 // by checking for the CODESPACES environment variable
 func isRunningInCodespace() bool {
 	// GitHub Codespaces sets CODESPACES=true environment variable
-	isCodespace := strings.EqualFold(os.Getenv("CODESPACES"), "true") //nolint:osgetenvlibrary
+	isCodespace := strings.EqualFold(envutil.GetStringFromEnv("CODESPACES", "", nil), "true")
 	codespaceLog.Printf("Codespace detection: is_codespace=%v", isCodespace)
 	return isCodespace
 }

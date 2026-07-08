@@ -377,6 +377,128 @@ func TestGetIntFromEnv_EmptyString(t *testing.T) {
 	}
 }
 
+func TestGetBoolFromEnv(t *testing.T) {
+	const testEnvVar = "GH_AW_TEST_BOOL_VALUE"
+	originalValue, hadOriginalValue := os.LookupEnv(testEnvVar)
+	defer func() {
+		if hadOriginalValue {
+			os.Setenv(testEnvVar, originalValue)
+		} else {
+			os.Unsetenv(testEnvVar)
+		}
+	}()
+
+	tests := []struct {
+		name         string
+		envValue     string
+		defaultValue bool
+		expected     bool
+	}{
+		{
+			name:         "default when env var not set",
+			envValue:     "",
+			defaultValue: true,
+			expected:     true,
+		},
+		{
+			name:         "valid true value",
+			envValue:     "true",
+			defaultValue: false,
+			expected:     true,
+		},
+		{
+			name:         "valid false value",
+			envValue:     "false",
+			defaultValue: true,
+			expected:     false,
+		},
+		{
+			name:         "numeric true value",
+			envValue:     "1",
+			defaultValue: false,
+			expected:     true,
+		},
+		{
+			name:         "invalid value",
+			envValue:     "invalid",
+			defaultValue: true,
+			expected:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.envValue != "" {
+				os.Setenv(testEnvVar, tt.envValue)
+			} else {
+				os.Unsetenv(testEnvVar)
+			}
+
+			result := GetBoolFromEnv(testEnvVar, tt.defaultValue, nil)
+			if result != tt.expected {
+				t.Errorf("Expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestGetStringFromEnv(t *testing.T) {
+	const testEnvVar = "GH_AW_TEST_STRING_VALUE"
+	originalValue, hadOriginalValue := os.LookupEnv(testEnvVar)
+	defer func() {
+		if hadOriginalValue {
+			os.Setenv(testEnvVar, originalValue)
+		} else {
+			os.Unsetenv(testEnvVar)
+		}
+	}()
+
+	tests := []struct {
+		name         string
+		setEnv       bool
+		envValue     string
+		defaultValue string
+		expected     string
+	}{
+		{
+			name:         "default when env var not set",
+			setEnv:       false,
+			envValue:     "",
+			defaultValue: "fallback",
+			expected:     "fallback",
+		},
+		{
+			name:         "default when env var empty",
+			setEnv:       true,
+			envValue:     "",
+			defaultValue: "fallback",
+			expected:     "fallback",
+		},
+		{
+			name:         "returns env value",
+			setEnv:       true,
+			envValue:     "value",
+			defaultValue: "fallback",
+			expected:     "value",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.setEnv {
+				os.Setenv(testEnvVar, tt.envValue)
+			} else {
+				os.Unsetenv(testEnvVar)
+			}
+
+			result := GetStringFromEnv(testEnvVar, tt.defaultValue, nil)
+			if result != tt.expected {
+				t.Errorf("Expected %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
 // Benchmark tests
 
 func BenchmarkGetIntFromEnv_ValidValue(b *testing.B) {
