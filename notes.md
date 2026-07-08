@@ -1,5 +1,12 @@
 # Copilot Session Insights — repo memory
 
+## 2026-07-08 snapshot
+- 50 sessions; **8% completion** (4 success, 41 action_required, 1 cancelled, 4 in_progress) — floor regime; saw-tooth pullback from 07-07 (18%). Trailing: 20→8→4→**54**→16→8→18→**8**. 30d-mean ~13%.
+- **provenance_inversion holds**: all 4 successes = "Addressing comment on PR" agentic runs (13–23m, on cache-checkout-visibility #44224 ×2, specify-checkout #44225, fix-threat-detection #44202); 0/4 core CI gates. 45 gate stubs 0-dur. Reverts the 07-04 flip; consistent with the floor+inversion regime.
+- 9/50 non-zero; exec mean 8.85m / median 6.45m / max 23.28m (Addressing PR#44225). Overall mean 1.59m, median 0m. 44-min window (06:37–07:21Z). 8 copilot/* branches; gate footprint top: allow-memory-deterministic-job 12, add-runtime-token-check 9, fix-threat-detection 9.
+- Orphans 0/13 (all 13 open PRs Copilot-assigned; max 1 gate/copilot-branch, main=3) → 0% NORMAL, ~42nd healthy day. Conv logs empty (41st day).
+- **EXPERIMENTAL (roll=26): Agentic Work-Time Concentration (AWTC)** — 99% of 79.7 wall-clock-min in 7 agentic comment-addressing runs; 45 gate stubs = 0.28m combined. CARM sub-metric: PR#44224 fired 3× (2 succ + 1 cancelled = retry churn), #44225 2×. Separates "compute spent" from "runs counted." Effectiveness High; recommend Refine.
+
 ## 2026-07-04 snapshot
 - 50 sessions; **54% completion** (27 success, 22 action_required, 1 failure) — **REGIME BREAK**: up sharply from 4%→8%→4% floor; highest in trailing window (prev max 40% on 06-10/06-27).
 - **provenance_inversion FLIPPED**: 20/27 successes are core CI gates (Doc Build/Smoke CI/CWI/CGO) executing to success, not gate-blocked; action_required now dominated by agentic maintenance (PR Description Updater 5 + Label Closed PRs 5) + 12 partial CI. Strongest inversion break yet — echoes the smaller 06-23 gate-green episode (then 20%, 8/10 succ = green CI gates).
@@ -13,11 +20,6 @@
 - Concentration: 8 `copilot/*` branches; top-2 duplicate-code-fix(16)+runtime-cloning(13)=58%. 22.5-min window (07:18–07:40Z).
 - Orphans 0 (active runs all on `main`; max gates/copilot-branch=0); 12 open PRs (11 Copilot-assigned, 1 unassigned fresh codeql PR #43148 0-gate) → 0% NORMAL, ~39th healthy day. 0 escalations.
 - Conv logs empty (36th day). **EXPERIMENTAL run (roll=8): Gate-Bundle Composition Divergence (GBCD)** — only 3/8 branches fire full 4/4 core CI gate set (Smoke CI+CGO+CWI+Doc-Deploy); lint/doc branches fire 0/4 (lightweight agentic wf); update-checkout fires 2/4 + moderation. Refines per_branch_gate_fanout: bundle is change-TYPE-adaptive, not uniform per PR-open. Effectiveness Medium; recommend Refine.
-
-## 2026-07-02 snapshot
-- 50 sessions; **8% completion** (4 success, 46 action_required) — floor regime after 20% on 07-01.
-- provenance_inversion holds (4th+ obs): 4 successes = agent-exec (2 cloud-agent + 2 PR-comment), only non-zero-dur runs (max 11.98m, median 0); 46 action_required = CI/infra gates.
-- Orphans 0 (max gates/branch=3); 18 open PRs (11 Copilot-assigned, 7 unassigned, none with active gate sweep) → 0% NORMAL. Conv logs OAuth stub. Standard run (roll=85).
 
 _(Prior peak 06-27: 40% (20 succ); superseded by 54% on 07-04. Per-day detail in session-trends.jsonl / session-insights-history.jsonl; older snapshots trimmed for size.)_
 

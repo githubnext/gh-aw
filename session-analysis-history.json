@@ -32,8 +32,19 @@
    "orphan_rate_pct": 0.0,
    "data_quality": "metadata-only (conv-logs empty 36th day)",
    "notes": "floor regime continues 20->8->4% over 07-01..07-03; below 30d-mean ~13%. 2 success (PR Sous Chef 8.62m + Skillet 0.48m, both agentic on lint-monster-targeted-cleanup)/46 action_required/2 in_progress. provenance_inversion holds (successes=agentic, 0/4 core gates). 8 copilot/* branches top-2=58%. Orphan 0/12 (11 Copilot-assigned, 1 unassigned codeql PR 0-gate; active runs all main) ~39th healthy day. roll=8 EXPERIMENTAL Gate-Bundle Composition Divergence: only 3/8 branches fire full 4/4 core CI gate set, GBCD=62.5%, refines per_branch_gate_fanout."
+  },
+  {
+   "date": "2026-07-08",
+   "sessions": 50,
+   "completion_pct": 8.0,
+   "avg_dur_min": 1.59,
+   "median_dur_min": 0.0,
+   "loops": 0,
+   "orphan_rate_pct": 0.0,
+   "data_quality": "metadata-only (conv-logs empty 41st day)",
+   "notes": "floor regime 18->8% saw-tooth; 4 succ all 'Addressing comment on PR' agentic (13-23m, 0/4 core gates) provenance_inversion holds; 41 action_required+1 cancelled+4 in_progress. 8 copilot/* branches. Orphan 0/13 all Copilot-assigned, max 1 gate/copilot-branch ~42nd healthy day. roll=26 EXPERIMENTAL AWTC: 99% of 79.7 wall-clock-min in 7 agentic runs, 45 gate stubs=0.28m; CARM PR#44224 3x(2succ+1cancel)."
   }
  ],
- "last_updated": "2026-07-03",
- "version": "1.5"
+ "last_updated": "2026-07-08",
+ "version": "1.6"
 }

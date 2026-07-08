@@ -23,7 +23,13 @@
       "tested": "2026-06-26",
       "effectiveness": "Medium",
       "finding": "On gate-sweep days each newly-opened PR fires a near-identical FULL gate bundle (AI Moderator + Agentic Commands x3-4 + Q x3-4 + Smoke CI x2-3 + Content Moderation + CGO/CWI/Doc-Deploy + 1 cloud-agent) = 14-16 gates; branches with only a push (no new PR) fire the 4-gate subset (CGO,CWI,Doc-Deploy,Smoke CI). So gate_count == f(PR-open event), NOT branch health. Temporally the sweep is multi-wave: 06-26 had 16 distinct ts / 2362s but first gap=1413s -> two clusters (lone early firing + main sweep at synchronized PR-open). Refines 06-20 Gate-Footprint-Signature: use full-bundle vs push-subset to tell a fresh PR-open sweep from a stuck branch."
+    },
+    {
+      "name": "Agentic Work-Time Concentration (AWTC)",
+      "tested": "2026-07-08",
+      "effectiveness": "High",
+      "finding": "On floor-regime days ~99% of total wall-clock compute concentrates in a handful of agentic 'Addressing comment on PR' runs (7 runs = 79.4 of 79.7 min today), while the 45 action-required gate stubs consume ~0.28 min combined (near-instant approval placeholders). Separates 'compute spent' from 'runs counted': daily completion% (8%) and gate-stub count wildly understate that real agent effort ran deep on just 2-3 checkout-behavior PRs. Sub-metric CARM (Comment-Addressing Retry Multiplicity): PR#44224 fired the agentic workflow 3x (2 success + 1 cancelled = retry churn), #44225 2x. Complements BGSI (footprint inversely tracks completion) and provenance_inversion. Recommend Refine: track AWTC + CARM as a per-day churn/efficiency signal."
     }
   ],
-  "last_updated": "2026-06-26"
+  "last_updated": "2026-07-08"
 }
