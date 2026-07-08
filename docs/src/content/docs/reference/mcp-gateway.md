@@ -561,7 +561,7 @@ The gateway MUST NOT fail to start if the OpenTelemetry collector endpoint is un
 
 When `forcePublicRepos` is `true` (the default), the gateway overrides the compiled allow-only policy to `repos="public"` at startup if it detects the workflow is running in a public repository. This prevents agents from accumulating private-data secrecy tags in the first place — even when the compiled config grants broader access.
 
-**Detection mechanism**: The gateway reads `GITHUB_REPOSITORY` and calls `GET /repos/{owner}/{repo}` at startup to determine repository visibility. If the repository is public and `forcePublicRepos` is `true`, the override is applied unconditionally.
+**Detection mechanism**: The gateway reads `GITHUB_REPOSITORY` and calls `GET /repos/{owner}/{repo}` at startup to determine repository visibility. If the repository is public and `forcePublicRepos` is `true`, the override is applied — subject to the availability of `GITHUB_REPOSITORY`, the GitHub token, and a successful API response (see Precedence rules below).
 
 **Scope of the override**: Only the allow-only policy is affected. Guard policies, tool permissions, and other configuration are unchanged.
 
@@ -1580,7 +1580,7 @@ The write-sink guard policy applies at the **output side**: it is checked immedi
 
 #### 10.8.2 `sink-visibility` Field
 
-The `write-sink` object inside `guard-policies` for a safe-outputs (or equivalent) MCP server accepts the following field:
+The `write-sink` object inside `guard-policies` for a safe-outputs (or equivalent) MCP server accepts the following fields:
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
@@ -1626,7 +1626,7 @@ The gh-aw compiler automatically sets `sink-visibility` as a runtime expression 
 
 This runtime expression resolves to the actual repository visibility at workflow execution time (as determined by the automatic lockdown detection step). Workflow authors do not need to set `sink-visibility` manually — it is derived from the repository context automatically.
 
-**Configuration Example** (as rendered in the generated config):
+**Configuration Example** (resolved runtime value — `"public"` shown as an example after the expression is evaluated):
 
 ```json
 {
