@@ -611,3 +611,39 @@ Run CI diagnostics.
 	require.Contains(t, lockStr, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request'")
 	require.Contains(t, lockStr, "fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'ci-doctor'")
 }
+
+// TestLabelCommandDecentralizedPreActivationPullRequestsReadPermission verifies that the
+// pre_activation job is auto-granted pull-requests: read when label_command uses
+// strategy: decentralized with events including pull_request.
+// This is required because check_membership.cjs calls the pulls API to verify PR provenance.
+func TestLabelCommandDecentralizedPreActivationPullRequestsReadPermission(t *testing.T) {
+	tempDir := t.TempDir()
+	workflowContent := `---
+name: Label Command Decentralized PR Permission
+on:
+  label_command:
+    name: ci-doctor
+    events: [pull_request]
+    strategy: decentralized
+engine: copilot
+---
+
+Run CI diagnostics.
+`
+
+	workflowPath := filepath.Join(tempDir, "label-command-decentralized-perm.md")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(workflowContent), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err)
+	lockStr := string(lockContent)
+
+	preActivationSection := extractJobSection(lockStr, "pre_activation")
+	require.NotEmpty(t, preActivationSection, "expected pre_activation job in lock file")
+	require.Contains(t, preActivationSection, "pull-requests: read",
+		"pre_activation job should have pull-requests: read for decentralized label_command with pull_request events")
+}

@@ -87,6 +87,67 @@ describe("copilot_sdk_driver.cjs", () => {
       }
     });
 
+    it("clears cleanup timeout deadlines when cleanup settles promptly", async () => {
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let onEvent = () => {};
+      const session = {
+        sessionId: "session-cleanup-timeouts-cleared",
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "done" },
+          });
+          return { data: { content: "done" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = stop;
+      }
+
+      const realSetTimeout = global.setTimeout;
+      const realClearTimeout = global.clearTimeout;
+      const cleanupTimeoutHandles = new Set();
+      const clearedCleanupTimeoutHandles = new Set();
+      const setTimeoutSpy = vi.spyOn(global, "setTimeout").mockImplementation((fn, delay, ...args) => {
+        const handle = realSetTimeout(fn, delay, ...args);
+        if (delay === 5_000) cleanupTimeoutHandles.add(handle);
+        return handle;
+      });
+      const clearTimeoutSpy = vi.spyOn(global, "clearTimeout").mockImplementation(handle => {
+        if (cleanupTimeoutHandles.has(handle)) clearedCleanupTimeoutHandles.add(handle);
+        return realClearTimeout(handle);
+      });
+
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(cleanupTimeoutHandles.size).toBe(2);
+        expect(clearedCleanupTimeoutHandles.size).toBe(2);
+      } finally {
+        setTimeoutSpy.mockRestore();
+        clearTimeoutSpy.mockRestore();
+      }
+    });
+
     it("disconnects session and stops client on send failure", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);
@@ -407,6 +468,76 @@ describe("copilot_sdk_driver.cjs", () => {
         // disconnect is called twice: once by the watchdog and once in finally.
         expect(disconnectWithSignal).toHaveBeenCalled();
         expect(stop).toHaveBeenCalledTimes(1);
+      } finally {
+        if (prevIdleMs === undefined) delete process.env.GH_AW_SDK_IDLE_MS;
+        else process.env.GH_AW_SDK_IDLE_MS = prevIdleMs;
+      }
+    });
+
+    it("cleanup timeout prevents hang when client.stop() never resolves", async () => {
+      // Regression: when the SDK server is unresponsive, client.stop() in the
+      // finally block can hang indefinitely, causing the process to be killed by
+      // the step timeout instead of exiting cleanly with success.
+      // The 5-second cleanup timeout must bound the hang and allow the function
+      // to return with exitCode 0 within a reasonable wall-clock budget.
+      let onEvent = () => {};
+      let resolveDisconnect;
+      const disconnectCalled = new Promise(resolve => {
+        resolveDisconnect = resolve;
+      });
+      const disconnectWithSignal = vi.fn().mockImplementation(() => {
+        resolveDisconnect();
+        return Promise.resolve(undefined);
+      });
+      // stop() never resolves — simulates a hung SDK server.
+      const hangingStop = vi.fn().mockReturnValue(new Promise(() => {}));
+
+      const session = {
+        sessionId: "session-cleanup-timeout",
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "work done" },
+          });
+          await disconnectCalled;
+          throw new Error("transport disconnected");
+        }),
+        disconnect: disconnectWithSignal,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = hangingStop;
+      }
+
+      const prevIdleMs = process.env.GH_AW_SDK_IDLE_MS;
+      process.env.GH_AW_SDK_IDLE_MS = "20";
+      try {
+        const start = Date.now();
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+        const elapsed = Date.now() - start;
+
+        expect(result.exitCode).toBe(0);
+        expect(result.hasOutput).toBe(true);
+        expect(result.output).toContain("work done");
+        // stop() was called but hung — the cleanup timeout must have unblocked.
+        expect(hangingStop).toHaveBeenCalledTimes(1);
+        // Should complete well within 10 seconds (5s cleanup timeout + overhead).
+        expect(elapsed).toBeLessThan(10_000);
       } finally {
         if (prevIdleMs === undefined) delete process.env.GH_AW_SDK_IDLE_MS;
         else process.env.GH_AW_SDK_IDLE_MS = prevIdleMs;

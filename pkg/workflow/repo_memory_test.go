@@ -1544,3 +1544,122 @@ func TestRepoMemoryFormatJSONPushStepEnvVar(t *testing.T) {
 			"Push step should NOT include FORMAT_JSON env var when format-json is false")
 	})
 }
+
+// TestValidateFileGlobPatterns tests the validateFileGlobPatterns function
+func TestValidateFileGlobPatterns(t *testing.T) {
+	tests := []struct {
+		name     string
+		patterns []string
+		wantErr  bool
+		errMsg   string
+	}{
+		{
+			name:     "empty patterns list",
+			patterns: []string{},
+			wantErr:  false,
+		},
+		{
+			name:     "valid slashless extension glob",
+			patterns: []string{"*.json", "*.md"},
+			wantErr:  false,
+		},
+		{
+			name:     "valid subfolder-scoped pattern",
+			patterns: []string{"metrics/**"},
+			wantErr:  false,
+		},
+		{
+			name:     "valid mixed patterns",
+			patterns: []string{"*.json", "*.jsonl", "*.csv", "*.md"},
+			wantErr:  false,
+		},
+		{
+			name:     "valid depth-1 exact pattern",
+			patterns: []string{"discussion-task-miner/processed-discussions.json"},
+			wantErr:  false,
+		},
+		{
+			name:     "invalid - pattern starts with /",
+			patterns: []string{"/etc/passwd"},
+			wantErr:  true,
+			errMsg:   "must not start with '/'",
+		},
+		{
+			name:     "invalid - absolute path /file.json",
+			patterns: []string{"/file.json"},
+			wantErr:  true,
+			errMsg:   "must not start with '/'",
+		},
+		{
+			name:     "invalid - second pattern starts with /",
+			patterns: []string{"*.json", "/absolute/path.md"},
+			wantErr:  true,
+			errMsg:   "must not start with '/'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateFileGlobPatterns(tt.patterns)
+			if tt.wantErr {
+				require.Error(t, err, "Expected error for patterns: %v", tt.patterns)
+				assert.Contains(t, err.Error(), tt.errMsg, "Error message should contain: %s", tt.errMsg)
+			} else {
+				require.NoError(t, err, "Expected no error for patterns: %v", tt.patterns)
+			}
+		})
+	}
+}
+
+// TestFileGlobPatternValidationInConfig tests that invalid file-glob patterns are rejected
+// during config extraction (both array and object notation)
+func TestFileGlobPatternValidationInConfig(t *testing.T) {
+	t.Run("rejects absolute path in array notation", func(t *testing.T) {
+		toolsMap := map[string]any{
+			"repo-memory": []any{
+				map[string]any{
+					"id":        "test",
+					"file-glob": []any{"/etc/secret.json"},
+				},
+			},
+		}
+		toolsConfig, err := ParseToolsConfig(toolsMap)
+		require.NoError(t, err)
+		compiler := NewCompiler()
+		_, err = compiler.extractRepoMemoryConfig(toolsConfig, "test-workflow")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must not start with '/'")
+	})
+
+	t.Run("rejects absolute path in object notation", func(t *testing.T) {
+		toolsMap := map[string]any{
+			"repo-memory": map[string]any{
+				"file-glob": []any{"/absolute/path.md"},
+			},
+		}
+		toolsConfig, err := ParseToolsConfig(toolsMap)
+		require.NoError(t, err)
+		compiler := NewCompiler()
+		_, err = compiler.extractRepoMemoryConfig(toolsConfig, "test-workflow")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must not start with '/'")
+	})
+
+	t.Run("accepts valid slashless patterns in array notation", func(t *testing.T) {
+		toolsMap := map[string]any{
+			"repo-memory": []any{
+				map[string]any{
+					"id":        "test",
+					"file-glob": []any{"*.json", "*.md"},
+				},
+			},
+		}
+		toolsConfig, err := ParseToolsConfig(toolsMap)
+		require.NoError(t, err)
+		compiler := NewCompiler()
+		config, err := compiler.extractRepoMemoryConfig(toolsConfig, "test-workflow")
+		require.NoError(t, err)
+		require.NotNil(t, config)
+		assert.Equal(t, []string{"*.json", "*.md"}, config.Memories[0].FileGlob)
+	})
+}

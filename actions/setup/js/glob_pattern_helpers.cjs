@@ -20,6 +20,10 @@ function escapeRegexChars(pattern) {
  * @param {Object} [options] - Options for pattern conversion
  * @param {boolean} [options.pathMode=true] - If true, * matches non-slash chars; if false, * matches any char
  * @param {boolean} [options.caseSensitive=true] - Whether matching should be case-sensitive
+ * @param {boolean} [options.matchSubfolderRoot=false] - If true and the pattern contains no "/",
+ *   the pattern is required to be prefixed by exactly one path segment (i.e. matches only at the
+ *   root of a single memory subfolder: "subfolder/file.json").  Files at the artifact root (depth 0)
+ *   and files deeper than one level (depth 2+) are not matched.
  * @returns {RegExp} - Regular expression that matches the pattern
  *
  * Supports:
@@ -37,9 +41,15 @@ function escapeRegexChars(pattern) {
  * const regex = globPatternToRegex("metrics/**");
  * regex.test("metrics/data.json"); // true
  * regex.test("metrics/daily/data.json"); // true
+ *
+ * @example
+ * const regex = globPatternToRegex("*.json", { matchSubfolderRoot: true });
+ * regex.test("discussion-task-miner/processed-discussions.json"); // true  (depth 1)
+ * regex.test("file.json"); // false  (depth 0 – not matched)
+ * regex.test("discussion-task-miner/archive/old.json"); // false  (depth 2 – not matched)
  */
 function globPatternToRegex(pattern, options) {
-  const { pathMode = true, caseSensitive = true } = options || {};
+  const { pathMode = true, caseSensitive = true, matchSubfolderRoot = false } = options || {};
 
   let regexPattern = escapeRegexChars(pattern);
 
@@ -52,6 +62,13 @@ function globPatternToRegex(pattern, options) {
   } else {
     // Simple mode: * matches any character
     regexPattern = regexPattern.replace(/\*/g, ".*");
+  }
+
+  // matchSubfolderRoot: slashless patterns must match exactly at the root of one subfolder
+  // (depth 1 only – neither depth 0 nor depth 2+).
+  // Patterns that already contain a "/" are matched against the full relative path unchanged.
+  if (matchSubfolderRoot && !pattern.includes("/")) {
+    regexPattern = `[^/]+/${regexPattern}`;
   }
 
   return new RegExp(`^${regexPattern}$`, caseSensitive ? "" : "i");

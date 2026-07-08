@@ -1446,6 +1446,114 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
   });
 });
 
+describe("push_repo_memory.cjs - FILE_GLOB_FILTER validation", () => {
+  let mockCore, mockContext, mockFs, mockExecGitSync;
+
+  beforeEach(() => {
+    mockCore = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+    };
+    mockContext = { repo: { owner: "test-owner", repo: "test-repo" } };
+    mockExecGitSync = vi.fn();
+    mockFs = {
+      existsSync: vi.fn().mockReturnValue(false),
+      readFileSync: vi.fn(),
+      writeFileSync: vi.fn(),
+      mkdirSync: vi.fn(),
+      readdirSync: vi.fn(),
+      statSync: vi.fn(),
+      copyFileSync: vi.fn(),
+    };
+
+    global.core = mockCore;
+    global.context = mockContext;
+
+    process.env.ARTIFACT_DIR = "/tmp/test-artifact";
+    process.env.MEMORY_ID = "test-memory";
+    process.env.BRANCH_NAME = "memory/test";
+    process.env.GH_TOKEN = "test-token";
+    process.env.GITHUB_RUN_ID = "123456";
+    process.env.GITHUB_WORKSPACE = "/tmp/workspace";
+    process.env.TARGET_REPO = "test-owner/test-repo";
+  });
+
+  afterEach(() => {
+    delete global.core;
+    delete global.context;
+    delete process.env.ARTIFACT_DIR;
+    delete process.env.MEMORY_ID;
+    delete process.env.BRANCH_NAME;
+    delete process.env.GH_TOKEN;
+    delete process.env.GITHUB_RUN_ID;
+    delete process.env.GITHUB_WORKSPACE;
+    delete process.env.TARGET_REPO;
+    delete process.env.FILE_GLOB_FILTER;
+    vi.resetModules();
+  });
+
+  it("should reject FILE_GLOB_FILTER patterns starting with /", async () => {
+    process.env.FILE_GLOB_FILTER = "/etc/passwd";
+
+    vi.doMock("fs", () => mockFs);
+    vi.doMock("./git_helpers.cjs", () => ({ execGitSync: mockExecGitSync }));
+
+    const { main } = await import("./push_repo_memory.cjs");
+    await main();
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining('"/etc/passwd"'));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("must not start with"));
+    expect(mockExecGitSync).not.toHaveBeenCalled();
+  });
+
+  it("should reject when any pattern in a multi-pattern filter starts with /", async () => {
+    process.env.FILE_GLOB_FILTER = "*.json /absolute/path.md";
+
+    vi.doMock("fs", () => mockFs);
+    vi.doMock("./git_helpers.cjs", () => ({ execGitSync: mockExecGitSync }));
+
+    const { main } = await import("./push_repo_memory.cjs");
+    await main();
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining('"/absolute/path.md"'));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("must not start with"));
+  });
+
+  it("should accept valid slashless patterns without error", async () => {
+    process.env.FILE_GLOB_FILTER = "*.json *.md";
+
+    // Artifact dir doesn't exist → quick exit, no setFailed
+    mockFs.existsSync.mockReturnValue(false);
+
+    vi.doMock("fs", () => mockFs);
+    vi.doMock("./git_helpers.cjs", () => ({ execGitSync: mockExecGitSync }));
+
+    const { main } = await import("./push_repo_memory.cjs");
+    await main();
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Memory directory not found"));
+  });
+
+  it("should accept valid subfolder-scoped patterns without error", async () => {
+    process.env.FILE_GLOB_FILTER = "metrics/** data/**";
+
+    mockFs.existsSync.mockReturnValue(false);
+
+    vi.doMock("fs", () => mockFs);
+    vi.doMock("./git_helpers.cjs", () => ({ execGitSync: mockExecGitSync }));
+
+    const { main } = await import("./push_repo_memory.cjs");
+    await main();
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+});
+
 describe("push_repo_memory.cjs - changed-file limit checks", () => {
   it("should enforce MAX_FILE_COUNT against changed files, not scanned wiki file count (source check)", () => {
     const nodeFs = require("fs");
