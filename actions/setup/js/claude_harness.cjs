@@ -553,7 +553,7 @@ async function main() {
       if (startupRetriesUsed < startupRetryLimit) {
         startupRetriesUsed++;
         useContinueOnRetry = false;
-        log(`attempt ${attempt + 1}: no output produced — retrying startup as fresh run ` + `(startup retry ${startupRetriesUsed}/${startupRetryLimit}, attempt ${attempt + 2}/${maxRetries + 1})`);
+        log(`attempt ${attempt + 1}: no output produced — retrying startup as fresh run ` + `(startup retry ${startupRetriesUsed}/${startupRetryLimit}, next attempt ${attempt + 2} of ${maxRetries + 1} total attempts)`);
         continue;
       }
       log(

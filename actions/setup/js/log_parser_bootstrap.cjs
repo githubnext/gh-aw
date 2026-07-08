@@ -5,7 +5,10 @@ const { generatePlainTextSummary, generateCopilotCliStyleSummary, wrapAgentLogIn
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/i;
-const CLAUDE_RATE_LIMIT_OR_OVERLOAD_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit|overloaded_error|"overloaded"|(?:HTTP|status|error)[^\n]{0,60}\b5\d\d\b/i;
+const CLAUDE_RATE_LIMIT_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit/i;
+const CLAUDE_OVERLOAD_PATTERN = /overloaded_error|"overloaded"/i;
+const CLAUDE_HTTP_5XX_PATTERN = /(?:HTTP|status|error)[^\n]{0,60}\b5\d\d\b/i;
+const STARTUP_DIAGNOSTIC_LINE_PATTERN = /(?:ERR_|Error:|CAPIError|Authentication failed|rate[_ -]?limit|429|5\d\d|overloaded|inference)/i;
 
 /**
  * Build startup diagnostics for Claude failures with no structured entries.
@@ -24,7 +27,7 @@ function buildClaudeStartupDiagnostics(rawContent) {
     .split(/\r?\n/)
     .map(line => line.trim())
     .filter(Boolean);
-  const startupLines = lines.filter(line => line.includes("[claude-harness]") || /(?:ERR_|Error:|CAPIError|Authentication failed|rate[_ -]?limit|429|5\d\d|overloaded|inference)/i.test(line));
+  const startupLines = lines.filter(line => line.includes("[claude-harness]") || STARTUP_DIAGNOSTIC_LINE_PATTERN.test(line));
   const tailLines = (startupLines.length > 0 ? startupLines : lines).slice(-8);
   const tailText = tailLines.join("\n");
 
@@ -40,7 +43,7 @@ function buildClaudeStartupDiagnostics(rawContent) {
   }
 
   const inferenceAccessError = INFERENCE_ACCESS_ERROR_PATTERN.test(content);
-  const aiCreditsRateLimitError = CLAUDE_RATE_LIMIT_OR_OVERLOAD_PATTERN.test(content);
+  const aiCreditsRateLimitError = CLAUDE_RATE_LIMIT_PATTERN.test(content) || CLAUDE_OVERLOAD_PATTERN.test(content) || CLAUDE_HTTP_5XX_PATTERN.test(content);
   const summaryLine = `Claude startup failed before structured logging (exitCode=${exitCode}).`;
   const summaryMarkdown = tailText ? `<details><summary>Claude startup diagnostics</summary>\n\n\`\`\`text\n${tailText}\n\`\`\`\n</details>` : "";
 
