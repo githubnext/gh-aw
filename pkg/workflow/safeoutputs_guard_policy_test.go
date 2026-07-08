@@ -14,6 +14,7 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 	tests := []struct {
 		name             string
 		githubTool       map[string]any
+		sinkVisibility   string
 		expectedPolicies map[string]any
 		expectNil        bool
 		description      string
@@ -24,9 +25,11 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 				"repos":         "github/gh-aw",
 				"min-integrity": "approved",
 			},
+			sinkVisibility: "private",
 			expectedPolicies: map[string]any{
 				"write-sink": map[string]any{
-					"accept": []string{"private:github/gh-aw"},
+					"accept":          []string{"private:github/gh-aw"},
+					"sink-visibility": "private",
 				},
 			},
 			expectNil:   false,
@@ -38,9 +41,11 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 				"repos":         "github/*",
 				"min-integrity": "approved",
 			},
+			sinkVisibility: "internal",
 			expectedPolicies: map[string]any{
 				"write-sink": map[string]any{
-					"accept": []string{"private:github"},
+					"accept":          []string{"private:github"},
+					"sink-visibility": "internal",
 				},
 			},
 			expectNil:   false,
@@ -52,9 +57,11 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 				"repos":         "github/gh-aw*",
 				"min-integrity": "approved",
 			},
+			sinkVisibility: "public",
 			expectedPolicies: map[string]any{
 				"write-sink": map[string]any{
-					"accept": []string{"private:github/gh-aw*"},
+					"accept":          []string{"private:github/gh-aw*"},
+					"sink-visibility": "public",
 				},
 			},
 			expectNil:   false,
@@ -66,9 +73,11 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 				"repos":         "all",
 				"min-integrity": "approved",
 			},
+			sinkVisibility: "public",
 			expectedPolicies: map[string]any{
 				"write-sink": map[string]any{
-					"accept": []string{"*"},
+					"accept":          []string{"*"},
+					"sink-visibility": "public",
 				},
 			},
 			expectNil:   false,
@@ -80,9 +89,11 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 				"repos":         "public",
 				"min-integrity": "none",
 			},
+			sinkVisibility: "public",
 			expectedPolicies: map[string]any{
 				"write-sink": map[string]any{
-					"accept": []string{"*"},
+					"accept":          []string{"*"},
+					"sink-visibility": "public",
 				},
 			},
 			expectNil:   false,
@@ -111,12 +122,14 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 				},
 				"min-integrity": "approved",
 			},
+			sinkVisibility: "private",
 			expectedPolicies: map[string]any{
 				"write-sink": map[string]any{
 					"accept": []string{
 						"private:github/gh-aw*",
 						"private:github/copilot*",
 					},
+					"sink-visibility": "private",
 				},
 			},
 			expectNil:   false,
@@ -211,9 +224,11 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 			githubTool: map[string]any{
 				"min-integrity": "approved",
 			},
+			sinkVisibility: "public",
 			expectedPolicies: map[string]any{
 				"write-sink": map[string]any{
-					"accept": []string{"*"},
+					"accept":          []string{"*"},
+					"sink-visibility": "public",
 				},
 			},
 			expectNil:   false,
@@ -243,7 +258,7 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := deriveSafeOutputsGuardPolicyFromGitHub(tt.githubTool)
+			result := deriveSafeOutputsGuardPolicyFromGitHub(tt.githubTool, tt.sinkVisibility)
 
 			if tt.expectNil {
 				assert.Nil(t, result, "Expected nil result for: %s", tt.description)

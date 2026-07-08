@@ -710,5 +710,12 @@ func (c *Compiler) processOnSectionAndFilters(
 	}
 	workflowData.OnNeeds = onNeeds
 
+	// Extract on.restore-memory to opt in to pre-activation memory restore for on.steps.
+	onRestoreMemory, err := extractOnRestoreMemory(frontmatter)
+	if err != nil {
+		return err
+	}
+	workflowData.OnRestoreMemory = onRestoreMemory
+
 	return nil
 }

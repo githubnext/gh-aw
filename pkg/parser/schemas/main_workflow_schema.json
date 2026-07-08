@@ -2152,6 +2152,10 @@
               "default": [],
               "examples": [["secrets_fetcher"]]
             },
+            "restore-memory": {
+              "type": "boolean",
+              "description": "When true, restore cache-memory, repo-memory, and comment-memory stores before on.steps in pre_activation. Defaults to false."
+            },
             "steps": {
               "type": "array",
               "description": "Steps to inject into the pre-activation job. These steps run after all built-in checks (membership, stop-time, skip-if, etc.) and their results are exposed as pre-activation outputs. Use 'id' on steps to reference their results via needs.pre_activation.outputs.<id>_result.",

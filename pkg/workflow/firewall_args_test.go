@@ -44,34 +44,23 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 			t.Error("Expected command to contain '--log-level'")
 		}
 
-		initSnippet := `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""`
+		// docker-host-path-prefix is no longer emitted (removed for sysroot, gh-aw#34896)
+		if strings.Contains(stepContent, "--docker-host-path-prefix") {
+			t.Error("Expected command NOT to emit --docker-host-path-prefix (sysroot handles path visibility)")
+		}
+
+		// --docker-host probe must still be present
 		dockerHostInitSnippet := `GH_AW_DOCKER_HOST=""`
 		dockerHostConditionSnippet := `if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then`
 		dockerHostAssignmentSnippet := `GH_AW_DOCKER_HOST="${DOCKER_HOST}"`
 		dockerHostArgsRefSnippet := `${GH_AW_DOCKER_HOST:+--docker-host "$GH_AW_DOCKER_HOST"}`
-		conditionSnippet := `if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then`
-		flagAssignmentSnippet := `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix ${RUNNER_TEMP}/gh-aw"`
-		argsRefSnippet := `${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}`
 
 		dockerHostInitIdx := strings.Index(stepContent, dockerHostInitSnippet)
 		dockerHostConditionIdx := strings.Index(stepContent, dockerHostConditionSnippet)
 		dockerHostAssignmentIdx := strings.Index(stepContent, dockerHostAssignmentSnippet)
 		dockerHostArgsRefIdx := strings.Index(stepContent, dockerHostArgsRefSnippet)
-		initIdx := strings.Index(stepContent, initSnippet)
-		conditionIdx := -1
-		if initIdx != -1 {
-			conditionOffset := strings.Index(stepContent[initIdx:], conditionSnippet)
-			if conditionOffset != -1 {
-				conditionIdx = initIdx + conditionOffset
-			}
-		}
-		flagIdx := strings.Index(stepContent, flagAssignmentSnippet)
-		argsRefIdx := strings.Index(stepContent, argsRefSnippet)
 		if dockerHostInitIdx == -1 || dockerHostConditionIdx == -1 || dockerHostAssignmentIdx == -1 || dockerHostArgsRefIdx == -1 || dockerHostInitIdx >= dockerHostConditionIdx || dockerHostConditionIdx >= dockerHostAssignmentIdx || dockerHostAssignmentIdx >= dockerHostArgsRefIdx {
 			t.Error("Expected command to initialize docker-host variable, evaluate DOCKER_HOST condition, set --docker-host source variable, then expand --docker-host args in AWF invocation")
-		}
-		if initIdx == -1 || conditionIdx == -1 || flagIdx == -1 || argsRefIdx == -1 || initIdx >= conditionIdx || conditionIdx >= flagIdx || flagIdx >= argsRefIdx {
-			t.Error("Expected command to initialize probe variable, evaluate DOCKER_HOST condition, assign docker-host-path-prefix flag, then expand args variable in AWF invocation")
 		}
 
 		// Verify that --log-dir is included in copilot args for log collection
@@ -315,8 +304,13 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 		stepContent := requireCopilotExecutionStep(t, steps)
 
-		if !strings.Contains(stepContent, `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix ${RUNNER_TEMP}/gh-aw"`) {
-			t.Error("Expected arc-dind docker-host-path-prefix to use ${RUNNER_TEMP}/gh-aw")
+		// docker-host-path-prefix must NOT be emitted — sysroot makes it unnecessary and it
+		// causes the workspace mount to be translated to a non-existent path (gh-aw#34896).
+		if strings.Contains(stepContent, `--docker-host-path-prefix`) {
+			t.Error("Expected arc-dind NOT to emit --docker-host-path-prefix (sysroot handles path visibility)")
+		}
+		if !strings.Contains(stepContent, `--mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw"`) {
+			t.Error("Expected explicit workspace mount for arc-dind")
 		}
 		if !strings.Contains(stepContent, `--mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro"`) {
 			t.Error("Expected read-only base mount for ${RUNNER_TEMP}/gh-aw")

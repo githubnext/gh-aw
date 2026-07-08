@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/envutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
@@ -62,12 +63,10 @@ func GetGitHubToken() (string, error) {
 	githubLog.Print("Getting GitHub token")
 
 	// First try environment variable
-	if token := os.Getenv("GITHUB_TOKEN"); token != "" { //nolint:osgetenvlibrary
-		githubLog.Print("Found GITHUB_TOKEN environment variable")
+	if token := envutil.GetStringFromEnv("GITHUB_TOKEN", "", githubLog); token != "" {
 		return token, nil
 	}
-	if token := os.Getenv("GH_TOKEN"); token != "" { //nolint:osgetenvlibrary
-		githubLog.Print("Found GH_TOKEN environment variable")
+	if token := envutil.GetStringFromEnv("GH_TOKEN", "", githubLog); token != "" {
 		return token, nil
 	}
 

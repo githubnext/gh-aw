@@ -47,6 +47,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	steps = c.buildPreActivationSkipIfQuerySteps(data, steps, skipIfToken)
 	steps = c.buildPreActivationSkipIfCheckFailingStep(data, steps)
 	steps = c.buildPreActivationRolesBotsCmdSteps(data, steps)
+	steps = c.buildPreActivationMemoryRestoreSteps(data, steps)
 	steps, onStepIDs, err := c.injectPreActivationOnSteps(data, steps, customSteps)
 	if err != nil {
 		return nil, err
@@ -228,6 +229,75 @@ func (c *Compiler) buildPreActivationRolesBotsCmdSteps(data *WorkflowData, steps
 		steps = c.appendPreActivationCommandPositionStep(data, steps)
 	}
 	return steps
+}
+
+// buildPreActivationMemoryRestoreSteps restores memory stores before on.steps run in pre-activation.
+// This is a read-only surface: it restores/loads memory data but does not emit write-back or commit steps.
+func (c *Compiler) buildPreActivationMemoryRestoreSteps(data *WorkflowData, steps []string) []string {
+	if len(data.OnSteps) == 0 || !data.OnRestoreMemory {
+		return steps
+	}
+
+	var cacheMemorySteps strings.Builder
+	generatePreActivationCacheMemoryRestoreSteps(&cacheMemorySteps, data)
+	if cacheMemorySteps.Len() > 0 {
+		steps = append(steps, cacheMemorySteps.String())
+	}
+
+	var repoMemorySteps strings.Builder
+	generateRepoMemorySteps(&repoMemorySteps, data)
+	if repoMemorySteps.Len() > 0 {
+		steps = append(steps, repoMemorySteps.String())
+	}
+
+	if data.SafeOutputs != nil && data.SafeOutputs.CommentMemory != nil {
+		var commentMemorySteps strings.Builder
+		commentMemorySteps.WriteString("      - name: Prepare comment memory files\n")
+		fmt.Fprintf(&commentMemorySteps, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+		commentMemorySteps.WriteString("        with:\n")
+		fmt.Fprintf(&commentMemorySteps, "          github-token: %s\n", getEffectiveSafeOutputGitHubToken(data.SafeOutputs.CommentMemory.GitHubToken))
+		commentMemorySteps.WriteString("          script: |\n")
+		commentMemorySteps.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
+		commentMemorySteps.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+		commentMemorySteps.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/setup_comment_memory_files.cjs');\n")
+		commentMemorySteps.WriteString("            await main();\n")
+		steps = append(steps, commentMemorySteps.String())
+	}
+
+	return steps
+}
+
+func generatePreActivationCacheMemoryRestoreSteps(builder *strings.Builder, data *WorkflowData) {
+	if data.CacheMemoryConfig == nil || len(data.CacheMemoryConfig.Caches) == 0 {
+		return
+	}
+
+	preActivationData := &WorkflowData{
+		ParsedTools: data.ParsedTools,
+		SafeOutputs: data.SafeOutputs,
+		CacheMemoryConfig: &CacheMemoryConfig{
+			Caches: make([]CacheMemoryEntry, len(data.CacheMemoryConfig.Caches)),
+		},
+	}
+	for i, cache := range data.CacheMemoryConfig.Caches {
+		cacheCopy := CacheMemoryEntry{
+			ID:          cache.ID,
+			Key:         cache.Key,
+			Description: cache.Description,
+			RestoreOnly: true,
+			Scope:       cache.Scope,
+		}
+		if cache.AllowedExtensions != nil {
+			cacheCopy.AllowedExtensions = append([]string(nil), cache.AllowedExtensions...)
+		}
+		if cache.RetentionDays != nil {
+			retentionDays := *cache.RetentionDays
+			cacheCopy.RetentionDays = &retentionDays
+		}
+		preActivationData.CacheMemoryConfig.Caches[i] = cacheCopy
+	}
+
+	generateCacheMemorySteps(builder, preActivationData)
 }
 
 func (c *Compiler) appendPreActivationSkipRolesStep(data *WorkflowData, steps []string) []string {
@@ -781,6 +851,32 @@ func extractOnNeeds(frontmatter map[string]any) ([]string, error) {
 	}
 
 	return parseOnNeedsValues(onMap)
+}
+
+// extractOnRestoreMemory extracts the optional 'restore-memory' field from the 'on:' section.
+// Default is false when unset.
+func extractOnRestoreMemory(frontmatter map[string]any) (bool, error) {
+	onValue, exists := frontmatter["on"]
+	if !exists || onValue == nil {
+		return false, nil
+	}
+
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return false, nil
+	}
+
+	restoreMemoryValue, exists := onMap["restore-memory"]
+	if !exists || restoreMemoryValue == nil {
+		return false, nil
+	}
+
+	restoreMemory, ok := restoreMemoryValue.(bool)
+	if !ok {
+		return false, fmt.Errorf("on.restore-memory must be a boolean, got %T", restoreMemoryValue)
+	}
+
+	return restoreMemory, nil
 }
 
 func parseOnNeedsValues(onMap map[string]any) ([]string, error) {

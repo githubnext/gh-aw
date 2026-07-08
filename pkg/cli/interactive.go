@@ -15,6 +15,7 @@ import (
 	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/envutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
@@ -63,8 +64,11 @@ func (b *InteractiveWorkflowBuilder) ensureNonTTYScanner(r io.Reader) *bufio.Sca
 func CreateWorkflowInteractively(ctx context.Context, workflowName string, verbose bool, force bool) error {
 	interactiveLog.Printf("Starting interactive workflow creation: workflowName=%s, force=%v", workflowName, force)
 
-	// Assert this function is not running in automated unit tests
-	if os.Getenv("GO_TEST_MODE") == "true" || os.Getenv("CI") != "" { //nolint:osgetenvlibrary
+	// Assert this function is not running in automated unit tests or CI.
+	// GO_TEST_MODE intentionally uses GetBoolFromEnv so common boolean spellings
+	// are treated consistently across test and automation environments, while
+	// IsRunningInCI centralizes the broader CI environment detection logic.
+	if envutil.GetBoolFromEnv("GO_TEST_MODE", false, interactiveLog) || IsRunningInCI() {
 		return errors.New("interactive workflow creation cannot be used in automated tests or CI environments")
 	}
 

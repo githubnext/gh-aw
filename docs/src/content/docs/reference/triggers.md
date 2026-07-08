@@ -682,6 +682,7 @@ Inject custom deterministic steps directly into the pre-activation job. Steps ru
 on:
   issues:
     types: [opened]
+  restore-memory: true
   steps:
     - name: Check issue label
       id: label_check
@@ -707,6 +708,8 @@ if: needs.pre_activation.outputs.has_bug_label == 'true'
 ```
 
 Explicit outputs in `jobs.pre-activation.outputs` take precedence over auto-wired `<id>_result` outputs on key collision.
+
+Set `on.restore-memory: true` to restore memory stores (`cache-memory`, `repo-memory`, `comment-memory`) before `on.steps` run. The default is `false`.
 
 ### Pre-Activation and Activation Dependencies (`on.needs:`)
 

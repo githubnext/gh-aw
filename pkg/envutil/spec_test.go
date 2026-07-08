@@ -169,3 +169,91 @@ func TestSpec_PublicAPI_GetIntFromEnv_DocExample(t *testing.T) {
 	assert.Equal(t, 8, result,
 		"documented example: returns valid value within [1, 20]")
 }
+
+// TestSpec_PublicAPI_GetBoolFromEnv validates the documented behavior of
+// GetBoolFromEnv as described in the package README.md.
+func TestSpec_PublicAPI_GetBoolFromEnv_ReturnsDefault_WhenNotSet(t *testing.T) {
+	const envVar = "GH_AW_SPEC_TEST_BOOL_UNSET"
+	os.Unsetenv(envVar)
+	defer os.Unsetenv(envVar)
+
+	result := GetBoolFromEnv(envVar, true, nil)
+	assert.True(t, result,
+		"GetBoolFromEnv should return defaultValue when env var is not set")
+}
+
+func TestSpec_PublicAPI_GetBoolFromEnv_ReturnsDefault_WhenInvalid(t *testing.T) {
+	const envVar = "GH_AW_SPEC_TEST_BOOL_INVALID"
+	os.Setenv(envVar, "not-a-bool")
+	defer os.Unsetenv(envVar)
+
+	result := GetBoolFromEnv(envVar, true, nil)
+	assert.True(t, result,
+		"GetBoolFromEnv should return defaultValue when value cannot be parsed as boolean")
+}
+
+func TestSpec_PublicAPI_GetBoolFromEnv_ReturnsParsedValue(t *testing.T) {
+	const envVar = "GH_AW_SPEC_TEST_BOOL_VALID"
+	os.Setenv(envVar, "false")
+	defer os.Unsetenv(envVar)
+
+	result := GetBoolFromEnv(envVar, true, nil)
+	assert.False(t, result,
+		"GetBoolFromEnv should return the parsed boolean value")
+}
+
+func TestSpec_PublicAPI_GetBoolFromEnv_AcceptsNonNilLogger(t *testing.T) {
+	const envVar = "GH_AW_SPEC_TEST_BOOL_LOGGER"
+	os.Setenv(envVar, "true")
+	defer os.Unsetenv(envVar)
+
+	log := logger.New("envutil:spec_test")
+
+	assert.NotPanics(t, func() {
+		assert.True(t, GetBoolFromEnv(envVar, false, log))
+	}, "GetBoolFromEnv should not panic when a non-nil logger is passed")
+}
+
+// TestSpec_PublicAPI_GetStringFromEnv validates the documented behavior of
+// GetStringFromEnv as described in the package README.md.
+func TestSpec_PublicAPI_GetStringFromEnv_ReturnsDefault_WhenNotSet(t *testing.T) {
+	const envVar = "GH_AW_SPEC_TEST_STRING_UNSET"
+	os.Unsetenv(envVar)
+	defer os.Unsetenv(envVar)
+
+	result := GetStringFromEnv(envVar, "fallback", nil)
+	assert.Equal(t, "fallback", result,
+		"GetStringFromEnv should return defaultValue when env var is not set")
+}
+
+func TestSpec_PublicAPI_GetStringFromEnv_ReturnsDefault_WhenEmpty(t *testing.T) {
+	const envVar = "GH_AW_SPEC_TEST_STRING_EMPTY"
+	os.Setenv(envVar, "")
+	defer os.Unsetenv(envVar)
+
+	result := GetStringFromEnv(envVar, "fallback", nil)
+	assert.Equal(t, "fallback", result,
+		"GetStringFromEnv should return defaultValue when env var is empty")
+}
+
+func TestSpec_PublicAPI_GetStringFromEnv_ReturnsValue(t *testing.T) {
+	const envVar = "GH_AW_SPEC_TEST_STRING_VALUE"
+	os.Setenv(envVar, "value")
+	defer os.Unsetenv(envVar)
+
+	result := GetStringFromEnv(envVar, "fallback", nil)
+	assert.Equal(t, "value", result,
+		"GetStringFromEnv should return the env var value when it is non-empty")
+}
+
+func TestSpec_PublicAPI_GetStringFromEnv_AcceptsNonNilLogger(t *testing.T) {
+	const envVar = "GH_AW_SPEC_TEST_STRING_LOGGER"
+	os.Setenv(envVar, "token")
+	defer os.Unsetenv(envVar)
+
+	log := logger.New("envutil:spec_test")
+
+	assert.NotPanics(t, func() {
+		assert.Equal(t, "token", GetStringFromEnv(envVar, "", log))
+	}, "GetStringFromEnv should not panic when a non-nil logger is passed")
+}
