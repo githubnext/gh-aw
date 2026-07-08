@@ -305,6 +305,11 @@ func addWorkflowsWithTracking(ctx context.Context, workflows []*ResolvedWorkflow
 		}
 
 		if err := addWorkflowWithTracking(ctx, resolved, tracker, opts); err != nil {
+			if tracker != nil {
+				if rollbackErr := tracker.RollbackAllFiles(opts.Verbose); rollbackErr != nil {
+					return fmt.Errorf("failed to add workflow '%s' (rollback also failed): %w", resolved.Spec.String(), errors.Join(err, rollbackErr))
+				}
+			}
 			return fmt.Errorf("failed to add workflow '%s': %w", resolved.Spec.String(), err)
 		}
 	}
