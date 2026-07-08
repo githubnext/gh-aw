@@ -328,6 +328,8 @@
       "additionalProperties": false
     },
     "opentelemetryConfig": {
+      "type": "object",
+      "description": "OpenTelemetry configuration for the MCP Gateway. When present, the gateway emits distributed tracing spans for each MCP tool invocation and exports them via OTLP/HTTP to the configured collector endpoint. Per MCP Gateway Specification section 4.1.3.6.",
       "properties": {
         "endpoint": {
           "type": "string",
