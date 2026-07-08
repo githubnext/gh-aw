@@ -78,6 +78,7 @@ const MAX_TURNS_EXIT_PATTERN = /"subtype"\s*:\s*"error_max_turns"/;
 // this path must not be retried via --continue (fall back to a fresh run if budget remains).
 const NO_DEFERRED_MARKER_PATTERN = /No deferred tool marker found/i;
 const SIGNAL_TERMINATION_EXIT_CODES = new Set([137, 143]);
+const MAX_STARTUP_RETRIES = 2;
 
 /**
  * Emit a timestamped diagnostic log line to stderr.
@@ -121,7 +122,7 @@ function resolveStartupRetryLimit(env = process.env, logger = log) {
     logger(`invalid GH_AW_CLAUDE_STARTUP_RETRIES='${raw}' (not finite); using default startup retries=1`);
     return 1;
   }
-  const clamped = Math.min(Math.max(parsed, 0), 2);
+  const clamped = Math.min(Math.max(parsed, 0), MAX_STARTUP_RETRIES);
   if (clamped !== parsed) {
     logger(`GH_AW_CLAUDE_STARTUP_RETRIES=${parsed} out of range; clamped to ${clamped}`);
   }

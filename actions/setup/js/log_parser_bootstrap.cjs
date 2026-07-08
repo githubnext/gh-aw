@@ -9,6 +9,7 @@ const CLAUDE_RATE_LIMIT_PATTERN = /rate_limit_error|429 Too Many Requests|"api_e
 const CLAUDE_OVERLOAD_PATTERN = /overloaded_error|"overloaded"/i;
 const CLAUDE_HTTP_5XX_PATTERN = /(?:HTTP|status|error)[^\n]{0,60}\b5\d\d\b/i;
 const STARTUP_DIAGNOSTIC_LINE_PATTERN = /(?:ERR_|Error:|CAPIError|Authentication failed|rate[_ -]?limit|429|5\d\d|overloaded|inference)/i;
+const MAX_DIAGNOSTIC_TAIL_LINES = 8;
 
 /**
  * Build startup diagnostics for Claude failures with no structured entries.
@@ -28,7 +29,7 @@ function buildClaudeStartupDiagnostics(rawContent) {
     .map(line => line.trim())
     .filter(Boolean);
   const startupLines = lines.filter(line => line.includes("[claude-harness]") || STARTUP_DIAGNOSTIC_LINE_PATTERN.test(line));
-  const tailLines = (startupLines.length > 0 ? startupLines : lines).slice(-8);
+  const tailLines = (startupLines.length > 0 ? startupLines : lines).slice(-MAX_DIAGNOSTIC_TAIL_LINES);
   const tailText = tailLines.join("\n");
 
   let exitCode = "unknown";
@@ -43,7 +44,10 @@ function buildClaudeStartupDiagnostics(rawContent) {
   }
 
   const inferenceAccessError = INFERENCE_ACCESS_ERROR_PATTERN.test(content);
-  const aiCreditsRateLimitError = CLAUDE_RATE_LIMIT_PATTERN.test(content) || CLAUDE_OVERLOAD_PATTERN.test(content) || CLAUDE_HTTP_5XX_PATTERN.test(content);
+  const matchedRateLimit = CLAUDE_RATE_LIMIT_PATTERN.test(content);
+  const matchedOverload = CLAUDE_OVERLOAD_PATTERN.test(content);
+  const matchedHTTP5xx = CLAUDE_HTTP_5XX_PATTERN.test(content);
+  const aiCreditsRateLimitError = matchedRateLimit || matchedOverload || matchedHTTP5xx;
   const summaryLine = `Claude startup failed before structured logging (exitCode=${exitCode}).`;
   const summaryMarkdown = tailText ? `<details><summary>Claude startup diagnostics</summary>\n\n\`\`\`text\n${tailText}\n\`\`\`\n</details>` : "";
 
