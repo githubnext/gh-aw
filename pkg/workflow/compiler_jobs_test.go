@@ -4091,7 +4091,7 @@ func TestBuildDetectionJobEngineEnvBuiltinWarning(t *testing.T) {
 				EngineConfig: &EngineConfig{
 					ID: "copilot",
 					Env: map[string]string{
-						"INVALID": "${{ needs.safe_outputs.outputs.anything }}",
+						"BUILTIN_JOB_REF": "${{ needs.safe_outputs.outputs.anything }}",
 					},
 				},
 			},

@@ -88,6 +88,7 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 			engineEnvBuilder.WriteString(envValue)
 		}
 		engineEnvContent := engineEnvBuilder.String()
+		hasNeedsReference := strings.Contains(engineEnvContent, "needs.")
 		if len(data.Jobs) > 0 {
 			engineEnvJobs := c.getReferencedCustomJobs(engineEnvContent, data.Jobs)
 			for _, jobName := range engineEnvJobs {
@@ -100,19 +101,21 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 				}
 			}
 		}
-		for _, builtinJobName := range sliceutil.SortedKeys(constants.KnownBuiltInJobNames) {
-			if slices.Contains(needs, builtinJobName) {
-				continue
-			}
-			if strings.Contains(engineEnvContent, fmt.Sprintf("needs.%s.", builtinJobName)) {
-				warningMsg := fmt.Sprintf(
-					"engine.env references built-in job '%s' in a detection-job needs expression. "+
-						"Built-in jobs are managed by the compiler and cannot be added as direct detection dependencies; "+
-						"this expression will silently evaluate to an empty string at runtime.",
-					builtinJobName,
-				)
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
-				c.IncrementWarningCount()
+		if hasNeedsReference {
+			for _, builtinJobName := range sliceutil.SortedKeys(constants.KnownBuiltInJobNames) {
+				if slices.Contains(needs, builtinJobName) {
+					continue
+				}
+				if strings.Contains(engineEnvContent, fmt.Sprintf("needs.%s.", builtinJobName)) {
+					warningMsg := fmt.Sprintf(
+						"engine.env references built-in job '%s' in a detection-job needs expression. "+
+							"Built-in jobs are managed by the compiler and cannot be added as direct detection dependencies; "+
+							"this expression will silently evaluate to an empty string at runtime.",
+						builtinJobName,
+					)
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+					c.IncrementWarningCount()
+				}
 			}
 		}
 	}
