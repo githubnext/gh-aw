@@ -47,7 +47,7 @@ export const requireFsSyncTryCatchRule = createRule({
           crossedDeferredBoundary = true;
         }
 
-        if (ancestor.type === "TryStatement" && !crossedDeferredBoundary) {
+        if (ancestor.type === "TryStatement" && !crossedDeferredBoundary && ancestor.handler != null) {
           const block = ancestor.block;
           if (node.range != null && block.range != null && node.range[0] >= block.range[0] && node.range[1] <= block.range[1]) {
             return true;

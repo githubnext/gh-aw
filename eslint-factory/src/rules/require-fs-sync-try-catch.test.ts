@@ -79,6 +79,51 @@ describe("require-fs-sync-try-catch", () => {
     });
   });
 
+  it("valid: try/catch/finally is treated as protective", () => {
+    cjsRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
+      valid: [`try { fs.writeFileSync(path, data); } catch (e) {} finally { cleanup(); }`, `try { fs.readFileSync(path, "utf8"); } catch (e) { handleErr(e); } finally { releaseLock(); }`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: try/finally without catch is not protective", () => {
+    cjsRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { fs.writeFileSync(path, data); } finally { cleanup(); }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "writeFileSync", arg: "path" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `try { try {\n  fs.writeFileSync(path, data);\n} catch (err) {\n  // TODO: handle I/O failure for this fs.writeFileSync call.\n  throw new Error(\n    "fs.writeFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} } finally { cleanup(); }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `try { fs.readFileSync(path, "utf8"); } finally { releaseLock(); }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "readFileSync", arg: "path" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `try { try {\n  fs.readFileSync(path, "utf8");\n} catch (err) {\n  // TODO: handle I/O failure for this fs.readFileSync call.\n  throw new Error(\n    "fs.readFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} } finally { releaseLock(); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it("valid: synchronous callbacks inside try block are protected", () => {
     cjsRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
       valid: [

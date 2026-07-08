@@ -3,8 +3,13 @@ package workflow
 
 import (
 	"fmt"
+	"os"
+	"slices"
+	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 // buildDetectionJob creates a separate detection job that runs after the agent job.
@@ -67,6 +72,53 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 
 	// Detection job depends on agent job and activation job (for trace ID)
 	needs := []string{string(constants.AgentJobName), string(constants.ActivationJobName)}
+
+	// Scan the effective detection engine env values for needs.<customJob>.outputs.*
+	// expressions and add the referenced custom jobs as direct dependencies of the
+	// detection job. safe-outputs.threat-detection.engine overrides the top-level
+	// engine config for detection execution, so its env map must win here as well.
+	detectionEngineConfig := data.EngineConfig
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.EngineConfig != nil {
+		detectionEngineConfig = data.SafeOutputs.ThreatDetection.EngineConfig
+	}
+	if detectionEngineConfig != nil && len(detectionEngineConfig.Env) > 0 {
+		var engineEnvBuilder strings.Builder
+		for _, envValue := range detectionEngineConfig.Env {
+			engineEnvBuilder.WriteByte('\n')
+			engineEnvBuilder.WriteString(envValue)
+		}
+		engineEnvContent := engineEnvBuilder.String()
+		hasNeedsReference := strings.Contains(engineEnvContent, "needs.")
+		if len(data.Jobs) > 0 {
+			engineEnvJobs := c.getReferencedCustomJobs(engineEnvContent, data.Jobs)
+			for _, jobName := range engineEnvJobs {
+				if isBuiltinJobName(jobName) {
+					continue
+				}
+				if !slices.Contains(needs, jobName) {
+					needs = append(needs, jobName)
+					threatLog.Printf("Added custom job '%s' to detection needs because it's referenced in engine.env", jobName)
+				}
+			}
+		}
+		if hasNeedsReference {
+			for _, builtinJobName := range sliceutil.SortedKeys(constants.KnownBuiltInJobNames) {
+				if slices.Contains(needs, builtinJobName) {
+					continue
+				}
+				if strings.Contains(engineEnvContent, fmt.Sprintf("needs.%s.", builtinJobName)) {
+					warningMsg := fmt.Sprintf(
+						"engine.env references built-in job '%s' in a detection-job needs expression. "+
+							"Built-in jobs are managed by the compiler and cannot be added as direct detection dependencies; "+
+							"this expression will silently evaluate to an empty string at runtime.",
+						builtinJobName,
+					)
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+					c.IncrementWarningCount()
+				}
+			}
+		}
+	}
 
 	// Determine runs-on: use threat detection override if set, otherwise ubuntu-latest.
 	// The detection job runs on a fresh runner separate from the agent job, so it does

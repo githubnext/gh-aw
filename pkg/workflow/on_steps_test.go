@@ -291,18 +291,21 @@ Test on.steps with memory stores restored in pre-activation
 		assert.Contains(t, lockContentStr, "# restore-memory: true # Restore-memory enables pre-activation memory restore")
 		assert.Contains(t, preActivationSection, "Restore cache-memory file share data")
 		assert.Contains(t, preActivationSection, "Clone repo-memory branch (default)")
+		assert.Contains(t, preActivationSection, "Write comment-memory configuration")
 		assert.Contains(t, preActivationSection, "Prepare comment memory files")
 		assert.Contains(t, preActivationSection, "        id: gate")
 
 		cacheRestoreIdx := strings.Index(preActivationSection, "Restore cache-memory file share data")
 		repoRestoreIdx := strings.Index(preActivationSection, "Clone repo-memory branch (default)")
+		commentMemoryConfigIdx := strings.Index(preActivationSection, "Write comment-memory configuration")
 		commentMemoryIdx := strings.Index(preActivationSection, "Prepare comment memory files")
 		gateStepIdx := strings.Index(preActivationSection, "        id: gate")
-		if cacheRestoreIdx == -1 || repoRestoreIdx == -1 || commentMemoryIdx == -1 || gateStepIdx == -1 {
+		if cacheRestoreIdx == -1 || repoRestoreIdx == -1 || commentMemoryConfigIdx == -1 || commentMemoryIdx == -1 || gateStepIdx == -1 {
 			t.Fatalf("Expected memory restore steps and gate step in pre_activation section. Section:\n%s", preActivationSection)
 		}
 		assert.Less(t, cacheRestoreIdx, gateStepIdx, "cache-memory should be restored before on.steps")
 		assert.Less(t, repoRestoreIdx, gateStepIdx, "repo-memory should be restored before on.steps")
+		assert.Less(t, commentMemoryConfigIdx, commentMemoryIdx, "comment-memory config should be written before restoring comment-memory files")
 		assert.Less(t, commentMemoryIdx, gateStepIdx, "comment-memory should be restored before on.steps")
 
 		// Pre-activation must not include write-back/commit steps.
