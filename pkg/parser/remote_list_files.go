@@ -65,17 +65,30 @@ func resolveListRepoCloneConfig(owner, repo, ref, host string) (listRepoCloneCon
 	}, nil
 }
 
-// getCachedListRepoClone acquires gitListCloneCache.mu briefly to read the cached path,
-// then performs filesystem validation outside the lock to avoid serializing I/O across
-// concurrent callers. If the entry is stale it is evicted under a second lock acquisition,
-// with a re-check to avoid incorrectly evicting a fresh entry written by another goroutine
-// during the stat window.
+// readCloneFromCache returns the cached clone directory for cacheKey under lock.
+func readCloneFromCache(cacheKey string) (string, bool) {
+	gitListCloneCache.mu.Lock()
+	defer gitListCloneCache.mu.Unlock()
+	cloneDir, ok := gitListCloneCache.dirs[cacheKey]
+	return cloneDir, ok
+}
+
+// evictCloneFromCache removes the cache entry for cacheKey only if it still maps to
+// cloneDir, preventing incorrect eviction of a fresh entry written by another goroutine.
+func evictCloneFromCache(cacheKey, cloneDir string) {
+	gitListCloneCache.mu.Lock()
+	defer gitListCloneCache.mu.Unlock()
+	if gitListCloneCache.dirs[cacheKey] == cloneDir {
+		delete(gitListCloneCache.dirs, cacheKey)
+	}
+}
+
+// getCachedListRepoClone reads the cached clone path without holding the mutex during
+// filesystem I/O to avoid serializing concurrent callers. If the entry is stale it is
+// evicted via evictCloneFromCache with a path-equality guard.
 // Do not call from code that already holds gitListCloneCache.mu.
 func getCachedListRepoClone(cacheKey string) (string, bool) {
-	gitListCloneCache.mu.Lock()
-	cloneDir, ok := gitListCloneCache.dirs[cacheKey]
-	gitListCloneCache.mu.Unlock()
-
+	cloneDir, ok := readCloneFromCache(cacheKey)
 	if !ok {
 		return "", false
 	}
@@ -85,11 +98,7 @@ func getCachedListRepoClone(cacheKey string) (string, bool) {
 	// Entry appears stale — evict under lock, but only if it still maps to the same
 	// path we checked above. A concurrent goroutine may have replaced the entry with a
 	// fresh clone in the window between the stat and this lock acquisition.
-	gitListCloneCache.mu.Lock()
-	if gitListCloneCache.dirs[cacheKey] == cloneDir {
-		delete(gitListCloneCache.dirs, cacheKey)
-	}
-	gitListCloneCache.mu.Unlock()
+	evictCloneFromCache(cacheKey, cloneDir)
 	return "", false
 }
 
