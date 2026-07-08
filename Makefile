@@ -1013,6 +1013,13 @@ sync-action-scripts:
 	@chmod +x actions/setup-cli/install.sh
 	@echo "✓ Action scripts synced successfully"
 
+# Sync install-gh-aw.sh SHA/hash constants in pkg/cli/copilot_setup.go
+.PHONY: sync-install-script-hashes
+sync-install-script-hashes:
+	@echo "Updating install-gh-aw.sh SHA and SHA256 constants..."
+	@bash scripts/update-install-script-hashes.sh
+	@echo "✓ Install script hashes synced successfully"
+
 # Recompile all workflow files
 .PHONY: recompile
 recompile: build
@@ -1052,6 +1059,7 @@ dependabot: build
 update: build
 	./$(BINARY_NAME) update
 	$(MAKE) sync-action-pins
+	$(MAKE) sync-install-script-hashes
 	$(MAKE) build
 
 # Run development server
@@ -1190,6 +1198,7 @@ help:
 	@echo "  install          - Install binary locally"
 	@echo "  sync-action-pins - Sync actions-lock.json from .github/aw to pkg/actionpins/data and pkg/workflow/data (runs automatically during build)"
 	@echo "  sync-action-scripts - Sync install-gh-aw.sh to actions/setup-cli/install.sh (runs automatically during build)"
+	@echo "  sync-install-script-hashes - Update install-gh-aw.sh SHA and SHA256 constants in pkg/cli/copilot_setup.go (runs automatically during update)"
 	@echo "  update           - Update GitHub Actions and workflows, sync action pins, and rebuild binary"
 	@echo "  fix              - Apply automatic codemod-style fixes to workflow files (depends on build)"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"

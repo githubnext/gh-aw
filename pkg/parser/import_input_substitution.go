@@ -25,6 +25,8 @@ func substituteImportInputsInContent(content string, inputs map[string]any) stri
 		return content
 	}
 
+	importLog.Printf("Substituting import-inputs expressions: inputs=%d, contentBytes=%d", len(inputs), len(content))
+
 	result := legacyInputsExprRegex.ReplaceAllStringFunc(content, buildImportInputReplaceFunc(legacyInputsExprRegex, inputs))
 	result = importInputsExprRegex.ReplaceAllStringFunc(result, buildImportInputReplaceFunc(importInputsExprRegex, inputs))
 	return result

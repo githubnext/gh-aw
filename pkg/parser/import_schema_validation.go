@@ -19,6 +19,7 @@ import (
 // If the imported workflow has no 'import-schema', all provided 'with' values are
 // accepted without validation (backward compatibility with 'inputs' form).
 func validateWithImportSchema(inputs map[string]any, fm map[string]any, importPath string) error {
+	importLog.Printf("Validating 'with' inputs against import-schema: import=%s, inputs=%d", importPath, len(inputs))
 	rawSchema, hasSchema := fm["import-schema"]
 	if !hasSchema {
 		return nil
@@ -30,6 +31,7 @@ func validateWithImportSchema(inputs map[string]any, fm map[string]any, importPa
 	if len(schemaMap) == 0 {
 		return nil
 	}
+	importLog.Printf("Import-schema declares %d field(s) for %s", len(schemaMap), importPath)
 
 	// Check for unknown keys not declared in import-schema
 	for key := range inputs {
@@ -209,6 +211,8 @@ func applyImportSchemaDefaultsFromFrontmatter(frontmatter map[string]any, inputs
 	if !hasDefaults {
 		return inputs
 	}
+
+	importLog.Printf("Applying import-schema defaults for unprovided inputs: schemaFields=%d", len(schemaMap))
 
 	// Copy the inputs map and add defaults for unprovided parameters.
 	augmented := make(map[string]any, len(inputs))
