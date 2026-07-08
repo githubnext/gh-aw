@@ -39,7 +39,7 @@ func TestQuoteYAMLEnvValue(t *testing.T) {
 	assert.Equal(t, `'["a","b"]'`, quoteYAMLEnvValue(`["a","b"]`))
 }
 
-func TestGenerateGitHubMCPLockdownDetectionStepSkipsWhenGuardPolicyExplicit(t *testing.T) {
+func TestGenerateGitHubMCPLockdownDetectionStepGeneratedWithExplicitGuardPolicy(t *testing.T) {
 	t.Parallel()
 
 	var yaml strings.Builder
@@ -55,8 +55,14 @@ func TestGenerateGitHubMCPLockdownDetectionStepSkipsWhenGuardPolicyExplicit(t *t
 	NewCompiler().generateGitHubMCPLockdownDetectionStep(&yaml, data)
 	output := yaml.String()
 
-	// When guard policies are explicitly configured, the detection step must not be generated.
-	assert.Empty(t, output, "detection step should be skipped when guard policy is explicitly configured")
+	// The detection step must still be generated even when guard policies are explicitly
+	// configured because it outputs repository visibility used by sink-visibility in
+	// safe-outputs and other MCP server guard policies.
+	assert.Contains(t, output, "determine-automatic-lockdown", "detection step should be generated even when guard policy is explicitly configured")
+	// The configured min-integrity and repos values must be passed as env vars to the step
+	// so the script can respect them and avoid overriding explicit config.
+	assert.Contains(t, output, "GH_AW_GITHUB_MIN_INTEGRITY", "env var should be present when min-integrity is explicitly set")
+	assert.Contains(t, output, "GH_AW_GITHUB_REPOS", "env var should be present when allowed-repos is explicitly set")
 }
 
 func TestGenerateGitHubMCPLockdownDetectionStepGeneratedWhenNoGuardPolicy(t *testing.T) {
