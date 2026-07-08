@@ -149,7 +149,7 @@ describe("determine_automatic_lockdown", () => {
     expect(mockCore.error).toHaveBeenCalledWith("Failed to determine automatic guard policy: API request failed");
     expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "approved");
     expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "all");
-    expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "unknown");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
     expect(mockCore.setOutput).not.toHaveBeenCalledWith("lockdown", expect.anything());
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to determine repository visibility"));
   });
