@@ -51,6 +51,10 @@ func (c *Compiler) computeRepositoryVisibility() string {
 		pushToPullRequestBranchValidationLog.Printf("Could not determine repository visibility: %v", err)
 		return ""
 	}
+	if visibility == "" {
+		pushToPullRequestBranchValidationLog.Printf("Could not determine repository visibility: unexpected API response shape for %s", slug)
+		return ""
+	}
 	c.repositoryVisibility[slug] = visibility
 	pushToPullRequestBranchValidationLog.Printf("Repository visibility: %s", visibility)
 	return visibility

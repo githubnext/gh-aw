@@ -61,6 +61,34 @@ func TestComputeRepositoryVisibility_DoesNotCacheFailedLookup(t *testing.T) {
 	}
 }
 
+func TestComputeRepositoryVisibility_DoesNotCacheEmptyVisibility(t *testing.T) {
+	c := NewCompiler()
+	c.SetRepositorySlug("github/gh-aw")
+
+	originalFetchRepositoryVisibility := fetchRepositoryVisibility
+	defer func() { fetchRepositoryVisibility = originalFetchRepositoryVisibility }()
+
+	calls := 0
+	fetchRepositoryVisibility = func(slug string) (string, error) {
+		calls++
+		if calls == 1 {
+			// Simulate unexpected API shape: no error but empty visibility.
+			return "", nil
+		}
+		return "public", nil
+	}
+
+	if got := c.computeRepositoryVisibility(); got != "" {
+		t.Fatalf("first computeRepositoryVisibility() = %q, want empty string", got)
+	}
+	if got := c.computeRepositoryVisibility(); got != "public" {
+		t.Fatalf("second computeRepositoryVisibility() = %q, want %q", got, "public")
+	}
+	if calls != 2 {
+		t.Fatalf("fetchRepositoryVisibility() calls = %d, want %d", calls, 2)
+	}
+}
+
 func TestComputeRepositoryVisibility_InitializesCacheForZeroValueCompiler(t *testing.T) {
 	c := &Compiler{}
 	c.SetRepositorySlug("github/gh-aw")
