@@ -77,8 +77,9 @@ func parseRepositoryVisibility(output []byte) string {
 	if response.Private != nil {
 		if *response.Private {
 			return "private"
+		} else {
+			return "public"
 		}
-		return "public"
 	}
 
 	return ""

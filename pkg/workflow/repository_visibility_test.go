@@ -41,6 +41,11 @@ func TestParseRepositoryVisibility(t *testing.T) {
 			payload:  `not-json`,
 			expected: "",
 		},
+		{
+			name:     "valid json with invalid field types",
+			payload:  `{"visibility":123,"private":"false"}`,
+			expected: "",
+		},
 	}
 
 	for _, tt := range tests {
