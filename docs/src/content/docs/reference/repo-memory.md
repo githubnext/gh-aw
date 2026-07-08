@@ -46,7 +46,14 @@ tools:
 
 **Patch Size Limit**: Use `max-patch-size` to limit the total size of changes in a single push (default: 10KB, max: 1MB). The total size of the git diff (all staged changes combined) must not exceed this value. If it does, the push is rejected with an error. Use this to prevent large unintentional memory updates.
 
-**Note**: File glob patterns are matched against the **relative file path** within the artifact directory, not the branch path. Use bare extension patterns like `*.json` or `*.md` — do **not** include the branch name (e.g. `memory/custom-agent-for-aw/*.json` is incorrect).
+**File Glob Matching Rules**:
+
+- Patterns are matched against the **relative path** within the artifact directory — do **not** include the branch name.
+- **Slashless patterns** (no `/` in the pattern, e.g. `*.json`, `*.md`) match files at the root of a single memory subfolder — **depth 1 only**. They do _not_ match files at the artifact root (depth 0) or deeper than one subfolder level (depth 2+).
+- **Patterns containing `/`** (e.g. `metrics/**`, `data/*.csv`) are matched against the full relative path from the artifact root and work as standard glob expressions.
+- **Absolute paths** (patterns starting with `/`) are **not supported** and are rejected at compile time and runtime.
+
+Example: with the default filter `["*.json", "*.md"]`, the file `discussion-task-miner/processed-discussions.json` is persisted (depth 1 ✓), but `processed-discussions.json` (depth 0) and `discussion-task-miner/archive/old.json` (depth 2) are not.
 
 ## Multiple Configurations
 
@@ -63,7 +70,7 @@ tools:
 ---
 ```
 
-Mounts at `/tmp/gh-aw/repo-memory-{id}/` during workflow execution. Required `id` determines folder name; `branch-name` defaults to `{branch-prefix}/{id}` (where `branch-prefix` defaults to `memory`). Files are stored within the git branch at the branch name path (e.g., for branch `memory/code-metrics`, files are stored at `memory/code-metrics/` within the branch). **File glob patterns are matched against the relative file path within the artifact directory — never include the branch name in patterns.**
+Mounts at `/tmp/gh-aw/repo-memory-{id}/` during workflow execution. Required `id` determines folder name; `branch-name` defaults to `{branch-prefix}/{id}` (where `branch-prefix` defaults to `memory`). Files are stored within the git branch at the branch name path (e.g., for branch `memory/code-metrics`, files are stored at `memory/code-metrics/` within the branch). **File glob patterns are matched against the relative path within the artifact directory — never include the branch name in patterns. Slashless patterns (e.g. `*.json`) match files at the root of a memory subfolder (depth 1 only).**
 
 ## Behavior
 
