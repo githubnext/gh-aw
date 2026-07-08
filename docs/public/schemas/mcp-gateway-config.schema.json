@@ -116,6 +116,16 @@
             "type": "string"
           },
           "default": ["*"]
+        },
+        "guard-policies": {
+          "type": "object",
+          "description": "Guard policies for access control at the MCP gateway level. Supports a 'write-sink' policy for DIFC-based output filtering. Additional server-specific policies may be provided.",
+          "properties": {
+            "write-sink": {
+              "$ref": "#/definitions/writeSinkGuardPolicyConfig"
+            }
+          },
+          "additionalProperties": true
         }
       },
       "required": ["container"],
@@ -163,7 +173,12 @@
         },
         "guard-policies": {
           "type": "object",
-          "description": "Guard policies for access control at the MCP gateway level. The structure of guard policies is server-specific. For GitHub MCP server, see the GitHub guard policy schema. For other servers (Jira, WorkIQ), different policy schemas will apply.",
+          "description": "Guard policies for access control at the MCP gateway level. Supports a 'write-sink' policy for DIFC-based output filtering. Additional server-specific policies may be provided.",
+          "properties": {
+            "write-sink": {
+              "$ref": "#/definitions/writeSinkGuardPolicyConfig"
+            }
+          },
           "additionalProperties": true
         },
         "auth": {
@@ -282,9 +297,41 @@
         "opentelemetry": {
           "$ref": "#/definitions/opentelemetryConfig",
           "description": "Optional OpenTelemetry configuration for emitting distributed tracing spans for MCP calls. When configured, the gateway exports OTLP/HTTP traces to the specified collector endpoint."
+        },
+        "forcePublicRepos": {
+          "type": "boolean",
+          "description": "When true (default), forces the allow-only policy to repos=\"public\" at runtime if the gateway detects it is running in a public repository. Set to false by the compiler when private-to-public-flows: allow is declared in workflow frontmatter, or via MCP_GATEWAY_FORCE_PUBLIC_REPOS=false environment variable. See MCP Gateway Specification section 4.1.3.8.",
+          "default": true
+        },
+        "sinkVisibilityExemptServers": {
+          "type": "array",
+          "description": "List of server IDs exempt from the default sink-visibility=\"public\" enforcement. Use [\"*\"] to exempt all servers. Set by the compiler when private-to-public-flows lists specific server IDs in workflow frontmatter. See MCP Gateway Specification section 10.9.",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": ["port", "domain", "apiKey"],
+      "additionalProperties": false
+    },
+    "writeSinkGuardPolicyConfig": {
+      "type": "object",
+      "description": "Write-sink guard policy for DIFC-based output filtering. Controls whether an agent may write to the safe-outputs sink based on the agent's accumulated secrecy tags and the target repository visibility. Per MCP Gateway Specification section 10.8.",
+      "properties": {
+        "accept": {
+          "type": "array",
+          "description": "Secrecy tag patterns that are permitted to write to this sink. Use [\"*\"] to accept all secrecy levels. Required for all write-sink policies. When sink-visibility is \"public\", this field is syntactically required but has no runtime effect — resource secrecy is unconditionally set to empty.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sink-visibility": {
+          "type": "string",
+          "description": "Declares the visibility of the safe-outputs target repository (always the workflow's own repo, i.e. GITHUB_REPOSITORY). When \"public\", agents with non-empty secrecy are blocked regardless of accept patterns. When \"private\" or \"internal\", standard accept-pattern matching applies. When omitted, backward-compatible accept-pattern matching applies.",
+          "enum": ["public", "private", "internal"]
+        }
+      },
+      "required": ["accept"],
       "additionalProperties": false
     },
     "opentelemetryConfig": {
