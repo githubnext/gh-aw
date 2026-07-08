@@ -49,6 +49,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/tolowerequalfold"
 	"github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion"
 	"github.com/github/gh-aw/pkg/linters/wgdonenotdeferred"
+	"github.com/github/gh-aw/pkg/linters/writebytestring"
 )
 
 // TestSpec tests derive from pkg/linters/README.md. They enforce the documented
@@ -64,7 +65,7 @@ type docAnalyzer struct {
 }
 
 // documentedAnalyzers returns the analyzer subpackages documented in the README
-// "Public API > Subpackages" table. The README documents 38 analyzers
+// "Public API > Subpackages" table. The README documents 39 analyzers
 // subpackages (the non-analyzer `internal` helper subpackage is excluded because
 // it exposes no Analyzer).
 //
@@ -76,7 +77,7 @@ type docAnalyzer struct {
 //	manualmutexunlock, osexitinlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
 //	regexpcompileinfunction, seenmapbool, sortslice, sprintferrdot, sprintferrorsnew, ssljson,
 //	strconvparseignorederror, stringreplaceminusone, stringsindexcontains, timeafterleak, timesleepnocontext,
-//	tolowerequalfold, uncheckedtypeassertion, wgdonenotdeferred
+//	tolowerequalfold, uncheckedtypeassertion, wgdonenotdeferred, writebytestring
 func documentedAnalyzers() []docAnalyzer {
 	return []docAnalyzer{
 		{"appendbytestring", appendbytestring.Analyzer},
@@ -117,6 +118,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"tolowerequalfold", tolowerequalfold.Analyzer},
 		{"uncheckedtypeassertion", uncheckedtypeassertion.Analyzer},
 		{"wgdonenotdeferred", wgdonenotdeferred.Analyzer},
+		{"writebytestring", writebytestring.Analyzer},
 	}
 }
 

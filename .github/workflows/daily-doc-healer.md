@@ -155,7 +155,22 @@ find docs/src/content/docs -name '*.md' -o -name '*.mdx'
 grep -Pn "ArtifactName\s*=" pkg/constants/constants.go pkg/constants/job_constants.go
 ```
 
-For each constant found, verify that the artifact name value is listed in `docs/src/content/docs/reference/artifacts.md`. If a constant is missing from the reference page, treat it as a documentation gap and add it.
+For each constant found:
+
+a. **First, confirm the artifact is actually produced** before treating a missing `artifacts.md` entry as a documentation gap. For each constant with value `"<artifact-value>"`, run:
+
+```bash
+grep -rn "name: <artifact-value>" .github/workflows/*.lock.yml
+grep -rn '"<artifact-value>"' pkg/workflow/js/
+```
+
+An artifact is **produced** if its name appears in the `name:` field of an `actions/upload-artifact` step in any generated `.github/workflows/*.lock.yml` file, or in the JS upload helpers under `pkg/workflow/js/`.
+
+b. **Also check that the corresponding job builder is not a no-op stub**. If the job builder function that would emit this artifact returns `nil` unconditionally (for example, `buildEvalsJob` has `return nil, nil` and a `TODO` comment), the artifact is not yet implemented.
+
+c. If the constant exists but the artifact is **not** produced by any workflow (no match in lock.yml files or JS helpers, or the job builder is a no-op stub), **skip it** — it is a forward-declared constant for an unimplemented feature, not a documentation gap.
+
+d. Only if the artifact **is** produced, verify that the artifact name value is listed in `docs/src/content/docs/reference/artifacts.md`. If a confirmed-produced artifact is missing from the reference page, treat it as a documentation gap and add it.
 
 Only proceed with issues where you can confirm the documentation gap still exists.
 

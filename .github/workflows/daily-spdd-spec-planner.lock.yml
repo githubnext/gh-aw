@@ -478,11 +478,11 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
-      - env:
-          GH_TOKEN: ${{ github.token }}
-        name: Copy OpenSPDD prompts
-        run: "set -euo pipefail\n# Resolve the latest OpenSPDD main ref each run via authenticated GitHub API.\n# This intentionally tracks upstream prompt updates while avoiding unauthenticated rate limits.\nOPENSPDD_REF=\"$(gh api repos/gszhangwei/open-spdd/commits/main --jq .sha)\"\ntest -n \"${OPENSPDD_REF}\" || { echo \"::error::Failed to resolve OpenSPDD main ref\"; exit 1; }\nPROMPTS_DIR=\"${GITHUB_WORKSPACE}/.github/copilot-prompts\"\nmkdir -p \"${PROMPTS_DIR}\"\nfor PROMPT in spdd-analysis spdd-reasons-canvas spdd-generate spdd-sync; do\n  gh api \\\n    -H \"Accept: application/vnd.github.raw\" \\\n    \"repos/gszhangwei/open-spdd/contents/.cursor/commands/${PROMPT}.md?ref=${OPENSPDD_REF}\" \\\n    > \"${PROMPTS_DIR}/${PROMPT}.md\"\n  test -s \"${PROMPTS_DIR}/${PROMPT}.md\" || { echo \"::error::Failed to download ${PROMPT}.md\"; exit 1; }\ndone"
-
+      - name: Download activation artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: activation
+          path: /tmp/gh-aw
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
@@ -499,6 +499,11 @@ jobs:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: none
         run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        name: Copy OpenSPDD prompts
+        run: "set -euo pipefail\n# Resolve the latest OpenSPDD main ref each run via authenticated GitHub API.\n# This intentionally tracks upstream prompt updates while avoiding unauthenticated rate limits.\nOPENSPDD_REF=\"$(gh api repos/gszhangwei/open-spdd/commits/main --jq .sha)\"\ntest -n \"${OPENSPDD_REF}\" || { echo \"::error::Failed to resolve OpenSPDD main ref\"; exit 1; }\nPROMPTS_DIR=\"${GITHUB_WORKSPACE}/.github/copilot-prompts\"\nmkdir -p \"${PROMPTS_DIR}\"\nfor PROMPT in spdd-analysis spdd-reasons-canvas spdd-generate spdd-sync; do\n  gh api \\\n    -H \"Accept: application/vnd.github.raw\" \\\n    \"repos/gszhangwei/open-spdd/contents/.cursor/commands/${PROMPT}.md?ref=${OPENSPDD_REF}\" \\\n    > \"${PROMPTS_DIR}/${PROMPT}.md\"\n  test -s \"${PROMPTS_DIR}/${PROMPT}.md\" || { echo \"::error::Failed to download ${PROMPT}.md\"; exit 1; }\ndone"
+
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -537,11 +542,6 @@ jobs:
           script: |
             const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
-      - name: Download activation artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: activation
-          path: /tmp/gh-aw
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:
@@ -1016,6 +1016,8 @@ jobs:
         env:
           AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
         run: |
+          # Best-effort permission fix for artifact upload (AWF cleanup may not have run)
+          sudo -n chmod -R a+rX /tmp/gh-aw/sandbox/firewall 2>/dev/null || chmod -R a+rX /tmp/gh-aw/sandbox/firewall 2>/dev/null || true
           # Only run awf logs summary if awf command exists (it may not be installed if workflow failed before install step)
           if command -v awf &> /dev/null; then
             awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"

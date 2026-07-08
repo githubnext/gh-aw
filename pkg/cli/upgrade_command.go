@@ -149,7 +149,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 		},
 	}
 
-	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
+	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: $GH_AW_WORKFLOWS_DIR or .github/workflows)")
 	cmd.Flags().Bool("no-fix", false, "Skip codemods, action version updates, and workflow compilation (only update agent files)")
 	cmd.Flags().Bool("no-actions", false, "Skip updating GitHub Actions versions (ignored when --no-fix is set)")
 	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify lock files; ignored when --no-fix is set)")
@@ -158,7 +158,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 	cmd.Flags().Bool("create-issue", false, "Open a GitHub issue in each org repository with agentic workflows (requires --org)")
-	cmd.Flags().BoolP("yes", "y", false, "Auto-accept org-mode create confirmations (required in CI)")
+	cmd.Flags().BoolP("yes", "y", false, "Auto-accept org-mode upgrade confirmations (required in CI)")
 	cmd.Flags().Bool("audit", false, "Check dependency health without performing upgrades")
 	cmd.Flags().Bool("pre-releases", false, "Include pre-release versions when checking for extension upgrades; pre-releases are installed by exact tag")
 	cmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")

@@ -438,6 +438,12 @@ func (c *Compiler) configureCustomJobExecution(job *Job, jobName string, configM
 
 func configureCustomReusableWorkflow(job *Job, jobName string, usesStr string, configMap map[string]any) error {
 	compilerJobsLog.Printf("Custom job '%s' is a reusable workflow call: %s", jobName, usesStr)
+
+	// restore-memory cannot inject steps into reusable-workflow call jobs (no steps block).
+	if rm, ok := configMap["restore-memory"]; ok && rm != nil && rm != false {
+		return fmt.Errorf("jobs.%s.restore-memory: not supported for reusable workflow call jobs (uses: %s)", jobName, usesStr)
+	}
+
 	job.Uses = usesStr
 
 	// Extract with parameters for reusable workflow
@@ -507,13 +513,49 @@ func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap m
 		}
 	}
 
-	if hasSetupStepsField || hasPreStepsField || hasStepsField {
+	// Parse restore-memory configuration.
+	// restore-memory injects read-only memory restore steps into the custom job.
+	// No write-back or commit steps are ever emitted for memory in custom jobs.
+	restoreMemCfg, err := extractRestoreMemoryConfig(configMap, jobName, data)
+	if err != nil {
+		return err
+	}
+
+	hasRestoreMemory := restoreMemCfg != nil
+
+	// When cache-memory restore is requested, inject GH_AW_WORKFLOW_ID_SANITIZED so that
+	// restore keys match those used by the agent job.  Only set it when the user has not
+	// already provided the variable in their job's env: block.
+	if hasRestoreMemory && restoreMemCfg.CacheMemory && data.WorkflowID != "" {
+		sanitized := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
+		if job.Env == nil {
+			job.Env = make(map[string]string)
+		}
+		if _, alreadySet := job.Env["GH_AW_WORKFLOW_ID_SANITIZED"]; !alreadySet {
+			job.Env["GH_AW_WORKFLOW_ID_SANITIZED"] = sanitized
+		}
+	}
+
+	if hasSetupStepsField || hasPreStepsField || hasStepsField || hasRestoreMemory {
 		job.Steps = append(job.Steps, setupSteps...)
 		// Prepend GH_HOST configuration step for GHES/GHEC compatibility.
 		// Custom frontmatter jobs run as independent GitHub Actions jobs that
 		// don't inherit GITHUB_ENV from the agent job, so the gh CLI won't
 		// know which host to target without this step.
 		job.Steps = append(job.Steps, generateGHESHostConfigurationStep())
+
+		// Inject gh-aw setup + memory restore steps when restore-memory is requested.
+		// Setup lines come first (they install scripts needed by repo/comment memory).
+		// Memory lines follow immediately after (restore/clone/prepare steps).
+		if hasRestoreMemory {
+			memorySetupLines, memoryRestoreLines, memErr := c.buildRestoreMemorySteps(restoreMemCfg, jobName, data)
+			if memErr != nil {
+				return memErr
+			}
+			job.Steps = append(job.Steps, memorySetupLines...)
+			job.Steps = append(job.Steps, memoryRestoreLines...)
+		}
+
 		job.Steps = append(job.Steps, preSteps...)
 		job.Steps = append(job.Steps, regularSteps...)
 	}

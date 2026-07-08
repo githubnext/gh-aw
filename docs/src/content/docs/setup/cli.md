@@ -166,7 +166,7 @@ gh aw add-wizard https://example.com/workflows/my-workflow.json   # Arbitrary UR
 gh aw add-wizard githubnext/agentics/ci-doctor --no-secret  # Skip secret prompt
 ```
 
-**Options:** `--no-secret`, `--dir/-d`, `--engine/-e`, `--no-gitattributes`, `--no-stop-after`, `--stop-after`
+**Options:** `--no-secret`, `--dir/-d`, `--engine/-e`, `--no-gitattributes`, `--no-stop-after`, `--stop-after`, `--append`, `--no-security-scanner`
 
 When the Copilot engine is selected, the wizard prompts the user to choose an authentication method: organization billing via [`permissions.copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) (no PAT required), or a [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) personal access token. Selecting org billing injects the `copilot-requests: write` permission into the workflow frontmatter and skips the API key secret prompt.
 
@@ -720,7 +720,7 @@ gh aw upgrade --org my-org --create-issue --yes  # Auto-accept per-repo confirma
 
 **Options:** `--dir/-d`, `--no-fix`, `--no-actions`, `--no-compile`, `--disable-codemod`, `--create-pull-request`, `--create-issue`, `--org`, `--repos`, `--yes/-y`, `--audit`, `--json/-j`, `--approve`, `--pre-releases`
 
-Org mode (`--org`) previews or creates upgrade pull requests across every repository in an organization. Use `--repos` to limit org mode to repositories matching one or more glob patterns, `--create-issue` to open an issue in each org repository with agentic workflows (requires `--org`), and `--yes/-y` to auto-accept org-mode create confirmations (required in CI).
+Org mode (`--org`) previews or creates upgrade pull requests across every repository in an organization. Use `--repos` to limit org mode to repositories matching one or more glob patterns, `--create-issue` to open an issue in each org repository with agentic workflows (requires `--org`), and `--yes/-y` to auto-accept org-mode upgrade confirmations (required in CI).
 
 Use `--disable-codemod` (repeatable) to skip specific codemod IDs during the embedded fix step. This flag is ignored when `--no-fix` is set.
 
