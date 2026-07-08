@@ -51,11 +51,13 @@ func (c *Compiler) computeRepositoryVisibility() string {
 		pushToPullRequestBranchValidationLog.Printf("Could not determine repository visibility: %v", err)
 		return ""
 	}
-	if visibility == "" {
-		pushToPullRequestBranchValidationLog.Printf("Could not determine repository visibility: unexpected API response shape for %s", slug)
-		return ""
+	// Only cache recognised visibility values (public/private/internal); an empty
+	// or unrecognised result is not stored so the next call retries the API rather
+	// than pinning the compiler to an unknown state.
+	switch visibility {
+	case "public", "private", "internal":
+		c.repositoryVisibility[slug] = visibility
 	}
-	c.repositoryVisibility[slug] = visibility
 	pushToPullRequestBranchValidationLog.Printf("Repository visibility: %s", visibility)
 	return visibility
 }

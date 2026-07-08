@@ -107,7 +107,7 @@ type Compiler struct {
 	ghesCompatFromCLI       bool                     // If true, GHES compat was requested via --ghes CLI flag (takes precedence over aw.json)
 	ghesArtifactCompat      bool                     // If true, GHES compatibility mode is enabled; artifact actions still use latest non-v3 pins
 	ownerTypeCache          map[string]string        // Cached GitHub owner type ("User"/"Organization"/"") keyed by owner login; not goroutine-safe (Compiler is used sequentially)
-	repositoryVisibility    map[string]string        // Cached repository visibility keyed by slug
+	repositoryVisibility    map[string]string        // Cached repository visibility keyed by slug; not goroutine-safe (Compiler is used sequentially)
 	copilotRequestsTipShown map[string]bool          // Tracks markdown paths that already emitted the copilot-requests enable tip in this compiler instance
 	// modelPricingResolver is an optional callback for resolving per-token pricing of models that
 	// are absent from the embedded models.json catalog. When non-nil it is called during
