@@ -301,6 +301,103 @@ func TestBuildActivationJob_SkipsSecretValidationWithEnvironment(t *testing.T) {
 	assert.NotContains(t, job.Outputs, "secret_verification_result", "Activation job should not expose secret_verification_result output when validate-secret is skipped")
 }
 
+// TestBuildActivationJob_OAuthTokenCheckStep verifies that the activation job
+// includes a step to check for OAuth tokens in COPILOT_GITHUB_TOKEN, GH_AW_GITHUB_TOKEN,
+// and GH_AW_GITHUB_MCP_SERVER_TOKEN.
+func TestBuildActivationJob_OAuthTokenCheckStep(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name:            "Test Workflow",
+		MarkdownContent: "# Test\n\nContent",
+	}
+
+	job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+	require.NoError(t, err, "buildActivationJob should succeed")
+	require.NotNil(t, job)
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	assert.Contains(t, stepsStr, "id: check-oauth-tokens", "Activation job should contain OAuth token check step")
+	assert.Contains(t, stepsStr, "check_oauth_tokens.sh", "OAuth token check step should call the check_oauth_tokens.sh script")
+	assert.Contains(t, stepsStr, constants.CopilotGitHubToken+":", "OAuth token check step should pass COPILOT_GITHUB_TOKEN env var")
+	assert.Contains(t, stepsStr, constants.EnvVarGitHubToken+":", "OAuth token check step should pass GH_AW_GITHUB_TOKEN env var")
+	assert.Contains(t, stepsStr, constants.EnvVarGitHubMCPServerToken+":", "OAuth token check step should pass GH_AW_GITHUB_MCP_SERVER_TOKEN env var")
+}
+
+// TestBuildActivationJob_OAuthTokenCheckStep_DefaultTokenExprs verifies that default
+// secret expressions are used when no engine env overrides are set.
+func TestBuildActivationJob_OAuthTokenCheckStep_DefaultTokenExprs(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name:            "Test Workflow",
+		MarkdownContent: "# Test\n\nContent",
+	}
+
+	job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+	require.NoError(t, err)
+	require.NotNil(t, job)
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	assert.Contains(t, stepsStr, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}", "Default COPILOT_GITHUB_TOKEN expression should reference secrets.COPILOT_GITHUB_TOKEN")
+	assert.Contains(t, stepsStr, "GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}", "Default GH_AW_GITHUB_TOKEN expression should reference secrets.GH_AW_GITHUB_TOKEN")
+	assert.Contains(t, stepsStr, "GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}", "Default GH_AW_GITHUB_MCP_SERVER_TOKEN expression should reference secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN")
+}
+
+// TestBuildActivationJob_OAuthTokenCheckStep_EngineEnvOverride verifies that when
+// engine.env overrides COPILOT_GITHUB_TOKEN, the OAuth check uses the overridden expression.
+func TestBuildActivationJob_OAuthTokenCheckStep_EngineEnvOverride(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name:            "Test Workflow",
+		MarkdownContent: "# Test\n\nContent",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+			Env: map[string]string{
+				constants.CopilotGitHubToken: "${{ secrets.MY_ORG_COPILOT_TOKEN }}",
+			},
+		},
+	}
+
+	job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+	require.NoError(t, err)
+	require.NotNil(t, job)
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	assert.Contains(t, stepsStr, "COPILOT_GITHUB_TOKEN: ${{ secrets.MY_ORG_COPILOT_TOKEN }}", "Overridden COPILOT_GITHUB_TOKEN expression should be used in OAuth check step")
+	assert.NotContains(t, stepsStr, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}", "Default COPILOT_GITHUB_TOKEN expression should not appear when overridden")
+}
+
+// TestBuildActivationJob_OAuthCheckAfterSecretValidation verifies the step order:
+// the OAuth token check appears after the secret validation step.
+func TestBuildActivationJob_OAuthCheckAfterSecretValidation(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name:            "Test Workflow",
+		MarkdownContent: "# Test\n\nContent",
+	}
+
+	job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+	require.NoError(t, err)
+	require.NotNil(t, job)
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	validateIdx := strings.Index(stepsStr, "id: validate-secret")
+	oauthIdx := strings.Index(stepsStr, "id: check-oauth-tokens")
+
+	require.Greater(t, oauthIdx, -1, "check-oauth-tokens step should be present")
+
+	if validateIdx > -1 {
+		assert.Greater(t, oauthIdx, validateIdx, "OAuth token check step should appear after validate-secret step")
+	}
+}
+
 // TestBuildMainJob_Basic tests building a basic main job
 func TestBuildMainJob_Basic(t *testing.T) {
 	compiler := NewCompiler()
