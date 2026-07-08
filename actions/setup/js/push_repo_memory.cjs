@@ -142,9 +142,7 @@ async function main() {
     const allPatternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
     for (const pat of allPatternStrs) {
       if (pat.startsWith("/")) {
-        core.setFailed(
-          `FILE_GLOB_FILTER contains an unsupported pattern: "${pat}". Patterns must not start with "/" (absolute paths are not allowed).`
-        );
+        core.setFailed(`FILE_GLOB_FILTER contains an unsupported pattern: "${pat}". Patterns must not start with "/" (absolute paths are not allowed).`);
         return;
       }
     }
@@ -321,9 +319,7 @@ async function main() {
           // Slashless patterns (e.g. "*.json") are matched at the root of a single memory subfolder
           // (depth 1 only).  Patterns that already contain "/" are matched against the full relative
           // path unchanged.
-          const patterns = patternStrs.map(pattern =>
-            globPatternToRegex(pattern, { matchSubfolderRoot: !pattern.includes("/") })
-          );
+          const patterns = patternStrs.map(pattern => globPatternToRegex(pattern, { matchSubfolderRoot: !pattern.includes("/") }));
 
           // Test patterns against the relative file path within the memory directory
           // Patterns are specified relative to the memory artifact directory, not the branch path
