@@ -705,7 +705,7 @@ jobs:
 
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_01a5803fa92dc571_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_100cd027dda6c589_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -752,7 +752,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -772,7 +773,8 @@ jobs:
                   "write-sink": {
                     "accept": [
                       "*"
-                    ]
+                    ],
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               }
@@ -789,7 +791,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_01a5803fa92dc571_EOF
+          GH_AW_MCP_CONFIG_100cd027dda6c589_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

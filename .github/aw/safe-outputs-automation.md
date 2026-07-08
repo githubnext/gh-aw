@@ -67,7 +67,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
   safe-outputs:
     dispatch-workflow:
       workflows: [workflow-name]          # Required: list of workflow names to allow
-      max: 3                              # Optional: max dispatches (default: 1, max: 3)
+      max: 3                              # Optional: max dispatches (default: 1, max: 50)
       target-repo: org/other-repo         # Optional: cross-repo dispatch target (owner/repo or expression)
       allowed-repos: [org/*]              # Optional: allowlist for cross-repo dispatch targets
       target-ref: main                    # Optional: ref to dispatch against (overrides caller's GITHUB_REF)
@@ -186,7 +186,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
     assign-to-user:
       allowed: [user1, user2]         # Optional: restrict to specific users
       blocked: [copilot, "*[bot]"]    # Optional: deny specific users or glob patterns
-      max: 3                          # Optional: max assignments (default: 3)
+      max: 1                          # Optional: max assignments (default: 1)
       target: "*"                     # Optional: "triggering" (default), "*", or number
       target-repo: "owner/repo"       # Optional: cross-repository
       unassign-first: true            # Optional: unassign all current assignees first (default: false)

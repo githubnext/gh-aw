@@ -1571,7 +1571,7 @@ jobs:
 
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_2eda9c0ae2c6b104_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_00e75bc6ded7dab2_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -1590,7 +1590,7 @@ jobs:
                     "accept": [
                       "*"
                     ],
-                    "sink-visibility": "public"
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -1621,7 +1621,7 @@ jobs:
                     "accept": [
                       "*"
                     ],
-                    "sink-visibility": "public"
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -1654,7 +1654,7 @@ jobs:
                     "accept": [
                       "*"
                     ],
-                    "sink-visibility": "public"
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               },
@@ -1684,7 +1684,7 @@ jobs:
                     "accept": [
                       "*"
                     ],
-                    "sink-visibility": "public"
+                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
                   }
                 }
               }
@@ -1701,7 +1701,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_2eda9c0ae2c6b104_EOF
+          GH_AW_MCP_CONFIG_00e75bc6ded7dab2_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
