@@ -1731,7 +1731,7 @@ When the compiler encounters `private-to-public-flows`:
 
 #### 10.9.4 Interaction Matrix
 
-| `guards_mode` | `private-to-public-flows` | Forced `repos=public` | Default `sink-visibility` enforced | Strict-mode compatible |
+| `guards_mode` | `private-to-public-flows` | Forced `repos="public"` | Default `sink-visibility` enforced | Strict-mode compatible |
 |---|---|---|---|---|
 | `strict` | `allow` | ❌ **Rejected** (compile error) | — | ❌ |
 | `strict` | `[servers...]` | ✅ Yes | ✅ Yes (except listed servers) | ✅ |
