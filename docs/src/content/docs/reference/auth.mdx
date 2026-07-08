@@ -145,6 +145,8 @@ If using Copilot as your AI engine, you need a GitHub Actions Secret set to a Gi
 
 To route Copilot CLI through a custom endpoint (e.g., a corporate proxy or GHE Cloud data residency instance), set `GITHUB_COPILOT_BASE_URL` in `engine.env`. See [Custom API Endpoints via Environment Variables](/gh-aw/reference/engines/#custom-api-endpoints-via-environment-variables) for details. `COPILOT_GITHUB_TOKEN` must still be a fine-grained PAT — GitHub Apps and OAuth tokens are not supported for this secret.
 
+gh-aw also validates token type at runtime in activation: if `COPILOT_GITHUB_TOKEN` or `GH_AW_GITHUB_TOKEN` starts with the OAuth token prefix (`gho_`), the workflow fails early with guidance to replace it with a fine-grained PAT. OAuth user tokens are intentionally rejected because they are broad user-session credentials and cannot be scoped appropriately for automation.
+
 **Troubleshooting**:
 
 If your workflow fails at the Copilot inference step even with the token set, verify that the token owner's account has an active Copilot license. See [Copilot License or Inference Access Issues](/gh-aw/troubleshooting/common-issues/#copilot-license-or-inference-access-issues) for a local diagnostic step.
@@ -176,6 +178,8 @@ Fallback chain:
    ```bash wrap
    gh aw secrets set GH_AW_GITHUB_TOKEN --value "<your-github-pat>"
    ```
+
+Like `COPILOT_GITHUB_TOKEN`, this secret must be a PAT rather than an OAuth user token. gh-aw now fails early during activation when either secret uses a `gho_...` token, with remediation that points to creating a fine-grained PAT.
 
 `GH_AW_GITHUB_TOKEN` does **not** replace `COPILOT_GITHUB_TOKEN` for Copilot inference authentication.
 
