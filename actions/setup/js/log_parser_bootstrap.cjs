@@ -7,8 +7,8 @@ const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/i;
 const CLAUDE_RATE_LIMIT_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit/i;
 const CLAUDE_OVERLOAD_PATTERN = /overloaded_error|"overloaded"/i;
-const CLAUDE_HTTP_5XX_STATUS_PATTERN = /(?:HTTP|status|error)[^\n]{0,60}\b5\d{2}\b/i;
-const STARTUP_DIAGNOSTIC_LINE_PATTERN = /(?:ERR_|Error:|CAPIError|Authentication failed|rate[_ -]?limit|429|5\d\d|overloaded|inference)/i;
+const CLAUDE_HTTP_5XX_STATUS_PATTERN = /(?:HTTP(?:\/\d\.\d)?\s+5\d{2}\b|status(?:\s+code)?\s*[:=]\s*5\d{2}\b|error(?:\s+code)?\s*[:=]?\s*5\d{2}\b)/i;
+const STARTUP_DIAGNOSTIC_LINE_PATTERN = /(?:ERR_|Error:|CAPIError|Authentication failed|rate[_ -]?limit|429|\b5\d{2}\b|overloaded|inference)/i;
 const MAX_DIAGNOSTIC_TAIL_LINES = 8;
 
 /**

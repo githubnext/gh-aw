@@ -291,7 +291,7 @@ describe("log_parser_bootstrap.cjs", () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
           const logFile = path.join(tmpDir, "test.log");
           try {
-            fs.writeFileSync(logFile, `[claude-harness] attempt 1 failed: exitCode=1 isRateLimitError=true hasOutput=false\n[claude-harness] done: exitCode=1\nAPI Error: Request rejected (429)`);
+            fs.writeFileSync(logFile, `[claude-harness] attempt 1 failed: exitCode=1 hasOutput=false\n[claude-harness] done: exitCode=1\nAPI Error: Request rejected (429)`);
             process.env.GH_AW_AGENT_OUTPUT = logFile;
             delete process.env.GH_AW_SAFE_OUTPUTS;
             const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });

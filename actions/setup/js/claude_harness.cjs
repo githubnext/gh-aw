@@ -555,9 +555,9 @@ async function main() {
         startupRetriesUsed++;
         useContinueOnRetry = false;
         // attempt is 0-based; logs are 1-based, so "next attempt" is +2.
-        const nextAttempt = attempt + 2;
+        const nextAttemptNumber = attempt + 2;
         const totalAttempts = maxRetries + 1;
-        log(`attempt ${attempt + 1}: no output produced — retrying startup as fresh run (startup retry ${startupRetriesUsed}/${startupRetryLimit}, next attempt ${nextAttempt} of ${totalAttempts} total attempts)`);
+        log(`attempt ${attempt + 1}: no output produced — retrying startup as fresh run ` + `(startup retry ${startupRetriesUsed}/${startupRetryLimit}, next attempt ${nextAttemptNumber} of ${totalAttempts} total attempts)`);
         continue;
       }
       log(
