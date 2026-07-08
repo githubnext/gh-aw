@@ -67,7 +67,9 @@ func resolveListRepoCloneConfig(owner, repo, ref, host string) (listRepoCloneCon
 
 // getCachedListRepoClone acquires gitListCloneCache.mu briefly to read the cached path,
 // then performs filesystem validation outside the lock to avoid serializing I/O across
-// concurrent callers. If the entry is stale it is evicted under a second lock acquisition.
+// concurrent callers. If the entry is stale it is evicted under a second lock acquisition,
+// with a re-check to avoid incorrectly evicting a fresh entry written by another goroutine
+// during the stat window.
 // Do not call from code that already holds gitListCloneCache.mu.
 func getCachedListRepoClone(cacheKey string) (string, bool) {
 	gitListCloneCache.mu.Lock()
@@ -80,9 +82,13 @@ func getCachedListRepoClone(cacheKey string) (string, bool) {
 	if stat, err := os.Stat(filepath.Join(cloneDir, ".git")); err == nil && stat.IsDir() {
 		return cloneDir, true
 	}
-	// Entry is stale — evict under lock.
+	// Entry appears stale — evict under lock, but only if it still maps to the same
+	// path we checked above. A concurrent goroutine may have replaced the entry with a
+	// fresh clone in the window between the stat and this lock acquisition.
 	gitListCloneCache.mu.Lock()
-	delete(gitListCloneCache.dirs, cacheKey)
+	if gitListCloneCache.dirs[cacheKey] == cloneDir {
+		delete(gitListCloneCache.dirs, cacheKey)
+	}
 	gitListCloneCache.mu.Unlock()
 	return "", false
 }
@@ -114,7 +120,9 @@ func cloneAndCacheListRepoClone(ctx context.Context, cfg listRepoCloneConfig) (s
 	defer gitListCloneCache.mu.Unlock()
 	if existing, ok := gitListCloneCache.dirs[cfg.cacheKey]; ok {
 		// Another goroutine finished first; discard our redundant clone.
-		_ = os.RemoveAll(tmpDir)
+		if cleanupErr := os.RemoveAll(tmpDir); cleanupErr != nil {
+			remoteLog.Printf("Failed to clean up redundant temp directory %q: %v", tmpDir, cleanupErr)
+		}
 		return existing, nil
 	}
 	gitListCloneCache.dirs[cfg.cacheKey] = tmpDir
