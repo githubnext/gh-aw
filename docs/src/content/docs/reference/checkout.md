@@ -51,6 +51,7 @@ checkout:
 | `path` | string | Path within `GITHUB_WORKSPACE` to place the checkout. Defaults to workspace root. |
 | `github-token` | string | Token for authentication. Use `${{ secrets.MY_TOKEN }}` syntax. |
 | `github-app` | object | GitHub App credentials (`client-id` or `app-id` (deprecated), `private-key`, optional `owner`, `repositories`). Mutually exclusive with `github-token`. `app` is a deprecated alias for the field name. Run `gh aw fix` to auto-migrate `app-id` to `client-id`. |
+| `safe-output-github-app` | object | Optional per-checkout GitHub App credentials used exclusively for safe_outputs git operations on this checkout target (`client-id` or `app-id` (deprecated), `private-key`, optional `owner`, `repositories`). Does not change agent/activation checkout auth. See [Cross-Organization safe_outputs Authentication](#cross-organization-safe_outputs-authentication-safe-output-github-app) for cross-org usage. |
 | `fetch-depth` | integer | Commits to fetch. `0` = full history, `1` = shallow clone (default). |
 | `fetch` | string \| string[] | Additional Git refs to fetch after checkout. See [Fetching Additional Refs](#fetching-additional-refs). |
 | `sparse-checkout` | string | Newline-separated patterns for sparse checkout (e.g., `.github/\nsrc/`). |
@@ -153,6 +154,40 @@ checkout:
     force-clean-git-credentials: true
 ```
 
+## Cross-Organization safe_outputs Authentication (`safe-output-github-app`)
+
+By default, the safe_outputs job uses `GITHUB_TOKEN` to check out repositories — `safe-outputs.github-app` and `safe-outputs.github-token` are **not** used for checkout and only govern PR/push API operations. This design prevents cross-org token confusion when the safe-outputs app is scoped to a target organization that differs from the workflow repository's organization.
+
+For workflows that target a different organization, use `safe-output-github-app` on the relevant checkout entry to supply a checkout token for the safe_outputs job:
+
+```yaml wrap
+checkout:
+  - repository: OrgB/target-repo
+    github-app:
+      client-id: ${{ vars.APP_CLIENT_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      owner: OrgB
+    safe-output-github-app:
+      client-id: ${{ vars.APP_CLIENT_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      owner: OrgB
+    current: true
+
+safe-outputs:
+  github-app:
+    client-id: ${{ vars.APP_CLIENT_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    owner: OrgB
+  create-pull-request:
+    target-repo: OrgB/target-repo
+```
+
+In this configuration:
+- The agent job checks out `OrgB/target-repo` using the app token scoped to `OrgB`.
+- The safe_outputs job checks out `OrgB/target-repo` using the `safe-output-github-app` token.
+- The safe_outputs job checks out the **workflow repository** using `GITHUB_TOKEN` (the default), not the `OrgB`-scoped app token — avoiding the cross-org authentication failure.
+- `safe-outputs.github-app` is used only for PR creation and push operations, not for checkout.
+
 ## Checkout Merging
 
 Multiple `checkout:` configurations can target the same path and repository. This is useful for monorepos where different parts of the repository must be merged into the same workspace directory with different settings (e.g., sparse checkout for some paths, full checkout for others).
@@ -171,3 +206,4 @@ When multiple `checkout:` entries target the same repository and path, their con
 - [Cross-Repository Operations](/gh-aw/reference/cross-repository/) - Reading and writing across multiple repositories
 - [Authentication Reference](/gh-aw/reference/auth/) - PAT and GitHub App setup
 - [Multi-Repository Examples](/gh-aw/examples/multi-repo/) - Complete working examples
+- [Checkout Behavior Specification](/gh-aw/specs/checkout-behavior-specification/) - Formal checkout semantics across activation, agent, and safe_outputs jobs

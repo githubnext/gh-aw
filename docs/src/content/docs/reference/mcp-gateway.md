@@ -1484,14 +1484,7 @@ The `min-integrity` threshold check is applied after step 6. Items whose effecti
 
 ### 10.5 `approval-labels` Field
 
-`approval-labels` lists GitHub label names that promote items bearing any of those labels to `approved` integrity.
-
-**Semantics**:
-
-- When an item carries a label present in `approval-labels`, its effective integrity is set to `max(base, approved)`.
-- Promotion does not lower integrity: an item already at `merged` remains at `merged`.
-- `blocked-users` always takes precedence: a blocked user's items remain blocked even if labeled.
-- `refusal-labels` overrides `approval-labels`: an item with both an approval label and a refusal label has effective integrity `none`.
+`approval-labels` lists GitHub labels that promote matching items to `approved` integrity. When an item has one of these labels, its effective integrity becomes `max(base, approved)`, so `merged` items stay `merged`. `blocked-users` still takes precedence, and `refusal-labels` still wins if both kinds of label are present.
 
 **Use case**: Human-review gate workflows where a trusted reviewer adds a label to signal that an external contribution is safe for the agent.
 
@@ -1510,15 +1503,7 @@ tools:
 
 ### 10.6 `refusal-labels` Field
 
-`refusal-labels` is the inverse of `approval-labels`. Items bearing any listed GitHub label have their effective integrity downgraded to `none`, regardless of the author's association or any promotion from `trusted-users` or `approval-labels`.
-
-**Semantics**:
-
-- When an item carries a label present in `refusal-labels`, its effective integrity MUST be set to `none`.
-- `refusal-labels` overrides promotion: if both a refusal label and an approval label are present on the same item, the effective integrity MUST be `none`.
-- `refusal-labels` overrides `trusted-users`: if an author is in `trusted-users` but the item has a refusal label, the effective integrity MUST be `none`.
-- `blocked-users` still takes precedence: a blocked user's items remain `blocked` and are not affected by `refusal-labels`.
-- `refusal-labels` does not lower integrity below `none`; items from blocked users are not affected.
+`refusal-labels` is the inverse of `approval-labels`: any matching label downgrades an item to `none`, regardless of author association or promotion from `trusted-users` or `approval-labels`. It overrides both promotion paths, while `blocked-users` still takes precedence and remains `blocked`.
 
 **Use case**: Suppressing specific items from the agent — for example, issues flagged for security review or pull requests pending a manual compliance check — even when the workflow's `min-integrity` would otherwise allow them.
 
@@ -1545,16 +1530,14 @@ tools:
       - "needs-security-review"
 ```
 
-In this configuration:
-- Items labeled `human-reviewed` (without `needs-security-review`) are promoted to `approved`.
-- Items labeled `needs-security-review` are downgraded to `none`, even if also labeled `human-reviewed`.
+In this configuration, `human-reviewed` promotes items to `approved` unless `needs-security-review` is also present, in which case the item is downgraded to `none`.
 
 **Requirements**:
 
 - The gateway MUST apply `refusal-labels` checks before `trusted-users` and `approval-labels` checks in the effective integrity computation.
 - The gateway MUST set effective integrity to `none` for any item bearing a label present in `refusal-labels`.
 - The `refusal-labels` value MUST support both a literal array of strings and a GitHub Actions expression resolving to a comma- or newline-separated list.
-- The gateway MUST treat an empty `refusal-labels` list as a no-op (no items are downgraded).
+- The gateway MUST treat an empty `refusal-labels` list as a no-op.
 
 **Compliance Tests**: T-GP-004 through T-GP-008
 
@@ -1603,8 +1586,7 @@ The `write-sink` object inside `guard-policies` for a safe-outputs (or equivalen
 
 #### 10.8.3 Interaction with `accept`
 
-- When `sink-visibility` is `"public"`: the `accept` array is **ignored for enforcement** — resource secrecy is unconditionally set to empty (`{}`). The DIFC write check (`agentSecrecy ⊆ resourceSecrecy`) fails for any agent with non-empty secrecy. `accept` is still syntactically required by validation but has no runtime effect.
-- When `sink-visibility` is `"private"`, `"internal"`, or omitted: `accept` is the sole determinant of resource secrecy and controls which agents may write to the sink.
+When `sink-visibility` is `"public"`, the `accept` array is ignored for enforcement: resource secrecy is set to empty (`{}`), so the DIFC write check (`agentSecrecy ⊆ resourceSecrecy`) fails for any agent with non-empty secrecy. `accept` remains syntactically required but has no runtime effect. When `sink-visibility` is `"private"`, `"internal"`, or omitted, `accept` alone determines resource secrecy and write eligibility.
 
 **Precedence**: `sink-visibility: "public"` is a hard override that trumps `accept`.
 
@@ -1651,34 +1633,21 @@ This runtime expression resolves to the actual repository visibility at workflow
 
 #### 10.8.6 Default Sink Visibility (Security-by-Default)
 
-Non-safe-outputs write-sink servers receive a default `sink-visibility="public"` when no explicit value is configured. This security-by-default behavior assumes that external sinks (e.g., Playwright, Slack, third-party services) release data publicly unless proven otherwise.
+Non-safe-outputs write-sink servers default to `sink-visibility="public"` when no explicit value is configured. This assumes external sinks such as Playwright, Slack, or third-party services release data publicly unless proven otherwise.
 
-**Rules:**
-1. If a write-sink server is NOT safe-outputs (or its legacy `safeoutputs` form) and has no explicit `sink-visibility` configured → the gateway defaults to `"public"`.
-2. If the server ID appears in `gateway.sinkVisibilityExemptServers` → the default is NOT applied.
-3. If `sinkVisibilityExemptServers` contains `"*"` → no server receives the default.
-4. If `forcePublicRepos` is `false` → all servers are implicitly exempt (blanket opt-out).
+The default applies only when the server is not `safe-outputs` (or legacy `safeoutputs`), the server is not listed in `gateway.sinkVisibilityExemptServers`, that exemption list does not contain `"*"`, and `forcePublicRepos` is not `false`.
 
-**Rationale**: External MCP servers (Playwright, Slack, email services) typically publish outputs to locations beyond the workflow author's control. Treating them as public sinks by default prevents accidental data exfiltration through these channels.
+**Rationale**: Treating external sinks as public by default helps prevent accidental data exfiltration through channels outside the workflow author's control.
 
 #### 10.8.7 Safe-Outputs Runtime Safety Net
 
-As a defense-in-depth measure, the gateway applies a runtime safety net specifically for safe-outputs when all of the following are true:
-- The server ID is `"safe-outputs"` (or the legacy `"safeoutputs"` form)
-- No `sink-visibility` is configured (compiler omitted it)
-- `GITHUB_REPOSITORY` is set and a GitHub token is available
-- The GitHub API confirms the workflow repository is **public**
+As a defense-in-depth measure, the gateway forces `sink-visibility="public"` for `safe-outputs` (or legacy `safeoutputs`) when no `sink-visibility` is configured, `GITHUB_REPOSITORY` and a GitHub token are available, and the GitHub API confirms the workflow repository is public. This keeps the gateway self-defending when the compiler omits the setting for legacy workflows or misconfiguration.
 
-In this case, the gateway forces `sink-visibility="public"` on safe-outputs with a warning log. This makes the gateway self-defending even without compiler cooperation — if the compiler fails to set sink-visibility for any reason (legacy workflows, misconfiguration), the gateway still prevents exfiltration to public repos.
-
-**Note**: This safety net does NOT fire when `sink-visibility` is explicitly set to `"private"` or `"internal"` — the runtime verification in Section 10.8.4 handles that case instead.
+**Note**: This safety net does NOT fire when `sink-visibility` is explicitly set to `"private"` or `"internal"`; Section 10.8.4 handles that case.
 
 ### 10.9 Cross-Visibility Opt-Out (`private-to-public-flows`)
 
-Workflow authors who intentionally allow private→public data flows can opt out of cross-visibility protections by declaring `private-to-public-flows` in workflow frontmatter. This field accepts two forms:
-
-- **`allow`** (string) — blanket opt-out that disables both `forcePublicRepos` and all sink-visibility enforcement
-- **`[server1, server2, ...]`** (list) — targeted opt-out that exempts only the listed servers from default sink-visibility enforcement
+Workflow authors who intentionally allow private→public data flows can opt out of cross-visibility protections by declaring `private-to-public-flows` in workflow frontmatter. It accepts either `allow` for a blanket opt-out that disables both `forcePublicRepos` and sink-visibility enforcement, or a list of server IDs to exempt only those servers from default sink-visibility enforcement.
 
 #### 10.9.1 Workflow Frontmatter
 
@@ -1706,28 +1675,15 @@ private-to-public-flows:
 
 #### 10.9.2 Constraints
 
-- **Blanket `allow` is incompatible with `guards_mode: strict`** — the compiler MUST reject this combination at compile time with an error.
-- **List form IS compatible with `guards_mode: strict`** — it only relaxes the default sink-visibility for named servers while keeping all other protections active.
-- Server IDs in the list form MUST map to actual MCP servers declared in the workflow's `tools` list. The compiler MUST reject unknown server IDs at compile time.
-- When paired with non-strict mode (`filter` or `propagate`), the blanket form disables both:
-  - Forced `repos="public"` override (Section 4.1.3.8)
-  - `sink-visibility` runtime verification override (Section 10.8.4)
+Blanket `allow` is incompatible with `guards_mode: strict`, so the compiler MUST reject that combination at compile time. The list form remains compatible with `strict` because it relaxes only the default sink-visibility for named servers while leaving other protections in place. In list form, every server ID MUST map to an actual MCP server declared in the workflow's `tools` list; unknown IDs MUST be rejected at compile time. With non-strict mode (`filter` or `propagate`), the blanket form disables both the forced `repos="public"` override (Section 4.1.3.8) and the `sink-visibility` runtime-verification override (Section 10.8.4).
 
 #### 10.9.3 Compiler Responsibilities
 
-When the compiler encounters `private-to-public-flows`:
+When the compiler encounters `private-to-public-flows`, it MUST validate the chosen form, emit the matching gateway configuration, and record the opt-out in the audit trail.
 
-**Blanket `allow`:**
-1. **Validate**: If `guards_mode` is `strict`, emit a compile error.
-2. **Emit config**: Set `gateway.forcePublicRepos: false` in the generated JSON stdin config.
-3. **Skip sink-visibility override**: Do not set `sink-visibility: "public"` even if the target repo is public at compile time.
-4. **Audit trail**: Log that the workflow author opted out of cross-visibility protection.
+For blanket `allow`, the compiler MUST reject `guards_mode: strict`, set `gateway.forcePublicRepos: false` in the generated JSON stdin config, and skip setting `sink-visibility: "public"` even if the target repo is public at compile time.
 
-**List form `[server1, server2, ...]`:**
-1. **Validate**: Each server ID MUST exist in the workflow's declared `tools` list. Reject unknown IDs at compile time.
-2. **Emit config**: Set `gateway.sinkVisibilityExemptServers: ["server1", "server2"]` in the generated JSON stdin config.
-3. **Do NOT set `forcePublicRepos: false`** — the forced repos="public" override remains active.
-4. **Audit trail**: Log which servers are exempt from default sink-visibility.
+For list form, the compiler MUST verify that every listed server ID exists in the workflow's declared `tools` list, set `gateway.sinkVisibilityExemptServers` to that list in the generated JSON stdin config, and leave `forcePublicRepos` unchanged.
 
 #### 10.9.4 Interaction Matrix
 
@@ -1742,10 +1698,7 @@ When the compiler encounters `private-to-public-flows`:
 
 #### 10.9.5 Security Rationale
 
-This opt-out exists for workflows that legitimately need to:
-- Read from private repos and post summaries to public issue trackers
-- Aggregate private data into public dashboards
-- Cross-post between private and public repos
+This opt-out exists for workflows that legitimately need to read from private repos and post summaries to public issue trackers, aggregate private data into public dashboards, or cross-post between private and public repos.
 
 The strict-mode incompatibility ensures organizations requiring maximum security cannot accidentally enable this escape hatch.
 
