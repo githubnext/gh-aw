@@ -556,13 +556,11 @@ async function main() {
         useContinueOnRetry = false;
         const nextAttempt = attempt + 2;
         const totalAttempts = maxRetries + 1;
-        log(`attempt ${attempt + 1}: no output produced — retrying startup as fresh run ` + `(startup retry ${startupRetriesUsed}/${startupRetryLimit}, next attempt ${nextAttempt} of ${totalAttempts} total attempts)`);
+        log(`attempt ${attempt + 1}: no output produced — retrying startup as fresh run (startup retry ${startupRetriesUsed}/${startupRetryLimit}, next attempt ${nextAttempt} of ${totalAttempts} total attempts)`);
         continue;
       }
       log(
-        `attempt ${attempt + 1}: no output produced — not retrying` +
-          ` (startup retry budget exhausted: ${startupRetriesUsed}/${startupRetryLimit};` +
-          ` possible causes: binary not found, permission denied, auth failure, or silent startup crash)`
+        `attempt ${attempt + 1}: no output produced — not retrying (startup retry budget exhausted: ${startupRetriesUsed}/${startupRetryLimit}; possible causes: binary not found, permission denied, auth failure, or silent startup crash)`
       );
     }
 
