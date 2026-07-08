@@ -1596,7 +1596,7 @@ The `write-sink` object inside `guard-policies` for a safe-outputs (or equivalen
 | `"internal"` | Target is an org-internal repo; semantically equivalent to `"private"` — standard `accept`-pattern matching applies. |
 | (omitted) | Backward-compatible default; standard `accept`-pattern matching applies. |
 
-**Enforcement model**: Only `"public"` alters DIFC enforcement. Both `"private"` and `"internal"` are semantically equivalent to each other and to the omitted case. The `"internal"` value exists for configuration fidelity (matching GitHub's three-tier visibility model) rather than distinct enforcement behavior. Implementations MUST treat any non-`"public"` value as "use accept patterns normally."
+**Enforcement model**: Only `"public"` alters DIFC enforcement. Both `"private"` and `"internal"` are semantically equivalent to each other and to the omitted case. The `"internal"` value exists for configuration fidelity (matching GitHub's three-tier visibility model) rather than distinct enforcement behavior. Implementations MUST treat any non-`"public"` value or an omitted `sink-visibility` as "use accept patterns normally."
 
 #### 10.8.3 Interaction with `accept`
 
@@ -1611,9 +1611,9 @@ The gateway performs a runtime visibility check at startup as defense-in-depth:
 
 1. Reads `GITHUB_REPOSITORY` and calls `GET /repos/{owner}/{repo}` to verify actual visibility.
 2. If the repo is public but `sink-visibility` is set to `"private"` or `"internal"` → overrides `sink-visibility` to `"public"` with a warning.
-3. **Skipped** when `sink-visibility` is omitted (preserves backward compatibility).
+3. **Skipped** when `sink-visibility` is omitted (preserves backward compatibility; omitted means no write-sink enforcement change).
 4. **Skipped** when `GITHUB_REPOSITORY` or the GitHub token is unavailable.
-5. Falls back to the configured value on API errors (non-fatal); this is logged as a warning.
+5. Falls back to the configured value on API errors (non-fatal); this is logged as a warning. When `sink-visibility` is omitted, fallback means enforcement remains skipped.
 6. Never relaxes: a configured `"public"` stays `"public"` even if the repo is actually private.
 
 #### 10.8.5 Compiler Behavior
