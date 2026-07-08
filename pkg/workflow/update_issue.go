@@ -35,5 +35,10 @@ func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssu
 			}
 		}, func(configMap map[string]any, cfg *UpdateIssuesConfig) {
 			cfg.TitlePrefix = extractStringFromMap(configMap, "title-prefix", updateIssueLog)
+			// Parse required-labels and required-title-prefix directly to avoid the
+			// deprecated title-prefix fallback in ParseFilterConfig double-populating
+			// RequiredTitlePrefix when only title-prefix is set.
+			cfg.RequiredLabels = ParseStringArrayFromConfig(configMap, "required-labels", updateIssueLog)
+			cfg.RequiredTitlePrefix = extractStringFromMap(configMap, "required-title-prefix", updateIssueLog)
 		})
 }

@@ -229,6 +229,10 @@
               "$ref": "#/$defs/providerTarget",
               "description": "Google Gemini API target override."
             },
+            "vertex": {
+              "$ref": "#/$defs/providerTarget",
+              "description": "Google Vertex AI API target override."
+            },
             "antigravity": {
               "$ref": "#/$defs/providerTarget",
               "description": "Antigravity API target override (alias of Gemini runtime settings)."
@@ -512,7 +516,7 @@
         },
         "enableDind": {
           "type": "boolean",
-          "description": "Enable Docker-in-Docker support inside the agent container."
+          "description": "Expose the Docker socket inside the agent container so the agent can run docker commands. When combined with container.dockerHost (or the DOCKER_HOST environment variable), AWF uses that socket path for both AWF's own operations and the in-agent DOCKER_HOST. WARNING: allows the agent to bypass the AWF firewall via docker run."
         },
         "workDir": {
           "type": "string",
@@ -548,7 +552,7 @@
         },
         "dockerHost": {
           "type": "string",
-          "description": "Docker daemon socket or host to connect to (e.g. \"unix:///var/run/docker.sock\")."
+          "description": "Docker daemon socket URI for AWF's own operations (e.g. \"unix:///var/run/docker.sock\" or \"tcp://localhost:2375\"). Auto-detected from the DOCKER_HOST environment variable when not set explicitly. When combined with container.enableDind, AWF also mounts that socket inside the agent and sets the agent's DOCKER_HOST to the same URI so in-agent docker commands use the correct daemon. On ARC/DinD runners with a loopback TCP daemon (tcp://localhost:* or tcp://127.0.0.1:*), AWF treats this as a DinD hint for warnings (for example, missing container.dockerHostPathPrefix), but does not auto-apply a path prefix."
         },
         "dockerHostPathPrefix": {
           "type": "string",
@@ -557,6 +561,14 @@
         "runnerToolCachePath": {
           "type": "string",
           "description": "Host runner tool cache directory to mount read-only into chroot mode. When set, AWF checks this path first before environment-based auto-detection."
+        },
+        "mounts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^/[^:]+:/[^:]+(:(ro|rw))?$"
+          },
+          "description": "Custom volume mounts for the agent container. Format: \"/host_path:/container_path[:ro|rw]\" (both paths must be absolute). In chroot mode, container paths are automatically prefixed with /host."
         }
       }
     },
@@ -726,7 +738,7 @@
         "topology": {
           "type": "string",
           "enum": ["standard", "arc-dind"],
-          "description": "Runner deployment topology. 'standard' (default) = GitHub-hosted VM or self-hosted runner with local Docker. 'arc-dind' = ARC (Actions Runner Controller) with Docker-in-Docker sidecar, where the runner and Docker daemon have separate filesystems. When set to 'arc-dind', AWF applies overridable defaults: network.isolation=true, dind.preStageDirs=true, sysroot image activation, and tool cache validation."
+          "description": "Runner deployment topology. 'standard' (default) = GitHub-hosted VM or self-hosted runner with local Docker. 'arc-dind' = ARC (Actions Runner Controller) with Docker-in-Docker sidecar, where the runner and Docker daemon have separate filesystems. When set to 'arc-dind', AWF enables sysroot staging (a sysroot-stage init container copies the build-tools image into a named volume mounted at /host:rw on the agent) and emits a warning when RUNNER_TOOL_CACHE points under /opt (which is typically invisible to the DinD daemon). Other ARC/DinD settings such as container.dockerHostPathPrefix, dind.preStageDirs, and network.isolation are configured explicitly through their own fields."
         },
         "sysrootImage": {
           "type": "string",

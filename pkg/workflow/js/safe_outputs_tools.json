@@ -1434,7 +1434,7 @@
   },
   {
     "name": "set_issue_field",
-    "description": "Set a single GitHub issue field by name and value. Use field_name for discovery by field label (for example, \"Priority\"), or provide field_node_id to skip discovery. Supports text, number, date (YYYY-MM-DD), and single-select fields (value must match an option name).",
+    "description": "Set a single GitHub issue custom field by name and value. Use field_name for discovery by field label (for example, \"Priority\"), or provide field_node_id to skip discovery. Supports text, number, date (YYYY-MM-DD), and single-select fields (value must match an option name). Does NOT support builtin issue fields such as \"title\", \"body\", or \"state\" — use the update_issue tool for those (for open/closed state, use update_issue.status).",
     "inputSchema": {
       "type": "object",
       "required": ["value"],
