@@ -4071,3 +4071,160 @@ func TestBuildMainJobEngineEnvActivationNoFalseWarning(t *testing.T) {
 	assert.Equal(t, initialWarnings, compiler.GetWarningCount(),
 		"no warning should be emitted for activation which is already a direct agent dependency")
 }
+
+// TestBuildDetectionJobEngineEnvNeedsExpression verifies that when engine.env values contain
+// needs.<customJob>.outputs.* expressions, the referenced custom job is added as a direct
+// dependency of the detection job (mirrors the same fix applied to the agent job).
+func TestBuildDetectionJobEngineEnvNeedsExpression(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	workflowData := &WorkflowData{
+		Name:        "Test Workflow",
+		AI:          "copilot",
+		RunsOn:      "runs-on: ubuntu-latest",
+		Permissions: "permissions:\n  contents: read",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+			Env: map[string]string{
+				"COPILOT_MODEL": "${{ needs.select_model.outputs.model }}",
+			},
+		},
+		Jobs: map[string]any{
+			"select_model": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"needs":   "pre_activation",
+				"outputs": map[string]any{
+					"model": "${{ steps.pick.outputs.model }}",
+				},
+				"steps": []any{
+					map[string]any{
+						"id":  "pick",
+						"run": `echo "model=claude-sonnet-4.6" >> "$GITHUB_OUTPUT"`,
+					},
+				},
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+			Jobs: map[string]*SafeJobConfig{
+				"create-issue": {},
+			},
+		},
+	}
+
+	job, err := compiler.buildDetectionJob(workflowData)
+	require.NoError(t, err, "buildDetectionJob should succeed")
+	require.NotNil(t, job, "detection job should be created")
+
+	// The detection job must directly depend on select_model because engine.env
+	// references its outputs; without this, needs.select_model would be undefined.
+	assert.Contains(t, job.Needs, "select_model",
+		"detection job must directly depend on select_model referenced in engine.env")
+	assert.Contains(t, job.Needs, string(constants.AgentJobName),
+		"detection job must still depend on agent")
+	assert.Contains(t, job.Needs, string(constants.ActivationJobName),
+		"detection job must still depend on activation")
+}
+
+// TestBuildDetectionJobEngineEnvNeedsNotDuplicated verifies that a job referenced in
+// engine.env is not duplicated in the detection job's needs list.
+func TestBuildDetectionJobEngineEnvNeedsNotDuplicated(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	workflowData := &WorkflowData{
+		Name:        "Test Workflow",
+		AI:          "copilot",
+		RunsOn:      "runs-on: ubuntu-latest",
+		Permissions: "permissions:\n  contents: read",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+			Env: map[string]string{
+				"VALUE_A": "${{ needs.custom_job.outputs.result }}",
+				"VALUE_B": "${{ needs.custom_job.outputs.other }}",
+			},
+		},
+		Jobs: map[string]any{
+			"custom_job": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"steps": []any{
+					map[string]any{"run": "echo result=hello >> $GITHUB_OUTPUT"},
+				},
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+			Jobs:            map[string]*SafeJobConfig{"create-issue": {}},
+		},
+	}
+
+	job, err := compiler.buildDetectionJob(workflowData)
+	require.NoError(t, err, "buildDetectionJob should succeed")
+	require.NotNil(t, job, "detection job should be created")
+
+	count := 0
+	for _, need := range job.Needs {
+		if need == "custom_job" {
+			count++
+		}
+	}
+	assert.Equal(t, 1, count, "custom_job should appear exactly once in detection needs")
+}
+
+// TestBuildDetectionJobEngineEnvNeedsIntegration is an end-to-end integration test that
+// compiles a workflow where engine.env references a custom job output, and verifies that the
+// compiled lock file includes the custom job as a direct dependency of the detection job.
+func TestBuildDetectionJobEngineEnvNeedsIntegration(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "detection_engine_env_needs_test")
+
+	frontmatter := `---
+on:
+  issues:
+    types: [opened]
+  permissions: {}
+permissions:
+  contents: read
+  issues: read
+engine:
+  id: copilot
+  env:
+    COPILOT_MODEL: ${{ needs.select_model.outputs.model }}
+strict: false
+jobs:
+  select_model:
+    runs-on: ubuntu-latest
+    needs: pre_activation
+    outputs:
+      model: ${{ steps.pick.outputs.model }}
+    steps:
+      - id: pick
+        run: echo "model=claude-sonnet-4.6" >> "$GITHUB_OUTPUT"
+safe-outputs:
+  create-issue: {}
+---
+
+# Test Detection Needs
+
+This workflow tests that engine.env needs expressions create detection job dependencies.
+`
+
+	testFile := filepath.Join(tmpDir, "detection-engine-env-needs.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(frontmatter), 0644), "write test file")
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile), "compile workflow")
+
+	lockFile := filepath.Join(tmpDir, "detection-engine-env-needs.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "read lock file")
+
+	yamlStr := string(content)
+
+	// The detection job must directly depend on select_model
+	detectionSection := extractJobSection(yamlStr, "detection")
+	require.NotEmpty(t, detectionSection, "detection job section should be present in lock file")
+
+	assert.Contains(t, detectionSection, "select_model",
+		"detection job must list select_model in its needs (referenced via engine.env)")
+}

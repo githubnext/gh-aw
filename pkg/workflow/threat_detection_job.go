@@ -3,6 +3,8 @@ package workflow
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 )
@@ -67,6 +69,29 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 
 	// Detection job depends on agent job and activation job (for trace ID)
 	needs := []string{string(constants.AgentJobName), string(constants.ActivationJobName)}
+
+	// Scan engine.env values for needs.<customJob>.outputs.* expressions and add the
+	// referenced custom jobs as direct dependencies of the detection job.
+	// The detection job inherits the engine.env mapping from the main engine config, so
+	// it must also inherit the corresponding job dependencies to ensure those expressions
+	// evaluate correctly at runtime (mirrors the same scan done for the agent job).
+	if data.EngineConfig != nil && len(data.EngineConfig.Env) > 0 && len(data.Jobs) > 0 {
+		var engineEnvBuilder strings.Builder
+		for _, envValue := range data.EngineConfig.Env {
+			engineEnvBuilder.WriteByte('\n')
+			engineEnvBuilder.WriteString(envValue)
+		}
+		engineEnvJobs := c.getReferencedCustomJobs(engineEnvBuilder.String(), data.Jobs)
+		for _, jobName := range engineEnvJobs {
+			if isBuiltinJobName(jobName) {
+				continue
+			}
+			if !slices.Contains(needs, jobName) {
+				needs = append(needs, jobName)
+				threatLog.Printf("Added custom job '%s' to detection needs because it's referenced in engine.env", jobName)
+			}
+		}
+	}
 
 	// Determine runs-on: use threat detection override if set, otherwise ubuntu-latest.
 	// The detection job runs on a fresh runner separate from the agent job, so it does
