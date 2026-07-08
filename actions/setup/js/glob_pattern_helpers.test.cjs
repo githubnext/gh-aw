@@ -359,6 +359,57 @@ describe("glob_pattern_helpers.cjs", () => {
     });
   });
 
+  describe("matchSubfolderRoot option", () => {
+    it("slashless pattern matches only at subfolder root (depth 1)", () => {
+      const regex = globPatternToRegex("*.json", { matchSubfolderRoot: true });
+
+      // depth 1 – the intended match
+      expect(regex.test("discussion-task-miner/processed-discussions.json")).toBe(true);
+      expect(regex.test("subfolder/file.json")).toBe(true);
+
+      // depth 0 – must NOT match
+      expect(regex.test("file.json")).toBe(false);
+
+      // depth 2+ – must NOT match
+      expect(regex.test("discussion-task-miner/archive/old.json")).toBe(false);
+      expect(regex.test("a/b/c/file.json")).toBe(false);
+    });
+
+    it("slashless pattern with *.md matches at subfolder root only", () => {
+      const regex = globPatternToRegex("*.md", { matchSubfolderRoot: true });
+
+      expect(regex.test("discussion-task-miner/latest-run.md")).toBe(true);
+      expect(regex.test("latest-run.md")).toBe(false);
+      expect(regex.test("discussion-task-miner/docs/latest-run.md")).toBe(false);
+    });
+
+    it("pattern with slash is unaffected by matchSubfolderRoot", () => {
+      const regex = globPatternToRegex("metrics/**", { matchSubfolderRoot: true });
+
+      expect(regex.test("metrics/file.json")).toBe(true);
+      expect(regex.test("metrics/daily/file.json")).toBe(true);
+      expect(regex.test("other/file.json")).toBe(false);
+    });
+
+    it("default extension globs match discussion-task-miner layout", () => {
+      const patternStrs = ["*.json", "*.jsonl", "*.csv", "*.md"];
+      const patterns = patternStrs.map(p => globPatternToRegex(p, { matchSubfolderRoot: true }));
+
+      // discussion-task-miner state files (depth 1) should all match
+      expect(patterns.some(p => p.test("discussion-task-miner/processed-discussions.json"))).toBe(true);
+      expect(patterns.some(p => p.test("discussion-task-miner/latest-run.md"))).toBe(true);
+
+      // root-level files (depth 0) should NOT match
+      expect(patterns.some(p => p.test("processed-discussions.json"))).toBe(false);
+
+      // too deep (depth 2+) should NOT match
+      expect(patterns.some(p => p.test("discussion-task-miner/archive/old.json"))).toBe(false);
+
+      // non-matching extension should not match
+      expect(patterns.some(p => p.test("discussion-task-miner/script.js"))).toBe(false);
+    });
+  });
+
   describe("simpleGlobToRegex", () => {
     it("should match exact patterns without wildcards", () => {
       const regex = simpleGlobToRegex("copilot");

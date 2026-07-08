@@ -9,6 +9,7 @@
 //
 //   - validateBranchPrefix() - Validates branch prefix length, format, and reserved names
 //   - validateNoDuplicateMemoryIDs() - Ensures each memory entry has a unique ID
+//   - validateFileGlobPatterns() - Validates file-glob patterns for unsupported forms
 //
 // # When to Add Validation Here
 //
@@ -36,21 +37,21 @@ func validateBranchPrefix(prefix string) error {
 
 	// Check length (4-32 characters)
 	if len(prefix) < 4 {
-		return fmt.Errorf("branch-prefix must be at least 4 characters long, got %d", len(prefix))
+		return fmt.Errorf("branch-prefix must be at least 4 characters long, got %d. Example: branch-prefix: my-bot", len(prefix))
 	}
 	if len(prefix) > 32 {
-		return fmt.Errorf("branch-prefix must be at most 32 characters long, got %d", len(prefix))
+		return fmt.Errorf("branch-prefix must be at most 32 characters long, got %d. Example: branch-prefix: my-bot", len(prefix))
 	}
 
 	// Check for alphanumeric and branch-friendly characters (alphanumeric, hyphens, underscores)
 	// Use pre-compiled regex from package level for performance
 	if !branchPrefixValidPattern.MatchString(prefix) {
-		return fmt.Errorf("branch-prefix must contain only alphanumeric characters, hyphens, and underscores, got '%s'", prefix)
+		return fmt.Errorf("branch-prefix must contain only alphanumeric characters, hyphens, and underscores, got '%s'. Example: branch-prefix: my-bot", prefix)
 	}
 
 	// Cannot be "copilot"
 	if strings.EqualFold(prefix, "copilot") {
-		return errors.New("branch-prefix cannot be 'copilot' (reserved)")
+		return errors.New("branch-prefix cannot be 'copilot' (reserved). Example: branch-prefix: my-bot")
 	}
 
 	repoMemValidationLog.Printf("Branch prefix %q passed validation", prefix)
@@ -62,6 +63,24 @@ func validateBranchPrefix(prefix string) error {
 func validateNoDuplicateMemoryIDs(memories []RepoMemoryEntry) error {
 	repoMemValidationLog.Printf("Validating %d memory entries for duplicate IDs", len(memories))
 	return validateNoDuplicateIDs(memories, func(m RepoMemoryEntry) string { return m.ID }, func(id string) error {
-		return fmt.Errorf("duplicate memory ID found: '%s'. Each memory must have a unique ID", id)
+		return fmt.Errorf("duplicate memory ID found: '%s'. Each memory must have a unique ID. Example: id: my-memory", id)
 	})
+}
+
+// validateFileGlobPatterns validates file-glob patterns for a repo-memory entry.
+//
+// Patterns are evaluated relative to the memory subfolder root (depth 1 from the artifact root).
+// Slashless patterns such as "*.json" match files at the root of any single memory subfolder.
+// Patterns containing "/" match against the full relative path from the artifact root.
+//
+// Rejected patterns:
+//   - Patterns starting with "/" — absolute paths are not supported.
+func validateFileGlobPatterns(patterns []string) error {
+	for _, pat := range patterns {
+		repoMemValidationLog.Printf("Validating file-glob pattern: %q", pat)
+		if strings.HasPrefix(pat, "/") {
+			return fmt.Errorf("file-glob pattern %q is not supported: patterns must not start with '/' (absolute paths are not allowed). Example: file-glob: [\"*.json\", \"*.md\"]", pat)
+		}
+	}
+	return nil
 }
