@@ -146,7 +146,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
 
     // Configure git remote with no embedded credentials; authenticate via
     // a single replaced extraheader value to avoid duplicate Authorization headers.
-    const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+    const githubServerUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/+$/, "");
     const remoteUrl = `${githubServerUrl}/${repoOwner}/${repoName}.git`;
     const previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, token);
 

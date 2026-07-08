@@ -2,14 +2,26 @@
 /// <reference types="@actions/github-script" />
 
 /**
+ * Normalize a server URL by stripping any trailing slash so the git config key
+ * matches exactly what actions/checkout writes (e.g. `http.https://github.com/.extraheader`).
+ *
+ * @param {string} serverUrl
+ * @returns {string}
+ */
+function normalizeServerUrl(serverUrl) {
+  return serverUrl.replace(/\/+$/, "");
+}
+
+/**
  * Get all configured values for http.<serverUrl>/.extraheader.
  *
  * @param {string} serverUrl
  * @returns {Promise<string[]>}
  */
 async function getExtraheaderValues(serverUrl) {
+  const normalizedUrl = normalizeServerUrl(serverUrl);
   try {
-    const result = await exec.getExecOutput("git", ["config", "--get-all", `http.${serverUrl}/.extraheader`], {
+    const result = await exec.getExecOutput("git", ["config", "--get-all", `http.${normalizedUrl}/.extraheader`], {
       silent: true,
       ignoreReturnCode: true,
     });
@@ -45,9 +57,10 @@ async function checkoutHasPersistedExtraheader(serverUrl) {
  * @returns {Promise<string[]>}
  */
 async function overridePersistedExtraheader(serverUrl, token) {
-  const previousValues = await getExtraheaderValues(serverUrl);
-  const tokenBase64 = Buffer.from(`x-access-token:${token}`).toString("base64");
-  await exec.exec("git", ["config", "--replace-all", `http.${serverUrl}/.extraheader`, `Authorization: basic ${tokenBase64}`]);
+  const normalizedUrl = normalizeServerUrl(serverUrl);
+  const previousValues = await getExtraheaderValues(normalizedUrl);
+  const tokenBase64 = Buffer.from(`x-access-token:${token.trim()}`).toString("base64");
+  await exec.exec("git", ["config", "--replace-all", `http.${normalizedUrl}/.extraheader`, `Authorization: basic ${tokenBase64}`], { silent: true });
   return previousValues;
 }
 
@@ -59,7 +72,7 @@ async function overridePersistedExtraheader(serverUrl, token) {
  * @returns {Promise<void>}
  */
 async function restorePersistedExtraheader(serverUrl, previousValues) {
-  const key = `http.${serverUrl}/.extraheader`;
+  const key = `http.${normalizeServerUrl(serverUrl)}/.extraheader`;
   if (!previousValues || previousValues.length === 0) {
     try {
       await exec.exec("git", ["config", "--unset-all", key]);
