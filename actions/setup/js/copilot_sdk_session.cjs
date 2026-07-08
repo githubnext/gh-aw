@@ -497,15 +497,23 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
      * @returns {Promise<boolean>}
      */
     const withCleanupTimeout = p => {
-      let timedOut = false;
-      const deadline = new Promise(resolve =>
-        setTimeout(() => {
-          timedOut = true;
+      let timeoutId = null;
+      const deadline = new Promise(resolve => {
+        timeoutId = setTimeout(() => {
+          timeoutId = null;
           resolve(false);
-        }, CLEANUP_TIMEOUT_MS)
-      );
-      return Promise.race([p.then(() => true, () => true), deadline]).then(settled => {
-        if (!settled && timedOut) {
+        }, CLEANUP_TIMEOUT_MS);
+        if (typeof timeoutId?.unref === "function") timeoutId.unref();
+      });
+      return Promise.race([
+        p.then(
+          () => true,
+          () => true
+        ),
+        deadline,
+      ]).then(settled => {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (!settled) {
           log(`warning: cleanup operation timed out after ${CLEANUP_TIMEOUT_MS}ms`);
         }
         return settled;

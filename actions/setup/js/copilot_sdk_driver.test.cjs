@@ -87,6 +87,67 @@ describe("copilot_sdk_driver.cjs", () => {
       }
     });
 
+    it("clears cleanup timeout deadlines when cleanup settles promptly", async () => {
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let onEvent = () => {};
+      const session = {
+        sessionId: "session-cleanup-timeouts-cleared",
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "done" },
+          });
+          return { data: { content: "done" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = stop;
+      }
+
+      const realSetTimeout = global.setTimeout;
+      const realClearTimeout = global.clearTimeout;
+      const cleanupTimeoutHandles = new Set();
+      const clearedCleanupTimeoutHandles = new Set();
+      const setTimeoutSpy = vi.spyOn(global, "setTimeout").mockImplementation((fn, delay, ...args) => {
+        const handle = realSetTimeout(fn, delay, ...args);
+        if (delay === 5_000) cleanupTimeoutHandles.add(handle);
+        return handle;
+      });
+      const clearTimeoutSpy = vi.spyOn(global, "clearTimeout").mockImplementation(handle => {
+        if (cleanupTimeoutHandles.has(handle)) clearedCleanupTimeoutHandles.add(handle);
+        return realClearTimeout(handle);
+      });
+
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(cleanupTimeoutHandles.size).toBe(2);
+        expect(clearedCleanupTimeoutHandles.size).toBe(2);
+      } finally {
+        setTimeoutSpy.mockRestore();
+        clearTimeoutSpy.mockRestore();
+      }
+    });
+
     it("disconnects session and stops client on send failure", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);
