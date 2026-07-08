@@ -194,6 +194,10 @@ Create exactly one issue using the `create_issue` safe output.
 
 Title: `[formal-spec] <SpecFileName> — Formal model & test suite — <YYYY-MM-DD>`
 
+Use `###` or lower for all headers in your report. Never use `#` (h1) or `##` (h2) — these are reserved for the issue title rendered by GitHub.
+
+Wrap long sections (>5 items, detailed lists, raw data) in `<details><summary><b>Section Name</b></summary>` blocks to keep the report scannable.
+
 Body requirements:
 
 ```markdown
@@ -210,7 +214,7 @@ One-paragraph description of the spec and what was formalized.
 ### Formal Model
 
 <details>
-<summary>Predicates and invariants (illustrative notation)</summary>
+<summary><b>Predicates and invariants (illustrative notation)</b></summary>
 
 <one predicate / lemma block per invariant>
 
@@ -226,7 +230,7 @@ One-paragraph description of the spec and what was formalized.
 ### Generated Test Suite
 
 <details>
-<summary>📄 `<package>/<file>_formal_test.go`</summary>
+<summary><b>📄 `<package>/<file>_formal_test.go`</b></summary>
 
 ```go
 <full test file content>

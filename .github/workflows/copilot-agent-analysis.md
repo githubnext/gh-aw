@@ -207,6 +207,10 @@ Create a **concise** discussion with your findings using the safe-outputs create
 
 **Discussion Title**: `Daily Copilot Agent Analysis - [DATE]`
 
+Use `###` or lower for all headers in your report. Never use `#` (h1) or `##` (h2) — these are reserved for the discussion title rendered by GitHub.
+
+Wrap long sections (>5 items, detailed lists, raw data) in `<details><summary><b>Section Name</b></summary>` blocks to keep the report scannable.
+
 **Shared Discussion Structure** (both variants):
 ```markdown
 ### 🤖 Copilot Agent PR Analysis - [DATE]
