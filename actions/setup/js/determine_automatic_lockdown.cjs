@@ -109,8 +109,8 @@ async function determineAutomaticLockdown(github, context, core) {
     // Default to safe guard policy for public repos on error
     core.setOutput("min_integrity", "approved");
     core.setOutput("repos", "all");
-    core.setOutput("visibility", "unknown");
-    core.warning("Failed to determine repository visibility. Defaulting to guard policy min-integrity='approved', repos='all' for security.");
+    core.setOutput("visibility", "public");
+    core.warning("Failed to determine repository visibility. Defaulting to visibility='public' (conservative), min-integrity='approved', repos='all' for security.");
   }
 }
 
