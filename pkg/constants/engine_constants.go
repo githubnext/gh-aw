@@ -390,6 +390,10 @@ const (
 	// EnvVarGitHubToken is the GitHub token for repository access
 	EnvVarGitHubToken = "GH_AW_GITHUB_TOKEN"
 
+	// EnvVarGitHubMCPServerToken is the optional token for the GitHub MCP server.
+	// When set, it takes precedence over GH_AW_GITHUB_TOKEN for GitHub MCP server requests.
+	EnvVarGitHubMCPServerToken = "GH_AW_GITHUB_MCP_SERVER_TOKEN"
+
 	// EnvVarGitHubBlockedUsers is the fallback variable for the tools.github.blocked-users guard policy field.
 	// When blocked-users is not explicitly set in the workflow frontmatter, this variable is used as
 	// a comma- or newline-separated list of GitHub usernames to block. Set as an org or repo variable

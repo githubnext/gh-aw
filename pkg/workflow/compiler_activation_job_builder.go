@@ -373,8 +373,9 @@ func (c *Compiler) addActivationSecretValidationStep(ctx *activationJobBuildCont
 }
 
 // addActivationOAuthTokenCheckStep adds a step to the activation job that checks
-// COPILOT_GITHUB_TOKEN and GH_AW_GITHUB_TOKEN are not OAuth tokens. OAuth tokens
-// (gho_...) are not suitable for automation as they are typically over-provisioned.
+// COPILOT_GITHUB_TOKEN, GH_AW_GITHUB_TOKEN, and GH_AW_GITHUB_MCP_SERVER_TOKEN are not
+// OAuth tokens. OAuth tokens (gho_...) are not suitable for automation as they are
+// typically over-provisioned.
 func (c *Compiler) addActivationOAuthTokenCheckStep(ctx *activationJobBuildContext) {
 	compilerActivationJobLog.Print("Adding OAuth token check step to activation job")
 
@@ -392,6 +393,7 @@ func (c *Compiler) addActivationOAuthTokenCheckStep(ctx *activationJobBuildConte
 	ctx.steps = append(ctx.steps, "        env:\n")
 	ctx.steps = append(ctx.steps, fmt.Sprintf("          %s: %s\n", constants.CopilotGitHubToken, copilotTokenExpr))
 	ctx.steps = append(ctx.steps, fmt.Sprintf("          %s: ${{ secrets.%s }}\n", constants.EnvVarGitHubToken, constants.EnvVarGitHubToken))
+	ctx.steps = append(ctx.steps, fmt.Sprintf("          %s: ${{ secrets.%s }}\n", constants.EnvVarGitHubMCPServerToken, constants.EnvVarGitHubMCPServerToken))
 }
 
 func (c *Compiler) addActivationCrossRepoGuidanceStep(ctx *activationJobBuildContext) {

@@ -302,7 +302,8 @@ func TestBuildActivationJob_SkipsSecretValidationWithEnvironment(t *testing.T) {
 }
 
 // TestBuildActivationJob_OAuthTokenCheckStep verifies that the activation job
-// includes a step to check for OAuth tokens in COPILOT_GITHUB_TOKEN and GH_AW_GITHUB_TOKEN.
+// includes a step to check for OAuth tokens in COPILOT_GITHUB_TOKEN, GH_AW_GITHUB_TOKEN,
+// and GH_AW_GITHUB_MCP_SERVER_TOKEN.
 func TestBuildActivationJob_OAuthTokenCheckStep(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -321,6 +322,7 @@ func TestBuildActivationJob_OAuthTokenCheckStep(t *testing.T) {
 	assert.Contains(t, stepsStr, "check_oauth_tokens.sh", "OAuth token check step should call the check_oauth_tokens.sh script")
 	assert.Contains(t, stepsStr, constants.CopilotGitHubToken+":", "OAuth token check step should pass COPILOT_GITHUB_TOKEN env var")
 	assert.Contains(t, stepsStr, constants.EnvVarGitHubToken+":", "OAuth token check step should pass GH_AW_GITHUB_TOKEN env var")
+	assert.Contains(t, stepsStr, constants.EnvVarGitHubMCPServerToken+":", "OAuth token check step should pass GH_AW_GITHUB_MCP_SERVER_TOKEN env var")
 }
 
 // TestBuildActivationJob_OAuthTokenCheckStep_DefaultTokenExprs verifies that default
@@ -341,6 +343,7 @@ func TestBuildActivationJob_OAuthTokenCheckStep_DefaultTokenExprs(t *testing.T) 
 
 	assert.Contains(t, stepsStr, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}", "Default COPILOT_GITHUB_TOKEN expression should reference secrets.COPILOT_GITHUB_TOKEN")
 	assert.Contains(t, stepsStr, "GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}", "Default GH_AW_GITHUB_TOKEN expression should reference secrets.GH_AW_GITHUB_TOKEN")
+	assert.Contains(t, stepsStr, "GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}", "Default GH_AW_GITHUB_MCP_SERVER_TOKEN expression should reference secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN")
 }
 
 // TestBuildActivationJob_OAuthTokenCheckStep_EngineEnvOverride verifies that when

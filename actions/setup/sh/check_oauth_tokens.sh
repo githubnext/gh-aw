@@ -9,12 +9,14 @@ set +o histexpand
 #   - Cannot be scoped to specific repositories or permissions
 #
 # This script checks the following tokens:
-#   COPILOT_GITHUB_TOKEN  - Token for GitHub Copilot API access
-#   GH_AW_GITHUB_TOKEN    - Token for GitHub API access in agentic workflows
+#   COPILOT_GITHUB_TOKEN          - Token for GitHub Copilot API access
+#   GH_AW_GITHUB_TOKEN            - Token for GitHub API access in agentic workflows
+#   GH_AW_GITHUB_MCP_SERVER_TOKEN - Token for the GitHub MCP server
 #
 # Environment variables (set to the actual token values):
 #   COPILOT_GITHUB_TOKEN
 #   GH_AW_GITHUB_TOKEN
+#   GH_AW_GITHUB_MCP_SERVER_TOKEN
 
 set -e
 
@@ -51,6 +53,7 @@ check_token_not_oauth() {
 
 check_token_not_oauth COPILOT_GITHUB_TOKEN
 check_token_not_oauth GH_AW_GITHUB_TOKEN
+check_token_not_oauth GH_AW_GITHUB_MCP_SERVER_TOKEN
 
 if [ "$found_error" = true ]; then
   exit 1
