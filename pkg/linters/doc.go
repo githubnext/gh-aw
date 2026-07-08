@@ -1,8 +1,9 @@
 // Package linters is a namespace for gh-aw's custom Go analysis linters.
 //
-// The actual analyzers are implemented in subpackages. All 39 active analyzers:
+// All 40 active analyzers:
 //
 //   - appendbytestring — flags append(b, []byte(s)...) calls where s is a string that can be simplified to append(b, s...)
+//   - bytescomparestring — flags string(a) == string(b) and string(a) != string(b) comparisons where a and b are []byte values that should use bytes.Equal instead
 //   - contextcancelnotdeferred — flags context cancel functions called directly instead of deferred
 //   - ctxbackground — flags context.Background() inside functions that already receive a context
 //   - deferinloop — flags defer statements placed directly inside for or range loop bodies
