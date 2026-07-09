@@ -124,11 +124,11 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 
 #### Checkout configuration
 
-The `checkout:` frontmatter key is parsed by `ParseCheckoutConfigs` into one or more `CheckoutConfig` values. Each entry may target the current repository or a cross-repository checkout, and supports authentication via either `github-token`, `github-app`, or `safe-outputs-github-app`.
+The `checkout:` frontmatter key is parsed by `ParseCheckoutConfigs` into one or more `CheckoutConfig` values. Each entry may target the current repository or a cross-repository checkout, and supports authentication via `github-token` or `github-app` (mutually exclusive) plus optional `safe-outputs-github-app`.
 
 - `github-app` changes the authentication used by the generated `actions/checkout` step itself.
 - `safe-outputs-github-app` mints a GitHub App token only for later `safe_outputs` git operations (fetch/push) against the checkout target; it does **not** change activation or agent-job checkout authentication.
-- `CheckoutManager` merges compatible checkout requests, unions sparse-checkout patterns, and tracks whether any checkout requires GitHub App token minting.
+- `CheckoutManager` merges compatible checkout requests, unions sparse-checkout patterns, deduplicates overlapping repo/ref pairs, and tracks whether any checkout requires GitHub App token minting for later safe_outputs operations.
 
 #### Engine Configuration Fields
 
