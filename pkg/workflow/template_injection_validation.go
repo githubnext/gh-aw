@@ -87,12 +87,65 @@ func findRunValue(keyPart string) (string, bool) {
 	return strings.TrimSpace(keyPart[loc[1]:]), true
 }
 
+// detectHeredocDelimiter extracts the heredoc closing delimiter from a line that
+// opens a heredoc (contains "<<"). It handles the common forms used in compiler-
+// generated run blocks:
+//
+//   - Unquoted:       cat << DELIM ...    → "DELIM"
+//   - Strip-tab:      cat <<- DELIM ...   → "DELIM"
+//   - Single-quoted:  cat << 'DELIM' ...  → "DELIM"
+//   - Double-quoted:  cat << "DELIM" ...  → "DELIM"
+//
+// Returns ("", false) when no heredoc opening is found on the line.
+func detectHeredocDelimiter(trimmed string) (string, bool) {
+	_, after, found := strings.Cut(trimmed, "<<")
+	if !found {
+		return "", false
+	}
+	rest := strings.TrimSpace(after)
+	// Handle <<- (strip-tab variant).
+	rest = strings.TrimLeft(rest, "-")
+	rest = strings.TrimSpace(rest)
+	if rest == "" {
+		return "", false
+	}
+	// Quoted delimiter: << 'DELIM' or << "DELIM"
+	if rest[0] == '\'' || rest[0] == '"' {
+		quoteChar := rest[0]
+		end := strings.IndexByte(rest[1:], quoteChar)
+		if end >= 0 {
+			delim := rest[1 : end+1]
+			if delim != "" {
+				return delim, true
+			}
+		}
+		return "", false
+	}
+	// Unquoted delimiter: take the first whitespace-delimited token.
+	fields := strings.Fields(rest)
+	if len(fields) == 0 {
+		return "", false
+	}
+	delim := strings.TrimRight(fields[0], "|;&")
+	if delim == "" {
+		return "", false
+	}
+	return delim, true
+}
+
 // walkRunBlockLines scans raw YAML text and visits each inline run value or line inside a
 // multiline run block. It recognizes plain run: keys as well as quoted and flow-style forms
 // so Path B stays aligned with the parsed-YAML validators.
+//
+// Heredoc content is skipped so that expressions embedded inside heredocs (which are written
+// to files and never executed directly by the shell) do not trigger false positives in the
+// caller's expression checks. This matches the behaviour of removeHeredocContent, which
+// validateNoGitHubExpressionsInRunScriptsFromParsed uses on the parsed path.
 func walkRunBlockLines(yamlContent string, visit func(line string) bool) bool {
 	inRunBlock := false
 	runBlockIndent := 0
+	inHeredoc := false
+	heredocDelimiter := ""
 
 	for line := range strings.SplitSeq(yamlContent, "\n") {
 		trimmed := strings.TrimLeft(line, " \t")
@@ -104,8 +157,29 @@ func walkRunBlockLines(yamlContent string, visit func(line string) bool) bool {
 		if inRunBlock {
 			if indent <= runBlockIndent {
 				inRunBlock = false
+				inHeredoc = false
+				heredocDelimiter = ""
 				// Fall through: check whether this line starts a new run: block.
 			} else {
+				// If we are inside a heredoc, look for the closing delimiter.
+				if inHeredoc {
+					if strings.TrimSpace(line) == heredocDelimiter {
+						inHeredoc = false
+						heredocDelimiter = ""
+					}
+					continue // always skip heredoc content
+				}
+				// Check whether this line opens a heredoc.
+				if delim, ok := detectHeredocDelimiter(trimmed); ok {
+					inHeredoc = true
+					heredocDelimiter = delim
+					// The opening line itself is not heredoc body; visit it so callers
+					// can see the surrounding shell context, but do not recurse.
+					if visit(line) {
+						return true
+					}
+					continue
+				}
 				if visit(line) {
 					return true
 				}
