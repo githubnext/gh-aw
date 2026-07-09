@@ -103,15 +103,25 @@ func (c *Compiler) buildContentRedactionJob(data *WorkflowData, detectionEnabled
 		"redaction_conclusion": "${{ steps.redaction_conclusion.outputs.conclusion }}",
 	}
 
+	// Determine continue-on-error setting.
+	var continueOnError *bool
+	if cr != nil && cr.ContinueOnError != nil {
+		continueOnError = cr.ContinueOnError
+		if *continueOnError {
+			contentRedactionJobLog.Print("Content redaction job will continue on error (failures emit warnings)")
+		}
+	}
+
 	job := &Job{
-		Name:        string(constants.ContentRedactionJobName),
-		Needs:       needs,
-		If:          jobCondition,
-		RunsOn:      c.indentYAMLLines(runsOn, "    "),
-		Environment: c.indentYAMLLines(environment, "    "),
-		Permissions: permissions,
-		Steps:       steps,
-		Outputs:     outputs,
+		Name:            string(constants.ContentRedactionJobName),
+		Needs:           needs,
+		If:              jobCondition,
+		RunsOn:          c.indentYAMLLines(runsOn, "    "),
+		Environment:     c.indentYAMLLines(environment, "    "),
+		Permissions:     permissions,
+		Steps:           steps,
+		Outputs:         outputs,
+		ContinueOnError: continueOnError,
 	}
 
 	contentRedactionJobLog.Printf("Built content_redaction job with %d steps, depends on: %v", len(steps), needs)
@@ -150,10 +160,17 @@ func buildLoadRedactionPoliciesStep(cr *ContentRedactionConfig) []string {
 		fmt.Fprintf(&sb, "          # Policy source %d: %s\n", i+1, comment)
 		if strings.HasPrefix(source, "http://") || strings.HasPrefix(source, "https://") {
 			// URL: fetch at runtime via curl.
-			fmt.Fprintf(&sb, "          curl -fsSL %q >> \"$POLICY_FILE\" || echo '::warning::Content redaction: failed to fetch policy from %s'\n", source, source)
+			fmt.Fprintf(&sb, "          if ! curl -fsSL %q >> \"$POLICY_FILE\"; then\n", source)
+			fmt.Fprintf(&sb, "            echo '::error::Content redaction: failed to fetch policy from %s'\n", source)
+			fmt.Fprintf(&sb, "            exit 1\n")
+			fmt.Fprintf(&sb, "          fi\n")
 		} else if strings.HasPrefix(source, "./") || strings.HasPrefix(source, ".github/") || strings.HasPrefix(source, "/") {
 			// Repo-relative or absolute path.
-			fmt.Fprintf(&sb, "          if [ -f %q ]; then cat %q >> \"$POLICY_FILE\"; else echo '::warning::Content redaction: policy file not found: %s'; fi\n", source, source, source)
+			fmt.Fprintf(&sb, "          if [ ! -f %q ]; then\n", source)
+			fmt.Fprintf(&sb, "            echo '::error::Content redaction: policy file not found: %s'\n", source)
+			fmt.Fprintf(&sb, "            exit 1\n")
+			fmt.Fprintf(&sb, "          fi\n")
+			fmt.Fprintf(&sb, "          cat %q >> \"$POLICY_FILE\"\n", source)
 		} else {
 			// Inline text literal: write directly.
 			escaped := strings.ReplaceAll(source, "'", "'\\''")
@@ -162,6 +179,11 @@ func buildLoadRedactionPoliciesStep(cr *ContentRedactionConfig) []string {
 		sb.WriteString("          echo '' >> \"$POLICY_FILE\"\n")
 	}
 
+	sb.WriteString("          # Verify policy file is not empty\n")
+	sb.WriteString("          if [ ! -s \"$POLICY_FILE\" ]; then\n")
+	sb.WriteString("            echo '::error::Content redaction: all policy sources failed or were empty'\n")
+	sb.WriteString("            exit 1\n")
+	sb.WriteString("          fi\n")
 	sb.WriteString("          echo \"Policy loaded ($(wc -c < \"$POLICY_FILE\") bytes)\"\n")
 
 	return []string{sb.String()}
@@ -202,6 +224,7 @@ func (c *Compiler) buildContentRedactionEngineStep(cr *ContentRedactionConfig) [
 		"        if: always() && steps.load_policies.outcome == 'success'\n",
 		"        uses: actions/github-script@" + githubScriptPin + "\n",
 		"        env:\n",
+		"          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}\n",
 		"          REDACTION_MODEL: " + model + "\n",
 		"          ON_FAILURE: " + onFailure + "\n",
 		"        with:\n",
@@ -212,6 +235,9 @@ func (c *Compiler) buildContentRedactionEngineStep(cr *ContentRedactionConfig) [
 		"            const policyFile = '/tmp/gh-aw/content-redaction/policy.md';\n",
 		"            const onFailure = process.env.ON_FAILURE || 'block';\n",
 		"            const scope = " + scopeJSLiteral + ";\n",
+		"\n",
+		"            // Normalize safe-output type identifiers (dash/dot → underscore)\n",
+		"            const normalizeType = (type) => type.replace(/[-\\.]/g, '_');\n",
 		"\n",
 		"            const TEXT_BEARING_TYPES = new Set([\n",
 		"              'add_comment', 'create_issue', 'create_pull_request',\n",
@@ -235,35 +261,48 @@ func (c *Compiler) buildContentRedactionEngineStep(cr *ContentRedactionConfig) [
 		"              return;\n",
 		"            }\n",
 		"\n",
-		"            const lines = fs.readFileSync(outputFile, 'utf8')\n",
-		"              .trim().split('\\n').filter(Boolean);\n",
-		"            const redactedLines = [];\n",
+		"            // Parse agent_output.json as a single JSON object with an items array\n",
+		"            let agentOutput;\n",
+		"            try {\n",
+		"              const content = fs.readFileSync(outputFile, 'utf8');\n",
+		"              agentOutput = JSON.parse(content);\n",
+		"            } catch (error) {\n",
+		"              core.warning(`Failed to parse agent output JSON: ${error.message}`);\n",
+		"              core.setOutput('skipped', 'true');\n",
+		"              return;\n",
+		"            }\n",
+		"\n",
+		"            if (!agentOutput.items || !Array.isArray(agentOutput.items)) {\n",
+		"              core.warning('Agent output has no items array; skipping redaction');\n",
+		"              core.setOutput('skipped', 'true');\n",
+		"              return;\n",
+		"            }\n",
+		"\n",
+		"            const redactedItems = [];\n",
 		"            let blocked = 0, rewritten = 0, passed = 0;\n",
 		"\n",
-		"            for (const line of lines) {\n",
-		"              let item;\n",
-		"              try { item = JSON.parse(line); }\n",
-		"              catch { redactedLines.push(line); continue; }\n",
-		"              const t = item.type || '';\n",
-		"              const inScope = scope.length === 0 || scope.includes(t);\n",
-		"              if (!inScope || !TEXT_BEARING_TYPES.has(t)) {\n",
-		"                redactedLines.push(line);\n",
+		"            for (const item of agentOutput.items) {\n",
+		"              const rawType = item.type || '';\n",
+		"              const normalizedType = normalizeType(rawType);\n",
+		"              const inScope = scope.length === 0 || scope.some(s => normalizeType(s) === normalizedType);\n",
+		"              if (!inScope || !TEXT_BEARING_TYPES.has(normalizedType)) {\n",
+		"                redactedItems.push(item);\n",
 		"                passed++;\n",
 		"                continue;\n",
 		"              }\n",
 		"\n",
 		"              // Log the item being reviewed for audit.\n",
-		"              core.info(`Content redaction: reviewing ${t} item`);\n",
+		"              core.info(`Content redaction: reviewing ${rawType} item`);\n",
 		"              // NOTE: Full LLM-backed rewriting is performed by the dedicated\n",
 		"              // content_redaction engine (AWF). This github-script step records\n",
 		"              // the intent and forwards items as-is when the engine is absent.\n",
-		"              redactedLines.push(line);\n",
+		"              redactedItems.push(item);\n",
 		"              passed++;\n",
 		"            }\n",
 		"\n",
 		"            // Write redacted output back to the agent output file.\n",
-		"            const out = redactedLines.join('\\n') + (redactedLines.length ? '\\n' : '');\n",
-		"            fs.writeFileSync(outputFile, out, 'utf8');\n",
+		"            agentOutput.items = redactedItems;\n",
+		"            fs.writeFileSync(outputFile, JSON.stringify(agentOutput), 'utf8');\n",
 		"            core.info(`Content redaction complete: ${passed} passed, ${rewritten} rewritten, ${blocked} blocked`);\n",
 		"            core.setOutput('blocked_count', String(blocked));\n",
 		"            core.setOutput('rewritten_count', String(rewritten));\n",

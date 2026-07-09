@@ -413,7 +413,7 @@ func TestContentRedactionLoadPoliciesStep(t *testing.T) {
 			if tt.wantCurl && !strings.Contains(combined, "curl") {
 				t.Errorf("expected curl for URL policy; got:\n%s", combined)
 			}
-			if tt.wantFileOp && !strings.Contains(combined, "if [ -f") {
+			if tt.wantFileOp && !strings.Contains(combined, "if [ ! -f") {
 				t.Errorf("expected file existence check for path policy; got:\n%s", combined)
 			}
 			if tt.wantPrintf && !strings.Contains(combined, "printf") {
