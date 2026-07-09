@@ -10,29 +10,24 @@ import (
 )
 
 // anomalyScore computes the expected normalized anomaly score from the individual flag weights,
-// mirroring the scoring logic in Analyze. Using this helper keeps test expectations in sync
-// with the weight constants defined in the source.
+// mirroring the scoring logic in Analyze. Using the exported constants (AnomalyWeightNew,
+// AnomalyWeightLow, AnomalyWeightRare, AnomalyMaxScore) gives a compile-time sync guarantee:
+// if production weights change, this helper diverges at compile time, not silently at runtime.
 func anomalyScore(isNew, lowSim, rare bool) float64 {
-	const (
-		weightNew  = 1.0
-		weightLow  = 0.7
-		weightRare = 0.3
-		maxScore   = 2.0
-	)
 	var score float64
 	if isNew {
-		score += weightNew
+		score += AnomalyWeightNew
 	}
 	if lowSim {
-		score += weightLow
+		score += AnomalyWeightLow
 	}
 	if rare {
-		score += weightRare
+		score += AnomalyWeightRare
 	}
-	if score > maxScore {
-		score = maxScore
+	if score > AnomalyMaxScore {
+		score = AnomalyMaxScore
 	}
-	return score / maxScore
+	return score / AnomalyMaxScore
 }
 
 func TestAnomalyDetector_Analyze(t *testing.T) {
@@ -414,15 +409,16 @@ func TestAnalyzeEvent(t *testing.T) {
 	}
 
 	// Sub-tests are sequential: each step mutates the shared miner state and depends
-	// on the state from the previous step.
+	// on the state from the previous step. Do NOT add t.Parallel() to any of these
+	// sub-tests — doing so would cause a data race on the shared Miner.
 
 	t.Run("first occurrence trains template and is flagged new", func(t *testing.T) {
 		resultFirst, reportFirst, errFirst := m.AnalyzeEvent(evtPlan)
 		require.NoError(t, errFirst, "AnalyzeEvent should not fail for first event")
 		require.NotNil(t, resultFirst, "AnalyzeEvent should return a non-nil result")
 		require.NotNil(t, reportFirst, "AnalyzeEvent should return a non-nil report")
-		assert.True(t, reportFirst.IsNewTemplate, "IsNewTemplate mismatch for first event")
-		assert.InDelta(t, anomalyScore(true, false, true), reportFirst.AnomalyScore, 1e-9, "AnomalyScore mismatch for first event")
+		require.True(t, reportFirst.IsNewTemplate, "IsNewTemplate mismatch for first event") // gate for steps 2+3
+		require.InDelta(t, anomalyScore(true, false, true), reportFirst.AnomalyScore, 1e-9, "AnomalyScore mismatch for first event")
 		assert.Equal(t, "new log template discovered; rare cluster (few observations)", reportFirst.Reason, "Reason mismatch for first event")
 	})
 
@@ -508,6 +504,7 @@ func TestAnalyzeEvent_Variants(t *testing.T) {
 // TestAnalyze_NilResult ensures that Analyze does not panic when result is nil
 // and instead returns a zero-value report with the "no anomaly detected" reason.
 func TestAnalyze_NilResult(t *testing.T) {
+	t.Parallel()
 	d, err := NewAnomalyDetector(0.4, 2)
 	require.NoError(t, err, "NewAnomalyDetector should succeed")
 
@@ -519,6 +516,16 @@ func TestAnalyze_NilResult(t *testing.T) {
 	assert.False(t, report.IsNewTemplate, "nil result should not set IsNewTemplate")
 	assert.False(t, report.LowSimilarity, "nil result should not set LowSimilarity")
 	assert.False(t, report.RareCluster, "nil result should not set RareCluster")
+
+	// Confirm that isNew=true and a non-nil cluster are silently ignored when result is nil.
+	// The nil-guard short-circuits before reading those arguments; callers should not rely on
+	// them being honoured when result is absent.
+	cluster := &Cluster{ID: 1, Template: []string{"x"}, Size: 1}
+	reportWithArgs := d.Analyze(nil, true, cluster)
+	require.NotNil(t, reportWithArgs, "Analyze should return a non-nil report for nil result with non-nil args")
+	assert.Equal(t, "no anomaly detected", reportWithArgs.Reason, "isNew and cluster must be ignored when result is nil")
+	assert.InDelta(t, 0.0, reportWithArgs.AnomalyScore, 1e-9, "AnomalyScore must be zero when result is nil")
+	assert.False(t, reportWithArgs.IsNewTemplate, "IsNewTemplate must be false when result is nil")
 }
 
 func TestAnalyze_FlagMutualExclusivity(t *testing.T) {
