@@ -88,7 +88,24 @@ runner:
 
 `runner.topology: arc-dind` is required so compiled workflows enable ARC DinD split-filesystem handling (a shared runner/daemon workspace root, Docker-daemon-visible mount paths, and ARC-specific sandbox setup). No other sandbox or network settings are needed — the defaults handle everything else.
 
-## 6. Required versions
+After editing the frontmatter, recompile the lock file:
+
+```bash
+gh aw compile
+```
+
+Commit both the `.md` workflow file and the generated `.lock.yml` file.
+
+## 6. How it works
+
+When compiled workflows detect a `tcp://` value in `DOCKER_HOST` (set automatically by ARC DinD), a runtime probe activates ARC DinD handling:
+
+- **Sysroot staging** — system binaries (`/usr`, `/lib`, `/bin`, `/sbin`) are copied into a Docker named volume so the Docker daemon can provide them to the agent container without bind-mounting the runner's filesystem.
+- **Workspace mount** — the checked-out repository at `GITHUB_WORKSPACE` is explicitly mounted into the agent container. Both runner and daemon can see it because ARC DinD shares the `/home/runner/_work/` volume.
+- **Chroot identity** — the runner's UID/GID and home directory are patched into the AWF config so the agent runs with the correct identity inside the chroot.
+- **Artifact consolidation** — agent output files are consolidated under `${{ runner.temp }}/gh-aw/` before upload so downstream jobs (detection, safe-outputs) can find them.
+
+## 7. Required versions
 
 Use versions at or above these minimums:
 
@@ -110,8 +127,56 @@ Use versions at or above these minimums:
 | Specific Kubernetes distribution | **No** | Any conformant cluster works (for example minikube, EKS, AKS, or GKE). |
 | Specific namespace names | **No** | `arc-system` and `arc-runners` are conventions only. |
 
-> [!WARNING]
-> ARC configurations that enforce `allowPrivilegeEscalation: false` (including `no-new-privileges` policy enforcement) are not currently supported for GitHub Copilot coding agent, because the setup flow requires `sudo`.
+## Upgrading from manual workarounds
+
+If you previously used custom bootstrap actions, copilot shims, `/etc` pre-seeding, XDG environment overrides, or manual `DOCKER_HOST` / `MCP_GATEWAY_DOMAIN` settings to run on ARC DinD, remove them when adopting `runner.topology: arc-dind`. The compiler now handles all of these automatically. Leftover workarounds may conflict with the generated workflow steps.
+
+To migrate:
+
+1. Remove any `pre-agent-steps`, `resources`, or `safe-outputs.threat-detection.steps` blocks that were workarounds for ARC DinD.
+2. Remove manual `engine.env` overrides for `XDG_CACHE_HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `MCP_GATEWAY_DOMAIN`, `MCP_GATEWAY_PORT`, and `DOCKER_HOST`.
+3. Remove `sandbox.agent.mounts` entries that staged files for the DinD daemon.
+4. Add `runner.topology: arc-dind` to frontmatter.
+5. Run `gh aw compile` and commit the updated lock file.
+
+## Known limitations
+
+- **`allowPrivilegeEscalation: false` is not supported.** The Copilot CLI install script uses `sudo`. Clusters that enforce `no-new-privileges` via PodSecurity Admission or OPA policies will fail at the install step.
+- **MCP gateway Docker socket access** — on runners where `DOCKER_HOST` is a TCP endpoint and no Unix socket exists at `/var/run/docker.sock`, the MCP gateway may fail to connect to the Docker daemon (`Docker daemon is not accessible`). As a workaround, expose the DinD sidecar's Unix socket on the runner container at `/var/run/docker.sock` via a shared volume or symlink. See [#44251](https://github.com/github/gh-aw/issues/44251) for tracking.
+
+## Troubleshooting
+
+### Agent reports empty workspace
+
+The agent sees no files and exits with a no-op message. This was fixed in gh-aw v0.82.5. Upgrade and recompile:
+
+```bash
+gh aw upgrade
+gh aw compile
+```
+
+### Detection job fails with `spawn /usr/local/bin/copilot ENOENT`
+
+The threat-detection job can't find the Copilot binary. This was fixed in gh-aw v0.82.5 ([#44445](https://github.com/github/gh-aw/pull/44445)). The fix is the same — upgrade and recompile.
+
+### `sudo: The "no new privileges" flag is set`
+
+The runner pod's security context has `allowPrivilegeEscalation: false`. Remove that constraint or adjust your PodSecurity policy to allow privilege escalation in the runner container.
+
+### `Docker daemon is not accessible` in MCP gateway
+
+The MCP gateway can't reach the Docker socket. Ensure a Unix socket is available at `/var/run/docker.sock` on the runner container. For DinD setups where the daemon only exposes a TCP endpoint, share the sidecar's socket file via a volume:
+
+```yaml
+# In your custom runner pod template
+volumes:
+  - name: dind-sock
+    emptyDir: {}
+# Mount in both runner and DinD sidecar containers
+volumeMounts:
+  - name: dind-sock
+    mountPath: /var/run
+```
 
 ## Related documentation
 
