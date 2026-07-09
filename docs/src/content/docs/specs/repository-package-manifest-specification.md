@@ -153,7 +153,7 @@ The remove lifecycle uninstalls a previously installed package by deleting its i
 
 **R-PKG-R004**: After removal, if the target workflow directory is empty, the implementation MAY remove the empty directory. The implementation MUST NOT remove non-empty directories.
 
-For R-PKG-R001 scope, package-installed documentation files are treated the same as workflow files: a `README.md` installed as part of the package MUST be removed during package removal unless it has been modified, in which case R-PKG-R002 applies.
+> **Note**: Package-installed documentation files (for example `README.md`) are within the scope of R-PKG-R001 and follow modified-file protection in R-PKG-R002.
 
 ## 6. Documentation
 

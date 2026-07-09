@@ -851,7 +851,7 @@ This section defines the caller-facing runtime lifecycle for resolving a model a
 
 1. **Invoke Resolution**: The implementation MUST parse the caller-provided model identifier into base identifier and parameter map before attempting alias expansion.
 2. **Initialize Guards**: The implementation MUST initialize a depth counter (starting at 0) and a per-call visited-set before traversing alias references.
-3. **Resolve Recursively**: For each alias hop, the implementation MUST increment depth, merge parameters per §8.3, and reject cycles when the next alias key already exists in the visited-set.
+3. **Resolve Recursively**: For each alias hop, the implementation MUST increment depth, merge parameters per §8.3, and reject cycles when the current alias key already exists in the visited-set (before adding it for this hop).
 4. **Enforce Limits**: The implementation MUST fail with a resolution error when depth exceeds the safeguard ceiling defined by R-MAF-S001.
 5. **Return Deterministically**: The implementation MUST return the first conforming concrete model selected by §8 ordering rules, or a descriptive error when no candidate can be resolved.
 

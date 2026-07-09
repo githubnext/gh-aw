@@ -89,10 +89,6 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 	prOpts := opts
 	if err := addWorkflowsWithTracking(ctx, workflows, tracker, prOpts); err != nil {
 		addWorkflowPRLog.Printf("Failed to add workflows: %v", err)
-		// Rollback on error
-		if rollbackErr := tracker.RollbackAllFiles(opts.Verbose); rollbackErr != nil && opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
-		}
 		return 0, "", fmt.Errorf("failed to add workflows: %w", err)
 	}
 

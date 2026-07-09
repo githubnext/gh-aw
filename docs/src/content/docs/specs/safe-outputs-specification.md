@@ -2012,8 +2012,10 @@ The following table defines the exact `createHandlers()` function used for each 
 | `merge_pull_request` | `defaultHandler("merge_pull_request")` |
 | `mark_pull_request_as_ready_for_review` | `defaultHandler("mark_pull_request_as_ready_for_review")` |
 | `push_to_pull_request_branch` | `pushToPullRequestBranchHandler` |
+| `push_repo_memory` | `pushRepoMemoryHandler` |
 | `create_pull_request_review_comment` | `createPullRequestReviewCommentHandler` |
 | `submit_pull_request_review` | `submitPullRequestReviewHandler` |
+| `dismiss_pull_request_review` | `dismissPullRequestReviewHandler` |
 | `resolve_pull_request_review_thread` | `defaultHandler("resolve_pull_request_review_thread")` |
 | `reply_to_pull_request_review_comment` | `defaultHandler("reply_to_pull_request_review_comment")` |
 | `add_labels` | `defaultHandler("add_labels")` |
@@ -2029,6 +2031,7 @@ The following table defines the exact `createHandlers()` function used for each 
 | `create_project_status_update` | `defaultHandler("create_project_status_update")` |
 | `update_release` | `defaultHandler("update_release")` |
 | `upload_asset` | `uploadAssetHandler` |
+| `upload_artifact` | `uploadArtifactHandler` |
 | `dispatch_workflow` | `defaultHandler("dispatch_workflow")` |
 | `create_code_scanning_alert` | `defaultHandler("create_code_scanning_alert")` |
 | `autofix_code_scanning_alert` | `defaultHandler("autofix_code_scanning_alert")` |

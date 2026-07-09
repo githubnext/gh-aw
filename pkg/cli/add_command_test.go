@@ -625,6 +625,8 @@ func TestAddWorkflowsWithTracking_RollsBackWrittenFilesOnWriteFailure(t *testing
 	workflowsDir := setupMinimalGitRepo(t, tempDir)
 
 	validContent := []byte("---\nengine: claude\n---\n\n# workflow\n")
+	// WorkflowName "nested/blocked" intentionally causes write failure because
+	// addWorkflowWithTracking does not create nested workflow directories.
 	workflows := []*ResolvedWorkflow{
 		{
 			Spec: &WorkflowSpec{
@@ -658,6 +660,9 @@ func TestAddWorkflowsWithTracking_RollsBackWrittenFilesOnWriteFailure(t *testing
 
 	_, statErr := os.Stat(filepath.Join(workflowsDir, "ok.md"))
 	assert.True(t, os.IsNotExist(statErr), "successful writes from this operation should be rolled back on later write failure")
+
+	_, blockedStatErr := os.Stat(filepath.Join(workflowsDir, "nested", "blocked.md"))
+	assert.True(t, os.IsNotExist(blockedStatErr), "failing workflow should not leave partial output files")
 }
 
 func TestAddSkillFileWithTracking_PreservesPathFromSkillsRoot(t *testing.T) {

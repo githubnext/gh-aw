@@ -282,6 +282,18 @@ func addWorkflowsWithTracking(ctx context.Context, workflows []*ResolvedWorkflow
 	addLog.Printf("Adding %d workflow(s) with tracking: force=%v, disableSecurityScanner=%v", len(workflows), opts.Force, opts.DisableSecurityScanner)
 	// Ensure .gitattributes is configured unless flag is set
 	if !opts.NoGitattributes {
+		var gitAttributesPath string
+		gitAttributesExisted := false
+		if tracker != nil {
+			if gitRoot, err := gitutil.FindGitRoot(); err == nil {
+				gitAttributesPath = filepath.Join(gitRoot, ".gitattributes")
+				gitAttributesExisted = fileutil.FileExists(gitAttributesPath)
+				if gitAttributesExisted {
+					tracker.TrackModified(gitAttributesPath)
+				}
+			}
+		}
+
 		addLog.Print("Configuring .gitattributes")
 		if updated, err := ensureGitAttributes(); err != nil {
 			addLog.Printf("Failed to configure .gitattributes: %v", err)
@@ -289,8 +301,13 @@ func addWorkflowsWithTracking(ctx context.Context, workflows []*ResolvedWorkflow
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
 			}
 			// Don't fail the entire operation if gitattributes update fails
-		} else if updated && opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
+		} else if updated {
+			if tracker != nil && !gitAttributesExisted && gitAttributesPath != "" {
+				tracker.TrackCreated(gitAttributesPath)
+			}
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
+			}
 		}
 	}
 
