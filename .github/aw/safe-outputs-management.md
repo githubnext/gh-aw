@@ -82,7 +82,7 @@ description: Safe-output reference for update, label, milestone, project, releas
       blocked: ["~*", "*[bot]"]                   # Optional: blocked label patterns (glob; takes precedence over allowed)
       required-labels: [approved]                 # Optional: ALL of these labels must be present on the issue/PR for the operation to run
       required-title-prefix: "[bot]"              # Optional: issue/PR title must start with this prefix
-      max: 3                                      # Optional: maximum number of labels (default: 3)
+      max: 5                                      # Optional: maximum number of labels (default: 5)
       target: "*"                                 # Optional: "triggering" (default), "*" (any issue/PR), or number
       target-repo: "owner/repo"                   # Optional: cross-repository
   ```
@@ -96,7 +96,7 @@ description: Safe-output reference for update, label, milestone, project, releas
       blocked: ["~*", "*[bot]"]    # Optional: blocked label patterns (glob; takes precedence over allowed)
       required-labels: [approved]  # Optional: ALL of these labels must be present on the issue/PR for the operation to run
       required-title-prefix: "[bot]"  # Optional: issue/PR title must start with this prefix
-      max: 3                       # Optional: maximum number of operations (default: 3)
+      max: 5                       # Optional: maximum number of operations (default: 5)
       target: "*"                  # Optional: "triggering" (default), "*" (any issue/PR), or number
       target-repo: "owner/repo"    # Optional: cross-repository
   ```
@@ -243,7 +243,7 @@ description: Safe-output reference for update, label, milestone, project, releas
   ```yaml
   safe-outputs:
     create-project-status-update:
-      max: 1                          # Optional: max status updates (default: 1)
+      max: 1                          # Optional: max status updates (default: 10)
       project: "https://github.com/orgs/myorg/projects/42"  # REQUIRED in agent output (full URL)
       github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # REQUIRED: PAT with projects:write (NOT GITHUB_TOKEN)
   ```

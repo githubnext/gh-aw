@@ -60,7 +60,7 @@ func getEngineStepsToTopLevelCodemod() Codemod {
 					}
 
 					// Check if we've exited the engine block
-					if inEngineBlock && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") {
+					if inEngineBlock && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
 						lineIndent := getIndentation(line)
 						if len(lineIndent) <= len(engineIndent) {
 							inEngineBlock = false

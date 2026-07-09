@@ -67,7 +67,7 @@ func migrateEngineFieldToTopLevel(
 				engineIndent = getIndentation(line)
 				continue
 			}
-			if inEngineBlock && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") && len(getIndentation(line)) <= len(engineIndent) {
+			if inEngineBlock && trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(getIndentation(line)) <= len(engineIndent) {
 				inEngineBlock = false
 			}
 			if inEngineBlock && strings.HasPrefix(trimmed, engineFieldPrefix) {

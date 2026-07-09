@@ -14,14 +14,28 @@ function isInterpolatedTemplateLiteral(node: TSESTree.Node): boolean {
 }
 
 /**
+ * Returns true when the node is a compile-time constant route expression built
+ * from literals only.
+ */
+function isStaticRouteExpression(node: TSESTree.Node): boolean {
+  if (node.type === "Literal") return true;
+  if (node.type === "TemplateLiteral") return node.expressions.length === 0;
+  if (node.type === "BinaryExpression" && node.operator === "+") {
+    return isStaticRouteExpression(node.left) && isStaticRouteExpression(node.right);
+  }
+  return false;
+}
+
+/**
  * Returns true when the node is a binary `+` expression, which indicates
  * string concatenation. Nested concatenations such as
  * `"GET /repos/" + owner + "/" + repo` parse as left-associative
  * BinaryExpressions, so the outermost node is still a `+` BinaryExpression
- * and is caught by this check.
+ * and is caught by this check. Compile-time constant concatenations built
+ * from literals only are intentionally excluded.
  */
 function isStringConcatenation(node: TSESTree.Node): boolean {
-  return node.type === "BinaryExpression" && node.operator === "+";
+  return node.type === "BinaryExpression" && node.operator === "+" && !isStaticRouteExpression(node);
 }
 
 export const noGithubRequestInterpolatedRouteRule = createRule({
