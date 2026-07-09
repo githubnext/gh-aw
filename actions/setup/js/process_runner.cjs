@@ -104,9 +104,11 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
     let lastActivityAt = Date.now();
     let watchdogArmed = false;
     let sentSigtermAt = 0;
+    let sentSigkillAt = 0;
     const watchdogPollIntervalMs = Math.max(50, Number(postResultWatchdog?.pollIntervalMs) || 1000);
     const watchdogTermGraceMs = Math.max(50, Number(postResultWatchdog?.termGraceMs) || 5000);
-    const watchdogInactivityTimeoutMs = Math.max(50, Number(postResultWatchdog?.inactivityTimeoutMs) || 0);
+    const rawInactivityTimeout = Number(postResultWatchdog?.inactivityTimeoutMs);
+    const watchdogInactivityTimeoutMs = Number.isFinite(rawInactivityTimeout) && rawInactivityTimeout > 0 ? Math.max(50, rawInactivityTimeout) : 0;
     /** @type {NodeJS.Timeout | null} */
     let postResultWatchdogTimer = null;
 
@@ -142,6 +144,7 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
             watchdogArmed = false;
           }
           if (watchdogArmed) {
+            lastActivityAt = Date.now();
             log(`attempt ${attempt + 1}: post-result watchdog armed inactivityTimeout=${watchdogInactivityTimeoutMs}ms`);
           }
         }
@@ -153,7 +156,8 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
           child.kill("SIGTERM");
           return;
         }
-        if (sentSigtermAt > 0 && Date.now() - sentSigtermAt >= watchdogTermGraceMs) {
+        if (sentSigtermAt > 0 && sentSigkillAt === 0 && Date.now() - sentSigtermAt >= watchdogTermGraceMs) {
+          sentSigkillAt = Date.now();
           log(`attempt ${attempt + 1}: post-result watchdog forcing process exit after ${watchdogTermGraceMs}ms grace (SIGKILL)`);
           child.kill("SIGKILL");
         }

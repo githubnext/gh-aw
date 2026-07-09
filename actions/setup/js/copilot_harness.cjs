@@ -147,7 +147,7 @@ function log(message) {
   process.stderr.write(`[copilot-harness] ${message}\n`);
 }
 
-const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["missing_tool", "report_incomplete"]);
+const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["missing_tool", "missing_data", "report_incomplete"]);
 
 /**
  * Detect whether safe-outputs already contain a terminal agent result.

@@ -263,6 +263,17 @@ describe("copilot_harness.cjs", () => {
         fs.rmSync(tempDir, { recursive: true, force: true });
       }
     });
+
+    it("returns false for missing_data diagnostic output", () => {
+      const tempDir = makeHarnessTempDir("terminal-safeoutput-missing-data-");
+      const filePath = path.join(tempDir, "safe-outputs.jsonl");
+      try {
+        fs.writeFileSync(filePath, JSON.stringify({ type: "missing_data", reason: "metadata only" }) + "\n", "utf8");
+        expect(hasTerminalSafeOutput(filePath)).toBe(false);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
   });
 
   describe("retry policy: continue on partial execution", () => {

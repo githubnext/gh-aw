@@ -219,6 +219,22 @@ describe("process_runner.cjs", () => {
       expect(logs.some(line => line.includes("post-result watchdog terminating idle process"))).toBe(false);
     });
 
+    it("does not enable watchdog when inactivityTimeoutMs is missing or invalid", async () => {
+      const logs = [];
+      const result = await runProcess({
+        command: process.execPath,
+        args: ["-e", "setTimeout(() => process.exit(0), 100);"],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        postResultWatchdog: {
+          shouldArm: () => true,
+          // intentionally missing inactivityTimeoutMs
+        },
+      });
+      expect(result.exitCode).toBe(0);
+      expect(logs.some(line => line.includes("post-result watchdog armed"))).toBe(false);
+    });
+
     it("truncates logArgs to 200 chars in spawn log", async () => {
       const logs = [];
       const longArg = "x".repeat(300);
