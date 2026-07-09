@@ -82,11 +82,11 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 ### 3.1 Checkout Entry Parsing
 
 `checkout:` MUST accept either a single object or an array of objects.  
-Each entry MAY define: `repository`, `ref`, `path`, `github-token` (or legacy `token`), `github-app` (or deprecated alias `app`), `safe-output-github-app`, `fetch-depth`, `fetch`, `sparse-checkout`, `submodules`, `lfs`, `current`, `wiki`, and `force-clean-git-credentials`.
+Each entry MAY define: `repository`, `ref`, `path`, `github-token` (or legacy `token`), `github-app` (or deprecated alias `app`), `safe-outputs-github-app`, `fetch-depth`, `fetch`, `sparse-checkout`, `submodules`, `lfs`, `current`, `wiki`, and `force-clean-git-credentials`.
 
 `github-token` and `github-app` MUST be mutually exclusive per entry.
 
-`safe-output-github-app` applies only to safe_outputs git auth/token resolution. It MUST NOT change agent/activation checkout authentication behavior.
+`safe-outputs-github-app` applies only to safe_outputs git auth/token resolution. It MUST NOT change agent/activation checkout authentication behavior.
 
 ### 3.2 Entry Merge Rules
 
@@ -95,7 +95,7 @@ Entries with the same `(repository, path, wiki)` key MUST merge with these rules
 - `fetch-depth`: deepest wins (`0` wins over all)
 - `ref`: first non-empty wins
 - auth (`github-token` vs `github-app`): first auth wins
-- safe_outputs auth (`safe-output-github-app`): first non-empty wins
+- safe_outputs auth (`safe-outputs-github-app`): first non-empty wins
 - sparse patterns: union
 - fetch refs: union
 - `lfs`: OR
@@ -144,7 +144,7 @@ Activation token precedence MUST be:
 
 `resolvePRCheckoutToken` precedence MUST be:
 
-1. Checkout target `safe-output-github-app` minted token (with fallback chain when `ignore-if-missing: true`)
+1. Checkout target `safe-outputs-github-app` minted token (with fallback chain when `ignore-if-missing: true`)
 2. `${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`
 
 When safe_outputs checkout retention is enabled, checkouts without explicit entry tokens MUST persist the resolved PR checkout token so local git credentials match push/fetch token usage.
@@ -236,8 +236,8 @@ Effective side-repo token precedence MUST be:
 - **T-CHK-008**: Trial mode repository/token override behavior
 - **T-CHK-009**: Side-repo target extraction and auth precedence
 - **T-CHK-010**: `force-clean-git-credentials` cleanup covers `.git/modules/**/config`
-- **T-CHK-011**: `checkout.safe-output-github-app` is the sole supported safe_outputs auth override per checkout entry
-- **T-CHK-012**: safe_outputs checkout token MUST NOT use `safe-outputs.github-app` or `safe-outputs.github-token`; only `safe-output-github-app` (per entry) or `GITHUB_TOKEN` are permitted
+- **T-CHK-011**: `checkout.safe-outputs-github-app` is the sole supported safe_outputs auth override per checkout entry
+- **T-CHK-012**: safe_outputs checkout token MUST NOT use `safe-outputs.github-app` or `safe-outputs.github-token`; only `safe-outputs-github-app` (per entry) or `GITHUB_TOKEN` are permitted
 - **T-CHK-013**: Checkout-manifest generation includes safe_outputs auth metadata without persisting resolved tokens
 
 ### 7.2 Compliance Checklist

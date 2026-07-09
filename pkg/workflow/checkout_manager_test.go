@@ -490,35 +490,33 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		assert.Equal(t, "${{ vars.CLIENT_ID }}", configs[0].GitHubApp.AppID, "client-id should populate AppID")
 	})
 
-	t.Run("safe-output-github-app config is parsed", func(t *testing.T) {
+	t.Run("safe-outputs-github-app config is parsed", func(t *testing.T) {
 		raw := map[string]any{
 			"repository": "owner/target-repo",
-			"safe-output-github-app": map[string]any{
+			"safe-outputs-github-app": map[string]any{
 				"client-id":   "${{ vars.SO_CLIENT_ID }}",
 				"private-key": "${{ secrets.SO_APP_PRIVATE_KEY }}",
 			},
 		}
 		configs, err := ParseCheckoutConfigs(raw)
-		require.NoError(t, err, "safe-output-github-app config should parse without error")
+		require.NoError(t, err, "safe-outputs-github-app config should parse without error")
 		require.Len(t, configs, 1)
-		require.NotNil(t, configs[0].SafeOutputGitHubApp, "safe-output-github-app config should be set")
+		require.NotNil(t, configs[0].SafeOutputGitHubApp, "safe-outputs-github-app config should be set")
 		assert.Equal(t, "${{ vars.SO_CLIENT_ID }}", configs[0].SafeOutputGitHubApp.AppID, "client-id should populate AppID")
 		assert.Equal(t, "${{ secrets.SO_APP_PRIVATE_KEY }}", configs[0].SafeOutputGitHubApp.PrivateKey, "private-key should be set")
 	})
 
-	t.Run("safe-outputs-github-app alias is parsed", func(t *testing.T) {
+	t.Run("safe-output-github-app is rejected", func(t *testing.T) {
 		raw := map[string]any{
 			"repository": "owner/target-repo",
-			"safe-outputs-github-app": map[string]any{
+			"safe-output-github-app": map[string]any{
 				"app-id":      "${{ vars.SO_APP_ID }}",
 				"private-key": "${{ secrets.SO_APP_PRIVATE_KEY }}",
 			},
 		}
-		configs, err := ParseCheckoutConfigs(raw)
-		require.NoError(t, err, "safe-outputs-github-app alias should parse without error")
-		require.Len(t, configs, 1)
-		require.NotNil(t, configs[0].SafeOutputGitHubApp, "safe-outputs-github-app config should be set")
-		assert.Equal(t, "${{ vars.SO_APP_ID }}", configs[0].SafeOutputGitHubApp.AppID)
+		_, err := ParseCheckoutConfigs(raw)
+		require.Error(t, err, "safe-output-github-app should be rejected")
+		assert.Contains(t, err.Error(), "checkout.safe-output-github-app is not supported; use checkout.safe-outputs-github-app")
 	})
 
 	t.Run("github-token and github-app are mutually exclusive", func(t *testing.T) {

@@ -67,7 +67,7 @@ type CheckoutConfig struct {
 	// SafeOutputGitHubApp configures GitHub App-based authentication used only by
 	// safe_outputs git checkout/fetch/push operations for this checkout target.
 	// This does not change activation/agent checkout authentication.
-	SafeOutputGitHubApp *GitHubAppConfig `json:"safe-output-github-app,omitempty"`
+	SafeOutputGitHubApp *GitHubAppConfig `json:"safe-outputs-github-app,omitempty"`
 
 	// FetchDepth controls the number of commits to fetch.
 	// 0 fetches all history (full clone). 1 is a shallow clone (default).
@@ -385,7 +385,7 @@ func (cm *CheckoutManager) HasSafeOutputAppAuth() bool {
 }
 
 // ResolveSafeOutputCheckoutTokenExpression returns a safe_outputs checkout token
-// expression derived from checkout.safe-output-github-app for the target repo.
+// expression derived from checkout.safe-outputs-github-app for the target repo.
 // The selected checkout precedence is:
 //  1. explicit matching checkout.repository == targetRepo (when targetRepo is non-empty)
 //  2. checkout marked current: true

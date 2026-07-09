@@ -139,7 +139,6 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 	}
 
 	// Parse app configuration for safe_outputs-only GitHub App authentication.
-	// Support both the canonical key and a backward-compatible alias.
 	parseSafeOutputAppConfig := func(fieldName string, value any) (*GitHubAppConfig, error) {
 		appMap, ok := value.(map[string]any)
 		if !ok {
@@ -151,18 +150,15 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		}
 		return appConfig, nil
 	}
-	if v, ok := m["safe-output-github-app"]; ok {
-		appConfig, err := parseSafeOutputAppConfig("safe-output-github-app", v)
-		if err != nil {
-			return nil, err
-		}
-		cfg.SafeOutputGitHubApp = appConfig
-	} else if v, ok := m["safe-outputs-github-app"]; ok {
+	if v, ok := m["safe-outputs-github-app"]; ok {
 		appConfig, err := parseSafeOutputAppConfig("safe-outputs-github-app", v)
 		if err != nil {
 			return nil, err
 		}
 		cfg.SafeOutputGitHubApp = appConfig
+	}
+	if _, ok := m["safe-output-github-app"]; ok {
+		return nil, errors.New("checkout.safe-output-github-app is not supported; use checkout.safe-outputs-github-app")
 	}
 
 	// Validate mutual exclusivity of github-token and github-app

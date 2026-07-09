@@ -52,7 +52,7 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permission
 }
 
 // GenerateSafeOutputCheckoutAppTokenSteps generates GitHub App token minting steps
-// for checkout.safe-output-github-app entries. These steps are consumed only by the
+// for checkout.safe-outputs-github-app entries. These steps are consumed only by the
 // safe_outputs job when choosing the checkout/push token for PR operations.
 func (cm *CheckoutManager) GenerateSafeOutputCheckoutAppTokenSteps(c *Compiler, permissions *Permissions) []string {
 	checkoutManagerLog.Printf("Building safe_outputs app token minting steps for %d checkout entries", len(cm.ordered))
