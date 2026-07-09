@@ -3,6 +3,8 @@
 // This module relies on the `exec` and `core` globals injected by github-script at runtime.
 // All callers must ensure these globals are set before invoking any helper.
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * Normalize a server URL by stripping any trailing slash so the git config key
  * matches exactly what actions/checkout writes (e.g. `http.https://github.com/.extraheader`).
@@ -62,15 +64,15 @@ async function overridePersistedExtraheader(serverUrl, token) {
   const normalizedUrl = normalizeServerUrl(serverUrl);
   let previousValues;
   try {
-    previousValues = await getExtraheaderValues(normalizedUrl);
+    previousValues = await getExtraheaderValues(serverUrl);
     core.info(`git_auth_helpers: read ${previousValues.length} existing extraheader value(s) for ${normalizedUrl}`);
   } catch (err) {
-    core.warning(`git_auth_helpers: could not read existing extraheader — previous values will not be restored: ${err.message}`);
+    core.warning(`git_auth_helpers: could not read existing extraheader — previous values will not be restored: ${getErrorMessage(err)}`);
     previousValues = [];
   }
   core.info(`git_auth_helpers: overriding http.${normalizedUrl}/.extraheader with CI trigger token`);
   const tokenBase64 = Buffer.from(`x-access-token:${token.trim()}`).toString("base64");
-  await exec.exec("git", ["config", "--replace-all", `http.${normalizedUrl}/.extraheader`, `Authorization: basic ${tokenBase64}`], { silent: true });
+  await exec.exec("git", ["config", "--replace-all", `http.${normalizedUrl}/.extraheader`, `Authorization: basic ${tokenBase64}`]);
   core.info(`git_auth_helpers: extraheader override applied`);
   return previousValues;
 }

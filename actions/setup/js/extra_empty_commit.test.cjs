@@ -208,6 +208,35 @@ describe("extra_empty_commit.cjs", () => {
       expect(restoreCall[1][3]).toBe(prevHeader);
     });
 
+    it("should restore extraheader even when push throws", async () => {
+      // Simulate push failure
+      mockExec.exec.mockImplementation(async (cmd, args) => {
+        if (cmd === "git" && args && args[0] === "push") {
+          throw new Error("remote: Permission denied");
+        }
+        return 0;
+      });
+
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      expect(result.success).toBe(false);
+
+      const execCalls = mockExec.exec.mock.calls;
+
+      // The override (--replace-all with CI token) must have happened before the failed push.
+      const overrideIdx = execCalls.findIndex(c => c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--replace-all");
+      expect(overrideIdx).toBeGreaterThanOrEqual(0);
+
+      // After the failed push, the finally block must restore by unsetting the key
+      // (default mock returns no previous extraheader).
+      const unsetCall = execCalls.find((c, i) => i > overrideIdx && c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--unset-all");
+      expect(unsetCall).toBeDefined();
+    });
+
     it("should fetch and reset to remote branch before committing", async () => {
       await pushExtraEmptyCommit({
         branchName: "api-created-branch",

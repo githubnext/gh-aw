@@ -150,12 +150,17 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
     const remoteUrl = `${githubServerUrl}/${repoOwner}/${repoName}.git`;
 
     // Declare previousExtraheaders before the try block so the finally clause can
-    // always restore, even if overridePersistedExtraheader only partially mutated
-    // git config before throwing.
+    // always restore when the override was applied, even if an error is thrown.
+    // overrideApplied is only set to true after overridePersistedExtraheader
+    // completes without throwing, so the finally clause skips restoration when
+    // the override was never applied (avoiding a spurious --unset-all that would
+    // destroy existing checkout credentials).
     let previousExtraheaders = [];
+    let overrideApplied = false;
     try {
       core.info(`Overriding git extraheader for CI trigger push to ${repoOwner}/${repoName} on branch ${branchName}`);
       previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, token);
+      overrideApplied = true;
 
       // Add a temporary remote with the tokenless URL.
       core.info(`Setting up temporary ci-trigger remote: ${remoteUrl}`);
@@ -203,7 +208,9 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
 
       try {
         core.info("Restoring previous git auth configuration");
-        await restorePersistedExtraheader(githubServerUrl, previousExtraheaders);
+        if (overrideApplied) {
+          await restorePersistedExtraheader(githubServerUrl, previousExtraheaders);
+        }
       } catch (restoreError) {
         core.warning(`Failed to restore git auth configuration after CI trigger push: ${getErrorMessage(restoreError)}`);
       }
