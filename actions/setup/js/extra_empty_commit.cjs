@@ -162,25 +162,18 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
       previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, token);
       overrideApplied = true;
 
-      // Add a temporary remote with the tokenless URL.
-      core.info(`Setting up temporary ci-trigger remote: ${remoteUrl}`);
-      try {
-        await exec.exec("git", ["remote", "remove", "ci-trigger"]);
-        core.info("Removed pre-existing ci-trigger remote");
-      } catch {
-        // Remote doesn't exist yet, that's fine
-      }
-      await exec.exec("git", ["remote", "add", "ci-trigger", remoteUrl]);
-
-      // Fetch and sync with the remote branch. This is required when the PR branch
-      // was created server-side via the GitHub API (e.g. via the createCommitOnBranch
-      // GraphQL mutation used by pushSignedCommits), because the remote branch tip
-      // then has a different SHA than the local branch tip. Without this sync, git
-      // would reject the subsequent push as non-fast-forward.
+      // Fetch and sync with the remote branch using the URL directly.
+      // This is required when the PR branch was created server-side via the GitHub
+      // API (e.g. via the createCommitOnBranch GraphQL mutation used by
+      // pushSignedCommits), because the remote branch tip then has a different SHA
+      // than the local branch tip. Without this sync, git would reject the
+      // subsequent push as non-fast-forward.
+      // Using the URL directly here avoids adding the named ci-trigger remote
+      // before we know whether a git push will actually be needed.
       try {
         core.info(`Fetching and syncing with remote branch ${branchName}`);
-        await exec.exec("git", ["fetch", "ci-trigger", branchName]);
-        await exec.exec("git", ["reset", "--hard", `ci-trigger/${branchName}`]);
+        await exec.exec("git", ["fetch", remoteUrl, branchName]);
+        await exec.exec("git", ["reset", "--hard", "FETCH_HEAD"]);
         core.info(`Synced local branch with remote ${branchName}`);
       } catch (error) {
         // Non-fatal: if fetch/reset fails (e.g. branch not yet on remote), continue
@@ -232,6 +225,15 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
             throw new Error("createCommitOnBranch did not return a commit OID");
           }
           core.info(`Verified empty commit created via GitHub API (oid=${newOid})`);
+          // Update the local branch HEAD to the API-created commit so that any
+          // downstream git state reads see the new OID rather than stale data.
+          try {
+            await exec.exec("git", ["fetch", remoteUrl, branchName]);
+            await exec.exec("git", ["reset", "--hard", "FETCH_HEAD"]);
+            core.info(`Updated local branch to API-created commit ${newOid}`);
+          } catch (updateErr) {
+            core.info(`Could not update local branch to API-created commit: ${getErrorMessage(updateErr)}`);
+          }
           committedViaApi = true;
         } catch (apiError) {
           core.info(`GitHub API commit creation unavailable, falling back to git commit + push: ${getErrorMessage(apiError)}`);
@@ -239,6 +241,15 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
       }
 
       if (!committedViaApi) {
+        // Add a named remote only when a git push is actually needed.
+        core.info(`Setting up temporary ci-trigger remote: ${remoteUrl}`);
+        try {
+          await exec.exec("git", ["remote", "remove", "ci-trigger"]);
+          core.info("Removed pre-existing ci-trigger remote");
+        } catch {
+          // Remote doesn't exist yet, that's fine
+        }
+        await exec.exec("git", ["remote", "add", "ci-trigger", remoteUrl]);
         await exec.exec("git", ["commit", "--allow-empty", "-m", message]);
         await exec.exec("git", ["push", "ci-trigger", branchName]);
       }

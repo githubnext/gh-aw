@@ -149,7 +149,7 @@ describe("extra_empty_commit.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Extra empty commit pushed"));
     });
 
-    it("should add and remove a ci-trigger remote", async () => {
+    it("should add and remove a ci-trigger remote only on the git push path", async () => {
       await pushExtraEmptyCommit({
         branchName: "feature-branch",
         repoOwner: "test-owner",
@@ -157,7 +157,7 @@ describe("extra_empty_commit.cjs", () => {
       });
 
       const execCalls = mockExec.exec.mock.calls;
-      // Find remote add call
+      // Find remote add call — only present on the git push path
       const addRemote = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "add");
       expect(addRemote).toBeDefined();
       expect(addRemote[1]).toEqual(["remote", "add", "ci-trigger", "https://github.com/test-owner/test-repo.git"]);
@@ -251,29 +251,28 @@ describe("extra_empty_commit.cjs", () => {
 
       const execCalls = mockExec.exec.mock.calls;
 
-      // Find the remote add call index so we can verify order
-      const addRemoteIdx = execCalls.findIndex(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "add");
-      expect(addRemoteIdx).toBeGreaterThanOrEqual(0);
-
-      // fetch should come after remote add
-      const fetchCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "fetch" && c[1][1] === "ci-trigger");
+      // fetch (sync step) uses the URL directly, not the ci-trigger named remote
+      const fetchCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "fetch" && c[1][1] === "https://github.com/test-owner/test-repo.git");
       expect(fetchCall).toBeDefined();
-      expect(fetchCall[1]).toEqual(["fetch", "ci-trigger", "api-created-branch"]);
+      expect(fetchCall[1]).toEqual(["fetch", "https://github.com/test-owner/test-repo.git", "api-created-branch"]);
       const fetchIdx = execCalls.indexOf(fetchCall);
-      expect(fetchIdx).toBeGreaterThan(addRemoteIdx);
 
-      // reset --hard should come after fetch
+      // reset --hard FETCH_HEAD should come after the URL-based fetch
       const resetCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "reset" && c[1][1] === "--hard");
       expect(resetCall).toBeDefined();
-      expect(resetCall[1]).toEqual(["reset", "--hard", "ci-trigger/api-created-branch"]);
+      expect(resetCall[1]).toEqual(["reset", "--hard", "FETCH_HEAD"]);
       const resetIdx = execCalls.indexOf(resetCall);
       expect(resetIdx).toBeGreaterThan(fetchIdx);
 
-      // commit should come after reset
+      // remote add for ci-trigger comes AFTER the sync (only on git push path)
+      const addRemoteIdx = execCalls.findIndex(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "add");
+      expect(addRemoteIdx).toBeGreaterThan(resetIdx);
+
+      // commit should come after remote add
       const commitCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
       expect(commitCall).toBeDefined();
       const commitIdx = execCalls.indexOf(commitCall);
-      expect(commitIdx).toBeGreaterThan(resetIdx);
+      expect(commitIdx).toBeGreaterThan(addRemoteIdx);
 
       // push should come after commit
       const pushCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "push");
@@ -288,8 +287,8 @@ describe("extra_empty_commit.cjs", () => {
           options.listeners.stdout(Buffer.from("COMMIT:abc123\nfile.txt\n"));
           return 0;
         }
-        // Simulate fetch failing (branch does not yet exist on remote)
-        if (cmd === "git" && args && args[0] === "fetch") {
+        // Simulate fetch failing (branch does not yet exist on remote) — uses URL now
+        if (cmd === "git" && args && args[0] === "fetch" && args[1] && args[1].startsWith("https://")) {
           throw new Error("couldn't find remote ref api-created-branch");
         }
         return 0;
@@ -432,6 +431,29 @@ describe("extra_empty_commit.cjs", () => {
       expect(commitCall).toBeUndefined();
       const pushCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "push");
       expect(pushCall).toBeUndefined();
+    });
+
+    it("should update local branch HEAD after API commit succeeds", async () => {
+      await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      const execCalls = mockExec.exec.mock.calls;
+      // The sync fetch (before commit) and the post-API-commit update fetch should
+      // both use the URL directly. Assert exactly 2 URL-based fetches for the branch.
+      const urlFetches = execCalls.filter(c => c[0] === "git" && c[1] && c[1][0] === "fetch" && c[1][1] === "https://github.com/test-owner/test-repo.git" && c[1][2] === "feature-branch");
+      expect(urlFetches).toHaveLength(2);
+
+      // The second fetch (local update) must come after the API commit info log.
+      const apiInfoIdx = mockCore.info.mock.calls.findIndex(c => c[0].includes("Verified empty commit created via GitHub API"));
+      expect(apiInfoIdx).toBeGreaterThanOrEqual(0);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Updated local branch to API-created commit"));
+
+      // No ci-trigger remote should be created (API path skips git push entirely)
+      const addRemote = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "add");
+      expect(addRemote).toBeUndefined();
     });
 
     it("should pass correct parameters to createCommitOnBranch mutation", async () => {
