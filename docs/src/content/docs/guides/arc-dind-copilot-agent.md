@@ -76,9 +76,11 @@ sandbox:
 ---
 ```
 
-`runner.topology: arc-dind` is required so compiled workflows enable ARC DinD split-filesystem handling (shared sysroot/workspace setup, daemon-visible paths, and ARC-specific sandbox wiring).
+`runner.topology: arc-dind` is required so compiled workflows enable ARC DinD split-filesystem handling (a shared runner/daemon workspace root, Docker-daemon-visible mount paths, and ARC-specific sandbox setup).
 
-## 5.1 Required versions
+`sandbox.agent.sudo: false` disables `sudo` inside the sandboxed agent container where user prompts run. The runner host container (outside the sandbox) still needs `sudo` capability for AWF host-level setup steps.
+
+## 6. Required versions
 
 Use versions at or above these minimums:
 
@@ -94,7 +96,7 @@ Use versions at or above these minimums:
 | DinD container mode | **Yes** | GitHub Copilot coding agent needs a Docker daemon in the runner pod. |
 | `NET_ADMIN` capability | **Yes** | Required on the runner container so AWF can manage host-level `DOCKER-USER` `iptables` rules. |
 | `ghcr.io/actions/actions-runner:latest` | Recommended | Use the official runner image, or a compatible custom image with equivalent runner requirements. |
-| Runner user | **Yes** | Non-root runner users are supported, but `sudo` must be available for AWF setup operations. |
+| Runner user | **Yes** | Non-root runner users are supported, but `sudo` must remain available on the runner host for AWF setup operations. |
 | DinD sidecar privilege | **Yes** | ARC DinD mode configures a privileged sidecar for Docker daemon operation. |
 | Shared work volume (`/home/runner/_work`) | **Yes** | Runner and Docker daemon share this volume in ARC DinD mode, so workspace mounts work without host path translation. |
 | Specific Kubernetes distribution | **No** | Any conformant cluster works (for example minikube, EKS, AKS, or GKE). |
