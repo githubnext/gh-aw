@@ -42,6 +42,18 @@ func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 	config.AgentFailureComment = extractStringFromMap(messagesMap, "agent-failure-comment", nil)
 	config.BodyHeader = extractStringFromMap(messagesMap, "body-header", nil)
 
+	// Handle disclosure-header: can be bool (true for default built-in text) or custom string
+	if dh, exists := messagesMap["disclosure-header"]; exists {
+		switch v := dh.(type) {
+		case bool:
+			if v {
+				config.DisclosureHeader = "true"
+			}
+		case string:
+			config.DisclosureHeader = v
+		}
+	}
+
 	return config
 }
 

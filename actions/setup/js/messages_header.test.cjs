@@ -11,7 +11,7 @@ const mockCore = {
 };
 global.core = mockCore;
 
-const { getBodyHeader } = require("./messages_header.cjs");
+const { getBodyHeader, getDisclosureHeader, DEFAULT_DISCLOSURE_HEADER } = require("./messages_header.cjs");
 
 const WORKFLOW = "My Workflow";
 const RUN_URL = "https://github.com/owner/repo/actions/runs/99";
@@ -71,6 +71,48 @@ describe("messages_header", () => {
 
       const result = getBodyHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
       expect(result).toBe(`> Header ${WORKFLOW} {unknown_placeholder}`);
+    });
+  });
+
+  describe("getDisclosureHeader", () => {
+    it("returns empty string when disclosure-header is not configured", () => {
+      const result = getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
+      expect(result).toBe("");
+    });
+
+    it("returns rendered default text when disclosure-header is 'true'", () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        disclosureHeader: "true",
+      });
+
+      const result = getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
+      expect(result).toContain(WORKFLOW);
+      expect(result).toContain(RUN_URL);
+      expect(result).toContain("🤖");
+    });
+
+    it("returns rendered custom template when disclosure-header is a string", () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        disclosureHeader: "> 🤖 Custom disclosure for [{workflow_name}]({run_url}).",
+      });
+
+      const result = getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
+      expect(result).toBe(`> 🤖 Custom disclosure for [${WORKFLOW}](${RUN_URL}).`);
+    });
+
+    it("returns empty string when messages env is set but disclosure-header is absent", () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        footer: "> Custom footer",
+      });
+
+      const result = getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
+      expect(result).toBe("");
+    });
+
+    it("DEFAULT_DISCLOSURE_HEADER contains expected placeholders", () => {
+      expect(DEFAULT_DISCLOSURE_HEADER).toContain("{workflow_name}");
+      expect(DEFAULT_DISCLOSURE_HEADER).toContain("{run_url}");
+      expect(DEFAULT_DISCLOSURE_HEADER).toContain("🤖");
     });
   });
 });
