@@ -18,7 +18,7 @@ func TestAuditCommandDescriptionsAreConsistent(t *testing.T) {
 
 	assert.Contains(t, cmd.Short, "workflow runs", "audit short description should describe multiple run inputs")
 	assert.Contains(t, cmd.Long, "Audit one or more workflow runs", "audit long description should describe multiple run inputs")
-	assert.Contains(t, cmd.Long, "When two or more runs are provided", "audit help should document multi-run analysis mode")
+	assert.Contains(t, cmd.Long, "remaining runs are compared against it", "audit help should document multi-run analysis mode")
 }
 
 func TestTrialCommandUsesStandardExamplesHeading(t *testing.T) {
@@ -79,7 +79,8 @@ func TestCLIDocsReflectStatusAuditAndExperimentsCommands(t *testing.T) {
 	assert.Contains(t, text, "#### `experiments`", "CLI setup docs should include the experiments command")
 	assert.Contains(t, text, "The `audit` command has two modes", "audit docs should describe the current two-mode behavior")
 	assert.NotContains(t, text, "enabled/disabled status, schedules, and labels", "status docs should not promise schedule output in console mode")
-	assert.Contains(t, text, "runs its fix/update/compile steps by default and uses `--no-fix` to skip them", "upgrade docs should explain the inverse --fix/--no-fix behavior")
+	assert.Contains(t, text, "Use `--json` to inspect the raw `on` data, including schedules", "status docs should direct schedule inspection to JSON output")
+	assert.Contains(t, text, "runs codemods, action version updates, and workflow compilation by default and uses `--no-fix` to skip all three steps", "upgrade docs should explain the inverse --fix/--no-fix behavior")
 }
 
 func TestSubcommandListingsUseHyphenBullets(t *testing.T) {

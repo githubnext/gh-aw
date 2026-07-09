@@ -634,7 +634,7 @@ gh aw experiments analyze my-workflow     # Analyze one experiment workflow
 gh aw experiments analyze my-workflow --repo owner/repo  # Analyze experiments in another repository
 ```
 
-**Options:** root command `--repo/-r`, `--json/-j`; `analyze` also accepts `--repo/-r`, `--json/-j`
+**Options:** all `experiments` commands accept `--repo/-r`, `--json/-j`
 
 ### Management
 
@@ -739,7 +739,7 @@ Org mode (`--org`) previews or creates upgrade pull requests across every reposi
 
 Use `--disable-codemod` (repeatable) to skip specific codemod IDs during the embedded fix step. This flag is ignored when `--no-fix` is set.
 
-Unlike `gh aw compile --fix`, `gh aw upgrade` runs its fix/update/compile steps by default and uses `--no-fix` to skip them.
+Unlike `gh aw compile --fix`, `gh aw upgrade` runs codemods, action version updates, and workflow compilation by default and uses `--no-fix` to skip all three steps.
 
 #### `env`
 
