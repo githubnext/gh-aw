@@ -24,16 +24,27 @@ const DEFAULT_DISCLOSURE_HEADER_FALLBACK = "> 🤖 **Automated content** — gen
 const DISCLOSURE_HEADER_DEFAULT_SENTINEL = "true";
 
 /**
+ * Resolve disclosure-header template path for runtime or source-tree execution.
+ * @returns {string}
+ */
+function resolveDefaultDisclosureHeaderTemplatePath() {
+  const shouldUseRuntimePath = !!(process.env.RUNNER_TEMP || process.env.GH_AW_PROMPTS_DIR);
+  return shouldUseRuntimePath ? getPromptPath(DEFAULT_DISCLOSURE_HEADER_TEMPLATE) : path.join(__dirname, "../md", DEFAULT_DISCLOSURE_HEADER_TEMPLATE);
+}
+
+/**
  * Load the default disclosure-header template from prompt markdown.
  * Falls back to an inline template if the file is unavailable.
  * @returns {string}
  */
 function getDefaultDisclosureHeaderTemplate() {
   try {
-    const shouldUseRuntimePrompts = !!(process.env.RUNNER_TEMP || process.env.GH_AW_PROMPTS_DIR);
-    const templatePath = shouldUseRuntimePrompts ? getPromptPath(DEFAULT_DISCLOSURE_HEADER_TEMPLATE) : path.join(__dirname, "../md", DEFAULT_DISCLOSURE_HEADER_TEMPLATE);
+    const templatePath = resolveDefaultDisclosureHeaderTemplatePath();
     return fs.readFileSync(templatePath, "utf8").trimEnd();
-  } catch {
+  } catch (error) {
+    if (typeof globalThis.core?.warning === "function") {
+      globalThis.core.warning(`Failed to load ${DEFAULT_DISCLOSURE_HEADER_TEMPLATE}: ${String(error)}`);
+    }
     return DEFAULT_DISCLOSURE_HEADER_FALLBACK;
   }
 }
