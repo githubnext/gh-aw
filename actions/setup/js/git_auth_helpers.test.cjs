@@ -139,9 +139,12 @@ describe("git_auth_helpers.cjs", () => {
 
       await overridePersistedExtraheader("https://github.com/", "ghp_test_token");
 
-      // The git config read and write must both use the normalized (no trailing slash) key
-      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["config", "--get-all", EXTRAHEADER_KEY], expect.anything());
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--replace-all", EXTRAHEADER_KEY, expect.any(String)]);
+      // "https://github.com/" (with trailing slash) must be normalized to
+      // "https://github.com" (without) for both the git config read and write.
+      // Using the literal normalized key makes the assertion explicit.
+      const normalizedKey = "http.https://github.com/.extraheader";
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["config", "--get-all", normalizedKey], expect.anything());
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--replace-all", normalizedKey, expect.any(String)]);
     });
   });
 
