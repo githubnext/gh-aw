@@ -210,7 +210,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
       }
 
       let committedViaApi = false;
-      if (expectedHeadOid) {
+      if (expectedHeadOid && typeof global.getOctokit === "function") {
         try {
           core.info(`Attempting to create verified empty commit via GitHub API (createCommitOnBranch)`);
           const ciGithubClient = global.getOctokit(token.trim());
