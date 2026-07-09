@@ -147,6 +147,39 @@ function log(message) {
   process.stderr.write(`[copilot-harness] ${message}\n`);
 }
 
+const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["missing_tool", "report_incomplete"]);
+
+/**
+ * Detect whether safe-outputs already contain a terminal agent result.
+ * Terminal outputs include noop and any non-diagnostic task output types.
+ * @param {string} safeOutputsPath
+ * @returns {boolean}
+ */
+function hasTerminalSafeOutput(safeOutputsPath) {
+  if (!safeOutputsPath) return false;
+  let content = "";
+  try {
+    content = fs.readFileSync(safeOutputsPath, "utf8");
+  } catch {
+    return false;
+  }
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const parsed = JSON.parse(trimmed);
+      const type = parsed && typeof parsed.type === "string" ? parsed.type : "";
+      if (!type) continue;
+      if (type === "noop" || !NON_TERMINAL_SAFE_OUTPUT_TYPES.has(type)) {
+        return true;
+      }
+    } catch {
+      // Ignore malformed lines.
+    }
+  }
+  return false;
+}
+
 /**
  * @param {NodeJS.ProcessEnv} [env]
  * @param {(message: string) => void} [logger]
@@ -921,7 +954,7 @@ async function main() {
           env: childEnv,
           postResultWatchdog: safeOutputsPath
             ? {
-                shouldArm: () => hasNoopInSafeOutputs(safeOutputsPath, { logger: () => {} }) || hasExpectedSafeOutputs(safeOutputsPath, { logger: () => {} }),
+                shouldArm: () => hasTerminalSafeOutput(safeOutputsPath),
                 inactivityTimeoutMs: POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS,
               }
             : undefined,
@@ -1233,6 +1266,7 @@ if (typeof module !== "undefined" && module.exports) {
     resolveRetryConfig,
     parseCopilotSDKServerArgsFromEnv,
     isCAPIQuotaExceededError,
+    hasTerminalSafeOutput,
   };
 }
 

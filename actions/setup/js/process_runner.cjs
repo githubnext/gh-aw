@@ -106,7 +106,7 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
     let sentSigtermAt = 0;
     const watchdogPollIntervalMs = Math.max(50, Number(postResultWatchdog?.pollIntervalMs) || 1000);
     const watchdogTermGraceMs = Math.max(50, Number(postResultWatchdog?.termGraceMs) || 5000);
-    const watchdogInactivityTimeoutMs = Number(postResultWatchdog?.inactivityTimeoutMs) || 0;
+    const watchdogInactivityTimeoutMs = Math.max(50, Number(postResultWatchdog?.inactivityTimeoutMs) || 0);
     /** @type {NodeJS.Timeout | null} */
     let postResultWatchdogTimer = null;
 
