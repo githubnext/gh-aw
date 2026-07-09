@@ -11,7 +11,8 @@ import (
 )
 
 func TestCrushEngine(t *testing.T) {
-	engine := NewCrushEngine()
+	engine, err := newBuiltinBehaviorDefinedEngine("crush")
+	require.NoError(t, err)
 
 	t.Run("engine identity", func(t *testing.T) {
 		assert.Equal(t, "crush", engine.GetID(), "Engine ID should be 'crush'")
@@ -148,7 +149,8 @@ func TestCrushEngine(t *testing.T) {
 }
 
 func TestCrushEngineInstallation(t *testing.T) {
-	engine := NewCrushEngine()
+	engine, err := newBuiltinBehaviorDefinedEngine("crush")
+	require.NoError(t, err)
 
 	t.Run("standard installation", func(t *testing.T) {
 		workflowData := &WorkflowData{
@@ -226,7 +228,8 @@ func TestCrushEngineInstallation(t *testing.T) {
 }
 
 func TestCrushEngineExecution(t *testing.T) {
-	engine := NewCrushEngine()
+	engine, err := newBuiltinBehaviorDefinedEngine("crush")
+	require.NoError(t, err)
 
 	t.Run("basic execution", func(t *testing.T) {
 		workflowData := &WorkflowData{
@@ -385,7 +388,8 @@ func TestCrushEngineExecution(t *testing.T) {
 }
 
 func TestCrushEngineFirewallIntegration(t *testing.T) {
-	engine := NewCrushEngine()
+	engine, err := newBuiltinBehaviorDefinedEngine("crush")
+	require.NoError(t, err)
 
 	t.Run("firewall enabled", func(t *testing.T) {
 		workflowData := &WorkflowData{

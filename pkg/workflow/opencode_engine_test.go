@@ -12,7 +12,8 @@ import (
 )
 
 func TestOpenCodeEngine(t *testing.T) {
-	engine := NewOpenCodeEngine()
+	engine, err := newBuiltinBehaviorDefinedEngine("opencode")
+	require.NoError(t, err)
 
 	t.Run("engine identity and capabilities", func(t *testing.T) {
 		capabilities := engine.GetCapabilities()
@@ -30,7 +31,8 @@ func TestOpenCodeEngine(t *testing.T) {
 }
 
 func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
-	engine := NewOpenCodeEngine()
+	engine, err := newBuiltinBehaviorDefinedEngine("opencode")
+	require.NoError(t, err)
 
 	t.Run("standard installation", func(t *testing.T) {
 		steps := engine.GetInstallationSteps(&WorkflowData{Name: "test-workflow"})
@@ -74,7 +76,8 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 }
 
 func TestOpenCodeEngineProviderProfiles(t *testing.T) {
-	engine := NewOpenCodeEngine()
+	engine, err := newBuiltinBehaviorDefinedEngine("opencode")
+	require.NoError(t, err)
 
 	t.Run("anthropic model uses anthropic secret", func(t *testing.T) {
 		workflowData := &WorkflowData{
