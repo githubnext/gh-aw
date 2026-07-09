@@ -150,6 +150,10 @@ For token usage information, we need to find the workflow run associated with th
 
 Create a concise report with the following structure:
 
+Use `###` or lower for all headers in your report. Never use `#` (h1) or `##` (h2) — these are reserved for the discussion title rendered by GitHub.
+
+Wrap long sections (>5 items, detailed lists, raw data) in `<details><summary><b>Section Name</b></summary>` blocks to keep the report scannable.
+
 ```markdown
 ### 🤖 Daily Copilot PR Merged Report - [DATE]
 
@@ -169,7 +173,7 @@ Create a concise report with the following structure:
 - Any PRs with exceptional metrics (very large, many test files, etc.)
 
 <details>
-<summary>Merged Pull Requests</summary>
+<summary><b>Merged Pull Requests</b></summary>
 
 | PR # | Title | Lines Added | Lines Deleted | Test Files | Merged At |
 |------|-------|-------------|---------------|------------|-----------|
@@ -178,7 +182,7 @@ Create a concise report with the following structure:
 </details>
 
 <details>
-<summary>Code Generation Metrics</summary>
+<summary><b>Code Generation Metrics</b></summary>
 
 - **Production Code**: [lines added - test lines added] lines
 - **Test Code**: [test lines added] lines

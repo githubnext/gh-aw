@@ -101,6 +101,26 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Expected GH_AW_SAFE_OUTPUTS environment variable to be passed to engine via step output")
 	}
 
+	// Verify GH_AW_SAFE_OUTPUTS is also present in the "Parse agent logs for step summary" step
+	// so the log parser can detect safe-output entries and downgrade a "no structured log entries"
+	// failure to a warning when the agent demonstrably completed (e.g. emitted a noop).
+	parseAgentLogsIdx := strings.Index(lockContent, "- name: Parse agent logs for step summary")
+	if parseAgentLogsIdx < 0 {
+		t.Error("Expected 'Parse agent logs for step summary' step to be in generated workflow")
+	} else {
+		// Find the next step boundary after the parse step
+		nextStepIdx := strings.Index(lockContent[parseAgentLogsIdx+1:], "      - name: ")
+		var parseAgentLogsSection string
+		if nextStepIdx >= 0 {
+			parseAgentLogsSection = lockContent[parseAgentLogsIdx : parseAgentLogsIdx+1+nextStepIdx]
+		} else {
+			parseAgentLogsSection = lockContent[parseAgentLogsIdx:]
+		}
+		if !strings.Contains(parseAgentLogsSection, "GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}") {
+			t.Errorf("Expected GH_AW_SAFE_OUTPUTS to be set in 'Parse agent logs for step summary' step env, got:\n%s", parseAgentLogsSection)
+		}
+	}
+
 	// NOTE: Safe outputs instructions are now provided via the MCP server tool discovery,
 	// so we no longer inject output instructions into the prompt directly.
 

@@ -702,6 +702,11 @@
       "digest": "sha256:9dbdf42842c224a95016df1d2a85a2901e04204c242079343b302a307d2b8031",
       "pinned_image": "ghcr.io/github/gh-aw-mcpg:v0.4.0@sha256:9dbdf42842c224a95016df1d2a85a2901e04204c242079343b302a307d2b8031"
     },
+    "ghcr.io/github/gh-aw-mcpg:v0.4.1": {
+      "image": "ghcr.io/github/gh-aw-mcpg:v0.4.1",
+      "digest": "sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32",
+      "pinned_image": "ghcr.io/github/gh-aw-mcpg:v0.4.1@sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32"
+    },
     "ghcr.io/github/gh-aw-node": {
       "image": "ghcr.io/github/gh-aw-node",
       "digest": "sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b",

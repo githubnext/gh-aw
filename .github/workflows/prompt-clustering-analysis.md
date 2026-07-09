@@ -487,6 +487,10 @@ Create a comprehensive discussion report with:
 
 **Report Template**:
 
+Use `###` or lower for all headers in your report. Never use `#` (h1) or `##` (h2) — these are reserved for the discussion title rendered by GitHub.
+
+Wrap long sections (>5 items, detailed lists, raw data) in `<details><summary><b>Section Name</b></summary>` blocks to keep the report scannable.
+
 ```markdown
 ### Summary
 
@@ -496,7 +500,7 @@ Create a comprehensive discussion report with:
 **Overall Success Rate**: [percentage]%
 
 <details>
-<summary>Full Analysis Report</summary>
+<summary><b>Full Analysis Report</b></summary>
 
 ### General Insights
 

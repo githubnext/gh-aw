@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -276,5 +277,5 @@ func areEqual(a, b any) bool {
 		return false
 	}
 
-	return string(aJSON) == string(bJSON)
+	return bytes.Equal(aJSON, bJSON)
 }

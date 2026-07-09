@@ -881,6 +881,24 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			checkJSON:    true,
 			expectedKeys: []string{"replace_label"},
 		},
+		{
+			name: "mentions config",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+				},
+				Mentions: &MentionsConfig{
+					Allowed: []string{"copilot-bot"},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"add_comment", "mentions"},
+		},
 	}
 
 	for _, tt := range tests {
