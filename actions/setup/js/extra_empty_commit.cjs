@@ -189,10 +189,59 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
         core.warning(`Could not sync local branch with remote ${branchName} - will attempt push with local HEAD. Underlying error: ${syncErrorMessage}`);
       }
 
-      // Create and push an empty commit
+      // Create and push an empty commit.
+      // Try the GitHub API (createCommitOnBranch GraphQL mutation) first, which
+      // produces verified/signed commits required for branches with "Require signed
+      // commits" branch protection.  Fall back to git commit + push when the API
+      // path is unavailable or the OID cannot be resolved.
       const message = commitMessage || "ci: trigger checks";
-      await exec.exec("git", ["commit", "--allow-empty", "-m", message]);
-      await exec.exec("git", ["push", "ci-trigger", branchName]);
+
+      // Resolve the current HEAD OID (after the sync above) for the GraphQL
+      // expectedHeadOid parameter.  If this fails, skip the API path entirely.
+      let expectedHeadOid = "";
+      try {
+        const headResult = await exec.getExecOutput("git", ["rev-parse", "HEAD"], { silent: true, ignoreReturnCode: true });
+        if (headResult.exitCode === 0) {
+          expectedHeadOid = headResult.stdout.trim();
+          core.info(`HEAD OID for GraphQL mutation: ${expectedHeadOid}`);
+        }
+      } catch (headErr) {
+        core.info(`Could not resolve HEAD OID for GraphQL path: ${getErrorMessage(headErr)}`);
+      }
+
+      let committedViaApi = false;
+      if (expectedHeadOid) {
+        try {
+          core.info(`Attempting to create verified empty commit via GitHub API (createCommitOnBranch)`);
+          const ciGithubClient = global.getOctokit(token.trim());
+          const apiResult = await ciGithubClient.graphql(
+            `mutation($input: CreateCommitOnBranchInput!) {
+              createCommitOnBranch(input: $input) { commit { oid } }
+            }`,
+            {
+              input: {
+                branch: { repositoryNameWithOwner: `${repoOwner}/${repoName}`, branchName },
+                message: { headline: message },
+                fileChanges: {},
+                expectedHeadOid,
+              },
+            }
+          );
+          const newOid = apiResult?.createCommitOnBranch?.commit?.oid;
+          if (!newOid) {
+            throw new Error("createCommitOnBranch did not return a commit OID");
+          }
+          core.info(`Verified empty commit created via GitHub API (oid=${newOid})`);
+          committedViaApi = true;
+        } catch (apiError) {
+          core.info(`GitHub API commit creation unavailable, falling back to git commit + push: ${getErrorMessage(apiError)}`);
+        }
+      }
+
+      if (!committedViaApi) {
+        await exec.exec("git", ["commit", "--allow-empty", "-m", message]);
+        await exec.exec("git", ["push", "ci-trigger", branchName]);
+      }
 
       core.info(`Extra empty commit pushed to ${branchName} successfully`);
 

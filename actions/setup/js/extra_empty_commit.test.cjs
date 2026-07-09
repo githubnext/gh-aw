@@ -31,6 +31,10 @@ describe("extra_empty_commit.cjs", () => {
 
     global.core = mockCore;
     global.exec = mockExec;
+    // Default: GraphQL unavailable — existing tests exercise the git fallback path.
+    global.getOctokit = vi.fn(() => ({
+      graphql: vi.fn().mockRejectedValue(new Error("GraphQL unavailable in test")),
+    }));
 
     // Clear module cache so env changes take effect
     delete require.cache[require.resolve("./extra_empty_commit.cjs")];
@@ -54,6 +58,7 @@ describe("extra_empty_commit.cjs", () => {
     }
     delete global.core;
     delete global.exec;
+    delete global.getOctokit;
     vi.clearAllMocks();
   });
 
@@ -373,6 +378,141 @@ describe("extra_empty_commit.cjs", () => {
       const pushCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "push");
       expect(pushCall).toBeDefined();
       expect(pushCall[1]).toEqual(["push", "ci-trigger", "my-feature"]);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // Verified commits via GitHub API (createCommitOnBranch)
+  // ──────────────────────────────────────────────────────
+
+  describe("verified commits via GitHub API", () => {
+    const TEST_HEAD_OID = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
+    const TEST_NEW_OID = "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3";
+
+    beforeEach(() => {
+      process.env.GH_AW_CI_TRIGGER_TOKEN = "ghp_test_token_123";
+      mockGitLogOutput("COMMIT:abc123\nfile.txt\n");
+      // Override getExecOutput: return a real HEAD OID for rev-parse, no extraheader
+      mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
+        if (cmd === "git" && args && args[0] === "rev-parse" && args[1] === "HEAD") {
+          return { exitCode: 0, stdout: TEST_HEAD_OID + "\n", stderr: "" };
+        }
+        // No pre-existing extraheader
+        return { exitCode: 1, stdout: "", stderr: "" };
+      });
+      // Override global.getOctokit to return a successful GraphQL client
+      global.getOctokit = vi.fn(() => ({
+        graphql: vi.fn().mockResolvedValue({
+          createCommitOnBranch: { commit: { oid: TEST_NEW_OID } },
+        }),
+      }));
+      ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
+    });
+
+    it("should create a verified empty commit via the GitHub API", async () => {
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      expect(result).toEqual({ success: true });
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Verified empty commit created via GitHub API"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining(TEST_NEW_OID));
+    });
+
+    it("should NOT call git commit or git push when GraphQL succeeds", async () => {
+      await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      const commitCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
+      expect(commitCall).toBeUndefined();
+      const pushCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "push");
+      expect(pushCall).toBeUndefined();
+    });
+
+    it("should pass correct parameters to createCommitOnBranch mutation", async () => {
+      const mockGraphql = vi.fn().mockResolvedValue({
+        createCommitOnBranch: { commit: { oid: TEST_NEW_OID } },
+      });
+      global.getOctokit = vi.fn(() => ({ graphql: mockGraphql }));
+      delete require.cache[require.resolve("./extra_empty_commit.cjs")];
+      ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
+
+      await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+        commitMessage: "ci: custom trigger",
+      });
+
+      expect(mockGraphql).toHaveBeenCalledWith(
+        expect.stringContaining("createCommitOnBranch"),
+        expect.objectContaining({
+          input: expect.objectContaining({
+            branch: { repositoryNameWithOwner: "test-owner/test-repo", branchName: "feature-branch" },
+            message: { headline: "ci: custom trigger" },
+            fileChanges: {},
+            expectedHeadOid: TEST_HEAD_OID,
+          }),
+        })
+      );
+    });
+
+    it("should fall back to git commit + push when GraphQL fails", async () => {
+      global.getOctokit = vi.fn(() => ({
+        graphql: vi.fn().mockRejectedValue(new Error("GraphQL error: Forbidden")),
+      }));
+      delete require.cache[require.resolve("./extra_empty_commit.cjs")];
+      ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
+
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      expect(result).toEqual({ success: true });
+      const commitCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
+      expect(commitCall).toBeDefined();
+      const pushCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "push");
+      expect(pushCall).toBeDefined();
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("falling back to git commit"));
+    });
+
+    it("should fall back to git when getOctokit is not available", async () => {
+      delete global.getOctokit;
+      delete require.cache[require.resolve("./extra_empty_commit.cjs")];
+      ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
+
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      expect(result).toEqual({ success: true });
+      const commitCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
+      expect(commitCall).toBeDefined();
+    });
+
+    it("should still restore extraheader even when using the API path", async () => {
+      await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      const execCalls = mockExec.exec.mock.calls;
+      // Override was applied before the API commit
+      const overrideCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--replace-all");
+      expect(overrideCall).toBeDefined();
+      // After the API commit, --unset-all restores to empty (no previous header)
+      const unsetCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--unset-all");
+      expect(unsetCall).toBeDefined();
     });
   });
 
