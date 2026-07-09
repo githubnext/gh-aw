@@ -117,9 +117,10 @@ func getEffectiveProjectGitHubToken(customToken string) string {
 // Applies the following precedence (highest to lowest):
 //  1. Per-config PAT: create-pull-request.github-token
 //  2. Per-config PAT: push-to-pull-request-branch.github-token
-//  3. GitHub App minted token (if a github-app is configured)
-//  4. safe-outputs level PAT: safe-outputs.github-token
-//  5. Default fallback via getEffectiveSafeOutputGitHubToken()
+//  3. Checkout-scoped safe-output GitHub App token (if configured for matching checkout)
+//  4. safe-outputs GitHub App minted token (if a safe-outputs github-app is configured)
+//  5. safe-outputs level PAT: safe-outputs.github-token
+//  6. Default fallback via getEffectiveSafeOutputGitHubToken()
 //
 // Per-config tokens take precedence over the GitHub App so that individual operations
 // can override the app-wide authentication with a dedicated PAT when needed.
@@ -128,13 +129,6 @@ func getEffectiveProjectGitHubToken(customToken string) string {
 //   - token: the effective GitHub Actions token expression to use for git operations
 //   - isCustom: true when a custom non-default token was explicitly configured (per-config PAT, app, or safe-outputs PAT)
 func resolvePRCheckoutToken(safeOutputs *SafeOutputsConfig, checkoutMgr *CheckoutManager) (token string, isCustom bool) {
-	if checkoutMgr != nil {
-		targetRepo := resolvePRCheckoutTargetRepo(safeOutputs)
-		if checkoutToken, ok := checkoutMgr.ResolveSafeOutputCheckoutTokenExpression(targetRepo); ok {
-			return checkoutToken, true
-		}
-	}
-
 	if safeOutputs == nil {
 		return getEffectiveSafeOutputGitHubToken(""), false
 	}
@@ -155,6 +149,13 @@ func resolvePRCheckoutToken(safeOutputs *SafeOutputsConfig, checkoutMgr *Checkou
 	}
 	if perConfigToken != "" {
 		return getEffectiveSafeOutputGitHubToken(perConfigToken), true
+	}
+
+	if checkoutMgr != nil {
+		targetRepo := resolvePRCheckoutTargetRepo(safeOutputs)
+		if checkoutToken, ok := checkoutMgr.ResolveSafeOutputCheckoutTokenExpression(targetRepo); ok {
+			return checkoutToken, true
+		}
 	}
 
 	// GitHub App token takes precedence over the safe-outputs level PAT

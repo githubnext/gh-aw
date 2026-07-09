@@ -221,4 +221,32 @@ func TestResolvePRCheckoutToken(t *testing.T) {
 			t.Fatalf("expected isCustom=true")
 		}
 	})
+
+	t.Run("per-config PAT takes precedence over checkout safe-output app token", func(t *testing.T) {
+		safeOutputs := &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubToken: "${{ secrets.PR_PAT }}",
+				},
+				TargetRepoSlug: "owner/target",
+			},
+		}
+		checkoutMgr := NewCheckoutManager([]*CheckoutConfig{
+			{
+				Repository: "owner/target",
+				SafeOutputGitHubApp: &GitHubAppConfig{
+					AppID:      "${{ vars.APP_ID }}",
+					PrivateKey: "${{ secrets.APP_KEY }}",
+				},
+			},
+		})
+
+		token, isCustom := resolvePRCheckoutToken(safeOutputs, checkoutMgr)
+		if token != "${{ secrets.PR_PAT }}" {
+			t.Fatalf("expected per-config PAT token, got %q", token)
+		}
+		if !isCustom {
+			t.Fatalf("expected isCustom=true")
+		}
+	})
 }

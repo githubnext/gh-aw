@@ -95,7 +95,11 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 			checkContains: []string{
 				"id: checkout-safe-output-app-token-0",
+				"token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 				"GIT_TOKEN: ${{ steps.checkout-safe-output-app-token-0.outputs.token }}",
+			},
+			checkNotContains: []string{
+				"id: checkout-safe-output-app-token-0\n        if:",
 			},
 		},
 		{

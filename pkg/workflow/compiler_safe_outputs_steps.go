@@ -45,7 +45,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// same token is reused below for the "Configure Git credentials" step so both the
 	// persisted checkout credential and the push remote agree on a single token.
 	prCheckoutToken, _ := resolvePRCheckoutToken(data.SafeOutputs, checkoutMgr)
-	checkoutMgr.SetPushToken(prCheckoutToken)
+	checkoutMgr.SetPushToken(resolveStaticCheckoutToken(data.SafeOutputs, checkoutMgr))
 
 	// Combined condition: run the checkout/git-config steps only when a create_pull_request
 	// or push_to_pull_request_branch output will be processed.
@@ -60,7 +60,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		steps = append(steps, injectStepCondition(checkoutMgr.GenerateCheckoutAppTokenSteps(c, resolveCheckoutPermissions(data)), condition)...)
 	}
 	if checkoutMgr.HasSafeOutputAppAuth() {
-		steps = append(steps, injectStepCondition(checkoutMgr.GenerateSafeOutputCheckoutAppTokenSteps(c, resolveCheckoutPermissions(data)), condition)...)
+		steps = append(steps, checkoutMgr.GenerateSafeOutputCheckoutAppTokenSteps(c, resolveCheckoutPermissions(data))...)
 	}
 
 	// Default workspace checkout (identical to the agent job).
