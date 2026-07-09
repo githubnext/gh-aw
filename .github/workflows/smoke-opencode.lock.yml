@@ -912,7 +912,7 @@ jobs:
       - name: Write OpenCode Config
         run: |
           umask 077
-          mkdir -p "$GITHUB_WORKSPACE"
+          mkdir -p "$(dirname "$GITHUB_WORKSPACE/opencode.jsonc")"
           CONFIG="$GITHUB_WORKSPACE/opencode.jsonc"
           BASE_CONFIG='{
             "permissions": {
@@ -1590,7 +1590,7 @@ jobs:
         continue-on-error: true
         run: |
           umask 077
-          mkdir -p "$GITHUB_WORKSPACE"
+          mkdir -p "$(dirname "$GITHUB_WORKSPACE/opencode.jsonc")"
           CONFIG="$GITHUB_WORKSPACE/opencode.jsonc"
           BASE_CONFIG='{
             "permissions": {
