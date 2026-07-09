@@ -55,7 +55,13 @@ function sleep(ms) {
  *   attempt: number,
  *   log: (message: string) => void,
  *   logArgs?: string[],
- *   env?: NodeJS.ProcessEnv
+ *   env?: NodeJS.ProcessEnv,
+ *   postResultWatchdog?: {
+ *     shouldArm: () => boolean,
+ *     inactivityTimeoutMs: number,
+ *     pollIntervalMs?: number,
+ *     termGraceMs?: number
+ *   }
  * }} options
  *   - command   - The executable to run
  *   - args      - Arguments to pass to the command
@@ -65,7 +71,7 @@ function sleep(ms) {
  *                 Pass a redacted copy to avoid leaking sensitive values.
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-function runProcess({ command, args, attempt, log, logArgs, env }) {
+function runProcess({ command, args, attempt, log, logArgs, env, postResultWatchdog }) {
   return new Promise(resolve => {
     const startTime = Date.now();
     // Guard against the promise being settled more than once.  On some systems Node
@@ -76,6 +82,7 @@ function runProcess({ command, args, attempt, log, logArgs, env }) {
     function settle(result) {
       if (settled) return;
       settled = true;
+      if (postResultWatchdogTimer) clearInterval(postResultWatchdogTimer);
       resolve(result);
     }
 
@@ -94,6 +101,14 @@ function runProcess({ command, args, attempt, log, logArgs, env }) {
     let hasOutput = false;
     let stdoutBytes = 0;
     let stderrBytes = 0;
+    let lastActivityAt = Date.now();
+    let watchdogArmed = false;
+    let sentSigtermAt = 0;
+    const watchdogPollIntervalMs = Math.max(50, Number(postResultWatchdog?.pollIntervalMs) || 1000);
+    const watchdogTermGraceMs = Math.max(50, Number(postResultWatchdog?.termGraceMs) || 5000);
+    const watchdogInactivityTimeoutMs = Number(postResultWatchdog?.inactivityTimeoutMs) || 0;
+    /** @type {NodeJS.Timeout | null} */
+    let postResultWatchdogTimer = null;
 
     child.stdout.on(
       "data",
@@ -101,6 +116,7 @@ function runProcess({ command, args, attempt, log, logArgs, env }) {
         hasOutput = true;
         stdoutBytes += data.length;
         collectedOutput += data.toString();
+        lastActivityAt = Date.now();
         process.stdout.write(data);
       }
     );
@@ -111,9 +127,38 @@ function runProcess({ command, args, attempt, log, logArgs, env }) {
         hasOutput = true;
         stderrBytes += data.length;
         collectedOutput += data.toString();
+        lastActivityAt = Date.now();
         process.stderr.write(data);
       }
     );
+
+    if (postResultWatchdog && watchdogInactivityTimeoutMs > 0) {
+      postResultWatchdogTimer = setInterval(() => {
+        if (settled) return;
+        if (!watchdogArmed) {
+          try {
+            watchdogArmed = postResultWatchdog.shouldArm();
+          } catch {
+            watchdogArmed = false;
+          }
+          if (watchdogArmed) {
+            log(`attempt ${attempt + 1}: post-result watchdog armed inactivityTimeout=${watchdogInactivityTimeoutMs}ms`);
+          }
+        }
+        if (!watchdogArmed) return;
+        const idleMs = Date.now() - lastActivityAt;
+        if (sentSigtermAt === 0 && idleMs >= watchdogInactivityTimeoutMs) {
+          sentSigtermAt = Date.now();
+          log(`attempt ${attempt + 1}: post-result watchdog terminating idle process after ${idleMs}ms (SIGTERM)`);
+          child.kill("SIGTERM");
+          return;
+        }
+        if (sentSigtermAt > 0 && Date.now() - sentSigtermAt >= watchdogTermGraceMs) {
+          log(`attempt ${attempt + 1}: post-result watchdog forcing process exit after ${watchdogTermGraceMs}ms grace (SIGKILL)`);
+          child.kill("SIGKILL");
+        }
+      }, watchdogPollIntervalMs);
+    }
 
     child.on("exit", (code, signal) => {
       log(`attempt ${attempt + 1}: process exit event` + ` exitCode=${code ?? 1}` + (signal ? ` signal=${signal}` : ""));

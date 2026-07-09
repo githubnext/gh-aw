@@ -76,6 +76,7 @@ const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 const MAX_ENV_VAR_PREVIEW_LENGTH = 120;
 const OUTPUT_TAIL_MAX_CHARS = 600;
 const OUTPUT_TAIL_MAX_LINES = 12;
+const POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = 20 * 1000;
 const COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_NAME = "copilot_requests_proxy_auth_403.md";
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
@@ -911,7 +912,20 @@ async function main() {
         const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
         // Driver mode: run copilot_sdk_driver.cjs as a normal subprocess. The harness has
         // already started the sidecar; the driver only opens an SDK client connection.
-        const result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
+        const result = await runProcess({
+          command,
+          args: currentArgs,
+          attempt,
+          log,
+          logArgs: safeArgs,
+          env: childEnv,
+          postResultWatchdog: safeOutputsPath
+            ? {
+                shouldArm: () => hasNoopInSafeOutputs(safeOutputsPath, { logger: () => {} }) || hasExpectedSafeOutputs(safeOutputsPath, { logger: () => {} }),
+                inactivityTimeoutMs: POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS,
+              }
+            : undefined,
+        });
         lastExitCode = result.exitCode;
         const attemptDetections = detectCopilotErrors(result.output);
         detectedCopilotErrors.inferenceAccessError ||= attemptDetections.inferenceAccessError;
