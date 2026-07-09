@@ -138,6 +138,33 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		}
 	}
 
+	// Parse app configuration for safe_outputs-only GitHub App authentication.
+	// Support both the canonical key and a backward-compatible alias.
+	parseSafeOutputAppConfig := func(fieldName string, value any) (*GitHubAppConfig, error) {
+		appMap, ok := value.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("checkout.%s must be an object", fieldName)
+		}
+		appConfig := parseAppConfig(appMap)
+		if appConfig.AppID == "" || appConfig.PrivateKey == "" {
+			return nil, fmt.Errorf("checkout.%s requires both client-id (or app-id) and private-key", fieldName)
+		}
+		return appConfig, nil
+	}
+	if v, ok := m["safe-output-github-app"]; ok {
+		appConfig, err := parseSafeOutputAppConfig("safe-output-github-app", v)
+		if err != nil {
+			return nil, err
+		}
+		cfg.SafeOutputGitHubApp = appConfig
+	} else if v, ok := m["safe-outputs-github-app"]; ok {
+		appConfig, err := parseSafeOutputAppConfig("safe-outputs-github-app", v)
+		if err != nil {
+			return nil, err
+		}
+		cfg.SafeOutputGitHubApp = appConfig
+	}
+
 	// Validate mutual exclusivity of github-token and github-app
 	if cfg.GitHubToken != "" && cfg.GitHubApp != nil {
 		checkoutManagerLog.Print("Rejecting checkout config: github-token and github-app are mutually exclusive")

@@ -77,6 +77,28 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
+			name: "safe-output checkout app token is minted and used for git credentials",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					TargetRepoSlug: "org/target-repo",
+				},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{
+					Repository: "org/target-repo",
+					Path:       "./target-repo",
+					SafeOutputGitHubApp: &GitHubAppConfig{
+						AppID:      "12345",
+						PrivateKey: "test-key",
+					},
+				},
+			},
+			checkContains: []string{
+				"id: checkout-safe-output-app-token-0",
+				"GIT_TOKEN: ${{ steps.checkout-safe-output-app-token-0.outputs.token }}",
+			},
+		},
+		{
 			name:      "trial mode with target repo",
 			trialMode: true,
 			trialRepo: "org/trial-repo",

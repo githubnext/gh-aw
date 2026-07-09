@@ -127,7 +127,14 @@ func getEffectiveProjectGitHubToken(customToken string) string {
 // Returns:
 //   - token: the effective GitHub Actions token expression to use for git operations
 //   - isCustom: true when a custom non-default token was explicitly configured (per-config PAT, app, or safe-outputs PAT)
-func resolvePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token string, isCustom bool) {
+func resolvePRCheckoutToken(safeOutputs *SafeOutputsConfig, checkoutMgr *CheckoutManager) (token string, isCustom bool) {
+	if checkoutMgr != nil {
+		targetRepo := resolvePRCheckoutTargetRepo(safeOutputs)
+		if checkoutToken, ok := checkoutMgr.ResolveSafeOutputCheckoutTokenExpression(targetRepo); ok {
+			return checkoutToken, true
+		}
+	}
+
 	if safeOutputs == nil {
 		return getEffectiveSafeOutputGitHubToken(""), false
 	}
@@ -167,6 +174,23 @@ func resolvePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token string, isCus
 	}
 
 	return getEffectiveSafeOutputGitHubToken(""), false
+}
+
+func resolvePRCheckoutTargetRepo(safeOutputs *SafeOutputsConfig) string {
+	if safeOutputs == nil {
+		return ""
+	}
+	if safeOutputs.CreatePullRequests != nil {
+		if repo := strings.TrimSpace(safeOutputs.CreatePullRequests.TargetRepoSlug); repo != "" && repo != "*" {
+			return repo
+		}
+	}
+	if safeOutputs.PushToPullRequestBranch != nil {
+		if repo := strings.TrimSpace(safeOutputs.PushToPullRequestBranch.TargetRepoSlug); repo != "" && repo != "*" {
+			return repo
+		}
+	}
+	return ""
 }
 
 // resolveStaticCheckoutToken returns the effective checkout token as a static GitHub Actions
