@@ -41,6 +41,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// formalEmptyPermissionsYAML is the minimal YAML fragment passed to
+// WorkflowData.Permissions when a test needs a WorkflowData value without
+// any meaningful top-level permissions block.  Using a shared constant avoids
+// duplicating the same literal string across multiple test functions.
+const formalEmptyPermissionsYAML = "permissions: {}"
+
 // TestFormalSG01_InputSanitizationInvariant (SG01_InputSanitization)
 //
 // SG-01: Untrusted input must not be directly interpolated into GitHub Actions
@@ -96,7 +102,7 @@ func TestFormalSG02_AgentJobHasNoWritePermissions(t *testing.T) {
 		t.Run(string(scope), func(t *testing.T) {
 			perms := NewPermissions()
 			perms.Set(scope, PermissionWrite)
-			err := validateDangerousPermissions(&WorkflowData{Permissions: "permissions: {}"}, perms)
+			err := validateDangerousPermissions(&WorkflowData{Permissions: formalEmptyPermissionsYAML}, perms)
 			require.Error(t, err,
 				"SG-02: agent job scope %s:write must be rejected by validateDangerousPermissions", scope)
 			assert.Contains(t, err.Error(), "write permissions",
@@ -158,7 +164,7 @@ func TestFormalSG03_NetworkAllowlistEnforcement(t *testing.T) {
 func TestFormalSG04_LeastPrivilegeBasePermissions(t *testing.T) {
 	// Default (empty) permissions must not contain any write grants.
 	perms := NewPermissions()
-	err := validateDangerousPermissions(&WorkflowData{Permissions: "permissions: {}"}, perms)
+	err := validateDangerousPermissions(&WorkflowData{Permissions: formalEmptyPermissionsYAML}, perms)
 	require.NoError(t, err,
 		"SG-04: default empty permissions must contain no write grants (least-privilege baseline)")
 
@@ -170,7 +176,7 @@ func TestFormalSG04_LeastPrivilegeBasePermissions(t *testing.T) {
 		}
 		readAll.Set(scope, PermissionRead)
 	}
-	err = validateDangerousPermissions(&WorkflowData{Permissions: "permissions: {}"}, readAll)
+	err = validateDangerousPermissions(&WorkflowData{Permissions: formalEmptyPermissionsYAML}, readAll)
 	require.NoError(t, err,
 		"SG-04: an all-read permission set must be accepted for the agent job")
 }
@@ -347,7 +353,7 @@ Basic conformance: verify output isolation (safe_outputs job).
 	// Control 3: Permission management — write grants rejected.
 	perms := NewPermissions()
 	perms.Set(PermissionContents, PermissionWrite)
-	err = validateDangerousPermissions(&WorkflowData{Permissions: "permissions: {}"}, perms)
+	err = validateDangerousPermissions(&WorkflowData{Permissions: formalEmptyPermissionsYAML}, perms)
 	require.Error(t, err,
 		"BasicConformance[3]: permission management control must reject write grants")
 
