@@ -67,7 +67,7 @@ func TestConcludeThreatDetectionScript_MissingResultSurfacesDetectorStatus(t *te
 	missingResult := filepath.Join(tempDir, "missing_detection_result.json")
 	detectionLog := filepath.Join(tempDir, "detection.log")
 
-	if err := os.WriteFile(detectionLog, []byte("THREAT_DETECTION_STATUS: reason=engine_error exit=2\n"), 0644); err != nil {
+	if err := os.WriteFile(detectionLog, []byte("THREAT_DETECTION_STATUS: reason=engine_error exit=2\n"), 0600); err != nil {
 		t.Fatalf("failed to write detection log: %v", err)
 	}
 
@@ -87,6 +87,21 @@ func TestConcludeThreatDetectionScript_MissingResultSurfacesDetectorStatus(t *te
 
 	if !strings.Contains(string(out), "THREAT_DETECTION_STATUS: reason=engine_error exit=2") {
 		t.Fatalf("expected warning output to surface detector status, got: %s", out)
+	}
+	if !strings.Contains(string(out), "execution outcome: failure") {
+		t.Fatalf("expected warning output to include execution outcome, got: %s", out)
+	}
+
+	envData, err := os.ReadFile(envFile)
+	if err != nil {
+		t.Fatalf("failed to read GITHUB_ENV: %v", err)
+	}
+	envText := string(envData)
+	if !strings.Contains(envText, "GH_AW_DETECTION_CONCLUSION=warning") {
+		t.Fatalf("expected warning conclusion in GITHUB_ENV, got: %s", envText)
+	}
+	if !strings.Contains(envText, "GH_AW_DETECTION_REASON=agent_failure") {
+		t.Fatalf("expected agent_failure reason in GITHUB_ENV, got: %s", envText)
 	}
 }
 
