@@ -122,7 +122,7 @@ func (app *GitHubAppConfig) hasRequiredCredentials() bool {
 // It returns false for literals and malformed/empty wrappers.
 func extractWrappedGitHubExpression(value string) (string, bool) {
 	trimmed := strings.TrimSpace(value)
-	if !strings.HasPrefix(trimmed, "${{") || !strings.HasSuffix(trimmed, "}}") {
+	if !isExpression(trimmed) {
 		return "", false
 	}
 	inner := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(trimmed, "${{"), "}}"))

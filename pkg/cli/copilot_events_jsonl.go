@@ -120,23 +120,7 @@ func findEventsJSONLFile(logDir string) string {
 	}
 
 	// Fall back to a recursive search of the full log directory
-	var foundPath string
-	if walkErr := filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			copilotEventsJSONLLog.Printf("walk error at %s: %v", path, err)
-			return nil
-		}
-		if info == nil {
-			return nil
-		}
-		if !info.IsDir() && info.Name() == "events.jsonl" && foundPath == "" {
-			foundPath = path
-			return errWalkStop
-		}
-		return nil
-	}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", logDir, walkErr)))
-	}
+	foundPath := findFileInDir(logDir, "events.jsonl")
 
 	if foundPath != "" {
 		copilotEventsJSONLLog.Printf("Found events.jsonl via recursive search: %s", foundPath)
@@ -149,24 +133,16 @@ func findEventsJSONLFile(logDir string) string {
 // findFileInDir searches for a file by name within dir (recursively).
 // Returns the first matching path, or empty string if not found.
 func findFileInDir(dir, name string) string {
-	var found string
-	if walkErr := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
+	return findFirstFileByName(
+		dir,
+		name,
+		func(path string, err error) {
 			copilotEventsJSONLLog.Printf("walk error at %s: %v", path, err)
-			return nil
-		}
-		if info == nil {
-			return nil
-		}
-		if !info.IsDir() && info.Name() == name && found == "" {
-			found = path
-			return errWalkStop
-		}
-		return nil
-	}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", dir, walkErr)))
-	}
-	return found
+		},
+		func(root string, err error) {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", root, err)))
+		},
+	)
 }
 
 // parseEventsJSONLMetrics parses a Copilot events.jsonl file and extracts log metrics.

@@ -985,7 +985,7 @@ func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *B
 		switch v := max.(type) {
 		case string:
 			// Accept GitHub Actions expression strings
-			if strings.HasPrefix(v, "${{") && strings.HasSuffix(v, "}}") {
+			if isExpression(v) {
 				safeOutputsConfigLog.Printf("Parsed max as GitHub Actions expression: %s", v)
 				config.Max = &v
 			}

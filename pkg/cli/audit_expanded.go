@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -195,21 +194,14 @@ func findAgentStdioLogPath(logsPath string) string {
 		return root
 	}
 
-	var found string
-	walkErr := filepath.Walk(logsPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil || info.IsDir() {
-			return nil
-		}
-		if info.Name() == "agent-stdio.log" {
-			found = path
-			return filepath.SkipAll
-		}
-		return nil
-	})
-	if walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
-		auditExpandedLog.Printf("Failed while searching for agent-stdio.log in %s: %v", logsPath, walkErr)
-	}
-	return found
+	return findFirstFileByName(
+		logsPath,
+		"agent-stdio.log",
+		nil,
+		func(rootDir string, err error) {
+			auditExpandedLog.Printf("Failed while searching for agent-stdio.log in %s: %v", rootDir, err)
+		},
+	)
 }
 
 func hasUsefulFallbackMetrics(metrics LogMetrics) bool {

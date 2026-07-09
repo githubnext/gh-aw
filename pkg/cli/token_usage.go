@@ -300,23 +300,9 @@ func findTokenUsageFile(runDir string) string {
 	}
 
 	// Check legacy firewall-audit-logs artifact directory (backward compat for older runs)
-	entries, err := os.ReadDir(runDir)
-	if err != nil {
-		return ""
-	}
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if strings.HasPrefix(name, "firewall-audit-logs") || strings.HasPrefix(name, "firewall-logs") {
-			candidate := filepath.Join(runDir, name, tokenUsageJSONLPath)
-			if fileutil.FileExists(candidate) {
-				tokenUsageLog.Printf("Found token usage file in %s: %s", name, candidate)
-				return candidate
-			}
-		}
+	if legacyPath := findInLegacyFirewallDirs(runDir, tokenUsageJSONLPath); legacyPath != "" {
+		tokenUsageLog.Printf("Found token usage file in legacy firewall directory: %s", legacyPath)
+		return legacyPath
 	}
 
 	// Walk sandbox directory for any token-usage.jsonl
@@ -781,25 +767,7 @@ func findAPIProxyEventsFile(runDir string) string {
 		return primary
 	}
 
-	entries, err := os.ReadDir(runDir)
-	if err != nil {
-		return ""
-	}
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if strings.HasPrefix(name, "firewall-audit-logs") || strings.HasPrefix(name, "firewall-logs") {
-			candidate := filepath.Join(runDir, name, proxyEventsJSONLPath)
-			if fileutil.FileExists(candidate) {
-				return candidate
-			}
-		}
-	}
-
-	return ""
+	return findInLegacyFirewallDirs(runDir, proxyEventsJSONLPath)
 }
 
 // proxyEventsEntry is a JSONL record from api-proxy-logs/events.jsonl.
@@ -1037,29 +1005,35 @@ func findAgentStdioFile(runDir string) string {
 		return primary
 	}
 
-	var found string
-	if walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if info == nil || info.IsDir() {
-			return nil
-		}
-		if info.Name() == "agent-stdio.log" {
-			found = path
-			return filepath.SkipAll
-		}
-		return nil
-	}); walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
-		tokenUsageLog.Printf("findAgentStdioFile walk error: %v", walkErr)
-	}
-
-	return found
+	return findFirstFileByName(
+		runDir,
+		"agent-stdio.log",
+		nil,
+		func(_ string, err error) {
+			tokenUsageLog.Printf("findAgentStdioFile walk error: %v", err)
+		},
+	)
 }
 
-func correlateToolCallsWithTokenDelta(toolCalls []MCPToolCall, tokenUsageFile string) []MCPToolCall {
-	_ = tokenUsageFile
-	return toolCalls
+func findInLegacyFirewallDirs(runDir, relPath string) string {
+	entries, err := os.ReadDir(runDir)
+	if err != nil {
+		return ""
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasPrefix(name, "firewall-audit-logs") || strings.HasPrefix(name, "firewall-logs") {
+			candidate := filepath.Join(runDir, name, relPath)
+			if fileutil.FileExists(candidate) {
+				return candidate
+			}
+		}
+	}
+	return ""
 }
 
 // TotalTokens returns the sum of all token types
