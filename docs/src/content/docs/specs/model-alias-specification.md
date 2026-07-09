@@ -43,9 +43,10 @@ This document is governed by the GitHub Agentic Workflows project specifications
 13. [Safeguards](#13-safeguards)
 14. [Sync Notes](#14-sync-notes)
 15. [Norms](#15-norms)
-16. [Appendices](#appendices)
-17. [References](#references)
-18. [Change Log](#change-log)
+16. [Operations](#16-operations)
+17. [Appendices](#appendices)
+18. [References](#references)
+19. [Change Log](#change-log)
 
 ---
 
@@ -769,7 +770,7 @@ This limit prevents runaway resolution in pathological alias maps and bounds the
 
 This section maps normative sections of this specification to the implementation files in `pkg/workflow/` that realize each requirement. Use this mapping to identify which files must be reviewed or updated when specification sections change.
 
-**Last verified**: 2026-06-01
+**Last verified**: 2026-07-08
 
 ### §4–§6 Parsing and Parameter Encoding
 
@@ -841,6 +842,18 @@ This section provides a normative reference table for all MUST/SHALL requirement
 | R-MAF-S005 | §13.3 | MUST reject `temperature` values outside `[0.0, 2.0]` at compile time, distinguishing non-numeric values from out-of-range floats |
 | R-MAF-S006 | §13.4 | MUST validate the builtin alias map at process startup; MUST fail fatally if the builtin map is corrupt or contains a cycle |
 | R-MAF-S007 | §13.4 | MUST surface a clear error distinguishing builtin-map load failure from user configuration errors |
+
+---
+
+## 16. Operations
+
+This section defines the caller-facing runtime lifecycle for resolving a model alias at compile time.
+
+1. **Invoke Resolution**: The implementation MUST parse the caller-provided model identifier into base identifier and parameter map before attempting alias expansion.
+2. **Initialize Guards**: The implementation MUST initialize a depth counter (starting at 0) and a per-call visited-set before traversing alias references.
+3. **Resolve Recursively**: For each alias hop, the implementation MUST increment depth, merge parameters per §8.3, and reject cycles when the current alias key already exists in the visited-set (before adding it for this hop).
+4. **Enforce Limits**: The implementation MUST fail with a resolution error when depth exceeds the safeguard ceiling defined by R-MAF-S001.
+5. **Return Deterministically**: The implementation MUST return the first conforming concrete model selected by §8 ordering rules, or a descriptive error when no candidate can be resolved.
 
 ---
 
@@ -966,7 +979,7 @@ Model parameters are compile-time configuration values and are not derived from 
 ### Version 1.2.0 (Draft)
 
 - **Added**: §13 Safeguards covering max alias-chain depth (R-MAF-S001), UTF-8 validity requirements (R-MAF-S002, R-MAF-S003), out-of-range `effort`/`temperature` handling (R-MAF-S004, R-MAF-S005), and corrupt builtin-alias-map behavior (R-MAF-S006, R-MAF-S007).
-- **Added**: §14 Sync Notes mapping §§4–11 to implementation files in `pkg/workflow/` with loop-detection test references (last verified 2026-06-01).
+- **Added**: §14 Sync Notes mapping §§4–11 to implementation files in `pkg/workflow/` with loop-detection test references (last verified 2026-07-08).
 - **Added**: §15 Norms reference table (`V-MAF-*` and `R-MAF-S*` IDs) for all MUST/SHALL requirements in §§4–13.
 - **Updated**: Table of Contents to include §§13–15.
 

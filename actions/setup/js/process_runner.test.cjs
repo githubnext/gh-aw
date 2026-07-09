@@ -181,6 +181,60 @@ describe("process_runner.cjs", () => {
       expect(result.durationMs).toBeGreaterThanOrEqual(0);
     });
 
+    it("terminates a hung process after terminal-result inactivity", async () => {
+      const logs = [];
+      const result = await runProcess({
+        command: process.execPath,
+        args: ["-e", 'process.stdout.write("done"); setInterval(() => {}, 1000);'],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        postResultWatchdog: {
+          shouldArm: () => true,
+          inactivityTimeoutMs: 100,
+          pollIntervalMs: 25,
+          termGraceMs: 200,
+        },
+      });
+      expect(result.exitCode).not.toBe(0);
+      expect(result.durationMs).toBeLessThan(5000);
+      expect(logs.some(line => line.includes("post-result watchdog armed"))).toBe(true);
+      expect(logs.some(line => line.includes("post-result watchdog terminating idle process"))).toBe(true);
+    });
+
+    it("does not terminate processes when watchdog is not armed", async () => {
+      const logs = [];
+      const result = await runProcess({
+        command: process.execPath,
+        args: ["-e", "setTimeout(() => process.exit(0), 250);"],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        postResultWatchdog: {
+          shouldArm: () => false,
+          inactivityTimeoutMs: 50,
+          pollIntervalMs: 25,
+          termGraceMs: 100,
+        },
+      });
+      expect(result.exitCode).toBe(0);
+      expect(logs.some(line => line.includes("post-result watchdog terminating idle process"))).toBe(false);
+    });
+
+    it("does not enable watchdog when inactivityTimeoutMs is missing or invalid", async () => {
+      const logs = [];
+      const result = await runProcess({
+        command: process.execPath,
+        args: ["-e", "setTimeout(() => process.exit(0), 100);"],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        postResultWatchdog: {
+          shouldArm: () => true,
+          // intentionally missing inactivityTimeoutMs
+        },
+      });
+      expect(result.exitCode).toBe(0);
+      expect(logs.some(line => line.includes("post-result watchdog armed"))).toBe(false);
+    });
+
     it("truncates logArgs to 200 chars in spawn log", async () => {
       const logs = [];
       const longArg = "x".repeat(300);

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -125,14 +124,19 @@ func generateSquidLogsUploadStep(workflowName string, workflowData *WorkflowData
 func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowData) GitHubActionStep {
 	// Firewall logs are at a known location in the sandbox folder structure.
 	// On ARC/DinD, /tmp/gh-aw is not daemon-visible so logs land under runner.temp/gh-aw.
-	firewallLogsDir := constants.AWFProxyLogsDir
 	// For env: blocks, use ${{ runner.temp }} (Actions expression) since shell vars aren't expanded there.
 	firewallLogsDirEnv := constants.AWFProxyLogsDir
 	if isArcDindTopology(workflowData) {
-		firewallLogsDir = constants.AWFProxyLogsDirShell
 		firewallLogsDirEnv = constants.AWFProxyLogsDirExpr
 	}
-	firewallDir := path.Dir(firewallLogsDir)
+
+	// In network-isolation (rootless) mode, pass --rootless so the script uses
+	// non-interactive sudo (sudo -n) with a non-sudo chmod fallback. In non-network-isolation
+	// mode, the script uses plain sudo (AWF ran with full sudo access).
+	scriptArg := ""
+	if isAWFNetworkIsolationEnabled(workflowData) {
+		scriptArg = " --rootless"
+	}
 
 	stepLines := []string{
 		"      - name: Print firewall logs",
@@ -140,35 +144,8 @@ func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowD
 		"        continue-on-error: true",
 		"        env:",
 		"          AWF_LOGS_DIR: " + firewallLogsDirEnv,
-		"        run: |",
+		`        run: bash "${RUNNER_TEMP}/gh-aw/actions/print_firewall_logs.sh"` + scriptArg,
 	}
-
-	// When sudo is false (network isolation mode), AWF runs rootless but Docker
-	// containers still write files as non-runner UIDs (e.g., Squid writes as UID 13).
-	// AWF's own post-run cleanup (fixArtifactPermissionsForRootless) normally handles
-	// this, but if AWF is killed by timeout or OOM, the cleanup never runs.
-	// Use a non-sudo chmod as a best-effort fallback for artifact upload accessibility.
-	if !isAWFNetworkIsolationEnabled(workflowData) {
-		stepLines = append(stepLines,
-			"          # Fix permissions on firewall logs/audit dirs so they can be uploaded as artifacts",
-			"          # AWF runs with sudo, creating files owned by root",
-			fmt.Sprintf("          sudo chmod -R a+rX %s 2>/dev/null || true", firewallDir),
-		)
-	} else {
-		stepLines = append(stepLines,
-			"          # Best-effort permission fix for artifact upload (AWF cleanup may not have run)",
-			fmt.Sprintf("          sudo -n chmod -R a+rX %[1]s 2>/dev/null || chmod -R a+rX %[1]s 2>/dev/null || true", firewallDir),
-		)
-	}
-
-	stepLines = append(stepLines,
-		"          # Only run awf logs summary if awf command exists (it may not be installed if workflow failed before install step)",
-		"          if command -v awf &> /dev/null; then",
-		"            awf logs summary | tee -a \"$GITHUB_STEP_SUMMARY\"",
-		"          else",
-		"            echo 'AWF binary not installed, skipping firewall log summary'",
-		"          fi",
-	)
 
 	return GitHubActionStep(stepLines)
 }

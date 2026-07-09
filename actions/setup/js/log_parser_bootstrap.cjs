@@ -4,6 +4,90 @@
 const { generatePlainTextSummary, generateCopilotCliStyleSummary, wrapAgentLogInSection, formatSafeOutputsPreview } = require("./log_parser_shared.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
+const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/i;
+const CLAUDE_RATE_LIMIT_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit/i;
+const CLAUDE_OVERLOAD_PATTERN = /overloaded_error|"overloaded"/i;
+/** Matches HTTP protocol/status lines such as "HTTP/1.1 503". */
+const CLAUDE_HTTP_5XX_PROTOCOL_PATTERN = /HTTP(?:\/\d\.\d)?\s+5\d{2}\b/;
+/** Matches structured status fields such as "status: 502" or "status code=500". */
+const CLAUDE_HTTP_5XX_STATUS_FIELD_PATTERN = /status(?:\s+code)?\s*[:=]\s*5\d{2}\b/;
+/** Matches request/fetch/http error prose that carries an explicit 5xx code. */
+const CLAUDE_HTTP_5XX_REQUEST_ERROR_PATTERN = /(?:http|fetch|request)\s+(?:failed|error)[^\n]*?\b5\d{2}\b/;
+const CLAUDE_HTTP_5XX_STATUS_PATTERN = new RegExp([CLAUDE_HTTP_5XX_PROTOCOL_PATTERN.source, CLAUDE_HTTP_5XX_STATUS_FIELD_PATTERN.source, CLAUDE_HTTP_5XX_REQUEST_ERROR_PATTERN.source].join("|"), "i");
+const STARTUP_DIAGNOSTIC_LINE_PATTERN = /(?:ERR_|Error:|CAPIError|Authentication failed|rate[_ -]?limit|429|\b5\d{2}\b|overloaded|inference)/i;
+const MAX_DIAGNOSTIC_TAIL_LINES = 8;
+
+/**
+ * Build startup diagnostics for Claude failures with no structured entries.
+ * @param {string} rawContent
+ * @returns {{
+ *   exitCode: string,
+ *   inferenceAccessError: boolean,
+ *   aiCreditsRateLimitError: boolean,
+ *   transientInferenceAvailabilityError: boolean,
+ *   summaryLine: string,
+ *   summaryMarkdown: string
+ * }}
+ */
+function buildClaudeStartupDiagnostics(rawContent) {
+  const content = typeof rawContent === "string" ? rawContent : "";
+  const lines = content
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean);
+  const startupLines = lines.filter(line => line.includes("[claude-harness]") || STARTUP_DIAGNOSTIC_LINE_PATTERN.test(line));
+  // Intentionally avoid falling back to arbitrary raw log lines here. For empty-structured-log
+  // failures, the unmatched tail can contain unrelated stdout/stderr, prompts, or secrets; when
+  // no startup/diagnostic lines are recognized, we emit no tail section rather than risk leaking it.
+  const tailLines = startupLines.slice(-MAX_DIAGNOSTIC_TAIL_LINES);
+  const tailText = tailLines.join("\n");
+  const safeTailText = escapeHtml(tailText);
+
+  let exitCode = "unknown";
+  const donePrefix = "done: exitCode=";
+  const doneIdx = content.lastIndexOf(donePrefix);
+  if (doneIdx !== -1) {
+    const doneTail = content.slice(doneIdx + donePrefix.length);
+    const doneCode = doneTail.match(/^(\d+)/);
+    if (doneCode) {
+      exitCode = doneCode[1];
+    }
+  } else {
+    const failedPrefix = "failed: exitCode=";
+    const failedIdx = content.lastIndexOf(failedPrefix);
+    if (failedIdx !== -1) {
+      const failedTail = content.slice(failedIdx + failedPrefix.length);
+      const failedCode = failedTail.match(/^(\d+)/);
+      if (failedCode) {
+        exitCode = failedCode[1];
+      }
+    }
+  }
+
+  const inferenceAccessError = INFERENCE_ACCESS_ERROR_PATTERN.test(content);
+  const aiCreditsRateLimitError = CLAUDE_RATE_LIMIT_PATTERN.test(content) || CLAUDE_OVERLOAD_PATTERN.test(content);
+  const transientInferenceAvailabilityError = aiCreditsRateLimitError || CLAUDE_HTTP_5XX_STATUS_PATTERN.test(content);
+  const summaryLine = `Claude startup failed before structured logging (exitCode=${exitCode}).`;
+  const summaryMarkdown = safeTailText ? `<details><summary>Claude startup diagnostics</summary>\n\n<pre><code>${safeTailText}</code></pre>\n</details>` : "";
+
+  return {
+    exitCode,
+    inferenceAccessError,
+    aiCreditsRateLimitError,
+    transientInferenceAvailabilityError,
+    summaryLine,
+    summaryMarkdown,
+  };
+}
+
+/**
+ * @param {string} text
+ * @returns {string}
+ */
+function escapeHtml(text) {
+  const htmlEntities = { '"': "&quot;", "'": "&#39;", "&": "&amp;", "<": "&lt;", ">": "&gt;" };
+  return text.replace(/["'&<>]/g, char => htmlEntities[char]);
+}
 
 /**
  * Bootstrap helper for log parser entry points.
@@ -344,7 +428,26 @@ async function runLogParser(options) {
           `Claude produced no structured log entries, but agent completed with ${safeOutputEntriesCount} safe output ${safeOutputEntriesCount === 1 ? "entry" : "entries"} — treating as non-fatal post-completion infrastructure failure`
         );
       } else {
-        core.setFailed(`${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.`);
+        const diagnostics = buildClaudeStartupDiagnostics(content);
+        if (diagnostics.summaryMarkdown) {
+          await core.summary.addRaw(diagnostics.summaryMarkdown).write();
+        }
+
+        if (diagnostics.inferenceAccessError) {
+          core.setOutput("inference_access_error", "true");
+        }
+        if (diagnostics.aiCreditsRateLimitError) {
+          core.setOutput("ai_credits_rate_limit_error", "true");
+        }
+
+        const errorCode = diagnostics.inferenceAccessError || diagnostics.transientInferenceAvailabilityError ? ERR_API : ERR_CONFIG;
+        const failureKind = diagnostics.inferenceAccessError
+          ? "inference access denied by policy"
+          : diagnostics.transientInferenceAvailabilityError
+            ? "transient inference availability signal detected"
+            : "startup/configuration failure detected";
+
+        core.setFailed(`${errorCode}: Claude execution failed: no structured log entries were produced. ${diagnostics.summaryLine} ${failureKind}.`);
       }
     }
 

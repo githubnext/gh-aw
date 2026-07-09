@@ -71,7 +71,9 @@ describe("log_parser_bootstrap.cjs", () => {
             process.env.GH_AW_AGENT_OUTPUT = logFile;
             const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
             await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
-            expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.`);
+            expect(mockCore.setFailed).toHaveBeenCalledWith(
+              `${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. Claude startup failed before structured logging (exitCode=unknown). startup/configuration failure detected.`
+            );
           } finally {
             fs.unlinkSync(logFile);
             fs.rmdirSync(tmpDir);
@@ -237,9 +239,47 @@ describe("log_parser_bootstrap.cjs", () => {
             delete process.env.GH_AW_SAFE_OUTPUTS;
             const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
             await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
-            expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.`);
+            expect(mockCore.setFailed).toHaveBeenCalledWith(
+              `${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. Claude startup failed before structured logging (exitCode=unknown). startup/configuration failure detected.`
+            );
           } finally {
             fs.unlinkSync(logFile);
+            fs.rmdirSync(tmpDir);
+          }
+        }),
+        it("should omit Claude startup diagnostics tail when no startup lines are matched", async () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const logFile = path.join(tmpDir, "test.log");
+          try {
+            fs.writeFileSync(logFile, "secret-token-value\nplain stdout line");
+            process.env.GH_AW_AGENT_OUTPUT = logFile;
+            delete process.env.GH_AW_SAFE_OUTPUTS;
+            const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
+            await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            expect(mockCore.summary.addRaw).toHaveBeenCalledTimes(1);
+            expect(mockCore.summary.addRaw.mock.calls.flat().join("\n")).not.toContain("secret-token-value");
+          } finally {
+            fs.unlinkSync(logFile);
+            delete process.env.GH_AW_AGENT_OUTPUT;
+            fs.rmdirSync(tmpDir);
+          }
+        }),
+        it("should escape Claude startup diagnostics summary content", async () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const logFile = path.join(tmpDir, "test.log");
+          const logContentWithHtmlChars = "[claude-harness] attempt 1 failed: exitCode=1 hasOutput=false\n[claude-harness] stderr: <pre>&```</pre>\n[claude-harness] done: exitCode=1";
+          try {
+            fs.writeFileSync(logFile, logContentWithHtmlChars);
+            process.env.GH_AW_AGENT_OUTPUT = logFile;
+            delete process.env.GH_AW_SAFE_OUTPUTS;
+            const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
+            await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            const diagnosticsSummary = mockCore.summary.addRaw.mock.calls[1][0];
+            expect(diagnosticsSummary).toContain("<pre><code>");
+            expect(diagnosticsSummary).toContain("&lt;pre&gt;&amp;```&lt;/pre&gt;");
+          } finally {
+            fs.unlinkSync(logFile);
+            delete process.env.GH_AW_AGENT_OUTPUT;
             fs.rmdirSync(tmpDir);
           }
         }),
@@ -274,7 +314,64 @@ describe("log_parser_bootstrap.cjs", () => {
             delete process.env.GH_AW_SAFE_OUTPUTS;
             const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: null });
             await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
-            expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.`);
+            expect(mockCore.setFailed).toHaveBeenCalledWith(
+              `${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. Claude startup failed before structured logging (exitCode=unknown). startup/configuration failure detected.`
+            );
+          } finally {
+            fs.unlinkSync(logFile);
+            delete process.env.GH_AW_AGENT_OUTPUT;
+            fs.rmdirSync(tmpDir);
+          }
+        }),
+        it("should classify Claude empty-log startup rate-limit signatures as transient inference availability", async () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const logFile = path.join(tmpDir, "test.log");
+          try {
+            fs.writeFileSync(logFile, `[claude-harness] attempt 1 failed: exitCode=1 hasOutput=false\n[claude-harness] done: exitCode=1\nAPI Error: Request rejected (429)`);
+            process.env.GH_AW_AGENT_OUTPUT = logFile;
+            delete process.env.GH_AW_SAFE_OUTPUTS;
+            const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
+            await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            expect(mockCore.setFailed).toHaveBeenCalledWith(
+              `${ERR_API}: Claude execution failed: no structured log entries were produced. Claude startup failed before structured logging (exitCode=1). transient inference availability signal detected.`
+            );
+            expect(mockCore.setOutput).toHaveBeenCalledWith("ai_credits_rate_limit_error", "true");
+          } finally {
+            fs.unlinkSync(logFile);
+            delete process.env.GH_AW_AGENT_OUTPUT;
+            fs.rmdirSync(tmpDir);
+          }
+        }),
+        it("should classify Claude empty-log startup inference-access denials separately", async () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const logFile = path.join(tmpDir, "test.log");
+          try {
+            fs.writeFileSync(logFile, `[claude-harness] attempt 1 failed: exitCode=1 hasOutput=false\nAccess denied by policy settings\n[claude-harness] done: exitCode=1`);
+            process.env.GH_AW_AGENT_OUTPUT = logFile;
+            delete process.env.GH_AW_SAFE_OUTPUTS;
+            const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
+            await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: Claude execution failed: no structured log entries were produced. Claude startup failed before structured logging (exitCode=1). inference access denied by policy.`);
+            expect(mockCore.setOutput).toHaveBeenCalledWith("inference_access_error", "true");
+            expect(mockCore.setOutput).not.toHaveBeenCalledWith("ai_credits_rate_limit_error", "true");
+          } finally {
+            fs.unlinkSync(logFile);
+            delete process.env.GH_AW_AGENT_OUTPUT;
+            fs.rmdirSync(tmpDir);
+          }
+        }),
+        it("should not classify non-HTTP 500 text as transient inference availability", async () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const logFile = path.join(tmpDir, "test.log");
+          try {
+            fs.writeFileSync(logFile, `[claude-harness] attempt 1 failed: exitCode=1 hasOutput=false\nerror code 500\n[claude-harness] done: exitCode=1`);
+            process.env.GH_AW_AGENT_OUTPUT = logFile;
+            delete process.env.GH_AW_SAFE_OUTPUTS;
+            const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
+            await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            expect(mockCore.setFailed).toHaveBeenCalledWith(
+              `${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. Claude startup failed before structured logging (exitCode=1). startup/configuration failure detected.`
+            );
           } finally {
             fs.unlinkSync(logFile);
             delete process.env.GH_AW_AGENT_OUTPUT;

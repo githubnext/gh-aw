@@ -4,6 +4,7 @@
 const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { checkoutHasPersistedExtraheader } = require("./git_auth_helpers.cjs");
 
 /**
  * Dynamic repository checkout utilities for multi-repo scenarios
@@ -44,31 +45,6 @@ async function getCurrentCheckoutRepo() {
     return slug;
   } catch {
     return null;
-  }
-}
-
-/**
- * Determine whether the current checkout already has a persisted
- * http.<serverUrl>/.extraheader credential in .git/config.
- *
- * When actions/checkout runs with persist-credentials: true (as the safe_outputs job
- * does), it writes an http.<serverUrl>/.extraheader entry that authenticates every
- * <serverUrl> URL. In that case a dynamic repo switch must NOT inject a second
- * extraheader, because git treats the key as multi-valued and would send two
- * Authorization headers, which GitHub rejects with "Duplicate header: 'Authorization'".
- *
- * @param {string} serverUrl - GitHub server URL (e.g. "https://github.com")
- * @returns {Promise<boolean>} true if a non-empty extraheader is already configured
- */
-async function checkoutHasPersistedExtraheader(serverUrl) {
-  try {
-    const result = await exec.getExecOutput("git", ["config", "--get-all", `http.${serverUrl}/.extraheader`], {
-      silent: true,
-      ignoreReturnCode: true,
-    });
-    return result.exitCode === 0 && result.stdout.trim() !== "";
-  } catch {
-    return false;
   }
 }
 

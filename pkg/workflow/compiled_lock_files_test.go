@@ -434,16 +434,18 @@ func TestCompiledLockFiles_SmokeWorkflowCallHasExpectedOutputs(t *testing.T) {
 	})
 }
 
-func TestCompiledLockFiles_SmokeCallWorkflowForwardsAwContext(t *testing.T) {
+func TestCompiledLockFiles_SmokeCallWorkflowForwardsPayload(t *testing.T) {
 	lockPath := filepath.Join(workflowsDir, "smoke-call-workflow.lock.yml")
 
 	lockBytes, err := os.ReadFile(lockPath)
 	require.NoError(t, err, "smoke-call-workflow.lock.yml should be readable")
 	lockContent := string(lockBytes)
 
-	t.Run("CallWorkflowJobForwardsGeneratedAwContext", func(t *testing.T) {
+	t.Run("CallWorkflowJobForwardsPayloadAndTaskDescription", func(t *testing.T) {
 		assert.Contains(t, lockContent, "call-smoke-workflow-call:", "lock file should contain the call-workflow job")
-		assert.Contains(t, lockContent, "aw_context:", "call-workflow job should synthesize aw_context directly in YAML")
-		assert.Contains(t, lockContent, "${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).aw_context }}", "call-workflow job should forward aw_context from the handler payload")
+		// smoke-workflow-call.md declares 'payload' and 'task-description' as workflow_call inputs;
+		// the caller job forwards both from the safe_outputs payload.
+		assert.Contains(t, lockContent, "payload: ${{ needs.safe_outputs.outputs.call_workflow_payload }}", "call-workflow job should forward payload from safe_outputs")
+		assert.Contains(t, lockContent, "${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload)['task-description'] }}", "call-workflow job should forward task-description from the handler payload")
 	})
 }

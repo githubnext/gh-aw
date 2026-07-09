@@ -1990,6 +1990,57 @@ For `x-safe-outputs-target-requirements["*"]`:
 - If no listed `anyOf` field is present, the request MUST be rejected with an MCP validation error.
 - When `target` is not `"*"`, implementations MUST follow each type's normal **Operational Semantics** context resolution behavior; this metadata MUST NOT add additional required runtime identifier fields.
 
+### 7.0.2 Handler Function Cross-References
+
+The following table defines the exact `createHandlers()` function used for each safe output type defined in §7:
+
+| Safe Output Type | Handler Function in `actions/setup/js/safe_outputs_handlers.cjs` |
+|---|---|
+| `create_issue` | `createIssueHandler` |
+| `add_comment` | `addCommentHandler` |
+| `create_pull_request` | `createPullRequestHandler` |
+| `noop` | `defaultHandler("noop")` |
+| `comment_memory` | `defaultHandler("comment_memory")` |
+| `update_issue` | `updateIssueHandler` |
+| `close_issue` | `defaultHandler("close_issue")` |
+| `link_sub_issue` | `defaultHandler("link_sub_issue")` |
+| `create_discussion` | `defaultHandler("create_discussion")` |
+| `update_discussion` | `defaultHandler("update_discussion")` |
+| `close_discussion` | `defaultHandler("close_discussion")` |
+| `update_pull_request` | `updatePullRequestHandler` |
+| `close_pull_request` | `defaultHandler("close_pull_request")` |
+| `merge_pull_request` | `defaultHandler("merge_pull_request")` |
+| `mark_pull_request_as_ready_for_review` | `defaultHandler("mark_pull_request_as_ready_for_review")` |
+| `push_to_pull_request_branch` | `pushToPullRequestBranchHandler` |
+| `push_repo_memory` | `pushRepoMemoryHandler` |
+| `create_pull_request_review_comment` | `createPullRequestReviewCommentHandler` |
+| `submit_pull_request_review` | `submitPullRequestReviewHandler` |
+| `dismiss_pull_request_review` | `dismissPullRequestReviewHandler` |
+| `resolve_pull_request_review_thread` | `defaultHandler("resolve_pull_request_review_thread")` |
+| `reply_to_pull_request_review_comment` | `defaultHandler("reply_to_pull_request_review_comment")` |
+| `add_labels` | `defaultHandler("add_labels")` |
+| `remove_labels` | `defaultHandler("remove_labels")` |
+| `add_reviewer` | `defaultHandler("add_reviewer")` |
+| `assign_milestone` | `defaultHandler("assign_milestone")` |
+| `assign_to_agent` | `defaultHandler("assign_to_agent")` |
+| `assign_to_user` | `defaultHandler("assign_to_user")` |
+| `unassign_from_user` | `defaultHandler("unassign_from_user")` |
+| `hide_comment` | `defaultHandler("hide_comment")` |
+| `create_project` | `createProjectHandler` |
+| `update_project` | `defaultHandler("update_project")` |
+| `create_project_status_update` | `defaultHandler("create_project_status_update")` |
+| `update_release` | `defaultHandler("update_release")` |
+| `upload_asset` | `uploadAssetHandler` |
+| `upload_artifact` | `uploadArtifactHandler` |
+| `dispatch_workflow` | `defaultHandler("dispatch_workflow")` |
+| `create_code_scanning_alert` | `defaultHandler("create_code_scanning_alert")` |
+| `autofix_code_scanning_alert` | `defaultHandler("autofix_code_scanning_alert")` |
+| `create_check_run` | `defaultHandler("create_check_run")` |
+| `create_agent_session` | `defaultHandler("create_agent_session")` |
+| `missing_tool` | `defaultHandler("missing_tool")` |
+| `missing_data` | `defaultHandler("missing_data")` |
+| `report_incomplete` | `defaultHandler("report_incomplete")` |
+
 ### 7.1 Core Issue Operations
 
 #### Type: create_issue
@@ -5326,6 +5377,11 @@ This section maps normative specification requirements (§3–§11) to implement
 | §7 Safe Output Type Definitions | Handler implementations for each type | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_tools.json` |
 | §7.1 Core Issue Operations | `create_issue`, `add_comment`, `hide_comment`, `close_issue` | `actions/setup/js/add_comment.cjs`, `actions/setup/js/safe_outputs_handlers.cjs` |
 | §8 Protocol Exchange Patterns | stdio container transport, tool invocation, MCP server constraint enforcement | `actions/setup/js/safe_outputs_mcp_server.cjs`, `actions/setup/js/safe_outputs_mcp_server_http.cjs` |
+| §8.3 MCE1 Early Validation | Invocation-time validation wiring through MCP server startup | `actions/setup/js/safe_outputs_mcp_server.cjs` (`startSafeOutputsServer` → `createHandlers()`), `actions/setup/js/safe_outputs_handlers.cjs` (`addCommentHandler`, `createIssueHandler`, `updatePullRequestHandler`) |
+| §8.3 MCE2 Tool Description Disclosure | Tool descriptions/schemas exposed during MCP tool registration | `actions/setup/js/safe_outputs_mcp_server.cjs` (`registerPredefinedTools` call), `actions/setup/js/safe_outputs_tools_loader.cjs` (`registerPredefinedTools`) |
+| §8.3 MCE3 Actionable Error Responses | Structured MCP validation errors with remediation guidance | `actions/setup/js/safe_outputs_mcp_server.cjs` (`start()` call serving handler responses), `actions/setup/js/safe_outputs_handlers.cjs` (`buildIntentErrorResponse`, `addCommentHandler`) |
+| §8.3 MCE4 Dual Enforcement | Invocation-time max checks before NDJSON append plus processor-time enforcement | `actions/setup/js/safe_outputs_mcp_server.cjs` (`createHandlers()` call path), `actions/setup/js/safe_outputs_handlers.cjs` (`enforcePerTypeMax`, `appendSafeOutputCounted`) |
+| §8.3 MCE5 Constraint Configuration Consistency | Shared safe-outputs config passed into handler creation for consistent limits | `actions/setup/js/safe_outputs_mcp_server.cjs` (`bootstrapSafeOutputsServer`, `createHandlers(server, appendSafeOutput, safeOutputsConfig)`), `actions/setup/js/safe_outputs_handlers.cjs` (`getSafeOutputsToolConfig`) |
 | §9 Content Integrity Mechanisms | Content sanitization pipeline | `actions/setup/js/safe_output_validator.cjs`, `actions/setup/js/safe_output_type_validator.cjs` |
 | §10 Execution Guarantees | Idempotency, staged mode enforcement | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_output_action_handler.cjs` |
 | §11 Cache Memory Integrity | Cache key format, integrity branches, git-backed branching | `pkg/workflow/compiler_safe_outputs.go`, `actions/setup/js/safe_outputs_bootstrap.cjs` |
@@ -5337,8 +5393,7 @@ Sync procedure:
 
 Sync follow-up tasks:
 
-- **[Open]** Add cross-references from §7 handler definitions to exact function names in `actions/setup/js/safe_outputs_handlers.cjs` for all 15+ safe output types.
-- **[Open]** Map §8.3 MCP Server Constraint Enforcement requirements (MCE1–MCE5) to specific validation calls in `actions/setup/js/safe_outputs_mcp_server.cjs`.
+- Keep §7.0.2 and §8.3 mapping rows current when handler names or MCP wiring changes in `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_mcp_server.cjs`, or `actions/setup/js/safe_outputs_tools_loader.cjs`.
 
 ---
 

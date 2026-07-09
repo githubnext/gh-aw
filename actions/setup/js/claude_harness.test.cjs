@@ -21,6 +21,7 @@ const {
   extractDeniedCommands,
   buildMissingToolPermissionIssuePayload,
   resolveRetryConfig,
+  resolveStartupRetryLimit,
 } = require("./claude_harness.cjs");
 
 const agentTempDir = "/tmp/gh-aw/agent";
@@ -30,7 +31,7 @@ function makeHarnessTempDir(name) {
   return fs.mkdtempSync(path.join(agentTempDir, name));
 }
 
-function runHarnessWithStub({ stubScript, prompt = "fix the bug", extraArgs = [] }) {
+function runHarnessWithStub({ stubScript, prompt = "fix the bug", extraArgs = [], extraEnv = {} }) {
   const tempDir = makeHarnessTempDir("claude-harness-");
   const stubPath = path.join(tempDir, "stub.cjs");
   const promptPath = path.join(tempDir, "prompt.txt");
@@ -40,7 +41,7 @@ function runHarnessWithStub({ stubScript, prompt = "fix the bug", extraArgs = []
 
   const result = spawnSync(process.execPath, ["claude_harness.cjs", process.execPath, stubPath, "--print", ...extraArgs, "--prompt-file", promptPath], {
     cwd: path.dirname(require.resolve("./claude_harness.cjs")),
-    env: { ...process.env, CLAUDE_HARNESS_STUB_CALLS: callsPath },
+    env: { ...process.env, ...extraEnv, CLAUDE_HARNESS_STUB_CALLS: callsPath },
     encoding: "utf8",
     timeout: 45000,
   });
@@ -448,6 +449,41 @@ process.exit(0);
       expect(result.stderr).toContain("failure_reason=cancelled_or_timed_out");
     }, 30000);
 
+    it("retries one no-output startup failure as a fresh run by default", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+if (priorCalls === 0) process.exit(1);
+process.stdout.write("startup retry succeeded\\n");
+process.exit(0);
+`;
+      const { result, calls } = runHarnessWithStub({ stubScript });
+      expect(result.status, result.stderr).toBe(0);
+      expect(calls.length).toBe(2);
+      expect(calls[1].args.includes("--continue")).toBe(false);
+      expect(result.stderr).toContain("no output produced — retrying startup as fresh run");
+    });
+
+    it("does not retry no-output startup failure when GH_AW_CLAUDE_STARTUP_RETRIES=0", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+fs.appendFileSync(callsPath, JSON.stringify({ args: process.argv.slice(2) }) + "\\n", "utf8");
+process.exit(1);
+`;
+      const { result, calls } = runHarnessWithStub({
+        stubScript,
+        extraEnv: { GH_AW_CLAUDE_STARTUP_RETRIES: "0" },
+      });
+      expect(result.status).toBe(1);
+      expect(calls.length).toBe(1);
+      expect(calls[0].args).toContain("fix the bug");
+      expect(result.stderr).toContain("startup retry budget exhausted: 0/0");
+    });
+
     it("returns true for normal partial-execution retry", () => {
       const result = shouldRetryWithContinue({
         attempt: 0,
@@ -558,6 +594,14 @@ process.exit(0);
       expect(config1.maxRetries).toBe(3);
       const config2 = resolveRetryConfig({ GH_AW_HARNESS_INITIAL_DELAY_MS: "0x10" });
       expect(config2.initialDelayMs).toBe(5000);
+    });
+
+    it("uses startup retry default and clamps overrides to [0..2]", () => {
+      expect(resolveStartupRetryLimit({})).toBe(1);
+      expect(resolveStartupRetryLimit({ GH_AW_CLAUDE_STARTUP_RETRIES: "2" })).toBe(2);
+      expect(resolveStartupRetryLimit({ GH_AW_CLAUDE_STARTUP_RETRIES: "-5" })).toBe(0);
+      expect(resolveStartupRetryLimit({ GH_AW_CLAUDE_STARTUP_RETRIES: "9" })).toBe(2);
+      expect(resolveStartupRetryLimit({ GH_AW_CLAUDE_STARTUP_RETRIES: "nope" })).toBe(1);
     });
   });
 

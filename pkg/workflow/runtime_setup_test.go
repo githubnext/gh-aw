@@ -395,11 +395,12 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			requirements: []RuntimeRequirement{
 				{Runtime: findRuntimeByID("elixir"), Version: "1.17"},
 			},
-			expectSteps: 1,
+			expectSteps: 2, // setup + ERLANG_HOME capture for AWF chroot mode
 			checkContent: []string{
 				"Setup Elixir",
 				"erlef/setup-beam@",
 				"elixir-version: '1.17'",
+				"Capture ERLANG_HOME for AWF chroot mode",
 			},
 		},
 		{
