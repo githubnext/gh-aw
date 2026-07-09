@@ -36,6 +36,11 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 	noLintLinesByFile := nolint.BuildLineIndex(pass, "bytescomparestring")
 
+	// seenImportFiles tracks files that have already received a bytes import
+	// TextEdit in this pass, preventing duplicate overlapping edits when a
+	// single file contains multiple flagged comparisons.
+	seenImportFiles := make(map[token.Pos]bool)
+
 	nodeFilter := []ast.Node{
 		(*ast.BinaryExpr)(nil),
 	}
@@ -80,14 +85,14 @@ func run(pass *analysis.Pass) (any, error) {
 				Pos:            bin.Pos(),
 				End:            bin.End(),
 				Message:        fmt.Sprintf("string(%s) == string(%s) is a []byte comparison written the long way; use bytes.Equal(%s, %s) for clearer intent", lText, rText, lText, rText),
-				SuggestedFixes: buildFix(pass, bin, fmt.Sprintf("bytes.Equal(%s, %s)", lText, rText)),
+				SuggestedFixes: buildFix(pass, bin, fmt.Sprintf("bytes.Equal(%s, %s)", lText, rText), seenImportFiles),
 			})
 		} else {
 			pass.Report(analysis.Diagnostic{
 				Pos:            bin.Pos(),
 				End:            bin.End(),
 				Message:        fmt.Sprintf("string(%s) != string(%s) is a []byte comparison written the long way; use !bytes.Equal(%s, %s) for clearer intent", lText, rText, lText, rText),
-				SuggestedFixes: buildFix(pass, bin, fmt.Sprintf("!bytes.Equal(%s, %s)", lText, rText)),
+				SuggestedFixes: buildFix(pass, bin, fmt.Sprintf("!bytes.Equal(%s, %s)", lText, rText), seenImportFiles),
 			})
 		}
 	})
@@ -97,13 +102,15 @@ func run(pass *analysis.Pass) (any, error) {
 
 // buildFix returns the SuggestedFix for rewriting bin to replacement, adding a
 // "bytes" import TextEdit when the file containing bin does not yet import it.
-func buildFix(pass *analysis.Pass, bin *ast.BinaryExpr, replacement string) []analysis.SuggestedFix {
+// seenImportFiles tracks files that have already received an import edit in
+// this pass so that multi-violation files do not get duplicate overlapping edits.
+func buildFix(pass *analysis.Pass, bin *ast.BinaryExpr, replacement string, seenImportFiles map[token.Pos]bool) []analysis.SuggestedFix {
 	edits := []analysis.TextEdit{{
 		Pos:     bin.Pos(),
 		End:     bin.End(),
 		NewText: []byte(replacement),
 	}}
-	if importEdit, ok := addBytesImportEdit(pass, bin.Pos()); ok {
+	if importEdit, ok := addBytesImportEdit(pass, bin.Pos(), seenImportFiles); ok {
 		edits = append(edits, importEdit)
 	}
 	return []analysis.SuggestedFix{{
@@ -113,9 +120,11 @@ func buildFix(pass *analysis.Pass, bin *ast.BinaryExpr, replacement string) []an
 }
 
 // addBytesImportEdit returns a TextEdit that inserts an import for "bytes" into
-// the file containing pos, unless "bytes" is already imported in that file.
+// the file containing pos, unless "bytes" is already imported in that file or
+// an import edit for this file has already been emitted in this pass
+// (tracked via seenImportFiles to prevent duplicate overlapping edits).
 // Returns (TextEdit{}, false) when no edit is needed.
-func addBytesImportEdit(pass *analysis.Pass, pos token.Pos) (analysis.TextEdit, bool) {
+func addBytesImportEdit(pass *analysis.Pass, pos token.Pos, seenImportFiles map[token.Pos]bool) (analysis.TextEdit, bool) {
 	var file *ast.File
 	for _, f := range pass.Files {
 		if f.Pos() <= pos && pos <= f.End() {
@@ -127,12 +136,20 @@ func addBytesImportEdit(pass *analysis.Pass, pos token.Pos) (analysis.TextEdit, 
 		return analysis.TextEdit{}, false
 	}
 
+	// Skip if an import edit for this file was already emitted in this pass.
+	if seenImportFiles[file.Pos()] {
+		return analysis.TextEdit{}, false
+	}
+
 	// Check if "bytes" is already imported in this file.
 	for _, imp := range file.Imports {
 		if imp.Path.Value == `"`+bytesPkg+`"` {
 			return analysis.TextEdit{}, false
 		}
 	}
+
+	// Compute the edit to add and mark the file so subsequent violations in the
+	// same pass do not emit a duplicate overlapping TextEdit.
 
 	// Find an existing grouped import declaration to add into.
 	for _, decl := range file.Decls {
@@ -141,6 +158,7 @@ func addBytesImportEdit(pass *analysis.Pass, pos token.Pos) (analysis.TextEdit, 
 			continue
 		}
 		// Insert "bytes" before the closing paren of the import block.
+		seenImportFiles[file.Pos()] = true
 		return analysis.TextEdit{
 			Pos:     genDecl.Rparen,
 			End:     genDecl.Rparen,
@@ -162,6 +180,7 @@ func addBytesImportEdit(pass *analysis.Pass, pos token.Pos) (analysis.TextEdit, 
 				continue
 			}
 
+			seenImportFiles[file.Pos()] = true
 			return analysis.TextEdit{
 				Pos:     genDecl.Pos(),
 				End:     genDecl.End(),
@@ -171,6 +190,7 @@ func addBytesImportEdit(pass *analysis.Pass, pos token.Pos) (analysis.TextEdit, 
 	}
 
 	// No grouped import block; insert a standalone import after the package name.
+	seenImportFiles[file.Pos()] = true
 	return analysis.TextEdit{
 		Pos:     file.Name.End(),
 		End:     file.Name.End(),
