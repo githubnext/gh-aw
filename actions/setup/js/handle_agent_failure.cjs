@@ -252,7 +252,10 @@ function buildFailureMatchCategories(options) {
   if (options.hasDailyAICExceeded) categories.push("daily_ai_credits_exceeded");
   if (options.isAWFFirewallStartupFailed) categories.push("awf_firewall_startup_failed");
 
-  if (options.agentConclusion === "failure" && !options.isTimedOut) {
+  // Keep agent_failure as the fallback class only when no existing
+  // specific category already explains the failure cause.
+  const hasSpecificFailureCategory = categories.length > 0;
+  if (options.agentConclusion === "failure" && !options.isTimedOut && !hasSpecificFailureCategory) {
     categories.push("agent_failure");
   }
 
