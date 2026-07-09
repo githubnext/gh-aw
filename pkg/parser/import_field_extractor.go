@@ -50,6 +50,8 @@ type importAccumulator struct {
 	skipBotsSet              map[string]bool
 	skipIfMatch              string
 	skipIfNoMatch            string
+	sandboxAgentMounts       []string
+	sandboxAgentMountsSet    map[string]bool
 	caches                   []string
 	features                 []map[string]any
 	models                   []map[string][]string // model alias maps from each imported file (appended in import order)
@@ -97,12 +99,13 @@ const (
 // during deduplication. Slices are left as nil, which is valid for append operations.
 func newImportAccumulator() *importAccumulator {
 	return &importAccumulator{
-		botsSet:      make(map[string]bool),
-		labelsSet:    make(map[string]bool),
-		skipRolesSet: make(map[string]bool),
-		skipBotsSet:  make(map[string]bool),
-		importInputs: make(map[string]any),
-		envSources:   make(map[string]string),
+		botsSet:               make(map[string]bool),
+		labelsSet:             make(map[string]bool),
+		skipRolesSet:          make(map[string]bool),
+		skipBotsSet:           make(map[string]bool),
+		importInputs:          make(map[string]any),
+		envSources:            make(map[string]string),
+		sandboxAgentMountsSet: make(map[string]bool),
 	}
 }
 
@@ -378,8 +381,52 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.appendJSONBuilderField(fm, "runtimes", "{}", &acc.runtimesBuilder)
 	acc.appendYAMLBuilderField(fm, "services", &acc.servicesBuilder)
 	acc.appendJSONBuilderField(fm, "network", "{}", &acc.networkBuilder)
+	acc.mergeSandboxAgentMounts(fm)
 	acc.appendJSONBuilderField(fm, "permissions", "{}", &acc.permissionsBuilder)
 	acc.appendJSONBuilderField(fm, "secret-masking", "{}", &acc.secretMaskingBuilder)
+}
+
+func (acc *importAccumulator) mergeSandboxAgentMounts(fm map[string]any) {
+	sandboxVal, hasSandbox := fm["sandbox"]
+	if !hasSandbox {
+		return
+	}
+
+	sandboxMap, ok := sandboxVal.(map[string]any)
+	if !ok {
+		return
+	}
+
+	agentVal, hasAgent := sandboxMap["agent"]
+	if !hasAgent {
+		return
+	}
+
+	agentMap, ok := agentVal.(map[string]any)
+	if !ok {
+		return
+	}
+
+	mountsVal, hasMounts := agentMap["mounts"]
+	if !hasMounts {
+		return
+	}
+
+	mounts, ok := mountsVal.([]any)
+	if !ok {
+		return
+	}
+
+	for _, mountVal := range mounts {
+		mount, ok := mountVal.(string)
+		if !ok || mount == "" {
+			continue
+		}
+		if !acc.sandboxAgentMountsSet[mount] {
+			acc.sandboxAgentMountsSet[mount] = true
+			acc.sandboxAgentMounts = append(acc.sandboxAgentMounts, mount)
+		}
+	}
 }
 
 func (acc *importAccumulator) extractFirstWinsJSONField(fm map[string]any, fullPath, field string, target *string) {
@@ -826,6 +873,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedRunInstallScripts:       acc.runInstallScripts,
 		MergedServices:                acc.servicesBuilder.String(),
 		MergedNetwork:                 acc.networkBuilder.String(),
+		MergedSandboxAgentMounts:      acc.sandboxAgentMounts,
 		MergedPermissions:             acc.permissionsBuilder.String(),
 		MergedSecretMasking:           acc.secretMaskingBuilder.String(),
 		MergedBots:                    acc.bots,

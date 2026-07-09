@@ -40,6 +40,7 @@ type ImportsResult struct {
 	MergedRunInstallScripts       bool                  // true if any imported workflow sets runtimes.node.run-install-scripts: true
 	MergedServices                string                // Merged services configuration from all imports
 	MergedNetwork                 string                // Merged network configuration from all imports
+	MergedSandboxAgentMounts      []string              // Merged sandbox.agent.mounts from all imports (union, deduplicated)
 	MergedPermissions             string                // Merged permissions configuration from all imports
 	MergedSecretMasking           string                // Merged secret-masking steps from all imports
 	MergedBots                    []string              // Merged bots list from all imports (union of bot names)
