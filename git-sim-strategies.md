@@ -110,13 +110,30 @@ it's a real bug (over-count, or runtime measuring excluded commits).
   (249 B); enumeration starts at next_index=64 and [0,64) w/ no entry = pass. Only
   add fail/error/rejected cells going forward. Call push_repo_memory after writing.
 
+## 07-09 idx80-83 all PASS (large-diverged tail + xlarge-clean triple)
+
+- **idx80 tiny-none-few-large-diverged-merge_msg PASS.** ~1 MB, 5×204800 B.
+  CORRECTION: for format-patch, **three-dot `main...feature` = SYMMETRIC diff**
+  (also emits main's divergent history.md patch → 2 artifacts), NOT merge-base..feature.
+  Cap-relevant set is **two-dot `main..feature`** = 1001.69 KB; three-dot over-counts
+  +445 B (the divergent commit). Diverged "0 extra bytes" law holds for TWO-dot.
+  filename leak, parent=1, --merges empty; push clean FF (commit_count=2); bundle 758.
+- **idx81/82/83 xlarge-clean all PASS at rejection edge — ~42 KB headroom.** Payload
+  exactly 4000 KB (5×819200 B). single(81) 4053.48/1f; multi-DISJOINT(82) 4053.95/3c
+  **1.013×**; merge_msg(83) 4053.50/1f leak+parent=1. Headroom 42.0-42.5 KB<4096.
+  Framing ~+53-54 KB (~1.3%). bundle ~3043 KB (~75%). **FILES=few DONE, all PASS.**
+- **NEW WORST-CASE LAW (idx82 adversarial):** SINGLE LONG UNWRAPPED line, 3 commits
+  each appending ~1/3 to 4 MB → format-patch **12001 KB ≈ 3.0×** (each append
+  rewrites whole line: remove-all+add-all; 1/3+2/3+3/3≈2× + doubled framing). At
+  4000 KB payload this **BREACHES 4096 by ~3×**. Sharpens multi law: worst case ~3×
+  (not ~2×) for single-long-line same-file re-append; realistic few-disjoint ~1.01×.
+
 ## Next
 
-Next index: **80** → `tiny-none-few-large-diverged-merge_msg` (80, last large-tier
-cell; ~1 MB + filename leak → PASS predicted). Then
-few-xlarge (81-89) predicted ~4054 KB → PASS (near 99% cap but header math shows
-few lands ~4054, under 4096). That FINISHES FILES=few. FILES=many (idx 90-179) &
-batch (180-269) next — many/batch × xlarge is the first place `max_patch_files`
-(default ~800?) could bite; confirm that handler count before batch. HISTORY=deep
-(500) far ahead. SIZE stays tiny (payload small) until idx 720, so no real `rejected`
-expected before then unless a PATCH tier is tuned over 4096 KB or an over-count fires.
+Next index: **84** → few-xlarge-ahead/diverged (84-89 finish few-xlarge, ~4054 KB +
+push → PASS predicted). Then **FILES=many (90-179)** & **batch (180-269)** —
+many/batch × xlarge is the first place `max_patch_files` (default ~800?) could bite;
+CONFIRM that handler count before batch (many-xlarge ~4058 KB still <4096). HISTORY=
+deep(500) far ahead. SIZE stays tiny until idx 720 → no real `rejected` expected
+before then unless a PATCH tier is tuned >4096 or the 3× same-file-append shape is
+exercised (that WOULD be a real over-cap finding).
