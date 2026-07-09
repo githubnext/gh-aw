@@ -478,6 +478,16 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			errorMsg:    "'github.min-integrity' to be set",
 		},
 		{
+			name: "allowed-repos non-all without min-integrity fails",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos": "public",
+				},
+			},
+			shouldError: true,
+			errorMsg:    "'github.min-integrity' is required",
+		},
+		{
 			name: "blocked-users as GitHub Actions expression is valid",
 			toolsMap: map[string]any{
 				"github": map[string]any{

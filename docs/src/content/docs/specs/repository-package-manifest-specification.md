@@ -153,6 +153,8 @@ The remove lifecycle uninstalls a previously installed package by deleting its i
 
 **R-PKG-R004**: After removal, if the target workflow directory is empty, the implementation MAY remove the empty directory. The implementation MUST NOT remove non-empty directories.
 
+> **Note**: Package-installed documentation files (for example `README.md`) are within the scope of R-PKG-R001 and follow modified-file protection in R-PKG-R002.
+
 ## 6. Documentation
 
 Package documentation is `README.md` in the package root.
@@ -343,7 +345,7 @@ This section provides a normative reference table for all MUST/SHALL requirement
 
 This section maps normative sections of this specification to the implementation files in `pkg/cli/` and `pkg/parser/` that realize each requirement.
 
-**Last verified**: 2026-06-01
+**Last verified**: 2026-07-08
 
 ### §4 Manifest Format — Implementation Mapping
 
@@ -361,6 +363,7 @@ This section maps normative sections of this specification to the implementation
 |---|---|---|
 | §5 File resolution | Resolving `files` list vs. auto-discovery under `workflows/` and `.github/workflows/` | `pkg/cli/add_package_manifest.go` (`resolveRepositoryPackage`) |
 | §5 Install ordering | Download → compile → write per-file sequencing | `pkg/cli/add_package_manifest.go`, `pkg/cli/add_command.go` |
+| §5 Install rollback on write failure (R-PKG-003) | Write-failure abort plus rollback of files written earlier in the same add operation | `pkg/cli/add_command.go` (`addWorkflowsWithTracking`), `pkg/cli/add_command_test.go` (`TestAddWorkflowsWithTracking_RollsBackWrittenFilesOnWriteFailure`) |
 
 ### §4.2 and §4.3 Verification Findings
 

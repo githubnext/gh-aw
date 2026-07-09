@@ -473,7 +473,7 @@ The YAML key `repos` under `tools.github` is **deprecated** as of guard-policy s
 
 **Migration path**: Use `gh aw fix` to automatically migrate `repos:` to `allowed-repos:` in workflow frontmatter.
 
-**Removal target**: The `repos` alias SHOULD be removed in a future major version of the spec (tentatively v2.0.0). When the alias is removed, implementations MUST reject `repos` as an unknown field with an error message that suggests `allowed-repos`.
+**Removal target**: The `repos` alias SHOULD be removed in a future major version of the spec; tracking is managed in issue [#44357](https://github.com/github/gh-aw/issues/44357). When the alias is removed, implementations MUST reject `repos` as an unknown field with an error message that suggests `allowed-repos`.
 
 ---
 
@@ -553,6 +553,7 @@ This section maps normative sections of this specification to the implementation
 | GP-01, GP-03 pattern validation | Repository pattern format validation (exact, wildcard, prefix) | `pkg/workflow/tools_validation_github.go` (`validateReposScope`, `validateRepoPattern`, `isValidOwnerOrRepo`) |
 | GP-02 `min-integrity` validation | Enum value check for `none`/`unapproved`/`approved`/`merged` | `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy`) |
 | GP-04 empty array rejection | Empty `allowed-repos` array detection and error | `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy`) |
+| GP-11 cross-field consistency | `allowed-repos` non-`"all"` without `min-integrity` MUST fail validation | `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy`), `pkg/workflow/tools_validation_test.go` (`allowed-repos non-all without min-integrity fails`) |
 | GP-10 lockdown precedence | Lockdown + guard-policy conflict detection and warning | `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy`, `emitGitHubLockdownGuardPolicyWarning`) |
 
 ### Safe-Outputs Guard Policy Derivation

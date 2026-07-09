@@ -185,6 +185,9 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 	// Build a minimal WorkflowData for evals engine execution.
 	// IsDetectionRun reuses detection-style network restrictions and MaxAI credits,
 	// which are appropriate for binary (YES/NO) evaluation tasks.
+	// RunnerConfig is propagated from the main workflow data so that arc-dind topology
+	// handling (daemon-visible Copilot staging step + daemon-visible spawn path) applies
+	// to the evals job the same way it applies to the agent job.
 	evalsData := &WorkflowData{
 		Tools: map[string]any{
 			"bash": []any{"*"},
@@ -196,6 +199,7 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 		Permissions:       data.Permissions,
 		CachedPermissions: data.CachedPermissions,
 		IsDetectionRun:    true,
+		RunnerConfig:      data.RunnerConfig, // propagate runner.topology (e.g. arc-dind) to the evals job
 		NetworkPermissions: &NetworkPermissions{
 			Allowed: getThreatDetectionAdditionalAllowedDomains(data),
 		},

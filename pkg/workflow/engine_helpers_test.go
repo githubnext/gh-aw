@@ -313,6 +313,19 @@ func TestGetNpmBinPathSetup(t *testing.T) {
 	if gorootIdx < findIdx {
 		t.Errorf("GOROOT re-prepend should come after find command, got: %s", pathSetup)
 	}
+
+	// Should re-prepend ERLANG_HOME/bin so erl is reachable when erlef/setup-beam is used.
+	// setup-beam installs OTP to ${RUNNER_TEMP}/.setup-beam/otp/ which is NOT under
+	// RUNNER_TOOL_CACHE, so the find above would miss it without this explicit re-prepend.
+	if !strings.Contains(pathSetup, "$ERLANG_HOME") {
+		t.Errorf("PATH setup should re-prepend ERLANG_HOME/bin for Elixir/OTP support, got: %s", pathSetup)
+	}
+
+	// ERLANG_HOME re-prepend should come AFTER the find command
+	erlangIdx := strings.Index(pathSetup, "$ERLANG_HOME")
+	if erlangIdx < findIdx {
+		t.Errorf("ERLANG_HOME re-prepend should come after find command, got: %s", pathSetup)
+	}
 }
 
 // TestGetNpmBinPathSetup_GorootOrdering verifies that GOROOT/bin takes precedence
@@ -374,6 +387,67 @@ func TestGetNpmBinPathSetup_NoGorootDoesNotBreakChain(t *testing.T) {
 	result := strings.TrimSpace(string(output))
 	if !strings.Contains(result, "chain-continued") {
 		t.Errorf("Expected command chain to continue when GOROOT is empty, got: %q", result)
+	}
+}
+
+// TestGetNpmBinPathSetup_ErlangHomeOrdering verifies that ERLANG_HOME/bin takes precedence
+// over any Erlang/OTP bins that might appear in RUNNER_TOOL_CACHE, ensuring that the erl
+// binary installed by erlef/setup-beam (in ${RUNNER_TEMP}/.setup-beam/otp/) is found.
+func TestGetNpmBinPathSetup_ErlangHomeOrdering(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Skipping shell-based test on non-Linux platform")
+	}
+
+	// Simulate ERLANG_HOME pointing to a fake OTP installation
+	tmpDir := t.TempDir()
+	erlBinDir := filepath.Join(tmpDir, "otp", "bin")
+	os.MkdirAll(erlBinDir, 0o755)
+
+	// Write a fake erl script that reports its version
+	os.WriteFile(filepath.Join(erlBinDir, "erl"), []byte("#!/bin/bash\necho 'fake-otp-27'\n"), 0o755)
+
+	erlangHome := filepath.Join(tmpDir, "otp")
+
+	// Simulate the PATH setup with ERLANG_HOME set (as erlef/setup-beam would do)
+	shellCmd := fmt.Sprintf(
+		`export ERLANG_HOME=%q; export RUNNER_TOOL_CACHE=%q; %s && erl`,
+		erlangHome,
+		t.TempDir(),
+		GetNpmBinPathSetup(),
+	)
+
+	cmd := exec.Command("bash", "-c", shellCmd)
+	output, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("Failed to execute shell command: %v", err)
+	}
+
+	result := strings.TrimSpace(string(output))
+	if !strings.Contains(result, "fake-otp-27") {
+		t.Errorf("Expected ERLANG_HOME/bin/erl to be in PATH, but got: %s", result)
+	}
+}
+
+// TestGetNpmBinPathSetup_NoErlangHomeDoesNotBreakChain verifies that when ERLANG_HOME is
+// not set (non-Elixir workflows), the command chain continues.
+func TestGetNpmBinPathSetup_NoErlangHomeDoesNotBreakChain(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Skipping shell-based test on non-Linux platform")
+	}
+
+	// When ERLANG_HOME is empty, [ -n "$ERLANG_HOME" ] is false. Without || true,
+	// the && chain short-circuits and subsequent commands are never run.
+	shellCmd := fmt.Sprintf(`unset ERLANG_HOME; export RUNNER_TOOL_CACHE=%q; %s && echo "chain-continued"`, t.TempDir(), GetNpmBinPathSetup())
+
+	cmd := exec.Command("bash", "-c", shellCmd)
+	output, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("Command chain should not fail when ERLANG_HOME is empty: %v", err)
+	}
+
+	result := strings.TrimSpace(string(output))
+	if !strings.Contains(result, "chain-continued") {
+		t.Errorf("Expected command chain to continue when ERLANG_HOME is empty, got: %q", result)
 	}
 }
 

@@ -232,6 +232,10 @@ func validateNoGitHubExpressionsInRunScriptsFromParsed(workflow map[string]any) 
 	var violations []TemplateInjectionViolation
 
 	for _, runContent := range runBlocks {
+		if !mayContainInlineExpression(runContent) {
+			continue
+		}
+
 		// Align with template-injection validation by excluding non-executable regions:
 		// heredoc bodies and bash # comments.
 		contentWithoutHeredocs := stripShellLineComments(removeHeredocContent(runContent))

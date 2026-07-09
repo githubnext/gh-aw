@@ -72,6 +72,15 @@ func TestNewDeployCommand_CoolDownFlagUsageMatchesUpdate(t *testing.T) {
 	assert.Equal(t, coolDownFlagUsage, coolDownFlag.Usage)
 }
 
+func TestNewDeployCommand_DeprecatesDisableSecurityScannerFlag(t *testing.T) {
+	cmd := NewDeployCommand(func(string) error { return nil })
+	require.NotNil(t, cmd)
+
+	flag := cmd.Flags().Lookup("disable-security-scanner")
+	require.NotNil(t, flag, "deploy command should keep --disable-security-scanner as a deprecated alias")
+	assert.Equal(t, "use --no-security-scanner instead", flag.Deprecated)
+}
+
 func TestNewDeployCommand_RequiresRepoFlag(t *testing.T) {
 	cmd := NewDeployCommand(func(string) error { return nil })
 	require.NotNil(t, cmd)

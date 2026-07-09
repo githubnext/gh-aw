@@ -627,3 +627,35 @@ engine: claude
 ```
 
 See [AI Engines](/gh-aw/reference/engines/).
+
+### How do I supply pricing for a custom or private model?
+
+gh-aw computes AI Credits (AIC) using pricing data from the [models.dev](https://models.dev/) catalog. If your workflow uses a custom, private, or enterprise model that isn't in the catalog — or if you want to override the built-in price — add a `models.providers` entry to your frontmatter:
+
+```yaml wrap
+models:
+  providers:
+    openai:
+      models:
+        gpt-5-enterprise:
+          cost:
+            input: "3.75e-06"     # $3.75 per million input tokens
+            output: "1.5e-05"     # $15.00 per million output tokens
+            cache_read: "9.375e-07"   # optional — omit if caching is not supported
+            cache_write: "3.75e-06"  # optional
+```
+
+Cost values are **per-token USD in scientific notation** (e.g. `3.75e-06` = $0.00000375/token = $3.75 per million tokens). Omit `cache_read` and `cache_write` if the model doesn't support prompt caching.
+
+Use the provider key that matches your engine:
+
+| Engine | Provider key |
+|---|---|
+| `copilot` | `github-copilot` |
+| `claude` | `anthropic` |
+| `codex` | `openai` |
+| `gemini` | `google` |
+
+These entries are **merged** with the built-in catalog at runtime — they override matching models and fill in gaps for unknown ones, so AIC accounting stays accurate. In shared workflows imported by others, `models.providers` entries merge as unions across all imports.
+
+See [Token Optimization — Capping Spend](/gh-aw/reference/cost-management/) for budgeting options alongside custom pricing.

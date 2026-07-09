@@ -25,7 +25,7 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement, data *Workflow
 		steps = append(steps, generateSetupStep(&req, data))
 
 		// Add environment variable capture steps after setup actions for AWF chroot mode.
-		// Most env vars are inherited via AWF_HOST_PATH, but Go is special.
+		// Most env vars are inherited via AWF_HOST_PATH, but some runtimes need explicit capture.
 		switch req.Runtime.ID {
 		case "go":
 			// GitHub Actions uses "trimmed" Go binaries that require GOROOT to be explicitly set.
@@ -34,8 +34,16 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement, data *Workflow
 			// environment, so we must capture it explicitly.
 			runtimeStepGeneratorLog.Print("Adding GOROOT capture step for chroot mode compatibility")
 			steps = append(steps, generateEnvCaptureStep("GOROOT", "go env GOROOT"))
+		case "elixir":
+			// erlef/setup-beam installs OTP to ${RUNNER_TEMP}/.setup-beam/otp/ via core.addPath(),
+			// not to RUNNER_TOOL_CACHE. GetNpmBinPathSetup() only scans RUNNER_TOOL_CACHE, so
+			// the erl binary is not found in the AWF sandbox without this explicit capture.
+			// Capture ERLANG_HOME (the OTP root) so GetNpmBinPathSetup() can add ERLANG_HOME/bin
+			// to PATH inside the AWF container, making erl accessible to mix and elixir.
+			runtimeStepGeneratorLog.Print("Adding ERLANG_HOME capture step for AWF chroot mode compatibility")
+			steps = append(steps, generateEnvCaptureStep("ERLANG_HOME", `erl -noshell -eval 'io:format("~s", [code:root_dir()]), halt().'`))
 		}
-		// Note: Java and .NET don't need capture steps anymore because:
+		// Note: Java and .NET don't need capture steps because:
 		// - AWF_HOST_PATH captures the complete host PATH including $JAVA_HOME/bin and $DOTNET_ROOT
 		// - AWF's entrypoint.sh exports PATH="${AWF_HOST_PATH}" which preserves all setup-* additions
 	}

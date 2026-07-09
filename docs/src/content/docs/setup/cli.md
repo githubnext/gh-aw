@@ -302,6 +302,8 @@ gh aw compile --purge                      # Remove orphaned .lock.yml files
 
 If the repository root contains an [`aw.yml` manifest](/gh-aw/reference/aw-yml-package-manifest/), `gh aw compile` validates it before compiling workflows.
 
+Unlike `gh aw upgrade`, `gh aw compile` does not run codemods unless you pass `--fix`.
+
 **Options:** `--action-mode`, `--action-tag`, `--actionlint`, `--actions-repo`, `--allow-action-refs`, `--approve`, `--dependabot`, `--dir/-d`, `--engine/-e`, `--fail-fast`, `--fix`, `--force/-f`, `--force-refresh-action-pins`, `--gh-aw-ref`, `--ghes`, `--json/-j`, `--logical-repo/-l`, `--no-check-update`, `--no-emit`, `--no-models-dev-lookup`, `--poutine`, `--purge`, `--refresh-stop-time`, `--runner-guard`, `--schedule-seed`, `--show-all`, `--staged`, `--stats`, `--strict`, `--trial`, `--validate`, `--validate-images`, `--watch/-w`, `--zizmor`
 
 **`--gh-aw-ref` flag:** Convenience alias for `--action-mode release --action-tag <ref>`. Accepts a branch name, tag, or commit SHA targeting the `github/gh-aw` repository. Branch and tag names are resolved to their full commit SHA at compile time, so the baked-in reference is immutable and reproducible. Useful for E2E-testing workflows compiled against a specific gh-aw revision.
@@ -417,7 +419,7 @@ Fast enumeration without GitHub API queries. For detailed status including enabl
 
 #### `status`
 
-List workflows with state, enabled/disabled status, schedules, and labels. With `--ref`, includes latest run status.
+List workflows with state, enabled/disabled status, and labels. With `--ref`, includes latest run status. Use `--json` to inspect the raw `on` data, including schedules.
 
 ```bash wrap
 gh aw status                                # All workflows
@@ -479,7 +481,7 @@ cat run-ids.txt | gh aw logs --stdin --repo owner/repo   # required for bare num
 
 #### `audit`
 
-Analyze workflow runs with detailed reports. The `audit` command has three modes: a single-run audit (default), a cross-run diff, and a cross-run security report.
+Analyze workflow runs with detailed reports. The `audit` command has two modes: a single-run audit (default) and a multi-run analysis.
 
 ##### `audit <run-id>`
 
@@ -621,6 +623,19 @@ gh aw forecast --eval                       # Backtest forecast quality against 
 
 The `--days` flag accepts only `7` or `30` (default: `30`). Other values produce an error.
 
+#### `experiments`
+
+Inspect experiment state tracked in `experiments/*` branches. The default command behavior matches `experiments list`; use `experiments analyze` for per-workflow statistics.
+
+```bash wrap
+gh aw experiments                          # List experiment workflow branches
+gh aw experiments list --json             # List all experiments in JSON format
+gh aw experiments analyze my-workflow     # Analyze one experiment workflow
+gh aw experiments analyze my-workflow --repo owner/repo  # Analyze experiments in another repository
+```
+
+**Options:** all `experiments` commands accept `--repo/-r`, `--json/-j`
+
 ### Management
 
 #### `enable`
@@ -723,6 +738,8 @@ gh aw upgrade --org my-org --create-issue --yes  # Auto-accept per-repo confirma
 Org mode (`--org`) previews or creates upgrade pull requests across every repository in an organization. Use `--repos` to limit org mode to repositories matching one or more glob patterns, `--create-issue` to open an issue in each org repository with agentic workflows (requires `--org`), and `--yes/-y` to auto-accept org-mode upgrade confirmations (required in CI).
 
 Use `--disable-codemod` (repeatable) to skip specific codemod IDs during the embedded fix step. This flag is ignored when `--no-fix` is set.
+
+Unlike `gh aw compile --fix`, `gh aw upgrade` runs codemods, action version updates, and workflow compilation by default and uses `--no-fix` to skip all three steps.
 
 #### `env`
 

@@ -44,7 +44,7 @@ This command:
   4. Compiles all workflows to generate lock files (like 'compile' command)
 
 Flag behavior:
-- --no-fix skips codemods, action version updates, and workflow compilation
+- upgrade runs codemods, action version updates, and workflow compilation by default; use --no-fix to skip all three steps
 - --no-actions and --no-compile are only applied when --no-fix is not set
 
 DEPENDENCY HEALTH AUDIT:

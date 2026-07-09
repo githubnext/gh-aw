@@ -3,6 +3,8 @@ private: true
 emoji: "🧪"
 description: Smoke Copilot SDK inline sub-agents
 on:
+  schedule:
+    - cron: daily
   workflow_dispatch:
 permissions:
   contents: read

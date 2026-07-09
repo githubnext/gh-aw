@@ -26,6 +26,20 @@ network:
     - github
     - models.dev
 
+# Supply pricing for a private/enterprise model not yet in the models.dev catalog.
+# Cost values are per-token USD in scientific notation (e.g. 3e-06 = $3 per million tokens).
+# Entries are merged with the built-in models.json at runtime and fill gaps for unknown models.
+models:
+  providers:
+    openai:
+      models:
+        gpt-5-enterprise:
+          cost:
+            input: "3.75e-06"
+            output: "1.5e-05"
+            cache_read: "9.375e-07"
+            cache_write: "3.75e-06"
+
 jobs:
   collect_openai_models:
     runs-on: ubuntu-latest
