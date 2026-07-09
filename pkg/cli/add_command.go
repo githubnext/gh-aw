@@ -280,6 +280,7 @@ func addWorkflows(ctx context.Context, workflows []*ResolvedWorkflow, opts AddOp
 func prepareGitAttributesTracking(tracker *FileTracker) (path string, existed bool) {
 	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
+		addLog.Printf("Skipping .gitattributes tracking setup: failed to find git root: %v", err)
 		return "", false
 	}
 
@@ -292,7 +293,7 @@ func prepareGitAttributesTracking(tracker *FileTracker) (path string, existed bo
 	return path, existed
 }
 
-func trackGitAttributesCreatedFile(tracker *FileTracker, path string, existed bool, updated bool) {
+func trackGitAttributesIfCreated(tracker *FileTracker, path string, existed bool, updated bool) {
 	if tracker == nil || path == "" || existed || !updated {
 		return
 	}
@@ -314,7 +315,7 @@ func addWorkflowsWithTracking(ctx context.Context, workflows []*ResolvedWorkflow
 			}
 			// Don't fail the entire operation if gitattributes update fails
 		} else if updated {
-			trackGitAttributesCreatedFile(tracker, gitAttributesPath, gitAttributesExisted, updated)
+			trackGitAttributesIfCreated(tracker, gitAttributesPath, gitAttributesExisted, updated)
 			if opts.Verbose {
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
 			}
