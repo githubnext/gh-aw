@@ -31,7 +31,7 @@ function makeHarnessTempDir(name) {
   return fs.mkdtempSync(path.join(agentTempDir, name));
 }
 
-function runHarnessWithStub({ stubScript, prompt = "fix the bug", extraArgs = [] }) {
+function runHarnessWithStub({ stubScript, prompt = "fix the bug", extraArgs = [], extraEnv = {} }) {
   const tempDir = makeHarnessTempDir("claude-harness-");
   const stubPath = path.join(tempDir, "stub.cjs");
   const promptPath = path.join(tempDir, "prompt.txt");
@@ -41,7 +41,7 @@ function runHarnessWithStub({ stubScript, prompt = "fix the bug", extraArgs = []
 
   const result = spawnSync(process.execPath, ["claude_harness.cjs", process.execPath, stubPath, "--print", ...extraArgs, "--prompt-file", promptPath], {
     cwd: path.dirname(require.resolve("./claude_harness.cjs")),
-    env: { ...process.env, CLAUDE_HARNESS_STUB_CALLS: callsPath },
+    env: { ...process.env, ...extraEnv, CLAUDE_HARNESS_STUB_CALLS: callsPath },
     encoding: "utf8",
     timeout: 45000,
   });
@@ -465,6 +465,22 @@ process.exit(0);
       expect(calls.length).toBe(2);
       expect(calls[1].args.includes("--continue")).toBe(false);
       expect(result.stderr).toContain("no output produced — retrying startup as fresh run");
+    });
+
+    it("does not retry no-output startup failure when GH_AW_CLAUDE_STARTUP_RETRIES=0", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+fs.appendFileSync(callsPath, JSON.stringify({ args: process.argv.slice(2) }) + "\\n", "utf8");
+process.exit(1);
+`;
+      const { result, calls } = runHarnessWithStub({
+        stubScript,
+        extraEnv: { GH_AW_CLAUDE_STARTUP_RETRIES: "0" },
+      });
+      expect(result.status).not.toBe(0);
+      expect(calls.length).toBe(1);
+      expect(result.stderr).toContain("startup retry budget exhausted: 0/0");
     });
 
     it("returns true for normal partial-execution retry", () => {
