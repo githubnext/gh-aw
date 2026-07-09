@@ -137,6 +137,17 @@ if (schema.properties && !schema.properties.timeout_minutes) {
   allPassed = false;
 }
 
+// Test 10: Verify that dispatch-repository nested fields are expanded (not just '{}')
+allPassed &= assertNotContains(output, "dispatch-repository:\n    {}", "dispatch-repository should NOT render as bare '{}'");
+
+allPassed &= assertContains(output, "trigger-ci:", "dispatch-repository should show annotated example key 'trigger-ci'");
+
+allPassed &= assertContains(output, "event_type:", "dispatch-repository example should include required 'event_type' field");
+
+allPassed &= assertContains(output, "workflow:", "dispatch-repository example should include required 'workflow' field");
+
+allPassed &= assertContains(output, "allowed_repositories:", "dispatch-repository example should include 'allowed_repositories' field");
+
 // Summary
 console.log("\n" + "=".repeat(50));
 if (allPassed) {

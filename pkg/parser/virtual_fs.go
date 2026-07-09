@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -34,7 +35,7 @@ func RegisterBuiltinVirtualFile(path string, content []byte) {
 		builtinVirtualFiles = make(map[string][]byte)
 	}
 	if existing, ok := builtinVirtualFiles[path]; ok {
-		if string(existing) != string(content) {
+		if !bytes.Equal(existing, content) {
 			panic(fmt.Sprintf("RegisterBuiltinVirtualFile: path %q already registered with different content", path))
 		}
 		return // idempotent: same content, no-op

@@ -84,7 +84,7 @@ describe("extra_empty_commit git integration", () => {
         }
         commandLog.push(args.join(" "));
         const gitSubcommand = args[0];
-        const allowedSubcommands = new Set(["log", "remote", "fetch", "reset", "commit", "push"]);
+        const allowedSubcommands = new Set(["log", "remote", "fetch", "reset", "commit", "push", "config"]);
         if (!allowedSubcommands.has(gitSubcommand)) {
           throw new Error(`unexpected git subcommand: ${gitSubcommand}`);
         }
@@ -97,7 +97,26 @@ describe("extra_empty_commit git integration", () => {
         }
         return 0;
       }),
+      getExecOutput: vi.fn().mockImplementation(async (cmd, args = [], _options = {}) => {
+        if (cmd !== "git") {
+          throw new Error(`unexpected command: ${cmd}`);
+        }
+        // Simulate no pre-existing extraheader (no checkout credentials persisted)
+        if (args[0] === "config" && args[1] === "--get-all") {
+          return { exitCode: 1, stdout: "", stderr: "" };
+        }
+        // Return the actual HEAD SHA for rev-parse (needed for GraphQL createCommitOnBranch)
+        if (args[0] === "rev-parse" && args[1] === "HEAD") {
+          const result = execGit(["rev-parse", "HEAD"], repoDir);
+          return { exitCode: 0, stdout: result.stdout, stderr: "" };
+        }
+        throw new Error(`unexpected getExecOutput call: git ${args.join(" ")}`);
+      }),
     };
+    // GraphQL unavailable in integration test: fall back to git commit + push
+    global.getOctokit = vi.fn(() => ({
+      graphql: vi.fn().mockRejectedValue(new Error("GraphQL unavailable in integration test")),
+    }));
 
     delete require.cache[require.resolve("./extra_empty_commit.cjs")];
   });
@@ -124,6 +143,7 @@ describe("extra_empty_commit git integration", () => {
     }
     delete global.core;
     delete global.exec;
+    delete global.getOctokit;
     vi.clearAllMocks();
   });
 
