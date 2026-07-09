@@ -50,7 +50,7 @@ func getUploadAssetsCodemod() Codemod {
 					}
 
 					// Check if we've left the safe-outputs block
-					if inSafeOutputsBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+					if inSafeOutputsBlock && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
 						if hasExitedBlock(line, safeOutputsIndent) {
 							inSafeOutputsBlock = false
 						}

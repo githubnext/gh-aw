@@ -128,7 +128,7 @@ func addIntegrityProxyFalseToToolsGitHub(lines []string) []string {
 		}
 
 		// Check if we've left the tools block
-		if inTools && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") {
+		if inTools && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
 			if hasExitedBlock(line, toolsIndent) {
 				inTools = false
 				inGitHub = false
@@ -144,7 +144,7 @@ func addIntegrityProxyFalseToToolsGitHub(lines []string) []string {
 		}
 
 		// Inside github block: inject integrity-proxy: false before the first sub-field
-		if inGitHub && !fieldInserted && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") {
+		if inGitHub && !fieldInserted && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
 			if hasExitedBlock(line, githubIndent) {
 				// Exited github block without seeing any sub-fields; use default indentation
 				fieldIndent := githubIndent + "  "

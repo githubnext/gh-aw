@@ -89,10 +89,10 @@ func TestActionResolverFailedResolutionCache(t *testing.T) {
 
 	// Verify the failed resolution was tracked
 	cacheKey := formatActionCacheKey(repo, version)
-	if !resolver.failedResolutions[cacheKey] {
+	if _, ok := resolver.failedResolutions[cacheKey]; !ok {
 		t.Errorf("Expected failed resolution to be tracked for %s", cacheKey)
 	}
-	if !resolver.GetUsedCacheKeys()[cacheKey] {
+	if _, ok := resolver.GetUsedCacheKeys()[cacheKey]; !ok {
 		t.Errorf("Expected used cache keys to track attempted resolution for %s", cacheKey)
 	}
 
@@ -107,7 +107,7 @@ func TestActionResolverFailedResolutionCache(t *testing.T) {
 	if !strings.Contains(err2.Error(), expectedErrMsg) {
 		t.Errorf("Expected error message to contain %q, got: %v", expectedErrMsg, err2)
 	}
-	if !resolver.GetUsedCacheKeys()[cacheKey] {
+	if _, ok := resolver.GetUsedCacheKeys()[cacheKey]; !ok {
 		t.Errorf("Expected used cache keys to retain attempted resolution key %s", cacheKey)
 	}
 }
@@ -276,10 +276,10 @@ func TestActionResolverUsedCacheKeysOnCacheHit(t *testing.T) {
 	}
 
 	usedKeys := resolver.GetUsedCacheKeys()
-	if !usedKeys["owner/action-a@v1"] {
+	if _, ok := usedKeys["owner/action-a@v1"]; !ok {
 		t.Error("Expected owner/action-a@v1 to be in used cache keys after a cache hit")
 	}
-	if usedKeys["owner/action-b@v2"] {
+	if _, ok := usedKeys["owner/action-b@v2"]; ok {
 		t.Error("Expected owner/action-b@v2 to be absent from used cache keys (never resolved)")
 	}
 }
@@ -297,7 +297,7 @@ func TestActionResolverGetUsedCacheKeysReturnsCopy(t *testing.T) {
 	usedKeys := resolver.GetUsedCacheKeys()
 	delete(usedKeys, "owner/action-a@v1")
 
-	if !resolver.GetUsedCacheKeys()["owner/action-a@v1"] {
+	if _, ok := resolver.GetUsedCacheKeys()["owner/action-a@v1"]; !ok {
 		t.Error("Expected resolver used cache keys to be immutable via returned map")
 	}
 }
