@@ -58,8 +58,7 @@
 name: "Team Status"
 on:
   schedule:
-    - cron: "24 11 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "24 11 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

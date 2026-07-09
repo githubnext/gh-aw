@@ -66,8 +66,7 @@
 name: "DataFlow PR & Discussion Dataset Builder"
 on:
   schedule:
-    - cron: "39 2 * * 5"
-      # Friendly format: weekly (scattered)
+    - cron: "39 2 * * 5"  # Friendly format: weekly (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

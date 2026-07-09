@@ -67,8 +67,7 @@
 name: "Package Specification Extractor"
 on:
   schedule:
-    - cron: "24 9 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "24 9 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

@@ -51,8 +51,7 @@
 name: "Daily BYOK Ollama Test"
 on:
   schedule:
-    - cron: "19 22 * * 1-5"
-      # Friendly format: daily on weekdays (scattered)
+    - cron: "19 22 * * 1-5"  # Friendly format: daily on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

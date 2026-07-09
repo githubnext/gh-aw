@@ -62,8 +62,7 @@
 name: "Super Linter Report"
 on:
   schedule:
-    - cron: "54 13 * * 1-5"
-      # Friendly format: daily around 14:00 on weekdays (scattered)
+    - cron: "54 13 * * 1-5"  # Friendly format: daily around 14:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

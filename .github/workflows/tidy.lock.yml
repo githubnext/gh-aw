@@ -64,14 +64,14 @@ name: "Tidy"
 on:
   push:
     branches:
-    - main
+      - main
     paths:
-    - "**/*.go"
-    - "**/*.js"
-    - "**/*.cjs"
-    - "**/*.ts"
+      - "**/*.go"
+      - "**/*.js"
+      - "**/*.cjs"
+      - "**/*.ts"
   schedule:
-  - cron: "34 6 * * *"
+    - cron: "34 6 * * *"
   workflow_dispatch:
     inputs:
       aw_context:

@@ -62,8 +62,7 @@
 name: "LintMonster"
 on:
   schedule:
-    - cron: "26 2 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "26 2 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

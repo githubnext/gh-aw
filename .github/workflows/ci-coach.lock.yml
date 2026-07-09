@@ -67,8 +67,7 @@
 name: "CI Optimization Coach"
 on:
   schedule:
-    - cron: "7 13 * * 1-5"
-      # Friendly format: daily around 13:00 on weekdays (scattered)
+    - cron: "7 13 * * 1-5"  # Friendly format: daily around 13:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

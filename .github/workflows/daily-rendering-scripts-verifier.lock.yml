@@ -73,8 +73,7 @@
 name: "Daily Rendering Scripts Verifier"
 on:
   schedule:
-    - cron: "36 7 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "36 7 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

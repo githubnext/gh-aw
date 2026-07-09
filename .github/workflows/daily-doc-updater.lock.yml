@@ -63,8 +63,7 @@
 name: "Daily Documentation Updater"
 on:
   schedule:
-    - cron: "33 10 * * *"
-      # Friendly format: daily around 10:00 (scattered)
+    - cron: "33 10 * * *"  # Friendly format: daily around 10:00 (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

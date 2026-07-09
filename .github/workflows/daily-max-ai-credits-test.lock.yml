@@ -49,8 +49,7 @@
 name: "Daily Max Ai Credits Test"
 on:
   schedule:
-    - cron: "9 11 * * *"
-      # Friendly format: daily around 10:30 (scattered)
+    - cron: "9 11 * * *"  # Friendly format: daily around 10:30 (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

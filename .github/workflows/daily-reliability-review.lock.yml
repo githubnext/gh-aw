@@ -67,8 +67,7 @@
 name: "Daily Reliability Review"
 on:
   schedule:
-    - cron: "50 22 * * 1-5"
-      # Friendly format: daily on weekdays (scattered)
+    - cron: "50 22 * * 1-5"  # Friendly format: daily on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

@@ -59,8 +59,7 @@
 name: "Bot Detection"
 on:
   schedule:
-    - cron: "25 */6 * * *"
-      # Friendly format: every 6h (scattered)
+    - cron: "25 */6 * * *"  # Friendly format: every 6h (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

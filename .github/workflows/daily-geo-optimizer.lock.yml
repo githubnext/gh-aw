@@ -65,8 +65,7 @@
 name: "GEO Optimizer Daily Audit"
 on:
   schedule:
-    - cron: "20 16 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "20 16 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

@@ -68,8 +68,7 @@
 name: "Weekly Issue Summary"
 on:
   schedule:
-    - cron: "50 14 * * 1"
-      # Friendly format: weekly on monday around 15:00 (scattered)
+    - cron: "50 14 * * 1"  # Friendly format: weekly on monday around 15:00 (scattered)
   workflow_dispatch:
     inputs:
       aw_context:
@@ -420,8 +419,8 @@ jobs:
     if: needs.activation.outputs.daily_ai_credits_exceeded != 'true'
     runs-on: ubuntu-latest
     permissions:
-          contents: read
-          issues: read
+      contents: read
+      issues: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
       queue: max

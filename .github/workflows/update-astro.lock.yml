@@ -61,8 +61,7 @@
 name: "Update Astro"
 on:
   schedule:
-    - cron: "51 2 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "51 2 * * *"  # Friendly format: daily (scattered)
   # skip-if-no-match: is:pr is:open author:app/dependabot label:dependencies # Skip-if-no-match processed as search check in pre-activation job
   workflow_dispatch:
     inputs:

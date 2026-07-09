@@ -63,8 +63,7 @@
 name: "Package Specification Enforcer"
 on:
   schedule:
-    - cron: "23 11 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "23 11 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

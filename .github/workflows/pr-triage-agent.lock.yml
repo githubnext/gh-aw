@@ -65,8 +65,7 @@
 name: "PR Triage Agent"
 on:
   schedule:
-    - cron: "7 */6 * * *"
-      # Friendly format: every 6h (scattered)
+    - cron: "7 */6 * * *"  # Friendly format: every 6h (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

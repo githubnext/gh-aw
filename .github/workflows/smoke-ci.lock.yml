@@ -74,8 +74,7 @@ on:
       - go.mod
       - actions/setup/js/**
   schedule:
-    - cron: "52 7 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "52 7 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

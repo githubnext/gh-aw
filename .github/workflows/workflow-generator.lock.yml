@@ -65,7 +65,7 @@ on:
   issues:
     # lock-for-agent: true # Lock-for-agent processed as issue locking in activation job
     types:
-    - opened
+      - opened
 
 permissions: {}
 

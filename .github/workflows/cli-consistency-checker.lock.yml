@@ -59,8 +59,7 @@
 name: "CLI Consistency Checker"
 on:
   schedule:
-    - cron: "5 13 * * 1-5"
-      # Friendly format: daily around 13:00 on weekdays (scattered)
+    - cron: "5 13 * * 1-5"  # Friendly format: daily around 13:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

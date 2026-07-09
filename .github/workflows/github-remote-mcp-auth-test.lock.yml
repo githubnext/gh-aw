@@ -61,8 +61,7 @@
 name: "GitHub Remote MCP Authentication Test"
 on:
   schedule:
-    - cron: "21 5 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "21 5 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

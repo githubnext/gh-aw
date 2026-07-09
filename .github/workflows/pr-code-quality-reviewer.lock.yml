@@ -65,7 +65,7 @@ name: "PR Code Quality Reviewer"
 on:
   pull_request:
     types:
-    - ready_for_review
+      - ready_for_review
   workflow_dispatch:
     inputs:
       aw_context:

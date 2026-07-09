@@ -63,8 +63,7 @@
 name: "Daily Copilot PR Merged Report"
 on:
   schedule:
-    - cron: "5 15 * * 1-5"
-      # Friendly format: daily around 15:00 on weekdays (scattered)
+    - cron: "5 15 * * 1-5"  # Friendly format: daily around 15:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

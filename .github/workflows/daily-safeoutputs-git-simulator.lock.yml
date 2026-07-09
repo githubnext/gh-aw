@@ -55,8 +55,7 @@
 name: "Daily Safe Outputs Git Simulator"
 on:
   schedule:
-    - cron: "19 4 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "19 4 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

@@ -51,8 +51,7 @@
 name: "Daily Credit Limit Test"
 on:
   schedule:
-    - cron: "50 */12 * * *"
-      # Friendly format: every 12 hours (scattered)
+    - cron: "50 */12 * * *"  # Friendly format: every 12 hours (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

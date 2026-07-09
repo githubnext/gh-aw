@@ -64,8 +64,7 @@
 name: "Go Pattern Detector"
 on:
   schedule:
-    - cron: "29 14 * * 1-5"
-      # Friendly format: daily around 14:00 on weekdays (scattered)
+    - cron: "29 14 * * 1-5"  # Friendly format: daily around 14:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

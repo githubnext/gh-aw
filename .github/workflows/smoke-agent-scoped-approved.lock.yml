@@ -63,9 +63,9 @@ name: "Smoke Agent: scoped/approved"
 on:
   pull_request:
     # names: # Label filtering applied via job conditions
-    # - metal # Label filtering applied via job conditions
+      # - metal # Label filtering applied via job conditions
     types:
-    - labeled
+      - labeled
   workflow_dispatch:
     inputs:
       aw_context:

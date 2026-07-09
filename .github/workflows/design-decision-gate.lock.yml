@@ -66,10 +66,10 @@ name: "Design Decision Gate 🏗️"
 on:
   pull_request:
     # names: # Label filtering applied via job conditions
-    # - implementation # Label filtering applied via job conditions
+      # - implementation # Label filtering applied via job conditions
     types:
-    - labeled
-    - ready_for_review
+      - labeled
+      - ready_for_review
   workflow_dispatch:
     inputs:
       aw_context:

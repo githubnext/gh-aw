@@ -54,8 +54,7 @@
 name: "ESLint Miner"
 on:
   schedule:
-    - cron: "38 8 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "38 8 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

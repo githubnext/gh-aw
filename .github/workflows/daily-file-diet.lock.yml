@@ -69,8 +69,7 @@
 name: "Daily File Diet"
 on:
   schedule:
-    - cron: "34 12 * * 1-5"
-      # Friendly format: daily around 13:00 on weekdays (scattered)
+    - cron: "34 12 * * 1-5"  # Friendly format: daily around 13:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

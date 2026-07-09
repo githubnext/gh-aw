@@ -53,8 +53,7 @@
 name: "Designer Drift Audit"
 on:
   schedule:
-    - cron: "38 3 * * 1-5"
-      # Friendly format: daily on weekdays (scattered)
+    - cron: "38 3 * * 1-5"  # Friendly format: daily on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

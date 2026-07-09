@@ -61,8 +61,7 @@
 name: "Daily AWF Spec Compiler Surfacing Review"
 on:
   schedule:
-    - cron: "11 22 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "11 22 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

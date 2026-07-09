@@ -63,8 +63,7 @@
 name: "Dictation Prompt Generator"
 on:
   schedule:
-    - cron: "25 5 * * 0"
-      # Friendly format: weekly on sunday around 6:00 (scattered)
+    - cron: "25 5 * * 0"  # Friendly format: weekly on sunday around 6:00 (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

@@ -66,8 +66,7 @@
 name: "Ubuntu Actions Image Analyzer"
 on:
   schedule:
-    - cron: "26 3 * * 4"
-      # Friendly format: weekly (scattered)
+    - cron: "26 3 * * 4"  # Friendly format: weekly (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

@@ -69,8 +69,7 @@
 name: "Go Fan"
 on:
   schedule:
-    - cron: "53 7 * * 1-5"
-      # Friendly format: daily around 7:00 on weekdays (scattered)
+    - cron: "53 7 * * 1-5"  # Friendly format: daily around 7:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

@@ -71,8 +71,7 @@
 name: "Daily Safe Output Tool Optimizer"
 on:
   schedule:
-    - cron: "50 20 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "50 20 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

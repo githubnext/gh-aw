@@ -73,8 +73,7 @@
 name: "Daily News"
 on:
   schedule:
-    - cron: "34 8 * * 1-5"
-      # Friendly format: daily around 9:00 on weekdays (scattered)
+    - cron: "34 8 * * 1-5"  # Friendly format: daily around 9:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

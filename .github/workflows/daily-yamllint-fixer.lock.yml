@@ -63,8 +63,7 @@
 name: "Daily yamllint Fixer"
 on:
   schedule:
-    - cron: "36 2 * * 1-5"
-      # Friendly format: daily on weekdays (scattered)
+    - cron: "36 2 * * 1-5"  # Friendly format: daily on weekdays (scattered)
   # skip-if-match: is:pr is:open label:yamllint-fixer in:title "[yamllint-fixer]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
     inputs:
