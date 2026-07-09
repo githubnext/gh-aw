@@ -147,7 +147,7 @@ func (e *BehaviorDefinedEngine) GetSecretValidationStep(workflowData *WorkflowDa
 			behavior.Installation.DocumentationURL,
 		)
 	}
-	secrets := e.GetRequiredSecretNames(&WorkflowData{})
+	secrets := e.GetRequiredSecretNames(workflowData)
 	if len(secrets) == 0 {
 		return GitHubActionStep{}
 	}
@@ -271,6 +271,12 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 	if exec.MCPConfigEnvVar != "" && HasMCPServers(workflowData) {
 		if behavior.ConfigFile != nil {
 			env[exec.MCPConfigEnvVar] = "${{ github.workspace }}/" + behavior.ConfigFile.Path
+		} else {
+			mcpPath := constants.McpServersJsonPathExpr
+			if behavior.MCP != nil && behavior.MCP.ConfigPath != "" {
+				mcpPath = behavior.MCP.ConfigPath
+			}
+			env[exec.MCPConfigEnvVar] = mcpPath
 		}
 	}
 
@@ -342,7 +348,7 @@ func (e *BehaviorDefinedEngine) buildFirewallCommand(exec *EngineExecutionDefini
 		WorkflowData:       workflowData,
 		UsesTTY:            false,
 		AllowedDomains:     allowedDomains,
-		ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, e.GetRequiredSecretNames(&WorkflowData{})),
+		ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, e.GetRequiredSecretNames(workflowData)),
 	})
 }
 
@@ -361,7 +367,7 @@ func (e *BehaviorDefinedEngine) buildConfigFileStep() GitHubActionStep {
 	}
 	config := behavior.ConfigFile
 	command := fmt.Sprintf(`umask 077
-mkdir -p "$GITHUB_WORKSPACE"
+mkdir -p "$(dirname "$GITHUB_WORKSPACE/%s")"
 CONFIG="$GITHUB_WORKSPACE/%s"
 BASE_CONFIG='%s'
 if [ -f "$CONFIG" ]; then
@@ -370,7 +376,7 @@ if [ -f "$CONFIG" ]; then
 else
   echo "$BASE_CONFIG" > "$CONFIG"
 fi
-chmod 600 "$CONFIG"`, config.Path, config.Content)
+chmod 600 "$CONFIG"`, config.Path, config.Path, config.Content)
 	if config.MergeStrategy != behaviorConfigMergeJSON {
 		command = fmt.Sprintf(`umask 077
 mkdir -p "$(dirname "$GITHUB_WORKSPACE/%s")"
