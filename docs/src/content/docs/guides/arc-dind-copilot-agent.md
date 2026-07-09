@@ -55,19 +55,12 @@ helm install "arc-runner-set" \
   --set-json 'template.spec.containers=[{
     "name": "runner",
     "image": "ghcr.io/actions/actions-runner:latest",
-    "command": ["/home/runner/run.sh"],
-    "securityContext": {
-      "capabilities": {
-        "add": ["NET_ADMIN"]
-      }
-    }
+    "command": ["/home/runner/run.sh"]
   }]' \
   oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
 ```
 
-`NET_ADMIN` is required on the **runner container** so AWF can apply host-level `iptables` rules to the `DOCKER-USER` chain for egress filtering.
-
-When `containerMode.type="dind"` is enabled, ARC configures the DinD sidecar in privileged mode by default so the Docker daemon can run. If you use a custom pod template, ensure you do not remove that privileged setting.
+When `containerMode.type="dind"` is enabled, ARC configures the DinD sidecar in privileged mode by default so the Docker daemon can run. The runner container does not require `privileged: true` or `NET_ADMIN`. If you use a custom pod template, ensure you do not remove the privileged setting on the DinD sidecar.
 
 ## 4. Verify the runner is online
 
@@ -104,6 +97,7 @@ When compiled workflows detect a `tcp://` value in `DOCKER_HOST` (set automatica
 - **Workspace mount** — the checked-out repository at `GITHUB_WORKSPACE` is explicitly mounted into the agent container. Both runner and daemon can see it because ARC DinD shares the `/home/runner/_work/` volume.
 - **Chroot identity** — the runner's UID/GID and home directory are patched into the AWF config so the agent runs with the correct identity inside the chroot.
 - **Artifact consolidation** — agent output files are consolidated under `${{ runner.temp }}/gh-aw/` before upload so downstream jobs (detection, safe-outputs) can find them.
+- **Network isolation** — AWF enforces egress via Docker network topology: an internal Docker network (`awf-net`) with no internet route and a dual-homed Squid proxy as the sole egress path. The runner container issues Docker API commands to the DinD sidecar daemon; the daemon creates the networks and manages all traffic enforcement. No host `iptables` rules are applied from the runner container.
 
 ## 7. Required versions
 
@@ -119,9 +113,9 @@ Use versions at or above these minimums:
 | Item | Required? | Notes |
 | --- | --- | --- |
 | DinD container mode | **Yes** | GitHub Copilot coding agent needs a Docker daemon in the runner pod. |
-| `NET_ADMIN` capability | **Yes** | Required on the runner container so AWF can manage host-level `DOCKER-USER` `iptables` rules. |
+| `NET_ADMIN` capability | **No** | Not required. AWF enforces egress via Docker network topology (network isolation mode), not host `iptables`. The DinD sidecar daemon manages all network enforcement internally. |
 | `ghcr.io/actions/actions-runner:latest` | Recommended | Use the official runner image, or a compatible custom image with equivalent runner requirements. |
-| Runner user | **Yes** | Non-root runner users are supported, but `sudo` must remain available on the runner host for AWF setup operations. |
+| Runner user | **Yes** | Non-root runner users are supported. `sudo` must remain available on the runner container for the Copilot CLI install script (binary installation and file ownership operations). |
 | DinD sidecar privilege | **Yes** | ARC DinD mode configures a privileged sidecar for Docker daemon operation. |
 | Shared work volume (`/home/runner/_work`) | **Yes** | Runner and Docker daemon share this volume in ARC DinD mode, so workspace mounts work without host path translation. |
 | Specific Kubernetes distribution | **No** | Any conformant cluster works (for example minikube, EKS, AKS, or GKE). |
