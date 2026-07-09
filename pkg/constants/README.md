@@ -544,6 +544,7 @@ dir := constants.GetWorkflowDir() // ".github/workflows"
 - Version constants are intentionally plain string literals (not derived from build tags or embedded files) so that individual upgrades can be made as targeted one-line changes.
 - `GetWorkflowDir()` reads `GH_AW_WORKFLOWS_DIR` from the environment at call time, allowing the directory to be overridden in tests and CI.
 - `AgenticEngines` is deprecated in favour of `workflow.NewEngineCatalog(workflow.NewEngineRegistry()).IDs()` but is kept for backward compatibility.
+- Default GitHub tool lists are split into local and remote variants; `DefaultGitHubTools` remains as a deprecated compatibility alias for callers that have not yet switched to the explicit local/remote names.
 
 ---
 

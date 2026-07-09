@@ -92,6 +92,8 @@ reference, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
 // reference resolves against acme-corp/checkout@v4 pins
 ```
 
+Because `PinContext.Warnings` is used for one-time mapping diagnostics, callers that reuse a `PinContext` SHOULD initialize it with a non-nil map when they want warning deduplication.
+
 ### Container Pins
 
 `ContainerPin` provides a pinned image reference for container images:
