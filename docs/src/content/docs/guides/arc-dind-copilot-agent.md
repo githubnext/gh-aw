@@ -24,12 +24,25 @@ helm install arc \
 
 ## 2. Create the runner namespace and auth secret
 
+Create the namespace and a Kubernetes secret with your runner registration credentials. You can use either a GitHub PAT or GitHub App credentials:
+
 ```bash
 kubectl create ns arc-runners
+
+# Option A: Personal access token
 kubectl create secret generic arc-runner-secret \
   --namespace=arc-runners \
   --from-literal=github_token=<YOUR_PAT>
+
+# Option B: GitHub App (recommended for production)
+kubectl create secret generic arc-runner-secret \
+  --namespace=arc-runners \
+  --from-literal=github_app_id=<APP_ID> \
+  --from-literal=github_app_installation_id=<INSTALL_ID> \
+  --from-literal=github_app_private_key=<PRIVATE_KEY>
 ```
+
+See [Authenticating to the GitHub API](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners-with-actions-runner-controller/authenticating-to-the-github-api) for details on each option.
 
 ## 3. Install a runner scale set in DinD mode
 
@@ -70,15 +83,10 @@ on: issues
 runs-on: arc-runner-set
 runner:
   topology: arc-dind
-sandbox:
-  agent:
-    sudo: false
 ---
 ```
 
-`runner.topology: arc-dind` is required so compiled workflows enable ARC DinD split-filesystem handling (a shared runner/daemon workspace root, Docker-daemon-visible mount paths, and ARC-specific sandbox setup).
-
-`sandbox.agent.sudo: false` disables `sudo` inside the sandboxed agent container where user prompts run. The runner host container (outside the sandbox) still needs `sudo` capability for AWF host-level setup steps.
+`runner.topology: arc-dind` is required so compiled workflows enable ARC DinD split-filesystem handling (a shared runner/daemon workspace root, Docker-daemon-visible mount paths, and ARC-specific sandbox setup). No other sandbox or network settings are needed — the defaults handle everything else.
 
 ## 6. Required versions
 
