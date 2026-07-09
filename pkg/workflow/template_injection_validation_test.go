@@ -1556,6 +1556,30 @@ func TestDetectHeredocDelimiter(t *testing.T) {
 			wantDelim: "",
 			wantOK:    false,
 		},
+		{
+			name:      "bash here-string is not a heredoc",
+			line:      `cat <<< "hello world"`,
+			wantDelim: "",
+			wantOK:    false,
+		},
+		{
+			name:      "arithmetic bitshift is not a heredoc",
+			line:      `echo $((1 << 2))`,
+			wantDelim: "",
+			wantOK:    false,
+		},
+		{
+			name:      "arithmetic bitshift no spaces is not a heredoc",
+			line:      `result=$((flags<<4))`,
+			wantDelim: "",
+			wantOK:    false,
+		},
+		{
+			name:      "delimiter starting with dash is not a heredoc",
+			line:      `cat << -EOF`,
+			wantDelim: "",
+			wantOK:    false,
+		},
 	}
 
 	for _, tt := range tests {

@@ -96,16 +96,24 @@ func findRunValue(keyPart string) (string, bool) {
 //   - Single-quoted:  cat << 'DELIM' ...  → "DELIM"
 //   - Double-quoted:  cat << "DELIM" ...  → "DELIM"
 //
-// Returns ("", false) when no heredoc opening is found on the line.
+// Returns ("", false) when no heredoc opening is found on the line, including
+// for bash here-strings (<<<) and arithmetic bitshifts (1 << 2).
 func detectHeredocDelimiter(trimmed string) (string, bool) {
 	_, after, found := strings.Cut(trimmed, "<<")
 	if !found {
 		return "", false
 	}
+	// Reject bash here-strings (<<<): the character immediately after << is another <.
+	if len(after) > 0 && after[0] == '<' {
+		return "", false
+	}
+	// Handle <<- (strip-tab variant): the dash must immediately follow << with no
+	// intervening whitespace. Strip exactly one dash; <<-- and similar are not valid
+	// shell and are treated conservatively as non-heredoc.
+	if len(after) > 0 && after[0] == '-' {
+		after = after[1:]
+	}
 	rest := strings.TrimSpace(after)
-	// Handle <<- (strip-tab variant).
-	rest = strings.TrimLeft(rest, "-")
-	rest = strings.TrimSpace(rest)
 	if rest == "" {
 		return "", false
 	}
@@ -122,15 +130,41 @@ func detectHeredocDelimiter(trimmed string) (string, bool) {
 		return "", false
 	}
 	// Unquoted delimiter: take the first whitespace-delimited token.
+	// Require the delimiter to be a valid shell identifier (letters, digits,
+	// underscores; must start with a letter or underscore) to avoid treating
+	// arithmetic bitshifts (e.g. "1 << 2") as heredoc openings.
 	fields := strings.Fields(rest)
 	if len(fields) == 0 {
 		return "", false
 	}
 	delim := strings.TrimRight(fields[0], "|;&")
-	if delim == "" {
+	if !isShellIdentifier(delim) {
 		return "", false
 	}
 	return delim, true
+}
+
+// isShellIdentifier reports whether s is a valid shell identifier (letters,
+// digits, and underscores; must not start with a digit). Heredoc delimiters
+// must match this pattern; non-matching tokens indicate non-heredoc uses of <<
+// such as arithmetic bitshifts.
+func isShellIdentifier(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i, c := range s {
+		switch {
+		case c >= 'A' && c <= 'Z', c >= 'a' && c <= 'z', c == '_':
+			// always valid
+		case c >= '0' && c <= '9':
+			if i == 0 {
+				return false // identifiers must not start with a digit
+			}
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // walkRunBlockLines scans raw YAML text and visits each inline run value or line inside a
