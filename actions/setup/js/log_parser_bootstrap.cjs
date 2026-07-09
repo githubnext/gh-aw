@@ -7,11 +7,10 @@ const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/i;
 const CLAUDE_RATE_LIMIT_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit/i;
 const CLAUDE_OVERLOAD_PATTERN = /overloaded_error|"overloaded"/i;
-// Treat only clearly HTTP-scoped 5xx strings as transient inference availability:
-//  - protocol/status lines such as "HTTP/1.1 503"
-//  - structured status-code fields such as "status code: 502"
-//  - request/fetch/http error prose that includes a 5xx code
-const CLAUDE_HTTP_5XX_STATUS_PATTERN = /(?:HTTP(?:\/\d\.\d)?\s+5\d{2}\b|status(?:\s+code)?\s*[:=]\s*5\d{2}\b|(?:http|fetch|request)\s+(?:failed|error)[^\n]*?\b5\d{2}\b)/i;
+const CLAUDE_HTTP_5XX_PROTOCOL_PATTERN = /HTTP(?:\/\d\.\d)?\s+5\d{2}\b/;
+const CLAUDE_HTTP_5XX_STATUS_FIELD_PATTERN = /status(?:\s+code)?\s*[:=]\s*5\d{2}\b/;
+const CLAUDE_HTTP_5XX_REQUEST_ERROR_PATTERN = /(?:http|fetch|request)\s+(?:failed|error)[^\n]*?\b5\d{2}\b/;
+const CLAUDE_HTTP_5XX_STATUS_PATTERN = new RegExp([CLAUDE_HTTP_5XX_PROTOCOL_PATTERN.source, CLAUDE_HTTP_5XX_STATUS_FIELD_PATTERN.source, CLAUDE_HTTP_5XX_REQUEST_ERROR_PATTERN.source].join("|"), "i");
 const STARTUP_DIAGNOSTIC_LINE_PATTERN = /(?:ERR_|Error:|CAPIError|Authentication failed|rate[_ -]?limit|429|\b5\d{2}\b|overloaded|inference)/i;
 const MAX_DIAGNOSTIC_TAIL_LINES = 8;
 
@@ -34,6 +33,9 @@ function buildClaudeStartupDiagnostics(rawContent) {
     .map(line => line.trim())
     .filter(Boolean);
   const startupLines = lines.filter(line => line.includes("[claude-harness]") || STARTUP_DIAGNOSTIC_LINE_PATTERN.test(line));
+  // Intentionally avoid falling back to arbitrary raw log lines here. For empty-structured-log
+  // failures, the unmatched tail can contain unrelated stdout/stderr, prompts, or secrets; when
+  // no startup/diagnostic lines are recognized, we emit no tail section rather than risk leaking it.
   const tailLines = startupLines.slice(-MAX_DIAGNOSTIC_TAIL_LINES);
   const tailText = tailLines.join("\n");
   const safeTailText = escapeHtml(tailText);

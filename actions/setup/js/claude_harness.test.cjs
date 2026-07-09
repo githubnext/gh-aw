@@ -478,8 +478,9 @@ process.exit(1);
         stubScript,
         extraEnv: { GH_AW_CLAUDE_STARTUP_RETRIES: "0" },
       });
-      expect(result.status).not.toBe(0);
+      expect(result.status).toBe(1);
       expect(calls.length).toBe(1);
+      expect(calls[0].args).toContain("fix the bug");
       expect(result.stderr).toContain("startup retry budget exhausted: 0/0");
     });
 
