@@ -21,11 +21,11 @@ For these reasons, a non-sudo mode is not supported, including ARC configuration
 
 For a complete ARC DinD setup walkthrough for GitHub Copilot coding agent, see [How to run GitHub Copilot coding agent on ARC with Docker-in-Docker](/gh-aw/guides/arc-dind-copilot-agent/).
 
-Actions Runner Controller (ARC) deployments that use a Docker-in-Docker sidecar split the runner container and the Docker daemon container across separate filesystems, so bind mounts constructed from the runner's perspective fail inside the daemon.
+Actions Runner Controller (ARC) deployments that use a Docker-in-Docker sidecar split the runner container and the Docker daemon container across separate filesystems.
 
-`gh aw compile` emits a runtime probe in generated workflows that inspects `DOCKER_HOST` and appends `--docker-host-path-prefix /tmp/gh-aw` to the AWF invocation when the value matches `tcp://localhost:<port>` or `tcp://127.0.0.1:<port>`. No workflow-level configuration is required.
+Set `runner.topology: arc-dind` in workflow frontmatter for this environment. Compiled workflows then emit a runtime probe that inspects `DOCKER_HOST`; any `tcp://` endpoint (for example `tcp://localhost:2375`, `tcp://dind:2375`, or `tcp://172.30.0.5:2375`) is treated as ARC DinD.
 
-The probe is gated on AWF `v0.25.43` or newer. Workflows pinned to an older AWF version, or running on GitHub-hosted runners (where `DOCKER_HOST` is unset or points at a Unix socket), are unaffected.
+With ARC DinD handling enabled, AWF receives `--docker-host`, shared-work sysroot staging is applied, and chroot config patching is enabled. The runtime no longer uses `--docker-host-path-prefix`.
 
 ## runs-on formats
 
@@ -173,7 +173,7 @@ A working Docker daemon is required. The MCP gateway and sandbox run as containe
 
 ### Filesystem
 
-- **Use `RUNNER_TEMP` for transient state.** Put sandbox state, tool downloads, and intermediate outputs in `$RUNNER_TEMP`, which is cleaned between jobs. On shared runners, avoid writing arbitrary workflow data to `/tmp` because it can persist across jobs. The `/tmp/gh-aw` prefix is reserved for gh-aw/AWF ARC DinD path rewriting. `actions/setup` resets `/tmp/gh-aw` at job start, and your normal runner `/tmp` cleanup policy should handle stale data from interrupted jobs.
+- **Use `RUNNER_TEMP` for transient state.** Put sandbox state, tool downloads, and intermediate outputs in `$RUNNER_TEMP`, which is cleaned between jobs. On shared runners, avoid writing arbitrary workflow data to `/tmp` because it can persist across jobs. `actions/setup` resets `/tmp/gh-aw` at job start, and your normal runner `/tmp` cleanup policy should handle stale data from interrupted jobs.
 - **No root or sudo assumption.** The runner user may not have root or `sudo` access (except for the initial iptables setup, which requires `sudo`). Tool installs, file operations, and sandbox setup should work as the unprivileged runner user.
 - **No global installs.** Do not install packages to `/usr/local/`, `/opt/hostedtoolcache/`, or other system-wide paths. These may be read-only, shared across runners, or bind-mounted read-only inside the sandbox. Use job-scoped writable locations instead.
 - **No hardcoded `HOME` paths.** The runner's home directory may not be `/home/runner`. Use `$HOME` or `$RUNNER_TEMP` instead of hardcoded paths.

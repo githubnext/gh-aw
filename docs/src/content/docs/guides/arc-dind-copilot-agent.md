@@ -52,7 +52,9 @@ helm install "arc-runner-set" \
   oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
 ```
 
-`NET_ADMIN` is required so the runner can support sandbox network behavior in DinD mode.
+`NET_ADMIN` is required on the **runner container** so AWF can apply host-level `iptables` rules to the `DOCKER-USER` chain for egress filtering.
+
+When `containerMode.type="dind"` is enabled, ARC configures the DinD sidecar in privileged mode by default so the Docker daemon can run. If you use a custom pod template, ensure you do not remove that privileged setting.
 
 ## 4. Verify the runner is online
 
@@ -60,25 +62,46 @@ Open `https://github.com/<OWNER>/<REPO>/settings/actions/runners` (or the organi
 
 ## 5. Target the runner set from a workflow
 
-Set your workflow frontmatter to use the runner scale set label:
+Set your workflow frontmatter to use the runner scale set label and ARC DinD topology:
 
 ```aw
 ---
 on: issues
 runs-on: arc-runner-set
+runner:
+  topology: arc-dind
+sandbox:
+  agent:
+    sudo: false
 ---
 ```
+
+`runner.topology: arc-dind` is required so compiled workflows enable ARC DinD split-filesystem handling (shared sysroot/workspace setup, daemon-visible paths, and ARC-specific sandbox wiring).
+
+## 5.1 Required versions
+
+Use versions at or above these minimums:
+
+| Component | Minimum version | Why |
+| --- | --- | --- |
+| `gh-aw` | `v0.82.5` | Includes ARC DinD workspace and detection fixes. |
+| AWF (`agentic-workflow-firewall`) | `v0.27.22` | Includes DinD squid log permission fixes. |
 
 ## Required and optional configuration
 
 | Item | Required? | Notes |
 | --- | --- | --- |
 | DinD container mode | **Yes** | GitHub Copilot coding agent needs a Docker daemon in the runner pod. |
-| `NET_ADMIN` capability | **Yes** | Required for network operations in the DinD topology. |
+| `NET_ADMIN` capability | **Yes** | Required on the runner container so AWF can manage host-level `DOCKER-USER` `iptables` rules. |
 | `ghcr.io/actions/actions-runner:latest` | Recommended | Use the official runner image, or a compatible custom image with equivalent runner requirements. |
-| Rootless execution | Assumed | The official runner image default is rootless. |
+| Runner user | **Yes** | Non-root runner users are supported, but `sudo` must be available for AWF setup operations. |
+| DinD sidecar privilege | **Yes** | ARC DinD mode configures a privileged sidecar for Docker daemon operation. |
+| Shared work volume (`/home/runner/_work`) | **Yes** | Runner and Docker daemon share this volume in ARC DinD mode, so workspace mounts work without host path translation. |
 | Specific Kubernetes distribution | **No** | Any conformant cluster works (for example minikube, EKS, AKS, or GKE). |
 | Specific namespace names | **No** | `arc-system` and `arc-runners` are conventions only. |
+
+> [!WARNING]
+> ARC configurations that enforce `allowPrivilegeEscalation: false` (including `no-new-privileges` policy enforcement) are not currently supported for GitHub Copilot coding agent, because the setup flow requires `sudo`.
 
 ## Related documentation
 
