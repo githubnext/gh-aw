@@ -133,6 +133,19 @@ describe("git_auth_helpers.cjs", () => {
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("1 existing extraheader value(s)"));
     });
+
+    it("should strip trailing slash from server URL when reading previous values", async () => {
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 1, stdout: "", stderr: "" });
+
+      await overridePersistedExtraheader("https://github.com/", "ghp_test_token");
+
+      // "https://github.com/" (with trailing slash) must be normalized to
+      // "https://github.com" (without) for both the git config read and write.
+      // Using the literal normalized key makes the assertion explicit.
+      const normalizedKey = "http.https://github.com/.extraheader";
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["config", "--get-all", normalizedKey], expect.anything());
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--replace-all", normalizedKey, expect.any(String)]);
+    });
   });
 
   // ──────────────────────────────────────────────────────

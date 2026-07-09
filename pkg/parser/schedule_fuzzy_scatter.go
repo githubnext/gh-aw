@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"hash/fnv"
+	"io"
 	"strconv"
 	"strings"
 
@@ -172,7 +173,7 @@ func avoidPeakMinutes(hour, minute int) int {
 func stableHash(s string, modulo int) int {
 	h := fnv.New32a()
 	// hash.Hash.Write never returns an error in practice, but check to satisfy gosec G104
-	if _, err := h.Write([]byte(s)); err != nil {
+	if _, err := io.WriteString(h, s); err != nil {
 		// Return 0 (safe fallback) if write somehow fails
 		scheduleFuzzyScatterLog.Printf("Warning: hash write failed: %v", err)
 		return 0

@@ -50,7 +50,7 @@ func getCommandToSlashCommandCodemod() Codemod {
 					}
 
 					// Check if we've left the on block
-					if inOnBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+					if inOnBlock && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
 						if hasExitedBlock(line, onIndent) {
 							inOnBlock = false
 						}

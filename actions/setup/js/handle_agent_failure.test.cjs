@@ -4701,6 +4701,16 @@ describe("handle_agent_failure", () => {
       expect(categories).toContain("report_incomplete");
     });
 
+    it("does not add agent_failure when a specific category already exists", () => {
+      const categories = buildFailureMatchCategories({
+        agentConclusion: "failure",
+        isTimedOut: false,
+        hasReportIncomplete: true,
+      });
+      expect(categories).toContain("report_incomplete");
+      expect(categories).not.toContain("agent_failure");
+    });
+
     it("returns sorted categories", () => {
       const categories = buildFailureMatchCategories({
         hasMissingSafeOutputs: true,
@@ -4727,7 +4737,7 @@ describe("handle_agent_failure", () => {
         isAWFFirewallStartupFailed: true,
       });
       expect(categories).toContain("awf_firewall_startup_failed");
-      expect(categories).toContain("agent_failure");
+      expect(categories).not.toContain("agent_failure");
     });
 
     it("does not return awf_firewall_startup_failed category when isAWFFirewallStartupFailed is false", () => {
@@ -4808,6 +4818,7 @@ describe("handle_agent_failure", () => {
       delete process.env.GITHUB_WORKSPACE;
       delete process.env.GH_AW_FAILURE_CATEGORIES_FILTER;
       delete process.env.GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER;
+      delete process.env.GH_AW_INFERENCE_ACCESS_ERROR;
 
       if (tmpDir && fs.existsSync(tmpDir)) {
         fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -4819,33 +4830,47 @@ describe("handle_agent_failure", () => {
         name: "include-only filter creates issue when category matches",
         includeFilter: ["agent_failure"],
         excludeFilter: null,
+        extraEnv: {},
         shouldCreateIssue: true,
       },
       {
         name: "include-only filter skips issue when category does not match",
         includeFilter: ["missing_safe_outputs"],
         excludeFilter: null,
+        extraEnv: {},
+        shouldCreateIssue: false,
+      },
+      {
+        name: "include-only filter skips infra-classified failures when only agent_failure is included",
+        includeFilter: ["agent_failure"],
+        excludeFilter: null,
+        extraEnv: { GH_AW_INFERENCE_ACCESS_ERROR: "true" },
         shouldCreateIssue: false,
       },
       {
         name: "exclude-only filter skips issue when category is excluded",
         includeFilter: null,
         excludeFilter: ["agent_failure"],
+        extraEnv: {},
         shouldCreateIssue: false,
       },
       {
         name: "mixed include+exclude filter skips issue when excluded category is present",
         includeFilter: ["agent_failure"],
         excludeFilter: ["agent_failure"],
+        extraEnv: {},
         shouldCreateIssue: false,
       },
-    ])("$name", async ({ includeFilter, excludeFilter, shouldCreateIssue }) => {
+    ])("$name", async ({ includeFilter, excludeFilter, extraEnv, shouldCreateIssue }) => {
       const { createIssueMock } = setupGithubMock();
       if (includeFilter) {
         process.env.GH_AW_FAILURE_CATEGORIES_FILTER = JSON.stringify(includeFilter);
       }
       if (excludeFilter) {
         process.env.GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER = JSON.stringify(excludeFilter);
+      }
+      for (const [key, value] of Object.entries(extraEnv || {})) {
+        process.env[key] = value;
       }
 
       await main();

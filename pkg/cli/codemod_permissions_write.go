@@ -90,7 +90,7 @@ func getMigrateWritePermissionsToReadCodemod() Codemod {
 					}
 
 					// Check if we've left the permissions block
-					if inPermissionsBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+					if inPermissionsBlock && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
 						if hasExitedBlock(line, permissionsIndent) {
 							inPermissionsBlock = false
 						}

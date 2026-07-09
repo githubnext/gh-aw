@@ -14,7 +14,7 @@ var codexLogsLog = logger.New("workflow:codex_logs")
 
 // ParseLogMetrics implements engine-specific log parsing for Codex
 func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
-	codexLogsLog.Printf("Parsing Codex log metrics: log_size=%d bytes, lines=%d", len(logContent), len(strings.Split(logContent, "\n")))
+	codexLogsLog.Printf("Parsing Codex log metrics: log_size=%d bytes, lines=%d", len(logContent), strings.Count(logContent, "\n")+1)
 
 	var metrics LogMetrics
 	var totalTokenUsage int

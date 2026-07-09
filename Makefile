@@ -1006,8 +1006,8 @@ clean-docs:
 sync-action-pins:
 	@echo "Syncing actions-lock.json from .github/aw to pkg/actionpins/data/action_pins.json and pkg/workflow/data/action_pins.json..."
 	@if [ -f .github/aw/actions-lock.json ]; then \
-		jq --indent 2 . .github/aw/actions-lock.json > pkg/actionpins/data/action_pins.json; \
-		jq --indent 2 . .github/aw/actions-lock.json > pkg/workflow/data/action_pins.json; \
+		jq --indent 2 '{entries: .entries} + if ((.containers // {}) | length) > 0 then {containers: .containers} else {} end' .github/aw/actions-lock.json > pkg/actionpins/data/action_pins.json; \
+		jq --indent 2 '{entries: .entries} + if ((.containers // {}) | length) > 0 then {containers: .containers} else {} end' .github/aw/actions-lock.json > pkg/workflow/data/action_pins.json; \
 		echo "✓ Action pins synced successfully"; \
 	else \
 		echo "⚠ Warning: .github/aw/actions-lock.json does not exist yet"; \

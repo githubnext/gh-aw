@@ -3,7 +3,7 @@ package workflow
 import (
 	"fmt"
 	"maps"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -201,7 +201,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 	for rawName, cfg := range data.SafeOutputs.Jobs {
 		entries = append(entries, safeJobEntry{stringutil.NormalizeSafeOutputIdentifier(rawName), cfg})
 	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].normalizedName < entries[j].normalizedName })
+	slices.SortFunc(entries, func(a, b safeJobEntry) int { return strings.Compare(a.normalizedName, b.normalizedName) })
 
 	for _, entry := range entries {
 		jobConfig := entry.config

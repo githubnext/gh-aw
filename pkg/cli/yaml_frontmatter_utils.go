@@ -188,7 +188,7 @@ func removeFieldFromBlock(lines []string, fieldName string, parentBlock string) 
 		}
 
 		// Check if we've left the parent block
-		if inParentBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+		if inParentBlock && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
 			if hasExitedBlock(line, parentIndent) {
 				inParentBlock = false
 			}

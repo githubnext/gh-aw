@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"hash/fnv"
+	"io"
 	"regexp"
 	"strings"
 
@@ -446,7 +447,7 @@ func mapRunExpressionToEnvBinding(body string) (string, string, bool) {
 func hashedBindingName(prefix, body string) string {
 	h := fnv.New32a()
 	// fnv.Hash.Write on in-memory bytes is guaranteed not to return an error.
-	_, _ = h.Write([]byte(body))
+	_, _ = io.WriteString(h, body)
 	return fmt.Sprintf("%s_%08x", prefix, h.Sum32())
 }
 

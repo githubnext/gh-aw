@@ -604,7 +604,7 @@ Run CI diagnostics.
 	require.NoError(t, err)
 	lockStr := string(lockContent)
 
-	require.Contains(t, lockStr, "pull_request:\n    types:\n    - opened")
+	require.Contains(t, lockStr, "pull_request:\n    types:\n      - opened")
 	require.Contains(t, lockStr, "workflow_dispatch:")
 	require.Contains(t, lockStr, "item_number:")
 	require.NotContains(t, lockStr, "pull_request:\n    types: [labeled]")

@@ -175,7 +175,7 @@ func removeUnsafeEngineEnvKeys(lines []string, unsafeKeys map[string]struct {
 			continue
 		}
 
-		if inEngine && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") && len(indent) <= len(engineIndent) {
+		if inEngine && trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(indent) <= len(engineIndent) {
 			inEngine = false
 			inEnv = false
 			removingKey = false
@@ -189,7 +189,7 @@ func removeUnsafeEngineEnvKeys(lines []string, unsafeKeys map[string]struct {
 			continue
 		}
 
-		if inEnv && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") && len(indent) <= len(envIndent) {
+		if inEnv && trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(indent) <= len(envIndent) {
 			inEnv = false
 			removingKey = false
 		}
@@ -207,7 +207,7 @@ func removeUnsafeEngineEnvKeys(lines []string, unsafeKeys map[string]struct {
 			removingKey = false
 		}
 
-		if inEnv && !removingKey && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") && len(indent) > len(envIndent) {
+		if inEnv && !removingKey && trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(indent) > len(envIndent) {
 			key := parseYAMLMapKey(trimmed)
 			if key != "" && setutil.Contains(unsafeKeys, key) {
 				modified = true
