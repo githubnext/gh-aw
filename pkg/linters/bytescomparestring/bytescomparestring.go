@@ -1,7 +1,7 @@
 // Package bytescomparestring implements a Go analysis linter that flags
 // string(a) == string(b) and string(a) != string(b) comparisons where both
-// a and b are []byte values, which should use bytes.Equal(a, b) instead to
-// avoid unnecessary allocations.
+// a and b are []byte values, which should use bytes.Equal(a, b) instead for
+// clearer intent.
 package bytescomparestring
 
 import (
@@ -75,19 +75,18 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		op := bin.Op.String()
 		if bin.Op == token.EQL {
 			pass.Report(analysis.Diagnostic{
 				Pos:            bin.Pos(),
 				End:            bin.End(),
-				Message:        fmt.Sprintf("string(%s) == string(%s) allocates; use bytes.Equal(%s, %s) instead", lText, rText, lText, rText),
+				Message:        fmt.Sprintf("string(%s) == string(%s) is a []byte comparison written the long way; use bytes.Equal(%s, %s) for clearer intent", lText, rText, lText, rText),
 				SuggestedFixes: buildFix(pass, bin, fmt.Sprintf("bytes.Equal(%s, %s)", lText, rText)),
 			})
 		} else {
 			pass.Report(analysis.Diagnostic{
 				Pos:            bin.Pos(),
 				End:            bin.End(),
-				Message:        fmt.Sprintf("string(%s) %s string(%s) allocates; use !bytes.Equal(%s, %s) instead", lText, op, rText, lText, rText),
+				Message:        fmt.Sprintf("string(%s) != string(%s) is a []byte comparison written the long way; use !bytes.Equal(%s, %s) for clearer intent", lText, rText, lText, rText),
 				SuggestedFixes: buildFix(pass, bin, fmt.Sprintf("!bytes.Equal(%s, %s)", lText, rText)),
 			})
 		}
@@ -146,6 +145,26 @@ func addBytesImportEdit(pass *analysis.Pass, pos token.Pos) (analysis.TextEdit, 
 			Pos:     genDecl.Rparen,
 			End:     genDecl.Rparen,
 			NewText: []byte("\t\"" + bytesPkg + "\"\n"),
+		}, true
+	}
+
+	// If the file has a single non-grouped import declaration, convert it to a
+	// grouped import block while adding "bytes".
+	for _, decl := range file.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok || genDecl.Tok != token.IMPORT || genDecl.Lparen.IsValid() || len(genDecl.Specs) != 1 {
+			continue
+		}
+
+		specText := astutil.NodeText(pass.Fset, genDecl.Specs[0])
+		if specText == "" {
+			continue
+		}
+
+		return analysis.TextEdit{
+			Pos:     genDecl.Pos(),
+			End:     genDecl.End(),
+			NewText: []byte("import (\n\t" + specText + "\n\t\"" + bytesPkg + "\"\n)"),
 		}, true
 	}
 
