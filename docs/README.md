@@ -49,6 +49,7 @@ If a CI pipeline or automated tool checks for the sitemap URL during a local pre
 This docs site is deployed as a GitHub Pages **project site** under `/gh-aw/` (see `base: '/gh-aw/'` in `astro.config.mjs`).
 
 - `robots.txt` is served at `/gh-aw/robots.txt`
+- `llms.txt` is served at `/gh-aw/llms.txt`
 - AI discovery file is served at `/gh-aw/.well-known/ai.txt`
 - AI metadata files are served under `/gh-aw/ai/`
 

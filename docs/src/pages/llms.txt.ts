@@ -1,23 +1,31 @@
 import type { APIRoute } from 'astro';
-import { getAwPrompts } from './_aw-prompts.js';
+
+export const prerender = true;
 
 export const GET: APIRoute = () => {
-	const prompts = getAwPrompts();
-
 	const lines = [
 		'# GitHub Agentic Workflows',
 		'',
-		'> Agent-optimised prompt files for GitHub Agentic Workflows (gh-aw).',
-		'> These markdown files are designed for AI agents and LLMs, not human readers.',
+		'> Documentation index for GitHub Agentic Workflows (gh-aw).',
+		'> Canonical docs: https://github.github.com/gh-aw/',
 		'',
-		'## Agent Prompts',
+		'## Documentation',
 		'',
-		...prompts.map(({ file, description, rawUrl }) => {
-			const label = file.replace(/\.md$/, '');
-			return description
-				? `- [${label}](${rawUrl}): ${description}`
-				: `- [${label}](${rawUrl})`;
-		}),
+		'- [Home](https://github.github.com/gh-aw/)',
+		'- [Quick Start](https://github.github.com/gh-aw/setup/quick-start/)',
+		'- [CLI Commands](https://github.github.com/gh-aw/setup/cli/)',
+		'- [Guides](https://github.github.com/gh-aw/guides/agentic-authoring/)',
+		'- [Reference](https://github.github.com/gh-aw/reference/)',
+		'- [Patterns](https://github.github.com/gh-aw/patterns/daily-ops/)',
+		'- [Examples](https://github.github.com/gh-aw/examples/maintaining-repos/)',
+		'- [Sitemap](https://github.github.com/gh-aw/sitemap-index.xml)',
+		'',
+		'## AI Discovery',
+		'',
+		'- [robots.txt](https://github.github.com/gh-aw/robots.txt)',
+		'- [ai.txt](https://github.github.com/gh-aw/.well-known/ai.txt)',
+		'- [agents.txt](https://github.github.com/gh-aw/agents.txt)',
+		'- [llms-full.txt](https://github.github.com/gh-aw/llms-full.txt)',
 	];
 
 	return new Response(lines.join('\n'), {
