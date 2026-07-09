@@ -728,7 +728,7 @@ jobs:
           if [ -n "${GH_AW_DOCKER_SOCK_GID:-}" ]; then
             DOCKER_SOCK_GID="$GH_AW_DOCKER_SOCK_GID"
           else
-            DOCKER_SOCK_GID=$(stat -Lc '%g' "$DOCKER_SOCK_PATH" 2>/dev/null)
+            DOCKER_SOCK_GID=$(stat -Lc '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || true)
             if [ -z "$DOCKER_SOCK_GID" ]; then
               echo "::error::Cannot determine Docker socket group for '$DOCKER_SOCK_PATH'. Set GH_AW_DOCKER_SOCK_PATH and GH_AW_DOCKER_SOCK_GID to configure the socket path and group explicitly." >&2
               exit 1

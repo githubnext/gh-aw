@@ -581,7 +581,7 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	yaml.WriteString("          if [ -n \"${GH_AW_DOCKER_SOCK_GID:-}\" ]; then\n")
 	yaml.WriteString("            DOCKER_SOCK_GID=\"$GH_AW_DOCKER_SOCK_GID\"\n")
 	yaml.WriteString("          else\n")
-	yaml.WriteString("            DOCKER_SOCK_GID=$(stat -Lc '%g' \"$DOCKER_SOCK_PATH\" 2>/dev/null)\n")
+	yaml.WriteString("            DOCKER_SOCK_GID=$(stat -Lc '%g' \"$DOCKER_SOCK_PATH\" 2>/dev/null || true)\n")
 	yaml.WriteString("            if [ -z \"$DOCKER_SOCK_GID\" ]; then\n")
 	yaml.WriteString("              echo \"::error::Cannot determine Docker socket group for '$DOCKER_SOCK_PATH'. Set GH_AW_DOCKER_SOCK_PATH and GH_AW_DOCKER_SOCK_GID to configure the socket path and group explicitly.\" >&2\n")
 	yaml.WriteString("              exit 1\n")

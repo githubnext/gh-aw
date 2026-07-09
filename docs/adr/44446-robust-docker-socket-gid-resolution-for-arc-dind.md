@@ -1,7 +1,7 @@
 # ADR-44446: Robust Docker Socket GID Resolution for ARC/DinD and Split-Daemon Topologies
 
 **Date**: 2026-07-09
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan (author)
 
 ---
@@ -49,5 +49,3 @@ Not chosen because it requires the Docker CLI to be available and authenticated 
 - The override check order (explicit env var → `DOCKER_HOST` inference → default `/var/run/docker.sock`) establishes a precedence convention that future detection logic should follow.
 
 ---
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*

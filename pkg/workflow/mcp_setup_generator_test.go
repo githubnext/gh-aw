@@ -526,7 +526,7 @@ tools:
 	socketPathSnippet := `case "${DOCKER_HOST:-}" in`
 	socketPathUnixSnippet := `unix://* ) DOCKER_SOCK_PATH="${DOCKER_HOST#unix://}"`
 	// stat -L follows symlinks so a symlinked socket path resolves to the real socket's group.
-	socketGIDComputeSnippet := `DOCKER_SOCK_GID=$(stat -Lc '%g' "$DOCKER_SOCK_PATH" 2>/dev/null)`
+	socketGIDComputeSnippet := `DOCKER_SOCK_GID=$(stat -Lc '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || true)`
 	// GH_AW_DOCKER_SOCK_GID override lets operators supply the group directly.
 	sockGIDOverrideSnippet := `if [ -n "${GH_AW_DOCKER_SOCK_GID:-}" ]; then`
 	// Loud failure: exit 1 + error message when socket group can't be resolved, instead of
