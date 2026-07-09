@@ -10983,6 +10983,10 @@
           "description": "Content redaction configuration for public-facing outputs. A fresh-context subagent reviews all text-bearing output items against the configured policy and rewrites non-compliant text or blocks items that cannot be made compliant.",
           "oneOf": [
             {
+              "type": "boolean",
+              "description": "Set to false to disable content redaction."
+            },
+            {
               "type": "string",
               "description": "Single inline policy string. Shorthand for content-redaction: { agent: \"...\" }."
             },
@@ -10997,9 +11001,8 @@
             {
               "type": "object",
               "description": "Full content redaction configuration object.",
-              "required": ["agent"],
               "properties": {
-                "enabled": {
+                "if": {
                   "$ref": "#/$defs/templatable_boolean",
                   "description": "Whether content redaction is enabled. Accepts a boolean literal or a GitHub Actions expression (e.g. '${{ inputs.enable-content-redaction }}')."
                 },

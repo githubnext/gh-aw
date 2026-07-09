@@ -202,7 +202,7 @@ type ContentRedactionConfig struct {
 	// Defaults to false (failures block downstream jobs).
 	ContinueOnError *bool `yaml:"continue-on-error,omitempty"`
 
-	// EnabledExpr is the expression form of the enabled flag when a GitHub Actions
+	// IfExpr is the expression form of the if conditional when a GitHub Actions
 	// expression was provided (e.g. "${{ inputs.enable-content-redaction }}").
-	EnabledExpr *string `yaml:"-"`
+	IfExpr *string `yaml:"-"`
 }

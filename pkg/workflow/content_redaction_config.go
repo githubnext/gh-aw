@@ -20,7 +20,7 @@ func IsContentRedactionEnabled(so *SafeOutputsConfig) bool {
 // IsConditionalContentRedaction reports whether content redaction is expression-controlled.
 // When true, the job is always compiled but may be skipped at runtime.
 func IsConditionalContentRedaction(so *SafeOutputsConfig) bool {
-	return so != nil && so.ContentRedaction != nil && so.ContentRedaction.EnabledExpr != nil
+	return so != nil && so.ContentRedaction != nil && so.ContentRedaction.IfExpr != nil
 }
 
 // IsContinueOnError reports whether content redaction failures should produce warnings
@@ -60,7 +60,7 @@ func (c *Compiler) parseContentRedactionConfig(outputMap map[string]any) *Conten
 	if strVal, ok := raw.(string); ok {
 		if isExpression(strVal) {
 			contentRedactionLog.Printf("Content redaction controlled by runtime expression: %s", strVal)
-			return &ContentRedactionConfig{EnabledExpr: &strVal}
+			return &ContentRedactionConfig{IfExpr: &strVal}
 		}
 		// Bare (non-expression) string = single inline policy.
 		contentRedactionLog.Print("Content redaction configured with single inline policy string")
@@ -91,18 +91,18 @@ func (c *Compiler) parseContentRedactionConfig(outputMap map[string]any) *Conten
 func (c *Compiler) parseContentRedactionObjectConfig(configMap map[string]any) *ContentRedactionConfig {
 	cr := &ContentRedactionConfig{}
 
-	// Check for enabled field (bool or expression string).
-	if enabled, exists := configMap["enabled"]; exists {
-		switch v := enabled.(type) {
+	// Check for if field (bool or expression string).
+	if ifVal, exists := configMap["if"]; exists {
+		switch v := ifVal.(type) {
 		case bool:
 			if !v {
-				contentRedactionLog.Print("Content redaction disabled via enabled: false")
+				contentRedactionLog.Print("Content redaction disabled via if: false")
 				return nil
 			}
 		case string:
 			if isExpression(v) {
-				contentRedactionLog.Printf("Content redaction enabled field is a runtime expression: %s", v)
-				cr.EnabledExpr = &v
+				contentRedactionLog.Printf("Content redaction if field is a runtime expression: %s", v)
+				cr.IfExpr = &v
 				// Continue parsing remaining fields.
 			}
 		}
@@ -161,7 +161,7 @@ func (c *Compiler) parseContentRedactionObjectConfig(configMap map[string]any) *
 	}
 
 	// Require at least one agent policy when not expression-controlled.
-	if cr.EnabledExpr == nil && len(cr.Agent) == 0 {
+	if cr.IfExpr == nil && len(cr.Agent) == 0 {
 		contentRedactionLog.Print("Content redaction: no agent policies provided; skipping")
 		return nil
 	}

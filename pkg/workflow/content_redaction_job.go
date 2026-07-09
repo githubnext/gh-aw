@@ -66,8 +66,8 @@ func (c *Compiler) buildContentRedactionJob(data *WorkflowData, detectionEnabled
 	}
 
 	// When content redaction is expression-controlled, add the runtime expression.
-	if cr != nil && cr.EnabledExpr != nil {
-		rawExpr := extractRawExpression(*cr.EnabledExpr)
+	if cr != nil && cr.IfExpr != nil {
+		rawExpr := extractRawExpression(*cr.IfExpr)
 		jobConditionNode = BuildAnd(jobConditionNode, &ExpressionNode{Expression: rawExpr})
 		contentRedactionJobLog.Printf("Content redaction job condition includes runtime expression: %s", rawExpr)
 	}

@@ -113,11 +113,11 @@ func TestParseContentRedactionConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "object form with enabled: false returns nil",
+			name: "object form with if: false returns nil",
 			outputMap: map[string]any{
 				"content-redaction": map[string]any{
-					"enabled": false,
-					"agent":   "Some policy",
+					"if":    false,
+					"agent": "Some policy",
 				},
 			},
 			expectedNil: true,
@@ -140,11 +140,11 @@ func TestParseContentRedactionConfig(t *testing.T) {
 			expectExprExpr: true,
 		},
 		{
-			name: "object form with expression-controlled enabled",
+			name: "object form with expression-controlled if",
 			outputMap: map[string]any{
 				"content-redaction": map[string]any{
-					"enabled": "${{ inputs.enable-redaction }}",
-					"agent":   "Do not disclose CVE IDs",
+					"if":    "${{ inputs.enable-redaction }}",
+					"agent": "Do not disclose CVE IDs",
 				},
 			},
 			expectedNil:    false,
@@ -181,8 +181,8 @@ func TestParseContentRedactionConfig(t *testing.T) {
 			}
 
 			if tt.expectExprExpr {
-				if cr.EnabledExpr == nil {
-					t.Error("expected EnabledExpr to be set")
+				if cr.IfExpr == nil {
+					t.Error("expected IfExpr to be set")
 				}
 			}
 
