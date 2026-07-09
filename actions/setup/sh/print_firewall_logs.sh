@@ -10,8 +10,12 @@ set +o histexpand
 #                Default: use plain sudo (AWF ran with full sudo access).
 #
 # Environment:
-#   AWF_LOGS_DIR  Path to the AWF firewall logs directory.
-#                 The parent directory (firewall sandbox root) is used for chown/chmod.
+#   AWF_LOGS_DIR         Path to the AWF logs directory (must be set).
+#                        The Go compiler (engine_firewall_support.go) sets this to
+#                        "${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs"; the parent
+#                        directory (firewall sandbox root) is used for chown/chmod.
+#   GITHUB_STEP_SUMMARY  Path to the GitHub Actions step summary file.
+#                        If unset or empty, log output is printed to stdout only.
 
 ROOTLESS=false
 while [[ $# -gt 0 ]]; do
@@ -21,6 +25,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# FIREWALL_DIR is the firewall sandbox root, derived as the parent of AWF_LOGS_DIR.
+# The Go compiler sets AWF_LOGS_DIR="${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs",
+# so FIREWALL_DIR resolves to "${RUNNER_TEMP}/gh-aw/sandbox/firewall".
 FIREWALL_DIR="$(dirname "${AWF_LOGS_DIR}")"
 
 if [[ "${ROOTLESS}" == "true" ]]; then
@@ -39,7 +46,7 @@ fi
 
 # Only run awf logs summary if awf command exists (it may not be installed if workflow failed before install step)
 if command -v awf &> /dev/null; then
-  awf logs summary | tee -a "${GITHUB_STEP_SUMMARY}"
+  awf logs summary | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"
 else
   echo 'AWF binary not installed, skipping firewall log summary'
 fi
