@@ -115,6 +115,9 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	// bash: ["*"] allows all shell commands — AWF's network firewall is the primary
 	// constraint, so restricting individual bash commands inside the sandbox adds friction
 	// without meaningful security benefit.
+	// RunnerConfig is propagated from the main workflow data so that arc-dind topology
+	// handling (daemon-visible Copilot staging step + daemon-visible spawn path) applies
+	// to the detection job the same way it applies to the agent job.
 	threatDetectionData := &WorkflowData{
 		Tools: map[string]any{
 			"bash": []any{"*"},
@@ -125,7 +128,8 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		Features:          data.Features,
 		Permissions:       data.Permissions,
 		CachedPermissions: data.CachedPermissions,
-		IsDetectionRun:    true, // Mark as detection run for phase tagging
+		IsDetectionRun:    true,              // Mark as detection run for phase tagging
+		RunnerConfig:      data.RunnerConfig, // propagate runner.topology (e.g. arc-dind) to the detection job
 		NetworkPermissions: &NetworkPermissions{
 			Allowed: getThreatDetectionAdditionalAllowedDomains(data),
 		},

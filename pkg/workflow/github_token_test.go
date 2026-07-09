@@ -176,3 +176,77 @@ func TestCombineTokenExpressions(t *testing.T) {
 		})
 	}
 }
+
+func TestResolvePRCheckoutToken(t *testing.T) {
+	t.Run("uses checkout safe-output app token when target-repo matches", func(t *testing.T) {
+		safeOutputs := &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				TargetRepoSlug: "owner/target",
+			},
+		}
+		checkoutMgr := NewCheckoutManager([]*CheckoutConfig{
+			{
+				Repository: "owner/target",
+				SafeOutputGitHubApp: &GitHubAppConfig{
+					AppID:      "${{ vars.APP_ID }}",
+					PrivateKey: "${{ secrets.APP_KEY }}",
+				},
+			},
+		})
+
+		token, isCustom := resolvePRCheckoutToken(safeOutputs, checkoutMgr)
+		if token != "${{ steps.checkout-safe-output-app-token-0.outputs.token }}" {
+			t.Fatalf("expected checkout safe-output app token, got %q", token)
+		}
+		if !isCustom {
+			t.Fatalf("expected isCustom=true")
+		}
+	})
+
+	t.Run("falls back to previous precedence when no checkout safe-output app exists", func(t *testing.T) {
+		safeOutputs := &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubToken: "${{ secrets.PR_PAT }}",
+				},
+			},
+			GitHubToken: "${{ secrets.SAFE_OUTPUTS_PAT }}",
+		}
+
+		token, isCustom := resolvePRCheckoutToken(safeOutputs, NewCheckoutManager(nil))
+		if token != "${{ secrets.PR_PAT }}" {
+			t.Fatalf("expected per-config PAT, got %q", token)
+		}
+		if !isCustom {
+			t.Fatalf("expected isCustom=true")
+		}
+	})
+
+	t.Run("per-config PAT takes precedence over checkout safe-output app token", func(t *testing.T) {
+		safeOutputs := &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubToken: "${{ secrets.PR_PAT }}",
+				},
+				TargetRepoSlug: "owner/target",
+			},
+		}
+		checkoutMgr := NewCheckoutManager([]*CheckoutConfig{
+			{
+				Repository: "owner/target",
+				SafeOutputGitHubApp: &GitHubAppConfig{
+					AppID:      "${{ vars.APP_ID }}",
+					PrivateKey: "${{ secrets.APP_KEY }}",
+				},
+			},
+		})
+
+		token, isCustom := resolvePRCheckoutToken(safeOutputs, checkoutMgr)
+		if token != "${{ secrets.PR_PAT }}" {
+			t.Fatalf("expected per-config PAT token, got %q", token)
+		}
+		if !isCustom {
+			t.Fatalf("expected isCustom=true")
+		}
+	})
+}
