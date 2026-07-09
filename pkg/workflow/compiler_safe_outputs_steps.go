@@ -44,8 +44,8 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// removes the need for the handlers to inject a separate http.extraheader. The
 	// same token is reused below for the "Configure Git credentials" step so both the
 	// persisted checkout credential and the push remote agree on a single token.
-	prCheckoutToken, _ := resolvePRCheckoutToken(data.SafeOutputs)
-	checkoutMgr.SetPushToken(prCheckoutToken)
+	prCheckoutToken, _ := resolvePRCheckoutToken(data.SafeOutputs, checkoutMgr)
+	checkoutMgr.SetPushToken(resolveStaticCheckoutToken(data.SafeOutputs, checkoutMgr))
 
 	// Combined condition: run the checkout/git-config steps only when a create_pull_request
 	// or push_to_pull_request_branch output will be processed.
@@ -58,6 +58,9 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// checkout steps via ${{ steps.checkout-app-token-N.outputs.token }} within the same job.
 	if checkoutMgr.HasAppAuth() {
 		steps = append(steps, injectStepCondition(checkoutMgr.GenerateCheckoutAppTokenSteps(c, resolveCheckoutPermissions(data)), condition)...)
+	}
+	if checkoutMgr.HasSafeOutputAppAuth() {
+		steps = append(steps, checkoutMgr.GenerateSafeOutputCheckoutAppTokenSteps(c, resolveCheckoutPermissions(data))...)
 	}
 
 	// Default workspace checkout (identical to the agent job).
@@ -257,7 +260,7 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 	// scenarios (allowed-repos). Without this, the handler falls back to the default
 	// repo-scoped token which lacks access to other repos.
 	if usesPatchesAndCheckouts(data.SafeOutputs) {
-		gitToken, isCustom := resolvePRCheckoutToken(data.SafeOutputs)
+		gitToken, isCustom := resolvePRCheckoutToken(data.SafeOutputs, NewCheckoutManager(data.CheckoutConfigs))
 		// Only override GITHUB_TOKEN when a custom token (app or PAT) is explicitly configured.
 		// When no custom token is set, the default repo-scoped GITHUB_TOKEN from GitHub Actions
 		// is already in the environment and overriding it with the same default is unnecessary.

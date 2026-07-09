@@ -490,6 +490,35 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		assert.Equal(t, "${{ vars.CLIENT_ID }}", configs[0].GitHubApp.AppID, "client-id should populate AppID")
 	})
 
+	t.Run("safe-outputs-github-app config is parsed", func(t *testing.T) {
+		raw := map[string]any{
+			"repository": "owner/target-repo",
+			"safe-outputs-github-app": map[string]any{
+				"client-id":   "${{ vars.SO_CLIENT_ID }}",
+				"private-key": "${{ secrets.SO_APP_PRIVATE_KEY }}",
+			},
+		}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err, "safe-outputs-github-app config should parse without error")
+		require.Len(t, configs, 1)
+		require.NotNil(t, configs[0].SafeOutputGitHubApp, "safe-outputs-github-app config should be set")
+		assert.Equal(t, "${{ vars.SO_CLIENT_ID }}", configs[0].SafeOutputGitHubApp.AppID, "client-id should populate AppID")
+		assert.Equal(t, "${{ secrets.SO_APP_PRIVATE_KEY }}", configs[0].SafeOutputGitHubApp.PrivateKey, "private-key should be set")
+	})
+
+	t.Run("safe-output-github-app is rejected", func(t *testing.T) {
+		raw := map[string]any{
+			"repository": "owner/target-repo",
+			"safe-output-github-app": map[string]any{
+				"app-id":      "${{ vars.SO_APP_ID }}",
+				"private-key": "${{ secrets.SO_APP_PRIVATE_KEY }}",
+			},
+		}
+		_, err := ParseCheckoutConfigs(raw)
+		require.Error(t, err, "safe-output-github-app should be rejected")
+		assert.Contains(t, err.Error(), "checkout.safe-output-github-app is not supported; use checkout.safe-outputs-github-app")
+	})
+
 	t.Run("github-token and github-app are mutually exclusive", func(t *testing.T) {
 		raw := map[string]any{
 			"github-token": "${{ secrets.MY_TOKEN }}",
@@ -1132,6 +1161,105 @@ func TestHasAppAuth(t *testing.T) {
 		})
 		assert.True(t, cm.HasAppAuth(), "should be true when any checkout has app")
 	})
+}
+
+func TestHasSafeOutputAppAuth(t *testing.T) {
+	t.Run("returns false when no safe-output app configured", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{GitHubToken: "${{ secrets.MY_PAT }}"},
+		})
+		assert.False(t, cm.HasSafeOutputAppAuth(), "should be false when no safe-output app is configured")
+	})
+
+	t.Run("returns true when checkout has safe-output app", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{
+				Repository: "owner/target-repo",
+				SafeOutputGitHubApp: &GitHubAppConfig{
+					AppID:      "${{ vars.APP_ID }}",
+					PrivateKey: "${{ secrets.KEY }}",
+				},
+			},
+		})
+		assert.True(t, cm.HasSafeOutputAppAuth(), "should be true when any checkout has safe-output app")
+	})
+}
+
+func TestResolveSafeOutputCheckoutTokenExpression(t *testing.T) {
+	t.Run("uses target-repo matching checkout safe-output app", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/a", Path: "./a"},
+			{
+				Repository: "owner/b",
+				Path:       "./b",
+				SafeOutputGitHubApp: &GitHubAppConfig{
+					AppID:      "${{ vars.APP_ID }}",
+					PrivateKey: "${{ secrets.KEY }}",
+				},
+			},
+		})
+		token, ok := cm.ResolveSafeOutputCheckoutTokenExpression("owner/b")
+		require.True(t, ok)
+		assert.Equal(t, "${{ steps.checkout-safe-output-app-token-1.outputs.token }}", token)
+	})
+
+	t.Run("falls back to current checkout when target repo not provided", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{
+				Repository: "owner/current",
+				Current:    true,
+				SafeOutputGitHubApp: &GitHubAppConfig{
+					AppID:      "${{ vars.APP_ID }}",
+					PrivateKey: "${{ secrets.KEY }}",
+				},
+			},
+		})
+		token, ok := cm.ResolveSafeOutputCheckoutTokenExpression("")
+		require.True(t, ok)
+		assert.Equal(t, "${{ steps.checkout-safe-output-app-token-0.outputs.token }}", token)
+	})
+
+	t.Run("ignore-if-missing uses default safe output token fallback", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{
+				Repository: "owner/current",
+				Current:    true,
+				SafeOutputGitHubApp: &GitHubAppConfig{
+					AppID:           "${{ vars.APP_ID }}",
+					PrivateKey:      "${{ secrets.KEY }}",
+					IgnoreIfMissing: true,
+				},
+			},
+		})
+		token, ok := cm.ResolveSafeOutputCheckoutTokenExpression("")
+		require.True(t, ok)
+		assert.Equal(
+			t,
+			"${{ steps.checkout-safe-output-app-token-0.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+			token,
+		)
+	})
+}
+
+func TestGenerateSafeOutputCheckoutAppTokenSteps(t *testing.T) {
+	compiler := NewCompiler()
+	permissions := NewPermissions()
+
+	cm := NewCheckoutManager([]*CheckoutConfig{
+		{
+			Repository: "owner/target",
+			SafeOutputGitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.APP_ID }}",
+				PrivateKey: "${{ secrets.APP_KEY }}",
+			},
+		},
+	})
+
+	steps := cm.GenerateSafeOutputCheckoutAppTokenSteps(compiler, permissions)
+	require.NotEmpty(t, steps)
+	combined := strings.Join(steps, "")
+	assert.Contains(t, combined, "id: checkout-safe-output-app-token-0")
+	assert.Contains(t, combined, "Generate safe_outputs GitHub App token for checkout (0)")
 }
 
 func TestDefaultCheckoutWithAppAuth(t *testing.T) {

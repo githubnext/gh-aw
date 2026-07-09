@@ -208,88 +208,22 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Fetch Copilot models and pricing
+      - name: Create placeholder for Copilot billing models
         id: fetch
         shell: bash
         run: |
           set -euo pipefail
           OUT="/tmp/gh-aw/agent/model-inventory/copilot-billing"
           mkdir -p "$OUT"
-          python3 - <<'PYEOF'
-          import json, sys, urllib.request, html.parser
-
-          # NOTE: If GitHub's documentation URL structure changes, this URL must be updated manually.
-          URL = "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing"
-          EXCLUDED_MODELS = {"gpt-4o-mini", "gpt-4.1", "gpt-4o", "gpt-5.4-nano"}
-
-          class TableParser(html.parser.HTMLParser):
-              def __init__(self):
-                  super().__init__()
-                  self.in_table = False
-                  self.headers = []
-                  self.rows = []
-                  self.current_row = []
-                  self.current_cell = None
-                  self.cell_text = []
-
-              def handle_starttag(self, tag, attrs):
-                  if tag == "table":
-                      self.in_table = True
-                  elif self.in_table and tag in ("th", "td"):
-                      self.current_cell = tag
-                      self.cell_text = []
-                  elif self.in_table and tag == "tr":
-                      self.current_row = []
-
-              def handle_endtag(self, tag):
-                  if tag == "table":
-                      self.in_table = False
-                  elif self.in_table and tag in ("th", "td"):
-                      text = "".join(self.cell_text).strip()
-                      if self.current_cell == "th":
-                          self.headers.append(text)
-                      else:
-                          self.current_row.append(text)
-                      self.current_cell = None
-                  elif self.in_table and tag == "tr":
-                      if self.current_row:
-                          self.rows.append(self.current_row)
-
-              def handle_data(self, data):
-                  if self.current_cell is not None:
-                      self.cell_text.append(data)
-
-          req = urllib.request.Request(URL, headers={"User-Agent": "Mozilla/5.0"})
-          try:
-              with urllib.request.urlopen(req, timeout=30) as resp:
-                  html_content = resp.read().decode("utf-8", errors="replace")
-          except Exception as e:
-              result = {"source": URL, "error": str(e), "headers": [], "models": []}
-              with open("/tmp/gh-aw/agent/model-inventory/copilot-billing/models.json", "w") as f:
-                  json.dump(result, f, indent=2)
-              print(f"Error fetching page: {e}", file=sys.stderr)
-              sys.exit(0)
-
-          parser = TableParser()
-          parser.feed(html_content)
-
-          models = []
-          if parser.headers and parser.rows:
-              for row in parser.rows:
-                  if len(row) == len(parser.headers):
-                      entry = {parser.headers[i]: row[i] for i in range(len(parser.headers))}
-                      model_id = entry.get("Model", "").strip()
-                      if model_id in EXCLUDED_MODELS:
-                          continue
-                      models.append(entry)
-
-          result = {"source": URL, "excluded_models": sorted(EXCLUDED_MODELS), "headers": parser.headers, "models": models}
-          out_path = "/tmp/gh-aw/agent/model-inventory/copilot-billing/models.json"
-          with open(out_path, "w") as f:
-              json.dump(result, f, indent=2)
-          print(f"Extracted {len(models)} model pricing entries", file=sys.stderr)
-          PYEOF
-          echo "status=ok" >> "$GITHUB_OUTPUT"
+          # NOTE: The GitHub Docs pricing page is JavaScript-rendered (Next.js), so static HTTP
+          # fetching (urllib, curl) returns an empty page without the table content. The actual
+          # table extraction is performed by the agent in Step 2.5 using playwright-cli, which
+          # can execute JavaScript. This pre-job step only creates a placeholder so the artifact
+          # upload succeeds and the agent knows to fetch the data itself.
+          URL="https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing"
+          echo "{\"source\":\"$URL\",\"note\":\"placeholder — agent fetches via playwright in Step 2.5\",\"models\":[]}" \
+            > "$OUT/models.json"
+          echo "status=placeholder" >> "$GITHUB_OUTPUT"
 
       - name: Upload Copilot billing models artifact
         if: always()
@@ -499,6 +433,60 @@ metadata that can improve alias coverage checks when provider APIs are partial.
 Summarize which fields are present and which carry useful data worth including in future cached
 inventories.
 
+### Step 2.5: Fetch Copilot Pricing Table via Playwright
+
+The GitHub Docs pricing page (`https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing`)
+is a Next.js application that renders its content with JavaScript. The pre-job step creates only a
+placeholder artifact. Use `playwright-cli` to load the fully-rendered page and extract the pricing table.
+
+Run the following commands in sequence:
+
+1. Navigate to the pricing page:
+
+```bash
+playwright-cli browser_navigate --url "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing"
+```
+
+2. Wait for the page to load, then extract the pricing table using `browser_evaluate`:
+
+```bash
+playwright-cli browser_evaluate --function "() => {
+  const EXCLUDED = new Set(['gpt-4o-mini', 'gpt-4.1', 'gpt-4o', 'gpt-5.4-nano']);
+  const result = { headers: [], models: [] };
+  const tables = document.querySelectorAll('table');
+  for (const table of tables) {
+    const headerCells = [...table.querySelectorAll('thead th, thead td')];
+    if (!headerCells.length) continue;
+    const headers = headerCells.map(th => th.textContent.trim());
+    result.headers = headers;
+    const rows = [...table.querySelectorAll('tbody tr')];
+    for (const row of rows) {
+      const cells = [...row.querySelectorAll('td, th')].map(td => td.textContent.trim());
+      if (cells.length !== headers.length) continue;
+      const entry = Object.fromEntries(headers.map((h, i) => [h, cells[i]]));
+      const modelId = (entry['Model'] || '').trim();
+      if (modelId && !EXCLUDED.has(modelId)) result.models.push(entry);
+    }
+    if (result.models.length) break;
+  }
+  return JSON.stringify(result);
+}"
+```
+
+3. Parse the JSON output from `browser_evaluate` and write the result to override the placeholder artifact:
+
+```bash
+URL="https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing"
+EXCLUDED='["gpt-4o-mini","gpt-4.1","gpt-4o","gpt-5.4-nano"]'
+OUT="/tmp/gh-aw/agent/model-inventory/artifacts/copilot-billing-models/models.json"
+mkdir -p "$(dirname "$OUT")"
+# Replace <PLAYWRIGHT_OUTPUT> below with the JSON string captured from browser_evaluate:
+# echo "{\"source\":\"$URL\",\"excluded_models\":$EXCLUDED,<PLAYWRIGHT_OUTPUT>}" | jq . > "$OUT"
+```
+
+If playwright extraction fails or returns an empty `models` array, note this in the issue report and
+continue — treat billing multiplier validation as skipped for this run (same behaviour as before).
+
 ### Step 3: Validate models.json pricing data
 
 Read the current built-in pricing payloads from:
@@ -508,12 +496,11 @@ Read the current built-in pricing payloads from:
 
 Treat these two files as a mirrored pair: proposed updates must keep them identical.
 
-The pre-job step has also fetched the **official GitHub Copilot models/pricing table** from the
-documentation page and stored it as:
+The Copilot pricing table is now in:
 
 - `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-billing-models/models.json`
 
-This file is extracted from:
+This file was populated in Step 2.5 from:
 `https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing`.
 
 Use the Copilot reflect endpoint (`billing.multiplier`) and the docs pricing table as validation

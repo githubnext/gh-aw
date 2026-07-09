@@ -13170,6 +13170,10 @@
           "$ref": "#/$defs/github_app",
           "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
         },
+        "safe-outputs-github-app": {
+          "$ref": "#/$defs/github_app",
+          "description": "GitHub App authentication used only by safe_outputs checkout/fetch/push operations for this checkout target. Does not change activation/agent checkout authentication."
+        },
         "current": {
           "type": "boolean",
           "description": "Marks this checkout as the logical current repository for the workflow. When set to true, the AI agent will treat this repository as its primary working target. Only one checkout may have current set to true. Useful for central-repo workflows targeting a different repository."

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -62,6 +63,11 @@ type CheckoutConfig struct {
 	// to actions/checkout as the "token" input.
 	// Mutually exclusive with GitHubToken.
 	GitHubApp *GitHubAppConfig `json:"github-app,omitempty"`
+
+	// SafeOutputGitHubApp configures GitHub App-based authentication used only by
+	// safe_outputs git checkout/fetch/push operations for this checkout target.
+	// This does not change activation/agent checkout authentication.
+	SafeOutputGitHubApp *GitHubAppConfig `json:"safe-outputs-github-app,omitempty"`
 
 	// FetchDepth controls the number of commits to fetch.
 	// 0 fetches all history (full clone). 1 is a shallow clone (default).
@@ -127,6 +133,7 @@ type resolvedCheckout struct {
 	ref            string           // last non-empty ref wins
 	token          string           // last non-empty github-token wins
 	githubApp      *GitHubAppConfig // GitHub App config (first non-nil wins)
+	safeOutputApp  *GitHubAppConfig // safe_outputs-only GitHub App config (first non-nil wins)
 	fetchDepth     *int             // nil means use default (1)
 	sparsePatterns []string         // merged sparse-checkout patterns
 	submodules     string
@@ -291,6 +298,9 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		if cfg.GitHubApp != nil && entry.githubApp == nil && entry.token == "" {
 			entry.githubApp = cfg.GitHubApp // first-seen auth wins (mutually exclusive with github-token)
 		}
+		if cfg.SafeOutputGitHubApp != nil && entry.safeOutputApp == nil {
+			entry.safeOutputApp = cfg.SafeOutputGitHubApp // first-seen safe_outputs auth wins
+		}
 		if cfg.SparseCheckout != "" {
 			entry.sparsePatterns = mergeSparsePatterns(entry.sparsePatterns, cfg.SparseCheckout)
 		}
@@ -312,15 +322,16 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		checkoutManagerLog.Printf("Merged checkout for path=%q repository=%q", key.path, key.repository)
 	} else {
 		entry := &resolvedCheckout{
-			key:        key,
-			ref:        cfg.Ref,
-			token:      cfg.GitHubToken,
-			githubApp:  cfg.GitHubApp,
-			fetchDepth: cfg.FetchDepth,
-			submodules: cfg.Submodules,
-			lfs:        cfg.LFS,
-			current:    cfg.Current,
-			cleanCreds: cfg.CleanGitCredentials,
+			key:           key,
+			ref:           cfg.Ref,
+			token:         cfg.GitHubToken,
+			githubApp:     cfg.GitHubApp,
+			safeOutputApp: cfg.SafeOutputGitHubApp,
+			fetchDepth:    cfg.FetchDepth,
+			submodules:    cfg.Submodules,
+			lfs:           cfg.LFS,
+			current:       cfg.Current,
+			cleanCreds:    cfg.CleanGitCredentials,
 		}
 		if cfg.SparseCheckout != "" {
 			entry.sparsePatterns = mergeSparsePatterns(nil, cfg.SparseCheckout)
@@ -360,6 +371,68 @@ func (cm *CheckoutManager) HasAppAuth() bool {
 		}
 	}
 	return false
+}
+
+// HasSafeOutputAppAuth returns true if any checkout entry uses safe_outputs-only
+// GitHub App authentication.
+func (cm *CheckoutManager) HasSafeOutputAppAuth() bool {
+	for _, entry := range cm.ordered {
+		if entry.safeOutputApp != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// ResolveSafeOutputCheckoutTokenExpression returns a safe_outputs checkout token
+// expression derived from checkout.safe-outputs-github-app for the target repo.
+// The selected checkout precedence is:
+//  1. explicit matching checkout.repository == targetRepo (when targetRepo is non-empty)
+//  2. checkout marked current: true
+//  3. default checkout override (workspace root)
+func (cm *CheckoutManager) ResolveSafeOutputCheckoutTokenExpression(targetRepo string) (string, bool) {
+	findSafeOutputAppCheckoutIndex := func() int {
+		targetRepo = strings.TrimSpace(targetRepo)
+		if targetRepo != "" && targetRepo != "*" {
+			for idx, entry := range cm.ordered {
+				if entry.key.wiki || entry.safeOutputApp == nil {
+					continue
+				}
+				if entry.key.repository == targetRepo {
+					return idx
+				}
+			}
+		}
+
+		for idx, entry := range cm.ordered {
+			if entry.key.wiki || entry.safeOutputApp == nil {
+				continue
+			}
+			if entry.current {
+				return idx
+			}
+		}
+
+		if override := cm.GetDefaultCheckoutOverride(); override != nil && !override.key.wiki && override.safeOutputApp != nil {
+			if idx, ok := cm.index[override.key]; ok {
+				return idx
+			}
+		}
+		return -1
+	}
+
+	idx := findSafeOutputAppCheckoutIndex()
+	if idx < 0 {
+		return "", false
+	}
+
+	//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+	token := fmt.Sprintf("${{ steps.checkout-safe-output-app-token-%d.outputs.token }}", idx)
+	app := cm.ordered[idx].safeOutputApp
+	if app != nil && app.shouldIgnoreMissingKey() {
+		token = combineTokenExpressions(token, getEffectiveSafeOutputGitHubToken(""))
+	}
+	return token, true
 }
 
 // resolveCheckoutPermissions determines the permissions used when minting checkout
