@@ -55,14 +55,10 @@
       "allOf": [
         {
           "if": {
-            "required": [
-              "topologyAttach"
-            ]
+            "required": ["topologyAttach"]
           },
           "then": {
-            "required": [
-              "isolation"
-            ],
+            "required": ["isolation"],
             "properties": {
               "isolation": {
                 "const": true
@@ -91,10 +87,7 @@
         },
         "anthropicCacheTailTtl": {
           "type": "string",
-          "enum": [
-            "5m",
-            "1h"
-          ],
+          "enum": ["5m", "1h"],
           "description": "TTL for Anthropic cache tail optimization. Only applies when anthropicAutoCache is enabled. Allowed values: \"5m\" or \"1h\"."
         },
         "maxEffectiveTokens": {
@@ -110,10 +103,7 @@
         "defaultAiCreditsPricing": {
           "type": "object",
           "description": "Fallback per-token pricing ($/1M tokens) for models not in the built-in pricing table. When maxAiCredits is active and a model is unrecognized, this rate is used. If not set, unrecognized models are rejected with HTTP 400 (type: unknown_model_ai_credits).",
-          "required": [
-            "input",
-            "output"
-          ],
+          "required": ["input", "output"],
           "properties": {
             "input": {
               "type": "number",
@@ -131,10 +121,7 @@
               "description": "Cached input token price per 1M tokens. Defaults to input × 0.1 if omitted."
             },
             "cacheWrite": {
-              "type": [
-                "number",
-                "null"
-              ],
+              "type": ["number", "null"],
               "minimum": 0,
               "description": "Cache write token price per 1M tokens. Null means cache writes are free."
             }
@@ -194,9 +181,7 @@
             },
             "strategy": {
               "type": "string",
-              "enum": [
-                "middle_power"
-              ],
+              "enum": ["middle_power"],
               "description": "Fallback selection strategy. Currently only 'middle_power' is supported."
             },
             "excludeEngines": {
@@ -285,19 +270,12 @@
           "properties": {
             "type": {
               "type": "string",
-              "enum": [
-                "github-oidc"
-              ],
+              "enum": ["github-oidc"],
               "description": "Authentication type. Currently only 'github-oidc' is supported. Maps to AWF_AUTH_TYPE."
             },
             "provider": {
               "type": "string",
-              "enum": [
-                "azure",
-                "aws",
-                "gcp",
-                "anthropic"
-              ],
+              "enum": ["azure", "aws", "gcp", "anthropic"],
               "description": "Cloud provider for OIDC token exchange. Determines which token exchange protocol is used. Maps to AWF_AUTH_PROVIDER.",
               "default": "azure"
             },
@@ -320,11 +298,7 @@
             },
             "azureCloud": {
               "type": "string",
-              "enum": [
-                "public",
-                "usgovernment",
-                "china"
-              ],
+              "enum": ["public", "usgovernment", "china"],
               "description": "Azure cloud environment. Maps to AWF_AUTH_AZURE_CLOUD.",
               "default": "public"
             },
@@ -376,24 +350,17 @@
               "default": "https://api.anthropic.com/v1/oauth/token"
             }
           },
-          "required": [
-            "type"
-          ],
+          "required": ["type"],
           "if": {
             "properties": {
               "provider": {
                 "const": "aws"
               }
             },
-            "required": [
-              "provider"
-            ]
+            "required": ["provider"]
           },
           "then": {
-            "required": [
-              "awsRoleArn",
-              "awsRegion"
-            ]
+            "required": ["awsRoleArn", "awsRegion"]
           },
           "else": {
             "if": {
@@ -402,14 +369,10 @@
                   "const": "gcp"
                 }
               },
-              "required": [
-                "provider"
-              ]
+              "required": ["provider"]
             },
             "then": {
-              "required": [
-                "gcpWorkloadIdentityProvider"
-              ]
+              "required": ["gcpWorkloadIdentityProvider"]
             },
             "else": {
               "if": {
@@ -418,22 +381,13 @@
                     "const": "anthropic"
                   }
                 },
-                "required": [
-                  "provider"
-                ]
+                "required": ["provider"]
               },
               "then": {
-                "required": [
-                  "anthropicFederationRuleId",
-                  "anthropicOrganizationId",
-                  "anthropicServiceAccountId"
-                ]
+                "required": ["anthropicFederationRuleId", "anthropicOrganizationId", "anthropicServiceAccountId"]
               },
               "else": {
-                "required": [
-                  "azureTenantId",
-                  "azureClientId"
-                ]
+                "required": ["azureTenantId", "azureClientId"]
               }
             }
           }
@@ -469,11 +423,7 @@
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "summary",
-                    "redacted",
-                    "full"
-                  ]
+                  "enum": ["summary", "redacted", "full"]
                 }
               ],
               "default": false
@@ -721,12 +671,7 @@
       "properties": {
         "logLevel": {
           "type": "string",
-          "enum": [
-            "debug",
-            "info",
-            "warn",
-            "error"
-          ],
+          "enum": ["debug", "info", "warn", "error"],
           "description": "Log verbosity level. Defaults to \"info\"."
         },
         "diagnosticLogs": {
@@ -780,12 +725,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": [
-            "github.com",
-            "ghes",
-            "ghec",
-            "ghec-self-hosted"
-          ],
+          "enum": ["github.com", "ghes", "ghec", "ghec-self-hosted"],
           "description": "The GitHub deployment type. 'github.com' = GitHub.com (default), 'ghes' = GitHub Enterprise Server (on-premises), 'ghec' = GitHub Enterprise Cloud (*.ghe.com tenants), 'ghec-self-hosted' = GHEC with self-hosted runners."
         }
       }
@@ -797,10 +737,7 @@
       "properties": {
         "topology": {
           "type": "string",
-          "enum": [
-            "standard",
-            "arc-dind"
-          ],
+          "enum": ["standard", "arc-dind"],
           "description": "Runner deployment topology. 'standard' (default) = GitHub-hosted VM or self-hosted runner with local Docker. 'arc-dind' = ARC (Actions Runner Controller) with Docker-in-Docker sidecar, where the runner and Docker daemon have separate filesystems. When set to 'arc-dind', AWF enables sysroot staging (a sysroot-stage init container copies the build-tools image into a named volume mounted at /host:rw on the agent) and emits a warning when RUNNER_TOOL_CACHE points under /opt (which is typically invisible to the DinD daemon). Other ARC/DinD settings such as container.dockerHostPathPrefix, dind.preStageDirs, and network.isolation are configured explicitly through their own fields. See docs/arc-dind.md for a complete guide."
         },
         "sysrootImage": {
@@ -872,4 +809,3 @@
     }
   }
 }
-
