@@ -559,15 +559,34 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	})
 	yaml.WriteString("          MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')\n")
 	yaml.WriteString("          MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')\n")
-	// Resolve the Docker socket path from DOCKER_HOST (supports ARC/dind custom socket paths).
-	// Only unix:// and bare absolute paths are treated as socket paths; all other schemes
-	// (tcp://, ssh://, npipe://, etc.) fall back to /var/run/docker.sock.
-	yaml.WriteString("          case \"${DOCKER_HOST:-}\" in\n")
-	yaml.WriteString("            unix://* ) DOCKER_SOCK_PATH=\"${DOCKER_HOST#unix://}\" ;;\n")
-	yaml.WriteString("            /* ) DOCKER_SOCK_PATH=\"$DOCKER_HOST\" ;;\n")
-	yaml.WriteString("            * ) DOCKER_SOCK_PATH=/var/run/docker.sock ;;\n")
-	yaml.WriteString("          esac\n")
-	yaml.WriteString("          DOCKER_SOCK_GID=$(stat -c '%g' \"$DOCKER_SOCK_PATH\" 2>/dev/null || echo '0')\n")
+	// Resolve the Docker socket path. GH_AW_DOCKER_SOCK_PATH takes precedence over the
+	// DOCKER_HOST-derived guess, allowing operators on split-daemon / ARC-DinD setups to
+	// point the gateway at the real socket without needing host-side symlink hacks.
+	// When the override is absent, only unix:// and bare absolute paths are treated as socket
+	// paths; all other schemes (tcp://, ssh://, npipe://, etc.) fall back to /var/run/docker.sock.
+	yaml.WriteString("          DOCKER_SOCK_PATH=\"${GH_AW_DOCKER_SOCK_PATH:-}\"\n")
+	yaml.WriteString("          if [ -z \"$DOCKER_SOCK_PATH\" ]; then\n")
+	yaml.WriteString("            case \"${DOCKER_HOST:-}\" in\n")
+	yaml.WriteString("              unix://* ) DOCKER_SOCK_PATH=\"${DOCKER_HOST#unix://}\" ;;\n")
+	yaml.WriteString("              /* ) DOCKER_SOCK_PATH=\"$DOCKER_HOST\" ;;\n")
+	yaml.WriteString("              * ) DOCKER_SOCK_PATH=/var/run/docker.sock ;;\n")
+	yaml.WriteString("            esac\n")
+	yaml.WriteString("          fi\n")
+	// Resolve the Docker socket group. GH_AW_DOCKER_SOCK_GID takes precedence, letting
+	// operators supply the group directly. stat -L follows symlinks so a symlinked socket
+	// resolves to the real socket's group without requiring a matching chown -h on the link.
+	// Fail loudly instead of silently falling back to group 0 (root): passing --group-add 0
+	// to a non-root container gives no Docker-socket access and produces a confusing
+	// downstream "Docker daemon is not accessible" error.
+	yaml.WriteString("          if [ -n \"${GH_AW_DOCKER_SOCK_GID:-}\" ]; then\n")
+	yaml.WriteString("            DOCKER_SOCK_GID=\"$GH_AW_DOCKER_SOCK_GID\"\n")
+	yaml.WriteString("          else\n")
+	yaml.WriteString("            DOCKER_SOCK_GID=$(stat -Lc '%g' \"$DOCKER_SOCK_PATH\" 2>/dev/null)\n")
+	yaml.WriteString("            if [ -z \"$DOCKER_SOCK_GID\" ]; then\n")
+	yaml.WriteString("              echo \"::error::Cannot determine Docker socket group for '$DOCKER_SOCK_PATH'. Set GH_AW_DOCKER_SOCK_PATH and GH_AW_DOCKER_SOCK_GID to configure the socket path and group explicitly.\" >&2\n")
+	yaml.WriteString("              exit 1\n")
+	yaml.WriteString("            fi\n")
+	yaml.WriteString("          fi\n")
 	cmdWithExpandableVars := buildDockerCommandWithExpandableVars(containerCmd)
 	yaml.WriteString("          export MCP_GATEWAY_DOCKER_COMMAND=" + cmdWithExpandableVars + "\n")
 	yaml.WriteString("          \n")

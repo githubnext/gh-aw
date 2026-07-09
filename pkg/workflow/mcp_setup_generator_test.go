@@ -519,9 +519,19 @@ tools:
 	defaultGatewayPortSnippet := `export MCP_GATEWAY_PORT="8080"`
 	uidComputeSnippet := `MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')`
 	runnerGIDComputeSnippet := `MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')`
+	// GH_AW_DOCKER_SOCK_PATH override must appear before the case statement so operators
+	// on ARC/DinD or other split-daemon topologies can supply the real socket path without
+	// a host-side symlink hack.
+	sockPathOverrideSnippet := `DOCKER_SOCK_PATH="${GH_AW_DOCKER_SOCK_PATH:-}"`
 	socketPathSnippet := `case "${DOCKER_HOST:-}" in`
 	socketPathUnixSnippet := `unix://* ) DOCKER_SOCK_PATH="${DOCKER_HOST#unix://}"`
-	socketGIDComputeSnippet := `DOCKER_SOCK_GID=$(stat -c '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || echo '0')`
+	// stat -L follows symlinks so a symlinked socket path resolves to the real socket's group.
+	socketGIDComputeSnippet := `DOCKER_SOCK_GID=$(stat -Lc '%g' "$DOCKER_SOCK_PATH" 2>/dev/null)`
+	// GH_AW_DOCKER_SOCK_GID override lets operators supply the group directly.
+	sockGIDOverrideSnippet := `if [ -n "${GH_AW_DOCKER_SOCK_GID:-}" ]; then`
+	// Loud failure: exit 1 + error message when socket group can't be resolved, instead of
+	// silently passing --group-add 0 which guarantees a confusing downstream failure.
+	sockGIDFailSnippet := `echo "::error::Cannot determine Docker socket group for '$DOCKER_SOCK_PATH'. Set GH_AW_DOCKER_SOCK_PATH and GH_AW_DOCKER_SOCK_GID to configure the socket path and group explicitly." >&2`
 	dockerHostEnvSnippet := `-e DOCKER_HOST=unix:///var/run/docker.sock`
 	containerNameSnippet := `--name awmg-mcpg`
 	require.Contains(t, yamlStr, defaultGatewayPortSnippet,
@@ -543,12 +553,18 @@ tools:
 		"Docker command should use bridge networking in default network isolation mode")
 	require.Contains(t, yamlStr, userSnippet,
 		"Docker command should include runner UID/GID user mapping")
+	require.Contains(t, yamlStr, sockPathOverrideSnippet,
+		"Shell should check GH_AW_DOCKER_SOCK_PATH override before falling back to DOCKER_HOST")
 	require.Contains(t, yamlStr, socketPathSnippet,
-		"Shell should resolve DOCKER_SOCK_PATH via case statement")
+		"Shell should resolve DOCKER_SOCK_PATH via case statement when override is absent")
 	require.Contains(t, yamlStr, socketPathUnixSnippet,
 		"Shell should handle unix:// DOCKER_HOST scheme")
+	require.Contains(t, yamlStr, sockGIDOverrideSnippet,
+		"Shell should check GH_AW_DOCKER_SOCK_GID override before stat-ing the socket")
 	require.Contains(t, yamlStr, socketGIDComputeSnippet,
-		"Shell should compute DOCKER_SOCK_GID from resolved socket path")
+		"Shell should compute DOCKER_SOCK_GID from resolved socket path following symlinks")
+	require.Contains(t, yamlStr, sockGIDFailSnippet,
+		"Shell should fail loudly with an actionable error when socket group cannot be resolved")
 	require.Contains(t, yamlStr, groupAddSnippet,
 		"Docker command should include docker socket supplementary group mapping")
 	require.Contains(t, yamlStr, mountSnippet,
@@ -563,6 +579,8 @@ tools:
 		"MCP_GATEWAY_GID should be computed before it is used in the docker command")
 	require.Less(t, strings.Index(yamlStr, userSnippet), strings.Index(yamlStr, groupAddSnippet),
 		"Docker command should include user mapping before supplementary group mapping")
+	require.Less(t, strings.Index(yamlStr, sockPathOverrideSnippet), strings.Index(yamlStr, socketPathSnippet),
+		"GH_AW_DOCKER_SOCK_PATH override check should appear before the DOCKER_HOST case statement")
 	require.Less(t, strings.Index(yamlStr, socketGIDComputeSnippet), strings.Index(yamlStr, groupAddSnippet),
 		"DOCKER_SOCK_GID should be computed before it is used in the docker command")
 	require.Less(t, strings.Index(yamlStr, groupAddSnippet), strings.Index(yamlStr, mountSnippet),
