@@ -587,6 +587,14 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	yaml.WriteString("              exit 1\n")
 	yaml.WriteString("            fi\n")
 	yaml.WriteString("          fi\n")
+	// Validate that DOCKER_SOCK_GID is numeric before passing it to docker --group-add.
+	// Non-numeric values will cause docker run to fail with a confusing error.
+	yaml.WriteString("          case \"$DOCKER_SOCK_GID\" in\n")
+	yaml.WriteString("            ''|*[!0-9]*)\n")
+	yaml.WriteString("              echo \"::error::DOCKER_SOCK_GID='$DOCKER_SOCK_GID' is not a valid numeric group ID. Set GH_AW_DOCKER_SOCK_GID to a numeric value.\" >&2\n")
+	yaml.WriteString("              exit 1\n")
+	yaml.WriteString("              ;;\n")
+	yaml.WriteString("          esac\n")
 	cmdWithExpandableVars := buildDockerCommandWithExpandableVars(containerCmd)
 	yaml.WriteString("          export MCP_GATEWAY_DOCKER_COMMAND=" + cmdWithExpandableVars + "\n")
 	yaml.WriteString("          \n")

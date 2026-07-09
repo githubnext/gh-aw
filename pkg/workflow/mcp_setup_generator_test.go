@@ -529,9 +529,14 @@ tools:
 	socketGIDComputeSnippet := `DOCKER_SOCK_GID=$(stat -Lc '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || true)`
 	// GH_AW_DOCKER_SOCK_GID override lets operators supply the group directly.
 	sockGIDOverrideSnippet := `if [ -n "${GH_AW_DOCKER_SOCK_GID:-}" ]; then`
+	sockGIDOverrideAssignSnippet := `DOCKER_SOCK_GID="$GH_AW_DOCKER_SOCK_GID"`
 	// Loud failure: exit 1 + error message when socket group can't be resolved, instead of
 	// silently passing --group-add 0 which guarantees a confusing downstream failure.
 	sockGIDFailSnippet := `echo "::error::Cannot determine Docker socket group for '$DOCKER_SOCK_PATH'. Set GH_AW_DOCKER_SOCK_PATH and GH_AW_DOCKER_SOCK_GID to configure the socket path and group explicitly." >&2`
+	// Numeric validation: ensure DOCKER_SOCK_GID is a valid numeric group ID before
+	// passing it to docker --group-add.
+	sockGIDNumericCheckSnippet := `case "$DOCKER_SOCK_GID" in`
+	sockGIDNumericFailSnippet := `echo "::error::DOCKER_SOCK_GID='$DOCKER_SOCK_GID' is not a valid numeric group ID. Set GH_AW_DOCKER_SOCK_GID to a numeric value." >&2`
 	dockerHostEnvSnippet := `-e DOCKER_HOST=unix:///var/run/docker.sock`
 	containerNameSnippet := `--name awmg-mcpg`
 	require.Contains(t, yamlStr, defaultGatewayPortSnippet,
@@ -561,10 +566,16 @@ tools:
 		"Shell should handle unix:// DOCKER_HOST scheme")
 	require.Contains(t, yamlStr, sockGIDOverrideSnippet,
 		"Shell should check GH_AW_DOCKER_SOCK_GID override before stat-ing the socket")
+	require.Contains(t, yamlStr, sockGIDOverrideAssignSnippet,
+		"Shell should assign GH_AW_DOCKER_SOCK_GID to DOCKER_SOCK_GID when override is set")
 	require.Contains(t, yamlStr, socketGIDComputeSnippet,
 		"Shell should compute DOCKER_SOCK_GID from resolved socket path following symlinks")
 	require.Contains(t, yamlStr, sockGIDFailSnippet,
 		"Shell should fail loudly with an actionable error when socket group cannot be resolved")
+	require.Contains(t, yamlStr, sockGIDNumericCheckSnippet,
+		"Shell should validate DOCKER_SOCK_GID is numeric before passing to docker --group-add")
+	require.Contains(t, yamlStr, sockGIDNumericFailSnippet,
+		"Shell should fail loudly when DOCKER_SOCK_GID is not a valid numeric group ID")
 	require.Contains(t, yamlStr, groupAddSnippet,
 		"Docker command should include docker socket supplementary group mapping")
 	require.Contains(t, yamlStr, mountSnippet,
@@ -581,8 +592,12 @@ tools:
 		"Docker command should include user mapping before supplementary group mapping")
 	require.Less(t, strings.Index(yamlStr, sockPathOverrideSnippet), strings.Index(yamlStr, socketPathSnippet),
 		"GH_AW_DOCKER_SOCK_PATH override check should appear before the DOCKER_HOST case statement")
-	require.Less(t, strings.Index(yamlStr, socketGIDComputeSnippet), strings.Index(yamlStr, groupAddSnippet),
-		"DOCKER_SOCK_GID should be computed before it is used in the docker command")
+	require.Less(t, strings.Index(yamlStr, sockGIDOverrideSnippet), strings.Index(yamlStr, socketGIDComputeSnippet),
+		"GH_AW_DOCKER_SOCK_GID override check should appear before stat call")
+	require.Less(t, strings.Index(yamlStr, socketGIDComputeSnippet), strings.Index(yamlStr, sockGIDNumericCheckSnippet),
+		"DOCKER_SOCK_GID should be computed before numeric validation")
+	require.Less(t, strings.Index(yamlStr, sockGIDNumericCheckSnippet), strings.Index(yamlStr, groupAddSnippet),
+		"DOCKER_SOCK_GID numeric validation should happen before it is used in the docker command")
 	require.Less(t, strings.Index(yamlStr, groupAddSnippet), strings.Index(yamlStr, mountSnippet),
 		"Docker command should add supplementary group before mounting the Docker socket")
 }

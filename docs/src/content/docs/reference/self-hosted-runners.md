@@ -25,6 +25,27 @@ Actions Runner Controller (ARC) deployments that use a Docker-in-Docker sidecar 
 
 The probe is gated on AWF `v0.25.43` or newer. Workflows pinned to an older AWF version, or running on GitHub-hosted runners (where `DOCKER_HOST` is unset or points at a Unix socket), are unaffected.
 
+### Docker socket override for split-daemon topologies
+
+When `DOCKER_HOST` is a TCP address (e.g., `tcp://localhost:2375`) and the Docker socket is mounted via a bind mount at a non-standard path, the MCP gateway needs explicit configuration to find the socket and determine its group ID.
+
+Set these environment variables at the runner level (e.g., in your ARC runner pod spec or Kubernetes deployment):
+
+- **`GH_AW_DOCKER_SOCK_PATH`** — absolute path to the bind-mounted Docker socket (e.g., `/dind-sock/docker.sock`)
+- **`GH_AW_DOCKER_SOCK_GID`** — numeric group ID of the Docker socket (e.g., `999`)
+
+**Example runner pod configuration:**
+
+```yaml
+env:
+  - name: GH_AW_DOCKER_SOCK_PATH
+    value: /dind-sock/docker.sock
+  - name: GH_AW_DOCKER_SOCK_GID
+    value: "999"
+```
+
+When both overrides are set, the MCP gateway will mount the specified socket path and add the specified group to the container without attempting automatic detection. If either variable is omitted, the gateway falls back to auto-detection from `DOCKER_HOST` and `stat`, and will fail with an actionable error if resolution fails.
+
 ## runs-on formats
 
 **String** — single runner label:
@@ -168,6 +189,7 @@ A working Docker daemon is required. The MCP gateway and sandbox run as containe
 - **Unix socket**: Docker must be accessible via a Unix socket (typically `/var/run/docker.sock`). If `DOCKER_HOST` is unset, the gateway mounts `/var/run/docker.sock`. If `DOCKER_HOST` is `unix://...` or a bare absolute path, the gateway mounts that socket path. Other schemes (for example `tcp://...`) are ignored for mounts and default back to `/var/run/docker.sock`.
 - **Docker group**: The runner user must be in the `docker` group, or the socket must be world-readable.
 - **ARC/Kubernetes**: If using [actions-runner-controller](https://github.com/actions/actions-runner-controller) with Docker-in-Docker (dind), the dind sidecar must share the Docker socket via an `emptyDir` volume. The gateway will retry the socket check for up to 10 seconds to handle startup race conditions.
+- **Split-daemon override**: On ARC or other split-daemon topologies where the socket path or group ID cannot be auto-detected, set `GH_AW_DOCKER_SOCK_PATH` and `GH_AW_DOCKER_SOCK_GID` environment variables at the runner level. See [Docker socket override for split-daemon topologies](#docker-socket-override-for-split-daemon-topologies) for details.
 
 ### Filesystem
 
