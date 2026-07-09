@@ -33,6 +33,16 @@ func TestParseGitHubRepoSlugFromURL(t *testing.T) {
 			expected: "github/gh-aw",
 		},
 		{
+			name:     "SSH SCP-style URL without username with .git",
+			url:      "github.com:github/gh-aw.git",
+			expected: "github/gh-aw",
+		},
+		{
+			name:     "SSH SCP-style URL without username without .git",
+			url:      "github.com:github/gh-aw",
+			expected: "github/gh-aw",
+		},
+		{
 			name:     "SSH URL scheme with .git",
 			url:      "ssh://git@github.com/github/gh-aw.git",
 			expected: "github/gh-aw",
@@ -76,7 +86,7 @@ func TestParseGitHubRepoSlugFromURL(t *testing.T) {
 
 // TestParseGitHubRepoSlugFromURLGHE verifies that GHE SSH URLs with non-standard
 // usernames (e.g. example@example.ghe.com:owner/repo.git) are parsed correctly
-// when GH_HOST is configured to point at the GHE instance.
+// when GITHUB_SERVER_URL is configured to point at the GHE instance.
 func TestParseGitHubRepoSlugFromURLGHE(t *testing.T) {
 	tests := []struct {
 		name     string

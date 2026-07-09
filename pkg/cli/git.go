@@ -73,14 +73,21 @@ func parseGitHubRepoSlugFromURL(url string) string {
 	}
 
 	// Handle SCP-style SSH URLs with any username: git@github.com:owner/repo,
-	// or non-standard usernames like example@example.ghe.com:owner/repo (GHE).
+	// or non-standard usernames like example@example.ghe.com:owner/repo (GHE),
+	// or username-less like github.com:owner/repo.
 	// Match: [user@]<host>:<owner>/<repo>
 	scpHostColon := githubHostWithoutScheme + ":"
+	// Try with username (user@host:path)
 	if _, afterAt, hasAt := strings.Cut(url, "@"); hasAt {
 		if after, ok := strings.CutPrefix(afterAt, scpHostColon); ok {
-			gitLog.Printf("Extracted slug from SCP-style SSH URL: %s", after)
+			gitLog.Printf("Extracted slug from SCP-style SSH URL with username: %s", after)
 			return after
 		}
+	}
+	// Try without username (host:path)
+	if after, ok := strings.CutPrefix(url, scpHostColon); ok {
+		gitLog.Printf("Extracted slug from SCP-style SSH URL without username: %s", after)
+		return after
 	}
 
 	// Handle SSH URL scheme: ssh://git@github.com/owner/repo or ssh://github.com/owner/repo
@@ -127,13 +134,6 @@ func extractHostFromRemoteURL(remoteURL string) string {
 		}
 	}
 
-	// SSH scp-like format: [user@]host:path — any username, not just git@
-	if _, afterAt, hasAt := strings.Cut(remoteURL, "@"); hasAt {
-		if host, _, found := strings.Cut(afterAt, ":"); found {
-			return host
-		}
-	}
-
 	// SSH URL format: ssh://git@host/path or ssh://host/path
 	if after, ok := strings.CutPrefix(remoteURL, "ssh://"); ok {
 		// Strip optional user info (e.g. "git@")
@@ -144,6 +144,22 @@ func extractHostFromRemoteURL(remoteURL string) string {
 			return host
 		}
 		return after
+	}
+
+	// SSH scp-like format: [user@]host:path — any username, not just git@
+	// Try with username first (user@host:path)
+	if _, afterAt, hasAt := strings.Cut(remoteURL, "@"); hasAt {
+		if host, _, found := strings.Cut(afterAt, ":"); found {
+			return host
+		}
+	}
+	// Try without username (host:path)
+	if host, _, found := strings.Cut(remoteURL, ":"); found {
+		// Make sure this looks like an scp-style URL (has no slashes before the colon)
+		// to avoid matching "ssh://host:port/path" or "https://host:port/path"
+		if !strings.Contains(host, "/") {
+			return host
+		}
 	}
 
 	return "github.com"
