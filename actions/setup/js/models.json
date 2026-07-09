@@ -271,7 +271,7 @@
           "cost": {
             "input": "2.5e-07",
             "output": "2e-06",
-            "cache_read": "2.5000000000000002e-08"
+            "cache_read": "2.5e-08"
           },
           "provider_type": "openai",
           "wire_api": "responses"
@@ -280,7 +280,7 @@
           "cost": {
             "input": "2.5e-07",
             "output": "2e-06",
-            "cache_read": "2.5000000000000002e-08"
+            "cache_read": "2.5e-08"
           },
           "provider_type": "openai",
           "wire_api": "responses"
