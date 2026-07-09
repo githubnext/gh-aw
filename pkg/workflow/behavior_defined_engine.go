@@ -304,8 +304,10 @@ func (e *BehaviorDefinedEngine) mcpFlagFragment(exec *EngineExecutionDefinition,
 		return ""
 	}
 	path := constants.McpServersJsonPathExpr
-	if behavior := e.behavior(); behavior != nil && behavior.MCP != nil && behavior.MCP.ConfigPath != "" {
-		path = behavior.MCP.ConfigPath
+	if behavior := e.behavior(); behavior != nil && behavior.MCP != nil {
+		if behavior.MCP.ConfigPath != "" {
+			path = behavior.MCP.ConfigPath
+		}
 	}
 	return shellJoinArgs([]string{exec.MCPConfigFlag, path})
 }
@@ -371,6 +373,9 @@ func isEngineDefinitionForm(def *EngineDefinition) bool {
 	if def == nil {
 		return false
 	}
+	// Treat richer metadata-only objects as shared engine definitions. Plain engine
+	// config objects ("id", "model", "env", etc.) should continue down the normal
+	// EngineConfig path instead of being registered as catalog entries.
 	if def.DisplayName != "" || def.RuntimeID != "" || def.Experimental || def.GHSkillAgentName != "" || def.Behaviors != nil || len(def.Auth) > 0 {
 		return true
 	}

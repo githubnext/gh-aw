@@ -269,8 +269,8 @@ func (c *Compiler) resolveEngineFromIncludesAndImports(
 	if finalEngineSetting != "" {
 		engineSetting = finalEngineSetting
 	}
-	if len(allEngines) > 0 {
-		if err := c.registerNamedEngineDefinitionFromJSON(allEngines[0]); err != nil {
+	for _, engineJSON := range allEngines {
+		if err := c.registerNamedEngineDefinitionFromJSON(engineJSON); err != nil {
 			return "", nil, fmt.Errorf("failed to register engine definition from included file: %w", err)
 		}
 	}

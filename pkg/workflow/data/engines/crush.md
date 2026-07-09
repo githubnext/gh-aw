@@ -32,7 +32,14 @@ engine:
     config-file:
       path: .crush.json
       step-name: Write Crush Config
-      content: '{"permission":{"edit":"allow","bash":"allow","external_directory":"allow"}}'
+      content: |-
+        {
+          "permission": {
+            "edit": "allow",
+            "bash": "allow",
+            "external_directory": "allow"
+          }
+        }
       merge-strategy: json-merge
     execution:
       command-name: crush

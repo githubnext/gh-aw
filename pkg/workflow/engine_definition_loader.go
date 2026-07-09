@@ -37,13 +37,13 @@ var engineDefinitionLoaderLog = logger.New("workflow:engine_definition_loader")
 //go:embed data/engines/*.md
 var builtinEngineFS embed.FS
 
-var loadBuiltinEngineDefinitionMap = sync.OnceValues(func() (map[string]*EngineDefinition, error) {
+var loadBuiltinEngineDefinitionMap = sync.OnceValue(func() map[string]*EngineDefinition {
 	definitions := loadBuiltinEngineDefinitions()
 	result := make(map[string]*EngineDefinition, len(definitions))
 	for _, def := range definitions {
 		result[def.ID] = def
 	}
-	return result, nil
+	return result
 })
 
 // engineDefinitionFile is the on-disk wrapper that holds the engine definition
@@ -91,10 +91,7 @@ func builtinEnginePath(engineID string) string {
 }
 
 func getBuiltinEngineDefinition(engineID string) (*EngineDefinition, error) {
-	definitions, err := loadBuiltinEngineDefinitionMap()
-	if err != nil {
-		return nil, err
-	}
+	definitions := loadBuiltinEngineDefinitionMap()
 	def, ok := definitions[engineID]
 	if !ok {
 		return nil, fmt.Errorf("builtin engine definition %q not found", engineID)

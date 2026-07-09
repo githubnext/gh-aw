@@ -31,7 +31,16 @@ engine:
     config-file:
       path: opencode.jsonc
       step-name: Write OpenCode Config
-      content: '{"permissions":{"bash":true,"edit":true,"webfetch":true,"websearch":true,"mcp":true}}'
+      content: |-
+        {
+          "permissions": {
+            "bash": true,
+            "edit": true,
+            "webfetch": true,
+            "websearch": true,
+            "mcp": true
+          }
+        }
       merge-strategy: json-merge
     execution:
       command-name: opencode
