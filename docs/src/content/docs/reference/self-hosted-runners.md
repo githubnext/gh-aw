@@ -9,13 +9,11 @@ Use the `runs-on` frontmatter field to target a self-hosted runner instead of th
 
 Runners must be Linux with Docker support. macOS and Windows are not supported.
 
-Self-hosted runners must allow `sudo` for agentic workflows. This is a requirement to allow all GH-AW security features to be enabled. Specific technical needs are:
+Self-hosted runners may require `sudo` depending on the selected engine and configuration. For the default GitHub Copilot engine, there are two distinct sudo considerations:
 
-- AWF (Agentic Workflow Firewall) applies host-level `iptables` rules to the Linux kernel `DOCKER-USER` chain to enforce network egress filtering for all agent containers on the AWF bridge network. This outer security boundary requires root UID.
+- **AWF (Agentic Workflow Firewall)**: Runs rootless in the default network-isolation mode. Egress is enforced via Docker network topology — an internal Docker network (`awf-net`) with no internet route and a dual-homed Squid proxy as the sole egress path. No `sudo` and no `NET_ADMIN` are required on the runner for AWF in this mode. Container-level `iptables`, Squid proxy ACLs, and capability drops provide defense in depth, all managed inside the Docker daemon's domain.
 
-- Container-level `iptables`, Squid proxy ACLs, and capability drops add additional defense in depth, but they do not replace host-level filtering.
-
-For these reasons, a non-sudo mode is not supported, including ARC configurations with `allowPrivilegeEscalation: false`.
+- **Copilot CLI install**: The `install_copilot_cli.sh` script runs as the runner user but escalates via `sudo` for specific file operations (fixing `.copilot` directory ownership, cleaning stale chroot directories, and installing the Copilot binary). ARC pods with `allowPrivilegeEscalation: false` will fail at this step with `sudo: The "no new privileges" flag is set`.
 
 ## ARC with Docker-in-Docker (DinD)
 
@@ -171,12 +169,12 @@ A working Docker daemon is required. The MCP gateway and sandbox run as containe
 
 - **Unix socket**: Docker must be accessible via a Unix socket (typically `/var/run/docker.sock`). If `DOCKER_HOST` is unset, the gateway mounts `/var/run/docker.sock`. If `DOCKER_HOST` is `unix://...` or a bare absolute path, the gateway mounts that socket path. Other schemes (for example `tcp://...`) are ignored for mounts and default back to `/var/run/docker.sock`.
 - **Docker group**: The runner user must be in the `docker` group, or the socket must be world-readable.
-- **ARC/Kubernetes**: If using [actions-runner-controller](https://github.com/actions/actions-runner-controller) with Docker-in-Docker (dind), the dind sidecar must share the Docker socket via an `emptyDir` volume. The gateway will retry the socket check for up to 10 seconds to handle startup race conditions.
+- **ARC/Kubernetes**: Docker-in-Docker (DinD) is **required** for ARC. Set `containerMode.type="dind"` in your ARC Helm configuration. The `containerMode.type="kubernetes"` mode is not supported. The dind sidecar must share the Docker socket via an `emptyDir` volume, and the gateway retries the socket check for up to 10 seconds to handle startup race conditions. See [How to run GitHub Copilot coding agent on ARC with Docker-in-Docker](/gh-aw/guides/arc-dind-copilot-agent/) for the complete setup guide, and [ARC (Actions Runner Controller)](#arc-actions-runner-controller) below for pod security details.
 
 ### Filesystem
 
 - **Use `RUNNER_TEMP` for transient state.** Put sandbox state, tool downloads, and intermediate outputs in `$RUNNER_TEMP`, which is cleaned between jobs. On shared runners, avoid writing arbitrary workflow data to `/tmp` because it can persist across jobs.
-- **No root assumption.** Tool installs, file operations, and sandbox setup should run as the unprivileged runner user, but host-level AWF setup requires `sudo` support on the runner host.
+- **No root assumption.** Tool installs, file operations, and sandbox setup should run as the unprivileged runner user. The Copilot CLI install script escalates via `sudo` for specific operations; see the sudo requirements above.
 - **No global installs.** Do not install packages to `/usr/local/`, `/opt/hostedtoolcache/`, or other system-wide paths. These may be read-only, shared across runners, or bind-mounted read-only inside the sandbox. Use job-scoped writable locations instead.
 - **No hardcoded `HOME` paths.** The runner's home directory may not be `/home/runner`. Use `$HOME` or `$RUNNER_TEMP` instead of hardcoded paths.
 
@@ -240,11 +238,13 @@ network:
 
 ## ARC (Actions Runner Controller)
 
-When running on [ARC](https://github.com/actions/actions-runner-controller) with Kubernetes:
+GitHub Copilot coding agent **requires** Docker-in-Docker (DinD) mode on ARC. Set `containerMode.type="dind"` in your ARC Helm configuration. The `containerMode.type="kubernetes"` mode is not supported.
+
+Set `runner.topology: arc-dind` in workflow frontmatter to enable ARC DinD split-filesystem handling. See the [ARC with Docker-in-Docker (DinD)](#arc-with-docker-in-docker-dind) section above and the [ARC DinD setup guide](/gh-aw/guides/arc-dind-copilot-agent/) for a complete walkthrough.
 
 ### Docker-in-Docker (dind) sidecar
 
-The standard ARC dind pattern with a shared `emptyDir` for the Docker socket is supported. The MCP gateway:
+The MCP gateway:
 
 1. Resolves the Docker socket path from `DOCKER_HOST` (supports `unix://` paths and bare absolute paths)
 2. Auto-detects the socket's group ID for correct permissions
@@ -252,8 +252,9 @@ The standard ARC dind pattern with a shared `emptyDir` for the Docker socket is 
 
 ### Pod security
 
-The runner pod requires `privileged: true` on both the dind sidecar and the runner container. This is needed for:
+The dind sidecar requires `privileged: true` so `dockerd` can run. The runner container does **not** need `privileged: true` or `NET_ADMIN`.
 
-- `dockerd` in the dind sidecar
-- `iptables` rules for the agentic workflow firewall
-- Chroot/sandbox setup in the runner container
+In network-isolation mode (the default for `topology: arc-dind`), AWF enforces egress via Docker network topology — an internal Docker network with no internet route and a dual-homed Squid proxy. All network enforcement happens inside the Docker daemon's domain (the dind sidecar). The runner container only issues Docker API commands via the socket; it never manipulates host `iptables` or network namespaces.
+
+> [!NOTE]
+> If your cluster enforces `allowPrivilegeEscalation: false` or `no-new-privileges` on the runner container, the Copilot CLI install script will fail. See [Known limitations](/gh-aw/guides/arc-dind-copilot-agent/#known-limitations) in the ARC DinD guide.
