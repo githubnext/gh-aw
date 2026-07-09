@@ -264,7 +264,6 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 	// Handle jobs (safe-jobs must be under safe-outputs)
 	if jobs, exists := outputMap["jobs"]; exists {
 		if jobsMap, ok := jobs.(map[string]any); ok {
-			c := NewCompiler() // Create a temporary compiler instance for parsing
 			config.Jobs = c.parseSafeJobsConfig(jobsMap)
 		}
 	}
@@ -340,6 +339,8 @@ func parseBoundedIntField(configMap map[string]any, key string, debugLog *logger
 		if intVal >= 1 {
 			return intVal, true
 		}
+	default:
+		debugLog.Printf("%s: unsupported type %T, ignoring", key, raw)
 	}
 
 	return 0, false
