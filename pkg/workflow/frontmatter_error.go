@@ -144,7 +144,7 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 	// frontmatter start so the IDE navigates to the right file and section rather than
 	// defaulting to line 1, col 1.
 	frontmatterErrorLog.Printf("Using fallback error message: %v", err)
-	fallbackFmt := fmt.Sprintf("%s:%d:1: error: %s", filePath, frontmatterLineOffset, err.Error())
+	fallbackFmt := fmt.Sprintf("%s:%d:1: error: %s", filePath, frontmatterLineOffset, err)
 	return parser.NewFormattedParserError(fallbackFmt)
 }
 

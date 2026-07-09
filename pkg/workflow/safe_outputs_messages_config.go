@@ -101,7 +101,7 @@ func parseMentionsConfig(mentions any) *MentionsConfig {
 					if str, ok := item.(string); ok {
 						// Normalize username by removing '@' prefix if present
 						normalized := str
-						if len(str) > 0 && str[0] == '@' {
+						if str != "" && str[0] == '@' {
 							normalized = str[1:]
 							safeOutputMessagesLog.Printf("Normalized mention '%s' to '%s'", str, normalized)
 						}
@@ -120,7 +120,7 @@ func parseMentionsConfig(mentions any) *MentionsConfig {
 					if str, ok := item.(string); ok {
 						// Normalize team slug by removing '@' prefix if present
 						normalized := str
-						if len(str) > 0 && str[0] == '@' {
+						if str != "" && str[0] == '@' {
 							normalized = str[1:]
 							safeOutputMessagesLog.Printf("Normalized team mention '%s' to '%s'", str, normalized)
 						}

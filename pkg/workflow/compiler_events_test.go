@@ -152,7 +152,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "test-bot.md",
-			expectedOn:      "pull_request_review_comment:\n    types:\n    - created\n    - edited",
+			expectedOn:      "pull_request_review_comment:\n    types:\n      - created\n      - edited",
 			expectedIf:      "startsWith(github.event.issue.body, '/test-bot ')",
 			expectedCommand: "test-bot",
 		},
@@ -167,7 +167,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "test-new-format.md",
-			expectedOn:      "pull_request_review_comment:\n    types:\n    - created\n    - edited",
+			expectedOn:      "pull_request_review_comment:\n    types:\n      - created\n      - edited",
 			expectedIf:      "startsWith(github.event.issue.body, '/new-bot ')",
 			expectedCommand: "new-bot",
 		},
@@ -181,7 +181,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "default-name-bot.md",
-			expectedOn:      "pull_request_review_comment:\n    types:\n    - created\n    - edited",
+			expectedOn:      "pull_request_review_comment:\n    types:\n      - created\n      - edited",
 			expectedIf:      "startsWith(github.event.issue.body, '/default-name-bot ')",
 			expectedCommand: "default-name-bot",
 		},
@@ -195,7 +195,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "test-string-format.md",
-			expectedOn:      "pull_request_review_comment:\n    types:\n    - created\n    - edited",
+			expectedOn:      "pull_request_review_comment:\n    types:\n      - created\n      - edited",
 			expectedIf:      "startsWith(github.event.issue.body, '/customname ')",
 			expectedCommand: "customname",
 		},
@@ -276,7 +276,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "command-with-dispatch.md",
-			expectedOn:      "on:\n  discussion:\n    types:\n    - created\n    - edited\n  discussion_comment:\n    types:\n    - created\n    - edited\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  workflow_dispatch:",
+			expectedOn:      "on:\n  discussion:\n    types:\n      - created\n      - edited\n  discussion_comment:\n    types:\n      - created\n      - edited\n  issue_comment:\n    types:\n      - created\n      - edited\n  issues:\n    types:\n      - opened\n      - edited\n      - reopened\n  pull_request:\n    types:\n      - opened\n      - edited\n      - reopened\n  pull_request_review_comment:\n    types:\n      - created\n      - edited\n  workflow_dispatch:",
 			expectedIf:      "github.event_name == 'issues'",
 			expectedCommand: "test-bot",
 			shouldError:     false,
@@ -294,7 +294,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "command-with-schedule.md",
-			expectedOn:      "on:\n  discussion:\n    types:\n    - created\n    - edited\n  discussion_comment:\n    types:\n    - created\n    - edited\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  schedule:\n  - cron: \"0 9 * * 1\"",
+			expectedOn:      "on:\n  discussion:\n    types:\n      - created\n      - edited\n  discussion_comment:\n    types:\n      - created\n      - edited\n  issue_comment:\n    types:\n      - created\n      - edited\n  issues:\n    types:\n      - opened\n      - edited\n      - reopened\n  pull_request:\n    types:\n      - opened\n      - edited\n      - reopened\n  pull_request_review_comment:\n    types:\n      - created\n      - edited\n  schedule:\n    - cron: \"0 9 * * 1\"",
 			expectedIf:      "github.event_name == 'issues'",
 			expectedCommand: "schedule-bot",
 			shouldError:     false,
@@ -313,7 +313,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "command-with-multiple.md",
-			expectedOn:      "on:\n  discussion:\n    types:\n    - created\n    - edited\n  discussion_comment:\n    types:\n    - created\n    - edited\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  push:\n    branches:\n    - main\n  workflow_dispatch:",
+			expectedOn:      "on:\n  discussion:\n    types:\n      - created\n      - edited\n  discussion_comment:\n    types:\n      - created\n      - edited\n  issue_comment:\n    types:\n      - created\n      - edited\n  issues:\n    types:\n      - opened\n      - edited\n      - reopened\n  pull_request:\n    types:\n      - opened\n      - edited\n      - reopened\n  pull_request_review_comment:\n    types:\n      - created\n      - edited\n  push:\n    branches:\n      - main\n  workflow_dispatch:",
 			expectedIf:      "github.event_name == 'issues'",
 			expectedCommand: "multi-bot",
 			shouldError:     false,

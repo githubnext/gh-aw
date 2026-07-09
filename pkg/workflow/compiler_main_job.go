@@ -363,7 +363,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	if needsContentsRead {
 		if permissions == "" {
 			perms := NewPermissionsContentsRead()
-			permissions = perms.RenderToYAML()
+			permissions = filterJobLevelPermissions(perms.RenderToYAML())
 		} else {
 			// Parse the already-filtered permissions string (not the raw data.Permissions)
 			// since filterJobLevelPermissions may have adjusted the indentation/format.
@@ -371,7 +371,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 			perms := parser.ToPermissions()
 			if level, exists := perms.Get(PermissionContents); !exists || level == PermissionNone {
 				perms.Set(PermissionContents, PermissionRead)
-				permissions = perms.RenderToYAML()
+				permissions = filterJobLevelPermissions(perms.RenderToYAML())
 			}
 		}
 	}
