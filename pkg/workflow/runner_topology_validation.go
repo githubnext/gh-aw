@@ -86,6 +86,8 @@ func findRootRequiringPatterns(content string) []string {
 			continue
 		}
 
+		// Map is checked first to short-circuit the more expensive regex scan once a
+		// violation has already been recorded for this key.
 		if _, alreadySeen := seen["sudo"]; !alreadySeen && containsSudoCommand(trimmed) {
 			seen["sudo"] = struct{}{}
 			violations = append(violations, "sudo")
