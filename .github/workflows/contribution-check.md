@@ -51,6 +51,7 @@ safe-outputs:
     target: "*"
     target-repo: ${{ vars.TARGET_REPOSITORY }}
     hide-older-comments: true
+  content-redaction: "Do not disclose security vulnerabilities, internal credentials, or confidential information in public-facing output."
 steps:
   - name: Fetch and filter PRs
     env:

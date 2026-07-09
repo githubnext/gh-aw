@@ -61,6 +61,7 @@ safe-outputs:
     max: 1
   mentions:
     allowed: ["@copilot"]
+  content-redaction: "Do not disclose security vulnerabilities, internal credentials, or confidential information in public-facing output."
   messages:
     footer: "> 🧵 *Reviewed using Impeccable skills by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🧵 [{workflow_name}]({run_url}) is reviewing this {event_type} using Impeccable skills..."

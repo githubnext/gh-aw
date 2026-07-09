@@ -438,6 +438,7 @@ safe-outputs:
   add-comment:
     max: 3
     target: "*"
+  content-redaction: "Do not disclose security vulnerabilities, internal credentials, or confidential information in public-facing output."
   messages:
     footer: "> 🍪 *Om nom nom by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🍪 ISSUE! ISSUE! [{workflow_name}]({run_url}) hungry for issues on this {event_type}! Om nom nom..."

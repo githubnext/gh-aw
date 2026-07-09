@@ -57,6 +57,7 @@ safe-outputs:
     close-older-discussions: true
     max: 1
   noop:
+  content-redaction: "Do not disclose security vulnerabilities, internal credentials, or confidential information in public-facing output."
 timeout-minutes: 15
 features:
   gh-aw-detection: true

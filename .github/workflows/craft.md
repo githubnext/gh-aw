@@ -39,6 +39,7 @@ safe-outputs:
   add-comment:
     max: 1
   push-to-pull-request-branch:
+  content-redaction: "Do not disclose security vulnerabilities, internal credentials, or confidential information in public-facing output."
   messages:
     footer: "> ⚒️ *Crafted with care by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}..."

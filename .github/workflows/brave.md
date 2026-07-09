@@ -23,6 +23,7 @@ imports:
 safe-outputs:
   add-comment:
     max: 1
+  content-redaction: "Do not disclose security vulnerabilities, internal credentials, or confidential information in public-facing output."
   messages:
     footer: "> 🦁 *Search results brought to you by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     footer-workflow-recompile: "> 🔄 *Maintenance report by [{workflow_name}]({run_url}) for {repository}*"

@@ -44,6 +44,7 @@ safe-outputs:
     max: 1
     allowed: ["awaiting-approach-approval", "approach-approved", "approach-rejected"]
   noop:
+  content-redaction: "Do not disclose security vulnerabilities, internal credentials, or confidential information in public-facing output."
   messages:
     footer: "> 🔬 *Approach validated by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🔬 [{workflow_name}]({run_url}) is analyzing the proposed approach on this {event_type}..."

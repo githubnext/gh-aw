@@ -30,6 +30,7 @@ safe-outputs:
     hide-older-comments: true
   update-issue:
   noop:
+  content-redaction: "Do not disclose security vulnerabilities, internal credentials, or confidential information in public-facing output."
   messages:
     footer: "> 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🏥 CI Doctor reporting for duty! [{workflow_name}]({run_url}) is examining the patient on this {event_type}..."
