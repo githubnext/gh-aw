@@ -816,7 +816,13 @@ jobs:
           DOCKER_SOCK_PATH="${GH_AW_DOCKER_SOCK_PATH:-}"
           if [ -z "$DOCKER_SOCK_PATH" ]; then
             case "${DOCKER_HOST:-}" in
-              unix://* ) DOCKER_SOCK_PATH="${DOCKER_HOST#unix://}" ;;
+              unix://* )
+                DOCKER_SOCK_PATH="${DOCKER_HOST#unix://}"
+                # Strip optional authority component (e.g., unix://hostname/path -> /path)
+                case "$DOCKER_SOCK_PATH" in
+                  /* ) ;; # already absolute
+                  * ) DOCKER_SOCK_PATH="/${DOCKER_SOCK_PATH#*/}" ;;
+                esac ;;
               /* ) DOCKER_SOCK_PATH="$DOCKER_HOST" ;;
               * ) DOCKER_SOCK_PATH=/var/run/docker.sock ;;
             esac
@@ -827,6 +833,7 @@ jobs:
             DOCKER_SOCK_GID=$(stat -Lc '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || true)
             if [ -z "$DOCKER_SOCK_GID" ]; then
               echo "::error::Cannot determine Docker socket group for '$DOCKER_SOCK_PATH'. Set GH_AW_DOCKER_SOCK_PATH and GH_AW_DOCKER_SOCK_GID to configure the socket path and group explicitly." >&2
+              [ -e "$DOCKER_SOCK_PATH" ] || echo "::warning::'$DOCKER_SOCK_PATH' does not exist on this runner." >&2
               exit 1
             fi
           fi

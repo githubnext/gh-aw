@@ -524,7 +524,8 @@ tools:
 	// a host-side symlink hack.
 	sockPathOverrideSnippet := `DOCKER_SOCK_PATH="${GH_AW_DOCKER_SOCK_PATH:-}"`
 	socketPathSnippet := `case "${DOCKER_HOST:-}" in`
-	socketPathUnixSnippet := `unix://* ) DOCKER_SOCK_PATH="${DOCKER_HOST#unix://}"`
+	socketPathUnixSnippet := `unix://* )`
+	socketPathUnixAssignSnippet := `DOCKER_SOCK_PATH="${DOCKER_HOST#unix://}"`
 	// stat -L follows symlinks so a symlinked socket path resolves to the real socket's group.
 	socketGIDComputeSnippet := `DOCKER_SOCK_GID=$(stat -Lc '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || true)`
 	// GH_AW_DOCKER_SOCK_GID override lets operators supply the group directly.
@@ -533,6 +534,8 @@ tools:
 	// Loud failure: exit 1 + error message when socket group can't be resolved, instead of
 	// silently passing --group-add 0 which guarantees a confusing downstream failure.
 	sockGIDFailSnippet := `echo "::error::Cannot determine Docker socket group for '$DOCKER_SOCK_PATH'. Set GH_AW_DOCKER_SOCK_PATH and GH_AW_DOCKER_SOCK_GID to configure the socket path and group explicitly." >&2`
+	sockGIDExitSnippet := `exit 1`
+	sockGIDMissingWarningSnippet := `[ -e "$DOCKER_SOCK_PATH" ] || echo "::warning::'$DOCKER_SOCK_PATH' does not exist on this runner." >&2`
 	// Numeric validation: ensure DOCKER_SOCK_GID is a valid numeric group ID before
 	// passing it to docker --group-add.
 	sockGIDNumericCheckSnippet := `case "$DOCKER_SOCK_GID" in`
@@ -564,6 +567,8 @@ tools:
 		"Shell should resolve DOCKER_SOCK_PATH via case statement when override is absent")
 	require.Contains(t, yamlStr, socketPathUnixSnippet,
 		"Shell should handle unix:// DOCKER_HOST scheme")
+	require.Contains(t, yamlStr, socketPathUnixAssignSnippet,
+		"Shell should strip unix:// prefix from DOCKER_HOST")
 	require.Contains(t, yamlStr, sockGIDOverrideSnippet,
 		"Shell should check GH_AW_DOCKER_SOCK_GID override before stat-ing the socket")
 	require.Contains(t, yamlStr, sockGIDOverrideAssignSnippet,
@@ -572,6 +577,10 @@ tools:
 		"Shell should compute DOCKER_SOCK_GID from resolved socket path following symlinks")
 	require.Contains(t, yamlStr, sockGIDFailSnippet,
 		"Shell should fail loudly with an actionable error when socket group cannot be resolved")
+	require.Contains(t, yamlStr, sockGIDExitSnippet,
+		"Shell must exit 1 when socket group cannot be resolved")
+	require.Contains(t, yamlStr, sockGIDMissingWarningSnippet,
+		"Shell should warn when socket path does not exist on the runner")
 	require.Contains(t, yamlStr, sockGIDNumericCheckSnippet,
 		"Shell should validate DOCKER_SOCK_GID is numeric before passing to docker --group-add")
 	require.Contains(t, yamlStr, sockGIDNumericFailSnippet,
@@ -594,6 +603,8 @@ tools:
 		"GH_AW_DOCKER_SOCK_PATH override check should appear before the DOCKER_HOST case statement")
 	require.Less(t, strings.Index(yamlStr, sockGIDOverrideSnippet), strings.Index(yamlStr, socketGIDComputeSnippet),
 		"GH_AW_DOCKER_SOCK_GID override check should appear before stat call")
+	require.Less(t, strings.Index(yamlStr, sockGIDFailSnippet), strings.Index(yamlStr, sockGIDExitSnippet),
+		"exit 1 must immediately follow the loud error message in the socket-group failure block")
 	require.Less(t, strings.Index(yamlStr, socketGIDComputeSnippet), strings.Index(yamlStr, sockGIDNumericCheckSnippet),
 		"DOCKER_SOCK_GID should be computed before numeric validation")
 	require.Less(t, strings.Index(yamlStr, sockGIDNumericCheckSnippet), strings.Index(yamlStr, groupAddSnippet),
