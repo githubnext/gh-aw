@@ -92,6 +92,12 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 		config.ThreatDetection = threatDetectionConfig
 	}
 
+	// Handle content-redaction
+	contentRedactionConfig := c.parseContentRedactionConfig(outputMap)
+	if contentRedactionConfig != nil {
+		config.ContentRedaction = contentRedactionConfig
+	}
+
 	// Handle runs-on configuration
 	if runsOn, exists := outputMap["runs-on"]; exists {
 		config.RunsOn = renderRunsOnSnippet(runsOn)

@@ -342,6 +342,8 @@ func TestSpec_JobNames_Values(t *testing.T) {
 		{name: "ActivationJobName", constant: constants.ActivationJobName, expected: "activation"},
 		// From spec: DetectionJobName // "detection"
 		{name: "DetectionJobName", constant: constants.DetectionJobName, expected: "detection"},
+		// From spec: ContentRedactionJobName // "content_redaction"
+		{name: "ContentRedactionJobName", constant: constants.ContentRedactionJobName, expected: "content_redaction"},
 		// From spec: ConclusionJobName // "conclusion"
 		{name: "ConclusionJobName", constant: constants.ConclusionJobName, expected: "conclusion"},
 	}

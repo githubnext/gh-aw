@@ -73,6 +73,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Compute permissions and threat detection flag up front; both are used across phases.
 	permissions := ComputePermissionsForSafeOutputs(data.SafeOutputs)
 	threatDetectionEnabled := IsDetectionJobEnabled(data.SafeOutputs)
+	contentRedactionEnabled := IsContentRedactionEnabled(data.SafeOutputs) || IsConditionalContentRedaction(data.SafeOutputs)
 
 	// Compute artifact prefix once; it is referenced in all three phases.
 	agentArtifactPrefix := artifactPrefixExprForDownstreamJob(data)
@@ -100,15 +101,16 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	// Phase 3: App-token insertion, finalization, job condition/deps, and job construction
 	return c.buildSafeOutputsJobFromParts(buildSafeOutputsJobFromPartsOptions{
-		data:                   data,
-		mainJobName:            mainJobName,
-		markdownPath:           markdownPath,
-		agentArtifactPrefix:    agentArtifactPrefix,
-		steps:                  steps,
-		outputs:                outputs,
-		safeOutputStepNames:    safeOutputStepNames,
-		permissions:            permissions,
-		threatDetectionEnabled: threatDetectionEnabled,
+		data:                    data,
+		mainJobName:             mainJobName,
+		markdownPath:            markdownPath,
+		agentArtifactPrefix:     agentArtifactPrefix,
+		steps:                   steps,
+		outputs:                 outputs,
+		safeOutputStepNames:     safeOutputStepNames,
+		permissions:             permissions,
+		threatDetectionEnabled:  threatDetectionEnabled,
+		contentRedactionEnabled: contentRedactionEnabled,
 	})
 }
 
@@ -435,15 +437,16 @@ func (c *Compiler) buildSafeOutputsHandlerOutputsAndActionSteps(data *WorkflowDa
 // items-manifest upload, dev-mode restore, script-mode cleanup), builds the job condition and
 // dependency list, and assembles the Job struct for the safe_outputs job.
 type buildSafeOutputsJobFromPartsOptions struct {
-	data                   *WorkflowData
-	mainJobName            string
-	markdownPath           string
-	agentArtifactPrefix    string
-	steps                  []string
-	outputs                map[string]string
-	safeOutputStepNames    []string
-	permissions            *Permissions
-	threatDetectionEnabled bool
+	data                    *WorkflowData
+	mainJobName             string
+	markdownPath            string
+	agentArtifactPrefix     string
+	steps                   []string
+	outputs                 map[string]string
+	safeOutputStepNames     []string
+	permissions             *Permissions
+	threatDetectionEnabled  bool
+	contentRedactionEnabled bool
 }
 
 func (c *Compiler) buildSafeOutputsJobFromParts(
@@ -458,6 +461,7 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 	safeOutputStepNames := opts.safeOutputStepNames
 	permissions := opts.permissions
 	threatDetectionEnabled := opts.threatDetectionEnabled
+	contentRedactionEnabled := opts.contentRedactionEnabled
 	// Add GitHub App token minting step at the beginning if app is configured
 	if data.SafeOutputs.GitHubApp != nil {
 		// Track whether the app token minting succeeded so the conclusion job can surface
@@ -576,6 +580,7 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 
 	// Build the job condition
 	// The job should run if agent job completed (not skipped) AND detection passed (if enabled)
+	// AND content redaction passed (if enabled).
 	agentNotSkipped := BuildAnd(
 		&NotNode{Child: BuildFunctionCall("cancelled")},
 		BuildNotEquals(
@@ -597,12 +602,39 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 		jobCondition = BuildAnd(agentNotSkipped, buildDetectionSuccessCondition())
 	}
 
+	// Add content redaction success condition when content redaction is enabled.
+	if contentRedactionEnabled {
+		redactionSuccessCondition := BuildEquals(
+			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.redaction_success", constants.ContentRedactionJobName)),
+			BuildStringLiteral("true"),
+		)
+		if IsConditionalContentRedaction(data.SafeOutputs) {
+			// When expression-controlled, accept both success and skipped results.
+			redactionPassedCondition := BuildOr(
+				BuildEquals(
+					BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.ContentRedactionJobName)),
+					BuildStringLiteral("skipped"),
+				),
+				redactionSuccessCondition,
+			)
+			jobCondition = BuildAnd(jobCondition, redactionPassedCondition)
+		} else {
+			jobCondition = BuildAnd(jobCondition, redactionSuccessCondition)
+		}
+		consolidatedSafeOutputsJobLog.Print("Added content_redaction success condition to safe_outputs job condition")
+	}
+
 	// Build dependencies — safe_outputs depends on agent; when threat detection is enabled it also
 	// depends on the detection job (so that detection_success is available).
 	needs := []string{mainJobName}
 	if threatDetectionEnabled {
 		needs = append(needs, string(constants.DetectionJobName))
 		consolidatedSafeOutputsJobLog.Print("Added detection job dependency to safe_outputs job")
+	}
+	// When content redaction is enabled, safe_outputs also depends on the content_redaction job.
+	if contentRedactionEnabled {
+		needs = append(needs, string(constants.ContentRedactionJobName))
+		consolidatedSafeOutputsJobLog.Print("Added content_redaction job dependency to safe_outputs job")
 	}
 	// Always add activation job dependency to get the trace-id for OTLP correlation,
 	// and also when needed for other reasons:

@@ -152,17 +152,18 @@ func compileSchema(schemaJSON, schemaURL string) (*jsonschema.Schema, error) {
 // safeOutputMetaFields are the meta-configuration fields in safe-outputs that are NOT actual safe output types.
 // These are used for configuration, not for defining safe output operations.
 var safeOutputMetaFields = map[string]bool{
-	"allowed-domains": true,
-	"staged":          true,
-	"env":             true,
-	"github-token":    true,
-	"github-app":      true,
-	"max-patch-size":  true,
-	"jobs":            true,
-	"runs-on":         true,
-	"messages":        true,
-	"needs":           true,
-	"timeout-minutes": true,
+	"allowed-domains":   true,
+	"staged":            true,
+	"env":               true,
+	"github-token":      true,
+	"github-app":        true,
+	"max-patch-size":    true,
+	"jobs":              true,
+	"runs-on":           true,
+	"messages":          true,
+	"needs":             true,
+	"timeout-minutes":   true,
+	"content-redaction": true,
 }
 
 // GetSafeOutputTypeKeys returns the list of safe output type keys from the embedded main workflow schema.

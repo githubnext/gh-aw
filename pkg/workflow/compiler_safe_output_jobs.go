@@ -44,6 +44,23 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		}
 	}
 
+	// Build the content_redaction job if configured. It runs after the detection job (when
+	// enabled) or directly after the agent job, reviews text-bearing output items against
+	// the configured policy, and gates safe_outputs on the redaction verdict.
+	contentRedactionEnabled := IsContentRedactionEnabled(data.SafeOutputs) || IsConditionalContentRedaction(data.SafeOutputs)
+	if contentRedactionEnabled {
+		redactionJob, err := c.buildContentRedactionJob(data, threatDetectionEnabled)
+		if err != nil {
+			return fmt.Errorf("failed to build content_redaction job: %w", err)
+		}
+		if redactionJob != nil {
+			if err := c.jobManager.AddJob(redactionJob); err != nil {
+				return fmt.Errorf("failed to add content_redaction job: %w", err)
+			}
+			compilerSafeOutputJobsLog.Print("Added separate content_redaction job")
+		}
+	}
+
 	// Track safe output job names to establish dependencies for conclusion job
 	var safeOutputJobNames []string
 

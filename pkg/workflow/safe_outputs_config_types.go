@@ -85,6 +85,7 @@ type SafeOutputsConfig struct {
 	NoOp                                   *NoOpConfig                            `yaml:"noop,omitempty"`                         // No-op output for logging only (always available as fallback)
 	ReportIncomplete                       *ReportIncompleteConfig                `yaml:"report-incomplete,omitempty"`            // Signal that the task could not be completed due to a tool or infrastructure failure
 	ThreatDetection                        *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`             // Threat detection configuration
+	ContentRedaction                       *ContentRedactionConfig                `yaml:"content-redaction,omitempty"`            // Content redaction configuration for public-facing outputs
 	Jobs                                   map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`                         // Safe-jobs configuration (moved from top-level)
 	Scripts                                map[string]*SafeScriptConfig           `yaml:"scripts,omitempty"`                      // Custom inline handlers that run in the safe-output handler loop
 	GitHubApp                              *GitHubAppConfig                       `yaml:"github-app,omitempty"`                   // GitHub App credentials for token minting
@@ -170,4 +171,38 @@ type MentionsConfig struct {
 // SecretMaskingConfig holds configuration for secret redaction behavior
 type SecretMaskingConfig struct {
 	Steps []map[string]any `yaml:"steps,omitempty"` // Additional secret redaction steps to inject after built-in redaction
+}
+
+// ContentRedactionConfig holds configuration for content redaction of public-facing outputs.
+// A fresh-context subagent — no tools, no repo access, no MCP — reviews all text-bearing
+// output items and rewrites non-compliant text or blocks items that cannot be made compliant.
+type ContentRedactionConfig struct {
+	// Agent is the list of policy sources concatenated into the redaction agent's system prompt.
+	// Each entry may be a URL (fetched at runtime via curl), a repo-relative path
+	// (read from the checkout), or an inline string literal.
+	// Required. Accepts a single string or an array of strings.
+	Agent []string `yaml:"-"` // parsed from scalar or array; see parseContentRedactionConfig
+
+	// Model is an optional model override for the redaction agent.
+	Model string `yaml:"model,omitempty"`
+
+	// OnFailure controls behaviour when the redaction agent determines an item cannot be made
+	// compliant. "block" (default) removes the item from the output. "warn" keeps the item
+	// and emits a step summary warning.
+	OnFailure string `yaml:"on-failure,omitempty"`
+
+	// Scope restricts redaction to specific safe-output types. When nil or empty,
+	// all text-bearing output types are redacted.
+	Scope []string `yaml:"scope,omitempty"`
+
+	// RunsOn is an optional runner override for the content_redaction job.
+	RunsOn string `yaml:"runs-on,omitempty"`
+
+	// ContinueOnError controls whether a failed redaction job blocks safe_outputs.
+	// Defaults to false (failures block downstream jobs).
+	ContinueOnError *bool `yaml:"continue-on-error,omitempty"`
+
+	// EnabledExpr is the expression form of the enabled flag when a GitHub Actions
+	// expression was provided (e.g. "${{ inputs.enable-content-redaction }}").
+	EnabledExpr *string `yaml:"-"`
 }
