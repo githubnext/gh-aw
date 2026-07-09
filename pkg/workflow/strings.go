@@ -169,6 +169,7 @@ func escapeActionsSingleQuotedString(value string) string {
 // that two different heredocs wrapping identical content still produce distinct delimiters.
 func GenerateHeredocDelimiterFromContent(name string, content string) string {
 	h := fnv.New64a()
+	// hash.Hash.Write never returns an error in practice, but check to satisfy gosec G104
 	_, _ = io.WriteString(h, strings.ToUpper(name))
 	_, _ = io.WriteString(h, content)
 	tag := fmt.Sprintf("%016x", h.Sum64())
