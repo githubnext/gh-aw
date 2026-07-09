@@ -896,7 +896,7 @@ func scriptNameToHandlerName(scriptName string) string {
 	var sb strings.Builder
 	sb.WriteString("handle")
 	for _, part := range parts {
-		if len(part) > 0 {
+		if part != "" {
 			sb.WriteString(strings.ToUpper(part[:1]) + part[1:])
 		}
 	}

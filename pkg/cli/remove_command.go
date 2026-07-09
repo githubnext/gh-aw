@@ -447,13 +447,13 @@ func parseIncludePath(line string) string {
 	case strings.HasPrefix(trimmed, "{{#import"):
 		rest = trimmed[len("{{#import"):]
 		// Skip optional marker '?'
-		if len(rest) > 0 && rest[0] == '?' {
+		if rest != "" && rest[0] == '?' {
 			rest = rest[1:]
 		}
 		// Skip optional whitespace, then an optional single colon, then optional whitespace
 		// (mirrors the regex \s*:?\s* in IncludeDirectivePattern)
 		rest = strings.TrimSpace(rest)
-		if len(rest) > 0 && rest[0] == ':' {
+		if rest != "" && rest[0] == ':' {
 			rest = strings.TrimSpace(rest[1:])
 		}
 		// Extract path up to closing "}}" and require only whitespace after it.
@@ -475,7 +475,7 @@ func parseIncludePath(line string) string {
 	}
 
 	// Handle @include and @import: skip optional marker '?'
-	if len(rest) > 0 && rest[0] == '?' {
+	if rest != "" && rest[0] == '?' {
 		rest = rest[1:]
 	}
 	// Require at least one whitespace character after the directive keyword

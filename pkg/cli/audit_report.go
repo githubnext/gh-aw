@@ -838,7 +838,7 @@ func stripGHALogTimestamps(content string) string {
 				if zPos+1 <= len(line) {
 					line = line[zPos+1:]
 					// Skip leading space after the timestamp
-					if len(line) > 0 && line[0] == ' ' {
+					if line != "" && line[0] == ' ' {
 						line = line[1:]
 					}
 				}

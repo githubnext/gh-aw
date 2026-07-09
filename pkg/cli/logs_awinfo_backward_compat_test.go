@@ -170,7 +170,9 @@ func TestAwInfoMarshaling(t *testing.T) {
 			if tt.shouldContainNew {
 				// Check for awf_version in JSON
 				var temp map[string]any
-				json.Unmarshal(data, &temp)
+				if err := json.Unmarshal(data, &temp); err != nil {
+					t.Fatalf("%s: failed to unmarshal JSON: %v", tt.description, err)
+				}
 				if _, exists := temp["awf_version"]; !exists {
 					t.Errorf("%s: JSON should contain awf_version field, got: %s", tt.description, jsonStr)
 				}
@@ -179,7 +181,9 @@ func TestAwInfoMarshaling(t *testing.T) {
 			if tt.shouldContainOld {
 				// Check for firewall_version in JSON
 				var temp map[string]any
-				json.Unmarshal(data, &temp)
+				if err := json.Unmarshal(data, &temp); err != nil {
+					t.Fatalf("%s: failed to unmarshal JSON: %v", tt.description, err)
+				}
 				if _, exists := temp["firewall_version"]; !exists {
 					t.Errorf("%s: JSON should contain firewall_version field, got: %s", tt.description, jsonStr)
 				}
