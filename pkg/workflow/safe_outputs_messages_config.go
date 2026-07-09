@@ -9,6 +9,8 @@ import (
 
 var safeOutputMessagesLog = logger.New("workflow:safe_outputs_config_messages")
 
+const disclosureHeaderDefaultSentinel = "true"
+
 // ========================================
 // Safe Output Messages Configuration
 // ========================================
@@ -47,7 +49,7 @@ func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 		switch v := dh.(type) {
 		case bool:
 			if v {
-				config.DisclosureHeader = "true"
+				config.DisclosureHeader = disclosureHeaderDefaultSentinel
 			}
 		case string:
 			config.DisclosureHeader = v

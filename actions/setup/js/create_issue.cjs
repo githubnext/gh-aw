@@ -883,7 +883,7 @@ async function main(config = {}) {
       bodyLines.unshift(...bodyHeader.split("\n"), "");
     }
 
-    // Inject disclosure header before body header (unshifted after, so it appears first)
+    // Inject disclosure header (this runs after body-header, but appears before it because unshift prepends)
     const disclosureHeader = getDisclosureHeader({ workflowName, runUrl });
     if (disclosureHeader) {
       bodyLines.unshift(...disclosureHeader.split("\n"), "");

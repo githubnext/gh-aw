@@ -11,7 +11,7 @@ const mockCore = {
 };
 global.core = mockCore;
 
-const { getBodyHeader, getDisclosureHeader, DEFAULT_DISCLOSURE_HEADER } = require("./messages_header.cjs");
+const { getBodyHeader, getDisclosureHeader, DEFAULT_DISCLOSURE_HEADER, DISCLOSURE_HEADER_DEFAULT_SENTINEL } = require("./messages_header.cjs");
 
 const WORKFLOW = "My Workflow";
 const RUN_URL = "https://github.com/owner/repo/actions/runs/99";
@@ -80,9 +80,20 @@ describe("messages_header", () => {
       expect(result).toBe("");
     });
 
-    it("returns rendered default text when disclosure-header is 'true'", () => {
+    it("returns rendered default text when disclosure-header is sentinel", () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        disclosureHeader: "true",
+        disclosureHeader: DISCLOSURE_HEADER_DEFAULT_SENTINEL,
+      });
+
+      const result = getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
+      expect(result).toContain(WORKFLOW);
+      expect(result).toContain(RUN_URL);
+      expect(result).toContain("🤖");
+    });
+
+    it("returns rendered default text when disclosure-header is boolean true", () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        disclosureHeader: true,
       });
 
       const result = getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
@@ -103,6 +114,15 @@ describe("messages_header", () => {
     it("returns empty string when messages env is set but disclosure-header is absent", () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
         footer: "> Custom footer",
+      });
+
+      const result = getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
+      expect(result).toBe("");
+    });
+
+    it("returns empty string when disclosure-header is boolean false", () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        disclosureHeader: false,
       });
 
       const result = getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });

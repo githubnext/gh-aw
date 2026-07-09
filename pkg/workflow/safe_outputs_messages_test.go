@@ -148,8 +148,8 @@ func TestSafeOutputsMessagesConfiguration(t *testing.T) {
 			t.Fatal("Expected Messages to be parsed")
 		}
 
-		if config.Messages.DisclosureHeader != "true" {
-			t.Errorf("Expected DisclosureHeader to be 'true' when bool true is set, got %q", config.Messages.DisclosureHeader)
+		if config.Messages.DisclosureHeader != disclosureHeaderDefaultSentinel {
+			t.Errorf("Expected DisclosureHeader to be %q when bool true is set, got %q", disclosureHeaderDefaultSentinel, config.Messages.DisclosureHeader)
 		}
 	})
 
@@ -323,7 +323,7 @@ func TestSerializeMessagesConfig(t *testing.T) {
 
 	t.Run("Should serialize disclosure-header to camelCase JSON key", func(t *testing.T) {
 		config := &SafeOutputMessagesConfig{
-			DisclosureHeader: "true",
+			DisclosureHeader: disclosureHeaderDefaultSentinel,
 		}
 
 		result, err := serializeMessagesConfig(config)
@@ -336,7 +336,7 @@ func TestSerializeMessagesConfig(t *testing.T) {
 			t.Fatalf("Result is not valid JSON: %v", err)
 		}
 
-		if parsed.DisclosureHeader != "true" {
+		if parsed.DisclosureHeader != disclosureHeaderDefaultSentinel {
 			t.Errorf("Expected DisclosureHeader to be preserved, got %q", parsed.DisclosureHeader)
 		}
 

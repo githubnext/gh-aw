@@ -10502,7 +10502,7 @@
               "oneOf": [
                 {
                   "type": "boolean",
-                  "description": "Set to true to prepend the built-in AI authorship disclosure header to every message body (issues, comments, pull requests, discussions). The default text states the content was automatically generated and was not written or reviewed by the account owner personally."
+                  "description": "Set to true to prepend the built-in AI authorship disclosure header to every message body (issues, comments, pull requests, discussions). Set to false to disable disclosure-header. The default text states the content was automatically generated and was not written or reviewed by the account owner personally."
                 },
                 {
                   "type": "string",
