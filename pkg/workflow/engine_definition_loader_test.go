@@ -49,6 +49,10 @@ func TestBuiltinEngineMarkdownFiles(t *testing.T) {
 			require.True(t, isMap, "engine %s .md engine: field must be an object, got %T", id, engineField)
 			assert.Equal(t, id, engineObj["id"],
 				"engine %s .md engine.id should match the engine id", id)
+			if id == "crush" || id == "opencode" {
+				assert.Equal(t, true, engineObj["experimental"], "engine %s should be marked experimental", id)
+				assert.Contains(t, engineObj, "behaviors", "engine %s should define declarative behaviors", id)
+			}
 
 			// Must NOT have on: field (shared workflow, not a main workflow).
 			_, hasOnField := result.Frontmatter["on"]

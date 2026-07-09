@@ -4,8 +4,49 @@ engine:
   display-name: OpenCode
   description: OpenCode CLI with headless mode and multi-provider LLM support
   runtime-id: opencode
+  experimental: true
   provider:
     name: github
+  behaviors:
+    secret-strategy: universal-llm-consumer
+    capabilities:
+      max-turns: true
+    manifest:
+      files:
+        - opencode.jsonc
+        - AGENTS.md
+      path-prefixes:
+        - .opencode/
+    installation:
+      package-manager: npm
+      package-name: opencode-ai
+      version: "1.2.14"
+      step-name: Install OpenCode
+      binary-name: opencode
+      include-node-setup: true
+      cooldown: true
+      verify-command: opencode --version
+      verify-step-name: Verify OpenCode CLI installation
+      docs-url: https://opencode.ai/docs
+    config-file:
+      path: opencode.jsonc
+      step-name: Write OpenCode Config
+      content: '{"permissions":{"bash":true,"edit":true,"webfetch":true,"websearch":true,"mcp":true}}'
+      merge-strategy: json-merge
+    execution:
+      command-name: opencode
+      args:
+        - run
+        - --print-logs
+        - --log-level
+        - DEBUG
+      step-name: Execute OpenCode CLI
+      model-env-var: OPENCODE_MODEL
+      mcp-config-env-var: GH_AW_MCP_CONFIG
+      write-timestamp: true
+      provider-env-mode: universal-llm-consumer
+    mcp:
+      config-path: opencode.jsonc
 ---
 
 <!-- # OpenCode CLI

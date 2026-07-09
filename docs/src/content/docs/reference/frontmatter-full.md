@@ -2432,10 +2432,20 @@ engine:
   # (optional)
   description: "Description of the workflow"
 
+  # Marks the engine as experimental so compiled workflows can surface a warning
+  # (optional)
+  experimental: true
+
   # Runtime adapter identifier. Maps to the CodingAgentEngine registered in the
   # engine registry. Defaults to id when omitted.
   # (optional)
   runtime-id: "example-value"
+
+  # Optional engine-specific secret bindings for behavior-defined engines
+  # (optional)
+  auth:
+    - role: session
+      secret: AUGMENT_SESSION_AUTH
 
   # Provider metadata for the engine
   # (optional)
@@ -2508,6 +2518,74 @@ engine:
   # (optional)
   options:
     {}
+
+  # Declarative custom-engine runtime behavior used to materialize a shared CLI
+  # engine from frontmatter
+  # (optional)
+  behaviors:
+    # Secret resolution mode (for example universal provider/model routing)
+    # (optional)
+    secret-strategy: universal-llm-consumer
+
+    # Secret or env var keys accepted through engine.env
+    # (optional)
+    supported-env-var-keys:
+      - AUGMENT_SESSION_AUTH
+
+    # Capability flags exposed by the engine runtime
+    # (optional)
+    capabilities:
+      max-turns: true
+
+    # Files and directories treated as engine manifests
+    # (optional)
+    manifest:
+      files:
+        - .auggie.json
+      path-prefixes:
+        - .auggie/
+
+    # CLI installation metadata
+    # (optional)
+    installation:
+      package-manager: npm
+      package-name: "@augmentcode/auggie"
+      version: "1.0.0"
+      step-name: Install Auggie
+      binary-name: auggie
+      include-node-setup: true
+      post-install-scripts: false
+      cooldown: true
+      verify-command: auggie --version
+      verify-step-name: Verify Auggie CLI installation
+      docs-url: https://docs.augmentcode.com
+
+    # Optional config file written before execution
+    # (optional)
+    config-file:
+      path: .auggie.json
+      step-name: Write Auggie Config
+      content: '{"sandbox":"workspace-write"}'
+      merge-strategy: json-merge
+
+    # Shared execution pattern
+    # (optional)
+    execution:
+      command-name: auggie
+      args:
+        - run
+      step-name: Execute Auggie CLI
+      model-env-var: AUGGIE_MODEL
+      model-flag: --model
+      mcp-config-env-var: AUGGIE_MCP_CONFIG
+      mcp-config-flag: --mcp-config
+      write-timestamp: true
+      provider-env-mode: universal-llm-consumer
+
+    # MCP config rendering target
+    # (optional)
+    mcp:
+      config-path: .auggie.json
 
 # Format 5: MCP gateway configuration for shared workflows. Declares engine.mcp
 # settings (tool-timeout, session-timeout) that consumers inherit during import

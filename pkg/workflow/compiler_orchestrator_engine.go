@@ -269,6 +269,11 @@ func (c *Compiler) resolveEngineFromIncludesAndImports(
 	if finalEngineSetting != "" {
 		engineSetting = finalEngineSetting
 	}
+	if len(allEngines) > 0 {
+		if err := c.registerNamedEngineDefinitionFromJSON(allEngines[0]); err != nil {
+			return "", nil, fmt.Errorf("failed to register engine definition from included file: %w", err)
+		}
+	}
 	if engineConfig == nil && len(allEngines) > 0 {
 		orchestratorEngineLog.Printf("Extracting engine config from included file")
 		engineConfig, err = c.extractEngineConfigFromJSON(allEngines[0])
