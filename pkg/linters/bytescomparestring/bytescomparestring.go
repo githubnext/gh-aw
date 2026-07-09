@@ -23,7 +23,7 @@ const bytesPkg = "bytes"
 // Analyzer is the bytes-compare-string analysis pass.
 var Analyzer = &analysis.Analyzer{
 	Name:     "bytescomparestring",
-	Doc:      "reports string(a) == string(b) and string(a) != string(b) comparisons where a and b are []byte values that should use bytes.Equal instead",
+	Doc:      "flags string(a) == string(b) and string(a) != string(b) as []byte comparisons written the long way; use bytes.Equal for clearer intent",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/bytescomparestring",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
@@ -148,24 +148,26 @@ func addBytesImportEdit(pass *analysis.Pass, pos token.Pos) (analysis.TextEdit, 
 		}, true
 	}
 
-	// If the file has a single non-grouped import declaration, convert it to a
-	// grouped import block while adding "bytes".
-	for _, decl := range file.Decls {
-		genDecl, ok := decl.(*ast.GenDecl)
-		if !ok || genDecl.Tok != token.IMPORT || genDecl.Lparen.IsValid() || len(genDecl.Specs) != 1 {
-			continue
-		}
+	// If the file has exactly one import (non-grouped), convert it to a grouped
+	// import block while adding "bytes" before it (alphabetical order).
+	if len(file.Imports) == 1 {
+		for _, decl := range file.Decls {
+			genDecl, ok := decl.(*ast.GenDecl)
+			if !ok || genDecl.Tok != token.IMPORT || genDecl.Lparen.IsValid() || len(genDecl.Specs) != 1 {
+				continue
+			}
 
-		specText := astutil.NodeText(pass.Fset, genDecl.Specs[0])
-		if specText == "" {
-			continue
-		}
+			specText := astutil.NodeText(pass.Fset, genDecl.Specs[0])
+			if specText == "" {
+				continue
+			}
 
-		return analysis.TextEdit{
-			Pos:     genDecl.Pos(),
-			End:     genDecl.End(),
-			NewText: []byte("import (\n\t" + specText + "\n\t\"" + bytesPkg + "\"\n)"),
-		}, true
+			return analysis.TextEdit{
+				Pos:     genDecl.Pos(),
+				End:     genDecl.End(),
+				NewText: []byte("import (\n\t\"" + bytesPkg + "\"\n\t" + specText + "\n)"),
+			}, true
+		}
 	}
 
 	// No grouped import block; insert a standalone import after the package name.
