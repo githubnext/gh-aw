@@ -59,6 +59,37 @@ func TestConcludeThreatDetectionScript_MissingResultContinueOnError(t *testing.T
 	}
 }
 
+func TestConcludeThreatDetectionScript_MissingResultSurfacesDetectorStatus(t *testing.T) {
+	tempDir := t.TempDir()
+	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
+	outputFile := filepath.Join(tempDir, "github_output.txt")
+	envFile := filepath.Join(tempDir, "github_env.txt")
+	missingResult := filepath.Join(tempDir, "missing_detection_result.json")
+	detectionLog := filepath.Join(tempDir, "detection.log")
+
+	if err := os.WriteFile(detectionLog, []byte("THREAT_DETECTION_STATUS: reason=engine_error exit=2\n"), 0644); err != nil {
+		t.Fatalf("failed to write detection log: %v", err)
+	}
+
+	cmd := exec.Command("bash", scriptPath, missingResult)
+	cmd.Env = append(os.Environ(),
+		"RUN_DETECTION=true",
+		"DETECTION_AGENTIC_EXECUTION_OUTCOME=failure",
+		"GH_AW_DETECTION_CONTINUE_ON_ERROR=true",
+		"GITHUB_OUTPUT="+outputFile,
+		"GITHUB_ENV="+envFile,
+	)
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("script should continue when detector status is available: %v\nOutput: %s", err, out)
+	}
+
+	if !strings.Contains(string(out), "THREAT_DETECTION_STATUS: reason=engine_error exit=2") {
+		t.Fatalf("expected warning output to surface detector status, got: %s", out)
+	}
+}
+
 func TestConcludeThreatDetectionScript_InvokesThreatDetectConclude(t *testing.T) {
 	tmpDir := t.TempDir()
 	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
