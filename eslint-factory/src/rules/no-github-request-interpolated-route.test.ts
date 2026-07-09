@@ -62,6 +62,19 @@ describe("no-github-request-interpolated-route", () => {
     });
   });
 
+  it("valid: intentionally out-of-scope route forms are accepted", () => {
+    cjsRuleTester.run("no-github-request-interpolated-route", noGithubRequestInterpolatedRouteRule, {
+      valid: [
+        "this.github.request(`GET /repos/${owner}/${repo}`, { owner, repo });",
+        "context.github.request(`GET /repos/${owner}/${repo}`, { owner, repo });",
+        "const route = `GET /repos/${owner}/${repo}`; github.request(route, { owner, repo });",
+        `github.request("GET /repos/".concat(owner, "/", repo), { owner, repo });`,
+        `github.request("GET /repos" + "/{owner}/{repo}", { owner, repo });`,
+      ],
+      invalid: [],
+    });
+  });
+
   it("invalid: template literal with interpolations is flagged for all known client names", () => {
     cjsRuleTester.run("no-github-request-interpolated-route", noGithubRequestInterpolatedRouteRule, {
       valid: [],
