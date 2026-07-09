@@ -292,6 +292,13 @@ func prepareGitAttributesTracking(tracker *FileTracker) (path string, existed bo
 	return path, existed
 }
 
+func trackGitAttributesCreatedFile(tracker *FileTracker, path string, existed bool, updated bool) {
+	if tracker == nil || path == "" || existed || !updated {
+		return
+	}
+	tracker.TrackCreated(path)
+}
+
 // addWorkflows handles workflow addition using pre-fetched content
 func addWorkflowsWithTracking(ctx context.Context, workflows []*ResolvedWorkflow, tracker *FileTracker, opts AddOptions) error {
 	addLog.Printf("Adding %d workflow(s) with tracking: force=%v, disableSecurityScanner=%v", len(workflows), opts.Force, opts.DisableSecurityScanner)
@@ -307,12 +314,7 @@ func addWorkflowsWithTracking(ctx context.Context, workflows []*ResolvedWorkflow
 			}
 			// Don't fail the entire operation if gitattributes update fails
 		} else if updated {
-			if gitAttributesPath == "" {
-				gitAttributesPath, _ = prepareGitAttributesTracking(nil)
-			}
-			if tracker != nil && !gitAttributesExisted && gitAttributesPath != "" {
-				tracker.TrackCreated(gitAttributesPath)
-			}
+			trackGitAttributesCreatedFile(tracker, gitAttributesPath, gitAttributesExisted, updated)
 			if opts.Verbose {
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
 			}
