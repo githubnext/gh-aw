@@ -25,6 +25,7 @@ const EVENT_TYPE_DESCRIPTIONS = {
   issues: "issue",
   pull_request: "pull request",
   pull_request_comment: "pull request comment",
+  pull_request_review: "pull request review",
   issue_comment: "issue comment",
   pull_request_review_comment: "pull request review comment",
   discussion: "discussion",
@@ -290,6 +291,7 @@ async function createOrReuseStatusComment(rawContext = context) {
 
     case "pull_request":
     case "pull_request_comment":
+    case "pull_request_review":
     case "pull_request_review_comment": {
       const number = payload?.pull_request?.number;
       if (!number) {
