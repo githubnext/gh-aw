@@ -37,7 +37,7 @@ The failure is caused by validation ordering and data flow inside AWF:
 1. `src/commands/validators/config-assembly.ts` reads `COPILOT_MODEL` and calls:
    - `validateCopilotModel(copilotModel)`
    - on failure, it logs `validation.message` and exits (`process.exit(1)`).
-2. `src/copilot-model.ts` generates the exact error string and validates against a hardcoded `SUPPORTED_COPILOT_MODELS` set plus a small retired-alias map.
+2. `src/copilot-model.ts` generates the exact error string and validates against a hardcoded `SUPPORTED_COPILOT_MODELS` set plus a limited retired-alias map.
 3. That validator does **not** read runtime alias config (`config.modelAliases` / `AWF_MODEL_ALIASES`), so aliases such as `small` are not considered valid at this preflight step.
 4. AWF does carry alias config forward (`modelAliases` is assembled and exported as `AWF_MODEL_ALIASES`), but that is for api-proxy model resolution later in the request path, after the failing preflight check.
 
