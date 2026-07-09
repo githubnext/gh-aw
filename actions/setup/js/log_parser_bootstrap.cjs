@@ -7,6 +7,10 @@ const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/i;
 const CLAUDE_RATE_LIMIT_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit/i;
 const CLAUDE_OVERLOAD_PATTERN = /overloaded_error|"overloaded"/i;
+// Treat only clearly HTTP-scoped 5xx strings as transient inference availability:
+//  - protocol/status lines such as "HTTP/1.1 503"
+//  - structured status-code fields such as "status code: 502"
+//  - request/fetch/http error prose that includes a 5xx code
 const CLAUDE_HTTP_5XX_STATUS_PATTERN = /(?:HTTP(?:\/\d\.\d)?\s+5\d{2}\b|status(?:\s+code)?\s*[:=]\s*5\d{2}\b|(?:http|fetch|request)\s+(?:failed|error)[^\n]*?\b5\d{2}\b)/i;
 const STARTUP_DIAGNOSTIC_LINE_PATTERN = /(?:ERR_|Error:|CAPIError|Authentication failed|rate[_ -]?limit|429|\b5\d{2}\b|overloaded|inference)/i;
 const MAX_DIAGNOSTIC_TAIL_LINES = 8;
@@ -76,7 +80,7 @@ function buildClaudeStartupDiagnostics(rawContent) {
  * @returns {string}
  */
 function escapeHtml(text) {
-  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
 
 /**
