@@ -26,6 +26,12 @@ Using an interpolated route bypasses Octokit's typed route dispatch, can silentl
 - `` github.request(`GET /repos/${owner}/${repo}`, ...) `` — template literal with interpolations.
 - `github.request("GET /repos/" + owner + "/" + repo, ...)` — string concatenation.
 
+**Out of scope:**
+- `this.github.request(...)` / `context.github.request(...)` — only direct identifier clients are matched today.
+- `github.request(route, ...)` — variable indirection is not resolved.
+- `github.request("GET /repos/".concat(owner), ...)` — `.concat()`-built routes are not inspected.
+- `github.request("GET /repos" + "/{owner}/{repo}", ...)` — compile-time constant concatenations are accepted.
+
 **Safe alternative:**
 ```js
 github.request("GET /repos/{owner}/{repo}", { owner, repo });
@@ -63,3 +69,97 @@ Flagged forms:
 - `global.isNaN(x)` / `global["isNaN"](x)`
 
 Locally shadowed bindings (e.g. `const isNaN = Number.isNaN`) are intentionally excluded.
+
+### `no-core-setoutput-non-string`
+
+Require `core.setOutput(name, value)` calls to pass an explicit string value for the targeted low-false-positive cases: numeric literals, boolean literals, `null`, `undefined`, and `.length` member accesses.
+
+Why: GitHub Actions step outputs are strings. Relying on implicit coercion can silently emit `"null"`, `"undefined"`, `"true"`, or other unintended values into downstream expressions.
+
+Typical fixes:
+- `core.setOutput("count", String(count))`
+- `core.setOutput("optional", "")` when empty-string semantics are intended for `null` / `undefined`
+
+### `no-unsafe-catch-error-property`
+
+Disallow direct access to `.message`, `.stack`, `.code`, `.status`, `.cause`, or `.name` on a `catch (err)` binding unless the code first proves the thrown value is safe to inspect.
+
+Accepted guards:
+- `getErrorMessage(err)`
+- `err instanceof Error`
+- `typeof err === "object" && err !== null`
+
+Why: JavaScript can throw non-`Error` values, so `err.message` is not always safe.
+
+### `no-unsafe-promise-catch-error-property`
+
+Disallow the same unsafe error-property accesses inside inline promise rejection handlers such as `.catch(err => ...)`.
+
+This rule mirrors `no-unsafe-catch-error-property`, but for promise rejection values rather than `catch` clauses. Truthiness checks such as `err && err.message` are recognized for the accessed property.
+
+### `prefer-get-error-message`
+
+Prefer `getErrorMessage(err)` over the repeated pattern `err instanceof Error ? err.message : String(err)`.
+
+Why: `getErrorMessage(err)` centralizes safe error extraction and also sanitizes HTML error-page responses in the gh-aw runtime helpers.
+
+### `require-async-entrypoint-catch`
+
+Require bare calls to module-scope async entrypoints such as `main()` to be chained with `.catch(...)` when they are invoked outside an async context.
+
+Flagged form:
+- `main();`
+
+Safe alternatives:
+- `main().catch(err => { ... });`
+- `await main();` when already inside an async function
+
+### `require-await-core-summary-write`
+
+Require `core.summary.write()` (including known aliases and fluent `core.summary.*().write()` chains) to be awaited when used as a bare expression.
+
+Why: `core.summary.write()` returns a promise. Dropping it can truncate or lose the step summary if the process exits first.
+
+Intentional exception:
+- `void core.summary.write()` is treated as an explicit deliberate discard marker.
+
+### `require-error-cause-in-rethrow`
+
+Require rethrown `new Error(...)` values inside a `catch` block to preserve the original failure with `{ cause: err }` when the new message already references the caught error or a direct alias of it.
+
+Flagged form:
+- `throw new Error(\`failed: ${getErrorMessage(err)}\`);`
+
+Safe alternative:
+- `throw new Error(\`failed: ${getErrorMessage(err)}\`, { cause: err });`
+
+### `require-fs-sync-try-catch`
+
+Require `fs.readFileSync`, `fs.writeFileSync`, and `fs.appendFileSync` calls to be wrapped in `try/catch`.
+
+Why: these synchronous filesystem calls throw on missing files, permission errors, and disk failures, which otherwise crash the action without useful context.
+
+Current scope:
+- direct `fs.readFileSync(...)`
+- known `require("fs")` aliases
+- destructured aliases such as `const { readFileSync } = require("fs")`
+
+### `require-json-parse-try-catch`
+
+Require `JSON.parse(...)` calls to be wrapped in `try/catch`.
+
+Why: malformed JSON should produce a controlled failure path in runtime scripts rather than an uncaught exception.
+
+Out of scope:
+- aliased or destructured `JSON.parse` references such as `const parse = JSON.parse`
+
+### `require-parseInt-radix`
+
+Require `parseInt()` to include an explicit radix argument.
+
+Flagged forms:
+- `parseInt(value)`
+- `Number.parseInt(value)`
+- `globalThis.parseInt(value)`
+
+Why: omitting the radix allows implicit base detection, which can silently accept prefixes such as `0x`.
