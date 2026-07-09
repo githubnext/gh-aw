@@ -1405,3 +1405,191 @@ func TestScanRunContentExpressions(t *testing.T) {
 		})
 	}
 }
+
+// TestScanRunContentExpressionsHeredoc verifies that expressions inside heredocs
+// are not flagged as disallowed – this is the core fix for the CompileSimpleWorkflow
+// performance regression where ${{ toJSON(steps.determine-automatic-lockdown...) }}
+// inside a heredoc was triggering a full yaml.Unmarshal on every compilation.
+func TestScanRunContentExpressionsHeredoc(t *testing.T) {
+	tests := []struct {
+		name              string
+		yaml              string
+		wantHasUnsafe     bool
+		wantHasDisallowed bool
+	}{
+		{
+			name: "disallowed expression inside unquoted heredoc is not flagged",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: |
+          cat << GH_AW_MCP_CONFIG_EOF | node start_mcp.cjs
+          {
+            "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
+          }
+          GH_AW_MCP_CONFIG_EOF`,
+			wantHasUnsafe:     false,
+			wantHasDisallowed: false,
+		},
+		{
+			name: "unsafe expression inside unquoted heredoc is not flagged",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: |
+          cat << EOF
+          title: ${{ github.event.issue.title }}
+          EOF`,
+			wantHasUnsafe:     false,
+			wantHasDisallowed: false,
+		},
+		{
+			name: "disallowed expression OUTSIDE heredoc is still flagged",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: |
+          echo ${{ github.actor }}
+          cat << EOF
+          safe: content
+          EOF`,
+			wantHasUnsafe:     false,
+			wantHasDisallowed: true,
+		},
+		{
+			name: "unsafe expression OUTSIDE heredoc is still flagged",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: |
+          echo "${{ github.event.issue.title }}"
+          cat << EOF
+          safe
+          EOF`,
+			wantHasUnsafe:     true,
+			wantHasDisallowed: true,
+		},
+		{
+			name: "allowed expression after heredoc close is not flagged",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: |
+          cat << EOF
+          safe
+          EOF
+          node ${{ runner.temp }}/actions/foo.cjs`,
+			wantHasUnsafe:     false,
+			wantHasDisallowed: false,
+		},
+		{
+			name: "quoted heredoc delimiter (single-quoted) skips content",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: |
+          cat << 'EOF'
+          literal: ${{ github.event.issue.title }}
+          EOF`,
+			wantHasUnsafe:     false,
+			wantHasDisallowed: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := scanRunContentExpressions(tt.yaml)
+
+			assert.Equal(t, tt.wantHasUnsafe, got.hasUnsafe, "hasUnsafe mismatch")
+			assert.Equal(t, tt.wantHasDisallowed, got.hasDisallowed, "hasDisallowed mismatch")
+		})
+	}
+}
+
+// TestDetectHeredocDelimiter verifies the heredoc delimiter extraction function.
+func TestDetectHeredocDelimiter(t *testing.T) {
+	tests := []struct {
+		name      string
+		line      string
+		wantDelim string
+		wantOK    bool
+	}{
+		{
+			name:      "unquoted delimiter",
+			line:      `cat << EOF | node script.cjs`,
+			wantDelim: "EOF",
+			wantOK:    true,
+		},
+		{
+			name:      "compiler-style delimiter with prefix",
+			line:      `cat << GH_AW_MCP_CONFIG_01641c1bd0fd81fa_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/actions/start.cjs"`,
+			wantDelim: "GH_AW_MCP_CONFIG_01641c1bd0fd81fa_EOF",
+			wantOK:    true,
+		},
+		{
+			name:      "single-quoted delimiter",
+			line:      `cat << 'EOF'`,
+			wantDelim: "EOF",
+			wantOK:    true,
+		},
+		{
+			name:      "double-quoted delimiter",
+			line:      `cat << "MY_DELIM"`,
+			wantDelim: "MY_DELIM",
+			wantOK:    true,
+		},
+		{
+			name:      "strip-tab variant",
+			line:      `cat <<- EOF`,
+			wantDelim: "EOF",
+			wantOK:    true,
+		},
+		{
+			name:      "no heredoc",
+			line:      `echo hello`,
+			wantDelim: "",
+			wantOK:    false,
+		},
+		{
+			name:      "less-than operator is not a heredoc",
+			line:      `if [ $x < 5 ]; then`,
+			wantDelim: "",
+			wantOK:    false,
+		},
+		{
+			name:      "bash here-string is not a heredoc",
+			line:      `cat <<< "hello world"`,
+			wantDelim: "",
+			wantOK:    false,
+		},
+		{
+			name:      "arithmetic bitshift is not a heredoc",
+			line:      `echo $((1 << 2))`,
+			wantDelim: "",
+			wantOK:    false,
+		},
+		{
+			name:      "arithmetic bitshift no spaces is not a heredoc",
+			line:      `result=$((flags<<4))`,
+			wantDelim: "",
+			wantOK:    false,
+		},
+		{
+			name:      "delimiter starting with dash is not a heredoc",
+			line:      `cat << -EOF`,
+			wantDelim: "",
+			wantOK:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			trimmed := strings.TrimLeft(tt.line, " \t")
+			gotDelim, gotOK := detectHeredocDelimiter(trimmed)
+			assert.Equal(t, tt.wantOK, gotOK)
+			if tt.wantOK {
+				assert.Equal(t, tt.wantDelim, gotDelim)
+			}
+		})
+	}
+}

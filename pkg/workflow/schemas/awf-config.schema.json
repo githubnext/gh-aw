@@ -738,7 +738,7 @@
         "topology": {
           "type": "string",
           "enum": ["standard", "arc-dind"],
-          "description": "Runner deployment topology. 'standard' (default) = GitHub-hosted VM or self-hosted runner with local Docker. 'arc-dind' = ARC (Actions Runner Controller) with Docker-in-Docker sidecar, where the runner and Docker daemon have separate filesystems. When set to 'arc-dind', AWF enables sysroot staging (a sysroot-stage init container copies the build-tools image into a named volume mounted at /host:rw on the agent) and emits a warning when RUNNER_TOOL_CACHE points under /opt (which is typically invisible to the DinD daemon). Other ARC/DinD settings such as container.dockerHostPathPrefix, dind.preStageDirs, and network.isolation are configured explicitly through their own fields."
+          "description": "Runner deployment topology. 'standard' (default) = GitHub-hosted VM or self-hosted runner with local Docker. 'arc-dind' = ARC (Actions Runner Controller) with Docker-in-Docker sidecar, where the runner and Docker daemon have separate filesystems. When set to 'arc-dind', AWF enables sysroot staging (a sysroot-stage init container copies the build-tools image into a named volume mounted at /host:rw on the agent) and emits a warning when RUNNER_TOOL_CACHE points under /opt (which is typically invisible to the DinD daemon). Other ARC/DinD settings such as container.dockerHostPathPrefix, dind.preStageDirs, and network.isolation are configured explicitly through their own fields. See docs/arc-dind.md for a complete guide."
         },
         "sysrootImage": {
           "type": "string",

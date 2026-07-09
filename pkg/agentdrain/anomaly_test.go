@@ -9,6 +9,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// anomalyScore computes the expected normalized anomaly score from the individual flag weights,
+// mirroring the scoring logic in Analyze. Using the exported constants (AnomalyWeightNew,
+// AnomalyWeightLow, AnomalyWeightRare, AnomalyMaxScore) gives a compile-time sync guarantee:
+// if production weights change, this helper diverges at compile time, not silently at runtime.
+func anomalyScore(isNew, lowSim, rare bool) float64 {
+	var score float64
+	if isNew {
+		score += AnomalyWeightNew
+	}
+	if lowSim {
+		score += AnomalyWeightLow
+	}
+	if rare {
+		score += AnomalyWeightRare
+	}
+	if score > AnomalyMaxScore {
+		score = AnomalyMaxScore
+	}
+	return score / AnomalyMaxScore
+}
+
 func TestAnomalyDetector_Analyze(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -217,6 +238,7 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			d, err := NewAnomalyDetector(tt.simThreshold, tt.rareThreshold)
 			require.NoError(t, err, "NewAnomalyDetector should succeed with valid thresholds")
 			require.NotNil(t, d, "NewAnomalyDetector should return a non-nil detector")
@@ -272,11 +294,12 @@ func TestNewAnomalyDetector_ThresholdBoundaries(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			detector, err := NewAnomalyDetector(tt.simThreshold, tt.rareThreshold)
 			if tt.wantErr != "" {
 				require.Error(t, err, "NewAnomalyDetector should reject invalid thresholds")
 				assert.Contains(t, err.Error(), tt.wantErr, "error should describe invalid threshold")
-				assert.Nil(t, detector, "NewAnomalyDetector should return nil detector on validation error")
+				require.Nil(t, detector, "NewAnomalyDetector should return nil detector on validation error")
 				return
 			}
 
@@ -358,6 +381,7 @@ func TestBuildReason(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			r := &AnomalyReport{
 				IsNewTemplate: tt.isNewTemplate,
 				LowSimilarity: tt.lowSimilarity,
@@ -384,32 +408,126 @@ func TestAnalyzeEvent(t *testing.T) {
 		Fields: map[string]string{"status": "ok"},
 	}
 
-	// Step 1: first occurrence trains the template and is flagged as new.
-	resultFirst, reportFirst, errFirst := m.AnalyzeEvent(evtPlan)
-	require.NoError(t, errFirst, "AnalyzeEvent should not fail for first event")
-	require.NotNil(t, resultFirst, "AnalyzeEvent should return a non-nil result")
-	require.NotNil(t, reportFirst, "AnalyzeEvent should return a non-nil report")
-	assert.True(t, reportFirst.IsNewTemplate, "IsNewTemplate mismatch for first event")
-	assert.InDelta(t, 0.65, reportFirst.AnomalyScore, 1e-9, "AnomalyScore mismatch for first event")
-	assert.Equal(t, "new log template discovered; rare cluster (few observations)", reportFirst.Reason, "Reason mismatch for first event")
+	// Sub-tests are sequential: each step mutates the shared miner state and depends
+	// on the state from the previous step. Do NOT add t.Parallel() to any of these
+	// sub-tests — doing so would cause a data race on the shared Miner.
 
-	// Step 2: second identical occurrence reuses the trained template.
-	resultSecond, reportSecond, errSecond := m.AnalyzeEvent(evtPlan)
-	require.NoError(t, errSecond, "AnalyzeEvent should not fail for second identical event")
-	require.NotNil(t, resultSecond, "AnalyzeEvent should return a non-nil result")
-	require.NotNil(t, reportSecond, "AnalyzeEvent should return a non-nil report")
-	assert.False(t, reportSecond.IsNewTemplate, "IsNewTemplate mismatch for second identical event")
-	assert.InDelta(t, 0.15, reportSecond.AnomalyScore, 1e-9, "AnomalyScore mismatch for second identical event")
-	assert.Equal(t, "rare cluster (few observations)", reportSecond.Reason, "Reason mismatch for second identical event")
+	t.Run("first occurrence trains template and is flagged new", func(t *testing.T) {
+		resultFirst, reportFirst, errFirst := m.AnalyzeEvent(evtPlan)
+		require.NoError(t, errFirst, "AnalyzeEvent should not fail for first event")
+		require.NotNil(t, resultFirst, "AnalyzeEvent should return a non-nil result")
+		require.NotNil(t, reportFirst, "AnalyzeEvent should return a non-nil report")
+		// Both assertions below are gates for steps 2+3: a failure here stops the test
+		// before exercising state that is now invalid.
+		require.True(t, reportFirst.IsNewTemplate, "IsNewTemplate mismatch for first event")
+		require.InDelta(t, anomalyScore(true, false, true), reportFirst.AnomalyScore, 1e-9, "AnomalyScore mismatch for first event")
+		assert.Equal(t, "new log template discovered; rare cluster (few observations)", reportFirst.Reason, "Reason mismatch for first event")
+	})
 
-	// Step 3: a distinct event creates a separate new template.
-	resultDistinct, reportDistinct, errDistinct := m.AnalyzeEvent(evtFinish)
-	require.NoError(t, errDistinct, "AnalyzeEvent should not fail for distinct event")
-	require.NotNil(t, resultDistinct, "AnalyzeEvent should return a non-nil result")
-	require.NotNil(t, reportDistinct, "AnalyzeEvent should return a non-nil report")
-	assert.True(t, reportDistinct.IsNewTemplate, "IsNewTemplate mismatch for distinct event")
-	assert.InDelta(t, 0.65, reportDistinct.AnomalyScore, 1e-9, "AnomalyScore mismatch for distinct event")
-	assert.Equal(t, "new log template discovered; rare cluster (few observations)", reportDistinct.Reason, "Reason mismatch for distinct event")
+	t.Run("second identical occurrence reuses trained template", func(t *testing.T) {
+		resultSecond, reportSecond, errSecond := m.AnalyzeEvent(evtPlan)
+		require.NoError(t, errSecond, "AnalyzeEvent should not fail for second identical event")
+		require.NotNil(t, resultSecond, "AnalyzeEvent should return a non-nil result")
+		require.NotNil(t, reportSecond, "AnalyzeEvent should return a non-nil report")
+		assert.False(t, reportSecond.IsNewTemplate, "IsNewTemplate mismatch for second identical event")
+		assert.InDelta(t, anomalyScore(false, false, true), reportSecond.AnomalyScore, 1e-9, "AnomalyScore mismatch for second identical event")
+		assert.Equal(t, "rare cluster (few observations)", reportSecond.Reason, "Reason mismatch for second identical event")
+	})
+
+	t.Run("distinct event creates separate new template", func(t *testing.T) {
+		resultDistinct, reportDistinct, errDistinct := m.AnalyzeEvent(evtFinish)
+		require.NoError(t, errDistinct, "AnalyzeEvent should not fail for distinct event")
+		require.NotNil(t, resultDistinct, "AnalyzeEvent should return a non-nil result")
+		require.NotNil(t, reportDistinct, "AnalyzeEvent should return a non-nil report")
+		assert.True(t, reportDistinct.IsNewTemplate, "IsNewTemplate mismatch for distinct event")
+		assert.InDelta(t, anomalyScore(true, false, true), reportDistinct.AnomalyScore, 1e-9, "AnomalyScore mismatch for distinct event")
+		assert.Equal(t, "new log template discovered; rare cluster (few observations)", reportDistinct.Reason, "Reason mismatch for distinct event")
+	})
+}
+
+// TestAnalyzeEvent_Variants covers edge-case event shapes: empty stage and nil/empty fields.
+func TestAnalyzeEvent_Variants(t *testing.T) {
+	tests := []struct {
+		name       string
+		evt        AgentEvent
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name: "empty stage with fields succeeds",
+			evt: AgentEvent{
+				Stage:  "",
+				Fields: map[string]string{"action": "start"},
+			},
+		},
+		{
+			name: "stage with nil fields succeeds",
+			evt: AgentEvent{
+				Stage:  "plan",
+				Fields: nil,
+			},
+		},
+		{
+			name:       "empty stage and nil fields returns error",
+			evt:        AgentEvent{Stage: "", Fields: nil},
+			wantErr:    true,
+			wantErrMsg: "empty event after masking",
+		},
+		{
+			name:       "empty stage and empty fields returns error",
+			evt:        AgentEvent{Stage: "", Fields: map[string]string{}},
+			wantErr:    true,
+			wantErrMsg: "empty event after masking",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := DefaultConfig()
+			m, err := NewMiner(cfg)
+			require.NoError(t, err, "NewMiner should succeed")
+
+			result, report, err := m.AnalyzeEvent(tt.evt)
+			if tt.wantErr {
+				require.Error(t, err, "AnalyzeEvent should return an error")
+				assert.Contains(t, err.Error(), tt.wantErrMsg, "error message mismatch")
+				assert.Nil(t, result, "AnalyzeEvent should return nil result on error")
+				assert.Nil(t, report, "AnalyzeEvent should return nil report on error")
+				return
+			}
+			require.NoError(t, err, "AnalyzeEvent should not return an error")
+			require.NotNil(t, result, "AnalyzeEvent should return a non-nil result")
+			require.NotNil(t, report, "AnalyzeEvent should return a non-nil report")
+		})
+	}
+}
+
+// TestAnalyze_NilResult ensures that Analyze does not panic when result is nil
+// and instead returns a zero-value report with the "no anomaly detected" reason.
+func TestAnalyze_NilResult(t *testing.T) {
+	t.Parallel()
+	d, err := NewAnomalyDetector(0.4, 2)
+	require.NoError(t, err, "NewAnomalyDetector should succeed")
+
+	// Nil result must not panic; the nil-guard in Analyze returns a safe report.
+	report := d.Analyze(nil, false, nil)
+	require.NotNil(t, report, "Analyze should return a non-nil report even for nil result")
+	assert.Equal(t, "no anomaly detected", report.Reason, "nil result should produce no-anomaly reason")
+	assert.InDelta(t, 0.0, report.AnomalyScore, 1e-9, "nil result should produce zero anomaly score")
+	assert.False(t, report.IsNewTemplate, "nil result should not set IsNewTemplate")
+	assert.False(t, report.LowSimilarity, "nil result should not set LowSimilarity")
+	assert.False(t, report.RareCluster, "nil result should not set RareCluster")
+
+	// Confirm that isNew=true and a non-nil cluster are silently ignored when result is nil.
+	// The nil-guard short-circuits before reading those arguments; callers should not rely on
+	// them being honoured when result is absent.
+	cluster := &Cluster{ID: 1, Template: []string{"x"}, Size: 1}
+	reportWithArgs := d.Analyze(nil, true, cluster)
+	require.NotNil(t, reportWithArgs, "Analyze should return a non-nil report for nil result with non-nil args")
+	assert.Equal(t, "no anomaly detected", reportWithArgs.Reason, "isNew and cluster must be ignored when result is nil")
+	assert.InDelta(t, 0.0, reportWithArgs.AnomalyScore, 1e-9, "AnomalyScore must be zero when result is nil")
+	assert.False(t, reportWithArgs.IsNewTemplate, "IsNewTemplate must be false when result is nil")
 }
 
 func TestAnalyze_FlagMutualExclusivity(t *testing.T) {
@@ -453,6 +571,7 @@ func TestAnalyze_FlagMutualExclusivity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			report := d.Analyze(tt.result, tt.isNew, tt.cluster)
 			require.NotNil(t, report, "Analyze should always return a non-nil report")
 			assert.Equal(t, tt.wantLow, report.LowSimilarity, "LowSimilarity mismatch")

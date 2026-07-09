@@ -76,6 +76,7 @@ const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 const MAX_ENV_VAR_PREVIEW_LENGTH = 120;
 const OUTPUT_TAIL_MAX_CHARS = 600;
 const OUTPUT_TAIL_MAX_LINES = 12;
+const POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = 20 * 1000;
 const COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_NAME = "copilot_requests_proxy_auth_403.md";
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
@@ -144,6 +145,39 @@ const NULL_TYPE_TOOL_CALL_PATTERN = /tool_calls\[.*?\]\.type.*null/;
  */
 function log(message) {
   process.stderr.write(`[copilot-harness] ${message}\n`);
+}
+
+const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["missing_tool", "missing_data", "report_incomplete"]);
+
+/**
+ * Detect whether safe-outputs already contain a terminal agent result.
+ * Terminal outputs include noop and any non-diagnostic task output types.
+ * @param {string} safeOutputsPath
+ * @returns {boolean}
+ */
+function hasTerminalSafeOutput(safeOutputsPath) {
+  if (!safeOutputsPath) return false;
+  let content = "";
+  try {
+    content = fs.readFileSync(safeOutputsPath, "utf8");
+  } catch {
+    return false;
+  }
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const parsed = JSON.parse(trimmed);
+      const type = parsed && typeof parsed.type === "string" ? parsed.type : "";
+      if (!type) continue;
+      if (type === "noop" || !NON_TERMINAL_SAFE_OUTPUT_TYPES.has(type)) {
+        return true;
+      }
+    } catch {
+      // Ignore malformed lines.
+    }
+  }
+  return false;
 }
 
 /**
@@ -911,7 +945,20 @@ async function main() {
         const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
         // Driver mode: run copilot_sdk_driver.cjs as a normal subprocess. The harness has
         // already started the sidecar; the driver only opens an SDK client connection.
-        const result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
+        const result = await runProcess({
+          command,
+          args: currentArgs,
+          attempt,
+          log,
+          logArgs: safeArgs,
+          env: childEnv,
+          postResultWatchdog: safeOutputsPath
+            ? {
+                shouldArm: () => hasTerminalSafeOutput(safeOutputsPath),
+                inactivityTimeoutMs: POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS,
+              }
+            : undefined,
+        });
         lastExitCode = result.exitCode;
         const attemptDetections = detectCopilotErrors(result.output);
         detectedCopilotErrors.inferenceAccessError ||= attemptDetections.inferenceAccessError;
@@ -1219,6 +1266,7 @@ if (typeof module !== "undefined" && module.exports) {
     resolveRetryConfig,
     parseCopilotSDKServerArgsFromEnv,
     isCAPIQuotaExceededError,
+    hasTerminalSafeOutput,
   };
 }
 

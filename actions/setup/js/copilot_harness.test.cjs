@@ -28,6 +28,7 @@ const {
   extractDeniedCommands,
   hasNumerousPermissionDeniedIssues,
   hasNoopInSafeOutputs,
+  hasTerminalSafeOutput,
   hasExpectedSafeOutputs,
   INFERENCE_ACCESS_ERROR_PATTERN,
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
@@ -226,6 +227,52 @@ describe("copilot_harness.cjs", () => {
       });
 
       expect(env.COPILOT_PROVIDER_WIRE_API).toBeUndefined();
+    });
+  });
+
+  describe("hasTerminalSafeOutput", () => {
+    it("returns true for noop entries", () => {
+      const tempDir = makeHarnessTempDir("terminal-safeoutput-noop-");
+      const filePath = path.join(tempDir, "safe-outputs.jsonl");
+      try {
+        fs.writeFileSync(filePath, JSON.stringify({ type: "noop", reason: "nothing to do" }) + "\n", "utf8");
+        expect(hasTerminalSafeOutput(filePath)).toBe(true);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns true for non-diagnostic task outputs", () => {
+      const tempDir = makeHarnessTempDir("terminal-safeoutput-task-");
+      const filePath = path.join(tempDir, "safe-outputs.jsonl");
+      try {
+        fs.writeFileSync(filePath, JSON.stringify({ type: "comment_issue", body: "done" }) + "\n", "utf8");
+        expect(hasTerminalSafeOutput(filePath)).toBe(true);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns false for diagnostic-only output", () => {
+      const tempDir = makeHarnessTempDir("terminal-safeoutput-diagnostic-");
+      const filePath = path.join(tempDir, "safe-outputs.jsonl");
+      try {
+        fs.writeFileSync(filePath, JSON.stringify({ type: "missing_tool", reason: "missing permission" }) + "\n", "utf8");
+        expect(hasTerminalSafeOutput(filePath)).toBe(false);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns false for missing_data diagnostic output", () => {
+      const tempDir = makeHarnessTempDir("terminal-safeoutput-missing-data-");
+      const filePath = path.join(tempDir, "safe-outputs.jsonl");
+      try {
+        fs.writeFileSync(filePath, JSON.stringify({ type: "missing_data", reason: "metadata only" }) + "\n", "utf8");
+        expect(hasTerminalSafeOutput(filePath)).toBe(false);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
     });
   });
 

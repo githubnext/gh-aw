@@ -26,10 +26,15 @@ describe("extra_empty_commit.cjs", () => {
     // Default exec mock: resolves successfully, no stdout output
     mockExec = {
       exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ stdout: "", stderr: "", exitCode: 1 }),
     };
 
     global.core = mockCore;
     global.exec = mockExec;
+    // Default: GraphQL unavailable — existing tests exercise the git fallback path.
+    global.getOctokit = vi.fn(() => ({
+      graphql: vi.fn().mockRejectedValue(new Error("GraphQL unavailable in test")),
+    }));
 
     // Clear module cache so env changes take effect
     delete require.cache[require.resolve("./extra_empty_commit.cjs")];
@@ -53,6 +58,7 @@ describe("extra_empty_commit.cjs", () => {
     }
     delete global.core;
     delete global.exec;
+    delete global.getOctokit;
     vi.clearAllMocks();
   });
 
@@ -143,7 +149,7 @@ describe("extra_empty_commit.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Extra empty commit pushed"));
     });
 
-    it("should add and remove a ci-trigger remote", async () => {
+    it("should add and remove a ci-trigger remote only on the git push path", async () => {
       await pushExtraEmptyCommit({
         branchName: "feature-branch",
         repoOwner: "test-owner",
@@ -151,14 +157,89 @@ describe("extra_empty_commit.cjs", () => {
       });
 
       const execCalls = mockExec.exec.mock.calls;
-      // Find remote add call
+      // Find remote add call — only present on the git push path
       const addRemote = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "add");
       expect(addRemote).toBeDefined();
-      expect(addRemote[1]).toEqual(["remote", "add", "ci-trigger", expect.stringContaining("x-access-token:ghp_test_token_123")]);
+      expect(addRemote[1]).toEqual(["remote", "add", "ci-trigger", "https://github.com/test-owner/test-repo.git"]);
 
       // Find remote remove cleanup call (after push)
       const removeRemoteCalls = execCalls.filter(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "remove");
       expect(removeRemoteCalls.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("should replace extraheader auth before push and restore it after push", async () => {
+      await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      const execCalls = mockExec.exec.mock.calls;
+      // Use findIndex so the assertion stays correct even if restorePersistedExtraheader
+      // also emits a --replace-all call (e.g. when restoring previous values).
+      const replaceIdx = execCalls.findIndex(c => c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--replace-all");
+      expect(replaceIdx).toBeGreaterThanOrEqual(0);
+      const replaceCall = execCalls[replaceIdx];
+      expect(replaceCall[1][2]).toBe("http.https://github.com/.extraheader");
+      expect(replaceCall[1][3]).toBe(`Authorization: basic ${Buffer.from("x-access-token:ghp_test_token_123").toString("base64")}`);
+
+      const pushIdx = execCalls.findIndex(c => c[0] === "git" && c[1] && c[1][0] === "push");
+      expect(pushIdx).toBeGreaterThan(-1);
+      expect(replaceIdx).toBeLessThan(pushIdx);
+
+      const unsetCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--unset-all");
+      expect(unsetCall).toBeDefined();
+      expect(execCalls.indexOf(unsetCall)).toBeGreaterThan(pushIdx);
+    });
+
+    it("should restore a previously-set extraheader after push", async () => {
+      const prevHeader = `Authorization: basic ${Buffer.from("x-access-token:old_token").toString("base64")}`;
+      // Override getExecOutput so it returns the previous header when reading the extraheader key.
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: prevHeader + "\n", stderr: "" });
+
+      await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      const execCalls = mockExec.exec.mock.calls;
+      const pushIdx = execCalls.findIndex(c => c[0] === "git" && c[1] && c[1][0] === "push");
+      expect(pushIdx).toBeGreaterThan(-1);
+
+      // After push, there should be a --replace-all that restores the old header.
+      const restoreCall = execCalls.find((c, i) => i > pushIdx && c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--replace-all");
+      expect(restoreCall).toBeDefined();
+      expect(restoreCall[1][3]).toBe(prevHeader);
+    });
+
+    it("should restore extraheader even when push throws", async () => {
+      // Simulate push failure
+      mockExec.exec.mockImplementation(async (cmd, args) => {
+        if (cmd === "git" && args && args[0] === "push") {
+          throw new Error("remote: Permission denied");
+        }
+        return 0;
+      });
+
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      expect(result.success).toBe(false);
+
+      const execCalls = mockExec.exec.mock.calls;
+
+      // The override (--replace-all with CI token) must have happened before the failed push.
+      const overrideIdx = execCalls.findIndex(c => c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--replace-all");
+      expect(overrideIdx).toBeGreaterThanOrEqual(0);
+
+      // After the failed push, the finally block must restore by unsetting the key
+      // (default mock returns no previous extraheader).
+      const unsetCall = execCalls.find((c, i) => i > overrideIdx && c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--unset-all");
+      expect(unsetCall).toBeDefined();
     });
 
     it("should fetch and reset to remote branch before committing", async () => {
@@ -170,29 +251,28 @@ describe("extra_empty_commit.cjs", () => {
 
       const execCalls = mockExec.exec.mock.calls;
 
-      // Find the remote add call index so we can verify order
-      const addRemoteIdx = execCalls.findIndex(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "add");
-      expect(addRemoteIdx).toBeGreaterThanOrEqual(0);
-
-      // fetch should come after remote add
-      const fetchCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "fetch" && c[1][1] === "ci-trigger");
+      // fetch (sync step) uses the URL directly, not the ci-trigger named remote
+      const fetchCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "fetch" && c[1][1] === "https://github.com/test-owner/test-repo.git");
       expect(fetchCall).toBeDefined();
-      expect(fetchCall[1]).toEqual(["fetch", "ci-trigger", "api-created-branch"]);
+      expect(fetchCall[1]).toEqual(["fetch", "https://github.com/test-owner/test-repo.git", "api-created-branch"]);
       const fetchIdx = execCalls.indexOf(fetchCall);
-      expect(fetchIdx).toBeGreaterThan(addRemoteIdx);
 
-      // reset --hard should come after fetch
+      // reset --hard FETCH_HEAD should come after the URL-based fetch
       const resetCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "reset" && c[1][1] === "--hard");
       expect(resetCall).toBeDefined();
-      expect(resetCall[1]).toEqual(["reset", "--hard", "ci-trigger/api-created-branch"]);
+      expect(resetCall[1]).toEqual(["reset", "--hard", "FETCH_HEAD"]);
       const resetIdx = execCalls.indexOf(resetCall);
       expect(resetIdx).toBeGreaterThan(fetchIdx);
 
-      // commit should come after reset
+      // remote add for ci-trigger comes AFTER the sync (only on git push path)
+      const addRemoteIdx = execCalls.findIndex(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "add");
+      expect(addRemoteIdx).toBeGreaterThan(resetIdx);
+
+      // commit should come after remote add
       const commitCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
       expect(commitCall).toBeDefined();
       const commitIdx = execCalls.indexOf(commitCall);
-      expect(commitIdx).toBeGreaterThan(resetIdx);
+      expect(commitIdx).toBeGreaterThan(addRemoteIdx);
 
       // push should come after commit
       const pushCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "push");
@@ -207,8 +287,8 @@ describe("extra_empty_commit.cjs", () => {
           options.listeners.stdout(Buffer.from("COMMIT:abc123\nfile.txt\n"));
           return 0;
         }
-        // Simulate fetch failing (branch does not yet exist on remote)
-        if (cmd === "git" && args && args[0] === "fetch") {
+        // Simulate fetch failing (branch does not yet exist on remote) — uses URL now
+        if (cmd === "git" && args && args[0] === "fetch" && args[1] && args[1].startsWith("https://")) {
           throw new Error("couldn't find remote ref api-created-branch");
         }
         return 0;
@@ -244,7 +324,7 @@ describe("extra_empty_commit.cjs", () => {
 
       const addRemote = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "add");
       expect(addRemote).toBeDefined();
-      expect(addRemote[1][3]).toContain("github.com/test-owner/test-repo.git");
+      expect(addRemote[1][3]).toBe("https://github.com/test-owner/test-repo.git");
     });
 
     it("should use GITHUB_SERVER_URL hostname for GitHub Enterprise", async () => {
@@ -260,8 +340,7 @@ describe("extra_empty_commit.cjs", () => {
 
       const addRemote = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "add");
       expect(addRemote).toBeDefined();
-      expect(addRemote[1][3]).toContain("github.example.com/test-owner/test-repo.git");
-      expect(addRemote[1][3]).not.toContain("github.com/test-owner/test-repo.git");
+      expect(addRemote[1][3]).toBe("https://github.example.com/test-owner/test-repo.git");
     });
 
     it("should use default commit message when none provided", async () => {
@@ -298,6 +377,164 @@ describe("extra_empty_commit.cjs", () => {
       const pushCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "push");
       expect(pushCall).toBeDefined();
       expect(pushCall[1]).toEqual(["push", "ci-trigger", "my-feature"]);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // Verified commits via GitHub API (createCommitOnBranch)
+  // ──────────────────────────────────────────────────────
+
+  describe("verified commits via GitHub API", () => {
+    const TEST_HEAD_OID = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
+    const TEST_NEW_OID = "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3";
+
+    beforeEach(() => {
+      process.env.GH_AW_CI_TRIGGER_TOKEN = "ghp_test_token_123";
+      mockGitLogOutput("COMMIT:abc123\nfile.txt\n");
+      // Override getExecOutput: return a real HEAD OID for rev-parse, no extraheader
+      mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
+        if (cmd === "git" && args && args[0] === "rev-parse" && args[1] === "HEAD") {
+          return { exitCode: 0, stdout: TEST_HEAD_OID + "\n", stderr: "" };
+        }
+        // No pre-existing extraheader
+        return { exitCode: 1, stdout: "", stderr: "" };
+      });
+      // Override global.getOctokit to return a successful GraphQL client
+      global.getOctokit = vi.fn(() => ({
+        graphql: vi.fn().mockResolvedValue({
+          createCommitOnBranch: { commit: { oid: TEST_NEW_OID } },
+        }),
+      }));
+      ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
+    });
+
+    it("should create a verified empty commit via the GitHub API", async () => {
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      expect(result).toEqual({ success: true });
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Verified empty commit created via GitHub API"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining(TEST_NEW_OID));
+    });
+
+    it("should NOT call git commit or git push when GraphQL succeeds", async () => {
+      await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      const commitCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
+      expect(commitCall).toBeUndefined();
+      const pushCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "push");
+      expect(pushCall).toBeUndefined();
+    });
+
+    it("should update local branch HEAD after API commit succeeds", async () => {
+      await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      const execCalls = mockExec.exec.mock.calls;
+      // The sync fetch (before commit) and the post-API-commit update fetch should
+      // both use the URL directly. Assert exactly 2 URL-based fetches for the branch.
+      const urlFetches = execCalls.filter(c => c[0] === "git" && c[1] && c[1][0] === "fetch" && c[1][1] === "https://github.com/test-owner/test-repo.git" && c[1][2] === "feature-branch");
+      expect(urlFetches).toHaveLength(2);
+
+      // The second fetch (local update) must come after the API commit info log.
+      const apiInfoIdx = mockCore.info.mock.calls.findIndex(c => c[0].includes("Verified empty commit created via GitHub API"));
+      expect(apiInfoIdx).toBeGreaterThanOrEqual(0);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Updated local branch to API-created commit"));
+
+      // No ci-trigger remote should be created (API path skips git push entirely)
+      const addRemote = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "add");
+      expect(addRemote).toBeUndefined();
+    });
+
+    it("should pass correct parameters to createCommitOnBranch mutation", async () => {
+      const mockGraphql = vi.fn().mockResolvedValue({
+        createCommitOnBranch: { commit: { oid: TEST_NEW_OID } },
+      });
+      global.getOctokit = vi.fn(() => ({ graphql: mockGraphql }));
+      delete require.cache[require.resolve("./extra_empty_commit.cjs")];
+      ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
+
+      await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+        commitMessage: "ci: custom trigger",
+      });
+
+      expect(mockGraphql).toHaveBeenCalledWith(
+        expect.stringContaining("createCommitOnBranch"),
+        expect.objectContaining({
+          input: expect.objectContaining({
+            branch: { repositoryNameWithOwner: "test-owner/test-repo", branchName: "feature-branch" },
+            message: { headline: "ci: custom trigger" },
+            fileChanges: {},
+            expectedHeadOid: TEST_HEAD_OID,
+          }),
+        })
+      );
+    });
+
+    it("should fall back to git commit + push when GraphQL fails", async () => {
+      global.getOctokit = vi.fn(() => ({
+        graphql: vi.fn().mockRejectedValue(new Error("GraphQL error: Forbidden")),
+      }));
+      delete require.cache[require.resolve("./extra_empty_commit.cjs")];
+      ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
+
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      expect(result).toEqual({ success: true });
+      const commitCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
+      expect(commitCall).toBeDefined();
+      const pushCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "push");
+      expect(pushCall).toBeDefined();
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("falling back to git commit"));
+    });
+
+    it("should fall back to git when getOctokit is not available", async () => {
+      delete global.getOctokit;
+      delete require.cache[require.resolve("./extra_empty_commit.cjs")];
+      ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
+
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      expect(result).toEqual({ success: true });
+      const commitCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
+      expect(commitCall).toBeDefined();
+    });
+
+    it("should still restore extraheader even when using the API path", async () => {
+      await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      const execCalls = mockExec.exec.mock.calls;
+      // Override was applied before the API commit
+      const overrideCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--replace-all");
+      expect(overrideCall).toBeDefined();
+      // After the API commit, --unset-all restores to empty (no previous header)
+      const unsetCall = execCalls.find(c => c[0] === "git" && c[1] && c[1][0] === "config" && c[1][1] === "--unset-all");
+      expect(unsetCall).toBeDefined();
     });
   });
 

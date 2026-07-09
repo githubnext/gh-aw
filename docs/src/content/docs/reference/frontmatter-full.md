@@ -59,6 +59,15 @@ tracker-id: "example-value"
 labels: []
   # Array of strings
 
+# Optional list of external skill references to install during activation.
+# Supports repository-wide installs (`owner/repo@<sha>`) and path-scoped installs
+# (`owner/repo/skill/path@<sha>`). Static references must be pinned to a full
+# 40-character lowercase commit SHA. GitHub Actions expressions (`${{ ... }}`) are
+# also accepted and are evaluated at runtime. Entries may also be objects to
+# configure per-skill authentication via github-token or github-app.
+# (optional)
+skills: []
+
 # Optional metadata field for storing custom key-value pairs compatible with the
 # custom agent spec. Key names are limited to 64 characters, and values are
 # limited to 1024 characters.
@@ -133,8 +142,9 @@ on:
   slash_command: null
 
   # Format 2: Command name as a string (shorthand format, e.g., 'customname' for
-  # '/customname' triggers). Command names must not start with '/' as the slash is
-  # automatically added when matching commands.
+  # '/customname' triggers). Command names must not start with '/'. Use '*' to match
+  # any slash command, or append '*' as a suffix to enable wildcard prefix matching
+  # (for example, 'smoke*' matches '/smoke-copilot').
   slash_command: "example-value"
 
   # Format 3: Command configuration object with custom command name
@@ -145,16 +155,17 @@ on:
     # Accepted formats:
 
     # Format 1: Single command name for slash commands (e.g., 'helper-bot' for
-    # '/helper-bot' triggers). Command names must not start with '/' as the slash is
-    # automatically added when matching commands. Defaults to workflow filename
-    # without .md extension if not specified.
+    # '/helper-bot' triggers). Command names must not start with '/'. Use '*' to match
+    # any slash command, or append '*' as a suffix to enable wildcard prefix matching.
+    # Defaults to workflow filename without .md extension if not specified.
     name: "My Workflow"
 
     # Format 2: Array of command names that trigger this workflow (e.g., ['cmd.add',
     # 'cmd.remove'] for '/cmd.add' and '/cmd.remove' triggers). Each command name must
     # not start with '/'.
     name: []
-      # Array items: Command name without leading slash
+      # Array items: Command name without leading slash. Use '*' to match any slash
+      # command, or append '*' as a suffix to enable wildcard prefix matching.
 
     # Events where the command should be active. Default is all comment-related events
     # ('*'). Use GitHub Actions event names.
@@ -189,8 +200,9 @@ on:
   command: null
 
   # Format 2: Command name as a string (shorthand format, e.g., 'customname' for
-  # '/customname' triggers). Command names must not start with '/' as the slash is
-  # automatically added when matching commands.
+  # '/customname' triggers). Command names must not start with '/'. Use '*' to match
+  # any slash command, or append '*' as a suffix to enable wildcard prefix matching
+  # (for example, 'smoke*' matches '/smoke-copilot').
   command: "example-value"
 
   # Format 3: Command configuration object with custom command name
@@ -201,16 +213,17 @@ on:
     # Accepted formats:
 
     # Format 1: Custom command name for slash commands (e.g., 'helper-bot' for
-    # '/helper-bot' triggers). Command names must not start with '/' as the slash is
-    # automatically added when matching commands. Defaults to workflow filename
-    # without .md extension if not specified.
+    # '/helper-bot' triggers). Command names must not start with '/'. Use '*' to match
+    # any slash command, or append '*' as a suffix to enable wildcard prefix matching.
+    # Defaults to workflow filename without .md extension if not specified.
     name: "My Workflow"
 
     # Format 2: Array of command names that trigger this workflow (e.g., ['cmd.add',
     # 'cmd.remove'] for '/cmd.add' and '/cmd.remove' triggers). Each command name must
     # not start with '/'.
     name: []
-      # Array items: Command name without leading slash
+      # Array items: Command name without leading slash. Use '*' to match any slash
+      # command, or append '*' as a suffix to enable wildcard prefix matching.
 
     # Events where the command should be active. Default is all comment-related events
     # ('*'). Use GitHub Actions event names.
@@ -1280,6 +1293,11 @@ on:
   needs: []
     # Array of strings
 
+  # When true, restore cache-memory, repo-memory, and comment-memory stores before
+  # on.steps in pre_activation. Defaults to false.
+  # (optional)
+  restore-memory: true
+
   # Steps to inject into the pre-activation job. These steps run after all built-in
   # checks (membership, stop-time, skip-if, etc.) and their results are exposed as
   # pre-activation outputs. Use 'id' on steps to reference their results via
@@ -1325,44 +1343,109 @@ on:
   # Additional permissions for the pre-activation job. Use to declare extra scopes
   # required by on.steps (e.g., issues: read for GitHub API calls in steps).
   # (optional)
-  # Map of permission scope to level
-  # (optional)
   permissions:
+    # Permission for GitHub Actions workflows and runs (read: view workflows, write:
+    # manage workflows, none: no access)
     # (optional)
     actions: "read"
 
+    # Permission for artifact attestations (read: view attestations, write: create
+    # attestations, none: no access)
+    # (optional)
+    attestations: "read"
+
+    # Permission for repository checks and status checks (read: view checks, write:
+    # create/update checks, none: no access)
     # (optional)
     checks: "read"
 
+    # Permission level for Copilot requests (write/none only). Set to write to allow
+    # Copilot inference via the GitHub Actions token.
+    # (optional)
+    copilot-requests: "write"
+
+    # Permission for repository contents (read: view files, write: modify
+    # files/branches, none: no access)
     # (optional)
     contents: "read"
 
+    # Permission for repository deployments (read: view deployments, write:
+    # create/update deployments, none: no access)
     # (optional)
     deployments: "read"
 
+    # Permission for repository discussions (read: view discussions, write:
+    # create/update discussions, none: no access)
     # (optional)
     discussions: "read"
 
+    # Permission level for OIDC token requests (write/none only - read is not
+    # supported). Allows workflows to request JWT tokens for cloud provider
+    # authentication.
+    # (optional)
+    id-token: "write"
+
+    # Permission for repository issues (read: view issues, write: create/update/close
+    # issues, none: no access)
     # (optional)
     issues: "read"
 
+    # Permission for GitHub Copilot models (read: access AI models for agentic
+    # workflows, none: no access)
+    # (optional)
+    models: "read"
+
+    # Permission for repository metadata (read: view repository information, write:
+    # update repository metadata, none: no access)
+    # (optional)
+    metadata: "read"
+
+    # Permission level for GitHub Packages (read/write/none). Controls access to
+    # publish, modify, or delete packages.
     # (optional)
     packages: "read"
 
+    # Permission level for GitHub Pages (read/write/none). Controls access to deploy
+    # and manage GitHub Pages sites.
     # (optional)
     pages: "read"
 
+    # Permission level for pull requests (read/write/none). Controls access to create,
+    # edit, review, and manage pull requests.
     # (optional)
     pull-requests: "read"
 
+    # Permission level for repository projects (read/write/none). Controls access to
+    # manage repository-level GitHub Projects boards.
     # (optional)
     repository-projects: "read"
 
+    # Permission level for organization projects (read/write/none). Controls access to
+    # manage organization-level GitHub Projects boards.
+    # (optional)
+    organization-projects: "read"
+
+    # Permission level for security events (read/write/none). Controls access to view
+    # and manage code scanning alerts and security findings.
     # (optional)
     security-events: "read"
 
+    # Permission level for commit statuses (read/write/none). Controls access to
+    # create and update commit status checks.
     # (optional)
     statuses: "read"
+
+    # Permission level for Dependabot vulnerability alerts (read/write/none). Allows
+    # workflows to access the Dependabot alerts API via GITHUB_TOKEN instead of
+    # requiring a PAT or GitHub App.
+    # (optional)
+    vulnerability-alerts: "read"
+
+    # Permission shorthand that applies read access to all permission scopes. Can be
+    # combined with specific write permissions to override individual scopes. 'write'
+    # is not allowed for all.
+    # (optional)
+    all: "read"
 
   # Controls the stale lock file check in the activation job. Set to false to
   # disable the check, true (default) to enable frontmatter hash checking, or "full"
@@ -1577,6 +1660,20 @@ runs-on-slim:
   labels: []
     # Array of strings
 
+# Runner topology configuration. Tells gh-aw and AWF what kind of runner
+# environment the workflow targets, so they can activate topology-specific
+# behaviors automatically (split-filesystem handling, network isolation, sysroot
+# images, tool cache redirection). The runner.topology key is the single stable
+# contract between gh-aw and AWF for runner environment detection.
+# (optional)
+runner:
+  # Runner execution topology. When set to 'arc-dind', gh-aw emits the topology in
+  # the AWF config, redirects the tool cache to a shared volume, and validates that
+  # no generated steps require root. AWF then activates split-filesystem handling,
+  # network isolation, sysroot image staging, and DinD pre-staging automatically.
+  # (optional)
+  topology: "arc-dind"
+
 # Workflow timeout in minutes (GitHub Actions standard field). Defaults to 20
 # minutes for agentic workflows. Has sensible defaults and can typically be
 # omitted. Custom runners support longer timeouts beyond the GitHub-hosted runner
@@ -1663,13 +1760,26 @@ env: "example-value"
 features:
   {}
 
-# Custom model pricing data in the same structure as models.json. Merged with the
-# built-in models.json at runtime; frontmatter entries override matching models
-# and fill gaps for unknown models. Useful for custom or private models, or to
-# adjust pricing for AI Credits cost accounting.
+# Model policy and optional pricing configuration. The policy fields
+# (allowed/blocked) are experimental and merged as unions across imports. The
+# providers field is optional and supplies pricing data merged by provider/model
+# key.
 # (optional)
 models:
+  # Experimental allowlist of model names/patterns. Mapped to AWF
+  # apiProxy.allowedModels.
+  # (optional)
+  allowed: []
+    # Array of strings
+
+  # Experimental denylist of model names/patterns. Mapped to AWF
+  # apiProxy.disallowedModels.
+  # (optional)
+  blocked: []
+    # Array of strings
+
   # Provider-keyed map of model pricing data.
+  # (optional)
   providers:
     {}
 
@@ -1868,11 +1978,18 @@ sandbox:
     # (optional)
     version: "example-value"
 
-    # AWF platform.type override. Declares the GitHub deployment type so AWF can
-    # apply deterministic Copilot auth behavior without relying on host heuristics.
-    # Omit to let AWF use its default host heuristic behavior.
+    # AWF platform.type override. Declares the GitHub deployment type so AWF can apply
+    # deterministic Copilot auth behavior without relying on host heuristics. Omit to
+    # let AWF use its default host heuristic behavior.
     # (optional)
-    platform: "ghes"
+    platform: "github.com"
+
+    # Controls whether AWF runs in root mode. When set to false, AWF runs without sudo
+    # in network-isolation topology egress mode (--network-isolation): MCP sidecars
+    # run as bridge containers and AWF attaches them to its internal awf-net network.
+    # Defaults to true (sudo enabled, normal mode).
+    # (optional)
+    sudo: true
 
     # Container mounts to add when using AWF. Each mount is specified using Docker
     # mount syntax: 'source:destination:mode' where mode can be 'ro' (read-only) or
@@ -2113,6 +2230,11 @@ engine:
   # (optional)
   model: "example-value"
 
+  # Optional inference provider override for this engine. Defaults to the engine's
+  # native provider (copilot: github, claude: anthropic, codex: openai, pi: github).
+  # (optional)
+  model-provider: "github"
+
   # Claude permission mode override. Defaults to acceptEdits (or auto when
   # tools.edit is false).
   # (optional)
@@ -2164,11 +2286,66 @@ engine:
   # (optional)
   command: "example-value"
 
-  # Custom Node.js harness script filename for an agentic engine. This replaces the
-  # engine's built-in harness wrapper (when the engine supports one) and must end
-  # with .js, .cjs, or .mjs.
+  # Harness configuration for the AI engine. Accepts either a bare filename string
+  # (legacy) or an object with sub-keys for fine-grained control.
   # (optional)
+  # Accepted formats:
+
+  # Format 1: Custom Node.js harness script filename (legacy form). This replaces
+  # the engine's built-in harness wrapper and must end with .js, .cjs, or .mjs.
   harness: "example-value"
+
+  # Format 2: Harness configuration object with optional sub-keys for script
+  # override and retry policy.
+  harness:
+    # Custom Node.js harness script filename. This replaces the engine's built-in
+    # harness wrapper and must end with .js, .cjs, or .mjs.
+    # (optional)
+    use: "example-value"
+
+    # Maximum retry attempts after the initial run (0 = no retries). Accepts a literal
+    # integer or a GitHub Actions expression.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max-retries: 1
+
+    # Format 2: string
+    max-retries: "example-value"
+
+    # Delay in ms before the first retry. Accepts a literal integer or a GitHub
+    # Actions expression.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    initial-delay-ms: 1
+
+    # Format 2: string
+    initial-delay-ms: "example-value"
+
+    # Multiplier applied to the delay after each retry. Accepts a literal integer or a
+    # GitHub Actions expression.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    backoff-multiplier: 1
+
+    # Format 2: string
+    backoff-multiplier: "example-value"
+
+    # Maximum delay cap in ms. Accepts a literal integer or a GitHub Actions
+    # expression.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max-delay-ms: 1
+
+    # Format 2: string
+    max-delay-ms: "example-value"
 
   # Custom environment variables to pass to the AI engine, including secret
   # overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})
@@ -2321,15 +2498,27 @@ engine:
   copilot-sdk: true
 
   # Custom driver script or command for the engine. Accepts a workspace-relative
-  # path or bare name. Supported extensions depend on the engine: the copilot
-  # engine accepts .js, .cjs, .mjs (Node.js), .py (Python), .ts or .mts
-  # (TypeScript), or .rb (Ruby); other engines (e.g. pi) accept .js, .cjs, or
-  # .mjs only. A bare name without an extension is also valid for any engine
-  # (treated as a built-in driver or executable in PATH). Examples:
-  # `.github/drivers/my_driver.cjs`, `.github/drivers/my_driver.py`,
-  # `my-copilot-driver`.
+  # path or bare name. Supported extensions depend on the engine: the copilot engine
+  # accepts .js, .cjs, .mjs (Node.js), .py (Python), .ts or .mts (TypeScript), or
+  # .rb (Ruby); other engines (e.g. pi) accept .js, .cjs, or .mjs only. A bare name
+  # without an extension is also valid for any engine (treated as a built-in driver
+  # or executable in PATH). Examples: `.github/drivers/my_driver.cjs`,
+  # `.github/drivers/my_driver.py`, `my-copilot-driver`.
   # (optional)
   driver: "example-value"
+
+  # Engine-specific plugin names to install before launching the engine. Currently
+  # used by the Pi engine: each entry is passed to `pi install <extension>`.
+  # (optional)
+  extensions: []
+    # Array of strings
+
+  # Override the working directory for the engine's spawned process. Accepts a
+  # literal path or a GitHub Actions expression (e.g. `${{ github.workspace
+  # }}/subdir`). When set, passed as GH_AW_ENGINE_CWD to the engine execution
+  # environment.
+  # (optional)
+  cwd: "example-value"
 
 # Format 3: Inline engine definition: specifies a runtime adapter and optional
 # provider settings directly in the workflow frontmatter, without requiring a
@@ -2579,6 +2768,13 @@ max-ai-credits: 1
 # Format 3: string
 max-ai-credits: "example-value"
 
+# Maximum number of consecutive AWF cache misses allowed before the API proxy
+# blocks further requests. Maps to `apiProxy.maxCacheMisses`. Precedence:
+# frontmatter value → `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` env override →
+# built-in default `5`.
+# (optional)
+max-turn-cache-misses: 1
+
 # 24-hour AI Credits guardrail for runs triggered by the same user. Omit the field
 # to leave the guardrail disabled. Supports GitHub Actions expressions.
 # (optional)
@@ -2591,6 +2787,213 @@ max-daily-ai-credits: 1
 
 # Format 3: string
 max-daily-ai-credits: "example-value"
+
+# Format 4: Object form: specify a 'value' (the credit limit) and an optional
+# 'github-app' to mint a dedicated token for the guardrail API calls.
+max-daily-ai-credits:
+  # The maximum AI Credits budget (positive integer, K/M suffix, or expression). To
+  # disable the guardrail, use the scalar form `max-daily-ai-credits: -1` instead.
+  # Accepted formats:
+
+  # Format 1: integer
+  value: 1
+
+  # Format 2: Positive integer as a string (supports optional K/M suffix) or a
+  # GitHub Actions expression.
+  value: "example-value"
+
+  # Optional GitHub App to mint the token used to compute the daily AI Credits
+  # total. Avoids depleting API credits from other apps.
+  # (optional)
+  github-app:
+    # Deprecated alias for client-id. GitHub App ID/client ID (e.g., '${{ vars.APP_ID
+    # }}').
+    # (optional)
+    app-id: "example-value"
+
+    # GitHub App client ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App
+    # token.
+    # (optional)
+    client-id: "example-value"
+
+    # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to
+    # mint a GitHub App token.
+    # (optional)
+    private-key: "example-value"
+
+    # If true, skip token minting when client-id/private-key resolve to empty strings
+    # at runtime. Defaults to false.
+    # (optional)
+    ignore-if-missing: true
+
+    # Optional owner of the GitHub App installation (defaults to current repository
+    # owner if not specified)
+    # (optional)
+    owner: "example-value"
+
+    # Optional list of repositories to grant access to (defaults to current repository
+    # if not specified)
+    # (optional)
+    repositories: []
+      # Array of strings
+
+    # Optional extra GitHub App-only permissions to merge into the minted token. Takes
+    # effect for tools.github.github-app and safe-outputs.github-app; ignored in
+    # on.github-app and the top-level github-app fallback. Use to add GitHub App-only
+    # scopes (e.g. members, organization-administration) not expressible via standard
+    # handler declarations.
+    # (optional)
+    permissions:
+      # Permission level for repository administration (read/none; "write" is rejected
+      # by the compiler). GitHub App-only permission for repository administration.
+      # (optional)
+      administration: "read"
+
+      # Permission level for Codespaces (read/none; "write" is rejected by the
+      # compiler). GitHub App-only permission.
+      # (optional)
+      codespaces: "read"
+
+      # Permission level for Codespaces lifecycle administration (read/none; "write" is
+      # rejected by the compiler). GitHub App-only permission.
+      # (optional)
+      codespaces-lifecycle-admin: "read"
+
+      # Permission level for Codespaces metadata (read/none; "write" is rejected by the
+      # compiler). GitHub App-only permission.
+      # (optional)
+      codespaces-metadata: "read"
+
+      # Permission level for user email addresses (read/none; "write" is rejected by the
+      # compiler). GitHub App-only permission.
+      # (optional)
+      email-addresses: "read"
+
+      # Permission level for repository environments (read/none; "write" is rejected by
+      # the compiler). GitHub App-only permission.
+      # (optional)
+      environments: "read"
+
+      # Permission level for git signing (read/none; "write" is rejected by the
+      # compiler). GitHub App-only permission.
+      # (optional)
+      git-signing: "read"
+
+      # Permission level for organization members (read/none; "write" is rejected by the
+      # compiler). Required for org team membership API calls.
+      # (optional)
+      members: "read"
+
+      # Permission level for organization administration (read/none; "write" is rejected
+      # by the compiler). GitHub App-only permission.
+      # (optional)
+      organization-administration: "read"
+
+      # Permission level for organization announcement banners (read/none; "write" is
+      # rejected by the compiler). GitHub App-only permission.
+      # (optional)
+      organization-announcement-banners: "read"
+
+      # Permission level for organization Codespaces (read/none; "write" is rejected by
+      # the compiler). GitHub App-only permission.
+      # (optional)
+      organization-codespaces: "read"
+
+      # Permission level for organization Copilot (read/none; "write" is rejected by the
+      # compiler). GitHub App-only permission.
+      # (optional)
+      organization-copilot: "read"
+
+      # Permission level for organization custom org roles (read/none; "write" is
+      # rejected by the compiler). GitHub App-only permission.
+      # (optional)
+      organization-custom-org-roles: "read"
+
+      # Permission level for organization custom properties (read/none; "write" is
+      # rejected by the compiler). GitHub App-only permission.
+      # (optional)
+      organization-custom-properties: "read"
+
+      # Permission level for organization custom repository roles (read/none; "write" is
+      # rejected by the compiler). GitHub App-only permission.
+      # (optional)
+      organization-custom-repository-roles: "read"
+
+      # Permission level for organization events (read/none; "write" is rejected by the
+      # compiler). GitHub App-only permission.
+      # (optional)
+      organization-events: "read"
+
+      # Permission level for organization webhooks (read/none; "write" is rejected by
+      # the compiler). GitHub App-only permission.
+      # (optional)
+      organization-hooks: "read"
+
+      # Permission level for organization members management (read/none; "write" is
+      # rejected by the compiler). GitHub App-only permission.
+      # (optional)
+      organization-members: "read"
+
+      # Permission level for organization packages (read/none; "write" is rejected by
+      # the compiler). GitHub App-only permission.
+      # (optional)
+      organization-packages: "read"
+
+      # Permission level for organization personal access token requests (read/none;
+      # "write" is rejected by the compiler). GitHub App-only permission.
+      # (optional)
+      organization-personal-access-token-requests: "read"
+
+      # Permission level for organization personal access tokens (read/none; "write" is
+      # rejected by the compiler). GitHub App-only permission.
+      # (optional)
+      organization-personal-access-tokens: "read"
+
+      # Permission level for organization plan (read/none; "write" is rejected by the
+      # compiler). GitHub App-only permission.
+      # (optional)
+      organization-plan: "read"
+
+      # Permission level for organization self-hosted runners (read/none; "write" is
+      # rejected by the compiler). GitHub App-only permission.
+      # (optional)
+      organization-self-hosted-runners: "read"
+
+      # Permission level for organization user blocking (read/none; "write" is rejected
+      # by the compiler). GitHub App-only permission.
+      # (optional)
+      organization-user-blocking: "read"
+
+      # Permission level for repository custom properties (read/none; "write" is
+      # rejected by the compiler). GitHub App-only permission.
+      # (optional)
+      repository-custom-properties: "read"
+
+      # Permission level for repository webhooks (read/none; "write" is rejected by the
+      # compiler). GitHub App-only permission.
+      # (optional)
+      repository-hooks: "read"
+
+      # Permission level for single file access (read/none; "write" is rejected by the
+      # compiler). GitHub App-only permission.
+      # (optional)
+      single-file: "read"
+
+      # Permission level for team discussions (read/none; "write" is rejected by the
+      # compiler). GitHub App-only permission.
+      # (optional)
+      team-discussions: "read"
+
+      # Permission level for Dependabot vulnerability alerts (read/none; "write" is
+      # rejected by the compiler). Also available as a GITHUB_TOKEN scope. When used
+      # with a GitHub App, forwarded as permission-vulnerability-alerts input.
+      # (optional)
+      vulnerability-alerts: "read"
+
+      # Permission level for GitHub Actions workflow files (read/none; "write" is
+      # rejected by the compiler). GitHub App-only permission.
+      # (optional)
+      workflows: "read"
 
 # MCP server definitions
 # (optional)
@@ -3187,10 +3590,16 @@ tools:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -3277,11 +3686,8 @@ tools:
     # (optional)
     branch-name: "example-value"
 
-    # Glob patterns for files to include in repository memory. Slashless patterns
-    # (e.g., '*.json', '*.md') match files at the root of a single memory subfolder
-    # (depth 1 only). Patterns containing '/' (e.g., 'metrics/**', 'data/*.csv')
-    # match against the full relative path. Absolute paths starting with '/' are
-    # rejected. Do not include the branch name in patterns.
+    # Glob patterns for files to include in repository memory. Supports wildcards
+    # (e.g., '**/*.md', 'docs/**/*.json') to filter cached files.
     # (optional)
     # Accepted formats:
 
@@ -3333,6 +3739,14 @@ tools:
   # Format 4: Array of repo-memory configurations for multiple memory locations
   repo-memory: []
     # Array items: object
+
+# ⚠️ Experimental. Top-level Language Server Protocol (LSP) configuration for
+# Copilot CLI. Each key is a language identifier and each value defines the server
+# command, args, and file extension mappings. Using this field emits a
+# compile-time warning.
+# (optional)
+lsp:
+  {}
 
 # Cache configuration for workflow (uses actions/cache syntax)
 # (optional)
@@ -3391,6 +3805,12 @@ cache: []
 # permissions in the main job
 # (optional)
 safe-outputs:
+  # URL sanitization policy for safe outputs. "allowed-only" sanitizes all
+  # non-allowed URLs everywhere. "allowed-or-code-region" preserves URLs inside
+  # fenced and inline code regions while sanitizing prose.
+  # (optional)
+  urls: "allowed-only"
+
   # List of allowed domains for URL redaction in safe output handlers. Supports
   # ecosystem identifiers (e.g., "python", "node", "default-safe-outputs") like
   # network.allowed. These domains are unioned with the engine defaults and
@@ -3470,17 +3890,12 @@ safe-outputs:
     max: "example-value"
 
     # Title-based deduplication for create-issue. Set to true for exact title
-    # matching, or provide a non-negative integer to deduplicate by Levenshtein edit
-    # distance (e.g., 1 allows one-character differences). Applies within-run and
-    # against open/recently-closed repository issues.
+    # matching, or provide a non-negative integer (0–100) to deduplicate by
+    # Levenshtein edit distance (e.g., 1 allows one-character differences). Accepts a
+    # GitHub Actions expression that resolves to a boolean or integer at runtime.
+    # Applies within-run and against open/recently-closed repository issues.
     # (optional)
-    # Accepted formats:
-
-    # Format 1: boolean
-    deduplicate-by-title: true
-
-    # Format 2: integer
-    deduplicate-by-title: 1
+    deduplicate-by-title: null
 
     # Target repository in format 'owner/repo' for cross-repository issue creation.
     # Takes precedence over trial target repo settings.
@@ -3552,10 +3967,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -3626,10 +4047,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -3695,10 +4122,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -3825,10 +4258,16 @@ safe-outputs:
         options: []
           # Array of strings
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -3937,10 +4376,16 @@ safe-outputs:
         options: []
           # Array of strings
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -4000,10 +4445,16 @@ safe-outputs:
     # fallback. Must be a valid GitHub Projects v2 URL.
     project: "example-value"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -4150,10 +4601,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -4224,10 +4681,16 @@ safe-outputs:
     allowed-repos: []
       # Array of strings
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -4310,10 +4773,16 @@ safe-outputs:
     # (optional)
     footer: true
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -4387,10 +4856,16 @@ safe-outputs:
     allowed-repos: []
       # Array of strings
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -4466,10 +4941,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -4541,10 +5022,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -4693,10 +5180,16 @@ safe-outputs:
     # (optional)
     required-title-prefix: "example-value"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -5096,10 +5589,16 @@ safe-outputs:
     # (optional)
     signed-commits: true
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -5180,10 +5679,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -5293,10 +5798,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -5329,6 +5840,170 @@ safe-outputs:
 
   # Format 2: Enable PR review submission with default configuration
   submit-pull-request-review: null
+
+  # Enable AI agents to dismiss pull request reviews authored by the current
+  # workflow actor.
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Configuration for dismissing pull request reviews previously submitted
+  # by the current workflow actor.
+  dismiss-pull-request-review:
+    # Maximum number of review dismissals to perform (default: 10) Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
+
+    # Target PR for review dismissal: 'triggering' (default, current PR), '*' (any PR,
+    # requires pull_request_number in agent output), or explicit PR number.
+    # (optional)
+    target: "example-value"
+
+    # Target repository in format 'owner/repo' for cross-repository review dismissal.
+    # Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # List of additional repositories in format 'owner/repo' where review dismissals
+    # are allowed. The target repository (current or target-repo) is always implicitly
+    # allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
+
+    # Internal hidden feature. Optional list of declarative sample payloads that
+    # exercise this safe-output handler. Used by the hidden `gh aw compile
+    # --use-samples` flag to replace the agentic step with a deterministic replay
+    # through the safe-outputs MCP server. Each entry should conform to the
+    # corresponding MCP tool inputSchema.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: array
+    samples: []
+      # Array items: object
+
+    # Format 2: object
+    samples:
+      {}
+
+    # All of these labels must be present on the target item for this operation to
+    # proceed
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # The target item's title must start with this prefix for this operation to
+    # proceed
+    # (optional)
+    required-title-prefix: "example-value"
+
+  # Format 2: Enable pull request review dismissal with default configuration
+  dismiss-pull-request-review: null
+
+  # Enable AI agents to dismiss pull request reviews authored by the current
+  # workflow actor.
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Configuration for dismissing pull request reviews previously submitted
+  # by the current workflow actor.
+  dismiss-review:
+    # Maximum number of review dismissals to perform (default: 10) Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
+
+    # Target PR for review dismissal: 'triggering' (default, current PR), '*' (any PR,
+    # requires pull_request_number in agent output), or explicit PR number.
+    # (optional)
+    target: "example-value"
+
+    # Target repository in format 'owner/repo' for cross-repository review dismissal.
+    # Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # List of additional repositories in format 'owner/repo' where review dismissals
+    # are allowed. The target repository (current or target-repo) is always implicitly
+    # allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
+
+    # Internal hidden feature. Optional list of declarative sample payloads that
+    # exercise this safe-output handler. Used by the hidden `gh aw compile
+    # --use-samples` flag to replace the agentic step with a deterministic replay
+    # through the safe-outputs MCP server. Each entry should conform to the
+    # corresponding MCP tool inputSchema.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: array
+    samples: []
+      # Array items: object
+
+    # Format 2: object
+    samples:
+      {}
+
+    # All of these labels must be present on the target item for this operation to
+    # proceed
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # The target item's title must start with this prefix for this operation to
+    # proceed
+    # (optional)
+    required-title-prefix: "example-value"
+
+  # Format 2: Enable pull request review dismissal with default configuration
+  dismiss-review: null
 
   # Enable AI agents to reply to existing review comments on pull requests.
   # (optional)
@@ -5370,10 +6045,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -5454,10 +6135,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -5533,10 +6220,16 @@ safe-outputs:
     allowed-repos: []
       # Array of strings
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -5583,10 +6276,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -5639,10 +6338,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -5944,10 +6649,16 @@ safe-outputs:
     # (optional)
     required-title-prefix: "example-value"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -6035,10 +6746,16 @@ safe-outputs:
     # (optional)
     required-title-prefix: "example-value"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -6119,10 +6836,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -6202,10 +6925,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -6336,10 +7065,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -6420,10 +7155,16 @@ safe-outputs:
     allowed-repos: []
       # Array of strings
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -6510,10 +7251,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -6595,20 +7342,35 @@ safe-outputs:
     target-repo: "example-value"
 
     # List of additional repositories in format 'owner/repo' that sub-issue linking
-    # can target. The target repository is always implicitly allowed.
+    # can target. The target repository is always implicitly allowed. Accepts an array
+    # or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{
+    # inputs[\'allowed-repos\'] }}').
     # (optional)
+    # Accepted formats:
+
+    # Format 1: Array of repository slugs in 'owner/repo' format
     allowed-repos: []
-      # Array of strings
+      # Array items: string
+
+    # Format 2: GitHub Actions expression resolving to a comma-separated list of
+    # repository slugs (e.g. '${{ inputs[\'allowed-repos\'] }}')
+    allowed-repos: "example-value"
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -6694,10 +7456,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -6795,10 +7563,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -6887,10 +7661,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, evaluate merge gates and emit preview results without executing the
+    # When true, evaluate merge gates and emit preview results without executing the
     # merge API call.
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -6995,10 +7775,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -7210,10 +7996,16 @@ safe-outputs:
     # (optional)
     discussions: true
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -7295,10 +8087,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -7379,10 +8177,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -7468,10 +8272,16 @@ safe-outputs:
     # (optional)
     target-ref: "example-value"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -7498,10 +8308,163 @@ safe-outputs:
 
   # Dispatch repository_dispatch events to external repositories. Each sub-key
   # defines a named dispatch tool with its own event_type, target repository, input
-  # schema, and execution limits.
+  # schema, and execution limits. Note: nested keys use snake_case (event_type,
+  # allowed_repositories) rather than the kebab-case used by other safe-output
+  # fields.
   # (optional)
   dispatch-repository:
-    {}
+    # Configuration for a single repository dispatch tool
+    trigger-ci:
+      # Human-readable description of what this dispatch tool does
+      # (optional)
+      description: "Description of the workflow"
+
+      # Target workflow name (for traceability and inclusion in client_payload)
+      workflow: "example-value"
+
+      # The repository_dispatch event_type string sent to the target repository
+      event_type: "example-value"
+
+      # Target repository in 'owner/repo' format. Dispatches to this repository when no
+      # 'allowed_repositories' list is given.
+      # (optional)
+      repository: "example-value"
+
+      # List of allowed target repositories (owner/repo). Supports glob patterns like
+      # 'org/*'.
+      # (optional)
+      allowed_repositories: []
+        # Array of strings
+
+      # Input schema for the dispatch tool. Inputs are validated and compiled into
+      # client_payload.
+      # (optional)
+      inputs:
+        repo-name:
+          # Input type
+          # (optional)
+          type: "string"
+
+          # Input description
+          # (optional)
+          description: "Description of the workflow"
+
+          # Whether this input is required
+          # (optional)
+          required: true
+
+          # Default value for this input
+          # (optional)
+          default: null
+
+          # Allowed options for 'choice' type inputs
+          # (optional)
+          options: []
+            # Array of strings
+
+      # Maximum number of dispatch executions for this tool per run (default: 1, max:
+      # 50). Supports integer or GitHub Actions expression.
+      # (optional)
+      # Accepted formats:
+
+      # Format 1: integer
+      max: 1
+
+      # Format 2: GitHub Actions expression that resolves to an integer at runtime
+      max: "example-value"
+
+      # GitHub token to use for dispatching. Overrides global github-token if specified.
+      # (optional)
+      github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      # When true, emit step summary messages instead of making GitHub API calls
+      # (preview mode)
+      # (optional)
+      # Accepted formats:
+
+      # Format 1: boolean
+      staged: true
+
+      # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+      staged: "example-value"
+
+  # Deprecated alias for dispatch-repository.
+  # (optional)
+  dispatch_repository:
+    # Configuration for a single repository dispatch tool
+    trigger-ci:
+      # Human-readable description of what this dispatch tool does
+      # (optional)
+      description: "Description of the workflow"
+
+      # Target workflow name (for traceability and inclusion in client_payload)
+      workflow: "example-value"
+
+      # The repository_dispatch event_type string sent to the target repository
+      event_type: "example-value"
+
+      # Target repository in 'owner/repo' format. Dispatches to this repository when no
+      # 'allowed_repositories' list is given.
+      # (optional)
+      repository: "example-value"
+
+      # List of allowed target repositories (owner/repo). Supports glob patterns like
+      # 'org/*'.
+      # (optional)
+      allowed_repositories: []
+        # Array of strings
+
+      # Input schema for the dispatch tool. Inputs are validated and compiled into
+      # client_payload.
+      # (optional)
+      inputs:
+        repo-name:
+          # Input type
+          # (optional)
+          type: "string"
+
+          # Input description
+          # (optional)
+          description: "Description of the workflow"
+
+          # Whether this input is required
+          # (optional)
+          required: true
+
+          # Default value for this input
+          # (optional)
+          default: null
+
+          # Allowed options for 'choice' type inputs
+          # (optional)
+          options: []
+            # Array of strings
+
+      # Maximum number of dispatch executions for this tool per run (default: 1, max:
+      # 50). Supports integer or GitHub Actions expression.
+      # (optional)
+      # Accepted formats:
+
+      # Format 1: integer
+      max: 1
+
+      # Format 2: GitHub Actions expression that resolves to an integer at runtime
+      max: "example-value"
+
+      # GitHub token to use for dispatching. Overrides global github-token if specified.
+      # (optional)
+      github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      # When true, emit step summary messages instead of making GitHub API calls
+      # (preview mode)
+      # (optional)
+      # Accepted formats:
+
+      # Format 1: boolean
+      staged: true
+
+      # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+      staged: "example-value"
 
   # Call reusable workflows via workflow_call fan-out. The compiler generates static
   # conditional jobs; the agent selects which worker to activate. Use this for
@@ -7534,10 +8497,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -7607,10 +8576,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -7684,10 +8659,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -7743,10 +8724,16 @@ safe-outputs:
     # (optional)
     report-as-issue: true
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -7809,10 +8796,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -7907,10 +8900,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub Actions artifact
+    # When true, emit step summary messages instead of making GitHub Actions artifact
     # uploads (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
   # Format 2: Enable artifact uploads with default configuration
   upload-artifact: null
@@ -7943,10 +8942,16 @@ safe-outputs:
     # (optional)
     footer: true
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -7969,10 +8974,16 @@ safe-outputs:
   # Format 2: Enable release updates with default configuration
   update-release: null
 
-  # If true, emit step summary messages instead of making GitHub API calls (preview
-  # mode)
+  # When true, emit step summary messages instead of making GitHub API calls
+  # (preview mode)
   # (optional)
+  # Accepted formats:
+
+  # Format 1: boolean
   staged: true
+
+  # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+  staged: "example-value"
 
   # Environment variables to pass to safe output jobs
   # (optional)
@@ -8320,15 +9331,13 @@ safe-outputs:
   # Custom message templates for safe-output footer and notification messages.
   # Available placeholders: {workflow_name} (workflow name), {run_url} (GitHub
   # Actions run URL), {triggering_number} (issue/PR/discussion number),
-  # {triggering_type} (issue, PR, or discussion), {workflow_source}
-  # (owner/repo/path@ref), {workflow_source_url} (GitHub URL to
+  # {workflow_source} (owner/repo/path@ref), {workflow_source_url} (GitHub URL to
   # source), {operation} (safe-output operation name for staged mode).
   # (optional)
   messages:
     # Custom footer message template for AI-generated content. Available placeholders:
-    # {workflow_name}, {run_url}, {triggering_number}, {triggering_type},
-    # {workflow_source}, {workflow_source_url}. Example: '> Generated by
-    # [{workflow_name}]({run_url})'
+    # {workflow_name}, {run_url}, {triggering_number}, {workflow_source},
+    # {workflow_source_url}. Example: '> Generated by [{workflow_name}]({run_url})'
     # (optional)
     footer: "example-value"
 
@@ -8440,10 +9449,10 @@ safe-outputs:
   # Format 2: Advanced configuration for @mention filtering with fine-grained
   # control
   mentions:
-    # Allow mentions of repository team members (collaborators with any permission
-    # level, excluding bots). Default: true
+    # Allow mentions of repository collaborators (users with repository access,
+    # excluding bots). Default: true
     # (optional)
-    allow-team-members: true
+    allowed-collaborators: true
 
     # Allow mentions inferred from event context (issue/PR authors, assignees,
     # commenters). Default: true
@@ -8457,16 +9466,15 @@ safe-outputs:
       # Array of strings
 
     # List of team slugs whose members are always allowed to be mentioned. Accepts
-    # "team-slug" (resolved against the current org) or "org/team-slug" format.
-    # Members of these teams are fetched from the GitHub API at runtime and added to
-    # the allowed mentions list. Bots are excluded.
-    # IMPORTANT: Requires read:org scope — not available with the default GITHUB_TOKEN.
-    # Use a classic PAT with read:org, a fine-grained PAT with Members:Read, or a
-    # GitHub App with the Members:Read permission. Without the required scope, team
-    # lookups fail silently (warning logged) and those team members are skipped.
+    # 'team-slug' (resolved against the current org) or 'org/team-slug' format. Team
+    # members are fetched from the GitHub API at runtime; bots are excluded.
+    # IMPORTANT: requires read:org scope — not available with the default
+    # GITHUB_TOKEN. Use a classic PAT with read:org, a fine-grained PAT with
+    # Members:Read, or a GitHub App with the Members:Read permission. Without the
+    # required scope, team lookups fail with a warning and those members are skipped.
     # (optional)
     allowed-teams: []
-      # Array of strings, e.g. ["myorg/eng", "reviewers"]
+      # Array of strings
 
     # Maximum number of mentions allowed per message. Default: 50 Supports integer or
     # GitHub Actions expression (e.g. '${{ inputs.max }}').
@@ -8503,9 +9511,9 @@ safe-outputs:
   # (optional)
   # Accepted formats:
 
-  # Format 1: When false, disables creating failure tracking issues when workflows
-  # fail. When true, all failures trigger issues. Defaults to true.
-  report-failure-as-issue: true
+  # Format 1: A boolean value that may also be specified as a GitHub Actions
+  # expression string that resolves to a boolean at runtime (e.g. '${{
+  # inputs.my-flag }}').
 
   # Format 2: List of failure categories that should trigger issue creation.
   # Categories can be prefixed with '!' to exclude them (e.g.,
@@ -8678,10 +9686,16 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # If true, emit step summary messages instead of making GitHub API calls for this
-    # specific output type (preview mode)
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
     # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
     staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -8707,6 +9721,122 @@ safe-outputs:
   # Format 3: Explicitly disable report_incomplete (false). report_incomplete is
   # enabled by default when safe-outputs is configured.
   report-incomplete: true
+
+  # Enable AI agents to replace one label with another on GitHub issues or pull
+  # requests in a single atomic operation. Ideal for maintaining label-based state
+  # machines (e.g. transitioning issues through workflow states).
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Null configuration allows any labels to be replaced. Labels will be
+  # created if they don't already exist in the repository.
+  replace-label: null
+
+  # Format 2: Configuration for replacing one label with another on issues/PRs in a
+  # single atomic operation. Enables clear state transitions (e.g. 'in-progress' →
+  # 'done').
+  replace-label:
+    # Optional list of allowed label state transitions. Each entry specifies a (from,
+    # to) pair that is permitted. When specified, the agent may ONLY perform the
+    # listed transitions, regardless of allowed-add/allowed-remove. Useful for
+    # enforcing a strict state machine (e.g. only 'in-review' → 'approved' is
+    # allowed).
+    # (optional)
+    allowed-transitions: []
+      # Array items:
+        # The label that must currently be on the item and will be removed.
+        from: "example-value"
+
+        # The label that will be added.
+        to: "example-value"
+
+    # Optional list of allowed label patterns that can be added (supports glob
+    # patterns like 'state-*'). Labels will be created if they don't already exist in
+    # the repository. If omitted, any labels are allowed.
+    # (optional)
+    allowed-add: []
+      # Array of strings
+
+    # Optional list of allowed label patterns that can be removed (supports glob
+    # patterns like 'state-*'). If omitted, any labels can be removed.
+    # (optional)
+    allowed-remove: []
+      # Array of strings
+
+    # Optional list of blocked label patterns (supports glob patterns like '~*',
+    # '*[bot]'). Applied to both label_to_add and label_to_remove. Rejected before
+    # allowed list filtering.
+    # (optional)
+    blocked: []
+      # Array of strings
+
+    # Optional maximum number of label replacements (default: 5). Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
+
+    # Target for the operation: 'triggering' (default), '*' (any issue/PR), or
+    # explicit issue/PR number
+    # (optional)
+    target: "example-value"
+
+    # Target repository in format 'owner/repo' for cross-repository label replacement.
+    # Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # List of additional repositories in format 'owner/repo' that label replacements
+    # can target. When specified, the agent can use a 'repo' field in the output to
+    # specify which repository to update labels on.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
+
+    # Conjunctive label constraint: ALL of these labels must be present on the
+    # issue/PR for the operation to proceed.
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # Title prefix constraint: the issue/PR title must start with this prefix for the
+    # operation to proceed.
+    # (optional)
+    required-title-prefix: "example-value"
+
+    # When true, emit step summary messages instead of making GitHub API calls for
+    # this specific output type (preview mode)
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
+
+    # Internal hidden feature. Optional list of declarative sample payloads that
+    # exercise this safe-output handler.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: array
+    samples: []
+      # Array items: object
+
+    # Format 2: object
+    samples:
+      {}
 
 # Configuration for secret redaction behavior in workflow outputs and artifacts
 # (optional)
@@ -8787,6 +9917,14 @@ observability:
     # workflow-level OTEL_* environment variables are still injected.
     # (optional)
     if-missing: "error"
+
+    # Additional custom span attributes to attach to OTLP spans emitted by this
+    # workflow. Values may be static strings or template expressions resolved from
+    # existing span attributes, such as '{{ gh-aw.episode.id }}' or '{{ github.actor
+    # }}'. Values are exported to tracing backends and masked in runner logs.
+    # (optional)
+    attributes:
+      {}
 
     # Additional OTEL_RESOURCE_ATTRIBUTES entries to append to the standard
     # gh-aw/GitHub resource attributes. Values may be static strings or GitHub Actions
@@ -9399,6 +10537,74 @@ github-app:
 # (optional)
 import-schema:
   {}
+
+# ⚠️ Experimental. BinEval binary evaluation questions to run after safe-outputs
+# and before the conclusion job. Can be a plain list of questions (shorthand) or
+# an object with questions, model, and runs-on fields.
+# (optional)
+# Accepted formats:
+
+# Format 1: Shorthand form: plain list of evaluation question objects.
+evals: []
+  # Array items: object
+
+# Format 2: Extended form: object with questions list and optional configuration.
+evals:
+  # List of binary evaluation question objects.
+  # (optional)
+  questions: []
+    # Array items:
+      # Unique identifier for the evaluation question.
+      id: "example-value"
+
+      # The binary (YES/NO) question to evaluate.
+      question: "example-value"
+
+      # Optional model override for this specific question. Overrides the top-level
+      # model setting. Use a model alias such as "small" or a full model ID.
+      # (optional)
+      model: "example-value"
+
+  # Default model to use for all evaluation questions. Use a model alias such as
+  # "small" or a full model ID. Per-question model fields override this setting.
+  # (optional)
+  model: "example-value"
+
+  # Runner type for workflow execution (GitHub Actions standard field). Supports
+  # multiple forms: simple string for single runner label (e.g., 'ubuntu-latest'),
+  # array for runner selection with fallbacks, or object for GitHub-hosted runner
+  # groups with specific labels. For agentic workflows, runner selection matters
+  # when AI workloads require specific compute resources or when using self-hosted
+  # runners with specialized capabilities. Typically configured at the job level
+  # instead. See
+  # https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Simple runner label string. Use for standard GitHub-hosted runners
+  # (e.g., 'ubuntu-latest', 'windows-latest', 'macos-latest') or self-hosted runner
+  # labels. Most common form for agentic workflows.
+  runs-on: "example-value"
+
+  # Format 2: Array of runner labels for selection with fallbacks. GitHub Actions
+  # will use the first available runner that matches any label in the array. Useful
+  # for high-availability setups or when multiple runner types are acceptable.
+  runs-on: []
+    # Array items: string
+
+  # Format 3: Runner group configuration for GitHub-hosted runners. Use this form to
+  # target specific runner groups (e.g., larger runners with more CPU/memory) or
+  # self-hosted runner pools with specific label requirements. Agentic workflows may
+  # benefit from larger runners for complex AI processing tasks.
+  runs-on:
+    # Runner group name for self-hosted runners or GitHub-hosted runner groups
+    # (optional)
+    group: "example-value"
+
+    # List of runner labels for self-hosted runners or GitHub-hosted runner selection
+    # (optional)
+    labels: []
+      # Array of strings
 ---
 ```
 

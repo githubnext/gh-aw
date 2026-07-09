@@ -3,6 +3,7 @@
 
 const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { overridePersistedExtraheader, restorePersistedExtraheader } = require("./git_auth_helpers.cjs");
 
 /**
  * @fileoverview Extra Empty Commit Helper
@@ -143,59 +144,140 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
     core.info(`Cycle check details: analyzed ${analyzedCommitCount} commit(s), ignored ${mergeCommitCount} merge commit(s), counted ${emptyCommitCount} empty non-merge commit(s)`);
     core.info(`Cycle check passed: ${emptyCommitCount} empty commit(s) in last ${COMMITS_TO_CHECK} (limit: ${MAX_EMPTY_COMMITS})`);
 
-    // Configure git remote with the token for authentication
-    const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const serverHostStripped = githubServerUrl.replace(/^https?:\/\//, "");
-    const remoteUrl = `https://x-access-token:${token}@${serverHostStripped}/${repoOwner}/${repoName}.git`;
+    // Configure git remote with no embedded credentials; authenticate via
+    // a single replaced extraheader value to avoid duplicate Authorization headers.
+    const githubServerUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/+$/, "");
+    const remoteUrl = `${githubServerUrl}/${repoOwner}/${repoName}.git`;
 
-    // Add a temporary remote with the token
+    // Declare previousExtraheaders before the try block so the finally clause can
+    // always restore when the override was applied, even if an error is thrown.
+    // overrideApplied is only set to true after overridePersistedExtraheader
+    // completes without throwing, so the finally clause skips restoration when
+    // the override was never applied (avoiding a spurious --unset-all that would
+    // destroy existing checkout credentials).
+    let previousExtraheaders = [];
+    let overrideApplied = false;
     try {
-      await exec.exec("git", ["remote", "remove", "ci-trigger"]);
-    } catch {
-      // Remote doesn't exist yet, that's fine
+      core.info(`Overriding git extraheader for CI trigger push to ${repoOwner}/${repoName} on branch ${branchName}`);
+      previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, token);
+      overrideApplied = true;
+
+      // Fetch and sync with the remote branch using the URL directly.
+      // This is required when the PR branch was created server-side via the GitHub
+      // API (e.g. via the createCommitOnBranch GraphQL mutation used by
+      // pushSignedCommits), because the remote branch tip then has a different SHA
+      // than the local branch tip. Without this sync, git would reject the
+      // subsequent push as non-fast-forward.
+      // Using the URL directly here avoids adding the named ci-trigger remote
+      // before we know whether a git push will actually be needed.
+      try {
+        core.info(`Fetching and syncing with remote branch ${branchName}`);
+        await exec.exec("git", ["fetch", remoteUrl, branchName]);
+        await exec.exec("git", ["reset", "--hard", "FETCH_HEAD"]);
+        core.info(`Synced local branch with remote ${branchName}`);
+      } catch (error) {
+        // Non-fatal: if fetch/reset fails (e.g. branch not yet on remote), continue
+        // with the local HEAD and attempt the push anyway.
+        const syncErrorMessage = getErrorMessage(error);
+        core.warning(`Could not sync local branch with remote ${branchName} - will attempt push with local HEAD. Underlying error: ${syncErrorMessage}`);
+      }
+
+      // Create and push an empty commit.
+      // Try the GitHub API (createCommitOnBranch GraphQL mutation) first, which
+      // produces verified/signed commits required for branches with "Require signed
+      // commits" branch protection.  Fall back to git commit + push when the API
+      // path is unavailable or the OID cannot be resolved.
+      const message = commitMessage || "ci: trigger checks";
+
+      // Resolve the current HEAD OID (after the sync above) for the GraphQL
+      // expectedHeadOid parameter.  If this fails, skip the API path entirely.
+      let expectedHeadOid = "";
+      try {
+        const headResult = await exec.getExecOutput("git", ["rev-parse", "HEAD"], { silent: true, ignoreReturnCode: true });
+        if (headResult.exitCode === 0) {
+          expectedHeadOid = headResult.stdout.trim();
+          core.info(`HEAD OID for GraphQL mutation: ${expectedHeadOid}`);
+        }
+      } catch (headErr) {
+        core.info(`Could not resolve HEAD OID for GraphQL path: ${getErrorMessage(headErr)}`);
+      }
+
+      let committedViaApi = false;
+      if (expectedHeadOid && typeof global.getOctokit === "function") {
+        try {
+          core.info(`Attempting to create verified empty commit via GitHub API (createCommitOnBranch)`);
+          const ciGithubClient = global.getOctokit(token.trim());
+          const apiResult = await ciGithubClient.graphql(
+            `mutation($input: CreateCommitOnBranchInput!) {
+              createCommitOnBranch(input: $input) { commit { oid } }
+            }`,
+            {
+              input: {
+                branch: { repositoryNameWithOwner: `${repoOwner}/${repoName}`, branchName },
+                message: { headline: message },
+                fileChanges: {},
+                expectedHeadOid,
+              },
+            }
+          );
+          const newOid = apiResult?.createCommitOnBranch?.commit?.oid;
+          if (!newOid) {
+            throw new Error("createCommitOnBranch did not return a commit OID");
+          }
+          core.info(`Verified empty commit created via GitHub API (oid=${newOid})`);
+          // Update the local branch HEAD to the API-created commit so that any
+          // downstream git state reads see the new OID rather than stale data.
+          try {
+            await exec.exec("git", ["fetch", remoteUrl, branchName]);
+            await exec.exec("git", ["reset", "--hard", "FETCH_HEAD"]);
+            core.info(`Updated local branch to API-created commit ${newOid}`);
+          } catch (updateErr) {
+            core.info(`Could not update local branch to API-created commit: ${getErrorMessage(updateErr)}`);
+          }
+          committedViaApi = true;
+        } catch (apiError) {
+          core.info(`GitHub API commit creation unavailable, falling back to git commit + push: ${getErrorMessage(apiError)}`);
+        }
+      }
+
+      if (!committedViaApi) {
+        // Add a named remote only when a git push is actually needed.
+        core.info(`Setting up temporary ci-trigger remote: ${remoteUrl}`);
+        try {
+          await exec.exec("git", ["remote", "remove", "ci-trigger"]);
+          core.info("Removed pre-existing ci-trigger remote");
+        } catch {
+          // Remote doesn't exist yet, that's fine
+        }
+        await exec.exec("git", ["remote", "add", "ci-trigger", remoteUrl]);
+        await exec.exec("git", ["commit", "--allow-empty", "-m", message]);
+        await exec.exec("git", ["push", "ci-trigger", branchName]);
+      }
+
+      core.info(`Extra empty commit pushed to ${branchName} successfully`);
+
+      return { success: true };
+    } finally {
+      // Clean up the temporary remote and restore previous checkout auth state.
+      try {
+        await exec.exec("git", ["remote", "remove", "ci-trigger"]);
+        core.info("Removed ci-trigger remote");
+      } catch {
+        // Non-fatal cleanup error
+      }
+
+      try {
+        core.info("Restoring previous git auth configuration");
+        if (overrideApplied) {
+          await restorePersistedExtraheader(githubServerUrl, previousExtraheaders);
+        }
+      } catch (restoreError) {
+        core.warning(`Failed to restore git auth configuration after CI trigger push: ${getErrorMessage(restoreError)}`);
+      }
     }
-    await exec.exec("git", ["remote", "add", "ci-trigger", remoteUrl]);
-
-    // Fetch and sync with the remote branch. This is required when the PR branch
-    // was created server-side via the GitHub API (e.g. via the createCommitOnBranch
-    // GraphQL mutation used by pushSignedCommits), because the remote branch tip
-    // then has a different SHA than the local branch tip. Without this sync, git
-    // would reject the subsequent push as non-fast-forward.
-    try {
-      await exec.exec("git", ["fetch", "ci-trigger", branchName]);
-      await exec.exec("git", ["reset", "--hard", `ci-trigger/${branchName}`]);
-    } catch (error) {
-      // Non-fatal: if fetch/reset fails (e.g. branch not yet on remote), continue
-      // with the local HEAD and attempt the push anyway.
-      const syncErrorMessage = getErrorMessage(error);
-      core.warning(`Could not sync local branch with remote ${branchName} - will attempt push with local HEAD. Underlying error: ${syncErrorMessage}`);
-    }
-
-    // Create and push an empty commit
-    const message = commitMessage || "ci: trigger checks";
-    await exec.exec("git", ["commit", "--allow-empty", "-m", message]);
-    await exec.exec("git", ["push", "ci-trigger", branchName]);
-
-    core.info(`Extra empty commit pushed to ${branchName} successfully`);
-
-    // Clean up the temporary remote
-    try {
-      await exec.exec("git", ["remote", "remove", "ci-trigger"]);
-    } catch {
-      // Non-fatal cleanup error
-    }
-
-    return { success: true };
   } catch (error) {
     const errorMessage = getErrorMessage(error);
     core.warning(`Failed to push extra empty commit: ${errorMessage}`);
-
-    // Clean up the temporary remote on failure
-    try {
-      await exec.exec("git", ["remote", "remove", "ci-trigger"]);
-    } catch {
-      // Non-fatal cleanup error
-    }
 
     // Extra empty commit failure is not fatal - the main push already succeeded
     return { success: false, error: errorMessage };

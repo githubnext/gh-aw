@@ -9,6 +9,15 @@ import (
 
 var anomalyLog = logger.New("agentdrain:anomaly")
 
+// Scoring weights used by Analyze. Exported so tests can reference them directly
+// and stay in sync with production logic at compile time.
+const (
+	AnomalyWeightNew  = 1.0
+	AnomalyWeightLow  = 0.7
+	AnomalyWeightRare = 0.3
+	AnomalyMaxScore   = 2.0
+)
+
 // AnomalyDetector evaluates match results and produces AnomalyReports.
 type AnomalyDetector struct {
 	threshold     float64
@@ -35,6 +44,10 @@ func NewAnomalyDetector(simThreshold float64, rareClusterThreshold int) (*Anomal
 //   - isNew indicates the line created a brand-new cluster.
 //   - cluster is the cluster that was matched or created.
 func (d *AnomalyDetector) Analyze(result *MatchResult, isNew bool, cluster *Cluster) *AnomalyReport {
+	if result == nil {
+		anomalyLog.Printf("Analyze: nil result, returning zero-value report")
+		return &AnomalyReport{Reason: "no anomaly detected"}
+	}
 	report := &AnomalyReport{
 		IsNewTemplate: isNew,
 		// LowSimilarity is mutually exclusive with IsNewTemplate: brand-new templates are
@@ -46,22 +59,21 @@ func (d *AnomalyDetector) Analyze(result *MatchResult, isNew bool, cluster *Clus
 	// Weighted anomaly score.
 	var score float64
 	if report.IsNewTemplate {
-		score += 1.0
+		score += AnomalyWeightNew
 	}
 	if report.LowSimilarity {
-		score += 0.7
+		score += AnomalyWeightLow
 	}
 	if report.RareCluster {
-		score += 0.3
+		score += AnomalyWeightRare
 	}
 	// Normalize to [0, 1].
-	const maxScore = 2.0
-	// Defensive guard: with current mutually exclusive flags the score cannot exceed maxScore,
+	// Defensive guard: with current mutually exclusive flags the score cannot exceed AnomalyMaxScore,
 	// but keep clamping in case future weighting or flag logic changes.
-	if score > maxScore {
-		score = maxScore
+	if score > AnomalyMaxScore {
+		score = AnomalyMaxScore
 	}
-	report.AnomalyScore = score / maxScore
+	report.AnomalyScore = score / AnomalyMaxScore
 
 	report.Reason = buildReason(report)
 	if anomalyLog.Enabled() {

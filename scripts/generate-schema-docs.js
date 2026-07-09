@@ -224,6 +224,19 @@ function generateVariants(prop, propName, indent = 0, required = []) {
         if (variant.properties) {
           const subLines = generateProperties(variant.properties, variant.required || [], indent + 2);
           lines.push(subLines);
+        } else if (variant["x-example-key"] && variant.additionalProperties && typeof variant.additionalProperties === "object") {
+          const exampleKey = variant["x-example-key"];
+          const addlProp = resolvePropertyRef(variant.additionalProperties);
+          if (addlProp.description) {
+            lines.push(formatComment(addlProp.description, indent + 2));
+          }
+          lines.push(`${indentStr}  ${exampleKey}:`);
+          if (addlProp.properties) {
+            const subLines = generateProperties(addlProp.properties, addlProp.required || [], indent + 4);
+            lines.push(subLines);
+          } else {
+            lines.push(`${indentStr}    {}`);
+          }
         } else {
           lines.push(`${indentStr}  {}`);
         }
@@ -282,6 +295,21 @@ function generateProperty(propName, prop, indent = 0, isRequired = false) {
     if (prop.properties) {
       const subLines = generateProperties(prop.properties, prop.required || [], indent + 2);
       lines.push(subLines);
+    } else if (prop["x-example-key"] && prop.additionalProperties && typeof prop.additionalProperties === "object") {
+      // Dynamic-key object (additionalProperties pattern): expand an annotated example entry
+      // so users can see the per-key schema rather than a bare '{}'.
+      const exampleKey = prop["x-example-key"];
+      const addlProp = resolvePropertyRef(prop.additionalProperties);
+      if (addlProp.description) {
+        lines.push(formatComment(addlProp.description, indent + 2));
+      }
+      lines.push(`${indentStr}  ${exampleKey}:`);
+      if (addlProp.properties) {
+        const subLines = generateProperties(addlProp.properties, addlProp.required || [], indent + 4);
+        lines.push(subLines);
+      } else {
+        lines.push(`${indentStr}    {}`);
+      }
     } else {
       lines.push(`${indentStr}  {}`);
     }

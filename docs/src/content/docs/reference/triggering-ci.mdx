@@ -55,7 +55,9 @@ To trigger CI checks on PRs created by agentic workflows, configure additional a
        github-token-for-extra-empty-commit: ${{ secrets.MY_CI_TRIGGER_PAT }}
    ```
 
-When configured, the token will be used to push an extra empty commit to the PR branch after PR creation. This will trigger `push` and `pull_request` events normally.
+When configured, the token will be used to push an extra empty commit to the PR branch after PR creation. This will trigger `push` and `pull_request` events normally, even when checkout persisted credentials from a previous step.
+
+If CI still does not start, inspect workflow runs for the empty-commit SHA and confirm the run `actor` is your PAT/App identity (not `github-actions[bot]`).
 
 ### Using a GitHub App
 
