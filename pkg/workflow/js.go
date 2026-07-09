@@ -85,7 +85,7 @@ func removeJavaScriptComments(code string) string {
 
 	// Remove the trailing newline we added
 	resultStr := result.String()
-	if len(resultStr) > 0 && resultStr[len(resultStr)-1] == '\n' {
+	if resultStr != "" && resultStr[len(resultStr)-1] == '\n' {
 		resultStr = resultStr[:len(resultStr)-1]
 	}
 

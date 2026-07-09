@@ -81,7 +81,7 @@ func renameRateLimitToUserRateLimit(lines []string) ([]string, bool) {
 		if inUserRateLimit {
 			lineIndent := getIndentation(line)
 			if isDescendant(lineIndent, userRateLimitIndent) {
-				if len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") && userRateLimitChildIndent == "" {
+				if trimmed != "" && !strings.HasPrefix(trimmed, "#") && userRateLimitChildIndent == "" {
 					userRateLimitChildIndent = lineIndent
 				}
 				if userRateLimitChildIndent != "" && lineIndent != userRateLimitChildIndent {

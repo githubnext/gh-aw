@@ -51,7 +51,7 @@ Use [workflow-editing.md](workflow-editing.md) as the source of truth.
 
 ## Common Update Categories
 
-See [workflow-editing.md](workflow-editing.md) for the full frontmatter-vs-body recompilation taxonomy: prompt-body-only edits apply on the next run, while frontmatter edits (triggers, permissions, tools and MCP servers, network, safe outputs, imports, timeouts, or engine configuration) require `gh aw compile <workflow-id>`, fixing every error, then a `.lock.yml` review.
+See [workflow-editing.md](workflow-editing.md) for the full frontmatter-vs-body recompilation taxonomy and the field list that requires `gh aw compile <workflow-id>` plus a `.lock.yml` review.
 
 ## Cost-Oriented Update Checks
 

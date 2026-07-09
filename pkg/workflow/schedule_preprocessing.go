@@ -440,19 +440,14 @@ func (c *Compiler) addFriendlyScheduleComments(yamlStr string, frontmatter map[s
 		// If we're in the schedule array and find a cron line, add the friendly comment
 		if inScheduleArray && strings.Contains(trimmedLine, "cron:") {
 			scheduleItemIndex++
-			result = append(result, line)
 
-			// Add friendly format comment if available
+			// Add friendly format comment inline on the same line as the cron expression.
+			// Placing it on a separate line triggers yamllint's comments-indentation rule
+			// because the comment indentation would differ from the next non-comment line.
 			if friendly, exists := c.scheduleFriendlyFormats[scheduleItemIndex]; exists {
-				// Get the indentation of the cron line
-				indentation := ""
-				if len(line) > len(trimmedLine) {
-					indentation = line[:len(line)-len(trimmedLine)]
-				}
-				// Add comment with friendly format on the next line
-				comment := indentation + "  # Friendly format: " + friendly
-				result = append(result, comment)
+				line = line + "  # Friendly format: " + friendly
 			}
+			result = append(result, line)
 			continue
 		}
 
