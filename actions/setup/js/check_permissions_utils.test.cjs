@@ -562,6 +562,13 @@ describe("check_permissions_utils", () => {
         expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request", payload)).toBe(true);
       });
 
+      it("should return false when human actor differs from PR author on synchronize (legitimate collaboration)", () => {
+        // A team member (bob) pushing commits to Alice's PR is NOT a confused deputy attack.
+        // The confused deputy attack requires a bot actor; human collaborators are allowed.
+        const payload = { action: "synchronize", pull_request: { user: { login: "alice" } } };
+        expect(isConfusedDeputyAttack("bob", "pull_request", payload)).toBe(false);
+      });
+
       it("should return false when actor matches PR author for a human PR on synchronize", () => {
         const payload = { action: "synchronize", pull_request: { user: { login: "octocat" } } };
         expect(isConfusedDeputyAttack("octocat", "pull_request", payload)).toBe(false);
