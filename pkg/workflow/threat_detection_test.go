@@ -2280,13 +2280,14 @@ func TestBuildDetectionEngineExecutionStepArcDindTopology(t *testing.T) {
 			t.Errorf("expected 'Copy Copilot CLI to daemon-visible path' step in detection job for arc-dind;\ngot:\n%s", allSteps)
 		}
 
-		// The execution step must reference the daemon-visible binary, not the sysroot one.
-		if !strings.Contains(allSteps, constants.GhAwRootDirShell+"/bin/copilot") {
-			t.Errorf("expected detection execution to use %q for arc-dind;\ngot:\n%s", constants.GhAwRootDirShell+"/bin/copilot", allSteps)
+		// The copilot_harness.cjs invocation must use the daemon-visible path specifically.
+		// Note: constants.GhAwRootDirShell+"/bin/copilot" also appears in the staging step's
+		// copy command ("cp /usr/local/bin/copilot ..."), so checking the harness line
+		// directly avoids a false positive from the staging step.
+		harnessArcDindPath := "copilot_harness.cjs " + constants.GhAwRootDirShell + "/bin/copilot"
+		if !strings.Contains(allSteps, harnessArcDindPath) {
+			t.Errorf("expected copilot_harness.cjs to be invoked with daemon-visible path %q for arc-dind;\ngot:\n%s", harnessArcDindPath, allSteps)
 		}
-		// The copilot_harness.cjs invocation must use the daemon-visible path, not /usr/local/bin/copilot.
-		// Note: /usr/local/bin/copilot may legitimately appear in the copy step's source path
-		// ("cp /usr/local/bin/copilot ..."), so we check the harness line specifically.
 		if strings.Contains(allSteps, "copilot_harness.cjs "+constants.CopilotBinaryPath) {
 			t.Errorf("copilot_harness.cjs must NOT be invoked with %q for arc-dind (ENOENT inside chroot);\ngot:\n%s", constants.CopilotBinaryPath, allSteps)
 		}
