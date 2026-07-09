@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"image/color"
+	"io"
 	"os"
 	"strings"
 	"sync"
@@ -99,7 +100,7 @@ func selectNamespaceLabel(namespace string) string {
 	// Use FNV-1a hash for consistent color assignment
 	h := fnv.New32a()
 	// hash.Hash.Write never returns an error in practice, but check to satisfy gosec G104
-	if _, err := h.Write([]byte(namespace)); err != nil {
+	if _, err := io.WriteString(h, namespace); err != nil {
 		// Return plain namespace (no color) if write somehow fails
 		return namespace
 	}

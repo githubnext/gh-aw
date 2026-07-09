@@ -68,8 +68,7 @@
 name: "[aw] Failure Investigator (6h)"
 on:
   schedule:
-    - cron: "43 */6 * * *"
-      # Friendly format: every 6h (scattered)
+    - cron: "43 */6 * * *"  # Friendly format: every 6h (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

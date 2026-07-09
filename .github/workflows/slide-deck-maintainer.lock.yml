@@ -65,8 +65,7 @@
 name: "Slide Deck Maintainer"
 on:
   schedule:
-    - cron: "5 16 * * 1-5"
-      # Friendly format: daily around 16:00 on weekdays (scattered)
+    - cron: "5 16 * * 1-5"  # Friendly format: daily around 16:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

@@ -64,8 +64,7 @@
 name: "Copilot Opt"
 on:
   schedule:
-    - cron: "40 17 * * 1"
-      # Friendly format: weekly on monday (scattered)
+    - cron: "40 17 * * 1"  # Friendly format: weekly on monday (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

@@ -66,8 +66,7 @@
 name: "Cache directory setup"
 on:
   schedule:
-    - cron: "25 23 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "25 23 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

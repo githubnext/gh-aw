@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"hash/fnv"
+	"io"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -42,7 +43,7 @@ func generateMaintenanceCron(minExpiresDays int) (string, string) {
 // multiple side-repo maintenance workflows so they don't all fire at once.
 func sideRepoCronSeed(repoSlug string) uint64 {
 	h := fnv.New64a()
-	_, _ = h.Write([]byte(repoSlug))
+	_, _ = io.WriteString(h, repoSlug)
 	return h.Sum64()
 }
 

@@ -61,8 +61,7 @@
 name: "Outcome Collector"
 on:
   schedule:
-    - cron: "0 0 */3 * *"
-      # Friendly format: every 3 days
+    - cron: "0 0 */3 * *"  # Friendly format: every 3 days
   workflow_dispatch:
     inputs:
       aw_context:

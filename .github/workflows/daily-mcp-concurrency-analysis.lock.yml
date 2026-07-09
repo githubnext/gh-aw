@@ -67,8 +67,7 @@
 name: "Daily MCP Tool Concurrency Analysis"
 on:
   schedule:
-    - cron: "6 9 * * 1-5"
-      # Friendly format: daily around 9:00 on weekdays (scattered)
+    - cron: "6 9 * * 1-5"  # Friendly format: daily around 9:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

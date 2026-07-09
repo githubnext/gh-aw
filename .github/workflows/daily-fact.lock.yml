@@ -67,8 +67,7 @@
 name: "Daily Fact"
 on:
   schedule:
-    - cron: "6 14 * * 1-5"
-      # Friendly format: daily around 14:00 on weekdays (scattered)
+    - cron: "6 14 * * 1-5"  # Friendly format: daily around 14:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

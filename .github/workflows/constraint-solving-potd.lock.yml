@@ -58,8 +58,7 @@
 name: "Constraint Solving — Problem of the Day"
 on:
   schedule:
-    - cron: "23 11 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "23 11 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:
@@ -404,8 +403,8 @@ jobs:
     if: needs.activation.outputs.daily_ai_credits_exceeded != 'true'
     runs-on: ubuntu-latest
     permissions:
-          contents: read
-          models: read
+      contents: read
+      models: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
       queue: max

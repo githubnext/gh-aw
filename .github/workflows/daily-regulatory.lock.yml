@@ -64,8 +64,7 @@
 name: "Daily Regulatory Report Generator"
 on:
   schedule:
-    - cron: "9 21 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "9 21 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

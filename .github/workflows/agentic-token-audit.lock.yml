@@ -58,8 +58,7 @@
 name: "Daily Agentic Workflow AIC Usage Audit"
 on:
   schedule:
-    - cron: "30 11 * * 1-5"
-      # Friendly format: daily around 12:00 on weekdays (scattered)
+    - cron: "30 11 * * 1-5"  # Friendly format: daily around 12:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

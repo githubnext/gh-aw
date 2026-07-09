@@ -146,7 +146,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 			}
 
 			// Convert merged events to YAML
-			mergedEventsYAML, err := yaml.Marshal(map[string]any{"on": commandEventsMap})
+			mergedEventsYAML, err := yaml.MarshalWithOptions(map[string]any{"on": commandEventsMap}, yaml.IndentSequence(true))
 			if err == nil {
 				yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
 				// Post-process YAML to ensure cron expressions are quoted
@@ -257,7 +257,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 			}
 
 			// Convert merged events to YAML
-			mergedEventsYAML, err := yaml.Marshal(map[string]any{"on": labelEventsMap})
+			mergedEventsYAML, err := yaml.MarshalWithOptions(map[string]any{"on": labelEventsMap}, yaml.IndentSequence(true))
 			if err != nil {
 				return fmt.Errorf("failed to marshal label-command events: %w", err)
 			}

@@ -63,8 +63,7 @@
 name: "Layout Specification Maintainer"
 on:
   schedule:
-    - cron: "18 7 * * 1"
-      # Friendly format: weekly on monday around 7:00 (scattered)
+    - cron: "18 7 * * 1"  # Friendly format: weekly on monday around 7:00 (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

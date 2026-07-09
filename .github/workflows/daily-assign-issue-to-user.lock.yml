@@ -59,8 +59,7 @@
 name: "Daily Assign Issue To User"
 on:
   schedule:
-    - cron: "49 5 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "49 5 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

@@ -66,8 +66,7 @@
 name: "GitHub MCP Structural Analysis"
 on:
   schedule:
-    - cron: "53 11 * * 1-5"
-      # Friendly format: daily around 11:00 on weekdays (scattered)
+    - cron: "53 11 * * 1-5"  # Friendly format: daily around 11:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

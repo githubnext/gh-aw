@@ -66,8 +66,7 @@
 name: "Code Scanning Fixer"
 on:
   schedule:
-    - cron: "50 */6 * * *"
-      # Friendly format: every 6h (scattered)
+    - cron: "50 */6 * * *"  # Friendly format: every 6h (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

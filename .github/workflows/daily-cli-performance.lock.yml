@@ -67,8 +67,7 @@ on:
     # contents: read
   # restore-memory: true # Restore-memory enables pre-activation memory restore
   schedule:
-    - cron: "49 14 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "49 14 * * *"  # Friendly format: daily (scattered)
   # steps: # Steps injected into pre-activation job
     # - id: changes
       # name: Detect recent compilation-related changes

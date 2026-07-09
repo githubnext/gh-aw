@@ -67,8 +67,7 @@
 name: "Code Simplifier"
 on:
   schedule:
-    - cron: "11 3 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "11 3 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

@@ -190,7 +190,7 @@ func removeSerenaFromToolsList(lines []string) ([]string, bool) {
 		}
 
 		// Track block exit.
-		if inToolsBlock && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") {
+		if inToolsBlock && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
 			if hasExitedBlock(line, toolsIndent) {
 				inToolsBlock = false
 			}

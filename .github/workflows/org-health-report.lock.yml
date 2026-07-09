@@ -66,8 +66,7 @@
 name: "Organization Health Report"
 on:
   schedule:
-    - cron: "11 8 * * 1"
-      # Friendly format: weekly on monday around 09:00 (scattered)
+    - cron: "11 8 * * 1"  # Friendly format: weekly on monday around 09:00 (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

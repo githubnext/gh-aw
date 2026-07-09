@@ -65,8 +65,7 @@
 name: "Architecture Guardian"
 on:
   schedule:
-    - cron: "5 14 * * 1-5"
-      # Friendly format: daily around 14:00 on weekdays (scattered)
+    - cron: "5 14 * * 1-5"  # Friendly format: daily around 14:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

@@ -71,9 +71,9 @@
 name: "Scout"
 on:
   # roles: # Roles processed as role check in pre-activation job
-  # - admin # Roles processed as role check in pre-activation job
-  # - maintainer # Roles processed as role check in pre-activation job
-  # - write # Roles processed as role check in pre-activation job
+    # - admin # Roles processed as role check in pre-activation job
+    # - maintainer # Roles processed as role check in pre-activation job
+    # - write # Roles processed as role check in pre-activation job
   workflow_dispatch:
     inputs:
       aw_context:
@@ -85,8 +85,8 @@ on:
         default: shallow
         description: "Git history to fetch: shallow (default) or full"
         options:
-        - shallow
-        - full
+          - shallow
+          - full
         required: false
         type: choice
       topic:

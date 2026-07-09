@@ -66,8 +66,7 @@
 name: "The Daily Repository Chronicle"
 on:
   schedule:
-    - cron: "19 15 * * 1-5"
-      # Friendly format: daily around 16:00 on weekdays (scattered)
+    - cron: "19 15 * * 1-5"  # Friendly format: daily around 16:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

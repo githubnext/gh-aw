@@ -73,7 +73,7 @@ func validateArcDindRootless(workflowData *WorkflowData) error {
 // Returns a deduplicated list of violation descriptions found.
 func findRootRequiringPatterns(content string) []string {
 	var violations []string
-	seen := map[string]bool{}
+	seen := map[string]struct{}{}
 
 	for line := range strings.SplitSeq(content, "\n") {
 		trimmed := strings.TrimSpace(line)
@@ -86,12 +86,14 @@ func findRootRequiringPatterns(content string) []string {
 			continue
 		}
 
-		if containsSudoCommand(trimmed) && !seen["sudo"] {
-			seen["sudo"] = true
+		// Map is checked first to short-circuit the more expensive regex scan once a
+		// violation has already been recorded for this key.
+		if _, alreadySeen := seen["sudo"]; !alreadySeen && containsSudoCommand(trimmed) {
+			seen["sudo"] = struct{}{}
 			violations = append(violations, "sudo")
 		}
-		if containsAptGetInstall(trimmed) && !seen["apt-get install"] {
-			seen["apt-get install"] = true
+		if _, alreadySeen := seen["apt-get install"]; !alreadySeen && containsAptGetInstall(trimmed) {
+			seen["apt-get install"] = struct{}{}
 			violations = append(violations, "apt-get install")
 		}
 	}

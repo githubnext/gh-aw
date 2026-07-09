@@ -65,8 +65,7 @@
 name: "daily-experiment-report"
 on:
   schedule:
-    - cron: "50 7 * * *"
-      # Friendly format: daily around 8:00 (scattered)
+    - cron: "50 7 * * *"  # Friendly format: daily around 8:00 (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

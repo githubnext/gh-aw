@@ -64,8 +64,7 @@
 name: "Blog Auditor"
 on:
   schedule:
-    - cron: "26 11 * * 3"
-      # Friendly format: weekly on wednesday around 12:00 (scattered)
+    - cron: "26 11 * * 3"  # Friendly format: weekly on wednesday around 12:00 (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

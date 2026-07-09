@@ -62,8 +62,7 @@
 name: "Daily Elixir Credo Snippet Audit"
 on:
   schedule:
-    - cron: "8 7 * * 1-5"
-      # Friendly format: daily around 8:00 on weekdays (scattered)
+    - cron: "8 7 * * 1-5"  # Friendly format: daily around 8:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

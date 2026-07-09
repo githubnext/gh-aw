@@ -62,8 +62,7 @@
 name: "Step Name Alignment"
 on:
   schedule:
-    - cron: "51 3 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "51 3 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

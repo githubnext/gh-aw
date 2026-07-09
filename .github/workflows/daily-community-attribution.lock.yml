@@ -63,8 +63,7 @@
 name: "Daily Community Attribution Updater"
 on:
   schedule:
-    - cron: "20 2 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "20 2 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

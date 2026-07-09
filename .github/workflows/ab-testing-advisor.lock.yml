@@ -61,8 +61,7 @@
 name: "Daily A/B Testing Advisor"
 on:
   schedule:
-    - cron: "22 10 * * *"
-      # Friendly format: daily around 10:00 (scattered)
+    - cron: "22 10 * * *"  # Friendly format: daily around 10:00 (scattered)
   # skip-if-match: # Skip-if-match processed as search check in pre-activation job
     # max: 3
     # query: is:issue is:open in:title "[ab-advisor] " label:experiments

@@ -67,8 +67,7 @@
 name: "Terminal Stylist"
 on:
   schedule:
-    - cron: "35 8 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "35 8 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

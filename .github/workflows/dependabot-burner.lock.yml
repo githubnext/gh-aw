@@ -66,11 +66,11 @@
 name: "Dependabot Burner"
 on:
   # roles: # Roles processed as role check in pre-activation job
-  # - admin # Roles processed as role check in pre-activation job
-  # - maintainer # Roles processed as role check in pre-activation job
-  # - write # Roles processed as role check in pre-activation job
+    # - admin # Roles processed as role check in pre-activation job
+    # - maintainer # Roles processed as role check in pre-activation job
+    # - write # Roles processed as role check in pre-activation job
   schedule:
-  - cron: "8 6 * * 5"
+    - cron: "8 6 * * 5"
   workflow_dispatch:
     inputs:
       aw_context:

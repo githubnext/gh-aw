@@ -68,8 +68,7 @@
 name: "Copilot PR Conversation NLP Analysis"
 on:
   schedule:
-    - cron: "6 10 * * 1-5"
-      # Friendly format: daily around 10:00 on weekdays (scattered)
+    - cron: "6 10 * * 1-5"  # Friendly format: daily around 10:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

@@ -64,7 +64,7 @@
 name: "Dev"
 on:
   schedule:
-  - cron: "42 8 * * *"
+    - cron: "42 8 * * *"
   workflow_dispatch:
     inputs:
       aw_context:

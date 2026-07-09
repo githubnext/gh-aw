@@ -61,8 +61,7 @@
 name: "Issue Triage Agent"
 on:
   schedule:
-    - cron: "37 14 * * 1-5"
-      # Friendly format: daily around 14:00 on weekdays (scattered)
+    - cron: "37 14 * * 1-5"  # Friendly format: daily around 14:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:
@@ -402,8 +401,8 @@ jobs:
     if: needs.activation.outputs.daily_ai_credits_exceeded != 'true'
     runs-on: ubuntu-latest
     permissions:
-          contents: read
-          issues: read
+      contents: read
+      issues: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
       queue: max

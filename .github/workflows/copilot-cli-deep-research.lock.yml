@@ -61,8 +61,7 @@
 name: "Copilot CLI Deep Research Agent"
 on:
   schedule:
-    - cron: "38 3 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "38 3 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

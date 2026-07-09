@@ -63,8 +63,7 @@
 name: "Instructions Janitor"
 on:
   schedule:
-    - cron: "25 8 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "25 8 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

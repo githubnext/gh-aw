@@ -64,8 +64,7 @@
 name: "Daily Ambient Context Optimizer"
 on:
   schedule:
-    - cron: "35 19 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "35 19 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

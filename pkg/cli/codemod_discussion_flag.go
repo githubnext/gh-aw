@@ -65,7 +65,7 @@ func getDiscussionFlagRemovalCodemod() Codemod {
 					}
 
 					// Check if we've left the safe-outputs block
-					if inSafeOutputsBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+					if inSafeOutputsBlock && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
 						if hasExitedBlock(line, safeOutputsIndent) {
 							inSafeOutputsBlock = false
 							inAddCommentBlock = false
@@ -81,7 +81,7 @@ func getDiscussionFlagRemovalCodemod() Codemod {
 					}
 
 					// Check if we've left the add-comment block
-					if inAddCommentBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+					if inAddCommentBlock && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
 						if hasExitedBlock(line, addCommentIndent) {
 							inAddCommentBlock = false
 						}

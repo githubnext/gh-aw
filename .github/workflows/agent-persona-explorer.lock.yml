@@ -65,8 +65,7 @@
 name: "Agent Persona Explorer"
 on:
   schedule:
-    - cron: "25 15 * * *"
-      # Friendly format: daily (scattered)
+    - cron: "25 15 * * *"  # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

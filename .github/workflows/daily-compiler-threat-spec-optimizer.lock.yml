@@ -64,8 +64,7 @@
 name: "Daily Compiler Threat Spec Optimizer"
 on:
   schedule:
-    - cron: "6 3 * * 1"
-      # Friendly format: weekly on monday around 03:00 (scattered)
+    - cron: "6 3 * * 1"  # Friendly format: weekly on monday around 03:00 (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

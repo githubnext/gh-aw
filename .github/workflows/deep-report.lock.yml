@@ -72,8 +72,7 @@
 name: "Deep Report"
 on:
   schedule:
-    - cron: "34 14 * * 1-5"
-      # Friendly format: daily around 15:00 on weekdays (scattered)
+    - cron: "34 14 * * 1-5"  # Friendly format: daily around 15:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

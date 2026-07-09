@@ -135,7 +135,7 @@ func insertSandboxAfterNetworkBlock(lines []string, sandboxLines []string) []str
 			inNetworkBlock = true
 			continue
 		}
-		if inNetworkBlock && len(trimmed) > 0 && isTopLevelKey(line) {
+		if inNetworkBlock && trimmed != "" && isTopLevelKey(line) {
 			insertIndex = i
 			break
 		}

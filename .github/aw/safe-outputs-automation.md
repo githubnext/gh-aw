@@ -118,7 +118,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
   ```yaml
   safe-outputs:
     create-code-scanning-alert:
-      max: 50                         # Optional: max findings (default: unlimited)
+      max: 50                         # Optional: max findings (default: 40)
       driver: "Custom Scanner"        # Optional: SARIF tool.driver.name (default: "GitHub Agentic Workflows Security Scanner")
       github-token: ${{ secrets.MY_TOKEN }}  # Optional: override token for security-events:write
       target-repo: "owner/repo"       # Optional: cross-repository
@@ -217,7 +217,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
       target-repo: "owner/repo"       # Optional: cross-repository
   ```
 
-  Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated`, `resolved`.
+  Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated`, `resolved`, `low_quality`.
 - `set-issue-type:` - Set the type of an issue (requires organization-defined issue types)
 
   ```yaml

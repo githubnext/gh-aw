@@ -63,8 +63,7 @@
 name: "Daily Hippo Learn"
 on:
   schedule:
-    - cron: "6 6 * * *"
-      # Friendly format: daily around 7:00 (scattered)
+    - cron: "6 6 * * *"  # Friendly format: daily around 7:00 (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

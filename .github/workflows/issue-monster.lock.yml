@@ -67,8 +67,7 @@ on:
     # issues: read
     # pull-requests: read
   schedule:
-    - cron: "5/30 * * * *"
-      # Friendly format: every 30m (scattered)
+    - cron: "5/30 * * * *"  # Friendly format: every 30m (scattered)
   # skip-if-check-failing: # Skip-if-check-failing processed as check status gate in pre-activation job
     # allow-pending: true
     # include:

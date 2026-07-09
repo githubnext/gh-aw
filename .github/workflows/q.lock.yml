@@ -66,34 +66,34 @@ name: "Q"
 on:
   discussion:
     types:
-    - created
-    - edited
+      - created
+      - edited
   discussion_comment:
     types:
-    - created
-    - edited
+      - created
+      - edited
   issue_comment:
     types:
-    - created
-    - edited
+      - created
+      - edited
   issues:
     types:
-    - opened
-    - edited
-    - reopened
+      - opened
+      - edited
+      - reopened
   pull_request:
     types:
-    - opened
-    - edited
-    - reopened
+      - opened
+      - edited
+      - reopened
   pull_request_review_comment:
     types:
-    - created
-    - edited
+      - created
+      - edited
   # roles: # Roles processed as role check in pre-activation job
-  # - admin # Roles processed as role check in pre-activation job
-  # - maintainer # Roles processed as role check in pre-activation job
-  # - write # Roles processed as role check in pre-activation job
+    # - admin # Roles processed as role check in pre-activation job
+    # - maintainer # Roles processed as role check in pre-activation job
+    # - write # Roles processed as role check in pre-activation job
 
 permissions: {}
 

@@ -63,9 +63,9 @@ name: "Smoke Create Cross-Repo PR"
 on:
   pull_request:
     # names: # Label filtering applied via job conditions
-    # - smoke-create-cross-repo-pr # Label filtering applied via job conditions
+      # - smoke-create-cross-repo-pr # Label filtering applied via job conditions
     types:
-    - labeled
+      - labeled
   workflow_dispatch:
     inputs:
       aw_context:

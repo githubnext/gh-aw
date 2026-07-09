@@ -65,8 +65,7 @@
 name: "Daily Agent of the Day Blog Writer"
 on:
   schedule:
-    - cron: "11 14 * * 1-5"
-      # Friendly format: daily on weekdays (scattered)
+    - cron: "11 14 * * 1-5"  # Friendly format: daily on weekdays (scattered)
   # skip-if-match: is:pr is:open label:blog in:title "Agent of the Day" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
     inputs:

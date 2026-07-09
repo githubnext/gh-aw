@@ -65,8 +65,7 @@
 name: "Refactoring Cadence"
 on:
   schedule:
-    - cron: "21 3 * * 1-5"
-      # Friendly format: daily on weekdays (scattered)
+    - cron: "21 3 * * 1-5"  # Friendly format: daily on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

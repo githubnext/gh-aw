@@ -52,8 +52,7 @@
 name: "Copilot Centralization Optimizer"
 on:
   schedule:
-    - cron: "22 3 * * 1"
-      # Friendly format: weekly on monday (scattered)
+    - cron: "22 3 * * 1"  # Friendly format: weekly on monday (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

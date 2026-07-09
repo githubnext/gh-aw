@@ -66,10 +66,10 @@ name: "Changeset Generator"
 on:
   pull_request:
     # names: # Label filtering applied via job conditions
-    # - changeset # Label filtering applied via job conditions
-    # - smoke # Label filtering applied via job conditions
+      # - changeset # Label filtering applied via job conditions
+      # - smoke # Label filtering applied via job conditions
     types:
-    - labeled
+      - labeled
   workflow_dispatch:
     inputs:
       aw_context:

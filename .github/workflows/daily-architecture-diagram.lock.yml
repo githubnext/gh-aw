@@ -63,8 +63,7 @@
 name: "1. List all Go packages with their doc comments"
 on:
   schedule:
-    - cron: "38 8 * * 1"
-      # Friendly format: weekly on Monday around 08:00 (scattered)
+    - cron: "38 8 * * 1"  # Friendly format: weekly on Monday around 08:00 (scattered)
   workflow_dispatch:
     inputs:
       aw_context:
