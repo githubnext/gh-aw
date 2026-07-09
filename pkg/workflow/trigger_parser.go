@@ -1008,7 +1008,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		workflowData.LabelCommandOtherEvents = otherEvents
 	} else if (hasReaction || hasStopAfter || hasStatusComment) && len(otherEvents) > 0 {
 		// Only re-marshal the "on" if we have to
-		onEventsYAML, err := yaml.Marshal(map[string]any{"on": otherEvents})
+		onEventsYAML, err := yaml.MarshalWithOptions(map[string]any{"on": otherEvents}, yaml.IndentSequence(true))
 		if err == nil {
 			yamlStr := strings.TrimSuffix(string(onEventsYAML), "\n")
 			// Post-process YAML to ensure cron expressions are quoted

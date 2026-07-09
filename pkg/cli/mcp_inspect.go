@@ -134,8 +134,11 @@ func InspectWorkflowMCP(ctx context.Context, workflowFile string, serverFilter s
 				if err := mcpScriptsServerCmd.Process.Signal(os.Interrupt); err != nil && verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to send interrupt signal: %v", err)))
 				}
-				// Wait a moment for graceful shutdown
-				time.Sleep(mcpScriptsServerShutdownDelay)
+				// Wait a moment for graceful shutdown (respects context cancellation)
+				select {
+				case <-time.After(mcpScriptsServerShutdownDelay):
+				case <-ctx.Done():
+				}
 				// Attempt force kill (may fail if process already exited gracefully, which is fine)
 				_ = mcpScriptsServerCmd.Process.Kill()
 			}

@@ -171,7 +171,7 @@ func removeFieldFromMCPServer(lines []string, serverName string, fieldName strin
 		}
 
 		// Check if we've left mcp-servers block
-		if inMCPServers && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+		if inMCPServers && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
 			if hasExitedBlock(line, mcpServersIndent) {
 				inMCPServers = false
 				inServerBlock = false
@@ -187,7 +187,7 @@ func removeFieldFromMCPServer(lines []string, serverName string, fieldName strin
 		}
 
 		// Check if we've left the server block
-		if inServerBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+		if inServerBlock && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
 			currentIndent := getIndentation(line)
 			// Exit if we're back at mcp-servers level or less
 			if len(currentIndent) <= len(serverIndent) && strings.Contains(line, ":") {
@@ -306,7 +306,7 @@ func updateNetworkAllowed(lines []string, domains []string) []string {
 		}
 
 		// Check if we've left network block
-		if inNetworkBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+		if inNetworkBlock && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
 			if hasExitedBlock(line, networkIndent) {
 				inNetworkBlock = false
 				inAllowedBlock = false
@@ -376,7 +376,7 @@ func addAllowedToNetwork(lines []string, domains []string) []string {
 			networkIndent = getIndentation(line)
 		}
 
-		if inNetworkBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+		if inNetworkBlock && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
 			if hasExitedBlock(line, networkIndent) {
 				// Found the end of network block
 				insertIndex = i

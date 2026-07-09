@@ -70,7 +70,7 @@ func getAssignToAgentDefaultAgentCodemod() Codemod {
 					}
 
 					// Check if we've left the safe-outputs block
-					if inSafeOutputsBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+					if inSafeOutputsBlock && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
 						if hasExitedBlock(line, safeOutputsIndent) {
 							inSafeOutputsBlock = false
 							inAssignToAgentBlock = false
@@ -86,7 +86,7 @@ func getAssignToAgentDefaultAgentCodemod() Codemod {
 					}
 
 					// Check if we've left the assign-to-agent block
-					if inAssignToAgentBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+					if inAssignToAgentBlock && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
 						if hasExitedBlock(line, assignToAgentIndent) {
 							inAssignToAgentBlock = false
 						}

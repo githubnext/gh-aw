@@ -657,6 +657,44 @@ describe("add_workflow_run_comment", () => {
     });
   });
 
+  describe("main() - pull_request_review event", () => {
+    it("should create comment on the pull request", async () => {
+      global.context = {
+        eventName: "pull_request_review",
+        runId: 12345,
+        repo: { owner: "testowner", repo: "testrepo" },
+        payload: {
+          pull_request: { number: 303 },
+          repository: { html_url: "https://github.com/testowner/testrepo" },
+        },
+      };
+
+      await runScript();
+
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        expect.stringContaining("POST /repos/testowner/testrepo/issues/303/comments"),
+        expect.objectContaining({
+          body: expect.any(String),
+        })
+      );
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should fail when PR number is missing in pull_request_review event", async () => {
+      global.context = {
+        eventName: "pull_request_review",
+        runId: 12345,
+        repo: { owner: "testowner", repo: "testrepo" },
+        payload: {},
+      };
+
+      await runScript();
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
+      expect(mockGithub.request).not.toHaveBeenCalled();
+    });
+  });
+
   describe("main() - discussion event", () => {
     it("should create GraphQL comment on a discussion", async () => {
       global.context = {

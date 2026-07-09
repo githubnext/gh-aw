@@ -67,7 +67,7 @@ async function overridePersistedExtraheader(serverUrl, token) {
   const normalizedUrl = normalizeServerUrl(serverUrl);
   let previousValues;
   try {
-    previousValues = await getExtraheaderValues(normalizedUrl);
+    previousValues = await getExtraheaderValues(serverUrl);
     core.info(`git_auth_helpers: read ${previousValues.length} existing extraheader value(s) for ${normalizedUrl}`);
   } catch (err) {
     core.warning(`git_auth_helpers: could not read existing extraheader values — restoration will proceed with empty defaults: ${getErrorMessage(err)}`);

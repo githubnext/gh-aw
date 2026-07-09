@@ -99,7 +99,7 @@ func addGitHubModeGhProxyToTools(lines []string) []string {
 	toolsEnd := len(lines)
 	for i := toolsLine + 1; i < len(lines); i++ {
 		trimmed := strings.TrimSpace(lines[i])
-		if len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") && hasExitedBlock(lines[i], toolsIndent) {
+		if trimmed != "" && !strings.HasPrefix(trimmed, "#") && hasExitedBlock(lines[i], toolsIndent) {
 			toolsEnd = i
 			break
 		}
@@ -128,7 +128,7 @@ func addGitHubModeGhProxyToTools(lines []string) []string {
 	insertAt := githubLine + 1
 	for i := githubLine + 1; i < len(lines); i++ {
 		trimmed := strings.TrimSpace(lines[i])
-		if len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") {
+		if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
 			if hasExitedBlock(lines[i], githubIndent) {
 				insertAt = i
 			} else {
