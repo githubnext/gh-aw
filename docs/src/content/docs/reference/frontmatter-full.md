@@ -2320,11 +2320,14 @@ engine:
   # (optional)
   copilot-sdk: true
 
-  # Custom inner driver script for engines that support driver mode (e.g. pi).
-  # Accepts a workspace-relative path ending with .js, .cjs, or .mjs (e.g.
-  # `.github/drivers/pi_agent_core_driver_sample_node.cjs`), or a bare filename
-  # without a path separator resolved from the gh-aw setup-action directory (e.g.
-  # `pi_agent_core_driver.cjs`).
+  # Custom driver script or command for the engine. Accepts a workspace-relative
+  # path or bare name. Supported extensions depend on the engine: the copilot
+  # engine accepts .js, .cjs, .mjs (Node.js), .py (Python), .ts or .mts
+  # (TypeScript), or .rb (Ruby); other engines (e.g. pi) accept .js, .cjs, or
+  # .mjs only. A bare name without an extension is also valid for any engine
+  # (treated as a built-in driver or executable in PATH). Examples:
+  # `.github/drivers/my_driver.cjs`, `.github/drivers/my_driver.py`,
+  # `my-copilot-driver`.
   # (optional)
   driver: "example-value"
 

@@ -163,6 +163,10 @@ Create exactly one issue titled:
 
 `[agentrx-optimizer] Daily Workflow Optimization - YYYY-MM-DD`
 
+Use `###` or lower for all headers in your report. Never use `#` (h1) or `##` (h2) — these are reserved for the issue title rendered by GitHub.
+
+Wrap long sections (>5 items, detailed lists, raw data) in `<details><summary><b>Section Name</b></summary>` blocks to keep the report scannable.
+
 Body structure:
 
 ### Executive Summary
@@ -175,7 +179,7 @@ Body structure:
 - Representative run IDs
 
 <details>
-<summary>AgentRx Artifacts</summary>
+<summary><b>AgentRx Artifacts</b></summary>
 
 {{#if experiments.sub_agent_strategy == 'sub_agents'}}
 Invoke `artifacts-summarizer` by passing this exact input block:

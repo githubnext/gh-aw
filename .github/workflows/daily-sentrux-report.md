@@ -130,7 +130,7 @@ or
 ⚠️ X rule violation(s) found — list the violations with their reasons
 
 <details>
-<summary>Quality Trend (30 days)</summary>
+<summary><b>Quality Trend (30 days)</b></summary>
 
 Provide a text summary of the trend over the last 30 days. Include the highest and lowest signal values, date of the biggest drop, and current direction.
 
@@ -147,6 +147,7 @@ Provide a text summary of the trend over the last 30 days. Include the highest a
 
 - Keep the report concise. Put verbose data inside `<details>` sections.
 - Use `###` (h3) or lower for all headers in the report body.
+- Wrap long sections (>5 items, detailed lists, raw data) in `<details><summary><b>Section Name</b></summary>` blocks to keep the report scannable.
 - Highlight any metric below 5000 as a warning (⚠️).
 - Highlight any metric above 8000 as healthy (✅).
 - Store today's metrics to repo memory before publishing the report.

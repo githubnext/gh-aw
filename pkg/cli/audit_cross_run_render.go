@@ -59,10 +59,6 @@ func renderMarkdownExecutiveSummaryToWriter(w io.Writer, report *CrossRunAuditRe
 	fmt.Fprintln(w)
 }
 
-func renderMarkdownMetricsTrend(mt MetricsTrendData) {
-	renderMarkdownMetricsTrendToWriter(os.Stdout, mt)
-}
-
 func renderMarkdownMetricsTrendToWriter(w io.Writer, mt MetricsTrendData) {
 	if mt.TotalTokens == 0 && mt.TotalTurns == 0 && mt.AvgDurationNs == 0 {
 		return

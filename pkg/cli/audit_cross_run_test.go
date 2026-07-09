@@ -312,30 +312,6 @@ func TestRenderCrossRunReportMarkdown(t *testing.T) {
 	assert.Contains(t, output, "api.github.com:443", "Should contain the domain")
 }
 
-func TestRenderMarkdownMetricsTrend_IncludesTurnsWithoutTokens(t *testing.T) {
-	oldStdout := os.Stdout
-	r, w, err := os.Pipe()
-	require.NoError(t, err, "should create stdout pipe")
-	os.Stdout = w
-
-	renderMarkdownMetricsTrend(MetricsTrendData{
-		TotalTurns: 9,
-		AvgTurns:   4.5,
-		MaxTurns:   6,
-	})
-
-	w.Close()
-	os.Stdout = oldStdout
-
-	var buf bytes.Buffer
-	_, err = buf.ReadFrom(r)
-	require.NoError(t, err, "should read captured stdout")
-	output := buf.String()
-
-	assert.Contains(t, output, "## Metrics Trends", "Should render metrics section when turn metrics exist")
-	assert.Contains(t, output, "| Turns | 9 | 4.5 | — | 6 | — |", "Should render turns row without tokens")
-}
-
 func TestRenderPrettyMetricsTrend_IncludesDurationWithoutTokens(t *testing.T) {
 	oldStderr := os.Stderr
 	r, w, err := os.Pipe()

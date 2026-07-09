@@ -273,8 +273,13 @@ Create an issue with:
 - **Historical Trends**: Comparison with previous scans
 
 **Issue Template**:
+
+Use `###` or lower for all headers in your report. Never use `#` (h1) or `##` (h2) — these are reserved for the issue title rendered by GitHub.
+
+Wrap long sections (>5 items, detailed lists, raw data) in `<details><summary><b>Section Name</b></summary>` blocks to keep the report scannable.
+
 ```markdown
-# 🔍 Static Analysis Report - [DATE]
+### 🔍 Static Analysis Report - [DATE]
 
 ### Analysis Summary
 
@@ -349,7 +354,7 @@ Issues created: [list of issue links for Critical/High findings, or "none"]
 ### All Findings Details
 
 <details>
-<summary>Detailed Findings by Workflow</summary>
+<summary><b>Detailed Findings by Workflow</b></summary>
 
 #### [Workflow Name 1]
 
@@ -434,20 +439,20 @@ Runner-guard has performed source-to-sink vulnerability scanning as part of the 
    ```
    Title: [static-analysis] <RuleID>: <FindingName> in <AffectedFile>
 
-   ## 🚨 Runner-Guard Security Finding
+   ### 🚨 Runner-Guard Security Finding
 
    **Rule**: <ID> — <Name>
    **Severity**: <Level>
    **File**: `<path>`
    **Line**: <number>
 
-   ### Description
+   #### Description
    <finding description from runner-guard>
 
-   ### Impact
+   #### Impact
    <why this vulnerability is dangerous — attacker-controlled input, secrets exposure, etc.>
 
-   ### Remediation
+   #### Remediation
    <how to fix this issue>
 
    ---
@@ -459,7 +464,7 @@ Runner-guard has performed source-to-sink vulnerability scanning as part of the 
 
    Comment format (when adding to an existing open issue):
    ```
-   ## 🔄 Recurring Finding — <DATE>
+   ### 🔄 Recurring Finding — <DATE>
 
    This finding was detected again in today's static analysis scan.
 

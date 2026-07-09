@@ -301,7 +301,7 @@ Use the following template:
 
 Use h3 (`###`) or lower for all headers in the issue body. Never use h1 (`#`) or h2 (`##`) — these are reserved for the issue title.
 
-Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.
+Wrap long sections (>5 items, detailed lists, raw data) in `<details><summary><b>Section Name</b></summary>` blocks to keep the report scannable.
 
 Suggested structure:
 - Brief summary (always visible)
@@ -339,7 +339,7 @@ Suggested structure:
 4. Result: [Data corruption / lost updates / incorrect behavior]
 
 <details>
-<summary>Detailed Analysis</summary>
+<summary><b>Detailed Analysis</b></summary>
 
 #### Root Cause
 
@@ -380,7 +380,7 @@ Suggested structure:
 3. [Step 3]
 
 <details>
-<summary>Alternative Solutions</summary>
+<summary><b>Alternative Solutions</b></summary>
 
 **Option 1: [Alternative approach 1]**
 - Pros: [Benefits]

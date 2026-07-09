@@ -374,7 +374,9 @@ Create exactly one issue titled:
 
 `[ambient-context] Daily Ambient Context Optimizer - YYYY-MM-DD`
 
-Use only `###` or lower headings.
+Use `###` or lower for all headers in your report. Never use `#` (h1) or `##` (h2) — these are reserved for the issue title rendered by GitHub.
+
+Wrap long sections (>5 items, detailed lists, raw data) in `<details><summary><b>Section Name</b></summary>` blocks to keep the report scannable.
 
 Keep the issue structured like this (concise, no extra sections):
 
@@ -412,21 +414,21 @@ Any agent implementing workflow-file recommendations **must** complete every ite
 | Optimizer PR close-rate (7d) | ... |
 
 <details>
-<summary>Per-Run First-Request Metrics</summary>
+<summary><b>Per-Run First-Request Metrics</b></summary>
 
 Include a markdown table with one row per sampled run (max 4 rows).
 
 </details>
 
 <details>
-<summary>Repeated Ambient Context Signals</summary>
+<summary><b>Repeated Ambient Context Signals</b></summary>
 
 Summarize repeated sections, duplicated fragments, and bloated headings in short bullets.
 
 </details>
 
 <details>
-<summary>Deterministic Analysis Output</summary>
+<summary><b>Deterministic Analysis Output</b></summary>
 
 Summarize the Python script outputs and cite only the most relevant metrics.
 

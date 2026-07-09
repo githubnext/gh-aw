@@ -235,9 +235,9 @@ Issue types (create only when non-empty):
 
 Formatting rules:
 
-- Use `###` headers or lower.
+- Use `###` or lower for all headers in your report. Never use `#` (h1) or `##` (h2) — these are reserved for the issue title rendered by GitHub.
 - Keep key metrics visible.
-- Put verbose per-repo diagnostics inside `<details>` blocks.
+- Wrap long sections (>5 items, detailed lists, raw data) in `<details><summary><b>Section Name</b></summary>` blocks to keep the report scannable.
 - Include concrete examples and suggested remediations.
 - Include references to up to 3 representative repositories per cluster.
 
