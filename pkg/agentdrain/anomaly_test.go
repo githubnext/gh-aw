@@ -417,7 +417,9 @@ func TestAnalyzeEvent(t *testing.T) {
 		require.NoError(t, errFirst, "AnalyzeEvent should not fail for first event")
 		require.NotNil(t, resultFirst, "AnalyzeEvent should return a non-nil result")
 		require.NotNil(t, reportFirst, "AnalyzeEvent should return a non-nil report")
-		require.True(t, reportFirst.IsNewTemplate, "IsNewTemplate mismatch for first event") // gate for steps 2+3
+		// Both assertions below are gates for steps 2+3: a failure here stops the test
+		// before exercising state that is now invalid.
+		require.True(t, reportFirst.IsNewTemplate, "IsNewTemplate mismatch for first event")
 		require.InDelta(t, anomalyScore(true, false, true), reportFirst.AnomalyScore, 1e-9, "AnomalyScore mismatch for first event")
 		assert.Equal(t, "new log template discovered; rare cluster (few observations)", reportFirst.Reason, "Reason mismatch for first event")
 	})
