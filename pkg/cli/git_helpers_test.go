@@ -74,6 +74,59 @@ func TestParseGitHubRepoSlugFromURL(t *testing.T) {
 	}
 }
 
+// TestParseGitHubRepoSlugFromURLGHE verifies that GHE SSH URLs with non-standard
+// usernames (e.g. example@example.ghe.com:owner/repo.git) are parsed correctly
+// when GH_HOST is configured to point at the GHE instance.
+func TestParseGitHubRepoSlugFromURLGHE(t *testing.T) {
+	tests := []struct {
+		name     string
+		url      string
+		expected string
+	}{
+		{
+			name:     "GHE SSH SCP-style with custom username and .git",
+			url:      "example@example.ghe.com:example-org/example-repo.git",
+			expected: "example-org/example-repo",
+		},
+		{
+			name:     "GHE SSH SCP-style with custom username without .git",
+			url:      "example@example.ghe.com:example-org/example-repo",
+			expected: "example-org/example-repo",
+		},
+		{
+			name:     "GHE SSH SCP-style with git username and .git",
+			url:      "git@example.ghe.com:example-org/example-repo.git",
+			expected: "example-org/example-repo",
+		},
+		{
+			name:     "GHE HTTPS URL",
+			url:      "https://example.ghe.com/example-org/example-repo.git",
+			expected: "example-org/example-repo",
+		},
+		{
+			name:     "GHE SSH URL scheme",
+			url:      "ssh://example@example.ghe.com/example-org/example-repo.git",
+			expected: "example-org/example-repo",
+		},
+		{
+			name:     "SSH SCP-style URL for a different host should not match",
+			url:      "example@other.host.com:example-org/example-repo.git",
+			expected: "",
+		},
+	}
+
+	t.Setenv("GITHUB_SERVER_URL", "https://example.ghe.com")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseGitHubRepoSlugFromURL(tt.url)
+			if result != tt.expected {
+				t.Errorf("parseGitHubRepoSlugFromURL(%q) = %q, expected %q", tt.url, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestGetRepositorySlugFromRemote(t *testing.T) {
 	// This test verifies that the function can execute without errors in a git repo
 	// The actual value will depend on the repository being tested
