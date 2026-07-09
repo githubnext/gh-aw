@@ -51,6 +51,7 @@ jobs:
 		b.Fatal(err)
 	}
 
+	b.ResetTimer()
 	b.ReportAllocs()
 	for b.Loop() {
 		if err := validateNoGitHubExpressionsInRunScriptsFromParsed(parsed); err != nil {
