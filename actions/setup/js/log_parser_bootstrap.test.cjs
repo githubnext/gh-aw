@@ -267,8 +267,9 @@ describe("log_parser_bootstrap.cjs", () => {
         it("should escape Claude startup diagnostics summary content", async () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
           const logFile = path.join(tmpDir, "test.log");
+          const escapedTailLog = "[claude-harness] attempt 1 failed: exitCode=1 hasOutput=false\n[claude-harness] stderr: <pre>&```</pre>\n[claude-harness] done: exitCode=1";
           try {
-            fs.writeFileSync(logFile, "[claude-harness] attempt 1 failed: exitCode=1 hasOutput=false\n[claude-harness] stderr: <pre>&```</pre>\n[claude-harness] done: exitCode=1");
+            fs.writeFileSync(logFile, escapedTailLog);
             process.env.GH_AW_AGENT_OUTPUT = logFile;
             delete process.env.GH_AW_SAFE_OUTPUTS;
             const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
