@@ -142,18 +142,26 @@ func TestAddWorkflows(t *testing.T) {
 
 func TestAddResolvedWorkflows(t *testing.T) {
 	tests := []struct {
-		name          string
-		expectError   bool
-		errorContains string
+		name string
 	}{
 		{
-			name:        "valid workflow",
-			expectError: true, // Will still error due to missing git repo, but validates basic flow
+			name: "valid workflow",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			oldWd, err := os.Getwd()
+			require.NoError(t, err)
+			require.NoError(t, os.Chdir(tmpDir))
+			defer func() {
+				require.NoError(t, os.Chdir(oldWd))
+			}()
+			gitInit := exec.Command("git", "init")
+			gitInit.Dir = tmpDir
+			require.NoError(t, gitInit.Run())
+
 			// Create a minimal resolved workflow structure
 			resolved := &ResolvedWorkflows{
 				Workflows: []*ResolvedWorkflow{
@@ -170,21 +178,17 @@ func TestAddResolvedWorkflows(t *testing.T) {
 			}
 
 			opts := AddOptions{}
-			_, err := AddResolvedWorkflows(
+			_, err = AddResolvedWorkflows(
 				context.Background(),
 				[]string{"test/repo/test-workflow"},
 				resolved,
 				opts,
 			)
+			require.NoError(t, err, "Should not error for test case: %s", tt.name)
 
-			if tt.expectError {
-				require.Error(t, err, "Expected error for test case: %s", tt.name)
-				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains, "Error should contain expected message")
-				}
-			} else {
-				assert.NoError(t, err, "Should not error for test case: %s", tt.name)
-			}
+			workflowPath := filepath.Join(tmpDir, ".github", "workflows", "test-workflow.md")
+			_, err = os.Stat(workflowPath)
+			require.NoError(t, err, "workflow should be written to the temporary workflows directory")
 		})
 	}
 }
