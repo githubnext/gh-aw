@@ -30,8 +30,8 @@ const DISCLOSURE_HEADER_DEFAULT_SENTINEL = "true";
  */
 function getDefaultDisclosureHeaderTemplate() {
   try {
-    const hasRuntimePromptsDir = !!(process.env.RUNNER_TEMP || process.env.GH_AW_PROMPTS_DIR);
-    const templatePath = hasRuntimePromptsDir ? getPromptPath(DEFAULT_DISCLOSURE_HEADER_TEMPLATE) : path.join(__dirname, "../md", DEFAULT_DISCLOSURE_HEADER_TEMPLATE);
+    const shouldUseRuntimePrompts = !!(process.env.RUNNER_TEMP || process.env.GH_AW_PROMPTS_DIR);
+    const templatePath = shouldUseRuntimePrompts ? getPromptPath(DEFAULT_DISCLOSURE_HEADER_TEMPLATE) : path.join(__dirname, "../md", DEFAULT_DISCLOSURE_HEADER_TEMPLATE);
     return fs.readFileSync(templatePath, "utf8").trimEnd();
   } catch {
     return DEFAULT_DISCLOSURE_HEADER_FALLBACK;
