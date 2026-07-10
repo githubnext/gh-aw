@@ -27,9 +27,7 @@ const RUN_URL = "https://github.com/owner/repo/actions/runs/99";
 describe("messages_header", () => {
   beforeAll(() => {
     originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
-    if (!process.env.GH_AW_PROMPTS_DIR) {
-      process.env.GH_AW_PROMPTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../md");
-    }
+    process.env.GH_AW_PROMPTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../md");
     vi.resetModules();
     ({ getBodyHeader, getDisclosureHeader, DEFAULT_DISCLOSURE_HEADER, DISCLOSURE_HEADER_DEFAULT_SENTINEL } = require("./messages_header.cjs"));
   });
