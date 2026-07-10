@@ -107,6 +107,8 @@ fallback-to-safe-policy decision SHOULD be recorded in execution provenance.
 
 Until repositories migrate fully to `.github/intent-policy.json`, `.github/objective-mapping.json`
 remains the authoritative label-to-intent source for attribution fallback and drift detection.
+This specification defines the precedence and sync expectations for that migration, but does
+not assign a mandatory repository-by-repository completion deadline.
 
 Implementations SHOULD detect drift by comparing the active repository governance inputs —
 the compiled rule set from `.github/intent-policy.json` when present, otherwise the effective
