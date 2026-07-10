@@ -51,6 +51,17 @@ engine:
                 "external_directory": "allow"
               }
             }
+          },
+          "disabled_providers": ["opencode"],
+          "provider": {
+            "openai": {
+              "options": {
+                "baseURL": "http://host.docker.internal:10002"
+              },
+              "models": {
+                "gpt-5": {}
+              }
+            }
           }
         }
       merge-strategy: json-merge

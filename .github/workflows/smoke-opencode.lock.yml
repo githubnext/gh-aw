@@ -929,6 +929,17 @@ jobs:
                   "external_directory": "allow"
                 }
               }
+            },
+            "disabled_providers": ["opencode"],
+            "provider": {
+              "openai": {
+                "options": {
+                  "baseURL": "http://host.docker.internal:10002"
+                },
+                "models": {
+                  "gpt-5": {}
+                }
+              }
             }
           }'
           if [ -f "$CONFIG" ]; then
@@ -1620,6 +1631,17 @@ jobs:
                   "webfetch": "allow",
                   "websearch": "allow",
                   "external_directory": "allow"
+                }
+              }
+            },
+            "disabled_providers": ["opencode"],
+            "provider": {
+              "openai": {
+                "options": {
+                  "baseURL": "http://host.docker.internal:10002"
+                },
+                "models": {
+                  "gpt-5": {}
                 }
               }
             }
