@@ -3,11 +3,15 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	yamlv3 "gopkg.in/yaml.v3"
 )
 
 // Guard-policy error codes, aligned with pkg/cli/gateway_logs_types.go and the normative
@@ -379,4 +383,113 @@ func formalIntegrityRank(level string) int {
 
 func containsExact(values []string, needle string) bool {
 	return slices.Contains(values, needle)
+}
+
+// ---------------------------------------------------------------------------
+// Compliance fixture runner
+// ---------------------------------------------------------------------------
+// fixtureFile mirrors the top-level YAML structure for the compliance fixture files
+// located at specs/github-mcp-access-control-compliance/*.yaml.
+type fixtureFile struct {
+	FixtureID   string            `yaml:"fixture_id"`
+	Description string            `yaml:"description"`
+	Scenarios   []fixtureScenario `yaml:"scenarios"`
+}
+
+type fixtureScenario struct {
+	ScenarioID  string          `yaml:"scenario_id"`
+	Description string          `yaml:"description"`
+	Input       fixtureInput    `yaml:"input"`
+	Expected    fixtureExpected `yaml:"expected"`
+}
+
+type fixtureInput struct {
+	ToolConfig fixtureToolConfig `yaml:"tool_config"`
+	Request    fixtureRequest    `yaml:"request"`
+}
+
+type fixtureToolConfig struct {
+	Repos        []string `yaml:"repos"`
+	Roles        []string `yaml:"roles"`
+	PrivateRepos *bool    `yaml:"private-repos"`
+	AllowedTools []string `yaml:"allowed-tools"`
+	BlockedUsers []string `yaml:"blocked-users"`
+	MinIntegrity string   `yaml:"min-integrity"`
+}
+
+type fixtureRequest struct {
+	Repository       string `yaml:"repository"`
+	UserRole         string `yaml:"user_role"`
+	IsPrivate        bool   `yaml:"is_private"`
+	ToolName         string `yaml:"tool_name"`
+	UserLogin        string `yaml:"user_login"`
+	ContentIntegrity string `yaml:"content_integrity"`
+}
+
+type fixtureExpected struct {
+	Decision  string `yaml:"decision"`
+	ErrorCode *int   `yaml:"error_code"`
+	Reason    string `yaml:"reason"`
+}
+
+// TestFormal_FixtureRunner loads every YAML fixture from
+// specs/github-mcp-access-control-compliance/ and verifies each scenario against
+// formalEvaluateAccess. This binds the executable formal model to the YAML spec
+// artifacts so that a divergence between the fixture and the evaluator is caught
+// immediately rather than silently.
+func TestFormal_FixtureRunner(t *testing.T) {
+	fixtureDir := filepath.Join("..", "..", "specs", "github-mcp-access-control-compliance")
+	entries, err := os.ReadDir(fixtureDir)
+	require.NoError(t, err, "failed to read compliance fixture directory")
+
+	var totalScenarios int
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
+			continue
+		}
+
+		fixturePath := filepath.Join(fixtureDir, entry.Name())
+		data, err := os.ReadFile(fixturePath)
+		require.NoError(t, err, "failed to read fixture file %s", entry.Name())
+
+		var ff fixtureFile
+		require.NoError(t, yamlv3.Unmarshal(data, &ff), "failed to parse fixture file %s", entry.Name())
+
+		for _, sc := range ff.Scenarios {
+			totalScenarios++
+			t.Run(sc.ScenarioID, func(t *testing.T) {
+				cfg := formalToolConfig{
+					Repos:        sc.Input.ToolConfig.Repos,
+					Roles:        sc.Input.ToolConfig.Roles,
+					PrivateRepos: sc.Input.ToolConfig.PrivateRepos,
+					AllowedTools: sc.Input.ToolConfig.AllowedTools,
+					BlockedUsers: sc.Input.ToolConfig.BlockedUsers,
+					MinIntegrity: sc.Input.ToolConfig.MinIntegrity,
+				}
+				req := formalAccessRequest{
+					Repository:       sc.Input.Request.Repository,
+					UserRole:         sc.Input.Request.UserRole,
+					IsPrivate:        sc.Input.Request.IsPrivate,
+					ToolName:         sc.Input.Request.ToolName,
+					UserLogin:        sc.Input.Request.UserLogin,
+					ContentIntegrity: sc.Input.Request.ContentIntegrity,
+				}
+
+				got := formalEvaluateAccess(cfg, req)
+
+				if sc.Expected.Decision == "allow" {
+					assert.True(t, got.allow, "%s: expected allow, got deny (code %d)", sc.ScenarioID, got.errorCode)
+					assert.Zero(t, got.errorCode, "%s: allow decision must have zero error code", sc.ScenarioID)
+				} else {
+					assert.False(t, got.allow, "%s: expected deny, got allow", sc.ScenarioID)
+					if sc.Expected.ErrorCode != nil {
+						assert.Equal(t, *sc.Expected.ErrorCode, got.errorCode,
+							"%s: wrong error code (decision=%s)", sc.ScenarioID, sc.Expected.Decision)
+					}
+				}
+			})
+		}
+	}
+
+	require.Positive(t, totalScenarios, "fixture runner found no scenarios — check fixture directory path")
 }

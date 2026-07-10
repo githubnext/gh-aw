@@ -4,14 +4,16 @@
 
 fixture_id: "wildcard-deny"
 description: >
-  An owner-wildcard pattern (e.g., "github/*") MUST allow access to any repository under the
-  specified owner (T-GH-013), and MUST deny access to repositories under a different owner
-  (T-GH-014). The wildcard matches all repository names under the given owner and does not
-  match across owners.
+  The supported wildcard forms are owner/*, */repo, and */*. An owner-wildcard pattern
+  (e.g., "github/*") MUST allow access to any repository under the specified owner (T-GH-013),
+  and MUST deny access to repositories under a different owner (T-GH-014). A wildcard-owner
+  pattern (e.g., "*/gh-aw") MUST allow access to the named repository under any owner, and
+  MUST deny access when the repo name does not match.
 
 spec_refs:
-  - "§5.2 — Owner wildcard matches all repositories under the specified owner"
-  - "§5.2 — Owner wildcard rejects repositories under a different owner"
+  - "§5.2 — owner/* matches all repositories under the specified owner"
+  - "§5.2 — owner/* rejects repositories under a different owner"
+  - "§5.2 — */repo matches the named repository under any owner"
 
 scenarios:
   # --- Scenario A: owner wildcard matches repository under same owner ---
@@ -43,21 +45,37 @@ scenarios:
         content_integrity: "none"
     expected:
       decision: deny
-      error_code: -32001
+      error_code: -32002
       reason: "repository not in allowed list"
 
-  # --- Scenario C: prefix wildcard within owner ---
+  # --- Scenario C: wildcard-owner pattern matches exact repo under any owner ---
   - scenario_id: "wildcard-deny-C"
-    description: "Pattern 'github/gh-*' denies repository 'github/copilot' (no 'gh-' prefix)"
+    description: "Pattern '*/gh-aw' allows request for repository 'github/gh-aw'"
     input:
       tool_config:
         repos:
-          - "github/gh-*"
+          - "*/gh-aw"
+        min-integrity: "none"
+      request:
+        repository: "github/gh-aw"
+        content_integrity: "none"
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""
+
+  # --- Scenario D: wildcard-owner pattern denies non-matching repo name ---
+  - scenario_id: "wildcard-deny-D"
+    description: "Pattern '*/gh-aw' denies request for repository 'github/copilot'"
+    input:
+      tool_config:
+        repos:
+          - "*/gh-aw"
         min-integrity: "none"
       request:
         repository: "github/copilot"
         content_integrity: "none"
     expected:
       decision: deny
-      error_code: -32001
+      error_code: -32002
       reason: "repository not in allowed list"

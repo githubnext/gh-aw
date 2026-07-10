@@ -136,10 +136,16 @@ To run all related tests:
 go test -v -run "TestValidateGitHubGuardPolicy" ./pkg/workflow/
 ```
 
-To run the formal conformance test suite:
+To run the formal conformance test suite (predicate-mapped tests):
 
 ```bash
 go test -v -run "TestFormal_(ExactMatch|WildcardMatch|OmittedRepos|RoleFilter|PrivateRepo|BlockedUser|ToolName|IntegrityLevel|UnknownContent|InvalidMinIntegrity|CombinedFilters|ErrorCode|NoSpurious)" ./pkg/workflow/
+```
+
+To run the YAML fixture runner (drives every scenario from the fixture files above through the formal evaluator):
+
+```bash
+go test -v -run "TestFormal_FixtureRunner" ./pkg/workflow/
 ```
 
 ## Generated Test Suite
@@ -147,3 +153,7 @@ go test -v -run "TestFormal_(ExactMatch|WildcardMatch|OmittedRepos|RoleFilter|Pr
 Formal conformance tests are implemented in:
 
 `pkg/workflow/github_mcp_access_control_formal_test.go`
+
+The test suite includes:
+- **Predicate-mapped tests** (`TestFormal_*`) — each test maps to a specific guard predicate (P1–P6) or invariant documented in the Formal Model section above.
+- **Fixture runner** (`TestFormal_FixtureRunner`) — loads every YAML fixture file from this directory and drives each scenario through the formal evaluator. This ensures the fixture files, error codes, and expected decisions remain consistent with the formal model.
