@@ -123,6 +123,24 @@ func TestFormal_IntegrityLevelOrder(t *testing.T) {
 	assert.Equal(t, formalErrorIntegrityTooLow, denied.errorCode)
 }
 
+func TestFormal_UnknownIntegrityLevelDenied(t *testing.T) {
+	// An unknown ContentIntegrity value cannot satisfy any known minimum threshold.
+	denied := formalEvaluateAccess(
+		formalToolConfig{Repos: []string{"*/*"}, MinIntegrity: "approved"},
+		formalAccessRequest{Repository: "github/gh-aw", ContentIntegrity: "pending"},
+	)
+	assert.False(t, denied.allow)
+	assert.Equal(t, formalErrorIntegrityTooLow, denied.errorCode)
+
+	// An unrecognized MinIntegrity configuration is fail-safe: it denies all requests.
+	deniedBadCfg := formalEvaluateAccess(
+		formalToolConfig{Repos: []string{"*/*"}, MinIntegrity: "approvd"},
+		formalAccessRequest{Repository: "github/gh-aw", ContentIntegrity: "merged"},
+	)
+	assert.False(t, deniedBadCfg.allow)
+	assert.Equal(t, formalErrorIntegrityTooLow, deniedBadCfg.errorCode)
+}
+
 func TestFormal_CombinedFiltersAllAllow(t *testing.T) {
 	allowPrivate := true
 	cfg := formalToolConfig{
@@ -293,8 +311,14 @@ func formalEvaluateAccess(cfg formalToolConfig, req formalAccessRequest) formalD
 	if containsExact(cfg.BlockedUsers, req.UserLogin) {
 		return formalDecision{errorCode: formalErrorBlockedUser}
 	}
-	if cfg.MinIntegrity != "" && formalIntegrityRank(req.ContentIntegrity) < formalIntegrityRank(cfg.MinIntegrity) {
-		return formalDecision{errorCode: formalErrorIntegrityTooLow}
+	if cfg.MinIntegrity != "" {
+		cfgRank := formalIntegrityRank(cfg.MinIntegrity)
+		reqRank := formalIntegrityRank(req.ContentIntegrity)
+		// An unrecognized MinIntegrity value is treated as fail-safe (deny all).
+		// An unrecognized ContentIntegrity value returns -1 (below any known threshold).
+		if cfgRank < 0 || reqRank < cfgRank {
+			return formalDecision{errorCode: formalErrorIntegrityTooLow}
+		}
 	}
 	return formalDecision{allow: true}
 }
