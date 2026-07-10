@@ -41,9 +41,9 @@ mkdir -p /tmp/gh-aw/sandbox/firewall/audit
 if [ -d /tmp/gh-aw/awf-tmp ] && [ ! -w /tmp/gh-aw/awf-tmp ]; then
   echo "Pre-flight: /tmp/gh-aw/awf-tmp is not writable; reclaiming with sudo"
   if command -v sudo >/dev/null 2>&1; then
-    sudo -n rm -rf /tmp/gh-aw/awf-tmp 2>/dev/null || echo "::warning::sudo rm failed for /tmp/gh-aw/awf-tmp; gh-aw may fail with EACCES"
+    sudo -n rm -rf /tmp/gh-aw/awf-tmp 2>/dev/null || echo "::warning::sudo rm failed for /tmp/gh-aw/awf-tmp; gh-aw may fail with permission errors"
   else
-    echo "::warning::sudo unavailable; cannot reclaim /tmp/gh-aw/awf-tmp; gh-aw may fail with EACCES"
+    echo "::warning::sudo unavailable; cannot reclaim /tmp/gh-aw/awf-tmp; gh-aw may fail with permission errors"
   fi
 fi
 mkdir -p /tmp/gh-aw/awf-tmp
@@ -52,7 +52,8 @@ mkdir -p /tmp/gh-aw/awf-tmp
 # create/write the chroot hosts file it needs during config generation.
 AWF_CHROOT_PROBE_DIR="$(mktemp -d /tmp/gh-aw/awf-tmp/chroot-preflight-XXXXXX)"
 if ! printf '127.0.0.1 localhost\n' > "${AWF_CHROOT_PROBE_DIR}/hosts"; then
-  echo "::error::Pre-flight check failed: cannot write probe hosts file in /tmp/gh-aw/awf-tmp. This usually means rootless temp directory permissions are broken; check ownership/permissions under /tmp/gh-aw/awf-tmp and remove stale directories owned by another user."
+  echo "::error::Pre-flight check failed: cannot write to /tmp/gh-aw/awf-tmp."
+  echo "::error::Check directory ownership and remove stale directories owned by another user."
   exit 1
 fi
 rm -rf "${AWF_CHROOT_PROBE_DIR}"
