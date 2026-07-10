@@ -463,8 +463,9 @@ function evaluateAddLabels(item, itemRepo, timestamp, out, apiGet, nowMs) {
     return out;
   }
 
-  const hasLabelsBefore = Object.hasOwn(item, "labelsBefore") && Array.isArray(item.labelsBefore);
-  const labelsBefore = hasLabelsBefore ? normalizeLabels(item.labelsBefore) : [];
+  const persistedBefore = item.before_state?.labels ?? item.labelsBefore;
+  const hasLabelsBefore = Array.isArray(persistedBefore);
+  const labelsBefore = hasLabelsBefore ? normalizeLabels(persistedBefore) : [];
   const labelsAdded = normalizeLabels(item.labelsAdded);
   const fallbackLabels = normalizeLabels(item.labels);
   const effectiveLabelsAdded = labelsAdded.length > 0 ? labelsAdded : fallbackLabels;

@@ -165,6 +165,23 @@ describe("evaluate_outcomes type-specific evaluators", () => {
     expect(evaluateItem({ ...item, labelsBefore: [] }, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-27T00:00:00Z") }).detail).toBe("accepted:strong");
   });
 
+  it("evaluates add_labels retention using production before_state.labels manifest shape", () => {
+    // Production manifest from add_labels.cjs stores labels in before_state.labels, not labelsBefore.
+    const item = {
+      type: "add_labels",
+      number: 42,
+      repo: "acme/repo",
+      timestamp: "2026-05-25T00:00:00Z",
+      before_state: { labels: ["bug"] },
+      labelsAdded: ["bug", "triage"],
+    };
+
+    const retained = createAPIStub({
+      "repos/acme/repo/issues/42/labels": [{ name: "bug" }, { name: "triage" }],
+    });
+    expect(evaluateItem(item, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-27T00:00:00Z") }).detail).toBe("accepted:strong");
+  });
+
   it("returns unknown for add_labels when the item number is missing", () => {
     const missingNumber = evaluateItem(
       {
