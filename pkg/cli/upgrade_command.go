@@ -34,7 +34,7 @@ type UpgradeConfig struct {
 func NewUpgradeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "upgrade",
-		Short: "Upgrade repository with latest agent files and apply codemods to all workflows",
+		Short: "Upgrade local agent files and workflows (codemods, action updates, and compilation)",
 		Long: `Upgrade the repository to the latest version of agentic workflows.
 
 This command:
@@ -44,7 +44,7 @@ This command:
   4. Compiles all workflows to generate lock files (like 'compile' command)
 
 Flag behavior:
-- upgrade runs codemods, action version updates, and workflow compilation by default; use --no-fix to skip all three steps
+- Upgrade runs codemods, action version updates, and workflow compilation by default; use --no-fix to skip all three steps
 - --no-actions and --no-compile are only applied when --no-fix is not set
 
 DEPENDENCY HEALTH AUDIT:

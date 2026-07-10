@@ -88,9 +88,8 @@ type ExperimentsAnalyzeConfig struct {
 // NewExperimentsCommand creates the experiments command with its subcommands.
 func NewExperimentsCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "experiments",
-		Hidden: true,
-		Short:  "Explore ongoing experiments in the repository",
+		Use:   "experiments",
+		Short: "Explore ongoing experiments in the repository",
 		Long: `Explore ongoing experiments in the repository.
 
 Experiments are tracked via git branches with the "experiments/" prefix (e.g.,

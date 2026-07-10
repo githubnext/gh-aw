@@ -27,7 +27,7 @@ If no workflows are specified, all Markdown files in .github/workflows will be v
   ` + string(constants.CLIExtensionPrefix) + ` validate --dir custom/workflows  # Validate from custom directory
   ` + string(constants.CLIExtensionPrefix) + ` validate --json                  # Output results in JSON format
   ` + string(constants.CLIExtensionPrefix) + ` validate --strict                # Enforce strict mode validation
-  ` + string(constants.CLIExtensionPrefix) + ` validate --fail-fast             # Stop at the first error`,
+  ` + string(constants.CLIExtensionPrefix) + ` validate --fail-fast             # Stop at the first validation error`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			engineOverride, _ := cmd.Flags().GetString("engine")
 			dir, _ := cmd.Flags().GetString("dir")

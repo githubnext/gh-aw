@@ -276,7 +276,7 @@ Unlike 'upgrade', compilation only applies codemods when you opt in with --fix.
   ` + string(constants.CLIExtensionPrefix) + ` compile workflow.md        # Compile by file path
   ` + string(constants.CLIExtensionPrefix) + ` compile .github/workflows  # Compile all workflows in a directory
   ` + string(constants.CLIExtensionPrefix) + ` compile --dir custom/workflows  # Compile from custom directory
-  ` + string(constants.CLIExtensionPrefix) + ` compile --watch ci-doctor     # Watch and auto-compile
+  ` + string(constants.CLIExtensionPrefix) + ` compile ci-doctor --watch     # Watch and auto-compile
   ` + string(constants.CLIExtensionPrefix) + ` compile --trial --logical-repo owner/repo  # Compile for trial mode
   ` + string(constants.CLIExtensionPrefix) + ` compile --dependabot        # Generate Dependabot manifests
   ` + string(constants.CLIExtensionPrefix) + ` compile --dependabot --force  # Force overwrite existing dependabot.yml
@@ -433,7 +433,7 @@ This command only works with workflows that have workflow_dispatch triggers.
   gh aw run daily-perf-improver --auto-merge-prs  # Auto-merge any PRs created during execution
   gh aw run daily-perf-improver -F name=value -F env=prod  # Pass workflow inputs
   gh aw run daily-perf-improver --push  # Commit and push workflow files before running
-  gh aw run daily-perf-improver --dry-run  # Validate without actually running
+  gh aw run daily-perf-improver --dry-run  # Preview without triggering workflow runs
   gh aw run daily-perf-improver --json  # Output results in JSON format`,
 	Args: cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -795,7 +795,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
 	runCmd.Flags().StringArrayP("raw-field", "F", []string{}, "Add a string parameter in key=value format (can be used multiple times)")
 	runCmd.Flags().Bool("push", false, "Commit and push workflow files (including transitive imports) before running")
-	runCmd.Flags().Bool("dry-run", false, "Validate workflow without actually triggering execution on GitHub Actions")
+	runCmd.Flags().Bool("dry-run", false, "Preview workflow execution without triggering runs on GitHub Actions")
 	runCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
 	runCmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
 	// Register completions for run command

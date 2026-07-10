@@ -98,7 +98,7 @@ type AddWorkflowsResult struct {
 func NewAddCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "add <workflow>...",
-		Short:   "Add agentic workflows from repositories or local files to .github/workflows",
+		Short:   "Add agentic workflows from repositories, local files, or URLs to .github/workflows",
 		Long:    addCommandLong,
 		Example: addCommandExample,
 		Args: func(cmd *cobra.Command, args []string) error {
@@ -194,8 +194,8 @@ func registerAddCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 
 	// Add no-security-scanner flag to add command (--disable-security-scanner is kept as a deprecated alias)
-	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
-	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
+	cmd.Flags().Bool("no-security-scanner", false, "Skip security scanning of workflow markdown content")
+	cmd.Flags().Bool("disable-security-scanner", false, "Skip security scanning of workflow markdown content")
 	_ = cmd.Flags().MarkDeprecated("disable-security-scanner", "use --no-security-scanner instead")
 
 	// Register completions for add command

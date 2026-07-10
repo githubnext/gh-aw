@@ -88,7 +88,7 @@ func TestNewUpdateCommand_HasDisableSecurityScannerFlag(t *testing.T) {
 
 	flag := cmd.Flags().Lookup("no-security-scanner")
 	require.NotNil(t, flag, "update command should register --no-security-scanner")
-	assert.Equal(t, "Disable security scanning of workflow markdown content", flag.Usage, "flag help text should match add/trial wording")
+	assert.Equal(t, "Skip security scanning of workflow markdown content", flag.Usage, "flag help text should match add/trial wording")
 
 	// Deprecated alias should still be registered
 	deprecated := cmd.Flags().Lookup("disable-security-scanner")
