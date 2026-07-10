@@ -589,6 +589,9 @@ function evaluateCloseIssue(item, defaultRepo, api = ghAPI, nowMs = Date.now()) 
 
   if (issue.state === "closed") {
     out.result = "accepted";
+    out.outcome_status = "accepted";
+    out.evidence_strength = "strong";
+    out.signal = "closed";
     out.detail = "closed";
     if (issue.created_at && issue.closed_at) {
       out.resolution_sec = secondsBetween(issue.created_at, issue.closed_at);
@@ -597,7 +600,10 @@ function evaluateCloseIssue(item, defaultRepo, api = ghAPI, nowMs = Date.now()) 
   }
 
   out.result = "rejected";
-  out.detail = "reopened";
+  out.outcome_status = "rejected";
+  out.evidence_strength = "strong";
+  out.signal = "not_closed";
+  out.detail = "not_closed";
   return out;
 }
 
@@ -660,8 +666,11 @@ function evaluateClosePullRequest(item, defaultRepo, api = ghAPI, nowMs = Date.n
   // A merged PR is rejected because close_pull_request verifies that the PR
   // remained closed without being merged. Merging is a different terminal
   // state than closing, so it invalidates the close outcome.
-  if (pullRequest.merged === true) {
+  if (pullRequest.merged === true || pullRequest.merged_at != null) {
     out.result = "rejected";
+    out.outcome_status = "rejected";
+    out.evidence_strength = "strong";
+    out.signal = "closed_by_merge";
     out.detail = "merged";
     if (pullRequest.created_at && pullRequest.merged_at) {
       out.resolution_sec = secondsBetween(pullRequest.created_at, pullRequest.merged_at);
@@ -672,6 +681,9 @@ function evaluateClosePullRequest(item, defaultRepo, api = ghAPI, nowMs = Date.n
   // terminal state that close_pull_request validates.
   if (pullRequest.state === "closed") {
     out.result = "accepted";
+    out.outcome_status = "accepted";
+    out.evidence_strength = "strong";
+    out.signal = "closed";
     out.detail = "closed";
     if (pullRequest.created_at && pullRequest.closed_at) {
       out.resolution_sec = secondsBetween(pullRequest.created_at, pullRequest.closed_at);
@@ -680,7 +692,10 @@ function evaluateClosePullRequest(item, defaultRepo, api = ghAPI, nowMs = Date.n
   }
 
   out.result = "rejected";
-  out.detail = "reopened";
+  out.outcome_status = "rejected";
+  out.evidence_strength = "strong";
+  out.signal = "not_closed";
+  out.detail = "not_closed";
   return out;
 }
 
@@ -746,8 +761,17 @@ function normalizeOutcome(result, detail) {
   if (result === "accepted" && normalizedDetail.startsWith("merged")) {
     return { outcome_status: "accepted", evidence_strength: "strong", signal: "merged" };
   }
+  if (result === "accepted" && normalizedDetail === "closed") {
+    return { outcome_status: "accepted", evidence_strength: "strong", signal: "closed" };
+  }
   if (result === "rejected" && normalizedDetail === "closed") {
     return { outcome_status: "rejected", evidence_strength: "strong", signal: "closed" };
+  }
+  if (result === "rejected" && normalizedDetail === "merged") {
+    return { outcome_status: "rejected", evidence_strength: "strong", signal: "closed_by_merge" };
+  }
+  if (result === "rejected" && normalizedDetail === "not_closed") {
+    return { outcome_status: "rejected", evidence_strength: "strong", signal: "not_closed" };
   }
   if (result === "pending" && normalizedDetail === "open") {
     return { outcome_status: "pending", evidence_strength: "medium", signal: "open" };
