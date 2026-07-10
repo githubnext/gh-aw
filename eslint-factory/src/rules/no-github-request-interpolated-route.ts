@@ -141,9 +141,9 @@ export const noGithubRequestInterpolatedRouteRule = createRule({
      *   simple alias of an Octokit source (scope-resolved)
      * - `context.github.request(...)`
      */
-    function resolveOctokitClientName(calleeObject: TSESTree.Expression | TSESTree.Super): string | null {
+    function resolveOctokitClientName(calleeObject: TSESTree.Expression | TSESTree.Super, callNode: TSESTree.Node): string | null {
       if (calleeObject.type === AST_NODE_TYPES.Identifier) {
-        return isIdentifierBoundToOctokitClient(calleeObject.name, calleeObject) ? calleeObject.name : null;
+        return isIdentifierBoundToOctokitClient(calleeObject.name, callNode) ? calleeObject.name : null;
       }
 
       if (isContextGithubExpression(calleeObject)) {
@@ -163,7 +163,7 @@ export const noGithubRequestInterpolatedRouteRule = createRule({
         if (callee.property.type !== AST_NODE_TYPES.Identifier) return;
         if (callee.property.name !== "request") return;
 
-        const clientName = resolveOctokitClientName(callee.object);
+        const clientName = resolveOctokitClientName(callee.object, node);
         if (!clientName) return;
 
         const firstArg = node.arguments[0];
