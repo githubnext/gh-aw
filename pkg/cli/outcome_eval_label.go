@@ -102,10 +102,11 @@ func evalReplaceLabel(item CreatedItemReport, repoOverride string) OutcomeReport
 
 // labelSetDiff returns the elements of a that are not in b.
 // Both slices must be sorted (as produced by mutableStringSlice).
+// Uses binary search for O(n log m) performance.
 func labelSetDiff(a, b []string) []string {
 	var out []string
 	for _, v := range a {
-		if !slices.Contains(b, v) {
+		if _, found := slices.BinarySearch(b, v); !found {
 			out = append(out, v)
 		}
 	}
@@ -113,9 +114,10 @@ func labelSetDiff(a, b []string) []string {
 }
 
 // labelSetContainsAll reports whether current contains every element of want.
+// Both slices must be sorted. Uses binary search for O(n log m) performance.
 func labelSetContainsAll(current, want []string) bool {
 	for _, v := range want {
-		if !slices.Contains(current, v) {
+		if _, found := slices.BinarySearch(current, v); !found {
 			return false
 		}
 	}
@@ -123,9 +125,10 @@ func labelSetContainsAll(current, want []string) bool {
 }
 
 // labelSetContainsAny reports whether current contains at least one element of want.
+// Both slices must be sorted. Uses binary search for O(n log m) performance.
 func labelSetContainsAny(current, want []string) bool {
 	for _, v := range want {
-		if slices.Contains(current, v) {
+		if _, found := slices.BinarySearch(current, v); found {
 			return true
 		}
 	}
