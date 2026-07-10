@@ -1,14 +1,14 @@
 {
-  "timestamp": "2026-07-09T05:00:00Z",
-  "run_id": "28995137051",
-  "total_workflows": 260,
+  "timestamp": "2026-07-10T05:00:00Z",
+  "run_id": "29070221159",
+  "total_workflows": 256,
   "engine_breakdown": {
-    "copilot_simple": 38,
+    "copilot_simple": 37,
     "copilot_sdk": 65,
-    "copilot_implied_default": 34,
-    "claude": 47,
-    "codex": 10,
-    "other": 66
+    "copilot_total": 99,
+    "claude": "~47",
+    "codex": "~10",
+    "other": "~66"
   },
   "features_available": [
     "engine.agent (custom agent file, --agent flag)",
@@ -36,33 +36,38 @@
   ],
   "features_usage": {
     "copilot_sdk": {"count": 65, "note": "widely used"},
-    "bare": {"count": 10, "note": "used in some workflows"},
-    "max_continuations": {"count": 11, "note": "underutilized - only in smoke tests + a few real workflows"},
-    "engine_args": {"count": 3, "note": "only --stdio flag, very limited"},
-    "engine_agent": {"count": 7, "note": "underutilized - only 7 of 260 workflows"},
-    "engine_version_pinning": {"count": 0, "note": "no workflows pin Copilot engine version"},
-    "engine_mcp_timeout": {"count": 4, "note": "only in claude workflows, not copilot"},
-    "harness_retry_config": {"count": 0, "note": "unused - no workflows customize harness retry policy"},
-    "engine_cwd": {"count": 0, "note": "unused - no workflows set custom working directory"},
-    "api_target": {"count": 0, "note": "unused in non-smoke workflows"},
+    "bare": {"count": 19, "note": "used in some workflows"},
+    "max_continuations": {"count": 11, "note": "underutilized - only 11 of 256 workflows (none are production Copilot)"},
+    "engine_args": {"count": 3, "note": "very limited use"},
+    "engine_agent": {"count": 78, "note": "used by 78 copilot workflows"},
+    "engine_version_pinning": {"count": 38, "note": "used by 38 workflows"},
+    "engine_mcp_timeout": {"count": 3, "note": "only 3 workflows (Claude only)"},
+    "harness_retry_config": {"count": 1, "note": "only 1 workflow uses harness config (daily-rendering-scripts-verifier)"},
+    "engine_cwd": {"count": 0, "note": "ZERO workflows use engine.cwd"},
+    "api_target": {"count": 0, "note": "only in smoke tests"},
     "byok": {"count": 1, "note": "only in daily-byok-ollama-test"},
     "model_provider": {"count": 1, "note": "only in smoke-claude-on-copilot"},
-    "awf_sandbox": {"count": 3, "note": "underutilized for copilot workflows - only 3 copilot workflows use AWF"},
-    "tracker_id": {"count": 12, "note": "about 12 copilot workflows have tracker-id"},
-    "web_fetch": {"count": 5, "note": "5 copilot workflows use web-fetch"},
-    "cache_memory": {"count": 73, "note": "widely used across all engines"},
-    "lsp": {"count": 3, "note": "only 3 workflows use LSP config"},
-    "serena": {"count": 22, "note": "22 workflows import serena MCP"}
+    "tracker_id": {"count": 95, "note": "widely used"},
+    "web_fetch": {"count": 26, "note": "26 workflows use web-fetch"},
+    "cache_memory": {"count": "many", "note": "widely used"},
+    "network_config": {"count": 137, "note": "137 workflows configure network"},
+    "awf_sandbox": {"count": 208, "note": "widely used"},
+    "sandbox_no_awf": {"count": 12, "note": "12 production copilot workflows lack sandbox"}
   },
-  "opportunities_found": 8,
   "key_findings": [
-    "harness retry config (engine.harness.*) is available but ZERO workflows use it",
+    "37 long-running (30+min) production copilot workflows lack max-continuations",
     "engine.cwd is available but ZERO workflows use it",
-    "engine.mcp.tool-timeout is only used by Claude workflows, not Copilot",
-    "engine.agent custom agents are underutilized: only 7 of 260 workflows",
-    "max-continuations is missing from many long-running Copilot workflows (30-45min timeout)",
-    "engine version pinning is absent from all Copilot workflows",
-    "AWF sandbox only used by 3 of 38 Copilot workflows - security opportunity",
-    "13 Copilot workflows lack network config despite potential network access"
-  ]
+    "engine.mcp.tool-timeout is only used by 3 Claude workflows, NONE of the 99 Copilot workflows",
+    "harness retry config used by only 1 workflow (daily-rendering-scripts-verifier)",
+    "12 production Copilot workflows lack AWF sandbox despite having network access",
+    "COPILOT_SDK_SEND_TIMEOUT_MS env var pattern found in daily-security-observability, not documented as pattern",
+    "engine.cwd = 0 usage despite potential for scoping work to subdirectory"
+  ],
+  "trend_vs_previous": {
+    "total_workflows": "260->256 (4 removed)",
+    "copilot_total": "roughly same (37+65=102 vs prev 137)",
+    "harness_usage": "0->1 (progress!)",
+    "web_fetch": "5->26 (major increase)",
+    "network_config": "stable"
+  }
 }
