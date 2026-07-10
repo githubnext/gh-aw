@@ -275,6 +275,8 @@ describe("no-github-request-interpolated-route", () => {
       valid: [
         // Mutable let bindings are not trusted aliases.
         "let gh = github; gh.request(`GET /repos/${owner}/${repo}`, { owner, repo });",
+        // var aliases are always out of scope, even without reassignment.
+        "var legacyClient = github; legacyClient.request(`GET /repos/${owner}/${repo}`);",
         // var alias can be reassigned, so it is intentionally out of scope.
         "var client = getOctokit(token); client = http; client.request(`GET /repos/${owner}/${repo}`);",
       ],

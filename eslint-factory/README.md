@@ -25,7 +25,7 @@ Using an interpolated route bypasses Octokit's typed route dispatch, can silentl
 **Detected Octokit clients:**
 - Well-known names: `github`, `octokit`, `githubClient`, `octokitClient`.
 - `context.github` — the GitHub context object's client property.
-- Identifiers initialized by calling `getOctokit(...)` directly or via known module objects (`github.getOctokit(...)`, `actions.getOctokit(...)`).
+- Identifiers initialized by calling `getOctokit(...)` directly or via known module objects (`github.getOctokit(...)`, `actions.getOctokit(...)`). (Known module object names currently: `github`, `actions`.)
 - Simple `const` aliases of any of the above:
   `const gh = github`, `const client = getOctokit(token)`, `const myClient = context.github`.
 
