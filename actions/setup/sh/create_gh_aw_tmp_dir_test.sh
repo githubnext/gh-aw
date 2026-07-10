@@ -96,6 +96,7 @@ GITHUB_ENV="${GITHUB_ENV_FILE}" bash "${SCRIPT}" >/dev/null 2>&1
 EXIT_CODE=$?
 set -e
 assert "exits 0 when GITHUB_ENV is set" "[ '${EXIT_CODE}' -eq 0 ]"
+assert "creates /tmp/gh-aw/awf-tmp when GITHUB_ENV is set" "[ -d /tmp/gh-aw/awf-tmp ]"
 assert "exports TMPDIR" "grep -qx 'TMPDIR=/tmp/gh-aw/awf-tmp' '${GITHUB_ENV_FILE}'"
 assert "exports TMP" "grep -qx 'TMP=/tmp/gh-aw/awf-tmp' '${GITHUB_ENV_FILE}'"
 assert "exports TEMP" "grep -qx 'TEMP=/tmp/gh-aw/awf-tmp' '${GITHUB_ENV_FILE}'"
