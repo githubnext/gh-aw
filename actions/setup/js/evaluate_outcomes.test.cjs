@@ -163,7 +163,26 @@ describe("evaluate_outcomes type-specific evaluators", () => {
 
     expect(evaluateItem(item, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-25T00:01:00Z") }).result).toBe("pending");
     expect(evaluateItem({ ...item, labelsBefore: [] }, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-27T00:00:00Z") }).detail).toBe("accepted:strong");
-    expect(evaluateItem({ ...item, number: undefined }, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-27T00:00:00Z") }).detail).toBe("unknown: issue number not found");
+  });
+
+  it("returns unknown for add_labels when the item number is missing", () => {
+    const missingNumber = evaluateItem(
+      {
+        type: "add_labels",
+        repo: "acme/repo",
+        timestamp: "2026-05-25T00:00:00Z",
+        labelsBefore: ["bug"],
+        labelsAdded: ["bug", "triage"],
+      },
+      "acme/repo",
+      {
+        ghAPI: createAPIStub({
+          "repos/acme/repo/issues/42/labels": [{ name: "bug" }, { name: "triage" }],
+        }),
+        nowMs: Date.parse("2026-05-27T00:00:00Z"),
+      }
+    );
+    expect(missingNumber.detail).toBe("unknown: issue number not found");
   });
 
   it("evaluates close_issue using persisted repo/number metadata", () => {

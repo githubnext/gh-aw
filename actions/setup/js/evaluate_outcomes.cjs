@@ -656,9 +656,9 @@ function evaluateClosePullRequest(item, defaultRepo, api = ghAPI, nowMs = Date.n
     out.reactions_negative = summary.negative;
   }
 
-  // A merged PR is rejected because close_pull_request is meant to verify that
-  // the PR remained closed without merging. Once merged, the close action is no
-  // longer the terminal state being evaluated.
+  // A merged PR is rejected because close_pull_request verifies that the PR
+  // remained closed without being merged. Merging is a different terminal
+  // state than closing, so it invalidates the close outcome.
   if (pullRequest.merged === true) {
     out.result = "rejected";
     out.detail = "merged";
@@ -667,8 +667,8 @@ function evaluateClosePullRequest(item, defaultRepo, api = ghAPI, nowMs = Date.n
     }
     return out;
   }
-  // Accepted means the PR is closed and remained unmerged, which is the durable
-  // terminal state that close_pull_request is intended to produce.
+  // Accepted means the PR is closed and unmerged, which is the durable
+  // terminal state that close_pull_request validates.
   if (pullRequest.state === "closed") {
     out.result = "accepted";
     out.detail = "closed";
