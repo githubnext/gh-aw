@@ -17,7 +17,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
-const ioPkg = "io"
+const (
+	ioPkg            = "io"
+	importSpecIndent = "\t"
+)
 
 // writerIface is a synthetic *types.Interface matching io.Writer:
 //
@@ -254,7 +257,7 @@ func addIOImportEdit(pass *analysis.Pass, pos token.Pos, filesWithImportEdit map
 		return markAndReturn(analysis.TextEdit{
 			Pos:     genDecl.Rparen,
 			End:     genDecl.Rparen,
-			NewText: []byte("\t\"" + ioPkg + "\"\n"),
+			NewText: []byte(importSpecIndent + `"` + ioPkg + `"` + "\n"),
 		})
 	}
 
@@ -270,13 +273,13 @@ func addIOImportEdit(pass *analysis.Pass, pos token.Pos, filesWithImportEdit map
 			singleUngroupedImportDecl = genDecl
 		}
 	}
-	if len(file.Imports) == 1 && importDeclCount == 1 && singleUngroupedImportDecl != nil {
+	if importDeclCount == 1 && singleUngroupedImportDecl != nil {
 		specText := astutil.NodeText(pass.Fset, singleUngroupedImportDecl.Specs[0])
 		if specText != "" {
 			return markAndReturn(analysis.TextEdit{
 				Pos:     singleUngroupedImportDecl.Pos(),
 				End:     singleUngroupedImportDecl.End(),
-				NewText: []byte("import (\n\t\"" + ioPkg + "\"\n\t" + specText + "\n)"),
+				NewText: []byte("import (\n" + importSpecIndent + `"` + ioPkg + `"` + "\n" + importSpecIndent + specText + "\n)"),
 			})
 		}
 		// If we fail to render the existing import spec, fall back to a
