@@ -306,6 +306,13 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 	}
 
 	firewallEnabled := isFirewallEnabled(workflowData)
+	// harness-script requires the AWF API proxy sidecar (/reflect) to dynamically
+	// configure the agentic engine at runtime. Force AWF execution when a harness is
+	// present unless the sandbox has been explicitly disabled via sandbox.agent: false,
+	// which also prevents the /reflect endpoint from being available.
+	if behavior.HarnessScript != "" && !isFirewallDisabledBySandboxAgent(workflowData) {
+		firewallEnabled = true
+	}
 	var command string
 	if firewallEnabled {
 		command = e.buildFirewallCommand(exec, workflowData, logFile, engineCommand)

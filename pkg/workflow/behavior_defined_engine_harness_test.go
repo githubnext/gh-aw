@@ -84,13 +84,16 @@ func TestBehaviorDefinedEngineHarnessScript(t *testing.T) {
 		assert.Contains(t, execStepContent, "AWF_REFLECT_ENABLED: 1", "AWF_REFLECT_ENABLED must be set when harness-script and firewall are both active")
 	})
 
-	t.Run("awf_reflect_enabled_absent_without_firewall", func(t *testing.T) {
+	t.Run("awf_forced_and_reflect_enabled_without_explicit_firewall", func(t *testing.T) {
+		// harness-script always forces AWF so the harness can read /reflect from the API proxy.
+		// AWF_REFLECT_ENABLED must therefore be present even when no explicit firewall is configured.
 		workflowData := &WorkflowData{Name: "test"}
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 		require.GreaterOrEqual(t, len(steps), 2, "should have at least harness-write and execution steps")
 
 		execStepContent := strings.Join(steps[len(steps)-1], "\n")
-		assert.NotContains(t, execStepContent, "AWF_REFLECT_ENABLED", "AWF_REFLECT_ENABLED must not be set when firewall is disabled")
+		assert.Contains(t, execStepContent, "AWF_REFLECT_ENABLED: 1", "AWF_REFLECT_ENABLED must be set when harness-script forces AWF execution")
+		assert.Contains(t, execStepContent, "sudo", "execution step must use AWF when harness-script is present")
 	})
 
 	t.Run("env_vars_still_set", func(t *testing.T) {
