@@ -14,7 +14,7 @@ const ContentRedactionOnFailureWarn = "warn"
 // IsContentRedactionEnabled reports whether a content_redaction job should be created
 // for the given safe-outputs configuration.
 func IsContentRedactionEnabled(so *SafeOutputsConfig) bool {
-	return so != nil && so.ContentRedaction != nil && len(so.ContentRedaction.Agent) > 0
+	return so != nil && so.ContentRedaction != nil && len(so.ContentRedaction.Policies) > 0
 }
 
 // IsConditionalContentRedaction reports whether content redaction is expression-controlled.
@@ -34,8 +34,8 @@ func (cr *ContentRedactionConfig) IsContinueOnError() bool {
 //
 //	content-redaction: "inline policy text"                  (single string)
 //	content-redaction: ["https://...", ".github/policy.md"] (array shorthand)
-//	content-redaction:                                       (object with agent field)
-//	  agent: "..."
+//	content-redaction:                                       (object with policies field)
+//	  policies: "..."
 //	  model: "gpt-4o-mini"
 //	  on-failure: block
 func (c *Compiler) parseContentRedactionConfig(outputMap map[string]any) *ContentRedactionConfig {
@@ -64,18 +64,18 @@ func (c *Compiler) parseContentRedactionConfig(outputMap map[string]any) *Conten
 		}
 		// Bare (non-expression) string = single inline policy.
 		contentRedactionLog.Print("Content redaction configured with single inline policy string")
-		return &ContentRedactionConfig{Agent: []string{strVal}}
+		return &ContentRedactionConfig{Policies: []string{strVal}}
 	}
 
-	// --- Array shorthand: the list IS the agent policies ---
+	// --- Array shorthand: the list IS the policies ---
 	if arrVal, ok := raw.([]any); ok {
-		agents := parseStringSliceAny(arrVal, contentRedactionLog)
-		if len(agents) == 0 {
+		policies := parseStringSliceAny(arrVal, contentRedactionLog)
+		if len(policies) == 0 {
 			contentRedactionLog.Print("Content redaction: empty array provided; skipping")
 			return nil
 		}
-		contentRedactionLog.Printf("Content redaction configured with %d policy entries (array shorthand)", len(agents))
-		return &ContentRedactionConfig{Agent: agents}
+		contentRedactionLog.Printf("Content redaction configured with %d policy entries (array shorthand)", len(policies))
+		return &ContentRedactionConfig{Policies: policies}
 	}
 
 	// --- Object form ---
@@ -108,13 +108,13 @@ func (c *Compiler) parseContentRedactionObjectConfig(configMap map[string]any) *
 		}
 	}
 
-	// Parse agent field (string or array).
-	if agentRaw, exists := configMap["agent"]; exists {
-		switch v := agentRaw.(type) {
+	// Parse policies field (string or array).
+	if policiesRaw, exists := configMap["policies"]; exists {
+		switch v := policiesRaw.(type) {
 		case string:
-			cr.Agent = []string{v}
+			cr.Policies = []string{v}
 		case []any:
-			cr.Agent = parseStringSliceAny(v, contentRedactionLog)
+			cr.Policies = parseStringSliceAny(v, contentRedactionLog)
 		}
 	}
 
@@ -160,13 +160,13 @@ func (c *Compiler) parseContentRedactionObjectConfig(configMap map[string]any) *
 		}
 	}
 
-	// Require at least one agent policy when not expression-controlled.
-	if cr.IfExpr == nil && len(cr.Agent) == 0 {
-		contentRedactionLog.Print("Content redaction: no agent policies provided; skipping")
+	// Require at least one policy when not expression-controlled.
+	if cr.IfExpr == nil && len(cr.Policies) == 0 {
+		contentRedactionLog.Print("Content redaction: no policies provided; skipping")
 		return nil
 	}
 
 	contentRedactionLog.Printf("Content redaction configured with %d policy entries, model=%q, on-failure=%q",
-		len(cr.Agent), cr.Model, cr.OnFailure)
+		len(cr.Policies), cr.Model, cr.OnFailure)
 	return cr
 }

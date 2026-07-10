@@ -133,7 +133,7 @@ func (c *Compiler) buildContentRedactionJob(data *WorkflowData, detectionEnabled
 // Sources are processed in order: URLs are fetched via curl, repo-relative paths are read
 // from the workspace checkout, and inline strings are written directly.
 func buildLoadRedactionPoliciesStep(cr *ContentRedactionConfig) []string {
-	if cr == nil || len(cr.Agent) == 0 {
+	if cr == nil || len(cr.Policies) == 0 {
 		return []string{
 			"      - name: Load redaction policies (no-op)\n",
 			"        id: load_policies\n",
@@ -152,7 +152,7 @@ func buildLoadRedactionPoliciesStep(cr *ContentRedactionConfig) []string {
 	sb.WriteString("          POLICY_FILE=/tmp/gh-aw/content-redaction/policy.md\n")
 	sb.WriteString("          : > \"$POLICY_FILE\"\n")
 
-	for i, source := range cr.Agent {
+	for i, source := range cr.Policies {
 		comment := source
 		if len(comment) > 60 {
 			comment = comment[:60] + "..."

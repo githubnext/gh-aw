@@ -10988,11 +10988,11 @@
             },
             {
               "type": "string",
-              "description": "Single inline policy string. Shorthand for content-redaction: { agent: \"...\" }."
+              "description": "Single inline policy string. Shorthand for content-redaction: { policies: \"...\" }."
             },
             {
               "type": "array",
-              "description": "Array shorthand \u2014 the list is the agent policy. Each entry may be a URL, a repo-relative path, or an inline string.",
+              "description": "Array shorthand \u2014 the list is the policies. Each entry may be a URL, a repo-relative path, or an inline string.",
               "items": {
                 "type": "string"
               },
@@ -11006,7 +11006,7 @@
                   "$ref": "#/$defs/templatable_boolean",
                   "description": "Whether content redaction is enabled. Accepts a boolean literal or a GitHub Actions expression (e.g. '${{ inputs.enable-content-redaction }}')."
                 },
-                "agent": {
+                "policies": {
                   "description": "Policy sources concatenated into the redaction agent's system prompt. Each entry may be a URL (fetched at runtime via curl), a repo-relative path (read from checkout), or an inline string literal.",
                   "oneOf": [
                     {

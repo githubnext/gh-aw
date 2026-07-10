@@ -20,14 +20,14 @@ func TestParseContentRedactionConfig(t *testing.T) {
 	compiler := NewCompiler()
 
 	tests := []struct {
-		name           string
-		outputMap      map[string]any
-		expectedNil    bool
-		expectedAgents []string
-		expectedModel  string
-		expectedOnFail string
-		expectedScope  []string
-		expectExprExpr bool
+		name             string
+		outputMap        map[string]any
+		expectedNil      bool
+		expectedPolicies []string
+		expectedModel    string
+		expectedOnFail   string
+		expectedScope    []string
+		expectExprExpr   bool
 	}{
 		{
 			name:        "missing content-redaction should return nil",
@@ -42,7 +42,7 @@ func TestParseContentRedactionConfig(t *testing.T) {
 			expectedNil: true,
 		},
 		{
-			name: "boolean true (no agent) should return nil",
+			name: "boolean true (no policies) should return nil",
 			outputMap: map[string]any{
 				"content-redaction": true,
 			},
@@ -53,8 +53,8 @@ func TestParseContentRedactionConfig(t *testing.T) {
 			outputMap: map[string]any{
 				"content-redaction": "Do not disclose security vulnerabilities",
 			},
-			expectedNil:    false,
-			expectedAgents: []string{"Do not disclose security vulnerabilities"},
+			expectedNil:      false,
+			expectedPolicies: []string{"Do not disclose security vulnerabilities"},
 		},
 		{
 			name: "array shorthand",
@@ -66,7 +66,7 @@ func TestParseContentRedactionConfig(t *testing.T) {
 				},
 			},
 			expectedNil: false,
-			expectedAgents: []string{
+			expectedPolicies: []string{
 				"https://corp.example.com/policy.md",
 				".github/policies/inclusive-language.md",
 				"Never mention internal codenames",
@@ -83,31 +83,31 @@ func TestParseContentRedactionConfig(t *testing.T) {
 			name: "object form with all fields",
 			outputMap: map[string]any{
 				"content-redaction": map[string]any{
-					"agent":             "https://corp.example.com/policy.md",
+					"policies":          "https://corp.example.com/policy.md",
 					"model":             "gpt-4o-mini",
 					"on-failure":        "warn",
 					"scope":             []any{"add-comment", "create-issue"},
 					"continue-on-error": true,
 				},
 			},
-			expectedNil:    false,
-			expectedAgents: []string{"https://corp.example.com/policy.md"},
-			expectedModel:  "gpt-4o-mini",
-			expectedOnFail: "warn",
-			expectedScope:  []string{"add-comment", "create-issue"},
+			expectedNil:      false,
+			expectedPolicies: []string{"https://corp.example.com/policy.md"},
+			expectedModel:    "gpt-4o-mini",
+			expectedOnFail:   "warn",
+			expectedScope:    []string{"add-comment", "create-issue"},
 		},
 		{
-			name: "object form with agent array",
+			name: "object form with policies array",
 			outputMap: map[string]any{
 				"content-redaction": map[string]any{
-					"agent": []any{
+					"policies": []any{
 						"https://corp.example.com/policy.md",
 						".github/policies/redaction.md",
 					},
 				},
 			},
 			expectedNil: false,
-			expectedAgents: []string{
+			expectedPolicies: []string{
 				"https://corp.example.com/policy.md",
 				".github/policies/redaction.md",
 			},
@@ -116,14 +116,14 @@ func TestParseContentRedactionConfig(t *testing.T) {
 			name: "object form with if: false returns nil",
 			outputMap: map[string]any{
 				"content-redaction": map[string]any{
-					"if":    false,
-					"agent": "Some policy",
+					"if":       false,
+					"policies": "Some policy",
 				},
 			},
 			expectedNil: true,
 		},
 		{
-			name: "object form without agent returns nil",
+			name: "object form without policies returns nil",
 			outputMap: map[string]any{
 				"content-redaction": map[string]any{
 					"model": "gpt-4o-mini",
@@ -143,25 +143,25 @@ func TestParseContentRedactionConfig(t *testing.T) {
 			name: "object form with expression-controlled if",
 			outputMap: map[string]any{
 				"content-redaction": map[string]any{
-					"if":    "${{ inputs.enable-redaction }}",
-					"agent": "Do not disclose CVE IDs",
+					"if":       "${{ inputs.enable-redaction }}",
+					"policies": "Do not disclose CVE IDs",
 				},
 			},
-			expectedNil:    false,
-			expectExprExpr: true,
-			expectedAgents: []string{"Do not disclose CVE IDs"},
+			expectedNil:      false,
+			expectExprExpr:   true,
+			expectedPolicies: []string{"Do not disclose CVE IDs"},
 		},
 		{
 			name: "unknown on-failure value is ignored (defaults to block)",
 			outputMap: map[string]any{
 				"content-redaction": map[string]any{
-					"agent":      "Policy",
+					"policies":   "Policy",
 					"on-failure": "invalid-value",
 				},
 			},
-			expectedNil:    false,
-			expectedAgents: []string{"Policy"},
-			expectedOnFail: "", // unknown value, field is not set
+			expectedNil:      false,
+			expectedPolicies: []string{"Policy"},
+			expectedOnFail:   "", // unknown value, field is not set
 		},
 	}
 
@@ -186,13 +186,13 @@ func TestParseContentRedactionConfig(t *testing.T) {
 				}
 			}
 
-			if len(tt.expectedAgents) > 0 {
-				if len(cr.Agent) != len(tt.expectedAgents) {
-					t.Errorf("expected %d agent entries, got %d: %v", len(tt.expectedAgents), len(cr.Agent), cr.Agent)
+			if len(tt.expectedPolicies) > 0 {
+				if len(cr.Policies) != len(tt.expectedPolicies) {
+					t.Errorf("expected %d policy entries, got %d: %v", len(tt.expectedPolicies), len(cr.Policies), cr.Policies)
 				} else {
-					for i, want := range tt.expectedAgents {
-						if cr.Agent[i] != want {
-							t.Errorf("agent[%d]: expected %q, got %q", i, want, cr.Agent[i])
+					for i, want := range tt.expectedPolicies {
+						if cr.Policies[i] != want {
+							t.Errorf("policy[%d]: expected %q, got %q", i, want, cr.Policies[i])
 						}
 					}
 				}
@@ -236,13 +236,13 @@ func TestIsContentRedactionEnabled(t *testing.T) {
 			name: "content redaction with agent",
 			so: &SafeOutputsConfig{
 				ContentRedaction: &ContentRedactionConfig{
-					Agent: []string{"policy text"},
+					Policies: []string{"policy text"},
 				},
 			},
 			expected: true,
 		},
 		{
-			name: "content redaction without agent (not enabled)",
+			name: "content redaction without policies (not enabled)",
 			so: &SafeOutputsConfig{
 				ContentRedaction: &ContentRedactionConfig{},
 			},
@@ -272,7 +272,7 @@ func TestContentRedactionJobOutputs(t *testing.T) {
 			ThreatDetection: &ThreatDetectionConfig{},
 			AddComments:     &AddCommentsConfig{},
 			ContentRedaction: &ContentRedactionConfig{
-				Agent: []string{"Do not disclose security vulnerabilities"},
+				Policies: []string{"Do not disclose security vulnerabilities"},
 			},
 		},
 	}
@@ -309,7 +309,7 @@ func TestContentRedactionJobDependsOnDetection(t *testing.T) {
 			ThreatDetection: &ThreatDetectionConfig{},
 			AddComments:     &AddCommentsConfig{},
 			ContentRedaction: &ContentRedactionConfig{
-				Agent: []string{"Policy"},
+				Policies: []string{"Policy"},
 			},
 		},
 	}
@@ -348,7 +348,7 @@ func TestContentRedactionJobCondition(t *testing.T) {
 			ThreatDetection: &ThreatDetectionConfig{},
 			AddComments:     &AddCommentsConfig{},
 			ContentRedaction: &ContentRedactionConfig{
-				Agent: []string{"Policy"},
+				Policies: []string{"Policy"},
 			},
 		},
 	}
@@ -378,28 +378,28 @@ func TestContentRedactionLoadPoliciesStep(t *testing.T) {
 		{
 			name: "URL policy uses curl",
 			cr: &ContentRedactionConfig{
-				Agent: []string{"https://corp.example.com/policy.md"},
+				Policies: []string{"https://corp.example.com/policy.md"},
 			},
 			wantCurl: true,
 		},
 		{
 			name: "repo-relative path uses file check",
 			cr: &ContentRedactionConfig{
-				Agent: []string{".github/policies/redaction.md"},
+				Policies: []string{".github/policies/redaction.md"},
 			},
 			wantFileOp: true,
 		},
 		{
 			name: "inline policy uses printf",
 			cr: &ContentRedactionConfig{
-				Agent: []string{"Never disclose internal codenames"},
+				Policies: []string{"Never disclose internal codenames"},
 			},
 			wantPrintf: true,
 		},
 		{
 			name: "./relative path uses file check",
 			cr: &ContentRedactionConfig{
-				Agent: []string{"./policies/redaction.md"},
+				Policies: []string{"./policies/redaction.md"},
 			},
 			wantFileOp: true,
 		},
@@ -460,7 +460,7 @@ engine: copilot
 safe-outputs:
   add-comment:
   content-redaction:
-    agent: "Do not disclose security vulnerabilities in public comments"
+    policies: "Do not disclose security vulnerabilities in public comments"
 ---
 
 # Test Workflow
@@ -513,7 +513,7 @@ engine: copilot
 safe-outputs:
   add-comment:
   content-redaction:
-    agent: "Policy text"
+    policies: "Policy text"
 ---
 
 # Test

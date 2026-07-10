@@ -177,11 +177,11 @@ type SecretMaskingConfig struct {
 // A fresh-context subagent — no tools, no repo access, no MCP — reviews all text-bearing
 // output items and rewrites non-compliant text or blocks items that cannot be made compliant.
 type ContentRedactionConfig struct {
-	// Agent is the list of policy sources concatenated into the redaction agent's system prompt.
+	// Policies is the list of policy sources concatenated into the redaction agent's system prompt.
 	// Each entry may be a URL (fetched at runtime via curl), a repo-relative path
 	// (read from the checkout), or an inline string literal.
 	// Required. Accepts a single string or an array of strings.
-	Agent []string `yaml:"-"` // parsed from scalar or array; see parseContentRedactionConfig
+	Policies []string `yaml:"-"` // parsed from scalar or array; see parseContentRedactionConfig
 
 	// Model is an optional model override for the redaction agent.
 	Model string `yaml:"model,omitempty"`
