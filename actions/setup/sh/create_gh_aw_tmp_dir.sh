@@ -50,8 +50,7 @@ mkdir -p /tmp/gh-aw/awf-tmp
 
 # Fast pre-flight probe: fail early with a clear message if AWF's temp root can't
 # create/write the chroot hosts file it needs during config generation.
-AWF_CHROOT_PROBE_DIR="/tmp/gh-aw/awf-tmp/chroot-preflight-$$"
-mkdir -p "${AWF_CHROOT_PROBE_DIR}"
+AWF_CHROOT_PROBE_DIR="$(mktemp -d /tmp/gh-aw/awf-tmp/chroot-preflight-XXXXXX)"
 if ! printf '127.0.0.1 localhost\n' > "${AWF_CHROOT_PROBE_DIR}/hosts"; then
   echo "::error::gh-aw pre-flight failed: cannot write probe hosts file in /tmp/gh-aw/awf-tmp. This usually means rootless temp directory permissions are broken; check ownership/permissions under /tmp/gh-aw/awf-tmp."
   exit 1
