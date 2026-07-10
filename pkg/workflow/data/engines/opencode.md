@@ -33,6 +33,11 @@ engine:
       step-name: Write OpenCode Config
       content: |-
         {
+          "providers": {
+            "openai": {
+              "apiKey": "awf-copilot-proxy"
+            }
+          },
           "agent": {
             "build": {
               "permission": {

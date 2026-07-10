@@ -911,6 +911,11 @@ jobs:
           mkdir -p "$(dirname "$GITHUB_WORKSPACE/opencode.jsonc")"
           CONFIG="$GITHUB_WORKSPACE/opencode.jsonc"
           BASE_CONFIG='{
+            "providers": {
+              "openai": {
+                "apiKey": "awf-copilot-proxy"
+              }
+            },
             "agent": {
               "build": {
                 "permission": {
@@ -1599,6 +1604,11 @@ jobs:
           mkdir -p "$(dirname "$GITHUB_WORKSPACE/opencode.jsonc")"
           CONFIG="$GITHUB_WORKSPACE/opencode.jsonc"
           BASE_CONFIG='{
+            "providers": {
+              "openai": {
+                "apiKey": "awf-copilot-proxy"
+              }
+            },
             "agent": {
               "build": {
                 "permission": {
