@@ -204,16 +204,14 @@ func (c *Compiler) buildContentRedactionEngineStep(cr *ContentRedactionConfig) [
 		onFailure = ContentRedactionOnFailureWarn
 	}
 
-	// Build the scope list as a JS array literal.
-	var scopeJSLiteral string
+	// Build the scope list as a JSON string literal for env var.
+	scopeJSONString := "[]"
 	if cr != nil && len(cr.Scope) > 0 {
 		quoted := make([]string, len(cr.Scope))
 		for i, s := range cr.Scope {
-			quoted[i] = fmt.Sprintf("'%s'", s)
+			quoted[i] = fmt.Sprintf("\"%s\"", s)
 		}
-		scopeJSLiteral = "[" + strings.Join(quoted, ", ") + "]"
-	} else {
-		scopeJSLiteral = "[]"
+		scopeJSONString = "[" + strings.Join(quoted, ", ") + "]"
 	}
 
 	githubScriptPin := c.getActionPin("actions/github-script")
@@ -227,87 +225,17 @@ func (c *Compiler) buildContentRedactionEngineStep(cr *ContentRedactionConfig) [
 		"          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}\n",
 		"          REDACTION_MODEL: " + model + "\n",
 		"          ON_FAILURE: " + onFailure + "\n",
+		"          SCOPE: '" + scopeJSONString + "'\n",
 		"        with:\n",
 		"          script: |\n",
-		"            const fs = require('fs');\n",
-		"\n",
-		"            const outputFile = process.env.GH_AW_AGENT_OUTPUT;\n",
-		"            const policyFile = '/tmp/gh-aw/content-redaction/policy.md';\n",
-		"            const onFailure = process.env.ON_FAILURE || 'block';\n",
-		"            const scope = " + scopeJSLiteral + ";\n",
-		"\n",
-		"            // Normalize safe-output type identifiers (dash/dot → underscore)\n",
-		"            const normalizeType = (type) => type.replace(/[-\\.]/g, '_');\n",
-		"\n",
-		"            const TEXT_BEARING_TYPES = new Set([\n",
-		"              'add_comment', 'create_issue', 'create_pull_request',\n",
-		"              'create_discussion', 'update_issue', 'update_pull_request',\n",
-		"              'update_discussion', 'submit_pull_request_review',\n",
-		"              'create_pull_request_review_comment', 'reply_to_pull_request_review_comment',\n",
-		"              'update_release', 'create_check_run',\n",
-		"            ]);\n",
-		"\n",
-		"            if (!outputFile || !fs.existsSync(outputFile)) {\n",
-		"              core.info('No agent output file found; skipping content redaction');\n",
-		"              core.setOutput('skipped', 'true');\n",
-		"              return;\n",
-		"            }\n",
-		"\n",
-		"            const policy = fs.existsSync(policyFile)\n",
-		"              ? fs.readFileSync(policyFile, 'utf8').trim() : '';\n",
-		"            if (!policy) {\n",
-		"              core.warning('Content redaction policy is empty; skipping redaction');\n",
-		"              core.setOutput('skipped', 'true');\n",
-		"              return;\n",
-		"            }\n",
-		"\n",
-		"            // Parse agent_output.json as a single JSON object with an items array\n",
-		"            let agentOutput;\n",
-		"            try {\n",
-		"              const content = fs.readFileSync(outputFile, 'utf8');\n",
-		"              agentOutput = JSON.parse(content);\n",
-		"            } catch (error) {\n",
-		"              core.warning(`Failed to parse agent output JSON: ${error.message}`);\n",
-		"              core.setOutput('skipped', 'true');\n",
-		"              return;\n",
-		"            }\n",
-		"\n",
-		"            if (!agentOutput.items || !Array.isArray(agentOutput.items)) {\n",
-		"              core.warning('Agent output has no items array; skipping redaction');\n",
-		"              core.setOutput('skipped', 'true');\n",
-		"              return;\n",
-		"            }\n",
-		"\n",
-		"            const redactedItems = [];\n",
-		"            let blocked = 0, rewritten = 0, passed = 0;\n",
-		"\n",
-		"            for (const item of agentOutput.items) {\n",
-		"              const rawType = item.type || '';\n",
-		"              const normalizedType = normalizeType(rawType);\n",
-		"              const inScope = scope.length === 0 || scope.some(s => normalizeType(s) === normalizedType);\n",
-		"              if (!inScope || !TEXT_BEARING_TYPES.has(normalizedType)) {\n",
-		"                redactedItems.push(item);\n",
-		"                passed++;\n",
-		"                continue;\n",
-		"              }\n",
-		"\n",
-		"              // Log the item being reviewed for audit.\n",
-		"              core.info(`Content redaction: reviewing ${rawType} item`);\n",
-		"              // NOTE: Full LLM-backed rewriting is performed by the dedicated\n",
-		"              // content_redaction engine (AWF). This github-script step records\n",
-		"              // the intent and forwards items as-is when the engine is absent.\n",
-		"              redactedItems.push(item);\n",
-		"              passed++;\n",
-		"            }\n",
-		"\n",
-		"            // Write redacted output back to the agent output file.\n",
-		"            agentOutput.items = redactedItems;\n",
-		"            fs.writeFileSync(outputFile, JSON.stringify(agentOutput), 'utf8');\n",
-		"            core.info(`Content redaction complete: ${passed} passed, ${rewritten} rewritten, ${blocked} blocked`);\n",
-		"            core.setOutput('blocked_count', String(blocked));\n",
-		"            core.setOutput('rewritten_count', String(rewritten));\n",
-		"            core.setOutput('passed_count', String(passed));\n",
-		fmt.Sprintf("            core.setOutput('has_blocked_items', (blocked > 0 && '%s' === 'block') ? 'true' : 'false');\n", onFailure),
+		"            const { runContentRedaction } = require('./.github/actions/setup/js/content_redaction.cjs');\n",
+		"            runContentRedaction({\n",
+		"              core,\n",
+		"              outputFile: process.env.GH_AW_AGENT_OUTPUT,\n",
+		"              policyFile: '/tmp/gh-aw/content-redaction/policy.md',\n",
+		"              onFailure: process.env.ON_FAILURE || 'block',\n",
+		"              scope: JSON.parse(process.env.SCOPE || '[]'),\n",
+		"            });\n",
 	}
 }
 

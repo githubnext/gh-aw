@@ -1471,87 +1471,17 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           REDACTION_MODEL: gpt-4o-mini
           ON_FAILURE: block
+          SCOPE: '[]'
         with:
           script: |
-            const fs = require('fs');
-
-            const outputFile = process.env.GH_AW_AGENT_OUTPUT;
-            const policyFile = '/tmp/gh-aw/content-redaction/policy.md';
-            const onFailure = process.env.ON_FAILURE || 'block';
-            const scope = [];
-
-            // Normalize safe-output type identifiers (dash/dot → underscore)
-            const normalizeType = (type) => type.replace(/[-\.]/g, '_');
-
-            const TEXT_BEARING_TYPES = new Set([
-              'add_comment', 'create_issue', 'create_pull_request',
-              'create_discussion', 'update_issue', 'update_pull_request',
-              'update_discussion', 'submit_pull_request_review',
-              'create_pull_request_review_comment', 'reply_to_pull_request_review_comment',
-              'update_release', 'create_check_run',
-            ]);
-
-            if (!outputFile || !fs.existsSync(outputFile)) {
-              core.info('No agent output file found; skipping content redaction');
-              core.setOutput('skipped', 'true');
-              return;
-            }
-
-            const policy = fs.existsSync(policyFile)
-              ? fs.readFileSync(policyFile, 'utf8').trim() : '';
-            if (!policy) {
-              core.warning('Content redaction policy is empty; skipping redaction');
-              core.setOutput('skipped', 'true');
-              return;
-            }
-
-            // Parse agent_output.json as a single JSON object with an items array
-            let agentOutput;
-            try {
-              const content = fs.readFileSync(outputFile, 'utf8');
-              agentOutput = JSON.parse(content);
-            } catch (error) {
-              core.warning(`Failed to parse agent output JSON: ${error.message}`);
-              core.setOutput('skipped', 'true');
-              return;
-            }
-
-            if (!agentOutput.items || !Array.isArray(agentOutput.items)) {
-              core.warning('Agent output has no items array; skipping redaction');
-              core.setOutput('skipped', 'true');
-              return;
-            }
-
-            const redactedItems = [];
-            let blocked = 0, rewritten = 0, passed = 0;
-
-            for (const item of agentOutput.items) {
-              const rawType = item.type || '';
-              const normalizedType = normalizeType(rawType);
-              const inScope = scope.length === 0 || scope.some(s => normalizeType(s) === normalizedType);
-              if (!inScope || !TEXT_BEARING_TYPES.has(normalizedType)) {
-                redactedItems.push(item);
-                passed++;
-                continue;
-              }
-
-              // Log the item being reviewed for audit.
-              core.info(`Content redaction: reviewing ${rawType} item`);
-              // NOTE: Full LLM-backed rewriting is performed by the dedicated
-              // content_redaction engine (AWF). This github-script step records
-              // the intent and forwards items as-is when the engine is absent.
-              redactedItems.push(item);
-              passed++;
-            }
-
-            // Write redacted output back to the agent output file.
-            agentOutput.items = redactedItems;
-            fs.writeFileSync(outputFile, JSON.stringify(agentOutput), 'utf8');
-            core.info(`Content redaction complete: ${passed} passed, ${rewritten} rewritten, ${blocked} blocked`);
-            core.setOutput('blocked_count', String(blocked));
-            core.setOutput('rewritten_count', String(rewritten));
-            core.setOutput('passed_count', String(passed));
-            core.setOutput('has_blocked_items', (blocked > 0 && 'block' === 'block') ? 'true' : 'false');
+            const { runContentRedaction } = require('./.github/actions/setup/js/content_redaction.cjs');
+            runContentRedaction({
+              core,
+              outputFile: process.env.GH_AW_AGENT_OUTPUT,
+              policyFile: '/tmp/gh-aw/content-redaction/policy.md',
+              onFailure: process.env.ON_FAILURE || 'block',
+              scope: JSON.parse(process.env.SCOPE || '[]'),
+            });
       - name: Set redaction conclusion
         id: redaction_conclusion
         if: always()
