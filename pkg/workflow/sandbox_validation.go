@@ -134,7 +134,7 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 					"or remove sandbox.agent.runtime: gvisor.",
 			)
 		}
-		sandboxValidationLog.Print("gVisor runtime configured — sudo access and topology checks passed")
+		sandboxValidationLog.Print("gVisor runtime configured -- sudo access and topology checks passed")
 	}
 
 	// Validate config structure if provided (deprecated - was only for SRT)

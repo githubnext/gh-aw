@@ -45,7 +45,8 @@ func TestGenerateGVisorInstallStep(t *testing.T) {
 	assert.Contains(t, content, "systemctl restart docker", "must restart Docker with systemctl restart")
 	assert.NotContains(t, content, "systemctl reload docker", "must NOT use systemctl reload (breaks host-gateway DNS)")
 
-	// Must verify the runtime works.
+	// Must verify the runtime works (pre-pull to avoid network dependency during test run).
+	assert.Contains(t, content, "docker pull hello-world", "must pre-pull hello-world image")
 	assert.Contains(t, content, "docker run --rm --runtime=runsc", "must verify gVisor runtime with a test container")
 }
 

@@ -370,6 +370,7 @@ func generateGVisorInstallStep() GitHubActionStep {
 		`          echo "::endgroup::"`,
 		"",
 		`          echo "::group::Verify gVisor works"`,
+		`          docker pull hello-world`,
 		`          docker run --rm --runtime=runsc hello-world`,
 		`          echo "✅ gVisor runtime verified"`,
 		`          echo "::endgroup::"`,
