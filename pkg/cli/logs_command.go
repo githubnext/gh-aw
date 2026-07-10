@@ -68,7 +68,7 @@ Downloaded artifacts include (when using --artifacts all):
   ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1w          # Download up to 10 runs from last week
   ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1w -c 5     # Download up to 5 runs from last week
   ` + string(constants.CLIExtensionPrefix) + ` logs --end-date -1d            # Download up to 10 runs before yesterday
-  ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1mo         # Download all runs from last month
+  ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1mo         # Download up to 10 runs from last month
 
   # Content filtering
   ` + string(constants.CLIExtensionPrefix) + ` logs --engine claude           # Filter logs by claude engine

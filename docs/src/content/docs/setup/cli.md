@@ -615,7 +615,7 @@ Forecast AI Credit (AIC) usage for agentic workflows using recent run history an
 ```bash wrap
 gh aw forecast                              # Forecast all workflows (monthly)
 gh aw forecast ci-doctor                    # Forecast a specific workflow
-gh aw forecast ci-doctor daily-plan         # Compare two workflows
+gh aw forecast ci-doctor daily-news         # Compare two workflows
 gh aw forecast --period week                # Weekly projections
 gh aw forecast --days 7                     # Use 7-day history window
 gh aw forecast --sample 50                  # Sample up to 50 runs per workflow
