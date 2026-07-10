@@ -14,6 +14,7 @@ describe("getWorkflowMetadata", () => {
     originalContext = global.context;
     global.context = {
       runId: 123456,
+      serverUrl: "https://github.com",
       payload: {
         repository: {
           html_url: "https://github.com/test-owner/test-repo",
