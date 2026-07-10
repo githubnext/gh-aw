@@ -127,7 +127,7 @@ func TestFormal_UnknownContentIntegrityDenied(t *testing.T) {
 	// An unknown ContentIntegrity value (rank -1) is below any valid minimum threshold.
 	denied := formalEvaluateAccess(
 		formalToolConfig{Repos: []string{"*/*"}, MinIntegrity: "approved"},
-		formalAccessRequest{Repository: "github/gh-aw", ContentIntegrity: "pending"},
+		formalAccessRequest{Repository: "github/gh-aw", ContentIntegrity: "unknown-level"},
 	)
 	assert.False(t, denied.allow)
 	assert.Equal(t, formalErrorIntegrityTooLow, denied.errorCode)
