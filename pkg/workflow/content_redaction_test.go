@@ -583,3 +583,113 @@ Test.
 		t.Fatalf("Lock file not created: %v", err)
 	}
 }
+
+// TestContentRedactionContinueOnError verifies that the continue-on-error field
+// is properly propagated from config to the compiled job YAML.
+func TestContentRedactionContinueOnError(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "content-redaction-test-*")
+	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+
+	frontmatter := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  add-comment:
+  content-redaction:
+    policies: "Do not disclose security vulnerabilities"
+    continue-on-error: true
+---
+
+# Test Workflow
+
+Test workflow with continue-on-error.
+`
+
+	if err := os.WriteFile(workflowPath, []byte(frontmatter), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow() error = %v", err)
+	}
+
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
+	yamlBytes, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read compiled YAML: %v", err)
+	}
+	yaml := string(yamlBytes)
+
+	// The content_redaction job must have continue-on-error: true.
+	contentRedactionSection := extractJobSection(yaml, string(constants.ContentRedactionJobName))
+	if contentRedactionSection == "" {
+		t.Fatalf("content_redaction job not found in compiled YAML")
+	}
+
+	if !strings.Contains(contentRedactionSection, "continue-on-error: true") {
+		t.Errorf("content_redaction job missing 'continue-on-error: true'; section:\n%s", contentRedactionSection)
+	}
+}
+
+// TestContentRedactionPolicyLoadFailureExits verifies that policy loading failures
+// cause the job to exit with an error code (not just a warning).
+func TestContentRedactionPolicyLoadFailureExits(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "content-redaction-test-*")
+	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+
+	frontmatter := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  add-comment:
+  content-redaction:
+    policies: ".github/missing-policy.md"
+---
+
+# Test Workflow
+
+Test workflow with missing policy file.
+`
+
+	if err := os.WriteFile(workflowPath, []byte(frontmatter), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow() error = %v", err)
+	}
+
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
+	yamlBytes, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read compiled YAML: %v", err)
+	}
+	yaml := string(yamlBytes)
+
+	// The load policies step must check for file existence and exit 1 on failure.
+	contentRedactionSection := extractJobSection(yaml, string(constants.ContentRedactionJobName))
+	if contentRedactionSection == "" {
+		t.Fatalf("content_redaction job not found in compiled YAML")
+	}
+
+	// Verify the step checks for file existence.
+	if !strings.Contains(contentRedactionSection, "if [ ! -f") {
+		t.Errorf("Policy loading step should check file existence; section:\n%s", contentRedactionSection)
+	}
+
+	// Verify the step exits with error code 1 on failure.
+	if !strings.Contains(contentRedactionSection, "exit 1") {
+		t.Errorf("Policy loading step should exit 1 on failure; section:\n%s", contentRedactionSection)
+	}
+
+	// Verify the step checks for empty policy file.
+	if !strings.Contains(contentRedactionSection, "if [ ! -s") {
+		t.Errorf("Policy loading step should check for empty policy file; section:\n%s", contentRedactionSection)
+	}
+}
