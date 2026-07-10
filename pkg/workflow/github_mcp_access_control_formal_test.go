@@ -123,22 +123,24 @@ func TestFormal_IntegrityLevelOrder(t *testing.T) {
 	assert.Equal(t, formalErrorIntegrityTooLow, denied.errorCode)
 }
 
-func TestFormal_UnknownIntegrityLevelDenied(t *testing.T) {
-	// An unknown ContentIntegrity value cannot satisfy any known minimum threshold.
+func TestFormal_UnknownContentIntegrityDenied(t *testing.T) {
+	// An unknown ContentIntegrity value (rank -1) is below any valid minimum threshold.
 	denied := formalEvaluateAccess(
 		formalToolConfig{Repos: []string{"*/*"}, MinIntegrity: "approved"},
 		formalAccessRequest{Repository: "github/gh-aw", ContentIntegrity: "pending"},
 	)
 	assert.False(t, denied.allow)
 	assert.Equal(t, formalErrorIntegrityTooLow, denied.errorCode)
+}
 
-	// An unrecognized MinIntegrity configuration is fail-safe: it denies all requests.
-	deniedBadCfg := formalEvaluateAccess(
+func TestFormal_InvalidMinIntegrityConfigDenied(t *testing.T) {
+	// An unrecognized MinIntegrity configuration is fail-safe: denies all requests.
+	denied := formalEvaluateAccess(
 		formalToolConfig{Repos: []string{"*/*"}, MinIntegrity: "invalid"},
 		formalAccessRequest{Repository: "github/gh-aw", ContentIntegrity: "merged"},
 	)
-	assert.False(t, deniedBadCfg.allow)
-	assert.Equal(t, formalErrorIntegrityTooLow, deniedBadCfg.errorCode)
+	assert.False(t, denied.allow)
+	assert.Equal(t, formalErrorIntegrityTooLow, denied.errorCode)
 }
 
 func TestFormal_CombinedFiltersAllAllow(t *testing.T) {
