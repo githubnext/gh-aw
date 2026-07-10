@@ -215,8 +215,9 @@ func parseRepositoryImportSpec(importSpec string) (owner, repo, ref string) {
 }
 
 // generateLegacyAgentImportCheckout generates a checkout step for legacy agent imports
-// Legacy format: owner/repo/path/to/file.md@ref
-// This checks out the entire repository (not just .github folder) since the file could be anywhere
+// Accepted format: owner/repo@ref or owner/repo (defaults to ref "main")
+// Specs with extra path segments are rejected by parseRepositoryImportSpec.
+// Only the .github/ folder is checked out via sparse-checkout.
 func (c *Compiler) generateLegacyAgentImportCheckout(yaml *strings.Builder, agentImportSpec string) {
 	compilerYamlLog.Printf("Generating checkout step for legacy agent import: %s", agentImportSpec)
 
