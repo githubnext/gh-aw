@@ -130,7 +130,7 @@ const DefaultMCPGatewayVersion Version = "v0.4.1"
 const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.77"
+const DefaultPlaywrightMCPVersion Version = "0.0.78"
 
 // DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package.
 // Used when tools.playwright.mode is "cli" to install the CLI tool instead of the MCP server.
