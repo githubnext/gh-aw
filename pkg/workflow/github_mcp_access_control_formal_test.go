@@ -450,10 +450,10 @@ func TestFormal_FixtureRunner(t *testing.T) {
 
 		fixturePath := filepath.Join(fixtureDir, entry.Name())
 		data, err := os.ReadFile(fixturePath)
-		require.NoError(t, err, "failed to read fixture file %s", entry.Name())
+		require.NoErrorf(t, err, "failed to read fixture file %s", entry.Name())
 
 		var ff fixtureFile
-		require.NoError(t, yamlv3.Unmarshal(data, &ff), "failed to parse fixture file %s", entry.Name())
+		require.NoErrorf(t, yamlv3.Unmarshal(data, &ff), "failed to parse fixture file %s", entry.Name())
 
 		for _, sc := range ff.Scenarios {
 			totalScenarios++
