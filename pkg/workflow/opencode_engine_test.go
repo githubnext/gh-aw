@@ -54,7 +54,7 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 		assert.Contains(t, execContent, "OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}", "Should default to Copilot token routing")
 	})
 
-	t.Run("firewall sets OpenCode gateway base URL", func(t *testing.T) {
+	t.Run("firewall sets OpenCode gateway base URL and OPENAI_BASE_URL", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -72,6 +72,28 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 		require.Len(t, steps, 2, "Should generate config step and execution step")
 		execContent := strings.Join(steps[1], "\n")
 		assert.Contains(t, execContent, "GITHUB_COPILOT_BASE_URL: http://host.docker.internal:10002", "Should route through Copilot LLM gateway port for copilot/* models")
+		assert.Contains(t, execContent, "OPENAI_BASE_URL: http://host.docker.internal:10002", "Should also set OPENAI_BASE_URL to Copilot gateway so OpenCode's openai provider routes correctly")
+	})
+
+	t.Run("firewall rewrites copilot provider prefix to openai in OPENCODE_MODEL", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Model: "copilot/gpt-5",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Allowed: []string{"defaults"},
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		require.Len(t, steps, 2, "Should generate config step and execution step")
+		execContent := strings.Join(steps[1], "\n")
+		assert.Contains(t, execContent, "OPENCODE_MODEL: openai/gpt-5", "Should rewrite 'copilot/' prefix to 'openai/' so OpenCode uses its openai provider")
+		assert.NotContains(t, execContent, "OPENCODE_MODEL: copilot/gpt-5", "Should not pass raw 'copilot/' prefix which OpenCode does not recognise")
 	})
 }
 

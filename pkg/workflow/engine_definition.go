@@ -172,15 +172,16 @@ type EngineConfigFileDefinition struct {
 // EngineExecutionDefinition describes the common CLI execution pattern used by
 // behavior-defined engines.
 type EngineExecutionDefinition struct {
-	CommandName     string   `yaml:"command-name,omitempty"`
-	Args            []string `yaml:"args,omitempty"`
-	StepName        string   `yaml:"step-name,omitempty"`
-	ModelEnvVarName string   `yaml:"model-env-var,omitempty"`
-	ModelFlag       string   `yaml:"model-flag,omitempty"`
-	MCPConfigEnvVar string   `yaml:"mcp-config-env-var,omitempty"`
-	MCPConfigFlag   string   `yaml:"mcp-config-flag,omitempty"`
-	WriteTimestamp  bool     `yaml:"write-timestamp,omitempty"`
-	ProviderEnvMode string   `yaml:"provider-env-mode,omitempty"`
+	CommandName            string   `yaml:"command-name,omitempty"`
+	Args                   []string `yaml:"args,omitempty"`
+	StepName               string   `yaml:"step-name,omitempty"`
+	ModelEnvVarName        string   `yaml:"model-env-var,omitempty"`
+	ModelEnvProviderPrefix string   `yaml:"model-env-provider-prefix,omitempty"`
+	ModelFlag              string   `yaml:"model-flag,omitempty"`
+	MCPConfigEnvVar        string   `yaml:"mcp-config-env-var,omitempty"`
+	MCPConfigFlag          string   `yaml:"mcp-config-flag,omitempty"`
+	WriteTimestamp         bool     `yaml:"write-timestamp,omitempty"`
+	ProviderEnvMode        string   `yaml:"provider-env-mode,omitempty"`
 }
 
 // EngineMCPDefinition describes how to render MCP configuration for a

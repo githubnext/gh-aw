@@ -369,7 +369,13 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 
 	if exec.ModelEnvVarName != "" {
 		if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
-			env[exec.ModelEnvVarName] = workflowData.EngineConfig.Model
+			modelVal := workflowData.EngineConfig.Model
+			if exec.ModelEnvProviderPrefix != "" {
+				if parts := strings.SplitN(modelVal, "/", 2); len(parts) == 2 {
+					modelVal = exec.ModelEnvProviderPrefix + "/" + parts[1]
+				}
+			}
+			env[exec.ModelEnvVarName] = modelVal
 		}
 	}
 

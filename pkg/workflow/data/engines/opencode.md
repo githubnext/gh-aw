@@ -58,6 +58,7 @@ engine:
         - DEBUG
       step-name: Execute OpenCode CLI
       model-env-var: OPENCODE_MODEL
+      model-env-provider-prefix: openai
       mcp-config-env-var: GH_AW_MCP_CONFIG
       write-timestamp: true
       provider-env-mode: universal-llm-consumer

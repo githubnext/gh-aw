@@ -12790,6 +12790,7 @@
                     },
                     "step-name": { "type": "string" },
                     "model-env-var": { "type": "string" },
+                    "model-env-provider-prefix": { "type": "string" },
                     "model-flag": { "type": "string" },
                     "mcp-config-env-var": { "type": "string" },
                     "mcp-config-flag": { "type": "string" },

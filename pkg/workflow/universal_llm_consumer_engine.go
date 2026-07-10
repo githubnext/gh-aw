@@ -29,6 +29,7 @@ type universalLLMBackendProfile struct {
 	coreSecretNames []string
 	env             map[string]string
 	baseURLEnvName  string
+	extraURLEnvName string // additional URL env var set to the same gateway URL (e.g. OPENAI_BASE_URL for copilot backend)
 	gatewayPort     int
 }
 
@@ -93,8 +94,9 @@ func getUniversalLLMBackendProfile(backend UniversalLLMBackend, useCopilotReques
 				"COPILOT_GITHUB_TOKEN": copilotToken,
 				"OPENAI_API_KEY":       copilotToken,
 			},
-			baseURLEnvName: "GITHUB_COPILOT_BASE_URL",
-			gatewayPort:    constants.CopilotLLMGatewayPort,
+			baseURLEnvName:  "GITHUB_COPILOT_BASE_URL",
+			extraURLEnvName: "OPENAI_BASE_URL",
+			gatewayPort:     constants.CopilotLLMGatewayPort,
 		}
 	}
 }
@@ -172,6 +174,10 @@ func (e *UniversalLLMConsumerEngine) ApplyUniversalProviderEnv(env map[string]st
 	if firewallEnabled {
 		universalLLMConsumerLog.Printf("Setting %s to gateway port %d", profile.baseURLEnvName, profile.gatewayPort)
 		env[profile.baseURLEnvName] = fmt.Sprintf("http://host.docker.internal:%d", profile.gatewayPort)
+		if profile.extraURLEnvName != "" {
+			universalLLMConsumerLog.Printf("Setting extra URL env %s to gateway port %d", profile.extraURLEnvName, profile.gatewayPort)
+			env[profile.extraURLEnvName] = fmt.Sprintf("http://host.docker.internal:%d", profile.gatewayPort)
+		}
 	}
 }
 

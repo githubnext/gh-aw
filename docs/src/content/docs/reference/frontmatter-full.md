@@ -2765,6 +2765,11 @@ engine:
         - run
       step-name: Execute Auggie CLI
       model-env-var: AUGGIE_MODEL
+      # Optional: rewrite the provider prefix in the model string before setting
+      # the model env var. For example, if set to "openai" and the engine.model
+      # is "copilot/gpt-5", the env var receives "openai/gpt-5" so the CLI uses
+      # its own openai provider instead of an unrecognised "copilot" prefix.
+      # model-env-provider-prefix: openai
       model-flag: --model
       mcp-config-env-var: AUGGIE_MCP_CONFIG
       mcp-config-flag: --mcp-config
