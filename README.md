@@ -10,6 +10,36 @@ Here are some pointers to get you started in using this tool.
 
 -->
 
+<details>
+<summary>Configure this project with agentic workflows</summary>
+
+Hey agent! If this repository hasn't been configured with agentic workflows yet, here is how to set it up.
+
+1. Install the `gh aw` CLI extension using the install script (no GitHub token required):
+
+   ```bash
+   curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash
+   ```
+
+2. Run the `init` command to configure the repository:
+
+   ```bash
+   gh aw init
+   ```
+
+3. Add a **daily repo status** agentic workflow using the `add` command:
+
+   ```bash
+   gh aw add --create-pull-request
+   ```
+
+   The workflow should:
+   - Run on a daily schedule
+   - Summarize the repository status (open issues, recent PRs, CI health)
+   - Use the `copilot` engine with `copilot-requests: write` permission
+
+</details>
+
 # GitHub Agentic Workflows
 
 Write agentic workflows in natural language markdown, and run them in GitHub Actions.

@@ -20,6 +20,9 @@ sandbox:
   agent:
     sudo: false
 
+checkout:
+  fetch-depth: 0  # full history required so churn analysis reflects the real backlog
+
 tracker-id: deep-report-intel-agent
 timeout-minutes: 45
 engine: claude
@@ -192,8 +195,8 @@ When recent `lint-monster` and `daily-sentrux` reports both point at function co
 
 1. Refresh the authoritative long-function backlog from the current tree with `make golint-custom`, then extract only `largefunc` / `function-length` findings in `pkg/workflow` and `pkg/cli`.
 2. Run `sentrux check . --json` and capture the highest-complexity functions in `pkg/workflow` and `pkg/cli`.
-3. Compute recent churn for the candidate files with `git log --since="90 days ago" --numstat -- pkg/workflow pkg/cli`, excluding generated files such as `*.lock.yml` and `actions-lock.json`.
-4. If the checkout is shallow, run `git fetch --unshallow origin` and then fetch the default branch history you need before churn analysis so the ranking uses real history instead of a shallow sample.
+3. Compute recent churn for the candidate files with `git log --since="90 days ago" --numstat -- pkg/workflow pkg/cli ':(glob,exclude)pkg/workflow/**/*.lock.yml' ':(glob,exclude)pkg/cli/**/*.lock.yml' ':(glob,exclude)pkg/workflow/**/actions-lock.json' ':(glob,exclude)pkg/cli/**/actions-lock.json'` so generated files do not distort the ranking.
+4. This workflow should already have full history because checkout uses `fetch-depth: 0`. If `git rev-parse --is-shallow-repository` still reports `true`, use the repository pattern `git fetch --unshallow origin 2>/dev/null || git fetch origin --deepen=1000` before churn analysis.
 5. Build a ranked intersection set: prefer functions that appear in both the long-function backlog and the sentrux hotspot list. Rank by sentrux complexity first, then recent churn, then how central the function is to workflow/CLI execution paths.
 6. If fewer than 10 intersection candidates exist, fill the remainder with the strongest sentrux hotspots that are adjacent to the long-function backlog in the same files, and say that explicitly.
 

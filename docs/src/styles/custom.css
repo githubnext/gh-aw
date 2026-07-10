@@ -101,6 +101,7 @@
   --aw-border: rgba(208, 215, 222, 0.9);
   --aw-border-strong: rgba(175, 184, 193, 0.95);
   --aw-text-muted: #57606a;
+  --aw-callout-preview-text: #6a4500;
   --aw-shadow: 0 18px 42px rgba(31, 35, 40, 0.08);
   --aw-accent-rgb: 130, 80, 223;
 }
@@ -298,6 +299,10 @@
 
 :root[data-theme='light'] .hero .tagline {
   color: var(--aw-text-muted);
+}
+
+:root[data-theme='light'] .hero .hero-preview-callout {
+  color: var(--aw-callout-preview-text);
 }
 
 /* Light Theme Experimental Badge */

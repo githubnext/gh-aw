@@ -1,0 +1,8 @@
+package writebytestring
+
+import "io"
+
+func noImportsNeedsImport(s string) {
+	w := &customWriter{}
+	io.WriteString(w, s) // want `w\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(w, s\) to potentially avoid a \[\]byte allocation if the writer implements io\.StringWriter`
+}
