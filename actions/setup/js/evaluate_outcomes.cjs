@@ -667,6 +667,8 @@ function evaluateClosePullRequest(item, defaultRepo, api = ghAPI, nowMs = Date.n
     }
     return out;
   }
+  // Accepted means the PR is closed and remained unmerged, which is the durable
+  // terminal state that close_pull_request is intended to produce.
   if (pullRequest.state === "closed") {
     out.result = "accepted";
     out.detail = "closed";

@@ -101,7 +101,7 @@ safest policy defined in **Fail-Closed Behavior** above.
 
 An implementation MUST NOT silently reuse a stale cached policy decision when the
 current repository policy inputs cannot be resolved. The failure reason and the
-fallback-to-safe-policy decision SHOULD be recorded in execution provenance.
+fallback to safe policy decision SHOULD be recorded in execution provenance.
 
 ### Sync Notes
 

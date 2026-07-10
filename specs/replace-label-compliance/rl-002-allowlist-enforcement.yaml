@@ -58,7 +58,7 @@ scenarios:
         blocked: []
       message:
         label_to_add: ""
-        label_to_remove: "in-progress"
+        label_to_remove: "state-in-progress"
     expected:
       decision: allow
       error_code: null
