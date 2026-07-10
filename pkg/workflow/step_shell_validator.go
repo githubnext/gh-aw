@@ -40,6 +40,16 @@ var ghCLIPattern = regexp.MustCompile(`(?m)(?:^|&&|\|\||;|\|)\s*gh\s`)
 // validateStepShellScripts checks the "pre-steps", "steps", "pre-agent-steps",
 // and "post-steps" frontmatter sections for common shell script mistakes.
 //
+// Current rules:
+//   - gh-cli-missing-token: any step whose run: script invokes the gh CLI
+//     must define GH_TOKEN in its env: section to avoid authentication
+//     failures at runtime.
+//
+// Detection uses a line-oriented heuristic: "gh" is matched as a command
+// token at the start of a line or after shell operators (&&, ||, ;, |).
+// Known limitation: command substitutions of the form $(gh ...) are not
+// detected.
+//
 // In strict mode violations are errors; in non-strict mode they are warnings.
 func (c *Compiler) validateStepShellScripts(frontmatter map[string]any) error {
 	stepShellValidatorLog.Printf("Validating step shell scripts: strictMode=%t", c.strictMode)
