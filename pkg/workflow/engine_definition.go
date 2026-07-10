@@ -200,6 +200,15 @@ type EngineBehaviorDefinition struct {
 	ConfigFile          *EngineConfigFileDefinition   `yaml:"config-file,omitempty"`
 	Execution           *EngineExecutionDefinition    `yaml:"execution,omitempty"`
 	MCP                 *EngineMCPDefinition          `yaml:"mcp,omitempty"`
+	// HarnessScript is the JavaScript source of a Node.js harness that spawns the
+	// engine CLI.  When non-empty the script is written to
+	// ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_harness.cjs before execution and the
+	// engine is launched via:
+	//   node <harness-path> <command-name> [args...]
+	// The harness can read process.env.GH_AW_PROMPT for the prompt-file path and
+	// process.env.AWF_REFLECT_ENABLED / the AWF reflect JSON file to dynamically
+	// configure the engine CLI at runtime.
+	HarnessScript string `yaml:"harness-script,omitempty"`
 }
 
 // AuthBinding maps a logical authentication role to a secret name.

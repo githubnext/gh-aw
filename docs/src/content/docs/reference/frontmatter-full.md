@@ -2776,6 +2776,25 @@ engine:
     mcp:
       config-path: .auggie.json
 
+    # Optional Node.js harness script for engines that need dynamic /reflect-based
+    # configuration at runtime. When set, the script is written to
+    # ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_harness.cjs before execution and the
+    # engine is launched as:
+    #   node <harness-path> <command-name> [args...]
+    # The harness can read process.env.GH_AW_PROMPT for the prompt file path.
+    # When the AWF firewall is active, process.env.AWF_REFLECT_ENABLED is set to "1"
+    # so the harness can read /reflect data to dynamically configure the engine CLI.
+    # (optional)
+    harness-script: |
+      "use strict";
+      // Example minimal harness — replace with your engine's logic.
+      const fs = require("fs");
+      const { spawnSync } = require("child_process");
+      const cmd = process.argv[2];
+      const args = process.argv.slice(3);
+      const prompt = fs.readFileSync(process.env.GH_AW_PROMPT, "utf8");
+      spawnSync(cmd, [...args, prompt], { stdio: "inherit" });
+
 # Format 5: MCP gateway configuration for shared workflows. Declares engine.mcp
 # settings (tool-timeout, session-timeout) that consumers inherit during import
 # without specifying an engine identifier. The engine is always inherited from the

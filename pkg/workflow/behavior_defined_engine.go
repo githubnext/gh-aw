@@ -214,6 +214,34 @@ func (e *BehaviorDefinedEngine) RenderMCPConfig(sb *strings.Builder, tools map[s
 	return renderDefaultJSONMCPConfig(sb, tools, mcpTools, workflowData, behavior.MCP.ConfigPath)
 }
 
+// harnessScriptFilename returns the filename (not path) for the engine's harness script.
+func (e *BehaviorDefinedEngine) harnessScriptFilename() string {
+	return e.GetID() + "_harness.cjs"
+}
+
+// buildHarnessWriteStep generates a GitHub Actions step that writes the behavior-defined
+// engine's harness-script content to ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_harness.cjs
+// so it can be executed as a Node.js harness during the engine execution step.
+func (e *BehaviorDefinedEngine) buildHarnessWriteStep() GitHubActionStep {
+	behavior := e.behavior()
+	if behavior == nil || behavior.HarnessScript == "" {
+		return nil
+	}
+	filename := e.harnessScriptFilename()
+	// Write the harness content using a heredoc. The delimiter GHAW_HARNESS_SCRIPT_EOF is
+	// unlikely to appear literally at the start of a line in any JavaScript harness.
+	command := fmt.Sprintf(
+		"mkdir -p %s\ncat <<'GHAW_HARNESS_SCRIPT_EOF' > %s/%s\n%s\nGHAW_HARNESS_SCRIPT_EOF\nchmod 755 %s/%s",
+		SetupActionDestinationShell,
+		SetupActionDestinationShell, filename,
+		behavior.HarnessScript,
+		SetupActionDestinationShell, filename,
+	)
+	stepLines := []string{"      - name: Write " + e.GetDisplayName() + " harness script"}
+	stepLines = FormatStepWithCommandAndEnv(stepLines, command, nil)
+	return GitHubActionStep(stepLines)
+}
+
 func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	behavior := e.behavior()
 	if behavior == nil || behavior.Execution == nil {
@@ -224,6 +252,9 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 	if configStep := e.buildConfigFileStep(); len(configStep) > 0 {
 		steps = append(steps, configStep)
 	}
+	if harnessStep := e.buildHarnessWriteStep(); len(harnessStep) > 0 {
+		steps = append(steps, harnessStep)
+	}
 
 	exec := behavior.Execution
 	commandName := exec.CommandName
@@ -231,19 +262,32 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 		commandName = workflowData.EngineConfig.Command
 	}
 
-	commandParts := []string{commandName}
-	if len(exec.Args) > 0 {
-		commandParts = append(commandParts, shellJoinArgs(exec.Args))
+	var engineCommand string
+	if behavior.HarnessScript != "" {
+		// Harness execution: the harness is responsible for reading GH_AW_PROMPT and
+		// spawning the engine CLI. Pass command name and configured args so the harness
+		// can forward them (or use them to build the full command).
+		harnessParts := []string{commandName}
+		if len(exec.Args) > 0 {
+			harnessParts = append(harnessParts, shellJoinArgs(exec.Args))
+		}
+		harnessPath := SetupActionDestinationShell + "/" + e.harnessScriptFilename()
+		engineCommand = fmt.Sprintf("%s %s %s", nodeRuntimeResolutionCommand, harnessPath, strings.Join(harnessParts, " "))
+	} else {
+		commandParts := []string{commandName}
+		if len(exec.Args) > 0 {
+			commandParts = append(commandParts, shellJoinArgs(exec.Args))
+		}
+		if modelFragment := e.modelFlagFragment(exec, workflowData); modelFragment != "" {
+			commandParts = append(commandParts, modelFragment)
+		}
+		if mcpFragment := e.mcpFlagFragment(exec, workflowData); mcpFragment != "" {
+			commandParts = append(commandParts, mcpFragment)
+		}
+		commandParts = append(commandParts, fmt.Sprintf(`"$(cat %s)"`, constants.AwPromptsFile))
+		engineCommand = strings.Join(commandParts, " ")
+		engineCommand = getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + engineCommand
 	}
-	if modelFragment := e.modelFlagFragment(exec, workflowData); modelFragment != "" {
-		commandParts = append(commandParts, modelFragment)
-	}
-	if mcpFragment := e.mcpFlagFragment(exec, workflowData); mcpFragment != "" {
-		commandParts = append(commandParts, mcpFragment)
-	}
-	commandParts = append(commandParts, fmt.Sprintf(`"$(cat %s)"`, constants.AwPromptsFile))
-	engineCommand := strings.Join(commandParts, " ")
-	engineCommand = getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + engineCommand
 
 	firewallEnabled := isFirewallEnabled(workflowData)
 	var command string
@@ -284,6 +328,12 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 		if binding.Secret != "" {
 			env[binding.Secret] = "${{ secrets." + binding.Secret + " }}"
 		}
+	}
+
+	// When a harness script is present and the AWF firewall is running, signal to the
+	// harness that the AWF API proxy sidecar is available so it can read /reflect data.
+	if behavior.HarnessScript != "" && firewallEnabled {
+		env["AWF_REFLECT_ENABLED"] = "1"
 	}
 
 	applySafeOutputEnvToMap(env, workflowData)
