@@ -259,8 +259,8 @@ func (c *Compiler) buildContentRedactionAWFConfigSetup() string {
 	// - Enable API proxy for model access
 	// - Allow minimal required domains
 	// - Use standard firewall version
-	config := map[string]interface{}{
-		"apiProxy": map[string]interface{}{
+	config := map[string]any{
+		"apiProxy": map[string]any{
 			"enabled": true,
 		},
 	}
