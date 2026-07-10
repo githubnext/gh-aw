@@ -1,9 +1,3 @@
----
-name: agentic-workflow-designer
-description: Conversational skill that interviews users to design new agentic workflows
-disable-model-invocation: true
----
-
 # Workflow Designer
 
 Use this skill to run a structured interview with users who know their goal but not the workflow syntax yet, then generate one complete workflow `.md` file.
@@ -12,7 +6,7 @@ Use this skill to run a structured interview with users who know their goal but 
 
 Use this before `.github/aw/create-agentic-workflow.md` when requirements are unclear or incomplete.
 
-- Use `skills/agentic-workflow-designer/SKILL.md` to discover and confirm requirements.
+- Use `.github/aw/designer.md` to discover and confirm requirements.
 - Use `.github/aw/create-agentic-workflow.md` once requirements are clear and ready for implementation.
 - Use `.github/aw/agentic-chat.md` when the user wants a specification/pseudo-code instead of a runnable workflow file.
 

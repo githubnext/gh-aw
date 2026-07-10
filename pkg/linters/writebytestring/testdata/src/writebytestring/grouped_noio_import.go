@@ -1,0 +1,12 @@
+package writebytestring
+
+import (
+	"bytes"
+	"os"
+)
+
+func groupedNeedsImport(s string) {
+	var buf bytes.Buffer
+	_, _ = os.Stdout.WriteString("")
+	buf.Write([]byte(s)) // want `buf\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(&buf, s\) to potentially avoid a \[\]byte allocation if the writer implements io\.StringWriter`
+}
