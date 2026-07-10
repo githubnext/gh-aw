@@ -283,7 +283,7 @@ func addIOImportEdit(pass *analysis.Pass, pos token.Pos, filesWithImportEdit map
 			return markAndReturn(analysis.TextEdit{
 				Pos:     singleUngroupedImportDecl.Pos(),
 				End:     singleUngroupedImportDecl.End(),
-				NewText: []byte("import (\n" + importSpecIndent + `"` + ioPkg + `"` + "\n" + importSpecIndent + specText + "\n)"),
+				NewText: []byte("import (\n" + importSpecIndent + specText + "\n" + importSpecIndent + `"` + ioPkg + `"` + "\n)"),
 			})
 		}
 		// If we fail to render the existing import spec, fall back to a
