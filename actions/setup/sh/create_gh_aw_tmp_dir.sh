@@ -41,9 +41,9 @@ mkdir -p /tmp/gh-aw/sandbox/firewall/audit
 if [ -d /tmp/gh-aw/awf-tmp ] && [ ! -w /tmp/gh-aw/awf-tmp ]; then
   echo "Pre-flight: /tmp/gh-aw/awf-tmp is not writable; reclaiming with sudo"
   if command -v sudo >/dev/null 2>&1; then
-    sudo -n rm -rf /tmp/gh-aw/awf-tmp 2>/dev/null || echo "::warning::sudo rm failed for /tmp/gh-aw/awf-tmp; gh-aw may fail with permission errors"
+    sudo -n rm -rf /tmp/gh-aw/awf-tmp 2>/dev/null || echo "::warning::sudo rm failed for /tmp/gh-aw/awf-tmp; gh-aw may fail with permission errors. Try: sudo rm -rf /tmp/gh-aw/awf-tmp"
   else
-    echo "::warning::sudo unavailable; cannot reclaim /tmp/gh-aw/awf-tmp; gh-aw may fail with permission errors"
+    echo "::warning::sudo unavailable; cannot reclaim /tmp/gh-aw/awf-tmp; gh-aw may fail with permission errors. Remove /tmp/gh-aw/awf-tmp with admin privileges."
   fi
 fi
 mkdir -p /tmp/gh-aw/awf-tmp
@@ -53,7 +53,7 @@ mkdir -p /tmp/gh-aw/awf-tmp
 AWF_CHROOT_PROBE_DIR="$(mktemp -d /tmp/gh-aw/awf-tmp/chroot-preflight-XXXXXX)"
 if ! printf '127.0.0.1 localhost\n' > "${AWF_CHROOT_PROBE_DIR}/hosts"; then
   echo "::error::Pre-flight check failed: cannot write to /tmp/gh-aw/awf-tmp."
-  echo "::error::Check directory ownership and remove stale directories owned by another user."
+  echo "::error::Check directory ownership and remove stale directories (for example: sudo rm -rf /tmp/gh-aw/awf-tmp)."
   exit 1
 fi
 rm -rf "${AWF_CHROOT_PROBE_DIR}"
