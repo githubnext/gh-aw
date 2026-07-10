@@ -128,10 +128,22 @@ it's a real bug (over-count, or runtime measuring excluded commits).
   4000 KB payload this **BREACHES 4096 by ~3×**. Sharpens multi law: worst case ~3×
   (not ~2×) for single-long-line same-file re-append; realistic few-disjoint ~1.01×.
 
+## 07-10 idx84-87 all PASS (few-xlarge ahead + diverged-single)
+
+~4000 KB payload (5×819200 B), ~42 KB headroom under 4096 cap, bundle ~75% of patch,
+all FF clean (is-ancestor=0, --merges empty, parent=1). ahead-single(84) 4053.48/1f,
+push delta 0.40; ahead-multi(85) DISJOINT 3c 4054.04/3f **1.0135×** (header ~54 KB),
+push 0.41; ahead-merge_msg(86) 4053.50/1f, filename leak RECONFIRMED
+0001-Merge-branch-topic-into-feature.patch (parent=1, --merges empty → format-patch
+does NOT treat as real merge); diverged-single(87) two-dot 4053.48/1f vs three-dot
+4053.92/2f (over-count +0.44 KB = main's history.md commit) — two-dot correctly
+EXCLUDES main's divergent commit, feature never merged main. All laws reconfirmed at
+xlarge. **few-xlarge clean+ahead+diverged-single DONE.**
+
 ## Next
 
-Next index: **84** → few-xlarge-ahead/diverged (84-89 finish few-xlarge, ~4054 KB +
-push → PASS predicted). Then **FILES=many (90-179)** & **batch (180-269)** —
+Next index: **88** → diverged-multi(88)+diverged-merge_msg(89) finish few-xlarge
+(~4054 KB + push → PASS predicted). Then **FILES=many (90-179)** & **batch (180-269)** —
 many/batch × xlarge is the first place `max_patch_files` (default ~800?) could bite;
 CONFIRM that handler count before batch (many-xlarge ~4058 KB still <4096). HISTORY=
 deep(500) far ahead. SIZE stays tiny until idx 720 → no real `rejected` expected
