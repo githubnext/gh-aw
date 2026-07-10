@@ -46,6 +46,7 @@ experiments:
 network:
   allowed:
     - defaults
+    - github
     - python
     - node
 
@@ -80,6 +81,7 @@ imports:
   - ../skills/jqschema/SKILL.md
   - shared/discussions-data-fetch.md
   - shared/mcp/agentdb.md
+  - shared/mcp/sentrux.md
   - shared/weekly-issues-data-fetch.md
   - shared/reporting.md
 
@@ -184,6 +186,17 @@ Use the gh-aw `logs` tool to:
 
 Use the `issues-analyst` sub-agent to analyze `/tmp/gh-aw/agent/weekly-issues-data/issues.json` and produce a structured issues summary.
 
+### Step 2.6: Build structural-debt hotspot data when reports overlap
+
+When recent `lint-monster` and `daily-sentrux` reports both point at function complexity debt, refresh the current evidence directly from the checkout so you can publish a concrete refactor hotlist instead of a vague backlog summary.
+
+1. Refresh the authoritative long-function backlog from the current tree with `make golint-custom`, then extract only `largefunc` / `function-length` findings in `pkg/workflow` and `pkg/cli`.
+2. Run `sentrux check . --json` and capture the highest-complexity functions in `pkg/workflow` and `pkg/cli`.
+3. Compute recent churn for the candidate files with `git log --since="90 days ago" --numstat -- pkg/workflow pkg/cli`, excluding generated files such as `*.lock.yml` and `actions-lock.json`.
+4. If the checkout is shallow, unshallow it before churn analysis and fetch the default branch history you need for accurate ranking.
+5. Build a ranked intersection set: prefer functions that appear in both the long-function backlog and the sentrux hotspot list. Rank by sentrux complexity first, then recent churn, then how central the function is to workflow/CLI execution paths.
+6. If fewer than 10 intersection candidates exist, fill the remainder with the strongest sentrux hotspots that are adjacent to the long-function backlog in the same files, and say that explicitly.
+
 ### Step 3: Cross-Reference and Analyze
 
 Connect the dots between different data sources:
@@ -197,6 +210,7 @@ Connect the dots between different data sources:
    - High token usage in workflows that could be optimized
    - Repetitive manual tasks that can be automated
    - Issues or discussions that need attention (labeling, triage, responses)
+   - Overlapping structural-debt signals where one concrete top-10 hotlist would unlock a much larger backlog
 
 ### Step 4: Store Insights in Repo Memory
 
@@ -233,6 +247,13 @@ For each task, **CREATE A GITHUB ISSUE** using the safe-outputs create-issue cap
    - **Suggested Agent**: Which existing agent could handle this, or "New Agent" if needed
    - **Estimated Effort**: Quick (< 1 hour), Medium (1-4 hours), or Fast (< 30 min)
    - **Data Source**: Reference to this deep-report analysis run
+
+When the structural-debt hotspot analysis in Step 2.6 finds a meaningful overlap, one of the 7 issues must be a **single consolidated hotlist** rather than multiple smaller tickets. That issue must:
+
+- Focus on the current `function-length` / `largefunc` backlog in `pkg/workflow` and `pkg/cli`
+- Cite the authoritative long-function count from the current lint run and the matching sentrux quality signal / hotspot evidence
+- Include a `### Prioritized Hotlist (Top 10)` section with a ranked table containing: rank, function, file, complexity evidence, recent churn evidence, and a one-line suggested refactor seam
+- Clearly state when churn is file-level proxy data rather than exact function-level history
 
 **If no actionable tasks are identified** (the project is in excellent shape): skip issue creation and note in the report that the project is operating optimally.
 
