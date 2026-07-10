@@ -559,51 +559,11 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	})
 	yaml.WriteString("          MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')\n")
 	yaml.WriteString("          MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')\n")
-	// Resolve the Docker socket path. GH_AW_DOCKER_SOCK_PATH takes precedence over the
-	// DOCKER_HOST-derived guess, allowing operators on split-daemon / ARC-DinD setups to
-	// point the gateway at the real socket without needing host-side symlink hacks.
-	// When the override is absent, only unix:// and bare absolute paths are treated as socket
-	// paths; all other schemes (tcp://, ssh://, npipe://, etc.) fall back to /var/run/docker.sock.
-	yaml.WriteString("          DOCKER_SOCK_PATH=\"${GH_AW_DOCKER_SOCK_PATH:-}\"\n")
-	yaml.WriteString("          if [ -z \"$DOCKER_SOCK_PATH\" ]; then\n")
-	yaml.WriteString("            case \"${DOCKER_HOST:-}\" in\n")
-	yaml.WriteString("              unix://* )\n")
-	yaml.WriteString("                DOCKER_SOCK_PATH=\"${DOCKER_HOST#unix://}\"\n")
-	yaml.WriteString("                # Strip optional authority component (e.g., unix://hostname/path -> /path)\n")
-	yaml.WriteString("                case \"$DOCKER_SOCK_PATH\" in\n")
-	yaml.WriteString("                  /* ) ;; # already absolute\n")
-	yaml.WriteString("                  * ) DOCKER_SOCK_PATH=\"/${DOCKER_SOCK_PATH#*/}\" ;;\n")
-	yaml.WriteString("                esac ;;\n")
-	yaml.WriteString("              /* ) DOCKER_SOCK_PATH=\"$DOCKER_HOST\" ;;\n")
-	yaml.WriteString("              * ) DOCKER_SOCK_PATH=/var/run/docker.sock ;;\n")
-	yaml.WriteString("            esac\n")
-	yaml.WriteString("          fi\n")
-	// Resolve the Docker socket group. GH_AW_DOCKER_SOCK_GID takes precedence, letting
-	// operators supply the group directly. stat -Lc follows symlinks so a symlinked socket
-	// resolves to the real socket's group without requiring a matching chown -h on the link.
-	// Note: stat -Lc is GNU coreutils (Linux only). macOS self-hosted runners must set
-	// GH_AW_DOCKER_SOCK_GID explicitly to bypass stat.
-	// Fail loudly instead of silently falling back to group 0 (root): passing --group-add 0
-	// to a non-root container gives no Docker-socket access and produces a confusing
-	// downstream "Docker daemon is not accessible" error.
-	yaml.WriteString("          if [ -n \"${GH_AW_DOCKER_SOCK_GID:-}\" ]; then\n")
-	yaml.WriteString("            DOCKER_SOCK_GID=\"$GH_AW_DOCKER_SOCK_GID\"\n")
-	yaml.WriteString("          else\n")
-	yaml.WriteString("            DOCKER_SOCK_GID=$(stat -Lc '%g' \"$DOCKER_SOCK_PATH\" 2>/dev/null || true)\n")
-	yaml.WriteString("            if [ -z \"$DOCKER_SOCK_GID\" ]; then\n")
-	yaml.WriteString("              echo \"::error::Cannot determine Docker socket group for '$DOCKER_SOCK_PATH'. Set GH_AW_DOCKER_SOCK_PATH and GH_AW_DOCKER_SOCK_GID to configure the socket path and group explicitly.\" >&2\n")
-	yaml.WriteString("              [ -e \"$DOCKER_SOCK_PATH\" ] || echo \"::warning::'$DOCKER_SOCK_PATH' does not exist on this runner.\" >&2\n")
-	yaml.WriteString("              exit 1\n")
-	yaml.WriteString("            fi\n")
-	yaml.WriteString("          fi\n")
-	// Validate that DOCKER_SOCK_GID is numeric before passing it to docker --group-add.
-	// Non-numeric values will cause docker run to fail with a confusing error.
-	yaml.WriteString("          case \"$DOCKER_SOCK_GID\" in\n")
-	yaml.WriteString("            ''|*[!0-9]*)\n")
-	yaml.WriteString("              echo \"::error::DOCKER_SOCK_GID='$DOCKER_SOCK_GID' is not a valid numeric group ID. Set GH_AW_DOCKER_SOCK_GID to a numeric value.\" >&2\n")
-	yaml.WriteString("              exit 1\n")
-	yaml.WriteString("              ;;\n")
-	yaml.WriteString("          esac\n")
+	// Resolve Docker socket path and GID using the dedicated shell script.
+	// The script handles override variables (GH_AW_DOCKER_SOCK_PATH, GH_AW_DOCKER_SOCK_GID),
+	// DOCKER_HOST parsing, stat -Lc symlink following, and numeric validation.
+	// See actions/setup/sh/resolve_docker_socket_gid.sh for implementation details.
+	yaml.WriteString("          source \"${RUNNER_TEMP}/gh-aw/actions/resolve_docker_socket_gid.sh\"\n")
 	cmdWithExpandableVars := buildDockerCommandWithExpandableVars(containerCmd)
 	yaml.WriteString("          export MCP_GATEWAY_DOCKER_COMMAND=" + cmdWithExpandableVars + "\n")
 	yaml.WriteString("          \n")
