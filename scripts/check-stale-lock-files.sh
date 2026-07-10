@@ -70,8 +70,14 @@ all_modified=$(git diff --name-only HEAD 2>/dev/null || true)
 
 # Filter to .md files within the workflows directory.
 # Strip a leading "./" from WORKFLOWS_DIR for consistent prefix matching.
+# Exclude subdirectories whose files are compiled into parent workflow lock files
+# rather than producing their own lock file (e.g. shared/, and skill directories).
 workflows_prefix="${WORKFLOWS_DIR#./}"
-modified_mds=$(printf '%s\n' "$all_modified" | grep "^${workflows_prefix}.*\.md$" || true)
+modified_mds=$(printf '%s\n' "$all_modified" \
+    | grep "^${workflows_prefix}.*\.md$" \
+    | grep -v "^${workflows_prefix}/shared/" \
+    | grep -v "^${workflows_prefix}/skills/" \
+    || true)
 
 if [ -z "$modified_mds" ]; then
     echo -e "${GREEN}✓ No modified workflow markdown files detected.${NC}"
