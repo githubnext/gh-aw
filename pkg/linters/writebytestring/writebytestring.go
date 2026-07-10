@@ -254,6 +254,8 @@ func addIOImportEdit(pass *analysis.Pass, pos token.Pos, filesWithImportEdit map
 		if !ok || genDecl.Tok != token.IMPORT || !genDecl.Lparen.IsValid() {
 			continue
 		}
+		// Keep the edit minimal by appending at the end of the grouped import;
+		// ordering/formatting can be normalized by formatters if desired.
 		return markAndReturn(analysis.TextEdit{
 			Pos:     genDecl.Rparen,
 			End:     genDecl.Rparen,
@@ -276,6 +278,8 @@ func addIOImportEdit(pass *analysis.Pass, pos token.Pos, filesWithImportEdit map
 	if importDeclCount == 1 && singleUngroupedImportDecl != nil {
 		specText := astutil.NodeText(pass.Fset, singleUngroupedImportDecl.Specs[0])
 		if specText != "" {
+			// Rebuild as a grouped import while preserving the existing import spec
+			// text and adding "io".
 			return markAndReturn(analysis.TextEdit{
 				Pos:     singleUngroupedImportDecl.Pos(),
 				End:     singleUngroupedImportDecl.End(),
