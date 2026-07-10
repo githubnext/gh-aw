@@ -686,6 +686,171 @@ imports:
 	assert.Empty(t, entries, "no files should be created for an invalid RepoSlug")
 }
 
+// TestFetchFrontmatterImportsRecursive_SiblingPathResolution verifies that when a
+// shared file imports a sibling using a bare filename (no "/" character), the path
+// is resolved relative to the importing file's directory rather than the original
+// workflow base directory. This mirrors the compiler's determineNestedBaseDir logic.
+func TestFetchFrontmatterImportsRecursive_SiblingPathResolution(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Track which remote paths the downloader is asked for, and return minimal content.
+	var downloadedPaths []string
+	mockDownload := func(_ context.Context, _, _, remoteFilePath, _ string) ([]byte, error) {
+		downloadedPaths = append(downloadedPaths, remoteFilePath)
+		return []byte("# stub\n"), nil
+	}
+
+	// shared/control.md imports a sibling via a bare filename (no "/").
+	controlContent := `---
+imports:
+  - control-aux.md
+---
+# Control
+`
+
+	seen := make(map[string]struct{})
+	opts := frontmatterImportsOpts{
+		owner:           "github",
+		repo:            "gh-aw",
+		ref:             "main",
+		originalBaseDir: ".github/workflows",
+		targetDir:       tmpDir,
+		verbose:         false,
+		force:           true, // force=true so the download step is always reached
+		tracker:         &FileTracker{OriginalContent: make(map[string][]byte)},
+		seen:            seen,
+		downloadFn:      mockDownload,
+	}
+
+	// Process shared/control.md; currentBaseDir mirrors its location in the source repo.
+	fetchFrontmatterImportsRecursive(t.Context(), controlContent, ".github/workflows/shared", opts)
+
+	// "control-aux.md" (bare filename, no "/") must resolve relative to the importing
+	// file's directory → ".github/workflows/shared/control-aux.md".
+	require.Len(t, downloadedPaths, 1, "downloader must be called exactly once")
+	assert.Equal(t, ".github/workflows/shared/control-aux.md", downloadedPaths[0],
+		"sibling import must resolve to the shared/ subdir, not the workflow root")
+
+	// The file must be saved at the correct local path inside targetDir.
+	assert.FileExists(t, filepath.Join(tmpDir, "shared", "control-aux.md"),
+		"file must be written to shared/control-aux.md")
+	assert.NoFileExists(t, filepath.Join(tmpDir, "control-aux.md"),
+		"file must not be written at the root level (wrong path resolution)")
+}
+
+// TestFetchFrontmatterImportsRecursive_RecurseIntoExistingFile verifies that when a
+// top-level import already exists on disk (force=false), the function still recurses
+// into that file's imports so that transitive dependencies are fetched. This test
+// also covers sibling-path resolution: the transitive dep uses a bare filename, so it
+// should resolve to the shared file's directory, not the workflow root.
+func TestFetchFrontmatterImportsRecursive_RecurseIntoExistingFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	sharedDir := filepath.Join(tmpDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+
+	// shared/control.md already exists locally; it imports control-aux.md (a sibling).
+	controlContent := `---
+imports:
+  - control-aux.md
+---
+# Control
+`
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "control.md"), []byte(controlContent), 0600))
+
+	// Track which remote paths are downloaded.
+	var downloadedPaths []string
+	mockDownload := func(_ context.Context, _, _, remoteFilePath, _ string) ([]byte, error) {
+		downloadedPaths = append(downloadedPaths, remoteFilePath)
+		return []byte("# stub\n"), nil
+	}
+
+	// Top-level content imports shared/control.md (which already exists on disk).
+	topContent := `---
+engine: copilot
+imports:
+  - shared/control.md
+---
+# Orchestrator
+`
+
+	seen := make(map[string]struct{})
+	opts := frontmatterImportsOpts{
+		owner:           "github",
+		repo:            "gh-aw",
+		ref:             "v1.0.0",
+		originalBaseDir: ".github/workflows",
+		targetDir:       tmpDir,
+		verbose:         false,
+		force:           false, // force=false so pre-existing files trigger the "skip + recurse" path
+		tracker:         &FileTracker{OriginalContent: make(map[string][]byte)},
+		seen:            seen,
+		downloadFn:      mockDownload,
+	}
+
+	fetchFrontmatterImportsRecursive(t.Context(), topContent, ".github/workflows", opts)
+
+	// shared/control.md existed on disk → must NOT be downloaded.
+	assert.NotContains(t, downloadedPaths, ".github/workflows/shared/control.md",
+		"pre-existing shared/control.md must not be re-downloaded")
+
+	// The function must recurse into the existing file and discover its sibling dep.
+	// control-aux.md (bare filename, no "/") must resolve to shared/control-aux.md.
+	require.Len(t, downloadedPaths, 1, "transitive dep control-aux.md must be fetched exactly once")
+	assert.Equal(t, ".github/workflows/shared/control-aux.md", downloadedPaths[0],
+		"transitive dep must be fetched from the shared/ subdir")
+
+	// The transitive dep must be saved at the correct local path.
+	assert.FileExists(t, filepath.Join(tmpDir, "shared", "control-aux.md"),
+		"transitive dep must be written to shared/control-aux.md")
+	assert.NoFileExists(t, filepath.Join(tmpDir, "control-aux.md"),
+		"transitive dep must not be written at the root level")
+}
+
+// TestFetchFrontmatterImportsRecursive_RepoRootSlashPath verifies that when
+// originalBaseDir is empty (workflow lives at the repo root) and an import
+// path contains a "/" (e.g. "shared/helper.md"), the path is used as-is
+// rather than being incorrectly prefixed with currentBaseDir.
+func TestFetchFrontmatterImportsRecursive_RepoRootSlashPath(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	var downloadedPaths []string
+	mockDownload := func(_ context.Context, _, _, remoteFilePath, _ string) ([]byte, error) {
+		downloadedPaths = append(downloadedPaths, remoteFilePath)
+		return []byte("# stub\n"), nil
+	}
+
+	// shared/control.md imports shared/helper.md (a slash path).
+	controlContent := `---
+imports:
+  - shared/helper.md
+---
+# Control
+`
+
+	seen := make(map[string]struct{})
+	opts := frontmatterImportsOpts{
+		owner:           "github",
+		repo:            "gh-aw",
+		ref:             "main",
+		originalBaseDir: "", // empty: workflow lives at the repo root
+		targetDir:       tmpDir,
+		verbose:         false,
+		force:           true,
+		tracker:         &FileTracker{OriginalContent: make(map[string][]byte)},
+		seen:            seen,
+		downloadFn:      mockDownload,
+	}
+
+	// currentBaseDir mirrors shared/control.md's location.
+	fetchFrontmatterImportsRecursive(t.Context(), controlContent, "shared", opts)
+
+	// "shared/helper.md" (slash path, empty originalBaseDir) must be used as-is,
+	// NOT prefixed with currentBaseDir ("shared/shared/helper.md" would be wrong).
+	require.Len(t, downloadedPaths, 1, "downloader must be called exactly once")
+	assert.Equal(t, "shared/helper.md", downloadedPaths[0],
+		"slash import with empty originalBaseDir must be used as-is")
+}
+
 // --- extractDispatchWorkflowNames tests ---
 
 // TestExtractDispatchWorkflowNames_ArrayFormat verifies that workflow names are extracted

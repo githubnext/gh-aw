@@ -53,6 +53,47 @@ Test workflow`
 	}
 }
 
+// TestSecretVerificationFailurePropagatedToConclusionCondition tests that when the token is missing
+// (secret_verification_result == 'failed'), the conclusion job condition includes this failure
+// so the conclusion job runs even when the agent job was skipped due to activation failure.
+func TestSecretVerificationFailurePropagatedToConclusionCondition(t *testing.T) {
+	testDir := testutil.TempDir(t, "test-secret-verification-conclusion-condition-*")
+	workflowFile := filepath.Join(testDir, "test-workflow.md")
+
+	workflow := `---
+on: workflow_dispatch
+engine: copilot
+safe-outputs:
+  add-comment:
+    max: 5
+---
+
+Test workflow`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Check that the conclusion job condition includes secret_verification_result == 'failed'
+	// so the conclusion job runs when the token is missing (causing activation to fail and agent to be skipped).
+	if !strings.Contains(lockStr, "needs.activation.outputs.secret_verification_result == 'failed'") {
+		t.Error("Expected conclusion job condition to include secret_verification_result == 'failed' so it runs when the token is missing")
+	}
+}
+
 // TestSecretVerificationOutputInConclusionJob tests that the conclusion job receives the secret verification result
 func TestSecretVerificationOutputInConclusionJob(t *testing.T) {
 	testDir := testutil.TempDir(t, "test-secret-verification-conclusion-*")
