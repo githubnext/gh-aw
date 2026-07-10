@@ -5,7 +5,7 @@ permissions:
   contents: read
 engine: copilot
 safe-outputs:
-  dispatch_repository:
+  dispatch-repository:
     trigger_ci:
       description: Trigger CI pipeline in a target repository
       workflow: ci.yml

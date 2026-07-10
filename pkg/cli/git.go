@@ -53,9 +53,9 @@ func findGitRootForPath(path string) (string, error) {
 }
 
 // parseGitHubRepoSlugFromURL extracts owner/repo from a GitHub URL
-// Supports HTTPS (https://github.com/owner/repo), SCP-style SSH (git@github.com:owner/repo),
+// Supports HTTPS (https://github.com/owner/repo), SCP-style SSH ([user@]github.com:owner/repo),
 // and SSH URL scheme (ssh://git@github.com/owner/repo) formats.
-// Also supports GitHub Enterprise URLs.
+// Also supports GitHub Enterprise URLs and non-standard SSH usernames (e.g. example@ghe.host:owner/repo).
 func parseGitHubRepoSlugFromURL(url string) string {
 	gitLog.Printf("Parsing GitHub repo slug from URL: %s", url)
 
@@ -72,12 +72,22 @@ func parseGitHubRepoSlugFromURL(url string) string {
 		return slug
 	}
 
-	// Handle SCP-style SSH URLs: git@github.com:owner/repo or git@enterprise.github.com:owner/repo
-	sshPrefix := "git@" + githubHostWithoutScheme + ":"
-	if after, ok := strings.CutPrefix(url, sshPrefix); ok {
-		slug := after
-		gitLog.Printf("Extracted slug from SSH URL: %s", slug)
-		return slug
+	// Handle SCP-style SSH URLs with any username: git@github.com:owner/repo,
+	// or non-standard usernames like example@example.ghe.com:owner/repo (GHE),
+	// or username-less like github.com:owner/repo.
+	// Match: [user@]<host>:<owner>/<repo>
+	scpHostColon := githubHostWithoutScheme + ":"
+	// Try with username (user@host:path)
+	if _, afterAt, hasAt := strings.Cut(url, "@"); hasAt {
+		if after, ok := strings.CutPrefix(afterAt, scpHostColon); ok {
+			gitLog.Printf("Extracted slug from SCP-style SSH URL with username: %s", after)
+			return after
+		}
+	}
+	// Try without username (host:path)
+	if after, ok := strings.CutPrefix(url, scpHostColon); ok {
+		gitLog.Printf("Extracted slug from SCP-style SSH URL without username: %s", after)
+		return after
 	}
 
 	// Handle SSH URL scheme: ssh://git@github.com/owner/repo or ssh://github.com/owner/repo
@@ -124,13 +134,6 @@ func extractHostFromRemoteURL(remoteURL string) string {
 		}
 	}
 
-	// SSH scp-like format: git@host:path
-	if after, ok := strings.CutPrefix(remoteURL, "git@"); ok {
-		if host, _, found := strings.Cut(after, ":"); found {
-			return host
-		}
-	}
-
 	// SSH URL format: ssh://git@host/path or ssh://host/path
 	if after, ok := strings.CutPrefix(remoteURL, "ssh://"); ok {
 		// Strip optional user info (e.g. "git@")
@@ -141,6 +144,22 @@ func extractHostFromRemoteURL(remoteURL string) string {
 			return host
 		}
 		return after
+	}
+
+	// SSH scp-like format: [user@]host:path — any username, not just git@
+	// Try with username first (user@host:path)
+	if _, afterAt, hasAt := strings.Cut(remoteURL, "@"); hasAt {
+		if host, _, found := strings.Cut(afterAt, ":"); found {
+			return host
+		}
+	}
+	// Try without username (host:path)
+	if host, _, found := strings.Cut(remoteURL, ":"); found {
+		// Make sure this looks like an scp-style URL (has no slashes before the colon)
+		// to avoid matching "ssh://host:port/path" or "https://host:port/path"
+		if !strings.Contains(host, "/") {
+			return host
+		}
 	}
 
 	return "github.com"
