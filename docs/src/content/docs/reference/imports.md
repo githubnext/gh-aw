@@ -84,11 +84,9 @@ Paths are resolved within the `.github` folder. You can specify paths with or wi
 
 ## Shared Workflow Components
 
-Files without an `on` field are shared workflow components — validated but not compiled into GitHub Actions, only imported by other workflows. Shared components may also define import-safe `on` keys (`skip-if-match`, `skip-if-no-match`, `skip-roles`, `skip-bots`, `github-token`, `github-app`) for reuse through imports.
+Files without an `on` field are shared workflow components: they are validated, can be imported by other workflows, and are not compiled into standalone GitHub Actions. Shared components may also define import-safe `on` keys (`skip-if-match`, `skip-if-no-match`, `skip-roles`, `skip-bots`, `github-token`, `github-app`) for reuse through imports.
 
-### Common bundles
-
-Use bundled shared components when you regularly import the same pair together:
+When you regularly import the same pair together, bundle them into one shared file:
 
 ```aw wrap
 ---
@@ -191,11 +189,11 @@ The compiler validates `required` fields, `choice` options, array element types,
 
 ## Path Resolution
 
-Import paths are resolved using one of three modes depending on their format.
+Imports resolve in three ways depending on path format.
 
 ### Relative paths (default)
 
-Paths that do not start with `.github/`, `/`, or an `owner/repo/` prefix are resolved relative to the importing workflow's directory. When compiling with the default `--dir` value, that directory is `.github/workflows/`.
+Paths that do not start with `.github/`, `/`, or an `owner/repo/` prefix resolve relative to the importing workflow's directory. With the default `--dir`, that directory is `.github/workflows/`.
 
 ```aw wrap
 ---
@@ -211,7 +209,7 @@ imports:
 
 ### Repo-root-relative paths
 
-Paths starting with `.github/` or `/` are resolved from the repository root. Absolute paths (`/`) must point inside `.github/` or `.agents/`; any other prefix is rejected at compile time for security.
+Paths starting with `.github/` or `/` resolve from the repository root. Absolute paths (`/`) must point inside `.github/` or `.agents/`; any other prefix is rejected at compile time.
 
 ```aw wrap
 ---
@@ -225,11 +223,11 @@ imports:
 ---
 ```
 
-This form is required when workflows in different directories need to import the same shared file using a stable path, and is the supported way to import files from the `.github/agents/` directory.
+Use this form when workflows in different directories need the same stable import path, and for files under `.github/agents/`.
 
 ### Cross-repo imports
 
-Paths matching `owner/repo/path@ref` are fetched from GitHub at compile time. The `@ref` suffix pins to a semantic tag (`@v1.0.0`), branch (`@main`), or commit SHA. Remote imports are cached in `.github/aw/imports/` by commit SHA, enabling offline compilation; local imports are never cached. See [Reusing Workflows](/gh-aw/guides/reusing-workflows/) for installation and update flows.
+Paths matching `owner/repo/path@ref` are fetched from GitHub at compile time. The `@ref` suffix can be a semantic tag (`@v1.0.0`), branch (`@main`), or commit SHA. Remote imports are cached in `.github/aw/imports/` by commit SHA to support offline compilation; local imports are never cached. See [Reusing Workflows](/gh-aw/guides/reusing-workflows/) for installation and update flows.
 
 ```aw wrap
 ---
@@ -246,14 +244,14 @@ imports:
 
 ### Section references and optional imports
 
-Append `#SectionName` to any path to import a single section from a markdown file:
+Append `#SectionName` to import one section from a markdown file:
 
 ```
 imports:
   - shared/tools.md#WebSearch
 ```
 
-Use `?` after `import` to mark an import as optional — missing files are skipped silently instead of failing compilation. This applies to both frontmatter imports and body-level directives:
+Append `?` to make an import optional so missing files are skipped instead of failing compilation. This works in both frontmatter and body-level directives:
 
 ```yaml
 # Frontmatter — optional
@@ -399,7 +397,7 @@ Consumers import it with `imports: [shared/mcp/tavily.md]`.
 
 ### Importing MCP Gateway Settings
 
-Shared workflow files can export `engine.mcp.tool-timeout` and `engine.mcp.session-timeout` without specifying an engine identifier — the engine itself is always inherited from the importing workflow.
+Shared workflow files can export `engine.mcp.tool-timeout` and `engine.mcp.session-timeout` without specifying an engine identifier; the importing workflow always provides the engine.
 
 ```aw title="shared/mcp/slow-backend.md" wrap
 ---
@@ -411,11 +409,11 @@ engine:
 ---
 ```
 
-The importing workflow's own `engine.mcp` settings take precedence. Among imports, the first file that declares a timeout wins for that setting.
+The importing workflow's own `engine.mcp` settings take precedence. Among imports, the first file that declares a value for a timeout wins.
 
 ### Importing Top-level `jobs:`
 
-Top-level `jobs:` defined in a shared workflow are merged into the importing workflow's compiled lock file. The job execution order is determined by `needs` entries — a shared job can run before or after other jobs in the final workflow:
+Top-level `jobs:` from a shared workflow are merged into the importing workflow's compiled lock file. Execution order is still determined by `needs`, so a shared job can run before or after other jobs in the final workflow:
 
 ```aw title="shared/build.md" wrap
 ---
@@ -465,11 +463,11 @@ permissions:
 Review the build output in /tmp/build-output and suggest improvements.
 ```
 
-In the compiled lock file the `build` job appears alongside `activation` and `agent` jobs, ordered according to each job's `needs` declarations.
+In the compiled lock file, the `build` job appears alongside `activation` and `agent`, ordered by each job's `needs` declarations.
 
 ### Importing Jobs via `safe-outputs.jobs`
 
-Jobs defined under `safe-outputs:` can be shared across workflows. These jobs become callable MCP tools that the AI agent can invoke during execution:
+Jobs defined under `safe-outputs:` can be shared across workflows and become callable MCP tools during execution:
 
 ```aw title="shared/notify.md" wrap
 ---
@@ -499,9 +497,9 @@ Consumers import it with `imports: [shared/notify.md]` and instruct the agent to
 
 ## Self-Contained Lock Files (`inlined-imports: true`)
 
-Setting `inlined-imports: true` embeds all imported content directly into the compiled `.lock.yml` at compile time. The resulting lock file is **self-contained** — it requires no file-system access or cross-repository checkout at runtime.
+Setting `inlined-imports: true` embeds all imported content directly into the compiled `.lock.yml` at compile time, producing a **self-contained** lock file that does not need file-system access or cross-repository checkout at runtime.
 
-Enable it whenever runtime import resolution would fail:
+Enable it when runtime import resolution would otherwise fail:
 
 - **Cross-organization `workflow_call`** — a trigger in Org A calling a workflow in Org B cannot check out Org B's `.github` folder with the caller's `GITHUB_TOKEN`, producing `fatal: repository '...' not found`.
 - **Repository rulesets** — workflows used as a [required status check](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets) run in a restricted context that cannot access other files in the repo, producing `ERR_SYSTEM: Runtime import file not found`.

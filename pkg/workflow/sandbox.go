@@ -45,12 +45,22 @@ type SandboxConfig struct {
 	Config *SandboxRuntimeConfig `yaml:"config,omitempty"` // Custom SRT config (optional)
 }
 
+// AgentRuntime represents the container runtime to use for the agent container.
+type AgentRuntime string
+
+const (
+	// AgentRuntimeGVisor runs the agent container under gVisor's runsc runtime for
+	// additional kernel-level isolation. Requires root access for installation.
+	AgentRuntimeGVisor AgentRuntime = "gvisor"
+)
+
 // AgentSandboxConfig represents the agent sandbox configuration
 type AgentSandboxConfig struct {
 	ID                    string                                `yaml:"id,omitempty"`             // Agent ID: "awf" or "srt" (replaces Type in new object format)
 	Type                  SandboxType                           `yaml:"type,omitempty"`           // Sandbox type: "awf" or "srt" (legacy, use ID instead)
 	Version               string                                `yaml:"version,omitempty"`        // AWF version override used to install and run the matching firewall version
 	Platform              string                                `yaml:"platform,omitempty"`       // AWF platform.type override (github.com, ghes, ghec, ghec-self-hosted)
+	Runtime               AgentRuntime                          `yaml:"runtime,omitempty"`        // Container runtime for the agent container (e.g., "gvisor")
 	NetworkIsolation      bool                                  `yaml:"sudo,omitempty"`           // Internal: true = isolation mode (AWF --network-isolation). Frontmatter sudo: false (or omitted) maps to NetworkIsolation=true; sudo: true maps to NetworkIsolation=false.
 	SudoExplicitlyEnabled bool                                  `yaml:"-"`                        // True when sudo: true was explicitly set in frontmatter. Used to emit an error (strict) or warning (non-strict) at compile time.
 	Disabled              bool                                  `yaml:"-"`                        // True when agent is explicitly set to false (disables firewall). This is a runtime flag, not serialized to YAML.

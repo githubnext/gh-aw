@@ -266,6 +266,14 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
+	// Extract runtime (container runtime for the agent container)
+	if runtimeVal, hasRuntime := agentObj["runtime"]; hasRuntime {
+		if runtimeStr, ok := runtimeVal.(string); ok {
+			agentConfig.Runtime = AgentRuntime(runtimeStr)
+			frontmatterExtractionSecurityLog.Printf("Extracted sandbox.agent.runtime: %s", runtimeStr)
+		}
+	}
+
 	// Extract model-fallback (AWF API proxy model fallback enable/disable flag)
 	if mfVal, hasMF := agentObj["model-fallback"]; hasMF {
 		switch v := mfVal.(type) {

@@ -106,6 +106,25 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		}
 	}
 
+	// Validate gVisor runtime compatibility
+	if agentConfig != nil && agentConfig.Runtime == AgentRuntimeGVisor {
+		// gVisor is incompatible with ARC/DinD topology: the runner has no access to the
+		// DinD sidecar's daemon config or systemd, so runsc install + systemctl restart
+		// cannot succeed.
+		if isArcDindTopology(workflowData) {
+			return NewValidationError(
+				"sandbox.agent.runtime",
+				string(AgentRuntimeGVisor),
+				"gvisor is incompatible with runner.topology: arc-dind",
+				"gVisor requires registering the runsc runtime with Docker via systemctl, which "+
+					"is not possible on ARC DinD runners where the Docker daemon runs in a sidecar. "+
+					"Remove sandbox.agent.runtime: gvisor or change runner.topology.",
+			)
+		}
+
+		sandboxValidationLog.Print("gVisor runtime configured -- topology check passed")
+	}
+
 	// Validate config structure if provided (deprecated - was only for SRT)
 	if sandboxConfig.Config != nil {
 		// Config is no longer used - SRT removed

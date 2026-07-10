@@ -110,6 +110,21 @@ const AWFChrootConfigMinVersion Version = "v0.27.1"
 // the agent container from starting in split-filesystem ARC/DinD environments.
 const AWFArcDindMinVersion Version = "v0.27.20"
 
+// AWFContainerRuntimeMinVersion is the minimum AWF version that supports the
+// containerRuntime field in the container config (gh-aw-firewall#6093).
+// TODO: update this constant to the actual release version once gh-aw-firewall#6093 lands.
+// Until then, no released AWF binary accepts containerRuntime, so the compiler must not
+// emit the field for workflows pinned to any currently-available version.
+const AWFContainerRuntimeMinVersion Version = "v0.28.0"
+
+// DefaultGVisorVersion is the pinned gVisor release used by the compiler-generated
+// install step. A specific dated release name is used instead of "latest" to ensure
+// reproducible, verifiable installs. Each release provides SHA-512 files for
+// integrity verification before the binaries are installed with root privileges.
+// Bump this constant after reviewing the release notes at
+// https://github.com/google/gvisor/releases.
+const DefaultGVisorVersion = "20250623.0"
+
 // CopilotNoAskUserMinVersion is the minimum Copilot CLI version that supports the --no-ask-user
 // flag, which enables fully autonomous agentic runs by suppressing interactive prompts.
 // Workflows using an older Copilot CLI version must not emit --no-ask-user or the run will fail.

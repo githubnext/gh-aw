@@ -3461,6 +3461,12 @@
                       "description": "Enable or disable model fallback for unresolved model selections. Set to false for BYOK Azure OpenAI deployments to prevent deployment-name rewriting. Supports literal boolean or GitHub Actions expression.",
                       "examples": [false, "${{ inputs.model-fallback }}"]
                     },
+                    "runtime": {
+                      "type": "string",
+                      "description": "Container runtime for the agent container. Use 'gvisor' to run the agent under gVisor's runsc runtime for additional kernel-level isolation. Requires sandbox.agent.sudo: true (root access is needed to install and register runsc). Incompatible with runner.topology: arc-dind.",
+                      "enum": ["gvisor"],
+                      "examples": ["gvisor"]
+                    },
                     "config": {
                       "type": "object",
                       "description": "Custom sandbox runtime configuration. Note: Network configuration is controlled by the top-level 'network' field, not here.",
