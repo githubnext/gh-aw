@@ -209,12 +209,13 @@ security-scan: security-gosec security-govulncheck
 security-gosec:
 	@echo "Running gosec security scanner..."
 	@command -v gosec >/dev/null || go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1
-	@# Exclusions configured in .golangci.yml (linters-settings.gosec.exclude)
-	@# Keep this list in sync with .golangci.yml for consistency
+	@# Keep only globally noisy rules here.
+	@# G602 (slice bounds check) is excluded globally due persistent false positives.
+	@# Use inline '#nosec Gxxx -- justification' suppressions for specific findings.
 	@GOPATH=$$(go env GOPATH); \
 	PATH="$$GOPATH/bin:$$PATH" gosec -fmt=json -out=gosec-report.json -stdout -exclude-generated -track-suppressions \
 		-nosec-require-rules -nosec-require-justification \
-		-exclude=G101,G115,G204,G602,G301,G302,G304,G306 \
+		-exclude=G602 \
 		./...
 	@echo "✓ Gosec scan complete (results in gosec-report.json)"
 

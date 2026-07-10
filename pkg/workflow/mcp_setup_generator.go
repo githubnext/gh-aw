@@ -559,15 +559,11 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	})
 	yaml.WriteString("          MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')\n")
 	yaml.WriteString("          MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')\n")
-	// Resolve the Docker socket path from DOCKER_HOST (supports ARC/dind custom socket paths).
-	// Only unix:// and bare absolute paths are treated as socket paths; all other schemes
-	// (tcp://, ssh://, npipe://, etc.) fall back to /var/run/docker.sock.
-	yaml.WriteString("          case \"${DOCKER_HOST:-}\" in\n")
-	yaml.WriteString("            unix://* ) DOCKER_SOCK_PATH=\"${DOCKER_HOST#unix://}\" ;;\n")
-	yaml.WriteString("            /* ) DOCKER_SOCK_PATH=\"$DOCKER_HOST\" ;;\n")
-	yaml.WriteString("            * ) DOCKER_SOCK_PATH=/var/run/docker.sock ;;\n")
-	yaml.WriteString("          esac\n")
-	yaml.WriteString("          DOCKER_SOCK_GID=$(stat -c '%g' \"$DOCKER_SOCK_PATH\" 2>/dev/null || echo '0')\n")
+	// Resolve Docker socket path and GID using the dedicated shell script.
+	// The script handles override variables (GH_AW_DOCKER_SOCK_PATH, GH_AW_DOCKER_SOCK_GID),
+	// DOCKER_HOST parsing, stat -Lc symlink following, and numeric validation.
+	// See actions/setup/sh/resolve_docker_socket_gid.sh for implementation details.
+	yaml.WriteString("          source \"${RUNNER_TEMP}/gh-aw/actions/resolve_docker_socket_gid.sh\"\n")
 	cmdWithExpandableVars := buildDockerCommandWithExpandableVars(containerCmd)
 	yaml.WriteString("          export MCP_GATEWAY_DOCKER_COMMAND=" + cmdWithExpandableVars + "\n")
 	yaml.WriteString("          \n")

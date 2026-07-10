@@ -194,6 +194,7 @@ func (c *Compiler) addActivationEngineOutputs(ctx *activationJobBuildContext, en
 	ctx.outputs["engine_id"] = "${{ steps.generate_aw_info.outputs.engine_id }}"
 	ctx.outputs["model"] = "${{ steps.generate_aw_info.outputs.model }}"
 	ctx.outputs["lockdown_check_failed"] = "${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}"
+	ctx.outputs["oauth_token_check_failed"] = "${{ steps.check-oauth-tokens.outputs.oauth_token_check_failed == 'true' }}"
 	if !ctx.data.StaleCheckDisabled {
 		ctx.outputs["stale_lock_file_failed"] = "${{ steps.check-lock-file.outputs.stale_lock_file_failed == 'true' }}"
 	}

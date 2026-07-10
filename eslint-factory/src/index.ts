@@ -11,6 +11,7 @@ import { requireFsSyncTryCatchRule } from "./rules/require-fs-sync-try-catch";
 import { requireJsonParseTryCatchRule } from "./rules/require-json-parse-try-catch";
 import { requireErrorCauseInRethrowRule } from "./rules/require-error-cause-in-rethrow";
 import { requireParseIntRadixRule } from "./rules/require-parseInt-radix";
+import { requireReturnAfterCoreSetFailedRule } from "./rules/require-return-after-core-setfailed";
 
 const plugin = {
   meta: {
@@ -31,6 +32,7 @@ const plugin = {
     "require-fs-sync-try-catch": requireFsSyncTryCatchRule,
     "require-json-parse-try-catch": requireJsonParseTryCatchRule,
     "require-parseInt-radix": requireParseIntRadixRule,
+    "require-return-after-core-setfailed": requireReturnAfterCoreSetFailedRule,
   },
 };
 

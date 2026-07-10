@@ -31,6 +31,8 @@ tools:
     toolsets: [default]
 steps:
   - name: Install gh-aw extension
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       gh extension remove gh-aw || true
       gh extension install .
