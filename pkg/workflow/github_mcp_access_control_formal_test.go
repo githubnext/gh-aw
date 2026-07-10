@@ -134,7 +134,7 @@ func TestFormal_UnknownIntegrityLevelDenied(t *testing.T) {
 
 	// An unrecognized MinIntegrity configuration is fail-safe: it denies all requests.
 	deniedBadCfg := formalEvaluateAccess(
-		formalToolConfig{Repos: []string{"*/*"}, MinIntegrity: "approvd"},
+		formalToolConfig{Repos: []string{"*/*"}, MinIntegrity: "invalid"},
 		formalAccessRequest{Repository: "github/gh-aw", ContentIntegrity: "merged"},
 	)
 	assert.False(t, deniedBadCfg.allow)
@@ -314,9 +314,12 @@ func formalEvaluateAccess(cfg formalToolConfig, req formalAccessRequest) formalD
 	if cfg.MinIntegrity != "" {
 		cfgRank := formalIntegrityRank(cfg.MinIntegrity)
 		reqRank := formalIntegrityRank(req.ContentIntegrity)
-		// An unrecognized MinIntegrity value is treated as fail-safe (deny all).
-		// An unrecognized ContentIntegrity value returns -1 (below any known threshold).
-		if cfgRank < 0 || reqRank < cfgRank {
+		// Fail-safe: an unrecognized MinIntegrity configuration value is treated as deny-all.
+		if cfgRank < 0 {
+			return formalDecision{errorCode: formalErrorIntegrityTooLow}
+		}
+		// Deny if content integrity is below (or unrecognized — rank -1) the configured minimum.
+		if reqRank < cfgRank {
 			return formalDecision{errorCode: formalErrorIntegrityTooLow}
 		}
 	}

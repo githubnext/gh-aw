@@ -56,7 +56,8 @@ The denial code is selected by the first failing guard in the evaluation order a
 | `P4_PrivateRepoAllow` | `TestFormal_PrivateRepoControl` | `private-repos: false` blocks private repos; public repos unaffected |
 | `P5_NotBlocked` | `TestFormal_BlockedUserDeny` | Blocked user denied within integrity management |
 | `P6_IntegrityMet` | `TestFormal_IntegrityLevelOrder` | Integrity ordinal order enforced; content below threshold denied |
-| `P6_IntegrityMet` (unknown level) | `TestFormal_UnknownIntegrityLevelDenied` | Unknown `ContentIntegrity` denies; unrecognized `MinIntegrity` is fail-safe (deny all) |
+| `P6_IntegrityMet` (unknown content) | `TestFormal_UnknownIntegrityLevelDenied` | Unknown `ContentIntegrity` value (rank -1) is below any valid minimum threshold → denied |
+| `P6_IntegrityMet` (invalid config) | `TestFormal_UnknownIntegrityLevelDenied` | Unrecognized `MinIntegrity` config is fail-safe: denies all requests |
 | `INV1_CombinedAllow` | `TestFormal_CombinedFiltersAllAllow` | All conditions must be satisfied for allow |
 | `INV2_ErrorCode` | `TestFormal_ErrorCodeFirstFailingGuard` | Deny error code matches first failing guard; table covers each guard as first failure |
 | `SAFETY_BlockedUserAlwaysDenied` | `TestFormal_BlockedUserSafetyProperty` | Safety: blocked user always produces `-32005` when all earlier guards pass |
