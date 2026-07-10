@@ -21,12 +21,8 @@ function isCoreSetFailedStatement(node: TSESTree.Statement): node is TSESTree.Ex
  * current block: `return`, `throw`, `break`, `continue`, or `process.exit(...)`.
  */
 function isControlTransfer(node: TSESTree.Statement): boolean {
-  if (
-    node.type === AST_NODE_TYPES.ReturnStatement ||
-    node.type === AST_NODE_TYPES.ThrowStatement ||
-    node.type === AST_NODE_TYPES.BreakStatement ||
-    node.type === AST_NODE_TYPES.ContinueStatement
-  ) {
+  const matchesControlTransferType = node.type === AST_NODE_TYPES.ReturnStatement || node.type === AST_NODE_TYPES.ThrowStatement || node.type === AST_NODE_TYPES.BreakStatement || node.type === AST_NODE_TYPES.ContinueStatement;
+  if (matchesControlTransferType) {
     return true;
   }
   // process.exit(...)
@@ -50,15 +46,25 @@ function isControlTransfer(node: TSESTree.Statement): boolean {
  * Checks a list of sequential statements for `core.setFailed(...)` calls that
  * are not immediately followed by a control-transfer statement.
  */
-function checkStatementList(stmts: TSESTree.Statement[], report: (node: TSESTree.Node) => void): void {
+function checkStatementList(stmts: TSESTree.Statement[], report: (node: TSESTree.Statement, next: TSESTree.Statement) => void): void {
   for (let i = 0; i < stmts.length; i++) {
     const stmt = stmts[i];
     if (!isCoreSetFailedStatement(stmt)) continue;
     const next = stmts[i + 1];
     if (next && !isControlTransfer(next)) {
-      report(stmt);
+      report(stmt, next);
     }
   }
+}
+
+function isExecutableStatement(node: TSESTree.ProgramStatement): node is TSESTree.Statement {
+  return (
+    node.type !== AST_NODE_TYPES.ImportDeclaration &&
+    node.type !== AST_NODE_TYPES.ExportAllDeclaration &&
+    node.type !== AST_NODE_TYPES.ExportDefaultDeclaration &&
+    node.type !== AST_NODE_TYPES.ExportNamedDeclaration &&
+    node.type !== AST_NODE_TYPES.TSModuleDeclaration
+  );
 }
 
 export const requireReturnAfterCoreSetFailedRule = createRule({
@@ -74,24 +80,46 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
     schema: [],
     messages: {
       missingReturnAfterSetFailed:
-        "core.setFailed() does not stop execution — add a 'return' (or 'throw') immediately after to prevent the action from continuing in a failed state.",
+        "core.setFailed() does not stop execution — add a control-transfer statement (for example: return, throw, break, continue, or process.exit(...)) immediately after to prevent the action from continuing in a failed state.",
       addReturn: "Add 'return;' after core.setFailed() to stop execution.",
     },
   },
   defaultOptions: [],
   create(context) {
-    function report(node: TSESTree.Node): void {
+    const sourceCode = context.sourceCode;
+
+    function isInsideFunctionLike(node: TSESTree.Node): boolean {
+      const ancestors = sourceCode.getAncestors(node);
+      for (let i = ancestors.length - 1; i >= 0; i--) {
+        const ancestor = ancestors[i];
+        const isFunctionLike = ancestor.type === AST_NODE_TYPES.FunctionDeclaration || ancestor.type === AST_NODE_TYPES.FunctionExpression || ancestor.type === AST_NODE_TYPES.ArrowFunctionExpression;
+        if (isFunctionLike) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function report(node: TSESTree.Statement, next: TSESTree.Statement): void {
       context.report({
         node,
         messageId: "missingReturnAfterSetFailed",
-        suggest: [
-          {
-            messageId: "addReturn",
-            fix(fixer) {
-              return fixer.insertTextAfter(node, "\n      return;");
-            },
-          },
-        ],
+        suggest: isInsideFunctionLike(node)
+          ? [
+              {
+                messageId: "addReturn",
+                fix(fixer) {
+                  const isOnSameLine = next.loc.start.line === node.loc.end.line;
+                  if (isOnSameLine) {
+                    return fixer.insertTextBefore(next, "return; ");
+                  }
+                  const line = sourceCode.lines[next.loc.start.line - 1] ?? "";
+                  const indent = /^(\s*)/.exec(line)?.[1] ?? "";
+                  return fixer.insertTextBefore(next, `return;\n${indent}`);
+                },
+              },
+            ]
+          : undefined,
       });
     }
 
@@ -104,6 +132,9 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
       // The main case is BlockStatement above.
       SwitchCase(node: TSESTree.SwitchCase) {
         checkStatementList(node.consequent, report);
+      },
+      Program(node: TSESTree.Program) {
+        checkStatementList(node.body.filter(isExecutableStatement), report);
       },
     };
   },
