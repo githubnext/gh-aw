@@ -300,6 +300,10 @@
   color: var(--aw-text-muted);
 }
 
+:root[data-theme='light'] .hero .hero-preview-callout {
+  color: #6a4500;
+}
+
 /* Light Theme Experimental Badge */
 :root[data-theme='light'] .experimental-badge {
   background: rgba(107, 70, 193, 0.12) !important;
