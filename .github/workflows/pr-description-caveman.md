@@ -3,13 +3,18 @@ private: true
 name: PR Description Updater
 description: Rewrites a merged PR description with a structured, considered summary optimised for downstream agentic analysis. Processes the full diff in chunks using sub-agents. Ignores lock files and auto-generated code.
 on:
-  pull_request:
+  pull_request_target:
     types: [closed]
 if: github.event.pull_request.merged == true && !startsWith(github.event.pull_request.head.ref, 'signed/jsweep/')
 permissions:
   contents: read
   pull-requests: read
   issues: read
+
+checkout:
+  repository: ${{ github.repository }}
+  ref: ${{ github.event.pull_request.base.ref }}
+  fetch-depth: 0
 
 sandbox:
   agent:
@@ -35,7 +40,7 @@ steps:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BASE_SHA: ${{ github.event.pull_request.base.sha }}
-      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      TARGET_SHA: ${{ github.event.pull_request.merge_commit_sha || github.event.pull_request.head.sha }}
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent/chunks
@@ -48,16 +53,16 @@ steps:
       )
 
       # Diff stat (always small — safe to capture in full)
-      git diff "$BASE_SHA"..."$HEAD_SHA" -- "${EXCLUSIONS[@]}" --stat \
+      git diff "$BASE_SHA"..."$TARGET_SHA" -- "${EXCLUSIONS[@]}" --stat \
         > /tmp/gh-aw/agent/diff-stat.txt 2>&1 || true
 
       # Commit log
-      git log --oneline "$BASE_SHA".."$HEAD_SHA" \
+      git log --oneline "$BASE_SHA".."$TARGET_SHA" \
         > /tmp/gh-aw/agent/commits.txt 2>&1 || true
 
       # Full diff split into 400-line chunks
       # split -l produces chunk_000, chunk_001, ...
-      git diff "$BASE_SHA"..."$HEAD_SHA" -- "${EXCLUSIONS[@]}" \
+      git diff "$BASE_SHA"..."$TARGET_SHA" -- "${EXCLUSIONS[@]}" \
         | split -l 400 - /tmp/gh-aw/agent/chunks/chunk_ 2>/dev/null || true
 
       # Record chunk manifest and count so the agent can process deterministically
