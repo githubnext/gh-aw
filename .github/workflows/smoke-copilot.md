@@ -84,6 +84,7 @@ models:
             cache_write: "3.75e-06"
 safe-outputs:
     allowed-domains: [default-safe-outputs]
+    content-redaction: "Do not disclose security vulnerabilities, internal credentials, or confidential information in public-facing output."
     upload-artifact:
       max-uploads: 1
       retention-days: 1
