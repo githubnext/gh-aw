@@ -184,6 +184,10 @@ type frontmatterImportsOpts struct {
 	force           bool
 	tracker         *FileTracker
 	seen            map[string]struct{}
+	// downloadFn is the function used to fetch file content from the source repository.
+	// When nil, parser.DownloadFileFromGitHub is used. Tests may inject a stub to avoid
+	// network calls and observe which paths were requested.
+	downloadFn func(ctx context.Context, owner, repo, path, ref string) ([]byte, error)
 }
 
 // fetchFrontmatterImportsRecursive is the internal worker for fetchAndSaveRemoteFrontmatterImports.
@@ -275,17 +279,25 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 				remoteFilePath = filePath
 			}
 		} else {
-			// Non-explicit relative path (e.g. "shared/foo.md"): resolve relative to the
-			// original base directory (the top-level workflow's directory). Workflows in
-			// this repository write shared import paths relative to the workflow root
-			// (e.g. ".github/workflows"), not relative to the importing file's own
-			// directory. Resolving against originalBaseDir instead of currentBaseDir
-			// ensures that a file at ".github/workflows/shared/base.md" can import
-			// "shared/helper.md" and have it resolve to ".github/workflows/shared/helper.md"
-			// rather than the incorrect ".github/workflows/shared/shared/helper.md".
-			baseDir := opts.originalBaseDir
-			if baseDir == "" {
+			// Non-explicit relative path: resolution strategy mirrors the compiler's
+			// determineNestedBaseDir logic — it depends on whether the path contains a
+			// "/" separator.
+			//
+			// Paths WITHOUT "/" (e.g. "helper.md"): the importing file treats them as
+			// siblings in its own directory, so resolve relative to currentBaseDir.
+			// Example: "control-precompute.md" from ".github/workflows/shared/control.md"
+			//          → ".github/workflows/shared/control-precompute.md"
+			//
+			// Paths WITH "/" (e.g. "shared/foo.md"): workflows in this repository write
+			// these paths relative to the workflow root (.github/workflows), not relative to
+			// the importing file's directory, so resolve against originalBaseDir.
+			// Example: "shared/reporting.md" from ".github/workflows/shared/daily-audit-base.md"
+			//          → ".github/workflows/shared/reporting.md"
+			var baseDir string
+			if !strings.Contains(filePath, "/") {
 				baseDir = currentBaseDir
+			} else {
+				baseDir = opts.originalBaseDir
 			}
 			if baseDir != "" {
 				remoteFilePath = path.Join(baseDir, filePath)
@@ -349,7 +361,9 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 		}
 
 		// Check existence before downloading: if the file already exists and force=false,
-		// skip the download entirely (no unnecessary network round-trip).
+		// skip the download entirely (no unnecessary network round-trip). However, still
+		// recurse into the existing file's imports so that any transitive dependencies
+		// it references are fetched even when the parent file was already present.
 		fileExists := false
 		if fileutil.FileExists(targetPath) {
 			fileExists = true
@@ -357,12 +371,25 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 				if opts.verbose {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Import file already exists, skipping: "+targetPath))
 				}
+				// Read the existing file so we can recurse into its own imports.
+				// If the read fails, log it and skip — the compiler will report
+				// any missing transitive dependencies.
+				if existingContent, readErr := os.ReadFile(targetPath); readErr == nil {
+					importedBaseDir := path.Dir(remoteFilePath)
+					fetchFrontmatterImportsRecursive(ctx, string(existingContent), importedBaseDir, opts)
+				} else {
+					remoteWorkflowLog.Printf("Failed to read existing import %s for recursion: %v", targetPath, readErr)
+				}
 				continue
 			}
 		}
 
 		// Download from the source repository
-		importContent, err := parser.DownloadFileFromGitHub(ctx, opts.owner, opts.repo, remoteFilePath, opts.ref)
+		downloadFn := opts.downloadFn
+		if downloadFn == nil {
+			downloadFn = parser.DownloadFileFromGitHub
+		}
+		importContent, err := downloadFn(ctx, opts.owner, opts.repo, remoteFilePath, opts.ref)
 		if err != nil {
 			remoteWorkflowLog.Printf("Failed to download import %s from %s/%s@%s: %v", remoteFilePath, opts.owner, opts.repo, opts.ref, err)
 			if opts.verbose {
