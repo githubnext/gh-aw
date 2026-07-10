@@ -29,6 +29,7 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/debug-agentic-workflow.md`
 - `.github/aw/dependabot.md`
 - `.github/aw/deployment-status.md`
+- `.github/aw/designer.md`
 - `.github/aw/experiments.md`
 - `.github/aw/github-agentic-workflows.md`
 - `.github/aw/github-mcp-server.md`
@@ -70,9 +71,8 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/workflow-editing.md`
 - `.github/aw/workflow-patterns.md`
 
-- `.github/skills/agentic-workflow-designer/SKILL.md`
 After loading the matching workflow prompt or skill, follow it directly:
-- Design workflows from scratch via interview: `skills/agentic-workflow-designer/SKILL.md`
+- Design workflows from scratch via interview: `.github/aw/designer.md`
 - Create new workflows: `.github/aw/create-agentic-workflow.md`
 - Update existing workflows: `.github/aw/update-agentic-workflow.md`
 - Debug, audit, or investigate workflows: `.github/aw/debug-agentic-workflow.md`

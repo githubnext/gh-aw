@@ -89,13 +89,8 @@ func InitRepository(opts InitOptions) error {
 				initLog.Printf("Failed to write dispatcher skill: %v", err)
 				return fmt.Errorf("failed to write dispatcher skill: %w", err)
 			}
-			initLog.Print("Writing agentic workflow designer skill")
-			if err := ensureAgenticWorkflowDesignerSkill(opts.Verbose, false); err != nil {
-				initLog.Printf("Failed to write agentic workflow designer skill: %v", err)
-				return fmt.Errorf("failed to write agentic workflow designer skill: %w", err)
-			}
 			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher and designer skills"))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher skill"))
 			}
 		} else {
 			initLog.Print("Skipping agentic workflows dispatcher skill")
@@ -115,6 +110,10 @@ func InitRepository(opts InitOptions) error {
 		if err := deleteLegacyAgentFiles(opts.Verbose); err != nil {
 			initLog.Printf("Failed to delete legacy agent files: %v", err)
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to delete legacy agent files: %v", err)))
+		}
+		if err := deleteAgenticWorkflowDesignerSkillDir(opts.Verbose); err != nil {
+			initLog.Printf("Failed to delete legacy agentic-workflow-designer skill directory: %v", err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to delete legacy agentic-workflow-designer skill directory: %v", err)))
 		}
 	} else {
 		initLog.Printf("Skipping Copilot dispatcher skill for engine: %s", opts.Engine)

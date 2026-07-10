@@ -1,5 +1,8 @@
 // @ts-check
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 // messages_core.cjs calls core.warning on parse failures - provide a stub
 const mockCore = {
@@ -11,12 +14,32 @@ const mockCore = {
 };
 global.core = mockCore;
 
-const { getBodyHeader } = require("./messages_header.cjs");
+const require = createRequire(import.meta.url);
+let originalPromptsDir;
+let getBodyHeader;
+let getDisclosureHeader;
+let DEFAULT_DISCLOSURE_HEADER;
+let DISCLOSURE_HEADER_DEFAULT_SENTINEL;
 
 const WORKFLOW = "My Workflow";
 const RUN_URL = "https://github.com/owner/repo/actions/runs/99";
 
 describe("messages_header", () => {
+  beforeAll(() => {
+    originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
+    process.env.GH_AW_PROMPTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../md");
+    vi.resetModules();
+    ({ getBodyHeader, getDisclosureHeader, DEFAULT_DISCLOSURE_HEADER, DISCLOSURE_HEADER_DEFAULT_SENTINEL } = require("./messages_header.cjs"));
+  });
+
+  afterAll(() => {
+    if (originalPromptsDir === undefined) {
+      delete process.env.GH_AW_PROMPTS_DIR;
+    } else {
+      process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
+    }
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
@@ -71,6 +94,68 @@ describe("messages_header", () => {
 
       const result = getBodyHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
       expect(result).toBe(`> Header ${WORKFLOW} {unknown_placeholder}`);
+    });
+  });
+
+  describe("getDisclosureHeader", () => {
+    it("returns empty string when disclosure-header is not configured", () => {
+      const result = getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
+      expect(result).toBe("");
+    });
+
+    it("returns rendered default text when disclosure-header is sentinel", () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        disclosureHeader: DISCLOSURE_HEADER_DEFAULT_SENTINEL,
+      });
+
+      const result = getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
+      expect(result).toContain(WORKFLOW);
+      expect(result).not.toContain(RUN_URL);
+      expect(result).not.toContain("🤖");
+    });
+
+    it("returns rendered default text when disclosure-header is boolean true", () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        disclosureHeader: true,
+      });
+
+      const result = getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
+      expect(result).toContain(WORKFLOW);
+      expect(result).not.toContain(RUN_URL);
+      expect(result).not.toContain("🤖");
+    });
+
+    it("returns rendered custom template when disclosure-header is a string", () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        disclosureHeader: "> 🤖 Custom disclosure for [{workflow_name}]({run_url}).",
+      });
+
+      const result = getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
+      expect(result).toBe(`> 🤖 Custom disclosure for [${WORKFLOW}](${RUN_URL}).`);
+    });
+
+    it("returns empty string when messages env is set but disclosure-header is absent", () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        footer: "> Custom footer",
+      });
+
+      const result = getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
+      expect(result).toBe("");
+    });
+
+    it("returns empty string when disclosure-header is boolean false", () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        disclosureHeader: false,
+      });
+
+      const result = getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
+      expect(result).toBe("");
+    });
+
+    it("DEFAULT_DISCLOSURE_HEADER contains expected placeholders", () => {
+      expect(DEFAULT_DISCLOSURE_HEADER).toContain("{workflow_name}");
+      expect(DEFAULT_DISCLOSURE_HEADER).not.toContain("{run_url}");
+      expect(DEFAULT_DISCLOSURE_HEADER).not.toContain("🤖");
     });
   });
 });

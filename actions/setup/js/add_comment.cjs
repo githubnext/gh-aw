@@ -17,7 +17,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 const { getMessages } = require("./messages_core.cjs");
-const { getBodyHeader } = require("./messages_header.cjs");
+const { getBodyHeader, getDisclosureHeader } = require("./messages_header.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { MAX_COMMENT_LENGTH, MAX_MENTIONS, MAX_LINKS, enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { createDiscussionComment, resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
@@ -669,11 +669,12 @@ async function main(config = {}) {
       runUrl,
     }).detectionCaution;
 
-    // Inject body header if configured (placed after caution, before user content)
+    // Inject body header and disclosure header if configured (placed after caution, before user content)
     const bodyHeader = getBodyHeader({ workflowName, runUrl });
+    const disclosureHeader = getDisclosureHeader({ workflowName, runUrl });
 
-    // Build prefix: caution (if any) → body header (if any) → user content
-    const prefixParts = [detectionCaution, bodyHeader].filter(Boolean);
+    // Build prefix: caution (if any) → disclosure header (if any) → body header (if any) → user content
+    const prefixParts = [detectionCaution, disclosureHeader, bodyHeader].filter(Boolean);
     if (prefixParts.length > 0) processedBody = prefixParts.join("\n\n") + "\n\n" + processedBody;
 
     // Add tracker ID and footer

@@ -1,0 +1,12 @@
+package writebytestring
+
+import (
+	"bytes"
+	"io"
+)
+
+func needsImport(s string) {
+	var buf bytes.Buffer
+	io.WriteString(&buf, s)       // want `buf\.Write\(\[\]byte\(s\)\) can be replaced with io\.WriteString\(&buf, s\) to potentially avoid a \[\]byte allocation if the writer implements io\.StringWriter`
+	io.WriteString(&buf, "hello") // want `buf\.Write\(\[\]byte\("hello"\)\) can be replaced with io\.WriteString\(&buf, "hello"\) to potentially avoid a \[\]byte allocation if the writer implements io\.StringWriter`
+}
