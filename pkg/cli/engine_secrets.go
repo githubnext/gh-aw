@@ -322,6 +322,10 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 	)
 
 	if err := form.RunWithContext(config.ctx()); err != nil {
+		if console.IsCancelled(err) {
+			fmt.Fprintln(os.Stderr, "Cancelled.")
+			return &ExitCodeError{Code: 130}
+		}
 		return fmt.Errorf("failed to get Copilot token: %w", err)
 	}
 
@@ -366,6 +370,10 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 	)
 
 	if err := form.RunWithContext(config.ctx()); err != nil {
+		if console.IsCancelled(err) {
+			fmt.Fprintln(os.Stderr, "Cancelled.")
+			return &ExitCodeError{Code: 130}
+		}
 		return fmt.Errorf("failed to get %s token: %w", req.Name, err)
 	}
 
@@ -415,6 +423,10 @@ func promptForGenericAPIKeyUnified(req SecretRequirement, config EngineSecretCon
 	)
 
 	if err := form.RunWithContext(config.ctx()); err != nil {
+		if console.IsCancelled(err) {
+			fmt.Fprintln(os.Stderr, "Cancelled.")
+			return &ExitCodeError{Code: 130}
+		}
 		return fmt.Errorf("failed to get %s API key: %w", label, err)
 	}
 

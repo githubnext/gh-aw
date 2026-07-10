@@ -349,7 +349,11 @@ func confirmExecution(ctx context.Context, wf *WorkflowOption, inputs []string) 
 	)
 
 	if err := form.RunWithContext(ctx); err != nil {
-		runInteractiveLog.Printf("Confirmation failed: %v", err)
+		if console.IsCancelled(err) {
+			runInteractiveLog.Print("User aborted confirmation")
+		} else {
+			runInteractiveLog.Printf("Confirmation failed: %v", err)
+		}
 		return false
 	}
 
