@@ -216,7 +216,7 @@ Test workflow.`
 	yamlStr := string(yaml)
 
 	buildToolsImage := "ghcr.io/github/gh-aw-firewall/build-tools:" + imageTag
-	buildToolsDigest := "sha256:4f9827958511e680d6a4b37910da35c154606f7efccf85c7efd76dbeb22481a2"
+	buildToolsDigest := "sha256:fbedcc57550fcbb0ad386fda8028ad77172ee505f53af9a8d8a7b8e1644b0e38"
 	pinnedBuildTools := buildToolsImage + "@" + buildToolsDigest
 
 	if !strings.Contains(yamlStr, `"image":"`+buildToolsImage+`","digest":"`+buildToolsDigest+`","pinned_image":"`+pinnedBuildTools+`"`) {
