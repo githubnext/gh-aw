@@ -345,18 +345,20 @@ func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
 	return workflowFiles, nil
 }
 
-// fastParseTitleFromReader scans lines from r for the first H1 header, skipping
+// fastParseTitleFromReader scans lines from r for the first H1/H2/H3 header, skipping
 // an optional frontmatter block, without reading the entire file into memory.
 // This is more efficient than fastParseTitle for file-based callers because it
 // stops reading as soon as the title is found.
 //
 // Frontmatter is recognised only when "---" appears on the very first line.
-// Returns the H1 title text, or ("", nil) when no H1 header is present.
+// Returns the first H1/H2/H3 title text, or ("", nil) when none are present.
 // Returns an error if frontmatter is opened but never closed.
 func fastParseTitleFromReader(r io.Reader) (string, error) {
 	scanner := bufio.NewScanner(r)
 	frontmatterDelimiter := []byte("---")
 	h1Prefix := []byte("# ")
+	h2Prefix := []byte("## ")
+	h3Prefix := []byte("### ")
 	// Reuse the small initial scanner buffer across calls while still allowing
 	// growth up to 1 MB for large frontmatter values or long base64-encoded lines.
 	pooled := workflowTitleScannerBufferPool.Get()
@@ -392,8 +394,13 @@ func fastParseTitleFromReader(r io.Reader) (string, error) {
 			}
 			continue
 		}
-		if bytes.HasPrefix(trimmed, h1Prefix) {
+		switch {
+		case bytes.HasPrefix(trimmed, h1Prefix):
 			return string(bytes.TrimSpace(trimmed[2:])), nil
+		case bytes.HasPrefix(trimmed, h2Prefix):
+			return string(bytes.TrimSpace(trimmed[3:])), nil
+		case bytes.HasPrefix(trimmed, h3Prefix):
+			return string(bytes.TrimSpace(trimmed[4:])), nil
 		}
 	}
 	if err := scanner.Err(); err != nil {
