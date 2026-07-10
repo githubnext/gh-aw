@@ -22,6 +22,9 @@ Allow: /
 User-agent: PerplexityBot
 Allow: /
 
+User-agent: Googlebot
+Allow: /
+
 User-agent: Perplexity-User
 Allow: /
 
