@@ -10,7 +10,6 @@
  */
 
 const fs = require("fs");
-const path = require("path");
 const { getMessages, getPromptPath, renderTemplate, toSnakeCase } = require("./messages_core.cjs");
 
 /**
@@ -23,40 +22,17 @@ const DEFAULT_DISCLOSURE_HEADER_TEMPLATE = "safe_outputs_disclosure_header.md";
 const DISCLOSURE_HEADER_DEFAULT_SENTINEL = "true";
 
 /**
- * Resolve disclosure-header template path for runtime or source-tree execution.
- * @returns {string}
- */
-function resolveDefaultDisclosureHeaderTemplatePath() {
-  const shouldUseRuntimePath = !!(process.env.RUNNER_TEMP || process.env.GH_AW_PROMPTS_DIR);
-  const sourceTreePath = path.join(__dirname, "../md", DEFAULT_DISCLOSURE_HEADER_TEMPLATE);
-  if (!shouldUseRuntimePath) {
-    return sourceTreePath;
-  }
-
-  const runtimePath = getPromptPath(DEFAULT_DISCLOSURE_HEADER_TEMPLATE);
-  if (fs.existsSync(runtimePath)) {
-    return runtimePath;
-  }
-
-  if (typeof globalThis.core?.warning === "function") {
-    globalThis.core.warning(`Missing runtime disclosure template at ${runtimePath}; using source template ${sourceTreePath}`);
-  }
-
-  return sourceTreePath;
-}
-
-/**
  * Load the default disclosure-header template from prompt markdown.
  * Returns an empty template when the file is unavailable.
  * @returns {string}
  */
 function getDefaultDisclosureHeaderTemplate() {
-  const templatePath = resolveDefaultDisclosureHeaderTemplatePath();
   try {
+    const templatePath = getPromptPath(DEFAULT_DISCLOSURE_HEADER_TEMPLATE);
     return fs.readFileSync(templatePath, "utf8").trimEnd();
   } catch (error) {
     if (typeof globalThis.core?.warning === "function") {
-      globalThis.core.warning(`Failed to load disclosure template from ${templatePath}: ${String(error)}`);
+      globalThis.core.warning(`Failed to load disclosure template ${DEFAULT_DISCLOSURE_HEADER_TEMPLATE}: ${String(error)}`);
     }
     return "";
   }

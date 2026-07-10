@@ -1,5 +1,7 @@
 // @ts-check
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 // messages_core.cjs calls core.warning on parse failures - provide a stub
 const mockCore = {
@@ -11,7 +13,16 @@ const mockCore = {
 };
 global.core = mockCore;
 
+const originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
+if (!process.env.GH_AW_PROMPTS_DIR) {
+  process.env.GH_AW_PROMPTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../md");
+}
 const { getBodyHeader, getDisclosureHeader, DEFAULT_DISCLOSURE_HEADER, DISCLOSURE_HEADER_DEFAULT_SENTINEL } = require("./messages_header.cjs");
+if (originalPromptsDir === undefined) {
+  delete process.env.GH_AW_PROMPTS_DIR;
+} else {
+  process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
+}
 
 const WORKFLOW = "My Workflow";
 const RUN_URL = "https://github.com/owner/repo/actions/runs/99";
