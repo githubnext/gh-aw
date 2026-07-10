@@ -12,7 +12,7 @@ Agent containers in gh-aw run under a standard Docker runtime backed by Linux cg
 
 ### Decision
 
-We will add `sandbox.agent.runtime: gvisor` as an optional frontmatter field. When set, the compiler (1) emits a GitHub Actions step before the AWF install step that downloads `runsc` and `containerd-shim-runsc-v1` from `storage.googleapis.com/gvisor`, installs them to `/usr/local/bin`, registers them with Docker via `sudo runsc install`, restarts Docker with `systemctl restart`, and verifies the runtime with a test container, and (2) passes `containerRuntime: "gvisor"` in the AWF stdin config JSON so AWF starts the agent container under `runsc`. Two incompatible combinations are rejected at compile time: `runtime: gvisor` + `runner.topology: arc-dind` (systemd unavailable on ARC DinD) and `runtime: gvisor` + `sudo: false` (the install step requires root). The `sudo: true` deprecation warning is suppressed when `runtime: gvisor` is set, since gVisor fundamentally requires root for installation.
+We will add `sandbox.agent.runtime: gvisor` as an optional frontmatter field. When set, the compiler (1) emits a GitHub Actions step before the AWF install step that downloads `runsc` and `containerd-shim-runsc-v1` from `storage.googleapis.com/gvisor`, installs them to `/usr/local/bin`, registers them with Docker via `sudo runsc install`, restarts Docker with `systemctl restart`, and verifies the runtime with a test container, and (2) passes `containerRuntime: "gvisor"` in the AWF stdin config JSON so AWF starts the agent container under `runsc` — once the effective AWF version is at or above `AWFContainerRuntimeMinVersion` (currently a placeholder at `v0.28.0` pending the release of gh-aw-firewall#6093). One incompatible combination is rejected at compile time: `runtime: gvisor` + `runner.topology: arc-dind` (systemd unavailable on ARC DinD). The `runtime: gvisor` option is compatible with both `sudo: false` (default, network-isolation mode) and `sudo: true` — the gVisor install step uses shell-level sudo commands independently of the `sandbox.agent.sudo` setting. The existing `sudo: true` deprecation warning continues to apply regardless of `runtime`.
 
 ### Alternatives Considered
 
@@ -32,15 +32,15 @@ Reduce the syscall surface by attaching a restrictive seccomp profile or AppArmo
 
 #### Positive
 - Agent containers configured with `runtime: gvisor` run under gVisor's `runsc` OCI runtime, which interposes on all system calls via a user-space kernel, substantially reducing the host kernel attack surface.
-- Compile-time validation catches the two known incompatible combinations (`arc-dind`, `sudo: false`) before a workflow is submitted, giving authors a clear error message rather than a runtime failure.
+- Compile-time validation catches the known incompatible combination (`arc-dind`) before a workflow is submitted, giving authors a clear error message rather than a runtime failure.
 - The change is fully backward-compatible: existing workflows that do not set `sandbox.agent.runtime` are unaffected and continue to run under the default Docker runtime.
-- The `sudo: true` deprecation warning is suppressed when gVisor is configured, avoiding a misleading warning for a case where `sudo: true` is not just acceptable but required.
+- `runtime: gvisor` is compatible with `sudo: false` (the default, network-isolation mode): the install step uses shell-level sudo commands independently of the `sandbox.agent.sudo` setting, so operators can have both gVisor kernel isolation and AWF network isolation.
+- Removing the special case for `AgentRuntimeGVisor` in `validateStrictSandboxCustomization` simplifies the strict-mode validation path.
 
 #### Negative
-- `runtime: gvisor` requires `sudo: true`, which disables AWF's network-isolation mode (`--network-isolation`). Operators gain kernel-level isolation but lose the network-isolation guarantee unless both are layered via other mechanisms. This is a hard trade-off imposed by gVisor's requirement for root during installation.
 - `runtime: gvisor` is incompatible with `runner.topology: arc-dind`, restricting which runner configurations can use this feature.
 - The gVisor install step adds observable setup time (binary downloads, Docker restart, verification container run) to every workflow execution that enables this option.
-- Introducing a special case in `validateStrictSandboxCustomization` for `AgentRuntimeGVisor` increases the complexity of the strict-mode validation path.
+- The `containerRuntime` field in the AWF config is gated behind `AWFContainerRuntimeMinVersion` (placeholder `v0.28.0`) until gh-aw-firewall#6093 is released; until then, the install step runs but AWF uses its default runtime.
 
 #### Neutral
 - The `systemctl restart docker` (rather than `reload`) constraint documented in the implementation will need to be preserved in future modifications to the install step: Docker's SIGHUP reload does not call `setHostGatewayIP()`, which breaks `--add-host host.docker.internal:host-gateway`.
