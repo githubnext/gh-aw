@@ -18,7 +18,7 @@ const { addExpirationToFooter } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, normalizeCloseOlderKey } = require("./generate_footer.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { assembleMarkdownBodyParts } = require("./markdown_body_helpers.cjs");
-const { getBodyHeader } = require("./messages_header.cjs");
+const { getBodyHeader, getDisclosureHeader } = require("./messages_header.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
@@ -1366,6 +1366,12 @@ async function main(config = {}) {
       const bodyHeader = getBodyHeader({ workflowName, runUrl });
       if (bodyHeader) {
         bodyLines.unshift(...bodyHeader.split("\n"), "");
+      }
+
+      // Inject disclosure header (this runs after body-header, but appears before it because unshift prepends)
+      const disclosureHeader = getDisclosureHeader({ workflowName, runUrl });
+      if (disclosureHeader) {
+        bodyLines.unshift(...disclosureHeader.split("\n"), "");
       }
 
       // Keep the protected-files notice directly under detection caution:

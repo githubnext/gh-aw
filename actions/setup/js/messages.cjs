@@ -36,7 +36,7 @@ const { getRunStartedMessage, getRunSuccessMessage, getRunFailureMessage } = req
 const { getCloseOlderDiscussionMessage } = require("./messages_close_discussion.cjs");
 
 // Re-export body header messages
-const { getBodyHeader } = require("./messages_header.cjs");
+const { getBodyHeader, getDisclosureHeader } = require("./messages_header.cjs");
 
 module.exports = {
   getMessages,
@@ -56,4 +56,5 @@ module.exports = {
   getRunFailureMessage,
   getCloseOlderDiscussionMessage,
   getBodyHeader,
+  getDisclosureHeader,
 };

@@ -9,6 +9,8 @@ import (
 
 var safeOutputMessagesLog = logger.New("workflow:safe_outputs_config_messages")
 
+const disclosureHeaderDefaultSentinel = "true"
+
 // ========================================
 // Safe Output Messages Configuration
 // ========================================
@@ -41,6 +43,18 @@ func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 	config.AgentFailureIssue = extractStringFromMap(messagesMap, "agent-failure-issue", nil)
 	config.AgentFailureComment = extractStringFromMap(messagesMap, "agent-failure-comment", nil)
 	config.BodyHeader = extractStringFromMap(messagesMap, "body-header", nil)
+
+	// Handle disclosure-header: can be bool (true for default built-in text) or custom string
+	if dh, exists := messagesMap["disclosure-header"]; exists {
+		switch v := dh.(type) {
+		case bool:
+			if v {
+				config.DisclosureHeader = disclosureHeaderDefaultSentinel
+			}
+		case string:
+			config.DisclosureHeader = v
+		}
+	}
 
 	return config
 }

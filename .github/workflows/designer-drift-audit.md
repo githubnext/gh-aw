@@ -59,7 +59,7 @@ steps:
   - name: Extract designer file metadata
     run: |
       # Skill file
-      SKILL=".github/skills/agentic-workflow-designer/SKILL.md"
+      SKILL=".github/aw/designer.md"
       if [ -f "$SKILL" ]; then
         {
           echo "=== SKILL.md ==="
@@ -104,7 +104,7 @@ steps:
 
       # Commits in the last 7 days that touched designer files
       git log --oneline --since="7 days ago" -- \
-        .github/skills/agentic-workflow-designer/SKILL.md \
+        .github/aw/designer.md \
         .github/agents/interactive-agent-designer.agent.md \
         > /tmp/gh-aw/data/recent-designer-commits.txt 2>/dev/null || true
 

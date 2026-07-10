@@ -226,6 +226,96 @@ Main workflow body.
 	}
 }
 
+func TestCompileWorkflowWithImportedSandboxMounts(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-imported-sandbox-mounts-*")
+	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	sharedAPath := filepath.Join(workflowsDir, "shared-a.md")
+	sharedAContent := `---
+sandbox:
+  agent:
+    mounts:
+      - /tool-a/bin/my-cli:/tool-a/bin/my-cli:ro
+      - /shared/bin/tool:/shared/bin/tool:ro
+---
+
+# Shared A
+`
+	if err := os.WriteFile(sharedAPath, []byte(sharedAContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared A workflow: %v", err)
+	}
+
+	sharedBPath := filepath.Join(workflowsDir, "shared-b.md")
+	sharedBContent := `---
+sandbox:
+  agent:
+    mounts:
+      - /tool-b/bin/other-cli:/tool-b/bin/other-cli:ro
+      - /shared/bin/tool:/shared/bin/tool:ro
+---
+
+# Shared B
+`
+	if err := os.WriteFile(sharedBPath, []byte(sharedBContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared B workflow: %v", err)
+	}
+
+	workflowPath := filepath.Join(workflowsDir, "main.md")
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - ./shared-a.md
+  - ./shared-b.md
+sandbox:
+  agent:
+    mounts:
+      - /main/bin/main-cli:/main/bin/main-cli:ro
+      - /shared/bin/tool:/shared/bin/tool:ro
+---
+
+# Main Workflow
+
+Validate imported sandbox mounts.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write main workflow: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	compiled := string(lockFileContent)
+
+	for _, mount := range []string{
+		"--mount /tool-a/bin/my-cli:/tool-a/bin/my-cli:ro",
+		"--mount /tool-b/bin/other-cli:/tool-b/bin/other-cli:ro",
+		"--mount /main/bin/main-cli:/main/bin/main-cli:ro",
+	} {
+		if !strings.Contains(compiled, mount) {
+			t.Errorf("Expected compiled workflow to contain mount %q", mount)
+		}
+	}
+
+	if count := strings.Count(compiled, "--mount /shared/bin/tool:/shared/bin/tool:ro"); count != 1 {
+		t.Errorf("Expected deduplicated shared mount exactly once, got %d", count)
+	}
+}
+
 func TestCompileWorkflowWithMCPServersImport(t *testing.T) {
 	// Create a temporary directory for test files
 	tempDir := testutil.TempDir(t, "test-*")
