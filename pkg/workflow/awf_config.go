@@ -299,6 +299,11 @@ type AWFContainerConfig struct {
 	// runner and daemon have separate filesystems.
 	// Maps to: --docker-host-path-prefix <value>
 	DockerHostPathPrefix string `json:"dockerHostPathPrefix,omitempty"`
+
+	// ContainerRuntime specifies the OCI runtime for the agent container.
+	// "gvisor" enables gVisor's runsc runtime for additional kernel-level isolation.
+	// AWF translates "gvisor" → "runsc" internally.
+	ContainerRuntime string `json:"containerRuntime,omitempty"`
 }
 
 // AWFLoggingConfig is the "logging" section of the AWF config file.
@@ -544,9 +549,11 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	// ── Container section ─────────────────────────────────────────────────────
 	awfImageTag := buildAWFImageTagWithDigests(getAWFImageTag(firewallConfig), config.WorkflowData)
-	if awfImageTag != "" || isArcDindTopology(config.WorkflowData) {
+	agentRuntime := getAgentContainerRuntime(config.WorkflowData)
+	if awfImageTag != "" || isArcDindTopology(config.WorkflowData) || agentRuntime != "" {
 		container := &AWFContainerConfig{
-			ImageTag: awfImageTag,
+			ImageTag:         awfImageTag,
+			ContainerRuntime: agentRuntime,
 		}
 		// NOTE: dockerHostPathPrefix is intentionally NOT set for arc-dind topology.
 		// With sysroot-stage active, the Docker daemon can access all needed paths:
@@ -559,6 +566,9 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfig.Container = container
 		if awfImageTag != "" {
 			awfConfigLog.Printf("Container section: image_tag=%s", awfImageTag)
+		}
+		if agentRuntime != "" {
+			awfConfigLog.Printf("Container section: containerRuntime=%s", agentRuntime)
 		}
 	}
 
