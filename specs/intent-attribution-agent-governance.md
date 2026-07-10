@@ -92,6 +92,27 @@ These capabilities remain supported.
 
 In this specification, they are treated as an early implementation of **intent attribution**, not as proof of business impact.
 
+### Safeguards
+
+When governance policy resolution fails because `.github/objective-mapping.json`,
+`.github/intent-policy.json`, or equivalent policy inputs are missing, malformed,
+or produce no deterministic match, the implementation MUST fail closed to the
+safest policy defined in **Fail-Closed Behavior** above.
+
+An implementation MUST NOT silently reuse a stale cached policy decision when the
+current repository policy inputs cannot be resolved. The failure reason and the
+fallback-to-safe-policy decision SHOULD be recorded in execution provenance.
+
+### Sync Notes
+
+Until repositories migrate fully to `.github/intent-policy.json`, `.github/objective-mapping.json`
+remains the authoritative label-to-intent source for attribution fallback and drift detection.
+
+Implementations SHOULD detect drift by comparing active governance-policy label selectors,
+rule references, and explicit intent keys against `.github/objective-mapping.json` during
+validation or CI. Keys present in one source but not the other SHOULD surface as a sync
+warning or compliance failure so attribution and authorization stay aligned.
+
 ## Product boundary
 
 The system can establish:

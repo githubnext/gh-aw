@@ -8,6 +8,12 @@ import (
 
 var outcomeEvalLabelLog = logger.New("cli:outcome_eval_label")
 
+// evalReplaceLabel checks whether the post-mutation label set still matches the
+// label replacement applied at execution time.
+func evalReplaceLabel(item CreatedItemReport, repoOverride string) OutcomeReport {
+	return evalRetainedUpdate(item, repoOverride, "label replacement", extractCurrentIssueUpdateState, false)
+}
+
 // evalAddLabels checks whether labels added by the workflow are still present.
 func evalAddLabels(item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)

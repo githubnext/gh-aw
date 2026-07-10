@@ -92,6 +92,7 @@ var outcomeEvaluators = map[string]outcomeEvaluator{
 	"update_pull_request":                   evalUpdatePullRequest,
 	"add_comment":                           evalAddComment,
 	"add_labels":                            evalAddLabels,
+	"replace_label":                         evalReplaceLabel,
 	"assign_to_agent":                       evalAssignToAgent,
 	"close_issue":                           evalCloseSticky,
 	"close_pull_request":                    evalCloseSticky,

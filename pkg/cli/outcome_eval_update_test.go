@@ -191,3 +191,35 @@ func TestEvalRetainedUpdateMissingExecutionStateUsesEvidenceNone(t *testing.T) {
 	assert.Equal(t, EvidenceNone, report.EvidenceStrength)
 	assert.Equal(t, "missing_execution_state", report.Signal)
 }
+
+func TestEvalReplaceLabelRetained(t *testing.T) {
+	old := outcomeUpdateGHAPIGet
+	t.Cleanup(func() {
+		outcomeUpdateGHAPIGet = old
+	})
+	outcomeUpdateGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+		return map[string]any{
+			"labels": []any{
+				map[string]any{"name": "triage"},
+				map[string]any{"name": "done"},
+			},
+		}, nil
+	}
+
+	report := evalReplaceLabel(CreatedItemReport{
+		Type:   "replace_label",
+		Number: 12,
+		Repo:   "owner/repo",
+		BeforeState: map[string]any{
+			"labels": []any{"triage", "in-progress"},
+		},
+		AfterState: map[string]any{
+			"labels": []any{"triage", "done"},
+		},
+	}, "owner/repo")
+
+	assert.Equal(t, OutcomeAccepted, report.Result)
+	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
+	assert.Equal(t, EvidenceMedium, report.EvidenceStrength)
+	assert.Equal(t, "state_retained", report.Signal)
+}

@@ -155,6 +155,8 @@ func mutableTrackedFields(itemType string) []string {
 		return []string{"title", "body_hash", "state", "labels", "assignees"}
 	case "update_pull_request":
 		return []string{"title", "body_hash", "state", "base", "draft", "head_sha"}
+	case "replace_label":
+		return []string{"labels"}
 	default:
 		return nil
 	}

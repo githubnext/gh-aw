@@ -142,7 +142,8 @@ describe("evaluate_outcomes type-specific evaluators", () => {
   it("evaluates add_labels retention using persisted before-state labels", () => {
     const item = {
       type: "add_labels",
-      url: "https://github.com/acme/repo/issues/42",
+      number: 42,
+      repo: "acme/repo",
       timestamp: "2026-05-25T00:00:00Z",
       labelsBefore: ["bug"],
       labelsAdded: ["bug", "triage"],
@@ -162,6 +163,74 @@ describe("evaluate_outcomes type-specific evaluators", () => {
 
     expect(evaluateItem(item, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-25T00:01:00Z") }).result).toBe("pending");
     expect(evaluateItem({ ...item, labelsBefore: [] }, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-27T00:00:00Z") }).detail).toBe("accepted:strong");
+  });
+
+  it("evaluates close_issue using persisted repo/number metadata", () => {
+    const item = {
+      type: "close_issue",
+      number: 77,
+      repo: "acme/repo",
+      timestamp: "2026-05-26T00:00:00Z",
+    };
+
+    const closed = createAPIStub({
+      "repos/acme/repo/issues/77": {
+        state: "closed",
+        comments: 1,
+        reactions: { total_count: 2 },
+        created_at: "2026-05-26T00:00:00Z",
+        closed_at: "2026-05-26T00:10:00Z",
+      },
+    });
+    expect(evaluateItem(item, "acme/repo", { ghAPI: closed }).result).toBe("accepted");
+    expect(evaluateItem(item, "acme/repo", { ghAPI: closed }).detail).toBe("closed");
+
+    const reopened = createAPIStub({
+      "repos/acme/repo/issues/77": { state: "open", comments: 1, reactions: { total_count: 0 } },
+    });
+    expect(evaluateItem(item, "acme/repo", { ghAPI: reopened }).result).toBe("rejected");
+    expect(evaluateItem(item, "acme/repo", { ghAPI: reopened }).detail).toBe("reopened");
+  });
+
+  it("evaluates close_pull_request using persisted repo/number metadata", () => {
+    const item = {
+      type: "close_pull_request",
+      number: 55,
+      repo: "acme/repo",
+      timestamp: "2026-05-26T00:00:00Z",
+    };
+
+    const closed = createAPIStub({
+      "repos/acme/repo/pulls/55": {
+        state: "closed",
+        merged: false,
+        review_comments: 0,
+        changed_files: 1,
+        additions: 3,
+        deletions: 1,
+        comments: 0,
+        created_at: "2026-05-26T00:00:00Z",
+        closed_at: "2026-05-26T00:10:00Z",
+      },
+    });
+    expect(evaluateItem(item, "acme/repo", { ghAPI: closed }).result).toBe("accepted");
+    expect(evaluateItem(item, "acme/repo", { ghAPI: closed }).detail).toBe("closed");
+
+    const merged = createAPIStub({
+      "repos/acme/repo/pulls/55": {
+        state: "closed",
+        merged: true,
+        review_comments: 0,
+        changed_files: 1,
+        additions: 3,
+        deletions: 1,
+        comments: 0,
+        created_at: "2026-05-26T00:00:00Z",
+        merged_at: "2026-05-26T00:10:00Z",
+      },
+    });
+    expect(evaluateItem(item, "acme/repo", { ghAPI: merged }).result).toBe("rejected");
+    expect(evaluateItem(item, "acme/repo", { ghAPI: merged }).detail).toBe("merged");
   });
 
   it("evaluates update_issue retained and reverted states from persisted execution metadata", () => {
