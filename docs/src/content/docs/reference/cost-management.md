@@ -18,18 +18,7 @@ AIC is shown in the `gh aw logs` output table under the **AIC** column, in audit
 
 ## Cost Components
 
-### GitHub Actions Minutes
-
-Every workflow job consumes Actions compute time billed at standard [GitHub Actions pricing](https://docs.github.com/en/billing/managing-billing-for-your-products/managing-billing-for-github-actions/about-billing-for-github-actions). A typical agentic workflow run includes at least two jobs:
-
-- **Pre-activation / detection** — Validates the trigger, runs membership checks, evaluates `skip-if-match` conditions (typical duration: 10–30 seconds)
-- **Agent** — Runs the AI engine and executes tools (typical duration: 1–15 minutes)
-
-Each job also incurs approximately 1.5 minutes of runner setup overhead on top of its execution time.
-
-### Inference Costs
-
-The agent job invokes an AI engine to process the prompt and call tools. Inference is billed by the provider based on the type of api token used.
+A typical run includes a short pre-activation job (10–30 seconds) and an agent job (1–15 minutes), each with ~1.5 minutes of runner setup overhead billed at standard [GitHub Actions pricing](https://docs.github.com/en/billing/managing-billing-for-your-products/managing-billing-for-github-actions/about-billing-for-github-actions). Inference is charged by the AI provider based on the engine and API token type used.
 
 ## Monitoring Costs with `gh aw logs`
 
@@ -86,8 +75,6 @@ Useful episode fields for usage analysis:
 
 For Claude, Codex, and Copilot runs, `total_aic` is the preferred cost metric — it reflects provider billing in AI Credits (1 AIC = $0.01 USD).
 
-Safe-output actuation also appears in both `gh aw logs --json` (run- and repo-level) and `gh aw audit <run-id>` (under `safe_output_summary`). The relevant fields — `temporary_id_map_status`, `temporary_id_mappings`, `chained_target_count`, `chained_followup_action_count`, `delegated_temp_target_count`, `closed_temp_target_count`, and their repo-level aggregates — show how often a workflow follows up on its own outputs. When `temporary_id_map_status` is `missing` or `invalid`, chain counts fall back to `0` rather than guessing from incomplete data.
-
 ```bash
 # Top 10 costliest logical executions over the past 30 days by AIC
 gh aw logs --start-date -30d --json | \
@@ -95,7 +82,7 @@ gh aw logs --start-date -30d --json | \
       | sort_by(.aic) | reverse | .[:10]'
 
 # Top 10 heaviest Copilot executions by AIC
-gh aw logs --start-date -30d --json | \
+gh aw logs --start-date -30d --engine copilot --json | \
   jq '[.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, aic: (.total_aic // 0)}]
       | sort_by(.aic) | reverse | .[:10]'
 ```
@@ -203,21 +190,13 @@ Use `pre-agent-steps:` instead of `steps:` when the check must run right before 
 
 Compared to `skip-if-match` and `skip-if-no-match`:
 
-#### `skip-if-match` / `skip-if-no-match`
-
-- **Evaluated in:** Pre-activation job (earliest, cheapest)
-- **Condition type:** GitHub search query
-- **Actions minutes saved:** Yes — agent job is never scheduled
-- **AI Credits saved:** Yes
-- **Best for:** Simple label/status/title filters
-
-#### `noop` in `steps:`
-
-- **Evaluated in:** Agent job (after checkout and steps)
-- **Condition type:** Arbitrary shell or script logic
-- **Actions minutes saved:** No — agent job still runs through setup
-- **AI Credits saved:** Yes
-- **Best for:** Complex API calls or file-based conditions
+| | `skip-if-match` / `skip-if-no-match` | `noop` in `steps:` |
+|---|---|---|
+| **Evaluated in** | Pre-activation job (earliest, cheapest) | Agent job (after checkout and steps) |
+| **Condition type** | GitHub search query | Arbitrary shell or script logic |
+| **Actions minutes saved** | Yes — agent job is never scheduled | No — agent job still runs through setup |
+| **AI Credits saved** | Yes | Yes |
+| **Best for** | Simple label/status/title filters | Complex API calls or file-based conditions |
 
 For maximum savings, prefer `skip-if-match` / `skip-if-no-match` when possible. Reserve `noop` in `steps:` for conditions that require full scripting access or the agent job environment.
 
