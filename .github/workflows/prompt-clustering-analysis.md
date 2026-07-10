@@ -18,6 +18,8 @@ sandbox:
 
 engine: claude
 strict: true
+features:
+  gh-aw-detection: true
 
 network:
   allowed:

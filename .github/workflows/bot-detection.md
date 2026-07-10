@@ -23,6 +23,8 @@ tools:
     mode: local
     read-only: true
     toolsets: [default]
+features:
+  gh-aw-detection: true
 if: needs.precompute.outputs.action != 'none'
 jobs:
   precompute:

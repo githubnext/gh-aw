@@ -34,6 +34,8 @@ safe-outputs:
     max: 3
 timeout-minutes: 15
 strict: true
+features:
+  gh-aw-detection: true
 
 tools:
   cli-proxy: true
