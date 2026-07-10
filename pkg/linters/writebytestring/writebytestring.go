@@ -255,23 +255,30 @@ func addIOImportEdit(pass *analysis.Pass, pos token.Pos, seenImportFiles map[tok
 		}, true
 	}
 
-	if len(file.Imports) == 1 {
-		for _, decl := range file.Decls {
-			genDecl, ok := decl.(*ast.GenDecl)
-			if !ok || genDecl.Tok != token.IMPORT || genDecl.Lparen.IsValid() || len(genDecl.Specs) != 1 {
-				continue
-			}
-			specText := astutil.NodeText(pass.Fset, genDecl.Specs[0])
-			if specText == "" {
-				continue
-			}
+	var singleUngroupedImportDecl *ast.GenDecl
+	importDeclCount := 0
+	for _, decl := range file.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok || genDecl.Tok != token.IMPORT {
+			continue
+		}
+		importDeclCount++
+		if !genDecl.Lparen.IsValid() && len(genDecl.Specs) == 1 {
+			singleUngroupedImportDecl = genDecl
+		}
+	}
+	if len(file.Imports) == 1 && importDeclCount == 1 && singleUngroupedImportDecl != nil {
+		specText := astutil.NodeText(pass.Fset, singleUngroupedImportDecl.Specs[0])
+		if specText != "" {
 			seenImportFiles[file.Pos()] = true
 			return analysis.TextEdit{
-				Pos:     genDecl.Pos(),
-				End:     genDecl.End(),
+				Pos:     singleUngroupedImportDecl.Pos(),
+				End:     singleUngroupedImportDecl.End(),
 				NewText: []byte("import (\n\t\"" + ioPkg + "\"\n\t" + specText + "\n)"),
 			}, true
 		}
+		// If we fail to render the existing import spec, fall back to a
+		// standalone import insertion below rather than emitting a broken edit.
 	}
 
 	seenImportFiles[file.Pos()] = true
