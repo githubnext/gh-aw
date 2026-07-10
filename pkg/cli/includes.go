@@ -299,11 +299,6 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 			} else {
 				baseDir = opts.originalBaseDir
 			}
-			// Fallback: if the selected baseDir is empty (e.g. workflow at repo root
-			// with no originalBaseDir set), use currentBaseDir as a last resort.
-			if baseDir == "" {
-				baseDir = currentBaseDir
-			}
 			if baseDir != "" {
 				remoteFilePath = path.Join(baseDir, filePath)
 			} else {

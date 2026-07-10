@@ -806,6 +806,51 @@ imports:
 		"transitive dep must not be written at the root level")
 }
 
+// TestFetchFrontmatterImportsRecursive_RepoRootSlashPath verifies that when
+// originalBaseDir is empty (workflow lives at the repo root) and an import
+// path contains a "/" (e.g. "shared/helper.md"), the path is used as-is
+// rather than being incorrectly prefixed with currentBaseDir.
+func TestFetchFrontmatterImportsRecursive_RepoRootSlashPath(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	var downloadedPaths []string
+	mockDownload := func(_ context.Context, _, _, remoteFilePath, _ string) ([]byte, error) {
+		downloadedPaths = append(downloadedPaths, remoteFilePath)
+		return []byte("# stub\n"), nil
+	}
+
+	// shared/control.md imports shared/helper.md (a slash path).
+	controlContent := `---
+imports:
+  - shared/helper.md
+---
+# Control
+`
+
+	seen := make(map[string]struct{})
+	opts := frontmatterImportsOpts{
+		owner:           "github",
+		repo:            "gh-aw",
+		ref:             "main",
+		originalBaseDir: "", // empty: workflow lives at the repo root
+		targetDir:       tmpDir,
+		verbose:         false,
+		force:           true,
+		tracker:         &FileTracker{OriginalContent: make(map[string][]byte)},
+		seen:            seen,
+		downloadFn:      mockDownload,
+	}
+
+	// currentBaseDir mirrors shared/control.md's location.
+	fetchFrontmatterImportsRecursive(t.Context(), controlContent, "shared", opts)
+
+	// "shared/helper.md" (slash path, empty originalBaseDir) must be used as-is,
+	// NOT prefixed with currentBaseDir ("shared/shared/helper.md" would be wrong).
+	require.Len(t, downloadedPaths, 1, "downloader must be called exactly once")
+	assert.Equal(t, "shared/helper.md", downloadedPaths[0],
+		"slash import with empty originalBaseDir must be used as-is")
+}
+
 // --- extractDispatchWorkflowNames tests ---
 
 // TestExtractDispatchWorkflowNames_ArrayFormat verifies that workflow names are extracted
