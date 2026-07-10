@@ -43,6 +43,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/ssljson"
 	"github.com/github/gh-aw/pkg/linters/strconvparseignorederror"
 	"github.com/github/gh-aw/pkg/linters/stringreplaceminusone"
+	"github.com/github/gh-aw/pkg/linters/stringscountcontains"
 	"github.com/github/gh-aw/pkg/linters/stringsindexcontains"
 	"github.com/github/gh-aw/pkg/linters/timeafterleak"
 	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
@@ -65,7 +66,7 @@ type docAnalyzer struct {
 }
 
 // documentedAnalyzers returns the analyzer subpackages documented in the README
-// "Public API > Subpackages" table. The README documents 39 analyzers
+// "Public API > Subpackages" table. The README documents 40 analyzers
 // subpackages (the non-analyzer `internal` helper subpackage is excluded because
 // it exposes no Analyzer).
 //
@@ -76,7 +77,7 @@ type docAnalyzer struct {
 //	hardcodedfilepath, httpnoctx, jsonmarshalignoredeerror, largefunc, lenstringsplit, lenstringzero,
 //	manualmutexunlock, osexitinlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
 //	regexpcompileinfunction, seenmapbool, sortslice, sprintferrdot, sprintferrorsnew, ssljson,
-//	strconvparseignorederror, stringreplaceminusone, stringsindexcontains, timeafterleak, timesleepnocontext,
+//	strconvparseignorederror, stringreplaceminusone, stringscountcontains, stringsindexcontains, timeafterleak, timesleepnocontext,
 //	tolowerequalfold, uncheckedtypeassertion, wgdonenotdeferred, writebytestring
 func documentedAnalyzers() []docAnalyzer {
 	return []docAnalyzer{
@@ -112,6 +113,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"ssljson", ssljson.Analyzer},
 		{"strconvparseignorederror", strconvparseignorederror.Analyzer},
 		{"stringreplaceminusone", stringreplaceminusone.Analyzer},
+		{"stringscountcontains", stringscountcontains.Analyzer},
 		{"stringsindexcontains", stringsindexcontains.Analyzer},
 		{"timeafterleak", timeafterleak.Analyzer},
 		{"timesleepnocontext", timesleepnocontext.Analyzer},

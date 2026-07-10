@@ -43,6 +43,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `ssljson` — validates `ssl.json` skill artifacts found in `.github/skills/` against the SSL spec (enum membership, graph integrity, transition targets, entry pointer validity).
 - `strconvparseignorederror` — reports `strconv` parsing calls (`Atoi`, `ParseInt`, etc.) where the error return is discarded with `_`.
 - `stringreplaceminusone` — reports `strings.Replace` calls whose `n` argument is `-1`, which should use the more readable `strings.ReplaceAll`.
+- `stringscountcontains` — reports `strings.Count(s, sub)` comparisons with `0` or `1` (e.g. `> 0`, `>= 1`, `== 0`, `!= 0`, `< 1`, `<= 0`) and their yoda-order variants that should use `strings.Contains(s, sub)` or `!strings.Contains(s, sub)` instead.
 - `stringsindexcontains` — reports `strings.Index(s, substr)` comparisons with `-1` or `0` (e.g. `!= -1`, `>= 0`, `> -1`, `== -1`, `< 0`, `<= -1`) and their yoda-order variants that should use `strings.Contains(s, substr)` or `!strings.Contains(s, substr)` instead.
 - `timeafterleak` — reports `time.After` calls used as the channel-receive expression in a `select` case inside a `for` or `range` loop that leak a timer channel on each iteration when another case fires first.
 - `timesleepnocontext` — reports `time.Sleep` calls inside functions that already receive a `context.Context`, where a context-aware `select` should be used instead.
@@ -95,6 +96,7 @@ This package currently provides custom Go analyzers in the following subpackages
 | `ssljson` | Custom `go/analysis` analyzer that validates SSL JSON skill artifacts in `.github/skills/` |
 | `strconvparseignorederror` | Custom `go/analysis` analyzer that flags `strconv` parsing calls where the error return is discarded with `_` |
 | `stringreplaceminusone` | Custom `go/analysis` analyzer that flags `strings.Replace` calls with `n=-1` that should use `strings.ReplaceAll` |
+| `stringscountcontains` | Custom `go/analysis` analyzer that flags `strings.Count(s, sub)` comparisons with `0` or `1` that should use `strings.Contains` or `!strings.Contains` |
 | `stringsindexcontains` | Custom `go/analysis` analyzer that flags `strings.Index(s, substr)` comparisons with `-1` or `0` that should use `strings.Contains` or `!strings.Contains` |
 | `timeafterleak` | Custom `go/analysis` analyzer that flags `time.After` in `select` cases inside loops that leak a timer channel on each iteration when another case fires first |
 | `timesleepnocontext` | Custom `go/analysis` analyzer that flags `time.Sleep` calls in context-aware functions |
@@ -207,6 +209,7 @@ _ = timesleepnocontext.Analyzer
 - `github.com/github/gh-aw/pkg/linters/ssljson` — ssl-json analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/strconvparseignorederror` — strconv-parse-ignored-error analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/stringreplaceminusone` — string-replace-minus-one analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/stringscountcontains` — strings-count-contains analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/stringsindexcontains` — strings-index-contains analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/timeafterleak` — time-after-leak analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/timesleepnocontext` — time-sleep-no-context analyzer subpackage
