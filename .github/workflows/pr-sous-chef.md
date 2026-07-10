@@ -234,6 +234,7 @@ safe-outputs:
     title-prefix: "[pr-sous-chef] "
     labels: ["automation"]
     expires: 3d
+    group-by-day: true
     close-older-issues: true
   mentions:
     allowed: ["@copilot"]
