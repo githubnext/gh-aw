@@ -24,7 +24,9 @@ Run `gh aw compile <workflow-id>` after changing:
 - `mcp-servers:`
 - engine, timeout, concurrency, or other YAML configuration
 
-## No Recompile Needed
+## No Recompile Required for Runtime Behavior
+
+Body-only edits take effect on the next run without recompilation.
 
 Edit the markdown body directly for:
 
@@ -35,6 +37,8 @@ Edit the markdown body directly for:
 - clarifications and guardrails
 
 Body changes take effect on the next run.
+
+**Always run `gh aw compile` after any change** (frontmatter or body) to keep `.lock.yml` metadata in sync.
 
 ## Validation Commands
 
@@ -51,8 +55,9 @@ Use `--strict` for production-quality validation.
 - Smallest change that satisfies the request.
 - Preserve structure unless reorganization is the task.
 - Never leave a workflow broken.
+- Always run `gh aw compile <workflow-id>` after any change (frontmatter or body) to keep `.lock.yml` in sync.
 - If compile fails, fix all errors before stopping.
-- After frontmatter changes, review the generated `.lock.yml`.
+- After any change, review the generated `.lock.yml`.
 
 ## Prompt-Authoring Rules
 

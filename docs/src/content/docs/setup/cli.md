@@ -177,6 +177,8 @@ Add workflows from The Agentics collection or other repositories to `.github/wor
 ```bash wrap
 gh aw add githubnext/agentics/ci-doctor           # Add single workflow
 gh aw add githubnext/agentics/ci-doctor@v1.0.0   # Add specific version
+gh aw add ./my-workflow.md                       # Add a local workflow file
+gh aw add ./*.md                                 # Add multiple local workflow files
 gh aw add githubnext/agentics/ci-doctor --dir .github/workflows/shared  # Organize in subdirectory
 gh aw add githubnext/agentics/ci-doctor --create-pull-request        # Create PR instead of commit
 gh aw add https://example.com/workflows/my-workflow.md               # Arbitrary HTTPS URL (markdown)
@@ -206,7 +208,7 @@ Unrecognized fields are preserved as commented hints in the generated workflow.
 
 #### `new`
 
-Create a workflow template in `.github/workflows/`. Opens for editing automatically.
+Create a workflow template in `.github/workflows/`, or launch the interactive wizard when no workflow name is provided.
 
 ```bash wrap
 gh aw new                              # Interactive mode
@@ -243,7 +245,7 @@ gh aw secrets set MY_SECRET --value "secret123"                # From flag
 gh aw secrets set MY_SECRET --value-from-env MY_TOKEN          # From env var
 ```
 
-**Options:** `--repo`, `--value`, `--value-from-env`, `--api-url`
+**Options:** `--repo/-r`, `--value`, `--value-from-env`, `--api-url`
 
 ##### `secrets bootstrap`
 
@@ -479,6 +481,8 @@ cat run-ids.txt | gh aw logs --stdin --repo owner/repo   # required for bare num
 
 **Options:** `--after-run-id`, `--artifacts`, `--before-run-id`, `--cache-before`, `--count/-c`, `--end-date`, `--engine`, `--filtered-integrity`, `--firewall`, `--format`, `--json/-j`, `--last`, `--no-firewall`, `--no-staged`, `--output/-o`, `--parse`, `--ref`, `--report-file`, `--repo/-r`, `--safe-output`, `--start-date`, `--stdin`, `--summary-file`, `--timeout`, `--tool-graph`, `--train`
 
+`logs` defaults `--artifacts` to `usage` for faster, compact downloads. The `--last` flag is an alias for `--count/-c`.
+
 #### `audit`
 
 Analyze workflow runs with detailed reports. The `audit` command has two modes: a single-run audit (default) and a multi-run analysis.
@@ -508,7 +512,7 @@ cat run-ids.txt | gh aw audit --stdin --repo owner/repo
 
 The `--repo` flag accepts `owner/repo` format and is required when passing a bare numeric run ID without a full URL, allowing the command to locate the correct repository.
 
-The `--artifacts` flag selects which artifact sets to download (default: `all`). Valid sets include `activation`, `agent`, `all`, `detection`, `experiment`, `firewall`, `github-api`, `mcp`, and `usage`. Use `all` to download the full artifact set. The `--experiment` flag filters to runs that include the named experiment; `--variant` further restricts to a specific variant value and requires `--experiment` to be set. The `--output/-o` flag overrides the output directory.
+The `--artifacts` flag selects which artifact sets to download (default: `all`). Valid sets include `activation`, `agent`, `all`, `detection`, `experiment`, `firewall`, `github-api`, `mcp`, and `usage`. Use `all` to download the full artifact set. Unlike `gh aw logs`, which defaults to `usage`, `audit` defaults to `all` for comprehensive analysis. The `--experiment` flag filters to runs that include the named experiment; `--variant` further restricts to a specific variant value and requires `--experiment` to be set. The `--output/-o` flag overrides the output directory.
 
 Logs are saved to `logs/run-{id}/` with filenames indicating the extraction level. Pre-agent failures (integrity filtering, missing secrets, binary install) surface the actual error in `failure_analysis.error_summary`. Invalid run IDs return a human-readable error.
 
@@ -631,6 +635,7 @@ Inspect experiment state tracked in `experiments/*` branches. The default comman
 gh aw experiments                          # List experiment workflow branches
 gh aw experiments list --json             # List all experiments in JSON format
 gh aw experiments analyze my-workflow     # Analyze one experiment workflow
+gh aw experiments analyze my-workflow --json  # Analyze one experiment workflow as JSON
 gh aw experiments analyze my-workflow --repo owner/repo  # Analyze experiments in another repository
 ```
 
@@ -780,10 +785,22 @@ Manage MCP (Model Context Protocol) servers in workflows. `mcp inspect` auto-det
 gh aw mcp list workflow                    # List servers for workflow
 gh aw mcp list-tools --server github           # List tools for a server (all workflows)
 gh aw mcp list-tools workflow --server github  # List tools for a server in a specific workflow
+gh aw mcp inspect                          # List workflows with MCP servers
 gh aw mcp inspect workflow                 # Inspect and test servers
+gh aw mcp inspect workflow --server github  # Inspect only one server
+gh aw mcp inspect workflow --server github --tool create_issue  # Show one tool in detail
+gh aw mcp inspect workflow --inspector      # Launch the MCP inspector
+gh aw mcp inspect workflow --check-secrets  # Check required GitHub Actions secrets
 gh aw mcp add                              # List available MCP servers from the registry
-gh aw mcp add <workflow> <server>          # Add an MCP server to a workflow
+gh aw mcp add workflow server              # Add an MCP server to a workflow
+gh aw mcp add workflow server --transport stdio   # Prefer stdio transport
+gh aw mcp add workflow server --registry https://custom.registry.com/v1  # Use custom registry
+gh aw mcp add workflow server --tool-id my-server  # Override the tool ID
 ```
+
+**`mcp inspect` options:** `--check-secrets`, `--inspector`, `--server`, `--tool`
+
+**`mcp add` options:** `--transport`, `--registry`, `--tool-id`
 
 See [MCPs Guide](/gh-aw/guides/mcps/).
 
@@ -849,7 +866,7 @@ gh aw completion fish                 # Generate fish script
 gh aw completion powershell           # Generate powershell script
 ```
 
-**Subcommands:** `install`, `uninstall`, `bash`, `zsh`, `fish`, `powershell`. See [Shell Completions](#shell-completions).
+**Shell arguments:** `bash`, `zsh`, `fish`, `powershell` — **Subcommands:** `install`, `uninstall`. See [Shell Completions](#shell-completions).
 
 #### `project`
 

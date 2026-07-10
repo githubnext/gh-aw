@@ -5,10 +5,7 @@ sidebar:
   order: 100
 ---
 
-Each workflow consists of:
-
-1. **YAML Frontmatter**: Configuration options wrapped in `---`. See [Frontmatter](/gh-aw/reference/frontmatter/) for details.
-2. **Markdown**: Natural language instructions for the AI. See [Markdown](/gh-aw/reference/markdown/).
+Each workflow has two parts: YAML frontmatter wrapped in `---` for configuration, and a markdown body for the agent instructions. See [Frontmatter](/gh-aw/reference/frontmatter/) and [Markdown](/gh-aw/reference/markdown/) for details.
 
 For example:
 
@@ -32,8 +29,7 @@ A workflow file may optionally include one or more inline sub-agent definitions 
 
 ## File Organization
 
-Agentic workflows are stored in the `.github/workflows` folder as Markdown files (`*.md`)
-and they are compiled to GitHub Actions Workflows files (`*.lock.yml`)
+Agentic workflows live in `.github/workflows` as Markdown files (`*.md`) and compile to GitHub Actions workflow files (`*.lock.yml`).
 
 ```text
 .github/
@@ -42,7 +38,7 @@ and they are compiled to GitHub Actions Workflows files (`*.lock.yml`)
   └── ci-doctor.lock.yml # Compiled GitHub Actions Workflow
 ```
 
-When you run the `compile` command you generate the lock file.
+Run `gh aw compile` to generate the lock file.
 
 ```sh wrap
 gh aw compile
@@ -76,17 +72,13 @@ See [Editing Workflows](/gh-aw/guides/editing-workflows/) for complete guidance 
 
 ## Best Practices
 
-- Use descriptive names: `issue-responder.md`, `pr-reviewer.md`
-- Follow kebab-case convention: `weekly-summary.md`
-- Avoid spaces and special characters
-- **Commit source files**: Always commit `.md` files
-- **Commit generated files**: Also commit `.lock.yml` files for transparency
+Use descriptive kebab-case names such as `issue-responder.md` or `weekly-summary.md`, avoid spaces and special characters, and commit both the source `.md` files and generated `.lock.yml` files.
 
 ## Related Documentation
 
-- [Editing Workflows](/gh-aw/guides/editing-workflows/) - When to recompile vs edit directly
-- [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options for workflows
-- [Markdown](/gh-aw/reference/markdown/) - The main markdown content of workflows
-- [Imports](/gh-aw/reference/imports/) - Modularizing workflows with includes
-- [CLI Commands](/gh-aw/setup/cli/) - CLI commands for workflow management
-- [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol configuration
+- [Editing Workflows](/gh-aw/guides/editing-workflows/) — When to recompile versus edit directly
+- [Frontmatter](/gh-aw/reference/frontmatter/) — Workflow configuration options
+- [Markdown](/gh-aw/reference/markdown/) — Writing the markdown body
+- [Imports](/gh-aw/reference/imports/) — Reusing shared workflow content
+- [CLI Commands](/gh-aw/setup/cli/) — Workflow management commands
+- [MCPs](/gh-aw/guides/mcps/) — Model Context Protocol configuration
