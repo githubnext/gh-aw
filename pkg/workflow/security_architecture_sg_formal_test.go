@@ -33,6 +33,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -610,8 +611,17 @@ JobTopologyOrder: verify compiled job pipeline preserves canonical order.
 		if idx < 0 {
 			idx = strings.Index(yamlOut, needle)
 		}
+		// A job present in sections but absent as a header means the YAML is
+		// malformed; fail immediately so ordering checks don't silently pass
+		// on stale or bogus positions.
+		require.GreaterOrEqual(t, idx, 0,
+			"JobTopologyOrder: job %q found in sections map but its header is missing from compiled YAML", line.name)
 		positions = append(positions, jobPos{name: line.name, line: idx})
 	}
+
+	// Sort by YAML byte-offset so foundOrder reflects the actual order jobs
+	// appear in the compiled output, not the canonical iteration order above.
+	sort.Slice(positions, func(i, j int) bool { return positions[i].line < positions[j].line })
 
 	// Verify that every expected job is present.
 	expectedJobs := []string{
@@ -627,11 +637,34 @@ JobTopologyOrder: verify compiled job pipeline preserves canonical order.
 			"JobTopologyOrder: compiled workflow must contain job %q", name)
 	}
 
-	// Build the order of found jobs and verify it satisfies the canonical ordering.
+	// Build foundOrder in YAML appearance order (used for diagnostic messages).
 	var foundOrder []string
 	for _, p := range positions {
 		foundOrder = append(foundOrder, p.name)
 	}
-	assert.True(t, formalJobOrderValid(foundOrder),
-		"JobTopologyOrder: compiled job order %v must satisfy the canonical pipeline ordering invariant", foundOrder)
+
+	// Verify the canonical needs-based dependency chain.  In GitHub Actions,
+	// execution order is determined by the needs: graph, not YAML section
+	// position, so each job must declare its direct predecessor as a dependency.
+	// Compiled YAML uses either the scalar form ("needs: <name>") or a list
+	// item ("- <name>") inside a multi-value needs: block.
+	type pipelineEdge struct{ job, predecessor string }
+	edges := []pipelineEdge{
+		{string(constants.ActivationJobName), string(constants.PreActivationJobName)},
+		{string(constants.AgentJobName), string(constants.ActivationJobName)},
+		{string(constants.DetectionJobName), string(constants.AgentJobName)},
+		{string(constants.SafeOutputsJobName), string(constants.DetectionJobName)},
+	}
+	for _, e := range edges {
+		sec, ok := sections[e.job]
+		if !ok {
+			continue // already reported as missing by the presence loop above
+		}
+		hasNeedsDep := strings.Contains(sec, "needs: "+e.predecessor) ||
+			strings.Contains(sec, "- "+e.predecessor)
+		assert.True(t, hasNeedsDep,
+			"JobTopologyOrder: %q must declare %q as a direct needs dependency "+
+				"to enforce the canonical pipeline order (actual YAML section order: %v)",
+			e.job, e.predecessor, foundOrder)
+	}
 }

@@ -87,13 +87,14 @@ SG03_NetworkAllowlist ≜
     domain ∈ GetBlockedDomains(WorkflowState.network)
 
 SG04_LeastPrivilege ≜
-  DefaultPermissions = {} ∧
-  ∀ scope ∈ DefaultPermissions : scope.value = read
+  ∀ scope ∈ DefaultPermissions :
+    WorkflowState.permissions[scope] = read
 
 SG05_SandboxIsolation ≜
   isSandboxEnabled(sandboxConfig, network) ⟺
-    (sandboxConfig.Agent.Type = AWF ∧ ¬sandboxConfig.Agent.Disabled) ∨
-    network.Firewall.Enabled
+    (sandboxConfig ≠ nil ∧ sandboxConfig.Agent ≠ nil ∧
+      sandboxConfig.Agent.Type = AWF ∧ ¬sandboxConfig.Agent.Disabled) ∨
+    (network ≠ nil ∧ network.Firewall ≠ nil ∧ network.Firewall.Enabled)
 
 SG06_Auditability ≜
   WorkflowState.threatDetect ≠ nil ⟹
