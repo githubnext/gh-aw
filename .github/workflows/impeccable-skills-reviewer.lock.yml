@@ -1484,8 +1484,18 @@ jobs:
             echo "::error::node runtime missing on this runner — check runtimes.node in workflow YAML"
             exit 127
           fi
-          # Execute content redaction script
-          "$GH_AW_NODE_EXEC" "${RUNNER_TEMP}/gh-aw/actions/content_redaction.cjs"
+          # Configure AWF for content redaction
+          AWF_CONFIG_FILE="${RUNNER_TEMP}/gh-aw/content-redaction-awf-config.json"
+          printf '%s\n' '{"apiProxy":{"enabled":true}}' > "${AWF_CONFIG_FILE}"
+          # Execute content redaction script via AWF
+          awf --config "${AWF_CONFIG_FILE}" \
+            --container-workdir "${GITHUB_WORKSPACE}" \
+            --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:rw" \
+            --mount "/tmp/gh-aw:/tmp/gh-aw:rw" \
+            --env-all \
+            --log-level info \
+            --skip-pull \
+            -- bash -c "\"\$GH_AW_NODE_EXEC\" \"\${RUNNER_TEMP}/gh-aw/actions/content_redaction.cjs\""
       - name: Set redaction conclusion
         id: redaction_conclusion
         if: always()

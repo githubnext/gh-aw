@@ -2,6 +2,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -190,7 +191,7 @@ func buildLoadRedactionPoliciesStep(cr *ContentRedactionConfig) []string {
 }
 
 // buildContentRedactionEngineStep creates the main redaction step that executes
-// the content_redaction.cjs script with node. It reads the agent output items,
+// the content_redaction.cjs script with AWF. It reads the agent output items,
 // applies the loaded policy, and writes the redacted output back for safe_outputs to consume.
 func (c *Compiler) buildContentRedactionEngineStep(cr *ContentRedactionConfig) []string {
 	// Determine the model to use (with fallback to a cost-effective default).
@@ -235,10 +236,46 @@ func (c *Compiler) buildContentRedactionEngineStep(cr *ContentRedactionConfig) [
 	steps = append(steps, "            echo \"::error::node runtime missing on this runner — check runtimes.node in workflow YAML\"\n")
 	steps = append(steps, "            exit 127\n")
 	steps = append(steps, "          fi\n")
-	steps = append(steps, "          # Execute content redaction script\n")
-	steps = append(steps, "          \"$GH_AW_NODE_EXEC\" \"${RUNNER_TEMP}/gh-aw/actions/content_redaction.cjs\"\n")
+	steps = append(steps, "          # Configure AWF for content redaction\n")
+	steps = append(steps, "          AWF_CONFIG_FILE=\"${RUNNER_TEMP}/gh-aw/content-redaction-awf-config.json\"\n")
+	steps = append(steps, c.buildContentRedactionAWFConfigSetup())
+	steps = append(steps, "          # Execute content redaction script via AWF\n")
+	steps = append(steps, "          awf --config \"${AWF_CONFIG_FILE}\" \\\n")
+	steps = append(steps, "            --container-workdir \"${GITHUB_WORKSPACE}\" \\\n")
+	steps = append(steps, "            --mount \"${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:rw\" \\\n")
+	steps = append(steps, "            --mount \"/tmp/gh-aw:/tmp/gh-aw:rw\" \\\n")
+	steps = append(steps, "            --env-all \\\n")
+	steps = append(steps, "            --log-level info \\\n")
+	steps = append(steps, "            --skip-pull \\\n")
+	steps = append(steps, "            -- bash -c \"\\\"\\$GH_AW_NODE_EXEC\\\" \\\"\\${RUNNER_TEMP}/gh-aw/actions/content_redaction.cjs\\\"\"\n")
 
 	return steps
+}
+
+// buildContentRedactionAWFConfigSetup generates the shell script to create AWF config JSON
+// for content redaction. This config enables minimal network access needed for AI model API calls.
+func (c *Compiler) buildContentRedactionAWFConfigSetup() string {
+	// Build minimal AWF config for content redaction:
+	// - Enable API proxy for model access
+	// - Allow minimal required domains
+	// - Use standard firewall version
+	config := map[string]interface{}{
+		"apiProxy": map[string]interface{}{
+			"enabled": true,
+		},
+	}
+
+	// Marshal as compact JSON (single line) to avoid YAML parsing issues
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		contentRedactionJobLog.Printf("Warning: failed to marshal AWF config for content redaction: %v", err)
+		// Fallback to minimal valid config
+		configJSON = []byte(`{"apiProxy":{"enabled":true}}`)
+	}
+
+	// Escape the JSON for shell (preserve $ for env vars)
+	escaped := shellEscapeArg(string(configJSON))
+	return fmt.Sprintf("          printf '%%s\\n' %s > \"${AWF_CONFIG_FILE}\"\n", escaped)
 }
 
 // buildContentRedactionConclusionStep creates the step that sets the job conclusion outputs.
