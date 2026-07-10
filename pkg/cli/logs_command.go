@@ -54,7 +54,6 @@ Downloaded artifacts include (when using --artifacts all):
 - aw-{branch}.patch: Git patch of changes for each branch (one file per PR/push)
 - workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
 - summary.json: Complete metrics and run data for all downloaded runs
-
 `, validArtifactSets) + "\n\n" + WorkflowIDExplanation,
 		Example: `  # Basic usage
   ` + string(constants.CLIExtensionPrefix) + ` logs                           # Download logs for all workflows
