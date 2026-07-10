@@ -273,7 +273,7 @@ When this workflow is triggered by the `/souschef` slash command on a PR comment
    - `mergeStateStatus == "CONFLICTING"` first (explicit merge-conflict unblock request).
    - PRs with unresolved review threads where at least one thread already has a follow-up response from the PR author or `@copilot` but remains unresolved.
    - Remaining PRs by most-recent `updatedAt`.
-   If two PRs are still tied, prioritize the lower PR number first for deterministic behavior.
+   If two PRs are still tied, prioritize the lower PR number first for deterministic behavior and stable reruns.
 6. After applying skip rules, stop creating new nudge comments once 4 PRs have been nudged in the current run. Continue processing only for required bookkeeping/reporting.
 7. Use the `pr-processor` sub-agent for each PR; pass only the PR number and compact context.
 8. If a `pr-processor` call returns non-JSON or an error, record `{pr_number: <N>, skip_reason: "sub_agent_error"}` in the `skipped` array of the run-summary issue payload and move to the next PR without retrying.
@@ -355,7 +355,7 @@ For each PR that is not skipped:
     ```bash
     safeoutputs resolve_pull_request_review_thread --thread_id PRRT_kwDOABCD1234
     ```
-   - If resolving one thread fails, record the failure and continue with remaining thread IDs; do not fail the run solely because one resolution attempt failed.
+   - If resolving one thread fails, append `{pr_number: <N>, skip_reason: "resolve_review_thread_failed", thread_id: "<thread-id>"}` to the run-summary `skipped` array and continue with remaining thread IDs; do not fail the run solely because one resolution attempt failed.
 
 4. **Dismiss stale `github-actions[bot]` blocking reviews when all PR review threads are resolved**
    - **Slash-command guard**: If triggered via the `/souschef` slash command (`pull_request_comment` event), skip this dismissal step entirely — slash-command runs are acknowledgment nudges and must not perform automated review cleanup.
