@@ -272,7 +272,12 @@ describe("no-github-request-interpolated-route", () => {
 
   it("valid: mutable aliases are out of scope and not flagged", () => {
     cjsRuleTester.run("no-github-request-interpolated-route", noGithubRequestInterpolatedRouteRule, {
-      valid: ["let gh = github; gh.request(`GET /repos/${owner}/${repo}`, { owner, repo });", "var client = getOctokit(token); client = http; client.request(`GET /repos/${owner}/${repo}`);"],
+      valid: [
+        // Mutable let bindings are not trusted aliases.
+        "let gh = github; gh.request(`GET /repos/${owner}/${repo}`, { owner, repo });",
+        // var alias can be reassigned, so it is intentionally out of scope.
+        "var client = getOctokit(token); client = http; client.request(`GET /repos/${owner}/${repo}`);",
+      ],
       invalid: [],
     });
   });
