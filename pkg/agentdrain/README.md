@@ -4,6 +4,8 @@
 
 The `agentdrain` package implements the [Drain](https://jiemingzhu.github.io/pub/pjhe_icws2017.pdf) log template mining algorithm adapted for analyzing structured agent pipeline events. It is used for anomaly detection in agentic workflow runs.
 
+The package also embeds default trained weights under `data/`, so callers can bootstrap a `Coordinator` with pre-trained clusters instead of starting from an empty model.
+
 ## Overview
 
 Drain is an online log parsing algorithm that groups log lines into clusters based on token similarity. Each cluster has a *template* — a tokenized log pattern where variable tokens are replaced with a wildcard (`<*>`). When a new log line arrives, Drain finds the most similar existing cluster or creates a new one.

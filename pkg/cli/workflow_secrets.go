@@ -126,8 +126,7 @@ func hasCopilotRequestsWritePermission(frontmatter map[string]any) bool {
 		return false
 	}
 	perms := workflow.NewPermissionsParserFromValue(permissionsValue).ToPermissions()
-	level, exists := perms.Get(workflow.PermissionCopilotRequests)
-	return exists && level == workflow.PermissionWrite
+	return perms.HasCopilotRequestsWrite()
 }
 
 func filterOutSecretRequirement(reqs []SecretRequirement, secretName string) []SecretRequirement {

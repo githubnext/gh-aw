@@ -112,7 +112,7 @@ fmt.Println(defaults) // ObjectiveMapping{labels: 12, logic: max, priorities: 7}
 
 - All label comparisons are case-insensitive: labels are normalised with `strings.ToLower(strings.TrimSpace(...))` before lookup.
 - The default `MultiLabelLogic` is `"max"`. Callers that do not set this field get max-value semantics automatically.
-- `PriorityLabels` is only consulted when `MultiLabelLogic` is `"first"`; it establishes evaluation precedence among matching labels.
+- `PriorityLabels` is only consulted when `MultiLabelLogic` is `"first"`; the implementation walks the issue's labels in their existing order and returns the value for the first label that also appears in `PriorityLabels`. If no priority entry matches, it falls back to the first matched value collected from `LabelToValue`.
 - Debug output is controlled by the `DEBUG=github:*` environment variable and is only emitted when that variable is set.
 
 ---
