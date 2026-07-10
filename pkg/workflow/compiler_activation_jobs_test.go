@@ -398,6 +398,25 @@ func TestBuildActivationJob_OAuthCheckAfterSecretValidation(t *testing.T) {
 	}
 }
 
+// TestBuildActivationJob_OAuthTokenCheckFailedOutput verifies that the activation job
+// exposes oauth_token_check_failed as an output derived from the check-oauth-tokens step.
+func TestBuildActivationJob_OAuthTokenCheckFailedOutput(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name:            "Test Workflow",
+		MarkdownContent: "# Test\n\nContent",
+	}
+
+	job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+	require.NoError(t, err)
+	require.NotNil(t, job)
+
+	outputVal, ok := job.Outputs["oauth_token_check_failed"]
+	require.True(t, ok, "activation job should expose oauth_token_check_failed output")
+	assert.Contains(t, outputVal, "steps.check-oauth-tokens.outputs.oauth_token_check_failed", "output should reference the check-oauth-tokens step")
+}
+
 // TestBuildMainJob_Basic tests building a basic main job
 func TestBuildMainJob_Basic(t *testing.T) {
 	compiler := NewCompiler()

@@ -100,6 +100,8 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `PollOptions` | `signal_aware_poll.go` | Options for `PollWithSignalHandling` |
 | `FixConfig` | `fix_command.go` | Configuration for `RunFix` codemods |
 | `ForecastConfig` | `forecast_command.go` | Configuration for `NewForecastCommand` (experimental token usage forecasting) |
+| `ExperimentsListConfig` | `experiments_command.go` | Configuration for `RunExperimentsList` |
+| `ExperimentsAnalyzeConfig` | `experiments_command.go` | Configuration for `RunExperimentsAnalyze` |
 | `TrialOptions` | `trial_types.go` | Options for `RunWorkflowTrials` |
 | `WorkflowTrialResult` | `trial_types.go` | Result of a trial run |
 | `UpgradeConfig` | `upgrade_command.go` | Configuration for `NewUpgradeCommand` |
@@ -199,7 +201,11 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `TrainDrain3Weights` | `func([]ProcessedRun, outputDir string, verbose bool) error` | Trains Drain3 anomaly-detection weights from run history |
 | `EvaluateOutcomes` | `func(items []CreatedItemReport, repoOverride string, mapping *github.ObjectiveMapping) []OutcomeReport` | Checks the current state of all safe output items from a run |
 | `ComputeOutcomeSummary` | `func(reports []OutcomeReport, mapping *github.ObjectiveMapping) OutcomeSummary` | Aggregates outcome reports into a summary with acceptance and zero-touch rates |
+| `RunOutcomes` | `func(OutcomesConfig) error` | Evaluates safe-output outcomes for a completed workflow run |
 | `RunOutcomesHistory` | `func(OutcomesHistoryConfig) error` | Scores recent closed issues and merged PRs against the objective mapping |
+| `RunForecast` | `func(ForecastConfig) error` | Forecasts AIC usage for agentic workflows via Monte Carlo simulation |
+| `RunExperimentsList` | `func(ExperimentsListConfig) error` | Lists all A/B experiment workflow branches |
+| `RunExperimentsAnalyze` | `func(ExperimentsAnalyzeConfig) error` | Analyzes variant distribution for a specific experiment workflow |
 | `DisplayOutdatedDependencies` | `func([]OutdatedDependency, int)` | Renders an outdated-dependencies table to stdout |
 | `DisplayDependencyReport` | `func(*DependencyReport)` | Renders a full dependency report to stdout |
 | `DisplayDependencyReportJSON` | `func(*DependencyReport) error` | Renders a dependency report as JSON to stdout |
@@ -416,6 +422,14 @@ The `cli` package exports many types used across its command implementations. Th
 | `LogMetrics` | type alias | Alias for `workflow.LogMetrics` — log parsing metrics |
 | `PostTransformFunc` | func type | A post-compilation transformation function |
 | `LogParser[T]` | generic func type | Generic log-parser function type parameterized on analysis result |
+| `ExperimentState` | struct | State stored in `experiments/*` git branches (counts and run history) |
+| `ExperimentRunRecord` | struct | A single workflow run record in experiment state history |
+| `ExperimentVariantStats` | struct | Counts for all variants of a named A/B experiment |
+| `ExperimentInfo` | struct | Summary of a single experiment workflow (for `experiments list` output) |
+| `ForecastResult` | struct | Full forecast result returned by `RunForecast` |
+| `ForecastWorkflowResult` | struct | Per-workflow forecast result including Monte Carlo projections |
+| `ForecastMonteCarloSummary` | struct | Monte Carlo simulation summary (P10/P50/P90 confidence intervals) |
+| `ForecastEvaluation` | struct | Backtesting evaluation comparing forecast against actual runs |
 
 ## Usage Examples
 

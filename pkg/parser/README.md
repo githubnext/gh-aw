@@ -159,7 +159,6 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 |----------|-----------|-------------|
 | `ExtractJSONPathFromValidationError` | `func(err error) []JSONPathInfo` | Extracts JSON path info from a schema validation error |
 | `LocateJSONPathInYAML` | `func(yamlContent, jsonPath string) JSONPathLocation` | Maps a JSON path to a line number in YAML text |
-| `LocateJSONPathInYAMLWithAdditionalProperties` | `func(yamlContent, jsonPath, errorMessage string) JSONPathLocation` | Maps path with additional-property context |
 | `LocateJSONPathForPathInfo` | `func(yamlContent string, info JSONPathInfo) JSONPathLocation` | Maps a `JSONPathInfo` to a line/column in YAML text, handling additional-property errors |
 
 #### Trigger Helpers
