@@ -3,6 +3,7 @@ import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils"
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
 const OCTOKIT_CLIENT_NAMES = new Set(["github", "octokit", "githubClient", "octokitClient"]);
+const GET_OCTOKIT_MEMBER_OBJECT_NAMES = new Set(["github", "actions"]);
 
 /**
  * Returns true when the node is a template literal that contains at least one
@@ -51,7 +52,8 @@ function isContextGithubExpression(node: TSESTree.Node): boolean {
  * Returns true when a syntactic expression node directly represents a known
  * Octokit client source without scope resolution. Recognizes:
  * - Direct known names: github, octokit, githubClient, octokitClient
- * - `getOctokit(...)` call results (bare or accessed via a module member)
+ * - `getOctokit(...)` call results (bare or via known module objects, e.g.
+ *   `github.getOctokit(...)` or `actions.getOctokit(...)`)
  * - `context.github` member expression
  */
 function isOctokitSourceExpression(node: TSESTree.Node): boolean {
@@ -60,7 +62,16 @@ function isOctokitSourceExpression(node: TSESTree.Node): boolean {
   if (node.type === AST_NODE_TYPES.CallExpression) {
     const callee = node.callee;
     if (callee.type === AST_NODE_TYPES.Identifier && callee.name === "getOctokit") return true;
-    if (callee.type === AST_NODE_TYPES.MemberExpression && !callee.computed && callee.property.type === AST_NODE_TYPES.Identifier && callee.property.name === "getOctokit") return true;
+    if (
+      callee.type === AST_NODE_TYPES.MemberExpression &&
+      !callee.computed &&
+      callee.object.type === AST_NODE_TYPES.Identifier &&
+      GET_OCTOKIT_MEMBER_OBJECT_NAMES.has(callee.object.name) &&
+      callee.property.type === AST_NODE_TYPES.Identifier &&
+      callee.property.name === "getOctokit"
+    ) {
+      return true;
+    }
   }
 
   if (isContextGithubExpression(node)) return true;
@@ -74,9 +85,9 @@ export const noGithubRequestInterpolatedRouteRule = createRule({
     type: "problem",
     docs: {
       description:
-        "Disallow template literals with interpolations or string concatenation as the route argument of Octokit " +
-        ".request() calls. Octokit clients are detected by well-known names (github, octokit, githubClient, octokitClient), " +
-        "getOctokit(...) call results, context.github, and simple const/let aliases of any of these. " +
+        "Disallow template literals with interpolations or string concatenation as the route argument of Octokit.request() calls. " +
+        "Octokit clients are detected by well-known names (github, octokit, githubClient, octokitClient), " +
+        "identifiers initialized from getOctokit(...) call results, context.github, and simple const aliases of any of these. " +
         'Use the typed placeholder form instead: "GET /repos/{owner}/{repo}" with a separate params object.',
     },
     schema: [],
@@ -110,6 +121,8 @@ export const noGithubRequestInterpolatedRouteRule = createRule({
           for (const def of variable.defs) {
             if (def.type !== "Variable") continue;
             const declarator = def.node as TSESTree.VariableDeclarator;
+            const declaration = declarator.parent;
+            if (declaration.type !== AST_NODE_TYPES.VariableDeclaration || declaration.kind !== "const") continue;
             if (declarator.init && isOctokitSourceExpression(declarator.init)) return true;
           }
           return false;
@@ -128,9 +141,9 @@ export const noGithubRequestInterpolatedRouteRule = createRule({
      *   simple alias of an Octokit source (scope-resolved)
      * - `context.github.request(...)`
      */
-    function resolveOctokitClientName(calleeObject: TSESTree.Expression | TSESTree.Super, callNode: TSESTree.Node): string | null {
+    function resolveOctokitClientName(calleeObject: TSESTree.Expression | TSESTree.Super): string | null {
       if (calleeObject.type === AST_NODE_TYPES.Identifier) {
-        return isIdentifierBoundToOctokitClient(calleeObject.name, callNode) ? calleeObject.name : null;
+        return isIdentifierBoundToOctokitClient(calleeObject.name, calleeObject) ? calleeObject.name : null;
       }
 
       if (isContextGithubExpression(calleeObject)) {
@@ -150,7 +163,7 @@ export const noGithubRequestInterpolatedRouteRule = createRule({
         if (callee.property.type !== AST_NODE_TYPES.Identifier) return;
         if (callee.property.name !== "request") return;
 
-        const clientName = resolveOctokitClientName(callee.object, node);
+        const clientName = resolveOctokitClientName(callee.object);
         if (!clientName) return;
 
         const firstArg = node.arguments[0];

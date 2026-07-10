@@ -176,6 +176,8 @@ describe("no-github-request-interpolated-route", () => {
         "const gh = someUnknownClient; gh.request(`GET /repos/${owner}/${repo}`);",
         // Alias of http module — must not be flagged
         "const client = http; client.request(`GET /repos/${owner}/${repo}`);",
+        // Unknown .getOctokit() owner must not be treated as toolkit Octokit source
+        "const helperClient = myHelper.getOctokit(token); helperClient.request(`GET /repos/${owner}/${repo}`);",
       ],
       invalid: [],
     });
@@ -255,7 +257,23 @@ describe("no-github-request-interpolated-route", () => {
             },
           ],
         },
+        {
+          code: "const client = actions.getOctokit(token); client.request(`POST /repos/${owner}/${repo}/issues`, { });",
+          errors: [
+            {
+              messageId: "interpolatedRoute",
+              data: { kind: "template literal with interpolations", client: "client" },
+            },
+          ],
+        },
       ],
+    });
+  });
+
+  it("valid: mutable aliases are out of scope and not flagged", () => {
+    cjsRuleTester.run("no-github-request-interpolated-route", noGithubRequestInterpolatedRouteRule, {
+      valid: ["let gh = github; gh.request(`GET /repos/${owner}/${repo}`, { owner, repo });", "var client = getOctokit(token); client = http; client.request(`GET /repos/${owner}/${repo}`);"],
+      invalid: [],
     });
   });
 
