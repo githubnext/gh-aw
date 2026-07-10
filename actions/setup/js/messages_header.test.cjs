@@ -1,5 +1,6 @@
 // @ts-check
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,21 +14,34 @@ const mockCore = {
 };
 global.core = mockCore;
 
-const originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
-if (!process.env.GH_AW_PROMPTS_DIR) {
-  process.env.GH_AW_PROMPTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../md");
-}
-const { getBodyHeader, getDisclosureHeader, DEFAULT_DISCLOSURE_HEADER, DISCLOSURE_HEADER_DEFAULT_SENTINEL } = require("./messages_header.cjs");
-if (originalPromptsDir === undefined) {
-  delete process.env.GH_AW_PROMPTS_DIR;
-} else {
-  process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
-}
+const require = createRequire(import.meta.url);
+let originalPromptsDir;
+let getBodyHeader;
+let getDisclosureHeader;
+let DEFAULT_DISCLOSURE_HEADER;
+let DISCLOSURE_HEADER_DEFAULT_SENTINEL;
 
 const WORKFLOW = "My Workflow";
 const RUN_URL = "https://github.com/owner/repo/actions/runs/99";
 
 describe("messages_header", () => {
+  beforeAll(() => {
+    originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
+    if (!process.env.GH_AW_PROMPTS_DIR) {
+      process.env.GH_AW_PROMPTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../md");
+    }
+    vi.resetModules();
+    ({ getBodyHeader, getDisclosureHeader, DEFAULT_DISCLOSURE_HEADER, DISCLOSURE_HEADER_DEFAULT_SENTINEL } = require("./messages_header.cjs"));
+  });
+
+  afterAll(() => {
+    if (originalPromptsDir === undefined) {
+      delete process.env.GH_AW_PROMPTS_DIR;
+    } else {
+      process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
+    }
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
