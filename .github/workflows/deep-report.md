@@ -193,7 +193,7 @@ When recent `lint-monster` and `daily-sentrux` reports both point at function co
 1. Refresh the authoritative long-function backlog from the current tree with `make golint-custom`, then extract only `largefunc` / `function-length` findings in `pkg/workflow` and `pkg/cli`.
 2. Run `sentrux check . --json` and capture the highest-complexity functions in `pkg/workflow` and `pkg/cli`.
 3. Compute recent churn for the candidate files with `git log --since="90 days ago" --numstat -- pkg/workflow pkg/cli`, excluding generated files such as `*.lock.yml` and `actions-lock.json`.
-4. If the checkout is shallow, unshallow it before churn analysis and fetch the default branch history you need for accurate ranking.
+4. If the checkout is shallow, run `git fetch --unshallow origin` and then fetch the default branch history you need before churn analysis so the ranking uses real history instead of a shallow sample.
 5. Build a ranked intersection set: prefer functions that appear in both the long-function backlog and the sentrux hotspot list. Rank by sentrux complexity first, then recent churn, then how central the function is to workflow/CLI execution paths.
 6. If fewer than 10 intersection candidates exist, fill the remainder with the strongest sentrux hotspots that are adjacent to the long-function backlog in the same files, and say that explicitly.
 
@@ -253,7 +253,7 @@ When the structural-debt hotspot analysis in Step 2.6 finds a meaningful overlap
 - Focus on the current `function-length` / `largefunc` backlog in `pkg/workflow` and `pkg/cli`
 - Cite the authoritative long-function count from the current lint run and the matching sentrux quality signal / hotspot evidence
 - Include a `### Prioritized Hotlist (Top 10)` section with a ranked table containing: rank, function, file, complexity evidence, recent churn evidence, and a one-line suggested refactor seam
-- Clearly state when churn is file-level proxy data rather than exact function-level history
+- Add a one-sentence note immediately below the `### Prioritized Hotlist (Top 10)` table whenever churn is file-level proxy data rather than exact function-level history
 
 **If no actionable tasks are identified** (the project is in excellent shape): skip issue creation and note in the report that the project is operating optimally.
 
