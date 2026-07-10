@@ -648,8 +648,8 @@ JobTopologyOrder: verify compiled job pipeline preserves canonical order.
 	// position, so each job must declare its direct predecessor as a dependency.
 	// Compiled YAML uses either the scalar form ("needs: <name>") or a list
 	// item ("- <name>") inside a multi-value needs: block.
-	type pipelineEdge struct{ job, predecessor string }
-	edges := []pipelineEdge{
+	type dependencyEdge struct{ job, predecessor string }
+	edges := []dependencyEdge{
 		{string(constants.ActivationJobName), string(constants.PreActivationJobName)},
 		{string(constants.AgentJobName), string(constants.ActivationJobName)},
 		{string(constants.DetectionJobName), string(constants.AgentJobName)},
