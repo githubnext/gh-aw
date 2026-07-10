@@ -218,8 +218,7 @@ func shouldEmitCopilotRequestsEnableTip(workflowData *WorkflowData, workflowPerm
 	if level, exists := workflowPermissions.GetExplicit(PermissionCopilotRequests); exists && level == PermissionNone {
 		return false
 	}
-	level, exists := workflowPermissions.Get(PermissionCopilotRequests)
-	return !exists || level != PermissionWrite
+	return !workflowPermissions.HasCopilotRequestsWrite()
 }
 
 func validateOIDCPermissions(workflowData *WorkflowData, workflowPermissions *Permissions) error {

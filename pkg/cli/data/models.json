@@ -449,6 +449,33 @@
           "provider_type": "openai",
           "wire_api": "responses"
         },
+        "gpt-5.6-luna": {
+          "cost": {
+            "input": "1e-06",
+            "output": "6e-06",
+            "cache_read": "1e-07"
+          },
+          "provider_type": "openai",
+          "wire_api": "responses"
+        },
+        "gpt-5.6-sol": {
+          "cost": {
+            "input": "5e-06",
+            "output": "3e-05",
+            "cache_read": "5e-07"
+          },
+          "provider_type": "openai",
+          "wire_api": "responses"
+        },
+        "gpt-5.6-terra": {
+          "cost": {
+            "input": "2.5e-06",
+            "output": "1.5e-05",
+            "cache_read": "2.5e-07"
+          },
+          "provider_type": "openai",
+          "wire_api": "responses"
+        },
         "raptor-mini": {
           "cost": {
             "input": "2.5e-07",

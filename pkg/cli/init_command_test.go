@@ -180,6 +180,47 @@ func TestInitCommandInteractiveModeDetection(t *testing.T) {
 	}
 }
 
+func TestInitCommandCreatesCustomAgentByDefault(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+	if err := exec.Command("git", "config", "user.name", "Test User").Run(); err != nil {
+		t.Fatalf("Failed to set git user.name: %v", err)
+	}
+	if err := exec.Command("git", "config", "user.email", "test@example.com").Run(); err != nil {
+		t.Fatalf("Failed to set git user.email: %v", err)
+	}
+
+	cmd := NewInitCommand()
+	cmd.SetArgs([]string{})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("init command failed: %v", err)
+	}
+
+	agentPath := filepath.Join(".github", "agents", "agentic-workflows.md")
+	agentContent, err := os.ReadFile(agentPath)
+	if err != nil {
+		t.Fatalf("Expected Agentic Workflows custom agent file to be created at %s: %v", agentPath, err)
+	}
+	if !strings.Contains(string(agentContent), "name: Agentic Workflows") {
+		t.Error("Expected Agentic Workflows custom agent file to use the Agentic Workflows name")
+	}
+}
+
 func TestInitRepositoryBasic(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 
