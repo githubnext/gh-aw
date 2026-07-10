@@ -36,6 +36,7 @@ if err != nil {
 
 - All debug output uses `logger.New("repoutil:repoutil")` and is only emitted when `DEBUG=repoutil:*`.
 - For paths that include sub-folders (e.g. GitHub Actions `uses:` fields such as `github/codeql-action/upload-sarif`), use `gitutil.ExtractBaseRepo` first to strip the sub-path before calling `SplitRepoSlug`.
+- `NormalizeRepoForAPI` only treats three-segment strings as `HOST/owner/repo`; plain `owner/repo` values are returned unchanged with an empty host.
 
 ---
 

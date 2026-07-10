@@ -8,6 +8,8 @@ The `cli` package implements all commands exposed through the `gh aw` CLI extens
 
 The package is intentionally decomposed into many small files grouped by feature domain (e.g., `compile_*.go`, `audit_*.go`, `run_*.go`, `mcp_*.go`). This structure keeps individual files under 300 lines and promotes independent testing of each sub-domain.
 
+Besides Cobra entry points, the package also exposes reusable helpers for workflow resolution, dependency analysis, PR creation, and run auditing so multiple commands can share the same business logic and tests.
+
 All diagnostic output MUST go to `stderr` using `console` formatting helpers. Structured output (JSON, hashes, graphs) goes to `stdout`.
 
 ## Command Groups

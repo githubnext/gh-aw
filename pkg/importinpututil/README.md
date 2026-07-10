@@ -86,7 +86,11 @@ if !ok {
 
 ## Dependencies
 
-This package has no external or internal `gh-aw` dependencies — it uses only the Go standard library.
+**Internal**:
+- `github.com/github/gh-aw/pkg/logger` — package-scoped debug logging for path resolution and value formatting
+
+**External**:
+- None beyond the Go standard library (`encoding/json`, `fmt`, `reflect`, `sort`, `strings`).
 
 ## Design Notes
 

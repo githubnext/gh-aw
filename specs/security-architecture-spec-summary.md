@@ -54,11 +54,151 @@ The specification defines **7 security guarantees (SG-01 to SG-07)**:
 
 **Note on SG-01**: This guarantee protects against template injection in GitHub Actions expressions. It does not prevent AI agents from accessing untrusted data at runtime through tools like GitHub MCP (which can return issue titles, PR bodies, etc.). Such data is subject to AI prompt injection risks, which are addressed through threat detection (Layer 6) and safe outputs isolation (Layer 2).
 
-### Formal Requirements
+### Formal Model
 
-- **130+ formal requirements** using RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
-- **70+ compliance tests** across 8 categories
-- **8 appendices** with diagrams, examples, and best practices
+The seven security guarantees are encoded as a state-machine with invariants using TLA+, F* pre/post contracts, and Z3/SMT-LIB arithmetic bounds.
+
+**State space** (`WorkflowState`):
+
+```
+WorkflowState ≜ [
+  steps         : Seq(Step),
+  permissions   : PermissionScope → PermissionValue,
+  network       : NetworkPermissions,
+  sandboxConfig : SandboxConfig ∪ {nil},
+  threatDetect  : ThreatDetectionConfig ∪ {nil},
+  emitAllowed   : Bool
+]
+```
+
+**TLA+ invariants** (one per security guarantee):
+
+```tla
+SG01_InputSanitization ≜
+  ∀ step ∈ WorkflowState.steps :
+    step.run ≠ nil ∧ ContainsExpression(step.run) ⟹ step.env ≠ nil
+
+SG02_AgentReadOnly ≜
+  ∀ scope ∈ AllPermissionScopes \ {id-token, metadata} :
+    WorkflowState.permissions[scope] ≠ write
+
+SG03_NetworkAllowlist ≜
+  ∀ domain ∈ WorkflowState.network.blocked :
+    domain ∈ GetBlockedDomains(WorkflowState.network)
+
+SG04_LeastPrivilege ≜
+  ∀ scope ∈ DefaultPermissions :
+    WorkflowState.permissions[scope] = read
+
+SG05_SandboxIsolation ≜
+  isSandboxEnabled(sandboxConfig, network) ⟺
+    (sandboxConfig ≠ nil ∧ sandboxConfig.Agent ≠ nil ∧
+      sandboxConfig.Agent.Type = AWF ∧ ¬sandboxConfig.Agent.Disabled) ∨
+    (network ≠ nil ∧ network.Firewall ≠ nil ∧ network.Firewall.Enabled)
+
+SG06_Auditability ≜
+  WorkflowState.threatDetect ≠ nil ⟹
+    ∃ job ∈ CompiledJobs : job.name = "detection"
+
+SG07_FailSecure ≜
+  DangerousPermissions(WorkflowState) ⟹
+    CompileToYAML(WorkflowState) = ("", Error) ∧
+    WorkflowState.emitAllowed = false
+```
+
+**F* pre/post contracts** (selected):
+
+```fstar
+val parseThreatDetectionConfig :
+  outputMap:map string any →
+  Tot (option ThreatDetectionConfig)
+  (requires True)
+  (ensures fun td →
+    (not (Map.mem "threat-detection" outputMap) ⟹ Some? td) ∧
+    (Map.sel outputMap "threat-detection" = false ⟹ td = None))
+
+val IsContinueOnError :
+  td:ThreatDetectionConfig →
+  Tot bool
+  (requires True)
+  (ensures fun b → td.ContinueOnError = None ⟹ b = true)
+```
+
+**Z3/SMT-LIB bounds** (conformance level ordering):
+
+```smt2
+(declare-const basic    Int)
+(declare-const standard Int)
+(declare-const complete Int)
+(assert (= basic    1))
+(assert (= standard 2))
+(assert (= complete 3))
+(assert (>= complete standard))
+(assert (>= standard basic))
+(check-sat) ; sat — ordering is consistent
+```
+
+**Job pipeline topology** (Appendix A canonical order):
+
+```
+pre_activation → activation → agent → detection → safe_outputs → conclusion?
+```
+
+This ordering is enforced as an invariant:
+
+```tla
+JobTopologyOrder ≜
+  LET canonical == << "pre_activation", "activation", "agent",
+                      "detection", "safe_outputs", "conclusion" >>
+  IN ∀ i ∈ 1..(Len(canonical)-1) :
+       LET a == canonical[i]
+           b == canonical[i+1]
+       IN (a ∈ CompiledJobNames ∧ b ∈ CompiledJobNames) ⟹
+            IndexOf(a, CompiledJobNames) < IndexOf(b, CompiledJobNames)
+```
+
+### Behavioral Coverage Map
+
+| Predicate / Invariant | Test Function | Description |
+|---|---|---|
+| `SG01_InputSanitization` | `TestFormalSG01_InputSanitizationInvariant` | Verifies untrusted input is not interpolated without sanitization |
+| `SG02_AgentReadOnly` | `TestFormalSG02_AgentJobHasNoWritePermissions` | Agent jobs must carry zero write permission scopes |
+| `SG03_NetworkAllowlist` | `TestFormalSG03_NetworkAllowlistEnforcement` | Blocked domains always take precedence over allowed list |
+| `SG04_LeastPrivilege` | `TestFormalSG04_LeastPrivilegeBasePermissions` | Base activation permissions default to read-only scopes |
+| `SG05_SandboxIsolation` | `TestFormalSG05_SandboxIsolationPresence` | Agent job sandbox container configuration is present |
+| `SG06_Auditability` | `TestFormalSG06_ThreatDetectionAuditArtifact` | Threat detection produces auditable output when enabled |
+| `SG07_FailSecure` | `TestFormalSG07_FailSecureOnSecurityError` | Compiler does not emit output when security validation fails |
+| `BasicConformance` | `TestFormalBasicConformance_AllFourControls` | All four basic conformance controls are present in a compiled workflow |
+| `ThreatDetectionOrDefault` | `TestFormalThreatDetection_EnabledByDefault` | Threat detection auto-injected when safe-outputs configured without explicit disable |
+| `ThreatDetectionOrDefault` | `TestFormalThreatDetection_ExplicitDisable` | Threat detection returns nil when explicitly set to false |
+| `IsContinueOnError` | `TestFormalThreatDetection_ContinueOnErrorDefault` | IsContinueOnError defaults to true when field is nil |
+| `StagedHandlerNoWritePerms` | `TestFormalStaged_HandlerRequiresNoWritePerms` | Staged safe-output handlers do not require write permissions |
+| `IDTokenRequirement` | `TestFormalIDToken_OIDCVaultActionsRequireWriteScope` | OIDC vault actions trigger id-token:write requirement |
+| `getPushFallbackAsPullRequest` | `TestFormalPushFallback_DefaultsToTrue` | Push fallback-as-pull-request defaults to true when config is nil |
+| `JobTopologyOrder` | `TestFormalJobTopology_PipelineOrderEnforced` | Compiled job pipeline preserves pre_activation→activation→agent→detection→safe_outputs order |
+
+### Generated Test Suite
+
+The 15 test functions above are implemented in
+`pkg/workflow/security_architecture_sg_formal_test.go` using the Go
+`testify` library. All tests carry the `//go:build !integration` tag so they
+run in the default unit-test suite without any special flags.
+
+Each test function:
+
+- maps to exactly one predicate/invariant in the coverage map above;
+- calls production code directly (no stubs, no mocking);
+- uses `assert`/`require` calls whose failure messages quote the SG identifier
+  and the violated invariant clause;
+- is independently runnable with `go test -run <TestFunctionName>`.
+
+Run the full suite:
+
+```sh
+go test ./pkg/workflow/ -run 'TestFormalSG|TestFormalBasicConformance|TestFormalThreatDetection|TestFormalStaged|TestFormalIDToken|TestFormalPushFallback|TestFormalJobTopology' -v
+```
+
+### Formal Requirements
 
 ### Test Categories
 
@@ -207,6 +347,7 @@ Summary version **1.0.0** corresponds to the minimum validated `.lock.yml` compi
 | Track detection job naming note from validation doc | ✅ Done (2026-07-06) | Appendix D now names the `detection` job explicitly as the runtime threat-detection layer |
 | Track conclusion job note from validation doc | ✅ Done (2026-07-06) | Documented the optional `conclusion` job as non-normative cleanup/reporting guidance |
 | Audit trusted-users runtime enforcement coverage | ✅ Done (2026-07-06) | Sections 8-9 now document runtime `trusted-users` enforcement scope directly in this spec summary (membership checks gate privileged runtime access) |
+| Add formal model and test suite for SG-01 through SG-07 | ✅ Done (2026-07-09) | Added "Formal Model" (TLA+/F*/Z3 invariants), "Behavioral Coverage Map" (15 predicates), and "Generated Test Suite" sections; 15 tests in `pkg/workflow/security_architecture_sg_formal_test.go` |
 
 ## Versioning
 
