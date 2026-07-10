@@ -34,7 +34,15 @@ function resolveDefaultDisclosureHeaderTemplatePath() {
   }
 
   const runtimePath = getPromptPath(DEFAULT_DISCLOSURE_HEADER_TEMPLATE);
-  return fs.existsSync(runtimePath) ? runtimePath : sourceTreePath;
+  if (fs.existsSync(runtimePath)) {
+    return runtimePath;
+  }
+
+  if (typeof globalThis.core?.warning === "function") {
+    globalThis.core.warning(`Missing runtime disclosure template at ${runtimePath}; using source template ${sourceTreePath}`);
+  }
+
+  return sourceTreePath;
 }
 
 /**
@@ -43,12 +51,12 @@ function resolveDefaultDisclosureHeaderTemplatePath() {
  * @returns {string}
  */
 function getDefaultDisclosureHeaderTemplate() {
+  const templatePath = resolveDefaultDisclosureHeaderTemplatePath();
   try {
-    const templatePath = resolveDefaultDisclosureHeaderTemplatePath();
     return fs.readFileSync(templatePath, "utf8").trimEnd();
   } catch (error) {
     if (typeof globalThis.core?.warning === "function") {
-      globalThis.core.warning(`Failed to load ${DEFAULT_DISCLOSURE_HEADER_TEMPLATE}: ${String(error)}`);
+      globalThis.core.warning(`Failed to load disclosure template from ${templatePath}: ${String(error)}`);
     }
     return "";
   }
