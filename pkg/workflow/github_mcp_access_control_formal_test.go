@@ -3,7 +3,6 @@
 package workflow
 
 import (
-	"path"
 	"slices"
 	"strings"
 	"testing"
@@ -11,13 +10,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Guard-policy error codes, aligned with pkg/cli/gateway_logs_types.go and the normative
+// GitHub MCP access-control specification (Appendix B).
 const (
-	formalErrorRepoNotAllowed    = -32001
-	formalErrorInsufficientRole  = -32002
-	formalErrorPrivateRepoDenied = -32003
-	formalErrorBlockedUser       = -32004
-	formalErrorToolNotAllowed    = -32005
-	formalErrorIntegrityTooLow   = -32006
+	formalErrorToolNotAllowed    = -32001 // tool not in allowed-tools (general access denied)
+	formalErrorRepoNotAllowed    = -32002 // repos guard failed
+	formalErrorInsufficientRole  = -32003 // roles guard failed
+	formalErrorPrivateRepoDenied = -32004 // private-repos: false guard failed
+	formalErrorBlockedUser       = -32005 // blocked-users guard failed (within integrity management)
+	formalErrorIntegrityTooLow   = -32006 // min-integrity guard failed
 )
 
 type formalToolConfig struct {
@@ -48,13 +49,23 @@ func TestFormal_ExactMatchAllow(t *testing.T) {
 }
 
 func TestFormal_WildcardMatch(t *testing.T) {
+	// owner/* — all repos under an owner
 	assert.True(t, formalEvaluateAccess(formalToolConfig{Repos: []string{"github/*"}}, formalAccessRequest{Repository: "github/gh-aw"}).allow)
-	assert.True(t, formalEvaluateAccess(formalToolConfig{Repos: []string{"github/gh-*"}}, formalAccessRequest{Repository: "github/gh-aw"}).allow)
 	assert.False(t, formalEvaluateAccess(formalToolConfig{Repos: []string{"github/*"}}, formalAccessRequest{Repository: "microsoft/vscode"}).allow)
+	// */repo — exact repo name under any owner
+	assert.True(t, formalEvaluateAccess(formalToolConfig{Repos: []string{"*/gh-aw"}}, formalAccessRequest{Repository: "github/gh-aw"}).allow)
+	assert.False(t, formalEvaluateAccess(formalToolConfig{Repos: []string{"*/gh-aw"}}, formalAccessRequest{Repository: "github/other"}).allow)
+	// */* — full wildcard (equivalent to no repos restriction)
+	assert.True(t, formalEvaluateAccess(formalToolConfig{Repos: []string{"*/*"}}, formalAccessRequest{Repository: "any/repo"}).allow)
 }
 
-func TestFormal_EmptyReposDenyAll(t *testing.T) {
-	assert.False(t, formalEvaluateAccess(formalToolConfig{}, formalAccessRequest{Repository: "github/gh-aw"}).allow)
+func TestFormal_OmittedReposAllowAll(t *testing.T) {
+	// P1_RepoMatch: omitted repos field means "no restriction" — all accessible repos are allowed (spec §4.4.1).
+	assert.True(t, formalEvaluateAccess(formalToolConfig{}, formalAccessRequest{Repository: "github/gh-aw"}).allow)
+	assert.True(t, formalEvaluateAccess(formalToolConfig{}, formalAccessRequest{Repository: "microsoft/vscode"}).allow)
+
+	// An empty slice is an invalid configuration (rejected at compilation; see TestValidateGitHubGuardPolicy
+	// in tools_validation_test.go). In the runtime formal model it is treated as no-match.
 	assert.False(t, formalEvaluateAccess(formalToolConfig{Repos: []string{}}, formalAccessRequest{Repository: "github/gh-aw"}).allow)
 }
 
@@ -92,10 +103,16 @@ func TestFormal_BlockedUserDeny(t *testing.T) {
 func TestFormal_ToolNameFilter(t *testing.T) {
 	cfg := formalToolConfig{Repos: []string{"*/*"}, AllowedTools: []string{"issue_read"}}
 	assert.True(t, formalEvaluateAccess(cfg, formalAccessRequest{Repository: "github/gh-aw", ToolName: "issue_read"}).allow)
+	// no AllowedTools configured → any tool is allowed
 	assert.True(t, formalEvaluateAccess(formalToolConfig{Repos: []string{"*/*"}}, formalAccessRequest{Repository: "github/gh-aw", ToolName: "delete_repo"}).allow)
+	// tool not in allowlist
 	denied := formalEvaluateAccess(cfg, formalAccessRequest{Repository: "github/gh-aw", ToolName: "delete_repo"})
 	assert.False(t, denied.allow)
 	assert.Equal(t, formalErrorToolNotAllowed, denied.errorCode)
+	// empty tool name with a non-empty allowlist must also deny (the tool is not present)
+	deniedEmpty := formalEvaluateAccess(cfg, formalAccessRequest{Repository: "github/gh-aw", ToolName: ""})
+	assert.False(t, deniedEmpty.allow)
+	assert.Equal(t, formalErrorToolNotAllowed, deniedEmpty.errorCode)
 }
 
 func TestFormal_IntegrityLevelOrder(t *testing.T) {
@@ -121,36 +138,106 @@ func TestFormal_CombinedFiltersAllAllow(t *testing.T) {
 }
 
 func TestFormal_ErrorCodeFirstFailingGuard(t *testing.T) {
+	// INV2: the denial code is selected by the FIRST failing guard in evaluation order:
+	//   tool → repo → role → private-repo → blocked-user → integrity
+	//
+	// Each case makes one guard the first failure while one or more later guards also fail,
+	// ensuring that only the first guard's code is returned.
 	denyPrivate := false
 	cfg := formalToolConfig{
 		Repos:        []string{"github/gh-aw"},
 		Roles:        []string{"write"},
 		PrivateRepos: &denyPrivate,
 		AllowedTools: []string{"issue_read"},
+		BlockedUsers: []string{"bad-actor"},
 		MinIntegrity: "approved",
 	}
 
-	denied := formalEvaluateAccess(cfg, formalAccessRequest{
-		Repository: "github/other", UserRole: "read", IsPrivate: true, ToolName: "delete_repo", UserLogin: "good-user", ContentIntegrity: "none",
-	})
+	cases := []struct {
+		name     string
+		req      formalAccessRequest
+		wantCode int
+	}{
+		{
+			name: "tool guard fails first (repo/role/private/blocked/integrity also fail)",
+			req: formalAccessRequest{
+				Repository: "github/other", UserRole: "read", IsPrivate: true,
+				ToolName: "delete_repo", UserLogin: "bad-actor", ContentIntegrity: "none",
+			},
+			wantCode: formalErrorToolNotAllowed,
+		},
+		{
+			name: "repo guard fails first (role/private/blocked/integrity also fail)",
+			req: formalAccessRequest{
+				Repository: "github/other", UserRole: "read", IsPrivate: true,
+				ToolName: "issue_read", UserLogin: "bad-actor", ContentIntegrity: "none",
+			},
+			wantCode: formalErrorRepoNotAllowed,
+		},
+		{
+			name: "role guard fails first (private/blocked/integrity also fail)",
+			req: formalAccessRequest{
+				Repository: "github/gh-aw", UserRole: "read", IsPrivate: true,
+				ToolName: "issue_read", UserLogin: "bad-actor", ContentIntegrity: "none",
+			},
+			wantCode: formalErrorInsufficientRole,
+		},
+		{
+			name: "private-repo guard fails first (blocked/integrity also fail)",
+			req: formalAccessRequest{
+				Repository: "github/gh-aw", UserRole: "write", IsPrivate: true,
+				ToolName: "issue_read", UserLogin: "bad-actor", ContentIntegrity: "none",
+			},
+			wantCode: formalErrorPrivateRepoDenied,
+		},
+		{
+			name: "blocked-user guard fails first within integrity (integrity also fails)",
+			// PrivateRepos must allow private so private check passes.
+			// Use a separate cfg that allows private repos so private guard is not the first failure.
+			req: formalAccessRequest{
+				Repository: "github/gh-aw", UserRole: "write", IsPrivate: false,
+				ToolName: "issue_read", UserLogin: "bad-actor", ContentIntegrity: "none",
+			},
+			wantCode: formalErrorBlockedUser,
+		},
+		{
+			name: "integrity guard fails (all earlier guards pass)",
+			req: formalAccessRequest{
+				Repository: "github/gh-aw", UserRole: "write", IsPrivate: false,
+				ToolName: "issue_read", UserLogin: "good-actor", ContentIntegrity: "none",
+			},
+			wantCode: formalErrorIntegrityTooLow,
+		},
+	}
 
-	assert.False(t, denied.allow)
-	assert.Equal(t, formalErrorRepoNotAllowed, denied.errorCode)
+	// The cfg uses denyPrivate=false; IsPrivate=true triggers the private-repo guard, and
+	// IsPrivate=false bypasses it — so blocked-user and integrity guards can be the first failure.
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := formalEvaluateAccess(cfg, tc.req)
+			assert.False(t, d.allow)
+			assert.Equal(t, tc.wantCode, d.errorCode)
+		})
+	}
 }
 
 func TestFormal_BlockedUserSafetyProperty(t *testing.T) {
-	denyPrivate := false
+	// SAFETY_BlockedUserAlwaysDenied: a blocked user is always denied, even when all other guards
+	// (tool, repo, role, private-repo) pass. Blocked-user is the first integrity-management guard.
+	allowPrivate := true
 	cfg := formalToolConfig{
 		Repos:        []string{"*/*"},
 		Roles:        []string{"admin"},
-		PrivateRepos: &denyPrivate,
+		PrivateRepos: &allowPrivate,
 		AllowedTools: []string{"issue_read"},
 		BlockedUsers: []string{"blocked"},
 		MinIntegrity: "merged",
 	}
 
 	denied := formalEvaluateAccess(cfg, formalAccessRequest{
-		Repository: "any/repo", UserRole: "read", IsPrivate: true, ToolName: "delete_repo", UserLogin: "blocked", ContentIntegrity: "none",
+		Repository: "any/repo", UserRole: "admin", IsPrivate: false,
+		ToolName: "issue_read", UserLogin: "blocked", ContentIntegrity: "merged",
 	})
 
 	assert.False(t, denied.allow)
@@ -187,8 +274,12 @@ type formalDecision struct {
 }
 
 func formalEvaluateAccess(cfg formalToolConfig, req formalAccessRequest) formalDecision {
-	if containsExact(cfg.BlockedUsers, req.UserLogin) {
-		return formalDecision{errorCode: formalErrorBlockedUser}
+	// Guard evaluation order (spec §4.5.3):
+	// 1. Tool selection (allowed-tools)
+	// 2. Repository access control: repo → role → private-repo visibility
+	// 3. Integrity management: blocked-user → min-integrity threshold
+	if len(cfg.AllowedTools) > 0 && !containsExact(cfg.AllowedTools, req.ToolName) {
+		return formalDecision{errorCode: formalErrorToolNotAllowed}
 	}
 	if !formalRepositoryAllowed(cfg.Repos, req.Repository) {
 		return formalDecision{errorCode: formalErrorRepoNotAllowed}
@@ -199,8 +290,8 @@ func formalEvaluateAccess(cfg formalToolConfig, req formalAccessRequest) formalD
 	if cfg.PrivateRepos != nil && !*cfg.PrivateRepos && req.IsPrivate {
 		return formalDecision{errorCode: formalErrorPrivateRepoDenied}
 	}
-	if len(cfg.AllowedTools) > 0 && req.ToolName != "" && !containsExact(cfg.AllowedTools, req.ToolName) {
-		return formalDecision{errorCode: formalErrorToolNotAllowed}
+	if containsExact(cfg.BlockedUsers, req.UserLogin) {
+		return formalDecision{errorCode: formalErrorBlockedUser}
 	}
 	if cfg.MinIntegrity != "" && formalIntegrityRank(req.ContentIntegrity) < formalIntegrityRank(cfg.MinIntegrity) {
 		return formalDecision{errorCode: formalErrorIntegrityTooLow}
@@ -209,7 +300,12 @@ func formalEvaluateAccess(cfg formalToolConfig, req formalAccessRequest) formalD
 }
 
 func formalRepositoryAllowed(patterns []string, repository string) bool {
-	if len(patterns) == 0 || repository == "" {
+	// nil patterns means the repos field is omitted: all accessible repositories are allowed (spec §4.4.1).
+	if patterns == nil {
+		return true
+	}
+	// Empty slice is an invalid configuration (rejected at compilation); runtime treats as no-match.
+	if len(patterns) == 0 {
 		return false
 	}
 	repoOwner, repoName, ok := strings.Cut(repository, "/")
@@ -225,15 +321,13 @@ func formalRepositoryAllowed(patterns []string, repository string) bool {
 		switch {
 		case patternOwner == "*" && patternRepo == "*":
 			return true
+		case patternOwner == "*" && patternRepo == repoName:
+			// */repo — matches exact repo name under any owner
+			return true
 		case patternOwner == repoOwner && patternRepo == "*":
 			return true
 		case patternOwner == repoOwner && patternRepo == repoName:
 			return true
-		case patternOwner == repoOwner && strings.Contains(patternRepo, "*"):
-			matched, _ := path.Match(patternRepo, repoName)
-			if matched {
-				return true
-			}
 		}
 	}
 	return false
