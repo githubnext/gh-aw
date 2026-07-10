@@ -37,7 +37,7 @@ This prompt is for **updating existing workflows only**. For new workflows, use 
 Use [workflow-editing.md](workflow-editing.md) as the source of truth.
 
 - frontmatter change → recompilation required
-- markdown-body-only change → no recompilation required
+- markdown-body-only change → no recompilation required for runtime behavior, but always compile to keep `.lock.yml` in sync
 
 ## Update Rules
 
@@ -98,9 +98,15 @@ network:
 ## Validation Flow
 
 - always inspect the workflow before editing
-- compile after frontmatter changes
+- always compile after any change to keep `.lock.yml` in sync
 - keep the workflow valid at every step
 - summarize what changed and whether recompilation was needed
+
+## Final Steps
+
+1. compile with `gh aw compile <workflow-id>`
+2. fix all compile errors
+3. include the updated `.lock.yml` in the PR
 
 ## Final Message Rules
 
