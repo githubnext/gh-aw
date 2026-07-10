@@ -56,5 +56,6 @@ check_token_not_oauth GH_AW_GITHUB_TOKEN
 check_token_not_oauth GH_AW_GITHUB_MCP_SERVER_TOKEN
 
 if [ "$found_error" = true ]; then
+  echo "oauth_token_check_failed=true" >> "$GITHUB_OUTPUT"
   exit 1
 fi

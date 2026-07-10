@@ -519,9 +519,11 @@ tools:
 	defaultGatewayPortSnippet := `export MCP_GATEWAY_PORT="8080"`
 	uidComputeSnippet := `MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')`
 	runnerGIDComputeSnippet := `MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')`
-	socketPathSnippet := `case "${DOCKER_HOST:-}" in`
-	socketPathUnixSnippet := `unix://* ) DOCKER_SOCK_PATH="${DOCKER_HOST#unix://}"`
-	socketGIDComputeSnippet := `DOCKER_SOCK_GID=$(stat -c '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || echo '0')`
+	// Docker socket path and GID resolution has been refactored to a dedicated shell script.
+	// The script handles override variables (GH_AW_DOCKER_SOCK_PATH, GH_AW_DOCKER_SOCK_GID),
+	// DOCKER_HOST parsing, stat -Lc symlink following, and numeric validation.
+	// See actions/setup/sh/resolve_docker_socket_gid.sh for implementation and comprehensive tests.
+	resolveDockerSocketSnippet := `source "${RUNNER_TEMP}/gh-aw/actions/resolve_docker_socket_gid.sh"`
 	dockerHostEnvSnippet := `-e DOCKER_HOST=unix:///var/run/docker.sock`
 	containerNameSnippet := `--name awmg-mcpg`
 	require.Contains(t, yamlStr, defaultGatewayPortSnippet,
@@ -543,12 +545,8 @@ tools:
 		"Docker command should use bridge networking in default network isolation mode")
 	require.Contains(t, yamlStr, userSnippet,
 		"Docker command should include runner UID/GID user mapping")
-	require.Contains(t, yamlStr, socketPathSnippet,
-		"Shell should resolve DOCKER_SOCK_PATH via case statement")
-	require.Contains(t, yamlStr, socketPathUnixSnippet,
-		"Shell should handle unix:// DOCKER_HOST scheme")
-	require.Contains(t, yamlStr, socketGIDComputeSnippet,
-		"Shell should compute DOCKER_SOCK_GID from resolved socket path")
+	require.Contains(t, yamlStr, resolveDockerSocketSnippet,
+		"Shell should source the resolve_docker_socket_gid.sh script to set DOCKER_SOCK_PATH and DOCKER_SOCK_GID")
 	require.Contains(t, yamlStr, groupAddSnippet,
 		"Docker command should include docker socket supplementary group mapping")
 	require.Contains(t, yamlStr, mountSnippet,
@@ -563,8 +561,10 @@ tools:
 		"MCP_GATEWAY_GID should be computed before it is used in the docker command")
 	require.Less(t, strings.Index(yamlStr, userSnippet), strings.Index(yamlStr, groupAddSnippet),
 		"Docker command should include user mapping before supplementary group mapping")
-	require.Less(t, strings.Index(yamlStr, socketGIDComputeSnippet), strings.Index(yamlStr, groupAddSnippet),
-		"DOCKER_SOCK_GID should be computed before it is used in the docker command")
+	require.Less(t, strings.Index(yamlStr, resolveDockerSocketSnippet), strings.Index(yamlStr, groupAddSnippet),
+		"Docker socket resolution script should be sourced before DOCKER_SOCK_GID is used in the docker command")
+	require.Less(t, strings.Index(yamlStr, resolveDockerSocketSnippet), strings.Index(yamlStr, mountSnippet),
+		"Docker socket resolution script should be sourced before DOCKER_SOCK_PATH is used in the docker command")
 	require.Less(t, strings.Index(yamlStr, groupAddSnippet), strings.Index(yamlStr, mountSnippet),
 		"Docker command should add supplementary group before mounting the Docker socket")
 }

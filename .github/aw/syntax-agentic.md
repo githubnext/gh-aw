@@ -17,7 +17,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - Values limited to 1024 characters
   - Example: `metadata: { team: "platform", priority: "high" }`
 - **`github-token:`** - GitHub token override (must use `${{ secrets.* }}` syntax). Not a top-level field: set it under `on:` (trigger checks), `tools.github`, or `safe-outputs`.
-- **`on.roles:`** - Repository access roles that can trigger workflow (array or `"all"`). Default `[admin, maintainer, write]`; available roles: `admin`, `maintainer`, `write`, `read`, `all`.
+- **`on.roles:`** - Repository access roles that can trigger workflow (array or `"all"`). Default `[admin, maintainer, write]`; available roles: `admin`, `maintainer`, `maintain`, `write`, `triage`, `read`, `all`.
 - **`on.bots:`** - Bot identifiers allowed to trigger workflow regardless of role permissions (array; e.g. `[dependabot[bot], renovate[bot], github-actions[bot]]`). The bot must be active (installed) on the repository to trigger.
 - **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`; strongly recommended)
   - Prefer `strict: true`; `strict: false` is dangerous, should be extremely rare, and must be carefully security reviewed before use
@@ -307,6 +307,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - **`engine.driver:`** — canonical field to run a custom inner driver script instead of the engine's built-in CLI. For the `pi` engine it launches the driver directly with Node.js (e.g. built-in `pi_agent_core_driver.cjs`, or a workspace-relative path like `.github/drivers/pi_agent_core_driver_sample_node.cjs`); the driver must emit JSONL compatible with `parse_pi_log.cjs` so step summaries and token tracking keep working. Accepts a bare basename (resolved from the setup-action directory) or a workspace-relative path; no absolute paths, no `..`, only `.js`/`.cjs`/`.mjs` (pi).
   - **`copilot-sdk` / `engine.driver`** (experimental, copilot only): set `copilot-sdk: true` to start a headless Copilot CLI SDK sidecar. Set `driver: <path-or-command>` on the copilot engine to supply a custom SDK driver (`.js`/`.cjs`/`.mjs`/`.py`/`.ts`/`.mts`/`.rb`, or a bare PATH command); this also enables `copilot-sdk: true` automatically. Tune the repeated-tool-denial safeguard with the top-level `max-tool-denials:` field (default `5`).
   - **`engine.auth:`** — keyless Workload Identity Federation via the AWF API proxy instead of a static API key; requires `id-token: write`. Set `type: github-oidc` (only supported type) plus `provider: azure` (`azure-tenant-id`, `azure-client-id`, optional `azure-scope`/`azure-cloud`) for Azure OpenAI, or `provider: anthropic` (`federation-rule-id`, `organization-id`, `service-account-id`, `workspace-id`) for Claude. Optional `audience:`. Maps to `AWF_AUTH_*` env vars.
+  - **Advanced engine sub-fields** (see the `engine_config` definition in `pkg/parser/schemas/main_workflow_schema.json`): `model-provider` (`github` | `anthropic` | `openai`), `harness` (retry policy), engine-level `mcp` (`session-timeout`/`tool-timeout`), `extensions`, and `cwd`.
 
 - **`network:`** - Network access control for AI engines (top-level field)
   - String format: `"defaults"` (curated allow-list of development domains)

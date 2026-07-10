@@ -1882,6 +1882,62 @@ describe("handle_agent_failure", () => {
   });
 
   // ──────────────────────────────────────────────────────
+  // buildOAuthTokenCheckFailedContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildOAuthTokenCheckFailedContext", () => {
+    let buildOAuthTokenCheckFailedContext;
+    const fs = require("fs");
+    const path = require("path");
+    const templateContent = fs.readFileSync(path.join(__dirname, "../md/oauth_token_check_failed.md"), "utf8");
+    const originalReadFileSync = fs.readFileSync.bind(fs);
+
+    beforeEach(() => {
+      vi.resetModules();
+      process.env.RUNNER_TEMP = "/nonexistent";
+      fs.readFileSync = (filePath, encoding) => {
+        if (typeof filePath === "string" && filePath.includes("oauth_token_check_failed.md")) {
+          return templateContent;
+        }
+        return originalReadFileSync(filePath, encoding);
+      };
+      ({ buildOAuthTokenCheckFailedContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      fs.readFileSync = originalReadFileSync;
+      delete process.env.RUNNER_TEMP;
+    });
+
+    it("returns empty string when check did not fail", () => {
+      expect(buildOAuthTokenCheckFailedContext(false, "https://example.com/runs/123")).toBe("");
+    });
+
+    it("returns formatted context when OAuth token check failed", () => {
+      const result = buildOAuthTokenCheckFailedContext(true, "https://example.com/runs/123");
+      expect(result).toBeTruthy();
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it("includes OAuth token detection message", () => {
+      const result = buildOAuthTokenCheckFailedContext(true, "https://example.com/runs/123");
+      expect(result).toContain("OAuth Token Detected");
+    });
+
+    it("includes fine-grained PAT replacement guidance", () => {
+      const result = buildOAuthTokenCheckFailedContext(true, "https://example.com/runs/123");
+      expect(result).toContain("fine-grained Personal Access Token");
+      expect(result).toContain("github_pat_");
+    });
+
+    it("includes run URL link", () => {
+      const runUrl = "https://github.com/org/repo/actions/runs/99999";
+      const result = buildOAuthTokenCheckFailedContext(true, runUrl);
+      expect(result).toContain(runUrl);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
   // buildTimeoutContext
   // ──────────────────────────────────────────────────────
 

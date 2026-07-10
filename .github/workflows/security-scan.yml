@@ -27,11 +27,12 @@ jobs:
       - name: Run Gosec
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1
-          # Exclusions configured in .golangci.yml (linters-settings.gosec.exclude)
-          # Keep this list in sync with .golangci.yml for consistency
+          # Keep only globally noisy rules here.
+          # G602 (slice bounds check) is excluded globally due persistent false positives.
+          # Use inline '#nosec Gxxx -- justification' suppressions for specific findings.
           gosec -fmt sarif -out gosec-results.sarif -stdout -exclude-generated -track-suppressions \
             -nosec-require-rules -nosec-require-justification \
-            -exclude=G101,G115,G204,G602,G301,G302,G304,G306 \
+            -exclude=G602 \
             ./...
 
       - name: Upload Gosec SARIF
@@ -63,4 +64,3 @@ jobs:
         with:
           sarif_file: govulncheck-results.sarif
           category: govulncheck
-

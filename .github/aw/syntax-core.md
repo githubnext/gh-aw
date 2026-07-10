@@ -100,7 +100,7 @@ The YAML frontmatter supports these fields:
 
 - **`permissions:`** - GitHub token permissions
   - Object with permission levels: `read`, `none` (and limited `write` for specific scopes)
-  - Available permissions: `contents`, `issues`, `pull-requests`, `discussions`, `actions`, `checks`, `statuses`, `models`, `deployments`, `security-events`, `copilot-requests`
+  - Common permission scopes (not exhaustive; standard GitHub Actions scopes plus `models`, `copilot-requests`): `contents`, `issues`, `pull-requests`, `discussions`, `actions`, `checks`, `statuses`, `models`, `deployments`, `security-events`, `packages`, `pages`, `attestations`, `copilot-requests`
   - Write permissions are not allowed for security reasons; use `safe-outputs` for write operations instead
   - Exceptions: `id-token: write` is allowed to enable OIDC token minting; `copilot-requests: write` is recommended when targeting the Copilot coding agent so it can authenticate with `${{ github.token }}`
 - **`runs-on:`** - Runner type for the main agent job (string, array, or object)
