@@ -56,10 +56,8 @@ func TestGVisorInstallStepOrderInBuildNpmEngineInstallStepsWithAWF(t *testing.T)
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				ID:                    "awf",
-				Runtime:               AgentRuntimeGVisor,
-				NetworkIsolation:      false, // sudo: true (required for gVisor)
-				SudoExplicitlyEnabled: true,
+				ID:      "awf",
+				Runtime: AgentRuntimeGVisor,
 			},
 		},
 		NetworkPermissions: &NetworkPermissions{
@@ -89,7 +87,8 @@ func TestGVisorInstallStepOrderInBuildNpmEngineInstallStepsWithAWF(t *testing.T)
 }
 
 // TestGVisorAWFConfigJSON verifies that sandbox.agent.runtime: gvisor causes
-// containerRuntime: "gvisor" to appear in the AWF config JSON.
+// containerRuntime: "gvisor" to appear in the AWF config JSON when the effective AWF
+// version is at or above AWFContainerRuntimeMinVersion.
 func TestGVisorAWFConfigJSON(t *testing.T) {
 	config := AWFCommandConfig{
 		EngineName:     "copilot",
@@ -97,14 +96,13 @@ func TestGVisorAWFConfigJSON(t *testing.T) {
 		WorkflowData: &WorkflowData{
 			EngineConfig: &EngineConfig{ID: "copilot"},
 			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{Enabled: true},
+				// Pin a version that supports containerRuntime (AWFContainerRuntimeMinVersion = v0.28.0).
+				Firewall: &FirewallConfig{Enabled: true, Version: "v0.28.0"},
 			},
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
-					ID:                    "awf",
-					Runtime:               AgentRuntimeGVisor,
-					NetworkIsolation:      false,
-					SudoExplicitlyEnabled: true,
+					ID:      "awf",
+					Runtime: AgentRuntimeGVisor,
 				},
 			},
 		},
@@ -114,11 +112,37 @@ func TestGVisorAWFConfigJSON(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Contains(t, jsonStr, `"containerRuntime":"gvisor"`,
-		"AWF config JSON must include containerRuntime: gvisor")
+		"AWF config JSON must include containerRuntime: gvisor when version supports it")
 }
 
-// TestGVisorAWFConfigJSONAbsentByDefault verifies that containerRuntime is not
-// emitted when runtime is not configured.
+// TestGVisorAWFConfigJSONVersionGated verifies that containerRuntime is NOT emitted
+// when the effective AWF version predates AWFContainerRuntimeMinVersion, even if
+// sandbox.agent.runtime: gvisor is set.
+func TestGVisorAWFConfigJSONVersionGated(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName:     "copilot",
+		AllowedDomains: "github.com",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				// Default version (v0.27.29) predates containerRuntime support.
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID:      "awf",
+					Runtime: AgentRuntimeGVisor,
+				},
+			},
+		},
+	}
+
+	jsonStr, err := BuildAWFConfigJSON(config)
+	require.NoError(t, err)
+
+	assert.NotContains(t, jsonStr, `"containerRuntime"`,
+		"containerRuntime must not be emitted when AWF version predates support")
+}
 func TestGVisorAWFConfigJSONAbsentByDefault(t *testing.T) {
 	config := AWFCommandConfig{
 		EngineName:     "copilot",
@@ -168,9 +192,10 @@ func TestGVisorValidation_ArcDindIncompatible(t *testing.T) {
 	assert.Contains(t, err.Error(), "gvisor", "error must mention gvisor")
 }
 
-// TestGVisorValidation_SudoFalseIncompatible verifies that gVisor + sudo:false (default)
-// is a compile-time error.
-func TestGVisorValidation_SudoFalseIncompatible(t *testing.T) {
+// TestGVisorValidation_SudoFalseAllowed verifies that gVisor + sudo:false (default) is
+// a valid combination. The gVisor install step invokes sudo in shell commands directly,
+// independently of sandbox.agent.sudo.
+func TestGVisorValidation_SudoFalseAllowed(t *testing.T) {
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
@@ -186,21 +211,19 @@ func TestGVisorValidation_SudoFalseIncompatible(t *testing.T) {
 	}
 
 	err := validateSandboxConfig(workflowData)
-	require.Error(t, err, "gVisor + sudo:false must produce a compile-time error")
-	assert.Contains(t, err.Error(), "gvisor", "error must mention gvisor")
-	assert.Contains(t, err.Error(), "sudo", "error must mention sudo")
+	require.NoError(t, err, "gVisor + sudo:false must be a valid combination")
 }
 
 // TestGVisorValidation_ValidCombination verifies that a valid gVisor configuration
-// (with sudo: true on a non-arc-dind runner) passes validation.
+// passes validation (sandbox validation does not reject gVisor; sudo: true is a separate
+// deprecation check in strict-mode validation).
 func TestGVisorValidation_ValidCombination(t *testing.T) {
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				ID:                    "awf",
-				Runtime:               AgentRuntimeGVisor,
-				NetworkIsolation:      false, // sudo: true
-				SudoExplicitlyEnabled: true,
+				ID:               "awf",
+				Runtime:          AgentRuntimeGVisor,
+				NetworkIsolation: true, // sudo: false (default)
 			},
 		},
 		NetworkPermissions: &NetworkPermissions{
@@ -210,12 +233,13 @@ func TestGVisorValidation_ValidCombination(t *testing.T) {
 	}
 
 	err := validateSandboxConfig(workflowData)
-	assert.NoError(t, err, "gVisor + sudo:true on a standard runner must pass validation")
+	assert.NoError(t, err, "gVisor on a standard runner must pass validation")
 }
 
-// TestGVisorStrictModeSudoTrueSuppressed verifies that sandbox.agent.sudo: true
-// does NOT produce a strict-mode error or warning when runtime: gvisor is configured.
-func TestGVisorStrictModeSudoTrueSuppressed(t *testing.T) {
+// TestGVisorStrictModeSudoTrueError verifies that sandbox.agent.sudo: true combined
+// with runtime: gvisor still produces a strict-mode error. The gVisor install step
+// uses shell-level sudo directly and does not require AWF itself to run as sudo.
+func TestGVisorStrictModeSudoTrueError(t *testing.T) {
 	sandboxConfig := &SandboxConfig{
 		Agent: &AgentSandboxConfig{
 			ID:                    "awf",
@@ -227,11 +251,10 @@ func TestGVisorStrictModeSudoTrueSuppressed(t *testing.T) {
 
 	compiler := NewCompiler()
 	compiler.strictMode = true
-	initialWarnings := compiler.GetWarningCount()
 
 	err := compiler.validateStrictSandboxCustomization(sandboxConfig)
-	require.NoError(t, err, "sudo:true + runtime:gvisor must not produce a strict-mode error")
-	assert.Equal(t, initialWarnings, compiler.GetWarningCount(), "sudo:true + runtime:gvisor must not produce a warning")
+	require.Error(t, err, "sudo:true + runtime:gvisor must still produce a strict-mode error")
+	assert.Contains(t, err.Error(), "sudo", "error must mention sudo")
 }
 
 // TestGVisorFrontmatterExtraction verifies end-to-end that a workflow with
@@ -251,7 +274,6 @@ sandbox:
   agent:
     id: awf
     runtime: gvisor
-    sudo: true
 ---
 
 # Test gVisor Runtime
@@ -275,10 +297,11 @@ sandbox:
 	// AWF install step must also be present.
 	assert.Contains(t, lockStr, "Install AWF binary", "compiled workflow must include AWF install step")
 
-	// containerRuntime: gvisor must appear in the AWF config JSON.
-	// The AWF config is embedded as escaped JSON in a printf command in the lock file.
-	assert.Contains(t, lockStr, `\"containerRuntime\":\"gvisor\"`,
-		"compiled workflow must pass containerRuntime: gvisor to AWF")
+	// containerRuntime: gvisor must NOT appear with the default AWF version (v0.27.29),
+	// which predates containerRuntime support. It will be emitted once the minimum
+	// version (AWFContainerRuntimeMinVersion) is released.
+	assert.NotContains(t, lockStr, `\"containerRuntime\":\"gvisor\"`,
+		"containerRuntime must not be emitted for default AWF version")
 
 	// gVisor step must appear before AWF step.
 	gvisorPos := strings.Index(lockStr, "Install gVisor")

@@ -45,9 +45,7 @@ func (c *Compiler) validateStrictSandboxCustomization(sandboxConfig *SandboxConf
 	if agent := sandboxConfig.Agent; agent != nil {
 		// sandbox.agent.sudo: true is deprecated regardless of strict mode.
 		// It is an error in strict mode and a warning otherwise.
-		// Exception: sandbox.agent.runtime: gvisor requires root access for installation,
-		// so sudo: true is implicitly required and the deprecation warning is suppressed.
-		if agent.SudoExplicitlyEnabled && agent.Runtime != AgentRuntimeGVisor {
+		if agent.SudoExplicitlyEnabled {
 			const sudoTrueMsg = "sandbox.agent.sudo: true re-enables host-access (sudo) mode. " +
 				"The default is now sudo: false (network isolation). " +
 				"Remove 'sudo: true' to use the secure default. " +

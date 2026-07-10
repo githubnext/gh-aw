@@ -550,6 +550,14 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	// ── Container section ─────────────────────────────────────────────────────
 	awfImageTag := buildAWFImageTagWithDigests(getAWFImageTag(firewallConfig), config.WorkflowData)
 	agentRuntime := getAgentContainerRuntime(config.WorkflowData)
+	// containerRuntime is only emitted when the effective AWF version supports it.
+	// Gate here to avoid sending an unrecognised field to older AWF binaries.
+	if !awfSupportsContainerRuntime(firewallConfig) {
+		if agentRuntime != "" {
+			awfConfigLog.Printf("Skipping containerRuntime: AWF version %q requires at least %s (gh-aw-firewall#6093)", getAWFImageTag(firewallConfig), constants.AWFContainerRuntimeMinVersion)
+		}
+		agentRuntime = ""
+	}
 	if awfImageTag != "" || isArcDindTopology(config.WorkflowData) || agentRuntime != "" {
 		container := &AWFContainerConfig{
 			ImageTag:         awfImageTag,

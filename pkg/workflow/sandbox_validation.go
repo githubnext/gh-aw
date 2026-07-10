@@ -122,19 +122,7 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 			)
 		}
 
-		// gVisor installation requires root access (sudo install, sudo runsc install,
-		// sudo systemctl restart docker). It cannot be combined with sudo: false.
-		if agentConfig.NetworkIsolation {
-			return NewValidationError(
-				"sandbox.agent.runtime",
-				string(AgentRuntimeGVisor),
-				"gvisor requires root access for installation and cannot be combined with sandbox.agent.sudo: false",
-				"The gVisor install step uses sudo to install runsc and restart Docker. "+
-					"Set sandbox.agent.sudo: true to allow root access, "+
-					"or remove sandbox.agent.runtime: gvisor.",
-			)
-		}
-		sandboxValidationLog.Print("gVisor runtime configured -- sudo access and topology checks passed")
+		sandboxValidationLog.Print("gVisor runtime configured -- topology check passed")
 	}
 
 	// Validate config structure if provided (deprecated - was only for SRT)
