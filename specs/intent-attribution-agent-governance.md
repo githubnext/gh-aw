@@ -109,6 +109,9 @@ Until repositories migrate fully to `.github/intent-policy.json`, `.github/objec
 remains the authoritative label-to-intent source for attribution fallback and drift detection.
 This specification defines the precedence and sync expectations for that migration, but does
 not assign a mandatory repository-by-repository completion deadline.
+For this document, "fully migrate" means all active intent keys and governance rules are
+defined in `.github/intent-policy.json`, and runtime authorization no longer depends on
+reading `.github/objective-mapping.json` except for explicit backward-compatibility paths.
 
 Implementations SHOULD detect drift by comparing the active repository governance inputs —
 the compiled rule set from `.github/intent-policy.json` when present, otherwise the effective

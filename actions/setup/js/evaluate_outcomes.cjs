@@ -1343,6 +1343,12 @@ function evaluateItem(item, defaultRepo, apiOrOptions) {
   if (type === "close_pull_request") {
     return evaluateClosePullRequest(item, defaultRepo, ghAPIFn, nowMs);
   }
+  if (type === "create_issue") {
+    return evaluateCreateIssue(item, itemRepo, timestamp, out, ghAPIFn, nowMs);
+  }
+  if (type === "add_comment") {
+    return evaluateAddComment(item, itemRepo, timestamp, out, ghAPIFn, nowMs);
+  }
 
   if (!url) {
     if (item.type === "add_reviewer") {
@@ -1361,12 +1367,6 @@ function evaluateItem(item, defaultRepo, apiOrOptions) {
   }
   if (type === "submit_pull_request_review") {
     return evaluateSubmitPullRequestReview(item, defaultRepo, ghAPIFn);
-  }
-  if (type === "create_issue") {
-    return evaluateCreateIssue(item, itemRepo, timestamp, out, ghAPIFn, nowMs);
-  }
-  if (type === "add_comment") {
-    return evaluateAddComment(item, itemRepo, timestamp, out, ghAPIFn, nowMs);
   }
 
   // Issues / issue-comments
