@@ -46,9 +46,9 @@ func extractPipPackages(workflowData *WorkflowData) []string {
 // extractPipFromCommands extracts pip package names from command strings
 func extractPipFromCommands(commands string) []string {
 	extractor := PackageExtractor{
-		CommandNames:       []string{"pip", "pip3"},
-		RequiredSubcommand: "install",
-		TrimSuffixes:       "&|;",
+		CommandNames:        []string{"pip", "pip3"},
+		RequiredSubcommands: []string{"install"},
+		TrimSuffixes:        "&|;",
 	}
 	return extractor.ExtractPackages(commands)
 }
@@ -68,9 +68,8 @@ func extractUvFromCommands(commands string) []string {
 	lines := strings.Split(commands, "\n")
 
 	uvxExtractor := PackageExtractor{
-		CommandNames:       []string{"uvx"},
-		RequiredSubcommand: "",
-		TrimSuffixes:       "&|;",
+		CommandNames: []string{"uvx"},
+		TrimSuffixes: "&|;",
 	}
 
 	uvPipHelper := PackageExtractor{TrimSuffixes: "&|;"}
