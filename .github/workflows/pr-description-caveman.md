@@ -40,10 +40,15 @@ steps:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BASE_SHA: ${{ github.event.pull_request.base.sha }}
-      TARGET_SHA: ${{ github.event.pull_request.merge_commit_sha || github.event.pull_request.head.sha }}
+      MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent/chunks
+
+      if [ -z "${MERGE_SHA:-}" ]; then
+        echo "Missing merge_commit_sha for merged pull_request_target event" >&2
+        exit 1
+      fi
 
       EXCLUSIONS=(
         ':!*.lock.yml' ':!*.lock' ':!*-lock.json' ':!yarn.lock'
@@ -53,16 +58,16 @@ steps:
       )
 
       # Diff stat (always small — safe to capture in full)
-      git diff "$BASE_SHA"..."$TARGET_SHA" -- "${EXCLUSIONS[@]}" --stat \
+      git diff "$BASE_SHA"..."$MERGE_SHA" -- "${EXCLUSIONS[@]}" --stat \
         > /tmp/gh-aw/agent/diff-stat.txt 2>&1 || true
 
       # Commit log
-      git log --oneline "$BASE_SHA".."$TARGET_SHA" \
+      git log --oneline "$BASE_SHA".."$MERGE_SHA" \
         > /tmp/gh-aw/agent/commits.txt 2>&1 || true
 
       # Full diff split into 400-line chunks
       # split -l produces chunk_000, chunk_001, ...
-      git diff "$BASE_SHA"..."$TARGET_SHA" -- "${EXCLUSIONS[@]}" \
+      git diff "$BASE_SHA"..."$MERGE_SHA" -- "${EXCLUSIONS[@]}" \
         | split -l 400 - /tmp/gh-aw/agent/chunks/chunk_ 2>/dev/null || true
 
       # Record chunk manifest and count so the agent can process deterministically
