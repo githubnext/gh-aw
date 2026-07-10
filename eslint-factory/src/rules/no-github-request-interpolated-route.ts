@@ -122,8 +122,7 @@ export const noGithubRequestInterpolatedRouteRule = createRule({
             if (def.type !== "Variable") continue;
             const declarator = def.node as TSESTree.VariableDeclarator;
             const declaration = declarator.parent;
-            if (!declaration) continue;
-            if (declaration.type !== AST_NODE_TYPES.VariableDeclaration || declaration.kind !== "const") continue;
+            if (!declaration || declaration.type !== AST_NODE_TYPES.VariableDeclaration || declaration.kind !== "const") continue;
             if (declarator.init && isOctokitSourceExpression(declarator.init)) return true;
           }
           return false;
