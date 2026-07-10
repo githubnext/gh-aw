@@ -3,7 +3,7 @@
 // All 44 active analyzers:
 //
 //   - appendbytestring — flags append(b, []byte(s)...) calls where s is a string that can be simplified to append(b, s...)
-//   - bytescomparestring — flags string(a) == string(b) and string(a) != string(b) comparisons where a and b are []byte values that should use bytes.Equal instead
+//   - bytescomparestring — flags string(a) == string(b) and string(a) != string(b) comparisons where a and b are []byte values and recommends bytes.Equal for clearer intent
 //   - contextcancelnotdeferred — flags context cancel functions called directly instead of deferred
 //   - ctxbackground — flags context.Background() inside functions that already receive a context
 //   - deferinloop — flags defer statements placed directly inside for or range loop bodies
