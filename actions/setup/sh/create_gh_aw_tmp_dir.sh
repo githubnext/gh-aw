@@ -34,4 +34,37 @@ mkdir -p /tmp/gh-aw/sandbox/agent/logs
 # rather than deep inside AWF, surfacing the problem at an earlier step.
 mkdir -p /tmp/gh-aw/sandbox/firewall/logs
 mkdir -p /tmp/gh-aw/sandbox/firewall/audit
+
+# Rootless AWF writes per-run chroot files (including generated /etc/hosts) under
+# os.tmpdir(). Pin TMPDIR to a runner-owned subtree so writeConfigs never lands in a
+# stale root-owned /tmp/awf-* path on persistent runners.
+if [ -d /tmp/gh-aw/awf-tmp ] && [ ! -w /tmp/gh-aw/awf-tmp ]; then
+  echo "Pre-flight: /tmp/gh-aw/awf-tmp is not writable; reclaiming with sudo"
+  if command -v sudo >/dev/null 2>&1; then
+    sudo -n rm -rf /tmp/gh-aw/awf-tmp 2>/dev/null || echo "::warning::sudo rm failed for /tmp/gh-aw/awf-tmp; AWF may fail with EACCES"
+  else
+    echo "::warning::sudo unavailable; cannot reclaim /tmp/gh-aw/awf-tmp; AWF may fail with EACCES"
+  fi
+fi
+mkdir -p /tmp/gh-aw/awf-tmp
+
+# Fast pre-flight probe: fail early with a clear message if AWF's temp root can't
+# create/write the chroot hosts file it needs during config generation.
+AWF_CHROOT_PROBE_DIR="/tmp/gh-aw/awf-tmp/chroot-preflight-$$"
+mkdir -p "${AWF_CHROOT_PROBE_DIR}"
+if ! printf '127.0.0.1 localhost\n' > "${AWF_CHROOT_PROBE_DIR}/hosts"; then
+  echo "::error::AWF pre-flight failed: cannot write ${AWF_CHROOT_PROBE_DIR}/hosts. Check rootless temp directory ownership/permissions."
+  exit 1
+fi
+rm -rf "${AWF_CHROOT_PROBE_DIR}"
+
+# Persist TMPDIR for subsequent workflow steps (including Execute GitHub Copilot CLI).
+if [ -n "${GITHUB_ENV:-}" ]; then
+  {
+    echo "TMPDIR=/tmp/gh-aw/awf-tmp"
+    echo "TMP=/tmp/gh-aw/awf-tmp"
+    echo "TEMP=/tmp/gh-aw/awf-tmp"
+  } >> "${GITHUB_ENV}"
+fi
+
 echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"

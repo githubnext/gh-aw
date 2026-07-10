@@ -46,6 +46,7 @@ bash "${SCRIPT}" >/dev/null 2>&1
 assert "creates /tmp/gh-aw/agent" "[ -d /tmp/gh-aw/agent ]"
 assert "creates /tmp/gh-aw/sandbox/firewall/logs" "[ -d /tmp/gh-aw/sandbox/firewall/logs ]"
 assert "creates /tmp/gh-aw/sandbox/firewall/audit" "[ -d /tmp/gh-aw/sandbox/firewall/audit ]"
+assert "creates /tmp/gh-aw/awf-tmp" "[ -d /tmp/gh-aw/awf-tmp ]"
 echo ""
 
 # ── Test 3: No-op when firewall dir already exists and is writable ───────────
@@ -84,6 +85,21 @@ EXIT_CODE=$?
 set -e
 chmod u+rwx /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
 assert "prints Pre-flight reclaim message when subdir is non-writable" "printf '%s' \"${OUTPUT}\" | grep -q 'Pre-flight'"
+echo ""
+
+# ── Test 6: Exports TMPDIR/TMP/TEMP via GITHUB_ENV for subsequent steps ───────
+echo "Test 6: Exports tmp env vars via GITHUB_ENV"
+rm -rf /tmp/gh-aw
+GITHUB_ENV_FILE="$(mktemp)"
+set +e
+GITHUB_ENV="${GITHUB_ENV_FILE}" bash "${SCRIPT}" >/dev/null 2>&1
+EXIT_CODE=$?
+set -e
+assert "exits 0 when GITHUB_ENV is set" "[ '${EXIT_CODE}' -eq 0 ]"
+assert "exports TMPDIR" "grep -qx 'TMPDIR=/tmp/gh-aw/awf-tmp' '${GITHUB_ENV_FILE}'"
+assert "exports TMP" "grep -qx 'TMP=/tmp/gh-aw/awf-tmp' '${GITHUB_ENV_FILE}'"
+assert "exports TEMP" "grep -qx 'TEMP=/tmp/gh-aw/awf-tmp' '${GITHUB_ENV_FILE}'"
+rm -f "${GITHUB_ENV_FILE}"
 echo ""
 
 echo "Tests passed: ${TESTS_PASSED}"
