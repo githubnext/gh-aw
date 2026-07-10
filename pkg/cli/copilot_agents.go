@@ -34,9 +34,6 @@ var agenticWorkflowsSkillTemplate string
 //go:embed data/agentic_workflows_fallback_aw_files.json
 var agenticWorkflowsFallbackAWFiles string
 
-//go:embed data/agentic_workflow_designer_skill.md
-var agenticWorkflowDesignerSkillTemplate string
-
 var listAgenticWorkflowsMarkdownFiles = fetchAgenticWorkflowsMarkdownFiles
 
 // ensureAgenticWorkflowsDispatcher ensures that .github/skills/agentic-workflows/SKILL.md
@@ -98,63 +95,6 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 		copilotAgentsLog.Printf("Updated dispatcher skill: %s", targetPath)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated dispatcher skill: "+targetPath))
-		}
-	}
-
-	return nil
-}
-
-// ensureAgenticWorkflowDesignerSkill ensures that
-// .github/skills/agentic-workflow-designer/SKILL.md exists and matches the
-// bundled workflow designer skill content.
-func ensureAgenticWorkflowDesignerSkill(verbose bool, skipInstructions bool) error {
-	copilotAgentsLog.Print("Ensuring agentic workflow designer skill")
-
-	if skipInstructions {
-		copilotAgentsLog.Print("Skipping skill creation: instructions disabled")
-		return nil
-	}
-
-	gitRoot, err := gitutil.FindGitRoot()
-	if err != nil {
-		return err // Not in a git repository, skip
-	}
-
-	targetDir := filepath.Join(gitRoot, ".github", "skills", "agentic-workflow-designer")
-	targetPath := filepath.Join(targetDir, "SKILL.md")
-
-	if err := fileutil.EnsureParentDir(targetPath, constants.DirPermPublic); err != nil {
-		return fmt.Errorf("failed to create .github/skills/agentic-workflow-designer directory: %w", err)
-	}
-
-	existingContent := ""
-	if content, err := os.ReadFile(targetPath); err == nil {
-		existingContent = string(content)
-	}
-
-	expectedContent := strings.TrimSpace(agenticWorkflowDesignerSkillTemplate)
-	if strings.TrimSpace(existingContent) == expectedContent {
-		copilotAgentsLog.Printf("Agentic workflow designer skill is up-to-date: %s", targetPath)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Agentic workflow designer skill is up-to-date: "+targetPath))
-		}
-		return nil
-	}
-
-	if err := os.WriteFile(targetPath, []byte(agenticWorkflowDesignerSkillTemplate), constants.FilePermPublic); err != nil {
-		copilotAgentsLog.Printf("Failed to write agentic workflow designer skill: %s, error: %v", targetPath, err)
-		return fmt.Errorf("failed to write agentic workflow designer skill: %w", err)
-	}
-
-	if existingContent == "" {
-		copilotAgentsLog.Printf("Created agentic workflow designer skill: %s", targetPath)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created agentic workflow designer skill: "+targetPath))
-		}
-	} else {
-		copilotAgentsLog.Printf("Updated agentic workflow designer skill: %s", targetPath)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated agentic workflow designer skill: "+targetPath))
 		}
 	}
 
@@ -320,6 +260,31 @@ func cleanupOldPromptFile(promptFileName string, verbose bool) error {
 		}
 	}
 
+	return nil
+}
+
+// deleteAgenticWorkflowDesignerSkillDir removes the legacy
+// .github/skills/agentic-workflow-designer/ directory if it exists.
+// The designer instructions are now bundled inside the agentic-workflows skill
+// at .github/aw/designer.md (loaded on demand from
+// github/gh-aw) and no longer need to be written to user repositories.
+func deleteAgenticWorkflowDesignerSkillDir(verbose bool) error {
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return nil // Not in a git repository, skip
+	}
+
+	designerDir := filepath.Join(gitRoot, ".github", "skills", "agentic-workflow-designer")
+	if _, err := os.Stat(designerDir); os.IsNotExist(err) {
+		return nil // Already removed, nothing to do
+	}
+
+	if err := os.RemoveAll(designerDir); err != nil {
+		return fmt.Errorf("failed to remove legacy agentic-workflow-designer skill directory: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed legacy skill directory: "+designerDir))
+	}
 	return nil
 }
 

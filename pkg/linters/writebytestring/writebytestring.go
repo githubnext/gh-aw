@@ -17,6 +17,11 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
+const (
+	ioPkg            = "io"
+	importSpecIndent = "\t"
+)
+
 // writerIface is a synthetic *types.Interface matching io.Writer:
 //
 //	Write(p []byte) (n int, err error)
@@ -52,6 +57,7 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 	noLintLinesByFile := nolint.BuildLineIndex(pass, "writebytestring")
+	filesWithImportEdit := make(map[token.Pos]bool)
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -126,7 +132,7 @@ func run(pass *analysis.Pass) (any, error) {
 			Pos:            call.Pos(),
 			End:            call.End(),
 			Message:        fmt.Sprintf("%s.Write([]byte(%s)) can be replaced with io.WriteString(%s, %s) to potentially avoid a []byte allocation if the writer implements io.StringWriter", wText, sText, writerArg, sExpr),
-			SuggestedFixes: buildFix(call, writerArg, sExpr),
+			SuggestedFixes: buildFix(pass, call, writerArg, sExpr, filesWithImportEdit),
 		})
 	})
 
@@ -197,15 +203,96 @@ func implementsWriter(pass *analysis.Pass, expr ast.Expr) bool {
 }
 
 // buildFix returns a SuggestedFix rewriting w.Write([]byte(s)) to io.WriteString(w, s).
-// Note: if the file does not already import "io", tools such as gopls will add the import automatically.
-func buildFix(call *ast.CallExpr, writerArg, sText string) []analysis.SuggestedFix {
+func buildFix(pass *analysis.Pass, call *ast.CallExpr, writerArg, sText string, filesWithImportEdit map[token.Pos]bool) []analysis.SuggestedFix {
 	replacement := fmt.Sprintf("io.WriteString(%s, %s)", writerArg, sText)
-	return []analysis.SuggestedFix{{
-		Message: "Replace with " + replacement,
-		TextEdits: []analysis.TextEdit{{
-			Pos:     call.Pos(),
-			End:     call.End(),
-			NewText: []byte(replacement),
-		}},
+	edits := []analysis.TextEdit{{
+		Pos:     call.Pos(),
+		End:     call.End(),
+		NewText: []byte(replacement),
 	}}
+	if importEdit, ok := addIOImportEdit(pass, call.Pos(), filesWithImportEdit); ok {
+		edits = append(edits, importEdit)
+	}
+
+	return []analysis.SuggestedFix{{
+		Message:   "Replace with " + replacement,
+		TextEdits: edits,
+	}}
+}
+
+// addIOImportEdit returns a TextEdit that inserts an import for "io" into the
+// file containing pos, unless "io" is already imported in that file or an
+// import edit for this file has already been emitted in this pass.
+func addIOImportEdit(pass *analysis.Pass, pos token.Pos, filesWithImportEdit map[token.Pos]bool) (analysis.TextEdit, bool) {
+	var file *ast.File
+	for _, f := range pass.Files {
+		if f.Pos() <= pos && pos <= f.End() {
+			file = f
+			break
+		}
+	}
+	if file == nil {
+		return analysis.TextEdit{}, false
+	}
+
+	if filesWithImportEdit[file.Pos()] {
+		return analysis.TextEdit{}, false
+	}
+	markAndReturn := func(edit analysis.TextEdit) (analysis.TextEdit, bool) {
+		filesWithImportEdit[file.Pos()] = true
+		return edit, true
+	}
+
+	for _, imp := range file.Imports {
+		if imp.Path.Value == `"`+ioPkg+`"` {
+			return analysis.TextEdit{}, false
+		}
+	}
+
+	for _, decl := range file.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok || genDecl.Tok != token.IMPORT || !genDecl.Lparen.IsValid() {
+			continue
+		}
+		// Keep the edit minimal by appending at the end of the grouped import;
+		// ordering/formatting can be normalized by formatters if desired.
+		return markAndReturn(analysis.TextEdit{
+			Pos:     genDecl.Rparen,
+			End:     genDecl.Rparen,
+			NewText: []byte(importSpecIndent + `"` + ioPkg + `"` + "\n"),
+		})
+	}
+
+	var singleUngroupedImportDecl *ast.GenDecl
+	importDeclCount := 0
+	for _, decl := range file.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok || genDecl.Tok != token.IMPORT {
+			continue
+		}
+		importDeclCount++
+		if !genDecl.Lparen.IsValid() && len(genDecl.Specs) == 1 {
+			singleUngroupedImportDecl = genDecl
+		}
+	}
+	if importDeclCount == 1 && singleUngroupedImportDecl != nil {
+		specText := astutil.NodeText(pass.Fset, singleUngroupedImportDecl.Specs[0])
+		if specText != "" {
+			// Rebuild as a grouped import while preserving the existing import spec
+			// text and adding "io".
+			return markAndReturn(analysis.TextEdit{
+				Pos:     singleUngroupedImportDecl.Pos(),
+				End:     singleUngroupedImportDecl.End(),
+				NewText: []byte("import (\n" + importSpecIndent + specText + "\n" + importSpecIndent + `"` + ioPkg + `"` + "\n)"),
+			})
+		}
+		// If we fail to render the existing import spec, fall back to a
+		// standalone import insertion below rather than emitting a broken edit.
+	}
+
+	return markAndReturn(analysis.TextEdit{
+		Pos:     file.Name.End(),
+		End:     file.Name.End(),
+		NewText: []byte("\n\nimport \"" + ioPkg + "\""),
+	})
 }

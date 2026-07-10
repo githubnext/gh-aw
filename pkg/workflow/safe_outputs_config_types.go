@@ -136,6 +136,7 @@ type SafeOutputMessagesConfig struct {
 	AgentFailureIssue              string `yaml:"agent-failure-issue,omitempty" json:"agentFailureIssue,omitempty"`                            // Custom footer template for agent failure tracking issues
 	AgentFailureComment            string `yaml:"agent-failure-comment,omitempty" json:"agentFailureComment,omitempty"`                        // Custom footer template for comments on agent failure tracking issues
 	BodyHeader                     string `yaml:"body-header,omitempty" json:"bodyHeader,omitempty"`                                           // Custom header text prepended to every message body (issues, comments, PRs, discussions). Placeholders: {workflow_name}, {run_url}
+	DisclosureHeader               string `yaml:"disclosure-header,omitempty" json:"disclosureHeader,omitempty"`                               // AI authorship disclosure header prepended to every message body. Set to "true" for built-in default text, or provide a custom template string. Placeholders: {workflow_name}, {run_url}
 }
 
 // MentionsConfig holds configuration for @mention filtering in safe outputs

@@ -18,7 +18,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { createExpirationLine, generateFooterWithExpiration, addExpirationToFooter } = require("./ephemerals.cjs");
 const { assembleMarkdownBodyParts } = require("./markdown_body_helpers.cjs");
-const { getBodyHeader } = require("./messages_header.cjs");
+const { getBodyHeader, getDisclosureHeader } = require("./messages_header.cjs");
 const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, normalizeCloseOlderKey } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
@@ -543,6 +543,12 @@ async function main(config = {}) {
     const bodyHeader = getBodyHeader({ workflowName, runUrl });
     if (bodyHeader) {
       bodyLines.unshift(...bodyHeader.split("\n"), "");
+    }
+
+    // Inject disclosure header (this runs after body-header, but appears before it because unshift prepends)
+    const disclosureHeader = getDisclosureHeader({ workflowName, runUrl });
+    if (disclosureHeader) {
+      bodyLines.unshift(...disclosureHeader.split("\n"), "");
     }
 
     const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
