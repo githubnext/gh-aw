@@ -16,9 +16,8 @@ Repository overlay (optional):
 Read only the files you need:
 Load these files from `github/gh-aw` (they are not available locally).
 {{AW_FILE_LIST}}
-- `.github/skills/agentic-workflow-designer/SKILL.md`
 After loading the matching workflow prompt or skill, follow it directly:
-- Design workflows from scratch via interview: `skills/agentic-workflow-designer/SKILL.md`
+- Design workflows from scratch via interview: `.github/aw/designer.md`
 - Create new workflows: `.github/aw/create-agentic-workflow.md`
 - Update existing workflows: `.github/aw/update-agentic-workflow.md`
 - Debug, audit, or investigate workflows: `.github/aw/debug-agentic-workflow.md`

@@ -17,6 +17,7 @@ import (
 	"slices"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var sandboxLog = logger.New("workflow:sandbox")
@@ -235,6 +236,27 @@ func ensureDefaultAgentWritePath(sandboxConfig *SandboxConfig) {
 		sandboxConfig.Agent.Config.Filesystem.AllowWrite,
 		defaultAgentWorkspaceWritePath,
 	)
+}
+
+func mergeImportedSandboxAgentMounts(sandboxConfig *SandboxConfig, importedMounts []string) *SandboxConfig {
+	if len(importedMounts) == 0 {
+		return sandboxConfig
+	}
+
+	if sandboxConfig == nil {
+		sandboxConfig = &SandboxConfig{}
+	}
+
+	if sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
+		return sandboxConfig
+	}
+
+	if sandboxConfig.Agent == nil {
+		sandboxConfig.Agent = &AgentSandboxConfig{}
+	}
+
+	sandboxConfig.Agent.Mounts = sliceutil.MergeUnique(importedMounts, sandboxConfig.Agent.Mounts...)
+	return sandboxConfig
 }
 
 // isSandboxEnabled checks if the sandbox is enabled (either explicitly or auto-enabled)

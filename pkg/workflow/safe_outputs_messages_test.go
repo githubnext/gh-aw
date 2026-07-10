@@ -127,6 +127,81 @@ func TestSafeOutputsMessagesConfiguration(t *testing.T) {
 			t.Errorf("Expected BodyHeader to be custom template, got %q", config.Messages.BodyHeader)
 		}
 	})
+
+	t.Run("Should parse disclosure-header as bool true", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"name": "Test Workflow",
+			"safe-outputs": map[string]any{
+				"create-issue": nil,
+				"messages": map[string]any{
+					"disclosure-header": true,
+				},
+			},
+		}
+
+		config := compiler.extractSafeOutputsConfig(frontmatter)
+		if config == nil {
+			t.Fatal("Expected SafeOutputsConfig to be parsed")
+		}
+
+		if config.Messages == nil {
+			t.Fatal("Expected Messages to be parsed")
+		}
+
+		if config.Messages.DisclosureHeader != disclosureHeaderDefaultSentinel {
+			t.Errorf("Expected DisclosureHeader to be %q when bool true is set, got %q", disclosureHeaderDefaultSentinel, config.Messages.DisclosureHeader)
+		}
+	})
+
+	t.Run("Should parse disclosure-header as custom string", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"name": "Test Workflow",
+			"safe-outputs": map[string]any{
+				"create-issue": nil,
+				"messages": map[string]any{
+					"disclosure-header": "> 🤖 Custom disclosure for [{workflow_name}]({run_url}).",
+				},
+			},
+		}
+
+		config := compiler.extractSafeOutputsConfig(frontmatter)
+		if config == nil {
+			t.Fatal("Expected SafeOutputsConfig to be parsed")
+		}
+
+		if config.Messages == nil {
+			t.Fatal("Expected Messages to be parsed")
+		}
+
+		if config.Messages.DisclosureHeader != "> 🤖 Custom disclosure for [{workflow_name}]({run_url})." {
+			t.Errorf("Expected DisclosureHeader to be custom template, got %q", config.Messages.DisclosureHeader)
+		}
+	})
+
+	t.Run("Should not set disclosure-header when bool false", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"name": "Test Workflow",
+			"safe-outputs": map[string]any{
+				"create-issue": nil,
+				"messages": map[string]any{
+					"disclosure-header": false,
+				},
+			},
+		}
+
+		config := compiler.extractSafeOutputsConfig(frontmatter)
+		if config == nil {
+			t.Fatal("Expected SafeOutputsConfig to be parsed")
+		}
+
+		if config.Messages == nil {
+			t.Fatal("Expected Messages to be parsed")
+		}
+
+		if config.Messages.DisclosureHeader != "" {
+			t.Errorf("Expected DisclosureHeader to be empty when bool false is set, got %q", config.Messages.DisclosureHeader)
+		}
+	})
 }
 
 func TestSerializeMessagesConfig(t *testing.T) {
@@ -243,6 +318,34 @@ func TestSerializeMessagesConfig(t *testing.T) {
 
 		if strings.Contains(result, `"BodyHeader"`) {
 			t.Errorf("Expected JSON to NOT contain PascalCase key 'BodyHeader', got: %s", result)
+		}
+	})
+
+	t.Run("Should serialize disclosure-header to camelCase JSON key", func(t *testing.T) {
+		config := &SafeOutputMessagesConfig{
+			DisclosureHeader: disclosureHeaderDefaultSentinel,
+		}
+
+		result, err := serializeMessagesConfig(config)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		var parsed SafeOutputMessagesConfig
+		if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+			t.Fatalf("Result is not valid JSON: %v", err)
+		}
+
+		if parsed.DisclosureHeader != disclosureHeaderDefaultSentinel {
+			t.Errorf("Expected DisclosureHeader to be preserved, got %q", parsed.DisclosureHeader)
+		}
+
+		if !strings.Contains(result, `"disclosureHeader"`) {
+			t.Errorf("Expected JSON to contain camelCase key 'disclosureHeader', got: %s", result)
+		}
+
+		if strings.Contains(result, `"DisclosureHeader"`) {
+			t.Errorf("Expected JSON to NOT contain PascalCase key 'DisclosureHeader', got: %s", result)
 		}
 	})
 }

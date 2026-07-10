@@ -5,7 +5,7 @@ const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
-const { getBodyHeader } = require("./messages_header.cjs");
+const { getBodyHeader, getDisclosureHeader } = require("./messages_header.cjs");
 const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, normalizeCloseOlderKey } = require("./generate_footer.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
@@ -881,6 +881,12 @@ async function main(config = {}) {
     const bodyHeader = getBodyHeader({ workflowName, runUrl });
     if (bodyHeader) {
       bodyLines.unshift(...bodyHeader.split("\n"), "");
+    }
+
+    // Inject disclosure header (this runs after body-header, but appears before it because unshift prepends)
+    const disclosureHeader = getDisclosureHeader({ workflowName, runUrl });
+    if (disclosureHeader) {
+      bodyLines.unshift(...disclosureHeader.split("\n"), "");
     }
 
     // Inject CAUTION at top of body if threat detection warning was raised
