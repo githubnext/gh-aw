@@ -875,6 +875,64 @@ func TestPermissions_HasContentsReadAccess(t *testing.T) {
 	}
 }
 
+func TestPermissions_HasCopilotRequestsWrite(t *testing.T) {
+	tests := []struct {
+		name     string
+		perms    *Permissions
+		expected bool
+	}{
+		{
+			name:     "nil permissions returns false",
+			perms:    nil,
+			expected: false,
+		},
+		{
+			name:     "write-all grants copilot requests write",
+			perms:    NewPermissionsWriteAll(),
+			expected: true,
+		},
+		{
+			name:     "read-all does not grant copilot requests write",
+			perms:    NewPermissionsReadAll(),
+			expected: false,
+		},
+		{
+			name: "explicit copilot requests write grants access",
+			perms: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionCopilotRequests: PermissionWrite,
+			}),
+			expected: true,
+		},
+		{
+			name: "explicit copilot requests none denies access",
+			perms: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionCopilotRequests: PermissionNone,
+			}),
+			expected: false,
+		},
+		{
+			name: "all write with explicit copilot requests none denies access",
+			perms: func() *Permissions {
+				p := NewPermissions()
+				p.hasAll = true
+				p.allLevel = PermissionWrite
+				p.Set(PermissionCopilotRequests, PermissionNone)
+				return p
+			}(),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.perms.HasCopilotRequestsWrite()
+			if result != tt.expected {
+				t.Errorf("HasCopilotRequestsWrite() = %v, expected %v", result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestFilterJobLevelPermissionsWithCache(t *testing.T) {
 	// Verify that passing a pre-parsed *Permissions produces the same result
 	// as parsing from the raw YAML string.

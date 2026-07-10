@@ -6,7 +6,7 @@ Use this skill to run a structured interview with users who know their goal but 
 
 Use this before `.github/aw/create-agentic-workflow.md` when requirements are unclear or incomplete.
 
-- Use `.github/skills/agentic-workflows/designer.md` to discover and confirm requirements.
+- Use `.github/aw/designer.md` to discover and confirm requirements.
 - Use `.github/aw/create-agentic-workflow.md` once requirements are clear and ready for implementation.
 - Use `.github/aw/agentic-chat.md` when the user wants a specification/pseudo-code instead of a runnable workflow file.
 

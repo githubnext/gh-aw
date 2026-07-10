@@ -252,3 +252,246 @@ func (c *Compiler) generateDetectAgentErrorsStep(yaml *strings.Builder, data *Wo
 	yaml.WriteString("        continue-on-error: true\n")
 	fmt.Fprintf(yaml, "        run: node \"${RUNNER_TEMP}/gh-aw/actions/%s.cjs\"\n", scriptId)
 }
+
+// generateEngineInstallAndPreAgentSteps emits git credential configuration, the PR-ready-for-review
+// checkout, engine installation steps, GitHub MCP app token minting, MCP lockdown detection, guard
+// variable parsing, DIFC proxy stop, base-.github-folder restore, pre-agent steps, MCP gateway
+// setup, and MCP CLI mount.
+// The activation artifact download and comment-memory file preparation are emitted earlier (in
+// generateActivationArtifactAndCommentMemorySteps) so that user steps: can access prior
+// comment-memory state.
+// It returns the resolved CodingAgentEngine for use in subsequent phases.
+func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, data *WorkflowData, needsGitConfig bool) (CodingAgentEngine, error) {
+	// Configure git credentials for agentic workflows.
+	// Git credential configuration requires a .git directory in the workspace, which is only
+	// present when the repository was checked out. Skip these steps when checkout is disabled
+	// and no custom steps perform a checkout, since git remote set-url origin would fail
+	// with "fatal: not a git repository" otherwise.
+	compilerYamlLog.Printf("Git credential configuration needed: %t", needsGitConfig)
+	if needsGitConfig {
+		gitConfigSteps := c.generateGitConfigurationSteps()
+		for _, line := range gitConfigSteps {
+			yaml.WriteString(line)
+		}
+	}
+
+	// Add step to checkout PR branch if the event is pull_request
+	c.generatePRReadyForReviewCheckout(yaml, data)
+
+	// Add Node.js setup if the engine requires it and it's not already set up in custom steps
+	engine, err := c.getAgenticEngine(data.AI)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve agentic engine from AI configuration: %w", err)
+	}
+
+	// Ensure MCP gateway defaults are set before generating aw_info.json
+	// This is needed so that awmg_version is populated correctly
+	if HasMCPServers(data) {
+		ensureDefaultMCPGatewayConfig(data)
+	}
+
+	// Add engine-specific installation steps (includes Node.js setup and secret validation for npm-based engines)
+	installSteps := engine.GetInstallationSteps(data)
+	compilerYamlLog.Printf("Adding %d engine installation steps for %s", len(installSteps), engine.GetID())
+	for _, step := range installSteps {
+		for _, line := range step {
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
+		}
+	}
+
+	// Add Playwright CLI install steps when playwright is configured in CLI mode.
+	// These run after Node.js is available (set up by the engine install steps above).
+	for _, step := range generatePlaywrightCLIInstallSteps(data) {
+		for _, line := range step {
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
+		}
+	}
+
+	// GH_AW_SAFE_OUTPUTS is now set at job level, no setup step needed
+
+	// Mint the GitHub MCP App token directly in the agent job.
+	// The token cannot be passed via job outputs from the activation job because
+	// actions/create-github-app-token calls ::add-mask:: on the token, and the
+	// GitHub Actions runner silently drops masked values in job outputs (runner v2.308+).
+	// By minting the token here, the app-id / private-key secrets are accessed only
+	// within this job and the minted token is available as steps.github-mcp-app-token.outputs.token.
+	for _, step := range c.generateGitHubMCPAppTokenMintingSteps(data) {
+		yaml.WriteString(step)
+	}
+
+	// Add GitHub MCP lockdown detection step if needed
+	c.generateGitHubMCPLockdownDetectionStep(yaml, data)
+
+	// Add step to parse blocked-users and approval-labels guard variables into JSON arrays
+	c.generateParseGuardVarsStep(yaml, data)
+
+	// Stop DIFC proxy before starting the MCP gateway. The proxy must be stopped first
+	// to avoid double-filtering: the gateway uses the same guard policy for the agent phase.
+	c.generateStopDIFCProxyStep(yaml, data)
+
+	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
+	// No longer generated in the main job steps
+
+	// Restore agent config folders from the base branch snapshot in the activation artifact.
+	// The activation job saved these before the PR checkout ran, so this step overwrites any
+	// PR-branch-injected files (e.g. forked skill/instruction files) with trusted base content.
+	// The .github/mcp.json file is also removed since it may come from the PR branch.
+	// The folder and file lists match those used in the save step (derived from engine registry).
+	//
+	// IMPORTANT: This must run BEFORE pre-agent-steps (below) so that APM-restored skills
+	// placed in .github/skills/ by pre-agent-steps are not clobbered by this restore.
+	if ShouldGeneratePRCheckoutStep(data) {
+		registry := GetGlobalEngineRegistry()
+		generateRestoreBaseGitHubFoldersStep(yaml,
+			registry.GetAllAgentManifestFolders(),
+			registry.GetAllAgentManifestFiles(),
+		)
+	}
+
+	// Restore inline sub-agents written during the activation job.
+	// This step runs AFTER the base-branch restore so the engine-specific agent directory
+	// is not clobbered. Inline sub-agents are enabled by default.
+	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), data) {
+		generateRestoreInlineSubAgentsStep(yaml, data)
+	}
+	// Restore the engine-specific skills directory when inline skills are enabled or when
+	// explicit frontmatter skills were installed during activation.
+	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), data) || len(data.Skills) > 0 {
+		generateRestoreInlineSkillsStep(yaml, data)
+	}
+
+	// Add pre-agent-steps (if any) after base-branch restore but before MCP setup.
+	// Running after base restore ensures APM-restored skills (.github/skills/) are not
+	// overwritten by the restore step above in PR context.
+	// Running before MCP setup ensures pre-agent-steps can install/configure MCP
+	// dependencies that the gateway may reference when it starts.
+	c.generatePreAgentSteps(yaml, data)
+
+	// Add MCP setup
+	if err := c.generateMCPSetup(yaml, data.Tools, engine, data); err != nil {
+		return nil, fmt.Errorf("failed to generate MCP setup: %w", err)
+	}
+
+	// Mount MCP servers as CLI tools (runs after gateway is started)
+	c.generateMCPCLIMountStep(yaml, data)
+
+	return engine, nil
+}
+
+// generateAgentRunSteps emits the git credentials cleaner, engine config steps, CLI proxy start,
+// AI execution, CLI proxy stop, Copilot error detection, agent-execution-complete marker,
+// post-agent git credential regeneration, firewall log collection, engine pre-bundle steps,
+// MCP gateway stop, secret redaction, agent step summary append, and output collection.
+// It returns the initial set of artifact paths (to be extended by the caller) and the
+// agent stdio log path constant.
+func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, needsGitConfig bool) ([]string, string, error) {
+	// Collect artifact paths for unified upload at the end
+	var artifactPaths []string
+	artifactPaths = append(artifactPaths, constants.AwPromptsFile)
+
+	logFileFull := constants.AgentStdioLogPath
+
+	// Clean credentials before executing the agentic engine.
+	// This removes git credentials from .git/config and, when known credential-leaking
+	// actions were detected, also removes cloud-provider / registry credentials.
+	credentialsCleanerSteps := c.generateCredentialsCleanerStep(data.KnownActionCredentialEnvVars)
+	for _, line := range credentialsCleanerSteps {
+		yaml.WriteString(line)
+	}
+
+	// Emit an audit step after credentials have been cleaned but before the agent begins
+	// execution. This captures a file listing of agent-related directories so the final
+	// pre-agent state (including any config written by MCP setup and engine config steps)
+	// is visible in the agent artifact without exposing raw credentials.
+	c.generatePreAgentAuditStep(yaml)
+
+	// Emit engine config steps (from RenderConfig) before the AI execution step.
+	// These steps write runtime config files to disk (e.g. provider/model config files).
+	// Most engines return no steps here; only engines that require config files use this.
+	if len(data.EngineConfigSteps) > 0 {
+		compilerYamlLog.Printf("Adding %d engine config steps for %s", len(data.EngineConfigSteps), engine.GetID())
+		for _, step := range data.EngineConfigSteps {
+			stepYAML, err := ConvertStepToYAML(step)
+			if err != nil {
+				return nil, "", fmt.Errorf("failed to render engine config step: %w", err)
+			}
+			yaml.WriteString(stepYAML)
+		}
+	}
+
+	// Start CLI proxy on the host before AWF execution. When features.cli-proxy is enabled,
+	// the compiler starts a difc-proxy container on the host that AWF's cli-proxy sidecar
+	// connects to via host.docker.internal:18443.
+	c.generateStartCliProxyStep(yaml, data)
+
+	// Add AI execution step using the agentic engine
+	compilerYamlLog.Printf("Generating engine execution steps for %s", engine.GetID())
+	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
+
+	// Stop CLI proxy after AWF execution (always runs to ensure cleanup)
+	c.generateStopCliProxyStep(yaml, data)
+
+	// Detect agent errors on the host runner immediately after the AWF container exits.
+	// GITHUB_OUTPUT is not accessible inside the AWF sandbox, so this step must run here
+	// (on the host runner) rather than from within the container. Engines that provide a
+	// detection script via GetErrorDetectionScriptId will emit this step.
+	c.generateDetectAgentErrorsStep(yaml, data, engine)
+
+	// Mark that we've completed agent execution - step order validation starts from here
+	compilerYamlLog.Print("Marking agent execution as complete for step order tracking")
+	c.stepOrderTracker.MarkAgentExecutionComplete()
+
+	// Regenerate git credentials after agent execution
+	// This allows safe-outputs operations (like create_pull_request) to work properly
+	// We regenerate the credentials rather than restoring from backup.
+	// Only emit these steps when a checkout was performed (requires a .git directory).
+	if needsGitConfig {
+		gitConfigStepsAfterAgent := c.generateGitConfigurationSteps()
+		for _, line := range gitConfigStepsAfterAgent {
+			yaml.WriteString(line)
+		}
+	}
+
+	// Collect firewall logs BEFORE secret redaction so secrets in logs can be redacted
+	for _, step := range engine.GetFirewallLogsCollectionStep(data) {
+		for _, line := range step {
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
+		}
+	}
+
+	// Run engine pre-bundle steps to relocate files before secret redaction.
+	// This ensures all artifact paths share a common ancestor under /tmp/gh-aw/.
+	for _, step := range engine.GetPreBundleSteps(data) {
+		for _, line := range step {
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
+		}
+	}
+
+	// Stop MCP gateway after agent execution and before secret redaction
+	// This ensures the gateway process is properly cleaned up
+	// The MCP gateway is always enabled, even when agent sandbox is disabled
+	c.generateStopMCPGateway(yaml, data)
+
+	// Add secret redaction step BEFORE any artifact uploads
+	// This ensures all artifacts are scanned for secrets before being uploaded
+	c.generateSecretRedactionStep(yaml, yaml.String(), data)
+
+	// Append the agent step summary to the real $GITHUB_STEP_SUMMARY after secrets are redacted.
+	// The agent writes its GITHUB_STEP_SUMMARY content to AgentStepSummaryPath (a file inside
+	// /tmp/gh-aw/ that is reachable in both AWF sandbox and non-sandbox modes).
+	// secret redaction already scanned this file, so it is safe to append.
+	c.generateAgentStepSummaryAppend(yaml)
+
+	// Add output collection step only if safe-outputs feature is used (GH_AW_SAFE_OUTPUTS functionality)
+	if data.SafeOutputs != nil {
+		if err := c.generateOutputCollectionStep(yaml, data); err != nil {
+			return nil, "", err
+		}
+	}
+
+	return artifactPaths, logFileFull, nil
+}

@@ -267,6 +267,80 @@ func TestApplySandboxDefaults(t *testing.T) {
 	}
 }
 
+func TestMergeImportedSandboxAgentMounts(t *testing.T) {
+	tests := []struct {
+		name           string
+		initial        *SandboxConfig
+		imported       []string
+		expected       []string
+		expectNil      bool
+		expectDisabled bool
+	}{
+		{
+			name:      "no imported mounts returns original nil config",
+			initial:   nil,
+			imported:  nil,
+			expectNil: true,
+		},
+		{
+			name:     "creates sandbox agent config from imports",
+			initial:  nil,
+			imported: []string{"/tool-a:/tool-a:ro"},
+			expected: []string{"/tool-a:/tool-a:ro"},
+		},
+		{
+			name: "deduplicates imported and main mounts",
+			initial: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Mounts: []string{
+						"/main:/main:ro",
+						"/shared:/shared:ro",
+					},
+				},
+			},
+			imported: []string{
+				"/shared:/shared:ro",
+				"/import-a:/import-a:ro",
+			},
+			expected: []string{
+				"/shared:/shared:ro",
+				"/import-a:/import-a:ro",
+				"/main:/main:ro",
+			},
+		},
+		{
+			name: "does not modify disabled agent sandbox",
+			initial: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Disabled: true,
+				},
+			},
+			imported:       []string{"/tool-a:/tool-a:ro"},
+			expectDisabled: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			merged := mergeImportedSandboxAgentMounts(tt.initial, tt.imported)
+
+			if tt.expectNil {
+				assert.Nil(t, merged)
+				return
+			}
+
+			require.NotNil(t, merged)
+			require.NotNil(t, merged.Agent)
+			if tt.expectDisabled {
+				assert.True(t, merged.Agent.Disabled)
+				assert.Empty(t, merged.Agent.Mounts)
+				return
+			}
+			assert.Equal(t, tt.expected, merged.Agent.Mounts)
+		})
+	}
+}
+
 func TestDefaultAgentWorkspaceWritePath(t *testing.T) {
 	assert.Equal(t, "/tmp/gh-aw/agent", defaultAgentWorkspaceWritePath)
 }
