@@ -9,8 +9,7 @@
  * (issues, comments, pull requests, discussions).
  */
 
-const fs = require("fs");
-const { getMessages, getPromptPath, renderTemplate, toSnakeCase } = require("./messages_core.cjs");
+const { getMessages, getPromptPath, renderTemplate, renderTemplateFromFile, toSnakeCase } = require("./messages_core.cjs");
 
 /**
  * @typedef {Object} BodyHeaderContext
@@ -21,16 +20,7 @@ const { getMessages, getPromptPath, renderTemplate, toSnakeCase } = require("./m
 const DEFAULT_DISCLOSURE_HEADER_TEMPLATE = "safe_outputs_disclosure_header.md";
 const DISCLOSURE_HEADER_DEFAULT_SENTINEL = "true";
 
-/**
- * Load the default disclosure-header template from prompt markdown.
- * @returns {string}
- */
-function getDefaultDisclosureHeaderTemplate() {
-  const templatePath = getPromptPath(DEFAULT_DISCLOSURE_HEADER_TEMPLATE);
-  return fs.readFileSync(templatePath, "utf8").trimEnd();
-}
-
-const DEFAULT_DISCLOSURE_HEADER = getDefaultDisclosureHeaderTemplate();
+const DEFAULT_DISCLOSURE_HEADER = renderTemplateFromFile(getPromptPath(DEFAULT_DISCLOSURE_HEADER_TEMPLATE), {}).trimEnd();
 
 /**
  * Get the body header text, using the custom template if configured.
