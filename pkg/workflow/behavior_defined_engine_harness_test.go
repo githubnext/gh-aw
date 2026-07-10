@@ -50,7 +50,7 @@ func TestBehaviorDefinedEngineHarnessScript(t *testing.T) {
 		assert.Contains(t, harnessStepContent, "Write TestHarness harness script", "step name should include engine display name")
 		assert.Contains(t, harnessStepContent, "testharness_harness.cjs", "step should write the correct harness filename")
 		assert.Contains(t, harnessStepContent, "gh-aw/actions", "step should write to the setup action destination directory")
-		assert.Contains(t, harnessStepContent, "GHAW_HARNESS_SCRIPT_EOF", "step should use heredoc delimiter")
+		assert.Contains(t, harnessStepContent, harnessScriptHeredocDelimiter, "step should use heredoc delimiter")
 		assert.Contains(t, harnessStepContent, "use strict", "step should embed harness script content")
 	})
 
@@ -105,6 +105,26 @@ func TestBehaviorDefinedEngineHarnessScript(t *testing.T) {
 
 	t.Run("harness_filename", func(t *testing.T) {
 		assert.Equal(t, "testharness_harness.cjs", engine.harnessScriptFilename())
+	})
+
+	t.Run("heredoc_delimiter_collision_skips_harness_write_step", func(t *testing.T) {
+		// An engine whose harness-script contains the heredoc delimiter at line start must
+		// not generate a harness write step (to avoid premature heredoc termination).
+		collisionDef := &EngineDefinition{
+			ID:          "collision",
+			DisplayName: "Collision",
+			Behaviors: &EngineBehaviorDefinition{
+				Execution: &EngineExecutionDefinition{
+					CommandName: "collision-cli",
+					StepName:    "Execute",
+				},
+				HarnessScript: "// legit JS\n" + harnessScriptHeredocDelimiter + "\nconsole.log('hi');",
+			},
+		}
+		eng, err := NewBehaviorDefinedEngine(collisionDef)
+		require.NoError(t, err)
+		harnessStep := eng.buildHarnessWriteStep()
+		assert.Nil(t, harnessStep, "harness write step must be skipped when script contains the heredoc delimiter")
 	})
 }
 

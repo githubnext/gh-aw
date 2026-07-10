@@ -214,6 +214,11 @@ func (e *BehaviorDefinedEngine) RenderMCPConfig(sb *strings.Builder, tools map[s
 	return renderDefaultJSONMCPConfig(sb, tools, mcpTools, workflowData, behavior.MCP.ConfigPath)
 }
 
+// harnessScriptHeredocDelimiter is the shell heredoc delimiter used when writing
+// the harness script to disk. It is intentionally long and project-specific so that
+// it is extremely unlikely to appear at the start of a line in any JavaScript harness.
+const harnessScriptHeredocDelimiter = "GHAW_HARNESS_SCRIPT_3c7b9f1a_EOF"
+
 // harnessScriptFilename returns the filename (not path) for the engine's harness script.
 func (e *BehaviorDefinedEngine) harnessScriptFilename() string {
 	return e.GetID() + "_harness.cjs"
@@ -222,20 +227,31 @@ func (e *BehaviorDefinedEngine) harnessScriptFilename() string {
 // buildHarnessWriteStep generates a GitHub Actions step that writes the behavior-defined
 // engine's harness-script content to ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_harness.cjs
 // so it can be executed as a Node.js harness during the engine execution step.
+// Returns nil and logs a warning if the harness script contains the heredoc delimiter,
+// which would break the generated shell command.
 func (e *BehaviorDefinedEngine) buildHarnessWriteStep() GitHubActionStep {
 	behavior := e.behavior()
 	if behavior == nil || behavior.HarnessScript == "" {
 		return nil
 	}
+	// Safety check: if the harness script contains the heredoc delimiter at the start
+	// of any line, the heredoc would be terminated prematurely. Detect this at
+	// compile time and log a clear error rather than generating a broken step.
+	if strings.Contains(behavior.HarnessScript, "\n"+harnessScriptHeredocDelimiter) ||
+		strings.HasPrefix(behavior.HarnessScript, harnessScriptHeredocDelimiter) {
+		behaviorDefinedEngineLog.Printf(
+			"WARNING: engine %q harness-script contains heredoc delimiter %q; harness write step skipped",
+			e.GetID(), harnessScriptHeredocDelimiter,
+		)
+		return nil
+	}
 	filename := e.harnessScriptFilename()
-	// Write the harness content using a heredoc. The delimiter GHAW_HARNESS_SCRIPT_EOF is
-	// unlikely to appear literally at the start of a line in any JavaScript harness.
 	command := fmt.Sprintf(
-		"mkdir -p %s\ncat <<'GHAW_HARNESS_SCRIPT_EOF' > %s/%s\n%s\nGHAW_HARNESS_SCRIPT_EOF\nchmod 755 %s/%s",
+		"mkdir -p %[1]s\ncat <<'%[4]s' > %[1]s/%[2]s\n%[3]s\n%[4]s\nchmod 755 %[1]s/%[2]s",
 		SetupActionDestinationShell,
-		SetupActionDestinationShell, filename,
+		filename,
 		behavior.HarnessScript,
-		SetupActionDestinationShell, filename,
+		harnessScriptHeredocDelimiter,
 	)
 	stepLines := []string{"      - name: Write " + e.GetDisplayName() + " harness script"}
 	stepLines = FormatStepWithCommandAndEnv(stepLines, command, nil)
@@ -265,14 +281,14 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 	var engineCommand string
 	if behavior.HarnessScript != "" {
 		// Harness execution: the harness is responsible for reading GH_AW_PROMPT and
-		// spawning the engine CLI. Pass command name and configured args so the harness
-		// can forward them (or use them to build the full command).
-		harnessParts := []string{commandName}
+		// spawning the engine CLI. Pass the shell-escaped command name and configured args
+		// so the harness can forward them or use them to build the full command.
+		harnessArgs := []string{shellEscapeArg(commandName)}
 		if len(exec.Args) > 0 {
-			harnessParts = append(harnessParts, shellJoinArgs(exec.Args))
+			harnessArgs = append(harnessArgs, shellJoinArgs(exec.Args))
 		}
 		harnessPath := SetupActionDestinationShell + "/" + e.harnessScriptFilename()
-		engineCommand = fmt.Sprintf("%s %s %s", nodeRuntimeResolutionCommand, harnessPath, strings.Join(harnessParts, " "))
+		engineCommand = fmt.Sprintf("%s %s %s", nodeRuntimeResolutionCommand, harnessPath, strings.Join(harnessArgs, " "))
 	} else {
 		commandParts := []string{commandName}
 		if len(exec.Args) > 0 {
