@@ -53,7 +53,7 @@ mkdir -p /tmp/gh-aw/awf-tmp
 AWF_CHROOT_PROBE_DIR="/tmp/gh-aw/awf-tmp/chroot-preflight-$$"
 mkdir -p "${AWF_CHROOT_PROBE_DIR}"
 if ! printf '127.0.0.1 localhost\n' > "${AWF_CHROOT_PROBE_DIR}/hosts"; then
-  echo "::error::AWF pre-flight failed: cannot write ${AWF_CHROOT_PROBE_DIR}/hosts. This usually means rootless temp directory permissions are broken; check ownership/permissions under /tmp/gh-aw/awf-tmp."
+  echo "::error::AWF pre-flight failed: cannot write probe hosts file in /tmp/gh-aw/awf-tmp. This usually means rootless temp directory permissions are broken; check ownership/permissions under /tmp/gh-aw/awf-tmp."
   exit 1
 fi
 rm -rf "${AWF_CHROOT_PROBE_DIR}"
