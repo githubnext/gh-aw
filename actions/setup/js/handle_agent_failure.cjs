@@ -248,6 +248,7 @@ function buildFailureMatchCategories(options) {
   if (options.maxAICreditsExceeded) categories.push("max_ai_credits_exceeded");
   if (options.hasAppTokenMintingFailed) categories.push("app_token_minting_failed");
   if (options.hasLockdownCheckFailed) categories.push("lockdown_check_failed");
+  if (options.hasOAuthTokenCheckFailed) categories.push("oauth_token_check_failed");
   if (options.hasStaleLockFileFailed) categories.push("stale_lock_file_failed");
   if (options.hasDailyAICExceeded) categories.push("daily_ai_credits_exceeded");
   if (options.isAWFFirewallStartupFailed) categories.push("awf_firewall_startup_failed");
@@ -276,6 +277,7 @@ function buildFailureMatchCategories(options) {
  * @param {boolean} options.hasToolDenialsExceeded
  * @param {boolean} options.hasAppTokenMintingFailed
  * @param {boolean} options.hasLockdownCheckFailed
+ * @param {boolean} options.hasOAuthTokenCheckFailed
  * @param {boolean} options.hasStaleLockFileFailed
  * @param {boolean} options.hasDailyAICExceeded
  * @param {boolean} options.aiCreditsRateLimitError
@@ -294,6 +296,7 @@ function buildFailureIssueTitle(options) {
   if (options.http400ResponseError) return `[aw] ${workflowName} hit HTTP 400 bad request`;
   if (options.hasAppTokenMintingFailed) return `[aw] ${workflowName} failed to mint GitHub App token`;
   if (options.hasLockdownCheckFailed) return `[aw] ${workflowName} failed lockdown check`;
+  if (options.hasOAuthTokenCheckFailed) return `[aw] ${workflowName} has OAuth token misconfiguration`;
   if (options.hasStaleLockFileFailed) return `[aw] ${workflowName} has stale lock file`;
   if (options.isTimedOut) return `[aw] ${workflowName} timed out`;
   if (options.hasToolDenialsExceeded) return `[aw] ${workflowName} exceeded tool denial limit`;
@@ -1836,6 +1839,24 @@ function buildLockdownCheckFailedContext(hasLockdownCheckFailed) {
 }
 
 /**
+ * Build a context string when the OAuth token check step detected an OAuth token (gho_...)
+ * in the activation job. OAuth tokens are not suitable for automation and must be replaced
+ * with fine-grained Personal Access Tokens.
+ * @param {boolean} hasOAuthTokenCheckFailed - Whether an OAuth token was detected
+ * @param {string} runUrl - The workflow run URL for reference in the message
+ * @returns {string} Formatted context string, or empty string if no failure
+ */
+function buildOAuthTokenCheckFailedContext(hasOAuthTokenCheckFailed, runUrl) {
+  if (!hasOAuthTokenCheckFailed) {
+    return "";
+  }
+
+  const templatePath = getPromptPath("oauth_token_check_failed.md");
+  const template = fs.readFileSync(templatePath, "utf8");
+  return "\n" + renderTemplate(template, { run_url: runUrl });
+}
+
+/**
  * Build a context string when the frontmatter hash (stale lock file) check failed in the
  * activation job. This surfaces remediation guidance — including how to disable the check —
  * directly in the failure issue / comment.
@@ -2834,6 +2855,10 @@ async function main() {
     // Lockdown check failure from the activation job — set when validate_lockdown_requirements fails.
     // The agent is skipped in this case, but the conclusion job still runs to report the failure.
     const hasLockdownCheckFailed = process.env.GH_AW_LOCKDOWN_CHECK_FAILED === "true";
+    // OAuth token check failure from the activation job — set when check_oauth_tokens.sh detects
+    // a gho_... OAuth token in COPILOT_GITHUB_TOKEN, GH_AW_GITHUB_TOKEN, or GH_AW_GITHUB_MCP_SERVER_TOKEN.
+    // The agent is skipped in this case; the conclusion job runs to surface remediation guidance.
+    const hasOAuthTokenCheckFailed = process.env.GH_AW_OAUTH_TOKEN_CHECK_FAILED === "true";
     // Stale lock file check failure from the activation job — set when the frontmatter hash
     // stored in the compiled .lock.yml no longer matches the source .md file.
     // The agent is skipped in this case; the conclusion job runs to surface remediation guidance.
@@ -2892,6 +2917,7 @@ async function main() {
     core.info(`Push repo-memory result: ${pushRepoMemoryResult}`);
     core.info(`App token minting failed (safe_outputs/conclusion/activation): ${safeOutputsAppTokenMintingFailed}/${conclusionAppTokenMintingFailed}/${activationAppTokenMintingFailed}`);
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
+    core.info(`OAuth token check failed: ${hasOAuthTokenCheckFailed}`);
     core.info(`Stale lock file check failed: ${hasStaleLockFileFailed}`);
     core.info(`Cache memory enabled: ${cacheMemoryEnabled}`);
     core.info(`Cache memory restored (from restore outputs): ${cacheMemoryRestored}`);
@@ -3058,6 +3084,7 @@ async function main() {
       !hasMissingSafeOutputs &&
       !hasAppTokenMintingFailed &&
       !hasLockdownCheckFailed &&
+      !hasOAuthTokenCheckFailed &&
       !hasStaleLockFileFailed &&
       !hasDailyAICExceeded &&
       !hasReportIncomplete &&
@@ -3069,7 +3096,7 @@ async function main() {
       !hasToolDenialsExceeded
     ) {
       core.info(
-        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/daily-workflow-aic/ai-credits/max-ai-credits-exceeded/report-incomplete/cache-miss/missing-tool/missing-data/tool-denials-exceeded errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
+        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/oauth-token-check/stale-lock-file/daily-workflow-aic/ai-credits/max-ai-credits-exceeded/report-incomplete/cache-miss/missing-tool/missing-data/tool-denials-exceeded errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
       );
       return;
     }
@@ -3162,6 +3189,7 @@ async function main() {
       hasToolDenialsExceeded,
       hasAppTokenMintingFailed,
       hasLockdownCheckFailed,
+      hasOAuthTokenCheckFailed,
       hasStaleLockFileFailed,
       hasDailyAICExceeded,
       aiCreditsRateLimitError,
@@ -3195,6 +3223,7 @@ async function main() {
       maxAICreditsExceeded,
       hasAppTokenMintingFailed,
       hasLockdownCheckFailed,
+      hasOAuthTokenCheckFailed,
       hasStaleLockFileFailed,
       hasDailyAICExceeded,
       isAWFFirewallStartupFailed: detectAWFFirewallStartupFailureFromLog(),
@@ -3361,6 +3390,9 @@ async function main() {
         // Build lockdown check failure context
         const lockdownCheckFailedContext = buildLockdownCheckFailedContext(hasLockdownCheckFailed);
 
+        // Build OAuth token check failure context
+        const oauthTokenCheckFailedContext = buildOAuthTokenCheckFailedContext(hasOAuthTokenCheckFailed, runUrl);
+
         // Build stale lock file failure context
         const staleLockFileFailedContext = buildStaleLockFileFailedContext(hasStaleLockFileFailed);
         const dailyAICExceededContext = buildDailyAICExceededContext(hasDailyAICExceeded, dailyAICTotal, dailyAICThreshold);
@@ -3408,6 +3440,7 @@ async function main() {
           unknown_model_ai_credits_context: unknownModelAICreditsContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
+          oauth_token_check_failed_context: oauthTokenCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
           daily_ai_credits_exceeded_context: dailyAICExceededContext,
         };
@@ -3576,6 +3609,9 @@ async function main() {
         // Build lockdown check failure context
         const lockdownCheckFailedContext = buildLockdownCheckFailedContext(hasLockdownCheckFailed);
 
+        // Build OAuth token check failure context
+        const oauthTokenCheckFailedContext = buildOAuthTokenCheckFailedContext(hasOAuthTokenCheckFailed, runUrl);
+
         // Build stale lock file failure context
         const staleLockFileFailedContext = buildStaleLockFileFailedContext(hasStaleLockFileFailed);
         const dailyAICExceededContext = buildDailyAICExceededContext(hasDailyAICExceeded, dailyAICTotal, dailyAICThreshold);
@@ -3627,6 +3663,7 @@ async function main() {
           unknown_model_ai_credits_context: unknownModelAICreditsContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
+          oauth_token_check_failed_context: oauthTokenCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
           daily_ai_credits_exceeded_context: dailyAICExceededContext,
           optimize_token_consumption_context: optimizeTokenConsumptionContext,
@@ -3711,6 +3748,7 @@ module.exports = {
   buildPushRepoMemoryFailureContext,
   buildAppTokenMintingFailedContext,
   buildLockdownCheckFailedContext,
+  buildOAuthTokenCheckFailedContext,
   buildStaleLockFileFailedContext,
   buildDailyAICExceededContext,
   buildOptimizeTokenConsumptionContext,

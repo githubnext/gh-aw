@@ -18,17 +18,27 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 
 ### `no-github-request-interpolated-route`
 
-Disallow template literals with interpolations or string concatenation expressions as the route argument of Octokit `github` / `octokit` / `githubClient` / `octokitClient` `.request()` calls.
+Disallow template literals with interpolations or string concatenation expressions as the route argument of Octokit `.request()` calls.
 
 Using an interpolated route bypasses Octokit's typed route dispatch, can silently produce malformed paths when values contain special characters, and prevents static analysis of the route string.
+
+**Detected Octokit clients:**
+- Well-known names: `github`, `octokit`, `githubClient`, `octokitClient`.
+- `context.github` — the GitHub context object's client property.
+- Identifiers initialized by calling `getOctokit(...)` directly or via known module objects (`github.getOctokit(...)`, `actions.getOctokit(...)`). (Known module object names currently: `github`, `actions`.)
+- Simple `const` aliases of any of the above:
+  `const gh = github`, `const client = getOctokit(token)`, `const myClient = context.github`.
 
 **Flagged forms:**
 - `` github.request(`GET /repos/${owner}/${repo}`, ...) `` — template literal with interpolations.
 - `github.request("GET /repos/" + owner + "/" + repo, ...)` — string concatenation.
+- `` context.github.request(`GET /repos/${owner}/${repo}`, ...) `` — `context.github` client.
+- `` const gh = github; gh.request(`GET /repos/${owner}/${repo}`, ...) `` — aliased client.
+- `` const client = getOctokit(token); client.request(`GET /repos/${owner}/${repo}`, ...) `` — `getOctokit` result alias.
 
 **Out of scope:**
-- `this.github.request(...)` / `context.github.request(...)` — only direct identifier clients are matched today.
-- `github.request(route, ...)` — variable indirection is not resolved.
+- `this.github.request(...)` — `this`-based member expressions are not resolved.
+- `github.request(route, ...)` — variable indirection for the route argument is not resolved.
 - `github.request("GET /repos/".concat(owner), ...)` — `.concat()`-built routes are not inspected.
 - `github.request("GET /repos" + "/{owner}/{repo}", ...)` — compile-time constant concatenations are accepted.
 

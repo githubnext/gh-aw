@@ -33,9 +33,8 @@ func extractNpxPackages(workflowData *WorkflowData) []string {
 // extractNpxFromCommands extracts npx package names from command strings
 func extractNpxFromCommands(commands string) []string {
 	extractor := PackageExtractor{
-		CommandNames:       []string{"npx"},
-		RequiredSubcommand: "",
-		TrimSuffixes:       "&|;",
+		CommandNames: []string{"npx"},
+		TrimSuffixes: "&|;",
 	}
 	return extractor.ExtractPackages(commands)
 }

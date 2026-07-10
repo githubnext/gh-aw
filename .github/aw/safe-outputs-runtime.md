@@ -124,6 +124,7 @@ The `report-incomplete` safe-output is enabled by default and is distinct from `
     - `issue-created:` - Custom message when an issue is created. Placeholders: `{item_number}`, `{item_url}`
     - `commit-pushed:` - Custom message when a commit is pushed. Placeholders: `{commit_sha}`, `{short_sha}`, `{commit_url}`
     - `body-header:` - Custom header text prepended to every message body (issues, comments, PRs, discussions). Placeholders: `{workflow_name}`, `{run_url}`
+    - `disclosure-header:` - AI authorship disclosure header prepended to every message body. Set to `"true"` for built-in default text, or provide a custom template string. Placeholders: `{workflow_name}`, `{run_url}`
   - Example:
 
     ```yaml

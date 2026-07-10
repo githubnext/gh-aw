@@ -128,6 +128,7 @@ func (c *Compiler) runStrictFrontmatterValidations(frontmatter map[string]any, n
 		}{
 			{name: "Env secrets", fn: c.validateEnvSecrets},
 			{name: "Steps secrets", fn: c.validateStepsSecrets},
+			{name: "Step shell scripts", fn: c.validateStepShellScripts},
 			{name: "Update check", fn: c.validateUpdateCheck},
 		}
 		for _, validation := range validations {
