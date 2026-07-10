@@ -656,6 +656,8 @@ function evaluateClosePullRequest(item, defaultRepo, api = ghAPI, nowMs = Date.n
     out.reactions_negative = summary.negative;
   }
 
+  // A merged PR did not remain "closed without merge", so the close action did
+  // not persist in the state the evaluator is meant to verify.
   if (pullRequest.merged === true) {
     out.result = "rejected";
     out.detail = "merged";
