@@ -101,7 +101,6 @@ func run(pass *analysis.Pass) (any, error) {
 //   - strings.Count(s, sub) <= 0
 //   - 0 == strings.Count(s, sub)
 //   - 1 > strings.Count(s, sub)
-//   - 0 >= strings.Count(s, sub)
 func matchCountComparison(pass *analysis.Pass, expr *ast.BinaryExpr) (call *ast.CallExpr, negated bool, matched bool) {
 	// Normalize so the strings.Count call is on the left side.
 	left, right, flipped := normalizeOperands(pass, expr)
