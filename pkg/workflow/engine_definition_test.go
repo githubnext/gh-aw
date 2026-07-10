@@ -21,6 +21,7 @@ func TestNewEngineCatalog_BuiltIns(t *testing.T) {
 		displayName string
 		provider    string
 	}{
+		{"antigravity", "Antigravity CLI", "google"},
 		{"claude", "Claude Code", "anthropic"},
 		{"codex", "Codex", "openai"},
 		{"copilot", "GitHub Copilot CLI", "github"},

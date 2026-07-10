@@ -82,7 +82,7 @@ func TestEngineCatalog_BuiltInsPresent(t *testing.T) {
 	registry := NewEngineRegistry()
 	catalog := NewEngineCatalog(registry)
 
-	expected := []string{"claude", "codex", "copilot", "gemini", "opencode", "crush", "pi"}
+	expected := []string{"antigravity", "claude", "codex", "copilot", "crush", "gemini", "opencode", "pi"}
 	catalogIDs := catalog.IDs()
 	for _, id := range expected {
 		assert.Contains(t, catalogIDs, id,
