@@ -299,6 +299,8 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 			} else {
 				baseDir = opts.originalBaseDir
 			}
+			// Fallback: if the selected baseDir is empty (e.g. workflow at repo root
+			// with no originalBaseDir set), use currentBaseDir as a last resort.
 			if baseDir == "" {
 				baseDir = currentBaseDir
 			}
@@ -375,11 +377,13 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Import file already exists, skipping: "+targetPath))
 				}
 				// Read the existing file so we can recurse into its own imports.
-				// If the read fails we skip silently — the compiler will report
+				// If the read fails, log it and skip — the compiler will report
 				// any missing transitive dependencies.
 				if existingContent, readErr := os.ReadFile(targetPath); readErr == nil {
 					importedBaseDir := path.Dir(remoteFilePath)
 					fetchFrontmatterImportsRecursive(ctx, string(existingContent), importedBaseDir, opts)
+				} else {
+					remoteWorkflowLog.Printf("Failed to read existing import %s for recursion: %v", targetPath, readErr)
 				}
 				continue
 			}
