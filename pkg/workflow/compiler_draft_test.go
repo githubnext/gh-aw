@@ -557,6 +557,7 @@ func TestCommentOutProcessedFieldsInOnSectionBlankLineInBlock(t *testing.T) {
 func TestCommentOutProcessedFieldsInOnSectionTrailingSpaceOnNonBlankLine(t *testing.T) {
 	compiler := NewCompiler()
 
+	// The "echo hello" line intentionally includes trailing spaces.
 	result := compiler.commentOutProcessedFieldsInOnSection(`on:
   steps: |
     echo hello   
