@@ -911,11 +911,6 @@ jobs:
           mkdir -p "$(dirname "$GITHUB_WORKSPACE/opencode.jsonc")"
           CONFIG="$GITHUB_WORKSPACE/opencode.jsonc"
           BASE_CONFIG='{
-            "providers": {
-              "openai": {
-                "apiKey": "awf-copilot-proxy"
-              }
-            },
             "agent": {
               "build": {
                 "permission": {
@@ -933,6 +928,7 @@ jobs:
             "disabled_providers": ["opencode"],
             "provider": {
               "openai": {
+                "apiKey": "awf-copilot-proxy",
                 "options": {
                   "baseURL": "http://host.docker.internal:10002"
                 },
@@ -1615,11 +1611,6 @@ jobs:
           mkdir -p "$(dirname "$GITHUB_WORKSPACE/opencode.jsonc")"
           CONFIG="$GITHUB_WORKSPACE/opencode.jsonc"
           BASE_CONFIG='{
-            "providers": {
-              "openai": {
-                "apiKey": "awf-copilot-proxy"
-              }
-            },
             "agent": {
               "build": {
                 "permission": {
@@ -1637,6 +1628,7 @@ jobs:
             "disabled_providers": ["opencode"],
             "provider": {
               "openai": {
+                "apiKey": "awf-copilot-proxy",
                 "options": {
                   "baseURL": "http://host.docker.internal:10002"
                 },

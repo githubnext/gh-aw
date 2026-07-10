@@ -33,11 +33,6 @@ engine:
       step-name: Write OpenCode Config
       content: |-
         {
-          "providers": {
-            "openai": {
-              "apiKey": "awf-copilot-proxy"
-            }
-          },
           "agent": {
             "build": {
               "permission": {
@@ -55,6 +50,7 @@ engine:
           "disabled_providers": ["opencode"],
           "provider": {
             "openai": {
+              "apiKey": "awf-copilot-proxy",
               "options": {
                 "baseURL": "http://host.docker.internal:10002"
               },

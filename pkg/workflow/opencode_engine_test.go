@@ -49,7 +49,7 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 		execContent := strings.Join(steps[1], "\n")
 		assert.Contains(t, configContent, "Write OpenCode Config", "Should write OpenCode config first")
 		assert.Contains(t, configContent, "opencode.jsonc", "Should reference opencode.jsonc")
-		assert.Contains(t, configContent, `"providers"`, "Config should include providers block for openai provider")
+		assert.Contains(t, configContent, `"provider"`, "Config should include provider block for openai provider")
 		assert.Contains(t, configContent, `"apiKey"`, "Config should include apiKey so credential isolation does not break openai provider")
 		assert.Contains(t, configContent, "awf-copilot-proxy", "Config apiKey should be the AWF api-proxy placeholder")
 		assert.Contains(t, execContent, "Execute OpenCode CLI", "Should execute OpenCode CLI")
