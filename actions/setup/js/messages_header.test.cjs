@@ -87,8 +87,8 @@ describe("messages_header", () => {
 
       const result = getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
       expect(result).toContain(WORKFLOW);
-      expect(result).toContain(RUN_URL);
-      expect(result).toContain("🤖");
+      expect(result).not.toContain(RUN_URL);
+      expect(result).not.toContain("🤖");
     });
 
     it("returns rendered default text when disclosure-header is boolean true", () => {
@@ -98,8 +98,8 @@ describe("messages_header", () => {
 
       const result = getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL });
       expect(result).toContain(WORKFLOW);
-      expect(result).toContain(RUN_URL);
-      expect(result).toContain("🤖");
+      expect(result).not.toContain(RUN_URL);
+      expect(result).not.toContain("🤖");
     });
 
     it("returns rendered custom template when disclosure-header is a string", () => {
@@ -131,8 +131,8 @@ describe("messages_header", () => {
 
     it("DEFAULT_DISCLOSURE_HEADER contains expected placeholders", () => {
       expect(DEFAULT_DISCLOSURE_HEADER).toContain("{workflow_name}");
-      expect(DEFAULT_DISCLOSURE_HEADER).toContain("{run_url}");
-      expect(DEFAULT_DISCLOSURE_HEADER).toContain("🤖");
+      expect(DEFAULT_DISCLOSURE_HEADER).not.toContain("{run_url}");
+      expect(DEFAULT_DISCLOSURE_HEADER).not.toContain("🤖");
     });
   });
 });
