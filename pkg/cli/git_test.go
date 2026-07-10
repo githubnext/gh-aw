@@ -391,6 +391,16 @@ func TestExtractHostFromRemoteURL(t *testing.T) {
 			expected: "ghes.example.com",
 		},
 		{
+			name:     "GHE SSH scp-like with custom username",
+			url:      "example@example.ghe.com:example-org/example-repo.git",
+			expected: "example.ghe.com",
+		},
+		{
+			name:     "SSH scp-like without username",
+			url:      "github.com:owner/repo.git",
+			expected: "github.com",
+		},
+		{
 			name:     "GHES HTTPS without .git suffix",
 			url:      "https://ghes.example.com/org/repo",
 			expected: "ghes.example.com",
