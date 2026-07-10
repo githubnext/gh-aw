@@ -86,8 +86,11 @@ steps:
         ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/session-data/sessions-list.json > /tmp/gh-aw/agent/session-data/sessions-schema.json
 
         # Download conversation logs for actual Copilot agent runs.
-        # CI gate runs (conclusion=action_required) are skipped — they have no conversation transcript.
-        # Each real agent run emits [cca-engine] turn= lines in its job log which is the transcript.
+        # CI gate runs (e.g. "Smoke CI", "CGO", "CWI" quality gates) always end with
+        # conclusion=action_required because a human must approve them to continue; they
+        # contain no Copilot agent activity and have no conversation transcript.
+        # Each real agent run (conclusion=success/failure) emits [cca-engine] turn= lines
+        # in its job log which is the per-turn conversation transcript.
         SESSION_COUNT=$(jq 'length' /tmp/gh-aw/agent/session-data/sessions-list.json)
         AGENT_COUNT=$(jq '[.[] | select(.conclusion != "action_required")] | length' /tmp/gh-aw/agent/session-data/sessions-list.json)
         echo "Downloading conversation logs for $AGENT_COUNT agent runs (skipping $((SESSION_COUNT - AGENT_COUNT)) CI gate runs)..."
@@ -96,7 +99,9 @@ steps:
           if [ -n "$run_id" ]; then
             echo "Downloading conversation log for run $run_id (branch: $branch)"
 
-            # Get the first job ID for this run via the GitHub API (actions:read suffices)
+            # Get the first job ID for this run via the GitHub API (actions:read suffices).
+            # Copilot coding agent runs have exactly one job ("Copilot Coding Agent"), so
+            # .jobs[0] is always the correct and only job containing the transcript log.
             job_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/${run_id}/jobs" \
               --jq '.jobs[0].id' 2>/dev/null || true)
 

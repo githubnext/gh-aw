@@ -98,7 +98,7 @@ Create a comprehensive report and publish it as a GitHub Discussion for team rev
 **What's in the Conversation Logs**:
 - Turn-by-turn model and token usage (input/output per turn)
 - Tool calls with tool name, target file/path, and success/failure
-- Turn count and session duration
+- Turn count (last `turn=N` value in the file)
 - Code changes and validation attempts
 - Error handling and recovery strategies
 
