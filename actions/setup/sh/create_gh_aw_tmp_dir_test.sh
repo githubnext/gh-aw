@@ -102,6 +102,16 @@ assert "exports TEMP" "grep -qx 'TEMP=/tmp/gh-aw/awf-tmp' '${GITHUB_ENV_FILE}'"
 rm -f "${GITHUB_ENV_FILE}"
 echo ""
 
+# ── Test 7: Succeeds when GITHUB_ENV is unset (local execution) ───────────────
+echo "Test 7: Succeeds when GITHUB_ENV is unset"
+rm -rf /tmp/gh-aw
+set +e
+env -u GITHUB_ENV bash "${SCRIPT}" >/dev/null 2>&1
+EXIT_CODE=$?
+set -e
+assert "exits 0 when GITHUB_ENV is unset" "[ '${EXIT_CODE}' -eq 0 ]"
+echo ""
+
 echo "Tests passed: ${TESTS_PASSED}"
 echo "Tests failed: ${TESTS_FAILED}"
 
