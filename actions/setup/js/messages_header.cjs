@@ -23,19 +23,11 @@ const DISCLOSURE_HEADER_DEFAULT_SENTINEL = "true";
 
 /**
  * Load the default disclosure-header template from prompt markdown.
- * Returns an empty template when the file is unavailable.
  * @returns {string}
  */
 function getDefaultDisclosureHeaderTemplate() {
-  try {
-    const templatePath = getPromptPath(DEFAULT_DISCLOSURE_HEADER_TEMPLATE);
-    return fs.readFileSync(templatePath, "utf8").trimEnd();
-  } catch (error) {
-    if (typeof globalThis.core?.warning === "function") {
-      globalThis.core.warning(`Failed to load disclosure template ${DEFAULT_DISCLOSURE_HEADER_TEMPLATE}: ${String(error)}`);
-    }
-    return "";
-  }
+  const templatePath = getPromptPath(DEFAULT_DISCLOSURE_HEADER_TEMPLATE);
+  return fs.readFileSync(templatePath, "utf8").trimEnd();
 }
 
 const DEFAULT_DISCLOSURE_HEADER = getDefaultDisclosureHeaderTemplate();
