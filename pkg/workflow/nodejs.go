@@ -153,6 +153,12 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 		if firewallConfig != nil {
 			awfVersion = firewallConfig.Version
 		}
+
+		// gVisor must be installed and registered BEFORE AWF starts the agent container.
+		if isGVisorRuntime(workflowData) {
+			steps = append(steps, generateGVisorInstallStep())
+		}
+
 		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
 		if len(awfInstall) > 0 {
 			steps = append(steps, awfInstall)

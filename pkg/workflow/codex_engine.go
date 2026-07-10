@@ -132,6 +132,11 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 			awfVersion = firewallConfig.Version
 		}
 
+		// gVisor must be installed and registered BEFORE AWF starts the agent container.
+		if isGVisorRuntime(workflowData) {
+			steps = append(steps, generateGVisorInstallStep())
+		}
+
 		// Install AWF binary (or skip if custom command is specified)
 		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
 		if len(awfInstall) > 0 {

@@ -115,6 +115,25 @@ func getAgentConfig(workflowData *WorkflowData) *AgentSandboxConfig {
 	return workflowData.SandboxConfig.Agent
 }
 
+// getAgentContainerRuntime returns the container runtime string for the AWF config,
+// or an empty string if no custom runtime is configured.
+func getAgentContainerRuntime(workflowData *WorkflowData) string {
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig == nil || agentConfig.Disabled {
+		return ""
+	}
+	return string(agentConfig.Runtime)
+}
+
+// isGVisorRuntime returns true when the agent container should use gVisor (runsc).
+func isGVisorRuntime(workflowData *WorkflowData) bool {
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig == nil || agentConfig.Disabled {
+		return false
+	}
+	return agentConfig.Runtime == AgentRuntimeGVisor
+}
+
 func isAWFNetworkIsolationEnabled(workflowData *WorkflowData) bool {
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig == nil || agentConfig.Disabled {
