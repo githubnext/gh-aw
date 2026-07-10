@@ -95,7 +95,7 @@ func TestValidateStepShellScripts(t *testing.T) {
 			},
 			strictMode:  true,
 			expectError: true,
-			errorMsg:    "GH_TOKEN",
+			errorMsg:    "strict mode:",
 		},
 		{
 			name: "step with gh command missing GH_TOKEN is warning in non-strict mode",
@@ -122,7 +122,7 @@ func TestValidateStepShellScripts(t *testing.T) {
 			},
 			strictMode:  true,
 			expectError: true,
-			errorMsg:    "GH_TOKEN",
+			errorMsg:    "strict mode:",
 		},
 		{
 			name: "step with env but missing GH_TOKEN is error in strict mode",
@@ -139,7 +139,23 @@ func TestValidateStepShellScripts(t *testing.T) {
 			},
 			strictMode:  true,
 			expectError: true,
-			errorMsg:    "GH_TOKEN",
+			errorMsg:    "strict mode:",
+		},
+		{
+			name: "workflow-level GH_TOKEN is inherited by gh step",
+			frontmatter: map[string]any{
+				"env": map[string]any{
+					"GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+				},
+				"steps": []any{
+					map[string]any{
+						"name": "List issues",
+						"run":  "gh issue list",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
 		},
 		{
 			name: "pre-steps with gh command missing GH_TOKEN is error in strict mode",
@@ -258,6 +274,20 @@ func TestValidateStepShellScripts(t *testing.T) {
 			strictMode:  true,
 			expectError: false,
 		},
+		{
+			name: "line containing only gh is detected",
+			frontmatter: map[string]any{
+				"steps": []any{
+					map[string]any{
+						"name": "Bare gh",
+						"run":  "gh",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode:",
+		},
 	}
 
 	for _, tt := range tests {
@@ -281,28 +311,32 @@ func TestValidateStepShellScripts(t *testing.T) {
 
 func TestCheckStepGHToken(t *testing.T) {
 	tests := []struct {
-		name            string
-		step            any
-		expectViolation bool
+		name             string
+		step             any
+		workflowHasToken bool
+		expectViolation  bool
 	}{
 		{
-			name:            "non-map step is skipped",
-			step:            "echo hello",
-			expectViolation: false,
+			name:             "non-map step is skipped",
+			step:             "echo hello",
+			workflowHasToken: false,
+			expectViolation:  false,
 		},
 		{
 			name: "step without run field is skipped",
 			step: map[string]any{
 				"uses": "actions/checkout@abc123",
 			},
-			expectViolation: false,
+			workflowHasToken: false,
+			expectViolation:  false,
 		},
 		{
 			name: "step with run not using gh is compliant",
 			step: map[string]any{
 				"run": "npm install",
 			},
-			expectViolation: false,
+			workflowHasToken: false,
+			expectViolation:  false,
 		},
 		{
 			name: "step with gh and GH_TOKEN is compliant",
@@ -312,14 +346,24 @@ func TestCheckStepGHToken(t *testing.T) {
 					"GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
 				},
 			},
-			expectViolation: false,
+			workflowHasToken: false,
+			expectViolation:  false,
 		},
 		{
 			name: "step with gh and missing GH_TOKEN is a violation",
 			step: map[string]any{
 				"run": "gh issue list",
 			},
-			expectViolation: true,
+			workflowHasToken: false,
+			expectViolation:  true,
+		},
+		{
+			name: "workflow-level GH_TOKEN makes step compliant",
+			step: map[string]any{
+				"run": "gh issue list",
+			},
+			workflowHasToken: true,
+			expectViolation:  false,
 		},
 		{
 			name: "step name included in violation message",
@@ -327,20 +371,22 @@ func TestCheckStepGHToken(t *testing.T) {
 				"name": "My Step",
 				"run":  "gh pr create",
 			},
-			expectViolation: true,
+			workflowHasToken: false,
+			expectViolation:  true,
 		},
 		{
 			name: "unnamed step returns unnamed step marker",
 			step: map[string]any{
 				"run": "gh pr create",
 			},
-			expectViolation: true,
+			workflowHasToken: false,
+			expectViolation:  true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := checkStepGHToken(tt.step)
+			result := checkStepGHToken(tt.step, tt.workflowHasToken)
 			if tt.expectViolation {
 				assert.NotEmpty(t, result)
 			} else {
@@ -348,4 +394,22 @@ func TestCheckStepGHToken(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWorkflowEnvHasGHToken(t *testing.T) {
+	assert.True(t, workflowEnvHasGHToken(map[string]any{
+		"env": map[string]any{
+			"GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+		},
+	}))
+
+	assert.False(t, workflowEnvHasGHToken(map[string]any{
+		"env": map[string]any{
+			"OTHER_VAR": "value",
+		},
+	}))
+
+	assert.False(t, workflowEnvHasGHToken(map[string]any{
+		"env": "not-a-map",
+	}))
 }

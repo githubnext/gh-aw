@@ -24,7 +24,7 @@ var stepShellValidatorLog = newValidationLogger("step_shell_validator")
 // ghCLIPattern detects invocations of the gh CLI in shell run scripts.
 // It matches "gh" as a command token at the start of a line (optionally
 // preceded by whitespace) or immediately after common shell operators
-// (&&, ||, ;, |), followed by whitespace.
+// (&&, ||, ;, |), followed by whitespace or end-of-line.
 //
 // This heuristic avoids matching "gh" inside echo strings or variable names
 // while still catching the common forms:
@@ -35,7 +35,7 @@ var stepShellValidatorLog = newValidationLogger("step_shell_validator")
 //
 // False negatives: command substitutions like $(gh repo list) are not matched
 // by this pattern, which is acceptable for this crude validator.
-var ghCLIPattern = regexp.MustCompile(`(?m)(?:^|&&|\|\||;|\|)\s*gh\s`)
+var ghCLIPattern = regexp.MustCompile(`(?m)(?:^|&&|\|\||;|\|)\s*gh(?:\s|$)`)
 
 // validateStepShellScripts checks the "pre-steps", "steps", "pre-agent-steps",
 // and "post-steps" frontmatter sections for common shell script mistakes.
@@ -77,9 +77,11 @@ func (c *Compiler) validateStepShellScriptsSection(frontmatter map[string]any, s
 		return nil
 	}
 
+	workflowHasGHToken := workflowEnvHasGHToken(frontmatter)
+
 	var violations []string
 	for _, step := range steps {
-		if v := checkStepGHToken(step); v != "" {
+		if v := checkStepGHToken(step, workflowHasGHToken); v != "" {
 			violations = append(violations, v)
 		}
 	}
@@ -99,7 +101,7 @@ func (c *Compiler) validateStepShellScriptsSection(frontmatter map[string]any, s
 	)
 
 	if c.strictMode {
-		return fmt.Errorf("%s", message)
+		return fmt.Errorf("strict mode: %s", message)
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Warning: "+message))
@@ -108,10 +110,11 @@ func (c *Compiler) validateStepShellScriptsSection(frontmatter map[string]any, s
 }
 
 // checkStepGHToken returns a non-empty description string if the step uses the
-// gh CLI in its run: script without defining GH_TOKEN in its env: section.
+// gh CLI in its run: script without defining GH_TOKEN in its env: section and
+// without inheriting GH_TOKEN from the workflow-level env: section.
 // Returns an empty string when the step is compliant or when the rule does not
 // apply (no run: field, not a map, etc.).
-func checkStepGHToken(step any) string {
+func checkStepGHToken(step any, workflowHasGHToken bool) string {
 	stepMap, ok := step.(map[string]any)
 	if !ok {
 		return ""
@@ -131,7 +134,7 @@ func checkStepGHToken(step any) string {
 	}
 
 	// gh CLI is used — verify GH_TOKEN is present in env.
-	if stepEnvHasGHToken(stepMap) {
+	if workflowHasGHToken || stepEnvHasGHToken(stepMap) {
 		return ""
 	}
 
@@ -142,6 +145,21 @@ func checkStepGHToken(step any) string {
 		}
 	}
 	return "(unnamed step)"
+}
+
+// workflowEnvHasGHToken returns true when the workflow-level env: section is a
+// map that contains a GH_TOKEN key.
+func workflowEnvHasGHToken(frontmatter map[string]any) bool {
+	envVal, exists := frontmatter["env"]
+	if !exists {
+		return false
+	}
+	envMap, ok := envVal.(map[string]any)
+	if !ok {
+		return false
+	}
+	_, hasToken := envMap["GH_TOKEN"]
+	return hasToken
 }
 
 // stepEnvHasGHToken returns true when the step's env: section is a map that
