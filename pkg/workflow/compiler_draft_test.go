@@ -554,5 +554,19 @@ func TestCommentOutProcessedFieldsInOnSectionBlankLineInBlock(t *testing.T) {
 	assert.NotContains(t, result, "# \n")
 }
 
+func TestCommentOutProcessedFieldsInOnSectionTrailingSpaceOnNonBlankLine(t *testing.T) {
+	compiler := NewCompiler()
+
+	// The "echo hello" line intentionally includes trailing spaces.
+	result := compiler.commentOutProcessedFieldsInOnSection(`on:
+  steps: |
+    echo hello   
+    echo world
+  workflow_dispatch:`, map[string]any{})
+
+	assert.NotContains(t, result, "# echo hello   ")
+	assert.Contains(t, result, "# echo hello")
+}
+
 // containsInNonCommentLines checks if a string appears in any non-comment lines
 // A comment line is one that starts with '#' (after trimming leading whitespace)

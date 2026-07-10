@@ -46,10 +46,32 @@ This is a research workflow.`,
 			expectError: false,
 		},
 		{
-			name: "file without H1 header - generates from filename",
+			name: "file without H1 header - uses H2 header",
 			content: `This is content without H1 header.
 
 ## Some H2 header
+
+Content here.`,
+			filename:    "daily-dependency-updates.md",
+			expected:    "Some H2 header",
+			expectError: false,
+		},
+		{
+			name: "file without H1/H2 header - uses H3 header",
+			content: `This is content without H1 and H2 headers.
+
+### Some H3 header
+
+Content here.`,
+			filename:    "daily-dependency-updates.md",
+			expected:    "Some H3 header",
+			expectError: false,
+		},
+		{
+			name: "file without H1/H2/H3 header - generates from filename",
+			content: `This is content without supported headers.
+
+#### Some H4 header
 
 Content here.`,
 			filename:    "daily-dependency-updates.md",

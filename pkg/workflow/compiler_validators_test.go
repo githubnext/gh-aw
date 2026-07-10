@@ -471,6 +471,69 @@ func TestValidatePermissions_EmitsCopilotRequestsTipOncePerMarkdownPath(t *testi
 	assert.Equal(t, 1, strings.Count(stderr, tipText), "copilot-requests tip should be emitted only once per markdown path")
 }
 
+func TestShouldEmitCopilotRequestsEnableTip(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     *WorkflowData
+		perms    *Permissions
+		expected bool
+	}{
+		{
+			name:     "nil workflow data",
+			data:     nil,
+			perms:    NewPermissions(),
+			expected: false,
+		},
+		{
+			name: "non copilot engine",
+			data: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "claude"},
+			},
+			perms:    NewPermissions(),
+			expected: false,
+		},
+		{
+			name: "copilot engine without permission emits tip",
+			data: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			},
+			perms:    NewPermissionsContentsRead(),
+			expected: true,
+		},
+		{
+			name: "copilot engine with permission suppresses tip",
+			data: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			},
+			perms: func() *Permissions {
+				p := NewPermissionsContentsRead()
+				p.Set(PermissionCopilotRequests, PermissionWrite)
+				return p
+			}(),
+			expected: false,
+		},
+		{
+			name: "explicit none suppresses tip",
+			data: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			},
+			perms: func() *Permissions {
+				p := NewPermissionsContentsRead()
+				p.Set(PermissionCopilotRequests, PermissionNone)
+				return p
+			}(),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shouldEmitCopilotRequestsEnableTip(tt.data, tt.perms)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
 func TestValidateToolConfiguration_EmitsSandboxWarningBeforeThreatDetectionError(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "tool-warning-test")
 	markdownPath := filepath.Join(tmpDir, "test.md")

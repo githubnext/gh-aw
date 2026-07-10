@@ -3,17 +3,17 @@ package bytescomparestring
 import "bytes"
 
 func badEqual(a, b []byte) bool {
-	return string(a) == string(b) // want `string\(a\) == string\(b\) allocates; use bytes\.Equal\(a, b\) instead`
+	return string(a) == string(b) // want `string\(a\) == string\(b\) is a \[\]byte comparison written the long way; use bytes\.Equal\(a, b\) for clearer intent`
 }
 
 func badNotEqual(a, b []byte) bool {
-	return string(a) != string(b) // want `string\(a\) != string\(b\) allocates; use !bytes\.Equal\(a, b\) instead`
+	return string(a) != string(b) // want `string\(a\) != string\(b\) is a \[\]byte comparison written the long way; use !bytes\.Equal\(a, b\) for clearer intent`
 }
 
 type myBytes []byte
 
 func badNamedType(a, b myBytes) bool {
-	return string(a) == string(b) // want `string\(a\) == string\(b\) allocates; use bytes\.Equal\(a, b\) instead`
+	return string(a) == string(b) // want `string\(a\) == string\(b\) is a \[\]byte comparison written the long way; use bytes\.Equal\(a, b\) for clearer intent`
 }
 
 func goodBytesEqual(a, b []byte) bool {

@@ -54,6 +54,7 @@ func getCurrentRepoSlug() (string, error) {
 
 - The internal mutex ensures that `loader` is invoked at most once, even when multiple goroutines call `Get` concurrently.
 - If `loader` returns an error, the error is cached alongside the zero value of `T`; subsequent calls return the same error without re-invoking `loader`.
+- `Override` marks the loader as complete and caches both the supplied result and the supplied error until `Reset` is called.
 - `Reset` acquires the same mutex, making it safe to call concurrently with `Get`.
 - The zero value of `OnceLoader[T]` is ready to use; no constructor is needed.
 
