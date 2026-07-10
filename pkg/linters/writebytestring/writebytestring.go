@@ -54,7 +54,7 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 	noLintLinesByFile := nolint.BuildLineIndex(pass, "writebytestring")
-	seenImportFiles := make(map[token.Pos]bool)
+	filesWithImportEdit := make(map[token.Pos]bool)
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -129,7 +129,7 @@ func run(pass *analysis.Pass) (any, error) {
 			Pos:            call.Pos(),
 			End:            call.End(),
 			Message:        fmt.Sprintf("%s.Write([]byte(%s)) can be replaced with io.WriteString(%s, %s) to potentially avoid a []byte allocation if the writer implements io.StringWriter", wText, sText, writerArg, sExpr),
-			SuggestedFixes: buildFix(pass, call, writerArg, sExpr, seenImportFiles),
+			SuggestedFixes: buildFix(pass, call, writerArg, sExpr, filesWithImportEdit),
 		})
 	})
 
@@ -200,14 +200,14 @@ func implementsWriter(pass *analysis.Pass, expr ast.Expr) bool {
 }
 
 // buildFix returns a SuggestedFix rewriting w.Write([]byte(s)) to io.WriteString(w, s).
-func buildFix(pass *analysis.Pass, call *ast.CallExpr, writerArg, sText string, seenImportFiles map[token.Pos]bool) []analysis.SuggestedFix {
+func buildFix(pass *analysis.Pass, call *ast.CallExpr, writerArg, sText string, filesWithImportEdit map[token.Pos]bool) []analysis.SuggestedFix {
 	replacement := fmt.Sprintf("io.WriteString(%s, %s)", writerArg, sText)
 	edits := []analysis.TextEdit{{
 		Pos:     call.Pos(),
 		End:     call.End(),
 		NewText: []byte(replacement),
 	}}
-	if importEdit, ok := addIOImportEdit(pass, call.Pos(), seenImportFiles); ok {
+	if importEdit, ok := addIOImportEdit(pass, call.Pos(), filesWithImportEdit); ok {
 		edits = append(edits, importEdit)
 	}
 
@@ -220,7 +220,7 @@ func buildFix(pass *analysis.Pass, call *ast.CallExpr, writerArg, sText string, 
 // addIOImportEdit returns a TextEdit that inserts an import for "io" into the
 // file containing pos, unless "io" is already imported in that file or an
 // import edit for this file has already been emitted in this pass.
-func addIOImportEdit(pass *analysis.Pass, pos token.Pos, seenImportFiles map[token.Pos]bool) (analysis.TextEdit, bool) {
+func addIOImportEdit(pass *analysis.Pass, pos token.Pos, filesWithImportEdit map[token.Pos]bool) (analysis.TextEdit, bool) {
 	var file *ast.File
 	for _, f := range pass.Files {
 		if f.Pos() <= pos && pos <= f.End() {
@@ -232,8 +232,12 @@ func addIOImportEdit(pass *analysis.Pass, pos token.Pos, seenImportFiles map[tok
 		return analysis.TextEdit{}, false
 	}
 
-	if seenImportFiles[file.Pos()] {
+	if filesWithImportEdit[file.Pos()] {
 		return analysis.TextEdit{}, false
+	}
+	markAndReturn := func(edit analysis.TextEdit) (analysis.TextEdit, bool) {
+		filesWithImportEdit[file.Pos()] = true
+		return edit, true
 	}
 
 	for _, imp := range file.Imports {
@@ -247,12 +251,11 @@ func addIOImportEdit(pass *analysis.Pass, pos token.Pos, seenImportFiles map[tok
 		if !ok || genDecl.Tok != token.IMPORT || !genDecl.Lparen.IsValid() {
 			continue
 		}
-		seenImportFiles[file.Pos()] = true
-		return analysis.TextEdit{
+		return markAndReturn(analysis.TextEdit{
 			Pos:     genDecl.Rparen,
 			End:     genDecl.Rparen,
 			NewText: []byte("\t\"" + ioPkg + "\"\n"),
-		}, true
+		})
 	}
 
 	var singleUngroupedImportDecl *ast.GenDecl
@@ -270,21 +273,19 @@ func addIOImportEdit(pass *analysis.Pass, pos token.Pos, seenImportFiles map[tok
 	if len(file.Imports) == 1 && importDeclCount == 1 && singleUngroupedImportDecl != nil {
 		specText := astutil.NodeText(pass.Fset, singleUngroupedImportDecl.Specs[0])
 		if specText != "" {
-			seenImportFiles[file.Pos()] = true
-			return analysis.TextEdit{
+			return markAndReturn(analysis.TextEdit{
 				Pos:     singleUngroupedImportDecl.Pos(),
 				End:     singleUngroupedImportDecl.End(),
 				NewText: []byte("import (\n\t\"" + ioPkg + "\"\n\t" + specText + "\n)"),
-			}, true
+			})
 		}
 		// If we fail to render the existing import spec, fall back to a
 		// standalone import insertion below rather than emitting a broken edit.
 	}
 
-	seenImportFiles[file.Pos()] = true
-	return analysis.TextEdit{
+	return markAndReturn(analysis.TextEdit{
 		Pos:     file.Name.End(),
 		End:     file.Name.End(),
 		NewText: []byte("\n\nimport \"" + ioPkg + "\""),
-	}, true
+	})
 }
