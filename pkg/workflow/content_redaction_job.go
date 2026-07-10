@@ -189,9 +189,9 @@ func buildLoadRedactionPoliciesStep(cr *ContentRedactionConfig) []string {
 	return []string{sb.String()}
 }
 
-// buildContentRedactionEngineStep creates the main AI-based redaction step.
-// It reads the agent output items, applies the loaded policy, and writes the
-// redacted output back for safe_outputs to consume.
+// buildContentRedactionEngineStep creates the main redaction step that executes
+// the content_redaction.cjs script with node. It reads the agent output items,
+// applies the loaded policy, and writes the redacted output back for safe_outputs to consume.
 func (c *Compiler) buildContentRedactionEngineStep(cr *ContentRedactionConfig) []string {
 	// Determine the model to use (with fallback to a cost-effective default).
 	model := "gpt-4o-mini"
@@ -214,97 +214,31 @@ func (c *Compiler) buildContentRedactionEngineStep(cr *ContentRedactionConfig) [
 		scopeJSONString = "[" + strings.Join(quoted, ", ") + "]"
 	}
 
-	githubScriptPin := c.getActionPin("actions/github-script")
+	var steps []string
+	steps = append(steps, "      - name: Run content redaction\n")
+	steps = append(steps, "        id: run_redaction\n")
+	steps = append(steps, "        if: always() && steps.load_policies.outcome == 'success'\n")
+	steps = append(steps, "        env:\n")
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}\n")
+	steps = append(steps, "          POLICY_FILE: /tmp/gh-aw/content-redaction/policy.md\n")
+	steps = append(steps, "          REDACTION_MODEL: "+model+"\n")
+	steps = append(steps, "          ON_FAILURE: "+onFailure+"\n")
+	steps = append(steps, "          SCOPE: '"+scopeJSONString+"'\n")
+	steps = append(steps, "        run: |\n")
+	steps = append(steps, "          set -e\n")
+	steps = append(steps, "          # Resolve node executable\n")
+	steps = append(steps, "          GH_AW_NODE_EXEC=\"${GH_AW_NODE_BIN:-}\"\n")
+	steps = append(steps, "          if [ -z \"$GH_AW_NODE_EXEC\" ] || [ ! -x \"$GH_AW_NODE_EXEC\" ]; then\n")
+	steps = append(steps, "            GH_AW_NODE_EXEC=\"$(command -v node 2>/dev/null || true)\"\n")
+	steps = append(steps, "          fi\n")
+	steps = append(steps, "          if [ -z \"$GH_AW_NODE_EXEC\" ]; then\n")
+	steps = append(steps, "            echo \"::error::node runtime missing on this runner — check runtimes.node in workflow YAML\"\n")
+	steps = append(steps, "            exit 127\n")
+	steps = append(steps, "          fi\n")
+	steps = append(steps, "          # Execute content redaction script\n")
+	steps = append(steps, "          \"$GH_AW_NODE_EXEC\" \"${RUNNER_TEMP}/gh-aw/actions/content_redaction.cjs\"\n")
 
-	return []string{
-		"      - name: Run content redaction\n",
-		"        id: run_redaction\n",
-		"        if: always() && steps.load_policies.outcome == 'success'\n",
-		"        uses: actions/github-script@" + githubScriptPin + "\n",
-		"        env:\n",
-		"          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}\n",
-		"          REDACTION_MODEL: " + model + "\n",
-		"          ON_FAILURE: " + onFailure + "\n",
-		"          SCOPE: '" + scopeJSONString + "'\n",
-		"        with:\n",
-		"          script: |\n",
-		"            const fs = require('fs');\n",
-		"            const outputFile = process.env.GH_AW_AGENT_OUTPUT;\n",
-		"            const policyFile = '/tmp/gh-aw/content-redaction/policy.md';\n",
-		"            const onFailure = process.env.ON_FAILURE || 'block';\n",
-		"            const scope = JSON.parse(process.env.SCOPE || '[]');\n",
-		"\n",
-		"            // Normalize safe-output type identifiers (dash/dot → underscore)\n",
-		"            const normalizeType = type => type.replace(/[-\\.]/g, '_');\n",
-		"\n",
-		"            const TEXT_BEARING_TYPES = new Set([\n",
-		"              'add_comment', 'create_issue', 'create_pull_request', 'create_discussion',\n",
-		"              'update_issue', 'update_pull_request', 'update_discussion',\n",
-		"              'submit_pull_request_review', 'create_pull_request_review_comment',\n",
-		"              'reply_to_pull_request_review_comment', 'update_release', 'create_check_run'\n",
-		"            ]);\n",
-		"\n",
-		"            if (!outputFile || !fs.existsSync(outputFile)) {\n",
-		"              core.info('No agent output file found; skipping content redaction');\n",
-		"              core.setOutput('skipped', 'true');\n",
-		"              return;\n",
-		"            }\n",
-		"\n",
-		"            const policy = fs.existsSync(policyFile) ? fs.readFileSync(policyFile, 'utf8').trim() : '';\n",
-		"            if (!policy) {\n",
-		"              core.warning('Content redaction policy is empty; skipping redaction');\n",
-		"              core.setOutput('skipped', 'true');\n",
-		"              return;\n",
-		"            }\n",
-		"\n",
-		"            // Parse agent_output.json as a single JSON object with an items array\n",
-		"            let agentOutput;\n",
-		"            try {\n",
-		"              const content = fs.readFileSync(outputFile, 'utf8');\n",
-		"              agentOutput = JSON.parse(content);\n",
-		"            } catch (error) {\n",
-		"              core.warning(`Failed to parse agent output JSON: ${error.message}`);\n",
-		"              core.setOutput('skipped', 'true');\n",
-		"              return;\n",
-		"            }\n",
-		"\n",
-		"            if (!agentOutput.items || !Array.isArray(agentOutput.items)) {\n",
-		"              core.warning('Agent output has no items array; skipping redaction');\n",
-		"              core.setOutput('skipped', 'true');\n",
-		"              return;\n",
-		"            }\n",
-		"\n",
-		"            const redactedItems = [];\n",
-		"            let blocked = 0, rewritten = 0, passed = 0;\n",
-		"\n",
-		"            for (const item of agentOutput.items) {\n",
-		"              const rawType = item.type || '';\n",
-		"              const normalizedType = normalizeType(rawType);\n",
-		"              const inScope = scope.length === 0 || scope.some(s => normalizeType(s) === normalizedType);\n",
-		"              if (!inScope || !TEXT_BEARING_TYPES.has(normalizedType)) {\n",
-		"                redactedItems.push(item);\n",
-		"                passed++;\n",
-		"                continue;\n",
-		"              }\n",
-		"\n",
-		"              // Log the item being reviewed for audit.\n",
-		"              core.info(`Content redaction: reviewing ${rawType} item`);\n",
-		"              // NOTE: Full LLM-backed rewriting is performed by the dedicated\n",
-		"              // content_redaction engine (AWF). This github-script step records\n",
-		"              // the intent and forwards items as-is when the engine is absent.\n",
-		"              redactedItems.push(item);\n",
-		"              passed++;\n",
-		"            }\n",
-		"\n",
-		"            // Write redacted output back to the agent output file.\n",
-		"            agentOutput.items = redactedItems;\n",
-		"            fs.writeFileSync(outputFile, JSON.stringify(agentOutput), 'utf8');\n",
-		"            core.info(`Content redaction complete: ${passed} passed, ${rewritten} rewritten, ${blocked} blocked`);\n",
-		"            core.setOutput('blocked_count', String(blocked));\n",
-		"            core.setOutput('rewritten_count', String(rewritten));\n",
-		"            core.setOutput('passed_count', String(passed));\n",
-		"            core.setOutput('has_blocked_items', blocked > 0 && onFailure === 'block' ? 'true' : 'false');\n",
-	}
+	return steps
 }
 
 // buildContentRedactionConclusionStep creates the step that sets the job conclusion outputs.
