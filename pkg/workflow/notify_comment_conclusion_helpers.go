@@ -470,7 +470,8 @@ func buildConclusionJobCondition(data *WorkflowData, mainJobName string, safeOut
 	lockdownCheckFailed := BuildEquals(BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.lockdown_check_failed", constants.ActivationJobName)), BuildStringLiteral("true"))
 	oauthTokenCheckFailed := BuildEquals(BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.oauth_token_check_failed", constants.ActivationJobName)), BuildStringLiteral("true"))
 	staleLockFileFailed := BuildEquals(BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.stale_lock_file_failed", constants.ActivationJobName)), BuildStringLiteral("true"))
-	activationGuardrailsFailed := BuildOr(lockdownCheckFailed, BuildOr(oauthTokenCheckFailed, staleLockFileFailed))
+	secretVerificationFailed := BuildEquals(BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.secret_verification_result", constants.ActivationJobName)), BuildStringLiteral("failed"))
+	activationGuardrailsFailed := BuildOr(lockdownCheckFailed, BuildOr(oauthTokenCheckFailed, BuildOr(staleLockFileFailed, secretVerificationFailed)))
 	if hasMaxDailyAICGuardrail(data) {
 		dailyAICExceeded := BuildEquals(BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.daily_ai_credits_exceeded", constants.ActivationJobName)), BuildStringLiteral("true"))
 		activationGuardrailsFailed = BuildOr(activationGuardrailsFailed, dailyAICExceeded)
