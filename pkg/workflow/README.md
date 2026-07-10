@@ -112,6 +112,8 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `PermissionsConfig` | struct | GitHub Actions permissions (shorthand + detailed fields) |
 | `GitHubActionsPermissionsConfig` | struct | Detailed permissions with all scope fields |
 | `GitHubAppPermissionsConfig` | struct | GitHub App permission scopes |
+| `CheckoutConfig` | struct | Parsed `checkout:` entry controlling repository/ref/path/auth/fetch behavior for generated checkout steps |
+| `CheckoutManager` | struct | Merges and resolves one or more `checkout:` entries into deterministic checkout-step plans |
 | `ObservabilityConfig` | struct | OTLP/observability configuration |
 | `RateLimitConfig` | struct | Rate limit settings |
 | `OTLPConfig` | struct | OpenTelemetry protocol configuration |
@@ -119,6 +121,14 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `EngineAuthConfig` | struct | Engine-level auth config (`engine.auth.*` → `AWF_AUTH_*` env vars for API proxy) |
 | `NetworkPermissions` | struct | Parsed `network:` frontmatter block; controls allowed/blocked domain lists |
 | `EngineNetworkConfig` | struct | Combines `*EngineConfig` and `*NetworkPermissions` for engine helpers that need both |
+
+#### Checkout configuration
+
+The `checkout:` frontmatter key is parsed by `ParseCheckoutConfigs` into one or more `CheckoutConfig` values. Each entry may target the current repository or a cross-repository checkout, and supports authentication via `github-token` or `github-app` (mutually exclusive) plus optional `safe-outputs-github-app`.
+
+- `github-app` changes the authentication used by the generated `actions/checkout` step itself.
+- `safe-outputs-github-app` mints a GitHub App token only for later `safe_outputs` git operations (fetch/push) against the checkout target; it does **not** change activation or agent-job checkout authentication.
+- `CheckoutManager` merges compatible checkout requests, unions sparse-checkout patterns, deduplicates overlapping repo/ref pairs, and tracks whether any checkout requires GitHub App token minting for later safe_outputs operations.
 
 #### Engine Configuration Fields
 

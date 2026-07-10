@@ -38,18 +38,23 @@ func (c *Compiler) processAndMergeServices(frontmatter map[string]any, workflowD
 								mainServices[key] = value
 							}
 						}
-						// Convert back to YAML with "services:" wrapper
+						// Convert back to YAML with "services:" wrapper. Indent
+						// sequence items (e.g. ports: lists) under their parent so the
+						// output matches yamllint's indent-sequences expectation, the
+						// same as the non-imported extraction path.
 						servicesWrapper := map[string]any{"services": mainServices}
-						servicesYAML, err := yaml.Marshal(servicesWrapper)
+						servicesYAML, err := yaml.MarshalWithOptions(servicesWrapper, append(append([]yaml.EncodeOption{}, DefaultMarshalOptions...), yaml.IndentSequence(true))...)
 						if err == nil {
 							workflowData.Services = string(servicesYAML)
 						}
 					}
 				}
 			} else {
-				// Only imported services exist, wrap in "services:" format
+				// Only imported services exist, wrap in "services:" format.
+				// Indent sequence items to match yamllint's indent-sequences
+				// expectation, consistent with the other services marshaling paths.
 				servicesWrapper := map[string]any{"services": importedServices}
-				servicesYAML, err := yaml.Marshal(servicesWrapper)
+				servicesYAML, err := yaml.MarshalWithOptions(servicesWrapper, append(append([]yaml.EncodeOption{}, DefaultMarshalOptions...), yaml.IndentSequence(true))...)
 				if err == nil {
 					workflowData.Services = string(servicesYAML)
 				}
