@@ -1026,6 +1026,13 @@ func awfSupportsChrootConfig(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFChrootConfigMinVersion)
 }
 
+// awfSupportsContainerRuntime returns true when the effective AWF version supports the
+// containerRuntime field in the container config (gh-aw-firewall#6093).
+// The field must not be emitted for older versions that do not recognise it.
+func awfSupportsContainerRuntime(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFContainerRuntimeMinVersion)
+}
+
 // buildArcDindChrootConfigPatchBody returns the Node.js command that patches the AWF
 // config file with chroot.binariesSourcePath and chroot.identity.*. It is designed to be
 // embedded inside a bash if-block that already guards on DOCKER_HOST=tcp://...
