@@ -3,6 +3,8 @@
 package console
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
 	"charm.land/huh/v2"
@@ -20,4 +22,23 @@ func TestPromptWrappersReturnNonNilForms(t *testing.T) {
 
 	var confirmValue bool
 	require.NotNil(t, NewConfirmForm(huh.NewConfirm().Value(&confirmValue)))
+}
+
+func TestIsCancelled(t *testing.T) {
+	t.Run("returns true for huh.ErrUserAborted", func(t *testing.T) {
+		require.True(t, IsCancelled(huh.ErrUserAborted))
+	})
+
+	t.Run("returns true for wrapped huh.ErrUserAborted", func(t *testing.T) {
+		wrapped := fmt.Errorf("outer: %w", huh.ErrUserAborted)
+		require.True(t, IsCancelled(wrapped))
+	})
+
+	t.Run("returns false for other errors", func(t *testing.T) {
+		require.False(t, IsCancelled(errors.New("some other error")))
+	})
+
+	t.Run("returns false for nil", func(t *testing.T) {
+		require.False(t, IsCancelled(nil))
+	})
 }

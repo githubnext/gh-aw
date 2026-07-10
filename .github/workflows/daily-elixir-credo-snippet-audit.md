@@ -50,7 +50,7 @@ steps:
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent/elixir-credo
       cd /tmp/gh-aw/agent/elixir-credo
-      mix new credo_audit --sup --force
+      mix new credo_audit --sup
       cd credo_audit
       cat > mix.exs <<'EOF'
       defmodule CredoAudit.MixProject do

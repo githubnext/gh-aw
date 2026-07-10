@@ -21,6 +21,13 @@ import (
 
 var engineSecretsLog = logger.New("cli:engine_secrets")
 
+// promptCancelled handles graceful cancellation of an interactive prompt.
+// It prints "Cancelled." to stderr and returns an ExitCodeError with code 130.
+func promptCancelled() error {
+	fmt.Fprintln(os.Stderr, "Cancelled.")
+	return &ExitCodeError{Code: 130}
+}
+
 // SecretRequirement represents a unified secret requirement for agentic workflows.
 // This type unifies the legacy tokenSpec and EngineOption secret information.
 type SecretRequirement struct {
@@ -322,6 +329,9 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 	)
 
 	if err := form.RunWithContext(config.ctx()); err != nil {
+		if console.IsCancelled(err) {
+			return promptCancelled()
+		}
 		return fmt.Errorf("failed to get Copilot token: %w", err)
 	}
 
@@ -366,6 +376,9 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 	)
 
 	if err := form.RunWithContext(config.ctx()); err != nil {
+		if console.IsCancelled(err) {
+			return promptCancelled()
+		}
 		return fmt.Errorf("failed to get %s token: %w", req.Name, err)
 	}
 
@@ -415,6 +428,9 @@ func promptForGenericAPIKeyUnified(req SecretRequirement, config EngineSecretCon
 	)
 
 	if err := form.RunWithContext(config.ctx()); err != nil {
+		if console.IsCancelled(err) {
+			return promptCancelled()
+		}
 		return fmt.Errorf("failed to get %s API key: %w", label, err)
 	}
 

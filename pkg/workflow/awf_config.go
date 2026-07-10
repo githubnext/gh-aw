@@ -513,10 +513,6 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	if antigravityTarget := GetAntigravityAPITarget(config.WorkflowData, config.EngineName); antigravityTarget != "" {
 		// Route the Antigravity-resolved API target through the "gemini" provider key
 		// to match AWF's supported target providers.
-		geminiTarget := GetGeminiAPITarget(config.WorkflowData, config.EngineName)
-		if geminiTarget != "" && geminiTarget != antigravityTarget {
-			awfConfigLog.Printf("API proxy: overriding gemini target %s with antigravity target %s; configure only one of GEMINI_API_BASE_URL or ANTIGRAVITY_API_BASE_URL to avoid ambiguity", geminiTarget, antigravityTarget)
-		}
 		awfConfigLog.Printf("API proxy: mapped antigravity target to gemini provider target=%s", antigravityTarget)
 		targets["gemini"] = &AWFAPITargetConfig{Host: antigravityTarget}
 	} else if geminiTarget := GetGeminiAPITarget(config.WorkflowData, config.EngineName); geminiTarget != "" {
