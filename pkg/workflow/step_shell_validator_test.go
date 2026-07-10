@@ -397,6 +397,8 @@ func TestCheckStepGHToken(t *testing.T) {
 }
 
 func TestWorkflowEnvHasGHToken(t *testing.T) {
+	assert.False(t, workflowEnvHasGHToken(map[string]any{}))
+
 	assert.True(t, workflowEnvHasGHToken(map[string]any{
 		"env": map[string]any{
 			"GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
