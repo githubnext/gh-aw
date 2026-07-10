@@ -915,12 +915,19 @@ jobs:
           mkdir -p "$(dirname "$GITHUB_WORKSPACE/opencode.jsonc")"
           CONFIG="$GITHUB_WORKSPACE/opencode.jsonc"
           BASE_CONFIG='{
-            "permissions": {
-              "bash": true,
-              "edit": true,
-              "webfetch": true,
-              "websearch": true,
-              "mcp": true
+            "agent": {
+              "build": {
+                "permission": {
+                  "bash": "allow",
+                  "edit": "allow",
+                  "read": "allow",
+                  "glob": "allow",
+                  "grep": "allow",
+                  "webfetch": "allow",
+                  "websearch": "allow",
+                  "external_directory": "allow"
+                }
+              }
             }
           }'
           if [ -f "$CONFIG" ]; then
@@ -1593,12 +1600,19 @@ jobs:
           mkdir -p "$(dirname "$GITHUB_WORKSPACE/opencode.jsonc")"
           CONFIG="$GITHUB_WORKSPACE/opencode.jsonc"
           BASE_CONFIG='{
-            "permissions": {
-              "bash": true,
-              "edit": true,
-              "webfetch": true,
-              "websearch": true,
-              "mcp": true
+            "agent": {
+              "build": {
+                "permission": {
+                  "bash": "allow",
+                  "edit": "allow",
+                  "read": "allow",
+                  "glob": "allow",
+                  "grep": "allow",
+                  "webfetch": "allow",
+                  "websearch": "allow",
+                  "external_directory": "allow"
+                }
+              }
             }
           }'
           if [ -f "$CONFIG" ]; then

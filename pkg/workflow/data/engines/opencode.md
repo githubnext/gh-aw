@@ -33,12 +33,19 @@ engine:
       step-name: Write OpenCode Config
       content: |-
         {
-          "permissions": {
-            "bash": true,
-            "edit": true,
-            "webfetch": true,
-            "websearch": true,
-            "mcp": true
+          "agent": {
+            "build": {
+              "permission": {
+                "bash": "allow",
+                "edit": "allow",
+                "read": "allow",
+                "glob": "allow",
+                "grep": "allow",
+                "webfetch": "allow",
+                "websearch": "allow",
+                "external_directory": "allow"
+              }
+            }
           }
         }
       merge-strategy: json-merge
