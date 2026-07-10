@@ -41,9 +41,9 @@ mkdir -p /tmp/gh-aw/sandbox/firewall/audit
 if [ -d /tmp/gh-aw/awf-tmp ] && [ ! -w /tmp/gh-aw/awf-tmp ]; then
   echo "Pre-flight: /tmp/gh-aw/awf-tmp is not writable; reclaiming with sudo"
   if command -v sudo >/dev/null 2>&1; then
-    sudo -n rm -rf /tmp/gh-aw/awf-tmp 2>/dev/null || echo "::warning::sudo rm failed for /tmp/gh-aw/awf-tmp; gh-aw may fail with EACCES"
+    sudo -n rm -rf /tmp/gh-aw/awf-tmp 2>/dev/null || echo "::warning::sudo rm failed for /tmp/gh-aw/awf-tmp; GitHub Agentic Workflows may fail with EACCES"
   else
-    echo "::warning::sudo unavailable; cannot reclaim /tmp/gh-aw/awf-tmp; gh-aw may fail with EACCES"
+    echo "::warning::sudo unavailable; cannot reclaim /tmp/gh-aw/awf-tmp; GitHub Agentic Workflows may fail with EACCES"
   fi
 fi
 mkdir -p /tmp/gh-aw/awf-tmp
