@@ -341,7 +341,7 @@ func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
 	if strings.Contains(content, ".github/agents/agentic-workflows") {
 		t.Fatalf("expected generated skill content to avoid agent cross-references:\n%s", content)
 	}
-	assert.Contains(t, content, "Design workflows from scratch via interview: `.github/skills/agentic-workflows/designer.md`")
+	assert.Contains(t, content, "Design workflows from scratch via interview: `.github/aw/designer.md`")
 }
 
 func TestBuildAgenticWorkflowsSkillContentWithoutAWDirectory(t *testing.T) {
@@ -372,7 +372,7 @@ func TestBuildAgenticWorkflowsSkillContentFallsBackToEmbeddedFileList(t *testing
 
 	assert.NotContains(t, content, agenticWorkflowsSkillFileListPlaceholder, "expected generated skill content to replace the file-list placeholder")
 	assert.Contains(t, content, "- `.github/aw/create-agentic-workflow.md`\n", "expected embedded fallback markdown file list to be used")
-	assert.Contains(t, content, "- `.github/skills/agentic-workflows/designer.md`\n", "expected generated skill content to include designer instruction file")
+	assert.Contains(t, content, "- `.github/aw/designer.md`\n", "expected generated skill content to include designer instruction file")
 }
 
 func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {

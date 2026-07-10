@@ -266,7 +266,7 @@ func cleanupOldPromptFile(promptFileName string, verbose bool) error {
 // deleteAgenticWorkflowDesignerSkillDir removes the legacy
 // .github/skills/agentic-workflow-designer/ directory if it exists.
 // The designer instructions are now bundled inside the agentic-workflows skill
-// at .github/skills/agentic-workflows/designer.md (loaded on demand from
+// at .github/aw/designer.md (loaded on demand from
 // github/gh-aw) and no longer need to be written to user repositories.
 func deleteAgenticWorkflowDesignerSkillDir(verbose bool) error {
 	gitRoot, err := gitutil.FindGitRoot()
