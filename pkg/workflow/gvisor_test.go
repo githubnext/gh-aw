@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,6 +34,16 @@ func TestGenerateGVisorInstallStep(t *testing.T) {
 
 	// Must use gVisor's official download URL.
 	assert.Contains(t, content, "storage.googleapis.com/gvisor", "must use official gVisor download URL")
+
+	// Must use a pinned release (not "latest") for reproducible supply-chain-safe installs.
+	assert.Contains(t, content, constants.DefaultGVisorVersion,
+		"must use pinned gVisor release, not a mutable pointer like 'latest'")
+	assert.NotContains(t, content, "/latest/", "must NOT use the mutable 'latest' release path")
+
+	// Both binaries must be integrity-verified via SHA-512 before sudo install.
+	assert.Contains(t, content, "runsc.sha512", "must download SHA-512 for runsc")
+	assert.Contains(t, content, "containerd-shim-runsc-v1.sha512", "must download SHA-512 for containerd-shim-runsc-v1")
+	assert.Contains(t, content, "sha512sum -c", "must verify SHA-512 checksums before installing")
 
 	// Must install binaries to system path (requires sudo).
 	assert.Contains(t, content, "sudo install", "must install binaries with sudo")
