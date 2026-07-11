@@ -11,7 +11,6 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
-	"github.com/github/gh-aw/pkg/types"
 	"github.com/github/gh-aw/pkg/typeutil"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
@@ -66,10 +65,6 @@ type EngineConfig struct {
 	Agent              string // Agent identifier for copilot --agent flag (copilot engine only)
 	APITarget          string // Custom API endpoint hostname (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
 	Bare               bool   // When true, disables automatic loading of context/instructions (copilot: --no-custom-instructions, claude: --bare, codex: --no-system-prompt, gemini: GEMINI_SYSTEM_MD=/dev/null)
-	// TokenWeights provides custom model cost data for AI Credits cost ratios.
-	// When set, overrides or extends built-in model cost defaults.
-	TokenWeights *types.TokenWeights
-
 	// Inline definition fields (populated when engine.runtime is specified in frontmatter)
 	IsInlineDefinition bool   // true when the engine is defined inline via engine.runtime + optional engine.provider
 	InlineProviderID   string // engine.provider.id  (e.g. "openai", "anthropic")
@@ -504,14 +499,6 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				if bareBool, ok := bare.(bool); ok {
 					config.Bare = bareBool
 					engineLog.Printf("Extracted bare mode: %v", config.Bare)
-				}
-			}
-
-			// Extract optional 'token-weights' field (custom model cost data)
-			if tokenWeightsRaw, hasTokenWeights := engineObj["token-weights"]; hasTokenWeights {
-				if tw := parseEngineTokenWeights(tokenWeightsRaw); tw != nil {
-					config.TokenWeights = tw
-					engineLog.Printf("Extracted token-weights: %d multipliers", len(tw.Multipliers))
 				}
 			}
 

@@ -273,6 +273,12 @@ Create a new discussion with the comprehensive report.
 
 **Formatting Guideline**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. The discussion title serves as h1, so all content headers should start at h3.
 
+**Report Structure Guidelines**
+
+- Use `###` (or lower) headers only.
+- Keep summary and critical actions visible; move long detail into `<details>` blocks.
+- Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
 ### Discussion Format
 
 **Title**: `[daily issues] Daily Issues Report - YYYY-MM-DD`
@@ -280,10 +286,14 @@ Create a new discussion with the comprehensive report.
 **Body**:
 
 ```markdown
+### Summary
+
+**X items found** — [brief description]
+
 Brief 2-3 paragraph summary of key findings: total issues analyzed, main clusters identified, notable trends, and any concerns that need attention.
 
 {{#if experiments.output_format == 'collapsible'}}<details>
-<summary>📊 Full Report Details</summary>{{/if}}
+<summary><b>View Full Details</b></summary>{{/if}}
 
 ### 📈 Issue Activity Trends
 

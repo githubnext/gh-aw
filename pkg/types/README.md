@@ -6,7 +6,7 @@
 
 This package defines common data structures shared between the `parser` and `workflow` packages. Centralizing these types in a dedicated package allows both to reference the same definitions without creating import cycles.
 
-The primary types are `BaseMCPServerConfig` (the foundation for all MCP server configurations), `MCPAuthConfig` (OIDC authentication for HTTP MCP servers), `TokenWeights` with `TokenClassWeights` (AI Credits cost ratio configuration), and `InputDefinition` (workflow dispatch input parameters following the GitHub Actions schema).
+The primary types are `BaseMCPServerConfig` (the foundation for all MCP server configurations), `MCPAuthConfig` (OIDC authentication for HTTP MCP servers), `TokenWeights` with `TokenClassWeights` (AI Credits cost ratio configuration used in run metadata), and `InputDefinition` (workflow dispatch input parameters following the GitHub Actions schema).
 
 All struct fields carry both `json` and `yaml` struct tags, ensuring types can be round-tripped through both serialization formats. `BaseMCPServerConfig` is designed to be embedded rather than used directly — consumer packages (`parser`, `workflow`) add domain-specific fields and validation on top of the shared base.
 
@@ -80,7 +80,7 @@ auth := &types.MCPAuthConfig{
 
 ### `TokenWeights`
 
-Defines custom model cost information for AI Credits cost ratios. Specified under `engine.token-weights` in workflow frontmatter and stored in `aw_info.json` at runtime.
+Defines historical model cost metadata that may appear in prior `aw_info.json` runtime artifacts.
 
 ```go
 weights := types.TokenWeights{

@@ -471,11 +471,6 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfigLog.Printf("Skipping apiProxy.enableTokenSteering: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFTokenSteeringMinVersion)
 	}
 
-	if modelMultipliers := extractModelMultipliers(config.WorkflowData); len(modelMultipliers) > 0 {
-		apiProxy.ModelMultipliers = modelMultipliers
-		awfConfigLog.Printf("API proxy: %d model multipliers configured", len(apiProxy.ModelMultipliers))
-	}
-
 	if mf := extractModelFallback(config.WorkflowData); mf != nil {
 		apiProxy.ModelFallback = mf
 		enabledDisplay := "<unset>"
@@ -704,16 +699,6 @@ func unionModelPolicyRules(local, override []string) []string {
 		result = append(result, model)
 	}
 	return result
-}
-
-func extractModelMultipliers(workflowData *WorkflowData) map[string]float64 {
-	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.TokenWeights == nil {
-		return nil
-	}
-	if len(workflowData.EngineConfig.TokenWeights.Multipliers) == 0 {
-		return nil
-	}
-	return workflowData.EngineConfig.TokenWeights.Multipliers
 }
 
 // extractPlatformType returns sandbox.agent.platform only for enabled AWF sandbox

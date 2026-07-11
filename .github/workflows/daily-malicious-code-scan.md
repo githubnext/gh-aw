@@ -256,6 +256,12 @@ A successful malicious code scan:
 
 Your output MUST:
 
+**Report Structure Guidelines**
+
+- Use `###` (or lower) headers only.
+- Keep summary and critical actions visible; move long detail into `<details>` blocks.
+- Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
 1. **If suspicious patterns are found**:
    - **CALL** the `create_code_scanning_alert` tool for each finding
    - Each alert must include: rule_id, message, severity, file_path, start_line, description
@@ -279,6 +285,21 @@ Your output MUST:
    - Number of commits reviewed
    - Types of patterns searched for
    - Confidence level of findings
+
+### Example Summary Format
+
+```markdown
+### Summary
+
+**X items found** — [brief description]
+
+<details>
+<summary><b>View Full Details</b></summary>
+
+... detailed content here ...
+
+</details>
+```
 
 ## Example Alert Output
 

@@ -72,6 +72,10 @@ function isExecutableStatement(node: TSESTree.ProgramStatement): node is TSESTre
   );
 }
 
+function isCallExpressionStatement(node: TSESTree.Statement): boolean {
+  return node.type === AST_NODE_TYPES.ExpressionStatement && node.expression.type === AST_NODE_TYPES.CallExpression;
+}
+
 /**
  * When `core.setFailed()` is the last statement in a nested block, searches
  * ancestor statement lists for the first subsequent statement that would execute
@@ -178,25 +182,29 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
     }
 
     function report(node: TSESTree.Statement, next: TSESTree.Statement): void {
+      const parent = node.parent;
+      const isBlockTerminalCallCleanup = parent?.type === AST_NODE_TYPES.BlockStatement && isCallExpressionStatement(next) && parent.body.at(-2) === node && parent.body.at(-1) === next;
+
       context.report({
         node,
         messageId: "missingReturnAfterSetFailed",
-        suggest: isInsideFunctionLike(node)
-          ? [
-              {
-                messageId: "addReturn",
-                fix(fixer) {
-                  const isOnSameLine = next.loc.start.line === node.loc.end.line;
-                  if (isOnSameLine) {
-                    return fixer.insertTextBefore(next, "return; ");
-                  }
-                  const line = sourceCode.lines[next.loc.start.line - 1] ?? "";
-                  const indent = /^(\s*)/.exec(line)?.[1] ?? "";
-                  return fixer.insertTextBefore(next, `return;\n${indent}`);
+        suggest:
+          isInsideFunctionLike(node) && !isBlockTerminalCallCleanup
+            ? [
+                {
+                  messageId: "addReturn",
+                  fix(fixer) {
+                    const isOnSameLine = next.loc.start.line === node.loc.end.line;
+                    if (isOnSameLine) {
+                      return fixer.insertTextBefore(next, "return; ");
+                    }
+                    const line = sourceCode.lines[next.loc.start.line - 1] ?? "";
+                    const indent = /^(\s*)/.exec(line)?.[1] ?? "";
+                    return fixer.insertTextBefore(next, `return;\n${indent}`);
+                  },
                 },
-              },
-            ]
-          : undefined,
+              ]
+            : undefined,
       });
     }
 

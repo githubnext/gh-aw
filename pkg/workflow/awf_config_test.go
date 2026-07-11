@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/types"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -469,55 +468,6 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err)
 		assert.Contains(t, jsonStr, fmt.Sprintf(`"maxRuns":%d`, constants.DefaultMaxRuns), "apiProxy should emit default maxRuns when unset")
-	})
-
-	t.Run("engine token-weights multipliers are emitted in apiProxy modelMultipliers", func(t *testing.T) {
-		config := AWFCommandConfig{
-			EngineName:     "copilot",
-			AllowedDomains: "github.com",
-			WorkflowData: &WorkflowData{
-				EngineConfig: &EngineConfig{
-					ID: "copilot",
-					TokenWeights: &types.TokenWeights{
-						Multipliers: map[string]float64{
-							"gpt-5":      1.2,
-							"gpt-5-mini": 0.8,
-						},
-					},
-				},
-				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{Enabled: true},
-				},
-			},
-		}
-
-		jsonStr, err := BuildAWFConfigJSON(config)
-		require.NoError(t, err)
-		assert.Contains(t, jsonStr, `"modelMultipliers"`, "apiProxy should emit modelMultipliers")
-		assert.Contains(t, jsonStr, `"gpt-5":1.2`, "apiProxy should include configured model multiplier")
-		assert.Contains(t, jsonStr, `"gpt-5-mini":0.8`, "apiProxy should include configured model multiplier")
-	})
-
-	t.Run("apiProxy modelMultipliers omitted when engine token-weights multipliers are empty", func(t *testing.T) {
-		config := AWFCommandConfig{
-			EngineName:     "copilot",
-			AllowedDomains: "github.com",
-			WorkflowData: &WorkflowData{
-				EngineConfig: &EngineConfig{
-					ID: "copilot",
-					TokenWeights: &types.TokenWeights{
-						Multipliers: map[string]float64{},
-					},
-				},
-				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{Enabled: true},
-				},
-			},
-		}
-
-		jsonStr, err := BuildAWFConfigJSON(config)
-		require.NoError(t, err)
-		assert.NotContains(t, jsonStr, `"modelMultipliers"`, "apiProxy should omit modelMultipliers when empty")
 	})
 
 	t.Run("anthropic API target is included in apiProxy targets", func(t *testing.T) {
@@ -1401,33 +1351,6 @@ func TestBuildAWFCommand_ResolvesMaxAICreditsFromEnv(t *testing.T) {
 			assert.NotContains(t, command, "vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS")
 		})
 	}
-}
-
-func TestBuildAWFCommand_ModelMultipliersInlineInConfigJSON(t *testing.T) {
-	config := AWFCommandConfig{
-		EngineName:    "copilot",
-		EngineCommand: "copilot --prompt-file /tmp/prompt.txt",
-		LogFile:       "/tmp/gh-aw/agent-stdio.log",
-		WorkflowData: &WorkflowData{
-			EngineConfig: &EngineConfig{
-				ID: "copilot",
-				TokenWeights: &types.TokenWeights{
-					Multipliers: map[string]float64{
-						"my-custom-model": 2.5,
-					},
-				},
-			},
-			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{Enabled: true},
-			},
-		},
-	}
-
-	command := BuildAWFCommand(config)
-
-	assert.Contains(t, command, "modelMultipliers", "expected model multipliers key in inline AWF config JSON")
-	assert.Contains(t, command, "my-custom-model", "expected custom model multiplier to be embedded in inline AWF config JSON")
-	assert.NotContains(t, command, "merge_awf_model_multipliers.cjs", "expected no runtime model multiplier merger script")
 }
 
 func TestBuildAWFCommand_PreservesGitHubExpressionOperatorsInConfigJSON(t *testing.T) {

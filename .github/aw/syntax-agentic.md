@@ -293,12 +293,6 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
       config: |                         # Optional: additional TOML config appended to config.toml (codex engine only)
         [extra]
         key = "value"
-      token-weights:                    # Optional: custom token cost weights for AI credit computation
-        multipliers:
-          my-custom-model: 2.5          # 2.5x the cost of claude-sonnet-4.5 (= 1.0)
-        token-class-weights:
-          output: 6.0                   # Override output token weight (default: 4.0)
-          cached-input: 0.05            # Override cached input weight (default: 0.1)
     ```
 
   - **`gemini` engine**: Google Gemini CLI. Requires `GEMINI_API_KEY` secret. Does not support `max-turns`, `web-fetch`, or `web-search`. Supports AWF firewall and LLM gateway.

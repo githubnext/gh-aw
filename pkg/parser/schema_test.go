@@ -289,6 +289,30 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_WorkflowDispatchNu
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_RejectsEngineTokenWeights(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"id": "claude",
+			"token-weights": map[string]any{
+				"multipliers": map[string]any{
+					"gpt-4o": 2.5,
+				},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/engine-token-weights-rejected-test.md")
+	if err == nil {
+		t.Fatal("expected engine.token-weights to fail schema validation")
+	}
+	if !strings.Contains(err.Error(), "Unknown property: token-weights") {
+		t.Fatalf("expected token-weights rejection error, got: %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineHarnessPattern(t *testing.T) {
 	t.Parallel()
 
