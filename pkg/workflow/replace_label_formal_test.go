@@ -104,6 +104,10 @@ func formalSimpleGlobToRegex(pattern string) *regexp.Regexp {
 		switch c {
 		case '*':
 			b.WriteString(".*")
+		// Special characters to escape mirror the escapeRegexChars helper in
+		// glob_pattern_helpers.cjs: \, ., +, ?, ^, $, {, }, (, ), |, [, ] are
+		// escaped to literals.  * is intentionally omitted here so it can be
+		// replaced by .* below.
 		case '.', '+', '?', '^', '$', '{', '}', '(', ')', '|', '[', ']', '\\':
 			b.WriteByte('\\')
 			b.WriteRune(c)
@@ -248,7 +252,9 @@ func formalResolveItemNumberAliases(message map[string]any) int {
 		if !ok {
 			continue
 		}
-		// First present alias: validate and return without checking lower-priority aliases.
+		// First present alias found: check if positive and return immediately.
+		// A non-positive value at this position is treated as invalid (returns 0)
+		// without falling through to a lower-priority alias.
 		switch n := v.(type) {
 		case int:
 			if n > 0 {
