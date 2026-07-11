@@ -145,7 +145,7 @@ function findContinuationOutsideBlock(setFailedNode: TSESTree.Statement, ancesto
   }
 
   return null;
-
+}
 
 export const requireReturnAfterCoreSetFailedRule = createRule({
   name: "require-return-after-core-setfailed",
