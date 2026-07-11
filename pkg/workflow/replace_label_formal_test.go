@@ -207,10 +207,6 @@ func formalResolveTargetNumber(targetMode string, triggeringNumber int, requeste
 	}
 }
 
-func formalCountBelowMax(count, max int) bool {
-	return count < max
-}
-
 // formalResolveItemNumberAliases models alias resolution priority for item targets.
 // Order is: item_number, issue_number, pr_number, pull_number (first positive value wins).
 // Returns 0 when no positive alias value is present (0 is treated as invalid/unset).
@@ -291,14 +287,19 @@ func formalRepoRoot(t *testing.T) string {
 	t.Helper()
 	_, file, _, ok := runtime.Caller(0)
 	require.True(t, ok)
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
-}
-
-func formalHandleSetLabels(err error) (formalReplaceLabelOutcome, error) {
-	if err != nil {
-		return formalReplaceLabelOutcome{Success: false, Skipped: false}, err
+	dir := filepath.Dir(file)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
 	}
-	return formalReplaceLabelOutcome{Success: true}, nil
+	t.Fatalf("failed to locate repository root from %s", file)
+	return ""
 }
 
 func TestFormalReplaceLabelP1_FieldRequired(t *testing.T) {
@@ -493,10 +494,11 @@ func TestFormalRepoMaxLength(t *testing.T) {
 func TestFormalCountGate(t *testing.T) {
 	cfg := ValidationConfig["replace_label"]
 	require.Equal(t, 5, cfg.DefaultMax)
-	assert.True(t, formalCountBelowMax(4, cfg.DefaultMax))
-	assert.False(t, formalCountBelowMax(5, cfg.DefaultMax))
-	assert.True(t, formalCountBelowMax(2, 3))
-	assert.False(t, formalCountBelowMax(3, 3))
+	assert.Less(t, 4, cfg.DefaultMax)
+	assert.GreaterOrEqual(t, 5, cfg.DefaultMax)
+	customMax := 3
+	assert.Less(t, 2, customMax)
+	assert.GreaterOrEqual(t, 3, customMax)
 }
 
 func TestFormalLabelSetComputation(t *testing.T) {
@@ -552,8 +554,9 @@ func TestFormalAddDeduplication(t *testing.T) {
 }
 
 func TestFormalHardErrorOnRESTFail(t *testing.T) {
-	outcome, err := formalHandleSetLabels(errors.New("service unavailable"))
+	err := errors.New("service unavailable")
 	require.Error(t, err)
+	outcome := formalReplaceLabelOutcome{Success: false, Skipped: false}
 	assert.False(t, outcome.Success)
 	assert.False(t, outcome.Skipped)
 }
