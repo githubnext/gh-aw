@@ -8,6 +8,7 @@ on:
   pull_request:
     paths:
       - 'install-gh-aw.sh'
+      - 'install-gh-aw.ps1'
       - 'scripts/test-install-script.sh'
       - '.github/workflows/install.yml'
 
@@ -185,10 +186,101 @@ jobs:
           echo ""
           echo "✅ Full installation test passed!"
 
+  test-install-powershell:
+    name: Test PowerShell installer on Windows
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Test PowerShell install script (dry run - check platform detection)
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = "Stop"
+
+          $output = & ./install-gh-aw.ps1 v999.999.999 2>&1
+          $output | Tee-Object -FilePath install-ps-output.log
+
+          if ($output -notmatch "Detected OS:") {
+            throw "OS detection failed"
+          }
+          if ($output -notmatch "Detected architecture:") {
+            throw "Architecture detection failed"
+          }
+          if ($output -notmatch "Platform:") {
+            throw "Platform string construction failed"
+          }
+
+      - name: Test full PowerShell install script
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = "Stop"
+
+          & ./install-gh-aw.ps1
+
+          $installDir = Join-Path $HOME ".local/share/gh/extensions/gh-aw"
+          $binaryPath = Join-Path $installDir "gh-aw.exe"
+
+          if (-not (Test-Path $binaryPath)) {
+            throw "Binary not found at $binaryPath"
+          }
+
+          function Invoke-WithTimeout {
+            param(
+              [Parameter(Mandatory)][string]$FilePath,
+              [string[]]$ArgumentList = @(),
+              [int]$TimeoutSeconds = 60
+            )
+
+            $stdoutPath = [System.IO.Path]::GetTempFileName()
+            $stderrPath = [System.IO.Path]::GetTempFileName()
+            try {
+              $process = Start-Process -FilePath $FilePath -ArgumentList $ArgumentList -PassThru -NoNewWindow -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+              if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+                try {
+                  $process.Kill($true)
+                } catch {
+                }
+                return 124
+              }
+              return $process.ExitCode
+            } finally {
+              Remove-Item $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
+            }
+          }
+
+          $versionExit = Invoke-WithTimeout -FilePath $binaryPath -ArgumentList @("version")
+          if ($versionExit -ne 0 -and $versionExit -ne 124) {
+            throw "Binary version command failed (exit $versionExit)"
+          }
+
+          $helpExit = Invoke-WithTimeout -FilePath $binaryPath -ArgumentList @("--help")
+          if ($helpExit -ne 0 -and $helpExit -ne 124) {
+            throw "Binary help command failed (exit $helpExit)"
+          }
+
+      - name: Upload PowerShell test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: install-test-powershell-windows
+          path: install-ps-output.log
+          retention-days: 7
+          if-no-files-found: ignore
+
   report-failure:
     name: Report Installation Failures
     runs-on: ubuntu-latest
-    needs: test-install
+    needs:
+      - test-install
+      - test-install-powershell
     if: failure()
     permissions:
       issues: write
@@ -211,7 +303,7 @@ jobs:
             
             ## Details
             
-            The install script testing workflow detected failures when testing the \`install-gh-aw.sh\` script across different platforms.
+            The install script testing workflow detected failures when testing the \`install-gh-aw.sh\` and \`install-gh-aw.ps1\` scripts across different platforms.
             
             Please review the workflow logs to identify which platform(s) failed and investigate the issue.
             
@@ -225,7 +317,7 @@ jobs:
             ## Next Steps
             
             1. Check the [workflow run logs](${workflowUrl}) for detailed error messages
-            2. Review changes to \`install-gh-aw.sh\` that may have caused the failure
+            2. Review changes to \`install-gh-aw.sh\` and \`install-gh-aw.ps1\` that may have caused the failure
             3. Test the install script locally on the affected platform(s)
             4. Fix the issue and verify with \`scripts/test-install-script.sh\`
             

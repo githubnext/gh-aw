@@ -1032,6 +1032,8 @@ sync-action-scripts:
 	@echo "Syncing install-gh-aw.sh to actions/setup-cli/install.sh..."
 	@cp install-gh-aw.sh actions/setup-cli/install.sh
 	@chmod +x actions/setup-cli/install.sh
+	@echo "Syncing install-gh-aw.ps1 to actions/setup-cli/install.ps1..."
+	@cp install-gh-aw.ps1 actions/setup-cli/install.ps1
 	@echo "✓ Action scripts synced successfully"
 
 # Sync install-gh-aw.sh SHA/hash constants in pkg/cli/copilot_setup.go
