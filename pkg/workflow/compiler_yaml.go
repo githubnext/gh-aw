@@ -319,9 +319,12 @@ func normalizeBlankLines(yamlContent string) string {
 	var b strings.Builder
 	b.Grow(len(yamlContent))
 
-	// lastNonBlankEnd tracks the builder length after writing the last non-blank line
-	// (including its trailing newline). This lets us trim trailing blank lines in O(1)
-	// by slicing the result instead of doing a second TrimRight pass.
+	// lastNonBlankEnd tracks the builder length immediately after writing the last
+	// non-blank line (including its trailing newline). It starts at 0 and is only
+	// advanced when a substantive line is written, so it stays 0 when all lines
+	// are whitespace-only or the input is empty. Every line — blank or not — still
+	// gets a '\n' written to b, so b.Len() and lastNonBlankEnd may diverge when
+	// there are trailing blank lines.
 	lastNonBlankEnd := 0
 	pos := 0
 	for pos < len(yamlContent) {
@@ -337,6 +340,10 @@ func normalizeBlankLines(yamlContent string) string {
 		if strings.TrimSpace(line) == "" {
 			// Whitespace-only line: emit as a truly empty line.
 			b.WriteByte('\n')
+			// lastNonBlankEnd is NOT updated here so that trailing blank lines
+			// (including a blank final "line" produced by a file that ends with
+			// "\n\n" or by whitespace-only text after the last real line) are
+			// excluded from the returned slice.
 		} else {
 			b.WriteString(line)
 			b.WriteByte('\n')
@@ -349,11 +356,15 @@ func normalizeBlankLines(yamlContent string) string {
 		pos += end + 1
 	}
 
+	// When lastNonBlankEnd is still 0 there were no non-blank lines at all
+	// (empty input or all-whitespace). Return a single newline, which matches
+	// the original strings.TrimRight(…, "\n") + "\n" behaviour for that case.
+	// NOTE: b.String()[:0] must NOT be used here; the early return is intentional.
 	if lastNonBlankEnd == 0 {
 		return "\n"
 	}
-	// Slice the builder's string to drop trailing blank lines (everything after
-	// lastNonBlankEnd). The slice shares the same underlying bytes; no copy is made.
+	// Slice the builder string to drop trailing blank lines. Because Go string
+	// slicing shares the underlying bytes array, this is a zero-copy operation.
 	return b.String()[:lastNonBlankEnd]
 }
 
