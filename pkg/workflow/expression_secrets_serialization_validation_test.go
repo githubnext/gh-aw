@@ -55,7 +55,12 @@ func TestFindSecretsSerializationExpressions(t *testing.T) {
 			name:     "toJSON(secrets) — whitespace inside call",
 			content:  "${{  toJSON(  secrets  )  }}",
 			wantLen:  1,
-			wantExpr: []string{"${{ toJSON(  secrets  ) }}"},
+			wantExpr: []string{"${{  toJSON(  secrets  )  }}"},
+		},
+		{
+			name:    "quoted string literal is not flagged",
+			content: "${{ 'toJSON(secrets)' }}",
+			wantLen: 0,
 		},
 		{
 			name:    "toJSON(secrets) — duplicate expression deduplication",
@@ -184,6 +189,13 @@ func TestValidateSecretsSerializationExpressions(t *testing.T) {
 			strictMode:     true,
 			wantError:      false,
 		},
+		{
+			name:           "quoted toJSON(secrets) string literal is safe",
+			markdownBody:   "${{ 'toJSON(secrets)' }}",
+			rawFrontmatter: map[string]any{},
+			strictMode:     true,
+			wantError:      false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -207,7 +219,13 @@ func TestValidateSecretsSerializationExpressions(t *testing.T) {
 					)
 				}
 			} else {
-				assert.NoError(t, err, "expected no error")
+				require.NoError(t, err, "expected no error")
+			}
+
+			if tt.wantWarning {
+				assert.Equal(t, 1, compiler.GetWarningCount(), "expected exactly one warning")
+			} else {
+				assert.Equal(t, 0, compiler.GetWarningCount(), "expected no warnings")
 			}
 		})
 	}
@@ -228,4 +246,37 @@ func TestValidateSecretsSerializationViaValidateExpressions(t *testing.T) {
 	err := compiler.validateExpressions(workflowData, "/tmp/test.md")
 	require.Error(t, err, "expected validateExpressions to surface secrets serialization error")
 	assert.Contains(t, err.Error(), "secrets serialization expression(s) detected")
+}
+
+func TestValidateSecretsSerializationNonStrictViaValidateExpressions(t *testing.T) {
+	t.Run("toJSON(secrets) only warns in non-strict mode", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.strictMode = false
+
+		workflowData := &WorkflowData{
+			Name:            "Test",
+			MarkdownContent: "Expose everything: ${{ toJSON(secrets) }}",
+			RawFrontmatter:  map[string]any{"strict": false},
+		}
+
+		err := compiler.validateExpressions(workflowData, "/tmp/test.md")
+		require.NoError(t, err, "non-strict toJSON(secrets) should warn but not error")
+		assert.Equal(t, 1, compiler.GetWarningCount(), "expected one warning")
+	})
+
+	t.Run("neutralization keeps other unsafe operands visible to allowlist", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.strictMode = false
+
+		workflowData := &WorkflowData{
+			Name:            "Test",
+			MarkdownContent: "${{ github.event.constructor || toJSON(secrets) }}",
+			RawFrontmatter:  map[string]any{"strict": false},
+		}
+
+		err := compiler.validateExpressions(workflowData, "/tmp/test.md")
+		require.Error(t, err, "dangerous constructor operand should still be rejected")
+		assert.Contains(t, err.Error(), "constructor")
+		assert.Equal(t, 1, compiler.GetWarningCount(), "secrets serialization warning should still be emitted")
+	})
 }

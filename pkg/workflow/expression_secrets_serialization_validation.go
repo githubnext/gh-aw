@@ -37,8 +37,7 @@ var expressionSecretsSerializationLog = newValidationLogger("expression_secrets_
 // word-boundary \b before the function name prevents matching substrings
 // (e.g. "nottoJSON"). The pattern deliberately does NOT match
 // toJSON(secrets.SPECIFIC_KEY) because a dot after "secrets" would be consumed
-// by \s*\) only if there is no further content — the closing \) requires that
-// nothing follows "secrets" except optional whitespace.
+// by \s*\) only when no further content follows "secrets" before ")".
 var secretsSerializationPattern = regexp.MustCompile(`(?i)\btoJSON\s*\(\s*secrets\s*\)`)
 
 // findSecretsSerializationExpressions scans content for GitHub Actions expressions
@@ -51,16 +50,15 @@ func findSecretsSerializationExpressions(content string) []string {
 
 	expressionSecretsSerializationLog.Printf("Scanning content (%d bytes) for secrets serialization expressions", len(content))
 
-	matches := ExpressionPatternDotAll.FindAllStringSubmatch(content, -1)
+	matches := ExpressionPatternDotAll.FindAllStringSubmatchIndex(content, -1)
 	var found []string
 	for _, match := range matches {
-		if len(match) < 2 {
+		if len(match) < 4 {
 			continue
 		}
-		exprContent := match[1]
-		if secretsSerializationPattern.MatchString(exprContent) {
-			full := "${{ " + strings.TrimSpace(exprContent) + " }}"
-			found = append(found, full)
+		exprContent := content[match[2]:match[3]]
+		if len(findSecretsSerializationCallRanges(exprContent)) > 0 {
+			found = append(found, content[match[0]:match[1]])
 		}
 	}
 
@@ -78,12 +76,79 @@ func findSecretsSerializationExpressions(content string) []string {
 // "${{ false }}" is a valid literal expression and passes the allowlist check.
 func neutralizeSecretsSerializationExpressions(content string) string {
 	return ExpressionPatternDotAll.ReplaceAllStringFunc(content, func(match string) string {
-		groups := ExpressionPatternDotAll.FindStringSubmatch(match)
-		if len(groups) >= 2 && secretsSerializationPattern.MatchString(groups[1]) {
-			return "${{ false }}"
+		groups := ExpressionPatternDotAll.FindStringSubmatchIndex(match)
+		if len(groups) < 4 {
+			return match
 		}
-		return match
+
+		exprContent := match[groups[2]:groups[3]]
+		callRanges := findSecretsSerializationCallRanges(exprContent)
+		if len(callRanges) == 0 {
+			return match
+		}
+
+		neutralized := replaceStringRanges(exprContent, callRanges, "false")
+		return match[:groups[2]] + neutralized + match[groups[3]:]
 	})
+}
+
+// findSecretsSerializationCallRanges returns toJSON(secrets) match ranges in expr,
+// excluding quoted string literals.
+func findSecretsSerializationCallRanges(expr string) [][]int {
+	masked := maskQuotedExpressionLiterals(expr)
+	return secretsSerializationPattern.FindAllStringIndex(masked, -1)
+}
+
+// maskQuotedExpressionLiterals replaces quoted content with spaces, preserving
+// string length and indexes for downstream regex range mapping.
+func maskQuotedExpressionLiterals(expr string) string {
+	if expr == "" {
+		return expr
+	}
+
+	masked := []byte(expr)
+	var quote byte
+	escaped := false
+	for i := range masked {
+		ch := masked[i]
+		if quote == 0 {
+			if ch == '\'' || ch == '"' || ch == '`' {
+				quote = ch
+				masked[i] = ' '
+			}
+			continue
+		}
+
+		masked[i] = ' '
+		if escaped {
+			escaped = false
+			continue
+		}
+		if ch == '\\' {
+			escaped = true
+			continue
+		}
+		if ch == quote {
+			quote = 0
+		}
+	}
+
+	return string(masked)
+}
+
+func replaceStringRanges(input string, ranges [][]int, replacement string) string {
+	var b strings.Builder
+	last := 0
+	for _, r := range ranges {
+		if len(r) != 2 || r[0] < last || r[1] < r[0] || r[1] > len(input) {
+			continue
+		}
+		b.WriteString(input[last:r[0]])
+		b.WriteString(replacement)
+		last = r[1]
+	}
+	b.WriteString(input[last:])
+	return b.String()
 }
 
 // validateSecretsSerializationExpressions scans markdown content and frontmatter
@@ -96,7 +161,12 @@ func neutralizeSecretsSerializationExpressions(content string) string {
 // In strict mode this returns an error; in non-strict mode it emits a warning to
 // stderr and increments the compiler warning count.
 func (c *Compiler) validateSecretsSerializationExpressions(workflowData *WorkflowData) error {
-	expressionSecretsSerializationLog.Printf("Validating secrets serialization expressions (strictMode=%t)", c.strictMode)
+	effectiveStrict := c.effectiveStrictMode(workflowData.RawFrontmatter)
+	expressionSecretsSerializationLog.Printf(
+		"Validating secrets serialization expressions (strictMode=%t, effectiveStrictMode=%t)",
+		c.strictMode,
+		effectiveStrict,
+	)
 
 	var allFound []string
 	for _, content := range []string{workflowData.MarkdownContent, workflowData.FrontmatterYAML} {
@@ -112,8 +182,6 @@ func (c *Compiler) validateSecretsSerializationExpressions(workflowData *Workflo
 	sort.Strings(allFound)
 
 	expressionSecretsSerializationLog.Printf("Detected %d secrets serialization expression(s): %v", len(allFound), allFound)
-
-	effectiveStrict := c.effectiveStrictMode(workflowData.RawFrontmatter)
 
 	msg := fmt.Sprintf(
 		"secrets serialization expression(s) detected that would expose all secrets to the agent. "+
