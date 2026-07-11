@@ -48,6 +48,10 @@ func (c *Compiler) validateExpressions(workflowData *WorkflowData, markdownPath 
 	// of the recommended /tmp/gh-aw/agent/ subtree.
 	c.validatePromptTmpPaths(workflowData, markdownPath)
 
+	// Warn when the prompt calls list_code_scanning_alerts without the required
+	// state: open and severity: critical,high filters to prevent oversized MCP responses.
+	c.validateListCodeScanningAlerts(workflowData, markdownPath)
+
 	return nil
 }
 
@@ -88,6 +92,61 @@ func warnPromptTmpPaths(content string) string {
 // references /tmp/ or /tmp/gh-aw/ instead of the recommended /tmp/gh-aw/agent/ root.
 func (c *Compiler) validatePromptTmpPaths(workflowData *WorkflowData, markdownPath string) {
 	if msg := warnPromptTmpPaths(workflowData.MarkdownContent); msg != "" {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", msg))
+		c.IncrementWarningCount()
+	}
+}
+
+// listCodeScanningAlertsNeedle is the tool name to scan for in prompt content.
+const listCodeScanningAlertsNeedle = "list_code_scanning_alerts"
+
+// listCodeScanningAlertsStateFilter is the required state filter for list_code_scanning_alerts calls.
+const listCodeScanningAlertsStateFilter = "state: open"
+
+// listCodeScanningAlertsSeverityFilters are the accepted severity filter forms for list_code_scanning_alerts.
+// Either ordering of critical,high is accepted.
+var listCodeScanningAlertsSeverityFilters = []string{
+	"severity: critical,high",
+	"severity: high,critical",
+}
+
+// warnListCodeScanningAlerts returns a non-empty advisory message when content
+// references list_code_scanning_alerts without the required state: open and
+// severity: critical,high filters. Unconstrained calls produce oversized MCP
+// responses that can exhaust model context windows.
+// Returns an empty string when no problematic patterns are found.
+func warnListCodeScanningAlerts(content string) string {
+	if !strings.Contains(content, listCodeScanningAlertsNeedle) {
+		return ""
+	}
+	hasStateFilter := strings.Contains(content, listCodeScanningAlertsStateFilter)
+	hasSeverityFilter := false
+	for _, sev := range listCodeScanningAlertsSeverityFilters {
+		if strings.Contains(content, sev) {
+			hasSeverityFilter = true
+			break
+		}
+	}
+	if hasStateFilter && hasSeverityFilter {
+		return ""
+	}
+	missing := []string{}
+	if !hasStateFilter {
+		missing = append(missing, `"state: open"`)
+	}
+	if !hasSeverityFilter {
+		missing = append(missing, `"severity: critical,high"`)
+	}
+	return "Prompt calls list_code_scanning_alerts without required filter(s): " +
+		strings.Join(missing, " and ") + ". " +
+		"Unconstrained calls produce oversized MCP responses. " +
+		"Always include state: open and severity: critical,high to limit results."
+}
+
+// validateListCodeScanningAlerts emits an advisory warning when the workflow markdown body
+// calls list_code_scanning_alerts without the required state: open and severity: critical,high filters.
+func (c *Compiler) validateListCodeScanningAlerts(workflowData *WorkflowData, markdownPath string) {
+	if msg := warnListCodeScanningAlerts(workflowData.MarkdownContent); msg != "" {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", msg))
 		c.IncrementWarningCount()
 	}

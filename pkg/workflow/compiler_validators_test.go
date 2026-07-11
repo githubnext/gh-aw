@@ -697,3 +697,124 @@ func TestValidatePromptTmpPaths(t *testing.T) {
 		})
 	}
 }
+
+// TestWarnListCodeScanningAlerts tests that warnListCodeScanningAlerts returns
+// a warning message when list_code_scanning_alerts is used without required filters.
+func TestWarnListCodeScanningAlerts(t *testing.T) {
+	tests := []struct {
+		name          string
+		content       string
+		expectWarning bool
+		warnContains  string
+	}{
+		{
+			name:          "no list_code_scanning_alerts reference",
+			content:       "# Workflow\n\nList issues and PRs.",
+			expectWarning: false,
+		},
+		{
+			name:          "list_code_scanning_alerts with both required filters",
+			content:       "Call list_code_scanning_alerts with state: open and severity: critical,high to get results.",
+			expectWarning: false,
+		},
+		{
+			name:          "list_code_scanning_alerts with filters in reverse order",
+			content:       "Use list_code_scanning_alerts with severity: high,critical and state: open.",
+			expectWarning: false,
+		},
+		{
+			name:          "list_code_scanning_alerts without any filters",
+			content:       "Call list_code_scanning_alerts to list all alerts.",
+			expectWarning: true,
+			warnContains:  "list_code_scanning_alerts",
+		},
+		{
+			name:          "list_code_scanning_alerts with state: open only",
+			content:       "Call list_code_scanning_alerts with state: open.",
+			expectWarning: true,
+			warnContains:  `"severity: critical,high"`,
+		},
+		{
+			name:          "list_code_scanning_alerts with severity filter only",
+			content:       "Call list_code_scanning_alerts with severity: critical,high.",
+			expectWarning: true,
+			warnContains:  `"state: open"`,
+		},
+		{
+			name:          "warning message mentions unconstrained MCP response risk",
+			content:       "list_code_scanning_alerts without filters",
+			expectWarning: true,
+			warnContains:  "oversized MCP responses",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg := warnListCodeScanningAlerts(tt.content)
+			if tt.expectWarning {
+				assert.NotEmpty(t, msg, "expected a warning message")
+				if tt.warnContains != "" {
+					assert.Contains(t, msg, tt.warnContains, "warning should mention missing filter")
+				}
+			} else {
+				assert.Empty(t, msg, "expected no warning message")
+			}
+		})
+	}
+}
+
+// TestValidateListCodeScanningAlerts tests that validateListCodeScanningAlerts
+// increments the warning counter and emits a message when the markdown body
+// calls list_code_scanning_alerts without required filters.
+func TestValidateListCodeScanningAlerts(t *testing.T) {
+	tests := []struct {
+		name       string
+		markdown   string
+		expectWarn bool
+	}{
+		{
+			name:       "no list_code_scanning_alerts — no warning",
+			markdown:   "# Hello\n\nDo some work.",
+			expectWarn: false,
+		},
+		{
+			name:       "list_code_scanning_alerts with both filters — no warning",
+			markdown:   "Call list_code_scanning_alerts with state: open and severity: critical,high.",
+			expectWarn: false,
+		},
+		{
+			name:       "list_code_scanning_alerts without filters — warning",
+			markdown:   "Call list_code_scanning_alerts to enumerate all alerts.",
+			expectWarn: true,
+		},
+		{
+			name:       "list_code_scanning_alerts missing severity filter — warning",
+			markdown:   "Use list_code_scanning_alerts with state: open only.",
+			expectWarn: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "list-csa-test")
+			markdownPath := filepath.Join(tmpDir, "workflow.md")
+
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				Name:            "Test",
+				MarkdownContent: tt.markdown,
+				AI:              "copilot",
+			}
+
+			before := compiler.GetWarningCount()
+			compiler.validateListCodeScanningAlerts(workflowData, markdownPath)
+			after := compiler.GetWarningCount()
+
+			if tt.expectWarn {
+				assert.Greater(t, after, before, "warning count should have increased")
+			} else {
+				assert.Equal(t, before, after, "warning count should not have changed")
+			}
+		})
+	}
+}
