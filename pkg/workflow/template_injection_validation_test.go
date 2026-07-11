@@ -1394,6 +1394,33 @@ func TestScanRunContentExpressions(t *testing.T) {
 			wantHasUnsafe:     false,
 			wantHasDisallowed: true,
 		},
+		{
+			name: "unsafe expression in double-quoted run key",
+			yaml: `jobs:
+  test:
+    steps:
+      - "run": echo "${{ github.event.issue.title }}"`,
+			wantHasUnsafe:     true,
+			wantHasDisallowed: true,
+		},
+		{
+			name: "unsafe expression in single-quoted run key",
+			yaml: `jobs:
+  test:
+    steps:
+      - 'run': echo "${{ github.event.issue.title }}"`,
+			wantHasUnsafe:     true,
+			wantHasDisallowed: true,
+		},
+		{
+			name: "allowed expression in double-quoted run key",
+			yaml: `jobs:
+  test:
+    steps:
+      - "run": node ${{ runner.temp }}/actions/foo.cjs`,
+			wantHasUnsafe:     false,
+			wantHasDisallowed: false,
+		},
 	}
 
 	for _, tt := range tests {
