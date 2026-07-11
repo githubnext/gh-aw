@@ -11,7 +11,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var log = logger.New("linters:excessivefuncparams")
 
 // DefaultMaxParams is the default maximum number of parameters allowed in a function declaration.
 const DefaultMaxParams = 8
@@ -34,6 +37,8 @@ func init() {
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	log.Printf("analyzing package %s (max-params=%d)", pass.Pkg.Path(), maxParams)
+
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -70,6 +75,7 @@ func run(pass *analysis.Pass) (any, error) {
 			if nolint.HasDirective(position, noLintLinesByFile) {
 				return
 			}
+			log.Printf("flagging %s: %d parameters exceeds limit %d", fn.Name.Name, params, maxParams)
 			pass.ReportRangef(
 				fn.Name,
 				"%s has %d parameters (limit: %d); consider using an options struct",

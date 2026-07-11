@@ -36,6 +36,9 @@ function transformClaudeEntry(entry, urlPrefix) {
   return normalizeGatewayEntry(entry, urlPrefix, transformed => {
     // Claude uses "type": "http" for HTTP-based MCP servers
     transformed.type = "http";
+    // The MCP gateway may include a "tools" field for Copilot, but Claude's
+    // MCP config format does not support that field.
+    delete transformed.tools;
   });
 }
 

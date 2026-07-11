@@ -13,7 +13,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var log = logger.New("linters:httprespbodyclose")
 
 // Analyzer is the http-resp-body-close analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -25,6 +28,8 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	log.Printf("analyzing package %s", pass.Pkg.Path())
+
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -172,6 +177,8 @@ type respVarState struct {
 }
 
 func reportMissingDefer(pass *analysis.Pass, state *respVarState) {
+	log.Printf("flagging non-deferred Body.Close() at %s", pass.Fset.PositionFor(state.assignPos, false))
+
 	diag := analysis.Diagnostic{
 		Pos:     state.assignPos,
 		Message: "HTTP response Body.Close() should be deferred immediately after receiving the response to prevent resource leaks",

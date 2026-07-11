@@ -534,6 +534,10 @@ The test suite for `replace-label` spans two layers:
 
 #### 9.2.3 Label Validation Tests
 
+The normative compliance fixtures for the allowlist and blocklist edge cases in
+this subsection live in `specs/replace-label-compliance/rl-002-allowlist-enforcement.yaml`
+and `specs/replace-label-compliance/rl-003-blocklist-ordering.yaml`.
+
 - **T-RL-020**: Verify that `label_to_add` is accepted when `allowed-add` is empty.
 - **T-RL-021**: Verify that `label_to_add` matching a pattern in `allowed-add` is accepted.
 - **T-RL-022**: Verify that `label_to_add` not matching any pattern in a non-empty `allowed-add` is rejected.

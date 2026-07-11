@@ -142,7 +142,8 @@ describe("evaluate_outcomes type-specific evaluators", () => {
   it("evaluates add_labels retention using persisted before-state labels", () => {
     const item = {
       type: "add_labels",
-      url: "https://github.com/acme/repo/issues/42",
+      number: 42,
+      repo: "acme/repo",
       timestamp: "2026-05-25T00:00:00Z",
       labelsBefore: ["bug"],
       labelsAdded: ["bug", "triage"],
@@ -162,6 +163,192 @@ describe("evaluate_outcomes type-specific evaluators", () => {
 
     expect(evaluateItem(item, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-25T00:01:00Z") }).result).toBe("pending");
     expect(evaluateItem({ ...item, labelsBefore: [] }, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-27T00:00:00Z") }).detail).toBe("accepted:strong");
+  });
+
+  it("evaluates add_labels retention using production before_state.labels manifest shape", () => {
+    // Production manifest from add_labels.cjs stores labels in before_state.labels, not labelsBefore.
+    const item = {
+      type: "add_labels",
+      number: 42,
+      repo: "acme/repo",
+      timestamp: "2026-05-25T00:00:00Z",
+      before_state: { labels: ["bug"] },
+      labelsAdded: ["bug", "triage"],
+    };
+
+    const retained = createAPIStub({
+      "repos/acme/repo/issues/42/labels": [{ name: "bug" }, { name: "triage" }],
+    });
+    expect(evaluateItem(item, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-27T00:00:00Z") }).detail).toBe("accepted:strong");
+  });
+
+  it("returns unknown for add_labels when the item number is missing", () => {
+    const missingNumber = evaluateItem(
+      {
+        type: "add_labels",
+        repo: "acme/repo",
+        timestamp: "2026-05-25T00:00:00Z",
+        labelsBefore: ["bug"],
+        labelsAdded: ["bug", "triage"],
+      },
+      "acme/repo",
+      {
+        ghAPI: createAPIStub({
+          "repos/acme/repo/issues/42/labels": [{ name: "bug" }, { name: "triage" }],
+        }),
+        nowMs: Date.parse("2026-05-27T00:00:00Z"),
+      }
+    );
+    expect(missingNumber.detail).toBe("unknown: issue number not found");
+  });
+
+  it("evaluates close_issue using persisted repo/number metadata", () => {
+    const item = {
+      type: "close_issue",
+      number: 77,
+      repo: "acme/repo",
+      timestamp: "2026-05-26T00:00:00Z",
+    };
+
+    const closed = createAPIStub({
+      "repos/acme/repo/issues/77": {
+        state: "closed",
+        comments: 1,
+        reactions: { total_count: 2 },
+        created_at: "2026-05-26T00:00:00Z",
+        closed_at: "2026-05-26T00:10:00Z",
+      },
+    });
+    expect(evaluateItem(item, "acme/repo", { ghAPI: closed })).toMatchObject({
+      result: "accepted",
+      outcome_status: "accepted",
+      evidence_strength: "strong",
+      signal: "closed",
+      detail: "closed",
+    });
+
+    const open = createAPIStub({
+      "repos/acme/repo/issues/77": { state: "open", comments: 1, reactions: { total_count: 0 } },
+    });
+    expect(evaluateItem(item, "acme/repo", { ghAPI: open })).toMatchObject({
+      result: "rejected",
+      outcome_status: "rejected",
+      evidence_strength: "strong",
+      signal: "not_closed",
+      detail: "not_closed",
+    });
+  });
+
+  it("returns unknown for close_issue when the item reference is missing", () => {
+    const missingRef = evaluateItem({ type: "close_issue", timestamp: "2026-05-26T00:00:00Z" }, "acme/repo", { ghAPI: createAPIStub({}), nowMs: Date.parse("2026-05-27T00:00:00Z") });
+    expect(missingRef.result).toBe("unknown");
+    expect(missingRef.detail).toBe("missing issue reference");
+  });
+
+  it("returns unknown for close_issue on API error and sets pending_age_sec", () => {
+    const nowMs = Date.parse("2026-05-27T00:00:00Z");
+    const apiError = evaluateItem({ type: "close_issue", number: 77, repo: "acme/repo", timestamp: "2026-05-26T00:00:00Z" }, "acme/repo", { ghAPI: createAPIStub({}), nowMs });
+    expect(apiError.result).toBe("unknown");
+    expect(apiError.detail).toBe("api error");
+    expect(typeof apiError.pending_age_sec).toBe("number");
+  });
+
+  it("evaluates close_pull_request using persisted repo/number metadata", () => {
+    const item = {
+      type: "close_pull_request",
+      number: 55,
+      repo: "acme/repo",
+      timestamp: "2026-05-26T00:00:00Z",
+    };
+
+    const closed = createAPIStub({
+      "repos/acme/repo/pulls/55": {
+        state: "closed",
+        merged: false,
+        review_comments: 0,
+        changed_files: 1,
+        additions: 3,
+        deletions: 1,
+        comments: 0,
+        created_at: "2026-05-26T00:00:00Z",
+        closed_at: "2026-05-26T00:10:00Z",
+      },
+    });
+    expect(evaluateItem(item, "acme/repo", { ghAPI: closed })).toMatchObject({
+      result: "accepted",
+      outcome_status: "accepted",
+      evidence_strength: "strong",
+      signal: "closed",
+      detail: "closed",
+    });
+
+    const merged = createAPIStub({
+      "repos/acme/repo/pulls/55": {
+        state: "closed",
+        merged: true,
+        review_comments: 0,
+        changed_files: 1,
+        additions: 3,
+        deletions: 1,
+        comments: 0,
+        created_at: "2026-05-26T00:00:00Z",
+        merged_at: "2026-05-26T00:10:00Z",
+      },
+    });
+    expect(evaluateItem(item, "acme/repo", { ghAPI: merged })).toMatchObject({
+      result: "rejected",
+      outcome_status: "rejected",
+      evidence_strength: "strong",
+      signal: "closed_by_merge",
+      detail: "merged",
+    });
+
+    const open = createAPIStub({
+      "repos/acme/repo/pulls/55": { state: "open", merged: false, review_comments: 0 },
+    });
+    expect(evaluateItem(item, "acme/repo", { ghAPI: open })).toMatchObject({
+      result: "rejected",
+      outcome_status: "rejected",
+      evidence_strength: "strong",
+      signal: "not_closed",
+      detail: "not_closed",
+    });
+  });
+
+  it("detects merged PR via merged_at when merged flag is absent", () => {
+    const item = {
+      type: "close_pull_request",
+      number: 55,
+      repo: "acme/repo",
+      timestamp: "2026-05-26T00:00:00Z",
+    };
+    const mergedAtOnly = createAPIStub({
+      "repos/acme/repo/pulls/55": {
+        state: "closed",
+        merged: false,
+        merged_at: "2026-05-26T00:10:00Z",
+        created_at: "2026-05-26T00:00:00Z",
+      },
+    });
+    expect(evaluateItem(item, "acme/repo", { ghAPI: mergedAtOnly })).toMatchObject({
+      result: "rejected",
+      signal: "closed_by_merge",
+      detail: "merged",
+    });
+  });
+
+  it("returns unknown for close_pull_request when the item reference is missing", () => {
+    const missingRef = evaluateItem({ type: "close_pull_request", timestamp: "2026-05-26T00:00:00Z" }, "acme/repo", { ghAPI: createAPIStub({}), nowMs: Date.parse("2026-05-27T00:00:00Z") });
+    expect(missingRef.result).toBe("unknown");
+    expect(missingRef.detail).toBe("missing pull request reference");
+  });
+
+  it("returns unknown for close_pull_request on API error and sets pending_age_sec", () => {
+    const nowMs = Date.parse("2026-05-27T00:00:00Z");
+    const apiError = evaluateItem({ type: "close_pull_request", number: 55, repo: "acme/repo", timestamp: "2026-05-26T00:00:00Z" }, "acme/repo", { ghAPI: createAPIStub({}), nowMs });
+    expect(apiError.result).toBe("unknown");
+    expect(apiError.detail).toBe("api error");
+    expect(typeof apiError.pending_age_sec).toBe("number");
   });
 
   it("evaluates update_issue retained and reverted states from persisted execution metadata", () => {

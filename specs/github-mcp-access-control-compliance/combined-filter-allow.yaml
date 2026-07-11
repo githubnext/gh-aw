@@ -56,50 +56,10 @@ scenarios:
         content_integrity: "approved"
     expected:
       decision: deny
-      error_code: -32001
+      error_code: -32002
       reason: "repository not in allowed list"
 
-  # --- Scenario D: role condition fails → denied ---
-  - scenario_id: "combined-filter-allow-D"
-    description: "Request with insufficient role is denied even when repo, visibility, and integrity match"
-    input:
-      tool_config:
-        repos:
-          - "github/gh-aw"
-        roles:
-          - "write"
-        private-repos: true
-        min-integrity: "approved"
-      request:
-        repository: "github/gh-aw"
-        user_role: "read"
-        is_private: true
-        content_integrity: "approved"
-    expected:
-      decision: deny
-      error_code: -32002
-      reason: "user role does not meet minimum required role"
-
-  # --- Scenario E: private-repos condition fails → denied ---
-  - scenario_id: "combined-filter-allow-E"
-    description: "Request targeting a public repo is denied when private-repos=true requires a private repository"
-    input:
-      tool_config:
-        repos:
-          - "github/gh-aw"
-        roles:
-          - "write"
-        private-repos: true
-        min-integrity: "approved"
-      request:
-        repository: "github/gh-aw"
-        user_role: "write"
-        is_private: false
-        content_integrity: "approved"
-    expected:
-      decision: deny
-      error_code: -32003
-      reason: "repository visibility does not satisfy private-repos requirement"
+  # --- Scenario C: integrity condition fails → denied ---
   - scenario_id: "combined-filter-allow-C"
     description: "Request with insufficient integrity is denied even when repo, role, and visibility match"
     input:
@@ -119,3 +79,45 @@ scenarios:
       decision: deny
       error_code: -32006
       reason: "content integrity below minimum required level"
+
+  # --- Scenario D: role condition fails → denied ---
+  - scenario_id: "combined-filter-allow-D"
+    description: "Request with insufficient role is denied even when repo, visibility, and integrity match"
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        roles:
+          - "write"
+        private-repos: true
+        min-integrity: "approved"
+      request:
+        repository: "github/gh-aw"
+        user_role: "read"
+        is_private: true
+        content_integrity: "approved"
+    expected:
+      decision: deny
+      error_code: -32003
+      reason: "user role does not meet minimum required role"
+
+  # --- Scenario E: private-repos condition fails → denied ---
+  - scenario_id: "combined-filter-allow-E"
+    description: "Request targeting a private repository is denied when private-repos: false"
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        roles:
+          - "write"
+        private-repos: false
+        min-integrity: "approved"
+      request:
+        repository: "github/gh-aw"
+        user_role: "write"
+        is_private: true
+        content_integrity: "approved"
+    expected:
+      decision: deny
+      error_code: -32004
+      reason: "private repository access denied"

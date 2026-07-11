@@ -11,7 +11,6 @@ func flaggedExamples() {
 	_ = strings.ToUpper(name) == "ALICE" // want `use strings\.EqualFold`
 	_ = "alice" == strings.ToLower(name) // want `use strings\.EqualFold`
 	_ = strings.ToLower(name) != "alice" // want `use strings\.EqualFold`
-	_ = strings.ToLower(name) == strings.ToLower("alice") // want `use strings\.EqualFold`
 
 	lower := strings.ToLower(name)
 	_ = lower == "alice" // want `use strings\.EqualFold`
@@ -31,10 +30,29 @@ func okExamples() {
 
 	lower := strings.ToLower(name)
 	_ = lower == name
+
+	// Case-mismatched literal: ToLower output can never equal an uppercase
+	// literal, so the comparison is always false — not a case-insensitive
+	// equality check and must not be rewritten to EqualFold.
+	_ = strings.ToLower(name) == "ALICE"
+	_ = strings.ToUpper(name) == "alice"
+	_ = "ALICE" == strings.ToLower(name)
+
+	// Mixed ToLower/ToUpper: lower(a)==upper(b) is false for any letters,
+	// not a case-insensitive equality — must not be rewritten to EqualFold.
+	_ = strings.ToLower(name) == strings.ToUpper(name)
+	_ = strings.ToLower(name) == strings.ToLower("alice")
+
+	// Alias with case-mismatched literal — same reasoning as above.
+	lowerName := strings.ToLower(name)
+	_ = lowerName == "ALICE"
+
+	// Unicode literals are conservatively excluded because ToLower/ToUpper
+	// equality may diverge from EqualFold semantics (e.g. Greek sigma forms).
+	_ = strings.ToLower(name) == "σ"
 }
 
 func suppressedExamples() {
 	name := "Alice"
 	_ = strings.ToLower(name) == "alice" //nolint:tolowerequalfold
 }
-

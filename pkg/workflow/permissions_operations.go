@@ -83,6 +83,22 @@ func hasCopilotRequestsWritePermission(workflowData *WorkflowData) bool {
 	return perms.HasCopilotRequestsWrite()
 }
 
+// HasCopilotRequestsWriteFromFrontmatter returns true when the frontmatter permissions map
+// includes copilot-requests: write. It is the frontmatter-map counterpart of the unexported
+// hasCopilotRequestsWritePermission in this file (which operates on *WorkflowData) and exists
+// so that callers outside this package (e.g. pkg/cli) can perform the same check without
+// duplicating the frontmatter-to-Permissions conversion logic.
+func HasCopilotRequestsWriteFromFrontmatter(frontmatter map[string]any) bool {
+	if frontmatter == nil {
+		return false
+	}
+	permissionsValue, ok := frontmatter["permissions"]
+	if !ok {
+		return false
+	}
+	return NewPermissionsParserFromValue(permissionsValue).ToPermissions().HasCopilotRequestsWrite()
+}
+
 // filterJobLevelPermissions takes a raw permissions YAML string (as stored in WorkflowData.Permissions)
 // and returns a version suitable for use in a GitHub Actions job-level permissions block.
 //

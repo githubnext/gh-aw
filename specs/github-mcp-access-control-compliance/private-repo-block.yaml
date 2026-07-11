@@ -51,7 +51,7 @@ scenarios:
         content_integrity: "none"
     expected:
       decision: deny
-      error_code: -32003
+      error_code: -32004
       reason: "private repository access denied"
 
   # --- Scenario C: private-repos: false → public repo still allowed ---

@@ -12,6 +12,7 @@ requirements defined in §4 of the specification.
 | Filename | Scenario | Spec Coverage |
 |---|---|---|
 | `rl-001-glob-semantics.yaml` | Glob pattern matching for `allowed-add`, `allowed-remove`, and `blocked` follows gobwas/glob semantics | RL-001, T-RL-020–T-RL-023 |
+| `rl-002-allowlist-enforcement.yaml` | Non-empty allowlists enforce matches while empty allowlists permit any non-blocked label | RL-002, T-RL-021b, T-RL-022b, T-RL-025 |
 | `rl-003-blocklist-ordering.yaml` | Blocklist evaluation occurs before allowlist evaluation (security boundary) | RL-003, T-RL-023–T-RL-024 |
 
 ## Fixture Schema
@@ -57,6 +58,9 @@ The following test IDs defined in the replace-label specification map to these f
 |---------|---------|-------------|
 | T-RL-020 | `rl-001-glob-semantics.yaml` | Star glob matches label name substring |
 | T-RL-021 | `rl-001-glob-semantics.yaml` | Exact pattern matches only exact name |
+| T-RL-021b | `rl-002-allowlist-enforcement.yaml` | Non-empty allowed-add accepts a matching label |
 | T-RL-022 | `rl-001-glob-semantics.yaml` | Character class pattern matches correctly |
+| T-RL-022b | `rl-002-allowlist-enforcement.yaml` | Non-empty allowed-add rejects a non-matching label |
 | T-RL-023 | `rl-001-glob-semantics.yaml`, `rl-003-blocklist-ordering.yaml` | Glob pattern rejects non-matching label; blocked label rejected even when allowed |
 | T-RL-024 | `rl-003-blocklist-ordering.yaml` | Blocked label rejected even with wildcard allowed-add |
+| T-RL-025 | `rl-002-allowlist-enforcement.yaml` | Empty allowed-remove permits any non-blocked label |

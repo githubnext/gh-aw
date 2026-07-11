@@ -1,0 +1,81 @@
+# RL-002 Allowlist Enforcement -- Compliance Fixture
+# Tests: T-RL-021, T-RL-022, T-RL-025
+# Spec: §4.1 Allowlist Enforcement (RL-002)
+
+fixture_id: "rl-002-allowlist-enforcement"
+description: >
+  When an allowlist is non-empty, a label name MUST match at least one configured
+  pattern before the operation is allowed. Empty or absent allowlists permit any
+  label name for that direction (RL-002).
+
+spec_refs:
+  - "RL-002 — Non-empty allowlists MUST enforce at least one matching pattern"
+  - "RL-002 — Empty allowlists permit any label name"
+  - "§4.1 — allowed-add and allowed-remove allowlist evaluation"
+  - "T-RL-021 — label_to_add matching allowed-add is accepted"
+  - "T-RL-022 — label_to_add not matching allowed-add is rejected"
+  - "T-RL-025 — label_to_remove is accepted when allowed-remove is empty"
+
+scenarios:
+  - scenario_id: "rl-002-allowed-add-match"
+    description: "A non-empty allowed-add list permits an exact label match."
+    input:
+      safe_output_config:
+        allowed-add:
+          - "done"
+        allowed-remove: []
+        blocked: []
+      message:
+        label_to_add: "done"
+        label_to_remove: ""
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""
+
+  - scenario_id: "rl-002-allowed-add-miss"
+    description: "A non-empty allowed-add list rejects a label that matches no pattern."
+    input:
+      safe_output_config:
+        allowed-add:
+          - "done"
+        allowed-remove: []
+        blocked: []
+      message:
+        label_to_add: "wontfix"
+        label_to_remove: ""
+    expected:
+      decision: deny
+      error_code: -32002
+      reason: "label not in allowed-add list"
+
+  - scenario_id: "rl-002-empty-allowed-remove-permits"
+    description: "An empty allowed-remove list permits removing any non-blocked label."
+    input:
+      safe_output_config:
+        allowed-add: []
+        allowed-remove: []
+        blocked: []
+      message:
+        label_to_add: ""
+        label_to_remove: "state-in-progress"
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""
+
+  - scenario_id: "rl-002-allowed-remove-miss"
+    description: "A non-empty allowed-remove list rejects removal when no pattern matches."
+    input:
+      safe_output_config:
+        allowed-add: []
+        allowed-remove:
+          - "state-*"
+        blocked: []
+      message:
+        label_to_add: ""
+        label_to_remove: "bug"
+    expected:
+      decision: deny
+      error_code: -32002
+      reason: "label not in allowed-remove list"

@@ -15,7 +15,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var log = logger.New("linters:deferinloop")
 
 // Analyzer is the defer-in-loop analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -27,6 +30,8 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	log.Printf("analyzing package %s", pass.Pkg.Path())
+
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -51,6 +56,7 @@ func run(pass *analysis.Pass) (any, error) {
 			continue
 		}
 
+		log.Printf("flagging defer inside loop at %s", pos)
 		pass.ReportRangef(deferStmt,
 			"defer inside a loop does not execute at the end of each iteration; it runs when the enclosing function returns, which can cause resource leaks")
 	}

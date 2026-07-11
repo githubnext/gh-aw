@@ -85,52 +85,56 @@ steps:
         # Generate schema for reference
         ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/session-data/sessions-list.json > /tmp/gh-aw/agent/session-data/sessions-schema.json
 
-        # Download conversation logs using gh agent-task command (limit to first 50)
+        # Download conversation logs for actual Copilot agent runs.
+        # CI gate runs (e.g. "Smoke CI", "CGO", "CWI" quality gates) always end with
+        # conclusion=action_required because a human must approve them to continue; they
+        # contain no Copilot agent activity and have no conversation transcript.
+        # Each real agent run (conclusion=success/failure) emits [cca-engine] turn= lines
+        # in its job log which is the per-turn conversation transcript.
         SESSION_COUNT=$(jq 'length' /tmp/gh-aw/agent/session-data/sessions-list.json)
-        echo "Downloading conversation logs for $SESSION_COUNT sessions..."
-        
-        # Use gh agent-task to fetch session logs with conversation transcripts
-        # Extract session numbers from head_branch (format: copilot/issue-123 or copilot/task-456)
-        # The number is the issue/task/PR number that the gh agent-task command uses
-        jq -r '.[].head_branch' /tmp/gh-aw/agent/session-data/sessions-list.json | while read -r branch; do
-          if [ -n "$branch" ]; then
-            # Extract number from branch name (e.g., copilot/issue-123 -> 123)
-            # This is the session identifier used by gh agent-task
-            session_number=$(echo "$branch" | sed 's/copilot\///' | sed 's/[^0-9]//g')
-            
-            if [ -n "$session_number" ]; then
-              echo "Downloading conversation log for session #$session_number (branch: $branch)"
-              
-              # Use gh agent-task view --log to get conversation transcript
-              # This contains the agent's internal monologue, tool calls, and reasoning
-              gh agent-task view --repo "$GITHUB_REPOSITORY" "$session_number" --log \
-                > "/tmp/gh-aw/agent/session-data/logs/${session_number}-conversation.txt" 2>&1 || {
-                echo "Warning: Could not fetch conversation log for session #$session_number"
-                # If gh agent-task fails, fall back to downloading GitHub Actions logs
-                # This ensures we have some data even if agent-task command is unavailable
-                run_id=$(jq -r ".[] | select(.head_branch == \"$branch\") | .id" /tmp/gh-aw/agent/session-data/sessions-list.json)
-                if [ -n "$run_id" ]; then
-                  echo "Falling back to GitHub Actions logs for run ID: $run_id"
-                  gh api "repos/$GITHUB_REPOSITORY/actions/runs/${run_id}/logs" \
-                    > "/tmp/gh-aw/agent/session-data/logs/${session_number}-actions.zip" 2>&1 || true
-                  
-                  if [ -f "/tmp/gh-aw/agent/session-data/logs/${session_number}-actions.zip" ] && [ -s "/tmp/gh-aw/agent/session-data/logs/${session_number}-actions.zip" ]; then
-                    unzip -q "/tmp/gh-aw/agent/session-data/logs/${session_number}-actions.zip" -d "/tmp/gh-aw/agent/session-data/logs/${session_number}/" 2>/dev/null || true
-                    rm "/tmp/gh-aw/agent/session-data/logs/${session_number}-actions.zip"
-                  fi
+        AGENT_COUNT=$(jq '[.[] | select(.conclusion != "action_required")] | length' /tmp/gh-aw/agent/session-data/sessions-list.json)
+        echo "Downloading conversation logs for $AGENT_COUNT agent runs (skipping $((SESSION_COUNT - AGENT_COUNT)) CI gate runs)..."
+
+        jq -r '.[] | select(.conclusion != "action_required") | "\(.id) \(.head_branch)"' /tmp/gh-aw/agent/session-data/sessions-list.json | while read -r run_id branch; do
+          if [ -n "$run_id" ]; then
+            echo "Downloading conversation log for run $run_id (branch: $branch)"
+
+            # Get the first job ID for this run via the GitHub API (actions:read suffices).
+            # Copilot coding agent runs have exactly one job ("Copilot Coding Agent"), so
+            # .jobs[0] is always the correct and only job containing the transcript log.
+            job_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/${run_id}/jobs" \
+              --jq '.jobs[0].id' 2>/dev/null || true)
+
+            if [ -n "$job_id" ] && [ "$job_id" != "null" ]; then
+              # Download the raw job log; gh api follows the 302 redirect automatically
+              gh api "repos/$GITHUB_REPOSITORY/actions/jobs/${job_id}/logs" \
+                > "/tmp/gh-aw/agent/session-data/logs/${run_id}-raw.log" 2>/dev/null || true
+
+              if [ -f "/tmp/gh-aw/agent/session-data/logs/${run_id}-raw.log" ] && [ -s "/tmp/gh-aw/agent/session-data/logs/${run_id}-raw.log" ]; then
+                # Extract conversation transcript: [cca-engine] turn= lines carry turn-by-turn data
+                grep "\[cca-engine\] turn=" "/tmp/gh-aw/agent/session-data/logs/${run_id}-raw.log" \
+                  > "/tmp/gh-aw/agent/session-data/logs/${run_id}-conversation.txt" 2>/dev/null || true
+                rm -f "/tmp/gh-aw/agent/session-data/logs/${run_id}-raw.log"
+
+                if [ -s "/tmp/gh-aw/agent/session-data/logs/${run_id}-conversation.txt" ]; then
+                  LINE_COUNT=$(wc -l < "/tmp/gh-aw/agent/session-data/logs/${run_id}-conversation.txt")
+                  echo "  Saved transcript: $LINE_COUNT lines for run $run_id"
+                else
+                  echo "  Warning: No [cca-engine] conversation lines found for run $run_id"
+                  rm -f "/tmp/gh-aw/agent/session-data/logs/${run_id}-conversation.txt"
                 fi
-              }
+              else
+                echo "  Warning: Could not download job logs for run $run_id (may be expired)"
+                rm -f "/tmp/gh-aw/agent/session-data/logs/${run_id}-raw.log" 2>/dev/null || true
+              fi
+            else
+              echo "  Warning: Could not determine job ID for run $run_id"
             fi
           fi
         done
-        
+
         LOG_COUNT=$(find /tmp/gh-aw/agent/session-data/logs/ -type f -name "*-conversation.txt" | wc -l)
         echo "Conversation logs downloaded: $LOG_COUNT session logs"
-        
-        FALLBACK_COUNT=$(find /tmp/gh-aw/agent/session-data/logs/ -type d -mindepth 1 | wc -l)
-        if [ "$FALLBACK_COUNT" -gt 0 ]; then
-          echo "Fallback GitHub Actions logs: $FALLBACK_COUNT sessions"
-        fi
 
         # Store in cache with today's date
         cp /tmp/gh-aw/agent/session-data/sessions-list.json "$CACHE_DIR/copilot-sessions-${TODAY}.json"
@@ -169,19 +173,16 @@ This shared component fetches GitHub Copilot coding agent session data by analyz
 4. If cache doesn't exist:
    - Calculates the date 30 days ago (cross-platform compatible)
    - Fetches all workflow runs from branches starting with `copilot/` using GitHub API
-   - **Downloads conversation logs** using `gh agent-task view --log` for up to 50 most recent sessions
-   - Falls back to GitHub Actions logs if agent-task command fails
+   - **Downloads conversation logs** from GitHub Actions job logs for actual agent runs (skips CI gate runs)
    - Saves data to cache with date-based filename (e.g., `copilot-sessions-2024-11-22.json`)
    - Copies data to working directory for use
 5. Generates a schema of the data structure
 
-### What's New: Conversation Transcript Access
+### Conversation Transcript Access
 
-**This module now fetches actual agent conversation logs** instead of just infrastructure logs:
-- Uses `gh agent-task view --log` to access agent session logs
-- Logs include agent's internal monologue, reasoning, and tool usage
-- Enables true behavioral pattern analysis and prompt quality assessment
-- Falls back to GitHub Actions logs if agent-task command is unavailable
+Transcripts are fetched from GitHub Actions job logs using the standard GitHub API (`actions:read` permission). Each real agent run (conclusion ≠ `action_required`) produces `[cca-engine] turn=` log lines that contain the full turn-by-turn conversation — model used, token counts, tool calls and results. CI gate runs (`action_required`) are skipped because they have no agent conversation.
+
+The `gh agent-task view --log` approach that was previously used **requires an OAuth token** that the default `GITHUB_TOKEN` does not provide, and relied on extracting a numeric session ID from the branch name — which stopped working when Copilot switched to descriptive branch slugs (e.g., `copilot/fix-mcp-gateway-docker-daemon-access`).
 
 ### Caching Strategy
 
@@ -199,8 +200,7 @@ This shared component fetches GitHub Copilot coding agent session data by analyz
 - **`/tmp/gh-aw/agent/session-data/sessions-list.json`**: Full session data including run ID, name, branch, timestamps, status, conclusion, and URL
 - **`/tmp/gh-aw/agent/session-data/sessions-schema.json`**: JSON schema showing the structure of the session data
 - **`/tmp/gh-aw/agent/session-data/logs/`**: Directory containing session conversation logs
-  - **`{session_number}-conversation.txt`**: Agent conversation transcript with internal monologue and tool usage (primary)
-  - **`{session_number}/`**: GitHub Actions infrastructure logs (fallback only)
+  - **`{run_id}-conversation.txt`**: Agent conversation transcript — `[cca-engine] turn=` lines from the job log containing turn-by-turn model/token/tool data (only present for actual agent runs)
 - **`/tmp/gh-aw/cache-memory/copilot-sessions-YYYY-MM-DD.json`**: Cached session data with date
 - **`/tmp/gh-aw/cache-memory/copilot-sessions-YYYY-MM-DD-schema.json`**: Cached schema with date
 - **`/tmp/gh-aw/cache-memory/session-logs-YYYY-MM-DD/`**: Cached log files with date
@@ -226,47 +226,47 @@ jq --arg today "$TODAY" '[.[] | select(.created_at >= $today)]' /tmp/gh-aw/agent
 # Count total sessions
 jq 'length' /tmp/gh-aw/agent/session-data/sessions-list.json
 
-# Get session numbers for conversation logs
-jq -r '.[].head_branch' /tmp/gh-aw/agent/session-data/sessions-list.json | sed 's/copilot\///' | sed 's/[^0-9]//g'
+# Find actual agent runs (not CI gate runs)
+jq -r '.[] | select(.conclusion != "action_required") | "\(.id) \(.name)"' /tmp/gh-aw/agent/session-data/sessions-list.json
 
-# List conversation log files
+# List conversation log files (one per actual agent run)
 find /tmp/gh-aw/agent/session-data/logs -type f -name "*-conversation.txt"
 
-# Read a specific conversation log (session number 123)
-cat /tmp/gh-aw/agent/session-data/logs/123-conversation.txt
+# Read a specific conversation log (by run ID)
+cat /tmp/gh-aw/agent/session-data/logs/29001106791-conversation.txt
 ```
 
 ### Requirements
 
 - Automatically imports the `jqschema` skill for schema generation (via transitive import closure)
 - Uses GitHub Actions API to fetch workflow runs from `copilot/*` branches
-- **Uses `gh agent-task view --log` to fetch conversation transcripts** (requires gh CLI v2.80.0+)
+- **Fetches conversation transcripts from GitHub Actions job logs** using `actions: read` permission (standard `GITHUB_TOKEN` is sufficient)
 - Cross-platform date calculation (works on both GNU and BSD date commands)
 - Cache-memory tool is automatically configured for data persistence
-- Falls back to GitHub Actions infrastructure logs if `gh agent-task` is unavailable
 
 ### Why Branch-Based Search?
 
 GitHub Copilot creates branches with the `copilot/` prefix, making branch-based workflow run search a reliable way to identify Copilot coding agent sessions.
 
-### Conversation Log Access
+### Conversation Log Format
 
-This module now provides access to **actual agent conversation transcripts** via the `gh agent-task view --log` command:
+Transcripts (`{run_id}-conversation.txt`) contain one `[cca-engine] turn=` line per event, for example:
 
-**What's in the conversation logs:**
-- Agent's internal monologue and reasoning
-- Tool calls and their results
-- Step-by-step problem-solving approach
-- Code changes and validations
-- Error handling and recovery attempts
+```
+2026-07-09T07:24:53.0Z [cca-engine] turn=1 user.message: 4123 chars
+2026-07-09T07:25:10.0Z [cca-engine] turn=2 assistant.usage: model=claude-sonnet-4.5 input=12345 output=678
+2026-07-09T07:25:10.1Z [cca-engine] turn=2 assistant.message: 312 chars, 1 tool call(s)
+2026-07-09T07:25:10.2Z [cca-engine] turn=2 tool.execution_start: edit — /path/to/file.go
+2026-07-09T07:25:10.3Z [cca-engine] turn=2 tool.execution_complete: edit success=true
+```
+
+Each line carries: timestamp, turn number, event type, and event-specific payload (model, token counts, tool name, file path, success status).
 
 **Benefits for analysis:**
-- True behavioral pattern analysis (not just infrastructure metrics)
-- Prompt quality assessment based on actual responses
-- Success factor identification from agent reasoning
-- Failure signal detection from error patterns
+- True behavioral pattern analysis (turn counts, tool sequences, error recovery)
+- Token efficiency measurement per turn
 - Tool usage effectiveness analysis
-- **Broader Access**: Works in all GitHub environments, not just Enterprise with Copilot
+- Loop and context-confusion detection from turn patterns
 
 ### Cache Behavior
 

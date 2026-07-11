@@ -111,7 +111,7 @@ Rows marked `evalGenericSticky` fallback are generic existence checks, not type-
 | `link_sub_issue` | `evalGenericSticky` fallback | sub-issue link target exists |
 | `hide_comment` | `evalHideComment` | none yet |
 | `assign_milestone` | `evalAssignMilestone` | milestone still set |
-| `replace_label` | `evalGenericSticky` fallback | label target still exists |
+| `replace_label` | `evalReplaceLabel` | label replacement retained |
 | `update_project` | `evalGenericSticky` fallback | object still exists |
 | `update_release` | `evalGenericSticky` fallback | object still exists |
 | `noop` | explicit skip | skipped |
@@ -122,12 +122,12 @@ Rows marked `evalGenericSticky` fallback are generic existence checks, not type-
 | `create_pull_request` | implemented | `pkg/workflow/safe_outputs_config.go`, `pkg/workflow/compiler_safe_outputs.go`, `pkg/cli/outcome_eval.go` (`evalCreatePullRequest`) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (PR-specific path) |
 | `create_issue` | implemented | `pkg/workflow/safe_outputs_config.go`, `pkg/workflow/compiler_safe_outputs.go`, `pkg/cli/outcome_eval.go` (`evalCreateIssue`) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (issue-specific path) |
 | `add_comment` | implemented | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalAddComment`) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (issue-comment URL path) |
-| `add_labels` | partial | `pkg/workflow/safe_outputs_allowed_labels_validation.go`, `pkg/cli/outcome_eval.go` (`evalAddLabels`) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `add_labels` | partial | `pkg/workflow/safe_outputs_allowed_labels_validation.go`, `pkg/cli/outcome_eval.go` (`evalAddLabels`) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (`evaluateAddLabels`) |
 | `add_reviewer` | implemented | `pkg/workflow/add_reviewer.go`, `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval_review.go` | `actions/setup/js/add_reviewer.cjs`, `actions/setup/js/evaluate_outcomes.cjs` |
 | `update_issue` | implemented | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval_update.go` | `actions/setup/js/update_issue.cjs`, `actions/setup/js/evaluate_outcomes.cjs` |
 | `update_pull_request` | implemented | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval_update.go` | `actions/setup/js/update_pull_request.cjs`, `actions/setup/js/evaluate_outcomes.cjs` |
-| `close_issue` | partial | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalCloseSticky`) | `actions/setup/js/close_issue.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
-| `close_pull_request` | partial | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalCloseSticky`) | `actions/setup/js/close_pull_request.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `close_issue` | partial | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalCloseSticky`) | `actions/setup/js/close_issue.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (`evaluateCloseIssue`) |
+| `close_pull_request` | partial | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalCloseSticky`) | `actions/setup/js/close_pull_request.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (`evaluateClosePullRequest`) |
 | `close_discussion` | partial | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalCloseDiscussion`) | `actions/setup/js/close_discussion.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `create_discussion` | partial | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalCreateDiscussion`) | `actions/setup/js/create_discussion.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `update_discussion` | partial | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval_workflow.go` (`evalUpdateDiscussion`) | `actions/setup/js/update_discussion.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
@@ -144,7 +144,7 @@ Rows marked `evalGenericSticky` fallback are generic existence checks, not type-
 | `link_sub_issue` | not-started | `pkg/workflow/link_sub_issue.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/link_sub_issue.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `hide_comment` | partial | `pkg/workflow/hide_comment.go`, `pkg/cli/outcome_eval.go` (`evalHideComment`) | `actions/setup/js/hide_comment.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `assign_milestone` | partial | `pkg/workflow/assign_milestone.go`, `pkg/cli/outcome_eval.go` (`evalAssignMilestone`) | `actions/setup/js/assign_milestone.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
-| `replace_label` | not-started | `pkg/workflow/replace_label.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/replace_label.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `replace_label` | partial | `pkg/workflow/replace_label.go`, `pkg/cli/outcome_eval.go` (`evalReplaceLabel`) | `actions/setup/js/replace_label.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `update_project` | not-started | `pkg/workflow/update_project.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/update_project.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `update_release` | not-started | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/update_release.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `noop` | implemented | `pkg/cli/outcome_eval.go` (explicit skip in `EvaluateOutcomes`) | `actions/setup/js/evaluate_outcomes.cjs` (`NOOP_TYPES`) |
