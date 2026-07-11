@@ -3,8 +3,8 @@ set +o histexpand
 
 # check-stale-lock-files.sh - Lightweight guard for stale .lock.yml files
 #
-# Detects workflow .md files that have been modified (in the git working tree or
-# staging area) without their compiled .lock.yml being regenerated.
+# Detects workflow .md files that changed without their compiled .lock.yml being
+# regenerated.
 #
 # Unlike check-workflow-drift.sh, this script does not require the gh-aw binary:
 # it uses git to identify modified .md files and checks whether each has a
@@ -12,15 +12,18 @@ set +o histexpand
 # for a thorough recompile-based verification; use this script as a fast early
 # gate that catches the obvious case where a .md was edited and not recompiled.
 #
-# When there are no modified .md files in the working tree or staging area the
-# script exits 0 immediately, so it is a no-op on a clean checkout.
+# By default, the script inspects staged/unstaged changes in the current working
+# tree. With --base-ref, it instead compares HEAD to a base ref, which is useful
+# for CI runs on a clean checkout.
 #
 # Usage:
-#   check-stale-lock-files.sh [--dir <workflows-dir>]
+#   check-stale-lock-files.sh [--dir <workflows-dir>] [--base-ref <git-ref>]
 #
 # Options:
 #   --dir <dir>   Workflows directory to scan (default: .github/workflows).
 #                 The script only examines .md files under this directory.
+#   --base-ref    Git base ref used to detect changed files via
+#                 `git diff <base-ref>...HEAD`. Intended for CI.
 #
 # Exit codes:
 #   0 - No modified .md files detected, or every modified .md has a
@@ -44,6 +47,7 @@ else
 fi
 
 WORKFLOWS_DIR=".github/workflows"
+BASE_REF=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -51,9 +55,13 @@ while [[ $# -gt 0 ]]; do
             WORKFLOWS_DIR="${2:?--dir requires an argument}"
             shift 2
             ;;
+        --base-ref)
+            BASE_REF="${2:?--base-ref requires an argument}"
+            shift 2
+            ;;
         *)
             echo -e "${RED}ERROR${NC}: unknown argument: $1" >&2
-            echo "Usage: check-stale-lock-files.sh [--dir <workflows-dir>]" >&2
+            echo "Usage: check-stale-lock-files.sh [--dir <workflows-dir>] [--base-ref <git-ref>]" >&2
             exit 1
             ;;
     esac
@@ -64,9 +72,26 @@ if [ ! -d "$WORKFLOWS_DIR" ]; then
     exit 1
 fi
 
-# Collect all files that git sees as modified (staged or unstaged vs HEAD).
-# On a clean checkout with no edits this set is empty, so the check is a no-op.
-all_modified=$(git diff --name-only HEAD 2>/dev/null || true)
+collect_modified_files() {
+    # Local contributor path: staged/unstaged vs HEAD.
+    local changed
+    changed=$(git diff --name-only HEAD 2>/dev/null || true)
+    if [ -n "$changed" ]; then
+        printf '%s\n' "$changed"
+        return
+    fi
+
+    # CI path: explicit base ref compare (clean checkout safe).
+    if [ -n "$BASE_REF" ]; then
+        if git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
+            git diff --name-only "${BASE_REF}...HEAD" 2>/dev/null || true
+        else
+            echo -e "${YELLOW}WARN${NC}: --base-ref not found (${BASE_REF}); falling back to working-tree check." >&2
+        fi
+    fi
+}
+
+all_modified=$(collect_modified_files)
 
 # Filter to .md files within the workflows directory.
 # Strip a leading "./" from WORKFLOWS_DIR for consistent prefix matching.
@@ -83,6 +108,7 @@ missing_locks=()
 
 while IFS= read -r md; do
     [ -n "$md" ] || continue
+    [ -f "$md" ] || continue
     lock="${md%.md}.lock.yml"
 
     if [ ! -f "$lock" ]; then
