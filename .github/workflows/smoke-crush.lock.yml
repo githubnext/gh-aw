@@ -921,6 +921,7 @@ jobs:
           chmod 600 "$CONFIG"
       - name: Execute Crush CLI
         id: agentic_execution
+        timeout-minutes: 15
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
@@ -1600,6 +1601,7 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
         id: detection_agentic_execution
+        timeout-minutes: 20
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
