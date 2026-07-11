@@ -26,6 +26,8 @@ test.describe('Schema JSON-LD', () => {
     expect(graphTypes).toContain('WebSite');
     expect(graphTypes).toContain('Organization');
     expect(graphTypes).toContain('FAQPage');
+    expect(website).toBeDefined();
+    expect(organization).toBeDefined();
     expect(website.name).toBe('gh-aw — GitHub Agentic Workflows');
     expect(website.url).toBe('https://github.github.com/gh-aw/');
     expect(organization.name).toBe('GitHub');
