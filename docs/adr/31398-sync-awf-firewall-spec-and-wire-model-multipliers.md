@@ -94,7 +94,7 @@ An implementation is considered conformant with this ADR if it satisfies all **M
 
 ## Superseded note
 
-This ADR is superseded by the removal of authored `engine.token-weights` frontmatter in PR #44948. The `apiProxy.modelMultipliers` wire-up requirements in this document are historical and are no longer the repository's current design contract.
+This ADR is superseded by the removal of authored `engine.token-weights` frontmatter in this PR. The `apiProxy.modelMultipliers` wire-up requirements in this document are historical and are no longer the repository's current design contract.
 
 ---
 
