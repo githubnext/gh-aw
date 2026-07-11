@@ -12,8 +12,7 @@ export const noThrowPlainObjectRule = createRule({
     },
     schema: [],
     messages: {
-      noThrowPlainObject:
-        "Throwing a plain object literal loses the stack trace. Use `new Error(message)` instead; attach extra fields with `Object.assign(new Error(message), { ... })` if needed.",
+      noThrowPlainObject: "Throwing a plain object literal loses the stack trace. Use `new Error(message)` instead; attach extra fields with `Object.assign(new Error(message), { ... })` if needed.",
     },
   },
   defaultOptions: [],
