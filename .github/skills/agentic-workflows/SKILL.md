@@ -22,7 +22,6 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/charts-trending.md`
 - `.github/aw/charts.md`
 - `.github/aw/cli-commands.md`
-- `.github/aw/configure-agentic-engine.md`
 - `.github/aw/context.md`
 - `.github/aw/create-agentic-workflow-trigger-details.md`
 - `.github/aw/create-agentic-workflow.md`
