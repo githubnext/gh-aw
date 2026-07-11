@@ -52,9 +52,11 @@ tools:
 
 The following toolsets are recommended as defaults for typical agentic workflows:
 
+When the GitHub tool is configured, gh-aw injects a separate `<github-context>` prompt block with workflow identity metadata. That injected block is independent of toolset selection, so enable `context` for its team-awareness tools, not to obtain workflow identity.
+
 | Toolset | Rationale |
 |---------|-----------|
-| `context` | Identity and team awareness (`get_me`, `get_teams`) — essential for any GitHub-aware agent |
+| `context` | Team-awareness helpers (`get_teams`, `get_team_members`) — enable when workflows need org or team membership lookups |
 | `repos` | Core repository operations (read files, list commits/branches) — most workflows need file access |
 | `issues` | Issue management (read, comment, create) — common in CI/CD and automation workflows |
 | `pull_requests` | PR operations (read, create, review) — critical for code review and merge automation |
@@ -85,11 +87,11 @@ The following toolsets are recommended as defaults for typical agentic workflows
 ## Tools by Toolset
 
 ### context
-**Description**: GitHub context and environment (current user, teams)
+**Description**: Team-awareness helpers for GitHub org membership. Workflow metadata is injected separately as `<github-context>` whenever the GitHub tool is configured.
 
 | Tool | Purpose | Key Parameters |
 |------|---------|----------------|
-| `get_me` | Get details of the authenticated user | — |
+| `get_me` | Get details of the authenticated user | ⚠️ Do not use for workflow identity; read `<github-context>` instead |
 | `get_team_members` | List members of a GitHub team | `org`, `team_slug` |
 | `get_teams` | List teams the authenticated user belongs to | `org` |
 

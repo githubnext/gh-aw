@@ -52,6 +52,7 @@ Track trends over 30 days, generate visualizations, and create a daily discussio
 
 ## Context
 
+- **Actor**: ${{ github.actor }}
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
 - **Analysis Date**: Current date
@@ -72,9 +73,16 @@ For each GitHub MCP toolset, systematically test representative tools:
 
 #### Toolsets to Test
 
-Test ONE representative tool from each toolset with minimal parameters:
+Test ONE representative tool from each toolset with minimal parameters.
 
-1. **context**: `get_me` - Get current user info
+For workflow identity, do **not** call `get_me`. The `<github-context>` block is injected separately whenever the GitHub tool is configured, so analyze that Markdown block as workflow identity metadata with zero MCP overhead.
+
+Analyze the injected `<github-context>` block in addition to the MCP toolset responses below. Do not treat it as a `context` tool response.
+
+Record this prompt-only source separately:
+- **workflow_context**: `<github-context>` - Injected workflow identity metadata; no MCP call required
+
+1. **context**: `get_teams` - Inspect team-awareness data with `org` set to the repository owner
 2. **repos**: `get_file_contents` - Get a small file (README.md or similar)
 3. **issues**: `list_issues` - List issues with perPage=1
 4. **pull_requests**: `list_pull_requests` - List PRs with perPage=1
@@ -100,6 +108,8 @@ Identify the response schema:
 - **Field types**: strings, numbers, booleans, arrays, objects
 - **Pagination**: Does it support pagination?
 - **Relationships**: Does it include related entities (e.g., user info embedded in issue)?
+
+For the injected `<github-context>` block, record it as Markdown text rather than an object response. Extract the visible bullet labels (for example `actor`, `repository`, `workspace`, `workflow-run-id`) as its key fields.
 
 **C. Usefulness Rating for Agentic Work (1-5 scale)**
 
@@ -127,7 +137,7 @@ Record: `{tool_name, toolset, tokens, schema_type, nesting_depth, key_fields, us
 Append today's measurements to `/tmp/gh-aw/cache-memory/mcp_analysis.jsonl`:
 
 ```json
-{"date": "2024-01-15", "tool": "get_me", "toolset": "context", "tokens": 150, "schema_type": "object", "nesting_depth": 2, "key_fields": ["login", "id", "name", "email"], "usefulness_rating": 5, "notes": "Complete user profile, immediately actionable"}
+{"date": "2024-01-15", "tool": "github_context", "toolset": "workflow_context", "tokens": 80, "schema_type": "markdown", "nesting_depth": 1, "key_fields": ["actor", "repository", "workspace", "workflow-run-id"], "usefulness_rating": 5, "notes": "Workflow-injected Markdown context block; no MCP call required"}
 {"date": "2024-01-15", "tool": "list_issues", "toolset": "issues", "tokens": 500, "schema_type": "array", "nesting_depth": 3, "key_fields": ["number", "title", "state", "labels", "assignees"], "usefulness_rating": 4, "notes": "Good issue data but user details minimal"}
 ```
 
