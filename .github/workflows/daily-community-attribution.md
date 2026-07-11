@@ -38,6 +38,7 @@ tools:
   bash:
     - "gh pr list *"
     - "gh issue list *"
+    - "gh api *"
     - "jq *"
     - "grep *"
     - "sort *"
@@ -77,6 +78,75 @@ imports:
   - shared/issue-dedup.md
 
 steps:
+  - name: Re-fetch full community issue history with pagination
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      mkdir -p /tmp/gh-aw/agent/community-data
+
+      echo "Fetching full paginated history of issues with 'community' label..."
+      REPO="${GITHUB_REPOSITORY:-github/gh-aw}"
+      OWNER="${REPO%%/*}"
+      NAME="${REPO#*/}"
+
+      if ! gh api graphql --paginate \
+        -f owner="$OWNER" \
+        -f name="$NAME" \
+        -f query='
+          query($owner: String!, $name: String!, $endCursor: String) {
+            repository(owner: $owner, name: $name) {
+              issues(
+                first: 100
+                after: $endCursor
+                labels: ["community"]
+                states: [OPEN, CLOSED]
+                orderBy: {field: CREATED_AT, direction: DESC}
+              ) {
+                nodes {
+                  number
+                  title
+                  createdAt
+                  closedAt
+                  url
+                  stateReason
+                  author {
+                    login
+                  }
+                  labels(first: 100) {
+                    nodes {
+                      name
+                    }
+                  }
+                }
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+              }
+            }
+          }
+        ' \
+        | jq -s '
+          [.[].data.repository.issues.nodes[] |
+            {
+              number,
+              title,
+              author: ({login: (.author.login // "ghost")}),
+              labels: (.labels.nodes // []),
+              closedAt,
+              createdAt,
+              url,
+              stateReason
+            }
+          ]
+        ' > /tmp/gh-aw/agent/community-data/community_issues.json; then
+        echo "[]" > /tmp/gh-aw/agent/community-data/community_issues.json
+      fi
+
+      COMMUNITY_COUNT=$(jq length /tmp/gh-aw/agent/community-data/community_issues.json)
+      echo "✓ Fetched $COMMUNITY_COUNT community-labeled issues (all-time, paginated)"
+
   - name: Fetch PR data for attribution index
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
