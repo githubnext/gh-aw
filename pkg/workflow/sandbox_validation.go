@@ -125,6 +125,35 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		sandboxValidationLog.Print("gVisor runtime configured -- topology check passed")
 	}
 
+	// Validate docker-sbx runtime compatibility
+	if agentConfig != nil && agentConfig.Runtime == AgentRuntimeDockerSbx {
+		// docker-sbx is incompatible with ARC/DinD topology: sbx requires KVM which is
+		// not available on ARC DinD runners that typically lack nested virtualisation.
+		if isArcDindTopology(workflowData) {
+			return NewValidationError(
+				"sandbox.agent.runtime",
+				string(AgentRuntimeDockerSbx),
+				"docker-sbx is incompatible with runner.topology: arc-dind",
+				"docker-sbx requires KVM (nested virtualisation) which is typically unavailable "+
+					"on ARC DinD runners. Remove sandbox.agent.runtime: docker-sbx or change runner.topology.",
+			)
+		}
+
+		// docker-sbx install step requires root access; sudo: true is mandatory.
+		if !agentConfig.SudoExplicitlyEnabled {
+			return NewValidationError(
+				"sandbox.agent.runtime",
+				string(AgentRuntimeDockerSbx),
+				"docker-sbx requires sandbox.agent.sudo: true",
+				"The docker-sbx install step needs root access to install docker-sbx and fix KVM "+
+					"device permissions. Add 'sudo: true' to your sandbox.agent configuration:\n\n"+
+					"sandbox:\n  agent:\n    id: awf\n    runtime: docker-sbx\n    sudo: true",
+			)
+		}
+
+		sandboxValidationLog.Print("docker-sbx runtime configured -- topology and sudo checks passed")
+	}
+
 	// Validate config structure if provided (deprecated - was only for SRT)
 	if sandboxConfig.Config != nil {
 		// Config is no longer used - SRT removed
