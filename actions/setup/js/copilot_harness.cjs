@@ -263,7 +263,10 @@ function isDetectionPhase(phase) {
 function loadAwfConfigData() {
   try {
     return JSON.parse(fs.readFileSync(AWF_CONFIG_PATH, "utf8"));
-  } catch {
+  } catch (err) {
+    if (err.code !== "ENOENT") {
+      log(`awf-config load error: ${err.message}`);
+    }
     return null;
   }
 }

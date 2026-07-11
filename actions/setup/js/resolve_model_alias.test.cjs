@@ -1,10 +1,11 @@
+// @ts-check
 import { describe, it, expect } from "vitest";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
+const fs = require("fs");
+const path = require("path");
+const { fileURLToPath } = require("url");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const { buildCatalogFromReflect, globMatch, normalizeForCopilotCLI, resolveConfiguredCopilotModel, resolveModelAlias, selectLatestGlobMatch } = require("./resolve_model_alias.cjs");
 
@@ -61,6 +62,33 @@ describe("resolve_model_alias", () => {
       reflectData,
     });
     expect(resolved).toBe("claude-sonnet-4.6");
+  });
+
+  it("resolveConfiguredCopilotModel normalizes provider-qualified concrete id without alias map", () => {
+    const resolved = resolveConfiguredCopilotModel({
+      configuredModel: "copilot/claude-haiku-4.5",
+      aliasMap: null,
+      reflectData: null,
+    });
+    expect(resolved).toBe("claude-haiku-4.5");
+  });
+
+  it("resolveConfiguredCopilotModel normalizes provider-qualified concrete id not in alias map", () => {
+    const reflectData = {
+      endpoints: [{ configured: true, provider: "copilot", models: ["claude-sonnet-4.6"] }],
+    };
+    const resolved = resolveConfiguredCopilotModel({
+      configuredModel: "copilot/claude-sonnet-4.6",
+      aliasMap: ALIAS_MAP,
+      reflectData,
+    });
+    expect(resolved).toBe("claude-sonnet-4.6");
+  });
+
+  it("resolves opusplan alias with effort query param", () => {
+    const catalog = ["copilot/claude-opus-4.5"];
+    const resolved = resolveModelAlias("opusplan", ALIAS_MAP, catalog);
+    expect(resolved).toBe("copilot/claude-opus-4.5?effort=high");
   });
 
   it("buildCatalogFromReflect includes provider-scoped entries", () => {

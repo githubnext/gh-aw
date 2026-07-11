@@ -56,7 +56,11 @@ function globMatch(pattern, entry) {
   const patternParts = pattern.split("/", 2);
   const entryParts = entry.split("/", 2);
   if (patternParts.length === 1) {
-    return pattern.toLowerCase() === entry.toLowerCase();
+    if (!pattern.includes("*")) {
+      return pattern.toLowerCase() === entry.toLowerCase();
+    }
+    const regex = new RegExp(`^${escapeRegex(pattern).replace(/\*/g, "[^/]*")}$`, "i");
+    return regex.test(entry);
   }
   if (entryParts.length === 1) {
     return false;
@@ -269,13 +273,16 @@ function resolveConfiguredCopilotModel(options) {
   const configuredModel = String(options.configuredModel || "").trim();
   const logger = options.logger ?? (() => {});
   const aliasMap = options.aliasMap;
-  if (!configuredModel || !aliasMap || typeof aliasMap !== "object") {
+  if (!configuredModel) {
     return configuredModel;
+  }
+  if (!aliasMap || typeof aliasMap !== "object") {
+    return normalizeForCopilotCLI(configuredModel);
   }
 
   const aliasKey = splitModelIdentifier(configuredModel).base;
   if (!Object.prototype.hasOwnProperty.call(aliasMap, aliasKey)) {
-    return configuredModel;
+    return normalizeForCopilotCLI(configuredModel);
   }
 
   const catalog = buildCatalogFromReflect(options.reflectData);
