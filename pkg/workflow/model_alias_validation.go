@@ -26,6 +26,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/setutil"
@@ -33,6 +34,13 @@ import (
 )
 
 var modelAliasValidationLog = newValidationLogger("model_alias")
+
+// builtinCycleCheckOnce caches the result of detectCircularModelAliases on the
+// pure-builtin alias map.  Builtins are immutable, so the result never changes.
+var (
+	builtinCycleCheckOnce sync.Once
+	builtinCycleCheckErr  error
+)
 
 // ─── Known-parameter validation ───────────────────────────────────────────────
 
@@ -241,6 +249,43 @@ func (c *Compiler) warnUnrecognizedModelParams(identifiers []string, markdownPat
 func detectCircularModelAliases(aliasMap map[string][]string, markdownPath string) error {
 	modelAliasValidationLog.Printf("Checking for circular alias references in %d aliases", len(aliasMap))
 
+	// Fast path: when aliasMap has exactly the same key set as the raw builtins it
+	// IS the builtin map (MergeImportedModelAliases only ever adds new keys — it never
+	// removes or overrides them — so equal key sets imply identical content).  Builtins
+	// are immutable, so we run the DFS once and cache the result for all future calls.
+	rawBuiltins, err := loadBuiltinModelAliases()
+	if err != nil {
+		modelAliasValidationLog.Printf("Warning: could not load builtin model aliases for cycle-check fast path, falling back to full validation: %v", err)
+	} else if isBuiltinOnlyAliasMap(aliasMap, rawBuiltins) {
+		builtinCycleCheckOnce.Do(func() {
+			// Pass an empty markdownPath: the cached result is shared across all
+			// compilations, so any path embedded in an error message would be
+			// misleading for callers other than the first one.
+			builtinCycleCheckErr = detectCircularModelAliasesImpl(rawBuiltins, "")
+		})
+		return builtinCycleCheckErr
+	}
+
+	return detectCircularModelAliasesImpl(aliasMap, markdownPath)
+}
+
+// isBuiltinOnlyAliasMap reports whether aliasMap has exactly the same set of keys as
+// rawBuiltins.  Because MergeImportedModelAliases never modifies existing builtin keys
+// (it only appends new ones), equal key sets mean equal content.
+func isBuiltinOnlyAliasMap(aliasMap, rawBuiltins map[string][]string) bool {
+	if len(aliasMap) != len(rawBuiltins) {
+		return false
+	}
+	for k := range aliasMap {
+		if _, exists := rawBuiltins[k]; !exists {
+			return false
+		}
+	}
+	return true
+}
+
+// detectCircularModelAliasesImpl is the actual DFS cycle-check implementation.
+func detectCircularModelAliasesImpl(aliasMap map[string][]string, markdownPath string) error {
 	// visited tracks keys for which all DFS descendants have been fully explored
 	// (no cycle detected from that key).
 	visited := map[string]struct {

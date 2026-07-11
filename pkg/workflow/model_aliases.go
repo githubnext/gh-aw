@@ -50,6 +50,11 @@ var (
 	builtinModelAliasesOnce sync.Once
 	builtinModelAliasesData map[string][]string
 	builtinModelAliasesErr  error
+
+	// mergedBuiltinOnlyOnce caches the result of MergeImportedModelAliases(nil, nil).
+	// Callers MUST treat the returned map as read-only (must not modify it).
+	mergedBuiltinOnlyOnce sync.Once
+	mergedBuiltinOnlyMap  map[string][]string
 )
 
 func loadBuiltinModelAliases() (map[string][]string, error) {
@@ -62,6 +67,16 @@ func loadBuiltinModelAliases() (map[string][]string, error) {
 		builtinModelAliasesData = data.Aliases
 	})
 	return builtinModelAliasesData, builtinModelAliasesErr
+}
+
+// builtinOnlyAliasMap returns a shared, read-only copy of the builtin model alias map.
+// This is the same as calling BuiltinModelAliases() but the copy is allocated only once.
+// The returned map MUST NOT be modified by callers.
+func builtinOnlyAliasMap() map[string][]string {
+	mergedBuiltinOnlyOnce.Do(func() {
+		mergedBuiltinOnlyMap = BuiltinModelAliases()
+	})
+	return mergedBuiltinOnlyMap
 }
 
 // BuiltinModelAliases returns the built-in model alias map that covers the main
@@ -120,9 +135,20 @@ func BuiltinModelAliases() map[string][]string {
 //  3. Main workflow frontmatter aliases (highest priority — main workflow file wins)
 //
 // If both importedModels and frontmatterModels are nil/empty, the builtin aliases are
-// returned as-is (identical to MergeModelAliases(nil)).
+// returned as a shared read-only map (callers MUST NOT modify it). This avoids an
+// allocation-heavy deep copy on every compilation when no custom models are defined.
 func MergeImportedModelAliases(importedModels []map[string][]string, frontmatterModels map[string][]string) map[string][]string {
 	modelAliasesLog.Printf("Merging model aliases: %d import(s), %d frontmatter override(s)", len(importedModels), len(frontmatterModels))
+
+	// Fast path: no customisation needed — return a shared read-only builtin map.
+	// Callers that only read the result (WorkflowData.ModelMappings consumers) benefit
+	// from avoiding the O(n) deep copy on every compilation.
+	if len(importedModels) == 0 && len(frontmatterModels) == 0 {
+		result := builtinOnlyAliasMap()
+		modelAliasesLog.Printf("Fast path: returning shared builtin alias map (%d entries)", len(result))
+		return result
+	}
+
 	merged := BuiltinModelAliases()
 
 	// Layer 2 — imported models (first import to define a key wins among imports).
