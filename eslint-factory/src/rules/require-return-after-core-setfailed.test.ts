@@ -27,6 +27,8 @@ describe("require-return-after-core-setfailed", () => {
         // setFailed is the last statement in the block — no next statement to check
         `function f() { core.setFailed("bad"); }`,
         `function f() { if (x) { core.setFailed("bad"); } }`,
+        // setFailed has a return inside the if-block; outer doMore() is not reached via setFailed path
+        `function f() { if (x) { core.setFailed("bad"); return; } doMore(); }`,
       ],
       invalid: [],
     });
@@ -89,11 +91,57 @@ doMore();`,
     });
   });
 
-  it("valid: core.setFailed last in if-block is not flagged (outer block continues)", () => {
+  it("invalid: core.setFailed last in nested block with outer continuation (Gap 1)", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [],
+      invalid: [
+        // setFailed last in if-block; outer block continues — must be flagged
+        {
+          code: `function f() { if (!ok) { core.setFailed("msg"); } doMore(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { if (!ok) { core.setFailed("msg"); return; } doMore(); }` }] }],
+        },
+        {
+          code: `function f() {
+  if (x) {
+    core.setFailed("bad");
+  }
+  doMore();
+}`,
+          errors: [
+            {
+              messageId: "missingReturnAfterSetFailed",
+              suggestions: [
+                {
+                  messageId: "addReturn",
+                  output: `function f() {
+  if (x) {
+    core.setFailed("bad");
+    return;
+  }
+  doMore();
+}`,
+                },
+              ],
+            },
+          ],
+        },
+        // else-block continuation — if branch still falls through to doMore
+        {
+          code: `function f() { if (x) { core.setFailed("bad"); } else { return; } doMore(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { if (x) { core.setFailed("bad"); return; } else { return; } doMore(); }` }] }],
+        },
+      ],
+    });
+  });
+
+  it("valid: continue after setFailed is accepted — known limitation: does not stop post-loop execution", () => {
     ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
       valid: [
-        // setFailed is the last statement in the if-block; no sibling in the same block follows it
-        `function f() { if (!ok) { core.setFailed("msg"); } doMore(); }`,
+        // continue ends the current iteration; the loop and any post-loop code
+        // still run in a failed state. This is a known, documented limitation:
+        // the rule accepts break/continue to cover the common loop-guard pattern.
+        `for (const x of items) { if (bad(x)) { core.setFailed(err); continue; } process(x); }`,
+        `for (const x of items) { core.setFailed(err); continue; }`,
       ],
       invalid: [],
     });
