@@ -70,11 +70,11 @@ features:
   gh-aw-detection: true
 ---
 
-# Daily Choice Type Test
+### Daily Choice Type Test
 
 This workflow tests the choice type functionality in safe-output jobs with Claude.
 
-## Task
+#### Task
 
 Use the `test_environment` tool to configure a test deployment. Choose:
 1. An environment: staging or production
@@ -89,3 +89,15 @@ Provide a brief explanation of why you chose this configuration.
 ### Output Format
 
 Respond with a single short paragraph explaining the chosen environment, test type, and day-based rationale.
+
+### Report Formatting Requirements
+
+- Use h3 (`###`) or lower for all report headers. Never use h1 (`#`) or h2 (`##`) in issue, PR, or discussion bodies.
+- For long lists or verbose sections, use progressive disclosure:
+
+<details><summary><b>Details</b></summary>
+
+...content...
+
+</details>
+

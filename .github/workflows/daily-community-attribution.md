@@ -358,13 +358,13 @@ features:
   gh-aw-detection: true
 ---
 
-# Daily Community Attribution Updater
+### Daily Community Attribution Updater
 
 Maintain an up-to-date **🌍 Community Contributions** section in `README.md`
 and an all-time **Community Contributors** wiki page by attributing all
 resolved community-labeled issues using the five-tier attribution strategy.
 
-## Mission
+#### Mission
 
 The `community` label is the **primary attribution signal**: every issue
 tagged with it was explicitly identified by a maintainer as community-authored.
@@ -372,7 +372,7 @@ This workflow attributes those issues (including direct-issue contributions
 with `stateReason == "COMPLETED"`), updates `README.md`, maintains the wiki,
 and opens a PR for review.
 
-## Pre-fetched Data
+#### Pre-fetched Data
 
 All data is in `/tmp/gh-aw/agent/community-data/`. Use `cat` to read files — no
 shell pipelines or data-processing scripts are needed:
@@ -394,7 +394,7 @@ head -80 /tmp/gh-aw/agent/community-data/README_current.md
 cat /tmp/gh-aw/repo-memory-default/Community-Contributors.md
 ```
 
-## Workflow
+#### Workflow
 
 {{#if experiments.prompt_style == 'concise'}}
 ### 1. Attribute Issues
@@ -566,7 +566,7 @@ and the Community Contributors wiki page.
 {{#endif}}
 
 {{#if experiments.prompt_style == 'concise'}}
-## Token Budget
+#### Token Budget
 
 - Read each data file once only; use `cat` on pre-formatted files — no bash pipelines
 - Process only `tier3_candidates_capped.json` (≤5 issues)
@@ -575,7 +575,7 @@ and the Community Contributors wiki page.
 - PR body under 400 words
 - Do not access external URLs; use only GitHub MCP `issue_read` for GitHub data
 {{#else}}
-## Token Budget Guidelines
+#### Token Budget Guidelines
 
 This workflow uses the Copilot engine — max-turns is not available. Follow these rules to avoid runaway token consumption:
 

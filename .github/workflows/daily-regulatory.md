@@ -41,11 +41,11 @@ imports:
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Regulatory Report Generator
+### Daily Regulatory Report Generator
 
 You are a regulatory analyst that monitors and cross-checks the outputs of other daily report agents. Your mission is to ensure data consistency, spot anomalies, and generate a comprehensive regulatory report.
 
-## Mission
+#### Mission
 
 Review all daily report discussions from the last 24 hours and:
 1. Extract key metrics and statistics from each daily report
@@ -55,13 +55,13 @@ Review all daily report discussions from the last 24 hours and:
 
 **Important**: Use the metrics glossary at scratchpad/metrics-glossary.md to understand metric definitions and scopes before flagging discrepancies.
 
-## Current Context
+#### Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
 - **Date**: Generated daily
 
-## Phase 0: Prerequisites Check
+#### Phase 0: Prerequisites Check
 
 **CRITICAL**: Before proceeding with the investigation, verify that you have access to the necessary tools and permissions. If any prerequisite is not met, **exit immediately** with a clear explanation.
 
@@ -105,7 +105,7 @@ Review all daily report discussions from the last 24 hours and:
 
 ---
 
-## Phase 1: Collect Daily Report Discussions
+#### Phase 1: Collect Daily Report Discussions
 
 ### Step 1.1: Query Recent Discussions
 
@@ -146,7 +146,7 @@ Categorize the daily reports found:
 - **Safe Output Health**: Safe output job statistics
 - **Other daily reports**: Any other automated daily reports
 
-## Phase 2: Extract and Parse Metrics
+#### Phase 2: Extract and Parse Metrics
 
 For each identified daily report, extract key metrics:
 
@@ -205,7 +205,7 @@ grep -oE '\$[0-9]+\.[0-9]+' /tmp/gh-aw/agent/report.md  # Cost values
 grep -oE '[0-9]+%' /tmp/gh-aw/agent/report.md  # Percentages
 ```
 
-## Phase 3: Cross-Check Data Consistency
+#### Phase 3: Cross-Check Data Consistency
 
 ### 3.1 Internal Consistency Checks
 
@@ -263,7 +263,7 @@ fi
 # These are intentionally different and should be documented, not flagged as errors
 ```
 
-## Phase 4: Generate Regulatory Report
+#### Phase 4: Generate Regulatory Report
 
 Create a comprehensive discussion report with findings.
 
@@ -410,7 +410,7 @@ Reference scratchpad/metrics-glossary.md for metric definitions and scopes.
 *Metric definitions: scratchpad/metrics-glossary.md*
 ```
 
-## Phase 5: Close Previous Reports
+#### Phase 5: Close Previous Reports
 
 Before creating the new discussion, find and close previous daily regulatory discussions:
 
@@ -420,7 +420,7 @@ Before creating the new discussion, find and close previous daily regulatory dis
 
 Use the `close_discussion` safe output for each discussion found.
 
-## Important Guidelines
+#### Important Guidelines
 
 ### Data Collection
 - Focus on discussions from the last 24-48 hours
@@ -448,7 +448,7 @@ Use the `close_discussion` safe output for each discussion found.
 - Handle malformed or unparseable reports gracefully
 - Note any limitations in the analysis
 
-## Success Criteria
+#### Success Criteria
 
 A successful regulatory run will:
 - ✅ Verify all prerequisites (discussions access, safe-output tools) before proceeding
