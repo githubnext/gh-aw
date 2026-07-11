@@ -145,10 +145,20 @@ The `permissions:` section uses a syntax similar to standard GitHub Actions perm
 
 ### AI Engine (`engine:`)
 
-Specifies which AI engine interprets the markdown section. See [AI Engines](/gh-aw/reference/engines/) for details.
+Specifies which AI engine interprets the markdown section. Use a string for the default engine selection, or the object form for advanced settings such as `token-weights` for custom AI Credits cost ratios and `extensions` for engine-specific plugin installation. See [AI Engines](/gh-aw/reference/engines/) for details.
 
 ```yaml wrap
 engine: copilot
+```
+
+```yaml wrap
+engine:
+  id: pi
+  token-weights:
+    multipliers:
+      pi-medium: 0.5
+  extensions:
+    - acme/pi-search
 ```
 
 ### Network Permissions (`network:`)
