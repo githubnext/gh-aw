@@ -7,7 +7,7 @@ type: project
 # ADR-31398: Sync AWF v0.25.43 schema and wire `apiProxy.modelMultipliers` from existing `engine.token-weights.multipliers`
 
 **Date**: 2026-05-11
-**Status**: Draft
+**Status**: Superseded
 **Deciders**: pelikhan (PR author), to be confirmed
 
 ---
@@ -89,6 +89,12 @@ Land the schema update only and treat `modelMultipliers` emission as a follow-up
 ### Conformance
 
 An implementation is considered conformant with this ADR if it satisfies all **MUST** and **MUST NOT** requirements above. Failure to meet any **MUST** or **MUST NOT** requirement constitutes non-conformance.
+
+---
+
+## Superseded note
+
+This ADR is superseded by the removal of authored `engine.token-weights` frontmatter in PR #44948. The `apiProxy.modelMultipliers` wire-up requirements in this document are historical and are no longer the repository's current design contract.
 
 ---
 

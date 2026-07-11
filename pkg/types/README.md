@@ -80,7 +80,7 @@ auth := &types.MCPAuthConfig{
 
 ### `TokenWeights`
 
-Defines custom model cost information for AI Credits cost ratios stored in `aw_info.json` at runtime.
+Defines historical model cost metadata that may appear in prior `aw_info.json` runtime artifacts.
 
 ```go
 weights := types.TokenWeights{
