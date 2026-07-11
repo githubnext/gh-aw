@@ -388,7 +388,7 @@ if ($OSName -ne "windows") {
     & chmod +x -- $BinaryPath
 }
 
-$BinaryExecTimeoutSeconds = if ($OSName -eq "windows") { 30 } else { 30 }
+$BinaryExecTimeoutSeconds = 30
 if ($OSName -eq "windows") {
     Write-Info "Windows detected: wrapping binary verification with a 30s timeout"
 }

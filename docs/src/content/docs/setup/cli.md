@@ -54,7 +54,8 @@ If extension installation fails, use the standalone installer instead:
 ```bash wrap
 curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash                # Latest
 curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash -s v0.1.0      # Pinned
-Invoke-WebRequest https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.ps1 -OutFile install-gh-aw.ps1; pwsh -File ./install-gh-aw.ps1
+Invoke-WebRequest https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.ps1 -OutFile install-gh-aw.ps1; pwsh -File ./install-gh-aw.ps1          # Latest (PowerShell)
+Invoke-WebRequest https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.ps1 -OutFile install-gh-aw.ps1; pwsh -File ./install-gh-aw.ps1 v0.1.0  # Pinned (PowerShell)
 ```
 
 This installs to `~/.local/share/gh/extensions/gh-aw/gh-aw` and supports Linux, macOS, FreeBSD, Windows, and Android (Termux), including environments behind corporate firewalls.
