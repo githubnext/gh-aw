@@ -206,7 +206,7 @@ func formalResolveTargetNumber(targetMode string, triggeringNumber int, requeste
 	}
 }
 
-func formalCountAllowed(count, max int) bool {
+func formalCountBelowMax(count, max int) bool {
 	return count < max
 }
 
@@ -260,9 +260,8 @@ func runReplaceLabelFixture(t *testing.T, fixtureName string) {
 	data, err := os.ReadFile(filepath.Join("..", "..", "specs", "replace-label-compliance", fixtureName))
 	require.NoError(t, err)
 
-	var fixture replaceLabelFixtureFile
-	require.NoError(t, yamlv3.Unmarshal(data, &fixture))
-	require.NotEmpty(t, fixture.Scenarios)
+	fixture, err := parseReplaceLabelFixture(data)
+	require.NoError(t, err)
 
 	for _, scenario := range fixture.Scenarios {
 		t.Run(scenario.ScenarioID, func(t *testing.T) {
@@ -274,6 +273,17 @@ func runReplaceLabelFixture(t *testing.T, fixtureName string) {
 			assert.False(t, allowed)
 		})
 	}
+}
+
+func parseReplaceLabelFixture(data []byte) (replaceLabelFixtureFile, error) {
+	var fixture replaceLabelFixtureFile
+	if err := yamlv3.Unmarshal(data, &fixture); err != nil {
+		return replaceLabelFixtureFile{}, err
+	}
+	if len(fixture.Scenarios) == 0 {
+		return replaceLabelFixtureFile{}, errors.New("fixture has no scenarios")
+	}
+	return fixture, nil
 }
 
 func TestFormalReplaceLabelP1_FieldRequired(t *testing.T) {
@@ -468,10 +478,10 @@ func TestFormalRepoMaxLength(t *testing.T) {
 func TestFormalCountGate(t *testing.T) {
 	cfg := ValidationConfig["replace_label"]
 	require.Equal(t, 5, cfg.DefaultMax)
-	assert.True(t, formalCountAllowed(4, cfg.DefaultMax))
-	assert.False(t, formalCountAllowed(5, cfg.DefaultMax))
-	assert.True(t, formalCountAllowed(2, 3))
-	assert.False(t, formalCountAllowed(3, 3))
+	assert.True(t, formalCountBelowMax(4, cfg.DefaultMax))
+	assert.False(t, formalCountBelowMax(5, cfg.DefaultMax))
+	assert.True(t, formalCountBelowMax(2, 3))
+	assert.False(t, formalCountBelowMax(3, 3))
 }
 
 func TestFormalLabelSetComputation(t *testing.T) {
@@ -554,4 +564,15 @@ func TestFormalItemNumberAliases(t *testing.T) {
 func TestFormalCrossRepoRestriction(t *testing.T) {
 	assert.True(t, formalRepoAllowed("octo/current", "octo/current", []string{"octo/other"}))
 	assert.False(t, formalRepoAllowed("evil/repo", "octo/current", []string{"octo/other"}))
+}
+
+func TestFormalFixtureLoaderRejectsMalformedYAML(t *testing.T) {
+	_, err := parseReplaceLabelFixture([]byte("fixture_id: ["))
+	require.Error(t, err)
+}
+
+func TestFormalFixtureLoaderRejectsEmptyScenarios(t *testing.T) {
+	_, err := parseReplaceLabelFixture([]byte("fixture_id: test\nscenarios: []\n"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no scenarios")
 }
