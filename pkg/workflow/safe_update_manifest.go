@@ -50,13 +50,15 @@ type GHAWManifestResolutionFailure struct {
 // so that subsequent compilations can detect newly introduced secrets when safe
 // update mode is enabled.
 type GHAWManifest struct {
-	Version            int                             `json:"version"`
-	Secrets            []string                        `json:"secrets"`
-	Actions            []GHAWManifestAction            `json:"actions"`
-	Skills             []string                        `json:"skills,omitempty"`              // frontmatter skill specs (owner/repo@sha or owner/repo/skill/path@sha), sorted
-	ResolutionFailures []GHAWManifestResolutionFailure `json:"resolution_failures,omitempty"` // unresolved action-ref pinning failures
-	Containers         []GHAWManifestContainer         `json:"containers,omitempty"`          // container images used, with digest when available
-	Redirect           string                          `json:"redirect,omitempty"`            // frontmatter redirect target for moved workflows
+	Version              int                             `json:"version"`
+	Secrets              []string                        `json:"secrets"`
+	Actions              []GHAWManifestAction            `json:"actions"`
+	Skills               []string                        `json:"skills,omitempty"`                  // frontmatter skill specs (owner/repo@sha or owner/repo/skill/path@sha), sorted
+	ResolutionFailures   []GHAWManifestResolutionFailure `json:"resolution_failures,omitempty"`     // unresolved action-ref pinning failures
+	Containers           []GHAWManifestContainer         `json:"containers,omitempty"`              // container images used, with digest when available
+	Redirect             string                          `json:"redirect,omitempty"`                // frontmatter redirect target for moved workflows
+	HasPullRequest       bool                            `json:"has_pull_request,omitempty"`        // whether on: includes pull_request
+	HasPullRequestTarget bool                            `json:"has_pull_request_target,omitempty"` // whether on: includes pull_request_target
 }
 
 // NewGHAWManifest builds a GHAWManifest from the raw secret names, action reference
@@ -70,7 +72,7 @@ type GHAWManifest struct {
 //
 // containers is the list of container image entries with full digest info (when available).
 // skillSpecs is the list of skill references from the workflow frontmatter.
-func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWManifestResolutionFailure, containers []GHAWManifestContainer, redirect string, skillSpecs []string) *GHAWManifest {
+func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWManifestResolutionFailure, containers []GHAWManifestContainer, redirect string, skillSpecs []string, onField any) *GHAWManifest {
 	safeUpdateManifestLog.Printf("Building gh-aw-manifest: raw_secrets=%d, raw_actions=%d, containers=%d, skills=%d", len(secretNames), len(actionRefs), len(containers), len(skillSpecs))
 
 	// Normalize secret names to full "secrets.NAME" form and deduplicate.
@@ -129,15 +131,43 @@ func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWM
 		sortedSkills = nil // keep JSON output clean: omitempty omits nil but not empty slice
 	}
 
+	hasPR, hasPRTarget := detectPullRequestEvents(onField)
+
 	return &GHAWManifest{
-		Version:            currentGHAWManifestVersion,
-		Secrets:            secrets,
-		Actions:            actions,
-		Skills:             sortedSkills,
-		ResolutionFailures: resolutionFailures,
-		Containers:         sortedContainers,
-		Redirect:           strings.TrimSpace(redirect),
+		Version:              currentGHAWManifestVersion,
+		Secrets:              secrets,
+		Actions:              actions,
+		Skills:               sortedSkills,
+		ResolutionFailures:   resolutionFailures,
+		Containers:           sortedContainers,
+		Redirect:             strings.TrimSpace(redirect),
+		HasPullRequest:       hasPR,
+		HasPullRequestTarget: hasPRTarget,
 	}
+}
+
+func detectPullRequestEvents(onField any) (hasPR bool, hasPRTarget bool) {
+	switch v := onField.(type) {
+	case string:
+		return v == "pull_request", v == "pull_request_target"
+	case []any:
+		for _, item := range v {
+			event, ok := item.(string)
+			if !ok {
+				continue
+			}
+			if event == "pull_request" {
+				hasPR = true
+			}
+			if event == "pull_request_target" {
+				hasPRTarget = true
+			}
+		}
+	case map[string]any:
+		_, hasPR = v["pull_request"]
+		_, hasPRTarget = v["pull_request_target"]
+	}
+	return hasPR, hasPRTarget
 }
 
 // normalizeSecretName ensures a secret identifier is stored as a plain name

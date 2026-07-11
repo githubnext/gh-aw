@@ -18,6 +18,7 @@ func TestNewGHAWManifest(t *testing.T) {
 		containers          []GHAWManifestContainer
 		redirect            string
 		skillSpecs          []string
+		onField             any
 		wantVersion         int
 		wantSecrets         []string
 		wantActionRepos     []string
@@ -25,6 +26,8 @@ func TestNewGHAWManifest(t *testing.T) {
 		wantContainerImages []string
 		wantRedirect        string
 		wantSkills          []string
+		wantHasPR           bool
+		wantHasPRTarget     bool
 	}{
 		{
 			name:        "empty inputs",
@@ -157,11 +160,26 @@ func TestNewGHAWManifest(t *testing.T) {
 			wantSecrets: []string{},
 			wantSkills:  nil,
 		},
+		{
+			name:            "detect pull_request from on string",
+			onField:         "pull_request",
+			wantVersion:     1,
+			wantSecrets:     []string{},
+			wantHasPR:       true,
+			wantHasPRTarget: false,
+		},
+		{
+			name:            "detect pull_request_target from on map",
+			onField:         map[string]any{"pull_request_target": map[string]any{"types": []any{"opened"}}},
+			wantVersion:     1,
+			wantSecrets:     []string{},
+			wantHasPRTarget: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := NewGHAWManifest(tt.secretNames, tt.actionRefs, tt.resolutionFailures, tt.containers, tt.redirect, tt.skillSpecs)
+			m := NewGHAWManifest(tt.secretNames, tt.actionRefs, tt.resolutionFailures, tt.containers, tt.redirect, tt.skillSpecs, tt.onField)
 			require.NotNil(t, m, "manifest should not be nil")
 			assert.Equal(t, tt.wantVersion, m.Version, "manifest version")
 			if tt.wantSecrets != nil {
@@ -186,6 +204,8 @@ func TestNewGHAWManifest(t *testing.T) {
 			}
 			assert.Equal(t, tt.wantRedirect, m.Redirect, "manifest redirect")
 			assert.Equal(t, tt.wantSkills, m.Skills, "manifest skills")
+			assert.Equal(t, tt.wantHasPR, m.HasPullRequest, "manifest pull_request trigger")
+			assert.Equal(t, tt.wantHasPRTarget, m.HasPullRequestTarget, "manifest pull_request_target trigger")
 		})
 	}
 }
@@ -201,7 +221,7 @@ func TestNewGHAWManifestContainerDigest(t *testing.T) {
 			Image: "alpine:3.14", // no digest
 		},
 	}
-	m := NewGHAWManifest(nil, nil, nil, containers, "", nil)
+	m := NewGHAWManifest(nil, nil, nil, containers, "", nil, nil)
 	require.Len(t, m.Containers, 2, "should have two containers")
 
 	// Sorted: alpine before node
