@@ -431,6 +431,54 @@ The `cli` package exports many types used across its command implementations. Th
 | `ForecastMonteCarloSummary` | struct | Monte Carlo simulation summary (P10/P50/P90 confidence intervals) |
 | `ForecastEvaluation` | struct | Backtesting evaluation comparing forecast against actual runs |
 
+### Constants and Sentinel Errors
+
+#### Sentinel Errors
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `ErrInterrupted` | `error` | Returned by signal-aware polling when the user interrupts with Ctrl-C. |
+| `ErrNoArtifacts` | `error` | Returned when no run artifacts are found for a given workflow run. |
+
+#### `CheckState` Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `CheckStateFailed` | `"failed"` | At least one required check failed. |
+| `CheckStatePending` | `"pending"` | Checks are still running. |
+| `CheckStateNoChecks` | `"no_checks"` | No checks are configured for the workflow. |
+| `CheckStatePolicyBlocked` | `"policy_blocked"` | A branch protection policy prevented the run. |
+| `CheckStateSuccess` | `"success"` | All required checks passed. |
+
+#### Docker Image Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `ZizmorImage` | `"ghcr.io/zizmorcore/zizmor:latest"` | Default image for Zizmor security scanner. |
+| `PoutineImage` | `"ghcr.io/boostsecurityio/poutine:latest"` | Default image for Poutine supply-chain scanner. |
+| `ActionlintImage` | `"rhysd/actionlint:latest"` | Default image for Actionlint workflow linter. |
+| `RunnerGuardImage` | `"ghcr.io/vigilant-llc/runner-guard:latest"` | Default image for Runner Guard sandbox. |
+
+#### Timeline Event Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `TimelineSourceGateway` | `"gateway"` | Events originating from the MCP gateway. |
+| `TimelineSourceFirewall` | `"firewall"` | Events originating from the AWF firewall. |
+| `TimelineSourceAgent` | `"agent"` | Events originating from the agent itself. |
+| `TimelineKindToolCall` | `"tool_call"` | A tool call event. |
+| `TimelineKindDIFCFiltered` | `"difc_filtered"` | A DIFC-filtered event. |
+| `TimelineKindGuardPolicyBlocked` | `"guard_blocked"` | A runner-guard policy block event. |
+| `TimelineKindNetworkAllowed` | `"net_allowed"` | A network request that was allowed. |
+| `TimelineKindNetworkBlocked` | `"net_blocked"` | A network request that was blocked. |
+| `TimelineKindAgentTurn` | `"agent_turn"` | An agent turn boundary event. |
+| `TimelineKindAgentToolStart` | `"agent_tool_start"` | Start of a tool call from the agent. |
+| `TimelineKindAgentToolDone` | `"agent_tool_done"` | Completion of a tool call from the agent. |
+
+#### `WorkflowIDExplanation`
+
+A multi-line string constant (`string`) containing a user-facing explanation of what a workflow ID is: the basename of the Markdown workflow file without the `.md` extension.
+
 ## Usage Examples
 
 ### Compiling a workflow

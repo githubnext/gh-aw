@@ -195,6 +195,17 @@ masker, err := agentdrain.NewMasker(cfg.MaskRules)
 masked := masker.Mask(rawLine)
 ```
 
+### Constants
+
+| Constant | Type | Value | Description |
+|----------|------|-------|-------------|
+| `AnomalyWeightNew` | `float64` | `1.0` | Score contribution when an event matches no existing template (new template created). |
+| `AnomalyWeightLow` | `float64` | `0.7` | Score contribution when similarity to the nearest cluster is below `SimThreshold`. |
+| `AnomalyWeightRare` | `float64` | `0.3` | Score contribution when the matched cluster size is ≤ `RareClusterThreshold`. |
+| `AnomalyMaxScore` | `float64` | `2.0` | Maximum raw score before normalization; the normalized `AnomalyScore` is always in `[0, 1]`. |
+
+These constants are exported so tests and callers can reference scoring weights directly and stay in sync with production logic at compile time.
+
 ### Utility Functions
 
 #### `FlattenEvent(evt AgentEvent, excludeFields []string) string`
