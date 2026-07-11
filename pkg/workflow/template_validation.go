@@ -64,7 +64,9 @@ var (
 func validateNoIncludesInTemplateRegions(markdown string) error {
 	templateValidationLog.Print("Validating that imports are not inside template regions")
 
-	// Fast path: skip expensive regex if the markdown contains no template blocks.
+	// Fast path: skip expensive regex if the markdown contains no {{#if blocks.
+	// templateRegionPattern exclusively matches {{#if ... }}...{{/if}} constructs;
+	// other handlebars-style tags (e.g. {{#unless}}) are not used in AWF workflows.
 	if !strings.Contains(markdown, "{{#if") {
 		return nil
 	}

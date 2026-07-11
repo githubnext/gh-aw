@@ -257,9 +257,10 @@ func detectCircularModelAliases(aliasMap map[string][]string, markdownPath strin
 	if isBuiltinOnlyAliasMap(aliasMap) {
 		builtinCycleCheckOnce.Do(func() {
 			// Builtin aliases are cycle-free by construction (validated in CI).
-			// Pass an empty path: if a cycle were ever introduced into the builtin
-			// data (a bug), the error should not reference a caller's workflow path.
-			builtinCycleCheckErr = detectCircularModelAliasesUnoptimized(aliasMap, "")
+			// Pass a sentinel path so that if a cycle is ever introduced into the
+			// builtin data (a bug) the error message clearly identifies the source
+			// rather than referencing a caller's workflow path.
+			builtinCycleCheckErr = detectCircularModelAliasesUnoptimized(aliasMap, "<builtin-aliases>")
 		})
 		return builtinCycleCheckErr
 	}

@@ -78,6 +78,11 @@ var (
 // mapHeaderPointer extracts the pointer stored in the map value's header
 // (the *runtime.hmap pointer).  Two map values backed by the same hash table
 // return the same value.  A nil map returns 0.
+//
+// This relies on the Go runtime representation of map values as a single
+// machine-word pointer.  This layout has been stable since Go 1.0 and is
+// consistent across all supported Go versions (see runtime/map.go).  It is
+// the same technique used internally by reflect.Value.Pointer() for maps.
 func mapHeaderPointer(m map[string][]string) uintptr {
 	return *(*uintptr)(unsafe.Pointer(&m))
 }
@@ -163,9 +168,13 @@ func BuiltinModelAliases() map[string][]string {
 //     key wins among imports (same "first-wins among peers" semantics as features).
 //  3. Main workflow frontmatter aliases (highest priority — main workflow file wins)
 //
-// If both importedModels and frontmatterModels are nil/empty, the shared builtin alias
-// map is returned directly (no copy).  Callers must not modify the returned map in
-// this case; it is shared across all parse calls as a performance optimisation.
+// ⚠ Return-value mutability contract:
+//   - When both importedModels and frontmatterModels are nil/empty the function
+//     returns the shared, read-only builtin alias map directly (no allocation).
+//     Callers MUST NOT mutate the returned map; it is shared across all concurrent
+//     parse calls.  Use isBuiltinOnlyAliasMap() to detect this case if needed.
+//   - When either parameter is non-empty a freshly allocated, mutable copy is
+//     returned and callers may freely modify it.
 func MergeImportedModelAliases(importedModels []map[string][]string, frontmatterModels map[string][]string) map[string][]string {
 	modelAliasesLog.Printf("Merging model aliases: %d import(s), %d frontmatter override(s)", len(importedModels), len(frontmatterModels))
 
