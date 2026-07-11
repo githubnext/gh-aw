@@ -50,11 +50,13 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 		assert.Contains(t, configContent, "Write OpenCode Config", "Should write OpenCode config first")
 		assert.Contains(t, configContent, "opencode.jsonc", "Should reference opencode.jsonc")
 		assert.Contains(t, configContent, `"provider"`, "Config should include provider block for openai provider")
-		assert.Contains(t, configContent, `"apiKey"`, "Config should include apiKey so credential isolation does not break openai provider")
+		assert.Contains(t, configContent, `"apiKey"`, "Config should include apiKey under options so credential isolation does not break openai provider")
+		assert.Contains(t, configContent, `"options"`, "Config should have apiKey nested under options per OpenCode schema")
 		assert.Contains(t, configContent, "awf-copilot-proxy", "Config apiKey should be the AWF api-proxy placeholder")
 		assert.Contains(t, execContent, "Execute OpenCode CLI", "Should execute OpenCode CLI")
 		assert.Contains(t, execContent, "opencode run", "Should invoke opencode run")
 		assert.Contains(t, execContent, "OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}", "Should default to Copilot token routing")
+		assert.Contains(t, execContent, "XDG_DATA_HOME: /tmp/opencode-data", "Should set XDG_DATA_HOME to prevent persistent DB migrations")
 	})
 
 	t.Run("firewall sets OpenCode gateway base URL and OPENAI_BASE_URL", func(t *testing.T) {

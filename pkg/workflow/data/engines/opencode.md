@@ -74,6 +74,8 @@ engine:
       mcp-config-env-var: GH_AW_MCP_CONFIG
       write-timestamp: true
       provider-env-mode: universal-llm-consumer
+      env:
+        XDG_DATA_HOME: /tmp/opencode-data
     mcp:
       config-path: opencode.jsonc
 ---

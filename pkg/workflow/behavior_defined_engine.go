@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -330,6 +331,10 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 		"NO_PROXY":         "localhost,127.0.0.1",
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
+
+	// Apply static env vars declared in the engine definition first so that
+	// the dynamic AWF vars below can still override them if needed.
+	maps.Copy(env, exec.Env)
 
 	if exec.ProviderEnvMode == behaviorProviderEnvModeUniversalLLMConsumer {
 		e.ApplyUniversalProviderEnv(env, workflowData, firewallEnabled)
