@@ -212,6 +212,7 @@ func formalCountAllowed(count, max int) bool {
 
 // formalResolveItemNumberAliases models alias resolution priority for item targets.
 // Order is: item_number, issue_number, pr_number, pull_number (first positive value wins).
+// Returns 0 when no positive alias value is present (0 is treated as invalid/unset).
 func formalResolveItemNumberAliases(message map[string]any) int {
 	for _, key := range []string{"item_number", "issue_number", "pr_number", "pull_number"} {
 		v, ok := message[key]
@@ -469,6 +470,8 @@ func TestFormalCountGate(t *testing.T) {
 	require.Equal(t, 5, cfg.DefaultMax)
 	assert.True(t, formalCountAllowed(4, cfg.DefaultMax))
 	assert.False(t, formalCountAllowed(5, cfg.DefaultMax))
+	assert.True(t, formalCountAllowed(2, 3))
+	assert.False(t, formalCountAllowed(3, 3))
 }
 
 func TestFormalLabelSetComputation(t *testing.T) {
@@ -526,9 +529,11 @@ func TestFormalAddDeduplication(t *testing.T) {
 func TestFormalHardErrorOnRESTFail(t *testing.T) {
 	restErr := errors.New("service unavailable")
 	require.Error(t, restErr)
-	outcome := formalReplaceLabelOutcome{Success: false, Skipped: false}
-	assert.False(t, outcome.Success)
-	assert.False(t, outcome.Skipped)
+	data, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "js", "replace_label.cjs"))
+	require.NoError(t, err)
+	src := string(data)
+	assert.Contains(t, src, "catch (err)")
+	assert.Contains(t, src, "return { success: false, error: errorMessage }")
 }
 
 func TestFormalGlobExactNoWildcard(t *testing.T) {
@@ -541,6 +546,9 @@ func TestFormalItemNumberAliases(t *testing.T) {
 	assert.Equal(t, 102, formalResolveItemNumberAliases(map[string]any{"pr_number": 102}))
 	assert.Equal(t, 103, formalResolveItemNumberAliases(map[string]any{"pull_number": 103}))
 	assert.Equal(t, 104, formalResolveItemNumberAliases(map[string]any{"item_number": 104, "issue_number": 105}))
+	assert.Equal(t, 0, formalResolveItemNumberAliases(map[string]any{}))
+	assert.Equal(t, 0, formalResolveItemNumberAliases(map[string]any{"issue_number": 0}))
+	assert.Equal(t, 0, formalResolveItemNumberAliases(map[string]any{"issue_number": -1}))
 }
 
 func TestFormalCrossRepoRestriction(t *testing.T) {
