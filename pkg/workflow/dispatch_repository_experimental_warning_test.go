@@ -13,16 +13,14 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-// TestDispatchRepositoryExperimentalWarning tests that the dispatch_repository feature
-// emits an experimental warning when enabled.
-func TestDispatchRepositoryExperimentalWarning(t *testing.T) {
+// TestDispatchRepositoryNoExperimentalWarning tests that dispatch-repository no longer emits an experimental warning.
+func TestDispatchRepositoryNoExperimentalWarning(t *testing.T) {
 	tests := []struct {
-		name          string
-		content       string
-		expectWarning bool
+		name    string
+		content string
 	}{
 		{
-			name: "dispatch_repository enabled produces experimental warning",
+			name: "dispatch_repository enabled does not produce experimental warning",
 			content: `---
 on: workflow_dispatch
 engine: copilot
@@ -39,7 +37,6 @@ safe-outputs:
 
 # Test Workflow
 `,
-			expectWarning: true,
 		},
 		{
 			name: "no dispatch_repository does not produce experimental warning",
@@ -52,10 +49,9 @@ permissions:
 
 # Test Workflow
 `,
-			expectWarning: false,
 		},
 		{
-			name: "dispatch_repository with allowed_repositories produces experimental warning",
+			name: "dispatch_repository with allowed_repositories does not produce experimental warning",
 			content: `---
 on: workflow_dispatch
 engine: copilot
@@ -73,13 +69,12 @@ safe-outputs:
 
 # Test Workflow
 `,
-			expectWarning: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := testutil.TempDir(t, "dispatch-repository-experimental-warning-test")
+			tmpDir := testutil.TempDir(t, "dispatch-repository-no-experimental-warning-test")
 
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
 			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
@@ -109,22 +104,13 @@ safe-outputs:
 
 			expectedMessage := "Using experimental feature: dispatch-repository"
 
-			if tt.expectWarning {
-				if !strings.Contains(stderrOutput, expectedMessage) {
-					t.Errorf("Expected warning containing '%s', got stderr:\n%s", expectedMessage, stderrOutput)
-				}
-			} else {
-				if strings.Contains(stderrOutput, expectedMessage) {
-					t.Errorf("Did not expect warning '%s', but got stderr:\n%s", expectedMessage, stderrOutput)
-				}
+			if strings.Contains(stderrOutput, expectedMessage) {
+				t.Errorf("Did not expect warning '%s', but got stderr:\n%s", expectedMessage, stderrOutput)
 			}
 
-			// Verify warning count includes dispatch_repository warning
-			if tt.expectWarning {
-				warningCount := compiler.GetWarningCount()
-				if warningCount == 0 {
-					t.Error("Expected warning count > 0 but got 0")
-				}
+			// Verify warning count does not include dispatch_repository warning
+			if compiler.GetWarningCount() != 0 {
+				t.Errorf("Expected warning count to be 0, got %d", compiler.GetWarningCount())
 			}
 		})
 	}
