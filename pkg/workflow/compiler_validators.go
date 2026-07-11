@@ -16,10 +16,24 @@ import (
 // embedded in the workflow's markdown content. It is the first validator called in
 // validateWorkflowData and guards against unsafe GitHub Actions expressions.
 func (c *Compiler) validateExpressions(workflowData *WorkflowData, markdownPath string) error {
-	// Validate expression safety - check that all GitHub Actions expressions are in the allowed list
+	// Check for secrets serialization expressions FIRST — before the general allowlist —
+	// to provide a specific, actionable error/warning message.
+	// In strict mode this returns an error that stops further validation.
+	// In non-strict mode it emits a warning and continues.
+	if err := c.validateSecretsSerializationExpressions(workflowData); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
+	// Validate expression safety - check that all GitHub Actions expressions are in the allowed list.
+	// In non-strict mode, ${{ toJSON(secrets) }} occurrences were already warned about above;
+	// neutralize them so the allowlist does not re-surface them as errors.
 	if strings.Contains(workflowData.MarkdownContent, "${{") {
 		workflowLog.Printf("Validating expression safety")
-		if err := validateExpressionSafety(workflowData.MarkdownContent); err != nil {
+		markdownForAllowlist := workflowData.MarkdownContent
+		if !c.effectiveStrictMode(workflowData.RawFrontmatter) {
+			markdownForAllowlist = neutralizeSecretsSerializationExpressions(markdownForAllowlist)
+		}
+		if err := validateExpressionSafety(markdownForAllowlist); err != nil {
 			return formatCompilerError(markdownPath, "error", err.Error(), err)
 		}
 	}

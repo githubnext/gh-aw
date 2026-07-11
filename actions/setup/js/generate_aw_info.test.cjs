@@ -158,16 +158,6 @@ describe("generate_aw_info.cjs", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to parse GH_AW_INFO_SKILLS"));
   });
 
-  it("should persist custom token weights in aw_info.json", async () => {
-    process.env.GH_AW_INFO_TOKEN_WEIGHTS = JSON.stringify({
-      token_class_weights: { output: 8.0 },
-      multipliers: { "my-custom-model": 2.5 },
-    });
-    await main(mockCore, mockContext);
-    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
-    expect(awInfo.token_weights.multipliers["my-custom-model"]).toBe(2.5);
-  });
-
   it("should include frontmatter source/emoji and body_modified when configured", async () => {
     process.env.GH_AW_INFO_FRONTMATTER_SOURCE = "github/gh-aw/.github/workflows/example.md@main";
     process.env.GH_AW_INFO_FRONTMATTER_EMOJI = "🧪";

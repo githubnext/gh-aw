@@ -46,18 +46,19 @@ describe("require-return-after-core-setfailed", () => {
       valid: [],
       invalid: [
         {
-          code: `function f() { core.setFailed("bad"); doMore(); }`,
-          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { core.setFailed("bad"); return; doMore(); }` }] }],
+          code: `function f() { core.setFailed("bad"); doMore(); keepGoing(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { core.setFailed("bad"); return; doMore(); keepGoing(); }` }] }],
         },
         {
-          code: `function f() { if (x) { core.setFailed("bad"); doMore(); } }`,
-          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { if (x) { core.setFailed("bad"); return; doMore(); } }` }] }],
+          code: `function f() { if (x) { core.setFailed("bad"); doMore(); keepGoing(); } }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { if (x) { core.setFailed("bad"); return; doMore(); keepGoing(); } }` }] }],
         },
         {
           code: `function f() {
   if (x) {
     core.setFailed("bad"); // keep with setFailed
     doMore();
+    keepGoing();
   }
 }`,
           errors: [
@@ -71,12 +72,24 @@ describe("require-return-after-core-setfailed", () => {
     core.setFailed("bad"); // keep with setFailed
     return;
     doMore();
+    keepGoing();
   }
 }`,
                 },
               ],
             },
           ],
+        },
+        {
+          code: `function f() {
+  try {
+    ok();
+  } catch (e) {
+    core.setFailed("bad");
+    core.setOutput("locked", "false");
+  }
+}`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: undefined }],
         },
         {
           code: `function f() {

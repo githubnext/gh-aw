@@ -4,7 +4,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/types"
 	"github.com/github/gh-aw/pkg/typeutil"
 )
 
@@ -214,70 +213,4 @@ func parseRequestShape(requestObj map[string]any) *RequestShape {
 		}
 	}
 	return shape
-}
-
-// parseEngineTokenWeights converts a raw token-weights config value (from engine.token-weights)
-// into a types.TokenWeights. Returns nil when the input is not a usable map or contains
-// no recognisable data. Multiplier values of unexpected numeric types (anything other than
-// float64, int, or uint64) are silently ignored — this matches the behaviour of the YAML
-// parser which produces float64 for JSON-number literals and integers for integer literals.
-func parseEngineTokenWeights(raw any) *types.TokenWeights {
-	obj, ok := raw.(map[string]any)
-	if !ok {
-		return nil
-	}
-
-	tw := &types.TokenWeights{}
-
-	// Parse multipliers: map of model name → float64
-	if multipliersRaw, ok := obj["multipliers"]; ok {
-		if multipliersMap, ok := multipliersRaw.(map[string]any); ok && len(multipliersMap) > 0 {
-			tw.Multipliers = make(map[string]float64, len(multipliersMap))
-			for model, val := range multipliersMap {
-				switch v := val.(type) {
-				case float64:
-					tw.Multipliers[model] = v
-				case int:
-					tw.Multipliers[model] = float64(v)
-				case uint64:
-					tw.Multipliers[model] = float64(v)
-				}
-			}
-		}
-	}
-
-	// Parse token-class-weights
-	if tcwRaw, ok := obj["token-class-weights"]; ok {
-		if tcwMap, ok := tcwRaw.(map[string]any); ok {
-			tcw := &types.TokenClassWeights{}
-			setFloat := func(dst *float64, key string) {
-				if v, ok := tcwMap[key]; ok {
-					switch f := v.(type) {
-					case float64:
-						*dst = f
-					case int:
-						*dst = float64(f)
-					case uint64:
-						*dst = float64(f)
-					}
-				}
-			}
-			setFloat(&tcw.Input, "input")
-			setFloat(&tcw.CachedInput, "cached-input")
-			setFloat(&tcw.Output, "output")
-			setFloat(&tcw.Reasoning, "reasoning")
-			setFloat(&tcw.CacheWrite, "cache-write")
-			// Only assign if at least one weight was set
-			if tcw.Input != 0 || tcw.CachedInput != 0 || tcw.Output != 0 ||
-				tcw.Reasoning != 0 || tcw.CacheWrite != 0 {
-				tw.TokenClassWeights = tcw
-			}
-		}
-	}
-
-	// Return nil when nothing useful was parsed
-	if len(tw.Multipliers) == 0 && tw.TokenClassWeights == nil {
-		return nil
-	}
-	return tw
 }

@@ -5,7 +5,7 @@ description: Rewrites a merged PR description with a structured, considered summ
 on:
   pull_request:
     types: [closed]
-if: github.event.pull_request.merged == true && !startsWith(github.event.pull_request.head.ref, 'signed/jsweep/')
+if: github.event.pull_request.merged == true && !startsWith(github.event.pull_request.head.ref, 'signed/jsweep/') && !startsWith(github.event.pull_request.head.ref, 'copilot/')
 permissions:
   contents: read
   pull-requests: read

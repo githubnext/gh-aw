@@ -202,6 +202,12 @@ For each metric: current value, 7-day % change, 30-day % change, trend indicator
 
 Use detailed template with embedded visualization charts:
 
+**Report Structure Guidelines**
+
+- Use `###` (or lower) headers only.
+- Keep summary and critical actions visible; move long detail into `<details>` blocks.
+- Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
 ### Discussion Structure
 
 - **Title**: `Daily Code Metrics Report - YYYY-MM-DD`
@@ -209,6 +215,10 @@ Use detailed template with embedded visualization charts:
 
 ```markdown
 {{#if experiments.output_format == 'executive_summary' }}
+### Summary
+
+**X items found** — [brief description]
+
 **Key metrics today**: LOC: X,XXX | Quality score: XX/100 | Test ratio: X.XX | Active files (7d): XXX
 
 ### 📊 Key Visualizations
@@ -224,6 +234,10 @@ Use detailed template with embedded visualization charts:
 
 *For full metric tables, switch to `full_detail` variant.*
 {{else}}
+### Summary
+
+**X items found** — [brief description]
+
 Brief 2-3 paragraph executive summary highlighting key findings, quality score, notable trends, and any concerns requiring attention.
 
 ### 📊 Visualizations
@@ -231,7 +245,7 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 Embed all 6 charts (LOC by Language, Top Directories, Quality Score, Test Coverage, Code Churn, Historical Trends) with a brief analysis sentence each.
 
 <details>
-<summary>📈 Detailed Metrics</summary>
+<summary><b>View Full Details</b></summary>
 
 One compact table per category (Size, Quality, Tests, Churn-source, Churn-generated, Workflows/Docs). Follow with a Quality Score breakdown (Test Coverage 30%, Code Organization 25%, Documentation 20%, Churn Stability 15%, Comment Density 10%) and 3–5 actionable recommendations.
 

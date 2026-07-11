@@ -119,11 +119,6 @@ async function main(core, ctx) {
     awInfo.workflow_run_conclusion = workflowRunConclusion;
   }
 
-  const tokenWeights = parseTokenWeightsFromEnv(core);
-  if (tokenWeights) {
-    awInfo.token_weights = tokenWeights;
-  }
-
   const features = parseFeaturesFromEnv(core);
   if (features) {
     awInfo.features = features;
@@ -177,29 +172,6 @@ async function main(core, ctx) {
 
   if (awInfo.staged) {
     logStagedPreviewInfo("Generating workflow info in staged mode — no changes applied");
-  }
-
-  /**
-   * Parse optional custom token weights from GH_AW_INFO_TOKEN_WEIGHTS.
-   * @param {typeof import('@actions/core')} core
-   * @returns {Record<string, unknown> | null}
-   */
-  function parseTokenWeightsFromEnv(core) {
-    const tokenWeightsEnv = process.env.GH_AW_INFO_TOKEN_WEIGHTS;
-    if (!tokenWeightsEnv) {
-      return null;
-    }
-    try {
-      const tokenWeights = JSON.parse(tokenWeightsEnv);
-      if (tokenWeights !== null && typeof tokenWeights === "object" && !Array.isArray(tokenWeights)) {
-        return tokenWeights;
-      }
-      core.warning(`GH_AW_INFO_TOKEN_WEIGHTS must be a JSON object, ignoring`);
-      return null;
-    } catch {
-      core.warning(`Failed to parse GH_AW_INFO_TOKEN_WEIGHTS: ${tokenWeightsEnv}`);
-      return null;
-    }
   }
 
   /**
