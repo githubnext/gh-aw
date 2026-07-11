@@ -7,6 +7,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/goccy/go-yaml"
 )
 
 var safeUpdateLog = logger.New("workflow:safe_update")
@@ -49,7 +50,7 @@ var ghAwInternalSecrets = map[string]bool{
 // e.g. "actions/checkout@abc1234 # v4".
 //
 // Returns a structured, actionable error when violations are found.
-func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string, currentRedirect string, currentHasPullRequest bool, currentHasPullRequestTarget bool) error {
+func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string, currentRedirect string, oldHasPullRequest bool, oldHasPullRequestTarget bool, currentHasPullRequest bool, currentHasPullRequestTarget bool) error {
 	if manifest == nil {
 		// Lock file exists but predates the safe-updates feature (no gh-aw-manifest
 		// section). Skip enforcement so legacy lock files are not flagged on upgrade.
@@ -60,7 +61,7 @@ func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs 
 	secretViolations := collectSecretViolations(manifest, secretNames)
 	addedActions, removedActions := collectActionViolations(manifest, actionRefs)
 	addedRedirect, removedRedirect := collectRedirectViolations(manifest, currentRedirect)
-	pullRequestTargetEscalation := hasPullRequestTargetEscalation(manifest, currentHasPullRequest, currentHasPullRequestTarget)
+	pullRequestTargetEscalation := hasPullRequestTargetEscalation(oldHasPullRequest, oldHasPullRequestTarget, currentHasPullRequest, currentHasPullRequestTarget)
 
 	if len(secretViolations) == 0 && len(addedActions) == 0 && len(removedActions) == 0 && addedRedirect == "" && removedRedirect == "" && !pullRequestTargetEscalation {
 		safeUpdateLog.Printf("Safe update check passed (%d secret(s), %d action(s) verified)",
@@ -93,8 +94,44 @@ func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs 
 	return buildSafeUpdateError(secretViolations, addedActions, removedActions, addedRedirect, removedRedirect, pullRequestTargetEscalation)
 }
 
-func hasPullRequestTargetEscalation(manifest *GHAWManifest, currentHasPullRequest bool, currentHasPullRequestTarget bool) bool {
-	return manifest.HasPullRequest && !manifest.HasPullRequestTarget && !currentHasPullRequest && currentHasPullRequestTarget
+func hasPullRequestTargetEscalation(oldHasPullRequest bool, oldHasPullRequestTarget bool, currentHasPullRequest bool, currentHasPullRequestTarget bool) bool {
+	return oldHasPullRequest && !oldHasPullRequestTarget && !currentHasPullRequest && currentHasPullRequestTarget
+}
+
+func extractPullRequestEventPresenceFromOnField(onField any) (hasPR bool, hasPRTarget bool) {
+	switch v := onField.(type) {
+	case string:
+		return v == "pull_request", v == "pull_request_target"
+	case []any:
+		for _, item := range v {
+			event, ok := item.(string)
+			if !ok {
+				continue
+			}
+			if event == "pull_request" {
+				hasPR = true
+			}
+			if event == "pull_request_target" {
+				hasPRTarget = true
+			}
+		}
+	case map[string]any:
+		_, hasPR = v["pull_request"]
+		_, hasPRTarget = v["pull_request_target"]
+	}
+	return hasPR, hasPRTarget
+}
+
+func extractPullRequestEventPresenceFromCompiledWorkflow(content string) (hasPR bool, hasPRTarget bool) {
+	var parsed map[string]any
+	if err := yaml.Unmarshal([]byte(content), &parsed); err != nil {
+		return false, false
+	}
+	onField, ok := parsed["on"]
+	if !ok {
+		return false, false
+	}
+	return extractPullRequestEventPresenceFromOnField(onField)
 }
 
 // collectSecretViolations returns the normalized secret names that are new (not in the

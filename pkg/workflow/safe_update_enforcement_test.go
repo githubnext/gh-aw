@@ -11,15 +11,17 @@ import (
 
 func TestEnforceSafeUpdate(t *testing.T) {
 	tests := []struct {
-		name        string
-		manifest    *GHAWManifest
-		secretNames []string
-		actionRefs  []string
-		redirect    string
-		hasPR       bool
-		hasPRTarget bool
-		wantErr     bool
-		wantErrMsgs []string
+		name               string
+		manifest           *GHAWManifest
+		secretNames        []string
+		actionRefs         []string
+		redirect           string
+		oldHasPR           bool
+		oldHasPRTarget     bool
+		currentHasPR       bool
+		currentHasPRTarget bool
+		wantErr            bool
+		wantErrMsgs        []string
 	}{
 		{
 			name:        "nil manifest (lock file without manifest section) skips enforcement",
@@ -338,34 +340,30 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			wantErr:     false,
 		},
 		{
-			name: "pull_request converted to pull_request_target is flagged",
-			manifest: &GHAWManifest{
-				Version:        1,
-				HasPullRequest: true,
-			},
-			secretNames: []string{},
-			actionRefs:  []string{},
-			hasPRTarget: true,
-			wantErr:     true,
-			wantErrMsgs: []string{"Event trigger security escalation", "pull_request was converted to pull_request_target"},
+			name:               "pull_request converted to pull_request_target is flagged",
+			manifest:           &GHAWManifest{Version: 1},
+			secretNames:        []string{},
+			actionRefs:         []string{},
+			oldHasPR:           true,
+			currentHasPRTarget: true,
+			wantErr:            true,
+			wantErrMsgs:        []string{"Event trigger security escalation", "pull_request was converted to pull_request_target"},
 		},
 		{
-			name: "pull_request_target added without removing pull_request is not conversion",
-			manifest: &GHAWManifest{
-				Version:        1,
-				HasPullRequest: true,
-			},
-			secretNames: []string{},
-			actionRefs:  []string{},
-			hasPR:       true,
-			hasPRTarget: true,
-			wantErr:     false,
+			name:               "pull_request_target added without removing pull_request is not conversion",
+			manifest:           &GHAWManifest{Version: 1},
+			secretNames:        []string{},
+			actionRefs:         []string{},
+			oldHasPR:           true,
+			currentHasPR:       true,
+			currentHasPRTarget: true,
+			wantErr:            false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := EnforceSafeUpdate(tt.manifest, tt.secretNames, tt.actionRefs, tt.redirect, tt.hasPR, tt.hasPRTarget)
+			err := EnforceSafeUpdate(tt.manifest, tt.secretNames, tt.actionRefs, tt.redirect, tt.oldHasPR, tt.oldHasPRTarget, tt.currentHasPR, tt.currentHasPRTarget)
 			if tt.wantErr {
 				require.Error(t, err, "expected safe update enforcement error")
 				for _, msg := range tt.wantErrMsgs {
@@ -447,6 +445,35 @@ func TestBuildSafeUpdateError(t *testing.T) {
 		msg := err.Error()
 		assert.Contains(t, msg, "Event trigger security escalation", "event escalation section in message")
 		assert.Contains(t, msg, "pull_request was converted to pull_request_target", "event escalation details in message")
+	})
+}
+
+func TestExtractPullRequestEventPresence(t *testing.T) {
+	t.Run("from on field map", func(t *testing.T) {
+		hasPR, hasPRTarget := extractPullRequestEventPresenceFromOnField(map[string]any{
+			"pull_request": map[string]any{"types": []any{"opened"}},
+		})
+		assert.True(t, hasPR)
+		assert.False(t, hasPRTarget)
+	})
+
+	t.Run("from compiled workflow yaml", func(t *testing.T) {
+		content := `
+name: test
+on:
+  pull_request_target:
+    types: [opened]
+jobs: {}
+`
+		hasPR, hasPRTarget := extractPullRequestEventPresenceFromCompiledWorkflow(content)
+		assert.False(t, hasPR)
+		assert.True(t, hasPRTarget)
+	})
+
+	t.Run("invalid yaml returns false", func(t *testing.T) {
+		hasPR, hasPRTarget := extractPullRequestEventPresenceFromCompiledWorkflow("on: [")
+		assert.False(t, hasPR)
+		assert.False(t, hasPRTarget)
 	})
 }
 
