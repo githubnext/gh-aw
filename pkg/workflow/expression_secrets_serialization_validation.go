@@ -86,8 +86,8 @@ func neutralizeSecretsSerializationExpressions(content string) string {
 	})
 }
 
-// and frontmatter YAML for expressions that serialize all secrets, such as
-// ${{ toJSON(secrets) }}.
+// validateSecretsSerializationExpressions scans markdown content and frontmatter
+// YAML for expressions that serialize all secrets, such as ${{ toJSON(secrets) }}.
 //
 // Serializing the entire secrets context exposes ALL secrets to the agent, which
 // is a significant security risk. Callers should use specific secret references
