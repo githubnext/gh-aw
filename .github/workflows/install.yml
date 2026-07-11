@@ -209,11 +209,15 @@ jobs:
         shell: pwsh
         run: |
           Set-StrictMode -Version Latest
-          $outputText = Get-Content install-ps-output.log -Raw -ErrorAction SilentlyContinue
-          if (-not $outputText) { throw "No output captured from installer dry run" }
+          if (-not (Test-Path install-ps-output.log)) {
+            throw "Installer output file (install-ps-output.log) was not created; Tee-Object may have failed"
+          }
+          $outputText = Get-Content install-ps-output.log -Raw
+          if (-not $outputText) { throw "Installer output file (install-ps-output.log) exists but is empty" }
           if ($outputText -notmatch "Detected OS:")           { throw "OS detection failed" }
           if ($outputText -notmatch "Detected architecture:") { throw "Architecture detection failed" }
           if ($outputText -notmatch "Platform:")              { throw "Platform string construction failed" }
+          if ($outputText -notmatch "Failed to download")     { throw "Installer did not report expected download failure for fake version" }
 
       - name: Test setup-cli composite action (Windows)
         id: setup-cli-test
@@ -244,6 +248,12 @@ jobs:
           $versionExit = $LASTEXITCODE
           if ($versionExit -ne 0) {
             throw "Binary 'version' command failed with exit code $versionExit"
+          }
+
+          & $binaryPath --help 2>&1 | Write-Host
+          $helpExit = $LASTEXITCODE
+          if ($helpExit -ne 0) {
+            throw "Binary '--help' command failed with exit code $helpExit"
           }
 
       - name: Upload PowerShell test results
