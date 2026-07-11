@@ -12,9 +12,7 @@ type TokenClassWeights struct {
 }
 
 // TokenWeights defines custom model cost information for AI Credits cost ratios.
-// It allows per-workflow overrides for model and token-class cost ratios.
-// Specified under engine.token-weights in the workflow frontmatter and stored in
-// aw_info.json at runtime.
+// It stores per-model and per-token-class ratios in aw_info.json for run analysis.
 type TokenWeights struct {
 	// Multipliers maps model names to cost multipliers relative to the reference model.
 	// Keys are matched case-insensitively with prefix matching as a fallback.

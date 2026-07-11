@@ -151,8 +151,7 @@ func TestSpec_Types_MCPAuthConfig(t *testing.T) {
 }
 
 // TestSpec_Types_TokenWeights validates the TokenWeights type documented in the README.
-// Spec: "Defines custom model cost information for effective token computation.
-// Specified under engine.token-weights in workflow frontmatter."
+// Spec: "Defines custom model cost information for effective token computation stored in aw_info.json."
 func TestSpec_Types_TokenWeights(t *testing.T) {
 	weights := types.TokenWeights{
 		Multipliers: map[string]float64{
