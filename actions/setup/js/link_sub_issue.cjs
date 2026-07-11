@@ -7,6 +7,7 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { linkSubIssue } = require("./sub_issue_helpers.cjs");
 
 /**
  * Main handler factory for link_sub_issue
@@ -310,9 +311,8 @@ async function main(config = {}) {
 
     // Link the sub-issue using GraphQL mutation
     try {
-      // Get the parent issue's node ID for GraphQL
       const parentNodeId = parentIssue.node_id;
-      const subNodeId = subIssue.node_id;
+      const subIssueNodeId = subIssue.node_id;
 
       // If in staged mode, preview without executing
       if (isStaged) {
@@ -327,26 +327,16 @@ async function main(config = {}) {
         };
       }
 
-      // Use GraphQL mutation to add sub-issue
-      await githubClient.graphql(
-        `
-        mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
-          addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
-            issue {
-              id
-              number
-            }
-            subIssue {
-              id
-              number
-            }
-          }
-        }
-      `,
+      await linkSubIssue(
         {
-          parentId: parentNodeId,
-          subIssueId: subNodeId,
-        }
+          owner,
+          repo,
+          parentIssueNumber,
+          subIssueNumber,
+          parentNodeId,
+          subIssueNodeId,
+        },
+        githubClient
       );
 
       core.info(`Successfully linked issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}`);

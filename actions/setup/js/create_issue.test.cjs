@@ -841,6 +841,61 @@ describe("create_issue", () => {
       const createCall = mockGithub.rest.issues.create.mock.calls[0][0];
       expect(createCall.body).toContain("Related to #456");
     });
+
+    it("should link a created child issue to its parent as a sub-issue", async () => {
+      mockGithub.graphql
+        .mockResolvedValueOnce({
+          repository: {
+            issue: {
+              id: "I_parent_456",
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          repository: {
+            issue: {
+              id: "I_child_123",
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          addSubIssue: {
+            issue: { id: "I_parent_456", number: 456 },
+            subIssue: { id: "I_child_123", number: 123 },
+          },
+        });
+
+      const handler = await main({});
+      const result = await handler({
+        title: "Child Issue",
+        parent: 456,
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.graphql).toHaveBeenNthCalledWith(1, expect.stringContaining("issue(number: $issueNumber)"), expect.objectContaining({ owner: "test-owner", repo: "test-repo", issueNumber: 456 }));
+      expect(mockGithub.graphql).toHaveBeenNthCalledWith(2, expect.stringContaining("issue(number: $issueNumber)"), expect.objectContaining({ owner: "test-owner", repo: "test-repo", issueNumber: 123 }));
+      expect(mockGithub.graphql).toHaveBeenNthCalledWith(3, expect.stringContaining("mutation AddSubIssue"), { parentId: "I_parent_456", subIssueId: "I_child_123" });
+      expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+    });
+
+    it("should fall back to a parent comment when sub-issue linking fails", async () => {
+      mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL API Error"));
+
+      const handler = await main({});
+      const result = await handler({
+        title: "Child Issue",
+        parent: 456,
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith({
+        owner: "test-owner",
+        repo: "test-repo",
+        issue_number: 456,
+        body: "Created related issue: #123",
+      });
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Warning: Could not link sub-issue to parent"));
+    });
   });
 
   describe("max limit enforcement", () => {
