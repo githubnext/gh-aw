@@ -70,7 +70,10 @@ func (c *Compiler) parseDispatchRepositoryConfig(outputMap map[string]any) *Disp
 			tool.Workflow = workflow
 		}
 
-		if eventType, ok := toolMap["event_type"].(string); ok {
+		// event-type is canonical; keep event_type as a backward-compatible alias.
+		if eventType, ok := toolMap["event-type"].(string); ok {
+			tool.EventType = eventType
+		} else if eventType, ok := toolMap["event_type"].(string); ok {
 			tool.EventType = eventType
 		}
 
@@ -78,8 +81,12 @@ func (c *Compiler) parseDispatchRepositoryConfig(outputMap map[string]any) *Disp
 			tool.Repository = repo
 		}
 
-		// Parse allowed_repositories (list of repos)
-		if allowedReposRaw, exists := toolMap["allowed_repositories"]; exists {
+		// allowed-repositories is canonical; keep allowed_repositories as a backward-compatible alias.
+		allowedReposRaw, exists := toolMap["allowed-repositories"]
+		if !exists {
+			allowedReposRaw, exists = toolMap["allowed_repositories"]
+		}
+		if exists {
 			if allowedReposList, ok := allowedReposRaw.([]any); ok {
 				for _, r := range allowedReposList {
 					if rStr, ok := r.(string); ok {

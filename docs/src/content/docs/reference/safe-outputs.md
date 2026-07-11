@@ -1342,7 +1342,7 @@ safe-outputs:
     trigger_ci:
       description: Trigger CI in another repository
       workflow: ci.yml
-      event_type: ci_trigger
+      event-type: ci_trigger
       repository: ${{ inputs.target_repo }}   # GitHub Actions expressions supported
       inputs:
         environment:
@@ -1352,8 +1352,8 @@ safe-outputs:
       max: 1
     notify_service:
       workflow: notify.yml
-      event_type: notify_event
-      allowed_repositories:
+      event-type: notify_event
+      allowed-repositories:
         - org/service-repo
         - ${{ vars.DYNAMIC_REPO }}             # Expressions bypass slug format validation
       inputs:
@@ -1364,16 +1364,16 @@ safe-outputs:
 #### Configuration Fields (per tool)
 
 - **`workflow`** (required) — Identifier forwarded in `client_payload.workflow` so the receiving workflow can route by job type.
-- **`event_type`** (required) — The `event_type` sent with the `repository_dispatch` event.
-- **`repository`** (required, unless `allowed_repositories` is set) — Static `owner/repo` slug or a GitHub Actions expression (`${{ ... }}`). Expressions are passed through without format validation.
-- **`allowed_repositories`** (required, unless `repository` is set) — List of allowed `owner/repo` slugs or expressions. The agent selects the target from this list at runtime.
+- **`event-type`** (required) — The `event_type` sent with the `repository_dispatch` event. Alias: `event_type`.
+- **`repository`** (required, unless `allowed-repositories` is set) — Static `owner/repo` slug or a GitHub Actions expression (`${{ ... }}`). Expressions are passed through without format validation.
+- **`allowed-repositories`** (required, unless `repository` is set) — List of allowed `owner/repo` slugs or expressions. The agent selects the target from this list at runtime. Alias: `allowed_repositories`.
 - **`inputs`** (optional) — Structured input schema forwarded in `client_payload`. Supports `type: string`, `type: choice` (with `options`), and `default` values.
 - **`description`** (optional) — Human-readable description of the tool shown to the agent.
 - **`max`** (optional) — Maximum number of dispatches allowed per run (default: 1).
 
 #### Security
 
-- **Cross-repo allowlist** — At runtime the handler validates the target repository against the configured `repository` or `allowed_repositories` before calling the API (SEC-005).
+- **Cross-repo allowlist** — At runtime the handler validates the target repository against the configured `repository` or `allowed-repositories` before calling the API (SEC-005).
 - **Staged mode** — Supports `staged: true` for preview without dispatching.
 
 ### Agent Session Creation (`create-agent-session:`)

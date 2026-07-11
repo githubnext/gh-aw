@@ -8307,10 +8307,10 @@ safe-outputs:
     # Array items: string
 
   # Dispatch repository_dispatch events to external repositories. Each sub-key
-  # defines a named dispatch tool with its own event_type, target repository, input
-  # schema, and execution limits. Note: nested keys use snake_case (event_type,
-  # allowed_repositories) rather than the kebab-case used by other safe-output
-  # fields.
+  # defines a named dispatch tool with its own event-type, target repository, input
+  # schema, and execution limits. Canonical nested keys use kebab-case (`event-type`,
+  # `allowed-repositories`), with snake_case aliases (`event_type`,
+  # `allowed_repositories`) preserved for backward compatibility.
   # (optional)
   dispatch-repository:
     # Configuration for a single repository dispatch tool
@@ -8323,17 +8323,17 @@ safe-outputs:
       workflow: "example-value"
 
       # The repository_dispatch event_type string sent to the target repository
-      event_type: "example-value"
+      event-type: "example-value"
 
       # Target repository in 'owner/repo' format. Dispatches to this repository when no
-      # 'allowed_repositories' list is given.
+      # 'allowed-repositories' list is given.
       # (optional)
       repository: "example-value"
 
       # List of allowed target repositories (owner/repo). Supports glob patterns like
       # 'org/*'.
       # (optional)
-      allowed_repositories: []
+      allowed-repositories: []
         # Array of strings
 
       # Input schema for the dispatch tool. Inputs are validated and compiled into

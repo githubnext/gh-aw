@@ -21,7 +21,7 @@ func TestParseDispatchRepositoryConfig_SingleTool(t *testing.T) {
 			"trigger_ci": map[string]any{
 				"description": "Trigger CI in another repository",
 				"workflow":    "ci.yml",
-				"event_type":  "ci_trigger",
+				"event-type":  "ci_trigger",
 				"repository":  "org/target-repo",
 				"max":         1,
 			},
@@ -49,14 +49,14 @@ func TestParseDispatchRepositoryConfig_MultipleTools(t *testing.T) {
 		"dispatch-repository": map[string]any{
 			"trigger_ci": map[string]any{
 				"workflow":   "ci.yml",
-				"event_type": "ci_trigger",
+				"event-type": "ci_trigger",
 				"repository": "org/target-repo",
 			},
 			"notify_service": map[string]any{
 				"description": "Notify external service",
 				"workflow":    "notify.yml",
-				"event_type":  "notify_event",
-				"allowed_repositories": []any{
+				"event-type":  "notify_event",
+				"allowed-repositories": []any{
 					"org/service-repo",
 					"org/backup-repo",
 				},
@@ -149,6 +149,103 @@ func TestParseDispatchRepositoryConfig_DashPrecedenceOverUnderscore(t *testing.T
 	assert.True(t, hasDashTool, "dashed form should take precedence")
 	_, hasUnderscoreTool := config.Tools["underscore_tool"]
 	assert.False(t, hasUnderscoreTool, "underscore form should be shadowed by dashed form")
+}
+
+func TestParseDispatchRepositoryConfig_CanonicalKeyPrecedence(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	outputMap := map[string]any{
+		"dispatch-repository": map[string]any{
+			"trigger_ci": map[string]any{
+				"workflow":             "ci.yml",
+				"event-type":           "canonical_event",
+				"event_type":           "legacy_event",
+				"repository":           "org/target-repo",
+				"allowed-repositories": []any{"org/one"},
+				"allowed_repositories": []any{"org/two"},
+			},
+		},
+	}
+
+	config := compiler.parseDispatchRepositoryConfig(outputMap)
+	require.NotNil(t, config)
+	require.Contains(t, config.Tools, "trigger_ci")
+	assert.Equal(t, "canonical_event", config.Tools["trigger_ci"].EventType)
+	assert.Equal(t, []string{"org/one"}, config.Tools["trigger_ci"].AllowedRepositories)
+}
+
+func TestParseDispatchRepositoryConfig_EventTypeCanonicalPrecedence(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	outputMap := map[string]any{
+		"dispatch-repository": map[string]any{
+			"trigger_ci": map[string]any{
+				"workflow":   "ci.yml",
+				"event-type": "canonical_event",
+				"event_type": "legacy_event",
+				"repository": "org/target-repo",
+			},
+		},
+	}
+
+	config := compiler.parseDispatchRepositoryConfig(outputMap)
+	require.NotNil(t, config)
+	assert.Equal(t, "canonical_event", config.Tools["trigger_ci"].EventType)
+}
+
+func TestParseDispatchRepositoryConfig_AllowedRepositoriesCanonicalPrecedence(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	outputMap := map[string]any{
+		"dispatch-repository": map[string]any{
+			"trigger_ci": map[string]any{
+				"workflow":             "ci.yml",
+				"event-type":           "canonical_event",
+				"allowed-repositories": []any{"org/canonical"},
+				"allowed_repositories": []any{"org/legacy"},
+			},
+		},
+	}
+
+	config := compiler.parseDispatchRepositoryConfig(outputMap)
+	require.NotNil(t, config)
+	assert.Equal(t, []string{"org/canonical"}, config.Tools["trigger_ci"].AllowedRepositories)
+}
+
+func TestParseDispatchRepositoryConfig_EventTypeAliasFallback(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	outputMap := map[string]any{
+		"dispatch-repository": map[string]any{
+			"trigger_ci": map[string]any{
+				"workflow":   "ci.yml",
+				"event_type": "legacy_event",
+				"repository": "org/target-repo",
+			},
+		},
+	}
+
+	config := compiler.parseDispatchRepositoryConfig(outputMap)
+	require.NotNil(t, config)
+	assert.Equal(t, "legacy_event", config.Tools["trigger_ci"].EventType)
+}
+
+func TestParseDispatchRepositoryConfig_AllowedRepositoriesAliasFallback(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	outputMap := map[string]any{
+		"dispatch-repository": map[string]any{
+			"trigger_ci": map[string]any{
+				"workflow":             "ci.yml",
+				"event-type":           "canonical_event",
+				"allowed_repositories": []any{"org/legacy"},
+			},
+		},
+	}
+
+	config := compiler.parseDispatchRepositoryConfig(outputMap)
+	require.NotNil(t, config)
+	assert.Equal(t, []string{"org/legacy"}, config.Tools["trigger_ci"].AllowedRepositories)
 }
 
 // TestParseDispatchRepositoryConfig_MaxCap tests that max is capped at 50
@@ -263,7 +360,8 @@ func TestValidateDispatchRepository_MissingEventType(t *testing.T) {
 
 	err = compiler.validateDispatchRepository(workflowData, workflowPath)
 	require.Error(t, err, "Validation should fail when event_type is missing")
-	assert.Contains(t, err.Error(), "event_type", "Error should mention event_type field")
+	assert.Contains(t, err.Error(), "event-type", "Error should mention event-type field")
+	assert.Contains(t, err.Error(), "event_type", "Error should mention event_type alias")
 }
 
 // TestValidateDispatchRepository_MissingRepository tests error when no repository is specified
@@ -296,6 +394,8 @@ func TestValidateDispatchRepository_MissingRepository(t *testing.T) {
 	err = compiler.validateDispatchRepository(workflowData, workflowPath)
 	require.Error(t, err, "Validation should fail when no repository is specified")
 	assert.Contains(t, err.Error(), "repository", "Error should mention repository")
+	assert.Contains(t, err.Error(), "allowed-repositories", "Error should mention allowed-repositories")
+	assert.Contains(t, err.Error(), "allowed_repositories", "Error should mention allowed_repositories alias")
 }
 
 // TestValidateDispatchRepository_AllowedRepositories tests valid config with allowed_repositories

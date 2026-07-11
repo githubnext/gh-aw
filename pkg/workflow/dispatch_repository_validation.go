@@ -26,7 +26,7 @@ func (c *Compiler) validateDispatchRepository(data *WorkflowData, workflowPath s
 	config := data.SafeOutputs.DispatchRepository
 
 	if len(config.Tools) == 0 {
-		return errors.New("dispatch_repository: must specify at least one dispatch tool\n\nExample configuration in workflow frontmatter:\nsafe-outputs:\n  dispatch_repository:\n    trigger_ci:\n      description: Trigger CI in another repository\n      workflow: ci.yml\n      event_type: ci_trigger\n      repository: org/target-repo")
+		return errors.New("dispatch_repository: must specify at least one dispatch tool\n\nExample configuration in workflow frontmatter:\nsafe-outputs:\n  dispatch-repository:\n    trigger_ci:\n      description: Trigger CI in another repository\n      workflow: ci.yml\n      event-type: ci_trigger\n      repository: org/target-repo")
 	}
 
 	collector := NewErrorCollector(c.failFast)
@@ -36,16 +36,16 @@ func (c *Compiler) validateDispatchRepository(data *WorkflowData, workflowPath s
 
 		// Validate workflow field is present
 		if strings.TrimSpace(tool.Workflow) == "" {
-			workflowErr := fmt.Errorf("dispatch_repository: tool %q must specify a 'workflow' field (target workflow name for traceability)\n\nExample:\n  dispatch_repository:\n    %s:\n      workflow: ci.yml\n      event_type: ci_trigger\n      repository: org/target-repo", toolKey, toolKey)
+			workflowErr := fmt.Errorf("dispatch_repository: tool %q must specify a 'workflow' field (target workflow name for traceability)\n\nExample:\n  dispatch-repository:\n    %s:\n      workflow: ci.yml\n      event-type: ci_trigger\n      repository: org/target-repo", toolKey, toolKey)
 			if returnErr := collector.Add(workflowErr); returnErr != nil {
 				return returnErr
 			}
 			continue
 		}
 
-		// Validate event_type field is present
+		// Validate event-type field is present
 		if strings.TrimSpace(tool.EventType) == "" {
-			eventTypeErr := fmt.Errorf("dispatch_repository: tool %q must specify an 'event_type' field\n\nExample:\n  dispatch_repository:\n    %s:\n      workflow: %s\n      event_type: my_event\n      repository: org/target-repo", toolKey, toolKey, tool.Workflow)
+			eventTypeErr := fmt.Errorf("dispatch_repository: tool %q must specify an 'event-type' field (alias: 'event_type')\n\nExample:\n  dispatch-repository:\n    %s:\n      workflow: %s\n      event-type: my_event\n      repository: org/target-repo", toolKey, toolKey, tool.Workflow)
 			if returnErr := collector.Add(eventTypeErr); returnErr != nil {
 				return returnErr
 			}
@@ -57,7 +57,7 @@ func (c *Compiler) validateDispatchRepository(data *WorkflowData, workflowPath s
 		hasAllowedRepos := len(tool.AllowedRepositories) > 0
 
 		if !hasRepository && !hasAllowedRepos {
-			repoErr := fmt.Errorf("dispatch_repository: tool %q must specify either 'repository' or 'allowed_repositories'\n\nExample with single repository:\n  dispatch_repository:\n    %s:\n      workflow: %s\n      event_type: %s\n      repository: org/target-repo\n\nExample with multiple repositories:\n  dispatch_repository:\n    %s:\n      workflow: %s\n      event_type: %s\n      allowed_repositories:\n        - org/repo1\n        - org/repo2", toolKey, toolKey, tool.Workflow, tool.EventType, toolKey, tool.Workflow, tool.EventType)
+			repoErr := fmt.Errorf("dispatch_repository: tool %q must specify either 'repository' or 'allowed-repositories' (alias: 'allowed_repositories')\n\nExample with single repository:\n  dispatch-repository:\n    %s:\n      workflow: %s\n      event-type: %s\n      repository: org/target-repo\n\nExample with multiple repositories:\n  dispatch-repository:\n    %s:\n      workflow: %s\n      event-type: %s\n      allowed-repositories:\n        - org/repo1\n        - org/repo2", toolKey, toolKey, tool.Workflow, tool.EventType, toolKey, tool.Workflow, tool.EventType)
 			if returnErr := collector.Add(repoErr); returnErr != nil {
 				return returnErr
 			}
@@ -74,7 +74,7 @@ func (c *Compiler) validateDispatchRepository(data *WorkflowData, workflowPath s
 			}
 		}
 
-		// Validate allowed_repositories format
+		// Validate allowed-repositories format
 		for _, repo := range tool.AllowedRepositories {
 			if hasExpressionMarker(repo) {
 				continue
@@ -84,7 +84,7 @@ func (c *Compiler) validateDispatchRepository(data *WorkflowData, workflowPath s
 				continue
 			}
 			if !repoSlugPattern.MatchString(repo) {
-				allowedRepoErr := fmt.Errorf("dispatch_repository: tool %q has invalid repository %q in 'allowed_repositories' (expected 'owner/repo' format)", toolKey, repo)
+				allowedRepoErr := fmt.Errorf("dispatch_repository: tool %q has invalid repository %q in 'allowed-repositories' (alias: 'allowed_repositories', expected 'owner/repo' format)", toolKey, repo)
 				if returnErr := collector.Add(allowedRepoErr); returnErr != nil {
 					return returnErr
 				}

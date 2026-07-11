@@ -9439,7 +9439,7 @@
         },
         "dispatch-repository": {
           "type": "object",
-          "description": "Dispatch repository_dispatch events to external repositories. Each sub-key defines a named dispatch tool with its own event_type, target repository, input schema, and execution limits. Note: nested keys use snake_case (event_type, allowed_repositories) rather than the kebab-case used by other safe-output fields.",
+          "description": "Dispatch repository_dispatch events to external repositories. Each sub-key defines a named dispatch tool with its own event-type, target repository, input schema, and execution limits. Canonical nested keys use kebab-case (`event-type`, `allowed-repositories`), with snake_case aliases (`event_type`, `allowed_repositories`) preserved for backward compatibility. Prefer canonical kebab-case keys; if both forms are provided for the same field, the canonical kebab-case value takes precedence.",
           "x-example-key": "trigger-ci",
           "additionalProperties": {
             "type": "object",
@@ -9454,19 +9454,33 @@
                 "description": "Target workflow name (for traceability and inclusion in client_payload)",
                 "minLength": 1
               },
-              "event_type": {
+              "event-type": {
                 "type": "string",
                 "description": "The repository_dispatch event_type string sent to the target repository",
                 "minLength": 1
               },
+              "event_type": {
+                "type": "string",
+                "description": "Deprecated alias for event-type.",
+                "minLength": 1
+              },
               "repository": {
                 "type": "string",
-                "description": "Target repository in 'owner/repo' format. Dispatches to this repository when no 'allowed_repositories' list is given.",
+                "description": "Target repository in 'owner/repo' format. Dispatches to this repository when no 'allowed-repositories' list is given.",
                 "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$|^\\$\\{\\{.*\\}\\}$"
+              },
+              "allowed-repositories": {
+                "type": "array",
+                "description": "List of allowed target repositories (owner/repo). Supports glob patterns like 'org/*'.",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 1
               },
               "allowed_repositories": {
                 "type": "array",
-                "description": "List of allowed target repositories (owner/repo). Supports glob patterns like 'org/*'.",
+                "description": "Deprecated alias for allowed-repositories.",
                 "items": {
                   "type": "string",
                   "minLength": 1
@@ -9533,7 +9547,15 @@
                 "examples": [true, false]
               }
             },
-            "required": ["workflow", "event_type"],
+            "required": ["workflow"],
+            "anyOf": [
+              {
+                "required": ["event-type"]
+              },
+              {
+                "required": ["event_type"]
+              }
+            ],
             "additionalProperties": false
           }
         },
