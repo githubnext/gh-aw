@@ -24,9 +24,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
 	"slices"
 	"strconv"
@@ -75,7 +75,9 @@ type replaceLabelFixtureMessage struct {
 }
 
 type replaceLabelExpected struct {
-	Decision string `yaml:"decision"`
+	Decision  string `yaml:"decision"`
+	ErrorCode *int   `yaml:"error_code"`
+	Reason    string `yaml:"reason"`
 }
 
 func formalRequiredNonEmptyLabel(s string) bool {
@@ -86,17 +88,42 @@ func formalLabelAndRepoLengthsValid(labelToRemove, labelToAdd, repo string) bool
 	return len(labelToRemove) <= 128 && len(labelToAdd) <= 128 && len(repo) <= 256
 }
 
+// formalSimpleGlobToRegex converts a simple glob pattern to a regexp using the
+// same semantics as the production matchesSimpleGlob helper
+// (glob_pattern_helpers.cjs, simpleGlobToRegex, pathMode=false):
+//   - All regex-special characters INCLUDING [ and ] are escaped to literals.
+//   - * is NOT escaped; it expands to .* (matches any character, including /).
+//   - The match is anchored at both ends.
+//
+// Note: character-class syntax (e.g. p[0-9]) is therefore NOT supported;
+// brackets are treated as ordinary characters, consistent with production.
+func formalSimpleGlobToRegex(pattern string) *regexp.Regexp {
+	var b strings.Builder
+	b.WriteByte('^')
+	for _, c := range pattern {
+		switch c {
+		case '*':
+			b.WriteString(".*")
+		case '.', '+', '?', '^', '$', '{', '}', '(', ')', '|', '[', ']', '\\':
+			b.WriteByte('\\')
+			b.WriteRune(c)
+		default:
+			b.WriteRune(c)
+		}
+	}
+	b.WriteByte('$')
+	return regexp.MustCompile(b.String())
+}
+
 // formalMatchAnyPattern reports whether value matches any of the given glob
-// patterns.  Matching is case-insensitive by default, consistent with the
-// production matchesSimpleGlob helper in glob_pattern_helpers.cjs.
+// patterns.  Matching is case-insensitive, consistent with the production
+// matchesSimpleGlob helper in glob_pattern_helpers.cjs.  Pattern semantics
+// follow formalSimpleGlobToRegex: * spans any characters, brackets are literal.
 func formalMatchAnyPattern(value string, patterns []string) bool {
 	lowerValue := strings.ToLower(value)
 	for _, p := range patterns {
-		matched, err := path.Match(strings.ToLower(p), lowerValue)
-		if err != nil {
-			continue
-		}
-		if matched {
+		re := formalSimpleGlobToRegex(strings.ToLower(p))
+		if re.MatchString(lowerValue) {
 			return true
 		}
 	}
@@ -208,14 +235,20 @@ func formalResolveTargetNumber(targetMode string, triggeringNumber int, requeste
 }
 
 // formalResolveItemNumberAliases models alias resolution priority for item targets.
-// Order is: item_number, issue_number, pr_number, pull_number (first positive value wins).
-// Returns 0 when no positive alias value is present (0 is treated as invalid/unset).
+// Order is: item_number, issue_number, pr_number, pull_number.
+// Resolution stops at the FIRST alias key that is present in the map (matching
+// production temporary_id.cjs behaviour: the first non-null/non-undefined field
+// wins, and an invalid value at that position is not bypassed by falling through
+// to a lower-priority alias).
+// Returns 0 when the first present alias has a non-positive value, or when no
+// alias key is present at all.
 func formalResolveItemNumberAliases(message map[string]any) int {
 	for _, key := range []string{"item_number", "issue_number", "pr_number", "pull_number"} {
 		v, ok := message[key]
 		if !ok {
 			continue
 		}
+		// First present alias: validate and return without checking lower-priority aliases.
 		switch n := v.(type) {
 		case int:
 			if n > 0 {
@@ -230,24 +263,26 @@ func formalResolveItemNumberAliases(message map[string]any) int {
 				return int(n)
 			}
 		}
+		return 0
 	}
 	return 0
 }
 
-// formalEvaluateFixtureScenario returns true when the scenario passes the same
-// blocked-first and allowlist checks applied by the formal label validators.
-func formalEvaluateFixtureScenario(sc replaceLabelFixtureScenario) bool {
+// formalEvaluateFixtureScenario returns nil when the scenario passes the same
+// blocked-first and allowlist checks applied by the formal label validators,
+// or a descriptive error indicating the denial kind.
+func formalEvaluateFixtureScenario(sc replaceLabelFixtureScenario) error {
 	if sc.Input.Message.LabelToAdd != "" {
 		if err := formalValidateSingleLabel(sc.Input.Message.LabelToAdd, sc.Input.SafeOutputConfig.AllowedAdd, sc.Input.SafeOutputConfig.Blocked, "label_to_add"); err != nil {
-			return false
+			return err
 		}
 	}
 	if sc.Input.Message.LabelToRemove != "" {
 		if err := formalValidateSingleLabel(sc.Input.Message.LabelToRemove, sc.Input.SafeOutputConfig.AllowedRemove, sc.Input.SafeOutputConfig.Blocked, "label_to_remove"); err != nil {
-			return false
+			return err
 		}
 	}
-	return true
+	return nil
 }
 
 // runReplaceLabelFixture loads a compliance fixture YAML file and executes each
@@ -262,12 +297,27 @@ func runReplaceLabelFixture(t *testing.T, fixtureName string) {
 
 	for _, scenario := range fixture.Scenarios {
 		t.Run(scenario.ScenarioID, func(t *testing.T) {
-			allowed := formalEvaluateFixtureScenario(scenario)
-			if scenario.Expected.Decision == "allow" {
-				assert.True(t, allowed)
-				return
+			evalErr := formalEvaluateFixtureScenario(scenario)
+			switch scenario.Expected.Decision {
+			case "allow":
+				require.NoError(t, evalErr, "expected allow but evaluation denied the scenario")
+			case "deny":
+				require.Error(t, evalErr, "expected deny but evaluation allowed the scenario")
+				// Assert ordering/kind signal when the fixture encodes an error_code.
+				if scenario.Expected.ErrorCode != nil {
+					switch *scenario.Expected.ErrorCode {
+					case -32003:
+						assert.Contains(t, evalErr.Error(), "blocked pattern",
+							"error_code -32003 requires a blocked-pattern denial (blocklist evaluated first)")
+					case -32002:
+						assert.Contains(t, evalErr.Error(), "allowed list",
+							"error_code -32002 requires an allowed-list denial")
+					}
+				}
+			default:
+				t.Fatalf("unknown fixture decision %q for scenario %q: must be 'allow' or 'deny'",
+					scenario.Expected.Decision, scenario.ScenarioID)
 			}
-			assert.False(t, allowed)
 		})
 	}
 }
@@ -515,6 +565,34 @@ func TestFormalStagedMode(t *testing.T) {
 	outcome := formalReplaceLabelOutcome{Success: true, Staged: true}
 	assert.True(t, outcome.Success)
 	assert.True(t, outcome.Staged)
+}
+
+// formalRunReplaceLabel models the core execute path of the replace_label handler.
+// onWrite is invoked exactly once when the handler would call the write API
+// (issues.setLabels). In staged mode the handler must return before reaching
+// onWrite; this is the invariant asserted by TestFormalStagedMode_NoWriteAPI.
+func formalRunReplaceLabel(staged bool, onWrite func()) formalReplaceLabelOutcome {
+	if staged {
+		return formalReplaceLabelOutcome{Success: true, Staged: true}
+	}
+	onWrite()
+	return formalReplaceLabelOutcome{Success: true}
+}
+
+func TestFormalStagedMode_NoWriteAPI(t *testing.T) {
+	writeCalls := 0
+	outcome := formalRunReplaceLabel(true, func() { writeCalls++ })
+	assert.True(t, outcome.Success)
+	assert.True(t, outcome.Staged)
+	assert.Zero(t, writeCalls, "staged mode must not call the write API (setLabels)")
+}
+
+func TestFormalNonStagedMode_InvokesWriteAPI(t *testing.T) {
+	writeCalls := 0
+	outcome := formalRunReplaceLabel(false, func() { writeCalls++ })
+	assert.True(t, outcome.Success)
+	assert.False(t, outcome.Staged)
+	assert.Equal(t, 1, writeCalls, "non-staged mode must invoke the write API exactly once")
 }
 
 func TestFormalSingleRESTCall(t *testing.T) {
