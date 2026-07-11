@@ -147,16 +147,16 @@ function Invoke-ProcessWithTimeout {
             return [pscustomobject]@{
                 ExitCode = 124
                 TimedOut = $true
-                Stdout   = (Get-Content $stdoutPath -Raw -ErrorAction SilentlyContinue)
-                Stderr   = (Get-Content $stderrPath -Raw -ErrorAction SilentlyContinue)
+                Stdout   = [string](Get-Content $stdoutPath -Raw -ErrorAction SilentlyContinue)
+                Stderr   = [string](Get-Content $stderrPath -Raw -ErrorAction SilentlyContinue)
             }
         }
 
         return [pscustomobject]@{
             ExitCode = $process.ExitCode
             TimedOut = $false
-            Stdout   = (Get-Content $stdoutPath -Raw -ErrorAction SilentlyContinue)
-            Stderr   = (Get-Content $stderrPath -Raw -ErrorAction SilentlyContinue)
+            Stdout   = [string](Get-Content $stdoutPath -Raw -ErrorAction SilentlyContinue)
+            Stderr   = [string](Get-Content $stderrPath -Raw -ErrorAction SilentlyContinue)
         }
     } finally {
         Remove-Item $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
