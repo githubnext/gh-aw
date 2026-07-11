@@ -786,6 +786,8 @@ check-stale-lock-files:
 		bash scripts/check-stale-lock-files.sh --base-ref "$${CHECK_STALE_LOCK_BASE_REF}"; \
 	elif [ -n "$${GITHUB_BASE_REF:-}" ] && git rev-parse --verify "origin/$${GITHUB_BASE_REF}^{commit}" >/dev/null 2>&1; then \
 		bash scripts/check-stale-lock-files.sh --base-ref "origin/$${GITHUB_BASE_REF}"; \
+	elif [ -n "$${GITHUB_BASE_REF:-}" ] && git rev-parse --verify "$${GITHUB_BASE_REF}^{commit}" >/dev/null 2>&1; then \
+		bash scripts/check-stale-lock-files.sh --base-ref "$${GITHUB_BASE_REF}"; \
 	else \
 		bash scripts/check-stale-lock-files.sh; \
 	fi
