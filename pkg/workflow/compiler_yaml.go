@@ -312,14 +312,49 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 // clearing its whitespace does not change the parsed content. This removes the bulk
 // of yamllint trailing-spaces and empty-lines noise from generated lock files without
 // touching lines that carry real content.
+//
+// This implementation avoids strings.Split/strings.Join to reduce allocations: it scans
+// the input byte-by-byte and builds the result with a single pre-allocated strings.Builder.
 func normalizeBlankLines(yamlContent string) string {
-	lines := strings.Split(yamlContent, "\n")
-	for i, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			lines[i] = ""
+	var b strings.Builder
+	b.Grow(len(yamlContent))
+
+	// lastNonBlankEnd tracks the builder length after writing the last non-blank line
+	// (including its trailing newline). This lets us trim trailing blank lines in O(1)
+	// by slicing the result instead of doing a second TrimRight pass.
+	lastNonBlankEnd := 0
+	pos := 0
+	for pos < len(yamlContent) {
+		// Find the end of the current line.
+		end := strings.IndexByte(yamlContent[pos:], '\n')
+		var line string
+		if end == -1 {
+			line = yamlContent[pos:]
+		} else {
+			line = yamlContent[pos : pos+end]
 		}
+
+		if strings.TrimSpace(line) == "" {
+			// Whitespace-only line: emit as a truly empty line.
+			b.WriteByte('\n')
+		} else {
+			b.WriteString(line)
+			b.WriteByte('\n')
+			lastNonBlankEnd = b.Len()
+		}
+
+		if end == -1 {
+			break
+		}
+		pos += end + 1
 	}
-	return strings.TrimRight(strings.Join(lines, "\n"), "\n") + "\n"
+
+	if lastNonBlankEnd == 0 {
+		return "\n"
+	}
+	// Slice the builder's string to drop trailing blank lines (everything after
+	// lastNonBlankEnd). The slice shares the same underlying bytes; no copy is made.
+	return b.String()[:lastNonBlankEnd]
 }
 
 func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, []string, []string, error) {
