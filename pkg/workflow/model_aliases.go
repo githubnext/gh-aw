@@ -31,8 +31,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"reflect"
 	"sync"
+	"unsafe"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -72,8 +72,15 @@ func loadBuiltinModelAliases() (map[string][]string, error) {
 var (
 	builtinOnlyAliasMapOnce sync.Once
 	builtinOnlyAliasMap     map[string][]string
-	builtinOnlyAliasMapID   uintptr // reflect.ValueOf(builtinOnlyAliasMap).Pointer()
+	builtinOnlyAliasMapID   uintptr // unsafe map-header pointer, set once under builtinOnlyAliasMapOnce
 )
+
+// mapHeaderPointer extracts the pointer stored in the map value's header
+// (the *runtime.hmap pointer).  Two map values backed by the same hash table
+// return the same value.  A nil map returns 0.
+func mapHeaderPointer(m map[string][]string) uintptr {
+	return *(*uintptr)(unsafe.Pointer(&m))
+}
 
 // getBuiltinOnlyAliasMap returns the shared, read-only builtin alias map.
 // The map must never be mutated by callers; it is shared across all parse calls.
@@ -84,17 +91,21 @@ func getBuiltinOnlyAliasMap() map[string][]string {
 			panic(err)
 		}
 		builtinOnlyAliasMap = data
-		builtinOnlyAliasMapID = reflect.ValueOf(data).Pointer()
+		builtinOnlyAliasMapID = mapHeaderPointer(data)
 	})
 	return builtinOnlyAliasMap
 }
 
 // isBuiltinOnlyAliasMap reports whether m is the shared read-only builtin alias map
-// returned by getBuiltinOnlyAliasMap.  It uses reflect.ValueOf().Pointer() for
-// pointer-identity comparison since Go maps cannot be compared with ==.
+// returned by getBuiltinOnlyAliasMap.  It uses unsafe map-header pointer extraction
+// for identity comparison since Go maps cannot be compared with ==.
+//
+// It is safe to call this function before getBuiltinOnlyAliasMap has been invoked:
+// in that case builtinOnlyAliasMapID is 0 and the function returns false, which is
+// correct because no caller can hold a reference to the shared map before it exists.
 func isBuiltinOnlyAliasMap(m map[string][]string) bool {
-	_ = getBuiltinOnlyAliasMap() // ensure initialised
-	return builtinOnlyAliasMapID != 0 && reflect.ValueOf(m).Pointer() == builtinOnlyAliasMapID
+	id := builtinOnlyAliasMapID
+	return id != 0 && mapHeaderPointer(m) == id
 }
 
 // BuiltinModelAliases returns the built-in model alias map that covers the main

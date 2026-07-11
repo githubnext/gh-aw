@@ -256,7 +256,10 @@ func detectCircularModelAliases(aliasMap map[string][]string, markdownPath strin
 	// use only builtins (no imports, no frontmatter overrides).
 	if isBuiltinOnlyAliasMap(aliasMap) {
 		builtinCycleCheckOnce.Do(func() {
-			builtinCycleCheckErr = detectCircularModelAliasesUnoptimized(aliasMap, markdownPath)
+			// Builtin aliases are cycle-free by construction (validated in CI).
+			// Pass an empty path: if a cycle were ever introduced into the builtin
+			// data (a bug), the error should not reference a caller's workflow path.
+			builtinCycleCheckErr = detectCircularModelAliasesUnoptimized(aliasMap, "")
 		})
 		return builtinCycleCheckErr
 	}
