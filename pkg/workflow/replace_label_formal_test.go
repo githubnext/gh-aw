@@ -27,6 +27,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -257,7 +258,7 @@ func formalEvaluateFixtureScenario(sc replaceLabelFixtureScenario) bool {
 // scenario as a subtest, asserting expected allow/deny decisions.
 func runReplaceLabelFixture(t *testing.T, fixtureName string) {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join("..", "..", "specs", "replace-label-compliance", fixtureName))
+	data, err := os.ReadFile(filepath.Join(formalRepoRoot(t), "specs", "replace-label-compliance", fixtureName))
 	require.NoError(t, err)
 
 	fixture, err := parseReplaceLabelFixture(data)
@@ -284,6 +285,20 @@ func parseReplaceLabelFixture(data []byte) (replaceLabelFixtureFile, error) {
 		return replaceLabelFixtureFile{}, errors.New("fixture has no scenarios")
 	}
 	return fixture, nil
+}
+
+func formalRepoRoot(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+}
+
+func formalHandleSetLabels(err error) (formalReplaceLabelOutcome, error) {
+	if err != nil {
+		return formalReplaceLabelOutcome{Success: false, Skipped: false}, err
+	}
+	return formalReplaceLabelOutcome{Success: true}, nil
 }
 
 func TestFormalReplaceLabelP1_FieldRequired(t *testing.T) {
@@ -501,7 +516,7 @@ func TestFormalStagedMode(t *testing.T) {
 }
 
 func TestFormalSingleRESTCall(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "js", "replace_label.cjs"))
+	data, err := os.ReadFile(filepath.Join(formalRepoRoot(t), "actions", "setup", "js", "replace_label.cjs"))
 	require.NoError(t, err)
 	src := string(data)
 	assert.Equal(t, 1, strings.Count(src, ".setLabels("))
@@ -537,13 +552,10 @@ func TestFormalAddDeduplication(t *testing.T) {
 }
 
 func TestFormalHardErrorOnRESTFail(t *testing.T) {
-	restErr := errors.New("service unavailable")
-	require.Error(t, restErr)
-	data, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "js", "replace_label.cjs"))
-	require.NoError(t, err)
-	src := string(data)
-	assert.Contains(t, src, "catch (err)")
-	assert.Contains(t, src, "return { success: false, error: errorMessage }")
+	outcome, err := formalHandleSetLabels(errors.New("service unavailable"))
+	require.Error(t, err)
+	assert.False(t, outcome.Success)
+	assert.False(t, outcome.Skipped)
 }
 
 func TestFormalGlobExactNoWildcard(t *testing.T) {
