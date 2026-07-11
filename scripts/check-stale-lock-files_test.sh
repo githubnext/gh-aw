@@ -190,13 +190,13 @@ echo "Test 9: --base-ref catches stale committed markdown changes..."
 T9="$TMP_ROOT/t9"
 mkdir -p "$T9"
 create_fixture_repo "$T9" "base-ref-workflow"
-T9_BASE_REF=$(git -C "$T9" rev-parse HEAD)
+T9_BASE_COMMIT=$(git -C "$T9" rev-parse HEAD)
 git -C "$T9" checkout -q -b feature
 printf '%s\n' "# base-ref-workflow (edited)" > "$T9/.github/workflows/base-ref-workflow.md"
 git -C "$T9" add .github/workflows/base-ref-workflow.md
 git -C "$T9" commit -q -m "edit workflow markdown only"
 T9_OUT="$TMP_ROOT/t9-output.txt"
-if (cd "$T9" && bash "$STALE_SCRIPT" --base-ref "$T9_BASE_REF" >"$T9_OUT" 2>&1); then
+if (cd "$T9" && bash "$STALE_SCRIPT" --base-ref "$T9_BASE_COMMIT" >"$T9_OUT" 2>&1); then
     fail "--base-ref stale check should exit 1" "$(cat "$T9_OUT")"
 elif grep -q "base-ref-workflow.md" "$T9_OUT"; then
     pass "--base-ref catches stale committed markdown changes"
@@ -211,14 +211,14 @@ echo "Test 10: --base-ref passes when markdown + lock both changed..."
 T10="$TMP_ROOT/t10"
 mkdir -p "$T10"
 create_fixture_repo "$T10" "base-ref-ok"
-T10_BASE_REF=$(git -C "$T10" rev-parse HEAD)
+T10_BASE_COMMIT=$(git -C "$T10" rev-parse HEAD)
 git -C "$T10" checkout -q -b feature
 printf '%s\n' "# base-ref-ok (edited)" > "$T10/.github/workflows/base-ref-ok.md"
 printf '%s\n' "lock: updated"          > "$T10/.github/workflows/base-ref-ok.lock.yml"
 git -C "$T10" add .github/workflows/base-ref-ok.md .github/workflows/base-ref-ok.lock.yml
 git -C "$T10" commit -q -m "edit workflow markdown and lock"
 T10_OUT="$TMP_ROOT/t10-output.txt"
-if (cd "$T10" && bash "$STALE_SCRIPT" --base-ref "$T10_BASE_REF" >"$T10_OUT" 2>&1); then
+if (cd "$T10" && bash "$STALE_SCRIPT" --base-ref "$T10_BASE_COMMIT" >"$T10_OUT" 2>&1); then
     pass "--base-ref passes when markdown + lock both changed"
 else
     fail "--base-ref should pass when markdown + lock changed" "$(cat "$T10_OUT")"
