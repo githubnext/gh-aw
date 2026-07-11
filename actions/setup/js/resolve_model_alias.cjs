@@ -234,10 +234,6 @@ function resolveAliasEntry(entry, inheritedParams, aliasMap, catalog, visited, l
     return found ? found + suffix : null;
   }
 
-  if (Object.prototype.hasOwnProperty.call(aliasMap, eBase)) {
-    return resolveModelAlias(eBase + suffix, aliasMap, catalog, { visited, logger });
-  }
-
   const bare = catalog.find(item => splitModelIdentifier(item).base.toLowerCase() === eBase.toLowerCase());
   return bare ? bare + suffix : null;
 }
