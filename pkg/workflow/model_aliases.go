@@ -31,6 +31,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"reflect"
 	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -62,6 +63,38 @@ func loadBuiltinModelAliases() (map[string][]string, error) {
 		builtinModelAliasesData = data.Aliases
 	})
 	return builtinModelAliasesData, builtinModelAliasesErr
+}
+
+// builtinOnlyAliasMap is the canonical map returned by MergeImportedModelAliases
+// when there are no imported or frontmatter overrides.  It is set once via
+// sync.Once so that pointer-equality checks in validateModelAliasMap can detect
+// the common case and skip the redundant cycle-detection DFS.
+var (
+	builtinOnlyAliasMapOnce sync.Once
+	builtinOnlyAliasMap     map[string][]string
+	builtinOnlyAliasMapID   uintptr // reflect.ValueOf(builtinOnlyAliasMap).Pointer()
+)
+
+// getBuiltinOnlyAliasMap returns the shared, read-only builtin alias map.
+// The map must never be mutated by callers; it is shared across all parse calls.
+func getBuiltinOnlyAliasMap() map[string][]string {
+	builtinOnlyAliasMapOnce.Do(func() {
+		data, err := loadBuiltinModelAliases()
+		if err != nil {
+			panic(err)
+		}
+		builtinOnlyAliasMap = data
+		builtinOnlyAliasMapID = reflect.ValueOf(data).Pointer()
+	})
+	return builtinOnlyAliasMap
+}
+
+// isBuiltinOnlyAliasMap reports whether m is the shared read-only builtin alias map
+// returned by getBuiltinOnlyAliasMap.  It uses reflect.ValueOf().Pointer() for
+// pointer-identity comparison since Go maps cannot be compared with ==.
+func isBuiltinOnlyAliasMap(m map[string][]string) bool {
+	_ = getBuiltinOnlyAliasMap() // ensure initialised
+	return builtinOnlyAliasMapID != 0 && reflect.ValueOf(m).Pointer() == builtinOnlyAliasMapID
 }
 
 // BuiltinModelAliases returns the built-in model alias map that covers the main
@@ -119,10 +152,21 @@ func BuiltinModelAliases() map[string][]string {
 //     key wins among imports (same "first-wins among peers" semantics as features).
 //  3. Main workflow frontmatter aliases (highest priority — main workflow file wins)
 //
-// If both importedModels and frontmatterModels are nil/empty, the builtin aliases are
-// returned as-is (identical to MergeModelAliases(nil)).
+// If both importedModels and frontmatterModels are nil/empty, the shared builtin alias
+// map is returned directly (no copy).  Callers must not modify the returned map in
+// this case; it is shared across all parse calls as a performance optimisation.
 func MergeImportedModelAliases(importedModels []map[string][]string, frontmatterModels map[string][]string) map[string][]string {
 	modelAliasesLog.Printf("Merging model aliases: %d import(s), %d frontmatter override(s)", len(importedModels), len(frontmatterModels))
+
+	// Fast path: the vast majority of workflows have no imported or frontmatter model
+	// aliases.  Avoid deep-copying the 52-entry builtin map (154 string slices) on every
+	// ParseWorkflowFile call by returning the shared read-only builtin map directly.
+	if len(importedModels) == 0 && len(frontmatterModels) == 0 {
+		result := getBuiltinOnlyAliasMap()
+		modelAliasesLog.Printf("Fast path: returning shared builtin alias map (%d entries)", len(result))
+		return result
+	}
+
 	merged := BuiltinModelAliases()
 
 	// Layer 2 — imported models (first import to define a key wins among imports).

@@ -26,6 +26,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/setutil"
@@ -33,6 +34,14 @@ import (
 )
 
 var modelAliasValidationLog = newValidationLogger("model_alias")
+
+// builtinCycleCheckOnce caches the result of the first cycle-detection DFS over
+// the pure builtin alias map.  The builtins are a compile-time constant so cycles
+// can only appear once; checking them on every ParseWorkflowFile call is wasteful.
+var (
+	builtinCycleCheckOnce sync.Once
+	builtinCycleCheckErr  error
+)
 
 // ─── Known-parameter validation ───────────────────────────────────────────────
 
@@ -241,6 +250,23 @@ func (c *Compiler) warnUnrecognizedModelParams(identifiers []string, markdownPat
 func detectCircularModelAliases(aliasMap map[string][]string, markdownPath string) error {
 	modelAliasValidationLog.Printf("Checking for circular alias references in %d aliases", len(aliasMap))
 
+	// Fast path: the builtin alias map is a compile-time constant and cycle-free by
+	// construction.  Cache the result of the first DFS check so that the expensive
+	// sort + 52-node traversal is skipped on subsequent ParseWorkflowFile calls that
+	// use only builtins (no imports, no frontmatter overrides).
+	if isBuiltinOnlyAliasMap(aliasMap) {
+		builtinCycleCheckOnce.Do(func() {
+			builtinCycleCheckErr = detectCircularModelAliasesUnoptimized(aliasMap, markdownPath)
+		})
+		return builtinCycleCheckErr
+	}
+
+	return detectCircularModelAliasesUnoptimized(aliasMap, markdownPath)
+}
+
+// detectCircularModelAliasesUnoptimized is the full DFS implementation used when the
+// alias map may include user-defined aliases (imports or frontmatter overrides).
+func detectCircularModelAliasesUnoptimized(aliasMap map[string][]string, markdownPath string) error {
 	// visited tracks keys for which all DFS descendants have been fully explored
 	// (no cycle detected from that key).
 	visited := map[string]struct {
