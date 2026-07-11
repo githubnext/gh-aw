@@ -55,9 +55,18 @@ func TestGenerateDockerSbxInstallSteps(t *testing.T) {
 		assert.Contains(t, content, "sbx policy reset", "must reset sbx policy")
 		assert.Contains(t, content, "sbx policy init allow-all", "must init sbx allow-all policy")
 		assert.Contains(t, content, "docker/sandbox-templates:shell-docker", "must pre-pull template image")
-		// Secrets must be passed via env, not inline
+		// Secrets must be passed via env, not inline in the run: block
 		assert.Contains(t, content, "DOCKER_PAT_VAL: ${{ secrets.DOCKER_PAT }}", "must use env for DOCKER_PAT")
 		assert.Contains(t, content, "DOCKER_USERNAME_VAL: ${{ secrets.DOCKER_USERNAME }}", "must use env for DOCKER_USERNAME")
+		// The run: section must use env var references (${DOCKER_PAT_VAL}) not raw secret expressions.
+		// Extract the run: body to verify secret expressions don't appear in shell commands.
+		parts := strings.SplitN(content, "run: |", 2)
+		require.Len(t, parts, 2, "step must have a run: section")
+		runBody := parts[1]
+		assert.NotContains(t, runBody, "${{ secrets.DOCKER_PAT }}",
+			"raw secrets.DOCKER_PAT expression must not appear in shell commands")
+		assert.NotContains(t, runBody, "${{ secrets.DOCKER_USERNAME }}",
+			"raw secrets.DOCKER_USERNAME expression must not appear in shell commands")
 	})
 
 	t.Run("pre-flight step", func(t *testing.T) {

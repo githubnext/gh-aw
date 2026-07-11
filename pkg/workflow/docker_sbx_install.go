@@ -137,7 +137,7 @@ func generateDockerSbxPreFlightStep() GitHubActionStep {
 		"        run: |",
 		"          set -euo pipefail",
 		`          echo "::group::docker-sbx pre-flight smoke test"`,
-		`          yes | sbx create shell --name test-sandbox-direct "${GITHUB_WORKSPACE}"`,
+		`          echo "y" | sbx create shell --name test-sandbox-direct "${GITHUB_WORKSPACE}"`,
 		`          sbx exec test-sandbox-direct uname -a`,
 		`          sbx stop test-sandbox-direct`,
 		`          sbx rm --force test-sandbox-direct`,
