@@ -66,10 +66,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		if (isCaseConvCall(pass, expr.X) && caseConvIsCompatible(pass, expr.X, expr.Y)) ||
-			(isCaseConvCall(pass, expr.Y) && caseConvIsCompatible(pass, expr.Y, expr.X)) ||
-			(isCaseConvAlias(pass, expr.X, caseConvAliases) && astutil.IsStringLiteral(expr.Y) && caseConvAliasIsCompatible(pass, expr.X, expr.Y, caseConvAliases)) ||
-			(isCaseConvAlias(pass, expr.Y, caseConvAliases) && astutil.IsStringLiteral(expr.X) && caseConvAliasIsCompatible(pass, expr.Y, expr.X, caseConvAliases)) {
+		if isEquivalentToEqualFold(pass, expr, caseConvAliases) {
 			if nolint.HasDirective(pass.Fset.PositionFor(expr.Pos(), false), noLintLinesByFile) {
 				return
 			}
@@ -314,7 +311,18 @@ func literalCaseMatchesConv(funcName, lit string) bool {
 	case "ToUpper":
 		return strings.ToUpper(lit) == lit
 	}
-	return true
+	return false
+}
+
+// isEquivalentToEqualFold reports whether the == or != comparison expr is
+// semantically equivalent to a strings.EqualFold rewrite. It returns true only
+// when at least one side is a case-conversion call (or alias) and the other
+// operand is case-compatible with that conversion.
+func isEquivalentToEqualFold(pass *analysis.Pass, expr *ast.BinaryExpr, caseConvAliases map[types.Object]caseConvAliasInfo) bool {
+	return (isCaseConvCall(pass, expr.X) && caseConvIsCompatible(pass, expr.X, expr.Y)) ||
+		(isCaseConvCall(pass, expr.Y) && caseConvIsCompatible(pass, expr.Y, expr.X)) ||
+		(isCaseConvAlias(pass, expr.X, caseConvAliases) && astutil.IsStringLiteral(expr.Y) && caseConvAliasIsCompatible(pass, expr.X, expr.Y, caseConvAliases)) ||
+		(isCaseConvAlias(pass, expr.Y, caseConvAliases) && astutil.IsStringLiteral(expr.X) && caseConvAliasIsCompatible(pass, expr.Y, expr.X, caseConvAliases))
 }
 
 // caseConvIsCompatible reports whether it is safe to rewrite a comparison
