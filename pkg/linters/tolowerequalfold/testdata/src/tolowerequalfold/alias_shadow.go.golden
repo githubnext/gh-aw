@@ -21,6 +21,17 @@ func aliasImportTrackedExamples() {
 	_ = "ALICE" == y // want `use strings\.EqualFold`
 }
 
+func aliasImportMismatchedExamples() {
+	a := "Alice"
+
+	// Alias with case-mismatched literal — must not be rewritten to EqualFold.
+	x := str.ToLower(a)
+	_ = x == "ALICE"
+
+	y := str.ToUpper(a)
+	_ = "alice" == y
+}
+
 type shadowStrings struct{}
 
 func (shadowStrings) ToLower(s string) string {

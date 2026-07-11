@@ -31,6 +31,21 @@ func okExamples() {
 
 	lower := strings.ToLower(name)
 	_ = lower == name
+
+	// Case-mismatched literal: ToLower output can never equal an uppercase
+	// literal, so the comparison is always false — not a case-insensitive
+	// equality check and must not be rewritten to EqualFold.
+	_ = strings.ToLower(name) == "ALICE"
+	_ = strings.ToUpper(name) == "alice"
+	_ = "ALICE" == strings.ToLower(name)
+
+	// Mixed ToLower/ToUpper: lower(a)==upper(b) is false for any letters,
+	// not a case-insensitive equality — must not be rewritten to EqualFold.
+	_ = strings.ToLower(name) == strings.ToUpper(name)
+
+	// Alias with case-mismatched literal — same reasoning as above.
+	lowerName := strings.ToLower(name)
+	_ = lowerName == "ALICE"
 }
 
 func suppressedExamples() {
