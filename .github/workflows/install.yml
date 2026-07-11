@@ -196,29 +196,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Test PowerShell install script (dry run - check platform detection)
+      - name: Capture platform-detection output (expects failure for fake version)
+        # The installer exits 1 when the nonexistent version download fails; that is
+        # expected.  continue-on-error suppresses the step failure so the next step
+        # can assert the platform-detection messages that ran before the download.
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          & ./install-gh-aw.ps1 v999.999.999 6>&1 2>&1 | Tee-Object -FilePath install-ps-output.log
+
+      - name: Assert platform-detection messages from dry run
         shell: pwsh
         run: |
           Set-StrictMode -Version Latest
-
-          # Capture stdout and Write-Host (information stream 6) so assertions can
-          # match platform-detection log lines.  The installer exits 1 when the fake
-          # version download fails; that is expected.  Reset LASTEXITCODE afterward so
-          # the GitHub Actions pwsh template does not fail the step because of it.
-          $output = & ./install-gh-aw.ps1 v999.999.999 6>&1 2>&1
-          $global:LASTEXITCODE = 0
-          $outputText = ($output | Out-String)
-          $outputText | Tee-Object -FilePath install-ps-output.log
-
-          if ($outputText -notmatch "Detected OS:") {
-            throw "OS detection failed"
-          }
-          if ($outputText -notmatch "Detected architecture:") {
-            throw "Architecture detection failed"
-          }
-          if ($outputText -notmatch "Platform:") {
-            throw "Platform string construction failed"
-          }
+          $outputText = Get-Content install-ps-output.log -Raw -ErrorAction SilentlyContinue
+          if (-not $outputText) { throw "No output captured from installer dry run" }
+          if ($outputText -notmatch "Detected OS:")           { throw "OS detection failed" }
+          if ($outputText -notmatch "Detected architecture:") { throw "Architecture detection failed" }
+          if ($outputText -notmatch "Platform:")              { throw "Platform string construction failed" }
 
       - name: Test setup-cli composite action (Windows)
         id: setup-cli-test
@@ -244,7 +239,12 @@ jobs:
             throw "Binary not found at $binaryPath"
           }
           Write-Host "Binary found at: $binaryPath"
+
           & $binaryPath version 2>&1 | Write-Host
+          $versionExit = $LASTEXITCODE
+          if ($versionExit -ne 0) {
+            throw "Binary 'version' command failed with exit code $versionExit"
+          }
 
       - name: Upload PowerShell test results
         if: always()
