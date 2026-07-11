@@ -1,4 +1,4 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, AST_TOKEN_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -89,11 +89,7 @@ function findContinuationOutsideBlock(setFailedNode: TSESTree.Statement, ancesto
     const ancestor = ancestors[i];
 
     // Stop at function boundaries — the caller's scope is never reached
-    if (
-      ancestor.type === AST_NODE_TYPES.FunctionDeclaration ||
-      ancestor.type === AST_NODE_TYPES.FunctionExpression ||
-      ancestor.type === AST_NODE_TYPES.ArrowFunctionExpression
-    ) {
+    if (ancestor.type === AST_NODE_TYPES.FunctionDeclaration || ancestor.type === AST_NODE_TYPES.FunctionExpression || ancestor.type === AST_NODE_TYPES.ArrowFunctionExpression) {
       return null;
     }
 
@@ -110,6 +106,34 @@ function findContinuationOutsideBlock(setFailedNode: TSESTree.Statement, ancesto
       const idx = stmts.findIndex(s => s === childNode);
       if (idx >= 0 && idx < stmts.length - 1) {
         return stmts[idx + 1];
+      }
+    }
+
+    // Loop back-edges: reaching the end of an enclosing loop body may begin the
+    // next iteration, so execution can continue even without later siblings.
+    const isEnclosingLoopWithBody =
+      (ancestor.type === AST_NODE_TYPES.WhileStatement ||
+        ancestor.type === AST_NODE_TYPES.DoWhileStatement ||
+        ancestor.type === AST_NODE_TYPES.ForStatement ||
+        ancestor.type === AST_NODE_TYPES.ForInStatement ||
+        ancestor.type === AST_NODE_TYPES.ForOfStatement) &&
+      ancestor.body === childNode;
+    if (isEnclosingLoopWithBody) {
+      return ancestor;
+    }
+
+    // Switch fall-through: after one case is exhausted, control may continue
+    // into subsequent cases when no terminating statement is encountered.
+    if (ancestor.type === AST_NODE_TYPES.SwitchStatement && childNode.type === AST_NODE_TYPES.SwitchCase) {
+      const currentIndex = ancestor.cases.findIndex(testCase => testCase === childNode);
+      if (currentIndex >= 0) {
+        for (let j = currentIndex + 1; j < ancestor.cases.length; j++) {
+          const nextCase = ancestor.cases[j];
+          const nextStmt = nextCase.consequent[0];
+          if (nextStmt) {
+            return nextStmt;
+          }
+        }
       }
     }
 
@@ -187,6 +211,15 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
               {
                 messageId: "addReturn",
                 fix(fixer) {
+                  const nextTokenOrComment = sourceCode.getTokenAfter(node, { includeComments: true });
+                  const hasTrailingCommentOnSameLine =
+                    nextTokenOrComment !== null && (nextTokenOrComment.type === AST_TOKEN_TYPES.Line || nextTokenOrComment.type === AST_TOKEN_TYPES.Block) && nextTokenOrComment.loc.start.line === node.loc.end.line;
+                  if (hasTrailingCommentOnSameLine) {
+                    const line = sourceCode.lines[node.loc.start.line - 1] ?? "";
+                    const indent = /^(\s*)/.exec(line)?.[1] ?? "";
+                    return fixer.insertTextAfter(nextTokenOrComment, `\n${indent}return;`);
+                  }
+
                   const nextToken = sourceCode.getTokenAfter(node);
                   if (nextToken && nextToken.loc.start.line === node.loc.end.line) {
                     // Next token (e.g. closing '}') is on the same line — insert inline

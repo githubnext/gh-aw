@@ -79,6 +79,31 @@ describe("require-return-after-core-setfailed", () => {
           ],
         },
         {
+          code: `function f() {
+  if (x) {
+    core.setFailed("bad"); // keep with setFailed
+  }
+  doMore();
+}`,
+          errors: [
+            {
+              messageId: "missingReturnAfterSetFailed",
+              suggestions: [
+                {
+                  messageId: "addReturn",
+                  output: `function f() {
+  if (x) {
+    core.setFailed("bad"); // keep with setFailed
+    return;
+  }
+  doMore();
+}`,
+                },
+              ],
+            },
+          ],
+        },
+        {
           code: `switch (x) { case "a": core.setFailed("bad"); doMore(); break; }`,
           errors: [{ messageId: "missingReturnAfterSetFailed" }],
         },
@@ -99,6 +124,22 @@ doMore();`,
         {
           code: `function f() { if (!ok) { core.setFailed("msg"); } doMore(); }`,
           errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { if (!ok) { core.setFailed("msg"); return; } doMore(); }` }] }],
+        },
+        {
+          code: `function f() { while (next()) { if (bad()) { core.setFailed("x"); } } }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { while (next()) { if (bad()) { core.setFailed("x"); return; } } }` }] }],
+        },
+        {
+          code: `function f() { do { if (bad()) { core.setFailed("x"); } } while (next()); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { do { if (bad()) { core.setFailed("x"); return; } } while (next()); }` }] }],
+        },
+        {
+          code: `function f() { for (;;) { if (bad()) { core.setFailed("x"); } } }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { for (;;) { if (bad()) { core.setFailed("x"); return; } } }` }] }],
+        },
+        {
+          code: `function f(x) { switch (x) { case 1: if (bad) { core.setFailed("x"); } case 2: doMore(); } }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f(x) { switch (x) { case 1: if (bad) { core.setFailed("x"); return; } case 2: doMore(); } }` }] }],
         },
         {
           code: `function f() {
