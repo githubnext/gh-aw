@@ -54,7 +54,7 @@ The following toolsets are recommended as defaults for typical agentic workflows
 
 | Toolset | Rationale |
 |---------|-----------|
-| `context` | Identity and team awareness (`get_me`, `get_teams`) — essential for any GitHub-aware agent |
+| `context` | Workflow/run context and team awareness (`<github-context>`, `get_teams`) — essential for identity and repository context in workflows |
 | `repos` | Core repository operations (read files, list commits/branches) — most workflows need file access |
 | `issues` | Issue management (read, comment, create) — common in CI/CD and automation workflows |
 | `pull_requests` | PR operations (read, create, review) — critical for code review and merge automation |
@@ -85,11 +85,11 @@ The following toolsets are recommended as defaults for typical agentic workflows
 ## Tools by Toolset
 
 ### context
-**Description**: GitHub context and environment (current user, teams)
+**Description**: GitHub workflow context and environment (injected workflow metadata, teams)
 
 | Tool | Purpose | Key Parameters |
 |------|---------|----------------|
-| `get_me` | Get details of the authenticated user | — |
+| `get_me` | Get details of the authenticated user | ⚠️ Do not use for workflow identity; read `<github-context>` instead |
 | `get_team_members` | List members of a GitHub team | `org`, `team_slug` |
 | `get_teams` | List teams the authenticated user belongs to | `org` |
 

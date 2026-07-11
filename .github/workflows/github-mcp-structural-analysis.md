@@ -52,6 +52,7 @@ Track trends over 30 days, generate visualizations, and create a daily discussio
 
 ## Context
 
+- **Actor**: ${{ github.actor }}
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
 - **Analysis Date**: Current date
@@ -72,9 +73,11 @@ For each GitHub MCP toolset, systematically test representative tools:
 
 #### Toolsets to Test
 
-Test ONE representative tool from each toolset with minimal parameters:
+Test ONE representative tool from each toolset with minimal parameters.
 
-1. **context**: `get_me` - Get current user info
+For workflow identity, do **not** call `get_me`. The `<github-context>` block already provides the actor, repository, run ID, and other run metadata with zero MCP overhead. For the `context` toolset entry below, analyze that injected context block as the identity source instead of making a failing `get_me` call.
+
+1. **context**: `<github-context>` - Use injected workflow context instead of `get_me`
 2. **repos**: `get_file_contents` - Get a small file (README.md or similar)
 3. **issues**: `list_issues` - List issues with perPage=1
 4. **pull_requests**: `list_pull_requests` - List PRs with perPage=1
@@ -127,7 +130,7 @@ Record: `{tool_name, toolset, tokens, schema_type, nesting_depth, key_fields, us
 Append today's measurements to `/tmp/gh-aw/cache-memory/mcp_analysis.jsonl`:
 
 ```json
-{"date": "2024-01-15", "tool": "get_me", "toolset": "context", "tokens": 150, "schema_type": "object", "nesting_depth": 2, "key_fields": ["login", "id", "name", "email"], "usefulness_rating": 5, "notes": "Complete user profile, immediately actionable"}
+{"date": "2024-01-15", "tool": "github_context", "toolset": "context", "tokens": 80, "schema_type": "object", "nesting_depth": 2, "key_fields": ["actor", "repository", "run_id", "event_name"], "usefulness_rating": 5, "notes": "Workflow-injected identity metadata; no MCP call required"}
 {"date": "2024-01-15", "tool": "list_issues", "toolset": "issues", "tokens": 500, "schema_type": "array", "nesting_depth": 3, "key_fields": ["number", "title", "state", "labels", "assignees"], "usefulness_rating": 4, "notes": "Good issue data but user details minimal"}
 ```
 
