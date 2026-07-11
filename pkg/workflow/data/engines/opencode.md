@@ -56,7 +56,7 @@ engine:
                 "apiKey": "awf-copilot-proxy"
               },
               "models": {
-                "gpt-5": {}
+                "gpt-5.5": {}
               }
             }
           }
