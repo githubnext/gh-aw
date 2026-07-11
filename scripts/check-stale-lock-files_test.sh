@@ -190,7 +190,7 @@ echo "Test 9: --base-ref catches stale committed markdown changes..."
 T9="$TMP_ROOT/t9"
 mkdir -p "$T9"
 create_fixture_repo "$T9" "base-ref-workflow"
-T9_BASE_BRANCH=$(git -C "$T9" branch --show-current)
+T9_BASE_BRANCH=$(git -C "$T9" rev-parse --abbrev-ref HEAD)
 git -C "$T9" checkout -q -b feature
 printf '%s\n' "# base-ref-workflow (edited)" > "$T9/.github/workflows/base-ref-workflow.md"
 git -C "$T9" add .github/workflows/base-ref-workflow.md
@@ -211,7 +211,7 @@ echo "Test 10: --base-ref passes when markdown + lock both changed..."
 T10="$TMP_ROOT/t10"
 mkdir -p "$T10"
 create_fixture_repo "$T10" "base-ref-ok"
-T10_BASE_BRANCH=$(git -C "$T10" branch --show-current)
+T10_BASE_BRANCH=$(git -C "$T10" rev-parse --abbrev-ref HEAD)
 git -C "$T10" checkout -q -b feature
 printf '%s\n' "# base-ref-ok (edited)" > "$T10/.github/workflows/base-ref-ok.md"
 printf '%s\n' "lock: updated"          > "$T10/.github/workflows/base-ref-ok.lock.yml"
