@@ -782,12 +782,16 @@ lint-lock: build
 # does a full recompile) by catching the obvious staleness case early.
 .PHONY: check-stale-lock-files
 check-stale-lock-files:
-	@if [ -n "$${CHECK_STALE_LOCK_BASE_REF:-}" ]; then \
-		bash scripts/check-stale-lock-files.sh --base-ref "$${CHECK_STALE_LOCK_BASE_REF}"; \
-	elif [ -n "$${GITHUB_BASE_REF:-}" ] && git rev-parse --verify "origin/$${GITHUB_BASE_REF}^{commit}" >/dev/null 2>&1; then \
-		bash scripts/check-stale-lock-files.sh --base-ref "origin/$${GITHUB_BASE_REF}"; \
-	elif [ -n "$${GITHUB_BASE_REF:-}" ] && git rev-parse --verify "$${GITHUB_BASE_REF}^{commit}" >/dev/null 2>&1; then \
-		bash scripts/check-stale-lock-files.sh --base-ref "$${GITHUB_BASE_REF}"; \
+	@base_ref="$${CHECK_STALE_LOCK_BASE_REF:-}"; \
+	if [ -z "$$base_ref" ] && [ -n "$${GITHUB_BASE_REF:-}" ]; then \
+		if git rev-parse --verify "origin/$${GITHUB_BASE_REF}^{commit}" >/dev/null 2>&1; then \
+			base_ref="origin/$${GITHUB_BASE_REF}"; \
+		elif git rev-parse --verify "$${GITHUB_BASE_REF}^{commit}" >/dev/null 2>&1; then \
+			base_ref="$${GITHUB_BASE_REF}"; \
+		fi; \
+	fi; \
+	if [ -n "$$base_ref" ]; then \
+		bash scripts/check-stale-lock-files.sh --base-ref "$$base_ref"; \
 	else \
 		bash scripts/check-stale-lock-files.sh; \
 	fi

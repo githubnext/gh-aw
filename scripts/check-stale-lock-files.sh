@@ -103,8 +103,8 @@ stale_files=()
 missing_locks=()
 
 while IFS= read -r md; do
-    [ -n "$md" ] || continue
     [ -f "$md" ] || continue
+    [ -n "$md" ] || continue
     lock="${md%.md}.lock.yml"
 
     if [ ! -f "$lock" ]; then
