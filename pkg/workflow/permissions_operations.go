@@ -84,10 +84,10 @@ func hasCopilotRequestsWritePermission(workflowData *WorkflowData) bool {
 }
 
 // HasCopilotRequestsWriteFromFrontmatter returns true when the frontmatter permissions map
-// includes copilot-requests: write. It is the frontmatter-map counterpart of
-// hasCopilotRequestsWritePermission (which operates on *WorkflowData) and exists so that
-// callers outside this package (e.g. pkg/cli) can perform the same check without duplicating
-// the frontmatter-to-Permissions conversion logic.
+// includes copilot-requests: write. It is the frontmatter-map counterpart of the unexported
+// hasCopilotRequestsWritePermission in this file (which operates on *WorkflowData) and exists
+// so that callers outside this package (e.g. pkg/cli) can perform the same check without
+// duplicating the frontmatter-to-Permissions conversion logic.
 func HasCopilotRequestsWriteFromFrontmatter(frontmatter map[string]any) bool {
 	if frontmatter == nil {
 		return false
