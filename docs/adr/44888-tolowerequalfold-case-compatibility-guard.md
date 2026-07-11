@@ -1,8 +1,8 @@
 # ADR-44888: Guard tolowerequalfold Linter Against Case-Incompatible Rewrites
 
 **Date**: 2026-07-11
-**Status**: Draft
-**Deciders**: Unknown
+**Status**: Accepted
+**Deciders**: gh-aw maintainers
 
 ---
 
@@ -17,11 +17,12 @@ Both rewrites violate the invariant that an autofix must be behavior-preserving.
 
 ### Decision
 
-We will add semantic compatibility guards to the linter's trigger condition. A comparison is flagged for EqualFold rewriting only when the operands are genuinely case-equivalent:
+We will make the `tolowerequalfold` rewrite **fail closed** and only permit cases we can prove equivalent. A comparison is flagged for EqualFold rewriting only when:
 
-- If the non-conversion operand is a string literal, the literal must already be in the correct case for the conversion function (all-lowercase for `ToLower`, all-uppercase for `ToUpper`).
-- If both operands are case-conversion calls, they must use the same function (`ToLower`/`ToLower` or `ToUpper`/`ToUpper`).
-- These guards apply to both direct calls and local-variable aliases.
+- one side is a `strings.ToLower`/`strings.ToUpper` call (or tracked alias), and
+- the other side is an **ASCII string literal** that is already in the matching case (`ToLower` ↔ lowercase literal, `ToUpper` ↔ uppercase literal).
+
+All other operand shapes are rejected (unknown variables, other function calls, and conversion-vs-conversion comparisons, including same-function pairs). This conservative choice avoids Unicode simple-fold edge cases (for example Greek sigma forms) where `ToLower`/`ToUpper` equality can diverge from `strings.EqualFold`.
 
 The internal alias map type is changed from `map[types.Object]ast.Expr` to `map[types.Object]caseConvAliasInfo` to carry the function name alongside the argument, enabling alias-level guards.
 
@@ -33,27 +34,28 @@ Guard only against literals that contain both upper and lowercase characters (e.
 
 Rejected because it does not cover the primary bug: `strings.ToLower(name) == "ALICE"` uses an all-uppercase literal and would still be incorrectly rewritten. The guard must be based on whether the literal's case is invariant under the conversion, not on whether it is "mixed case."
 
-#### Alternative 2: Require explicit nolint suppression for edge cases
+#### Alternative 2: Allow same-function conversion pairs (`ToLower(a)==ToLower(b)`)
 
-Keep the current permissive trigger and require users to annotate problematic patterns with a `//nolint:tolowerequalfold` directive when they know the comparison is dead code.
+Treat matching conversion functions as sufficient evidence of equivalence and continue rewriting those comparisons.
 
-Rejected because it puts the burden of correctness on every consumer of the linter rather than making the linter correct by default. A linter whose autofix can silently introduce bugs is more dangerous than no linter at all, especially in automated fix workflows.
+Rejected because Go Unicode semantics make this unsafe in general (`strings.ToLower("ς") != strings.ToLower("σ")` while `strings.EqualFold("ς", "σ")` is true). This would still permit behavior-changing rewrites.
 
 ### Consequences
 
 #### Positive
 - The linter no longer silently converts always-false (dead-code) comparisons into live case-insensitive checks.
-- Mixed `ToLower`/`ToUpper` comparisons are correctly excluded from the diagnostic, preserving existing behavior.
+- Mixed `ToLower`/`ToUpper` and same-function conversion-pair comparisons are excluded, preserving behavior across Unicode edge cases.
 - Negative test fixtures lock in the new behavior and prevent regression.
 
 #### Negative
-- The trigger condition is now more complex: the new `isEquivalentToEqualFold` function delegates to several helper functions (`caseConvIsCompatible`, `caseConvAliasIsCompatible`, `literalCaseMatchesConv`, `stringLitValue`, `caseConvFuncAndArg`), adding ~90 lines to the linter.
+- The rule becomes stricter and emits fewer diagnostics than before, intentionally favoring correctness over aggressiveness.
+- The trigger condition is now more complex: `isEquivalentToEqualFold` delegates to compatibility helpers (`caseConvIsCompatible`, `caseConvAliasIsCompatible`, `literalCaseMatchesConv`, `stringLitValue`, `caseConvFuncAndArg`).
 - The `caseConvAliasInfo` struct change is a breaking internal refactor: all functions accepting `map[types.Object]ast.Expr` must be updated to `map[types.Object]caseConvAliasInfo`.
 
 #### Neutral
 - The helper `caseConvFuncAndArg` is introduced as a single source of truth for extracting both the function name and argument from a conversion call; the existing `caseConvArg` and new `caseConvFuncName` become thin delegates to it.
-- The guard uses Go's own `strings.ToLower`/`strings.ToUpper` at analysis time to determine whether a literal is in the correct case, ensuring the check is always consistent with the runtime behavior being linted.
+- The literal guard uses ASCII-only matching so the analyzer does not need full Unicode fold-class reasoning.
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*Finalized for PR #44888.*

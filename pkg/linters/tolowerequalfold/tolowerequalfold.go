@@ -10,6 +10,7 @@ import (
 	"go/types"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -302,9 +303,12 @@ func stringLitValue(expr ast.Expr) (string, bool) {
 }
 
 // literalCaseMatchesConv reports whether lit is already in the correct case for
-// funcName (i.e. applying the conversion to lit is a no-op). Only when this
-// holds is "conv(x) == lit" semantically equivalent to "EqualFold(x, lit)".
+// funcName and uses ASCII-only letters. This conservative guard avoids Unicode
+// simple-fold mismatches where ToLower/ToUpper equality and EqualFold differ.
 func literalCaseMatchesConv(funcName, lit string) bool {
+	if !isASCIIString(lit) {
+		return false
+	}
 	switch funcName {
 	case "ToLower":
 		return strings.ToLower(lit) == lit
@@ -312,6 +316,10 @@ func literalCaseMatchesConv(funcName, lit string) bool {
 		return strings.ToUpper(lit) == lit
 	}
 	return false
+}
+
+func isASCIIString(s string) bool {
+	return utf8.ValidString(s) && len(s) == utf8.RuneCountInString(s)
 }
 
 // isEquivalentToEqualFold reports whether the == or != comparison expr is
@@ -327,9 +335,8 @@ func isEquivalentToEqualFold(pass *analysis.Pass, expr *ast.BinaryExpr, caseConv
 
 // caseConvIsCompatible reports whether it is safe to rewrite a comparison
 // where convSide is a case-conversion call and otherSide is the other operand.
-// Returns false when:
-//   - otherSide is a string literal whose case does not match the conversion, or
-//   - otherSide is a case-conversion call using a different function.
+// Returns true only for ASCII string literals whose case already matches the
+// conversion function. All other forms fail closed.
 func caseConvIsCompatible(pass *analysis.Pass, convSide ast.Node, otherSide ast.Expr) bool {
 	funcName, ok := caseConvFuncName(pass, convSide)
 	if !ok {
@@ -339,12 +346,7 @@ func caseConvIsCompatible(pass *analysis.Pass, convSide ast.Node, otherSide ast.
 	if lit, ok := stringLitValue(otherSide); ok {
 		return literalCaseMatchesConv(funcName, lit)
 	}
-	// Case-conversion operand: both sides must use the same function.
-	if otherFunc, ok := caseConvFuncName(pass, otherSide); ok {
-		return funcName == otherFunc
-	}
-	// Variable or other expression: safe to rewrite.
-	return true
+	return false
 }
 
 // caseConvAliasIsCompatible reports whether it is safe to rewrite a comparison
