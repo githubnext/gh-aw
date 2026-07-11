@@ -140,7 +140,7 @@ func replaceStringRanges(input string, ranges [][]int, replacement string) strin
 	var b strings.Builder
 	last := 0
 	for _, r := range ranges {
-		if len(r) != 2 || r[0] < last || r[1] < r[0] || r[1] > len(input) {
+		if len(r) != 2 || r[0] < last || r[1] > len(input) {
 			continue
 		}
 		b.WriteString(input[last:r[0]])
