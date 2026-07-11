@@ -8,6 +8,7 @@ type: project
 
 **Date**: 2026-05-11
 **Status**: Superseded
+**Superseded**: 2026-07-11
 **Deciders**: pelikhan (PR author), to be confirmed
 
 ---
