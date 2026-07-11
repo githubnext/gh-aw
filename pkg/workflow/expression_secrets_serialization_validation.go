@@ -141,6 +141,7 @@ func replaceStringRanges(input string, ranges [][]int, replacement string) strin
 	last := 0
 	for _, r := range ranges {
 		if len(r) != 2 || r[0] < last || r[1] > len(input) {
+			expressionSecretsSerializationLog.Printf("Skipping invalid replacement range %v for input length %d", r, len(input))
 			continue
 		}
 		b.WriteString(input[last:r[0]])
