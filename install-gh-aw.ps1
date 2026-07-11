@@ -141,6 +141,7 @@ function Invoke-ProcessWithTimeout {
         if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
             try {
                 $process.Kill($true)
+                $process.WaitForExit(5000) | Out-Null
             } catch {
             }
             return [pscustomobject]@{
@@ -173,7 +174,7 @@ function Invoke-DownloadWithRetry {
     $delay = $InitialDelaySeconds
     for ($attempt = 1; $attempt -le $MaxRetries; $attempt++) {
         try {
-            Invoke-WebRequest -Uri $Url -Headers $GitHubHeaders -OutFile $DestinationPath | Out-Null
+            Invoke-WebRequest -Uri $Url -Headers $GitHubHeaders -OutFile $DestinationPath -TimeoutSec 120 | Out-Null
             Write-Success "Binary downloaded successfully"
             return $true
         } catch {
@@ -268,7 +269,7 @@ $FallbackDownloadURL = ""
 $FallbackChecksumsURL = ""
 if ($Version -eq "latest") {
     try {
-        $latestRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -Headers $GitHubHeaders
+        $latestRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -Headers $GitHubHeaders -TimeoutSec 30
         $LatestTag = $latestRelease.tag_name
     } catch {
         Write-WarningMessage "Failed to resolve latest release tag from GitHub API."
@@ -326,7 +327,7 @@ if (-not $SkipChecksum) {
 
     for ($attempt = 1; $attempt -le 3; $attempt++) {
         try {
-            Invoke-WebRequest -Uri $ChecksumsURL -Headers $GitHubHeaders -OutFile $ChecksumsPath | Out-Null
+            Invoke-WebRequest -Uri $ChecksumsURL -Headers $GitHubHeaders -OutFile $ChecksumsPath -TimeoutSec 60 | Out-Null
             $checksumsDownloaded = $true
             Write-Success "Checksums file downloaded successfully"
             break

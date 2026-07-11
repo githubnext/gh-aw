@@ -200,18 +200,21 @@ jobs:
         shell: pwsh
         run: |
           Set-StrictMode -Version Latest
-          $ErrorActionPreference = "Stop"
 
-          $output = & ./install-gh-aw.ps1 v999.999.999 2>&1
-          $output | Tee-Object -FilePath install-ps-output.log
+          # Capture stdout (2>&1) and Write-Host / information stream (6>&1).
+          # The script is expected to exit 1 when the fake version download fails;
+          # we only assert that platform-detection ran before the download attempt.
+          $output = & ./install-gh-aw.ps1 v999.999.999 6>&1 2>&1
+          $outputText = ($output | Out-String)
+          $outputText | Tee-Object -FilePath install-ps-output.log
 
-          if ($output -notmatch "Detected OS:") {
+          if ($outputText -notmatch "Detected OS:") {
             throw "OS detection failed"
           }
-          if ($output -notmatch "Detected architecture:") {
+          if ($outputText -notmatch "Detected architecture:") {
             throw "Architecture detection failed"
           }
-          if ($output -notmatch "Platform:") {
+          if ($outputText -notmatch "Platform:") {
             throw "Platform string construction failed"
           }
 

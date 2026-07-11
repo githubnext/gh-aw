@@ -177,9 +177,10 @@ The installation scripts are copied during the build process:
 
 ```bash
 make build  # Copies install-gh-aw.sh to actions/setup-cli/install.sh
+            # and install-gh-aw.ps1 to actions/setup-cli/install.ps1
 ```
 
-The generated `install.sh` file is marked as `linguist-generated=true` in `.gitattributes`.
+The generated `install.sh` and `install.ps1` files are marked as `linguist-generated=true` in `.gitattributes`.
 
 ## License
 

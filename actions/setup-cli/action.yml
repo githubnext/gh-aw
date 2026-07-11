@@ -14,11 +14,13 @@ inputs:
 outputs:
   installed-version:
     description: 'The version that was installed'
+    value: ${{ steps.install-windows.outputs.installed_version || steps.install-unix.outputs.installed_version }}
   
 runs:
   using: 'composite'
   steps:
     - name: Install gh-aw CLI (PowerShell)
+      id: install-windows
       if: runner.os == 'Windows'
       shell: pwsh
       env:
@@ -28,6 +30,7 @@ runs:
       run: '& "$env:ACTION_PATH/install.ps1"'
 
     - name: Install gh-aw CLI (Bash)
+      id: install-unix
       if: runner.os != 'Windows'
       shell: bash
       env:
