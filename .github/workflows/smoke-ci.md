@@ -10,6 +10,7 @@ on:
   schedule: daily
   pull_request:
     types: [opened, synchronize, reopened]
+    paths: ['cmd/**', 'pkg/**', '*.go', 'go.mod', 'actions/setup/js/**']
 concurrency:
   group: smoke-ci-${{ github.ref }}
   cancel-in-progress: true
