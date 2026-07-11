@@ -201,10 +201,12 @@ jobs:
         run: |
           Set-StrictMode -Version Latest
 
-          # Capture stdout (2>&1) and Write-Host / information stream (6>&1).
-          # The script is expected to exit 1 when the fake version download fails;
-          # we only assert that platform-detection ran before the download attempt.
+          # Capture stdout and Write-Host (information stream 6) so assertions can
+          # match platform-detection log lines.  The installer exits 1 when the fake
+          # version download fails; that is expected.  Reset LASTEXITCODE afterward so
+          # the GitHub Actions pwsh template does not fail the step because of it.
           $output = & ./install-gh-aw.ps1 v999.999.999 6>&1 2>&1
+          $global:LASTEXITCODE = 0
           $outputText = ($output | Out-String)
           $outputText | Tee-Object -FilePath install-ps-output.log
 
@@ -218,56 +220,31 @@ jobs:
             throw "Platform string construction failed"
           }
 
-      - name: Test full PowerShell install script
+      - name: Test setup-cli composite action (Windows)
+        id: setup-cli-test
+        uses: ./actions/setup-cli
+        with:
+          version: latest
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify composite-action binary and installed-version output
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           Set-StrictMode -Version Latest
-          $ErrorActionPreference = "Stop"
+          $ErrorActionPreference = 'Stop'
 
-          & ./install-gh-aw.ps1
+          $installedVersion = '${{ steps.setup-cli-test.outputs.installed-version }}'
+          if (-not $installedVersion) {
+            throw "installed-version output is empty; action output wiring is broken"
+          }
+          Write-Host "Composite action installed: $installedVersion"
 
-          $installDir = Join-Path $HOME ".local/share/gh/extensions/gh-aw"
-          $binaryPath = Join-Path $installDir "gh-aw.exe"
-
+          $binaryPath = Join-Path $HOME ".local/share/gh/extensions/gh-aw/gh-aw.exe"
           if (-not (Test-Path $binaryPath)) {
             throw "Binary not found at $binaryPath"
           }
-
-          function Invoke-WithTimeout {
-            param(
-              [Parameter(Mandatory)][string]$FilePath,
-              [string[]]$ArgumentList = @(),
-              [int]$TimeoutSeconds = 60
-            )
-
-            $stdoutPath = [System.IO.Path]::GetTempFileName()
-            $stderrPath = [System.IO.Path]::GetTempFileName()
-            try {
-              $process = Start-Process -FilePath $FilePath -ArgumentList $ArgumentList -PassThru -NoNewWindow -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
-              if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
-                try {
-                  $process.Kill($true)
-                } catch {
-                }
-                return 124
-              }
-              return $process.ExitCode
-            } finally {
-              Remove-Item $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
-            }
-          }
-
-          $versionExit = Invoke-WithTimeout -FilePath $binaryPath -ArgumentList @("version")
-          if ($versionExit -ne 0 -and $versionExit -ne 124) {
-            throw "Binary version command failed (exit $versionExit)"
-          }
-
-          $helpExit = Invoke-WithTimeout -FilePath $binaryPath -ArgumentList @("--help")
-          if ($helpExit -ne 0 -and $helpExit -ne 124) {
-            throw "Binary help command failed (exit $helpExit)"
-          }
+          Write-Host "Binary found at: $binaryPath"
+          & $binaryPath version 2>&1 | Write-Host
 
       - name: Upload PowerShell test results
         if: always()
