@@ -604,7 +604,7 @@ This section lists the files that **MUST** be reviewed and updated whenever a no
 
 When requirements GP-001–GP-006 (or any later GP-NNN additions) change, update the following:
 
-1. **`schemas/mcp-gateway-config.schema.json`** — Add, remove, or rename the `guard-policies`, `allowed-repos`, and `min-integrity` fields in the `stdioServerConfig` and `httpServerConfig` schema objects to match the revised normative requirements. Verify that the JSON Schema types, enum values, and `required` constraints reflect the updated GP-001 and GP-002 constraints.
+1. **`schemas/mcp-gateway-config.schema.json`** — Add, remove, or rename the `guard-policies`, `allowed-repos`, and `min-integrity` fields in the `#/definitions/stdioServerConfig` and `#/definitions/httpServerConfig` schema objects to match the revised normative requirements. Verify that the JSON Schema types, enum values, and `required` constraints reflect the updated GP-001 and GP-002 constraints.
 
 2. **`pkg/workflow/tools_validation_github.go`** — Update `validateGitHubGuardPolicy()`, `validateReposScope()`, and `validateRepoPattern()` to enforce the revised constraints. Any new rejection rule in GP-001–GP-006 **MUST** have a corresponding validation call and error message in this file.
 

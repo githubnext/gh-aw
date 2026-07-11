@@ -2705,7 +2705,7 @@ This section lists the files that **MUST** be reviewed and updated whenever a no
 
 When the order or definition of P1–P6 predicates changes:
 
-1. **`pkg/workflow/mcp_access_control.go`** (or the file implementing the access-control evaluator) — Update the guard predicate evaluation loop to reflect the new ordering. Every predicate that changes position **MUST** also update the first-failing-guard error-code selection logic.
+1. **`pkg/workflow/mcp_access_control.go`** (the file that implements the `Decision()` evaluator and walks the P1–P6 guard chain; search for the function that evaluates all six guard predicates in sequence) — Update the guard predicate evaluation loop to reflect the new ordering. Every predicate that changes position **MUST** also update the first-failing-guard error-code selection logic.
 
 2. **`specs/github-mcp-access-control-compliance/README.md`** — Update the Formal Model section (`ALLOW(r, c) ≜ …`) and the Behavioral Coverage Map table to reflect the new predicate order. Regenerate `TestFormal_BlockedUserSafetyProperty` and `TestFormal_ErrorCodeFirstFailingGuard` test cases to match.
 

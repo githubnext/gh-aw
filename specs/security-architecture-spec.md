@@ -1771,8 +1771,10 @@ Use this checklist to verify that a compiled `.lock.yml` workflow file meets all
 #### G.10 Formal Test Coverage Audit
 
 The following table maps each Appendix G checklist category against the formal tests in
-`pkg/workflow/security_architecture_sg_formal_test.go`. Cells marked **covered** have a
-dedicated test function; cells marked **gap** lack direct formal test coverage.
+`pkg/workflow/security_architecture_sg_formal_test.go`. Each cell may list zero, one, or
+more test function names. Cells marked **covered** have at least one dedicated test;
+cells marked **gap** lack direct formal test coverage; cells marked **partial** have
+related coverage that does not fully satisfy the checklist item.
 
 | Checklist Category | Formal Test(s) | Coverage |
 |---|---|---|
@@ -1791,7 +1793,7 @@ dedicated test function; cells marked **gap** lack direct formal test coverage.
 **Summary of coverage gaps (as of 2026-07-11)**:
 
 - **G.1 Action pinning**: Formal test gap. CI tooling (actionlint, poutine) provides runtime coverage; consider adding a dedicated test that parses compiled lock file `uses:` patterns.
-- **G.6 RBAC (PM-11) membership check step**: Formal test gap. `pre_activation` job topology is verified, but the presence of `check_membership.cjs` as a step inside that job is not asserted by any test in this file. A dedicated `TestFormalPM11_PreActivationContainsMembershipStep` test should be added. See: specs/security-architecture-spec-validation.md §4 (PM-11 note).
+- **G.6 RBAC (PM-11) membership check step**: Formal test gap. `pre_activation` job topology is verified, but the presence of `check_membership.cjs` as a step inside that job is not asserted by any test in this file. A dedicated `TestFormalPM11_PreActivationContainsMembershipStep` test should be added. See: specs/security-architecture-spec-validation.md §4b (PM-11 note).
 - **G.8 Concurrency control**: Formal test gap. Concurrency group format is validated only by manual review. Consider a test that compiles a PR-trigger workflow and asserts `concurrency.group` contains the PR number expression.
 
 ---
