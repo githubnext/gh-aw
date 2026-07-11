@@ -568,9 +568,6 @@ func TestFormalStagedMode(t *testing.T) {
 	require.NotNil(t, cfg)
 	require.NotNil(t, cfg.Staged)
 	assert.Equal(t, "true", string(*cfg.Staged))
-	outcome := formalReplaceLabelOutcome{Success: true, Staged: true}
-	assert.True(t, outcome.Success)
-	assert.True(t, outcome.Staged)
 }
 
 // formalRunReplaceLabel models the core execute path of the replace_label handler.
