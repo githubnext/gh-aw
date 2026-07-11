@@ -59,13 +59,14 @@ describe("convert gateway config shared pipeline", () => {
 describe("convert gateway config adapters", () => {
   const urlPrefix = "http://host.docker.internal:80";
 
-  it("claude adapter enforces type=http and rewrites url", () => {
-    const converted = transformClaudeEntry({ type: "ignored", url: "http://old/mcp/github", headers: { Authorization: "token" } }, urlPrefix);
+  it("claude adapter enforces type=http, rewrites url, and drops Copilot-only tools", () => {
+    const converted = transformClaudeEntry({ type: "ignored", url: "http://old/mcp/github", headers: { Authorization: "token" }, tools: ["read"] }, urlPrefix);
     expect(converted).toEqual({
       type: "http",
       url: "http://host.docker.internal:80/mcp/github",
       headers: { Authorization: "token" },
     });
+    expect(converted.tools).toBeUndefined();
   });
 
   it("copilot adapter adds tools wildcard only when missing", () => {
