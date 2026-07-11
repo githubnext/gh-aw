@@ -1,26 +1,23 @@
 {
-  "timestamp": "2026-07-10T05:00:00Z",
-  "run_id": "29070221159",
+  "timestamp": "2026-07-11T04:44:26Z",
+  "run_id": "29140043760",
   "total_workflows": 256,
   "engine_breakdown": {
     "copilot_simple": 37,
     "copilot_sdk": 65,
-    "copilot_total": 99,
-    "claude": "~47",
-    "codex": "~10",
-    "other": "~66"
+    "copilot_total": 102
   },
   "features_available": [
     "engine.agent (custom agent file, --agent flag)",
     "engine.copilot-sdk (headless sidecar mode)",
     "engine.bare (--no-custom-instructions)",
-    "engine.max-continuations (--autopilot mode)",
+    "max-continuations (--autopilot mode)",
     "engine.args (custom CLI flags)",
     "engine.version (version pinning)",
     "engine.model (model override)",
     "engine.command (custom executable)",
     "engine.driver (custom SDK driver)",
-    "engine.harness.max-retries/initial-delay-ms/backoff-multiplier/max-delay-ms",
+    "engine.harness (retry config: max-retries/initial-delay-ms/backoff-multiplier/max-delay-ms)",
     "engine.mcp.tool-timeout/session-timeout",
     "engine.api-target (custom endpoint)",
     "engine.env (custom env vars)",
@@ -30,44 +27,53 @@
     "network.allowed (AWF firewall)",
     "sandbox.agent.id: awf (AWF sandbox)",
     "lsp servers (settings.json LSP config)",
-    "max-continuations (autopilot)",
     "tracker-id (run deduplication)",
     "strict: true (strict mode)"
   ],
   "features_usage": {
-    "copilot_sdk": {"count": 65, "note": "widely used"},
-    "bare": {"count": 19, "note": "used in some workflows"},
-    "max_continuations": {"count": 11, "note": "underutilized - only 11 of 256 workflows (none are production Copilot)"},
-    "engine_args": {"count": 3, "note": "very limited use"},
-    "engine_agent": {"count": 78, "note": "used by 78 copilot workflows"},
-    "engine_version_pinning": {"count": 38, "note": "used by 38 workflows"},
-    "engine_mcp_timeout": {"count": 3, "note": "only 3 workflows (Claude only)"},
-    "harness_retry_config": {"count": 1, "note": "only 1 workflow uses harness config (daily-rendering-scripts-verifier)"},
-    "engine_cwd": {"count": 0, "note": "ZERO workflows use engine.cwd"},
-    "api_target": {"count": 0, "note": "only in smoke tests"},
-    "byok": {"count": 1, "note": "only in daily-byok-ollama-test"},
-    "model_provider": {"count": 1, "note": "only in smoke-claude-on-copilot"},
-    "tracker_id": {"count": 95, "note": "widely used"},
-    "web_fetch": {"count": 26, "note": "26 workflows use web-fetch"},
-    "cache_memory": {"count": "many", "note": "widely used"},
-    "network_config": {"count": 137, "note": "137 workflows configure network"},
-    "awf_sandbox": {"count": 208, "note": "widely used"},
-    "sandbox_no_awf": {"count": 12, "note": "12 production copilot workflows lack sandbox"}
+    "copilot_sdk": {"count": 65},
+    "bare": {"count": 19},
+    "max_continuations": {"count": 11, "note": "0 of these are copilot-simple engine"},
+    "engine_args": {"count": 3},
+    "engine_agent": {"count": 64, "note": "used across copilot workflows"},
+    "engine_version_pinning": {"count": 38},
+    "engine_mcp_timeout": {"count": 0, "note": "ZERO Copilot workflows use mcp.tool-timeout"},
+    "harness_retry_config": {"count": 1, "note": "only daily-rendering-scripts-verifier"},
+    "engine_cwd": {"count": 0},
+    "api_target": {"count": "smoke tests only"},
+    "byok": {"count": 1, "note": "daily-byok-ollama-test"},
+    "lsp": {"count": 3},
+    "web_fetch": {"count": 26},
+    "network_config": {"count": 137},
+    "awf_sandbox": {"count": 95}
   },
+  "non_smoke_copilot_simple_no_sandbox": [
+    "stale-pr-cleanup.md",
+    "terminal-stylist.md",
+    "uk-ai-operational-resilience.md",
+    "video-analyzer.md",
+    "workflow-health-manager.md"
+  ],
+  "copilot_simple_long_running_no_max_continuations": [
+    "agent-persona-explorer.md (180min)",
+    "daily-doc-updater.md (45min)",
+    "slide-deck-maintainer.md (45min)",
+    "stale-repo-identifier.md (45min)",
+    "update-astro.md (45min)"
+  ],
   "key_findings": [
-    "37 long-running (30+min) production copilot workflows lack max-continuations",
-    "engine.cwd is available but ZERO workflows use it",
-    "engine.mcp.tool-timeout is only used by 3 Claude workflows, NONE of the 99 Copilot workflows",
-    "harness retry config used by only 1 workflow (daily-rendering-scripts-verifier)",
-    "12 production Copilot workflows lack AWF sandbox despite having network access",
-    "COPILOT_SDK_SEND_TIMEOUT_MS env var pattern found in daily-security-observability, not documented as pattern",
-    "engine.cwd = 0 usage despite potential for scoping work to subdirectory"
+    "5 production copilot workflows lack sandbox/network: stale-pr-cleanup, terminal-stylist, uk-ai-operational-resilience, video-analyzer, workflow-health-manager",
+    "5 long-running (45-180min) copilot-simple workflows lack max-continuations",
+    "ZERO Copilot workflows use engine.mcp.tool-timeout despite MCP timeouts being configurable",
+    "engine.cwd = 0 usage across all 256 workflows",
+    "harness retry config used by only 1 workflow",
+    "LSP servers configured in only 3 workflows (huge opportunity for code-heavy workflows)",
+    "9 long-running copilot-sdk workflows (45-120min) have no max-continuations"
   ],
   "trend_vs_previous": {
-    "total_workflows": "260->256 (4 removed)",
-    "copilot_total": "roughly same (37+65=102 vs prev 137)",
-    "harness_usage": "0->1 (progress!)",
-    "web_fetch": "5->26 (major increase)",
-    "network_config": "stable"
+    "harness_usage": "1->1 (unchanged)",
+    "lsp_servers": "same (3)",
+    "sandbox_gaps": "reduced slightly",
+    "copilot_total": "99->102 (+3)"
   }
 }
