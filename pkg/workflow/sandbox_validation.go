@@ -151,7 +151,25 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 			)
 		}
 
-		sandboxValidationLog.Print("docker-sbx runtime configured -- topology and sudo checks passed")
+		firewallConfig := getFirewallConfig(workflowData)
+		var configuredVersion string
+		if firewallConfig != nil {
+			configuredVersion = firewallConfig.Version
+		}
+		if !versionAtLeast(configuredVersion, string(constants.DefaultFirewallVersion), string(constants.AWFContainerRuntimeMinVersion)) {
+			effectiveVersion := configuredVersion
+			if effectiveVersion == "" {
+				effectiveVersion = string(constants.DefaultFirewallVersion)
+			}
+			return NewValidationError(
+				"sandbox.agent.runtime",
+				string(AgentRuntimeDockerSbx),
+				fmt.Sprintf("docker-sbx requires AWF %s or newer", constants.AWFContainerRuntimeMinVersion),
+				fmt.Sprintf("docker-sbx emits 'awf --container-runtime sbx', which is only supported in AWF %s+.\n\nThe effective AWF version is %s. Set firewall.version or sandbox.agent.version to %s or newer.", constants.AWFContainerRuntimeMinVersion, effectiveVersion, constants.AWFContainerRuntimeMinVersion),
+			)
+		}
+
+		sandboxValidationLog.Print("docker-sbx runtime configured -- topology, sudo, and AWF version checks passed")
 	}
 
 	// Validate config structure if provided (deprecated - was only for SRT)

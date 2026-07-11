@@ -613,10 +613,13 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	}
 
 	// docker-sbx: tell AWF to launch the agent inside a Docker sbx microVM instead
-	// of as a standard Docker Compose service.
-	if isDockerSbxRuntime(config.WorkflowData) {
+	// of as a standard Docker Compose service. Guard on the effective AWF version so
+	// older binaries do not receive an unknown flag.
+	if isDockerSbxRuntime(config.WorkflowData) && awfSupportsContainerRuntime(firewallConfig) {
 		awfArgs = append(awfArgs, "--container-runtime", "sbx")
 		awfHelpersLog.Print("Added --container-runtime sbx for docker-sbx microVM runtime")
+	} else if isDockerSbxRuntime(config.WorkflowData) {
+		awfHelpersLog.Printf("Skipping --container-runtime sbx: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFContainerRuntimeMinVersion)
 	}
 
 	// Pass all environment variables to the container, but exclude every variable whose

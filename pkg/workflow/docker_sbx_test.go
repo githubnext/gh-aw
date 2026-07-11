@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +21,7 @@ func TestGenerateDockerSbxInstallSteps(t *testing.T) {
 		require.NotEmpty(t, step, "KVM check step must not be empty")
 		content := strings.Join(step, "\n")
 		assert.Contains(t, content, "kvm", "must check for KVM availability")
-		assert.Contains(t, content, "/dev/kvm", "must check /dev/kvm is writable")
+		assert.Contains(t, content, "test -e /dev/kvm", "must check /dev/kvm exists")
 		assert.Contains(t, content, "exit 1", "must fail with exit 1 when KVM is absent")
 	})
 
@@ -55,6 +56,8 @@ func TestGenerateDockerSbxInstallSteps(t *testing.T) {
 		assert.Contains(t, content, "sbx policy reset", "must reset sbx policy")
 		assert.Contains(t, content, "sbx policy init allow-all", "must init sbx allow-all policy")
 		assert.Contains(t, content, "docker/sandbox-templates:shell-docker", "must pre-pull template image")
+		assert.Contains(t, content, `export DOCKER_CONFIG="$(mktemp -d)"`, "must isolate Docker auth in a temporary config")
+		assert.Contains(t, content, `trap 'rm -rf "${DOCKER_CONFIG}"' EXIT`, "must clean up temporary Docker auth on exit")
 		// Secrets must be passed via env, not inline in the run: block
 		assert.Contains(t, content, "DOCKER_PAT_VAL: ${{ secrets.DOCKER_PAT }}", "must use env for DOCKER_PAT")
 		assert.Contains(t, content, "DOCKER_USERNAME_VAL: ${{ secrets.DOCKER_USERNAME }}", "must use env for DOCKER_USERNAME")
@@ -77,6 +80,7 @@ func TestGenerateDockerSbxInstallSteps(t *testing.T) {
 		assert.Contains(t, content, "test-sandbox-direct", "must use a named test sandbox")
 		assert.Contains(t, content, "sbx exec", "must exec a command in the sandbox")
 		assert.Contains(t, content, "uname -a", "must run uname -a as smoke test")
+		assert.Contains(t, content, "trap cleanup EXIT", "must register cleanup for smoke-test failures")
 		assert.Contains(t, content, "sbx stop", "must stop the test sandbox")
 		assert.Contains(t, content, "sbx rm", "must remove the test sandbox")
 		assert.Contains(t, content, "✅ sbx ready", "must confirm readiness")
@@ -156,7 +160,7 @@ func TestDockerSbxAWFArgs(t *testing.T) {
 		WorkflowData: &WorkflowData{
 			EngineConfig: &EngineConfig{ID: "copilot"},
 			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{Enabled: true},
+				Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFContainerRuntimeMinVersion)},
 			},
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
@@ -202,6 +206,31 @@ func TestDockerSbxAWFArgsAbsentByDefault(t *testing.T) {
 	args := BuildAWFArgs(config)
 	argStr := strings.Join(args, " ")
 	assert.NotContains(t, argStr, "--container-runtime", "AWF args must not include --container-runtime when no runtime is set")
+}
+
+// TestDockerSbxAWFArgsVersionGated verifies that --container-runtime sbx is omitted when
+// the effective AWF version predates AWFContainerRuntimeMinVersion.
+func TestDockerSbxAWFArgsVersionGated(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName: "copilot",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID:                    "awf",
+					Runtime:               AgentRuntimeDockerSbx,
+					SudoExplicitlyEnabled: true,
+				},
+			},
+		},
+	}
+
+	args := BuildAWFArgs(config)
+	assert.NotContains(t, strings.Join(args, " "), "--container-runtime",
+		"AWF args must omit --container-runtime when the AWF version is too old")
 }
 
 // TestDockerSbxAWFConfigJSON verifies that the AWF config JSON for docker-sbx does NOT
@@ -325,9 +354,9 @@ func TestDockerSbxValidation_SudoFalseRejected(t *testing.T) {
 	assert.Contains(t, err.Error(), "docker-sbx", "error must mention docker-sbx")
 }
 
-// TestDockerSbxValidation_ValidCombination verifies that docker-sbx with sudo: true
-// on a standard runner passes validation.
-func TestDockerSbxValidation_ValidCombination(t *testing.T) {
+// TestDockerSbxValidation_DefaultVersionRejected verifies that docker-sbx is rejected
+// when the effective AWF version predates --container-runtime support.
+func TestDockerSbxValidation_DefaultVersionRejected(t *testing.T) {
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
@@ -344,7 +373,31 @@ func TestDockerSbxValidation_ValidCombination(t *testing.T) {
 	}
 
 	err := validateSandboxConfig(workflowData)
-	assert.NoError(t, err, "docker-sbx with sudo: true on standard runner must pass validation")
+	require.Error(t, err, "docker-sbx with the default AWF version must fail validation")
+	assert.Contains(t, err.Error(), string(constants.AWFContainerRuntimeMinVersion))
+}
+
+// TestDockerSbxValidation_MinVersionSatisfied verifies that docker-sbx passes validation
+// when the effective AWF version supports --container-runtime.
+func TestDockerSbxValidation_MinVersionSatisfied(t *testing.T) {
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				ID:                    "awf",
+				Runtime:               AgentRuntimeDockerSbx,
+				NetworkIsolation:      false,
+				SudoExplicitlyEnabled: true,
+				Version:               string(constants.AWFContainerRuntimeMinVersion),
+			},
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+		Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+	}
+
+	err := validateSandboxConfig(workflowData)
+	assert.NoError(t, err, "docker-sbx with a supported AWF version must pass validation")
 }
 
 // TestDockerSbxStrictModeSudoSuppressed verifies that sandbox.agent.sudo: true combined
@@ -426,6 +479,7 @@ sandbox:
   agent:
     id: awf
     runtime: docker-sbx
+    version: v0.28.0
     sudo: true
 ---
 
