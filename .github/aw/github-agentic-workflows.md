@@ -57,7 +57,7 @@ See also: [workflow-editing.md](workflow-editing.md)
 - Use `safe-outputs:` for GitHub writes.
 - Prefer `tools.github.mode: gh-proxy` and use `gh` for GitHub reads.
 - For non-GitHub MCP servers, prefer `tools.cli-proxy: true` and use mounted `mcp-clis` commands.
-- Use `${{ steps.sanitized.outputs.text }}` for untrusted user content.
+- Use `${{ steps.sanitized.outputs.text }}` (full context), `${{ steps.sanitized.outputs.title }}` (title only), or `${{ steps.sanitized.outputs.body }}` (body only) for untrusted user content. Do not use the deprecated `needs.activation.outputs.text/title/body` aliases.
 - Set `strict: true` for production workflows.
 - Limit network and bash access to what the workflow actually needs.
 - For visual regression workflows, explicitly name the baseline source (for example `cache-memory` key, artifact, or branch path). See [visual-regression.md](visual-regression.md).

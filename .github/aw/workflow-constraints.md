@@ -44,7 +44,7 @@ Suggested response:
 - Prefer `tools.github.mode: gh-proxy` with `gh` for GitHub reads.
 - Prefer `tools.cli-proxy: true` with mounted `mcp-clis` commands for non-GitHub MCP tools.
 - Constrain `network.allowed:` to the minimum required ecosystems or domains.
-- Use `${{ steps.sanitized.outputs.text }}` for untrusted user content.
+- Use `${{ steps.sanitized.outputs.text }}` (full context), `${{ steps.sanitized.outputs.title }}` (title only), or `${{ steps.sanitized.outputs.body }}` (body only) for untrusted user content. The deprecated `needs.activation.outputs.text/title/body` aliases are auto-rewritten by the compiler with a warning—use `steps.sanitized.outputs.*` directly.
 
 ## Safer Alternatives First
 

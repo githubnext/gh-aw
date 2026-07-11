@@ -75,16 +75,25 @@ description: GitHub context expression variables and Handlebars-style template c
 
 All other expressions are disallowed.
 
-### Sanitized Context Text (`steps.sanitized.outputs.text`)
+### Sanitized Context Outputs (`steps.sanitized.outputs.*`)
 
-**RECOMMENDED**: Prefer `${{ steps.sanitized.outputs.text }}` over individual `github.event` fields for issue/PR content.
+**RECOMMENDED**: Prefer `steps.sanitized.outputs.*` over individual `github.event` fields for issue/PR content.
+
+Three sanitized outputs are available in workflow prompts:
+
+- `${{ steps.sanitized.outputs.text }}` — sanitized full context (title + body for issues/PRs; body for comments/reviews)
+- `${{ steps.sanitized.outputs.title }}` — sanitized title of the triggering issue or PR (empty for comment events)
+- `${{ steps.sanitized.outputs.body }}` — sanitized body of the triggering issue or PR (empty for comment events)
+
+> **Deprecated form**: `${{ needs.activation.outputs.text }}`, `${{ needs.activation.outputs.title }}`, and `${{ needs.activation.outputs.body }}` are deprecated aliases that the compiler auto-rewrites with a warning. Use `steps.sanitized.outputs.*` directly in all new and updated workflows. Only `text`, `title`, and `body` are affected—continue using `needs.activation.outputs.*` for other outputs like `comment_id`, `comment_repo`, and `slash_command` in downstream jobs.
 
 Auto-populated per triggering event:
 
-- **Issues / Pull Requests**: `title + "\n\n" + body`
-- **Issue Comments / PR Review Comments**: `comment.body`
-- **PR Reviews**: `review.body`
-- **Other events**: Empty string
+| Output | Issues / Pull Requests | Comments / Reviews | Other events |
+|--------|----------------------|-------------------|--------------|
+| `text` | `title + "\n\n" + body` | `comment.body` or `review.body` | Empty string |
+| `title` | title of the issue or PR | Empty string | Empty string |
+| `body` | body of the issue or PR | Empty string | Empty string |
 
 **Security Benefits:**
 
@@ -102,9 +111,10 @@ Expression safety is validated at compile time. Unauthorized expressions cause c
 ### Example Usage
 
 ```markdown
-# Valid — prefer sanitized text
+# Valid — prefer sanitized outputs
 Analyze issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
-The issue content is: "${{ steps.sanitized.outputs.text }}"
+Title: "${{ steps.sanitized.outputs.title }}"
+Content: "${{ steps.sanitized.outputs.text }}"
 
 # Valid — individual fields (less secure)
 Created by ${{ github.actor }} with title: "${{ github.event.issue.title }}"
