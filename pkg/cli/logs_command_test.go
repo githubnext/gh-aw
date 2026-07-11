@@ -62,6 +62,9 @@ func TestNewLogsCommand(t *testing.T) {
 	assert.NotNil(t, afterRunIDFlag, "Should have 'after-run-id' flag")
 	beforeRunIDFlag := flags.Lookup("before-run-id")
 	assert.NotNil(t, beforeRunIDFlag, "Should have 'before-run-id' flag")
+	lastFlag := flags.Lookup("last")
+	assert.NotNil(t, lastFlag, "Should have 'last' flag")
+	assert.Contains(t, lastFlag.Usage, "--count/-c", "--last usage should mention the canonical --count/-c flag")
 
 	// Check tool-graph flag
 	toolGraphFlag := flags.Lookup("tool-graph")

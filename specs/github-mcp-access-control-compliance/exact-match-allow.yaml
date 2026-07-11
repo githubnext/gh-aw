@@ -54,5 +54,5 @@ scenarios:
         content_integrity: "unapproved"
     expected:
       decision: deny
-      error_code: -32001
+      error_code: -32002
       reason: "repository not in allowed list"

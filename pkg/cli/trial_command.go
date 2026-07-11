@@ -15,7 +15,7 @@ func NewTrialCommand(validateEngine func(string) error) *cobra.Command {
 		Long: `Run one or more agentic workflows in trial mode against a simulated repository.
 
 This command creates a temporary private repository in your GitHub account, installs the specified
-workflow(s) from their source repositories, and runs them in "trial mode" to capture safe outputs without
+workflows from their source repositories, and runs them in "trial mode" to capture safe outputs without
 making actual changes to the "simulated" host repository.
 
 Repository modes:
@@ -114,7 +114,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().Bool("delete-host-repo-after", false, "Delete the host repository after completion (kept by default)")
 	cmd.Flags().Bool("force-delete-host-repo-before", false, "Force delete the host repository before creation if it already exists")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompts")
-	cmd.Flags().Bool("dry-run", false, "Preview trial execution without applying any changes")
+	cmd.Flags().Bool("dry-run", false, "Preview trial execution without creating repos or running workflows")
 	cmd.Flags().Int("timeout", 30, "Execution timeout in minutes (set to 0 to disable timeout)")
 	cmd.Flags().String("trigger-context", "", "Trigger context URL (e.g., GitHub issue URL) for issue-triggered workflows")
 	cmd.Flags().Int("repeat", 0, "Number of additional times to run after the initial execution (e.g., --repeat 3 runs 4 times total)")
@@ -122,8 +122,8 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	addEngineFlag(cmd)
 	addJSONFlag(cmd)
 	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
-	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
-	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
+	cmd.Flags().Bool("no-security-scanner", false, "Skip security scanning of workflow markdown content")
+	cmd.Flags().Bool("disable-security-scanner", false, "Skip security scanning of workflow markdown content")
 	_ = cmd.Flags().MarkDeprecated("disable-security-scanner", "use --no-security-scanner instead")
 	cmd.MarkFlagsMutuallyExclusive("logical-repo", "clone-repo")
 

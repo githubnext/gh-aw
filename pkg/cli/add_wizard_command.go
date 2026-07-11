@@ -128,7 +128,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
 
 	// Add no-security-scanner flag (matches --no-security-scanner in add command)
-	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
+	cmd.Flags().Bool("no-security-scanner", false, "Skip security scanning of workflow markdown content")
 
 	// Register completions
 	RegisterEngineFlagCompletion(cmd)

@@ -71,7 +71,8 @@ You triage open agent-created PRs: categorize, score risk/priority, recommend ac
 - Load prior state from `/tmp/gh-aw/repo-memory/default/` when present.
 - Fetch open PRs authored by `app/github-copilot`.
 - Keep PRs authored by `app/github-copilot`, including same-repo branches and forks.
-- Capture number/title/body/files/CI/age/labels/review status/comments and optional agent-quality metadata.
+- Capture number/title/body/files/age/labels/review status/comments and optional agent-quality metadata using the GitHub MCP tools (`pull_request_read` with methods `get`, `get_files`, `get_reviews`, `get_review_comments`).
+- Fetch CI status using the GitHub MCP `pull_request_read` tool with method `get_check_runs` for each PR. Do **not** use `gh pr checks` or `gh pr view` — they use GraphQL which is blocked by the CLI proxy.
 
 ### Phase 2: Classify and assess risk
 
@@ -136,6 +137,8 @@ Write `/tmp/gh-aw/repo-memory/default/pr-triage-latest.json` containing run meta
 - Be consistent and criteria-driven.
 - Prefer actionable outputs over narration.
 - Handle edge cases: empty PR descriptions, mixed-change PRs, stale PRs, superseded PRs, and failing CI.
+- **Never use `gh pr checks` or `gh pr view`** — these commands issue GraphQL operations that the CLI proxy blocks with 403. Use the GitHub MCP `pull_request_read` tool with method `get_check_runs` for CI status and method `get` for PR details instead.
+- When `get_check_runs` returns no data or fails for a PR, treat CI status as unknown and continue triaging; do not retry via CLI commands.
 
 ## Success Criteria
 

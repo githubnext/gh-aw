@@ -11,13 +11,17 @@ import (
 
 func TestEnforceSafeUpdate(t *testing.T) {
 	tests := []struct {
-		name        string
-		manifest    *GHAWManifest
-		secretNames []string
-		actionRefs  []string
-		redirect    string
-		wantErr     bool
-		wantErrMsgs []string
+		name               string
+		manifest           *GHAWManifest
+		secretNames        []string
+		actionRefs         []string
+		redirect           string
+		oldHasPR           bool
+		oldHasPRTarget     bool
+		currentHasPR       bool
+		currentHasPRTarget bool
+		wantErr            bool
+		wantErrMsgs        []string
 	}{
 		{
 			name:        "nil manifest (lock file without manifest section) skips enforcement",
@@ -335,11 +339,31 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			redirect:    "  owner/repo/workflows/new.md@main  ",
 			wantErr:     false,
 		},
+		{
+			name:               "pull_request converted to pull_request_target is flagged",
+			manifest:           &GHAWManifest{Version: 1},
+			secretNames:        []string{},
+			actionRefs:         []string{},
+			oldHasPR:           true,
+			currentHasPRTarget: true,
+			wantErr:            true,
+			wantErrMsgs:        []string{"Event trigger security escalation", "pull_request was converted to pull_request_target"},
+		},
+		{
+			name:               "pull_request_target added without removing pull_request is not conversion",
+			manifest:           &GHAWManifest{Version: 1},
+			secretNames:        []string{},
+			actionRefs:         []string{},
+			oldHasPR:           true,
+			currentHasPR:       true,
+			currentHasPRTarget: true,
+			wantErr:            false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := EnforceSafeUpdate(tt.manifest, tt.secretNames, tt.actionRefs, tt.redirect)
+			err := EnforceSafeUpdate(tt.manifest, tt.secretNames, tt.actionRefs, tt.redirect, tt.oldHasPR, tt.oldHasPRTarget, tt.currentHasPR, tt.currentHasPRTarget)
 			if tt.wantErr {
 				require.Error(t, err, "expected safe update enforcement error")
 				for _, msg := range tt.wantErrMsgs {
@@ -355,7 +379,7 @@ func TestEnforceSafeUpdate(t *testing.T) {
 func TestBuildSafeUpdateError(t *testing.T) {
 	t.Run("secrets only", func(t *testing.T) {
 		violations := []string{"NEW_SECRET", "ANOTHER_SECRET"}
-		err := buildSafeUpdateError(violations, nil, nil, "", "")
+		err := buildSafeUpdateError(violations, nil, nil, "", "", false)
 		require.Error(t, err, "should return an error")
 
 		msg := err.Error()
@@ -366,7 +390,7 @@ func TestBuildSafeUpdateError(t *testing.T) {
 	})
 
 	t.Run("added actions only", func(t *testing.T) {
-		err := buildSafeUpdateError(nil, []string{"evil-org/bad-action"}, nil, "", "")
+		err := buildSafeUpdateError(nil, []string{"evil-org/bad-action"}, nil, "", "", false)
 		require.Error(t, err, "should return an error")
 		msg := err.Error()
 		assert.Contains(t, msg, "evil-org/bad-action", "action in message")
@@ -374,7 +398,7 @@ func TestBuildSafeUpdateError(t *testing.T) {
 	})
 
 	t.Run("removed actions only", func(t *testing.T) {
-		err := buildSafeUpdateError(nil, nil, []string{"actions/setup-node"}, "", "")
+		err := buildSafeUpdateError(nil, nil, []string{"actions/setup-node"}, "", "", false)
 		require.Error(t, err, "should return an error")
 		msg := err.Error()
 		assert.Contains(t, msg, "actions/setup-node", "action in message")
@@ -382,7 +406,7 @@ func TestBuildSafeUpdateError(t *testing.T) {
 	})
 
 	t.Run("added redirect only", func(t *testing.T) {
-		err := buildSafeUpdateError(nil, nil, nil, "owner/repo/workflows/new.md@main", "")
+		err := buildSafeUpdateError(nil, nil, nil, "owner/repo/workflows/new.md@main", "", false)
 		require.Error(t, err, "should return an error")
 		msg := err.Error()
 		assert.Contains(t, msg, "New redirect configured", "added redirect section header in message")
@@ -390,7 +414,7 @@ func TestBuildSafeUpdateError(t *testing.T) {
 	})
 
 	t.Run("removed redirect only", func(t *testing.T) {
-		err := buildSafeUpdateError(nil, nil, nil, "", "owner/repo/workflows/old.md@main")
+		err := buildSafeUpdateError(nil, nil, nil, "", "owner/repo/workflows/old.md@main", false)
 		require.Error(t, err, "should return an error")
 		msg := err.Error()
 		assert.Contains(t, msg, "Previously-approved redirect removed", "removed redirect section header in message")
@@ -404,6 +428,7 @@ func TestBuildSafeUpdateError(t *testing.T) {
 			[]string{"actions/checkout"},
 			"owner/repo/workflows/new.md@main",
 			"owner/repo/workflows/old.md@main",
+			false,
 		)
 		require.Error(t, err, "should return an error")
 		msg := err.Error()
@@ -412,6 +437,43 @@ func TestBuildSafeUpdateError(t *testing.T) {
 		assert.Contains(t, msg, "actions/checkout", "removed action in message")
 		assert.Contains(t, msg, "New redirect configured", "added redirect section in message")
 		assert.Contains(t, msg, "Previously-approved redirect removed", "removed redirect section in message")
+	})
+
+	t.Run("pull_request to pull_request_target escalation", func(t *testing.T) {
+		err := buildSafeUpdateError(nil, nil, nil, "", "", true)
+		require.Error(t, err, "should return an error")
+		msg := err.Error()
+		assert.Contains(t, msg, "Event trigger security escalation", "event escalation section in message")
+		assert.Contains(t, msg, "pull_request was converted to pull_request_target", "event escalation details in message")
+	})
+}
+
+func TestExtractPullRequestEventPresence(t *testing.T) {
+	t.Run("from on field map", func(t *testing.T) {
+		hasPR, hasPRTarget := extractPullRequestEventPresenceFromOnField(map[string]any{
+			"pull_request": map[string]any{"types": []any{"opened"}},
+		})
+		assert.True(t, hasPR)
+		assert.False(t, hasPRTarget)
+	})
+
+	t.Run("from compiled workflow yaml", func(t *testing.T) {
+		content := `
+name: test
+on:
+  pull_request_target:
+    types: [opened]
+jobs: {}
+`
+		hasPR, hasPRTarget := extractPullRequestEventPresenceFromCompiledWorkflow(content)
+		assert.False(t, hasPR)
+		assert.True(t, hasPRTarget)
+	})
+
+	t.Run("invalid yaml returns false", func(t *testing.T) {
+		hasPR, hasPRTarget := extractPullRequestEventPresenceFromCompiledWorkflow("on: [")
+		assert.False(t, hasPR)
+		assert.False(t, hasPRTarget)
 	})
 }
 

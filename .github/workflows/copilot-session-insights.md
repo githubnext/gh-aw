@@ -36,6 +36,8 @@ tools:
     - "jq *"
     - "find /tmp/gh-aw/agent -type f"
     - "cat /tmp/gh-aw/agent/*"
+    - "grep *"
+    - "wc *"
     - "mkdir -p *"
     - "find * -maxdepth 1"
     - "date *"
@@ -72,7 +74,7 @@ Analyze approximately 50 Copilot coding agent sessions to identify:
 - Prompt quality indicators
 - Opportunities for improvement
 
-**NEW**: This workflow now has access to actual agent conversation transcripts (not just infrastructure logs), enabling true behavioral analysis through the agent's internal monologue and reasoning process.
+This workflow has access to actual agent conversation transcripts extracted from GitHub Actions job logs, enabling true behavioral analysis through turn-by-turn model, token, and tool-call data.
 
 Create a comprehensive report and publish it as a GitHub Discussion for team review.
 
@@ -82,28 +84,27 @@ Create a comprehensive report and publish it as a GitHub Discussion for team rev
 - **Analysis Period**: Most recent ~50 agent sessions
 - **Cache Memory**: `/tmp/gh-aw/cache-memory/`
 - **Pre-fetched Data**: Available at `/tmp/gh-aw/agent/session-data/`
-- **Conversation Logs**: Now available with agent's internal monologue and reasoning
+- **Conversation Logs**: `{run_id}-conversation.txt` files in `/tmp/gh-aw/agent/session-data/logs/`
 
 ## Task Overview
 
 ### Phase 0: Setup and Prerequisites
 
 **Pre-fetched Data Available**: Session data has been fetched by the `copilot-session-data-fetch` shared module:
-- `/tmp/gh-aw/agent/session-data/sessions-list.json` - List of sessions with metadata
-- `/tmp/gh-aw/agent/session-data/logs/` - **Conversation transcript files** (new!)
-  - `{session_number}-conversation.txt` - Agent's internal monologue, reasoning, and tool usage
-  - `{session_number}/` - GitHub Actions logs (fallback only)
+- `/tmp/gh-aw/agent/session-data/sessions-list.json` - List of sessions with metadata (all 50, including CI gates)
+- `/tmp/gh-aw/agent/session-data/logs/` - **Conversation transcript files** (one per actual agent run)
+  - `{run_id}-conversation.txt` - `[cca-engine] turn=` log lines: turn number, model, token counts, tool calls
 
 **What's in the Conversation Logs**:
-- Agent's step-by-step reasoning and planning
-- Internal monologue showing decision-making process
-- Tool calls and their outputs
+- Turn-by-turn model and token usage (input/output per turn)
+- Tool calls with tool name, target file/path, and success/failure
+- Turn count (last `turn=N` value in the file)
 - Code changes and validation attempts
 - Error handling and recovery strategies
 
 **Verify Setup**:
 1. Confirm session data was downloaded successfully
-2. Check that conversation logs are available (primary source)
+2. Check that conversation logs are available: `find /tmp/gh-aw/agent/session-data/logs -name "*-conversation.txt"`
 3. Initialize or restore cache-memory from `/tmp/gh-aw/cache-memory/`
 4. Load historical analysis data if available
 
@@ -111,29 +112,28 @@ Create a comprehensive report and publish it as a GitHub Discussion for team rev
 
 For each downloaded session in `/tmp/gh-aw/agent/session-data/`:
 
-1. **Load Conversation Logs**: Read the agent's conversation transcript from `{session_number}-conversation.txt` files. These contain:
-   - Agent's internal reasoning and planning
-   - Tool usage and results
-   - Code changes and validation steps
-   - Error recovery attempts
+1. **Load Conversation Logs**: Read `{run_id}-conversation.txt` files. Each line is a `[cca-engine] turn=` entry:
+   - `turn=N user.message: X chars` — user turn with prompt size
+   - `turn=N assistant.usage: model=M input=X output=Y` — model and token counts
+   - `turn=N assistant.message: X chars, N tool call(s)` — assistant response
+   - `turn=N tool.execution_start: toolName — target` — tool invocation
+   - `turn=N tool.execution_complete: toolName success=true/false` — tool result
 
 2. **Load Historical Context**: Check cache memory for previous analysis results, known strategies, and identified patterns (see `session-analysis-strategies` shared module)
 
 3. **Apply Analysis Strategies**: Use the standard and experimental strategies defined in the imported `session-analysis-strategies` module
 
 4. **Extract Behavioral Insights**: From the conversation logs, identify:
-   - **Reasoning patterns**: How does the agent approach problems?
-   - **Tool usage effectiveness**: Which tools are used and how successful are they?
-   - **Error recovery**: How does the agent handle and recover from errors?
-   - **Planning quality**: Does the agent plan before acting or iterate randomly?
-   - **Prompt understanding**: Does the agent correctly interpret the user's request?
+   - **Tool usage patterns**: Which tools are called, in what order, and with what success rate?
+   - **Token efficiency**: Average tokens per turn, total session cost
+   - **Turn count**: Total turns as a proxy for task complexity or looping
+   - **Error recovery**: Failed tool calls followed by retry or alternative approaches
 
 5. **Collect Session Metrics**: Gather metrics for each session:
    - Session duration and completion status
-   - Number of tool calls and types
-   - Error count and recovery success
-   - Code quality indicators from the conversation
-   - Prompt clarity assessment based on agent's understanding
+   - Number of tool calls and types (from transcript or metadata)
+   - Turn count and per-turn token usage
+   - Tool success/failure rate from `tool.execution_complete` lines
 
 ### Phase 2: Generate Trend Charts
 

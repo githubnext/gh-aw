@@ -54,7 +54,7 @@ Downloaded artifacts include (when using --artifacts all):
 - aw-{branch}.patch: Git patch of changes for each branch (one file per PR/push)
 - workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
 - summary.json: Complete metrics and run data for all downloaded runs
-`, validArtifactSets) + WorkflowIDExplanation,
+`, validArtifactSets) + "\n\n" + WorkflowIDExplanation,
 		Example: `  # Basic usage
   ` + string(constants.CLIExtensionPrefix) + ` logs                           # Download logs for all workflows
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research           # Download logs for specific workflow
@@ -62,12 +62,12 @@ Downloaded artifacts include (when using --artifacts all):
   ` + string(constants.CLIExtensionPrefix) + ` logs -c 10                     # Download last 10 matching runs
 
   # Date filtering
-  ` + string(constants.CLIExtensionPrefix) + ` logs --start-date 2024-01-01   # Download all runs after date
-  ` + string(constants.CLIExtensionPrefix) + ` logs --end-date 2024-01-31     # Download all runs before date
+  ` + string(constants.CLIExtensionPrefix) + ` logs --start-date 2024-01-01   # Download up to 10 runs after date
+  ` + string(constants.CLIExtensionPrefix) + ` logs --end-date 2024-01-31     # Download up to 10 runs before date
   ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1w          # Download up to 10 runs from last week
   ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1w -c 5     # Download up to 5 runs from last week
-  ` + string(constants.CLIExtensionPrefix) + ` logs --end-date -1d            # Download all runs until yesterday
-  ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1mo         # Download all runs from last month
+  ` + string(constants.CLIExtensionPrefix) + ` logs --end-date -1d            # Download up to 10 runs before yesterday
+  ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1mo         # Download up to 10 runs from last month
 
   # Content filtering
   ` + string(constants.CLIExtensionPrefix) + ` logs --engine claude           # Filter logs by claude engine
@@ -375,7 +375,7 @@ Downloaded artifacts include (when using --artifacts all):
 	logsCmd.Flags().Bool("train", false, "Analyze log patterns across downloaded runs and save pattern weights to drain3_weights.json in the output directory")
 	logsCmd.Flags().String("format", "", "Output format: console (decorated tables), tsv (tab-separated), pretty (cross-run report), markdown (cross-run Markdown). Default: compact agent-optimized output")
 	logsCmd.Flags().String("report-file", "", "Write --format markdown output directly to this file path instead of stdout (creates parent directories as needed)")
-	logsCmd.Flags().Int("last", 0, "Alias for --count: number of recent runs to download")
+	logsCmd.Flags().Int("last", 0, "Alias for --count/-c: number of recent runs to download")
 	logsCmd.Flags().StringSlice("artifacts", []string{"usage"}, "Artifact sets to download (default: usage — compact summary for faster downloads). Use 'all' for everything, or comma-separate sets. Valid sets: "+validArtifactSets)
 	logsCmd.Flags().String("cache-before", "", "(Cache eviction) Evict locally cached run folders for runs before this date, prior to downloading. Accepts deltas like -1d, -1w, -1mo (or explicit day counts like -30d), or an absolute date YYYY-MM-DD. Unlike --start-date, this only clears local cache and does not filter which runs are fetched.")
 	logsCmd.Flags().String("after", "", "Alias for --cache-before")

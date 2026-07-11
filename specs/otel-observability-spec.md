@@ -863,6 +863,17 @@ The following test IDs are stubs for Level 1 (Stable Configuration and Export) c
 | **T-OT-006** | Local mirrors | The runtime helper writes each exported span as a raw OTLP/HTTP JSON line with a `resourceSpans` key to `/tmp/gh-aw/otel.jsonl`; the file format MUST NOT be an envelope-only summary. |
 | **T-OT-007** | Compiler config | `observability.otlp.headers` entries are emitted as `OTEL_EXPORTER_OTLP_HEADERS` in `key=value,key=value` format and are masked in diagnostics, job summaries, and artifacts. |
 
+### 17.1.2 Concrete Span-Attribute Contract Cases
+
+At minimum, the automated compliance suite SHOULD include the following
+attribute-level checks mapped directly to Section 10 requirements:
+
+| Test ID | Attribute requirement | Expected value | Verification method |
+|---------|------------------------|----------------|---------------------|
+| **T-OT-008** | §10.2 `gh-aw.job.name` on built-in job spans | The setup span includes `gh-aw.job.name` equal to the GitHub Actions job name | Decode `/tmp/gh-aw/otel.jsonl` or captured OTLP payloads and assert the setup span attribute value exactly matches the workflow job name |
+| **T-OT-009** | §10.3 `gen_ai.system` on built-in agent spans | A known engine emits a non-empty normalized provider/system value | Run a workflow with a built-in agent span, decode exported spans, and assert `gen_ai.system` is present whenever the engine mapping is known |
+| **T-OT-010** | §13.3 `gh-aw.outcome.type` on outcome-evaluation spans | Outcome-evaluation spans emit the safe-output type being evaluated | Execute the outcome collector, inspect the `gh-aw.outcome.evaluate` span, and assert `gh-aw.outcome.type` matches the evaluated manifest item type |
+
 
 ### 17.2 Optional Extension Tests
 
@@ -884,6 +895,10 @@ The following implementation areas are authoritative for version 0.4.0 compatibi
 | Local validation target | `Makefile` target `validate-otel-contract` |
 
 Any change that alters a listed compatibility surface MUST update the corresponding tests in the same change.
+
+Outcome-evaluation span contracts SHOULD stay aligned with the governance and attribution
+schema defined in `specs/intent-attribution-agent-governance.md`, especially when intent
+context is added to outcome spans or links.
 
 ---
 

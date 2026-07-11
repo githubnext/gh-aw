@@ -66,7 +66,7 @@ Backtesting (--eval):
 ` + WorkflowIDExplanation,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` forecast                        # Forecast all workflows (monthly)
   ` + string(constants.CLIExtensionPrefix) + ` forecast ci-doctor              # Forecast a specific workflow
-  ` + string(constants.CLIExtensionPrefix) + ` forecast ci-doctor daily-planner # Compare two workflows
+  ` + string(constants.CLIExtensionPrefix) + ` forecast ci-doctor daily-news    # Compare two workflows
   ` + string(constants.CLIExtensionPrefix) + ` forecast --period week           # Weekly projections
   ` + string(constants.CLIExtensionPrefix) + ` forecast --days 7               # Use 7-day history window
   ` + string(constants.CLIExtensionPrefix) + ` forecast --sample 50            # Sample up to 50 runs per workflow

@@ -16,7 +16,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var log = logger.New("linters:httpstatuscode")
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "httpstatuscode",
@@ -91,6 +94,8 @@ var httpStatusNames = map[int]string{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	log.Printf("analyzing package %s", pass.Pkg.Path())
+
 	root, err := astutil.Root(pass)
 	if err != nil {
 		return nil, err
@@ -148,6 +153,8 @@ func checkAndReport(pass *analysis.Pass, lit *ast.BasicLit, noLintLinesByFile ma
 	if nolint.HasDirective(pos, noLintLinesByFile) {
 		return
 	}
+
+	log.Printf("flagging magic HTTP status code %d at %s", code, pos)
 
 	if name, ok := httpStatusNames[code]; ok {
 		pass.Reportf(lit.Pos(), "use %s instead of magic HTTP status code %d", name, code)

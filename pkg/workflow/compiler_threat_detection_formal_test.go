@@ -10,47 +10,47 @@ import (
 )
 
 func TestFormal_CTR016_NilManifestSkipsEnforcement(t *testing.T) {
-	err := EnforceSafeUpdate(nil, []string{"MY_SECRET"}, []string{"evil-org/action@deadbeef # v1"}, "")
+	err := EnforceSafeUpdate(nil, []string{"MY_SECRET"}, []string{"evil-org/action@deadbeef # v1"}, "", false, false, false, false)
 	require.NoError(t, err)
 }
 
 func TestFormal_CTR016_EmptyManifestRejectsNewSecret(t *testing.T) {
-	err := EnforceSafeUpdate(&GHAWManifest{Version: currentGHAWManifestVersion}, []string{"MY_SECRET"}, nil, "")
+	err := EnforceSafeUpdate(&GHAWManifest{Version: currentGHAWManifestVersion}, []string{"MY_SECRET"}, nil, "", false, false, false, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "MY_SECRET")
 }
 
 func TestFormal_CTR016_GitHubTokenExempt_BareForm(t *testing.T) {
-	err := EnforceSafeUpdate(&GHAWManifest{Version: currentGHAWManifestVersion}, []string{"GITHUB_TOKEN"}, nil, "")
+	err := EnforceSafeUpdate(&GHAWManifest{Version: currentGHAWManifestVersion}, []string{"GITHUB_TOKEN"}, nil, "", false, false, false, false)
 	require.NoError(t, err)
 }
 
 func TestFormal_CTR016_GitHubTokenExempt_PrefixedForm(t *testing.T) {
-	err := EnforceSafeUpdate(&GHAWManifest{Version: currentGHAWManifestVersion}, []string{"secrets.GITHUB_TOKEN"}, nil, "")
+	err := EnforceSafeUpdate(&GHAWManifest{Version: currentGHAWManifestVersion}, []string{"secrets.GITHUB_TOKEN"}, nil, "", false, false, false, false)
 	require.NoError(t, err)
 }
 
 func TestFormal_CTR016_GhAwInternalSecretExempt(t *testing.T) {
-	err := EnforceSafeUpdate(&GHAWManifest{Version: currentGHAWManifestVersion}, []string{"GH_AW_GITHUB_TOKEN"}, nil, "")
+	err := EnforceSafeUpdate(&GHAWManifest{Version: currentGHAWManifestVersion}, []string{"GH_AW_GITHUB_TOKEN"}, nil, "", false, false, false, false)
 	require.NoError(t, err)
 }
 
 func TestFormal_CTR016_SecretPrefixNormalization(t *testing.T) {
 	manifest := &GHAWManifest{Version: currentGHAWManifestVersion, Secrets: []string{"MY_SECRET"}}
-	err := EnforceSafeUpdate(manifest, []string{"secrets.MY_SECRET"}, nil, "")
+	err := EnforceSafeUpdate(manifest, []string{"secrets.MY_SECRET"}, nil, "", false, false, false, false)
 	require.NoError(t, err)
 }
 
 func TestFormal_CTR016_NewActionDriftRejected(t *testing.T) {
 	manifest := &GHAWManifest{Version: currentGHAWManifestVersion, Actions: []GHAWManifestAction{{Repo: "actions/checkout", SHA: "abc1234", Version: "v4"}}}
-	err := EnforceSafeUpdate(manifest, nil, []string{"actions/checkout@abc1234 # v4", "evil-org/steal@deadbeef # v1"}, "")
+	err := EnforceSafeUpdate(manifest, nil, []string{"actions/checkout@abc1234 # v4", "evil-org/steal@deadbeef # v1"}, "", false, false, false, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "evil-org/steal")
 }
 
 func TestFormal_CTR016_RemovedActionDriftRejected(t *testing.T) {
 	manifest := &GHAWManifest{Version: currentGHAWManifestVersion, Actions: []GHAWManifestAction{{Repo: "my-org/approved-action", SHA: "abc1234", Version: "v1"}}}
-	err := EnforceSafeUpdate(manifest, nil, []string{}, "")
+	err := EnforceSafeUpdate(manifest, nil, []string{}, "", false, false, false, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Previously-approved action")
 	assert.Contains(t, err.Error(), "my-org/approved-action")
@@ -58,19 +58,19 @@ func TestFormal_CTR016_RemovedActionDriftRejected(t *testing.T) {
 
 func TestFormal_CTR016_KnownActionPinUpdateAllowed(t *testing.T) {
 	manifest := &GHAWManifest{Version: currentGHAWManifestVersion, Actions: []GHAWManifestAction{{Repo: "my-org/action", SHA: "abc1234", Version: "v1"}}}
-	err := EnforceSafeUpdate(manifest, nil, []string{"my-org/action@def5678 # v2"}, "")
+	err := EnforceSafeUpdate(manifest, nil, []string{"my-org/action@def5678 # v2"}, "", false, false, false, false)
 	require.NoError(t, err)
 }
 
 func TestFormal_CTR016_RedirectWhitespaceNormalization(t *testing.T) {
 	manifest := &GHAWManifest{Version: currentGHAWManifestVersion, Redirect: "owner/repo/workflows/new.md@main"}
-	err := EnforceSafeUpdate(manifest, nil, nil, "  owner/repo/workflows/new.md@main  ")
+	err := EnforceSafeUpdate(manifest, nil, nil, "  owner/repo/workflows/new.md@main  ", false, false, false, false)
 	require.NoError(t, err)
 }
 
 func TestFormal_CTR016_RedirectChangeRejected(t *testing.T) {
 	manifest := &GHAWManifest{Version: currentGHAWManifestVersion, Redirect: "owner/repo/workflows/old.md@main"}
-	err := EnforceSafeUpdate(manifest, nil, nil, "owner/repo/workflows/new.md@main")
+	err := EnforceSafeUpdate(manifest, nil, nil, "owner/repo/workflows/new.md@main", false, false, false, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "New redirect configured")
 	assert.Contains(t, err.Error(), "Previously-approved redirect removed")

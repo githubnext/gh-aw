@@ -51,6 +51,15 @@ Emoji by domain: 🔍 search · 📐 architecture · 🔬 analysis/security · �
 | `staged-title` | `{operation}` | `🎭 Preview: {operation}` |
 | `staged-description` | `{operation}` | `The following {operation} would occur if staged mode was disabled:` |
 
+### Body headers (prepended to every AI-generated message body)
+
+| Key | Variables | Default |
+|-----|-----------|---------|
+| `disclosure-header` | `{workflow_name}`, `{run_url}` | *(off)* — set `true` for built-in AI-authorship disclosure text, or provide a custom string |
+| `body-header` | `{workflow_name}`, `{run_url}` | *(off)* — custom header text prepended to every body |
+
+Insertion order, top to bottom: threat-detection caution alert → `disclosure-header` → `body-header` → agent-generated content. Applies to issues, comments, pull requests, and discussions.
+
 ### Boolean options
 
 | Key | Default | Description |

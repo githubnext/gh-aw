@@ -300,7 +300,7 @@ func TestNewExperimentsCommand(t *testing.T) {
 	cmd := NewExperimentsCommand()
 	require.NotNil(t, cmd, "command should be created")
 	assert.Equal(t, "experiments", cmd.Name(), "command name should be experiments")
-	assert.True(t, cmd.Hidden, "experiments command should be hidden")
+	assert.False(t, cmd.Hidden, "experiments command should be visible")
 
 	subCmds := cmd.Commands()
 	subNames := make([]string, 0, len(subCmds))

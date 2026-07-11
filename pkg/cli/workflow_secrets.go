@@ -83,7 +83,7 @@ func getSecretRequirementsForWorkflow(workflowFile string) []SecretRequirement {
 		workflowSecretsLog.Printf("Adding %d auth definition secret(s) for workflow %s", len(authReqs), workflowFile)
 		reqs = append(reqs, authReqs...)
 	}
-	if hasCopilotRequestsWritePermission(frontmatter) {
+	if workflow.HasCopilotRequestsWriteFromFrontmatter(frontmatter) {
 		if opt := constants.GetEngineOption(engine); opt != nil && opt.SecretName == "COPILOT_GITHUB_TOKEN" {
 			reqs = filterOutSecretRequirement(reqs, "COPILOT_GITHUB_TOKEN")
 		}
@@ -115,18 +115,6 @@ func extractEngineConfigFromFile(filePath string) (string, *workflow.EngineConfi
 		return engineSetting, engineConfig, result.Frontmatter
 	}
 	return "copilot", engineConfig, result.Frontmatter // Default engine
-}
-
-func hasCopilotRequestsWritePermission(frontmatter map[string]any) bool {
-	if frontmatter == nil {
-		return false
-	}
-	permissionsValue, ok := frontmatter["permissions"]
-	if !ok {
-		return false
-	}
-	perms := workflow.NewPermissionsParserFromValue(permissionsValue).ToPermissions()
-	return perms.HasCopilotRequestsWrite()
 }
 
 func filterOutSecretRequirement(reqs []SecretRequirement, secretName string) []SecretRequirement {

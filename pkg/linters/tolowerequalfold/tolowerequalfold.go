@@ -8,6 +8,8 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"strconv"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -64,9 +66,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		if isCaseConvCall(pass, expr.X) || isCaseConvCall(pass, expr.Y) ||
-			(isCaseConvAlias(pass, expr.X, caseConvAliases) && astutil.IsStringLiteral(expr.Y)) ||
-			(isCaseConvAlias(pass, expr.Y, caseConvAliases) && astutil.IsStringLiteral(expr.X)) {
+		if isEquivalentToEqualFold(pass, expr, caseConvAliases) {
 			if nolint.HasDirective(pass.Fset.PositionFor(expr.Pos(), false), noLintLinesByFile) {
 				return
 			}
@@ -128,8 +128,15 @@ func buildEqualFoldFix(pass *analysis.Pass, expr *ast.BinaryExpr) []analysis.Sug
 	}}
 }
 
-func collectCaseConvAliases(pass *analysis.Pass) map[types.Object]ast.Expr {
-	aliases := make(map[types.Object]ast.Expr)
+// caseConvAliasInfo records the case-conversion function and its argument for
+// a local variable that aliases a strings.ToLower/ToUpper call.
+type caseConvAliasInfo struct {
+	funcName string // "ToLower" or "ToUpper"
+	arg      ast.Expr
+}
+
+func collectCaseConvAliases(pass *analysis.Pass) map[types.Object]caseConvAliasInfo {
+	aliases := make(map[types.Object]caseConvAliasInfo)
 	for _, file := range pass.Files {
 		ast.Inspect(file, func(node ast.Node) bool {
 			switch n := node.(type) {
@@ -153,7 +160,7 @@ func collectCaseConvAliases(pass *analysis.Pass) map[types.Object]ast.Expr {
 	return aliases
 }
 
-func collectAliasesFromAssignStmt(pass *analysis.Pass, stmt *ast.AssignStmt, aliases map[types.Object]ast.Expr) {
+func collectAliasesFromAssignStmt(pass *analysis.Pass, stmt *ast.AssignStmt, aliases map[types.Object]caseConvAliasInfo) {
 	for i, lhs := range stmt.Lhs {
 		ident, ok := lhs.(*ast.Ident)
 		if !ok || ident.Name == "_" {
@@ -175,18 +182,19 @@ func collectAliasesFromAssignStmt(pass *analysis.Pass, stmt *ast.AssignStmt, ali
 				delete(aliases, obj)
 				continue
 			}
-			if arg, ok := caseConvArg(pass, rhs); ok {
-				aliases[obj] = arg
-			} else {
+			funcName, arg, ok := caseConvFuncAndArg(pass, rhs)
+			if !ok {
 				delete(aliases, obj)
+				continue
 			}
+			aliases[obj] = caseConvAliasInfo{funcName: funcName, arg: arg}
 		case token.ASSIGN:
 			delete(aliases, obj)
 		}
 	}
 }
 
-func collectAliasesFromValueSpec(pass *analysis.Pass, spec *ast.ValueSpec, aliases map[types.Object]ast.Expr) {
+func collectAliasesFromValueSpec(pass *analysis.Pass, spec *ast.ValueSpec, aliases map[types.Object]caseConvAliasInfo) {
 	for i, name := range spec.Names {
 		if name.Name == "_" {
 			continue
@@ -200,15 +208,16 @@ func collectAliasesFromValueSpec(pass *analysis.Pass, spec *ast.ValueSpec, alias
 			delete(aliases, obj)
 			continue
 		}
-		if arg, ok := caseConvArg(pass, rhs); ok {
-			aliases[obj] = arg
-		} else {
+		funcName, arg, ok := caseConvFuncAndArg(pass, rhs)
+		if !ok {
 			delete(aliases, obj)
+			continue
 		}
+		aliases[obj] = caseConvAliasInfo{funcName: funcName, arg: arg}
 	}
 }
 
-func deleteAliasForExpr(pass *analysis.Pass, aliases map[types.Object]ast.Expr, expr ast.Expr) {
+func deleteAliasForExpr(pass *analysis.Pass, aliases map[types.Object]caseConvAliasInfo, expr ast.Expr) {
 	ident, ok := expr.(*ast.Ident)
 	if !ok {
 		return
@@ -222,12 +231,12 @@ func isCaseConvCall(pass *analysis.Pass, n ast.Node) bool {
 	return ok
 }
 
-func isCaseConvAlias(pass *analysis.Pass, expr ast.Expr, aliases map[types.Object]ast.Expr) bool {
+func isCaseConvAlias(pass *analysis.Pass, expr ast.Expr, aliases map[types.Object]caseConvAliasInfo) bool {
 	_, ok := caseConvAliasArg(pass, expr, aliases)
 	return ok
 }
 
-func caseConvAliasArg(pass *analysis.Pass, expr ast.Expr, aliases map[types.Object]ast.Expr) (ast.Expr, bool) {
+func caseConvAliasArg(pass *analysis.Pass, expr ast.Expr, aliases map[types.Object]caseConvAliasInfo) (ast.Expr, bool) {
 	ident, ok := expr.(*ast.Ident)
 	if !ok {
 		return nil, false
@@ -236,33 +245,134 @@ func caseConvAliasArg(pass *analysis.Pass, expr ast.Expr, aliases map[types.Obje
 	if obj == nil {
 		return nil, false
 	}
-	arg, ok := aliases[obj]
+	info, ok := aliases[obj]
 	if !ok {
 		return nil, false
 	}
-	return arg, true
+	return info.arg, true
+}
+
+// caseConvFuncAndArg returns the function name ("ToLower" or "ToUpper") and
+// the argument when n is a direct strings.ToLower/ToUpper call.
+func caseConvFuncAndArg(pass *analysis.Pass, n ast.Node) (funcName string, arg ast.Expr, ok bool) {
+	call, callOK := n.(*ast.CallExpr)
+	if !callOK {
+		return "", nil, false
+	}
+	if len(call.Args) != 1 {
+		return "", nil, false
+	}
+	sel, selOK := call.Fun.(*ast.SelectorExpr)
+	if !selOK {
+		return "", nil, false
+	}
+	if !astutil.IsPkgSelector(pass, sel, "strings") {
+		return "", nil, false
+	}
+	if sel.Sel.Name != "ToLower" && sel.Sel.Name != "ToUpper" {
+		return "", nil, false
+	}
+	return sel.Sel.Name, call.Args[0], true
 }
 
 // caseConvArg returns the argument when n is strings.ToLower/ToUpper(<arg>).
 func caseConvArg(pass *analysis.Pass, n ast.Node) (ast.Expr, bool) {
-	call, ok := n.(*ast.CallExpr)
+	_, arg, ok := caseConvFuncAndArg(pass, n)
+	return arg, ok
+}
+
+// caseConvFuncName returns the function name ("ToLower" or "ToUpper") when n
+// is a direct strings.ToLower/ToUpper call.
+func caseConvFuncName(pass *analysis.Pass, n ast.Node) (string, bool) {
+	name, _, ok := caseConvFuncAndArg(pass, n)
+	return name, ok
+}
+
+// stringLitValue returns the unquoted string value of a string-literal AST node.
+func stringLitValue(expr ast.Expr) (string, bool) {
+	lit, ok := expr.(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING {
+		return "", false
+	}
+	s, err := strconv.Unquote(lit.Value)
+	if err != nil {
+		return "", false
+	}
+	return s, true
+}
+
+// literalCaseMatchesConv reports whether lit is already in the correct case for
+// funcName and uses ASCII-only characters. This conservative guard avoids Unicode
+// simple-fold mismatches where ToLower/ToUpper equality and EqualFold differ.
+func literalCaseMatchesConv(funcName, lit string) bool {
+	if !isASCIIString(lit) {
+		return false
+	}
+	switch funcName {
+	case "ToLower":
+		return strings.ToLower(lit) == lit
+	case "ToUpper":
+		return strings.ToUpper(lit) == lit
+	}
+	return false
+}
+
+func isASCIIString(s string) bool {
+	for _, b := range []byte(s) {
+		if b > 0x7f {
+			return false
+		}
+	}
+	return true
+}
+
+// isEquivalentToEqualFold reports whether the == or != comparison expr is
+// semantically equivalent to a strings.EqualFold rewrite. It returns true only
+// when at least one side is a case-conversion call (or alias) and the other
+// operand is case-compatible with that conversion.
+func isEquivalentToEqualFold(pass *analysis.Pass, expr *ast.BinaryExpr, caseConvAliases map[types.Object]caseConvAliasInfo) bool {
+	return (isCaseConvCall(pass, expr.X) && caseConvIsCompatible(pass, expr.X, expr.Y)) ||
+		(isCaseConvCall(pass, expr.Y) && caseConvIsCompatible(pass, expr.Y, expr.X)) ||
+		(isCaseConvAlias(pass, expr.X, caseConvAliases) && astutil.IsStringLiteral(expr.Y) && caseConvAliasIsCompatible(pass, expr.X, expr.Y, caseConvAliases)) ||
+		(isCaseConvAlias(pass, expr.Y, caseConvAliases) && astutil.IsStringLiteral(expr.X) && caseConvAliasIsCompatible(pass, expr.Y, expr.X, caseConvAliases))
+}
+
+// caseConvIsCompatible reports whether it is safe to rewrite a comparison
+// where convSide is a case-conversion call and otherSide is the other operand.
+// Returns true only for ASCII string literals whose case already matches the
+// conversion function. All other forms fail closed.
+func caseConvIsCompatible(pass *analysis.Pass, convSide ast.Node, otherSide ast.Expr) bool {
+	funcName, ok := caseConvFuncName(pass, convSide)
 	if !ok {
-		return nil, false
+		return false
 	}
-	if len(call.Args) != 1 {
-		return nil, false
+	// String-literal operand: the literal must already be in the correct case.
+	if lit, ok := stringLitValue(otherSide); ok {
+		return literalCaseMatchesConv(funcName, lit)
 	}
-	sel, ok := call.Fun.(*ast.SelectorExpr)
+	return false
+}
+
+// caseConvAliasIsCompatible reports whether it is safe to rewrite a comparison
+// where aliasExpr is a case-conversion alias and litExpr is a string literal.
+func caseConvAliasIsCompatible(pass *analysis.Pass, aliasExpr ast.Expr, litExpr ast.Expr, aliases map[types.Object]caseConvAliasInfo) bool {
+	ident, ok := aliasExpr.(*ast.Ident)
 	if !ok {
-		return nil, false
+		return false
 	}
-	if !astutil.IsPkgSelector(pass, sel, "strings") {
-		return nil, false
+	obj := pass.TypesInfo.ObjectOf(ident)
+	if obj == nil {
+		return false
 	}
-	if sel.Sel.Name != "ToLower" && sel.Sel.Name != "ToUpper" {
-		return nil, false
+	info, ok := aliases[obj]
+	if !ok {
+		return false
 	}
-	return call.Args[0], true
+	lit, ok := stringLitValue(litExpr)
+	if !ok {
+		return false
+	}
+	return literalCaseMatchesConv(info.funcName, lit)
 }
 
 func caseConvPkgName(pass *analysis.Pass, n ast.Node) (string, bool) {

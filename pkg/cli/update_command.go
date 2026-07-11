@@ -58,7 +58,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
   ` + string(constants.CLIExtensionPrefix) + ` update --no-merge         # Override local changes with upstream
   ` + string(constants.CLIExtensionPrefix) + ` update repo-assist --major # Allow major version updates
   ` + string(constants.CLIExtensionPrefix) + ` update --force            # Force update even if no changes
-  ` + string(constants.CLIExtensionPrefix) + ` update --no-release-bump     # Update without force-bumping all action versions
+  ` + string(constants.CLIExtensionPrefix) + ` update --no-release-bump     # Disable force-bumping non-core actions (core actions/* are still force-updated)
   ` + string(constants.CLIExtensionPrefix) + ` update --no-compile           # Update without regenerating lock files
   ` + string(constants.CLIExtensionPrefix) + ` update --no-redirect          # Refuse workflows that use redirect frontmatter
   ` + string(constants.CLIExtensionPrefix) + ` update --dir custom/workflows  # Update workflows in custom directory
@@ -170,10 +170,10 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 	cmd.Flags().Bool("no-release-bump", false, "Disable automatic major version bumps for all actions (only core actions/* are force-updated)")
 	cmd.Flags().Bool("disable-release-bump", false, "Disable automatic major version bumps for all actions (only core actions/* are force-updated)")
 	_ = cmd.Flags().MarkDeprecated("disable-release-bump", "use --no-release-bump instead")
-	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
-	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
+	cmd.Flags().Bool("no-security-scanner", false, "Skip security scanning of workflow markdown content")
+	cmd.Flags().Bool("disable-security-scanner", false, "Skip security scanning of workflow markdown content")
 	_ = cmd.Flags().MarkDeprecated("disable-security-scanner", "use --no-security-scanner instead")
-	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify lock files)")
+	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows during update (do not modify lock files)")
 	cmd.Flags().Bool("no-redirect", false, "Refuse updates when redirect frontmatter is present")
 	cmd.Flags().String("org", "", "Preview or create workflow update pull requests across an organization")
 	cmd.Flags().StringSlice("repos", nil, "Limit --org mode to repositories matching one or more glob patterns")

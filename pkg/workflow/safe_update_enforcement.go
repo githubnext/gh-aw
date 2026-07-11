@@ -7,6 +7,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/goccy/go-yaml"
 )
 
 var safeUpdateLog = logger.New("workflow:safe_update")
@@ -49,7 +50,7 @@ var ghAwInternalSecrets = map[string]bool{
 // e.g. "actions/checkout@abc1234 # v4".
 //
 // Returns a structured, actionable error when violations are found.
-func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string, currentRedirect string) error {
+func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string, currentRedirect string, oldHasPullRequest bool, oldHasPullRequestTarget bool, currentHasPullRequest bool, currentHasPullRequestTarget bool) error {
 	if manifest == nil {
 		// Lock file exists but predates the safe-updates feature (no gh-aw-manifest
 		// section). Skip enforcement so legacy lock files are not flagged on upgrade.
@@ -60,8 +61,9 @@ func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs 
 	secretViolations := collectSecretViolations(manifest, secretNames)
 	addedActions, removedActions := collectActionViolations(manifest, actionRefs)
 	addedRedirect, removedRedirect := collectRedirectViolations(manifest, currentRedirect)
+	pullRequestTargetEscalation := hasPullRequestTargetEscalation(oldHasPullRequest, oldHasPullRequestTarget, currentHasPullRequest, currentHasPullRequestTarget)
 
-	if len(secretViolations) == 0 && len(addedActions) == 0 && len(removedActions) == 0 && addedRedirect == "" && removedRedirect == "" {
+	if len(secretViolations) == 0 && len(addedActions) == 0 && len(removedActions) == 0 && addedRedirect == "" && removedRedirect == "" && !pullRequestTargetEscalation {
 		safeUpdateLog.Printf("Safe update check passed (%d secret(s), %d action(s) verified)",
 			len(secretNames), len(actionRefs))
 		return nil
@@ -85,8 +87,51 @@ func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs 
 	if removedRedirect != "" {
 		safeUpdateLog.Printf("Safe update violation: redirect removed: %s", removedRedirect)
 	}
+	if pullRequestTargetEscalation {
+		safeUpdateLog.Print("Safe update violation: pull_request event converted to pull_request_target")
+	}
 
-	return buildSafeUpdateError(secretViolations, addedActions, removedActions, addedRedirect, removedRedirect)
+	return buildSafeUpdateError(secretViolations, addedActions, removedActions, addedRedirect, removedRedirect, pullRequestTargetEscalation)
+}
+
+func hasPullRequestTargetEscalation(oldHasPullRequest bool, oldHasPullRequestTarget bool, currentHasPullRequest bool, currentHasPullRequestTarget bool) bool {
+	return oldHasPullRequest && !oldHasPullRequestTarget && !currentHasPullRequest && currentHasPullRequestTarget
+}
+
+func extractPullRequestEventPresenceFromOnField(onField any) (hasPR bool, hasPRTarget bool) {
+	switch v := onField.(type) {
+	case string:
+		return v == "pull_request", v == "pull_request_target"
+	case []any:
+		for _, item := range v {
+			event, ok := item.(string)
+			if !ok {
+				continue
+			}
+			if event == "pull_request" {
+				hasPR = true
+			}
+			if event == "pull_request_target" {
+				hasPRTarget = true
+			}
+		}
+	case map[string]any:
+		_, hasPR = v["pull_request"]
+		_, hasPRTarget = v["pull_request_target"]
+	}
+	return hasPR, hasPRTarget
+}
+
+func extractPullRequestEventPresenceFromCompiledWorkflow(content string) (hasPR bool, hasPRTarget bool) {
+	var parsed map[string]any
+	if err := yaml.Unmarshal([]byte(content), &parsed); err != nil {
+		return false, false
+	}
+	onField, ok := parsed["on"]
+	if !ok {
+		return false, false
+	}
+	return extractPullRequestEventPresenceFromOnField(onField)
 }
 
 // collectSecretViolations returns the normalized secret names that are new (not in the
@@ -222,7 +267,7 @@ func collectRedirectViolations(manifest *GHAWManifest, currentRedirect string) (
 
 // buildSafeUpdateError creates a clear, structured error message that names the
 // offending secrets, actions, and redirects and tells the user how to remediate.
-func buildSafeUpdateError(secretViolations, addedActions, removedActions []string, addedRedirect, removedRedirect string) error {
+func buildSafeUpdateError(secretViolations, addedActions, removedActions []string, addedRedirect, removedRedirect string, hasPullRequestTargetEscalation bool) error {
 	var sb strings.Builder
 	sb.WriteString("safe update mode detected unapproved changes\n")
 
@@ -245,6 +290,9 @@ func buildSafeUpdateError(secretViolations, addedActions, removedActions []strin
 	if removedRedirect != "" {
 		sb.WriteString("\nPreviously-approved redirect removed:\n  - ")
 		sb.WriteString(removedRedirect)
+	}
+	if hasPullRequestTargetEscalation {
+		sb.WriteString("\nEvent trigger security escalation:\n  - pull_request was converted to pull_request_target")
 	}
 
 	sb.WriteString("\n\nRemediation options:\n  1. Use the --approve flag to allow the changes.\n  2. Revert the unapproved changes.\n  3. Use an interactive coding agent to review and approve the changes.")

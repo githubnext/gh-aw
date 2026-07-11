@@ -88,6 +88,62 @@ func ValidateEventFilters(frontmatter map[string]any) error {
 	return nil
 }
 
+// ValidatePushBranchScope ensures that any push event in the on: section specifies a
+// branches or branches-ignore filter. An unscoped push trigger fires on every push to
+// every branch, which causes unintended workflow fan-out on feature branches (the
+// workflows activate immediately after new lock files are first pushed to the branch,
+// producing zero-turn failures for every agentic workflow in the repository).
+func ValidatePushBranchScope(frontmatter map[string]any) error {
+	filterValidationLog.Print("Validating push event branch scope")
+
+	on, exists := frontmatter["on"]
+	if !exists {
+		return nil
+	}
+
+	onMap, ok := on.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	pushVal, hasPush := onMap["push"]
+	if !hasPush {
+		return nil
+	}
+
+	// A nil push value (bare `push:` key with no sub-keys) is unscoped.
+	if pushVal == nil {
+		filterValidationLog.Print("ERROR: push event has no branch scope (nil push value)")
+		return newUnScopedPushError()
+	}
+
+	pushMap, ok := pushVal.(map[string]any)
+	if !ok {
+		// Non-map push value (unexpected type); skip.
+		return nil
+	}
+
+	_, hasBranches := pushMap["branches"]
+	_, hasBranchesIgnore := pushMap["branches-ignore"]
+
+	if !hasBranches && !hasBranchesIgnore {
+		filterValidationLog.Print("ERROR: push event has no branch scope")
+		return newUnScopedPushError()
+	}
+
+	filterValidationLog.Print("Push event branch scope is valid")
+	return nil
+}
+
+func newUnScopedPushError() *WorkflowValidationError {
+	return NewValidationError(
+		"on.push",
+		"push (no branch filter)",
+		"push event must specify a 'branches' or 'branches-ignore' filter; an unscoped push trigger fires on every push to every branch and causes unintended workflow fan-out on feature branches",
+		"Add a branch filter to the push trigger:\n\non:\n  push:\n    branches:\n      - main",
+	)
+}
+
 // validateFilterExclusivity validates that a single event doesn't use mutually exclusive filters
 func validateFilterExclusivity(eventVal any, eventName string) error {
 	eventMap, ok := eventVal.(map[string]any)

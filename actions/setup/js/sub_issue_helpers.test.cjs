@@ -5,6 +5,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 describe("sub_issue_helpers.cjs", () => {
   let getSubIssueCount;
+  let getIssueNodeId;
+  let addSubIssue;
+  let linkSubIssue;
   let MAX_SUB_ISSUES;
   let mockCore;
   let mockGithub;
@@ -25,6 +28,9 @@ describe("sub_issue_helpers.cjs", () => {
     // Load the module
     const module = await import("./sub_issue_helpers.cjs");
     getSubIssueCount = module.getSubIssueCount;
+    getIssueNodeId = module.getIssueNodeId;
+    addSubIssue = module.addSubIssue;
+    linkSubIssue = module.linkSubIssue;
     MAX_SUB_ISSUES = module.MAX_SUB_ISSUES;
   });
 
@@ -108,6 +114,116 @@ describe("sub_issue_helpers.cjs", () => {
 
       const queryCall = mockGithub.graphql.mock.calls[0][0];
       expect(queryCall).toContain(`subIssues(first: ${MAX_SUB_ISSUES + 1})`);
+    });
+  });
+
+  describe("getIssueNodeId", () => {
+    it("should resolve the GraphQL node ID for an issue", async () => {
+      mockGithub.graphql.mockResolvedValue({
+        repository: {
+          issue: {
+            id: "I_issue_123",
+          },
+        },
+      });
+
+      const nodeId = await getIssueNodeId({ owner: "test-owner", repo: "test-repo", issueNumber: 123 });
+
+      expect(nodeId).toBe("I_issue_123");
+      expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("issue(number: $issueNumber)"), {
+        owner: "test-owner",
+        repo: "test-repo",
+        issueNumber: 123,
+      });
+    });
+  });
+
+  describe("addSubIssue", () => {
+    it("should call the addSubIssue mutation with the provided node IDs", async () => {
+      mockGithub.graphql.mockResolvedValue({
+        addSubIssue: {
+          issue: { id: "I_parent_1", number: 1 },
+          subIssue: { id: "I_child_2", number: 2 },
+        },
+      });
+
+      await addSubIssue({ parentNodeId: "I_parent_1", subIssueNodeId: "I_child_2" });
+
+      expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("mutation AddSubIssue"), {
+        parentId: "I_parent_1",
+        subIssueId: "I_child_2",
+      });
+    });
+  });
+
+  describe("linkSubIssue", () => {
+    it("should resolve missing node IDs before linking", async () => {
+      mockGithub.graphql
+        .mockResolvedValueOnce({
+          repository: {
+            issue: {
+              id: "I_parent_100",
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          repository: {
+            issue: {
+              id: "I_sub_50",
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          addSubIssue: {
+            issue: { id: "I_parent_100", number: 100 },
+            subIssue: { id: "I_sub_50", number: 50 },
+          },
+        });
+
+      const result = await linkSubIssue({
+        owner: "test-owner",
+        repo: "test-repo",
+        parentIssueNumber: 100,
+        subIssueNumber: 50,
+      });
+
+      expect(result).toEqual({
+        parentNodeId: "I_parent_100",
+        subIssueNodeId: "I_sub_50",
+      });
+      expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
+      expect(mockGithub.graphql).toHaveBeenLastCalledWith(expect.stringContaining("mutation AddSubIssue"), {
+        parentId: "I_parent_100",
+        subIssueId: "I_sub_50",
+      });
+    });
+
+    it("should reuse provided node IDs without extra lookup queries", async () => {
+      mockGithub.graphql.mockResolvedValue({
+        addSubIssue: {
+          issue: { id: "I_parent_100", number: 100 },
+          subIssue: { id: "I_sub_50", number: 50 },
+        },
+      });
+
+      const result = await linkSubIssue({
+        owner: "test-owner",
+        repo: "test-repo",
+        parentIssueNumber: 100,
+        subIssueNumber: 50,
+        parentNodeId: "I_parent_100",
+        subIssueNodeId: "I_sub_50",
+      });
+
+      expect(result).toEqual({
+        parentNodeId: "I_parent_100",
+        subIssueNodeId: "I_sub_50",
+      });
+      expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
+      expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("mutation AddSubIssue"), {
+        parentId: "I_parent_100",
+        subIssueId: "I_sub_50",
+      });
     });
   });
 });

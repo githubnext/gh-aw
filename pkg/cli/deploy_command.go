@@ -90,7 +90,7 @@ func validateDeployArgs(cmd *cobra.Command, args []string) error {
 }
 
 func registerDeployFlags(cmd *cobra.Command) {
-	cmd.Flags().StringP("repo", "r", "", "Target repository in [HOST/]owner/repo format (required unless --org is provided)")
+	cmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format). Required unless --org is provided")
 	cmd.Flags().StringP("name", "n", "", "Specify name for the added workflow (without .md extension)")
 	addEngineFlag(cmd)
 	cmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")
@@ -99,8 +99,8 @@ func registerDeployFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: $GH_AW_WORKFLOWS_DIR or .github/workflows)")
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
-	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
-	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
+	cmd.Flags().Bool("no-security-scanner", false, "Skip security scanning of workflow markdown content")
+	cmd.Flags().Bool("disable-security-scanner", false, "Skip security scanning of workflow markdown content")
 	_ = cmd.Flags().MarkDeprecated("disable-security-scanner", "use --no-security-scanner instead")
 	cmd.Flags().String("cool-down", defaultDeployCooldown, coolDownFlagUsage)
 	cmd.Flags().String("org", "", "Deploy workflows across repositories in an organization")

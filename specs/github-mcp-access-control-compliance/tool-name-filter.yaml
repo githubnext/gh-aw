@@ -6,7 +6,7 @@ fixture_id: "tool-name-filter"
 description: >
   When `allowed-tools` is configured, the MCP gateway MUST allow only the explicitly
   listed tool names (T-GH-031). A request invoking a tool not in the allowed list
-  MUST be denied with error code -32005 (T-GH-032). When `allowed-tools` is absent,
+  MUST be denied with error code -32001 (T-GH-032). When `allowed-tools` is absent,
   all tool names are permitted subject to other access controls (T-GH-033).
 
 spec_refs:
@@ -53,7 +53,7 @@ scenarios:
         content_integrity: "unapproved"
     expected:
       decision: deny
-      error_code: -32005
+      error_code: -32001
       reason: "tool not in allowed-tools list"
 
   # --- Scenario C: absent allowed-tools permits all tool names ---

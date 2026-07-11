@@ -455,7 +455,7 @@ function evaluateAddComment(item, itemRepo, timestamp, out, apiGet, nowMs) {
  * @returns {EvalResult}
  */
 function evaluateAddLabels(item, itemRepo, timestamp, out, apiGet, nowMs) {
-  const num = parseIssueNumberFromURL(item.url || "");
+  const num = getItemNumber(item);
   if (!num) {
     out.result = "unknown";
     out.detail = "unknown: issue number not found";
@@ -463,8 +463,9 @@ function evaluateAddLabels(item, itemRepo, timestamp, out, apiGet, nowMs) {
     return out;
   }
 
-  const hasLabelsBefore = Object.hasOwn(item, "labelsBefore") && Array.isArray(item.labelsBefore);
-  const labelsBefore = hasLabelsBefore ? normalizeLabels(item.labelsBefore) : [];
+  const persistedBefore = item.before_state?.labels ?? item.labelsBefore;
+  const hasLabelsBefore = Array.isArray(persistedBefore);
+  const labelsBefore = hasLabelsBefore ? normalizeLabels(persistedBefore) : [];
   const labelsAdded = normalizeLabels(item.labelsAdded);
   const fallbackLabels = normalizeLabels(item.labels);
   const effectiveLabelsAdded = labelsAdded.length > 0 ? labelsAdded : fallbackLabels;
@@ -535,6 +536,170 @@ function evaluateAddLabels(item, itemRepo, timestamp, out, apiGet, nowMs) {
 }
 
 /**
+ * Evaluate `close_issue`.
+ * @param {object} item
+ * @param {string} defaultRepo
+ * @param {(endpoint: string) => any} api
+ * @param {number} nowMs
+ * @returns {EvalResult}
+ */
+function evaluateCloseIssue(item, defaultRepo, api = ghAPI, nowMs = Date.now()) {
+  const repo = getItemRepo(item, defaultRepo);
+  const number = getItemNumber(item);
+  const timestamp = item.timestamp || "";
+  /** @type {EvalResult} */
+  const out = {
+    result: "unknown",
+    outcome_status: "unknown",
+    evidence_strength: "weak",
+    signal: "unknown",
+    detail: "",
+    resolution_sec: null,
+    pending_age_sec: null,
+    review_comments: null,
+    changed_files: null,
+    additions: null,
+    deletions: null,
+    reactions_total: null,
+    reactions_positive: null,
+    reactions_negative: null,
+    comments: null,
+    zero_touch: false,
+  };
+
+  if (!repo || !number) {
+    out.detail = "missing issue reference";
+    return out;
+  }
+
+  const issue = api(`repos/${repo}/issues/${number}`);
+  if (!issue || typeof issue.state !== "string") {
+    out.detail = "api error";
+    setPendingAge(out, timestamp, nowMs);
+    return out;
+  }
+
+  out.comments = typeof issue.comments === "number" ? issue.comments : null;
+  if (issue.reactions && typeof issue.reactions === "object") {
+    const summary = summarizeReactions(issue.reactions);
+    out.reactions_total = summary.total;
+    out.reactions_positive = summary.positive;
+    out.reactions_negative = summary.negative;
+  }
+
+  if (issue.state === "closed") {
+    out.result = "accepted";
+    out.outcome_status = "accepted";
+    out.evidence_strength = "strong";
+    out.signal = "closed";
+    out.detail = "closed";
+    if (issue.created_at && issue.closed_at) {
+      out.resolution_sec = secondsBetween(issue.created_at, issue.closed_at);
+    }
+    return out;
+  }
+
+  out.result = "rejected";
+  out.outcome_status = "rejected";
+  out.evidence_strength = "strong";
+  out.signal = "not_closed";
+  out.detail = "not_closed";
+  return out;
+}
+
+/**
+ * Evaluate `close_pull_request`.
+ * @param {object} item
+ * @param {string} defaultRepo
+ * @param {(endpoint: string) => any} api
+ * @param {number} nowMs
+ * @returns {EvalResult}
+ */
+function evaluateClosePullRequest(item, defaultRepo, api = ghAPI, nowMs = Date.now()) {
+  const repo = getItemRepo(item, defaultRepo);
+  const number = getItemNumber(item);
+  const timestamp = item.timestamp || "";
+  /** @type {EvalResult} */
+  const out = {
+    result: "unknown",
+    outcome_status: "unknown",
+    evidence_strength: "weak",
+    signal: "unknown",
+    detail: "",
+    resolution_sec: null,
+    pending_age_sec: null,
+    review_comments: null,
+    changed_files: null,
+    additions: null,
+    deletions: null,
+    reactions_total: null,
+    reactions_positive: null,
+    reactions_negative: null,
+    comments: null,
+    zero_touch: false,
+  };
+
+  if (!repo || !number) {
+    out.detail = "missing pull request reference";
+    return out;
+  }
+
+  const pullRequest = api(`repos/${repo}/pulls/${number}`);
+  if (!pullRequest || typeof pullRequest.state !== "string") {
+    out.detail = "api error";
+    setPendingAge(out, timestamp, nowMs);
+    return out;
+  }
+
+  out.review_comments = typeof pullRequest.review_comments === "number" ? pullRequest.review_comments : null;
+  out.changed_files = typeof pullRequest.changed_files === "number" ? pullRequest.changed_files : null;
+  out.additions = typeof pullRequest.additions === "number" ? pullRequest.additions : null;
+  out.deletions = typeof pullRequest.deletions === "number" ? pullRequest.deletions : null;
+  out.comments = typeof pullRequest.comments === "number" ? pullRequest.comments : null;
+  if (pullRequest.reactions && typeof pullRequest.reactions === "object") {
+    const summary = summarizeReactions(pullRequest.reactions);
+    out.reactions_total = summary.total;
+    out.reactions_positive = summary.positive;
+    out.reactions_negative = summary.negative;
+  }
+
+  // A merged PR is rejected because close_pull_request verifies that the PR
+  // remained closed without being merged. Merging is a different terminal
+  // state than closing, so it invalidates the close outcome.
+  if (pullRequest.merged === true || pullRequest.merged_at != null) {
+    out.result = "rejected";
+    out.outcome_status = "rejected";
+    out.evidence_strength = "strong";
+    out.signal = "closed_by_merge";
+    out.detail = "merged";
+    if (pullRequest.created_at && pullRequest.merged_at) {
+      out.resolution_sec = secondsBetween(pullRequest.created_at, pullRequest.merged_at);
+    }
+    return out;
+  }
+  // Accepted means the PR is closed and unmerged, which is the durable
+  // terminal state that close_pull_request validates.
+  if (pullRequest.state === "closed") {
+    out.result = "accepted";
+    out.outcome_status = "accepted";
+    out.evidence_strength = "strong";
+    out.signal = "closed";
+    out.detail = "closed";
+    if (pullRequest.created_at && pullRequest.closed_at) {
+      out.resolution_sec = secondsBetween(pullRequest.created_at, pullRequest.closed_at);
+    }
+    return out;
+  }
+
+  out.result = "rejected";
+  out.outcome_status = "rejected";
+  out.evidence_strength = "strong";
+  out.signal = "not_closed";
+  out.detail = "not_closed";
+  return out;
+}
+
+/**
  * Normalize legacy result/detail pairs into the shared outcome model.
  * @param {string} result
  * @param {string} detail
@@ -596,8 +761,17 @@ function normalizeOutcome(result, detail) {
   if (result === "accepted" && normalizedDetail.startsWith("merged")) {
     return { outcome_status: "accepted", evidence_strength: "strong", signal: "merged" };
   }
+  if (result === "accepted" && normalizedDetail === "closed") {
+    return { outcome_status: "accepted", evidence_strength: "strong", signal: "closed" };
+  }
   if (result === "rejected" && normalizedDetail === "closed") {
     return { outcome_status: "rejected", evidence_strength: "strong", signal: "closed" };
+  }
+  if (result === "rejected" && normalizedDetail === "merged") {
+    return { outcome_status: "rejected", evidence_strength: "strong", signal: "closed_by_merge" };
+  }
+  if (result === "rejected" && normalizedDetail === "not_closed") {
+    return { outcome_status: "rejected", evidence_strength: "strong", signal: "not_closed" };
   }
   if (result === "pending" && normalizedDetail === "open") {
     return { outcome_status: "pending", evidence_strength: "medium", signal: "open" };
@@ -1187,6 +1361,21 @@ function evaluateItem(item, defaultRepo, apiOrOptions) {
   if (type === "update_pull_request") {
     return evaluateUpdatePullRequest(item, defaultRepo, ghAPIFn);
   }
+  if (type === "add_labels") {
+    return evaluateAddLabels(item, itemRepo, timestamp, out, ghAPIFn, nowMs);
+  }
+  if (type === "close_issue") {
+    return evaluateCloseIssue(item, defaultRepo, ghAPIFn, nowMs);
+  }
+  if (type === "close_pull_request") {
+    return evaluateClosePullRequest(item, defaultRepo, ghAPIFn, nowMs);
+  }
+  if (type === "create_issue") {
+    return evaluateCreateIssue(item, itemRepo, timestamp, out, ghAPIFn, nowMs);
+  }
+  if (type === "add_comment") {
+    return evaluateAddComment(item, itemRepo, timestamp, out, ghAPIFn, nowMs);
+  }
 
   if (!url) {
     if (item.type === "add_reviewer") {
@@ -1205,15 +1394,6 @@ function evaluateItem(item, defaultRepo, apiOrOptions) {
   }
   if (type === "submit_pull_request_review") {
     return evaluateSubmitPullRequestReview(item, defaultRepo, ghAPIFn);
-  }
-  if (type === "create_issue") {
-    return evaluateCreateIssue(item, itemRepo, timestamp, out, ghAPIFn, nowMs);
-  }
-  if (type === "add_comment") {
-    return evaluateAddComment(item, itemRepo, timestamp, out, ghAPIFn, nowMs);
-  }
-  if (type === "add_labels") {
-    return evaluateAddLabels(item, itemRepo, timestamp, out, ghAPIFn, nowMs);
   }
 
   // Issues / issue-comments
@@ -1944,6 +2124,8 @@ module.exports = {
   evaluateCreateIssue,
   evaluateAddComment,
   evaluateAddLabels,
+  evaluateCloseIssue,
+  evaluateClosePullRequest,
   evaluateCreatePullRequestOutcome,
   evaluatePushToPullRequestBranchOutcome,
   normalizeOutcome,

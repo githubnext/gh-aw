@@ -782,7 +782,19 @@ lint-lock: build
 # does a full recompile) by catching the obvious staleness case early.
 .PHONY: check-stale-lock-files
 check-stale-lock-files:
-	@bash scripts/check-stale-lock-files.sh
+	@base_ref="$${CHECK_STALE_LOCK_BASE_REF:-}"; \
+	if [ -z "$$base_ref" ] && [ -n "$${GITHUB_BASE_REF:-}" ]; then \
+		if git rev-parse --verify "origin/$${GITHUB_BASE_REF}^{commit}" >/dev/null 2>&1; then \
+			base_ref="origin/$${GITHUB_BASE_REF}"; \
+		elif git rev-parse --verify "$${GITHUB_BASE_REF}^{commit}" >/dev/null 2>&1; then \
+			base_ref="$${GITHUB_BASE_REF}"; \
+		fi; \
+	fi; \
+	if [ -n "$$base_ref" ]; then \
+		bash scripts/check-stale-lock-files.sh --base-ref "$$base_ref"; \
+	else \
+		bash scripts/check-stale-lock-files.sh; \
+	fi
 
 # Check for drift between workflow markdown sources and generated lock files.
 # Compiles all .github/workflows/*.md files and fails if any .lock.yml would
@@ -946,7 +958,7 @@ lint-action-sh:
 
 # Validate all project files
 .PHONY: lint
-lint: fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh
+lint: check-stale-lock-files fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh
 	@echo "✓ All validations passed"
 
 # Install the binary locally

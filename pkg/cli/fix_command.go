@@ -47,16 +47,16 @@ Use --list-codemods to see all available codemods and their descriptions.
 If no workflows are specified, all Markdown files in .github/workflows will be processed.
 
 The command will:
-  1. Scan workflow files for deprecated fields
-  2. Apply relevant codemods to fix issues
-  3. Report what was changed in each file
+  1. Scan workflow files for deprecated fields.
+  2. Apply relevant codemods to fix issues.
+  3. Report what was changed in each file.
 
 Without --write (dry-run mode), no files are modified. With --write, the command performs
 all steps and additionally:
-  4. Write updated files back to disk
-  5. Delete deprecated .github/aw/schemas/agentic-workflow.json file if it exists
-  6. Delete old template files from previous versions if present
-  7. Delete old workflow-specific .agent.md files from .github/agents/ if present
+  4. Write updated files back to disk.
+  5. Delete deprecated .github/aw/schemas/agentic-workflow.json file if it exists.
+  6. Delete old template files from previous versions if present.
+  7. Delete old workflow-specific .agent.md files from .github/agents/ if present.
 
 ` + WorkflowIDExplanation,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` fix                     # Check all workflows (dry-run)

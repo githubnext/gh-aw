@@ -191,3 +191,105 @@ func TestEvalRetainedUpdateMissingExecutionStateUsesEvidenceNone(t *testing.T) {
 	assert.Equal(t, EvidenceNone, report.EvidenceStrength)
 	assert.Equal(t, "missing_execution_state", report.Signal)
 }
+
+func TestEvalReplaceLabelRetained(t *testing.T) {
+	old := outcomeUpdateGHAPIGet
+	t.Cleanup(func() {
+		outcomeUpdateGHAPIGet = old
+	})
+	outcomeUpdateGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+		return map[string]any{
+			"labels": []any{
+				map[string]any{"name": "triage"},
+				map[string]any{"name": "done"},
+			},
+		}, nil
+	}
+
+	report := evalReplaceLabel(CreatedItemReport{
+		Type:   "replace_label",
+		Number: 12,
+		Repo:   "owner/repo",
+		BeforeState: map[string]any{
+			"labels": []any{"triage", "in-progress"},
+		},
+		AfterState: map[string]any{
+			"labels": []any{"triage", "done"},
+		},
+	}, "owner/repo")
+
+	assert.Equal(t, OutcomeAccepted, report.Result)
+	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
+	assert.Equal(t, EvidenceMedium, report.EvidenceStrength)
+	assert.Equal(t, "state_retained", report.Signal)
+}
+
+func TestEvalReplaceLabelRetainedWithExtraLabel(t *testing.T) {
+	// An unrelated label added after execution must not cause state_replaced.
+	// Before: [in-progress], After: [done], Current: [done, security]
+	// Delta: added=[done], removed=[in-progress]
+	// "done" is still present, "in-progress" still absent → accepted.
+	old := outcomeUpdateGHAPIGet
+	t.Cleanup(func() {
+		outcomeUpdateGHAPIGet = old
+	})
+	outcomeUpdateGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+		return map[string]any{
+			"labels": []any{
+				map[string]any{"name": "done"},
+				map[string]any{"name": "security"},
+			},
+		}, nil
+	}
+
+	report := evalReplaceLabel(CreatedItemReport{
+		Type:   "replace_label",
+		Number: 12,
+		Repo:   "owner/repo",
+		BeforeState: map[string]any{
+			"labels": []any{"in-progress"},
+		},
+		AfterState: map[string]any{
+			"labels": []any{"done"},
+		},
+	}, "owner/repo")
+
+	assert.Equal(t, OutcomeAccepted, report.Result)
+	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
+	assert.Equal(t, EvidenceMedium, report.EvidenceStrength)
+	assert.Equal(t, "state_retained", report.Signal)
+}
+
+func TestEvalReplaceLabelReverted(t *testing.T) {
+	// Before: [in-progress], After: [done], Current: [in-progress]
+	// Delta: added=[done], removed=[in-progress]
+	// "done" absent, "in-progress" back → reverted.
+	old := outcomeUpdateGHAPIGet
+	t.Cleanup(func() {
+		outcomeUpdateGHAPIGet = old
+	})
+	outcomeUpdateGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+		return map[string]any{
+			"labels": []any{
+				map[string]any{"name": "in-progress"},
+			},
+		}, nil
+	}
+
+	report := evalReplaceLabel(CreatedItemReport{
+		Type:   "replace_label",
+		Number: 12,
+		Repo:   "owner/repo",
+		BeforeState: map[string]any{
+			"labels": []any{"in-progress"},
+		},
+		AfterState: map[string]any{
+			"labels": []any{"done"},
+		},
+	}, "owner/repo")
+
+	assert.Equal(t, OutcomeRejected, report.Result)
+	assert.Equal(t, OutcomeStatusRejected, report.OutcomeStatus)
+	assert.Equal(t, EvidenceStrong, report.EvidenceStrength)
+	assert.Equal(t, "state_reverted", report.Signal)
+}

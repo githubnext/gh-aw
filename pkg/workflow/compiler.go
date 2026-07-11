@@ -458,6 +458,8 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// enforcement (e.g., --approve or strict: false).
 	safeUpdateEnabled := c.effectiveSafeUpdate(workflowData)
 	var oldManifest *GHAWManifest
+	var oldHasPR bool
+	var oldHasPRTarget bool
 	if safeUpdateEnabled {
 		// Read the existing lock file to extract the previous gh-aw-manifest for safe update
 		// enforcement.
@@ -470,12 +472,16 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		//  3. Filesystem read – fallback for first-time compilations or non-git environments.
 		if cached, ok := c.priorManifests[lockFile]; ok {
 			oldManifest = cached
+			if committedContent, readErr := c.readLockFileFromHEAD(lockFile); readErr == nil {
+				oldHasPR, oldHasPRTarget = extractPullRequestEventPresenceFromCompiledWorkflow(committedContent)
+			}
 			secretCount := 0
 			if cached != nil {
 				secretCount = len(cached.Secrets)
 			}
 			workflowLog.Printf("Using pre-cached gh-aw-manifest for %s: %d secret(s)", lockFile, secretCount)
 		} else if committedContent, readErr := c.readLockFileFromHEAD(lockFile); readErr == nil {
+			oldHasPR, oldHasPRTarget = extractPullRequestEventPresenceFromCompiledWorkflow(committedContent)
 			if m, parseErr := ExtractGHAWManifestFromLockFile(committedContent); parseErr == nil {
 				oldManifest = m
 				if oldManifest != nil {
@@ -487,6 +493,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		} else {
 			workflowLog.Printf("Lock file %s not found in HEAD commit (%v); falling back to filesystem read.", lockFile, readErr)
 			if existingContent, fsErr := os.ReadFile(lockFile); fsErr == nil {
+				oldHasPR, oldHasPRTarget = extractPullRequestEventPresenceFromCompiledWorkflow(string(existingContent))
 				if m, parseErr := ExtractGHAWManifestFromLockFile(string(existingContent)); parseErr == nil {
 					oldManifest = m
 					if oldManifest != nil {
@@ -552,7 +559,8 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Emitting a warning instead of failing allows compilation to succeed so that the lock
 	// file is written and the agent receives the actionable guidance embedded in the warning.
 	if safeUpdateEnabled {
-		if enforceErr := EnforceSafeUpdate(oldManifest, bodySecrets, bodyActions, workflowData.Redirect); enforceErr != nil {
+		currentHasPR, currentHasPRTarget := extractPullRequestEventPresenceFromOnField(workflowData.RawFrontmatter["on"])
+		if enforceErr := EnforceSafeUpdate(oldManifest, bodySecrets, bodyActions, workflowData.Redirect, oldHasPR, oldHasPRTarget, currentHasPR, currentHasPRTarget); enforceErr != nil {
 			warningMsg := buildSafeUpdateWarningPrompt(enforceErr.Error())
 			c.AddSafeUpdateWarning(warningMsg)
 			fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", enforceErr.Error()))

@@ -53,7 +53,7 @@ scenarios:
         content_integrity: "none"
     expected:
       decision: deny
-      error_code: -32002
+      error_code: -32003
       reason: "insufficient role"
 
   # --- Scenario C: user has no role in the repository → denied ---
@@ -72,5 +72,5 @@ scenarios:
         content_integrity: "none"
     expected:
       decision: deny
-      error_code: -32002
+      error_code: -32003
       reason: "insufficient role"

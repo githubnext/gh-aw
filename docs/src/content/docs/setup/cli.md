@@ -383,6 +383,7 @@ gh aw run workflow1 workflow2               # Run multiple workflows
 gh aw run workflow --repeat 3               # Run 4 times total (1 initial + 3 repeats)
 gh aw run workflow --push                   # Auto-commit, push, and dispatch workflow
 gh aw run workflow --push --ref main        # Push to specific branch
+gh aw run workflow --dry-run                # Preview without triggering workflow runs
 gh aw run workflow --json                   # Output triggered workflow results as JSON
 ```
 
@@ -614,7 +615,7 @@ Forecast AI Credit (AIC) usage for agentic workflows using recent run history an
 ```bash wrap
 gh aw forecast                              # Forecast all workflows (monthly)
 gh aw forecast ci-doctor                    # Forecast a specific workflow
-gh aw forecast ci-doctor daily-planner      # Compare two workflows
+gh aw forecast ci-doctor daily-news         # Compare two workflows
 gh aw forecast --period week                # Weekly projections
 gh aw forecast --days 7                     # Use 7-day history window
 gh aw forecast --sample 50                  # Sample up to 50 runs per workflow

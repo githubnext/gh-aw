@@ -39,10 +39,10 @@ func NewLintCommand() *cobra.Command {
 
 This command does not recompile Markdown workflows and does not run zizmor or poutine.
 By default, shellcheck and pyflakes integrations are disabled for generated run scripts.`,
-		Example: `  ` + string(constants.CLIExtensionPrefix) + ` lint
-  ` + string(constants.CLIExtensionPrefix) + ` lint .github/workflows/foo.lock.yml
-  ` + string(constants.CLIExtensionPrefix) + ` lint --dir .github/workflows
-  ` + string(constants.CLIExtensionPrefix) + ` lint --shellcheck --pyflakes`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` lint                                  # Lint all .lock.yml workflows in the default directory
+  ` + string(constants.CLIExtensionPrefix) + ` lint .github/workflows/foo.lock.yml    # Lint a specific lock file
+  ` + string(constants.CLIExtensionPrefix) + ` lint --dir custom-workflows/            # Lint all lock files in a custom directory
+  ` + string(constants.CLIExtensionPrefix) + ` lint --shellcheck --pyflakes            # Enable actionlint script integrations`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			workflowDir, _ := cmd.Flags().GetString("dir")
 			includeShellcheck, _ := cmd.Flags().GetBool("shellcheck")

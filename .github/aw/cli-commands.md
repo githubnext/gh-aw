@@ -140,6 +140,21 @@ gh aw checks <run-id>
 
 ---
 
+### `gh aw experiments`
+
+Inspect experiment state tracked in `experiments/*` branches. Default behavior matches `experiments list`; use `experiments analyze` for per-workflow statistics. All subcommands accept `--repo/-r` and `--json/-j`.
+
+```bash
+gh aw experiments                             # List experiment workflow branches
+gh aw experiments list --json                 # List all experiments as JSON
+gh aw experiments analyze <workflow>          # Analyze one experiment workflow
+gh aw experiments analyze <workflow> --repo owner/repo  # Analyze in another repository
+```
+
+**MCP equivalent**: Not available — run from a local terminal.
+
+---
+
 ### `gh aw fix`
 
 Apply automatic codemods to fix deprecated fields in workflow files.
@@ -269,6 +284,7 @@ gh aw mcp list                                   # List workflows with MCP serve
 | `gh aw audit` | `audit` |
 | `gh aw audit <id1> <id2>` | `audit-diff` |
 | `gh aw checks` | `checks` |
+| `gh aw experiments` | *(local only)* |
 | `gh aw mcp inspect` | `mcp-inspect` |
 | `gh aw add` | `add` |
 | `gh aw update` | `update` |

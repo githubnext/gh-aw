@@ -203,6 +203,18 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 		return nil, err
 	}
 
+	// Validate that push triggers are scoped to specific branches to prevent fan-out.
+	// In strict mode this is an error; in non-strict mode it is downgraded to a warning.
+	if err := ValidatePushBranchScope(frontmatterForValidation); err != nil {
+		if c.effectiveStrictMode(frontmatterForValidation) {
+			orchestratorFrontmatterLog.Printf("Push branch scope validation failed: %v", err)
+			return nil, err
+		}
+		orchestratorFrontmatterLog.Printf("Push branch scope warning (non-strict mode): %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(err.Error()))
+		c.IncrementWarningCount()
+	}
+
 	// Validate event type names in the 'on:' section for potential typos
 	if err := ValidateEventTypes(frontmatterForValidation); err != nil {
 		orchestratorFrontmatterLog.Printf("Event type validation failed: %v", err)
