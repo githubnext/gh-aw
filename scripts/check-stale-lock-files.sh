@@ -22,7 +22,8 @@ set +o histexpand
 # Options:
 #   --dir <dir>   Workflows directory to scan (default: .github/workflows).
 #                 The script only examines .md files under this directory.
-#   --base-ref    Git base ref used to detect changed files via
+#   --base-ref <git-ref>
+#                 Git base ref used to detect changed files via
 #                 `git diff <base-ref>...HEAD`. Intended for CI.
 #
 # Exit codes:
@@ -73,22 +74,17 @@ if [ ! -d "$WORKFLOWS_DIR" ]; then
 fi
 
 collect_modified_files() {
-    # Local contributor path: staged/unstaged vs HEAD.
-    local changed
-    changed=$(git diff --name-only HEAD 2>/dev/null || true)
-    if [ -n "$changed" ]; then
-        printf '%s\n' "$changed"
-        return
-    fi
-
-    # CI path: explicit base ref compare (clean checkout safe).
+    # Explicit base ref compare (clean checkout safe, CI-friendly).
     if [ -n "$BASE_REF" ]; then
         if git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
             git diff --name-only "${BASE_REF}...HEAD" 2>/dev/null || true
-        else
-            echo -e "${YELLOW}WARN${NC}: --base-ref not found (${BASE_REF}); falling back to working-tree check." >&2
+            return
         fi
+        echo -e "${YELLOW}WARN${NC}: --base-ref not found (${BASE_REF}); falling back to working-tree check." >&2
     fi
+
+    # Local contributor path: staged/unstaged vs HEAD.
+    git diff --name-only HEAD 2>/dev/null || true
 }
 
 all_modified=$(collect_modified_files)
