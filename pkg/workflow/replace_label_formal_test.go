@@ -210,6 +210,8 @@ func formalCountAllowed(count, max int) bool {
 	return count < max
 }
 
+// formalResolveItemNumberAliases models alias resolution priority for item targets.
+// Order is: item_number, issue_number, pr_number, pull_number (first positive value wins).
 func formalResolveItemNumberAliases(message map[string]any) int {
 	for _, key := range []string{"item_number", "issue_number", "pr_number", "pull_number"} {
 		v, ok := message[key]
@@ -234,6 +236,8 @@ func formalResolveItemNumberAliases(message map[string]any) int {
 	return 0
 }
 
+// formalEvaluateFixtureScenario returns true when the scenario passes the same
+// blocked-first and allowlist checks applied by the formal label validators.
 func formalEvaluateFixtureScenario(sc replaceLabelFixtureScenario) bool {
 	if sc.Input.Message.LabelToAdd != "" {
 		if err := formalValidateSingleLabel(sc.Input.Message.LabelToAdd, sc.Input.SafeOutputConfig.AllowedAdd, sc.Input.SafeOutputConfig.Blocked, "label_to_add"); err != nil {
@@ -248,6 +252,8 @@ func formalEvaluateFixtureScenario(sc replaceLabelFixtureScenario) bool {
 	return true
 }
 
+// runReplaceLabelFixture loads a compliance fixture YAML file and executes each
+// scenario as a subtest, asserting expected allow/deny decisions.
 func runReplaceLabelFixture(t *testing.T, fixtureName string) {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join("..", "..", "specs", "replace-label-compliance", fixtureName))

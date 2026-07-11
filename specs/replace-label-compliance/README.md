@@ -19,7 +19,7 @@ schema, gating, set-computation, staged-mode, and error invariants.
 
 ## Formal Model
 
-- **Preconditions (F\*)**: non-empty required labels, bounded label/repo lengths,
+- **Preconditions (`F*`)**: non-empty required labels, bounded label/repo lengths,
   count gate (`count < max`), and repository target restrictions.
 - **Decision predicates (SMT-style)**:
   - `GlobSemantics(label, pattern[])`
