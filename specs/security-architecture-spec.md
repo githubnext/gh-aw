@@ -1768,6 +1768,34 @@ Use this checklist to verify that a compiled `.lock.yml` workflow file meets all
 
 ---
 
+#### G.10 Formal Test Coverage Audit
+
+The following table maps each Appendix G checklist category against the formal tests in
+`pkg/workflow/security_architecture_sg_formal_test.go`. Cells marked **covered** have a
+dedicated test function; cells marked **gap** lack direct formal test coverage.
+
+| Checklist Category | Formal Test(s) | Coverage |
+|---|---|---|
+| **G.1** Action pinning | _(none)_ | **gap** — no formal test verifies that compiled `uses:` lines are SHA-pinned; relies on actionlint/poutine in CI |
+| **G.2** Permission separation — agent job | `TestFormalSG02_AgentJobHasNoWritePermissions`, `TestFormalSG04_LeastPrivilegeBasePermissions` | covered |
+| **G.2** Permission separation — safe_outputs job | `TestFormalStaged_HandlerRequiresNoWritePerms` | covered |
+| **G.3** Fork protection | `TestFormalBasicConformance_AllFourControls` (compiles a real workflow; fork guard verified via activation `if:`) | covered |
+| **G.4** Input sanitization | `TestFormalSG01_InputSanitizationInvariant` | covered |
+| **G.5** Threat detection | `TestFormalSG06_ThreatDetectionAuditArtifact`, `TestFormalThreatDetection_EnabledByDefault`, `TestFormalThreatDetection_ExplicitDisable` | covered |
+| **G.6** RBAC — job topology (PM-10b) | `TestFormalJobTopology_PipelineOrderEnforced` (verifies `pre_activation → activation` needs dependency) | covered |
+| **G.6** RBAC — membership check step (PM-11) | _(none)_ | **gap** — `TestFormalJobTopology_PipelineOrderEnforced` verifies job ordering but does NOT assert that the `pre_activation` job contains a `check_membership.cjs` step; no dedicated PM-11 formal test exists in this file |
+| **G.7** AWF sandbox | `TestFormalSG05_SandboxIsolationPresence` | covered |
+| **G.8** Concurrency control | _(none)_ | **gap** — no formal test verifies `concurrency.group` is set or that `cancel-in-progress` matches workflow type |
+| **G.9** Runtime validation — timestamp check | `TestFormalSG07_FailSecureOnSecurityError` (compilation fail-secure; does not verify timestamp step) | partial — fail-secure behavior covered; timestamp step presence not directly asserted |
+
+**Summary of coverage gaps (as of 2026-07-11)**:
+
+- **G.1 Action pinning**: Formal test gap. CI tooling (actionlint, poutine) provides runtime coverage; consider adding a dedicated test that parses compiled lock file `uses:` patterns.
+- **G.6 RBAC (PM-11) membership check step**: Formal test gap. `pre_activation` job topology is verified, but the presence of `check_membership.cjs` as a step inside that job is not asserted by any test in this file. A dedicated `TestFormalPM11_PreActivationContainsMembershipStep` test should be added. See: specs/security-architecture-spec-validation.md §4 (PM-11 note).
+- **G.8 Concurrency control**: Formal test gap. Concurrency group format is validated only by manual review. Consider a test that compiles a PR-trigger workflow and asserts `concurrency.group` contains the PR number expression.
+
+---
+
 ### Appendix H: Security Best Practices
 
 #### BP-01: Always Use Sanitized Context

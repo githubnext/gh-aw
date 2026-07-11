@@ -262,6 +262,22 @@ The July 2026 maintenance pass rechecked the documentation-only clarifications r
 
 ---
 
+### 4b. PM-11 Formal Test Coverage Audit (2026-07-11)
+
+An audit of `pkg/workflow/security_architecture_sg_formal_test.go` was performed to verify whether PM-11 (pre_activation membership validation) is covered by a dedicated formal test.
+
+**Finding**: PM-11 is **NOT** directly covered by a formal test in `security_architecture_sg_formal_test.go`.
+
+- `TestFormalSG04_LeastPrivilegeBasePermissions` covers SG-04 (least-privilege permissions baseline) but does not assert the presence or correctness of a membership-check step inside the `pre_activation` job.
+- `TestFormalJobTopology_PipelineOrderEnforced` verifies that the `pre_activation → activation` needs dependency is present in the compiled YAML but does NOT assert that the `pre_activation` job contains the `check_membership.cjs` step required by PM-11.
+- The runtime evidence for PM-11 (compiled `check_membership.cjs` step in `pkg/workflow/test-yaml-import.lock.yml`) is verified in §4 above from the lock-file artefact, but this is not a programmatic assertion.
+
+**Gap**: A dedicated formal test `TestFormalPM11_PreActivationContainsMembershipStep` should be added to `security_architecture_sg_formal_test.go`. The test should compile a real workflow with role-based access control enabled and assert that the compiled YAML contains a `check_membership` step inside the `pre_activation` job section.
+
+**Verification date**: 2026-07-11. Track gap via `specs/security-architecture-spec.md` Appendix G.10.
+
+---
+
 ### 5. Threat Detection Layer (Section 9 - TD-01, TD-04)
 
 **Specification Claim**:

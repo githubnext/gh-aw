@@ -2697,6 +2697,34 @@ Cross-reference of `scratchpad/github-mcp-access-control-specification.md` and `
 
 ---
 
+## Sync Follow-ups
+
+This section lists the files that **MUST** be reviewed and updated whenever a normative section of this specification changes, especially §4.5.3 (predicate evaluation order), §4.4 (field definitions), and §11 (compliance tests).
+
+### After Changing §4.5.3 Predicate Evaluation Order
+
+When the order or definition of P1–P6 predicates changes:
+
+1. **`pkg/workflow/mcp_access_control.go`** (or the file implementing the access-control evaluator) — Update the guard predicate evaluation loop to reflect the new ordering. Every predicate that changes position **MUST** also update the first-failing-guard error-code selection logic.
+
+2. **`specs/github-mcp-access-control-compliance/README.md`** — Update the Formal Model section (`ALLOW(r, c) ≜ …`) and the Behavioral Coverage Map table to reflect the new predicate order. Regenerate `TestFormal_BlockedUserSafetyProperty` and `TestFormal_ErrorCodeFirstFailingGuard` test cases to match.
+
+3. **`specs/github-mcp-access-control-compliance/combined-blocked-integrity.yaml`** — Review the `combined-blocked-integrity-C` and `combined-blocked-integrity-D` scenarios whose expected error codes depend on the relative order of P5_NotBlocked vs P6_IntegrityMet. Update expected `error_code` values if the predicate order changes.
+
+### After Adding or Removing §4.4 Extension Fields
+
+When a new access-control field is added (e.g., `trusted-users`, `approval-labels`) or an existing field is removed:
+
+1. **`pkg/workflow/tools_types.go`** — Add or remove the corresponding `GitHubToolConfig` struct field and YAML tag.
+
+2. **`pkg/workflow/tools_validation_github.go`** — Add validation logic for the new field. Remove validation for any removed field.
+
+3. **`pkg/workflow/github_mcp_access_control_formal_test.go`** — Add a predicate-mapped `TestFormal_*` test function for the new field; remove obsolete tests for removed fields.
+
+4. **`specs/github-mcp-access-control-compliance/README.md`** — Update the Behavioral Coverage Map table and the Fixture Files table. Regenerate or create the corresponding YAML fixture file.
+
+---
+
 ## References
 
 ### Normative References

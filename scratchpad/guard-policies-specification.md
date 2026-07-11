@@ -422,6 +422,24 @@ The implementation follows established patterns in the codebase and integrates w
 
 ---
 
+## Normative Requirements
+
+This section consolidates the normative requirements of the guard policies framework using short requirement codes. Each requirement is labelled GP-NNN and uses RFC 2119 key words. Implementations that satisfy all requirements labelled **SHALL** are conforming; requirements labelled **SHOULD** or **MAY** are recommended or optional.
+
+**GP-001**: Implementations **SHALL** accept the `allowed-repos` field on `tools.github` in workflow frontmatter. The field value **SHALL** be either the string scalar `"all"`, the string scalar `"public"`, or a non-empty array of repository pattern strings. Any other type or an empty array **SHALL** be rejected with a descriptive compilation error.
+
+**GP-002**: Implementations **SHALL** accept the `min-integrity` field on `tools.github`. The field value **SHALL** be one of the four string literals `"none"`, `"unapproved"`, `"approved"`, or `"merged"`. Any other string value **SHALL** be rejected with a descriptive compilation error.
+
+**GP-003**: When `allowed-repos` is set to an array, each element **SHALL** be a non-empty string matching one of the following pattern formats: exact (`owner/repo`), owner-wildcard (`owner/*`), or prefix-wildcard (`owner/prefix*`). Uppercase letters, bare wildcards (`*` without an owner prefix), and wildcards in non-terminal positions (e.g., `own*/repo`) **SHALL** be rejected.
+
+**GP-004**: Implementations **SHALL** reject a combination where `allowed-repos` is set to a non-`"all"` scope (i.e., `"public"` or any array) and `min-integrity` is absent, with a compilation error that names both the missing field and the reason it is required.
+
+**GP-005**: Implementations **SHALL** derive a `write-sink` guard policy for the safe-outputs MCP server whenever `allowed-repos` or `min-integrity` is present on `tools.github`. The derivation **SHALL** follow the mapping rules in §5 (`allowed-repos: "all"` / `"public"` → `accept: ["*"]`; array patterns → `private:`-prefixed entries). Duplicate accept entries **SHALL** be deduplicated before the policy is applied.
+
+**GP-006**: When no guard-policy fields are present on `tools.github`, the derived safe-outputs `write-sink` policy **SHALL** be absent (nil). The absence of a guard policy **SHALL NOT** be treated as an implicit `accept: ["*"]`; the write-sink scope **SHALL** remain unset.
+
+---
+
 ## Entities
 
 This section defines the normative data entities of the guard policies framework. Implementations MUST represent each entity with the fields, types, and constraints described below.
@@ -575,3 +593,41 @@ The deprecated `repos` field (YAML key: `repos`) is handled alongside `allowed-r
 **Migration command**: `gh aw fix` applies a codemod that replaces `repos:` with `allowed-repos:` in workflow frontmatter. The codemod is idempotent and safe to run multiple times.
 
 **Removal tracking**: The `repos` alias is tracked for removal. When it is removed, update `pkg/workflow/tools_types.go` (delete the `Repos` field), `pkg/workflow/mcp_github_config.go` (remove the fallback lookup), and `pkg/workflow/tools_validation_github.go` (adjust any `repos`-specific validation paths). Update doc-comments in `pkg/workflow/tools_types.go` to reference this spec version after the removal.
+
+---
+
+## Sync Follow-ups
+
+This section lists the files that **MUST** be reviewed and updated whenever a normative section of this specification changes. Reviewers **SHALL** confirm each target is consistent with the updated spec before merging.
+
+### After Adding or Changing Normative Requirements (§Normative Requirements)
+
+When requirements GP-001–GP-006 (or any later GP-NNN additions) change, update the following:
+
+1. **`schemas/mcp-gateway-config.schema.json`** — Add, remove, or rename the `guard-policies`, `allowed-repos`, and `min-integrity` fields in the `stdioServerConfig` and `httpServerConfig` schema objects to match the revised normative requirements. Verify that the JSON Schema types, enum values, and `required` constraints reflect the updated GP-001 and GP-002 constraints.
+
+2. **`pkg/workflow/tools_validation_github.go`** — Update `validateGitHubGuardPolicy()`, `validateReposScope()`, and `validateRepoPattern()` to enforce the revised constraints. Any new rejection rule in GP-001–GP-006 **MUST** have a corresponding validation call and error message in this file.
+
+3. **`pkg/workflow/mcp_github_config.go`** — Update `deriveSafeOutputsGuardPolicyFromGitHub()` to match any changes to GP-005 or GP-006 derivation rules.
+
+4. **`pkg/workflow/tools_types.go`** — Update `GitHubToolConfig`, `GitHubReposScope`, and `GitHubIntegrityLevel` type definitions and struct tags when field names, types, or constraints change.
+
+### After Changing the Safe-Outputs Derivation Rules (§5)
+
+When the derivation mapping in §5 changes (e.g., new pattern transformation rules):
+
+1. **`schemas/mcp-gateway-config.schema.json`** — Ensure the `write-sink` accept-list field structure in the safe-outputs server config schema matches the new derivation output.
+
+2. **`pkg/workflow/mcp_github_config.go`** — Update `deriveSafeOutputsGuardPolicyFromGitHub()` and `normalizeGitHubRepositoryInReposScope()`.
+
+3. **`pkg/workflow/safeoutputs_guard_policy_test.go`** — Add or update test cases in `TestDeriveSafeOutputsGuardPolicyFromGitHub` to cover the new transformation rules.
+
+### After Changing Extension-Point Semantics (§6)
+
+When the extensibility model for future MCP servers (Jira, WorkIQ) changes:
+
+1. **`pkg/workflow/tools_types.go`** — Update `MCPServerConfig.GuardPolicies` and any server-specific policy types.
+
+2. **`schemas/mcp-gateway-config.schema.json`** — Add server-specific guard-policy schema objects as new `$defs` entries and reference them from the relevant server config schemas.
+
+3. Document the new policy type in this specification under a new `### Entity:` subsection in [§Entities](#entities).
