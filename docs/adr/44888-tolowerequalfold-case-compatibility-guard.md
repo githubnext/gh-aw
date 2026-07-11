@@ -38,7 +38,7 @@ Rejected because it does not cover the primary bug: `strings.ToLower(name) == "A
 
 Treat matching conversion functions as sufficient evidence of equivalence and continue rewriting those comparisons.
 
-Rejected because Go Unicode semantics make this unsafe in general (`strings.ToLower("ς") != strings.ToLower("σ")` while `strings.EqualFold("ς", "σ")` is true). This would still permit behavior-changing rewrites.
+Rejected because Go Unicode semantics make this unsafe in general (for example, `strings.ToLower("ς")` is `"ς"` and `strings.ToLower("σ")` is `"σ"`, while `strings.EqualFold("ς", "σ")` is `true`). This would still permit behavior-changing rewrites.
 
 ### Consequences
 

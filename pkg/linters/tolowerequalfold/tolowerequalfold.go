@@ -10,7 +10,6 @@ import (
 	"go/types"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -303,7 +302,7 @@ func stringLitValue(expr ast.Expr) (string, bool) {
 }
 
 // literalCaseMatchesConv reports whether lit is already in the correct case for
-// funcName and uses ASCII-only letters. This conservative guard avoids Unicode
+// funcName and uses ASCII-only characters. This conservative guard avoids Unicode
 // simple-fold mismatches where ToLower/ToUpper equality and EqualFold differ.
 func literalCaseMatchesConv(funcName, lit string) bool {
 	if !isASCIIString(lit) {
@@ -319,7 +318,12 @@ func literalCaseMatchesConv(funcName, lit string) bool {
 }
 
 func isASCIIString(s string) bool {
-	return utf8.ValidString(s) && len(s) == utf8.RuneCountInString(s)
+	for _, b := range []byte(s) {
+		if b > 0x7f {
+			return false
+		}
+	}
+	return true
 }
 
 // isEquivalentToEqualFold reports whether the == or != comparison expr is
