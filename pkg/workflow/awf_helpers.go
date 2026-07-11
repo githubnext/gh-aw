@@ -619,7 +619,7 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfArgs = append(awfArgs, "--container-runtime", "sbx")
 		awfHelpersLog.Print("Added --container-runtime sbx for docker-sbx microVM runtime")
 	} else if isDockerSbxRuntime(config.WorkflowData) {
-		awfHelpersLog.Printf("Skipping --container-runtime sbx: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFContainerRuntimeMinVersion)
+		awfHelpersLog.Printf("Skipping --container-runtime sbx: AWF version %q is older than required minimum %s", getAWFImageTag(firewallConfig), constants.AWFContainerRuntimeMinVersion)
 	}
 
 	// Pass all environment variables to the container, but exclude every variable whose
