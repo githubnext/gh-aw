@@ -8388,83 +8388,8 @@ safe-outputs:
       # Format 2: GitHub Actions expression that resolves to a boolean at runtime
       staged: "example-value"
 
-  # Deprecated alias for dispatch-repository.
-  # (optional)
-  dispatch_repository:
-    # Configuration for a single repository dispatch tool
-    trigger-ci:
-      # Human-readable description of what this dispatch tool does
-      # (optional)
-      description: "Description of the workflow"
-
-      # Target workflow name (for traceability and inclusion in client_payload)
-      workflow: "example-value"
-
-      # The repository_dispatch event_type string sent to the target repository
-      event_type: "example-value"
-
-      # Target repository in 'owner/repo' format. Dispatches to this repository when no
-      # 'allowed_repositories' list is given.
-      # (optional)
-      repository: "example-value"
-
-      # List of allowed target repositories (owner/repo). Supports glob patterns like
-      # 'org/*'.
-      # (optional)
-      allowed_repositories: []
-        # Array of strings
-
-      # Input schema for the dispatch tool. Inputs are validated and compiled into
-      # client_payload.
-      # (optional)
-      inputs:
-        repo-name:
-          # Input type
-          # (optional)
-          type: "string"
-
-          # Input description
-          # (optional)
-          description: "Description of the workflow"
-
-          # Whether this input is required
-          # (optional)
-          required: true
-
-          # Default value for this input
-          # (optional)
-          default: null
-
-          # Allowed options for 'choice' type inputs
-          # (optional)
-          options: []
-            # Array of strings
-
-      # Maximum number of dispatch executions for this tool per run (default: 1, max:
-      # 50). Supports integer or GitHub Actions expression.
-      # (optional)
-      # Accepted formats:
-
-      # Format 1: integer
-      max: 1
-
-      # Format 2: GitHub Actions expression that resolves to an integer at runtime
-      max: "example-value"
-
-      # GitHub token to use for dispatching. Overrides global github-token if specified.
-      # (optional)
-      github-token: "${{ secrets.GITHUB_TOKEN }}"
-
-      # When true, emit step summary messages instead of making GitHub API calls
-      # (preview mode)
-      # (optional)
-      # Accepted formats:
-
-      # Format 1: boolean
-      staged: true
-
-      # Format 2: GitHub Actions expression that resolves to a boolean at runtime
-      staged: "example-value"
+  # Deprecated alias `dispatch_repository` is still accepted for compatibility.
+  # Prefer `dispatch-repository` (or run `gh aw fix` to migrate existing workflows).
 
   # Call reusable workflows via workflow_call fan-out. The compiler generates static
   # conditional jobs; the agent selects which worker to activate. Use this for
