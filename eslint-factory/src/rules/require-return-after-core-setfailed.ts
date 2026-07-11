@@ -127,8 +127,8 @@ function findContinuationOutsideBlock(setFailedNode: TSESTree.Statement, ancesto
     if (ancestor.type === AST_NODE_TYPES.SwitchStatement && childNode.type === AST_NODE_TYPES.SwitchCase) {
       const currentIndex = ancestor.cases.findIndex(testCase => testCase === childNode);
       if (currentIndex >= 0) {
-        for (let j = currentIndex + 1; j < ancestor.cases.length; j++) {
-          const nextCase = ancestor.cases[j];
+        for (let nextCaseIndex = currentIndex + 1; nextCaseIndex < ancestor.cases.length; nextCaseIndex++) {
+          const nextCase = ancestor.cases[nextCaseIndex];
           const nextStmt = nextCase.consequent[0];
           if (nextStmt) {
             return nextStmt;
