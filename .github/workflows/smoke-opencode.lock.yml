@@ -981,7 +981,7 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
           GITHUB_COPILOT_BASE_URL: http://host.docker.internal:10002
           GITHUB_WORKSPACE: ${{ github.workspace }}
-          NO_PROXY: localhost,127.0.0.1
+          NO_PROXY: localhost,127.0.0.1,host.docker.internal
           OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           OPENAI_BASE_URL: http://host.docker.internal:10002
           OPENCODE_MODEL: awf-proxy/gpt-5
@@ -1685,7 +1685,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_COPILOT_BASE_URL: http://host.docker.internal:10002
           GITHUB_WORKSPACE: ${{ github.workspace }}
-          NO_PROXY: localhost,127.0.0.1
+          NO_PROXY: localhost,127.0.0.1,host.docker.internal
           OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           OPENAI_BASE_URL: http://host.docker.internal:10002
           OPENCODE_MODEL: awf-proxy/gpt-5

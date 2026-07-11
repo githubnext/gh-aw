@@ -328,7 +328,7 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 		"GH_AW_PROMPT":     constants.AwPromptsFile,
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
 		"RUNNER_TEMP":      "${{ runner.temp }}",
-		"NO_PROXY":         "localhost,127.0.0.1",
+		"NO_PROXY":         "localhost,127.0.0.1,host.docker.internal",
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 
