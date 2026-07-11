@@ -50,8 +50,8 @@ engine:
           "disabled_providers": ["opencode"],
           "provider": {
             "openai": {
-              "apiKey": "awf-copilot-proxy",
               "options": {
+                "apiKey": "awf-copilot-proxy",
                 "baseURL": "http://host.docker.internal:10002"
               },
               "models": {
