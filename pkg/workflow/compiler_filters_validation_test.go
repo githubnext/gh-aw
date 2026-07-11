@@ -354,6 +354,142 @@ func TestValidateEventFilters_ReturnsValidationErrorWithSuggestion(t *testing.T)
 	}
 }
 
+func TestValidatePushBranchScope(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		wantErr     bool
+		errContains string
+	}{
+		// Valid configurations
+		{
+			name: "push with branches filter",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"branches": []string{"main"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "push with branches-ignore filter",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"branches-ignore": []string{"release/**"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "push with branches and paths filter",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"branches": []string{"main"},
+						"paths":    []string{"src/**"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:        "no on section",
+			frontmatter: map[string]any{},
+			wantErr:     false,
+		},
+		{
+			name: "on section without push",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_dispatch": nil,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "on is not a map (scalar string)",
+			frontmatter: map[string]any{
+				"on": "workflow_dispatch",
+			},
+			wantErr: false,
+		},
+		// Invalid configurations
+		{
+			name: "push with no filters (nil push value)",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": nil,
+				},
+			},
+			wantErr:     true,
+			errContains: "branches",
+		},
+		{
+			name: "push map with no branch filter (paths only)",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"paths": []string{"src/**"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "branches",
+		},
+		{
+			name: "push map with no filters at all (empty map)",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{},
+				},
+			},
+			wantErr:     true,
+			errContains: "branches",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidatePushBranchScope(tt.frontmatter)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidatePushBranchScope() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && tt.errContains != "" {
+				if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("ValidatePushBranchScope() error = %v, want error containing %q", err, tt.errContains)
+				}
+			}
+		})
+	}
+}
+
+func TestValidatePushBranchScope_ReturnsValidationErrorWithSuggestion(t *testing.T) {
+	err := ValidatePushBranchScope(map[string]any{
+		"on": map[string]any{
+			"push": nil,
+		},
+	})
+	if err == nil {
+		t.Fatal("expected error for unscoped push trigger")
+	}
+
+	var validationErr *WorkflowValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected WorkflowValidationError, got %T", err)
+	}
+	if validationErr.Suggestion == "" {
+		t.Fatal("expected non-empty suggestion")
+	}
+	if !strings.Contains(validationErr.Suggestion, "branches:") {
+		t.Fatalf("expected suggestion to contain 'branches:', got: %s", validationErr.Suggestion)
+	}
+}
+
 func TestValidateGlobPatterns(t *testing.T) {
 	tests := []struct {
 		name        string

@@ -203,6 +203,12 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 		return nil, err
 	}
 
+	// Validate that push triggers are scoped to specific branches to prevent fan-out
+	if err := ValidatePushBranchScope(frontmatterForValidation); err != nil {
+		orchestratorFrontmatterLog.Printf("Push branch scope validation failed: %v", err)
+		return nil, err
+	}
+
 	// Validate event type names in the 'on:' section for potential typos
 	if err := ValidateEventTypes(frontmatterForValidation); err != nil {
 		orchestratorFrontmatterLog.Printf("Event type validation failed: %v", err)
