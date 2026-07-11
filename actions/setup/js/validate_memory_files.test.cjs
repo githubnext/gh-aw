@@ -4,8 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import os from "os";
-
-const { validateMemoryFiles } = require("./validate_memory_files.cjs");
+import { validateMemoryFiles } from "./validate_memory_files.cjs";
 
 // Mock core globally with vi.fn() so we can assert on calls
 global.core = {
