@@ -1,8 +1,10 @@
 name: Label Closed PRs
 
-# Trigger when a pull request is closed (either merged or without merging)
+# Trigger when a pull request is closed (either merged or without merging).
+# Use pull_request_target so labeling writes can run with repository permissions
+# even when the PR originated from a fork.
 on:
-  pull_request:
+  pull_request_target:
     types: [closed]
 
 permissions:
