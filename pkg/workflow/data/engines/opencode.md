@@ -47,12 +47,14 @@ engine:
               }
             }
           },
+          "autoupdate": false,
           "disabled_providers": ["opencode"],
           "provider": {
             "openai": {
               "options": {
                 "apiKey": "awf-copilot-proxy",
-                "baseURL": "http://host.docker.internal:10002"
+                "baseURL": "http://host.docker.internal:10002/v1",
+                "compatibility": "compatible"
               },
               "models": {
                 "gpt-5": {}
