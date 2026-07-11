@@ -162,6 +162,8 @@ This section maps individual tools to their respective toolsets to help with mig
 - `create_pull_request` - Create a new pull request
 - `search_pull_requests` - Search pull requests across repositories
 
+When invoking `list_pull_requests` from workflow prompts/templates, default to a small page size (`perPage: 10` unless a smaller/larger value is justified) and request `minimal_output: true` when the MCP method supports it.
+
 ### Actions Toolset
 - `list_workflows` - List GitHub Actions workflows
 - `list_workflow_runs` - List workflow runs
