@@ -159,6 +159,16 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 			steps = append(steps, generateGVisorInstallStep())
 		}
 
+		// docker-sbx must be installed, authenticated, and smoke-tested BEFORE AWF
+		// starts so the microVM runtime is ready when AWF launches the agent.
+		if isDockerSbxRuntime(workflowData) {
+			steps = append(steps, generateDockerSbxKVMCheckStep())
+			steps = append(steps, generateDockerSbxSecretsCheckStep())
+			steps = append(steps, generateDockerSbxInstallStep())
+			steps = append(steps, generateDockerSbxAuthAndDaemonStep())
+			steps = append(steps, generateDockerSbxPreFlightStep())
+		}
+
 		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
 		if len(awfInstall) > 0 {
 			steps = append(steps, awfInstall)

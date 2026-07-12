@@ -125,6 +125,53 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		sandboxValidationLog.Print("gVisor runtime configured -- topology check passed")
 	}
 
+	// Validate docker-sbx runtime compatibility
+	if agentConfig != nil && agentConfig.Runtime == AgentRuntimeDockerSbx {
+		// docker-sbx is incompatible with ARC/DinD topology: sbx requires KVM which is
+		// not available on ARC DinD runners that typically lack nested virtualisation.
+		if isArcDindTopology(workflowData) {
+			return NewValidationError(
+				"sandbox.agent.runtime",
+				string(AgentRuntimeDockerSbx),
+				"docker-sbx is incompatible with runner.topology: arc-dind",
+				"docker-sbx requires KVM (nested virtualisation) which is typically unavailable "+
+					"on ARC DinD runners. Remove sandbox.agent.runtime: docker-sbx or change runner.topology.",
+			)
+		}
+
+		// docker-sbx install step requires root access; sudo: true is mandatory.
+		if !agentConfig.SudoExplicitlyEnabled {
+			return NewValidationError(
+				"sandbox.agent.runtime",
+				string(AgentRuntimeDockerSbx),
+				"docker-sbx requires sandbox.agent.sudo: true",
+				"The docker-sbx install step needs root access to install docker-sbx and fix KVM "+
+					"device permissions. Add 'sudo: true' to your sandbox.agent configuration:\n\n"+
+					"sandbox:\n  agent:\n    id: awf\n    runtime: docker-sbx\n    sudo: true",
+			)
+		}
+
+		firewallConfig := getFirewallConfig(workflowData)
+		var configuredVersion string
+		if firewallConfig != nil {
+			configuredVersion = firewallConfig.Version
+		}
+		if !versionAtLeast(configuredVersion, string(constants.DefaultFirewallVersion), string(constants.AWFContainerRuntimeMinVersion)) {
+			effectiveVersion := configuredVersion
+			if effectiveVersion == "" {
+				effectiveVersion = string(constants.DefaultFirewallVersion)
+			}
+			return NewValidationError(
+				"sandbox.agent.runtime",
+				string(AgentRuntimeDockerSbx),
+				fmt.Sprintf("docker-sbx requires AWF %s or newer", constants.AWFContainerRuntimeMinVersion),
+				fmt.Sprintf("docker-sbx emits 'awf --container-runtime sbx', which is only supported in AWF %s+.\n\nThe effective AWF version is %s. Set firewall.version or sandbox.agent.version to %s or newer.", constants.AWFContainerRuntimeMinVersion, effectiveVersion, constants.AWFContainerRuntimeMinVersion),
+			)
+		}
+
+		sandboxValidationLog.Print("docker-sbx runtime configured -- topology, sudo, and AWF version checks passed")
+	}
+
 	// Validate config structure if provided (deprecated - was only for SRT)
 	if sandboxConfig.Config != nil {
 		// Config is no longer used - SRT removed
