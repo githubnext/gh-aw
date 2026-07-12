@@ -73,14 +73,6 @@ export const preferNumberIsNanRule = createRule({
       return isDirectAccess || isComputedAccess;
     }
 
-    function isNumericMethod(node: TSESTree.MemberExpression): boolean {
-      const property = node.property;
-      const isDirectAccess = !node.computed && property.type === "Identifier" && (property.name === "getTime" || property.name === "getTimezoneOffset" || property.name === "valueOf");
-      const isComputedAccess = node.computed && property.type === "Literal" && (property.value === "getTime" || property.value === "getTimezoneOffset" || property.value === "valueOf");
-
-      return isDirectAccess || isComputedAccess;
-    }
-
     function isProvablyNumericArgument(node: TSESTree.CallExpressionArgument): boolean {
       if (node.type === "Literal") {
         return typeof node.value === "number";
@@ -90,21 +82,28 @@ export const preferNumberIsNanRule = createRule({
         return false;
       }
 
-      if (node.callee.type === "Identifier" && (node.callee.name === "parseInt" || node.callee.name === "parseFloat" || node.callee.name === "Number")) {
+      // Unqualified global functions are only provably numeric when unshadowed.
+      if (node.callee.type === "Identifier") {
+        const name = node.callee.name;
+
+        return (name === "parseInt" || name === "parseFloat" || name === "Number") && !hasLocalBinding(node, name);
+      }
+
+      // Number.parseInt / Number.parseFloat are only provably numeric when Number is unshadowed.
+      if (node.callee.type === "MemberExpression" && isNumberParseMethod(node.callee) && !hasLocalBinding(node, "Number")) {
         return true;
       }
 
-      if (node.callee.type === "MemberExpression" && (isNumberParseMethod(node.callee) || isNumericMethod(node.callee))) {
-        return true;
-      }
-
+      // Arbitrary method calls (getTime, valueOf, etc.) are not provably numeric —
+      // the receiver type is unknown and the method can be overridden to return anything.
       return false;
     }
 
     function report(node: TSESTree.CallExpression): void {
+      const numberUnshadowed = !hasLocalBinding(node, "Number");
       const hasSingleProvablyNumericArgument = node.arguments.length === 1 && isProvablyNumericArgument(node.arguments[0]);
 
-      if (hasSingleProvablyNumericArgument) {
+      if (hasSingleProvablyNumericArgument && numberUnshadowed) {
         context.report({
           node: node.callee,
           messageId: "preferNumberIsNaN",

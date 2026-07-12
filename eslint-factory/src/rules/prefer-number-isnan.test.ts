@@ -70,9 +70,52 @@ describe("prefer-number-isnan", () => {
           errors: [{ messageId: "preferNumberIsNaN" }],
         },
         {
-          code: `isNaN(d.getTime());`,
-          output: `Number.isNaN(d.getTime());`,
+          code: `isNaN(Number(value));`,
+          output: `Number.isNaN(Number(value));`,
           errors: [{ messageId: "preferNumberIsNaN" }],
+        },
+        {
+          code: `isNaN(Number.parseInt(value, 10));`,
+          output: `Number.isNaN(Number.parseInt(value, 10));`,
+          errors: [{ messageId: "preferNumberIsNaN" }],
+        },
+        {
+          code: `isNaN(42);`,
+          output: `Number.isNaN(42);`,
+          errors: [{ messageId: "preferNumberIsNaN" }],
+        },
+      ],
+    });
+  });
+
+  it("valid: method calls on arbitrary receivers are not treated as provably numeric", () => {
+    cjsRuleTester.run("prefer-number-isnan", preferNumberIsNanRule, {
+      valid: [],
+      invalid: [
+        // getTime/valueOf can be defined on any object; must remain suggestion-only
+        {
+          code: `isNaN(d.getTime());`,
+          errors: [{ messageId: "preferNumberIsNaNWithCoercionCaveat", suggestions: [{ messageId: "replaceWithNumberIsNaNWithNumberWrapReview", output: `Number.isNaN(d.getTime());` }] }],
+        },
+        {
+          code: `isNaN(x.valueOf());`,
+          errors: [{ messageId: "preferNumberIsNaNWithCoercionCaveat", suggestions: [{ messageId: "replaceWithNumberIsNaNWithNumberWrapReview", output: `Number.isNaN(x.valueOf());` }] }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: shadowed parseInt/parseFloat/Number fall back to suggestion-only", () => {
+    esmRuleTester.run("prefer-number-isnan", preferNumberIsNanRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `function parseInt() { return "x"; } isNaN(parseInt(v));`,
+          errors: [{ messageId: "preferNumberIsNaNWithCoercionCaveat", suggestions: [{ messageId: "replaceWithNumberIsNaNWithNumberWrapReview", output: `function parseInt() { return "x"; } Number.isNaN(parseInt(v));` }] }],
+        },
+        {
+          code: `const Number = {}; isNaN(0);`,
+          errors: [{ messageId: "preferNumberIsNaNWithCoercionCaveat", suggestions: [{ messageId: "replaceWithNumberIsNaNWithNumberWrapReview", output: `const Number = {}; Number.isNaN(0);` }] }],
         },
       ],
     });
