@@ -105,6 +105,9 @@ fallback to safe policy decision SHOULD be recorded in execution provenance.
 
 ### Sync Notes
 
+**Repository state (as of this revision)**: `.github/intent-policy.json` does **not** exist
+in this repository. The active intent source is `.github/objective-mapping.json`.
+
 Until repositories migrate fully to `.github/intent-policy.json`, `.github/objective-mapping.json`
 remains the authoritative label-to-intent source for attribution fallback and drift detection.
 This specification defines the precedence and sync expectations for that migration, but does
@@ -112,6 +115,17 @@ not assign a mandatory repository-by-repository completion deadline.
 For this document, "fully migrate" means all active intent keys and governance rules are
 defined in `.github/intent-policy.json`, and runtime authorization no longer depends on
 reading `.github/objective-mapping.json` except for explicit backward-compatibility paths.
+
+**Migration checklist** (when `.github/intent-policy.json` does not yet exist):
+
+1. [ ] Create `.github/intent-policy.json` with the `PolicyCompiler` rule schema
+       defined in §`.github/intent-policy.json` Schema.
+2. [ ] Migrate all active labels and intent weights from `.github/objective-mapping.json`
+       into `rules` entries in the new file.
+3. [ ] Run drift detection in CI to confirm zero divergence between the two sources.
+4. [ ] Update this Sync Notes section to record the migration completion date.
+5. [ ] Remove the advisory-only note from §`Authorizer.AuthorizeTool` Implementation Audit
+       once `pkg/intent/authz.Authorizer` is wired into the orchestrator execution path.
 
 Implementations SHOULD detect drift by comparing the active repository governance inputs —
 the compiled rule set from `.github/intent-policy.json` when present, otherwise the effective
@@ -224,6 +238,109 @@ Examples:
 * policy decision
 * workflow trace
 * GitHub artifact state
+
+## Entities
+
+This section consolidates the normalized data model used throughout this specification.
+Each entity corresponds to a Go struct in the implementation.
+
+### `IntentRecord`
+
+Holds the attribution result for a pull request or issue.
+
+| Field | Type | Description |
+|---|---|---|
+| `status` | `AttributionStatus` | Outcome of attribution (`mapped`, `unmapped`, `unlinked`, `ambiguous`, `suggested`) |
+| `source` | `AttributionSource` | Data source used (`explicit_metadata`, `closing_issue`, `parent_issue`, `referenced_issue`, `project`, `milestone`, `issue_labels`, `artifact_labels`, `suggestion`, `none`) |
+| `objective` | string | Optional objective identifier derived from labels or explicit metadata |
+| `initiative` | string | Optional initiative identifier |
+| `priority` | string | Optional priority value |
+| `domains` | []string | Domain labels matched during attribution |
+| `risk` | string | Risk level assigned during risk classification |
+| `root_node_id` | string | GitHub node ID of the root work item |
+| `root_type` | string | Type of the root work item (`issue`, `artifact`) |
+| `root_url` | string | URL of the root work item |
+| `labels` | []string | Labels from the root work item used for attribution |
+| `weight` | \*int | Optional integer weight from label mapping |
+| `rule` | string | Name of the resolution rule that produced this record |
+| `config_hash` | string | Hash of the policy configuration at resolution time |
+| `resolver_version` | string | Version string of the resolver that produced this record |
+
+### `ExecutionPolicy`
+
+Governs what an agent may do for a given intent.
+
+| Field | Type | Description |
+|---|---|---|
+| `autonomy` | string | Autonomy level (`propose_only`, `supervised`, `bounded`) |
+| `allowed_tools` | []string | Nil = unrestricted; empty non-nil = deny-all; non-empty = allow list |
+| `denied_tools` | []string | Tools explicitly blocked regardless of `allowed_tools` |
+| `write_scope` | string | Write permission level (`none`, `feature_branch`, `any_branch`) |
+| `required_checks` | []string | CI check names that must pass before completion |
+| `human_approval_required` | bool | Whether a human approval gate is required |
+| `auto_merge_allowed` | \*bool | Nil = no preference; false = deny; true = allow |
+| `max_attempts` | int | Maximum retries (0 = unlimited) |
+| `rule_ids` | []string | IDs of rules that contributed to this compiled policy |
+
+### `PolicyRule`
+
+Pairs a match condition with a policy fragment.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Unique rule identifier for audit |
+| `scope` | string | Rule scope (`organization`, `repository`, `intent`, `workflow`) |
+| `when` | `PolicyCondition` | Conditions under which the rule applies |
+| `set` | `ExecutionPolicy` | Policy fragment applied when conditions match |
+
+### `PolicyCondition`
+
+Describes when a `PolicyRule` applies.
+
+| Field | Type | Description |
+|---|---|---|
+| `domain` | string | Label value that must appear in `IntentRecord.labels` |
+| `priority` | string | Priority label that must appear in `IntentRecord.labels` |
+| `risk` | string | Risk label that must appear in `IntentRecord.labels` |
+| `org` | string | Organization name that must match `RepositoryContext.org` |
+
+An empty `PolicyCondition` matches all intent records and repositories.
+
+### `PolicyDecision`
+
+Records a single compiled policy decision for audit and provenance.
+
+| Field | Type | Description |
+|---|---|---|
+| `intent` | `IntentRecord` | The attribution record that triggered compilation |
+| `policy` | `ExecutionPolicy` | The compiled policy |
+| `repository` | `RepositoryContext` | Repository context used during compilation |
+| `decided_at` | `time.Time` | Timestamp of the decision |
+
+### `OutcomeRecord`
+
+Captures the result of an agent workflow execution.
+
+| Field | Type | Description |
+|---|---|---|
+| `artifact_url` | string | URL of the GitHub artifact produced |
+| `status` | string | Outcome status (`accepted`, `rejected`, `pending`) |
+| `intent` | `IntentRecord` | Attribution record at the time of execution |
+| `policy` | `ExecutionPolicy` | Policy applied during execution |
+| `evaluated_at` | `time.Time` | Timestamp of outcome evaluation |
+
+### `EvidenceRecord`
+
+Links a workflow run to its produced artifact.
+
+| Field | Type | Description |
+|---|---|---|
+| `workflow_run_id` | string | GitHub Actions workflow run ID |
+| `artifact_url` | string | URL of the produced GitHub artifact |
+| `intent` | `IntentRecord` | Attribution record at execution time |
+| `policy` | `ExecutionPolicy` | Policy applied during execution |
+| `outcome` | string | Outcome status |
+| `recorded_at` | `time.Time` | Timestamp when evidence was recorded |
 
 ## Design principles
 
@@ -920,23 +1037,31 @@ The agent must not be able to modify or expand its own policy.
 
 ### `Authorizer.AuthorizeTool` Implementation Audit
 
-The `AuthorizeTool` function as specified in this section is **not yet implemented** in the Go orchestrator. The following table documents which fields of `ExecutionPolicy` are wired to runtime enforcement and which remain unused.
+The `Authorizer` type has been implemented in `pkg/intent/authz` with all policy fields
+enforced behind a `FeatureEnabled` flag. The following table documents the current
+implementation status of each `ExecutionPolicy` field.
 
 | `ExecutionPolicy` field | Wired to enforcement? | Notes |
 |---|---|---|
-| `AllowedTools` | **Not wired** | The `pkg/intent` package implements `PolicyCompiler.Compile()` and `mergePolicy()` for this field, but no orchestrator calls `AuthorizeTool` at tool-call time. |
-| `DeniedTools` | **Not wired** | Same as `AllowedTools` — present in the spec and policy model, not enforced at runtime. |
-| `Autonomy` | **Not wired** | The autonomy level is compiled into the policy but not checked against actual workflow capabilities at execution time. |
-| `WriteScope` | **Not wired** | Defined in the policy model; no runtime enforcement in the Go orchestrator. |
-| `HumanApprovalRequired` | **Not wired** | Defined in policy model; human approval gates are not currently tied to `ExecutionPolicy`. |
-| `AutoMergeAllowed` | **Not wired** | Not enforced by the orchestrator. |
-| `RequiredChecks` | **Not wired** | Not checked before workflow execution. |
-| `MaxAttempts` | **Not wired** | Not enforced at the orchestrator level. |
+| `AllowedTools` | **Wired** (behind `FeatureEnabled` flag) | `Authorizer.AuthorizeTool` in `pkg/intent/authz` enforces the allow list: nil = unrestricted; non-nil empty = deny-all; non-empty = explicit allow list. Checked before `DeniedTools`. |
+| `DeniedTools` | **Wired** (behind `FeatureEnabled` flag) | Checked first in `AuthorizeTool`; a denied tool is always rejected even when it is also in `AllowedTools`. |
+| `Autonomy` | **Not wired to orchestrator** | Compiled into the policy but not checked against actual workflow capabilities at execution time. Pending orchestrator wiring. |
+| `WriteScope` | **Wired** (behind `FeatureEnabled` flag) | `Authorizer.AuthorizeWriteScope` enforces the ordered scope hierarchy: `none < feature_branch < any_branch`. |
+| `HumanApprovalRequired` | **Wired** (behind `FeatureEnabled` flag) | `Authorizer.CheckHumanApproval` returns `ErrHumanApprovalRequired` when the field is true. |
+| `AutoMergeAllowed` | **Not wired to orchestrator** | Not yet enforced by the orchestrator; the field is present in the compiled policy for downstream use. |
+| `RequiredChecks` | **Not wired to orchestrator** | Not checked before workflow execution; pending orchestrator integration. |
+| `MaxAttempts` | **Wired** (behind `FeatureEnabled` flag) | `Authorizer.CheckAttemptLimit` returns `ErrAttemptsExceeded` when `currentAttempts >= MaxAttempts` and `MaxAttempts > 0` (0 = unlimited). |
 | `RuleIDs` | **Provenance only** | Recorded in the policy for auditing; not used to gate execution. |
 
-**Risk**: Policy constraints defined in `.github/intent-policy.json` (or the equivalent `rules` array) have no runtime effect until the orchestrator is wired to call `AuthorizeTool` and enforce `WriteScope`, `HumanApprovalRequired`, and `RequiredChecks`. Any policy compiled by `PolicyCompiler.Compile()` today is purely advisory.
+**Status**: `pkg/intent/authz.Authorizer` is implemented. The `FeatureEnabled` flag is
+`false` by default; all enforcement methods return `nil` (advisory) until the orchestrator
+explicitly sets `FeatureEnabled: true`. The remaining wiring step is to instantiate
+`Authorizer{FeatureEnabled: true}` at the orchestrator's tool-call dispatch site.
 
-**Required follow-up**: Implement `Authorizer.AuthorizeTool` in `pkg/intent` or a new `pkg/intent/authz` sub-package and wire it into the execution path. Gate enforcement behind a feature flag until the policy model is validated in production.
+**Remaining follow-up**: Wire `Authorizer` into the orchestrator execution path and flip
+`FeatureEnabled` to `true` once the policy model is validated in production (see Sync Notes
+migration checklist). At that point, update this table entry for `Autonomy`, `AutoMergeAllowed`,
+and `RequiredChecks` to `Wired`.
 
 
 Initial observable rules:

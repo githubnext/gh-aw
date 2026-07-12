@@ -781,6 +781,52 @@ Untrusted input MUST NOT control span names, metric names, metric dimension keys
 
 Untrusted values MAY be recorded only after validation, redaction, and bounded-length enforcement.
 
+### 15.5 Safeguards
+
+This section defines testable safeguards that implementations MUST enforce to prevent data
+leakage, resource exhaustion, and export abuse.
+
+#### 15.5.1 OTLP Export Retry Rate Limits
+
+An implementation MUST bound retry behaviour on OTLP export failures to prevent runaway
+resource consumption.
+
+**Acceptance criteria:**
+- Export retry count MUST NOT exceed 3 attempts per span batch per endpoint.
+- Retry backoff MUST use exponential backoff with jitter; the minimum initial backoff is
+  100 ms and the maximum total elapsed time before abandoning export is 30 seconds.
+- After the retry limit is exhausted the implementation MUST log a warning and continue
+  workflow execution; MUST NOT abort the functional workflow.
+
+#### 15.5.2 PII Scrubbing for Attribute Values
+
+An implementation MUST NOT export span or log record attribute values that contain
+personally identifiable information (PII) in any form that can be linked to a natural person.
+
+**Acceptance criteria:**
+- GitHub actor login values (`github.actor`, `enduser.id`) MAY be recorded but MUST NOT be
+  emitted as metric dimensions (see §15.4).
+- Raw prompt text, model responses, tool arguments, and tool results MUST NOT be captured
+  by default (see §15.2).
+- A Level 3 implementation MUST provide a configurable PII scrubbing stage before remote
+  export; the stage MUST cover at minimum: email addresses, GitHub tokens
+  (`ghp_*`, `github_pat_*`), and bearer-token headers.
+
+#### 15.5.3 Cardinality Budget Enforcement
+
+An implementation MUST enforce a cardinality budget to prevent metric label explosion and
+high-cardinality attribute leakage into span names.
+
+**Acceptance criteria:**
+- Span names MUST be low-cardinality and MUST NOT contain run IDs, commit SHAs, issue or
+  pull-request numbers, user input, or error message text (see §8.1).
+- Metric dimensions MUST NOT include high-cardinality values such as run IDs, commit SHAs,
+  item URLs, user IDs, or arbitrary text strings.
+- An implementation SHOULD enforce an attribute value length cap of 2048 bytes per attribute
+  and truncate with an indicator attribute (e.g., `gh-aw.truncated: true`) rather than
+  silently dropping the attribute.
+- An implementation SHOULD enforce a maximum of 128 attributes per span.
+
 ---
 
 ## 16. Reliability and Failure Handling
@@ -849,19 +895,22 @@ Level 1 and Level 2 compatibility validation MUST cover the following behaviors:
 
 The repository enforcement entry point for these checks is `make validate-otel-contract`. This target MUST remain focused on the customer-facing compatibility contract rather than all possible OTEL-related tests.
 
-### 17.1.1 Test ID Stubs: Level 1 Compliance
+### 17.1.1 Level 1 Compliance Tests
 
-The following test IDs are stubs for Level 1 (Stable Configuration and Export) compliance tests. Implementations MUST provide tests that correspond to each stub before claiming Level 1 conformance.
+The following tests implement Level 1 (Stable Configuration and Export) compliance.
+Tests T-OT-001 through T-OT-007 are implemented in
+`pkg/workflow/otel_observability_formal_test.go` as `TestCompliance_T_OT_001` through
+`TestCompliance_T_OT_007`. Run `make validate-otel-contract` to execute them.
 
-| Test ID | Area | Description |
-|---------|------|-------------|
-| **T-OT-001** | Compiler config | Compiler accepts `observability.otlp.endpoint` with a valid HTTPS URL and emits `OTEL_EXPORTER_OTLP_ENDPOINT` in the generated workflow environment. |
-| **T-OT-002** | Compiler config | Compiler rejects `observability.otlp.endpoint` set to a non-HTTPS URL when `if-missing: block` is configured, producing a descriptive validation error. |
-| **T-OT-003** | Endpoint normalization | When multiple endpoints are declared, the compiler preserves them in declaration order and retains the first endpoint in the `OTEL_EXPORTER_OTLP_ENDPOINT` variable for backward compatibility. |
-| **T-OT-004** | OTLP export | The runtime JavaScript helper encodes span payloads as valid OTLP/HTTP protobuf-JSON and POSTs them to the configured endpoint; a successful 200 response is recognized as accepted. |
-| **T-OT-005** | Trace context | The compiler injects `GITHUB_AW_OTEL_TRACE_ID`, `GITHUB_AW_OTEL_PARENT_SPAN_ID`, and `TRACEPARENT` into the generated workflow environment when OTLP observability is enabled. |
-| **T-OT-006** | Local mirrors | The runtime helper writes each exported span as a raw OTLP/HTTP JSON line with a `resourceSpans` key to `/tmp/gh-aw/otel.jsonl`; the file format MUST NOT be an envelope-only summary. |
-| **T-OT-007** | Compiler config | `observability.otlp.headers` entries are emitted as `OTEL_EXPORTER_OTLP_HEADERS` in `key=value,key=value` format and are masked in diagnostics, job summaries, and artifacts. |
+| Test ID | Area | Description | Status |
+|---------|------|-------------|--------|
+| **T-OT-001** | Compiler config | Compiler accepts `observability.otlp.endpoint` with a valid HTTPS URL and emits `OTEL_EXPORTER_OTLP_ENDPOINT` in the generated workflow environment. | Implemented |
+| **T-OT-002** | Compiler config | Compiler rejects `observability.otlp.endpoint` set to a non-HTTPS URL when `if-missing: error` is configured (`if-missing: error` = block/fail-closed); `if-missing: warn` produces a warning env var instead. | Implemented |
+| **T-OT-003** | Endpoint normalization | When multiple endpoints are declared, the compiler preserves them in declaration order and retains the first endpoint in the `OTEL_EXPORTER_OTLP_ENDPOINT` variable for backward compatibility. | Implemented |
+| **T-OT-004** | OTLP export | The runtime JavaScript helper encodes span payloads as valid OTLP/HTTP protobuf-JSON and POSTs them to the configured endpoint; a successful 200 response is recognized as accepted. | Implemented |
+| **T-OT-005** | Trace context | The compiler injects `GITHUB_AW_OTEL_TRACE_ID`, `GITHUB_AW_OTEL_PARENT_SPAN_ID`, and `TRACEPARENT` into the generated workflow environment when OTLP observability is enabled. | Implemented |
+| **T-OT-006** | Local mirrors | The runtime helper writes each exported span as a raw OTLP/HTTP JSON line with a `resourceSpans` key to `/tmp/gh-aw/otel.jsonl`; the file format MUST NOT be an envelope-only summary. | Implemented |
+| **T-OT-007** | Compiler config | `observability.otlp.headers` entries are emitted as `OTEL_EXPORTER_OTLP_HEADERS` in `key=value,key=value` format and are masked in diagnostics, job summaries, and artifacts. | Implemented |
 
 ### 17.1.2 Concrete Span-Attribute Contract Cases
 

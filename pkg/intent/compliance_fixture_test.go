@@ -121,7 +121,6 @@ func TestCompliance_IntentAttributionFixtures(t *testing.T) {
 			"parsing %s", entry.Name())
 
 		for _, s := range fixture.Scenarios {
-			s := s
 			t.Run(fixture.FixtureID+"/"+s.ScenarioID, func(t *testing.T) {
 				fixtureCount++
 				pr := buildPullRequestData(s.Input.PullRequest)
@@ -169,7 +168,7 @@ func TestCompliance_IntentAttributionFixtures(t *testing.T) {
 		}
 	}
 
-	assert.Greater(t, fixtureCount, 0,
+	assert.Positive(t, fixtureCount,
 		"at least one fixture scenario must be present in %s", fixtureDir)
 }
 

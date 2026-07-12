@@ -86,11 +86,11 @@ func TestAuthorizeTool_NilAllowList_UnrestrictedExceptDenied(t *testing.T) {
 		AllowedTools: nil, // nil means unrestricted
 		DeniedTools:  []string{"delete-branch"},
 	}
-	assert.NoError(t, a.AuthorizeTool(policy, "any-tool"),
+	require.NoError(t, a.AuthorizeTool(policy, "any-tool"),
 		"nil AllowedTools must not restrict any tool")
 	err := a.AuthorizeTool(policy, "delete-branch")
 	require.Error(t, err)
-	assert.ErrorIs(t, err, authz.ErrToolDenied)
+	require.ErrorIs(t, err, authz.ErrToolDenied)
 }
 
 func TestAuthorizeTool_EmptyAllowList_DenyAll(t *testing.T) {
@@ -183,7 +183,7 @@ func TestCheckAttemptLimit_Exceeded_ReturnsError(t *testing.T) {
 
 	err := a.CheckAttemptLimit(policy, 3)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, authz.ErrAttemptsExceeded,
+	require.ErrorIs(t, err, authz.ErrAttemptsExceeded,
 		"3 attempts == limit=3 must be exceeded")
 
 	err = a.CheckAttemptLimit(policy, 10)
