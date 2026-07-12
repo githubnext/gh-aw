@@ -21,6 +21,7 @@ const socialImage = heroImage;
 
 // Build enhanced OG title: "Page Title | Site Name" (target: 50-60 chars)
 const siteTitle = 'GitHub Agentic Workflows';
+const schemaWebsiteName = 'gh-aw — GitHub Agentic Workflows';
 const rawPageTitle = entry?.data?.title ?? siteTitle;
 const isHomePage = rawPageTitle === siteTitle;
 const ogTitle = isHomePage ? siteTitle : `${rawPageTitle} | ${siteTitle}`;
@@ -82,7 +83,7 @@ const homeJsonLd = {
       '@context': 'https://schema.org',
       '@type': 'WebSite',
       '@id': websiteId,
-      name: siteTitle,
+      name: schemaWebsiteName,
       url: siteUrl,
       description: defaultDescription,
       publisher: {
@@ -99,7 +100,8 @@ const homeJsonLd = {
       '@type': 'Organization',
       '@id': organizationId,
       name: 'GitHub',
-      url: 'https://github.com/github',
+      url: 'https://github.com/github/gh-aw',
+      logo: 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png',
       sameAs: [
         'https://github.com/github/gh-aw',
         'https://github.com/github',
