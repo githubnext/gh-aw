@@ -204,19 +204,23 @@ This disables both `forcePublicRepos` and the default `sink-visibility` enforcem
 tools:
   github:
     private-to-public-flows:
-      - github-mcp-server
+      - github
       - my-custom-server
+mcp-servers:
+  my-custom-server:
+    type: http
+    url: "http://localhost:9000/mcp"
 ```
 
 This exempts only the listed MCP server IDs from the default `sink-visibility` enforcement. `forcePublicRepos` is **not** disabled; private repo access still requires the allow-only policy to permit it. This form is compatible with strict mode.
 
-The compiler emits `"sinkVisibilityExemptServers": ["github-mcp-server", "my-custom-server"]` in the gateway config.
+The compiler emits `"sinkVisibilityExemptServers": ["github", "my-custom-server"]` in the gateway config. The built-in GitHub MCP server ID is `github`. Custom server IDs match the key used in `mcp-servers`.
 
 ### Security implications
 
 Opting out of cross-visibility protections means the agent may read from private repositories and write that data to public sinks (e.g., a public GitHub issue, a Slack channel). Only use this when your workflow explicitly requires it and you understand the data-flow implications.
 
-See [MCP Gateway Specification Section 10.9](../mcp-gateway#109-cross-visibility-opt-out-private-to-public-flows) for full protocol details.
+See [MCP Gateway Specification Section 10.9](./mcp-gateway#109-cross-visibility-opt-out-private-to-public-flows) for full protocol details.
 
 ## Related Documentation
 

@@ -27,8 +27,8 @@ func TestParseGitHubToolPrivateToPublicFlows(t *testing.T) {
 		},
 		{
 			name:    "array of server IDs ([]any)",
-			input:   map[string]any{"private-to-public-flows": []any{"github-mcp-server", "custom-server"}},
-			wantVal: []string{"github-mcp-server", "custom-server"},
+			input:   map[string]any{"private-to-public-flows": []any{"github", "custom-server"}},
+			wantVal: []string{"github", "custom-server"},
 		},
 		{
 			name:    "array of server IDs ([]string)",
@@ -79,8 +79,8 @@ func TestBuildMCPGatewayConfigPrivateToPublicFlows(t *testing.T) {
 		},
 		{
 			name:                        "list: sets SinkVisibilityExemptServers",
-			privateToPublicFlows:        []string{"github-mcp-server", "custom-srv"},
-			wantSinkVisibilityExemptSvr: []string{"github-mcp-server", "custom-srv"},
+			privateToPublicFlows:        []string{"github", "custom-srv"},
+			wantSinkVisibilityExemptSvr: []string{"github", "custom-srv"},
 		},
 		{
 			name:                 "nil: no override fields set",
@@ -150,8 +150,12 @@ engine: copilot
 tools:
   github:
     private-to-public-flows:
-      - github-mcp-server
+      - github
       - custom-server
+mcp-servers:
+  custom-server:
+    type: http
+    url: "http://localhost:9000/mcp"
 ---
 
 # Test workflow
@@ -173,7 +177,7 @@ tools:
 		{
 			name:            "list form emits sinkVisibilityExemptServers",
 			content:         makeWorkflowListForm(),
-			wantContains:    []string{`"sinkVisibilityExemptServers": ["github-mcp-server", "custom-server"]`},
+			wantContains:    []string{`"sinkVisibilityExemptServers": ["github", "custom-server"]`},
 			wantNotContains: []string{`"forcePublicRepos"`},
 		},
 	}
@@ -247,7 +251,7 @@ network:
 tools:
   github:
     private-to-public-flows:
-      - my-server
+      - github
 ---
 
 # Test workflow
@@ -298,4 +302,102 @@ func extractGatewaySection(yaml string) string {
 	}
 	end := min(start+500, len(yaml))
 	return yaml[start:end]
+}
+
+// TestPrivateToPublicFlowsAllowSuppressesSinkVisibility verifies that
+// private-to-public-flows: allow suppresses sink-visibility in the write-sink guard policy.
+func TestPrivateToPublicFlowsAllowSuppressesSinkVisibility(t *testing.T) {
+	t.Run("allow suppresses sink-visibility in auto-lockdown path", func(t *testing.T) {
+		wd := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{},
+			},
+			ParsedTools: &Tools{
+				GitHub: &GitHubToolConfig{
+					ReadOnly:             false,
+					PrivateToPublicFlows: "allow",
+				},
+			},
+		}
+		policy := deriveWriteSinkGuardPolicyFromWorkflow(wd)
+		require.NotNil(t, policy, "policy should be derived when github tool is present")
+		writeSink, ok := policy["write-sink"].(map[string]any)
+		require.True(t, ok, "policy should have write-sink")
+		assert.NotContains(t, writeSink, "sink-visibility",
+			"sink-visibility should be absent when private-to-public-flows: allow is set")
+		assert.Contains(t, writeSink, "accept",
+			"accept should still be present")
+	})
+
+	t.Run("no allow preserves sink-visibility in auto-lockdown path", func(t *testing.T) {
+		wd := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{},
+			},
+			ParsedTools: &Tools{
+				GitHub: &GitHubToolConfig{
+					ReadOnly: false,
+				},
+			},
+		}
+		policy := deriveWriteSinkGuardPolicyFromWorkflow(wd)
+		require.NotNil(t, policy)
+		writeSink, ok := policy["write-sink"].(map[string]any)
+		require.True(t, ok)
+		assert.Contains(t, writeSink, "sink-visibility",
+			"sink-visibility should be present when private-to-public-flows is not set")
+	})
+}
+
+// TestValidatePrivateToPublicFlowsServerIDs tests that unknown server IDs are rejected.
+func TestValidatePrivateToPublicFlowsServerIDs(t *testing.T) {
+	t.Run("valid declared servers accepted", func(t *testing.T) {
+		wd := &WorkflowData{
+			Tools: map[string]any{"github": map[string]any{}, "my-server": map[string]any{}},
+			ParsedTools: &Tools{
+				GitHub: &GitHubToolConfig{PrivateToPublicFlows: []string{"github", "my-server"}},
+			},
+		}
+		assert.NoError(t, validatePrivateToPublicFlowsServerIDs(wd))
+	})
+
+	t.Run("unknown server ID rejected", func(t *testing.T) {
+		wd := &WorkflowData{
+			Tools: map[string]any{"github": map[string]any{}},
+			ParsedTools: &Tools{
+				GitHub: &GitHubToolConfig{PrivateToPublicFlows: []string{"github", "undeclared-server"}},
+			},
+		}
+		err := validatePrivateToPublicFlowsServerIDs(wd)
+		require.Error(t, err, "undeclared server ID should be rejected")
+		assert.Contains(t, err.Error(), "undeclared-server")
+	})
+
+	t.Run("allow string form skipped", func(t *testing.T) {
+		wd := &WorkflowData{
+			Tools: map[string]any{"github": map[string]any{}},
+			ParsedTools: &Tools{
+				GitHub: &GitHubToolConfig{PrivateToPublicFlows: "allow"},
+			},
+		}
+		assert.NoError(t, validatePrivateToPublicFlowsServerIDs(wd),
+			"string allow form should not trigger server ID validation")
+	})
+
+	t.Run("nil parsed tools returns nil", func(t *testing.T) {
+		assert.NoError(t, validatePrivateToPublicFlowsServerIDs(&WorkflowData{}))
+	})
+}
+
+// TestIsSafeMCPServerID tests the shell-safety identifier check.
+func TestIsSafeMCPServerID(t *testing.T) {
+	safe := []string{"github", "my-server", "my_server", "server123", "UPPER-CASE"}
+	for _, id := range safe {
+		assert.True(t, isSafeMCPServerID(id), "expected %q to be safe", id)
+	}
+
+	unsafe := []string{"", "srv with space", "srv$(cmd)", "srv`cmd`", "srv;rm", "srv|pipe", "srv&bg", "srv>out"}
+	for _, id := range unsafe {
+		assert.False(t, isSafeMCPServerID(id), "expected %q to be unsafe", id)
+	}
 }

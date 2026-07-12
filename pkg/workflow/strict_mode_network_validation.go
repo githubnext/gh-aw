@@ -172,3 +172,37 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 
 	return nil
 }
+
+// validatePrivateToPublicFlowsServerIDs validates that every server ID in the list form of
+// private-to-public-flows matches a declared MCP server in the workflow's tools list.
+// Per MCP Gateway Specification Section 10.9.2, unknown IDs must be rejected at compile time.
+func validatePrivateToPublicFlowsServerIDs(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.ParsedTools == nil || workflowData.ParsedTools.GitHub == nil {
+		return nil
+	}
+	servers, ok := workflowData.ParsedTools.GitHub.PrivateToPublicFlows.([]string)
+	if !ok || len(servers) == 0 {
+		return nil
+	}
+	// Collect valid server IDs from the merged tools map.
+	validIDs := make(map[string]bool, len(workflowData.Tools))
+	for id := range workflowData.Tools {
+		validIDs[id] = true
+	}
+	var unknown []string
+	for _, id := range servers {
+		if !validIDs[id] {
+			unknown = append(unknown, id)
+		}
+	}
+	if len(unknown) == 0 {
+		return nil
+	}
+	return NewValidationError(
+		"tools.github.private-to-public-flows",
+		fmt.Sprintf("%v", unknown),
+		fmt.Sprintf("unknown MCP server ID(s) %v; every ID in private-to-public-flows must match a server declared in tools or mcp-servers", unknown),
+		"Check that each server ID in private-to-public-flows matches an entry in tools or mcp-servers. "+
+			"The built-in GitHub MCP server ID is \"github\". Custom servers use the key from mcp-servers.",
+	)
+}
