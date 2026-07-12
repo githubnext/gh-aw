@@ -569,6 +569,10 @@
             "pattern": "^/[^:]+:/[^:]+(:(ro|rw))?$"
           },
           "description": "Custom volume mounts for the agent container. Format: \"/host_path:/container_path[:ro|rw]\" (both paths must be absolute). In chroot mode, container paths are automatically prefixed with /host."
+        },
+        "containerRuntime": {
+          "type": "string",
+          "description": "OCI runtime for the agent container. Set to \"gvisor\" to run the agent under gVisor's runsc runtime for additional kernel-level isolation. AWF translates \"gvisor\" to \"runsc\" internally. Requires AWF >= v0.27.30."
         }
       }
     },

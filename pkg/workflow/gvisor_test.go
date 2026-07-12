@@ -107,8 +107,8 @@ func TestGVisorAWFConfigJSON(t *testing.T) {
 		WorkflowData: &WorkflowData{
 			EngineConfig: &EngineConfig{ID: "copilot"},
 			NetworkPermissions: &NetworkPermissions{
-				// Pin a version that supports containerRuntime (AWFContainerRuntimeMinVersion = v0.28.0).
-				Firewall: &FirewallConfig{Enabled: true, Version: "v0.28.0"},
+				// Pin to a version that supports containerRuntime (AWFContainerRuntimeMinVersion = v0.27.30).
+				Firewall: &FirewallConfig{Enabled: true, Version: "v0.27.30"},
 			},
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
@@ -136,8 +136,8 @@ func TestGVisorAWFConfigJSONVersionGated(t *testing.T) {
 		WorkflowData: &WorkflowData{
 			EngineConfig: &EngineConfig{ID: "copilot"},
 			NetworkPermissions: &NetworkPermissions{
-				// Default version (v0.27.29) predates containerRuntime support.
-				Firewall: &FirewallConfig{Enabled: true},
+				// Pin to a version that predates containerRuntime support.
+				Firewall: &FirewallConfig{Enabled: true, Version: "v0.27.29"},
 			},
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
@@ -295,6 +295,7 @@ sandbox:
 	require.NoError(t, err)
 
 	compiler := NewCompiler()
+	compiler.SetSkipValidation(false) // exercise AWF config schema validation; containerRuntime must pass
 	err = compiler.CompileWorkflow(testFile)
 	require.NoError(t, err, "compilation with runtime: gvisor must succeed")
 
@@ -308,11 +309,10 @@ sandbox:
 	// AWF install step must also be present.
 	assert.Contains(t, lockStr, "Install AWF binary", "compiled workflow must include AWF install step")
 
-	// containerRuntime: gvisor must NOT appear with the default AWF version (v0.27.29),
-	// which predates containerRuntime support. It will be emitted once the minimum
-	// version (AWFContainerRuntimeMinVersion) is released.
-	assert.NotContains(t, lockStr, `\"containerRuntime\":\"gvisor\"`,
-		"containerRuntime must not be emitted for default AWF version")
+	// containerRuntime: gvisor must appear with the default AWF version (v0.27.30),
+	// which supports containerRuntime (AWFContainerRuntimeMinVersion = v0.27.30).
+	assert.Contains(t, lockStr, `\"containerRuntime\":\"gvisor\"`,
+		"containerRuntime must be emitted for default AWF version")
 
 	// gVisor step must appear before AWF step.
 	gvisorPos := strings.Index(lockStr, "Install gVisor")
