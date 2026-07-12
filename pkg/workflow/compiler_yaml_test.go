@@ -1790,6 +1790,9 @@ func TestNormalizeBlankLines(t *testing.T) {
 		input string
 		want  string
 	}{
+		// Empty or all-whitespace input: return a single newline to match the
+		// original strings.TrimRight(…, "\n") + "\n" behaviour — the caller
+		// always expects a trailing newline even when there is no real content.
 		{"empty string", "", "\n"},
 		{"single blank line", "\n", "\n"},
 		{"all whitespace line", "   \n", "\n"},

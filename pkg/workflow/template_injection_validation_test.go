@@ -1630,6 +1630,9 @@ func TestFindRunValueFastPath(t *testing.T) {
 		// Unquoted key forms
 		{`run: echo hello`, true, "echo hello"},
 		{`  run: echo hello`, true, "echo hello"},
+		// Flow-style YAML: the trailing "}" is part of the raw value returned by
+		// findRunValue (everything after "run:"). Template-injection callers scan
+		// that raw string for ${{...}} expressions, so the brace does no harm.
 		{`{run: echo hello}`, true, "echo hello}"},
 		// Double-quoted key
 		{`"run": echo hello`, true, "echo hello"},
