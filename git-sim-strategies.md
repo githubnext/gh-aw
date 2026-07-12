@@ -1,7 +1,7 @@
 # Git Simulator Strategy Notes
 
 Z3 sweep of 3600 cells (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT, COMMIT innermost).
-**92/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
+**96/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
 `commit=i%3, branch=(i//3)%3, patch=(i//9)%5, files=(i//45)%4, history=(i//180)%4,
 size=(i//720)%5`. sizes[tiny,small,medium,large,huge] hist[none,shallow,medium,deep]
 files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]=
@@ -17,6 +17,12 @@ files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]
   .patch (20 file-diffs in one commit's patch, ~224 B/file framing, header:payload
   ≈4.4:1 at micro); micro-clean-multi(91) 5.473 KB /3 .patch (framing×3, disjoint
   1-7/8-14/15-20). At micro payload the per-file+per-commit framing dominates ~5.5×.
+  **idx92-95 (tiny-none-many-micro): PASS.** clean-merge_msg(92) 5.011 KB/1.patch,
+  ahead-single(93) 4.98 KB, ahead-multi(94) 5.55 KB/3.patch, ahead-merge_msg(95)
+  4.874 KB — all ~5 KB (framing-dominated, ~15 KB short of any concern). All ahead
+  cells fast-forward (--is-ancestor=0, no force). merge_msg leak reconfirmed (92,95:
+  0001-Merge-branch-topic-into-feature.patch, single-parent, --merges=0). Disjoint
+  multi still ~1× payload. many-micro fully consistent w/ prior tiers.
 
 ## THE CAPS (grounded)
 
@@ -88,7 +94,8 @@ first max-patch-FILES `rejected` needs batch under a default-100 config.
 
 ## Next
 
-Next index: **92** → tiny-none-many-micro-{ahead,diverged}(92-98)... FILES=many runs
+Next index: **96** → tiny-none-many-micro-diverged-single(96), then micro finishes at
+98, small tier starts 99. FILES=many runs
 90-179, batch 180-269. **many-xlarge ~4058 KB still <4096 (safe).** batch-xlarge
 ~4080 KB <4096 BUT batch=100 files == max-patch-files default 100 (200 here) — watch
 the `>` vs `>=` boundary. HISTORY=deep(500) & SIZE>tiny (idx 720+) far ahead — no
