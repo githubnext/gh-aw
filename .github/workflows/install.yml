@@ -238,22 +238,18 @@ jobs:
           }
           Write-Host "Composite action installed: $installedVersion"
 
-          $binaryPath = Join-Path $HOME ".local/share/gh/extensions/gh-aw/gh-aw.exe"
-          if (-not (Test-Path $binaryPath)) {
-            throw "Binary not found at $binaryPath"
-          }
-          Write-Host "Binary found at: $binaryPath"
-
-          & $binaryPath version 2>&1 | Write-Host
-          $versionExit = $LASTEXITCODE
-          if ($versionExit -ne 0) {
-            throw "Binary 'version' command failed with exit code $versionExit"
+          # Verify via gh aw commands rather than a hardcoded binary path.
+          # `gh extension install` registers the extension under gh's own data dir
+          # (e.g. %APPDATA%\GitHub CLI\extensions on Windows), so using `gh aw`
+          # is the correct cross-platform verification mechanism.
+          gh aw version 2>&1 | Write-Host
+          if ($LASTEXITCODE -ne 0) {
+            throw "'gh aw version' failed with exit code $LASTEXITCODE"
           }
 
-          & $binaryPath --help 2>&1 | Write-Host
-          $helpExit = $LASTEXITCODE
-          if ($helpExit -ne 0) {
-            throw "Binary '--help' command failed with exit code $helpExit"
+          gh aw --help 2>&1 | Write-Host
+          if ($LASTEXITCODE -ne 0) {
+            throw "'gh aw --help' failed with exit code $LASTEXITCODE"
           }
 
       - name: Upload PowerShell test results
