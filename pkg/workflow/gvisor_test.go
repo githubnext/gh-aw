@@ -295,6 +295,7 @@ sandbox:
 	require.NoError(t, err)
 
 	compiler := NewCompiler()
+	compiler.SetSkipValidation(false) // exercise AWF config schema validation; containerRuntime must pass
 	err = compiler.CompileWorkflow(testFile)
 	require.NoError(t, err, "compilation with runtime: gvisor must succeed")
 
