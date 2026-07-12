@@ -1,6 +1,6 @@
 # Combined Blocked + Integrity Evaluation — Compliance Fixture
 # Tests: T-GH-091, T-GH-092, T-GH-093
-# Spec: §4.5.3 Predicate Evaluation Order, §7.2 Blocked Users, §8 Integrity Level Management
+# Spec: §8.5 Combined Evaluation Order, §8.2 Blocked-User Enforcement, §8.4 Minimum Integrity Enforcement
 
 fixture_id: "combined-blocked-integrity"
 description: >
@@ -12,9 +12,9 @@ description: >
   order — P5_NotBlocked (-32005) fires before P6_IntegrityMet (-32006) (T-GH-093).
 
 spec_refs:
-  - "§4.5.3 — predicate evaluation order: P5_NotBlocked evaluated before P6_IntegrityMet"
-  - "§7.2 — blocked-users MUST deny access unconditionally for listed actors"
-  - "§8.1 — min-integrity allows content at or above the configured threshold"
+  - "§8.5 — combined evaluation order: P5_NotBlocked (blocked-user check) evaluated before P6_IntegrityMet (threshold check)"
+  - "§8.2 — blocked-users MUST deny access unconditionally for listed actors"
+  - "§8.4 — min-integrity allows content at or above the configured threshold"
   - "§11.4 — T-GH-091, T-GH-092, T-GH-093: combined P5+P6 evaluation"
 
 scenarios:
@@ -64,7 +64,7 @@ scenarios:
   - scenario_id: "combined-blocked-integrity-C"
     description: >
       Blocked user whose content also fails the integrity threshold is denied.
-      P5_NotBlocked fires first (evaluation order §4.5.3), so error code is -32005 even
+      P5_NotBlocked fires first (evaluation order §8.5), so error code is -32005 even
       though P6_IntegrityMet would also have failed.
     input:
       tool_config:

@@ -62,7 +62,7 @@ The denial code is selected by the first failing guard in the evaluation order a
 | `INV2_ErrorCode` | `TestFormal_ErrorCodeFirstFailingGuard` | Deny error code matches first failing guard; table covers each guard as first failure |
 | `SAFETY_BlockedUserAlwaysDenied` | `TestFormal_BlockedUserSafetyProperty` | Safety: blocked user always produces `-32005` when all earlier guards pass |
 | `SAFETY_NoSpuriousAllow` | `TestFormal_NoSpuriousAllowInvariant` | Safety: no allow decision when any guard fails |
-| `P5_NotBlocked + P6_IntegrityMet` (combined) | `TestFormal_CombinedBlockedIntegrity` | P5 fires before P6 in evaluation order; blocked user denied with -32005 even when P6 would also fail |
+| `P5_NotBlocked + P6_IntegrityMet` (combined) | `TestFormal_FixtureRunner` | P5 fires before P6 in evaluation order; blocked user denied with -32005 even when P6 would also fail; scenarios executed dynamically by the fixture runner |
 
 ## Fixture Files
 
