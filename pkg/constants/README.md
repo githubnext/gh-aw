@@ -323,7 +323,7 @@ constants.AWFTokenSteeringMinVersion    // "v0.25.44" — minimum AWF for token 
 constants.AWFChrootConfigMinVersion     // "v0.27.1"  — minimum AWF for chroot.binariesSourcePath and identity.*
 constants.AWFArcDindMinVersion          // "v0.27.20" — minimum AWF for ARC DinD runner topology
 constants.AWFContainerRuntimeMinVersion // "v0.27.30" — minimum AWF for containerRuntime in container config (gh-aw-firewall#6093)
-constants.DefaultGVisorVersion          // "20250623.0" — pinned gVisor release for the generated install step; bump after reviewing release notes
+constants.DefaultGVisorVersion          // "20250707.0" — pinned gVisor release for the generated install step; bump after reviewing release notes
 constants.CopilotNoAskUserMinVersion    // "1.0.19"   — minimum Copilot CLI for --no-ask-user
 constants.MCPGIntegrityReactionsMinVersion // "v0.2.18" — minimum MCPG for integrity-reactions policy
 constants.GhSkillsMinVersion            // "2.90.0"   — minimum gh CLI version required for gh skills commands
