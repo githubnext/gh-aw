@@ -1,6 +1,8 @@
 package intent
 
-import "slices"
+import (
+	"slices"
+)
 
 // ExecutionPolicy governs what an agent may do for a given intent.
 type ExecutionPolicy struct {
@@ -301,9 +303,11 @@ func unionStrings(a, b []string) []string {
 }
 
 // intersectStrings returns elements present in both a and b, preserving the
-// order from a. The returned slice is never nil when a is non-nil, so that an
-// intersection of two non-empty slices with no common elements returns an empty
-// (non-nil) slice — preserving the deny-all semantics of AllowedTools.
+// order from a. When a is non-nil, the returned slice is always non-nil
+// (an empty non-nil slice when no elements are in common), which preserves
+// the deny-all semantics of AllowedTools: a non-nil empty AllowedTools means
+// "deny all tools", and intersecting it with any list must remain non-nil empty,
+// not nil (which would mean "unrestricted").
 func intersectStrings(a, b []string) []string {
 	bSet := make(map[string]struct{}, len(b))
 	for _, s := range b {

@@ -7,19 +7,19 @@ description: >
   When a label is modified on the target item between the Stage 5 read and the Stage 8 PUT,
   the implementation MUST handle the resulting label conflict deterministically.
   A successful PUT with an unexpected final label set MUST be logged as a warning but
-  still treated as success (RL-041). No silent re-try after a successful response is
-  permitted (RL-042). A hard HTTP error (409/422) due to a missing label MUST fail closed
-  with no auto-retry (RL-043). Both before- and after-state labels MUST be logged (RL-044).
+  still treated as success (RL-057). No silent re-try after a successful response is
+  permitted (RL-058). A hard HTTP error (409/422) due to a missing label MUST fail closed
+  with no auto-retry (RL-059). Both before- and after-state labels MUST be logged (RL-060).
 
 spec_refs:
-  - "RL-041 — Unexpected label set after successful PUT MUST trigger a structured warning log"
-  - "RL-042 — No silent retry after a successful PUT response to reconcile a conflict"
-  - "RL-043 — HTTP 409/422 on missing label MUST fail closed; no auto-retry"
-  - "RL-044 — Before-state (Stage 5) and after-state (Stage 8) labels SHOULD be logged"
-  - "T-RL-041 — Successful PUT with unexpected label set: success=true + warning logged"
-  - "T-RL-042 — No re-PUT issued when Stage 8 response differs from expected"
-  - "T-RL-043 — HTTP 409 on label removal of absent label fails closed"
-  - "T-RL-044 — Both label snapshots appear in execution state"
+  - "RL-057 — Unexpected label set after successful PUT MUST trigger a structured warning log"
+  - "RL-058 — No silent retry after a successful PUT response to reconcile a conflict"
+  - "RL-059 — HTTP 409/422 on missing label MUST fail closed; no auto-retry"
+  - "RL-060 — Before-state (Stage 5) and after-state (Stage 8) labels SHOULD be logged"
+  - "T-RL-057 — Successful PUT with unexpected label set: success=true + warning logged"
+  - "T-RL-058 — No re-PUT issued when Stage 8 response differs from expected"
+  - "T-RL-059 — HTTP 422 on label removal of absent label fails closed"
+  - "T-RL-060 — Both label snapshots appear in execution state"
 
 scenarios:
   # --- Scenario A: Successful PUT but returned labels differ from expected ---
@@ -93,11 +93,11 @@ scenarios:
       retry_attempted: false
       api_call_count: 1         # exactly one PUT; no re-PUT
 
-  # --- Scenario C: Stage 8 PUT returns HTTP 409 — fail closed, no retry ---
+  # --- Scenario C: Stage 8 PUT returns HTTP 422 — fail closed, no retry ---
   # The target label was deleted between Stage 5 and Stage 8 by a concurrent actor.
-  # The PUT returns HTTP 422 (GitHub uses 422 for label-not-found in some contexts).
-  # The implementation MUST fail closed: hard error, success: false, no retry.
-  - scenario_id: "rl-004-http-409-fail-closed"
+  # GitHub returns HTTP 422 (Unprocessable Entity) for label-not-found. The implementation
+  # MUST fail closed: hard error, success: false, no retry.
+  - scenario_id: "rl-004-http-422-fail-closed"
     description: >
       Stage 8 PUT returns HTTP 422 because label_to_add was deleted between Stage 5 read
       and Stage 8 write. The implementation MUST fail closed: return success=false with

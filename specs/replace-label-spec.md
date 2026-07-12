@@ -403,22 +403,22 @@ The implementation derives the new label set from the current labels already att
 When a label is modified on the target item between the Stage 5 read and the Stage 8 `PUT`,
 the implementation may encounter stale label data or an unexpected final state.
 
-**RL-041**: If the `PUT /repos/{owner}/{repo}/issues/{issue_number}/labels` call returns an
+**RL-057**: If the `PUT /repos/{owner}/{repo}/issues/{issue_number}/labels` call returns an
 unexpected label set (i.e., the returned labels differ from what was computed in Stage 7),
 the implementation MUST log a structured warning containing the expected label set, the
 observed label set, the item number, and the repository. The operation MUST still be treated
 as succeeded if the HTTP status was 2xx.
 
-**RL-042**: The implementation MUST NOT silently retry the Stage 8 `PUT` call to reconcile a
+**RL-058**: The implementation MUST NOT silently retry the Stage 8 `PUT` call to reconcile a
 label conflict detected after a successful HTTP response. Re-reading and re-applying a
 `replace_label` message is the caller's responsibility.
 
-**RL-043**: If the `PUT` call fails with HTTP 409 (Conflict) or HTTP 422 (Unprocessable
+**RL-059**: If the `PUT` call fails with HTTP 409 (Conflict) or HTTP 422 (Unprocessable
 Entity) in a context where the label no longer exists on the item, the implementation MUST
 fail closed: the message MUST result in a hard error (not a skip) and the handler MUST return
 `{ success: false }` with a descriptive error message. Auto-retry MUST NOT be attempted.
 
-**RL-044**: Implementations SHOULD log the label state observed at Stage 5 and the label
+**RL-060**: Implementations SHOULD log the label state observed at Stage 5 and the label
 state returned by Stage 8 to facilitate post-hoc debugging of concurrent-conflict scenarios.
 
 ---
