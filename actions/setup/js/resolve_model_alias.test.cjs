@@ -112,6 +112,8 @@ describe("resolve_model_alias", () => {
       "shared-fail": ["nonexistent-model-xyz"],
       shared: ["copilot/*haiku*"],
     };
+    // A non-null result proves no false circular-reference error was raised for "shared"
+    // (which is reachable via both path-a and path-b).
     const result = resolveModelAlias("combo", diamondAliasMap, ["copilot/claude-haiku-4.5"]);
     expect(result).toBe("copilot/claude-haiku-4.5");
   });
