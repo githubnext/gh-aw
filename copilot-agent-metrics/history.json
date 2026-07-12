@@ -5,7 +5,8 @@
     {"date":"2026-07-08","total_prs":44,"merged_prs":27,"closed_prs":8,"open_prs":9,"avg_agent_duration_minutes":132,"success_rate":0.771,"note":"partial day, data cutoff 15:30Z"},
     {"date":"2026-07-09","total_prs":38,"merged_prs":19,"closed_prs":6,"open_prs":13,"avg_agent_duration_minutes":145,"success_rate":0.76,"note":"partial day, data cutoff ~16:07Z, 13 PRs still open"},
     {"date":"2026-07-10","total_prs":27,"merged_prs":18,"closed_prs":6,"open_prs":3,"avg_agent_duration_minutes":121,"success_rate":0.75,"note":"data cutoff ~15:38Z"},
-    {"date":"2026-07-11","total_prs":45,"merged_prs":23,"closed_prs":13,"open_prs":9,"avg_agent_duration_minutes":160,"success_rate":0.639,"note":"rolling 24h window from 07-10 18:29Z; 9 PRs still open, success_rate over 36 completed"}
+    {"date":"2026-07-11","total_prs":45,"merged_prs":23,"closed_prs":13,"open_prs":9,"avg_agent_duration_minutes":160,"success_rate":0.639,"note":"rolling 24h window from 07-10 18:29Z; 9 PRs still open, success_rate over 36 completed"},
+    {"date":"2026-07-12","total_prs":12,"merged_prs":3,"closed_prs":0,"open_prs":9,"avg_agent_duration_minutes":169,"avg_comments":5.2,"success_rate":1.0,"note":"rolling 24h window from 07-11 18:29Z; 9 of 12 PRs still open, success_rate over only 3 completed; all open PRs <24h old"}
   ],
-  "last_updated":"2026-07-11"
+  "last_updated":"2026-07-12"
 }
