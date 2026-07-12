@@ -715,6 +715,9 @@ pkg/workflow ── FrontmatterConfig (typed structs)
 - `github.com/github/gh-aw/pkg/stringutil`, `github.com/github/gh-aw/pkg/fileutil`, `github.com/github/gh-aw/pkg/gitutil`, `github.com/github/gh-aw/pkg/sliceutil` — utilities
 - `github.com/github/gh-aw/pkg/syncutil` — thread-safe one-shot caching (used for repository feature cache)
 - `github.com/github/gh-aw/pkg/types` — shared MCP types
+- `github.com/github/gh-aw/pkg/importinpututil` — input-value resolution and formatting for `@import` directives
+- `github.com/github/gh-aw/pkg/repoutil` — repository slug parsing and normalization
+- `github.com/github/gh-aw/pkg/setutil` — set operations backed by `map[K]struct{}`
 
 **Test-only**:
 - `github.com/github/gh-aw/pkg/testutil` — shared test fixtures and assertion helpers used by workflow package tests

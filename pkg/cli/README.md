@@ -557,6 +557,10 @@ err := cli.RunHealth(cli.HealthConfig{
 - `github.com/github/gh-aw/pkg/repoutil` — repository name parsing and normalization
 - `github.com/github/gh-aw/pkg/stringutil` — string manipulation and sanitization utilities
 - `github.com/github/gh-aw/pkg/syncutil` — thread-safe one-shot caching (used for repository slug lookup)
+- `github.com/github/gh-aw/pkg/github` — label-based objective value mapping for issue prioritization scoring
+- `github.com/github/gh-aw/pkg/intent` — intent attribution and resolution for mapping PRs and issues to labelled intent records
+- `github.com/github/gh-aw/pkg/modelsdev` — model pricing lookup backed by the public `models.dev` catalog
+- `github.com/github/gh-aw/pkg/setutil` — set operations backed by `map[K]struct{}`
 
 **Test-only**:
 - `github.com/github/gh-aw/pkg/testutil` — shared test fixtures and assertion helpers used by CLI package tests
