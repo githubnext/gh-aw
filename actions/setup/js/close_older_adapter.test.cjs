@@ -13,7 +13,7 @@ describe("close_older_adapter", () => {
     };
   });
 
-  it("forwards callerWorkflowId/closeOlderKey and maps message params", async () => {
+  it("forwards callerWorkflowId/closeOlderKey and applies messageParams transformation", async () => {
     const github = {};
     const searchOlderEntities = vi.fn().mockResolvedValue([
       {
@@ -43,11 +43,11 @@ describe("close_older_adapter", () => {
       addComment,
       closeEntity,
       delayMs: 1,
-      messageParams: params => ({ mappedUrl: params.newEntityUrl, mappedNumber: params.newEntityNumber }),
+      messageParams: params => ({ transformedEntityUrl: params.newEntityUrl, transformedEntityNumber: params.newEntityNumber }),
     });
 
     expect(searchOlderEntities).toHaveBeenCalledWith(github, "owner", "repo", "workflow", 55, "caller-id", "close-key");
-    expect(getCloseMessage).toHaveBeenCalledWith({ mappedUrl: "https://example/new", mappedNumber: 55 });
+    expect(getCloseMessage).toHaveBeenCalledWith({ transformedEntityUrl: "https://example/new", transformedEntityNumber: 55 });
     expect(addComment).toHaveBeenCalledWith(github, "owner", "repo", 12, "close message");
     expect(closeEntity).toHaveBeenCalledWith(github, "owner", "repo", 12);
     expect(result).toEqual([{ number: 12, html_url: "https://example/12" }]);
