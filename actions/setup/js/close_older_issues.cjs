@@ -2,7 +2,8 @@
 /// <reference types="@actions/github-script" />
 
 const { sanitizeContent } = require("./sanitize_content.cjs");
-const { closeOlderEntities, MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
+const { MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
+const { closeOlderWithAdapter } = require("./close_older_adapter.cjs");
 const { buildMarkerSearchQuery, filterByMarker, logFilterSummary } = require("./close_older_search_helpers.cjs");
 
 /**
@@ -186,32 +187,30 @@ function getCloseOlderIssueMessage({ newIssueUrl, newIssueNumber, workflowName, 
  * @returns {Promise<Array<{number: number, html_url: string}>>} List of closed issues
  */
 async function closeOlderIssues(github, owner, repo, workflowId, newIssue, workflowName, runUrl, callerWorkflowId, closeOlderKey) {
-  const result = await closeOlderEntities(github, owner, repo, workflowId, newIssue, workflowName, runUrl, {
+  return closeOlderWithAdapter({
+    github,
+    owner,
+    repo,
+    workflowId,
+    newEntity: newIssue,
+    workflowName,
+    runUrl,
+    callerWorkflowId,
+    closeOlderKey,
     entityType: "issue",
     entityTypePlural: "issues",
-    // Use a closure so callerWorkflowId and closeOlderKey are forwarded to searchOlderIssues
-    // without going through the closeOlderEntities extraArgs mechanism (which appends
-    // excludeNumber last)
-    searchOlderEntities: (gh, o, r, wid, excludeNumber) => searchOlderIssues(gh, o, r, wid, excludeNumber, callerWorkflowId, closeOlderKey),
-    getCloseMessage: params =>
-      getCloseOlderIssueMessage({
-        newIssueUrl: params.newEntityUrl,
-        newIssueNumber: params.newEntityNumber,
-        workflowName: params.workflowName,
-        runUrl: params.runUrl,
-      }),
+    searchOlderEntities: searchOlderIssues,
+    getCloseMessage: getCloseOlderIssueMessage,
+    messageParams: params => ({
+      newIssueUrl: params.newEntityUrl,
+      newIssueNumber: params.newEntityNumber,
+      workflowName: params.workflowName,
+      runUrl: params.runUrl,
+    }),
     addComment: addIssueComment,
     closeEntity: closeIssueAsNotPlanned,
     delayMs: API_DELAY_MS,
-    getEntityId: entity => entity.number,
-    getEntityUrl: entity => entity.html_url,
   });
-
-  // Map to issue-specific return type
-  return result.map(item => ({
-    number: item.number,
-    html_url: item.html_url || "",
-  }));
 }
 
 module.exports = {
