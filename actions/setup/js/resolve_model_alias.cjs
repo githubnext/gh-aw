@@ -89,8 +89,13 @@ function extractVersionTuple(modelToken) {
   if (!match || match.length === 0) {
     return [0, 0, 0];
   }
-  const last = match[match.length - 1];
-  return last.split(".").map(part => Number.parseInt(part, 10) || 0);
+  const tuple = [];
+  for (const m of match) {
+    for (const part of m.split(".")) {
+      tuple.push(Number.parseInt(part, 10) || 0);
+    }
+  }
+  return tuple;
 }
 
 /**
@@ -189,7 +194,7 @@ function resolveModelAlias(target, aliasMap, catalog, options = {}) {
       return null;
     }
     for (const entry of entries) {
-      const resolved = resolveAliasEntry(String(entry), params, aliasMap, catalog, visited, logger);
+      const resolved = resolveAliasEntry(String(entry), params, aliasMap, catalog, new Set(visited), logger);
       if (resolved) {
         return resolved;
       }

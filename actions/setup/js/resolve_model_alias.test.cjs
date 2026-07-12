@@ -98,4 +98,21 @@ describe("resolve_model_alias", () => {
     expect(built).toContain("copilot/gpt-4.1");
     expect(built).toContain("gpt-4.1");
   });
+
+  it("selectLatestGlobMatch ranks date-stamped models by full date (Aug > May)", () => {
+    const result = selectLatestGlobMatch("copilot/gpt-4o*", ["copilot/gpt-4o-2024-05-13", "copilot/gpt-4o-2024-08-06"]);
+    expect(result).toBe("copilot/gpt-4o-2024-08-06");
+  });
+
+  it("resolves diamond alias graph without false circular-reference error", () => {
+    const diamondAliasMap = {
+      combo: ["path-a", "path-b"],
+      "path-a": ["shared-fail", "shared"],
+      "path-b": ["shared"],
+      "shared-fail": ["nonexistent-model-xyz"],
+      shared: ["copilot/*haiku*"],
+    };
+    const result = resolveModelAlias("combo", diamondAliasMap, ["copilot/claude-haiku-4.5"]);
+    expect(result).toBe("copilot/claude-haiku-4.5");
+  });
 });
