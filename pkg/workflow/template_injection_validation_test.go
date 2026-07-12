@@ -1620,3 +1620,39 @@ func TestDetectHeredocDelimiter(t *testing.T) {
 		})
 	}
 }
+
+func TestFindRunValueFastPath(t *testing.T) {
+	cases := []struct {
+		input   string
+		wantOk  bool
+		wantVal string
+	}{
+		// Unquoted key forms
+		{`run: echo hello`, true, "echo hello"},
+		{`  run: echo hello`, true, "echo hello"},
+		{`{run: echo hello}`, true, "echo hello}"},
+		// Double-quoted key
+		{`"run": echo hello`, true, "echo hello"},
+		// Single-quoted key
+		{`'run': echo hello`, true, "echo hello"},
+		// Mixed-quote forms
+		{`"run': echo hello`, true, "echo hello"},
+		{`'run": echo hello`, true, "echo hello"},
+		// Non-matching cases
+		{`step: build`, false, ""},
+		{`runner: ubuntu`, false, ""},
+		{`runner:`, false, ""},
+		{`name: run something`, false, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.input, func(t *testing.T) {
+			val, ok := findRunValue(c.input)
+			if ok != c.wantOk {
+				t.Errorf("findRunValue(%q) ok=%v, want %v", c.input, ok, c.wantOk)
+			}
+			if ok && val != c.wantVal {
+				t.Errorf("findRunValue(%q) val=%q, want %q", c.input, val, c.wantVal)
+			}
+		})
+	}
+}

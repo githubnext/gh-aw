@@ -363,8 +363,9 @@ func normalizeBlankLines(yamlContent string) string {
 	if lastNonBlankEnd == 0 {
 		return "\n"
 	}
-	// Slice the builder string to drop trailing blank lines. Because Go string
-	// slicing shares the underlying bytes array, this is a zero-copy operation.
+	// Slice the builder string to drop trailing blank lines. b.String() copies
+	// the builder's internal buffer into a new string once; the slice avoids a
+	// second copy that a separate strings.Builder trim would incur.
 	return b.String()[:lastNonBlankEnd]
 }
 
