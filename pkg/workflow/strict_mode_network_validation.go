@@ -111,6 +111,26 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 		return nil
 	}
 
+	// Reject private-to-public-flows: allow in strict mode.
+	// Per MCP Gateway Specification Section 10.9.4, the blanket "allow" value is incompatible
+	// with strict mode because it disables both forcePublicRepos and sink-visibility enforcement.
+	// The list form (specific server IDs) is allowed in strict mode.
+	if githubValue, hasGitHub := toolsMap["github"]; hasGitHub {
+		if githubMap, ok := githubValue.(map[string]any); ok {
+			if ptpFlows, exists := githubMap["private-to-public-flows"]; exists {
+				if ptpStr, ok := ptpFlows.(string); ok && ptpStr == "allow" {
+					strictModeValidationLog.Printf("private-to-public-flows: allow rejected in strict mode")
+					return NewValidationError(
+						"tools.github.private-to-public-flows",
+						ptpStr,
+						"strict mode: 'private-to-public-flows: allow' is not allowed; it disables forcePublicRepos and sink-visibility enforcement, which is incompatible with strict mode",
+						"To exempt specific MCP servers from sink-visibility enforcement in strict mode, use the list form:\n\ntools:\n  github:\n    private-to-public-flows:\n      - my-server-id\n      - other-server-id",
+					)
+				}
+			}
+		}
+	}
+
 	// Check if cache-memory is configured with scope: repo
 	cacheMemoryValue, hasCacheMemory := toolsMap["cache-memory"]
 	if hasCacheMemory {

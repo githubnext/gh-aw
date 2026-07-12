@@ -207,6 +207,24 @@ func RenderJSONMCPConfig(
 			}
 			fmt.Fprintf(&configBuilder, ",\n              \"toolTimeout\": %d", toolTimeoutSeconds)
 		}
+		// Emit forcePublicRepos: false when private-to-public-flows: allow is declared.
+		// Only emitted when explicitly set to false; omitting the field lets the gateway default (true).
+		// See MCP Gateway Specification Section 4.1.3.8.
+		if options.GatewayConfig.ForcePublicRepos != nil && !*options.GatewayConfig.ForcePublicRepos {
+			configBuilder.WriteString(",\n              \"forcePublicRepos\": false")
+		}
+		// Emit sinkVisibilityExemptServers when private-to-public-flows lists specific server IDs.
+		// See MCP Gateway Specification Section 10.9.
+		if len(options.GatewayConfig.SinkVisibilityExemptServers) > 0 {
+			configBuilder.WriteString(",\n              \"sinkVisibilityExemptServers\": [")
+			for i, serverID := range options.GatewayConfig.SinkVisibilityExemptServers {
+				if i > 0 {
+					configBuilder.WriteString(", ")
+				}
+				fmt.Fprintf(&configBuilder, "%q", serverID)
+			}
+			configBuilder.WriteString("]")
+		}
 		// When OTLP tracing is configured, add the opentelemetry section directly to the
 		// gateway config. The endpoint is passed via the OTEL_EXPORTER_OTLP_ENDPOINT env var
 		// (injected by injectOTLPConfig) so that secrets are never interpolated directly into
