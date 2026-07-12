@@ -19,6 +19,6 @@ Compile-time validation rejects incompatible combinations:
 
 - `sandbox.agent.runtime: docker-sbx` + `runner.topology: arc-dind` — sbx requires KVM; ARC DinD runners typically lack nested virtualisation
 - `sandbox.agent.runtime: docker-sbx` without `sandbox.agent.sudo: true` — the sbx install step requires root access
-- `sandbox.agent.runtime: docker-sbx` with an effective AWF version older than `v0.28.0` — `awf --container-runtime sbx` requires AWF support
+- `sandbox.agent.runtime: docker-sbx` with an effective AWF version older than `v0.27.30` — `awf --container-runtime sbx` requires AWF support
 
 The `sudo: true` deprecation warning/error is suppressed when `runtime: docker-sbx` is set because sbx fundamentally requires root for installation. Despite requiring `sudo: true`, network isolation is always enabled (`network.isolation: true`) — the sudo flag is only for the install steps, not for network enforcement.

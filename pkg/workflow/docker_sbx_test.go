@@ -216,7 +216,8 @@ func TestDockerSbxAWFArgsVersionGated(t *testing.T) {
 		WorkflowData: &WorkflowData{
 			EngineConfig: &EngineConfig{ID: "copilot"},
 			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{Enabled: true},
+				// Pin to a version that predates containerRuntime support.
+				Firewall: &FirewallConfig{Enabled: true, Version: "v0.27.29"},
 			},
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
@@ -364,6 +365,8 @@ func TestDockerSbxValidation_DefaultVersionRejected(t *testing.T) {
 				Runtime:               AgentRuntimeDockerSbx,
 				NetworkIsolation:      false, // sudo: true → NetworkIsolation=false (overridden by isDockerSbxRuntime)
 				SudoExplicitlyEnabled: true,
+				// Pin to a version that predates containerRuntime support.
+				Version: "v0.27.29",
 			},
 		},
 		NetworkPermissions: &NetworkPermissions{
@@ -373,7 +376,7 @@ func TestDockerSbxValidation_DefaultVersionRejected(t *testing.T) {
 	}
 
 	err := validateSandboxConfig(workflowData)
-	require.Error(t, err, "docker-sbx with the default AWF version must fail validation")
+	require.Error(t, err, "docker-sbx with an AWF version predating containerRuntime support must fail validation")
 	assert.Contains(t, err.Error(), string(constants.AWFContainerRuntimeMinVersion))
 }
 
