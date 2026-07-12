@@ -8,15 +8,15 @@ sidebar:
 
 ## What is GitHub Agentic Workflows?
 
-**GitHub Agentic Workflows** (`gh-aw`) is an open-source [GitHub CLI](https://cli.github.com/) extension developed by [GitHub](https://github.com/github) that lets you write agentic AI workflows in natural language markdown and run them as GitHub Actions.
+**GitHub Agentic Workflows** (`gh-aw`) is an open-source [GitHub CLI](https://cli.github.com/) extension from [GitHub](https://github.com/github) for writing agentic AI workflows in natural-language markdown and running them as GitHub Actions.
 
-Write a markdown file describing what you want your AI agent to do — then `gh aw compile` turns it into a valid GitHub Actions workflow that runs with strong security guardrails.
+Write a markdown file that describes what you want the agent to do, then run `gh aw compile` to turn it into a GitHub Actions workflow with strong security guardrails.
 
 ## Project
 
 - **Repository**: [github/gh-aw](https://github.com/github/gh-aw)
-- **License**: [MIT](https://github.com/github/gh-aw/blob/main/LICENSE)
 - **Install**: `gh extension install github/gh-aw`
+- **License**: [MIT](https://github.com/github/gh-aw/blob/main/LICENSE)
 - **Changelog**: [CHANGELOG.md](https://github.com/github/gh-aw/blob/main/CHANGELOG.md)
 
 ## Team
@@ -25,14 +25,12 @@ GitHub Agentic Workflows is built and maintained by the [GitHub Next](https://gi
 
 ## Community
 
-- [GitHub Discussions](https://github.com/github/gh-aw/discussions) — questions, ideas, and announcements
-- [Community Feedback](https://github.com/orgs/community/discussions/186451) — share your experience
-- [GitHub Next Discord](https://gh.io/next-discord) — real-time chat
+Join [GitHub Discussions](https://github.com/github/gh-aw/discussions) for questions, ideas, and announcements, share feedback in the [Community discussion](https://github.com/orgs/community/discussions/186451), or chat in the [GitHub Next Discord](https://gh.io/next-discord).
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](https://github.com/github/gh-aw/blob/main/CONTRIBUTING.md) for development setup and guidelines.
+Contributions are welcome. See [CONTRIBUTING.md](https://github.com/github/gh-aw/blob/main/CONTRIBUTING.md) for setup and guidelines.
 
 ## Security
 
-For security vulnerability reports, see [SECURITY.md](https://github.com/github/gh-aw/blob/main/SECURITY.md).
+For vulnerability reports, see [SECURITY.md](https://github.com/github/gh-aw/blob/main/SECURITY.md).
