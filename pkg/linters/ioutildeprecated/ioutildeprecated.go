@@ -43,6 +43,11 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 	noLintLinesByFile := nolint.BuildLineIndex(pass, "ioutildeprecated")
 
+	if pass.TypesInfo == nil {
+		return nil, nil
+	}
+
+	// Handle regular qualified imports: ioutil.ReadAll(...), ioutil.Discard, etc.
 	for cur := range root.Preorder((*ast.SelectorExpr)(nil)) {
 		sel, ok := cur.Node().(*ast.SelectorExpr)
 		if !ok {
@@ -61,9 +66,6 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			continue
 		}
-		if pass.TypesInfo == nil {
-			continue
-		}
 		obj := pass.TypesInfo.ObjectOf(pkgIdent)
 		if obj == nil {
 			continue
@@ -76,6 +78,44 @@ func run(pass *analysis.Pass) (any, error) {
 		funcName := sel.Sel.Name
 		if replacement, found := replacements[funcName]; found {
 			pass.ReportRangef(sel, "ioutil.%s is deprecated; use %s instead", funcName, replacement)
+		}
+	}
+
+	// Handle dot imports: import . "io/ioutil" followed by bare ReadAll(r) or Discard.
+	// In this case the identifier is an *ast.Ident (not a SelectorExpr), and
+	// TypesInfo.Uses resolves it to an object whose package path is "io/ioutil".
+	for cur := range root.Preorder((*ast.Ident)(nil)) {
+		ident, ok := cur.Node().(*ast.Ident)
+		if !ok {
+			continue
+		}
+
+		// Skip identifiers that are the Sel field of a SelectorExpr; those are
+		// already handled by the qualified-import loop above.
+		if _, ok := cur.Parent().Node().(*ast.SelectorExpr); ok {
+			continue
+		}
+
+		pos := pass.Fset.PositionFor(ident.Pos(), false)
+		if filecheck.IsTestFile(pos.Filename) {
+			continue
+		}
+		if nolint.HasDirective(pos, noLintLinesByFile) {
+			continue
+		}
+
+		obj := pass.TypesInfo.Uses[ident]
+		if obj == nil {
+			continue
+		}
+		pkg := obj.Pkg()
+		if pkg == nil || pkg.Path() != "io/ioutil" {
+			continue
+		}
+
+		name := obj.Name()
+		if replacement, found := replacements[name]; found {
+			pass.ReportRangef(ident, "ioutil.%s is deprecated; use %s instead", name, replacement)
 		}
 	}
 
