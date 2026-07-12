@@ -407,7 +407,7 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			case []string:
 				config.PrivateToPublicFlows = v
 			default:
-				toolsParserLog.Printf("Warning: private-to-public-flows has unsupported type %T, ignoring", rawPtP)
+				toolsParserLog.Printf("Warning: private-to-public-flows has unsupported type %T (expected string \"allow\" or array of server IDs), ignoring", rawPtP)
 			}
 		}
 
