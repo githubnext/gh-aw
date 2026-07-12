@@ -155,17 +155,38 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		sessionTimeout = workflowData.EngineConfig.MCPSessionTimeout
 		toolTimeout = workflowData.EngineConfig.MCPToolTimeout
 	}
+
+	// Derive ForcePublicRepos and SinkVisibilityExemptServers from tools.github.private-to-public-flows.
+	var forcePublicRepos *bool
+	var sinkVisibilityExemptServers []string
+	if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil {
+		switch v := workflowData.ParsedTools.GitHub.PrivateToPublicFlows.(type) {
+		case string:
+			if v == "allow" {
+				// Blanket opt-out: disable the runtime public-repos override.
+				falseVal := false
+				forcePublicRepos = &falseVal
+			}
+		case []string:
+			if len(v) > 0 {
+				sinkVisibilityExemptServers = v
+			}
+		}
+	}
+
 	return &MCPGatewayRuntimeConfig{
-		Port:                 int(DefaultMCPGatewayPort),                       // Will be formatted as "${MCP_GATEWAY_PORT}" in renderer
-		Domain:               "${MCP_GATEWAY_DOMAIN}",                          // Gateway variable expression
-		APIKey:               "${MCP_GATEWAY_API_KEY}",                         // Gateway variable expression
-		PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",                     // Gateway variable expression for payload directory
-		PayloadPathPrefix:    workflowData.SandboxConfig.MCP.PayloadPathPrefix, // Optional path prefix for agent containers
-		PayloadSizeThreshold: payloadSizeThreshold,                             // Size threshold in bytes
-		TrustedBots:          workflowData.SandboxConfig.MCP.TrustedBots,       // Additional trusted bot identities from frontmatter
-		KeepaliveInterval:    workflowData.SandboxConfig.MCP.KeepaliveInterval, // Keepalive interval from frontmatter (0=default, -1=disabled, >0=custom)
-		SessionTimeout:       sessionTimeout,                                   // Session timeout from engine.mcp.session-timeout (empty = gateway default 6h)
-		ToolTimeout:          toolTimeout,                                      // Tool timeout from engine.mcp.tool-timeout (empty = gateway built-in default 60s)
+		Port:                        int(DefaultMCPGatewayPort),                       // Will be formatted as "${MCP_GATEWAY_PORT}" in renderer
+		Domain:                      "${MCP_GATEWAY_DOMAIN}",                          // Gateway variable expression
+		APIKey:                      "${MCP_GATEWAY_API_KEY}",                         // Gateway variable expression
+		PayloadDir:                  "${MCP_GATEWAY_PAYLOAD_DIR}",                     // Gateway variable expression for payload directory
+		PayloadPathPrefix:           workflowData.SandboxConfig.MCP.PayloadPathPrefix, // Optional path prefix for agent containers
+		PayloadSizeThreshold:        payloadSizeThreshold,                             // Size threshold in bytes
+		TrustedBots:                 workflowData.SandboxConfig.MCP.TrustedBots,       // Additional trusted bot identities from frontmatter
+		KeepaliveInterval:           workflowData.SandboxConfig.MCP.KeepaliveInterval, // Keepalive interval from frontmatter (0=default, -1=disabled, >0=custom)
+		SessionTimeout:              sessionTimeout,                                   // Session timeout from engine.mcp.session-timeout (empty = gateway default 6h)
+		ToolTimeout:                 toolTimeout,                                      // Tool timeout from engine.mcp.tool-timeout (empty = gateway built-in default 60s)
+		ForcePublicRepos:            forcePublicRepos,                                 // nil = default (true); &false = disable runtime public-repos override
+		SinkVisibilityExemptServers: sinkVisibilityExemptServers,                      // Server IDs exempt from default sink-visibility enforcement
 		// OTLPEndpoint and OTLPHeaders are set from workflowData by injectOTLPConfig, which is
 		// the fully resolved OTLP config (including imports). Using these fields ensures gateway
 		// OTLP config honours observability defined in imported shared workflows.

@@ -47,6 +47,7 @@ package workflow
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -54,6 +55,17 @@ import (
 )
 
 var mcpRendererLog = logger.New("workflow:mcp_renderer")
+
+// safeMCPServerIDRE matches MCP server IDs that are safe to embed inside an unquoted bash heredoc.
+// The pattern allows alphanumeric characters, hyphens, and underscores — the same characters used
+// for built-in tool names and typical custom mcp-server keys.
+var safeMCPServerIDRE = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+// isSafeMCPServerID reports whether id can be safely embedded inside an unquoted bash heredoc
+// without triggering shell expansion.
+func isSafeMCPServerID(id string) bool {
+	return id != "" && safeMCPServerIDRE.MatchString(id)
+}
 
 func durationStringToSeconds(durationValue string) (int, error) {
 	parsedDuration, err := time.ParseDuration(durationValue)
@@ -206,6 +218,30 @@ func RenderJSONMCPConfig(
 				return fmt.Errorf("failed to parse engine.mcp.tool-timeout %q for gateway.toolTimeout: %w", options.GatewayConfig.ToolTimeout, err)
 			}
 			fmt.Fprintf(&configBuilder, ",\n              \"toolTimeout\": %d", toolTimeoutSeconds)
+		}
+		// Emit forcePublicRepos: false when private-to-public-flows: allow is declared.
+		// Only emitted when explicitly set to false; omitting the field lets the gateway default (true).
+		// See MCP Gateway Specification Section 4.1.3.8.
+		if options.GatewayConfig.ForcePublicRepos != nil && !*options.GatewayConfig.ForcePublicRepos {
+			configBuilder.WriteString(",\n              \"forcePublicRepos\": false")
+		}
+		// Emit sinkVisibilityExemptServers when private-to-public-flows lists specific server IDs.
+		// See MCP Gateway Specification Section 10.9.
+		if len(options.GatewayConfig.SinkVisibilityExemptServers) > 0 {
+			configBuilder.WriteString(",\n              \"sinkVisibilityExemptServers\": [")
+			for i, serverID := range options.GatewayConfig.SinkVisibilityExemptServers {
+				if i > 0 {
+					configBuilder.WriteString(", ")
+				}
+				// Validate against safe-identifier pattern before writing into the heredoc.
+				// The config is rendered inside an unquoted bash heredoc; unvalidated IDs
+				// containing shell metacharacters (e.g. $(cmd), `cmd`) would be expanded.
+				if !isSafeMCPServerID(serverID) {
+					return fmt.Errorf("private-to-public-flows: server ID %q contains characters that are unsafe for shell heredoc emission; IDs must match [A-Za-z0-9_-]+", serverID)
+				}
+				fmt.Fprintf(&configBuilder, "%q", serverID)
+			}
+			configBuilder.WriteString("]")
 		}
 		// When OTLP tracing is configured, add the opentelemetry section directly to the
 		// gateway config. The endpoint is passed via the OTEL_EXPORTER_OTLP_ENDPOINT env var
