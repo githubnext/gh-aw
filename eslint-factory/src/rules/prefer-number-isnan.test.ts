@@ -55,18 +55,36 @@ describe("prefer-number-isnan", () => {
     });
   });
 
-  it("invalid: global isNaN() is flagged with a replacement suggestion", () => {
+  it("invalid: provably numeric arguments are autofixed", () => {
     cjsRuleTester.run("prefer-number-isnan", preferNumberIsNanRule, {
       valid: [],
       invalid: [
         {
-          code: `isNaN(value);`,
-          errors: [{ messageId: "preferNumberIsNaN", suggestions: [{ messageId: "replaceWithNumberIsNaN", output: `Number.isNaN(value);` }] }],
+          code: `isNaN(parseInt(value, 10));`,
+          output: `Number.isNaN(parseInt(value, 10));`,
+          errors: [{ messageId: "preferNumberIsNaN" }],
         },
         {
-          // Raw string argument (e.g. env var) — suggestion preserves argument so callers must review whether to wrap with Number(...)
+          code: `isNaN(parseFloat(value));`,
+          output: `Number.isNaN(parseFloat(value));`,
+          errors: [{ messageId: "preferNumberIsNaN" }],
+        },
+        {
+          code: `isNaN(d.getTime());`,
+          output: `Number.isNaN(d.getTime());`,
+          errors: [{ messageId: "preferNumberIsNaN" }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: unknown/raw arguments remain suggestion-only with coercion caveat", () => {
+    cjsRuleTester.run("prefer-number-isnan", preferNumberIsNanRule, {
+      valid: [],
+      invalid: [
+        {
           code: `isNaN(process.env.PORT);`,
-          errors: [{ messageId: "preferNumberIsNaN", suggestions: [{ messageId: "replaceWithNumberIsNaN", output: `Number.isNaN(process.env.PORT);` }] }],
+          errors: [{ messageId: "preferNumberIsNaNWithCoercionCaveat", suggestions: [{ messageId: "replaceWithNumberIsNaNWithNumberWrapReview", output: `Number.isNaN(process.env.PORT);` }] }],
         },
       ],
     });
@@ -78,27 +96,27 @@ describe("prefer-number-isnan", () => {
       invalid: [
         {
           code: `globalThis.isNaN(value);`,
-          errors: [{ messageId: "preferNumberIsNaN", suggestions: [{ messageId: "replaceWithNumberIsNaN", output: `Number.isNaN(value);` }] }],
+          errors: [{ messageId: "preferNumberIsNaNWithCoercionCaveat", suggestions: [{ messageId: "replaceWithNumberIsNaNWithNumberWrapReview", output: `Number.isNaN(value);` }] }],
         },
         {
           code: `globalThis["isNaN"](value);`,
-          errors: [{ messageId: "preferNumberIsNaN", suggestions: [{ messageId: "replaceWithNumberIsNaN", output: `Number.isNaN(value);` }] }],
+          errors: [{ messageId: "preferNumberIsNaNWithCoercionCaveat", suggestions: [{ messageId: "replaceWithNumberIsNaNWithNumberWrapReview", output: `Number.isNaN(value);` }] }],
         },
         {
           code: `window.isNaN(value);`,
-          errors: [{ messageId: "preferNumberIsNaN", suggestions: [{ messageId: "replaceWithNumberIsNaN", output: `Number.isNaN(value);` }] }],
+          errors: [{ messageId: "preferNumberIsNaNWithCoercionCaveat", suggestions: [{ messageId: "replaceWithNumberIsNaNWithNumberWrapReview", output: `Number.isNaN(value);` }] }],
         },
         {
           code: `window["isNaN"](value);`,
-          errors: [{ messageId: "preferNumberIsNaN", suggestions: [{ messageId: "replaceWithNumberIsNaN", output: `Number.isNaN(value);` }] }],
+          errors: [{ messageId: "preferNumberIsNaNWithCoercionCaveat", suggestions: [{ messageId: "replaceWithNumberIsNaNWithNumberWrapReview", output: `Number.isNaN(value);` }] }],
         },
         {
           code: `global.isNaN(value);`,
-          errors: [{ messageId: "preferNumberIsNaN", suggestions: [{ messageId: "replaceWithNumberIsNaN", output: `Number.isNaN(value);` }] }],
+          errors: [{ messageId: "preferNumberIsNaNWithCoercionCaveat", suggestions: [{ messageId: "replaceWithNumberIsNaNWithNumberWrapReview", output: `Number.isNaN(value);` }] }],
         },
         {
           code: `global["isNaN"](value);`,
-          errors: [{ messageId: "preferNumberIsNaN", suggestions: [{ messageId: "replaceWithNumberIsNaN", output: `Number.isNaN(value);` }] }],
+          errors: [{ messageId: "preferNumberIsNaNWithCoercionCaveat", suggestions: [{ messageId: "replaceWithNumberIsNaNWithNumberWrapReview", output: `Number.isNaN(value);` }] }],
         },
       ],
     });
@@ -110,11 +128,11 @@ describe("prefer-number-isnan", () => {
       invalid: [
         {
           code: `isNaN(value);`,
-          errors: [{ messageId: "preferNumberIsNaN", suggestions: [{ messageId: "replaceWithNumberIsNaN", output: `Number.isNaN(value);` }] }],
+          errors: [{ messageId: "preferNumberIsNaNWithCoercionCaveat", suggestions: [{ messageId: "replaceWithNumberIsNaNWithNumberWrapReview", output: `Number.isNaN(value);` }] }],
         },
         {
           code: `window.isNaN(value);`,
-          errors: [{ messageId: "preferNumberIsNaN", suggestions: [{ messageId: "replaceWithNumberIsNaN", output: `Number.isNaN(value);` }] }],
+          errors: [{ messageId: "preferNumberIsNaNWithCoercionCaveat", suggestions: [{ messageId: "replaceWithNumberIsNaNWithNumberWrapReview", output: `Number.isNaN(value);` }] }],
         },
       ],
     });

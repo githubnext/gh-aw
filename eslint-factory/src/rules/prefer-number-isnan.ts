@@ -7,14 +7,17 @@ export const preferNumberIsNanRule = createRule({
   name: "prefer-number-isnan",
   meta: {
     type: "suggestion",
+    fixable: "code",
     hasSuggestions: true,
     docs: {
       description: "Prefer Number.isNaN() over global isNaN() to avoid coercion footguns when validating unknown inputs.",
     },
     schema: [],
     messages: {
-      preferNumberIsNaN: "Prefer Number.isNaN(...) over global isNaN(...). Global isNaN() coerces non-number inputs and can hide invalid raw values.",
-      replaceWithNumberIsNaN: "Replace callee with Number.isNaN — review whether the argument should be wrapped with Number(...).",
+      preferNumberIsNaN: "Prefer Number.isNaN(...) over global isNaN(...).",
+      preferNumberIsNaNWithCoercionCaveat: "Prefer Number.isNaN(...) over global isNaN(...). Global isNaN() coerces non-number inputs and can hide invalid raw values.",
+      replaceWithNumberIsNaN: "Replace callee with Number.isNaN.",
+      replaceWithNumberIsNaNWithNumberWrapReview: "Replace callee with Number.isNaN — review whether the argument should be wrapped with Number(...).",
     },
   },
   defaultOptions: [],
@@ -58,13 +61,66 @@ export const preferNumberIsNanRule = createRule({
       return isDirectAccess || isComputedAccess;
     }
 
+    function isNumberParseMethod(node: TSESTree.MemberExpression): boolean {
+      if (node.object.type !== "Identifier" || node.object.name !== "Number") {
+        return false;
+      }
+
+      const property = node.property;
+      const isDirectAccess = !node.computed && property.type === "Identifier" && (property.name === "parseInt" || property.name === "parseFloat");
+      const isComputedAccess = node.computed && property.type === "Literal" && (property.value === "parseInt" || property.value === "parseFloat");
+
+      return isDirectAccess || isComputedAccess;
+    }
+
+    function isNumericMethod(node: TSESTree.MemberExpression): boolean {
+      const property = node.property;
+      const isDirectAccess = !node.computed && property.type === "Identifier" && (property.name === "getTime" || property.name === "getTimezoneOffset" || property.name === "valueOf");
+      const isComputedAccess = node.computed && property.type === "Literal" && (property.value === "getTime" || property.value === "getTimezoneOffset" || property.value === "valueOf");
+
+      return isDirectAccess || isComputedAccess;
+    }
+
+    function isProvablyNumericArgument(node: TSESTree.CallExpressionArgument): boolean {
+      if (node.type === "Literal") {
+        return typeof node.value === "number";
+      }
+
+      if (node.type !== "CallExpression") {
+        return false;
+      }
+
+      if (node.callee.type === "Identifier" && (node.callee.name === "parseInt" || node.callee.name === "parseFloat" || node.callee.name === "Number")) {
+        return true;
+      }
+
+      if (node.callee.type === "MemberExpression" && (isNumberParseMethod(node.callee) || isNumericMethod(node.callee))) {
+        return true;
+      }
+
+      return false;
+    }
+
     function report(node: TSESTree.CallExpression): void {
+      const hasSingleProvablyNumericArgument = node.arguments.length === 1 && isProvablyNumericArgument(node.arguments[0]);
+
+      if (hasSingleProvablyNumericArgument) {
+        context.report({
+          node: node.callee,
+          messageId: "preferNumberIsNaN",
+          fix(fixer: TSESLint.RuleFixer) {
+            return fixer.replaceText(node.callee, "Number.isNaN");
+          },
+        });
+        return;
+      }
+
       context.report({
         node: node.callee,
-        messageId: "preferNumberIsNaN",
+        messageId: "preferNumberIsNaNWithCoercionCaveat",
         suggest: [
           {
-            messageId: "replaceWithNumberIsNaN",
+            messageId: "replaceWithNumberIsNaNWithNumberWrapReview",
             fix(fixer: TSESLint.RuleFixer) {
               return fixer.replaceText(node.callee, "Number.isNaN");
             },
