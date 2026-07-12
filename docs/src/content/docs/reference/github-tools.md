@@ -220,7 +220,7 @@ The compiler emits `"sinkVisibilityExemptServers": ["github", "my-custom-server"
 
 Opting out of cross-visibility protections means the agent may read from private repositories and write that data to public sinks (e.g., a public GitHub issue, a Slack channel). Only use this when your workflow explicitly requires it and you understand the data-flow implications.
 
-See [MCP Gateway Specification Section 10.9](./mcp-gateway#109-cross-visibility-opt-out-private-to-public-flows) for full protocol details.
+See [MCP Gateway Specification Section 10.9](/gh-aw/reference/mcp-gateway/#109-cross-visibility-opt-out-private-to-public-flows) for full protocol details.
 
 ## Related Documentation
 
