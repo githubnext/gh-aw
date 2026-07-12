@@ -35,15 +35,7 @@ const USAGE_DIR = "/tmp/gh-aw/usage";
  * @param {Record<string, unknown>} [details]
  */
 function logCache(message, details) {
-  let suffix = "";
-  if (details && Object.keys(details).length > 0) {
-    try {
-      suffix = ": " + JSON.stringify(details);
-    } catch (e) {
-      core.warning(`[daily-aic-cache] logCache: could not serialise details: ${e}`);
-      suffix = ": {}";
-    }
-  }
+  const suffix = details && Object.keys(details).length > 0 ? ": " + JSON.stringify(details) : "";
   core.info(`[daily-aic-cache] ${message}${suffix}`);
 }
 
@@ -58,8 +50,8 @@ function logCache(message, details) {
  * @returns {Promise<void>}
  */
 async function mainWithPaths(cacheFilePath, usageDir) {
-  const cachePath = cacheFilePath || CACHE_FILE_PATH;
-  const usageDirPath = usageDir || USAGE_DIR;
+  const cachePath = cacheFilePath ?? CACHE_FILE_PATH;
+  const usageDirPath = usageDir ?? USAGE_DIR;
   try {
     const runId = Number(process.env.GITHUB_RUN_ID || 0);
     if (!runId) {
