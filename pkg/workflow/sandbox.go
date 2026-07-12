@@ -52,6 +52,12 @@ const (
 	// AgentRuntimeGVisor runs the agent container under gVisor's runsc runtime for
 	// additional kernel-level isolation. Requires root access for installation.
 	AgentRuntimeGVisor AgentRuntime = "gvisor"
+
+	// AgentRuntimeDockerSbx runs the agent inside a Docker sbx microVM with
+	// hypervisor-level isolation (KVM). Infrastructure containers (Squid proxy,
+	// api-proxy, MCP gateway) remain on the host in Docker Compose.
+	// Requires sudo: true and a KVM-capable runner with DOCKER_PAT / DOCKER_USERNAME secrets.
+	AgentRuntimeDockerSbx AgentRuntime = "docker-sbx"
 )
 
 // AgentSandboxConfig represents the agent sandbox configuration

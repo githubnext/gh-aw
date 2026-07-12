@@ -3463,9 +3463,9 @@
                     },
                     "runtime": {
                       "type": "string",
-                      "description": "Container runtime for the agent container. Use 'gvisor' to run the agent under gVisor's runsc runtime for additional kernel-level isolation. Requires sandbox.agent.sudo: true (root access is needed to install and register runsc). Incompatible with runner.topology: arc-dind.",
-                      "enum": ["gvisor"],
-                      "examples": ["gvisor"]
+                      "description": "Container runtime for the agent container. Use 'gvisor' to run the agent under gVisor's runsc runtime for additional kernel-level isolation. Use 'docker-sbx' to run the agent inside a Docker sbx microVM with KVM hypervisor-level isolation — requires sandbox.agent.sudo: true, DOCKER_PAT and DOCKER_USERNAME secrets, and a KVM-capable runner. Incompatible with runner.topology: arc-dind.",
+                      "enum": ["gvisor", "docker-sbx"],
+                      "examples": ["gvisor", "docker-sbx"]
                     },
                     "config": {
                       "type": "object",
