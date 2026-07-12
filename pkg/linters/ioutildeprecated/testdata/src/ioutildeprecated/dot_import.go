@@ -16,6 +16,6 @@ func BadDotReadFile() {
 	_, _ = ReadFile("file.txt") // want `ioutil\.ReadFile is deprecated; use os\.ReadFile instead`
 }
 
-func BadDotDiscard() {
+func BadDotWriteFile() {
 	_ = WriteFile("file.txt", []byte{}, 0644) // want `ioutil\.WriteFile is deprecated; use os\.WriteFile instead`
 }
