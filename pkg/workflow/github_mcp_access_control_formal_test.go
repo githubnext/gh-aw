@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -268,6 +269,31 @@ func TestFormal_BlockedUserSafetyProperty(t *testing.T) {
 	assert.Equal(t, formalErrorBlockedUser, denied.errorCode)
 }
 
+func TestFormal_BlockedUsersRequireMinIntegrity(t *testing.T) {
+	// PRECOND_BlockedUsersRequireMinIntegrity: a configuration that sets blocked-users
+	// without min-integrity is invalid and must be rejected at validation time.
+	err := formalValidateConfig(formalToolConfig{
+		Repos:        []string{"*/*"},
+		BlockedUsers: []string{"bad-actor"},
+		MinIntegrity: "",
+	})
+	require.Error(t, err, "blocked-users without min-integrity must be a validation error")
+
+	// With min-integrity set, the configuration is valid.
+	assert.NoError(t, formalValidateConfig(formalToolConfig{
+		Repos:        []string{"*/*"},
+		BlockedUsers: []string{"bad-actor"},
+		MinIntegrity: "approved",
+	}))
+
+	// An empty blocked-users list without min-integrity is valid (no guard active).
+	assert.NoError(t, formalValidateConfig(formalToolConfig{
+		Repos:        []string{"*/*"},
+		BlockedUsers: nil,
+		MinIntegrity: "",
+	}))
+}
+
 func TestFormal_NoSpuriousAllowInvariant(t *testing.T) {
 	allowPrivate := true
 	cfg := formalToolConfig{
@@ -295,6 +321,16 @@ func TestFormal_NoSpuriousAllowInvariant(t *testing.T) {
 type formalDecision struct {
 	allow     bool
 	errorCode int
+}
+
+// formalValidateConfig mirrors the compile-time validation preconditions for
+// formalToolConfig. It enforces PRECOND_BlockedUsersRequireMinIntegrity: blocked-users
+// requires min-integrity to be set.
+func formalValidateConfig(cfg formalToolConfig) error {
+	if len(cfg.BlockedUsers) > 0 && cfg.MinIntegrity == "" {
+		return errors.New("invalid guard policy: blocked-users requires min-integrity to be set")
+	}
+	return nil
 }
 
 func formalEvaluateAccess(cfg formalToolConfig, req formalAccessRequest) formalDecision {

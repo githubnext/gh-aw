@@ -62,6 +62,7 @@ The denial code is selected by the first failing guard in the evaluation order a
 | `INV2_ErrorCode` | `TestFormal_ErrorCodeFirstFailingGuard` | Deny error code matches first failing guard; table covers each guard as first failure |
 | `SAFETY_BlockedUserAlwaysDenied` | `TestFormal_BlockedUserSafetyProperty` | Safety: blocked user always produces `-32005` when all earlier guards pass |
 | `SAFETY_NoSpuriousAllow` | `TestFormal_NoSpuriousAllowInvariant` | Safety: no allow decision when any guard fails |
+| `PRECOND_BlockedUsersRequireMinIntegrity` | `TestFormal_BlockedUsersRequireMinIntegrity` | Validation error when blocked-users set without min-integrity |
 
 ## Fixture Files
 
