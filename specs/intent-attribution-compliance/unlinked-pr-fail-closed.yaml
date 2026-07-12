@@ -1,0 +1,91 @@
+# IA-003 Unlinked PR Fails Closed — Compliance Fixture
+# Spec: §RFC 2119 Norms → Fail-Closed Behavior
+#
+# A pull request with no supported intent source (no explicit intent, no closing
+# issues, no labels) MUST receive the safest execution policy: propose_only
+# autonomy, no write scope, human approval required, auto-merge disallowed.
+
+fixture_id: "unlinked-pr-fail-closed"
+description: >
+  When a pull request has no supported intent source, the resolver MUST produce
+  an unlinked attribution (status="unlinked", source="none") and the policy
+  compiler MUST apply the safest execution policy (IA-003). The policy MUST be:
+  autonomy=propose_only, write_scope=none, human_approval_required=true,
+  auto_merge_allowed=false, max_attempts=1.
+
+spec_refs:
+  - "§RFC 2119 Norms → Fail-Closed Behavior"
+  - "§Attribution states → unlinked"
+  - "§Safe default"
+  - "§Execution policy → propose_only"
+
+scenarios:
+  # Scenario A: PR with no closing issues and no labels.
+  - scenario_id: "ia-003-no-sources-unlinked"
+    description: >
+      PR has no explicit intent, no closing issues, and no labels.
+      Expected: status=unlinked, source=none, safest policy.
+    input:
+      pull_request:
+        node_id: "PR_kwDOAAABCDA"
+        url: "https://github.com/owner/repo/pull/60"
+        labels: []
+        explicit_intent: null
+        closing_issues: []
+    expected:
+      attribution:
+        status: "unlinked"
+        source: "none"
+        rule: "no_supported_intent_source"
+      policy:
+        autonomy: "propose_only"
+        write_scope: "none"
+        human_approval_required: true
+        auto_merge_allowed: false
+        max_attempts: 1
+
+  # Scenario B: PR with an explicit intent of status=unlinked (corner case).
+  # Unlinked explicit intent should still be treated as unlinked.
+  - scenario_id: "ia-003-explicit-unlinked-still-safest"
+    description: >
+      PR has explicit intent whose status is unlinked. The policy compiler
+      MUST still apply the safest policy for unlinked attribution.
+    input:
+      pull_request:
+        node_id: "PR_kwDOAAABCDB"
+        url: "https://github.com/owner/repo/pull/61"
+        labels: []
+        explicit_intent:
+          status: "unlinked"
+          source: "none"
+          rule: "explicit"
+        closing_issues: []
+    expected:
+      attribution:
+        status: "unlinked"
+        source: "none"
+      policy:
+        autonomy: "propose_only"
+        write_scope: "none"
+        human_approval_required: true
+        auto_merge_allowed: false
+        max_attempts: 1
+
+  # Scenario C: PR with no closing issues but with labels — NOT unlinked.
+  # Labels are a valid fallback source; this documents the boundary condition.
+  - scenario_id: "ia-003-labels-present-not-unlinked"
+    description: >
+      PR has no closing issues but does have labels. The resolver MUST NOT mark
+      this as unlinked; it falls back to PR-label attribution.
+    input:
+      pull_request:
+        node_id: "PR_kwDOAAABCDC"
+        url: "https://github.com/owner/repo/pull/62"
+        labels: ["automation"]
+        explicit_intent: null
+        closing_issues: []
+    expected:
+      attribution:
+        status: "mapped"
+        source: "artifact_labels"
+        rule: "pull_request_label_fallback"

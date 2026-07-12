@@ -1,0 +1,103 @@
+# IA-002 Ambiguous Root Closing Issues — Compliance Fixture
+# Spec: §RFC 2119 Norms → Ambiguous-Root Handling
+#
+# When two or more distinct closing issues are linked to a pull request and no
+# explicit intent override is present, the resolver MUST produce an ambiguous
+# attribution with status="ambiguous" and source="closing_issue".
+
+fixture_id: "ambiguous-root-closing-issues"
+description: >
+  A pull request with two or more distinct closing issues and no explicit intent
+  MUST produce an ambiguous attribution record (IA-002). Ambiguous attribution
+  must record status="ambiguous" and source="closing_issue". The resolver MUST
+  NOT resolve ambiguity by arbitrary selection.
+
+spec_refs:
+  - "§RFC 2119 Norms → Ambiguous-Root Handling"
+  - "§Attribution states → ambiguous"
+  - "§Multiple-root policy"
+
+scenarios:
+  # Scenario A: two closing issues — minimal ambiguous case.
+  - scenario_id: "ia-002-two-closing-issues"
+    description: >
+      PR has two distinct closing issues and no explicit intent override.
+      Expected: status=ambiguous, source=closing_issue.
+    input:
+      pull_request:
+        node_id: "PR_kwDOAAABCD7"
+        url: "https://github.com/owner/repo/pull/50"
+        labels: []
+        explicit_intent: null
+        closing_issues:
+          - node_id: "I_kwDOAAABCQ1"
+            type: "issue"
+            url: "https://github.com/owner/repo/issues/10"
+            labels: ["security"]
+          - node_id: "I_kwDOAAABCQ2"
+            type: "issue"
+            url: "https://github.com/owner/repo/issues/11"
+            labels: ["documentation"]
+    expected:
+      attribution:
+        status: "ambiguous"
+        source: "closing_issue"
+        rule: "multiple_closing_issues"
+
+  # Scenario B: three closing issues — still ambiguous (no arbitrary selection).
+  - scenario_id: "ia-002-three-closing-issues"
+    description: >
+      PR has three closing issues with no explicit override.
+      Expected: status=ambiguous, source=closing_issue. The resolver MUST NOT
+      arbitrarily pick a single issue to resolve the attribution.
+    input:
+      pull_request:
+        node_id: "PR_kwDOAAABCD8"
+        url: "https://github.com/owner/repo/pull/51"
+        labels: ["priority-high"]
+        explicit_intent: null
+        closing_issues:
+          - node_id: "I_kwDOAAABCQ3"
+            type: "issue"
+            url: "https://github.com/owner/repo/issues/20"
+            labels: ["security"]
+          - node_id: "I_kwDOAAABCQ4"
+            type: "issue"
+            url: "https://github.com/owner/repo/issues/21"
+            labels: ["documentation"]
+          - node_id: "I_kwDOAAABCQ5"
+            type: "issue"
+            url: "https://github.com/owner/repo/issues/22"
+            labels: ["automation"]
+    expected:
+      attribution:
+        status: "ambiguous"
+        source: "closing_issue"
+        rule: "multiple_closing_issues"
+
+  # Scenario C: two closing issues, same labels — still ambiguous.
+  # The spec forbids arbitrary selection even when issues look equivalent.
+  - scenario_id: "ia-002-same-labels-still-ambiguous"
+    description: >
+      PR has two closing issues with identical labels. Still ambiguous because
+      there are two distinct root issue nodes.
+    input:
+      pull_request:
+        node_id: "PR_kwDOAAABCD9"
+        url: "https://github.com/owner/repo/pull/52"
+        labels: []
+        explicit_intent: null
+        closing_issues:
+          - node_id: "I_kwDOAAABCQ6"
+            type: "issue"
+            url: "https://github.com/owner/repo/issues/30"
+            labels: ["security"]
+          - node_id: "I_kwDOAAABCQ7"
+            type: "issue"
+            url: "https://github.com/owner/repo/issues/31"
+            labels: ["security"]
+    expected:
+      attribution:
+        status: "ambiguous"
+        source: "closing_issue"
+        rule: "multiple_closing_issues"

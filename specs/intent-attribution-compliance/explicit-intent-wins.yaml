@@ -1,0 +1,86 @@
+# IA-001 Explicit Intent Wins — Compliance Fixture
+# Spec: §RFC 2119 Norms → Attribution-Resolution Order
+#
+# When ExplicitIntent metadata is present on a pull request, the resolver MUST
+# use it as the attribution source regardless of any closing issues or labels.
+
+fixture_id: "explicit-intent-wins"
+description: >
+  Explicit intent metadata attached to a pull request MUST be used as the sole
+  attribution source (IA-001). No other source — closing issues, PR labels — may
+  override or supplement an explicit intent record.
+
+spec_refs:
+  - "§RFC 2119 Norms → Attribution-Resolution Order (precedence rule 1)"
+  - "§Attribution sources → explicit_metadata"
+
+scenarios:
+  # Scenario A: explicit intent on a PR that also has a closing issue.
+  # The explicit metadata MUST win; the closing issue is ignored.
+  - scenario_id: "ia-001-explicit-wins-over-closing-issue"
+    description: >
+      PR has explicit ExplicitIntent metadata AND a single closing issue.
+      Expected: attribution source is explicit_metadata, status is mapped.
+    input:
+      pull_request:
+        node_id: "PR_kwDOAAABCD4"
+        url: "https://github.com/owner/repo/pull/42"
+        labels: []
+        explicit_intent:
+          status: "mapped"
+          source: "explicit_metadata"
+          rule: "explicit"
+          resolver_version: "v1"
+        closing_issues:
+          - node_id: "I_kwDOAAABCQ4"
+            type: "issue"
+            url: "https://github.com/owner/repo/issues/1"
+            labels: ["security"]
+    expected:
+      attribution:
+        status: "mapped"
+        source: "explicit_metadata"
+        rule: "explicit"
+
+  # Scenario B: explicit intent on a PR with no other intent sources.
+  - scenario_id: "ia-001-explicit-no-other-sources"
+    description: >
+      PR has explicit ExplicitIntent metadata and no closing issues or labels.
+      Expected: attribution source is explicit_metadata, status is mapped.
+    input:
+      pull_request:
+        node_id: "PR_kwDOAAABCD5"
+        url: "https://github.com/owner/repo/pull/43"
+        labels: []
+        explicit_intent:
+          status: "mapped"
+          source: "explicit_metadata"
+          rule: "explicit"
+        closing_issues: []
+    expected:
+      attribution:
+        status: "mapped"
+        source: "explicit_metadata"
+        rule: "explicit"
+
+  # Scenario C: explicit intent that is itself unmapped (status unmapped).
+  # The resolver MUST honour the status from the explicit record as-is.
+  - scenario_id: "ia-001-explicit-unmapped-honoured"
+    description: >
+      PR has explicit ExplicitIntent with status=unmapped.
+      Expected: attribution preserves the explicit record's status unchanged.
+    input:
+      pull_request:
+        node_id: "PR_kwDOAAABCD6"
+        url: "https://github.com/owner/repo/pull/44"
+        labels: ["unrelated-label"]
+        explicit_intent:
+          status: "unmapped"
+          source: "explicit_metadata"
+          rule: "explicit"
+        closing_issues: []
+    expected:
+      attribution:
+        status: "unmapped"
+        source: "explicit_metadata"
+        rule: "explicit"
