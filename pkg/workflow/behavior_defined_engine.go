@@ -329,7 +329,14 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 		"GH_AW_PROMPT":     constants.AwPromptsFile,
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
 		"RUNNER_TEMP":      "${{ runner.temp }}",
-		"NO_PROXY":         "localhost,127.0.0.1,host.docker.internal",
+		// Set both uppercase and lowercase variants. Some HTTP client runtimes
+		// (e.g. Bun, used by OpenCode) check the lowercase form; others check
+		// uppercase. Additionally include explicit host:port entries because Bun
+		// compares the full host:port string rather than stripping the port first,
+		// so "host.docker.internal:10002" would not match "host.docker.internal"
+		// alone and would incorrectly route through Squid.
+		"NO_PROXY": constants.AWFNoProxyHosts,
+		"no_proxy": constants.AWFNoProxyHosts,
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 

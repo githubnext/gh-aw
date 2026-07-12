@@ -139,6 +139,19 @@ const (
 	AntigravityLLMGatewayPort = GeminiLLMGatewayPort
 )
 
+// AWFNoProxyHosts is the value for the NO_PROXY and no_proxy environment variables
+// in the AWF agent execution environment.  Both plain hostnames and explicit host:port
+// forms are listed because some HTTP client runtimes (e.g. Bun, which backs OpenCode)
+// compare the full host:port string against the list rather than stripping the port
+// before matching, causing them to route through Squid even when the hostname alone
+// appears in the list.
+const AWFNoProxyHosts = "localhost,127.0.0.1," +
+	"host.docker.internal," +
+	"host.docker.internal:10000," +
+	"host.docker.internal:10001," +
+	"host.docker.internal:10002," +
+	"host.docker.internal:10003"
+
 // DefaultGitHubLockdown is the default value for the GitHub MCP server lockdown setting.
 // Lockdown mode restricts the GitHub MCP server to the triggering repository only.
 // Defaults to false (lockdown disabled).

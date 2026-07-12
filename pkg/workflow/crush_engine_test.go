@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -248,7 +249,7 @@ func TestCrushEngineExecution(t *testing.T) {
 		assert.Contains(t, stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, "Should include prompt argument")
 		assert.Contains(t, stepContent, "/tmp/test.log", "Should include log file")
 		assert.Contains(t, stepContent, "OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}", "Should set OPENAI_API_KEY from COPILOT_GITHUB_TOKEN")
-		assert.Contains(t, stepContent, "NO_PROXY: localhost,127.0.0.1,host.docker.internal", "Should set NO_PROXY env var")
+		assert.Contains(t, stepContent, "NO_PROXY: "+constants.AWFNoProxyHosts, "Should set NO_PROXY env var")
 	})
 
 	t.Run("basic execution with copilot-requests permission", func(t *testing.T) {

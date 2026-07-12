@@ -956,9 +956,10 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
-          NO_PROXY: localhost,127.0.0.1,host.docker.internal
+          NO_PROXY: localhost,127.0.0.1,host.docker.internal,host.docker.internal:10000,host.docker.internal:10001,host.docker.internal:10002,host.docker.internal:10003
           RUNNER_TEMP: ${{ runner.temp }}
           TRACEPARENT: ${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}
+          no_proxy: localhost,127.0.0.1,host.docker.internal,host.docker.internal:10000,host.docker.internal:10001,host.docker.internal:10002,host.docker.internal:10003
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -1636,9 +1637,10 @@ jobs:
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_WORKSPACE: ${{ github.workspace }}
-          NO_PROXY: localhost,127.0.0.1,host.docker.internal
+          NO_PROXY: localhost,127.0.0.1,host.docker.internal,host.docker.internal:10000,host.docker.internal:10001,host.docker.internal:10002,host.docker.internal:10003
           RUNNER_TEMP: ${{ runner.temp }}
           TRACEPARENT: ${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}
+          no_proxy: localhost,127.0.0.1,host.docker.internal,host.docker.internal:10000,host.docker.internal:10001,host.docker.internal:10002,host.docker.internal:10003
       - name: Parse threat detection token usage for step summary
         id: parse_detection_token_usage
         if: always()
