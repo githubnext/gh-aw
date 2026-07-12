@@ -318,6 +318,7 @@ type BaseEngine struct {
 	displayName             string
 	description             string
 	experimental            bool
+	undocumented            bool
 	ghSkillAgentName        string
 	capabilities            EngineCapabilities
 	dedicatedLLMGatewayPort int
@@ -337,6 +338,12 @@ func (e *BaseEngine) GetDescription() string {
 
 func (e *BaseEngine) IsExperimental() bool {
 	return e.experimental
+}
+
+// IsUndocumented returns true when this engine is intentionally excluded from
+// user-facing engine reference/schema drift checks.
+func (e *BaseEngine) IsUndocumented() bool {
+	return e.undocumented
 }
 
 func (e *BaseEngine) GetGHSkillAgentName() string {
@@ -552,6 +559,21 @@ func (r *EngineRegistry) GetSupportedEngines() []string {
 	agenticEngineLog.Print("Getting list of supported engines")
 	engines := sliceutil.SortedKeys(r.engines)
 	return engines
+}
+
+// GetDocumentedEngines returns registered engine IDs excluding engines that
+// explicitly opt out of documentation/schema parity checks.
+func (r *EngineRegistry) GetDocumentedEngines() []string {
+	var documented []string
+	for id, engine := range r.engines {
+		type undocumentedProvider interface{ IsUndocumented() bool }
+		if p, ok := engine.(undocumentedProvider); ok && p.IsUndocumented() {
+			continue
+		}
+		documented = append(documented, id)
+	}
+	sort.Strings(documented)
+	return documented
 }
 
 // IsValidEngine checks if an engine ID is valid

@@ -375,6 +375,11 @@ Here are proven strategies you can use or build upon:
 3. Check if all enum values are handled
 4. Find undocumented enum values
 
+When checking engine catalog/documentation parity, treat engines with
+`BaseEngine.undocumented == true` as intentionally excluded from
+`docs/src/content/docs/reference/engines.md` and schema-enum drift findings.
+Current known example: `NewAntigravityEngine()`.
+
 ### Strategy 4: Example Validation
 1. Extract code examples from documentation
 2. Validate each example against the schema

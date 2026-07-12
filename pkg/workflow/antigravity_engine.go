@@ -23,6 +23,7 @@ func NewAntigravityEngine() *AntigravityEngine {
 			displayName:      "Antigravity CLI",
 			description:      "Antigravity CLI with headless mode and LLM gateway support",
 			experimental:     true,
+			undocumented:     true,
 			ghSkillAgentName: "antigravity",
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,

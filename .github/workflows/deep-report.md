@@ -224,6 +224,10 @@ Based on your analysis, identify exactly **7 actionable tasks** (quick wins) and
 - **Workflow optimization**: Reduce token usage, improve caching, fix inefficiencies
 - **Cleanup tasks**: Remove duplicates, archive stale items, organize files
 
+For engine-catalog drift findings, skip docs/schema sync tasks for engines
+explicitly marked `undocumented` in runtime config (for example, `antigravity`).
+Treat those as intentional exclusions unless a maintainer explicitly reverses them.
+
 For each task, **CREATE A GITHUB ISSUE** using the safe-outputs create-issue capability. Each issue should contain:
 
 1. **Title** — Clear, action-oriented name (e.g., "Reduce token usage in daily-news workflow")

@@ -67,6 +67,13 @@ func TestEngineRegistry(t *testing.T) {
 		assert.Equal(t, "copilot", defaultEngine.GetID(), "default engine should be copilot")
 	})
 
+	t.Run("GetDocumentedEngines excludes undocumented engines", func(t *testing.T) {
+		registry := NewEngineRegistry()
+		documented := registry.GetDocumentedEngines()
+		assert.NotContains(t, documented, "antigravity", "antigravity is intentionally undocumented")
+		assert.Contains(t, documented, "pi", "pi should remain documented")
+	})
+
 	t.Run("GetEngineByPrefix matches engine", func(t *testing.T) {
 		registry := NewEngineRegistry()
 		engine, err := registry.GetEngineByPrefix("codex-experimental")
