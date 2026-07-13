@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-07-12T04:47:05Z",
-  "run_id": "29180171854",
+  "timestamp": "2026-07-13T04:50:40Z",
+  "run_id": "29224828148",
   "total_workflows": 256,
   "engine_breakdown": {
-    "copilot_simple": 32,
-    "copilot_sdk": 67,
-    "copilot_total": 99
+    "copilot_simple": 37,
+    "copilot_sdk": 65,
+    "copilot_total": 102
   },
   "features_available": [
     "engine.agent (custom agent file, --agent flag)",
@@ -17,7 +17,7 @@
     "engine.model (model override)",
     "engine.command (custom executable)",
     "engine.driver (custom SDK driver)",
-    "engine.harness (retry config: custom harness script)",
+    "engine.harness (retry config: max-attempts, delay)",
     "engine.mcp.tool-timeout/session-timeout",
     "engine.api-target (custom endpoint)",
     "engine.env (custom env vars)",
@@ -33,25 +33,24 @@
     "mcp-scripts (custom MCP script steps)"
   ],
   "features_usage": {
-    "copilot_sdk": {"count": 67},
-    "bare": {"count": "~19"},
-    "max_continuations": {"count": 12, "note": "smoke + production workflows"},
-    "engine_args": {"count": 3},
-    "engine_agent": {"count": 64},
-    "engine_version_pinning": {"count": 7},
-    "engine_mcp_timeout": {"count": 3, "note": "slight improvement from 0"},
-    "harness_custom_script": {"count": 0, "note": "engine.harness=0, all use default copilot_harness.cjs"},
+    "copilot_sdk": {"count": 65},
+    "bare": {"count": 19},
+    "max_continuations_prod": {"count": 6, "note": "Only 6 non-smoke production workflows"},
+    "engine_args": {"count": 0, "note": "DROPPED FROM PREV 3 - none found"},
+    "engine_agent_via_frontmatter": {"count": "numerous"},
+    "engine_version_pinning": {"count": 0, "note": "None explicitly found in current scan"},
+    "engine_mcp_timeout": {"count": 3},
+    "harness_custom_max_attempts": {"count": 0},
     "engine_cwd": {"count": 0},
-    "api_target": {"count": "smoke tests only"},
-    "byok": {"count": 3, "note": "daily-byok-ollama-test, smoke-copilot-aoai-apikey, smoke-copilot-aoai-entra"},
-    "lsp": {"count": 3, "note": "eslint-miner, jsweep, smoke-copilot"},
+    "byok": {"count": 3},
+    "lsp": {"count": 3},
     "mcp_scripts": {"count": 1},
-    "model_overrides": {"count": 39, "breakdown": {"small": 37, "mai-code": 13, "kiwi": 7, "claude-haiku": 4, "large": 3}},
-    "strict_mode": {"count": 156},
-    "network_config": {"count": "~137"},
-    "awf_sandbox": {"count": "~95"}
+    "tracker_id": {"count": 96},
+    "bare_mode": {"count": 19},
+    "sandbox_in_copilot_simple": {"count": 18, "of": 37},
+    "max_ai_credits_custom": {"count": "10+"}
   },
-  "non_smoke_copilot_simple_no_sandbox": [
+  "non_sandboxed_copilot_simple": [
     "stale-pr-cleanup.md",
     "stale-repo-identifier.md",
     "sub-issue-closer.md",
@@ -65,30 +64,32 @@
     "weekly-editors-health-check.md",
     "workflow-health-manager.md"
   ],
-  "copilot_no_max_continuations_45min_plus": {
-    "copilot_simple": ["slide-deck-maintainer.md (45min)", "stale-repo-identifier.md (45min)", "update-astro.md (45min)"],
-    "copilot_sdk": ["daily-agent-of-the-day-blog-writer.md (45min)", "daily-mcp-concurrency-analysis.md (45min)", "daily-repo-chronicle.md (45min)", "daily-security-observability.md (60min)", "daily-skill-optimizer.md (45min)", "eslint-miner.md (120min)", "firewall-escape.md (60min)", "linter-miner.md (120min)", "org-health-report.md (60min)"]
-  },
+  "long_running_no_max_continuations": [
+    "agent-persona-explorer.md (180min)",
+    "daily-doc-updater.md (45min)",
+    "slide-deck-maintainer.md (45min)",
+    "stale-repo-identifier.md (45min)",
+    "update-astro.md (45min)"
+  ],
   "key_findings": [
-    "12 non-smoke copilot-simple workflows lack sandbox/network config",
-    "12 long-running workflows (45-120min) lack max-continuations",
-    "3 workflows now use MCP timeouts (up from 0 last run)",
-    "engine.cwd = 0 usage despite being a supported feature",
-    "engine.harness custom script = 0 (all use default)",
-    "LSP servers in only 3 workflows despite code-heavy workloads",
-    "Version pinning dropped from 38 to 7 (trend towards latest)",
-    "mcp-scripts: used in only 1 workflow",
-    "BYOK now in 3 workflows including smoke tests"
+    "12 copilot-simple workflows lack sandbox config",
+    "5 long-running copilot-simple workflows (45-180min) lack max-continuations",
+    "engine.cwd = 0 usage (supported but unused)",
+    "engine.harness tuning = 0 (no max-attempts or delay customization)",
+    "engine.args = 0 (dropped from ~3 in previous run)",
+    "LSP servers still only 3 workflows",
+    "mcp-scripts used in 1 workflow",
+    "tracker-id adoption good at 96 workflows"
   ],
   "trend_vs_previous": {
-    "copilot_total": "102->99 (-3, some may have been refactored to SDK)",
-    "copilot_simple": "37->32 (-5)",
-    "copilot_sdk": "65->67 (+2)",
-    "version_pinning": "38->7 (MAJOR DROP - moved to latest)",
-    "mcp_timeout": "0->3 (improvement)",
-    "harness_custom": "1->0 (regression - daily-rendering-scripts-verifier no longer uses custom harness?)",
+    "copilot_total": "99->102 (+3)",
+    "copilot_simple": "32->37 (+5, regression toward unmanaged simple engine)",
+    "copilot_sdk": "67->65 (-2)",
+    "engine_args": "3->0 (dropped)",
     "lsp_servers": "3->3 (unchanged)",
-    "sandbox_gaps": "5->12 (grew - more non-sandboxed workflows)",
-    "byok": "1->3 (improvement)"
+    "sandbox_gaps": "12->12 (unchanged)",
+    "byok": "3->3 (stable)",
+    "mcp_scripts": "1->1 (unchanged)",
+    "max_continuations_prod": "6->6 (unchanged)"
   }
 }
