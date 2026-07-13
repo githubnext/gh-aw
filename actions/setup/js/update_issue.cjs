@@ -117,6 +117,18 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
     }
   }
 
+  // Resolve and validate label IDs before any writes to prevent partial updates:
+  // if a label name doesn't exist, buildIssueIntentLabelUpdates throws here so the
+  // REST update below is never attempted.
+  /** @type {any[] | null} */
+  let labelIntentUpdates = null;
+  if (useIssueIntentLabels && labelSpecs) {
+    const repoLabels = await fetchAllRepoLabels(github, context.repo.owner, context.repo.repo);
+    const labelIdByName = new Map(repoLabels.map(label => [label.name.toLowerCase(), label.id]));
+    labelIntentUpdates = buildIssueIntentLabelUpdates(labelSpecs, labelIdByName);
+    core.info(`Validated ${labelIntentUpdates.length} label(s) for issue #${issueNumber}`);
+  }
+
   /** @type {any} */
   let issue = currentIssue;
   if (Object.keys(apiData).length > 0) {
@@ -129,16 +141,14 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
     issue = response.data;
   }
 
-  if (useIssueIntentLabels && labelSpecs) {
+  if (useIssueIntentLabels && labelIntentUpdates) {
     const issueNodeId = issue?.node_id || currentIssue?.node_id;
     if (!issueNodeId) {
       throw new Error(`Failed to resolve GraphQL node ID for issue #${issueNumber}`);
     }
 
     core.info("Using GraphQL intent path for label update with GraphQL-Features header");
-    const repoLabels = await fetchAllRepoLabels(github, context.repo.owner, context.repo.repo);
-    const labelIdByName = new Map(repoLabels.map(label => [label.name.toLowerCase(), label.id]));
-    const labels = buildIssueIntentLabelUpdates(labelSpecs, labelIdByName);
+    const labels = labelIntentUpdates;
     core.info(`Updating ${labels.length} label(s) on issue #${issueNumber} via GraphQL intent mutation`);
     const result = await github.graphql(
       `mutation($issueId: ID!, $labels: [LabelUpdateInput!]!) {

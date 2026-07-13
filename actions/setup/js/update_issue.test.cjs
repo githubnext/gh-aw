@@ -1019,6 +1019,47 @@ describe("update_issue.cjs - cross-repo and operation integration", () => {
     );
   });
 
+  it("should fail before REST update when a label does not exist in the repository", async () => {
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 100,
+        node_id: "I_kwDO_testissue",
+        title: "Test",
+        body: "Existing body",
+        html_url: "https://github.com/testowner/testrepo/issues/100",
+      },
+    });
+    mockGithub.graphql.mockImplementation(async (query, _variables) => {
+      if (query.includes("repository(owner")) {
+        return {
+          repository: {
+            labels: {
+              nodes: [{ id: "LA_bug", name: "bug" }],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        };
+      }
+      return {};
+    });
+
+    const { main } = await import("./update_issue.cjs");
+    const handler = await main({ target: "*" });
+    const result = await handler(
+      {
+        issue_number: 100,
+        title: "New title",
+        labels: ["nonexistent-label"],
+      },
+      {}
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/nonexistent-label/);
+    // REST update must NOT have been called — no partial write
+    expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
+  });
+
   it("should update string labels via GraphQL without optional intent metadata", async () => {
     let capturedRestBody;
 

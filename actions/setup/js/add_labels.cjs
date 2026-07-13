@@ -102,7 +102,10 @@ const main = createCountGatedHandler({
             return label;
           }
           const key = label.name.toLowerCase();
-          if (!requestedLabelSpecByLowerName.has(key)) {
+          const existing = requestedLabelSpecByLowerName.get(key);
+          const newHasMetadata = Boolean(label.rationale || label.confidence || label.suggest);
+          const existingHasMetadata = existing && Boolean(existing.rationale || existing.confidence || existing.suggest);
+          if (!existing || (!existingHasMetadata && newHasMetadata)) {
             requestedLabelSpecByLowerName.set(key, label);
           }
           return label.name;

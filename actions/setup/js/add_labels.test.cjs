@@ -512,6 +512,31 @@ describe("add_labels", () => {
       expect(result.labelsAdded).toEqual(["bug", "enhancement"]);
     });
 
+    it("should prefer the metadata-bearing entry when a duplicate label name appears", async () => {
+      const handler = await main({ max: 10 });
+      const addLabelsCalls = [];
+
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          item_number: 100,
+          // First "bug" has no metadata; second "bug" carries intent metadata — second should win
+          labels: [{ name: "bug" }, { name: "bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.labelsAdded).toEqual(["bug"]);
+      expect(addLabelsCalls.length).toBe(1);
+      // The payload sent to the API must use the spec with metadata, not the plain string
+      expect(addLabelsCalls[0].labels).toEqual([{ name: "bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }]);
+    });
+
     it("should sanitize and trim label names", async () => {
       const handler = await main({ max: 10 });
       const addLabelsCalls = [];
