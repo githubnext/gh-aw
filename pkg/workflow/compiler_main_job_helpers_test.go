@@ -284,6 +284,7 @@ func TestBuildMainJobPermissions(t *testing.T) {
 		_, err := c.buildMainJobPermissions(data)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "write operations are not permitted")
+		assert.Contains(t, err.Error(), "gh issue create")
 	})
 
 	t.Run("explicit empty permissions block skips inference", func(t *testing.T) {

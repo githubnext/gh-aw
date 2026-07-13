@@ -120,7 +120,10 @@ func (c *Compiler) warnBuiltinJobEnvReferences(depends []string, engineEnvConten
 		if slices.Contains(depends, builtinJobName) {
 			continue
 		}
-		if !setutil.Contains(builtinsWarned, builtinJobName) && strings.Contains(engineEnvContent, fmt.Sprintf("needs.%s.", builtinJobName)) {
+		if setutil.Contains(builtinsWarned, builtinJobName) {
+			continue
+		}
+		if strings.Contains(engineEnvContent, "needs."+builtinJobName+".") {
 			builtinsWarned[builtinJobName] = struct{}{}
 			warningMsg := fmt.Sprintf(
 				"engine.env references built-in job '%s' in a needs expression. "+
