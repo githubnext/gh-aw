@@ -129,11 +129,11 @@ func ValidatePushBranchScope(frontmatter map[string]any) error {
 	_, hasTagsIgnore := pushMap["tags-ignore"]
 
 	if !hasBranches && !hasBranchesIgnore && !hasTags && !hasTagsIgnore {
-		filterValidationLog.Print("ERROR: push event has no branch or tag scope")
+		filterValidationLog.Print("ERROR: push event has no branches or tags scope")
 		return newUnScopedPushError()
 	}
 
-	filterValidationLog.Print("Push event branch scope is valid")
+	filterValidationLog.Print("Push event branches or tags scope is valid")
 	return nil
 }
 
