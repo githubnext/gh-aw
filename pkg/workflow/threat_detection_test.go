@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -2082,6 +2083,37 @@ func TestBuildExternalDetectorExecutionStepPropagatesRunnerTopology(t *testing.T
 		}
 		if strings.Contains(allSteps, `\"proxyLogsDir\":\"${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs\"`) {
 			t.Errorf("did not expect non-arc-dind external detector execution to rewrite proxyLogsDir under ${RUNNER_TEMP}/gh-aw;\ngot:\n%s", allSteps)
+		}
+	})
+}
+
+func TestAppendThreatDetectionRWMount(t *testing.T) {
+	threatDetectionMount := constants.ThreatDetectionDir + ":" + constants.ThreatDetectionDir + ":rw"
+
+	t.Run("appends missing mount without clobbering existing mounts", func(t *testing.T) {
+		existingMounts := []string{
+			"/tmp/existing:/tmp/existing:ro",
+			"/tmp/other:/tmp/other:rw",
+		}
+
+		got := appendThreatDetectionRWMount(append([]string(nil), existingMounts...))
+
+		want := append(append([]string(nil), existingMounts...), threatDetectionMount)
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("expected mounts %v, got %v", want, got)
+		}
+	})
+
+	t.Run("does not duplicate existing threat-detection mount", func(t *testing.T) {
+		existingMounts := []string{
+			"/tmp/existing:/tmp/existing:ro",
+			threatDetectionMount,
+		}
+
+		got := appendThreatDetectionRWMount(append([]string(nil), existingMounts...))
+
+		if !reflect.DeepEqual(got, existingMounts) {
+			t.Fatalf("expected mounts %v, got %v", existingMounts, got)
 		}
 	})
 }

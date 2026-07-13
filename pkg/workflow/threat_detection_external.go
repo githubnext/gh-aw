@@ -3,6 +3,7 @@ package workflow
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -246,6 +247,14 @@ func isAWFBinaryInstallStep(step GitHubActionStep) bool {
 	return false
 }
 
+func appendThreatDetectionRWMount(mounts []string) []string {
+	threatDetectionMount := constants.ThreatDetectionDir + ":" + constants.ThreatDetectionDir + ":rw"
+	if slices.Contains(mounts, threatDetectionMount) {
+		return mounts
+	}
+	return append(mounts, threatDetectionMount)
+}
+
 // buildExternalDetectorExecutionStep creates the AWF execution step for the external
 // threat-detect binary. It runs threat-detect inside the AWF firewall sandbox with a
 // read-write mount so detection_result.json can be written from inside the container
@@ -276,13 +285,10 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	threatDetectionData.NetworkPermissions = &NetworkPermissions{
 		Allowed: getThreatDetectionAdditionalAllowedDomains(data),
 	}
-	threatDetectionData.SandboxConfig.Agent.Mounts = append(
-		threatDetectionData.SandboxConfig.Agent.Mounts,
-		// Add a read-write mount so the threat-detect binary can write
-		// detection_result.json inside the container and it becomes visible
-		// on the host through the bind mount.
-		constants.ThreatDetectionDir+":"+constants.ThreatDetectionDir+":rw",
-	)
+	// Add a read-write mount so the threat-detect binary can write
+	// detection_result.json inside the container and it becomes visible
+	// on the host through the bind mount.
+	threatDetectionData.SandboxConfig.Agent.Mounts = appendThreatDetectionRWMount(threatDetectionData.SandboxConfig.Agent.Mounts)
 
 	// Inherit engine config overrides from threat-detection config when set.
 	if canReuseThreatDetectionEngineConfigForExternalDetector(data, engineID) {
