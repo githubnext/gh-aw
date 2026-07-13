@@ -65,9 +65,9 @@
 name: "Skillet"
 on:
   # permissions: # Permissions applied to pre-activation job
-    # contents: read
-    # issues: write
-    # pull-requests: read
+  # contents: read
+  # issues: write
+  # pull-requests: read
   workflow_dispatch:
     inputs:
       aw_context:

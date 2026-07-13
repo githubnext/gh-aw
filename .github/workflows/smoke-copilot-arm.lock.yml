@@ -72,7 +72,7 @@ name: "Smoke Copilot ARM64"
 on:
   pull_request:
     # names: # Label filtering applied via job conditions
-      # - water # Label filtering applied via job conditions
+    # - water # Label filtering applied via job conditions
     types:
       - labeled
   workflow_dispatch:

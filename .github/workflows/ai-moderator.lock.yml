@@ -75,30 +75,30 @@ on:
       - opened
   # roles: all # Roles processed as role check in pre-activation job
   # skip-author-associations: # Skip-author-associations compiled into pre-activation job if condition
-    # issue_comment:
-      # - owner
-      # - member
-      # - collaborator
-    # issues:
-      # - owner
-      # - member
-      # - collaborator
-    # pull_request:
-      # - owner
-      # - member
-      # - collaborator
+  # issue_comment:
+  # - owner
+  # - member
+  # - collaborator
+  # issues:
+  # - owner
+  # - member
+  # - collaborator
+  # pull_request:
+  # - owner
+  # - member
+  # - collaborator
   # skip-bots: # Skip-bots processed as bot check in pre-activation job
-    # - github-actions # Skip-bots processed as bot check in pre-activation job
-    # - copilot # Skip-bots processed as bot check in pre-activation job
-    # - dependabot # Skip-bots processed as bot check in pre-activation job
-    # - renovate # Skip-bots processed as bot check in pre-activation job
-    # - github-copilot-enterprise # Skip-bots processed as bot check in pre-activation job
-    # - copilot-swe-agent # Skip-bots processed as bot check in pre-activation job
+  # - github-actions # Skip-bots processed as bot check in pre-activation job
+  # - copilot # Skip-bots processed as bot check in pre-activation job
+  # - dependabot # Skip-bots processed as bot check in pre-activation job
+  # - renovate # Skip-bots processed as bot check in pre-activation job
+  # - github-copilot-enterprise # Skip-bots processed as bot check in pre-activation job
+  # - copilot-swe-agent # Skip-bots processed as bot check in pre-activation job
   # skip-roles: # Skip-roles processed as role check in pre-activation job
-    # - admin # Skip-roles processed as role check in pre-activation job
-    # - maintainer # Skip-roles processed as role check in pre-activation job
-    # - write # Skip-roles processed as role check in pre-activation job
-    # - triage # Skip-roles processed as role check in pre-activation job
+  # - admin # Skip-roles processed as role check in pre-activation job
+  # - maintainer # Skip-roles processed as role check in pre-activation job
+  # - write # Skip-roles processed as role check in pre-activation job
+  # - triage # Skip-roles processed as role check in pre-activation job
 
 permissions: {}
 

@@ -63,7 +63,7 @@ name: "Smoke Update Cross-Repo PR"
 on:
   pull_request:
     # names: # Label filtering applied via job conditions
-      # - smoke-update-cross-repo-pr # Label filtering applied via job conditions
+    # - smoke-update-cross-repo-pr # Label filtering applied via job conditions
     types:
       - labeled
   workflow_dispatch:
