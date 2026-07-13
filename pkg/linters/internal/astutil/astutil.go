@@ -285,12 +285,10 @@ func ImportedAs(file *ast.File, importPath string) (string, bool) {
 			}
 			// Default name: last segment of the path.
 			last := importPath
-			if i := len(importPath) - 1; i >= 0 {
-				for j := i; j >= 0; j-- {
-					if importPath[j] == '/' {
-						last = importPath[j+1:]
-						break
-					}
+			for j := len(importPath) - 1; j >= 0; j-- {
+				if importPath[j] == '/' {
+					last = importPath[j+1:]
+					break
 				}
 			}
 			return last, true
