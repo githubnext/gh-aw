@@ -890,7 +890,7 @@ jobs:
           GITHUB_GRAPHQL_URL: ${{ env.GITHUB_GRAPHQL_URL }}
           GITHUB_COPILOT_BASE_URL: ${{ env.GITHUB_COPILOT_BASE_URL }}
           GH_AW_NETWORK_ISOLATION: 'true'
-          CLI_PROXY_POLICY: '{"allow-only":{"min-integrity":"approved","repos":"all"}}'
+          CLI_PROXY_POLICY: '{"allow-only":{"min-integrity":"approved","repos":"${{ steps.determine-automatic-lockdown.outputs.repos }}"}}'
           CLI_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.4.1'
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/start_cli_proxy.sh"

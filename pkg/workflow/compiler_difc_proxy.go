@@ -510,6 +510,50 @@ func (c *Compiler) generateStartCliProxyStep(yaml *strings.Builder, data *Workfl
 // This mirrors how the MCP Gateway references $GITHUB_MCP_GUARD_REPOS.
 const defaultCliProxyPolicyJSONTemplate = `{"allow-only":{"repos":"${{ steps.determine-automatic-lockdown.outputs.repos }}","min-integrity":"${{ steps.determine-automatic-lockdown.outputs.min_integrity }}"}}`
 
+const defaultReposStepOutputTemplate = "${{ steps.determine-automatic-lockdown.outputs.repos }}"
+const defaultMinIntegrityStepOutputTemplate = "${{ steps.determine-automatic-lockdown.outputs.min_integrity }}"
+
+// buildCLIProxyPolicyJSON applies runtime defaults for any guard-policy fields omitted
+// in workflow frontmatter while preserving explicitly configured fields.
+func buildCLIProxyPolicyJSON(githubToolConfig map[string]any, data *WorkflowData) string {
+	policyJSON := getDIFCProxyPolicyJSON(githubToolConfig, data, data.SandboxConfig.MCP)
+	if policyJSON == "" {
+		return defaultCliProxyPolicyJSONTemplate
+	}
+
+	repos, hasRepos := githubToolConfig["allowed-repos"]
+	if !hasRepos {
+		repos, hasRepos = githubToolConfig["repos"]
+	}
+	_, hasIntegrity := githubToolConfig["min-integrity"]
+
+	var policy map[string]any
+	if err := json.Unmarshal([]byte(policyJSON), &policy); err != nil {
+		difcProxyLog.Printf("Failed to unmarshal CLI proxy policy JSON for runtime defaults: %v", err)
+		return policyJSON
+	}
+	allowOnly, ok := policy["allow-only"].(map[string]any)
+	if !ok {
+		return policyJSON
+	}
+
+	if !hasRepos {
+		allowOnly["repos"] = defaultReposStepOutputTemplate
+	} else {
+		allowOnly["repos"] = normalizeGitHubRepositoryInReposScope(repos)
+	}
+	if !hasIntegrity {
+		allowOnly["min-integrity"] = defaultMinIntegrityStepOutputTemplate
+	}
+
+	jsonBytes, err := json.Marshal(policy)
+	if err != nil {
+		difcProxyLog.Printf("Failed to marshal CLI proxy policy JSON with runtime defaults: %v", err)
+		return policyJSON
+	}
+	return string(jsonBytes)
+}
+
 // buildStartCliProxyStepYAML returns the YAML for the "Start CLI proxy" step,
 // or an empty string if the proxy cannot be configured.
 func (c *Compiler) buildStartCliProxyStepYAML(data *WorkflowData) string {
@@ -528,11 +572,7 @@ func (c *Compiler) buildStartCliProxyStepYAML(data *WorkflowData) string {
 	// so the repos restriction reflects repo visibility at runtime, matching the MCP
 	// Gateway's behavior.
 	ensureDefaultMCPGatewayConfig(data)
-	policyJSON := getDIFCProxyPolicyJSON(githubToolConfig, data, data.SandboxConfig.MCP)
-	if policyJSON == "" {
-		policyJSON = defaultCliProxyPolicyJSONTemplate
-		difcProxyLog.Print("No guard policy configured, using visibility-aware default CLI proxy policy")
-	}
+	policyJSON := buildCLIProxyPolicyJSON(githubToolConfig, data)
 
 	// Resolve the container image from the MCP gateway configuration
 	containerImage := resolveProxyContainerImage(data.SandboxConfig.MCP)

@@ -85,7 +85,7 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 		fmt.Fprintf(yaml, "          GH_AW_GITHUB_REPOS: %s\n", quoteYAMLEnvValue(configuredRepos))
 	}
 	if privateToPublicFlowsAllow {
-		yaml.WriteString("          GH_AW_PRIVATE_TO_PUBLIC_FLOWS: allow\n")
+		yaml.WriteString("          GH_AW_PRIVATE_TO_PUBLIC_FLOWS: " + quoteYAMLEnvValue("allow") + "\n")
 	}
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")

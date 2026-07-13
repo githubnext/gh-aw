@@ -922,6 +922,22 @@ func TestBuildStartCliProxyStepYAML(t *testing.T) {
 		assert.Contains(t, result, `"repos":"owner/*"`, "should use configured repos")
 	})
 
+	t.Run("uses runtime repos default when repos is omitted but min-integrity is configured", func(t *testing.T) {
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{
+					"min-integrity": "approved",
+				},
+			},
+		}
+
+		result := c.buildStartCliProxyStepYAML(data)
+		require.NotEmpty(t, result, "should emit CLI proxy step")
+		assert.Contains(t, result, `"min-integrity":"approved"`, "should preserve configured min-integrity")
+		assert.Contains(t, result, `steps.determine-automatic-lockdown.outputs.repos`, "should use runtime repos output when repos is omitted")
+		assert.NotContains(t, result, `"repos":"all"`, "should not hardcode repos=all when repos is omitted")
+	})
+
 	t.Run("emits correct step structure", func(t *testing.T) {
 		data := &WorkflowData{
 			Tools: map[string]any{

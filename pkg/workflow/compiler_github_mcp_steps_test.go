@@ -104,5 +104,5 @@ func TestGenerateGitHubMCPLockdownDetectionStepEmitsPrivateToPublicFlowsEnv(t *t
 	assert.Contains(t, output, "determine-automatic-lockdown", "detection step should be generated")
 	// When private-to-public-flows: allow is set, the step must receive the env var so the
 	// determine_automatic_lockdown.cjs script can output repos=all instead of repos=public.
-	assert.Contains(t, output, "GH_AW_PRIVATE_TO_PUBLIC_FLOWS: allow", "env var should be emitted when private-to-public-flows is allow")
+	assert.Contains(t, output, "GH_AW_PRIVATE_TO_PUBLIC_FLOWS: 'allow'", "env var should be emitted when private-to-public-flows is allow")
 }

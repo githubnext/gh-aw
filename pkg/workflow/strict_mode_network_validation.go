@@ -173,6 +173,25 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 	return nil
 }
 
+// validatePrivateToPublicFlowsStringValue validates that the string form of
+// private-to-public-flows uses the only supported value: "allow".
+func validatePrivateToPublicFlowsStringValue(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.ParsedTools == nil || workflowData.ParsedTools.GitHub == nil {
+		return nil
+	}
+	value, ok := workflowData.ParsedTools.GitHub.PrivateToPublicFlows.(string)
+	if !ok || value == "" || value == "allow" {
+		return nil
+	}
+
+	return NewValidationError(
+		"tools.github.private-to-public-flows",
+		value,
+		fmt.Sprintf("invalid value %q; expected \"allow\" or a list of MCP server IDs", value),
+		"Set tools.github.private-to-public-flows to \"allow\" for blanket opt-in, or use a list of MCP server IDs for targeted exemptions.",
+	)
+}
+
 // validatePrivateToPublicFlowsServerIDs validates that every server ID in the list form of
 // private-to-public-flows matches a declared MCP server in the workflow's tools list.
 // Per MCP Gateway Specification Section 10.9.2, unknown IDs must be rejected at compile time.
@@ -180,6 +199,7 @@ func validatePrivateToPublicFlowsServerIDs(workflowData *WorkflowData) error {
 	if workflowData == nil || workflowData.ParsedTools == nil || workflowData.ParsedTools.GitHub == nil {
 		return nil
 	}
+
 	servers, ok := workflowData.ParsedTools.GitHub.PrivateToPublicFlows.([]string)
 	if !ok || len(servers) == 0 {
 		return nil

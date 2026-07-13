@@ -182,6 +182,7 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 		{logMessage: "Validating labels", validateFn: func() error { return validateLabels(workflowData) }},
 		{logMessage: "Validating workflow_dispatch input requirements for command triggers", validateFn: func() error { return validateCommandWorkflowDispatchInputs(workflowData) }},
 		{logMessage: "Validating max-daily-ai-credits frontmatter", validateFn: func() error { return validateMaxDailyAICFrontmatter(workflowData) }},
+		{logMessage: "Validating private-to-public-flows string value", validateFn: func() error { return validatePrivateToPublicFlowsStringValue(workflowData) }},
 		{logMessage: "Validating private-to-public-flows server IDs", validateFn: func() error { return validatePrivateToPublicFlowsServerIDs(workflowData) }},
 	}
 	// This validation is intentionally outside the table below because strict mode

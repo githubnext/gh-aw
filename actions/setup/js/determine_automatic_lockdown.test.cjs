@@ -155,6 +155,18 @@ describe("determine_automatic_lockdown", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to determine repository visibility"));
   });
 
+  it("should set repos=all on API failure when GH_AW_PRIVATE_TO_PUBLIC_FLOWS=allow", async () => {
+    process.env.GH_AW_PRIVATE_TO_PUBLIC_FLOWS = "allow";
+    const error = new Error("API request failed");
+    mockGithub.rest.repos.get.mockRejectedValue(error);
+
+    await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
+
+    expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "approved");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "all");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
+  });
+
   it("should infer visibility from private field when visibility field is missing", async () => {
     mockGithub.rest.repos.get.mockResolvedValue({
       data: {
@@ -305,5 +317,21 @@ describe("determine_automatic_lockdown", () => {
     expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "approved");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("repos not configured"));
+  });
+
+  it("should warn for unrecognized GH_AW_PRIVATE_TO_PUBLIC_FLOWS value", async () => {
+    process.env.GH_AW_PRIVATE_TO_PUBLIC_FLOWS = "Allow";
+
+    mockGithub.rest.repos.get.mockResolvedValue({
+      data: {
+        private: false,
+        visibility: "public",
+      },
+    });
+
+    await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
+
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("GH_AW_PRIVATE_TO_PUBLIC_FLOWS='Allow'"));
+    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "public");
   });
 });

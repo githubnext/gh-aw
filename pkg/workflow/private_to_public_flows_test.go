@@ -389,6 +389,38 @@ func TestValidatePrivateToPublicFlowsServerIDs(t *testing.T) {
 	})
 }
 
+func TestValidatePrivateToPublicFlowsStringValue(t *testing.T) {
+	t.Run("allow string accepted", func(t *testing.T) {
+		wd := &WorkflowData{
+			ParsedTools: &Tools{
+				GitHub: &GitHubToolConfig{PrivateToPublicFlows: "allow"},
+			},
+		}
+		assert.NoError(t, validatePrivateToPublicFlowsStringValue(wd))
+	})
+
+	t.Run("invalid string rejected", func(t *testing.T) {
+		wd := &WorkflowData{
+			ParsedTools: &Tools{
+				GitHub: &GitHubToolConfig{PrivateToPublicFlows: "Allow"},
+			},
+		}
+		err := validatePrivateToPublicFlowsStringValue(wd)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid value")
+		assert.Contains(t, err.Error(), "Allow")
+	})
+
+	t.Run("list form skipped", func(t *testing.T) {
+		wd := &WorkflowData{
+			ParsedTools: &Tools{
+				GitHub: &GitHubToolConfig{PrivateToPublicFlows: []string{"github"}},
+			},
+		}
+		assert.NoError(t, validatePrivateToPublicFlowsStringValue(wd))
+	})
+}
+
 // TestIsSafeMCPServerID tests the shell-safety identifier check.
 func TestIsSafeMCPServerID(t *testing.T) {
 	safe := []string{"github", "my-server", "my_server", "server123", "UPPER-CASE"}

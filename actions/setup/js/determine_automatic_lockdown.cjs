@@ -30,6 +30,12 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * @returns {Promise<void>}
  */
 async function determineAutomaticLockdown(github, context, core) {
+  const privateToPublicFlows = process.env.GH_AW_PRIVATE_TO_PUBLIC_FLOWS || "";
+  const privateToPublicFlowsAllow = privateToPublicFlows === "allow";
+  if (privateToPublicFlows && !privateToPublicFlowsAllow) {
+    core.warning(`GH_AW_PRIVATE_TO_PUBLIC_FLOWS='${privateToPublicFlows}' is not recognized; expected 'allow'. Treating as unset.`);
+  }
+
   try {
     core.info("Determining automatic guard policy for GitHub MCP server");
 
@@ -63,8 +69,7 @@ async function determineAutomaticLockdown(github, context, core) {
     // Public repos default to repos=public to block access to private repos unless the
     // workflow author has explicitly opted in via private-to-public-flows: allow.
     // Private/internal repos default to repos=all (no cross-visibility restriction).
-    const privateToPublicFlows = process.env.GH_AW_PRIVATE_TO_PUBLIC_FLOWS || "";
-    const defaultRepos = isPrivate || privateToPublicFlows === "allow" ? "all" : "public";
+    const defaultRepos = isPrivate || privateToPublicFlowsAllow ? "all" : "public";
 
     // Set min_integrity if not already configured
     const resolvedMinIntegrity = configuredMinIntegrity || defaultMinIntegrity;
@@ -88,7 +93,7 @@ async function determineAutomaticLockdown(github, context, core) {
       core.info("Automatic guard policy determination complete for private/internal repository");
     } else {
       core.info("Automatic guard policy determination complete for public repository");
-      core.info("GitHub MCP guard policy automatically applied for public repository. " + "min-integrity='approved' and repos='public' restrict access to public repositories only.");
+      core.info(`GitHub MCP guard policy automatically applied for public repository. min-integrity='${resolvedMinIntegrity}' and repos='${resolvedRepos}'.`);
     }
 
     // Write resolved guard policy values to the step summary
@@ -114,12 +119,13 @@ async function determineAutomaticLockdown(github, context, core) {
     await core.summary.addRaw(details).write();
   } catch (error) {
     const errorMessage = getErrorMessage(error);
+    const fallbackRepos = privateToPublicFlowsAllow ? "all" : "public";
     core.error(`Failed to determine automatic guard policy: ${errorMessage}`);
     // Default to safe guard policy for public repos on error
     core.setOutput("min_integrity", "approved");
-    core.setOutput("repos", "public");
+    core.setOutput("repos", fallbackRepos);
     core.setOutput("visibility", "public");
-    core.warning("Failed to determine repository visibility. Defaulting to visibility='public' (conservative), min-integrity='approved', repos='public' for security.");
+    core.warning(`Failed to determine repository visibility. Defaulting to visibility='public' (conservative), min-integrity='approved', repos='${fallbackRepos}'.`);
   }
 }
 
