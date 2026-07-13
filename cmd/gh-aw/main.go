@@ -233,6 +233,18 @@ If no workflows are specified, all Markdown files in .github/workflows will be c
 
 ` + cli.WorkflowIDExplanation + `
 
+The --validate flag enables additional compile-time checks beyond basic compilation:
+  - GitHub Actions workflow schema validation (YAML structure and required fields)
+  - Action SHA validation (verifies pinned SHAs match the referenced action)
+  - Container image validation (requires Docker; skipped silently without it unless
+    --validate-images is also set, which makes Docker availability mandatory)
+  Validation is off by default for speed; enable it in CI or before committing.
+
+The --watch flag (-w) watches workflow files for changes and recompiles automatically:
+  - Only supports a single workflow file at a time (first file is used if multiple given)
+  - Press Ctrl+C to stop watching
+  - Useful during active workflow development for fast feedback
+
 The --dependabot flag generates dependency manifests when dependencies are detected:
   - For npm: Creates package.json and package-lock.json (requires npm in PATH)
   - For Python: Creates requirements.txt for pip packages
@@ -276,6 +288,7 @@ Unlike 'upgrade', compilation only applies codemods when you opt in with --fix.
   ` + string(constants.CLIExtensionPrefix) + ` compile workflow.md        # Compile by file path
   ` + string(constants.CLIExtensionPrefix) + ` compile .github/workflows  # Compile all workflows in a directory
   ` + string(constants.CLIExtensionPrefix) + ` compile --dir custom/workflows  # Compile from custom directory
+  ` + string(constants.CLIExtensionPrefix) + ` compile --validate             # Compile with schema and action SHA validation
   ` + string(constants.CLIExtensionPrefix) + ` compile ci-doctor --watch     # Watch and auto-compile
   ` + string(constants.CLIExtensionPrefix) + ` compile --trial --logical-repo owner/repo  # Compile for trial mode
   ` + string(constants.CLIExtensionPrefix) + ` compile --dependabot        # Generate Dependabot manifests

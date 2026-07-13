@@ -29,3 +29,29 @@ func TestCompileCommandShortFlags(t *testing.T) {
 		t.Fatalf("expected --no-models-dev-lookup default to be false, got %s", noModelsDevLookupFlag.DefValue)
 	}
 }
+
+func TestCompileValidateFlag(t *testing.T) {
+	validateFlag := compileCmd.Flags().Lookup("validate")
+	if validateFlag == nil {
+		t.Fatal("expected --validate flag on compile command")
+	}
+	if validateFlag.DefValue != "false" {
+		t.Fatalf("expected --validate default to be false, got %s", validateFlag.DefValue)
+	}
+	if validateFlag.Shorthand != "" {
+		t.Fatalf("expected --validate to have no shorthand, got -%s", validateFlag.Shorthand)
+	}
+}
+
+func TestCompileWatchFlag(t *testing.T) {
+	watchFlag := compileCmd.Flags().Lookup("watch")
+	if watchFlag == nil {
+		t.Fatal("expected --watch flag on compile command")
+	}
+	if watchFlag.Shorthand != "w" {
+		t.Fatalf("expected --watch shorthand to be -w, got -%s", watchFlag.Shorthand)
+	}
+	if watchFlag.DefValue != "false" {
+		t.Fatalf("expected --watch default to be false, got %s", watchFlag.DefValue)
+	}
+}
