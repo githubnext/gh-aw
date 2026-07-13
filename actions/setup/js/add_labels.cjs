@@ -186,7 +186,8 @@ const main = createCountGatedHandler({
 
       const labelsRequestPayload = uniqueLabels.map(name => {
         const labelSpec = requestedLabelSpecByLowerName.get(name.toLowerCase()) ?? { name };
-        return Object.keys(labelSpec).length === 1 ? labelSpec.name : labelSpec;
+        const hasIntentMetadata = Boolean(labelSpec.rationale || labelSpec.confidence || labelSpec.suggest);
+        return hasIntentMetadata ? labelSpec : labelSpec.name;
       });
 
       core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}: ${JSON.stringify(labelsRequestPayload)}`);

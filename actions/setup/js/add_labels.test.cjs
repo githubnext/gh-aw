@@ -158,6 +158,28 @@ describe("add_labels", () => {
       expect(addLabelsCalls[0].labels).toEqual([{ name: "bug", rationale: "Application crashes on file uploads >5MB", confidence: "HIGH" }]);
     });
 
+    it("should normalize lowercase confidence in structured label metadata", async () => {
+      const handler = await main({ max: 10 });
+      const addLabelsCalls = [];
+
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          item_number: 456,
+          labels: [{ name: "bug", rationale: "Application crashes on file uploads >5MB", confidence: "high" }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(addLabelsCalls).toHaveLength(1);
+      expect(addLabelsCalls[0].labels).toEqual([{ name: "bug", rationale: "Application crashes on file uploads >5MB", confidence: "HIGH" }]);
+    });
+
     it("should accept issue_number as an alias for item_number", async () => {
       const handler = await main({ max: 10 });
       const addLabelsCalls = [];
