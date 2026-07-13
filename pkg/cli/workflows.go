@@ -355,10 +355,6 @@ func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
 // Returns an error if frontmatter is opened but never closed.
 func fastParseTitleFromReader(r io.Reader) (string, error) {
 	scanner := bufio.NewScanner(r)
-	frontmatterDelimiter := []byte("---")
-	h1Prefix := []byte("# ")
-	h2Prefix := []byte("## ")
-	h3Prefix := []byte("### ")
 	// Reuse the small initial scanner buffer across calls while still allowing
 	// growth up to 1 MB for large frontmatter values or long base64-encoded lines.
 	pooled := workflowTitleScannerBufferPool.Get()
@@ -381,26 +377,33 @@ func fastParseTitleFromReader(r io.Reader) (string, error) {
 	firstLine := true
 	inFrontmatter := false
 	for scanner.Scan() {
-		trimmed := bytes.TrimSpace(scanner.Bytes())
+		line := scanner.Bytes()
 		if firstLine {
 			firstLine = false
-			if bytes.Equal(trimmed, frontmatterDelimiter) {
+			if isFrontmatterDelimiter(line) {
+				inFrontmatter = true
+				continue
+			}
+			if trimmed := bytes.TrimSpace(line); isFrontmatterDelimiter(trimmed) {
 				inFrontmatter = true
 				continue
 			}
 		} else if inFrontmatter {
-			if bytes.Equal(trimmed, frontmatterDelimiter) {
+			if isFrontmatterDelimiter(line) {
+				inFrontmatter = false
+			} else if trimmed := bytes.TrimSpace(line); isFrontmatterDelimiter(trimmed) {
 				inFrontmatter = false
 			}
 			continue
 		}
-		switch {
-		case bytes.HasPrefix(trimmed, h1Prefix):
-			return string(bytes.TrimSpace(trimmed[2:])), nil
-		case bytes.HasPrefix(trimmed, h2Prefix):
-			return string(bytes.TrimSpace(trimmed[3:])), nil
-		case bytes.HasPrefix(trimmed, h3Prefix):
-			return string(bytes.TrimSpace(trimmed[4:])), nil
+
+		if title, ok := extractHeadingTitle(line); ok {
+			return title, nil
+		}
+		if trimmed := bytes.TrimSpace(line); !bytes.Equal(trimmed, line) {
+			if title, ok := extractHeadingTitle(trimmed); ok {
+				return title, nil
+			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -413,6 +416,23 @@ func fastParseTitleFromReader(r io.Reader) (string, error) {
 	}
 
 	return "", nil
+}
+
+func isFrontmatterDelimiter(line []byte) bool {
+	return len(line) == 3 && line[0] == '-' && line[1] == '-' && line[2] == '-'
+}
+
+func extractHeadingTitle(line []byte) (string, bool) {
+	switch {
+	case len(line) >= 2 && line[0] == '#' && line[1] == ' ':
+		return string(bytes.TrimSpace(line[2:])), true
+	case len(line) >= 3 && line[0] == '#' && line[1] == '#' && line[2] == ' ':
+		return string(bytes.TrimSpace(line[3:])), true
+	case len(line) >= 4 && line[0] == '#' && line[1] == '#' && line[2] == '#' && line[3] == ' ':
+		return string(bytes.TrimSpace(line[4:])), true
+	default:
+		return "", false
+	}
 }
 
 // extractWorkflowNameFromFile extracts the workflow name from a file's H1 header
