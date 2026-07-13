@@ -145,10 +145,10 @@ func validateExpressionSizesSinglePass(yamlContent string, maxSize int) error {
 		}
 
 		// Detect the start of a block scalar: a YAML key whose value is | or >
-		// e.g. "        run: |" or "    script: >"
+		// e.g. "        run: |" or "    script: >" or "    run: |+" or "    run: |2-"
 		if colonIdx := strings.Index(trimmed, ":"); colonIdx > 0 {
 			afterColon := strings.TrimSpace(trimmed[colonIdx+1:])
-			if afterColon == "|" || afterColon == ">" || strings.HasPrefix(afterColon, "|-") || strings.HasPrefix(afterColon, ">-") {
+			if isBlockScalarHeader(afterColon) {
 				inBlock = true
 				blockKey = strings.TrimSpace(trimmed[:colonIdx])
 				blockStartLine = lineNum - 1 // 0-indexed; checkBlock reports it as blockStartLine+1
@@ -161,6 +161,39 @@ func validateExpressionSizesSinglePass(yamlContent string, maxSize int) error {
 
 	// Check any block that was still open at EOF.
 	return checkBlock()
+}
+
+// isBlockScalarHeader reports whether s (the trimmed string after a YAML colon)
+// is a valid YAML block scalar indicator, covering all YAML-spec variants:
+//
+//	bare:           "|"   ">"
+//	strip chomping: "|-"  ">-"
+//	keep chomping:  "|+"  ">+"
+//	indent only:    "|2"  ">3"     (digit 1–9)
+//	indent+strip:   "|2-" ">3-"   (also "|-2", ">-3")
+//	indent+keep:    "|2+" ">3+"   (also "|+2", ">+3")
+func isBlockScalarHeader(s string) bool {
+	if len(s) == 0 || (s[0] != '|' && s[0] != '>') {
+		return false
+	}
+	rest := s[1:]
+	switch rest {
+	case "", "-", "+":
+		return true
+	}
+	if len(rest) == 1 {
+		return rest[0] >= '1' && rest[0] <= '9'
+	}
+	if len(rest) == 2 {
+		r0, r1 := rest[0], rest[1]
+		if r0 >= '1' && r0 <= '9' {
+			return r1 == '-' || r1 == '+'
+		}
+		if r0 == '-' || r0 == '+' {
+			return r1 >= '1' && r1 <= '9'
+		}
+	}
+	return false
 }
 
 // validateBlockScalarExpressionSizes scans the YAML lines for multi-line block scalars
@@ -219,10 +252,10 @@ func validateBlockScalarExpressionSizes(lines []string, maxSize int) error {
 		}
 
 		// Detect the start of a block scalar: a YAML key whose value is | or >
-		// e.g. "        run: |" or "    script: >"
+		// e.g. "        run: |" or "    script: >" or "    run: |+" or "    run: |2-"
 		if colonIdx := strings.Index(trimmed, ":"); colonIdx > 0 {
 			afterColon := strings.TrimSpace(trimmed[colonIdx+1:])
-			if afterColon == "|" || afterColon == ">" || strings.HasPrefix(afterColon, "|-") || strings.HasPrefix(afterColon, ">-") {
+			if isBlockScalarHeader(afterColon) {
 				inBlock = true
 				blockKey = strings.TrimSpace(trimmed[:colonIdx])
 				blockStartLine = i
