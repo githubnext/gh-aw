@@ -75,9 +75,7 @@ export const noCoreExportVariableNonStringRule = createRule({
 
         // Property must be `exportVariable` (direct or computed string-literal access)
         const prop = callee.property;
-        const isExportVariableProp =
-          (!callee.computed && prop.type === AST_NODE_TYPES.Identifier && prop.name === "exportVariable") ||
-          (callee.computed && prop.type === AST_NODE_TYPES.Literal && prop.value === "exportVariable");
+        const isExportVariableProp = (!callee.computed && prop.type === AST_NODE_TYPES.Identifier && prop.name === "exportVariable") || (callee.computed && prop.type === AST_NODE_TYPES.Literal && prop.value === "exportVariable");
         if (!isExportVariableProp) return;
 
         // core.exportVariable expects exactly two arguments: (name, value)

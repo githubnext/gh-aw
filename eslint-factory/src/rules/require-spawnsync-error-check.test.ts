@@ -11,9 +11,7 @@ const cjsRuleTester = new RuleTester({
 
 describe("require-spawnsync-error-check", () => {
   it("uses the correct docs URL", () => {
-    expect(requireSpawnSyncErrorCheckRule.meta.docs.url).toBe(
-      "https://github.com/github/gh-aw/tree/main/eslint-factory#require-spawnsync-error-check",
-    );
+    expect(requireSpawnSyncErrorCheckRule.meta.docs.url).toBe("https://github.com/github/gh-aw/tree/main/eslint-factory#require-spawnsync-error-check");
   });
 
   it("valid: result.error is checked alongside result.status", () => {
@@ -54,10 +52,7 @@ describe("require-spawnsync-error-check", () => {
 
   it("valid: non-spawnSync call is ignored", () => {
     cjsRuleTester.run("require-spawnsync-error-check", requireSpawnSyncErrorCheckRule, {
-      valid: [
-        `const result = execSync("git status"); if (!result) throw new Error("failed");`,
-        `const result = spawnSync; result.toString();`,
-      ],
+      valid: [`const result = execSync("git status"); if (!result) throw new Error("failed");`, `const result = spawnSync; result.toString();`],
       invalid: [],
     });
   });
