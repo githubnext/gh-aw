@@ -120,7 +120,7 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
   // Resolve and validate label IDs before any writes to prevent partial updates:
   // if a label name doesn't exist, buildIssueIntentLabelUpdates throws here so the
   // REST update below is never attempted.
-  /** @type {any[] | null} */
+  /** @type {any} */
   let labelIntentUpdates = null;
   if (useIssueIntentLabels && labelSpecs) {
     const repoLabels = await fetchAllRepoLabels(github, context.repo.owner, context.repo.repo);
