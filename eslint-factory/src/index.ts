@@ -13,6 +13,7 @@ import { requireJsonParseTryCatchRule } from "./rules/require-json-parse-try-cat
 import { requireErrorCauseInRethrowRule } from "./rules/require-error-cause-in-rethrow";
 import { requireParseIntRadixRule } from "./rules/require-parseInt-radix";
 import { requireReturnAfterCoreSetFailedRule } from "./rules/require-return-after-core-setfailed";
+import { requireSpawnSyncErrorCheckRule } from "./rules/require-spawnsync-error-check";
 
 const plugin = {
   meta: {
@@ -35,6 +36,7 @@ const plugin = {
     "require-json-parse-try-catch": requireJsonParseTryCatchRule,
     "require-parseInt-radix": requireParseIntRadixRule,
     "require-return-after-core-setfailed": requireReturnAfterCoreSetFailedRule,
+    "require-spawnsync-error-check": requireSpawnSyncErrorCheckRule,
   },
 };
 
