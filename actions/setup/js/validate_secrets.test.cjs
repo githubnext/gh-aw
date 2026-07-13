@@ -120,7 +120,7 @@ describe("validate_secrets", () => {
 
   describe("makePostRequest", () => {
     afterEach(() => {
-      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
     });
 
     /**
@@ -151,10 +151,10 @@ describe("validate_secrets", () => {
       await expect(makePostRequest("api.example.com", "/v1/test", {}, "{}")).rejects.toThrow("connection refused");
     });
 
-    it("rejects with abort error on timeout", async () => {
+    it("rejects with timeout error on abort", async () => {
       vi.stubGlobal("fetch", vi.fn().mockRejectedValue(Object.assign(new Error("The operation was aborted"), { name: "AbortError" })));
 
-      await expect(makePostRequest("api.example.com", "/v1/test", {}, "{}")).rejects.toThrow();
+      await expect(makePostRequest("api.example.com", "/v1/test", {}, "{}")).rejects.toThrow("Request timeout");
     });
   });
 

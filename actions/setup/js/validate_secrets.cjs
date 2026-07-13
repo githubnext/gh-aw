@@ -53,32 +53,48 @@ const SECRET_DOCS = {
  * @returns {Promise<{statusCode: number, data: string}>}
  */
 async function makeRequest(hostname, path, headers) {
-  const res = await fetch(`https://${hostname}${path}`, {
-    method: "GET",
-    headers,
-    signal: AbortSignal.timeout(10000),
-  });
-  const data = await res.text();
-  return { statusCode: res.status, data };
+  try {
+    const res = await fetch(`https://${hostname}${path}`, {
+      method: "GET",
+      headers,
+      signal: AbortSignal.timeout(10000),
+    });
+    const data = await res.text();
+    return { statusCode: res.status, data };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error("Request timeout");
+    }
+    throw err;
+  }
 }
 
 /**
  * Make an HTTPS POST request
  * @param {string} hostname
  * @param {string} path
- * @param {Record<string, string>} headers
+ * @param {Record<string, string>} headers - If no `Content-Type` key is present (case-insensitive),
+ *   defaults to `application/json`. Pass an explicit `Content-Type` to override.
  * @param {string} body
  * @returns {Promise<{statusCode: number, data: string}>}
  */
 async function makePostRequest(hostname, path, headers, body) {
-  const res = await fetch(`https://${hostname}${path}`, {
-    method: "POST",
-    headers: { ...headers, "Content-Type": headers["Content-Type"] || "application/json" },
-    body,
-    signal: AbortSignal.timeout(10000),
-  });
-  const data = await res.text();
-  return { statusCode: res.status, data };
+  const hasContentType = Object.keys(headers).some(k => k.toLowerCase() === "content-type");
+  try {
+    const res = await fetch(`https://${hostname}${path}`, {
+      method: "POST",
+      headers: hasContentType ? headers : { ...headers, "Content-Type": "application/json" },
+      body,
+      signal: AbortSignal.timeout(10000),
+    });
+    const data = await res.text();
+    return { statusCode: res.status, data };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error("Request timeout");
+    }
+    throw err;
+  }
 }
 
 /**
