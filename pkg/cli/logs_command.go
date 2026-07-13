@@ -39,7 +39,7 @@ This command fetches workflow runs, downloads their artifacts, and extracts them
 organized folders named by run ID. It also provides an overview table with aggregate
 metrics including duration, token usage, and cost information.
 
-By default only the compact usage artifact is downloaded (token usage, run metadata).
+By default, only the compact usage artifact is downloaded (token usage, run metadata).
 Use --artifacts all to download all artifacts, or specify individual sets such as
 --artifacts agent,firewall to fetch only what you need.
 
@@ -83,7 +83,7 @@ Downloaded artifacts include (when using --artifacts all):
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref main                # Filter logs by branch or tag
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref feature-xyz         # Filter logs by feature branch
   ` + string(constants.CLIExtensionPrefix) + ` logs --filtered-integrity      # Filter logs containing items that were filtered by gateway integrity checks
-  ` + string(constants.CLIExtensionPrefix) + ` logs --no-staged               # Exclude staged workflow runs from results
+  ` + string(constants.CLIExtensionPrefix) + ` logs --exclude-staged          # Exclude staged workflow runs from results
 
   # Run ID range filtering
   ` + string(constants.CLIExtensionPrefix) + ` logs --after-run-id 1000       # Filter runs after run ID 1000
@@ -143,7 +143,7 @@ Downloaded artifacts include (when using --artifacts all):
 				repoOverride, _ := cmd.Flags().GetString("repo")
 				verbose, _ := cmd.Flags().GetBool("verbose")
 				toolGraph, _ := cmd.Flags().GetBool("tool-graph")
-				noStaged, _ := cmd.Flags().GetBool("no-staged")
+				noStaged, _ := cmd.Flags().GetBool("exclude-staged")
 				firewallOnly, _ := cmd.Flags().GetBool("firewall")
 				noFirewall, _ := cmd.Flags().GetBool("no-firewall")
 				parse, _ := cmd.Flags().GetBool("parse")
@@ -263,7 +263,7 @@ Downloaded artifacts include (when using --artifacts all):
 			afterRunID, _ := cmd.Flags().GetInt64("after-run-id")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
-			noStaged, _ := cmd.Flags().GetBool("no-staged")
+			noStaged, _ := cmd.Flags().GetBool("exclude-staged")
 			firewallOnly, _ := cmd.Flags().GetBool("firewall")
 			noFirewall, _ := cmd.Flags().GetBool("no-firewall")
 			parse, _ := cmd.Flags().GetBool("parse")
@@ -363,7 +363,7 @@ Downloaded artifacts include (when using --artifacts all):
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
 	addRepoFlag(logsCmd)
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
-	logsCmd.Flags().Bool("no-staged", false, "Exclude workflow runs that executed in staged mode (safe outputs previewed but not applied)")
+	logsCmd.Flags().Bool("exclude-staged", false, "Exclude workflow runs that executed in staged mode (safe outputs previewed but not applied)")
 	logsCmd.Flags().Bool("firewall", false, "Filter to only runs with firewall enabled")
 	logsCmd.Flags().Bool("no-firewall", false, "Filter to only runs without firewall enabled")
 	logsCmd.Flags().String("safe-output", "", "Filter to runs containing a specific safe output type (e.g., create-issue, missing-tool, missing-data, noop, report-incomplete)")

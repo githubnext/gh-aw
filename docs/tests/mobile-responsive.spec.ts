@@ -222,7 +222,6 @@ test.describe('Mobile and Responsive Layout', () => {
     await context.close();
   });
 
-
   // Regression test for https://github.com/github/gh-aw/issues/29545
   // Verify the navigation dropdown is fully within the viewport when large
   // user fonts cause header elements to shift on Android Chrome.

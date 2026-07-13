@@ -63,16 +63,16 @@ func applyRunFilters(result DownloadResult, opts runFilterOpts, verbose bool) bo
 		}
 	}
 
-	// Apply staged filtering if --no-staged flag is specified.
+	// Apply staged filtering if --exclude-staged flag is specified.
 	if opts.noStaged {
 		var isStaged bool
 		if awInfoErr == nil && awInfo != nil {
 			isStaged = awInfo.Staged
 		}
 		if isStaged {
-			logsOrchestratorLog.Printf("Skipping run %d: staged workflow filtered by --no-staged", result.Run.DatabaseID)
+			logsOrchestratorLog.Printf("Skipping run %d: staged workflow filtered by --exclude-staged", result.Run.DatabaseID)
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered out by --no-staged)", result.Run.DatabaseID)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered out by --exclude-staged)", result.Run.DatabaseID)))
 			}
 			return true
 		}

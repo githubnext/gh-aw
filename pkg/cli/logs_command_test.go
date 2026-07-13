@@ -40,7 +40,7 @@ func TestNewLogsCommand(t *testing.T) {
 	// Check engine flag
 	engineFlag := flags.Lookup("engine")
 	assert.NotNil(t, engineFlag, "Should have 'engine' flag")
-	assert.Empty(t, engineFlag.Shorthand, "Engine filter flag should not have shorthand")
+	assert.Equal(t, "e", engineFlag.Shorthand, "Engine filter flag should have shorthand '-e'")
 
 	// Check firewall flags
 	firewallFlag := flags.Lookup("firewall")

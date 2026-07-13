@@ -14,8 +14,6 @@ Use skills — domain-specific knowledge files (`SKILL.md`) under `skills/` or `
 find "${GITHUB_WORKSPACE}" -name "SKILL.md" -maxdepth 6
 ```
 
-List available skills before choosing a strategy.
-
 ---
 
 ## Frontmatter `skills:` (SHA-Pinned Installs)
@@ -33,7 +31,7 @@ skills:
 - Static references must be pinned to a full 40-character lowercase commit SHA; `${{ ... }}` expressions are allowed in the ref position and resolved at runtime.
 - Object entries set per-skill auth via `github-token` or `github-app`.
 
-This is distinct from the prompt-side strategies below (hint / fusion / inline), which shape skill *content* into the prompt rather than installing skill packages.
+Distinct from the prompt-side strategies below (hint / fusion / inline), which shape skill *content* into the prompt rather than installing packages.
 
 ---
 
@@ -41,15 +39,7 @@ This is distinct from the prompt-side strategies below (hint / fusion / inline),
 
 **Use when**: the relevant skill is not obvious, the repository may not contain the right skill yet, or you want to discover installable skills before loading local ones.
 
-Query **GitHub Agent Finder** through its REST API (ARD search shape: `query.text`; add `query.filter` to narrow by resource type):
-
-```bash
-curl -s https://agentfinder.github.com/api/v1/search \
-  -H 'Content-Type: application/json' \
-  -d '{"query":{"text":"<the user task, in plain language>"},"pageSize":10}'
-```
-
-To search specifically for skills, add a type filter:
+Query **GitHub Agent Finder** through its REST API (ARD search shape: `query.text`; add `query.filter` to narrow by resource type — omit `filter` to search all types):
 
 ```bash
 curl -s https://agentfinder.github.com/api/v1/search \
@@ -60,11 +50,8 @@ curl -s https://agentfinder.github.com/api/v1/search \
 After discovery:
 
 - Prefer repository-local skills when they satisfy the task.
-- If you use a discovered skill, extract only the specific guidance you need.
-- Do not load or paste entire skills when a fragment is enough.
+- Extract only the specific guidance you need; do not paste entire skills when a fragment is enough.
 - Do not install or enable returned resources automatically; that requires explicit user choice.
-
-Agent Finder helps locate candidates; **skill fusion** keeps the final prompt small.
 
 ---
 
@@ -72,7 +59,7 @@ Agent Finder helps locate candidates; **skill fusion** keeps the final prompt sm
 
 **Use when**: keeping the main prompt compact while shipping task-specific skill guidance with the workflow.
 
-Inline skills embed a complete skill or fragment under `## skill: \`name\``. Extraction runs in the setup/interpolation step (not at compile time): gh-aw writes each block to engine-specific skill locations and removes it from the main prompt body. Fuse a full skill for a self-contained capability, or partial sections when only targeted guidance is needed.
+Inline skills embed a complete skill or fragment under `## skill: \`name\``. Extraction runs in the setup/interpolation step (not at compile time): gh-aw writes each block to engine-specific skill locations and removes it from the main prompt body.
 
 **Pattern**:
 
@@ -98,9 +85,7 @@ Use a unique inline skill name per workflow file. Name must start with a lowerca
 
 ## Strategy 1 — Hint (Generalist)
 
-**Use when**: the task strategy is unknown at authoring time, or the agent must adapt to whatever skills are available.
-
-The prompt tells the agent skills exist and to discover/apply the relevant ones itself.
+**Use when**: the task strategy is unknown at authoring time, or the agent must adapt to whatever skills are available. The prompt tells the agent skills exist and to discover/apply the relevant ones itself.
 
 **Pattern**:
 
@@ -114,9 +99,7 @@ guidance it provides.
 
 ## Strategy 2 — Fusion (Ultra-Cognitive)
 
-**Use when**: you know exactly which skill (or part of it) is needed and want minimal context overhead.
-
-Inline **only the specific sections** of the skill the agent needs. Do not paste the entire SKILL.md.
+**Use when**: you know exactly which skill (or part of it) is needed and want minimal context overhead. Inline **only the specific sections** the agent needs; never paste the entire SKILL.md.
 
 **Pattern**:
 
@@ -139,8 +122,6 @@ environment. Never prompt the user for credentials.
 | **Maintenance burden** | Low (agent self-selects) | Higher (manual sync with source) |
 | **Determinism** | Lower (agent chooses) | Higher (exact fragment) |
 | **Scale** | Poor (entire skills loaded) | Good (minimal content) |
-
-Prefer fusion when the task domain and required skill sections are known; it never loads entire skills.
 
 ---
 

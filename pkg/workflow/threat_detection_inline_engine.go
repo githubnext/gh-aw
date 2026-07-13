@@ -115,33 +115,17 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	// bash: ["*"] allows all shell commands — AWF's network firewall is the primary
 	// constraint, so restricting individual bash commands inside the sandbox adds friction
 	// without meaningful security benefit.
-	// RunnerConfig is propagated from the main workflow data so that arc-dind topology
-	// handling (daemon-visible Copilot staging step + daemon-visible spawn path) applies
-	// to the detection job the same way it applies to the agent job.
 	// ModelMappings is propagated so the detection awf-config.json includes the alias map
 	// (apiProxy.models). Without it, copilot_harness.cjs cannot resolve alias model names
 	// (e.g. "small") to concrete ids before spawning the Copilot CLI in the detection job.
-	threatDetectionData := &WorkflowData{
-		Tools: map[string]any{
-			"bash": []any{"*"},
-		},
-		SafeOutputs:       nil,
-		EngineConfig:      detectionEngineConfig,
-		AI:                engineSetting,
-		Features:          data.Features,
-		Permissions:       data.Permissions,
-		CachedPermissions: data.CachedPermissions,
-		IsDetectionRun:    true,               // Mark as detection run for phase tagging
-		RunnerConfig:      data.RunnerConfig,  // propagate runner.topology (e.g. arc-dind) to the detection job
-		ModelMappings:     data.ModelMappings, // propagate alias map so detection awf-config.json can resolve model aliases
-		NetworkPermissions: &NetworkPermissions{
-			Allowed: getThreatDetectionAdditionalAllowedDomains(data),
-		},
-		SandboxConfig: &SandboxConfig{
-			Agent: &AgentSandboxConfig{
-				Type: SandboxTypeAWF,
-			},
-		},
+	threatDetectionData := buildThreatDetectionWorkflowData(data, engineSetting)
+	threatDetectionData.Tools = map[string]any{
+		"bash": []any{"*"},
+	}
+	threatDetectionData.EngineConfig = detectionEngineConfig
+	threatDetectionData.ModelMappings = data.ModelMappings // propagate alias map so detection awf-config.json can resolve model aliases
+	threatDetectionData.NetworkPermissions = &NetworkPermissions{
+		Allowed: getThreatDetectionAdditionalAllowedDomains(data),
 	}
 
 	var steps []string

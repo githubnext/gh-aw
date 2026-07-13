@@ -326,7 +326,7 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
 			expected: `on:
   pull_request:
     # forks: # Fork filtering applied via job conditions
-    # - trusted/* # Fork filtering applied via job conditions
+      # - trusted/* # Fork filtering applied via job conditions
   issues:
     # names: # Label filtering applied via job conditions
     # - bug # Label filtering applied via job conditions

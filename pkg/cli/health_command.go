@@ -37,7 +37,7 @@ func NewHealthCommand() *cobra.Command {
 		Long: `Display workflow health metrics, success rates, and execution trends.
 
 Shows health metrics for workflows including:
-- Success/failure rates over time period
+- Success/failure rates over a time period
 - Trend indicators (↑ improving, → stable, ↓ degrading)
 - Average execution duration
 - Warnings when success rate drops below threshold

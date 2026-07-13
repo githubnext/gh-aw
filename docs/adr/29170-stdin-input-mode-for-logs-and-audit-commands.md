@@ -64,7 +64,7 @@ A `--file` flag could accept a path to a text file containing run IDs. This is m
 
 ### Flag Interactions
 
-1. Content-filtering flags (`--engine`, `--firewall`, `--no-firewall`, `--safe-output`, `--filtered-integrity`, `--no-staged`) **MUST** apply to runs supplied via stdin in the same way they apply to runs discovered via the GitHub API.
+1. Content-filtering flags (`--engine`, `--firewall`, `--no-firewall`, `--safe-output`, `--filtered-integrity`, `--exclude-staged`) **MUST** apply to runs supplied via stdin in the same way they apply to runs discovered via the GitHub API.
 2. Discovery-scoping flags that are meaningless without API discovery (`--count`, `--date`, `--after`, workflow-name positional argument) **SHOULD NOT** silently take effect in stdin mode; implementations **SHOULD** document that these flags are ignored when `--stdin` is set.
 
 ### Conformance

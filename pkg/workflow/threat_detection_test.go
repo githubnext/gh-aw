@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -1957,6 +1958,162 @@ func TestBuildPullAWFContainersStepPropagatesFeatures(t *testing.T) {
 
 		if strings.Contains(stepsString, "cli-proxy") {
 			t.Error("Expected no cli-proxy image in pull step when cli-proxy feature flag is not set")
+		}
+	})
+}
+
+func TestBuildPullAWFContainersStepPropagatesRunnerTopology(t *testing.T) {
+	compiler := NewCompiler()
+	buildToolsImagePrefix := constants.DefaultFirewallRegistry + "/build-tools:"
+
+	t.Run("arc-dind includes build-tools image", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "copilot",
+			RunnerConfig: &RunnerConfig{
+				Topology: RunnerTopologyArcDind,
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := compiler.buildPullAWFContainersStep(data)
+		stepsString := strings.Join(steps, "")
+
+		if !strings.Contains(stepsString, buildToolsImagePrefix) {
+			t.Errorf("expected build-tools image prefix %q in detection pull step for arc-dind;\ngot:\n%s", buildToolsImagePrefix, stepsString)
+		}
+	})
+
+	t.Run("non-arc-dind excludes build-tools image", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "copilot",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := compiler.buildPullAWFContainersStep(data)
+		stepsString := strings.Join(steps, "")
+
+		if strings.Contains(stepsString, buildToolsImagePrefix) {
+			t.Errorf("did not expect build-tools image prefix %q in detection pull step without arc-dind;\ngot:\n%s", buildToolsImagePrefix, stepsString)
+		}
+	})
+
+	t.Run("permissions do not change pulled images", func(t *testing.T) {
+		baseData := &WorkflowData{
+			AI: "copilot",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+		withPermissions := &WorkflowData{
+			AI:                baseData.AI,
+			SafeOutputs:       baseData.SafeOutputs,
+			Permissions:       "contents: read",
+			CachedPermissions: NewPermissionsContentsRead(),
+		}
+
+		baseSteps := strings.Join(compiler.buildPullAWFContainersStep(baseData), "")
+		permissionSteps := strings.Join(compiler.buildPullAWFContainersStep(withPermissions), "")
+
+		if permissionSteps != baseSteps {
+			t.Errorf("expected detection pull step to ignore permissions when collecting images;\nwithout permissions:\n%s\nwith permissions:\n%s", baseSteps, permissionSteps)
+		}
+	})
+}
+
+func TestBuildExternalDetectorExecutionStepPropagatesRunnerTopology(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("arc-dind uses daemon-visible AWF paths", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "copilot",
+			RunnerConfig: &RunnerConfig{
+				Topology: RunnerTopologyArcDind,
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := compiler.buildExternalDetectorExecutionStep(data)
+		if len(steps) == 0 {
+			t.Fatal("expected non-empty steps")
+		}
+		allSteps := strings.Join(steps, "")
+
+		if !strings.Contains(allSteps, `--mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro"`) {
+			t.Errorf("expected arc-dind external detector execution to mount ${RUNNER_TEMP}/gh-aw read-only;\ngot:\n%s", allSteps)
+		}
+		if !strings.Contains(allSteps, `--mount "${RUNNER_TEMP}/gh-aw/home:${RUNNER_TEMP}/gh-aw/home:rw"`) {
+			t.Errorf("expected arc-dind external detector execution to mount ${RUNNER_TEMP}/gh-aw/home read-write;\ngot:\n%s", allSteps)
+		}
+		if !strings.Contains(allSteps, `\"proxyLogsDir\":\"${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs\"`) {
+			t.Errorf("expected arc-dind external detector execution to rewrite proxyLogsDir under ${RUNNER_TEMP}/gh-aw;\ngot:\n%s", allSteps)
+		}
+		if !strings.Contains(allSteps, `\"auditDir\":\"${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit\"`) {
+			t.Errorf("expected arc-dind external detector execution to rewrite auditDir under ${RUNNER_TEMP}/gh-aw;\ngot:\n%s", allSteps)
+		}
+		if !strings.Contains(allSteps, "export HOME=${RUNNER_TEMP}/gh-aw/home") {
+			t.Errorf("expected arc-dind external detector execution to export HOME under ${RUNNER_TEMP}/gh-aw/home;\ngot:\n%s", allSteps)
+		}
+	})
+
+	t.Run("non-arc-dind keeps standard AWF paths", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "copilot",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := compiler.buildExternalDetectorExecutionStep(data)
+		if len(steps) == 0 {
+			t.Fatal("expected non-empty steps")
+		}
+		allSteps := strings.Join(steps, "")
+
+		if strings.Contains(allSteps, `--mount "${RUNNER_TEMP}/gh-aw/home:${RUNNER_TEMP}/gh-aw/home:rw"`) {
+			t.Errorf("did not expect non-arc-dind external detector execution to mount ${RUNNER_TEMP}/gh-aw/home read-write;\ngot:\n%s", allSteps)
+		}
+		if strings.Contains(allSteps, "export HOME=${RUNNER_TEMP}/gh-aw/home") {
+			t.Errorf("did not expect non-arc-dind external detector execution to export HOME under ${RUNNER_TEMP}/gh-aw/home;\ngot:\n%s", allSteps)
+		}
+		if strings.Contains(allSteps, `\"proxyLogsDir\":\"${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs\"`) {
+			t.Errorf("did not expect non-arc-dind external detector execution to rewrite proxyLogsDir under ${RUNNER_TEMP}/gh-aw;\ngot:\n%s", allSteps)
+		}
+	})
+}
+
+func TestAppendThreatDetectionRWMount(t *testing.T) {
+	threatDetectionMount := constants.ThreatDetectionDir + ":" + constants.ThreatDetectionDir + ":rw"
+
+	t.Run("appends missing mount without clobbering existing mounts", func(t *testing.T) {
+		existingMounts := []string{
+			"/tmp/existing:/tmp/existing:ro",
+			"/tmp/other:/tmp/other:rw",
+		}
+
+		got := appendThreatDetectionRWMount(append([]string(nil), existingMounts...))
+
+		want := append(append([]string(nil), existingMounts...), threatDetectionMount)
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("expected mounts %v, got %v", want, got)
+		}
+	})
+
+	t.Run("does not duplicate existing threat-detection mount", func(t *testing.T) {
+		existingMounts := []string{
+			"/tmp/existing:/tmp/existing:ro",
+			threatDetectionMount,
+		}
+
+		got := appendThreatDetectionRWMount(append([]string(nil), existingMounts...))
+
+		if !reflect.DeepEqual(got, existingMounts) {
+			t.Fatalf("expected mounts %v, got %v", existingMounts, got)
 		}
 	})
 }

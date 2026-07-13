@@ -210,6 +210,13 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		inSkipIfCheckFailing = false
 		inSkipAuthorAssociations = false
 
+		// Reset the comment-block anchor so the first commented line of the new
+		// section uses its own indentation rather than a stale indent from the
+		// previous section (which would otherwise persist because activateEventSection
+		// ends with "continue" and bypasses the normal else-branch reset).
+		inCommentBlock = false
+		commentBlockIndent = ""
+
 		inPullRequest = section == "pull_request"
 		inIssues = section == "issues"
 		inDiscussion = section == "discussion"
@@ -774,6 +781,15 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 
 		if shouldComment {
 			trimmed := strings.TrimLeft(line, " \t")
+
+			// Forks array items must preserve their own indentation so that commented
+			// array entries appear more deeply indented than the parent "forks:" key,
+			// matching the original YAML structure. Resetting the comment-block anchor
+			// here lets each "- …" item re-anchor to its own indentation level.
+			if inForksArray && strings.HasPrefix(trimmed, "-") {
+				inCommentBlock = false
+				commentBlockIndent = ""
+			}
 
 			// Flatten the indentation of the commented block. The first non-blank
 			// line of a block adopts its natural indentation (which matches the
