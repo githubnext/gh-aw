@@ -131,6 +131,25 @@ func generateDockerSbxAuthAndDaemonStep() GitHubActionStep {
 	})
 }
 
+// generateDockerSbxCredentialRefreshStep creates a step that re-authenticates the
+// sbx daemon with Docker Hub immediately before AWF runs the agent. OAuth tokens
+// obtained by `sbx login` during the daemon-setup step can expire or be invalidated
+// by the policy-reset cycle, so a fresh login right before execution prevents
+// "user is not authenticated to Docker" errors when AWF calls `sbx create`.
+func generateDockerSbxCredentialRefreshStep() GitHubActionStep {
+	return GitHubActionStep([]string{
+		"      - name: Refresh sbx credentials",
+		"        env:",
+		"          DOCKER_PAT_VAL: ${{ secrets.DOCKER_PAT }}",
+		"          DOCKER_USERNAME_VAL: ${{ secrets.DOCKER_USERNAME }}",
+		"        run: |",
+		`          # Re-authenticate sbx immediately before AWF runs.`,
+		`          # Docker Hub OAuth tokens from sbx login can expire between steps.`,
+		`          printf '%s' "$DOCKER_PAT_VAL" | sbx login --username "$DOCKER_USERNAME_VAL" --password-stdin`,
+		`          echo "✅ sbx credentials refreshed"`,
+	})
+}
+
 // generateDockerSbxPreFlightStep creates a step that verifies the sbx stack works
 // end-to-end before the MCP gateway and AWF container setup begins.
 func generateDockerSbxPreFlightStep() GitHubActionStep {

@@ -120,7 +120,7 @@ const AWFContainerRuntimeMinVersion Version = "v0.27.30"
 // integrity verification before the binaries are installed with root privileges.
 // Bump this constant after reviewing the release notes at
 // https://github.com/google/gvisor/releases.
-const DefaultGVisorVersion = "20250623.0"
+const DefaultGVisorVersion = "20250707.0"
 
 // CopilotNoAskUserMinVersion is the minimum Copilot CLI version that supports the --no-ask-user
 // flag, which enables fully autonomous agentic runs by suppressing interactive prompts.
