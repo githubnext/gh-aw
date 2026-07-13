@@ -13,7 +13,14 @@ func BadStringOfBytesCall() string {
 func BadStringOfBytesCallPtr() string {
 	buf := &bytes.Buffer{}
 	buf.WriteString("world")
-	return buf.String() // want `string\(buf\.Bytes\(\)\) can be simplified to buf\.String\(\)`
+	// pointer receiver: not flagged — rewrite would change nil-pointer semantics
+	return string(buf.Bytes())
+}
+
+func NilPointerBuf() string {
+	var buf *bytes.Buffer
+	// nil *bytes.Buffer: string(buf.Bytes()) panics; buf.String() returns "<nil>" — not flagged
+	return string(buf.Bytes())
 }
 
 func SuppressedStringOfBytes() string {

@@ -1,6 +1,6 @@
 // Package bytesbufferstring implements a Go analysis linter that flags
-// string(buf.Bytes()) calls where buf is *bytes.Buffer, suggesting buf.String()
-// instead.
+// string(buf.Bytes()) calls where buf is a bytes.Buffer value receiver,
+// suggesting buf.String() instead.
 package bytesbufferstring
 
 import (
@@ -19,7 +19,7 @@ import (
 // Analyzer is the bytes-buffer-string analysis pass.
 var Analyzer = &analysis.Analyzer{
 	Name:     "bytesbufferstring",
-	Doc:      "reports string(buf.Bytes()) calls where buf is *bytes.Buffer and suggests buf.String() instead",
+	Doc:      "reports string(buf.Bytes()) calls where buf is a bytes.Buffer value and suggests buf.String() instead",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/bytesbufferstring",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
@@ -64,7 +64,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		// The argument must be buf.Bytes() where buf is *bytes.Buffer.
+		// The argument must be buf.Bytes() where buf is a bytes.Buffer value.
 		inner, ok := call.Args[0].(*ast.CallExpr)
 		if !ok {
 			return
@@ -80,7 +80,11 @@ func run(pass *analysis.Pass) (any, error) {
 		if receiverType == nil {
 			return
 		}
-		if !isBytesBufferPtr(receiverType) {
+		// Only flag value receivers (bytes.Buffer), not pointer receivers (*bytes.Buffer).
+		// The rewrite string(buf.Bytes()) → buf.String() is not semantics-preserving when
+		// buf is a nil *bytes.Buffer: string(buf.Bytes()) panics, while buf.String() returns
+		// "<nil>". Restricting to value receivers avoids this semantic difference entirely.
+		if !isBytesBufferValue(receiverType) {
 			return
 		}
 
@@ -107,12 +111,10 @@ func run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-// isBytesBufferPtr reports whether t is *bytes.Buffer or bytes.Buffer.
-func isBytesBufferPtr(t types.Type) bool {
-	// Unwrap pointer if present.
-	if ptr, ok := t.(*types.Pointer); ok {
-		t = ptr.Elem()
-	}
+// isBytesBufferValue reports whether t is exactly bytes.Buffer (value receiver, not pointer).
+// We intentionally exclude *bytes.Buffer: the rewrite string(buf.Bytes()) → buf.String() is not
+// semantics-preserving when buf is nil — the former panics while the latter returns "<nil>".
+func isBytesBufferValue(t types.Type) bool {
 	named, ok := t.(*types.Named)
 	if !ok {
 		return false
