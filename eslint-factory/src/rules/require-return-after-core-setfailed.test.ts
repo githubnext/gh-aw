@@ -200,4 +200,93 @@ doMore();`,
       invalid: [],
     });
   });
+
+  it('valid: computed core["setFailed"] followed by return', () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [`function f() { core["setFailed"]("bad"); return; }`, `function f() { core["setFailed"]("bad"); throw new Error("bad"); }`, `function f() { core["setFailed"]("bad"); }`],
+      invalid: [],
+    });
+  });
+
+  it('invalid: computed core["setFailed"] without control transfer', () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `function f() { core["setFailed"]("bad"); doMore(); keepGoing(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { core["setFailed"]("bad"); return; doMore(); keepGoing(); }` }] }],
+        },
+      ],
+    });
+  });
+
+  it("valid: aliased core object with return", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [
+        `const c = core; function f() { c.setFailed("bad"); return; }`,
+        `const c = core; function f() { c.setFailed("bad"); }`,
+        // computed form via alias
+        `const c = core; function f() { c["setFailed"]("bad"); return; }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: aliased core object without control transfer", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const c = core; function f() { c.setFailed("bad"); doMore(); keepGoing(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `const c = core; function f() { c.setFailed("bad"); return; doMore(); keepGoing(); }` }] }],
+        },
+        {
+          code: `const c = core; function f() { c["setFailed"]("bad"); doMore(); keepGoing(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `const c = core; function f() { c["setFailed"]("bad"); return; doMore(); keepGoing(); }` }] }],
+        },
+      ],
+    });
+  });
+
+  it("valid: destructured setFailed from core with return", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [
+        `const { setFailed } = core; function f() { setFailed("bad"); return; }`,
+        `const { setFailed } = core; function f() { setFailed("bad"); }`,
+        // renamed destructuring
+        `const { setFailed: sf } = core; function f() { sf("bad"); return; }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: destructured setFailed from core without control transfer", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const { setFailed } = core; function f() { setFailed("bad"); doMore(); keepGoing(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `const { setFailed } = core; function f() { setFailed("bad"); return; doMore(); keepGoing(); }` }] }],
+        },
+        {
+          code: `const { setFailed: sf } = core; function f() { sf("bad"); doMore(); keepGoing(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `const { setFailed: sf } = core; function f() { sf("bad"); return; doMore(); keepGoing(); }` }] }],
+        },
+      ],
+    });
+  });
+
+  it("valid: locally-shadowed setFailed bindings are not flagged", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [
+        // Local function declaration shadows — not a core binding
+        `function setFailed(msg) {} function f() { setFailed("bad"); doMore(); }`,
+        // Local const not from core — not a core binding
+        `const setFailed = (msg) => {}; function f() { setFailed("bad"); doMore(); }`,
+        // Aliased object not from core
+        `const c = other; function f() { c.setFailed("bad"); doMore(); }`,
+      ],
+      invalid: [],
+    });
+  });
 });
