@@ -70,6 +70,8 @@ func codexProxyWebsocketBaseURL(apiBase string) string {
 // detection-job helper steps so topology- and feature-dependent behavior stays in sync.
 // It always initializes SandboxConfig.Agent because downstream detection helpers
 // extend the agent sandbox configuration (for example, external-detector mounts).
+// Callers can pass an empty engineID to inherit the detection job's default engine
+// resolution from the source WorkflowData.
 func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *WorkflowData {
 	if engineID == "" {
 		engineID = data.AI
