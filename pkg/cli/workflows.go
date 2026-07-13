@@ -424,11 +424,11 @@ func isFrontmatterDelimiter(line []byte) bool {
 
 func extractHeadingTitle(line []byte) (string, bool) {
 	switch {
-	case len(line) > 2 && line[0] == '#' && line[1] == ' ':
+	case len(line) >= 2 && line[0] == '#' && line[1] == ' ':
 		return string(bytes.TrimSpace(line[2:])), true
-	case len(line) > 3 && line[0] == '#' && line[1] == '#' && line[2] == ' ':
+	case len(line) >= 3 && line[0] == '#' && line[1] == '#' && line[2] == ' ':
 		return string(bytes.TrimSpace(line[3:])), true
-	case len(line) > 4 && line[0] == '#' && line[1] == '#' && line[2] == '#' && line[3] == ' ':
+	case len(line) >= 4 && line[0] == '#' && line[1] == '#' && line[2] == '#' && line[3] == ' ':
 		return string(bytes.TrimSpace(line[4:])), true
 	default:
 		return "", false
