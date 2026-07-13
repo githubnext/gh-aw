@@ -24,12 +24,12 @@ func TestBuildByRepoIndex_GroupsByRepoAndSortsDescending(t *testing.T) {
 	byRepo := buildByRepoIndex(pins)
 
 	require.Len(t, byRepo["actions/checkout"], 2, "Expected checkout pins to be grouped")
-	require.Equal(t, "v5.0.0", byRepo["actions/checkout"][0].Version, "Expected checkout pins sorted by newest version first")
-	require.Equal(t, "v4.0.0", byRepo["actions/checkout"][1].Version, "Expected checkout pins sorted by newest version first")
+	require.Equal(t, "v5.0.0", byRepo["actions/checkout"][0].Version, "Expected v5.0.0 as newest checkout pin")
+	require.Equal(t, "v4.0.0", byRepo["actions/checkout"][1].Version, "Expected v4.0.0 as second checkout pin")
 
 	require.Len(t, byRepo["actions/setup-go"], 2, "Expected setup-go pins to be grouped")
-	require.Equal(t, "v5.1.0", byRepo["actions/setup-go"][0].Version, "Expected setup-go pins sorted by newest version first")
-	require.Equal(t, "v5.0.0", byRepo["actions/setup-go"][1].Version, "Expected setup-go pins sorted by newest version first")
+	require.Equal(t, "v5.1.0", byRepo["actions/setup-go"][0].Version, "Expected v5.1.0 as newest setup-go pin")
+	require.Equal(t, "v5.0.0", byRepo["actions/setup-go"][1].Version, "Expected v5.0.0 as second setup-go pin")
 }
 
 func TestCountPinKeyMismatches_ReturnsOnlyVersionMismatches(t *testing.T) {

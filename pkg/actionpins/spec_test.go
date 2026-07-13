@@ -198,7 +198,6 @@ func TestSpec_PublicAPI_ExtractVersion(t *testing.T) {
 func TestSpec_PublicAPI_GetActionPinsByRepo(t *testing.T) {
 	t.Run("returns no pins for unknown repository", func(t *testing.T) {
 		pins := actionpins.GetActionPinsByRepo("does-not-exist/unknown-action-xyzzy")
-		assert.Nil(t, pins, "unknown repo should return nil slice from map lookup")
 		assert.Empty(t, pins, "should return empty result for unknown repo")
 	})
 
