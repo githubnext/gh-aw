@@ -62,7 +62,7 @@ name: "Smoke Multi PR"
 on:
   pull_request:
     # names: # Label filtering applied via job conditions
-      # - smoke-multi-pr # Label filtering applied via job conditions
+    # - smoke-multi-pr # Label filtering applied via job conditions
     types:
       - labeled
   workflow_dispatch:

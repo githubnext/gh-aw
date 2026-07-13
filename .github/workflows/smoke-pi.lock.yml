@@ -65,7 +65,7 @@ name: "Smoke Pi"
 on:
   pull_request:
     # names: # Label filtering applied via job conditions
-      # - smoke # Label filtering applied via job conditions
+    # - smoke # Label filtering applied via job conditions
     types:
       - labeled
   workflow_dispatch:

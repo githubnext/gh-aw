@@ -74,7 +74,7 @@ name: "Smoke Codex"
 on:
   pull_request:
     # names: # Label filtering applied via job conditions
-      # - smoke # Label filtering applied via job conditions
+    # - smoke # Label filtering applied via job conditions
     types:
       - labeled
   # restore-memory: true # Restore-memory enables pre-activation memory restore

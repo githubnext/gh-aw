@@ -62,7 +62,7 @@ name: "The Great Escapi"
 on:
   pull_request:
     # names: # Label filtering applied via job conditions
-      # - firewall-escape-test # Label filtering applied via job conditions
+    # - firewall-escape-test # Label filtering applied via job conditions
     types:
       - labeled
   schedule:

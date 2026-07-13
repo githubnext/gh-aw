@@ -344,6 +344,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
     ```
 
   - **`sandbox.agent.sudo`** (boolean) controls whether AWF runs in root mode. Default is `false`: AWF runs rootless in network-isolation egress mode (`--network-isolation`), with MCP sidecars attached as bridge containers on the internal `awf-net` network. Set `sudo: true` for the legacy root mode; in strict mode explicit `sudo: true` is an error (warning otherwise).
+  - **`sandbox.agent.runtime`** (string) selects an extra-isolation container runtime for the agent: `gvisor` (runs under gVisor's `runsc` for kernel-level isolation) or `docker-sbx` (Docker sbx microVM with KVM hypervisor-level isolation; needs `DOCKER_PAT`/`DOCKER_USERNAME` secrets and a KVM-capable runner). Both require `sudo: true` and are incompatible with `runner.topology: arc-dind`.
   - **Strict mode**: `sandbox.agent` blocks without an explicit `id: awf` are rejected in strict mode. Any non-nil, non-disabled agent config without `id`/`type` defaults to AWF at runtime.
 
 - **`tools:`** - Tool configuration for the coding agent (`github`, `agentic-workflows`, `edit`, `web-fetch`, `web-search`, `bash`, `playwright`, custom MCP server names, plus `timeout`/`startup-timeout`/`cli-proxy`). See [syntax-tools-imports.md](syntax-tools-imports.md#tool-configuration) for the full schema (GitHub `mode`/`toolsets`/integrity fields, bash allowlist decision rule, Playwright CLI mode).
