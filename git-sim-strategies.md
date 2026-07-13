@@ -1,7 +1,7 @@
 # Git Simulator Strategy Notes
 
 Z3 sweep of 3600 cells (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT, COMMIT innermost).
-**96/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
+**100/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
 `commit=i%3, branch=(i//3)%3, patch=(i//9)%5, files=(i//45)%4, history=(i//180)%4,
 size=(i//720)%5`. sizes[tiny,small,medium,large,huge] hist[none,shallow,medium,deep]
 files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]=
@@ -23,6 +23,13 @@ files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]
   cells fast-forward (--is-ancestor=0, no force). merge_msg leak reconfirmed (92,95:
   0001-Merge-branch-topic-into-feature.patch, single-parent, --merges=0). Disjoint
   multi still ~1× payload. many-micro fully consistent w/ prior tiers.
+  **idx96-99: PASS.** diverged-single(96) 5.496 KB/1.patch, diverged-multi(97)
+  6.024 KB/3.patch (disjoint 7+7+6, ~1×), diverged-merge_msg(98) 5.481 KB/1.patch
+  (0001-Merge-branch-topic-into-feature.patch leak reconfirmed, single-parent) — all
+  three diverged: main's history.md commit excluded by two-dot, ff push exit 0, no
+  merge into feature. **idx99 = FIRST tiny-none-many-small: PASS.** clean-single
+  54.466 KB/1.patch for 50.000 KB payload → framing +4.47 KB (~9% at many/small,
+  ~0.22 KB/file × 20). many-micro tier (90-98) DONE; small tier open at 99.
 
 ## THE CAPS (grounded)
 
@@ -94,8 +101,8 @@ first max-patch-FILES `rejected` needs batch under a default-100 config.
 
 ## Next
 
-Next index: **96** → tiny-none-many-micro-diverged-single(96), then micro finishes at
-98, small tier starts 99. FILES=many runs
+Next index: **100** → tiny-none-many-small-multi(100), then small-diverged etc. Micro
++small many tiers now cover 90-99. FILES=many runs
 90-179, batch 180-269. **many-xlarge ~4058 KB still <4096 (safe).** batch-xlarge
 ~4080 KB <4096 BUT batch=100 files == max-patch-files default 100 (200 here) — watch
 the `>` vs `>=` boundary. HISTORY=deep(500) & SIZE>tiny (idx 720+) far ahead — no
