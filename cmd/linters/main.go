@@ -34,6 +34,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/httpnoctx"
 	"github.com/github/gh-aw/pkg/linters/httprespbodyclose"
 	"github.com/github/gh-aw/pkg/linters/httpstatuscode"
+	"github.com/github/gh-aw/pkg/linters/ioutildeprecated"
 	"github.com/github/gh-aw/pkg/linters/jsonmarshalignoredeerror"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
 	"github.com/github/gh-aw/pkg/linters/lenstringsplit"
@@ -82,6 +83,7 @@ func main() {
 		hardcodedfilepath.Analyzer,
 		httpnoctx.Analyzer,
 		httprespbodyclose.Analyzer,
+		ioutildeprecated.Analyzer,
 		httpstatuscode.Analyzer,
 		largefunc.Analyzer,
 		manualmutexunlock.Analyzer,

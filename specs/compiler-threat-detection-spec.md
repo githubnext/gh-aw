@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.15  
+**Version**: 1.0.16  
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.16` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), conditional import rejection (`imports.if` rejection for CTR-020), and `workflow_run` trigger branch scope enforcement (CTR-021). The `docker-sbx` runtime enforcement (CTR-004 scope) requires `sudo: true`, compatible runner topology, and a minimum AWF version; the credential refresh step emitted before agent execution is a security improvement with no new constraint on `.lock.yml` semantics. |
 | `1.0.15` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), conditional import rejection (`imports.if` rejection for CTR-020), and `workflow_run` trigger branch scope enforcement (CTR-021). |
 | `1.0.14` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), and conditional import rejection (`imports.if` rejection for CTR-020). |
 | `1.0.13` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), and cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019). |
@@ -273,7 +274,7 @@ When mappings change, this table MUST be updated in the same change set as the i
 
 ### 7.2 Mapping Audit (2026-07-06)
 
-Audit result: ✅ all listed `CTR-001` through `CTR-021` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Review window: commit c9361ed (squash merge), merged 2026-07-05. Security-relevant items evaluated: (1) **`workflow_run` trigger branch scope enforcement** (`pkg/workflow/agent_validation.go`, `validateWorkflowRunBranches`): compiler-level detection of `workflow_run` triggers lacking `branches:` restrictions; unrestricted triggers fire on any branch including attacker-controlled branches, potentially exposing `github.event.workflow_run.*` context data and enabling cross-workflow trigger chains; warn in non-strict mode, reject in strict mode; empty `workflows:` field is always a hard error regardless of mode; not covered by any prior CTR rule → **new CTR-021** added. (2) **OTLP auth headers via container env var** (`minor-otlp-headers-env-var`): compiler passes OTLP auth headers via container env var instead of gateway JSON config; compile-time artifact hardening only; no new threat class; no new CTR rule required. (3) **`remove-imports-if`**: covered by CTR-020; no new rule required. (4) **`sandbox.agent: false` / `disable-agent-sandbox-only`**: covered by CTR-004; no new rule required. (5) **`network-isolation` → `sudo` rename**: frontmatter-only refactoring; no new threat class; no new CTR rule required. (6) **MCP config schema validation**: schema validation for malformed MCP configs; covered by CTR-003/CTR-011 mapping patterns; no new rule required. (7) **Cross-repo allowlist validation**: strengthens CTR-005/CTR-012 boundaries; previously evaluated in spec v1.0.12; no new CTR rule required. (8) **`skip-empty-threat-detection`**: detection short-circuits with success when no agent output, strengthens CTR-019; no new rule required. (9) **`auto-hoist-run-expressions`**: extends expression hoisting to all `${{ }}` expressions (mitigation helper, related to CTR-006 coverage); no new rule required. (10) go-sdk security fix and dependency bumps: runtime-only; outside compiler threat detection scope per Section 1.2.
+Audit result: ✅ all listed `CTR-001` through `CTR-021` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Review window: commit fe21742 (fix: emit sbx credential refresh step before agent execution), merged 2026-07-12. Security-relevant items evaluated: (1) **`docker-sbx` microVM runtime support** (`pkg/workflow/docker_sbx_install.go`, `pkg/workflow/sandbox_validation.go`): compiler emits KVM check, Docker Hub secrets check, sbx install, sbx auth/daemon-setup, sbx pre-flight smoke, and a new `Refresh sbx credentials` step immediately before AWF agent execution; the refresh step ensures Docker Hub OAuth tokens do not expire between the daemon-setup and agent-creation phases; `sandbox_validation.go` enforces that `docker-sbx` requires `sudo: true` (hard error if absent), compatible runner topology (rejects `arc-dind`), and a minimum AWF version; covered by CTR-004 (sandbox bypass configuration); the `sudo: true` deprecation path in `strict_mode_sandbox_validation.go` is correctly exempted for `docker-sbx`; no new threat class; no new CTR rule required. (2) **Docker Hub secrets via environment variable binding** (`DOCKER_PAT_VAL`, `DOCKER_USERNAME_VAL`): secrets are bound to step-scoped env vars and consumed via `$DOCKER_PAT_VAL` inside the `run:` block; fully compliant with CTR-017 safe binding pattern; no new threat class; no new CTR rule required. (3) **Credential refresh timing** (security improvement): refreshing credentials immediately before `sbx create` prevents authentication failures from token expiry without broadening the workflow's trust surface; no new threat class; no new CTR rule required.
 
 ### 7.3 Sync Protocol for CTR Rule and Manifest Updates
 
@@ -346,6 +347,11 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 ---
 
 ## 10. Change Log
+
+### 1.0.16 (2026-07-13)
+
+- Updated Section 7.2 mapping audit to 2026-07-13 covering commit fe21742 (fix: emit sbx credential refresh step before agent execution, merged 2026-07-12): evaluated `docker-sbx` microVM runtime support (CTR-004 covered — `sandbox_validation.go` enforces `sudo: true`, topology, and AWF version; `strict_mode_sandbox_validation.go` exempts `docker-sbx` from sudo deprecation), Docker Hub secrets via env var binding (CTR-017 compliant), and credential refresh timing improvement (security improvement, no new threat class); no new CTR rules required
+- Updated Section 2 spec-to-implementation sync table with version 1.0.16 entry
 
 ### 1.0.15 (2026-07-06)
 
