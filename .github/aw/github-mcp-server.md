@@ -159,6 +159,8 @@ When the GitHub tool is configured, gh-aw injects a separate `<github-context>` 
 | Tool | Purpose | Key Parameters |
 |------|---------|----------------|
 | `add_issue_comment` | Add a comment to an issue | `owner`, `repo`, `issue_number`, `body` |
+| `issue_dependency_read` | Read an issue's dependency relationships | `owner`, `repo`, `issue_number` |
+| `issue_dependency_write` | Add or remove issue dependencies | `owner`, `repo`, `issue_number` |
 | `issue_read` | Read issue details and comments | `owner`, `repo`, `issue_number` |
 | `issue_write` | Create or update an issue | `owner`, `repo`, `title`, `body`, `labels`, `assignees` |
 | `list_issue_types` | List available issue types for a repository | `owner`, `repo` |
