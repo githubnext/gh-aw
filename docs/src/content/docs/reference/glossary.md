@@ -187,6 +187,20 @@ Three additional fields extend integrity filtering beyond the level threshold: `
 
 Controls full Data Integrity and Flow Control (DIFC) proxy enforcement. When `tools.github.min-integrity` is configured, the compiler injects proxy steps around the agent job that enforce integrity-level isolation at the network boundary. The proxy is **enabled by default** — set `tools.github.integrity-proxy: false` to disable it and rely solely on MCP gateway-level filtering. Filtered content is recorded as `DIFC_FILTERED` events in `gateway.jsonl` for later inspection. See [Integrity Filtering](/gh-aw/reference/integrity/).
 
+### `private-to-public-flows` (`tools.github.private-to-public-flows`)
+
+A frontmatter field that opts a workflow out of cross-visibility protections enforced by the [MCP Gateway](#mcp-gateway). By default, workflows running in private repositories are prevented from writing to public repositories (the gateway enforces `sink-visibility="public"` which blocks agents with non-empty secrecy). Setting `private-to-public-flows: allow` disables this enforcement for all MCP servers; setting it to a list of server IDs disables it only for those servers. Incompatible with `guards_mode: strict` when using the blanket `allow` form. See [MCP Gateway Reference](/gh-aw/reference/mcp-gateway/).
+
+```aw wrap
+tools:
+  github:
+    private-to-public-flows: allow
+```
+
+### `sink-visibility`
+
+An MCP Gateway write-sink guard field that declares the visibility of the safe-outputs target repository (`"public"`, `"private"`, or `"internal"`). When set to `"public"`, any agent with non-empty secrecy is blocked from writing — the DIFC write check fails regardless of `accept` patterns. The gh-aw compiler sets this automatically at runtime using repository visibility detected by the activation job; workflow authors do not need to configure it manually. Non-`"public"` values (or an omitted field) leave `accept` pattern enforcement unchanged. See [MCP Gateway Reference](/gh-aw/reference/mcp-gateway/).
+
 ### Integrity Reactions (`features.integrity-reactions`)
 
 A feature flag that enables GitHub reactions (👍, ❤️, 👎, 😕) to promote or demote content past the integrity filter. When `integrity-reactions: true` is set, trusted members can add a reaction to an issue or comment to elevate its integrity to `approved` (endorsement reactions) or demote it to `none` (disapproval reactions) — without modifying labels. Enabling this flag automatically activates `cli-proxy` mode, which is required to identify reaction authors at the network boundary. Available from gh-aw v0.68.2. See [Maintaining Repos](/gh-aw/examples/maintaining-repos/#reactions-as-trust-signals).
@@ -1234,6 +1248,29 @@ sandbox:
     mounts:
       - /run/docker.sock:/var/run/docker.sock:ro
 ```
+
+### `sandbox.agent.runtime`
+
+A `sandbox.agent` field that selects the container runtime used to execute the AI agent. Supported values:
+
+- `gvisor` — Runs the agent container under [gVisor](#gvisor-runsc) (`runsc`) for kernel-level isolation. Best for workflows processing untrusted input.
+- `docker-sbx` — Runs the agent inside a [docker-sbx](#docker-sbx) KVM-isolated microVM while keeping infrastructure containers on the host.
+
+When omitted, the default Docker runtime is used. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
+
+```aw wrap
+sandbox:
+  agent:
+    runtime: gvisor
+```
+
+### gVisor (runsc)
+
+A container runtime from Google that interposes a user-space kernel between the containerized application and the host OS kernel. When `sandbox.agent.runtime: gvisor` is set, the agent container runs under gVisor's `runsc` runtime, providing stronger isolation than standard Docker — useful for workflows that process untrusted input. gh-aw installs and registers gVisor automatically before the agent container starts. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
+
+### docker-sbx
+
+A KVM-hardware-virtualized microVM runtime. When `sandbox.agent.runtime: docker-sbx` is set, the AI agent runs inside a hardware-isolated microVM while infrastructure containers (MCP servers, gateway, etc.) remain on the host. Provides stronger isolation than gVisor for workloads that require full hardware-virtualization boundaries. gh-aw automatically refreshes Docker Hub OAuth credentials immediately before agent execution to prevent token expiry errors. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
 ### Strict Mode
 

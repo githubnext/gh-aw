@@ -93,13 +93,11 @@ func TestSpec_PublicAPI_SampleVariance_SampleFormula(t *testing.T) {
 		"SampleVariance should use N-1 (sample) denominator: sum_sq_dev / (N-1)")
 }
 
-// TestSpec_PublicAPI_StdDev validates that StdDev and SampleStdDev equal the
-// square root of their respective variances as described in the README.md.
+// TestSpec_PublicAPI_SampleStdDev validates that SampleStdDev equals the
+// square root of SampleVariance as described in the README.md.
 //
-// Specification:
-//   - StdDev: "Returns population standard deviation"
-//   - SampleStdDev: "Returns sample standard deviation"
-func TestSpec_PublicAPI_StdDev(t *testing.T) {
+// Specification: "SampleStdDev: Returns sample standard deviation"
+func TestSpec_PublicAPI_SampleStdDev(t *testing.T) {
 	var sv StatVar
 	for _, v := range []float64{2, 4, 4, 4, 5, 5, 7, 9} {
 		sv.Add(v)
@@ -136,20 +134,4 @@ func TestSpec_PublicAPI_Median_EvenCount(t *testing.T) {
 
 	assert.InDelta(t, 2.5, sv.Median(), 1e-9,
 		"Median with even count should return the average of the two middle sorted values")
-}
-
-// TestSpec_SpecMismatch_MissingMethods documents the discrepancy between
-// the README.md specification and the current implementation of StatVar.
-//
-// SPEC_MISMATCH: The README.md specification documents the following methods that
-// are not present in statvar.go:
-//   - Sum() float64       — "Returns the arithmetic sum"
-//   - Variance() float64  — "Returns population variance (N denominator)"
-//   - StdDev() float64    — "Returns population standard deviation"
-//
-// The implementation provides only SampleVariance and SampleStdDev (N-1 denominator).
-// Tests for Sum, Variance, and StdDev are skipped until the implementation matches
-// the specification.
-func TestSpec_SpecMismatch_MissingMethods(t *testing.T) {
-	t.Skip("SPEC_MISMATCH: Sum(), Variance(), and StdDev() are documented in README.md but not implemented in statvar.go")
 }

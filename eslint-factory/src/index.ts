@@ -1,3 +1,4 @@
+import { noCoreExportVariableNonStringRule } from "./rules/no-core-exportvariable-non-string";
 import { noCoreSetOutputNonStringRule } from "./rules/no-core-setoutput-non-string";
 import { noThrowPlainObjectRule } from "./rules/no-throw-plain-object";
 import { noGithubRequestInterpolatedRouteRule } from "./rules/no-github-request-interpolated-route";
@@ -13,6 +14,7 @@ import { requireJsonParseTryCatchRule } from "./rules/require-json-parse-try-cat
 import { requireErrorCauseInRethrowRule } from "./rules/require-error-cause-in-rethrow";
 import { requireParseIntRadixRule } from "./rules/require-parseInt-radix";
 import { requireReturnAfterCoreSetFailedRule } from "./rules/require-return-after-core-setfailed";
+import { requireSpawnSyncErrorCheckRule } from "./rules/require-spawnsync-error-check";
 
 const plugin = {
   meta: {
@@ -20,6 +22,7 @@ const plugin = {
     version: "0.1.0",
   },
   rules: {
+    "no-core-exportvariable-non-string": noCoreExportVariableNonStringRule,
     "no-core-setoutput-non-string": noCoreSetOutputNonStringRule,
     "no-throw-plain-object": noThrowPlainObjectRule,
     "no-github-request-interpolated-route": noGithubRequestInterpolatedRouteRule,
@@ -35,6 +38,7 @@ const plugin = {
     "require-json-parse-try-catch": requireJsonParseTryCatchRule,
     "require-parseInt-radix": requireParseIntRadixRule,
     "require-return-after-core-setfailed": requireReturnAfterCoreSetFailedRule,
+    "require-spawnsync-error-check": requireSpawnSyncErrorCheckRule,
   },
 };
 

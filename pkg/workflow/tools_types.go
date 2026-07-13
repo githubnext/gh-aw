@@ -366,6 +366,13 @@ type GitHubToolConfig struct {
 	// and MCPG >= v0.2.18.
 	// Valid values: "approved", "unapproved", "merged"
 	EndorserMinIntegrity string `yaml:"endorser-min-integrity,omitempty"`
+	// PrivateToPublicFlows opts out of cross-visibility protections for private→public data flows.
+	// Accepts either the string "allow" (blanket opt-out) or a []string of MCP server IDs
+	// (selective exemption for those servers only).
+	//   - "allow" → compiler emits gateway.forcePublicRepos: false; rejected in strict mode.
+	//   - []string → compiler emits gateway.sinkVisibilityExemptServers with the listed IDs.
+	// See MCP Gateway Specification Section 10.9.
+	PrivateToPublicFlows any `yaml:"-"`
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool
@@ -468,6 +475,15 @@ type MCPGatewayRuntimeConfig struct {
 	ToolTimeout          string            `yaml:"tool-timeout,omitempty"`           // Timeout for individual MCP tool calls as a Go duration string (e.g. "2m", "30s"); empty = gateway built-in default (60s)
 	OTLPEndpoint         string            `yaml:"-"`                                // OTLP collector endpoint (derived from observability.otlp, not user-settable)
 	OTLPHeaders          string            `yaml:"-"`                                // Raw OTLP HTTP headers string (derived from observability.otlp, not user-settable)
+	// ForcePublicRepos controls the gateway's runtime public-repo override.
+	// When set to a pointer to false, the compiler emits "forcePublicRepos": false in the gateway
+	// JSON config, disabling the runtime check that restricts repos to "public" when the
+	// workflow runs in a public repository. Set from tools.github.private-to-public-flows: allow.
+	ForcePublicRepos *bool `yaml:"-"`
+	// SinkVisibilityExemptServers is the list of MCP server IDs exempt from default
+	// sink-visibility="public" enforcement. Emitted as gateway.sinkVisibilityExemptServers.
+	// Set from tools.github.private-to-public-flows: [server-ids...].
+	SinkVisibilityExemptServers []string `yaml:"-"`
 }
 
 // HasTool checks if a tool is present in the configuration

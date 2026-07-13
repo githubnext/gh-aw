@@ -32,20 +32,20 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.201"
+const DefaultClaudeCodeVersion Version = "2.1.207"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // When unpinning or upgrading this version, verify:
 //   - MCPs are not blocked from loading (tools.mcp configuration still works end-to-end)
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
-const DefaultCopilotVersion Version = "1.0.68"
+const DefaultCopilotVersion Version = "1.0.70"
 
 // DefaultCopilotSDKVersion is the default version of the @github/copilot-sdk package.
-const DefaultCopilotSDKVersion Version = "1.0.5"
+const DefaultCopilotSDKVersion Version = "1.0.6"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.142.5"
+const DefaultCodexVersion Version = "0.144.3"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
 const DefaultGeminiVersion Version = "0.39.1"
@@ -57,7 +57,7 @@ const DefaultAntigravityVersion Version = "1.0.2-6113393518706688"
 const DefaultCrushVersion Version = "0.59.0"
 
 // DefaultPiVersion is the default version of the Pi CLI
-const DefaultPiVersion Version = "0.80.3"
+const DefaultPiVersion Version = "0.80.6"
 
 // DefaultOpenCodeVersion is the default version of the OpenCode CLI
 const DefaultOpenCodeVersion Version = "1.2.14"
@@ -73,7 +73,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.5.0"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.27.30"
+const DefaultFirewallVersion Version = "v0.27.31"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -120,7 +120,7 @@ const AWFContainerRuntimeMinVersion Version = "v0.27.30"
 // integrity verification before the binaries are installed with root privileges.
 // Bump this constant after reviewing the release notes at
 // https://github.com/google/gvisor/releases.
-const DefaultGVisorVersion = "20250623.0"
+const DefaultGVisorVersion = "20250707.0"
 
 // CopilotNoAskUserMinVersion is the minimum Copilot CLI version that supports the --no-ask-user
 // flag, which enables fully autonomous agentic runs by suppressing interactive prompts.
@@ -142,13 +142,13 @@ const DefaultMCPGatewayVersion Version = "v0.4.1"
 const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.77"
+const DefaultPlaywrightMCPVersion Version = "0.0.78"
 
 // DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package.
 // Used when tools.playwright.mode is "cli" to install the CLI tool instead of the MCP server.
 // Keep this version outside the default 3-day npm release-age cooldown window enforced by
 // generated Playwright CLI install steps. See TestDefaultPlaywrightCLIVersionOutsideCooldownWindow.
-const DefaultPlaywrightCLIVersion Version = "0.1.15"
+const DefaultPlaywrightCLIVersion Version = "0.1.17"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.61.1"

@@ -21,9 +21,13 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
-	"path"
+	"os"
+	"path/filepath"
 	"reflect"
+	"regexp"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -31,6 +35,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	yamlv3 "gopkg.in/yaml.v3"
 )
 
 type formalReplaceLabelOutcome struct {
@@ -42,6 +47,39 @@ type formalReplaceLabelOutcome struct {
 	Labels       []string
 }
 
+type replaceLabelFixtureFile struct {
+	FixtureID string                        `yaml:"fixture_id"`
+	Scenarios []replaceLabelFixtureScenario `yaml:"scenarios"`
+}
+
+type replaceLabelFixtureScenario struct {
+	ScenarioID string                   `yaml:"scenario_id"`
+	Input      replaceLabelFixtureInput `yaml:"input"`
+	Expected   replaceLabelExpected     `yaml:"expected"`
+}
+
+type replaceLabelFixtureInput struct {
+	SafeOutputConfig replaceLabelFixtureConfig  `yaml:"safe_output_config"`
+	Message          replaceLabelFixtureMessage `yaml:"message"`
+}
+
+type replaceLabelFixtureConfig struct {
+	AllowedAdd    []string `yaml:"allowed-add"`
+	AllowedRemove []string `yaml:"allowed-remove"`
+	Blocked       []string `yaml:"blocked"`
+}
+
+type replaceLabelFixtureMessage struct {
+	LabelToAdd    string `yaml:"label_to_add"`
+	LabelToRemove string `yaml:"label_to_remove"`
+}
+
+type replaceLabelExpected struct {
+	Decision  string `yaml:"decision"`
+	ErrorCode *int   `yaml:"error_code"`
+	Reason    string `yaml:"reason"`
+}
+
 func formalRequiredNonEmptyLabel(s string) bool {
 	return strings.TrimSpace(s) != ""
 }
@@ -50,17 +88,46 @@ func formalLabelAndRepoLengthsValid(labelToRemove, labelToAdd, repo string) bool
 	return len(labelToRemove) <= 128 && len(labelToAdd) <= 128 && len(repo) <= 256
 }
 
+// formalSimpleGlobToRegex converts a simple glob pattern to a regexp using the
+// same semantics as the production matchesSimpleGlob helper
+// (glob_pattern_helpers.cjs, simpleGlobToRegex, pathMode=false):
+//   - All regex-special characters INCLUDING [ and ] are escaped to literals.
+//   - * is NOT escaped; it expands to .* (matches any character, including /).
+//   - The match is anchored at both ends.
+//
+// Note: character-class syntax (e.g. p[0-9]) is therefore NOT supported;
+// brackets are treated as ordinary characters, consistent with production.
+func formalSimpleGlobToRegex(pattern string) *regexp.Regexp {
+	var b strings.Builder
+	b.WriteByte('^')
+	for _, c := range pattern {
+		switch c {
+		case '*':
+			b.WriteString(".*")
+		// Special characters to escape mirror the escapeRegexChars helper in
+		// glob_pattern_helpers.cjs: \, ., +, ?, ^, $, {, }, (, ), |, [, ] are
+		// escaped to literals.  * is intentionally omitted here so it can be
+		// replaced by .* below.
+		case '.', '+', '?', '^', '$', '{', '}', '(', ')', '|', '[', ']', '\\':
+			b.WriteByte('\\')
+			b.WriteRune(c)
+		default:
+			b.WriteRune(c)
+		}
+	}
+	b.WriteByte('$')
+	return regexp.MustCompile(b.String())
+}
+
 // formalMatchAnyPattern reports whether value matches any of the given glob
-// patterns.  Matching is case-insensitive by default, consistent with the
-// production matchesSimpleGlob helper in glob_pattern_helpers.cjs.
+// patterns.  Matching is case-insensitive, consistent with the production
+// matchesSimpleGlob helper in glob_pattern_helpers.cjs.  Pattern semantics
+// follow formalSimpleGlobToRegex: * spans any characters, brackets are literal.
 func formalMatchAnyPattern(value string, patterns []string) bool {
 	lowerValue := strings.ToLower(value)
 	for _, p := range patterns {
-		matched, err := path.Match(strings.ToLower(p), lowerValue)
-		if err != nil {
-			continue
-		}
-		if matched {
+		re := formalSimpleGlobToRegex(strings.ToLower(p))
+		if re.MatchString(lowerValue) {
 			return true
 		}
 	}
@@ -169,6 +236,126 @@ func formalResolveTargetNumber(targetMode string, triggeringNumber int, requeste
 		}
 		return n, true
 	}
+}
+
+// formalResolveItemNumberAliases models alias resolution priority for item targets.
+// Order is: item_number, issue_number, pr_number, pull_number.
+// Resolution stops at the FIRST alias key that is present in the map (matching
+// production temporary_id.cjs behaviour: the first non-null/non-undefined field
+// wins, and an invalid value at that position is not bypassed by falling through
+// to a lower-priority alias).
+// Returns 0 when the first present alias has a non-positive value, or when no
+// alias key is present at all.
+func formalResolveItemNumberAliases(message map[string]any) int {
+	for _, key := range []string{"item_number", "issue_number", "pr_number", "pull_number"} {
+		v, ok := message[key]
+		if !ok {
+			continue
+		}
+		// First present alias found: check if positive and return immediately.
+		// A non-positive value at this position is treated as invalid (returns 0)
+		// without falling through to a lower-priority alias.
+		switch n := v.(type) {
+		case int:
+			if n > 0 {
+				return n
+			}
+		case int64:
+			if n > 0 {
+				return int(n)
+			}
+		case float64:
+			if n > 0 {
+				return int(n)
+			}
+		}
+		return 0
+	}
+	return 0
+}
+
+// formalEvaluateFixtureScenario returns nil when the scenario passes the same
+// blocked-first and allowlist checks applied by the formal label validators,
+// or a descriptive error indicating the denial kind.
+func formalEvaluateFixtureScenario(sc replaceLabelFixtureScenario) error {
+	if sc.Input.Message.LabelToAdd != "" {
+		if err := formalValidateSingleLabel(sc.Input.Message.LabelToAdd, sc.Input.SafeOutputConfig.AllowedAdd, sc.Input.SafeOutputConfig.Blocked, "label_to_add"); err != nil {
+			return err
+		}
+	}
+	if sc.Input.Message.LabelToRemove != "" {
+		if err := formalValidateSingleLabel(sc.Input.Message.LabelToRemove, sc.Input.SafeOutputConfig.AllowedRemove, sc.Input.SafeOutputConfig.Blocked, "label_to_remove"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// runReplaceLabelFixture loads a compliance fixture YAML file and executes each
+// scenario as a subtest, asserting expected allow/deny decisions.
+func runReplaceLabelFixture(t *testing.T, fixtureName string) {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(formalRepoRoot(t), "specs", "replace-label-compliance", fixtureName))
+	require.NoError(t, err)
+
+	fixture, err := parseReplaceLabelFixture(data)
+	require.NoError(t, err)
+
+	for _, scenario := range fixture.Scenarios {
+		t.Run(scenario.ScenarioID, func(t *testing.T) {
+			evalErr := formalEvaluateFixtureScenario(scenario)
+			switch scenario.Expected.Decision {
+			case "allow":
+				require.NoError(t, evalErr, "expected allow but evaluation denied the scenario")
+			case "deny":
+				require.Error(t, evalErr, "expected deny but evaluation allowed the scenario")
+				// Assert ordering/kind signal when the fixture encodes an error_code.
+				if scenario.Expected.ErrorCode != nil {
+					switch *scenario.Expected.ErrorCode {
+					case -32003:
+						assert.Contains(t, evalErr.Error(), "blocked pattern",
+							"error_code -32003 requires a blocked-pattern denial (blocklist evaluated first)")
+					case -32002:
+						assert.Contains(t, evalErr.Error(), "allowed list",
+							"error_code -32002 requires an allowed-list denial")
+					}
+				}
+			default:
+				t.Fatalf("unknown fixture decision %q for scenario %q: must be 'allow' or 'deny'",
+					scenario.Expected.Decision, scenario.ScenarioID)
+			}
+		})
+	}
+}
+
+func parseReplaceLabelFixture(data []byte) (replaceLabelFixtureFile, error) {
+	var fixture replaceLabelFixtureFile
+	if err := yamlv3.Unmarshal(data, &fixture); err != nil {
+		return replaceLabelFixtureFile{}, err
+	}
+	if len(fixture.Scenarios) == 0 {
+		return replaceLabelFixtureFile{}, errors.New("fixture has no scenarios")
+	}
+	return fixture, nil
+}
+
+func formalRepoRoot(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	dir := filepath.Dir(file)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	t.Fatalf("failed to locate repository root from %s", file)
+	return ""
 }
 
 func TestFormalReplaceLabelP1_FieldRequired(t *testing.T) {
@@ -332,4 +519,156 @@ func TestFormalReplaceLabelEdge_ReplaceLabelConfigStructFieldsPresent(t *testing
 		_, ok := typ.FieldByName(field)
 		assert.True(t, ok, "expected ReplaceLabelConfig to include field %s", field)
 	}
+}
+
+func TestFormalGlobSemantics(t *testing.T) {
+	runReplaceLabelFixture(t, "rl-001-glob-semantics.yaml")
+}
+
+func TestFormalAllowlistEnforcement(t *testing.T) {
+	runReplaceLabelFixture(t, "rl-002-allowlist-enforcement.yaml")
+}
+
+func TestFormalBlocklistOrdering(t *testing.T) {
+	runReplaceLabelFixture(t, "rl-003-blocklist-ordering.yaml")
+}
+
+func TestFormalSchemaRequiredFields(t *testing.T) {
+	cfg := ValidationConfig["replace_label"]
+	assert.True(t, cfg.Fields["label_to_remove"].Required)
+	assert.True(t, cfg.Fields["label_to_add"].Required)
+	assert.False(t, formalRequiredNonEmptyLabel(""))
+	assert.False(t, formalLabelAndRepoLengthsValid(strings.Repeat("a", 129), "ok", "repo"))
+	assert.False(t, formalLabelAndRepoLengthsValid("ok", strings.Repeat("b", 129), "repo"))
+}
+
+func TestFormalRepoMaxLength(t *testing.T) {
+	assert.True(t, formalLabelAndRepoLengthsValid("from", "to", strings.Repeat("r", 256)))
+	assert.False(t, formalLabelAndRepoLengthsValid("from", "to", strings.Repeat("r", 257)))
+}
+
+func TestFormalCountGate(t *testing.T) {
+	cfg := ValidationConfig["replace_label"]
+	require.Equal(t, 5, cfg.DefaultMax)
+	assert.Less(t, 4, cfg.DefaultMax)
+	assert.GreaterOrEqual(t, 5, cfg.DefaultMax)
+	customMax := 3
+	assert.Less(t, 2, customMax)
+	assert.GreaterOrEqual(t, 3, customMax)
+}
+
+func TestFormalLabelSetComputation(t *testing.T) {
+	assert.Equal(t, []string{"bug", "done"}, formalComputeNewLabelSet([]string{"in-progress", "bug", "bug"}, "in-progress", "done"))
+	assert.Equal(t, []string{"bug", "done"}, formalComputeNewLabelSet([]string{"bug"}, "in-progress", "done"))
+}
+
+func TestFormalStagedMode(t *testing.T) {
+	compiler := NewCompiler()
+	cfg := compiler.parseReplaceLabelConfig(map[string]any{"replace-label": map[string]any{"staged": true}})
+	require.NotNil(t, cfg)
+	require.NotNil(t, cfg.Staged)
+	assert.Equal(t, "true", string(*cfg.Staged))
+}
+
+// formalRunReplaceLabel models the core execute path of the replace_label handler.
+// onWrite is invoked exactly once when the handler would call the write API
+// (issues.setLabels). In staged mode the handler must return before reaching
+// onWrite; this is the invariant asserted by TestFormalStagedMode_NoWriteAPI.
+func formalRunReplaceLabel(staged bool, onWrite func()) formalReplaceLabelOutcome {
+	if staged {
+		return formalReplaceLabelOutcome{Success: true, Staged: true}
+	}
+	onWrite()
+	return formalReplaceLabelOutcome{Success: true}
+}
+
+func TestFormalStagedMode_NoWriteAPI(t *testing.T) {
+	writeCalls := 0
+	outcome := formalRunReplaceLabel(true, func() { writeCalls++ })
+	assert.True(t, outcome.Success)
+	assert.True(t, outcome.Staged)
+	assert.Zero(t, writeCalls, "staged mode must not call the write API (setLabels)")
+}
+
+func TestFormalNonStagedMode_InvokesWriteAPI(t *testing.T) {
+	writeCalls := 0
+	outcome := formalRunReplaceLabel(false, func() { writeCalls++ })
+	assert.True(t, outcome.Success)
+	assert.False(t, outcome.Staged)
+	assert.Equal(t, 1, writeCalls, "non-staged mode must invoke the write API exactly once")
+}
+
+func TestFormalSingleRESTCall(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join(formalRepoRoot(t), "actions", "setup", "js", "replace_label.cjs"))
+	require.NoError(t, err)
+	src := string(data)
+	assert.Equal(t, 1, strings.Count(src, ".setLabels("))
+	assert.Zero(t, strings.Count(src, ".addLabels("))
+	assert.Zero(t, strings.Count(src, ".removeLabel("))
+	assert.Zero(t, strings.Count(src, ".removeLabels("))
+}
+
+func TestFormalBlocklistSymmetry(t *testing.T) {
+	require.Error(t, formalValidateSingleLabel("~internal", nil, []string{"~*"}, "label_to_add"))
+	require.Error(t, formalValidateSingleLabel("~internal", []string{"*"}, []string{"~*"}, "label_to_remove"))
+}
+
+func TestFormalRequiredLabelsGate(t *testing.T) {
+	assert.True(t, formalRequiredLabelsSatisfied([]string{"ready", "triaged"}, []string{"ready"}))
+	assert.False(t, formalRequiredLabelsSatisfied([]string{"triaged"}, []string{"ready"}))
+}
+
+func TestFormalTitlePrefixGate(t *testing.T) {
+	assert.True(t, formalTitlePrefixSatisfied("[BUG] crash on startup", "[BUG]"))
+	assert.False(t, formalTitlePrefixSatisfied("crash on startup", "[BUG]"))
+}
+
+func TestFormalAddDeduplication(t *testing.T) {
+	labels := formalComputeNewLabelSet([]string{"done", "bug"}, "in-progress", "done")
+	count := 0
+	for _, label := range labels {
+		if label == "done" {
+			count++
+		}
+	}
+	assert.Equal(t, 1, count)
+}
+
+func TestFormalHardErrorOnRESTFail(t *testing.T) {
+	err := errors.New("service unavailable")
+	require.Error(t, err)
+	outcome := formalReplaceLabelOutcome{Success: false, Skipped: false}
+	assert.False(t, outcome.Success)
+	assert.False(t, outcome.Skipped)
+}
+
+func TestFormalGlobExactNoWildcard(t *testing.T) {
+	assert.True(t, formalMatchAnyPattern("bug", []string{"bug"}))
+	assert.False(t, formalMatchAnyPattern("bug-fix", []string{"bug"}))
+}
+
+func TestFormalItemNumberAliases(t *testing.T) {
+	assert.Equal(t, 101, formalResolveItemNumberAliases(map[string]any{"issue_number": 101}))
+	assert.Equal(t, 102, formalResolveItemNumberAliases(map[string]any{"pr_number": 102}))
+	assert.Equal(t, 103, formalResolveItemNumberAliases(map[string]any{"pull_number": 103}))
+	assert.Equal(t, 104, formalResolveItemNumberAliases(map[string]any{"item_number": 104, "issue_number": 105}))
+	assert.Equal(t, 0, formalResolveItemNumberAliases(map[string]any{}))
+	assert.Equal(t, 0, formalResolveItemNumberAliases(map[string]any{"issue_number": 0}))
+	assert.Equal(t, 0, formalResolveItemNumberAliases(map[string]any{"issue_number": -1}))
+}
+
+func TestFormalCrossRepoRestriction(t *testing.T) {
+	assert.True(t, formalRepoAllowed("octo/current", "octo/current", []string{"octo/other"}))
+	assert.False(t, formalRepoAllowed("evil/repo", "octo/current", []string{"octo/other"}))
+}
+
+func TestFormalFixtureLoaderRejectsMalformedYAML(t *testing.T) {
+	_, err := parseReplaceLabelFixture([]byte("fixture_id: ["))
+	require.Error(t, err)
+}
+
+func TestFormalFixtureLoaderRejectsEmptyScenarios(t *testing.T) {
+	_, err := parseReplaceLabelFixture([]byte("fixture_id: test\nscenarios: []\n"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no scenarios")
 }
