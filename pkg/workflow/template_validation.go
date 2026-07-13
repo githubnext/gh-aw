@@ -64,6 +64,13 @@ var (
 func validateNoIncludesInTemplateRegions(markdown string) error {
 	templateValidationLog.Print("Validating that imports are not inside template regions")
 
+	// Fast path: skip expensive regex if the markdown contains no {{#if blocks.
+	// templateRegionPattern exclusively matches {{#if ... }}...{{/if}} constructs;
+	// other handlebars-style tags (e.g. {{#unless}}) are not used in AWF workflows.
+	if !strings.Contains(markdown, "{{#if") {
+		return nil
+	}
+
 	// Use pre-compiled regex from package level for performance
 	matches := templateRegionPattern.FindAllStringSubmatch(markdown, -1)
 	templateValidationLog.Printf("Found %d template regions to validate", len(matches))
@@ -109,6 +116,11 @@ func validateNoIncludesInTemplateRegions(markdown string) error {
 func validateNoPreExpandedExperimentPlaceholders(markdown string) error {
 	templateValidationLog.Print("Validating that pre-expanded experiment placeholders are not used in template conditions")
 
+	// Fast path: skip expensive regex if the markdown contains no template conditions.
+	if !strings.Contains(markdown, "{{#") {
+		return nil
+	}
+
 	// Collect conditions from both {{#if ...}} and all elseif variants
 	ifConditions := TemplateIfPattern.FindAllStringSubmatch(markdown, -1)
 	elseifConditions := TemplateElseIfPattern.FindAllStringSubmatch(markdown, -1)
@@ -148,6 +160,11 @@ func validateNoPreExpandedExperimentPlaceholders(markdown string) error {
 // Returns one message per occurrence found, or nil if none.
 func detectDoubleQuotedExperimentComparisons(markdown string) []string {
 	templateValidationLog.Print("Checking for double-quoted experiment comparison expressions")
+
+	// Fast path: skip expensive regex if the markdown contains no template conditions.
+	if !strings.Contains(markdown, "{{#") {
+		return nil
+	}
 
 	ifConditions := TemplateIfPattern.FindAllStringSubmatch(markdown, -1)
 	elseifConditions := TemplateElseIfPattern.FindAllStringSubmatch(markdown, -1)
