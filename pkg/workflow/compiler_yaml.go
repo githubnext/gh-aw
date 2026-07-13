@@ -312,14 +312,61 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 // clearing its whitespace does not change the parsed content. This removes the bulk
 // of yamllint trailing-spaces and empty-lines noise from generated lock files without
 // touching lines that carry real content.
+//
+// This implementation avoids strings.Split/strings.Join to reduce allocations: it scans
+// the input byte-by-byte and builds the result with a single pre-allocated strings.Builder.
 func normalizeBlankLines(yamlContent string) string {
-	lines := strings.Split(yamlContent, "\n")
-	for i, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			lines[i] = ""
+	var b strings.Builder
+	b.Grow(len(yamlContent))
+
+	// lastNonBlankEnd tracks the builder length immediately after writing the last
+	// non-blank line (including its trailing newline). It starts at 0 and is only
+	// advanced when a substantive line is written, so it stays 0 when all lines
+	// are whitespace-only or the input is empty. Every line — blank or not — still
+	// gets a '\n' written to b, so b.Len() and lastNonBlankEnd may diverge when
+	// there are trailing blank lines.
+	lastNonBlankEnd := 0
+	pos := 0
+	for pos < len(yamlContent) {
+		// Find the end of the current line.
+		end := strings.IndexByte(yamlContent[pos:], '\n')
+		var line string
+		if end == -1 {
+			line = yamlContent[pos:]
+		} else {
+			line = yamlContent[pos : pos+end]
 		}
+
+		if strings.TrimSpace(line) == "" {
+			// Whitespace-only line: emit as a truly empty line.
+			b.WriteByte('\n')
+			// lastNonBlankEnd is NOT updated here so that trailing blank lines
+			// (including a blank final "line" produced by a file that ends with
+			// "\n\n" or by whitespace-only text after the last real line) are
+			// excluded from the returned slice.
+		} else {
+			b.WriteString(line)
+			b.WriteByte('\n')
+			lastNonBlankEnd = b.Len()
+		}
+
+		if end == -1 {
+			break
+		}
+		pos += end + 1
 	}
-	return strings.TrimRight(strings.Join(lines, "\n"), "\n") + "\n"
+
+	// When lastNonBlankEnd is still 0 there were no non-blank lines at all
+	// (empty input or all-whitespace). Return a single newline, which matches
+	// the original strings.TrimRight(…, "\n") + "\n" behaviour for that case.
+	// NOTE: b.String()[:0] must NOT be used here; the early return is intentional.
+	if lastNonBlankEnd == 0 {
+		return "\n"
+	}
+	// Slice the builder string to drop trailing blank lines. b.String() copies
+	// the builder's internal buffer into a new string once; the slice avoids a
+	// second copy that a separate strings.Builder trim would incur.
+	return b.String()[:lastNonBlankEnd]
 }
 
 func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, []string, []string, error) {

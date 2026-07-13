@@ -43,6 +43,7 @@ func (c *Compiler) addActivationCommandAndLabelOutputs(ctx *activationJobBuildCo
 	}
 
 	if ctx.shouldRemoveLabel {
+		compilerActivationJobLog.Print("Adding remove-trigger-label step for label-command workflow")
 		ctx.steps = append(ctx.steps, "      - name: Remove trigger label\n")
 		ctx.steps = append(ctx.steps, fmt.Sprintf("        id: %s\n", constants.RemoveTriggerLabelStepID))
 		ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
@@ -61,6 +62,7 @@ func (c *Compiler) addActivationCommandAndLabelOutputs(ctx *activationJobBuildCo
 		ctx.steps = append(ctx.steps, generateGitHubScriptWithRequire("remove_trigger_label.cjs"))
 		ctx.outputs["label_command"] = fmt.Sprintf("${{ steps.%s.outputs.label_name }}", constants.RemoveTriggerLabelStepID)
 	} else if ctx.hasLabelCommand {
+		compilerActivationJobLog.Print("Adding get-trigger-label step for label-command workflow")
 		ctx.steps = append(ctx.steps, "      - name: Get trigger label name\n")
 		ctx.steps = append(ctx.steps, fmt.Sprintf("        id: %s\n", constants.GetTriggerLabelStepID))
 		ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))

@@ -36,11 +36,6 @@ const TOOLS_DIR = `${RUNNER_TEMP}/gh-aw/mcp-cli/tools`;
 const AWF_GATEWAY_IP = "172.30.0.1";
 const SAFEOUTPUTS_SERVER_NAME = "safeoutputs";
 
-/** MCP servers that are handled differently and should not be user-facing CLIs.
- *  Note: safeoutputs and mcpscripts are NOT excluded — they are always CLI-mounted
- *  when mount-as-clis is enabled. */
-const INTERNAL_SERVERS = new Set(["github"]);
-
 /** Default timeout (ms) for HTTP calls to the local MCP gateway */
 const DEFAULT_HTTP_TIMEOUT_MS = 15000;
 
@@ -396,14 +391,14 @@ async function main() {
     return;
   }
 
-  const servers = (manifest.servers || []).filter(s => !INTERNAL_SERVERS.has(s.name));
+  const servers = manifest.servers || [];
 
   if (servers.length === 0) {
-    core.info("No user-facing MCP servers in manifest, skipping CLI mounting");
+    core.info("No MCP servers in manifest, skipping CLI mounting");
     return;
   }
 
-  core.info(`Found ${servers.length} user-facing server(s) in manifest (after filtering internal: ${[...INTERNAL_SERVERS].join(", ")})`);
+  core.info(`Found ${servers.length} server(s) in manifest to mount as CLI tools`);
 
   fs.mkdirSync(CLI_BIN_DIR, { recursive: true });
   fs.mkdirSync(TOOLS_DIR, { recursive: true });
