@@ -1961,6 +1961,46 @@ func TestBuildPullAWFContainersStepPropagatesFeatures(t *testing.T) {
 	})
 }
 
+func TestBuildPullAWFContainersStepPropagatesRunnerTopology(t *testing.T) {
+	compiler := NewCompiler()
+	buildToolsImagePrefix := constants.DefaultFirewallRegistry + "/build-tools:"
+
+	t.Run("arc-dind includes build-tools image", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "copilot",
+			RunnerConfig: &RunnerConfig{
+				Topology: RunnerTopologyArcDind,
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := compiler.buildPullAWFContainersStep(data)
+		stepsString := strings.Join(steps, "")
+
+		if !strings.Contains(stepsString, buildToolsImagePrefix) {
+			t.Errorf("expected build-tools image prefix %q in detection pull step for arc-dind;\ngot:\n%s", buildToolsImagePrefix, stepsString)
+		}
+	})
+
+	t.Run("non-arc-dind excludes build-tools image", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "copilot",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := compiler.buildPullAWFContainersStep(data)
+		stepsString := strings.Join(steps, "")
+
+		if strings.Contains(stepsString, buildToolsImagePrefix) {
+			t.Errorf("did not expect build-tools image prefix %q in detection pull step without arc-dind;\ngot:\n%s", buildToolsImagePrefix, stepsString)
+		}
+	})
+}
+
 func TestBuildDetectionEngineExecutionStepEmitsNodeSetupForCopilot(t *testing.T) {
 	compiler := NewCompiler()
 

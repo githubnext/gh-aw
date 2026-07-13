@@ -66,10 +66,37 @@ func codexProxyWebsocketBaseURL(apiBase string) string {
 	}
 }
 
+// buildThreatDetectionWorkflowData creates the shared minimal WorkflowData used by
+// detection-job helper steps so topology- and feature-dependent behavior stays in sync.
+func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *WorkflowData {
+	if engineID == "" {
+		engineID = data.AI
+	}
+	if engineID == "" {
+		engineID = "claude"
+	}
+
+	return &WorkflowData{
+		AI:                engineID,
+		ActionCache:       data.ActionCache,
+		Features:          data.Features,
+		Permissions:       data.Permissions,
+		CachedPermissions: data.CachedPermissions,
+		IsDetectionRun:    true,
+		RunnerConfig:      data.RunnerConfig,
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Type: SandboxTypeAWF,
+			},
+		},
+	}
+}
+
 // buildPullAWFContainersStep creates a step that pre-pulls AWF (agent workflow firewall)
 // container images in the detection job. The detection engine runs inside AWF, which uses
-// three containers (squid, agent, api-proxy). Pre-pulling avoids on-demand pulls at runtime.
-// Only AWF images are pulled here; MCP server images are not needed for detection.
+// the firewall stack containers needed for the selected topology (squid, agent, api-proxy,
+// plus build-tools on arc-dind). Pre-pulling avoids on-demand pulls at runtime. Only AWF
+// images are pulled here; MCP server images are not needed for detection.
 func (c *Compiler) buildPullAWFContainersStep(data *WorkflowData) []string {
 	// Build a minimal WorkflowData that represents the detection engine context so
 	// collectDockerImages returns only the AWF firewall images (no MCP tool images).
@@ -77,17 +104,8 @@ func (c *Compiler) buildPullAWFContainersStep(data *WorkflowData) []string {
 	if engineSetting == "" {
 		engineSetting = "claude"
 	}
-	detectionData := &WorkflowData{
-		Tools: map[string]any{},
-		AI:    engineSetting,
-		SandboxConfig: &SandboxConfig{
-			Agent: &AgentSandboxConfig{
-				Type: SandboxTypeAWF,
-			},
-		},
-		ActionCache: data.ActionCache, // Propagate cache so container digest pins are applied
-		Features:    data.Features,    // Propagate features so cli-proxy image is included when enabled
-	}
+	detectionData := buildThreatDetectionWorkflowData(data, engineSetting)
+	detectionData.Tools = map[string]any{}
 
 	images := collectDockerImages(detectionData.Tools, detectionData, c.actionMode)
 	if len(images) == 0 {
@@ -179,22 +197,11 @@ func (c *Compiler) buildInstallDetectionEngineForExternalDetectorStep(data *Work
 
 	// Build a synthetic detection WorkflowData solely to generate the engine's
 	// installation steps for this separate detection job context.
-	threatDetectionData := &WorkflowData{
-		Tools: map[string]any{
-			"bash": []any{"*"},
-		},
-		EngineConfig:      &EngineConfig{ID: engineID},
-		AI:                engineID,
-		Features:          data.Features,
-		Permissions:       data.Permissions,
-		CachedPermissions: data.CachedPermissions,
-		IsDetectionRun:    true,
-		SandboxConfig: &SandboxConfig{
-			Agent: &AgentSandboxConfig{
-				Type: SandboxTypeAWF,
-			},
-		},
+	threatDetectionData := buildThreatDetectionWorkflowData(data, engineID)
+	threatDetectionData.Tools = map[string]any{
+		"bash": []any{"*"},
 	}
+	threatDetectionData.EngineConfig = &EngineConfig{ID: engineID}
 
 	if canReuseThreatDetectionEngineConfigForExternalDetector(data, engineID) {
 		ec := data.SafeOutputs.ThreatDetection.EngineConfig
@@ -261,30 +268,19 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// Build detection WorkflowData for the external detector.
 	// The rw mount for ThreatDetectionDir allows the threat-detect binary to write
 	// detection_result.json from inside the AWF container to the host filesystem.
-	threatDetectionData := &WorkflowData{
-		Tools: map[string]any{
-			"bash": []any{"*"},
-		},
-		EngineConfig:      &EngineConfig{ID: engineID},
-		AI:                engineID,
-		Features:          data.Features,
-		Permissions:       data.Permissions,
-		CachedPermissions: data.CachedPermissions,
-		IsDetectionRun:    true,
-		NetworkPermissions: &NetworkPermissions{
-			Allowed: getThreatDetectionAdditionalAllowedDomains(data),
-		},
-		SandboxConfig: &SandboxConfig{
-			Agent: &AgentSandboxConfig{
-				Type: SandboxTypeAWF,
-				// Add a read-write mount so the threat-detect binary can write
-				// detection_result.json inside the container and it becomes visible
-				// on the host through the bind mount.
-				Mounts: []string{
-					constants.ThreatDetectionDir + ":" + constants.ThreatDetectionDir + ":rw",
-				},
-			},
-		},
+	threatDetectionData := buildThreatDetectionWorkflowData(data, engineID)
+	threatDetectionData.Tools = map[string]any{
+		"bash": []any{"*"},
+	}
+	threatDetectionData.EngineConfig = &EngineConfig{ID: engineID}
+	threatDetectionData.NetworkPermissions = &NetworkPermissions{
+		Allowed: getThreatDetectionAdditionalAllowedDomains(data),
+	}
+	threatDetectionData.SandboxConfig.Agent.Mounts = []string{
+		// Add a read-write mount so the threat-detect binary can write
+		// detection_result.json inside the container and it becomes visible
+		// on the host through the bind mount.
+		constants.ThreatDetectionDir + ":" + constants.ThreatDetectionDir + ":rw",
 	}
 
 	// Inherit engine config overrides from threat-detection config when set.
