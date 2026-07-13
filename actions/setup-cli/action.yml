@@ -14,11 +14,24 @@ inputs:
 outputs:
   installed-version:
     description: 'The version that was installed'
+    value: ${{ steps.install-windows.outputs.installed_version || steps.install-unix.outputs.installed_version }}
   
 runs:
   using: 'composite'
   steps:
-    - name: Install gh-aw CLI
+    - name: Install gh-aw CLI (PowerShell)
+      id: install-windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: '& "$env:ACTION_PATH/install.ps1"'
+
+    - name: Install gh-aw CLI (Bash)
+      id: install-unix
+      if: runner.os != 'Windows'
       shell: bash
       env:
         INPUT_VERSION: ${{ inputs.version }}

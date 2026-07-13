@@ -1394,6 +1394,33 @@ func TestScanRunContentExpressions(t *testing.T) {
 			wantHasUnsafe:     false,
 			wantHasDisallowed: true,
 		},
+		{
+			name: "unsafe expression in double-quoted run key",
+			yaml: `jobs:
+  test:
+    steps:
+      - "run": echo "${{ github.event.issue.title }}"`,
+			wantHasUnsafe:     true,
+			wantHasDisallowed: true,
+		},
+		{
+			name: "unsafe expression in single-quoted run key",
+			yaml: `jobs:
+  test:
+    steps:
+      - 'run': echo "${{ github.event.issue.title }}"`,
+			wantHasUnsafe:     true,
+			wantHasDisallowed: true,
+		},
+		{
+			name: "allowed expression in double-quoted run key",
+			yaml: `jobs:
+  test:
+    steps:
+      - "run": node ${{ runner.temp }}/actions/foo.cjs`,
+			wantHasUnsafe:     false,
+			wantHasDisallowed: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1589,6 +1616,45 @@ func TestDetectHeredocDelimiter(t *testing.T) {
 			assert.Equal(t, tt.wantOK, gotOK)
 			if tt.wantOK {
 				assert.Equal(t, tt.wantDelim, gotDelim)
+			}
+		})
+	}
+}
+
+func TestFindRunValueFastPath(t *testing.T) {
+	cases := []struct {
+		input   string
+		wantOk  bool
+		wantVal string
+	}{
+		// Unquoted key forms
+		{`run: echo hello`, true, "echo hello"},
+		{`  run: echo hello`, true, "echo hello"},
+		// Flow-style YAML: the trailing "}" is part of the raw value returned by
+		// findRunValue (everything after "run:"). Template-injection callers scan
+		// that raw string for ${{...}} expressions, so the brace does no harm.
+		{`{run: echo hello}`, true, "echo hello}"},
+		// Double-quoted key
+		{`"run": echo hello`, true, "echo hello"},
+		// Single-quoted key
+		{`'run': echo hello`, true, "echo hello"},
+		// Mixed-quote forms
+		{`"run': echo hello`, true, "echo hello"},
+		{`'run": echo hello`, true, "echo hello"},
+		// Non-matching cases
+		{`step: build`, false, ""},
+		{`runner: ubuntu`, false, ""},
+		{`runner:`, false, ""},
+		{`name: run something`, false, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.input, func(t *testing.T) {
+			val, ok := findRunValue(c.input)
+			if ok != c.wantOk {
+				t.Errorf("findRunValue(%q) ok=%v, want %v", c.input, ok, c.wantOk)
+			}
+			if ok && val != c.wantVal {
+				t.Errorf("findRunValue(%q) val=%q, want %q", c.input, val, c.wantVal)
 			}
 		})
 	}

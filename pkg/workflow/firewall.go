@@ -117,9 +117,15 @@ func getAgentConfig(workflowData *WorkflowData) *AgentSandboxConfig {
 
 // getAgentContainerRuntime returns the container runtime string for the AWF config,
 // or an empty string if no custom runtime is configured.
+// docker-sbx is excluded because it is not an OCI runtime; it passes
+// --container-runtime sbx as a CLI flag in BuildAWFArgs instead.
 func getAgentContainerRuntime(workflowData *WorkflowData) string {
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig == nil || agentConfig.Disabled {
+		return ""
+	}
+	// docker-sbx is not an OCI runtime and must not appear in container.containerRuntime.
+	if agentConfig.Runtime == AgentRuntimeDockerSbx {
 		return ""
 	}
 	return string(agentConfig.Runtime)
@@ -134,10 +140,25 @@ func isGVisorRuntime(workflowData *WorkflowData) bool {
 	return agentConfig.Runtime == AgentRuntimeGVisor
 }
 
+// isDockerSbxRuntime returns true when the agent should run inside a Docker sbx
+// microVM (KVM-based hypervisor isolation).
+func isDockerSbxRuntime(workflowData *WorkflowData) bool {
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig == nil || agentConfig.Disabled {
+		return false
+	}
+	return agentConfig.Runtime == AgentRuntimeDockerSbx
+}
+
 func isAWFNetworkIsolationEnabled(workflowData *WorkflowData) bool {
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig == nil || agentConfig.Disabled {
 		return false
+	}
+	// docker-sbx always uses network isolation regardless of the sudo setting.
+	// The sudo flag is only for the install steps, not for network enforcement.
+	if agentConfig.Runtime == AgentRuntimeDockerSbx {
+		return true
 	}
 	return agentConfig.NetworkIsolation
 }

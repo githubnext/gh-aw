@@ -83,4 +83,26 @@ func TestGenerateGitHubMCPLockdownDetectionStepGeneratedWhenNoGuardPolicy(t *tes
 	assert.Contains(t, output, "determine-automatic-lockdown", "detection step should be generated when no explicit guard policy")
 	assert.NotContains(t, output, "GH_AW_GITHUB_MIN_INTEGRITY", "env var should not be present when min-integrity is not set")
 	assert.NotContains(t, output, "GH_AW_GITHUB_REPOS", "env var should not be present when repos is not set")
+	assert.NotContains(t, output, "GH_AW_PRIVATE_TO_PUBLIC_FLOWS", "env var should not be present when private-to-public-flows is not set")
+}
+
+func TestGenerateGitHubMCPLockdownDetectionStepEmitsPrivateToPublicFlowsEnv(t *testing.T) {
+	t.Parallel()
+
+	var yaml strings.Builder
+	data := &WorkflowData{
+		Tools: map[string]any{
+			"github": map[string]any{
+				"private-to-public-flows": "allow",
+			},
+		},
+	}
+
+	NewCompiler().generateGitHubMCPLockdownDetectionStep(&yaml, data)
+	output := yaml.String()
+
+	assert.Contains(t, output, "determine-automatic-lockdown", "detection step should be generated")
+	// When private-to-public-flows: allow is set, the step must receive the env var so the
+	// determine_automatic_lockdown.cjs script can output repos=all instead of repos=public.
+	assert.Contains(t, output, "GH_AW_PRIVATE_TO_PUBLIC_FLOWS: 'allow'", "env var should be emitted when private-to-public-flows is allow")
 }

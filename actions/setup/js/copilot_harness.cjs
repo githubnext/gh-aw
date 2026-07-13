@@ -66,6 +66,9 @@ const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractD
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal } = require("./harness_retry_guard.cjs");
 const { isCAPIQuotaExceededError } = require("./detect_agent_errors.cjs");
 const { loadModelsJson } = require("./model_costs.cjs");
+const { resolveConfiguredCopilotModel } = require("./resolve_model_alias.cjs");
+
+const AWF_CONFIG_PATH = process.env.GH_AW_AWF_CONFIG_PATH || "/tmp/gh-aw/awf-config.json";
 
 // Additional startup retry budget for scheduled runs when Copilot exits with code 2
 // before producing any output (typically transient API interruption at startup).
@@ -251,6 +254,50 @@ function isDetectionPhase(phase) {
       .trim()
       .toLowerCase() === "detection"
   );
+}
+
+/**
+ * Read AWF config written by the compiler before the agent runs.
+ * @returns {object|null}
+ */
+function loadAwfConfigData() {
+  try {
+    return JSON.parse(fs.readFileSync(AWF_CONFIG_PATH, "utf8"));
+  } catch (err) {
+    if (err.code !== "ENOENT") {
+      log(`awf-config load error: ${err.message}`);
+    }
+    return null;
+  }
+}
+
+/**
+ * Resolve gh-aw model aliases (e.g. "small") to concrete Copilot CLI model ids.
+ * @param {{
+ *   awfReflectData: object|null,
+ *   logger?: (msg: string) => void,
+ * }} options
+ * @returns {string}
+ */
+function applyCopilotModelAliasResolution(options) {
+  const logger = options.logger || log;
+  const configuredModel = typeof process.env.COPILOT_MODEL === "string" ? process.env.COPILOT_MODEL.trim() : "";
+  if (!configuredModel) {
+    return configuredModel;
+  }
+
+  const awfConfig = loadAwfConfigData();
+  const aliasMap = awfConfig?.apiProxy?.models;
+  const resolvedModel = resolveConfiguredCopilotModel({
+    configuredModel,
+    aliasMap,
+    reflectData: options.awfReflectData,
+    logger,
+  });
+  if (resolvedModel && resolvedModel !== configuredModel) {
+    process.env.COPILOT_MODEL = resolvedModel;
+  }
+  return resolvedModel || configuredModel;
 }
 
 /**
@@ -792,6 +839,8 @@ async function main() {
     }
   }
 
+  applyCopilotModelAliasResolution({ awfReflectData, logger: log });
+
   // Resolve BYOK provider from live reflect data (SDK mode only).
   // Multi-provider BYOK is the only supported mode — fail immediately if the
   // provider cannot be resolved so retries are not wasted on a misconfigured environment.
@@ -1267,6 +1316,8 @@ if (typeof module !== "undefined" && module.exports) {
     parseCopilotSDKServerArgsFromEnv,
     isCAPIQuotaExceededError,
     hasTerminalSafeOutput,
+    applyCopilotModelAliasResolution,
+    loadAwfConfigData,
   };
 }
 

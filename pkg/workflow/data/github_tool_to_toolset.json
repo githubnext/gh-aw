@@ -17,6 +17,8 @@
   "list_tags": "repos",
   "list_branches": "repos",
 
+  "issue_dependency_read": "issues",
+  "issue_dependency_write": "issues",
   "issue_read": "issues",
   "list_issues": "issues",
   "create_issue": "issues",

@@ -78,7 +78,7 @@
       "description": "Issue management",
       "read_permissions": ["issues"],
       "write_permissions": ["issues"],
-      "tools": ["add_issue_comment", "issue_read", "issue_write", "list_issue_fields", "list_issue_types", "list_issues", "search_issues", "sub_issue_write"]
+      "tools": ["add_issue_comment", "issue_dependency_read", "issue_dependency_write", "issue_read", "issue_write", "list_issue_fields", "list_issue_types", "list_issues", "search_issues", "sub_issue_write"]
     },
     "labels": {
       "description": "Label management",

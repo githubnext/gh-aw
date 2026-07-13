@@ -2099,6 +2099,12 @@ Additional blocked-user validation tests in `TestValidateGitHubGuardPolicy`:
 - **T-GH-059**: No `min-integrity` configured → all non-blocked items pass integrity check
 - **T-GH-060**: Integrity ordinal order: none < unapproved < approved < merged
 
+#### 11.1.10 Combined P5+P6 Evaluation Tests
+
+- **T-GH-091**: When both `blocked-users` and `min-integrity` are configured, access is the conjunction of P5_NotBlocked AND P6_IntegrityMet; a non-blocked user with content at or above the threshold is allowed
+- **T-GH-092**: Non-blocked user with content exceeding the configured threshold is allowed; P5 and P6 both pass
+- **T-GH-093**: Blocked user whose content also fails the integrity threshold is denied with `-32005` (P5_NotBlocked fires before P6_IntegrityMet per §8.5 combined evaluation order), not `-32006`
+
 ### 11.2 Compliance Checklist
 
 | Requirement | Test ID | Level | Status |
@@ -2147,6 +2153,7 @@ The following fixture files in [`specs/github-mcp-access-control-compliance/`](.
 | [`role-deny.yaml`](../../specs/github-mcp-access-control-compliance/role-deny.yaml) | Role filter allows matching role; denies insufficient role | T-GH-019, T-GH-020, T-GH-023 |
 | [`private-repo-block.yaml`](../../specs/github-mcp-access-control-compliance/private-repo-block.yaml) | `private-repos: false` blocks private repo; allows public repo | T-GH-024, T-GH-025, T-GH-026 |
 | [`integrity-level-block.yaml`](../../specs/github-mcp-access-control-compliance/integrity-level-block.yaml) | `min-integrity` allows content at/above threshold; blocks content below | T-GH-051, T-GH-052, T-GH-054 |
+| [`combined-blocked-integrity.yaml`](../../specs/github-mcp-access-control-compliance/combined-blocked-integrity.yaml) | Combined P5+P6: blocked user denied with `-32005` even when P6 would also fail; non-blocked user with sufficient integrity allowed | T-GH-091, T-GH-092, T-GH-093 |
 
 See [`specs/github-mcp-access-control-compliance/README.md`](../../specs/github-mcp-access-control-compliance/README.md) for fixture schema documentation and instructions for adding new scenarios.
 
@@ -2694,6 +2701,34 @@ Cross-reference of `scratchpad/github-mcp-access-control-specification.md` and `
 | `lockdown: true` takes precedence over guard policies | §9.5.1 (this spec) and guard-policies-spec Open Question #3 decision | `pkg/workflow/tools_validation_github.go` now emits a compile-time warning when `lockdown: true` co-exists with guard-policy fields while preserving runtime precedence | **Resolved** |
 
 **Heading alignment note**: §4.4.1 now names `repos` as the gateway-internal field and `allowed-repos` as the frontmatter key. Consumers SHOULD use `allowed-repos` in workflow frontmatter; `repos` remains the internal gateway field name and a deprecated frontmatter alias.
+
+---
+
+## Sync Follow-ups
+
+This section lists the files that **MUST** be reviewed and updated whenever a normative section of this specification changes, especially §8.5 (combined evaluation order), §4.4 (field definitions), and §11 (compliance tests).
+
+### After Changing §8.5 Combined Evaluation Order
+
+When the relative order of P5_NotBlocked and P6_IntegrityMet (or any other guard predicates in §4.6.3) changes:
+
+1. **Gateway runtime implementation** — The production P1–P6 guard-chain evaluator lives in the gateway implementation (not in this repository). Locate the six-predicate evaluation loop in the gateway and update the ordering and first-failing-guard error-code selection logic accordingly. (The local formal model in `pkg/workflow/github_mcp_access_control_formal_test.go` — function `formalEvaluateAccess` — mirrors the spec ordering for test purposes only; update it in parallel.)
+
+2. **`specs/github-mcp-access-control-compliance/README.md`** — Update the Formal Model section (`ALLOW(r, c) ≜ …`) and the Behavioral Coverage Map table to reflect the new predicate order. Regenerate `TestFormal_BlockedUserSafetyProperty` and `TestFormal_ErrorCodeFirstFailingGuard` test cases to match.
+
+3. **`specs/github-mcp-access-control-compliance/combined-blocked-integrity.yaml`** — Review the `combined-blocked-integrity-C` scenario whose expected error code (`-32005`) depends on P5_NotBlocked firing before P6_IntegrityMet. Update the expected `error_code` if the predicate order changes. (Scenario D is unaffected: the user is blocked AND integrity is `merged` ≥ `approved` threshold, so P6 already passes regardless of evaluation order.)
+
+### After Adding or Removing §4.4 Extension Fields
+
+When a new access-control field is added (e.g., `trusted-users`, `approval-labels`) or an existing field is removed:
+
+1. **`pkg/workflow/tools_types.go`** — Add or remove the corresponding `GitHubToolConfig` struct field and YAML tag.
+
+2. **`pkg/workflow/tools_validation_github.go`** — Add validation logic for the new field. Remove validation for any removed field.
+
+3. **`pkg/workflow/github_mcp_access_control_formal_test.go`** — Add a predicate-mapped `TestFormal_*` test function for the new field; remove obsolete tests for removed fields.
+
+4. **`specs/github-mcp-access-control-compliance/README.md`** — Update the Behavioral Coverage Map table and the Fixture Files table. Regenerate or create the corresponding YAML fixture file.
 
 ---
 

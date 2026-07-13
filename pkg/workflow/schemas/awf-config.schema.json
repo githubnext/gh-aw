@@ -569,6 +569,11 @@
             "pattern": "^/[^:]+:/[^:]+(:(ro|rw))?$"
           },
           "description": "Custom volume mounts for the agent container. Format: \"/host_path:/container_path[:ro|rw]\" (both paths must be absolute). In chroot mode, container paths are automatically prefixed with /host."
+        },
+        "containerRuntime": {
+          "type": "string",
+          "enum": ["gvisor", "sbx"],
+          "description": "Container runtime for the agent container. \"gvisor\" runs the agent under gVisor's runsc runtime (OCI runtime, compose-based). \"sbx\" runs the agent inside a Docker sbx microVM with hypervisor isolation; infrastructure containers (squid-proxy, api-proxy) stay in Docker Compose on the host and the sbx proxy chains upstream through AWF's Squid for domain filtering. Only the agent uses the custom runtime; infrastructure containers always use the default runc runtime. Note: when gh-aw compiles a workflow that uses the docker-sbx runtime, it passes \"--container-runtime sbx\" as a CLI flag to AWF rather than setting this field; this field is the AWF-native mechanism for specifying the runtime directly in the config JSON."
         }
       }
     },

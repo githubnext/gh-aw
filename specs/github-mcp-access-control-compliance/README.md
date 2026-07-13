@@ -62,6 +62,7 @@ The denial code is selected by the first failing guard in the evaluation order a
 | `INV2_ErrorCode` | `TestFormal_ErrorCodeFirstFailingGuard` | Deny error code matches first failing guard; table covers each guard as first failure |
 | `SAFETY_BlockedUserAlwaysDenied` | `TestFormal_BlockedUserSafetyProperty` | Safety: blocked user always produces `-32005` when all earlier guards pass |
 | `SAFETY_NoSpuriousAllow` | `TestFormal_NoSpuriousAllowInvariant` | Safety: no allow decision when any guard fails |
+| `P5_NotBlocked + P6_IntegrityMet` (combined) | `TestFormal_FixtureRunner` | P5 fires before P6 in evaluation order; blocked user denied with -32005 even when P6 would also fail; scenarios executed dynamically by the fixture runner |
 
 ## Fixture Files
 
@@ -76,6 +77,7 @@ The denial code is selected by the first failing guard in the evaluation order a
 | `private-repo-block.yaml` | `private-repos: false` blocks access to private repository | T-GH-024, T-GH-025 |
 | `integrity-level-block.yaml` | `min-integrity: approved` blocks content below the threshold | T-GH-051, T-GH-052 |
 | `combined-filter-allow.yaml` | All access-control conditions must be jointly satisfied | T-GH-081, T-GH-082, T-GH-083 |
+| `combined-blocked-integrity.yaml` | `blocked-users` (P5) and `min-integrity` (P6) evaluated simultaneously; P5 fires first when both fail | T-GH-091, T-GH-092, T-GH-093 |
 
 ## Fixture Schema
 

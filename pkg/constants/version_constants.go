@@ -73,7 +73,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.5.0"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.27.29"
+const DefaultFirewallVersion Version = "v0.27.31"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -112,10 +112,7 @@ const AWFArcDindMinVersion Version = "v0.27.20"
 
 // AWFContainerRuntimeMinVersion is the minimum AWF version that supports the
 // containerRuntime field in the container config (gh-aw-firewall#6093).
-// TODO: update this constant to the actual release version once gh-aw-firewall#6093 lands.
-// Until then, no released AWF binary accepts containerRuntime, so the compiler must not
-// emit the field for workflows pinned to any currently-available version.
-const AWFContainerRuntimeMinVersion Version = "v0.28.0"
+const AWFContainerRuntimeMinVersion Version = "v0.27.30"
 
 // DefaultGVisorVersion is the pinned gVisor release used by the compiler-generated
 // install step. A specific dated release name is used instead of "latest" to ensure
@@ -123,7 +120,7 @@ const AWFContainerRuntimeMinVersion Version = "v0.28.0"
 // integrity verification before the binaries are installed with root privileges.
 // Bump this constant after reviewing the release notes at
 // https://github.com/google/gvisor/releases.
-const DefaultGVisorVersion = "20250623.0"
+const DefaultGVisorVersion = "20250707.0"
 
 // CopilotNoAskUserMinVersion is the minimum Copilot CLI version that supports the --no-ask-user
 // flag, which enables fully autonomous agentic runs by suppressing interactive prompts.

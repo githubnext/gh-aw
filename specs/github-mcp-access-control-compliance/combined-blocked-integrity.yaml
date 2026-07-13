@@ -1,0 +1,125 @@
+# Combined Blocked + Integrity Evaluation — Compliance Fixture
+# Tests: T-GH-091, T-GH-092, T-GH-093
+# Spec: §8.5 Combined Evaluation Order, §8.2 Blocked-User Enforcement, §8.4 Minimum Integrity Enforcement
+
+fixture_id: "combined-blocked-integrity"
+description: >
+  When both `blocked-users` and `min-integrity` are configured, the access decision must
+  be the conjunction of P5_NotBlocked AND P6_IntegrityMet (T-GH-091). A request from a
+  non-blocked user whose content is above the integrity threshold MUST be allowed (T-GH-092).
+  A request from a blocked user whose content also fails the integrity threshold MUST be
+  denied with the error code corresponding to the first failing predicate in evaluation
+  order — P5_NotBlocked (-32005) fires before P6_IntegrityMet (-32006) (T-GH-093).
+
+spec_refs:
+  - "§8.5 — combined evaluation order: P5_NotBlocked (blocked-user check) evaluated before P6_IntegrityMet (threshold check)"
+  - "§8.2 — blocked-users MUST deny access unconditionally for listed actors"
+  - "§8.4 — min-integrity allows content at or above the configured threshold"
+  - "§11.4 — T-GH-091, T-GH-092, T-GH-093: combined P5+P6 evaluation"
+
+scenarios:
+  # --- Scenario A: non-blocked user, integrity meets threshold → allowed ---
+  - scenario_id: "combined-blocked-integrity-A"
+    description: >
+      Non-blocked user with content integrity meeting the threshold is allowed.
+      Both P5_NotBlocked and P6_IntegrityMet pass.
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        min-integrity: "approved"
+        blocked-users:
+          - "bad-actor"
+      request:
+        repository: "github/gh-aw"
+        user_login: "good-contributor"
+        content_integrity: "approved"
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""
+
+  # --- Scenario B: non-blocked user, content exceeds threshold → allowed ---
+  - scenario_id: "combined-blocked-integrity-B"
+    description: >
+      Non-blocked user with content integrity exceeding the threshold is allowed.
+      P5_NotBlocked passes (user not blocked); P6_IntegrityMet passes (merged > approved).
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        min-integrity: "approved"
+        blocked-users:
+          - "bad-actor"
+      request:
+        repository: "github/gh-aw"
+        user_login: "good-contributor"
+        content_integrity: "merged"
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""
+
+  # --- Scenario C: blocked user, integrity below threshold → denied with P5 code ---
+  - scenario_id: "combined-blocked-integrity-C"
+    description: >
+      Blocked user whose content also fails the integrity threshold is denied.
+      P5_NotBlocked fires first (evaluation order §8.5), so error code is -32005 even
+      though P6_IntegrityMet would also have failed.
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        min-integrity: "approved"
+        blocked-users:
+          - "bad-actor"
+      request:
+        repository: "github/gh-aw"
+        user_login: "bad-actor"
+        content_integrity: "none"
+    expected:
+      decision: deny
+      error_code: -32005
+      reason: "user is blocked"
+
+  # --- Scenario D: blocked user, integrity meets threshold → denied with P5 code ---
+  - scenario_id: "combined-blocked-integrity-D"
+    description: >
+      Blocked user whose content integrity meets the threshold is still denied.
+      P5_NotBlocked blocks unconditionally regardless of integrity level.
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        min-integrity: "approved"
+        blocked-users:
+          - "bad-actor"
+      request:
+        repository: "github/gh-aw"
+        user_login: "bad-actor"
+        content_integrity: "merged"
+    expected:
+      decision: deny
+      error_code: -32005
+      reason: "user is blocked"
+
+  # --- Scenario E: non-blocked user, integrity below threshold → denied with P6 code ---
+  - scenario_id: "combined-blocked-integrity-E"
+    description: >
+      Non-blocked user whose content integrity is below the configured threshold is denied.
+      P5_NotBlocked passes; P6_IntegrityMet fails → error code -32006.
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        min-integrity: "approved"
+        blocked-users:
+          - "bad-actor"
+      request:
+        repository: "github/gh-aw"
+        user_login: "good-contributor"
+        content_integrity: "unapproved"
+    expected:
+      decision: deny
+      error_code: -32006
+      reason: "content integrity below minimum required level"
