@@ -2001,6 +2001,69 @@ func TestBuildPullAWFContainersStepPropagatesRunnerTopology(t *testing.T) {
 	})
 }
 
+func TestBuildExternalDetectorExecutionStepPropagatesRunnerTopology(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("arc-dind uses daemon-visible AWF paths", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "copilot",
+			RunnerConfig: &RunnerConfig{
+				Topology: RunnerTopologyArcDind,
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := compiler.buildExternalDetectorExecutionStep(data)
+		if len(steps) == 0 {
+			t.Fatal("expected non-empty steps")
+		}
+		allSteps := strings.Join(steps, "")
+
+		if !strings.Contains(allSteps, `--mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro"`) {
+			t.Errorf("expected arc-dind external detector execution to mount ${RUNNER_TEMP}/gh-aw read-only;\ngot:\n%s", allSteps)
+		}
+		if !strings.Contains(allSteps, `--mount "${RUNNER_TEMP}/gh-aw/home:${RUNNER_TEMP}/gh-aw/home:rw"`) {
+			t.Errorf("expected arc-dind external detector execution to mount ${RUNNER_TEMP}/gh-aw/home read-write;\ngot:\n%s", allSteps)
+		}
+		if !strings.Contains(allSteps, `\"proxyLogsDir\":\"${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs\"`) {
+			t.Errorf("expected arc-dind external detector execution to rewrite proxyLogsDir under ${RUNNER_TEMP}/gh-aw;\ngot:\n%s", allSteps)
+		}
+		if !strings.Contains(allSteps, `\"auditDir\":\"${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit\"`) {
+			t.Errorf("expected arc-dind external detector execution to rewrite auditDir under ${RUNNER_TEMP}/gh-aw;\ngot:\n%s", allSteps)
+		}
+		if !strings.Contains(allSteps, "export HOME=${RUNNER_TEMP}/gh-aw/home") {
+			t.Errorf("expected arc-dind external detector execution to export HOME under ${RUNNER_TEMP}/gh-aw/home;\ngot:\n%s", allSteps)
+		}
+	})
+
+	t.Run("non-arc-dind keeps standard AWF paths", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "copilot",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := compiler.buildExternalDetectorExecutionStep(data)
+		if len(steps) == 0 {
+			t.Fatal("expected non-empty steps")
+		}
+		allSteps := strings.Join(steps, "")
+
+		if strings.Contains(allSteps, `--mount "${RUNNER_TEMP}/gh-aw/home:${RUNNER_TEMP}/gh-aw/home:rw"`) {
+			t.Errorf("did not expect non-arc-dind external detector execution to mount ${RUNNER_TEMP}/gh-aw/home read-write;\ngot:\n%s", allSteps)
+		}
+		if strings.Contains(allSteps, "export HOME=${RUNNER_TEMP}/gh-aw/home") {
+			t.Errorf("did not expect non-arc-dind external detector execution to export HOME under ${RUNNER_TEMP}/gh-aw/home;\ngot:\n%s", allSteps)
+		}
+		if strings.Contains(allSteps, `\"proxyLogsDir\":\"${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs\"`) {
+			t.Errorf("did not expect non-arc-dind external detector execution to rewrite proxyLogsDir under ${RUNNER_TEMP}/gh-aw;\ngot:\n%s", allSteps)
+		}
+	})
+}
+
 func TestBuildDetectionEngineExecutionStepEmitsNodeSetupForCopilot(t *testing.T) {
 	compiler := NewCompiler()
 

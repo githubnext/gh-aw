@@ -68,6 +68,8 @@ func codexProxyWebsocketBaseURL(apiBase string) string {
 
 // buildThreatDetectionWorkflowData creates the shared minimal WorkflowData used by
 // detection-job helper steps so topology- and feature-dependent behavior stays in sync.
+// It always initializes SandboxConfig.Agent because downstream detection helpers
+// extend the agent sandbox configuration (for example, external-detector mounts).
 func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *WorkflowData {
 	if engineID == "" {
 		engineID = data.AI
