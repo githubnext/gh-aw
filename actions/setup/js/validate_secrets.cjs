@@ -14,7 +14,6 @@
  */
 
 const fs = require("fs");
-const https = require("https");
 const { promisify } = require("util");
 const { exec } = require("child_process");
 const execAsync = promisify(exec);
@@ -47,80 +46,39 @@ const SECRET_DOCS = {
 };
 
 /**
- * Make an HTTPS request
+ * Make an HTTPS GET request
  * @param {string} hostname
  * @param {string} path
- * @param {Object} headers
- * @param {string} method
+ * @param {Record<string, string>} headers
  * @returns {Promise<{statusCode: number, data: string}>}
  */
-function makeRequest(hostname, path, headers, method = "GET") {
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname,
-      path,
-      method,
-      headers,
-    };
-
-    const req = https.request(options, res => {
-      let data = "";
-      res.on("data", chunk => {
-        data += chunk;
-      });
-      res.on("end", () => {
-        resolve({ statusCode: res.statusCode || 0, data });
-      });
-    });
-
-    req.on("error", err => {
-      reject(err);
-    });
-
-    req.setTimeout(10000, () => {
-      req.destroy();
-      reject(new Error("Request timeout"));
-    });
-
-    req.end();
+async function makeRequest(hostname, path, headers) {
+  const res = await fetch(`https://${hostname}${path}`, {
+    method: "GET",
+    headers,
+    signal: AbortSignal.timeout(10000),
   });
+  const data = await res.text();
+  return { statusCode: res.status, data };
 }
 
 /**
  * Make an HTTPS POST request
  * @param {string} hostname
  * @param {string} path
- * @param {Object} headers
+ * @param {Record<string, string>} headers
  * @param {string} body
  * @returns {Promise<{statusCode: number, data: string}>}
  */
-function makePostRequest(hostname, path, headers, body) {
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname,
-      path,
-      method: "POST",
-      headers: { ...headers, "Content-Length": Buffer.byteLength(body) },
-    };
-
-    const req = https.request(options, res => {
-      let data = "";
-      res.on("data", chunk => {
-        data += chunk;
-      });
-      res.on("end", () => {
-        resolve({ statusCode: res.statusCode || 0, data });
-      });
-    });
-
-    req.on("error", reject);
-    req.setTimeout(10000, () => {
-      req.destroy();
-      reject(new Error("Request timeout"));
-    });
-    req.write(body);
-    req.end();
+async function makePostRequest(hostname, path, headers, body) {
+  const res = await fetch(`https://${hostname}${path}`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": headers["Content-Type"] || "application/json" },
+    body,
+    signal: AbortSignal.timeout(10000),
   });
+  const data = await res.text();
+  return { statusCode: res.status, data };
 }
 
 /**
