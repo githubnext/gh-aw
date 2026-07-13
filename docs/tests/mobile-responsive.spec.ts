@@ -8,6 +8,7 @@ test.describe('Mobile and Responsive Layout', () => {
     { name: '428px Mobile', width: 428, height: 926 },
     { name: 'iPad (768px)', width: 768, height: 1024 },
     { name: 'iPad Pro 11 (834px)', width: 834, height: 1194 },
+    { name: 'iPad Pro 12.9 Portrait (1024px)', width: 1024, height: 1366 },
     { name: 'iPad Landscape (1024px)', width: 1024, height: 768 },
     { name: 'Desktop Portrait', width: 1080, height: 1920 },
     { name: 'Desktop Landscape', width: 1920, height: 1080 },
@@ -174,6 +175,53 @@ test.describe('Mobile and Responsive Layout', () => {
       });
     });
   }
+
+  // Regression test for https://github.com/github/gh-aw/issues/45211
+  // Verify the site-title link is not obstructed by overflowing nav links on
+  // iPad Pro 12.9 (1024px portrait) where the 7-item full nav used to overflow.
+  test('site-title link is unobstructed at iPad Pro 12.9 (1024px) width', async ({ browser }) => {
+    const context = await browser.newContext({
+      viewport: { width: 1024, height: 1366 },
+      javaScriptEnabled: true,
+    });
+    const page = await context.newPage();
+
+    await page.goto('/gh-aw/');
+    await page.waitForLoadState('networkidle');
+
+    // At 1024px the hamburger should be active, not the full 7-item nav bar.
+    const fullNav = page.locator('.custom-header-links');
+    await expect(fullNav).toBeHidden();
+
+    const hamburgerBtn = page.locator('.hamburger-btn');
+    await expect(hamburgerBtn).toBeVisible();
+
+    // The site-title must be visible and its bounding box must not be covered by
+    // any sibling element (i.e. the element at its centre must be the title itself
+    // or a descendant of it).
+    const siteTitle = page.locator('.site-title').first();
+    await expect(siteTitle).toBeVisible();
+
+    const box = await siteTitle.boundingBox();
+    expect(box).not.toBeNull();
+    if (box) {
+      const centerX = box.x + box.width / 2;
+      const centerY = box.y + box.height / 2;
+      const isUnobstructed = await page.evaluate(
+        ([x, y]) => {
+          const el = document.elementFromPoint(x, y);
+          if (!el) return false;
+          const titleEl = document.querySelector('.site-title');
+          return titleEl ? titleEl.contains(el) || el === titleEl : false;
+        },
+        [centerX, centerY] as [number, number],
+      );
+      expect(isUnobstructed).toBe(true);
+    }
+
+    await context.close();
+  });
+
 
   // Regression test for https://github.com/github/gh-aw/issues/29545
   // Verify the navigation dropdown is fully within the viewport when large
