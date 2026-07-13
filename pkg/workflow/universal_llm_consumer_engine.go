@@ -291,7 +291,10 @@ func (e *UniversalLLMConsumerEngine) BuildCLIEngineExecutionSteps(
 		}
 
 		npmPathSetup := GetNpmBinPathSetup()
-		engineCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, engineCommand)
+		// Propagate no_proxy inside the AWF container.  --env-all forwards NO_PROXY
+		// from the YAML env block, but Bun (and other runtimes) also check the
+		// lowercase variant, so we export it explicitly from the uppercase value.
+		engineCommandWithPath := fmt.Sprintf("export no_proxy=\"${NO_PROXY:-}\" && %s && %s", npmPathSetup, engineCommand)
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			engineCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, engineCommandWithPath)
 		}
@@ -305,24 +308,22 @@ func (e *UniversalLLMConsumerEngine) BuildCLIEngineExecutionSteps(
 			AllowedDomains: allowedDomains,
 		})
 	} else if cfg.WriteTimestamp {
-		command = fmt.Sprintf("set -o pipefail\nprintf '%%s' \"$(date +%%s%%3N)\" > %s\n%s 2>&1 | tee -a %s",
+		command = fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\nprintf '%%s' \"$(date +%%s%%3N)\" > %s\n%s 2>&1 | tee -a %s",
 			AgentCLIStartMsPath, engineCommand, logFile)
 	} else {
-		command = fmt.Sprintf("set -o pipefail\n%s 2>&1 | tee -a %s", engineCommand, logFile)
+		command = fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\n%s 2>&1 | tee -a %s", engineCommand, logFile)
 	}
 
 	env := map[string]string{
 		"GH_AW_PROMPT":     constants.AwPromptsFile,
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
 		"RUNNER_TEMP":      "${{ runner.temp }}",
-		// Set both uppercase and lowercase variants. Some HTTP client runtimes
-		// (e.g. Bun, used by OpenCode) check the lowercase form; others check
-		// uppercase. Additionally include explicit host:port entries because Bun
-		// compares the full host:port string rather than stripping the port first,
-		// so "host.docker.internal:10002" would not match "host.docker.internal"
-		// alone and would incorrectly route through Squid.
+		// Set NO_PROXY so that the AWF agent's HTTP client skips the squid proxy
+		// for local endpoints. The lowercase no_proxy variant is exported inside
+		// the run script rather than as a YAML env key because GitHub's workflow
+		// parser rejects case-insensitive duplicate env keys (NO_PROXY/no_proxy),
+		// which causes workflow_dispatch to fail with "failed to parse workflow".
 		"NO_PROXY": constants.AWFNoProxyHosts,
-		"no_proxy": constants.AWFNoProxyHosts,
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	e.ApplyUniversalProviderEnv(env, workflowData, firewallEnabled)
