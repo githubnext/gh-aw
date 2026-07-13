@@ -44,12 +44,13 @@ describe("determine_automatic_lockdown", () => {
     delete process.env.CUSTOM_GITHUB_TOKEN;
     delete process.env.GH_AW_GITHUB_MIN_INTEGRITY;
     delete process.env.GH_AW_GITHUB_REPOS;
+    delete process.env.GH_AW_PRIVATE_TO_PUBLIC_FLOWS;
 
     // Import the module
     determineAutomaticLockdown = (await import("./determine_automatic_lockdown.cjs")).default;
   });
 
-  it("should set min_integrity=approved and repos=all for public repository (no guard policy configured)", async () => {
+  it("should set min_integrity=approved and repos=public for public repository (no guard policy configured)", async () => {
     mockGithub.rest.repos.get.mockResolvedValue({
       data: {
         private: false,
@@ -64,7 +65,7 @@ describe("determine_automatic_lockdown", () => {
       repo: "test-repo",
     });
     expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "approved");
-    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "all");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "public");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
     expect(mockCore.setOutput).not.toHaveBeenCalledWith("lockdown", expect.anything());
   });
@@ -82,7 +83,7 @@ describe("determine_automatic_lockdown", () => {
     await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "merged");
-    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "all");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "public");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("min-integrity already configured as 'merged'"));
   });
@@ -148,7 +149,7 @@ describe("determine_automatic_lockdown", () => {
 
     expect(mockCore.error).toHaveBeenCalledWith("Failed to determine automatic guard policy: API request failed");
     expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "approved");
-    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "all");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "public");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
     expect(mockCore.setOutput).not.toHaveBeenCalledWith("lockdown", expect.anything());
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to determine repository visibility"));
@@ -165,7 +166,7 @@ describe("determine_automatic_lockdown", () => {
     await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "approved");
-    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "all");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "public");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
   });
 
@@ -231,7 +232,7 @@ describe("determine_automatic_lockdown", () => {
     expect(publicSummaryArg).toContain("approved");
     expect(publicSummaryArg).toContain("automatic (public repo)");
     expect(publicSummaryArg).toContain("repos");
-    expect(publicSummaryArg).toContain("all");
+    expect(publicSummaryArg).toContain("public");
     expect(mockCore.summary.write).toHaveBeenCalled();
   });
 
@@ -286,5 +287,23 @@ describe("determine_automatic_lockdown", () => {
     expect(privateSummaryArg).toContain("repos");
     expect(privateSummaryArg).toContain("all");
     expect(mockCore.summary.write).toHaveBeenCalled();
+  });
+
+  it("should set repos=all for public repository when GH_AW_PRIVATE_TO_PUBLIC_FLOWS=allow (private-to-public opt-in)", async () => {
+    process.env.GH_AW_PRIVATE_TO_PUBLIC_FLOWS = "allow";
+
+    mockGithub.rest.repos.get.mockResolvedValue({
+      data: {
+        private: false,
+        visibility: "public",
+      },
+    });
+
+    await determineAutomaticLockdown(mockGithub, mockContext, mockCore);
+
+    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "all");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "approved");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("repos not configured"));
   });
 });
