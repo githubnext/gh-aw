@@ -32,8 +32,8 @@ A richer evaluation format (multi-dimensional scores, rubrics, or structured rat
 - Both shorthand (plain list) and extended (object with `questions`, `model`, `runs-on`) forms are supported, keeping simple cases simple.
 
 #### Negative
-- Per-question model override (`model` field on each `EvalDefinition`) allows cost optimization — cheap models for simple factual checks, more capable models for nuanced questions.
-- Both shorthand (plain list) and extended (object with `questions`, `model`, `runs-on`) forms are supported, keeping simple cases simple.
+- Each workflow that declares `evals` incurs additional runner time and LLM inference cost per run, proportional to the number of questions.
+- Adding `evals` as a reserved job name and new pipeline slot increases job ordering complexity (`ensureConclusionIsLastJob` accounts for the evals tail dependency).
 
 #### Neutral
 - The `evals` frontmatter field is typed as `any` in `FrontmatterConfig` to support both list and object forms; the strongly-typed `*EvalsConfig` lives on `WorkflowData` after parsing, following the same pattern as other configuration fields.
@@ -41,4 +41,4 @@ A richer evaluation format (multi-dimensional scores, rubrics, or structured rat
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent].*
