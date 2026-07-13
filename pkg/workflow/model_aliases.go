@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"maps"
 	"sync"
+	"unsafe"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -62,6 +63,54 @@ func loadBuiltinModelAliases() (map[string][]string, error) {
 		builtinModelAliasesData = data.Aliases
 	})
 	return builtinModelAliasesData, builtinModelAliasesErr
+}
+
+// builtinOnlyAliasMap is the canonical map returned by MergeImportedModelAliases
+// when there are no imported or frontmatter overrides.  It is set once via
+// sync.Once so that pointer-equality checks in validateModelAliasMap can detect
+// the common case and skip the redundant cycle-detection DFS.
+var (
+	builtinOnlyAliasMapOnce sync.Once
+	builtinOnlyAliasMap     map[string][]string
+	builtinOnlyAliasMapID   uintptr // unsafe map-header pointer, set once under builtinOnlyAliasMapOnce
+)
+
+// mapHeaderPointer extracts the pointer stored in the map value's header
+// (the *runtime.hmap pointer).  Two map values backed by the same hash table
+// return the same value.  A nil map returns 0.
+//
+// This relies on the Go runtime representation of map values as a single
+// machine-word pointer.  This layout has been stable since Go 1.0 and is
+// consistent across all supported Go versions (see runtime/map.go).  It is
+// the same technique used internally by reflect.Value.Pointer() for maps.
+func mapHeaderPointer(m map[string][]string) uintptr {
+	return *(*uintptr)(unsafe.Pointer(&m))
+}
+
+// getBuiltinOnlyAliasMap returns the shared, read-only builtin alias map.
+// The map must never be mutated by callers; it is shared across all parse calls.
+func getBuiltinOnlyAliasMap() map[string][]string {
+	builtinOnlyAliasMapOnce.Do(func() {
+		data, err := loadBuiltinModelAliases()
+		if err != nil {
+			panic(err)
+		}
+		builtinOnlyAliasMap = data
+		builtinOnlyAliasMapID = mapHeaderPointer(data)
+	})
+	return builtinOnlyAliasMap
+}
+
+// isBuiltinOnlyAliasMap reports whether m is the shared read-only builtin alias map
+// returned by getBuiltinOnlyAliasMap.  It uses unsafe map-header pointer extraction
+// for identity comparison since Go maps cannot be compared with ==.
+//
+// It is safe to call this function before getBuiltinOnlyAliasMap has been invoked:
+// in that case builtinOnlyAliasMapID is 0 and the function returns false, which is
+// correct because no caller can hold a reference to the shared map before it exists.
+func isBuiltinOnlyAliasMap(m map[string][]string) bool {
+	id := builtinOnlyAliasMapID
+	return id != 0 && mapHeaderPointer(m) == id
 }
 
 // BuiltinModelAliases returns the built-in model alias map that covers the main
@@ -119,10 +168,25 @@ func BuiltinModelAliases() map[string][]string {
 //     key wins among imports (same "first-wins among peers" semantics as features).
 //  3. Main workflow frontmatter aliases (highest priority — main workflow file wins)
 //
-// If both importedModels and frontmatterModels are nil/empty, the builtin aliases are
-// returned as-is (identical to MergeModelAliases(nil)).
+// ⚠ Return-value mutability contract:
+//   - When both importedModels and frontmatterModels are nil/empty the function
+//     returns the shared, read-only builtin alias map directly (no allocation).
+//     Callers MUST NOT mutate the returned map; it is shared across all concurrent
+//     parse calls.  Use isBuiltinOnlyAliasMap() to detect this case if needed.
+//   - When either parameter is non-empty a freshly allocated, mutable copy is
+//     returned and callers may freely modify it.
 func MergeImportedModelAliases(importedModels []map[string][]string, frontmatterModels map[string][]string) map[string][]string {
 	modelAliasesLog.Printf("Merging model aliases: %d import(s), %d frontmatter override(s)", len(importedModels), len(frontmatterModels))
+
+	// Fast path: the vast majority of workflows have no imported or frontmatter model
+	// aliases.  Avoid deep-copying the 52-entry builtin map (154 string slices) on every
+	// ParseWorkflowFile call by returning the shared read-only builtin map directly.
+	if len(importedModels) == 0 && len(frontmatterModels) == 0 {
+		result := getBuiltinOnlyAliasMap()
+		modelAliasesLog.Printf("Fast path: returning shared builtin alias map (%d entries)", len(result))
+		return result
+	}
+
 	merged := BuiltinModelAliases()
 
 	// Layer 2 — imported models (first import to define a key wins among imports).

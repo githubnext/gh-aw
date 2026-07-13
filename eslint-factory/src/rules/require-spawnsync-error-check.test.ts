@@ -1,0 +1,64 @@
+import { RuleTester } from "eslint";
+import { describe, expect, it } from "vitest";
+import { requireSpawnSyncErrorCheckRule } from "./require-spawnsync-error-check";
+
+const cjsRuleTester = new RuleTester({
+  languageOptions: {
+    ecmaVersion: 2022,
+    sourceType: "commonjs",
+  },
+});
+
+describe("require-spawnsync-error-check", () => {
+  it("uses the correct docs URL", () => {
+    expect(requireSpawnSyncErrorCheckRule.meta.docs.url).toBe(
+      "https://github.com/github/gh-aw/tree/main/eslint-factory#require-spawnsync-error-check",
+    );
+  });
+
+  it("valid: result.error is checked alongside result.status", () => {
+    cjsRuleTester.run("require-spawnsync-error-check", requireSpawnSyncErrorCheckRule, {
+      valid: [
+        // bare spawnSync, checks result.error
+        `const result = spawnSync("git", ["status"]); if (result.error) throw result.error; if (result.status !== 0) throw new Error("failed");`,
+        // namespaced childProcess.spawnSync, checks result.error
+        `const result = childProcess.spawnSync("git", ["status"]); if (result.error) throw result.error;`,
+        // child_process.spawnSync, checks result.error
+        `const result = child_process.spawnSync("curl", ["-v"]); if (result.error) { throw result.error; } if (result.status !== 0) throw new Error("x");`,
+        // result is accessed via .error destructuring equivalent — property access
+        `const r = spawnSync("zip", ["-v"]); const e = r.error; if (e) throw e;`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: only result.status checked, result.error never read", () => {
+    cjsRuleTester.run("require-spawnsync-error-check", requireSpawnSyncErrorCheckRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const result = spawnSync("git", ["status"]); if (result.status !== 0) throw new Error("failed");`,
+          errors: [{ messageId: "missingErrorCheck" }],
+        },
+        {
+          code: `const result = childProcess.spawnSync("zip", ["-v"], { stdio: "ignore" }); if (result.status !== 0) throw new Error("zip not found");`,
+          errors: [{ messageId: "missingErrorCheck" }],
+        },
+        {
+          code: `const result = child_process.spawnSync("curl", ["--version"]); return result.stdout;`,
+          errors: [{ messageId: "missingErrorCheck" }],
+        },
+      ],
+    });
+  });
+
+  it("valid: non-spawnSync call is ignored", () => {
+    cjsRuleTester.run("require-spawnsync-error-check", requireSpawnSyncErrorCheckRule, {
+      valid: [
+        `const result = execSync("git status"); if (!result) throw new Error("failed");`,
+        `const result = spawnSync; result.toString();`,
+      ],
+      invalid: [],
+    });
+  });
+});

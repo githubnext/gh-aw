@@ -101,14 +101,16 @@ engine: copilot
 	assert.Contains(t, preActivationSection, "||")
 	assert.Contains(t, preActivationSection, "&&")
 
+	// Commented-out on: blocks are flattened to the block base indentation (2),
+	// so the nested skip-author-associations content is emitted at indent 2.
 	assert.Contains(t, lockContentStr, "# skip-author-associations:")
-	assert.Contains(t, lockContentStr, "    # issue_comment: contributor")
-	assert.Contains(t, lockContentStr, "    # pull_request_review_comment:")
-	assert.Contains(t, lockContentStr, "    # pull_request_review: collaborator")
-	assert.Contains(t, lockContentStr, "    # issues: owner")
-	assert.Contains(t, lockContentStr, "    # pull_request: member")
-	assert.Contains(t, lockContentStr, "    # - first_time_contributor")
-	assert.Contains(t, lockContentStr, "    # - none")
+	assert.Contains(t, lockContentStr, "  # issue_comment: contributor")
+	assert.Contains(t, lockContentStr, "  # pull_request_review_comment:")
+	assert.Contains(t, lockContentStr, "  # pull_request_review: collaborator")
+	assert.Contains(t, lockContentStr, "  # issues: owner")
+	assert.Contains(t, lockContentStr, "  # pull_request: member")
+	assert.Contains(t, lockContentStr, "  # - first_time_contributor")
+	assert.Contains(t, lockContentStr, "  # - none")
 	assert.NotContains(t, lockContentStr, "skip-author-association:")
 
 	var workflow map[string]any

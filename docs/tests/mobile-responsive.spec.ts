@@ -2,7 +2,10 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Mobile and Responsive Layout', () => {
   const formFactors = [
+    { name: '360px Mobile', width: 360, height: 800 },
     { name: 'iPhone 16 (Mobile)', width: 393, height: 852 },
+    { name: '412px Mobile', width: 412, height: 915 },
+    { name: '428px Mobile', width: 428, height: 926 },
     { name: 'iPad (768px)', width: 768, height: 1024 },
     { name: 'iPad Pro 11 (834px)', width: 834, height: 1194 },
     { name: 'iPad Landscape (1024px)', width: 1024, height: 768 },
@@ -99,6 +102,17 @@ test.describe('Mobile and Responsive Layout', () => {
     await context.close();
   });
 
+  test('should expose a functional home page skip link target', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.goto('/gh-aw/');
+    await page.waitForLoadState('networkidle');
+
+    const skipLink = page.locator('a[href="#starlight__main"]');
+    await expect(skipLink).toHaveCount(1);
+    await expect(page.locator('main#starlight__main')).toBeVisible();
+    await expect(page.locator('#main-content')).toHaveCount(1);
+  });
+
   for (const formFactor of formFactors) {
     test.describe(`${formFactor.name}`, () => {
       test.beforeEach(async ({ page }) => {
@@ -125,9 +139,11 @@ test.describe('Mobile and Responsive Layout', () => {
           await expect(main).toBeVisible();
 
           // Check for horizontal scrollbar (should not exist)
-          const bodyScrollWidth = await page.evaluate(() => document.body.scrollWidth);
-          const bodyClientWidth = await page.evaluate(() => document.body.clientWidth);
-          expect(bodyScrollWidth).toBeLessThanOrEqual(bodyClientWidth + 1); // Allow 1px tolerance
+          const scrollMetrics = await page.evaluate(() => ({
+            scrollWidth: document.scrollingElement?.scrollWidth ?? document.documentElement.scrollWidth,
+            clientWidth: document.scrollingElement?.clientWidth ?? document.documentElement.clientWidth,
+          }));
+          expect(scrollMetrics.scrollWidth).toBeLessThanOrEqual(scrollMetrics.clientWidth + 1); // Allow 1px tolerance
         });
       }
 

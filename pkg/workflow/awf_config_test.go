@@ -1152,6 +1152,21 @@ func TestValidateAWFConfigJSON_AllowsMaxTurnCacheMisses(t *testing.T) {
 	require.NoError(t, err, "maxCacheMisses should pass compile-time schema validation")
 }
 
+func TestValidateAWFConfigJSON_AllowsSbxContainerRuntime(t *testing.T) {
+	err := validateAWFConfigJSON(`{"container":{"containerRuntime":"sbx"}}`)
+	require.NoError(t, err, "container.containerRuntime=sbx should pass compile-time schema validation")
+}
+
+func TestValidateAWFConfigJSON_AllowsGVisorContainerRuntime(t *testing.T) {
+	err := validateAWFConfigJSON(`{"container":{"containerRuntime":"gvisor"}}`)
+	require.NoError(t, err, "container.containerRuntime=gvisor should pass compile-time schema validation")
+}
+
+func TestValidateAWFConfigJSON_RejectsUnknownContainerRuntime(t *testing.T) {
+	err := validateAWFConfigJSON(`{"container":{"containerRuntime":"runc"}}`)
+	require.Error(t, err, "container.containerRuntime must only accept enum values; unknown runtime \"runc\" should be rejected")
+}
+
 // TestBuildAWFConfigJSON_ValidateFlag verifies that schema validation runs when
 // WorkflowData.ValidateAWFConfig is true (--validate mode) and is skipped otherwise.
 func TestBuildAWFConfigJSON_ValidateFlag(t *testing.T) {
