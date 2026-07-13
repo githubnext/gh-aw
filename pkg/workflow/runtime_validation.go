@@ -151,7 +151,7 @@ func validateExpressionSizesSinglePass(yamlContent string, maxSize int) error {
 			if afterColon == "|" || afterColon == ">" || strings.HasPrefix(afterColon, "|-") || strings.HasPrefix(afterColon, ">-") {
 				inBlock = true
 				blockKey = strings.TrimSpace(trimmed[:colonIdx])
-				blockStartLine = lineNum - 1 // 0-indexed for error messages (blockStartLine+1 in checkBlock)
+				blockStartLine = lineNum - 1 // 0-indexed; checkBlock reports it as blockStartLine+1
 				blockIndent = indent
 				blockSize = 0
 				blockHasExpression = false
