@@ -175,6 +175,14 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	inGitHubApp := false
 	inOnSteps := false
 	inOnPermissions := false
+	// Track the leading indentation of the current run of consecutive commented-out
+	// lines. yamllint's comments-indentation rule flags any comment that is indented
+	// deeper than the comment above it, so we flatten every line of a commented block
+	// to the indentation of the block's first line (which sits at the surrounding
+	// content's level). inCommentBlock is false until the first line of a block is
+	// emitted and is reset whenever a real (uncommented) line is written.
+	commentBlockIndent := ""
+	inCommentBlock := false
 	currentSection := "" // Track which section we're in ("issues", "pull_request", "discussion", or "issue_comment")
 	currentSectionIndent := -1
 	deploymentStatusIndent := -1
@@ -765,22 +773,36 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		}
 
 		if shouldComment {
-			// Preserve the original indentation and comment out the line
-			indentation := ""
 			trimmed := strings.TrimLeft(line, " \t")
-			if len(line) > len(trimmed) {
-				indentation = line[:len(line)-len(trimmed)]
+
+			// Flatten the indentation of the commented block. The first non-blank
+			// line of a block adopts its natural indentation (which matches the
+			// surrounding content level) as the block anchor; every subsequent line
+			// — including blank lines inside a multi-line `steps:` script — reuses
+			// that same indentation. This keeps the whole block in a single comment
+			// group at a constant indent, so nested fields never appear more deeply
+			// indented than the comment above them (which is what yamllint's
+			// comments-indentation rule flags). Blank source lines are not allowed to
+			// anchor the block, so it always aligns to a real field.
+			if !inCommentBlock && trimmed != "" {
+				commentBlockIndent = ""
+				if len(line) > len(trimmed) {
+					commentBlockIndent = line[:len(line)-len(trimmed)]
+				}
+				inCommentBlock = true
 			}
 
-			commentedLine := indentation + "# " + trimmed + commentReason
+			commentedLine := commentBlockIndent + "# " + trimmed + commentReason
 			// Strip any trailing whitespace carried from the source content (e.g.
-			// commented-out multi-line `steps:` scripts whose lines end in spaces,
-			// or blank lines that would otherwise become "# " with trailing
-			// whitespace). Trailing whitespace on a comment is never meaningful and
-			// yamllint flags it as trailing-spaces.
+			// commented-out multi-line `steps:` scripts whose lines end in spaces, or
+			// blank lines that would otherwise become "# " with trailing whitespace).
+			// Trailing whitespace on a comment is never meaningful and yamllint flags
+			// it as trailing-spaces.
 			commentedLine = strings.TrimRight(commentedLine, " \t")
 			result = append(result, commentedLine)
 		} else {
+			inCommentBlock = false
+			commentBlockIndent = ""
 			result = append(result, line)
 		}
 	}

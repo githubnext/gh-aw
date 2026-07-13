@@ -2,7 +2,7 @@ name: "Smoke Copilot"
 on:
   pull_request:
     # names: # Label filtering applied via job conditions
-      # - smoke # Label filtering applied via job conditions
+    # - smoke # Label filtering applied via job conditions
     types:
       - labeled
   # reaction: eyes # Reaction processed as activation job step
