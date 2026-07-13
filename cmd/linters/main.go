@@ -39,6 +39,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/largefunc"
 	"github.com/github/gh-aw/pkg/linters/lenstringsplit"
 	"github.com/github/gh-aw/pkg/linters/lenstringzero"
+	"github.com/github/gh-aw/pkg/linters/logfatallibrary"
 	"github.com/github/gh-aw/pkg/linters/manualmutexunlock"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
 	"github.com/github/gh-aw/pkg/linters/osgetenvlibrary"
@@ -86,6 +87,7 @@ func main() {
 		ioutildeprecated.Analyzer,
 		httpstatuscode.Analyzer,
 		largefunc.Analyzer,
+		logfatallibrary.Analyzer,
 		manualmutexunlock.Analyzer,
 		osexitinlibrary.Analyzer,
 		osgetenvlibrary.Analyzer,

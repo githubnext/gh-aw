@@ -1,3 +1,4 @@
+import { noCoreExportVariableNonStringRule } from "./rules/no-core-exportvariable-non-string";
 import { noCoreSetOutputNonStringRule } from "./rules/no-core-setoutput-non-string";
 import { noThrowPlainObjectRule } from "./rules/no-throw-plain-object";
 import { noGithubRequestInterpolatedRouteRule } from "./rules/no-github-request-interpolated-route";
@@ -20,6 +21,7 @@ const plugin = {
     version: "0.1.0",
   },
   rules: {
+    "no-core-exportvariable-non-string": noCoreExportVariableNonStringRule,
     "no-core-setoutput-non-string": noCoreSetOutputNonStringRule,
     "no-throw-plain-object": noThrowPlainObjectRule,
     "no-github-request-interpolated-route": noGithubRequestInterpolatedRouteRule,
