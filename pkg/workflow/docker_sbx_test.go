@@ -85,6 +85,25 @@ func TestGenerateDockerSbxInstallSteps(t *testing.T) {
 		assert.Contains(t, content, "sbx rm", "must remove the test sandbox")
 		assert.Contains(t, content, "✅ sbx ready", "must confirm readiness")
 	})
+
+	t.Run("credential refresh step", func(t *testing.T) {
+		step := generateDockerSbxCredentialRefreshStep()
+		require.NotEmpty(t, step, "credential refresh step must not be empty")
+		content := strings.Join(step, "\n")
+		assert.Contains(t, content, "Refresh sbx credentials", "must have correct step name")
+		assert.Contains(t, content, "sbx login", "must re-authenticate with sbx login")
+		assert.Contains(t, content, "DOCKER_PAT_VAL: ${{ secrets.DOCKER_PAT }}", "must use env for DOCKER_PAT")
+		assert.Contains(t, content, "DOCKER_USERNAME_VAL: ${{ secrets.DOCKER_USERNAME }}", "must use env for DOCKER_USERNAME")
+		assert.Contains(t, content, "✅ sbx credentials refreshed", "must confirm refresh")
+		// The run: section must use env var references, not raw secret expressions.
+		parts := strings.SplitN(content, "run: |", 2)
+		require.Len(t, parts, 2, "step must have a run: section")
+		runBody := parts[1]
+		assert.NotContains(t, runBody, "${{ secrets.DOCKER_PAT }}",
+			"raw secrets expression must not appear in shell commands")
+		assert.NotContains(t, runBody, "${{ secrets.DOCKER_USERNAME }}",
+			"raw secrets expression must not appear in shell commands")
+	})
 }
 
 // TestDockerSbxInstallStepOrderInBuildNpmEngineInstallStepsWithAWF verifies that all
@@ -527,4 +546,14 @@ sandbox:
 
 	// --container-runtime sbx must appear in the AWF invocation.
 	assert.Contains(t, lockStr, "--container-runtime sbx", "AWF invocation must include --container-runtime sbx")
+
+	// Credential refresh step must be present.
+	assert.Contains(t, lockStr, "Refresh sbx credentials", "compiled workflow must include credential refresh step before execution")
+
+	// Credential refresh step must appear AFTER pre-flight but BEFORE execution.
+	refreshPos := strings.Index(lockStr, "Refresh sbx credentials")
+	preflightPos := strings.Index(lockStr, "pre-flight smoke test")
+	execPos := strings.Index(lockStr, "agentic_execution")
+	assert.Greater(t, refreshPos, preflightPos, "credential refresh must come after pre-flight step")
+	assert.Less(t, refreshPos, execPos, "credential refresh must come before agent execution step")
 }

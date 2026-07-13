@@ -483,11 +483,11 @@ The key words in this section are to be interpreted as described in RFC 2119 (se
 
 A conforming implementation of the guard policies framework **MUST** satisfy all of the following normative requirements:
 
-**GP-01**: Implementations MUST support the `allowed-repos` field on `GitHubToolConfig` and validate its value as either a string scalar (`"all"` or `"public"`) or an array of repository patterns. Implementations MUST reject any other type with a descriptive compilation error.
+**GP-01**: Implementations MUST support the `allowed-repos` field on `GitHubToolConfig` and validate its value as either a string scalar (`"all"`, `"public"`, or the expression `"${{ github.repository }}"`) or a non-empty array of repository patterns. Implementations MUST reject any other string scalar or any other type with a descriptive compilation error.
 
 **GP-02**: Implementations MUST support the `min-integrity` field on `GitHubToolConfig` and validate its value as one of the enum strings `"none"`, `"unapproved"`, `"approved"`, or `"merged"`. Any other value MUST produce a descriptive compilation error.
 
-**GP-03**: When `allowed-repos` is set to an array, implementations MUST validate that each element is a non-empty string matching one of the allowed pattern formats: exact (`owner/repo`), owner-wildcard (`owner/*`), or prefix-wildcard (`owner/prefix*`). Uppercase letters and wildcards in non-terminal positions MUST be rejected.
+**GP-03**: When `allowed-repos` is set to an array, implementations MUST validate that each element is either (a) the exact expression string `"${{ github.repository }}"` (accepted as a dynamic self-repo reference) or (b) a non-empty string matching one of the allowed pattern formats: exact (`owner/repo`), owner-wildcard (`owner/*`), or prefix-wildcard (`owner/prefix*`). Uppercase letters and wildcards in non-terminal positions MUST be rejected.
 
 **GP-04**: Implementations MUST NOT permit an empty array as the value of `allowed-repos`. An empty allowlist MUST produce a compilation error indicating that an empty array is invalid.
 
@@ -575,3 +575,41 @@ The deprecated `repos` field (YAML key: `repos`) is handled alongside `allowed-r
 **Migration command**: `gh aw fix` applies a codemod that replaces `repos:` with `allowed-repos:` in workflow frontmatter. The codemod is idempotent and safe to run multiple times.
 
 **Removal tracking**: The `repos` alias is tracked for removal. When it is removed, update `pkg/workflow/tools_types.go` (delete the `Repos` field), `pkg/workflow/mcp_github_config.go` (remove the fallback lookup), and `pkg/workflow/tools_validation_github.go` (adjust any `repos`-specific validation paths). Update doc-comments in `pkg/workflow/tools_types.go` to reference this spec version after the removal.
+
+---
+
+## Sync Follow-ups
+
+This section lists the files that **MUST** be reviewed and updated whenever a normative section of this specification changes. Reviewers **SHALL** confirm each target is consistent with the updated spec before merging.
+
+### After Adding or Changing Normative Requirements (§Conformance)
+
+When requirements GP-01–GP-11 (or any later additions) change, update the following:
+
+1. **`pkg/workflow/schemas/mcp-gateway-config.schema.json`** AND **`docs/public/schemas/mcp-gateway-config.schema.json`** — These are the source and published copies of the gateway config schema (JSON Schema draft-07, using `definitions`). The `allowed-repos` and `min-integrity` fields are frontmatter keys that compile to the `guard-policies` object inside the gateway config; they are not top-level properties of `stdioServerConfig` or `httpServerConfig`. Verify that the `guard-policies` definition and its `allowed-repos`/`min-integrity` sub-fields in both copies reflect the updated GP-01 and GP-02 constraints (enum values, types, `required` constraints). Keep both copies in sync.
+
+2. **`pkg/workflow/tools_validation_github.go`** — Update `validateGitHubGuardPolicy()`, `validateReposScope()`, and `validateRepoPattern()` to enforce the revised constraints. Any new rejection rule in GP-01–GP-11 **MUST** have a corresponding validation call and error message in this file.
+
+3. **`pkg/workflow/mcp_github_config.go`** — Update `deriveSafeOutputsGuardPolicyFromGitHub()` to match any changes to GP-05 or GP-08 derivation rules.
+
+4. **`pkg/workflow/tools_types.go`** — Update `GitHubToolConfig`, `GitHubReposScope`, and `GitHubIntegrityLevel` type definitions and struct tags when field names, types, or constraints change.
+
+### After Changing the Safe-Outputs Derivation Rules (§5)
+
+When the derivation mapping in §5 changes (e.g., new pattern transformation rules):
+
+1. **`pkg/workflow/schemas/mcp-gateway-config.schema.json`** AND **`docs/public/schemas/mcp-gateway-config.schema.json`** — Ensure the `write-sink` accept-list field structure in both copies of the gateway config schema matches the new derivation output.
+
+2. **`pkg/workflow/mcp_github_config.go`** — Update `deriveSafeOutputsGuardPolicyFromGitHub()` and `normalizeGitHubRepositoryInReposScope()`.
+
+3. **`pkg/workflow/safeoutputs_guard_policy_test.go`** — Add or update test cases in `TestDeriveSafeOutputsGuardPolicyFromGitHub` to cover the new transformation rules.
+
+### After Changing Extension-Point Semantics (§6)
+
+When the extensibility model for future MCP servers (Jira, WorkIQ) changes:
+
+1. **`pkg/workflow/tools_types.go`** — Update `MCPServerConfig.GuardPolicies` and any server-specific policy types.
+
+2. **`pkg/workflow/schemas/mcp-gateway-config.schema.json`** AND **`docs/public/schemas/mcp-gateway-config.schema.json`** — Add server-specific guard-policy schema objects as new `definitions` entries (the schema is JSON Schema draft-07 and uses `definitions`, not `$defs`) and reference them from the relevant server config schemas. Update both copies.
+
+3. Document the new policy type in this specification under a new `### Entity:` subsection in [§Entities](#entities).

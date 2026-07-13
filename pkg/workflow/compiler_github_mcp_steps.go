@@ -51,6 +51,7 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	// detect whether each field is already configured and avoid overriding it.
 	configuredMinIntegrity := ""
 	configuredRepos := ""
+	privateToPublicFlowsAllow := false
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if v, exists := toolConfig["min-integrity"]; exists {
 			configuredMinIntegrity = serializeEnvStringValue(v)
@@ -60,6 +61,13 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 			configuredRepos = serializeEnvStringValue(v)
 		} else if v, exists := toolConfig["repos"]; exists {
 			configuredRepos = serializeEnvStringValue(v)
+		}
+		// Detect private-to-public-flows: allow to inform the default repos value.
+		// When set to "allow", the user has explicitly opted in to cross-visibility data
+		// flows, so the repos default should be "all" rather than "public" even for
+		// public repositories.
+		if ptpFlows, _ := toolConfig["private-to-public-flows"].(string); ptpFlows == "allow" {
+			privateToPublicFlowsAllow = true
 		}
 	}
 
@@ -75,6 +83,9 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	}
 	if configuredRepos != "" {
 		fmt.Fprintf(yaml, "          GH_AW_GITHUB_REPOS: %s\n", quoteYAMLEnvValue(configuredRepos))
+	}
+	if privateToPublicFlowsAllow {
+		yaml.WriteString("          GH_AW_PRIVATE_TO_PUBLIC_FLOWS: " + quoteYAMLEnvValue("allow") + "\n")
 	}
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")

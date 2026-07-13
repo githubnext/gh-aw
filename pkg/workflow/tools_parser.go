@@ -87,6 +87,25 @@ func toAnySlice(ss []string) []any {
 }
 
 // NewTools creates a new Tools instance from a map
+// knownTools is the set of built-in tool names that NewTools handles explicitly.
+// It is a package-level variable to avoid re-allocating this map on every call.
+var knownTools = map[string]struct{}{
+	"github":            {},
+	"bash":              {},
+	"web-fetch":         {},
+	"web-search":        {},
+	"edit":              {},
+	"playwright":        {},
+	"agentic-workflows": {},
+	"cache-memory":      {},
+	"comment-memory":    {},
+	"repo-memory":       {},
+	"safety-prompt":     {},
+	"timeout":           {},
+	"startup-timeout":   {},
+	"cli-proxy":         {},
+}
+
 func NewTools(toolsMap map[string]any) *Tools {
 	toolsParserLog.Printf("Creating tools configuration from map with %d entries", len(toolsMap))
 	if toolsMap == nil {
@@ -155,24 +174,6 @@ func NewTools(toolsMap map[string]any) *Tools {
 	}
 
 	// Extract custom MCP tools (anything not in the known list)
-	knownTools := map[string]struct {
-	}{
-		"github":            {},
-		"bash":              {},
-		"web-fetch":         {},
-		"web-search":        {},
-		"edit":              {},
-		"playwright":        {},
-		"agentic-workflows": {},
-		"cache-memory":      {},
-		"comment-memory":    {},
-		"repo-memory":       {},
-		"safety-prompt":     {},
-		"timeout":           {},
-		"startup-timeout":   {},
-		"cli-proxy":         {},
-	}
-
 	customCount := 0
 	for name, config := range toolsMap {
 		if !setutil.Contains(knownTools, name) {
@@ -387,6 +388,28 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		}
 		if endorserMinIntegrity, ok := configMap["endorser-min-integrity"].(string); ok {
 			config.EndorserMinIntegrity = endorserMinIntegrity
+		}
+
+		// Parse private-to-public-flows: accepts "allow" (string) or []string of server IDs.
+		if rawPtP, ok := configMap["private-to-public-flows"]; ok {
+			switch v := rawPtP.(type) {
+			case string:
+				// "allow" is the only valid string value
+				config.PrivateToPublicFlows = v
+			case []any:
+				// Array of server ID strings
+				servers := make([]string, 0, len(v))
+				for _, item := range v {
+					if s, ok := item.(string); ok {
+						servers = append(servers, s)
+					}
+				}
+				config.PrivateToPublicFlows = servers
+			case []string:
+				config.PrivateToPublicFlows = v
+			default:
+				toolsParserLog.Printf("Warning: private-to-public-flows has unsupported type %T (expected string \"allow\" or array of server IDs), ignoring", rawPtP)
+			}
 		}
 
 		return config

@@ -1783,3 +1783,33 @@ Test prompt.
 		t.Fatal("gh-aw-manifest must not duplicate agent_image_runner metadata")
 	}
 }
+
+func TestNormalizeBlankLines(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		// Empty or all-whitespace input: return a single newline to match the
+		// original strings.TrimRight(…, "\n") + "\n" behaviour — the caller
+		// always expects a trailing newline even when there is no real content.
+		{"empty string", "", "\n"},
+		{"single blank line", "\n", "\n"},
+		{"all whitespace line", "   \n", "\n"},
+		{"no trailing newline", "hello", "hello\n"},
+		{"trailing blank lines stripped", "a\n\nb\n\n\n", "a\n\nb\n"},
+		{"blank lines in middle preserved", "a\n\nb\n", "a\n\nb\n"},
+		{"whitespace-only lines cleared", "a\n   \nb\n", "a\n\nb\n"},
+		{"single non-blank line", "key: value\n", "key: value\n"},
+		{"multiple trailing blank lines", "a\n\n\n\n", "a\n"},
+		{"only whitespace lines", "   \n   \n", "\n"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := normalizeBlankLines(tc.input)
+			if got != tc.want {
+				t.Errorf("normalizeBlankLines(%q) = %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}

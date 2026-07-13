@@ -80,6 +80,14 @@ func mayContainInlineExpression(s string) bool {
 }
 
 func findRunValue(keyPart string) (string, bool) {
+	// Fast pre-check: every regex alternative embeds "run:" (unquoted),
+	// "run\":" (double-quoted close), or "run':" (single-quoted close), so
+	// skip the regex entirely when none of those substrings is present.
+	if !strings.Contains(keyPart, "run:") &&
+		!strings.Contains(keyPart, `run":`) &&
+		!strings.Contains(keyPart, "run':") {
+		return "", false
+	}
 	loc := runKeyPattern.FindStringIndex(keyPart)
 	if loc == nil {
 		return "", false

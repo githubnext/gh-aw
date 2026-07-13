@@ -870,12 +870,12 @@ func TestInjectProxyEnvIntoCustomSteps(t *testing.T) {
 }
 
 // TestBuildStartCliProxyStepYAML verifies that the CLI proxy step always emits
-// CLI_PROXY_POLICY, using the default permissive policy when no guard policy is
+// CLI_PROXY_POLICY, using a visibility-aware default when no guard policy is
 // configured in the frontmatter.
 func TestBuildStartCliProxyStepYAML(t *testing.T) {
 	c := &Compiler{}
 
-	t.Run("emits default policy when no guard policy is configured", func(t *testing.T) {
+	t.Run("emits visibility-aware default policy when no guard policy is configured", func(t *testing.T) {
 		data := &WorkflowData{
 			Tools: map[string]any{
 				"github": map[string]any{"toolsets": []string{"default"}},
@@ -886,11 +886,14 @@ func TestBuildStartCliProxyStepYAML(t *testing.T) {
 		require.NotEmpty(t, result, "should emit CLI proxy step even without guard policy")
 		assert.Contains(t, result, "CLI_PROXY_POLICY", "should always emit CLI_PROXY_POLICY")
 		assert.Contains(t, result, `"allow-only"`, "default policy should contain allow-only")
-		assert.Contains(t, result, `"repos":"all"`, "default policy should allow all repos")
-		assert.Contains(t, result, `"min-integrity":"none"`, "default policy should have min-integrity none")
+		// Default policy references step output for repos (visibility-aware at runtime)
+		assert.Contains(t, result, `steps.determine-automatic-lockdown.outputs.repos`, "default policy should reference step output for repos")
+		assert.Contains(t, result, `steps.determine-automatic-lockdown.outputs.min_integrity`, "default policy should reference step output for min-integrity")
+		// Should NOT contain hardcoded static repos value
+		assert.NotContains(t, result, `"repos":"all"`, "default policy should not have hardcoded repos")
 	})
 
-	t.Run("emits default policy when github tool is nil", func(t *testing.T) {
+	t.Run("emits visibility-aware default policy when github tool is nil", func(t *testing.T) {
 		data := &WorkflowData{
 			Tools: map[string]any{},
 		}
@@ -898,7 +901,8 @@ func TestBuildStartCliProxyStepYAML(t *testing.T) {
 		result := c.buildStartCliProxyStepYAML(data)
 		require.NotEmpty(t, result, "should emit CLI proxy step even without github tool")
 		assert.Contains(t, result, "CLI_PROXY_POLICY", "should always emit CLI_PROXY_POLICY")
-		assert.Contains(t, result, `"min-integrity":"none"`, "should use default min-integrity")
+		assert.Contains(t, result, `steps.determine-automatic-lockdown.outputs.repos`, "default policy should reference step output for repos")
+		assert.Contains(t, result, `steps.determine-automatic-lockdown.outputs.min_integrity`, "default policy should reference step output for min-integrity")
 	})
 
 	t.Run("uses configured guard policy when present", func(t *testing.T) {
@@ -916,6 +920,22 @@ func TestBuildStartCliProxyStepYAML(t *testing.T) {
 		assert.Contains(t, result, "CLI_PROXY_POLICY", "should emit CLI_PROXY_POLICY")
 		assert.Contains(t, result, `"min-integrity":"approved"`, "should use configured min-integrity")
 		assert.Contains(t, result, `"repos":"owner/*"`, "should use configured repos")
+	})
+
+	t.Run("uses runtime repos default when repos is omitted but min-integrity is configured", func(t *testing.T) {
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{
+					"min-integrity": "approved",
+				},
+			},
+		}
+
+		result := c.buildStartCliProxyStepYAML(data)
+		require.NotEmpty(t, result, "should emit CLI proxy step")
+		assert.Contains(t, result, `"min-integrity":"approved"`, "should preserve configured min-integrity")
+		assert.Contains(t, result, `steps.determine-automatic-lockdown.outputs.repos`, "should use runtime repos output when repos is omitted")
+		assert.NotContains(t, result, `"repos":"all"`, "should not hardcode repos=all when repos is omitted")
 	})
 
 	t.Run("emits correct step structure", func(t *testing.T) {
