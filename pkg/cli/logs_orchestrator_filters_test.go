@@ -79,7 +79,7 @@ func TestApplyRunFilters_Engine(t *testing.T) {
 	}
 }
 
-// TestApplyRunFilters_NoStaged verifies that --no-staged skips staged runs.
+// TestApplyRunFilters_NoStaged verifies that --exclude-staged skips staged runs.
 func TestApplyRunFilters_NoStaged(t *testing.T) {
 	tests := []struct {
 		name     string

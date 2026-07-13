@@ -27,7 +27,7 @@ Available subcommands:
   - inspect    - Inspect MCP servers and list available tools, resources, and roots
   - add        - Add an MCP server to an agentic workflow`,
 		Example: `  gh aw mcp list                              # List all workflows with MCP servers
-  gh aw mcp inspect weekly-research           # Inspect MCP servers in workflow
+  gh aw mcp inspect weekly-research           # Inspect MCP servers in a workflow
   gh aw mcp add my-workflow tavily            # Add Tavily MCP server to workflow
   gh aw mcp inspect weekly-research --server github --tool create_issue  # Inspect specific tool`,
 		Args: func(cmd *cobra.Command, args []string) error {

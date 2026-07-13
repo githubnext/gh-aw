@@ -94,7 +94,7 @@ func registerDeployFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP("name", "n", "", "Specify name for the added workflow (without .md extension)")
 	addEngineFlag(cmd)
 	cmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")
-	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
+	cmd.Flags().String("append", "", "Append extra content to the end of the agentic workflow on installation")
 	cmd.Flags().Bool("no-gitattributes", false, "Skip updating .gitattributes file")
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: $GH_AW_WORKFLOWS_DIR or .github/workflows)")
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")

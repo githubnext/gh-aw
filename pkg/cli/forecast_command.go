@@ -108,7 +108,7 @@ Backtesting (--eval):
 	cmd.Flags().String("period", "month", "Aggregation period for projections: week or month")
 	cmd.Flags().Int("sample", 100, "Maximum number of completed runs to sample per workflow")
 	cmd.Flags().Bool("eval", false, "Evaluate forecast quality against past data (backtesting mode)")
-	cmd.Flags().Int("timeout", 0, "Gracefully stop forecast computation after this many minutes (0 disables timeout)")
+	cmd.Flags().Int("timeout", 0, "Gracefully stop forecast computation after this many minutes (0 = no timeout)")
 	addRepoFlag(cmd)
 	addJSONFlag(cmd)
 

@@ -45,7 +45,7 @@ func NewPRCommand() *cobra.Command {
 		Long: `Pull request management utilities for transferring PRs between repositories.
 
 This command provides a tool for transferring pull requests from one repository
-to another, including the code changes, title, and body. Useful for
+to another, including the code changes, title, and body. This is useful for
 migrating work from trial repositories to production repositories.
 
 Available subcommands:
