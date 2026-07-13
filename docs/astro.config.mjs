@@ -318,6 +318,7 @@ export default defineConfig({
 						{ label: 'Upgrading Workflows', link: '/guides/upgrading/' },
 						{ label: 'Using MCPs', link: '/guides/mcps/' },
 						{ label: 'Network Configuration', link: '/guides/network-configuration/' },
+						{ label: 'Azure OpenAI BYOK', link: '/guides/azure-openai-byok/' },
 						{ label: 'ARC DinD for Copilot Coding Agent', link: '/guides/arc-dind-copilot-agent/' },
 						{ label: 'OpenTelemetry', link: '/guides/open-telemetry/' },
 						{ label: 'GitHub Actions Primer', link: '/guides/github-actions-primer/' },
