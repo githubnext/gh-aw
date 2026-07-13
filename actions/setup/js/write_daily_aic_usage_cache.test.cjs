@@ -165,6 +165,14 @@ describe("write_daily_aic_usage_cache", () => {
     expect(entry.aic).toBe(3.0);
   });
 
+  it("writes a large AIC value correctly", async () => {
+    writeUsageFile(999.99);
+    await runMain();
+    const entry = JSON.parse(fs.readFileSync(cacheFile, "utf8").trim());
+    expect(entry.aic).toBe(999.99);
+    expect(global.core.warning).not.toHaveBeenCalled();
+  });
+
   it("emits a warning and does not crash when the existing cache file cannot be read", async () => {
     // Creating a directory at the cache path causes readFileSync to throw EISDIR
     fs.mkdirSync(cacheFile);

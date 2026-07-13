@@ -46,6 +46,18 @@ This is a research workflow.`,
 			expectError: false,
 		},
 		{
+			name: "file with whitespace-padded frontmatter delimiter and indented H1",
+			content: `  ---
+title: Test Workflow
+---   
+
+   # Deliberately Indented Workflow Name   
+`,
+			filename:    "indented-workflow.md",
+			expected:    "Deliberately Indented Workflow Name",
+			expectError: false,
+		},
+		{
 			name: "file without H1 header - uses H2 header",
 			content: `This is content without H1 header.
 

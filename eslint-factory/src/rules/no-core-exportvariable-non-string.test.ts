@@ -168,5 +168,4 @@ describe("no-core-exportvariable-non-string", () => {
       ],
     });
   });
-
 });

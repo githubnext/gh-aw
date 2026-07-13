@@ -77,29 +77,12 @@ func (s *StatVar) Max() float64 {
 	return s.max
 }
 
-// Sum returns the arithmetic sum of all observations, or 0 if none.
-func (s *StatVar) Sum() float64 { return s.sum }
-
 // Mean returns the arithmetic mean of all observations, or 0 if none.
 func (s *StatVar) Mean() float64 {
 	if s.count == 0 {
 		return 0
 	}
 	return s.mean
-}
-
-// Variance returns the population variance (divides by N).  Returns 0 when no
-// observations are present.
-func (s *StatVar) Variance() float64 {
-	if s.count == 0 {
-		return 0
-	}
-	return s.m2 / float64(s.count)
-}
-
-// StdDev returns the population standard deviation (sqrt of Variance).
-func (s *StatVar) StdDev() float64 {
-	return math.Sqrt(s.Variance())
 }
 
 // SampleVariance returns the sample variance with Bessel's correction (divides
