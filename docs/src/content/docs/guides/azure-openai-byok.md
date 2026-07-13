@@ -24,7 +24,9 @@ engine:
 ```
 
 Do not use the older `/openai/v1-preview` path unless the Azure resource
-explicitly exposes it. The built-in smoke workflows use the v1 endpoint.
+explicitly exposes it. The repository smoke workflows
+`smoke-copilot-aoai-apikey.md` and `smoke-copilot-aoai-entra.md` both use the
+v1 endpoint.
 
 ## Choose the model name and deployment name
 
