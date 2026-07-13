@@ -116,7 +116,7 @@ func TestValidateBlockScalarExpressionSizes(t *testing.T) {
 		assert.Equal(t, 21000, MaxExpressionSize, "MaxExpressionSize must be 21000 to match GitHub Actions limit")
 	})
 
-	t.Run("keep chomping (|-) block with expression fails", func(t *testing.T) {
+	t.Run("keep chomping (|+) block with expression fails", func(t *testing.T) {
 		var sb strings.Builder
 		sb.WriteString("jobs:\n  test:\n    steps:\n      - name: Keep\n        run: |+\n")
 		for range 50 {
