@@ -48,18 +48,7 @@ engine:
             }
           },
           "autoupdate": false,
-          "disabled_providers": ["opencode", "openai"],
-          "provider": {
-            "awf-proxy": {
-              "api": "http://host.docker.internal:10002/v1",
-              "options": {
-                "apiKey": "awf-copilot-proxy"
-              },
-              "models": {
-                "gpt-5.5": {}
-              }
-            }
-          }
+          "disabled_providers": ["opencode", "openai"]
         }
       merge-strategy: json-merge
     execution:
@@ -71,7 +60,6 @@ engine:
         - DEBUG
       step-name: Execute OpenCode CLI
       model-env-var: OPENCODE_MODEL
-      model-env-provider-prefix: awf-proxy
       mcp-config-env-var: GH_AW_MCP_CONFIG
       write-timestamp: true
       provider-env-mode: universal-llm-consumer

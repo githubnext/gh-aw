@@ -49,13 +49,10 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 		execContent := strings.Join(steps[1], "\n")
 		assert.Contains(t, configContent, "Write OpenCode Config", "Should write OpenCode config first")
 		assert.Contains(t, configContent, "opencode.jsonc", "Should reference opencode.jsonc")
-		assert.Contains(t, configContent, `"provider"`, "Config should include provider block for awf-proxy custom provider")
-		assert.Contains(t, configContent, `"apiKey"`, "Config should include apiKey under options to authenticate with AWF api-proxy")
-		assert.Contains(t, configContent, `"options"`, "Config should have apiKey nested under options")
-		assert.Contains(t, configContent, "awf-copilot-proxy", "Config apiKey should be the AWF api-proxy placeholder")
-		assert.Contains(t, configContent, `"awf-proxy"`, "Config should use awf-proxy custom provider so OpenCode uses @ai-sdk/openai-compatible (Chat Completions API) instead of @ai-sdk/openai Responses API")
-		assert.Contains(t, configContent, `"http://host.docker.internal:10002/v1"`, "Config baseURL should point to AWF proxy /v1 endpoint")
+		assert.NotContains(t, configContent, `"awf-proxy"`, "Config should not define a custom awf-proxy provider; use built-in copilot provider instead")
+		assert.NotContains(t, configContent, "awf-copilot-proxy", "Config should not contain AWF api-proxy placeholder key")
 		assert.Contains(t, configContent, `"autoupdate": false`, "Config should disable auto-updates to prevent interactive prompts in headless mode")
+		assert.Contains(t, configContent, `"disabled_providers"`, "Config should disable unused providers")
 		assert.Contains(t, execContent, "Execute OpenCode CLI", "Should execute OpenCode CLI")
 		assert.Contains(t, execContent, "opencode run", "Should invoke opencode run")
 		assert.Contains(t, execContent, "OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}", "Should default to Copilot token routing")
@@ -83,7 +80,7 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 		assert.Contains(t, execContent, "OPENAI_BASE_URL: http://host.docker.internal:10002", "Should also set OPENAI_BASE_URL to Copilot gateway so OpenCode's openai provider routes correctly")
 	})
 
-	t.Run("firewall rewrites copilot provider prefix to awf-proxy in OPENCODE_MODEL", func(t *testing.T) {
+	t.Run("firewall passes copilot provider prefix through unchanged in OPENCODE_MODEL", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -100,8 +97,8 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 		require.Len(t, steps, 2, "Should generate config step and execution step")
 		execContent := strings.Join(steps[1], "\n")
-		assert.Contains(t, execContent, "OPENCODE_MODEL: awf-proxy/gpt-5", "Should rewrite 'copilot/' prefix to 'awf-proxy/' so OpenCode uses its awf-proxy custom provider")
-		assert.NotContains(t, execContent, "OPENCODE_MODEL: copilot/gpt-5", "Should not pass raw 'copilot/' prefix which OpenCode does not recognise")
+		assert.Contains(t, execContent, "OPENCODE_MODEL: copilot/gpt-5", "Should pass 'copilot/' prefix through to use OpenCode's built-in copilot provider")
+		assert.NotContains(t, execContent, "OPENCODE_MODEL: awf-proxy/gpt-5", "Should not rewrite 'copilot/' to 'awf-proxy/' since the custom awf-proxy provider is no longer defined")
 	})
 }
 
