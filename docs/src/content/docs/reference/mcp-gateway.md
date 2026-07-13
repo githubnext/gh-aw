@@ -1647,7 +1647,7 @@ As a defense-in-depth measure, the gateway forces `sink-visibility="public"` for
 
 ### 10.9 Cross-Visibility Opt-Out (`private-to-public-flows`)
 
-Workflow authors who intentionally allow private→public data flows can opt out of cross-visibility protections by declaring `private-to-public-flows` in workflow frontmatter. It accepts either `allow` for a blanket opt-out that disables both `forcePublicRepos` and sink-visibility enforcement, or a list of server IDs to exempt only those servers from default sink-visibility enforcement.
+Workflow authors who intentionally allow private→public data flows can opt out of cross-visibility protections by declaring `private-to-public-flows` under `tools.github` in workflow frontmatter. It accepts either `allow` for a blanket opt-out that disables both `forcePublicRepos` and sink-visibility enforcement, or a list of server IDs to exempt only those servers from default sink-visibility enforcement.
 
 #### 10.9.1 Workflow Frontmatter
 
@@ -1655,9 +1655,8 @@ Workflow authors who intentionally allow private→public data flows can opt out
 ```yaml
 ---
 tools:
-  - github
-  - safe-outputs
-private-to-public-flows: allow
+  github:
+    private-to-public-flows: allow
 ---
 ```
 
@@ -1665,25 +1664,28 @@ private-to-public-flows: allow
 ```yaml
 ---
 tools:
-  - github
-  - safe-outputs
-  - playwright
-private-to-public-flows:
-  - playwright
+  github:
+    private-to-public-flows:
+      - github
+      - my-custom-server
+mcp-servers:
+  my-custom-server:
+    type: http
+    url: "http://localhost:9000/mcp"
 ---
 ```
 
 #### 10.9.2 Constraints
 
-Blanket `allow` is incompatible with `guards_mode: strict`, so the compiler MUST reject that combination at compile time. The list form remains compatible with `strict` because it relaxes only the default sink-visibility for named servers while leaving other protections in place. In list form, every server ID MUST map to an actual MCP server declared in the workflow's `tools` list; unknown IDs MUST be rejected at compile time. With non-strict mode (`filter` or `propagate`), the blanket form disables both the forced `repos="public"` override (Section 4.1.3.8) and the `sink-visibility` runtime-verification override (Section 10.8.4).
+Blanket `allow` is incompatible with `guards_mode: strict`, so the compiler MUST reject that combination at compile time. The list form remains compatible with `strict` because it relaxes only the default sink-visibility for named servers while leaving other protections in place. In list form, every server ID MUST map to an actual MCP server declared in the workflow's `tools` or `mcp-servers` list; unknown IDs MUST be rejected at compile time. With non-strict mode (`filter` or `propagate`), the blanket form disables both the forced `repos="public"` override (Section 4.1.3.8) and the `sink-visibility` runtime-verification override (Section 10.8.4).
 
 #### 10.9.3 Compiler Responsibilities
 
 When the compiler encounters `private-to-public-flows`, it MUST validate the chosen form, emit the matching gateway configuration, and record the opt-out in the audit trail.
 
-For blanket `allow`, the compiler MUST reject `guards_mode: strict`, set `gateway.forcePublicRepos: false` in the generated JSON stdin config, and skip setting `sink-visibility: "public"` even if the target repo is public at compile time.
+For blanket `allow`, the compiler MUST reject `guards_mode: strict`, set `gateway.forcePublicRepos: false` in the generated JSON stdin config, and skip setting `sink-visibility` in write-sink guard policies even if the target repo is public at compile time.
 
-For list form, the compiler MUST verify that every listed server ID exists in the workflow's declared `tools` list, set `gateway.sinkVisibilityExemptServers` to that list in the generated JSON stdin config, and leave `forcePublicRepos` unchanged.
+For list form, the compiler MUST verify that every listed server ID exists in the workflow's declared `tools` or `mcp-servers` list, set `gateway.sinkVisibilityExemptServers` to that list in the generated JSON stdin config, and leave `forcePublicRepos` unchanged.
 
 #### 10.9.4 Interaction Matrix
 
