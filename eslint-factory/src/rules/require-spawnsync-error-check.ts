@@ -84,14 +84,7 @@ export const requireSpawnSyncErrorCheckRule = createRule({
         const hasErrorCheck = variable.references.some(ref => {
           const id = ref.identifier;
           const parent = id.parent;
-          return (
-            parent !== undefined &&
-            parent.type === AST_NODE_TYPES.MemberExpression &&
-            !parent.computed &&
-            parent.object === id &&
-            parent.property.type === AST_NODE_TYPES.Identifier &&
-            parent.property.name === "error"
-          );
+          return parent !== undefined && parent.type === AST_NODE_TYPES.MemberExpression && !parent.computed && parent.object === id && parent.property.type === AST_NODE_TYPES.Identifier && parent.property.name === "error";
         });
 
         if (!hasErrorCheck) {

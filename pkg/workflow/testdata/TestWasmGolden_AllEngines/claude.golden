@@ -62,13 +62,8 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-claude-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-<<<<<<< HEAD
           GH_AW_INFO_VERSION: "2.1.207"
-          GH_AW_INFO_AWF_VERSION: "v0.27.30"
-=======
-          GH_AW_INFO_VERSION: "2.1.201"
           GH_AW_INFO_AWF_VERSION: "v0.27.31"
->>>>>>> origin/main
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Generate agentic run info
         id: generate_aw_info
@@ -369,13 +364,8 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-claude-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-<<<<<<< HEAD
           GH_AW_INFO_VERSION: "2.1.207"
-          GH_AW_INFO_AWF_VERSION: "v0.27.30"
-=======
-          GH_AW_INFO_VERSION: "2.1.201"
           GH_AW_INFO_AWF_VERSION: "v0.27.31"
->>>>>>> origin/main
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -771,13 +761,8 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-claude-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-<<<<<<< HEAD
           GH_AW_INFO_VERSION: "2.1.207"
-          GH_AW_INFO_AWF_VERSION: "v0.27.30"
-=======
-          GH_AW_INFO_VERSION: "2.1.201"
           GH_AW_INFO_AWF_VERSION: "v0.27.31"
->>>>>>> origin/main
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Check team membership for workflow
         id: check_membership
