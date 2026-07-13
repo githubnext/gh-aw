@@ -14,7 +14,7 @@ describe("no-throw-plain-object", () => {
     expect(noThrowPlainObjectRule.meta.docs.url).toBe("https://github.com/github/gh-aw/tree/main/eslint-factory#no-throw-plain-object");
   });
 
-  it("has hasSuggestions enabled", () => {
+  it("hasSuggestions enabled", () => {
     expect(noThrowPlainObjectRule.meta.hasSuggestions).toBe(true);
   });
 

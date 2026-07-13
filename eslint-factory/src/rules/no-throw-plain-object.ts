@@ -52,7 +52,7 @@ export const noThrowPlainObjectRule = createRule({
         const { properties: props } = arg;
 
         if (hasUnsafeProperties(props)) {
-          context.report({ node: arg, messageId: "noThrowPlainObject" });
+          context.report({ node: arg, messageId: "noThrowPlainObject", suggest: [] });
           return;
         }
 
