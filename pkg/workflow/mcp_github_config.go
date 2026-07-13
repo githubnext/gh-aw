@@ -541,6 +541,10 @@ func transformRepoPattern(pattern string) string {
 //     a GitHub App configured, auto-lockdown detection will set repos=all at runtime, so a
 //     write-sink policy with accept=["*"] is returned to match that runtime behaviour.
 //
+// When private-to-public-flows: allow is declared, sink-visibility is omitted from the returned
+// policy per MCP Gateway Specification Section 10.9.3: the blanket allow disables both
+// forcePublicRepos and sink-visibility enforcement.
+//
 // Returns nil when workflowData is nil, when no GitHub tool is present, or when a GitHub App is
 // configured (auto-lockdown is skipped for GitHub App tokens, which are already repo-scoped).
 func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[string]any {
@@ -554,9 +558,21 @@ func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[stri
 
 	toolConfig, _ := rawGithubTool.(map[string]any)
 
+	// Detect blanket opt-out: private-to-public-flows: allow.
+	// Per Section 10.9.3, allow disables sink-visibility enforcement in addition to forcePublicRepos.
+	blanketAllow := workflowData.ParsedTools != nil &&
+		workflowData.ParsedTools.GitHub != nil &&
+		workflowData.ParsedTools.GitHub.PrivateToPublicFlows == "allow"
+
 	// Try to derive from explicit guard policy first
 	policy := deriveSafeOutputsGuardPolicyFromGitHub(toolConfig)
 	if policy != nil {
+		if blanketAllow {
+			// Strip sink-visibility from write-sink when blanket allow is declared.
+			if writeSink, ok := policy["write-sink"].(map[string]any); ok {
+				delete(writeSink, "sink-visibility")
+			}
+		}
 		return policy
 	}
 
@@ -566,11 +582,14 @@ func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[stri
 	// sink-visibility is set as a runtime expression so that the write-sink guard can enforce
 	// public/private/internal semantics based on the actual repository visibility at workflow execution time.
 	if rawGithubTool != false && len(getGitHubGuardPolicies(toolConfig)) == 0 && !hasGitHubApp(toolConfig) {
+		writeSink := map[string]any{
+			"accept": []string{"*"},
+		}
+		if !blanketAllow {
+			writeSink["sink-visibility"] = sinkVisibilityRuntimeExpr
+		}
 		return map[string]any{
-			"write-sink": map[string]any{
-				"accept":          []string{"*"},
-				"sink-visibility": sinkVisibilityRuntimeExpr,
-			},
+			"write-sink": writeSink,
 		}
 	}
 

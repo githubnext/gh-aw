@@ -20,9 +20,24 @@ test.describe('Schema JSON-LD', () => {
 
     const schema = await getJsonLd(page);
     const graphTypes = schema['@graph'].map((item: { '@type': string }) => item['@type']);
+    const website = schema['@graph'].find((item: { '@type': string }) => item['@type'] === 'WebSite');
+    const organization = schema['@graph'].find((item: { '@type': string }) => item['@type'] === 'Organization');
 
     expect(graphTypes).toContain('WebSite');
+    expect(graphTypes).toContain('Organization');
     expect(graphTypes).toContain('FAQPage');
+    expect(website).toBeDefined();
+    expect(organization).toBeDefined();
+    expect(website.name).toBe('gh-aw — GitHub Agentic Workflows');
+    expect(website.url).toBe('https://github.github.com/gh-aw/');
+    expect(organization.name).toBe('GitHub');
+    expect(organization.url).toBe('https://github.com/github/gh-aw');
+    expect(organization.logo).toBe(
+      'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png'
+    );
+    expect(organization.sameAs).toEqual(
+      expect.arrayContaining(['https://github.com/github/gh-aw'])
+    );
   });
 
   test('adds BlogPosting schema to blog posts', async ({ page }) => {

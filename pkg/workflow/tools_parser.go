@@ -389,6 +389,28 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			config.EndorserMinIntegrity = endorserMinIntegrity
 		}
 
+		// Parse private-to-public-flows: accepts "allow" (string) or []string of server IDs.
+		if rawPtP, ok := configMap["private-to-public-flows"]; ok {
+			switch v := rawPtP.(type) {
+			case string:
+				// "allow" is the only valid string value
+				config.PrivateToPublicFlows = v
+			case []any:
+				// Array of server ID strings
+				servers := make([]string, 0, len(v))
+				for _, item := range v {
+					if s, ok := item.(string); ok {
+						servers = append(servers, s)
+					}
+				}
+				config.PrivateToPublicFlows = servers
+			case []string:
+				config.PrivateToPublicFlows = v
+			default:
+				toolsParserLog.Printf("Warning: private-to-public-flows has unsupported type %T (expected string \"allow\" or array of server IDs), ignoring", rawPtP)
+			}
+		}
+
 		return config
 	}
 
