@@ -50,8 +50,8 @@ function logCache(message, details) {
  * @returns {Promise<void>}
  */
 async function mainWithPaths(cacheFilePath, usageDir) {
-  const cachePath = cacheFilePath ?? CACHE_FILE_PATH;
-  const usageDirPath = usageDir ?? USAGE_DIR;
+  const cachePath = cacheFilePath || CACHE_FILE_PATH;
+  const usageDirPath = usageDir || USAGE_DIR;
   try {
     const runId = Number(process.env.GITHUB_RUN_ID || 0);
     if (!runId) {
