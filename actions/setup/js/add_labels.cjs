@@ -33,7 +33,7 @@ const { MAX_LABELS } = require("./constants.cjs");
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
-const { normalizeIssueIntentLabelSpecs } = require("./issue_intents.cjs");
+const { normalizeIssueIntentLabelInputs } = require("./issue_intents.cjs");
 
 /**
  * Main handler factory for add_labels
@@ -96,16 +96,16 @@ const main = createCountGatedHandler({
       const requestedLabelSpecByLowerName = new Map();
       let requestedLabelNames;
       try {
-        requestedLabelNames = requestedLabels.map(label => {
+        const requestedLabelInputs = normalizeIssueIntentLabelInputs(requestedLabels);
+        requestedLabelNames = requestedLabelInputs.map(label => {
           if (typeof label === "string") {
             return label;
           }
-          const [labelSpec] = normalizeIssueIntentLabelSpecs([label]);
-          const key = labelSpec.name.toLowerCase();
+          const key = label.name.toLowerCase();
           if (!requestedLabelSpecByLowerName.has(key)) {
-            requestedLabelSpecByLowerName.set(key, labelSpec);
+            requestedLabelSpecByLowerName.set(key, label);
           }
-          return labelSpec.name;
+          return label.name;
         });
       } catch (error) {
         const errorMessage = getErrorMessage(error);

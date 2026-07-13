@@ -96,6 +96,39 @@ function normalizeIssueIntentLabelSpecs(labels) {
   });
 }
 
+function normalizeIssueIntentLabelInputs(labels) {
+  if (labels === undefined) {
+    return [];
+  }
+  if (!Array.isArray(labels)) {
+    const receivedType = labels === null ? "null" : typeof labels;
+    throw new Error(`Invalid labels. Expected an array of label names or label spec objects; received ${receivedType}.`);
+  }
+
+  return labels.map((label, index) => {
+    if (typeof label === "string") {
+      return label;
+    }
+
+    if (!label || typeof label !== "object" || typeof label.name !== "string") {
+      throw new Error(`Invalid labels[${index}] entry. Expected a string label name or an object with a string "name" field.`);
+    }
+
+    const name = sanitizeLabelContent(label.name);
+    if (!name) {
+      throw new Error(`Invalid labels[${index}] entry. Label names must be non-empty strings.`);
+    }
+    if (name.startsWith("-")) {
+      throw new Error(`Label removal is not permitted. Found line starting with '-': ${name}`);
+    }
+
+    return {
+      name,
+      ...normalizeIssueIntentMetadata(label),
+    };
+  });
+}
+
 function normalizeIssueIntentLabelNames(labels) {
   if (labels === undefined) {
     return [];
@@ -135,6 +168,7 @@ function buildIssueIntentLabelUpdates(labelSpecs, labelIdByName) {
 module.exports = {
   buildIssueIntentLabelUpdates,
   getIssueIntentLabelNames,
+  normalizeIssueIntentLabelInputs,
   normalizeIssueIntentLabelNames,
   normalizeIssueIntentLabelSpecs,
   normalizeIssueIntentMetadata,

@@ -125,7 +125,7 @@ describe("add_labels", () => {
       const result = await handler(
         {
           item_number: 456,
-          labels: [{ name: "bug", rationale: "Known crash path", confidence: "high", suggest: true }],
+          labels: [{ name: "bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }],
         },
         {}
       );
