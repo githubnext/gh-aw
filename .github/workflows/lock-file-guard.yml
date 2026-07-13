@@ -1,0 +1,30 @@
+name: Lock File Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '.github/workflows/*.md'
+      - 'scripts/check-stale-lock-files.sh'
+      - '.github/workflows/lock-file-guard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-stale-lock-files:
+    name: Check stale workflow lock files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: lock-file-guard-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Check for stale lock files
+        run: make check-stale-lock-files
