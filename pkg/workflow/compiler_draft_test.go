@@ -326,10 +326,10 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
 			expected: `on:
   pull_request:
     # forks: # Fork filtering applied via job conditions
-      # - trusted/* # Fork filtering applied via job conditions
+    # - trusted/* # Fork filtering applied via job conditions
   issues:
     # names: # Label filtering applied via job conditions
-      # - bug # Label filtering applied via job conditions
+    # - bug # Label filtering applied via job conditions
   workflow_dispatch:`,
 			description: "Should reset forks array tracker when entering a new event section",
 		},
@@ -346,10 +346,10 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
 			expected: `on:
   workflow_run:
     # conclusion: # Conclusion filtering compiled into if condition
-      # - failure # Conclusion filtering compiled into if condition
+    # - failure # Conclusion filtering compiled into if condition
   issues:
     # names: # Label filtering applied via job conditions
-      # - bug # Label filtering applied via job conditions
+    # - bug # Label filtering applied via job conditions
   workflow_dispatch:`,
 			description: "Should reset workflow_run conclusion tracker when entering a new event section",
 		},
@@ -367,7 +367,7 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
     workflows: ["CI"]
     types: [completed]
   # bots: # Bots processed as bot check in pre-activation job
-    # - dependabot # Bots processed as bot check in pre-activation job
+  # - dependabot # Bots processed as bot check in pre-activation job
   workflow_dispatch:`,
 			description: "Should not let bots array state leak into workflow_run fields",
 		},
@@ -382,7 +382,7 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
   workflow_dispatch:`,
 			expected: `on:
   # bots: # Bots processed as bot check in pre-activation job
-    # - dependabot # Bots processed as bot check in pre-activation job
+  # - dependabot # Bots processed as bot check in pre-activation job
   workflow_run:
     workflows: ["CI"]
     types: [completed]
@@ -402,7 +402,7 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
   workflow_dispatch:`,
 			expected: `on:
   # bots: # Bots processed as bot check in pre-activation job
-    # - dependabot # Bots processed as bot check in pre-activation job
+  # - dependabot # Bots processed as bot check in pre-activation job
   workflow_run:
     workflows:
       - CI
@@ -424,7 +424,7 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
   workflow_dispatch:`,
 			expected: `on:
   # skip-if-check-failing: # Skip-if-check-failing processed as check status gate in pre-activation job
-    # - build
+  # - build
   workflow_run:
     workflows:
       - CI
@@ -444,7 +444,7 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
   workflow_dispatch:`,
 			expected: `on:
   # roles: # Roles processed as role check in pre-activation job
-    # - write # Roles processed as role check in pre-activation job
+  # - write # Roles processed as role check in pre-activation job
   workflow_run:
     workflows: ["CI"]
     types: [completed]
@@ -477,7 +477,7 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
   workflow_dispatch:`,
 			expected: `on:
   # needs: # Needs processed as dependency in pre-activation job
-    # - study_repo # Needs processed as dependency in pre-activation job
+  # - study_repo # Needs processed as dependency in pre-activation job
   schedule:
     - cron: "23 * * * *"
   workflow_dispatch:`,
@@ -523,7 +523,7 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
 			expected: `on:
   issues:
     # names: # Label filtering applied via job conditions
-      # - bug # Label filtering applied via job conditions
+    # - bug # Label filtering applied via job conditions
   workflow_dispatch:`,
 			description: "Should comment out names in issues section with two-space indentation style",
 		},
@@ -550,7 +550,11 @@ func TestCommentOutProcessedFieldsInOnSectionBlankLineInBlock(t *testing.T) {
     echo world
   workflow_dispatch:`, map[string]any{})
 
-	assert.Contains(t, result, "\n#\n")
+	// The blank line inside the commented block is emitted at the block's base
+	// indentation (matching "# steps:") with no trailing space, keeping the block in
+	// a single comment group for yamllint's comments-indentation rule.
+	assert.Contains(t, result, "\n  #\n")
+	assert.NotContains(t, result, "#  \n")
 	assert.NotContains(t, result, "# \n")
 }
 
