@@ -2319,3 +2319,48 @@ func TestBuildDetectionEngineExecutionStepArcDindTopology(t *testing.T) {
 		}
 	})
 }
+
+// TestBuildDetectionEngineExecutionStepPropagatesModelMappings verifies that the
+// ModelMappings from the main WorkflowData are propagated to the threat detection
+// WorkflowData so the detection awf-config.json includes the apiProxy.models alias map.
+// Without this, copilot_harness.cjs cannot resolve alias model names (e.g. "small")
+// to concrete ids before spawning the Copilot CLI in the detection job.
+func TestBuildDetectionEngineExecutionStepPropagatesModelMappings(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "copilot",
+		EngineConfig: &EngineConfig{
+			ID:    "copilot",
+			Model: "small",
+		},
+		ModelMappings: map[string][]string{
+			"small": {"mini"},
+			"mini":  {"copilot/claude-haiku-4.5"},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildDetectionEngineExecutionStep(data)
+	if len(steps) == 0 {
+		t.Fatal("expected non-empty detection steps")
+	}
+
+	allSteps := strings.Join(steps, "")
+
+	// The awf-config.json shell command embeds the JSON with escaped quotes (\"key\").
+	// Search for the plain key names as substrings: they appear inside \"small\" etc.
+	// Both entries must be present in the models section so copilot_harness.cjs can resolve
+	// the alias chain small → mini → copilot/claude-haiku-4.5.
+	if !strings.Contains(allSteps, "models") {
+		t.Errorf("expected detection awf-config.json to contain a models section; got:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "small") {
+		t.Errorf("expected detection awf-config.json to contain model alias 'small'; got:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "mini") {
+		t.Errorf("expected detection awf-config.json to contain model alias 'mini'; got:\n%s", allSteps)
+	}
+}

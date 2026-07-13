@@ -169,17 +169,18 @@ The action automatically falls back to direct download when `gh extension instal
 
 ## Development
 
-This action is part of the gh-aw repository. The `install.sh` script is generated during the build process by copying from the root `install-gh-aw.sh` file.
+This action is part of the gh-aw repository. The `install.sh` and `install.ps1` scripts are generated during the build process by copying from the root `install-gh-aw.sh` and `install-gh-aw.ps1` files.
 
 ### Building
 
-The installation script is copied during the build process:
+The installation scripts are copied during the build process:
 
 ```bash
 make build  # Copies install-gh-aw.sh to actions/setup-cli/install.sh
+            # and install-gh-aw.ps1 to actions/setup-cli/install.ps1
 ```
 
-The generated `install.sh` file is marked as `linguist-generated=true` in `.gitattributes`.
+The generated `install.sh` and `install.ps1` files are marked as `linguist-generated=true` in `.gitattributes`.
 
 ## License
 

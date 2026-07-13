@@ -8,6 +8,7 @@ on:
   pull_request:
     paths:
       - 'install-gh-aw.sh'
+      - 'install-gh-aw.ps1'
       - 'scripts/test-install-script.sh'
       - '.github/workflows/install.yml'
 
@@ -185,10 +186,87 @@ jobs:
           echo ""
           echo "✅ Full installation test passed!"
 
+  test-install-powershell:
+    name: Test PowerShell installer on Windows
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Capture platform-detection output (expects failure for fake version)
+        # The installer exits 1 when the nonexistent version download fails; that is
+        # expected.  continue-on-error suppresses the step failure so the next step
+        # can assert the platform-detection messages that ran before the download.
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          & ./install-gh-aw.ps1 v999.999.999 6>&1 2>&1 | Tee-Object -FilePath install-ps-output.log
+
+      - name: Assert platform-detection messages from dry run
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          if (-not (Test-Path install-ps-output.log)) {
+            throw "Installer output file (install-ps-output.log) was not created; Tee-Object may have failed"
+          }
+          $outputText = Get-Content install-ps-output.log -Raw
+          if (-not $outputText) { throw "Installer output file (install-ps-output.log) exists but is empty" }
+          if ($outputText -notmatch "Detected OS:")           { throw "OS detection failed" }
+          if ($outputText -notmatch "Detected architecture:") { throw "Architecture detection failed" }
+          if ($outputText -notmatch "Platform:")              { throw "Platform string construction failed" }
+          if ($outputText -notmatch "Failed to download")     { throw "Installer did not report expected download failure for fake version" }
+
+      - name: Test setup-cli composite action (Windows)
+        id: setup-cli-test
+        uses: ./actions/setup-cli
+        with:
+          version: latest
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify composite-action binary and installed-version output
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+
+          $installedVersion = '${{ steps.setup-cli-test.outputs.installed-version }}'
+          if (-not $installedVersion) {
+            throw "installed-version output is empty; action output wiring is broken"
+          }
+          Write-Host "Composite action installed: $installedVersion"
+
+          # Verify via gh aw commands rather than a hardcoded binary path.
+          # `gh extension install` registers the extension under gh's own data dir
+          # (e.g. %APPDATA%\GitHub CLI\extensions on Windows), so using `gh aw`
+          # is the correct cross-platform verification mechanism.
+          gh aw version 2>&1 | Write-Host
+          if ($LASTEXITCODE -ne 0) {
+            throw "'gh aw version' failed with exit code $LASTEXITCODE"
+          }
+
+          gh aw --help 2>&1 | Write-Host
+          if ($LASTEXITCODE -ne 0) {
+            throw "'gh aw --help' failed with exit code $LASTEXITCODE"
+          }
+
+      - name: Upload PowerShell test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: install-test-powershell-windows
+          path: install-ps-output.log
+          retention-days: 7
+          if-no-files-found: ignore
+
   report-failure:
     name: Report Installation Failures
     runs-on: ubuntu-latest
-    needs: test-install
+    needs:
+      - test-install
+      - test-install-powershell
     if: failure()
     permissions:
       issues: write
@@ -211,7 +289,7 @@ jobs:
             
             ## Details
             
-            The install script testing workflow detected failures when testing the \`install-gh-aw.sh\` script across different platforms.
+            The install script testing workflow detected failures when testing the \`install-gh-aw.sh\` and \`install-gh-aw.ps1\` scripts across different platforms.
             
             Please review the workflow logs to identify which platform(s) failed and investigate the issue.
             
@@ -225,7 +303,7 @@ jobs:
             ## Next Steps
             
             1. Check the [workflow run logs](${workflowUrl}) for detailed error messages
-            2. Review changes to \`install-gh-aw.sh\` that may have caused the failure
+            2. Review changes to \`install-gh-aw.sh\` and \`install-gh-aw.ps1\` that may have caused the failure
             3. Test the install script locally on the affected platform(s)
             4. Fix the issue and verify with \`scripts/test-install-script.sh\`
             

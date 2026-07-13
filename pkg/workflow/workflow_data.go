@@ -186,7 +186,7 @@ type WorkflowData struct {
 	CachedRuntimeRequirements      []RuntimeRequirement            // cached runtime requirements derived from DetectRuntimeRequirements; reused by validation and YAML generation within one compilation
 	CachedRuntimeRequirementsSet   bool                            // true once CachedRuntimeRequirements is populated; distinguishes "computed empty" from "not yet computed"
 	KnownActionCredentialEnvVars   map[string]struct{}             // env vars for clean_known_action_credentials.sh; keyed by GH_AW_CLEAN_* names; nil when no known credential-leaking actions are detected
-	ModelMappings                  map[string][]string             // merged model alias map (builtins + imported workflow aliases + main frontmatter overrides, in priority order); NOT yet emitted to AWF config JSON — pending AWF firewall support (config.models)
+	ModelMappings                  map[string][]string             // merged model alias map (builtins + imported workflow aliases + main frontmatter overrides, in priority order); emitted to AWF config JSON as apiProxy.models for both agent and detection jobs
 	ModelCosts                     map[string]any                  // model pricing data from frontmatter `models` field (providers structure); merged with built-in models.json at runtime by generate_aw_info.cjs
 	ModelPolicyAllowed             []string                        // merged models.allowed policy list (union across imports + main frontmatter)
 	ModelPolicyBlocked             []string                        // merged models.blocked policy list (union across imports + main frontmatter)

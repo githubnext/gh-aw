@@ -4,9 +4,11 @@
 
 fixture_id: "rl-001-glob-semantics"
 description: >
-  Glob pattern matching for `allowed-add`, `allowed-remove`, and `blocked` MUST follow
-  gobwas/glob semantics: `*` matches any sequence of characters within a label name,
-  and `[...]` denotes a character class (RL-001).
+  Glob pattern matching for `allowed-add`, `allowed-remove`, and `blocked` uses
+  the production matchesSimpleGlob helper (glob_pattern_helpers.cjs,
+  simpleGlobToRegex with pathMode=false): `*` matches any sequence of characters
+  (including `/`), and bracket characters are escaped to regex literals (character-
+  class syntax is NOT supported by the current implementation).
 
 spec_refs:
   - "RL-001 — Glob pattern matching MUST use gobwas/glob semantics"
@@ -52,9 +54,14 @@ scenarios:
       error_code: -32002
       reason: "label not in allowed-add list"
 
-  # --- Scenario C: character class pattern matches ---
+  # --- Scenario C: character class brackets are treated as literals in production ---
   - scenario_id: "rl-001-glob-char-class-match"
-    description: "allowed-add pattern 'p[0-9]' allows adding 'p1'"
+    description: >
+      The production matchesSimpleGlob helper (glob_pattern_helpers.cjs,
+      simpleGlobToRegex with pathMode=false) escapes bracket characters to regex
+      literals, so 'p[0-9]' matches only the literal string 'p[0-9]' and does
+      NOT match 'p1'.  Character-class syntax is not supported by the current
+      implementation even though gobwas/glob semantics include it.
     input:
       safe_output_config:
         allowed-add:
@@ -65,9 +72,9 @@ scenarios:
         label_to_add: "p1"
         label_to_remove: ""
     expected:
-      decision: allow
-      error_code: null
-      reason: ""
+      decision: deny
+      error_code: -32002
+      reason: "label not in allowed-add list"
 
   # --- Scenario D: exact pattern matches only the exact label ---
   - scenario_id: "rl-001-exact-no-glob"

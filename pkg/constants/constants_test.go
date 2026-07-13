@@ -4,162 +4,74 @@ package constants
 
 import (
 	"path/filepath"
-	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetWorkflowDir(t *testing.T) {
 	expected := filepath.Join(".github", "workflows")
-	result := GetWorkflowDir()
-
-	if result != expected {
-		t.Errorf("GetWorkflowDir() = %q, want %q", result, expected)
-	}
+	assert.Equal(t, expected, GetWorkflowDir())
 }
 
 func TestGetWorkflowDirEnvOverride(t *testing.T) {
 	t.Setenv("GH_AW_WORKFLOWS_DIR", "/tmp/custom-workflows")
-	result := GetWorkflowDir()
-	if result != "/tmp/custom-workflows" {
-		t.Errorf("GetWorkflowDir() with GH_AW_WORKFLOWS_DIR set = %q, want %q", result, "/tmp/custom-workflows")
-	}
+	assert.Equal(t, "/tmp/custom-workflows", GetWorkflowDir())
 }
 
 func TestGetWorkflowDirEnvEmpty(t *testing.T) {
 	t.Setenv("GH_AW_WORKFLOWS_DIR", "")
 	expected := filepath.Join(".github", "workflows")
-	result := GetWorkflowDir()
-	if result != expected {
-		t.Errorf("GetWorkflowDir() with empty GH_AW_WORKFLOWS_DIR = %q, want %q", result, expected)
-	}
+	assert.Equal(t, expected, GetWorkflowDir())
 }
 
 func TestDefaultAllowedDomains(t *testing.T) {
-	if len(DefaultAllowedDomains) == 0 {
-		t.Error("DefaultAllowedDomains should not be empty")
-	}
-
 	expectedDomains := []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"}
-	if len(DefaultAllowedDomains) != len(expectedDomains) {
-		t.Errorf("DefaultAllowedDomains length = %d, want %d", len(DefaultAllowedDomains), len(expectedDomains))
-	}
-
-	for i, domain := range expectedDomains {
-		if DefaultAllowedDomains[i] != domain {
-			t.Errorf("DefaultAllowedDomains[%d] = %q, want %q", i, DefaultAllowedDomains[i], domain)
-		}
-	}
+	require.NotEmpty(t, DefaultAllowedDomains)
+	assert.Equal(t, expectedDomains, DefaultAllowedDomains)
 }
 
 func TestSafeWorkflowEvents(t *testing.T) {
-	if len(SafeWorkflowEvents) == 0 {
-		t.Error("SafeWorkflowEvents should not be empty")
-	}
-
-	// workflow_run is intentionally excluded due to HIGH security risks
 	expectedEvents := []string{"workflow_dispatch", "schedule"}
-	if len(SafeWorkflowEvents) != len(expectedEvents) {
-		t.Errorf("SafeWorkflowEvents length = %d, want %d", len(SafeWorkflowEvents), len(expectedEvents))
-	}
-
-	for i, event := range expectedEvents {
-		if SafeWorkflowEvents[i] != event {
-			t.Errorf("SafeWorkflowEvents[%d] = %q, want %q", i, SafeWorkflowEvents[i], event)
-		}
-	}
+	require.NotEmpty(t, SafeWorkflowEvents)
+	assert.Equal(t, expectedEvents, SafeWorkflowEvents)
 }
 
 func TestAllowedExpressions(t *testing.T) {
-	if len(AllowedExpressions) == 0 {
-		t.Error("AllowedExpressions should not be empty")
-	}
+	require.NotEmpty(t, AllowedExpressions)
 
-	// Test a few key expressions are present
-	requiredExpressions := []string{
+	for _, expr := range []string{
 		"github.event.issue.number",
 		"github.event.pull_request.number",
 		"github.repository",
 		"github.run_id",
 		"github.workspace",
-	}
-
-	expressionsMap := make(map[string]bool)
-	for _, expr := range AllowedExpressions {
-		expressionsMap[expr] = true
-	}
-
-	for _, required := range requiredExpressions {
-		if !expressionsMap[required] {
-			t.Errorf("AllowedExpressions missing required expression: %q", required)
-		}
+	} {
+		assert.Contains(t, AllowedExpressions, expr)
 	}
 }
 
 func TestAgenticEngines(t *testing.T) {
-	if len(AgenticEngines) == 0 {
-		t.Error("AgenticEngines should not be empty")
-	}
-
 	expectedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi"}
-	if len(AgenticEngines) != len(expectedEngines) {
-		t.Errorf("AgenticEngines length = %d, want %d", len(AgenticEngines), len(expectedEngines))
-	}
-
-	for i, engine := range expectedEngines {
-		if AgenticEngines[i] != engine {
-			t.Errorf("AgenticEngines[%d] = %q, want %q", i, AgenticEngines[i], engine)
-		}
-	}
-
-	// Verify that engine constants can be converted to strings for AgenticEngines
-	if string(ClaudeEngine) != "claude" {
-		t.Errorf("ClaudeEngine constant = %q, want %q", ClaudeEngine, "claude")
-	}
-	if string(CodexEngine) != "codex" {
-		t.Errorf("CodexEngine constant = %q, want %q", CodexEngine, "codex")
-	}
-	if string(CopilotEngine) != "copilot" {
-		t.Errorf("CopilotEngine constant = %q, want %q", CopilotEngine, "copilot")
-	}
-	if string(GeminiEngine) != "gemini" {
-		t.Errorf("GeminiEngine constant = %q, want %q", GeminiEngine, "gemini")
-	}
-	if DefaultEngine != CopilotEngine {
-		t.Errorf("DefaultEngine = %q, want CopilotEngine (%q)", DefaultEngine, CopilotEngine)
-	}
+	require.NotEmpty(t, AgenticEngines)
+	assert.Equal(t, expectedEngines, AgenticEngines)
+	assert.Equal(t, "claude", string(ClaudeEngine))
+	assert.Equal(t, "codex", string(CodexEngine))
+	assert.Equal(t, "copilot", string(CopilotEngine))
+	assert.Equal(t, "gemini", string(GeminiEngine))
+	assert.Equal(t, CopilotEngine, DefaultEngine)
 }
 
 func TestDefaultGitHubTools(t *testing.T) {
-	if len(DefaultGitHubToolsLocal) == 0 {
-		t.Error("DefaultGitHubToolsLocal should not be empty")
-	}
+	require.NotEmpty(t, DefaultGitHubToolsLocal)
+	require.NotEmpty(t, DefaultGitHubToolsRemote)
+	require.NotEmpty(t, DefaultReadOnlyGitHubTools)
+	assert.Len(t, DefaultGitHubTools, len(DefaultGitHubToolsLocal))
+	assert.Len(t, DefaultGitHubToolsLocal, len(DefaultReadOnlyGitHubTools))
+	assert.Len(t, DefaultGitHubToolsRemote, len(DefaultReadOnlyGitHubTools))
 
-	if len(DefaultGitHubToolsRemote) == 0 {
-		t.Error("DefaultGitHubToolsRemote should not be empty")
-	}
-
-	if len(DefaultReadOnlyGitHubTools) == 0 {
-		t.Error("DefaultReadOnlyGitHubTools should not be empty")
-	}
-
-	// Test that DefaultGitHubTools defaults to local mode
-	if len(DefaultGitHubTools) != len(DefaultGitHubToolsLocal) {
-		t.Errorf("DefaultGitHubTools should default to DefaultGitHubToolsLocal")
-	}
-
-	// Test that Local and Remote tools reference the same shared list
-	if len(DefaultGitHubToolsLocal) != len(DefaultReadOnlyGitHubTools) {
-		t.Errorf("DefaultGitHubToolsLocal should have same length as DefaultReadOnlyGitHubTools, got %d vs %d",
-			len(DefaultGitHubToolsLocal), len(DefaultReadOnlyGitHubTools))
-	}
-
-	if len(DefaultGitHubToolsRemote) != len(DefaultReadOnlyGitHubTools) {
-		t.Errorf("DefaultGitHubToolsRemote should have same length as DefaultReadOnlyGitHubTools, got %d vs %d",
-			len(DefaultGitHubToolsRemote), len(DefaultReadOnlyGitHubTools))
-	}
-
-	// Test a few key tools are present in all lists
 	requiredTools := []string{
 		"get_me",
 		"list_issues",
@@ -173,72 +85,28 @@ func TestDefaultGitHubTools(t *testing.T) {
 		"DefaultGitHubToolsRemote":   DefaultGitHubToolsRemote,
 		"DefaultReadOnlyGitHubTools": DefaultReadOnlyGitHubTools,
 	} {
-		toolsMap := make(map[string]bool)
-		for _, tool := range tools {
-			toolsMap[tool] = true
-		}
-
-		for _, required := range requiredTools {
-			if !toolsMap[required] {
-				t.Errorf("%s missing required tool: %q", name, required)
+		t.Run(name, func(t *testing.T) {
+			for _, tool := range requiredTools {
+				assert.Contains(t, tools, tool)
 			}
-		}
+		})
 	}
 }
 
 func TestDefaultBashTools(t *testing.T) {
-	if len(DefaultBashTools) == 0 {
-		t.Error("DefaultBashTools should not be empty")
-	}
-
-	// Test a few key bash tools are present
-	requiredTools := []string{
-		"echo",
-		"printf",
-		"ls",
-		"cat",
-		"grep",
-	}
-
-	toolsMap := make(map[string]bool)
-	for _, tool := range DefaultBashTools {
-		toolsMap[tool] = true
-	}
-
-	for _, required := range requiredTools {
-		if !toolsMap[required] {
-			t.Errorf("DefaultBashTools missing required tool: %q", required)
-		}
+	require.NotEmpty(t, DefaultBashTools)
+	for _, tool := range []string{"echo", "printf", "ls", "cat", "grep"} {
+		assert.Contains(t, DefaultBashTools, tool)
 	}
 }
 
 func TestPriorityFields(t *testing.T) {
-	if len(PriorityStepFields) == 0 {
-		t.Error("PriorityStepFields should not be empty")
-	}
-
-	if len(PriorityJobFields) == 0 {
-		t.Error("PriorityJobFields should not be empty")
-	}
-
-	if len(PriorityWorkflowFields) == 0 {
-		t.Error("PriorityWorkflowFields should not be empty")
-	}
-
-	// Test that "name" is first in step fields
-	if PriorityStepFields[0] != "name" {
-		t.Errorf("PriorityStepFields[0] = %q, want %q", PriorityStepFields[0], "name")
-	}
-
-	// Test that "name" is first in job fields
-	if PriorityJobFields[0] != "name" {
-		t.Errorf("PriorityJobFields[0] = %q, want %q", PriorityJobFields[0], "name")
-	}
-
-	// Test that "on" is first in workflow fields
-	if PriorityWorkflowFields[0] != "on" {
-		t.Errorf("PriorityWorkflowFields[0] = %q, want %q", PriorityWorkflowFields[0], "on")
-	}
+	require.NotEmpty(t, PriorityStepFields)
+	require.NotEmpty(t, PriorityJobFields)
+	require.NotEmpty(t, PriorityWorkflowFields)
+	assert.Equal(t, "name", PriorityStepFields[0])
+	assert.Equal(t, "name", PriorityJobFields[0])
+	assert.Equal(t, "on", PriorityWorkflowFields[0])
 }
 
 func TestConstantValues(t *testing.T) {
@@ -249,6 +117,12 @@ func TestConstantValues(t *testing.T) {
 	}{
 		{"CLIExtensionPrefix", string(CLIExtensionPrefix), "gh aw"},
 		{"DefaultMCPRegistryURL", string(DefaultMCPRegistryURL), "https://api.mcp.github.com/v0.1"},
+		{"OTELSentryEndpointSecretName", OTELSentryEndpointSecretName, "GH_AW_OTEL_SENTRY_ENDPOINT"},
+		{"AWFDefaultCommand", AWFDefaultCommand, "sudo -E awf"},
+		{"AWFProxyLogsDir", AWFProxyLogsDir, "/tmp/gh-aw/sandbox/firewall/logs"},
+		{"AWFAuditDir", AWFAuditDir, "/tmp/gh-aw/sandbox/firewall/audit"},
+		{"PreAgentAuditFilePath", PreAgentAuditFilePath, "/tmp/gh-aw/pre-agent-audit.txt"},
+		{"AWFConfigFilePath", AWFConfigFilePath, "/tmp/gh-aw/awf-config.json"},
 		{"AgentJobName", string(AgentJobName), "agent"},
 		{"ActivationJobName", string(ActivationJobName), "activation"},
 		{"PreActivationJobName", string(PreActivationJobName), "pre_activation"},
@@ -281,15 +155,13 @@ func TestConstantValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.value != tt.expected {
-				t.Errorf("%s = %q, want %q", tt.name, tt.value, tt.expected)
-			}
+			assert.Equal(t, tt.expected, tt.value)
 		})
 	}
 }
 
 func TestKnownBuiltInJobNamesContainsAllKnownJobs(t *testing.T) {
-	knownJobs := []string{
+	for _, jobName := range []string{
 		string(AgentJobName),
 		string(ActivationJobName),
 		string(PreActivationJobName),
@@ -301,32 +173,13 @@ func TestKnownBuiltInJobNamesContainsAllKnownJobs(t *testing.T) {
 		string(UploadCodeScanningJobName),
 		string(ConclusionJobName),
 		string(UnlockJobName),
-	}
-
-	for _, jobName := range knownJobs {
-		if _, ok := KnownBuiltInJobNames[jobName]; !ok {
-			t.Errorf("KnownBuiltInJobNames missing %q", jobName)
-		}
+	} {
+		require.Contains(t, KnownBuiltInJobNames, jobName)
 	}
 }
 
 func TestModelNameConstants(t *testing.T) {
-	// Test that ModelName type works correctly
-	tests := []struct {
-		name     string
-		value    ModelName
-		expected string
-	}{
-		{"ModelName basic", ModelName("test-model"), "test-model"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if string(tt.value) != tt.expected {
-				t.Errorf("%s = %q, want %q", tt.name, tt.value, tt.expected)
-			}
-		})
-	}
+	assert.Equal(t, "test-model", string(ModelName("test-model")))
 }
 
 func TestNumericConstants(t *testing.T) {
@@ -341,15 +194,21 @@ func TestNumericConstants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.value < tt.minValue {
-				t.Errorf("%s = %d, should be >= %d", tt.name, tt.value, tt.minValue)
-			}
+			assert.GreaterOrEqual(t, tt.value, tt.minValue)
 		})
 	}
 }
 
+func TestPolicyConstants(t *testing.T) {
+	assert.EqualValues(t, 1000, DefaultMaxAICredits)
+	assert.EqualValues(t, 400, DefaultDetectionMaxAICredits)
+	assert.Equal(t, "5000", DefaultMaxDailyAICredits)
+	assert.Equal(t, 500, DefaultMaxRuns)
+	assert.Equal(t, 5, DefaultMaxTurnCacheMisses)
+	assert.Greater(t, DefaultMaxAICredits, DefaultDetectionMaxAICredits)
+}
+
 func TestTimeoutConstants(t *testing.T) {
-	// Test new time.Duration-based constants
 	tests := []struct {
 		name       string
 		value      time.Duration
@@ -357,26 +216,29 @@ func TestTimeoutConstants(t *testing.T) {
 		checkExact bool
 		exactValue time.Duration
 	}{
-		{"DefaultAgenticWorkflowTimeout", DefaultAgenticWorkflowTimeout, 1 * time.Minute, false, 0},
-		{"DefaultToolTimeout", DefaultToolTimeout, 1 * time.Second, false, 0},
-		{"DefaultMCPStartupTimeout", DefaultMCPStartupTimeout, 1 * time.Second, false, 0},
-		{"DefaultHTTPClientTimeout", DefaultHTTPClientTimeout, 1 * time.Second, true, time.Second * 30},
+		{"DefaultAgenticWorkflowTimeout", DefaultAgenticWorkflowTimeout, time.Minute, false, 0},
+		{"DefaultToolTimeout", DefaultToolTimeout, time.Second, false, 0},
+		{"DefaultMCPStartupTimeout", DefaultMCPStartupTimeout, time.Second, false, 0},
+		{"DefaultHTTPClientTimeout", DefaultHTTPClientTimeout, time.Second, true, 30 * time.Second},
+		{"MCPSessionTimeoutMin", MCPSessionTimeoutMin, time.Minute, true, 5 * time.Minute},
+		{"MCPToolTimeoutMin", MCPToolTimeoutMin, time.Second, true, 10 * time.Second},
+		{"MCPToolTimeoutMax", MCPToolTimeoutMax, time.Second, true, 600 * time.Second},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.value < tt.minValue {
-				t.Errorf("%s = %v, should be >= %v", tt.name, tt.value, tt.minValue)
-			}
-			if tt.checkExact && tt.value != tt.exactValue {
-				t.Errorf("%s = %v, want %v", tt.name, tt.value, tt.exactValue)
+			assert.GreaterOrEqual(t, tt.value, tt.minValue)
+			if tt.checkExact {
+				assert.Equal(t, tt.exactValue, tt.value)
 			}
 		})
 	}
+
+	assert.Less(t, MCPToolTimeoutMin, MCPToolTimeoutMax)
+	assert.Less(t, MCPSessionTimeoutMin, MCPToolTimeoutMax)
 }
 
 func TestFeatureFlagConstants(t *testing.T) {
-	// Test that feature flag constants have the correct type and values
 	tests := []struct {
 		name     string
 		value    FeatureFlag
@@ -392,318 +254,140 @@ func TestFeatureFlagConstants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if string(tt.value) != tt.expected {
-				t.Errorf("%s = %q, want %q", tt.name, tt.value, tt.expected)
-			}
+			assert.Equal(t, tt.expected, string(tt.value))
 		})
 	}
 }
 
 func TestFeatureFlagType(t *testing.T) {
-	// Test that FeatureFlag type can be used as expected
 	var flag FeatureFlag = "test-flag"
-	if string(flag) != "test-flag" {
-		t.Errorf("FeatureFlag conversion failed: got %q, want %q", flag, "test-flag")
-	}
-
-	// Test that constants can be assigned to FeatureFlag variables
-	mcpScriptsFlag := MCPScriptsFeatureFlag
-	if mcpScriptsFlag != "mcp-scripts" {
-		t.Errorf("MCPScriptsFeatureFlag assignment failed: got %q, want %q", mcpScriptsFlag, "mcp-scripts")
-	}
+	assert.Equal(t, "test-flag", string(flag))
+	assert.Equal(t, MCPScriptsFeatureFlag, FeatureFlag("mcp-scripts"))
 }
 
 func TestSemanticTypeAliases(t *testing.T) {
-	// Test URL type
-	t.Run("URL type", func(t *testing.T) {
-		var testURL URL = "https://example.com"
-		if string(testURL) != "https://example.com" {
-			t.Errorf("URL conversion failed: got %q, want %q", testURL, "https://example.com")
-		}
+	tests := []struct {
+		name     string
+		convert  func() string
+		expected string
+	}{
+		{"URL", func() string { var testURL URL = "https://example.com"; return string(testURL) }, "https://example.com"},
+		{"DefaultMCPRegistryURL", func() string { return string(DefaultMCPRegistryURL) }, "https://api.mcp.github.com/v0.1"},
+		{"ModelName", func() string { var testModel ModelName = "test-model"; return string(testModel) }, "test-model"},
+		{"JobName", func() string { var testJob JobName = "test-job"; return string(testJob) }, "test-job"},
+		{"AgentJobName", func() string { return string(AgentJobName) }, "agent"},
+		{"ActivationJobName", func() string { return string(ActivationJobName) }, "activation"},
+		{"PreActivationJobName", func() string { return string(PreActivationJobName) }, "pre_activation"},
+		{"DetectionJobName", func() string { return string(DetectionJobName) }, "detection"},
+		{"StepID", func() string { var testStep StepID = "test-step"; return string(testStep) }, "test-step"},
+		{"CheckMembershipStepID", func() string { return string(CheckMembershipStepID) }, "check_membership"},
+		{"CheckStopTimeStepID", func() string { return string(CheckStopTimeStepID) }, "check_stop_time"},
+		{"CheckSkipIfMatchStepID", func() string { return string(CheckSkipIfMatchStepID) }, "check_skip_if_match"},
+		{"CheckCommandPositionStepID", func() string { return string(CheckCommandPositionStepID) }, "check_command_position"},
+		{"CommandPrefix", func() string { var prefix CommandPrefix = "test-prefix"; return string(prefix) }, "test-prefix"},
+		{"CLIExtensionPrefix", func() string { return string(CLIExtensionPrefix) }, "gh aw"},
+		{"WorkflowID", func() string { var workflow WorkflowID = "ci-doctor"; return string(workflow) }, "ci-doctor"},
+		{"EngineName", func() string { var engine EngineName = "copilot"; return string(engine) }, "copilot"},
+		{"CopilotEngine", func() string { return string(CopilotEngine) }, "copilot"},
+		{"ClaudeEngine", func() string { return string(ClaudeEngine) }, "claude"},
+		{"CodexEngine", func() string { return string(CodexEngine) }, "codex"},
+	}
 
-		// Test DefaultMCPRegistryURL has the correct type
-		registryURL := DefaultMCPRegistryURL
-		if string(registryURL) != "https://api.mcp.github.com/v0.1" {
-			t.Errorf("DefaultMCPRegistryURL = %q, want %q", registryURL, "https://api.mcp.github.com/v0.1")
-		}
-	})
-
-	// Test ModelName type
-	t.Run("ModelName type", func(t *testing.T) {
-		var testModel ModelName = "test-model"
-		if string(testModel) != "test-model" {
-			t.Errorf("ModelName conversion failed: got %q, want %q", testModel, "test-model")
-		}
-	})
-
-	// Test JobName type
-	t.Run("JobName type", func(t *testing.T) {
-		var testJob JobName = "test-job"
-		if string(testJob) != "test-job" {
-			t.Errorf("JobName conversion failed: got %q, want %q", testJob, "test-job")
-		}
-
-		// Test job name constants have the correct type
-		agentJob := AgentJobName
-		if string(agentJob) != "agent" {
-			t.Errorf("AgentJobName = %q, want %q", agentJob, "agent")
-		}
-
-		activationJob := ActivationJobName
-		if string(activationJob) != "activation" {
-			t.Errorf("ActivationJobName = %q, want %q", activationJob, "activation")
-		}
-
-		preActivationJob := PreActivationJobName
-		if string(preActivationJob) != "pre_activation" {
-			t.Errorf("PreActivationJobName = %q, want %q", preActivationJob, "pre_activation")
-		}
-
-		detectionJob := DetectionJobName
-		if string(detectionJob) != "detection" {
-			t.Errorf("DetectionJobName = %q, want %q", detectionJob, "detection")
-		}
-	})
-
-	// Test StepID type
-	t.Run("StepID type", func(t *testing.T) {
-		var testStep StepID = "test-step"
-		if string(testStep) != "test-step" {
-			t.Errorf("StepID conversion failed: got %q, want %q", testStep, "test-step")
-		}
-
-		// Test step ID constants have the correct type
-		membershipStep := CheckMembershipStepID
-		if string(membershipStep) != "check_membership" {
-			t.Errorf("CheckMembershipStepID = %q, want %q", membershipStep, "check_membership")
-		}
-
-		stopTimeStep := CheckStopTimeStepID
-		if string(stopTimeStep) != "check_stop_time" {
-			t.Errorf("CheckStopTimeStepID = %q, want %q", stopTimeStep, "check_stop_time")
-		}
-
-		skipMatchStep := CheckSkipIfMatchStepID
-		if string(skipMatchStep) != "check_skip_if_match" {
-			t.Errorf("CheckSkipIfMatchStepID = %q, want %q", skipMatchStep, "check_skip_if_match")
-		}
-
-		commandPosStep := CheckCommandPositionStepID
-		if string(commandPosStep) != "check_command_position" {
-			t.Errorf("CheckCommandPositionStepID = %q, want %q", commandPosStep, "check_command_position")
-		}
-	})
-
-	// Test CommandPrefix type
-	t.Run("CommandPrefix type", func(t *testing.T) {
-		var testPrefix CommandPrefix = "test-prefix"
-		if string(testPrefix) != "test-prefix" {
-			t.Errorf("CommandPrefix conversion failed: got %q, want %q", testPrefix, "test-prefix")
-		}
-
-		// Test CLIExtensionPrefix has the correct type
-		cliPrefix := CLIExtensionPrefix
-		if string(cliPrefix) != "gh aw" {
-			t.Errorf("CLIExtensionPrefix = %q, want %q", cliPrefix, "gh aw")
-		}
-	})
-
-	// Test WorkflowID type
-	t.Run("WorkflowID type", func(t *testing.T) {
-		var testWorkflow WorkflowID = "ci-doctor"
-		if string(testWorkflow) != "ci-doctor" {
-			t.Errorf("WorkflowID conversion failed: got %q, want %q", testWorkflow, "ci-doctor")
-		}
-	})
-
-	// Test EngineName type
-	t.Run("EngineName type", func(t *testing.T) {
-		var testEngine EngineName = "copilot"
-		if string(testEngine) != "copilot" {
-			t.Errorf("EngineName conversion failed: got %q, want %q", testEngine, "copilot")
-		}
-
-		// Test engine constants have the correct type
-		copilot := CopilotEngine
-		if string(copilot) != "copilot" {
-			t.Errorf("CopilotEngine = %q, want %q", copilot, "copilot")
-		}
-
-		claude := ClaudeEngine
-		if string(claude) != "claude" {
-			t.Errorf("ClaudeEngine = %q, want %q", claude, "claude")
-		}
-
-		codex := CodexEngine
-		if string(codex) != "codex" {
-			t.Errorf("CodexEngine = %q, want %q", codex, "codex")
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.convert())
+		})
+	}
 }
 
 func TestTypeSafetyBetweenSemanticTypes(t *testing.T) {
-	// This test demonstrates that semantic types provide type safety
-	// by preventing accidental mixing of different string types
-
-	// These assignments should work (same types)
 	job1 := AgentJobName
 	job2 := ActivationJobName
-	if job1 == job2 {
-		t.Error("AgentJobName should not equal ActivationJobName")
-	}
+	assert.NotEqual(t, job1, job2)
 
 	step1 := CheckMembershipStepID
 	step2 := CheckStopTimeStepID
-	if step1 == step2 {
-		t.Error("CheckMembershipStepID should not equal CheckStopTimeStepID")
-	}
+	assert.NotEqual(t, step1, step2)
 
-	// Verify that we can still convert to string when needed
-	if string(job1) != "agent" {
-		t.Errorf("JobName string conversion failed: got %q, want %q", job1, "agent")
-	}
-
-	if string(step1) != "check_membership" {
-		t.Errorf("StepID string conversion failed: got %q, want %q", step1, "check_membership")
-	}
+	assert.Equal(t, "agent", string(job1))
+	assert.Equal(t, "check_membership", string(step1))
 }
 
-// TestHelperMethods tests the helper methods on semantic types
 func TestHelperMethods(t *testing.T) {
-	t.Run("Version", func(t *testing.T) {
-		version := Version("1.0.0")
-		if version.String() != "1.0.0" {
-			t.Errorf("Version.String() = %q, want %q", version.String(), "1.0.0")
-		}
-		if !version.IsValid() {
-			t.Error("Version.IsValid() = false, want true for non-empty value")
-		}
+	type semanticValue interface {
+		String() string
+		IsValid() bool
+	}
 
-		emptyVersion := Version("")
-		if emptyVersion.IsValid() {
-			t.Error("Version.IsValid() = true, want false for empty value")
-		}
-	})
+	tests := []struct {
+		name     string
+		value    semanticValue
+		empty    semanticValue
+		expected string
+	}{
+		{"Version", Version("1.0.0"), Version(""), "1.0.0"},
+		{"JobName", JobName("agent"), JobName(""), "agent"},
+		{"StepID", StepID("check_membership"), StepID(""), "check_membership"},
+		{"CommandPrefix", CommandPrefix("gh aw"), CommandPrefix(""), "gh aw"},
+	}
 
-	t.Run("JobName", func(t *testing.T) {
-		job := JobName("agent")
-		if job.String() != "agent" {
-			t.Errorf("JobName.String() = %q, want %q", job.String(), "agent")
-		}
-		if !job.IsValid() {
-			t.Error("JobName.IsValid() = false, want true for non-empty value")
-		}
-
-		emptyJob := JobName("")
-		if emptyJob.IsValid() {
-			t.Error("JobName.IsValid() = true, want false for empty value")
-		}
-	})
-
-	t.Run("StepID", func(t *testing.T) {
-		step := StepID("check_membership")
-		if step.String() != "check_membership" {
-			t.Errorf("StepID.String() = %q, want %q", step.String(), "check_membership")
-		}
-		if !step.IsValid() {
-			t.Error("StepID.IsValid() = false, want true for non-empty value")
-		}
-
-		emptyStep := StepID("")
-		if emptyStep.IsValid() {
-			t.Error("StepID.IsValid() = true, want false for empty value")
-		}
-	})
-
-	t.Run("CommandPrefix", func(t *testing.T) {
-		prefix := CommandPrefix("gh aw")
-		if prefix.String() != "gh aw" {
-			t.Errorf("CommandPrefix.String() = %q, want %q", prefix.String(), "gh aw")
-		}
-		if !prefix.IsValid() {
-			t.Error("CommandPrefix.IsValid() = false, want true for non-empty value")
-		}
-
-		emptyPrefix := CommandPrefix("")
-		if emptyPrefix.IsValid() {
-			t.Error("CommandPrefix.IsValid() = true, want false for empty value")
-		}
-	})
-
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.value.String())
+			assert.True(t, tt.value.IsValid())
+			assert.False(t, tt.empty.IsValid())
+		})
+	}
 }
 
 func TestGetAllEngineSecretNames(t *testing.T) {
 	secrets := GetAllEngineSecretNames()
+	require.NotEmpty(t, secrets)
 
-	// Should not be empty
-	if len(secrets) == 0 {
-		t.Error("GetAllEngineSecretNames() should not return empty slice")
-	}
-
-	// Build a set for easy lookup
-	secretSet := make(map[string]bool)
-	for _, s := range secrets {
-		secretSet[s] = true
-	}
-
-	// Verify primary engine secrets are included
-	expectedSecrets := []string{
+	for _, secret := range []string{
 		"COPILOT_GITHUB_TOKEN",
 		"ANTHROPIC_API_KEY",
 		"OPENAI_API_KEY",
-	}
-
-	for _, expected := range expectedSecrets {
-		if !secretSet[expected] {
-			t.Errorf("GetAllEngineSecretNames() missing expected secret: %q", expected)
-		}
-	}
-
-	// Verify alternative secrets are included
-	alternativeSecrets := []string{
 		"CODEX_API_KEY",
+		"GH_AW_GITHUB_TOKEN",
+	} {
+		assert.Contains(t, secrets, secret)
 	}
 
-	for _, alt := range alternativeSecrets {
-		if !secretSet[alt] {
-			t.Errorf("GetAllEngineSecretNames() missing expected alternative secret: %q", alt)
-		}
-	}
-
-	// Verify system-level secret is included
-	if !secretSet["GH_AW_GITHUB_TOKEN"] {
-		t.Error("GetAllEngineSecretNames() missing GH_AW_GITHUB_TOKEN")
-	}
-
-	// Verify no duplicates
 	seen := make(map[string]bool)
-	for _, s := range secrets {
-		if seen[s] {
-			t.Errorf("GetAllEngineSecretNames() returned duplicate secret: %q", s)
-		}
-		seen[s] = true
+	for _, secret := range secrets {
+		assert.False(t, seen[secret], "GetAllEngineSecretNames() returned duplicate secret: %q", secret)
+		seen[secret] = true
 	}
 }
 
-func TestEngineOptions_MultiProviderAlternatives(t *testing.T) {
+func TestGetEngineOption_AllBuiltInEngines(t *testing.T) {
 	tests := []struct {
-		engine string
-		want   []string
+		engine       string
+		label        string
+		secret       string
+		alternatives []string
 	}{
-		{"opencode", []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CODEX_API_KEY"}},
-		{"crush", []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CODEX_API_KEY"}},
-		{"pi", []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CODEX_API_KEY"}},
+		{string(CopilotEngine), "GitHub Copilot", CopilotGitHubToken, nil},
+		{string(ClaudeEngine), "Claude", AnthropicAPIKey, []string{}},
+		{string(CodexEngine), "Codex", OpenAIAPIKey, []string{CodexAPIKey}},
+		{string(GeminiEngine), "Gemini", GeminiAPIKey, nil},
+		{string(AntigravityEngine), "Antigravity", AntigravityAPIKey, nil},
+		{string(OpenCodeEngine), "OpenCode", CopilotGitHubToken, []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey}},
+		{string(CrushEngine), "Crush", CopilotGitHubToken, []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey}},
+		{string(PiEngine), "Pi", CopilotGitHubToken, []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.engine, func(t *testing.T) {
 			opt := GetEngineOption(tt.engine)
-			if opt == nil {
-				t.Fatalf("GetEngineOption(%q) returned nil", tt.engine)
-			}
-			if !reflect.DeepEqual(tt.want, opt.AlternativeSecrets) {
-				t.Fatalf("AlternativeSecrets = %#v, want %#v", opt.AlternativeSecrets, tt.want)
-			}
+			require.NotNil(t, opt)
+			assert.Equal(t, tt.engine, opt.Value)
+			assert.Equal(t, tt.label, opt.Label)
+			assert.Equal(t, tt.secret, opt.SecretName)
+			assert.Equal(t, tt.alternatives, opt.AlternativeSecrets)
 		})
 	}
+
+	assert.Nil(t, GetEngineOption("unknown-engine-xyz"))
 }

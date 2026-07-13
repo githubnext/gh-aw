@@ -9,8 +9,7 @@ Use actionable messages that explain what went wrong, what is expected, and how 
 
 ## Prefer constructive language
 
-- Avoid: `invalid`, `cannot`, `must`, `failed` without guidance.
-- Prefer adding: `expected`, `requires`, `should`, `example`.
+Avoid bare words like `invalid`, `cannot`, `must`, or `failed` when they do not explain the fix. Prefer messages that include what was expected and, when helpful, an example.
 
 ✅ `invalid repo format 'gh-aw' — expected 'owner/repo' format (for example: 'github/gh-aw')`
 
@@ -24,18 +23,11 @@ Use `fmt.Errorf` for operational wrapping (`%w`) outside validation logic when y
 
 ## Error type selection
 
-- `NewValidationError(...)`: bad input/config shape, missing fields, unsupported values.
-- `NewOperationError(...)`: runtime actions fail (fetching, file IO, network, command execution).
-- `NewConfigurationError(...)`: safe-outputs/config wiring errors.
-- `fmt.Errorf(...%w...)`: wrap lower-level errors with actionable context.
+Use `NewValidationError(...)` for bad input or config shape, missing fields, and unsupported values. Use `NewOperationError(...)` for runtime failures such as fetching, file IO, network, or command execution. Use `NewConfigurationError(...)` for safe-outputs and config wiring errors. Use `fmt.Errorf(...%w...)` to wrap lower-level errors with actionable context.
 
 ## Suggestion text requirements
 
-Good suggestions:
-
-1. Say what to change
-2. Include a concrete YAML/code example
-3. Prefer ✓/✗ examples when ambiguity is likely
+Good suggestions say what to change, include a concrete YAML or code example, and use ✓/✗ examples when ambiguity is likely.
 
 Example:
 
@@ -50,6 +42,4 @@ engine: unknown
 
 ## YAML example guidance
 
-- Keep examples minimal and valid YAML
-- Use real field names from frontmatter
-- Quote only when required by YAML syntax
+Keep examples minimal and valid YAML, use real field names from frontmatter, and quote only when required by YAML syntax.
