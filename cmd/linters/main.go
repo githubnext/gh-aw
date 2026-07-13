@@ -69,8 +69,8 @@ import (
 func main() {
 	multichecker.Main(
 		appendbytestring.Analyzer,
-		bytescomparestring.Analyzer,
 		bytesbufferstring.Analyzer,
+		bytescomparestring.Analyzer,
 		contextcancelnotdeferred.Analyzer,
 		ctxbackground.Analyzer,
 		deferinloop.Analyzer,

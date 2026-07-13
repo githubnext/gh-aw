@@ -23,6 +23,24 @@ func NilPointerBuf() string {
 	return string(buf.Bytes())
 }
 
+// wrappedBuffer embeds bytes.Buffer but is a distinct named type.
+type wrappedBuffer struct {
+	bytes.Buffer
+}
+
+func GoodStringConversionWrappedType() string {
+	var buf wrappedBuffer
+	// wrappedBuffer is not bytes.Buffer — receiver type check excludes it; no diagnostic
+	return string(buf.Bytes())
+}
+
+func getBufferPtr() *bytes.Buffer { return &bytes.Buffer{} }
+
+func GoodStringOfBytesCallIndirect() string {
+	// getBufferPtr() returns *bytes.Buffer (pointer receiver) — not flagged
+	return string(getBufferPtr().Bytes())
+}
+
 func SuppressedStringOfBytes() string {
 	var buf bytes.Buffer
 	buf.WriteString("hello")
