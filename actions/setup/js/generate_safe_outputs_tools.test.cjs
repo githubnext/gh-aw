@@ -307,7 +307,7 @@ describe("generate_safe_outputs_tools", () => {
     expect(addCommentTool.description).not.toContain("Supports reply_to_id for discussion threading.");
   });
 
-  it("adds issue intent suffix for issue tools when issue_intents runtime feature is enabled", () => {
+  it("adds issue intent suffix for issue tools without requiring a runtime feature", () => {
     fs.writeFileSync(
       toolsSourcePath,
       JSON.stringify([
@@ -320,7 +320,7 @@ describe("generate_safe_outputs_tools", () => {
     fs.writeFileSync(configPath, JSON.stringify({ set_issue_type: {}, set_issue_field: {}, add_labels: {}, create_issue: {} }));
     fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
 
-    runScript({ GH_AW_RUNTIME_FEATURES: "other\nissue_intents\nanother=true" });
+    runScript();
 
     const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
     const intentSuffix = "INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.";
@@ -330,7 +330,7 @@ describe("generate_safe_outputs_tools", () => {
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "create_issue").description).not.toContain(intentSuffix);
   });
 
-  it("does not add issue intent suffix when issue_intents runtime feature is not enabled", () => {
+  it("adds issue intent suffix even when unrelated runtime features are present", () => {
     fs.writeFileSync(
       toolsSourcePath,
       JSON.stringify([
@@ -346,8 +346,8 @@ describe("generate_safe_outputs_tools", () => {
 
     const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
     const intentSuffix = "INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.";
-    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_type").description).not.toContain(intentSuffix);
-    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_field").description).not.toContain(intentSuffix);
-    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_labels").description).not.toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_type").description).toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_field").description).toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_labels").description).toContain(intentSuffix);
   });
 });

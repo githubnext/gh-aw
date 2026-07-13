@@ -475,44 +475,59 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("No issue fields were discovered"));
   });
 
-  it("should include issue intent metadata when runtime feature is enabled", async () => {
-    process.env.GH_AW_RUNTIME_FEATURES = "issue_intents";
+  it("should send the GraphQL-Features header even without optional intent metadata", async () => {
+    const result = await handler(
+      {
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "Customer Impact",
+        value: "High",
+      },
+      {}
+    );
 
-    try {
-      const { main } = require("./set_issue_field.cjs");
-      const featureHandler = await main({ max: 5 });
+    expect(result.success).toBe(true);
+    expect(mockGraphql).toHaveBeenCalledWith(
+      expect.stringContaining("setIssueFieldValue"),
+      expect.objectContaining({
+        issueFields: [expect.objectContaining({ fieldId: textFieldId, textValue: "High" })],
+        headers: { "GraphQL-Features": "update_issue_suggestions" },
+      })
+    );
+  });
 
-      const result = await featureHandler(
-        {
-          type: "set_issue_field",
-          issue_number: 42,
-          field_name: "Customer Impact",
-          value: "High",
-          rationale: "Customer-reported with SLA breach risk",
-          confidence: "high",
-          suggest: true,
-        },
-        {}
-      );
+  it("should include issue intent metadata without requiring a runtime feature", async () => {
+    const { main } = require("./set_issue_field.cjs");
+    const featureHandler = await main({ max: 5 });
 
-      expect(result.success).toBe(true);
-      expect(mockGraphql).toHaveBeenCalledWith(
-        expect.stringContaining("setIssueFieldValue"),
-        expect.objectContaining({
-          issueFields: [
-            expect.objectContaining({
-              fieldId: textFieldId,
-              textValue: "High",
-              rationale: "Customer-reported with SLA breach risk",
-              confidence: "HIGH",
-              suggest: true,
-            }),
-          ],
-          headers: { "GraphQL-Features": "update_issue_suggestions" },
-        })
-      );
-    } finally {
-      delete process.env.GH_AW_RUNTIME_FEATURES;
-    }
+    const result = await featureHandler(
+      {
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "Customer Impact",
+        value: "High",
+        rationale: "Customer-reported with SLA breach risk",
+        confidence: "high",
+        suggest: true,
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockGraphql).toHaveBeenCalledWith(
+      expect.stringContaining("setIssueFieldValue"),
+      expect.objectContaining({
+        issueFields: [
+          expect.objectContaining({
+            fieldId: textFieldId,
+            textValue: "High",
+            rationale: "Customer-reported with SLA breach risk",
+            confidence: "HIGH",
+            suggest: true,
+          }),
+        ],
+        headers: { "GraphQL-Features": "update_issue_suggestions" },
+      })
+    );
   });
 });

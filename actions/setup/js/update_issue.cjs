@@ -20,7 +20,7 @@ const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { fetchIssueState, mergeIssueState } = require("./safe_output_execution_metadata.cjs");
 const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 const { fetchAllRepoLabels } = require("./github_api_helpers.cjs");
-const { buildIssueIntentLabelUpdates, getIssueIntentLabelNames, hasIssueIntentsRuntimeFeature, normalizeIssueIntentLabelSpecs } = require("./issue_intents.cjs");
+const { buildIssueIntentLabelUpdates, getIssueIntentLabelNames, normalizeIssueIntentLabelSpecs } = require("./issue_intents.cjs");
 
 /**
  * Execute the issue update API call
@@ -39,7 +39,7 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
   const titlePrefix = updateData._titlePrefix || "";
   const labelsWereProvided = updateData.labels !== undefined;
   const labelSpecs = labelsWereProvided ? normalizeIssueIntentLabelSpecs(updateData.labels) : undefined;
-  const useIssueIntentLabels = Boolean(labelSpecs) && hasIssueIntentsRuntimeFeature();
+  const useIssueIntentLabels = Boolean(labelSpecs);
 
   // Remove internal fields
   const { _operation, _rawBody, _includeFooter, _titlePrefix, _workflowRepo, ...apiData } = updateData;
@@ -135,7 +135,7 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
       throw new Error(`Failed to resolve GraphQL node ID for issue #${issueNumber}`);
     }
 
-    core.info(`Using GraphQL intent path for label update with GraphQL-Features header (issue_intents runtime feature enabled)`);
+    core.info("Using GraphQL intent path for label update with GraphQL-Features header");
     const repoLabels = await fetchAllRepoLabels(github, context.repo.owner, context.repo.repo);
     const labelIdByName = new Map(repoLabels.map(label => [label.name.toLowerCase(), label.id]));
     const labels = buildIssueIntentLabelUpdates(labelSpecs, labelIdByName);

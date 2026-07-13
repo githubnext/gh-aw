@@ -12,7 +12,7 @@ const { isStagedMode, checkRequiredFilter } = require("./safe_output_helpers.cjs
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { parseAllowedIssueFields, validateAllowedIssueFieldName, BUILTIN_ISSUE_FIELD_NAMES } = require("./allowed_issue_fields.cjs");
 const { resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
-const { hasIssueIntentsRuntimeFeature, normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
+const { normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "set_issue_field";
@@ -342,13 +342,10 @@ async function main(config = {}) {
         ...fieldUpdateResult.update,
       };
 
-      const useIntentHeader = hasIssueIntentsRuntimeFeature();
-      if (useIntentHeader) {
-        Object.assign(fieldUpdate, normalizeIssueIntentMetadata(item));
-        core.info(`Using GraphQL-Features header for issue field mutation (issue_intents runtime feature enabled)`);
-      }
+      Object.assign(fieldUpdate, normalizeIssueIntentMetadata(item));
+      core.info("Using GraphQL-Features header for issue field mutation");
 
-      await setIssueFieldValue(githubClient, issueNodeId, fieldUpdate, useIntentHeader);
+      await setIssueFieldValue(githubClient, issueNodeId, fieldUpdate, true);
 
       core.info(`Successfully set issue field ${JSON.stringify(fieldName || fieldNodeId)} to ${JSON.stringify(value)} on issue #${issueNumber}`);
 

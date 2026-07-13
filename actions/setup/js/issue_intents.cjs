@@ -4,17 +4,7 @@
 
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
-const { hasRuntimeFeature, parseRuntimeFeatures } = require("./runtime_features.cjs");
-
-const ISSUE_INTENTS_FEATURE = "issue_intents";
 const ISSUE_INTENT_RATIONALE_MAX_LENGTH = 280;
-
-function hasIssueIntentsRuntimeFeature() {
-  if (typeof global.hasRuntimeFeature === "function") {
-    return global.hasRuntimeFeature(ISSUE_INTENTS_FEATURE);
-  }
-  return hasRuntimeFeature(parseRuntimeFeatures(process.env.GH_AW_RUNTIME_FEATURES), ISSUE_INTENTS_FEATURE);
-}
 
 function normalizeIssueIntentMetadata(source) {
   if (!source || typeof source !== "object") {
@@ -145,7 +135,6 @@ function buildIssueIntentLabelUpdates(labelSpecs, labelIdByName) {
 module.exports = {
   buildIssueIntentLabelUpdates,
   getIssueIntentLabelNames,
-  hasIssueIntentsRuntimeFeature,
   normalizeIssueIntentLabelNames,
   normalizeIssueIntentLabelSpecs,
   normalizeIssueIntentMetadata,
