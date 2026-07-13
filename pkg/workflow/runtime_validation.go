@@ -40,7 +40,6 @@
 package workflow
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -61,47 +60,107 @@ var runtimeValidationLog = newValidationLogger("runtime")
 //     many lines but are parsed by GitHub Actions as a single string value.  When such a
 //     block contains at least one ${{ }} expression AND its total length exceeds 21,000
 //     characters, GitHub Actions rejects the workflow with "Exceeded max expression length".
+//
+// Performance: uses a single strings.SplitSeq pass to avoid allocating a []string slice
+// for the YAML content and to eliminate the double-pass overhead of the original
+// implementation.
 func (c *Compiler) validateExpressionSizes(yamlContent string) error {
-	lines := strings.Split(yamlContent, "\n")
-	runtimeValidationLog.Printf("Validating expression sizes: yaml_lines=%d, max_size=%d", len(lines), MaxExpressionSize)
 	maxSize := MaxExpressionSize
+	runtimeValidationLog.Printf("Validating expression sizes: max_size=%d", maxSize)
+	return validateExpressionSizesSinglePass(yamlContent, maxSize)
+}
 
-	for lineNum, line := range lines {
-		// Check the line length (actual content that will be in the YAML)
+// validateExpressionSizesSinglePass combines the per-line size check and the block-scalar
+// size check into a single strings.SplitSeq pass over the YAML content.  This avoids
+// allocating a []string slice for the YAML lines and eliminates the redundant second
+// scan that validateBlockScalarExpressionSizes would otherwise perform.
+func validateExpressionSizesSinglePass(yamlContent string, maxSize int) error {
+	// Block scalar tracking state (mirrors validateBlockScalarExpressionSizes).
+	inBlock := false
+	blockKey := ""
+	blockStartLine := 0
+	blockIndent := -1
+	blockSize := 0
+	blockHasExpression := false
+
+	checkBlock := func() error {
+		if inBlock && blockHasExpression && blockSize > maxSize {
+			actualSize := console.FormatFileSize(int64(blockSize))
+			maxSizeFormatted := console.FormatFileSize(int64(maxSize))
+			return fmt.Errorf("expression value for %q (%s) exceeds maximum allowed size (%s) starting at line %d. "+
+				"GitHub Actions has a 21KB limit for YAML values that contain template expressions (${{ }}). "+
+				"Split the step into separate run: blocks so that no single block containing ${{ }} expressions exceeds the limit",
+				blockKey, actualSize, maxSizeFormatted, blockStartLine+1)
+		}
+		return nil
+	}
+
+	lineNum := 0
+	for line := range strings.SplitSeq(yamlContent, "\n") {
+		lineNum++
+
+		// Per-line size check: a single YAML line value exceeding maxSize is rejected.
 		if len(line) > maxSize {
-			// Extract the key/value for better error message
 			trimmed := strings.TrimSpace(line)
 			key := ""
 			if colonIdx := strings.Index(trimmed, ":"); colonIdx > 0 {
 				key = strings.TrimSpace(trimmed[:colonIdx])
 			}
-
-			// Format sizes for display
 			actualSize := console.FormatFileSize(int64(len(line)))
 			maxSizeFormatted := console.FormatFileSize(int64(maxSize))
-
-			var errorMsg string
 			if key != "" {
-				errorMsg = fmt.Sprintf("expression value for %q (%s) exceeds maximum allowed size (%s) at line %d. GitHub Actions has a 21KB limit for expression values including environment variables. Consider chunking the content or using artifacts instead.",
-					key, actualSize, maxSizeFormatted, lineNum+1)
-			} else {
-				errorMsg = fmt.Sprintf("line %d (%s) exceeds maximum allowed expression size (%s). GitHub Actions has a 21KB limit for expression values.",
-					lineNum+1, actualSize, maxSizeFormatted)
+				return fmt.Errorf("expression value for %q (%s) exceeds maximum allowed size (%s) at line %d. GitHub Actions has a 21KB limit for expression values including environment variables. Consider chunking the content or using artifacts instead",
+					key, actualSize, maxSizeFormatted, lineNum)
 			}
+			return fmt.Errorf("line %d (%s) exceeds maximum allowed expression size (%s). GitHub Actions has a 21KB limit for expression values",
+				lineNum, actualSize, maxSizeFormatted)
+		}
 
-			return errors.New(errorMsg)
+		// Block scalar tracking: detect multi-line block scalars and accumulate their
+		// sizes so that run: | blocks containing ${{ }} can be checked against maxSize.
+		trimmed := strings.TrimLeft(line, " \t")
+		indent := len(line) - len(trimmed)
+
+		if inBlock {
+			if strings.TrimSpace(line) == "" {
+				blockSize += len(line) + 1 // +1 for the newline
+				continue
+			}
+			if indent > blockIndent {
+				blockSize += len(line) + 1
+				if strings.Contains(line, "${{") {
+					blockHasExpression = true
+				}
+				continue
+			}
+			// Indentation dropped back – the block has ended.
+			if err := checkBlock(); err != nil {
+				return err
+			}
+			inBlock = false
+			blockKey = ""
+			blockSize = 0
+			blockHasExpression = false
+			blockIndent = -1
+		}
+
+		// Detect the start of a block scalar: a YAML key whose value is | or >
+		// e.g. "        run: |" or "    script: >"
+		if colonIdx := strings.Index(trimmed, ":"); colonIdx > 0 {
+			afterColon := strings.TrimSpace(trimmed[colonIdx+1:])
+			if afterColon == "|" || afterColon == ">" || strings.HasPrefix(afterColon, "|-") || strings.HasPrefix(afterColon, ">-") {
+				inBlock = true
+				blockKey = strings.TrimSpace(trimmed[:colonIdx])
+				blockStartLine = lineNum - 1 // 0-indexed for error messages (blockStartLine+1 in checkBlock)
+				blockIndent = indent
+				blockSize = 0
+				blockHasExpression = false
+			}
 		}
 	}
 
-	// Check multi-line YAML block scalars that contain template expressions.
-	// A run: | or any other block-scalar value is a single string from GitHub Actions'
-	// perspective; if it contains ${{ }} AND is longer than 21,000 characters the
-	// runner rejects it with "Exceeded max expression length".
-	if err := validateBlockScalarExpressionSizes(lines, maxSize); err != nil {
-		return err
-	}
-
-	return nil
+	// Check any block that was still open at EOF.
+	return checkBlock()
 }
 
 // validateBlockScalarExpressionSizes scans the YAML lines for multi-line block scalars
