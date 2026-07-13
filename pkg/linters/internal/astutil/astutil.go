@@ -270,3 +270,51 @@ func NodeText(fset *token.FileSet, node ast.Node) string {
 	}
 	return buf.String()
 }
+
+// ImportedAs returns the local binding name for importPath in file along with
+// whether the import exists. When the import has an explicit alias (Name != nil),
+// the alias is returned; otherwise the last path segment is used as the default
+// package name (e.g. "bytes" for "bytes", "strconv" for "strconv"). The special
+// aliases "." and "_" are returned as-is for callers to handle.
+func ImportedAs(file *ast.File, importPath string) (string, bool) {
+	quoted := `"` + importPath + `"`
+	for _, imp := range file.Imports {
+		if imp.Path.Value == quoted {
+			if imp.Name != nil {
+				return imp.Name.Name, true
+			}
+			// Default name: last segment of the path.
+			last := importPath
+			if i := len(importPath) - 1; i >= 0 {
+				for j := i; j >= 0; j-- {
+					if importPath[j] == '/' {
+						last = importPath[j+1:]
+						break
+					}
+				}
+			}
+			return last, true
+		}
+	}
+	return "", false
+}
+
+// QualifierShadowed reports whether name is shadowed by a non-package-name
+// local object at pos in the scope chain of pkg. Call this before emitting a
+// fix that uses name as a package qualifier to ensure the qualifier resolves to
+// the imported package and not to a local variable or parameter.
+func QualifierShadowed(pkg *types.Package, pos token.Pos, name string) bool {
+	if pkg == nil {
+		return false
+	}
+	scope := pkg.Scope().Innermost(pos)
+	if scope == nil {
+		return false
+	}
+	_, obj := scope.LookupParent(name, pos)
+	if obj == nil {
+		return false
+	}
+	_, isPkg := obj.(*types.PkgName)
+	return !isPkg
+}
