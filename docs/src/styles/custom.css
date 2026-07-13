@@ -1705,8 +1705,11 @@ main,
   }
 }
 
-/* Mobile and tablet navigation (all viewports ≤900px) — hamburger replaces full header nav */
-@media (max-width: 900px) {
+/* Mobile and tablet navigation (all viewports ≤1050px) — hamburger replaces full header nav */
+/* Upper bound raised from 900px to 1050px so that iPad Pro 12.9 (1024px portrait) uses the
+   hamburger instead of the full 7-item nav bar, which overflowed and caused pointer-target
+   overlap on that device. See: https://github.com/github/gh-aw/issues/45211 */
+@media (max-width: 1050px) {
   /* Hide full nav; hamburger provides equivalent navigation on mobile and tablet */
   .custom-header-links {
     display: none !important;
