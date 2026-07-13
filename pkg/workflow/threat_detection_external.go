@@ -102,11 +102,7 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 func (c *Compiler) buildPullAWFContainersStep(data *WorkflowData) []string {
 	// Build a minimal WorkflowData that represents the detection engine context so
 	// collectDockerImages returns only the AWF firewall images (no MCP tool images).
-	engineSetting := data.AI
-	if engineSetting == "" {
-		engineSetting = "claude"
-	}
-	detectionData := buildThreatDetectionWorkflowData(data, engineSetting)
+	detectionData := buildThreatDetectionWorkflowData(data, "")
 	detectionData.Tools = map[string]any{}
 
 	images := collectDockerImages(detectionData.Tools, detectionData, c.actionMode)
@@ -278,12 +274,13 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	threatDetectionData.NetworkPermissions = &NetworkPermissions{
 		Allowed: getThreatDetectionAdditionalAllowedDomains(data),
 	}
-	threatDetectionData.SandboxConfig.Agent.Mounts = []string{
+	threatDetectionData.SandboxConfig.Agent.Mounts = append(
+		threatDetectionData.SandboxConfig.Agent.Mounts,
 		// Add a read-write mount so the threat-detect binary can write
 		// detection_result.json inside the container and it becomes visible
 		// on the host through the bind mount.
-		constants.ThreatDetectionDir + ":" + constants.ThreatDetectionDir + ":rw",
-	}
+		constants.ThreatDetectionDir+":"+constants.ThreatDetectionDir+":rw",
+	)
 
 	// Inherit engine config overrides from threat-detection config when set.
 	if canReuseThreatDetectionEngineConfigForExternalDetector(data, engineID) {

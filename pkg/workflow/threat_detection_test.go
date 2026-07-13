@@ -1999,6 +1999,28 @@ func TestBuildPullAWFContainersStepPropagatesRunnerTopology(t *testing.T) {
 			t.Errorf("did not expect build-tools image prefix %q in detection pull step without arc-dind;\ngot:\n%s", buildToolsImagePrefix, stepsString)
 		}
 	})
+
+	t.Run("permissions do not change pulled images", func(t *testing.T) {
+		baseData := &WorkflowData{
+			AI: "copilot",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+		withPermissions := &WorkflowData{
+			AI:                baseData.AI,
+			SafeOutputs:       baseData.SafeOutputs,
+			Permissions:       "contents: read",
+			CachedPermissions: NewPermissionsContentsRead(),
+		}
+
+		baseSteps := strings.Join(compiler.buildPullAWFContainersStep(baseData), "")
+		permissionSteps := strings.Join(compiler.buildPullAWFContainersStep(withPermissions), "")
+
+		if permissionSteps != baseSteps {
+			t.Errorf("expected detection pull step to ignore permissions when collecting images;\nwithout permissions:\n%s\nwith permissions:\n%s", baseSteps, permissionSteps)
+		}
+	})
 }
 
 func TestBuildExternalDetectorExecutionStepPropagatesRunnerTopology(t *testing.T) {
