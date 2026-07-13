@@ -67,6 +67,11 @@ network:
     - RESOURCE.openai.azure.com
 ```
 
+`COPILOT_PROVIDER_WIRE_API: responses` is required for GPT-5 and o-series
+models — see [Use the `responses` wire
+API](#use-the-responses-wire-api-for-gpt-5-and-o-series-models) below for
+details.
+
 > [!IMPORTANT]
 > Put Azure BYOK credentials in `engine.env`, not in top-level `secrets:`. The
 > BYOK proxy only receives provider credentials from the engine environment.
@@ -98,6 +103,11 @@ network:
     - RESOURCE.openai.azure.com
     - login.microsoftonline.com
 ```
+
+`COPILOT_PROVIDER_WIRE_API: responses` is required for GPT-5 and o-series
+models — see [Use the `responses` wire
+API](#use-the-responses-wire-api-for-gpt-5-and-o-series-models) below for
+details.
 
 ## Use the `responses` wire API for GPT-5 and o-series models
 
@@ -136,9 +146,10 @@ sandbox:
     model-fallback: false
 ```
 
-## Recompile after frontmatter changes
+## Recompile after workflow edits
 
-Azure BYOK settings live in workflow frontmatter, so recompile after edits:
+Azure BYOK settings live in workflow frontmatter. All workflow edits require a
+recompile:
 
 ```bash
 gh aw compile .github/workflows/my-workflow.md --watch
