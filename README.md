@@ -113,7 +113,7 @@ To build and test repository custom linters:
 [@AlexanderWert (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3AAlexanderWert)
 [@AlexDeMichieli (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3AAlexDeMichieli)
 [@alexsiilvaa (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aalexsiilvaa)
-[@alondahari (10)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aalondahari)
+[@alondahari (11)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aalondahari)
 [@AmoebaChant (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3AAmoebaChant)
 [@anthonymastreanvae (10)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aanthonymastreanvae)
 [@aoxiangtianyu-go (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aaoxiangtianyu-go)
@@ -194,7 +194,7 @@ To build and test repository custom linters:
 [@G1Vh (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3AG1Vh)
 [@GandrotulaRajesh (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3AGandrotulaRajesh)
 [@github-actions (10)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Agithub-actions)
-[@github-antoine-brechon (3)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Agithub-antoine-brechon)
+[@github-antoine-brechon (4)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Agithub-antoine-brechon)
 [@GKersten (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3AGKersten)
 [@glitch-ux (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aglitch-ux)
 [@grahame-white (9)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Agrahame-white)
@@ -353,6 +353,16 @@ To build and test repository custom linters:
 [@zarenner (5)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Azarenner)
 [@zkoppert (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Azkoppert)
 
+
+### ⚠️ Attribution Candidates Need Review
+
+The following community issues were closed during this period but could not be automatically linked to a specific merged PR. Please verify whether they should be credited:
+
+- **@austenstone** for [[bug] Intake Triage agent job: MODULE_NOT_FOUND for merge_awf_model_multipliers.cjs (5 failures in 8d, v0.77.5)](https://github.com/github/gh-aw/issues/42874) — closed 2026-07-04, no confirmed PR linkage found
+- **@martinbriley** for [Request that the sentiment functionality emit events for sentiment analysis](https://github.com/github/gh-aw/issues/42842) — closed 2026-07-05, no confirmed PR linkage found
+- **@theletterf** for [docs-pr-ai-menu: transient GitHub API 502 causes permanent workflow failure (no retries)](https://github.com/github/gh-aw/issues/39904) — closed 2026-06-18, no confirmed PR linkage found
+
+_Note: 2 additional automation-related issues (#41256, #41255) were closed but excluded from this list._
 ## Share Feedback
 
 We welcome your feedback on GitHub Agentic Workflows! 
