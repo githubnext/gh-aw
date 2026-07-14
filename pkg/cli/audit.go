@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -149,21 +150,10 @@ func getAuditCommandOptions(cmd *cobra.Command) (auditCommandOptions, error) {
 			[]string{"Add --experiment <name> to filter by experiment name alongside --variant"},
 		))
 	}
-	// Auto-include the evals artifact when --evals is specified.
-	if opts.evalsOnly && len(opts.artifacts) > 0 {
-		hasEvals := false
-		hasAll := false
-		for _, a := range opts.artifacts {
-			if a == string(ArtifactSetEvals) {
-				hasEvals = true
-			}
-			if a == string(ArtifactSetAll) {
-				hasAll = true
-			}
-		}
-		if !hasEvals && !hasAll {
-			opts.artifacts = append(opts.artifacts, string(ArtifactSetEvals))
-		}
+	// Auto-include the evals artifact when --evals is specified so the filter
+	// can find evals.jsonl without requiring the user to also pass --artifacts evals.
+	if opts.evalsOnly && !slices.Contains(opts.artifacts, string(ArtifactSetEvals)) && !slices.Contains(opts.artifacts, string(ArtifactSetAll)) {
+		opts.artifacts = append(opts.artifacts, string(ArtifactSetEvals))
 	}
 	return opts, nil
 }
