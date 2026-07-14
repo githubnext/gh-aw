@@ -23,6 +23,8 @@ describe("require-spawnsync-error-check", () => {
         `const result = childProcess.spawnSync("git", ["status"]); if (result.error) throw result.error;`,
         // child_process.spawnSync, checks result.error
         `const result = child_process.spawnSync("curl", ["-v"]); if (result.error) { throw result.error; } if (result.status !== 0) throw new Error("x");`,
+        // logging is fine when there is also a guard
+        `const result = spawnSync("git", ["status"]); if (result.error) throw result.error; core.info(String(result.error));`,
         // destructured binding includes error and guards on it
         `const { status, error } = spawnSync("zip", ["-v"]); if (error) throw error; if (status !== 0) throw new Error("x");`,
       ],

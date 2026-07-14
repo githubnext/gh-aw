@@ -7,6 +7,11 @@ const SPAWNSYNC_NAME = "spawnSync";
 
 // Known namespace aliases for the child_process module.
 const CHILD_PROCESS_OBJECTS = new Set(["childProcess", "child_process"]);
+const CONDITIONAL_TEST_PARENTS = new Set([AST_NODE_TYPES.IfStatement, AST_NODE_TYPES.WhileStatement, AST_NODE_TYPES.DoWhileStatement, AST_NODE_TYPES.ForStatement]);
+
+function isConditionalTestParent(node: TSESTree.Node): node is TSESTree.IfStatement | TSESTree.WhileStatement | TSESTree.DoWhileStatement | TSESTree.ForStatement {
+  return CONDITIONAL_TEST_PARENTS.has(node.type);
+}
 
 type ScopeType = ReturnType<TSESLint.SourceCode["getScope"]>;
 type ScopeVariable = ScopeType["variables"][number];
@@ -17,7 +22,7 @@ function isGuardingErrorUsage(node: TSESTree.Expression): boolean {
   while (current.parent) {
     const parent: TSESTree.Node = current.parent;
 
-    if ((parent.type === AST_NODE_TYPES.IfStatement || parent.type === AST_NODE_TYPES.WhileStatement || parent.type === AST_NODE_TYPES.DoWhileStatement || parent.type === AST_NODE_TYPES.ForStatement) && parent.test === current) {
+    if (isConditionalTestParent(parent) && parent.test === current) {
       return true;
     }
 
@@ -25,7 +30,7 @@ function isGuardingErrorUsage(node: TSESTree.Expression): boolean {
       return true;
     }
 
-    if (parent.type === AST_NODE_TYPES.LogicalExpression && (parent.operator === "&&" || parent.operator === "||") && (parent.left === current || parent.right === current)) {
+    if (parent.type === AST_NODE_TYPES.LogicalExpression && ((parent.operator === "&&" && (parent.left === current || parent.right === current)) || (parent.operator === "||" && parent.left === current))) {
       return true;
     }
 
@@ -58,7 +63,13 @@ function getErrorBindingNames(node: TSESTree.ObjectPattern): string[] {
   const names: string[] = [];
 
   for (const property of node.properties) {
-    if (property.type !== AST_NODE_TYPES.Property || property.computed || property.key.type !== AST_NODE_TYPES.Identifier || property.key.name !== "error") {
+    // Intentionally only support static `error` keys (`{ error }` / `{ error: err }`).
+    // Computed keys are ignored.
+    if (property.type !== AST_NODE_TYPES.Property || property.computed) {
+      continue;
+    }
+
+    if (property.key.type !== AST_NODE_TYPES.Identifier || property.key.name !== "error") {
       continue;
     }
 
@@ -66,6 +77,7 @@ function getErrorBindingNames(node: TSESTree.ObjectPattern): string[] {
     if (value.type === AST_NODE_TYPES.Identifier) {
       names.push(value.name);
     } else if (value.type === AST_NODE_TYPES.AssignmentPattern && value.left.type === AST_NODE_TYPES.Identifier) {
+      // Support `{ error = defaultValue }` by tracking the bound identifier name.
       names.push(value.left.name);
     }
   }
