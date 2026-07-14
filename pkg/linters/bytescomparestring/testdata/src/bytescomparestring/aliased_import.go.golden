@@ -1,0 +1,20 @@
+package bytescomparestring
+
+import bx "bytes"
+
+// badAliasedEqual has "bytes" imported as "bx"; the fix must emit
+// bx.Equal, not bytes.Equal.
+func badAliasedEqual(a, b []byte) bool {
+	return bx.Equal(a, b) // want `string\(a\) == string\(b\) is a \[\]byte comparison written the long way; use bytes\.Equal\(a, b\) for clearer intent`
+}
+
+// badAliasedNotEqual has "bytes" imported as "bx"; the fix must emit
+// !bx.Equal, not !bytes.Equal.
+func badAliasedNotEqual(a, b []byte) bool {
+	return !bx.Equal(a, b) // want `string\(a\) != string\(b\) is a \[\]byte comparison written the long way; use !bytes\.Equal\(a, b\) for clearer intent`
+}
+
+// goodAliasedAlready uses the alias directly — not flagged.
+func goodAliasedAlready(a, b []byte) bool {
+	return bx.Equal(a, b)
+}

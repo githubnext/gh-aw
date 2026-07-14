@@ -1803,6 +1803,11 @@ func TestNormalizeBlankLines(t *testing.T) {
 		{"single non-blank line", "key: value\n", "key: value\n"},
 		{"multiple trailing blank lines", "a\n\n\n\n", "a\n"},
 		{"only whitespace lines", "   \n   \n", "\n"},
+		{"structural trailing spaces trimmed", "key: value   \n", "key: value\n"},
+		{"structural trailing tabs trimmed", "a:\tb\t\nb: c\n", "a:\tb\nb: c\n"},
+		{"indentation preserved when trailing spaces trimmed", "  foo: bar  \n", "  foo: bar\n"},
+		{"two structural blanks kept at limit", "a\n\n\nb\n", "a\n\n\nb\n"},
+		{"three structural blanks capped to two", "a\n\n\n\nb\n", "a\n\n\nb\n"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1811,5 +1816,45 @@ func TestNormalizeBlankLines(t *testing.T) {
 				t.Errorf("normalizeBlankLines(%q) = %q, want %q", tc.input, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestNormalizeBlankLinesPreservesBlockScalarContent(t *testing.T) {
+	input := strings.Join([]string{
+		"name: demo   ",
+		"jobs:",
+		"  build:",
+		"    steps:",
+		"      - run: |",
+		"          echo hello   ",
+		"",
+		"",
+		"",
+		"          echo world\\  ",
+		"",
+	}, "\n")
+
+	output := normalizeBlankLines(input)
+	if !strings.HasPrefix(output, "name: demo\n") {
+		t.Fatalf("normalizeBlankLines should trim structural trailing spaces, got %q", output)
+	}
+
+	parseRun := func(content string) string {
+		t.Helper()
+
+		var doc map[string]any
+		if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
+			t.Fatalf("yaml.Unmarshal failed: %v", err)
+		}
+
+		jobs := doc["jobs"].(map[string]any)
+		build := jobs["build"].(map[string]any)
+		steps := build["steps"].([]any)
+		step := steps[0].(map[string]any)
+		return step["run"].(string)
+	}
+
+	if got, want := parseRun(output), parseRun(input); got != want {
+		t.Fatalf("block scalar content changed after normalization\nwant: %q\ngot:  %q", want, got)
 	}
 }
