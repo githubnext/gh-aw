@@ -46,6 +46,7 @@ const {
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  normalizeReflectProviderName,
   resolveProviderEndpointFromReflect,
 } = require("./awf_reflect.cjs");
 const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
@@ -327,9 +328,7 @@ function stripContinueArgs(args) {
  */
 async function buildClaudeChildEnv() {
   const childEnv = { ...process.env };
-  const provider = String(process.env.GH_AW_LLM_PROVIDER || "anthropic")
-    .toLowerCase()
-    .trim();
+  const provider = normalizeReflectProviderName(process.env.GH_AW_LLM_PROVIDER, "anthropic");
   try {
     const raw = fs.readFileSync(AWF_REFLECT_OUTPUT_PATH, "utf8");
     const reflectData = JSON.parse(raw);

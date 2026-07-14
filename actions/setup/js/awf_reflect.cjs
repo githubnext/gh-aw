@@ -44,11 +44,34 @@ const AWF_MODELS_URL_OIDC_INITIAL_DELAY_MS_DEFAULT = 5000;
 // Gemini model name prefix stripped from model IDs in the Gemini models API response.
 // Example: { name: "models/gemini-1.5-pro" } → "gemini-1.5-pro"
 const GEMINI_MODEL_NAME_PREFIX = "models/";
+const REFLECT_PROVIDER_GITHUB = "github";
+const REFLECT_PROVIDER_OPENAI = "openai";
+const REFLECT_PROVIDER_ANTHROPIC = "anthropic";
+const REFLECT_PROVIDER_ALIASES = {
+  // Only GitHub has multiple externally-visible aliases in reflect payloads.
+  github: new Set(["github", "copilot", "github-copilot", "github_models"]),
+  openai: new Set(["openai"]),
+  anthropic: new Set(["anthropic"]),
+};
 
 // Default logger used by fetchAWFReflect when no logger is provided via options.
 // All lines are prefixed with "[awf-reflect]" for easy grepping in combined logs.
 // prettier-ignore
 const DEFAULT_REFLECT_LOGGER = /** @type {(msg: string) => void} */ (msg => process.stderr.write(`[awf-reflect] ${new Date().toISOString()} ${msg}\n`));
+
+/**
+ * Normalize provider IDs used in reflect/provider resolution.
+ *
+ * @param {unknown} provider
+ * @param {string} [fallback]
+ * @returns {string}
+ */
+function normalizeReflectProviderName(provider, fallback = "") {
+  const normalized = String(provider || "")
+    .toLowerCase()
+    .trim();
+  return normalized || fallback;
+}
 
 /**
  * Extract model IDs from a provider API response body.
@@ -514,10 +537,7 @@ function endpointBaseUrl(endpoint) {
  */
 function resolveProviderEndpointFromReflect(options) {
   const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
-  const requestedProvider = String(options?.provider || "")
-    .toLowerCase()
-    .trim();
-  const provider = requestedProvider || "openai";
+  const provider = normalizeReflectProviderName(options?.provider, "openai");
   const reflectData = options?.reflectData;
   const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints.filter(ep => ep && ep.configured === true) : [];
   if (endpoints.length === 0) {
@@ -527,18 +547,18 @@ function resolveProviderEndpointFromReflect(options) {
 
   /** @param {string} endpointProvider */
   const endpointProviderMatches = endpointProvider => {
-    const normalized = String(endpointProvider || "")
-      .toLowerCase()
-      .trim();
+    // Keep aliases aligned with pkg/workflow/llm_provider.go (llmProviderAliases).
+    // If alias handling changes, update both places in the same PR.
+    const normalized = normalizeReflectProviderName(endpointProvider);
     if (!normalized) return false;
-    if (provider === "github") {
-      return normalized === "github" || normalized === "copilot" || normalized === "github-copilot";
+    if (provider === REFLECT_PROVIDER_GITHUB) {
+      return REFLECT_PROVIDER_ALIASES.github.has(normalized);
     }
-    if (provider === "openai") {
-      return normalized === "openai";
+    if (provider === REFLECT_PROVIDER_OPENAI) {
+      return REFLECT_PROVIDER_ALIASES.openai.has(normalized);
     }
-    if (provider === "anthropic") {
-      return normalized === "anthropic";
+    if (provider === REFLECT_PROVIDER_ANTHROPIC) {
+      return REFLECT_PROVIDER_ALIASES.anthropic.has(normalized);
     }
     return normalized === provider;
   };
@@ -699,6 +719,7 @@ if (typeof module !== "undefined" && module.exports) {
     getCatalogModelEntry,
     inferProviderTypeForModel,
     inferWireApiForModel,
+    normalizeReflectProviderName,
     resolveProviderEndpointFromReflect,
     resolveMultiProviderFromReflect,
   };

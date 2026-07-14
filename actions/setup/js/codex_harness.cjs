@@ -46,6 +46,7 @@ const {
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  normalizeReflectProviderName,
   resolveProviderEndpointFromReflect,
 } = require("./awf_reflect.cjs");
 const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
@@ -352,9 +353,7 @@ function configureCodexProviderFromReflect(options) {
   const env = { ...process.env };
   const codexConfigPath = options && options.codexConfigPath;
   const reflectPath = (options && options.reflectPath) || AWF_REFLECT_OUTPUT_PATH;
-  const provider = String(options?.provider || process.env.GH_AW_LLM_PROVIDER || "openai")
-    .toLowerCase()
-    .trim();
+  const provider = normalizeReflectProviderName(options?.provider || process.env.GH_AW_LLM_PROVIDER, "openai");
   if (!reflectPath) return { env, configured: false };
   try {
     const reflectContent = fs.readFileSync(reflectPath, "utf8");
@@ -365,12 +364,12 @@ function configureCodexProviderFromReflect(options) {
     log(`configured OPENAI_BASE_URL from /reflect for provider=${provider}: ${resolved.baseUrl}`);
     if (codexConfigPath) {
       const tomlContent = fs.readFileSync(codexConfigPath, "utf8");
-      const providerSectionPattern = /(\[model_providers\.openai-proxy\][\s\S]*?)(?:\n\[|$)/;
+      const providerSectionPattern = /\[model_providers\.openai-proxy\][\s\S]*?(?:\n\[|$)/;
       const baseLine = `base_url = "${resolved.baseUrl}"`;
       if (providerSectionPattern.test(tomlContent)) {
         const rewritten = tomlContent.replace(providerSectionPattern, section => {
           if (/(?:^|\n)\s*base_url\s*=/.test(section)) {
-            return section.replace(/(?:^|\n)\s*base_url\s*=\s*"[^"]*"/, `\n${baseLine}`);
+            return section.replace(/(?:^|\n)\s*base_url\s*=\s*(?:"[^"]*"|'[^']*'|[^\n]+)/, `\n${baseLine}`);
           }
           return `${section.trimEnd()}\n${baseLine}\n`;
         });

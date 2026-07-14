@@ -25,10 +25,6 @@ var llmProviderAliases = map[string]string{
 	"openai":         LLMProviderOpenAI,
 }
 
-func knownLLMProviders() []string {
-	return []string{LLMProviderGitHub, LLMProviderAnthropic, LLMProviderOpenAI}
-}
-
 type llmProviderProfile struct {
 	id          string
 	gatewayPort int
@@ -37,7 +33,7 @@ type llmProviderProfile struct {
 func normalizeLLMProvider(provider string) string {
 	normalized := strings.ToLower(strings.TrimSpace(provider))
 	if normalized == "" {
-		return ""
+		return LLMProviderAnthropic
 	}
 	if alias, ok := llmProviderAliases[normalized]; ok {
 		return alias

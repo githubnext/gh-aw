@@ -330,7 +330,8 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 			}
 			// Extract optional 'provider' shorthand override for built-in engines.
-			// For inline definitions (engine.runtime), provider object parsing happens above.
+			// Inline definitions are excluded here because they use engine.provider object
+			// semantics (id/auth/request) parsed in the engine.runtime branch above.
 			if providerValue, hasProvider := engineObj["provider"]; hasProvider && !config.IsInlineDefinition {
 				if providerStr, ok := providerValue.(string); ok {
 					config.LLMProvider = strings.ToLower(strings.TrimSpace(providerStr))
