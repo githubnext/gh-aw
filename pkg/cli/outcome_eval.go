@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -224,11 +225,21 @@ func ComputeOutcomeSummary(reports []OutcomeReport, mapping *github.ObjectiveMap
 	return s
 }
 
+// escapeOwnerRepo URL-path-encodes each component of an "owner/repo" string to
+// prevent path traversal when the value is interpolated into an API URL.
+func escapeOwnerRepo(ownerRepo string) string {
+	parts := strings.SplitN(ownerRepo, "/", 2)
+	if len(parts) == 2 {
+		return url.PathEscape(parts[0]) + "/" + url.PathEscape(parts[1])
+	}
+	return url.PathEscape(ownerRepo)
+}
+
 // ghAPIGet calls the GitHub REST API via gh cli and returns the parsed JSON.
 func ghAPIGet(endpoint string, repo string) (map[string]any, error) {
 	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
 	outcomeEvalLog.Printf("gh api GET: repo=%s, endpoint=%s, host=%q", ownerRepo, endpoint, host)
-	args := []string{"api", fmt.Sprintf("repos/%s/%s", ownerRepo, endpoint)}
+	args := []string{"api", fmt.Sprintf("repos/%s/%s", escapeOwnerRepo(ownerRepo), endpoint)}
 	var output []byte
 	var err error
 	if host != "" {
@@ -250,7 +261,7 @@ func ghAPIGet(endpoint string, repo string) (map[string]any, error) {
 // ghAPIGetArray calls the GitHub REST API and returns a JSON array.
 func ghAPIGetArray(endpoint string, repo string) ([]map[string]any, error) {
 	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
-	args := []string{"api", fmt.Sprintf("repos/%s/%s", ownerRepo, endpoint)}
+	args := []string{"api", fmt.Sprintf("repos/%s/%s", escapeOwnerRepo(ownerRepo), endpoint)}
 	var output []byte
 	var err error
 	if host != "" {
