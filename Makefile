@@ -944,7 +944,7 @@ validate-models-json-spec-version:
 	@echo "Validating models.json catalog version claim..."
 	@set -e; \
 	command -v jq >/dev/null 2>&1 || { echo "jq is required for validate-models-json-spec-version"; exit 1; }; \
-	spec_version=$$(awk -F': ' '/^\*\*Catalog Version Claim\*\*: /{print $$2; exit}' docs/src/content/docs/specs/ai-credits-specification.md | tr -d '[:space:]'); \
+	spec_version=$$(sed -nE 's/^[[:space:]]*\*\*Catalog Version Claim\*\*:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' docs/src/content/docs/specs/ai-credits-specification.md | head -n 1); \
 	[ -n "$$spec_version" ] || { \
 		echo "catalog version drift: missing '**Catalog Version Claim**' metadata in docs/src/content/docs/specs/ai-credits-specification.md"; \
 		exit 1; \

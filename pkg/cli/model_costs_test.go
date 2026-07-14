@@ -116,6 +116,21 @@ func TestComputeModelInferenceAICAzureOpenAICacheReadDeduction(t *testing.T) {
 	}
 }
 
+func TestComputeModelInferenceAICAzureOpenAICacheReadClampsNetInput(t *testing.T) {
+	// With cache_read > input, net input MUST clamp to 0 per §3.5.
+	// cost = 0×0.000003 + 200×0.000015 + 1200×0.0000003 = 0.00336
+	// AIC  = 0.00336 / 0.01 = 0.336
+	const wantAIC = 0.336
+
+	for _, provider := range []string{"azure-openai", "azure_openai"} {
+		t.Run(provider, func(t *testing.T) {
+			aic := computeModelInferenceAIC(provider, "claude-sonnet-4.6", 1000, 200, 1200, 0, 0)
+			assert.InDelta(t, wantAIC, aic, 1e-9,
+				"provider=%q: net input must clamp at zero when cache_read exceeds input", provider)
+		})
+	}
+}
+
 func TestFindOrFetchModelPricing_EmbeddedModelReturnsNil(t *testing.T) {
 	// claude-sonnet-4.6 is in the embedded catalog; FindOrFetchModelPricing should return
 	// (nil, false) so the lock.yml overlay does not duplicate what models.json already has.
