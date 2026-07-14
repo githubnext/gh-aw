@@ -203,8 +203,42 @@ func implementsWriter(pass *analysis.Pass, expr ast.Expr) bool {
 }
 
 // buildFix returns a SuggestedFix rewriting w.Write([]byte(s)) to io.WriteString(w, s).
+//
+// When "io" is already imported under an alias the alias is used as the
+// qualifier so the fix compiles. When the qualifier name is shadowed by a local
+// variable at the call site, no SuggestedFix is emitted (the diagnostic is
+// still reported).
 func buildFix(pass *analysis.Pass, call *ast.CallExpr, writerArg, sText string, filesWithImportEdit map[token.Pos]bool) []analysis.SuggestedFix {
-	replacement := fmt.Sprintf("io.WriteString(%s, %s)", writerArg, sText)
+	// Find the file containing this call.
+	var file *ast.File
+	for _, f := range pass.Files {
+		if f.Pos() <= call.Pos() && call.Pos() <= f.End() {
+			file = f
+			break
+		}
+	}
+
+	// Determine the local qualifier for "io": use the alias when the package
+	// is already imported under a different name, or the default name when it
+	// needs to be added.
+	qualifier := ioPkg
+	if file != nil {
+		if localName, imported := astutil.ImportedAs(file, pass.TypesInfo, ioPkg); imported {
+			// Dot-import or blank-import: can't safely qualify; skip fix.
+			if localName == "." || localName == "_" {
+				return nil
+			}
+			qualifier = localName
+		}
+		// Not imported yet: qualifier stays as ioPkg; the import will be added.
+	}
+
+	// Skip the fix if the qualifier is shadowed by a local at the call site.
+	if astutil.QualifierShadowed(pass.Pkg, call.Pos(), qualifier, ioPkg) {
+		return nil
+	}
+
+	replacement := fmt.Sprintf("%s.WriteString(%s, %s)", qualifier, writerArg, sText)
 	edits := []analysis.TextEdit{{
 		Pos:     call.Pos(),
 		End:     call.End(),

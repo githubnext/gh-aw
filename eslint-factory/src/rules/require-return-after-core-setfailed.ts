@@ -1,19 +1,14 @@
-import { AST_NODE_TYPES, AST_TOKEN_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, AST_TOKEN_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
-/**
- * Returns true when the statement is a call to `core.setFailed(...)`.
- */
-function isCoreSetFailedStatement(node: TSESTree.Statement): node is TSESTree.ExpressionStatement {
-  if (node.type !== AST_NODE_TYPES.ExpressionStatement) return false;
-  const expr = node.expression;
-  if (expr.type !== AST_NODE_TYPES.CallExpression) return false;
-  const callee = expr.callee;
-  if (callee.type !== AST_NODE_TYPES.MemberExpression || callee.computed) return false;
-  const obj = callee.object;
-  const prop = callee.property;
-  return obj.type === AST_NODE_TYPES.Identifier && obj.name === "core" && prop.type === AST_NODE_TYPES.Identifier && prop.name === "setFailed";
+// Known @actions/core binding names (same allow-list as require-await-core-summary-write).
+// Only exact known aliases are matched — broad prefix matching (e.g. `/^core/i`) would
+// silently flag unrelated objects that happen to start with "core".
+const CORE_ALIASES = new Set(["core", "coreObj"]);
+
+function isCoreLikeIdentifier(name: string): boolean {
+  return CORE_ALIASES.has(name);
 }
 
 /**
@@ -51,10 +46,10 @@ function isControlTransfer(node: TSESTree.Statement): boolean {
  * Checks a list of sequential statements for `core.setFailed(...)` calls that
  * are not immediately followed by a control-transfer statement.
  */
-function checkStatementList(stmts: TSESTree.Statement[], report: (node: TSESTree.Statement, next: TSESTree.Statement) => void): void {
+function checkStatementList(stmts: TSESTree.Statement[], isSetFailed: (node: TSESTree.Statement) => boolean, report: (node: TSESTree.Statement, next: TSESTree.Statement) => void): void {
   for (let i = 0; i < stmts.length; i++) {
     const stmt = stmts[i];
-    if (!isCoreSetFailedStatement(stmt)) continue;
+    if (!isSetFailed(stmt)) continue;
     const next = stmts[i + 1];
     if (next && !isControlTransfer(next)) {
       report(stmt, next);
@@ -169,6 +164,95 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
   create(context) {
     const sourceCode = context.sourceCode;
 
+    /**
+     * Checks whether an Identifier is a single-assignment alias for a core-like
+     * object (e.g., `const c = core`). Re-assigned let bindings are rejected.
+     * Local shadows (e.g., a parameter also named `c`) are excluded because they
+     * are found first in the scope chain and their definition type will not match.
+     */
+    function isCoreAliasIdentifier(identifier: TSESTree.Identifier): boolean {
+      let currentScope: TSESLint.Scope.Scope | null = sourceCode.getScope(identifier);
+      while (currentScope !== null) {
+        const variable = currentScope.set.get(identifier.name);
+        if (variable !== undefined) {
+          if (variable.defs.length !== 1) return false;
+          const def = variable.defs[0];
+          if (def.type !== "Variable") return false;
+          if (variable.references.some(ref => ref.isWrite() && !ref.init)) return false;
+          const declarator = def.node as TSESTree.VariableDeclarator;
+          if (!declarator.init) return false;
+          return declarator.id.type === AST_NODE_TYPES.Identifier && declarator.init.type === AST_NODE_TYPES.Identifier && isCoreLikeIdentifier(declarator.init.name);
+        }
+        currentScope = currentScope.upper;
+      }
+      return false;
+    }
+
+    /**
+     * Checks whether an Identifier is the destructured `setFailed` binding from
+     * a core-like object (e.g., `const { setFailed } = core` or
+     * `const { setFailed: sf } = core` where `sf` is the identifier).
+     * Re-assigned let bindings are rejected. Local `function setFailed()` or
+     * parameter shadows are excluded via the `def.type !== "Variable"` guard.
+     */
+    function isDestructuredSetFailedIdentifier(identifier: TSESTree.Identifier): boolean {
+      let currentScope: TSESLint.Scope.Scope | null = sourceCode.getScope(identifier);
+      while (currentScope !== null) {
+        const variable = currentScope.set.get(identifier.name);
+        if (variable !== undefined) {
+          if (variable.defs.length !== 1) return false;
+          const def = variable.defs[0];
+          if (def.type !== "Variable") return false;
+          if (variable.references.some(ref => ref.isWrite() && !ref.init)) return false;
+          const declarator = def.node as TSESTree.VariableDeclarator;
+          if (!declarator.init) return false;
+          if (declarator.id.type === AST_NODE_TYPES.ObjectPattern && declarator.init.type === AST_NODE_TYPES.Identifier && isCoreLikeIdentifier(declarator.init.name)) {
+            return declarator.id.properties.some(prop => {
+              if (prop.type !== AST_NODE_TYPES.Property || prop.computed) return false;
+              const keyIsSetFailed = prop.key.type === AST_NODE_TYPES.Identifier && prop.key.name === "setFailed";
+              const valueIsAlias = prop.value.type === AST_NODE_TYPES.Identifier && prop.value.name === identifier.name;
+              return keyIsSetFailed && valueIsAlias;
+            });
+          }
+          return false;
+        }
+        currentScope = currentScope.upper;
+      }
+      return false;
+    }
+
+    /**
+     * Returns true when the statement is a call to core.setFailed(...) in any
+     * recognized form:
+     *  - Direct non-computed: core.setFailed(...)
+     *  - Computed string literal: core["setFailed"](...)
+     *  - Aliased object: const c = core; c.setFailed(...)
+     *  - Destructured binding: const { setFailed } = core; setFailed(...)
+     */
+    function isCoreSetFailedStatement(node: TSESTree.Statement): node is TSESTree.ExpressionStatement {
+      if (node.type !== AST_NODE_TYPES.ExpressionStatement) return false;
+      const expr = node.expression;
+      if (expr.type !== AST_NODE_TYPES.CallExpression) return false;
+      const callee = expr.callee;
+
+      if (callee.type === AST_NODE_TYPES.MemberExpression) {
+        const obj = callee.object;
+        const prop = callee.property;
+        const isNonComputedSetFailed = !callee.computed && prop.type === AST_NODE_TYPES.Identifier && prop.name === "setFailed";
+        const isComputedSetFailed = callee.computed && prop.type === AST_NODE_TYPES.Literal && prop.value === "setFailed";
+        if ((isNonComputedSetFailed || isComputedSetFailed) && obj.type === AST_NODE_TYPES.Identifier) {
+          if (isCoreLikeIdentifier(obj.name)) return true;
+          if (isCoreAliasIdentifier(obj)) return true;
+        }
+      }
+
+      if (callee.type === AST_NODE_TYPES.Identifier) {
+        if (isDestructuredSetFailedIdentifier(callee)) return true;
+      }
+
+      return false;
+    }
+
     function isInsideFunctionLike(node: TSESTree.Node): boolean {
       const ancestors = sourceCode.getAncestors(node);
       for (let i = ancestors.length - 1; i >= 0; i--) {
@@ -246,7 +330,7 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
     return {
       // Check statement blocks: if body, else body, while body, function body, etc.
       BlockStatement(node: TSESTree.BlockStatement) {
-        checkStatementList(node.body, report);
+        checkStatementList(node.body, isCoreSetFailedStatement, report);
 
         // Cross-block fall-through: when core.setFailed() is the last statement of
         // this block, check whether any enclosing block has subsequent statements.
@@ -263,10 +347,10 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
       // Handle single-statement arrow functions (no braces) — rare but safe to skip
       // The main case is BlockStatement above.
       SwitchCase(node: TSESTree.SwitchCase) {
-        checkStatementList(node.consequent, report);
+        checkStatementList(node.consequent, isCoreSetFailedStatement, report);
       },
       Program(node: TSESTree.Program) {
-        checkStatementList(node.body.filter(isExecutableStatement), report);
+        checkStatementList(node.body.filter(isExecutableStatement), isCoreSetFailedStatement, report);
       },
     };
   },

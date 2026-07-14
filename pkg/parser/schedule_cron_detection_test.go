@@ -28,11 +28,32 @@ func TestIsCronExpression(t *testing.T) {
 		{"invalid expression", "invalid cron expression", false},
 		{"empty string", "", false},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := IsCronExpression(tt.input)
 			assert.Equal(t, tt.expected, result, "IsCronExpression(%q)", tt.input)
+		})
+	}
+}
+
+func TestIsNumericCronField(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"single digit", "5", true},
+		{"multiple digits", "15", true},
+		{"empty", "", false},
+		{"wildcard", "*", false},
+		{"interval", "*/5", false},
+		{"range", "1-5", false},
+		{"list", "1,2", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isNumericCronField(tt.input))
 		})
 	}
 }

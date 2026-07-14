@@ -929,8 +929,7 @@ describe("update_issue.cjs - cross-repo and operation integration", () => {
     expect(capturedBody).toContain("<!-- gh-aw-island-end:test-workflow -->");
   });
 
-  it("should update labels via issue intents GraphQL when the runtime feature is enabled", async () => {
-    process.env.GH_AW_RUNTIME_FEATURES = "issue_intents";
+  it("should update labels via issue intents GraphQL without requiring a runtime feature", async () => {
     let capturedRestBody;
 
     mockGithub.rest.issues.get.mockResolvedValue({
@@ -983,44 +982,153 @@ describe("update_issue.cjs - cross-repo and operation integration", () => {
       return {};
     });
 
-    try {
-      const { main } = await import("./update_issue.cjs");
-      const handler = await main({ target: "*" });
-      const result = await handler(
-        {
-          issue_number: 100,
-          labels: [
-            { name: "bug", rationale: "Stack trace matches a known crash path", confidence: "high" },
-            { name: "perf", rationale: "Slow query mentioned in repro steps", confidence: "medium", suggest: true },
-          ],
-        },
-        {}
-      );
+    const { main } = await import("./update_issue.cjs");
+    const handler = await main({ target: "*" });
+    const result = await handler(
+      {
+        issue_number: 100,
+        labels: [
+          { name: "bug", rationale: "Stack trace matches a known crash path", confidence: "high" },
+          { name: "perf", rationale: "Slow query mentioned in repro steps", confidence: "medium", suggest: true },
+        ],
+      },
+      {}
+    );
 
-      expect(result.success).toBe(true);
-      expect(capturedRestBody).toBeUndefined();
-      expect(mockGithub.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("labels: $labels"),
-        expect.objectContaining({
-          issueId: "I_kwDO_testissue",
-          labels: [
-            {
-              labelId: "LA_bug",
-              rationale: "Stack trace matches a known crash path",
-              confidence: "HIGH",
+    expect(result.success).toBe(true);
+    expect(capturedRestBody).toBeUndefined();
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("labels: $labels"),
+      expect.objectContaining({
+        issueId: "I_kwDO_testissue",
+        labels: [
+          {
+            labelId: "LA_bug",
+            rationale: "Stack trace matches a known crash path",
+            confidence: "HIGH",
+          },
+          {
+            labelId: "LA_perf",
+            rationale: "Slow query mentioned in repro steps",
+            confidence: "MEDIUM",
+            suggest: true,
+          },
+        ],
+        headers: { "GraphQL-Features": "update_issue_suggestions" },
+      })
+    );
+  });
+
+  it("should fail before REST update when a label does not exist in the repository", async () => {
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 100,
+        node_id: "I_kwDO_testissue",
+        title: "Test",
+        body: "Existing body",
+        html_url: "https://github.com/testowner/testrepo/issues/100",
+      },
+    });
+    mockGithub.graphql.mockImplementation(async (query, _variables) => {
+      if (query.includes("repository(owner")) {
+        return {
+          repository: {
+            labels: {
+              nodes: [{ id: "LA_bug", name: "bug" }],
+              pageInfo: { hasNextPage: false, endCursor: null },
             },
-            {
-              labelId: "LA_perf",
-              rationale: "Slow query mentioned in repro steps",
-              confidence: "MEDIUM",
-              suggest: true,
+          },
+        };
+      }
+      return {};
+    });
+
+    const { main } = await import("./update_issue.cjs");
+    const handler = await main({ target: "*" });
+    const result = await handler(
+      {
+        issue_number: 100,
+        title: "New title",
+        labels: ["nonexistent-label"],
+      },
+      {}
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/nonexistent-label/);
+    // REST update must NOT have been called — no partial write
+    expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
+  });
+
+  it("should update string labels via GraphQL without optional intent metadata", async () => {
+    let capturedRestBody;
+
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 100,
+        node_id: "I_kwDO_testissue",
+        title: "Test",
+        body: "Existing body",
+        html_url: "https://github.com/testowner/testrepo/issues/100",
+      },
+    });
+    mockGithub.rest.issues.update.mockImplementation(async ({ body, labels }) => {
+      capturedRestBody = { body, labels };
+      return {
+        data: {
+          number: 100,
+          node_id: "I_kwDO_testissue",
+          title: "Test",
+          body,
+          html_url: "https://github.com/testowner/testrepo/issues/100",
+        },
+      };
+    });
+    mockGithub.graphql.mockImplementation(async (query, variables) => {
+      if (query.includes("repository(owner")) {
+        return {
+          repository: {
+            labels: {
+              nodes: [{ id: "LA_bug", name: "bug" }],
+              pageInfo: { hasNextPage: false, endCursor: null },
             },
-          ],
-          headers: { "GraphQL-Features": "update_issue_suggestions" },
-        })
-      );
-    } finally {
-      delete process.env.GH_AW_RUNTIME_FEATURES;
-    }
+          },
+        };
+      }
+      if (query.includes("updateIssue(input: { id: $issueId, labels: $labels })")) {
+        return {
+          updateIssue: {
+            issue: {
+              id: variables.issueId,
+              labels: {
+                nodes: [{ name: "bug" }],
+              },
+            },
+          },
+        };
+      }
+      return {};
+    });
+
+    const { main } = await import("./update_issue.cjs");
+    const handler = await main({ target: "*" });
+    const result = await handler(
+      {
+        issue_number: 100,
+        labels: ["bug"],
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+    expect(capturedRestBody).toBeUndefined();
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("labels: $labels"),
+      expect.objectContaining({
+        issueId: "I_kwDO_testissue",
+        labels: [{ labelId: "LA_bug" }],
+        headers: { "GraphQL-Features": "update_issue_suggestions" },
+      })
+    );
   });
 });

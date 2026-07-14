@@ -14,9 +14,16 @@
 
 package workflow
 
+import "github.com/github/gh-aw/pkg/logger"
+
+// dockerSbxInstallLog traces which docker-sbx runtime steps are emitted during
+// compilation. Enable with DEBUG=workflow:docker_sbx_install (or workflow:*).
+var dockerSbxInstallLog = logger.New("workflow:docker_sbx_install")
+
 // generateDockerSbxKVMCheckStep creates a fail-fast step that verifies the runner
 // has KVM support before spending time on sbx installation.
 func generateDockerSbxKVMCheckStep() GitHubActionStep {
+	dockerSbxInstallLog.Print("Generating docker-sbx KVM availability check step")
 	return GitHubActionStep([]string{
 		"      - name: Check KVM availability for docker-sbx",
 		"        run: |",
@@ -38,6 +45,7 @@ func generateDockerSbxKVMCheckStep() GitHubActionStep {
 // generateDockerSbxSecretsCheckStep creates a fail-fast step that verifies the
 // DOCKER_PAT and DOCKER_USERNAME secrets are present before attempting sbx install.
 func generateDockerSbxSecretsCheckStep() GitHubActionStep {
+	dockerSbxInstallLog.Print("Generating docker-sbx Docker Hub secrets check step")
 	return GitHubActionStep([]string{
 		"      - name: Check Docker Hub secrets for docker-sbx",
 		"        env:",
@@ -62,6 +70,7 @@ func generateDockerSbxSecretsCheckStep() GitHubActionStep {
 // generateDockerSbxInstallStep creates a GitHub Actions step that installs the
 // docker-sbx package via the official Docker apt repository.
 func generateDockerSbxInstallStep() GitHubActionStep {
+	dockerSbxInstallLog.Print("Generating docker-sbx package install step")
 	return GitHubActionStep([]string{
 		"      - name: Install docker-sbx",
 		"        run: |",
@@ -85,6 +94,7 @@ func generateDockerSbxInstallStep() GitHubActionStep {
 //  4. Restarts the daemon and re-authenticates.
 //  5. Pre-pulls the sandbox template image.
 func generateDockerSbxAuthAndDaemonStep() GitHubActionStep {
+	dockerSbxInstallLog.Print("Generating docker-sbx daemon start and Docker Hub authentication step")
 	return GitHubActionStep([]string{
 		"      - name: Start docker-sbx daemon and authenticate",
 		"        env:",
@@ -137,6 +147,7 @@ func generateDockerSbxAuthAndDaemonStep() GitHubActionStep {
 // by the policy-reset cycle, so a fresh login right before execution prevents
 // "user is not authenticated to Docker" errors when AWF calls `sbx create`.
 func generateDockerSbxCredentialRefreshStep() GitHubActionStep {
+	dockerSbxInstallLog.Print("Generating docker-sbx credential refresh step (pre-AWF re-authentication)")
 	return GitHubActionStep([]string{
 		"      - name: Refresh sbx credentials",
 		"        env:",
@@ -153,6 +164,7 @@ func generateDockerSbxCredentialRefreshStep() GitHubActionStep {
 // generateDockerSbxPreFlightStep creates a step that verifies the sbx stack works
 // end-to-end before the MCP gateway and AWF container setup begins.
 func generateDockerSbxPreFlightStep() GitHubActionStep {
+	dockerSbxInstallLog.Print("Generating docker-sbx pre-flight smoke test step")
 	return GitHubActionStep([]string{
 		"      - name: docker-sbx pre-flight smoke test",
 		"        run: |",

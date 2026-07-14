@@ -12,8 +12,7 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
-const { hasIssueIntentsRuntimeFeature, normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
-const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "set_issue_type";
@@ -82,37 +81,6 @@ async function setIssueTypeById(githubClient, issueNodeId, issueTypeId, intentMe
       headers: { "GraphQL-Features": "update_issue_suggestions" },
     }
   );
-}
-
-/**
- * @param {{ rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean }} intentMetadata Intent metadata in GraphQL format.
- * @returns {{ rationale?: string, confidence?: "low"|"medium"|"high", suggest?: boolean }} Intent metadata formatted for REST.
- */
-function toRestIssueIntentMetadata(intentMetadata) {
-  /** @type {{ rationale?: string, confidence?: "low"|"medium"|"high", suggest?: boolean }} */
-  const restMetadata = {};
-  if (intentMetadata.rationale) {
-    restMetadata.rationale = intentMetadata.rationale;
-  }
-  if (intentMetadata.suggest) {
-    restMetadata.suggest = true;
-  }
-  if (intentMetadata.confidence) {
-    switch (intentMetadata.confidence) {
-      case "LOW":
-        restMetadata.confidence = "low";
-        break;
-      case "MEDIUM":
-        restMetadata.confidence = "medium";
-        break;
-      case "HIGH":
-        restMetadata.confidence = "high";
-        break;
-      default:
-        throw new Error(`${ERR_VALIDATION}: Invalid confidence ${JSON.stringify(intentMetadata.confidence)}. Expected one of: LOW, MEDIUM, HIGH.`);
-    }
-  }
-  return restMetadata;
 }
 
 /**
@@ -194,25 +162,6 @@ function mapInvalidIssueTypeError(error, issueTypeName) {
   }
 
   return baseMessage;
-}
-
-/**
- * @param {boolean} isClear
- * @param {string} issueTypeName
- * @param {{ rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean }} intentMetadata
- * @returns {string | { value: string, rationale?: string, confidence?: "low"|"medium"|"high", suggest?: boolean }}
- */
-function buildIssueTypeValue(isClear, issueTypeName, intentMetadata) {
-  if (isClear) {
-    return "";
-  }
-  if (!hasIssueIntentsRuntimeFeature()) {
-    return issueTypeName;
-  }
-  return {
-    value: issueTypeName,
-    ...toRestIssueIntentMetadata(intentMetadata),
-  };
 }
 
 /**
@@ -336,10 +285,10 @@ async function main(config = {}) {
       const { owner, repo } = repoParts;
       const intentMetadata = normalizeIssueIntentMetadata(item);
 
-      if (hasIssueIntentsRuntimeFeature() && !isClear) {
+      if (!isClear) {
         // GraphQL intent path: resolve the type's node ID from org issue types, then
         // call setIssueTypeById with IssueTypeUpdateInput + the GraphQL-Features header.
-        core.info(`Using GraphQL intent path (issue_intents runtime feature enabled)`);
+        core.info("Using GraphQL intent path with IssueTypeUpdateInput");
         core.info(`Fetching issue node ID for issue #${issueNumber}`);
         const issueNodeId = await getIssueNodeId(githubClient, owner, repo, issueNumber);
         core.info(`Fetching issue types for repo ${owner}/${repo}`);
@@ -355,13 +304,12 @@ async function main(config = {}) {
         core.info(`Resolved issue type ${JSON.stringify(resolvedIssueTypeName)} to node ID ${typeNode.id}`);
         await setIssueTypeById(githubClient, issueNodeId, typeNode.id, intentMetadata);
       } else {
-        // REST path: used for the clear case and when the issue_intents feature is off.
-        const typeValue = buildIssueTypeValue(isClear, resolvedIssueTypeName, intentMetadata);
+        // REST path: preserve the existing clear behavior.
         await githubClient.rest.issues.update({
           owner,
           repo,
           issue_number: issueNumber,
-          type: typeValue,
+          type: "",
         });
       }
 

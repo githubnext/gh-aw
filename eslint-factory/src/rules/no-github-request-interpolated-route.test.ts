@@ -169,6 +169,32 @@ describe("no-github-request-interpolated-route", () => {
     });
   });
 
+  it("invalid: opaque whole-route helpers are flagged with tailored guidance", () => {
+    cjsRuleTester.run("no-github-request-interpolated-route", noGithubRequestInterpolatedRouteRule, {
+      valid: [],
+      invalid: [
+        {
+          code: "function addReaction(endpoint) { github.request(`POST ${endpoint}`, { content: '+1' }); }",
+          errors: [
+            {
+              messageId: "opaqueWholeRoute",
+              data: { kind: "template literal with interpolations", client: "github" },
+            },
+          ],
+        },
+        {
+          code: 'function addComment(endpoint) { github.request("POST " + endpoint, { body }); }',
+          errors: [
+            {
+              messageId: "opaqueWholeRoute",
+              data: { kind: "string concatenation expression", client: "github" },
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it("valid: simple aliases bound to non-Octokit sources are not flagged", () => {
     cjsRuleTester.run("no-github-request-interpolated-route", noGithubRequestInterpolatedRouteRule, {
       valid: [
