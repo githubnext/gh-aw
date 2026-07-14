@@ -58,3 +58,27 @@ func TestUpgradeCommandRepoOrgMutualExclusion(t *testing.T) {
 	assert.Contains(t, err.Error(), "--repo", "error should mention --repo flag")
 	assert.Contains(t, err.Error(), "--org", "error should mention --org flag")
 }
+
+func TestUpgradeCommandFlagRegistration(t *testing.T) {
+	cmd := NewUpgradeCommand()
+	require.NotNil(t, cmd, "upgrade command should be created")
+
+	// --repo alone should be accepted at flag parse time (RunE will proceed)
+	repoFlag := cmd.Flags().Lookup("repo")
+	require.NotNil(t, repoFlag, "--repo flag should be registered")
+
+	// --org alone should be accepted at flag parse time (RunE will proceed)
+	orgFlag := cmd.Flags().Lookup("org")
+	require.NotNil(t, orgFlag, "--org flag should be registered")
+
+	// --engine alone should be accepted
+	engineFlag := cmd.Flags().Lookup("engine")
+	require.NotNil(t, engineFlag, "--engine flag should be registered")
+
+	// --repos without --org should fail at RunE
+	cmd2 := NewUpgradeCommand()
+	cmd2.SetArgs([]string{"--repos", "foo-*"})
+	err := cmd2.Execute()
+	require.Error(t, err, "should error when --repos is specified without --org")
+	assert.Contains(t, err.Error(), "--repos", "error should mention --repos flag")
+}
