@@ -125,7 +125,7 @@ describe("add_labels", () => {
       const result = await handler(
         {
           item_number: 456,
-          labels: [{ name: "bug", rationale: "Known crash path", confidence: "high", suggest: true }],
+          labels: [{ name: "bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }],
         },
         {}
       );
@@ -133,39 +133,51 @@ describe("add_labels", () => {
       expect(result.success).toBe(true);
       expect(result.number).toBe(456);
       expect(addLabelsCalls).toHaveLength(1);
-      expect(addLabelsCalls[0].labels).toEqual(["bug"]);
+      expect(addLabelsCalls[0].labels).toEqual([{ name: "bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }]);
     });
 
-    it("should send structured label metadata when issue_intents runtime feature is enabled", async () => {
-      const previousFeatures = process.env.GH_AW_RUNTIME_FEATURES;
-      process.env.GH_AW_RUNTIME_FEATURES = "issue_intents";
-      try {
-        const handler = await main({ max: 10 });
-        const addLabelsCalls = [];
+    it("should send structured label metadata without requiring a runtime feature", async () => {
+      const handler = await main({ max: 10 });
+      const addLabelsCalls = [];
 
-        mockGithub.rest.issues.addLabels = async params => {
-          addLabelsCalls.push(params);
-          return {};
-        };
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
 
-        const result = await handler(
-          {
-            item_number: 456,
-            labels: [{ name: "bug", rationale: "Application crashes on file uploads >5MB", confidence: "HIGH" }],
-          },
-          {}
-        );
+      const result = await handler(
+        {
+          item_number: 456,
+          labels: [{ name: "bug", rationale: "Application crashes on file uploads >5MB", confidence: "HIGH" }],
+        },
+        {}
+      );
 
-        expect(result.success).toBe(true);
-        expect(addLabelsCalls).toHaveLength(1);
-        expect(addLabelsCalls[0].labels).toEqual([{ name: "bug", rationale: "Application crashes on file uploads >5MB", confidence: "HIGH" }]);
-      } finally {
-        if (previousFeatures === undefined) {
-          delete process.env.GH_AW_RUNTIME_FEATURES;
-        } else {
-          process.env.GH_AW_RUNTIME_FEATURES = previousFeatures;
-        }
-      }
+      expect(result.success).toBe(true);
+      expect(addLabelsCalls).toHaveLength(1);
+      expect(addLabelsCalls[0].labels).toEqual([{ name: "bug", rationale: "Application crashes on file uploads >5MB", confidence: "HIGH" }]);
+    });
+
+    it("should normalize lowercase confidence in structured label metadata", async () => {
+      const handler = await main({ max: 10 });
+      const addLabelsCalls = [];
+
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          item_number: 456,
+          labels: [{ name: "bug", rationale: "Application crashes on file uploads >5MB", confidence: "high" }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(addLabelsCalls).toHaveLength(1);
+      expect(addLabelsCalls[0].labels).toEqual([{ name: "bug", rationale: "Application crashes on file uploads >5MB", confidence: "HIGH" }]);
     });
 
     it("should accept issue_number as an alias for item_number", async () => {
@@ -498,6 +510,31 @@ describe("add_labels", () => {
 
       expect(result.success).toBe(true);
       expect(result.labelsAdded).toEqual(["bug", "enhancement"]);
+    });
+
+    it("should prefer the metadata-bearing entry when a duplicate label name appears", async () => {
+      const handler = await main({ max: 10 });
+      const addLabelsCalls = [];
+
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          item_number: 100,
+          // First "bug" has no metadata; second "bug" carries intent metadata — second should win
+          labels: [{ name: "bug" }, { name: "bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.labelsAdded).toEqual(["bug"]);
+      expect(addLabelsCalls.length).toBe(1);
+      // The payload sent to the API must use the spec with metadata, not the plain string
+      expect(addLabelsCalls[0].labels).toEqual([{ name: "bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }]);
     });
 
     it("should sanitize and trim label names", async () => {

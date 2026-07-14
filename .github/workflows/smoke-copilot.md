@@ -164,6 +164,13 @@ experiments:
   subagent_model: [small, large]
 features:
   gh-aw-detection: false
+evals:
+  - id: smoke-passed
+    question: Did all or most smoke tests pass? Look for an overall PASS status or the majority of tests showing ✅ in the agent output.
+  - id: build-succeeded
+    question: Did the gh-aw binary build succeed? Look for a successful make build step or explicit mention that compilation succeeded.
+  - id: issue-created
+    question: Was a smoke test issue created with test results? Look for a create_issue output containing 'Smoke Test' in the title.
 
 ---
 

@@ -116,6 +116,11 @@ steps:
       echo "✓ Wrote contributing-guidelines-truncated.md"
 features:
   gh-aw-detection: true
+evals:
+  - id: prs-evaluated
+    question: Did the agent dispatch PRs to the contribution-checker subagent and produce evaluation results for each PR?
+  - id: report-created
+    question: Was a report issue created summarizing PR compliance with the contributing guidelines?
 ---
 
 ## Target Repository
