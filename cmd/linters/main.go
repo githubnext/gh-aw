@@ -38,6 +38,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/ioutildeprecated"
 	"github.com/github/gh-aw/pkg/linters/jsonmarshalignoredeerror"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
+	"github.com/github/gh-aw/pkg/linters/mapdeletecheck"
 	"github.com/github/gh-aw/pkg/linters/lenstringsplit"
 	"github.com/github/gh-aw/pkg/linters/lenstringzero"
 	"github.com/github/gh-aw/pkg/linters/logfatallibrary"
@@ -89,6 +90,7 @@ func main() {
 		ioutildeprecated.Analyzer,
 		httpstatuscode.Analyzer,
 		largefunc.Analyzer,
+		mapdeletecheck.Analyzer,
 		logfatallibrary.Analyzer,
 		manualmutexunlock.Analyzer,
 		osexitinlibrary.Analyzer,
