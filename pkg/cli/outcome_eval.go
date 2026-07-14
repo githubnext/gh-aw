@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"slices"
@@ -235,8 +236,21 @@ func escapeOwnerRepo(ownerRepo string) string {
 	return url.PathEscape(ownerRepo)
 }
 
+func validateAPIEndpoint(endpoint string) error {
+	if strings.HasPrefix(endpoint, "/") {
+		return errors.New("endpoint must not start with '/'")
+	}
+	if slices.Contains(strings.Split(endpoint, "/"), "..") {
+		return errors.New("endpoint must not contain '..' path segments")
+	}
+	return nil
+}
+
 // ghAPIGet calls the GitHub REST API via gh cli and returns the parsed JSON.
 func ghAPIGet(endpoint string, repo string) (map[string]any, error) {
+	if err := validateAPIEndpoint(endpoint); err != nil {
+		return nil, fmt.Errorf("invalid endpoint %q: %w", endpoint, err)
+	}
 	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
 	outcomeEvalLog.Printf("gh api GET: repo=%s, endpoint=%s, host=%q", ownerRepo, endpoint, host)
 	args := []string{"api", fmt.Sprintf("repos/%s/%s", escapeOwnerRepo(ownerRepo), endpoint)}
@@ -260,6 +274,9 @@ func ghAPIGet(endpoint string, repo string) (map[string]any, error) {
 
 // ghAPIGetArray calls the GitHub REST API and returns a JSON array.
 func ghAPIGetArray(endpoint string, repo string) ([]map[string]any, error) {
+	if err := validateAPIEndpoint(endpoint); err != nil {
+		return nil, fmt.Errorf("invalid endpoint %q: %w", endpoint, err)
+	}
 	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
 	args := []string{"api", fmt.Sprintf("repos/%s/%s", escapeOwnerRepo(ownerRepo), endpoint)}
 	var output []byte
