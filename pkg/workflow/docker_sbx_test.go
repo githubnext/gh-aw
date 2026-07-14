@@ -334,13 +334,41 @@ func TestDockerSbxEngineCLIWiring(t *testing.T) {
 		engine := NewClaudeEngine()
 		installSteps := engine.GetInstallationSteps(workflowData)
 		installContent := strings.Join(flattenSteps(installSteps), "\n")
-		assert.Contains(t, installContent, `npm install --prefix "${RUNNER_TEMP}/gh-aw/mcp-cli" @anthropic-ai/claude-code@`+string(constants.DefaultClaudeCodeVersion))
-		assert.Contains(t, installContent, `ln -sf "../node_modules/.bin/claude" "${RUNNER_TEMP}/gh-aw/mcp-cli/bin/claude"`)
+		assert.Contains(t, installContent, `npm install --prefix "${RUNNER_TEMP}/gh-aw/engine-cli" @anthropic-ai/claude-code@`+string(constants.DefaultClaudeCodeVersion))
+		assert.Contains(t, installContent, `ln -sf "../node_modules/.bin/claude" "${RUNNER_TEMP}/gh-aw/engine-cli/bin/claude"`)
 
 		execSteps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 		require.NotEmpty(t, execSteps)
 		execContent := strings.Join(execSteps[0], "\n")
+		assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`)
+	})
+
+	t.Run("docker-sbx keeps engine and MCP CLI PATH setup independent", func(t *testing.T) {
+		workflowData.ParsedTools = &ToolsConfig{
+			CLIProxy: true,
+			Custom: map[string]MCPServerConfig{
+				"myserver": {},
+			},
+		}
+		workflowData.Tools = map[string]any{
+			"myserver": map[string]any{
+				"mode": "remote",
+			},
+		}
+
+		engine := NewClaudeEngine()
+		execSteps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		require.NotEmpty(t, execSteps)
+		execContent := strings.Join(execSteps[0], "\n")
+
 		assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH"`)
+		assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`)
+
+		mcpIdx := strings.Index(execContent, `export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH"`)
+		engineIdx := strings.Index(execContent, `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`)
+		assert.GreaterOrEqual(t, mcpIdx, 0)
+		assert.GreaterOrEqual(t, engineIdx, 0)
+		assert.Less(t, mcpIdx, engineIdx, "engine path export must run after MCP export so engine CLI takes PATH precedence")
 	})
 
 	t.Run("codex install and execution use sbx-visible CLI path", func(t *testing.T) {
@@ -348,13 +376,13 @@ func TestDockerSbxEngineCLIWiring(t *testing.T) {
 		workflowData.EngineConfig = &EngineConfig{ID: "codex"}
 		installSteps := engine.GetInstallationSteps(workflowData)
 		installContent := strings.Join(flattenSteps(installSteps), "\n")
-		assert.Contains(t, installContent, `npm install --ignore-scripts --prefix "${RUNNER_TEMP}/gh-aw/mcp-cli" @openai/codex@`+string(constants.DefaultCodexVersion))
-		assert.Contains(t, installContent, `ln -sf "../node_modules/.bin/codex" "${RUNNER_TEMP}/gh-aw/mcp-cli/bin/codex"`)
+		assert.Contains(t, installContent, `npm install --ignore-scripts --prefix "${RUNNER_TEMP}/gh-aw/engine-cli" @openai/codex@`+string(constants.DefaultCodexVersion))
+		assert.Contains(t, installContent, `ln -sf "../node_modules/.bin/codex" "${RUNNER_TEMP}/gh-aw/engine-cli/bin/codex"`)
 
 		execSteps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 		require.NotEmpty(t, execSteps)
 		execContent := strings.Join(execSteps[0], "\n")
-		assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH"`)
+		assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`)
 	})
 }
 

@@ -238,7 +238,7 @@ func GetNpmBinPathSetup() string {
 
 // GenerateDockerSbxNpmCLIInstallStep installs an npm CLI into a runner path that is
 // visible inside the docker-sbx microVM, then creates a stable bin/ symlink from
-// ${RUNNER_TEMP}/gh-aw/mcp-cli/bin/<command> to the package's node_modules/.bin entry.
+// ${RUNNER_TEMP}/gh-aw/engine-cli/bin/<command> to the package's node_modules/.bin entry.
 func GenerateDockerSbxNpmCLIInstallStep(packageName, version, stepName, commandName string, runInstallScripts bool, cooldownEnabled bool) GitHubActionStep {
 	ignoreScriptsFlag := "--ignore-scripts "
 	if runInstallScripts {
@@ -250,9 +250,9 @@ func GenerateDockerSbxNpmCLIInstallStep(packageName, version, stepName, commandN
 		installStep = GitHubActionStep{
 			"      - name: " + stepName,
 			"        run: |",
-			"          mkdir -p \"${RUNNER_TEMP}/gh-aw/mcp-cli/bin\"",
-			fmt.Sprintf(`          npm install %s--prefix "${RUNNER_TEMP}/gh-aw/mcp-cli" %s@"${ENGINE_VERSION}"`, ignoreScriptsFlag, packageName),
-			fmt.Sprintf(`          ln -sf "../node_modules/.bin/%s" "${RUNNER_TEMP}/gh-aw/mcp-cli/bin/%s"`, commandName, commandName),
+			"          mkdir -p \"${RUNNER_TEMP}/gh-aw/engine-cli/bin\"",
+			fmt.Sprintf(`          npm install %s--prefix "${RUNNER_TEMP}/gh-aw/engine-cli" %s@"${ENGINE_VERSION}"`, ignoreScriptsFlag, packageName),
+			fmt.Sprintf(`          ln -sf "../node_modules/.bin/%s" "${RUNNER_TEMP}/gh-aw/engine-cli/bin/%s"`, commandName, commandName),
 			"        env:",
 			"          ENGINE_VERSION: " + version,
 		}
@@ -265,9 +265,9 @@ func GenerateDockerSbxNpmCLIInstallStep(packageName, version, stepName, commandN
 	installStep = GitHubActionStep{
 		"      - name: " + stepName,
 		"        run: |",
-		"          mkdir -p \"${RUNNER_TEMP}/gh-aw/mcp-cli/bin\"",
-		fmt.Sprintf(`          npm install %s--prefix "${RUNNER_TEMP}/gh-aw/mcp-cli" %s@%s`, ignoreScriptsFlag, packageName, version),
-		fmt.Sprintf(`          ln -sf "../node_modules/.bin/%s" "${RUNNER_TEMP}/gh-aw/mcp-cli/bin/%s"`, commandName, commandName),
+		"          mkdir -p \"${RUNNER_TEMP}/gh-aw/engine-cli/bin\"",
+		fmt.Sprintf(`          npm install %s--prefix "${RUNNER_TEMP}/gh-aw/engine-cli" %s@%s`, ignoreScriptsFlag, packageName, version),
+		fmt.Sprintf(`          ln -sf "../node_modules/.bin/%s" "${RUNNER_TEMP}/gh-aw/engine-cli/bin/%s"`, commandName, commandName),
 	}
 	if cooldownEnabled {
 		installStep = append(installStep,
@@ -279,12 +279,12 @@ func GenerateDockerSbxNpmCLIInstallStep(packageName, version, stepName, commandN
 }
 
 // GetDockerSbxNpmCLIPathSetup returns the PATH export needed for npm CLIs that were
-// staged into ${RUNNER_TEMP}/gh-aw/mcp-cli/bin for docker-sbx microVM runs.
+// staged into ${RUNNER_TEMP}/gh-aw/engine-cli/bin for docker-sbx microVM runs.
 func GetDockerSbxNpmCLIPathSetup(workflowData *WorkflowData) string {
 	if !isDockerSbxRuntime(workflowData) {
 		return ""
 	}
-	return `export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH"`
+	return `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`
 }
 
 // GenerateNpmInstallStepsWithScope generates npm installation steps with control over global vs local installation.
