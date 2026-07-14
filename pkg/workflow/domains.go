@@ -225,6 +225,8 @@ var OpenCodeBaseDefaultDomains = []string{
 	"github.com",           // provider updates and metadata
 	"raw.githubusercontent.com",
 	"registry.npmjs.org", // npm package downloads
+	"opencode.ai",        // OpenCode telemetry and version checks
+	"models.dev",         // OpenCode model capability discovery
 }
 
 // openCodeProviderDomains maps provider prefixes to their API domains.
@@ -251,6 +253,8 @@ var OpenCodeDefaultDomains = []string{
 	"github.com",
 	"raw.githubusercontent.com",
 	"registry.npmjs.org", // npm package downloads
+	"opencode.ai",        // OpenCode telemetry and version checks
+	"models.dev",         // OpenCode model capability discovery
 }
 
 // extractProviderFromModel parses "provider/model" format and returns the
