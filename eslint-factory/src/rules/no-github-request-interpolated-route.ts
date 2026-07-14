@@ -39,6 +39,31 @@ function isStringConcatenation(node: TSESTree.Node): boolean {
   return node.type === "BinaryExpression" && node.operator === "+" && !isStaticRouteExpression(node);
 }
 
+function isHttpMethodPrefix(text: string | null | undefined): boolean {
+  return typeof text === "string" && /^[A-Z]+ $/.test(text);
+}
+
+/**
+ * Returns true when the route expression is exactly an HTTP method plus a
+ * single opaque route expression, such as:
+ * - `POST ${endpoint}`
+ * - `"POST " + endpoint`
+ *
+ * This shape differs from value-into-path interpolation because there is no
+ * known static path at the call site to rewrite with `{placeholder}` segments.
+ */
+function isOpaqueWholeRouteInterpolation(node: TSESTree.Node): boolean {
+  if (node.type === "TemplateLiteral") {
+    return node.expressions.length === 1 && node.quasis.length === 2 && isHttpMethodPrefix(node.quasis[0].value.cooked) && node.quasis[1].value.cooked === "" && !isStaticRouteExpression(node.expressions[0]);
+  }
+
+  if (node.type === "BinaryExpression" && node.operator === "+") {
+    return node.left.type === "Literal" && typeof node.left.value === "string" && isHttpMethodPrefix(node.left.value) && !isStaticRouteExpression(node.right);
+  }
+
+  return false;
+}
+
 /**
  * Returns true when `node` is the `context.github` member expression.
  */
@@ -88,10 +113,13 @@ export const noGithubRequestInterpolatedRouteRule = createRule({
         "Disallow template literals with interpolations or string concatenation as the route argument of Octokit.request() calls. " +
         "Octokit clients are detected by well-known names (github, octokit, githubClient, octokitClient), " +
         "identifiers initialized from getOctokit(...) call results, context.github, and simple const aliases of any of these. " +
-        'Use the typed placeholder form instead: "GET /repos/{owner}/{repo}" with a separate params object.',
+        "Use the typed placeholder form for value interpolation, or thread a typed route string from the caller when the entire route is dynamic.",
     },
     schema: [],
     messages: {
+      opaqueWholeRoute:
+        "Avoid using an opaque whole-route {{kind}} as the route argument of {{client}}.request(). " +
+        "When the entire route is dynamic, pass a typed route string from the caller instead of interpolating or concatenating a route variable.",
       interpolatedRoute:
         "Avoid using a {{kind}} as the route argument of {{client}}.request(). " +
         'Use the typed placeholder form instead — e.g. github.request("GET /repos/{owner}/{repo}", { owner, repo }) — ' +
@@ -168,6 +196,16 @@ export const noGithubRequestInterpolatedRouteRule = createRule({
 
         const firstArg = node.arguments[0];
         if (!firstArg) return;
+
+        if (isOpaqueWholeRouteInterpolation(firstArg)) {
+          const kind = firstArg.type === "TemplateLiteral" ? "template literal with interpolations" : "string concatenation expression";
+          context.report({
+            node: firstArg,
+            messageId: "opaqueWholeRoute",
+            data: { kind, client: clientName },
+          });
+          return;
+        }
 
         if (isInterpolatedTemplateLiteral(firstArg)) {
           context.report({
