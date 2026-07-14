@@ -245,7 +245,12 @@ describe("parse_pi_log.cjs", () => {
 
     it("detects the v3 schema and rejects the legacy schema", () => {
       expect(isPiV3Schema(v3Lines)).toBe(true);
-      expect(isPiV3Schema([{ type: "init", model: "pi-3" }, { type: "assistant", content: "hi" }])).toBe(false);
+      expect(
+        isPiV3Schema([
+          { type: "init", model: "pi-3" },
+          { type: "assistant", content: "hi" },
+        ])
+      ).toBe(false);
     });
 
     it("renders assistant text, tool calls, and tool results from a v3 stream", () => {
