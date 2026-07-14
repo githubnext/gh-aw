@@ -3,7 +3,7 @@ name: Content Moderation
 on:
   issues:
     types: [opened]
-  pull_request:
+  pull_request_target:
     types: [opened]
   issue_comment:
     types: [created]
@@ -32,7 +32,7 @@ jobs:
             if (context.eventName === 'issues') {
               user = context.payload.issue.user.login;
               number = context.payload.issue.number;
-            } else if (context.eventName === 'pull_request') {
+            } else if (context.eventName === 'pull_request' || context.eventName === 'pull_request_target') {
               user = context.payload.pull_request.user.login;
               number = context.payload.pull_request.number;
             } else if (context.eventName === 'issue_comment') {
@@ -78,7 +78,7 @@ jobs:
                 state: 'closed',
                 state_reason: 'not_planned'
               });
-            } else if (context.eventName === 'pull_request') {
+            } else if (context.eventName === 'pull_request' || context.eventName === 'pull_request_target') {
               core.info(`Closing PR #${number}`);
               await github.rest.pulls.update({
                 owner: context.repo.owner,
