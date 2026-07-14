@@ -4,7 +4,7 @@
 
 ## Overview
 
-The `stats` package provides `StatVar`, a compact accumulator for numeric metrics. It tracks count, sum, min, max, mean, variance, standard deviation, and median. Mean and variance are maintained with Welford's online algorithm, while exact median is computed from stored observations.
+The `stats` package provides `StatVar`, a compact accumulator for numeric metrics. It tracks count, min, max, mean, sample variance, sample standard deviation, and median. Mean and variance are maintained with Welford's online algorithm, while exact median is computed from stored observations.
 
 ## Public API
 
@@ -20,13 +20,10 @@ The `stats` package provides `StatVar`, a compact accumulator for numeric metric
 |--------|-----------|-------------|
 | `Add` | `func(v float64)` | Adds one observation |
 | `Count` | `func() int` | Returns the number of observations |
-| `Sum` | `func() float64` | Returns the arithmetic sum |
 | `Min` | `func() float64` | Returns the minimum observed value (or `0` if empty) |
 | `Max` | `func() float64` | Returns the maximum observed value (or `0` if empty) |
 | `Mean` | `func() float64` | Returns the arithmetic mean (or `0` if empty) |
-| `Variance` | `func() float64` | Returns population variance (`N` denominator) |
 | `SampleVariance` | `func() float64` | Returns sample variance (`N-1` denominator) |
-| `StdDev` | `func() float64` | Returns population standard deviation |
 | `SampleStdDev` | `func() float64` | Returns sample standard deviation |
 | `Median` | `func() float64` | Returns the exact median (middle value or midpoint of two middle values) |
 
@@ -41,7 +38,7 @@ s.Add(30)
 
 fmt.Println(s.Count())  // 3
 fmt.Println(s.Mean())   // 20
-fmt.Println(s.StdDev()) // 8.164965...
+fmt.Println(s.SampleStdDev()) // 10.0 (sample std dev)
 fmt.Println(s.Median()) // 20
 ```
 
@@ -57,6 +54,22 @@ fmt.Println(s.Median()) // 20
 ## Thread Safety
 
 `StatVar` is not concurrency-safe. Use external synchronization when a single instance is shared across goroutines.
+
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 1 |
+| Constants | 0 |
+| Variables | 0 |
+| Functions and methods | 8 |
+| Additional symbols documented in this appendix | 0 |
+
+The sections above already mention every exported top-level symbol in the current source tree.
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
 
 ---
 

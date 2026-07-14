@@ -141,6 +141,22 @@ All adaptive color variables, border variables, and style variables are re-decla
 
 All exported variables are package-level `lipgloss.Style` values initialized at program startup. They are safe to read concurrently. Creating derived styles via method chaining (e.g., `styles.Error.Copy().Underline(true)`) MUST be done per call site — `lipgloss.Style` values SHOULD NOT be mutated after initialization.
 
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 3 |
+| Constants | 0 |
+| Variables | 47 |
+| Functions and methods | 2 |
+| Additional symbols documented in this appendix | 0 |
+
+The sections above already mention every exported top-level symbol in the current source tree.
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
+
 ---
 
 *This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

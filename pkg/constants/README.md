@@ -550,6 +550,125 @@ dir := constants.GetWorkflowDir() // ".github/workflows"
 - `AgenticEngines` is deprecated in favour of `workflow.NewEngineCatalog(workflow.NewEngineRegistry()).IDs()` but is kept for backward compatibility.
 - `DefaultGitHubTools` is a deprecated compatibility alias for `DefaultGitHubToolsLocal`; `DefaultGitHubToolsLocal` and `DefaultGitHubToolsRemote` are currently identical and exist as separate names for future divergence.
 
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 14 |
+| Constants | 305 |
+| Variables | 23 |
+| Functions and methods | 14 |
+| Additional symbols documented in this appendix | 99 |
+
+### Additional constants and variables
+
+| File | Kind | Symbol | Declaration | Description |
+|------|------|--------|-------------|-------------|
+| `constants.go` | `const` | `AWFAuditDirExpr` | `const AWFAuditDirExpr = GhAwRootDir + "/sandbox/firewall/audit"` | AWFAuditDirExpr is the host-side AWF audit dir path resolved by Actions expression. |
+| `constants.go` | `const` | `AWFAuditDirShell` | `const AWFAuditDirShell = GhAwRootDirShell + "/sandbox/firewall/audit"` | AWFAuditDirShell is the host-side AWF audit dir path resolved by shell env expansion. |
+| `constants.go` | `const` | `AWFConfigFilePath` | `const AWFConfigFilePath = "/tmp/gh-aw/awf-config.json"` | AWFConfigFilePath is the path inside the /tmp/gh-aw tree where the AWF config file is copied so it can be included in the unified agent artifact. |
+| `constants.go` | `const` | `AWFConfigFilePathExpr` | `const AWFConfigFilePathExpr = GhAwRootDir + "/awf-config.json"` | AWFConfigFilePathExpr is the host-side AWF config path resolved by Actions expression. |
+| `constants.go` | `const` | `AWFNoProxyHosts` | `const AWFNoProxyHosts = "localhost,127.0.0.1," + "host.docker.internal," + "host.docker.internal:10000,…` | AWFNoProxyHosts is the value for the NO_PROXY and no_proxy environment variables in the AWF agent execution environment. |
+| `constants.go` | `const` | `AWFProxyLogsDirExpr` | `const AWFProxyLogsDirExpr = GhAwRootDir + "/sandbox/firewall/logs"` | AWFProxyLogsDirExpr is the host-side AWF proxy logs path resolved by Actions expression. |
+| `constants.go` | `const` | `AWFProxyLogsDirShell` | `const AWFProxyLogsDirShell = GhAwRootDirShell + "/sandbox/firewall/logs"` | AWFProxyLogsDirShell is the host-side AWF proxy logs path resolved by shell env expansion. |
+| `constants.go` | `const` | `AWFReflectFilePath` | `const AWFReflectFilePath = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json"` | AWFReflectFilePath is the path where the AWF API proxy /reflect response is persisted by the agent harness before exiting. |
+| `constants.go` | `const` | `AWFReflectFilePathExpr` | `const AWFReflectFilePathExpr = GhAwRootDir + "/sandbox/firewall/awf-reflect.json"` | AWFReflectFilePathExpr is the host-side AWF /reflect output path resolved by Actions expression. |
+| `constants.go` | `const` | `AgentStdioLogPath` | `const AgentStdioLogPath = TmpGhAwDir + "/agent-stdio.log"` | AgentStdioLogPath is the path for capturing agent standard I/O log output. |
+| `constants.go` | `const` | `AgentsDir` | `const AgentsDir = ".github/agents/"` | AgentsDir is the custom GitHub Copilot agent definitions directory (with trailing slash). |
+| `constants.go` | `const` | `AntigravityLLMGatewayPort` | `const AntigravityLLMGatewayPort = GeminiLLMGatewayPort` | AntigravityLLMGatewayPort is the port for the Antigravity LLM gateway. |
+| `constants.go` | `const` | `AwPromptsFile` | `const AwPromptsFile = TmpGhAwDir + "/aw-prompts/prompt.txt"` | AwPromptsFile is the runtime prompt file path populated by the setup action. |
+| `constants.go` | `const` | `AwPromptsFileShell` | `const AwPromptsFileShell = GhAwRootDirShell + "/aw-prompts/prompt.txt"` | AwPromptsFileShell is the runtime prompt file path in shell env-var form for host-side paths. |
+| `constants.go` | `const` | `BashCompletionDir` | `const BashCompletionDir = "/etc/bash_completion.d"` | BashCompletionDir is the system-wide bash completion directory. |
+| `constants.go` | `const` | `BashCompletionGhAwPath` | `const BashCompletionGhAwPath = BashCompletionDir + "/gh-aw"` | BashCompletionGhAwPath is the gh-aw bash completion file path. |
+| `constants.go` | `const` | `CodexMcpConfigTomlPath` | `const CodexMcpConfigTomlPath = GhAwRootDir + "/mcp-config/config.toml"` | CodexMcpConfigTomlPath is the Codex MCP config TOML file path in Actions expression form. |
+| `constants.go` | `const` | `CopilotBinaryPath` | `const CopilotBinaryPath = "/usr/local/bin/copilot"` | CopilotBinaryPath is the path to the Copilot CLI binary inside AWF containers. |
+| `constants.go` | `const` | `DefaultCopilotSDKPort` | `const DefaultCopilotSDKPort = 3002` | DefaultCopilotSDKPort is the default localhost port for the Copilot CLI HTTP server when running in headless SDK mode (copilot-sdk: true). |
+| `constants.go` | `const` | `DefaultDetectionMaxAICredits` | `const DefaultDetectionMaxAICredits int64 = 400` | DefaultDetectionMaxAICredits is the default AI Credits budget enforced by the AWF API proxy for threat-detection runs. |
+| `constants.go` | `const` | `DefaultGhAwNodeImage` | `const DefaultGhAwNodeImage = "ghcr.io/github/gh-aw-node"` | DefaultGhAwNodeImage is the published gh-aw Node container image used for JavaScript-based MCP servers that need Node. |
+| `constants.go` | `const` | `DefaultHTTPClientTimeout` | `const DefaultHTTPClientTimeout = 30 * time.Second` | DefaultHTTPClientTimeout is the default timeout for internal HTTP clients |
+| `constants.go` | `const` | `DefaultMaxAICredits` | `const DefaultMaxAICredits int64 = 1000` | DefaultMaxAICredits is the default AI Credits budget enforced by the AWF API proxy. |
+| `constants.go` | `const` | `DefaultMaxDailyAICredits` | `const DefaultMaxDailyAICredits = "5000"` | DefaultMaxDailyAICredits is the default per-workflow daily AI Credits guardrail. |
+| `constants.go` | `const` | `DefaultMaxRuns` | `const DefaultMaxRuns = 500` | DefaultMaxRuns is the default AWF invocation cap enforced by the AWF API proxy. |
+| `constants.go` | `const` | `DefaultMaxTurnCacheMisses` | `const DefaultMaxTurnCacheMisses = 5` | DefaultMaxTurnCacheMisses is the default AWF consecutive cache-miss guardrail. |
+| `constants.go` | `const` | `DefaultSafeOutputsMount` | `const DefaultSafeOutputsMount = GhAwRootDirShell + "/safeoutputs:" + GhAwRootDirShell + "/safeoutputs:rw"` | DefaultSafeOutputsMount is the mount path for safe-outputs runtime files (config. |
+| `constants.go` | `const` | `GhAwRootDirShellSlash` | `const GhAwRootDirShellSlash = GhAwRootDirShell + "/"` | GhAwRootDirShellSlash is GhAwRootDirShell with a trailing slash. |
+| `constants.go` | `const` | `GhAwRootDirSlash` | `const GhAwRootDirSlash = GhAwRootDir + "/"` | GhAwRootDirSlash is GhAwRootDir with a trailing slash (Actions expression form). |
+| `constants.go` | `const` | `GithubDir` | `const GithubDir = ".github/"` | GithubDir is the root . |
+| `constants.go` | `const` | `HomebrewPrefix` | `const HomebrewPrefix = "/opt/homebrew"` | HomebrewPrefix is the default Homebrew installation prefix on macOS. |
+| `constants.go` | `const` | `MCPSessionTimeoutMin` | `const MCPSessionTimeoutMin = 5 * time.Minute` | MCPSessionTimeoutMin is the minimum allowed value for engine. |
+| `constants.go` | `const` | `MCPToolTimeoutMax` | `const MCPToolTimeoutMax = 600 * time.Second` | MCPToolTimeoutMax is the maximum allowed value for engine. |
+| `constants.go` | `const` | `MCPToolTimeoutMin` | `const MCPToolTimeoutMin = 10 * time.Second` | MCPToolTimeoutMin is the minimum allowed value for engine. |
+| `constants.go` | `const` | `McpServersJsonPathExpr` | `const McpServersJsonPathExpr = GhAwRootDir + "/mcp-config/mcp-servers.json"` | McpServersJsonPathExpr is the MCP servers JSON config path in Actions expression form. |
+| `constants.go` | `const` | `OTELSentryEndpointSecretName` | `const OTELSentryEndpointSecretName = "GH_AW_OTEL_SENTRY_ENDPOINT"` | OTELSentryEndpointSecretName is the well-known secret name used by shared OTLP workflow imports for Sentry endpoint configuration. |
+| `constants.go` | `const` | `PreAgentAuditFilePath` | `const PreAgentAuditFilePath = "/tmp/gh-aw/pre-agent-audit.txt"` | PreAgentAuditFilePath is the path where the pre-agent workspace audit report is saved. |
+| `constants.go` | `const` | `ShellMcpConfigDir` | `const ShellMcpConfigDir = GhAwRootDirShell + "/mcp-config"` | ShellMcpConfigDir is the mcp-config directory in shell environment variable form. |
+| `constants.go` | `const` | `ShellMcpServersJsonPath` | `const ShellMcpServersJsonPath = GhAwRootDirShell + "/mcp-config/mcp-servers.json"` | ShellMcpServersJsonPath is the MCP servers JSON config file path in shell form. |
+| `constants.go` | `const` | `TmpAntigravityClientErrorGlob` | `const TmpAntigravityClientErrorGlob = TmpGhAwDir + "/antigravity-client-error-*.json"` | TmpAntigravityClientErrorGlob is the glob for Antigravity client error JSON diagnostic files. |
+| `constants.go` | `const` | `TmpAwBundleGlob` | `const TmpAwBundleGlob = TmpGhAwDir + "/aw-*.bundle"` | TmpAwBundleGlob is the glob pattern for bundle files produced by the agent. |
+| `constants.go` | `const` | `TmpAwMcpLogsDir` | `const TmpAwMcpLogsDir = TmpGhAwDir + "/aw-mcp/logs"` | TmpAwMcpLogsDir is the aw-mcp server logs directory. |
+| `constants.go` | `const` | `TmpAwPatchGlob` | `const TmpAwPatchGlob = TmpGhAwDir + "/aw-*.patch"` | TmpAwPatchGlob is the glob pattern for patch files produced by the agent. |
+| `constants.go` | `const` | `TmpCommentMemoryDir` | `const TmpCommentMemoryDir = TmpGhAwDir + "/comment-memory/"` | TmpCommentMemoryDir is the comment-memory data directory (with trailing slash). |
+| `constants.go` | `const` | `TmpDIFCProxyTLSCACert` | `const TmpDIFCProxyTLSCACert = TmpGhAwDir + "/difc-proxy-tls/ca.crt"` | TmpDIFCProxyTLSCACert is the DIFC proxy TLS CA certificate file path. |
+| `constants.go` | `const` | `TmpGeminiClientErrorGlob` | `const TmpGeminiClientErrorGlob = TmpGhAwDir + "/gemini-client-error-*.json"` | TmpGeminiClientErrorGlob is the glob for Gemini client error JSON diagnostic files. |
+| `constants.go` | `const` | `TmpGhAwAgentDir` | `const TmpGhAwAgentDir = TmpGhAwDir + "/agent/"` | TmpGhAwAgentDir is the agent working directory in the /tmp/gh-aw tree. |
+| `constants.go` | `const` | `TmpGhAwAssetsDir` | `const TmpGhAwAssetsDir = TmpGhAwDir + "/safeoutputs/assets"` | TmpGhAwAssetsDir is the directory the upload_assets job downloads the safe-outputs assets artifact into. |
+| `constants.go` | `const` | `TmpGhAwAssetsDirSlash` | `const TmpGhAwAssetsDirSlash = TmpGhAwAssetsDir + "/"` | TmpGhAwAssetsDirSlash is TmpGhAwAssetsDir with a trailing slash. |
+| `constants.go` | `const` | `TmpGhAwDir` | `const TmpGhAwDir = "/tmp/gh-aw"` | TmpGhAwDir is the root /tmp/gh-aw directory (without trailing slash). |
+| `constants.go` | `const` | `TmpGhAwDirSlash` | `const TmpGhAwDirSlash = TmpGhAwDir + "/"` | TmpGhAwDirSlash is TmpGhAwDir with a trailing slash. |
+| `constants.go` | `const` | `TmpMcpConfigDir` | `const TmpMcpConfigDir = TmpGhAwDir + "/mcp-config"` | TmpMcpConfigDir is the mcp-config directory in the /tmp/gh-aw tree. |
+| `constants.go` | `const` | `TmpMcpConfigLogsDir` | `const TmpMcpConfigLogsDir = TmpMcpConfigDir + "/logs/"` | TmpMcpConfigLogsDir is the MCP config server log directory. |
+| `constants.go` | `const` | `TmpMcpLogsDir` | `const TmpMcpLogsDir = TmpGhAwDir + "/mcp-logs/"` | TmpMcpLogsDir is the MCP server logs root directory (with trailing slash). |
+| `constants.go` | `const` | `TmpMcpLogsMount` | `const TmpMcpLogsMount = TmpGhAwDir + "/mcp-logs:" + TmpGhAwDir + "/mcp-logs"` | TmpMcpLogsMount is the Docker volume mount spec for the MCP logs directory. |
+| `constants.go` | `const` | `TmpMcpLogsPlaywrightDir` | `const TmpMcpLogsPlaywrightDir = TmpGhAwDir + "/mcp-logs/playwright"` | TmpMcpLogsPlaywrightDir is the Playwright MCP server log directory. |
+| `constants.go` | `const` | `TmpMcpLogsSafeOutputsDir` | `const TmpMcpLogsSafeOutputsDir = TmpGhAwDir + "/mcp-logs/safeoutputs"` | TmpMcpLogsSafeOutputsDir is the safe-outputs MCP server log directory. |
+| `constants.go` | `const` | `TmpMcpScriptsLogsDir` | `const TmpMcpScriptsLogsDir = TmpGhAwDir + "/mcp-scripts/logs/"` | TmpMcpScriptsLogsDir is the mcp-scripts server log directory (with trailing slash). |
+| `constants.go` | `const` | `TmpMcpServersJsonPath` | `const TmpMcpServersJsonPath = TmpMcpConfigDir + "/mcp-servers.json"` | TmpMcpServersJsonPath is the MCP servers JSON config file in the /tmp tree. |
+| `constants.go` | `const` | `TmpPiAgentDir` | `const TmpPiAgentDir = TmpGhAwDir + "/pi-agent-dir"` | TmpPiAgentDir is the Pi engine agent working directory. |
+| `constants.go` | `const` | `TmpProxyLogsDir` | `const TmpProxyLogsDir = TmpGhAwDir + "/proxy-logs/"` | TmpProxyLogsDir is the DIFC proxy logs directory (with trailing slash). |
+| `constants.go` | `const` | `TmpProxyTLSCACert` | `const TmpProxyTLSCACert = TmpGhAwDir + "/proxy-logs/proxy-tls/ca.crt"` | TmpProxyTLSCACert is the proxy TLS CA certificate file path. |
+| `constants.go` | `const` | `TmpProxyTLSDir` | `const TmpProxyTLSDir = TmpGhAwDir + "/proxy-logs/proxy-tls/"` | TmpProxyTLSDir is the proxy TLS certificates sub-directory (with trailing slash). |
+| `constants.go` | `const` | `TmpRepoMemoryDir` | `const TmpRepoMemoryDir = TmpGhAwDir + "/repo-memory/"` | TmpRepoMemoryDir is the repo-memory data directory (with trailing slash). |
+| `constants.go` | `const` | `TmpSandboxAgentLogsDir` | `const TmpSandboxAgentLogsDir = TmpGhAwDir + "/sandbox/agent/logs/"` | TmpSandboxAgentLogsDir is the sandbox agent logs directory (with trailing slash). |
+| `constants.go` | `const` | `UsrLocalPrefix` | `const UsrLocalPrefix = "/usr/local"` | UsrLocalPrefix is the standard /usr/local installation prefix. |
+| `constants.go` | `const` | `WorkflowsDir` | `const WorkflowsDir = ".github/workflows"` | WorkflowsDir is the GitHub Actions workflow directory path (without trailing slash). |
+| `constants.go` | `const` | `WorkflowsDirSlash` | `const WorkflowsDirSlash = WorkflowsDir + "/"` | WorkflowsDirSlash is WorkflowsDir with a trailing slash. |
+| `constants.go` | `const` | `WorkflowsLockYmlGitAttributesEntry` | `const WorkflowsLockYmlGitAttributesEntry = WorkflowsLockYmlGlob + " linguist-generated=true merge=ours"` | WorkflowsLockYmlGitAttributesEntry is the . |
+| `constants.go` | `const` | `WorkflowsLockYmlGlob` | `const WorkflowsLockYmlGlob = WorkflowsDirSlash + "*.lock.yml"` | WorkflowsLockYmlGlob is the glob pattern for compiled workflow lock YAML files. |
+| `engine_constants.go` | `const` | `AnthropicAPIKey` | `const AnthropicAPIKey = "ANTHROPIC_API_KEY"` | AnthropicAPIKey is the API key secret name required by the Claude engine. |
+| `engine_constants.go` | `const` | `AntigravityAPIKey` | `const AntigravityAPIKey = "ANTIGRAVITY_API_KEY"` | AntigravityAPIKey is the API key secret name required by the Antigravity engine. |
+| `engine_constants.go` | `const` | `AntigravityCLIModelEnvVar` | `const AntigravityCLIModelEnvVar = "ANTIGRAVITY_MODEL"` | AntigravityCLIModelEnvVar is the native environment variable name supported by the Antigravity CLI for selecting the model. |
+| `engine_constants.go` | `const` | `CodexAPIKey` | `const CodexAPIKey = "CODEX_API_KEY"` | CodexAPIKey is the API key secret name used by the Codex engine. |
+| `engine_constants.go` | `const` | `CodexDefaultModel` | `const CodexDefaultModel = "gpt-5.4"` | CodexDefaultModel is the default model for the Codex agentic engine. |
+| `engine_constants.go` | `const` | `CopilotBYOKDummyAPIKeyEnvVar` | `const CopilotBYOKDummyAPIKeyEnvVar = "COPILOT_DUMMY_BYOK"` | CopilotBYOKDummyAPIKeyEnvVar is the environment variable that holds the CopilotBYOKDummyAPIKey sentinel value in generated lock files. |
+| `engine_constants.go` | `const` | `CopilotCLIIntegrationIDValue` | `const CopilotCLIIntegrationIDValue = "agentic-workflows"` | CopilotCLIIntegrationIDValue is the value of the integration ID for agentic workflows. |
+| `engine_constants.go` | `const` | `CopilotGitHubToken` | `const CopilotGitHubToken = "COPILOT_GITHUB_TOKEN"` | CopilotGitHubToken is the GitHub token secret name required by the Copilot engine. |
+| `engine_constants.go` | `const` | `CopilotProviderAPIKey` | `const CopilotProviderAPIKey = "COPILOT_PROVIDER_API_KEY"` | CopilotProviderAPIKey (OPTIONAL) is the API key for authenticating to the external provider. |
+| `engine_constants.go` | `const` | `CopilotProviderBaseURL` | `const CopilotProviderBaseURL = "COPILOT_PROVIDER_BASE_URL"` | COPILOT_PROVIDER_* environment variables activate Bring Your Own Key (BYOK) mode, routing Copilot CLI requests to an external LLM provider instead of GitHub's routing. |
+| `engine_constants.go` | `const` | `CopilotProviderBearerToken` | `const CopilotProviderBearerToken = "COPILOT_PROVIDER_BEARER_TOKEN"` | CopilotProviderBearerToken (OPTIONAL) is an alternative to CopilotProviderAPIKey. |
+| `engine_constants.go` | `const` | `CopilotProviderWireAPI` | `const CopilotProviderWireAPI = "COPILOT_PROVIDER_WIRE_API"` | CopilotProviderWireAPI (OPTIONAL) selects the HTTP wire API used when talking to a BYOK provider. |
+| `engine_constants.go` | `const` | `CopilotSDKDriverEnvVar` | `const CopilotSDKDriverEnvVar = "GH_AW_COPILOT_SDK_DRIVER"` | CopilotSDKDriverEnvVar is set to "1" when the copilot_sdk_driver. |
+| `engine_constants.go` | `const` | `CopilotSDKServerArgsEnvVar` | `const CopilotSDKServerArgsEnvVar = "GH_AW_COPILOT_SDK_SERVER_ARGS"` | CopilotSDKServerArgsEnvVar is the environment variable that holds the JSON-encoded CLI argument array for the headless Copilot CLI sidecar started by copilot_harness. |
+| `engine_constants.go` | `const` | `CopilotSDKURIEnvVar` | `const CopilotSDKURIEnvVar = "COPILOT_SDK_URI"` | CopilotSDKURIEnvVar is the environment variable name for the Copilot SDK URI. |
+| `engine_constants.go` | `const` | `DefaultMaxToolDenials` | `const DefaultMaxToolDenials = 5` | DefaultMaxToolDenials is the default maximum number of repeated tool denials allowed in Copilot SDK mode before stopping inference. |
+| `engine_constants.go` | `const` | `EnvVarGitHubMCPServerToken` | `const EnvVarGitHubMCPServerToken = "GH_AW_GITHUB_MCP_SERVER_TOKEN"` | EnvVarGitHubMCPServerToken is the optional token for the GitHub MCP server. |
+| `engine_constants.go` | `const` | `EnvVarMaxToolDenials` | `const EnvVarMaxToolDenials = "GH_AW_MAX_TOOL_DENIALS"` | EnvVarMaxToolDenials is the maximum number of repeated tool denials allowed in Copilot SDK driver mode before inference is stopped. |
+| `engine_constants.go` | `const` | `EnvVarModelAgentAntigravity` | `const EnvVarModelAgentAntigravity = "GH_AW_MODEL_AGENT_ANTIGRAVITY"` | EnvVarModelAgentAntigravity configures the default Antigravity model for agent execution |
+| `engine_constants.go` | `const` | `EnvVarModelDetectionAntigravity` | `const EnvVarModelDetectionAntigravity = "GH_AW_MODEL_DETECTION_ANTIGRAVITY"` | EnvVarModelDetectionAntigravity configures the default Antigravity model for detection |
+| `engine_constants.go` | `const` | `GeminiAPIKey` | `const GeminiAPIKey = "GEMINI_API_KEY"` | GeminiAPIKey is the API key secret name required by the Gemini engine. |
+| `engine_constants.go` | `const` | `OpenAIAPIKey` | `const OpenAIAPIKey = "OPENAI_API_KEY"` | OpenAIAPIKey is the OpenAI API key secret name used by the Codex engine as an alternative. |
+| `job_constants.go` | `const` | `EvalsArtifactName` | `const EvalsArtifactName = "evals"` | EvalsArtifactName is the artifact name for the BinEval evaluation results. |
+| `job_constants.go` | `const` | `EvalsJobName` | `const EvalsJobName JobName = "evals"` | Exported constant declared in `job_constants.go`. |
+| `job_constants.go` | `const` | `EvalsResultFilename` | `const EvalsResultFilename = "evals.jsonl"` | EvalsResultFilename is the filename of the evaluation results JSONL file. |
+| `job_constants.go` | `const` | `PreActivationHyphenJobName` | `const PreActivationHyphenJobName JobName = "pre-activation"` | Exported constant declared in `job_constants.go`. |
+| `job_constants.go` | `const` | `SafeOutputsHyphenJobName` | `const SafeOutputsHyphenJobName JobName = "safe-outputs"` | Exported constant declared in `job_constants.go`. |
+| `engine_constants.go` | `var` | `EngineOptions` | `var EngineOptions = []EngineOption{ { Value: string(CopilotEngine), Label: "GitHub Copilot", Descri…` | EngineOptions provides the list of available AI engines for user selection. |
+| `job_constants.go` | `var` | `KnownBuiltInJobNames` | `var KnownBuiltInJobNames = map[string]struct{}{ string(AgentJobName): {}, string(ActivationJobName): {}, s…` | KnownBuiltInJobNames contains all known built-in workflow job names (including aliases). |
+
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
+
 ---
 
 *This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*
