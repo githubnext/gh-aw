@@ -328,7 +328,7 @@ func parseExperimentMetricEvalReference(metric string) (string, bool) {
 		return "", false
 	}
 	if rest, ok := strings.CutPrefix(trimmed, "eval:"); ok {
-		return rest, true
+		return strings.TrimSpace(rest), true
 	}
 	if rest, ok := strings.CutPrefix(trimmed, "evals."); ok {
 		rest = strings.TrimSpace(rest)

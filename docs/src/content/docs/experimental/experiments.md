@@ -54,6 +54,10 @@ on:
 
 engine: copilot
 
+evals:
+  - id: focused
+    question: Is the change focused and actionable?
+
 experiments:
   prompt_style:
     variants: [concise, detailed]

@@ -569,7 +569,7 @@ func TestValidateExperimentMetricReferences(t *testing.T) {
 			wantErr: "",
 		},
 		{
-			name: "eval reference rejected when eval id is missing",
+			name: "eval reference rejected when eval id is unknown",
 			configs: map[string]*ExperimentConfig{
 				"prompt_style": {Metric: "eval:builds"},
 			},
@@ -595,6 +595,16 @@ func TestValidateExperimentMetricReferences(t *testing.T) {
 				Questions: []EvalDefinition{{ID: "builds", Question: "Does it build?"}},
 			},
 			wantErr: "must include a non-empty eval id",
+		},
+		{
+			name: "eval colon metric trims whitespace from id",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {Metric: "eval: builds "},
+			},
+			evals: &EvalsConfig{
+				Questions: []EvalDefinition{{ID: "builds", Question: "Does it build?"}},
+			},
+			wantErr: "",
 		},
 	}
 
