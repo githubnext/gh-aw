@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      SCAN_ROOT: /tmp/gh-aw/sighthound/repo
     outputs:
       findings_detected: ${{ steps.scan.outputs.findings_detected }}
       findings_count: ${{ steps.scan.outputs.findings_count }}
@@ -35,6 +37,13 @@ jobs:
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           sighthound --help >/dev/null
 
+      - name: Prepare clean scan root
+        run: |
+          set -euo pipefail
+          rm -rf "$SCAN_ROOT"
+          mkdir -p "$SCAN_ROOT"
+          git archive --format=tar HEAD | tar -xf - -C "$SCAN_ROOT"
+
       - name: Run Sighthound scan
         id: scan
         run: |
@@ -44,7 +53,7 @@ jobs:
           mkdir -p "$RESULTS_DIR"
 
           set +e
-          sighthound --output-format json . > "$RESULTS_JSON"
+          sighthound --output-format json "$SCAN_ROOT" > "$RESULTS_JSON"
           SCAN_EXIT=$?
           set -e
 
@@ -54,6 +63,11 @@ jobs:
 
           FINDINGS_COUNT="$(jq 'if type=="array" then length else 0 end' "$RESULTS_JSON" 2>/dev/null || echo 0)"
           echo "findings_count=$FINDINGS_COUNT" >> "$GITHUB_OUTPUT"
+
+          if [ "$SCAN_EXIT" -ne 0 ] && [ "$FINDINGS_COUNT" -eq 0 ]; then
+            echo "::error::Sighthound failed with exit code $SCAN_EXIT before producing any findings."
+            exit "$SCAN_EXIT"
+          fi
 
           if [ "$FINDINGS_COUNT" -gt 0 ]; then
             echo "findings_detected=true" >> "$GITHUB_OUTPUT"
@@ -65,6 +79,7 @@ jobs:
             echo "# Sighthound scan summary"
             echo ""
             echo "- Exit code: $SCAN_EXIT"
+            echo "- Scan root: $SCAN_ROOT"
             echo "- Findings count: $FINDINGS_COUNT"
           } > "$RESULTS_DIR/summary.md"
 

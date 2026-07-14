@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+// @safe-outputs-exempt SEC-004 — validates issue field names only; never handles body content, so no sanitization applies.
 
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 
