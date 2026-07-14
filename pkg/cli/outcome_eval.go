@@ -2,7 +2,9 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -224,11 +226,34 @@ func ComputeOutcomeSummary(reports []OutcomeReport, mapping *github.ObjectiveMap
 	return s
 }
 
+// escapeOwnerRepo URL-path-encodes each component of an "owner/repo" string to
+// prevent path traversal when the value is interpolated into an API URL.
+func escapeOwnerRepo(ownerRepo string) string {
+	parts := strings.SplitN(ownerRepo, "/", 2)
+	if len(parts) == 2 {
+		return url.PathEscape(parts[0]) + "/" + url.PathEscape(parts[1])
+	}
+	return url.PathEscape(ownerRepo)
+}
+
+func validateAPIEndpoint(endpoint string) error {
+	if strings.HasPrefix(endpoint, "/") {
+		return errors.New("endpoint must not start with '/'")
+	}
+	if slices.Contains(strings.Split(endpoint, "/"), "..") {
+		return errors.New("endpoint must not contain '..' path segments")
+	}
+	return nil
+}
+
 // ghAPIGet calls the GitHub REST API via gh cli and returns the parsed JSON.
 func ghAPIGet(endpoint string, repo string) (map[string]any, error) {
+	if err := validateAPIEndpoint(endpoint); err != nil {
+		return nil, fmt.Errorf("invalid endpoint %q: %w", endpoint, err)
+	}
 	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
 	outcomeEvalLog.Printf("gh api GET: repo=%s, endpoint=%s, host=%q", ownerRepo, endpoint, host)
-	args := []string{"api", fmt.Sprintf("repos/%s/%s", ownerRepo, endpoint)}
+	args := []string{"api", fmt.Sprintf("repos/%s/%s", escapeOwnerRepo(ownerRepo), endpoint)}
 	var output []byte
 	var err error
 	if host != "" {
@@ -249,8 +274,11 @@ func ghAPIGet(endpoint string, repo string) (map[string]any, error) {
 
 // ghAPIGetArray calls the GitHub REST API and returns a JSON array.
 func ghAPIGetArray(endpoint string, repo string) ([]map[string]any, error) {
+	if err := validateAPIEndpoint(endpoint); err != nil {
+		return nil, fmt.Errorf("invalid endpoint %q: %w", endpoint, err)
+	}
 	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
-	args := []string{"api", fmt.Sprintf("repos/%s/%s", ownerRepo, endpoint)}
+	args := []string{"api", fmt.Sprintf("repos/%s/%s", escapeOwnerRepo(ownerRepo), endpoint)}
 	var output []byte
 	var err error
 	if host != "" {
