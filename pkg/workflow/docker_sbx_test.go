@@ -358,6 +358,8 @@ func TestDockerSbxEngineCLIWiring(t *testing.T) {
 	})
 }
 
+// flattenSteps joins a small slice of GitHubActionStep values so docker-sbx tests can
+// assert across multi-step install blocks without repeating nested loops in each case.
 func flattenSteps(steps []GitHubActionStep) []string {
 	var lines []string
 	for _, step := range steps {

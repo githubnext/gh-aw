@@ -635,6 +635,8 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 }
 
 func resolveAWFContainerAgentTimeoutMinutes(workflowData *WorkflowData) int {
+	// Reuse the workflow-level default timeout so docker-sbx inherits the same
+	// runtime ceiling when top-level timeout-minutes is omitted or non-numeric.
 	defaultTimeout := compilerenv.ResolveDefaultTimeoutMinutes(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
 	if workflowData == nil || workflowData.TimeoutMinutes == "" {
 		return defaultTimeout
@@ -651,7 +653,7 @@ func resolveAWFContainerAgentTimeoutMinutes(workflowData *WorkflowData) int {
 	}
 
 	if rawTimeout != "" {
-		awfConfigLog.Printf("Container section: non-numeric timeout-minutes %q cannot be mapped to agentTimeout; using default %d", rawTimeout, defaultTimeout)
+		awfConfigLog.Printf("Container section: non-numeric timeout-minutes %q (for example a GitHub Actions expression) cannot be emitted in integer-only agentTimeout; using default %d", rawTimeout, defaultTimeout)
 	}
 	return defaultTimeout
 }
