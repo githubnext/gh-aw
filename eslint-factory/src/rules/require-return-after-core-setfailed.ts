@@ -353,21 +353,21 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
       const ancestors = sourceCode.getAncestors(stmt);
       const continuation = findContinuationOutsideBlock(stmt, ancestors);
       if (continuation !== null && !isControlTransfer(continuation)) {
-      reportNested(stmt);
+        reportNested(stmt);
       }
     }
 
     function checkDirectControlBody(stmt: TSESTree.Statement | null): void {
       if (stmt !== null && stmt.type !== AST_NODE_TYPES.BlockStatement && isCoreSetFailedStatement(stmt)) {
-      checkNestedContinuation(stmt);
+        checkNestedContinuation(stmt);
       }
     }
 
     return {
       IfStatement(node: TSESTree.IfStatement) {
-      for (const branch of [node.consequent, node.alternate]) {
-        checkDirectControlBody(branch);
-      }
+        for (const branch of [node.consequent, node.alternate]) {
+          checkDirectControlBody(branch);
+        }
       },
       // Check statement blocks: if body, else body, while body, function body, etc.
       BlockStatement(node: TSESTree.BlockStatement) {

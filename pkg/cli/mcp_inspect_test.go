@@ -3,7 +3,7 @@
 package cli
 
 import (
-	"net/url"
+	"encoding/base64"
 	"strings"
 	"testing"
 
@@ -41,19 +41,19 @@ func TestMCPInspectClientImplementation_UsesCLIGetVersion(t *testing.T) {
 
 func TestMCPEmojiIconSource_ReturnsDataURI(t *testing.T) {
 	source := mcpEmojiIconSource("📊")
-	if !strings.HasPrefix(source, "data:image/svg+xml,") {
-		t.Fatalf("expected data URI source, got %q", source)
+	if !strings.HasPrefix(source, "data:image/svg+xml;base64,") {
+		t.Fatalf("expected base64 data URI source, got %q", source)
 	}
 
-	decoded, err := url.PathUnescape(strings.TrimPrefix(source, "data:image/svg+xml,"))
+	decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(source, "data:image/svg+xml;base64,"))
 	if err != nil {
-		t.Fatalf("failed to decode icon source: %v", err)
+		t.Fatalf("failed to base64-decode icon source: %v", err)
 	}
 
-	if !strings.Contains(decoded, "<svg") {
+	if !strings.Contains(string(decoded), "<svg") {
 		t.Fatalf("expected SVG payload, got %q", decoded)
 	}
-	if !strings.Contains(decoded, "📊") {
+	if !strings.Contains(string(decoded), "📊") {
 		t.Fatalf("expected original emoji in SVG payload, got %q", decoded)
 	}
 }
