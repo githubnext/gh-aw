@@ -406,7 +406,11 @@ func (e *BehaviorDefinedEngine) modelFlagFragment(exec *EngineExecutionDefinitio
 	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Model == "" {
 		return ""
 	}
-	return fmt.Sprintf(`%s "$%s"`, exec.ModelFlag, exec.ModelEnvVarName)
+	fragments := []string{fmt.Sprintf(`%s "$%s"`, exec.ModelFlag, exec.ModelEnvVarName)}
+	if exec.SmallModelFlag != "" {
+		fragments = append(fragments, fmt.Sprintf(`%s "$%s"`, exec.SmallModelFlag, exec.ModelEnvVarName))
+	}
+	return strings.Join(fragments, " ")
 }
 
 func (e *BehaviorDefinedEngine) mcpFlagFragment(exec *EngineExecutionDefinition, workflowData *WorkflowData) string {

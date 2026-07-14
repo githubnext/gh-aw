@@ -178,6 +178,7 @@ type EngineExecutionDefinition struct {
 	ModelEnvVarName        string   `yaml:"model-env-var,omitempty"`
 	ModelEnvProviderPrefix string   `yaml:"model-env-provider-prefix,omitempty"`
 	ModelFlag              string   `yaml:"model-flag,omitempty"`
+	SmallModelFlag         string   `yaml:"small-model-flag,omitempty"`
 	MCPConfigEnvVar        string   `yaml:"mcp-config-env-var,omitempty"`
 	MCPConfigFlag          string   `yaml:"mcp-config-flag,omitempty"`
 	WriteTimestamp         bool     `yaml:"write-timestamp,omitempty"`

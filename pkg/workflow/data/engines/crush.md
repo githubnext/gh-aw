@@ -38,6 +38,23 @@ engine:
             "edit": "allow",
             "bash": "allow",
             "external_directory": "allow"
+          },
+          "options": {
+            "disable_provider_auto_update": true
+          },
+          "providers": {
+            "anthropic": {
+              "api_key": "$ANTHROPIC_API_KEY",
+              "base_url": "$ANTHROPIC_BASE_URL"
+            },
+            "openai": {
+              "api_key": "$OPENAI_API_KEY",
+              "base_url": "$OPENAI_BASE_URL"
+            },
+            "copilot": {
+              "api_key": "$OPENAI_API_KEY",
+              "base_url": "$GITHUB_COPILOT_BASE_URL"
+            }
           }
         }
       merge-strategy: json-merge
@@ -49,6 +66,7 @@ engine:
       step-name: Execute Crush CLI
       model-env-var: CRUSH_MODEL
       model-flag: --model
+      small-model-flag: --small-model
       mcp-config-env-var: GH_AW_MCP_CONFIG
       write-timestamp: true
       provider-env-mode: universal-llm-consumer

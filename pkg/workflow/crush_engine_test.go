@@ -281,6 +281,7 @@ func TestCrushEngineExecution(t *testing.T) {
 		// Model is passed via the native CRUSH_MODEL env var and forwarded to crush run.
 		assert.Contains(t, stepContent, "CRUSH_MODEL: anthropic/claude-sonnet-4-20250514", "Should set CRUSH_MODEL env var")
 		assert.Contains(t, stepContent, `--model "$CRUSH_MODEL"`, "Should pass the configured model to crush run")
+		assert.Contains(t, stepContent, `--small-model "$CRUSH_MODEL"`, "Should pass the configured model to crush small-model selection too")
 	})
 
 	t.Run("without model no model env var", func(t *testing.T) {
@@ -295,6 +296,7 @@ func TestCrushEngineExecution(t *testing.T) {
 
 		assert.NotContains(t, stepContent, "CRUSH_MODEL", "Should not include CRUSH_MODEL when model is unconfigured")
 		assert.NotContains(t, stepContent, `--model "$CRUSH_MODEL"`, "Should not include a model flag when model is unconfigured")
+		assert.NotContains(t, stepContent, `--small-model "$CRUSH_MODEL"`, "Should not include a small-model flag when model is unconfigured")
 	})
 
 	t.Run("with MCP servers", func(t *testing.T) {
@@ -385,6 +387,14 @@ func TestCrushEngineExecution(t *testing.T) {
 		assert.Contains(t, configContent, ".crush.json", "Config step should reference .crush.json")
 		assert.Contains(t, configContent, `"permission"`, "Config step should use 'permission' (singular, not 'permissions')")
 		assert.Contains(t, configContent, `"external_directory": "allow"`, "Config step should allow external_directory for non-interactive CI")
+		assert.Contains(t, configContent, `"disable_provider_auto_update": true`, "Config step should disable provider auto-update in CI")
+		assert.Contains(t, configContent, `"anthropic": {`, "Config step should configure the anthropic provider")
+		assert.Contains(t, configContent, `"api_key": "$ANTHROPIC_API_KEY"`, "Config step should read the anthropic API key from env")
+		assert.Contains(t, configContent, `"base_url": "$ANTHROPIC_BASE_URL"`, "Config step should read the anthropic base URL from env")
+		assert.Contains(t, configContent, `"openai": {`, "Config step should configure the openai provider")
+		assert.Contains(t, configContent, `"base_url": "$OPENAI_BASE_URL"`, "Config step should read the openai base URL from env")
+		assert.Contains(t, configContent, `"copilot": {`, "Config step should configure the copilot provider")
+		assert.Contains(t, configContent, `"base_url": "$GITHUB_COPILOT_BASE_URL"`, "Config step should read the copilot base URL from env")
 		assert.NotContains(t, configContent, `"permissions"`, "Config step must NOT use 'permissions' (plural) — silently ignored by OpenCode)")
 		assert.Contains(t, execContent, "Execute Crush CLI", "Second step should be Execute Crush CLI")
 	})
