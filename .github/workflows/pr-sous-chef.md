@@ -85,7 +85,7 @@ steps:
           pr_list_ok=1
           break
         fi
-        if echo "$pr_list_error" | grep -qiE 'HTTP 50[234]|Bad Gateway|timeout|temporarily unavailable|EOF'; then
+        if echo "$pr_list_error" | grep -qiE 'HTTP 50[0234]|HTTP 429|Bad Gateway|timeout|temporarily unavailable|EOF'; then
           echo "Transient gh pr list failure on attempt $pr_list_attempt/$pr_list_retries; retrying: $pr_list_error" >&2
           if [ "$pr_list_attempt" -lt "$pr_list_retries" ]; then
             sleep "$pr_list_backoff_seconds"
@@ -103,8 +103,8 @@ steps:
       if [ "$pr_list_ok" -ne 1 ]; then
         jq -n '[]' > "$candidate_file"
       fi
-      if ! jq -e 'type == "array"' "$candidate_file" >/dev/null 2>&1; then
-        echo "gh pr list returned a non-array payload; continuing with empty queue" >&2
+      if ! jq -e 'type == "array" and all(.[]; (type == "object") and (.number != null) and (.title != null) and (.url != null))' "$candidate_file" >/dev/null 2>&1; then
+        echo "gh pr list returned an invalid payload; continuing with empty queue" >&2
         jq -n '[]' > "$candidate_file"
       fi
 
