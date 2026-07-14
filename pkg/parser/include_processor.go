@@ -239,6 +239,9 @@ func applyRelaxedIncludedFrontmatterValidation(filePath string, frontmatter map[
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(
 			fmt.Sprintf("Ignoring unexpected frontmatter fields in %s: %s",
 				filePath, strings.Join(unexpectedFields, ", "))))
+		for _, hint := range knownRenamedIncludedFieldHints(unexpectedFields) {
+			fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(hint))
+		}
 	}
 
 	filteredFrontmatter := filterIncludedFrontmatterForRelaxedValidation(frontmatter, isAgentFile)
@@ -248,6 +251,17 @@ func applyRelaxedIncludedFrontmatterValidation(filePath string, frontmatter map[
 				fmt.Sprintf("Invalid configuration in %s: %v", filePath, err)))
 		}
 	}
+}
+
+func knownRenamedIncludedFieldHints(unexpectedFields []string) []string {
+	var hints []string
+	for _, field := range unexpectedFields {
+		switch field {
+		case "safe-inputs":
+			hints = append(hints, "Detected renamed field 'safe-inputs' in imported frontmatter. Use 'mcp-scripts' instead (run `gh aw fix --write`).")
+		}
+	}
+	return hints
 }
 
 func collectUnexpectedIncludedFrontmatterFields(frontmatter map[string]any) []string {

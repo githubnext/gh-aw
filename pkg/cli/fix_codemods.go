@@ -77,6 +77,7 @@ func GetAllCodemods() []Codemod {
 		getTopLevelEnvSecretsGuidedErrorCodemod(),                  // Detect secrets in top-level env: and emit guided error
 		getAssignToAgentDefaultAgentCodemod(),                      // Rename deprecated default-agent to name in assign-to-agent
 		getPlaywrightDomainsToNetworkAllowedCodemod(),              // Migrate tools.playwright.allowed_domains to network.allowed
+		getPlaywrightMCPModeToCLICodemod(),                         // Migrate tools.playwright mode to explicit CLI mode
 		getExpiresIntegerToDayStringCodemod(),                      // Convert expires integer (days) to string with 'd' suffix
 		getGitHubAppCodemod(),                                      // Rename deprecated 'app' to 'github-app'
 		getGitHubAppClientIDCodemod(),                              // Rename deprecated github-app.app-id to github-app.client-id

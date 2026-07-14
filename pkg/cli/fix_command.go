@@ -151,6 +151,8 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 		return nil
 	}
 
+	files = expandFixTargetFilesWithImportedFragments(files, workflowDir, verbose)
+
 	// Load all codemods
 	codemods, err := GetCodemods(disabledCodemodIDs)
 	if err != nil {
@@ -286,6 +288,73 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 	}
 
 	return nil
+}
+
+func expandFixTargetFilesWithImportedFragments(files []string, workflowDir string, verbose bool) []string {
+	seen := make(map[string]struct{}, len(files))
+	expanded := make([]string, 0, len(files))
+
+	addFile := func(path string) {
+		cleanPath := filepath.Clean(path)
+		if _, exists := seen[cleanPath]; exists {
+			return
+		}
+		seen[cleanPath] = struct{}{}
+		expanded = append(expanded, cleanPath)
+	}
+
+	for _, file := range files {
+		addFile(file)
+	}
+
+	for _, file := range files {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			if verbose {
+				fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: failed to read imports from %s: %v", file, err)))
+			}
+			continue
+		}
+
+		result, err := parser.ExtractFrontmatterFromContent(string(content))
+		if err != nil {
+			continue
+		}
+
+		importsResult, err := parser.ProcessImportsFromFrontmatterWithSource(result.Frontmatter, workflowDir, nil, file, string(content))
+		if err != nil || importsResult == nil {
+			continue
+		}
+
+		for _, importedFile := range importsResult.ImportedFiles {
+			// normalizeWorkflowDependency strips section fragments (e.g. "shared.md#tools" -> "shared.md"),
+			// and may return an empty string for blank/whitespace entries. We also skip workflow-spec
+			// imports ("owner/repo/path@ref"), since they are remote references, not local rewrite targets.
+			normalizedImport := normalizeWorkflowDependency(importedFile)
+			if normalizedImport == "" || isWorkflowSpecFormat(normalizedImport) {
+				continue
+			}
+
+			if strings.HasPrefix(normalizedImport, parser.BuiltinPathPrefix) {
+				continue
+			}
+
+			importPath := filepath.FromSlash(strings.TrimPrefix(normalizedImport, "/"))
+			absolutePath := filepath.Clean(filepath.Join(workflowDir, importPath))
+			if !strings.EqualFold(filepath.Ext(absolutePath), ".md") {
+				continue
+			}
+			if !fileutil.FileExists(absolutePath) {
+				continue
+			}
+
+			addFile(absolutePath)
+		}
+	}
+
+	fixLog.Printf("Fix target files after import expansion: %d (initial: %d)", len(expanded), len(files))
+
+	return expanded
 }
 
 // workflowFixInfo tracks workflow files that need fixes

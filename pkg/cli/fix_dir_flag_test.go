@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestFixWithDirFlag tests the --dir flag functionality
@@ -188,4 +191,44 @@ timeout_minutes: 30
 	if !strings.Contains(string(updatedContent), "timeout-minutes: 30") {
 		t.Error("Expected file in default directory to be fixed")
 	}
+}
+
+func TestFixWithDirFlag_FixesImportedFragments(t *testing.T) {
+	tmpDir := t.TempDir()
+	customDir := filepath.Join(tmpDir, "custom-workflows")
+	sharedDir := filepath.Join(customDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+
+	mainWorkflow := `---
+on: workflow_dispatch
+imports:
+  - shared/go-make.md
+---
+# Main workflow
+`
+	mainPath := filepath.Join(customDir, "main.md")
+	require.NoError(t, os.WriteFile(mainPath, []byte(mainWorkflow), 0644))
+
+	sharedWorkflow := `---
+safe-inputs:
+  tools:
+    run:
+      description: Run command
+      run: make test
+---
+# shared`
+	sharedPath := filepath.Join(sharedDir, "go-make.md")
+	require.NoError(t, os.WriteFile(sharedPath, []byte(sharedWorkflow), 0644))
+
+	err := RunFix(FixConfig{
+		Write:              true,
+		WorkflowDir:        customDir,
+		DisabledCodemodIDs: []string{"timeout-minutes-migration"},
+	})
+	require.NoError(t, err)
+
+	updatedShared, err := os.ReadFile(sharedPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(updatedShared), "mcp-scripts:")
+	assert.NotContains(t, string(updatedShared), "safe-inputs:")
 }
