@@ -4,6 +4,7 @@ description: Repair safe Dependabot PR failures locally inside a product reposit
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  bots: ["dependabot[bot]"]
 timeout-minutes: 45
 
 permissions:
