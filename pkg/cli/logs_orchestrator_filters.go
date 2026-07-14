@@ -6,6 +6,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -134,7 +135,7 @@ func applyRunFilters(result DownloadResult, opts runFilterOpts, verbose bool) bo
 
 	// Apply evals filtering if --evals flag is specified.
 	if opts.evalsOnly {
-		if !runHasEvals(result.LogsPath, verbose) {
+		if !runHasEvals(result.LogsPath, verbose) && !ensureEvalsResultsFromBranch(context.Background(), result.Run, result.LogsPath, "", "", "", verbose) {
 			logsOrchestratorLog.Printf("Skipping run %d: no evals results found, filtered by --evals", result.Run.DatabaseID)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not have evals results (filtered by --evals)", result.Run.DatabaseID)))
