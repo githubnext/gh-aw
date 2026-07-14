@@ -157,8 +157,8 @@ jobs:
       - name: Check JSON formatting
         run: make fmt-check-json
 
-      - name: Validate models.json mirror consistency
-        run: make validate-models-json-sync
+      - name: Validate models.json mirror consistency and version claim
+        run: make validate-models-json-integrity
 
   artifact-integration:
     name: Artifact API Integration

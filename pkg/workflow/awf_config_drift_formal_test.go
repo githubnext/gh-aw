@@ -15,6 +15,7 @@ type FormalDriftRecord struct {
 	DriftCategory   string
 	SuggestedAction string
 	DetectedAt      string
+	WaiverRationale string
 }
 
 type formalEscalationIssue struct {
@@ -144,6 +145,7 @@ func TestFormal_P3_DriftRecordStructuralValidity(t *testing.T) {
 		DriftCategory:   "missing_in_ghaw",
 		SuggestedAction: "Add coverage",
 		DetectedAt:      "2026-06-08T00:00:00Z",
+		WaiverRationale: "Waiting for upstream schema release; escalation issue #12345",
 	}
 	invalid := FormalDriftRecord{
 		PropertyPath:    "apiProxy.anthropicAutoCache",

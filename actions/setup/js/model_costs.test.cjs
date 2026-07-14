@@ -176,6 +176,36 @@ describe("model_costs.cjs", () => {
     }
   });
 
+  it("applies cache-read deduction for azure-openai and azure_openai provider variants (§3.5)", async () => {
+    writeModelsFixture({
+      "github-copilot": {
+        models: {
+          "claude-sonnet-4.6": {
+            cost: {
+              input: "0.000003",
+              output: "0.000015",
+              cache_read: "0.0000003",
+            },
+          },
+        },
+      },
+    });
+
+    const { computeInferenceAIC } = await import("./model_costs.cjs");
+
+    for (const provider of ["azure-openai", "azure_openai"]) {
+      const aic = computeInferenceAIC({
+        provider,
+        model: "claude-sonnet-4.6",
+        inputTokens: 1000,
+        outputTokens: 200,
+        cacheReadTokens: 400,
+        cacheWriteTokens: 0,
+      });
+      expect(aic).toBeCloseTo(0.492, 6);
+    }
+  });
+
   it("clamps net input to 0 when cache_read exceeds input (§3.5 boundary)", async () => {
     writeModelsFixture({
       "github-copilot": {

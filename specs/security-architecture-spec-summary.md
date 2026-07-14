@@ -332,22 +332,13 @@ Summary version **1.0.0** corresponds to the minimum validated `.lock.yml` compi
 4. Adapt network isolation to platform capabilities
 5. Validate against compliance tests
 
-### Spec Maintenance Tasks
+### Forward-Looking Spec Roadmap
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Add job dependency diagram to Appendix A | ✅ Done (2026-05-10) | Added to `security-architecture-spec.md` Appendix A |
-| Add lock file validation checklist as Appendix G | ✅ Done (2026-05-10) | Added to `security-architecture-spec.md` as Appendix G; old Appendix G renamed to Appendix H |
-| Document the pre_activation pattern in Section 7.6 | ✅ Done (2026-05-10) | Added Section 7.6.1 "Pre-Activation Pattern" with normative requirements PM-10a through PM-10d |
-| Rerun validation report after Appendix A update | ✅ Done (2026-05-15) | Revalidated against `specs/security-architecture-spec-validation.md`; grade remains pass with job architecture, sanitization, permissions, and threat-detection mappings verified |
-| Update summary to reflect v1.0.2 CTR-012 work | ✅ Done (2026-05-10) | Appendix count updated; security architecture remains at version 1.0.0 |
-| Audit "Next Steps" for stale v1.0.0 tasks | ✅ Done (2026-05-10) | This table replaces the stale untracked list |
-| Add spec-to-lock sync note for security summary consumers | ✅ Done (2026-06-25) | Added "Spec-to-Lock Sync (v1.0.0)" section mapping summary version to validated `.lock.yml` behaviors |
-| Track pre_activation note from validation doc | ✅ Done (2026-07-06) | Added an explicit PM-11 note tying runtime membership validation to the separate `pre_activation` job in `specs/security-architecture-spec.md` |
-| Track detection job naming note from validation doc | ✅ Done (2026-07-06) | Appendix D now names the `detection` job explicitly as the runtime threat-detection layer |
-| Track conclusion job note from validation doc | ✅ Done (2026-07-06) | Documented the optional `conclusion` job as non-normative cleanup/reporting guidance |
-| Audit trusted-users runtime enforcement coverage | ✅ Done (2026-07-06) | Sections 8-9 now document runtime `trusted-users` enforcement scope directly in this spec summary (membership checks gate privileged runtime access) |
-| Add formal model and test suite for SG-01 through SG-07 | ✅ Done (2026-07-09) | Added "Formal Model" (TLA+/F*/Z3 invariants), "Behavioral Coverage Map" (15 predicates), and "Generated Test Suite" sections; 15 tests in `pkg/workflow/security_architecture_sg_formal_test.go` |
+The following improvements remain open and are prioritized for upcoming maintenance cycles:
+
+1. **Conformance class 3 expansion**: Add additional end-to-end compliance fixtures that assert SG-01 through SG-07 behavior on representative multi-agent workflows beyond the current formal predicate suite.
+2. **Behavioral Coverage Map enforcement in CI**: Add a dedicated gate that verifies SG-01 through SG-07 test function names in `pkg/workflow/security_architecture_sg_formal_test.go` stay aligned with the Behavioral Coverage Map entries in this summary.
+3. **AI agent identity mapping guidance**: Extend normative text and examples for mapping runtime agent identities across pre-activation, activation, and detection layers so implementations can audit identity propagation consistently.
 
 ## Versioning
 

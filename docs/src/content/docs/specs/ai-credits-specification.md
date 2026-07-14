@@ -8,6 +8,7 @@ sidebar:
 # AI Credits Specification
 
 **Version**: 1.4.0  
+**Catalog Version Claim**: 1.4.0  
 **Status**: Draft  
 **Publication Date**: 2026-06-09  
 **Editor**: GitHub Agentic Workflows Team  
@@ -171,6 +172,7 @@ A conforming catalog MUST be valid JSON with this structure:
 
 ```json
 {
+  "version": "1.4.0",
   "providers": {
     "provider-name": {
       "models": {
@@ -188,6 +190,8 @@ A conforming catalog MUST be valid JSON with this structure:
   }
 }
 ```
+
+The top-level `version` field is REQUIRED and MUST use semantic versioning.
 
 ### 4.2 Required and Optional Fields
 
@@ -253,6 +257,16 @@ A conforming implementation MUST define and enforce behavior for catalog synchro
 4. **Catalog version mismatch**: When the two required catalog paths (`pkg/cli/data/models.json` and `actions/setup/js/models.json`) diverge in content after a sync operation, the sync tooling/CI gate MUST treat this as a sync failure. The refresh operation MUST fail until consistency is restored. In the gh-aw repository:
    - CI MUST run `make validate-models-json-sync` (or an equivalent normalized-content comparison gate).
    - That gate MUST fail whenever these mirror files cease to represent the same JSON dataset.
+
+### 5.5 Catalog Version Claim Enforcement
+
+The catalog `version` in both required `models.json` files MUST match this specification's **Catalog Version Claim** metadata field.
+
+In the gh-aw repository:
+
+- CI MUST run `make validate-models-json-spec-version` (or an equivalent gate).
+- That gate MUST fail when either mirror omits `version`, when mirror versions differ, or when the mirror version differs from this spec's Catalog Version Claim.
+- Failure output MUST include a clear drift message showing expected and actual versions.
 
 ---
 

@@ -939,6 +939,40 @@ validate-models-json-sync:
 	}
 	@echo "✓ models.json mirrors are synchronized"
 
+.PHONY: validate-models-json-spec-version
+validate-models-json-spec-version:
+	@echo "Validating models.json catalog version claim..."
+	@set -e; \
+	command -v jq >/dev/null 2>&1 || { echo "jq is required for validate-models-json-spec-version"; exit 1; }; \
+	spec_version=$$(awk -F': ' '/^\*\*Catalog Version Claim\*\*: /{print $$2; exit}' docs/src/content/docs/specs/ai-credits-specification.md | tr -d '[:space:]'); \
+	[ -n "$$spec_version" ] || { \
+		echo "catalog version drift: missing '**Catalog Version Claim**' metadata in docs/src/content/docs/specs/ai-credits-specification.md"; \
+		exit 1; \
+	}; \
+	cli_version=$$(jq -r '.version // empty' pkg/cli/data/models.json); \
+	js_version=$$(jq -r '.version // empty' actions/setup/js/models.json); \
+	[ -n "$$cli_version" ] || { \
+		echo "catalog version drift: pkg/cli/data/models.json is missing top-level 'version'"; \
+		exit 1; \
+	}; \
+	[ -n "$$js_version" ] || { \
+		echo "catalog version drift: actions/setup/js/models.json is missing top-level 'version'"; \
+		exit 1; \
+	}; \
+	if [ "$$cli_version" != "$$js_version" ]; then \
+		echo "catalog version drift: mirror versions differ (pkg/cli/data/models.json=$$cli_version, actions/setup/js/models.json=$$js_version)"; \
+		exit 1; \
+	fi; \
+	if [ "$$spec_version" != "$$cli_version" ]; then \
+		echo "catalog version drift: spec Catalog Version Claim ($$spec_version) does not match models.json version ($$cli_version)"; \
+		echo "Update docs/src/content/docs/specs/ai-credits-specification.md metadata and both models.json mirrors together."; \
+		exit 1; \
+	fi
+	@echo "✓ models.json version matches AI Credits spec catalog version claim"
+
+.PHONY: validate-models-json-integrity
+validate-models-json-integrity: validate-models-json-sync validate-models-json-spec-version
+
 # Check file sizes and function counts
 .PHONY: check-file-sizes
 check-file-sizes:

@@ -32,6 +32,8 @@ func TestNormalizeProvider(t *testing.T) {
 		{"copilot", "github-copilot"},
 		{"github_models", "github-copilot"},
 		{"GITHUB_MODELS", "github-copilot"},
+		{"azure-openai", "azure-openai"},
+		{"azure_openai", "azure_openai"},
 		{"anthropic", "anthropic"},
 		{"openai", "openai"},
 		{"", ""},
@@ -98,6 +100,20 @@ func TestComputeModelInferenceAICGitHubCopilotNoCacheRead(t *testing.T) {
 	aicViaAnthropic := computeModelInferenceAIC("anthropic", "claude-sonnet-4.6", 1000, 200, 0, 0, 0)
 	assert.InDelta(t, aicViaAnthropic, aicViaGitHubCopilot, 1e-9,
 		"zero cache reads must not alter the charged input token count")
+}
+
+func TestComputeModelInferenceAICAzureOpenAICacheReadDeduction(t *testing.T) {
+	// §3.5 explicitly lists both azure-openai and azure_openai as bundled-input
+	// providers. Both variants MUST subtract cache_read_tokens from input_tokens.
+	const wantAIC = 0.492
+
+	for _, provider := range []string{"azure-openai", "azure_openai"} {
+		t.Run(provider, func(t *testing.T) {
+			aic := computeModelInferenceAIC(provider, "claude-sonnet-4.6", 1000, 200, 400, 0, 0)
+			assert.InDelta(t, wantAIC, aic, 1e-9,
+				"provider=%q: cache reads must not be double-charged (§3.5)", provider)
+		})
+	}
 }
 
 func TestFindOrFetchModelPricing_EmbeddedModelReturnsNil(t *testing.T) {

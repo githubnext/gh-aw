@@ -228,6 +228,10 @@ A `DriftRecord` represents a single detected schema drift item produced by the d
       "type": "string",
       "format": "date-time",
       "description": "ISO 8601 timestamp (UTC) when this drift item was first detected in the current run."
+    },
+    "waiver_rationale": {
+      "type": "string",
+      "description": "Optional explicit rationale for why remediation is waived for this drift item under CR-06."
     }
   },
   "additionalProperties": false
@@ -242,6 +246,7 @@ A `DriftRecord` represents a single detected schema drift item produced by the d
 | `drift_category` | `enum` | **MUST** | One of `missing_in_ghaw`, `missing_in_schema`, or `spec_mismatch` (see Section 6.2, Step 4) |
 | `suggested_action` | `string` | **MUST** | Actionable remediation text; **MUST NOT** be empty |
 | `detected_at` | `string` (ISO 8601) | **MUST** | UTC timestamp of detection; filesystem-safe format **SHOULD** use `YYYY-MM-DDTHH:MM:SSZ` |
+| `waiver_rationale` | `string` | MAY | Optional explicit CR-06 waiver rationale. When present, it SHOULD explain why remediation is deferred and include an owner/ETA link to escalation tracking |
 
 #### 6.5.3 Usage
 
@@ -255,7 +260,8 @@ The drift detection procedure (Section 6.2, Step 5) **MUST** produce a list of z
     "property_path": "apiProxy.anthropicAutoCache",
     "drift_category": "missing_in_ghaw",
     "suggested_action": "Add coverage for apiProxy.anthropicAutoCache in pkg/workflow/ and reconcile CLI mapping in docs/awf-config-spec.md.",
-    "detected_at": "2026-05-17T16:00:00Z"
+    "detected_at": "2026-05-17T16:00:00Z",
+    "waiver_rationale": "Temporarily waived pending upstream schema release; tracked in #12345 with owner @maintainer and ETA 2026-05-24."
   }
 ]
 ```
