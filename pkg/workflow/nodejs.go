@@ -237,8 +237,8 @@ func GetNpmBinPathSetup() string {
 }
 
 // GenerateDockerSbxNpmCLIInstallStep installs an npm CLI into a runner path that is
-// visible inside the docker-sbx microVM, then creates a stable bin/ symlink for the
-// engine command.
+// visible inside the docker-sbx microVM, then creates a stable bin/ symlink from
+// ${RUNNER_TEMP}/gh-aw/mcp-cli/bin/<command> to the package's node_modules/.bin entry.
 func GenerateDockerSbxNpmCLIInstallStep(packageName, version, stepName, commandName string, runInstallScripts bool, cooldownEnabled bool) GitHubActionStep {
 	ignoreScriptsFlag := "--ignore-scripts "
 	if runInstallScripts {

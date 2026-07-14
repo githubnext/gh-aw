@@ -653,7 +653,7 @@ func resolveAWFContainerAgentTimeoutMinutes(workflowData *WorkflowData) int {
 	}
 
 	if rawTimeout != "" {
-		awfConfigLog.Printf("Container section: non-numeric timeout-minutes %q (for example a GitHub Actions expression) cannot be emitted in integer-only agentTimeout; using default %d", rawTimeout, defaultTimeout)
+		awfConfigLog.Printf("Container section: non-numeric timeout-minutes %q (e.g. a GitHub Actions expression) cannot be emitted in integer-only agentTimeout; using default %d", rawTimeout, defaultTimeout)
 	}
 	return defaultTimeout
 }

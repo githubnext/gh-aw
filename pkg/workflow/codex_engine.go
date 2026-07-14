@@ -363,7 +363,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		if dockerSbxCLIPath := GetDockerSbxNpmCLIPathSetup(workflowData); dockerSbxCLIPath != "" {
 			codexCommandWithSetup = fmt.Sprintf("%s && %s", dockerSbxCLIPath, codexCommandWithSetup)
 		}
-		// Add MCP CLI bin directory to PATH when cli-proxy is enabled
+		// Add MCP CLI bin directory to PATH when cli-proxy is enabled. docker-sbx already
+		// prepends the same path above for the staged engine binary, so skip the duplicate.
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" && !isDockerSbxRuntime(workflowData) {
 			codexCommandWithSetup = fmt.Sprintf("%s && %s", mcpCLIPath, codexCommandWithSetup)
 		}

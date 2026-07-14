@@ -347,7 +347,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		if dockerSbxCLIPath := GetDockerSbxNpmCLIPathSetup(workflowData); dockerSbxCLIPath != "" {
 			claudeCommandWithPath = fmt.Sprintf("%s && %s", dockerSbxCLIPath, claudeCommandWithPath)
 		}
-		// Add MCP CLI bin directory to PATH when cli-proxy is enabled
+		// Add MCP CLI bin directory to PATH when cli-proxy is enabled. docker-sbx already
+		// prepends the same path above for the staged engine binary, so skip the duplicate.
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" && !isDockerSbxRuntime(workflowData) {
 			claudeCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, claudeCommandWithPath)
 		}
