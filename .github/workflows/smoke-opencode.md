@@ -20,7 +20,7 @@ permissions:
 name: Smoke OpenCode
 engine:
   id: opencode
-  model: copilot/gpt-5.5
+  model: copilot/gpt-4.1
 strict: true
 imports:
   - shared/gh.md
