@@ -26,6 +26,7 @@ describe("require-return-after-core-setfailed", () => {
         `switch (x) { case "a": core.setFailed("bad"); break; }`,
         // setFailed is the last statement in the block — no next statement to check
         `function f() { core.setFailed("bad"); }`,
+        `function f() { if (x) core.setFailed("bad"); }`,
         `function f() { if (x) { core.setFailed("bad"); } }`,
         // setFailed has a return inside the if-block; outer doMore() is not reached via setFailed path
         `function f() { if (x) { core.setFailed("bad"); return; } doMore(); }`,
@@ -183,6 +184,34 @@ doMore();`,
         {
           code: `function f() { if (x) { core.setFailed("bad"); } else { return; } doMore(); }`,
           errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { if (x) { core.setFailed("bad"); return; } else { return; } doMore(); }` }] }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: braceless control bodies with continuation", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `function f() { if (bad) core.setFailed("x"); doMore(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { if (bad) { core.setFailed("x"); return; } doMore(); }` }] }],
+        },
+        {
+          code: `function f() { if (bad) return; else core["setFailed"]("x"); doMore(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { if (bad) return; else { core["setFailed"]("x"); return; } doMore(); }` }] }],
+        },
+        {
+          code: `const c = core; function f() { if (bad) c.setFailed("x"); doMore(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `const c = core; function f() { if (bad) { c.setFailed("x"); return; } doMore(); }` }] }],
+        },
+        {
+          code: `const { setFailed } = core; function f() { for (const file of files) setFailed(file); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `const { setFailed } = core; function f() { for (const file of files) { setFailed(file); return; } }` }] }],
+        },
+        {
+          code: `function f() { for (const file of files) if (!ok(file)) core.setFailed(file); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { for (const file of files) if (!ok(file)) { core.setFailed(file); return; } }` }] }],
         },
       ],
     });

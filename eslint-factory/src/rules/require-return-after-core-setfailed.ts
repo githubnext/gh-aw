@@ -71,6 +71,12 @@ function isCallExpressionStatement(node: TSESTree.Statement): boolean {
   return node.type === AST_NODE_TYPES.ExpressionStatement && node.expression.type === AST_NODE_TYPES.CallExpression;
 }
 
+function isLoopStatement(node: TSESTree.Node): node is TSESTree.WhileStatement | TSESTree.DoWhileStatement | TSESTree.ForStatement | TSESTree.ForInStatement | TSESTree.ForOfStatement {
+  return (
+    node.type === AST_NODE_TYPES.WhileStatement || node.type === AST_NODE_TYPES.DoWhileStatement || node.type === AST_NODE_TYPES.ForStatement || node.type === AST_NODE_TYPES.ForInStatement || node.type === AST_NODE_TYPES.ForOfStatement
+  );
+}
+
 /**
  * When `core.setFailed()` is the last statement in a nested block, searches
  * ancestor statement lists for the first subsequent statement that would execute
@@ -294,6 +300,17 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
 
     // Used for cross-block fall-through: inserts return; after the setFailed node
     // inside its block rather than before a statement in an outer block.
+    function getDirectControlBodyContainer(node: TSESTree.Statement): TSESTree.IfStatement | TSESTree.WhileStatement | TSESTree.DoWhileStatement | TSESTree.ForStatement | TSESTree.ForInStatement | TSESTree.ForOfStatement | null {
+      const parent = node.parent;
+      if (parent?.type === AST_NODE_TYPES.IfStatement && (parent.consequent === node || parent.alternate === node)) {
+        return parent;
+      }
+      if (parent !== null && isLoopStatement(parent) && parent.body === node) {
+        return parent;
+      }
+      return null;
+    }
+
     function reportNested(node: TSESTree.Statement): void {
       context.report({
         node,
@@ -303,6 +320,11 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
               {
                 messageId: "addReturn",
                 fix(fixer) {
+                  const directControlBodyContainer = getDirectControlBodyContainer(node);
+                  if (directControlBodyContainer !== null) {
+                    return fixer.replaceText(node, `{ ${sourceCode.getText(node)} return; }`);
+                  }
+
                   const nextTokenOrComment = sourceCode.getTokenAfter(node, { includeComments: true });
                   const hasTrailingCommentOnSameLine =
                     nextTokenOrComment !== null && (nextTokenOrComment.type === AST_TOKEN_TYPES.Line || nextTokenOrComment.type === AST_TOKEN_TYPES.Block) && nextTokenOrComment.loc.start.line === node.loc.end.line;
@@ -327,7 +349,26 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
       });
     }
 
+    function checkNestedContinuation(stmt: TSESTree.Statement): void {
+      const ancestors = sourceCode.getAncestors(stmt);
+      const continuation = findContinuationOutsideBlock(stmt, ancestors);
+      if (continuation !== null && !isControlTransfer(continuation)) {
+      reportNested(stmt);
+      }
+    }
+
+    function checkDirectControlBody(stmt: TSESTree.Statement | null): void {
+      if (stmt !== null && stmt.type !== AST_NODE_TYPES.BlockStatement && isCoreSetFailedStatement(stmt)) {
+      checkNestedContinuation(stmt);
+      }
+    }
+
     return {
+      IfStatement(node: TSESTree.IfStatement) {
+      for (const branch of [node.consequent, node.alternate]) {
+        checkDirectControlBody(branch);
+      }
+      },
       // Check statement blocks: if body, else body, while body, function body, etc.
       BlockStatement(node: TSESTree.BlockStatement) {
         checkStatementList(node.body, isCoreSetFailedStatement, report);
@@ -337,17 +378,28 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
         // Example (invalid): if (x) { core.setFailed(...); }  doMore();
         const lastStmt = node.body[node.body.length - 1];
         if (lastStmt && isCoreSetFailedStatement(lastStmt)) {
-          const ancestors = sourceCode.getAncestors(lastStmt);
-          const continuation = findContinuationOutsideBlock(lastStmt, ancestors);
-          if (continuation !== null && !isControlTransfer(continuation)) {
-            reportNested(lastStmt);
-          }
+          checkNestedContinuation(lastStmt);
         }
+      },
+      DoWhileStatement(node: TSESTree.DoWhileStatement) {
+        checkDirectControlBody(node.body);
+      },
+      ForInStatement(node: TSESTree.ForInStatement) {
+        checkDirectControlBody(node.body);
+      },
+      ForOfStatement(node: TSESTree.ForOfStatement) {
+        checkDirectControlBody(node.body);
+      },
+      ForStatement(node: TSESTree.ForStatement) {
+        checkDirectControlBody(node.body);
       },
       // Handle single-statement arrow functions (no braces) — rare but safe to skip
       // The main case is BlockStatement above.
       SwitchCase(node: TSESTree.SwitchCase) {
         checkStatementList(node.consequent, isCoreSetFailedStatement, report);
+      },
+      WhileStatement(node: TSESTree.WhileStatement) {
+        checkDirectControlBody(node.body);
       },
       Program(node: TSESTree.Program) {
         checkStatementList(node.body.filter(isExecutableStatement), isCoreSetFailedStatement, report);
