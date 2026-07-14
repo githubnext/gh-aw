@@ -223,7 +223,7 @@ func buildFix(pass *analysis.Pass, call *ast.CallExpr, writerArg, sText string, 
 	// needs to be added.
 	qualifier := ioPkg
 	if file != nil {
-		if localName, imported := astutil.ImportedAs(file, ioPkg); imported {
+		if localName, imported := astutil.ImportedAs(file, pass.TypesInfo, ioPkg); imported {
 			// Dot-import or blank-import: can't safely qualify; skip fix.
 			if localName == "." || localName == "_" {
 				return nil
@@ -234,7 +234,7 @@ func buildFix(pass *analysis.Pass, call *ast.CallExpr, writerArg, sText string, 
 	}
 
 	// Skip the fix if the qualifier is shadowed by a local at the call site.
-	if astutil.QualifierShadowed(pass.Pkg, call.Pos(), qualifier) {
+	if astutil.QualifierShadowed(pass.Pkg, call.Pos(), qualifier, ioPkg) {
 		return nil
 	}
 

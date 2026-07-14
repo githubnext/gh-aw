@@ -128,7 +128,7 @@ func buildItoaFix(pass *analysis.Pass, call *ast.CallExpr, arg ast.Expr, seenImp
 	// when it needs to be added.
 	qualifier := strconvPkg
 	if file != nil {
-		if localName, imported := astutil.ImportedAs(file, strconvPkg); imported {
+		if localName, imported := astutil.ImportedAs(file, pass.TypesInfo, strconvPkg); imported {
 			// Dot-import or blank-import: can't safely qualify; skip fix.
 			if localName == "." || localName == "_" {
 				return nil
@@ -139,7 +139,7 @@ func buildItoaFix(pass *analysis.Pass, call *ast.CallExpr, arg ast.Expr, seenImp
 	}
 
 	// Skip the fix if the qualifier is shadowed by a local at the call site.
-	if astutil.QualifierShadowed(pass.Pkg, call.Pos(), qualifier) {
+	if astutil.QualifierShadowed(pass.Pkg, call.Pos(), qualifier, strconvPkg) {
 		return nil
 	}
 

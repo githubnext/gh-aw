@@ -129,7 +129,7 @@ func bytesQualifier(pass *analysis.Pass, pos token.Pos) (qualifier string, skipF
 
 	qualifier = bytesPkg
 	if file != nil {
-		if localName, imported := astutil.ImportedAs(file, bytesPkg); imported {
+		if localName, imported := astutil.ImportedAs(file, pass.TypesInfo, bytesPkg); imported {
 			if localName == "." || localName == "_" {
 				return "", true
 			}
@@ -138,7 +138,7 @@ func bytesQualifier(pass *analysis.Pass, pos token.Pos) (qualifier string, skipF
 		// Not imported yet: qualifier stays bytesPkg, import will be added.
 	}
 
-	if astutil.QualifierShadowed(pass.Pkg, pos, qualifier) {
+	if astutil.QualifierShadowed(pass.Pkg, pos, qualifier, bytesPkg) {
 		return "", true
 	}
 
