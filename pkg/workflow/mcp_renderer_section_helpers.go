@@ -46,6 +46,9 @@ func writeJSONStringMapEntriesRaw(yaml *strings.Builder, values map[string]strin
 	}
 }
 
+// writeJSONStringMapSectionWithEntries writes a JSON object section, delegating
+// per-entry serialisation to writeEntries.  writeEntries receives the builder,
+// the values map, and the child indent string (indent+"  ").
 func writeJSONStringMapSectionWithEntries(yaml *strings.Builder, indent, name string, values map[string]string, trailingComma bool, writeEntries func(*strings.Builder, map[string]string, string)) {
 	fmt.Fprintf(yaml, "%s\"%s\": {\n", indent, name)
 	writeEntries(yaml, values, indent+"  ")
