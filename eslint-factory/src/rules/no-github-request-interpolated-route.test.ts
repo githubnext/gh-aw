@@ -72,10 +72,21 @@ describe("no-github-request-interpolated-route", () => {
       valid: [
         // `this.github` is not resolved — `this` is not an Identifier
         "this.github.request(`GET /repos/${owner}/${repo}`, { owner, repo });",
-        // Variable indirection for the route argument is not resolved
-        "const route = `GET /repos/${owner}/${repo}`; github.request(route, { owner, repo });",
+        // Multi-hop route aliases are intentionally out of scope.
+        "const baseRoute = `GET /repos/${owner}/${repo}`; const route = baseRoute; github.request(route, { owner, repo });",
         `github.request("GET /repos/".concat(owner, "/", repo), { owner, repo });`,
         `github.request("GET /repos" + "/{owner}/{repo}", { owner, repo });`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("valid: single-hop const route alias to static routes is accepted", () => {
+    cjsRuleTester.run("no-github-request-interpolated-route", noGithubRequestInterpolatedRouteRule, {
+      valid: [
+        "const route = 'GET /repos/{owner}/{repo}'; github.request(route, { owner, repo });",
+        "const route = `GET /repos/{owner}/{repo}`; github.request(route, { owner, repo });",
+        "const route = 'GET /repos/' + '{owner}/{repo}'; github.request(route, { owner, repo });",
       ],
       invalid: [],
     });
@@ -263,6 +274,41 @@ describe("no-github-request-interpolated-route", () => {
             {
               messageId: "interpolatedRoute",
               data: { kind: "template literal with interpolations", client: "client" },
+            },
+          ],
+        },
+        {
+          code: "const gh = global.getOctokit(token); gh.request(`GET /repos/${owner}/${repo}`, { owner, repo });",
+          errors: [
+            {
+              messageId: "interpolatedRoute",
+              data: { kind: "template literal with interpolations", client: "gh" },
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: single-hop const route aliases with interpolation are flagged", () => {
+    cjsRuleTester.run("no-github-request-interpolated-route", noGithubRequestInterpolatedRouteRule, {
+      valid: [],
+      invalid: [
+        {
+          code: "const route = `GET /repos/${owner}/${repo}`; github.request(route, { owner, repo });",
+          errors: [
+            {
+              messageId: "interpolatedRoute",
+              data: { kind: "template literal with interpolations", client: "github" },
+            },
+          ],
+        },
+        {
+          code: "const route = 'GET /repos/' + owner + '/' + repo; github.request(route, { owner, repo });",
+          errors: [
+            {
+              messageId: "interpolatedRoute",
+              data: { kind: "string concatenation expression", client: "github" },
             },
           ],
         },

@@ -3,7 +3,7 @@ import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils"
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
 const OCTOKIT_CLIENT_NAMES = new Set(["github", "octokit", "githubClient", "octokitClient"]);
-const GET_OCTOKIT_MEMBER_OBJECT_NAMES = new Set(["github", "actions"]);
+const GET_OCTOKIT_MEMBER_OBJECT_NAMES = new Set(["github", "actions", "global"]);
 
 /**
  * Returns true when the node is a template literal that contains at least one
@@ -53,7 +53,7 @@ function isContextGithubExpression(node: TSESTree.Node): boolean {
  * Octokit client source without scope resolution. Recognizes:
  * - Direct known names: github, octokit, githubClient, octokitClient
  * - `getOctokit(...)` call results (bare or via known module objects, e.g.
- *   `github.getOctokit(...)` or `actions.getOctokit(...)`)
+ *   `github.getOctokit(...)`, `actions.getOctokit(...)`, `global.getOctokit(...)`)
  * - `context.github` member expression
  */
 function isOctokitSourceExpression(node: TSESTree.Node): boolean {
@@ -153,6 +153,37 @@ export const noGithubRequestInterpolatedRouteRule = createRule({
       return null;
     }
 
+    /**
+     * Resolves a route argument for one-hop const identifier aliases:
+     *   const route = `GET /repos/${owner}/${repo}`
+     *   github.request(route, ...)
+     */
+    function resolveRouteArgument(node: TSESTree.Node, scopeNode: TSESTree.Node): TSESTree.Node {
+      if (node.type !== AST_NODE_TYPES.Identifier) return node;
+
+      let scope: SourceCodeScope | null = sourceCode.getScope(scopeNode);
+      while (scope) {
+        const variable = scope.set.get(node.name);
+        if (variable && variable.defs.length > 0) {
+          let resolvedInit: TSESTree.Node | null = null;
+          for (const def of variable.defs) {
+            if (def.type !== "Variable") continue;
+            const declarator = def.node as TSESTree.VariableDeclarator;
+            const declaration = declarator.parent;
+            if (!declaration || declaration.type !== AST_NODE_TYPES.VariableDeclaration || declaration.kind !== "const") continue;
+            if (declarator.init) {
+              resolvedInit = declarator.init;
+              break;
+            }
+          }
+          return resolvedInit ?? node;
+        }
+        scope = scope.upper;
+      }
+
+      return node;
+    }
+
     return {
       CallExpression(node) {
         const callee = node.callee;
@@ -169,18 +200,20 @@ export const noGithubRequestInterpolatedRouteRule = createRule({
         const firstArg = node.arguments[0];
         if (!firstArg) return;
 
-        if (isInterpolatedTemplateLiteral(firstArg)) {
+        const resolvedRouteArg = resolveRouteArgument(firstArg, node);
+
+        if (isInterpolatedTemplateLiteral(resolvedRouteArg)) {
           context.report({
-            node: firstArg,
+            node: resolvedRouteArg,
             messageId: "interpolatedRoute",
             data: { kind: "template literal with interpolations", client: clientName },
           });
           return;
         }
 
-        if (isStringConcatenation(firstArg)) {
+        if (isStringConcatenation(resolvedRouteArg)) {
           context.report({
-            node: firstArg,
+            node: resolvedRouteArg,
             messageId: "interpolatedRoute",
             data: { kind: "string concatenation expression", client: clientName },
           });
