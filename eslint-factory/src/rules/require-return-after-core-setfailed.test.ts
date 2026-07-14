@@ -276,6 +276,39 @@ doMore();`,
     });
   });
 
+  it("valid: braceless if consequent with no continuation", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [
+        // No statement after the if — nothing to continue into
+        `function f() { if (bad) core.setFailed("x"); }`,
+        // Braced consequent with return, followed by doMore — already correctly valid
+        `function f() { if (bad) { core.setFailed("x"); return; } doMore(); }`,
+        // Braceless if at end of block — no continuation
+        `function f() { doSomething(); if (bad) core.setFailed("x"); }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: braceless if consequent followed by continuation", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `function f() { if (bad) core.setFailed("x"); doMore(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { if (bad) core.setFailed("x"); return; doMore(); }` }] }],
+        },
+        {
+          code: `function f() { if (bad) core.setFailed("a"); else core.setFailed("b"); doMore(); }`,
+          errors: [
+            { messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { if (bad) core.setFailed("a"); else core.setFailed("b"); return; doMore(); }` }] },
+            { messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { if (bad) core.setFailed("a"); else core.setFailed("b"); return; doMore(); }` }] },
+          ],
+        },
+      ],
+    });
+  });
+
   it("valid: locally-shadowed setFailed bindings are not flagged", () => {
     ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
       valid: [

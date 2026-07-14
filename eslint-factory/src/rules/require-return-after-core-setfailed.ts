@@ -327,6 +327,29 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
       });
     }
 
+    /**
+     * Checks a braceless (non-BlockStatement) consequent/alternate of an
+     * IfStatement, or the unbraced body of a loop, for a bare core.setFailed()
+     * call.  When found, searches the enclosing block for a continuation
+     * statement that would still execute after the setFailed (same logic as
+     * the BlockStatement cross-block fall-through check).
+     *
+     * Examples flagged:
+     *   if (bad) core.setFailed("x"); doMore();
+     *   if (bad) core.setFailed("a"); else core.setFailed("b"); doMore();
+     *   for (const f of files) if (!ok(f)) core.setFailed("bad " + f);
+     */
+    function checkBracelessBody(body: TSESTree.Statement | null): void {
+      if (!body || body.type === AST_NODE_TYPES.BlockStatement) return;
+      if (!isCoreSetFailedStatement(body)) return;
+
+      const ancestors = sourceCode.getAncestors(body);
+      const continuation = findContinuationOutsideBlock(body, ancestors);
+      if (continuation !== null && !isControlTransfer(continuation)) {
+        report(body, continuation);
+      }
+    }
+
     return {
       // Check statement blocks: if body, else body, while body, function body, etc.
       BlockStatement(node: TSESTree.BlockStatement) {
@@ -343,6 +366,15 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
             reportNested(lastStmt);
           }
         }
+      },
+      // Braceless if/else consequents — the gap documented in issue #45386.
+      // Example (invalid): if (bad) core.setFailed("x"); doMore();
+      // Braceless loop bodies are intentionally excluded: their back-edge semantics
+      // are handled by the existing BlockStatement cross-block fall-through check,
+      // and they require a different fix (break/continue inside the loop).
+      IfStatement(node: TSESTree.IfStatement) {
+        checkBracelessBody(node.consequent);
+        checkBracelessBody(node.alternate);
       },
       // Handle single-statement arrow functions (no braces) — rare but safe to skip
       // The main case is BlockStatement above.
