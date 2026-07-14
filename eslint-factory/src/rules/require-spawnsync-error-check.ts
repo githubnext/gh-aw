@@ -31,6 +31,10 @@ function isGuardingErrorUsage(node: TSESTree.Expression): boolean {
     }
 
     if (parent.type === AST_NODE_TYPES.LogicalExpression) {
+      // Guarding intent depends on how the full logical expression is used:
+      // climb through the left operand of either operator and the right operand of `||`,
+      // but reject the right operand of `&&` because it executes conditionally and
+      // does not establish an independent guard.
       if (parent.left === current || (parent.operator === "||" && parent.right === current)) {
         current = parent;
         continue;
@@ -69,8 +73,8 @@ function findVariableByName(sourceCode: Readonly<TSESLint.SourceCode>, node: TSE
   return undefined;
 }
 
-function isGuardingReferenceIdentifier(node: TSESTree.Identifier | TSESTree.JSXIdentifier): boolean {
-  return node.type === AST_NODE_TYPES.Identifier && isGuardingErrorUsage(node);
+function isErrorKey(node: TSESTree.PropertyName): boolean {
+  return (node.type === AST_NODE_TYPES.Identifier && node.name === "error") || (node.type === AST_NODE_TYPES.Literal && node.value === "error");
 }
 
 function getErrorBindingNames(node: TSESTree.ObjectPattern): string[] {
@@ -83,7 +87,7 @@ function getErrorBindingNames(node: TSESTree.ObjectPattern): string[] {
       continue;
     }
 
-    if ((property.key.type !== AST_NODE_TYPES.Identifier || property.key.name !== "error") && (property.key.type !== AST_NODE_TYPES.Literal || property.key.value !== "error")) {
+    if (!isErrorKey(property.key)) {
       continue;
     }
 
@@ -166,7 +170,7 @@ export const requireSpawnSyncErrorCheckRule = createRule({
           const hasGuardingErrorCheck = errorBindingNames.some(varName => {
             const variable = findVariableByName(sourceCode, node, varName);
             if (!variable) return false;
-            return variable.references.some(ref => isGuardingReferenceIdentifier(ref.identifier));
+            return variable.references.some(ref => ref.identifier.type === AST_NODE_TYPES.Identifier && isGuardingErrorUsage(ref.identifier));
           });
 
           if (!hasGuardingErrorCheck) {
