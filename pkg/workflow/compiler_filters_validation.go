@@ -90,7 +90,7 @@ func ValidateEventFilters(frontmatter map[string]any) error {
 
 // ValidatePushBranchScope ensures that any push event in the on: section specifies a
 // branch or tag ref filter. An unscoped push trigger fires on every push to every
-// branch, which causes unintended workflow fan-out on feature branches (the workflows
+// branch and tag, which causes unintended workflow fan-out on feature branches (the workflows
 // activate immediately after new lock files are first pushed to the branch, producing
 // zero-turn failures for every agentic workflow in the repository).
 func ValidatePushBranchScope(frontmatter map[string]any) error {
@@ -141,8 +141,8 @@ func newUnScopedPushError() *WorkflowValidationError {
 	return NewValidationError(
 		"on.push",
 		"push (no branch or tag filter)",
-		"push event must specify a 'branches', 'branches-ignore', 'tags', or 'tags-ignore' filter; an unscoped push trigger fires on every push to every branch and causes unintended workflow fan-out on feature branches",
-		"Add a branch or tag filter to the push trigger:\n\non:\n  push:\n    branches:\n      - main",
+		"push event must specify a 'branches', 'branches-ignore', 'tags', or 'tags-ignore' filter; an unscoped push trigger fires on every push to every branch and tag and causes unintended workflow fan-out on feature branches",
+		"Add a branch or tag filter to the push trigger:\n\non:\n  push:\n    branches:\n      - main\n\n# or for tag-based releases:\n\non:\n  push:\n    tags:\n      - 'v*.*.*'",
 	)
 }
 
