@@ -14,15 +14,6 @@ engine:
     manifest:
       files:
         - AGENTS.md
-    installation:
-      package-manager: uv
-      package-name: pydantic-ai[cli]
-      version: "0.0.67"
-      step-name: Install Pydantic AI
-      binary-name: pydantic-ai
-      verify-command: pydantic-ai --version
-      verify-step-name: Verify Pydantic AI installation
-      docs-url: https://ai.pydantic.dev/install/
     execution:
       command-name: pydantic-ai
       args:
@@ -35,4 +26,12 @@ engine:
 
 <!-- # Pydantic AI
 
-Shared engine configuration for Pydantic AI multi-provider coding agent (BYOK). -->
+Engine auth and execution configuration for Pydantic AI multi-provider coding agent (BYOK).
+
+Installation is handled by importing shared/pydantic-engine.md into your workflow:
+
+  imports:
+    - shared/pydantic-engine.md
+
+This file provides only the auth/execution behaviors. The shared workflow provides
+the uv/pydantic-ai installation steps. -->

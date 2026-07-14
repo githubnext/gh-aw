@@ -158,42 +158,30 @@ func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData)
 	}
 
 	install := behavior.Installation
+	if install.PackageManager != "npm" {
+		return nil
+	}
 	version := install.Version
 	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 		version = workflowData.EngineConfig.Version
 	}
 
-	switch install.PackageManager {
-	case "npm":
-		npmSteps := GenerateNpmInstallSteps(
-			install.PackageName,
-			version,
-			install.StepName,
-			install.BinaryName,
-			install.IncludeNodeSetup,
-			install.PostInstallScripts,
-			install.Cooldown,
-		)
-		if install.VerifyCommand != "" {
-			npmSteps = append(npmSteps, GitHubActionStep{
-				"      - name: " + install.VerifyStepName,
-				"        run: " + install.VerifyCommand,
-			})
-		}
-		return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
-	case "uv":
-		uvSteps := GenerateUvToolInstallSteps(
-			install.PackageName,
-			version,
-			install.StepName,
-			install.BinaryName,
-			install.VerifyCommand,
-			install.VerifyStepName,
-		)
-		return BuildUvEngineInstallStepsWithAWF(uvSteps, workflowData)
-	default:
-		return nil
+	npmSteps := GenerateNpmInstallSteps(
+		install.PackageName,
+		version,
+		install.StepName,
+		install.BinaryName,
+		install.IncludeNodeSetup,
+		install.PostInstallScripts,
+		install.Cooldown,
+	)
+	if install.VerifyCommand != "" {
+		npmSteps = append(npmSteps, GitHubActionStep{
+			"      - name: " + install.VerifyStepName,
+			"        run: " + install.VerifyCommand,
+		})
 	}
+	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 }
 
 func (e *BehaviorDefinedEngine) GetAgentManifestFiles() []string {

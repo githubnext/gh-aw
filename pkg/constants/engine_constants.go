@@ -133,7 +133,7 @@ var EngineOptions = []EngineOption{
 	{
 		Value:              string(PydanticEngine),
 		Label:              "Pydantic AI",
-		Description:        "Pydantic AI multi-provider coding agent (experimental, BYOK)",
+		Description:        "Pydantic AI multi-provider coding agent (experimental, BYOK); requires shared/pydantic-engine.md import for installation",
 		SecretName:         CopilotGitHubToken,
 		AlternativeSecrets: []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey},
 		KeyURL:             "https://github.com/settings/personal-access-tokens/new",

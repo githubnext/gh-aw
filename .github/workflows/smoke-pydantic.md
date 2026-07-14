@@ -1,7 +1,7 @@
 ---
 private: true
 emoji: "🐍"
-description: Smoke test workflow that validates Pydantic AI engine functionality
+description: Smoke test workflow that validates Pydantic AI engine via shared workflow setup
 on:
   slash_command:
     name: smoke-pydantic
@@ -23,6 +23,7 @@ engine:
   model: copilot/gpt-4o
 strict: true
 imports:
+  - shared/pydantic-engine.md
   - shared/gh.md
   - shared/reporting-otlp.md
   - shared/otlp.md
