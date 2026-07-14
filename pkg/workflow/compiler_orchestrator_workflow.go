@@ -550,6 +550,9 @@ func (c *Compiler) extractAdditionalConfigurations(
 		return fmt.Errorf("invalid evals configuration: %w", err)
 	}
 	workflowData.Evals = evalsConfig
+	if err := validateExperimentMetricReferences(workflowData.ExperimentConfigs, workflowData.Evals); err != nil {
+		return fmt.Errorf("invalid experiments configuration: %w", err)
+	}
 
 	return nil
 }
