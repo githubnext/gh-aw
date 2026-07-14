@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -56,21 +57,34 @@ With --completions flag:
 - Installs shell completion configuration for the CLI
 - Provides instructions for enabling completions in your shell
 
+With --repo flag:
+- Attaches to an existing repository or creates a new one (with --create)
+- Clones into --dir (default: ./<repo-name>) when the checkout does not exist
+- Validates that the local checkout matches the requested repository
+- Detects and re-applies initialization markers when missing
+- Supports --plan to preview actions, --yes to skip confirmation, and --json for structured output
+
 After running this command, you can:
 - Use GitHub Copilot Chat or coding agent tools with the agentic-workflows skill to get started with workflow tasks
 - The dispatcher skill will route your request to the appropriate specialized prompt
 - Add workflows from the catalog with: ` + string(constants.CLIExtensionPrefix) + ` add <workflow-name>
 - Create new workflows from scratch with: ` + string(constants.CLIExtensionPrefix) + ` new <workflow-name>`,
-		Example: `  ` + string(constants.CLIExtensionPrefix) + ` init                                # Initialize repository with defaults
-  ` + string(constants.CLIExtensionPrefix) + ` init -v                             # Initialize with verbose output
-  ` + string(constants.CLIExtensionPrefix) + ` init --engine claude                # Skip Copilot-specific artifacts
-  ` + string(constants.CLIExtensionPrefix) + ` init --no-mcp                       # Skip MCP configuration
-  ` + string(constants.CLIExtensionPrefix) + ` init --no-skill                     # Skip dispatcher skill creation
-  ` + string(constants.CLIExtensionPrefix) + ` init --no-agent                     # Skip custom agent creation
-  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces ""                # Configure Codespaces for current repo only
-  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces repo1,repo2       # Codespaces with additional repos
-  ` + string(constants.CLIExtensionPrefix) + ` init --completions                  # Install shell completions
-  ` + string(constants.CLIExtensionPrefix) + ` init --create-pull-request          # Initialize and create a pull request`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` init                                     # Initialize repository with defaults
+  ` + string(constants.CLIExtensionPrefix) + ` init -v                                  # Initialize with verbose output
+  ` + string(constants.CLIExtensionPrefix) + ` init --engine claude                     # Skip Copilot-specific artifacts
+  ` + string(constants.CLIExtensionPrefix) + ` init --no-mcp                            # Skip MCP configuration
+  ` + string(constants.CLIExtensionPrefix) + ` init --no-skill                          # Skip dispatcher skill creation
+  ` + string(constants.CLIExtensionPrefix) + ` init --no-agent                          # Skip custom agent creation
+  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces ""                     # Configure Codespaces for current repo only
+  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces repo1,repo2            # Codespaces with additional repos
+  ` + string(constants.CLIExtensionPrefix) + ` init --completions                       # Install shell completions
+  ` + string(constants.CLIExtensionPrefix) + ` init --create-pull-request               # Initialize and create a pull request
+  ` + string(constants.CLIExtensionPrefix) + ` init --repo myorg/myrepo                 # Attach to existing repo and run init
+  ` + string(constants.CLIExtensionPrefix) + ` init --repo myorg/myrepo --create        # Create repo and run init
+  ` + string(constants.CLIExtensionPrefix) + ` init --repo myorg/myrepo --create --private --dir ./myrepo  # Create private repo, clone into ./myrepo
+  ` + string(constants.CLIExtensionPrefix) + ` init --repo myorg/myrepo --plan          # Preview actions without mutating
+  ` + string(constants.CLIExtensionPrefix) + ` init --repo myorg/myrepo --yes           # Skip confirmation prompt
+  ` + string(constants.CLIExtensionPrefix) + ` init --repo myorg/myrepo --json          # Machine-readable JSON output`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcpFlag, _ := cmd.Flags().GetBool("mcp")
@@ -85,6 +99,16 @@ After running this command, you can:
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias // Support both --create-pull-request and --pr
 
+			// Repo setup flags
+			repoFlag, _ := cmd.Flags().GetString("repo")
+			dirFlag, _ := cmd.Flags().GetString("dir")
+			createFlag, _ := cmd.Flags().GetBool("create")
+			privateFlag, _ := cmd.Flags().GetBool("private")
+			planFlag, _ := cmd.Flags().GetBool("plan")
+			yesFlag, _ := cmd.Flags().GetBool("yes")
+			jsonFlag, _ := cmd.Flags().GetBool("json")
+			requireOwnerTypeStr, _ := cmd.Flags().GetString("require-owner-type")
+
 			if engineOverride != "" {
 				registry := workflow.GetGlobalEngineRegistry()
 				if !registry.IsValidEngine(engineOverride) {
@@ -92,6 +116,58 @@ After running this command, you can:
 					sort.Strings(supportedEngines)
 					return fmt.Errorf("invalid engine value '%s'. Must be one of: %s", engineOverride, strings.Join(supportedEngines, ", "))
 				}
+			}
+
+			// Validate --require-owner-type
+			if requireOwnerTypeStr != "" {
+				switch OwnerType(requireOwnerTypeStr) {
+				case OwnerTypeOrg, OwnerTypeUser, OwnerTypeAny:
+					// valid
+				default:
+					return fmt.Errorf("invalid --require-owner-type value %q: must be one of: org, user, any", requireOwnerTypeStr)
+				}
+			}
+
+			// --plan, --yes, --json, --dir, --create, --private, --require-owner-type
+			// only make sense together with --repo.
+			repoSetupFlagsUsed := planFlag || yesFlag || jsonFlag ||
+				cmd.Flags().Changed("dir") || createFlag || privateFlag ||
+				requireOwnerTypeStr != ""
+
+			if repoSetupFlagsUsed && repoFlag == "" {
+				return errors.New("--repo OWNER/REPO is required when using --plan, --yes, --json, --dir, --create, --private, or --require-owner-type")
+			}
+
+			// When --repo is provided, run the repo setup flow first.
+			if repoFlag != "" {
+				initCommandLog.Printf("Running repo setup for %s", repoFlag)
+				setupOpts := RepoSetupOptions{
+					Repo:             repoFlag,
+					Dir:              dirFlag,
+					Create:           createFlag,
+					Private:          privateFlag,
+					RequireOwnerType: OwnerType(requireOwnerTypeStr),
+					Plan:             planFlag,
+					Yes:              yesFlag,
+					JSON:             jsonFlag,
+					Verbose:          verbose,
+				}
+				result, err := PlanAndExecuteRepoSetup(setupOpts)
+				if err != nil {
+					initCommandLog.Printf("Repo setup failed: %v", err)
+					return err
+				}
+				// When --plan was requested we stop here — no further init steps.
+				if planFlag {
+					return nil
+				}
+				// If the result says the repo setup already handled initialization
+				// (including running InitRepository internally), we are done.
+				if result != nil && result.Status == RepoSetupStatusBlocked {
+					return nil
+				}
+				// Otherwise fall through to the normal InitRepository call below,
+				// which handles the in-directory initialization steps.
 			}
 
 			// Determine MCP state: default true, unless --no-mcp is specified
@@ -150,6 +226,16 @@ After running this command, you can:
 	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration (deprecated, MCP is enabled by default)")
 	// Hide the deprecated --mcp flag from help (kept for backward compatibility)
 	_ = cmd.Flags().MarkHidden("mcp")
+
+	// Repo setup flags
+	cmd.Flags().String("repo", "", "Repository to attach to or create (format: OWNER/REPO)")
+	cmd.Flags().String("dir", "", "Local directory for the checkout (default: ./<repo-name>)")
+	cmd.Flags().Bool("create", false, "Create the remote repository when it does not exist")
+	cmd.Flags().Bool("private", false, "Create the repository as private (only used with --create)")
+	cmd.Flags().Bool("plan", false, "Print planned actions without mutating anything")
+	cmd.Flags().BoolP("yes", "y", false, "Skip the confirmation prompt before mutations")
+	cmd.Flags().Bool("json", false, "Emit machine-readable JSON result to stdout")
+	cmd.Flags().String("require-owner-type", "", "Require owner to be a specific account type: org, user, or any (default: any)")
 
 	return cmd
 }
