@@ -56,7 +56,7 @@ engine:
                 "apiKey": "awf-copilot-proxy"
               },
               "models": {
-                "gpt-4.1": {}
+                "claude-sonnet-4.5": {}
               }
             }
           }
