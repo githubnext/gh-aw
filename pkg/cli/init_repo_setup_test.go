@@ -118,6 +118,7 @@ func TestClassifyDir_NotGit(t *testing.T) {
 }
 
 func TestClassifyDir_WrongRemote(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	// Init a git repo with a different remote
 	require.NoError(t, exec.Command("git", "init", dir).Run())
@@ -137,6 +138,7 @@ func TestClassifyDir_MatchClean(t *testing.T) {
 }
 
 func TestClassifyDir_MatchDirty(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, exec.Command("git", "init", dir).Run())
 	require.NoError(t, exec.Command("git", "-C", dir, "remote", "add", "origin", "https://github.com/myorg/myrepo.git").Run())
@@ -417,6 +419,7 @@ func TestOwnerTypeConstants(t *testing.T) {
 // ----------------------------------------------------------------------------
 
 func TestBuildPlan_RepoDoesNotExistWithCreate(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	// Dir doesn't exist → will be created via clone
 	targetDir := filepath.Join(dir, "newrepo")
@@ -447,6 +450,7 @@ func TestBuildPlan_RepoDoesNotExistWithCreate(t *testing.T) {
 }
 
 func TestBuildPlan_RepoExistsNeedClone(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	targetDir := filepath.Join(dir, "newrepo") // does not exist yet
 
@@ -468,6 +472,7 @@ func TestBuildPlan_RepoExistsNeedClone(t *testing.T) {
 }
 
 func TestBuildPlan_RepoExistsAlreadyInitialized(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	// Set up a git repo with the correct remote and init markers
 	require.NoError(t, exec.Command("git", "init", dir).Run())
@@ -506,6 +511,7 @@ func TestBuildPlan_RepoExistsAlreadyInitialized(t *testing.T) {
 }
 
 func TestBuildPlan_WrongRemoteReturnsError(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, exec.Command("git", "init", dir).Run())
 	require.NoError(t, exec.Command("git", "-C", dir, "remote", "add", "origin", "https://github.com/other/repo.git").Run())
@@ -519,6 +525,7 @@ func TestBuildPlan_WrongRemoteReturnsError(t *testing.T) {
 }
 
 func TestBuildPlan_DirtyDirNeedInit(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, exec.Command("git", "init", dir).Run())
 	require.NoError(t, exec.Command("git", "-C", dir, "remote", "add", "origin", "https://github.com/myorg/myrepo.git").Run())

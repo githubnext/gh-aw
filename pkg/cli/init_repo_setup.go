@@ -503,7 +503,7 @@ func resolveTargetDir(dir, repoName string) (string, error) {
 	return abs, nil
 }
 
-// classifyDir categorises the local directory relative to the expected repo.
+// classifyDir categorizes the local directory relative to the expected repo.
 func classifyDir(dir, repoSlug string) dirStateType {
 	info, err := os.Stat(dir)
 	if os.IsNotExist(err) {
