@@ -418,9 +418,7 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
         triedOwnerRepos.add(originalTarget.toLowerCase());
         const failureRepo = parseRepo(process.env.GH_AW_FAILURE_ISSUE_REPO || "");
         const workflowRepo = parseRepo(process.env.GITHUB_REPOSITORY || "");
-        const alt = [failureRepo, workflowRepo].find(
-          r => r !== null && !triedOwnerRepos.has(`${r.owner}/${r.repo}`.toLowerCase())
-        );
+        const alt = [failureRepo, workflowRepo].find(r => r !== null && !triedOwnerRepos.has(`${r.owner}/${r.repo}`.toLowerCase()));
 
         if (alt) {
           core.warning(`Issues are disabled in ${originalTarget}; retrying fallback issue creation in ${alt.owner}/${alt.repo}`);

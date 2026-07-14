@@ -3987,9 +3987,7 @@ describe("create_pull_request - fallback issue issues-disabled (410)", () => {
     process.env.GITHUB_REPOSITORY = "workflow-owner/workflow-repo";
     process.env.GH_AW_FAILURE_ISSUE_REPO = "  failure-owner/failure-repo  ";
     global.github.rest.pulls.create.mockRejectedValue(new Error("Some PR creation error"));
-    global.github.rest.issues.create
-      .mockRejectedValueOnce(createIssuesDisabledError())
-      .mockResolvedValue({ data: { number: 11, html_url: "https://github.com/failure-owner/failure-repo/issues/11" } });
+    global.github.rest.issues.create.mockRejectedValueOnce(createIssuesDisabledError()).mockResolvedValue({ data: { number: 11, html_url: "https://github.com/failure-owner/failure-repo/issues/11" } });
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ allow_empty: true });
