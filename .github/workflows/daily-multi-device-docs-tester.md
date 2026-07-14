@@ -72,6 +72,7 @@ network:
   allowed:
     - node
     - chrome
+    - playwright
 
 imports:
   - uses: shared/daily-audit-base.md
@@ -102,7 +103,7 @@ pre-agent-steps:
       PID_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.pid"
       cd "$EXPR_GITHUB_WORKSPACE/docs"
       npm run build
-      nohup npm run preview -- --host 0.0.0.0 --port 4321 > "$LOG_FILE" 2>&1 &
+      nohup npm run preview -- --host 127.0.0.1 --port 4321 > "$LOG_FILE" 2>&1 &
       PID=$!
       echo $PID > "$PID_FILE"
       echo "Server PID: $PID"
@@ -114,6 +115,23 @@ pre-agent-steps:
       PID_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.pid"
       LOG_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.log"
       MAX_WAIT=135  # Maximum 135 seconds wait time
+      WAITED=0
+      until (echo > /dev/tcp/127.0.0.1/4321) > /dev/null 2>&1; do
+        # Check if the server process has already died
+        if [ -f "$PID_FILE" ] && ! kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+          echo "::error::Documentation server process died before opening port 4321. Server log:"
+          cat "$LOG_FILE"
+          exit 1
+        fi
+        WAITED=$((WAITED + 3))
+        if [ $WAITED -ge $MAX_WAIT ]; then
+          echo "::error::Documentation server port 4321 did not open after ${MAX_WAIT}s. Server log:"
+          cat "$LOG_FILE"
+          exit 1
+        fi
+        echo "Waiting for docs port... ($WAITED/${MAX_WAIT}s)"
+        sleep 3
+      done
       WAITED=0
       until curl -sf http://localhost:4321/gh-aw/ > /dev/null 2>&1; do
         # Check if the server process has already died
@@ -188,6 +206,7 @@ Playwright is pre-installed as `@playwright/cli`. Use `playwright-cli <command>`
 
 - ✅ **Correct**: `playwright-cli browser_navigate --url "http://localhost:4321/gh-aw/"`
 - ✅ **Correct**: Use `playwright-cli browser_run_code --code "async (page) => { ... }"` for custom Playwright code
+- ❌ **Incorrect**: Do NOT use `playwright-cli open` in this workflow (it is less reliable in CI than explicit `browser_*` commands)
 - ❌ **Incorrect**: Do NOT try to `require('playwright')` or create standalone Node.js scripts
 - ❌ **Incorrect**: Do NOT use `mcp__playwright__*` tool names — those are the deprecated MCP mode
 

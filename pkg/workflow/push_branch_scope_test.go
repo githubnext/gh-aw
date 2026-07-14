@@ -14,7 +14,7 @@ import (
 )
 
 // TestPushBranchScopeStrictVsNonStrict verifies that an unscoped push trigger
-// (missing branches/branches-ignore) is an error in strict mode and a warning in non-strict mode.
+// (missing branch/tag ref filters) is an error in strict mode and a warning in non-strict mode.
 func TestPushBranchScopeStrictVsNonStrict(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -63,6 +63,21 @@ on:
   push:
     branches:
       - main
+---
+
+# Test Workflow
+`,
+			expectError:   false,
+			expectWarning: false,
+		},
+		{
+			name: "scoped push with tags in strict mode is allowed",
+			content: `---
+name: Tag Scoped Push Strict
+on:
+  push:
+    tags:
+      - 'v*.*.*'
 ---
 
 # Test Workflow

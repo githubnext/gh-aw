@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"encoding/json"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -621,9 +622,11 @@ func parseDurationString(s string) time.Duration {
 	return d
 }
 
-// extractPreAgentStepErrors scans workflow step log files for failure content when the
-// agent never executed (no agent-stdio.log present). This surfaces errors from pre-agent
-// steps such as lockdown validation, binary installation, or repository checkout failures.
+// extractPreAgentStepErrors scans workflow step log files for actionable failure content.
+// It always prefers GitHub Actions ##[error] annotations from step logs. When no
+// annotations are found and the agent did not execute, it falls back to the final
+// step log content. When the agent did execute, it falls back to a short excerpt from
+// agent-stdio.log so failed runs still surface concrete diagnostics.
 //
 // Step log files are stored in workflow-logs/{job}/{step_num}_{step_name}.txt after
 // downloading via downloadWorkflowRunLogs. The function first scans all step logs for
@@ -631,17 +634,25 @@ func parseDurationString(s string) time.Duration {
 // failure indicators. If none are found, it falls back to the content of the last step
 // (highest step number) as a general failure indicator.
 func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
-	// If agent-stdio.log exists, the agent ran - don't scan step logs
 	agentStdioPath := filepath.Join(logsPath, "agent-stdio.log")
-	if fileutil.FileExists(agentStdioPath) {
-		auditReportLog.Printf("agent-stdio.log found, skipping pre-agent step error extraction")
-		return nil
-	}
+	agentRan := fileutil.FileExists(agentStdioPath)
+
+	const maxMessageLen = 1500
 
 	// Look for step log files in workflow-logs subdirectory
 	workflowLogsDir := filepath.Join(logsPath, "workflow-logs")
 	if _, err := os.Stat(workflowLogsDir); err != nil {
 		auditReportLog.Printf("workflow-logs directory not found, skipping step log extraction")
+		// Even without workflow-logs, fall back to agent-stdio.log if the agent ran.
+		if agentRan {
+			if agentExcerpt := extractAgentStdioFailureExcerpt(agentStdioPath, maxMessageLen); agentExcerpt != "" {
+				return []ErrorInfo{{
+					Type:    "agent_failure",
+					File:    "agent-stdio.log",
+					Message: agentExcerpt,
+				}}
+			}
+		}
 		return nil
 	}
 
@@ -653,8 +664,6 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 		num     int
 		stepKey string // job/step_name for display
 	}
-
-	const maxMessageLen = 1500
 
 	var lastStep *stepLog
 	var errorAnnotations []ErrorInfo
@@ -776,6 +785,19 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 		return errorAnnotations
 	}
 
+	// If the agent executed but no ##[error] annotations were present in workflow-logs,
+	// extract a concise excerpt from agent-stdio.log instead of returning a generic message.
+	if agentRan {
+		if agentExcerpt := extractAgentStdioFailureExcerpt(agentStdioPath, maxMessageLen); agentExcerpt != "" {
+			return []ErrorInfo{{
+				Type:    "agent_failure",
+				File:    "agent-stdio.log",
+				Message: agentExcerpt,
+			}}
+		}
+		return nil
+	}
+
 	// Fallback: return the content of the last step that ran
 	if lastStep == nil {
 		auditReportLog.Printf("No step log files found in %s", workflowLogsDir)
@@ -801,6 +823,70 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 		File:    lastStep.stepKey,
 		Message: message,
 	}}
+}
+
+func extractAgentStdioFailureExcerpt(agentStdioPath string, maxMessageLen int) string {
+	f, err := os.Open(agentStdioPath)
+	if err != nil {
+		auditReportLog.Printf("Failed to read %s: %v", agentStdioPath, err)
+		return ""
+	}
+	defer f.Close()
+
+	// Read only the tail of the file to bound memory use for large logs.
+	const maxReadBytes int64 = 64 * 1024 // 64 KB tail window
+
+	fi, err := f.Stat()
+	if err != nil {
+		auditReportLog.Printf("Failed to stat %s: %v", agentStdioPath, err)
+		return ""
+	}
+	if fi.Size() > maxReadBytes {
+		if _, err := f.Seek(-maxReadBytes, io.SeekEnd); err != nil {
+			auditReportLog.Printf("Failed to seek in %s: %v", agentStdioPath, err)
+			return ""
+		}
+	}
+
+	tail, err := io.ReadAll(f)
+	if err != nil {
+		auditReportLog.Printf("Failed to read %s: %v", agentStdioPath, err)
+		return ""
+	}
+
+	lines := strings.Split(stripGHALogTimestamps(string(tail)), "\n")
+	nonEmpty := make([]string, 0, len(lines))
+	errorLike := make([]string, 0, len(lines))
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		nonEmpty = append(nonEmpty, trimmed)
+
+		lower := strings.ToLower(trimmed)
+		if strings.Contains(lower, "##[error]") ||
+			strings.HasPrefix(lower, "error:") ||
+			strings.HasPrefix(lower, "fatal:") ||
+			strings.HasPrefix(lower, "panic:") {
+			errorLike = append(errorLike, trimmed)
+		}
+	}
+
+	if len(errorLike) > 0 {
+		const maxErrorLines = 5
+		start := max(0, len(errorLike)-maxErrorLines)
+		return stringutil.Truncate(strings.Join(errorLike[start:], "\n"), maxMessageLen)
+	}
+
+	if len(nonEmpty) == 0 {
+		return ""
+	}
+
+	const maxTailLines = 10
+	start := max(0, len(nonEmpty)-maxTailLines)
+	return stringutil.Truncate(strings.Join(nonEmpty[start:], "\n"), maxMessageLen)
 }
 
 // parseStepFilename extracts the step number and name from a GitHub Actions step log

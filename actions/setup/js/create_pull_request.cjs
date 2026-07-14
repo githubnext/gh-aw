@@ -363,7 +363,7 @@ async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi) {
  * @param {string} body - Issue body
  * @param {string[]} labels - Issue labels
  * @param {string[] | null} assignees - Sanitized assignees (null = omit field)
- * @returns {Promise<any>}
+ * @returns {Promise<{data: any, issueRepoParts: {owner: string, repo: string}}>}
  */
 async function createFallbackIssue(githubClient, repoParts, title, body, labels, assignees) {
   const payload = {
@@ -375,29 +375,66 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
     ...(assignees && assignees.length > 0 && { assignees }),
   };
 
-  return withRetry(
-    async () => {
-      try {
-        return await githubClient.rest.issues.create(payload);
-      } catch (error) {
-        const status = typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
-        const message = getErrorMessage(error).toLowerCase();
-        const isAssigneeError = status === 422 && (message.includes("assignee") || message.includes("assignees") || message.includes("unprocessable"));
-        if (isAssigneeError && payload.assignees && payload.assignees.length > 0) {
-          const removedAssignees = payload.assignees.join(", ");
-          core.warning(`Fallback issue creation failed due to assignee error, retrying without assignees: ${getErrorMessage(error)}`);
-          // Mutate payload in-place so that any subsequent withRetry attempts also
-          // omit assignees and do not re-trigger the same 422 path.
-          delete payload.assignees;
-          payload.body = `${payload.body}\n\n> [!NOTE]\n> Assignees (${removedAssignees}) could not be set on this issue due to an API error.`;
-          return await githubClient.rest.issues.create(payload);
-        }
-        throw error;
+  const parseRepo = slug => {
+    const s = (slug || "").trim();
+    if (!s.includes("/")) return null;
+    const [owner, repo] = s.split("/");
+    return owner && repo ? { owner, repo } : null;
+  };
+
+  // innerCreate is called recursively so that both the 422-assignee and 410-redirect
+  // paths go through the full recovery loop. This ensures, for example, that a 422
+  // in the alternate repo (after a 410 redirect) is still handled by the assignee guard.
+  // triedOwnerRepos is declared here (inside createFallbackIssue) so each call to the
+  // function gets its own fresh Set. It is intentionally shared across withRetry
+  // attempts within the same call so that repos that already returned 410 are not
+  // retried again after a transient error (e.g. rate limit) on a subsequent candidate.
+  const triedOwnerRepos = new Set();
+  const innerCreate = async () => {
+    try {
+      const response = await githubClient.rest.issues.create(payload);
+      return { ...response, issueRepoParts: { owner: payload.owner, repo: payload.repo } };
+    } catch (error) {
+      const status = typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
+      const message = getErrorMessage(error).toLowerCase();
+      const isAssigneeError = status === 422 && (message.includes("assignee") || message.includes("assignees") || message.includes("unprocessable"));
+      if (isAssigneeError && payload.assignees && payload.assignees.length > 0) {
+        const removedAssignees = payload.assignees.join(", ");
+        core.warning(`Fallback issue creation failed due to assignee error, retrying without assignees: ${getErrorMessage(error)}`);
+        // Mutate payload in-place so that any subsequent withRetry attempts also
+        // omit assignees and do not re-trigger the same 422 path.
+        delete payload.assignees;
+        payload.body = `${payload.body}\n\n> [!NOTE]\n> Assignees (${removedAssignees}) could not be set on this issue due to an API error.`;
+        return await innerCreate();
       }
-    },
-    RATE_LIMIT_RETRY_CONFIG,
-    `create fallback issue in ${repoParts.owner}/${repoParts.repo}`
-  );
+
+      // Handle issues-disabled (410 Gone) by redirecting to an alternative repo.
+      // Priority: GH_AW_FAILURE_ISSUE_REPO → GITHUB_REPOSITORY. Pick the first candidate
+      // that has not already been attempted (tracked via triedOwnerRepos) to prevent
+      // infinite back-and-forth when multiple candidates also have issues disabled.
+      // Mutate payload in-place so any subsequent attempts use the new target.
+      if (status === 410) {
+        const originalTarget = `${payload.owner}/${payload.repo}`;
+        triedOwnerRepos.add(originalTarget.toLowerCase());
+        const failureRepo = parseRepo(process.env.GH_AW_FAILURE_ISSUE_REPO || "");
+        const workflowRepo = parseRepo(process.env.GITHUB_REPOSITORY || "");
+        const alt = [failureRepo, workflowRepo].find(r => r !== null && !triedOwnerRepos.has(`${r.owner}/${r.repo}`.toLowerCase()));
+
+        if (alt) {
+          core.warning(`Issues are disabled in ${originalTarget}; retrying fallback issue creation in ${alt.owner}/${alt.repo}`);
+          payload.owner = alt.owner;
+          payload.repo = alt.repo;
+          return await innerCreate();
+        }
+
+        core.warning(`Issues are disabled in ${originalTarget} and no alternate repo is available to create the fallback issue`);
+      }
+
+      throw error;
+    }
+  };
+
+  return withRetry(innerCreate, RATE_LIMIT_RETRY_CONFIG, `create fallback issue in ${repoParts.owner}/${repoParts.repo}`);
 }
 
 /**
@@ -1102,9 +1139,9 @@ async function main(config = {}) {
         });
 
         try {
-          const { data: issue } = await createFallbackIssue(githubClient, repoParts, fallbackTitle, fallbackBody, fallbackLabels, configAssignees);
+          const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, fallbackTitle, fallbackBody, fallbackLabels, configAssignees);
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-          await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
+          await assignCopilotToFallbackIssueIfEnabled(issueRepoParts.owner, issueRepoParts.repo, issue.number);
           await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
           return {
             success: true,
@@ -1670,10 +1707,10 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 \`\`\``;
 
                 try {
-                  const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
+                  const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
                   core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                  await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
+                  await assignCopilotToFallbackIssueIfEnabled(issueRepoParts.owner, issueRepoParts.repo, issue.number);
                   await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
 
                   return {
@@ -2014,10 +2051,10 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 ${patchPreview}`;
 
                 try {
-                  const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
+                  const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
                   core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                  await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
+                  await assignCopilotToFallbackIssueIfEnabled(issueRepoParts.owner, issueRepoParts.repo, issue.number);
 
                   // Update the activation comment with issue link (if a comment was created)
                   //
@@ -2166,7 +2203,7 @@ ${patchPreview}`;
         }
 
         try {
-          const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
+          const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
           core.info(`Created protected-file-protection review issue #${issue.number}: ${issue.html_url}`);
 
@@ -2178,8 +2215,8 @@ ${patchPreview}`;
               await withRetry(
                 () =>
                   githubClient.rest.issues.update({
-                    owner: repoParts.owner,
-                    repo: repoParts.repo,
+                    owner: issueRepoParts.owner,
+                    repo: issueRepoParts.repo,
                     issue_number: issue.number,
                     body: fallbackBodyWithCloseKeyword,
                   }),
@@ -2191,7 +2228,7 @@ ${patchPreview}`;
             }
           }
 
-          await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
+          await assignCopilotToFallbackIssueIfEnabled(issueRepoParts.owner, issueRepoParts.repo, issue.number);
 
           await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
 
@@ -2485,10 +2522,10 @@ ${patchPreview}`;
           });
 
           try {
-            const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
+            const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
             core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-            await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
+            await assignCopilotToFallbackIssueIfEnabled(issueRepoParts.owner, issueRepoParts.repo, issue.number);
 
             await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
 
@@ -2551,10 +2588,10 @@ gh pr create --title "${title}" --base ${baseBranch} --head ${branchName} --repo
 ${patchPreview}`;
 
         try {
-          const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
+          const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-          await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
+          await assignCopilotToFallbackIssueIfEnabled(issueRepoParts.owner, issueRepoParts.repo, issue.number);
 
           // Update the activation comment with issue link (if a comment was created)
           // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created
