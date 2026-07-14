@@ -166,6 +166,7 @@ function extractInlineSkills(content) {
  *   claude   → .claude/skills/<name>.md
  *   codex    → .codex/skills/<name>.md
  *   gemini   → .gemini/skills/<name>.md
+ *   crush    → .crush/skills/<name>/SKILL.md
  *   copilot  → .github/skills/<name>/SKILL.md  (default)
  *   others   → .github/skills/<name>/SKILL.md  (fallback)
  *
@@ -180,6 +181,8 @@ function getEngineSkillTarget(engineId) {
       return { dir: ".codex/skills", ext: ".md" };
     case "gemini":
       return { dir: ".gemini/skills", ext: ".md" };
+    case "crush":
+      return { dir: ".crush/skills", ext: "/SKILL.md" };
     default:
       return { dir: ".github/skills", ext: "/SKILL.md" };
   }
@@ -193,6 +196,7 @@ function getEngineSkillTarget(engineId) {
  *   - claude  → <base>/.claude/skills/<name>.md
  *   - codex   → <base>/.codex/skills/<name>.md
  *   - gemini  → <base>/.gemini/skills/<name>.md
+ *   - crush   → <base>/.crush/skills/<name>/SKILL.md
  *   - default → <base>/.github/skills/<name>/SKILL.md
  *
  * Returns the main content (before the first ## skill: marker) after stripping

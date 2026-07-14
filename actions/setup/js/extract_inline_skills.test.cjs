@@ -188,6 +188,16 @@ describe("writeInlineSkills", () => {
     expect(fs.existsSync(skillsDir)).toBe(true);
   });
 
+  it("writes crush inline skills to .crush/skills", () => {
+    const content = "Main.\n\n" + skillMarker("new") + "\nContent.";
+
+    writeInlineSkills(content, tmpDir, undefined, "crush");
+
+    const skillPath = path.join(tmpDir, ".crush", "skills", "new", "SKILL.md");
+    expect(fs.existsSync(skillPath)).toBe(true);
+    expect(fs.readFileSync(skillPath, "utf8")).toContain("Content.");
+  });
+
   it("skill block ends at H2 — content after is not written to skill file", () => {
     const content = ["Main.", "", skillMarker("a"), "Skill body.", "", "## Notes", "Footer content that should not appear in the skill file."].join("\n");
 

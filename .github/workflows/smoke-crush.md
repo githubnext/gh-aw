@@ -20,7 +20,7 @@ permissions:
 name: Smoke Crush
 engine:
   id: crush
-  model: anthropic/claude-sonnet-4-20250514
+  model: copilot/claude-sonnet-4.6
 strict: true
 imports:
   - shared/gh.md
