@@ -61,14 +61,6 @@ func newBuiltinBehaviorDefinedEngine(id string) (*BehaviorDefinedEngine, error) 
 	return NewBehaviorDefinedEngine(def)
 }
 
-func mustNewBuiltinBehaviorDefinedEngine(id string) *BehaviorDefinedEngine {
-	engine, err := newBuiltinBehaviorDefinedEngine(id)
-	if err != nil {
-		panic(fmt.Errorf("failed to load builtin behavior-defined engine %q: %w", id, err))
-	}
-	return engine
-}
-
 func (e *BehaviorDefinedEngine) behavior() *EngineBehaviorDefinition {
 	if e == nil || e.definition == nil {
 		return nil
