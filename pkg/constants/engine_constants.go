@@ -30,6 +30,8 @@ const (
 	CrushEngine EngineName = "crush"
 	// PiEngine is the Pi engine identifier (experimental)
 	PiEngine EngineName = "pi"
+	// PydanticEngine is the Pydantic AI engine identifier (experimental)
+	PydanticEngine EngineName = "pydantic"
 
 	// DefaultEngine is the default agentic engine used when no engine is explicitly specified.
 	// Currently defaults to CopilotEngine.
@@ -40,7 +42,7 @@ const (
 // Deprecated: Use workflow.NewEngineCatalog(workflow.NewEngineRegistry()).IDs() for a
 // catalog-derived list. This slice is maintained for backward compatibility and must
 // stay in sync with the built-in engines registered in NewEngineCatalog.
-var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(AntigravityEngine), string(OpenCodeEngine), string(CrushEngine), string(PiEngine)}
+var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(AntigravityEngine), string(OpenCodeEngine), string(CrushEngine), string(PiEngine), string(PydanticEngine)}
 
 // EngineOption represents a selectable AI engine with its display metadata and secret configuration
 type EngineOption struct {
@@ -127,6 +129,15 @@ var EngineOptions = []EngineOption{
 		AlternativeSecrets: []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey},
 		KeyURL:             "https://github.com/settings/personal-access-tokens/new",
 		WhenNeeded:         "Pi engine workflows",
+	},
+	{
+		Value:              string(PydanticEngine),
+		Label:              "Pydantic AI",
+		Description:        "Pydantic AI multi-provider coding agent (experimental, BYOK)",
+		SecretName:         CopilotGitHubToken,
+		AlternativeSecrets: []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey},
+		KeyURL:             "https://github.com/settings/personal-access-tokens/new",
+		WhenNeeded:         "Pydantic AI engine workflows (default: Copilot routing)",
 	},
 }
 

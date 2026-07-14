@@ -50,13 +50,13 @@ func TestSpec_EngineConstants_NameValues(t *testing.T) {
 
 // TestSpec_EngineConstants_AgenticEngines validates the documented AgenticEngines list.
 // Spec section: "// All supported engine names"
-// Spec documents: constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi"}
+// Spec documents: constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi", "pydantic"}
 func TestSpec_EngineConstants_AgenticEngines(t *testing.T) {
 	engines := constants.AgenticEngines
 	require.NotEmpty(t, engines, "AgenticEngines should be non-empty")
 
-	// Spec documents all eight engines, including antigravity and pi (experimental).
-	documentedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi"}
+	// Spec documents all nine engines, including antigravity, pi, and pydantic (experimental).
+	documentedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi", "pydantic"}
 	for _, expected := range documentedEngines {
 		assert.Contains(t, engines, expected,
 			"AgenticEngines should contain documented engine %q", expected)

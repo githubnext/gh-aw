@@ -28,6 +28,7 @@ func TestNewEngineCatalog_BuiltIns(t *testing.T) {
 		{"opencode", "OpenCode", "github"},
 		{"crush", "Crush", "github"},
 		{"pi", "Pi", "github"},
+		{"pydantic", "Pydantic AI", "github"},
 	}
 
 	for _, tt := range tests {
