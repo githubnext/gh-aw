@@ -26,7 +26,7 @@ imports:
   - shared/reporting.md
   - shared/otlp.md
 pre-agent-steps:
-  - name: Pre-fetch PR diff
+  - name: Pre-fetch PR diff and review comments
     env:
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -35,22 +35,40 @@ pre-agent-steps:
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
-      { gh pr diff "$PR_NUMBER" --repo $EXPR_GITHUB_REPOSITORY \
-          --exclude '**/*.lock.yml' \
-          --exclude '**/generated/**' \
-          --exclude '**/dist/**' \
-          --exclude '**/build/**' \
-          || true; } | head -n "${PR_DIFF_MAX_LINES}" > /tmp/gh-aw/agent/pr-diff.patch
-      LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
-      gh pr view "$PR_NUMBER" \
-        --repo $EXPR_GITHUB_REPOSITORY \
-        --json number,title,body,headRefName,additions,deletions,changedFiles,files \
-        > /tmp/gh-aw/agent/pr-meta.json
-      echo "Pre-fetched PR diff (${LINES} lines) and metadata"
+      # Skip fetch if cache already populated this data (actions/cache restore)
+      if [ -f /tmp/gh-aw/agent/pr-diff.patch ] && [ -f /tmp/gh-aw/agent/pr-meta.json ] && [ -f /tmp/gh-aw/agent/pr-review-comments.json ]; then
+        LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
+        COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)
+        echo "Cache hit: using pre-fetched PR data (${LINES} diff lines, ${COMMENT_COUNT} review comments)"
+      else
+        { gh pr diff "$PR_NUMBER" --repo $EXPR_GITHUB_REPOSITORY \
+            --exclude '**/*.lock.yml' \
+            --exclude '**/generated/**' \
+            --exclude '**/dist/**' \
+            --exclude '**/build/**' \
+            || true; } | head -n "${PR_DIFF_MAX_LINES}" > /tmp/gh-aw/agent/pr-diff.patch
+        LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
+        gh pr view "$PR_NUMBER" \
+          --repo $EXPR_GITHUB_REPOSITORY \
+          --json number,title,body,headRefName,additions,deletions,changedFiles,files \
+          > /tmp/gh-aw/agent/pr-meta.json
+        gh api "repos/$EXPR_GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" \
+          --paginate \
+          --jq '.[] | {id, path, line: (.line // .original_line), body: .body[:200], user: .user.login}' \
+          2>/dev/null | jq -s '.' > /tmp/gh-aw/agent/pr-review-comments.json \
+          || echo '[]' > /tmp/gh-aw/agent/pr-review-comments.json
+        COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)
+        echo "Pre-fetched PR diff (${LINES} lines), metadata, and ${COMMENT_COUNT} existing review comments"
+      fi
 tools:
   cli-proxy: true
   github:
     mode: gh-proxy
+cache:
+  key: pr-prefetch-${{ github.event.pull_request.head.sha }}
+  path: /tmp/gh-aw/agent
+  restore-keys:
+    - pr-prefetch-${{ github.event.pull_request.number }}-
 safe-outputs:
   add-comment:
     hide-older-comments: true
@@ -101,6 +119,9 @@ A successful review:
 
    - `/tmp/gh-aw/agent/pr-meta.json`
    - `/tmp/gh-aw/agent/pr-diff.patch`
+   - `/tmp/gh-aw/agent/pr-review-comments.json` — existing review comments (each: `id`, `path`, `line`, `body`, `user`); use to avoid duplication before adding new comments
+
+   **Do not** call `gh pr diff`, `gh pr view`, or `get_review_comments` — all data is pre-fetched and available on disk.
 
 2. List installed skills and inspect the skill docs you need:
 
