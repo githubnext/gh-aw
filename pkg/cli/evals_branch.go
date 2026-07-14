@@ -24,7 +24,7 @@ func ensureEvalsResultsFromBranch(ctx context.Context, run WorkflowRun, runDir, 
 	if workflowID == "" {
 		return false
 	}
-	branchName := evalsStateBranchName(workflowID)
+	branchName := workflow.WorkflowStateBranchName(evalsBranchPrefix, workflowID)
 	repoOverride, host := resolveRepoOverrideForRun(run, owner, repo, hostname)
 	if repoOverride == "" {
 		return false
@@ -65,14 +65,6 @@ func workflowIDFromRunPath(workflowPath string) string {
 		base = before
 	}
 	return strings.TrimSpace(base)
-}
-
-func evalsStateBranchName(workflowID string) string {
-	sanitized := workflow.SanitizeWorkflowIDForCacheKey(workflowID)
-	if sanitized == "" {
-		sanitized = "default"
-	}
-	return evalsBranchPrefix + "/" + sanitized
 }
 
 func resolveRepoOverrideForRun(run WorkflowRun, owner, repo, hostname string) (string, string) {

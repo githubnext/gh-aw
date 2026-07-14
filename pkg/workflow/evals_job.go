@@ -14,7 +14,7 @@ const evalsBranchPrefix = "evals"
 const evalsStateDir = "/tmp/gh-aw/evals-state"
 
 func evalsBranchName(workflowID string) string {
-	return workflowStateBranchName(evalsBranchPrefix, workflowID)
+	return WorkflowStateBranchName(evalsBranchPrefix, workflowID)
 }
 
 // buildEvalsJob creates a separate evals job that runs after the safe_outputs job
