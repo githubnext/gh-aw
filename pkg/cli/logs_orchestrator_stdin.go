@@ -156,6 +156,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 		noFirewall:        opts.NoFirewall,
 		safeOutputType:    opts.SafeOutputType,
 		filteredIntegrity: opts.FilteredIntegrity,
+		evalsOnly:         opts.EvalsOnly,
 	}
 
 	// Process download results applying the same filters as DownloadWorkflowLogs.

@@ -29,6 +29,7 @@ type universalLLMBackendProfile struct {
 	coreSecretNames []string
 	env             map[string]string
 	baseURLEnvName  string
+	extraURLEnvName string // additional URL env var set to the same gateway URL (e.g. OPENAI_BASE_URL for copilot backend)
 	gatewayPort     int
 }
 
@@ -93,8 +94,9 @@ func getUniversalLLMBackendProfile(backend UniversalLLMBackend, useCopilotReques
 				"COPILOT_GITHUB_TOKEN": copilotToken,
 				"OPENAI_API_KEY":       copilotToken,
 			},
-			baseURLEnvName: "GITHUB_COPILOT_BASE_URL",
-			gatewayPort:    constants.CopilotLLMGatewayPort,
+			baseURLEnvName:  "GITHUB_COPILOT_BASE_URL",
+			extraURLEnvName: "OPENAI_BASE_URL",
+			gatewayPort:     constants.CopilotLLMGatewayPort,
 		}
 	}
 }
@@ -172,6 +174,10 @@ func (e *UniversalLLMConsumerEngine) ApplyUniversalProviderEnv(env map[string]st
 	if firewallEnabled {
 		universalLLMConsumerLog.Printf("Setting %s to gateway port %d", profile.baseURLEnvName, profile.gatewayPort)
 		env[profile.baseURLEnvName] = fmt.Sprintf("http://host.docker.internal:%d", profile.gatewayPort)
+		if profile.extraURLEnvName != "" {
+			universalLLMConsumerLog.Printf("Setting extra URL env %s to gateway port %d", profile.extraURLEnvName, profile.gatewayPort)
+			env[profile.extraURLEnvName] = fmt.Sprintf("http://host.docker.internal:%d", profile.gatewayPort)
+		}
 	}
 }
 
@@ -285,7 +291,10 @@ func (e *UniversalLLMConsumerEngine) BuildCLIEngineExecutionSteps(
 		}
 
 		npmPathSetup := GetNpmBinPathSetup()
-		engineCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, engineCommand)
+		// Propagate no_proxy inside the AWF container.  --env-all forwards NO_PROXY
+		// from the YAML env block, but Bun (and other runtimes) also check the
+		// lowercase variant, so we export it explicitly from the uppercase value.
+		engineCommandWithPath := fmt.Sprintf("export no_proxy=\"${NO_PROXY:-}\" && %s && %s", npmPathSetup, engineCommand)
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			engineCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, engineCommandWithPath)
 		}
@@ -299,17 +308,22 @@ func (e *UniversalLLMConsumerEngine) BuildCLIEngineExecutionSteps(
 			AllowedDomains: allowedDomains,
 		})
 	} else if cfg.WriteTimestamp {
-		command = fmt.Sprintf("set -o pipefail\nprintf '%%s' \"$(date +%%s%%3N)\" > %s\n%s 2>&1 | tee -a %s",
+		command = fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\nprintf '%%s' \"$(date +%%s%%3N)\" > %s\n%s 2>&1 | tee -a %s",
 			AgentCLIStartMsPath, engineCommand, logFile)
 	} else {
-		command = fmt.Sprintf("set -o pipefail\n%s 2>&1 | tee -a %s", engineCommand, logFile)
+		command = fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\n%s 2>&1 | tee -a %s", engineCommand, logFile)
 	}
 
 	env := map[string]string{
 		"GH_AW_PROMPT":     constants.AwPromptsFile,
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
 		"RUNNER_TEMP":      "${{ runner.temp }}",
-		"NO_PROXY":         "localhost,127.0.0.1",
+		// Set NO_PROXY so that the AWF agent's HTTP client skips the squid proxy
+		// for local endpoints. The lowercase no_proxy variant is exported inside
+		// the run script rather than as a YAML env key because GitHub's workflow
+		// parser rejects case-insensitive duplicate env keys (NO_PROXY/no_proxy),
+		// which causes workflow_dispatch to fail with "failed to parse workflow".
+		"NO_PROXY": constants.AWFNoProxyHosts,
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	e.ApplyUniversalProviderEnv(env, workflowData, firewallEnabled)

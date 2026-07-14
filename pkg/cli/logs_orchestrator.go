@@ -168,12 +168,13 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	summaryFile := opts.SummaryFile
 	safeOutputType := opts.SafeOutputType
 	filteredIntegrity := opts.FilteredIntegrity
+	evalsOnly := opts.EvalsOnly
 	train := opts.Train
 	format := opts.Format
 	artifactSets := opts.ArtifactSets
 	after := opts.After
 
-	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v, train=%v, format=%s, artifactSets=%v, after=%s", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType, filteredIntegrity, train, format, artifactSets, after)
+	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v, evalsOnly=%v, train=%v, format=%s, artifactSets=%v, after=%s", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType, filteredIntegrity, evalsOnly, train, format, artifactSets, after)
 
 	// Validate and resolve artifact sets into a concrete filter (list of artifact base names).
 	if err := ValidateArtifactSets(artifactSets); err != nil {
@@ -272,6 +273,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 		noFirewall:        noFirewall,
 		safeOutputType:    safeOutputType,
 		filteredIntegrity: filteredIntegrity,
+		evalsOnly:         evalsOnly,
 	}
 
 	// Iterative algorithm: keep fetching runs until we have enough or exhaust available runs

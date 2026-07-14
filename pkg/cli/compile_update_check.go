@@ -299,7 +299,7 @@ func hasExplicitMinorComponent(version string) bool {
 	if idx := strings.IndexAny(core, "-+"); idx >= 0 {
 		core = core[:idx]
 	}
-	return strings.Count(core, ".") >= 1
+	return strings.Contains(core, ".")
 }
 
 func printCompileUpdateNotification(notification *compileUpdateNotification) {

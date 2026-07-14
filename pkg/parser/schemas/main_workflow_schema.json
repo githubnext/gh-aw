@@ -12563,9 +12563,32 @@
               "type": "string",
               "description": "Human-readable description of the engine"
             },
+            "experimental": {
+              "type": "boolean",
+              "description": "Marks the engine as experimental so compiled workflows can surface an explicit warning."
+            },
             "runtime-id": {
               "type": "string",
               "description": "Runtime adapter identifier. Maps to the CodingAgentEngine registered in the engine registry. Defaults to id when omitted."
+            },
+            "auth": {
+              "type": "array",
+              "description": "Optional engine-specific secret bindings for behavior-defined engines.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "description": "Logical authentication role name."
+                  },
+                  "secret": {
+                    "type": "string",
+                    "description": "GitHub Actions secret name exposed to the engine runtime."
+                  }
+                },
+                "required": ["role", "secret"],
+                "additionalProperties": false
+              }
             },
             "provider": {
               "type": "object",
@@ -12661,6 +12684,107 @@
               "type": "object",
               "description": "Additional engine-specific options",
               "additionalProperties": true
+            },
+            "behaviors": {
+              "type": "object",
+              "description": "Declarative custom-engine runtime behavior used to materialize a shared CLI engine from frontmatter.",
+              "properties": {
+                "secret-strategy": {
+                  "type": "string",
+                  "description": "Secret resolution mode for the engine (for example 'universal-llm-consumer')."
+                },
+                "supported-env-var-keys": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Secret or env var keys the engine accepts through engine.env."
+                },
+                "capabilities": {
+                  "type": "object",
+                  "properties": {
+                    "tools-allowlist": { "type": "boolean" },
+                    "max-turns": { "type": "boolean" },
+                    "web-search": { "type": "boolean" },
+                    "max-continuations": { "type": "boolean" },
+                    "native-agent-file": { "type": "boolean" },
+                    "bare-mode": { "type": "boolean" }
+                  },
+                  "additionalProperties": false
+                },
+                "manifest": {
+                  "type": "object",
+                  "properties": {
+                    "files": {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    },
+                    "path-prefixes": {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "installation": {
+                  "type": "object",
+                  "properties": {
+                    "package-manager": { "type": "string" },
+                    "package-name": { "type": "string" },
+                    "version": { "type": "string" },
+                    "step-name": { "type": "string" },
+                    "binary-name": { "type": "string" },
+                    "include-node-setup": { "type": "boolean" },
+                    "post-install-scripts": { "type": "boolean" },
+                    "cooldown": { "type": "boolean" },
+                    "verify-command": { "type": "string" },
+                    "verify-step-name": { "type": "string" },
+                    "docs-url": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                },
+                "config-file": {
+                  "type": "object",
+                  "properties": {
+                    "path": { "type": "string" },
+                    "step-name": { "type": "string" },
+                    "content": { "type": "string" },
+                    "merge-strategy": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                },
+                "execution": {
+                  "type": "object",
+                  "properties": {
+                    "command-name": { "type": "string" },
+                    "args": {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    },
+                    "step-name": { "type": "string" },
+                    "model-env-var": { "type": "string" },
+                    "model-env-provider-prefix": { "type": "string" },
+                    "model-flag": { "type": "string" },
+                    "mcp-config-env-var": { "type": "string" },
+                    "mcp-config-flag": { "type": "string" },
+                    "write-timestamp": { "type": "boolean" },
+                    "provider-env-mode": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                },
+                "mcp": {
+                  "type": "object",
+                  "properties": {
+                    "config-path": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                },
+                "harness-script": {
+                  "type": "string",
+                  "description": "JavaScript source of a Node.js harness that spawns the engine CLI. When set, the script is written to ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_harness.cjs before execution and the engine is launched as: node <harness-path> <command-name> [args...]. The harness reads process.env.GH_AW_PROMPT for the prompt-file path and, when the AWF firewall is active, process.env.AWF_REFLECT_ENABLED is set to '1' so the harness can read /reflect data to dynamically configure the engine CLI."
+                }
+              },
+              "additionalProperties": false
             }
           },
           "required": ["id", "display-name"],

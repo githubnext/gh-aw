@@ -6,12 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCrushEngine(t *testing.T) {
-	engine := NewCrushEngine()
+	engine, err := newBuiltinBehaviorDefinedEngine("crush")
+	require.NoError(t, err)
 
 	t.Run("engine identity", func(t *testing.T) {
 		assert.Equal(t, "crush", engine.GetID(), "Engine ID should be 'crush'")
@@ -148,7 +150,8 @@ func TestCrushEngine(t *testing.T) {
 }
 
 func TestCrushEngineInstallation(t *testing.T) {
-	engine := NewCrushEngine()
+	engine, err := newBuiltinBehaviorDefinedEngine("crush")
+	require.NoError(t, err)
 
 	t.Run("standard installation", func(t *testing.T) {
 		workflowData := &WorkflowData{
@@ -226,7 +229,8 @@ func TestCrushEngineInstallation(t *testing.T) {
 }
 
 func TestCrushEngineExecution(t *testing.T) {
-	engine := NewCrushEngine()
+	engine, err := newBuiltinBehaviorDefinedEngine("crush")
+	require.NoError(t, err)
 
 	t.Run("basic execution", func(t *testing.T) {
 		workflowData := &WorkflowData{
@@ -245,7 +249,7 @@ func TestCrushEngineExecution(t *testing.T) {
 		assert.Contains(t, stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, "Should include prompt argument")
 		assert.Contains(t, stepContent, "/tmp/test.log", "Should include log file")
 		assert.Contains(t, stepContent, "OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}", "Should set OPENAI_API_KEY from COPILOT_GITHUB_TOKEN")
-		assert.Contains(t, stepContent, "NO_PROXY: localhost,127.0.0.1", "Should set NO_PROXY env var")
+		assert.Contains(t, stepContent, "NO_PROXY: "+constants.AWFNoProxyHosts, "Should set NO_PROXY env var")
 	})
 
 	t.Run("basic execution with copilot-requests permission", func(t *testing.T) {
@@ -378,14 +382,15 @@ func TestCrushEngineExecution(t *testing.T) {
 		assert.Contains(t, configContent, "Write Crush Config", "First step should be Write Crush Config")
 		assert.Contains(t, configContent, ".crush.json", "Config step should reference .crush.json")
 		assert.Contains(t, configContent, `"permission"`, "Config step should use 'permission' (singular, not 'permissions')")
-		assert.Contains(t, configContent, `"external_directory":"allow"`, "Config step should allow external_directory for non-interactive CI")
+		assert.Contains(t, configContent, `"external_directory": "allow"`, "Config step should allow external_directory for non-interactive CI")
 		assert.NotContains(t, configContent, `"permissions"`, "Config step must NOT use 'permissions' (plural) — silently ignored by OpenCode)")
 		assert.Contains(t, execContent, "Execute Crush CLI", "Second step should be Execute Crush CLI")
 	})
 }
 
 func TestCrushEngineFirewallIntegration(t *testing.T) {
-	engine := NewCrushEngine()
+	engine, err := newBuiltinBehaviorDefinedEngine("crush")
+	require.NoError(t, err)
 
 	t.Run("firewall enabled", func(t *testing.T) {
 		workflowData := &WorkflowData{

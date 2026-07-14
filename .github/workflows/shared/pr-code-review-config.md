@@ -29,6 +29,6 @@ This shared component provides the standard tooling for AI pull request code rev
 
 ### Review Guidelines
 
-1. **Use `get_diff`** — Fetch the actual diff to review line-by-line changes
-2. **Use `get_review_comments`** — Check existing review threads before adding new ones
-3. **Submit as a unified review** — Batch comments and call `submit-pull-request-review` once with an overall assessment
+1. **Use pre-fetched diff** — Read `/tmp/gh-aw/agent/pr-diff.patch` instead of calling `get_diff`; it is already capped to prevent token-heavy context payloads.
+2. **Use pre-fetched review comments** — Read `/tmp/gh-aw/agent/pr-review-comments.json` instead of calling `get_review_comments`; check this file before posting new comments to avoid duplication.
+3. **Submit as a unified review** — Batch comments and call `submit-pull-request-review` once with an overall assessment.

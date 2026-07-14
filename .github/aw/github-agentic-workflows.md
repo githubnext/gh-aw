@@ -125,6 +125,7 @@ Permissions: `pull-requests: read` only; all writes route through `add-comment` 
 | Safe outputs index | [safe-outputs.md](safe-outputs.md) |
 | Trigger patterns | [triggers.md](triggers.md) |
 | Context expressions and `{{#if}}` templates | [context.md](context.md) |
+| Declarative engine configuration | [configure-agentic-engine.md](configure-agentic-engine.md) |
 | CLI commands and MCP equivalents | [cli-commands.md](cli-commands.md) |
 | Network configuration | [network.md](network.md) |
 | Memory and persistence | [memory.md](memory.md) |

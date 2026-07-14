@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"d27207d10f78876a5cd25dec526b23508436f69f0e30f47facd8c5a0c7a2dea5","body_hash":"d0165901505c0c6d84e50970e712cbb0a7e2b77136a1e20ee2f8cc9970f2828c","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.70","copilot-sdk":"1.0.6"}}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0","version":"v7.0.0"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.31","digest":"sha256:84d861cb6da723ac10b7a00dddf778be681b8cd74b2091f18ce1d67fe4b3e7a1","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.31@sha256:84d861cb6da723ac10b7a00dddf778be681b8cd74b2091f18ce1d67fe4b3e7a1"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.31","digest":"sha256:80d982fe7925c640d76cbbfbe94081d2d34f7657b7c37494d8d5488f5dae3c63","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.31@sha256:80d982fe7925c640d76cbbfbe94081d2d34f7657b7c37494d8d5488f5dae3c63"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.31","digest":"sha256:7c63bc4e57d6eac1be996bb793a5a2d74d40b15a616003f4b6805a457046c673","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.31@sha256:7c63bc4e57d6eac1be996bb793a5a2d74d40b15a616003f4b6805a457046c673"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.31","digest":"sha256:c05a3f086946fab0833e078f46d35571080f187ca72f038958d45aa5cc150494","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.31@sha256:c05a3f086946fab0833e078f46d35571080f187ca72f038958d45aa5cc150494"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.1","digest":"sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.1@sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b","pinned_image":"ghcr.io/github/gh-aw-node@sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b"},{"image":"ghcr.io/github/github-mcp-server:v1.5.0","digest":"sha256:e25564dccc9110a70a77b9df560cbde11aa392fcb5f08b9abe5c4ebc6d146ea4","pinned_image":"ghcr.io/github/github-mcp-server:v1.5.0@sha256:e25564dccc9110a70a77b9df560cbde11aa392fcb5f08b9abe5c4ebc6d146ea4"}],"has_pull_request":true}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"43bb265ed0fc95892a8416d12c827bea6a621a09b987ebae867caca0ff7fc60b","body_hash":"5f9c9ab61840d0fa73434e8b316c5f3efd9a4b5532969b3a6cd5a745d500169e","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.70","copilot-sdk":"1.0.6"}}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0","version":"v7.0.0"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.31","digest":"sha256:84d861cb6da723ac10b7a00dddf778be681b8cd74b2091f18ce1d67fe4b3e7a1","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.31@sha256:84d861cb6da723ac10b7a00dddf778be681b8cd74b2091f18ce1d67fe4b3e7a1"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.31","digest":"sha256:80d982fe7925c640d76cbbfbe94081d2d34f7657b7c37494d8d5488f5dae3c63","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.31@sha256:80d982fe7925c640d76cbbfbe94081d2d34f7657b7c37494d8d5488f5dae3c63"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.31","digest":"sha256:7c63bc4e57d6eac1be996bb793a5a2d74d40b15a616003f4b6805a457046c673","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.31@sha256:7c63bc4e57d6eac1be996bb793a5a2d74d40b15a616003f4b6805a457046c673"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.31","digest":"sha256:c05a3f086946fab0833e078f46d35571080f187ca72f038958d45aa5cc150494","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.31@sha256:c05a3f086946fab0833e078f46d35571080f187ca72f038958d45aa5cc150494"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.1","digest":"sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.1@sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b","pinned_image":"ghcr.io/github/gh-aw-node@sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b"},{"image":"ghcr.io/github/github-mcp-server:v1.5.0","digest":"sha256:e25564dccc9110a70a77b9df560cbde11aa392fcb5f08b9abe5c4ebc6d146ea4","pinned_image":"ghcr.io/github/github-mcp-server:v1.5.0@sha256:e25564dccc9110a70a77b9df560cbde11aa392fcb5f08b9abe5c4ebc6d146ea4"}],"has_pull_request":true}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -45,6 +45,7 @@
 # Custom actions used:
 #   - actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
 #   - actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+#   - actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
 #   - actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 #   - actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -88,6 +89,8 @@ env:
   OTEL_EXPORTER_OTLP_HEADERS: x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}
   GH_AW_OTLP_ALL_HEADERS: x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }},Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}
   GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}","headers":"x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}"},{"url":"${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}"}]'
+
+# Cache configuration from frontmatter was processed and added to the main job steps
 
 jobs:
   activation:
@@ -318,20 +321,21 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_2dd190482b662e97_EOF'
+          cat << 'GH_AW_PROMPT_88dd0adb3937cc31_EOF'
           <system>
-          GH_AW_PROMPT_2dd190482b662e97_EOF
+          GH_AW_PROMPT_88dd0adb3937cc31_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
+          cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_2dd190482b662e97_EOF'
+          cat << 'GH_AW_PROMPT_88dd0adb3937cc31_EOF'
           <safe-output-tools>
           Tools: create_pull_request_review_comment(max:10), submit_pull_request_review, create_check_run, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_2dd190482b662e97_EOF
+          GH_AW_PROMPT_88dd0adb3937cc31_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_2dd190482b662e97_EOF'
+          cat << 'GH_AW_PROMPT_88dd0adb3937cc31_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -360,18 +364,18 @@ jobs:
           {{/if}}
           </github-context>
 
-          GH_AW_PROMPT_2dd190482b662e97_EOF
+          GH_AW_PROMPT_88dd0adb3937cc31_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
           if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
             cat "${RUNNER_TEMP}/gh-aw/prompts/pr_context_prompt.md"
           fi
-          cat << 'GH_AW_PROMPT_2dd190482b662e97_EOF'
+          cat << 'GH_AW_PROMPT_88dd0adb3937cc31_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/github-guard-policy.md}}
           {{#runtime-import .github/workflows/shared/pr-code-review-config.md}}
           {{#runtime-import .github/workflows/pr-code-quality-reviewer.md}}
-          GH_AW_PROMPT_2dd190482b662e97_EOF
+          GH_AW_PROMPT_88dd0adb3937cc31_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -391,6 +395,9 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_ALLOWED_EXTENSIONS: ''
+          GH_AW_CACHE_DESCRIPTION: ''
+          GH_AW_CACHE_DIR: '/tmp/gh-aw/cache-memory/'
           GH_AW_EXPR_1A3A194A: ${{ github.event.discussion.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'discussion' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
           GH_AW_EXPR_463A214A: ${{ github.event.pull_request.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'pull_request' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
           GH_AW_EXPR_799BE623: ${{ github.event.issue.number || github.event.pull_request.number }}
@@ -415,6 +422,9 @@ jobs:
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
+                GH_AW_ALLOWED_EXTENSIONS: process.env.GH_AW_ALLOWED_EXTENSIONS,
+                GH_AW_CACHE_DESCRIPTION: process.env.GH_AW_CACHE_DESCRIPTION,
+                GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR,
                 GH_AW_EXPR_1A3A194A: process.env.GH_AW_EXPR_1A3A194A,
                 GH_AW_EXPR_463A214A: process.env.GH_AW_EXPR_463A214A,
                 GH_AW_EXPR_799BE623: process.env.GH_AW_EXPR_799BE623,
@@ -482,6 +492,8 @@ jobs:
       ai_credits_rate_limit_error: ${{ steps.parse-mcp-gateway.outputs.ai_credits_rate_limit_error || 'false' }}
       aic: ${{ steps.parse-mcp-gateway.outputs.aic }}
       ambient_context: ${{ steps.parse-mcp-gateway.outputs.ambient_context }}
+      cache_memory_restore_0_cache_hit: ${{ steps.restore_cache_memory_0.outputs.cache-hit || 'false' }}
+      cache_memory_restore_0_matched_key: ${{ steps.restore_cache_memory_0.outputs.cache-matched-key || '' }}
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       effective_tokens: ${{ steps.parse-mcp-gateway.outputs.effective_tokens }}
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
@@ -544,6 +556,30 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
+      - name: Restore cache-memory file share data
+        id: restore_cache_memory_0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: memory-approved-6f25a3c0-pr-review-${{ github.event.pull_request.number || github.event.issue.number }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            memory-approved-6f25a3c0-pr-review-${{ github.event.pull_request.number || github.event.issue.number }}-
+      - name: Setup cache-memory git repository
+        env:
+          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
+          GH_AW_MIN_INTEGRITY: approved
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
+      # Cache configuration from frontmatter processed below
+      - name: Cache (pr-prefetch-${{ github.event.pull_request.head.sha || github.event.issue.number }})
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: pr-prefetch-${{ github.event.pull_request.head.sha || github.event.issue.number }}
+          path: /tmp/gh-aw/agent
+          restore-keys: |
+            pr-prefetch-${{ github.event.pull_request.number || github.event.issue.number }}-
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -611,8 +647,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_DIFF_MAX_LINES: "3000"
           PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
-        name: Pre-fetch PR diff
-        run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/agent\n{ gh pr diff \"$PR_NUMBER\" --repo $EXPR_GITHUB_REPOSITORY \\\n    --exclude '**/*.lock.yml' \\\n    --exclude '**/generated/**' \\\n    --exclude '**/dist/**' \\\n    --exclude '**/build/**' \\\n    || true; } | head -n \"${PR_DIFF_MAX_LINES}\" > /tmp/gh-aw/agent/pr-diff.patch\nLINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)\ngh pr view \"$PR_NUMBER\" \\\n  --repo $EXPR_GITHUB_REPOSITORY \\\n  --json number,title,body,headRefName,additions,deletions,changedFiles,files \\\n  > /tmp/gh-aw/agent/pr-meta.json\necho \"Pre-fetched PR diff (${LINES} lines) and metadata\""
+        name: Pre-fetch PR diff and review comments
+        run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/agent\n# Skip fetch if cache already populated this data (actions/cache restore)\nif [ -f /tmp/gh-aw/agent/pr-diff.patch ] && [ -f /tmp/gh-aw/agent/pr-meta.json ] && [ -f /tmp/gh-aw/agent/pr-review-comments.json ]; then\n  LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)\n  COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)\n  echo \"Cache hit: using pre-fetched PR data (${LINES} diff lines, ${COMMENT_COUNT} review comments)\"\nelse\n  { gh pr diff \"$PR_NUMBER\" --repo $EXPR_GITHUB_REPOSITORY \\\n      --exclude '**/*.lock.yml' \\\n      --exclude '**/generated/**' \\\n      --exclude '**/dist/**' \\\n      --exclude '**/build/**' \\\n      || true; } | head -n \"${PR_DIFF_MAX_LINES}\" > /tmp/gh-aw/agent/pr-diff.patch\n  LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)\n  gh pr view \"$PR_NUMBER\" \\\n    --repo $EXPR_GITHUB_REPOSITORY \\\n    --json number,title,body,headRefName,additions,deletions,changedFiles,files \\\n    > /tmp/gh-aw/agent/pr-meta.json\n  gh api \"repos/$EXPR_GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments\" \\\n    --paginate \\\n    --jq '.[] | {id, path, line: (.line // .original_line), body: .body[:200], user: .user.login}' \\\n    2>/dev/null | jq -s '.' > /tmp/gh-aw/agent/pr-review-comments.json \\\n    || echo '[]' > /tmp/gh-aw/agent/pr-review-comments.json\n  COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)\n  echo \"Pre-fetched PR diff (${LINES} lines), metadata, and ${COMMENT_COUNT} existing review comments\"\nfi"
 
       - name: Download container images
         run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.31@sha256:84d861cb6da723ac10b7a00dddf778be681b8cd74b2091f18ce1d67fe4b3e7a1 ghcr.io/github/gh-aw-firewall/api-proxy:0.27.31@sha256:80d982fe7925c640d76cbbfbe94081d2d34f7657b7c37494d8d5488f5dae3c63 ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.31@sha256:7c63bc4e57d6eac1be996bb793a5a2d74d40b15a616003f4b6805a457046c673 ghcr.io/github/gh-aw-firewall/squid:0.27.31@sha256:c05a3f086946fab0833e078f46d35571080f187ca72f038958d45aa5cc150494 ghcr.io/github/gh-aw-mcpg:v0.4.1@sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32 ghcr.io/github/gh-aw-node@sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b ghcr.io/github/github-mcp-server:v1.5.0@sha256:e25564dccc9110a70a77b9df560cbde11aa392fcb5f08b9abe5c4ebc6d146ea4
@@ -946,7 +982,7 @@ jobs:
           COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'claude-sonnet-4.6' }}
           COPILOT_SDK_URI: http://127.0.0.1:3002
           GH_AW_COPILOT_SDK_DRIVER: 1
-          GH_AW_COPILOT_SDK_SERVER_ARGS: '["--headless","--no-auto-update","--port","3002","--add-dir","/tmp/gh-aw/","--log-level","all","--log-dir","/tmp/gh-aw/sandbox/agent/logs/","--disable-builtin-mcps","--no-ask-user","--allow-all-tools","--allow-all-paths"]'
+          GH_AW_COPILOT_SDK_SERVER_ARGS: '["--headless","--no-auto-update","--port","3002","--add-dir","/tmp/gh-aw/","--log-level","all","--log-dir","/tmp/gh-aw/sandbox/agent/logs/","--disable-builtin-mcps","--no-ask-user","--allow-all-tools","--add-dir","/tmp/gh-aw/cache-memory/","--allow-all-paths"]'
           GH_AW_LLM_PROVIDER: github
           GH_AW_MAX_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}
           GH_AW_MAX_TOOL_DENIALS: 5
@@ -1104,6 +1140,24 @@ jobs:
           if [ ! -f /tmp/gh-aw/agent_output.json ]; then
             echo '{"items":[]}' > /tmp/gh-aw/agent_output.json
           fi
+      - name: Commit cache-memory changes
+        if: always()
+        env:
+          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/commit_cache_memory_git.sh"
+      - name: Check cache-memory git integrity
+        if: always()
+        continue-on-error: true
+        env:
+          GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/check_cache_memory_git_integrity.sh"
+      - name: Upload cache-memory data as artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: cache-memory
+          include-hidden-files: true
+          path: /tmp/gh-aw/cache-memory
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
@@ -1140,6 +1194,7 @@ jobs:
       - agent
       - detection
       - safe_outputs
+      - update_cache_memory
     if: >
       always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true' ||
       needs.activation.outputs.oauth_token_check_failed == 'true' || needs.activation.outputs.stale_lock_file_failed == 'true' ||
@@ -1394,6 +1449,9 @@ jobs:
           GH_AW_MISSING_TOOL_REPORT_AS_FAILURE: "true"
           GH_AW_MISSING_DATA_REPORT_AS_FAILURE: "true"
           GH_AW_TIMEOUT_MINUTES: "15"
+          GH_AW_CACHE_MEMORY_ENABLED: "true"
+          GH_AW_CACHE_MEMORY_RESTORE_0_MATCHED_KEY: ${{ needs.agent.outputs.cache_memory_restore_0_matched_key || '' }}
+          GH_AW_CACHE_MEMORY_RESTORE_0_CACHE_HIT: ${{ needs.agent.outputs.cache_memory_restore_0_cache_hit || 'false' }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1848,3 +1906,61 @@ jobs:
             /tmp/gh-aw/safe-output-items.jsonl
             /tmp/gh-aw/temporary-id-map.json
           if-no-files-found: ignore
+
+  update_cache_memory:
+    needs:
+      - activation
+      - agent
+      - detection
+    if: always() && needs.detection.result == 'success' && needs.agent.result == 'success'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    env:
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
+      GH_AW_WORKFLOW_ID_SANITIZED: prcodequalityreviewer
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions
+          clean: false
+          persist-credentials: false
+      - name: Setup Scripts
+        id: setup
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+          job-name: ${{ github.job }}
+          trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+          parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "PR Code Quality Reviewer"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/pr-code-quality-reviewer.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.70"
+          GH_AW_INFO_AWF_VERSION: "v0.27.31"
+          GH_AW_INFO_ENGINE_ID: "copilot"
+      - name: Download cache-memory artifact (default)
+        id: download_cache_default
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
+      - name: Check if cache-memory folder has content (default)
+        id: check_cache_default
+        shell: bash
+        run: |
+          if [ -d "/tmp/gh-aw/cache-memory" ] && [ "$(ls -A /tmp/gh-aw/cache-memory 2>/dev/null)" ]; then
+            echo "has_content=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_content=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Save cache-memory to cache (default)
+        if: steps.check_cache_default.outputs.has_content == 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: memory-approved-6f25a3c0-pr-review-${{ github.event.pull_request.number || github.event.issue.number }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory

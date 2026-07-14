@@ -16,6 +16,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -111,37 +112,47 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 
 			// Try to load cached summary first
 			if summary, ok := loadRunSummary(runOutputDir, verbose); ok {
-				logsOrchestratorLog.Printf("Cache hit for run %d, using cached summary", run.DatabaseID)
-				// Valid cached summary exists, use it directly
-				result := DownloadResult{
-					Run:                     summary.Run,
-					Metrics:                 summary.Metrics,
-					AwContext:               summary.AwContext,
-					TaskDomain:              summary.TaskDomain,
-					BehaviorFingerprint:     summary.BehaviorFingerprint,
-					AgenticAssessments:      summary.AgenticAssessments,
-					AccessAnalysis:          summary.AccessAnalysis,
-					FirewallAnalysis:        summary.FirewallAnalysis,
-					RedactedDomainsAnalysis: summary.RedactedDomainsAnalysis,
-					MissingTools:            summary.MissingTools,
-					MissingData:             summary.MissingData,
-					Noops:                   summary.Noops,
-					MCPFailures:             summary.MCPFailures,
-					MCPToolUsage:            summary.MCPToolUsage,
-					TokenUsage:              summary.TokenUsage,
-					GitHubRateLimitUsage:    summary.GitHubRateLimitUsage,
-					JobDetails:              summary.JobDetails,
-					LogsPath:                runOutputDir,
-					Cached:                  true, // Mark as cached
+				// When the caller requested the evals artifact and it is not
+				// present in the cached run directory, the cache was created
+				// without evals (e.g., an earlier default usage-only download).
+				// Bypass the cache so the fresh download below can fetch evals;
+				// the post-download filter will then decide whether to skip.
+				evalsRequested := slices.Contains(artifactFilter, constants.EvalsArtifactName)
+				if evalsRequested && !runHasEvals(runOutputDir, verbose) {
+					logsOrchestratorLog.Printf("Cache bypass for run %d: evals artifact requested but not present locally", run.DatabaseID)
+				} else {
+					logsOrchestratorLog.Printf("Cache hit for run %d, using cached summary", run.DatabaseID)
+					// Valid cached summary exists, use it directly
+					result := DownloadResult{
+						Run:                     summary.Run,
+						Metrics:                 summary.Metrics,
+						AwContext:               summary.AwContext,
+						TaskDomain:              summary.TaskDomain,
+						BehaviorFingerprint:     summary.BehaviorFingerprint,
+						AgenticAssessments:      summary.AgenticAssessments,
+						AccessAnalysis:          summary.AccessAnalysis,
+						FirewallAnalysis:        summary.FirewallAnalysis,
+						RedactedDomainsAnalysis: summary.RedactedDomainsAnalysis,
+						MissingTools:            summary.MissingTools,
+						MissingData:             summary.MissingData,
+						Noops:                   summary.Noops,
+						MCPFailures:             summary.MCPFailures,
+						MCPToolUsage:            summary.MCPToolUsage,
+						TokenUsage:              summary.TokenUsage,
+						GitHubRateLimitUsage:    summary.GitHubRateLimitUsage,
+						JobDetails:              summary.JobDetails,
+						LogsPath:                runOutputDir,
+						Cached:                  true, // Mark as cached
+					}
+					// Re-apply the usage activity backfill to heal stale cache entries.
+					backfillCacheHitIfNeeded(&result, runOutputDir, verbose)
+					// Update progress counter
+					completed := completedCount.Add(1)
+					if progressBar != nil {
+						fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(completed))
+					}
+					return result, nil
 				}
-				// Re-apply the usage activity backfill to heal stale cache entries.
-				backfillCacheHitIfNeeded(&result, runOutputDir, verbose)
-				// Update progress counter
-				completed := completedCount.Add(1)
-				if progressBar != nil {
-					fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(completed))
-				}
-				return result, nil
 			}
 
 			// No cached summary or version mismatch - download and process.
@@ -583,4 +594,47 @@ func runHasDifcFilteredItems(runDir string, verbose bool) (bool, error) {
 	}
 
 	return gatewayMetrics.TotalFiltered > 0, nil
+}
+
+// runHasEvals checks whether a run's output directory contains an evals results file
+// (evals.jsonl). It looks in three locations:
+//  1. runDir/evals.jsonl — produced when flattenSingleFileArtifacts collapsed the
+//     one-file evals artifact from its directory directly to the run root.
+//  2. runDir/evals/evals.jsonl — un-flattened artifact directory.
+//  3. runDir/{hash}-evals/evals.jsonl — workflow_call hash-prefixed variant.
+func runHasEvals(runDir string, verbose bool) bool {
+	logsOrchestratorLog.Printf("Checking run for evals results: dir=%s", runDir)
+
+	// Case 1: flattenSingleFileArtifacts moved the file directly to the run root.
+	rootEvalsFile := filepath.Join(runDir, constants.EvalsResultFilename)
+	if fileutil.FileExists(rootEvalsFile) {
+		logsOrchestratorLog.Printf("Found evals results at: %s", rootEvalsFile)
+		return true
+	}
+
+	entries, err := os.ReadDir(runDir)
+	if err != nil {
+		return false
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		// Match exact "evals" or workflow_call prefixed "{hash}-evals".
+		if name != constants.EvalsArtifactName && !strings.HasSuffix(name, "-"+constants.EvalsArtifactName) {
+			continue
+		}
+		evalsFile := filepath.Join(runDir, name, constants.EvalsResultFilename)
+		if fileutil.FileExists(evalsFile) {
+			logsOrchestratorLog.Printf("Found evals results at: %s", evalsFile)
+			return true
+		}
+	}
+
+	if verbose {
+		logsOrchestratorLog.Printf("No evals results found in: %s", runDir)
+	}
+	return false
 }

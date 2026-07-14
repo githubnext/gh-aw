@@ -18,7 +18,7 @@ The YAML frontmatter supports these fields:
   - **`status-comment:`** - Post status comments when workflow starts/completes (boolean). Defaults to `true` for `slash_command` and `label_command` triggers; defaults to `false` for all other triggers. Must be explicitly enabled for non-command triggers with `status-comment: true`.
   - **`manual-approval:`** - Require manual approval using environment protection rules
   - **`skip-roles:`** - Skip workflow execution for users with specific repository roles (array)
-    - Available roles: `admin`, `maintainer`, `write`, `read`
+    - Available roles: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`
     - Example: `skip-roles: [read]` - Skip execution for users with read-only access
   - **`skip-bots:`** - Skip workflow execution when triggered by specific GitHub actors (array)
     - Bot name matching is flexible (handles with/without `[bot]` suffix)

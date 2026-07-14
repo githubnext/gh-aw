@@ -612,13 +612,20 @@ function isDisabledWorkflowDispatchError(error) {
  */
 function resolveMatchingSlashRoutes(slashRouteMap, actualCommand) {
   /** @type {Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown, status_comment?: unknown}>} */
-  const matchedRoutes = [];
+  const specificRoutes = [];
+  /** @type {Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown, status_comment?: unknown}>} */
+  const catchAllRoutes = [];
   const seen = new Set();
 
   for (const [configuredCommand, configuredRoutes] of Object.entries(slashRouteMap)) {
     if (!matchesCommandName(configuredCommand, actualCommand) || !Array.isArray(configuredRoutes)) {
       continue;
     }
+
+    // Catch-all ("*") routes are only used as a fallback when no specific
+    // routes match.  Keeping them separate ensures that a command like
+    // /smoke-opencode dispatches only smoke-opencode and not skillet.
+    const isCatchAll = configuredCommand === "*";
 
     for (const route of configuredRoutes) {
       // Keep the de-duplication key explicit so routes that differ only by
@@ -628,11 +635,15 @@ function resolveMatchingSlashRoutes(slashRouteMap, actualCommand) {
         continue;
       }
       seen.add(key);
-      matchedRoutes.push(route);
+      if (isCatchAll) {
+        catchAllRoutes.push(route);
+      } else {
+        specificRoutes.push(route);
+      }
     }
   }
 
-  return matchedRoutes;
+  return specificRoutes.length > 0 ? specificRoutes : catchAllRoutes;
 }
 
 async function main() {

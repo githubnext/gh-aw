@@ -779,6 +779,19 @@ describe("route_slash_command", () => {
     expect(awContext.command_name).toBe("developer");
   });
 
+  it("does not dispatch catch-all skillet when a specific route matches", async () => {
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      "*": [{ workflow: "skillet", events: ["issue_comment"] }],
+      "smoke-opencode": [{ workflow: "smoke-opencode", events: ["issue_comment"] }],
+    });
+    globals.context.payload.comment.body = "/smoke-opencode";
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].workflow_id).toBe("smoke-opencode.lock.yml");
+  });
+
   it("does not dispatch smoke-copilot-sdk when command is smoke-copilot", async () => {
     process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
       "smoke-copilot": [{ workflow: "smoke-copilot", events: ["issue_comment"] }],

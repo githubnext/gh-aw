@@ -121,6 +121,107 @@ type ModelSelection struct {
 	Supported []string `yaml:"supported,omitempty"`
 }
 
+// EngineCapabilitiesDefinition captures declarative engine capabilities loaded from
+// engine definition frontmatter.
+type EngineCapabilitiesDefinition struct {
+	ToolsAllowlist   bool `yaml:"tools-allowlist,omitempty"`
+	MaxTurns         bool `yaml:"max-turns,omitempty"`
+	WebSearch        bool `yaml:"web-search,omitempty"`
+	MaxContinuations bool `yaml:"max-continuations,omitempty"`
+	NativeAgentFile  bool `yaml:"native-agent-file,omitempty"`
+	BareMode         bool `yaml:"bare-mode,omitempty"`
+}
+
+// ToRuntimeCapabilities converts the declarative capabilities definition into the
+// runtime EngineCapabilities struct used by CodingAgentEngine implementations.
+func (d EngineCapabilitiesDefinition) ToRuntimeCapabilities() EngineCapabilities {
+	return EngineCapabilities(d)
+}
+
+// EngineManifestDefinition describes engine-specific files and folders that alter
+// agent behaviour and must be protected from untrusted pull requests.
+type EngineManifestDefinition struct {
+	Files        []string `yaml:"files,omitempty"`
+	PathPrefixes []string `yaml:"path-prefixes,omitempty"`
+}
+
+// EngineInstallationDefinition describes how an engine CLI is installed.
+type EngineInstallationDefinition struct {
+	PackageManager     string `yaml:"package-manager,omitempty"`
+	PackageName        string `yaml:"package-name,omitempty"`
+	Version            string `yaml:"version,omitempty"`
+	StepName           string `yaml:"step-name,omitempty"`
+	BinaryName         string `yaml:"binary-name,omitempty"`
+	IncludeNodeSetup   bool   `yaml:"include-node-setup,omitempty"`
+	PostInstallScripts bool   `yaml:"post-install-scripts,omitempty"`
+	Cooldown           bool   `yaml:"cooldown,omitempty"`
+	VerifyCommand      string `yaml:"verify-command,omitempty"`
+	VerifyStepName     string `yaml:"verify-step-name,omitempty"`
+	DocumentationURL   string `yaml:"docs-url,omitempty"`
+}
+
+// EngineConfigFileDefinition describes a configuration file that should be written
+// before executing the engine CLI.
+type EngineConfigFileDefinition struct {
+	Path          string `yaml:"path,omitempty"`
+	StepName      string `yaml:"step-name,omitempty"`
+	Content       string `yaml:"content,omitempty"`
+	MergeStrategy string `yaml:"merge-strategy,omitempty"`
+}
+
+// EngineExecutionDefinition describes the common CLI execution pattern used by
+// behavior-defined engines.
+type EngineExecutionDefinition struct {
+	CommandName            string   `yaml:"command-name,omitempty"`
+	Args                   []string `yaml:"args,omitempty"`
+	StepName               string   `yaml:"step-name,omitempty"`
+	ModelEnvVarName        string   `yaml:"model-env-var,omitempty"`
+	ModelEnvProviderPrefix string   `yaml:"model-env-provider-prefix,omitempty"`
+	ModelFlag              string   `yaml:"model-flag,omitempty"`
+	MCPConfigEnvVar        string   `yaml:"mcp-config-env-var,omitempty"`
+	MCPConfigFlag          string   `yaml:"mcp-config-flag,omitempty"`
+	WriteTimestamp         bool     `yaml:"write-timestamp,omitempty"`
+	ProviderEnvMode        string   `yaml:"provider-env-mode,omitempty"`
+	// Env holds additional static environment variables to inject into the
+	// execution step.  Values are rendered verbatim and are not filtered
+	// through the secrets allowlist, so they must not contain secret values.
+	Env map[string]string `yaml:"env,omitempty"`
+}
+
+// EngineMCPDefinition describes how to render MCP configuration for a
+// behavior-defined engine.
+type EngineMCPDefinition struct {
+	ConfigPath string `yaml:"config-path,omitempty"`
+}
+
+// EngineBehaviorDefinition captures declarative runtime behaviour for a custom
+// engine definition.
+type EngineBehaviorDefinition struct {
+	SecretStrategy      string                        `yaml:"secret-strategy,omitempty"`
+	SupportedEnvVarKeys []string                      `yaml:"supported-env-var-keys,omitempty"`
+	Capabilities        EngineCapabilitiesDefinition  `yaml:"capabilities,omitempty"`
+	Manifest            *EngineManifestDefinition     `yaml:"manifest,omitempty"`
+	Installation        *EngineInstallationDefinition `yaml:"installation,omitempty"`
+	ConfigFile          *EngineConfigFileDefinition   `yaml:"config-file,omitempty"`
+	Execution           *EngineExecutionDefinition    `yaml:"execution,omitempty"`
+	MCP                 *EngineMCPDefinition          `yaml:"mcp,omitempty"`
+	// HarnessScript is the JavaScript source of a Node.js harness that spawns the
+	// engine CLI.  When non-empty the script is written to
+	// ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_harness.cjs before execution and the
+	// engine is launched via:
+	//   node <harness-path> <command-name> [args...]
+	// The harness can read process.env.GH_AW_PROMPT for the prompt-file path and
+	// process.env.AWF_REFLECT_ENABLED / the AWF reflect JSON file to dynamically
+	// configure the engine CLI at runtime.
+	HarnessScript string `yaml:"harness-script,omitempty"`
+}
+
+// AuthBinding maps a logical authentication role to a secret name.
+type AuthBinding struct {
+	Role   string `yaml:"role"`
+	Secret string `yaml:"secret"`
+}
+
 // RequiredSecretNames returns the env-var names that must be provided at runtime for
 // this AuthDefinition. Returns an empty slice when Auth is nil.
 func (a *AuthDefinition) RequiredSecretNames() []string {
@@ -149,15 +250,19 @@ func (a *AuthDefinition) RequiredSecretNames() []string {
 // It is separate from the runtime adapter (CodingAgentEngine) to allow the catalog
 // layer to carry identity and provider information without coupling to implementation.
 type EngineDefinition struct {
-	ID          string `yaml:"id"`
-	DisplayName string `yaml:"display-name,omitempty"`
-	Description string `yaml:"description,omitempty"`
+	ID               string `yaml:"id"`
+	DisplayName      string `yaml:"display-name,omitempty"`
+	Description      string `yaml:"description,omitempty"`
+	Experimental     bool   `yaml:"experimental,omitempty"`
+	GHSkillAgentName string `yaml:"gh-skill-agent-name,omitempty"`
 	// RuntimeID maps to the CodingAgentEngine registered in EngineRegistry.
 	// Defaults to ID when omitted.
-	RuntimeID string            `yaml:"runtime-id,omitempty"`
-	Provider  ProviderSelection `yaml:"provider,omitempty"`
-	Models    ModelSelection    `yaml:"models,omitempty"`
-	Options   map[string]any    `yaml:"options,omitempty"`
+	RuntimeID string                    `yaml:"runtime-id,omitempty"`
+	Provider  ProviderSelection         `yaml:"provider,omitempty"`
+	Models    ModelSelection            `yaml:"models,omitempty"`
+	Auth      []AuthBinding             `yaml:"auth,omitempty"`
+	Options   map[string]any            `yaml:"options,omitempty"`
+	Behaviors *EngineBehaviorDefinition `yaml:"behaviors,omitempty"`
 }
 
 // EngineCatalog is a collection of EngineDefinition entries backed by an EngineRegistry

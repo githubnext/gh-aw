@@ -19,6 +19,7 @@ Load these files from `github/gh-aw` (they are not available locally).
 After loading the matching workflow prompt or skill, follow it directly:
 - Design workflows from scratch via interview: `.github/aw/designer.md`
 - Create new workflows: `.github/aw/create-agentic-workflow.md`
+- Configure or add declarative engines: `.github/aw/configure-agentic-engine.md`
 - Update existing workflows: `.github/aw/update-agentic-workflow.md`
 - Debug, audit, or investigate workflows: `.github/aw/debug-agentic-workflow.md`
 - Upgrade workflows and fix deprecations: `.github/aw/upgrade-agentic-workflows.md`
