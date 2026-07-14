@@ -1,3 +1,4 @@
+// @ts-check
 "use strict";
 
 // Maximum number of retry attempts after the initial run
@@ -106,4 +107,5 @@ function resolveRetryConfig(env = process.env, logger = () => {}) {
 
 module.exports = {
   resolveRetryConfig,
+  parseRetryConfigNumber,
 };
