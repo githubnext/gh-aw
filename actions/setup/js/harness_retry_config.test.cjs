@@ -1,7 +1,7 @@
 // @ts-check
 
 import { describe, it, expect } from "vitest";
-import { resolveRetryConfig, parseRetryConfigNumber } from "./harness_retry_config.cjs";
+const { resolveRetryConfig, parseRetryConfigNumber } = require("./harness_retry_config.cjs");
 
 describe("parseRetryConfigNumber", () => {
   it("returns defaultValue when env var is not set", () => {
