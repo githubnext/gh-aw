@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"slices"
 	"strings"
 	"time"
 
@@ -173,9 +172,7 @@ Downloaded artifacts include (when using --artifacts all):
 					return err
 				}
 
-				if evalsOnly && !slices.Contains(artifacts, string(ArtifactSetEvals)) && !slices.Contains(artifacts, string(ArtifactSetAll)) {
-					artifacts = append(artifacts, string(ArtifactSetEvals))
-				}
+				artifacts = applyEvalsArtifact(artifacts, evalsOnly)
 
 				return DownloadWorkflowLogsFromStdin(cmd.Context(), StdinLogsOptions{
 					RunURLs:           runURLs,
@@ -330,11 +327,7 @@ Downloaded artifacts include (when using --artifacts all):
 
 			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v, cache_before=%s", workflowName, count, engine, train, cacheBefore)
 
-			// Auto-include the evals artifact when --evals is specified so the filter
-			// can find evals.jsonl without requiring the user to also pass --artifacts evals.
-			if evalsOnly && !slices.Contains(artifacts, string(ArtifactSetEvals)) && !slices.Contains(artifacts, string(ArtifactSetAll)) {
-				artifacts = append(artifacts, string(ArtifactSetEvals))
-			}
+			artifacts = applyEvalsArtifact(artifacts, evalsOnly)
 
 			return DownloadWorkflowLogs(cmd.Context(), LogsDownloadOptions{
 				WorkflowName:      workflowName,

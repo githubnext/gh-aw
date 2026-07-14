@@ -282,3 +282,19 @@ func findMissingFilterEntries(filter []string, outputDir string) []string {
 	}
 	return missing
 }
+
+// applyEvalsArtifact appends the evals artifact set to artifacts when evalsOnly is true
+// and neither ArtifactSetEvals nor ArtifactSetAll is already present. This ensures
+// evals.jsonl is downloaded without requiring the user to also pass --artifacts evals.
+//
+// Note: callers that treat an empty artifacts slice as "all" (e.g., the audit command)
+// should guard with len(artifacts) > 0 before calling this function, to avoid
+// changing the empty/"all" default into an evals-only download.
+func applyEvalsArtifact(artifacts []string, evalsOnly bool) []string {
+	if evalsOnly &&
+		!slices.Contains(artifacts, string(ArtifactSetEvals)) &&
+		!slices.Contains(artifacts, string(ArtifactSetAll)) {
+		return append(artifacts, string(ArtifactSetEvals))
+	}
+	return artifacts
+}

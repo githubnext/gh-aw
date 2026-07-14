@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -161,10 +160,8 @@ func getAuditCommandOptions(cmd *cobra.Command) (auditCommandOptions, error) {
 	// the default is "all", which already includes every artifact including evals,
 	// so we must not append here: doing so would change the default from "all" to
 	// "evals-only" and omit the activation/agent artifacts required for a full report.
-	if opts.evalsOnly && len(opts.artifacts) > 0 &&
-		!slices.Contains(opts.artifacts, string(ArtifactSetEvals)) &&
-		!slices.Contains(opts.artifacts, string(ArtifactSetAll)) {
-		opts.artifacts = append(opts.artifacts, string(ArtifactSetEvals))
+	if len(opts.artifacts) > 0 {
+		opts.artifacts = applyEvalsArtifact(opts.artifacts, opts.evalsOnly)
 	}
 	return opts, nil
 }
@@ -378,9 +375,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 	if shouldSkipAuditRun(cfg.runID, cfg.outputDir, cfg.experimentFilter, cfg.variantFilter) {
 		return nil
 	}
-	if cfg.evalsOnly && !runHasEvals(cfg.outputDir, cfg.verbose) {
-		auditLog.Printf("Skipping run %d: no evals results found (filtered by --evals)", cfg.runID)
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not have evals results (filtered by --evals)", cfg.runID)))
+	if shouldSkipForEvals(cfg) {
 		return nil
 	}
 	return renderAuditReport(ctx, processedRun, results.metrics, results.mcpToolUsage, cfg.auditOptions())
@@ -968,4 +963,21 @@ func renderAuditCompletion(runOutputDir string, jsonOutput bool) {
 	absOutputDir, _ := filepath.Abs(runOutputDir)
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Audit complete. Logs saved to "+absOutputDir))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Tip: use --artifacts to select specific artifact sets (agent, firewall, mcp, activation, detection, etc.)"))
+}
+
+// shouldSkipForEvals returns true when evals filtering is active but no evals results
+// are found locally after download. It logs the skip decision and, when verbose, prints
+// an info message to stderr. Call this only after artifact download has completed.
+func shouldSkipForEvals(cfg auditRunConfig) bool {
+	if !cfg.evalsOnly {
+		return false
+	}
+	if runHasEvals(cfg.outputDir, cfg.verbose) {
+		return false
+	}
+	auditLog.Printf("Skipping run %d: no evals results found (filtered by --evals)", cfg.runID)
+	if cfg.verbose {
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not have evals results (filtered by --evals)", cfg.runID)))
+	}
+	return true
 }
