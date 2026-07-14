@@ -268,13 +268,13 @@ describe("parse_pi_log.cjs", () => {
       expect(toolResultIdx).toBeGreaterThan(toolUseIdx);
     });
 
-    it("computes v3 stats: turns counted, output summed, input peaked", () => {
+    it("computes v3 stats: turns counted, output summed, input summed", () => {
       const stats = computePiV3Stats(v3Lines);
 
       expect(stats).not.toBeNull();
       expect(stats.turns).toBe(2);
       expect(stats.output_tokens).toBe(55); // 40 + 15
-      expect(stats.input_tokens).toBe(1200); // max(1000, 1200)
+      expect(stats.input_tokens).toBe(2200); // 1000 + 1200
     });
 
     it("includes a normalized v3 result entry for OTEL enrichment", () => {
@@ -283,13 +283,13 @@ describe("parse_pi_log.cjs", () => {
 
       expect(resultEntry).toBeDefined();
       expect(resultEntry.num_turns).toBe(2);
-      expect(resultEntry.usage).toEqual({ input_tokens: 1200, output_tokens: 55 });
+      expect(resultEntry.usage).toEqual({ input_tokens: 2200, output_tokens: 55 });
     });
 
     it("marks failed tool results as errors", () => {
       const entries = transformPiV3Entries([
         { type: "session", version: 3, id: "s" },
-        { type: "tool_execution_end", toolCallId: "t1", result: { status: "error", content: [{ type: "text", text: "boom" }] } },
+        { type: "tool_execution_end", toolCallId: "t1", isError: true, result: { content: [{ type: "text", text: "boom" }] } },
         { type: "turn_end", message: { role: "assistant", model: "m", content: [{ type: "toolCall", id: "t1", name: "bash", arguments: {} }], usage: { input: 1, output: 1 } } },
       ]);
       const toolResult = entries.find(e => e.type === "user" && e.message.content[0].type === "tool_result");

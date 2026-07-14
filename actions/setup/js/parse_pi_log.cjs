@@ -62,7 +62,7 @@ function parsePiLog(logContent) {
   }
 
   // Pi CLI's `--mode json` output schema changed over time. Current builds emit a
-  // v3 streaming schema (session / turn_start / turn_end / tool_execution_* / agent_end)
+  // v3 streaming schema (session, turn_start, turn_end, tool_execution_start/end, agent_end)
   // while older builds emitted a flat init/assistant/tool_use/tool_result/result schema.
   // Detect which schema this log uses and transform accordingly so the step summary
   // renders the conversation and token stats for both.
@@ -189,7 +189,7 @@ function transformPiEntries(rawEntries) {
 /**
  * Detects whether the raw Pi entries use the v3 streaming schema.
  *
- * The v3 schema emits envelope events (session/turn_end/tool_execution_*/agent_end)
+ * The v3 schema emits envelope events (session, turn_end, tool_execution_start/end, agent_end)
  * that the legacy flat schema (init/assistant/tool_use/tool_result/result) never uses.
  * A single marker event is enough to distinguish the two.
  *
@@ -316,7 +316,7 @@ function transformPiV3Entries(rawEntries) {
               type: "tool_result",
               tool_use_id: id,
               content: extractPiV3ResultText(res.result),
-              is_error: isPiV3ResultError(res.result),
+              is_error: res.isError || isPiV3ResultError(res.result),
             },
           ],
         },
@@ -360,9 +360,8 @@ function isPiV3ResultError(result) {
 /**
  * Computes aggregate stats from Pi v3 entries for the information section.
  *
- * Each `turn_end` carries a cumulative-context `usage` object; output tokens are summed
- * across turns while input (prompt) tokens use the maximum observed value, since the
- * prompt context is resent each turn rather than accumulated. Turn count is the number of
+ * Each `turn_end` carries a `usage` object; both output and input tokens are summed across
+ * turns, matching the accumulation performed by the Pi driver. Turn count is the number of
  * finalized turns.
  *
  * @param {Array<any>} rawEntries - Raw parsed JSONL entries
@@ -370,7 +369,7 @@ function isPiV3ResultError(result) {
  */
 function computePiV3Stats(rawEntries) {
   let outputTokens = 0;
-  let maxInputTokens = 0;
+  let inputTokens = 0;
   let turns = 0;
   let sawUsage = false;
 
@@ -385,8 +384,8 @@ function computePiV3Stats(rawEntries) {
       if (typeof usage.output === "number") {
         outputTokens += usage.output;
       }
-      if (typeof usage.input === "number" && usage.input > maxInputTokens) {
-        maxInputTokens = usage.input;
+      if (typeof usage.input === "number") {
+        inputTokens += usage.input;
       }
     }
   }
@@ -396,7 +395,7 @@ function computePiV3Stats(rawEntries) {
   }
 
   return {
-    input_tokens: maxInputTokens,
+    input_tokens: inputTokens,
     output_tokens: outputTokens,
     turns: turns,
     duration_ms: 0,
