@@ -118,7 +118,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
   ```yaml
   safe-outputs:
     create-code-scanning-alert:
-      max: 50                         # Optional: max findings (default: unlimited)
+      max: 50                         # Optional: max findings (default: 40)
       driver: "Custom Scanner"        # Optional: SARIF tool.driver.name (default: "GitHub Agentic Workflows Security Scanner")
       github-token: ${{ secrets.MY_TOKEN }}  # Optional: override token for security-events:write
       target-repo: "owner/repo"       # Optional: cross-repository
@@ -257,7 +257,8 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
   ```yaml
   safe-outputs:
     missing-tool:
-      create-issue: true              # Optional: create issues for missing tools (default: true)
+      create-issue: true              # Optional: create issues for missing tools (default: false when this block is set; auto-enabled as true only when `missing-tool` is omitted)
+      report-as-failure: true         # Optional: classify the run as an agent failure (default: true)
       title-prefix: "[missing tool]"  # Optional: prefix for issue titles
       labels: [tool-request]          # Optional: labels for created issues
   ```
@@ -268,7 +269,8 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
   ```yaml
   safe-outputs:
     missing-data:
-      create-issue: true              # Optional: create issues for missing data (default: true)
+      create-issue: true              # Optional: create issues for missing data (default: false when this block is set; auto-enabled as true only when `missing-data` is omitted)
+      report-as-failure: true         # Optional: classify the run as an agent failure (default: true)
       title-prefix: "[missing data]"  # Optional: prefix for issue titles
       labels: [data-request]          # Optional: labels for created issues
   ```

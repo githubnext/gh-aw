@@ -60,11 +60,7 @@ Rule of thumb:
 - `workflow_run` → GitHub Actions outcomes in this repo
 - `deployment_status` → external platform outcomes via Deployments API
 
-Single-job limits apply:
-
-- triage, evidence collection, and summary in one agent job
-- no multi-job fan-out/fan-in
-- no cross-workflow waits or chaining
+Do triage, evidence collection, and summary in one agent job — the single-job limits (no multi-job fan-out/fan-in, no cross-workflow waits or chaining) from [workflow-constraints.md](workflow-constraints.md) apply.
 
 See also: [deployment-status.md](deployment-status.md)
 
