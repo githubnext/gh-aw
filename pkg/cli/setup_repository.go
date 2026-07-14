@@ -194,17 +194,43 @@ func rejectNestedNonExistentCheckoutPath(dir string) error {
 
 	gitRoot, err := gitutil.FindGitRootFrom(existingPath)
 	if err != nil {
-		return nil
+		if errors.Is(err, gitutil.ErrNotGitRepository) {
+			return nil
+		}
+		return fmt.Errorf("failed to inspect git checkout for %s: %w", existingPath, err)
 	}
 
-	absDir, err := filepath.Abs(dir)
+	insideGitRoot, err := isNestedPathUnder(dir, gitRoot)
 	if err != nil {
-		return fmt.Errorf("failed to resolve %s: %w", dir, err)
+		return err
 	}
-	if absDir != gitRoot {
+	if insideGitRoot {
 		return fmt.Errorf("target directory %s is inside a different git checkout rooted at %s", dir, gitRoot)
 	}
 	return nil
+}
+
+func isNestedPathUnder(path string, root string) (bool, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return false, fmt.Errorf("failed to resolve %s: %w", path, err)
+	}
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return false, fmt.Errorf("failed to resolve %s: %w", root, err)
+	}
+
+	rel, err := filepath.Rel(absRoot, absPath)
+	if err != nil {
+		return false, fmt.Errorf("failed to compare %s with %s: %w", absPath, absRoot, err)
+	}
+	if rel == "." {
+		return false, nil
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return false, nil
+	}
+	return true, nil
 }
 
 func firstExistingParent(path string) (string, error) {
