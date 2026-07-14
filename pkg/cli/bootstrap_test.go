@@ -301,6 +301,30 @@ func TestBuildBootstrapPlan_PlanOnlySkipsCleanWorktreeCheck(t *testing.T) {
 	}
 }
 
+func TestBuildBootstrapPlan_RejectsNonExistentNestedCheckoutPath(t *testing.T) {
+	parentRepoDir := initBootstrapGitRepo(t)
+	nestedDir := filepath.Join(parentRepoDir, "new-checkout")
+
+	_, err := buildBootstrapPlan(context.Background(), normalizeBootstrapOptions(BootstrapOptions{
+		Repo: "octo/platform-ops",
+		Dir:  nestedDir,
+	}), bootstrapRuntime{
+		setupRepositoryRuntime: setupRepositoryRuntime{
+			checkAuth:  func(context.Context) error { return nil },
+			repoExists: func(context.Context, string) (bool, error) { return true, nil },
+		},
+	}, parentRepoDir)
+	if err == nil {
+		t.Fatal("expected nested checkout path validation error")
+	}
+	if !strings.Contains(err.Error(), "is inside a different git checkout rooted at") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(err.Error(), parentRepoDir) {
+		t.Fatalf("expected error to include checkout root %s, got %v", parentRepoDir, err)
+	}
+}
+
 func TestRunBootstrapWithRuntime_SkipsExistingSourcedWorkflow(t *testing.T) {
 	repoDir := initBootstrapGitRepo(t)
 	writeBootstrapMarkers(t, repoDir, "")

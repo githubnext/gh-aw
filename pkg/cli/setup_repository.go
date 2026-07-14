@@ -141,6 +141,9 @@ func inspectSetupCheckout(dir string, repo string, originRepoLookup func(string)
 	info, err := os.Stat(dir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
+			if nestedErr := rejectNestedNonExistentCheckoutPath(dir); nestedErr != nil {
+				return nil, nestedErr
+			}
 			return &setupCheckoutInspection{cloneNeeded: true}, nil
 		}
 		return nil, fmt.Errorf("failed to inspect %s: %w", dir, err)
@@ -178,6 +181,54 @@ func inspectSetupCheckout(dir string, repo string, originRepoLookup func(string)
 	}
 
 	return &setupCheckoutInspection{attached: true}, nil
+}
+
+func rejectNestedNonExistentCheckoutPath(dir string) error {
+	existingPath, err := firstExistingParent(dir)
+	if err != nil {
+		return err
+	}
+	if existingPath == "" {
+		return nil
+	}
+
+	gitRoot, err := gitutil.FindGitRootFrom(existingPath)
+	if err != nil {
+		return nil
+	}
+
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve %s: %w", dir, err)
+	}
+	if absDir != gitRoot {
+		return fmt.Errorf("target directory %s is inside a different git checkout rooted at %s", dir, gitRoot)
+	}
+	return nil
+}
+
+func firstExistingParent(path string) (string, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve %s: %w", path, err)
+	}
+
+	current := absPath
+	for {
+		_, statErr := os.Stat(current)
+		if statErr == nil {
+			return current, nil
+		}
+		if !errors.Is(statErr, os.ErrNotExist) {
+			return "", fmt.Errorf("failed to inspect %s: %w", current, statErr)
+		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", nil
+		}
+		current = parent
+	}
 }
 
 func resolveSetupCheckoutDir(repo string, dir string) string {

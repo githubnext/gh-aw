@@ -209,6 +209,24 @@ func TestRunSetupRepositoryCheck_PropagatesCleanWorktreeError(t *testing.T) {
 	assert.ErrorIs(t, err, wantErr)
 }
 
+func TestRunSetupRepositoryCheck_RejectsNonExistentNestedCheckoutPath(t *testing.T) {
+	parentRepoDir := initBootstrapGitRepo(t)
+	nestedDir := filepath.Join(parentRepoDir, "new-checkout")
+
+	err := runSetupRepositoryCheckWithRuntime(normalizeSetupRepositoryCheckOptions(SetupRepositoryCheckOptions{
+		Ctx:  context.Background(),
+		Repo: "octo/platform-ops",
+		Dir:  nestedDir,
+	}), setupRepositoryRuntime{
+		checkAuth:  func(context.Context) error { return nil },
+		ownerType:  func(context.Context, string) (string, error) { return "Organization", nil },
+		repoExists: func(context.Context, string) (bool, error) { return true, nil },
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "is inside a different git checkout rooted at")
+	assert.Contains(t, err.Error(), parentRepoDir)
+}
+
 func TestCreateSetupRepository_UsesSupportedFlags(t *testing.T) {
 	fakeBin := t.TempDir()
 	argsLog := filepath.Join(fakeBin, "gh-args.log")
