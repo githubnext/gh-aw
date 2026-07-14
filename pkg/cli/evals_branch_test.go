@@ -50,7 +50,7 @@ func TestWorkflowIDFromRunPath(t *testing.T) {
 		{name: "lock workflow", path: ".github/workflows/release.lock.yml", want: "release"},
 		{name: "yaml workflow", path: ".github/workflows/release.yml", want: "release"},
 		{name: "yml workflow", path: ".github/workflows/release.yaml", want: "release"},
-		{name: "hyphenated lowercased", path: ".github/workflows/My-Release.yaml", want: "myrelease"},
+		{name: "uppercase and hyphen normalized", path: ".github/workflows/My-Release.yaml", want: "myrelease"},
 	}
 
 	for _, tt := range tests {
