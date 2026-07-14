@@ -30,6 +30,13 @@ files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]
   merge into feature. **idx99 = FIRST tiny-none-many-small: PASS.** clean-single
   54.466 KB/1.patch for 50.000 KB payload → framing +4.47 KB (~9% at many/small,
   ~0.22 KB/file × 20). many-micro tier (90-98) DONE; small tier open at 99.
+  **idx100-103: PASS (tiny-none-many-small continued).** clean-multi(100) 56.19 KB
+  /3.patch (disjoint 7/7/6, ~1×); clean-merge_msg(101) 55.65 KB/1.patch (leak
+  0001-Merge-branch-topic-into-feature.patch reconfirmed, --merges=0, parent=1);
+  ahead-single(102) cpr 55.67→push 56.48 KB/2.patch (ff is-ancestor=0); ahead-multi
+  (103) cpr 56.19→push 57.01 KB/4.patch (disjoint ~1×, ff is-ancestor=0). All 20
+  files ≤200, ~56 KB ≪4096. many-small framing ~+6 KB (~0.3 KB/file, per-commit
+  From-headers add ~0.3 KB/commit). tiny-none-many-small now covers idx99-103.
 
 ## THE CAPS (grounded)
 
@@ -101,8 +108,8 @@ first max-patch-FILES `rejected` needs batch under a default-100 config.
 
 ## Next
 
-Next index: **100** → tiny-none-many-small-multi(100), then small-diverged etc. Micro
-+small many tiers now cover 90-99. FILES=many runs
+Next index: **104** → tiny-none-many-small-ahead-merge_msg(104), then diverged small
+(105-107), then medium/large/xlarge many tiers. many-small covered 99-103. FILES=many runs
 90-179, batch 180-269. **many-xlarge ~4058 KB still <4096 (safe).** batch-xlarge
 ~4080 KB <4096 BUT batch=100 files == max-patch-files default 100 (200 here) — watch
 the `>` vs `>=` boundary. HISTORY=deep(500) & SIZE>tiny (idx 720+) far ahead — no
