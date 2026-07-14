@@ -51,7 +51,7 @@ engine:
           "disabled_providers": ["opencode", "openai"],
           "provider": {
             "awf-proxy": {
-              "api": "http://172.30.0.30:10002/v1",
+              "api": "http://172.30.0.30:10002",
               "options": {
                 "apiKey": "awf-copilot-proxy"
               },
