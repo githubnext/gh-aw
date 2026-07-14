@@ -128,7 +128,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				// the post-download filter will then decide whether to skip.
 				evalsRequested := slices.Contains(artifactFilter, constants.EvalsArtifactName)
 				hasEvals := runHasEvals(runOutputDir, verbose) ||
-					ensureEvalsResultsFromBranch(ctx, run, runOutputDir, runOwner, runRepo, runHost, verbose)
+					ensureEvalsResultsFromBranch(ctx, summary.Run, runOutputDir, runOwner, runRepo, runHost, verbose)
 				if evalsRequested && !hasEvals {
 					logsOrchestratorLog.Printf("Cache bypass for run %d: evals artifact requested but not present locally", run.DatabaseID)
 				} else {

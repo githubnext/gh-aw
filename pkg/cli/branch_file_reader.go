@@ -17,6 +17,7 @@ func readRemoteRepoBranchFile(repoOverride, branchName, filePath, hostname strin
 
 func readRemoteRepoBranchFileContext(ctx context.Context, repoOverride, branchName, filePath, hostname string) ([]byte, error) {
 	args := []string{"api",
+		"--method", "GET",
 		"repos/{owner}/{repo}/contents/" + filePath,
 		"--field", "ref=" + branchName,
 		"--jq", ".content",
