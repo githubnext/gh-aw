@@ -203,14 +203,14 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 		return nil, err
 	}
 
-	// Validate that push triggers are scoped to specific branches to prevent fan-out.
+	// Validate that push triggers are scoped to specific branches or tags to prevent fan-out.
 	// In strict mode this is an error; in non-strict mode it is downgraded to a warning.
 	if err := ValidatePushBranchScope(frontmatterForValidation); err != nil {
 		if c.effectiveStrictMode(frontmatterForValidation) {
-			orchestratorFrontmatterLog.Printf("Push branch scope validation failed: %v", err)
+			orchestratorFrontmatterLog.Printf("Push branch/tag scope validation failed: %v", err)
 			return nil, err
 		}
-		orchestratorFrontmatterLog.Printf("Push branch scope warning (non-strict mode): %v", err)
+		orchestratorFrontmatterLog.Printf("Push branch/tag scope warning (non-strict mode): %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(err.Error()))
 		c.IncrementWarningCount()
 	}

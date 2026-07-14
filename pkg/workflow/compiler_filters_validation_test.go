@@ -385,6 +385,28 @@ func TestValidatePushBranchScope(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "push with tags filter",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"tags": []string{"v*.*.*"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "push with tags-ignore filter",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"tags-ignore": []string{"nightly-*"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "push with branches and paths filter",
 			frontmatter: map[string]any{
 				"on": map[string]any{
