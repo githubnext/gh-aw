@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      SCAN_ROOT: /tmp/gh-aw/sighthound/repo
     outputs:
       findings_detected: ${{ steps.scan.outputs.findings_detected }}
       findings_count: ${{ steps.scan.outputs.findings_count }}
@@ -38,7 +40,6 @@ jobs:
       - name: Prepare clean scan root
         run: |
           set -euo pipefail
-          SCAN_ROOT="/tmp/gh-aw/sighthound/repo"
           rm -rf "$SCAN_ROOT"
           mkdir -p "$SCAN_ROOT"
           git archive --format=tar HEAD | tar -xf - -C "$SCAN_ROOT"
@@ -49,7 +50,6 @@ jobs:
           set -euo pipefail
           RESULTS_DIR="/tmp/gh-aw/agent/sighthound"
           RESULTS_JSON="$RESULTS_DIR/results.json"
-          SCAN_ROOT="/tmp/gh-aw/sighthound/repo"
           mkdir -p "$RESULTS_DIR"
 
           set +e
