@@ -405,10 +405,10 @@ func TestMissingBootstrapInitMarkers_DetectsInvalidArtifacts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("missingBootstrapInitMarkers returned error: %v", err)
 	}
-	if !containsString(missing, ".gitattributes") {
+	if !slices.Contains(missing, ".gitattributes") {
 		t.Fatalf("expected .gitattributes to be marked missing, got %#v", missing)
 	}
-	if !containsString(missing, ".github/mcp.json") {
+	if !slices.Contains(missing, ".github/mcp.json") {
 		t.Fatalf("expected .github/mcp.json to be marked missing, got %#v", missing)
 	}
 }
@@ -457,8 +457,4 @@ func bootstrapMarkerContent(marker string, repoDir string) (string, error) {
 	default:
 		return "ok\n", nil
 	}
-}
-
-func containsString(values []string, want string) bool {
-	return slices.Contains(values, want)
 }
