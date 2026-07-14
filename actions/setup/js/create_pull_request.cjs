@@ -409,7 +409,9 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
       // Mutate payload in-place so any subsequent attempts use the new target.
       if (status === 410) {
         const originalTarget = `${payload.owner}/${payload.repo}`;
-        const candidates = [parseRepo(process.env.GH_AW_FAILURE_ISSUE_REPO || ""), parseRepo(process.env.GITHUB_REPOSITORY || "")].filter(Boolean);
+        const failureRepo = parseRepo(process.env.GH_AW_FAILURE_ISSUE_REPO || "");
+        const workflowRepo = parseRepo(process.env.GITHUB_REPOSITORY || "");
+        const candidates = [failureRepo, workflowRepo].filter(Boolean);
         const alt = candidates.find(r => r.owner.toLowerCase() !== payload.owner.toLowerCase() || r.repo.toLowerCase() !== payload.repo.toLowerCase());
 
         if (alt) {

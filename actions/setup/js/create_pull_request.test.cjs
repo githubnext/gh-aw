@@ -3774,6 +3774,13 @@ describe("create_pull_request - fallback issue issues-disabled (410)", () => {
     });
   }
 
+  function createAssigneeError(message = "assignee is invalid") {
+    return Object.assign(new Error(message), {
+      status: 422,
+      response: { status: 422 },
+    });
+  }
+
   beforeEach(() => {
     originalEnv = { ...process.env };
     process.env.GH_AW_WORKFLOW_ID = "test-workflow";
@@ -3933,14 +3940,9 @@ describe("create_pull_request - fallback issue issues-disabled (410)", () => {
     process.env.GITHUB_REPOSITORY = "workflow-owner/workflow-repo";
     global.github.rest.pulls.create.mockRejectedValue(new Error("Some PR creation error"));
 
-    const assigneeError = Object.assign(new Error("assignee is invalid"), {
-      status: 422,
-      response: { status: 422 },
-    });
-
     global.github.rest.issues.create
       .mockRejectedValueOnce(createIssuesDisabledError()) // 410 in original repo
-      .mockRejectedValueOnce(assigneeError) // 422 in alternate repo
+      .mockRejectedValueOnce(createAssigneeError()) // 422 in alternate repo
       .mockResolvedValue({ data: { number: 88, html_url: "https://github.com/workflow-owner/workflow-repo/issues/88" } });
 
     const { main } = require("./create_pull_request.cjs");
