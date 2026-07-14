@@ -54,11 +54,18 @@ function isHttpMethodPrefix(text: string | null | undefined): boolean {
  */
 function isOpaqueWholeRouteInterpolation(node: TSESTree.Node): boolean {
   if (node.type === "TemplateLiteral") {
-    return node.expressions.length === 1 && node.quasis.length === 2 && isHttpMethodPrefix(node.quasis[0].value.cooked) && node.quasis[1].value.cooked === "" && !isStaticRouteExpression(node.expressions[0]);
+    const hasSingleExpression = node.expressions.length === 1;
+    const hasMethodPrefix = node.quasis.length === 2 && isHttpMethodPrefix(node.quasis[0].value.cooked);
+    const hasEmptyTrailingQuasi = node.quasis.length === 2 && node.quasis[1].value.cooked === "";
+    const isDynamicWholeRoute = hasSingleExpression && !isStaticRouteExpression(node.expressions[0]);
+    return hasMethodPrefix && hasEmptyTrailingQuasi && isDynamicWholeRoute;
   }
 
   if (node.type === "BinaryExpression" && node.operator === "+") {
-    return node.left.type === "Literal" && typeof node.left.value === "string" && isHttpMethodPrefix(node.left.value) && !isStaticRouteExpression(node.right);
+    if (node.left.type !== "Literal" || typeof node.left.value !== "string") return false;
+    const hasMethodPrefix = isHttpMethodPrefix(node.left.value);
+    const isRightDynamic = !isStaticRouteExpression(node.right);
+    return hasMethodPrefix && isRightDynamic;
   }
 
   return false;
