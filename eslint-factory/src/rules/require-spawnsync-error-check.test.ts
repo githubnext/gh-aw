@@ -23,8 +23,8 @@ describe("require-spawnsync-error-check", () => {
         `const result = childProcess.spawnSync("git", ["status"]); if (result.error) throw result.error;`,
         // child_process.spawnSync, checks result.error
         `const result = child_process.spawnSync("curl", ["-v"]); if (result.error) { throw result.error; } if (result.status !== 0) throw new Error("x");`,
-        // result is accessed via .error destructuring equivalent — property access
-        `const r = spawnSync("zip", ["-v"]); const e = r.error; if (e) throw e;`,
+        // destructured binding includes error and guards on it
+        `const { status, error } = spawnSync("zip", ["-v"]); if (error) throw error; if (status !== 0) throw new Error("x");`,
       ],
       invalid: [],
     });
@@ -44,6 +44,18 @@ describe("require-spawnsync-error-check", () => {
         },
         {
           code: `const result = child_process.spawnSync("curl", ["--version"]); return result.stdout;`,
+          errors: [{ messageId: "missingErrorCheck" }],
+        },
+        {
+          code: `const result = spawnSync("git", ["status"]); core.info(String(result.error)); if (result.status !== 0) throw new Error("failed");`,
+          errors: [{ messageId: "missingErrorCheck" }],
+        },
+        {
+          code: `const { status } = spawnSync("git", ["status"]); if (status !== 0) throw new Error("failed");`,
+          errors: [{ messageId: "missingErrorCheck" }],
+        },
+        {
+          code: `const { status, error } = spawnSync("git", ["status"]); core.info(String(error)); if (status !== 0) throw new Error("failed");`,
           errors: [{ messageId: "missingErrorCheck" }],
         },
       ],
