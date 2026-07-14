@@ -74,7 +74,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				`"type": "http"`,
 				`"url": "https://api.githubcopilot.com/mcp/"`,
 				`"headers": {`,
-				`"Authorization": "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
+				`"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
 				`"X-MCP-Toolsets": "default"`,
 				`"tools": [`,
 				`"list_issues"`,
@@ -85,6 +85,8 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 			},
 			notExpected: []string{
 				`"X-MCP-Readonly"`,
+				// Double-backslash form would expand to \<token> in the heredoc — invalid JSON.
+				`"Authorization": "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
 			},
 		},
 		{
@@ -101,7 +103,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				`"type": "http"`,
 				`"url": "https://api.githubcopilot.com/mcp/"`,
 				`"headers": {`,
-				`"Authorization": "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
+				`"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
 				`"X-MCP-Toolsets": "all"`,
 				`"env": {`,
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_MCP_SERVER_TOKEN}"`,
@@ -109,6 +111,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 			},
 			notExpected: []string{
 				`"X-MCP-Readonly"`,
+				`"Authorization": "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
 			},
 		},
 		{
@@ -125,7 +128,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				`"type": "http"`,
 				`"url": "https://api.githubcopilot.com/mcp/"`,
 				`"headers": {`,
-				`"Authorization": "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
+				`"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
 				`"X-MCP-Readonly": "true"`,
 				`"X-MCP-Toolsets": "repos"`,
 				`"tools": [`,
@@ -135,7 +138,9 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_MCP_SERVER_TOKEN}"`,
 				`"GITHUB_HOST": "${GITHUB_SERVER_URL}"`,
 			},
-			notExpected: []string{},
+			notExpected: []string{
+				`"Authorization": "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
+			},
 		},
 		{
 			name: "No toolsets configured",

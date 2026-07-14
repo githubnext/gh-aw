@@ -237,6 +237,11 @@ network:
     - RESOURCE.openai.azure.com
 ```
 
+When the Azure deployment name differs from the Azure model ID, keep
+`engine.model` on the model ID that Azure exposes from `/openai/v1/models` and
+set `COPILOT_PROVIDER_MODEL_ID` to the deployment name that Azure expects on
+the wire.
+
 For Entra authentication, omit `COPILOT_PROVIDER_API_KEY` and configure
 GitHub OIDC in `engine.auth`:
 
@@ -257,6 +262,11 @@ network:
   allowed:
     - defaults
     - RESOURCE.openai.azure.com
+```
+
+See [How to use Azure OpenAI with Copilot BYOK](/gh-aw/guides/azure-openai-byok/)
+for deployment-name mapping, `responses` API guidance for GPT-5 and o-series
+models, and Azure-specific troubleshooting.
 
 ### Engine Command-Line Arguments
 
