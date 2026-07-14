@@ -25,16 +25,12 @@
  *     Default: ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json
  *   GH_AW_SAFE_OUTPUTS_TOOLS_PATH - Output path for the generated tools.json
  *     Default: ${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json
- *   GH_AW_RUNTIME_FEATURES - Newline-delimited runtime features in key or key=value format
- *     Parsed using runtime_features.cjs helpers
  */
 
 const fs = require("fs");
 const path = require("path");
 const { ERR_CONFIG } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { parseRuntimeFeatures, hasRuntimeFeature } = require("./runtime_features.cjs");
-
 const ADD_COMMENT_DEFAULT_DISCUSSIONS_NOTE =
   "NOTE: By default, this tool does not require discussions:write permission. Set 'discussions: true' in the workflow's safe-outputs.add-comment configuration to enable discussion comments and request this permission.";
 const ADD_COMMENT_DISCUSSIONS_ENABLED_NOTE = "NOTE: Discussion comments are enabled for this workflow because discussions:write permission is available.";
@@ -135,8 +131,6 @@ async function main() {
   // This filters out non-tool config entries like dispatch_workflow, call_workflow,
   // mentions, max_bot_mentions, etc.
   const enabledToolNames = new Set(Object.keys(config).filter(k => sourceToolNames.has(k)));
-  const runtimeFeatures = parseRuntimeFeatures(process.env.GH_AW_RUNTIME_FEATURES);
-
   // Filter predefined tools to those enabled in config and apply enhancements
   const filteredTools = allTools
     .filter(tool => enabledToolNames.has(tool.name))
@@ -154,7 +148,7 @@ async function main() {
       if (descSuffix) {
         enhancedTool.description = (enhancedTool.description || "") + descSuffix;
       }
-      if (hasRuntimeFeature(runtimeFeatures, "issue_intents") && ["set_issue_type", "set_issue_field", "add_labels"].includes(tool.name)) {
+      if (["set_issue_type", "set_issue_field", "add_labels"].includes(tool.name)) {
         enhancedTool.description = `${enhancedTool.description || ""} INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.`.trim();
       }
 

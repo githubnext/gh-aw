@@ -16,11 +16,28 @@ var cronDetectionLog = logger.New("parser:schedule_cron_detection")
 // cronFieldPattern matches valid cron field syntax (pre-compiled for performance)
 var cronFieldPattern = regexp.MustCompile(`^[\d\*\-/,]+$`)
 
+func cronFields(cron string) ([]string, bool) {
+	fields := strings.Fields(cron)
+	return fields, len(fields) == 5
+}
+
+func isNumericCronField(field string) bool {
+	if field == "" {
+		return false
+	}
+	for _, ch := range field {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 // IsDailyCron checks if a cron expression represents a daily schedule at a fixed time
 // (e.g., "0 0 * * *", "30 14 * * *", etc.)
 func IsDailyCron(cron string) bool {
-	fields := strings.Fields(cron)
-	if len(fields) != 5 {
+	fields, ok := cronFields(cron)
+	if !ok {
 		return false
 	}
 	// Daily pattern: minute hour * * *
@@ -32,16 +49,8 @@ func IsDailyCron(cron string) bool {
 	minute := fields[0]
 	hour := fields[1]
 
-	// Minute and hour should be digits only (no *, /, -, ,)
-	for _, ch := range minute {
-		if ch < '0' || ch > '9' {
-			return false
-		}
-	}
-	for _, ch := range hour {
-		if ch < '0' || ch > '9' {
-			return false
-		}
+	if !isNumericCronField(minute) || !isNumericCronField(hour) {
+		return false
 	}
 
 	result := fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
@@ -54,8 +63,8 @@ func IsDailyCron(cron string) bool {
 // IsHourlyCron checks if a cron expression represents an hourly interval with a fixed minute
 // (e.g., "0 */1 * * *", "30 */2 * * *", etc.)
 func IsHourlyCron(cron string) bool {
-	fields := strings.Fields(cron)
-	if len(fields) != 5 {
+	fields, ok := cronFields(cron)
+	if !ok {
 		return false
 	}
 	// Hourly pattern: minute */N * * * or minute *N * * *
@@ -65,11 +74,8 @@ func IsHourlyCron(cron string) bool {
 	minute := fields[0]
 	hour := fields[1]
 
-	// Minute should be digits only (no *, /, -, ,)
-	for _, ch := range minute {
-		if ch < '0' || ch > '9' {
-			return false
-		}
+	if !isNumericCronField(minute) {
+		return false
 	}
 
 	// Hour should be an interval pattern like */N
@@ -88,8 +94,8 @@ func IsHourlyCron(cron string) bool {
 // IsWeeklyCron checks if a cron expression represents a weekly schedule at a fixed time
 // (e.g., "0 0 * * 1", "30 14 * * 5", etc.)
 func IsWeeklyCron(cron string) bool {
-	fields := strings.Fields(cron)
-	if len(fields) != 5 {
+	fields, ok := cronFields(cron)
+	if !ok {
 		return false
 	}
 	// Weekly pattern: minute hour * * DOW
@@ -101,16 +107,8 @@ func IsWeeklyCron(cron string) bool {
 	minute := fields[0]
 	hour := fields[1]
 
-	// Minute and hour should be digits only (no *, /, -, ,)
-	for _, ch := range minute {
-		if ch < '0' || ch > '9' {
-			return false
-		}
-	}
-	for _, ch := range hour {
-		if ch < '0' || ch > '9' {
-			return false
-		}
+	if !isNumericCronField(minute) || !isNumericCronField(hour) {
+		return false
 	}
 
 	// Check day-of-month and month are wildcards

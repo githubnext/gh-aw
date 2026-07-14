@@ -21,6 +21,22 @@ const testContextPropagationKey testContextKey = "actionpins.resolve.ctx"
 
 const testResolvedSHA = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
+// testSHAResolver is a fake SHAResolver used in tests.
+type testSHAResolver struct {
+	sha          string
+	err          error
+	capturedCtx  context.Context
+	capturedRepo string
+	capturedRef  string
+}
+
+func (r *testSHAResolver) ResolveSHA(ctx context.Context, repo, version string) (string, error) {
+	r.capturedCtx = ctx
+	r.capturedRepo = repo
+	r.capturedRef = version
+	return r.sha, r.err
+}
+
 // TestSpec_PublicAPI_FormatPinnedActionReference validates the documented format "repo@sha # version".
 func TestSpec_PublicAPI_FormatPinnedActionReference(t *testing.T) {
 	tests := []struct {
@@ -181,7 +197,6 @@ func TestSpec_PublicAPI_ExtractVersion(t *testing.T) {
 // TestSpec_PublicAPI_GetActionPinsByRepo validates GetActionPinsByRepo for known and unknown repos.
 func TestSpec_PublicAPI_GetActionPinsByRepo(t *testing.T) {
 	t.Run("returns no pins for unknown repository", func(t *testing.T) {
-		// SPEC_MISMATCH: spec implies a non-nil slice but implementation returns nil from map lookup.
 		pins := actionpins.GetActionPinsByRepo("does-not-exist/unknown-action-xyzzy")
 		assert.Empty(t, pins, "should return empty result for unknown repo")
 	})
@@ -212,11 +227,9 @@ func TestSpec_PublicAPI_GetLatestActionPinByRepo(t *testing.T) {
 // Spec: "fallback behavior controlled by PinContext.StrictMode"
 func TestSpec_PublicAPI_ResolveActionPin(t *testing.T) {
 	t.Run("strict mode returns empty string and no error when pin is not found", func(t *testing.T) {
-		// SPEC_MISMATCH: spec implies StrictMode causes an error on missing pins, but the
-		// implementation returns ("", nil) and emits a warning to stderr instead.
 		ctx := &actionpins.PinContext{StrictMode: true, Warnings: make(map[string]bool)}
 		result, err := actionpins.ResolveActionPin("does-not-exist/unknown-action-xyzzy", "v1", ctx)
-		require.NoError(t, err, "implementation returns no error even in strict mode for unknown pin")
+		require.NoError(t, err, "strict mode still returns no error for unknown pin")
 		assert.Empty(t, result, "strict mode should return empty reference for unknown pin")
 	})
 }
@@ -469,22 +482,6 @@ func TestSpec_PublicAPI_ResolveActionPin_EmbeddedMatch(t *testing.T) {
 	require.NoError(t, err, "embedded-only ResolveActionPin should not error for known pin")
 	require.NotEmpty(t, result, "should return non-empty pinned reference for known embedded pin")
 	assert.Contains(t, result, latestPin.SHA, "resolved reference should contain the pin SHA")
-}
-
-// testSHAResolver is a fake SHAResolver used in tests.
-type testSHAResolver struct {
-	sha          string
-	err          error
-	capturedCtx  context.Context
-	capturedRepo string
-	capturedRef  string
-}
-
-func (r *testSHAResolver) ResolveSHA(ctx context.Context, repo, version string) (string, error) {
-	r.capturedCtx = ctx
-	r.capturedRepo = repo
-	r.capturedRef = version
-	return r.sha, r.err
 }
 
 // TestSpec_DynamicResolution_VersionCommentConsistency validates that when dynamic resolution
@@ -774,5 +771,22 @@ func TestSpec_PublicAPI_ResolveActionPin_AppliesMapping(t *testing.T) {
 		require.NoError(t, err, "invalid mapping should be skipped without error")
 		assert.Equal(t, baseline, result, "invalid mapping should leave resolution behavior unchanged")
 		assert.NotContains(t, ctx.Warnings, "map:actions/checkout@v4", "invalid mappings should not record mapping notifications")
+	})
+}
+
+// TestSpec_PublicAPI_ResolveActionPin_MappingTargetUnknown validates that mapping to a repo
+// with no known pins yields an empty result without panicking.
+func TestSpec_PublicAPI_ResolveActionPin_MappingTargetUnknown(t *testing.T) {
+	ctx := &actionpins.PinContext{
+		Warnings: make(map[string]bool),
+		Mappings: map[string]string{
+			"actions/checkout@v4": "does-not-exist/unknown-action-xyzzy@v1",
+		},
+	}
+
+	require.NotPanics(t, func() {
+		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
+		require.NoError(t, err)
+		assert.Empty(t, result, "mapping to unknown repo should produce unresolved empty result")
 	})
 }

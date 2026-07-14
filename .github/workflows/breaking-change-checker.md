@@ -67,6 +67,11 @@ safe-outputs:
 timeout-minutes: 10
 features:
   gh-aw-detection: true
+evals:
+  - id: analysis-completed
+    question: Did the agent complete an analysis of recent commits and merged PRs for breaking CLI changes?
+  - id: issue-created-or-noop
+    question: Was a breaking change issue created when breaking changes were found, or was noop correctly called when no breaking changes were detected?
 ---
 
 # Breaking Change Checker

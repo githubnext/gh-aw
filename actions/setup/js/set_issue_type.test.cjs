@@ -51,21 +51,30 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
         },
       },
     });
-  const createNoIssueTypesAvailableError = () =>
-    Object.assign(new Error("Validation failed"), {
-      response: {
-        status: 422,
-        data: {
-          errors: [{ message: "Issue types are not enabled for this repository" }],
-        },
-      },
-    });
 
   beforeEach(async () => {
     vi.clearAllMocks();
 
-    mockGithub.rest.issues.get.mockResolvedValue({ data: { labels: [], title: "Issue title" } });
+    mockGithub.rest.issues.get.mockResolvedValue({ data: { labels: [], title: "Issue title", node_id: "I_kwDO_testissue" } });
     mockGithub.rest.issues.update.mockResolvedValue({ data: {} });
+    mockGithub.graphql.mockImplementation(async query => {
+      if (query.includes("repository(owner")) {
+        return {
+          repository: {
+            issueTypes: {
+              nodes: [
+                { id: "IT_kwDO_bug", name: "Bug" },
+                { id: "IT_kwDO_feature", name: "Feature" },
+              ],
+            },
+          },
+        };
+      }
+      if (query.includes("updateIssue")) {
+        return { updateIssue: { issue: { id: "I_kwDO_testissue" } } };
+      }
+      return {};
+    });
 
     const { main } = require("./set_issue_type.cjs");
     handler = await main({ max: 5 });
@@ -89,12 +98,17 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     expect(result.success).toBe(true);
     expect(result.issue_number).toBe(42);
     expect(result.issue_type).toBe("Bug");
-    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-      issue_number: 42,
-      type: "Bug",
-    });
+    expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("IssueTypeUpdateInput"),
+      expect.objectContaining({
+        issueId: "I_kwDO_testissue",
+        issueType: {
+          issueTypeId: "IT_kwDO_bug",
+        },
+        headers: { "GraphQL-Features": "update_issue_suggestions" },
+      })
+    );
   });
 
   it("should clear issue type when issue_type is empty string", async () => {
@@ -126,12 +140,16 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
 
     expect(result.success).toBe(true);
     expect(result.issue_number).toBe(123); // from context.payload.issue.number
-    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-      issue_number: 123,
-      type: "Bug",
-    });
+    expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("IssueTypeUpdateInput"),
+      expect.objectContaining({
+        issueId: "I_kwDO_testissue",
+        issueType: {
+          issueTypeId: "IT_kwDO_bug",
+        },
+      })
+    );
   });
 
   it("should validate against allowed types list", async () => {
@@ -202,7 +220,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
   });
 
   it("should handle API errors gracefully", async () => {
-    mockGithub.rest.issues.update.mockRejectedValue(new Error("API error"));
+    mockGithub.graphql.mockRejectedValue(new Error("API error"));
 
     const message = {
       type: "set_issue_type",
@@ -217,39 +235,44 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
 
   it("should map 422 invalid issue type errors to not-found shape", async () => {
     const invalidTypeError = createInvalidTypeError();
-    mockGithub.rest.issues.update.mockRejectedValue(invalidTypeError);
+    mockGithub.graphql.mockRejectedValue(invalidTypeError);
 
     const result = await handler(
       {
         type: "set_issue_type",
         issue_number: 42,
-        issue_type: "NonExistentType",
+        issue_type: "Bug",
       },
       {}
     );
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('Issue type "NonExistentType" not found. Available types: Bug, Feature');
+    expect(result.error).toBe('Issue type "Bug" not found. Available types: Bug, Feature');
   });
 
   it("should map 422 invalid issue type errors without available list to base not-found message", async () => {
-    mockGithub.rest.issues.update.mockRejectedValue(createInvalidTypeError("Validation Failed"));
+    mockGithub.graphql.mockRejectedValue(createInvalidTypeError("Validation Failed"));
 
     const result = await handler(
       {
         type: "set_issue_type",
         issue_number: 42,
-        issue_type: "NonExistentType",
+        issue_type: "Bug",
       },
       {}
     );
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('Issue type "NonExistentType" not found.');
+    expect(result.error).toBe('Issue type "Bug" not found.');
   });
 
   it("should preserve no-issue-types-available error mapping", async () => {
-    mockGithub.rest.issues.update.mockRejectedValue(createNoIssueTypesAvailableError());
+    mockGithub.graphql.mockImplementation(async query => {
+      if (query.includes("repository(owner")) {
+        return { repository: { issueTypes: { nodes: [] } } };
+      }
+      return {};
+    });
 
     const result = await handler(
       {
@@ -318,17 +341,17 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     const result = await handlerWithAllowed(message, {});
     expect(result.success).toBe(true);
     expect(result.issue_type).toBe("Bug");
-    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("IssueTypeUpdateInput"),
       expect.objectContaining({
-        issue_number: 42,
-        type: "Bug",
+        issueType: {
+          issueTypeId: "IT_kwDO_bug",
+        },
       })
     );
   });
 
-  it("should use GraphQL intent path with IssueTypeUpdateInput and GraphQL-Features header when runtime feature is enabled", async () => {
-    process.env.GH_AW_RUNTIME_FEATURES = "issue_intents";
-
+  it("should use GraphQL intent path with IssueTypeUpdateInput and GraphQL-Features header", async () => {
     const issueNodeId = "I_kwDO_testissue";
     const issueTypeNodeId = "IT_kwDO_bug";
 
@@ -349,45 +372,39 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
       return {};
     });
 
-    try {
-      const { main } = require("./set_issue_type.cjs");
-      const featureHandler = await main({ max: 5 });
+    const { main } = require("./set_issue_type.cjs");
+    const featureHandler = await main({ max: 5 });
 
-      const result = await featureHandler(
-        {
-          type: "set_issue_type",
-          issue_number: 42,
-          issue_type: "Bug",
+    const result = await featureHandler(
+      {
+        type: "set_issue_type",
+        issue_number: 42,
+        issue_type: "Bug",
+        rationale: "Author explicitly requests a bug fix",
+        confidence: "high",
+        suggest: true,
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("IssueTypeUpdateInput"),
+      expect.objectContaining({
+        issueId: issueNodeId,
+        issueType: {
+          issueTypeId: issueTypeNodeId,
           rationale: "Author explicitly requests a bug fix",
-          confidence: "high",
+          confidence: "HIGH",
           suggest: true,
         },
-        {}
-      );
-
-      expect(result.success).toBe(true);
-      expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
-      expect(mockGithub.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("IssueTypeUpdateInput"),
-        expect.objectContaining({
-          issueId: issueNodeId,
-          issueType: {
-            issueTypeId: issueTypeNodeId,
-            rationale: "Author explicitly requests a bug fix",
-            confidence: "HIGH",
-            suggest: true,
-          },
-          headers: { "GraphQL-Features": "update_issue_suggestions" },
-        })
-      );
-    } finally {
-      delete process.env.GH_AW_RUNTIME_FEATURES;
-    }
+        headers: { "GraphQL-Features": "update_issue_suggestions" },
+      })
+    );
   });
 
-  it("should truncate issue_intents rationale to 280 characters", async () => {
-    process.env.GH_AW_RUNTIME_FEATURES = "issue_intents";
-
+  it("should truncate issue intent rationale to 280 characters", async () => {
     const issueNodeId = "I_kwDO_testissue";
     const issueTypeNodeId = "IT_kwDO_bug";
     const longRationale = "a".repeat(350);
@@ -409,27 +426,23 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
       return {};
     });
 
-    try {
-      const { main } = require("./set_issue_type.cjs");
-      const featureHandler = await main({ max: 5 });
+    const { main } = require("./set_issue_type.cjs");
+    const featureHandler = await main({ max: 5 });
 
-      const result = await featureHandler(
-        {
-          type: "set_issue_type",
-          issue_number: 42,
-          issue_type: "Bug",
-          rationale: longRationale,
-        },
-        {}
-      );
+    const result = await featureHandler(
+      {
+        type: "set_issue_type",
+        issue_number: 42,
+        issue_type: "Bug",
+        rationale: longRationale,
+      },
+      {}
+    );
 
-      expect(result.success).toBe(true);
-      const mutationCall = mockGithub.graphql.mock.calls.find(([query]) => typeof query === "string" && query.includes("IssueTypeUpdateInput"));
-      expect(mutationCall).toBeDefined();
-      expect(mutationCall[1].issueType.rationale).toBe("a".repeat(280));
-    } finally {
-      delete process.env.GH_AW_RUNTIME_FEATURES;
-    }
+    expect(result.success).toBe(true);
+    const mutationCall = mockGithub.graphql.mock.calls.find(([query]) => typeof query === "string" && query.includes("IssueTypeUpdateInput"));
+    expect(mutationCall).toBeDefined();
+    expect(mutationCall[1].issueType.rationale).toBe("a".repeat(280));
   });
 
   it("should preserve issue_intents rationale of exactly 280 characters", () => {
