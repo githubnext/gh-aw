@@ -304,14 +304,22 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	c.jobManager.WriteJobsYAML(yaml)
 }
 
+// maxConsecutiveBlankLines is the largest run of blank lines allowed in the
+// normalized YAML. yamllint's empty-lines rule flags more than two consecutive
+// blank lines (max: 2), so runs are capped here to keep generated lock files clean.
+const maxConsecutiveBlankLines = 2
+
 // normalizeBlankLines rewrites the assembled workflow YAML so that:
-//   - every whitespace-only line is emitted as an empty line (no trailing spaces), and
+//   - trailing whitespace is trimmed from every line (whitespace-only lines become
+//     truly empty; content lines lose trailing spaces/tabs),
+//   - no more than maxConsecutiveBlankLines blank lines appear in a row, and
 //   - the file ends with exactly one trailing newline (no trailing blank line).
 //
-// A whitespace-only line is semantically a blank line inside YAML block scalars, so
-// clearing its whitespace does not change the parsed content. This removes the bulk
-// of yamllint trailing-spaces and empty-lines noise from generated lock files without
-// touching lines that carry real content.
+// Trailing whitespace is never semantically significant in the block scalars gh-aw
+// emits (heredoc prompt bodies, embedded shell/JSON/GraphQL scripts, indented
+// sub-documents), so trimming it does not change the parsed content or runtime
+// behaviour. Together these steps remove the bulk of yamllint trailing-spaces and
+// empty-lines noise from generated lock files.
 //
 // This implementation avoids strings.Split/strings.Join to reduce allocations: it scans
 // the input byte-by-byte and builds the result with a single pre-allocated strings.Builder.
@@ -326,6 +334,9 @@ func normalizeBlankLines(yamlContent string) string {
 	// gets a '\n' written to b, so b.Len() and lastNonBlankEnd may diverge when
 	// there are trailing blank lines.
 	lastNonBlankEnd := 0
+	// blankRun counts consecutive blank lines emitted since the last non-blank line,
+	// so runs longer than maxConsecutiveBlankLines can be collapsed.
+	blankRun := 0
 	pos := 0
 	for pos < len(yamlContent) {
 		// Find the end of the current line.
@@ -337,17 +348,27 @@ func normalizeBlankLines(yamlContent string) string {
 			line = yamlContent[pos : pos+end]
 		}
 
-		if strings.TrimSpace(line) == "" {
-			// Whitespace-only line: emit as a truly empty line.
-			b.WriteByte('\n')
+		// Trim trailing whitespace from every line. On whitespace-only lines this
+		// yields an empty line; on content lines it strips trailing spaces/tabs that
+		// yamllint flags as trailing-spaces.
+		trimmed := strings.TrimRight(line, " \t")
+
+		if trimmed == "" {
+			// Blank line: emit at most maxConsecutiveBlankLines in a row so yamllint's
+			// empty-lines rule is never exceeded.
 			// lastNonBlankEnd is NOT updated here so that trailing blank lines
 			// (including a blank final "line" produced by a file that ends with
 			// "\n\n" or by whitespace-only text after the last real line) are
 			// excluded from the returned slice.
+			if blankRun < maxConsecutiveBlankLines {
+				b.WriteByte('\n')
+				blankRun++
+			}
 		} else {
-			b.WriteString(line)
+			b.WriteString(trimmed)
 			b.WriteByte('\n')
 			lastNonBlankEnd = b.Len()
+			blankRun = 0
 		}
 
 		if end == -1 {
@@ -490,13 +511,12 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		yamlContent = c.replaceIssueNumberReferences(yamlContent)
 	}
 
-	// Normalize whitespace-only lines to empty lines. Many generated blocks
-	// (heredoc prompt bodies, embedded scripts, indented sub-documents) emit blank
-	// lines that carry the surrounding indentation as pure whitespace, which
-	// yamllint flags as trailing-spaces. A whitespace-only line is semantically a
-	// blank line inside YAML block scalars, so clearing it does not change the
-	// parsed content. Also ensure the file ends with exactly one trailing newline
-	// (a trailing blank line is flagged by yamllint as empty-lines).
+	// Normalize whitespace across the assembled YAML. Many generated blocks
+	// (heredoc prompt bodies, embedded scripts, indented sub-documents) emit lines
+	// with trailing whitespace or long runs of blank lines, which yamllint flags as
+	// trailing-spaces and empty-lines. Trailing whitespace is not significant inside
+	// the block scalars gh-aw emits, so this trims it, collapses over-long blank runs,
+	// and ensures the file ends with exactly one trailing newline.
 	yamlContent = normalizeBlankLines(yamlContent)
 
 	compilerYamlLog.Printf("Successfully generated YAML for workflow: %s (%d bytes)", data.Name, len(yamlContent))

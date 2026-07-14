@@ -1803,6 +1803,12 @@ func TestNormalizeBlankLines(t *testing.T) {
 		{"single non-blank line", "key: value\n", "key: value\n"},
 		{"multiple trailing blank lines", "a\n\n\n\n", "a\n"},
 		{"only whitespace lines", "   \n   \n", "\n"},
+		{"content-line trailing spaces trimmed", "key: value   \n", "key: value\n"},
+		{"content-line trailing tabs trimmed", "a\t\nb\n", "a\nb\n"},
+		{"interior trailing spaces preserved content", "  foo: bar  \n", "  foo: bar\n"},
+		{"long interior blank run capped at two", "a\n\n\n\n\n\nb\n", "a\n\n\nb\n"},
+		{"three interior blanks capped at two", "a\n\n\n\nb\n", "a\n\n\nb\n"},
+		{"two interior blanks preserved", "a\n\n\nb\n", "a\n\n\nb\n"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
