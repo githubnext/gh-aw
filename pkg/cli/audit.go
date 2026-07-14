@@ -112,7 +112,7 @@ func registerAuditCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("stdin", false, "Read workflow run IDs or URLs from stdin (one per line) instead of positional arguments")
 	cmd.Flags().String("experiment", "", "Filter to runs that include this experiment name")
 	cmd.Flags().String("variant", "", "Filter to runs with a specific variant value (requires --experiment)")
-	cmd.Flags().Bool("evals", false, "Include evals results in audit report; automatically downloads the evals artifact")
+	cmd.Flags().Bool("evals", false, "Skip runs that do not contain evals results (evals.jsonl); automatically downloads the evals artifact when --artifacts is narrowed")
 	RegisterDirFlagCompletion(cmd, "output")
 }
 
@@ -127,6 +127,12 @@ func runAuditCommand(cmd *cobra.Command, args []string) error {
 	}
 	if len(args) == 1 {
 		return runAuditSingle(cmd.Context(), args[0], opts)
+	}
+	if opts.evalsOnly {
+		return errors.New(console.FormatErrorWithSuggestions(
+			"--evals is not supported in multi-run diff mode",
+			[]string{"Provide a single run ID with --evals to filter by evals results"},
+		))
 	}
 	return runAuditMulti(cmd.Context(), args, opts.repoFlag, opts.outputDir, opts.verbose, opts.jsonOutput, opts.format, opts.artifacts)
 }
@@ -150,9 +156,14 @@ func getAuditCommandOptions(cmd *cobra.Command) (auditCommandOptions, error) {
 			[]string{"Add --experiment <name> to filter by experiment name alongside --variant"},
 		))
 	}
-	// Auto-include the evals artifact when --evals is specified so the filter
-	// can find evals.jsonl without requiring the user to also pass --artifacts evals.
-	if opts.evalsOnly && !slices.Contains(opts.artifacts, string(ArtifactSetEvals)) && !slices.Contains(opts.artifacts, string(ArtifactSetAll)) {
+	// Auto-include the evals artifact when --evals is specified and the user has
+	// narrowed the artifact set (non-empty --artifacts).  When --artifacts is empty
+	// the default is "all", which already includes every artifact including evals,
+	// so we must not append here: doing so would change the default from "all" to
+	// "evals-only" and omit the activation/agent artifacts required for a full report.
+	if opts.evalsOnly && len(opts.artifacts) > 0 &&
+		!slices.Contains(opts.artifacts, string(ArtifactSetEvals)) &&
+		!slices.Contains(opts.artifacts, string(ArtifactSetAll)) {
 		opts.artifacts = append(opts.artifacts, string(ArtifactSetEvals))
 	}
 	return opts, nil
@@ -488,10 +499,13 @@ func renderCachedAuditIfAvailable(ctx context.Context, cfg auditRunConfig) (bool
 	if shouldSkipAuditRun(cfg.runID, cfg.outputDir, cfg.experimentFilter, cfg.variantFilter) {
 		return true, nil
 	}
+	// When --evals is set but the evals artifact is not present locally, the cache
+	// was created without evals (e.g., default usage-only download).  Bypass the
+	// cache so prepareAuditWorkflowRun can fetch the evals artifact; the filter at
+	// the post-download check will then correctly decide whether to skip the run.
 	if cfg.evalsOnly && !runHasEvals(cfg.outputDir, cfg.verbose) {
-		auditLog.Printf("Skipping run %d: no evals results found (filtered by --evals)", cfg.runID)
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not have evals results (filtered by --evals)", cfg.runID)))
-		return true, nil
+		auditLog.Printf("Cache miss for run %d evals: evals artifact not present locally, bypassing cache", cfg.runID)
+		return false, nil
 	}
 	processedRun := processedRunFromSummary(summary, cfg.outputDir)
 	return true, renderAuditReport(ctx, processedRun, summary.Metrics, summary.MCPToolUsage, cfg.auditOptions())
