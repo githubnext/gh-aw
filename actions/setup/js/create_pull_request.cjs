@@ -392,6 +392,40 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
           payload.body = `${payload.body}\n\n> [!NOTE]\n> Assignees (${removedAssignees}) could not be set on this issue due to an API error.`;
           return await githubClient.rest.issues.create(payload);
         }
+
+        // Handle issues-disabled (410 Gone) by redirecting to an alternative repo.
+        // Priority: failure-issue-repo config → workflow repo (GITHUB_REPOSITORY).
+        // Mutate payload in-place so any subsequent withRetry attempts use the new target.
+        if (status === 410) {
+          const originalTarget = `${payload.owner}/${payload.repo}`;
+          let altOwner, altRepo;
+
+          const failureIssueRepo = process.env.GH_AW_FAILURE_ISSUE_REPO || "";
+          if (failureIssueRepo.includes("/")) {
+            const parts = failureIssueRepo.split("/");
+            altOwner = parts[0];
+            altRepo = parts[1];
+          }
+
+          if (!altOwner) {
+            const workflowRepo = process.env.GITHUB_REPOSITORY || "";
+            if (workflowRepo.includes("/")) {
+              const parts = workflowRepo.split("/");
+              altOwner = parts[0];
+              altRepo = parts[1];
+            }
+          }
+
+          if (altOwner && altRepo && (altOwner.toLowerCase() !== payload.owner.toLowerCase() || altRepo.toLowerCase() !== payload.repo.toLowerCase())) {
+            core.warning(`Issues are disabled in ${originalTarget}; retrying fallback issue creation in ${altOwner}/${altRepo}`);
+            payload.owner = altOwner;
+            payload.repo = altRepo;
+            return await githubClient.rest.issues.create(payload);
+          }
+
+          core.warning(`Issues are disabled in ${originalTarget} and no alternate repo is available to create the fallback issue`);
+        }
+
         throw error;
       }
     },
