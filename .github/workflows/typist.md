@@ -59,6 +59,8 @@ tools:
 sandbox:
   agent:
     sudo: false
+features:
+  gh-aw-detection: true
 ---
 # Typist - Go Type Consistency Analysis
 
