@@ -291,10 +291,33 @@ func TestBuildMainJobPermissions(t *testing.T) {
 		c := NewCompiler()
 		data := &WorkflowData{
 			Permissions: "permissions: {}",
-			PreSteps: `- name: read step
-  run: gh issue list`,
+			PreSteps:    "pre-steps:\n- name: read step\n  run: gh issue list",
 		}
 		_, err := c.buildMainJobPermissions(data)
 		require.NoError(t, err)
+	})
+}
+
+// TestWarnBuiltinJobEnvReferences tests warning emission for built-in job references in engine.env.
+func TestWarnBuiltinJobEnvReferences(t *testing.T) {
+	t.Run("warns when engine.env references a built-in job not in depends", func(t *testing.T) {
+		c := NewCompiler()
+		initial := c.GetWarningCount()
+		c.warnBuiltinJobEnvReferences([]string{}, "${{ needs.safe_outputs.outputs.foo }}")
+		assert.Equal(t, initial+1, c.GetWarningCount())
+	})
+
+	t.Run("no warning when built-in is already a direct dependency", func(t *testing.T) {
+		c := NewCompiler()
+		initial := c.GetWarningCount()
+		c.warnBuiltinJobEnvReferences([]string{string(constants.ActivationJobName)}, "${{ needs.activation.outputs.model }}")
+		assert.Equal(t, initial, c.GetWarningCount())
+	})
+
+	t.Run("no warning when engine env content is empty", func(t *testing.T) {
+		c := NewCompiler()
+		initial := c.GetWarningCount()
+		c.warnBuiltinJobEnvReferences([]string{}, "")
+		assert.Equal(t, initial, c.GetWarningCount())
 	})
 }
