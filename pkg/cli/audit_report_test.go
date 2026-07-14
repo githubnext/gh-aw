@@ -1381,6 +1381,19 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 		assert.Nil(t, errors, "Should return nil when no workflow-logs directory")
 	})
 
+	t.Run("emits agent_failure fallback when agent-stdio.log exists but workflow-logs is missing", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		// agent-stdio.log present but no workflow-logs directory at all
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "agent-stdio.log"), []byte("ERROR: connection refused\nfatal: server unreachable"), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		require.NotNil(t, errors, "Should emit agent_failure fallback even when workflow-logs is absent")
+		require.Len(t, errors, 1)
+		assert.Equal(t, "agent_failure", errors[0].Type)
+		assert.Equal(t, "agent-stdio.log", errors[0].File)
+		assert.Contains(t, errors[0].Message, "ERROR: connection refused")
+	})
+
 	t.Run("extracts error from last step log file", func(t *testing.T) {
 		dir := testutil.TempDir(t, "audit-step-*")
 		// No agent-stdio.log

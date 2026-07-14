@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"encoding/json"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -636,10 +637,22 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 	agentStdioPath := filepath.Join(logsPath, "agent-stdio.log")
 	agentRan := fileutil.FileExists(agentStdioPath)
 
+	const maxMessageLen = 1500
+
 	// Look for step log files in workflow-logs subdirectory
 	workflowLogsDir := filepath.Join(logsPath, "workflow-logs")
 	if _, err := os.Stat(workflowLogsDir); err != nil {
 		auditReportLog.Printf("workflow-logs directory not found, skipping step log extraction")
+		// Even without workflow-logs, fall back to agent-stdio.log if the agent ran.
+		if agentRan {
+			if agentExcerpt := extractAgentStdioFailureExcerpt(agentStdioPath, maxMessageLen); agentExcerpt != "" {
+				return []ErrorInfo{{
+					Type:    "agent_failure",
+					File:    "agent-stdio.log",
+					Message: agentExcerpt,
+				}}
+			}
+		}
 		return nil
 	}
 
@@ -651,8 +664,6 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 		num     int
 		stepKey string // job/step_name for display
 	}
-
-	const maxMessageLen = 1500
 
 	var lastStep *stepLog
 	var errorAnnotations []ErrorInfo
@@ -815,13 +826,35 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 }
 
 func extractAgentStdioFailureExcerpt(agentStdioPath string, maxMessageLen int) string {
-	content, err := os.ReadFile(agentStdioPath)
+	f, err := os.Open(agentStdioPath)
+	if err != nil {
+		auditReportLog.Printf("Failed to read %s: %v", agentStdioPath, err)
+		return ""
+	}
+	defer f.Close()
+
+	// Read only the tail of the file to bound memory use for large logs.
+	const maxReadBytes int64 = 64 * 1024 // 64 KB tail window
+
+	fi, err := f.Stat()
+	if err != nil {
+		auditReportLog.Printf("Failed to stat %s: %v", agentStdioPath, err)
+		return ""
+	}
+	if fi.Size() > maxReadBytes {
+		if _, err := f.Seek(-maxReadBytes, io.SeekEnd); err != nil {
+			auditReportLog.Printf("Failed to seek in %s: %v", agentStdioPath, err)
+			return ""
+		}
+	}
+
+	tail, err := io.ReadAll(f)
 	if err != nil {
 		auditReportLog.Printf("Failed to read %s: %v", agentStdioPath, err)
 		return ""
 	}
 
-	lines := strings.Split(stripGHALogTimestamps(string(content)), "\n")
+	lines := strings.Split(stripGHALogTimestamps(string(tail)), "\n")
 	nonEmpty := make([]string, 0, len(lines))
 	errorLike := make([]string, 0, len(lines))
 
