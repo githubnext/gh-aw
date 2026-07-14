@@ -503,6 +503,60 @@ function endpointBaseUrl(endpoint) {
 }
 
 /**
+ * Resolve a configured provider endpoint from AWF /reflect data.
+ *
+ * @param {{
+ *   provider?: string,
+ *   reflectData: object | null | undefined,
+ *   logger?: (msg: string) => void,
+ * }} options
+ * @returns {{ provider: string, endpointProvider: string, port: number|null, baseUrl: string } | null}
+ */
+function resolveProviderEndpointFromReflect(options) {
+  const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
+  const requestedProvider = String(options?.provider || "")
+    .toLowerCase()
+    .trim();
+  const provider = requestedProvider || "openai";
+  const reflectData = options?.reflectData;
+  const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints.filter(ep => ep && ep.configured === true) : [];
+  if (endpoints.length === 0) {
+    logger(`awf-reflect: no configured endpoints available while resolving provider=${provider}`);
+    return null;
+  }
+
+  /** @param {string} endpointProvider */
+  const endpointProviderMatches = endpointProvider => {
+    const normalized = String(endpointProvider || "")
+      .toLowerCase()
+      .trim();
+    if (!normalized) return false;
+    if (provider === "github") {
+      return normalized === "github" || normalized === "copilot" || normalized === "github-copilot";
+    }
+    if (provider === "openai") {
+      return normalized === "openai";
+    }
+    if (provider === "anthropic") {
+      return normalized === "anthropic";
+    }
+    return normalized === provider;
+  };
+
+  const matched = endpoints.find(ep => endpointProviderMatches(ep?.provider)) || endpoints[0];
+  const baseUrl = endpointBaseUrl(matched);
+  if (!baseUrl) {
+    logger(`awf-reflect: matched provider=${provider} but could not derive baseUrl`);
+    return null;
+  }
+  const endpointProvider = String(matched.provider || "unknown");
+  const parsedPort = matched.port == null ? null : Number(matched.port);
+  const port = Number.isFinite(parsedPort) ? parsedPort : null;
+  logger(`awf-reflect: provider=${provider} mapped to endpoint provider=${endpointProvider} baseUrl=${baseUrl}`);
+  return { provider, endpointProvider, port, baseUrl };
+}
+
+/**
  * Resolve multi-provider BYOK configuration from AWF /reflect data.
  *
  * Returns `null` when no configured endpoints are present or the data is
@@ -645,6 +699,7 @@ if (typeof module !== "undefined" && module.exports) {
     getCatalogModelEntry,
     inferProviderTypeForModel,
     inferWireApiForModel,
+    resolveProviderEndpointFromReflect,
     resolveMultiProviderFromReflect,
   };
 }
