@@ -241,6 +241,7 @@ func TestRunBootstrapWithRuntime_PropagatesCleanWorktreeError(t *testing.T) {
 func TestRunBootstrapWithRuntime_AddWorkflowFailureAfterInitIncludesRecoveryHint(t *testing.T) {
 	repoDir := initBootstrapGitRepo(t)
 	addErr := errors.New("add failed")
+	initCalled := false
 
 	err := runBootstrapWithRuntime(normalizeBootstrapOptions(BootstrapOptions{
 		Ctx:     context.Background(),
@@ -255,7 +256,10 @@ func TestRunBootstrapWithRuntime_AddWorkflowFailureAfterInitIncludesRecoveryHint
 			dirOriginRepo:      func(string) (string, error) { return "octo/platform-ops", nil },
 			checkCleanWorktree: func(bool) error { return nil },
 		},
-		initRepo: func(InitOptions) error { return nil },
+		initRepo: func(InitOptions) error {
+			initCalled = true
+			return nil
+		},
 		addWorkflows: func(context.Context, []string, AddOptions) (*AddWorkflowsResult, error) {
 			return nil, addErr
 		},
@@ -263,11 +267,14 @@ func TestRunBootstrapWithRuntime_AddWorkflowFailureAfterInitIncludesRecoveryHint
 	if err == nil {
 		t.Fatal("expected add workflow error")
 	}
-	if !strings.Contains(err.Error(), "repository initialization completed; re-run bootstrap to retry workflow addition") {
+	if !strings.Contains(err.Error(), bootstrapAddWorkflowsRetryHint) {
 		t.Fatalf("expected recovery hint in error, got %v", err)
 	}
 	if !errors.Is(err, addErr) {
 		t.Fatalf("expected wrapped add error, got %v", err)
+	}
+	if !initCalled {
+		t.Fatal("expected repository initialization to run before add failure")
 	}
 }
 

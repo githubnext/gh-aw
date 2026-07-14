@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -252,7 +251,7 @@ exit 1
 
 	ownerType, err := checkSetupRepositoryOwnerType(context.Background(), "octo")
 	require.NoError(t, err)
-	assert.Equal(t, "Organization", strings.TrimSpace(ownerType))
+	assert.Equal(t, "Organization", ownerType)
 }
 
 func TestRunSetupRepositoryCheck_AcceptsCaseInsensitiveSlugMatch(t *testing.T) {

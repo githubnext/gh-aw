@@ -55,6 +55,8 @@ type bootstrapRuntime struct {
 	compileWorkflows func(context.Context, CompileConfig) ([]*workflow.WorkflowData, error)
 }
 
+const bootstrapAddWorkflowsRetryHint = "repository initialization completed; re-run bootstrap to retry workflow addition"
+
 func defaultBootstrapRuntime() bootstrapRuntime {
 	setupRuntime := defaultSetupRepositoryRuntime()
 	return bootstrapRuntime{
@@ -132,7 +134,7 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 	}
 
 	if err := withWorkingDir(plan.Dir, func() error {
-		initCompleted := false
+		repositoryInitialized := false
 		missingMarkers, err := missingBootstrapInitMarkers(".", opts.EngineOverride)
 		if err != nil {
 			return err
@@ -152,7 +154,7 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 			}); err != nil {
 				return fmt.Errorf("failed to initialize repository: %w", err)
 			}
-			initCompleted = true
+			repositoryInitialized = true
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Initialized repository for agentic workflows"))
 		}
 
@@ -165,6 +167,7 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 			}
 			workflowsToAdd := plan.ResolvedSources
 			var skippedWorkflows []string
+			// Attached checkouts were already filtered during plan construction.
 			if !opts.Force && !plan.AttachedCheckout {
 				workflowsToAdd, skippedWorkflows, err = excludeExistingSourcedWorkflows(plan.ResolvedSources, addOpts)
 				if err != nil {
@@ -176,8 +179,8 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 			}
 			if len(workflowsToAdd) > 0 {
 				if _, err := runtime.addWorkflows(ctx, workflowsToAdd, addOpts); err != nil {
-					if initCompleted {
-						return fmt.Errorf("failed to add workflows (repository initialization completed; re-run bootstrap to retry workflow addition): %w", err)
+					if repositoryInitialized {
+						return fmt.Errorf("failed to add workflows (%s): %w", bootstrapAddWorkflowsRetryHint, err)
 					}
 					return fmt.Errorf("failed to add workflows: %w", err)
 				}
