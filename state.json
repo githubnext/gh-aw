@@ -3,7 +3,7 @@
     "output_format": {
       "executive_brief": 21,
       "full_briefing": 15,
-      "annotated_brief": 14
+      "annotated_brief": 15
     }
   },
   "runs": [
@@ -355,6 +355,13 @@
       "timestamp": "2026-07-13T15:33:31.623Z",
       "assignments": {
         "output_format": "executive_brief"
+      }
+    },
+    {
+      "run_id": "29343934320",
+      "timestamp": "2026-07-14T15:08:20.273Z",
+      "assignments": {
+        "output_format": "annotated_brief"
       }
     }
   ]
