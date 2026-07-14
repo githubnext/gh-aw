@@ -1,22 +1,26 @@
-# Task Mining Run - 2026-07-14
+# Task Mining Run - 2026-07-14T07:31
 
 ## Summary
-- Discussions scanned: 5 (focused on code quality reports)
-- Tasks identified: 5
-- Issues created: 5
-- Duplicates avoided: 0 (first run)
+- Discussions scanned: 9 (4 new this run)
+- Tasks identified: 5 from new discussions
+- Issues created: 0 (create_issue limit already exhausted this run by prior invocations)
+- Duplicates avoided: N/A
 
-## Created Issues
-- #aw_iface9: Add compile-time interface assertions for all 9 CodingAgentEngine implementors
-- #aw_baseeng: Add compile-time assertions for BaseEngine sub-interfaces in pkg/workflow
-- #aw_typeenum: Replace string enum fields with named Go types in pkg/types and pkg/cli
-- #aw_logsum: Extract shared counter base struct from AccessLogSummary and FirewallLogSummary
-- #aw_filetrkr: Add compile-time assertions for FileCreationTracker and ToolConfig implementors
+## Tasks Identified But Not Yet Created
+
+From #45389 [Schema Consistency Check - 2026-07-14]:
+1. Add `antigravity` to engines.md docs and schema descriptions
+2. Update stale engine comments in `pkg/workflow/engine_definition.go`
+3. Remove deprecated `dispatch_repository` from frontmatter-full.md examples
+4. Expand compact frontmatter.md engine: section with subfields
+
+From #45370 [Daily Compiler Code Quality Report - 2026-07-14]:
+5. Add test file for `compiler_yaml_ai_execution.go` (508 lines, zero tests)
+6. Fix `WorkflowValidationError` missing `Unwrap()` method
+7. Fix `compiler_orchestrator_engine.go:245` using fmt.Errorf without %w
 
 ## Top Patterns Observed
-- Compile-time interface compliance gap (3 tasks from discussion #45268)
-- Go type consistency improvements (2 tasks from discussion #45259)
-
-## Source Discussions
-- #45268: Repository Quality Improvement Report - Compile-Time Interface Compliance Gap
-- #45259: Typist — Go Type Consistency Analysis
+- Schema/docs out of sync with runtime (3 mentions in schema-consistency)
+- Missing test coverage (compiler_yaml_ai_execution.go - 0 tests, 508 lines)
+- Broken error wrapping chains (WorkflowValidationError, fmt.Errorf without %w)
+- Function length backlog: 640 findings in pkg/workflow + pkg/cli (already tracked in #45161)
