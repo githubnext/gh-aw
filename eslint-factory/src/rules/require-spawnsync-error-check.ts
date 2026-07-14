@@ -30,8 +30,13 @@ function isGuardingErrorUsage(node: TSESTree.Expression): boolean {
       return true;
     }
 
-    if (parent.type === AST_NODE_TYPES.LogicalExpression && ((parent.operator === "&&" && (parent.left === current || parent.right === current)) || (parent.operator === "||" && parent.left === current))) {
-      return true;
+    if (parent.type === AST_NODE_TYPES.LogicalExpression) {
+      if (parent.left === current || (parent.operator === "||" && parent.right === current)) {
+        current = parent;
+        continue;
+      }
+
+      break;
     }
 
     if ((parent.type === AST_NODE_TYPES.ThrowStatement || parent.type === AST_NODE_TYPES.ReturnStatement) && parent.argument === current) {
@@ -39,6 +44,11 @@ function isGuardingErrorUsage(node: TSESTree.Expression): boolean {
     }
 
     if (parent.type === AST_NODE_TYPES.UnaryExpression && parent.operator === "!" && parent.argument === current) {
+      current = parent;
+      continue;
+    }
+
+    if (parent.type === AST_NODE_TYPES.BinaryExpression && (parent.left === current || parent.right === current)) {
       current = parent;
       continue;
     }
@@ -59,6 +69,10 @@ function findVariableByName(sourceCode: Readonly<TSESLint.SourceCode>, node: TSE
   return undefined;
 }
 
+function isGuardingReferenceIdentifier(node: TSESTree.Identifier | TSESTree.JSXIdentifier): boolean {
+  return node.type === AST_NODE_TYPES.Identifier && isGuardingErrorUsage(node);
+}
+
 function getErrorBindingNames(node: TSESTree.ObjectPattern): string[] {
   const names: string[] = [];
 
@@ -69,7 +83,7 @@ function getErrorBindingNames(node: TSESTree.ObjectPattern): string[] {
       continue;
     }
 
-    if (property.key.type !== AST_NODE_TYPES.Identifier || property.key.name !== "error") {
+    if ((property.key.type !== AST_NODE_TYPES.Identifier || property.key.name !== "error") && (property.key.type !== AST_NODE_TYPES.Literal || property.key.value !== "error")) {
       continue;
     }
 
@@ -152,7 +166,7 @@ export const requireSpawnSyncErrorCheckRule = createRule({
           const hasGuardingErrorCheck = errorBindingNames.some(varName => {
             const variable = findVariableByName(sourceCode, node, varName);
             if (!variable) return false;
-            return variable.references.some(ref => ref.identifier.type === AST_NODE_TYPES.Identifier && isGuardingErrorUsage(ref.identifier));
+            return variable.references.some(ref => isGuardingReferenceIdentifier(ref.identifier));
           });
 
           if (!hasGuardingErrorCheck) {
