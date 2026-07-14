@@ -61,9 +61,10 @@ function getInterpolatedRouteKind(node: TSESTree.Node): string | null {
  */
 function isOpaqueWholeRouteInterpolation(node: TSESTree.Node): boolean {
   if (node.type === "TemplateLiteral") {
+    const hasTwoQuasis = node.quasis.length === 2;
     const hasSingleExpression = node.expressions.length === 1;
-    const hasMethodPrefix = node.quasis.length === 2 && isHttpMethodPrefix(node.quasis[0].value.cooked);
-    const hasEmptyTrailingQuasi = node.quasis.length === 2 && node.quasis[1].value.cooked === "";
+    const hasMethodPrefix = hasTwoQuasis && isHttpMethodPrefix(node.quasis[0].value.cooked);
+    const hasEmptyTrailingQuasi = hasTwoQuasis && node.quasis[1].value.cooked === "";
     const isDynamicWholeRoute = hasSingleExpression && !isStaticRouteExpression(node.expressions[0]);
     return hasMethodPrefix && hasEmptyTrailingQuasi && isDynamicWholeRoute;
   }

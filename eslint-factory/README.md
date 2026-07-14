@@ -48,7 +48,7 @@ Using an interpolated route bypasses Octokit's typed route dispatch, can silentl
 github.request("GET /repos/{owner}/{repo}", { owner, repo });
 ```
 
-For helpers that receive the entire route as a parameter, there is no mechanical `{owner}` / `{repo}` rewrite. Pass a typed route string from the caller instead of interpolating `POST ${endpoint}` or `"POST " + endpoint` at the helper call site.
+For helpers that receive the entire route as a parameter, there is no mechanical `{owner}` / `{repo}` rewrite. Pass a typed route string from the caller instead of interpolating `` `POST ${endpoint}` `` or `` `"POST " + endpoint` `` at the helper call site.
 
 ### `no-json-stringify-error`
 
