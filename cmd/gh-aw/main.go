@@ -85,14 +85,16 @@ var rootCmd = &cobra.Command{
 	Long: `GitHub Agentic Workflows from GitHub Next
 
 Common Tasks:
-  gh aw init                  # Set up a new repository
-  gh aw add-wizard            # Add workflows with interactive guided setup
-  gh aw new my-workflow       # Create your first workflow
-  gh aw compile               # Compile all workflows
-  gh aw run my-workflow       # Execute a workflow
-  gh aw status                # Check workflow status
-  gh aw logs my-workflow      # View execution logs
-  gh aw audit <run-id-or-url> # Audit and compare workflow runs
+  gh aw init                  		# Set up a new repository
+	gh aw setup repo --repo owner/repo # Check auth and repo setup state
+  gh aw add-wizard            		# Add workflows with interactive guided setup
+  gh aw new my-workflow       		# Create your first workflow
+  gh aw compile               		# Compile all workflows
+  gh aw run my-workflow       		# Execute a workflow
+  gh aw status               		# Check workflow status
+  gh aw logs my-workflow      		# View execution logs
+  gh aw audit <run-id-or-url> 		# Audit and compare workflow runs
+  gh aw bootstrap --repo owner/repo # Create or attach a repo and initialize it
 
 For detailed help on any command, use:
   gh aw [command] --help`,
@@ -696,6 +698,9 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	// Create and setup add-wizard command
 	addWizardCmd := cli.NewAddWizardCommand(validateEngine)
 
+	// Create and setup bootstrap command
+	bootstrapCmd := cli.NewBootstrapCommand(validateEngine)
+
 	// Create and setup update command
 	updateCmd := cli.NewUpdateCommand(validateEngine)
 
@@ -823,6 +828,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	completionCmd := cli.NewCompletionCommand()
 	hashCmd := cli.NewHashCommand()
 	projectCmd := cli.NewProjectCommand()
+	setupCmd := cli.NewSetupCommand()
 	checksCmd := cli.NewChecksCommand()
 	validateCmd := cli.NewValidateCommand(validateEngine)
 	lintCmd := cli.NewLintCommand()
@@ -837,12 +843,14 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	newCmd.GroupID = "setup"
 	addCmd.GroupID = "setup"
 	addWizardCmd.GroupID = "setup"
+	bootstrapCmd.GroupID = "setup"
 	removeCmd.GroupID = "setup"
 	updateCmd.GroupID = "setup"
 	deployCmd.GroupID = "setup"
 	upgradeCmd.GroupID = "setup"
 	secretsCmd.GroupID = "setup"
 	envCmd.GroupID = "setup"
+	setupCmd.GroupID = "setup"
 
 	// Development Commands
 	compileCmd.GroupID = "development"
@@ -882,6 +890,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	// Add all commands to root
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(addWizardCmd)
+	rootCmd.AddCommand(bootstrapCmd)
 	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(deployCmd)
 	rootCmd.AddCommand(upgradeCmd)
@@ -912,6 +921,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	rootCmd.AddCommand(completionCmd)
 	rootCmd.AddCommand(hashCmd)
 	rootCmd.AddCommand(projectCmd)
+	rootCmd.AddCommand(setupCmd)
 	rootCmd.AddCommand(domainsCmd)
 	rootCmd.AddCommand(experimentsCmd)
 	rootCmd.AddCommand(forecastCmd)
