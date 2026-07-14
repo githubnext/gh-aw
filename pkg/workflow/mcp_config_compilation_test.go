@@ -866,6 +866,31 @@ Do nothing.
 			wantSingle: []string{`"\${TOKEN_A}"`, `"\${TOKEN_B}"`, `"PLAIN": "no-secret"`},
 			wantAbsent: []string{`"\\${TOKEN_A}"`, `"\\${TOKEN_B}"`},
 		},
+		// Regression test: GitHub remote MCP Copilot Authorization header must use a single
+		// backslash (\${GITHUB_PERSONAL_ACCESS_TOKEN}) in the generated lock file so that the
+		// unquoted bash heredoc emits ${GITHUB_PERSONAL_ACCESS_TOKEN} (a valid JSON string that
+		// the gateway expands at runtime). Double-escaping (\\${...}) causes bash to emit
+		// \<token-value>, which is an invalid JSON escape sequence and makes JSON.parse fail.
+		{
+			name: "GitHub remote MCP Authorization header - copilot engine single-escape",
+			workflowContent: `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+tools:
+  github:
+    mode: remote
+---
+
+Do nothing.
+`,
+			serverName: `"github"`,
+			wantSingle: []string{`"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`},
+			wantAbsent: []string{`"Authorization": "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"`},
+		},
 	}
 
 	for _, tt := range tests {

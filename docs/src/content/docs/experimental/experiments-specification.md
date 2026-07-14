@@ -227,7 +227,7 @@ The same minimum-two-variants constraint from R-SCHEMA-005 applies.
 |---|---|---|
 | `description` | string | Human-readable explanation of what the experiment tests. |
 | `hypothesis` | string | Null and alternative hypothesis statements. |
-| `metric` | string | Primary metric name to observe (e.g., `aic`). |
+| `metric` | string | Primary metric name to observe (e.g., `aic`), or an eval reference (`eval:<id>` / `evals.<id>`) when using `evals:`. |
 | `secondary_metrics` | string[] | Additional metrics to collect. |
 | `guardrail_metrics` | object[] | Thresholds that must not degrade. Each object has `name` (string), `threshold` (string or number), and optional `direction` (`"min"`\|`"max"`) (see §4.4). |
 | `min_samples` | integer ≥ 1 | Minimum runs per variant before analysis is reliable. Defaults to 20. |

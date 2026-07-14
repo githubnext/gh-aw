@@ -26,6 +26,7 @@ describe("require-return-after-core-setfailed", () => {
         `switch (x) { case "a": core.setFailed("bad"); break; }`,
         // setFailed is the last statement in the block — no next statement to check
         `function f() { core.setFailed("bad"); }`,
+        `function f() { if (x) core.setFailed("bad"); }`,
         `function f() { if (x) { core.setFailed("bad"); } }`,
         // setFailed has a return inside the if-block; outer doMore() is not reached via setFailed path
         `function f() { if (x) { core.setFailed("bad"); return; } doMore(); }`,
@@ -188,6 +189,34 @@ doMore();`,
     });
   });
 
+  it("invalid: braceless control bodies with continuation", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `function f() { if (bad) core.setFailed("x"); doMore(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { if (bad) { core.setFailed("x"); return; } doMore(); }` }] }],
+        },
+        {
+          code: `function f() { if (bad) return; else core["setFailed"]("x"); doMore(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { if (bad) return; else { core["setFailed"]("x"); return; } doMore(); }` }] }],
+        },
+        {
+          code: `const c = core; function f() { if (bad) c.setFailed("x"); doMore(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `const c = core; function f() { if (bad) { c.setFailed("x"); return; } doMore(); }` }] }],
+        },
+        {
+          code: `const { setFailed } = core; function f() { for (const file of files) setFailed(file); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `const { setFailed } = core; function f() { for (const file of files) { setFailed(file); return; } }` }] }],
+        },
+        {
+          code: `function f() { for (const file of files) if (!ok(file)) core.setFailed(file); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f() { for (const file of files) if (!ok(file)) { core.setFailed(file); return; } }` }] }],
+        },
+      ],
+    });
+  });
+
   it("valid: continue after setFailed is accepted — known limitation: does not stop post-loop execution", () => {
     ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
       valid: [
@@ -273,6 +302,20 @@ doMore();`,
           errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `const { setFailed: sf } = core; function f() { sf("bad"); return; doMore(); keepGoing(); }` }] }],
         },
       ],
+    });
+  });
+
+  it("valid: braceless if consequent with no continuation", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [
+        // No statement after the if — nothing to continue into
+        `function f() { if (bad) core.setFailed("x"); }`,
+        // Braced consequent with return, followed by doMore — already correctly valid
+        `function f() { if (bad) { core.setFailed("x"); return; } doMore(); }`,
+        // Braceless if at end of block — no continuation
+        `function f() { doSomething(); if (bad) core.setFailed("x"); }`,
+      ],
+      invalid: [],
     });
   });
 

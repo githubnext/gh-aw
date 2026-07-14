@@ -25,6 +25,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
@@ -35,6 +36,15 @@ var engineDefinitionLoaderLog = logger.New("workflow:engine_definition_loader")
 
 //go:embed data/engines/*.md
 var builtinEngineFS embed.FS
+
+var loadBuiltinEngineDefinitionMap = sync.OnceValue(func() map[string]*EngineDefinition {
+	definitions := loadBuiltinEngineDefinitions()
+	result := make(map[string]*EngineDefinition, len(definitions))
+	for _, def := range definitions {
+		result[def.ID] = def
+	}
+	return result
+})
 
 // engineDefinitionFile is the on-disk wrapper that holds the engine definition
 // under the top-level "engine" key.
@@ -78,6 +88,15 @@ func extractMarkdownFrontmatterYAML(content []byte) ([]byte, error) {
 // builtinEnginePath returns the canonical builtin virtual-FS path for an engine id.
 func builtinEnginePath(engineID string) string {
 	return parser.BuiltinPathPrefix + "engines/" + engineID + ".md"
+}
+
+func getBuiltinEngineDefinition(engineID string) (*EngineDefinition, error) {
+	definitions := loadBuiltinEngineDefinitionMap()
+	def, ok := definitions[engineID]
+	if !ok {
+		return nil, fmt.Errorf("builtin engine definition %q not found", engineID)
+	}
+	return def, nil
 }
 
 // loadBuiltinEngineDefinitions reads all *.md files from the embedded data/engines/

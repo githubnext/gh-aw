@@ -83,6 +83,7 @@ Downloaded artifacts include (when using --artifacts all):
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref main                # Filter logs by branch or tag
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref feature-xyz         # Filter logs by feature branch
   ` + string(constants.CLIExtensionPrefix) + ` logs --filtered-integrity      # Filter logs containing items that were filtered by gateway integrity checks
+  ` + string(constants.CLIExtensionPrefix) + ` logs --evals                    # Filter logs from workflows with evals results
   ` + string(constants.CLIExtensionPrefix) + ` logs --exclude-staged          # Exclude staged workflow runs from results
 
   # Run ID range filtering
@@ -152,6 +153,7 @@ Downloaded artifacts include (when using --artifacts all):
 				summaryFile, _ := cmd.Flags().GetString("summary-file")
 				safeOutputType, _ := cmd.Flags().GetString("safe-output")
 				filteredIntegrity, _ := cmd.Flags().GetBool("filtered-integrity")
+				evalsOnly, _ := cmd.Flags().GetBool("evals")
 				train, _ := cmd.Flags().GetBool("train")
 				format, _ := cmd.Flags().GetString("format")
 				reportFile, _ := cmd.Flags().GetString("report-file")
@@ -170,6 +172,8 @@ Downloaded artifacts include (when using --artifacts all):
 					return err
 				}
 
+				artifacts = applyEvalsArtifact(artifacts, evalsOnly)
+
 				return DownloadWorkflowLogsFromStdin(cmd.Context(), StdinLogsOptions{
 					RunURLs:           runURLs,
 					OutputDir:         outputDir,
@@ -186,6 +190,7 @@ Downloaded artifacts include (when using --artifacts all):
 					SummaryFile:       summaryFile,
 					SafeOutputType:    safeOutputType,
 					FilteredIntegrity: filteredIntegrity,
+					EvalsOnly:         evalsOnly,
 					Train:             train,
 					Format:            format,
 					ReportFile:        reportFile,
@@ -273,6 +278,7 @@ Downloaded artifacts include (when using --artifacts all):
 			summaryFile, _ := cmd.Flags().GetString("summary-file")
 			safeOutputType, _ := cmd.Flags().GetString("safe-output")
 			filteredIntegrity, _ := cmd.Flags().GetBool("filtered-integrity")
+			evalsOnly, _ := cmd.Flags().GetBool("evals")
 			train, _ := cmd.Flags().GetBool("train")
 			format, _ := cmd.Flags().GetString("format")
 			reportFile, _ := cmd.Flags().GetString("report-file")
@@ -321,6 +327,8 @@ Downloaded artifacts include (when using --artifacts all):
 
 			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v, cache_before=%s", workflowName, count, engine, train, cacheBefore)
 
+			artifacts = applyEvalsArtifact(artifacts, evalsOnly)
+
 			return DownloadWorkflowLogs(cmd.Context(), LogsDownloadOptions{
 				WorkflowName:      workflowName,
 				Count:             count,
@@ -343,6 +351,7 @@ Downloaded artifacts include (when using --artifacts all):
 				SummaryFile:       summaryFile,
 				SafeOutputType:    safeOutputType,
 				FilteredIntegrity: filteredIntegrity,
+				EvalsOnly:         evalsOnly,
 				Train:             train,
 				Format:            format,
 				ReportFile:        reportFile,
@@ -368,6 +377,7 @@ Downloaded artifacts include (when using --artifacts all):
 	logsCmd.Flags().Bool("no-firewall", false, "Filter to only runs without firewall enabled")
 	logsCmd.Flags().String("safe-output", "", "Filter to runs containing a specific safe output type (e.g., create-issue, missing-tool, missing-data, noop, report-incomplete)")
 	logsCmd.Flags().Bool("filtered-integrity", false, "Filter to runs containing items that were filtered by gateway integrity checks")
+	logsCmd.Flags().Bool("evals", false, "Filter to runs containing evals results (evals.jsonl); automatically includes the evals artifact")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	addJSONFlag(logsCmd)
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in minutes (0 = no timeout)")

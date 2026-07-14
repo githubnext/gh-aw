@@ -158,7 +158,7 @@ safe-outputs:
       run-started: "📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing..."
       run-success: "📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤"
       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
-timeout-minutes: 15
+timeout-minutes: 8
 experiments:
   caveman: [yes, no]
   subagent_model: [small, large]

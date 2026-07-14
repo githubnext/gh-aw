@@ -260,16 +260,16 @@ func TestMCPServer_ToolIcons(t *testing.T) {
 
 	// Expected icons for each tool
 	expectedIcons := map[string]string{
-		"status":      "📊",
-		"compile":     "📋",
-		"logs":        "📝",
-		"audit":       "🔍",
-		"audit-diff":  "🔎",
-		"checks":      "✅",
-		"mcp-inspect": "🔬",
-		"add":         "➕",
-		"update":      "🔄",
-		"fix":         "🔧",
+		"status":      mcpEmojiIconSource("📊"),
+		"compile":     mcpEmojiIconSource("📋"),
+		"logs":        mcpEmojiIconSource("📝"),
+		"audit":       mcpEmojiIconSource("🔍"),
+		"audit-diff":  mcpEmojiIconSource("🔎"),
+		"checks":      mcpEmojiIconSource("✅"),
+		"mcp-inspect": mcpEmojiIconSource("🔬"),
+		"add":         mcpEmojiIconSource("➕"),
+		"update":      mcpEmojiIconSource("🔄"),
+		"fix":         mcpEmojiIconSource("🔧"),
 	}
 
 	// Verify each tool has an icon
@@ -279,7 +279,7 @@ func TestMCPServer_ToolIcons(t *testing.T) {
 			continue
 		}
 
-		// Check that the icon source matches expected emoji
+		// Check that the icon source matches the expected spec-compliant URI
 		if expectedIcon, ok := expectedIcons[tool.Name]; ok {
 			if tool.Icons[0].Source != expectedIcon {
 				t.Errorf("Tool '%s' has unexpected icon. Expected: %s, Got: %s",

@@ -507,3 +507,116 @@ func TestExtractExperimentConfigsFromFrontmatter_StorageKeyIsSkipped(t *testing.
 	assert.Contains(t, got, "my_exp", "my_exp should be present")
 	assert.NotContains(t, got, "storage", "storage key should be excluded from experiment configs")
 }
+
+func TestParseExperimentMetricEvalReference(t *testing.T) {
+	tests := []struct {
+		name      string
+		metric    string
+		wantID    string
+		wantMatch bool
+	}{
+		{name: "empty metric", metric: "", wantID: "", wantMatch: false},
+		{name: "normal metric", metric: "aic", wantID: "", wantMatch: false},
+		{name: "eval colon format", metric: "eval:builds", wantID: "builds", wantMatch: true},
+		{name: "eval dotted format", metric: "evals.builds", wantID: "builds", wantMatch: true},
+		{name: "eval dotted with suffix", metric: "evals.builds.yes_rate", wantID: "builds", wantMatch: true},
+		{name: "eval empty id", metric: "eval:", wantID: "", wantMatch: true},
+		{name: "evals empty id", metric: "evals.", wantID: "", wantMatch: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotID, gotMatch := parseExperimentMetricEvalReference(tt.metric)
+			assert.Equal(t, tt.wantID, gotID)
+			assert.Equal(t, tt.wantMatch, gotMatch)
+		})
+	}
+}
+
+func TestValidateExperimentMetricReferences(t *testing.T) {
+	tests := []struct {
+		name    string
+		configs map[string]*ExperimentConfig
+		evals   *EvalsConfig
+		wantErr string
+	}{
+		{
+			name: "non eval metric is accepted",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {Metric: "aic"},
+			},
+			evals:   nil,
+			wantErr: "",
+		},
+		{
+			name: "eval metric references existing eval",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {Metric: "eval:builds"},
+			},
+			evals: &EvalsConfig{
+				Questions: []EvalDefinition{{ID: "builds", Question: "Does it build?"}},
+			},
+			wantErr: "",
+		},
+		{
+			name: "eval dotted metric references existing eval",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {Metric: "evals.builds.yes_rate"},
+			},
+			evals: &EvalsConfig{
+				Questions: []EvalDefinition{{ID: "builds", Question: "Does it build?"}},
+			},
+			wantErr: "",
+		},
+		{
+			name: "eval reference rejected when eval id is unknown",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {Metric: "eval:builds"},
+			},
+			evals: &EvalsConfig{
+				Questions: []EvalDefinition{{ID: "tests", Question: "Do tests pass?"}},
+			},
+			wantErr: `references unknown eval "builds"`,
+		},
+		{
+			name: "eval reference rejected when evals are not declared",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {Metric: "eval:builds"},
+			},
+			evals:   nil,
+			wantErr: `references eval "builds" but no evals are declared`,
+		},
+		{
+			name: "eval reference requires non empty id",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {Metric: "eval:"},
+			},
+			evals: &EvalsConfig{
+				Questions: []EvalDefinition{{ID: "builds", Question: "Does it build?"}},
+			},
+			wantErr: "must include a non-empty eval id",
+		},
+		{
+			name: "eval colon metric trims whitespace from id",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {Metric: "eval: builds "},
+			},
+			evals: &EvalsConfig{
+				Questions: []EvalDefinition{{ID: "builds", Question: "Does it build?"}},
+			},
+			wantErr: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateExperimentMetricReferences(tt.configs, tt.evals)
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}

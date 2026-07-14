@@ -36,6 +36,8 @@ func TestPRSousChefWorkflowAddCommentTargetContract(t *testing.T) {
 	assert.Contains(t, text, "skip_reason: \"sub_agent_error\"", "Workflow should skip failed sub-agent responses without retry")
 	assert.Contains(t, text, "eligible_count=", "fetch-prs step must export eligible_count output")
 	assert.Contains(t, text, ".prs | length", "eligible_count should reflect the number of eligible PRs")
+	assert.Contains(t, text, "pr_list_retries=3", "fetch-prs step should retry transient gh pr list failures")
+	assert.Contains(t, text, "continuing with empty queue", "fetch-prs step should degrade gracefully to an empty queue on non-retryable fetch failures")
 	assert.Contains(t, text, "dismiss-pull-request-review", "Workflow should configure the native safe-output path for dismissing stale github-actions reviews")
 	assert.Contains(t, text, "safeoutputs dismiss_pull_request_review", "Workflow should call the native dismiss_pull_request_review safe-output tool")
 	assert.Contains(t, text, "resolve-pull-request-review-thread", "Workflow should configure native safe-output support for resolving review threads")

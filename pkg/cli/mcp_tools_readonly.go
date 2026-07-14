@@ -34,9 +34,7 @@ Returns a JSON array where each element has the following structure:
 - compiled: Whether the workflow is compiled ("Yes", "No", or "N/A")
 - status: GitHub workflow status ("active", "disabled", "Unknown")
 - time_remaining: Time remaining until workflow deadline (if applicable)`,
-		Icons: []mcp.Icon{
-			{Source: "📊"},
-		},
+		Icons: mcpToolIcons("📊"),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args statusArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting
 		select {
@@ -123,9 +121,7 @@ Returns JSON array with validation results for each workflow:
 - warnings: Array of warning objects
 - compiled_file: Path to the generated .lock.yml file`,
 		InputSchema: compileSchema,
-		Icons: []mcp.Icon{
-			{Source: "📋"},
-		},
+		Icons:       mcpToolIcons("📋"),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args compileArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting
 		select {
@@ -298,9 +294,7 @@ Returns formatted text output showing:
 - Tools, resources, and roots exposed by each server
 - Secret availability status (if GitHub token is available)
 - Detailed tool information when tool parameter is specified`,
-		Icons: []mcp.Icon{
-			{Source: "🔬"},
-		},
+		Icons: mcpToolIcons("🔬"),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args mcpInspectArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting
 		select {
@@ -378,9 +372,7 @@ Use required_state as the authoritative CI verdict in repos that have optional
 deployment integrations posting commit statuses alongside required CI checks.
 
 Also returns pr_number, head_sha, check_runs, statuses, and total_count.`,
-		Icons: []mcp.Icon{
-			{Source: "✅"},
-		},
+		Icons: mcpToolIcons("✅"),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args checksArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting
 		select {

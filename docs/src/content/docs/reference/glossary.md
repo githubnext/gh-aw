@@ -632,6 +632,24 @@ engine:
 
 See [AI Engines Reference](/gh-aw/reference/engines/).
 
+### Engine Behaviors (`engine.behaviors`)
+
+A declarative configuration block inside a built-in engine definition file (under `pkg/workflow/data/engines/<id>.md`) that describes how the compiler should generate install, config, execution, and MCP steps for a CLI-style engine. Defining behaviors in frontmatter avoids bespoke Go wrapper code — the runtime reads the fields and generates the corresponding workflow steps automatically. Key sub-fields include `installation` (package manager, binary name, version), `config-file` (path, content, merge strategy), `execution` (command name, args, model env var, MCP config env var), `manifest` (protected files and path prefixes), and `capabilities`. Engines that use `engine.behaviors` inherit shared step generation logic via `behavior_defined_engine.go`. See [AI Engines Reference](/gh-aw/reference/engines/).
+
+```aw wrap
+engine:
+  id: crush
+  behaviors:
+    installation:
+      package-manager: npm
+      package-name: "@charmland/crush"
+      binary-name: crush
+    execution:
+      command-name: crush
+      args: [run, --verbose]
+      model-env-var: CRUSH_MODEL
+```
+
 ### Experiments (`experiments:`)
 
 A frontmatter section that enables A/B testing of workflow prompt variants across successive runs. Each key in the `experiments:` map names an experiment; the value is either a bare array of variant strings or a rich object with additional fields (`variants`, `description`, `hypothesis`, `metric`, `weight`, `min_samples`, `start_date`, `end_date`). At runtime the activation job selects one variant per experiment using a balanced round-robin counter and exposes the selection as `${{ experiments.<name> }}` for use anywhere in the workflow body.
@@ -643,6 +661,18 @@ experiments:
   prompt_style: [concise, detailed]
 ---
 Summarize this issue in a **${{ experiments.prompt_style }}** way.
+```
+
+### Evals (`evals:`)
+
+An experimental frontmatter section that defines binary (YES/NO) evaluation questions to run after safe-outputs and before the conclusion job. Each question has an `id` and a `question` string; the runtime evaluates each with an LLM and records results in an `evals.jsonl` artifact. Supports a shorthand form (plain array of question objects) and an extended form with a top-level `model` override and optional `runs-on` configuration. Use `gh aw audit --evals` or `gh aw logs --evals` to filter results to runs that contain evals output. See [Frontmatter Reference](/gh-aw/reference/frontmatter/).
+
+```aw wrap
+evals:
+  - id: issue-resolved
+    question: "Was the reported issue fully resolved?"
+  - id: tests-added
+    question: "Were new tests added for the changed code?"
 ```
 
 ### Feature Flags (`features:`)

@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"encoding/base64"
 	"strings"
 	"testing"
 
@@ -24,6 +25,36 @@ func TestMCPInspectSubcommand_NoArgBehaviorDocumented(t *testing.T) {
 	}
 	if !strings.Contains(cmd.Long, "(equivalent to 'gh aw mcp list')") {
 		t.Errorf("Expected mcp inspect long help to document no-argument behavior, got: %s", cmd.Long)
+	}
+}
+
+func TestMCPInspectClientImplementation_UsesCLIGetVersion(t *testing.T) {
+	implementation := mcpInspectClientImplementation()
+
+	if implementation.Name != "gh-aw-inspector" {
+		t.Fatalf("expected inspector client name %q, got %q", "gh-aw-inspector", implementation.Name)
+	}
+	if implementation.Version != GetVersion() {
+		t.Fatalf("expected inspector client version %q, got %q", GetVersion(), implementation.Version)
+	}
+}
+
+func TestMCPEmojiIconSource_ReturnsDataURI(t *testing.T) {
+	source := mcpEmojiIconSource("📊")
+	if !strings.HasPrefix(source, "data:image/svg+xml;base64,") {
+		t.Fatalf("expected base64 data URI source, got %q", source)
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(source, "data:image/svg+xml;base64,"))
+	if err != nil {
+		t.Fatalf("failed to base64-decode icon source: %v", err)
+	}
+
+	if !strings.Contains(string(decoded), "<svg") {
+		t.Fatalf("expected SVG payload, got %q", decoded)
+	}
+	if !strings.Contains(string(decoded), "📊") {
+		t.Fatalf("expected original emoji in SVG payload, got %q", decoded)
 	}
 }
 

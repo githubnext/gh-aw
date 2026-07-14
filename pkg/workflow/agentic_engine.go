@@ -492,9 +492,14 @@ func NewEngineRegistry() *EngineRegistry {
 		NewCopilotEngine(),
 		NewGeminiEngine(),
 		NewAntigravityEngine(),
-		NewOpenCodeEngine(),
-		NewCrushEngine(),
 		NewPiEngine(),
+	}
+	for _, id := range []string{"opencode", "crush"} {
+		engine, err := newBuiltinBehaviorDefinedEngine(id)
+		if err != nil {
+			panic(fmt.Sprintf("BUG: failed to load built-in behavior engine %q: %v", id, err))
+		}
+		builtins = append(builtins, engine)
 	}
 	for _, engine := range builtins {
 		if err := registry.Register(engine); err != nil {

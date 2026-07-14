@@ -37,8 +37,13 @@ tools:
   cli-proxy: true
   github:
     mode: gh-proxy
-    toolsets:
-    - default
+  cache-memory:
+    key: pr-review-${{ github.event.pull_request.number || github.event.issue.number }}
+cache:
+  key: pr-prefetch-${{ github.event.pull_request.head.sha || github.event.issue.number }}
+  path: /tmp/gh-aw/agent
+  restore-keys:
+    - pr-prefetch-${{ github.event.pull_request.number || github.event.issue.number }}-
 safe-outputs:
   create-pull-request-review-comment:
     max: 10
@@ -50,7 +55,7 @@ safe-outputs:
     run-success: "✅ [{workflow_name}]({run_url}) completed the code quality review."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} during code quality review."
 pre-agent-steps:
-  - name: Pre-fetch PR diff
+  - name: Pre-fetch PR diff and review comments
     env:
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
@@ -59,18 +64,31 @@ pre-agent-steps:
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
-      { gh pr diff "$PR_NUMBER" --repo $EXPR_GITHUB_REPOSITORY \
-          --exclude '**/*.lock.yml' \
-          --exclude '**/generated/**' \
-          --exclude '**/dist/**' \
-          --exclude '**/build/**' \
-          || true; } | head -n "${PR_DIFF_MAX_LINES}" > /tmp/gh-aw/agent/pr-diff.patch
-      LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
-      gh pr view "$PR_NUMBER" \
-        --repo $EXPR_GITHUB_REPOSITORY \
-        --json number,title,body,headRefName,additions,deletions,changedFiles,files \
-        > /tmp/gh-aw/agent/pr-meta.json
-      echo "Pre-fetched PR diff (${LINES} lines) and metadata"
+      # Skip fetch if cache already populated this data (actions/cache restore)
+      if [ -f /tmp/gh-aw/agent/pr-diff.patch ] && [ -f /tmp/gh-aw/agent/pr-meta.json ] && [ -f /tmp/gh-aw/agent/pr-review-comments.json ]; then
+        LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
+        COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)
+        echo "Cache hit: using pre-fetched PR data (${LINES} diff lines, ${COMMENT_COUNT} review comments)"
+      else
+        { gh pr diff "$PR_NUMBER" --repo $EXPR_GITHUB_REPOSITORY \
+            --exclude '**/*.lock.yml' \
+            --exclude '**/generated/**' \
+            --exclude '**/dist/**' \
+            --exclude '**/build/**' \
+            || true; } | head -n "${PR_DIFF_MAX_LINES}" > /tmp/gh-aw/agent/pr-diff.patch
+        LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
+        gh pr view "$PR_NUMBER" \
+          --repo $EXPR_GITHUB_REPOSITORY \
+          --json number,title,body,headRefName,additions,deletions,changedFiles,files \
+          > /tmp/gh-aw/agent/pr-meta.json
+        gh api "repos/$EXPR_GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" \
+          --paginate \
+          --jq '.[] | {id, path, line: (.line // .original_line), body: .body[:200], user: .user.login}' \
+          2>/dev/null | jq -s '.' > /tmp/gh-aw/agent/pr-review-comments.json \
+          || echo '[]' > /tmp/gh-aw/agent/pr-review-comments.json
+        COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)
+        echo "Pre-fetched PR diff (${LINES} lines), metadata, and ${COMMENT_COUNT} existing review comments"
+      fi
 timeout-minutes: 15
 
 ---
@@ -93,11 +111,13 @@ The PR diff and metadata have already been pre-fetched and are available as loca
 - **PR diff** (capped at 3000 lines, lock/generated/dist/build files excluded): `/tmp/gh-aw/agent/pr-diff.patch`
 - **PR metadata** (files list, additions, deletions): `/tmp/gh-aw/agent/pr-meta.json`
 
-In **one parallel turn**, read those two files and also fetch:
-- Existing review comments — use `get_review_comments` (to avoid duplication)
+In **one parallel turn**, read those three files:
+- `/tmp/gh-aw/agent/pr-diff.patch` — PR diff
+- `/tmp/gh-aw/agent/pr-meta.json` — PR metadata
+- `/tmp/gh-aw/agent/pr-review-comments.json` — existing review comments (use to avoid duplication; each entry has `id`, `path`, `line`, `body`, `user`)
 - (Optional) `/tmp/gh-aw/cache-memory/pr-${{ github.event.issue.number || github.event.pull_request.number }}.json` for past review themes
 
-**Do not** call `get_diff`; use the pre-fetched `/tmp/gh-aw/agent/pr-diff.patch` instead — it is already capped to prevent token-heavy context payloads.
+**Do not** call `get_diff` or `get_review_comments`; use the pre-fetched files instead — they are already capped to prevent token-heavy context payloads.
 
 **In the same turn**, start the `grumpy-coder` sub-agent in the background, passing the PR diff and changed-file list as input context.
 

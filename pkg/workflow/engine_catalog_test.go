@@ -137,6 +137,9 @@ func TestEngineCatalogMatchesSchema(t *testing.T) {
 	assert.Contains(t, props3, "id", "engine definition variant should have an 'id' property")
 	assert.Contains(t, props3, "display-name", "engine definition variant should have a 'display-name' property")
 	assert.Contains(t, props3, "provider", "engine definition variant should have a 'provider' property")
+	assert.Contains(t, props3, "experimental", "engine definition variant should have an 'experimental' property")
+	assert.Contains(t, props3, "auth", "engine definition variant should have an 'auth' property")
+	assert.Contains(t, props3, "behaviors", "engine definition variant should have a 'behaviors' property")
 
 	// Variant 4: mcp-only form for shared workflow imports (no engine id required)
 	assert.Equal(t, "object", variants[4]["type"],

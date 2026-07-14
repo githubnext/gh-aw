@@ -316,6 +316,69 @@ func extractIntSlice(raw any) []int {
 	return nil
 }
 
+// parseExperimentMetricEvalReference returns the referenced eval question ID when metric
+// declares an eval-backed success metric.
+// Supported forms:
+//   - eval:<id>
+//   - evals.<id>
+//   - evals.<id>.<suffix> (suffix reserved for future derived metrics)
+func parseExperimentMetricEvalReference(metric string) (string, bool) {
+	trimmed := strings.TrimSpace(metric)
+	if trimmed == "" {
+		return "", false
+	}
+	if rest, ok := strings.CutPrefix(trimmed, "eval:"); ok {
+		return strings.TrimSpace(rest), true
+	}
+	if rest, ok := strings.CutPrefix(trimmed, "evals."); ok {
+		rest = strings.TrimSpace(rest)
+		if rest == "" {
+			return "", true
+		}
+		parts := strings.SplitN(rest, ".", 2)
+		return parts[0], true
+	}
+	return "", false
+}
+
+// validateExperimentMetricReferences ensures experiment metrics that reference evals
+// point to declared eval question IDs.
+func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, evals *EvalsConfig) error {
+	if len(configs) == 0 {
+		return nil
+	}
+
+	evalIDs := map[string]struct{}{}
+	if evals != nil {
+		for _, q := range evals.Questions {
+			if q.ID != "" {
+				evalIDs[q.ID] = struct{}{}
+			}
+		}
+	}
+
+	for experimentName, cfg := range configs {
+		if cfg == nil {
+			continue
+		}
+		referencedEvalID, referencesEval := parseExperimentMetricEvalReference(cfg.Metric)
+		if !referencesEval {
+			continue
+		}
+		if referencedEvalID == "" {
+			return fmt.Errorf("experiments.%s.metric: eval reference must include a non-empty eval id", experimentName)
+		}
+		if _, ok := evalIDs[referencedEvalID]; !ok {
+			if len(evalIDs) == 0 {
+				return fmt.Errorf("experiments.%s.metric: references eval %q but no evals are declared", experimentName, referencedEvalID)
+			}
+			return fmt.Errorf("experiments.%s.metric: references unknown eval %q", experimentName, referencedEvalID)
+		}
+	}
+
+	return nil
+}
+
 // generateExperimentSteps creates the steps that pick and upload A/B experiment variants.
 //
 // When storage is "cache" (legacy) the steps are:

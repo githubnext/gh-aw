@@ -12,7 +12,8 @@ import (
 )
 
 func TestOpenCodeEngine(t *testing.T) {
-	engine := NewOpenCodeEngine()
+	engine, err := newBuiltinBehaviorDefinedEngine("opencode")
+	require.NoError(t, err)
 
 	t.Run("engine identity and capabilities", func(t *testing.T) {
 		capabilities := engine.GetCapabilities()
@@ -30,7 +31,8 @@ func TestOpenCodeEngine(t *testing.T) {
 }
 
 func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
-	engine := NewOpenCodeEngine()
+	engine, err := newBuiltinBehaviorDefinedEngine("opencode")
+	require.NoError(t, err)
 
 	t.Run("standard installation", func(t *testing.T) {
 		steps := engine.GetInstallationSteps(&WorkflowData{Name: "test-workflow"})
@@ -47,12 +49,18 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 		execContent := strings.Join(steps[1], "\n")
 		assert.Contains(t, configContent, "Write OpenCode Config", "Should write OpenCode config first")
 		assert.Contains(t, configContent, "opencode.jsonc", "Should reference opencode.jsonc")
+		assert.Contains(t, configContent, `"awf-proxy"`, "Config should define a custom awf-proxy provider to force @ai-sdk/openai-compatible (Chat Completions only, not Responses API)")
+		assert.Contains(t, configContent, "172.30.0.30:10002", "Config should use the internal AWF api-proxy IP to bypass host.docker.internal auth")
+		assert.Contains(t, configContent, "awf-copilot-proxy", "Config should use the AWF api-proxy placeholder key accepted by the internal 172.30.0.30 proxy")
+		assert.Contains(t, configContent, `"autoupdate": false`, "Config should disable auto-updates to prevent interactive prompts in headless mode")
+		assert.Contains(t, configContent, `"disabled_providers"`, "Config should disable unused providers")
 		assert.Contains(t, execContent, "Execute OpenCode CLI", "Should execute OpenCode CLI")
 		assert.Contains(t, execContent, "opencode run", "Should invoke opencode run")
 		assert.Contains(t, execContent, "OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}", "Should default to Copilot token routing")
+		assert.Contains(t, execContent, "XDG_DATA_HOME: /tmp/opencode-data", "Should set XDG_DATA_HOME to prevent persistent DB migrations")
 	})
 
-	t.Run("firewall sets OpenCode gateway base URL", func(t *testing.T) {
+	t.Run("firewall sets OpenCode gateway base URL and OPENAI_BASE_URL", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -70,11 +78,34 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 		require.Len(t, steps, 2, "Should generate config step and execution step")
 		execContent := strings.Join(steps[1], "\n")
 		assert.Contains(t, execContent, "GITHUB_COPILOT_BASE_URL: http://host.docker.internal:10002", "Should route through Copilot LLM gateway port for copilot/* models")
+		assert.Contains(t, execContent, "OPENAI_BASE_URL: http://host.docker.internal:10002", "Should also set OPENAI_BASE_URL to Copilot gateway so OpenCode's openai provider routes correctly")
+	})
+
+	t.Run("firewall passes model through awf-proxy prefix rewrite in OPENCODE_MODEL", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Model: "copilot/gpt-5",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Allowed: []string{"defaults"},
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		require.Len(t, steps, 2, "Should generate config step and execution step")
+		execContent := strings.Join(steps[1], "\n")
+		assert.Contains(t, execContent, "OPENCODE_MODEL: awf-proxy/gpt-5", "Should rewrite 'copilot/' to 'awf-proxy/' so OpenCode uses the custom awf-proxy provider")
+		assert.NotContains(t, execContent, "OPENCODE_MODEL: copilot/gpt-5", "Should not pass 'copilot/' prefix through since the copilot provider uses Responses API")
 	})
 }
 
 func TestOpenCodeEngineProviderProfiles(t *testing.T) {
-	engine := NewOpenCodeEngine()
+	engine, err := newBuiltinBehaviorDefinedEngine("opencode")
+	require.NoError(t, err)
 
 	t.Run("anthropic model uses anthropic secret", func(t *testing.T) {
 		workflowData := &WorkflowData{

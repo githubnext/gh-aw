@@ -122,6 +122,49 @@ func TestNormalizeRepoForAPI(t *testing.T) {
 	}
 }
 
+func TestEscapeOwnerRepo(t *testing.T) {
+	tests := []struct {
+		name      string
+		ownerRepo string
+		want      string
+	}{
+		{name: "normal owner/repo", ownerRepo: "github/gh-aw", want: "github/gh-aw"},
+		{name: "traversal in repo segment", ownerRepo: "owner/../etc/passwd", want: "owner/..%2Fetc%2Fpasswd"},
+		{name: "percent encoded slash is neutralized", ownerRepo: "owner/repo%2Ftraversal", want: "owner/repo%252Ftraversal"},
+		{name: "no slash fallback", ownerRepo: "noSlash", want: "noSlash"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, escapeOwnerRepo(tt.ownerRepo))
+		})
+	}
+}
+
+func TestValidateAPIEndpoint(t *testing.T) {
+	tests := []struct {
+		name     string
+		endpoint string
+		wantErr  string
+	}{
+		{name: "relative endpoint allowed", endpoint: "issues/comments/123"},
+		{name: "leading slash rejected", endpoint: "/issues/comments/123", wantErr: "must not start"},
+		{name: "dotdot segment rejected", endpoint: "issues/../comments/123", wantErr: "must not contain"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateAPIEndpoint(tt.endpoint)
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
 func TestIsBotUser(t *testing.T) {
 	assert.True(t, isBotUser("github-actions[bot]"), "github-actions[bot] is a bot")
 	assert.True(t, isBotUser("github-actions"), "github-actions is a bot")

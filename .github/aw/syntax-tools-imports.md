@@ -127,7 +127,7 @@ The `tools:` field configures which tools the coding agent may use.
       mode: cli          # recommended: token-efficient CLI mode
       version: "0.1.11"  # optional: @playwright/cli npm package version
   ```
-- `timeout:` - Per-operation timeout in seconds for all tool and MCP calls (integer or expression). Defaults vary by engine (Claude: 60 s, Codex: 120 s).
+- `timeout:` - Per-operation timeout in seconds for all tool and MCP calls (integer or expression, default: 60 s for all engines).
 - `startup-timeout:` - Timeout in seconds for MCP server initialization (integer or expression, default: 120).
 - `cli-proxy:` - Mount each user-facing MCP server as a standalone CLI tool on `PATH` (boolean, default: `false`). When enabled, the agent can call MCP servers via shell (e.g. `github issue_read --method get ...`).
 

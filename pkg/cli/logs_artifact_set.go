@@ -68,6 +68,10 @@ const (
 	// ArtifactSetUsage downloads the compact usage artifact produced by the
 	// conclusion job (aw-info.jsonl, usage summaries, token usage JSONL).
 	ArtifactSetUsage ArtifactSet = "usage"
+
+	// ArtifactSetEvals downloads the evals artifact containing BinEval evaluation
+	// results (evals.jsonl) produced by the evals job.
+	ArtifactSetEvals ArtifactSet = "evals"
 )
 
 // artifactSetArtifacts maps each named set to the list of artifact base names it includes.
@@ -87,6 +91,8 @@ var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetExperiment: {constants.ExperimentArtifactName},
 	// usage: compact conclusion artifact for lightweight reporting/forecasting.
 	ArtifactSetUsage: {constants.UsageArtifactName},
+	// evals: BinEval evaluation results uploaded by the evals job.
+	ArtifactSetEvals: {constants.EvalsArtifactName},
 }
 
 const maxArtifactHintExamples = 2
@@ -275,4 +281,20 @@ func findMissingFilterEntries(filter []string, outputDir string) []string {
 		artifactSetLog.Printf("All %d artifact filter entries present in %s", len(filter), outputDir)
 	}
 	return missing
+}
+
+// applyEvalsArtifact appends the evals artifact set to artifacts when evalsOnly is true
+// and neither ArtifactSetEvals nor ArtifactSetAll is already present. This ensures
+// evals.jsonl is downloaded without requiring the user to also pass --artifacts evals.
+//
+// Note: callers that treat an empty artifacts slice as "all" (e.g., the audit command)
+// should guard with len(artifacts) > 0 before calling this function, to avoid
+// changing the empty/"all" default into an evals-only download.
+func applyEvalsArtifact(artifacts []string, evalsOnly bool) []string {
+	if evalsOnly &&
+		!slices.Contains(artifacts, string(ArtifactSetEvals)) &&
+		!slices.Contains(artifacts, string(ArtifactSetAll)) {
+		return append(artifacts, string(ArtifactSetEvals))
+	}
+	return artifacts
 }

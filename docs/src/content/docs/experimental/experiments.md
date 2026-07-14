@@ -54,12 +54,16 @@ on:
 
 engine: copilot
 
+evals:
+  - id: focused
+    question: Is the change focused and actionable?
+
 experiments:
   prompt_style:
     variants: [concise, detailed]
     description: "Test whether a concise prompt reduces cost without quality loss"
     hypothesis: "H0: no change in aic. H1: concise reduces AIC by >=15%"
-    metric: aic
+    metric: eval:focused
     secondary_metrics: [duration_ms, discussion_word_count]
     guardrail_metrics:
       - name: success_rate
@@ -76,6 +80,9 @@ experiments:
 
 Summarize the findings in a **${{ experiments.prompt_style }}** way.
 ```
+
+When `evals` are configured, `metric` can reference an eval question ID using
+`eval:<id>` (for example `eval:focused`) or `evals.<id>`.
 
 > [!NOTE]
 > Experiment names must be valid identifiers: start with a letter or

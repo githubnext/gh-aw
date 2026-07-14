@@ -702,3 +702,87 @@ Imports a custom inline engine definition from a shared workflow.
 	assert.Contains(t, lockStr, "codex exec${",
 		"lock file should contain codex exec invocation")
 }
+
+func TestImportedBehaviorDefinedEngineDefinition(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-behavior-engine-import-*")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+
+	sharedContent := `---
+engine:
+  id: auggie
+  display-name: Auggie
+  description: Auggie CLI with explicit auth binding and declarative execution behavior
+  experimental: true
+  auth:
+    - role: session
+      secret: AUGMENT_SESSION_AUTH
+  behaviors:
+    supported-env-var-keys:
+      - AUGMENT_SESSION_AUTH
+    capabilities:
+      max-turns: true
+    installation:
+      package-manager: npm
+      package-name: "@augmentcode/auggie"
+      version: "1.0.0"
+      step-name: Install Auggie
+      binary-name: auggie
+      include-node-setup: true
+      cooldown: true
+      docs-url: https://docs.augmentcode.com
+    config-file:
+      path: .auggie.json
+      step-name: Write Auggie Config
+      content: '{"sandbox":"workspace-write"}'
+      merge-strategy: json-merge
+    execution:
+      command-name: auggie
+      args:
+        - run
+      step-name: Execute Auggie CLI
+      model-env-var: AUGGIE_MODEL
+      mcp-config-env-var: AUGGIE_MCP_CONFIG
+      write-timestamp: true
+    mcp:
+      config-path: .auggie.json
+---
+
+# Shared Auggie engine definition
+`
+	sharedFile := filepath.Join(sharedDir, "auggie.md")
+	require.NoError(t, os.WriteFile(sharedFile, []byte(sharedContent), 0644))
+
+	mainContent := `---
+name: Test Imported Behavior Engine
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: read
+imports:
+  - shared/auggie.md
+---
+
+# Test Workflow
+`
+	mainFile := filepath.Join(workflowsDir, "test-imported-behavior-engine.md")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0644))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(mainFile)
+	require.NoError(t, err, "compilation should succeed when a behavior-defined engine is imported from a shared workflow")
+
+	lockFile := filepath.Join(workflowsDir, "test-imported-behavior-engine.lock.yml")
+	lockContent, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "lock file should be created")
+
+	lockStr := string(lockContent)
+	assert.Contains(t, lockStr, "Install Auggie", "lock file should contain behavior-defined install step")
+	assert.Contains(t, lockStr, "Write Auggie Config", "lock file should contain behavior-defined config step")
+	assert.Contains(t, lockStr, "Execute Auggie CLI", "lock file should contain behavior-defined execution step")
+	assert.Contains(t, lockStr, `GH_AW_INFO_ENGINE_ID: "auggie"`, "lock file should set engine ID to the imported definition")
+	assert.Contains(t, lockStr, "AUGMENT_SESSION_AUTH: ${{ secrets.AUGMENT_SESSION_AUTH }}", "lock file should bind custom auth secrets from engine.auth")
+}

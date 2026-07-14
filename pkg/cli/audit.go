@@ -35,6 +35,7 @@ type AuditOptions struct {
 	ArtifactSets     []string
 	ExperimentFilter string
 	VariantFilter    string
+	EvalsOnly        bool
 }
 
 var auditCommandLong = `Audit one or more workflow runs by downloading artifacts and logs, detecting errors,
@@ -82,6 +83,7 @@ type auditCommandOptions struct {
 	stdin            bool
 	experimentFilter string
 	variantFilter    string
+	evalsOnly        bool
 }
 
 // NewAuditCommand creates the audit command
@@ -109,6 +111,7 @@ func registerAuditCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("stdin", false, "Read workflow run IDs or URLs from stdin (one per line) instead of positional arguments")
 	cmd.Flags().String("experiment", "", "Filter to runs that include this experiment name")
 	cmd.Flags().String("variant", "", "Filter to runs with a specific variant value (requires --experiment)")
+	cmd.Flags().Bool("evals", false, "Skip runs that do not contain evals results (evals.jsonl); automatically downloads the evals artifact when --artifacts is narrowed")
 	RegisterDirFlagCompletion(cmd, "output")
 }
 
@@ -123,6 +126,12 @@ func runAuditCommand(cmd *cobra.Command, args []string) error {
 	}
 	if len(args) == 1 {
 		return runAuditSingle(cmd.Context(), args[0], opts)
+	}
+	if opts.evalsOnly {
+		return errors.New(console.FormatErrorWithSuggestions(
+			"--evals is not supported in multi-run diff mode",
+			[]string{"Provide a single run ID with --evals to filter by evals results"},
+		))
 	}
 	return runAuditMulti(cmd.Context(), args, opts.repoFlag, opts.outputDir, opts.verbose, opts.jsonOutput, opts.format, opts.artifacts)
 }
@@ -139,11 +148,20 @@ func getAuditCommandOptions(cmd *cobra.Command) (auditCommandOptions, error) {
 	opts.stdin, _ = cmd.Flags().GetBool("stdin")
 	opts.experimentFilter, _ = cmd.Flags().GetString("experiment")
 	opts.variantFilter, _ = cmd.Flags().GetString("variant")
+	opts.evalsOnly, _ = cmd.Flags().GetBool("evals")
 	if opts.variantFilter != "" && opts.experimentFilter == "" {
 		return auditCommandOptions{}, errors.New(console.FormatErrorWithSuggestions(
 			"--variant requires --experiment to be specified",
 			[]string{"Add --experiment <name> to filter by experiment name alongside --variant"},
 		))
+	}
+	// Auto-include the evals artifact when --evals is specified and the user has
+	// narrowed the artifact set (non-empty --artifacts).  When --artifacts is empty
+	// the default is "all", which already includes every artifact including evals,
+	// so we must not append here: doing so would change the default from "all" to
+	// "evals-only" and omit the activation/agent artifacts required for a full report.
+	if len(opts.artifacts) > 0 {
+		opts.artifacts = applyEvalsArtifact(opts.artifacts, opts.evalsOnly)
 	}
 	return opts, nil
 }
@@ -199,6 +217,7 @@ func runAuditSingle(ctx context.Context, runIDOrURL string, opts auditCommandOpt
 		ArtifactSets:     opts.artifacts,
 		ExperimentFilter: opts.experimentFilter,
 		VariantFilter:    opts.variantFilter,
+		EvalsOnly:        opts.evalsOnly,
 	})
 }
 
@@ -302,6 +321,7 @@ type auditRunConfig struct {
 	artifactFilter   []string
 	experimentFilter string
 	variantFilter    string
+	evalsOnly        bool
 }
 
 type auditAnalysisResults struct {
@@ -355,6 +375,9 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 	if shouldSkipAuditRun(cfg.runID, cfg.outputDir, cfg.experimentFilter, cfg.variantFilter) {
 		return nil
 	}
+	if shouldSkipForEvals(cfg) {
+		return nil
+	}
 	return renderAuditReport(ctx, processedRun, results.metrics, results.mcpToolUsage, cfg.auditOptions())
 }
 
@@ -376,6 +399,7 @@ func newAuditRunConfig(runID int64, opts AuditOptions) (auditRunConfig, error) {
 		artifactFilter:   ResolveArtifactFilter(opts.ArtifactSets),
 		experimentFilter: opts.ExperimentFilter,
 		variantFilter:    opts.VariantFilter,
+		evalsOnly:        opts.EvalsOnly,
 	}, nil
 }
 
@@ -454,6 +478,7 @@ func (cfg auditRunConfig) auditOptions() AuditOptions {
 		Verbose:    cfg.verbose,
 		Parse:      cfg.parse,
 		JSONOutput: cfg.jsonOutput,
+		EvalsOnly:  cfg.evalsOnly,
 	}
 }
 
@@ -468,6 +493,14 @@ func renderCachedAuditIfAvailable(ctx context.Context, cfg auditRunConfig) (bool
 	}
 	if shouldSkipAuditRun(cfg.runID, cfg.outputDir, cfg.experimentFilter, cfg.variantFilter) {
 		return true, nil
+	}
+	// When --evals is set but the evals artifact is not present locally, the cache
+	// was created without evals (e.g., default usage-only download).  Bypass the
+	// cache so prepareAuditWorkflowRun can fetch the evals artifact; the filter at
+	// the post-download check will then correctly decide whether to skip the run.
+	if cfg.evalsOnly && !runHasEvals(cfg.outputDir, cfg.verbose) {
+		auditLog.Printf("Cache miss for run %d evals: evals artifact not present locally, bypassing cache", cfg.runID)
+		return false, nil
 	}
 	processedRun := processedRunFromSummary(summary, cfg.outputDir)
 	return true, renderAuditReport(ctx, processedRun, summary.Metrics, summary.MCPToolUsage, cfg.auditOptions())
@@ -930,4 +963,21 @@ func renderAuditCompletion(runOutputDir string, jsonOutput bool) {
 	absOutputDir, _ := filepath.Abs(runOutputDir)
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Audit complete. Logs saved to "+absOutputDir))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Tip: use --artifacts to select specific artifact sets (agent, firewall, mcp, activation, detection, etc.)"))
+}
+
+// shouldSkipForEvals returns true when evals filtering is active but no evals results
+// are found locally after download. It logs the skip decision and, when verbose, prints
+// an info message to stderr. Call this only after artifact download has completed.
+func shouldSkipForEvals(cfg auditRunConfig) bool {
+	if !cfg.evalsOnly {
+		return false
+	}
+	if runHasEvals(cfg.outputDir, cfg.verbose) {
+		return false
+	}
+	auditLog.Printf("Skipping run %d: no evals results found (filtered by --evals)", cfg.runID)
+	if cfg.verbose {
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not have evals results (filtered by --evals)", cfg.runID)))
+	}
+	return true
 }

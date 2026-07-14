@@ -1341,17 +1341,37 @@ func TestStripGHALogTimestamps(t *testing.T) {
 }
 
 func TestExtractPreAgentStepErrors(t *testing.T) {
-	t.Run("returns nil when agent-stdio.log exists", func(t *testing.T) {
+	t.Run("falls back to agent-stdio.log excerpt when agent ran and no ##[error] annotation exists", func(t *testing.T) {
 		dir := testutil.TempDir(t, "audit-step-*")
 		// Create agent-stdio.log to indicate agent ran
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "agent-stdio.log"), []byte("agent output"), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "agent-stdio.log"), []byte("INFO: startup\nERROR: request failed with status 500"), 0600))
 		// Create workflow-logs with a step log that has content
 		workflowLogsDir := filepath.Join(dir, "workflow-logs", "activation")
 		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
 		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "5_Generate agentic run info.txt"), []byte("Error: lockdown failed"), 0600))
 
 		errors := extractPreAgentStepErrors(dir)
-		assert.Nil(t, errors, "Should return nil when agent-stdio.log exists")
+		require.NotNil(t, errors, "Should return fallback error context when agent-stdio.log exists")
+		require.Len(t, errors, 1, "Should return one fallback error info")
+		assert.Equal(t, "agent_failure", errors[0].Type, "Error type should indicate agent failure excerpt")
+		assert.Equal(t, "agent-stdio.log", errors[0].File, "File should point to agent-stdio.log")
+		assert.Contains(t, errors[0].Message, "ERROR: request failed with status 500", "Should include concrete failure from agent-stdio.log")
+	})
+
+	t.Run("prefers ##[error] workflow annotations over agent-stdio fallback when agent ran", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "agent-stdio.log"), []byte("ERROR: generic fallback message"), 0600))
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "activation")
+		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "5_Generate agentic run info.txt"),
+			[]byte("2026-02-23T23:46:10.9523559Z ##[error]Lockdown mode is enabled but no token configured"), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		require.NotNil(t, errors, "Should return ##[error] annotations when present")
+		require.Len(t, errors, 1, "Should return one error from workflow annotation")
+		assert.Equal(t, "step_failure", errors[0].Type, "Should keep step_failure type for ##[error] annotations")
+		assert.Equal(t, "activation/Generate agentic run info", errors[0].File, "Should reference failing workflow step")
+		assert.Contains(t, errors[0].Message, "Lockdown mode is enabled", "Should include actionable ##[error] text")
 	})
 
 	t.Run("returns nil when workflow-logs directory missing", func(t *testing.T) {
@@ -1359,6 +1379,19 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 		// No agent-stdio.log and no workflow-logs directory
 		errors := extractPreAgentStepErrors(dir)
 		assert.Nil(t, errors, "Should return nil when no workflow-logs directory")
+	})
+
+	t.Run("emits agent_failure fallback when agent-stdio.log exists but workflow-logs is missing", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		// agent-stdio.log present but no workflow-logs directory at all
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "agent-stdio.log"), []byte("ERROR: connection refused\nfatal: server unreachable"), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		require.NotNil(t, errors, "Should emit agent_failure fallback even when workflow-logs is absent")
+		require.Len(t, errors, 1)
+		assert.Equal(t, "agent_failure", errors[0].Type)
+		assert.Equal(t, "agent-stdio.log", errors[0].File)
+		assert.Contains(t, errors[0].Message, "ERROR: connection refused")
 	})
 
 	t.Run("extracts error from last step log file", func(t *testing.T) {
