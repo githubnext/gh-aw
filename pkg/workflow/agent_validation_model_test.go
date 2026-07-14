@@ -13,8 +13,6 @@ func TestValidateUniversalLLMConsumerModel(t *testing.T) {
 	compiler := NewCompiler()
 	opencodeEngine, err := newBuiltinBehaviorDefinedEngine("opencode")
 	require.NoError(t, err)
-	crushEngine, err := newBuiltinBehaviorDefinedEngine("crush")
-	require.NoError(t, err)
 
 	t.Run("non universal engine skips validation", func(t *testing.T) {
 		err := compiler.validateUniversalLLMConsumerModel(
@@ -41,17 +39,17 @@ func TestValidateUniversalLLMConsumerModel(t *testing.T) {
 		assert.Contains(t, err.Error(), "engine.model is required for engine 'opencode'")
 	})
 
-	t.Run("crush requires provider/model format", func(t *testing.T) {
+	t.Run("opencode requires provider/model format", func(t *testing.T) {
 		err := compiler.validateUniversalLLMConsumerModel(
 			map[string]any{
 				"engine": map[string]any{
-					"id":    "crush",
+					"id":    "opencode",
 					"model": "gpt-4.1",
 				},
 			},
-			crushEngine,
+			opencodeEngine,
 		)
-		require.Error(t, err, "Unqualified model should fail for crush")
+		require.Error(t, err, "Unqualified model should fail for opencode")
 		assert.Contains(t, err.Error(), "provider/model format")
 	})
 
@@ -73,11 +71,11 @@ func TestValidateUniversalLLMConsumerModel(t *testing.T) {
 		err := compiler.validateUniversalLLMConsumerModel(
 			map[string]any{
 				"engine": map[string]any{
-					"id":    "crush",
+					"id":    "opencode",
 					"model": "anthropic/claude-sonnet-4",
 				},
 			},
-			crushEngine,
+			opencodeEngine,
 		)
 		assert.NoError(t, err, "Supported provider/model should pass")
 	})

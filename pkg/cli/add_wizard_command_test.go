@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAddWizardCommandMentionsCrush(t *testing.T) {
+func TestAddWizardCommandMentionsEngines(t *testing.T) {
 	cmd := NewAddWizardCommand(func(string) error { return nil })
 	require.NotNil(t, cmd, "Add wizard command should be created")
-	assert.Contains(t, cmd.Long, "Copilot, Claude, Codex, Gemini, or Crush", "Add wizard help should mention all interactive engine options")
+	assert.Contains(t, cmd.Long, "Copilot, Claude, Codex, or Gemini", "Add wizard help should mention all interactive engine options")
 }
 
 func TestAddWizardCommand_UsesStandardThreePartWorkflowSpecWording(t *testing.T) {

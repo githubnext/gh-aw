@@ -395,7 +395,7 @@ gh aw compile --ghes my-workflow.md
 
 ### I'm not using a supported AI Engine (coding agent). What should I do?
 
-Supported engines are Copilot, Claude, Codex, Gemini, and Crush. Contribute support to the [gh-aw repository](https://github.com/github/gh-aw) or open an issue describing your use case. See [AI Engines](/gh-aw/reference/engines/).
+Supported engines are Copilot, Claude, Codex, and Gemini. Contribute support to the [gh-aw repository](https://github.com/github/gh-aw) or open an issue describing your use case. See [AI Engines](/gh-aw/reference/engines/).
 
 ### Can I test workflows without affecting my repository?
 

@@ -37,12 +37,12 @@ func resolveUniversalLLMBackendFromModel(model string) (UniversalLLMBackend, err
 	universalLLMConsumerLog.Printf("Resolving LLM backend from model: %q", model)
 	model = strings.TrimSpace(model)
 	if model == "" {
-		return "", errors.New("for universal consumer engines (OpenCode/Crush), engine.model is required and must use provider/model format (supported providers: copilot, anthropic, openai, codex)")
+		return "", errors.New("for universal consumer engines (OpenCode), engine.model is required and must use provider/model format (supported providers: copilot, anthropic, openai, codex)")
 	}
 
 	parts := strings.SplitN(model, "/", 2)
 	if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
-		return "", errors.New("for universal consumer engines (OpenCode/Crush), engine.model must use provider/model format (for example: copilot/gpt-5, anthropic/claude-sonnet-4, openai/gpt-4.1)")
+		return "", errors.New("for universal consumer engines (OpenCode), engine.model must use provider/model format (for example: copilot/gpt-5, anthropic/claude-sonnet-4, openai/gpt-4.1)")
 	}
 
 	switch strings.ToLower(strings.TrimSpace(parts[0])) {
@@ -210,22 +210,22 @@ type UniversalCLIEngineExecutionConfig struct {
 	// EngineConstant is the engine name used for firewall allowed-domain resolution.
 	EngineConstant constants.EngineName
 	// DefaultCommandName is the CLI binary name used when engine.command is not set
-	// (e.g. "crush", "opencode").
+	// (e.g. "opencode").
 	DefaultCommandName string
 	// ExtraCLIArgs are additional flags passed to the CLI run subcommand before the
-	// prompt argument (e.g. []string{"--verbose"} for Crush).
+	// prompt argument.
 	ExtraCLIArgs []string
 	// MCPConfigFile is the workspace-relative path of the permissions/MCP config file.
 	// It is used to populate GH_AW_MCP_CONFIG when MCP servers are configured.
 	MCPConfigFile string
-	// StepName is the GitHub Actions step name (e.g. "Execute Crush CLI").
+	// StepName is the GitHub Actions step name (e.g. "Execute OpenCode CLI").
 	StepName string
 	// ConfigStep is the pre-built config-writing step that precedes the execution step.
 	// Typically writes a JSON file that grants all permissions so the agent never hangs
 	// on an interactive prompt in CI.
 	ConfigStep GitHubActionStep
 	// ModelEnvVarName is the native environment variable used by the CLI for model
-	// selection (e.g. "CRUSH_MODEL", "OPENCODE_MODEL"). When empty, model selection
+	// selection (e.g. "OPENCODE_MODEL"). When empty, model selection
 	// via env var is skipped.
 	ModelEnvVarName string
 	// WriteTimestamp controls whether the non-firewall fallback command writes the
@@ -234,7 +234,7 @@ type UniversalCLIEngineExecutionConfig struct {
 }
 
 // BuildCLIEngineExecutionSteps generates the GitHub Actions execution steps for a
-// universal CLI engine (e.g. Crush, OpenCode). It handles firewall-aware command
+// universal CLI engine (e.g. OpenCode). It handles firewall-aware command
 // construction, common AWF environment variable injection, and step formatting.
 // Engines call this from their GetExecutionSteps implementation, supplying engine-
 // specific parameters via cfg.

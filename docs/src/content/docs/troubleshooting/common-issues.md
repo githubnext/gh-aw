@@ -110,9 +110,9 @@ mcp-servers:
       API_KEY: "${{ secrets.MCP_API_KEY }}"
 ```
 
-### OpenCode/Crush MCP Tools Not Being Called
+### OpenCode MCP Tools Not Being Called
 
-When integrating OpenCode-compatible engines (such as `crush`), runs can complete without ever invoking MCP or file tools. Use this `.crush.json`. Port `10004` is the local AWF API proxy port (with `--enable-api-proxy`); `MCP_GATEWAY_PORT` and `MCP_GATEWAY_API_KEY` are expanded from workflow env at runtime (substitute concrete values when running outside a workflow):
+When integrating OpenCode-compatible engines, runs can complete without ever invoking MCP or file tools. Use an explicit `opencode.jsonc` config. Port `10004` is the local AWF API proxy port (with `--enable-api-proxy`); `MCP_GATEWAY_PORT` and `MCP_GATEWAY_API_KEY` are expanded from workflow env at runtime (substitute concrete values when running outside a workflow):
 
 ```json
 {
@@ -148,7 +148,7 @@ When integrating OpenCode-compatible engines (such as `crush`), runs can complet
 
 Key gotchas:
 
-Crush/OpenCode does not auto-discover MCP servers, so declare an explicit top-level `mcp` block with routed URLs such as `http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/<server-name>`. Use `agent.build.permission` (singular); `permissions` is silently ignored and leaves tools unavailable. `external_directory` defaults to `ask`, which becomes an implicit deny in non-interactive runs, so set it to `allow` only when you truly need access outside the workspace.
+OpenCode does not auto-discover MCP servers, so declare an explicit top-level `mcp` block with routed URLs such as `http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/<server-name>`. Use `agent.build.permission` (singular); `permissions` is silently ignored and leaves tools unavailable. `external_directory` defaults to `ask`, which becomes an implicit deny in non-interactive runs, so set it to `allow` only when you truly need access outside the workspace.
 
 For direct Copilot endpoints (`api.githubcopilot.com`), do **not** append `/v1`. For other OpenAI-compatible providers, use the provider's documented base path so `/chat/completions` is appended correctly. Keep the local proxy URL (`http://host.docker.internal:10004`) unchanged.
 
@@ -159,7 +159,7 @@ When using `--enable-api-proxy`, pass `COPILOT_GITHUB_TOKEN` in the execute step
   env:
     COPILOT_GITHUB_TOKEN: ${{ steps.copilot-token.outputs.token }}
   run: |
-    awf --enable-api-proxy <workflow-args> -- crush run "<prompt>"
+    awf --enable-api-proxy <workflow-args> -- opencode run "<prompt>"
 ```
 
 ### Playwright Network Access Denied
