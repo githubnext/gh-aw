@@ -80,7 +80,7 @@ The Serena MCP server is configured for this workspace:
 
 **Before performing any analysis**, you must close existing open issues with the `[refactor]` title prefix to prevent duplicate issues.
 
-Use the GitHub API tools to:
+Use the GitHub MCP issue tools directly (for example `search_issues` with `repo:${{ github.repository }} is:issue is:open "[refactor]" in:title`, or `list_issues` with `state: open` and client-side filtering). **Do not use `gh issue list` or Bash for GitHub reads.**
 1. Search for open issues with title containing `[refactor]` in repository ${{ github.repository }}
 2. Close each found issue with a comment explaining a new analysis is being performed
 3. Use the `close_issue` safe output to close these issues
@@ -106,6 +106,7 @@ close_issue(issue_number=123, body="Closing this issue as a new semantic functio
 1. Use GitHub search to find open issues with `[refactor]` in the title
 2. For each found issue, use `close_issue` to close it with an explanatory comment
 3. Example: `close_issue(issue_number=4542, body="Closing this issue as a new semantic function refactoring analysis is being performed.")`
+4. If no matching open issues exist, continue immediately — do not treat that as a failure and do not emit any issue-closing output.
 
 **Do not proceed to step 2 until all existing `[refactor]` issues are closed.**
 
@@ -130,6 +131,8 @@ find pkg -name "*.go" ! -name "*_test.go" -type f | sort
 ```
 
 Group files by package/directory to understand the organization.
+
+When shell access is needed, keep each Bash command simple and single-purpose. Prefer Serena tools plus `Grep`/`Read` over shell pipelines, loops, `awk`, or command substitutions that may be blocked by approval policy.
 
 ### 4. Collect Function Names Per File
 
@@ -398,10 +401,20 @@ Create a comprehensive issue with findings:
 
 ### Issue Creation
 - Only create an issue if significant findings are discovered
+- If no significant findings are discovered, call `noop` with a concise completion summary instead of exiting silently
 - Include sufficient detail for developers to understand and act
 - Provide concrete examples with file paths and function signatures
 - Suggest practical refactoring approaches
 - Focus on high-impact improvements
+
+## Required Terminal Safe Output
+
+End every successful run with exactly one safe output:
+
+- `create_issue` when significant refactoring findings were verified
+- `noop` when the analysis completed successfully but found nothing worth filing
+
+Do not finish with zero safe outputs.
 
 ## Analysis Focus Areas
 
