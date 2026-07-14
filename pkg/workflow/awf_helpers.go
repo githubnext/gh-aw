@@ -420,13 +420,18 @@ fi`,
 	}
 
 	// Add --allow-host-service-ports for services with port mappings.
+	// This flag requires --legacy-security since it grants host network access.
 	// This is appended as a raw (expandable) arg because the value contains
 	// ${{ job.services.<id>.ports['<port>'] }} expressions that include single quotes.
 	// These expressions are resolved by the GitHub Actions runner before shell execution,
 	// so they must not be shell-escaped.
-	if config.WorkflowData != nil && config.WorkflowData.ServicePortExpressions != "" {
+	agentCfg := getAgentConfig(config.WorkflowData)
+	isLegacyMode := agentCfg != nil && agentCfg.LegacySecurity
+	if config.WorkflowData != nil && config.WorkflowData.ServicePortExpressions != "" && isLegacyMode {
 		expandableArgs += fmt.Sprintf(` --allow-host-service-ports "%s"`, config.WorkflowData.ServicePortExpressions)
 		awfHelpersLog.Printf("Added --allow-host-service-ports with %s", config.WorkflowData.ServicePortExpressions)
+	} else if config.WorkflowData != nil && config.WorkflowData.ServicePortExpressions != "" {
+		awfHelpersLog.Print("Skipping --allow-host-service-ports: requires legacy-security mode")
 	}
 
 	engineCommand := config.EngineCommand
@@ -677,8 +682,14 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	// Legacy security mode: emit --legacy-security, --enable-host-access, and --allow-host-ports
 	isLegacy := agentConfig != nil && agentConfig.LegacySecurity
 	if isLegacy {
-		awfArgs = append(awfArgs, "--legacy-security")
-		awfHelpersLog.Print("Added --legacy-security (legacy-security: enable in frontmatter)")
+		if awfSupportsLegacySecurity(firewallConfig) {
+			awfArgs = append(awfArgs, "--legacy-security")
+			awfHelpersLog.Print("Added --legacy-security (legacy-security: enable in frontmatter)")
+		} else {
+			// AWF versions older than v0.27.32 don't support --legacy-security;
+			// they run in legacy mode by default so the flag is unnecessary.
+			awfHelpersLog.Printf("Skipping --legacy-security: AWF version %q is older than minimum %s (legacy mode is the default for older versions)", getAWFImageTag(firewallConfig), constants.AWFLegacySecurityMinVersion)
+		}
 
 		awfArgs = append(awfArgs, "--enable-host-access")
 		awfHelpersLog.Print("Added --enable-host-access for legacy security mode")
@@ -1041,6 +1052,13 @@ func awfSupportsChrootConfig(firewallConfig *FirewallConfig) bool {
 // The field must not be emitted for older versions that do not recognise it.
 func awfSupportsContainerRuntime(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFContainerRuntimeMinVersion)
+}
+
+// awfSupportsLegacySecurity returns true when the effective AWF version supports the
+// --legacy-security flag (v0.27.32+). Older versions default to legacy mode and do not
+// recognize this flag.
+func awfSupportsLegacySecurity(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFLegacySecurityMinVersion)
 }
 
 // buildArcDindChrootConfigPatchBody returns the Node.js command that patches the AWF

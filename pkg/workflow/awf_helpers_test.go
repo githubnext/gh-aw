@@ -2181,6 +2181,97 @@ func TestGetAWFCommandPrefixNetworkIsolation(t *testing.T) {
 	})
 }
 
+func TestBuildAWFArgs_LegacySecurityVersionGuard(t *testing.T) {
+	t.Run("emits --legacy-security when AWF version supports it", func(t *testing.T) {
+		config := AWFCommandConfig{
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						ID:             "awf",
+						LegacySecurity: true,
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Version: "0.27.32",
+					},
+				},
+			},
+			EngineName: "copilot",
+		}
+		args := BuildAWFArgs(config)
+		assert.Contains(t, args, "--legacy-security", "Should emit --legacy-security for AWF >= v0.27.32")
+	})
+
+	t.Run("skips --legacy-security when AWF version is too old", func(t *testing.T) {
+		config := AWFCommandConfig{
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						ID:             "awf",
+						LegacySecurity: true,
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Version: "0.27.30",
+					},
+				},
+			},
+			EngineName: "copilot",
+		}
+		args := BuildAWFArgs(config)
+		assert.NotContains(t, args, "--legacy-security", "Should NOT emit --legacy-security for AWF < v0.27.32")
+		// But should still emit --enable-host-access for backward compat
+		assert.Contains(t, args, "--enable-host-access", "Should still emit --enable-host-access for legacy mode")
+	})
+}
+
+func TestBuildAWFCommand_ServicePortsRequireLegacy(t *testing.T) {
+	t.Run("emits --allow-host-service-ports when legacy-security is enabled", func(t *testing.T) {
+		config := AWFCommandConfig{
+			WorkflowData: &WorkflowData{
+				Name:                   "test-workflow",
+				EngineConfig:           &EngineConfig{ID: "copilot"},
+				ServicePortExpressions: "${{ job.services.db.ports['5432'] }}",
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						ID:             "awf",
+						LegacySecurity: true,
+					},
+				},
+			},
+			EngineName:    "copilot",
+			EngineCommand: "copilot-agent",
+		}
+		cmd := BuildAWFCommand(config)
+		assert.Contains(t, cmd, "--allow-host-service-ports", "Should emit --allow-host-service-ports in legacy mode")
+	})
+
+	t.Run("skips --allow-host-service-ports in strict mode", func(t *testing.T) {
+		config := AWFCommandConfig{
+			WorkflowData: &WorkflowData{
+				Name:                   "test-workflow",
+				EngineConfig:           &EngineConfig{ID: "copilot"},
+				ServicePortExpressions: "${{ job.services.db.ports['5432'] }}",
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						ID: "awf",
+					},
+				},
+			},
+			EngineName:    "copilot",
+			EngineCommand: "copilot-agent",
+		}
+		cmd := BuildAWFCommand(config)
+		assert.NotContains(t, cmd, "--allow-host-service-ports", "Should NOT emit --allow-host-service-ports in strict mode")
+	})
+}
+
 func TestBuildAWFCommand_ArcDindPreCreatesMountDirs(t *testing.T) {
 	config := AWFCommandConfig{
 		EngineName:    "copilot",

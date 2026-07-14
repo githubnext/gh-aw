@@ -3528,6 +3528,11 @@
                         }
                       },
                       "additionalProperties": false
+                    },
+                    "legacy-security": {
+                      "type": "string",
+                      "enum": ["enable"],
+                      "description": "Opt into legacy security mode. When set to 'enable', AWF runs with sudo and --enable-host-access for backward compatibility. The default (omitted) uses strict security mode where AWF runs rootless without host-access flags."
                     }
                   },
                   "additionalProperties": false
