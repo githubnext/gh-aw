@@ -926,7 +926,18 @@ jobs:
               }
             },
             "autoupdate": false,
-            "disabled_providers": ["opencode", "openai"]
+            "disabled_providers": ["opencode", "openai"],
+            "provider": {
+              "awf-proxy": {
+                "api": "http://172.30.0.30:10002/v1",
+                "options": {
+                  "apiKey": "awf-copilot-proxy"
+                },
+                "models": {
+                  "gpt-5.5": {}
+                }
+              }
+            }
           }'
           if [ -f "$CONFIG" ]; then
             MERGED=$(jq -n --argjson base "$BASE_CONFIG" --argjson existing "$(cat "$CONFIG")" '$existing * $base')
@@ -971,10 +982,10 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
           GITHUB_COPILOT_BASE_URL: http://host.docker.internal:10002
           GITHUB_WORKSPACE: ${{ github.workspace }}
-          NO_PROXY: localhost,127.0.0.1,host.docker.internal,host.docker.internal:10000,host.docker.internal:10001,host.docker.internal:10002,host.docker.internal:10003
+          NO_PROXY: localhost,127.0.0.1,host.docker.internal,host.docker.internal:10000,host.docker.internal:10001,host.docker.internal:10002,host.docker.internal:10003,172.30.0.30,172.30.0.30:10000,172.30.0.30:10001,172.30.0.30:10002,172.30.0.30:10003
           OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           OPENAI_BASE_URL: http://host.docker.internal:10002
-          OPENCODE_MODEL: copilot/gpt-5.5
+          OPENCODE_MODEL: awf-proxy/gpt-5.5
           RUNNER_TEMP: ${{ runner.temp }}
           TRACEPARENT: ${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}
           XDG_DATA_HOME: /tmp/opencode-data
@@ -1618,7 +1629,18 @@ jobs:
               }
             },
             "autoupdate": false,
-            "disabled_providers": ["opencode", "openai"]
+            "disabled_providers": ["opencode", "openai"],
+            "provider": {
+              "awf-proxy": {
+                "api": "http://172.30.0.30:10002/v1",
+                "options": {
+                  "apiKey": "awf-copilot-proxy"
+                },
+                "models": {
+                  "gpt-5.5": {}
+                }
+              }
+            }
           }'
           if [ -f "$CONFIG" ]; then
             MERGED=$(jq -n --argjson base "$BASE_CONFIG" --argjson existing "$(cat "$CONFIG")" '$existing * $base')
@@ -1665,10 +1687,10 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_COPILOT_BASE_URL: http://host.docker.internal:10002
           GITHUB_WORKSPACE: ${{ github.workspace }}
-          NO_PROXY: localhost,127.0.0.1,host.docker.internal,host.docker.internal:10000,host.docker.internal:10001,host.docker.internal:10002,host.docker.internal:10003
+          NO_PROXY: localhost,127.0.0.1,host.docker.internal,host.docker.internal:10000,host.docker.internal:10001,host.docker.internal:10002,host.docker.internal:10003,172.30.0.30,172.30.0.30:10000,172.30.0.30:10001,172.30.0.30:10002,172.30.0.30:10003
           OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           OPENAI_BASE_URL: http://host.docker.internal:10002
-          OPENCODE_MODEL: copilot/gpt-5.5
+          OPENCODE_MODEL: awf-proxy/gpt-5.5
           RUNNER_TEMP: ${{ runner.temp }}
           TRACEPARENT: ${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}
           XDG_DATA_HOME: /tmp/opencode-data

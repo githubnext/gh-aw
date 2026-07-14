@@ -49,8 +49,9 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 		execContent := strings.Join(steps[1], "\n")
 		assert.Contains(t, configContent, "Write OpenCode Config", "Should write OpenCode config first")
 		assert.Contains(t, configContent, "opencode.jsonc", "Should reference opencode.jsonc")
-		assert.NotContains(t, configContent, `"awf-proxy"`, "Config should not define a custom awf-proxy provider; use built-in copilot provider instead")
-		assert.NotContains(t, configContent, "awf-copilot-proxy", "Config should not contain AWF api-proxy placeholder key")
+		assert.Contains(t, configContent, `"awf-proxy"`, "Config should define a custom awf-proxy provider to force @ai-sdk/openai-compatible (Chat Completions only, not Responses API)")
+		assert.Contains(t, configContent, "172.30.0.30:10002", "Config should use the internal AWF api-proxy IP to bypass host.docker.internal auth")
+		assert.Contains(t, configContent, "awf-copilot-proxy", "Config should use the AWF api-proxy placeholder key accepted by the internal 172.30.0.30 proxy")
 		assert.Contains(t, configContent, `"autoupdate": false`, "Config should disable auto-updates to prevent interactive prompts in headless mode")
 		assert.Contains(t, configContent, `"disabled_providers"`, "Config should disable unused providers")
 		assert.Contains(t, execContent, "Execute OpenCode CLI", "Should execute OpenCode CLI")
@@ -80,7 +81,7 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 		assert.Contains(t, execContent, "OPENAI_BASE_URL: http://host.docker.internal:10002", "Should also set OPENAI_BASE_URL to Copilot gateway so OpenCode's openai provider routes correctly")
 	})
 
-	t.Run("firewall passes copilot provider prefix through unchanged in OPENCODE_MODEL", func(t *testing.T) {
+	t.Run("firewall passes model through awf-proxy prefix rewrite in OPENCODE_MODEL", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -97,8 +98,8 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 		require.Len(t, steps, 2, "Should generate config step and execution step")
 		execContent := strings.Join(steps[1], "\n")
-		assert.Contains(t, execContent, "OPENCODE_MODEL: copilot/gpt-5", "Should pass 'copilot/' prefix through to use OpenCode's built-in copilot provider")
-		assert.NotContains(t, execContent, "OPENCODE_MODEL: awf-proxy/gpt-5", "Should not rewrite 'copilot/' to 'awf-proxy/' since the custom awf-proxy provider is no longer defined")
+		assert.Contains(t, execContent, "OPENCODE_MODEL: awf-proxy/gpt-5", "Should rewrite 'copilot/' to 'awf-proxy/' so OpenCode uses the custom awf-proxy provider")
+		assert.NotContains(t, execContent, "OPENCODE_MODEL: copilot/gpt-5", "Should not pass 'copilot/' prefix through since the copilot provider uses Responses API")
 	})
 }
 
