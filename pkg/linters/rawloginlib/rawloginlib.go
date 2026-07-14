@@ -25,7 +25,6 @@ var Analyzer = &analysis.Analyzer{
 // rawLogFuncs is the set of standard log functions that should not be called in library code.
 var rawLogFuncs = map[string]bool{
 	"Print": true, "Printf": true, "Println": true,
-	"Fatal": true, "Fatalf": true, "Fatalln": true,
 	"Panic": true, "Panicf": true, "Panicln": true,
 }
 

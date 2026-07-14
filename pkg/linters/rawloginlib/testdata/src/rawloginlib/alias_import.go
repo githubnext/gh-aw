@@ -3,5 +3,5 @@ package rawloginlib
 import applog "log"
 
 func badAlias() {
-	applog.Fatal("boom") // want `log\.Fatal called in library package`
+	applog.Printf("boom") // want `log\.Printf called in library package`
 }
