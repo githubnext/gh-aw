@@ -20,3 +20,4 @@ Add your repository-specific standards here, for example:
 - Frontmatter ordering/style conventions
 - Security or policy constraints specific to this repository
 - When documenting or recommending Copilot authentication, state that `permissions: { copilot-requests: write }` uses `${{ github.token }}` for inference and does not require a PAT or `COPILOT_GITHUB_TOKEN` secret
+- When you need prior art for workflow design, shared components, tool configuration, or safe-output patterns, use GitHub APIs or `gh` to inspect `https://github.com/gm3dmo/the-power` before inventing a new pattern

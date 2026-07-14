@@ -63,12 +63,50 @@ steps:
       # issuing individual REST calls for each PR.  Including this field in the
       # batch GraphQL query replaces up to 3 REST calls per PR (PR detail +
       # check-runs + commit-status) with zero additional REST calls.
-      gh pr list --repo "$EXPR_GITHUB_REPOSITORY" \
-        --state open \
-        --search "is:pr is:open -is:draft sort:updated-desc" \
-        --limit 100 \
-        --json number,title,url,headRefOid,headRefName,updatedAt,author,mergeStateStatus,statusCheckRollup \
-        > "$candidate_file"
+      # gh pr list auto-paginates as needed to satisfy --limit.
+      pr_limit="${PR_QUEUE_LIMIT:-200}"
+      pr_list_retries=3
+      pr_list_backoff_seconds=5
+      pr_list_attempt=1
+      pr_list_ok=0
+      while [ "$pr_list_attempt" -le "$pr_list_retries" ]; do
+        set +e
+        pr_list_error="$(
+          gh pr list --repo "$EXPR_GITHUB_REPOSITORY" \
+            --state open \
+            --search "is:pr is:open -is:draft sort:updated-desc" \
+            --limit "$pr_limit" \
+            --json number,title,url,headRefOid,headRefName,updatedAt,author,mergeStateStatus,statusCheckRollup \
+            > "$candidate_file" 2>&1
+        )"
+        pr_list_status=$?
+        set -e
+        if [ "$pr_list_status" -eq 0 ]; then
+          pr_list_ok=1
+          break
+        fi
+        if echo "$pr_list_error" | grep -qiE 'HTTP 50[0234]|HTTP 429|Bad Gateway|timeout|temporarily unavailable|EOF'; then
+          echo "Transient gh pr list failure on attempt $pr_list_attempt/$pr_list_retries; retrying: $pr_list_error" >&2
+          if [ "$pr_list_attempt" -lt "$pr_list_retries" ]; then
+            sleep "$pr_list_backoff_seconds"
+          fi
+          pr_list_attempt=$((pr_list_attempt + 1))
+          continue
+        fi
+        if echo "$pr_list_error" | grep -qiE 'auth|forbidden|unauthorized|not logged in|token'; then
+          echo "gh pr list authentication error; continuing with empty queue: $pr_list_error" >&2
+          break
+        fi
+        echo "gh pr list failed; continuing with empty queue: $pr_list_error" >&2
+        break
+      done
+      if [ "$pr_list_ok" -ne 1 ]; then
+        jq -n '[]' > "$candidate_file"
+      fi
+      if ! jq -e 'type == "array" and all(.[]; (type == "object") and (.number != null) and (.title != null) and (.url != null))' "$candidate_file" >/dev/null 2>&1; then
+        echo "gh pr list returned an invalid payload; continuing with empty queue" >&2
+        jq -n '[]' > "$candidate_file"
+      fi
 
       jq -n '[]' > "$eligible_file"
 
