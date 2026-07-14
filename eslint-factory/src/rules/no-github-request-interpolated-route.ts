@@ -40,10 +40,19 @@ function isStringConcatenation(node: TSESTree.Node): boolean {
   return node.type === "BinaryExpression" && node.operator === "+" && !isStaticRouteExpression(node);
 }
 
-function isHttpMethodPrefix(text: string | null | undefined): boolean {
+/**
+ * Returns true when `text` is an exact HTTP-method route prefix including the
+ * required trailing space, such as `GET ` or `POST `.
+ */
+function isValidHttpMethodPrefix(text: string | null | undefined): boolean {
   return typeof text === "string" && HTTP_METHOD_PREFIXES.has(text);
 }
 
+/**
+ * Returns the human-readable route-expression kind string used in diagnostics,
+ * or null when `node` is not one of the interpolated route shapes this rule
+ * reports on.
+ */
 function getInterpolatedRouteKind(node: TSESTree.Node): string | null {
   if (isInterpolatedTemplateLiteral(node)) return "template literal with interpolations";
   if (isStringConcatenation(node)) return "string concatenation expression";
@@ -63,7 +72,7 @@ function isOpaqueWholeRouteInterpolation(node: TSESTree.Node): boolean {
   if (node.type === "TemplateLiteral") {
     const hasTwoQuasis = node.quasis.length === 2;
     const hasSingleExpression = node.expressions.length === 1;
-    const hasMethodPrefix = hasTwoQuasis && isHttpMethodPrefix(node.quasis[0].value.cooked);
+    const hasMethodPrefix = hasTwoQuasis && isValidHttpMethodPrefix(node.quasis[0].value.cooked);
     const hasEmptyTrailingQuasi = hasTwoQuasis && node.quasis[1].value.cooked === "";
     const isDynamicWholeRoute = hasSingleExpression && !isStaticRouteExpression(node.expressions[0]);
     return hasMethodPrefix && hasEmptyTrailingQuasi && isDynamicWholeRoute;
@@ -71,7 +80,7 @@ function isOpaqueWholeRouteInterpolation(node: TSESTree.Node): boolean {
 
   if (node.type === "BinaryExpression" && node.operator === "+") {
     if (node.left.type !== "Literal" || typeof node.left.value !== "string") return false;
-    const hasMethodPrefix = isHttpMethodPrefix(node.left.value);
+    const hasMethodPrefix = isValidHttpMethodPrefix(node.left.value);
     const isRightDynamic = !isStaticRouteExpression(node.right);
     return hasMethodPrefix && isRightDynamic;
   }
