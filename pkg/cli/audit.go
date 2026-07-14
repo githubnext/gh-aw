@@ -35,6 +35,7 @@ type AuditOptions struct {
 	ArtifactSets     []string
 	ExperimentFilter string
 	VariantFilter    string
+	EvalsOnly        bool
 }
 
 var auditCommandLong = `Audit one or more workflow runs by downloading artifacts and logs, detecting errors,
@@ -82,6 +83,7 @@ type auditCommandOptions struct {
 	stdin            bool
 	experimentFilter string
 	variantFilter    string
+	evalsOnly        bool
 }
 
 // NewAuditCommand creates the audit command
@@ -109,6 +111,7 @@ func registerAuditCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("stdin", false, "Read workflow run IDs or URLs from stdin (one per line) instead of positional arguments")
 	cmd.Flags().String("experiment", "", "Filter to runs that include this experiment name")
 	cmd.Flags().String("variant", "", "Filter to runs with a specific variant value (requires --experiment)")
+	cmd.Flags().Bool("evals", false, "Include evals results in audit report; automatically downloads the evals artifact")
 	RegisterDirFlagCompletion(cmd, "output")
 }
 
@@ -139,11 +142,28 @@ func getAuditCommandOptions(cmd *cobra.Command) (auditCommandOptions, error) {
 	opts.stdin, _ = cmd.Flags().GetBool("stdin")
 	opts.experimentFilter, _ = cmd.Flags().GetString("experiment")
 	opts.variantFilter, _ = cmd.Flags().GetString("variant")
+	opts.evalsOnly, _ = cmd.Flags().GetBool("evals")
 	if opts.variantFilter != "" && opts.experimentFilter == "" {
 		return auditCommandOptions{}, errors.New(console.FormatErrorWithSuggestions(
 			"--variant requires --experiment to be specified",
 			[]string{"Add --experiment <name> to filter by experiment name alongside --variant"},
 		))
+	}
+	// Auto-include the evals artifact when --evals is specified.
+	if opts.evalsOnly && len(opts.artifacts) > 0 {
+		hasEvals := false
+		hasAll := false
+		for _, a := range opts.artifacts {
+			if a == string(ArtifactSetEvals) {
+				hasEvals = true
+			}
+			if a == string(ArtifactSetAll) {
+				hasAll = true
+			}
+		}
+		if !hasEvals && !hasAll {
+			opts.artifacts = append(opts.artifacts, string(ArtifactSetEvals))
+		}
 	}
 	return opts, nil
 }
@@ -199,6 +219,7 @@ func runAuditSingle(ctx context.Context, runIDOrURL string, opts auditCommandOpt
 		ArtifactSets:     opts.artifacts,
 		ExperimentFilter: opts.experimentFilter,
 		VariantFilter:    opts.variantFilter,
+		EvalsOnly:        opts.evalsOnly,
 	})
 }
 
@@ -302,6 +323,7 @@ type auditRunConfig struct {
 	artifactFilter   []string
 	experimentFilter string
 	variantFilter    string
+	evalsOnly        bool
 }
 
 type auditAnalysisResults struct {
@@ -355,6 +377,11 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 	if shouldSkipAuditRun(cfg.runID, cfg.outputDir, cfg.experimentFilter, cfg.variantFilter) {
 		return nil
 	}
+	if cfg.evalsOnly && !runHasEvals(cfg.outputDir, cfg.verbose) {
+		auditLog.Printf("Skipping run %d: no evals results found (filtered by --evals)", cfg.runID)
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not have evals results (filtered by --evals)", cfg.runID)))
+		return nil
+	}
 	return renderAuditReport(ctx, processedRun, results.metrics, results.mcpToolUsage, cfg.auditOptions())
 }
 
@@ -376,6 +403,7 @@ func newAuditRunConfig(runID int64, opts AuditOptions) (auditRunConfig, error) {
 		artifactFilter:   ResolveArtifactFilter(opts.ArtifactSets),
 		experimentFilter: opts.ExperimentFilter,
 		variantFilter:    opts.VariantFilter,
+		evalsOnly:        opts.EvalsOnly,
 	}, nil
 }
 
@@ -454,6 +482,7 @@ func (cfg auditRunConfig) auditOptions() AuditOptions {
 		Verbose:    cfg.verbose,
 		Parse:      cfg.parse,
 		JSONOutput: cfg.jsonOutput,
+		EvalsOnly:  cfg.evalsOnly,
 	}
 }
 
@@ -467,6 +496,11 @@ func renderCachedAuditIfAvailable(ctx context.Context, cfg auditRunConfig) (bool
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using cached run summary for run %d (processed at %s)", cfg.runID, summary.ProcessedAt.Format(time.RFC3339))))
 	}
 	if shouldSkipAuditRun(cfg.runID, cfg.outputDir, cfg.experimentFilter, cfg.variantFilter) {
+		return true, nil
+	}
+	if cfg.evalsOnly && !runHasEvals(cfg.outputDir, cfg.verbose) {
+		auditLog.Printf("Skipping run %d: no evals results found (filtered by --evals)", cfg.runID)
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not have evals results (filtered by --evals)", cfg.runID)))
 		return true, nil
 	}
 	processedRun := processedRunFromSummary(summary, cfg.outputDir)

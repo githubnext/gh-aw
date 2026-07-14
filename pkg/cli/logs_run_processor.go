@@ -584,3 +584,36 @@ func runHasDifcFilteredItems(runDir string, verbose bool) (bool, error) {
 
 	return gatewayMetrics.TotalFiltered > 0, nil
 }
+
+// runHasEvals checks whether a run's output directory contains an evals results file
+// (evals.jsonl). The evals artifact may be stored directly as "evals/evals.jsonl" or
+// with a workflow_call hash prefix as "{hash}-evals/evals.jsonl".
+func runHasEvals(runDir string, verbose bool) bool {
+	logsOrchestratorLog.Printf("Checking run for evals results: dir=%s", runDir)
+
+	entries, err := os.ReadDir(runDir)
+	if err != nil {
+		return false
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		// Match exact "evals" or workflow_call prefixed "{hash}-evals".
+		if name != constants.EvalsArtifactName && !strings.HasSuffix(name, "-"+constants.EvalsArtifactName) {
+			continue
+		}
+		evalsFile := filepath.Join(runDir, name, constants.EvalsResultFilename)
+		if fileutil.FileExists(evalsFile) {
+			logsOrchestratorLog.Printf("Found evals results at: %s", evalsFile)
+			return true
+		}
+	}
+
+	if verbose {
+		logsOrchestratorLog.Printf("No evals results found in: %s", runDir)
+	}
+	return false
+}

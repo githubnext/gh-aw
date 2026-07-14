@@ -22,6 +22,7 @@ type runFilterOpts struct {
 	noFirewall        bool
 	safeOutputType    string
 	filteredIntegrity bool
+	evalsOnly         bool
 }
 
 var fetchJobStatusesForProcessedRun = fetchJobStatuses
@@ -126,6 +127,17 @@ func applyRunFilters(result DownloadResult, opts runFilterOpts, verbose bool) bo
 			logsOrchestratorLog.Printf("Skipping run %d: no DIFC filtered items found", result.Run.DatabaseID)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: no DIFC integrity-filtered items found in gateway logs", result.Run.DatabaseID)))
+			}
+			return true
+		}
+	}
+
+	// Apply evals filtering if --evals flag is specified.
+	if opts.evalsOnly {
+		if !runHasEvals(result.LogsPath, verbose) {
+			logsOrchestratorLog.Printf("Skipping run %d: no evals results found, filtered by --evals", result.Run.DatabaseID)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not have evals results (filtered by --evals)", result.Run.DatabaseID)))
 			}
 			return true
 		}
