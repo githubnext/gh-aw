@@ -3980,6 +3980,49 @@ describe("create_pull_request - fallback issue issues-disabled (410)", () => {
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Issues are disabled"));
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("no alternate repo"));
   });
+
+  it("should trim whitespace from GH_AW_FAILURE_ISSUE_REPO env var", async () => {
+    // Env vars set via YAML multiline scalars can carry leading/trailing whitespace.
+    // parseRepo must trim before splitting to avoid a malformed owner slug.
+    process.env.GITHUB_REPOSITORY = "workflow-owner/workflow-repo";
+    process.env.GH_AW_FAILURE_ISSUE_REPO = "  failure-owner/failure-repo  ";
+    global.github.rest.pulls.create.mockRejectedValue(new Error("Some PR creation error"));
+    global.github.rest.issues.create
+      .mockRejectedValueOnce(createIssuesDisabledError())
+      .mockResolvedValue({ data: { number: 11, html_url: "https://github.com/failure-owner/failure-repo/issues/11" } });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body" }, {});
+
+    expect(result.success).toBe(true);
+    // The trimmed failure repo should be used, not a malformed slug with spaces
+    const secondCall = global.github.rest.issues.create.mock.calls[1][0];
+    expect(secondCall.owner).toBe("failure-owner");
+    expect(secondCall.repo).toBe("failure-repo");
+  });
+
+  it("should not loop infinitely when all candidate repos also have issues disabled", async () => {
+    // Scenario: original target, GH_AW_FAILURE_ISSUE_REPO, and GITHUB_REPOSITORY all
+    // have issues disabled. The triedOwnerRepos Set must prevent the back-and-forth
+    // bounce and terminate gracefully with success:false.
+    process.env.GITHUB_REPOSITORY = "workflow-owner/workflow-repo";
+    process.env.GH_AW_FAILURE_ISSUE_REPO = "failure-owner/failure-repo";
+    global.github.rest.pulls.create.mockRejectedValue(new Error("Some PR creation error"));
+    // All repos return 410
+    global.github.rest.issues.create.mockRejectedValue(createIssuesDisabledError());
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body" }, {});
+
+    expect(result.success).toBe(false);
+    // Should have tried original + failure + workflow repos (3 total), then stopped
+    expect(global.github.rest.issues.create.mock.calls.length).toBeLessThanOrEqual(3);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("no alternate repo"));
+  });
 });
 
 describe("create_pull_request - branch-prefix config", () => {

@@ -376,14 +376,18 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
   };
 
   const parseRepo = slug => {
-    if (!slug || !slug.includes("/")) return null;
-    const [owner, repo] = slug.split("/");
+    const s = (slug || "").trim();
+    if (!s.includes("/")) return null;
+    const [owner, repo] = s.split("/");
     return owner && repo ? { owner, repo } : null;
   };
 
   // innerCreate is called recursively so that both the 422-assignee and 410-redirect
   // paths go through the full recovery loop. This ensures, for example, that a 422
   // in the alternate repo (after a 410 redirect) is still handled by the assignee guard.
+  // triedOwnerRepos tracks every repo that has already returned 410 to prevent
+  // infinite back-and-forth when multiple candidates have issues disabled.
+  const triedOwnerRepos = new Set();
   const innerCreate = async () => {
     try {
       const response = await githubClient.rest.issues.create(payload);
@@ -404,15 +408,16 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
 
       // Handle issues-disabled (410 Gone) by redirecting to an alternative repo.
       // Priority: GH_AW_FAILURE_ISSUE_REPO → GITHUB_REPOSITORY. Pick the first candidate
-      // that differs from the current payload target so that if GH_AW_FAILURE_ISSUE_REPO
-      // matches the disabled repo, GITHUB_REPOSITORY is still tried.
+      // that has not already been attempted (tracked via triedOwnerRepos) to prevent
+      // infinite back-and-forth when multiple candidates also have issues disabled.
       // Mutate payload in-place so any subsequent attempts use the new target.
       if (status === 410) {
         const originalTarget = `${payload.owner}/${payload.repo}`;
+        triedOwnerRepos.add(originalTarget.toLowerCase());
         const failureRepo = parseRepo(process.env.GH_AW_FAILURE_ISSUE_REPO || "");
         const workflowRepo = parseRepo(process.env.GITHUB_REPOSITORY || "");
         const alt = [failureRepo, workflowRepo].find(
-          r => r !== null && (r.owner.toLowerCase() !== payload.owner.toLowerCase() || r.repo.toLowerCase() !== payload.repo.toLowerCase())
+          r => r !== null && !triedOwnerRepos.has(`${r.owner}/${r.repo}`.toLowerCase())
         );
 
         if (alt) {
