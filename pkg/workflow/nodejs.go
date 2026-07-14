@@ -236,6 +236,57 @@ func GetNpmBinPathSetup() string {
 	return `: "${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"; GH_AW_TOOL_CACHE="$RUNNER_TOOL_CACHE"; export PATH="$(find "$GH_AW_TOOL_CACHE" -maxdepth 5 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true; [ -n "$ERLANG_HOME" ] && export PATH="$ERLANG_HOME/bin:$PATH" || true`
 }
 
+// GenerateDockerSbxNpmCLIInstallStep installs an npm CLI into a runner path that is
+// visible inside the docker-sbx microVM, then creates a stable bin/ symlink from
+// ${RUNNER_TEMP}/gh-aw/engine-cli/bin/<command> to the package's node_modules/.bin entry.
+func GenerateDockerSbxNpmCLIInstallStep(packageName, version, stepName, commandName string, runInstallScripts bool, cooldownEnabled bool) GitHubActionStep {
+	ignoreScriptsFlag := "--ignore-scripts "
+	if runInstallScripts {
+		ignoreScriptsFlag = ""
+	}
+
+	var installStep GitHubActionStep
+	if ExpressionPattern.MatchString(version) {
+		installStep = GitHubActionStep{
+			"      - name: " + stepName,
+			"        run: |",
+			"          mkdir -p \"${RUNNER_TEMP}/gh-aw/engine-cli/bin\"",
+			fmt.Sprintf(`          npm install %s--prefix "${RUNNER_TEMP}/gh-aw/engine-cli" %s@"${ENGINE_VERSION}"`, ignoreScriptsFlag, packageName),
+			fmt.Sprintf(`          ln -sf "../node_modules/.bin/%s" "${RUNNER_TEMP}/gh-aw/engine-cli/bin/%s"`, commandName, commandName),
+			"        env:",
+			"          ENGINE_VERSION: " + version,
+		}
+		if cooldownEnabled {
+			installStep = append(installStep, fmt.Sprintf("          NPM_CONFIG_MIN_RELEASE_AGE: '%d'", npmDefaultCooldownDays))
+		}
+		return installStep
+	}
+
+	installStep = GitHubActionStep{
+		"      - name: " + stepName,
+		"        run: |",
+		"          mkdir -p \"${RUNNER_TEMP}/gh-aw/engine-cli/bin\"",
+		fmt.Sprintf(`          npm install %s--prefix "${RUNNER_TEMP}/gh-aw/engine-cli" %s@%s`, ignoreScriptsFlag, packageName, version),
+		fmt.Sprintf(`          ln -sf "../node_modules/.bin/%s" "${RUNNER_TEMP}/gh-aw/engine-cli/bin/%s"`, commandName, commandName),
+	}
+	if cooldownEnabled {
+		installStep = append(installStep,
+			"        env:",
+			fmt.Sprintf("          NPM_CONFIG_MIN_RELEASE_AGE: '%d'", npmDefaultCooldownDays),
+		)
+	}
+	return installStep
+}
+
+// GetDockerSbxNpmCLIPathSetup returns the PATH export needed for npm CLIs that were
+// staged into ${RUNNER_TEMP}/gh-aw/engine-cli/bin for docker-sbx microVM runs.
+func GetDockerSbxNpmCLIPathSetup(workflowData *WorkflowData) string {
+	if !isDockerSbxRuntime(workflowData) {
+		return ""
+	}
+	return `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`
+}
+
 // GenerateNpmInstallStepsWithScope generates npm installation steps with control over global vs local installation.
 // By default, --ignore-scripts is added to the install command to prevent pre/post install
 // scripts from executing (supply chain security). Pass runInstallScripts=true to allow scripts.

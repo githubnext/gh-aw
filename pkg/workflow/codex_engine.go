@@ -122,6 +122,20 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		"codex",
 		workflowData,
 	)
+	if isDockerSbxRuntime(workflowData) {
+		version := string(constants.DefaultCodexVersion)
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+			version = workflowData.EngineConfig.Version
+		}
+		steps = append(steps, GenerateDockerSbxNpmCLIInstallStep(
+			"@openai/codex",
+			version,
+			"Install Codex CLI in docker-sbx path",
+			"codex",
+			false,
+			false,
+		))
+	}
 
 	// Add AWF installation step if firewall is enabled
 	if isFirewallEnabled(workflowData) {
@@ -346,7 +360,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		} else {
 			codexCommandWithSetup = fmt.Sprintf(`%s && INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" && %s`, npmPathSetup, codexCommand)
 		}
-		// Add MCP CLI bin directory to PATH when cli-proxy is enabled
+		if dockerSbxCLIPath := GetDockerSbxNpmCLIPathSetup(workflowData); dockerSbxCLIPath != "" {
+			codexCommandWithSetup = fmt.Sprintf("%s && %s", dockerSbxCLIPath, codexCommandWithSetup)
+		}
+		// Add MCP CLI bin directory to PATH when cli-proxy is enabled.
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			codexCommandWithSetup = fmt.Sprintf("%s && %s", mcpCLIPath, codexCommandWithSetup)
 		}
