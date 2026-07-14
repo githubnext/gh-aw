@@ -385,8 +385,10 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
   // innerCreate is called recursively so that both the 422-assignee and 410-redirect
   // paths go through the full recovery loop. This ensures, for example, that a 422
   // in the alternate repo (after a 410 redirect) is still handled by the assignee guard.
-  // triedOwnerRepos tracks every repo that has already returned 410 to prevent
-  // infinite back-and-forth when multiple candidates have issues disabled.
+  // triedOwnerRepos is declared here (inside createFallbackIssue) so each call to the
+  // function gets its own fresh Set. It is intentionally shared across withRetry
+  // attempts within the same call so that repos that already returned 410 are not
+  // retried again after a transient error (e.g. rate limit) on a subsequent candidate.
   const triedOwnerRepos = new Set();
   const innerCreate = async () => {
     try {

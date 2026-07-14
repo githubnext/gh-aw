@@ -4020,7 +4020,7 @@ describe("create_pull_request - fallback issue issues-disabled (410)", () => {
 
     expect(result.success).toBe(false);
     // Should have tried original + failure + workflow repos (3 total), then stopped
-    expect(global.github.rest.issues.create.mock.calls.length).toBeLessThanOrEqual(3);
+    expect(global.github.rest.issues.create.mock.calls.length).toBe(3);
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("no alternate repo"));
   });
 });
