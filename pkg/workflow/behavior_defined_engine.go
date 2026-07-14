@@ -158,6 +158,9 @@ func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData)
 	}
 
 	install := behavior.Installation
+	// Only npm-based engines generate install steps here. Engines using other
+	// package managers (e.g. uv/Python) must provide installation via a shared
+	// workflow imported by the consumer (see .github/workflows/shared/).
 	if install.PackageManager != "npm" {
 		return nil
 	}
