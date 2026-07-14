@@ -48,6 +48,7 @@ engine:
         - --verbose
       step-name: Execute Crush CLI
       model-env-var: CRUSH_MODEL
+      model-flag: --model
       mcp-config-env-var: GH_AW_MCP_CONFIG
       write-timestamp: true
       provider-env-mode: universal-llm-consumer

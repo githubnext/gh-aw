@@ -278,8 +278,9 @@ func TestCrushEngineExecution(t *testing.T) {
 
 		stepContent := strings.Join(steps[1], "\n")
 
-		// Model is passed via the native CRUSH_MODEL env var
+		// Model is passed via the native CRUSH_MODEL env var and forwarded to crush run.
 		assert.Contains(t, stepContent, "CRUSH_MODEL: anthropic/claude-sonnet-4-20250514", "Should set CRUSH_MODEL env var")
+		assert.Contains(t, stepContent, `--model "$CRUSH_MODEL"`, "Should pass the configured model to crush run")
 	})
 
 	t.Run("without model no model env var", func(t *testing.T) {
@@ -293,6 +294,7 @@ func TestCrushEngineExecution(t *testing.T) {
 		stepContent := strings.Join(steps[1], "\n")
 
 		assert.NotContains(t, stepContent, "CRUSH_MODEL", "Should not include CRUSH_MODEL when model is unconfigured")
+		assert.NotContains(t, stepContent, `--model "$CRUSH_MODEL"`, "Should not include a model flag when model is unconfigured")
 	})
 
 	t.Run("with MCP servers", func(t *testing.T) {
