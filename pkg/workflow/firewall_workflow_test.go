@@ -62,7 +62,7 @@ func TestFirewallWorkflowNetworkConfiguration(t *testing.T) {
 		stepYAML := strings.Join(steps[0], "\n")
 
 		// Verify AWF wrapper is present (required for network sandboxing)
-		if !strings.Contains(stepYAML, "sudo -E awf") {
+		if !strings.Contains(stepYAML, "awf ") {
 			t.Error("AWF wrapper should be present with firewall enabled")
 		}
 

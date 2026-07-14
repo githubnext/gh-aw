@@ -586,12 +586,14 @@ fi`,
 // The following flags are expressed in the generated JSON config file written by
 // BuildAWFCommand and are therefore not emitted here:
 //   - --allow-domains / --block-domains   → network.allowDomains / network.blockDomains
-//   - --enable-api-proxy                  → apiProxy.enabled
 //   - --image-tag                         → container.imageTag
 //   - --openai-api-target                 → apiProxy.targets.openai.host
 //   - --anthropic-api-target              → apiProxy.targets.anthropic.host
 //   - --copilot-api-target                → apiProxy.targets.copilot.host
 //   - --gemini-api-target                 → apiProxy.targets.gemini.host
+//
+// Note: --enable-api-proxy is deprecated in AWF v0.27.32+ (API proxy is always on).
+// The apiProxy.enabled field is still emitted in the config file for backward compat.
 //
 // Parameters:
 //   - config: AWF command configuration
@@ -672,17 +674,15 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Print("Added --diagnostic-logs because awf-diagnostic-logs feature flag is enabled")
 	}
 
-	if isAWFNetworkIsolationEnabled(config.WorkflowData) {
-		awfHelpersLog.Print("Skipping host-access flags: sandbox.agent.sudo is false (network isolation mode)")
-	} else {
-		// Always add --enable-host-access: needed for the API proxy sidecar
-		// (to reach host.docker.internal:<port>) and for MCP gateway communication
-		awfArgs = append(awfArgs, "--enable-host-access")
-		awfHelpersLog.Print("Added --enable-host-access for API proxy and MCP gateway")
+	// Legacy security mode: emit --legacy-security, --enable-host-access, and --allow-host-ports
+	isLegacy := agentConfig != nil && agentConfig.LegacySecurity
+	if isLegacy {
+		awfArgs = append(awfArgs, "--legacy-security")
+		awfHelpersLog.Print("Added --legacy-security (legacy-security: enable in frontmatter)")
 
-		// AWF's --enable-host-access defaults to ports 80,443. The MCP gateway now
-		// listens on port 8080 (non-privileged), so we must explicitly allow it
-		// when AWF supports --allow-host-ports.
+		awfArgs = append(awfArgs, "--enable-host-access")
+		awfHelpersLog.Print("Added --enable-host-access for legacy security mode")
+
 		if awfSupportsAllowHostPorts(firewallConfig) {
 			mcpGatewayPort := int(DefaultMCPGatewayPort)
 			if config.WorkflowData != nil && config.WorkflowData.SandboxConfig != nil &&
@@ -691,10 +691,10 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 			}
 			hostPorts := fmt.Sprintf("80,443,%d", mcpGatewayPort)
 			awfArgs = append(awfArgs, "--allow-host-ports", hostPorts)
-			awfHelpersLog.Printf("Added --allow-host-ports %s for MCP gateway access", hostPorts)
-		} else {
-			awfHelpersLog.Printf("Skipping --allow-host-ports: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFAllowHostPortsMinVersion)
+			awfHelpersLog.Printf("Added --allow-host-ports %s for legacy security mode", hostPorts)
 		}
+	} else {
+		awfHelpersLog.Print("Strict security: skipping host-access flags (default)")
 	}
 
 	// Skip pulling images since they are pre-downloaded
@@ -780,14 +780,14 @@ func GetAWFCommandPrefix(workflowData *WorkflowData) string {
 		return agentConfig.Command
 	}
 
-	// When sudo is false (network isolation mode), AWF runs rootless: no sudo needed.
-	// Strip the "sudo -E " prefix from the default command to get the base binary name.
-	if isAWFNetworkIsolationEnabled(workflowData) {
-		awfHelpersLog.Print("Using rootless AWF command (sudo: false, network isolation mode)")
-		return strings.TrimPrefix(string(constants.AWFDefaultCommand), "sudo -E ")
+	// Legacy security mode: use sudo for backward compatibility
+	if agentConfig != nil && agentConfig.LegacySecurity {
+		awfHelpersLog.Print("Using legacy AWF command (legacy-security: enable)")
+		return string(constants.AWFLegacySecurityCommand)
 	}
 
-	awfHelpersLog.Print("Using standard AWF command")
+	// Default strict security: AWF runs rootless (no sudo)
+	awfHelpersLog.Print("Using standard AWF command (strict security, no sudo)")
 	return string(constants.AWFDefaultCommand)
 }
 

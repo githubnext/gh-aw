@@ -591,6 +591,9 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 				NetworkPermissions: &NetworkPermissions{
 					Firewall: &FirewallConfig{Enabled: true},
 				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{LegacySecurity: true},
+				},
 			},
 			AllowedDomains: "github.com",
 		}
@@ -612,7 +615,8 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 					Firewall: &FirewallConfig{Enabled: true},
 				},
 				SandboxConfig: &SandboxConfig{
-					MCP: &MCPGatewayRuntimeConfig{Port: 9090},
+					Agent: &AgentSandboxConfig{LegacySecurity: true},
+					MCP:   &MCPGatewayRuntimeConfig{Port: 9090},
 				},
 			},
 			AllowedDomains: "github.com",
@@ -626,7 +630,7 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 		assert.NotContains(t, argsStr, "8080", "Should not include default port when custom port is set")
 	})
 
-	t.Run("handles nil SandboxConfig gracefully", func(t *testing.T) {
+	t.Run("handles nil SandboxConfig gracefully — strict mode skips host-access", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
 			WorkflowData: &WorkflowData{
@@ -642,7 +646,8 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 
-		assert.Contains(t, argsStr, "80,443,8080", "Should fall back to default port with nil SandboxConfig")
+		assert.NotContains(t, argsStr, "--allow-host-ports", "Strict mode (default) should not emit --allow-host-ports")
+		assert.NotContains(t, argsStr, "--enable-host-access", "Strict mode (default) should not emit --enable-host-access")
 	})
 
 	t.Run("skips --allow-host-ports when AWF version is too old", func(t *testing.T) {
@@ -2101,8 +2106,8 @@ func TestMainAgentRunUsesStandardCreditsExpressionNotDetectionExpression(t *test
 		"main-agent run must not use detection credits expression")
 }
 
-// TestGetAWFCommandPrefixNetworkIsolation tests that GetAWFCommandPrefix returns the
-// rootless "awf" command (without "sudo -E") when sudo: false (network isolation mode).
+// TestGetAWFCommandPrefixNetworkIsolation tests that GetAWFCommandPrefix returns the correct
+// command based on security mode: strict (default, no sudo) or legacy (sudo -E awf).
 func TestGetAWFCommandPrefixNetworkIsolation(t *testing.T) {
 	t.Run("returns awf (no sudo) when sudo is false (network isolation mode)", func(t *testing.T) {
 		workflowData := &WorkflowData{
@@ -2120,7 +2125,7 @@ func TestGetAWFCommandPrefixNetworkIsolation(t *testing.T) {
 		assert.NotContains(t, cmd, "sudo", "Should not contain sudo when sudo is false (network isolation mode)")
 	})
 
-	t.Run("returns sudo -E awf when sudo is true (normal mode)", func(t *testing.T) {
+	t.Run("returns awf (no sudo) by default in strict security mode", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:         "test-workflow",
 			EngineConfig: &EngineConfig{ID: "copilot"},
@@ -2132,16 +2137,31 @@ func TestGetAWFCommandPrefixNetworkIsolation(t *testing.T) {
 			},
 		}
 		cmd := GetAWFCommandPrefix(workflowData)
-		assert.Equal(t, "sudo -E awf", cmd, "Should return 'sudo -E awf' when sudo is true (normal mode)")
+		assert.Equal(t, "awf", cmd, "Should return 'awf' (no sudo) in strict security mode even with sudo: true")
 	})
 
-	t.Run("returns sudo -E awf when no sandbox config is set", func(t *testing.T) {
+	t.Run("returns awf (no sudo) when no sandbox config is set", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:         "test-workflow",
 			EngineConfig: &EngineConfig{ID: "copilot"},
 		}
 		cmd := GetAWFCommandPrefix(workflowData)
-		assert.Equal(t, "sudo -E awf", cmd, "Should return 'sudo -E awf' when there is no sandbox config")
+		assert.Equal(t, "awf", cmd, "Should return 'awf' (no sudo) when there is no sandbox config")
+	})
+
+	t.Run("returns sudo -E awf when legacy-security is enabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID:             "awf",
+					LegacySecurity: true,
+				},
+			},
+		}
+		cmd := GetAWFCommandPrefix(workflowData)
+		assert.Equal(t, "sudo -E awf", cmd, "Should return 'sudo -E awf' when legacy-security is enabled")
 	})
 
 	t.Run("custom command takes precedence over sudo setting", func(t *testing.T) {

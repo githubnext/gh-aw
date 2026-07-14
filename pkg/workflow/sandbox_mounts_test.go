@@ -280,7 +280,7 @@ func TestCopilotEngineWithCustomMounts(t *testing.T) {
 		}
 
 		// Verify AWF is present (chroot mode is default in v0.15.0+)
-		if !strings.Contains(stepContent, "sudo -E awf") {
+		if !strings.Contains(stepContent, "awf ") {
 			t.Error("Expected AWF command for transparent host access")
 		}
 	})
@@ -308,7 +308,7 @@ func TestCopilotEngineWithCustomMounts(t *testing.T) {
 		stepContent := strings.Join(steps[0], "\n")
 
 		// Verify AWF is present (chroot mode is default in v0.15.0+)
-		if !strings.Contains(stepContent, "sudo -E awf") {
+		if !strings.Contains(stepContent, "awf ") {
 			t.Error("Expected AWF command for transparent host access")
 		}
 

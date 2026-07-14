@@ -1443,7 +1443,7 @@ func TestBuildAWFCommand_ConfigFileWithPathSetup(t *testing.T) {
 	pathSetupIdx := strings.Index(command, "GH_AW_NODE_BIN")
 	configWriteIdx := strings.Index(command, "awf-config.json")
 	modelsPathIdx := strings.Index(command, "GH_AW_MODELS_JSON_PATH")
-	awfIdx := strings.Index(command, "sudo -E awf")
+	awfIdx := strings.Index(command, "awf ")
 
 	assert.GreaterOrEqual(t, pathSetupIdx, 0, "path setup should appear in command")
 	assert.GreaterOrEqual(t, configWriteIdx, 0, "config file write should appear in command")
@@ -1548,7 +1548,7 @@ func TestBuildAWFCommand_WritesAgentCLIStartTimestamp(t *testing.T) {
 			// The timestamp write must appear before the AWF invocation so it captures
 			// the step start time rather than the time after AWF container setup.
 			tsIdx := strings.Index(command, AgentCLIStartMsPath)
-			awfIdx := strings.Index(command, "sudo -E awf")
+			awfIdx := strings.Index(command, "awf ")
 			assert.Less(t, tsIdx, awfIdx,
 				"timestamp write must appear before AWF invocation")
 

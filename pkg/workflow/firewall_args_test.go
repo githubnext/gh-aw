@@ -30,7 +30,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Check that the command contains awf (AWF v0.15.0+ uses chroot mode by default)
-		if !strings.Contains(stepContent, "sudo -E awf") {
+		if !strings.Contains(stepContent, "awf ") {
 			t.Error("Expected command to contain 'sudo -E awf'")
 		}
 
@@ -157,7 +157,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 
 		// Check that AWF is used for transparent host access (AWF v0.15.0+)
 		// Chroot mode is now the default, so no --enable-chroot flag is needed
-		if !strings.Contains(stepContent, "sudo -E awf") {
+		if !strings.Contains(stepContent, "awf ") {
 			t.Error("Expected AWF command for transparent host access")
 		}
 
