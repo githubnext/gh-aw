@@ -13,7 +13,7 @@ permissions:
   issues: read
   actions: read
 strict: true
-if: needs.sighthound_scan.outputs.findings_detected == 'true'
+if: needs.sighthound_scan.outputs.actionable_findings_detected == 'true'
 jobs:
   sighthound_scan:
     runs-on: ubuntu-latest
@@ -24,6 +24,7 @@ jobs:
     outputs:
       findings_detected: ${{ steps.scan.outputs.findings_detected }}
       findings_count: ${{ steps.scan.outputs.findings_count }}
+      actionable_findings_detected: ${{ steps.prefilter.outputs.actionable_findings_detected }}
       artifact_name: ${{ steps.artifact_name.outputs.value }}
     steps:
       - name: Checkout repository
@@ -31,10 +32,23 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Restore Sighthound binary cache
+        id: cache-sighthound
+        uses: actions/cache@v6
+        with:
+          path: ~/.cargo/bin/sighthound
+          key: sighthound-${{ runner.os }}-v1
+          # Bump the 'v1' suffix in the key above to force a rebuild
+          # (e.g., when a newer Sighthound release is needed).
+          restore-keys: sighthound-${{ runner.os }}-
+
+      - name: Add cargo bin to PATH
+        run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
       - name: Install Sighthound
+        if: steps.cache-sighthound.outputs.cache-hit != 'true'
         run: |
           cargo install --locked --git https://github.com/Corgea/Sighthound --bin sighthound
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           sighthound --help >/dev/null
 
       - name: Prepare clean scan root
@@ -83,6 +97,28 @@ jobs:
             echo "- Findings count: $FINDINGS_COUNT"
           } > "$RESULTS_DIR/summary.md"
 
+      - name: Pre-filter findings
+        id: prefilter
+        run: |
+          set -euo pipefail
+          RESULTS_JSON="/tmp/gh-aw/agent/sighthound/results.json"
+          ACTIONABLE_JSON="/tmp/gh-aw/agent/sighthound/actionable.json"
+
+          # Remove findings whose file path is under a known test-only directory.
+          # Sighthound uses a 'file' field for the path; fall back to 'path' if absent.
+          jq '[.[] | select(
+            ((.file // .path // "") | test("testdata/|/testdata$|_test\\.go")) | not
+          )]' "$RESULTS_JSON" > "$ACTIONABLE_JSON"
+
+          ACTIONABLE_COUNT="$(jq 'length' "$ACTIONABLE_JSON" 2>/dev/null || echo 0)"
+          echo "actionable_count=$ACTIONABLE_COUNT" >> "$GITHUB_OUTPUT"
+          if [ "$ACTIONABLE_COUNT" -gt 0 ]; then
+            echo "actionable_findings_detected=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "actionable_findings_detected=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Pre-filter: $(jq 'length' "$RESULTS_JSON") total → $ACTIONABLE_COUNT potentially actionable"
+
       - name: Compute artifact name
         id: artifact_name
         run: |
@@ -115,20 +151,16 @@ safe-outputs:
 
 # Sighthound Security Scan Triage
 
-The `sighthound_scan` job already scanned this repository using Sighthound and uploaded results to `/tmp/gh-aw/agent/sighthound/results.json`.
+The `sighthound_scan` job ran Sighthound and pre-filtered findings. Read the files:
+- `/tmp/gh-aw/agent/sighthound/actionable.json` — findings outside test/testdata paths (primary input)
+- `/tmp/gh-aw/agent/sighthound/summary.md` — scan summary
 
 ## Task
 
-1. Read `/tmp/gh-aw/agent/sighthound/results.json` and `/tmp/gh-aw/agent/sighthound/summary.md`.
-2. Confirm whether findings are valid and actionable in this repository.
-3. If no actionable findings remain after review, call `noop` with a short explanation.
-4. If actionable findings exist and this run was triggered by a pull request, call `add_comment` (without `item_number`) with:
-   - total findings count
-   - top findings grouped by severity
-   - concrete remediation guidance
-5. If actionable findings exist and this run was not triggered by a pull request, call `create_issue` with:
+1. Read `/tmp/gh-aw/agent/sighthound/actionable.json` and `/tmp/gh-aw/agent/sighthound/summary.md`.
+2. If this is triggered by a pull request, call `add_comment` (no `item_number`) with: total count, top findings by severity, and remediation guidance.
+3. If not triggered by a pull request, call `create_issue` with:
    - title: `Sighthound findings in ${{ github.repository }} (run ${{ github.run_id }})`
-   - a concise summary
-   - key findings and remediation guidance
+   - concise summary, key findings, and remediation guidance.
 
-Keep output concise and only report real findings from the artifact.
+Keep output concise. Only report findings from `actionable.json`.
