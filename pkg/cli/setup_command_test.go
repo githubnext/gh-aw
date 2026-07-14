@@ -208,6 +208,35 @@ func TestRunSetupRepositoryCheck_PropagatesCleanWorktreeError(t *testing.T) {
 	assert.ErrorIs(t, err, wantErr)
 }
 
+func TestRunSetupRepositoryCheck_AcceptsCaseInsensitiveSlugMatch(t *testing.T) {
+	repoDir := initBootstrapGitRepo(t)
+	err := runSetupRepositoryCheckWithRuntime(normalizeSetupRepositoryCheckOptions(SetupRepositoryCheckOptions{
+		Ctx:  context.Background(),
+		Repo: "octo/platform-ops",
+		Dir:  repoDir,
+	}), setupRepositoryRuntime{
+		checkAuth:          func(context.Context) error { return nil },
+		ownerType:          func(context.Context, string) (string, error) { return "Organization", nil },
+		repoExists:         func(context.Context, string) (bool, error) { return true, nil },
+		dirOriginRepo:      func(string) (string, error) { return "Octo/Platform-Ops", nil },
+		checkCleanWorktree: func(bool) error { return nil },
+	})
+	require.NoError(t, err)
+}
+
+func TestValidateSetupRepositoryCheckOptions_RejectsEmptyRepoComponents(t *testing.T) {
+	tests := []SetupRepositoryCheckOptions{
+		{Repo: "/repo"},
+		{Repo: "owner/"},
+	}
+
+	for _, tt := range tests {
+		if err := validateSetupRepositoryCheckOptions(tt); err == nil {
+			t.Fatalf("expected invalid repo slug error for %q", tt.Repo)
+		}
+	}
+}
+
 func TestSetupCommandSubcommandListingsUseHyphenBullets(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -227,14 +256,14 @@ func TestSetupCommandSubcommandListingsUseHyphenBullets(t *testing.T) {
 func TestSetupRepoSubcommandUsesNoArgs(t *testing.T) {
 	cmd := newSetupRepoSubcommand()
 	require.NotNil(t, cmd.Args)
-	assert.NoError(t, cmd.Args(cmd, []string{}))
+	require.NoError(t, cmd.Args(cmd, []string{}))
 	assert.Error(t, cmd.Args(cmd, []string{"extra"}))
 }
 
 func TestSetupAuthSubcommandUsesNoArgs(t *testing.T) {
 	cmd := newSetupAuthSubcommand()
 	require.NotNil(t, cmd.Args)
-	assert.NoError(t, cmd.Args(cmd, []string{}))
+	require.NoError(t, cmd.Args(cmd, []string{}))
 	assert.Error(t, cmd.Args(cmd, []string{"extra"}))
 }
 

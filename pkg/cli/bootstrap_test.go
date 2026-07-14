@@ -8,8 +8,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -235,6 +237,29 @@ func TestRunBootstrapWithRuntime_PropagatesCleanWorktreeError(t *testing.T) {
 	}
 }
 
+func TestBuildBootstrapPlan_PlanOnlySkipsCleanWorktreeCheck(t *testing.T) {
+	repoDir := initBootstrapGitRepo(t)
+	wantErr := errors.New("working directory has uncommitted changes, please commit or stash them first")
+
+	_, err := buildBootstrapPlan(context.Background(), normalizeBootstrapOptions(BootstrapOptions{
+		Repo:     "octo/platform-ops",
+		Dir:      repoDir,
+		PlanOnly: true,
+	}), bootstrapRuntime{
+		setupRepositoryRuntime: setupRepositoryRuntime{
+			checkAuth:     func(context.Context) error { return nil },
+			repoExists:    func(context.Context, string) (bool, error) { return true, nil },
+			dirOriginRepo: func(string) (string, error) { return "octo/platform-ops", nil },
+			checkCleanWorktree: func(bool) error {
+				return wantErr
+			},
+		},
+	}, repoDir)
+	if err != nil {
+		t.Fatalf("expected plan-only run to ignore clean worktree checks, got %v", err)
+	}
+}
+
 func TestRunBootstrapWithRuntime_SkipsExistingSourcedWorkflow(t *testing.T) {
 	repoDir := initBootstrapGitRepo(t)
 	writeBootstrapMarkers(t, repoDir, "")
@@ -313,6 +338,81 @@ func TestRunBootstrapWithRuntime_SkipsExistingSourcedWorkflow(t *testing.T) {
 	}
 }
 
+func TestBuildBootstrapPlan_ForceKeepsExistingSourcedWorkflow(t *testing.T) {
+	repoDir := initBootstrapGitRepo(t)
+	writeBootstrapMarkers(t, repoDir, "")
+	workflowPath := filepath.Join(repoDir, ".github", "workflows", "readiness.md")
+	if err := os.MkdirAll(filepath.Dir(workflowPath), 0o755); err != nil {
+		t.Fatalf("failed to create workflow dir: %v", err)
+	}
+	content := "---\nsource: github/central-agentic-ops/readiness@main\n---\n\n# Readiness\n"
+	if err := os.WriteFile(workflowPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write workflow: %v", err)
+	}
+
+	plan, err := buildBootstrapPlan(context.Background(), normalizeBootstrapOptions(BootstrapOptions{
+		Repo:    "octo/platform-ops",
+		Dir:     repoDir,
+		Sources: []string{"github/central-agentic-ops/readiness"},
+		Force:   true,
+	}), bootstrapRuntime{
+		setupRepositoryRuntime: setupRepositoryRuntime{
+			checkAuth:          func(context.Context) error { return nil },
+			repoExists:         func(context.Context, string) (bool, error) { return true, nil },
+			dirOriginRepo:      func(string) (string, error) { return "octo/platform-ops", nil },
+			checkCleanWorktree: func(bool) error { return nil },
+		},
+	}, repoDir)
+	if err != nil {
+		t.Fatalf("buildBootstrapPlan returned error: %v", err)
+	}
+	if !plan.NeedsMutation {
+		t.Fatal("expected force plan to keep sourced workflow in mutation set")
+	}
+	if len(plan.ResolvedSources) != 1 || plan.ResolvedSources[0] != "github/central-agentic-ops/readiness" {
+		t.Fatalf("expected readiness source to be preserved with --force, got %#v", plan.ResolvedSources)
+	}
+	if len(plan.SkippedSources) != 0 {
+		t.Fatalf("did not expect skipped sources with --force, got %#v", plan.SkippedSources)
+	}
+}
+
+func TestValidateBootstrapOptions_RejectsEmptyRepoComponents(t *testing.T) {
+	tests := []BootstrapOptions{
+		{Repo: "/repo"},
+		{Repo: "owner/"},
+	}
+
+	for _, tt := range tests {
+		if err := validateBootstrapOptions(tt); err == nil {
+			t.Fatalf("expected invalid repo slug error for %q", tt.Repo)
+		}
+	}
+}
+
+func TestMissingBootstrapInitMarkers_DetectsInvalidArtifacts(t *testing.T) {
+	repoDir := initBootstrapGitRepo(t)
+	writeBootstrapMarkers(t, repoDir, "")
+
+	if err := os.WriteFile(filepath.Join(repoDir, ".gitattributes"), []byte(""), 0o644); err != nil {
+		t.Fatalf("failed to write .gitattributes: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, ".github", "mcp.json"), []byte("{invalid"), 0o644); err != nil {
+		t.Fatalf("failed to write .github/mcp.json: %v", err)
+	}
+
+	missing, err := missingBootstrapInitMarkers(repoDir, "")
+	if err != nil {
+		t.Fatalf("missingBootstrapInitMarkers returned error: %v", err)
+	}
+	if !containsString(missing, ".gitattributes") {
+		t.Fatalf("expected .gitattributes to be marked missing, got %#v", missing)
+	}
+	if !containsString(missing, ".github/mcp.json") {
+		t.Fatalf("expected .github/mcp.json to be marked missing, got %#v", missing)
+	}
+}
+
 func initBootstrapGitRepo(t *testing.T) string {
 	t.Helper()
 	repoDir := testutil.TempDir(t, "bootstrap-repo-*")
@@ -330,8 +430,35 @@ func writeBootstrapMarkers(t *testing.T, repoDir string, engineOverride string) 
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatalf("failed to create marker dir for %s: %v", marker, err)
 		}
-		if err := os.WriteFile(path, []byte("ok\n"), 0o644); err != nil {
+		content, err := bootstrapMarkerContent(marker, repoDir)
+		if err != nil {
+			t.Fatalf("failed to render marker content for %s: %v", marker, err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			t.Fatalf("failed to create marker %s: %v", marker, err)
 		}
 	}
+}
+
+func bootstrapMarkerContent(marker string, repoDir string) (string, error) {
+	switch marker {
+	case ".gitattributes":
+		return constants.WorkflowsLockYmlGitAttributesEntry + "\n", nil
+	case ".vscode/settings.json":
+		return "{\n  \"github.copilot.chat.agent.thinkingTool\": true\n}\n", nil
+	case ".github/skills/agentic-workflows/SKILL.md":
+		return buildAgenticWorkflowsSkillContent()
+	case ".github/agents/agentic-workflows.md":
+		return buildAgenticWorkflowsAgentContent(repoDir)
+	case ".github/mcp.json":
+		return "{\n  \"mcpServers\": {\n    \"github-agentic-workflows\": {\n      \"type\": \"local\",\n      \"command\": \"gh\",\n      \"args\": [\"aw\", \"mcp-server\"],\n      \"tools\": [\"compile\"]\n    }\n  }\n}\n", nil
+	case ".github/workflows/copilot-setup-steps.yml":
+		return "name: Copilot Setup Steps\njobs:\n  copilot-setup-steps:\n    steps:\n      - uses: actions/setup-cli@v1\n", nil
+	default:
+		return "ok\n", nil
+	}
+}
+
+func containsString(values []string, want string) bool {
+	return slices.Contains(values, want)
 }

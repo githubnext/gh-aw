@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -94,7 +96,7 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 	}
 
 	if !plan.NeedsMutation {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Bootstrap already satisfied for %s", opts.Repo)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Bootstrap already satisfied for "+opts.Repo))
 		return nil
 	}
 
@@ -119,7 +121,7 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 		if err := runtime.createRepo(ctx, plan.Repo, opts.Visibility); err != nil {
 			return err
 		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created %s", plan.Repo)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created "+plan.Repo))
 	}
 
 	if plan.CloneRepo {
@@ -161,12 +163,16 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 				EngineOverride: opts.EngineOverride,
 				Force:          opts.Force,
 			}
-			workflowsToAdd, skippedWorkflows, err := excludeExistingSourcedWorkflows(resolvedSources, addOpts)
-			if err != nil {
-				return fmt.Errorf("failed to inspect existing workflows: %w", err)
+			workflowsToAdd := resolvedSources
+			var skippedWorkflows []string
+			if !opts.Force {
+				workflowsToAdd, skippedWorkflows, err = excludeExistingSourcedWorkflows(resolvedSources, addOpts)
+				if err != nil {
+					return fmt.Errorf("failed to inspect existing workflows: %w", err)
+				}
 			}
 			if len(skippedWorkflows) > 0 {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping already sourced workflows: %s", strings.Join(skippedWorkflows, ", "))))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping already sourced workflows: "+strings.Join(skippedWorkflows, ", ")))
 			}
 			if len(workflowsToAdd) > 0 {
 				if _, err := runtime.addWorkflows(ctx, workflowsToAdd, addOpts); err != nil {
@@ -191,7 +197,7 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 		return err
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Bootstrap completed for %s", plan.Repo)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Bootstrap completed for "+plan.Repo))
 	return nil
 }
 
@@ -206,7 +212,7 @@ func normalizeBootstrapOptions(opts BootstrapOptions) BootstrapOptions {
 }
 
 func validateBootstrapOptions(opts BootstrapOptions) error {
-	if strings.Count(opts.Repo, "/") != 1 {
+	if !isValidOwnerRepoSlug(opts.Repo) {
 		return errors.New("--repo must use the OWNER/REPO format")
 	}
 
@@ -280,12 +286,16 @@ func buildBootstrapPlan(ctx context.Context, opts BootstrapOptions, runtime boot
 			addOpts := AddOptions{EngineOverride: opts.EngineOverride}
 			var workflowsToAdd []string
 			var skippedWorkflows []string
-			if err := withWorkingDir(plan.Dir, func() error {
-				var excludeErr error
-				workflowsToAdd, skippedWorkflows, excludeErr = excludeExistingSourcedWorkflows(plan.ResolvedSources, addOpts)
-				return excludeErr
-			}); err != nil {
-				return nil, err
+			if opts.Force {
+				workflowsToAdd = plan.ResolvedSources
+			} else {
+				if err := withWorkingDir(plan.Dir, func() error {
+					var excludeErr error
+					workflowsToAdd, skippedWorkflows, excludeErr = excludeExistingSourcedWorkflows(plan.ResolvedSources, addOpts)
+					return excludeErr
+				}); err != nil {
+					return nil, err
+				}
 			}
 			plan.ResolvedSources = workflowsToAdd
 			plan.SkippedSources = skippedWorkflows
@@ -296,7 +306,7 @@ func buildBootstrapPlan(ctx context.Context, opts BootstrapOptions, runtime boot
 	plan.PlanLines = buildBootstrapPlanLines(plan, opts)
 	plan.NeedsMutation = plan.CreateRepo || plan.CloneRepo || plan.InitNeeded || len(plan.ResolvedSources) > 0
 
-	if plan.AttachedCheckout && plan.NeedsMutation {
+	if !opts.PlanOnly && plan.AttachedCheckout && plan.NeedsMutation {
 		if err := withWorkingDir(plan.Dir, func() error {
 			return runtime.checkCleanWorktree(opts.Verbose)
 		}); err != nil {
@@ -311,16 +321,91 @@ func missingBootstrapInitMarkers(baseDir string, engineOverride string) ([]strin
 	markers := expectedBootstrapInitMarkers(engineOverride)
 	missing := make([]string, 0)
 	for _, marker := range markers {
-		markerPath := filepath.Join(baseDir, filepath.FromSlash(marker))
-		if _, err := os.Stat(markerPath); err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				missing = append(missing, marker)
-				continue
-			}
-			return nil, fmt.Errorf("failed to inspect %s: %w", marker, err)
+		ok, err := isBootstrapInitMarkerSatisfied(baseDir, marker)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			missing = append(missing, marker)
 		}
 	}
 	return missing, nil
+}
+
+func isBootstrapInitMarkerSatisfied(baseDir string, marker string) (bool, error) {
+	markerPath := filepath.Join(baseDir, filepath.FromSlash(marker))
+	info, err := os.Stat(markerPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
+	}
+	if !info.Mode().IsRegular() {
+		return false, nil
+	}
+
+	switch marker {
+	case ".gitattributes":
+		content, err := os.ReadFile(markerPath)
+		if err != nil {
+			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
+		}
+		return strings.Contains(string(content), constants.WorkflowsLockYmlGitAttributesEntry), nil
+	case ".github/mcp.json":
+		content, err := os.ReadFile(markerPath)
+		if err != nil {
+			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
+		}
+		var config MCPConfig
+		if err := json.Unmarshal(content, &config); err != nil {
+			return false, nil
+		}
+		servers := config.MCPServers
+		if len(servers) == 0 {
+			servers = config.Servers
+		}
+		server, ok := servers["github-agentic-workflows"]
+		if !ok {
+			return false, nil
+		}
+		if strings.TrimSpace(server.Command) != "gh" {
+			return false, nil
+		}
+		return len(server.Args) >= 2 && server.Args[0] == "aw" && server.Args[1] == "mcp-server", nil
+	case ".github/workflows/copilot-setup-steps.yml":
+		content, err := os.ReadFile(markerPath)
+		if err != nil {
+			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
+		}
+		steps := string(content)
+		hasLegacyInstall := strings.Contains(steps, "install-gh-aw.sh") ||
+			(strings.Contains(steps, "Install gh-aw extension") && strings.Contains(steps, "curl -fsSL"))
+		hasActionInstall := strings.Contains(steps, "actions/setup-cli")
+		return hasLegacyInstall || hasActionInstall, nil
+	case ".github/skills/agentic-workflows/SKILL.md":
+		expected, err := buildAgenticWorkflowsSkillContent()
+		if err != nil {
+			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
+		}
+		content, err := os.ReadFile(markerPath)
+		if err != nil {
+			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
+		}
+		return strings.TrimSpace(string(content)) == strings.TrimSpace(expected), nil
+	case ".github/agents/agentic-workflows.md":
+		expected, err := buildAgenticWorkflowsAgentContent(baseDir)
+		if err != nil {
+			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
+		}
+		content, err := os.ReadFile(markerPath)
+		if err != nil {
+			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
+		}
+		return strings.TrimSpace(string(content)) == strings.TrimSpace(expected), nil
+	default:
+		return info.Size() > 0, nil
+	}
 }
 
 func expectedBootstrapInitMarkers(engineOverride string) []string {
@@ -340,17 +425,17 @@ func expectedBootstrapInitMarkers(engineOverride string) []string {
 }
 
 func buildBootstrapPlanLines(plan *bootstrapPlan, opts BootstrapOptions) []string {
-	lines := []string{fmt.Sprintf("Bootstrap plan for %s", plan.Repo)}
+	lines := []string{"Bootstrap plan for " + plan.Repo}
 
 	if plan.CreateRepo {
 		lines = append(lines, fmt.Sprintf("- create remote repository (%s)", opts.Visibility))
 		if plan.CloneRepo {
-			lines = append(lines, fmt.Sprintf("- clone into %s", plan.Dir))
+			lines = append(lines, "- clone into "+plan.Dir)
 		}
 	} else if plan.CloneRepo {
-		lines = append(lines, fmt.Sprintf("- clone existing repository into %s", plan.Dir))
+		lines = append(lines, "- clone existing repository into "+plan.Dir)
 	} else if plan.AttachedCheckout {
-		lines = append(lines, fmt.Sprintf("- attach existing checkout at %s", plan.Dir))
+		lines = append(lines, "- attach existing checkout at "+plan.Dir)
 	}
 
 	if plan.AttachedCheckout {
@@ -370,11 +455,11 @@ func buildBootstrapPlanLines(plan *bootstrapPlan, opts BootstrapOptions) []strin
 		}
 	}
 	if len(plan.SkippedSources) > 0 {
-		lines = append(lines, fmt.Sprintf("- skip already sourced workflows: %s", strings.Join(plan.SkippedSources, ", ")))
+		lines = append(lines, "- skip already sourced workflows: "+strings.Join(plan.SkippedSources, ", "))
 	}
 
 	if plan.OwnerType != "" {
-		lines = append(lines, fmt.Sprintf("- verified owner type: %s", normalizeSetupOwnerType(plan.OwnerType)))
+		lines = append(lines, "- verified owner type: "+normalizeSetupOwnerType(plan.OwnerType))
 	}
 
 	if !plan.CreateRepo && !plan.CloneRepo && !plan.InitNeeded && len(plan.ResolvedSources) == 0 {

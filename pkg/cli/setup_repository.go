@@ -168,7 +168,7 @@ func inspectSetupCheckout(dir string, repo string, originRepoLookup func(string)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve git remote for %s: %w", dir, err)
 	}
-	if originRepo != repo {
+	if !strings.EqualFold(strings.TrimSpace(originRepo), strings.TrimSpace(repo)) {
 		return nil, fmt.Errorf("target directory %s points to %s, not %s", dir, originRepo, repo)
 	}
 
@@ -235,7 +235,7 @@ func normalizeSetupRepositoryCheckOptions(opts SetupRepositoryCheckOptions) Setu
 }
 
 func validateSetupRepositoryCheckOptions(opts SetupRepositoryCheckOptions) error {
-	if strings.Count(opts.Repo, "/") != 1 {
+	if !isValidOwnerRepoSlug(opts.Repo) {
 		return errors.New("--repo must use the OWNER/REPO format")
 	}
 
@@ -246,6 +246,13 @@ func validateSetupRepositoryCheckOptions(opts SetupRepositoryCheckOptions) error
 	}
 
 	return nil
+}
+
+func isValidOwnerRepoSlug(repo string) bool {
+	parts := strings.Split(repo, "/")
+	return len(parts) == 2 &&
+		strings.TrimSpace(parts[0]) != "" &&
+		strings.TrimSpace(parts[1]) != ""
 }
 
 func runSetupRepositoryCheckWithRuntime(opts SetupRepositoryCheckOptions, runtime setupRepositoryRuntime) error {
@@ -313,12 +320,12 @@ func runSetupRepositoryCheckWithRuntime(opts SetupRepositoryCheckOptions, runtim
 		return renderSetupJSON(result)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Setup repository check for %s", opts.Repo)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setup repository check for "+opts.Repo))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("- GitHub CLI authenticated"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("- repository exists"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("- owner type: %s", ownerType)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("- owner type: "+ownerType))
 	if inspection.attached {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("- attached checkout at %s", dir)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("- attached checkout at "+dir))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("- working tree is clean"))
 	} else if inspection.cloneNeeded {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("- no checkout at %s; directory is ready for clone", dir)))

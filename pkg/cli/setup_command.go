@@ -19,7 +19,7 @@ Available subcommands:
 		Example: `  gh aw setup auth
   gh aw setup repo --repo github/gh-aw
   gh aw setup repo --repo github/gh-aw --json
-  gh aw setup repo --repo github/gh-aw --dir ../gh-aw --require-owner-type org`,
+  gh aw setup repo --repo github/gh-aw --dir ./gh-aw --require-owner-type org`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -61,7 +61,7 @@ repository exists, resolves the owner type, and inspects whether the target
 directory is already attached to the expected checkout or is ready for clone.`,
 		Example: `  gh aw setup repo --repo github/gh-aw
   gh aw setup repo --repo github/gh-aw --json
-  gh aw setup repo --repo github/gh-aw --dir ../gh-aw
+  gh aw setup repo --repo github/gh-aw --dir ./gh-aw
   gh aw setup repo --repo github/gh-aw --require-owner-type org`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
