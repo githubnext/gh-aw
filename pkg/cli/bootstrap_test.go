@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -234,6 +235,39 @@ func TestRunBootstrapWithRuntime_PropagatesCleanWorktreeError(t *testing.T) {
 	}, repoDir)
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("expected clean worktree error, got %v", err)
+	}
+}
+
+func TestRunBootstrapWithRuntime_AddWorkflowFailureAfterInitIncludesRecoveryHint(t *testing.T) {
+	repoDir := initBootstrapGitRepo(t)
+	addErr := errors.New("add failed")
+
+	err := runBootstrapWithRuntime(normalizeBootstrapOptions(BootstrapOptions{
+		Ctx:     context.Background(),
+		Repo:    "octo/platform-ops",
+		Dir:     repoDir,
+		Yes:     true,
+		Sources: []string{"github/central-agentic-ops/readiness"},
+	}), bootstrapRuntime{
+		setupRepositoryRuntime: setupRepositoryRuntime{
+			checkAuth:          func(context.Context) error { return nil },
+			repoExists:         func(context.Context, string) (bool, error) { return true, nil },
+			dirOriginRepo:      func(string) (string, error) { return "octo/platform-ops", nil },
+			checkCleanWorktree: func(bool) error { return nil },
+		},
+		initRepo: func(InitOptions) error { return nil },
+		addWorkflows: func(context.Context, []string, AddOptions) (*AddWorkflowsResult, error) {
+			return nil, addErr
+		},
+	}, repoDir)
+	if err == nil {
+		t.Fatal("expected add workflow error")
+	}
+	if !strings.Contains(err.Error(), "repository initialization completed; re-run bootstrap to retry workflow addition") {
+		t.Fatalf("expected recovery hint in error, got %v", err)
+	}
+	if !errors.Is(err, addErr) {
+		t.Fatalf("expected wrapped add error, got %v", err)
 	}
 }
 

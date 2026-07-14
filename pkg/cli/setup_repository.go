@@ -96,6 +96,11 @@ func checkSetupRepositoryExists(ctx context.Context, repo string) (bool, error) 
 
 func checkSetupRepositoryOwnerType(ctx context.Context, owner string) (string, error) {
 	output, err := workflow.RunGHContext(ctx, "Checking owner type...", "api", "users/"+owner, "--jq", ".type")
+	if err == nil {
+		return strings.TrimSpace(string(output)), nil
+	}
+
+	output, err = workflow.RunGHContext(ctx, "Checking owner type...", "api", "orgs/"+owner, "--jq", ".type")
 	if err != nil {
 		return "", fmt.Errorf("failed to check owner type for %s: %w", owner, err)
 	}
@@ -103,7 +108,7 @@ func checkSetupRepositoryOwnerType(ctx context.Context, owner string) (string, e
 }
 
 func createSetupRepository(ctx context.Context, repo string, visibility string) error {
-	output, err := workflow.RunGHCombinedContext(ctx, "Creating repository...", "repo", "create", repo, "--"+visibility, "--clone=false", "--confirm")
+	output, err := workflow.RunGHCombinedContext(ctx, "Creating repository...", "repo", "create", repo, "--"+visibility)
 	if err != nil {
 		trimmed := strings.TrimSpace(string(output))
 		if trimmed == "" {

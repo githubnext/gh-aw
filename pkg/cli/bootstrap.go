@@ -131,9 +131,8 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Cloned %s into %s", plan.Repo, plan.Dir)))
 	}
 
-	resolvedSources := resolveDeployWorkflowSpecs(opts.Sources, originalDir)
-
 	if err := withWorkingDir(plan.Dir, func() error {
+		initCompleted := false
 		missingMarkers, err := missingBootstrapInitMarkers(".", opts.EngineOverride)
 		if err != nil {
 			return err
@@ -153,20 +152,21 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 			}); err != nil {
 				return fmt.Errorf("failed to initialize repository: %w", err)
 			}
+			initCompleted = true
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Initialized repository for agentic workflows"))
 		}
 
 		addedWorkflows := false
-		if len(resolvedSources) > 0 {
+		if len(plan.ResolvedSources) > 0 {
 			addOpts := AddOptions{
 				Verbose:        opts.Verbose,
 				EngineOverride: opts.EngineOverride,
 				Force:          opts.Force,
 			}
-			workflowsToAdd := resolvedSources
+			workflowsToAdd := plan.ResolvedSources
 			var skippedWorkflows []string
-			if !opts.Force {
-				workflowsToAdd, skippedWorkflows, err = excludeExistingSourcedWorkflows(resolvedSources, addOpts)
+			if !opts.Force && !plan.AttachedCheckout {
+				workflowsToAdd, skippedWorkflows, err = excludeExistingSourcedWorkflows(plan.ResolvedSources, addOpts)
 				if err != nil {
 					return fmt.Errorf("failed to inspect existing workflows: %w", err)
 				}
@@ -176,6 +176,9 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 			}
 			if len(workflowsToAdd) > 0 {
 				if _, err := runtime.addWorkflows(ctx, workflowsToAdd, addOpts); err != nil {
+					if initCompleted {
+						return fmt.Errorf("failed to add workflows (repository initialization completed; re-run bootstrap to retry workflow addition): %w", err)
+					}
 					return fmt.Errorf("failed to add workflows: %w", err)
 				}
 				addedWorkflows = true

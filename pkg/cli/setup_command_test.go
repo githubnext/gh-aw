@@ -8,6 +8,8 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -206,6 +208,51 @@ func TestRunSetupRepositoryCheck_PropagatesCleanWorktreeError(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, wantErr)
+}
+
+func TestCreateSetupRepository_UsesSupportedFlags(t *testing.T) {
+	fakeBin := t.TempDir()
+	argsLog := filepath.Join(fakeBin, "gh-args.log")
+	fakeGH := filepath.Join(fakeBin, "gh")
+	script := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$*\" >> \"" + argsLog + "\"\n" +
+		"if [ \"$1\" = \"repo\" ] && [ \"$2\" = \"create\" ]; then\n" +
+		"  exit 0\n" +
+		"fi\n" +
+		"exit 1\n"
+	require.NoError(t, os.WriteFile(fakeGH, []byte(script), 0o755))
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	require.NoError(t, createSetupRepository(context.Background(), "octo/platform-ops", "private"))
+
+	logData, err := os.ReadFile(argsLog)
+	require.NoError(t, err)
+	logText := string(logData)
+	assert.Contains(t, logText, "repo create octo/platform-ops --private")
+	assert.NotContains(t, logText, "--confirm")
+	assert.NotContains(t, logText, "--clone=false")
+}
+
+func TestCheckSetupRepositoryOwnerType_FallsBackToOrgsEndpoint(t *testing.T) {
+	fakeBin := t.TempDir()
+	fakeGH := filepath.Join(fakeBin, "gh")
+	script := `#!/bin/sh
+if [ "$1" = "api" ] && [ "$2" = "users/octo" ]; then
+  echo "Not Found" >&2
+  exit 1
+fi
+if [ "$1" = "api" ] && [ "$2" = "orgs/octo" ]; then
+  echo "Organization"
+  exit 0
+fi
+exit 1
+`
+	require.NoError(t, os.WriteFile(fakeGH, []byte(script), 0o755))
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	ownerType, err := checkSetupRepositoryOwnerType(context.Background(), "octo")
+	require.NoError(t, err)
+	assert.Equal(t, "Organization", strings.TrimSpace(ownerType))
 }
 
 func TestRunSetupRepositoryCheck_AcceptsCaseInsensitiveSlugMatch(t *testing.T) {
