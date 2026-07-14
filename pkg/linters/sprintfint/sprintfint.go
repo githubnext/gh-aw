@@ -103,17 +103,16 @@ func run(pass *analysis.Pass) (any, error) {
 // strconv.Itoa(x). It also emits import TextEdits to add "strconv" and, when
 // the flagged call is the file's only "fmt" reference, to remove the now-
 // unused "fmt" import so the resulting code compiles without a goimports pass.
+//
+// When "strconv" is already imported under an alias the alias is used as the
+// qualifier so the fix compiles. When the qualifier name is shadowed by a local
+// variable at the call site, no SuggestedFix is emitted (the diagnostic is
+// still reported).
 func buildItoaFix(pass *analysis.Pass, call *ast.CallExpr, arg ast.Expr, seenImportFiles map[token.Pos]bool) []analysis.SuggestedFix {
 	argText := astutil.NodeText(pass.Fset, arg)
 	if argText == "" {
 		return nil
 	}
-
-	edits := []analysis.TextEdit{{
-		Pos:     call.Pos(),
-		End:     call.End(),
-		NewText: []byte("strconv.Itoa(" + argText + ")"),
-	}}
 
 	// Find the file that contains this call so we can inspect its imports.
 	var file *ast.File
@@ -123,12 +122,39 @@ func buildItoaFix(pass *analysis.Pass, call *ast.CallExpr, arg ast.Expr, seenImp
 			break
 		}
 	}
+
+	// Determine the local qualifier for "strconv": use the alias when the
+	// package is already imported under a different name, or the default name
+	// when it needs to be added.
+	qualifier := strconvPkg
+	if file != nil {
+		if localName, imported := astutil.ImportedAs(file, pass.TypesInfo, strconvPkg); imported {
+			// Dot-import or blank-import: can't safely qualify; skip fix.
+			if localName == "." || localName == "_" {
+				return nil
+			}
+			qualifier = localName
+		}
+		// Not imported yet: qualifier stays as strconvPkg; the import will be added.
+	}
+
+	// Skip the fix if the qualifier is shadowed by a local at the call site.
+	if astutil.QualifierShadowed(pass.Pkg, call.Pos(), qualifier, strconvPkg) {
+		return nil
+	}
+
+	edits := []analysis.TextEdit{{
+		Pos:     call.Pos(),
+		End:     call.End(),
+		NewText: []byte(qualifier + ".Itoa(" + argText + ")"),
+	}}
+
 	if file != nil {
 		edits = append(edits, buildImportEdits(pass, file, seenImportFiles)...)
 	}
 
 	return []analysis.SuggestedFix{{
-		Message:   "Replace fmt.Sprintf with strconv.Itoa",
+		Message:   "Replace fmt.Sprintf with " + qualifier + ".Itoa",
 		TextEdits: edits,
 	}}
 }

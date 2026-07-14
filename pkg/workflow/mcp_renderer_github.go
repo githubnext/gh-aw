@@ -270,7 +270,15 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	yaml.WriteString("                \"type\": \"http\",\n")
 	yaml.WriteString("                \"url\": \"https://api.githubcopilot.com/mcp/\",\n")
 	hasGuardPolicies := hasGitHubMCPGuardPolicies(options.GuardPolicies, options.GuardPoliciesFromStep)
-	writeJSONStringMapSection(
+	// Use writeJSONStringMapSectionRaw so that pre-escaped shell placeholders such as
+	// \${GITHUB_PERSONAL_ACCESS_TOKEN} (Copilot passthrough syntax) are written with a
+	// single backslash in the generated lock file.  The compiled config is embedded in an
+	// unquoted bash heredoc; bash collapses \$ → $, delivering the literal ${VAR} string
+	// that the MCP gateway then expands from its own environment at runtime.
+	// Using writeJSONStringMapSection instead would double-escape the backslash to \\${VAR},
+	// which bash expands to \<secret-value> — an invalid JSON escape character that causes
+	// JSON.parse to fail on every run.
+	writeJSONStringMapSectionRaw(
 		yaml,
 		"                ",
 		"headers",

@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"go/types"
 	"slices"
+	"strconv"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -269,4 +270,76 @@ func NodeText(fset *token.FileSet, node ast.Node) string {
 		return ""
 	}
 	return buf.String()
+}
+
+// ImportedAs returns the local binding name for importPath in file along with
+// whether the import exists. When the import has an explicit alias (Name != nil),
+// the alias is returned. Otherwise info.Implicits is consulted to obtain the
+// *types.PkgName that the type-checker created for the import; its Name() method
+// returns the package's declared name, which may differ from the last path
+// segment for versioned modules (e.g. "github.com/foo/v2" declares package
+// "foo"). info may be nil as a fallback, in which case the last path segment is
+// used. The special aliases "." and "_" are returned as-is for callers to handle.
+// Import path literals are decoded with strconv.Unquote so both double-quoted
+// and raw (backtick) spellings are matched correctly.
+func ImportedAs(file *ast.File, info *types.Info, importPath string) (string, bool) {
+	for _, imp := range file.Imports {
+		path, err := strconv.Unquote(imp.Path.Value)
+		if err != nil || path != importPath {
+			continue
+		}
+		if imp.Name != nil {
+			return imp.Name.Name, true
+		}
+		// No explicit alias: derive the local name from the type-checker's
+		// implicit PkgName object when available (correct for versioned paths).
+		if info != nil {
+			if obj, ok := info.Implicits[imp]; ok {
+				if pkgName, ok := obj.(*types.PkgName); ok {
+					return pkgName.Name(), true
+				}
+			}
+		}
+		// Fallback: last segment of the path.
+		last := importPath
+		for j := len(importPath) - 1; j >= 0; j-- {
+			if importPath[j] == '/' {
+				last = importPath[j+1:]
+				break
+			}
+		}
+		return last, true
+	}
+	return "", false
+}
+
+// QualifierShadowed reports whether name cannot safely be used as a qualifier
+// for importPath at pos. It returns true when:
+//   - a local variable or parameter named name is in scope at pos, or
+//   - name is bound to a *types.PkgName for a different import path.
+//
+// Either case means that emitting "name.Foo" at pos would not resolve to the
+// intended package. Call this before emitting a fix that uses name as a package
+// qualifier to ensure the qualifier resolves to the expected import and not to a
+// local variable, a parameter, or an unrelated package import.
+func QualifierShadowed(pkg *types.Package, pos token.Pos, name, importPath string) bool {
+	if pkg == nil {
+		return false
+	}
+	scope := pkg.Scope().Innermost(pos)
+	if scope == nil {
+		return false
+	}
+	_, obj := scope.LookupParent(name, pos)
+	if obj == nil {
+		return false
+	}
+	pkgName, isPkg := obj.(*types.PkgName)
+	if !isPkg {
+		// Local variable or parameter shadows the name.
+		return true
+	}
+	// A PkgName bound to a different import path also makes the qualifier unsafe:
+	// the intended package is not accessible under this name.
+	return pkgName.Imported().Path() != importPath
 }
