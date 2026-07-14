@@ -83,6 +83,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 			disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
 			disableSecurityScannerLegacy, _ := cmd.Flags().GetBool("disable-security-scanner")
 			disableSecurityScanner = disableSecurityScanner || disableSecurityScannerLegacy
+			approveFlag, _ := cmd.Flags().GetBool("approve")
 			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias
@@ -136,6 +137,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 				NoRedirect:             noRedirect,
 				DisableSecurityScanner: disableSecurityScanner,
 				CoolDown:               coolDown,
+				Approve:                approveFlag,
 			}
 
 			if targetRepo != "" {
@@ -173,6 +175,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 	cmd.Flags().Bool("no-security-scanner", false, "Skip security scanning of workflow markdown content")
 	cmd.Flags().Bool("disable-security-scanner", false, "Skip security scanning of workflow markdown content")
 	_ = cmd.Flags().MarkDeprecated("disable-security-scanner", "use --no-security-scanner instead")
+	cmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
 	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows during update (do not modify lock files)")
 	cmd.Flags().Bool("no-redirect", false, "Refuse updates when redirect frontmatter is present")
 	cmd.Flags().String("org", "", "Preview or create workflow update pull requests across an organization")
@@ -216,7 +219,7 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 	// Update action references in user-provided steps within workflow .md files.
 	// By default all org/repo@version references are updated to the latest major version.
 	updateLog.Print("Updating action references in workflow .md files")
-	if err := UpdateActionsInWorkflowFiles(ctx, opts.WorkflowsDir, opts.EngineOverride, opts.Verbose, opts.DisableReleaseBump, opts.NoCompile, opts.CoolDown); err != nil {
+	if err := UpdateActionsInWorkflowFiles(ctx, opts.WorkflowsDir, opts.EngineOverride, opts.Verbose, opts.DisableReleaseBump, opts.NoCompile, opts.CoolDown, opts.Approve); err != nil {
 		// Non-fatal: warn but don't fail the update
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update action references in workflow files: %v", err)))
 	}
@@ -237,7 +240,7 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 	if newContainerPins && !opts.NoCompile {
 		updateLog.Print("Recompiling workflows to embed new container digest pins")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Recompiling workflows to embed container digest pins..."))
-		recompileErr := recompileAllWorkflows(ctx, opts.WorkflowsDir, opts.EngineOverride, opts.Verbose)
+		recompileErr := recompileAllWorkflows(ctx, opts.WorkflowsDir, opts.EngineOverride, opts.Verbose, opts.Approve)
 		if recompileErr != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to recompile workflows after container pin update: %v", recompileErr)))
 		}
@@ -250,7 +253,7 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 // recompileAllWorkflows recompiles all .md workflow files in the given directory.
 // This is used after container pin updates to embed digest-pinned image references
 // in the generated lock files.
-func recompileAllWorkflows(ctx context.Context, workflowsDir, engineOverride string, verbose bool) error {
+func recompileAllWorkflows(ctx context.Context, workflowsDir, engineOverride string, verbose bool, approve bool) error {
 	if workflowsDir == "" {
 		workflowsDir = getWorkflowsDir()
 	}
@@ -265,7 +268,7 @@ func recompileAllWorkflows(ctx context.Context, workflowsDir, engineOverride str
 			continue
 		}
 		path := filepath.Join(workflowsDir, entry.Name())
-		if err := compileWorkflowWithRefresh(ctx, path, verbose, true, engineOverride, false); err != nil {
+		if err := compileWorkflowWithRefresh(ctx, path, verbose, true, engineOverride, false, approve); err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to recompile %s: %v", entry.Name(), err)))
 			}
