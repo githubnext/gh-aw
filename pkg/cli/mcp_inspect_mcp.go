@@ -167,7 +167,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.RegistryMCPServerC
 	}
 
 	// Create MCP client and connect
-	client := mcp.NewClient(&mcp.Implementation{Name: "gh-aw-inspector", Version: "1.0.0"}, &mcp.ClientOptions{
+	client := mcp.NewClient(mcpInspectClientImplementation(), &mcp.ClientOptions{
 		Logger: logger.NewSlogLoggerWithHandler(mcpInspectServerLog),
 	})
 	transport := &mcp.CommandTransport{Command: cmd}
@@ -235,7 +235,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.RegistryMCPServerCo
 	}
 
 	// Create MCP client with logger for better debugging
-	client := mcp.NewClient(&mcp.Implementation{Name: "gh-aw-inspector", Version: "1.0.0"}, &mcp.ClientOptions{
+	client := mcp.NewClient(mcpInspectClientImplementation(), &mcp.ClientOptions{
 		Logger: logger.NewSlogLoggerWithHandler(mcpInspectServerLog),
 	})
 
@@ -345,6 +345,13 @@ func extractRootsFromResources(resources []*mcp.Resource) []*mcp.Root {
 		}
 	}
 	return roots
+}
+
+func mcpInspectClientImplementation() *mcp.Implementation {
+	return &mcp.Implementation{
+		Name:    "gh-aw-inspector",
+		Version: GetVersion(),
+	}
 }
 
 // displayServerCapabilities shows the server's tools, resources, and roots in formatted tables
