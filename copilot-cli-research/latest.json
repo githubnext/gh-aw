@@ -1,11 +1,14 @@
 {
-  "timestamp": "2026-07-13T04:50:40Z",
-  "run_id": "29224828148",
-  "total_workflows": 256,
+  "timestamp": "2026-07-14T04:36:40Z",
+  "run_id": "29306319998",
+  "total_workflows": 257,
   "engine_breakdown": {
     "copilot_simple": 37,
     "copilot_sdk": 65,
-    "copilot_total": 102
+    "copilot_total": 102,
+    "claude": 46,
+    "codex": 10,
+    "no_engine_block": 34
   },
   "features_available": [
     "engine.agent (custom agent file, --agent flag)",
@@ -17,7 +20,7 @@
     "engine.model (model override)",
     "engine.command (custom executable)",
     "engine.driver (custom SDK driver)",
-    "engine.harness (retry config: max-attempts, delay)",
+    "engine.harness (retry config: max-attempts, delay, custom script)",
     "engine.mcp.tool-timeout/session-timeout",
     "engine.api-target (custom endpoint)",
     "engine.env (custom env vars)",
@@ -35,61 +38,47 @@
   "features_usage": {
     "copilot_sdk": {"count": 65},
     "bare": {"count": 19},
-    "max_continuations_prod": {"count": 6, "note": "Only 6 non-smoke production workflows"},
-    "engine_args": {"count": 0, "note": "DROPPED FROM PREV 3 - none found"},
-    "engine_agent_via_frontmatter": {"count": "numerous"},
-    "engine_version_pinning": {"count": 0, "note": "None explicitly found in current scan"},
+    "max_continuations": {"count": 11},
+    "engine_args": {"count": 0},
+    "engine_harness_custom": {"count": 1},
     "engine_mcp_timeout": {"count": 3},
-    "harness_custom_max_attempts": {"count": 0},
+    "harness_retry_tuning": {"count": 0, "note": "No max-attempts or delay customization found"},
     "engine_cwd": {"count": 0},
     "byok": {"count": 3},
     "lsp": {"count": 3},
-    "mcp_scripts": {"count": 1},
-    "tracker_id": {"count": 96},
+    "mcp_scripts": {"count": 3},
+    "tracker_id": {"count": 95},
     "bare_mode": {"count": 19},
     "sandbox_in_copilot_simple": {"count": 18, "of": 37},
-    "max_ai_credits_custom": {"count": "10+"}
+    "strict_mode": {"count": 157},
+    "model_provider": {"count": 1}
   },
-  "non_sandboxed_copilot_simple": [
-    "stale-pr-cleanup.md",
-    "stale-repo-identifier.md",
-    "sub-issue-closer.md",
-    "terminal-stylist.md",
-    "tidy.md",
-    "ubuntu-image-analyzer.md",
-    "uk-ai-operational-resilience.md",
-    "update-astro.md",
-    "video-analyzer.md",
-    "visual-regression-checker.md",
-    "weekly-editors-health-check.md",
-    "workflow-health-manager.md"
-  ],
-  "long_running_no_max_continuations": [
-    "agent-persona-explorer.md (180min)",
-    "daily-doc-updater.md (45min)",
-    "slide-deck-maintainer.md (45min)",
-    "stale-repo-identifier.md (45min)",
-    "update-astro.md (45min)"
-  ],
+  "sandbox_gaps": {
+    "copilot_simple_without_sandbox": 19,
+    "examples": ["stale-pr-cleanup.md", "stale-repo-identifier.md", "sub-issue-closer.md", "terminal-stylist.md", "tidy.md", "ubuntu-image-analyzer.md", "uk-ai-operational-resilience.md", "update-astro.md", "video-analyzer.md", "visual-regression-checker.md", "weekly-editors-health-check.md", "workflow-health-manager.md", "smoke-copilot-arm.md", "smoke-multi-pr.md", "smoke-service-ports.md", "smoke-temporary-id.md", "smoke-test-tools.md", "smoke-workflow-call-with-inputs.md", "smoke-workflow-call.md"]
+  },
+  "long_running_no_max_continuations": 107,
   "key_findings": [
-    "12 copilot-simple workflows lack sandbox config",
-    "5 long-running copilot-simple workflows (45-180min) lack max-continuations",
+    "19 copilot-simple workflows lack sandbox config (smoke tests likely intentional)",
+    "107 workflows with timeout>=30min lack max-continuations",
     "engine.cwd = 0 usage (supported but unused)",
-    "engine.harness tuning = 0 (no max-attempts or delay customization)",
-    "engine.args = 0 (dropped from ~3 in previous run)",
+    "engine.harness retry tuning = 0 (no max-attempts or delay customization)",
+    "engine.args = 0 (still unused)",
     "LSP servers still only 3 workflows",
-    "mcp-scripts used in 1 workflow",
-    "tracker-id adoption good at 96 workflows"
+    "mcp-scripts now at 3 (up from 1)",
+    "tracker-id stable at ~95 workflows",
+    "model-provider usage extremely low (1 workflow)"
   ],
   "trend_vs_previous": {
-    "copilot_total": "99->102 (+3)",
-    "copilot_simple": "32->37 (+5, regression toward unmanaged simple engine)",
-    "copilot_sdk": "67->65 (-2)",
-    "engine_args": "3->0 (dropped)",
+    "total_workflows": "256->257 (+1)",
+    "copilot_total": "102->102 (stable)",
+    "copilot_simple": "37->37 (stable)",
+    "copilot_sdk": "65->65 (stable)",
+    "engine_args": "0->0 (still unused)",
     "lsp_servers": "3->3 (unchanged)",
-    "sandbox_gaps": "12->12 (unchanged)",
+    "sandbox_gaps_copilot_simple": "12->19 (+7, regression - smoke tests added)",
     "byok": "3->3 (stable)",
-    "mcp_scripts": "1->1 (unchanged)",
-    "max_continuations_prod": "6->6 (unchanged)"
+    "mcp_scripts": "1->3 (+2, adoption improving)",
+    "max_continuations": "11->11 (stable, still low vs 107 eligible)"
   }
 }
