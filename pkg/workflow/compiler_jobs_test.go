@@ -3927,6 +3927,7 @@ func TestBuildPushEvalsStateJob_WithEvals(t *testing.T) {
 
 	assert.Equal(t, "push_evals_state", job.Name, "job name should be push_evals_state")
 	assert.Contains(t, job.If, "always()", "job condition should use always()")
+	assert.Contains(t, job.If, "skipped", "job condition should run when evals is not skipped")
 	assert.Contains(t, job.Permissions, "contents: write", "job should have contents: write permission")
 	assert.Contains(t, job.Needs, string(constants.EvalsJobName), "job should depend on evals job")
 	assert.Contains(t, job.Needs, string(constants.ActivationJobName), "job should depend on activation job")

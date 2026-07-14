@@ -16,8 +16,6 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
-const evalsBranchPrefix = "evals"
-
 var errRunStateCommitNotFound = errors.New("run-specific state commit not found")
 
 func ensureEvalsResultsFromBranch(ctx context.Context, run WorkflowRun, runDir, owner, repo, hostname string, verbose bool) bool {
@@ -35,7 +33,7 @@ func ensureEvalsResultsFromBranch(ctx context.Context, run WorkflowRun, runDir, 
 	if workflowID == "" {
 		return false
 	}
-	branchName := workflow.WorkflowStateBranchName(evalsBranchPrefix, workflowID)
+	branchName := workflow.WorkflowStateBranchName(constants.EvalsBranchPrefix, workflowID)
 	refName, err := resolveRunStateBranchRef(ctx, repoOverride, branchName, run.DatabaseID, host, "evals results")
 	if err != nil {
 		if !errors.Is(err, errRunStateCommitNotFound) && !isRemoteFileNotFound(err) {
@@ -77,7 +75,11 @@ func workflowIDFromRunPath(workflowPath string) string {
 	if before, ok := strings.CutSuffix(base, ".yaml"); ok {
 		base = before
 	}
-	return strings.TrimSpace(base)
+	base = strings.TrimSpace(base)
+	if base == "" {
+		return ""
+	}
+	return workflow.SanitizeWorkflowIDForCacheKey(base)
 }
 
 func resolveRepoOverrideForRun(run WorkflowRun, owner, repo, hostname string) (string, string) {

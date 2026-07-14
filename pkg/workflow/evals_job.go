@@ -10,11 +10,10 @@ import (
 
 var evalsJobLog = logger.New("workflow:evals_job")
 
-const evalsBranchPrefix = "evals"
 const evalsStateDir = "/tmp/gh-aw/evals-state"
 
 func evalsBranchName(workflowID string) string {
-	return WorkflowStateBranchName(evalsBranchPrefix, workflowID)
+	return WorkflowStateBranchName(constants.EvalsBranchPrefix, workflowID)
 }
 
 // buildEvalsJob creates a separate evals job that runs after the safe_outputs job
@@ -177,12 +176,12 @@ func (c *Compiler) buildPushEvalsStateJob(data *WorkflowData) (*Job, error) {
 		steps = append(steps, c.generateRestoreActionsSetupStep())
 	}
 
-	evalsSucceeded := BuildEquals(
+	evalsFinished := BuildNotEquals(
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.EvalsJobName)),
-		BuildStringLiteral("success"),
+		BuildStringLiteral("skipped"),
 	)
 	notCancelled := &NotNode{Child: BuildFunctionCall("cancelled")}
-	jobCondition := RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), notCancelled), evalsSucceeded))
+	jobCondition := RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), notCancelled), evalsFinished))
 
 	job := &Job{
 		Name:        pushEvalsStateJobName,

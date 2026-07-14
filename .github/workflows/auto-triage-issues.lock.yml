@@ -1783,7 +1783,7 @@ jobs:
     needs:
       - activation
       - evals
-    if: always() && (!cancelled()) && needs.evals.result == 'success'
+    if: always() && (!cancelled()) && needs.evals.result != 'skipped'
     runs-on: ubuntu-slim
     permissions:
       contents: write

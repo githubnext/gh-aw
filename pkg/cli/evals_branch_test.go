@@ -36,3 +36,27 @@ func TestResolveRunStateBranchRef(t *testing.T) {
 		assert.ErrorIs(t, err, errRunStateCommitNotFound)
 	})
 }
+
+func TestWorkflowIDFromRunPath(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+		want string
+	}{
+		{name: "empty", path: "", want: ""},
+		{name: "markdown workflow", path: ".github/workflows/release.md", want: "release"},
+		{name: "lock workflow", path: ".github/workflows/release.lock.yml", want: "release"},
+		{name: "yaml workflow", path: ".github/workflows/release.yml", want: "release"},
+		{name: "yml workflow", path: ".github/workflows/release.yaml", want: "release"},
+		{name: "hyphenated lowercased", path: ".github/workflows/My-Release.yaml", want: "myrelease"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, workflowIDFromRunPath(tt.path))
+		})
+	}
+}
