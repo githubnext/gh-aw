@@ -2096,6 +2096,7 @@ func TestMainWorkflowSchema_GitHubAllowedSupportsToolCallLimits(t *testing.T) {
 			break
 		}
 	}
+
 	if githubObjectSchema == nil {
 		t.Fatal("tools.github object schema not found")
 	}
@@ -2132,6 +2133,51 @@ func TestMainWorkflowSchema_GitHubAllowedSupportsToolCallLimits(t *testing.T) {
 	}
 	if _, hasMaxAlias := entryProps["max"]; hasMaxAlias {
 		t.Fatal("tools.github.allowed[].max alias should not be present")
+	}
+}
+
+func TestMainWorkflowSchema_DocumentsAntigravityEngine(t *testing.T) {
+	t.Parallel()
+
+	schemaContent, err := os.ReadFile("schemas/main_workflow_schema.json")
+	if err != nil {
+		t.Fatalf("failed to read schema: %v", err)
+	}
+
+	var schema map[string]any
+	if err := json.Unmarshal(schemaContent, &schema); err != nil {
+		t.Fatalf("failed to parse schema json: %v", err)
+	}
+
+	defs := schema["$defs"].(map[string]any)
+	engineConfig := defs["engine_config"].(map[string]any)
+	engineConfigOneOf := engineConfig["oneOf"].([]any)
+
+	stringEngineDesc := engineConfigOneOf[0].(map[string]any)["description"].(string)
+	if !strings.Contains(stringEngineDesc, "antigravity") {
+		t.Fatalf("expected engine string description to mention antigravity, got: %q", stringEngineDesc)
+	}
+
+	objectEngineDesc := engineConfigOneOf[1].(map[string]any)["properties"].(map[string]any)["id"].(map[string]any)["description"].(string)
+	if !strings.Contains(objectEngineDesc, "antigravity") {
+		t.Fatalf("expected engine.id description to mention antigravity, got: %q", objectEngineDesc)
+	}
+
+	inlineRuntime := engineConfigOneOf[2].(map[string]any)["properties"].(map[string]any)["runtime"].(map[string]any)
+	inlineRuntimeID := inlineRuntime["properties"].(map[string]any)["id"].(map[string]any)
+	inlineRuntimeDesc := inlineRuntimeID["description"].(string)
+	if !strings.Contains(inlineRuntimeDesc, "antigravity") {
+		t.Fatalf("expected runtime.id description to mention antigravity, got: %q", inlineRuntimeDesc)
+	}
+
+	inlineRuntimeExamples := inlineRuntimeID["examples"].([]any)
+	if inlineRuntimeExamples[0] != "antigravity" {
+		t.Fatalf("expected runtime.id examples to start with antigravity, got: %v", inlineRuntimeExamples)
+	}
+
+	engineDefinitionDesc := engineConfigOneOf[3].(map[string]any)["properties"].(map[string]any)["id"].(map[string]any)["description"].(string)
+	if !strings.Contains(engineDefinitionDesc, "antigravity") {
+		t.Fatalf("expected engine definition id description to mention antigravity, got: %q", engineDefinitionDesc)
 	}
 }
 

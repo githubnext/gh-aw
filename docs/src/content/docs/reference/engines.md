@@ -1,6 +1,6 @@
 ---
 title: AI Engines (aka Coding Agents)
-description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot, Claude, Codex, Gemini, Crush, OpenCode, and Pi with their specific configuration options.
+description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot, Claude, Codex, Gemini, Antigravity, Crush, OpenCode, and Pi with their specific configuration options.
 sidebar:
   order: 600
 ---
@@ -17,6 +17,7 @@ Set `engine:` in your workflow frontmatter and configure the corresponding secre
 | [Claude by Anthropic (Claude Code)](https://www.anthropic.com/index/claude) | `claude` | [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) (standard) or [`engine.auth` Anthropic WIF](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif) (keyless) |
 | [OpenAI Codex](https://openai.com/blog/openai-codex) | `codex` | [OPENAI_API_KEY](/gh-aw/reference/auth/#openai_api_key) |
 | [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini` | [GEMINI_API_KEY](/gh-aw/reference/auth/#gemini_api_key) |
+| [Google Antigravity CLI](https://antigravity.google/docs/cli-overview) (experimental) | `antigravity` | `ANTIGRAVITY_API_KEY` |
 | [Crush](https://github.com/charmbracelet/crush) (experimental) | `crush` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) |
 | [OpenCode](https://opencode.ai) (experimental) | `opencode` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) |
 | [Pi](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) (experimental) | `pi` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) (default); switches to provider-specific secret when `model:` uses `provider/model` format |
@@ -71,6 +72,7 @@ By default, workflows install the latest available version of each engine CLI. T
 | Claude Code | `claude` | `"2.1.70"` |
 | Codex | `codex` | `"0.111.0"` |
 | Gemini CLI | `gemini` | `"0.31.0"` |
+| Antigravity CLI | `antigravity` | `"1.0.2-6113393518706688"` |
 | Crush | `crush` | `"1.2.14"` |
 | OpenCode | `opencode` | `"0.1.0"` |
 | Pi | `pi` | `"0.72.1"` |
