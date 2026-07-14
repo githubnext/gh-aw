@@ -642,7 +642,7 @@ engine:
   behaviors:
     installation:
       package-manager: npm
-      package-name: opencode
+      package-name: opencode-ai
       binary-name: opencode
     execution:
       command-name: opencode

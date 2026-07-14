@@ -118,10 +118,14 @@ When integrating OpenCode-compatible engines, runs can complete without ever inv
 {
   "provider": {
     "copilot-proxy": {
-      "name": "Copilot Proxy",
-      "type": "openai-compatible",
-      "baseURL": "http://host.docker.internal:10004",
-      "models": ["gpt-4.1", "claude-sonnet-4-6"]
+      "api": "http://host.docker.internal:10004",
+      "options": {
+        "apiKey": "awf-copilot-proxy"
+      },
+      "models": {
+        "gpt-4.1": {},
+        "claude-sonnet-4-6": {}
+      }
     }
   },
   "model": "copilot-proxy/claude-sonnet-4-6",
