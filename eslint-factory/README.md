@@ -32,6 +32,7 @@ Using an interpolated route bypasses Octokit's typed route dispatch, can silentl
 **Flagged forms:**
 - `` github.request(`GET /repos/${owner}/${repo}`, ...) `` — template literal with interpolations.
 - `github.request("GET /repos/" + owner + "/" + repo, ...)` — string concatenation.
+- `` github.request(`POST ${endpoint}`, ...) `` — opaque whole-route helper; thread a typed route from the caller instead of interpolating the entire path.
 - `` context.github.request(`GET /repos/${owner}/${repo}`, ...) `` — `context.github` client.
 - `` const gh = github; gh.request(`GET /repos/${owner}/${repo}`, ...) `` — aliased client.
 - `` const client = getOctokit(token); client.request(`GET /repos/${owner}/${repo}`, ...) `` — `getOctokit` result alias.
@@ -46,6 +47,8 @@ Using an interpolated route bypasses Octokit's typed route dispatch, can silentl
 ```js
 github.request("GET /repos/{owner}/{repo}", { owner, repo });
 ```
+
+For helpers that receive the entire route as a parameter, there is no mechanical `{owner}` / `{repo}` rewrite. Pass a typed route string from the caller instead of interpolating `POST ${endpoint}` or `"POST " + endpoint` at the helper call site.
 
 ### `no-json-stringify-error`
 

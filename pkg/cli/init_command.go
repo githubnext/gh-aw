@@ -29,7 +29,7 @@ This command:
 - Creates the custom agent at .github/agents/agentic-workflows.md
 - Removes old prompt files from .github/prompts/ if they exist
 - Configures VSCode settings (.vscode/settings.json)
-- Generates/updates .github/workflows/agentics-maintenance.yml if any workflows use expires field for discussions or issues
+- Generates/updates .github/workflows/agentics-maintenance.yml if any workflows use the expires field for discussions or issues
 
 By default (without --no-mcp):
 - Creates .github/workflows/copilot-setup-steps.yml with gh-aw installation steps
@@ -142,7 +142,7 @@ After running this command, you can:
 	cmd.Flags().Bool("no-mcp", false, "Skip configuring gh-aw MCP server integration for GitHub Copilot Agent")
 	cmd.Flags().Bool("no-skill", false, "Skip creating the agentic-workflows dispatcher skill")
 	cmd.Flags().Bool("no-agent", false, "Skip creating the Agentic Workflows custom agent")
-	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use with an empty value for the current repo only")
+	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflow support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use with an empty value for the current repo only")
 	cmd.Flags().Bool("completions", false, "Install shell completion for the detected shell (bash, zsh, fish, or PowerShell)")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the initialization changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")

@@ -192,12 +192,12 @@ func TestShortFlagConsistency(t *testing.T) {
 			description:  "disable should have repo short flag",
 		},
 		{
-			name:         "logs command does not have -e for --engine",
+			name:         "logs command has -e for --engine",
 			shortFlag:    "e",
 			longFlag:     "engine",
 			commandSetup: func() *cobra.Command { return NewLogsCommand() },
-			shouldExist:  false,
-			description:  "logs should not have engine short flag",
+			shouldExist:  true,
+			description:  "logs should have engine short flag",
 		},
 
 		// -w flag (watch)

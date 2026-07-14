@@ -1,0 +1,59 @@
+package bytesbufferstring
+
+import (
+	"bytes"
+)
+
+func BadStringOfBytesCall() string {
+	var buf bytes.Buffer
+	buf.WriteString("hello")
+	return buf.String() // want `string\(buf\.Bytes\(\)\) can be simplified to buf\.String\(\)`
+}
+
+func BadStringOfBytesCallPtr() string {
+	buf := &bytes.Buffer{}
+	buf.WriteString("world")
+	// pointer receiver: not flagged — rewrite would change nil-pointer semantics
+	return string(buf.Bytes())
+}
+
+func NilPointerBuf() string {
+	var buf *bytes.Buffer
+	// nil *bytes.Buffer: string(buf.Bytes()) panics; buf.String() returns "<nil>" — not flagged
+	return string(buf.Bytes())
+}
+
+// wrappedBuffer embeds bytes.Buffer but is a distinct named type.
+type wrappedBuffer struct {
+	bytes.Buffer
+}
+
+func GoodStringConversionWrappedType() string {
+	var buf wrappedBuffer
+	// wrappedBuffer is not bytes.Buffer — receiver type check excludes it; no diagnostic
+	return string(buf.Bytes())
+}
+
+func getBufferPtr() *bytes.Buffer { return &bytes.Buffer{} }
+
+func GoodStringOfBytesCallIndirect() string {
+	// getBufferPtr() returns *bytes.Buffer (pointer receiver) — not flagged
+	return string(getBufferPtr().Bytes())
+}
+
+func SuppressedStringOfBytes() string {
+	var buf bytes.Buffer
+	buf.WriteString("hello")
+	return string(buf.Bytes()) //nolint:bytesbufferstring
+}
+
+func GoodStringCall() string {
+	var buf bytes.Buffer
+	buf.WriteString("hello")
+	return buf.String() // correct pattern — no diagnostic expected
+}
+
+func GoodStringConversionOther() string {
+	b := []byte("hello")
+	return string(b) // not a buf.Bytes() call — no diagnostic
+}

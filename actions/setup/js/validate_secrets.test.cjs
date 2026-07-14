@@ -1,8 +1,6 @@
 // @ts-check
 
 import { describe, it, expect, vi, afterEach } from "vitest";
-import https from "https";
-import { EventEmitter } from "events";
 import {
   makePostRequest,
   testGitHubRESTAPI,
@@ -121,65 +119,42 @@ describe("validate_secrets", () => {
   });
 
   describe("makePostRequest", () => {
-    /** @type {EventEmitter & {setTimeout: any, destroy: any, write: any, end: any, timeoutCallback?: () => void}} */
-    let mockRequest;
-    /** @type {EventEmitter & {statusCode: number}} */
-    let mockResponse;
-
     afterEach(() => {
-      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
     });
 
-    function setupHttpsMock(onEnd) {
-      mockResponse = Object.assign(new EventEmitter(), { statusCode: 200 });
-      mockRequest = Object.assign(new EventEmitter(), {
-        setTimeout: vi.fn().mockImplementation((ms, cb) => {
-          mockRequest.timeoutCallback = cb;
-        }),
-        destroy: vi.fn(),
-        write: vi.fn(),
-        end: vi.fn().mockImplementation(() => {
-          if (onEnd) onEnd();
-        }),
-      });
-      vi.spyOn(https, "request").mockImplementation((_options, callback) => {
-        process.nextTick(() => callback?.(/** @type {any} */ mockResponse));
-        return /** @type {any} */ mockRequest;
-      });
+    /**
+     * @param {number} statusCode
+     * @param {string} responseBody
+     */
+    function mockFetch(statusCode, responseBody) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          status: statusCode,
+          text: () => Promise.resolve(responseBody),
+        })
+      );
     }
 
     it("resolves with statusCode and data on success", async () => {
-      setupHttpsMock(() => {
-        process.nextTick(() => {
-          mockResponse.emit("data", '{"ok":true}');
-          mockResponse.emit("end");
-        });
-      });
+      mockFetch(200, '{"ok":true}');
 
       const result = await makePostRequest("api.example.com", "/v1/test", { "Content-Type": "application/json" }, '{"query":"test"}');
       expect(result.statusCode).toBe(200);
       expect(result.data).toBe('{"ok":true}');
     });
 
-    it("rejects on request error", async () => {
-      setupHttpsMock(null);
-      const networkError = new Error("connection refused");
+    it("rejects on network error", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("connection refused")));
 
-      const promise = makePostRequest("api.example.com", "/v1/test", {}, "{}");
-      process.nextTick(() => mockRequest.emit("error", networkError));
-
-      await expect(promise).rejects.toThrow("connection refused");
+      await expect(makePostRequest("api.example.com", "/v1/test", {}, "{}")).rejects.toThrow("connection refused");
     });
 
-    it("rejects with timeout error after 10 s", async () => {
-      setupHttpsMock(null);
+    it("rejects with timeout error on abort", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(Object.assign(new Error("The operation was aborted"), { name: "AbortError" })));
 
-      const promise = makePostRequest("api.example.com", "/v1/test", {}, "{}");
-      // Trigger the timeout callback registered via req.setTimeout
-      process.nextTick(() => mockRequest.timeoutCallback?.());
-
-      await expect(promise).rejects.toThrow("Request timeout");
-      expect(mockRequest.destroy).toHaveBeenCalled();
+      await expect(makePostRequest("api.example.com", "/v1/test", {}, "{}")).rejects.toThrow("Request timeout");
     });
   });
 

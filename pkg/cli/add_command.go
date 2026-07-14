@@ -179,7 +179,7 @@ func registerAddCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")
 
 	// Add append flag to add command
-	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
+	cmd.Flags().String("append", "", "Append extra content to the end of the agentic workflow on installation")
 
 	// Add no-gitattributes flag to add command
 	cmd.Flags().Bool("no-gitattributes", false, "Skip updating .gitattributes file")

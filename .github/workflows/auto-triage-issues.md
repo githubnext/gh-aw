@@ -63,6 +63,11 @@ features:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: labels-applied
+    question: Did the agent apply at least one label to an unlabeled issue, or correctly call noop when no unlabeled issues were found?
+  - id: report-created
+    question: Was a summary discussion created listing the issues processed and the labels applied?
 ---
 
 # Auto-Triage Issues Agent 🏷️

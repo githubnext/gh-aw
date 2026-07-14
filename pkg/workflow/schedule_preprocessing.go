@@ -472,12 +472,7 @@ func (c *Compiler) addDailyCronWarning(cronExpr string) {
 			hour, minute,
 		)
 
-		// This warning is added to the warning count
-		// It will be collected and displayed by the compilation process
-		c.IncrementWarningCount()
-
-		// Store the warning for later display
-		c.addScheduleWarning(warningMsg)
+		c.emitScheduleWarning(warningMsg)
 	}
 }
 
@@ -499,11 +494,7 @@ func (c *Compiler) addHourlyCronWarning(cronExpr string) {
 			minute, interval,
 		)
 
-		// This warning is added to the warning count
-		c.IncrementWarningCount()
-
-		// Store the warning for later display
-		c.addScheduleWarning(warningMsg)
+		c.emitScheduleWarning(warningMsg)
 	}
 }
 
@@ -538,12 +529,17 @@ func (c *Compiler) addWeeklyCronWarning(cronExpr string) {
 			weekdayName, hour, minute, strings.ToLower(weekdayName),
 		)
 
-		// This warning is added to the warning count
-		c.IncrementWarningCount()
-
-		// Store the warning for later display
-		c.addScheduleWarning(warningMsg)
+		c.emitScheduleWarning(warningMsg)
 	}
+}
+
+func (c *Compiler) emitScheduleWarning(warning string) {
+	// This warning is added to the warning count.
+	// It will be collected and displayed by the compilation process.
+	c.IncrementWarningCount()
+
+	// Store the warning for later display.
+	c.addScheduleWarning(warning)
 }
 
 // addScheduleWarning adds a warning to the compiler's schedule warnings list

@@ -114,7 +114,7 @@ func TestNewForecastCommand_TimeoutFlag(t *testing.T) {
 
 	timeoutFlag := cmd.Flags().Lookup("timeout")
 	require.NotNil(t, timeoutFlag, "forecast command should register --timeout")
-	assert.Equal(t, "Gracefully stop forecast computation after this many minutes (0 disables timeout)", timeoutFlag.Usage)
+	assert.Equal(t, "Gracefully stop forecast computation after this many minutes (0 = no timeout)", timeoutFlag.Usage)
 	assert.Equal(t, "0", timeoutFlag.DefValue)
 }
 

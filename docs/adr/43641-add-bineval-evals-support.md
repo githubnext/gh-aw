@@ -1,7 +1,7 @@
 # ADR-43641: Add BinEval-Style Evals Support to Workflow Compiler
 
 **Date**: 2026-07-06
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: Unknown
 
 ---
@@ -32,8 +32,8 @@ A richer evaluation format (multi-dimensional scores, rubrics, or structured rat
 - Both shorthand (plain list) and extended (object with `questions`, `model`, `runs-on`) forms are supported, keeping simple cases simple.
 
 #### Negative
-- The `buildEvalsJob` implementation is a stub returning `nil` (no-op). Users who configure `evals` today see an experimental warning but no job is compiled or executed — the feature is partially shipped.
-- Adding `evals` as a reserved job name and new pipeline slot increases the job ordering complexity (`ensureConclusionIsLastJob` must account for the new tail dependency once the implementation lands).
+- Each workflow that declares `evals` incurs additional runner time and LLM inference cost per run, proportional to the number of questions.
+- Adding `evals` as a reserved job name and new pipeline slot increases job ordering complexity (`ensureConclusionIsLastJob` accounts for the evals tail dependency).
 
 #### Neutral
 - The `evals` frontmatter field is typed as `any` in `FrontmatterConfig` to support both list and object forms; the strongly-typed `*EvalsConfig` lives on `WorkflowData` after parsing, following the same pattern as other configuration fields.
@@ -41,4 +41,4 @@ A richer evaluation format (multi-dimensional scores, rubrics, or structured rat
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent].*

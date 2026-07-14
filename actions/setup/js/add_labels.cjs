@@ -33,7 +33,7 @@ const { MAX_LABELS } = require("./constants.cjs");
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
-const { hasIssueIntentsRuntimeFeature, normalizeIssueIntentLabelNames, normalizeIssueIntentLabelSpecs } = require("./issue_intents.cjs");
+const { normalizeIssueIntentLabelInputs } = require("./issue_intents.cjs");
 
 /**
  * Main handler factory for add_labels
@@ -92,23 +92,24 @@ const main = createCountGatedHandler({
       const contextType = effectiveContext.eventPayload?.pull_request ? "pull request" : "issue";
       const requestedLabels = message.labels ?? [];
       core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
-      const issueIntentsEnabled = hasIssueIntentsRuntimeFeature();
       /** @type {Map<string, {name: string, rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean}>} */
       const requestedLabelSpecByLowerName = new Map();
       let requestedLabelNames;
       try {
-        if (issueIntentsEnabled) {
-          const requestedLabelSpecs = normalizeIssueIntentLabelSpecs(requestedLabels);
-          for (const labelSpec of requestedLabelSpecs) {
-            const key = labelSpec.name.toLowerCase();
-            if (!requestedLabelSpecByLowerName.has(key)) {
-              requestedLabelSpecByLowerName.set(key, labelSpec);
-            }
+        const requestedLabelInputs = normalizeIssueIntentLabelInputs(requestedLabels);
+        requestedLabelNames = requestedLabelInputs.map(label => {
+          if (typeof label === "string") {
+            return label;
           }
-          requestedLabelNames = requestedLabelSpecs.map(labelSpec => labelSpec.name);
-        } else {
-          requestedLabelNames = normalizeIssueIntentLabelNames(requestedLabels);
-        }
+          const key = label.name.toLowerCase();
+          const existing = requestedLabelSpecByLowerName.get(key);
+          const newHasMetadata = Boolean(label.rationale || label.confidence || label.suggest);
+          const existingHasMetadata = existing && Boolean(existing.rationale || existing.confidence || existing.suggest);
+          if (!existing || (!existingHasMetadata && newHasMetadata)) {
+            requestedLabelSpecByLowerName.set(key, label);
+          }
+          return label.name;
+        });
       } catch (error) {
         const errorMessage = getErrorMessage(error);
         core.warning(`Invalid add_labels payload: ${errorMessage}`);
@@ -186,7 +187,11 @@ const main = createCountGatedHandler({
         };
       }
 
-      const labelsRequestPayload = issueIntentsEnabled ? uniqueLabels.map(name => requestedLabelSpecByLowerName.get(name.toLowerCase()) ?? { name }) : uniqueLabels;
+      const labelsRequestPayload = uniqueLabels.map(name => {
+        const labelSpec = requestedLabelSpecByLowerName.get(name.toLowerCase()) ?? { name };
+        const hasIntentMetadata = Boolean(labelSpec.rationale || labelSpec.confidence || labelSpec.suggest);
+        return hasIntentMetadata ? labelSpec : labelSpec.name;
+      });
 
       core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}: ${JSON.stringify(labelsRequestPayload)}`);
 

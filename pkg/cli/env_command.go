@@ -114,7 +114,7 @@ func NewEnvCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "env",
 		Short: "Manage compiler defaults as GitHub variables",
-		Long: `Manage compiler default variables in batch for repository, organization, or enterprise scope.
+		Long: `Manage compiler default variables in bulk for a repository, organization, or enterprise scope.
 
 The YAML file is flat and uses default_-prefixed lowercase keys (e.g., default_max_turns).
 Set a field to null (or omit it) in update mode to delete the variable from the selected scope.

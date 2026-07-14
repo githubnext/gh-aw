@@ -4,17 +4,7 @@
 
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
-const { hasRuntimeFeature, parseRuntimeFeatures } = require("./runtime_features.cjs");
-
-const ISSUE_INTENTS_FEATURE = "issue_intents";
 const ISSUE_INTENT_RATIONALE_MAX_LENGTH = 280;
-
-function hasIssueIntentsRuntimeFeature() {
-  if (typeof global.hasRuntimeFeature === "function") {
-    return global.hasRuntimeFeature(ISSUE_INTENTS_FEATURE);
-  }
-  return hasRuntimeFeature(parseRuntimeFeatures(process.env.GH_AW_RUNTIME_FEATURES), ISSUE_INTENTS_FEATURE);
-}
 
 function normalizeIssueIntentMetadata(source) {
   if (!source || typeof source !== "object") {
@@ -106,6 +96,39 @@ function normalizeIssueIntentLabelSpecs(labels) {
   });
 }
 
+function normalizeIssueIntentLabelInputs(labels) {
+  if (labels === undefined) {
+    return [];
+  }
+  if (!Array.isArray(labels)) {
+    const receivedType = labels === null ? "null" : typeof labels;
+    throw new Error(`Invalid labels. Expected an array of label names or label spec objects; received ${receivedType}.`);
+  }
+
+  return labels.map((label, index) => {
+    if (typeof label === "string") {
+      return label;
+    }
+
+    if (!label || typeof label !== "object" || typeof label.name !== "string") {
+      throw new Error(`Invalid labels[${index}] entry. Expected a string label name or an object with a string "name" field.`);
+    }
+
+    const name = sanitizeLabelContent(label.name);
+    if (!name) {
+      throw new Error(`Invalid labels[${index}] entry. Label names must be non-empty strings.`);
+    }
+    if (name.startsWith("-")) {
+      throw new Error(`Label removal is not permitted. Found line starting with '-': ${name}`);
+    }
+
+    return {
+      name,
+      ...normalizeIssueIntentMetadata(label),
+    };
+  });
+}
+
 function normalizeIssueIntentLabelNames(labels) {
   if (labels === undefined) {
     return [];
@@ -145,7 +168,7 @@ function buildIssueIntentLabelUpdates(labelSpecs, labelIdByName) {
 module.exports = {
   buildIssueIntentLabelUpdates,
   getIssueIntentLabelNames,
-  hasIssueIntentsRuntimeFeature,
+  normalizeIssueIntentLabelInputs,
   normalizeIssueIntentLabelNames,
   normalizeIssueIntentLabelSpecs,
   normalizeIssueIntentMetadata,

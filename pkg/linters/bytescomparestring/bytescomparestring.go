@@ -80,24 +80,69 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
+		// Determine the local qualifier for "bytes" and whether the fix is safe.
+		qualifier, skipFix := bytesQualifier(pass, bin.Pos())
+
 		if bin.Op == token.EQL {
+			var fixes []analysis.SuggestedFix
+			if !skipFix {
+				fixes = buildFix(pass, bin, fmt.Sprintf("%s.Equal(%s, %s)", qualifier, lText, rText), seenImportFiles)
+			}
 			pass.Report(analysis.Diagnostic{
 				Pos:            bin.Pos(),
 				End:            bin.End(),
 				Message:        fmt.Sprintf("string(%s) == string(%s) is a []byte comparison written the long way; use bytes.Equal(%s, %s) for clearer intent", lText, rText, lText, rText),
-				SuggestedFixes: buildFix(pass, bin, fmt.Sprintf("bytes.Equal(%s, %s)", lText, rText), seenImportFiles),
+				SuggestedFixes: fixes,
 			})
 		} else {
+			var fixes []analysis.SuggestedFix
+			if !skipFix {
+				fixes = buildFix(pass, bin, fmt.Sprintf("!%s.Equal(%s, %s)", qualifier, lText, rText), seenImportFiles)
+			}
 			pass.Report(analysis.Diagnostic{
 				Pos:            bin.Pos(),
 				End:            bin.End(),
 				Message:        fmt.Sprintf("string(%s) != string(%s) is a []byte comparison written the long way; use !bytes.Equal(%s, %s) for clearer intent", lText, rText, lText, rText),
-				SuggestedFixes: buildFix(pass, bin, fmt.Sprintf("!bytes.Equal(%s, %s)", lText, rText), seenImportFiles),
+				SuggestedFixes: fixes,
 			})
 		}
 	})
 
 	return nil, nil
+}
+
+// bytesQualifier returns the local binding name for the "bytes" package in the
+// file containing pos, and whether the SuggestedFix should be skipped.
+// Returns ("bytes", false) when the package is not yet imported (the import
+// will be added by the fix). Returns (alias, false) when the package is already
+// imported under an alias. Returns ("", true) when a safe qualifier cannot be
+// determined: dot-import, blank-import, or the qualifier name is shadowed by a
+// local variable or parameter at pos.
+func bytesQualifier(pass *analysis.Pass, pos token.Pos) (qualifier string, skipFix bool) {
+	var file *ast.File
+	for _, f := range pass.Files {
+		if f.Pos() <= pos && pos <= f.End() {
+			file = f
+			break
+		}
+	}
+
+	qualifier = bytesPkg
+	if file != nil {
+		if localName, imported := astutil.ImportedAs(file, pass.TypesInfo, bytesPkg); imported {
+			if localName == "." || localName == "_" {
+				return "", true
+			}
+			qualifier = localName
+		}
+		// Not imported yet: qualifier stays bytesPkg, import will be added.
+	}
+
+	if astutil.QualifierShadowed(pass.Pkg, pos, qualifier, bytesPkg) {
+		return "", true
+	}
+
+	return qualifier, false
 }
 
 // buildFix returns the SuggestedFix for rewriting bin to replacement, adding a

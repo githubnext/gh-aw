@@ -20,7 +20,7 @@ const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { fetchIssueState, mergeIssueState } = require("./safe_output_execution_metadata.cjs");
 const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 const { fetchAllRepoLabels } = require("./github_api_helpers.cjs");
-const { buildIssueIntentLabelUpdates, getIssueIntentLabelNames, hasIssueIntentsRuntimeFeature, normalizeIssueIntentLabelSpecs } = require("./issue_intents.cjs");
+const { buildIssueIntentLabelUpdates, getIssueIntentLabelNames, normalizeIssueIntentLabelSpecs } = require("./issue_intents.cjs");
 
 /**
  * Execute the issue update API call
@@ -39,7 +39,7 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
   const titlePrefix = updateData._titlePrefix || "";
   const labelsWereProvided = updateData.labels !== undefined;
   const labelSpecs = labelsWereProvided ? normalizeIssueIntentLabelSpecs(updateData.labels) : undefined;
-  const useIssueIntentLabels = Boolean(labelSpecs) && hasIssueIntentsRuntimeFeature();
+  const useIssueIntentLabels = Boolean(labelSpecs);
 
   // Remove internal fields
   const { _operation, _rawBody, _includeFooter, _titlePrefix, _workflowRepo, ...apiData } = updateData;
@@ -117,6 +117,18 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
     }
   }
 
+  // Resolve and validate label IDs before any writes to prevent partial updates:
+  // if a label name doesn't exist, buildIssueIntentLabelUpdates throws here so the
+  // REST update below is never attempted.
+  /** @type {any} */
+  let labelIntentUpdates = null;
+  if (useIssueIntentLabels && labelSpecs) {
+    const repoLabels = await fetchAllRepoLabels(github, context.repo.owner, context.repo.repo);
+    const labelIdByName = new Map(repoLabels.map(label => [label.name.toLowerCase(), label.id]));
+    labelIntentUpdates = buildIssueIntentLabelUpdates(labelSpecs, labelIdByName);
+    core.info(`Validated ${labelIntentUpdates.length} label(s) for issue #${issueNumber}`);
+  }
+
   /** @type {any} */
   let issue = currentIssue;
   if (Object.keys(apiData).length > 0) {
@@ -129,16 +141,14 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
     issue = response.data;
   }
 
-  if (useIssueIntentLabels && labelSpecs) {
+  if (useIssueIntentLabels && labelIntentUpdates) {
     const issueNodeId = issue?.node_id || currentIssue?.node_id;
     if (!issueNodeId) {
       throw new Error(`Failed to resolve GraphQL node ID for issue #${issueNumber}`);
     }
 
-    core.info(`Using GraphQL intent path for label update with GraphQL-Features header (issue_intents runtime feature enabled)`);
-    const repoLabels = await fetchAllRepoLabels(github, context.repo.owner, context.repo.repo);
-    const labelIdByName = new Map(repoLabels.map(label => [label.name.toLowerCase(), label.id]));
-    const labels = buildIssueIntentLabelUpdates(labelSpecs, labelIdByName);
+    core.info("Using GraphQL intent path for label update with GraphQL-Features header");
+    const labels = labelIntentUpdates;
     core.info(`Updating ${labels.length} label(s) on issue #${issueNumber} via GraphQL intent mutation`);
     const result = await github.graphql(
       `mutation($issueId: ID!, $labels: [LabelUpdateInput!]!) {

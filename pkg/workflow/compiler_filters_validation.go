@@ -125,13 +125,15 @@ func ValidatePushBranchScope(frontmatter map[string]any) error {
 
 	_, hasBranches := pushMap["branches"]
 	_, hasBranchesIgnore := pushMap["branches-ignore"]
+	_, hasTags := pushMap["tags"]
+	_, hasTagsIgnore := pushMap["tags-ignore"]
 
-	if !hasBranches && !hasBranchesIgnore {
-		filterValidationLog.Print("ERROR: push event has no branch scope")
+	if !hasBranches && !hasBranchesIgnore && !hasTags && !hasTagsIgnore {
+		filterValidationLog.Print("ERROR: push event has no branches or tags scope")
 		return newUnScopedPushError()
 	}
 
-	filterValidationLog.Print("Push event branch scope is valid")
+	filterValidationLog.Print("Push event branches or tags scope is valid")
 	return nil
 }
 
@@ -139,8 +141,8 @@ func newUnScopedPushError() *WorkflowValidationError {
 	return NewValidationError(
 		"on.push",
 		"push (no branch filter)",
-		"push event must specify a 'branches' or 'branches-ignore' filter; an unscoped push trigger fires on every push to every branch and causes unintended workflow fan-out on feature branches",
-		"Add a branch filter to the push trigger:\n\non:\n  push:\n    branches:\n      - main",
+		"push event must specify a 'branches', 'branches-ignore', 'tags', or 'tags-ignore' filter; an unscoped push trigger fires on every push to every branch and causes unintended workflow fan-out on feature branches",
+		"Add a branch or tag filter to the push trigger:\n\non:\n  push:\n    branches:\n      - main",
 	)
 }
 
