@@ -4,6 +4,7 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 
 const OCTOKIT_CLIENT_NAMES = new Set(["github", "octokit", "githubClient", "octokitClient"]);
 const GET_OCTOKIT_MEMBER_OBJECT_NAMES = new Set(["github", "actions"]);
+const HTTP_METHOD_PREFIXES = new Set(["GET ", "POST ", "PUT ", "PATCH ", "DELETE ", "HEAD ", "OPTIONS "]);
 
 /**
  * Returns true when the node is a template literal that contains at least one
@@ -40,7 +41,13 @@ function isStringConcatenation(node: TSESTree.Node): boolean {
 }
 
 function isHttpMethodPrefix(text: string | null | undefined): boolean {
-  return typeof text === "string" && /^[A-Z]+ $/.test(text);
+  return typeof text === "string" && HTTP_METHOD_PREFIXES.has(text);
+}
+
+function getInterpolatedRouteKind(node: TSESTree.Node): string | null {
+  if (isInterpolatedTemplateLiteral(node)) return "template literal with interpolations";
+  if (isStringConcatenation(node)) return "string concatenation expression";
+  return null;
 }
 
 /**
@@ -204,32 +211,23 @@ export const noGithubRequestInterpolatedRouteRule = createRule({
         const firstArg = node.arguments[0];
         if (!firstArg) return;
 
+        const routeKind = getInterpolatedRouteKind(firstArg);
+        if (!routeKind) return;
+
         if (isOpaqueWholeRouteInterpolation(firstArg)) {
-          const kind = firstArg.type === "TemplateLiteral" ? "template literal with interpolations" : "string concatenation expression";
           context.report({
             node: firstArg,
             messageId: "opaqueWholeRoute",
-            data: { kind, client: clientName },
+            data: { kind: routeKind, client: clientName },
           });
           return;
         }
 
-        if (isInterpolatedTemplateLiteral(firstArg)) {
-          context.report({
-            node: firstArg,
-            messageId: "interpolatedRoute",
-            data: { kind: "template literal with interpolations", client: clientName },
-          });
-          return;
-        }
-
-        if (isStringConcatenation(firstArg)) {
-          context.report({
-            node: firstArg,
-            messageId: "interpolatedRoute",
-            data: { kind: "string concatenation expression", client: clientName },
-          });
-        }
+        context.report({
+          node: firstArg,
+          messageId: "interpolatedRoute",
+          data: { kind: routeKind, client: clientName },
+        });
       },
     };
   },
