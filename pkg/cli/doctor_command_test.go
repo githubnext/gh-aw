@@ -127,7 +127,6 @@ func TestDoctorCommandRejectsRepoOnlyFlagsWithoutRepo(t *testing.T) {
 		{name: "dir only", args: []string{"doctor", "--dir", "."}},
 		{name: "require-owner-type only", args: []string{"doctor", "--require-owner-type", "org"}},
 		{name: "dir and require-owner-type", args: []string{"doctor", "--dir", ".", "--require-owner-type", "org"}},
-		{name: "all repo-only flags", args: []string{"doctor", "--dir", ".", "--require-owner-type", "org", "--verbose"}},
 	}
 
 	for _, tc := range tests {
@@ -184,4 +183,5 @@ func TestDoctorCommandAllowsVerboseWithoutRepo(t *testing.T) {
 
 	require.NoError(t, root.Execute())
 	assert.True(t, authCalled)
+	assert.True(t, verbose)
 }
