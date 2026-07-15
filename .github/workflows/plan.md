@@ -59,6 +59,11 @@ experiments:
     start_date: "2026-07-02"
     issue: 42941
 
+evals:
+  - id: subissues-planned
+    question: Did the workflow analyze the triggering issue or discussion and break the work into actionable sub-issues?
+  - id: issue-actions-completed
+    question: Were the planned sub-issues created successfully, with discussion closure handled correctly when required?
 
 ---
 

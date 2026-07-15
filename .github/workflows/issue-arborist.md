@@ -96,6 +96,11 @@ experiments:
     issue: 30015
 
 
+evals:
+  - id: links-created-or-noop
+    question: Did the workflow link related issues as sub-issues, or correctly call noop when no good parent-child relationships were found?
+  - id: summary-discussion-created
+    question: Was a summary discussion created describing the issues reviewed and any links that were made?
 ---
 
 {{#if experiments.prompt_style == 'detailed'}}

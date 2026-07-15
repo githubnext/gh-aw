@@ -68,6 +68,11 @@ imports:
   - shared/mcp/mempalace.md
 features:
   gh-aw-detection: true
+evals:
+  - id: verse-written
+    question: Did the workflow produce a short poetic fact grounded in recent repository activity without repeating recently used topics?
+  - id: comment-posted
+    question: Was the verse posted successfully to discussion #4750?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
