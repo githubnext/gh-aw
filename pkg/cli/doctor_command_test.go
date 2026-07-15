@@ -120,27 +120,42 @@ func TestDoctorCommandRunsRepositoryCheckWhenRepoProvided(t *testing.T) {
 }
 
 func TestDoctorCommandRejectsRepoOnlyFlagsWithoutRepo(t *testing.T) {
-	origAuth := runDoctorSetupAuth
-	origRepo := runDoctorSetupRepositoryCheck
-	t.Cleanup(func() {
-		runDoctorSetupAuth = origAuth
-		runDoctorSetupRepositoryCheck = origRepo
-	})
-
-	runDoctorSetupAuth = func(opts SetupAuthOptions) error {
-		return errors.New("should not run auth path with invalid flag combination")
-	}
-	runDoctorSetupRepositoryCheck = func(opts SetupRepositoryCheckOptions) error {
-		return errors.New("should not run repo path without --repo")
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "dir only", args: []string{"doctor", "--dir", "."}},
+		{name: "require-owner-type only", args: []string{"doctor", "--require-owner-type", "org"}},
+		{name: "dir and require-owner-type", args: []string{"doctor", "--dir", ".", "--require-owner-type", "org"}},
+		{name: "verbose only", args: []string{"doctor", "--verbose"}},
+		{name: "all repo-only flags", args: []string{"doctor", "--dir", ".", "--require-owner-type", "org", "--verbose"}},
 	}
 
-	root := &cobra.Command{Use: "aw"}
-	var verbose bool
-	root.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output showing detailed information")
-	root.AddCommand(NewDoctorCommand())
-	root.SetArgs([]string{"doctor", "--dir", ".", "--require-owner-type", "org", "--verbose"})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			origAuth := runDoctorSetupAuth
+			origRepo := runDoctorSetupRepositoryCheck
+			t.Cleanup(func() {
+				runDoctorSetupAuth = origAuth
+				runDoctorSetupRepositoryCheck = origRepo
+			})
 
-	err := root.Execute()
-	require.Error(t, err)
-	assert.Equal(t, "--dir, --require-owner-type, and --verbose require --repo", err.Error())
+			runDoctorSetupAuth = func(opts SetupAuthOptions) error {
+				return errors.New("should not run auth path with invalid flag combination")
+			}
+			runDoctorSetupRepositoryCheck = func(opts SetupRepositoryCheckOptions) error {
+				return errors.New("should not run repo path without --repo")
+			}
+
+			root := &cobra.Command{Use: "aw"}
+			var verbose bool
+			root.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output showing detailed information")
+			root.AddCommand(NewDoctorCommand())
+			root.SetArgs(tc.args)
+
+			err := root.Execute()
+			require.Error(t, err)
+			assert.Equal(t, "--dir, --require-owner-type, and --verbose require --repo", err.Error())
+		})
+	}
 }
