@@ -9,6 +9,7 @@ test.describe('Quick Start video summary', () => {
     });
 
     await expect(quickStartSummary).toBeVisible();
+    await expect(quickStartSummary).not.toHaveJSProperty('open', true);
     await expect(quickStartSummary).toContainText('gh extension install github/gh-aw');
     await expect(quickStartSummary).toContainText(
       'gh aw add-wizard githubnext/agentics/daily-repo-status'
