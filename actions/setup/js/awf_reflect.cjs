@@ -47,6 +47,22 @@ const GEMINI_MODEL_NAME_PREFIX = "models/";
 const REFLECT_PROVIDER_GITHUB = "github";
 const REFLECT_PROVIDER_OPENAI = "openai";
 const REFLECT_PROVIDER_ANTHROPIC = "anthropic";
+
+/**
+ * @typedef {{
+ *   configured?: boolean,
+ *   models_url?: string | null,
+ *   port?: number | null,
+ *   provider?: string,
+ * }} ReflectEndpoint
+ */
+
+/**
+ * @typedef {{
+ *   endpoints?: ReflectEndpoint[],
+ * }} ReflectData
+ */
+
 const REFLECT_PROVIDER_ALIASES = {
   // Only GitHub has multiple externally-visible aliases in reflect payloads.
   github: new Set(["github", "copilot", "github-copilot", "github_models"]),
@@ -533,7 +549,7 @@ function endpointBaseUrl(endpoint) {
  *
  * @param {{
  *   provider?: string,
- *   reflectData: object | null | undefined,
+ *   reflectData: ReflectData | null | undefined,
  *   logger?: (msg: string) => void,
  * }} options
  * @returns {{ provider: string, endpointProvider: string, port: number|null, baseUrl: string } | null}
@@ -569,7 +585,7 @@ function resolveProviderEndpointFromReflect(options) {
     return normalized === provider;
   };
 
-  const matched = endpoints.find(ep => endpointProviderMatches(ep?.provider)) || endpoints[0];
+  const matched = endpoints.find(ep => typeof ep?.provider === "string" && endpointProviderMatches(ep.provider)) || endpoints[0];
   const baseUrl = endpointBaseUrl(matched);
   if (!baseUrl) {
     logger(`awf-reflect: matched provider=${provider} but could not derive baseUrl`);
@@ -598,7 +614,7 @@ function resolveProviderEndpointFromReflect(options) {
  *
  * @param {{
  *   model?: string,
- *   reflectData: object | null | undefined,
+ *   reflectData: ReflectData | null | undefined,
  *   modelsJson?: object | null,
  *   logger?: (msg: string) => void,
  * }} [options]
