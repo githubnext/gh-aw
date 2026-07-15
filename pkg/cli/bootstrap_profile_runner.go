@@ -541,7 +541,7 @@ func createBootstrapGitHubApp(ctx context.Context, repo, owner, repoName, ownerT
 	registrationURL := buildBootstrapGitHubAppRegistrationURL(appOwner, appOwnerType, state)
 	registrationPage, err := renderBootstrapGitHubAppRegistrationPage(registrationURL, manifest)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode GitHub App registration manifest for browser handoff; rerun with --verbose and report this issue if it persists: %w", err)
+		return nil, fmt.Errorf("failed to encode GitHub App registration manifest for browser handoff; report this issue if it persists: %w", err)
 	}
 
 	mux := http.NewServeMux()
