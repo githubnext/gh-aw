@@ -6,6 +6,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"strconv"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -443,6 +444,18 @@ func TestBuildActionlintCompilerError(t *testing.T) {
 	assert.Contains(t, compilerErr.Message, getActionlintDocsURL("warning-test"))
 }
 
+func TestBuildActionlintDockerCommand(t *testing.T) {
+	command := buildActionlintDockerCommand("/tmp/repo root", []string{"a.lock.yml"}, actionlintRunOptions{
+		IncludeShellcheck: false,
+		IgnorePatterns:    []string{"foo bar"},
+	})
+
+	assert.Contains(t, command, `"/tmp/repo root:/workdir"`)
+	assert.Contains(t, command, `-shellcheck=`)
+	assert.Contains(t, command, `-ignore "foo bar"`)
+	assert.Contains(t, command, `-format "{{json .}}"`)
+}
+
 func TestActionlintShouldParseOutput(t *testing.T) {
 	tests := []struct {
 		name string
@@ -456,12 +469,12 @@ func TestActionlintShouldParseOutput(t *testing.T) {
 		},
 		{
 			name: "lint findings exit code",
-			err:  exitErrorFromCommand(t, "exit 1"),
+			err:  exitErrorFromCommand(t, 1),
 			want: true,
 		},
 		{
 			name: "tooling failure exit code",
-			err:  exitErrorFromCommand(t, "exit 2"),
+			err:  exitErrorFromCommand(t, 2),
 			want: false,
 		},
 		{
@@ -478,11 +491,14 @@ func TestActionlintShouldParseOutput(t *testing.T) {
 	}
 }
 
-func exitErrorFromCommand(t *testing.T, command string) error {
+func exitErrorFromCommand(t *testing.T, exitCode int) error {
 	t.Helper()
 
 	cmd := exec.Command(os.Args[0], "-test.run=TestActionlintExitHelperProcess")
-	cmd.Env = append(os.Environ(), "GH_AW_ACTIONLINT_EXIT_HELPER_PROCESS=1", "GH_AW_ACTIONLINT_EXIT_CODE="+command)
+	cmd.Env = append(os.Environ(),
+		"GH_AW_ACTIONLINT_EXIT_HELPER_PROCESS=1",
+		"GH_AW_ACTIONLINT_EXIT_CODE="+strconv.Itoa(exitCode),
+	)
 	err := cmd.Run()
 	require.Error(t, err)
 	return err
@@ -494,9 +510,9 @@ func TestActionlintExitHelperProcess(t *testing.T) {
 	}
 
 	switch os.Getenv("GH_AW_ACTIONLINT_EXIT_CODE") {
-	case "exit 1":
+	case "1":
 		os.Exit(1)
-	case "exit 2":
+	case "2":
 		os.Exit(2)
 	default:
 		os.Exit(0)

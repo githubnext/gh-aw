@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -277,11 +278,10 @@ func runActionlintOnFilesWithOptions(ctx context.Context, lockFiles []string, ve
 		}
 	}
 
-	err = handleActionlintExecutionError(runResult.err, strict, lockFiles, totalErrors, parseErr)
 	if shouldParseOutput && actionlintStats != nil {
 		actionlintStats.TotalWorkflows += len(lockFiles)
 	}
-	return err
+	return handleActionlintExecutionError(runResult.err, strict, lockFiles, totalErrors, parseErr)
 }
 
 func maybePrintActionlintVersion(ctx context.Context) {
@@ -364,16 +364,16 @@ func buildActionlintDockerCommand(gitRoot string, relPaths []string, options act
 	args := buildActionlintDockerArgs(gitRoot, relPaths, options)
 	formattedArgs := append([]string(nil), args...)
 	for i, arg := range formattedArgs {
-		switch arg {
-		case "{{json .}}":
-			formattedArgs[i] = "'{{json .}}'"
-		default:
-			if i > 0 && formattedArgs[i-1] == "-v" {
-				formattedArgs[i] = fmt.Sprintf("%q", arg)
-			}
-		}
+		formattedArgs[i] = actionlintShellQuoteArg(arg)
 	}
 	return "docker " + strings.Join(formattedArgs, " ")
+}
+
+func actionlintShellQuoteArg(arg string) string {
+	if arg == "" || strings.ContainsAny(arg, " \t\n'\"`$&;|*?[](){}<>!#") {
+		return strconv.Quote(arg)
+	}
+	return arg
 }
 
 func printActionlintRunMessage(lockFiles, relPaths []string, verboseHint string, options actionlintRunOptions) {
@@ -443,7 +443,7 @@ func handleActionlintExecutionError(err error, strict bool, lockFiles []string, 
 func handleActionlintFindings(strict bool, lockFiles []string, totalErrors int, parseErr error) error {
 	if !strict {
 		if parseErr != nil {
-			actionlintLog.Printf("Actionlint findings could not be parsed in non-strict mode: %v", parseErr)
+			actionlintLog.Printf("actionlint findings could not be parsed in non-strict mode: %v", parseErr)
 		}
 		return nil
 	}
