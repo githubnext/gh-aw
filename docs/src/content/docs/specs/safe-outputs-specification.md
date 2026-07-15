@@ -100,79 +100,33 @@ The Safe Outputs MCP Gateway introduces a structured alternative: **declarative 
 
 ### 1.2 Scope and Boundaries
 
-**Within Specification Scope**:
+This document normatively defines the security architecture, configuration semantics, protocol exchange patterns, content security requirements, operational guarantees, and MCP integration needed to implement the Safe Outputs MCP Gateway.
 
-This document normatively defines:
-
-1. **Security model architecture** establishing privilege separation between untrusted reasoning and trusted execution
-2. **Configuration schema semantics** for declaring available operations, constraints, and validation rules
-3. **Protocol exchange patterns** governing operation declaration, validation, and fulfillment
-4. **Content security requirements** specifying sanitization, filtering, and validation transformations
-5. **Operational guarantees** characterizing atomicity, ordering, idempotency, and error handling for each safe output type
-6. **MCP integration** defining tool interface schemas and stdio container transport requirements
-
-**Explicitly Out of Scope**:
-
-This specification does NOT define:
-
-- Core Model Context Protocol semantics (see external MCP specification)
-- GitHub REST/GraphQL API implementation details (see GitHub API documentation)
-- AI model selection, prompt engineering, or agent implementation strategies
-- User interface design for workflow authoring or monitoring
-- Container orchestration, deployment topology, or infrastructure provisioning
-- Performance benchmarks or resource consumption limits
+It does not define core MCP semantics, GitHub API details, AI model or prompt design, workflow authoring interfaces, deployment topology, or performance benchmarks.
 
 ### 1.3 Design Principles
 
-Four foundational principles govern this specification:
+Four principles govern this specification:
 
-**Principle P1: Security Through Architectural Separation**
-
-Write permissions MUST reside in separate execution contexts from AI reasoning. Communication occurs through structured data artifacts, not shared credentials or memory.
-
-*Rationale*: Privilege separation limits blast radius of successful prompt injection attacks. Compromising the agent yields read-only access; compromising execution context requires additional exploitation steps.
-
-**Principle P2: Declarative Over Imperative**
-
-Operations are declared through schema-validated data structures, not imperative command execution. This enables static analysis, transformation, and validation before commitment.
-
-*Rationale*: Declarative models permit inspection, logging, and modification of operations before GitHub API invocation. Imperative models lack such intervention points.
-
-**Principle P3: Configurable Constraint Enforcement**
-
-Workflow authors explicitly configure permitted operations and constraints. Implicit behaviors are minimized; defaults favor security over convenience.
-
-*Rationale*: Explicit configuration ensures conscious security decisions. Implicit permissiveness creates hidden vulnerabilities.
-
-**Principle P4: Fail-Secure By Default**
-
-Invalid inputs, constraint violations, or execution errors result in operation rejection, not degraded execution. Error messages provide diagnostic information for remediation.
-
-*Rationale*: Proceeding with degraded security is worse than failing. Clear error messages enable authors to correct issues rather than silently accepting risks.
+- **P1 — Security through architectural separation**: Write permissions MUST remain separate from AI reasoning, and communication MUST use structured artifacts rather than shared credentials or memory.
+- **P2 — Declarative over imperative**: Operations are declared through schema-validated data so they can be inspected, transformed, and validated before execution.
+- **P3 — Configurable constraint enforcement**: Workflow authors explicitly configure permitted operations and limits; defaults favor security over convenience.
+- **P4 — Fail-secure by default**: Invalid inputs, constraint violations, and execution errors result in rejection rather than degraded execution, with diagnostics for remediation.
 
 ### 1.4 Terminology and Definitions
 
 This specification uses the following terms with precise meanings:
 
-**Agent**: An AI-powered workflow job executing with read-only GitHub permissions. Agents analyze inputs, reason about appropriate actions, and declare operations through MCP tool invocations.
-
-**Safe Output Type**: A category of GitHub operation (e.g., issue creation, comment posting, label application) with defined semantics, constraints, and operational guarantees. Each type corresponds to one or more MCP tools.
-
-**MCP Gateway**: A containerized stdio MCP server implementing the Model Context Protocol, accepting tool invocations from agents, validating against JSON schemas, and recording operations to structured files.
-
-**Safe Output Job**: A permission-controlled GitHub Actions job that downloads agent-declared operations, validates content, enforces limits, and executes GitHub API calls.
-
-**NDJSON (Newline-Delimited JSON)**: A text format where each line contains one complete, valid JSON object. Enables incremental writing and parsing without loading entire dataset into memory.
-
-**Staged Mode**: A preview execution mode where operations are simulated and summarized without permanent effects. Indicated by 🎭 emoji prefix in messages.
-
-**Max Limit**: A configuration parameter constraining the count of operations per safe output type. Prevents resource exhaustion and limits damage from compromised agents.
-
-**Content Sanitization**: Security transformation applied to all user-provided text fields (titles, bodies, comments) to remove exploit vectors (malicious URLs, command injection, credential patterns) while preserving legitimate content.
-
-**Footer**: An AI attribution message appended to created content, identifying the workflow source, providing provenance via run URL, and optionally including installation instructions.
-
-**Temporary ID**: A workflow-scoped identifier (format: `aw_<alphanumeric>`) allowing agents to reference not-yet-created issues in subsequent operations. Resolved to actual issue numbers during execution.
+- **Agent**: An AI-powered workflow job executing with read-only GitHub permissions.
+- **Safe Output Type**: A category of GitHub operation with defined semantics, constraints, and guarantees.
+- **MCP Gateway**: A containerized stdio MCP server that accepts tool invocations, validates schemas, and records operations.
+- **Safe Output Job**: A permission-controlled GitHub Actions job that validates and executes declared operations.
+- **NDJSON**: A text format where each line is one complete JSON object.
+- **Staged Mode**: A preview mode where operations are simulated instead of applied.
+- **Max Limit**: A configuration parameter constraining how many operations of a type may execute.
+- **Content Sanitization**: Security transformation applied to user-provided text fields.
+- **Footer**: An attribution message appended to created content with provenance details.
+- **Temporary ID**: A workflow-scoped placeholder such as `aw_<alphanumeric>` that is resolved during execution.
 
 ---
 
@@ -220,43 +174,7 @@ This document employs RFC 2119 requirement level keywords with precise interpret
 
 ### 2.3 Conformance Verification
 
-Conformance MAY be demonstrated through:
-
-**Method M1: Functional Testing**
-
-Systematic verification that all required operations produce specified outcomes under normal and edge-case conditions. Test coverage SHOULD include:
-
-- Each safe output type with valid inputs
-- Constraint enforcement (max limits, domain filtering)
-- Error handling (invalid inputs, exceeded limits)
-- Configuration variants (staged mode, cross-repository)
-
-**Method M2: Security Testing**
-
-Demonstration that security properties hold under adversarial conditions. Security test suite SHOULD include:
-
-- Prompt injection scenarios (malicious inputs attempting unauthorized operations)
-- Constraint evasion attempts (trying to exceed max limits)
-- Content injection (URLs to forbidden domains, command injection)
-- Cross-repository privilege escalation attempts
-
-**Method M3: Protocol Compliance**
-
-Validation that MCP exchange patterns conform to requirements. Protocol tests SHOULD verify:
-
-- HTTP request/response format correctness
-- JSON Schema validation enforcement
-- NDJSON format adherence
-- Error code and message format
-
-**Method M4: Configuration Validation**
-
-Verification that configuration parsing, validation, and enforcement match specifications. Configuration tests SHOULD check:
-
-- Valid configuration acceptance
-- Invalid configuration rejection with clear errors
-- Inheritance rules (type-specific overriding global)
-- Default value application
+Conformance MAY be demonstrated through functional testing, security testing, protocol compliance testing, and configuration validation. Together these SHOULD cover valid operation handling, constraint enforcement, invalid-input rejection, adversarial cases such as prompt injection and cross-repository escalation attempts, MCP and NDJSON compliance, inheritance behavior, and default-value application.
 
 *Note*: A normative conformance test suite is RECOMMENDED for future specification versions but not currently provided.
 
