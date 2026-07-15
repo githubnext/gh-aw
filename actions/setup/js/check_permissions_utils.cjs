@@ -251,11 +251,19 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     const logDetails = normalizedRoleName && normalizedRoleName !== normalizedPermission ? `${normalizedPermission} (role: ${normalizedRoleName})` : normalizedPermission;
     core.info(`Repository permission level: ${logDetails}`);
 
+    // Standard GitHub repository permission levels. Custom org repository roles (e.g.
+    // "Security Champions") have a role_name that is not one of these — for those, fall
+    // back to the base permission level so that the actor is not blocked simply because
+    // their custom role name is not literally listed in on.roles.
+    const STANDARD_ROLES = new Set(["admin", "maintain", "write", "triage", "read"]);
+    const isCustomRole = normalizedRoleName !== "" && !STANDARD_ROLES.has(normalizedRoleName);
+
     // Check if user has one of the required permission levels.
-    // Prefer role_name (API's precise repository role) when present; fall back to permission.
+    // For standard roles, use role_name (precise: maintain/triage are not collapsed to
+    // write/read). For custom org roles, also accept a match on the base permission.
     const hasPermission = requiredPermissions.some(requiredPerm => {
       const normalizedRequired = requiredPerm === "maintainer" ? "maintain" : requiredPerm;
-      return normalizedRequired === effectiveRole;
+      return normalizedRequired === effectiveRole || (isCustomRole && normalizedRequired === normalizedPermission);
     });
 
     if (hasPermission) {

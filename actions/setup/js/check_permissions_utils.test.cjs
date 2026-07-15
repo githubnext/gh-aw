@@ -325,6 +325,34 @@ describe("check_permissions_utils", () => {
       expect(mockCore.warning).toHaveBeenCalledWith("User permission 'maintain' does not meet requirements: write");
     });
 
+    it("should authorize custom org role via base permission when base permission matches", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write", role_name: "Security Champions" },
+      });
+
+      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["admin", "maintainer", "write"]);
+
+      expect(result).toEqual({
+        authorized: true,
+        permission: "Security Champions",
+      });
+      expect(mockCore.info).toHaveBeenCalledWith("✅ User has Security Champions access to repository");
+    });
+
+    it("should reject custom org role when base permission does not match required", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "read", role_name: "Security Champions" },
+      });
+
+      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["admin", "write"]);
+
+      expect(result).toEqual({
+        authorized: false,
+        permission: "Security Champions",
+      });
+      expect(mockCore.warning).toHaveBeenCalledWith("User permission 'Security Champions' does not meet requirements: admin, write");
+    });
+
     it("should check permissions in order and stop at first match", async () => {
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
         data: { permission: "write" },
