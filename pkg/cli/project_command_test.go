@@ -623,7 +623,7 @@ func TestGetStatusFieldUsesStringLoginAndIntNumberFields(t *testing.T) {
 			projectCommandRunGH = func(spinnerMessage string, args ...string) ([]byte, error) {
 				call := append([]string(nil), args...)
 				calls = append(calls, call)
-				switch call[len(call)-1] {
+				switch jqPathArg(t, call) {
 				case tt.wantProjectJ:
 					return []byte(tt.wantProject), nil
 				case tt.wantFieldsJ:
@@ -652,4 +652,12 @@ func TestGetStatusFieldUsesStringLoginAndIntNumberFields(t *testing.T) {
 			}
 		})
 	}
+}
+
+func jqPathArg(t *testing.T, args []string) string {
+	t.Helper()
+	jqIndex := slices.Index(args, "--jq")
+	require.Positive(t, jqIndex)
+	require.Less(t, jqIndex, len(args)-1)
+	return args[jqIndex+1]
 }
