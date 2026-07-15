@@ -418,6 +418,27 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 		assert.Equal(t, "evals.builds", a.Metric, "metric preserved")
 		assert.Empty(t, a.MetricQuestion, "MetricQuestion empty when evals is nil")
 	})
+
+	t.Run("degenerate experiment still includes metric metadata", func(t *testing.T) {
+		exp := ExperimentVariantStats{
+			Name:     "first_run",
+			Variants: map[string]int{"A": 1},
+			Total:    1,
+		}
+		cfg := &workflow.ExperimentConfig{
+			Variants: []string{"A", "B"},
+			Metric:   "evals.builds",
+		}
+		evals := &workflow.EvalsConfig{
+			Questions: []workflow.EvalDefinition{
+				{ID: "builds", Question: "Does the generated code compile?"},
+			},
+		}
+		a := computeExperimentAnalysis(exp, cfg, evals)
+		assert.Equal(t, "evals.builds", a.Metric, "metric preserved for single-variant state")
+		assert.Equal(t, "Does the generated code compile?", a.MetricQuestion, "metric question resolved before degenerate return")
+		assert.Equal(t, "EXTEND", a.Recommendation, "single-variant state still extends")
+	})
 }
 
 // TestComputeExperimentAnalyses tests the bulk analysis function.

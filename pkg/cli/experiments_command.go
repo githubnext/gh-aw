@@ -412,13 +412,14 @@ func loadRemoteExperimentConfigs(repoOverride, experimentName string) experiment
 			continue
 		}
 
+		evals, err := workflow.ParseEvalsFromFrontmatter(result.Frontmatter)
+		if err != nil {
+			experimentsLog.Printf("Failed to parse evals config from %s: %v", apiPath, err)
+			// Non-fatal: continue without evals resolution.
+		}
+
 		if len(cfg.ExperimentConfigs) > 0 {
 			experimentsLog.Printf("Loaded remote configs from %s", apiPath)
-			evals, err := workflow.ParseEvalsFromFrontmatter(result.Frontmatter)
-			if err != nil {
-				experimentsLog.Printf("Failed to parse evals config from %s: %v", apiPath, err)
-				// Non-fatal: continue without evals resolution.
-			}
 			return experimentFrontmatterResult{
 				ExperimentConfigs: cfg.ExperimentConfigs,
 				Evals:             evals,
