@@ -303,8 +303,10 @@ func applyEvalsArtifact(artifacts []string, evalsOnly bool) []string {
 	return artifacts
 }
 
-// isEvalsArtifactRequested reports whether evals results were explicitly requested,
-// either via --evals or by including --artifacts evals.
+// isEvalsArtifactRequested reports whether evals were explicitly requested,
+// either via --evals or by including --artifacts evals. Callers use this to
+// decide whether to bypass stale cache entries and trigger legacy dedicated-evals
+// fallback downloads when evals.jsonl is missing from usage artifacts.
 func isEvalsArtifactRequested(evalsOnly bool, artifactSets []string) bool {
 	return evalsOnly || slices.Contains(artifactSets, string(ArtifactSetEvals))
 }
