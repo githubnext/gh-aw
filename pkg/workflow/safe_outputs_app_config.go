@@ -172,29 +172,37 @@ func isGitHubExpressionIdentifierChar(ch byte) bool {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'
 }
 
+func isGitHubExpressionIdentifierStart(inner string, i int) bool {
+	return isGitHubExpressionIdentifierChar(inner[i]) && (i == 0 || !isGitHubExpressionIdentifierChar(inner[i-1]))
+}
+
+func consumeSingleQuotedGitHubExpressionString(inner string, start int) int {
+	i := start + 1
+	for i < len(inner) {
+		if inner[i] != '\'' {
+			i++
+			continue
+		}
+		if i+1 < len(inner) && inner[i+1] == '\'' {
+			i += 2
+			continue
+		}
+		return i + 1
+	}
+	return i
+}
+
 // containsInvalidIfContextReference returns true when the inner expression body
 // contains a jobs or secrets context token anywhere outside single-quoted string
 // literals, including bracket notation such as secrets['TOKEN'].
 func containsInvalidIfContextReference(inner string) bool {
 	for i := 0; i < len(inner); {
 		if inner[i] == '\'' {
-			i++
-			for i < len(inner) {
-				if inner[i] != '\'' {
-					i++
-					continue
-				}
-				if i+1 < len(inner) && inner[i+1] == '\'' {
-					i += 2
-					continue
-				}
-				i++
-				break
-			}
+			i = consumeSingleQuotedGitHubExpressionString(inner, i)
 			continue
 		}
 
-		if !isGitHubExpressionIdentifierChar(inner[i]) || (i > 0 && isGitHubExpressionIdentifierChar(inner[i-1])) {
+		if !isGitHubExpressionIdentifierStart(inner, i) {
 			i++
 			continue
 		}
