@@ -106,9 +106,13 @@ describe("push_experiment_state", () => {
     const firstRecord = JSON.stringify({ id: "labels-applied", answer: "YES" });
     const secondRecord = JSON.stringify({ id: "report-created", answer: "NO" });
     const raw = [firstRecord, "not-json", secondRecord, ""].join("\n");
+    const expected = [
+      JSON.stringify({ id: "labels-applied", answer: "YES", runid: "123456789", artifactid: "987654321" }),
+      "not-json",
+      JSON.stringify({ id: "report-created", answer: "NO", runid: "123456789", artifactid: "987654321" }),
+      "",
+    ].join("\n");
 
-    expect(enrichEvalsJSONL(raw, "123456789", "987654321")).toBe(
-      [JSON.stringify({ id: "labels-applied", answer: "YES", runid: "123456789", artifactid: "987654321" }), "not-json", JSON.stringify({ id: "report-created", answer: "NO", runid: "123456789", artifactid: "987654321" }), ""].join("\n")
-    );
+    expect(enrichEvalsJSONL(raw, "123456789", "987654321")).toBe(expected);
   });
 });
