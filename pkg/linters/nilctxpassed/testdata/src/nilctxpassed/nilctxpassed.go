@@ -56,7 +56,15 @@ func GoodLocalCtx() {
 	takesCtx(ctx)
 }
 
-// not flagged: nolint suppresses the diagnostic
+// not flagged: nolint suppresses the diagnostic (same line)
 func NolintSuppressed() {
 	takesCtx(nil) //nolint:nilctxpassed
+}
+
+// not flagged: nolint on the nil arg line suppresses in a multiline call
+func NolintSuppressedMultiline() {
+	takesCtxAndOther(
+		nil, //nolint:nilctxpassed
+		42,
+	)
 }

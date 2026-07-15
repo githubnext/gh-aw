@@ -37,22 +37,14 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 
-	ctxType := astutil.ContextContextType(pass)
-	if ctxType == nil {
-		return nil, nil
-	}
-
 	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
 		call, ok := cur.Node().(*ast.CallExpr)
 		if !ok {
 			continue
 		}
 
-		pos := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			continue
-		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "nilctxpassed") {
+		callPos := pass.Fset.PositionFor(call.Pos(), false)
+		if filecheck.ShouldSkipFilename(callPos.Filename, generatedFiles) {
 			continue
 		}
 
@@ -64,7 +56,7 @@ func run(pass *analysis.Pass) (any, error) {
 		params := sig.Params()
 		for i, arg := range call.Args {
 			var paramType types.Type
-			if sig.Variadic() && i >= params.Len()-1 {
+			if sig.Variadic() && params.Len() > 0 && i >= params.Len()-1 {
 				// Variadic: the last param is a slice; check its element type.
 				sliceType, ok := params.At(params.Len() - 1).Type().(*types.Slice)
 				if !ok {
@@ -77,11 +69,16 @@ func run(pass *analysis.Pass) (any, error) {
 				continue
 			}
 
-			if !types.Identical(paramType, ctxType) {
+			if !isContextContext(paramType) {
 				continue
 			}
 
 			if !isBuiltinNil(pass, arg) {
+				continue
+			}
+
+			argPos := pass.Fset.PositionFor(arg.Pos(), false)
+			if nolint.HasDirectiveForLinter(argPos, noLintIndex, "nilctxpassed") {
 				continue
 			}
 
@@ -94,6 +91,20 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	return nil, nil
+}
+
+// isContextContext reports whether t is the context.Context interface type,
+// identified by inspecting the named type directly rather than relying on the
+// current package importing "context". This catches cases where the analyzed
+// package passes nil to a context.Context parameter from an external function
+// without importing the context package itself.
+func isContextContext(t types.Type) bool {
+	named, ok := t.(*types.Named)
+	if !ok {
+		return false
+	}
+	obj := named.Obj()
+	return obj.Pkg() != nil && obj.Pkg().Path() == "context" && obj.Name() == "Context"
 }
 
 // calleeSignature returns the *types.Signature of the callee if available.
