@@ -6,8 +6,9 @@ import (
 
 func NewSetupCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "setup",
-		Short: "Run reusable auth and repository setup checks",
+		Use:    "setup",
+		Short:  "Run reusable auth and repository setup checks",
+		Hidden: true,
 		Long: `Run reusable auth and repository setup checks.
 
 This command exposes the shared setup primitives that bootstrap and future setup

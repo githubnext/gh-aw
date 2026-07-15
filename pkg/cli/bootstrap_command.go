@@ -9,8 +9,9 @@ import (
 
 func NewBootstrapCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "bootstrap [source]...",
-		Short: "Bootstrap a repository for agentic workflows",
+		Use:    "bootstrap [source]...",
+		Short:  "Bootstrap a repository for agentic workflows",
+		Hidden: true,
 		Long: `Bootstrap a repository for agentic workflows by combining repository setup,
 checkout attachment or cloning, initialization, and optional workflow or package installation.
 
