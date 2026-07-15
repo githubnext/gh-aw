@@ -35,8 +35,8 @@ var searchOrgWorkflowReposFn = searchOrgWorkflowRepos
 const orgSlugConstraintDescription = "must be 1-39 characters, contain only alphanumeric characters or single hyphens, and cannot start or end with a hyphen"
 
 // orgSlugRe matches valid GitHub organization names: alphanumeric characters
-// and hyphen-delimited segments, not starting or ending with a hyphen, length
-// 1–39.
+// and single hyphens between segments, not starting or ending with a hyphen,
+// length 1–39.
 var orgSlugRe = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$`)
 
 // isValidOrgSlug reports whether s is a valid GitHub organization slug.
