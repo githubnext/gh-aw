@@ -209,7 +209,7 @@ func TestEffectiveMCPLogsToolTimeoutMinutesWithDeadline(t *testing.T) {
 			name:             "deadline just above buffer caps to floor of usable minutes",
 			requestedTimeout: 0,
 			count:            100,
-			// 2m45s − 30s buffer = 2m15s → int(2.25) = 2 < base 3m → cap to 2.
+			// 2m45s − 30s buffer = 2m15s = 2.25min → truncate(2.25) = 2 < base 3m → cap to 2.
 			// The extra 15s over 2m30s guards against ms of test execution overhead.
 			deadlineIn: 2*time.Minute + 45*time.Second,
 			want:       2,
@@ -218,7 +218,7 @@ func TestEffectiveMCPLogsToolTimeoutMinutesWithDeadline(t *testing.T) {
 			name:             "deadline yields exactly one usable minute",
 			requestedTimeout: 0,
 			count:            100,
-			// 95s − 30s buffer = 65s → int(1.08) = 1 < base 3m → cap to 1.
+			// 95s − 30s buffer = 65s = 1.083min → truncate(1.083) = 1 < base 3m → cap to 1.
 			// Using 95s instead of 90s guards against ms of test execution overhead.
 			deadlineIn: 95 * time.Second,
 			want:       1,
@@ -227,7 +227,7 @@ func TestEffectiveMCPLogsToolTimeoutMinutesWithDeadline(t *testing.T) {
 			name:             "deadline too short for buffer leaves base timeout unchanged",
 			requestedTimeout: 0,
 			count:            100,
-			// 60s − 30s buffer = 30s → deadlineMinutes=0 → no cap applied
+			// 60s − 30s buffer = 30s = 0.5min → truncate(0.5) = 0 → no cap applied
 			deadlineIn: 60 * time.Second,
 			want:       3,
 		},
@@ -235,7 +235,7 @@ func TestEffectiveMCPLogsToolTimeoutMinutesWithDeadline(t *testing.T) {
 			name:             "explicit timeout also capped by deadline",
 			requestedTimeout: 10,
 			count:            100,
-			// 3m45s − 30s = 3m15s → int(3.25) = 3 < explicit 10m → cap to 3.
+			// 3m45s − 30s = 3m15s = 3.25min → truncate(3.25) = 3 < explicit 10m → cap to 3.
 			// The extra 15s guards against ms of test execution overhead.
 			deadlineIn: 3*time.Minute + 45*time.Second,
 			want:       3,
