@@ -146,7 +146,10 @@ func buildGitHubExpressionNonEmptyCheck(value string) ConditionNode {
 
 // ifInvalidContextPrefixes lists the GitHub Actions expression context prefixes that
 // are not available in 'if:' conditions. GitHub Actions only allows the github, needs,
-// vars, env, inputs, steps, and runner contexts in if: expressions.
+// vars, env, inputs, steps, and runner contexts in if: expressions — the secrets,
+// jobs, and matrix contexts are evaluated later in the workflow lifecycle and are
+// therefore not accessible at the condition-evaluation stage.
+// See: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/evaluate-expressions-in-workflows-and-actions#contexts
 var ifInvalidContextPrefixes = []string{"secrets.", "jobs.", "matrix."}
 
 // isValidIfContextExpression returns true if the inner expression (the text inside
