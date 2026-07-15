@@ -291,13 +291,12 @@ func TestResolveBootstrapProfileFromSources_IgnoresNestedWorkflowWithoutManifest
 
 func TestParseRepositoryPackageManifest_RejectsUnsupportedBootstrapWhen(t *testing.T) {
 	_, _, err := parseRepositoryPackageManifest("aw.yml", []byte(`name: Control Plane
-bootstrap:
-  config:
-    - type: handoff
-      message: run readiness
-      when:
-        variable: MODE
-        equals: prod
+config:
+  - type: handoff
+    message: run readiness
+    when:
+      variable: MODE
+      equals: prod
 `))
 	if err == nil {
 		t.Fatal("expected unsupported bootstrap when error")
@@ -311,13 +310,12 @@ bootstrap:
 
 func TestParseRepositoryPackageManifest_GitHubAppFields(t *testing.T) {
 	manifest, _, err := parseRepositoryPackageManifest("aw.yml", []byte(`name: Control Plane
-bootstrap:
-  config:
-    - type: github-app
-      app-id-variable: APP_ID
-      private-key-secret: APP_PRIVATE_KEY
-      app-name: Control Plane Bootstrap
-      existing-only: true
+config:
+  - type: github-app
+    app-id-variable: APP_ID
+    private-key-secret: APP_PRIVATE_KEY
+    app-name: Control Plane Bootstrap
+    existing-only: true
 `))
 	if err != nil {
 		t.Fatalf("parseRepositoryPackageManifest returned error: %v", err)
@@ -336,12 +334,11 @@ bootstrap:
 
 func TestParseRepositoryPackageManifest_GitHubAppLegacyNameBackfillsAppName(t *testing.T) {
 	manifest, _, err := parseRepositoryPackageManifest("aw.yml", []byte(`name: Control Plane
-bootstrap:
-  config:
-    - type: github-app
-      name: Legacy Bootstrap App
-      app-id-variable: APP_ID
-      private-key-secret: APP_PRIVATE_KEY
+config:
+  - type: github-app
+    name: Legacy Bootstrap App
+    app-id-variable: APP_ID
+    private-key-secret: APP_PRIVATE_KEY
 `))
 	if err != nil {
 		t.Fatalf("parseRepositoryPackageManifest returned error: %v", err)
@@ -410,7 +407,7 @@ func TestResolveBootstrapProfileFromSources(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
-				return []byte("name: Control Plane\nbootstrap:\n  config:\n    - type: handoff\n      message: Run readiness\n"), nil
+				return []byte("name: Control Plane\nconfig:\n  - type: handoff\n    message: Run readiness\n"), nil
 			case "README.md":
 				return []byte("# Control Plane\n"), nil
 			default:
@@ -436,7 +433,7 @@ func TestResolveBootstrapProfileFromSources(t *testing.T) {
 	t.Run("returns local package bootstrap profile", func(t *testing.T) {
 		packageDir := t.TempDir()
 		manifestPath := filepath.Join(packageDir, "aw.yml")
-		manifest := []byte("name: Control Plane\nbootstrap:\n  config:\n    - type: handoff\n      message: Run readiness\n")
+		manifest := []byte("name: Control Plane\nconfig:\n  - type: handoff\n    message: Run readiness\n")
 		if err := os.WriteFile(manifestPath, manifest, 0o644); err != nil {
 			t.Fatalf("write manifest: %v", err)
 		}
@@ -463,9 +460,9 @@ func TestResolveBootstrapProfileFromSources(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
-				return []byte("name: Root\nbootstrap:\n  config:\n    - type: handoff\n      message: one\n"), nil
+				return []byte("name: Root\nconfig:\n  - type: handoff\n    message: one\n"), nil
 			case "readiness/aw.yml":
-				return []byte("name: Readiness\nbootstrap:\n  config:\n    - type: handoff\n      message: two\n"), nil
+				return []byte("name: Readiness\nconfig:\n  - type: handoff\n    message: two\n"), nil
 			case "README.md", "readiness/README.md":
 				return []byte("# Package\n"), nil
 			default:

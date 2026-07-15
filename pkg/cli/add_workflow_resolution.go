@@ -59,7 +59,7 @@ type ResolvedWorkflows struct {
 	// Warnings contains non-fatal package-resolution warnings to show during add
 	Warnings []string
 	// BootstrapProfile holds the bootstrap profile from an aw.yml package manifest,
-	// when exactly one source package declares a bootstrap.config section.
+	// when exactly one source package declares a config section.
 	// Used by add (non-interactive TODO list) and add-wizard (interactive setup).
 	BootstrapProfile *resolvedBootstrapProfile
 }

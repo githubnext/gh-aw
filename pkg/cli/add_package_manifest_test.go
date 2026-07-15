@@ -448,18 +448,17 @@ files:
 			switch path {
 			case "aw.yml":
 				return []byte(`name: Repo Assist
-bootstrap:
-  config:
-    - type: require-owner-type
-      owner: repo
-      value: org
-    - type: repo-variable
-      name: CENTRAL_AGENTIC_OPS_MODE
-      prompt: Rollout mode
-      default: preview
-      enum: [preview, review, live]
-    - type: handoff
-      message: Run gh aw run readiness.
+config:
+  - type: require-owner-type
+    owner: repo
+    value: org
+  - type: repo-variable
+    name: CENTRAL_AGENTIC_OPS_MODE
+    prompt: Rollout mode
+    default: preview
+    enum: [preview, review, live]
+  - type: handoff
+    message: Run gh aw run readiness.
 `), nil
 			case "README.md":
 				return []byte("# Repo Assist\n"), nil
@@ -486,7 +485,7 @@ bootstrap:
 		assert.Equal(t, "repo-variable", pkg.Bootstrap.Config[1].Type)
 		assert.Equal(t, []string{"preview", "review", "live"}, pkg.Bootstrap.Config[1].Enum)
 		assert.Equal(t, "handoff", pkg.Bootstrap.Config[2].Type)
-		assert.Contains(t, pkg.Warnings, "Using experimental feature: manifest.bootstrap")
+		assert.Contains(t, pkg.Warnings, "Using experimental feature: manifest.config")
 	})
 
 	t.Run("rejects unsupported branding icon", func(t *testing.T) {

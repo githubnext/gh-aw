@@ -9,7 +9,7 @@ import (
 )
 
 // printBootstrapConfigTODO prints a TODO checklist of manual steps required by the
-// bootstrap.config entries in the package manifest. Called by the non-interactive
+// config entries in the package manifest. Called by the non-interactive
 // "add" command after workflows have been installed.
 func printBootstrapConfigTODO(profile *resolvedBootstrapProfile) {
 	if profile == nil || profile.Profile == nil || len(profile.Profile.Config) == 0 {

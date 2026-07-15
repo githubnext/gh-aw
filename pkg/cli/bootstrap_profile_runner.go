@@ -305,7 +305,7 @@ func runBootstrapRequireOwnerType(ctx context.Context, repo string, action repos
 	}
 	normalized := normalizeSetupOwnerType(ownerType)
 	if action.Value != "" && action.Value != "any" && normalized != action.Value {
-		return fmt.Errorf("owner %s is %s, but bootstrap profile requires %s. Example: set bootstrap.config[].value to %s or use a repository owned by a matching account type", owner, normalized, action.Value, normalized)
+		return fmt.Errorf("owner %s is %s, but bootstrap profile requires %s. Example: set config[].value to %s or use a repository owned by a matching account type", owner, normalized, action.Value, normalized)
 	}
 	return nil
 }
