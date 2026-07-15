@@ -824,7 +824,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	prCmd := cli.NewPRCommand()
 	secretsCmd := cli.NewSecretsCommand()
 	fixCmd := cli.NewFixCommand()
-	upgradeCmd := cli.NewUpgradeCommand()
+	upgradeCmd := cli.NewUpgradeCommand(validateEngine)
 	completionCmd := cli.NewCompletionCommand()
 	hashCmd := cli.NewHashCommand()
 	projectCmd := cli.NewProjectCommand()

@@ -43,7 +43,7 @@ func runUpgradeForOrg(ctx context.Context, org string, repoGlobs []string, opts 
 		},
 		ReportFn: renderOrgUpgradeReport,
 		ApplyFn: func(ctx context.Context, preview orgRepoPreview, v bool) error {
-			return runUpgradeForTargetRepoFn(ctx, preview.Repo, opts, v)
+			return runUpgradeForTargetRepoFn(ctx, preview.Repo, opts, true, v)
 		},
 		IssueFn: func(ctx context.Context, preview orgRepoPreview, v bool) error {
 			return createIssueForUpgradeOrgRepoFn(ctx, preview.Repo, v)
@@ -209,10 +209,10 @@ func normalizeDisplayVersion(version string) string {
 
 // runUpgradeForTargetRepo checks out repo to a temporary directory, runs the
 // upgrade command inside it, and opens a pull request with the resulting changes.
-func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptions, verbose bool) error {
+func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptions, createPR bool, verbose bool) error {
 	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
-		return fmt.Errorf("--org requires running inside a git repository: %w", err)
+		return fmt.Errorf("--repo/--org requires running inside a git repository: %w", err)
 	}
 
 	updatesDir, err := ensureUpdateTargetRepoGitignore(gitRoot)
@@ -252,8 +252,10 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 		return fmt.Errorf("failed to change directory to checkout %s: %w", checkoutDir, err)
 	}
 
-	if err := PreflightCheckForCreatePR(verbose); err != nil {
-		return err
+	if createPR {
+		if err := PreflightCheckForCreatePR(verbose); err != nil {
+			return err
+		}
 	}
 
 	// Override fields that must be adjusted for a remote-repo upgrade.
@@ -266,6 +268,10 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 
 	if err := runUpgradeCommand(opts); err != nil {
 		return err
+	}
+
+	if !createPR {
+		return nil
 	}
 
 	// Skip PR creation when the upgrade produced no changes (e.g. repo is already up to date).

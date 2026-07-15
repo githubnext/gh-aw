@@ -31,7 +31,7 @@ type UpgradeConfig struct {
 }
 
 // NewUpgradeCommand creates the upgrade command
-func NewUpgradeCommand() *cobra.Command {
+func NewUpgradeCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "upgrade",
 		Short: "Upgrade local agent files and workflows (codemods, action updates, and compilation)",
@@ -97,6 +97,10 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			targetOrg, _ := cmd.Flags().GetString("org")
 			repoGlobs, _ := cmd.Flags().GetStringSlice("repos")
 
+			if err := validateEngine(engineOverride); err != nil {
+				return err
+			}
+
 			if targetRepo != "" && targetOrg != "" {
 				return errors.New("cannot specify both --repo and --org flags; use --repo for a single repository or --org for organization-wide upgrades")
 			}
@@ -134,12 +138,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			}
 
 			if targetRepo != "" {
-				if createPR {
-					if err := PreflightCheckForCreatePR(verbose); err != nil {
-						return err
-					}
-				}
-				return runUpgradeForTargetRepo(cmd.Context(), targetRepo, opts, verbose)
+				return runUpgradeForTargetRepoFn(cmd.Context(), targetRepo, opts, createPR, verbose)
 			}
 
 			if targetOrg != "" {
