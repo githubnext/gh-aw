@@ -264,21 +264,44 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     // blocked simply because their custom role name is not literally listed in on.roles.
     const isCustomRole = normalizedRoleName !== "" && !STANDARD_ROLES.has(normalizedRoleName);
     const inheritedStandardRole = isCustomRole && STANDARD_ROLES.has(normalizedInheritedRole) ? normalizedInheritedRole : "";
+    const debugRoleName = normalizedRoleName || "<empty>";
+    const debugInheritedRole = normalizedInheritedRole || "<empty>";
+    const debugInheritedStandardRole = inheritedStandardRole || "<empty>";
+    core.debug?.(
+      `Repository permission resolution for '${actor}': permission='${normalizedPermission}', role='${debugRoleName}', inherited='${debugInheritedRole}', effective='${effectiveRole}', custom_role=${isCustomRole}, inherited_standard_role='${debugInheritedStandardRole}'`
+    );
+    if (isCustomRole && inheritedStandardRole === "") {
+      core.debug?.(`Repository permission fallback unavailable for custom role '${normalizedRoleName}' because GitHub did not provide an inherited standard role`);
+    }
 
     // Check if user has one of the required permission levels.
     // For standard roles, use role_name (precise: maintain/triage are not collapsed to
     // write/read). For custom org roles, only fall back to the inherited standard role
     // from custom-role metadata; fail closed if GitHub does not provide it.
+    let matchedPermission = "";
+    let matchSource = "";
     const hasPermission = requiredPermissions.some(requiredPerm => {
       const normalizedRequired = requiredPerm === "maintainer" ? "maintain" : requiredPerm;
-      return normalizedRequired === effectiveRole || normalizedRequired === inheritedStandardRole;
+      if (normalizedRequired === effectiveRole) {
+        matchedPermission = normalizedRequired;
+        matchSource = "effective-role";
+        return true;
+      }
+      if (normalizedRequired === inheritedStandardRole) {
+        matchedPermission = normalizedRequired;
+        matchSource = "inherited-standard-role";
+        return true;
+      }
+      return false;
     });
 
     if (hasPermission) {
+      core.debug?.(`Repository permission matched required role '${matchedPermission}' via ${matchSource}`);
       core.info(`✅ User has ${effectiveRole} access to repository`);
       return { authorized: true, permission: effectiveRole };
     }
 
+    core.debug?.(`Repository permission did not match required roles: ${requiredPermissions.join(", ")}`);
     core.warning(`User permission '${effectiveRole}' does not meet requirements: ${requiredPermissions.join(", ")}`);
     return { authorized: false, permission: effectiveRole };
   } catch (repoError) {
