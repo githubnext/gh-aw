@@ -1965,6 +1965,7 @@ jobs:
           GH_AW_EVALS_QUESTIONS: '[{"id":"digest-generated","question":"Did the workflow analyze the prefetched repository activity and generate a coherent daily news digest?"},{"id":"discussion-created","question":"Was a daily-news discussion created or updated successfully with the report output?"}]'
           GH_AW_EVALS_MODEL: "copilot/gpt-5.4"
           GH_AW_EVALS_PHASE: parse
+          GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
