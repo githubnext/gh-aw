@@ -16,6 +16,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -38,11 +39,19 @@ type concurrentRunDownloadParams struct {
 	dlRepo         string
 	artifactFilter []string
 	evalsOnly      bool
+	// evalsArtifactRequested is true when the caller wants evals results, either
+	// because --evals was passed (evalsOnly) or because --artifacts evals was
+	// explicitly listed. This drives the fallback download of the dedicated evals
+	// artifact when evals.jsonl is absent from the usage artifact.
+	evalsArtifactRequested bool
 }
 
 // buildConcurrentDownloadParams constructs download parameters by parsing the optional
 // repoOverride ("owner/repo" or "HOST/owner/repo") once for the whole batch.
-func buildConcurrentDownloadParams(outputDir string, verbose bool, repoOverride string, artifactFilter []string, evalsOnly bool) concurrentRunDownloadParams {
+// artifactSets is the original (pre-resolution) set list; it is used to detect whether
+// the caller explicitly requested the evals artifact set so the fallback download can
+// be triggered even when --evals was not set.
+func buildConcurrentDownloadParams(outputDir string, verbose bool, repoOverride string, artifactFilter []string, evalsOnly bool, artifactSets []string) concurrentRunDownloadParams {
 	var dlHost, dlOwner, dlRepo string
 	if repoOverride != "" {
 		// Accepted formats: "owner/repo" or "HOST/owner/repo".
@@ -54,14 +63,16 @@ func buildConcurrentDownloadParams(outputDir string, verbose bool, repoOverride 
 			dlOwner, dlRepo = parts[0], parts[1]
 		}
 	}
+	evalsArtifactRequested := evalsOnly || slices.Contains(artifactSets, string(ArtifactSetEvals))
 	return concurrentRunDownloadParams{
-		outputDir:      outputDir,
-		verbose:        verbose,
-		dlHost:         dlHost,
-		dlOwner:        dlOwner,
-		dlRepo:         dlRepo,
-		artifactFilter: artifactFilter,
-		evalsOnly:      evalsOnly,
+		outputDir:              outputDir,
+		verbose:                verbose,
+		dlHost:                 dlHost,
+		dlOwner:                dlOwner,
+		dlRepo:                 dlRepo,
+		artifactFilter:         artifactFilter,
+		evalsOnly:              evalsOnly,
+		evalsArtifactRequested: evalsArtifactRequested,
 	}
 }
 
@@ -88,8 +99,10 @@ func logConcurrentDownloadSummary(results []DownloadResult) {
 		fmt.Sprintf("Completed parallel processing: %d successful, %d total", successCount, len(results))))
 }
 
-// downloadRunArtifactsConcurrent downloads artifacts for multiple workflow runs concurrently
-func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, outputDir string, verbose bool, maxRuns int, repoOverride string, artifactFilter []string, evalsOnly bool) []DownloadResult {
+// downloadRunArtifactsConcurrent downloads artifacts for multiple workflow runs concurrently.
+// artifactSets is the original (pre-resolution) set list passed by the caller; it is used
+// alongside evalsOnly to determine whether the evals artifact fallback should run.
+func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, outputDir string, verbose bool, maxRuns int, repoOverride string, artifactFilter []string, evalsOnly bool, artifactSets []string) []DownloadResult {
 	logsOrchestratorLog.Printf("Starting concurrent artifact download: runs=%d, outputDir=%s, maxRuns=%d", len(runs), outputDir, maxRuns)
 	if len(runs) == 0 {
 		return []DownloadResult{}
@@ -105,7 +118,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 	progressBar := initDownloadProgressBar(verbose, totalRuns)
 	var completedCount atomic.Int64
 	maxConcurrent := getMaxConcurrentDownloads()
-	params := buildConcurrentDownloadParams(outputDir, verbose, repoOverride, artifactFilter, evalsOnly)
+	params := buildConcurrentDownloadParams(outputDir, verbose, repoOverride, artifactFilter, evalsOnly, artifactSets)
 
 	// Configure concurrent download pool with bounded parallelism and context cancellation.
 	// The conc pool automatically handles panic recovery and prevents goroutine leaks.
@@ -198,8 +211,9 @@ func processSingleRunDownload(
 		} else {
 			// When evals are requested but not found in the usage artifact (older runs
 			// that predate the conclusion-job copy), fall back to the dedicated evals
-			// artifact so those runs are not silently skipped.
-			if params.evalsOnly && !runHasEvals(runOutputDir, params.verbose) {
+			// artifact so those runs are not silently skipped.  This applies both when
+			// --evals is set and when --artifacts evals was explicitly listed.
+			if params.evalsArtifactRequested && !runHasEvals(runOutputDir, params.verbose) {
 				tryDownloadEvalsArtifactFallback(ctx, run.DatabaseID, runOutputDir, params)
 			}
 			analyzeRunArtifacts(result, runOutputDir, params.verbose, params.artifactFilter)
