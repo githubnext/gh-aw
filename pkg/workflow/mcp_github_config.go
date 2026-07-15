@@ -626,10 +626,11 @@ func getGitHubDockerImageVersion(githubTool map[string]any) string {
 // list/search tools (search_code, list_pull_requests, search_issues, etc.).
 // Enabling fields_param reduces token usage by letting agents request only the fields they need.
 func getGitHubFeatures(githubTool map[string]any) string {
-	// Respect an explicit user-supplied features override
+	// Respect an explicit user-supplied features override.
+	// An explicit empty string disables all feature flags; any other string is forwarded as-is.
 	if featuresRaw, exists := githubTool["features"]; exists {
-		if features, ok := featuresRaw.(string); ok && features != "" {
-			githubConfigLog.Printf("GitHub MCP features (explicit): %s", features)
+		if features, ok := featuresRaw.(string); ok {
+			githubConfigLog.Printf("GitHub MCP features (explicit): %q", features)
 			return features
 		}
 	}

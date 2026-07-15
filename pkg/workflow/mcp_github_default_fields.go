@@ -10,17 +10,18 @@ const GitHubMCPFeatureFieldsParam = "fields_param"
 // GitHubMCPDefaultFields maps each fields-enabled GitHub MCP tool to its recommended
 // "slim" field set. These sets are sized to include only the fields that most
 // workflows actually need, omitting the heaviest fields (e.g. full body text,
-// reactions, nested label/repository objects) that dominate response size.
+// reactions, nested repository objects) that dominate response size.
 //
 // Agents should pass one of these field lists when they do not need the full
 // response from a list or search operation.
 //
 // Field guidance (per tool source in github/github-mcp-server v1.6.0):
 //   - list_pull_requests / search_pull_requests: omit "body" (largest field)
-//   - search_issues / list_issues:               omit "body", "reactions", "labels"
+//   - search_issues / list_issues:               omit "body", "reactions"
 //   - search_code:                               omit "repository", "text_matches"
 //   - list_commits:                              omit "parents", "stats", "files"
 //   - get_file_contents (directory listing):     limit to "name", "type"
+//   - list_releases:                             omit "body", "assets", "author"
 var GitHubMCPDefaultFields = map[string][]string{
 	"list_pull_requests": {
 		"number",
@@ -42,8 +43,6 @@ var GitHubMCPDefaultFields = map[string][]string{
 		"created_at",
 		"updated_at",
 		"user",
-		"base",
-		"head",
 		"labels",
 	},
 	"list_issues": {
@@ -54,7 +53,6 @@ var GitHubMCPDefaultFields = map[string][]string{
 		"updated_at",
 		"user",
 		"labels",
-		"assignees",
 	},
 	"search_issues": {
 		"number",
@@ -70,12 +68,24 @@ var GitHubMCPDefaultFields = map[string][]string{
 		"name",
 		"path",
 		"sha",
-		"html_url",
 	},
 	"list_commits": {
 		"sha",
 		"html_url",
 		"commit",
 		"author",
+	},
+	"get_file_contents": {
+		"name",
+		"type",
+	},
+	"list_releases": {
+		"id",
+		"tag_name",
+		"name",
+		"draft",
+		"prerelease",
+		"published_at",
+		"html_url",
 	},
 }
