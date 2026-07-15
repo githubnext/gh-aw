@@ -19,7 +19,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "strconvparseignorederror",
 	Doc:      "reports strconv parsing calls where the error return is discarded with _",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/strconvparseignorederror",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer},
 	Run:      run,
 }
 
@@ -37,7 +37,10 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "strconvparseignorederror")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.AssignStmt)(nil),
@@ -75,7 +78,7 @@ func run(pass *analysis.Pass) (any, error) {
 			if pkgName, ok := obj.(*types.PkgName); ok {
 				if pkgName.Imported().Path() == "strconv" {
 					position := pass.Fset.PositionFor(call.Pos(), false)
-					if nolint.HasDirective(position, noLintLinesByFile) {
+					if nolint.HasDirectiveForLinter(position, noLintIndex, "strconvparseignorederror") {
 						return
 					}
 					pass.ReportRangef(call, "error return from strconv.%s is discarded; parse failures produce zero values silently", sel.Sel.Name)

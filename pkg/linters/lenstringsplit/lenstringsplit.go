@@ -24,7 +24,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "lenstringsplit",
 	Doc:      "reports len(strings.Split(s, sep)) expressions with a provably non-empty separator that allocate a []string just to count substrings; use strings.Count(s, sep)+1 instead",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/lenstringsplit",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -33,7 +33,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "lenstringsplit")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
 
@@ -62,10 +69,10 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		pos := pass.Fset.PositionFor(outer.Pos(), false)
-		if filecheck.IsTestFile(pos.Filename) {
+		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			return
 		}
-		if nolint.HasDirective(pos, noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(pos, noLintIndex, "lenstringsplit") {
 			return
 		}
 

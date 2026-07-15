@@ -20,7 +20,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "seenmapbool",
 	Doc:      "reports map[string]bool used as a set (values always true) where map[string]struct{} should be used instead",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/seenmapbool",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -29,7 +29,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "seenmapbool")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
@@ -44,7 +51,7 @@ func run(pass *analysis.Pass) (any, error) {
 				return
 			}
 			pos := pass.Fset.PositionFor(fn.Pos(), false)
-			if filecheck.IsTestFile(pos.Filename) {
+			if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 				return
 			}
 			body = fn.Body
@@ -54,7 +61,7 @@ func run(pass *analysis.Pass) (any, error) {
 			}
 			body = fn.Body
 		}
-		inspectBody(pass, body, noLintLinesByFile)
+		inspectBody(pass, body, noLintIndex)
 	})
 
 	return nil, nil
@@ -62,7 +69,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 // inspectBody walks a function body and reports map[string]bool variables
 // that are only ever assigned the literal true (i.e., used as a set).
-func inspectBody(pass *analysis.Pass, body *ast.BlockStmt, noLintLinesByFile map[string]map[int]struct{}) {
+func inspectBody(pass *analysis.Pass, body *ast.BlockStmt, noLintIndex nolint.DirectiveIndex) {
 	// Collect map[string]bool local variables defined in this scope.
 	candidates := make(map[types.Object]ast.Node) // object -> declaration node for reporting
 
@@ -170,7 +177,7 @@ func inspectBody(pass *analysis.Pass, body *ast.BlockStmt, noLintLinesByFile map
 		if nonSetMaps[obj] {
 			continue
 		}
-		if nolint.HasDirective(pass.Fset.PositionFor(declNode.Pos(), false), noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(pass.Fset.PositionFor(declNode.Pos(), false), noLintIndex, "seenmapbool") {
 			continue
 		}
 		pass.ReportRangef(

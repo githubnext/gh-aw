@@ -21,7 +21,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "mapdeletecheck",
 	Doc:      "reports redundant map membership checks before delete(m, k) calls since delete is already a no-op for missing keys",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/mapdeletecheck",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -30,7 +30,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "mapdeletecheck")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{(*ast.IfStmt)(nil)}
 
@@ -41,10 +48,10 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		pos := pass.Fset.PositionFor(ifStmt.Pos(), false)
-		if filecheck.IsTestFile(pos.Filename) {
+		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			return
 		}
-		if nolint.HasDirective(pos, noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(pos, noLintIndex, "mapdeletecheck") {
 			return
 		}
 

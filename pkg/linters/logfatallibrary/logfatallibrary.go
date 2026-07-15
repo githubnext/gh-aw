@@ -28,7 +28,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "logfatallibrary",
 	Doc:      "reports log.Fatal, log.Fatalf, and log.Fatalln calls inside library packages where they implicitly call os.Exit and bypass deferred cleanup",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/logfatallibrary",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -43,7 +43,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "logfatallibrary")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -54,7 +61,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
-		if strings.HasSuffix(pkgPath, ".test") || filecheck.IsTestFile(pass.Fset.Position(call.Pos()).Filename) {
+		if strings.HasSuffix(pkgPath, ".test") || filecheck.ShouldSkipFilename(pass.Fset.Position(call.Pos()).Filename, generatedFiles) {
 			return
 		}
 		sel, ok := call.Fun.(*ast.SelectorExpr)
@@ -68,7 +75,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		position := pass.Fset.PositionFor(call.Pos(), false)
-		if nolint.HasDirective(position, noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(position, noLintIndex, "logfatallibrary") {
 			return
 		}
 		pass.ReportRangef(call, "log.%s called in library package %s; use error returns instead to avoid implicit os.Exit", sel.Sel.Name, pkgPath)

@@ -21,7 +21,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "errstringmatch",
 	Doc:      "reports strings.Contains/HasPrefix/HasSuffix/EqualFold/Index/LastIndex/Compare(err.Error(), \"...\") calls that perform brittle substring matching on error messages",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/errstringmatch",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -42,7 +42,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "errstringmatch")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -54,7 +61,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		position := pass.Fset.PositionFor(outer.Pos(), false)
-		if filecheck.IsTestFile(position.Filename) {
+		if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
 			return
 		}
 
@@ -76,7 +83,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if !isStringLiteral(pass, outer.Args[1]) {
 			return
 		}
-		if nolint.HasDirective(position, noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(position, noLintIndex, "errstringmatch") {
 			return
 		}
 

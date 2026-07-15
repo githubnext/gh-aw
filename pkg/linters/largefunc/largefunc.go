@@ -24,7 +24,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "largefunc",
 	Doc:      "reports functions whose body exceeds the line limit (default 60 lines)",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/largefunc",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -43,7 +43,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "largefunc")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
@@ -71,7 +78,7 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		position := pass.Fset.PositionFor(reportNode.Pos(), false)
-		if filecheck.IsTestFile(position.Filename) {
+		if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
 			return
 		}
 
@@ -81,7 +88,7 @@ func run(pass *analysis.Pass) (any, error) {
 		lines := end.Line - start.Line - 1
 
 		if lines > maxLines {
-			if nolint.HasDirective(position, noLintLinesByFile) {
+			if nolint.HasDirectiveForLinter(position, noLintIndex, "largefunc") {
 				return
 			}
 			pkgLog.Printf("flagging %s: %d lines exceeds limit %d", name, lines, maxLines)

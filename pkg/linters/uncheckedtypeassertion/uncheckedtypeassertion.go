@@ -19,7 +19,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "uncheckedtypeassertion",
 	Doc:      "reports single-value type assertions that may panic if the dynamic type does not match",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/uncheckedtypeassertion",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -28,7 +28,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "uncheckedtypeassertion")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	// Build a parent map for each file so we can detect the two-value form.
 	fileParents := make(map[*ast.File]map[ast.Node]ast.Node)
@@ -41,13 +48,13 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		inspectTypeAssertExpr(pass, noLintLinesByFile, fileParents, n)
+		inspectTypeAssertExpr(pass, noLintIndex, generatedFiles, fileParents, n)
 	})
 
 	return nil, nil
 }
 
-func inspectTypeAssertExpr(pass *analysis.Pass, noLintLinesByFile map[string]map[int]struct{}, fileParents map[*ast.File]map[ast.Node]ast.Node, n ast.Node) {
+func inspectTypeAssertExpr(pass *analysis.Pass, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex, fileParents map[*ast.File]map[ast.Node]ast.Node, n ast.Node) {
 	typeAssert, ok := n.(*ast.TypeAssertExpr)
 	if !ok {
 		return
@@ -59,7 +66,7 @@ func inspectTypeAssertExpr(pass *analysis.Pass, noLintLinesByFile map[string]map
 	}
 
 	pos := pass.Fset.PositionFor(typeAssert.Pos(), false)
-	if filecheck.IsTestFile(pos.Filename) {
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 		return
 	}
 
@@ -83,7 +90,7 @@ func inspectTypeAssertExpr(pass *analysis.Pass, noLintLinesByFile map[string]map
 	if t == nil {
 		return
 	}
-	if nolint.HasDirective(pos, noLintLinesByFile) {
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "uncheckedtypeassertion") {
 		return
 	}
 

@@ -24,7 +24,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "excessivefuncparams",
 	Doc:      "reports functions whose parameter count exceeds the limit (default 8 params)",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/excessivefuncparams",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -43,7 +43,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "excessivefuncparams")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
@@ -58,7 +65,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		position := pass.Fset.PositionFor(fn.Name.Pos(), false)
-		if filecheck.IsTestFile(position.Filename) {
+		if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
 			return
 		}
 
@@ -72,7 +79,7 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		if params > maxParams {
-			if nolint.HasDirective(position, noLintLinesByFile) {
+			if nolint.HasDirectiveForLinter(position, noLintIndex, "excessivefuncparams") {
 				return
 			}
 			pkgLog.Printf("flagging %s: %d parameters exceeds limit %d", fn.Name.Name, params, maxParams)

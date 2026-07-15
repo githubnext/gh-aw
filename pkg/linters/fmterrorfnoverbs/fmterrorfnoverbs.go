@@ -19,7 +19,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "fmterrorfnoverbs",
 	Doc:      "reports fmt.Errorf calls whose format string contains no verbs, preferring errors.New",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/fmterrorfnoverbs",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer},
 	Run:      run,
 }
 
@@ -28,7 +28,10 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "fmterrorfnoverbs")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -61,7 +64,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 		if !hasRealFormatVerb(val) {
 			position := pass.Fset.PositionFor(call.Pos(), false)
-			if nolint.HasDirective(position, noLintLinesByFile) {
+			if nolint.HasDirectiveForLinter(position, noLintIndex, "fmterrorfnoverbs") {
 				return
 			}
 			pass.ReportRangef(call, "fmt.Errorf called with no format verbs; use errors.New(%s) instead", lit.Value)

@@ -25,7 +25,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "httpstatuscode",
 	Doc:      "reports integer HTTP status code literals used in comparisons that should use http.Status* named constants",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/httpstatuscode",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -100,7 +100,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "httpstatuscode")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	for cur := range root.Preorder((*ast.BinaryExpr)(nil), (*ast.SwitchStmt)(nil)) {
 		switch node := cur.Node().(type) {
@@ -115,7 +122,7 @@ func run(pass *analysis.Pass) (any, error) {
 			if !isHTTPStatusContext(pass, other) {
 				continue
 			}
-			checkAndReport(pass, lit, noLintLinesByFile)
+			checkAndReport(pass, lit, noLintIndex, generatedFiles)
 		case *ast.SwitchStmt:
 			if node.Tag == nil || !isHTTPStatusContext(pass, node.Tag) {
 				continue
@@ -130,7 +137,7 @@ func run(pass *analysis.Pass) (any, error) {
 					if !ok || lit.Kind != token.INT {
 						continue
 					}
-					checkAndReport(pass, lit, noLintLinesByFile)
+					checkAndReport(pass, lit, noLintIndex, generatedFiles)
 				}
 			}
 		}
@@ -139,7 +146,7 @@ func run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-func checkAndReport(pass *analysis.Pass, lit *ast.BasicLit, noLintLinesByFile map[string]map[int]struct{}) {
+func checkAndReport(pass *analysis.Pass, lit *ast.BasicLit, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex) {
 	code64, err := strconv.ParseInt(lit.Value, 0, 64)
 	if err != nil || code64 < 100 || code64 > 599 {
 		return
@@ -147,10 +154,10 @@ func checkAndReport(pass *analysis.Pass, lit *ast.BasicLit, noLintLinesByFile ma
 	code := int(code64)
 
 	pos := pass.Fset.PositionFor(lit.Pos(), false)
-	if filecheck.IsTestFile(pos.Filename) {
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 		return
 	}
-	if nolint.HasDirective(pos, noLintLinesByFile) {
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "httpstatuscode") {
 		return
 	}
 

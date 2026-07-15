@@ -18,7 +18,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "rawloginlib",
 	Doc:      "reports use of the standard log package in library packages where pkg/logger should be used instead",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/rawloginlib",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -38,7 +38,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "rawloginlib")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
 
@@ -47,7 +54,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
-		if filecheck.IsTestFile(pass.Fset.Position(call.Pos()).Filename) {
+		if filecheck.ShouldSkipFilename(pass.Fset.Position(call.Pos()).Filename, generatedFiles) {
 			return
 		}
 		sel, ok := call.Fun.(*ast.SelectorExpr)
@@ -61,7 +68,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		position := pass.Fset.PositionFor(call.Pos(), false)
-		if nolint.HasDirective(position, noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(position, noLintIndex, "rawloginlib") {
 			return
 		}
 		pass.ReportRangef(call, "log.%s called in library package %s; use pkg/logger instead", sel.Sel.Name, pkgPath)
