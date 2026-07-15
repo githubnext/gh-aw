@@ -50,8 +50,7 @@ func GoodNilError() {
 	takesError(nil)
 }
 
-// not flagged: nil variable named "nil" would still be caught, but
-// a local context variable passed normally is fine
+// not flagged: a local context variable passed normally is fine
 func GoodLocalCtx() {
 	ctx := context.Background()
 	takesCtx(ctx)
