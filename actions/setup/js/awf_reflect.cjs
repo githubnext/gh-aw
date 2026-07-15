@@ -542,7 +542,7 @@ function resolveProviderEndpointFromReflect(options) {
   const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
   const provider = normalizeReflectProviderName(options?.provider, "openai");
   const reflectData = options?.reflectData;
-  /** @type {any} */
+  /** @type {{ endpoints?: Array<{ configured?: boolean, models_url?: string | null, port?: number | null, provider?: string }> } | null | undefined} */
   const rd = reflectData;
   const endpoints = Array.isArray(rd?.endpoints) ? rd.endpoints.filter(ep => ep && ep.configured === true) : [];
   if (endpoints.length === 0) {
@@ -568,7 +568,7 @@ function resolveProviderEndpointFromReflect(options) {
     return normalized === provider;
   };
 
-  const matched = endpoints.find(ep => endpointProviderMatches(ep?.provider)) || endpoints[0];
+  const matched = endpoints.find(ep => endpointProviderMatches(String(ep?.provider || ""))) || endpoints[0];
   const baseUrl = endpointBaseUrl(matched);
   if (!baseUrl) {
     logger(`awf-reflect: matched provider=${provider} but could not derive baseUrl`);
