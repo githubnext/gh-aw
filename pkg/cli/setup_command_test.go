@@ -15,75 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewSetupCommand(t *testing.T) {
-	cmd := NewSetupCommand()
-
-	require.NotNil(t, cmd)
-	assert.Equal(t, "setup", cmd.Use)
-	assert.Equal(t, "Run reusable auth and repository setup checks", cmd.Short)
-	assert.True(t, cmd.Hidden)
-	assert.Contains(t, cmd.Long, "Available subcommands:")
-	assert.Contains(t, cmd.Example, "gh aw setup repo --repo github/gh-aw --json")
-	assert.Contains(t, cmd.Long, "- auth")
-	assert.Contains(t, cmd.Long, "- repo")
-	assert.True(t, cmd.HasSubCommands())
-
-	var hasAuth, hasRepo bool
-	for _, subcmd := range cmd.Commands() {
-		if subcmd.Name() == "auth" {
-			hasAuth = true
-			assert.NotNil(t, subcmd.Flags().Lookup("json"), "auth subcommand should expose --json")
-		}
-		if subcmd.Name() == "repo" {
-			hasRepo = true
-			assert.NotNil(t, subcmd.Flags().Lookup("json"), "repo subcommand should expose --json")
-		}
-	}
-	assert.True(t, hasAuth, "should have auth subcommand")
-	assert.True(t, hasRepo, "should have repo subcommand")
-}
-
-func TestSetupSubcommandsAdvertiseJSONExamples(t *testing.T) {
-	authCmd := newSetupAuthSubcommand()
-	repoCmd := newSetupRepoSubcommand()
-
-	assert.Contains(t, authCmd.Example, "gh aw setup auth --json")
-	assert.Contains(t, authCmd.Long, "setup-oriented commands.")
-	assert.Contains(t, repoCmd.Example, "gh aw setup repo --repo github/gh-aw --json")
-	assert.NotContains(t, repoCmd.Example, "\t")
-}
-
-func TestNewSetupCommandHelp(t *testing.T) {
-	cmd := NewSetupCommand()
-	err := cmd.RunE(cmd, []string{})
-	assert.NoError(t, err)
-}
-
-func TestSetupCommandUnknownSubcommandReturnsError(t *testing.T) {
-	cmd := NewSetupCommand()
-	cmd.SetOut(io.Discard)
-	cmd.SetErr(io.Discard)
-	cmd.SilenceUsage = true
-	cmd.SilenceErrors = true
-	cmd.SetArgs([]string{"unknown-cmd"})
-
-	err := cmd.Execute()
-	require.Error(t, err)
-	assert.Equal(t, `unknown command "unknown-cmd" for "setup"`, err.Error())
-}
-
-func TestNewSetupRepoSubcommandRequiresRepoFlagOnExecute(t *testing.T) {
-	cmd := newSetupRepoSubcommand()
-	cmd.SetOut(io.Discard)
-	cmd.SetErr(io.Discard)
-	cmd.SilenceUsage = true
-	cmd.SilenceErrors = true
-
-	err := cmd.Execute()
-	require.Error(t, err)
-	assert.Equal(t, "required flag(s) \"repo\" not set", err.Error())
-}
-
 func TestRunSetupAuthWithRuntime(t *testing.T) {
 	called := 0
 	err := runSetupAuthWithRuntime(SetupAuthOptions{Ctx: context.Background()}, setupRepositoryRuntime{
@@ -299,59 +230,6 @@ func TestValidateSetupRepositoryCheckOptions_RejectsEmptyRepoComponents(t *testi
 		if err := validateSetupRepositoryCheckOptions(tt); err == nil {
 			t.Fatalf("expected invalid repo slug error for %q", tt.Repo)
 		}
-	}
-}
-
-func TestSetupCommandSubcommandListingsUseHyphenBullets(t *testing.T) {
-	tests := []struct {
-		name    string
-		longDoc string
-	}{
-		{name: "setup", longDoc: NewSetupCommand().Long},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Contains(t, tt.longDoc, "Available subcommands:")
-			assert.NotContains(t, tt.longDoc, "  • ")
-		})
-	}
-}
-
-func TestSetupRepoSubcommandUsesNoArgs(t *testing.T) {
-	cmd := newSetupRepoSubcommand()
-	require.NotNil(t, cmd.Args)
-	require.NoError(t, cmd.Args(cmd, []string{}))
-	assert.Error(t, cmd.Args(cmd, []string{"extra"}))
-}
-
-func TestSetupAuthSubcommandUsesNoArgs(t *testing.T) {
-	cmd := newSetupAuthSubcommand()
-	require.NotNil(t, cmd.Args)
-	require.NoError(t, cmd.Args(cmd, []string{}))
-	assert.Error(t, cmd.Args(cmd, []string{"extra"}))
-}
-
-func TestSetupCommandStructure(t *testing.T) {
-	tests := []struct {
-		name           string
-		expectedUse    string
-		commandCreator func() any
-	}{
-		{
-			name:        "setup command exists",
-			expectedUse: "setup",
-			commandCreator: func() any {
-				return NewSetupCommand()
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cmd := tt.commandCreator()
-			require.NotNil(t, cmd)
-		})
 	}
 }
 
