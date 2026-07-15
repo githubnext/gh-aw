@@ -53,26 +53,19 @@ func (c *Compiler) buildEvalsJob(data *WorkflowData) (*Job, error) {
 	steps = append(steps, c.buildEvalsJobSteps(data)...)
 
 	// Determine job dependencies.
-	// Evals runs after safe_outputs when it is configured; otherwise directly after agent.
-	var needs []string
-	if data.SafeOutputs != nil {
-		needs = []string{string(constants.SafeOutputsJobName), string(constants.ActivationJobName)}
-	} else {
-		needs = []string{string(constants.AgentJobName), string(constants.ActivationJobName)}
+	// Evals always depends on agent, and additionally on detection when the detection job is enabled.
+	// This allows evals to run in parallel with safe_outputs.
+	needs := []string{string(constants.AgentJobName), string(constants.ActivationJobName)}
+	if IsDetectionJobEnabled(data.SafeOutputs) {
+		needs = append(needs, string(constants.DetectionJobName))
 	}
 	evalsJobLog.Printf("Evals job dependencies resolved: needs=%v", needs)
 
-	// Evals job condition: always run but skip if the upstream job was skipped.
+	// Evals job condition: always run but skip if the agent job was skipped.
 	// This matches the detection job pattern so conclusion still sees a non-skipped evals result.
-	var upstreamJobName string
-	if data.SafeOutputs != nil {
-		upstreamJobName = string(constants.SafeOutputsJobName)
-	} else {
-		upstreamJobName = string(constants.AgentJobName)
-	}
 	alwaysFunc := BuildFunctionCall("always")
 	upstreamNotSkipped := BuildNotEquals(
-		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", upstreamJobName)),
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
 		BuildStringLiteral("skipped"),
 	)
 	jobConditionNode := BuildAnd(alwaysFunc, upstreamNotSkipped)
