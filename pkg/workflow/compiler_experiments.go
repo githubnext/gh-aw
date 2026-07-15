@@ -115,11 +115,17 @@ func extractExperimentsStorageFromFrontmatter(frontmatter map[string]any) string
 // experimentsBranchName returns the git branch name used for repo-based experiment storage.
 // Format: "experiments/{sanitizedWorkflowID}"
 func experimentsBranchName(workflowID string) string {
+	return WorkflowStateBranchName(experimentsBranchPrefix, workflowID)
+}
+
+// WorkflowStateBranchName returns a durable state branch name using
+// "{prefix}/{sanitizedWorkflowID}" format.
+func WorkflowStateBranchName(prefix, workflowID string) string {
 	sanitized := SanitizeWorkflowIDForCacheKey(workflowID)
 	if sanitized == "" {
 		sanitized = "default"
 	}
-	return experimentsBranchPrefix + "/" + sanitized
+	return prefix + "/" + sanitized
 }
 
 // extractOneExperimentConfig converts a single raw experiment value into an ExperimentConfig.

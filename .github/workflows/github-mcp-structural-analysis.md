@@ -36,6 +36,8 @@ imports:
 sandbox:
   agent:
     sudo: false
+features:
+  gh-aw-detection: true
 ---
 # GitHub MCP Structural Analysis
 

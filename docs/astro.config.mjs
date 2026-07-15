@@ -319,6 +319,7 @@ export default defineConfig({
 						{ label: 'Using MCPs', link: '/guides/mcps/' },
 						{ label: 'Network Configuration', link: '/guides/network-configuration/' },
 						{ label: 'Azure OpenAI BYOK', link: '/guides/azure-openai-byok/' },
+						{ label: 'Third-Party Agent', link: '/guides/third-party-agent/' },
 						{ label: 'ARC DinD for Copilot Coding Agent', link: '/guides/arc-dind-copilot-agent/' },
 						{ label: 'OpenTelemetry', link: '/guides/open-telemetry/' },
 						{ label: 'GitHub Actions Primer', link: '/guides/github-actions-primer/' },

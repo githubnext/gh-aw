@@ -3905,6 +3905,74 @@ Test content`
 	assert.Contains(t, conclusionSection, "push_experiments_state", "conclusion job should depend on push_experiments_state")
 }
 
+func TestBuildPushEvalsStateJob_WithEvals(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:       "Test Workflow",
+		WorkflowID: "my-workflow",
+		AI:         "copilot",
+		RunsOn:     "runs-on: ubuntu-latest",
+		Evals: &EvalsConfig{
+			Questions: []EvalDefinition{
+				{ID: "builds", Question: "Does it build?"},
+			},
+		},
+	}
+
+	job, err := compiler.buildPushEvalsStateJob(data)
+	require.NoError(t, err, "buildPushEvalsStateJob should not return an error")
+	require.NotNil(t, job, "buildPushEvalsStateJob should return a job when evals are configured")
+
+	assert.Equal(t, "push_evals_state", job.Name, "job name should be push_evals_state")
+	assert.Contains(t, job.If, "always()", "job condition should use always()")
+	assert.Contains(t, job.If, "skipped", "job condition should run when evals is not skipped")
+	assert.Contains(t, job.Permissions, "contents: write", "job should have contents: write permission")
+	assert.Contains(t, job.Needs, string(constants.EvalsJobName), "job should depend on evals job")
+	assert.Contains(t, job.Needs, string(constants.ActivationJobName), "job should depend on activation job")
+
+	stepsYAML := strings.Join(job.Steps, "\n")
+	assert.Contains(t, stepsYAML, "evals/myworkflow", "steps should reference sanitized evals branch name")
+	assert.Contains(t, stepsYAML, "GH_AW_STATE_FILES: evals.jsonl", "steps should configure evals filename")
+	assert.Contains(t, stepsYAML, "push_experiment_state.cjs", "steps should reuse push_experiment_state.cjs helper")
+}
+
+func TestBuildMemoryManagementJobs_PushEvalsIncludedInConclusion(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "push-evals-conclusion-test")
+
+	frontmatter := `---
+on: issues
+permissions:
+  contents: read
+engine: copilot
+strict: false
+evals:
+  - id: builds
+    question: Does the generated code compile?
+---
+
+# Test Workflow
+
+Test content`
+
+	testFile := filepath.Join(tmpDir, "test-evals.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(frontmatter), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "test-evals.lock.yml"))
+	require.NoError(t, err, "lock file should be created")
+
+	yamlStr := string(content)
+
+	assert.True(t, containsInNonCommentLines(yamlStr, "push_evals_state:"), "push_evals_state job should be present")
+	conclusionSection := extractJobSection(yamlStr, "conclusion")
+	require.NotEmpty(t, conclusionSection, "conclusion job should be present")
+	assert.Contains(t, conclusionSection, "push_evals_state", "conclusion job should depend on push_evals_state")
+}
+
 // TestBuildMainJobEngineEnvNeedsExpression verifies that when engine.env values contain
 // needs.<customJob>.outputs.* expressions, the referenced custom job is added as a direct
 // dependency of the agent job (issue: agent 'needs' does not incorporate jobs in engine.env).

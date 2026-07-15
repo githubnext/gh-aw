@@ -4,6 +4,8 @@ description: Guide for reducing token consumption in agentic workflows — DataO
 
 # Token Consumption Optimization
 
+If a task can be solved using deterministic tools, use deterministic tools. Only use agents when necessary, as they incur higher cost. Agentic workflows allow you to run deterministic tools first and gate agent execution using conditions, enabling workflows that avoid triggering agents most of the time and only use them when needed.
+
 ## Quick-Reference Checklist
 
 Apply these in order — each check can halve costs:

@@ -26,6 +26,8 @@ imports:
 sandbox:
   agent:
     sudo: false
+features:
+  gh-aw-detection: true
 ---
 # Weekly Workflow Analysis
 
