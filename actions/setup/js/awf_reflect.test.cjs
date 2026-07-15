@@ -90,6 +90,17 @@ describe("awf_reflect.cjs", () => {
     });
 
     describe("resolveProviderEndpointFromReflect", () => {
+      it("returns null when reflect data is missing", () => {
+        const logs = [];
+        const resolved = resolveProviderEndpointFromReflect({
+          provider: "github",
+          reflectData: null,
+          logger: msg => logs.push(msg),
+        });
+        expect(resolved).toBeNull();
+        expect(logs.some(l => l.includes("no configured endpoints available"))).toBe(true);
+      });
+
       it("maps github provider to copilot endpoint", () => {
         const resolved = resolveProviderEndpointFromReflect({
           provider: "github",

@@ -631,3 +631,531 @@ name: "Test Workflow"`;
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Symlink traversal regression tests for activation-hash stale-lock false-positives
+// These tests verify that createGitHubFileReader, resolveRemoteSymlinks, and
+// computeFrontmatterHash correctly handle import paths that traverse symlinked
+// directories — the scenario that triggered false "lock file is outdated"
+// failures when imported content was silently skipped after a 404 on a
+// symlinked path component in the GitHub Contents API.
+// ---------------------------------------------------------------------------
+
+const { checkRemoteSymlink, resolveRemoteSymlinks } = require("./frontmatter_hash_pure.cjs");
+
+describe("symlink traversal regression for activation hash symlink handling", () => {
+  // ---------------------------------------------------------------------------
+  // checkRemoteSymlink
+  // ---------------------------------------------------------------------------
+  describe("checkRemoteSymlink", () => {
+    it("should return target string when path is a symlink", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async () => ({
+              data: { type: "symlink", target: "../.ai/agents" },
+            }),
+          },
+        },
+      };
+      const result = await checkRemoteSymlink(github, "owner", "repo", ".github/agents", "main");
+      expect(result).toBe("../.ai/agents");
+    });
+
+    it("should return null when path is a regular file", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async () => ({
+              data: { type: "file", content: "aGVsbG8=", encoding: "base64" },
+            }),
+          },
+        },
+      };
+      const result = await checkRemoteSymlink(github, "owner", "repo", ".github/agents/file.md", "main");
+      expect(result).toBeNull();
+    });
+
+    it("should return null when path is a directory", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async () => ({
+              data: [{ name: "file.md", type: "file" }],
+            }),
+          },
+        },
+      };
+      const result = await checkRemoteSymlink(github, "owner", "repo", ".github/agents", "main");
+      expect(result).toBeNull();
+    });
+
+    it("should return null when the API returns a 404 error", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async () => {
+              const err = new Error("Not Found");
+              err.status = 404;
+              throw err;
+            },
+          },
+        },
+      };
+      const result = await checkRemoteSymlink(github, "owner", "repo", ".github/agents", "main");
+      expect(result).toBeNull();
+    });
+
+    it("should return null for forbidden errors", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async () => {
+              const err = new Error("Forbidden");
+              err.status = 403;
+              throw err;
+            },
+          },
+        },
+      };
+      const result = await checkRemoteSymlink(github, "owner", "repo", ".github/agents", "main");
+      expect(result).toBeNull();
+    });
+
+    it("should return null for unauthorized errors", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async () => {
+              const err = new Error("Unauthorized");
+              err.status = 401;
+              throw err;
+            },
+          },
+        },
+      };
+      const result = await checkRemoteSymlink(github, "owner", "repo", ".github/agents", "main");
+      expect(result).toBeNull();
+    });
+
+    it("should rethrow transient API errors", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async () => {
+              const err = new Error("Bad Gateway");
+              err.status = 502;
+              throw err;
+            },
+          },
+        },
+      };
+      await expect(checkRemoteSymlink(github, "owner", "repo", ".github/agents", "main")).rejects.toThrow("Bad Gateway");
+    });
+
+    it("should return null when symlink has no target", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async () => ({
+              data: { type: "symlink", target: "" },
+            }),
+          },
+        },
+      };
+      const result = await checkRemoteSymlink(github, "owner", "repo", ".github/agents", "main");
+      expect(result).toBeNull();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // resolveRemoteSymlinks
+  // ---------------------------------------------------------------------------
+  describe("resolveRemoteSymlinks", () => {
+    it("should resolve a symlinked directory component in the path", async () => {
+      // .github/agents is a symlink → ../.ai/agents
+      // path: .github/agents/e2etest.md → .ai/agents/e2etest.md
+      const github = {
+        rest: {
+          repos: {
+            getContent: async ({ path: p }) => {
+              if (p === ".github/agents") {
+                return { data: { type: "symlink", target: "../.ai/agents" } };
+              }
+              // .github is a directory
+              return { data: [{ name: "agents", type: "symlink" }] };
+            },
+          },
+        },
+      };
+      const result = await resolveRemoteSymlinks(github, "owner", "repo", ".github/agents/e2etest.md", "main");
+      expect(result).toBe(".ai/agents/e2etest.md");
+    });
+
+    it("should resolve a deeply nested symlink component", async () => {
+      // .github/workflows/shared → ../../gh-agent-workflows/shared
+      // path: .github/workflows/shared/elastic-tools.md → gh-agent-workflows/shared/elastic-tools.md
+      const github = {
+        rest: {
+          repos: {
+            getContent: async ({ path: p }) => {
+              if (p === ".github/workflows/shared") {
+                return { data: { type: "symlink", target: "../../gh-agent-workflows/shared" } };
+              }
+              return { data: [{ name: "file.md" }] };
+            },
+          },
+        },
+      };
+      const result = await resolveRemoteSymlinks(github, "owner", "repo", ".github/workflows/shared/elastic-tools.md", "main");
+      expect(result).toBe("gh-agent-workflows/shared/elastic-tools.md");
+    });
+
+    it("should resolve a symlink at the first path component (root-level)", async () => {
+      // link-dir is a symlink → actual-dir
+      // path: link-dir/subdir/file.md → actual-dir/subdir/file.md
+      const github = {
+        rest: {
+          repos: {
+            getContent: async ({ path: p }) => {
+              if (p === "link-dir") {
+                return { data: { type: "symlink", target: "actual-dir" } };
+              }
+              return { data: [{ name: "subdir" }] };
+            },
+          },
+        },
+      };
+      const result = await resolveRemoteSymlinks(github, "owner", "repo", "link-dir/subdir/file.md", "main");
+      expect(result).toBe("actual-dir/subdir/file.md");
+    });
+
+    it("should return null when no symlinks are found in any component", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async () => ({
+              data: [{ name: "file.md", type: "file" }], // directory listing
+            }),
+          },
+        },
+      };
+      const result = await resolveRemoteSymlinks(github, "owner", "repo", ".github/workflows/file.md", "main");
+      expect(result).toBeNull();
+    });
+
+    it("should return null for a single-component path (no directory to resolve)", async () => {
+      const github = { rest: { repos: { getContent: async () => ({ data: {} }) } } };
+      const result = await resolveRemoteSymlinks(github, "owner", "repo", "file.md", "main");
+      expect(result).toBeNull();
+    });
+
+    it("should return null when the resolved path would escape the repository root", async () => {
+      // symlink points far above the repo root
+      const github = {
+        rest: {
+          repos: {
+            getContent: async ({ path: p }) => {
+              if (p === "dir") {
+                return { data: { type: "symlink", target: "../../../outside" } };
+              }
+              return { data: [] };
+            },
+          },
+        },
+      };
+      const result = await resolveRemoteSymlinks(github, "owner", "repo", "dir/file.md", "main");
+      expect(result).toBeNull();
+    });
+
+    it("should return null when the symlink target is absolute", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async ({ path: p }) => {
+              if (p === "dir") {
+                return { data: { type: "symlink", target: "/absolute/path" } };
+              }
+              return { data: [] };
+            },
+          },
+        },
+      };
+      const result = await resolveRemoteSymlinks(github, "owner", "repo", "dir/file.md", "main");
+      expect(result).toBeNull();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // createGitHubFileReader with symlink traversal
+  // ---------------------------------------------------------------------------
+  describe("createGitHubFileReader with symlink traversal", () => {
+    it("should follow a symlinked directory on 404 and return the resolved file content", async () => {
+      // .github/agents is a symlink → ../.ai/agents
+      // Requesting .github/agents/e2etest.md should transparently return .ai/agents/e2etest.md
+      const agentContent = "---\nengine: copilot\ndescription: e2e test agent\n---\n\nDo stuff.";
+
+      const github = {
+        rest: {
+          repos: {
+            getContent: async ({ path: p }) => {
+              if (p === ".github/agents/e2etest.md") {
+                const err = new Error("Not Found");
+                err.status = 404;
+                throw err;
+              }
+              if (p === ".github/agents") {
+                return { data: { type: "symlink", target: "../.ai/agents" } };
+              }
+              if (p === ".github") {
+                return { data: [{ name: "agents", type: "symlink" }] };
+              }
+              if (p === ".ai/agents/e2etest.md") {
+                return {
+                  data: {
+                    type: "file",
+                    encoding: "base64",
+                    content: Buffer.from(agentContent).toString("base64"),
+                  },
+                };
+              }
+              const err = new Error(`Not Found: ${p}`);
+              err.status = 404;
+              throw err;
+            },
+          },
+        },
+      };
+
+      const fileReader = createGitHubFileReader(github, "owner", "repo", "main");
+      const content = await fileReader(".github/agents/e2etest.md");
+      expect(content).toBe(agentContent);
+    });
+
+    it("should memoize symlink lookups across reads under the same symlinked directory", async () => {
+      const callCounts = new Map();
+      const github = {
+        rest: {
+          repos: {
+            getContent: async ({ path: p }) => {
+              callCounts.set(p, (callCounts.get(p) || 0) + 1);
+              if (p === ".github/agents/one.md" || p === ".github/agents/two.md") {
+                const err = new Error("Not Found");
+                err.status = 404;
+                throw err;
+              }
+              if (p === ".github/agents") {
+                return { data: { type: "symlink", target: "../.ai/agents" } };
+              }
+              if (p === ".github") {
+                return { data: [{ name: "agents", type: "symlink" }] };
+              }
+              if (p === ".ai/agents/one.md" || p === ".ai/agents/two.md") {
+                return {
+                  data: {
+                    type: "file",
+                    encoding: "base64",
+                    content: Buffer.from(`content:${p}`).toString("base64"),
+                  },
+                };
+              }
+              const err = new Error(`Not Found: ${p}`);
+              err.status = 404;
+              throw err;
+            },
+          },
+        },
+      };
+
+      const fileReader = createGitHubFileReader(github, "owner", "repo", "main");
+      await expect(fileReader(".github/agents/one.md")).resolves.toBe("content:.ai/agents/one.md");
+      await expect(fileReader(".github/agents/two.md")).resolves.toBe("content:.ai/agents/two.md");
+
+      expect(callCounts.get(".github")).toBe(1);
+      expect(callCounts.get(".github/agents")).toBe(1);
+    });
+
+    it("should follow chained symlinked directories across recursive retries", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async ({ path: p }) => {
+              if (p === "a/b/d/file.md" || p === "c/b/d/file.md") {
+                const err = new Error("Not Found");
+                err.status = 404;
+                throw err;
+              }
+              if (p === "a") {
+                return { data: [{ name: "b", type: "symlink" }] };
+              }
+              if (p === "a/b") {
+                return { data: { type: "symlink", target: "../c/b" } };
+              }
+              if (p === "c" || p === "c/b") {
+                return { data: [{ name: "d", type: "symlink" }] };
+              }
+              if (p === "c/b/d") {
+                return { data: { type: "symlink", target: "../../e/d" } };
+              }
+              if (p === "e/d/file.md") {
+                return {
+                  data: {
+                    type: "file",
+                    encoding: "base64",
+                    content: Buffer.from("chained symlink content").toString("base64"),
+                  },
+                };
+              }
+              const err = new Error(`Not Found: ${p}`);
+              err.status = 404;
+              throw err;
+            },
+          },
+        },
+      };
+
+      const fileReader = createGitHubFileReader(github, "owner", "repo", "main");
+      await expect(fileReader("a/b/d/file.md")).resolves.toBe("chained symlink content");
+    });
+
+    it("should throw when the file is truly missing (no symlink resolves it)", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async ({ path: p }) => {
+              const err = new Error("Not Found");
+              err.status = 404;
+              throw err;
+            },
+          },
+        },
+      };
+
+      const fileReader = createGitHubFileReader(github, "owner", "repo", "main");
+      await expect(fileReader(".github/workflows/missing.md")).rejects.toThrow("Failed to read file");
+    });
+
+    it("should not attempt symlink resolution for non-404 errors", async () => {
+      let getContentCallCount = 0;
+      const github = {
+        rest: {
+          repos: {
+            getContent: async () => {
+              getContentCallCount++;
+              const err = new Error("Forbidden");
+              err.status = 403;
+              throw err;
+            },
+          },
+        },
+      };
+
+      const fileReader = createGitHubFileReader(github, "owner", "repo", "main");
+      await expect(fileReader(".github/workflows/file.md")).rejects.toThrow("Failed to read file");
+      // Should only have been called once (no symlink resolution retries for 403)
+      expect(getContentCallCount).toBe(1);
+    });
+
+    it("should surface an explicit error when chained symlinks exceed max depth", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async ({ path: p }) => {
+              if (/^link\d+\/file\.md$/.test(p)) {
+                const err = new Error("Not Found");
+                err.status = 404;
+                throw err;
+              }
+              const match = /^link(\d+)$/.exec(p);
+              if (match) {
+                const next = Number(match[1]) + 1;
+                return { data: { type: "symlink", target: `link${next}` } };
+              }
+              const err = new Error(`Not Found: ${p}`);
+              err.status = 404;
+              throw err;
+            },
+          },
+        },
+      };
+
+      const fileReader = createGitHubFileReader(github, "owner", "repo", "main");
+      await expect(fileReader("link0/file.md")).rejects.toThrow("symlink chain exceeded maximum depth of 5");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Hash parity: computeFrontmatterHash with symlinked imports
+  // Verifies that the API reader (with symlink traversal) produces the same hash
+  // as a direct filesystem reader — the core guarantee the activation job needs.
+  // ---------------------------------------------------------------------------
+  describe("hash parity between filesystem reader and API reader with symlinks", () => {
+    it("should produce identical hashes regardless of whether the import path traverses a symlink", async () => {
+      // Simulate a workflow that imports an agent via a symlinked path:
+      //   .github/workflows/my-workflow.md imports ../agents/helper.md
+      //   .github/agents is a symlink → ../.ai/agents
+      //   so the resolved path is .ai/agents/helper.md
+      //
+      // The filesystem reader resolves symlinks at the OS level and sees the content directly.
+      // The API reader must traverse the symlink via the GitHub Contents API to reach the same content.
+      // Both should produce the same hash.
+
+      const helperContent = "---\nengine: copilot\ndescription: helper agent\n---\n\nHelp with stuff.";
+      const mainContent = "---\nengine: copilot\ndescription: my workflow\nimports:\n  - ../agents/helper.md\n---\n\nRun the helper.";
+
+      // File system mapping using resolved paths (as the OS would see them after symlink traversal)
+      const mainPath = ".github/workflows/my-workflow.md";
+      const resolvedImportPath = ".ai/agents/helper.md"; // resolved target of .github/agents symlink
+
+      // Direct filesystem reader: uses resolved paths (simulates os.ReadFile following symlinks)
+      const fsFileSystem = {
+        [mainPath]: mainContent,
+        // The filesystem reader is given the fully resolved path:
+        ".github/agents/helper.md": helperContent, // simulates OS-level symlink resolution: the filesystem sees content at the symlinked path
+      };
+      const fsReader = async filePath => {
+        if (fsFileSystem[filePath]) return fsFileSystem[filePath];
+        throw new Error(`File not found: ${filePath}`);
+      };
+
+      // GitHub API reader: simulates the Contents API where .github/agents is a symlink
+      const apiFileSystem = {
+        [mainPath]: mainContent,
+        [resolvedImportPath]: helperContent, // only accessible via the resolved path
+      };
+      const apiFetches = [];
+      const github = {
+        rest: {
+          repos: {
+            getContent: async ({ path: p }) => {
+              apiFetches.push(p);
+              if (apiFileSystem[p]) {
+                return {
+                  data: {
+                    type: "file",
+                    encoding: "base64",
+                    content: Buffer.from(apiFileSystem[p]).toString("base64"),
+                  },
+                };
+              }
+              if (p === ".github/agents") {
+                return { data: { type: "symlink", target: "../.ai/agents" } };
+              }
+              const err = new Error(`Not Found: ${p}`);
+              err.status = 404;
+              throw err;
+            },
+          },
+        },
+      };
+      const apiReader = createGitHubFileReader(github, "owner", "repo", "main");
+
+      const fsHash = await computeFrontmatterHash(mainPath, { fileReader: fsReader });
+      const apiHash = await computeFrontmatterHash(mainPath, { fileReader: apiReader });
+
+      // Both hashes must agree — this is the invariant the activation job relies on
+      expect(apiHash).toBe(fsHash);
+      expect(apiFetches).toContain(".ai/agents/helper.md");
+    });
+  });
+});
