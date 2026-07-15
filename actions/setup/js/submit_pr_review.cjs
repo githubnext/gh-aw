@@ -159,7 +159,7 @@ async function main(config = {}) {
     });
 
     if (!targetResult.success || !targetResult.number) {
-      const errMsg = targetResult.error || "Could not determine target PR";
+      const errMsg = (!targetResult.success ? targetResult.error : undefined) || "Could not determine target PR";
       core.warning(`Could not resolve PR for review: ${errMsg}`);
       return { success: false, error: errMsg };
     }

@@ -739,6 +739,7 @@ function createPrReviewBufferRegistry() {
   const insertionOrder = [];
 
   // Defaults applied to each new buffer when it is first created.
+  /** @type {string|boolean} */
   let defaultFooterMode = "always";
   /** @type {Object | null} */
   let defaultFooterContext = null;
