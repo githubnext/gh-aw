@@ -174,7 +174,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 			continue
 		}
 
-		if applyRunFilters(result, filters, opts.Verbose) {
+		if applyRunFilters(ctx, result, filters, opts.Verbose) {
 			continue
 		}
 

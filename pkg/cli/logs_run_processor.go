@@ -109,6 +109,15 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 
 			// Download artifacts and logs for this run
 			runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", run.DatabaseID))
+			// Use the global owner/repo/host override from --repo when available.
+			// When the global override is absent (stdin mode with per-run URLs), derive
+			// the context from run.URL so each run downloads from the correct repository.
+			runOwner, runRepo, runHost := dlOwner, dlRepo, dlHost
+			if runOwner == "" && run.URL != "" {
+				if c, parseErr := parser.ParseRunURLExtended(run.URL); parseErr == nil && c.Owner != "" {
+					runOwner, runRepo, runHost = c.Owner, c.Repo, c.Host
+				}
+			}
 
 			// Try to load cached summary first
 			if summary, ok := loadRunSummary(runOutputDir, verbose); ok {
@@ -118,7 +127,9 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				// Bypass the cache so the fresh download below can fetch evals;
 				// the post-download filter will then decide whether to skip.
 				evalsRequested := slices.Contains(artifactFilter, constants.EvalsArtifactName)
-				if evalsRequested && !runHasEvals(runOutputDir, verbose) {
+				hasEvals := runHasEvals(runOutputDir, verbose) ||
+					ensureEvalsResultsFromBranch(ctx, summary.Run, runOutputDir, runOwner, runRepo, runHost, verbose)
+				if evalsRequested && !hasEvals {
 					logsOrchestratorLog.Printf("Cache bypass for run %d: evals artifact requested but not present locally", run.DatabaseID)
 				} else {
 					logsOrchestratorLog.Printf("Cache hit for run %d, using cached summary", run.DatabaseID)
@@ -156,15 +167,6 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 			}
 
 			// No cached summary or version mismatch - download and process.
-			// Use the global owner/repo/host override from --repo when available.
-			// When the global override is absent (stdin mode with per-run URLs), derive
-			// the context from run.URL so each run downloads from the correct repository.
-			runOwner, runRepo, runHost := dlOwner, dlRepo, dlHost
-			if runOwner == "" && run.URL != "" {
-				if c, parseErr := parser.ParseRunURLExtended(run.URL); parseErr == nil && c.Owner != "" {
-					runOwner, runRepo, runHost = c.Owner, c.Repo, c.Host
-				}
-			}
 			logsOrchestratorLog.Printf("Downloading artifacts for run %d: owner=%s, repo=%s", run.DatabaseID, runOwner, runRepo)
 			err := downloadRunArtifacts(ctx, run.DatabaseID, runOutputDir, verbose, runOwner, runRepo, runHost, artifactFilter)
 

@@ -107,6 +107,8 @@ steps:
       find /tmp/gh-aw/agent/workflow-logs -maxdepth 1 -ls
 
 timeout-minutes: 20
+features:
+  gh-aw-detection: true
 
 ---
 # Copilot Agent Prompt Clustering Analysis

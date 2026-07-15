@@ -617,24 +617,8 @@ func readLocalExperimentState(ref string) *ExperimentState {
 // readRemoteExperimentState fetches state.json from an experiments/* branch via the GitHub API.
 // Returns an empty state on any error (branch missing, file absent, parse failure).
 func readRemoteExperimentState(repoOverride, branchName string) *ExperimentState {
-	args := []string{"api",
-		"repos/{owner}/{repo}/contents/state.json",
-		"--field", "ref=" + branchName,
-		"--jq", ".content",
-		"--repo", repoOverride,
-	}
-	cmd := workflow.ExecGH(args...)
-	out, err := cmd.Output()
+	decoded, err := readRemoteRepoBranchFile(repoOverride, branchName, "state.json", "")
 	if err != nil {
-		return emptyExperimentState()
-	}
-
-	// GitHub API returns base64-encoded content with embedded newlines for line-wrapping.
-	// Strip all whitespace before decoding.
-	b64 := strings.Join(strings.Fields(strings.TrimSpace(string(out))), "")
-	decoded, err := base64.StdEncoding.DecodeString(b64)
-	if err != nil {
-		experimentsLog.Printf("Failed to base64-decode state.json from %s: %v", branchName, err)
 		return emptyExperimentState()
 	}
 	return parseExperimentState(decoded)

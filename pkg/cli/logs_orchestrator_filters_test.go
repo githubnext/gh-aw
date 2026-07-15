@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -39,7 +40,7 @@ func makeDownloadResult(t *testing.T, awInfoJSON string) DownloadResult {
 // passes every run through (returns false = do not skip).
 func TestApplyRunFilters_NoFilters(t *testing.T) {
 	result := makeDownloadResult(t, `{"engine_id":"claude"}`)
-	skip := applyRunFilters(result, runFilterOpts{}, false)
+	skip := applyRunFilters(context.Background(), result, runFilterOpts{}, false)
 	assert.False(t, skip, "no filters should never skip a run")
 }
 
@@ -73,7 +74,7 @@ func TestApplyRunFilters_Engine(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := makeDownloadResult(t, tt.awInfo)
-			skip := applyRunFilters(result, runFilterOpts{engine: tt.filterEngine}, false)
+			skip := applyRunFilters(context.Background(), result, runFilterOpts{engine: tt.filterEngine}, false)
 			assert.Equal(t, tt.wantSkip, skip)
 		})
 	}
@@ -105,7 +106,7 @@ func TestApplyRunFilters_NoStaged(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := makeDownloadResult(t, tt.awInfo)
-			skip := applyRunFilters(result, runFilterOpts{noStaged: true}, false)
+			skip := applyRunFilters(context.Background(), result, runFilterOpts{noStaged: true}, false)
 			assert.Equal(t, tt.wantSkip, skip)
 		})
 	}
@@ -151,7 +152,7 @@ func TestApplyRunFilters_Firewall(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := makeDownloadResult(t, tt.awInfo)
-			skip := applyRunFilters(result, runFilterOpts{firewallOnly: tt.firewallOnly, noFirewall: tt.noFirewall}, false)
+			skip := applyRunFilters(context.Background(), result, runFilterOpts{firewallOnly: tt.firewallOnly, noFirewall: tt.noFirewall}, false)
 			assert.Equal(t, tt.wantSkip, skip)
 		})
 	}
@@ -162,7 +163,7 @@ func TestApplyRunFilters_Firewall(t *testing.T) {
 func TestApplyRunFilters_SafeOutputType(t *testing.T) {
 	t.Run("no agent_output.json skips run", func(t *testing.T) {
 		result := makeDownloadResult(t, "") // no aw_info.json either
-		skip := applyRunFilters(result, runFilterOpts{safeOutputType: "create-issue"}, false)
+		skip := applyRunFilters(context.Background(), result, runFilterOpts{safeOutputType: "create-issue"}, false)
 		assert.True(t, skip)
 	})
 
@@ -171,7 +172,7 @@ func TestApplyRunFilters_SafeOutputType(t *testing.T) {
 		agentOutput := `{"items":[{"type":"create-issue"}]}`
 		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "agent_output.json"), []byte(agentOutput), 0644))
 		result := DownloadResult{Run: WorkflowRun{DatabaseID: 1}, LogsPath: tmpDir}
-		skip := applyRunFilters(result, runFilterOpts{safeOutputType: "create-issue"}, false)
+		skip := applyRunFilters(context.Background(), result, runFilterOpts{safeOutputType: "create-issue"}, false)
 		assert.False(t, skip)
 	})
 
@@ -180,7 +181,7 @@ func TestApplyRunFilters_SafeOutputType(t *testing.T) {
 		agentOutput := `{"items":[{"type":"add-comment"}]}`
 		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "agent_output.json"), []byte(agentOutput), 0644))
 		result := DownloadResult{Run: WorkflowRun{DatabaseID: 2}, LogsPath: tmpDir}
-		skip := applyRunFilters(result, runFilterOpts{safeOutputType: "create-issue"}, false)
+		skip := applyRunFilters(context.Background(), result, runFilterOpts{safeOutputType: "create-issue"}, false)
 		assert.True(t, skip)
 	})
 }
@@ -192,7 +193,7 @@ func TestApplyRunFilters_FilteredIntegrity(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "gateway.jsonl"), []byte(gatewayLog), 0644))
 		result := DownloadResult{Run: WorkflowRun{DatabaseID: 5}, LogsPath: tmpDir}
 
-		skip := applyRunFilters(result, runFilterOpts{filteredIntegrity: true}, false)
+		skip := applyRunFilters(context.Background(), result, runFilterOpts{filteredIntegrity: true}, false)
 
 		assert.False(t, skip)
 	})
@@ -200,7 +201,7 @@ func TestApplyRunFilters_FilteredIntegrity(t *testing.T) {
 	t.Run("missing gateway logs are skipped", func(t *testing.T) {
 		result := makeDownloadResult(t, "")
 
-		skip := applyRunFilters(result, runFilterOpts{filteredIntegrity: true}, false)
+		skip := applyRunFilters(context.Background(), result, runFilterOpts{filteredIntegrity: true}, false)
 
 		assert.True(t, skip)
 	})

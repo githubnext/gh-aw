@@ -18,23 +18,12 @@ Audit one or more workflow runs. When a single run is provided, a detailed Markd
 
 | Argument | Description |
 |----------|-------------|
-| `<run-id-or-url>` | A numeric run ID, GitHub Actions run URL, job URL, or job URL with step anchor |
-| `[<run-id-or-url>...]` | Additional run IDs or URLs to compare against the first (diff mode) |
+| `<run-id-or-url>` | A numeric run ID, run URL, job URL, or job URL with step anchor |
+| `[<run-id-or-url>...]` | Additional runs to compare against the first (diff mode) |
 
-**Accepted input formats (per argument):**
+Each argument accepts a numeric run ID, a standard or short run URL, a job URL, or a job URL with a step anchor. GitHub Enterprise URLs follow the same patterns.
 
-- Numeric run ID: `1234567890`
-- Run URL: `https://github.com/owner/repo/actions/runs/1234567890`
-- Job URL: `https://github.com/owner/repo/actions/runs/1234567890/job/9876543210`
-- Job URL with step: `https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1`
-- Short run URL: `https://github.com/owner/repo/runs/1234567890`
-- GitHub Enterprise URLs using the same formats above
-
-When a job URL is provided without a step anchor (single-run mode), the command extracts the output of the first failing step. When a step anchor is included, it extracts that specific step.
-
-In diff mode, job URLs and step-anchored URLs are accepted for any argument — the job/step specificity is silently normalized to the parent run ID, so it is always a run-level diff.
-
-Self-comparisons and duplicate run IDs are rejected when using diff mode.
+In single-run mode, a job URL without a step anchor extracts the first failing step's output; a step-anchored URL extracts that specific step. In diff mode, any job or step-specific URL is normalized to its parent run ID, so comparisons always happen at run scope. Self-comparisons and duplicate run IDs are rejected.
 
 **Flags:**
 
@@ -87,22 +76,9 @@ The Metrics section includes an `ambient_context` object when available. Ambient
 - `ambient_context.cached_tokens` — cache-read tokens reused by the first invocation
 - `ambient_context.effective_tokens` — legacy ET field (`input_tokens + cached_tokens`) retained for compatibility
 
-**Diff output** includes:
-- New and removed network domains
-- Domain status changes (allowed ↔ denied)
-- Volume changes (request count changes above a 100% threshold)
-- Anomaly flags (new denied domains, previously-denied domains now allowed)
-- MCP tool invocation changes (new/removed tools, call count and error count diffs)
-- Run metrics comparison (token usage, duration, turns)
-- Token usage and spend breakdown: input tokens, output tokens, cache read/write tokens, AIC, legacy effective tokens (ET), total API requests, and cache efficiency per run
-- Tokens per turn: legacy ET divided by turn count for each run, with the change between runs
-- AIC reporting: AI Credits are shown alongside token metrics for spend tracking
-- Tool call breakdown: per-tool call counts (new, removed, and changed tools) with max input/output sizes
-- Bash command breakdown: aggregated call counts and max input/output sizes for each distinct bash command invoked
+**Diff output** includes network changes (new, removed, and allow/deny flips), anomaly flags, MCP tool invocation changes, run-level metric deltas, token and AIC breakdowns, tokens per turn, per-tool call counts with max input/output sizes, and aggregated bash command usage.
 
-**Diff output behavior with multiple comparisons:**
-- `--json` outputs a single object for one comparison, or an array for multiple
-- `--format pretty` and `--format markdown` separate multiple diffs with dividers
+With multiple comparisons, `--json` emits a single object for one comparison or an array for many, while `--format pretty` and `--format markdown` separate each diff with dividers.
 
 ## `gh aw logs --format <fmt>`
 
@@ -157,7 +133,7 @@ gh aw logs --format markdown --repo owner/repo --count 10
 
 ## Consuming Audit Reports in Workflows
 
-When running locally, all three audit commands accept `--json` to write structured output to stdout. Pipe through `jq` to extract the fields a model needs.
+All three audit commands support `--json` for structured stdout, which you can pipe through `jq` to extract only the fields a model needs.
 
 | Command | Use case |
 | --------- | ---------- |
@@ -165,7 +141,7 @@ When running locally, all three audit commands accept `--json` to write structur
 | `gh aw logs [workflow] --last 10 --json` | Trend analysis — `per_run_breakdown`, `domain_inventory` |
 | `gh aw audit <id1> <id2> --json` | Before/after — `run_metrics_diff`, `firewall_diff` |
 
-Inside GitHub Actions workflows, agents access these commands through the `agentic-workflows` MCP tool rather than calling the CLI directly.
+Inside GitHub Actions workflows, agents should use the `agentic-workflows` MCP tool instead of invoking the CLI directly.
 
 ### Posting findings as a PR comment
 
