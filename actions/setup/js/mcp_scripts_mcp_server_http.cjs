@@ -94,11 +94,11 @@ function createMCPServer(configPath, options = {}) {
         throw new Error(generateEnhancedErrorMessage(missing, tool.name, tool.inputSchema));
       }
 
-      // SM-IS-01: Validate per-string input length limits (10 KB max per string parameter).
+      // SM-IS-01: Validate per-string input length limits (default 10 KB, or explicit schema maxLength when set).
       const oversized = validateStringInputLengths(args, tool.inputSchema);
       if (oversized.length) {
         const details = oversized.map(v => `'${v.field}' (${v.byteLength} bytes)`).join(", ");
-        throw new Error(`Input string parameter(s) exceed the 10 KB limit for tool '${tool.name}': ${details}`);
+        throw new Error(`Input string parameter(s) exceed configured size limits for tool '${tool.name}': ${details}`);
       }
 
       // Call the handler

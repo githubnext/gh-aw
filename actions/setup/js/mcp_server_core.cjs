@@ -784,13 +784,13 @@ async function handleRequest(server, request, defaultHandler) {
         };
       }
 
-      // SM-IS-01: Validate per-string input length limits (10 KB max per string parameter).
+      // SM-IS-01: Validate per-string input length limits (default 10 KB, or explicit schema maxLength when set).
       const oversizedFields = validateStringInputLengths(args, tool.inputSchema);
       if (oversizedFields.length) {
         const details = oversizedFields.map(v => `'${v.field}' (${v.byteLength} bytes)`).join(", ");
         throw {
           code: -32602,
-          message: `Input string parameter(s) exceed the 10 KB limit for tool '${name}': ${details}`,
+          message: `Input string parameter(s) exceed configured size limits for tool '${name}': ${details}`,
         };
       }
 
@@ -954,11 +954,11 @@ async function handleMessage(server, req, defaultHandler) {
         return;
       }
 
-      // SM-IS-01: Validate per-string input length limits (10 KB max per string parameter).
+      // SM-IS-01: Validate per-string input length limits (default 10 KB, or explicit schema maxLength when set).
       const oversized = validateStringInputLengths(args, tool.inputSchema);
       if (oversized.length) {
         const details = oversized.map(v => `'${v.field}' (${v.byteLength} bytes)`).join(", ");
-        server.replyError(id, -32602, `Input string parameter(s) exceed the 10 KB limit for tool '${name}': ${details}`);
+        server.replyError(id, -32602, `Input string parameter(s) exceed configured size limits for tool '${name}': ${details}`);
         return;
       }
 

@@ -2305,6 +2305,7 @@
       "properties": {
         "reason": {
           "type": "string",
+          "maxLength": 65536,
           "description": "Comment explaining why the PR is ready for review (e.g., 'All tests passing and documentation updated', 'Feature implementation complete and ready for feedback')."
         },
         "pull_request_number": {

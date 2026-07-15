@@ -282,23 +282,23 @@ describe("mcp_scripts_validation.cjs", () => {
       expect(violations).toEqual([]);
     });
 
-    it("should skip string fields with an explicit maxLength (handler-level validation)", async () => {
+    it("should enforce explicit maxLength for string fields", async () => {
       const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./mcp_scripts_validation.cjs");
 
-      // A value that exceeds the default 10 KB limit but is within maxLength
-      const valueExceedingDefaultLimit = "a".repeat(MAX_STRING_INPUT_BYTES + 1);
-      const args = { body: valueExceedingDefaultLimit };
+      // Exceeds explicit maxLength
+      const valueExceedingExplicitMax = "a".repeat(MAX_STRING_INPUT_BYTES + 1);
+      const args = { body: valueExceedingExplicitMax };
       const schema = {
         type: "object",
-        properties: { body: { type: "string", maxLength: MAX_STRING_INPUT_BYTES + 1000 } },
+        properties: { body: { type: "string", maxLength: MAX_STRING_INPUT_BYTES } },
       };
 
-      // Should not flag — handler-level validation is responsible for this field
       const violations = validateStringInputLengths(args, schema);
-      expect(violations).toEqual([]);
+      expect(violations).toHaveLength(1);
+      expect(violations[0].field).toBe("body");
     });
 
-    it("should still check string fields without maxLength when other fields have maxLength", async () => {
+    it("should still check string fields without maxLength when other fields have explicit maxLength", async () => {
       const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./mcp_scripts_validation.cjs");
 
       const oversizedValue = "a".repeat(MAX_STRING_INPUT_BYTES + 1);
@@ -306,16 +306,16 @@ describe("mcp_scripts_validation.cjs", () => {
       const schema = {
         type: "object",
         properties: {
-          // body has maxLength — skipped by generic check
-          body: { type: "string", maxLength: 65536 },
-          // title has no maxLength — checked by generic check
+          // body has explicit maxLength lower than value
+          body: { type: "string", maxLength: MAX_STRING_INPUT_BYTES },
+          // title has no maxLength — checked against default 10KB
           title: { type: "string" },
         },
       };
 
       const violations = validateStringInputLengths(args, schema);
-      expect(violations).toHaveLength(1);
-      expect(violations[0].field).toBe("title");
+      expect(violations).toHaveLength(2);
+      expect(violations.map(v => v.field).sort()).toEqual(["body", "title"]);
     });
   });
 

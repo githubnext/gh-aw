@@ -39,6 +39,8 @@ function validateRequiredFields(args, inputSchema) {
  * string-typed input parameter. Inputs exceeding the configured maximum MUST be rejected with a
  * validation error before the tool script is invoked. Implementations MUST NOT silently truncate
  * oversized inputs.
+ * When a field declares an explicit schema maxLength, that explicit limit is enforced here;
+ * otherwise the default SM-IS-01 10KB limit applies.
  *
  * Scope: validates only top-level (direct) properties of the schema where `type === "string"`.
  * Nested object/array schemas are not recursively validated, consistent with the SM-IS-01
@@ -56,14 +58,11 @@ function validateStringInputLengths(args, inputSchema, maxBytes) {
 
   for (const [field, schema] of Object.entries(properties)) {
     if (schema && schema.type === "string") {
-      // Skip fields with an explicit maxLength — handler-level validation enforces their limit.
-      if (typeof schema.maxLength === "number") {
-        continue;
-      }
       const value = args[field];
       if (typeof value === "string") {
+        const fieldLimit = typeof schema.maxLength === "number" ? schema.maxLength : limit;
         const byteLength = Buffer.byteLength(value, "utf8");
-        if (byteLength > limit) {
+        if (byteLength > fieldLimit) {
           violations.push({ field, byteLength });
         }
       }
