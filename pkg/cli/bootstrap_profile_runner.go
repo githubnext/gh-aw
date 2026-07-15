@@ -685,6 +685,8 @@ func waitForBootstrapGitHubAppInstallation(ctx context.Context, repo string, cre
 	}
 	deadline := time.NewTimer(bootstrapProfileManifestTimeout)
 	defer deadline.Stop()
+	pollTicker := time.NewTicker(bootstrapProfileInstallPollDelay)
+	defer pollTicker.Stop()
 	var lastErr error
 	for {
 		installed, err := bootstrapGitHubAppInstalled(ctx, repo, createdApp)
@@ -706,7 +708,7 @@ func waitForBootstrapGitHubAppInstallation(ctx context.Context, repo string, cre
 				return fmt.Errorf("timed out waiting for the GitHub App installation to complete for %s: %w", repo, lastErr)
 			}
 			return fmt.Errorf("timed out waiting for the GitHub App installation to complete for %s", repo)
-		case <-time.After(bootstrapProfileInstallPollDelay):
+		case <-pollTicker.C:
 		}
 	}
 }
@@ -958,18 +960,36 @@ func buildBootstrapGitHubAppRegistrationURL(owner, ownerType, state string) stri
 }
 
 func renderBootstrapGitHubAppRegistrationPage(registrationURL string, manifest map[string]any) string {
-	manifestJSON, _ := json.Marshal(manifest)
-	return "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Redirecting To GitHub App Creation</title></head><body><p>Redirecting to GitHub App creation...</p><form id=\"manifest-form\" action=\"" + htmlEscape(registrationURL) + "\" method=\"post\"><input type=\"hidden\" name=\"manifest\" value=\"" + htmlEscape(string(manifestJSON)) + "\"><noscript><button type=\"submit\">Continue To GitHub App Creation</button></noscript></form><script>document.getElementById('manifest-form').submit();</script></body></html>"
+	manifestJSON := "{}"
+	if encoded, err := json.Marshal(manifest); err == nil {
+		manifestJSON = string(encoded)
+	}
+	return "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Redirecting To GitHub App Creation</title></head><body><p>Redirecting to GitHub App creation...</p><form id=\"manifest-form\" action=\"" + htmlEscape(registrationURL) + "\" method=\"post\"><input type=\"hidden\" name=\"manifest\" value=\"" + htmlEscape(manifestJSON) + "\"><noscript><button type=\"submit\">Continue To GitHub App Creation</button></noscript></form><script>document.getElementById('manifest-form').submit();</script></body></html>"
 }
 
 func printBootstrapGitHubAppManifestReview(owner string, manifest map[string]any) {
-	permissions := manifest["default_permissions"].(map[string]string)
+	permissions := map[string]string{}
+	switch raw := manifest["default_permissions"].(type) {
+	case map[string]string:
+		permissions = raw
+	case map[string]any:
+		for name, value := range raw {
+			text, ok := value.(string)
+			if ok {
+				permissions[name] = text
+			}
+		}
+	}
 	permissionNames := make([]string, 0, len(permissions))
 	for name := range permissions {
 		permissionNames = append(permissionNames, name)
 	}
 	sort.Strings(permissionNames)
-	lines := []string{"GitHub App manifest for " + owner + ":", "- name: " + manifest["name"].(string), "- homepage: " + manifest["url"].(string), "- redirect URL: " + manifest["redirect_url"].(string), "- description: " + manifest["description"].(string), "- permissions:"}
+	name, _ := manifest["name"].(string)
+	homepage, _ := manifest["url"].(string)
+	redirectURL, _ := manifest["redirect_url"].(string)
+	description, _ := manifest["description"].(string)
+	lines := []string{"GitHub App manifest for " + owner + ":", "- name: " + name, "- homepage: " + homepage, "- redirect URL: " + redirectURL, "- description: " + description, "- permissions:"}
 	for _, name := range permissionNames {
 		lines = append(lines, fmt.Sprintf("  - %s: %s", name, permissions[name]))
 	}
