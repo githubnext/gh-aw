@@ -486,6 +486,7 @@ bootstrap:
 		assert.Equal(t, "repo-variable", pkg.Bootstrap.Actions[1].Type)
 		assert.Equal(t, []string{"preview", "review", "live"}, pkg.Bootstrap.Actions[1].Enum)
 		assert.Equal(t, "handoff", pkg.Bootstrap.Actions[2].Type)
+		assert.Contains(t, pkg.Warnings, "Using experimental feature: manifest.bootstrap")
 	})
 
 	t.Run("rejects unsupported branding icon", func(t *testing.T) {
