@@ -62,6 +62,36 @@ describe("no-throw-plain-object", () => {
             },
           ],
         },
+        // Fractional negative code → not a valid JSON-RPC integer code, still flagged
+        {
+          code: `throw { code: -1.5, message: "fractional" };`,
+          errors: [
+            {
+              messageId: "noThrowPlainObject",
+              suggestions: [
+                {
+                  messageId: "useObjectAssign",
+                  output: `throw Object.assign(new Error("fractional"), { code: -1.5 });`,
+                },
+              ],
+            },
+          ],
+        },
+        // Negative zero is not strictly negative, still flagged
+        {
+          code: `throw { code: -0, message: "zero" };`,
+          errors: [
+            {
+              messageId: "noThrowPlainObject",
+              suggestions: [
+                {
+                  messageId: "useObjectAssign",
+                  output: `throw Object.assign(new Error("zero"), { code: -0 });`,
+                },
+              ],
+            },
+          ],
+        },
         // No message → still flagged
         {
           code: `throw { code: -32602 };`,
