@@ -80,6 +80,10 @@ export const requireMkdirSyncTryCatchRule = createRule({
       return FS_MODULE_SPECIFIERS.has(definition.parent.source.value as string);
     }
 
+    function isMkdirSyncImportBinding(definition: { type: string; node: TSESTree.Node; parent?: TSESTree.Node | null }): boolean {
+      return isFsImportBinding(definition) && definition.node.type === AST_NODE_TYPES.ImportSpecifier && definition.node.imported.type === AST_NODE_TYPES.Identifier && definition.node.imported.name === "mkdirSync";
+    }
+
     function isIdentifierBoundToFsModule(identifierName: string, scopeNode: TSESTree.Node): boolean {
       let scope: SourceCodeScope | null = sourceCode.getScope(scopeNode);
       while (scope) {
@@ -99,8 +103,7 @@ export const requireMkdirSyncTryCatchRule = createRule({
         }
         scope = scope.upper;
       }
-      // If `fs` has no local binding, treat it as the conventional top-level Node fs binding.
-      return identifierName === "fs";
+      return false;
     }
 
     /**
@@ -116,10 +119,10 @@ export const requireMkdirSyncTryCatchRule = createRule({
         const variable = scope.set.get(callee.name);
         if (variable && variable.defs.length > 0) {
           for (const def of variable.defs) {
+            if (isMkdirSyncImportBinding(def)) {
+              return true;
+            }
             if (isFsImportBinding(def)) {
-              if (def.node.type === AST_NODE_TYPES.ImportSpecifier && def.node.imported.type === AST_NODE_TYPES.Identifier && def.node.imported.name === "mkdirSync") {
-                return true;
-              }
               continue;
             }
             if (def.type !== "Variable") continue;

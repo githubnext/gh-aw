@@ -20,10 +20,10 @@ describe("require-mkdirsync-try-catch", () => {
   it("valid: fs.mkdirSync inside try block passes (CommonJS)", () => {
     cjsRuleTester.run("require-mkdirsync-try-catch", requireMkdirSyncTryCatchRule, {
       valid: [
-        `try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {}`,
-        `try { fs.mkdirSync(dir); } catch (e) {}`,
-        `function f() { try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {} }`,
-        `try { fs["mkdirSync"](dir, { recursive: true }); } catch (e) {}`,
+        `const fs = require("fs"); try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {}`,
+        `const fs = require("fs"); try { fs.mkdirSync(dir); } catch (e) {}`,
+        `const fs = require("fs"); function f() { try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {} }`,
+        `const fs = require("fs"); try { fs["mkdirSync"](dir, { recursive: true }); } catch (e) {}`,
       ],
       invalid: [],
     });
@@ -55,7 +55,7 @@ describe("require-mkdirsync-try-catch", () => {
       valid: [],
       invalid: [
         {
-          code: `fs.mkdirSync(dir, { recursive: true });`,
+          code: `const fs = require("fs"); fs.mkdirSync(dir, { recursive: true });`,
           errors: [
             {
               messageId: "requireTryCatch",
@@ -63,14 +63,14 @@ describe("require-mkdirsync-try-catch", () => {
               suggestions: [
                 {
                   messageId: "wrapInTryCatch",
-                  output: `try {\n  fs.mkdirSync(dir, { recursive: true });\n} catch (err) {\n  // TODO: handle filesystem failure for this fs.mkdirSync call.\n  throw new Error(\n    "fs.mkdirSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
+                  output: `const fs = require("fs"); try {\n  fs.mkdirSync(dir, { recursive: true });\n} catch (err) {\n  // TODO: handle filesystem failure for this fs.mkdirSync call.\n  throw new Error(\n    "fs.mkdirSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
                 },
               ],
             },
           ],
         },
         {
-          code: `fs.mkdirSync(path.join(base, "subdir"), { recursive: true });`,
+          code: `const fs = require("fs"); fs.mkdirSync(path.join(base, "subdir"), { recursive: true });`,
           errors: [
             {
               messageId: "requireTryCatch",
@@ -78,14 +78,14 @@ describe("require-mkdirsync-try-catch", () => {
               suggestions: [
                 {
                   messageId: "wrapInTryCatch",
-                  output: `try {\n  fs.mkdirSync(path.join(base, "subdir"), { recursive: true });\n} catch (err) {\n  // TODO: handle filesystem failure for this fs.mkdirSync call.\n  throw new Error(\n    "fs.mkdirSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
+                  output: `const fs = require("fs"); try {\n  fs.mkdirSync(path.join(base, "subdir"), { recursive: true });\n} catch (err) {\n  // TODO: handle filesystem failure for this fs.mkdirSync call.\n  throw new Error(\n    "fs.mkdirSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
                 },
               ],
             },
           ],
         },
         {
-          code: `function setup() { fs.mkdirSync(outputDir, { recursive: true }); }`,
+          code: `const fs = require("fs"); function setup() { fs.mkdirSync(outputDir, { recursive: true }); }`,
           errors: [
             {
               messageId: "requireTryCatch",
@@ -93,7 +93,7 @@ describe("require-mkdirsync-try-catch", () => {
               suggestions: [
                 {
                   messageId: "wrapInTryCatch",
-                  output: `function setup() { try {\n  fs.mkdirSync(outputDir, { recursive: true });\n} catch (err) {\n  // TODO: handle filesystem failure for this fs.mkdirSync call.\n  throw new Error(\n    "fs.mkdirSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }`,
+                  output: `const fs = require("fs"); function setup() { try {\n  fs.mkdirSync(outputDir, { recursive: true });\n} catch (err) {\n  // TODO: handle filesystem failure for this fs.mkdirSync call.\n  throw new Error(\n    "fs.mkdirSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }`,
                 },
               ],
             },
@@ -146,7 +146,7 @@ describe("require-mkdirsync-try-catch", () => {
       valid: [],
       invalid: [
         {
-          code: `async function run() { fs.mkdirSync(tmpDir, { recursive: true }); }`,
+          code: `const fs = require("fs"); async function run() { fs.mkdirSync(tmpDir, { recursive: true }); }`,
           errors: [
             {
               messageId: "requireTryCatch",
@@ -154,7 +154,7 @@ describe("require-mkdirsync-try-catch", () => {
               suggestions: [
                 {
                   messageId: "wrapInTryCatch",
-                  output: `async function run() { try {\n  fs.mkdirSync(tmpDir, { recursive: true });\n} catch (err) {\n  // TODO: handle filesystem failure for this fs.mkdirSync call.\n  throw new Error(\n    "fs.mkdirSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }`,
+                  output: `const fs = require("fs"); async function run() { try {\n  fs.mkdirSync(tmpDir, { recursive: true });\n} catch (err) {\n  // TODO: handle filesystem failure for this fs.mkdirSync call.\n  throw new Error(\n    "fs.mkdirSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }`,
                 },
               ],
             },
@@ -169,7 +169,7 @@ describe("require-mkdirsync-try-catch", () => {
       valid: [],
       invalid: [
         {
-          code: `try { fs.mkdirSync(dir, { recursive: true }); } finally { cleanup(); }`,
+          code: `const fs = require("fs"); try { fs.mkdirSync(dir, { recursive: true }); } finally { cleanup(); }`,
           errors: [
             {
               messageId: "requireTryCatch",
@@ -184,7 +184,7 @@ describe("require-mkdirsync-try-catch", () => {
 
   it("valid: fs.mkdirSync inside try block passes (ESM)", () => {
     esmRuleTester.run("require-mkdirsync-try-catch", requireMkdirSyncTryCatchRule, {
-      valid: [`try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {}`],
+      valid: [`import * as fs from "fs"; try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {}`],
       invalid: [],
     });
   });
@@ -194,7 +194,7 @@ describe("require-mkdirsync-try-catch", () => {
       valid: [],
       invalid: [
         {
-          code: `fs.mkdirSync(dir, { recursive: true });`,
+          code: `import * as fs from "fs"; fs.mkdirSync(dir, { recursive: true });`,
           errors: [
             {
               messageId: "requireTryCatch",
@@ -202,7 +202,7 @@ describe("require-mkdirsync-try-catch", () => {
               suggestions: [
                 {
                   messageId: "wrapInTryCatch",
-                  output: `try {\n  fs.mkdirSync(dir, { recursive: true });\n} catch (err) {\n  // TODO: handle filesystem failure for this fs.mkdirSync call.\n  throw new Error(\n    "fs.mkdirSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
+                  output: `import * as fs from "fs"; try {\n  fs.mkdirSync(dir, { recursive: true });\n} catch (err) {\n  // TODO: handle filesystem failure for this fs.mkdirSync call.\n  throw new Error(\n    "fs.mkdirSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
                 },
               ],
             },
