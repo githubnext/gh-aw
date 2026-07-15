@@ -288,8 +288,7 @@ func (c *Compiler) buildRedactEvalsSecretsStep(data *WorkflowData) []string {
 	script := `const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
 setupGlobals(core, github, context, exec, io, getOctokit);
 const { main } = require('` + SetupActionDestination + `/redact_evals_results.cjs');
-await main();
-}`
+await main();`
 
 	secretReferences := c.collectEvalsSecretReferences(data)
 

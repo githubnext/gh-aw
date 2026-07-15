@@ -2991,7 +2991,6 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/redact_evals_results.cjs');
             await main();
-            }
       - name: Render evals results to step summary
         if: steps.redact_evals_results.outcome == 'success'
         continue-on-error: true
