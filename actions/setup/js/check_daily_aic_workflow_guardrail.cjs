@@ -7,14 +7,13 @@ const path = require("path");
 const { DefaultArtifactClient } = require("./artifact_client.cjs");
 
 const { calculateDailyAICStats, findJSONLFiles, formatAICCredits, sumAICFromUsageJSONLFiles } = require("./daily_aic_workflow_helpers.cjs");
+const { AIC_USAGE_CACHE_FILE_PATH, CACHE_RETENTION_MS, pruneStaleJSONLCacheLines } = require("./daily_aic_cache_helpers.cjs");
 const { parsePositiveCompactNumber } = require("./numeric_limits.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createRateLimitAwareGithub, fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
 
 const PRIMARY_GUARDRAIL_ARTIFACT_NAMES = ["usage"];
 const DAILY_WORKFLOW_WINDOW_MS = 24 * 60 * 60 * 1000;
-/** Cache entries older than this threshold (in ms) are skipped when loading. */
-const CACHE_RETENTION_MS = 48 * 60 * 60 * 1000;
 const MAX_WORKFLOW_RUN_PAGES = 10;
 const RATE_LIMIT_RESERVE = 100;
 const REQUEST_OVERHEAD_BUDGET = MAX_WORKFLOW_RUN_PAGES + 4;
@@ -32,11 +31,8 @@ const ESTIMATED_API_OPERATIONS_PER_RUN = 2;
 const RATE_LIMIT_RECHECK_INTERVAL = 10;
 const INTEGER_FORMATTER = new Intl.NumberFormat("en-US");
 
-/** Path where the per-workflow usage cache is restored by the activation job's cache-restore step. */
-const AIC_USAGE_CACHE_FILE_PATH = "/tmp/gh-aw/agentic-workflow-usage-cache.jsonl";
-
 /**
- * @returns {Promise<DefaultArtifactClient>}
+ * @returns {Promise<any>}
  */
 async function getArtifactClient() {
   return new DefaultArtifactClient();
@@ -158,25 +154,12 @@ function loadAICUsageCache(filePath) {
       return cache;
     }
     const content = fs.readFileSync(cachePath, "utf8");
-    const now = Date.now();
-    const cutoff = now - CACHE_RETENTION_MS;
+    const cutoff = Date.now() - CACHE_RETENTION_MS;
+    const { keptLines, prunedCount: skippedStale } = pruneStaleJSONLCacheLines(content, cutoff);
     let loaded = 0;
-    let skippedStale = 0;
-    for (const rawLine of content.split("\n")) {
-      const line = rawLine.trim();
-      if (!line || !line.startsWith("{")) {
-        continue;
-      }
+    for (const line of keptLines) {
       try {
         const entry = JSON.parse(line);
-        // Skip entries that have a timestamp and are older than the retention window.
-        if (typeof entry?.timestamp === "string") {
-          const ts = Date.parse(entry.timestamp);
-          if (Number.isFinite(ts) && ts < cutoff) {
-            skippedStale++;
-            continue;
-          }
-        }
         const runId = Number(entry?.run_id);
         const rawAic = entry?.aic;
         const aic = typeof rawAic === "number" ? rawAic : NaN;
@@ -196,6 +179,45 @@ function loadAICUsageCache(filePath) {
     });
   }
   return cache;
+}
+
+/**
+ * Appends confirmed-zero-AIC run entries to the usage cache file so that
+ * subsequent activations can skip re-querying them via the GitHub API.
+ * Each entry is written as a JSONL line: `{ run_id, aic: 0, timestamp }`.
+ *
+ * @param {number[]} runIds  IDs of runs confirmed to have no AIC usage artifact.
+ * @param {string} [filePath]  Destination cache file (defaults to {@link AIC_USAGE_CACHE_FILE_PATH}).
+ * @returns {void}
+ */
+function appendZeroAICEntriesToCache(runIds, filePath) {
+  if (!Array.isArray(runIds) || runIds.length === 0) {
+    return;
+  }
+  const cachePath = filePath || AIC_USAGE_CACHE_FILE_PATH;
+  try {
+    const dir = path.dirname(cachePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const timestamp = new Date().toISOString();
+    const validIds = runIds.filter(id => typeof id === "number" && Number.isFinite(id) && id > 0);
+    const lines = validIds.map(id => JSON.stringify({ run_id: id, aic: 0, timestamp })).join("\n");
+    if (!lines) {
+      return;
+    }
+    fs.appendFileSync(cachePath, lines + "\n", "utf8");
+    logDailyGuardrail("Appended zero-AIC run entries to usage cache", {
+      path: cachePath,
+      count: validIds.length,
+      runIds: validIds,
+    });
+  } catch (err) {
+    logDailyGuardrail("Failed to append zero-AIC entries to usage cache", {
+      path: cachePath,
+      error: typeof err === "object" && err !== null && "message" in err ? String(err.message) : String(err),
+    });
+  }
 }
 
 /**
@@ -558,6 +580,8 @@ async function main() {
     let totalAIC = 0;
     /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string, aic:number}>} */
     const countedRuns = [];
+    /** @type {number[]} */
+    const confirmedZeroAICRunIds = [];
     // Track how many cache-miss API operations have been consumed inside this loop.
     // Used to trigger periodic rate-limit re-checks so concurrent activations that
     // collectively drain the shared budget are caught early (rather than relying solely
@@ -584,6 +608,7 @@ async function main() {
       }
       try {
         let runAIC;
+        let isCacheMiss = false;
         if (usageCache.has(run.id)) {
           // Cache hit: use the previously recorded AIC without downloading the artifact.
           runAIC = usageCache.get(run.id) ?? 0;
@@ -593,6 +618,7 @@ async function main() {
           });
         } else {
           // Cache miss: fetch AIC from the run's usage artifact.
+          isCacheMiss = true;
           apiCallsInLoop += ESTIMATED_API_OPERATIONS_PER_RUN;
           runAIC = await module.exports.getRunAIC(artifactClient, run.id, token, owner, repo);
         }
@@ -602,6 +628,9 @@ async function main() {
             currentAIC: totalAIC,
             threshold,
           });
+          if (isCacheMiss) {
+            confirmedZeroAICRunIds.push(run.id);
+          }
           continue;
         }
         totalAIC += runAIC;
@@ -626,6 +655,10 @@ async function main() {
 
     core.setOutput("daily_ai_credits_total_effective_tokens", String(totalAIC));
     core.setOutput("daily_ai_credits_threshold", String(threshold));
+
+    // Persist confirmed-zero-AIC run IDs to the usage cache so future activations
+    // skip re-querying these runs via the API entirely.
+    module.exports.appendZeroAICEntriesToCache(confirmedZeroAICRunIds);
 
     /** @type {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean}} */
     const summaryMeta = {
@@ -685,6 +718,7 @@ module.exports = {
   getArtifactClient,
   getRunAIC,
   loadAICUsageCache,
+  appendZeroAICEntriesToCache,
   shouldSkipDailyAICGuardrail,
   matchesGuardrailArtifactName,
   findJSONLFiles,

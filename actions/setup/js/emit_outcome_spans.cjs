@@ -48,12 +48,12 @@ const OTLP_STATUS_ERROR = 2;
  * Read a JSONL file, returning an array of parsed objects.
  * Silently skips invalid lines.
  * @param {string} filePath
- * @returns {object[]}
+ * @returns {any[]}
  */
 function readJSONL(filePath) {
   try {
     const lines = fs.readFileSync(filePath, "utf8").split("\n");
-    /** @type {object[]} */
+    /** @type {any[]} */
     const items = [];
     for (const line of lines) {
       const trimmed = line.trim();

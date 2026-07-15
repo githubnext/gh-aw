@@ -234,15 +234,18 @@ type ModelEnvVarProvider interface {
 	GetModelEnvVarName() string
 }
 
-// LLMProviderResolver is implemented by engines that support selecting
-// different inference providers at runtime (for example engine.model-provider).
+// InferenceProviderResolver is implemented by engines that support selecting
+// different inference providers at runtime (for example engine.provider).
 // This interface is intentionally separate from CodingAgentEngine so provider
 // concerns remain decoupled from core engine execution capabilities.
-type LLMProviderResolver interface {
+type InferenceProviderResolver interface {
 	// ResolveLLMProvider returns the effective provider for the workflow
 	// (for example "github", "anthropic", or "openai").
 	ResolveLLMProvider(workflowData *WorkflowData) string
 }
+
+// LLMProviderResolver is kept as a backward-compatible alias.
+type LLMProviderResolver = InferenceProviderResolver
 
 // AgentFileProvider is an optional interface implemented by engines that have
 // engine-specific instruction or configuration files that should be treated as
@@ -271,16 +274,19 @@ type ConfigRenderer interface {
 	RenderConfig(target *ResolvedEngineTarget) ([]map[string]any, error)
 }
 
-// HarnessProvider is an optional interface implemented by engines that provide a
+// HarnessRunner is an optional interface implemented by engines that provide a
 // JavaScript harness script to wrap CLI execution with retry and recovery logic.
 // The harness is placed in the setup actions directory and executed via Node.js
 // as a transparent subprocess wrapper around the engine CLI.
-type HarnessProvider interface {
+type HarnessRunner interface {
 	// GetHarnessScriptName returns the filename of the JavaScript harness script
 	// (located in the setup actions directory) used to wrap CLI execution.
 	// Returns an empty string if no harness is needed.
 	GetHarnessScriptName() string
 }
+
+// HarnessProvider is kept as a backward-compatible alias.
+type HarnessProvider = HarnessRunner
 
 // engineRequiresNodeHarness reports whether the engine's execution command wraps
 // the CLI with a harness script launched via node (see nodeRuntimeResolutionCommand
@@ -291,7 +297,7 @@ func engineRequiresNodeHarness(engine CodingAgentEngine) bool {
 	if engine == nil {
 		return false
 	}
-	hp, ok := engine.(HarnessProvider)
+	hp, ok := engine.(HarnessRunner)
 	if !ok {
 		return false
 	}

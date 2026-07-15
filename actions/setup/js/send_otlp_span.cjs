@@ -209,7 +209,7 @@ function readContextString(value) {
  * 2. `awInfo.context.engine_id` – propagated via aw_context for auxiliary / dispatched jobs
  * 3. `process.env.GH_AW_INFO_ENGINE_ID` – workflow-injected env var fallback
  *
- * @param {object} awInfo
+ * @param {any} awInfo
  * @returns {string}
  */
 function resolveEngineId(awInfo) {
@@ -226,7 +226,7 @@ function resolveEngineId(awInfo) {
  * standalone runs we fall back to the current run's run_id-run_attempt pair so
  * every live span is still queryable as a bounded execution unit.
  *
- * @param {object} awInfo
+ * @param {any} awInfo
  * @param {string} runId
  * @param {string} runAttempt
  * @returns {Array<{key: string, value: object}>}
@@ -323,7 +323,7 @@ const SPAN_KIND_CONSUMER = 5;
  * Build the OTLP span object nested under `scopeSpans[].spans[]`.
  *
  * @param {OTLPSpanRecordOptions} opts
- * @returns {object}
+ * @returns {any}
  */
 function buildOTLPSpan({ traceId, spanId, parentSpanId, spanName, startMs, endMs, attributes, statusCode, statusMessage, kind = SPAN_KIND_INTERNAL, events }) {
   const code = typeof statusCode === "number" ? statusCode : 1; // STATUS_CODE_OK
@@ -572,7 +572,7 @@ function buildGitHubActionsRunUrlAttribute(repository, runId) {
  *   resourceAttributes?: Array<{key: string, value: object}>,
  *   spans: object[]
  * }} opts
- * @returns {object}
+ * @returns {any}
  */
 function buildOTLPBatchPayload({ serviceName, scopeVersion, resourceAttributes, spans }) {
   return {
@@ -603,7 +603,7 @@ function buildOTLPBatchPayload({ serviceName, scopeVersion, resourceAttributes, 
  *   spans: object[],
  *   maxSpansPerPayload?: number
  * }} opts
- * @returns {object[]}
+ * @returns {any[]}
  */
 function buildOTLPBatchPayloads({ serviceName, scopeVersion, resourceAttributes, spans, maxSpansPerPayload = 100 }) {
   const normalizedMax = Number.isInteger(maxSpansPerPayload) && maxSpansPerPayload > 0 ? maxSpansPerPayload : 100;
@@ -625,7 +625,7 @@ function buildOTLPBatchPayloads({ serviceName, scopeVersion, resourceAttributes,
  * Build an OTLP/HTTP JSON traces payload wrapping a single span.
  *
  * @param {OTLPSpanOptions} opts
- * @returns {object} - Ready to be serialised as JSON and POSTed to `/v1/traces`
+ * @returns {any} - Ready to be serialised as JSON and POSTed to `/v1/traces`
  */
 function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, endMs, serviceName, scopeVersion, attributes, resourceAttributes, statusCode, statusMessage, kind = SPAN_KIND_INTERNAL, events }) {
   return buildOTLPBatchPayload({
@@ -653,7 +653,7 @@ const OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
  * file.  Creates the `/tmp/gh-aw` directory if it does not already exist.
  * Errors are silently swallowed — mirror failures must never break the workflow.
  *
- * @param {object} payload - OTLP traces payload
+ * @param {any} payload - OTLP traces payload
  * @returns {void}
  */
 function appendToOTLPJSONL(payload) {
@@ -912,8 +912,8 @@ function sanitizeAttrs(attrs) {
  *
  * The original payload object is not mutated; a shallow-clone is returned.
  *
- * @param {object} payload - OTLP traces payload produced by {@link buildOTLPPayload}
- * @returns {object} Sanitized payload suitable for serialisation
+ * @param {any} payload - OTLP traces payload produced by {@link buildOTLPPayload}
+ * @returns {any} Sanitized payload suitable for serialisation
  */
 function sanitizeOTLPPayload(payload) {
   if (!payload || !Array.isArray(payload.resourceSpans)) return payload;
@@ -1034,7 +1034,7 @@ function parseOTLPEndpoints() {
  * caller before invoking this function (pass `skipJSONL: true`).
  *
  * @param {OTLPEndpointEntry[]} endpoints  - Resolved endpoint list from {@link parseOTLPEndpoints}
- * @param {object} payload                 - Serialisable OTLP JSON object
+ * @param {any} payload                 - Serialisable OTLP JSON object
  * @param {{ maxRetries?: number, baseDelayMs?: number, skipJSONL?: boolean }} [opts]
  * @returns {Promise<void>}
  */
@@ -1065,7 +1065,7 @@ async function sendOTLPToAllEndpoints(endpoints, payload, opts = {}) {
  * (used for per-endpoint headers in the multi-endpoint case).
  *
  * @param {string} endpoint  - OTLP base URL (e.g. https://traces.example.com:4317)
- * @param {object} payload   - Serialisable OTLP JSON object
+ * @param {any} payload   - Serialisable OTLP JSON object
  * @param {{ maxRetries?: number, baseDelayMs?: number, skipJSONL?: boolean, headersOverride?: string }} [opts]
  * @returns {Promise<void>}
  */
@@ -1401,7 +1401,7 @@ async function sendJobSetupSpan(options = {}) {
  * file, invalid JSON, permission denied, etc.).
  *
  * @param {string} filePath - Absolute path to the JSON file
- * @returns {object | null}
+ * @returns {any | null}
  */
 function readJSONIfExists(filePath) {
   try {
@@ -2301,6 +2301,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
       return options.startMs;
     }
   })();
+  /** @type {any} */
   let agentEndMs = null;
   try {
     agentEndMs = fs.statSync("/tmp/gh-aw/agent_output.json").mtimeMs;

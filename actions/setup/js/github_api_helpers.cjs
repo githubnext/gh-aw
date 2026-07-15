@@ -14,7 +14,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * @typedef {Object} GraphQLErrorHints
  * @property {string} [insufficientScopesHint] - Message shown when INSUFFICIENT_SCOPES error type is present
  * @property {string} [notFoundHint] - Message shown when NOT_FOUND error type is present
- * @property {function(string): boolean} [notFoundPredicate] - Additional condition for showing the NOT_FOUND hint (receives the error message string)
+ * @property {(msg: string) => boolean} [notFoundPredicate] - Additional condition for showing the NOT_FOUND hint (receives the error message string)
  */
 
 /**

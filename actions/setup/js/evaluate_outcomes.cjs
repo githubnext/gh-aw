@@ -88,7 +88,7 @@ function gh(args) {
  * Run a `gh api` call, returning parsed JSON.
  * Returns null on failure.
  * @param {string} endpoint
- * @returns {object | null}
+ * @returns {any | null}
  */
 function ghAPI(endpoint) {
   const raw = gh(["api", endpoint]);
@@ -117,7 +117,7 @@ function readJSON(filePath, fallback) {
 /**
  * Read a JSONL file, returning an array of parsed objects.
  * @param {string} filePath
- * @returns {object[]}
+ * @returns {any[]}
  */
 function readJSONL(filePath) {
   try {
@@ -261,7 +261,7 @@ function hasIssueReactions(issue) {
 
 /**
  * Evaluate `create_issue`.
- * @param {object} item
+ * @param {any} item
  * @param {string} itemRepo
  * @param {string} timestamp
  * @param {EvalResult} out
@@ -371,7 +371,7 @@ function evaluateCreateIssue(item, itemRepo, timestamp, out, apiGet, nowMs) {
 
 /**
  * Evaluate `add_comment`.
- * @param {object} item
+ * @param {any} item
  * @param {string} itemRepo
  * @param {string} timestamp
  * @param {EvalResult} out
@@ -446,7 +446,7 @@ function evaluateAddComment(item, itemRepo, timestamp, out, apiGet, nowMs) {
 
 /**
  * Evaluate `add_labels`.
- * @param {object} item
+ * @param {any} item
  * @param {string} itemRepo
  * @param {string} timestamp
  * @param {EvalResult} out
@@ -537,7 +537,7 @@ function evaluateAddLabels(item, itemRepo, timestamp, out, apiGet, nowMs) {
 
 /**
  * Evaluate `close_issue`.
- * @param {object} item
+ * @param {any} item
  * @param {string} defaultRepo
  * @param {(endpoint: string) => any} api
  * @param {number} nowMs
@@ -609,7 +609,7 @@ function evaluateCloseIssue(item, defaultRepo, api = ghAPI, nowMs = Date.now()) 
 
 /**
  * Evaluate `close_pull_request`.
- * @param {object} item
+ * @param {any} item
  * @param {string} defaultRepo
  * @param {(endpoint: string) => any} api
  * @param {number} nowMs
@@ -791,7 +791,7 @@ function normalizeOutcome(result, detail) {
 }
 
 /**
- * @param {object} item
+ * @param {any} item
  * @returns {number | null}
  */
 function getItemNumber(item) {
@@ -803,7 +803,7 @@ function getItemNumber(item) {
 }
 
 /**
- * @param {object} item
+ * @param {any} item
  * @param {string} defaultRepo
  * @returns {string}
  */
@@ -815,7 +815,7 @@ function getItemRepo(item, defaultRepo) {
 }
 
 /**
- * @param {object} item
+ * @param {any} item
  * @param {string} key
  * @returns {string[]}
  */
@@ -826,7 +826,7 @@ function getMetadataStringArray(item, key) {
 }
 
 /**
- * @param {object} item
+ * @param {any} item
  * @param {string} key
  * @returns {number | null}
  */
@@ -956,7 +956,7 @@ function extractPullRequestUpdateState(pullRequest) {
 }
 
 /**
- * @param {object} item
+ * @param {any} item
  * @param {string} defaultRepo
  * @param {(endpoint: string) => any} api
  * @param {{fields: string[], loadCurrent: (repo: string, number: number) => { currentState: Record<string, any>, merged?: boolean } | null}} options
@@ -1063,7 +1063,7 @@ function isSubmittedReview(review) {
 }
 
 /**
- * @param {object} item
+ * @param {any} item
  * @param {string} defaultRepo
  * @param {(endpoint: string) => any} api
  * @returns {EvalResult}
@@ -1165,7 +1165,7 @@ function evaluateAddReviewer(item, defaultRepo, api = ghAPI) {
 }
 
 /**
- * @param {object} item
+ * @param {any} item
  * @param {string} defaultRepo
  * @param {(endpoint: string) => any} api
  * @returns {EvalResult}
@@ -1182,7 +1182,7 @@ function evaluateUpdateIssue(item, defaultRepo, api = ghAPI) {
 }
 
 /**
- * @param {object} item
+ * @param {any} item
  * @param {string} defaultRepo
  * @param {(endpoint: string) => any} api
  * @returns {EvalResult}
@@ -1202,7 +1202,7 @@ function evaluateUpdatePullRequest(item, defaultRepo, api = ghAPI) {
 }
 
 /**
- * @param {object} item
+ * @param {any} item
  * @param {string} defaultRepo
  * @param {(endpoint: string) => any} api
  * @returns {EvalResult}
@@ -1316,7 +1316,7 @@ function evaluateSubmitPullRequestReview(item, defaultRepo, api = ghAPI) {
 
 /**
  * Evaluate a single safe-output item against the GitHub API.
- * @param {object} item
+ * @param {any} item
  * @param {string} defaultRepo
  * @param {((endpoint: string) => any) | EvaluateDeps} [apiOrOptions]
  * @returns {EvalResult}
@@ -1487,7 +1487,7 @@ function evaluateItem(item, defaultRepo, apiOrOptions) {
 
 /**
  * Evaluate outcome for create_pull_request.
- * @param {object} item
+ * @param {any} item
  * @param {string} itemRepo
  * @param {EvalResult} out
  * @param {(endpoint: string) => any} [ghAPIFn]
@@ -1588,7 +1588,7 @@ function evaluateCreatePullRequestOutcome(item, itemRepo, out, ghAPIFn = ghAPI) 
 
 /**
  * Evaluate outcome for push_to_pull_request_branch.
- * @param {object} item
+ * @param {any} item
  * @param {string} itemRepo
  * @param {EvalResult} out
  * @param {(endpoint: string) => any} [ghAPIFn]
@@ -1695,7 +1695,7 @@ function evaluatePushToPullRequestBranchOutcome(item, itemRepo, out, ghAPIFn = g
 }
 
 /**
- * @param {object} item
+ * @param {any} item
  * @returns {number}
  */
 function resolvePRNumber(item) {
@@ -1743,7 +1743,7 @@ function shaMatches(a, b) {
 }
 
 /**
- * @param {object} item
+ * @param {any} item
  * @returns {string[]}
  */
 function extractPushedCommitSHAs(item) {
@@ -1768,7 +1768,7 @@ function extractPushedCommitSHAs(item) {
 }
 
 /**
- * @param {object} item
+ * @param {any} item
  * @returns {string}
  */
 function extractBeforeHeadSHA(item) {
@@ -1784,7 +1784,7 @@ function extractBeforeHeadSHA(item) {
  * @param {string} repo
  * @param {number} number
  * @param {any} prData
- * @param {(endpoint: string) => object | null} ghAPIFn
+ * @param {(endpoint: string) => any} ghAPIFn
  * @returns {boolean}
  */
 function hasClosingSignal(repo, number, prData, ghAPIFn) {
@@ -1807,7 +1807,7 @@ function hasClosingSignal(repo, number, prData, ghAPIFn) {
  * @param {string} repo
  * @param {string} commitSHA
  * @param {string} branchHeadSHA
- * @param {(endpoint: string) => object | null} ghAPIFn
+ * @param {(endpoint: string) => any} ghAPIFn
  * @returns {boolean | null}
  */
 function isCommitInBranchHistory(repo, commitSHA, branchHeadSHA, ghAPIFn) {
@@ -2073,6 +2073,7 @@ function main() {
   // Economics: zero-touch rate and median time-to-outcome
   const zeroTouchRate = accepted > 0 ? zeroTouchCount / accepted : 0;
   resolutionTimes.sort((a, b) => a - b);
+  /** @type {any} */
   let medianResolutionSec = null;
   if (resolutionTimes.length > 0) {
     const mid = Math.floor(resolutionTimes.length / 2);

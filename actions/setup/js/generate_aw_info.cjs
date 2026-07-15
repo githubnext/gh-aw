@@ -22,7 +22,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * API calls in this handler; no validateTargetRepo allowlist check is required here.
  *
  * @param {typeof import('@actions/core')} core - GitHub Actions core library
- * @param {object} ctx - GitHub Actions context object
+ * @param {any} ctx - GitHub Actions context object
  * @returns {Promise<void>}
  */
 async function main(core, ctx) {

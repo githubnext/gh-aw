@@ -356,7 +356,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * @returns {Object | null} MCP response if large content was handled, else null
    */
   const maybeHandleLargeContent = entry => {
+    /** @type {any} */
     let largeContent = null;
+    /** @type {any} */
     let largeFieldName = null;
 
     for (const [key, value] of Object.entries(entry)) {
@@ -592,7 +594,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Determine the working directory for git operations
     // If repo is specified or configured, find where it's checked out
+    /** @type {any} */
     let repoCwd = null;
+    /** @type {any} */
     let repoSlug = null;
     const patchWorkspacePath = typeof prConfig.patch_workspace_path === "string" ? prConfig.patch_workspace_path.trim() : "";
     const currentCheckoutRepo = typeof prConfig.current_checkout_repo === "string" ? prConfig.current_checkout_repo.trim() : "";
@@ -1031,6 +1035,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Look up the checkout path when the target repo is explicitly provided by the agent
     // or explicitly configured via target-repo in the workflow config — this ensures patch
     // generation runs from the correct directory when the target repo is checked out in a subdirectory.
+    /** @type {any} */
     let repoCwd = null;
     const itemRepo = repoResult.repo;
     const pushPatchWorkspacePath = typeof pushConfig.patch_workspace_path === "string" ? pushConfig.patch_workspace_path.trim() : "";
@@ -1843,6 +1848,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const effectiveAddCommentTarget = addCommentConfig.target || "triggering";
     const hasExplicitItemNumber = args?.item_number != null || args?.issue_number != null || args?.["pr-number"] != null;
     if (effectiveAddCommentTarget === "triggering" && !hasExplicitItemNumber) {
+      /** @type {any} */
       let invocationContext = null;
       try {
         invocationContext = resolveInvocationContext(context);
@@ -2128,6 +2134,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const effectiveTarget = updateIssueConfig.target || "triggering";
 
     if (effectiveTarget === "triggering") {
+      /** @type {any} */
       let invocationContext = null;
       try {
         invocationContext = resolveInvocationContext(context);
@@ -2180,6 +2187,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const updatePRConfig = getSafeOutputsToolConfig(config, "update_pull_request");
     const effectivePRTarget = updatePRConfig.target || "triggering";
     if (effectivePRTarget === "triggering") {
+      /** @type {any} */
       let invocationContext = null;
       try {
         invocationContext = resolveInvocationContext(context);

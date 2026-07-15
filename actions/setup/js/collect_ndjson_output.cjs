@@ -18,6 +18,7 @@ async function main() {
 
     // Load validation config from file and set it in environment for the validator to read
     const validationConfigPath = process.env.GH_AW_VALIDATION_CONFIG_PATH || `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/validation.json`;
+    /** @type {any} */
     let validationConfig = null;
     try {
       if (fs.existsSync(validationConfigPath)) {
@@ -207,6 +208,7 @@ async function main() {
     }
     core.info(`Raw output content length: ${outputContent.length}`);
     core.info(`[INGESTION] First 500 chars of output: ${outputContent.substring(0, 500)}`);
+    /** @type {any} */
     let expectedOutputTypes = {};
     if (safeOutputsConfig) {
       try {

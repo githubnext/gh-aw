@@ -829,6 +829,7 @@ async function main() {
     let difcFilteredEvents = [];
     let tokenSteeringEvents = [];
     let modelAliasResolutionEvents = [];
+    /** @type {any} */
     let rpcMessagesContent = null;
     if (fs.existsSync(gatewayJsonlPath)) {
       const jsonlContent = fs.readFileSync(gatewayJsonlPath, "utf8");

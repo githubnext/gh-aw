@@ -264,6 +264,7 @@ async function main(config = {}) {
       };
     }
 
+    /** @type {any} */
     let startLine = undefined;
     if (commentItem.start_line) {
       startLine = parseInt(commentItem.start_line, 10);

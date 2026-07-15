@@ -754,6 +754,7 @@ async function main() {
     core.info(`Adding immediate '${immediateReaction}' reaction for '/${commandName}'.`);
     await addImmediateReaction(immediateReaction);
   }
+  /** @type {any} */
   let statusCommentContext = null;
   if (routes.some(maintainsStatusComment)) {
     core.info(`Adding immediate status comment for '/${commandName}'.`);

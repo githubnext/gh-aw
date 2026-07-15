@@ -762,4 +762,88 @@ describe("check_daily_aic_workflow_guardrail", () => {
       expect(cache.get(901)).toBe(2.5);
     });
   });
+
+  describe("appendZeroAICEntriesToCache", () => {
+    let tmpDir;
+    let cacheFile;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aic-zero-cache-test-"));
+      cacheFile = path.join(tmpDir, "agentic-workflow-usage-cache.jsonl");
+      global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+      delete global.core;
+    });
+
+    it("does nothing when runIds is an empty array", () => {
+      exports.appendZeroAICEntriesToCache([], cacheFile);
+      expect(fs.existsSync(cacheFile)).toBe(false);
+    });
+
+    it("does nothing when runIds is null or not an array", () => {
+      exports.appendZeroAICEntriesToCache(null, cacheFile);
+      exports.appendZeroAICEntriesToCache(undefined, cacheFile);
+      exports.appendZeroAICEntriesToCache(42, cacheFile);
+      expect(fs.existsSync(cacheFile)).toBe(false);
+    });
+
+    it("creates the cache file when it does not exist", () => {
+      exports.appendZeroAICEntriesToCache([1001, 1002], cacheFile);
+      expect(fs.existsSync(cacheFile)).toBe(true);
+      const lines = fs.readFileSync(cacheFile, "utf8").trim().split("\n").filter(Boolean);
+      expect(lines).toHaveLength(2);
+      expect(JSON.parse(lines[0])).toMatchObject({ run_id: 1001, aic: 0 });
+      expect(JSON.parse(lines[1])).toMatchObject({ run_id: 1002, aic: 0 });
+    });
+
+    it("appends to an existing cache file without overwriting", () => {
+      fs.writeFileSync(cacheFile, JSON.stringify({ run_id: 900, aic: 5.0 }) + "\n", "utf8");
+      exports.appendZeroAICEntriesToCache([2001], cacheFile);
+      const lines = fs.readFileSync(cacheFile, "utf8").trim().split("\n").filter(Boolean);
+      expect(lines).toHaveLength(2);
+      expect(JSON.parse(lines[0])).toMatchObject({ run_id: 900, aic: 5.0 });
+      expect(JSON.parse(lines[1])).toMatchObject({ run_id: 2001, aic: 0 });
+    });
+
+    it("creates parent directories if they do not exist", () => {
+      const deepPath = path.join(tmpDir, "nested", "deep", "cache.jsonl");
+      exports.appendZeroAICEntriesToCache([3001], deepPath);
+      expect(fs.existsSync(deepPath)).toBe(true);
+      const lines = fs.readFileSync(deepPath, "utf8").trim().split("\n").filter(Boolean);
+      expect(lines).toHaveLength(1);
+      expect(JSON.parse(lines[0])).toMatchObject({ run_id: 3001, aic: 0 });
+    });
+
+    it("written entries round-trip through loadAICUsageCache with aic=0", () => {
+      exports.appendZeroAICEntriesToCache([4001, 4002], cacheFile);
+      const cache = exports.loadAICUsageCache(cacheFile);
+      expect(cache.has(4001)).toBe(true);
+      expect(cache.get(4001)).toBe(0);
+      expect(cache.has(4002)).toBe(true);
+      expect(cache.get(4002)).toBe(0);
+    });
+
+    it("each written entry includes a valid ISO timestamp", () => {
+      const before = Date.now() - 1000; // 1 s tolerance for slow systems
+      exports.appendZeroAICEntriesToCache([5001], cacheFile);
+      const after = Date.now() + 1000;
+      const lines = fs.readFileSync(cacheFile, "utf8").trim().split("\n").filter(Boolean);
+      const entry = JSON.parse(lines[0]);
+      expect(typeof entry.timestamp).toBe("string");
+      const ts = Date.parse(entry.timestamp);
+      expect(ts).toBeGreaterThanOrEqual(before);
+      expect(ts).toBeLessThanOrEqual(after);
+    });
+
+    it("handles write errors gracefully without throwing", () => {
+      // Pass a path inside a file (not a directory) to force a write error.
+      fs.writeFileSync(cacheFile, "", "utf8");
+      // Use cacheFile as if it were a directory — this will cause mkdirSync/appendFileSync to fail.
+      const badPath = path.join(cacheFile, "subfile.jsonl");
+      expect(() => exports.appendZeroAICEntriesToCache([6001], badPath)).not.toThrow();
+    });
+  });
 });

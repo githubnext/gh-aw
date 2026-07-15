@@ -24,7 +24,7 @@ const { readExperimentAssignments } = require("./experiment_helpers.cjs");
  * with a `payload.issue.pull_request` marker.  Those events are classified as
  * `pull_request` rather than `issue`.
  *
- * @param {object | null | undefined} payload - GitHub Actions context.payload
+ * @param {any} payload - GitHub Actions context.payload
  * @returns {{ item_type: string, item_number: string, comment_id: string, comment_node_id: string }}
  *   comment_node_id is only populated for discussion/discussion_comment events where
  *   payload.comment.node_id is present (GraphQL node ID needed for reply threading).
@@ -160,7 +160,7 @@ function parseInboundAwContext(raw) {
 /**
  * Resolve inbound aw_context from the current GitHub payload, if any.
  *
- * @param {object | null | undefined} payload
+ * @param {any} payload
  * @returns {Record<string, unknown> | null}
  */
 function readInboundAwContext(payload) {

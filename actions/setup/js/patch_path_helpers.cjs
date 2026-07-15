@@ -28,6 +28,7 @@ function parseDiffGitHeader(headerLine) {
       const sep = Math.min(...foundSeparatorIndices);
       const oldPath = rest.slice(A_PREFIX_LENGTH, sep) || null;
       const newToken = rest.slice(sep + 1).trimEnd();
+      /** @type {any} */
       let newPath = null;
       if (newToken.startsWith('"b/')) {
         if (newToken.endsWith('"')) {

@@ -27,7 +27,9 @@ async function getDiscussionDetails(github, owner, repo, discussionNumber) {
   // Fetch all labels with pagination
   const allLabels = [];
   let hasNextPage = true;
+  /** @type {any} */
   let cursor = null;
+  /** @type {any} */
   let discussion = null;
 
   while (hasNextPage) {

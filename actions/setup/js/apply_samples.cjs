@@ -418,7 +418,7 @@ async function preStagePatch(entry, index, workspace) {
  * with the parsed JSON response (or reject on timeout).
  * @param {import("child_process").ChildProcess} child
  * @param {NodeJS.WritableStream} stdin
- * @param {object} request
+ * @param {any} request
  * @param {AsyncIterableIterator<string>} responseIterator
  * @returns {Promise<any>}
  */

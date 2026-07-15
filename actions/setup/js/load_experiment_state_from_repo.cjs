@@ -127,6 +127,7 @@ async function main() {
 
   core.info(`Loading experiment state from branch "${branch}" (file: ${stateFileName})`);
 
+  /** @type {any} */
   let content = null;
   try {
     content = await fetchFileFromBranch(octokit, owner, repo, branch, stateFileName);

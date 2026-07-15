@@ -2,14 +2,12 @@
 private: true
 emoji: "🛡️"
 name: Sighthound Security Scan
-description: Run Sighthound in a separate job, upload findings as an artifact, and run an agent only when findings are detected
+description: Daily security scan using Sighthound; runs agent only when actionable findings are detected and opens one issue with the top violations
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  schedule: daily on weekdays
   workflow_dispatch:
 permissions:
   contents: read
-  pull-requests: read
   issues: read
   actions: read
 strict: true
@@ -140,12 +138,11 @@ steps:
       path: /tmp/gh-aw/agent/sighthound
 
 safe-outputs:
-  add-comment:
-    max: 1
-    target: "*"
   create-issue:
     max: 1
     labels: [security, sighthound]
+    close-older-issues: true
+    title-prefix: "[sighthound] "
   noop:
 ---
 
@@ -158,9 +155,9 @@ The `sighthound_scan` job ran Sighthound and pre-filtered findings. Read the fil
 ## Task
 
 1. Read `/tmp/gh-aw/agent/sighthound/actionable.json` and `/tmp/gh-aw/agent/sighthound/summary.md`.
-2. If this is triggered by a pull request, call `add_comment` (no `item_number`) with: total count, top findings by severity, and remediation guidance.
-3. If not triggered by a pull request, call `create_issue` with:
-   - title: `Sighthound findings in ${{ github.repository }} (run ${{ github.run_id }})`
-   - concise summary, key findings, and remediation guidance.
+2. Select up to 5 findings with the highest severity from `actionable.json`. If there are no findings, call `noop`.
+3. Call `create_issue` with:
+   - title: `Security findings in ${{ github.repository }}`
+   - body: concise summary listing the selected findings with file path, severity, and remediation guidance for each.
 
-Keep output concise. Only report findings from `actionable.json`.
+Keep the issue body concise. Only report findings from `actionable.json`.

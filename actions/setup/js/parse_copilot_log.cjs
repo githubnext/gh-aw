@@ -510,7 +510,9 @@ function parseDebugLogFormat(logContent) {
 
   // Extract model information from the start
   let model = "unknown";
+  /** @type {any} */
   let sessionId = null;
+  /** @type {any} */
   let modelInfo = null;
   let tools = [];
   const modelMatch = logContent.match(/Starting Copilot CLI: ([\d.]+)/);
@@ -727,6 +729,7 @@ function parseDebugLogFormat(logContent) {
                           let toolName = toolCall.function.name;
                           const originalToolName = toolName; // Keep original for error matching
                           const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
+                          /** @type {any} */
                           let args = {};
 
                           // Parse tool name (handle github- prefix and bash)
@@ -873,6 +876,7 @@ function parseDebugLogFormat(logContent) {
                   let toolName = toolCall.function.name;
                   const originalToolName = toolName;
                   const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
+                  /** @type {any} */
                   let args = {};
 
                   if (toolName.startsWith("github-")) {

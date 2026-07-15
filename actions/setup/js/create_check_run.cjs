@@ -113,6 +113,7 @@ async function main(config = {}) {
     const owner = context.repo.owner;
     const repo = context.repo.repo;
     let headSha = "";
+    /** @type {any} */
     let resolvedPrNumber = null;
 
     if (checkRunTarget) {
