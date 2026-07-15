@@ -1792,6 +1792,7 @@ jobs:
           GH_AW_EVALS_QUESTIONS: '[{"id":"violations-analyzed","question":"Did the workflow analyze changed Go or JavaScript files from the last 24 hours for architecture violations, or correctly conclude there were none?"},{"id":"issue-created-or-noop","question":"Was an architecture report issue created when violations were found, or was noop or skip behavior used appropriately when there was nothing actionable?"}]'
           GH_AW_EVALS_MODEL: "small"
           GH_AW_EVALS_PHASE: parse
+          GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

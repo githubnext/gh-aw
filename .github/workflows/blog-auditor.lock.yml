@@ -1857,6 +1857,7 @@ jobs:
           GH_AW_EVALS_QUESTIONS: '[{"id":"audit-completed","question":"Did the workflow complete the blog availability audit, including page access and content validation checks?"},{"id":"discussion-created","question":"Was an audit discussion created summarizing the pass or fail results and suggested remediation when needed?"}]'
           GH_AW_EVALS_MODEL: "small"
           GH_AW_EVALS_PHASE: parse
+          GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
