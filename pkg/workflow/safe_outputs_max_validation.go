@@ -61,6 +61,7 @@ func checkMaxFieldAtMostOne(toolName string, maxPtr *string) error {
 	}
 	n, err := strconv.Atoi(*maxPtr)
 	if err != nil {
+		// Non-numeric, non-expression values are skipped (consistent with checkMaxField).
 		return nil
 	}
 	// At this point n is a valid max per checkMaxField (positive or -1).
@@ -70,8 +71,10 @@ func checkMaxFieldAtMostOne(toolName string, maxPtr *string) error {
 		toolDisplayName := strings.ReplaceAll(toolName, "_", "-")
 		safeOutputsMaxValidationLog.Printf("Invalid max value %d for %s: must be 1", n, toolDisplayName)
 		return fmt.Errorf(
-			"safe-outputs.%s: max must be 1; the runtime uses a single shared review buffer and cannot submit multiple independent reviews in one run. "+
-				"To review multiple PRs, set max: 1 and use target: \"*\" to run per-PR (each invocation gets its own run). "+
+			"safe-outputs.%s: max must be 1; the runtime uses a single shared review buffer and cannot "+
+				"submit multiple independent reviews in one run. "+
+				"To review multiple PRs, use target: \"*\" with max: 1 (or omit max entirely) so each PR "+
+				"gets its own invocation and review buffer. "+
 				"Multi-buffer support will be added in a future release",
 			toolDisplayName,
 		)
