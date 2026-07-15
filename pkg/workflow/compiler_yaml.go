@@ -949,18 +949,15 @@ func writeStepsSection(yaml *strings.Builder, stepsYAML string) {
 	}
 	lines := strings.Split(stepsYAML, "\n")
 	for _, line := range lines[1:] { // skip the "pre-steps:" / "pre-agent-steps:" / "post-steps:" header line
-		trimmed := strings.TrimRight(line, " \t")
+		trimmed := strings.TrimRight(line, " ")
 		if strings.TrimSpace(trimmed) == "" {
 			yaml.WriteString("\n")
 			continue
 		}
-		// Emit the trailing-whitespace-trimmed line so script body lines carried
-		// verbatim from the source markdown don't produce yamllint trailing-spaces
-		// warnings in the lock file.
-		if strings.HasPrefix(trimmed, "  ") {
-			yaml.WriteString("        " + trimmed[2:] + "\n")
+		if strings.HasPrefix(line, "  ") {
+			yaml.WriteString("        " + line[2:] + "\n")
 		} else {
-			yaml.WriteString("      " + trimmed + "\n")
+			yaml.WriteString("      " + line + "\n")
 		}
 	}
 }

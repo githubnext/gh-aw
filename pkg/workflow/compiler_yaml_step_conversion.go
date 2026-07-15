@@ -45,9 +45,7 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 		if strings.TrimSpace(line) == "" {
 			result.WriteString("\n")
 		} else {
-			// Trim trailing whitespace so script/block-scalar body lines carried
-			// verbatim from the source don't emit yamllint trailing-spaces warnings.
-			result.WriteString("      " + strings.TrimRight(line, " \t") + "\n")
+			result.WriteString("      " + line + "\n")
 		}
 	}
 

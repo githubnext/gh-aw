@@ -390,7 +390,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
 				contentLines := strings.SplitSeq(cleanedContent, "\n")
 				for line := range contentLines {
-					yaml.WriteString("            " + strings.TrimRight(line, " \t") + "\n")
+					yaml.WriteString("            " + line + "\n")
 				}
 				yaml.WriteString("            " + delimiter + "\n")
 			}
@@ -430,7 +430,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
 				contentLines := strings.SplitSeq(cleanedContent, "\n")
 				for line := range contentLines {
-					yaml.WriteString("          " + strings.TrimRight(line, " \t") + "\n")
+					yaml.WriteString("          " + line + "\n")
 				}
 			}
 		}
@@ -484,9 +484,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 		lines := strings.SplitSeq(chunk, "\n")
 		for line := range lines {
 			yaml.WriteString("          ")
-			// Trim trailing whitespace so prompt lines don't emit yamllint
-			// trailing-spaces warnings in the lock file.
-			yaml.WriteString(strings.TrimRight(line, " \t"))
+			yaml.WriteString(line)
 			yaml.WriteByte('\n')
 		}
 	}
