@@ -37,23 +37,50 @@ func normalizeStringOrStringSlice(raw any) []string {
 	return parseStringSliceAny(raw, nil)
 }
 
+// validDeploymentStatusStates is the exhaustive list of state values that GitHub
+// Actions emits for deployment_status events. Values outside this set are rejected at
+// compile time to prevent expression injection (a raw value is interpolated directly
+// into a GitHub Actions expression string).
+var validDeploymentStatusStates = []string{
+	"error",
+	"failure",
+	"inactive",
+	"in_progress",
+	"pending",
+	"queued",
+	"success",
+	"waiting",
+}
+
+// isValidDeploymentStatusState reports whether v is a recognised deployment status state value.
+func isValidDeploymentStatusState(v string) bool {
+	return slices.Contains(validDeploymentStatusStates, v)
+}
+
 // extractDeploymentStatusStateCondition reads on.deployment_status.state and converts it
 // into a GitHub Actions expression string (without ${{ }} wrappers). Returns "" if not set.
-func extractDeploymentStatusStateCondition(frontmatter map[string]any) string {
+func extractDeploymentStatusStateCondition(frontmatter map[string]any) (string, error) {
 	dsMap, ok := extractOnTriggerMap(frontmatter, "deployment_status")
 	if !ok {
-		return ""
+		return "", nil
 	}
 	stateValue, ok := dsMap["state"]
 	if !ok {
-		return ""
+		return "", nil
 	}
 
 	// GitHub Actions allows state as a single string or an array
 	states := normalizeStringOrStringSlice(stateValue)
 
 	if len(states) == 0 {
-		return ""
+		return "", nil
+	}
+
+	for _, s := range states {
+		if !isValidDeploymentStatusState(s) {
+			return "", fmt.Errorf("invalid on.deployment_status.state value %q: must be one of %s",
+				s, strings.Join(validDeploymentStatusStates, ", "))
+		}
 	}
 
 	parts := make([]string, 0, len(states))
@@ -66,7 +93,7 @@ func extractDeploymentStatusStateCondition(frontmatter map[string]any) string {
 	// when the workflow is triggered by other events (e.g. workflow_dispatch).
 	// Without the guard, a non-deployment_status event would see the state as
 	// empty/undefined and the entire activation condition would evaluate to false.
-	return "github.event_name != 'deployment_status' || (" + stateExpr + ")"
+	return "github.event_name != 'deployment_status' || (" + stateExpr + ")", nil
 }
 
 // validWorkflowRunConclusions is the exhaustive list of conclusion values that GitHub

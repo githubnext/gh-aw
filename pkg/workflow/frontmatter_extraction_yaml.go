@@ -169,7 +169,10 @@ func (c *Compiler) extractIfCondition(frontmatter map[string]any) (string, error
 	}
 
 	// Merge any condition generated from on.deployment_status.state
-	stateCondition := extractDeploymentStatusStateCondition(frontmatter)
+	stateCondition, err := extractDeploymentStatusStateCondition(frontmatter)
+	if err != nil {
+		return "", err
+	}
 	if stateCondition != "" {
 		frontmatterLog.Printf("Merging deployment_status state condition: %s", stateCondition)
 		if ifExpr != "" {

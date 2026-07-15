@@ -108,6 +108,7 @@ func TestExtractDeploymentStatusStateCondition(t *testing.T) {
 		name        string
 		frontmatter map[string]any
 		want        string
+		wantErr     bool
 	}{
 		{
 			name:        "missing on section",
@@ -147,12 +148,39 @@ func TestExtractDeploymentStatusStateCondition(t *testing.T) {
 			},
 			want: "github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'success')",
 		},
+		{
+			name: "invalid state value is rejected",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"deployment_status": map[string]any{
+						"state": "foo' || 'x",
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "unknown state string is rejected",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"deployment_status": map[string]any{
+						"state": "unknown_state",
+					},
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractDeploymentStatusStateCondition(tt.frontmatter)
-			assert.Equal(t, tt.want, got, "extractDeploymentStatusStateCondition should match expected expression for %q", tt.name)
+			got, err := extractDeploymentStatusStateCondition(tt.frontmatter)
+			if tt.wantErr {
+				assert.Error(t, err, "extractDeploymentStatusStateCondition should return error for %q", tt.name)
+			} else {
+				require.NoError(t, err, "extractDeploymentStatusStateCondition should not return error for %q", tt.name)
+				assert.Equal(t, tt.want, got, "extractDeploymentStatusStateCondition should match expected expression for %q", tt.name)
+			}
 		})
 	}
 }
