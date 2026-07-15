@@ -223,7 +223,7 @@ func TestValidEngineNames(t *testing.T) {
 	assert.NotEmpty(t, engines, "Engine names list should not be empty")
 
 	// Verify expected engines are present
-	expectedEngines := []string{"copilot", "claude", "codex", "gemini", "antigravity", "opencode", "crush"}
+	expectedEngines := []string{"copilot", "claude", "codex", "gemini", "antigravity", "opencode"}
 	for _, expected := range expectedEngines {
 		assert.Contains(t, engines, expected, "Expected engine '%s' to be in the list", expected)
 	}
@@ -240,12 +240,12 @@ func TestCompleteEngineNames(t *testing.T) {
 		{
 			name:       "empty prefix returns all engines",
 			toComplete: "",
-			wantLen:    8, // antigravity, copilot, claude, codex, gemini, opencode, crush, pi
+			wantLen:    7, // antigravity, copilot, claude, codex, gemini, opencode, pi
 		},
 		{
-			name:       "c prefix returns claude, codex, copilot, crush",
+			name:       "c prefix returns claude, codex, copilot",
 			toComplete: "c",
-			wantLen:    4,
+			wantLen:    3,
 		},
 		{
 			name:       "co prefix returns copilot, codex",

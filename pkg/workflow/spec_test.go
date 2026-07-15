@@ -273,7 +273,7 @@ func TestSpec_Engine_RegistryLookupAndIdentity(t *testing.T) {
 
 // TestSpec_Engine_DocumentedEnginesRegistered validates that every AI engine documented
 // in the workflow package README.md is registered and reports the documented identity.
-// Spec: the engine architecture lists copilot, claude, codex, gemini, crush, opencode,
+// Spec: the engine architecture lists copilot, claude, codex, gemini, opencode,
 // pi, and antigravity engines, each created by a New<Name>Engine constructor.
 func TestSpec_Engine_DocumentedEnginesRegistered(t *testing.T) {
 	registry := workflow.GetGlobalEngineRegistry()
@@ -281,7 +281,7 @@ func TestSpec_Engine_DocumentedEnginesRegistered(t *testing.T) {
 
 	documentedEngines := []string{
 		"copilot", "claude", "codex", "gemini",
-		"crush", "opencode", "pi", "antigravity",
+		"opencode", "pi", "antigravity",
 	}
 
 	for _, id := range documentedEngines {

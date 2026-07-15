@@ -122,6 +122,22 @@ Embedded pin loading and index creation use `sync.Once`, and read access to load
 
 `PinContext.Warnings` is mutated in place for warning deduplication; callers should not share one `PinContext` across goroutines without external synchronization.
 
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 8 |
+| Constants | 2 |
+| Variables | 0 |
+| Functions and methods | 9 |
+| Additional symbols documented in this appendix | 0 |
+
+The sections above already mention every exported top-level symbol in the current source tree.
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
+
 ---
 
 *This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

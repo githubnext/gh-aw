@@ -461,7 +461,7 @@ outerLoop:
 					continue
 				}
 
-				if applyRunFilters(result, filters, verbose) {
+				if applyRunFilters(activeCtx, result, filters, verbose) {
 					continue
 				}
 

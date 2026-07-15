@@ -68,8 +68,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
@@ -294,6 +296,10 @@ type AWFContainerConfig struct {
 	// Format: "<tag>" or "<tag>,squid=sha256:...,agent=sha256:..."
 	// Maps to: --image-tag <value>
 	ImageTag string `json:"imageTag,omitempty"`
+
+	// AgentTimeout is the maximum time (in minutes) the agent command may run.
+	// docker-sbx requires this so AWF passes a concrete timeout to sbx exec.
+	AgentTimeout int `json:"agentTimeout,omitempty"`
 
 	// DockerHostPathPrefix prefixes bind-mount source paths so the Docker daemon can
 	// resolve runner filesystem paths. Required for ARC DinD sidecar runners where the
@@ -561,6 +567,10 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	// ── Container section ─────────────────────────────────────────────────────
 	awfImageTag := buildAWFImageTagWithDigests(getAWFImageTag(firewallConfig), config.WorkflowData)
 	agentRuntime := getAgentContainerRuntime(config.WorkflowData)
+	agentTimeout := 0
+	if isDockerSbxRuntime(config.WorkflowData) {
+		agentTimeout = resolveAWFContainerAgentTimeoutMinutes(config.WorkflowData)
+	}
 	// containerRuntime is only emitted when the effective AWF version supports it.
 	// Gate here to avoid sending an unrecognised field to older AWF binaries.
 	if !awfSupportsContainerRuntime(firewallConfig) {
@@ -569,9 +579,10 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		}
 		agentRuntime = ""
 	}
-	if awfImageTag != "" || isArcDindTopology(config.WorkflowData) || agentRuntime != "" {
+	if awfImageTag != "" || isArcDindTopology(config.WorkflowData) || agentRuntime != "" || agentTimeout > 0 {
 		container := &AWFContainerConfig{
 			ImageTag:         awfImageTag,
+			AgentTimeout:     agentTimeout,
 			ContainerRuntime: agentRuntime,
 		}
 		// NOTE: dockerHostPathPrefix is intentionally NOT set for arc-dind topology.
@@ -588,6 +599,9 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		}
 		if agentRuntime != "" {
 			awfConfigLog.Printf("Container section: containerRuntime=%s", agentRuntime)
+		}
+		if agentTimeout > 0 {
+			awfConfigLog.Printf("Container section: agentTimeout=%d", agentTimeout)
 		}
 	}
 
@@ -618,6 +632,30 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 
 	return jsonStr, nil
+}
+
+func resolveAWFContainerAgentTimeoutMinutes(workflowData *WorkflowData) int {
+	// Reuse the workflow-level default timeout so docker-sbx inherits the same
+	// runtime ceiling when top-level timeout-minutes is omitted or non-numeric.
+	defaultTimeout := compilerenv.ResolveDefaultTimeoutMinutes(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
+	if workflowData == nil || workflowData.TimeoutMinutes == "" {
+		return defaultTimeout
+	}
+
+	rawTimeout := strings.TrimSpace(workflowData.TimeoutMinutes)
+	if after, ok := strings.CutPrefix(rawTimeout, "timeout-minutes:"); ok {
+		rawTimeout = strings.TrimSpace(after)
+	}
+
+	timeoutMinutes, err := strconv.Atoi(rawTimeout)
+	if err == nil && timeoutMinutes > 0 {
+		return timeoutMinutes
+	}
+
+	if rawTimeout != "" {
+		awfConfigLog.Printf("Container section: non-numeric timeout-minutes %q (e.g. a GitHub Actions expression) cannot be emitted in integer-only agentTimeout; using default %d", rawTimeout, defaultTimeout)
+	}
+	return defaultTimeout
 }
 
 // buildAWFTopologyAttachList returns container names that AWF should attach to

@@ -204,6 +204,29 @@ func TestDockerSbxAWFArgs(t *testing.T) {
 	assert.True(t, found, "AWF args must include --container-runtime sbx for docker-sbx runtime")
 }
 
+func TestDockerSbxAWFArgsSuppressesTTY(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName: "claude",
+		UsesTTY:    true,
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "claude"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFContainerRuntimeMinVersion)},
+			},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID:                    "awf",
+					Runtime:               AgentRuntimeDockerSbx,
+					SudoExplicitlyEnabled: true,
+				},
+			},
+		},
+	}
+
+	args := BuildAWFArgs(config)
+	assert.NotContains(t, strings.Join(args, " "), "--tty", "docker-sbx must suppress --tty to avoid sbx pty timeouts")
+}
+
 // TestDockerSbxAWFArgsAbsentByDefault verifies that --container-runtime sbx is NOT
 // added when no runtime is configured.
 func TestDockerSbxAWFArgsAbsentByDefault(t *testing.T) {
@@ -261,7 +284,8 @@ func TestDockerSbxAWFConfigJSON(t *testing.T) {
 		EngineName:     "copilot",
 		AllowedDomains: "github.com",
 		WorkflowData: &WorkflowData{
-			EngineConfig: &EngineConfig{ID: "copilot"},
+			EngineConfig:   &EngineConfig{ID: "copilot"},
+			TimeoutMinutes: "timeout-minutes: 30",
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{Enabled: true},
 			},
@@ -290,6 +314,86 @@ func TestDockerSbxAWFConfigJSON(t *testing.T) {
 	// network.isolation must be true for docker-sbx.
 	assert.Contains(t, jsonStr, `"isolation":true`,
 		"AWF config JSON must have network.isolation: true for docker-sbx")
+
+	// docker-sbx must pass a concrete agent timeout to AWF.
+	assert.Contains(t, jsonStr, `"agentTimeout":30`,
+		"AWF config JSON must include container.agentTimeout for docker-sbx")
+}
+
+func TestDockerSbxEngineCLIWiring(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name:          "test-workflow",
+		EngineConfig:  &EngineConfig{ID: "claude"},
+		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: AgentRuntimeDockerSbx, SudoExplicitlyEnabled: true}},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+
+	t.Run("claude install and execution use sbx-visible CLI path", func(t *testing.T) {
+		engine := NewClaudeEngine()
+		installSteps := engine.GetInstallationSteps(workflowData)
+		installContent := strings.Join(flattenSteps(installSteps), "\n")
+		assert.Contains(t, installContent, `npm install --prefix "${RUNNER_TEMP}/gh-aw/engine-cli" @anthropic-ai/claude-code@`+string(constants.DefaultClaudeCodeVersion))
+		assert.Contains(t, installContent, `ln -sf "../node_modules/.bin/claude" "${RUNNER_TEMP}/gh-aw/engine-cli/bin/claude"`)
+
+		execSteps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		require.NotEmpty(t, execSteps)
+		execContent := strings.Join(execSteps[0], "\n")
+		assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`)
+	})
+
+	t.Run("docker-sbx keeps engine and MCP CLI PATH setup independent", func(t *testing.T) {
+		workflowData.ParsedTools = &ToolsConfig{
+			CLIProxy: true,
+			Custom: map[string]MCPServerConfig{
+				"myserver": {},
+			},
+		}
+		workflowData.Tools = map[string]any{
+			"myserver": map[string]any{
+				"mode": "remote",
+			},
+		}
+
+		engine := NewClaudeEngine()
+		execSteps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		require.NotEmpty(t, execSteps)
+		execContent := strings.Join(execSteps[0], "\n")
+
+		assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH"`)
+		assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`)
+
+		mcpIdx := strings.Index(execContent, `export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH"`)
+		engineIdx := strings.Index(execContent, `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`)
+		assert.GreaterOrEqual(t, mcpIdx, 0)
+		assert.GreaterOrEqual(t, engineIdx, 0)
+		assert.Less(t, mcpIdx, engineIdx, "engine path export must run after MCP export so engine CLI takes PATH precedence")
+	})
+
+	t.Run("codex install and execution use sbx-visible CLI path", func(t *testing.T) {
+		engine := NewCodexEngine()
+		workflowData.EngineConfig = &EngineConfig{ID: "codex"}
+		installSteps := engine.GetInstallationSteps(workflowData)
+		installContent := strings.Join(flattenSteps(installSteps), "\n")
+		assert.Contains(t, installContent, `npm install --ignore-scripts --prefix "${RUNNER_TEMP}/gh-aw/engine-cli" @openai/codex@`+string(constants.DefaultCodexVersion))
+		assert.Contains(t, installContent, `ln -sf "../node_modules/.bin/codex" "${RUNNER_TEMP}/gh-aw/engine-cli/bin/codex"`)
+
+		execSteps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		require.NotEmpty(t, execSteps)
+		execContent := strings.Join(execSteps[0], "\n")
+		assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`)
+	})
+}
+
+// flattenSteps joins a small slice of GitHubActionStep values so docker-sbx tests can
+// assert across multi-step install blocks without repeating nested loops in each case.
+func flattenSteps(steps []GitHubActionStep) []string {
+	var lines []string
+	for _, step := range steps {
+		lines = append(lines, step...)
+	}
+	return lines
 }
 
 // TestDockerSbxNetworkIsolationAlwaysTrue verifies that isAWFNetworkIsolationEnabled

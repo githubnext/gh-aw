@@ -312,6 +312,9 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 // This is the same discovery strategy used by the update command so both
 // commands operate on the same set of repositories.
 func searchOrgLockWorkflowRepos(ctx context.Context, org string, verbose bool) ([]string, error) {
+	if !isValidOrgSlug(org) {
+		return nil, invalidOrgSlugError(org)
+	}
 	query := fmt.Sprintf(`org:%s path:.github/workflows filename:.lock.yml`, org)
 	return searchOrgReposByQuery(ctx, query, verbose)
 }

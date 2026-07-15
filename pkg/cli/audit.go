@@ -375,7 +375,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 	if shouldSkipAuditRun(cfg.runID, cfg.outputDir, cfg.experimentFilter, cfg.variantFilter) {
 		return nil
 	}
-	if shouldSkipForEvals(cfg) {
+	if shouldSkipForEvals(ctx, cfg, run) {
 		return nil
 	}
 	return renderAuditReport(ctx, processedRun, results.metrics, results.mcpToolUsage, cfg.auditOptions())
@@ -498,7 +498,8 @@ func renderCachedAuditIfAvailable(ctx context.Context, cfg auditRunConfig) (bool
 	// was created without evals (e.g., default usage-only download).  Bypass the
 	// cache so prepareAuditWorkflowRun can fetch the evals artifact; the filter at
 	// the post-download check will then correctly decide whether to skip the run.
-	if cfg.evalsOnly && !runHasEvals(cfg.outputDir, cfg.verbose) {
+	if cfg.evalsOnly && !runHasEvals(cfg.outputDir, cfg.verbose) &&
+		!ensureEvalsResultsFromBranch(ctx, summary.Run, cfg.outputDir, cfg.owner, cfg.repo, cfg.hostname, cfg.verbose) {
 		auditLog.Printf("Cache miss for run %d evals: evals artifact not present locally, bypassing cache", cfg.runID)
 		return false, nil
 	}
@@ -968,11 +969,12 @@ func renderAuditCompletion(runOutputDir string, jsonOutput bool) {
 // shouldSkipForEvals returns true when evals filtering is active but no evals results
 // are found locally after download. It logs the skip decision and, when verbose, prints
 // an info message to stderr. Call this only after artifact download has completed.
-func shouldSkipForEvals(cfg auditRunConfig) bool {
+func shouldSkipForEvals(ctx context.Context, cfg auditRunConfig, run WorkflowRun) bool {
 	if !cfg.evalsOnly {
 		return false
 	}
-	if runHasEvals(cfg.outputDir, cfg.verbose) {
+	if runHasEvals(cfg.outputDir, cfg.verbose) ||
+		ensureEvalsResultsFromBranch(ctx, run, cfg.outputDir, cfg.owner, cfg.repo, cfg.hostname, cfg.verbose) {
 		return false
 	}
 	auditLog.Printf("Skipping run %d: no evals results found (filtered by --evals)", cfg.runID)

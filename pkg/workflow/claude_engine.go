@@ -128,6 +128,16 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		true,  // Claude Code requires post-install scripts for native binaries
 		false, // Agentic engine installs should not apply npm release-age cooldown
 	)
+	if isDockerSbxRuntime(workflowData) {
+		npmSteps = append(npmSteps, GenerateDockerSbxNpmCLIInstallStep(
+			"@anthropic-ai/claude-code",
+			version,
+			"Install Claude Code CLI in docker-sbx path",
+			"claude",
+			true,
+			false,
+		))
+	}
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 }
 
@@ -334,7 +344,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// We prepend GetNpmBinPathSetup() to the engine command so it runs inside the AWF container.
 		npmPathSetup := GetNpmBinPathSetup()
 		claudeCommandWithPath := fmt.Sprintf(`%s && %s`, npmPathSetup, claudeCommand)
-		// Add MCP CLI bin directory to PATH when cli-proxy is enabled
+		if dockerSbxCLIPath := GetDockerSbxNpmCLIPathSetup(workflowData); dockerSbxCLIPath != "" {
+			claudeCommandWithPath = fmt.Sprintf("%s && %s", dockerSbxCLIPath, claudeCommandWithPath)
+		}
+		// Add MCP CLI bin directory to PATH when cli-proxy is enabled.
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			claudeCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, claudeCommandWithPath)
 		}

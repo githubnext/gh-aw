@@ -315,6 +315,44 @@ Import caching is crucial for performance and cycle detection. The `ImportCache`
 
 The `DefaultFileReader` variable is safe to read but MUST NOT be mutated after package initialization. Tests may replace it with a custom `FileReader` to inject virtual filesystem content.
 
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 24 |
+| Constants | 10 |
+| Variables | 5 |
+| Functions and methods | 96 |
+| Additional symbols documented in this appendix | 13 |
+
+### Additional constants and variables
+
+| File | Kind | Symbol | Declaration | Description |
+|------|------|--------|-------------|-------------|
+| `github_urls.go` | `const` | `URLTypeBlob` | `const URLTypeBlob GitHubURLType = "blob"` | File blob view |
+| `github_urls.go` | `const` | `URLTypeIssue` | `const URLTypeIssue GitHubURLType = "issue"` | Issue |
+| `github_urls.go` | `const` | `URLTypePullRequest` | `const URLTypePullRequest GitHubURLType = "pull"` | Pull request |
+| `github_urls.go` | `const` | `URLTypeRaw` | `const URLTypeRaw GitHubURLType = "raw"` | Raw file view |
+| `github_urls.go` | `const` | `URLTypeRawContent` | `const URLTypeRawContent GitHubURLType = "rawcontent"` | raw. |
+| `github_urls.go` | `const` | `URLTypeRun` | `const URLTypeRun GitHubURLType = "run"` | GitHub Actions run |
+| `github_urls.go` | `const` | `URLTypeTree` | `const URLTypeTree GitHubURLType = "tree"` | Directory tree view |
+| `github_urls.go` | `const` | `URLTypeUnknown` | `const URLTypeUnknown GitHubURLType = "unknown"` | Unknown type |
+| `import_cache.go` | `const` | `ImportCacheDir` | `const ImportCacheDir = ".github/aw/imports"` | ImportCacheDir is the directory where cached imports are stored |
+
+### Additional functions and methods
+
+| File | Symbol | Declaration | Description |
+|------|--------|-------------|-------------|
+| `import_cache.go` | `(*ImportCache).Get` | `func (*ImportCache).Get(owner, repo, path, sha string) (string, bool)` | Get retrieves a cached file path if it exists sha parameter should be the resolved commit SHA |
+| `import_cache.go` | `(*ImportCache).GetCacheDir` | `func (*ImportCache).GetCacheDir() string` | GetCacheDir returns the base cache directory path |
+| `import_cache.go` | `(*ImportCache).Set` | `func (*ImportCache).Set(owner, repo, path, sha string, content []byte) (string, error)` | Set stores a new cache entry by saving the content to the cache directory sha parameter should be the resolved commit SHA |
+| `import_error.go` | `(*FormattedParserError).Unwrap` | `func (*FormattedParserError).Unwrap() error` | Exported function or method declared in `import_error.go`. |
+
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
+
 ---
 
 *This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

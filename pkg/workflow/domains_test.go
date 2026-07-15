@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetDomainEcosystem(t *testing.T) {
@@ -1313,4 +1314,44 @@ func TestMergeAPITargetDomains(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExtractProviderFromModel(t *testing.T) {
+	t.Run("standard provider/model format", func(t *testing.T) {
+		provider, err := extractProviderFromModel("anthropic/claude-sonnet-4-20250514")
+		require.NoError(t, err)
+		assert.Equal(t, "anthropic", provider)
+
+		provider, err = extractProviderFromModel("openai/gpt-4.1")
+		require.NoError(t, err)
+		assert.Equal(t, "openai", provider)
+
+		provider, err = extractProviderFromModel("google/gemini-2.5-pro")
+		require.NoError(t, err)
+		assert.Equal(t, "google", provider)
+	})
+
+	t.Run("empty model returns empty provider", func(t *testing.T) {
+		provider, err := extractProviderFromModel("")
+		require.NoError(t, err)
+		assert.Empty(t, provider)
+	})
+
+	t.Run("no slash returns empty provider", func(t *testing.T) {
+		provider, err := extractProviderFromModel("claude-sonnet-4-20250514")
+		require.NoError(t, err)
+		assert.Empty(t, provider)
+	})
+
+	t.Run("case insensitive provider", func(t *testing.T) {
+		provider, err := extractProviderFromModel("OpenAI/gpt-4.1")
+		require.NoError(t, err)
+		assert.Equal(t, "openai", provider)
+	})
+
+	t.Run("leading slash returns error", func(t *testing.T) {
+		_, err := extractProviderFromModel("/gpt-4.1")
+		require.Error(t, err, "Leading slash (empty provider prefix) must return an error")
+		assert.Contains(t, err.Error(), "provider prefix is empty")
+	})
 }
