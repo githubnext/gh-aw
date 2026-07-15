@@ -288,10 +288,12 @@ func findMissingFilterEntries(filter []string, outputDir string) []string {
 // Because evals results are now included in the usage artifact, this ensures evals.jsonl
 // is downloaded without requiring the user to also pass --artifacts evals or --artifacts usage.
 //
-// Note: callers that treat an empty artifacts slice as "all" (e.g., the audit command)
-// should guard with len(artifacts) > 0 before calling this function, to avoid
-// changing the empty/"all" default into an evals-only download.
+// For callers that treat an empty artifacts slice as "all", the function returns
+// the empty slice unchanged and does not append evals.
 func applyEvalsArtifact(artifacts []string, evalsOnly bool) []string {
+	if len(artifacts) == 0 {
+		return artifacts
+	}
 	if evalsOnly &&
 		!slices.Contains(artifacts, string(ArtifactSetEvals)) &&
 		!slices.Contains(artifacts, string(ArtifactSetUsage)) &&
@@ -299,4 +301,10 @@ func applyEvalsArtifact(artifacts []string, evalsOnly bool) []string {
 		return append(artifacts, string(ArtifactSetEvals))
 	}
 	return artifacts
+}
+
+// isEvalsArtifactRequested reports whether evals results were explicitly requested,
+// either via --evals or by including --artifacts evals.
+func isEvalsArtifactRequested(evalsOnly bool, artifactSets []string) bool {
+	return evalsOnly || slices.Contains(artifactSets, string(ArtifactSetEvals))
 }

@@ -172,7 +172,9 @@ Downloaded artifacts include (when using --artifacts all):
 					return err
 				}
 
-				artifacts = applyEvalsArtifact(artifacts, evalsOnly)
+				if len(artifacts) > 0 {
+					artifacts = applyEvalsArtifact(artifacts, evalsOnly)
+				}
 
 				return DownloadWorkflowLogsFromStdin(cmd.Context(), StdinLogsOptions{
 					RunURLs:           runURLs,
@@ -327,7 +329,9 @@ Downloaded artifacts include (when using --artifacts all):
 
 			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v, cache_before=%s", workflowName, count, engine, train, cacheBefore)
 
-			artifacts = applyEvalsArtifact(artifacts, evalsOnly)
+			if len(artifacts) > 0 {
+				artifacts = applyEvalsArtifact(artifacts, evalsOnly)
+			}
 
 			return DownloadWorkflowLogs(cmd.Context(), LogsDownloadOptions{
 				WorkflowName:      workflowName,

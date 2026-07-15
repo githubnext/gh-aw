@@ -16,7 +16,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -63,9 +62,7 @@ func buildConcurrentDownloadParams(outputDir string, verbose bool, repoOverride 
 			dlOwner, dlRepo = parts[0], parts[1]
 		}
 	}
-	// ArtifactSetEvals is defined as `"evals"`, matching the string that users pass via
-	// --artifacts evals, so the Contains check is an exact string comparison.
-	evalsArtifactRequested := evalsOnly || slices.Contains(artifactSets, string(ArtifactSetEvals))
+	evalsArtifactRequested := isEvalsArtifactRequested(evalsOnly, artifactSets)
 	return concurrentRunDownloadParams{
 		outputDir:              outputDir,
 		verbose:                verbose,
@@ -268,8 +265,8 @@ func tryLoadCachedRunResult(
 	// the post-download filter decides whether to skip.
 	hasEvals := runHasEvals(runOutputDir, params.verbose) ||
 		ensureEvalsResultsFromBranch(ctx, summary.Run, runOutputDir, params.dlOwner, params.dlRepo, params.dlHost, params.verbose)
-	if params.evalsOnly && !hasEvals {
-		logsOrchestratorLog.Printf("Cache bypass for run %d: evals requested (--evals) but not present locally", run.DatabaseID)
+	if params.evalsArtifactRequested && !hasEvals {
+		logsOrchestratorLog.Printf("Cache bypass for run %d: evals requested (--evals or --artifacts evals) but not present locally", run.DatabaseID)
 		return nil, false
 	}
 

@@ -261,6 +261,55 @@ func TestValidArtifactSetNames(t *testing.T) {
 	assert.ElementsMatch(t, expected, names, "ValidArtifactSetNames should contain all known sets")
 }
 
+func TestApplyEvalsArtifact(t *testing.T) {
+	t.Run("returns empty slice unchanged when artifact list is empty", func(t *testing.T) {
+		assert.Empty(t, applyEvalsArtifact(nil, true))
+		assert.Empty(t, applyEvalsArtifact([]string{}, true))
+	})
+
+	t.Run("appends evals when evals requested and artifact list narrowed", func(t *testing.T) {
+		assert.Equal(t, []string{"agent", "evals"}, applyEvalsArtifact([]string{"agent"}, true))
+	})
+
+	t.Run("does not append evals when usage already present", func(t *testing.T) {
+		assert.Equal(t, []string{"usage"}, applyEvalsArtifact([]string{"usage"}, true))
+	})
+}
+
+func TestIsEvalsArtifactRequested(t *testing.T) {
+	tests := []struct {
+		name         string
+		evalsOnly    bool
+		artifactSets []string
+		expected     bool
+	}{
+		{
+			name:         "true when --evals is set",
+			evalsOnly:    true,
+			artifactSets: nil,
+			expected:     true,
+		},
+		{
+			name:         "true when explicit evals artifact set is requested",
+			evalsOnly:    false,
+			artifactSets: []string{"evals"},
+			expected:     true,
+		},
+		{
+			name:         "false when evals are not requested",
+			evalsOnly:    false,
+			artifactSets: []string{"usage"},
+			expected:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isEvalsArtifactRequested(tt.evalsOnly, tt.artifactSets))
+		})
+	}
+}
+
 func TestIsUsageOnlyArtifactFilter(t *testing.T) {
 	tests := []struct {
 		name     string
