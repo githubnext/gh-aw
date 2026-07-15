@@ -3,7 +3,7 @@
 
 const fs = require("fs");
 const { EVALS_OUTPUT_PATH } = require("./evals_constants.cjs");
-const { main: redactSecretsMain, redactSecrets, redactBuiltInPatterns, extractMCPGatewayTokens, MCP_GATEWAY_CONFIG_PATHS } = require("./redact_secrets.cjs");
+const { main: redactWorkspaceSecrets, redactSecrets, redactBuiltInPatterns, extractMCPGatewayTokens, MCP_GATEWAY_CONFIG_PATHS } = require("./redact_secrets.cjs");
 
 function getSecretValues() {
   const secretNames = (process.env.GH_AW_SECRET_NAMES || "")
@@ -39,7 +39,7 @@ function verifyRedaction() {
 }
 
 async function main() {
-  await redactSecretsMain();
+  await redactWorkspaceSecrets();
   verifyRedaction();
 }
 

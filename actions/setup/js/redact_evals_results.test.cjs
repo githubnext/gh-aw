@@ -3,6 +3,8 @@ import fs from "fs";
 
 const OUTPUT_DIR = "/tmp/gh-aw";
 const OUTPUT_PATH = "/tmp/gh-aw/evals.jsonl";
+const MCP_CONFIG_DIR = `${process.env.RUNNER_TEMP || "/tmp"}/gh-aw/mcp-config`;
+const GATEWAY_OUTPUT_PATH = `${MCP_CONFIG_DIR}/gateway-output.json`;
 
 const mockCore = {
   info: vi.fn(),
@@ -30,6 +32,9 @@ describe("redact_evals_results.cjs", () => {
     if (fs.existsSync(OUTPUT_PATH)) {
       fs.unlinkSync(OUTPUT_PATH);
     }
+    if (fs.existsSync(GATEWAY_OUTPUT_PATH)) {
+      fs.unlinkSync(GATEWAY_OUTPUT_PATH);
+    }
   });
 
   it("collects eval secret values from the workflow env", () => {
@@ -39,6 +44,26 @@ describe("redact_evals_results.cjs", () => {
 
     expect(module.getSecretValues()).toContain("secret-value");
     expect(module.getSecretValues()).not.toContain("");
+  });
+
+  it("collects MCP gateway tokens from the canonical config path", () => {
+    const tokenPart = "gateway-token-abc123";
+    const bearerToken = ["Bearer", tokenPart].join(" ");
+    fs.mkdirSync(MCP_CONFIG_DIR, { recursive: true });
+    fs.writeFileSync(
+      GATEWAY_OUTPUT_PATH,
+      JSON.stringify({
+        mcpServers: {
+          github: {
+            headers: { Authorization: bearerToken },
+          },
+        },
+      }),
+      "utf8"
+    );
+
+    expect(module.getSecretValues()).toContain(bearerToken);
+    expect(module.getSecretValues()).toContain(tokenPart);
   });
 
   it("redacts eval output and leaves no lingering secrets", async () => {
