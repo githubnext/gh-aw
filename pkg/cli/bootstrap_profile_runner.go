@@ -981,7 +981,9 @@ func printBootstrapGitHubAppManifestReview(owner string, manifest map[string]any
 			text, ok := value.(string)
 			if ok {
 				permissions[name] = text
+				continue
 			}
+			permissions[name] = "<unavailable>"
 		}
 	}
 	permissionNames := make([]string, 0, len(permissions))
@@ -1004,8 +1006,8 @@ func printBootstrapGitHubAppManifestReview(owner string, manifest map[string]any
 		"- description: " + manifestField("description"),
 		"- permissions:",
 	}
-	for _, permissionName := range permissionNames {
-		lines = append(lines, fmt.Sprintf("  - %s: %s", permissionName, permissions[permissionName]))
+	for _, name := range permissionNames {
+		lines = append(lines, fmt.Sprintf("  - %s: %s", name, permissions[name]))
 	}
 	lines = append(lines, "")
 	for _, line := range lines {
