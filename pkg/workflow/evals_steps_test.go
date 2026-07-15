@@ -111,6 +111,9 @@ func TestBuildEvalsJobStepsRenderSummary(t *testing.T) {
 	if !strings.Contains(allSteps, "id: redact_evals_results") {
 		t.Errorf("expected redact step id in evals job;\ngot:\n%s", allSteps)
 	}
+	if !strings.Contains(allSteps, "redact_evals_results.cjs") {
+		t.Errorf("expected redact_evals_results.cjs reference in evals job steps;\ngot:\n%s", allSteps)
+	}
 
 	// The render summary step must call render_evals_summary.cjs.
 	if !strings.Contains(allSteps, "render_evals_summary.cjs") {

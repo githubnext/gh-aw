@@ -287,22 +287,8 @@ await main();`
 func (c *Compiler) buildRedactEvalsSecretsStep(data *WorkflowData) []string {
 	script := `const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
 setupGlobals(core, github, context, exec, io, getOctokit);
-const fs = require('fs');
-const { EVALS_OUTPUT_PATH } = require('` + SetupActionDestination + `/evals_constants.cjs');
-const { main, redactSecrets, redactBuiltInPatterns, extractMCPGatewayTokens, MCP_GATEWAY_CONFIG_PATHS } = require('` + SetupActionDestination + `/redact_secrets.cjs');
+const { main } = require('` + SetupActionDestination + `/redact_evals_results.cjs');
 await main();
-if (fs.existsSync(EVALS_OUTPUT_PATH)) {
-  const content = fs.readFileSync(EVALS_OUTPUT_PATH, 'utf8');
-  const secretNames = (process.env.GH_AW_SECRET_NAMES || '').split(',').map(name => name.trim()).filter(Boolean);
-  const secretValues = secretNames
-    .map(name => process.env['SECRET_' + name])
-    .filter(value => typeof value === 'string' && value.trim() !== '')
-    .map(value => value.trim());
-  secretValues.push(...extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS));
-  const lingeringRedactions = redactBuiltInPatterns(content).redactionCount + redactSecrets(content, secretValues).redactionCount;
-  if (lingeringRedactions > 0) {
-    core.setFailed('Secret redaction verification failed for ' + EVALS_OUTPUT_PATH + ': ' + lingeringRedactions + ' unredacted value(s) remain');
-  }
 }`
 
 	secretReferences := c.collectEvalsSecretReferences(data)
