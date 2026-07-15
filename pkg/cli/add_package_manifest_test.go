@@ -488,6 +488,29 @@ config:
 		assert.Contains(t, pkg.Warnings, "Using experimental feature: config")
 	})
 
+	t.Run("rejects old bootstrap key with schema error", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+			switch path {
+			case "aw.yml":
+				return []byte(`name: Repo Assist
+bootstrap:
+  config:
+    - type: repo-variable
+      name: MY_VAR
+      prompt: Enter a value
+`), nil
+			case "README.md":
+				return []byte("# Repo Assist\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(path)
+			}
+		}
+
+		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.Error(t, err, "old bootstrap key must produce an error, not be silently ignored")
+		assert.Contains(t, err.Error(), "bootstrap")
+	})
+
 	t.Run("rejects unsupported branding icon", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {
@@ -2110,14 +2133,14 @@ func TestResolveWorkflows_BootstrapProfile_MultiplePackagesWarnsAndSuppresses(t 
 		}
 		switch path {
 		case "aw.yml":
-			return []byte(fmt.Sprintf(`name: %s
+			return fmt.Appendf(nil, `name: %s
 files:
   - workflows/review.md
 config:
   - type: repo-variable
     name: %s
     prompt: Enter a value
-`, pkgName, varName)), nil
+`, pkgName, varName), nil
 		case "README.md":
 			return []byte("# " + pkgName + "\n"), nil
 		}
@@ -2140,4 +2163,36 @@ config:
 		}
 	}
 	assert.True(t, found, "expected a warning about multiple bootstrap profiles, got: %v", resolved.Warnings)
+}
+
+func TestPrintBootstrapConfigTODO(t *testing.T) {
+	t.Run("noop when profile is nil", func(t *testing.T) {
+		var buf strings.Builder
+		printBootstrapConfigTODO(&buf, nil)
+		assert.Empty(t, buf.String())
+	})
+
+	t.Run("prints checklist items to provided writer", func(t *testing.T) {
+		profile := &resolvedBootstrapProfile{
+			PackageID: "owner/repo",
+			Profile: &repositoryPackageBootstrap{
+				Config: []repositoryPackageBootstrapAction{
+					{Type: "require-owner-type", Value: "org"},
+					{Type: "repo-variable", Name: "MY_VAR", Prompt: "Enter a value"},
+					{Type: "repo-secret", Name: "MY_SECRET", Prompt: "Enter secret"},
+					{Type: "copilot-auth", Secret: "COPILOT_TOKEN"},
+					{Type: "handoff", Message: "Run the bootstrap wizard."},
+				},
+			},
+		}
+		var buf strings.Builder
+		printBootstrapConfigTODO(&buf, profile)
+		out := buf.String()
+		assert.Contains(t, out, "owner/repo")
+		assert.Contains(t, out, "☐ Verify repository owner type: org")
+		assert.Contains(t, out, "☐ Set repository variable: MY_VAR")
+		assert.Contains(t, out, "☐ Set repository secret: MY_SECRET")
+		assert.Contains(t, out, "☐ Set Copilot PAT secret: COPILOT_TOKEN")
+		assert.Contains(t, out, "Run the bootstrap wizard.")
+	})
 }

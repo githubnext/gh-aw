@@ -160,7 +160,7 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 		return err
 	}
 	if resolved.BootstrapProfile != nil {
-		printBootstrapConfigTODO(resolved.BootstrapProfile)
+		printBootstrapConfigTODO(cmd.ErrOrStderr(), resolved.BootstrapProfile)
 	}
 	return nil
 }

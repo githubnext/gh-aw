@@ -171,7 +171,7 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 				return err
 			}
 		} else {
-			printBootstrapConfigTODO(config.resolvedWorkflows.BootstrapProfile)
+			printBootstrapConfigTODO(os.Stderr, config.resolvedWorkflows.BootstrapProfile)
 		}
 	}
 
