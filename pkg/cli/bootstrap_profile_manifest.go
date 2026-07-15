@@ -319,12 +319,11 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 		if action.AppName == "" && action.Name != "" {
 			action.AppName = action.Name
 		}
-		if action.ExistingOnly {
-			if action.Mode == "" {
-				action.Mode = "existing"
-			} else if action.Mode != "existing" {
-				return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].existing-only is incompatible with mode=%q. Example: use mode: existing or omit the mode field", manifestPath, index, action.Mode)
-			}
+		if action.ExistingOnly && action.Mode != "" && action.Mode != "existing" {
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].existing-only requires mode to be 'existing' or unset. Remove mode=%q or set it to 'existing'", manifestPath, index, action.Mode)
+		}
+		if action.ExistingOnly && action.Mode == "" {
+			action.Mode = "existing"
 		}
 		if action.Mode == "" {
 			action.Mode = "create-or-existing"
