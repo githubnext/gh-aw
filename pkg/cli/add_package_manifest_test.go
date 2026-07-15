@@ -485,7 +485,7 @@ config:
 		assert.Equal(t, "repo-variable", pkg.Bootstrap.Config[1].Type)
 		assert.Equal(t, []string{"preview", "review", "live"}, pkg.Bootstrap.Config[1].Enum)
 		assert.Equal(t, "handoff", pkg.Bootstrap.Config[2].Type)
-		assert.Contains(t, pkg.Warnings, "Using experimental feature: manifest.config")
+		assert.Contains(t, pkg.Warnings, "Using experimental feature: config")
 	})
 
 	t.Run("rejects unsupported branding icon", func(t *testing.T) {

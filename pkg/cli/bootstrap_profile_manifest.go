@@ -180,7 +180,7 @@ func localBootstrapManifestPath(resolvedPath string) (string, string, error) {
 	return resolvedPath, filepath.Clean(filepath.Dir(resolvedPath)), nil
 }
 
-func extractManifestBootstrap(value any, manifestPath string) (*repositoryPackageBootstrap, error) {
+func extractManifestConfig(value any, manifestPath string) (*repositoryPackageBootstrap, error) {
 	configItems, ok := value.([]any)
 	if !ok {
 		return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: config must be a list. Example: config: [{ type: repo-variable, name: EXAMPLE, prompt: Enter a value }]", manifestPath)

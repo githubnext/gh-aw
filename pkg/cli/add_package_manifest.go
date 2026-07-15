@@ -295,8 +295,8 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 	}
 
 	if configValue, ok := root["config"]; ok {
-		warnings = append(warnings, "Using experimental feature: manifest.config")
-		bootstrap, err := extractManifestBootstrap(configValue, manifestPath)
+		warnings = append(warnings, "Using experimental feature: config")
+		bootstrap, err := extractManifestConfig(configValue, manifestPath)
 		if err != nil {
 			return nil, nil, err
 		}
