@@ -53,7 +53,7 @@ func TestFormalOutcomeDomainInvariant(t *testing.T) {
 	// Every declared OutcomeResult constant must be in the spec domain or internal.
 	allResults := []OutcomeResult{
 		OutcomeAccepted, OutcomeRejected, OutcomeIgnored, OutcomePending,
-		OutcomeLifecycle, OutcomeUnknown, OutcomeError,
+		OutcomeLifecycle, OutcomeLifecycleClose, OutcomeUnknown, OutcomeError,
 	}
 	for _, r := range allResults {
 		s := string(r)
@@ -293,6 +293,7 @@ func TestFormalIssueBotCloseLifecycle(t *testing.T) {
 			// Bot-closed not_planned carries the lifecycle signal.
 			// OutcomeStatus is normalized to unknown with signal="lifecycle" in the
 			// current implementation pending a dedicated lifecycle OutcomeStatus constant.
+			// TODO: when OutcomeStatusLifecycle is introduced, update wantStatus to that value.
 			name:       "bot closed not_planned → lifecycle signal",
 			result:     OutcomeLifecycle,
 			detail:     "closed by bot (lifecycle)",
