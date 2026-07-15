@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -581,7 +582,7 @@ func TestValidateOwnerUsesStringLoginField(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Contains(t, captured, "login="+tt.owner)
-			loginIndex := indexOfArg(t, captured, "login="+tt.owner)
+			loginIndex := slices.Index(captured, "login="+tt.owner)
 			require.Positive(t, loginIndex)
 			assert.Equal(t, "-f", captured[loginIndex-1], "login must be passed with -f so gh keeps String! values as strings")
 			assert.NotEqual(t, "-F", captured[loginIndex-1], "login must not be passed with -F because gh would coerce false/null")
@@ -641,25 +642,14 @@ func TestGetStatusFieldUsesStringLoginAndIntNumberFields(t *testing.T) {
 
 			require.Len(t, calls, 2)
 			for _, call := range calls {
-				loginIndex := indexOfArg(t, call, "login="+tt.info.ownerLogin)
+				loginIndex := slices.Index(call, "login="+tt.info.ownerLogin)
 				require.Positive(t, loginIndex)
 				assert.Equal(t, "-f", call[loginIndex-1], "login must be passed with -f so gh keeps String! values as strings")
 
-				numberIndex := indexOfArg(t, call, "number="+strconv.Itoa(tt.info.projectNumber))
+				numberIndex := slices.Index(call, "number="+strconv.Itoa(tt.info.projectNumber))
 				require.Positive(t, numberIndex)
 				assert.Equal(t, "-F", call[numberIndex-1], "project number must keep -F so gh coerces Int! values correctly")
 			}
 		})
 	}
-}
-
-func indexOfArg(t *testing.T, args []string, want string) int {
-	t.Helper()
-	for i, arg := range args {
-		if arg == want {
-			return i
-		}
-	}
-	t.Fatalf("argument %q not found in %v", want, args)
-	return -1
 }

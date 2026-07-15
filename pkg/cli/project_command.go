@@ -643,7 +643,7 @@ func getStatusField(ctx context.Context, info projectURLInfo, verbose bool) (sta
 	var query string
 	var jqProjectID, jqFields string
 
-	projectNumberStr := strconv.Itoa(info.projectNumber)
+	projectNumberArg := "number=" + strconv.Itoa(info.projectNumber)
 	if info.scope == "orgs" {
 		query = `query($login: String!, $number: Int!) {
 			organization(login: $login) {
@@ -685,14 +685,14 @@ func getStatusField(ctx context.Context, info projectURLInfo, verbose bool) (sta
 	}
 
 	// Get project ID
-	projectIDOutput, err := projectCommandRunGH("Getting project info...", "api", "graphql", "-f", "query="+query, "-f", "login="+info.ownerLogin, "-F", "number="+projectNumberStr, "--jq", jqProjectID)
+	projectIDOutput, err := projectCommandRunGH("Getting project info...", "api", "graphql", "-f", "query="+query, "-f", "login="+info.ownerLogin, "-F", projectNumberArg, "--jq", jqProjectID)
 	if err != nil {
 		return statusFieldInfo{}, fmt.Errorf("failed to get project ID: %w", err)
 	}
 	projectID := strings.TrimSpace(string(projectIDOutput))
 
 	// Get fields
-	fieldsOutput, err := projectCommandRunGH("Getting project fields...", "api", "graphql", "-f", "query="+query, "-f", "login="+info.ownerLogin, "-F", "number="+projectNumberStr, "--jq", jqFields)
+	fieldsOutput, err := projectCommandRunGH("Getting project fields...", "api", "graphql", "-f", "query="+query, "-f", "login="+info.ownerLogin, "-F", projectNumberArg, "--jq", jqFields)
 	if err != nil {
 		return statusFieldInfo{}, fmt.Errorf("failed to get project fields: %w", err)
 	}
