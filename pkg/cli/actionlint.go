@@ -250,8 +250,8 @@ func runActionlintOnFilesWithOptions(ctx context.Context, lockFiles []string, ve
 	totalErrors := 0
 	var errorsByKind map[string]int
 	var parseErr error
-	validatedRun := actionlintShouldParseOutput(runResult.err)
-	if validatedRun {
+	shouldParseOutput := actionlintShouldParseOutput(runResult.err)
+	if shouldParseOutput {
 		totalErrors, errorsByKind, parseErr = parseAndDisplayActionlintOutput(runResult.stdout, verbose)
 		if parseErr != nil {
 			actionlintLog.Printf("Failed to parse actionlint output: %v", parseErr)
@@ -278,7 +278,7 @@ func runActionlintOnFilesWithOptions(ctx context.Context, lockFiles []string, ve
 	}
 
 	err = handleActionlintExecutionError(runResult.err, strict, lockFiles, totalErrors, parseErr)
-	if validatedRun && actionlintStats != nil {
+	if shouldParseOutput && actionlintStats != nil {
 		actionlintStats.TotalWorkflows += len(lockFiles)
 	}
 	return err
@@ -362,15 +362,16 @@ func buildActionlintDockerArgs(gitRoot string, relPaths []string, options action
 
 func buildActionlintDockerCommand(gitRoot string, relPaths []string, options actionlintRunOptions) string {
 	args := buildActionlintDockerArgs(gitRoot, relPaths, options)
-	for i, arg := range args {
+	formattedArgs := append([]string(nil), args...)
+	for i, arg := range formattedArgs {
 		switch arg {
 		case gitRoot + ":/workdir":
-			args[i] = fmt.Sprintf("%q", arg)
+			formattedArgs[i] = fmt.Sprintf("%q", arg)
 		case "{{json .}}":
-			args[i] = "'{{json .}}'"
+			formattedArgs[i] = "'{{json .}}'"
 		}
 	}
-	return "docker " + strings.Join(args, " ")
+	return "docker " + strings.Join(formattedArgs, " ")
 }
 
 func printActionlintRunMessage(lockFiles, relPaths []string, verboseHint string, options actionlintRunOptions) {
