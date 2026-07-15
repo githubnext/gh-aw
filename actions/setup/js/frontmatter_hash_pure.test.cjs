@@ -636,7 +636,9 @@ name: "Test Workflow"`;
 // Symlink traversal regression tests for activation-hash stale-lock false-positives
 // These tests verify that createGitHubFileReader, resolveRemoteSymlinks, and
 // computeFrontmatterHash correctly handle import paths that traverse symlinked
-// directories — the scenario that triggered the stale-lock false-positive.
+// directories — the scenario that triggered false "lock file is outdated"
+// failures when imported content was silently skipped after a 404 on a
+// symlinked path component in the GitHub Contents API.
 // ---------------------------------------------------------------------------
 
 const { checkRemoteSymlink, resolveRemoteSymlinks } = require("./frontmatter_hash_pure.cjs");
@@ -704,7 +706,7 @@ describe("symlink traversal regression for activation hash symlink handling", ()
       expect(result).toBeNull();
     });
 
-    it("should return null for auth errors", async () => {
+    it("should return null for forbidden errors", async () => {
       const github = {
         rest: {
           repos: {
@@ -1078,7 +1080,7 @@ describe("symlink traversal regression for activation hash symlink handling", ()
       };
 
       const fileReader = createGitHubFileReader(github, "owner", "repo", "main");
-      await expect(fileReader("link0/file.md")).rejects.toThrow("symlink resolution exceeded max depth 5");
+      await expect(fileReader("link0/file.md")).rejects.toThrow("symlink chain exceeded maximum depth of 5");
     });
   });
 

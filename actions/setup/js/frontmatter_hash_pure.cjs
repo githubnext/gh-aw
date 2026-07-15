@@ -593,6 +593,10 @@ async function resolveRemoteSymlinks(github, owner, repo, filePath, ref, symlink
     return null; // No directory components to resolve
   }
 
+  // Resolve at most one symlink per call so each retry validates the next
+  // filesystem view independently. If the resolved path also contains a
+  // symlink, fetchFile will re-invoke resolveRemoteSymlinks via another 404
+  // retry (bounded by MAX_SYMLINK_DEPTH).
   for (let i = 1; i < parts.length; i++) {
     const dirPath = parts.slice(0, i).join("/");
     const target = await checkRemoteSymlink(github, owner, repo, dirPath, ref, symlinkLookupCache);
@@ -625,10 +629,6 @@ async function resolveRemoteSymlinks(github, owner, repo, filePath, ref, symlink
       return null;
     }
 
-    // Only the first symlink is resolved per call so each retry validates the
-    // next filesystem view independently. If the resolved path also contains a
-    // symlink, fetchFile will re-invoke resolveRemoteSymlinks via another 404
-    // retry (bounded by MAX_SYMLINK_DEPTH).
     return resolvedPath;
   }
 
@@ -694,7 +694,7 @@ function createGitHubFileReader(github, owner, repo, ref) {
       const status = error.status || (error.response && error.response.status);
       if (status === HTTP_STATUS_NOT_FOUND) {
         if (symlinkDepth >= MAX_SYMLINK_DEPTH) {
-          throw new Error(`${ERR_SYSTEM}: Failed to read file ${filePath} from GitHub: symlink resolution exceeded max depth ${MAX_SYMLINK_DEPTH}`);
+          throw new Error(`${ERR_SYSTEM}: Failed to read file ${filePath} from GitHub: symlink chain exceeded maximum depth of ${MAX_SYMLINK_DEPTH}`);
         }
         const resolvedPath = await resolveRemoteSymlinksCached(filePath);
         if (resolvedPath !== null && resolvedPath !== filePath) {
