@@ -26,14 +26,24 @@ function findMessageProp(props: TSESTree.ObjectLiteralElement[]): TSESTree.Prope
   return null;
 }
 
+/** Returns true when the node is a negative numeric literal (e.g. -32602 in source code). */
+function isNegativeNumericLiteral(node: TSESTree.Node): boolean {
+  // In JS source, -32602 is parsed as UnaryExpression(-) + Literal(32602).
+  if (node.type === AST_NODE_TYPES.UnaryExpression && node.operator === "-" && node.argument.type === AST_NODE_TYPES.Literal && typeof (node.argument as TSESTree.Literal).value === "number") {
+    return true;
+  }
+  // A raw negative numeric literal is also accepted for completeness.
+  return node.type === AST_NODE_TYPES.Literal && typeof node.value === "number" && node.value < 0;
+}
+
 /**
  * Returns true when the thrown ObjectExpression matches the intentional JSON-RPC error idiom.
  * All three conditions must hold:
  *   1. Keys are a strict subset of { code, message, data } (no extra properties).
  *   2. `code` is present and its value is a negative numeric literal (e.g. -32602).
  *   3. `message` is present (the value may be a literal, template, variable, or call expression).
- * These throws are consumed by field at the protocol boundary, not by stack trace, so the rule's
- * regression-guard value does not apply to them.
+ * These throws are consumed by property at the protocol boundary, not by stack trace, so the
+ * rule's regression-guard value does not apply to them.
  */
 function isJsonRpcErrorShape(props: TSESTree.ObjectLiteralElement[]): boolean {
   if (props.length === 0) return false;
@@ -60,13 +70,7 @@ function isJsonRpcErrorShape(props: TSESTree.ObjectLiteralElement[]): boolean {
     if (!ALLOWED_KEYS.has(keyName)) return false;
 
     if (keyName === "code") {
-      const val = prop.value;
-      // In JS source, -32602 is parsed as UnaryExpression(-) + Literal(32602).
-      // A raw negative numeric literal is also accepted for completeness.
-      const isNegativeNumeric =
-        (val.type === AST_NODE_TYPES.UnaryExpression && val.operator === "-" && val.argument.type === AST_NODE_TYPES.Literal && typeof (val.argument as TSESTree.Literal).value === "number") ||
-        (val.type === AST_NODE_TYPES.Literal && typeof val.value === "number" && val.value < 0);
-      if (!isNegativeNumeric) return false;
+      if (!isNegativeNumericLiteral(prop.value)) return false;
       hasNegativeCode = true;
     }
 
