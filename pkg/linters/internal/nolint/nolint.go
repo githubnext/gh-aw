@@ -120,6 +120,8 @@ func BuildLineIndex(pass *analysis.Pass, linterName string) map[string]map[int]s
 	noLintLinesByFile := make(map[string]map[int]struct{}, len(pass.Files))
 	directiveIndex, err := Index(pass)
 	if err != nil {
+		// Keep legacy callers working even when nolint.Analyzer is not listed in
+		// Requires by rebuilding directly from comments.
 		directiveIndex = BuildDirectiveIndex(pass)
 	}
 	for filename, lines := range directiveIndex {
