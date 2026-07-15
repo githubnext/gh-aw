@@ -168,7 +168,8 @@ describe("mcp_scripts_validation.cjs", () => {
 
       expect(violations).toHaveLength(1);
       expect(violations[0].field).toBe("message");
-      expect(violations[0].byteLength).toBe(MAX_STRING_INPUT_BYTES + 1);
+      expect(violations[0].actualLength).toBe(MAX_STRING_INPUT_BYTES + 1);
+      expect(violations[0].unit).toBe("bytes");
     });
 
     it("should not flag a string at exactly the 10 KB limit", async () => {
@@ -316,6 +317,19 @@ describe("mcp_scripts_validation.cjs", () => {
       const violations = validateStringInputLengths(args, schema);
       expect(violations).toHaveLength(2);
       expect(violations.map(v => v.field).sort()).toEqual(["body", "title"]);
+    });
+
+    it("should enforce explicit maxLength using character count", async () => {
+      const { validateStringInputLengths } = await import("./mcp_scripts_validation.cjs");
+
+      const args = { body: "🚀".repeat(3) };
+      const schema = {
+        type: "object",
+        properties: { body: { type: "string", maxLength: 3 } },
+      };
+
+      const violations = validateStringInputLengths(args, schema);
+      expect(violations).toEqual([]);
     });
   });
 

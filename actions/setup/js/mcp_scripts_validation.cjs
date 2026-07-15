@@ -39,8 +39,8 @@ function validateRequiredFields(args, inputSchema) {
  * string-typed input parameter. Inputs exceeding the configured maximum MUST be rejected with a
  * validation error before the tool script is invoked. Implementations MUST NOT silently truncate
  * oversized inputs.
- * When a field declares an explicit schema maxLength, that explicit limit is enforced here;
- * otherwise the default SM-IS-01 10KB limit applies.
+ * When a field declares an explicit schema maxLength, that explicit character limit is enforced here;
+ * otherwise the default SM-IS-01 10KB byte limit applies.
  *
  * Scope: validates only top-level (direct) properties of the schema where `type === "string"`.
  * Nested object/array schemas are not recursively validated, consistent with the SM-IS-01
@@ -49,7 +49,7 @@ function validateRequiredFields(args, inputSchema) {
  * @param {Object} args - The arguments object to validate
  * @param {Object} inputSchema - The input schema describing property types
  * @param {number} [maxBytes] - Maximum allowed bytes per string (defaults to MAX_STRING_INPUT_BYTES)
- * @returns {{ field: string, byteLength: number }[]} Array of violations (empty if all within limit)
+ * @returns {{ field: string, actualLength: number, unit: "bytes" | "characters" }[]} Array of violations (empty if all within limit)
  */
 function validateStringInputLengths(args, inputSchema, maxBytes) {
   const limit = typeof maxBytes === "number" ? maxBytes : MAX_STRING_INPUT_BYTES;
@@ -60,10 +60,17 @@ function validateStringInputLengths(args, inputSchema, maxBytes) {
     if (schema && schema.type === "string") {
       const value = args[field];
       if (typeof value === "string") {
-        const fieldLimit = typeof schema.maxLength === "number" ? schema.maxLength : limit;
+        if (typeof schema.maxLength === "number") {
+          const characterLength = Array.from(value).length;
+          if (characterLength > schema.maxLength) {
+            violations.push({ field, actualLength: characterLength, unit: "characters" });
+          }
+          continue;
+        }
+
         const byteLength = Buffer.byteLength(value, "utf8");
-        if (byteLength > fieldLimit) {
-          violations.push({ field, byteLength });
+        if (byteLength > limit) {
+          violations.push({ field, actualLength: byteLength, unit: "bytes" });
         }
       }
     }
