@@ -261,8 +261,8 @@ Unlike ` + "`gh aw upgrade`" + `, ` + "`gh aw compile`" + ` only applies codemod
   --action-tag <sha-or-tag>
     Pin to a specific SHA or version tag (e.g. v1, v1.2.3, <full-sha>).
     Implies --action-mode release unless --action-mode action is also specified.
-    The value is used as-is; neither branch names nor tag names are resolved to
-    their commit SHA. Use --gh-aw-ref to resolve a branch or tag at compile time.
+    The value is used as-is without SHA resolution. Use --gh-aw-ref to resolve
+    branches or tags at compile time.
 
   --gh-aw-ref <branch-tag-or-sha>
     Resolve a branch name, tag, or SHA from github/gh-aw to its full commit SHA
