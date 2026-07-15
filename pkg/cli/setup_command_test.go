@@ -232,6 +232,7 @@ func TestValidateSetupRepositoryCheckOptions_RejectsEmptyRepoComponents(t *testi
 		}
 	}
 }
+
 func captureSetupStdout(t *testing.T, fn func() error) string {
 	t.Helper()
 	oldStdout := os.Stdout

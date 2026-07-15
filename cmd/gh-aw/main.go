@@ -94,6 +94,7 @@ Common Tasks:
   gh aw status               		# Check workflow status
   gh aw logs my-workflow      		# View execution logs
   gh aw audit <run-id-or-url> 		# Audit and compare workflow runs
+  gh aw bootstrap --repo owner/repo # Create or attach a repo and initialize it
 
 For detailed help on any command, use:
   gh aw [command] --help`,
@@ -679,7 +680,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 
 			// Otherwise, use the default help behavior
 			cmd, _, e := rootCmd.Find(args)
-			if cmd == nil || e != nil || cmd.Hidden {
+			if cmd == nil || e != nil {
 				return fmt.Errorf("unknown help topic [%#q]", args)
 			} else {
 				cmd.InitDefaultHelpFlag() // make possible 'help' flag to be shown
@@ -690,18 +691,6 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 
 	// Replace the default help command
 	rootCmd.SetHelpCommand(customHelpCmd)
-	defaultHelpFunc := rootCmd.HelpFunc()
-	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
-		if cmd != nil && cmd.Hidden {
-			parent := cmd.Parent()
-			if parent == nil {
-				parent = rootCmd
-			}
-			defaultHelpFunc(parent, args)
-			return
-		}
-		defaultHelpFunc(cmd, args)
-	})
 
 	// Create and setup add command
 	addCmd := cli.NewAddCommand(validateEngine)
