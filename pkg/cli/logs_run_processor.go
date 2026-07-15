@@ -631,21 +631,21 @@ func runHasEvals(runDir string, verbose bool) bool {
 			continue
 		}
 		name := entry.Name()
+		// Match exact "evals" or workflow_call prefixed "{hash}-evals".
+		if name == constants.EvalsArtifactName || strings.HasSuffix(name, "-"+constants.EvalsArtifactName) {
+			evalsFile := filepath.Join(runDir, name, constants.EvalsResultFilename)
+			if fileutil.FileExists(evalsFile) {
+				logsOrchestratorLog.Printf("Found evals results at: %s", evalsFile)
+				return true
+			}
+		}
+		// Match workflow_call-prefixed "{hash}-usage".
 		if strings.HasSuffix(name, "-"+constants.UsageArtifactName) {
 			evalsFile := filepath.Join(runDir, name, constants.EvalsResultFilename)
 			if fileutil.FileExists(evalsFile) {
 				logsOrchestratorLog.Printf("Found evals results in workflow_call usage artifact at: %s", evalsFile)
 				return true
 			}
-		}
-		// Match exact "evals" or workflow_call prefixed "{hash}-evals".
-		if name != constants.EvalsArtifactName && !strings.HasSuffix(name, "-"+constants.EvalsArtifactName) {
-			continue
-		}
-		evalsFile := filepath.Join(runDir, name, constants.EvalsResultFilename)
-		if fileutil.FileExists(evalsFile) {
-			logsOrchestratorLog.Printf("Found evals results at: %s", evalsFile)
-			return true
 		}
 	}
 
