@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"context"
 	"testing"
 	"time"
 )
@@ -168,95 +167,6 @@ func TestEffectiveMCPLogsToolTimeoutMinutes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := effectiveMCPLogsToolTimeoutMinutes(tt.requestedTimeout, tt.count); got != tt.want {
 				t.Errorf("effectiveMCPLogsToolTimeoutMinutes(%d, %d) = %d, want %d", tt.requestedTimeout, tt.count, got, tt.want)
-			}
-		})
-	}
-}
-
-// TestEffectiveMCPLogsToolTimeoutMinutesWithDeadline verifies that the deadline-aware
-// variant caps the subprocess timeout to leave room for output writing before the
-// MCP gateway context expires.
-func TestEffectiveMCPLogsToolTimeoutMinutesWithDeadline(t *testing.T) {
-	tests := []struct {
-		name             string
-		requestedTimeout int
-		count            int
-		deadlineIn       time.Duration // 0 = no deadline (context.Background)
-		want             int
-	}{
-		{
-			name:             "no context deadline returns base auto-scale timeout",
-			requestedTimeout: 0,
-			count:            100,
-			deadlineIn:       0, // no deadline
-			want:             3, // defaultMCPLogsToolTimeoutMinutesForCount(100)
-		},
-		{
-			name:             "explicit timeout preserved when no deadline",
-			requestedTimeout: 5,
-			count:            100,
-			deadlineIn:       0,
-			want:             5,
-		},
-		{
-			name:             "generous deadline does not cap base timeout",
-			requestedTimeout: 0,
-			count:            100,
-			deadlineIn:       10 * time.Minute, // 10m − 30s buffer = 9m > base 3m
-			want:             3,
-		},
-		{
-			name:             "deadline just above buffer caps to floor of usable minutes",
-			requestedTimeout: 0,
-			count:            100,
-			// 2m45s − 30s buffer = 2m15s = 2.25min → truncate(2.25) = 2 < base 3m → cap to 2.
-			// The extra 15s over 2m30s guards against ms of test execution overhead.
-			deadlineIn: 2*time.Minute + 45*time.Second,
-			want:       2,
-		},
-		{
-			name:             "deadline yields exactly one usable minute",
-			requestedTimeout: 0,
-			count:            100,
-			// 95s − 30s buffer = 65s = 1.083min → truncate(1.083) = 1 < base 3m → cap to 1.
-			// Using 95s instead of 90s guards against ms of test execution overhead.
-			deadlineIn: 95 * time.Second,
-			want:       1,
-		},
-		{
-			name:             "deadline too short for buffer leaves base timeout unchanged",
-			requestedTimeout: 0,
-			count:            100,
-			// 60s − 30s buffer = 30s = 0.5min → truncate(0.5) = 0 → no cap applied
-			deadlineIn: 60 * time.Second,
-			want:       3,
-		},
-		{
-			name:             "explicit timeout also capped by deadline",
-			requestedTimeout: 10,
-			count:            100,
-			// 3m45s − 30s = 3m15s = 3.25min → truncate(3.25) = 3 < explicit 10m → cap to 3.
-			// The extra 15s guards against ms of test execution overhead.
-			deadlineIn: 3*time.Minute + 45*time.Second,
-			want:       3,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var ctx context.Context
-			if tt.deadlineIn > 0 {
-				var cancel context.CancelFunc
-				ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(tt.deadlineIn))
-				defer cancel()
-			} else {
-				ctx = context.Background()
-			}
-
-			got := effectiveMCPLogsToolTimeoutMinutesWithDeadline(ctx, tt.requestedTimeout, tt.count)
-			if got != tt.want {
-				t.Errorf("effectiveMCPLogsToolTimeoutMinutesWithDeadline(ctx[deadline=%v], %d, %d) = %d, want %d",
-					tt.deadlineIn, tt.requestedTimeout, tt.count, got, tt.want)
 			}
 		})
 	}

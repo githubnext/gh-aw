@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
@@ -20,12 +19,6 @@ const (
 	defaultMCPLogsToolCount            = 100
 	defaultMCPLogsTimeoutMinutes       = 1
 	mcpLogsRunsPerDefaultTimeoutMinute = 40
-
-	// mcpLogsDeadlineBufferSeconds is the margin subtracted from the context
-	// deadline when computing the subprocess timeout. It gives the subprocess
-	// time to finish writing its JSON output (including continuation data)
-	// before the MCP gateway context is cancelled.
-	mcpLogsDeadlineBufferSeconds = 30
 )
 
 // appendRepoFlagFromEnv appends "--repo <owner/repo>" to args when GITHUB_REPOSITORY
@@ -80,51 +73,6 @@ func effectiveMCPLogsToolTimeoutMinutes(requestedTimeout, count int) int {
 	}
 
 	return defaultMCPLogsToolTimeoutMinutesForCount(count)
-}
-
-// effectiveMCPLogsToolTimeoutMinutesWithDeadline returns the internal subprocess
-// timeout (in minutes), bounded by any deadline on ctx.
-//
-// When the context carries a deadline the timeout is capped so the subprocess
-// can finish writing its output (including continuation data) before the MCP
-// gateway context expires. mcpLogsDeadlineBufferSeconds is subtracted from the
-// remaining time to give the subprocess a window to complete output writing.
-//
-// Examples (with mcpLogsDeadlineBufferSeconds = 30s):
-//
-//	ctx has 10m deadline, count=100 (auto=3m) → 3m  (deadline provides ≥4m, no cap needed)
-//	ctx has  2m deadline, count=100 (auto=3m) → 1m  (floor((2m-30s)/1m)=1, caps base 3m)
-//	ctx has 60s deadline, count=100 (auto=3m) → 3m  (floor((60s-30s)/1m)=0 < 1; no cap)
-func effectiveMCPLogsToolTimeoutMinutesWithDeadline(ctx context.Context, requestedTimeout, count int) int {
-	baseTimeout := effectiveMCPLogsToolTimeoutMinutes(requestedTimeout, count)
-
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		return baseTimeout
-	}
-
-	remaining := time.Until(deadline)
-	constrained := remaining - mcpLogsDeadlineBufferSeconds*time.Second
-	if constrained <= 0 {
-		// Already at or past the buffer point — no useful adjustment possible.
-		return baseTimeout
-	}
-
-	deadlineMinutes := int(constrained.Minutes())
-	if deadlineMinutes < 1 {
-		// Less than 1 full minute available after the buffer; the subprocess
-		// cannot reliably complete in time regardless of the timeout value.
-		// Return the base timeout as-is and let the context kill the subprocess
-		// if needed. The caller's error path will surface a helpful message.
-		return baseTimeout
-	}
-
-	if deadlineMinutes < baseTimeout {
-		mcpLog.Printf("Bounding logs subprocess timeout to %d min (context deadline in %.0fs, %ds buffer)",
-			deadlineMinutes, remaining.Seconds(), mcpLogsDeadlineBufferSeconds)
-		return deadlineMinutes
-	}
-	return baseTimeout
 }
 
 // The logs tool requires write+ access and checks actor permissions.
@@ -260,10 +208,8 @@ from where the previous request stopped due to timeout.`,
 		cmdArgs = appendRepoFlagFromEnv(cmdArgs)
 
 		// Scale the implicit MCP timeout with the requested fetch window so
-		// larger fleet-wide requests do not hit the MCP gateway deadline.
-		// Also bound to the context deadline (minus a buffer) so the subprocess
-		// can write continuation data before the gateway cancels the request.
-		timeoutValue := effectiveMCPLogsToolTimeoutMinutesWithDeadline(ctx, args.Timeout, effectiveCount)
+		// larger fleet-wide requests do not hit the default per-tool timeout.
+		timeoutValue := effectiveMCPLogsToolTimeoutMinutes(args.Timeout, effectiveCount)
 		cmdArgs = append(cmdArgs, "--timeout", strconv.Itoa(timeoutValue))
 
 		// Always use --json mode in MCP server
@@ -317,13 +263,6 @@ from where the previous request stopped due to timeout.`,
 				mainMsg = err.Error()
 			}
 
-			// When the subprocess was killed because the MCP gateway timeout fired,
-			// add actionable guidance so callers know how to extend the deadline.
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) ||
-				strings.Contains(err.Error(), "context deadline exceeded") {
-				mainMsg += "\n\nThe logs tool exceeded the MCP gateway tool timeout. " +
-					"Add 'engine.mcp.tool-timeout: 10m' (or higher) to your workflow frontmatter to allow more time."
-			}
 			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to download workflow logs: "+mainMsg, errorData)
 		}
 
