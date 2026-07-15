@@ -9978,6 +9978,12 @@ observability:
       # (optional)
       ignore-if-missing: true
 
+      # Optional OIDC audience passed to core.getIDToken(audience) when using
+      # credential-less OIDC mode (github-app present without app-id/private-key). Leave
+      # omitted to use the default audience.
+      # (optional)
+      audience: "example-value"
+
 # Rate limiting configuration to restrict how frequently users can trigger the
 # workflow. Helps prevent abuse and resource exhaustion from programmatically
 # triggered events.
