@@ -2110,7 +2110,14 @@ func TestResolveWorkflows_BootstrapProfile_MultiplePackagesWarnsAndSuppresses(t 
 		}
 		switch path {
 		case "aw.yml":
-			return []byte("name: " + pkgName + "\nfiles:\n  - workflows/review.md\nconfig:\n  - type: repo-variable\n    name: " + varName + "\n    prompt: Enter a value\n"), nil
+			return []byte(fmt.Sprintf(`name: %s
+files:
+  - workflows/review.md
+config:
+  - type: repo-variable
+    name: %s
+    prompt: Enter a value
+`, pkgName, varName)), nil
 		case "README.md":
 			return []byte("# " + pkgName + "\n"), nil
 		}
