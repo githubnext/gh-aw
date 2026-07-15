@@ -1,7 +1,7 @@
 # Git Simulator Strategy Notes
 
 Z3 sweep of 3600 cells (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT, COMMIT innermost).
-**100/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
+**108/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
 `commit=i%3, branch=(i//3)%3, patch=(i//9)%5, files=(i//45)%4, history=(i//180)%4,
 size=(i//720)%5`. sizes[tiny,small,medium,large,huge] hist[none,shallow,medium,deep]
 files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]=
@@ -37,6 +37,14 @@ files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]
   (103) cpr 56.19→push 57.01 KB/4.patch (disjoint ~1×, ff is-ancestor=0). All 20
   files ≤200, ~56 KB ≪4096. many-small framing ~+6 KB (~0.3 KB/file, per-commit
   From-headers add ~0.3 KB/commit). tiny-none-many-small now covers idx99-103.
+  **idx104-107: PASS (tiny-none-many-small tier COMPLETE).** ahead-merge_msg(104)
+  59.94 KB/2.patch push (ff rc0, leak 0001-Merge-branch-topic-into-feature.patch,
+  --merges=0); diverged-single(105) 56.63 KB two-dot excludes main history.md
+  (three-dot +0.44 KB), ff rc0; diverged-multi(106) 55.90 KB disjoint ratio 1.118
+  (~1×, three-dot +1 patch cosmetic), ff rc0; diverged-merge_msg(107) 56.06 KB leak
+  reconfirmed single-parent, ff rc0. GOTCHA: `git diff --name-only main..feature`
+  (endpoint) over-lists +1 (main's history.md phantom) under divergence; true set =
+  per-commit `log --name-only` or three-dot `diff main...feature`. Cap = TWO-dot.
 
 ## THE CAPS (grounded)
 
@@ -108,8 +116,9 @@ first max-patch-FILES `rejected` needs batch under a default-100 config.
 
 ## Next
 
-Next index: **104** → tiny-none-many-small-ahead-merge_msg(104), then diverged small
-(105-107), then medium/large/xlarge many tiers. many-small covered 99-103. FILES=many runs
+Next index: **108** → tiny-none-many-MEDIUM tier (patch=medium=200KB, idx108-116:
+clean/ahead/diverged × single/multi/merge_msg), then large(117-125)/xlarge(126-134)
+many tiers. many-small COMPLETE 99-107. FILES=many runs
 90-179, batch 180-269. **many-xlarge ~4058 KB still <4096 (safe).** batch-xlarge
 ~4080 KB <4096 BUT batch=100 files == max-patch-files default 100 (200 here) — watch
 the `>` vs `>=` boundary. HISTORY=deep(500) & SIZE>tiny (idx 720+) far ahead — no
