@@ -983,7 +983,7 @@ func printBootstrapGitHubAppManifestReview(owner string, manifest map[string]any
 				permissions[name] = text
 				continue
 			}
-			permissions[name] = "<unavailable>"
+			permissions[name] = "<non-string-value>"
 		}
 	}
 	permissionNames := make([]string, 0, len(permissions))
@@ -993,7 +993,10 @@ func printBootstrapGitHubAppManifestReview(owner string, manifest map[string]any
 	sort.Strings(permissionNames)
 	getManifestStringOrDefault := func(key string) string {
 		value, ok := manifest[key].(string)
-		if !ok || strings.TrimSpace(value) == "" {
+		if !ok {
+			return "<unavailable>"
+		}
+		if strings.TrimSpace(value) == "" {
 			return "<unavailable>"
 		}
 		return value
