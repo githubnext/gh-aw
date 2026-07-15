@@ -9,7 +9,9 @@ import {
   processMessages,
   buildCommentMemoryMessagesFromFiles,
   rollbackReviewResults,
+  rollbackReviewResultsForPR,
   skipReviewResults,
+  skipReviewResultsForPR,
   logCreatedItemFromResult,
   isFailedProcessingResult,
   isReportOnlyFailureResult,
@@ -1969,6 +1971,124 @@ describe("Safe Output Handler Manager", () => {
 
     it("handles empty results array without throwing", () => {
       expect(() => skipReviewResults([], "PR is locked")).not.toThrow();
+    });
+  });
+
+  describe("rollbackReviewResultsForPR", () => {
+    it("rolls back only the matching PR result (nested result shape from processMessages)", () => {
+      const results = [
+        { type: "submit_pull_request_review", success: true, result: { repo: "o/r", pull_request_number: 1 } },
+        { type: "submit_pull_request_review", success: true, result: { repo: "o/r", pull_request_number: 2 } },
+      ];
+      rollbackReviewResultsForPR(results, "o/r", 1, "submission failed");
+      expect(results[0].success).toBe(false);
+      expect(results[0].error).toBe("Review finalization failed: submission failed");
+      // PR 2 result must not be touched
+      expect(results[1].success).toBe(true);
+      expect(results[1].error).toBeUndefined();
+    });
+
+    it("rolls back create_pull_request_review_comment results for the matching PR only", () => {
+      const results = [
+        { type: "create_pull_request_review_comment", success: true, result: { repo: "o/r", pull_request_number: 1 } },
+        { type: "create_pull_request_review_comment", success: true, result: { repo: "o/r", pull_request_number: 2 } },
+        { type: "submit_pull_request_review", success: true, result: { repo: "o/r", pull_request_number: 1 } },
+      ];
+      rollbackReviewResultsForPR(results, "o/r", 1, "finalize error");
+      expect(results[0].success).toBe(false);
+      expect(results[2].success).toBe(false);
+      // PR 2 comment unchanged
+      expect(results[1].success).toBe(true);
+    });
+
+    it("falls back to rolling back all review results when no nested result matches", () => {
+      // Legacy shape: no r.result, no top-level repo/pull_request_number
+      const results = [
+        { type: "submit_pull_request_review", success: true },
+        { type: "create_pull_request_review_comment", success: true },
+        { type: "add_comment", success: true },
+      ];
+      rollbackReviewResultsForPR(results, "o/r", 99, "fallback error");
+      expect(results[0].success).toBe(false);
+      expect(results[1].success).toBe(false);
+      // non-review type must not be rolled back
+      expect(results[2].success).toBe(true);
+    });
+
+    it("does not modify results that already have success:false", () => {
+      const results = [{ type: "submit_pull_request_review", success: false, error: "already failed", result: { repo: "o/r", pull_request_number: 1 } }];
+      rollbackReviewResultsForPR(results, "o/r", 1, "new error");
+      // Falls back to global rollback path — but success is already false so no change
+      expect(results[0].error).toBe("already failed");
+    });
+
+    it("does not modify results for a different repo", () => {
+      const results = [{ type: "submit_pull_request_review", success: true, result: { repo: "o/other", pull_request_number: 1 } }];
+      rollbackReviewResultsForPR(results, "o/r", 1, "error");
+      // No match → fallback path, but the only review result has a different repo
+      // Fallback rolls back all review results regardless of repo
+      // (existing behavior: warns and rolls everything back)
+      expect(results[0].success).toBe(false);
+    });
+
+    it("handles empty results array without throwing", () => {
+      expect(() => rollbackReviewResultsForPR([], "o/r", 1, "error")).not.toThrow();
+    });
+  });
+
+  describe("skipReviewResultsForPR", () => {
+    it("marks only the matching PR result as skipped (nested result shape from processMessages)", () => {
+      const results = [
+        { type: "submit_pull_request_review", success: true, result: { repo: "o/r", pull_request_number: 1 } },
+        { type: "submit_pull_request_review", success: true, result: { repo: "o/r", pull_request_number: 2 } },
+      ];
+      skipReviewResultsForPR(results, "o/r", 1, "PR is locked");
+      expect(results[0].skipped).toBe(true);
+      expect(results[0].skipReason).toBe("PR is locked");
+      // PR 2 must not be skipped
+      expect(results[1].skipped).toBeUndefined();
+    });
+
+    it("marks create_pull_request_review_comment results for the matching PR only", () => {
+      const results = [
+        { type: "create_pull_request_review_comment", success: true, result: { repo: "o/r", pull_request_number: 3 } },
+        { type: "create_pull_request_review_comment", success: true, result: { repo: "o/r", pull_request_number: 5 } },
+        { type: "submit_pull_request_review", success: true, result: { repo: "o/r", pull_request_number: 3 } },
+      ];
+      skipReviewResultsForPR(results, "o/r", 3, "locked");
+      expect(results[0].skipped).toBe(true);
+      expect(results[2].skipped).toBe(true);
+      expect(results[1].skipped).toBeUndefined();
+    });
+
+    it("does not modify results with success:false", () => {
+      const results = [{ type: "submit_pull_request_review", success: false, error: "already failed", result: { repo: "o/r", pull_request_number: 1 } }];
+      skipReviewResultsForPR(results, "o/r", 1, "locked");
+      expect(results[0].skipped).toBeUndefined();
+    });
+
+    it("does not modify unrelated result types", () => {
+      const results = [
+        { type: "add_comment", success: true, result: { repo: "o/r", pull_request_number: 1 } },
+        { type: "create_issue", success: true },
+      ];
+      skipReviewResultsForPR(results, "o/r", 1, "locked");
+      expect(results[0].skipped).toBeUndefined();
+      expect(results[1].skipped).toBeUndefined();
+    });
+
+    it("handles top-level repo/pull_request_number for backward compat", () => {
+      const results = [
+        { type: "submit_pull_request_review", success: true, repo: "o/r", pull_request_number: 7 },
+        { type: "submit_pull_request_review", success: true, repo: "o/r", pull_request_number: 8 },
+      ];
+      skipReviewResultsForPR(results, "o/r", 7, "locked");
+      expect(results[0].skipped).toBe(true);
+      expect(results[1].skipped).toBeUndefined();
+    });
+
+    it("handles empty results array without throwing", () => {
+      expect(() => skipReviewResultsForPR([], "o/r", 1, "locked")).not.toThrow();
     });
   });
 

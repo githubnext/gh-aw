@@ -545,7 +545,12 @@ function rollbackReviewResults(results, errorMessage) {
  * @param {string} errorMessage - Error message to attach to the rolled-back results
  */
 function rollbackReviewResultsForPR(results, repo, prNumber, errorMessage) {
-  const prResults = results.filter(r => (r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") && r.success === true && r.repo === repo && r.pull_request_number === prNumber);
+  // processMessages wraps each handler result under r.result, so per-PR identifiers
+  // are nested there. Fall back to top-level for backward compatibility with callers
+  // that pass raw handler results directly.
+  const prResults = results.filter(
+    r => (r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") && r.success === true && (r.result?.repo ?? r.repo) === repo && (r.result?.pull_request_number ?? r.pull_request_number) === prNumber
+  );
   if (prResults.length > 0) {
     for (const r of prResults) {
       r.success = false;
@@ -589,14 +594,17 @@ function skipReviewResults(results, skipReason) {
 /**
  * Mark buffered review results for a specific PR as skipped.
  *
- * @param {Array<{type: string, success: boolean, skipped?: boolean, skipReason?: string, repo?: string, pull_request_number?: number}>} results
+ * @param {Array<{type: string, success: boolean, skipped?: boolean, skipReason?: string, repo?: string, pull_request_number?: number, result?: {repo?: string, pull_request_number?: number}}>} results
  * @param {string} repo - Repository slug (owner/repo)
  * @param {number} prNumber - Pull request number
  * @param {string} skipReason - Human-readable reason for the skip
  */
 function skipReviewResultsForPR(results, repo, prNumber, skipReason) {
   for (const r of results) {
-    if ((r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") && r.success === true && r.repo === repo && r.pull_request_number === prNumber) {
+    // processMessages wraps each handler result under r.result, so per-PR identifiers
+    // are nested there. Fall back to top-level for backward compatibility with callers
+    // that pass raw handler results directly.
+    if ((r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") && r.success === true && (r.result?.repo ?? r.repo) === repo && (r.result?.pull_request_number ?? r.pull_request_number) === prNumber) {
       r.skipped = true;
       r.skipReason = skipReason;
     }

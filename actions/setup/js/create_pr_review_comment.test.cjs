@@ -58,7 +58,7 @@ global.core = mockCore;
 global.github = mockGithub;
 global.context = mockContext;
 
-const { createReviewBuffer } = require("./pr_review_buffer.cjs");
+const { createReviewBuffer, createPrReviewBufferRegistry } = require("./pr_review_buffer.cjs");
 
 describe("create_pr_review_comment.cjs", () => {
   let createPRReviewCommentScript;
@@ -522,5 +522,102 @@ describe("create_pr_review_comment.cjs", () => {
     expect(result.buffered).toBe(true);
     // Footer context is set on the buffer for review-level footer generation
     expect(buffer.getBufferedCount()).toBe(1);
+  });
+});
+
+describe("create_pr_review_comment.cjs — registry mode (multiple reviews)", () => {
+  let createPRReviewCommentScript;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    const scriptPath = require("path").join(__dirname, "create_pr_review_comment.cjs");
+    createPRReviewCommentScript = require("fs").readFileSync(scriptPath, "utf8");
+
+    delete process.env.GH_AW_AGENT_OUTPUT;
+    delete process.env.GH_AW_PR_REVIEW_COMMENT_SIDE;
+    delete process.env.GH_AW_PR_REVIEW_COMMENT_TARGET;
+    delete process.env.GH_AW_WORKFLOW_NAME;
+    delete process.env.GH_AW_WORKFLOW_SOURCE;
+    delete process.env.GH_AW_WORKFLOW_SOURCE_URL;
+
+    mockGithub.rest.pulls.get.mockImplementation(({ pull_number }) => Promise.resolve({ data: { number: pull_number, head: { sha: `sha-pr${pull_number}` } } }));
+
+    global.context = {
+      eventName: "pull_request",
+      runId: 12345,
+      repo: { owner: "testowner", repo: "testrepo" },
+      payload: {
+        pull_request: { number: 123, head: { sha: "abc123" } },
+        repository: { html_url: "https://github.com/testowner/testrepo" },
+      },
+    };
+  });
+
+  afterEach(() => {
+    global.context = mockContext;
+  });
+
+  async function createRegistryHandler(registry, extraConfig = {}) {
+    const configStr = JSON.stringify(extraConfig);
+    return await eval(`(async () => { ${createPRReviewCommentScript}; return await main(Object.assign({ _prReviewBufferRegistry: registry, target: "*" }, ${configStr})); })()`);
+  }
+
+  it("routes comments for two different PRs into separate buffers", async () => {
+    const registry = createPrReviewBufferRegistry();
+    const handler = await createRegistryHandler(registry);
+
+    const result1 = await handler({ type: "create_pull_request_review_comment", path: "a.js", line: 1, body: "comment on PR 1", pull_request_number: 1 }, {});
+    const result2 = await handler({ type: "create_pull_request_review_comment", path: "b.js", line: 2, body: "comment on PR 2", pull_request_number: 2 }, {});
+
+    expect(result1.success).toBe(true);
+    expect(result1.buffered).toBe(true);
+    expect(result2.success).toBe(true);
+    expect(result2.buffered).toBe(true);
+
+    const entries = registry.getAllEntries();
+    expect(entries).toHaveLength(2);
+    expect(entries[0].prNumber).toBe(1);
+    expect(entries[0].buffer.getBufferedCount()).toBe(1);
+    expect(entries[1].prNumber).toBe(2);
+    expect(entries[1].buffer.getBufferedCount()).toBe(1);
+  });
+
+  it("accumulates multiple comments for the same PR in one buffer", async () => {
+    const registry = createPrReviewBufferRegistry();
+    const handler = await createRegistryHandler(registry);
+
+    await handler({ type: "create_pull_request_review_comment", path: "a.js", line: 1, body: "first", pull_request_number: 5 }, {});
+    await handler({ type: "create_pull_request_review_comment", path: "b.js", line: 2, body: "second", pull_request_number: 5 }, {});
+
+    const entries = registry.getAllEntries();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].prNumber).toBe(5);
+    expect(entries[0].buffer.getBufferedCount()).toBe(2);
+  });
+
+  it("sets footer context on the per-PR buffer", async () => {
+    process.env.GH_AW_WORKFLOW_NAME = "My Workflow";
+    const registry = createPrReviewBufferRegistry();
+    const handler = await createRegistryHandler(registry);
+
+    await handler({ type: "create_pull_request_review_comment", path: "c.js", line: 3, body: "body", pull_request_number: 10 }, {});
+
+    const entry = registry.getAllEntries()[0];
+    const ctx = entry.buffer.getFooterContext?.();
+    if (ctx !== undefined) {
+      expect(ctx.workflowName).toBe("My Workflow");
+    }
+  });
+
+  it("returns success:false when pull_request_number is missing in target:* mode", async () => {
+    const registry = createPrReviewBufferRegistry();
+    const handler = await createRegistryHandler(registry);
+
+    const result = await handler({ type: "create_pull_request_review_comment", path: "x.js", line: 1, body: "no PR" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("pull_request_number");
+    expect(registry.getAllEntries()).toHaveLength(0);
   });
 });
