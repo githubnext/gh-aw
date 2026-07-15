@@ -48,6 +48,20 @@ func TestDoctorCommandRequireOwnerTypeDefault(t *testing.T) {
 	require.Equal(t, "any", cmd.Flags().Lookup("require-owner-type").DefValue)
 }
 
+func TestDoctorCommandInheritsVerboseFlagFromRoot(t *testing.T) {
+	cmd := NewDoctorCommand()
+	assert.Nil(t, cmd.Flags().Lookup("verbose"))
+
+	root := &cobra.Command{Use: "aw"}
+	var verbose bool
+	root.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output showing detailed information")
+	root.AddCommand(cmd)
+
+	inherited := cmd.InheritedFlags().Lookup("verbose")
+	require.NotNil(t, inherited)
+	assert.Equal(t, "false", inherited.DefValue)
+}
+
 func TestDoctorCommandRunsAuthOnlyWhenRepoNotProvided(t *testing.T) {
 	origAuth := runDoctorSetupAuth
 	origRepo := runDoctorSetupRepositoryCheck
