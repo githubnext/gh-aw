@@ -55,7 +55,7 @@ const {
   parseCopilotSDKServerArgsFromEnv,
 } = require("./copilot_harness.cjs");
 
-const { buildSoftTimeoutGuard } = require("./harness_retry_guard.cjs");
+const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard } = require("./harness_retry_guard.cjs");
 
 const agentTempDir = "/tmp/gh-aw/agent";
 
@@ -292,6 +292,7 @@ describe("copilot_harness.cjs", () => {
       if (result.exitCode === 0) return false;
       if (hasNumerousPermissionDeniedIssues(result.output)) return false;
       if (isCAPIQuotaExceededError(result.output)) return false;
+      if (detectNonRetryableHarnessGuard(result.output).maxRunsExceeded) return false;
       return attempt < MAX_RETRIES && result.hasOutput;
     }
 
@@ -356,6 +357,30 @@ describe("copilot_harness.cjs", () => {
       expect(shouldRetry(result, 0)).toBe(false);
     });
 
+    it("does not retry when the pooled LLM invocation cap is saturated (CAPI form: CAPIError 429 Maximum LLM invocations exceeded)", () => {
+      // The pooled per-run invocation budget is shared across all retry attempts.
+      // Once saturated, retries immediately re-fail with 0B output — they cannot make progress.
+      const result = {
+        exitCode: 1,
+        hasOutput: true,
+        output: "Execution failed: CAPIError: 429 Maximum LLM invocations exceeded (25/25)",
+      };
+
+      expect(detectNonRetryableHarnessGuard(result.output).maxRunsExceeded).toBe(true);
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("does not retry when the pooled LLM invocation cap is saturated (Anthropic JSON form: max_runs_exceeded)", () => {
+      const result = {
+        exitCode: 1,
+        hasOutput: true,
+        output: '{"error":{"type":"max_runs_exceeded","message":"Maximum LLM invocations exceeded (20 / 20).","invocation_count":20,"max_runs":20}}',
+      };
+
+      expect(detectNonRetryableHarnessGuard(result.output).maxRunsExceeded).toBe(true);
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
     it("still retries generic partial-execution errors with output", () => {
       const result = {
         exitCode: 1,
@@ -407,6 +432,15 @@ describe("copilot_harness.cjs", () => {
         const output = 'Response: {"message":"Gateway shutdown initiated","serversTerminated":2,"status":"closed"}';
         expect(isMCPGatewayShutdownError(output)).toBe(true);
         expect(classifyCopilotFailure({ hasOutput: true, isMCPGatewayShutdown: true })).toBe("mcp_gateway_shutdown");
+      });
+
+      it("classifies invocation cap exhaustion as invocation_cap_exceeded", () => {
+        expect(classifyCopilotFailure({ hasOutput: true, isInvocationCapExceeded: true })).toBe("invocation_cap_exceeded");
+      });
+
+      it("invocation_cap_exceeded outranks capi_quota_exceeded in failure classification", () => {
+        // Both flags set — invocation cap is more specific than generic quota exceeded.
+        expect(classifyCopilotFailure({ hasOutput: true, isInvocationCapExceeded: true, isQuotaExceeded: true })).toBe("invocation_cap_exceeded");
       });
 
       it("sdk_session_idle_timeout outranks permission_denied in failure classification", () => {
