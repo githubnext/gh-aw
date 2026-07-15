@@ -92,7 +92,7 @@ For each downloaded run directory at `/tmp/gh-aw/aw-mcp/logs/run-<id>/`:
    - Whether evals were declared (check for an `evals` key or the presence of the evals job in the run)
 3. Note runs where the workflow declares evals but `evals.jsonl` is absent — these are **evals job failures**.
 
-Cap analysis at **40 runs total**. Prefer runs with evals results first, then evals failures.
+Cap analysis at **40 runs total**. Apply prioritization before capping: first include all runs that produced `evals.jsonl` (up to 40), then fill any remaining capacity with evals-failure runs (declared evals but no results). If there are more than 40 runs with evals results, use the most recent 40 and note in the report that analysis was capped. Evals failures are still recorded even if the 40-run cap is reached from results-only runs — count them but do not analyze their artifacts.
 
 ## Phase 3: Parse Evals JSONL
 
@@ -143,7 +143,7 @@ For each unique workflow:
 
 Create one GitHub issue.
 
-**Title**: `[evals] Daily Evals Feature Report - YYYY-MM-DD`
+**Title**: `[evals] Daily Evals Feature Report - YYYY-MM-DD` (date in UTC, ISO 8601 format, e.g. `2026-07-15`)
 
 **Body structure** (use `###` or lower for all headers):
 
