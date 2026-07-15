@@ -17,14 +17,14 @@ var (
 	shellPackageDependencyNameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9+.-]*([:=][A-Za-z0-9.+~:-]+)?$`)
 )
 
-var mcpScriptDepsValidationLog = logger.New("workflow:mcp_script_dependencies_validation")
+var mcpScriptsDepsValidationLog = logger.New("workflow:mcp_scripts_dependencies_validation")
 
 func (c *Compiler) validateMCPScriptDependencies(workflowData *WorkflowData) error {
 	if workflowData == nil || workflowData.MCPScripts == nil {
 		return nil
 	}
 
-	mcpScriptDepsValidationLog.Printf("Validating MCP script dependencies for %d tool(s)", len(workflowData.MCPScripts.Tools))
+	mcpScriptsDepsValidationLog.Printf("Validating MCP script dependencies for %d tool(s)", len(workflowData.MCPScripts.Tools))
 
 	for toolName, tool := range workflowData.MCPScripts.Tools {
 		if len(tool.Dependencies) == 0 {
@@ -33,11 +33,11 @@ func (c *Compiler) validateMCPScriptDependencies(workflowData *WorkflowData) err
 
 		manager := inferMCPScriptDependencyManager(tool)
 		if manager == "" {
-			mcpScriptDepsValidationLog.Printf("Tool %q: no dependency manager inferred, skipping %d dependencies", toolName, len(tool.Dependencies))
+			mcpScriptsDepsValidationLog.Printf("Tool %q: no dependency manager inferred, skipping %d dependencies", toolName, len(tool.Dependencies))
 			continue
 		}
 
-		mcpScriptDepsValidationLog.Printf("Tool %q: validating %d %q dependencies", toolName, len(tool.Dependencies), manager)
+		mcpScriptsDepsValidationLog.Printf("Tool %q: validating %d %q dependencies", toolName, len(tool.Dependencies), manager)
 
 		for _, dependency := range tool.Dependencies {
 			dependency = strings.TrimSpace(dependency)
