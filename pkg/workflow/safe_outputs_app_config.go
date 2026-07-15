@@ -173,6 +173,9 @@ func isGitHubExpressionIdentifierChar(ch byte) bool {
 }
 
 func isGitHubExpressionIdentifierStart(inner string, i int) bool {
+	if i >= len(inner) {
+		return false
+	}
 	return isGitHubExpressionIdentifierChar(inner[i]) && (i == 0 || !isGitHubExpressionIdentifierChar(inner[i-1]))
 }
 
@@ -227,6 +230,8 @@ func containsInvalidIfContextReference(inner string) bool {
 	return false
 }
 
+// combineGitHubIfExpressions accepts either wrapped `${{ ... }}` conditions or raw
+// inner expression fragments and normalizes them into one wrapped if-expression.
 func combineGitHubIfExpressions(expressions ...string) string {
 	var parts []string
 	for _, expression := range expressions {
