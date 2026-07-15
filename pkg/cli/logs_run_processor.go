@@ -423,17 +423,15 @@ func applyRunUsageMetrics(result *DownloadResult, runOutputDir string, verbose b
 // RunSummary struct, and writes it to disk.  It also sets the agentic-analysis fields on
 // result directly so they are available to the caller.
 func finalizeAndSaveRunSummary(result *DownloadResult, runOutputDir string, metrics LogMetrics, verbose bool) {
-	run := result.Run
-
-	jobDetails, jobErr := fetchJobDetails(run.DatabaseID, verbose)
+	jobDetails, jobErr := fetchJobDetails(result.Run.DatabaseID, verbose)
 	if jobErr != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details for run %d: %v", run.DatabaseID, jobErr)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details for run %d: %v", result.Run.DatabaseID, jobErr)))
 	}
 	result.JobDetails = jobDetails
 
 	artifacts, listErr := listArtifacts(runOutputDir)
 	if listErr != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list artifacts for run %d: %v", run.DatabaseID, listErr)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list artifacts for run %d: %v", result.Run.DatabaseID, listErr)))
 	}
 
 	processedRun := ProcessedRun{
@@ -458,7 +456,7 @@ func finalizeAndSaveRunSummary(result *DownloadResult, runOutputDir string, metr
 
 	summary := &RunSummary{
 		CLIVersion:              GetVersion(),
-		RunID:                   run.DatabaseID,
+		RunID:                   result.Run.DatabaseID,
 		ProcessedAt:             time.Now(),
 		Run:                     result.Run,
 		Metrics:                 metrics,
@@ -480,7 +478,7 @@ func finalizeAndSaveRunSummary(result *DownloadResult, runOutputDir string, metr
 		JobDetails:              jobDetails,
 	}
 	if saveErr := saveRunSummary(runOutputDir, summary, verbose); saveErr != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save run summary for run %d: %v", run.DatabaseID, saveErr)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save run summary for run %d: %v", result.Run.DatabaseID, saveErr)))
 	}
 }
 
