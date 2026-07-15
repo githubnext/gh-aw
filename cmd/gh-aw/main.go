@@ -94,7 +94,6 @@ Common Tasks:
   gh aw status               		# Check workflow status
   gh aw logs my-workflow      		# View execution logs
   gh aw audit <run-id-or-url> 		# Audit and compare workflow runs
-  gh aw bootstrap --repo owner/repo # Create or attach a repo and initialize it
 
 For detailed help on any command, use:
   gh aw [command] --help`,
