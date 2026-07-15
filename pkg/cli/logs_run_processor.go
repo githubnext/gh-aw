@@ -149,8 +149,8 @@ func resolveRunRepoContext(run WorkflowRun, params concurrentRunDownloadParams) 
 // handleArtifactDownloadError fills result based on the artifact download error.
 // Failure-conclusion runs are kept (with empty metrics) so they appear in reports;
 // all other runs without artifacts are marked as skipped.
-func handleArtifactDownloadError(result *DownloadResult, run WorkflowRun, err error, verbose bool) {
-	result.Run = run
+func handleArtifactDownloadError(result *DownloadResult, err error, verbose bool) {
+	run := result.Run
 	if errors.Is(err, ErrNoArtifacts) {
 		logsOrchestratorLog.Printf("No artifacts available for run %d (conclusion=%s)", run.DatabaseID, run.Conclusion)
 		if isFailureConclusion(run.Conclusion) {
@@ -195,7 +195,7 @@ func processSingleRunDownload(
 
 		result = &DownloadResult{Run: run, LogsPath: runOutputDir}
 		if err != nil {
-			handleArtifactDownloadError(result, run, err, params.verbose)
+			handleArtifactDownloadError(result, err, params.verbose)
 		} else {
 			analyzed := analyzeRunArtifacts(*result, runOutputDir, params.verbose, params.artifactFilter)
 			result = &analyzed
