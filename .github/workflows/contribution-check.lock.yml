@@ -1679,8 +1679,6 @@ jobs:
       contents: read
     env:
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
-    outputs:
-      evals_artifact_id: ${{ steps.upload_evals_results.outputs.artifact-id }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -1835,6 +1833,7 @@ jobs:
           GH_AW_EVALS_QUESTIONS: '[{"id":"prs-evaluated","question":"Did the agent dispatch PRs to the contribution-checker subagent and produce evaluation results for each PR?"},{"id":"report-created","question":"Was a report issue created summarizing PR compliance with the contributing guidelines?"}]'
           GH_AW_EVALS_MODEL: "small"
           GH_AW_EVALS_PHASE: parse
+          GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -1862,7 +1861,6 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/render_evals_summary.cjs');
             await main();
       - name: Upload evals results
-        id: upload_evals_results
         if: steps.redact_evals_results.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -1931,8 +1929,6 @@ jobs:
           GH_AW_STATE_DIR: /tmp/gh-aw/evals-state
           GH_AW_STATE_BRANCH: evals/contributioncheck
           GH_AW_STATE_FILES: evals.jsonl
-          GH_AW_STATE_RECORD_RUNID: ${{ github.run_id }}
-          GH_AW_STATE_RECORD_ARTIFACTID: ${{ needs.evals.outputs.evals_artifact_id }}
           GH_AW_STATE_LABEL: evals results
         with:
           script: |

@@ -122,9 +122,6 @@ func TestBuildEvalsJobStepsRenderSummary(t *testing.T) {
 	if !strings.Contains(allSteps, "if: steps.redact_evals_results.outcome == 'success'") {
 		t.Errorf("expected redact outcome gating for render/upload steps;\ngot:\n%s", allSteps)
 	}
-	if !strings.Contains(allSteps, "id: upload_evals_results") {
-		t.Errorf("expected evals upload step id for artifact output wiring;\ngot:\n%s", allSteps)
-	}
 
 	// The render step must appear after the redact step (redact before publish to step summary).
 	redactIdx := strings.Index(allSteps, "- name: Redact secrets in evals results")
@@ -146,16 +143,6 @@ func TestBuildEvalsJobStepsRenderSummary(t *testing.T) {
 		t.Errorf("expected render step to appear before upload step; renderIdx=%d uploadIdx=%d", renderIdx, uploadIdx)
 	}
 
-	evalsJob, err := compiler.buildEvalsJob(data)
-	if err != nil {
-		t.Fatalf("buildEvalsJob returned error: %v", err)
-	}
-	if evalsJob == nil {
-		t.Fatal("expected evals job to be built")
-	}
-	if got := evalsJob.Outputs["evals_artifact_id"]; got != "${{ steps.upload_evals_results.outputs.artifact-id }}" {
-		t.Errorf("expected evals job output to expose upload-artifact ID, got %q", got)
-	}
 }
 
 func TestBuildEvalsJobStepsRedactionUsesEvalsSecretReferences(t *testing.T) {
@@ -205,5 +192,8 @@ func TestBuildParseEvalsResultsStepUsesResolvedExecutionModel(t *testing.T) {
 	}
 	if strings.Contains(steps, `GH_AW_EVALS_MODEL: "small"`) {
 		t.Errorf("expected parse step to avoid default 'small' when engine model is resolved; got:\n%s", steps)
+	}
+	if !strings.Contains(steps, "GITHUB_RUN_ID: ${{ github.run_id }}") {
+		t.Errorf("expected parse step to pass github.run_id through to the eval record writer; got:\n%s", steps)
 	}
 }
