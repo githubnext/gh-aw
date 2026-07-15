@@ -68,7 +68,9 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		// Make sure the condition refers to the same object as the init.
-		if pass.TypesInfo.Uses[condIdent] != pass.TypesInfo.Defs[okIdent] {
+		condObj := pass.TypesInfo.Uses[condIdent]
+		okObj := pass.TypesInfo.Defs[okIdent]
+		if condObj == nil || okObj == nil || condObj != okObj {
 			return
 		}
 
