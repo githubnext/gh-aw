@@ -31,6 +31,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/lenstringsplit"
 	"github.com/github/gh-aw/pkg/linters/lenstringzero"
 	"github.com/github/gh-aw/pkg/linters/manualmutexunlock"
+	"github.com/github/gh-aw/pkg/linters/nilctxpassed"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
 	"github.com/github/gh-aw/pkg/linters/ossetenvlibrary"
 	panicinlibrarycode "github.com/github/gh-aw/pkg/linters/panic-in-library-code"
@@ -66,7 +67,7 @@ type docAnalyzer struct {
 }
 
 // documentedAnalyzers returns the analyzer subpackages documented in the README
-// "Public API > Subpackages" table. The README documents 40 analyzers
+// "Public API > Subpackages" table. The README documents 41 analyzers
 // subpackages (the non-analyzer `internal` helper subpackage is excluded because
 // it exposes no Analyzer).
 //
@@ -75,7 +76,7 @@ type docAnalyzer struct {
 //	appendbytestring, contextcancelnotdeferred, ctxbackground, deferinloop, errorfwrapv, excessivefuncparams, errormessage,
 //	errortypeassertion, errstringmatch, execcommandwithoutcontext, fileclosenotdeferred, fmterrorfnoverbs, fprintlnsprintf,
 //	hardcodedfilepath, httpnoctx, jsonmarshalignoredeerror, largefunc, lenstringsplit, lenstringzero,
-//	manualmutexunlock, osexitinlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
+//	manualmutexunlock, nilctxpassed, osexitinlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
 //	regexpcompileinfunction, seenmapbool, sortslice, sprintferrdot, sprintferrorsnew, ssljson,
 //	strconvparseignorederror, stringreplaceminusone, stringscountcontains, stringsindexcontains, timeafterleak, timesleepnocontext,
 //	tolowerequalfold, uncheckedtypeassertion, wgdonenotdeferred, writebytestring
@@ -101,6 +102,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"lenstringsplit", lenstringsplit.Analyzer},
 		{"lenstringzero", lenstringzero.Analyzer},
 		{"manualmutexunlock", manualmutexunlock.Analyzer},
+		{"nilctxpassed", nilctxpassed.Analyzer},
 		{"osexitinlibrary", osexitinlibrary.Analyzer},
 		{"ossetenvlibrary", ossetenvlibrary.Analyzer},
 		{"panic-in-library-code", panicinlibrarycode.Analyzer},

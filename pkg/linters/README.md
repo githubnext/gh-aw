@@ -33,6 +33,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `logfatallibrary` — reports `log.Fatal`, `log.Fatalf`, and `log.Fatalln` calls in library packages (`pkg/*`) where they implicitly call `os.Exit` and bypass deferred cleanup.
 - `mapdeletecheck` — reports redundant map membership checks before `delete(m, k)` calls since `delete` is already a no-op for missing keys.
 - `manualmutexunlock` — reports non-deferred mutex `Unlock()` calls that can lead to deadlocks on early returns or panics.
+- `nilctxpassed` — reports function calls where `nil` is passed as a `context.Context` argument; the correct idioms are `context.Background()` or `context.TODO()`.
 - `osgetenvlibrary` — reports `os.Getenv` calls in library packages (`pkg/*`) where environment access should be injected.
 - `osexitinlibrary` — reports `os.Exit` calls in library packages (`pkg/*`) where process termination should be delegated to `cmd/*` entry points.
 - `ossetenvlibrary` — reports `os.Setenv` calls in library packages (`pkg/*`) where side effects should be isolated.
@@ -90,6 +91,7 @@ This package currently provides custom Go analyzers in the following subpackages
 | `logfatallibrary` | Custom `go/analysis` analyzer that flags `log.Fatal`, `log.Fatalf`, and `log.Fatalln` calls in library packages where they implicitly call `os.Exit` and bypass deferred cleanup |
 | `mapdeletecheck` | Custom `go/analysis` analyzer that flags redundant map membership checks before `delete(m, k)` calls since `delete` is a no-op for missing keys |
 | `manualmutexunlock` | Custom `go/analysis` analyzer that flags mutex `Unlock()` calls that are not deferred |
+| `nilctxpassed` | Custom `go/analysis` analyzer that flags function calls where `nil` is passed as a `context.Context` argument |
 | `osgetenvlibrary` | Custom `go/analysis` analyzer that flags `os.Getenv` usage in library packages |
 | `osexitinlibrary` | Custom `go/analysis` analyzer that flags `os.Exit` usage in library packages |
 | `ossetenvlibrary` | Custom `go/analysis` analyzer that flags `os.Setenv` usage in library packages |
