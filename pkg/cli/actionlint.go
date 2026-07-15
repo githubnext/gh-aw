@@ -23,6 +23,8 @@ var actionlintLog = logger.New("cli:actionlint")
 // actionlintVersion caches the actionlint version to avoid repeated Docker calls
 var actionlintVersion string
 
+const actionlintShellMetacharacters = " \t\n'\"`$&;|*?[](){}<>!#"
+
 // actionlintRunOptions configures optional actionlint integrations and ignores.
 type actionlintRunOptions struct {
 	IncludeShellcheck bool
@@ -370,7 +372,7 @@ func buildActionlintDockerCommand(gitRoot string, relPaths []string, options act
 }
 
 func actionlintShellQuoteArg(arg string) string {
-	if arg == "" || strings.ContainsAny(arg, " \t\n'\"`$&;|*?[](){}<>!#") {
+	if arg == "" || strings.ContainsAny(arg, actionlintShellMetacharacters) {
 		return strconv.Quote(arg)
 	}
 	return arg

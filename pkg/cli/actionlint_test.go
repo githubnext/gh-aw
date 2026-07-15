@@ -494,7 +494,7 @@ func TestActionlintShouldParseOutput(t *testing.T) {
 func exitErrorFromCommand(t *testing.T, exitCode int) error {
 	t.Helper()
 
-	cmd := exec.Command(os.Args[0], "-test.run=TestActionlintExitHelperProcess")
+	cmd := exec.Command(os.Args[0], "-test.run=TestActionlintExitHelperSubprocess")
 	cmd.Env = append(os.Environ(),
 		"GH_AW_ACTIONLINT_EXIT_HELPER_PROCESS=1",
 		"GH_AW_ACTIONLINT_EXIT_CODE="+strconv.Itoa(exitCode),
@@ -504,7 +504,7 @@ func exitErrorFromCommand(t *testing.T, exitCode int) error {
 	return err
 }
 
-func TestActionlintExitHelperProcess(t *testing.T) {
+func TestActionlintExitHelperSubprocess(t *testing.T) {
 	if os.Getenv("GH_AW_ACTIONLINT_EXIT_HELPER_PROCESS") != "1" {
 		return
 	}
