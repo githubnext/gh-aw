@@ -156,23 +156,8 @@ async function parseMain() {
   const jsonlLines = results.map(r => JSON.stringify(r));
   fs.writeFileSync(EVALS_OUTPUT_PATH, jsonlLines.join("\n") + (jsonlLines.length > 0 ? "\n" : ""));
   core.info(`BinEval results written to ${EVALS_OUTPUT_PATH} (${results.length} record(s))`);
-
-  const yesCount = results.filter(r => r.answer === "YES").length;
-  const noCount = results.filter(r => r.answer === "NO").length;
-  const unknownCount = results.filter(r => r.answer === "UNKNOWN").length;
-
-  await core.summary
-    .addHeading("BinEval Results", 2)
-    .addTable([
-      [
-        { data: "ID", header: true },
-        { data: "Question", header: true },
-        { data: "Answer", header: true },
-      ],
-      ...results.map(r => [r.id, r.question, r.answer]),
-      ["", `YES: ${yesCount} | NO: ${noCount} | UNKNOWN: ${unknownCount}`, ""],
-    ])
-    .write();
+  // Step summary rendering is handled by the dedicated render_evals_summary.cjs step
+  // that runs after secret redaction, so the published summary is always redacted.
 }
 
 // ---------------------------------------------------------------------------

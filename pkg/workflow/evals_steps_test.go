@@ -83,3 +83,54 @@ func TestBuildEvalsEngineStepsArcDindTopology(t *testing.T) {
 		}
 	})
 }
+
+// TestBuildEvalsJobStepsRenderSummary verifies that the evals job includes the
+// "Render evals results to step summary" step and that it runs after the redact step.
+func TestBuildEvalsJobStepsRenderSummary(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "copilot",
+		Evals: &EvalsConfig{
+			Questions: []EvalDefinition{
+				{ID: "builds", Question: "Does the code build?"},
+			},
+		},
+	}
+
+	steps := compiler.buildEvalsJobSteps(data)
+	if len(steps) == 0 {
+		t.Fatal("expected non-empty steps")
+	}
+	allSteps := strings.Join(steps, "")
+
+	// The render summary step must be present.
+	if !strings.Contains(allSteps, "- name: Render evals results to step summary") {
+		t.Errorf("expected 'Render evals results to step summary' step in evals job;\ngot:\n%s", allSteps)
+	}
+
+	// The render summary step must call render_evals_summary.cjs.
+	if !strings.Contains(allSteps, "render_evals_summary.cjs") {
+		t.Errorf("expected render_evals_summary.cjs reference in evals job steps;\ngot:\n%s", allSteps)
+	}
+
+	// The render step must appear after the redact step (redact before publish to step summary).
+	redactIdx := strings.Index(allSteps, "- name: Redact secrets in evals results")
+	renderIdx := strings.Index(allSteps, "- name: Render evals results to step summary")
+	uploadIdx := strings.Index(allSteps, "- name: Upload evals results")
+	if redactIdx < 0 {
+		t.Error("expected 'Redact secrets in evals results' step")
+	}
+	if renderIdx < 0 {
+		t.Error("expected 'Render evals results to step summary' step")
+	}
+	if uploadIdx < 0 {
+		t.Error("expected 'Upload evals results' step")
+	}
+	if redactIdx >= 0 && renderIdx >= 0 && renderIdx <= redactIdx {
+		t.Errorf("expected render step to appear after redact step; redactIdx=%d renderIdx=%d", redactIdx, renderIdx)
+	}
+	if renderIdx >= 0 && uploadIdx >= 0 && renderIdx >= uploadIdx {
+		t.Errorf("expected render step to appear before upload step; renderIdx=%d uploadIdx=%d", renderIdx, uploadIdx)
+	}
+}

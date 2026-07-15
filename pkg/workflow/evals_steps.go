@@ -61,7 +61,11 @@ func (c *Compiler) buildEvalsJobSteps(data *WorkflowData) []string {
 	// Step 9: Redact secrets from evals results before upload.
 	steps = append(steps, c.buildRedactEvalsSecretsStep(data)...)
 
-	// Step 10: Upload evals.jsonl as the evals artifact.
+	// Step 10: Render evals results as a progressive disclosure step summary section.
+	// Runs after redaction so the published summary is always free of secrets.
+	steps = append(steps, c.buildRenderEvalsSummaryStep(data)...)
+
+	// Step 11: Upload evals.jsonl as the evals artifact.
 	steps = append(steps, c.buildUploadEvalsArtifactStep(data)...)
 
 	return steps
@@ -314,6 +318,28 @@ await main();`
 
 	steps := []string{
 		"      - name: Redact secrets in evals results\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+		"        with:\n",
+		"          script: |\n",
+	}
+	steps = append(steps, FormatJavaScriptForYAML(script)...)
+	return steps
+}
+
+// buildRenderEvalsSummaryStep creates a step that reads the redacted evals.jsonl
+// and renders the results as a collapsible progressive disclosure section in the
+// GitHub Actions step summary. Running after secret redaction ensures no credentials
+// appear in the published summary.
+func (c *Compiler) buildRenderEvalsSummaryStep(data *WorkflowData) []string {
+	script := `const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
+setupGlobals(core, github, context, exec, io, getOctokit);
+const { main } = require('` + SetupActionDestination + `/render_evals_summary.cjs');
+await main();`
+
+	steps := []string{
+		"      - name: Render evals results to step summary\n",
 		"        if: always()\n",
 		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
