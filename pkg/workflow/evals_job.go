@@ -16,8 +16,8 @@ func evalsBranchName(workflowID string) string {
 	return WorkflowStateBranchName(constants.EvalsBranchPrefix, workflowID)
 }
 
-// buildEvalsJob creates a separate evals job that runs after the safe_outputs job
-// (or directly after the agent job if safe_outputs is not configured).
+// buildEvalsJob creates a separate evals job that runs after the agent job (and detection
+// job when enabled), allowing it to run in parallel with safe_outputs.
 // The job downloads the agent artifact to access output files, runs a BinEval
 // multi-question evaluation via an agentic engine, and uploads evals.jsonl as an artifact.
 // Returns nil if evals are not declared in the workflow frontmatter.
