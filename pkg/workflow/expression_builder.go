@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -164,9 +165,20 @@ func buildDispatchSourceEventCondition(includeIssues bool, includePullRequests b
 // Actors listed in bots (from on.bots) are also exempted so that bot/app-triggered workflows
 // continue to work even though bots rarely carry an OWNER/MEMBER/COLLABORATOR association.
 //
-// The generated expression (without bots) is:
+// activeCommentEvents lists which comment events are actually in the compiled on: section
+// (e.g. ["issue_comment", "pull_request_review_comment"]). Only events present in this list
+// get a "not equal" guard clause; omitting an event that is not a trigger avoids dead-code
+// conditions and keeps the generated expression consistent with the workflow's actual triggers.
+//
+// The generated expression for activeCommentEvents=["issue_comment","pull_request_review_comment"]
+// (without bots) is:
 //
 //	(github.event_name != 'issue_comment' && github.event_name != 'pull_request_review_comment')
+//	|| contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+//
+// For activeCommentEvents=["issue_comment"] the expression simplifies to:
+//
+//	github.event_name != 'issue_comment'
 //	|| contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
 //
 // With one or more bots an additional OR clause is appended for each bot:
@@ -176,16 +188,36 @@ func buildDispatchSourceEventCondition(includeIssues bool, includePullRequests b
 // This satisfies the RGS-004 rule (explicit author_association check for comment-triggered
 // workflows) while remaining transparent to non-comment events such as push or schedule,
 // and preserves existing on.bots allow-list behaviour.
-func buildCommentAuthorAssociationCondition(bots []string) ConditionNode {
-	notIssueComment := BuildNotEquals(
-		BuildPropertyAccess("github.event_name"),
-		BuildStringLiteral("issue_comment"),
-	)
-	notPRReviewComment := BuildNotEquals(
-		BuildPropertyAccess("github.event_name"),
-		BuildStringLiteral("pull_request_review_comment"),
-	)
-	notCommentEvent := BuildAnd(notIssueComment, notPRReviewComment)
+func buildCommentAuthorAssociationCondition(bots []string, activeCommentEvents []string) ConditionNode {
+	// Build "not equal" guards only for comment events that are active in this workflow.
+	// The canonical guarded events are issue_comment and pull_request_review_comment.
+	guardedEvents := []string{"issue_comment", "pull_request_review_comment"}
+	var notCommentTerms []ConditionNode
+	for _, ev := range guardedEvents {
+		if slices.Contains(activeCommentEvents, ev) {
+			notCommentTerms = append(notCommentTerms, BuildNotEquals(
+				BuildPropertyAccess("github.event_name"),
+				BuildStringLiteral(ev),
+			))
+		}
+	}
+
+	var notCommentEvent ConditionNode
+	switch len(notCommentTerms) {
+	case 0:
+		// No guarded comment events are active; the condition is always true.
+		notCommentEvent = BuildBooleanLiteral(true)
+	case 1:
+		notCommentEvent = notCommentTerms[0]
+	default:
+		// Combine all terms with AND regardless of how many there are, so that
+		// adding a third guarded event type in the future doesn't silently drop it.
+		combined := notCommentTerms[0]
+		for _, term := range notCommentTerms[1:] {
+			combined = BuildAnd(combined, term)
+		}
+		notCommentEvent = combined
+	}
 
 	authorizedAssoc := BuildFunctionCall(
 		"contains",

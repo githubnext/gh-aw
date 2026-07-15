@@ -1789,6 +1789,7 @@ jobs:
           GH_AW_EVALS_QUESTIONS: '[{"id":"analysis-completed","question":"Did the agent complete an analysis of recent commits and merged PRs for breaking CLI changes?"},{"id":"issue-created-or-noop","question":"Was a breaking change issue created when breaking changes were found, or was noop correctly called when no breaking changes were detected?"}]'
           GH_AW_EVALS_MODEL: "small"
           GH_AW_EVALS_PHASE: parse
+          GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

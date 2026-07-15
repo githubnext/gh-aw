@@ -275,6 +275,7 @@ await main();`
 		fmt.Sprintf("          GH_AW_EVALS_QUESTIONS: '%s'\n", escapeYAMLSingleQuoted(questionsJSON)),
 		fmt.Sprintf("          GH_AW_EVALS_MODEL: %q\n", model),
 		"          GH_AW_EVALS_PHASE: parse\n",
+		"          GITHUB_RUN_ID: ${{ github.run_id }}\n",
 		"        with:\n",
 		"          script: |\n",
 	}

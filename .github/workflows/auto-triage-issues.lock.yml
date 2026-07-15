@@ -1702,6 +1702,7 @@ jobs:
           GH_AW_EVALS_QUESTIONS: '[{"id":"labels-applied","question":"Did the agent apply at least one label to an unlabeled issue, or correctly call noop when no unlabeled issues were found?"},{"id":"report-created","question":"Was a summary discussion created listing the issues processed and the labels applied?"}]'
           GH_AW_EVALS_MODEL: "copilot/gpt-5.4"
           GH_AW_EVALS_PHASE: parse
+          GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

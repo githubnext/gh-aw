@@ -1833,6 +1833,7 @@ jobs:
           GH_AW_EVALS_QUESTIONS: '[{"id":"prs-evaluated","question":"Did the agent dispatch PRs to the contribution-checker subagent and produce evaluation results for each PR?"},{"id":"report-created","question":"Was a report issue created summarizing PR compliance with the contributing guidelines?"}]'
           GH_AW_EVALS_MODEL: "small"
           GH_AW_EVALS_PHASE: parse
+          GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

@@ -59,6 +59,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: report-generated
+    question: Did the workflow analyze the prefetched issues data and generate a clustered daily issues report with metrics and trends?
+  - id: discussion-created
+    question: Was a daily issues discussion created successfully with the report findings and recommendations?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

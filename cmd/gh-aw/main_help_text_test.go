@@ -16,7 +16,8 @@ func TestRunCommandHelpTextConsistency(t *testing.T) {
 	compileApprove := compileCmd.Flags().Lookup("approve")
 	require.NotNil(t, runApprove, "run command should define --approve")
 	require.NotNil(t, compileApprove, "compile command should define --approve")
-	assert.Equal(t, compileApprove.Usage, runApprove.Usage, "run and compile should share the same --approve description")
+	assert.Contains(t, compileApprove.Usage, "safe update changes", "compile --approve should describe compiler safe update approval")
+	assert.Equal(t, "Approve safe update manifest changes when --push triggers an automatic recompile step", runApprove.Usage, "run --approve should explain the --push-triggered recompile behavior")
 }
 
 func TestCompileScheduleSeedHelpUsesConsistentQuotes(t *testing.T) {
@@ -36,7 +37,7 @@ func TestCompileStagedFlagHelpText(t *testing.T) {
 func TestCompileShowAllFlagHelpText(t *testing.T) {
 	showAllFlag := compileCmd.Flags().Lookup("show-all")
 	require.NotNil(t, showAllFlag, "compile command should define --show-all")
-	assert.Equal(t, "Display all prioritized compilation errors instead of the default top five", showAllFlag.Usage)
+	assert.Equal(t, "Display all compilation errors instead of only the highest-priority subset (default: top 5)", showAllFlag.Usage)
 }
 
 func TestCompileStrictFlagHelpText(t *testing.T) {

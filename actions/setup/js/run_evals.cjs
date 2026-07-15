@@ -106,6 +106,7 @@ async function setupMain() {
 async function parseMain() {
   const questionsRaw = process.env.GH_AW_EVALS_QUESTIONS;
   const model = process.env.GH_AW_EVALS_MODEL || "";
+  const runID = process.env.GITHUB_RUN_ID || "unknown";
 
   /** @type {Array<{id: string, question: string}>} */
   let questions = [];
@@ -147,6 +148,7 @@ async function parseMain() {
       answer,
       model,
       timestamp,
+      runid: runID,
     };
     results.push(record);
     core.info(`Q[${q.id}]: ${answer}`);

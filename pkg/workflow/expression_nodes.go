@@ -13,6 +13,20 @@ type ConditionNode interface {
 	Render() string
 }
 
+// Compile-time assertions: all ConditionNode implementation types must satisfy the interface.
+var (
+	_ ConditionNode = (*ExpressionNode)(nil)
+	_ ConditionNode = (*AndNode)(nil)
+	_ ConditionNode = (*OrNode)(nil)
+	_ ConditionNode = (*NotNode)(nil)
+	_ ConditionNode = (*DisjunctionNode)(nil)
+	_ ConditionNode = (*FunctionCallNode)(nil)
+	_ ConditionNode = (*PropertyAccessNode)(nil)
+	_ ConditionNode = (*StringLiteralNode)(nil)
+	_ ConditionNode = (*BooleanLiteralNode)(nil)
+	_ ConditionNode = (*ComparisonNode)(nil)
+)
+
 // ExpressionNode represents a leaf expression
 type ExpressionNode struct {
 	Expression  string

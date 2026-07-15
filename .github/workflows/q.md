@@ -6,6 +6,7 @@ on:
   roles: [admin, maintainer, write]
   slash_command:
     name: q
+    events: [issues, issue_comment, pull_request_comment, discussion, discussion_comment]
   reaction: rocket
   status-comment: true
 permissions:

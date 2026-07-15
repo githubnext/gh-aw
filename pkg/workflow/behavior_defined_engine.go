@@ -30,6 +30,8 @@ type BehaviorDefinedEngine struct {
 	definition *EngineDefinition
 }
 
+var _ CodingAgentEngine = (*BehaviorDefinedEngine)(nil)
+
 func NewBehaviorDefinedEngine(def *EngineDefinition) (*BehaviorDefinedEngine, error) {
 	if def == nil {
 		return nil, errors.New("engine definition is required")

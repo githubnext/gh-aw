@@ -4,20 +4,21 @@ import "github.com/spf13/cobra"
 
 const engineFlagHelpList = "copilot, claude, codex, gemini, antigravity, opencode, pi"
 
-func engineFlagUsage(prefix string) string {
-	return prefix + " (" + engineFlagHelpList + ")"
-}
+const (
+	EngineFlagOverrideUsage = "Override AI engine (" + engineFlagHelpList + ")"
+	EngineFlagFilterUsage   = "Filter logs by AI engine (" + engineFlagHelpList + ")"
+)
 
 // addEngineFlag adds the --engine/-e flag to a command.
 // This flag allows overriding the AI engine type.
 func addEngineFlag(cmd *cobra.Command) {
-	cmd.Flags().StringP("engine", "e", "", engineFlagUsage("Override AI engine"))
+	cmd.Flags().StringP("engine", "e", "", EngineFlagOverrideUsage)
 }
 
 // addEngineFilterFlag adds the --engine/-e flag to a command for filtering.
 // This flag allows filtering results by AI engine type.
 func addEngineFilterFlag(cmd *cobra.Command) {
-	cmd.Flags().StringP("engine", "e", "", engineFlagUsage("Filter logs by AI engine"))
+	cmd.Flags().StringP("engine", "e", "", EngineFlagFilterUsage)
 }
 
 // addRepoFlag adds the --repo/-r flag to a command.

@@ -38,6 +38,11 @@ safe-outputs:
     run-success: "✅ Stale PR cleanup complete! [{workflow_name}]({run_url}) has triaged the 30+ day PR backlog."
     run-failure: "❌ Stale PR cleanup failed! [{workflow_name}]({run_url}) {status}. Some PRs may not be processed."
 timeout-minutes: 30
+evals:
+  - id: stale-prs-triaged
+    question: Did the workflow review pull requests open for 30 or more days and classify them according to the cleanup policy?
+  - id: actions-taken-or-noop
+    question: Were the appropriate stale PR comments, labels, and closures applied when needed, or was noop used correctly when no action was required?
 ---
 
 # Stale PR Cleanup Agent 🧹
