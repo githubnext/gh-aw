@@ -1108,7 +1108,7 @@ async function main() {
           if (nonRetryableGuard.aiCreditsExceeded) reasons.push("AI credits budget exceeded");
           if (nonRetryableGuard.awfAPIProxyBlockingRequests) reasons.push("AWF API proxy is blocking requests");
           if (isInvocationCapExceeded) {
-            const budgetMsg = result.hasOutput ? "attempt 1 partial output preserved as run result" : "no output produced";
+            const budgetMsg = result.hasOutput ? `attempt ${attempt + 1} partial output preserved as run result` : "no output produced";
             reasons.push(`LLM invocation cap saturated — the pooled per-run budget is fully exhausted; retries cannot make progress (${budgetMsg})`);
           }
           log(`attempt ${attempt + 1}: ${reasons.join(" and ")} — not retrying (non-retryable guard condition)`);

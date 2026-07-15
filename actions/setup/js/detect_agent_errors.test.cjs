@@ -194,7 +194,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(isCAPIQuotaExceededError("")).toBe(false);
     });
 
-    it("does not match the invocation cap error (different 429 subtype)", () => {
+    it("CAPI_QUOTA_EXCEEDED_PATTERN does not match the invocation cap error (different 429 subtype)", () => {
       // "Maximum LLM invocations exceeded" is a distinct error from quota/rate-limit —
       // it should NOT match the CAPI quota pattern.
       expect(isCAPIQuotaExceededError("CAPIError: 429 Maximum LLM invocations exceeded (25/25)")).toBe(false);
