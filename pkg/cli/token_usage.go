@@ -299,6 +299,15 @@ func findTokenUsageFile(runDir string) string {
 		return primary
 	}
 
+	// AWF v0.27.7+ audit-dir path: sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl
+	// In newer AWF versions the proxy logs are written under --audit-dir rather than
+	// --proxy-logs-dir, so check this path explicitly before falling back to the walk.
+	awfAuditPath := filepath.Join(runDir, "sandbox", "firewall", "audit", tokenUsageJSONLPath)
+	if fileutil.FileExists(awfAuditPath) {
+		tokenUsageLog.Printf("Found token usage file at AWF audit path: %s", awfAuditPath)
+		return awfAuditPath
+	}
+
 	// Check legacy firewall-audit-logs artifact directory (backward compat for older runs)
 	entries, err := os.ReadDir(runDir)
 	if err != nil {

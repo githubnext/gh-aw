@@ -1367,6 +1367,47 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	}
 }
 
+func TestConclusionJobIncludesEvalsInUsageArtifact(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		On:   "issues",
+		SafeOutputs: &SafeOutputsConfig{
+			NoOp: &NoOpConfig{},
+		},
+		Evals: &EvalsConfig{
+			Questions: []EvalDefinition{
+				{ID: "builds", Question: "Does it build?"},
+			},
+		},
+	}
+
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+	if err != nil {
+		t.Fatalf("Failed to build conclusion job: %v", err)
+	}
+	if job == nil {
+		t.Fatal("Expected conclusion job to be created")
+	}
+
+	allSteps := strings.Join(job.Steps, "\n")
+	if !strings.Contains(allSteps, "Download evals artifact") {
+		t.Errorf("Expected conclusion job to download the evals artifact.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "id: download-evals-artifact") {
+		t.Errorf("Expected evals artifact download step to have an id field.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "name: evals") {
+		t.Errorf("Expected evals artifact download step to use the evals artifact name.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "cp /tmp/gh-aw/evals/evals.jsonl /tmp/gh-aw/usage/evals.jsonl") {
+		t.Errorf("Expected usage artifact collection to copy evals results.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/evals.jsonl") {
+		t.Errorf("Expected usage artifact upload to include evals results.\nGenerated steps:\n%s", allSteps)
+	}
+}
+
 // TestConclusionJobNeedsPreActivationFromMessages tests that pre_activation is automatically
 // added to the conclusion job's needs when any message template references
 // needs.pre_activation.outputs.*, and that it is not duplicated.

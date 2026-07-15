@@ -388,6 +388,28 @@ func TestCacheHitBackfillsStaleZeroTurns(t *testing.T) {
 	assert.Equal(t, 34, result.Run.Turns, "cache-hit backfill should heal stale Turns=0 from activity summary")
 }
 
+// TestCacheHitBackfillsStaleZeroTokenUsage verifies that backfillCacheHitIfNeeded
+// heals cached run and metrics token counts from a preserved firewall proxy summary.
+func TestCacheHitBackfillsStaleZeroTokenUsage(t *testing.T) {
+	t.Parallel()
+
+	runDir := t.TempDir()
+
+	result := DownloadResult{
+		Run:     WorkflowRun{TokenUsage: 0},
+		Metrics: LogMetrics{TokenUsage: 0},
+		TokenUsage: &TokenUsageSummary{
+			TotalInputTokens:  2000,
+			TotalOutputTokens: 1000,
+		},
+	}
+
+	backfillCacheHitIfNeeded(&result, runDir, false)
+
+	assert.Equal(t, 3000, result.Metrics.TokenUsage, "cache-hit backfill should heal stale Metrics.TokenUsage from firewall token summary")
+	assert.Equal(t, 3000, result.Run.TokenUsage, "cache-hit backfill should heal stale Run.TokenUsage from firewall token summary")
+}
+
 // TestCacheHitDoesNotOverwriteNonZeroValues verifies that backfillCacheHitIfNeeded
 // is a no-op when both Run.Turns and Run.SafeItemsCount are already non-zero.
 func TestCacheHitDoesNotOverwriteNonZeroValues(t *testing.T) {

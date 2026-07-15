@@ -85,14 +85,14 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `ResolveIncludePath` | `func(filePath, baseDir string, cache *ImportCache) (string, error)` | Resolves a relative or GitHub URL path to an absolute path or fetches remotely |
-| `DownloadFileFromGitHub` | `func(owner, repo, path, ref string) ([]byte, error)` | Downloads a file from GitHub via the API |
-| `DownloadFileFromGitHubForHost` | `func(owner, repo, path, ref, host string) ([]byte, error)` | Downloads a file from a specific GitHub host |
-| `ResolveRefToSHAForHost` | `func(owner, repo, ref, host string) (string, error)` | Resolves a branch/tag ref to a commit SHA |
-| `ListWorkflowFiles` | `func(owner, repo, ref, workflowPath string) ([]string, error)` | Lists workflow files in a remote repository |
-| `ListWorkflowFilesForHost` | `func(owner, repo, ref, workflowPath, host string) ([]string, error)` | Lists workflow files in a remote repository on a specific GitHub host |
-| `ListDirAllFilesForHost` | `func(owner, repo, ref, dirPath, host string) ([]string, error)` | Lists all files (any extension) that are direct children of the given directory in a remote repository |
-| `ListDirAllFilesRecursivelyForHost` | `func(owner, repo, ref, dirPath, host string) ([]string, error)` | Lists all files under the given directory recursively in a remote repository |
-| `ListDirSubdirsForHost` | `func(owner, repo, ref, dirPath, host string) ([]string, error)` | Lists subdirectory paths that are direct children of the given directory in a remote repository |
+| `DownloadFileFromGitHub` | `func(ctx context.Context, owner, repo, path, ref string) ([]byte, error)` | Downloads a file from GitHub via the API |
+| `DownloadFileFromGitHubForHost` | `func(ctx context.Context, owner, repo, path, ref, host string) ([]byte, error)` | Downloads a file from a specific GitHub host |
+| `ResolveRefToSHAForHost` | `func(ctx context.Context, owner, repo, ref, host string) (string, error)` | Resolves a branch/tag ref to a commit SHA |
+| `ListWorkflowFiles` | `func(ctx context.Context, owner, repo, ref, workflowPath string) ([]string, error)` | Lists workflow files in a remote repository |
+| `ListWorkflowFilesForHost` | `func(ctx context.Context, owner, repo, ref, workflowPath, host string) ([]string, error)` | Lists workflow files in a remote repository on a specific GitHub host |
+| `ListDirAllFilesForHost` | `func(ctx context.Context, owner, repo, ref, dirPath, host string) ([]string, error)` | Lists all files (any extension) that are direct children of the given directory in a remote repository |
+| `ListDirAllFilesRecursivelyForHost` | `func(ctx context.Context, owner, repo, ref, dirPath, host string) ([]string, error)` | Lists all files under the given directory recursively in a remote repository |
+| `ListDirSubdirsForHost` | `func(ctx context.Context, owner, repo, ref, dirPath, host string) ([]string, error)` | Lists subdirectory paths that are direct children of the given directory in a remote repository |
 | `IsWorkflowSpec` | `func(path string) bool` | Returns whether a path is a workflow specification markdown file |
 
 #### MCP Configuration

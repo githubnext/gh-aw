@@ -281,7 +281,7 @@ func analyzeRunArtifacts(result *DownloadResult, runOutputDir string, verbose bo
 
 	applyRunBehavioralSignals(result, runOutputDir, verbose, hasFirewallArtifact, expName, expVariant)
 
-	applyRunUsageMetrics(result, runOutputDir, verbose, usageActivitySummary, hasFirewallArtifact)
+	applyRunUsageMetrics(result, &metrics, runOutputDir, verbose, usageActivitySummary, hasFirewallArtifact)
 
 	finalizeAndSaveRunSummary(result, runOutputDir, metrics, verbose)
 }
@@ -390,13 +390,14 @@ func applyRunBehavioralSignals(result *DownloadResult, runOutputDir string, verb
 
 // applyRunUsageMetrics extracts token usage, GitHub rate-limit consumption, safe-output
 // item counts, and backfills any missing activity summaries from the usage artifact.
-func applyRunUsageMetrics(result *DownloadResult, runOutputDir string, verbose bool, usageActivitySummary *usageActivitySummary, hasFirewallArtifact bool) {
+func applyRunUsageMetrics(result *DownloadResult, metrics *LogMetrics, runOutputDir string, verbose bool, usageActivitySummary *usageActivitySummary, hasFirewallArtifact bool) {
 	// token-usage.jsonl is also available in the compact usage artifact.
 	tokenUsage, tokenErr := analyzeTokenUsage(runOutputDir, verbose)
 	if tokenErr != nil && verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze token usage for run %d: %v", result.Run.DatabaseID, tokenErr)))
 	}
 	result.TokenUsage = tokenUsage
+	backfillRunTokenUsageFromFirewall(metrics, result, tokenUsage)
 	if tokenUsage != nil && tokenUsage.TotalEffectiveTokens > 0 {
 		result.Run.EffectiveTokens = tokenUsage.TotalEffectiveTokens
 	}
@@ -487,6 +488,7 @@ func finalizeAndSaveRunSummary(result *DownloadResult, runOutputDir string, metr
 // non-zero. Errors loading the summary are logged when verbose is true; a missing
 // summary file is silent (no summary = nothing to backfill).
 func backfillCacheHitIfNeeded(result *DownloadResult, runOutputDir string, verbose bool) {
+	backfillRunTokenUsageFromFirewall(&result.Metrics, result, result.TokenUsage)
 	if result.Run.Turns == 0 || result.Run.SafeItemsCount == 0 {
 		usageActivitySummary, err := loadUsageActivitySummary(runOutputDir)
 		if err != nil && verbose {
@@ -495,6 +497,23 @@ func backfillCacheHitIfNeeded(result *DownloadResult, runOutputDir string, verbo
 		if usageActivitySummary != nil {
 			applyUsageActivitySummaryToResult(usageActivitySummary, result, true)
 		}
+	}
+}
+
+func backfillRunTokenUsageFromFirewall(metrics *LogMetrics, result *DownloadResult, tokenUsage *TokenUsageSummary) {
+	// Backfill run-level token count from the firewall proxy summary when the
+	// event-log parser returned 0. This is common for AWF-based engines (Claude,
+	// Codex, Gemini) where token counts live in the proxy's token-usage.jsonl
+	// rather than in events.jsonl, so the raw log metrics miss them.
+	// Using input+output (not cache) keeps semantics consistent with what
+	// extractLogMetrics measures from events.jsonl.
+	if metrics == nil || result == nil || tokenUsage == nil || metrics.TokenUsage != 0 || result.Run.TokenUsage != 0 {
+		return
+	}
+	if firewallTokens := tokenUsage.TotalInputTokens + tokenUsage.TotalOutputTokens; firewallTokens > 0 {
+		metrics.TokenUsage = firewallTokens
+		result.Metrics.TokenUsage = firewallTokens
+		result.Run.TokenUsage = firewallTokens
 	}
 }
 
@@ -605,11 +624,13 @@ func runHasDifcFilteredItems(runDir string, verbose bool) (bool, error) {
 }
 
 // runHasEvals checks whether a run's output directory contains an evals results file
-// (evals.jsonl). It looks in three locations:
+// (evals.jsonl). It looks in five locations:
 //  1. runDir/evals.jsonl — produced when flattenSingleFileArtifacts collapsed the
 //     one-file evals artifact from its directory directly to the run root.
 //  2. runDir/evals/evals.jsonl — un-flattened artifact directory.
 //  3. runDir/{hash}-evals/evals.jsonl — workflow_call hash-prefixed variant.
+//  4. runDir/usage/evals.jsonl — compact usage artifact captured by the conclusion job.
+//  5. runDir/{hash}-usage/evals.jsonl — workflow_call hash-prefixed compact usage artifact.
 func runHasEvals(runDir string, verbose bool) bool {
 	logsOrchestratorLog.Printf("Checking run for evals results: dir=%s", runDir)
 
@@ -617,6 +638,11 @@ func runHasEvals(runDir string, verbose bool) bool {
 	rootEvalsFile := filepath.Join(runDir, constants.EvalsResultFilename)
 	if fileutil.FileExists(rootEvalsFile) {
 		logsOrchestratorLog.Printf("Found evals results at: %s", rootEvalsFile)
+		return true
+	}
+	usageEvalsFile := filepath.Join(runDir, constants.UsageArtifactName, constants.EvalsResultFilename)
+	if fileutil.FileExists(usageEvalsFile) {
+		logsOrchestratorLog.Printf("Found evals results in usage artifact at: %s", usageEvalsFile)
 		return true
 	}
 
@@ -631,13 +657,20 @@ func runHasEvals(runDir string, verbose bool) bool {
 		}
 		name := entry.Name()
 		// Match exact "evals" or workflow_call prefixed "{hash}-evals".
-		if name != constants.EvalsArtifactName && !strings.HasSuffix(name, "-"+constants.EvalsArtifactName) {
-			continue
+		if name == constants.EvalsArtifactName || strings.HasSuffix(name, "-"+constants.EvalsArtifactName) {
+			evalsFile := filepath.Join(runDir, name, constants.EvalsResultFilename)
+			if fileutil.FileExists(evalsFile) {
+				logsOrchestratorLog.Printf("Found evals results at: %s", evalsFile)
+				return true
+			}
 		}
-		evalsFile := filepath.Join(runDir, name, constants.EvalsResultFilename)
-		if fileutil.FileExists(evalsFile) {
-			logsOrchestratorLog.Printf("Found evals results at: %s", evalsFile)
-			return true
+		// Match workflow_call-prefixed "{hash}-usage".
+		if strings.HasSuffix(name, "-"+constants.UsageArtifactName) {
+			evalsFile := filepath.Join(runDir, name, constants.EvalsResultFilename)
+			if fileutil.FileExists(evalsFile) {
+				logsOrchestratorLog.Printf("Found evals results in workflow_call usage artifact at: %s", evalsFile)
+				return true
+			}
 		}
 	}
 
