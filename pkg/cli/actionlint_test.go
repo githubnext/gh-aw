@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"os/exec"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -368,25 +369,58 @@ func TestBuildActionlintIntegrationStatus(t *testing.T) {
 }
 
 func TestBuildActionlintDockerArgs(t *testing.T) {
-	args := buildActionlintDockerArgs("/repo", []string{"a.lock.yml", "b.lock.yml"}, actionlintRunOptions{
-		IncludeShellcheck: false,
-		IncludePyflakes:   true,
-		IgnorePatterns:    []string{"foo", "bar"},
-	})
+	tests := []struct {
+		name     string
+		opts     actionlintRunOptions
+		expected []string
+	}{
+		{
+			name: "shellcheck disabled",
+			opts: actionlintRunOptions{
+				IncludeShellcheck: false,
+				IncludePyflakes:   true,
+				IgnorePatterns:    []string{"foo", "bar"},
+			},
+			expected: []string{
+				"run",
+				"--rm",
+				"-v", "/repo:/workdir",
+				"-w", "/workdir",
+				"rhysd/actionlint:latest",
+				"-format", "{{json .}}",
+				"-shellcheck=",
+				"-ignore", "foo",
+				"-ignore", "bar",
+				"a.lock.yml",
+				"b.lock.yml",
+			},
+		},
+		{
+			name: "pyflakes disabled",
+			opts: actionlintRunOptions{
+				IncludeShellcheck: true,
+				IncludePyflakes:   false,
+			},
+			expected: []string{
+				"run",
+				"--rm",
+				"-v", "/repo:/workdir",
+				"-w", "/workdir",
+				"rhysd/actionlint:latest",
+				"-format", "{{json .}}",
+				"-pyflakes=",
+				"a.lock.yml",
+				"b.lock.yml",
+			},
+		},
+	}
 
-	assert.Equal(t, []string{
-		"run",
-		"--rm",
-		"-v", "/repo:/workdir",
-		"-w", "/workdir",
-		"rhysd/actionlint:latest",
-		"-format", "{{json .}}",
-		"-shellcheck=",
-		"-ignore", "foo",
-		"-ignore", "bar",
-		"a.lock.yml",
-		"b.lock.yml",
-	}, args)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := buildActionlintDockerArgs("/repo", []string{"a.lock.yml", "b.lock.yml"}, tt.opts)
+			assert.Equal(t, tt.expected, args)
+		})
+	}
 }
 
 func TestBuildActionlintCompilerError(t *testing.T) {
@@ -406,4 +440,48 @@ func TestBuildActionlintCompilerError(t *testing.T) {
 	assert.Equal(t, []string{"    run: echo test"}, compilerErr.Context)
 	assert.Contains(t, compilerErr.Message, "[warning-test] something went wrong")
 	assert.Contains(t, compilerErr.Message, getActionlintDocsURL("warning-test"))
+}
+
+func TestActionlintShouldParseOutput(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "nil error",
+			err:  nil,
+			want: true,
+		},
+		{
+			name: "lint findings exit code",
+			err:  exitErrorFromCommand(t, "exit 1"),
+			want: true,
+		},
+		{
+			name: "tooling failure exit code",
+			err:  exitErrorFromCommand(t, "exit 2"),
+			want: false,
+		},
+		{
+			name: "invocation failure",
+			err:  assert.AnError,
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, actionlintShouldParseOutput(tt.err))
+		})
+	}
+}
+
+func exitErrorFromCommand(t *testing.T, command string) error {
+	t.Helper()
+
+	cmd := exec.Command("sh", "-c", command)
+	err := cmd.Run()
+	require.Error(t, err)
+	return err
 }

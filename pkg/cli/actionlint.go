@@ -245,31 +245,31 @@ func runActionlintOnFilesWithOptions(ctx context.Context, lockFiles []string, ve
 		return err
 	}
 
-	// Track workflows in statistics (count number of files validated)
-	if actionlintStats != nil {
-		actionlintStats.TotalWorkflows += len(lockFiles)
-	}
-
-	// Parse and reformat the output, get total error count and error details
-	totalErrors, errorsByKind, parseErr := parseAndDisplayActionlintOutput(runResult.stdout, verbose)
-	if parseErr != nil {
-		actionlintLog.Printf("Failed to parse actionlint output: %v", parseErr)
-		// Track this as an integration error: output was produced but could not be parsed
-		if actionlintStats != nil {
-			actionlintStats.IntegrationErrors++
-		}
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-			"actionlint output could not be parsed — this is a tooling error, not a workflow validation failure: "+parseErr.Error()))
-		// Fall back to showing raw output
-		if runResult.stdout != "" {
-			fmt.Fprint(os.Stderr, runResult.stdout)
-		}
-		if runResult.stderr != "" {
-			fmt.Fprint(os.Stderr, runResult.stderr)
-		}
-	} else {
-		// Track error statistics
-		if actionlintStats != nil {
+	// Parse and reformat the output only when actionlint completed validation and
+	// returned either success or lint findings.
+	totalErrors := 0
+	var errorsByKind map[string]int
+	var parseErr error
+	validatedRun := actionlintShouldParseOutput(runResult.err)
+	if validatedRun {
+		totalErrors, errorsByKind, parseErr = parseAndDisplayActionlintOutput(runResult.stdout, verbose)
+		if parseErr != nil {
+			actionlintLog.Printf("Failed to parse actionlint output: %v", parseErr)
+			// Track this as an integration error: output was produced but could not be parsed.
+			if actionlintStats != nil {
+				actionlintStats.IntegrationErrors++
+			}
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				"actionlint output could not be parsed — this is a tooling error, not a workflow validation failure: "+parseErr.Error()))
+			// Fall back to showing raw output.
+			if runResult.stdout != "" {
+				fmt.Fprint(os.Stderr, runResult.stdout)
+			}
+			if runResult.stderr != "" {
+				fmt.Fprint(os.Stderr, runResult.stderr)
+			}
+		} else if actionlintStats != nil {
+			// Track error statistics.
 			actionlintStats.TotalErrors += totalErrors
 			for kind, count := range errorsByKind {
 				actionlintStats.ErrorsByKind[kind] += count
@@ -277,7 +277,11 @@ func runActionlintOnFilesWithOptions(ctx context.Context, lockFiles []string, ve
 		}
 	}
 
-	return handleActionlintExecutionError(runResult.err, strict, lockFiles, totalErrors, parseErr)
+	err = handleActionlintExecutionError(runResult.err, strict, lockFiles, totalErrors, parseErr)
+	if validatedRun && actionlintStats != nil {
+		actionlintStats.TotalWorkflows += len(lockFiles)
+	}
+	return err
 }
 
 func maybePrintActionlintVersion(ctx context.Context) {
@@ -314,7 +318,11 @@ func runActionlintCommand(ctx context.Context, gitRoot string, lockFiles, relPat
 	runCtx, cancel := context.WithTimeout(ctx, timeoutDuration)
 	defer cancel()
 
-	printActionlintRunMessage(lockFiles, relPaths, gitRoot, verbose, options)
+	verboseHint := ""
+	if verbose {
+		verboseHint = buildActionlintDockerCommand(gitRoot, relPaths, options)
+	}
+	printActionlintRunMessage(lockFiles, relPaths, verboseHint, options)
 
 	cmd := exec.CommandContext(runCtx, "docker", buildActionlintDockerArgs(gitRoot, relPaths, options)...)
 	var stdout, stderr bytes.Buffer
@@ -352,19 +360,38 @@ func buildActionlintDockerArgs(gitRoot string, relPaths []string, options action
 	return append(dockerArgs, relPaths...)
 }
 
-func printActionlintRunMessage(lockFiles, relPaths []string, gitRoot string, verbose bool, options actionlintRunOptions) {
+func buildActionlintDockerCommand(gitRoot string, relPaths []string, options actionlintRunOptions) string {
+	args := buildActionlintDockerArgs(gitRoot, relPaths, options)
+	for i, arg := range args {
+		switch arg {
+		case gitRoot + ":/workdir":
+			args[i] = fmt.Sprintf("%q", arg)
+		case "{{json .}}":
+			args[i] = "'{{json .}}'"
+		}
+	}
+	return "docker " + strings.Join(args, " ")
+}
+
+func printActionlintRunMessage(lockFiles, relPaths []string, verboseHint string, options actionlintRunOptions) {
 	integrationStatus := buildActionlintIntegrationStatus(options.IncludeShellcheck, options.IncludePyflakes)
 	if len(lockFiles) == 1 {
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running actionlint ("+integrationStatus+") on "+relPaths[0]))
 	} else {
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running actionlint (%s) on %d files", integrationStatus, len(lockFiles))))
 	}
-	if !verbose {
+	if verboseHint == "" {
 		return
 	}
-	dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir rhysd/actionlint:latest -format '{{json .}}' %s",
-		gitRoot, strings.Join(relPaths, " "))
-	fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run actionlint directly: "+dockerCmd))
+	fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run actionlint directly: "+verboseHint))
+}
+
+func actionlintShouldParseOutput(err error) bool {
+	if err == nil {
+		return true
+	}
+	var exitErr *exec.ExitError
+	return errors.As(err, &exitErr) && exitErr.ExitCode() == 1
 }
 
 func actionlintContextError(result actionlintCommandResult, lockFiles []string) error {
@@ -412,6 +439,9 @@ func handleActionlintExecutionError(err error, strict bool, lockFiles []string, 
 
 func handleActionlintFindings(strict bool, lockFiles []string, totalErrors int, parseErr error) error {
 	if !strict {
+		if parseErr != nil {
+			actionlintLog.Printf("Actionlint findings could not be parsed in non-strict mode: %v", parseErr)
+		}
 		return nil
 	}
 	fileDescription := actionlintFileDescription(lockFiles)
@@ -490,8 +520,5 @@ func actionlintErrorContext(snippet string) []string {
 		return nil
 	}
 	lines := strings.Split(snippet, "\n")
-	if len(lines) == 0 {
-		return nil
-	}
 	return []string{lines[0]}
 }
