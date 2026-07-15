@@ -155,7 +155,7 @@ func handleArtifactDownloadError(result *DownloadResult, run WorkflowRun, err er
 		if isFailureConclusion(run.Conclusion) {
 			result.Metrics = LogMetrics{}
 			if failedJobCount, jobErr := fetchJobStatuses(run.DatabaseID, verbose); jobErr == nil {
-				run.ErrorCount = failedJobCount
+				result.Run.ErrorCount = failedJobCount
 			}
 		} else {
 			result.Skipped = true
@@ -187,25 +187,27 @@ func processSingleRunDownload(
 	runOutputDir := filepath.Join(params.outputDir, fmt.Sprintf("run-%d", run.DatabaseID))
 	perRunParams := resolveRunRepoContext(run, params)
 
-	if cached, ok := tryLoadCachedRunResult(ctx, run, runOutputDir, perRunParams, completedCount, progressBar); ok {
-		return *cached, nil
-	}
+	result, ok := tryLoadCachedRunResult(ctx, run, runOutputDir, perRunParams)
+	if !ok {
+		logsOrchestratorLog.Printf("Downloading artifacts for run %d: owner=%s, repo=%s", run.DatabaseID, perRunParams.dlOwner, perRunParams.dlRepo)
+		err := downloadRunArtifacts(ctx, run.DatabaseID, runOutputDir, params.verbose, perRunParams.dlOwner, perRunParams.dlRepo, perRunParams.dlHost, params.artifactFilter)
 
-	logsOrchestratorLog.Printf("Downloading artifacts for run %d: owner=%s, repo=%s", run.DatabaseID, perRunParams.dlOwner, perRunParams.dlRepo)
-	err := downloadRunArtifacts(ctx, run.DatabaseID, runOutputDir, params.verbose, perRunParams.dlOwner, perRunParams.dlRepo, perRunParams.dlHost, params.artifactFilter)
-
-	result := DownloadResult{Run: run, LogsPath: runOutputDir}
-	if err != nil {
-		handleArtifactDownloadError(&result, run, err, params.verbose)
+		result = &DownloadResult{Run: run, LogsPath: runOutputDir}
+		if err != nil {
+			handleArtifactDownloadError(result, run, err, params.verbose)
+		} else {
+			analyzed := analyzeRunArtifacts(*result, runOutputDir, params.verbose, params.artifactFilter)
+			result = &analyzed
+		}
 	} else {
-		result = analyzeRunArtifacts(result, run, runOutputDir, params.verbose, params.artifactFilter)
+		logsOrchestratorLog.Printf("Cache hit for run %d, using cached summary", run.DatabaseID)
 	}
 
 	completed := completedCount.Add(1)
 	if progressBar != nil {
 		fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(completed))
 	}
-	return result, nil
+	return *result, nil
 }
 
 // tryLoadCachedRunResult attempts to return a pre-built DownloadResult from the on-disk
@@ -215,8 +217,6 @@ func tryLoadCachedRunResult(
 	run WorkflowRun,
 	runOutputDir string,
 	params concurrentRunDownloadParams,
-	completedCount *atomic.Int64,
-	progressBar *console.ProgressBar,
 ) (*DownloadResult, bool) {
 	summary, ok := loadRunSummary(runOutputDir, params.verbose)
 	if !ok {
@@ -235,7 +235,6 @@ func tryLoadCachedRunResult(
 		return nil, false
 	}
 
-	logsOrchestratorLog.Printf("Cache hit for run %d, using cached summary", run.DatabaseID)
 	result := DownloadResult{
 		Run:                     summary.Run,
 		Metrics:                 summary.Metrics,
@@ -259,36 +258,32 @@ func tryLoadCachedRunResult(
 	}
 	// Re-apply the usage activity backfill to heal stale cache entries.
 	backfillCacheHitIfNeeded(&result, runOutputDir, params.verbose)
-	completed := completedCount.Add(1)
-	if progressBar != nil {
-		fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(completed))
-	}
 	return &result, true
 }
 
 // analyzeRunArtifacts populates a DownloadResult with all analysis data derived from
 // freshly-downloaded artifacts in runOutputDir.  Called only when the download succeeded
 // and no valid cached summary was found.
-func analyzeRunArtifacts(result DownloadResult, run WorkflowRun, runOutputDir string, verbose bool, artifactFilter []string) DownloadResult {
+func analyzeRunArtifacts(result DownloadResult, runOutputDir string, verbose bool, artifactFilter []string) DownloadResult {
 	metrics := extractRunMetricsAndMetadata(&result, runOutputDir, verbose)
 
 	usageActivitySummary, usageActivityErr := loadUsageActivitySummary(runOutputDir)
 	if usageActivityErr != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read usage activity summary for run %d: %v", run.DatabaseID, usageActivityErr)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read usage activity summary for run %d: %v", result.Run.DatabaseID, usageActivityErr)))
 	}
 
 	// Firewall artifact gating: firewall/gateway logs live in the agent artifact.
 	// Skip silently when the artifact was intentionally excluded from the filter.
 	hasFirewallArtifact := artifactMatchesFilter(constants.AgentArtifactName, artifactFilter)
 
-	applyRunSecurityAnalysis(&result, runOutputDir, run, verbose, hasFirewallArtifact)
+	applyRunSecurityAnalysis(&result, runOutputDir, verbose, hasFirewallArtifact)
 
 	// Resolve experiment assignment once for all extraction functions below.
 	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(runOutputDir))
 
-	applyRunBehavioralSignals(&result, runOutputDir, run, verbose, hasFirewallArtifact, expName, expVariant)
+	applyRunBehavioralSignals(&result, runOutputDir, verbose, hasFirewallArtifact, expName, expVariant)
 
-	applyRunUsageMetrics(&result, runOutputDir, run, verbose, usageActivitySummary, hasFirewallArtifact)
+	applyRunUsageMetrics(&result, runOutputDir, verbose, usageActivitySummary, hasFirewallArtifact)
 
 	finalizeAndSaveRunSummary(&result, runOutputDir, metrics, verbose)
 
@@ -334,10 +329,10 @@ func extractRunMetricsAndMetadata(result *DownloadResult, runOutputDir string, v
 
 // applyRunSecurityAnalysis runs access-log, firewall, and redacted-domain analyses and
 // stores the results directly on result.
-func applyRunSecurityAnalysis(result *DownloadResult, runOutputDir string, run WorkflowRun, verbose bool, hasFirewallArtifact bool) {
+func applyRunSecurityAnalysis(result *DownloadResult, runOutputDir string, verbose bool, hasFirewallArtifact bool) {
 	accessAnalysis, accessErr := analyzeAccessLogs(runOutputDir, verbose)
 	if accessErr != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs for run %d: %v", run.DatabaseID, accessErr)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs for run %d: %v", result.Run.DatabaseID, accessErr)))
 	}
 	result.AccessAnalysis = accessAnalysis
 
@@ -346,42 +341,42 @@ func applyRunSecurityAnalysis(result *DownloadResult, runOutputDir string, run W
 		var firewallErr error
 		firewallAnalysis, firewallErr = analyzeFirewallLogs(runOutputDir, verbose)
 		if firewallErr != nil && verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs for run %d: %v", run.DatabaseID, firewallErr)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs for run %d: %v", result.Run.DatabaseID, firewallErr)))
 		}
 	}
 	result.FirewallAnalysis = firewallAnalysis
 
 	redactedDomainsAnalysis, redactedErr := analyzeRedactedDomains(runOutputDir, verbose)
 	if redactedErr != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze redacted domains for run %d: %v", run.DatabaseID, redactedErr)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze redacted domains for run %d: %v", result.Run.DatabaseID, redactedErr)))
 	}
 	result.RedactedDomainsAnalysis = redactedDomainsAnalysis
 }
 
 // applyRunBehavioralSignals extracts missing-tool, missing-data, noop, MCP failure, and
 // MCP tool-usage signals and stores them directly on result.
-func applyRunBehavioralSignals(result *DownloadResult, runOutputDir string, run WorkflowRun, verbose bool, hasFirewallArtifact bool, expName, expVariant string) {
-	missingTools, missingErr := extractMissingToolsFromRun(runOutputDir, run, verbose, expName, expVariant)
+func applyRunBehavioralSignals(result *DownloadResult, runOutputDir string, verbose bool, hasFirewallArtifact bool, expName, expVariant string) {
+	missingTools, missingErr := extractMissingToolsFromRun(runOutputDir, result.Run, verbose, expName, expVariant)
 	if missingErr != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing tools for run %d: %v", run.DatabaseID, missingErr)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing tools for run %d: %v", result.Run.DatabaseID, missingErr)))
 	}
 	result.MissingTools = missingTools
 
-	missingData, missingDataErr := extractMissingDataFromRun(runOutputDir, run, verbose, expName, expVariant)
+	missingData, missingDataErr := extractMissingDataFromRun(runOutputDir, result.Run, verbose, expName, expVariant)
 	if missingDataErr != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing data for run %d: %v", run.DatabaseID, missingDataErr)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing data for run %d: %v", result.Run.DatabaseID, missingDataErr)))
 	}
 	result.MissingData = missingData
 
-	noops, noopErr := extractNoopsFromRun(runOutputDir, run, verbose, expName, expVariant)
+	noops, noopErr := extractNoopsFromRun(runOutputDir, result.Run, verbose, expName, expVariant)
 	if noopErr != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract noops for run %d: %v", run.DatabaseID, noopErr)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract noops for run %d: %v", result.Run.DatabaseID, noopErr)))
 	}
 	result.Noops = noops
 
-	mcpFailures, mcpErr := extractMCPFailuresFromRun(runOutputDir, run, verbose, expName, expVariant)
+	mcpFailures, mcpErr := extractMCPFailuresFromRun(runOutputDir, result.Run, verbose, expName, expVariant)
 	if mcpErr != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP failures for run %d: %v", run.DatabaseID, mcpErr)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP failures for run %d: %v", result.Run.DatabaseID, mcpErr)))
 	}
 	result.MCPFailures = mcpFailures
 
@@ -391,7 +386,7 @@ func applyRunBehavioralSignals(result *DownloadResult, runOutputDir string, run 
 		var mcpToolErr error
 		mcpToolUsage, mcpToolErr = extractMCPToolUsageData(runOutputDir, verbose)
 		if mcpToolErr != nil && verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP tool usage for run %d: %v", run.DatabaseID, mcpToolErr)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP tool usage for run %d: %v", result.Run.DatabaseID, mcpToolErr)))
 		}
 	}
 	result.MCPToolUsage = mcpToolUsage
@@ -399,11 +394,11 @@ func applyRunBehavioralSignals(result *DownloadResult, runOutputDir string, run 
 
 // applyRunUsageMetrics extracts token usage, GitHub rate-limit consumption, safe-output
 // item counts, and backfills any missing activity summaries from the usage artifact.
-func applyRunUsageMetrics(result *DownloadResult, runOutputDir string, run WorkflowRun, verbose bool, usageActivitySummary *usageActivitySummary, hasFirewallArtifact bool) {
+func applyRunUsageMetrics(result *DownloadResult, runOutputDir string, verbose bool, usageActivitySummary *usageActivitySummary, hasFirewallArtifact bool) {
 	// token-usage.jsonl is also available in the compact usage artifact.
 	tokenUsage, tokenErr := analyzeTokenUsage(runOutputDir, verbose)
 	if tokenErr != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze token usage for run %d: %v", run.DatabaseID, tokenErr)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze token usage for run %d: %v", result.Run.DatabaseID, tokenErr)))
 	}
 	result.TokenUsage = tokenUsage
 	if tokenUsage != nil && tokenUsage.TotalEffectiveTokens > 0 {
@@ -412,7 +407,7 @@ func applyRunUsageMetrics(result *DownloadResult, runOutputDir string, run Workf
 
 	rateLimitUsage, rlErr := analyzeGitHubRateLimits(runOutputDir, verbose)
 	if rlErr != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze GitHub rate limit usage for run %d: %v", run.DatabaseID, rlErr)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze GitHub rate limit usage for run %d: %v", result.Run.DatabaseID, rlErr)))
 	}
 	result.GitHubRateLimitUsage = rateLimitUsage
 
@@ -436,6 +431,7 @@ func finalizeAndSaveRunSummary(result *DownloadResult, runOutputDir string, metr
 	if jobErr != nil && verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details for run %d: %v", run.DatabaseID, jobErr)))
 	}
+	result.JobDetails = jobDetails
 
 	artifacts, listErr := listArtifacts(runOutputDir)
 	if listErr != nil && verbose {
