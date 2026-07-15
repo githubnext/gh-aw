@@ -307,7 +307,7 @@ bootstrap:
 	}
 }
 
-func TestParseRepositoryPackageManifest_GitHubAppUsesAppNameAndExistingOnly(t *testing.T) {
+func TestParseRepositoryPackageManifest_GitHubAppFields(t *testing.T) {
 	manifest, _, err := parseRepositoryPackageManifest("aw.yml", []byte(`name: Control Plane
 bootstrap:
   actions:
@@ -332,7 +332,7 @@ bootstrap:
 	}
 }
 
-func TestNormalizeBootstrapRuntime_FillsProfileFuncs(t *testing.T) {
+func TestNormalizeBootstrapRuntime_SetsDefaultProfileHooks(t *testing.T) {
 	normalizedRuntime := normalizeBootstrapRuntime(bootstrapRuntime{})
 	if normalizedRuntime.resolveProfile == nil {
 		t.Fatal("expected resolveProfile default")
