@@ -78,8 +78,7 @@ describe("daily_aic_workflow_helpers", () => {
       const result = exports.sumAICFromUsageJSONLFiles([filePath]);
       // Intentionally pinned to current catalog pricing so a legitimate pricing-table change fails loudly here.
       // Current catalog pricing for openai/gpt-4o: 1000 * 2.5e-06 USD + 500 * 1e-05 USD = 0.0075 USD = 0.75 AIC.
-      // Use a small tolerance for floating-point math without making the assertion so loose that pricing drift is hidden.
-      expect(result).toBeCloseTo(0.75, 6);
+      expect(result).toBe(0.75);
     });
 
     it("ignores malformed (non-JSON) lines", () => {
@@ -109,7 +108,7 @@ describe("daily_aic_workflow_helpers", () => {
       expect(exports.sumAICFromUsageJSONLFiles([filePath])).toBe(0.5);
     });
 
-    it("ignores negative explicit AIC aliases without token fallback data", () => {
+    it("returns 0 when all explicit AIC aliases are negative and no token fallback is available", () => {
       const filePath = path.join(tmpDir, "usage.jsonl");
       fs.writeFileSync(filePath, [JSON.stringify({ aic: -1 }), JSON.stringify({ ai_credits: -2 }), JSON.stringify({ aiCredits: -3 })].join("\n"), "utf8");
       expect(exports.sumAICFromUsageJSONLFiles([filePath])).toBe(0);
