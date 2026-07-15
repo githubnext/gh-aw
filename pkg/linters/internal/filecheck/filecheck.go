@@ -48,6 +48,8 @@ func BuildGeneratedIndex(pass *analysis.Pass) GeneratedIndex {
 		}
 
 		adjustedFilename := pass.Fset.Position(pos).Filename
+		// //line directives can remap positions to a different logical file path.
+		// Record both names so callers using adjusted or unadjusted positions can match.
 		if adjustedFilename != "" && adjustedFilename != originalFilename {
 			generated[adjustedFilename] = struct{}{}
 		}
