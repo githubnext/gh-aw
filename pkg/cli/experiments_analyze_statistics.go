@@ -140,7 +140,8 @@ func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.Experim
 		// Populate metric and resolve any eval reference to its question text.
 		if cfg.Metric != "" {
 			a.Metric = cfg.Metric
-			if evalID, isEval := workflow.ParseExperimentMetricEvalReference(cfg.Metric); isEval && evalID != "" && evals != nil {
+			evalID, isEval := workflow.ParseExperimentMetricEvalReference(cfg.Metric)
+			if isEval && evalID != "" && evals != nil {
 				for _, q := range evals.Questions {
 					if q.ID == evalID {
 						a.MetricQuestion = q.Question
