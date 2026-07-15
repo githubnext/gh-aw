@@ -86,7 +86,7 @@ var rootCmd = &cobra.Command{
 
 Common Tasks:
   gh aw init                  		# Set up a new repository
-	gh aw setup repo --repo owner/repo # Check auth and repo setup state
+	gh aw doctor --repo owner/repo 		# Run diagnostics for authentication and repository setup
   gh aw add-wizard            		# Add workflows with interactive guided setup
   gh aw new my-workflow       		# Create your first workflow
   gh aw compile               		# Compile all workflows
@@ -828,7 +828,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	completionCmd := cli.NewCompletionCommand()
 	hashCmd := cli.NewHashCommand()
 	projectCmd := cli.NewProjectCommand()
-	setupCmd := cli.NewSetupCommand()
+	doctorCmd := cli.NewDoctorCommand()
 	checksCmd := cli.NewChecksCommand()
 	validateCmd := cli.NewValidateCommand(validateEngine)
 	lintCmd := cli.NewLintCommand()
@@ -850,7 +850,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	upgradeCmd.GroupID = "setup"
 	secretsCmd.GroupID = "setup"
 	envCmd.GroupID = "setup"
-	setupCmd.GroupID = "setup"
+	doctorCmd.GroupID = "setup"
 
 	// Development Commands
 	compileCmd.GroupID = "development"
@@ -921,7 +921,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	rootCmd.AddCommand(completionCmd)
 	rootCmd.AddCommand(hashCmd)
 	rootCmd.AddCommand(projectCmd)
-	rootCmd.AddCommand(setupCmd)
+	rootCmd.AddCommand(doctorCmd)
 	rootCmd.AddCommand(domainsCmd)
 	rootCmd.AddCommand(experimentsCmd)
 	rootCmd.AddCommand(forecastCmd)

@@ -7,14 +7,13 @@ const path = require("path");
 const { DefaultArtifactClient } = require("./artifact_client.cjs");
 
 const { calculateDailyAICStats, findJSONLFiles, formatAICCredits, sumAICFromUsageJSONLFiles } = require("./daily_aic_workflow_helpers.cjs");
+const { AIC_USAGE_CACHE_FILE_PATH, CACHE_RETENTION_MS, pruneStaleJSONLCacheLines } = require("./daily_aic_cache_helpers.cjs");
 const { parsePositiveCompactNumber } = require("./numeric_limits.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createRateLimitAwareGithub, fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
 
 const PRIMARY_GUARDRAIL_ARTIFACT_NAMES = ["usage"];
 const DAILY_WORKFLOW_WINDOW_MS = 24 * 60 * 60 * 1000;
-/** Cache entries older than this threshold (in ms) are skipped when loading. */
-const CACHE_RETENTION_MS = 48 * 60 * 60 * 1000;
 const MAX_WORKFLOW_RUN_PAGES = 10;
 const RATE_LIMIT_RESERVE = 100;
 const REQUEST_OVERHEAD_BUDGET = MAX_WORKFLOW_RUN_PAGES + 4;
@@ -31,9 +30,6 @@ const ESTIMATED_API_OPERATIONS_PER_RUN = 2;
  */
 const RATE_LIMIT_RECHECK_INTERVAL = 10;
 const INTEGER_FORMATTER = new Intl.NumberFormat("en-US");
-
-/** Path where the per-workflow usage cache is restored by the activation job's cache-restore step. */
-const AIC_USAGE_CACHE_FILE_PATH = "/tmp/gh-aw/agentic-workflow-usage-cache.jsonl";
 
 /**
  * @returns {Promise<any>}
@@ -158,25 +154,12 @@ function loadAICUsageCache(filePath) {
       return cache;
     }
     const content = fs.readFileSync(cachePath, "utf8");
-    const now = Date.now();
-    const cutoff = now - CACHE_RETENTION_MS;
+    const cutoff = Date.now() - CACHE_RETENTION_MS;
+    const { keptLines, prunedCount: skippedStale } = pruneStaleJSONLCacheLines(content, cutoff);
     let loaded = 0;
-    let skippedStale = 0;
-    for (const rawLine of content.split("\n")) {
-      const line = rawLine.trim();
-      if (!line || !line.startsWith("{")) {
-        continue;
-      }
+    for (const line of keptLines) {
       try {
         const entry = JSON.parse(line);
-        // Skip entries that have a timestamp and are older than the retention window.
-        if (typeof entry?.timestamp === "string") {
-          const ts = Date.parse(entry.timestamp);
-          if (Number.isFinite(ts) && ts < cutoff) {
-            skippedStale++;
-            continue;
-          }
-        }
         const runId = Number(entry?.run_id);
         const rawAic = entry?.aic;
         const aic = typeof rawAic === "number" ? rawAic : NaN;
