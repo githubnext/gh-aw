@@ -47,6 +47,22 @@ const GEMINI_MODEL_NAME_PREFIX = "models/";
 const REFLECT_PROVIDER_GITHUB = "github";
 const REFLECT_PROVIDER_OPENAI = "openai";
 const REFLECT_PROVIDER_ANTHROPIC = "anthropic";
+
+/**
+ * @typedef {{
+ *   configured?: boolean,
+ *   models_url?: string | null,
+ *   port?: number | null,
+ *   provider?: string,
+ * }} ReflectEndpoint
+ */
+
+/**
+ * @typedef {{
+ *   endpoints?: ReflectEndpoint[],
+ * }} ReflectData
+ */
+
 const REFLECT_PROVIDER_ALIASES = {
   // Only GitHub has multiple externally-visible aliases in reflect payloads.
   github: new Set(["github", "copilot", "github-copilot", "github_models"]),
@@ -533,7 +549,7 @@ function endpointBaseUrl(endpoint) {
  *
  * @param {{
  *   provider?: string,
- *   reflectData: object | null | undefined,
+ *   reflectData: ReflectData | null | undefined,
  *   logger?: (msg: string) => void,
  * }} options
  * @returns {{ provider: string, endpointProvider: string, port: number|null, baseUrl: string } | null}
@@ -542,7 +558,7 @@ function resolveProviderEndpointFromReflect(options) {
   const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
   const provider = normalizeReflectProviderName(options?.provider, "openai");
   const reflectData = options?.reflectData;
-  /** @type {{ endpoints?: Array<{ configured?: boolean, models_url?: string | null, port?: number | null, provider?: string }> } | null | undefined} */
+  /** @type {ReflectData | null | undefined} */
   const rd = reflectData;
   const endpoints = Array.isArray(rd?.endpoints) ? rd.endpoints.filter(ep => ep && ep.configured === true) : [];
   if (endpoints.length === 0) {
@@ -597,7 +613,7 @@ function resolveProviderEndpointFromReflect(options) {
  *
  * @param {{
  *   model?: string,
- *   reflectData: object | null | undefined,
+ *   reflectData: ReflectData | null | undefined,
  *   modelsJson?: object | null,
  *   logger?: (msg: string) => void,
  * }} [options]
