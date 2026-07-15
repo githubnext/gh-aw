@@ -18,7 +18,7 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
-var compileUpdateCheckLog = logger.New("cli:update_check")
+var compileUpdateCheckLog = logger.New("cli:compile_update_check")
 
 const (
 	compileUpdateCheckDisableEnv = "GH_AW_DISABLE_UPDATE_CHECK"

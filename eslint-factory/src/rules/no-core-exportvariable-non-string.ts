@@ -1,4 +1,5 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
+import { CORE_ALIASES } from "./core-aliases";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -70,8 +71,8 @@ export const noCoreExportVariableNonStringRule = createRule({
         // Must be a member expression: something.exportVariable(...)
         if (callee.type !== AST_NODE_TYPES.MemberExpression) return;
 
-        // Object must be `core` (the @actions/core import convention in actions/setup/js)
-        if (callee.object.type !== AST_NODE_TYPES.Identifier || callee.object.name !== "core") return;
+        // Object must be a known @actions/core alias (`core` or `coreObj`)
+        if (callee.object.type !== AST_NODE_TYPES.Identifier || !CORE_ALIASES.has(callee.object.name)) return;
 
         // Property must be `exportVariable` (direct or computed string-literal access)
         const prop = callee.property;
