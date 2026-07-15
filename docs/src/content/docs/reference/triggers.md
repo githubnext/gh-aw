@@ -410,7 +410,7 @@ Available roles: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`, `a
 
 #### Custom organization repository roles
 
-GitHub organizations can define [custom repository roles](https://docs.github.com/en/organizations/managing-user-access-to-your-organizations-repositories/managing-repository-roles/about-custom-repository-roles) with a base permission level (e.g. `write`). Actors whose access comes from a custom role (e.g. `Security Champions`) are authorized against the **base permission** of that role — the custom role name itself cannot appear in `on.roles:`. For example, a user with the custom role `Security Champions` (base: `write`) will be authorized when the required roles include `write`.
+GitHub organizations can define [custom repository roles](https://docs.github.com/en/organizations/managing-user-access-to-your-organizations-repositories/managing-repository-roles/about-custom-repository-roles) with an inherited standard role (for example `write` or `maintain`). Actors whose access comes from a custom role (e.g. `Security Champions`) are authorized against that **inherited standard role** — the custom role name itself cannot appear in `on.roles:`. For example, a user with the custom role `Security Champions` (inherited role: `write`) will be authorized when the required roles include `write`, while a custom role inherited from `maintain` will still be rejected by `roles: [write]`.
 
 ### Filtering by Bot (`on.bots:`, `on.skip-bots:`)
 

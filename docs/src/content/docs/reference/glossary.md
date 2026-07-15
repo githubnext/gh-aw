@@ -905,7 +905,7 @@ Available roles: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`, `a
 > [!WARNING]
 > `roles` is not a privilege threshold. Setting `roles: [write]` rejects admins and maintainers because `admin !== write`. To accept all typical contributors, list every role explicitly.
 
-Actors assigned a **custom organization repository role** (e.g. `Security Champions`) are authorized via the base permission that role confers — not the custom role name. A user with a custom role whose base is `write` is authorized whenever `write` is in the required set.
+Actors assigned a **custom organization repository role** (e.g. `Security Champions`) are authorized via the inherited standard role that GitHub reports for that custom role — not the custom role name. A user with a custom role inherited from `write` is authorized whenever `write` is in the required set, while a custom role inherited from `maintain` is still rejected by `roles: [write]`.
 
 See [Triggers Reference](/gh-aw/reference/triggers/).
 

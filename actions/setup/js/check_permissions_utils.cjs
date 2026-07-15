@@ -245,25 +245,30 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     const permission = repoPermission.data.permission;
     const rawRoleName = repoPermission.data.role_name;
     const roleName = rawRoleName == null ? "" : typeof rawRoleName === "string" ? rawRoleName : "";
+    const rawInheritedRole = repoPermission.data.inherited_role;
+    const inheritedRole = rawInheritedRole == null ? "" : typeof rawInheritedRole === "string" ? rawInheritedRole : "";
     const normalizedRoleName = roleName === "maintainer" ? "maintain" : roleName;
     const normalizedPermission = permission === "maintainer" ? "maintain" : permission;
+    const normalizedInheritedRole = inheritedRole === "maintainer" ? "maintain" : inheritedRole;
     const effectiveRole = normalizedRoleName || normalizedPermission;
     const logDetails = normalizedRoleName && normalizedRoleName !== normalizedPermission ? `${normalizedPermission} (role: ${normalizedRoleName})` : normalizedPermission;
     core.info(`Repository permission level: ${logDetails}`);
 
     // Standard GitHub repository permission levels. Custom org repository roles (e.g.
-    // "Security Champions") have a role_name that is not one of these — for those, fall
-    // back to the base permission level so that the actor is not blocked simply because
-    // their custom role name is not literally listed in on.roles.
+    // "Security Champions") have a role_name that is not one of these — for those, use
+    // the inherited standard role from GitHub's custom-role metadata so the actor is not
+    // blocked simply because their custom role name is not literally listed in on.roles.
     const STANDARD_ROLES = new Set(["admin", "maintain", "write", "triage", "read"]);
     const isCustomRole = normalizedRoleName !== "" && !STANDARD_ROLES.has(normalizedRoleName);
+    const inheritedStandardRole = isCustomRole && STANDARD_ROLES.has(normalizedInheritedRole) ? normalizedInheritedRole : "";
 
     // Check if user has one of the required permission levels.
     // For standard roles, use role_name (precise: maintain/triage are not collapsed to
-    // write/read). For custom org roles, also accept a match on the base permission.
+    // write/read). For custom org roles, only fall back to the inherited standard role
+    // from custom-role metadata; fail closed if GitHub does not provide it.
     const hasPermission = requiredPermissions.some(requiredPerm => {
       const normalizedRequired = requiredPerm === "maintainer" ? "maintain" : requiredPerm;
-      return normalizedRequired === effectiveRole || (isCustomRole && normalizedRequired === normalizedPermission);
+      return normalizedRequired === effectiveRole || normalizedRequired === inheritedStandardRole;
     });
 
     if (hasPermission) {
