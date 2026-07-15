@@ -8,11 +8,12 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/goccy/go-yaml"
 )
 
-var dispatchWorkflowValidationLog = newValidationLogger("dispatch_workflow")
+var dispatchWorkflowValidationLog = logger.New("workflow:dispatch_workflow_validation")
 
 // validateDispatchWorkflow validates that the dispatch-workflow configuration is correct
 func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath string) error {

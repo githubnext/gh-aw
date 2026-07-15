@@ -7,11 +7,12 @@ import (
 	"path/filepath"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
 )
 
-var callWorkflowValidationLog = newValidationLogger("call_workflow")
+var callWorkflowValidationLog = logger.New("workflow:call_workflow_validation")
 
 // validateCallWorkflow validates that the call-workflow configuration is correct.
 // It checks that each workflow exists, declares a workflow_call trigger, and is not

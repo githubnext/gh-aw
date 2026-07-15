@@ -26,9 +26,11 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var runsOnValidationLog = newValidationLogger("runs_on")
+var runsOnValidationLog = logger.New("workflow:runs_on_validation")
 
 // macOSRunnerFAQURL is the URL to the FAQ entry explaining why macOS runners are not supported.
 const macOSRunnerFAQURL = "https://github.github.com/gh-aw/reference/faq/#why-are-macos-runners-not-supported"

@@ -46,9 +46,11 @@ import (
 
 	"github.com/goccy/go-yaml"
 	"github.com/santhosh-tekuri/jsonschema/v6"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var schemaValidationLog = newValidationLogger("schema")
+var schemaValidationLog = logger.New("workflow:schema_validation")
 
 // Cached compiled schema to avoid recompiling on every validation
 var (

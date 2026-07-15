@@ -5,10 +5,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
-var safeOutputsMaxValidationLog = newValidationLogger("safe_outputs_max")
+var safeOutputsMaxValidationLog = logger.New("workflow:safe_outputs_max_validation")
 
 // isInvalidMaxValue returns true if n is not a valid max field value.
 // Valid values are positive integers (n > 0) or -1 (unlimited).

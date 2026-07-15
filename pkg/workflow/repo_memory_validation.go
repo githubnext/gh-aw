@@ -23,9 +23,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var repoMemValidationLog = newValidationLogger("repo_memory")
+var repoMemValidationLog = logger.New("workflow:repo_memory_validation")
 
 // validateBranchPrefix validates that the branch prefix meets requirements
 func validateBranchPrefix(prefix string) error {

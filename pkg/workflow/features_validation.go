@@ -26,10 +26,11 @@ import (
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/semverutil"
 )
 
-var featuresValidationLog = newValidationLogger("features")
+var featuresValidationLog = logger.New("workflow:features_validation")
 
 // validateFeatures validates all feature flags in the workflow data
 func validateFeatures(data *WorkflowData) error {

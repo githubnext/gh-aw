@@ -50,9 +50,11 @@ package workflow
 import (
 	"regexp"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var templateInjectionValidationLog = newValidationLogger("template_injection")
+var templateInjectionValidationLog = logger.New("workflow:template_injection_validation")
 
 // Pre-compiled regex patterns for template injection detection
 var (

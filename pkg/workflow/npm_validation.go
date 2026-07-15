@@ -40,9 +40,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var npmValidationLog = newValidationLogger("npm")
+var npmValidationLog = logger.New("workflow:npm_validation")
 
 // validateNpxPackages validates that npx packages are available on npm registry
 func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {

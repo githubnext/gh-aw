@@ -30,9 +30,11 @@ package workflow
 import (
 	"regexp"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var concurrencyValidationLog = newValidationLogger("concurrency")
+var concurrencyValidationLog = logger.New("workflow:concurrency_validation")
 
 var (
 	concurrencyGroupPattern                = regexp.MustCompile(`(?m)^\s*group:\s*["']?([^"'\n]+?)["']?\s*$`)

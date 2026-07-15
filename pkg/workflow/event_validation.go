@@ -31,10 +31,11 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
-var eventValidationLog = newValidationLogger("event")
+var eventValidationLog = logger.New("workflow:event_validation")
 
 // validGitHubEventTypes is the list of all supported GitHub Actions event types.
 // Source: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows

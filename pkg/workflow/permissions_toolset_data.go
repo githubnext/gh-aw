@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var permissionsValidationLog = newValidationLogger("permissions")
+var permissionsValidationLog = logger.New("workflow:permissions_validation")
 
 //go:embed data/github_toolsets_permissions.json
 var githubToolsetsPermissionsJSON []byte

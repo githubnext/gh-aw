@@ -8,9 +8,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var stepOrderLog = newValidationLogger("step_order")
+var stepOrderLog = logger.New("workflow:step_order_validation")
 
 // StepType represents the type of step being generated
 type StepType int

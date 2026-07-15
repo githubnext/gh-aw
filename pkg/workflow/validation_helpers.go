@@ -6,7 +6,6 @@
 //
 // # Available Helper Functions
 //
-//   - newValidationLogger() - Creates a standardized logger for a validation domain
 //   - validateIntRange() - Validates that an integer value is within a specified range
 //   - validateMountStringFormat() - Parses and validates a "source:dest:mode" mount string
 //   - containsTrigger() - Reports whether an 'on:' section includes a named trigger
@@ -35,18 +34,6 @@ import (
 )
 
 var validationHelpersLog = logger.New("workflow:validation_helpers")
-
-// newValidationLogger creates a standardized logger for a validation domain.
-// It follows the naming convention "workflow:<domain>_validation" used across
-// all *_validation.go files.
-//
-// Example:
-//
-//	var engineValidationLog = newValidationLogger("engine")
-//	// produces logger named "workflow:engine_validation"
-func newValidationLogger(domain string) *logger.Logger {
-	return logger.New("workflow:" + domain + "_validation")
-}
 
 // validateIntRange validates that a value is within the specified inclusive range [min, max].
 // It returns an error if the value is outside the range, with a descriptive message

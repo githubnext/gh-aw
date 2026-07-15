@@ -48,9 +48,11 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var filterValidationLog = newValidationLogger("filter")
+var filterValidationLog = logger.New("workflow:filter_validation")
 
 // ValidateEventFilters checks for GitHub Actions filter mutual exclusivity rules
 func ValidateEventFilters(frontmatter map[string]any) error {

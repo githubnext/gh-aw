@@ -43,9 +43,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var pipValidationLog = newValidationLogger("pip")
+var pipValidationLog = logger.New("workflow:pip_validation")
 
 // validatePythonPackagesWithPip is a generic helper that validates Python packages using pip index.
 // It accepts a package list, package type name for error messaging, and pip command to use.

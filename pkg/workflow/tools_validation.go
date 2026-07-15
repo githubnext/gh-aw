@@ -2,9 +2,11 @@ package workflow
 
 import (
 	"errors"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var toolsValidationLog = newValidationLogger("tools")
+var toolsValidationLog = logger.New("workflow:tools_validation")
 
 // validateBashToolConfig validates that bash tool configuration is explicit (not nil/anonymous)
 func validateBashToolConfig(tools *Tools, workflowName string) error {

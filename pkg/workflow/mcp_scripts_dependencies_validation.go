@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/semverutil"
 )
 
@@ -16,7 +17,7 @@ var (
 	shellPackageDependencyNameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9+.-]*([:=][A-Za-z0-9.+~:-]+)?$`)
 )
 
-var mcpScriptDepsValidationLog = newValidationLogger("mcp_script_dependencies")
+var mcpScriptDepsValidationLog = logger.New("workflow:mcp_script_dependencies_validation")
 
 func (c *Compiler) validateMCPScriptDependencies(workflowData *WorkflowData) error {
 	if workflowData == nil || workflowData.MCPScripts == nil {
