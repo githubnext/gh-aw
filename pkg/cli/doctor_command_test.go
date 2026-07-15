@@ -3,8 +3,10 @@
 package cli
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +22,6 @@ func TestNewDoctorCommand(t *testing.T) {
 	assert.NotNil(t, cmd.Flags().Lookup("repo"), "should expose --repo flag")
 	assert.NotNil(t, cmd.Flags().Lookup("dir"), "should expose --dir flag")
 	assert.NotNil(t, cmd.Flags().Lookup("require-owner-type"), "should expose --require-owner-type flag")
-	assert.NotNil(t, cmd.Flags().Lookup("verbose"), "should expose --verbose flag")
 	assert.False(t, cmd.HasSubCommands())
 }
 
@@ -40,4 +41,92 @@ func TestDoctorCommandAdvertisesJSONExample(t *testing.T) {
 func TestDoctorCommandExampleHasNoTabs(t *testing.T) {
 	cmd := NewDoctorCommand()
 	assert.NotContains(t, cmd.Example, "\t")
+}
+
+func TestDoctorCommandRequireOwnerTypeDefault(t *testing.T) {
+	cmd := NewDoctorCommand()
+	require.Equal(t, "any", cmd.Flags().Lookup("require-owner-type").DefValue)
+}
+
+func TestDoctorCommandRunsAuthOnlyWhenRepoNotProvided(t *testing.T) {
+	origAuth := runDoctorSetupAuth
+	origRepo := runDoctorSetupRepositoryCheck
+	t.Cleanup(func() {
+		runDoctorSetupAuth = origAuth
+		runDoctorSetupRepositoryCheck = origRepo
+	})
+
+	calledAuth := false
+	var gotJSON bool
+	runDoctorSetupAuth = func(opts SetupAuthOptions) error {
+		calledAuth = true
+		gotJSON = opts.JSON
+		return nil
+	}
+	runDoctorSetupRepositoryCheck = func(opts SetupRepositoryCheckOptions) error {
+		return errors.New("unexpected repository check")
+	}
+
+	cmd := NewDoctorCommand()
+	cmd.SetArgs([]string{"--json"})
+	require.NoError(t, cmd.Execute())
+	assert.True(t, calledAuth)
+	assert.True(t, gotJSON)
+}
+
+func TestDoctorCommandRunsRepositoryCheckWhenRepoProvided(t *testing.T) {
+	origAuth := runDoctorSetupAuth
+	origRepo := runDoctorSetupRepositoryCheck
+	t.Cleanup(func() {
+		runDoctorSetupAuth = origAuth
+		runDoctorSetupRepositoryCheck = origRepo
+	})
+
+	var got SetupRepositoryCheckOptions
+	runDoctorSetupAuth = func(opts SetupAuthOptions) error {
+		return errors.New("unexpected auth-only check")
+	}
+	runDoctorSetupRepositoryCheck = func(opts SetupRepositoryCheckOptions) error {
+		got = opts
+		return nil
+	}
+
+	root := &cobra.Command{Use: "aw"}
+	var verbose bool
+	root.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output showing detailed information")
+	root.AddCommand(NewDoctorCommand())
+	root.SetArgs([]string{"doctor", "--repo", "github/gh-aw", "--dir", ".", "--require-owner-type", "org", "--json", "--verbose"})
+
+	require.NoError(t, root.Execute())
+	assert.Equal(t, "github/gh-aw", got.Repo)
+	assert.Equal(t, ".", got.Dir)
+	assert.Equal(t, "org", got.RequireOwnerType)
+	assert.True(t, got.JSON)
+	assert.True(t, got.Verbose)
+}
+
+func TestDoctorCommandRejectsRepoOnlyFlagsWithoutRepo(t *testing.T) {
+	origAuth := runDoctorSetupAuth
+	origRepo := runDoctorSetupRepositoryCheck
+	t.Cleanup(func() {
+		runDoctorSetupAuth = origAuth
+		runDoctorSetupRepositoryCheck = origRepo
+	})
+
+	runDoctorSetupAuth = func(opts SetupAuthOptions) error {
+		return errors.New("should not run auth path with invalid flag combination")
+	}
+	runDoctorSetupRepositoryCheck = func(opts SetupRepositoryCheckOptions) error {
+		return errors.New("should not run repo path without --repo")
+	}
+
+	root := &cobra.Command{Use: "aw"}
+	var verbose bool
+	root.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output showing detailed information")
+	root.AddCommand(NewDoctorCommand())
+	root.SetArgs([]string{"doctor", "--dir", ".", "--require-owner-type", "org", "--verbose"})
+
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Equal(t, "--dir, --require-owner-type, and --verbose require --repo", err.Error())
 }
