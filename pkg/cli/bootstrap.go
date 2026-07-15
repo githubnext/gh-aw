@@ -55,7 +55,13 @@ type bootstrapRuntime struct {
 	compileWorkflows func(context.Context, CompileConfig) ([]*workflow.WorkflowData, error)
 }
 
-const bootstrapAddWorkflowsRetryHint = "repository initialization completed; re-run bootstrap to retry workflow addition"
+const (
+	bootstrapAddWorkflowsRetryHint = "repository initialization completed; re-run bootstrap to retry workflow addition"
+	bootstrapMCPConfigPath         = ".github/mcp.json"
+	bootstrapCopilotSetupPath      = ".github/workflows/copilot-setup-steps.yml"
+	bootstrapAgenticSkillPath      = ".github/skills/agentic-workflows/SKILL.md"
+	bootstrapAgenticAgentPath      = ".github/agents/agentic-workflows.md"
+)
 
 func defaultBootstrapRuntime() bootstrapRuntime {
 	setupRuntime := defaultSetupRepositoryRuntime()
@@ -358,7 +364,7 @@ func isBootstrapInitMarkerSatisfied(baseDir string, marker string) (bool, error)
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
 		}
 		return strings.Contains(string(content), constants.WorkflowsLockYmlGitAttributesEntry), nil
-	case ".github/mcp.json":
+	case bootstrapMCPConfigPath:
 		content, err := os.ReadFile(markerPath)
 		if err != nil {
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
@@ -379,7 +385,7 @@ func isBootstrapInitMarkerSatisfied(baseDir string, marker string) (bool, error)
 			return false, nil
 		}
 		return len(server.Args) >= 2 && server.Args[0] == "aw" && server.Args[1] == "mcp-server", nil
-	case ".github/workflows/copilot-setup-steps.yml":
+	case bootstrapCopilotSetupPath:
 		content, err := os.ReadFile(markerPath)
 		if err != nil {
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
@@ -389,7 +395,7 @@ func isBootstrapInitMarkerSatisfied(baseDir string, marker string) (bool, error)
 			(strings.Contains(steps, "Install gh-aw extension") && strings.Contains(steps, "curl -fsSL"))
 		hasActionInstall := strings.Contains(steps, "actions/setup-cli")
 		return hasLegacyInstall || hasActionInstall, nil
-	case ".github/skills/agentic-workflows/SKILL.md":
+	case bootstrapAgenticSkillPath:
 		expected, err := buildAgenticWorkflowsSkillContent()
 		if err != nil {
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
@@ -399,7 +405,7 @@ func isBootstrapInitMarkerSatisfied(baseDir string, marker string) (bool, error)
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
 		}
 		return strings.TrimSpace(string(content)) == strings.TrimSpace(expected), nil
-	case ".github/agents/agentic-workflows.md":
+	case bootstrapAgenticAgentPath:
 		expected, err := buildAgenticWorkflowsAgentContent(baseDir)
 		if err != nil {
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
@@ -421,10 +427,10 @@ func expectedBootstrapInitMarkers(engineOverride string) []string {
 	}
 	if engineOverride == "" || engineOverride == "copilot" {
 		markers = append(markers,
-			".github/skills/agentic-workflows/SKILL.md",
-			".github/agents/agentic-workflows.md",
-			".github/mcp.json",
-			".github/workflows/copilot-setup-steps.yml",
+			bootstrapAgenticSkillPath,
+			bootstrapAgenticAgentPath,
+			bootstrapMCPConfigPath,
+			bootstrapCopilotSetupPath,
 		)
 	}
 	return markers
