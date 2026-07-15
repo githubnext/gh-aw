@@ -520,28 +520,52 @@ function extractHashFromLockFile(lockFileContent) {
  * @param {string} repo - Repository name
  * @param {string} dirPath - Repository-relative path of the component to inspect
  * @param {string} ref - Git reference (branch, tag, or commit SHA)
+ * @param {Map<string, Promise<string|null>>} [symlinkLookupCache] - Optional cache for symlink lookups
  * @returns {Promise<string|null>} Symlink target, or null if not a symlink
  */
-async function checkRemoteSymlink(github, owner, repo, dirPath, ref) {
-  try {
-    const response = await github.rest.repos.getContent({
-      owner,
-      repo,
-      path: dirPath,
-      ref,
-    });
-    // Array response → directory listing, not a symlink
-    if (Array.isArray(response.data)) {
+async function checkRemoteSymlink(github, owner, repo, dirPath, ref, symlinkLookupCache) {
+  const cachedLookup = symlinkLookupCache && symlinkLookupCache.get(dirPath);
+  if (cachedLookup) {
+    return cachedLookup;
+  }
+
+  const lookupPromise = (async () => {
+    try {
+      const response = await github.rest.repos.getContent({
+        owner,
+        repo,
+        path: dirPath,
+        ref,
+      });
+      // Array response → directory listing, not a symlink
+      if (Array.isArray(response.data)) {
+        return null;
+      }
+      // An empty string target is treated as absent (falsy); only non-empty targets are valid.
+      if (response.data.type === "symlink" && response.data.target) {
+        return response.data.target;
+      }
       return null;
+    } catch (err) {
+      const status = err.status || (err.response && err.response.status);
+      if (status === 404 || status === 403 || status === 401) {
+        return null;
+      }
+      throw err;
     }
-    // An empty string target is treated as absent (falsy); only non-empty targets are valid.
-    if (response.data.type === "symlink" && response.data.target) {
-      return response.data.target;
+  })();
+
+  if (symlinkLookupCache) {
+    symlinkLookupCache.set(dirPath, lookupPromise);
+  }
+
+  try {
+    return await lookupPromise;
+  } catch (err) {
+    if (symlinkLookupCache && symlinkLookupCache.get(dirPath) === lookupPromise) {
+      symlinkLookupCache.delete(dirPath);
     }
-    return null;
-  } catch (_err) {
-    // 404, auth error, or other – treat as not a symlink so the caller can continue
-    return null;
+    throw err;
   }
 }
 
@@ -557,9 +581,10 @@ async function checkRemoteSymlink(github, owner, repo, dirPath, ref) {
  * @param {string} repo - Repository name
  * @param {string} filePath - Repository-relative path to resolve (e.g. ".github/agents/e2etest.md")
  * @param {string} ref - Git reference (branch, tag, or commit SHA)
+ * @param {Map<string, Promise<string|null>>} [symlinkLookupCache] - Optional cache for path-component symlink lookups
  * @returns {Promise<string|null>} Resolved repository-relative path, or null if no symlinks found
  */
-async function resolveRemoteSymlinks(github, owner, repo, filePath, ref) {
+async function resolveRemoteSymlinks(github, owner, repo, filePath, ref, symlinkLookupCache) {
   const parts = filePath.split("/");
   if (parts.length <= 1) {
     return null; // No directory components to resolve
@@ -567,7 +592,7 @@ async function resolveRemoteSymlinks(github, owner, repo, filePath, ref) {
 
   for (let i = 1; i < parts.length; i++) {
     const dirPath = parts.slice(0, i).join("/");
-    const target = await checkRemoteSymlink(github, owner, repo, dirPath, ref);
+    const target = await checkRemoteSymlink(github, owner, repo, dirPath, ref, symlinkLookupCache);
     if (target === null) {
       continue;
     }
@@ -597,6 +622,9 @@ async function resolveRemoteSymlinks(github, owner, repo, filePath, ref) {
       return null;
     }
 
+    // Only the first symlink is resolved per call. If the resolved path also
+    // contains a symlink, fetchFile will re-invoke resolveRemoteSymlinks via
+    // another 404 retry (bounded by MAX_SYMLINK_DEPTH).
     return resolvedPath;
   }
 
@@ -616,6 +644,29 @@ async function resolveRemoteSymlinks(github, owner, repo, filePath, ref) {
  * @returns {Function} File reader function compatible with computeFrontmatterHash
  */
 function createGitHubFileReader(github, owner, repo, ref) {
+  /** @type {Map<string, Promise<string|null>>} */
+  const symlinkLookupCache = new Map();
+  /** @type {Map<string, Promise<string|null>>} */
+  const resolvedPathCache = new Map();
+
+  async function resolveRemoteSymlinksCached(filePath) {
+    const cachedResolution = resolvedPathCache.get(filePath);
+    if (cachedResolution) {
+      return cachedResolution;
+    }
+
+    const resolutionPromise = resolveRemoteSymlinks(github, owner, repo, filePath, ref, symlinkLookupCache);
+    resolvedPathCache.set(filePath, resolutionPromise);
+    try {
+      return await resolutionPromise;
+    } catch (err) {
+      if (resolvedPathCache.get(filePath) === resolutionPromise) {
+        resolvedPathCache.delete(filePath);
+      }
+      throw err;
+    }
+  }
+
   async function fetchFile(filePath, symlinkDepth) {
     try {
       const response = await github.rest.repos.getContent({
@@ -637,8 +688,11 @@ function createGitHubFileReader(github, owner, repo, ref) {
       // (e.g. .github/agents → ../.ai/agents), which the GitHub Contents API cannot
       // follow automatically. Mirrors the Go logic in remote_download_file.go.
       const status = error.status || (error.response && error.response.status);
-      if (status === 404 && symlinkDepth < MAX_SYMLINK_DEPTH) {
-        const resolvedPath = await resolveRemoteSymlinks(github, owner, repo, filePath, ref);
+      if (status === 404) {
+        if (symlinkDepth >= MAX_SYMLINK_DEPTH) {
+          throw new Error(`${ERR_SYSTEM}: Failed to read file ${filePath} from GitHub: symlink resolution exceeded max depth ${MAX_SYMLINK_DEPTH}`);
+        }
+        const resolvedPath = await resolveRemoteSymlinksCached(filePath);
         if (resolvedPath !== null && resolvedPath !== filePath) {
           return fetchFile(resolvedPath, symlinkDepth + 1);
         }

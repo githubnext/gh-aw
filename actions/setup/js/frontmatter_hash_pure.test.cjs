@@ -633,7 +633,7 @@ name: "Test Workflow"`;
 });
 
 // ---------------------------------------------------------------------------
-// Symlink traversal regression tests (issue #45591)
+// Symlink traversal regression tests for activation-hash symlink handling
 // These tests verify that createGitHubFileReader, resolveRemoteSymlinks, and
 // computeFrontmatterHash correctly handle import paths that traverse symlinked
 // directories — the scenario that triggered the stale-lock false-positive.
@@ -641,7 +641,7 @@ name: "Test Workflow"`;
 
 const { checkRemoteSymlink, resolveRemoteSymlinks } = require("./frontmatter_hash_pure.cjs");
 
-describe("symlink traversal regression (issue #45591)", () => {
+describe("symlink traversal regression for activation hash symlink handling", () => {
   // ---------------------------------------------------------------------------
   // checkRemoteSymlink
   // ---------------------------------------------------------------------------
@@ -704,7 +704,7 @@ describe("symlink traversal regression (issue #45591)", () => {
       expect(result).toBeNull();
     });
 
-    it("should return null for other API errors (auth, network)", async () => {
+    it("should return null for auth errors", async () => {
       const github = {
         rest: {
           repos: {
@@ -718,6 +718,21 @@ describe("symlink traversal regression (issue #45591)", () => {
       };
       const result = await checkRemoteSymlink(github, "owner", "repo", ".github/agents", "main");
       expect(result).toBeNull();
+    });
+
+    it("should rethrow transient API errors", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async () => {
+              const err = new Error("Bad Gateway");
+              err.status = 502;
+              throw err;
+            },
+          },
+        },
+      };
+      await expect(checkRemoteSymlink(github, "owner", "repo", ".github/agents", "main")).rejects.toThrow("Bad Gateway");
     });
 
     it("should return null when symlink has no target", async () => {
@@ -899,6 +914,92 @@ describe("symlink traversal regression (issue #45591)", () => {
       expect(content).toBe(agentContent);
     });
 
+    it("should memoize symlink lookups across reads under the same symlinked directory", async () => {
+      const callCounts = new Map();
+      const github = {
+        rest: {
+          repos: {
+            getContent: async ({ path: p }) => {
+              callCounts.set(p, (callCounts.get(p) || 0) + 1);
+              if (p === ".github/agents/one.md" || p === ".github/agents/two.md") {
+                const err = new Error("Not Found");
+                err.status = 404;
+                throw err;
+              }
+              if (p === ".github/agents") {
+                return { data: { type: "symlink", target: "../.ai/agents" } };
+              }
+              if (p === ".github") {
+                return { data: [{ name: "agents", type: "symlink" }] };
+              }
+              if (p === ".ai/agents/one.md" || p === ".ai/agents/two.md") {
+                return {
+                  data: {
+                    type: "file",
+                    encoding: "base64",
+                    content: Buffer.from(`content:${p}`).toString("base64"),
+                  },
+                };
+              }
+              const err = new Error(`Not Found: ${p}`);
+              err.status = 404;
+              throw err;
+            },
+          },
+        },
+      };
+
+      const fileReader = createGitHubFileReader(github, "owner", "repo", "main");
+      await expect(fileReader(".github/agents/one.md")).resolves.toBe("content:.ai/agents/one.md");
+      await expect(fileReader(".github/agents/two.md")).resolves.toBe("content:.ai/agents/two.md");
+
+      expect(callCounts.get(".github")).toBe(1);
+      expect(callCounts.get(".github/agents")).toBe(1);
+    });
+
+    it("should follow chained symlinked directories across recursive retries", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async ({ path: p }) => {
+              if (p === "a/b/d/file.md" || p === "c/b/d/file.md") {
+                const err = new Error("Not Found");
+                err.status = 404;
+                throw err;
+              }
+              if (p === "a") {
+                return { data: [{ name: "b", type: "symlink" }] };
+              }
+              if (p === "a/b") {
+                return { data: { type: "symlink", target: "../c/b" } };
+              }
+              if (p === "c" || p === "c/b") {
+                return { data: [{ name: "d", type: "symlink" }] };
+              }
+              if (p === "c/b/d") {
+                return { data: { type: "symlink", target: "../../e/d" } };
+              }
+              if (p === "e/d/file.md") {
+                return {
+                  data: {
+                    type: "file",
+                    encoding: "base64",
+                    content: Buffer.from("chained symlink content").toString("base64"),
+                  },
+                };
+              }
+              const err = new Error(`Not Found: ${p}`);
+              err.status = 404;
+              throw err;
+            },
+          },
+        },
+      };
+
+      const fileReader = createGitHubFileReader(github, "owner", "repo", "main");
+      await expect(fileReader("a/b/d/file.md")).resolves.toBe("chained symlink content");
+    });
+
     it("should throw when the file is truly missing (no symlink resolves it)", async () => {
       const github = {
         rest: {
@@ -935,6 +1036,33 @@ describe("symlink traversal regression (issue #45591)", () => {
       await expect(fileReader(".github/workflows/file.md")).rejects.toThrow("Failed to read file");
       // Should only have been called once (no symlink resolution retries for 403)
       expect(getContentCallCount).toBe(1);
+    });
+
+    it("should surface an explicit error when chained symlinks exceed max depth", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async ({ path: p }) => {
+              if (/^link\d+\/file\.md$/.test(p)) {
+                const err = new Error("Not Found");
+                err.status = 404;
+                throw err;
+              }
+              const match = /^link(\d+)$/.exec(p);
+              if (match) {
+                const next = Number(match[1]) + 1;
+                return { data: { type: "symlink", target: `link${next}` } };
+              }
+              const err = new Error(`Not Found: ${p}`);
+              err.status = 404;
+              throw err;
+            },
+          },
+        },
+      };
+
+      const fileReader = createGitHubFileReader(github, "owner", "repo", "main");
+      await expect(fileReader("link0/file.md")).rejects.toThrow("symlink resolution exceeded max depth 5");
     });
   });
 
@@ -977,10 +1105,12 @@ describe("symlink traversal regression (issue #45591)", () => {
         [mainPath]: mainContent,
         [resolvedImportPath]: helperContent, // only accessible via the resolved path
       };
+      const apiFetches = [];
       const github = {
         rest: {
           repos: {
             getContent: async ({ path: p }) => {
+              apiFetches.push(p);
               if (apiFileSystem[p]) {
                 return {
                   data: {
@@ -1007,6 +1137,7 @@ describe("symlink traversal regression (issue #45591)", () => {
 
       // Both hashes must agree — this is the invariant the activation job relies on
       expect(apiHash).toBe(fsHash);
+      expect(apiFetches).toContain(".ai/agents/helper.md");
     });
   });
 });
