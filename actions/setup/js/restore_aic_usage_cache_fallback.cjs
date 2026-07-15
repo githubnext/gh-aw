@@ -36,7 +36,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  */
 async function getTokenFromGithub() {
   try {
-    const auth = /** @type {any} */ await github.auth({ type: "token" });
+    /** @type {any} */
+    const auth = await github.auth({ type: "token" });
     return (auth && typeof auth.token === "string" && auth.token) || "";
   } catch {
     return "";

@@ -158,7 +158,7 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
           }
           return models;
         } catch (err) {
-          const e = /** @type {Error} */ err;
+          const e = /** @type {any} */ err;
           if (e.name === "AbortError") {
             return null; // already logged above
           }
@@ -176,7 +176,7 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
       `awf-reflect models fetch for ${modelsUrl}`
     );
   } catch (err) {
-    const e = /** @type {Error} */ err;
+    const e = /** @type {any} */ err;
     const original = e?.originalError || e;
     const status = original?.status ?? original?.response?.status ?? null;
     if (status === 503) {
@@ -281,7 +281,8 @@ async function fetchAWFReflect(options) {
         status: res.status,
       };
     }
-    const reflectData = /** @type {any} */ await res.json();
+    /** @type {any} */
+    const reflectData = await res.json();
     // Attempt to fill in null models for configured providers by fetching directly
     // from each endpoint's models_url. The api-proxy injects auth headers when
     // forwarding these requests, so this succeeds without needing the raw API keys.
@@ -538,7 +539,8 @@ function resolveMultiProviderFromReflect(options) {
     return null;
   }
 
-  const rd = /** @type {any} */ reflectData;
+  /** @type {any} */
+  const rd = reflectData;
   const endpoints = Array.isArray(rd?.endpoints) ? rd.endpoints.filter(ep => ep && ep.configured === true) : [];
 
   if (endpoints.length === 0) {

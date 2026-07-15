@@ -398,7 +398,8 @@ function piProviderExtension(pi) {
 }
 
 module.exports = piProviderExtension;
-const _piExports = /** @type {any} */ module.exports;
+/** @type {any} */
+const _piExports = module.exports;
 _piExports.getConfiguredModel = getConfiguredModel;
 _piExports.extractProviderFromModel = extractProviderFromModel;
 _piExports.resolveGatewayUrl = resolveGatewayUrl;
