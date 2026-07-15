@@ -83,6 +83,9 @@ func TestCLIDocsReflectStatusAuditAndExperimentsCommands(t *testing.T) {
 	assert.Contains(t, text, "Use `--json` to inspect the raw `on` data, including schedules", "status docs should direct schedule inspection to JSON output")
 	assert.Contains(t, text, "runs codemods, action version updates, and workflow compilation by default and uses `--no-fix` to skip all three steps", "upgrade docs should explain the inverse --fix/--no-fix behavior")
 	assert.Contains(t, text, "Print the current version and build information for the gh aw CLI extension.", "version docs should match the command help text")
+	assert.Contains(t, text, "**Options:** `--repo/-r`, `--dir/-d`, `--require-owner-type`, `--json/-j`", "doctor docs should include the --dir shorthand")
+	assert.Contains(t, text, "`--require-owner-type` accepts `any`, `user`, or `org` and defaults to `any`", "doctor docs should document the full owner type set and default")
+	assert.Contains(t, text, "`--dir` and `--require-owner-type` require `--repo`", "doctor docs should document the repo requirement for repository-only flags")
 }
 
 func TestSubcommandListingsUseHyphenBullets(t *testing.T) {

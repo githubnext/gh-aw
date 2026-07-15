@@ -85,18 +85,18 @@ var rootCmd = &cobra.Command{
 	Long: `GitHub Agentic Workflows CLI from GitHub Next
 
 Common Tasks:
-  gh aw init                  		# Set up a new repository
-  gh aw doctor --repo owner/repo 		# Run diagnostics for authentication and repository setup
-  gh aw add-wizard            		# Add workflows with interactive guided setup
-  gh aw new my-workflow       		# Create your first workflow
-  gh aw compile               		# Compile all workflows
-  gh aw run my-workflow       		# Execute a workflow
-  gh aw status                		# Check workflow status
-  gh aw logs my-workflow      		# View execution logs
-  gh aw audit <run-id-or-url> 		# Audit and compare workflow runs
+  ` + string(constants.CLIExtensionPrefix) + ` init                  		# Set up a new repository
+  ` + string(constants.CLIExtensionPrefix) + ` doctor --repo owner/repo 		# Run diagnostics for authentication and repository setup
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard            		# Add workflows with interactive guided setup
+  ` + string(constants.CLIExtensionPrefix) + ` new my-workflow       		# Create your first workflow
+  ` + string(constants.CLIExtensionPrefix) + ` compile               		# Compile all workflows
+  ` + string(constants.CLIExtensionPrefix) + ` run my-workflow       		# Execute a workflow
+  ` + string(constants.CLIExtensionPrefix) + ` status                		# Check workflow status
+  ` + string(constants.CLIExtensionPrefix) + ` logs my-workflow      		# View execution logs
+  ` + string(constants.CLIExtensionPrefix) + ` audit <run-id-or-url> 		# Audit and compare workflow runs
 
 For detailed help on any command, use:
-  gh aw [command] --help`,
+  ` + string(constants.CLIExtensionPrefix) + ` [command] --help`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		cli.ConfigureProjectTimezone()
 		if bannerFlag {
@@ -801,7 +801,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().Bool("push", false, "Commit and push workflow files (including transitive imports) before running")
 	runCmd.Flags().Bool("dry-run", false, "Preview workflow execution without triggering runs on GitHub Actions")
 	runCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
-	runCmd.Flags().Bool("approve", false, "Approve safe-update manifest changes when --push triggers an automatic recompile step")
+	runCmd.Flags().Bool("approve", false, "Approve safe update manifest changes when --push triggers an automatic recompile step")
 	// Register completions for run command
 	runCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 	cli.RegisterEngineFlagCompletion(runCmd)

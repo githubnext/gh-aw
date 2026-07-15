@@ -278,9 +278,9 @@ gh aw doctor --repo github/gh-aw
 gh aw doctor --repo github/gh-aw --dir ./gh-aw --require-owner-type org
 ```
 
-**Options:** `--repo/-r`, `--dir`, `--require-owner-type`, `--json/-j`
+**Options:** `--repo/-r`, `--dir/-d`, `--require-owner-type`, `--json/-j`
 
-Use `--repo` to verify a specific repository exists and inspect the local checkout that should correspond to it. `--require-owner-type` accepts `user` or `org` and fails if the resolved owner type does not match.
+Use `--repo` to verify a specific repository exists and inspect the local checkout that should correspond to it. `--require-owner-type` accepts `any`, `user`, or `org` and defaults to `any`; `--dir` and `--require-owner-type` require `--repo`.
 
 ### Building
 
