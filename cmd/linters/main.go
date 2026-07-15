@@ -43,6 +43,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/logfatallibrary"
 	"github.com/github/gh-aw/pkg/linters/manualmutexunlock"
 	"github.com/github/gh-aw/pkg/linters/mapdeletecheck"
+	"github.com/github/gh-aw/pkg/linters/nilctxpassed"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
 	"github.com/github/gh-aw/pkg/linters/osgetenvlibrary"
 	"github.com/github/gh-aw/pkg/linters/ossetenvlibrary"
@@ -93,6 +94,7 @@ func main() {
 		logfatallibrary.Analyzer,
 		manualmutexunlock.Analyzer,
 		mapdeletecheck.Analyzer,
+		nilctxpassed.Analyzer,
 		osexitinlibrary.Analyzer,
 		osgetenvlibrary.Analyzer,
 		ossetenvlibrary.Analyzer,

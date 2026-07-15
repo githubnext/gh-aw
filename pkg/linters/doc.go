@@ -1,6 +1,6 @@
 // Package linters is a namespace for gh-aw's custom Go analysis linters.
 //
-// All 44 active analyzers:
+// All 45 active analyzers:
 //
 //   - appendbytestring — flags append(b, []byte(s)...) calls where s is a string that can be simplified to append(b, s...)
 //   - bytescomparestring — flags string(a) == string(b) and string(a) != string(b) comparisons where a and b are []byte values and recommends bytes.Equal for clearer intent
@@ -25,6 +25,7 @@
 //   - lenstringsplit — flags len(strings.Split(s, sep)) with a non-empty separator that should use strings.Count(s, sep)+1
 //   - lenstringzero — flags len(s) == 0 / len(s) != 0 on string values that should use s == "" / s != ""
 //   - manualmutexunlock — flags non-deferred mutex Unlock() calls
+//   - nilctxpassed — flags function calls where nil is passed as a context.Context argument
 //   - osexitinlibrary — flags os.Exit calls in library packages
 //   - osgetenvlibrary — flags os.Getenv calls in library packages
 //   - ossetenvlibrary — flags os.Setenv calls in library packages
