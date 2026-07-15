@@ -18,6 +18,7 @@ permissions:
   security-events: read
   vulnerability-alerts: read
 
+engine: copilot
 sandbox:
   agent:
     sudo: false

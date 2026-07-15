@@ -28,6 +28,7 @@ on:
 permissions:
   contents: read
   copilot-requests: write
+engine: copilot
 strict: true
 max-ai-credits: 120
 max-daily-ai-credits: 500

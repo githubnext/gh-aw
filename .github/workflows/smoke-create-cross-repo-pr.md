@@ -20,6 +20,7 @@ permissions:
   issues: read
 
   copilot-requests: write
+engine: copilot
 network:
   allowed:
     - defaults

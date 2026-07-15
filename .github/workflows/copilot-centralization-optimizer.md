@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   copilot-requests: write
+engine: copilot
 sandbox:
   agent:
     sudo: false

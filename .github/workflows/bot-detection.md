@@ -12,6 +12,7 @@ permissions:
   pull-requests: read
   issues: read
   actions: read
+engine: copilot
 imports:
   - shared/otlp.md
 sandbox:

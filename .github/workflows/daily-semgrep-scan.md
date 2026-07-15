@@ -18,6 +18,7 @@ permissions:
   security-events: read
   copilot-requests: write
 
+engine: copilot
 sandbox:
   agent:
     sudo: false

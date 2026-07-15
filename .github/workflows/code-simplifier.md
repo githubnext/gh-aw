@@ -14,6 +14,7 @@ permissions:
   issues: read
   pull-requests: read
 
+engine: copilot
 tracker-id: code-simplifier
 
 imports:

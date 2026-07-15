@@ -9,6 +9,7 @@ permissions:
   issues: read
   pull-requests: read # required by pull_requests
 
+engine: copilot
 sandbox:
   agent:
     sudo: false

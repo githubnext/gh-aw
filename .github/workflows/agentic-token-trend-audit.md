@@ -14,6 +14,7 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
+engine: copilot
 network:
   allowed:
     - defaults

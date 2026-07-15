@@ -11,6 +11,7 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
+engine: copilot
 tracker-id: daily-ambient-context-optimizer
 strict: true
 max-daily-ai-credits: 10000

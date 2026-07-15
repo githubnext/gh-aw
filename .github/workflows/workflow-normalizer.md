@@ -10,6 +10,7 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
+engine: copilot
 tracker-id: workflow-normalizer
 timeout-minutes: 30
 network:

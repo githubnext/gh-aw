@@ -17,6 +17,7 @@ permissions:
   discussions: read
   security-events: read
 
+engine: copilot
 tracker-id: daily-firewall-report
 timeout-minutes: 45
 

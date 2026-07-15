@@ -10,6 +10,7 @@ permissions:
   contents: read
   issues: read
   actions: read
+engine: copilot
 strict: true
 if: needs.sighthound_scan.outputs.actionable_findings_detected == 'true'
 jobs:

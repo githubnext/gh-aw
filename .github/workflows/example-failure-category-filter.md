@@ -4,6 +4,7 @@ name: Example Failure Category Filter
 on:
   workflow_dispatch:
 
+engine: copilot
 sandbox:
   agent:
     sudo: false

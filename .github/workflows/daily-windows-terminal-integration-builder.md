@@ -13,6 +13,7 @@ permissions:
   actions: read
   issues: read
 
+engine: copilot
 sandbox:
   agent:
     sudo: false

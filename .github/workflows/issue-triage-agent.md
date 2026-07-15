@@ -8,6 +8,7 @@ on:
 permissions:
   issues: read
 
+engine: copilot
 sandbox:
   agent:
     sudo: false

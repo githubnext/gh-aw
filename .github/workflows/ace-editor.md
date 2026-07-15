@@ -14,6 +14,7 @@ strict: false
 permissions:
   pull-requests: read
   issues: read
+engine: copilot
 jobs:
   post_ace_link:
     runs-on: ubuntu-latest
