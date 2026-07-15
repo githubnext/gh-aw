@@ -197,8 +197,7 @@ func processSingleRunDownload(
 		if err != nil {
 			handleArtifactDownloadError(result, err, params.verbose)
 		} else {
-			analyzed := analyzeRunArtifacts(*result, runOutputDir, params.verbose, params.artifactFilter)
-			result = &analyzed
+			analyzeRunArtifacts(result, runOutputDir, params.verbose, params.artifactFilter)
 		}
 	} else {
 		logsOrchestratorLog.Printf("Cache hit for run %d, using cached summary", run.DatabaseID)
@@ -265,8 +264,8 @@ func tryLoadCachedRunResult(
 // analyzeRunArtifacts populates a DownloadResult with all analysis data derived from
 // freshly-downloaded artifacts in runOutputDir.  Called only when the download succeeded
 // and no valid cached summary was found.
-func analyzeRunArtifacts(result DownloadResult, runOutputDir string, verbose bool, artifactFilter []string) DownloadResult {
-	metrics := extractRunMetricsAndMetadata(&result, runOutputDir, verbose)
+func analyzeRunArtifacts(result *DownloadResult, runOutputDir string, verbose bool, artifactFilter []string) {
+	metrics := extractRunMetricsAndMetadata(result, runOutputDir, verbose)
 
 	usageActivitySummary, usageActivityErr := loadUsageActivitySummary(runOutputDir)
 	if usageActivityErr != nil && verbose {
@@ -277,18 +276,16 @@ func analyzeRunArtifacts(result DownloadResult, runOutputDir string, verbose boo
 	// Skip silently when the artifact was intentionally excluded from the filter.
 	hasFirewallArtifact := artifactMatchesFilter(constants.AgentArtifactName, artifactFilter)
 
-	applyRunSecurityAnalysis(&result, runOutputDir, verbose, hasFirewallArtifact)
+	applyRunSecurityAnalysis(result, runOutputDir, verbose, hasFirewallArtifact)
 
 	// Resolve experiment assignment once for all extraction functions below.
 	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(runOutputDir))
 
-	applyRunBehavioralSignals(&result, runOutputDir, verbose, hasFirewallArtifact, expName, expVariant)
+	applyRunBehavioralSignals(result, runOutputDir, verbose, hasFirewallArtifact, expName, expVariant)
 
-	applyRunUsageMetrics(&result, runOutputDir, verbose, usageActivitySummary, hasFirewallArtifact)
+	applyRunUsageMetrics(result, runOutputDir, verbose, usageActivitySummary, hasFirewallArtifact)
 
-	finalizeAndSaveRunSummary(&result, runOutputDir, metrics, verbose)
-
-	return result
+	finalizeAndSaveRunSummary(result, runOutputDir, metrics, verbose)
 }
 
 // extractRunMetricsAndMetadata extracts log metrics, infers missing workflow path, and
