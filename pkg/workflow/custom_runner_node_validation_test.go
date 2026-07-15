@@ -57,6 +57,9 @@ runs-on: self-hosted
 	if !strings.Contains(agentSection, "The workflow 'runtimes.node' setting applies later in the job and cannot satisfy this prerequisite.") {
 		t.Fatalf("Expected runtimes.node remediation guidance in agent section:\n%s", agentSection)
 	}
+	if !strings.Contains(agentSection, "exit 127") {
+		t.Fatalf("Expected missing-node validation step to fail with exit 127:\n%s", agentSection)
+	}
 }
 
 func TestStandardRunnerSkipsCustomRunnerNodeValidationStep(t *testing.T) {
