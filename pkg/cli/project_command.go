@@ -232,12 +232,12 @@ func validateOwner(ctx context.Context, ownerType, owner string, verbose bool) e
 
 	var query string
 	if ownerType == "org" {
-		query = fmt.Sprintf(`query { organization(login: "%s") { id login } }`, escapeGraphQLString(owner))
+		query = `query($login: String!) { organization(login: $login) { id login } }`
 	} else {
-		query = fmt.Sprintf(`query { user(login: "%s") { id login } }`, escapeGraphQLString(owner))
+		query = `query($login: String!) { user(login: $login) { id login } }`
 	}
 
-	_, err := workflow.RunGH("Validating owner...", "api", "graphql", "-f", "query="+query)
+	_, err := workflow.RunGH("Validating owner...", "api", "graphql", "-f", "query="+query, "-F", "login="+owner)
 	if err != nil {
 		if ownerType == "org" {
 			return fmt.Errorf("organization '%s' not found or not accessible", owner)
@@ -642,10 +642,11 @@ func getStatusField(ctx context.Context, info projectURLInfo, verbose bool) (sta
 	var query string
 	var jqProjectID, jqFields string
 
+	projectNumberStr := fmt.Sprintf("%d", info.projectNumber)
 	if info.scope == "orgs" {
-		query = fmt.Sprintf(`query {
-			organization(login: "%s") {
-				projectV2(number: %d) {
+		query = `query($login: String!, $number: Int!) {
+			organization(login: $login) {
+				projectV2(number: $number) {
 					id
 					fields(first: 100) {
 						nodes {
@@ -658,13 +659,13 @@ func getStatusField(ctx context.Context, info projectURLInfo, verbose bool) (sta
 					}
 				}
 			}
-		}`, escapeGraphQLString(info.ownerLogin), info.projectNumber)
+		}`
 		jqProjectID = ".data.organization.projectV2.id"
 		jqFields = ".data.organization.projectV2.fields.nodes"
 	} else {
-		query = fmt.Sprintf(`query {
-			user(login: "%s") {
-				projectV2(number: %d) {
+		query = `query($login: String!, $number: Int!) {
+			user(login: $login) {
+				projectV2(number: $number) {
 					id
 					fields(first: 100) {
 						nodes {
@@ -677,20 +678,20 @@ func getStatusField(ctx context.Context, info projectURLInfo, verbose bool) (sta
 					}
 				}
 			}
-		}`, escapeGraphQLString(info.ownerLogin), info.projectNumber)
+		}`
 		jqProjectID = ".data.user.projectV2.id"
 		jqFields = ".data.user.projectV2.fields.nodes"
 	}
 
 	// Get project ID
-	projectIDOutput, err := workflow.RunGH("Getting project info...", "api", "graphql", "-f", "query="+query, "--jq", jqProjectID)
+	projectIDOutput, err := workflow.RunGH("Getting project info...", "api", "graphql", "-f", "query="+query, "-F", "login="+info.ownerLogin, "-F", "number="+projectNumberStr, "--jq", jqProjectID)
 	if err != nil {
 		return statusFieldInfo{}, fmt.Errorf("failed to get project ID: %w", err)
 	}
 	projectID := strings.TrimSpace(string(projectIDOutput))
 
 	// Get fields
-	fieldsOutput, err := workflow.RunGH("Getting project fields...", "api", "graphql", "-f", "query="+query, "--jq", jqFields)
+	fieldsOutput, err := workflow.RunGH("Getting project fields...", "api", "graphql", "-f", "query="+query, "-F", "login="+info.ownerLogin, "-F", "number="+projectNumberStr, "--jq", jqFields)
 	if err != nil {
 		return statusFieldInfo{}, fmt.Errorf("failed to get project fields: %w", err)
 	}
