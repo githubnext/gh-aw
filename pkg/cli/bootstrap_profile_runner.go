@@ -991,7 +991,7 @@ func printBootstrapGitHubAppManifestReview(owner string, manifest map[string]any
 		permissionNames = append(permissionNames, name)
 	}
 	sort.Strings(permissionNames)
-	manifestField := func(key string) string {
+	getManifestStringOrDefault := func(key string) string {
 		value, ok := manifest[key].(string)
 		if !ok || strings.TrimSpace(value) == "" {
 			return "<unavailable>"
@@ -1000,10 +1000,10 @@ func printBootstrapGitHubAppManifestReview(owner string, manifest map[string]any
 	}
 	lines := []string{
 		"GitHub App manifest for " + owner + ":",
-		"- name: " + manifestField("name"),
-		"- homepage: " + manifestField("url"),
-		"- redirect URL: " + manifestField("redirect_url"),
-		"- description: " + manifestField("description"),
+		"- name: " + getManifestStringOrDefault("name"),
+		"- homepage: " + getManifestStringOrDefault("url"),
+		"- redirect URL: " + getManifestStringOrDefault("redirect_url"),
+		"- description: " + getManifestStringOrDefault("description"),
 		"- permissions:",
 	}
 	for _, name := range permissionNames {
