@@ -158,6 +158,11 @@ func TestResolveArtifactFilter(t *testing.T) {
 			expected: []string{"usage"},
 		},
 		{
+			name:     "evals resolves to usage artifact (evals now included in usage)",
+			sets:     []string{"evals"},
+			expected: []string{"usage"},
+		},
+		{
 			name:     "multiple sets are merged and deduplicated",
 			sets:     []string{"activation", "agent"},
 			expected: []string{"activation", "agent"},

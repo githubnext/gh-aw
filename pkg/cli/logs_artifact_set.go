@@ -69,8 +69,8 @@ const (
 	// conclusion job (aw-info.jsonl, usage summaries, token usage JSONL).
 	ArtifactSetUsage ArtifactSet = "usage"
 
-	// ArtifactSetEvals downloads the evals artifact containing BinEval evaluation
-	// results (evals.jsonl) produced by the evals job.
+	// ArtifactSetEvals downloads the usage artifact, which now includes evals.jsonl
+	// produced by the evals job (copied into usage by the conclusion job).
 	ArtifactSetEvals ArtifactSet = "evals"
 )
 
@@ -91,8 +91,8 @@ var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetExperiment: {constants.ExperimentArtifactName},
 	// usage: compact conclusion artifact for lightweight reporting/forecasting.
 	ArtifactSetUsage: {constants.UsageArtifactName},
-	// evals: BinEval evaluation results uploaded by the evals job.
-	ArtifactSetEvals: {constants.EvalsArtifactName},
+	// evals: evals results are now included in the usage artifact.
+	ArtifactSetEvals: {constants.UsageArtifactName},
 }
 
 const maxArtifactHintExamples = 2
@@ -284,8 +284,9 @@ func findMissingFilterEntries(filter []string, outputDir string) []string {
 }
 
 // applyEvalsArtifact appends the evals artifact set to artifacts when evalsOnly is true
-// and neither ArtifactSetEvals nor ArtifactSetAll is already present. This ensures
-// evals.jsonl is downloaded without requiring the user to also pass --artifacts evals.
+// and neither ArtifactSetEvals, ArtifactSetUsage, nor ArtifactSetAll is already present.
+// Because evals results are now included in the usage artifact, this ensures evals.jsonl
+// is downloaded without requiring the user to also pass --artifacts evals or --artifacts usage.
 //
 // Note: callers that treat an empty artifacts slice as "all" (e.g., the audit command)
 // should guard with len(artifacts) > 0 before calling this function, to avoid
@@ -293,6 +294,7 @@ func findMissingFilterEntries(filter []string, outputDir string) []string {
 func applyEvalsArtifact(artifacts []string, evalsOnly bool) []string {
 	if evalsOnly &&
 		!slices.Contains(artifacts, string(ArtifactSetEvals)) &&
+		!slices.Contains(artifacts, string(ArtifactSetUsage)) &&
 		!slices.Contains(artifacts, string(ArtifactSetAll)) {
 		return append(artifacts, string(ArtifactSetEvals))
 	}

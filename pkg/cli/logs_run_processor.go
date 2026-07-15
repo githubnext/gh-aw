@@ -16,7 +16,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -38,11 +37,12 @@ type concurrentRunDownloadParams struct {
 	dlOwner        string
 	dlRepo         string
 	artifactFilter []string
+	evalsOnly      bool
 }
 
 // buildConcurrentDownloadParams constructs download parameters by parsing the optional
 // repoOverride ("owner/repo" or "HOST/owner/repo") once for the whole batch.
-func buildConcurrentDownloadParams(outputDir string, verbose bool, repoOverride string, artifactFilter []string) concurrentRunDownloadParams {
+func buildConcurrentDownloadParams(outputDir string, verbose bool, repoOverride string, artifactFilter []string, evalsOnly bool) concurrentRunDownloadParams {
 	var dlHost, dlOwner, dlRepo string
 	if repoOverride != "" {
 		// Accepted formats: "owner/repo" or "HOST/owner/repo".
@@ -61,6 +61,7 @@ func buildConcurrentDownloadParams(outputDir string, verbose bool, repoOverride 
 		dlOwner:        dlOwner,
 		dlRepo:         dlRepo,
 		artifactFilter: artifactFilter,
+		evalsOnly:      evalsOnly,
 	}
 }
 
@@ -88,7 +89,7 @@ func logConcurrentDownloadSummary(results []DownloadResult) {
 }
 
 // downloadRunArtifactsConcurrent downloads artifacts for multiple workflow runs concurrently
-func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, outputDir string, verbose bool, maxRuns int, repoOverride string, artifactFilter []string) []DownloadResult {
+func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, outputDir string, verbose bool, maxRuns int, repoOverride string, artifactFilter []string, evalsOnly bool) []DownloadResult {
 	logsOrchestratorLog.Printf("Starting concurrent artifact download: runs=%d, outputDir=%s, maxRuns=%d", len(runs), outputDir, maxRuns)
 	if len(runs) == 0 {
 		return []DownloadResult{}
@@ -104,7 +105,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 	progressBar := initDownloadProgressBar(verbose, totalRuns)
 	var completedCount atomic.Int64
 	maxConcurrent := getMaxConcurrentDownloads()
-	params := buildConcurrentDownloadParams(outputDir, verbose, repoOverride, artifactFilter)
+	params := buildConcurrentDownloadParams(outputDir, verbose, repoOverride, artifactFilter, evalsOnly)
 
 	// Configure concurrent download pool with bounded parallelism and context cancellation.
 	// The conc pool automatically handles panic recovery and prevents goroutine leaks.
@@ -221,15 +222,14 @@ func tryLoadCachedRunResult(
 		return nil, false
 	}
 
-	// When the caller requested the evals artifact and it is not present in the
-	// cached run directory, the cache was created without evals.  Bypass the cache
-	// so the fresh download can fetch evals; the post-download filter decides whether
-	// to skip.
-	evalsRequested := slices.Contains(params.artifactFilter, constants.EvalsArtifactName)
+	// When --evals is requested but evals are not present in the cached run directory
+	// (e.g., the run was cached before evals were included in the usage artifact),
+	// bypass the cache so the fresh download can include the usage artifact with evals;
+	// the post-download filter decides whether to skip.
 	hasEvals := runHasEvals(runOutputDir, params.verbose) ||
 		ensureEvalsResultsFromBranch(ctx, summary.Run, runOutputDir, params.dlOwner, params.dlRepo, params.dlHost, params.verbose)
-	if evalsRequested && !hasEvals {
-		logsOrchestratorLog.Printf("Cache bypass for run %d: evals artifact requested but not present locally", run.DatabaseID)
+	if params.evalsOnly && !hasEvals {
+		logsOrchestratorLog.Printf("Cache bypass for run %d: evals requested (--evals) but not present locally", run.DatabaseID)
 		return nil, false
 	}
 
