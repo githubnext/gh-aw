@@ -35,7 +35,7 @@ Only required secrets are prompted for. Optional secrets are not shown.`,
 	}
 
 	cmd.Flags().BoolVar(&nonInteractiveFlag, "non-interactive", false, "Check secrets without prompting (display-only mode)")
-	cmd.Flags().StringVarP(&engineFlag, "engine", "e", "", "Check tokens for specific engine (copilot, claude, codex, gemini, crush)")
+	cmd.Flags().StringVarP(&engineFlag, "engine", "e", "", "Check tokens for specific engine (copilot, claude, codex, gemini)")
 	addRepoFlag(cmd)
 
 	return cmd

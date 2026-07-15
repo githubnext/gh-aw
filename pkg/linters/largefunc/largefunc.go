@@ -14,7 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-var log = logger.New("linters:largefunc")
+var pkgLog = logger.New("linters:largefunc")
 
 // DefaultMaxLines is the default maximum number of lines allowed in a function body.
 const DefaultMaxLines = 60
@@ -24,7 +24,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "largefunc",
 	Doc:      "reports functions whose body exceeds the line limit (default 60 lines)",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/largefunc",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -37,13 +37,20 @@ func init() {
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	log.Printf("analyzing package %s (max-lines=%d)", pass.Pkg.Path(), maxLines)
+	pkgLog.Printf("analyzing package %s (max-lines=%d)", pass.Pkg.Path(), maxLines)
 
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "largefunc")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
@@ -71,7 +78,7 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		position := pass.Fset.PositionFor(reportNode.Pos(), false)
-		if filecheck.IsTestFile(position.Filename) {
+		if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
 			return
 		}
 
@@ -81,10 +88,10 @@ func run(pass *analysis.Pass) (any, error) {
 		lines := end.Line - start.Line - 1
 
 		if lines > maxLines {
-			if nolint.HasDirective(position, noLintLinesByFile) {
+			if nolint.HasDirectiveForLinter(position, noLintIndex, "largefunc") {
 				return
 			}
-			log.Printf("flagging %s: %d lines exceeds limit %d", name, lines, maxLines)
+			pkgLog.Printf("flagging %s: %d lines exceeds limit %d", name, lines, maxLines)
 			pass.ReportRangef(
 				reportNode,
 				"%s is %d lines long (limit: %d); consider breaking it up",

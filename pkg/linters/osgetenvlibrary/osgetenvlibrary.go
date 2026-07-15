@@ -19,7 +19,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "osgetenvlibrary",
 	Doc:      "reports calls to os.Getenv or os.LookupEnv in non-main, non-test packages",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/osgetenvlibrary",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -33,7 +33,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "osgetenvlibrary")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -45,7 +52,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		if strings.HasSuffix(pkgPath, ".test") || filecheck.IsTestFile(pass.Fset.PositionFor(call.Pos(), false).Filename) {
+		if strings.HasSuffix(pkgPath, ".test") || filecheck.ShouldSkipFilename(pass.Fset.PositionFor(call.Pos(), false).Filename, generatedFiles) {
 			return
 		}
 
@@ -54,7 +61,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		position := pass.Fset.PositionFor(call.Pos(), false)
-		if nolint.HasDirective(position, noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(position, noLintIndex, "osgetenvlibrary") {
 			return
 		}
 		switch fn.Name() {

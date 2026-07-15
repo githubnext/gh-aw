@@ -90,7 +90,7 @@ type renderStandardJSONMCPConfigOptions struct {
 }
 
 // renderDefaultJSONMCPConfig is a convenience wrapper for renderStandardJSONMCPConfig used by
-// simple JSON engines (Claude, Gemini, Crush, OpenCode) that share the standard
+// simple JSON engines (Claude, Gemini, OpenCode) that share the standard
 // renderCustomMCPConfigWrapperWithContext callback and differ only in their config path.
 func renderDefaultJSONMCPConfig(
 	sb *strings.Builder,

@@ -46,7 +46,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "errorfwrapv",
 	Doc:      "reports fmt.Errorf calls that format error arguments with %v instead of %w",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/errorfwrapv",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -59,7 +59,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "errorfwrapv")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -72,7 +79,7 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		position := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.IsTestFile(position.Filename) {
+		if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
 			return
 		}
 
@@ -105,7 +112,7 @@ func run(pass *analysis.Pass) (any, error) {
 			if !types.Implements(tv.Type, errorIface) {
 				continue
 			}
-			if nolint.HasDirective(position, noLintLinesByFile) {
+			if nolint.HasDirectiveForLinter(position, noLintIndex, "errorfwrapv") {
 				return
 			}
 			pass.ReportRangef(call, "fmt.Errorf formats an error argument with %%v; use %%w to preserve the error chain")

@@ -336,6 +336,7 @@ function isBalanced(markdown) {
   const lines = normalizedMarkdown.split("\n");
 
   let inCodeBlock = false;
+  /** @type {any} */
   let openingFence = null;
 
   for (const line of lines) {
@@ -387,6 +388,7 @@ function countCodeRegions(markdown) {
   let total = 0;
   let balanced = 0;
   let inCodeBlock = false;
+  /** @type {any} */
   let openingFence = null;
 
   for (const line of lines) {

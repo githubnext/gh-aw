@@ -183,6 +183,7 @@ async function startHttpServer(configPath, options = {}) {
       "Configuration file": configPath,
       Port: port,
     });
+    return undefined;
   }
 }
 

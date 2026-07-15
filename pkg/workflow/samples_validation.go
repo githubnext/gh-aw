@@ -8,11 +8,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
-var samplesValidationLog = newValidationLogger("samples")
+var samplesValidationLog = logger.New("workflow:samples_validation")
 
 var sampleRuntimeExpressionPattern = regexp.MustCompile(`(?s)\$\{\{.*?\}\}`)
 

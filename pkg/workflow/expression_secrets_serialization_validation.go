@@ -25,10 +25,11 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
-var expressionSecretsSerializationLog = newValidationLogger("expression_secrets_serialization")
+var expressionSecretsSerializationLog = logger.New("workflow:expression_secrets_serialization_validation")
 
 // secretsSerializationPattern matches function calls that pass the entire secrets
 // context as an argument, e.g. toJSON(secrets).

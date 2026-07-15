@@ -59,6 +59,7 @@ function normalizeTitleForDedup(title) {
  * @returns {{ title: string, distance: number } | null}
  */
 function findDuplicateByTitle(normalizedTitle, candidates, maxDistance) {
+  /** @type {any} */
   let bestMatch = null;
 
   for (const candidate of candidates) {

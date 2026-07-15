@@ -46,18 +46,25 @@ func writeJSONStringMapEntriesRaw(yaml *strings.Builder, values map[string]strin
 	}
 }
 
-// writeJSONStringMapSectionRaw writes a JSON object section using writeJSONStringMapEntriesRaw.
-// Use this for env and headers sections in unquoted heredoc MCP configs.  Values are
-// JSON-encoded (so special chars remain safe) with the double-escape of shell
-// placeholders (\${VAR} → \\${VAR}) undone so bash can process them correctly.
-func writeJSONStringMapSectionRaw(yaml *strings.Builder, indent, name string, values map[string]string, trailingComma bool) {
+// writeJSONStringMapSectionWithEntries writes a JSON object section, delegating
+// per-entry serialisation to writeEntries.  writeEntries receives the builder,
+// the values map, and the child indent string (indent+"  ").
+func writeJSONStringMapSectionWithEntries(yaml *strings.Builder, indent, name string, values map[string]string, trailingComma bool, writeEntries func(*strings.Builder, map[string]string, string)) {
 	fmt.Fprintf(yaml, "%s\"%s\": {\n", indent, name)
-	writeJSONStringMapEntriesRaw(yaml, values, indent+"  ")
+	writeEntries(yaml, values, indent+"  ")
 	if trailingComma {
 		fmt.Fprintf(yaml, "%s},\n", indent)
 		return
 	}
 	fmt.Fprintf(yaml, "%s}\n", indent)
+}
+
+// writeJSONStringMapSectionRaw writes a JSON object section using writeJSONStringMapEntriesRaw.
+// Use this for env and headers sections in unquoted heredoc MCP configs.  Values are
+// JSON-encoded (so special chars remain safe) with the double-escape of shell
+// placeholders (\${VAR} → \\${VAR}) undone so bash can process them correctly.
+func writeJSONStringMapSectionRaw(yaml *strings.Builder, indent, name string, values map[string]string, trailingComma bool) {
+	writeJSONStringMapSectionWithEntries(yaml, indent, name, values, trailingComma, writeJSONStringMapEntriesRaw)
 }
 
 func mustMarshalJSONString(value string) string {
@@ -69,13 +76,7 @@ func mustMarshalJSONString(value string) string {
 }
 
 func writeJSONStringMapSection(yaml *strings.Builder, indent, name string, values map[string]string, trailingComma bool) {
-	fmt.Fprintf(yaml, "%s\"%s\": {\n", indent, name)
-	writeJSONStringMapEntries(yaml, values, indent+"  ")
-	if trailingComma {
-		fmt.Fprintf(yaml, "%s},\n", indent)
-		return
-	}
-	fmt.Fprintf(yaml, "%s}\n", indent)
+	writeJSONStringMapSectionWithEntries(yaml, indent, name, values, trailingComma, writeJSONStringMapEntries)
 }
 
 func writeTOMLInlineStringMapSection(yaml *strings.Builder, indent, name string, values map[string]string) {

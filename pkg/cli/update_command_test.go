@@ -123,6 +123,15 @@ func TestNewUpdateCommand_MentionsEnterpriseSourceResolution(t *testing.T) {
 	assert.Contains(t, cmd.Long, "Use full https://github.com/... source URLs for other public github.com workflows.")
 }
 
+func TestNewUpdateCommand_HasApproveFlag(t *testing.T) {
+	cmd := NewUpdateCommand(func(string) error { return nil })
+	require.NotNil(t, cmd, "update command should be created")
+
+	flag := cmd.Flags().Lookup("approve")
+	require.NotNil(t, flag, "update command should register --approve flag")
+	assert.Contains(t, flag.Usage, "When strict mode is active", "--approve description should match compile/upgrade semantics")
+}
+
 // TestMergeWorkflowContent_WithConflicts tests a merge with conflicts
 func TestMergeWorkflowContent_WithConflicts(t *testing.T) {
 	base := `---
@@ -760,7 +769,7 @@ This is a test workflow.
 
 	// Test with refreshStopTime=false (should preserve existing stop time if lock exists)
 	t.Run("compileWorkflowWithRefresh false", func(t *testing.T) {
-		err := compileWorkflowWithRefresh(context.Background(), workflowFile, false, false, "", false)
+		err := compileWorkflowWithRefresh(context.Background(), workflowFile, false, false, "", false, false)
 		if err != nil {
 			t.Logf("Compilation failed (expected in test environment): %v", err)
 			// In a test environment without full setup, compilation may fail,
@@ -770,7 +779,7 @@ This is a test workflow.
 
 	// Test with refreshStopTime=true (should regenerate stop time)
 	t.Run("compileWorkflowWithRefresh true", func(t *testing.T) {
-		err := compileWorkflowWithRefresh(context.Background(), workflowFile, false, false, "", true)
+		err := compileWorkflowWithRefresh(context.Background(), workflowFile, false, false, "", true, false)
 		if err != nil {
 			t.Logf("Compilation failed (expected in test environment): %v", err)
 			// In a test environment without full setup, compilation may fail,

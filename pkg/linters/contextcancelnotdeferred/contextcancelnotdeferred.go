@@ -20,7 +20,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "contextcancelnotdeferred",
 	Doc:      "reports context cancel functions that are called directly instead of deferred",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/contextcancelnotdeferred",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -29,38 +29,45 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "contextcancelnotdeferred")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		inspectCancelFuncDecl(pass, n, noLintLinesByFile)
+		inspectCancelFuncDecl(pass, n, noLintIndex, generatedFiles)
 	})
 
 	return nil, nil
 }
 
-func inspectCancelFuncDecl(pass *analysis.Pass, n ast.Node, noLintLinesByFile map[string]map[int]struct{}) {
+func inspectCancelFuncDecl(pass *analysis.Pass, n ast.Node, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex) {
 	fn, ok := n.(*ast.FuncDecl)
 	if !ok || fn.Body == nil {
 		return
 	}
 
 	pos := pass.Fset.PositionFor(fn.Pos(), false)
-	if filecheck.IsTestFile(pos.Filename) {
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 		return
 	}
 
 	cancelVars := make(map[types.Object]*cancelVarState)
 
 	ast.Inspect(fn.Body, func(node ast.Node) bool {
-		return inspectCancelNode(pass, cancelVars, node, noLintLinesByFile)
+		return inspectCancelNode(pass, cancelVars, node, noLintIndex)
 	})
 
 	for _, state := range cancelVars {
-		if state.hasDirectCancel && !state.hasDeferCancel && !nolint.HasDirective(pass.Fset.PositionFor(state.createPos, false), noLintLinesByFile) {
+		if state.hasDirectCancel && !state.hasDeferCancel && !nolint.HasDirectiveForLinter(pass.Fset.PositionFor(state.createPos, false), noLintIndex, "contextcancelnotdeferred") {
 			pass.Report(analysis.Diagnostic{
 				Pos:     state.createPos,
 				Message: "context cancel function should be deferred immediately after context.WithCancel/WithTimeout/WithDeadline",
@@ -69,7 +76,7 @@ func inspectCancelFuncDecl(pass *analysis.Pass, n ast.Node, noLintLinesByFile ma
 	}
 }
 
-func inspectCancelNode(pass *analysis.Pass, cancelVars map[types.Object]*cancelVarState, node ast.Node, noLintLinesByFile map[string]map[int]struct{}) bool {
+func inspectCancelNode(pass *analysis.Pass, cancelVars map[types.Object]*cancelVarState, node ast.Node, noLintIndex nolint.DirectiveIndex) bool {
 	if node == nil {
 		return false
 	}
@@ -93,7 +100,7 @@ func inspectCancelNode(pass *analysis.Pass, cancelVars map[types.Object]*cancelV
 				if obj == nil {
 					continue
 				}
-				if prev, exists := cancelVars[obj]; exists && prev.hasDirectCancel && !prev.hasDeferCancel && !nolint.HasDirective(pass.Fset.PositionFor(prev.createPos, false), noLintLinesByFile) {
+				if prev, exists := cancelVars[obj]; exists && prev.hasDirectCancel && !prev.hasDeferCancel && !nolint.HasDirectiveForLinter(pass.Fset.PositionFor(prev.createPos, false), noLintIndex, "contextcancelnotdeferred") {
 					pass.Report(analysis.Diagnostic{
 						Pos:     prev.createPos,
 						Message: "context cancel function should be deferred immediately after context.WithCancel/WithTimeout/WithDeadline",

@@ -264,6 +264,7 @@ async function fetchMCPTools(serverUrl, apiKey, core) {
   const authHeaders = { Authorization: apiKey };
 
   // Step 1: initialize – establish the session and capture Mcp-Session-Id if present
+  /** @type {any} */
   let sessionHeader = {};
   try {
     const initResp = await httpPostJSON(

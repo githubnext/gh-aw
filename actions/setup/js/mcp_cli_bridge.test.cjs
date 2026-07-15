@@ -708,6 +708,7 @@ describe("mcp_cli_bridge.cjs", () => {
 
     it("waits for drain event when stdout.write returns false (pipe buffer full)", async () => {
       // Arrange: stdout.write returns false (simulates full pipe buffer like a ~64KiB payload)
+      /** @type {any} */
       let drainCb = null;
       stdoutSpy.mockImplementation(chunk => {
         stdoutChunks.push(String(chunk));
@@ -752,6 +753,7 @@ describe("mcp_cli_bridge.cjs", () => {
         return false; // signal backpressure
       });
       const error = new Error("EPIPE");
+      /** @type {any} */
       let errorCb = null;
       const onceStub = vi.spyOn(process.stdout, "once").mockImplementation((event, cb) => {
         if (event === "error") {
@@ -778,6 +780,7 @@ describe("mcp_cli_bridge.cjs", () => {
       // returning false would allow subsequent core.info calls to reach stderr
       // while stdout was still buffering, corrupting combined output.
       const callOrder = [];
+      /** @type {any} */
       let drainCb = null;
 
       stdoutSpy.mockImplementation(chunk => {

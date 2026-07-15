@@ -24,7 +24,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "tolowerequalfold",
 	Doc:      "reports case-insensitive string comparisons using strings.ToLower/ToUpper that should use strings.EqualFold",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/tolowerequalfold",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -33,7 +33,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "tolowerequalfold")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 	caseConvAliases := collectCaseConvAliases(pass)
 
 	nodeFilter := []ast.Node{
@@ -49,7 +56,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		if filecheck.IsTestFile(pass.Fset.Position(expr.Pos()).Filename) {
+		if filecheck.ShouldSkipFilename(pass.Fset.Position(expr.Pos()).Filename, generatedFiles) {
 			return
 		}
 
@@ -67,7 +74,7 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		if isEquivalentToEqualFold(pass, expr, caseConvAliases) {
-			if nolint.HasDirective(pass.Fset.PositionFor(expr.Pos(), false), noLintLinesByFile) {
+			if nolint.HasDirectiveForLinter(pass.Fset.PositionFor(expr.Pos(), false), noLintIndex, "tolowerequalfold") {
 				return
 			}
 			pass.Report(analysis.Diagnostic{

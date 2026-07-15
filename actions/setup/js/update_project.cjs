@@ -325,6 +325,7 @@ function checkFieldTypeMismatch(fieldName, field, expectedDataType) {
  */
 async function findExistingDraftByTitle(github, projectId, targetTitle) {
   let hasNextPage = true;
+  /** @type {any} */
   let endCursor = null;
 
   while (hasNextPage) {
@@ -373,6 +374,7 @@ async function findExistingDraftByTitle(github, projectId, targetTitle) {
  */
 async function findExistingItemByContentId(github, projectId, contentId) {
   let hasNextPage = true;
+  /** @type {any} */
   let endCursor = null;
 
   while (hasNextPage) {
@@ -632,6 +634,7 @@ async function applyFieldUpdates(github, projectId, itemId, fields) {
 async function fetchAllProjectFields(github, projectId) {
   const allFields = [];
   let hasNextPage = true;
+  /** @type {any} */
   let endCursor = null;
 
   while (hasNextPage) {
@@ -1118,6 +1121,7 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
       };
     }
 
+    /** @type {any} */
     let contentNumber = null;
     if (hasContentNumber || hasIssue || hasPullRequest) {
       const rawContentNumber = hasContentNumber ? output.content_number : hasIssue ? output.issue : output.pull_request;
@@ -1256,6 +1260,7 @@ async function main(config = {}, githubClient = null) {
 
   // Track state
   let processedCount = 0;
+  /** @type {any} */
   let firstProjectUrl = null;
   let viewsCreated = false;
   let fieldsCreated = false;

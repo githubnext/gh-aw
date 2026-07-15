@@ -27,6 +27,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * running outside of a GitHub Actions runner (tests, local dev).
  */
 
+/** @type {any} */
 let cached = null;
 
 function resolveManifestPath() {

@@ -46,6 +46,8 @@ const {
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  normalizeReflectProviderName,
+  resolveProviderEndpointFromReflect,
 } = require("./awf_reflect.cjs");
 const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
@@ -342,6 +344,47 @@ function validateCodexOpenAIBaseURLFromReflect(options) {
 }
 
 /**
+ * Configure Codex openai-proxy base_url from /reflect and return env overrides.
+ *
+ * @param {{ codexConfigPath?: string, reflectPath?: string, provider?: string }} options
+ * @returns {{ env: NodeJS.ProcessEnv, configured: boolean }}
+ */
+function configureCodexProviderFromReflect(options) {
+  const env = { ...process.env };
+  const codexConfigPath = options && options.codexConfigPath;
+  const reflectPath = (options && options.reflectPath) || AWF_REFLECT_OUTPUT_PATH;
+  const provider = normalizeReflectProviderName(options?.provider || process.env.GH_AW_LLM_PROVIDER, "openai");
+  if (!reflectPath) return { env, configured: false };
+  try {
+    const reflectContent = fs.readFileSync(reflectPath, "utf8");
+    const reflectData = JSON.parse(reflectContent);
+    const resolved = resolveProviderEndpointFromReflect({ provider, reflectData, logger: log });
+    if (!resolved || !resolved.baseUrl) return { env, configured: false };
+    env.OPENAI_BASE_URL = resolved.baseUrl;
+    log(`configured OPENAI_BASE_URL from /reflect for provider=${provider}: ${resolved.baseUrl}`);
+    if (codexConfigPath) {
+      const tomlContent = fs.readFileSync(codexConfigPath, "utf8");
+      const providerSectionPattern = /\[model_providers\.openai-proxy\][\s\S]*?(?:\n\[|$)/;
+      const baseLine = `base_url = "${resolved.baseUrl}"`;
+      if (providerSectionPattern.test(tomlContent)) {
+        const rewritten = tomlContent.replace(providerSectionPattern, section => {
+          if (/(?:^|\n)\s*base_url\s*=/.test(section)) {
+            return section.replace(/(?:^|\n)\s*base_url\s*=\s*(?:"[^"]*"|'[^']*'|[^\n]+)/, `\n${baseLine}`);
+          }
+          return `${section.trimEnd()}\n${baseLine}\n`;
+        });
+        fs.writeFileSync(codexConfigPath, rewritten, "utf8");
+      }
+    }
+    return { env, configured: true };
+  } catch (error) {
+    const err = /** @type {Error} */ error;
+    log(`warning: unable to configure provider endpoint from /reflect: ${err.message}`);
+    return { env, configured: false };
+  }
+}
+
+/**
  * Main entry point: run codex with retry logic for transient API failures.
  * Codex does not support --continue session resumption, so all retries are fresh runs.
  */
@@ -406,6 +449,15 @@ async function main() {
   // This is best-effort: failures are logged but do not affect the agent run.
   await fetchAWFReflect({ logger: log });
   const codexHome = process.env.CODEX_HOME || "";
+  let codexEnv = codexChildEnv;
+  const providerConfig = configureCodexProviderFromReflect({
+    codexConfigPath: codexHome ? `${codexHome}/config.toml` : "",
+    reflectPath: AWF_REFLECT_OUTPUT_PATH,
+    provider: process.env.GH_AW_LLM_PROVIDER || "openai",
+  });
+  if (providerConfig.configured) {
+    codexEnv = { ...codexEnv, ...providerConfig.env };
+  }
   if (codexHome) {
     const validation = validateCodexOpenAIBaseURLFromReflect({
       codexConfigPath: `${codexHome}/config.toml`,
@@ -449,7 +501,7 @@ async function main() {
       }
     }
 
-    const result = await runProcess({ command, args: resolvedArgs, attempt, log, logArgs: safeArgs, env: codexChildEnv });
+    const result = await runProcess({ command, args: resolvedArgs, attempt, log, logArgs: safeArgs, env: codexEnv });
     lastExitCode = result.exitCode;
 
     // Success — stop retrying
@@ -595,6 +647,7 @@ if (typeof module !== "undefined" && module.exports) {
     extractOpenAIProxyBaseURLFromToml,
     getConfiguredOpenAIPortFromReflect,
     validateCodexOpenAIBaseURLFromReflect,
+    configureCodexProviderFromReflect,
     hasNoopInSafeOutputs,
     hasExpectedSafeOutputs,
     resolveRetryConfig,

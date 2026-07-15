@@ -198,6 +198,7 @@ function convertToLogEntries(parsedData) {
       const toolUseId = `tool_${logEntries.length}`;
 
       // Parse params - it might be a plain JSON string or need parsing
+      /** @type {any} */
       let inputObj = {};
       if (item.params) {
         try {
@@ -333,6 +334,7 @@ function parseCodexJsonl(logContent) {
 
   const lines = logContent.split("\n");
   const parsedData = [];
+  /** @type {any} */
   let usage = null;
   let turnCount = 0;
 

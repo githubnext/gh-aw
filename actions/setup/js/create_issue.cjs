@@ -124,7 +124,7 @@ async function searchForExistingParent(githubClient, owner, repo, markerComment)
 /**
  * Finds an existing parent issue for a group, or creates a new one if needed
  * @param {object} params - Parameters for finding/creating parent issue
- * @param {object} params.githubClient - Authenticated GitHub client
+ * @param {any} params.githubClient - Authenticated GitHub client
  * @param {string} params.groupId - The group identifier
  * @param {string} params.owner - Repository owner
  * @param {string} params.repo - Repository name
@@ -177,7 +177,7 @@ async function findOrCreateParentIssue({ githubClient, groupId, owner, repo, tit
  * @param {string} workflowName - Name of the workflow
  * @param {string} workflowSourceURL - URL to the workflow source
  * @param {number} [expiresHours=0] - Hours until expiration (0 means no expiration)
- * @returns {object} - Template with title and body
+ * @returns {any} - Template with title and body
  */
 function createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowSourceURL, expiresHours = 0) {
   // Use applyTitlePrefix to ensure proper spacing after prefix

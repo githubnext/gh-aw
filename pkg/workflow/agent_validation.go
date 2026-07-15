@@ -54,10 +54,11 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
 
-var agentValidationLog = newValidationLogger("agent")
+var agentValidationLog = logger.New("workflow:agent_validation")
 
 // validateAgentFile validates that the custom agent file specified in imports exists
 func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath string) error {
@@ -175,9 +176,9 @@ func (c *Compiler) validateMaxToolDenialsSupport(frontmatter map[string]any, eng
 }
 
 // validateUniversalLLMConsumerModel validates that universal consumer engines
-// (OpenCode/Crush) declare a provider-qualified engine.model.
+// (OpenCode) declare a provider-qualified engine.model.
 func (c *Compiler) validateUniversalLLMConsumerModel(frontmatter map[string]any, engine CodingAgentEngine) error {
-	if engine.GetID() != "opencode" && engine.GetID() != "crush" {
+	if engine.GetID() != "opencode" {
 		return nil
 	}
 

@@ -32,9 +32,10 @@ import (
 	"os"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var runInstallScriptsLog = newValidationLogger("run_install_scripts")
+var runInstallScriptsLog = logger.New("workflow:run_install_scripts_validation")
 
 // resolveRunInstallScripts determines whether install scripts should be allowed based on
 // the workflow frontmatter and any merged settings from imported shared workflows.

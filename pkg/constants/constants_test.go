@@ -54,7 +54,7 @@ func TestAllowedExpressions(t *testing.T) {
 }
 
 func TestAgenticEngines(t *testing.T) {
-	expectedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi"}
+	expectedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "pi"}
 	require.NotEmpty(t, AgenticEngines)
 	assert.Equal(t, expectedEngines, AgenticEngines)
 	assert.Equal(t, "claude", string(ClaudeEngine))
@@ -374,7 +374,6 @@ func TestGetEngineOption_AllBuiltInEngines(t *testing.T) {
 		{string(GeminiEngine), "Gemini", GeminiAPIKey, nil},
 		{string(AntigravityEngine), "Antigravity", AntigravityAPIKey, nil},
 		{string(OpenCodeEngine), "OpenCode", CopilotGitHubToken, []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey}},
-		{string(CrushEngine), "Crush", CopilotGitHubToken, []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey}},
 		{string(PiEngine), "Pi", CopilotGitHubToken, []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey}},
 	}
 

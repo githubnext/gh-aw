@@ -40,9 +40,11 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var pullRequestTargetLog = newValidationLogger("pull_request_target")
+var pullRequestTargetLog = logger.New("workflow:pull_request_target_validation")
 
 // [^{}]+? deliberately excludes brace characters so nested expression constructs
 // are never treated as a trusted literal allowlist match.

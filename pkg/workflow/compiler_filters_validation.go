@@ -48,29 +48,31 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var filterValidationLog = newValidationLogger("filter")
+var compilerFiltersValidationLog = logger.New("workflow:compiler_filters_validation")
 
 // ValidateEventFilters checks for GitHub Actions filter mutual exclusivity rules
 func ValidateEventFilters(frontmatter map[string]any) error {
-	filterValidationLog.Print("Validating event filter mutual exclusivity")
+	compilerFiltersValidationLog.Print("Validating event filter mutual exclusivity")
 
 	on, exists := frontmatter["on"]
 	if !exists {
-		filterValidationLog.Print("No 'on' section found, skipping filter validation")
+		compilerFiltersValidationLog.Print("No 'on' section found, skipping filter validation")
 		return nil
 	}
 
 	onMap, ok := on.(map[string]any)
 	if !ok {
-		filterValidationLog.Print("'on' section is not a map, skipping filter validation")
+		compilerFiltersValidationLog.Print("'on' section is not a map, skipping filter validation")
 		return nil
 	}
 
 	// Check push event
 	if pushVal, exists := onMap["push"]; exists {
-		filterValidationLog.Print("Validating push event filters")
+		compilerFiltersValidationLog.Print("Validating push event filters")
 		if err := validateFilterExclusivity(pushVal, "push"); err != nil {
 			return err
 		}
@@ -78,13 +80,13 @@ func ValidateEventFilters(frontmatter map[string]any) error {
 
 	// Check pull_request event
 	if prVal, exists := onMap["pull_request"]; exists {
-		filterValidationLog.Print("Validating pull_request event filters")
+		compilerFiltersValidationLog.Print("Validating pull_request event filters")
 		if err := validateFilterExclusivity(prVal, "pull_request"); err != nil {
 			return err
 		}
 	}
 
-	filterValidationLog.Print("Event filter validation completed successfully")
+	compilerFiltersValidationLog.Print("Event filter validation completed successfully")
 	return nil
 }
 
@@ -94,7 +96,7 @@ func ValidateEventFilters(frontmatter map[string]any) error {
 // activate immediately after new lock files are first pushed to the branch, producing
 // zero-turn failures for every agentic workflow in the repository).
 func ValidatePushBranchScope(frontmatter map[string]any) error {
-	filterValidationLog.Print("Validating push event branch/tag scope")
+	compilerFiltersValidationLog.Print("Validating push event branch/tag scope")
 
 	on, exists := frontmatter["on"]
 	if !exists {
@@ -113,7 +115,7 @@ func ValidatePushBranchScope(frontmatter map[string]any) error {
 
 	// A nil push value (bare `push:` key with no sub-keys) is unscoped.
 	if pushVal == nil {
-		filterValidationLog.Print("ERROR: push event has no branch/tag scope (nil push value)")
+		compilerFiltersValidationLog.Print("ERROR: push event has no branch/tag scope (nil push value)")
 		return newUnScopedPushError()
 	}
 
@@ -129,11 +131,11 @@ func ValidatePushBranchScope(frontmatter map[string]any) error {
 	_, hasTagsIgnore := pushMap["tags-ignore"]
 
 	if !hasBranches && !hasBranchesIgnore && !hasTags && !hasTagsIgnore {
-		filterValidationLog.Print("ERROR: push event has no branches or tags scope")
+		compilerFiltersValidationLog.Print("ERROR: push event has no branches or tags scope")
 		return newUnScopedPushError()
 	}
 
-	filterValidationLog.Print("Push event branches or tags scope is valid")
+	compilerFiltersValidationLog.Print("Push event branches or tags scope is valid")
 	return nil
 }
 
@@ -150,7 +152,7 @@ func newUnScopedPushError() *WorkflowValidationError {
 func validateFilterExclusivity(eventVal any, eventName string) error {
 	eventMap, ok := eventVal.(map[string]any)
 	if !ok {
-		filterValidationLog.Printf("Event '%s' is not a map, skipping filter validation", eventName)
+		compilerFiltersValidationLog.Printf("Event '%s' is not a map, skipping filter validation", eventName)
 		return nil
 	}
 
@@ -159,7 +161,7 @@ func validateFilterExclusivity(eventVal any, eventName string) error {
 	_, hasBranchesIgnore := eventMap["branches-ignore"]
 
 	if hasBranches && hasBranchesIgnore {
-		filterValidationLog.Printf("ERROR: Event '%s' has both 'branches' and 'branches-ignore' filters", eventName)
+		compilerFiltersValidationLog.Printf("ERROR: Event '%s' has both 'branches' and 'branches-ignore' filters", eventName)
 		return NewValidationError(
 			"on."+eventName,
 			"branches + branches-ignore",
@@ -173,7 +175,7 @@ func validateFilterExclusivity(eventVal any, eventName string) error {
 	_, hasPathsIgnore := eventMap["paths-ignore"]
 
 	if hasPaths && hasPathsIgnore {
-		filterValidationLog.Printf("ERROR: Event '%s' has both 'paths' and 'paths-ignore' filters", eventName)
+		compilerFiltersValidationLog.Printf("ERROR: Event '%s' has both 'paths' and 'paths-ignore' filters", eventName)
 		return NewValidationError(
 			"on."+eventName,
 			"paths + paths-ignore",
@@ -182,7 +184,7 @@ func validateFilterExclusivity(eventVal any, eventName string) error {
 		)
 	}
 
-	filterValidationLog.Printf("Event '%s' filters are valid", eventName)
+	compilerFiltersValidationLog.Printf("Event '%s' filters are valid", eventName)
 	return nil
 }
 
@@ -198,7 +200,7 @@ var globValidationEvents = []string{"push", "pull_request", "pull_request_target
 // ValidateGlobPatterns validates branch, tag, and path glob patterns in the 'on' section
 // of a workflow's frontmatter. It returns the first validation error encountered, if any.
 func ValidateGlobPatterns(frontmatter map[string]any) error {
-	filterValidationLog.Print("Validating glob patterns in event filters")
+	compilerFiltersValidationLog.Print("Validating glob patterns in event filters")
 
 	on, exists := frontmatter["on"]
 	if !exists {
@@ -235,7 +237,7 @@ func ValidateGlobPatterns(frontmatter map[string]any) error {
 		}
 	}
 
-	filterValidationLog.Print("Glob pattern validation completed successfully")
+	compilerFiltersValidationLog.Print("Glob pattern validation completed successfully")
 	return nil
 }
 
@@ -261,7 +263,7 @@ func validateGlobList(eventMap map[string]any, eventName, filterKey string, isPa
 	}
 
 	return validateGlobPatternList(patterns, validate, func(_ int, pat string, msgs []string) error {
-		filterValidationLog.Printf("ERROR: invalid glob pattern %q in %s.%s: %s", pat, eventName, filterKey, strings.Join(msgs, "; "))
+		compilerFiltersValidationLog.Printf("ERROR: invalid glob pattern %q in %s.%s: %s", pat, eventName, filterKey, strings.Join(msgs, "; "))
 		return NewValidationError(
 			fmt.Sprintf("on.%s.%s", eventName, filterKey),
 			pat,

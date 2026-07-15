@@ -17,9 +17,10 @@ import (
 	"os"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var updateCheckValidationLog = newValidationLogger("update_check")
+var updateCheckValidationLog = logger.New("workflow:strict_mode_update_check_validation")
 
 // validateUpdateCheck enforces the policy for the check-for-updates: false flag.
 // In strict mode it returns an error; in non-strict mode it emits a warning.

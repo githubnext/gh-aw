@@ -7,12 +7,60 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestResolveAWFContainerAgentTimeoutMinutes(t *testing.T) {
+	defaultFallback := int(constants.DefaultAgenticWorkflowTimeout / time.Minute)
+
+	t.Run("uses numeric timeout-minutes when provided", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultTimeoutMinutes, "")
+		got := resolveAWFContainerAgentTimeoutMinutes(&WorkflowData{TimeoutMinutes: "timeout-minutes: 30"})
+		assert.Equal(t, 30, got)
+	})
+
+	t.Run("falls back to default when timeout-minutes is omitted or non-numeric", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultTimeoutMinutes, "")
+		tests := []struct {
+			name string
+			data *WorkflowData
+		}{
+			{name: "nil workflow data", data: nil},
+			{name: "empty timeout", data: &WorkflowData{}},
+			{name: "expression timeout", data: &WorkflowData{TimeoutMinutes: "timeout-minutes: ${{ inputs.timeout-minutes }}"}},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				got := resolveAWFContainerAgentTimeoutMinutes(tt.data)
+				assert.Equal(t, defaultFallback, got)
+			})
+		}
+	})
+
+	t.Run("uses GH_AW_DEFAULT_TIMEOUT_MINUTES override for omitted and non-numeric values", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultTimeoutMinutes, "45")
+		tests := []struct {
+			name string
+			data *WorkflowData
+		}{
+			{name: "missing timeout", data: &WorkflowData{}},
+			{name: "expression timeout", data: &WorkflowData{TimeoutMinutes: "timeout-minutes: ${{ inputs.timeout-minutes }}"}},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				got := resolveAWFContainerAgentTimeoutMinutes(tt.data)
+				assert.Equal(t, 45, got)
+			})
+		}
+	})
+}
 
 // TestBuildAWFConfigJSON verifies that BuildAWFConfigJSON produces a valid JSON config
 // that contains the expected network, apiProxy, and container fields.

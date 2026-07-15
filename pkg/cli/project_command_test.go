@@ -3,7 +3,11 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -551,4 +555,108 @@ func TestGraphQLRequestBodyStructure(t *testing.T) {
 		assert.Equal(t, projectId, vars["projectId"])
 		assert.Equal(t, repositoryId, vars["repositoryId"])
 	})
+}
+
+func TestValidateOwnerUsesStringLoginField(t *testing.T) {
+	oldRunGH := projectCommandRunGH
+	defer func() { projectCommandRunGH = oldRunGH }()
+
+	tests := []struct {
+		name      string
+		ownerType string
+		owner     string
+	}{
+		{name: "organization login false stays string", ownerType: "org", owner: "false"},
+		{name: "user login null stays string", ownerType: "user", owner: "null"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var captured []string
+			projectCommandRunGH = func(spinnerMessage string, args ...string) ([]byte, error) {
+				captured = append([]string(nil), args...)
+				return []byte(`{}`), nil
+			}
+
+			err := validateOwner(context.Background(), tt.ownerType, tt.owner, false)
+			require.NoError(t, err)
+
+			require.Contains(t, captured, "login="+tt.owner)
+			loginIndex := slices.Index(captured, "login="+tt.owner)
+			require.Positive(t, loginIndex)
+			assert.Equal(t, "-f", captured[loginIndex-1], "login must be passed with -f so gh keeps String! values as strings")
+		})
+	}
+}
+
+func TestGetStatusFieldUsesStringLoginAndIntNumberFields(t *testing.T) {
+	oldRunGH := projectCommandRunGH
+	defer func() { projectCommandRunGH = oldRunGH }()
+
+	tests := []struct {
+		name         string
+		info         projectURLInfo
+		wantProject  string
+		wantProjectJ string
+		wantFieldsJ  string
+	}{
+		{
+			name:         "organization login false stays string",
+			info:         projectURLInfo{scope: "orgs", ownerLogin: "false", projectNumber: 42},
+			wantProject:  "project-org",
+			wantProjectJ: ".data.organization.projectV2.id",
+			wantFieldsJ:  ".data.organization.projectV2.fields.nodes",
+		},
+		{
+			name:         "user login null stays string",
+			info:         projectURLInfo{scope: "users", ownerLogin: "null", projectNumber: 7},
+			wantProject:  "project-user",
+			wantProjectJ: ".data.user.projectV2.id",
+			wantFieldsJ:  ".data.user.projectV2.fields.nodes",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls [][]string
+			projectCommandRunGH = func(spinnerMessage string, args ...string) ([]byte, error) {
+				call := append([]string(nil), args...)
+				calls = append(calls, call)
+				switch jqPathArg(t, call) {
+				case tt.wantProjectJ:
+					return []byte(tt.wantProject), nil
+				case tt.wantFieldsJ:
+					return []byte(`[{"id":"status-field","name":"Status","options":[{"name":"Todo","color":"GRAY"}]}]`), nil
+				default:
+					return nil, errors.New("unexpected jq path")
+				}
+			}
+
+			field, err := getStatusField(context.Background(), tt.info, false)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantProject, field.projectID)
+			assert.Equal(t, "status-field", field.fieldID)
+			require.Len(t, field.options, 1)
+			assert.Equal(t, "Todo", field.options[0].Name)
+
+			require.Len(t, calls, 2)
+			for _, call := range calls {
+				loginIndex := slices.Index(call, "login="+tt.info.ownerLogin)
+				require.Positive(t, loginIndex)
+				assert.Equal(t, "-f", call[loginIndex-1], "login must be passed with -f so gh keeps String! values as strings")
+
+				numberIndex := slices.Index(call, "number="+strconv.Itoa(tt.info.projectNumber))
+				require.Positive(t, numberIndex)
+				assert.Equal(t, "-F", call[numberIndex-1], "project number must keep -F so gh coerces Int! values correctly")
+			}
+		})
+	}
+}
+
+func jqPathArg(t *testing.T, args []string) string {
+	t.Helper()
+	jqIndex := slices.Index(args, "--jq")
+	require.Positive(t, jqIndex)
+	require.Less(t, jqIndex, len(args)-1)
+	return args[jqIndex+1]
 }

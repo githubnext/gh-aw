@@ -11,8 +11,11 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var bootstrapLog = logger.New("cli:bootstrap")
 
 type BootstrapOptions struct {
 	Ctx              context.Context
@@ -43,6 +46,9 @@ type bootstrapPlan struct {
 	SkippedSources     []string
 	CompileAfterAdd    bool
 	OwnerType          string
+	BootstrapProfile   *resolvedBootstrapProfile
+	ProfilePlanLines   []string
+	ProfileNeedsAction bool
 	NeedsMutation      bool
 	PlanLines          []string
 }
@@ -53,9 +59,18 @@ type bootstrapRuntime struct {
 	initRepo         func(InitOptions) error
 	addWorkflows     func(context.Context, []string, AddOptions) (*AddWorkflowsResult, error)
 	compileWorkflows func(context.Context, CompileConfig) ([]*workflow.WorkflowData, error)
+	resolveProfile   func(context.Context, []string) (*resolvedBootstrapProfile, error)
+	profileNeedsPlan func(context.Context, string, *resolvedBootstrapProfile, []string, bool) (bool, []string, error)
+	executeProfile   func(context.Context, bootstrapProfileRunConfig) error
 }
 
-const bootstrapAddWorkflowsRetryHint = "repository initialization completed; re-run bootstrap to retry workflow addition"
+const (
+	bootstrapAddWorkflowsRetryHint = "repository initialization completed; re-run bootstrap to retry workflow addition"
+	bootstrapMCPConfigPath         = ".github/mcp.json"
+	bootstrapCopilotSetupPath      = ".github/workflows/copilot-setup-steps.yml"
+	bootstrapAgenticSkillPath      = ".github/skills/agentic-workflows/SKILL.md"
+	bootstrapAgenticAgentPath      = ".github/agents/agentic-workflows.md"
+)
 
 func defaultBootstrapRuntime() bootstrapRuntime {
 	setupRuntime := defaultSetupRepositoryRuntime()
@@ -65,6 +80,9 @@ func defaultBootstrapRuntime() bootstrapRuntime {
 		initRepo:               InitRepository,
 		addWorkflows:           AddWorkflows,
 		compileWorkflows:       CompileWorkflows,
+		resolveProfile:         resolveBootstrapProfileFromSources,
+		profileNeedsPlan:       buildBootstrapProfilePlan,
+		executeProfile:         executeBootstrapProfile,
 	}
 }
 
@@ -77,6 +95,8 @@ func RunBootstrap(opts BootstrapOptions) error {
 }
 
 func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, originalDir string) error {
+	runtime = normalizeBootstrapRuntime(runtime)
+
 	if err := validateBootstrapOptions(opts); err != nil {
 		return err
 	}
@@ -94,17 +114,19 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 	printBootstrapPlan(plan)
 
 	if opts.PlanOnly {
+		bootstrapLog.Printf("Plan-only mode; skipping mutation for %s", opts.Repo)
 		return nil
 	}
 
 	if !plan.NeedsMutation {
+		bootstrapLog.Printf("Bootstrap already satisfied for %s; no mutation needed", opts.Repo)
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Bootstrap already satisfied for "+opts.Repo))
 		return nil
 	}
 
 	if !opts.Yes {
 		if IsRunningInCI() {
-			return errors.New("--yes is required in CI when bootstrap would make changes")
+			return errors.New("--yes is required in CI when bootstrap would make changes. Example: gh aw bootstrap --repo OWNER/REPO --yes")
 		}
 		confirmed, err := runtime.confirmAction(
 			fmt.Sprintf("Apply bootstrap changes to %s?", plan.Repo),
@@ -198,6 +220,21 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Compiled workflows"))
 		}
 
+		if plan.BootstrapProfile != nil && runtime.executeProfile != nil {
+			if err := runtime.executeProfile(ctx, bootstrapProfileRunConfig{
+				Repo:     plan.Repo,
+				RepoDir:  plan.Dir,
+				Sources:  resolveDeployWorkflowSpecs(opts.Sources, originalDir),
+				Profile:  plan.BootstrapProfile,
+				Yes:      opts.Yes,
+				PlanOnly: opts.PlanOnly,
+				Verbose:  opts.Verbose,
+				Force:    opts.Force,
+			}); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	}); err != nil {
 		return err
@@ -217,27 +254,54 @@ func normalizeBootstrapOptions(opts BootstrapOptions) BootstrapOptions {
 	return opts
 }
 
+func normalizeBootstrapRuntime(runtime bootstrapRuntime) bootstrapRuntime {
+	defaults := defaultBootstrapRuntime()
+	if runtime.confirmAction == nil {
+		runtime.confirmAction = defaults.confirmAction
+	}
+	if runtime.initRepo == nil {
+		runtime.initRepo = defaults.initRepo
+	}
+	if runtime.addWorkflows == nil {
+		runtime.addWorkflows = defaults.addWorkflows
+	}
+	if runtime.compileWorkflows == nil {
+		runtime.compileWorkflows = defaults.compileWorkflows
+	}
+	if runtime.resolveProfile == nil {
+		runtime.resolveProfile = defaults.resolveProfile
+	}
+	if runtime.profileNeedsPlan == nil {
+		runtime.profileNeedsPlan = defaults.profileNeedsPlan
+	}
+	if runtime.executeProfile == nil {
+		runtime.executeProfile = defaults.executeProfile
+	}
+	return runtime
+}
+
 func validateBootstrapOptions(opts BootstrapOptions) error {
 	if !isValidOwnerRepoSlug(opts.Repo) {
-		return errors.New("--repo must use the OWNER/REPO format")
+		return errors.New("--repo must use the OWNER/REPO format. Example: --repo github/gh-aw")
 	}
 
 	switch opts.Visibility {
 	case "private", "public", "internal":
 	default:
-		return errors.New("--visibility must be one of: private, public, internal")
+		return errors.New("--visibility must be one of: private, public, internal. Example: --visibility private")
 	}
 
 	switch opts.RequireOwnerType {
 	case "any", "org", "user":
 	default:
-		return errors.New("--require-owner-type must be one of: any, org, user")
+		return errors.New("--require-owner-type must be one of: any, org, user. Example: --require-owner-type org")
 	}
 
 	return nil
 }
 
 func buildBootstrapPlan(ctx context.Context, opts BootstrapOptions, runtime bootstrapRuntime, originalDir string) (*bootstrapPlan, error) {
+	bootstrapLog.Printf("Building bootstrap plan: repo=%s, createRepo=%t, sources=%d", opts.Repo, opts.CreateRepo, len(opts.Sources))
 	if err := runtime.checkAuth(ctx); err != nil {
 		return nil, fmt.Errorf("failed to verify GitHub CLI authentication: %w", err)
 	}
@@ -309,8 +373,30 @@ func buildBootstrapPlan(ctx context.Context, opts BootstrapOptions, runtime boot
 		}
 	}
 
+	if len(opts.Sources) > 0 && runtime.resolveProfile != nil {
+		profile, err := runtime.resolveProfile(ctx, opts.Sources)
+		if err != nil {
+			return nil, err
+		}
+		if profile != nil {
+			plan.BootstrapProfile = profile
+			profileNeedsPlan := runtime.profileNeedsPlan
+			if profileNeedsPlan == nil {
+				profileNeedsPlan = defaultBootstrapRuntime().profileNeedsPlan
+			}
+			needsAction, profileLines, err := profileNeedsPlan(ctx, plan.Repo, profile, opts.Sources, plan.RepoExists)
+			if err != nil {
+				return nil, err
+			}
+			plan.ProfileNeedsAction = needsAction
+			plan.ProfilePlanLines = append(plan.ProfilePlanLines, profileLines...)
+		}
+	}
+
 	plan.PlanLines = buildBootstrapPlanLines(plan, opts)
-	plan.NeedsMutation = plan.CreateRepo || plan.CloneRepo || plan.InitNeeded || len(plan.ResolvedSources) > 0
+	plan.NeedsMutation = plan.CreateRepo || plan.CloneRepo || plan.InitNeeded || len(plan.ResolvedSources) > 0 || plan.ProfileNeedsAction
+	bootstrapLog.Printf("Bootstrap plan built: createRepo=%t, cloneRepo=%t, attached=%t, initNeeded=%t, profileNeedsAction=%t, needsMutation=%t",
+		plan.CreateRepo, plan.CloneRepo, plan.AttachedCheckout, plan.InitNeeded, plan.ProfileNeedsAction, plan.NeedsMutation)
 
 	if !opts.PlanOnly && plan.AttachedCheckout && plan.NeedsMutation {
 		if err := withWorkingDir(plan.Dir, func() error {
@@ -358,7 +444,7 @@ func isBootstrapInitMarkerSatisfied(baseDir string, marker string) (bool, error)
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
 		}
 		return strings.Contains(string(content), constants.WorkflowsLockYmlGitAttributesEntry), nil
-	case ".github/mcp.json":
+	case bootstrapMCPConfigPath:
 		content, err := os.ReadFile(markerPath)
 		if err != nil {
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
@@ -379,7 +465,7 @@ func isBootstrapInitMarkerSatisfied(baseDir string, marker string) (bool, error)
 			return false, nil
 		}
 		return len(server.Args) >= 2 && server.Args[0] == "aw" && server.Args[1] == "mcp-server", nil
-	case ".github/workflows/copilot-setup-steps.yml":
+	case bootstrapCopilotSetupPath:
 		content, err := os.ReadFile(markerPath)
 		if err != nil {
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
@@ -389,7 +475,7 @@ func isBootstrapInitMarkerSatisfied(baseDir string, marker string) (bool, error)
 			(strings.Contains(steps, "Install gh-aw extension") && strings.Contains(steps, "curl -fsSL"))
 		hasActionInstall := strings.Contains(steps, "actions/setup-cli")
 		return hasLegacyInstall || hasActionInstall, nil
-	case ".github/skills/agentic-workflows/SKILL.md":
+	case bootstrapAgenticSkillPath:
 		expected, err := buildAgenticWorkflowsSkillContent()
 		if err != nil {
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
@@ -399,7 +485,7 @@ func isBootstrapInitMarkerSatisfied(baseDir string, marker string) (bool, error)
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
 		}
 		return strings.TrimSpace(string(content)) == strings.TrimSpace(expected), nil
-	case ".github/agents/agentic-workflows.md":
+	case bootstrapAgenticAgentPath:
 		expected, err := buildAgenticWorkflowsAgentContent(baseDir)
 		if err != nil {
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
@@ -421,10 +507,10 @@ func expectedBootstrapInitMarkers(engineOverride string) []string {
 	}
 	if engineOverride == "" || engineOverride == "copilot" {
 		markers = append(markers,
-			".github/skills/agentic-workflows/SKILL.md",
-			".github/agents/agentic-workflows.md",
-			".github/mcp.json",
-			".github/workflows/copilot-setup-steps.yml",
+			bootstrapAgenticSkillPath,
+			bootstrapAgenticAgentPath,
+			bootstrapMCPConfigPath,
+			bootstrapCopilotSetupPath,
 		)
 	}
 	return markers
@@ -462,6 +548,16 @@ func buildBootstrapPlanLines(plan *bootstrapPlan, opts BootstrapOptions) []strin
 	}
 	if len(plan.SkippedSources) > 0 {
 		lines = append(lines, "- skip already sourced workflows: "+strings.Join(plan.SkippedSources, ", "))
+	}
+
+	if plan.BootstrapProfile != nil {
+		lines = append(lines, "- evaluate bootstrap actions from "+plan.BootstrapProfile.PackageID)
+		if plan.ProfileNeedsAction {
+			lines = append(lines, fmt.Sprintf("- apply bootstrap profile actions (%d action(s))", len(plan.BootstrapProfile.Profile.Actions)))
+		} else {
+			lines = append(lines, "- bootstrap profile actions already satisfied")
+		}
+		lines = append(lines, plan.ProfilePlanLines...)
 	}
 
 	if plan.OwnerType != "" {

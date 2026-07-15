@@ -19,7 +19,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "fprintlnsprintf",
 	Doc:      "reports fmt.Fprintln(w, fmt.Sprintf(...)) calls that should be rewritten as fmt.Fprintf(w, ...)",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/fprintlnsprintf",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -28,7 +28,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "fprintlnsprintf")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -49,8 +56,8 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		// Skip test files.
-		pos := pass.Fset.Position(call.Pos())
-		if filecheck.IsTestFile(pos.Filename) {
+		pos := pass.Fset.PositionFor(call.Pos(), false)
+		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			return
 		}
 
@@ -62,7 +69,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if !isFmtFunc(pass, printedArg, "Sprintf") {
 			return
 		}
-		if nolint.HasDirective(pos, noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(pos, noLintIndex, "fprintlnsprintf") {
 			return
 		}
 

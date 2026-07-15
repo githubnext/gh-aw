@@ -5,6 +5,8 @@ sidebar:
   order: 296
 ---
 
+If a task can be solved using deterministic tools, use deterministic tools. Only use agents when necessary, as they incur higher cost. Agentic workflows allow you to run deterministic tools first and gate agent execution using conditions, enabling workflows that avoid triggering agents most of the time and only use them when needed.
+
 The cost of running an agentic workflow is the sum of two components: **GitHub Actions minutes** consumed by the workflow jobs, and **inference costs** charged by the AI provider for each agent run. For an overview of how billing works across providers and Copilot licensing, see [Billing](/gh-aw/reference/billing/).
 
 ## AI Credits (AIC)

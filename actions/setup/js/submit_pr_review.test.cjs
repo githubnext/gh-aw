@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const mockCore = {
   debug: vi.fn(),
@@ -38,7 +38,7 @@ global.github = {
   graphql: vi.fn().mockResolvedValue({}),
 };
 
-const { createReviewBuffer } = require("./pr_review_buffer.cjs");
+const { createReviewBuffer, createPrReviewBufferRegistry } = require("./pr_review_buffer.cjs");
 
 describe("submit_pr_review (Handler Factory Architecture)", () => {
   let handler;
@@ -770,5 +770,110 @@ describe("submit_pr_review (Handler Factory Architecture)", () => {
 
     // Clean up
     delete global.context;
+  });
+});
+
+describe("submit_pr_review multi-buffer (registry mode)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "o", repo: "r" },
+      payload: {},
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          get: vi.fn().mockImplementation(({ pull_number }) => Promise.resolve({ data: { number: pull_number, head: { sha: `sha-${pull_number}` } } })),
+        },
+      },
+    };
+  });
+
+  afterEach(() => {
+    delete global.context;
+    delete global.github;
+  });
+
+  it("two calls targeting distinct PRs each populate their own buffer", async () => {
+    const registry = createPrReviewBufferRegistry();
+    const { main } = require("./submit_pr_review.cjs");
+    const handler = await main({ max: 5, target: "*", _prReviewBufferRegistry: registry });
+
+    const result1 = await handler({ type: "submit_pull_request_review", body: "Body for PR 1", event: "COMMENT", pull_request_number: 1 }, {});
+    const result2 = await handler({ type: "submit_pull_request_review", body: "Body for PR 2", event: "APPROVE", pull_request_number: 2 }, {});
+
+    expect(result1.success).toBe(true);
+    expect(result1.pull_request_number).toBe(1);
+    expect(result1.repo).toBe("o/r");
+
+    expect(result2.success).toBe(true);
+    expect(result2.pull_request_number).toBe(2);
+    expect(result2.repo).toBe("o/r");
+
+    const entries = registry.getAllEntries();
+    expect(entries).toHaveLength(2);
+
+    const [e1, e2] = entries;
+    expect(e1.prNumber).toBe(1);
+    expect(e1.buffer.hasReviewMetadata()).toBe(true);
+
+    expect(e2.prNumber).toBe(2);
+    expect(e2.buffer.hasReviewMetadata()).toBe(true);
+
+    // Buffers are independent — metadata does not leak between them
+    const ctx1 = e1.buffer.getReviewContext();
+    const ctx2 = e2.buffer.getReviewContext();
+    expect(ctx1.pullRequestNumber).toBe(1);
+    expect(ctx2.pullRequestNumber).toBe(2);
+  });
+
+  it("second call targeting the same PR is rejected with an error", async () => {
+    const registry = createPrReviewBufferRegistry();
+    const { main } = require("./submit_pr_review.cjs");
+    const handler = await main({ max: 5, target: "*", _prReviewBufferRegistry: registry });
+
+    const result1 = await handler({ body: "First call", event: "COMMENT", pull_request_number: 7 }, {});
+    const result2 = await handler({ body: "Second call", event: "APPROVE", pull_request_number: 7 }, {});
+
+    expect(result1.success).toBe(true);
+    // Second call to the same PR must be rejected — only one submit per PR per run is allowed
+    expect(result2.success).toBe(false);
+    expect(result2.error).toMatch(/already has a pending review submission/);
+
+    // Only one buffer entry created (PR 7)
+    const entries = registry.getAllEntries();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].prNumber).toBe(7);
+  });
+
+  it("returns success:false when target cannot be resolved in registry mode", async () => {
+    // workflow_dispatch with target:triggering => can't resolve PR
+    const registry = createPrReviewBufferRegistry();
+    const { main } = require("./submit_pr_review.cjs");
+    const handler = await main({ max: 1, target: "triggering", _prReviewBufferRegistry: registry });
+
+    const result = await handler({ body: "Review", event: "COMMENT" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    // Registry should be empty — nothing was buffered
+    expect(registry.getAllEntries()).toHaveLength(0);
+  });
+
+  it("staged defaults propagate to each new buffer via registry.setDefaultStaged", async () => {
+    const registry = createPrReviewBufferRegistry();
+    const setDefaultStagedSpy = vi.spyOn(registry, "setDefaultStaged");
+    const { main } = require("./submit_pr_review.cjs");
+    await main({ max: 1, target: "*", staged: true, _prReviewBufferRegistry: registry });
+    expect(setDefaultStagedSpy).toHaveBeenCalledWith(true);
+  });
+
+  it("supersede_older_reviews default propagates via registry.setDefaultSupersedeOlderReviews", async () => {
+    const registry = createPrReviewBufferRegistry();
+    const setSuperSpy = vi.spyOn(registry, "setDefaultSupersedeOlderReviews");
+    const { main } = require("./submit_pr_review.cjs");
+    await main({ max: 1, target: "*", supersede_older_reviews: true, _prReviewBufferRegistry: registry });
+    expect(setSuperSpy).toHaveBeenCalledWith(true);
   });
 });

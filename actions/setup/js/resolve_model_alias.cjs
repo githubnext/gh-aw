@@ -135,7 +135,7 @@ function selectLatestGlobMatch(pattern, catalog) {
 
 /**
  * Build provider-scoped catalog entries from AWF /reflect data.
- * @param {object|null|undefined} reflectData
+ * @param {any} reflectData
  * @returns {string[]}
  */
 function buildCatalogFromReflect(reflectData) {

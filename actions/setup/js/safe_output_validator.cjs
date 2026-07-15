@@ -8,7 +8,7 @@ const { matchesSimpleGlob } = require("./glob_pattern_helpers.cjs");
 
 /**
  * Load and parse the safe outputs configuration from config.json
- * @returns {object} The parsed configuration object
+ * @returns {any} The parsed configuration object
  */
 function loadSafeOutputsConfig() {
   const configPath = `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/config.json`;

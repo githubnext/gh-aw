@@ -32,8 +32,6 @@ func TestSpec_EngineConstants_NameValues(t *testing.T) {
 		{name: "AntigravityEngine value", constant: constants.AntigravityEngine, expected: "antigravity"},
 		// From spec: constants.OpenCodeEngine // "opencode"
 		{name: "OpenCodeEngine value", constant: constants.OpenCodeEngine, expected: "opencode"},
-		// From spec: constants.CrushEngine // "crush"
-		{name: "CrushEngine value", constant: constants.CrushEngine, expected: "crush"},
 		// From spec: constants.PiEngine // "pi" (experimental)
 		{name: "PiEngine value", constant: constants.PiEngine, expected: "pi"},
 		// From spec: constants.DefaultEngine // "copilot"
@@ -50,13 +48,13 @@ func TestSpec_EngineConstants_NameValues(t *testing.T) {
 
 // TestSpec_EngineConstants_AgenticEngines validates the documented AgenticEngines list.
 // Spec section: "// All supported engine names"
-// Spec documents: constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi"}
+// Spec documents: constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "pi"}
 func TestSpec_EngineConstants_AgenticEngines(t *testing.T) {
 	engines := constants.AgenticEngines
 	require.NotEmpty(t, engines, "AgenticEngines should be non-empty")
 
-	// Spec documents all eight engines, including antigravity and pi (experimental).
-	documentedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi"}
+	// Spec documents all seven engines, including antigravity and pi (experimental).
+	documentedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "pi"}
 	for _, expected := range documentedEngines {
 		assert.Contains(t, engines, expected,
 			"AgenticEngines should contain documented engine %q", expected)
@@ -402,10 +400,10 @@ func TestSpec_SystemSecrets_GlobalSlice(t *testing.T) {
 		"SystemSecrets should include GH_AW_GITHUB_MCP_SERVER_TOKEN as documented")
 }
 
-// TestSpec_ModelEnvVars_OpenCodeAndCrush validates the documented model env var constants
-// for the OpenCode and Crush engines.
+// TestSpec_ModelEnvVars_OpenCode validates the documented model env var constants
+// for the OpenCode engine.
 // Spec section: "### Model Environment Variables"
-func TestSpec_ModelEnvVars_OpenCodeAndCrush(t *testing.T) {
+func TestSpec_ModelEnvVars_OpenCode(t *testing.T) {
 	tests := []struct {
 		name     string
 		actual   string
@@ -417,12 +415,6 @@ func TestSpec_ModelEnvVars_OpenCodeAndCrush(t *testing.T) {
 		{name: "EnvVarModelDetectionOpenCode", actual: constants.EnvVarModelDetectionOpenCode, expected: "GH_AW_MODEL_DETECTION_OPENCODE"},
 		// From spec: constants.OpenCodeCLIModelEnvVar // "OPENCODE_MODEL"
 		{name: "OpenCodeCLIModelEnvVar", actual: constants.OpenCodeCLIModelEnvVar, expected: "OPENCODE_MODEL"},
-		// From spec: constants.EnvVarModelAgentCrush // "GH_AW_MODEL_AGENT_CRUSH"
-		{name: "EnvVarModelAgentCrush", actual: constants.EnvVarModelAgentCrush, expected: "GH_AW_MODEL_AGENT_CRUSH"},
-		// From spec: constants.EnvVarModelDetectionCrush // "GH_AW_MODEL_DETECTION_CRUSH"
-		{name: "EnvVarModelDetectionCrush", actual: constants.EnvVarModelDetectionCrush, expected: "GH_AW_MODEL_DETECTION_CRUSH"},
-		// From spec: constants.CrushCLIModelEnvVar // "CRUSH_MODEL"
-		{name: "CrushCLIModelEnvVar", actual: constants.CrushCLIModelEnvVar, expected: "CRUSH_MODEL"},
 	}
 
 	for _, tt := range tests {

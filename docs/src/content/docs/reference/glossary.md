@@ -518,7 +518,7 @@ engine:
 
 ### Engine
 
-The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports seven engines: **Copilot** (default), **Claude**, **Codex**, **Gemini**, **Crush** (experimental), **OpenCode** (experimental), and **Pi** (experimental). Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
+The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports six engines: **Copilot** (default), **Claude**, **Codex**, **Gemini**, **OpenCode** (experimental), and **Pi** (experimental). Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
 
 ### Anthropic Workload Identity Federation (WIF)
 
@@ -638,16 +638,15 @@ A declarative configuration block inside a built-in engine definition file (unde
 
 ```aw wrap
 engine:
-  id: crush
+  id: opencode
   behaviors:
     installation:
       package-manager: npm
-      package-name: "@charmland/crush"
-      binary-name: crush
+      package-name: opencode-ai
+      binary-name: opencode
     execution:
-      command-name: crush
-      args: [run, --verbose]
-      model-env-var: CRUSH_MODEL
+      command-name: opencode
+      model-env-var: OPENCODE_MODEL
 ```
 
 ### Experiments (`experiments:`)
@@ -899,12 +898,14 @@ on:
 
 ### Role Filtering (`on.roles:`, `on.skip-roles:`)
 
-An authorization control restricting which repository access roles can trigger a workflow. `roles:` is an exact-match allowlist — each value must match the actor's role exactly, with no privilege hierarchy. Defaults to `[admin, maintainer, write]`. `skip-roles:` is the inverse.
+An authorization control restricting which repository access roles can trigger a workflow. `roles:` is an exact-match allowlist for standard GitHub roles — each value must match the actor's role exactly, with no privilege hierarchy. Defaults to `[admin, maintainer, write]`. `skip-roles:` is the inverse.
 
 Available roles: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`, `all`. Workflows with unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce role checks.
 
 > [!WARNING]
 > `roles` is not a privilege threshold. Setting `roles: [write]` rejects admins and maintainers because `admin !== write`. To accept all typical contributors, list every role explicitly.
+
+Actors assigned a **custom organization repository role** (e.g. `Security Champions`) are authorized via the inherited standard role that GitHub reports for that custom role — not the custom role name. A user with a custom role inherited from `write` is authorized whenever `write` is in the required set, while a custom role inherited from `maintain` is still rejected by `roles: [write]`.
 
 See [Triggers Reference](/gh-aw/reference/triggers/).
 

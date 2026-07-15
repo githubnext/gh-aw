@@ -13,9 +13,11 @@ package workflow
 import (
 	"fmt"
 	"slices"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var firewallValidationLog = newValidationLogger("firewall")
+var firewallValidationLog = logger.New("workflow:firewall_validation")
 
 // validateFirewallConfig validates firewall configuration including log-level
 func (c *Compiler) validateFirewallConfig(workflowData *WorkflowData) error {

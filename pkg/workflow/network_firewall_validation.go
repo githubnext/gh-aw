@@ -19,9 +19,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var networkFirewallValidationLog = newValidationLogger("network_firewall")
+var networkFirewallValidationLog = logger.New("workflow:network_firewall_validation")
 
 // validateNetworkFirewallConfig validates network firewall configuration dependencies
 // Returns an error if the configuration is invalid

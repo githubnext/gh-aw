@@ -44,11 +44,50 @@ const AWF_MODELS_URL_OIDC_INITIAL_DELAY_MS_DEFAULT = 5000;
 // Gemini model name prefix stripped from model IDs in the Gemini models API response.
 // Example: { name: "models/gemini-1.5-pro" } → "gemini-1.5-pro"
 const GEMINI_MODEL_NAME_PREFIX = "models/";
+const REFLECT_PROVIDER_GITHUB = "github";
+const REFLECT_PROVIDER_OPENAI = "openai";
+const REFLECT_PROVIDER_ANTHROPIC = "anthropic";
+
+/**
+ * @typedef {{
+ *   configured?: boolean,
+ *   models_url?: string | null,
+ *   port?: number | null,
+ *   provider?: string,
+ * }} ReflectEndpoint
+ */
+
+/**
+ * @typedef {{
+ *   endpoints?: ReflectEndpoint[],
+ * }} ReflectData
+ */
+
+const REFLECT_PROVIDER_ALIASES = {
+  // Only GitHub has multiple externally-visible aliases in reflect payloads.
+  github: new Set(["github", "copilot", "github-copilot", "github_models"]),
+  openai: new Set(["openai"]),
+  anthropic: new Set(["anthropic"]),
+};
 
 // Default logger used by fetchAWFReflect when no logger is provided via options.
 // All lines are prefixed with "[awf-reflect]" for easy grepping in combined logs.
 // prettier-ignore
 const DEFAULT_REFLECT_LOGGER = /** @type {(msg: string) => void} */ (msg => process.stderr.write(`[awf-reflect] ${new Date().toISOString()} ${msg}\n`));
+
+/**
+ * Normalize provider IDs used in reflect/provider resolution.
+ *
+ * @param {unknown} provider
+ * @param {string} [fallback]
+ * @returns {string}
+ */
+function normalizeReflectProviderName(provider, fallback = "") {
+  const normalized = String(provider || "")
+    .toLowerCase()
+    .trim();
+  return normalized || fallback;
+}
 
 /**
  * Extract model IDs from a provider API response body.
@@ -57,7 +96,7 @@ const DEFAULT_REFLECT_LOGGER = /** @type {(msg: string) => void} */ (msg => proc
  *   - OpenAI / Anthropic / Copilot format: { data: [{ id: "..." }, ...] }
  *   - Gemini format: { models: [{ name: "models/gemini-1.5-pro" }, ...] }
  *
- * @param {object|null} json - Parsed API response
+ * @param {any|null} json - Parsed API response
  * @returns {string[]|null} Sorted array of model IDs, or null if unavailable
  */
 function extractModelIds(json) {
@@ -158,15 +197,16 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
           }
           return models;
         } catch (err) {
-          const e = /** @type {Error} */ err;
-          if (e.name === "AbortError") {
+          if (err instanceof Error && err.name === "AbortError") {
             return null; // already logged above
           }
+          /** @type {any} */
+          const e = err;
           const status = e?.status ?? e?.response?.status ?? null;
           if (status === 503) {
             throw e;
           }
-          logger(`awf-reflect: models fetch error for ${modelsUrl}: ${e.message}`);
+          logger(`awf-reflect: models fetch error for ${modelsUrl}: ${err instanceof Error ? err.message : String(err)}`);
           return null;
         } finally {
           clearTimeout(timer);
@@ -176,14 +216,15 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
       `awf-reflect models fetch for ${modelsUrl}`
     );
   } catch (err) {
-    const e = /** @type {Error} */ err;
+    /** @type {any} */
+    const e = err;
     const original = e?.originalError || e;
     const status = original?.status ?? original?.response?.status ?? null;
     if (status === 503) {
       logger(`awf-reflect: models fetch returned 503 for ${modelsUrl}`);
       return null;
     }
-    logger(`awf-reflect: models fetch error for ${modelsUrl}: ${e.message}`);
+    logger(`awf-reflect: models fetch error for ${modelsUrl}: ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }
@@ -194,7 +235,7 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
  *
  * This is a best-effort fallback: failures are logged but do not throw.
  *
- * @param {object} reflectData - Parsed /reflect response (mutated in-place)
+ * @param {any} reflectData - Parsed /reflect response (mutated in-place)
  * @param {number} timeoutMs - Per-request timeout for models_url fetches
  * @param {(msg: string) => void} logger
  * @returns {Promise<void>}
@@ -281,6 +322,7 @@ async function fetchAWFReflect(options) {
         status: res.status,
       };
     }
+    /** @type {any} */
     const reflectData = await res.json();
     // Attempt to fill in null models for configured providers by fetching directly
     // from each endpoint's models_url. The api-proxy injects auth headers when
@@ -346,10 +388,10 @@ function isOpenAIModelName(model) {
 /**
  * Look up a model entry in the models.json catalog, case-insensitively.
  *
- * @param {object | null | undefined} modelsJson
+ * @param {any} modelsJson
  * @param {string} modelName
  * @param {string | null | undefined} [providerName]
- * @returns {object | null}
+ * @returns {any | null}
  */
 function getCatalogModelEntry(modelsJson, modelName, providerName) {
   const model = String(modelName || "")
@@ -406,7 +448,7 @@ function getCatalogModelEntry(modelsJson, modelName, providerName) {
  *
  * @param {string} endpointProvider - The `provider` field from the AWF reflect endpoint entry.
  * @param {string} modelName - The resolved model name to use for heuristic fallback.
- * @param {object | null | undefined} catalogEntryOrModelsJson - Matching models.json catalog entry or full catalog (optional).
+ * @param {any} catalogEntryOrModelsJson - Matching models.json catalog entry or full catalog (optional).
  * @returns {"openai" | "azure" | "anthropic"}
  */
 function inferProviderTypeForModel(endpointProvider, modelName, catalogEntryOrModelsJson) {
@@ -455,7 +497,7 @@ function inferProviderTypeForModel(endpointProvider, modelName, catalogEntryOrMo
  *
  * @param {"openai" | "azure" | "anthropic"} providerType
  * @param {string} modelName
- * @param {object | null | undefined} catalogEntryOrModelsJson
+ * @param {any} catalogEntryOrModelsJson
  * @returns {"completions" | "responses" | undefined}
  */
 function inferWireApiForModel(providerType, modelName, catalogEntryOrModelsJson) {
@@ -503,6 +545,60 @@ function endpointBaseUrl(endpoint) {
 }
 
 /**
+ * Resolve a configured provider endpoint from AWF /reflect data.
+ *
+ * @param {{
+ *   provider?: string,
+ *   reflectData: ReflectData | null | undefined,
+ *   logger?: (msg: string) => void,
+ * }} options
+ * @returns {{ provider: string, endpointProvider: string, port: number|null, baseUrl: string } | null}
+ */
+function resolveProviderEndpointFromReflect(options) {
+  const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
+  const provider = normalizeReflectProviderName(options?.provider, "openai");
+  const reflectData = options?.reflectData;
+  /** @type {{ endpoints?: unknown } | null} */
+  const reflectRecord = reflectData && typeof reflectData === "object" ? reflectData : null;
+  const endpointCandidates = Array.isArray(reflectRecord?.endpoints) ? reflectRecord.endpoints : [];
+  const endpoints = endpointCandidates.filter(/** @param {any} ep */ ep => ep && ep.configured === true);
+  if (endpoints.length === 0) {
+    logger(`awf-reflect: no configured endpoints available while resolving provider=${provider}`);
+    return null;
+  }
+
+  /** @param {string} endpointProvider */
+  const endpointProviderMatches = endpointProvider => {
+    // Keep aliases aligned with pkg/workflow/llm_provider.go (llmProviderAliases).
+    // If alias handling changes, update both places in the same PR.
+    const normalized = normalizeReflectProviderName(endpointProvider);
+    if (!normalized) return false;
+    if (provider === REFLECT_PROVIDER_GITHUB) {
+      return REFLECT_PROVIDER_ALIASES.github.has(normalized);
+    }
+    if (provider === REFLECT_PROVIDER_OPENAI) {
+      return REFLECT_PROVIDER_ALIASES.openai.has(normalized);
+    }
+    if (provider === REFLECT_PROVIDER_ANTHROPIC) {
+      return REFLECT_PROVIDER_ALIASES.anthropic.has(normalized);
+    }
+    return normalized === provider;
+  };
+
+  const matched = endpoints.find(ep => typeof ep?.provider === "string" && endpointProviderMatches(ep.provider)) || endpoints[0];
+  const baseUrl = endpointBaseUrl(matched);
+  if (!baseUrl) {
+    logger(`awf-reflect: matched provider=${provider} but could not derive baseUrl`);
+    return null;
+  }
+  const endpointProvider = String(matched.provider || "unknown");
+  const parsedPort = matched.port == null ? null : Number(matched.port);
+  const port = Number.isFinite(parsedPort) ? parsedPort : null;
+  logger(`awf-reflect: provider=${provider} mapped to endpoint provider=${endpointProvider} baseUrl=${baseUrl}`);
+  return { provider, endpointProvider, port, baseUrl };
+}
+
+/**
  * Resolve multi-provider BYOK configuration from AWF /reflect data.
  *
  * Returns `null` when no configured endpoints are present or the data is
@@ -518,7 +614,7 @@ function endpointBaseUrl(endpoint) {
  *
  * @param {{
  *   model?: string,
- *   reflectData: object | null | undefined,
+ *   reflectData: ReflectData | null | undefined,
  *   modelsJson?: object | null,
  *   logger?: (msg: string) => void,
  * }} [options]
@@ -538,7 +634,9 @@ function resolveMultiProviderFromReflect(options) {
     return null;
   }
 
-  const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints.filter(ep => ep && ep.configured === true) : [];
+  /** @type {any} */
+  const rd = reflectData;
+  const endpoints = Array.isArray(rd?.endpoints) ? rd.endpoints.filter(ep => ep && ep.configured === true) : [];
 
   if (endpoints.length === 0) {
     logger(`sdk-mode(multi): no configured endpoints in awf-reflect data; cannot build multi-provider config`);
@@ -645,6 +743,8 @@ if (typeof module !== "undefined" && module.exports) {
     getCatalogModelEntry,
     inferProviderTypeForModel,
     inferWireApiForModel,
+    normalizeReflectProviderName,
+    resolveProviderEndpointFromReflect,
     resolveMultiProviderFromReflect,
   };
 }

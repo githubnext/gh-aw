@@ -536,6 +536,7 @@ async function main(config = {}) {
     let branchName;
     let prTitle = "";
     let prLabels = [];
+    /** @type {any} */
     let branchStateBefore = null;
 
     if (!pullNumber) {
@@ -557,6 +558,7 @@ async function main(config = {}) {
     // When the target repo differs from the workflow repo, it may be checked out
     // into a subdirectory of GITHUB_WORKSPACE (e.g. via actions/checkout path:).
     // All git operations must run from that directory, not from GITHUB_WORKSPACE.
+    /** @type {any} */
     let repoCwd = undefined;
     const workflowRepo = process.env.GITHUB_REPOSITORY || "";
     if (itemRepo.toLowerCase() !== workflowRepo.toLowerCase()) {

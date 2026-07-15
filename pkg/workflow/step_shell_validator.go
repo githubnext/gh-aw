@@ -17,9 +17,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var stepShellValidatorLog = newValidationLogger("step_shell_validator")
+var stepShellValidatorLog = logger.New("workflow:step_shell_validator")
 
 // ghCLIPattern detects invocations of the gh CLI in shell run scripts.
 // It matches "gh" as a command token at the start of a line (optionally

@@ -81,6 +81,14 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 	var resolutionWarnings []string
 
 	for _, workflow := range workflows {
+		if pkg, pkgErr := resolveLocalRepositoryPackage(workflow); pkgErr != nil {
+			return nil, pkgErr
+		} else if pkg != nil {
+			resolutionWarnings = append(resolutionWarnings, pkg.Warnings...)
+			parsedSpecs = appendLocalRepositoryPackageWorkflowSpecs(parsedSpecs, pkg)
+			continue
+		}
+
 		if repoSpec, ok, repoErr := parseRepositoryPackageSpec(workflow); ok {
 			if repoErr != nil {
 				return nil, repoErr
@@ -262,6 +270,278 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 		HasWorkflowDispatch: hasWorkflowDispatch,
 		Warnings:            resolutionWarnings,
 	}, nil
+}
+
+func resolveLocalRepositoryPackage(source string) (*resolvedRepositoryPackage, error) {
+	if !isLocalWorkflowPath(source) {
+		return nil, nil
+	}
+
+	manifestPath, packageDir, err := localRepositoryPackageManifest(source)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if manifestPath == "" {
+		return nil, nil
+	}
+
+	content, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read Agentic Workflow manifest %q: %w", manifestPath, err)
+	}
+
+	manifest, warnings, err := parseRepositoryPackageManifest(manifestPath, content)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateLocalRepositoryPackageContents(manifestPath); err != nil {
+		return nil, err
+	}
+
+	includeInstallablePaths, includeSkillDirs, includeAgentFiles := splitManifestIncludePaths(manifest.Includes)
+	includeInstallablePaths = append(includeInstallablePaths, manifest.Files...)
+	installationSources := normalizeLocalPackageInstallablePaths(includeInstallablePaths, packageDir)
+	if len(installationSources) == 0 {
+		installationSources, err = scanLocalRepositoryPackageInstallablePaths(packageDir)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if err := validateUniqueManifestWorkflowFilenames(installationSources, manifestPath); err != nil {
+		return nil, err
+	}
+
+	skillFiles, skillWarnings, err := resolveLocalPackageSkillFiles(packageDir, append(append([]string{}, manifest.Skills...), includeSkillDirs...))
+	if err != nil {
+		return nil, err
+	}
+	warnings = append(warnings, skillWarnings...)
+
+	agentFiles, agentWarnings, err := resolveLocalPackageAgentFiles(packageDir, append(append([]string{}, manifest.Agents...), includeAgentFiles...))
+	if err != nil {
+		return nil, err
+	}
+	warnings = append(warnings, agentWarnings...)
+
+	if len(installationSources) == 0 && len(skillFiles) == 0 && len(agentFiles) == 0 {
+		return nil, fmt.Errorf("repository package at %q does not contain any installable workflows, skills, or agents (either explicitly declared or auto-discovered)", packageDir)
+	}
+
+	return &resolvedRepositoryPackage{
+		ManifestPath:       manifestPath,
+		Name:               manifest.Name,
+		Emoji:              manifest.Emoji,
+		Description:        manifest.Description,
+		License:            manifest.License,
+		DocsPath:           filepath.Join(packageDir, "README.md"),
+		InstallationSource: installationSources,
+		Bootstrap:          manifest.Bootstrap,
+		SkillFiles:         skillFiles,
+		AgentFiles:         agentFiles,
+		Warnings:           warnings,
+	}, nil
+}
+
+func localRepositoryPackageManifest(source string) (string, string, error) {
+	resolvedPath, err := filepath.Abs(source)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to resolve local package source %q: %w", source, err)
+	}
+
+	info, err := os.Stat(resolvedPath)
+	if err != nil {
+		return "", "", err
+	}
+
+	if info.IsDir() {
+		manifestPath := filepath.Join(resolvedPath, repositoryPackageManifestFileName)
+		if _, err := os.Stat(manifestPath); err != nil {
+			return "", "", err
+		}
+		return manifestPath, resolvedPath, nil
+	}
+
+	if filepath.Base(resolvedPath) != repositoryPackageManifestFileName {
+		return "", "", nil
+	}
+
+	return resolvedPath, filepath.Dir(resolvedPath), nil
+}
+
+func normalizeLocalPackageInstallablePaths(paths []string, packageDir string) []string {
+	normalized := make([]string, 0, len(paths))
+	seen := make(map[string]struct{})
+	for _, sourcePath := range paths {
+		if !isSupportedPackageInstallablePath(sourcePath) {
+			continue
+		}
+		absolutePath := filepath.Join(packageDir, filepath.FromSlash(sourcePath))
+		absolutePath = filepath.Clean(absolutePath)
+		if _, exists := seen[absolutePath]; exists {
+			continue
+		}
+		seen[absolutePath] = struct{}{}
+		normalized = append(normalized, absolutePath)
+	}
+	return normalized
+}
+
+func appendLocalRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, pkg *resolvedRepositoryPackage) []*WorkflowSpec {
+	if pkg == nil {
+		return parsedSpecs
+	}
+	for _, installationSource := range pkg.InstallationSource {
+		base := filepath.Base(installationSource)
+		workflowName := strings.TrimSuffix(base, filepath.Ext(base))
+		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
+			WorkflowPath:           installationSource,
+			WorkflowName:           workflowName,
+			FromRepositoryManifest: true,
+		})
+	}
+	for _, skillFile := range pkg.SkillFiles {
+		base := filepath.Base(skillFile.SourcePath)
+		workflowName := skillFile.SkillName + "/" + strings.TrimSuffix(base, filepath.Ext(base))
+		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
+			WorkflowPath:       skillFile.SourcePath,
+			WorkflowName:       workflowName,
+			IsPackageSkillFile: true,
+			SkillName:          skillFile.SkillName,
+		})
+	}
+	for _, agentFile := range pkg.AgentFiles {
+		base := filepath.Base(agentFile)
+		workflowName := strings.TrimSuffix(base, filepath.Ext(base))
+		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
+			WorkflowPath:       agentFile,
+			WorkflowName:       workflowName,
+			IsPackageAgentFile: true,
+		})
+	}
+	return parsedSpecs
+}
+
+func resolveLocalPackageSkillFiles(packageDir string, explicitSkillDirs []string) ([]resolvedPackageSkillFile, []string, error) {
+	seenSkillDirs := make(map[string]struct{})
+	var warnings []string
+
+	var skillDirs []string
+	appendIfNew := func(dir string) {
+		cleaned := filepath.Clean(dir)
+		if _, exists := seenSkillDirs[cleaned]; exists {
+			return
+		}
+		seenSkillDirs[cleaned] = struct{}{}
+		skillDirs = append(skillDirs, cleaned)
+	}
+
+	for _, dir := range explicitSkillDirs {
+		appendIfNew(filepath.Join(packageDir, filepath.FromSlash(dir)))
+	}
+	autoScanned, err := scanLocalPackageSkillDirs(packageDir)
+	if err != nil {
+		if len(skillDirs) == 0 {
+			return nil, nil, err
+		}
+		warnings = append(warnings, fmt.Sprintf("failed to auto-scan skills directory, proceeding with manifest skills only: %v", err))
+	}
+	for _, dir := range autoScanned {
+		appendIfNew(dir)
+	}
+
+	manifestSkillDirSet := make(map[string]struct{}, len(explicitSkillDirs))
+	for _, dir := range explicitSkillDirs {
+		manifestSkillDirSet[filepath.Clean(filepath.Join(packageDir, filepath.FromSlash(dir)))] = struct{}{}
+	}
+
+	var skillFiles []resolvedPackageSkillFile
+	for _, skillDir := range skillDirs {
+		if _, fromManifest := manifestSkillDirSet[skillDir]; fromManifest {
+			markerPath := filepath.Join(skillDir, packageSkillMarkerFile)
+			if _, err := os.Stat(markerPath); err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					warnings = append(warnings, fmt.Sprintf("Skill directory %q is missing required %s marker file", skillDir, packageSkillMarkerFile))
+					continue
+				}
+				return nil, nil, fmt.Errorf("failed to validate skill marker %q: %w", markerPath, err)
+			}
+		}
+		skillName := filepath.Base(skillDir)
+		err := filepath.WalkDir(skillDir, func(currentPath string, d os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if d.IsDir() {
+				return nil
+			}
+			skillFiles = append(skillFiles, resolvedPackageSkillFile{
+				SourcePath: currentPath,
+				SkillName:  skillName,
+			})
+			return nil
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to list files in skill directory %q: %w", skillDir, err)
+		}
+	}
+
+	return skillFiles, warnings, nil
+}
+
+func resolveLocalPackageAgentFiles(packageDir string, explicitAgentFiles []string) ([]string, []string, error) {
+	if len(explicitAgentFiles) > 0 {
+		agentFiles := make([]string, 0, len(explicitAgentFiles))
+		for _, sourcePath := range explicitAgentFiles {
+			agentFiles = append(agentFiles, filepath.Clean(filepath.Join(packageDir, filepath.FromSlash(sourcePath))))
+		}
+		return agentFiles, nil, nil
+	}
+
+	var agentFiles []string
+	for _, root := range []string{packageAgentsDirectory, ".github/" + packageAgentsDirectory} {
+		agentsDir := filepath.Join(packageDir, filepath.FromSlash(root))
+		entries, err := os.ReadDir(agentsDir)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return nil, nil, fmt.Errorf("failed to scan agents directory %q: %w", agentsDir, err)
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".md") {
+				continue
+			}
+			agentFiles = append(agentFiles, filepath.Join(agentsDir, entry.Name()))
+		}
+	}
+	return agentFiles, nil, nil
+}
+
+func scanLocalPackageSkillDirs(packageDir string) ([]string, error) {
+	var skillDirs []string
+	for _, root := range []string{packageSkillsDirectory, ".github/" + packageSkillsDirectory} {
+		skillsDir := filepath.Join(packageDir, filepath.FromSlash(root))
+		entries, err := os.ReadDir(skillsDir)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return nil, fmt.Errorf("failed to scan skills directory %q: %w", skillsDir, err)
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			skillDir := filepath.Join(skillsDir, entry.Name())
+			if _, err := os.Stat(filepath.Join(skillDir, packageSkillMarkerFile)); err == nil {
+				skillDirs = append(skillDirs, skillDir)
+			}
+		}
+	}
+	return skillDirs, nil
 }
 
 func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec *RepoSpec, pkg *resolvedRepositoryPackage) []*WorkflowSpec {

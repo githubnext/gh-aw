@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var dispatchRepositoryValidationLog = newValidationLogger("dispatch_repository")
+var dispatchRepositoryValidationLog = logger.New("workflow:dispatch_repository_validation")
 
 // repoSlugPattern matches a valid owner/repo GitHub repository slug.
 // Owner names: alphanumerics and hyphens (no dots - GitHub usernames/org names cannot have dots).

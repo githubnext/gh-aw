@@ -18,7 +18,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "sprintferrorsnew",
 	Doc:      "reports errors.New(fmt.Sprintf(...)) calls that should use fmt.Errorf instead",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/sprintferrorsnew",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -27,7 +27,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "sprintferrorsnew")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -39,7 +46,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		if filecheck.IsTestFile(pass.Fset.Position(call.Pos()).Filename) {
+		if filecheck.ShouldSkipFilename(pass.Fset.Position(call.Pos()).Filename, generatedFiles) {
 			return
 		}
 
@@ -69,7 +76,7 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		position := pass.Fset.PositionFor(call.Pos(), false)
-		if nolint.HasDirective(position, noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(position, noLintIndex, "sprintferrorsnew") {
 			return
 		}
 		pass.Reportf(call.Pos(), "use fmt.Errorf instead of errors.New(fmt.Sprintf(...))")

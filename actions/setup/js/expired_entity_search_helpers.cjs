@@ -54,6 +54,7 @@ async function searchEntitiesWithExpiration(github, owner, repo, config) {
   const items = [];
   const seenIds = config.enableDedupe ? new Set() : null;
   let hasNextPage = true;
+  /** @type {any} */
   let cursor = null;
   let pageCount = 0;
   let totalScanned = 0;

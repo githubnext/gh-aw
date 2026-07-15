@@ -261,6 +261,27 @@ slogLogger.Warn("something unusual happened", "count", 42)
 - Color palette chosen for readability on both light and dark terminals
 - Uses ANSI 256-color codes for better compatibility
 
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 2 |
+| Constants | 0 |
+| Variables | 0 |
+| Functions and methods | 10 |
+| Additional symbols documented in this appendix | 1 |
+
+### Additional functions and methods
+
+| File | Symbol | Declaration | Description |
+|------|--------|-------------|-------------|
+| `slog_adapter.go` | `(*SlogHandler).Handle` | `func (*SlogHandler).Handle(_ context.Context, r slog.Record) error` | Handle handles the Record. |
+
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
+
 ---
 
 *This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

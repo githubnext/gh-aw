@@ -22,7 +22,9 @@
 
 package workflow
 
-var strictModeValidationLog = newValidationLogger("strict_mode")
+import "github.com/github/gh-aw/pkg/logger"
+
+var strictModeValidationLog = logger.New("workflow:strict_mode_validation")
 
 // validateStrictMode performs strict mode validations on the workflow
 //

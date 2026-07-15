@@ -15,9 +15,10 @@ import (
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var mcpMountValidationLog = newValidationLogger("mcp_mount")
+var mcpMountValidationLog = logger.New("workflow:mcp_mount_validation")
 
 // validateMCPMountsSyntax validates that mount strings in a custom MCP server config
 // follow the correct syntax required by MCP Gateway v0.1.5+.

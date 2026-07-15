@@ -19,7 +19,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "osexitinlibrary",
 	Doc:      "reports os.Exit calls inside library packages where they bypass deferred cleanup and prevent testing",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/osexitinlibrary",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -34,7 +34,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "osexitinlibrary")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -45,7 +52,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
-		if strings.HasSuffix(pkgPath, ".test") || filecheck.IsTestFile(pass.Fset.Position(call.Pos()).Filename) {
+		if strings.HasSuffix(pkgPath, ".test") || filecheck.ShouldSkipFilename(pass.Fset.Position(call.Pos()).Filename, generatedFiles) {
 			return
 		}
 		sel, ok := call.Fun.(*ast.SelectorExpr)
@@ -54,7 +61,7 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 		if astutil.IsPkgSelector(pass, sel, "os") && sel.Sel.Name == "Exit" {
 			position := pass.Fset.PositionFor(call.Pos(), false)
-			if nolint.HasDirective(position, noLintLinesByFile) {
+			if nolint.HasDirectiveForLinter(position, noLintIndex, "osexitinlibrary") {
 				return
 			}
 			pass.ReportRangef(call, "os.Exit called in library package %s; move process termination to a cmd/ entry-point", pkgPath)

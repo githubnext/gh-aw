@@ -513,7 +513,7 @@ func TestSpec_PublicAPI_FormatError(t *testing.T) {
 		Type:     "error",
 		Message:  "unknown engine: 'myengine'",
 		Context:  []string{"engine: myengine"},
-		Hint:     "Valid engines are: copilot, claude, codex, gemini, crush",
+		Hint:     "Valid engines are: copilot, claude, codex, gemini",
 	}
 	result := FormatError(err)
 	assert.NotEmpty(t, result, "FormatError should return non-empty output")

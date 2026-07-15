@@ -34,10 +34,11 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
-var safeOutputsStepsShellExpansionLog = newValidationLogger("safe_outputs_steps_shell_expansion")
+var safeOutputsStepsShellExpansionLog = logger.New("workflow:safe_outputs_steps_shell_expansion_validation")
 
 // shellExpansionPattern matches dangerous bash expansion constructs inside a run: script.
 //

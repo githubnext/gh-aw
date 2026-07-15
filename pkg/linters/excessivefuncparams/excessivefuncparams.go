@@ -14,7 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-var log = logger.New("linters:excessivefuncparams")
+var pkgLog = logger.New("linters:excessivefuncparams")
 
 // DefaultMaxParams is the default maximum number of parameters allowed in a function declaration.
 const DefaultMaxParams = 8
@@ -24,7 +24,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "excessivefuncparams",
 	Doc:      "reports functions whose parameter count exceeds the limit (default 8 params)",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/excessivefuncparams",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -37,13 +37,20 @@ func init() {
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	log.Printf("analyzing package %s (max-params=%d)", pass.Pkg.Path(), maxParams)
+	pkgLog.Printf("analyzing package %s (max-params=%d)", pass.Pkg.Path(), maxParams)
 
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "excessivefuncparams")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
@@ -58,7 +65,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		position := pass.Fset.PositionFor(fn.Name.Pos(), false)
-		if filecheck.IsTestFile(position.Filename) {
+		if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
 			return
 		}
 
@@ -72,10 +79,10 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		if params > maxParams {
-			if nolint.HasDirective(position, noLintLinesByFile) {
+			if nolint.HasDirectiveForLinter(position, noLintIndex, "excessivefuncparams") {
 				return
 			}
-			log.Printf("flagging %s: %d parameters exceeds limit %d", fn.Name.Name, params, maxParams)
+			pkgLog.Printf("flagging %s: %d parameters exceeds limit %d", fn.Name.Name, params, maxParams)
 			pass.ReportRangef(
 				fn.Name,
 				"%s has %d parameters (limit: %d); consider using an options struct",

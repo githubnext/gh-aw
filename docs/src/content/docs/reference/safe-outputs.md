@@ -1891,7 +1891,7 @@ To replay safe outputs:
    - Run ID only: `12345`
 6. Click **Run workflow**.
 
-The `apply_safe_outputs` job downloads the `agent_output.json` artifact from the specified run and applies all safe outputs as if the original run had completed successfully. The job requires admin or maintainer permissions.
+The `apply_safe_outputs` job downloads the `agent_output.json` artifact from the specified run and applies all safe outputs as if the original run had completed successfully. Authorization requires exact `admin` or `maintain` repository access. For custom organization repository roles, gh-aw authorizes against the inherited standard role metadata reported by GitHub rather than the custom role name. If that inherited standard role cannot be resolved, the replay request is rejected.
 
 > [!TIP]
 > Find the run URL by opening the failed or cancelled run in the **Actions** tab — the URL in your browser's address bar is the run URL.
