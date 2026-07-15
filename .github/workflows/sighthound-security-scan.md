@@ -2,7 +2,7 @@
 private: true
 emoji: "🛡️"
 name: Sighthound Security Scan
-description: Daily security scan using Sighthound; runs agent only when actionable findings are detected and opens one issue with the top violations
+description: Daily security scan using Sighthound; triages actionable findings and opens one issue with the top violations
 on:
   schedule: daily on weekdays
   workflow_dispatch:
@@ -11,7 +11,6 @@ permissions:
   issues: read
   actions: read
 strict: true
-if: needs.sighthound_scan.outputs.actionable_findings_detected == 'true'
 jobs:
   sighthound_scan:
     runs-on: ubuntu-latest
