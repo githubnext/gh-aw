@@ -208,7 +208,7 @@ from where the previous request stopped due to timeout.`,
 		cmdArgs = appendRepoFlagFromEnv(cmdArgs)
 
 		// Scale the implicit MCP timeout with the requested fetch window so
-		// larger fleet-wide requests do not hit the 60s server deadline by default.
+		// larger fleet-wide requests do not hit the default per-tool timeout.
 		timeoutValue := effectiveMCPLogsToolTimeoutMinutes(args.Timeout, effectiveCount)
 		cmdArgs = append(cmdArgs, "--timeout", strconv.Itoa(timeoutValue))
 
@@ -262,6 +262,7 @@ from where the previous request stopped due to timeout.`,
 			if mainMsg == "" {
 				mainMsg = err.Error()
 			}
+
 			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to download workflow logs: "+mainMsg, errorData)
 		}
 

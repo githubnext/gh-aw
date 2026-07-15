@@ -12,6 +12,7 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 | Command | Description | When to use |
 |---------|-------------|-------------|
 | [`gh aw init`](#init) | Set up your repository for agentic workflows | First time configuring a repo — creates skills, agents, and `.gitattributes` |
+| [`gh aw doctor`](#doctor) | Run repository and authentication diagnostics | Verifying `gh` auth, repo ownership, or local checkout state before setup work |
 | [`gh aw add-wizard`](#add-wizard) | Add workflows with interactive guided setup | Adding a community workflow and want guided prompts for secrets and auth |
 | [`gh aw add`](#add) | Add workflows from other repositories (non-interactive) | Scripted or CI-based workflow installation without interactive prompts |
 | [`gh aw new`](#new) | Create a new workflow from scratch | Building a custom workflow when no existing template fits |
@@ -266,6 +267,21 @@ gh aw secrets bootstrap --non-interactive                # Display missing secre
 
 See [Authentication](/gh-aw/reference/auth/) for details.
 
+#### `doctor`
+
+Run diagnostics to verify CLI authentication and repository setup.
+
+```bash wrap
+gh aw doctor
+gh aw doctor --json
+gh aw doctor --repo github/gh-aw
+gh aw doctor --repo github/gh-aw --dir ./gh-aw --require-owner-type org
+```
+
+**Options:** `--repo/-r`, `--dir/-d`, `--require-owner-type`, `--json/-j`
+
+Use `--repo` to verify a specific repository exists and inspect the local checkout that should correspond to it. `--require-owner-type` accepts `any`, `user`, or `org` and defaults to `any`; `--dir` and `--require-owner-type` require `--repo`.
+
 ### Building
 
 #### `fix`
@@ -386,7 +402,7 @@ Execute workflows immediately in GitHub Actions. Displays workflow URL for track
 gh aw run workflow                          # Run workflow
 gh aw run workflow1 workflow2               # Run multiple workflows
 gh aw run workflow --repeat 3               # Run 4 times total (1 initial + 3 repeats)
-gh aw run workflow --push                   # Auto-commit, push, and dispatch workflow
+gh aw run workflow --push                   # Commit, push, and dispatch the workflow
 gh aw run workflow --push --ref main        # Push to specific branch
 gh aw run workflow --dry-run                # Preview without triggering workflow runs
 gh aw run workflow --json                   # Output triggered workflow results as JSON
@@ -855,7 +871,7 @@ When no workflow is specified, lists all workflows with a summary of allowed and
 
 #### `version`
 
-Show gh-aw version and product information.
+Print the current version and build information for the gh aw CLI extension.
 
 ```bash wrap
 gh aw version

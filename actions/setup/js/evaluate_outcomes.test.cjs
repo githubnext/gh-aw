@@ -1028,6 +1028,159 @@ describe("evaluate_outcomes create_pull_request evaluator", () => {
   });
 });
 
+describe("evaluate_outcomes discussion evaluators", () => {
+  it("classifies closed discussions as accepted", () => {
+    const ghAPI = mockAPI({
+      "repos/owner/repo/discussions/11": {
+        state: "closed",
+        closed: true,
+        comments: 2,
+        created_at: "2026-05-20T00:00:00Z",
+        closed_at: "2026-05-21T00:00:00Z",
+      },
+    });
+
+    const result = evaluateItem(
+      {
+        type: "close_discussion",
+        repo: "owner/repo",
+        url: "https://github.com/owner/repo/discussions/11",
+        timestamp: "2026-05-20T00:00:00Z",
+      },
+      "owner/repo",
+      { ghAPI }
+    );
+
+    expect(result.result).toBe("accepted");
+    expect(result.detail).toBe("closed");
+    expect(result.signal).toBe("closed");
+  });
+
+  it("classifies reopened discussions as rejected", () => {
+    const ghAPI = mockAPI({
+      "repos/owner/repo/discussions/12": {
+        state: "open",
+        closed: false,
+        comments: 1,
+      },
+    });
+
+    const result = evaluateItem(
+      {
+        type: "close_discussion",
+        repo: "owner/repo",
+        url: "https://github.com/owner/repo/discussions/12",
+        timestamp: "2026-05-20T00:00:00Z",
+      },
+      "owner/repo",
+      { ghAPI }
+    );
+
+    expect(result.result).toBe("rejected");
+    expect(result.detail).toBe("not_closed");
+    expect(result.signal).toBe("not_closed");
+  });
+
+  it("classifies answered discussions as accepted", () => {
+    const ghAPI = mockAPI({
+      "repos/owner/repo/discussions/13": {
+        state: "open",
+        comments: 0,
+        answer_chosen_at: "2026-05-21T00:00:00Z",
+      },
+    });
+
+    const result = evaluateItem(
+      {
+        type: "create_discussion",
+        repo: "owner/repo",
+        url: "https://github.com/owner/repo/discussions/13",
+        timestamp: "2026-05-20T00:00:00Z",
+      },
+      "owner/repo",
+      { ghAPI }
+    );
+
+    expect(result.result).toBe("accepted");
+    expect(result.detail).toBe("answered");
+    expect(result.signal).toBe("answered");
+  });
+
+  it("classifies discussions with replies as accepted", () => {
+    const ghAPI = mockAPI({
+      "repos/owner/repo/discussions/14": {
+        state: "open",
+        comments: 3,
+      },
+    });
+
+    const result = evaluateItem(
+      {
+        type: "create_discussion",
+        repo: "owner/repo",
+        url: "https://github.com/owner/repo/discussions/14",
+        timestamp: "2026-05-20T00:00:00Z",
+      },
+      "owner/repo",
+      { ghAPI }
+    );
+
+    expect(result.result).toBe("accepted");
+    expect(result.detail).toBe("has replies");
+    expect(result.signal).toBe("engaged");
+  });
+
+  it("classifies locked discussions as rejected", () => {
+    const ghAPI = mockAPI({
+      "repos/owner/repo/discussions/15": {
+        state: "open",
+        comments: 0,
+        locked: true,
+      },
+    });
+
+    const result = evaluateItem(
+      {
+        type: "create_discussion",
+        repo: "owner/repo",
+        url: "https://github.com/owner/repo/discussions/15",
+        timestamp: "2026-05-20T00:00:00Z",
+      },
+      "owner/repo",
+      { ghAPI }
+    );
+
+    expect(result.result).toBe("rejected");
+    expect(result.detail).toBe("locked");
+    expect(result.signal).toBe("locked");
+  });
+
+  it("classifies unengaged discussions as ignored", () => {
+    const ghAPI = mockAPI({
+      "repos/owner/repo/discussions/16": {
+        state: "open",
+        comments: 0,
+        locked: false,
+      },
+    });
+
+    const result = evaluateItem(
+      {
+        type: "create_discussion",
+        repo: "owner/repo",
+        url: "https://github.com/owner/repo/discussions/16",
+        timestamp: "2026-05-20T00:00:00Z",
+      },
+      "owner/repo",
+      { ghAPI }
+    );
+
+    expect(result.result).toBe("ignored");
+    expect(result.detail).toBe("no replies");
+    expect(result.signal).toBe("no_engagement");
+  });
+});
+
 describe("evaluate_outcomes push_to_pull_request_branch evaluator", () => {
   beforeEach(() => {
     vi.useFakeTimers();

@@ -19,6 +19,8 @@ type ClaudeEngine struct {
 	BaseEngine
 }
 
+var _ CodingAgentEngine = (*ClaudeEngine)(nil)
+
 func NewClaudeEngine() *ClaudeEngine {
 	return &ClaudeEngine{
 		BaseEngine: BaseEngine{

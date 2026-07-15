@@ -303,7 +303,7 @@ func TestEngineFlagUsageText(t *testing.T) {
 		t.Fatal("Expected --engine override flag to exist")
 	}
 
-	if engineFlag.Usage != "Override AI engine (copilot, claude, codex, gemini, antigravity, opencode, pi)" {
+	if engineFlag.Usage != EngineFlagOverrideUsage {
 		t.Errorf("Unexpected --engine override usage text: %s", engineFlag.Usage)
 	}
 
@@ -314,7 +314,7 @@ func TestEngineFlagUsageText(t *testing.T) {
 		t.Fatal("Expected --engine filter flag to exist")
 	}
 
-	if filterFlag.Usage != "Filter logs by AI engine (copilot, claude, codex, gemini, antigravity, opencode, pi)" {
+	if filterFlag.Usage != EngineFlagFilterUsage {
 		t.Errorf("Unexpected --engine filter usage text: %s", filterFlag.Usage)
 	}
 }

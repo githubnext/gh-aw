@@ -55,6 +55,11 @@ features:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: repair-or-optimization-path
+    question: Did the workflow check validation-status first and then follow the correct repair or optimization path for this run?
+  - id: pr-created-or-noop
+    question: Was a focused CI improvement pull request created when actionable work was found, or was noop called when CI was already healthy?
 ---
 
 # CI Optimization Coach

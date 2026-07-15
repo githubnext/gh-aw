@@ -1803,7 +1803,11 @@ Implementations MUST log all access control decisions with the following informa
 
 - Permission queries count against GitHub API rate limits
 - Implementations SHOULD implement caching to reduce API calls
-- Rate limit errors SHOULD be handled gracefully with retries
+- On `403` or `429` responses that indicate GitHub rate limiting, implementations MUST fail closed for the current access-control decision and MUST NOT bypass repository, role, visibility, or integrity checks using stale "allow" results.
+- On `403` or `429` rate-limit responses, implementations MUST either serve a still-valid cached authorization decision whose scope exactly matches the current repository/tool request or return a retryable denial/error; they MUST NOT silently downgrade enforcement.
+- A cached authorization decision is still valid only if its TTL has not expired, it was computed for the same caller identity, repository target, tool/action, and required permission scope, and no invalidation trigger (for example token rotation, membership/role change, repository visibility change, or integrity-policy change) has been observed since it was stored.
+- On `5xx` responses from the GitHub MCP server or the underlying GitHub API during an authorization check, implementations MUST treat the authorization state as indeterminate and deny the request until a successful re-check completes.
+- Retry logic for `403`/`429` and `5xx` responses MUST use bounded exponential backoff and MUST NOT continue retrying past the workflow or request deadline.
 
 #### 9.4.3 Error Message Information Disclosure
 

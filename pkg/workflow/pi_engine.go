@@ -30,6 +30,8 @@ type PiEngine struct {
 	BaseEngine
 }
 
+var _ CodingAgentEngine = (*PiEngine)(nil)
+
 // NewPiEngine creates and returns a new PiEngine instance.
 func NewPiEngine() *PiEngine {
 	return &PiEngine{

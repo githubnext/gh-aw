@@ -152,6 +152,11 @@ steps:
       echo "✅ Pre-computed metrics for $FILE_COUNT file(s) → /tmp/gh-aw/agent/arch-metrics.json"
 features:
   gh-aw-detection: true
+evals:
+  - id: violations-analyzed
+    question: Did the workflow analyze changed Go or JavaScript files from the last 24 hours for architecture violations, or correctly conclude there were none?
+  - id: issue-created-or-noop
+    question: Was an architecture report issue created when violations were found, or was noop or skip behavior used appropriately when there was nothing actionable?
 ---
 
 # Architecture Guardian

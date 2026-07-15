@@ -142,7 +142,7 @@ Download and analyze workflow logs with timeout handling and size guardrails.
 - `engine`, `firewall`, `no_firewall`, `branch` (optional): Run filters
 - `after_run_id`, `before_run_id` (optional): Pagination by run ID
 - `artifacts` (array of strings, optional): Artifact sets to download. Valid values: `all`, `activation`, `agent`, `detection`, `experiment`, `firewall`, `github-api`, `mcp`, `usage`. Defaults to `usage`.
-- `timeout` (optional): Max seconds to download (default: 50)
+- `timeout` (optional): Max minutes to download (default: auto-scales with count in the MCP server, rounded up in 40-run increments; e.g. 1 minute up to 40 runs, 2 minutes for 41-80, 3 minutes for 81-120). For large date-range fetches set this explicitly (e.g. `10`) and also configure `engine.mcp.tool-timeout: 10m` in the workflow frontmatter so the MCP gateway allows enough time.
 - `max_tokens` (optional): Output token guardrail (default: 12000)
 - `jq` (optional): Apply jq filter to JSON output
 

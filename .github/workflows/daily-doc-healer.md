@@ -79,6 +79,11 @@ features:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: gaps-confirmed
+    question: Did the workflow identify at least one confirmed documentation gap to fix, or correctly conclude that no actionable gap remained?
+  - id: pr-issue-or-noop
+    question: Was a documentation pull request or issue created for confirmed gaps, or was noop used appropriately when nothing required action?
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

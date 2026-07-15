@@ -36,7 +36,7 @@ func RunFix(config FixConfig) error {
 func NewFixCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "fix [workflow]...",
-		Short: "Apply automatic codemod-style fixes to agentic workflow files",
+		Short: "Auto-fix deprecated agentic workflow fields using codemods (dry-run by default)",
 		Long: `Apply automatic codemod-style fixes to agentic workflow files.
 
 This command applies a registry of codemods that automatically update deprecated fields

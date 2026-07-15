@@ -91,6 +91,11 @@ safe-outputs:
     labels: [blog]
     reviewers: [copilot]
     draft: false
+evals:
+  - id: draft-prepared
+    question: Did the workflow analyze recent releases and merged pull requests and prepare a weekly blog post draft?
+  - id: pr-created-or-explained
+    question: Was a blog post pull request created when a draft was ready, or did the agent clearly explain why no pull request was needed?
 
 ---
 

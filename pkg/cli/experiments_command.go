@@ -89,7 +89,7 @@ type ExperimentsAnalyzeConfig struct {
 func NewExperimentsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "experiments",
-		Short: "Explore ongoing experiments in the repository",
+		Short: "List and analyze experiment workflow branches in the repository",
 		Long: `Explore ongoing experiments in the repository.
 
 Experiments are tracked via git branches with the "experiments/" prefix (e.g.,
