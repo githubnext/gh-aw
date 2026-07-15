@@ -546,10 +546,21 @@ function rollbackReviewResults(results, errorMessage) {
  */
 function rollbackReviewResultsForPR(results, repo, prNumber, errorMessage) {
   const prResults = results.filter(r => (r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") && r.success === true && r.repo === repo && r.pull_request_number === prNumber);
-  const targets = prResults.length > 0 ? prResults : results.filter(r => (r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") && r.success === true);
-  for (const r of targets) {
-    r.success = false;
-    r.error = `Review finalization failed: ${errorMessage}`;
+  if (prResults.length > 0) {
+    for (const r of prResults) {
+      r.success = false;
+      r.error = `Review finalization failed: ${errorMessage}`;
+    }
+  } else {
+    // No results carry per-PR identifiers (e.g. legacy submit_pr_review results without repo/pull_request_number).
+    // Fall back to rolling back all buffered review results for this run.
+    core.warning(`rollbackReviewResultsForPR: no results matched ${repo}#${prNumber} — falling back to rolling back all review results`);
+    for (const r of results) {
+      if ((r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") && r.success === true) {
+        r.success = false;
+        r.error = `Review finalization failed: ${errorMessage}`;
+      }
+    }
   }
 }
 

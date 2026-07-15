@@ -33,8 +33,13 @@ const VALID_EVENTS = new Set(["APPROVE", "REQUEST_CHANGES", "COMMENT"]);
 async function main(config = {}) {
   const maxCount = config.max || 1;
   const targetConfig = config.target || "triggering";
+  // Registry mode takes precedence over legacy single-buffer mode.
+  // The two modes are mutually exclusive: when a registry is provided, _prReviewBuffer is ignored.
   const registry = config._prReviewBufferRegistry || null;
   const legacyBuffer = registry ? null : config._prReviewBuffer || null;
+  if (registry && config._prReviewBuffer) {
+    core.warning("submit_pull_request_review: Both _prReviewBufferRegistry and _prReviewBuffer were provided; registry mode takes precedence and _prReviewBuffer will be ignored.");
+  }
   const supersedeOlderReviews = parseBoolTemplatable(config.supersede_older_reviews, false);
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);

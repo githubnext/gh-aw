@@ -306,7 +306,8 @@ async function main(config = {}) {
       if (!buffer) {
         return { success: false, error: `Could not get review buffer for ${itemRepo}#${pullRequestNumber}` };
       }
-      // Apply footer context to this buffer (first-wins, idempotent)
+      // Apply footer context to this buffer. setFooterContext() is first-wins internally,
+      // so calling it on every message for the same PR is safe and no-ops after the first call.
       buffer.setFooterContext({
         workflowName,
         runUrl,
