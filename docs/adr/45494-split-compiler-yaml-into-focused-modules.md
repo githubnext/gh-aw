@@ -1,7 +1,7 @@
 # ADR-45494: Split compiler_yaml.go into Focused Single-Domain Modules
 
 **Date**: 2026-07-15
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---
@@ -12,7 +12,15 @@
 
 ### Decision
 
-We will split `compiler_yaml.go` into four focused files — `compiler_yaml_normalize.go`, `compiler_yaml_header.go`, `compiler_yaml_prompt.go`, and `compiler_yaml_steps.go` — leaving `compiler_yaml.go` as a thin orchestration layer (~221 lines). All functions remain in the `workflow` package with identical signatures; this is a purely structural reorganization with no behavior changes.
+We will split `compiler_yaml.go` into five focused files — `compiler_yaml_normalize.go`, `compiler_yaml_header.go`, `compiler_yaml_policy.go`, `compiler_yaml_prompt.go`, and `compiler_yaml_step_lifecycle.go` — leaving `compiler_yaml.go` as a thin orchestration layer (~221 lines). All functions remain in the `workflow` package with identical signatures; this is a purely structural reorganization with no behavior changes.
+
+The split follows three additional design rules:
+
+1. **Cross-cutting policy lives in its own file.** `effectiveStrictMode` and `effectiveSafeUpdate` are used by the header, the step-lifecycle layer, and external callers (`compiler.go`). Placing them in `compiler_yaml_policy.go` avoids the misleading implication that policy is header-specific.
+
+2. **Each extracted file declares its own domain-scoped logger.** `compiler_yaml_header.go`, `compiler_yaml_prompt.go`, and `compiler_yaml_step_lifecycle.go` each declare a `logger.New("workflow:compiler_yaml:<domain>")` variable rather than sharing the orchestration-level logger. This allows per-domain verbosity tuning and makes each module self-contained.
+
+3. **New file names follow the existing `compiler_yaml_step_` prefix** used by `compiler_yaml_step_generation.go` and `compiler_yaml_step_conversion.go`, avoiding a naming mismatch between singular and plural forms.
 
 ### Alternatives Considered
 
@@ -32,12 +40,14 @@ This was not chosen because it would require exporting functions that are curren
 
 #### Positive
 - Each file is 167–374 lines, well within readable limits, making code review diffs smaller and more focused.
-- Developers can navigate directly to the domain they are working on (normalization, header, prompt, steps) without scrolling through an unrelated 1200-line file.
+- Developers can navigate directly to the domain they are working on (normalization, header, policy, prompt, step lifecycle) without scrolling through an unrelated 1200-line file.
 - Separation of concerns is now visible at the file-system level, making it easier for new contributors to understand the compiler's structure.
 - Future domain-level changes produce smaller, more readable diffs.
+- Per-domain loggers allow independent verbosity tuning without affecting the orchestration log level.
+- Cross-cutting policy methods in their own file removes the misleading header-specific framing.
 
 #### Negative
-- Go's `package`-level visibility means there is no enforced encapsulation boundary between the four files; any function can still call any other unexported function in the package. The separation is organizational, not contractual.
+- Go's `package`-level visibility means there is no enforced encapsulation boundary between the five files; any function can still call any other unexported function in the package. The separation is organizational, not contractual.
 - Developers navigating the full compilation pipeline must open multiple files rather than scrolling within one; IDE "go to definition" mitigates this but it is a real cost.
 
 #### Neutral
@@ -46,4 +56,4 @@ This was not chosen because it would require exporting functions that are curren
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent] and updated to reflect final design decisions.*

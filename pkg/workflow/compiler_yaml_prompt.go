@@ -7,9 +7,12 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
+
+var compilerYamlPromptLog = logger.New("workflow:compiler_yaml:prompt")
 
 func splitContentIntoChunks(content string) []string {
 	const maxChunkSize = 20900        // 21000 - 100 character buffer
@@ -43,11 +46,11 @@ func splitContentIntoChunks(content string) []string {
 }
 
 func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, preActivationJobCreated bool, beforeActivationJobs []string) {
-	compilerYamlLog.Printf("Generating prompt for workflow: %s (markdown size: %d bytes)", data.Name, len(data.MarkdownContent))
+	compilerYamlPromptLog.Printf("Generating prompt for workflow: %s (markdown size: %d bytes)", data.Name, len(data.MarkdownContent))
 
 	// Collect built-in prompt sections (these should be prepended to user prompt)
 	builtinSections := c.collectPromptSections(data)
-	compilerYamlLog.Printf("Collected %d built-in prompt sections", len(builtinSections))
+	compilerYamlPromptLog.Printf("Collected %d built-in prompt sections", len(builtinSections))
 
 	// NEW APPROACH: Use runtime-import macros for imports without inputs
 	// - Imported markdown without inputs uses runtime-import macros (loaded at runtime)
@@ -72,7 +75,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	// - runtime-import macros (imports without inputs)
 	// In older workflow data (without PromptImports), fall back to legacy grouped handling.
 	if len(data.PromptImports) > 0 {
-		compilerYamlLog.Printf("Processing %d ordered prompt import entries", len(data.PromptImports))
+		compilerYamlPromptLog.Printf("Processing %d ordered prompt import entries", len(data.PromptImports))
 		workspaceRoot := ""
 		hasImportInputs := len(data.ImportInputs) > 0
 		if data.InlinedImports && c.markdownPath != "" {
@@ -96,7 +99,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 			if workspaceRoot != "" {
 				rawContent, err := os.ReadFile(filepath.Join(workspaceRoot, importPath))
 				if err != nil {
-					compilerYamlLog.Printf("Warning: failed to read import file %s (%v), falling back to runtime-import", importPath, err)
+					compilerYamlPromptLog.Printf("Warning: failed to read import file %s (%v), falling back to runtime-import", importPath, err)
 					userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#runtime-import %s}}", importPath))
 					continue
 				}
@@ -115,18 +118,18 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 		// Step 1a: Process and inline imported markdown with inputs (if any)
 		// Imports with inputs MUST be inlined because substitution happens at compile time
 		if data.ImportedMarkdown != "" {
-			compilerYamlLog.Printf("Processing imported markdown (%d bytes)", len(data.ImportedMarkdown))
+			compilerYamlPromptLog.Printf("Processing imported markdown (%d bytes)", len(data.ImportedMarkdown))
 
 			// Clean, substitute, and post-process imported markdown
 			cleaned := removeXMLComments(data.ImportedMarkdown)
 			if len(data.ImportInputs) > 0 {
-				compilerYamlLog.Printf("Substituting %d import input values", len(data.ImportInputs))
+				compilerYamlPromptLog.Printf("Substituting %d import input values", len(data.ImportInputs))
 				cleaned = SubstituteImportInputs(cleaned, data.ImportInputs)
 			}
 			chunks, exprMaps := extractPromptChunksFromMarkdown(cleaned)
 			userPromptChunks = append(userPromptChunks, chunks...)
 			expressionMappings = append(expressionMappings, exprMaps...)
-			compilerYamlLog.Printf("Inlined imported markdown with inputs in %d chunks", len(chunks))
+			compilerYamlPromptLog.Printf("Inlined imported markdown with inputs in %d chunks", len(chunks))
 		}
 
 		// Step 1b: For imports without inputs:
@@ -135,14 +138,14 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 		if len(data.ImportPaths) > 0 {
 			if data.InlinedImports && c.markdownPath != "" {
 				// inlinedImports mode: read import file content from disk and embed directly
-				compilerYamlLog.Printf("Inlining %d imports without inputs at compile time", len(data.ImportPaths))
+				compilerYamlPromptLog.Printf("Inlining %d imports without inputs at compile time", len(data.ImportPaths))
 				workspaceRoot := resolveWorkspaceRoot(c.markdownPath)
 				for _, importPath := range data.ImportPaths {
 					importPath = filepath.ToSlash(importPath)
 					rawContent, err := os.ReadFile(filepath.Join(workspaceRoot, importPath))
 					if err != nil {
 						// Fall back to runtime-import macro if file cannot be read
-						compilerYamlLog.Printf("Warning: failed to read import file %s (%v), falling back to runtime-import", importPath, err)
+						compilerYamlPromptLog.Printf("Warning: failed to read import file %s (%v), falling back to runtime-import", importPath, err)
 						userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#runtime-import %s}}", importPath))
 						continue
 					}
@@ -153,15 +156,15 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 					chunks, exprMaps := extractPromptChunksFromMarkdown(importedBody)
 					userPromptChunks = append(userPromptChunks, chunks...)
 					expressionMappings = append(expressionMappings, exprMaps...)
-					compilerYamlLog.Printf("Inlined import without inputs: %s", importPath)
+					compilerYamlPromptLog.Printf("Inlined import without inputs: %s", importPath)
 				}
 			} else {
 				// Normal mode: generate runtime-import macros (loaded at workflow runtime)
-				compilerYamlLog.Printf("Generating runtime-import macros for %d imports without inputs", len(data.ImportPaths))
+				compilerYamlPromptLog.Printf("Generating runtime-import macros for %d imports without inputs", len(data.ImportPaths))
 				for _, importPath := range data.ImportPaths {
 					importPath = filepath.ToSlash(importPath)
 					userPromptChunks = append(userPromptChunks, fmt.Sprintf("{{#runtime-import %s}}", importPath))
-					compilerYamlLog.Printf("Added runtime-import macro for: %s", importPath)
+					compilerYamlPromptLog.Printf("Added runtime-import macro for: %s", importPath)
 				}
 			}
 		}
@@ -174,13 +177,13 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	// Use MainWorkflowMarkdown (not MarkdownContent) to avoid extracting from imported content
 	// Skip this step when inlinePrompt is true because expression extraction happens in Step 2
 	if !c.inlinePrompt && !data.InlinedImports && data.MainWorkflowMarkdown != "" {
-		compilerYamlLog.Printf("Extracting expressions from main workflow markdown (%d bytes)", len(data.MainWorkflowMarkdown))
+		compilerYamlPromptLog.Printf("Extracting expressions from main workflow markdown (%d bytes)", len(data.MainWorkflowMarkdown))
 
 		// Create a new extractor for main workflow markdown
 		mainExtractor := NewExpressionExtractor()
 		mainExprMappings, err := mainExtractor.ExtractExpressions(data.MainWorkflowMarkdown)
 		if err == nil && len(mainExprMappings) > 0 {
-			compilerYamlLog.Printf("Extracted %d expressions from main workflow markdown", len(mainExprMappings))
+			compilerYamlPromptLog.Printf("Extracted %d expressions from main workflow markdown", len(mainExprMappings))
 			// Merge with imported expressions (append to existing mappings)
 			expressionMappings = append(expressionMappings, mainExprMappings...)
 		}
@@ -201,7 +204,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	//   - The substitute_placeholders step: replaces any remaining occurrences.
 	if len(data.Experiments) > 0 {
 		experimentMappings := ExperimentExpressionMappings(data.Experiments)
-		compilerYamlLog.Printf("Adding %d experiment expression mapping(s)", len(experimentMappings))
+		compilerYamlPromptLog.Printf("Adding %d experiment expression mapping(s)", len(experimentMappings))
 		expressionMappings = append(expressionMappings, experimentMappings...)
 	}
 
@@ -210,7 +213,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 		// Inline mode (Wasm/browser): embed the markdown content directly in the YAML
 		// since runtime-import macros cannot resolve without filesystem access
 		if data.MainWorkflowMarkdown != "" {
-			compilerYamlLog.Printf("Inlining main workflow markdown (%d bytes)", len(data.MainWorkflowMarkdown))
+			compilerYamlPromptLog.Printf("Inlining main workflow markdown (%d bytes)", len(data.MainWorkflowMarkdown))
 
 			inlinedMarkdown := removeXMLComments(data.MainWorkflowMarkdown)
 			inlinedMarkdown = wrapExpressionsInTemplateConditionals(inlinedMarkdown)
@@ -225,7 +228,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 
 			inlinedChunks := splitContentIntoChunks(inlinedMarkdown)
 			userPromptChunks = append(userPromptChunks, inlinedChunks...)
-			compilerYamlLog.Printf("Inlined main workflow markdown in %d chunks", len(inlinedChunks))
+			compilerYamlPromptLog.Printf("Inlined main workflow markdown in %d chunks", len(inlinedChunks))
 		}
 	} else {
 		// Normal mode: use runtime-import macro so users can edit without recompilation
@@ -265,7 +268,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 		// The runtime_import.cjs helper will extract and process the markdown body at runtime
 		// The path uses .github/ prefix for clarity (e.g., .github/workflows/test.md)
 		runtimeImportMacro := fmt.Sprintf("{{#runtime-import %s}}", workflowFilePath)
-		compilerYamlLog.Printf("Using runtime-import for main workflow markdown: %s", workflowFilePath)
+		compilerYamlPromptLog.Printf("Using runtime-import for main workflow markdown: %s", workflowFilePath)
 
 		// Append runtime-import macro after imported chunks
 		userPromptChunks = append(userPromptChunks, runtimeImportMacro)
@@ -288,7 +291,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	// These are NOT added to the prompt creation step because they're not needed there.
 	knownNeedsExpressions := generateKnownNeedsExpressions(data, preActivationJobCreated)
 	if len(knownNeedsExpressions) > 0 {
-		compilerYamlLog.Printf("Adding %d known needs.* expressions for substitution step only", len(knownNeedsExpressions))
+		compilerYamlPromptLog.Printf("Adding %d known needs.* expressions for substitution step only", len(knownNeedsExpressions))
 		// Merge known needs expressions with the returned expression mappings for substitution
 		// We use a map to avoid duplicates (expressions from markdown take precedence)
 		expressionMap := make(map[string]*ExpressionMapping)
