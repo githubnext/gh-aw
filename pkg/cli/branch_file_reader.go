@@ -8,14 +8,18 @@ import (
 	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var branchFileReaderLog = logger.New("cli:branch_file_reader")
 
 func readRemoteRepoBranchFile(repoOverride, branchName, filePath, hostname string) ([]byte, error) {
 	return readRemoteRepoBranchFileContext(context.Background(), repoOverride, branchName, filePath, hostname)
 }
 
 func readRemoteRepoBranchFileContext(ctx context.Context, repoOverride, branchName, filePath, hostname string) ([]byte, error) {
+	branchFileReaderLog.Printf("Fetching remote file: repo=%s, branch=%s, path=%s, hostname=%s", repoOverride, branchName, filePath, hostname)
 	args := []string{"api",
 		"--method", "GET",
 		"repos/{owner}/{repo}/contents/" + filePath,
@@ -30,8 +34,10 @@ func readRemoteRepoBranchFileContext(ctx context.Context, repoOverride, branchNa
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		if isRemoteFileNotFoundOutput(string(out)) {
+			branchFileReaderLog.Printf("Remote file not found: path=%s, branch=%s", filePath, branchName)
 			return nil, os.ErrNotExist
 		}
+		branchFileReaderLog.Printf("Failed to fetch %s from %s: %v", filePath, branchName, err)
 		return nil, fmt.Errorf("failed to fetch %s from %s: %w", filePath, branchName, err)
 	}
 
@@ -39,8 +45,10 @@ func readRemoteRepoBranchFileContext(ctx context.Context, repoOverride, branchNa
 	b64 := strings.Join(strings.Fields(strings.TrimSpace(string(out))), "")
 	decoded, decodeErr := base64.StdEncoding.DecodeString(b64)
 	if decodeErr != nil {
+		branchFileReaderLog.Printf("Failed to decode %s from %s: %v", filePath, branchName, decodeErr)
 		return nil, fmt.Errorf("failed to decode %s from %s: %w", filePath, branchName, decodeErr)
 	}
+	branchFileReaderLog.Printf("Fetched remote file %s from %s: %d bytes", filePath, branchName, len(decoded))
 	return decoded, nil
 }
 

@@ -11,8 +11,11 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var bootstrapLog = logger.New("cli:bootstrap")
 
 type BootstrapOptions struct {
 	Ctx              context.Context
@@ -100,10 +103,12 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 	printBootstrapPlan(plan)
 
 	if opts.PlanOnly {
+		bootstrapLog.Printf("Plan-only mode; skipping mutation for %s", opts.Repo)
 		return nil
 	}
 
 	if !plan.NeedsMutation {
+		bootstrapLog.Printf("Bootstrap already satisfied for %s; no mutation needed", opts.Repo)
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Bootstrap already satisfied for "+opts.Repo))
 		return nil
 	}
@@ -244,6 +249,7 @@ func validateBootstrapOptions(opts BootstrapOptions) error {
 }
 
 func buildBootstrapPlan(ctx context.Context, opts BootstrapOptions, runtime bootstrapRuntime, originalDir string) (*bootstrapPlan, error) {
+	bootstrapLog.Printf("Building bootstrap plan: repo=%s, createRepo=%t, sources=%d", opts.Repo, opts.CreateRepo, len(opts.Sources))
 	if err := runtime.checkAuth(ctx); err != nil {
 		return nil, fmt.Errorf("failed to verify GitHub CLI authentication: %w", err)
 	}
@@ -317,6 +323,8 @@ func buildBootstrapPlan(ctx context.Context, opts BootstrapOptions, runtime boot
 
 	plan.PlanLines = buildBootstrapPlanLines(plan, opts)
 	plan.NeedsMutation = plan.CreateRepo || plan.CloneRepo || plan.InitNeeded || len(plan.ResolvedSources) > 0
+	bootstrapLog.Printf("Bootstrap plan built: createRepo=%t, cloneRepo=%t, attached=%t, initNeeded=%t, needsMutation=%t",
+		plan.CreateRepo, plan.CloneRepo, plan.AttachedCheckout, plan.InitNeeded, plan.NeedsMutation)
 
 	if !opts.PlanOnly && plan.AttachedCheckout && plan.NeedsMutation {
 		if err := withWorkingDir(plan.Dir, func() error {
