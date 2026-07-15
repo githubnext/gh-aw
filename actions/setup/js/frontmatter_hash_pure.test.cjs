@@ -965,7 +965,7 @@ describe("symlink traversal regression (issue #45591)", () => {
       const fsFileSystem = {
         [mainPath]: mainContent,
         // The filesystem reader is given the fully resolved path:
-        ".github/agents/helper.md": helperContent, // as if the symlink were followed
+        ".github/agents/helper.md": helperContent, // simulates OS-level symlink resolution: the filesystem sees content at the symlinked path
       };
       const fsReader = async filePath => {
         if (fsFileSystem[filePath]) return fsFileSystem[filePath];

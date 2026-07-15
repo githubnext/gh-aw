@@ -534,6 +534,7 @@ async function checkRemoteSymlink(github, owner, repo, dirPath, ref) {
     if (Array.isArray(response.data)) {
       return null;
     }
+    // An empty string target is treated as absent (falsy); only non-empty targets are valid.
     if (response.data.type === "symlink" && response.data.target) {
       return response.data.target;
     }
@@ -581,7 +582,9 @@ async function resolveRemoteSymlinks(github, owner, repo, filePath, ref) {
       resolvedBase = path.posix.normalize(target);
     }
 
-    // Safety: resolved base must not escape repository root
+    // Safety: resolved base must not escape repository root.
+    // path.posix.normalize has already been applied, so a path starting with ".." genuinely
+    // escapes the root — there are no remaining "../" segments that normalize would have collapsed.
     if (!resolvedBase || resolvedBase === "." || path.posix.isAbsolute(resolvedBase) || resolvedBase.startsWith("..")) {
       return null;
     }
@@ -589,6 +592,7 @@ async function resolveRemoteSymlinks(github, owner, repo, filePath, ref) {
     const remaining = parts.slice(i).join("/");
     const resolvedPath = path.posix.normalize(path.posix.join(resolvedBase, remaining));
 
+    // Same safety check on the final resolved path after appending the remaining components.
     if (!resolvedPath || resolvedPath === "." || path.posix.isAbsolute(resolvedPath) || resolvedPath.startsWith("..")) {
       return null;
     }
