@@ -185,6 +185,22 @@ func TestExtractDeploymentStatusStateCondition(t *testing.T) {
 	}
 }
 
+func TestExtractIfCondition_InvalidDeploymentStatusStateReturnsError(t *testing.T) {
+	c := &Compiler{}
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"deployment_status": map[string]any{
+				"state": "unknown_state",
+			},
+		},
+	}
+
+	got, err := c.extractIfCondition(frontmatter)
+	require.Error(t, err)
+	assert.Empty(t, got)
+	assert.ErrorContains(t, err, `invalid on.deployment_status.state value "unknown_state"`)
+}
+
 func TestExtractWorkflowRunConclusionConditionHelper(t *testing.T) {
 	tests := []struct {
 		name        string
