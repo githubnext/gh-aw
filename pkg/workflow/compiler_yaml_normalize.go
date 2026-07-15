@@ -146,7 +146,7 @@ func blockScalarHeaderIndentForLine(line string) (int, bool) {
 	}
 
 	rest = rest[1:]
-	for len(rest) > 0 {
+	for rest != "" {
 		switch rest[0] {
 		case '+', '-':
 			rest = rest[1:]
