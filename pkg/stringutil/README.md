@@ -314,6 +314,22 @@ distance := stringutil.LevenshteinDistance("copiliot", "copilot")
 
 All functions in this package are stateless pure functions operating on immutable string inputs. They are safe to call concurrently from multiple goroutines without synchronization.
 
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 2 |
+| Constants | 4 |
+| Variables | 0 |
+| Functions and methods | 28 |
+| Additional symbols documented in this appendix | 0 |
+
+The sections above already mention every exported top-level symbol in the current source tree.
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
+
 ---
 
 *This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

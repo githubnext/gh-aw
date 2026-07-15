@@ -607,8 +607,9 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 
 	var awfArgs []string
 
-	// Add TTY flag if needed (Claude requires this)
-	if config.UsesTTY {
+	// Add TTY flag if needed (Claude requires this), except for docker-sbx where
+	// sbx exec --tty can terminate long-running Claude sessions prematurely.
+	if config.UsesTTY && !isDockerSbxRuntime(config.WorkflowData) {
 		awfArgs = append(awfArgs, "--tty")
 	}
 

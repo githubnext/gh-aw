@@ -21,6 +21,7 @@ GitHub Agentic Workflows upload several artifacts during workflow execution. Thi
 | `prompt` | — | Single-file | Generated prompt (`prompt.txt`) |
 | `experiment` | `constants.ExperimentArtifactName` | Multi-file | A/B experiment state (`state.json`) uploaded by the activation job when experiments are declared in the frontmatter |
 | `usage` | `constants.UsageArtifactName` | Multi-file | Compact conclusion-job artifact with workflow-run metadata and token-usage files used by lightweight reporting and forecasting paths |
+| `evals` | `constants.EvalsArtifactName` | Single-file | BinEval evaluation results (`evals.jsonl`) uploaded by the evals job when `evals` are declared in the workflow frontmatter |
 | `safe-outputs-items` | `constants.SafeOutputItemsArtifactName` | Single-file | Safe output items manifest |
 | `code-scanning-sarif` | `constants.SarifArtifactName` | Single-file | SARIF file for code scanning results |
 
@@ -38,6 +39,7 @@ The `gh aw logs` and `gh aw audit` commands support `--artifacts` to download on
 | `detection` | `detection` | Threat detection output |
 | `experiment` | `experiment` | A/B experiment state (only present when experiments are declared) |
 | `usage` | `usage` | Compact conclusion-job artifact for lightweight reporting and forecasting |
+| `evals` | `evals` | BinEval evaluation results (only present when `evals` are declared) |
 | `github-api` | `activation`, `agent` | GitHub API rate limit logs |
 
 ```bash
@@ -204,6 +206,31 @@ gh aw logs <run-id> --artifacts usage
 
 # Or with gh run download
 gh run download <run-id> -n usage
+```
+
+## `evals`
+
+The `evals` artifact is uploaded by the **evals job** only when the workflow frontmatter declares one or more `evals` entries. It is not present on runs without evals.
+
+### Contents
+
+- `evals.jsonl` — Per-question BinEval evaluation results (YES/NO records) produced by running the declared evaluation questions against the agent output
+
+### Accessing evals data
+
+```bash
+# Download only the evals artifact
+gh aw logs <run-id> --artifacts evals
+
+# Or with gh run download
+gh run download <run-id> -n evals
+```
+
+The `gh aw audit` command exposes an `--evals` flag that skips runs without evals results and automatically downloads the evals artifact when `--artifacts` is narrowed:
+
+```bash
+# Audit only runs that contain evals results
+gh aw audit <run-id> --evals
 ```
 
 ## Naming Compatibility

@@ -48,7 +48,7 @@ The following components and functions are exported by the `console` package:
 | `RenderTitleBox` / `RenderErrorBox` / `RenderInfoSection` | funcs | Section rendering helpers |
 | `RenderComposedSections` | func | Composes and prints multiple sections |
 | `FormatSuccessMessage` / `FormatInfoMessage` / `FormatWarningMessage` / `FormatErrorMessage` | funcs | Styled status message formatting |
-| `FormatSuccessMessageStderr` / `FormatInfoMessageStderr` / `FormatListItemStderr` / `FormatSectionHeaderStderr` | funcs | Stderr-TTY-aware variants of matching format functions |
+| `FormatSuccessMessageStderr` / `FormatInfoMessageStderr` / `FormatListItemStderr` / `FormatSectionHeaderStderr` / `FormatTableHeaderStderr` / `FormatErrorTextStderr` | funcs | Stderr-TTY-aware variants of matching format functions |
 | `FormatCommandMessage` / `FormatProgressMessage` / `FormatVerboseMessage` | funcs | Additional message styles |
 | `FormatError` | func | Renders a structured `CompilerError` with context |
 | `FormatErrorChain` | func | Renders a wrapped-error chain |
@@ -56,6 +56,8 @@ The following components and functions are exported by the `console` package:
 | `ConfirmAction` | func | Interactive yes/no confirmation |
 | `ShowInteractiveList` | func | Interactive single-selection list |
 | `PromptInput` / `PromptSecretInput` | funcs | Text and secret input prompts |
+| `NewForm` / `NewInputForm` / `NewSelectForm` / `NewConfirmForm` | funcs | Themed huh form constructors (non-WASM) |
+| `IsCancelled` | func | Reports whether an error is a user cancellation (`huh.ErrUserAborted`) |
 | `LogVerbose` | func | Conditional verbose logging |
 | `FormatFileSize` / `FormatNumber` / `FormatTokens` | funcs | Human-readable byte, integer, and token count formatting |
 | `IsAccessibleMode` | func | Detects accessibility mode |
@@ -373,12 +375,14 @@ All `Format*` functions return a styled string ready to be printed to `os.Stderr
 | `FormatListHeader(header string) string` | Plain (WASM only) | Section headers inside lists |
 | `FormatSectionHeader(header string) string` | Bold, bordered | Section titles in output |
 | `FormatSectionHeaderStderr(header string) string` | Bold, bordered (stderr TTY) | Section title using stderr TTY detection |
+| `FormatTableHeaderStderr(text string) string` | Bold (stderr TTY) | Table column header using stderr TTY detection |
+| `FormatErrorTextStderr(text string) string` | Red (stderr TTY) | Inline error text using stderr TTY detection |
 | `FormatLocationMessage(message string) string` | Foreground (WASM only) | File and location paths |
 | `FormatCountMessage(message string) string` | Foreground (WASM only) | Counts and metrics |
 
 ### Stderr TTY Variants
 
-The `*Stderr` variants (`FormatSuccessMessageStderr`, `FormatInfoMessageStderr`, `FormatListItemStderr`, `FormatSectionHeaderStderr`) check whether **`os.Stderr`** is a terminal rather than `os.Stdout`. Use these when writing to `os.Stderr` directly, so that color stripping is applied correctly in non-interactive contexts (e.g., piped stderr).
+The `*Stderr` variants (`FormatSuccessMessageStderr`, `FormatInfoMessageStderr`, `FormatListItemStderr`, `FormatSectionHeaderStderr`, `FormatTableHeaderStderr`, `FormatErrorTextStderr`) check whether **`os.Stderr`** is a terminal rather than `os.Stdout`. Use these when writing to `os.Stderr` directly, so that color stripping is applied correctly in non-interactive contexts (e.g., piped stderr).
 
 ```go
 // Use Stderr variants when writing directly to os.Stderr
@@ -687,7 +691,43 @@ err := console.RunForm([]console.FormField{
 
 > **Note**: `RunForm` is only available in WASM builds. Use `huh` forms directly in non-WASM builds.
 
-## Layout Functions
+### `NewForm(groups ...*huh.Group) *huh.Form`
+
+Creates a `huh.Form` pre-configured with gh-aw's default theme and accessibility mode. Available in non-WASM builds only.
+
+```go
+form := console.NewForm(huh.NewGroup(input))
+if err := form.Run(); err != nil {
+    return err
+}
+```
+
+### `NewInputForm(input *huh.Input) *huh.Form`
+
+Creates a themed, accessibility-aware single-input form wrapping the given `*huh.Input`. Equivalent to `NewForm(huh.NewGroup(input))`.
+
+### `NewSelectForm[T comparable](selectField *huh.Select[T]) *huh.Form`
+
+Creates a themed, accessibility-aware single-select form wrapping the given `*huh.Select[T]`.
+
+### `NewConfirmForm(confirm *huh.Confirm) *huh.Form`
+
+Creates a themed, accessibility-aware single-confirm form wrapping the given `*huh.Confirm`.
+
+### `IsCancelled(err error) bool`
+
+Reports whether `err` represents a deliberate user cancellation (Ctrl-C or Esc before form submission, i.e. `huh.ErrUserAborted`). Use this to distinguish graceful cancellation from genuine failures.
+
+```go
+if err := form.Run(); console.IsCancelled(err) {
+    fmt.Fprintln(os.Stderr, "cancelled")
+    return nil
+} else if err != nil {
+    return err
+}
+```
+
+
 
 These functions compose styled sections for terminal output. They are available only in WASM builds; non-WASM code should use the `RenderTitleBox`, `RenderInfoSection`, and `RenderComposedSections` functions instead.
 
@@ -934,6 +974,27 @@ if err != nil || !confirmed {
 - `charm.land/bubbles/v2/progress` — progress bar
 - `charm.land/bubbletea/v2` — terminal UI event loop
 - `charm.land/huh/v2` — interactive form components
+
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 9 |
+| Constants | 0 |
+| Variables | 0 |
+| Functions and methods | 69 |
+| Additional symbols documented in this appendix | 1 |
+
+### Additional functions and methods
+
+| File | Symbol | Declaration | Description |
+|------|--------|-------------|-------------|
+| `spinner_wasm.go` | `(*SpinnerWrapper).IsEnabled` | `func (*SpinnerWrapper).IsEnabled() bool` | Exported function or method declared in `spinner_wasm.go`. |
+
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
 
 ---
 

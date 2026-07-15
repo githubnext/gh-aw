@@ -6,6 +6,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -40,7 +41,7 @@ func matchEngineFilter(awInfo *AwInfo, awInfoErr error, filterEngine string) (bo
 // applyRunFilters applies all configured run filters to a DownloadResult.
 // It parses aw_info.json once (lazily) when any filter that needs it is active.
 // Returns true when the run should be skipped / excluded from results.
-func applyRunFilters(result DownloadResult, opts runFilterOpts, verbose bool) bool {
+func applyRunFilters(ctx context.Context, result DownloadResult, opts runFilterOpts, verbose bool) bool {
 	// Parse aw_info.json once for all filters that need it (optimization).
 	var awInfo *AwInfo
 	var awInfoErr error
@@ -134,7 +135,7 @@ func applyRunFilters(result DownloadResult, opts runFilterOpts, verbose bool) bo
 
 	// Apply evals filtering if --evals flag is specified.
 	if opts.evalsOnly {
-		if !runHasEvals(result.LogsPath, verbose) {
+		if !runHasEvals(result.LogsPath, verbose) && !ensureEvalsResultsFromBranch(ctx, result.Run, result.LogsPath, "", "", "", verbose) {
 			logsOrchestratorLog.Printf("Skipping run %d: no evals results found, filtered by --evals", result.Run.DatabaseID)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not have evals results (filtered by --evals)", result.Run.DatabaseID)))
