@@ -88,13 +88,14 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 }
 
 // buildUsageArtifactUploadSteps creates steps that collect and upload a compact usage artifact.
-// The artifact includes aw_info.json, aw-info.jsonl, agent_usage.json, agent_usage.jsonl, detection_usage.jsonl, and agent/detection token usage JSONL files (when present).
+// The artifact includes aw_info.json, aw-info.jsonl, agent_usage.json, agent_usage.jsonl, detection_usage.jsonl,
+// evals.jsonl, and agent/detection token usage JSONL files (when present).
 // It also downloads the safe-outputs-items artifact so that generate_usage_activity_summary.cjs
 // can include safe-output item counts in the activity summary without requiring a separate artifact download.
-func buildUsageArtifactUploadSteps(prefix string, pinAction func(string) string) []string {
+func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, pinAction func(string) string) []string {
 	usageArtifactName := prefix + "usage"
 	safeOutputsItemsArtifactName := prefix + constants.SafeOutputItemsArtifactName
-	return []string{
+	steps := []string{
 		"      - name: Download safe outputs items manifest\n",
 		"        id: download-safe-outputs-manifest\n",
 		"        if: always()\n",
@@ -103,13 +104,28 @@ func buildUsageArtifactUploadSteps(prefix string, pinAction func(string) string)
 		"        with:\n",
 		fmt.Sprintf("          name: %s\n", safeOutputsItemsArtifactName),
 		"          path: /tmp/gh-aw/\n",
+	}
+	if hasEvals {
+		evalsArtifactName := prefix + constants.EvalsArtifactName
+		steps = append(steps,
+			"      - name: Download evals artifact\n",
+			"        id: download-evals-artifact\n",
+			"        if: always()\n",
+			"        continue-on-error: true\n",
+			fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")),
+			"        with:\n",
+			fmt.Sprintf("          name: %s\n", evalsArtifactName),
+			"          path: /tmp/gh-aw/evals/\n",
+		)
+	}
+	steps = append(steps,
 		"      - name: Collect usage artifact files\n",
 		"        if: always()\n",
 		"        continue-on-error: true\n",
 		"        run: |\n",
 		"          mkdir -p /tmp/gh-aw/usage/agent /tmp/gh-aw/usage/detection\n",
 		"          echo \"Usage artifact source file status:\"\n",
-		"          for file in /tmp/gh-aw/aw_info.json /tmp/gh-aw/aw-info.jsonl /tmp/gh-aw/agent_usage.json /tmp/gh-aw/agent_usage.jsonl /tmp/gh-aw/detection_usage.jsonl /tmp/gh-aw/github_rate_limits.jsonl /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/threat-detection/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/threat-detection/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/threat-detection/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl; do\n",
+		"          for file in /tmp/gh-aw/aw_info.json /tmp/gh-aw/aw-info.jsonl /tmp/gh-aw/agent_usage.json /tmp/gh-aw/agent_usage.jsonl /tmp/gh-aw/detection_usage.jsonl /tmp/gh-aw/evals/evals.jsonl /tmp/gh-aw/github_rate_limits.jsonl /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/threat-detection/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/threat-detection/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/threat-detection/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl; do\n",
 		"            [ -f \"$file\" ] && echo \"FOUND: $file\" || echo \"MISSING: $file\"\n",
 		"          done\n",
 		"          [ -f /tmp/gh-aw/aw_info.json ] && cp /tmp/gh-aw/aw_info.json /tmp/gh-aw/usage/aw_info.json || true\n",
@@ -117,6 +133,7 @@ func buildUsageArtifactUploadSteps(prefix string, pinAction func(string) string)
 		"          [ -f /tmp/gh-aw/agent_usage.json ] && cp /tmp/gh-aw/agent_usage.json /tmp/gh-aw/usage/agent_usage.json || true\n",
 		"          [ -f /tmp/gh-aw/agent_usage.jsonl ] && cp /tmp/gh-aw/agent_usage.jsonl /tmp/gh-aw/usage/agent_usage.jsonl || true\n",
 		"          [ -f /tmp/gh-aw/detection_usage.jsonl ] && cp /tmp/gh-aw/detection_usage.jsonl /tmp/gh-aw/usage/detection_usage.jsonl || true\n",
+		"          [ -f /tmp/gh-aw/evals/evals.jsonl ] && cp /tmp/gh-aw/evals/evals.jsonl /tmp/gh-aw/usage/evals.jsonl || true\n",
 		"          [ -f /tmp/gh-aw/github_rate_limits.jsonl ] && cp /tmp/gh-aw/github_rate_limits.jsonl /tmp/gh-aw/usage/github_rate_limits.jsonl || true\n",
 		// Agent token usage: copy in ascending priority order (last non-empty source wins).
 		// firewall/logs/ is the authoritative proxy-logs dir and goes last so it always wins
@@ -146,12 +163,14 @@ func buildUsageArtifactUploadSteps(prefix string, pinAction func(string) string)
 		"            /tmp/gh-aw/usage/agent_usage.json\n",
 		"            /tmp/gh-aw/usage/agent_usage.jsonl\n",
 		"            /tmp/gh-aw/usage/detection_usage.jsonl\n",
+		"            /tmp/gh-aw/usage/evals.jsonl\n",
 		"            /tmp/gh-aw/usage/github_rate_limits.jsonl\n",
 		"            /tmp/gh-aw/usage/agent/token_usage.jsonl\n",
 		"            /tmp/gh-aw/usage/detection/token_usage.jsonl\n",
 		"            /tmp/gh-aw/usage/activity/summary.json\n",
 		"          if-no-files-found: ignore\n",
-	}
+	)
+	return steps
 }
 
 // buildDailyAICUsageCacheSteps creates steps that compute AIC for the current run and persist

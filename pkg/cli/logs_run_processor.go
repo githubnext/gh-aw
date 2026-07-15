@@ -599,11 +599,12 @@ func runHasDifcFilteredItems(runDir string, verbose bool) (bool, error) {
 }
 
 // runHasEvals checks whether a run's output directory contains an evals results file
-// (evals.jsonl). It looks in three locations:
+// (evals.jsonl). It looks in four locations:
 //  1. runDir/evals.jsonl — produced when flattenSingleFileArtifacts collapsed the
 //     one-file evals artifact from its directory directly to the run root.
 //  2. runDir/evals/evals.jsonl — un-flattened artifact directory.
 //  3. runDir/{hash}-evals/evals.jsonl — workflow_call hash-prefixed variant.
+//  4. runDir/usage/evals.jsonl — compact usage artifact captured by the conclusion job.
 func runHasEvals(runDir string, verbose bool) bool {
 	logsOrchestratorLog.Printf("Checking run for evals results: dir=%s", runDir)
 
@@ -611,6 +612,11 @@ func runHasEvals(runDir string, verbose bool) bool {
 	rootEvalsFile := filepath.Join(runDir, constants.EvalsResultFilename)
 	if fileutil.FileExists(rootEvalsFile) {
 		logsOrchestratorLog.Printf("Found evals results at: %s", rootEvalsFile)
+		return true
+	}
+	usageEvalsFile := filepath.Join(runDir, constants.UsageArtifactName, constants.EvalsResultFilename)
+	if fileutil.FileExists(usageEvalsFile) {
+		logsOrchestratorLog.Printf("Found evals results in usage artifact at: %s", usageEvalsFile)
 		return true
 	}
 

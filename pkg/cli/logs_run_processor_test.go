@@ -57,6 +57,16 @@ func TestRunHasEvals(t *testing.T) {
 			expected: false,
 		},
 		{
+			name: "usage/evals.jsonl (compact usage artifact)",
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				usageDir := filepath.Join(dir, constants.UsageArtifactName)
+				require.NoError(t, os.Mkdir(usageDir, 0700))
+				require.NoError(t, os.WriteFile(filepath.Join(usageDir, constants.EvalsResultFilename), []byte("{}"), 0600))
+			},
+			expected: true,
+		},
+		{
 			name:     "empty directory",
 			setup:    func(t *testing.T, dir string) {},
 			expected: false,
