@@ -539,7 +539,7 @@ function rollbackReviewResults(results, errorMessage) {
  * Matches results by repo and pull_request_number. Falls back to rolling back all
  * review results when no results carry per-PR identifiers.
  *
- * @param {Array<{type: string, success: boolean, error?: string, repo?: string, pull_request_number?: number}>} results
+ * @param {Array<{type: string, success: boolean, error?: string, repo?: string, pull_request_number?: number, result?: {repo?: string, pull_request_number?: number}}>} results
  * @param {string} repo - Repository slug (owner/repo)
  * @param {number} prNumber - Pull request number
  * @param {string} errorMessage - Error message to attach to the rolled-back results
