@@ -111,6 +111,7 @@ describe("daily_aic_workflow_helpers", () => {
     it("returns 0 when all explicit AIC aliases are negative and no token fallback is available", () => {
       const filePath = path.join(tmpDir, "usage.jsonl");
       fs.writeFileSync(filePath, [JSON.stringify({ aic: -1 }), JSON.stringify({ ai_credits: -2 }), JSON.stringify({ aiCredits: -3 })].join("\n"), "utf8");
+      // The helper only counts positive explicit AIC values; negative values fall through and, without token fields, contribute nothing.
       expect(exports.sumAICFromUsageJSONLFiles([filePath])).toBe(0);
     });
   });
