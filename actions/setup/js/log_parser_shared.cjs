@@ -634,7 +634,11 @@ function isCopilotEventLogEntries(logEntries) {
 
   for (const entry of logEntries) {
     if (!entry || typeof entry !== "object" || typeof entry.type !== "string") continue;
-    if (entry.type === "assistant" || entry.type === "user" || entry.type === "system" || entry.type === "result") {
+    // Legacy Claude/Pi message entries disqualify the array outright. A bare `result`
+    // entry is NOT treated as a disqualifier here: an OTEL-enrichment `result` summary
+    // may be appended to an otherwise copilot-event array (see parse_pi_log.cjs), and a
+    // genuinely legacy array is already identified by its assistant/user/system entries.
+    if (entry.type === "assistant" || entry.type === "user" || entry.type === "system") {
       return false;
     }
     if (eventTypePrefixes.some(prefix => entry.type.startsWith(prefix))) {
@@ -1036,6 +1040,14 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
         });
         break;
       }
+
+      case "result":
+        // A pre-formed legacy result summary may be appended to a copilot-event array
+        // (e.g. parse_pi_log.cjs appends one so log_parser_bootstrap.cjs can emit OTEL
+        // turn/token metrics). Pass it through unchanged so token/turn statistics still
+        // render and the synthetic-result fallback below does not duplicate it.
+        normalizedEntries.push(entry);
+        break;
 
       default:
         break;
