@@ -56,7 +56,7 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		// Skip test files.
-		pos := pass.Fset.Position(call.Pos())
+		pos := pass.Fset.PositionFor(call.Pos(), false)
 		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			return
 		}
