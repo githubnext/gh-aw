@@ -45,7 +45,7 @@ type EngineConfig struct {
 	ID                 string
 	Version            string
 	Model              string
-	LLMProvider        string // Inference provider override for this engine (github|anthropic|openai)
+	LLMProvider        string // Inference provider override for this engine (engine.provider / engine.model-provider)
 	PermissionMode     string
 	MaxTurns           string
 	MaxToolDenials     string // Maximum repeated tool denials before stopping inference (copilot SDK mode only)
@@ -240,16 +240,21 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					}
 				}
 
-				// Extract optional provider sub-object
+				// Extract optional provider override:
+				//   - string form: engine.provider: "openai"
+				//   - object form: engine.provider.id / auth / request
 				if provider, hasProvider := engineObj["provider"]; hasProvider {
-					if providerObj, ok := provider.(map[string]any); ok {
-						if id, ok := providerObj["id"].(string); ok {
+					switch providerTyped := provider.(type) {
+					case string:
+						config.InlineProviderID = strings.ToLower(strings.TrimSpace(providerTyped))
+					case map[string]any:
+						if id, ok := providerTyped["id"].(string); ok {
 							config.InlineProviderID = id
 						}
-						if model, ok := providerObj["model"].(string); ok {
+						if model, ok := providerTyped["model"].(string); ok {
 							config.Model = model
 						}
-						if auth, hasAuth := providerObj["auth"]; hasAuth {
+						if auth, hasAuth := providerTyped["auth"]; hasAuth {
 							if authObj, ok := auth.(map[string]any); ok {
 								authDef := parseAuthDefinition(authObj)
 								// Only store an AuthDefinition when the user actually provided
@@ -263,7 +268,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 								}
 							}
 						}
-						if request, hasRequest := providerObj["request"]; hasRequest {
+						if request, hasRequest := providerTyped["request"]; hasRequest {
 							if requestObj, ok := request.(map[string]any); ok {
 								config.InlineProviderRequest = parseRequestShape(requestObj)
 							}
@@ -320,6 +325,14 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			// Extract optional 'model-provider' field.
 			providerValue, hasProvider := engineObj["model-provider"]
 			if hasProvider {
+				if providerStr, ok := providerValue.(string); ok {
+					config.LLMProvider = strings.ToLower(strings.TrimSpace(providerStr))
+				}
+			}
+			// Extract optional 'provider' shorthand override for built-in engines.
+			// Inline definitions are excluded here because they use engine.provider object
+			// semantics (id/auth/request) parsed in the engine.runtime branch above.
+			if providerValue, hasProvider := engineObj["provider"]; hasProvider && !config.IsInlineDefinition {
 				if providerStr, ok := providerValue.(string); ok {
 					config.LLMProvider = strings.ToLower(strings.TrimSpace(providerStr))
 				}

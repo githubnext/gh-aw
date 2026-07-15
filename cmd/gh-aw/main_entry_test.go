@@ -169,6 +169,8 @@ func TestMainFunction(t *testing.T) {
 
 		require.NoError(t, err, "root command help should execute successfully")
 		assert.NotEmpty(t, output, "root command help should produce output")
+		assert.NotContains(t, output, " bootstrap ")
+		assert.NotContains(t, output, " setup ")
 
 		// Reset args for other tests
 		rootCmd.SetArgs([]string{})

@@ -397,7 +397,7 @@ func TestBuiltInEngineCatalogIncludesBuiltIns(t *testing.T) {
 	registry := NewEngineRegistry()
 	catalog := NewEngineCatalog(registry)
 
-	engineIDs := []string{"antigravity", "claude", "codex", "copilot", "crush", "gemini", "opencode", "pi"}
+	engineIDs := []string{"antigravity", "claude", "codex", "copilot", "gemini", "opencode", "pi"}
 
 	for _, engineID := range engineIDs {
 		t.Run(engineID, func(t *testing.T) {

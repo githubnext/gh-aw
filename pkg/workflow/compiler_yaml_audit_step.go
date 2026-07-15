@@ -9,7 +9,7 @@ import (
 var auditStepLog = logger.New("workflow:compiler_yaml_audit_step")
 
 // generatePreAgentAuditStep emits a step that lists files in agent-related directories
-// for all known agentic engines (Copilot, Claude, Codex, Gemini, Crush, OpenCode, Pi)
+// for all known agentic engines (Copilot, Claude, Codex, Gemini, OpenCode, Pi)
 // under the workspace and the agent user's home folder.
 // The listing is saved to /tmp/gh-aw/pre-agent-audit.txt (via the shell script) and set
 // as a GITHUB_OUTPUT value so it is accessible in subsequent steps and included in the

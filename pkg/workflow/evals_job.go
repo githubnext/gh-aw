@@ -10,6 +10,12 @@ import (
 
 var evalsJobLog = logger.New("workflow:evals_job")
 
+const evalsStateDir = "/tmp/gh-aw/evals-state"
+
+func evalsBranchName(workflowID string) string {
+	return WorkflowStateBranchName(constants.EvalsBranchPrefix, workflowID)
+}
+
 // buildEvalsJob creates a separate evals job that runs after the safe_outputs job
 // (or directly after the agent job if safe_outputs is not configured).
 // The job downloads the agent artifact to access output files, runs a BinEval
@@ -99,6 +105,90 @@ func (c *Compiler) buildEvalsJob(data *WorkflowData) (*Job, error) {
 		RunsOn:      c.indentYAMLLines(runsOn, "    "),
 		Environment: c.indentYAMLLines(data.Environment, "    "),
 		Permissions: permissions,
+		Steps:       steps,
+	}
+
+	return job, nil
+}
+
+// buildPushEvalsStateJob creates a job that downloads the evals artifact and commits it to a
+// git branch ("evals/{sanitizedID}") so eval results can be read even when artifacts are absent.
+func (c *Compiler) buildPushEvalsStateJob(data *WorkflowData) (*Job, error) {
+	if data.Evals == nil || !data.Evals.HasEvals() {
+		return nil, nil
+	}
+
+	evalsJobLog.Printf("Building push_evals_state job (branch=%s)", evalsBranchName(data.WorkflowID))
+
+	var steps []string
+
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" || c.actionMode.IsScript() {
+		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+		traceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
+		parentSpanID := setupParentSpanNeedsExpr(constants.ActivationJobName)
+		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, traceID, parentSpanID)...)
+	}
+
+	steps = append(steps,
+		"      - name: Checkout repository\n",
+		fmt.Sprintf("        uses: %s\n", getActionPin("actions/checkout")),
+		"        with:\n",
+		"          persist-credentials: false\n",
+		"          sparse-checkout: .\n",
+	)
+
+	steps = append(steps, c.generateGitConfigurationSteps()...)
+
+	evalsArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.EvalsArtifactName
+	steps = append(steps,
+		"      - name: Download evals artifact\n",
+		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/download-artifact")),
+		"        continue-on-error: true\n",
+		"        with:\n",
+		fmt.Sprintf("          name: %s\n", evalsArtifactName),
+		fmt.Sprintf("          path: %s\n", evalsStateDir),
+	)
+
+	branchName := evalsBranchName(data.WorkflowID)
+	steps = append(steps,
+		"      - name: Push evals results to git\n",
+		"        id: push_evals_state\n",
+		"        if: always()\n",
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+		"        env:\n",
+		"          GH_TOKEN: ${{ github.token }}\n",
+		"          GITHUB_RUN_ID: ${{ github.run_id }}\n",
+		"          GITHUB_SERVER_URL: ${{ github.server_url }}\n",
+		fmt.Sprintf("          GH_AW_STATE_DIR: %s\n", evalsStateDir),
+		fmt.Sprintf("          GH_AW_STATE_BRANCH: %s\n", branchName),
+		fmt.Sprintf("          GH_AW_STATE_FILES: %s\n", constants.EvalsResultFilename),
+		"          GH_AW_STATE_LABEL: evals results\n",
+		"        with:\n",
+		"          script: |\n",
+		"            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n",
+		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
+		"            const { main } = require('"+SetupActionDestination+"/push_experiment_state.cjs');\n",
+		"            await main();\n",
+	)
+
+	if c.actionMode.IsDev() {
+		steps = append(steps, c.generateRestoreActionsSetupStep())
+	}
+
+	evalsFinished := BuildNotEquals(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.EvalsJobName)),
+		BuildStringLiteral("skipped"),
+	)
+	notCancelled := &NotNode{Child: BuildFunctionCall("cancelled")}
+	jobCondition := RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), notCancelled), evalsFinished))
+
+	job := &Job{
+		Name:        pushEvalsStateJobName,
+		RunsOn:      c.formatFrameworkJobRunsOn(data),
+		If:          jobCondition,
+		Permissions: "permissions:\n      contents: write",
+		Needs:       []string{string(constants.EvalsJobName), string(constants.ActivationJobName)},
 		Steps:       steps,
 	}
 

@@ -132,7 +132,9 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
   }
 
   let bundleGenerated = false;
+  /** @type {any} */
   let errorMessage = null;
+  /** @type {any} */
   let baseCommitSha = null;
 
   try {

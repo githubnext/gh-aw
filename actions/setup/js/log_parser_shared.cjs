@@ -931,6 +931,7 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
       case "tool.execution_complete": {
         const toolName = normalizeToolName(data.toolName, data.mcpServerName);
         const toolCallId = typeof data.toolCallId === "string" && data.toolCallId.trim() ? data.toolCallId : null;
+        /** @type {any} */
         let resolvedToolId = null;
 
         if (toolCallId && pendingByToolCallId.has(toolCallId)) {
@@ -1373,9 +1374,9 @@ function wrapLogParser(parseFunction, parserName, logContent) {
  *
  * @param {Object} options - Parser configuration options
  * @param {string} options.parserName - Name of the engine (e.g., "Claude", "Copilot", "Codex")
- * @param {function(string): string|{markdown: string, mcpFailures?: string[], maxTurnsHit?: boolean, logEntries?: Array}} options.parseFunction - Engine-specific parser function
+ * @param {(content: string) => string|{markdown: string, mcpFailures?: string[], maxTurnsHit?: boolean, logEntries?: Array<any>}} options.parseFunction - Engine-specific parser function
  * @param {boolean} [options.supportsDirectories=false] - Whether the parser supports reading from directories
- * @returns {function(): Promise<void>} Main function that runs the log parser
+ * @returns {() => Promise<void>} Main function that runs the log parser
  */
 function createEngineLogParser(options) {
   const { runLogParser } = require("./log_parser_bootstrap.cjs");

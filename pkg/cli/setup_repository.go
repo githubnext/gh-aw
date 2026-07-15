@@ -11,8 +11,11 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var setupRepositoryLog = logger.New("cli:setup_repository")
 
 type SetupAuthOptions struct {
 	Ctx  context.Context
@@ -138,12 +141,14 @@ type setupCheckoutInspection struct {
 }
 
 func inspectSetupCheckout(dir string, repo string, originRepoLookup func(string) (string, error)) (*setupCheckoutInspection, error) {
+	setupRepositoryLog.Printf("Inspecting checkout: dir=%s, repo=%s", dir, repo)
 	info, err := os.Stat(dir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			if nestedErr := rejectNestedNonExistentCheckoutPath(dir); nestedErr != nil {
 				return nil, nestedErr
 			}
+			setupRepositoryLog.Printf("Checkout directory %s does not exist; clone needed", dir)
 			return &setupCheckoutInspection{cloneNeeded: true}, nil
 		}
 		return nil, fmt.Errorf("failed to inspect %s: %w", dir, err)
@@ -180,6 +185,7 @@ func inspectSetupCheckout(dir string, repo string, originRepoLookup func(string)
 		return nil, fmt.Errorf("target directory %s points to %s, not %s", dir, originRepo, repo)
 	}
 
+	setupRepositoryLog.Printf("Checkout at %s is attached to %s", dir, repo)
 	return &setupCheckoutInspection{attached: true}, nil
 }
 
@@ -351,12 +357,15 @@ func runSetupRepositoryCheckWithRuntime(opts SetupRepositoryCheckOptions, runtim
 		return fmt.Errorf("failed to verify GitHub CLI authentication: %w", err)
 	}
 
+	setupRepositoryLog.Printf("Running repository check: repo=%s, requireOwnerType=%s", opts.Repo, opts.RequireOwnerType)
+
 	owner := strings.Split(opts.Repo, "/")[0]
 	ownerType, err := runtime.ownerType(ctx, owner)
 	if err != nil {
 		return err
 	}
 	ownerType = normalizeSetupOwnerType(ownerType)
+	setupRepositoryLog.Printf("Resolved owner type for %s: %s", owner, ownerType)
 	if opts.RequireOwnerType != "any" && ownerType != opts.RequireOwnerType {
 		return fmt.Errorf("owner %s is %s, but --require-owner-type=%s was requested", owner, ownerType, opts.RequireOwnerType)
 	}

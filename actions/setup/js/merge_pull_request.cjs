@@ -84,7 +84,9 @@ async function getPullRequestWithMergeability(githubClient, owner, repo, pullNum
 async function getReviewSummary(githubClient, owner, repo, pullNumber) {
   core.info(`Collecting review summary for PR #${pullNumber}`);
   let unresolvedThreadCount = 0;
+  /** @type {any} */
   let reviewDecision = null;
+  /** @type {any} */
   let cursor = null;
   let hasNextPage = true;
   let page = 0;

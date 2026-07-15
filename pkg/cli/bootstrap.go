@@ -11,8 +11,11 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var bootstrapLog = logger.New("cli:bootstrap")
 
 type BootstrapOptions struct {
 	Ctx              context.Context
@@ -55,7 +58,13 @@ type bootstrapRuntime struct {
 	compileWorkflows func(context.Context, CompileConfig) ([]*workflow.WorkflowData, error)
 }
 
-const bootstrapAddWorkflowsRetryHint = "repository initialization completed; re-run bootstrap to retry workflow addition"
+const (
+	bootstrapAddWorkflowsRetryHint = "repository initialization completed; re-run bootstrap to retry workflow addition"
+	bootstrapMCPConfigPath         = ".github/mcp.json"
+	bootstrapCopilotSetupPath      = ".github/workflows/copilot-setup-steps.yml"
+	bootstrapAgenticSkillPath      = ".github/skills/agentic-workflows/SKILL.md"
+	bootstrapAgenticAgentPath      = ".github/agents/agentic-workflows.md"
+)
 
 func defaultBootstrapRuntime() bootstrapRuntime {
 	setupRuntime := defaultSetupRepositoryRuntime()
@@ -94,10 +103,12 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 	printBootstrapPlan(plan)
 
 	if opts.PlanOnly {
+		bootstrapLog.Printf("Plan-only mode; skipping mutation for %s", opts.Repo)
 		return nil
 	}
 
 	if !plan.NeedsMutation {
+		bootstrapLog.Printf("Bootstrap already satisfied for %s; no mutation needed", opts.Repo)
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Bootstrap already satisfied for "+opts.Repo))
 		return nil
 	}
@@ -238,6 +249,7 @@ func validateBootstrapOptions(opts BootstrapOptions) error {
 }
 
 func buildBootstrapPlan(ctx context.Context, opts BootstrapOptions, runtime bootstrapRuntime, originalDir string) (*bootstrapPlan, error) {
+	bootstrapLog.Printf("Building bootstrap plan: repo=%s, createRepo=%t, sources=%d", opts.Repo, opts.CreateRepo, len(opts.Sources))
 	if err := runtime.checkAuth(ctx); err != nil {
 		return nil, fmt.Errorf("failed to verify GitHub CLI authentication: %w", err)
 	}
@@ -311,6 +323,8 @@ func buildBootstrapPlan(ctx context.Context, opts BootstrapOptions, runtime boot
 
 	plan.PlanLines = buildBootstrapPlanLines(plan, opts)
 	plan.NeedsMutation = plan.CreateRepo || plan.CloneRepo || plan.InitNeeded || len(plan.ResolvedSources) > 0
+	bootstrapLog.Printf("Bootstrap plan built: createRepo=%t, cloneRepo=%t, attached=%t, initNeeded=%t, needsMutation=%t",
+		plan.CreateRepo, plan.CloneRepo, plan.AttachedCheckout, plan.InitNeeded, plan.NeedsMutation)
 
 	if !opts.PlanOnly && plan.AttachedCheckout && plan.NeedsMutation {
 		if err := withWorkingDir(plan.Dir, func() error {
@@ -358,7 +372,7 @@ func isBootstrapInitMarkerSatisfied(baseDir string, marker string) (bool, error)
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
 		}
 		return strings.Contains(string(content), constants.WorkflowsLockYmlGitAttributesEntry), nil
-	case ".github/mcp.json":
+	case bootstrapMCPConfigPath:
 		content, err := os.ReadFile(markerPath)
 		if err != nil {
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
@@ -379,7 +393,7 @@ func isBootstrapInitMarkerSatisfied(baseDir string, marker string) (bool, error)
 			return false, nil
 		}
 		return len(server.Args) >= 2 && server.Args[0] == "aw" && server.Args[1] == "mcp-server", nil
-	case ".github/workflows/copilot-setup-steps.yml":
+	case bootstrapCopilotSetupPath:
 		content, err := os.ReadFile(markerPath)
 		if err != nil {
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
@@ -389,7 +403,7 @@ func isBootstrapInitMarkerSatisfied(baseDir string, marker string) (bool, error)
 			(strings.Contains(steps, "Install gh-aw extension") && strings.Contains(steps, "curl -fsSL"))
 		hasActionInstall := strings.Contains(steps, "actions/setup-cli")
 		return hasLegacyInstall || hasActionInstall, nil
-	case ".github/skills/agentic-workflows/SKILL.md":
+	case bootstrapAgenticSkillPath:
 		expected, err := buildAgenticWorkflowsSkillContent()
 		if err != nil {
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
@@ -399,7 +413,7 @@ func isBootstrapInitMarkerSatisfied(baseDir string, marker string) (bool, error)
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
 		}
 		return strings.TrimSpace(string(content)) == strings.TrimSpace(expected), nil
-	case ".github/agents/agentic-workflows.md":
+	case bootstrapAgenticAgentPath:
 		expected, err := buildAgenticWorkflowsAgentContent(baseDir)
 		if err != nil {
 			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
@@ -421,10 +435,10 @@ func expectedBootstrapInitMarkers(engineOverride string) []string {
 	}
 	if engineOverride == "" || engineOverride == "copilot" {
 		markers = append(markers,
-			".github/skills/agentic-workflows/SKILL.md",
-			".github/agents/agentic-workflows.md",
-			".github/mcp.json",
-			".github/workflows/copilot-setup-steps.yml",
+			bootstrapAgenticSkillPath,
+			bootstrapAgenticAgentPath,
+			bootstrapMCPConfigPath,
+			bootstrapCopilotSetupPath,
 		)
 	}
 	return markers

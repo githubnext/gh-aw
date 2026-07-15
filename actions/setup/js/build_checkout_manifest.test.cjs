@@ -89,6 +89,7 @@ describe("build_checkout_manifest.cjs", () => {
   it("falls back to gh api when local git default branch is unavailable", () => {
     const workspace = createTempDir("checkout-manifest-workspace-");
     tempDirs.push(workspace);
+    /** @type {any} */
     let ghOptions = null;
 
     const defaultBranch = resolveDefaultBranch("owner/repo", "missing", {

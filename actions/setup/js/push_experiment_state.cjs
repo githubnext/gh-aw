@@ -4,16 +4,20 @@
 /**
  * push_experiment_state
  *
- * Commits experiment state files (state.json, assignments.json) to a git
+ * Commits state files to a git
  * branch using the GitHub GraphQL `createCommitOnBranch` mutation so commits
  * are cryptographically signed (verified) by GitHub. Falls back to a plain
  * `git push` via pushSignedCommits when the GraphQL path is unavailable.
  *
- * Environment variables (set by the compiled workflow step):
+ * Generic environment variables:
+ *   GH_AW_STATE_DIR             - Directory containing files to commit
+ *   GH_AW_STATE_BRANCH          - Target git branch
+ *   GH_AW_STATE_FILES           - Comma-separated filenames to copy from GH_AW_STATE_DIR
+ *   GH_AW_STATE_LABEL           - Human-readable label used in logs/messages
+ *
+ * Backward-compatible experiment aliases:
  *   GH_AW_EXPERIMENT_STATE_DIR  - Directory containing state.json / assignments.json
- *                                  e.g. /tmp/gh-aw/experiments
  *   GH_AW_EXPERIMENT_BRANCH     - Target git branch for experiment state
- *                                  e.g. experiments/myworkflow
  *   GH_TOKEN / GITHUB_TOKEN     - GitHub token for API access and git operations
  *   GITHUB_RUN_ID               - Run ID used in commit messages
  *   GITHUB_SERVER_URL           - GitHub server URL (defaults to https://github.com)
@@ -66,15 +70,21 @@ function checkoutOrCreateBranch(branchName, repoUrl, workspaceDir) {
  * Main entry point called by the actions/github-script step.
  */
 async function main() {
-  const stateDir = process.env.GH_AW_EXPERIMENT_STATE_DIR || "/tmp/gh-aw/experiments";
-  const branchName = process.env.GH_AW_EXPERIMENT_BRANCH || "";
+  const stateDir = process.env.GH_AW_STATE_DIR || process.env.GH_AW_EXPERIMENT_STATE_DIR || "/tmp/gh-aw/experiments";
+  const branchName = process.env.GH_AW_STATE_BRANCH || process.env.GH_AW_EXPERIMENT_BRANCH || "";
+  const stateLabel = process.env.GH_AW_STATE_LABEL || "experiment state";
+  const filesEnv = process.env.GH_AW_STATE_FILES || "state.json,assignments.json";
+  const candidateFiles = filesEnv
+    .split(",")
+    .map(name => name.trim())
+    .filter(Boolean);
   const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "";
   const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
   const githubServerUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/$/, "");
   const serverHost = githubServerUrl.replace(/^https?:\/\//, "");
 
   if (!branchName) {
-    core.setFailed("GH_AW_EXPERIMENT_BRANCH is not set");
+    core.setFailed("GH_AW_STATE_BRANCH (or GH_AW_EXPERIMENT_BRANCH) is not set");
     return;
   }
   if (!ghToken) {
@@ -95,17 +105,16 @@ async function main() {
   }
   const [owner, repo] = targetRepo.split("/");
 
-  core.info(`Pushing experiment state to branch "${branchName}" in ${targetRepo}`);
+  core.info(`Pushing ${stateLabel} to branch "${branchName}" in ${targetRepo}`);
 
   // Collect the JSON files that exist in the state directory.
-  const candidateFiles = ["state.json", "assignments.json"];
   const filesToPush = candidateFiles.filter(name => {
     const full = path.join(stateDir, name);
     return fs.existsSync(full) && fs.statSync(full).isFile();
   });
 
   if (filesToPush.length === 0) {
-    core.info("No experiment state files found – nothing to push");
+    core.info(`No ${stateLabel} files found – nothing to push`);
     return;
   }
 
@@ -147,15 +156,15 @@ async function main() {
   // Check whether there are any staged changes to commit.
   const status = execGitSync(["status", "--porcelain"], { cwd: workspaceDir }).trim();
   if (!status) {
-    core.info("No changes to experiment state – skipping push");
+    core.info(`No changes to ${stateLabel} – skipping push`);
     return;
   }
 
   // Commit.
   try {
-    execGitSync(["commit", "-m", `Update experiment state from workflow run ${githubRunId}`], { stdio: "inherit", cwd: workspaceDir });
+    execGitSync(["commit", "-m", `Update ${stateLabel} from workflow run ${githubRunId}`], { stdio: "inherit", cwd: workspaceDir });
   } catch (err) {
-    core.setFailed(`Failed to commit experiment state: ${getErrorMessage(err)}`);
+    core.setFailed(`Failed to commit ${stateLabel}: ${getErrorMessage(err)}`);
     return;
   }
 
@@ -179,7 +188,7 @@ async function main() {
         cwd: workspaceDir,
         gitAuthEnv: getGitAuthEnv(ghToken),
       });
-      core.info(`Successfully pushed experiment state to ${branchName}`);
+      core.info(`Successfully pushed ${stateLabel} to ${branchName}`);
       return;
     } catch (err) {
       const errMsg = getErrorMessage(err);
@@ -208,7 +217,7 @@ async function main() {
           // ls-remote failed; keep existing baseRef
         }
       } else {
-        core.setFailed(`Failed to push experiment state after ${MAX_RETRIES + 1} attempts: ${errMsg}`);
+        core.setFailed(`Failed to push ${stateLabel} after ${MAX_RETRIES + 1} attempts: ${errMsg}`);
       }
     }
   }

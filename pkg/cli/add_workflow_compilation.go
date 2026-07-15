@@ -19,13 +19,13 @@ var addWorkflowCompilationLog = logger.New("cli:add_workflow_compilation")
 // compileWorkflow compiles a workflow file without refreshing stop time.
 // This is a convenience wrapper around compileWorkflowWithRefresh.
 func compileWorkflow(ctx context.Context, filePath string, verbose bool, quiet bool, engineOverride string) error {
-	return compileWorkflowWithRefresh(ctx, filePath, verbose, quiet, engineOverride, false)
+	return compileWorkflowWithRefresh(ctx, filePath, verbose, quiet, engineOverride, false, false)
 }
 
 // compileWorkflowWithRefresh compiles a workflow file with optional stop time refresh.
 // This function handles the compilation process and ensures .gitattributes is updated.
-func compileWorkflowWithRefresh(ctx context.Context, filePath string, verbose bool, quiet bool, engineOverride string, refreshStopTime bool) error {
-	addWorkflowCompilationLog.Printf("Compiling workflow: file=%s, refresh_stop_time=%v, engine=%s", filePath, refreshStopTime, engineOverride)
+func compileWorkflowWithRefresh(ctx context.Context, filePath string, verbose bool, quiet bool, engineOverride string, refreshStopTime bool, approve bool) error {
+	addWorkflowCompilationLog.Printf("Compiling workflow: file=%s, refresh_stop_time=%v, engine=%s, approve=%v", filePath, refreshStopTime, engineOverride, approve)
 
 	// Create compiler with auto-detected version and action mode
 	compiler := workflow.NewCompiler(
@@ -34,6 +34,7 @@ func compileWorkflowWithRefresh(ctx context.Context, filePath string, verbose bo
 	)
 
 	compiler.SetRefreshStopTime(refreshStopTime)
+	compiler.SetApprove(approve)
 	compiler.SetQuiet(quiet)
 	if err := CompileWorkflowWithValidation(ctx, compiler, filePath, CompileValidationOptions{Verbose: verbose}); err != nil {
 		addWorkflowCompilationLog.Printf("Compilation failed: %v", err)

@@ -25,6 +25,9 @@ func TestNewBootstrapCommand(t *testing.T) {
 	if cmd.Use != "bootstrap [source]..." {
 		t.Fatalf("unexpected use: %s", cmd.Use)
 	}
+	if !cmd.Hidden {
+		t.Fatal("expected bootstrap command to be hidden")
+	}
 	if cmd.Flags().Lookup("repo") == nil {
 		t.Fatal("expected --repo flag")
 	}

@@ -599,11 +599,11 @@ type latestReleaseResult struct {
 // major version. Updated files are recompiled. By default all actions are updated to
 // the latest major version; pass disableReleaseBump=true to only update core
 // (actions/*) references.
-func UpdateActionsInWorkflowFiles(ctx context.Context, workflowsDir, engineOverride string, verbose, disableReleaseBump bool, noCompile bool, coolDown time.Duration) error {
-	return updateActionsInWorkflowFiles(ctx, defaultActionUpdateDeps(), workflowsDir, engineOverride, verbose, disableReleaseBump, noCompile, coolDown)
+func UpdateActionsInWorkflowFiles(ctx context.Context, workflowsDir, engineOverride string, verbose, disableReleaseBump bool, noCompile bool, coolDown time.Duration, approve bool) error {
+	return updateActionsInWorkflowFiles(ctx, defaultActionUpdateDeps(), workflowsDir, engineOverride, verbose, disableReleaseBump, noCompile, coolDown, approve)
 }
 
-func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, workflowsDir, engineOverride string, verbose, disableReleaseBump bool, noCompile bool, coolDown time.Duration) error {
+func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, workflowsDir, engineOverride string, verbose, disableReleaseBump bool, noCompile bool, coolDown time.Duration, approve bool) error {
 	if workflowsDir == "" {
 		workflowsDir = getWorkflowsDir()
 	}
@@ -664,7 +664,7 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, wo
 
 		// Recompile the updated workflow (unless --no-compile is set)
 		if !noCompile {
-			if err := compileWorkflowWithRefresh(ctx, path, verbose, false, engineOverride, false); err != nil {
+			if err := compileWorkflowWithRefresh(ctx, path, verbose, false, engineOverride, false, approve); err != nil {
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to recompile %s: %v", path, err)))
 				}

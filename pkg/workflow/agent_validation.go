@@ -175,9 +175,9 @@ func (c *Compiler) validateMaxToolDenialsSupport(frontmatter map[string]any, eng
 }
 
 // validateUniversalLLMConsumerModel validates that universal consumer engines
-// (OpenCode/Crush) declare a provider-qualified engine.model.
+// (OpenCode) declare a provider-qualified engine.model.
 func (c *Compiler) validateUniversalLLMConsumerModel(frontmatter map[string]any, engine CodingAgentEngine) error {
-	if engine.GetID() != "opencode" && engine.GetID() != "crush" {
+	if engine.GetID() != "opencode" {
 		return nil
 	}
 

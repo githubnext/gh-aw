@@ -25,7 +25,7 @@ const { createLogger } = require("./mcp_logger.cjs");
  * Start an HTTP server that routes MCP protocol requests to the given transport.
  *
  * @param {Object} options - Runner options
- * @param {import('./mcp_http_transport.cjs').MCPHTTPTransport} options.transport - Connected MCPHTTPTransport instance
+ * @param {any} options.transport - Connected MCPHTTPTransport instance
  * @param {number} options.port - Port to listen on
  * @param {Function} options.getHealthPayload - Zero-argument function that returns the JSON object for GET /health responses
  * @param {Object} options.logger - Logger instance (from mcp_logger.cjs createLogger)
@@ -65,6 +65,7 @@ async function runHttpServer(options) {
 
     try {
       // Parse request body for POST requests
+      /** @type {any} */
       let body = null;
       const chunks = [];
       for await (const chunk of req) {

@@ -53,9 +53,6 @@ const DefaultGeminiVersion Version = "0.39.1"
 // DefaultAntigravityVersion is the default version of the Antigravity CLI
 const DefaultAntigravityVersion Version = "1.0.2-6113393518706688"
 
-// DefaultCrushVersion is the default version of the Crush CLI
-const DefaultCrushVersion Version = "0.59.0"
-
 // DefaultPiVersion is the default version of the Pi CLI
 const DefaultPiVersion Version = "0.80.6"
 

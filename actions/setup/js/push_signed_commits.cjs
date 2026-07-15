@@ -216,7 +216,7 @@ function maybeReplaceTemporaryIdsInBase64Content(base64Content, temporaryIdMap, 
  * @param {object} opts
  * @param {string} opts.branch
  * @param {string} opts.cwd
- * @param {object} [opts.gitAuthEnv]
+ * @param {any} [opts.gitAuthEnv]
  * @returns {Promise<string>}
  */
 async function pushBranchAndResolveHead({ branch, cwd, gitAuthEnv }) {
@@ -287,7 +287,7 @@ async function resolveLocalHeadSha(cwd) {
  * @param {string} opts.branch - Target branch name
  * @param {string} opts.baseRef - Git ref of the remote head before commits were applied (used for rev-list)
  * @param {string} opts.cwd - Working directory of the local git checkout
- * @param {object} [opts.gitAuthEnv] - Environment variables for git push fallback auth
+ * @param {any} [opts.gitAuthEnv] - Environment variables for git push fallback auth
  * @param {boolean} [opts.signedCommits=true] - When false, skip GraphQL signed commits and use git push directly
  * @param {boolean} [opts.allowGitPushFallback=true] - When false, refuse any fallback path that would use direct git push
  * @param {Record<string, any>} [opts.resolvedTemporaryIds] - Resolved temporary IDs map

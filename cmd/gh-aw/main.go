@@ -717,11 +717,11 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	// Add flags to new command
 	newCmd.Flags().BoolP("force", "f", false, "Overwrite existing files without confirmation")
 	newCmd.Flags().BoolP("interactive", "i", false, "Launch interactive workflow creation wizard")
-	newCmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, crush)")
+	newCmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, antigravity, opencode, pi)")
 	cli.RegisterEngineFlagCompletion(newCmd)
 
 	// Add AI flag to compile and add commands
-	compileCmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, crush)")
+	compileCmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, antigravity, opencode, pi)")
 	compileCmd.Flags().String("action-mode", "", "How gh-aw action scripts are referenced in compiled workflows: 'dev' uses local paths (for developing gh-aw itself), 'release' emits SHA-pinned remote refs from github/gh-aw, 'action' uses the github/gh-aw-actions repository. Auto-detected from the binary build type if not specified")
 	compileCmd.Flags().String("action-tag", "", "Pin compiled workflows to a specific version of gh-aw actions. Accepts a full commit SHA or a version tag (e.g. v1, v1.2.3). Sets --action-mode to 'release' unless --action-mode action is also specified. Cannot be combined with --gh-aw-ref; use --gh-aw-ref when you want to resolve a branch or tag name to its current SHA")
 	compileCmd.Flags().String("actions-repo", "", "Override the external actions repository used in action mode (default: github/gh-aw-actions)")
@@ -794,7 +794,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	// Add flags to run command
 	runCmd.Flags().Int("repeat", 0, "Number of additional times to run after the initial execution (e.g., --repeat 3 runs 4 times total)")
 	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
-	runCmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, crush)")
+	runCmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, antigravity, opencode, pi)")
 	runCmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format). Defaults to current repository")
 	runCmd.Flags().String("ref", "", "Branch or tag name to run the workflow on (default: current branch)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
@@ -824,7 +824,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	prCmd := cli.NewPRCommand()
 	secretsCmd := cli.NewSecretsCommand()
 	fixCmd := cli.NewFixCommand()
-	upgradeCmd := cli.NewUpgradeCommand()
+	upgradeCmd := cli.NewUpgradeCommand(validateEngine)
 	completionCmd := cli.NewCompletionCommand()
 	hashCmd := cli.NewHashCommand()
 	projectCmd := cli.NewProjectCommand()

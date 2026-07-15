@@ -36,7 +36,6 @@ func engineConfigBaseDir(engineID string) string {
 //	claude       → .claude/skills
 //	codex        → .codex/skills
 //	gemini       → .gemini/skills
-//	crush        → .crush/skills
 //	opencode     → .opencode/skills
 //	antigravity  → .antigravity/skills
 //	pi           → .pi/skills
@@ -53,7 +52,6 @@ func GetEngineSkillDir(engineID string) string {
 //	claude       → .claude/agents
 //	codex        → .codex/agents
 //	gemini       → .gemini/agents
-//	crush        → .crush/agents
 //	opencode     → .opencode/agents
 //	antigravity  → .antigravity/agents
 //	pi           → .pi/agents

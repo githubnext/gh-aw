@@ -398,12 +398,14 @@ function piProviderExtension(pi) {
 }
 
 module.exports = piProviderExtension;
-module.exports.getConfiguredModel = getConfiguredModel;
-module.exports.extractProviderFromModel = extractProviderFromModel;
-module.exports.resolveGatewayUrl = resolveGatewayUrl;
-module.exports.registerConfiguredProviders = registerConfiguredProviders;
-module.exports.resolveProviderRequestTarget = resolveProviderRequestTarget;
-module.exports.formatResponseHeaderNames = formatResponseHeaderNames;
-module.exports.buildInfrastructureIncompletePayload = buildInfrastructureIncompletePayload;
-module.exports.emitInfrastructureIncompleteIfNoSafeOutputs = emitInfrastructureIncompleteIfNoSafeOutputs;
-module.exports.logReflectFailure = logReflectFailure;
+/** @type {any} */
+const _piExports = module.exports;
+_piExports.getConfiguredModel = getConfiguredModel;
+_piExports.extractProviderFromModel = extractProviderFromModel;
+_piExports.resolveGatewayUrl = resolveGatewayUrl;
+_piExports.registerConfiguredProviders = registerConfiguredProviders;
+_piExports.resolveProviderRequestTarget = resolveProviderRequestTarget;
+_piExports.formatResponseHeaderNames = formatResponseHeaderNames;
+_piExports.buildInfrastructureIncompletePayload = buildInfrastructureIncompletePayload;
+_piExports.emitInfrastructureIncompleteIfNoSafeOutputs = emitInfrastructureIncompleteIfNoSafeOutputs;
+_piExports.logReflectFailure = logReflectFailure;

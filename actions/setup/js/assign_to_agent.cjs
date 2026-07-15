@@ -93,7 +93,9 @@ async function main(config = {}) {
   if (allowedRepos.size > 0) core.info(`Allowed repos: ${[...allowedRepos].join(", ")}`);
 
   // Resolve pull request repo upfront (if globally configured)
+  /** @type {any} */
   let pullRequestOwner = null;
+  /** @type {any} */
   let pullRequestRepo = null;
   let effectiveBaseBranch = configuredBaseBranch;
   const pullRequestRepoConfig = config["pull-request-repo"] ? String(config["pull-request-repo"]).trim() : null;
@@ -342,6 +344,7 @@ async function main(config = {}) {
       core.info(`Getting ${type} details...`);
       let assignableId;
       let currentAssignees;
+      /** @type {any} */
       let taskContext = null;
       if (issueNumber) {
         const issueDetails = await getIssueDetails(effectiveOwner, effectiveRepo, issueNumber, githubClient);

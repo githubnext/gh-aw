@@ -1989,6 +1989,7 @@ describe("push_signed_commits integration tests", () => {
       // partial clone), and the SECOND rebase runs for real and succeeds.
       const realExec = makeRealExec(workDir);
       let rebaseAttempts = 0;
+      /** @type {any} */
       let backfillTargets = null;
       global.exec = {
         getExecOutput: async (program, args, opts = {}) => {

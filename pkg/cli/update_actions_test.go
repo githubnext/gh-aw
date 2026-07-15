@@ -839,7 +839,7 @@ func TestUpdateActionsInWorkflowFiles_UpdatesUsesReferences(t *testing.T) {
 		t.Fatalf("failed to write workflow file: %v", err)
 	}
 
-	if err := updateActionsInWorkflowFiles(context.Background(), deps, workflowsDir, "", false, false, true, 0); err != nil {
+	if err := updateActionsInWorkflowFiles(context.Background(), deps, workflowsDir, "", false, false, true, 0, false); err != nil {
 		t.Fatalf("UpdateActionsInWorkflowFiles() error = %v", err)
 	}
 
@@ -872,7 +872,7 @@ func TestUpdateActionsInWorkflowFiles_NeverDowngrades(t *testing.T) {
 		t.Fatalf("failed to write workflow file: %v", err)
 	}
 
-	if err := updateActionsInWorkflowFiles(context.Background(), deps, workflowsDir, "", false, false, true, 0); err != nil {
+	if err := updateActionsInWorkflowFiles(context.Background(), deps, workflowsDir, "", false, false, true, 0, false); err != nil {
 		t.Fatalf("UpdateActionsInWorkflowFiles() error = %v", err)
 	}
 

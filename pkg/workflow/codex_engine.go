@@ -75,7 +75,7 @@ func (e *CodexEngine) GetModelEnvVarName() string {
 }
 
 // ResolveLLMProvider returns the effective provider for Codex inference.
-// Default is openai, overridable via engine.model-provider.
+// Default is openai, overridable via engine.provider (or engine.model-provider).
 func (e *CodexEngine) ResolveLLMProvider(workflowData *WorkflowData) string {
 	return resolveEngineLLMProvider(workflowData, LLMProviderOpenAI)
 }

@@ -1,7 +1,7 @@
 # ADR-43056: Download safe-outputs-items manifest in the conclusion job to restore SafeItemsCount
 
 **Date**: 2026-07-03
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: Unknown
 
 ---

@@ -4,6 +4,7 @@ package astutil
 
 import (
 	"go/ast"
+	"go/constant"
 	"go/token"
 	"go/types"
 	"testing"
@@ -290,5 +291,136 @@ func TestFlipComparisonOp(t *testing.T) {
 				t.Fatalf("FlipComparisonOp(%v) = %v, want %v", tt.in, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestConstIntValue(t *testing.T) {
+	t.Parallel()
+
+	intExpr := ast.NewIdent("n")
+	strExpr := ast.NewIdent("s")
+	unknown := ast.NewIdent("x")
+
+	pass := &analysis.Pass{
+		TypesInfo: &types.Info{
+			Types: map[ast.Expr]types.TypeAndValue{
+				intExpr: {Value: constant.MakeInt64(42)},
+				strExpr: {Value: constant.MakeString("hello")},
+			},
+		},
+	}
+
+	v, ok := ConstIntValue(pass, intExpr)
+	if !ok || v != 42 {
+		t.Fatalf("ConstIntValue(int) = (%d, %v), want (42, true)", v, ok)
+	}
+
+	if _, ok := ConstIntValue(pass, strExpr); ok {
+		t.Fatal("ConstIntValue(string constant) = ok=true, want false")
+	}
+
+	if _, ok := ConstIntValue(pass, unknown); ok {
+		t.Fatal("ConstIntValue(unknown expr) = ok=true, want false")
+	}
+}
+
+func TestAsStringsMethodCall(t *testing.T) {
+	t.Parallel()
+
+	stringsPkg := types.NewPackage("strings", "strings")
+	otherPkg := types.NewPackage("other", "other")
+	stringsIdent := ast.NewIdent("strings")
+	otherIdent := ast.NewIdent("other")
+
+	pass := &analysis.Pass{
+		TypesInfo: &types.Info{
+			Uses: map[*ast.Ident]types.Object{
+				stringsIdent: types.NewPkgName(token.NoPos, nil, "strings", stringsPkg),
+				otherIdent:   types.NewPkgName(token.NoPos, nil, "other", otherPkg),
+			},
+		},
+	}
+
+	makeCall := func(pkgIdent *ast.Ident, method string) *ast.CallExpr {
+		return &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   pkgIdent,
+				Sel: ast.NewIdent(method),
+			},
+		}
+	}
+
+	// strings.Index → matches "Index"
+	indexCall := makeCall(stringsIdent, "Index")
+	got, ok := AsStringsMethodCall(pass, indexCall, "Index")
+	if !ok || got != indexCall {
+		t.Fatalf("AsStringsMethodCall(strings.Index, Index) = (%v, %v), want (%v, true)", got, ok, indexCall)
+	}
+
+	// strings.Index does not match "Count"
+	if _, ok := AsStringsMethodCall(pass, indexCall, "Count"); ok {
+		t.Fatal("AsStringsMethodCall(strings.Index, Count) = ok=true, want false")
+	}
+
+	// other.Index does not match (wrong package)
+	if _, ok := AsStringsMethodCall(pass, makeCall(otherIdent, "Index"), "Index"); ok {
+		t.Fatal("AsStringsMethodCall(other.Index, Index) = ok=true, want false")
+	}
+
+	// non-call expression
+	if _, ok := AsStringsMethodCall(pass, ast.NewIdent("x"), "Index"); ok {
+		t.Fatal("AsStringsMethodCall(non-call, Index) = ok=true, want false")
+	}
+}
+
+func TestCallQualifierText(t *testing.T) {
+	t.Parallel()
+
+	fset := token.NewFileSet()
+
+	call := &ast.CallExpr{
+		Fun: &ast.SelectorExpr{
+			X:   ast.NewIdent("strings"),
+			Sel: ast.NewIdent("Index"),
+		},
+	}
+	if got := CallQualifierText(fset, call); got != "strings" {
+		t.Fatalf("CallQualifierText = %q, want %q", got, "strings")
+	}
+
+	// non-selector call (e.g. dot-import): returns ""
+	directCall := &ast.CallExpr{Fun: ast.NewIdent("Index")}
+	if got := CallQualifierText(fset, directCall); got != "" {
+		t.Fatalf("CallQualifierText(non-selector) = %q, want %q", got, "")
+	}
+}
+
+func TestBuildContainsFix(t *testing.T) {
+	t.Parallel()
+
+	expr := &ast.BinaryExpr{
+		X:  ast.NewIdent("a"),
+		Op: token.NEQ,
+		Y:  ast.NewIdent("b"),
+	}
+
+	fixes := BuildContainsFix(expr, "strings", "s", "sub", false, "test message")
+	if len(fixes) != 1 {
+		t.Fatalf("got %d fixes, want 1", len(fixes))
+	}
+	if fixes[0].Message != "test message" {
+		t.Fatalf("Message = %q, want %q", fixes[0].Message, "test message")
+	}
+	if got := string(fixes[0].TextEdits[0].NewText); got != "strings.Contains(s, sub)" {
+		t.Fatalf("NewText = %q, want %q", got, "strings.Contains(s, sub)")
+	}
+
+	// negated
+	fixes = BuildContainsFix(expr, "strings", "s", "sub", true, "negated message")
+	if got := string(fixes[0].TextEdits[0].NewText); got != "!strings.Contains(s, sub)" {
+		t.Fatalf("negated NewText = %q, want %q", got, "!strings.Contains(s, sub)")
+	}
+	if fixes[0].Message != "negated message" {
+		t.Fatalf("negated Message = %q, want %q", fixes[0].Message, "negated message")
 	}
 }

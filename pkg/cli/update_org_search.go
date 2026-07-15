@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -31,12 +32,33 @@ type orgSearchResponse struct {
 
 var searchOrgWorkflowReposFn = searchOrgWorkflowRepos
 
+const orgSlugConstraintDescription = "must be 1-39 characters, contain only alphanumeric characters or single hyphens, and cannot start or end with a hyphen"
+
+// orgSlugRe matches valid GitHub organization names: alphanumeric characters
+// and single hyphens between segments, not starting or ending with a hyphen,
+// length 1–39.
+var orgSlugRe = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$`)
+
+// isValidOrgSlug reports whether s is a valid GitHub organization slug.
+// GitHub org names may only contain alphanumeric characters and hyphens,
+// cannot start or end with a hyphen, and are 1–39 characters long.
+func isValidOrgSlug(s string) bool {
+	return orgSlugRe.MatchString(s) && !strings.Contains(s, "--")
+}
+
+func invalidOrgSlugError(org string) error {
+	return fmt.Errorf("invalid organization name %q: %s", org, orgSlugConstraintDescription)
+}
+
 // searchOrgWorkflowRepos searches an organization's repositories for compiled
 // agentic workflow lock files (.lock.yml) in .github/workflows.
 //
 // It paginates through all code-search results, deduplicates by repository full
 // name, and returns a deterministically sorted slice of "owner/repo" strings.
 func searchOrgWorkflowRepos(ctx context.Context, org string, workflowNames []string, verbose bool) ([]string, error) {
+	if !isValidOrgSlug(org) {
+		return nil, invalidOrgSlugError(org)
+	}
 	updateOrgSearchLog.Printf("Searching org %q for workflow repos (%d workflow name filters)", org, len(workflowNames))
 	query := buildOrgWorkflowSearchQuery(org, workflowNames)
 	return searchOrgReposByQuery(ctx, query, verbose)

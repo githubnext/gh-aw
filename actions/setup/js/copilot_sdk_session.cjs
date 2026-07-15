@@ -163,11 +163,13 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     workingDirectory: process.env.GITHUB_WORKSPACE || process.cwd(),
     logLevel,
   });
+  /** @type {any} */
   let session = null;
   /** @type {fs.WriteStream | null} */
   let eventsStream = null;
   let clientStarted = false;
   let toolDenialCount = 0;
+  /** @type {any} */
   let catastrophicToolDenialsError = null;
   let catastrophicToolDenialsTriggered = false;
   /**
@@ -198,7 +200,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
   /**
    * Best-effort write of a driver-level event to events.jsonl and stderr.
    * @param {string} type
-   * @param {object} data
+   * @param {any} data
    */
   function writeDriverEvent(type, data) {
     const entry = { type, timestamp: new Date().toISOString(), data };
@@ -275,7 +277,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
      * Uses the event's own ISO-8601 timestamp when available.
      *
      * @param {string} type
-     * @param {object} data
+     * @param {any} data
      * @param {string | undefined} [timestamp]
      */
     function writeEvent(type, data, timestamp) {
@@ -497,6 +499,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
      * @returns {Promise<boolean>}
      */
     const withCleanupTimeout = p => {
+      /** @type {any} */
       let timeoutId = null;
       const deadline = new Promise(resolve => {
         timeoutId = setTimeout(() => {

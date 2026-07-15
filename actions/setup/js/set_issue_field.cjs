@@ -288,6 +288,7 @@ async function main(config = {}) {
         return { success: false, skipped: true, error: warning };
       }
 
+      /** @type {any} */
       let resolvedFieldByName = null;
       if (fieldName) {
         resolvedFieldByName = availableFields.find(field => field.name.toLowerCase() === fieldName.toLowerCase()) || null;

@@ -2,7 +2,7 @@ package cli
 
 import "github.com/spf13/cobra"
 
-const engineFlagHelpList = "copilot, claude, codex, gemini, crush"
+const engineFlagHelpList = "copilot, claude, codex, gemini, antigravity, opencode, pi"
 
 func engineFlagUsage(prefix string) string {
 	return prefix + " (" + engineFlagHelpList + ")"

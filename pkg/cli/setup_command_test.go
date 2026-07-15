@@ -21,6 +21,7 @@ func TestNewSetupCommand(t *testing.T) {
 	require.NotNil(t, cmd)
 	assert.Equal(t, "setup", cmd.Use)
 	assert.Equal(t, "Run reusable auth and repository setup checks", cmd.Short)
+	assert.True(t, cmd.Hidden)
 	assert.Contains(t, cmd.Long, "Available subcommands:")
 	assert.Contains(t, cmd.Example, "gh aw setup repo --repo github/gh-aw --json")
 	assert.Contains(t, cmd.Long, "- auth")

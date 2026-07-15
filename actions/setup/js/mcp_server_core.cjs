@@ -66,7 +66,7 @@ const UNKNOWN_PARAMETER_LIST_PREVIEW_MAX = 10;
  * @property {Function} writeMessage - Write message to stdout
  * @property {Function} replyResult - Send a result response
  * @property {Function} replyError - Send an error response
- * @property {ReadBuffer} readBuffer - Message buffer
+ * @property {any} readBuffer - Message buffer
  * @property {string} [logDir] - Optional log directory
  * @property {string} [logFilePath] - Optional log file path
  * @property {boolean} logFileInitialized - Whether log file has been initialized
