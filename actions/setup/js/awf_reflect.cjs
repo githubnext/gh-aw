@@ -47,6 +47,22 @@ const GEMINI_MODEL_NAME_PREFIX = "models/";
 const REFLECT_PROVIDER_GITHUB = "github";
 const REFLECT_PROVIDER_OPENAI = "openai";
 const REFLECT_PROVIDER_ANTHROPIC = "anthropic";
+
+/**
+ * @typedef {{
+ *   configured?: boolean,
+ *   models_url?: string | null,
+ *   port?: number | null,
+ *   provider?: string,
+ * }} ReflectEndpoint
+ */
+
+/**
+ * @typedef {{
+ *   endpoints?: ReflectEndpoint[],
+ * }} ReflectData
+ */
+
 const REFLECT_PROVIDER_ALIASES = {
   // Only GitHub has multiple externally-visible aliases in reflect payloads.
   github: new Set(["github", "copilot", "github-copilot", "github_models"]),
@@ -533,7 +549,7 @@ function endpointBaseUrl(endpoint) {
  *
  * @param {{
  *   provider?: string,
- *   reflectData: object | null | undefined,
+ *   reflectData: ReflectData | null | undefined,
  *   logger?: (msg: string) => void,
  * }} options
  * @returns {{ provider: string, endpointProvider: string, port: number|null, baseUrl: string } | null}
@@ -542,7 +558,10 @@ function resolveProviderEndpointFromReflect(options) {
   const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
   const provider = normalizeReflectProviderName(options?.provider, "openai");
   const reflectData = options?.reflectData;
-  const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints.filter(ep => ep && ep.configured === true) : [];
+  /** @type {({ endpoints?: unknown } | null)} */
+  const reflectRecord = reflectData && typeof reflectData === "object" ? reflectData : null;
+  const endpointCandidates = Array.isArray(reflectRecord?.endpoints) ? reflectRecord.endpoints : [];
+  const endpoints = endpointCandidates.filter(/** @param {any} ep */ ep => ep && ep.configured === true);
   if (endpoints.length === 0) {
     logger(`awf-reflect: no configured endpoints available while resolving provider=${provider}`);
     return null;
@@ -566,7 +585,7 @@ function resolveProviderEndpointFromReflect(options) {
     return normalized === provider;
   };
 
-  const matched = endpoints.find(ep => endpointProviderMatches(ep?.provider)) || endpoints[0];
+  const matched = endpoints.find(ep => typeof ep?.provider === "string" && endpointProviderMatches(ep.provider)) || endpoints[0];
   const baseUrl = endpointBaseUrl(matched);
   if (!baseUrl) {
     logger(`awf-reflect: matched provider=${provider} but could not derive baseUrl`);
@@ -595,7 +614,7 @@ function resolveProviderEndpointFromReflect(options) {
  *
  * @param {{
  *   model?: string,
- *   reflectData: object | null | undefined,
+ *   reflectData: ReflectData | null | undefined,
  *   modelsJson?: object | null,
  *   logger?: (msg: string) => void,
  * }} [options]

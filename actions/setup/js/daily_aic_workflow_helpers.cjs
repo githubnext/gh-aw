@@ -45,54 +45,6 @@ function findJSONLFiles(root) {
 }
 
 /**
- * @param {string} filePath
- * @returns {number}
- */
-function sumAICFromTokenUsageFile(filePath) {
-  if (!filePath || !fs.existsSync(filePath)) {
-    return 0;
-  }
-
-  const content = fs.readFileSync(filePath, "utf8");
-  if (!content.trim()) {
-    return 0;
-  }
-
-  let total = 0;
-  for (const rawLine of content.split("\n")) {
-    const line = rawLine.trim();
-    if (!line || !line.startsWith("{")) {
-      continue;
-    }
-
-    try {
-      const parsed = JSON.parse(line);
-      const explicit = Number(parsed?.aic);
-      if (Number.isFinite(explicit) && explicit > 0) {
-        total += explicit;
-        continue;
-      }
-      const computed = computeInferenceAIC({
-        provider: String(parsed?.provider || ""),
-        model: String(parsed?.model || ""),
-        inputTokens: Number(parsed?.input_tokens || 0),
-        outputTokens: Number(parsed?.output_tokens || 0),
-        cacheReadTokens: Number(parsed?.cache_read_tokens || 0),
-        cacheWriteTokens: Number(parsed?.cache_write_tokens || 0),
-        reasoningTokens: Number(parsed?.reasoning_tokens || 0),
-      });
-      if (Number.isFinite(computed) && computed > 0) {
-        total += computed;
-      }
-    } catch {
-      // Ignore malformed lines.
-    }
-  }
-
-  return total;
-}
-
-/**
  * @param {Array<string>} filePaths
  * @returns {number}
  */
@@ -274,7 +226,6 @@ function formatAICCredits(value) {
 
 module.exports = {
   findJSONLFiles,
-  sumAICFromTokenUsageFile,
   sumAICFromUsageJSONLFiles,
   calculateDailyAICStats,
   formatAICCredits,
