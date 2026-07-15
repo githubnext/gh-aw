@@ -155,9 +155,7 @@ func handleArtifactDownloadError(result *DownloadResult, err error, verbose bool
 		logsOrchestratorLog.Printf("No artifacts available for run %d (conclusion=%s)", run.DatabaseID, run.Conclusion)
 		if isFailureConclusion(run.Conclusion) {
 			result.Metrics = LogMetrics{}
-			if failedJobCount, jobErr := fetchJobStatuses(run.DatabaseID, verbose); jobErr == nil {
-				result.Run.ErrorCount = failedJobCount
-			}
+			// ErrorCount will be populated by buildProcessedRun via fetchJobStatuses.
 		} else {
 			result.Skipped = true
 			result.Error = err
