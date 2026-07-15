@@ -172,6 +172,7 @@ JobTopologyOrder ≜
 | `ThreatDetectionOrDefault` | `TestFormalThreatDetection_EnabledByDefault` | Threat detection auto-injected when safe-outputs configured without explicit disable |
 | `ThreatDetectionOrDefault` | `TestFormalThreatDetection_ExplicitDisable` | Threat detection returns nil when explicitly set to false |
 | `IsContinueOnError` | `TestFormalThreatDetection_ContinueOnErrorDefault` | IsContinueOnError defaults to true when field is nil |
+| `PM11_PreActivationMembership` | `TestFormalPM11_PreActivationContainsMembershipStep` | `pre_activation` job contains the runtime `check_membership` gate when RBAC is enabled |
 | `StagedHandlerNoWritePerms` | `TestFormalStaged_HandlerRequiresNoWritePerms` | Staged safe-output handlers do not require write permissions |
 | `IDTokenRequirement` | `TestFormalIDToken_OIDCVaultActionsRequireWriteScope` | OIDC vault actions trigger id-token:write requirement |
 | `getPushFallbackAsPullRequest` | `TestFormalPushFallback_DefaultsToTrue` | Push fallback-as-pull-request defaults to true when config is nil |
@@ -179,7 +180,7 @@ JobTopologyOrder ≜
 
 ### Generated Test Suite
 
-The 15 test functions above are implemented in
+The 16 test functions above are implemented in
 `pkg/workflow/security_architecture_sg_formal_test.go` using the Go
 `testify` library. All tests carry the `//go:build !integration` tag so they
 run in the default unit-test suite without any special flags.
@@ -195,7 +196,7 @@ Each test function:
 Run the full suite:
 
 ```sh
-go test ./pkg/workflow/ -run 'TestFormalSG|TestFormalBasicConformance|TestFormalThreatDetection|TestFormalStaged|TestFormalIDToken|TestFormalPushFallback|TestFormalJobTopology' -v
+go test ./pkg/workflow/ -run 'TestFormalSG|TestFormalBasicConformance|TestFormalThreatDetection|TestFormalPM11|TestFormalStaged|TestFormalIDToken|TestFormalPushFallback|TestFormalJobTopology' -v
 ```
 
 ### Formal Requirements
@@ -348,6 +349,7 @@ Summary version **1.0.0** corresponds to the minimum validated `.lock.yml` compi
 | Track conclusion job note from validation doc | ✅ Done (2026-07-06) | Documented the optional `conclusion` job as non-normative cleanup/reporting guidance |
 | Audit trusted-users runtime enforcement coverage | ✅ Done (2026-07-06) | Sections 8-9 now document runtime `trusted-users` enforcement scope directly in this spec summary (membership checks gate privileged runtime access) |
 | Add formal model and test suite for SG-01 through SG-07 | ✅ Done (2026-07-09) | Added "Formal Model" (TLA+/F*/Z3 invariants), "Behavioral Coverage Map" (15 predicates), and "Generated Test Suite" sections; 15 tests in `pkg/workflow/security_architecture_sg_formal_test.go` |
+| Sync PM-11 formal coverage into behavioral coverage map | ✅ Done (2026-07-15) | Added `TestFormalPM11_PreActivationContainsMembershipStep` to the behavioral coverage map and generated suite notes; formal suite now tracks 16 tests in `pkg/workflow/security_architecture_sg_formal_test.go` |
 
 ## Versioning
 

@@ -700,6 +700,168 @@ function evaluateClosePullRequest(item, defaultRepo, api = ghAPI, nowMs = Date.n
 }
 
 /**
+ * Evaluate `close_discussion`.
+ * @param {any} item
+ * @param {string} defaultRepo
+ * @param {(endpoint: string) => any} api
+ * @param {number} nowMs
+ * @returns {EvalResult}
+ */
+function evaluateCloseDiscussion(item, defaultRepo, api = ghAPI, nowMs = Date.now()) {
+  const repo = getItemRepo(item, defaultRepo);
+  const number = getItemNumber(item);
+  const timestamp = item.timestamp || "";
+  /** @type {EvalResult} */
+  const out = {
+    result: "unknown",
+    outcome_status: "unknown",
+    evidence_strength: "weak",
+    signal: "unknown",
+    detail: "",
+    resolution_sec: null,
+    pending_age_sec: null,
+    review_comments: null,
+    changed_files: null,
+    additions: null,
+    deletions: null,
+    reactions_total: null,
+    reactions_positive: null,
+    reactions_negative: null,
+    comments: null,
+    zero_touch: false,
+  };
+
+  if (!repo || !number) {
+    out.detail = "missing discussion reference";
+    return out;
+  }
+
+  const discussion = api(`repos/${repo}/discussions/${number}`);
+  if (!discussion || (typeof discussion.state !== "string" && typeof discussion.closed !== "boolean")) {
+    out.detail = "api error";
+    setPendingAge(out, timestamp, nowMs);
+    return out;
+  }
+
+  out.comments = typeof discussion.comments === "number" ? discussion.comments : null;
+  if (discussion.reactions && typeof discussion.reactions === "object") {
+    const summary = summarizeReactions(discussion.reactions);
+    out.reactions_total = summary.total;
+    out.reactions_positive = summary.positive;
+    out.reactions_negative = summary.negative;
+  }
+
+  const isClosed = discussion.closed === true || String(discussion.state || "").toLowerCase() === "closed";
+  if (isClosed) {
+    out.result = "accepted";
+    out.outcome_status = "accepted";
+    out.evidence_strength = "strong";
+    out.signal = "closed";
+    out.detail = "closed";
+    if (discussion.created_at && discussion.closed_at) {
+      out.resolution_sec = secondsBetween(discussion.created_at, discussion.closed_at);
+    }
+    return out;
+  }
+
+  out.result = "rejected";
+  out.outcome_status = "rejected";
+  out.evidence_strength = "strong";
+  out.signal = "not_closed";
+  out.detail = "not_closed";
+  return out;
+}
+
+/**
+ * Evaluate `create_discussion`.
+ * @param {any} item
+ * @param {string} defaultRepo
+ * @param {(endpoint: string) => any} api
+ * @param {number} nowMs
+ * @returns {EvalResult}
+ */
+function evaluateCreateDiscussion(item, defaultRepo, api = ghAPI, nowMs = Date.now()) {
+  const repo = getItemRepo(item, defaultRepo);
+  const number = getItemNumber(item);
+  const timestamp = item.timestamp || "";
+  /** @type {EvalResult} */
+  const out = {
+    result: "unknown",
+    outcome_status: "unknown",
+    evidence_strength: "weak",
+    signal: "unknown",
+    detail: "",
+    resolution_sec: null,
+    pending_age_sec: null,
+    review_comments: null,
+    changed_files: null,
+    additions: null,
+    deletions: null,
+    reactions_total: null,
+    reactions_positive: null,
+    reactions_negative: null,
+    comments: null,
+    zero_touch: false,
+  };
+
+  if (!repo || !number) {
+    out.detail = "missing discussion reference";
+    return out;
+  }
+
+  const discussion = api(`repos/${repo}/discussions/${number}`);
+  if (!discussion) {
+    out.detail = "api error";
+    setPendingAge(out, timestamp, nowMs);
+    return out;
+  }
+
+  out.comments = typeof discussion.comments === "number" ? discussion.comments : null;
+  if (discussion.reactions && typeof discussion.reactions === "object") {
+    const summary = summarizeReactions(discussion.reactions);
+    out.reactions_total = summary.total;
+    out.reactions_positive = summary.positive;
+    out.reactions_negative = summary.negative;
+  }
+
+  const answered = discussion.answer_chosen_at != null || discussion.answer != null || discussion.answered === true;
+  if (answered) {
+    out.result = "accepted";
+    out.outcome_status = "accepted";
+    out.evidence_strength = "strong";
+    out.signal = "answered";
+    out.detail = "answered";
+    return out;
+  }
+
+  if (discussion.locked === true) {
+    out.result = "rejected";
+    out.outcome_status = "rejected";
+    out.evidence_strength = "strong";
+    out.signal = "locked";
+    out.detail = "locked";
+    return out;
+  }
+
+  if (typeof out.comments === "number" && out.comments > 0) {
+    out.result = "accepted";
+    out.outcome_status = "accepted";
+    out.evidence_strength = "medium";
+    out.signal = "engaged";
+    out.detail = "has replies";
+    return out;
+  }
+
+  out.result = "ignored";
+  out.outcome_status = "ignored";
+  out.evidence_strength = "medium";
+  out.signal = "no_engagement";
+  out.detail = "no replies";
+  setPendingAge(out, timestamp, nowMs);
+  return out;
+}
+
+/**
  * Normalize legacy result/detail pairs into the shared outcome model.
  * @param {string} result
  * @param {string} detail
@@ -797,7 +959,7 @@ function normalizeOutcome(result, detail) {
 function getItemNumber(item) {
   if (typeof item.number === "number" && Number.isFinite(item.number)) return item.number;
   const url = item.url || "";
-  const issueMatch = url.match(/\/(?:issues|pull)\/(\d+)/);
+  const issueMatch = url.match(/\/(?:issues|pull|discussions)\/(\d+)/);
   if (issueMatch) return Number(issueMatch[1]);
   return null;
 }
@@ -1369,6 +1531,12 @@ function evaluateItem(item, defaultRepo, apiOrOptions) {
   }
   if (type === "close_pull_request") {
     return evaluateClosePullRequest(item, defaultRepo, ghAPIFn, nowMs);
+  }
+  if (type === "close_discussion") {
+    return evaluateCloseDiscussion(item, defaultRepo, ghAPIFn, nowMs);
+  }
+  if (type === "create_discussion") {
+    return evaluateCreateDiscussion(item, defaultRepo, ghAPIFn, nowMs);
   }
   if (type === "create_issue") {
     return evaluateCreateIssue(item, itemRepo, timestamp, out, ghAPIFn, nowMs);
@@ -2127,6 +2295,8 @@ module.exports = {
   evaluateAddLabels,
   evaluateCloseIssue,
   evaluateClosePullRequest,
+  evaluateCloseDiscussion,
+  evaluateCreateDiscussion,
   evaluateCreatePullRequestOutcome,
   evaluatePushToPullRequestBranchOutcome,
   normalizeOutcome,
