@@ -86,7 +86,7 @@ var rootCmd = &cobra.Command{
 
 Common Tasks:
   gh aw init                  		# Set up a new repository
-	gh aw doctor --repo owner/repo 		# Run diagnostics for auth and repository setup
+	gh aw doctor --repo owner/repo 		# Run diagnostics for authentication and repository setup
   gh aw add-wizard            		# Add workflows with interactive guided setup
   gh aw new my-workflow       		# Create your first workflow
   gh aw compile               		# Compile all workflows
