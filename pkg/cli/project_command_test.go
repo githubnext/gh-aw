@@ -585,7 +585,6 @@ func TestValidateOwnerUsesStringLoginField(t *testing.T) {
 			loginIndex := slices.Index(captured, "login="+tt.owner)
 			require.Positive(t, loginIndex)
 			assert.Equal(t, "-f", captured[loginIndex-1], "login must be passed with -f so gh keeps String! values as strings")
-			assert.NotEqual(t, "-F", captured[loginIndex-1], "login must not be passed with -F because gh would coerce false/null")
 		})
 	}
 }
