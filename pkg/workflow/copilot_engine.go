@@ -30,6 +30,8 @@ type CopilotEngine struct {
 	BaseEngine
 }
 
+var _ CodingAgentEngine = (*CopilotEngine)(nil)
+
 func NewCopilotEngine() *CopilotEngine {
 	copilotLog.Print("Creating new Copilot engine instance")
 	return &CopilotEngine{

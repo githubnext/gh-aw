@@ -47,6 +47,8 @@ type CodexEngine struct {
 	BaseEngine
 }
 
+var _ CodingAgentEngine = (*CodexEngine)(nil)
+
 func NewCodexEngine() *CodexEngine {
 	return &CodexEngine{
 		BaseEngine: BaseEngine{

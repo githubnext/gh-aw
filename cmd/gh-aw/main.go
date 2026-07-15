@@ -82,21 +82,21 @@ var rootCmd = &cobra.Command{
 	Use:     string(constants.CLIExtensionPrefix),
 	Short:   "GitHub Agentic Workflows CLI from GitHub Next",
 	Version: version,
-	Long: `GitHub Agentic Workflows from GitHub Next
+	Long: `GitHub Agentic Workflows CLI from GitHub Next
 
 Common Tasks:
-  gh aw init                  		# Set up a new repository
-	gh aw doctor --repo owner/repo 		# Run diagnostics for authentication and repository setup
-  gh aw add-wizard            		# Add workflows with interactive guided setup
-  gh aw new my-workflow       		# Create your first workflow
-  gh aw compile               		# Compile all workflows
-  gh aw run my-workflow       		# Execute a workflow
-  gh aw status               		# Check workflow status
-  gh aw logs my-workflow      		# View execution logs
-  gh aw audit <run-id-or-url> 		# Audit and compare workflow runs
+  ` + string(constants.CLIExtensionPrefix) + ` init                  		# Set up a new repository
+  ` + string(constants.CLIExtensionPrefix) + ` doctor --repo owner/repo 		# Run diagnostics for authentication and repository setup
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard            		# Add workflows with interactive guided setup
+  ` + string(constants.CLIExtensionPrefix) + ` new my-workflow       		# Create your first workflow
+  ` + string(constants.CLIExtensionPrefix) + ` compile               		# Compile all workflows
+  ` + string(constants.CLIExtensionPrefix) + ` run my-workflow       		# Execute a workflow
+  ` + string(constants.CLIExtensionPrefix) + ` status                		# Check workflow status
+  ` + string(constants.CLIExtensionPrefix) + ` logs my-workflow      		# View execution logs
+  ` + string(constants.CLIExtensionPrefix) + ` audit <run-id-or-url> 		# Audit and compare workflow runs
 
 For detailed help on any command, use:
-  gh aw [command] --help`,
+  ` + string(constants.CLIExtensionPrefix) + ` [command] --help`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		cli.ConfigureProjectTimezone()
 		if bannerFlag {
@@ -211,7 +211,7 @@ var disableCmd = &cobra.Command{
 	Short: "Disable agentic workflows",
 	Long: `Disable one or more workflows by ID, or all workflows if no IDs are provided.
 
-Any in-progress runs will be cancelled before disabling.
+Any in-progress runs will be canceled before disabling.
 
 ` + cli.WorkflowIDExplanation,
 	Example: `  ` + string(constants.CLIExtensionPrefix) + ` disable                   # Disable all workflows
@@ -238,7 +238,7 @@ The --dependabot flag generates dependency manifests when dependencies are detec
   - For npm: Creates package.json and package-lock.json (requires npm in PATH)
   - For Python: Creates requirements.txt for pip packages
   - For Go: Creates go.mod for go install/get packages
-  - Creates .github/dependabot.yml with all detected ecosystems
+  - For all detected ecosystems: Generates .github/dependabot.yml
   - Use --force to overwrite existing dependabot.yml
   - Cannot be used with specific workflow files or custom --dir
   - Only processes workflows in the default .github/workflows directory
@@ -247,7 +247,7 @@ Action mode controls how gh-aw action scripts are referenced in compiled workflo
 Three flags govern this. --gh-aw-ref is mutually exclusive with the other two;
 --action-tag and --action-mode may be combined (e.g. --action-mode action --action-tag v1.2.3):
 
-Unlike 'upgrade', compilation only applies codemods when you opt in with --fix.
+Unlike ` + "`gh aw upgrade`" + `, ` + "`gh aw compile`" + ` only applies codemods when you opt in with ` + "`--fix`" + `.
 
   --action-mode <mode>
     Explicit mode selection. Values:
@@ -261,8 +261,8 @@ Unlike 'upgrade', compilation only applies codemods when you opt in with --fix.
   --action-tag <sha-or-tag>
     Pin to a specific SHA or version tag (e.g. v1, v1.2.3, <full-sha>).
     Implies --action-mode release unless --action-mode action is also specified.
-    The value is used as-is; branch names are not resolved. Use --gh-aw-ref to
-    pin to a branch by resolving it to its current commit SHA first.
+    The value is used as-is without SHA resolution. Use --gh-aw-ref to resolve
+    branches or tags at compile time.
 
   --gh-aw-ref <branch-tag-or-sha>
     Resolve a branch name, tag, or SHA from github/gh-aw to its full commit SHA
@@ -281,7 +281,7 @@ Unlike 'upgrade', compilation only applies codemods when you opt in with --fix.
   ` + string(constants.CLIExtensionPrefix) + ` compile --trial --logical-repo owner/repo  # Compile for trial mode
   ` + string(constants.CLIExtensionPrefix) + ` compile --dependabot        # Generate Dependabot manifests
   ` + string(constants.CLIExtensionPrefix) + ` compile --dependabot --force  # Force overwrite existing dependabot.yml
-  ` + string(constants.CLIExtensionPrefix) + ` compile --gh-aw-ref main       # Pin workflows to current HEAD of github/gh-aw main
+  ` + string(constants.CLIExtensionPrefix) + ` compile --gh-aw-ref main       # Pin workflows to the SHA of github/gh-aw main at compile time
   ` + string(constants.CLIExtensionPrefix) + ` compile --action-tag v1.2.3    # Pin workflows to a specific release tag`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		engineOverride, _ := cmd.Flags().GetString("engine")
@@ -425,17 +425,17 @@ The workflows must have been compiled into GitHub Actions YAML files.
 This command only works with workflows that have workflow_dispatch triggers.
 
 ` + cli.WorkflowIDExplanation,
-	Example: `  gh aw run                          # Interactive mode
-  gh aw run daily-perf-improver
-  gh aw run daily-perf-improver.md   # Alternative format
-  gh aw run daily-perf-improver --ref main  # Run on specific branch
-  gh aw run daily-perf-improver --repeat 3  # Run 4 times total (1 initial + 3 repeats)
-  gh aw run daily-perf-improver --enable-if-needed  # Enable if disabled, run, then restore state
-  gh aw run daily-perf-improver --auto-merge-prs  # Auto-merge any PRs created during execution
-  gh aw run daily-perf-improver -F name=value -F env=prod  # Pass workflow inputs
-  gh aw run daily-perf-improver --push  # Commit and push workflow files before running
-  gh aw run daily-perf-improver --dry-run  # Preview without triggering workflow runs
-  gh aw run daily-perf-improver --json  # Output results in JSON format`,
+	Example: `  ` + string(constants.CLIExtensionPrefix) + ` run                          # Interactive mode
+  ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver
+  ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver.md   # Alternative format
+  ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver --ref main  # Run on specific branch
+  ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver --repeat 3  # Run 4 times total (1 initial + 3 repeats)
+  ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver --enable-if-needed  # Enable if disabled, run, then restore state
+  ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver --auto-merge-prs  # Auto-merge any PRs created during execution
+  ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver -F name=value -F env=prod  # Pass workflow inputs
+  ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver --push  # Commit, push, and dispatch the workflow
+  ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver --dry-run  # Preview without triggering workflow runs
+  ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver --json  # Output results in JSON format`,
 	Args: cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repeatCount, _ := cmd.Flags().GetInt("repeat")
@@ -495,7 +495,7 @@ This command only works with workflows that have workflow_dispatch triggers.
 var versionCmd = &cobra.Command{
 	Use:     "version",
 	Short:   "Print the current version",
-	Long:    `Show the installed version of the gh aw extension.`,
+	Long:    `Print the current version and build information for the gh aw CLI extension.`,
 	Example: `  ` + string(constants.CLIExtensionPrefix) + ` version   # Print the current version`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "%s version %s\n", string(constants.CLIExtensionPrefix), version)
@@ -716,11 +716,11 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	// Add flags to new command
 	newCmd.Flags().BoolP("force", "f", false, "Overwrite existing files without confirmation")
 	newCmd.Flags().BoolP("interactive", "i", false, "Launch interactive workflow creation wizard")
-	newCmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, antigravity, opencode, pi)")
+	newCmd.Flags().StringP("engine", "e", "", cli.EngineFlagOverrideUsage)
 	cli.RegisterEngineFlagCompletion(newCmd)
 
 	// Add AI flag to compile and add commands
-	compileCmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, antigravity, opencode, pi)")
+	compileCmd.Flags().StringP("engine", "e", "", cli.EngineFlagOverrideUsage)
 	compileCmd.Flags().String("action-mode", "", "How gh-aw action scripts are referenced in compiled workflows: 'dev' uses local paths (for developing gh-aw itself), 'release' emits SHA-pinned remote refs from github/gh-aw, 'action' uses the github/gh-aw-actions repository. Auto-detected from the binary build type if not specified")
 	compileCmd.Flags().String("action-tag", "", "Pin compiled workflows to a specific version of gh-aw actions. Accepts a full commit SHA or a version tag (e.g. v1, v1.2.3). Sets --action-mode to 'release' unless --action-mode action is also specified. Cannot be combined with --gh-aw-ref; use --gh-aw-ref when you want to resolve a branch or tag name to its current SHA")
 	compileCmd.Flags().String("actions-repo", "", "Override the external actions repository used in action mode (default: github/gh-aw-actions)")
@@ -748,7 +748,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("runner-guard", false, "Run runner-guard taint analysis scanner on generated .lock.yml files (uses Docker image "+cli.RunnerGuardImage+")")
 	compileCmd.Flags().Bool("fix", false, "Apply automatic codemod fixes to workflows before compiling")
 	compileCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
-	compileCmd.Flags().Bool("show-all", false, "Display all prioritized compilation errors instead of the default top five")
+	compileCmd.Flags().Bool("show-all", false, "Display all compilation errors instead of only the highest-priority subset (default: top 5)")
 	compileCmd.Flags().Bool("stats", false, "Display statistics table sorted by workflow file size (shows jobs, steps, scripts, and shells)")
 	compileCmd.Flags().Bool("fail-fast", false, "Stop at the first validation error instead of collecting all errors")
 	compileCmd.Flags().Bool("no-check-update", false, "Skip checking for gh-aw updates")
@@ -793,15 +793,15 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	// Add flags to run command
 	runCmd.Flags().Int("repeat", 0, "Number of additional times to run after the initial execution (e.g., --repeat 3 runs 4 times total)")
 	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
-	runCmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, antigravity, opencode, pi)")
+	runCmd.Flags().StringP("engine", "e", "", cli.EngineFlagOverrideUsage)
 	runCmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format). Defaults to current repository")
 	runCmd.Flags().String("ref", "", "Branch or tag name to run the workflow on (default: current branch)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
-	runCmd.Flags().StringArrayP("raw-field", "F", []string{}, "Add a string parameter in key=value format (can be used multiple times)")
+	runCmd.Flags().StringArrayP("raw-field", "F", []string{}, "Pass a workflow dispatch input in key=value format (can be specified multiple times)")
 	runCmd.Flags().Bool("push", false, "Commit and push workflow files (including transitive imports) before running")
 	runCmd.Flags().Bool("dry-run", false, "Preview workflow execution without triggering runs on GitHub Actions")
 	runCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
-	runCmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
+	runCmd.Flags().Bool("approve", false, "Approve safe update manifest changes when --push triggers an automatic recompile step")
 	// Register completions for run command
 	runCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 	cli.RegisterEngineFlagCompletion(runCmd)

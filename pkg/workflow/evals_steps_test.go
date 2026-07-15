@@ -142,6 +142,7 @@ func TestBuildEvalsJobStepsRenderSummary(t *testing.T) {
 	if renderIdx >= 0 && uploadIdx >= 0 && renderIdx >= uploadIdx {
 		t.Errorf("expected render step to appear before upload step; renderIdx=%d uploadIdx=%d", renderIdx, uploadIdx)
 	}
+
 }
 
 func TestBuildEvalsJobStepsRedactionUsesEvalsSecretReferences(t *testing.T) {
@@ -191,5 +192,8 @@ func TestBuildParseEvalsResultsStepUsesResolvedExecutionModel(t *testing.T) {
 	}
 	if strings.Contains(steps, `GH_AW_EVALS_MODEL: "small"`) {
 		t.Errorf("expected parse step to avoid default 'small' when engine model is resolved; got:\n%s", steps)
+	}
+	if !strings.Contains(steps, "GITHUB_RUN_ID: ${{ github.run_id }}") {
+		t.Errorf("expected parse step to pass github.run_id through to the eval record writer; got:\n%s", steps)
 	}
 }
