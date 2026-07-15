@@ -568,7 +568,7 @@ function resolveProviderEndpointFromReflect(options) {
     return normalized === provider;
   };
 
-  const matched = endpoints.find(ep => endpointProviderMatches(String(ep?.provider || ""))) || endpoints[0];
+  const matched = endpoints.find(ep => typeof ep?.provider === "string" && endpointProviderMatches(ep.provider)) || endpoints[0];
   const baseUrl = endpointBaseUrl(matched);
   if (!baseUrl) {
     logger(`awf-reflect: matched provider=${provider} but could not derive baseUrl`);
