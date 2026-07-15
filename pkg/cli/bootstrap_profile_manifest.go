@@ -391,16 +391,19 @@ func stringMapValue(value any) (map[string]string, error) {
 }
 
 func manifestBootstrapFieldError(manifestPath string, index int, field string, err error) error {
-	return fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].%s %s. Example: bootstrap.actions[%d].%s: %s", manifestPath, index, field, err.Error(), index, field, manifestBootstrapFieldExample(field))
+	if example, ok := manifestBootstrapFieldExample(field); ok {
+		return fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].%s %s. Example: bootstrap.actions[%d].%s: %s", manifestPath, index, field, err.Error(), index, field, example)
+	}
+	return fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].%s %s", manifestPath, index, field, err.Error())
 }
 
-func manifestBootstrapFieldExample(field string) string {
+func manifestBootstrapFieldExample(field string) (string, bool) {
 	switch field {
 	case "enum", "events":
-		return `["issues", "pull_request"]`
+		return `["issues", "pull_request"]`, true
 	case "permissions":
-		return `{ contents: "read", issues: "write" }`
+		return `{ contents: "read", issues: "write" }`, true
 	default:
-		return `"example"`
+		return "", false
 	}
 }
