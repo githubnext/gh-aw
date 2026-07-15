@@ -13,7 +13,7 @@ import (
 const bootstrapActionTypeExample = "require-owner-type, repo-variable, repo-secret, github-app, copilot-auth, or handoff"
 
 type repositoryPackageBootstrap struct {
-	Actions []repositoryPackageBootstrapAction
+	Config []repositoryPackageBootstrapAction
 }
 
 type repositoryPackageBootstrapAction struct {
@@ -180,42 +180,32 @@ func localBootstrapManifestPath(resolvedPath string) (string, string, error) {
 	return resolvedPath, filepath.Clean(filepath.Dir(resolvedPath)), nil
 }
 
-func extractManifestBootstrap(value any, manifestPath string) (*repositoryPackageBootstrap, error) {
-	root, ok := value.(map[string]any)
+func extractManifestConfig(value any, manifestPath string) (*repositoryPackageBootstrap, error) {
+	configItems, ok := value.([]any)
 	if !ok {
-		return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap must be a mapping. Example: bootstrap: { actions: [{ type: repo-variable, name: EXAMPLE, prompt: Enter a value }] }", manifestPath)
+		return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: config must be a list. Example: config: [{ type: repo-variable, name: EXAMPLE, prompt: Enter a value }]", manifestPath)
 	}
-
-	actionsValue, ok := root["actions"]
-	if !ok {
-		return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions is required. Example: bootstrap: { actions: [{ type: repo-variable, name: EXAMPLE, prompt: Enter a value }] }", manifestPath)
-	}
-
-	actionItems, ok := actionsValue.([]any)
-	if !ok {
-		return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions must be a list. Example: bootstrap: { actions: [{ type: repo-variable, name: EXAMPLE, prompt: Enter a value }] }", manifestPath)
-	}
-	if len(actionItems) == 0 {
-		return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions must not be empty. Example: bootstrap: { actions: [{ type: repo-variable, name: EXAMPLE, prompt: Enter a value }] }", manifestPath)
+	if len(configItems) == 0 {
+		return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: config must not be empty. Example: config: [{ type: repo-variable, name: EXAMPLE, prompt: Enter a value }]", manifestPath)
 	}
 
 	bootstrap := &repositoryPackageBootstrap{}
-	for index, item := range actionItems {
+	for index, item := range configItems {
 		actionMap, ok := item.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d] must be a mapping. Example: { type: repo-variable, name: EXAMPLE, prompt: Enter a value }", manifestPath, index)
+			return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d] must be a mapping. Example: { type: repo-variable, name: EXAMPLE, prompt: Enter a value }", manifestPath, index)
 		}
 
 		actionType, ok := stringValue(actionMap["type"])
 		if !ok || strings.TrimSpace(actionType) == "" {
-			return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].type must be a non-empty string. Example: type: repo-variable", manifestPath, index)
+			return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].type must be a non-empty string. Example: type: repo-variable", manifestPath, index)
 		}
 
 		action, err := parseManifestBootstrapAction(strings.TrimSpace(actionType), actionMap, manifestPath, index)
 		if err != nil {
 			return nil, err
 		}
-		bootstrap.Actions = append(bootstrap.Actions, action)
+		bootstrap.Config = append(bootstrap.Config, action)
 	}
 
 	return bootstrap, nil
@@ -283,7 +273,7 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 		action.Events = events
 	}
 	if _, exists := actionMap["when"]; exists {
-		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].when is not supported yet. Example: remove the when field and keep only supported keys such as type, name, and prompt", manifestPath, index)
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].when is not supported yet. Example: remove the when field and keep only supported keys such as type, name, and prompt", manifestPath, index)
 	}
 	if permissionsValue, exists := actionMap["permissions"]; exists {
 		permissions, err := stringMapValue(permissionsValue)
@@ -296,31 +286,31 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 	switch actionType {
 	case "require-owner-type":
 		if action.Owner != "" && action.Owner != "repo" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].owner must be 'repo' when type=require-owner-type. Example: { type: require-owner-type, owner: repo, value: org }", manifestPath, index)
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].owner must be 'repo' when type=require-owner-type. Example: { type: require-owner-type, owner: repo, value: org }", manifestPath, index)
 		}
 		if action.Value != "any" && action.Value != "org" && action.Value != "user" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].value must be one of: any, org, user. Example: { type: require-owner-type, value: org }", manifestPath, index)
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].value must be one of: any, org, user. Example: { type: require-owner-type, value: org }", manifestPath, index)
 		}
 	case "repo-variable":
 		if action.Name == "" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].name is required when type=repo-variable. Example: { type: repo-variable, name: EXAMPLE, prompt: Enter a value }", manifestPath, index)
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].name is required when type=repo-variable. Example: { type: repo-variable, name: EXAMPLE, prompt: Enter a value }", manifestPath, index)
 		}
 		if action.Prompt == "" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].prompt is required when type=repo-variable. Example: { type: repo-variable, name: EXAMPLE, prompt: Enter a value }", manifestPath, index)
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].prompt is required when type=repo-variable. Example: { type: repo-variable, name: EXAMPLE, prompt: Enter a value }", manifestPath, index)
 		}
 	case "repo-secret":
 		if action.Name == "" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].name is required when type=repo-secret. Example: { type: repo-secret, name: EXAMPLE_SECRET, prompt: Enter a secret }", manifestPath, index)
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].name is required when type=repo-secret. Example: { type: repo-secret, name: EXAMPLE_SECRET, prompt: Enter a secret }", manifestPath, index)
 		}
 		if action.Prompt == "" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].prompt is required when type=repo-secret. Example: { type: repo-secret, name: EXAMPLE_SECRET, prompt: Enter a secret }", manifestPath, index)
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].prompt is required when type=repo-secret. Example: { type: repo-secret, name: EXAMPLE_SECRET, prompt: Enter a secret }", manifestPath, index)
 		}
 	case "github-app":
 		if action.AppName == "" && action.Name != "" {
 			action.AppName = action.Name
 		}
 		if action.ExistingOnly && action.Mode != "" && action.Mode != "existing" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].existing-only requires mode to be 'existing' or unset. Remove mode=%q or set it to 'existing'", manifestPath, index, action.Mode)
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].existing-only requires mode to be 'existing' or unset. Remove mode=%q or set it to 'existing'", manifestPath, index, action.Mode)
 		}
 		if action.ExistingOnly && action.Mode == "" {
 			action.Mode = "existing"
@@ -329,16 +319,16 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 			action.Mode = "create-or-existing"
 		}
 		if action.Mode != "create-or-existing" && action.Mode != "existing" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].mode must be one of: create-or-existing, existing. Example: { type: github-app, mode: existing, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].mode must be one of: create-or-existing, existing. Example: { type: github-app, mode: existing, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
 		}
 		if action.Owner != "" && action.Owner != "repo" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].owner must be 'repo' when type=github-app. Example: { type: github-app, owner: repo, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].owner must be 'repo' when type=github-app. Example: { type: github-app, owner: repo, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
 		}
 		if action.AppIDVariable == "" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].app-id-variable is required when type=github-app. Example: { type: github-app, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].app-id-variable is required when type=github-app. Example: { type: github-app, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
 		}
 		if action.PrivateKeySecret == "" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].private-key-secret is required when type=github-app. Example: { type: github-app, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].private-key-secret is required when type=github-app. Example: { type: github-app, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
 		}
 	case "copilot-auth":
 		if action.Secret == "" {
@@ -348,14 +338,14 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 			action.Strategy = "prompt-if-actions-auth-unavailable"
 		}
 		if action.Strategy != "prompt-if-actions-auth-unavailable" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].strategy must be 'prompt-if-actions-auth-unavailable'. Example: { type: copilot-auth, strategy: prompt-if-actions-auth-unavailable }", manifestPath, index)
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].strategy must be 'prompt-if-actions-auth-unavailable'. Example: { type: copilot-auth, strategy: prompt-if-actions-auth-unavailable }", manifestPath, index)
 		}
 	case "handoff":
 		if action.Message == "" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].message is required when type=handoff. Example: { type: handoff, message: Continue with repository-specific setup. }", manifestPath, index)
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].message is required when type=handoff. Example: { type: handoff, message: Continue with repository-specific setup. }", manifestPath, index)
 		}
 	default:
-		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].type %q is not supported. Example: use one of %s", manifestPath, index, actionType, bootstrapActionTypeExample)
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].type %q is not supported. Example: use one of %s", manifestPath, index, actionType, bootstrapActionTypeExample)
 	}
 
 	return action, nil
@@ -401,9 +391,9 @@ func stringMapValue(value any) (map[string]string, error) {
 
 func manifestBootstrapFieldError(manifestPath string, index int, field string, err error) error {
 	if example, ok := manifestBootstrapFieldExample(field); ok {
-		return fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].%s %s. Example: bootstrap.actions[%d].%s: %s", manifestPath, index, field, err.Error(), index, field, example)
+		return fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].%s %s. Example: config[%d].%s: %s", manifestPath, index, field, err.Error(), index, field, example)
 	}
-	return fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].%s %s", manifestPath, index, field, err.Error())
+	return fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].%s %s", manifestPath, index, field, err.Error())
 }
 
 func manifestBootstrapFieldExample(field string) (string, bool) {

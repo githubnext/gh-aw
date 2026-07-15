@@ -16,6 +16,8 @@ type GeminiEngine struct {
 	BaseEngine
 }
 
+var _ CodingAgentEngine = (*GeminiEngine)(nil)
+
 func NewGeminiEngine() *GeminiEngine {
 	return &GeminiEngine{
 		BaseEngine: BaseEngine{

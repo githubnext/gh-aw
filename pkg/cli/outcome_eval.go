@@ -25,13 +25,14 @@ var objectiveMappingGHAPIGraphQL = ghAPIGraphQL
 type OutcomeResult string
 
 const (
-	OutcomeAccepted  OutcomeResult = "accepted"
-	OutcomeRejected  OutcomeResult = "rejected"
-	OutcomeIgnored   OutcomeResult = "ignored"
-	OutcomePending   OutcomeResult = "pending"
-	OutcomeUnknown   OutcomeResult = "unknown"
-	OutcomeLifecycle OutcomeResult = "lifecycle"
-	OutcomeError     OutcomeResult = "error"
+	OutcomeAccepted       OutcomeResult = "accepted"
+	OutcomeRejected       OutcomeResult = "rejected"
+	OutcomeIgnored        OutcomeResult = "ignored"
+	OutcomePending        OutcomeResult = "pending"
+	OutcomeUnknown        OutcomeResult = "unknown"
+	OutcomeLifecycle      OutcomeResult = "lifecycle"
+	OutcomeLifecycleClose OutcomeResult = "lifecycle_close"
+	OutcomeError          OutcomeResult = "error"
 )
 
 // OutcomeReport is the result of evaluating one safe output item.

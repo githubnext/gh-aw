@@ -448,18 +448,17 @@ files:
 			switch path {
 			case "aw.yml":
 				return []byte(`name: Repo Assist
-bootstrap:
-  actions:
-    - type: require-owner-type
-      owner: repo
-      value: org
-    - type: repo-variable
-      name: CENTRAL_AGENTIC_OPS_MODE
-      prompt: Rollout mode
-      default: preview
-      enum: [preview, review, live]
-    - type: handoff
-      message: Run gh aw run readiness.
+config:
+  - type: require-owner-type
+    owner: repo
+    value: org
+  - type: repo-variable
+    name: CENTRAL_AGENTIC_OPS_MODE
+    prompt: Rollout mode
+    default: preview
+    enum: [preview, review, live]
+  - type: handoff
+    message: Run gh aw run readiness.
 `), nil
 			case "README.md":
 				return []byte("# Repo Assist\n"), nil
@@ -481,12 +480,35 @@ bootstrap:
 		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		require.NotNil(t, pkg.Bootstrap)
-		require.Len(t, pkg.Bootstrap.Actions, 3)
-		assert.Equal(t, "require-owner-type", pkg.Bootstrap.Actions[0].Type)
-		assert.Equal(t, "repo-variable", pkg.Bootstrap.Actions[1].Type)
-		assert.Equal(t, []string{"preview", "review", "live"}, pkg.Bootstrap.Actions[1].Enum)
-		assert.Equal(t, "handoff", pkg.Bootstrap.Actions[2].Type)
-		assert.Contains(t, pkg.Warnings, "Using experimental feature: manifest.bootstrap")
+		require.Len(t, pkg.Bootstrap.Config, 3)
+		assert.Equal(t, "require-owner-type", pkg.Bootstrap.Config[0].Type)
+		assert.Equal(t, "repo-variable", pkg.Bootstrap.Config[1].Type)
+		assert.Equal(t, []string{"preview", "review", "live"}, pkg.Bootstrap.Config[1].Enum)
+		assert.Equal(t, "handoff", pkg.Bootstrap.Config[2].Type)
+		assert.Contains(t, pkg.Warnings, "Using experimental feature: config")
+	})
+
+	t.Run("rejects old bootstrap key with schema error", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+			switch path {
+			case "aw.yml":
+				return []byte(`name: Repo Assist
+bootstrap:
+  config:
+    - type: repo-variable
+      name: MY_VAR
+      prompt: Enter a value
+`), nil
+			case "README.md":
+				return []byte("# Repo Assist\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(path)
+			}
+		}
+
+		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.Error(t, err, "old bootstrap key must produce an error, not be silently ignored")
+		assert.Contains(t, err.Error(), "bootstrap")
 	})
 
 	t.Run("rejects unsupported branding icon", func(t *testing.T) {
@@ -2020,4 +2042,157 @@ func TestIsGhAwRepository(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// bootstrapTestHelpers sets up the common mock functions used by bootstrap profile
+// propagation tests and registers their cleanup.
+func bootstrapTestHelpers(t *testing.T) {
+	t.Helper()
+	originalFetchFn := fetchWorkflowFromSourceWithContextFn
+	originalDownload := downloadPackageFileFromGitHubForHost
+	originalList := listPackageWorkflowFilesForHost
+	originalDirFiles := listPackageDirFilesForHost
+	originalDirSubdirs := listPackageDirSubdirsForHost
+	originalDefaultBranch := getRepositoryPackageDefaultBranch
+	t.Cleanup(func() {
+		fetchWorkflowFromSourceWithContextFn = originalFetchFn
+		downloadPackageFileFromGitHubForHost = originalDownload
+		listPackageWorkflowFilesForHost = originalList
+		listPackageDirFilesForHost = originalDirFiles
+		listPackageDirSubdirsForHost = originalDirSubdirs
+		getRepositoryPackageDefaultBranch = originalDefaultBranch
+	})
+
+	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+		return "main", nil
+	}
+	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
+		return nil, createRepositoryPackageNotFoundError(dirPath)
+	}
+	listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
+		return nil, createRepositoryPackageNotFoundError(dirPath)
+	}
+	listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
+		t.Fatalf("unexpected scan of %s", workflowPath)
+		return nil, nil
+	}
+	fetchWorkflowFromSourceWithContextFn = func(_ context.Context, spec *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {
+		return &FetchedWorkflow{
+			Content:    []byte("---\nname: Test\non: push\n---\n"),
+			CommitSHA:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			IsLocal:    false,
+			SourcePath: spec.WorkflowPath,
+		}, nil
+	}
+}
+
+func TestResolveWorkflows_BootstrapProfile_SinglePackage(t *testing.T) {
+	bootstrapTestHelpers(t)
+
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+		switch path {
+		case "aw.yml":
+			return []byte(`name: My Package
+files:
+  - workflows/review.md
+config:
+  - type: repo-variable
+    name: MY_VAR
+    prompt: Enter a value
+`), nil
+		case "README.md":
+			return []byte("# My Package\n"), nil
+		}
+		return nil, createRepositoryPackageNotFoundError(path)
+	}
+
+	resolved, err := ResolveWorkflows(context.Background(), []string{"owner/repo"}, false)
+	require.NoError(t, err)
+	require.Len(t, resolved.Workflows, 1)
+
+	require.NotNil(t, resolved.BootstrapProfile, "BootstrapProfile should be populated from the package config")
+	assert.Equal(t, "owner/repo", resolved.BootstrapProfile.PackageID)
+	require.Len(t, resolved.BootstrapProfile.Profile.Config, 1)
+	assert.Equal(t, "repo-variable", resolved.BootstrapProfile.Profile.Config[0].Type)
+	assert.Equal(t, "MY_VAR", resolved.BootstrapProfile.Profile.Config[0].Name)
+}
+
+func TestResolveWorkflows_BootstrapProfile_MultiplePackagesWarnsAndSuppresses(t *testing.T) {
+	bootstrapTestHelpers(t)
+
+	// Two separate repository packages, each declaring a config section.
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+		var pkgName, varName string
+		switch repo {
+		case "pkg-a":
+			pkgName, varName = "Package A", "VAR_A"
+		case "pkg-b":
+			pkgName, varName = "Package B", "VAR_B"
+		default:
+			return nil, createRepositoryPackageNotFoundError(path)
+		}
+		switch path {
+		case "aw.yml":
+			return fmt.Appendf(nil, `name: %s
+files:
+  - workflows/review.md
+config:
+  - type: repo-variable
+    name: %s
+    prompt: Enter a value
+`, pkgName, varName), nil
+		case "README.md":
+			return []byte("# " + pkgName + "\n"), nil
+		}
+		return nil, createRepositoryPackageNotFoundError(path)
+	}
+
+	resolved, err := ResolveWorkflows(context.Background(), []string{"owner/pkg-a", "owner/pkg-b"}, false)
+	require.NoError(t, err)
+
+	assert.Nil(t, resolved.BootstrapProfile, "BootstrapProfile should be nil when multiple packages declare config")
+
+	// Verify the multi-profile warning is present (other deprecation/experimental warnings may also be present)
+	found := false
+	for _, w := range resolved.Warnings {
+		if strings.Contains(w, "multiple bootstrap profiles found") {
+			assert.Contains(t, w, "owner/pkg-a")
+			assert.Contains(t, w, "owner/pkg-b")
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected a warning about multiple bootstrap profiles, got: %v", resolved.Warnings)
+}
+
+func TestPrintBootstrapConfigTODO(t *testing.T) {
+	t.Run("noop when profile is nil", func(t *testing.T) {
+		var buf strings.Builder
+		printBootstrapConfigTODO(&buf, nil)
+		assert.Empty(t, buf.String())
+	})
+
+	t.Run("prints checklist items to provided writer", func(t *testing.T) {
+		profile := &resolvedBootstrapProfile{
+			PackageID: "owner/repo",
+			Profile: &repositoryPackageBootstrap{
+				Config: []repositoryPackageBootstrapAction{
+					{Type: "require-owner-type", Value: "org"},
+					{Type: "repo-variable", Name: "MY_VAR", Prompt: "Enter a value"},
+					{Type: "repo-secret", Name: "MY_SECRET", Prompt: "Enter secret"},
+					{Type: "copilot-auth", Secret: "COPILOT_TOKEN"},
+					{Type: "handoff", Message: "Run the bootstrap wizard."},
+				},
+			},
+		}
+		var buf strings.Builder
+		printBootstrapConfigTODO(&buf, profile)
+		out := buf.String()
+		assert.Contains(t, out, "owner/repo")
+		assert.Contains(t, out, "☐ Verify repository owner type: org")
+		assert.Contains(t, out, "☐ Set repository variable: MY_VAR")
+		assert.Contains(t, out, "☐ Set repository secret: MY_SECRET")
+		assert.Contains(t, out, "☐ Set Copilot PAT secret: COPILOT_TOKEN")
+		assert.Contains(t, out, "Run the bootstrap wizard.")
+	})
 }

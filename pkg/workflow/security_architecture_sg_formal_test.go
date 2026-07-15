@@ -20,6 +20,7 @@
 //	ThreatDetectionOrDefault        → TestFormalThreatDetection_EnabledByDefault
 //	ThreatDetectionOrDefault        → TestFormalThreatDetection_ExplicitDisable
 //	IsContinueOnError               → TestFormalThreatDetection_ContinueOnErrorDefault
+//	PM11_PreActivationMembership    → TestFormalPM11_PreActivationContainsMembershipStep
 //	StagedHandlerNoWritePerms       → TestFormalStaged_HandlerRequiresNoWritePerms
 //	IDTokenRequirement              → TestFormalIDToken_OIDCVaultActionsRequireWriteScope
 //	getPushFallbackAsPullRequest     → TestFormalPushFallback_DefaultsToTrue
@@ -443,6 +444,50 @@ func TestFormalThreatDetection_ContinueOnErrorDefault(t *testing.T) {
 	tdExplicitFalse := &ThreatDetectionConfig{ContinueOnError: &falseVal}
 	assert.False(t, tdExplicitFalse.IsContinueOnError(),
 		"IsContinueOnError: must return false when ContinueOnError is explicitly set to false (blocking mode)")
+}
+
+// TestFormalPM11_PreActivationContainsMembershipStep (PM11_PreActivationMembership)
+//
+// PM-11: Role checks MUST be performed at runtime using membership validation in
+// the pre_activation job before activation may proceed.
+func TestFormalPM11_PreActivationContainsMembershipStep(t *testing.T) {
+	md := `---
+name: pm11-membership-test
+on:
+  pull_request:
+    types: [opened]
+  roles:
+    - write
+engine: copilot
+permissions:
+  contents: read
+---
+
+# Mission
+
+PM-11: verify the compiled pre_activation job contains the membership-check step.
+`
+	tmpDir := t.TempDir()
+	mdPath := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(mdPath, []byte(md), 0600))
+
+	compiler := NewCompiler(WithNoEmit(true))
+	wd, err := compiler.ParseWorkflowFile(mdPath)
+	require.NoError(t, err, "PM-11: workflow with role-based access control must parse successfully")
+
+	yamlOut, err := compiler.CompileToYAML(wd, mdPath)
+	require.NoError(t, err, "PM-11: workflow with role-based access control must compile successfully")
+	require.NotEmpty(t, yamlOut, "PM-11: compiled YAML must not be empty")
+
+	preActivationSection := extractJobSection(yamlOut, string(constants.PreActivationJobName))
+	require.NotEmpty(t, preActivationSection,
+		"PM-11: compiled workflow must contain the pre_activation job")
+	assert.Contains(t, preActivationSection, "id: "+string(constants.CheckMembershipStepID),
+		"PM-11: pre_activation job must contain the check_membership step ID")
+	assert.Contains(t, preActivationSection, "check_membership.cjs",
+		"PM-11: pre_activation job must invoke check_membership.cjs for runtime membership validation")
+	assert.Contains(t, preActivationSection, `GH_AW_REQUIRED_ROLES: "write"`,
+		"PM-11: pre_activation job must pass the configured role set to the membership check step")
 }
 
 // TestFormalStaged_HandlerRequiresNoWritePerms (StagedHandlerNoWritePerms)

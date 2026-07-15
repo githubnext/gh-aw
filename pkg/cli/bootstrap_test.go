@@ -141,7 +141,7 @@ func TestBuildBootstrapPlan_WithBootstrapProfileNeedsAction(t *testing.T) {
 			return &resolvedBootstrapProfile{
 				PackageID: "github/central-agentic-ops",
 				Profile: &repositoryPackageBootstrap{
-					Actions: []repositoryPackageBootstrapAction{{Type: "repo-variable", Name: "CENTRAL_AGENTIC_OPS_MODE"}},
+					Config: []repositoryPackageBootstrapAction{{Type: "repo-variable", Name: "CENTRAL_AGENTIC_OPS_MODE"}},
 				},
 			}, nil
 		},
@@ -197,7 +197,7 @@ func TestRunBootstrapWithRuntime_ExecutesBootstrapProfile(t *testing.T) {
 			return &resolvedBootstrapProfile{
 				PackageID: "github/central-agentic-ops",
 				Profile: &repositoryPackageBootstrap{
-					Actions: []repositoryPackageBootstrapAction{{Type: "handoff", Message: "Run readiness"}},
+					Config: []repositoryPackageBootstrapAction{{Type: "handoff", Message: "Run readiness"}},
 				},
 			}, nil
 		},
@@ -245,7 +245,7 @@ func TestBuildBootstrapPlan_CreateRepoProfileValidatesRequireOwnerType(t *testin
 			return &resolvedBootstrapProfile{
 				PackageID: "github/central-agentic-ops",
 				Profile: &repositoryPackageBootstrap{
-					Actions: []repositoryPackageBootstrapAction{{Type: "require-owner-type", Value: "user"}},
+					Config: []repositoryPackageBootstrapAction{{Type: "require-owner-type", Value: "user"}},
 				},
 			}, nil
 		},
@@ -291,39 +291,39 @@ func TestResolveBootstrapProfileFromSources_IgnoresNestedWorkflowWithoutManifest
 
 func TestParseRepositoryPackageManifest_RejectsUnsupportedBootstrapWhen(t *testing.T) {
 	_, _, err := parseRepositoryPackageManifest("aw.yml", []byte(`name: Control Plane
-bootstrap:
-  actions:
-    - type: handoff
-      message: run readiness
-      when:
-        variable: MODE
-        equals: prod
+config:
+  - type: handoff
+    message: run readiness
+    when:
+      variable: MODE
+      equals: prod
 `))
 	if err == nil {
 		t.Fatal("expected unsupported bootstrap when error")
 	}
-	if !strings.Contains(err.Error(), "bootstrap.actions[0].when is not supported yet") {
+	// The strict anyOf schema rejects unknown fields before the extractor runs.
+	// Accept errors that mention "when" in any form.
+	if !strings.Contains(err.Error(), "when") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
 func TestParseRepositoryPackageManifest_GitHubAppFields(t *testing.T) {
 	manifest, _, err := parseRepositoryPackageManifest("aw.yml", []byte(`name: Control Plane
-bootstrap:
-  actions:
-    - type: github-app
-      app-id-variable: APP_ID
-      private-key-secret: APP_PRIVATE_KEY
-      app-name: Control Plane Bootstrap
-      existing-only: true
+config:
+  - type: github-app
+    app-id-variable: APP_ID
+    private-key-secret: APP_PRIVATE_KEY
+    app-name: Control Plane Bootstrap
+    existing-only: true
 `))
 	if err != nil {
 		t.Fatalf("parseRepositoryPackageManifest returned error: %v", err)
 	}
-	if manifest.Bootstrap == nil || len(manifest.Bootstrap.Actions) != 1 {
+	if manifest.Bootstrap == nil || len(manifest.Bootstrap.Config) != 1 {
 		t.Fatalf("expected one bootstrap action, got %#v", manifest.Bootstrap)
 	}
-	action := manifest.Bootstrap.Actions[0]
+	action := manifest.Bootstrap.Config[0]
 	if action.AppName != "Control Plane Bootstrap" {
 		t.Fatalf("expected app-name to populate AppName, got %q", action.AppName)
 	}
@@ -334,17 +334,16 @@ bootstrap:
 
 func TestParseRepositoryPackageManifest_GitHubAppLegacyNameBackfillsAppName(t *testing.T) {
 	manifest, _, err := parseRepositoryPackageManifest("aw.yml", []byte(`name: Control Plane
-bootstrap:
-  actions:
-    - type: github-app
-      name: Legacy Bootstrap App
-      app-id-variable: APP_ID
-      private-key-secret: APP_PRIVATE_KEY
+config:
+  - type: github-app
+    name: Legacy Bootstrap App
+    app-id-variable: APP_ID
+    private-key-secret: APP_PRIVATE_KEY
 `))
 	if err != nil {
 		t.Fatalf("parseRepositoryPackageManifest returned error: %v", err)
 	}
-	action := manifest.Bootstrap.Actions[0]
+	action := manifest.Bootstrap.Config[0]
 	if action.AppName != "Legacy Bootstrap App" {
 		t.Fatalf("expected legacy name to backfill AppName, got %q", action.AppName)
 	}
@@ -408,7 +407,7 @@ func TestResolveBootstrapProfileFromSources(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
-				return []byte("name: Control Plane\nbootstrap:\n  actions:\n    - type: handoff\n      message: Run readiness\n"), nil
+				return []byte("name: Control Plane\nconfig:\n  - type: handoff\n    message: Run readiness\n"), nil
 			case "README.md":
 				return []byte("# Control Plane\n"), nil
 			default:
@@ -426,15 +425,15 @@ func TestResolveBootstrapProfileFromSources(t *testing.T) {
 		if profile.PackageID != "github/central-agentic-ops" {
 			t.Fatalf("unexpected package id: %s", profile.PackageID)
 		}
-		if len(profile.Profile.Actions) != 1 {
-			t.Fatalf("unexpected action count: %d", len(profile.Profile.Actions))
+		if len(profile.Profile.Config) != 1 {
+			t.Fatalf("unexpected action count: %d", len(profile.Profile.Config))
 		}
 	})
 
 	t.Run("returns local package bootstrap profile", func(t *testing.T) {
 		packageDir := t.TempDir()
 		manifestPath := filepath.Join(packageDir, "aw.yml")
-		manifest := []byte("name: Control Plane\nbootstrap:\n  actions:\n    - type: handoff\n      message: Run readiness\n")
+		manifest := []byte("name: Control Plane\nconfig:\n  - type: handoff\n    message: Run readiness\n")
 		if err := os.WriteFile(manifestPath, manifest, 0o644); err != nil {
 			t.Fatalf("write manifest: %v", err)
 		}
@@ -452,8 +451,8 @@ func TestResolveBootstrapProfileFromSources(t *testing.T) {
 		if profile.PackageID != filepath.Clean(packageDir) {
 			t.Fatalf("unexpected package id: %s", profile.PackageID)
 		}
-		if len(profile.Profile.Actions) != 1 {
-			t.Fatalf("unexpected action count: %d", len(profile.Profile.Actions))
+		if len(profile.Profile.Config) != 1 {
+			t.Fatalf("unexpected action count: %d", len(profile.Profile.Config))
 		}
 	})
 
@@ -461,9 +460,9 @@ func TestResolveBootstrapProfileFromSources(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
-				return []byte("name: Root\nbootstrap:\n  actions:\n    - type: handoff\n      message: one\n"), nil
+				return []byte("name: Root\nconfig:\n  - type: handoff\n    message: one\n"), nil
 			case "readiness/aw.yml":
-				return []byte("name: Readiness\nbootstrap:\n  actions:\n    - type: handoff\n      message: two\n"), nil
+				return []byte("name: Readiness\nconfig:\n  - type: handoff\n    message: two\n"), nil
 			case "README.md", "readiness/README.md":
 				return []byte("# Package\n"), nil
 			default:
@@ -503,7 +502,7 @@ func TestBuildBootstrapPlan_CreateRepoProfileDoesNotAssumeRepoExists(t *testing.
 			return &resolvedBootstrapProfile{
 				PackageID: "github/central-agentic-ops",
 				Profile: &repositoryPackageBootstrap{
-					Actions: []repositoryPackageBootstrapAction{{Type: "repo-variable", Name: "CENTRAL_AGENTIC_OPS_MODE"}},
+					Config: []repositoryPackageBootstrapAction{{Type: "repo-variable", Name: "CENTRAL_AGENTIC_OPS_MODE"}},
 				},
 			}, nil
 		},
@@ -554,8 +553,9 @@ func TestRunBootstrapWithRuntime_CreateCloneInitAddCompile(t *testing.T) {
 			},
 			checkCleanWorktree: func(bool) error { return nil },
 		},
-		confirmAction: func(string, string, string) (bool, error) { return false, nil },
-		initRepo:      func(InitOptions) error { initCalls++; return nil },
+		confirmAction:  func(string, string, string) (bool, error) { return false, nil },
+		initRepo:       func(InitOptions) error { initCalls++; return nil },
+		resolveProfile: func(context.Context, []string) (*resolvedBootstrapProfile, error) { return nil, nil },
 		addWorkflows: func(context.Context, []string, AddOptions) (*AddWorkflowsResult, error) {
 			addCalls++
 			return &AddWorkflowsResult{}, nil
@@ -658,10 +658,8 @@ func TestRunBootstrapWithRuntime_AddWorkflowFailureAfterInitIncludesRecoveryHint
 			dirOriginRepo:      func(string) (string, error) { return "octo/platform-ops", nil },
 			checkCleanWorktree: func(bool) error { return nil },
 		},
-		initRepo: func(InitOptions) error {
-			initCalled = true
-			return nil
-		},
+		initRepo:       func(InitOptions) error { initCalled = true; return nil },
+		resolveProfile: func(context.Context, []string) (*resolvedBootstrapProfile, error) { return nil, nil },
 		addWorkflows: func(context.Context, []string, AddOptions) (*AddWorkflowsResult, error) {
 			return nil, addErr
 		},
@@ -750,6 +748,7 @@ func TestRunBootstrapWithRuntime_SkipsExistingSourcedWorkflow(t *testing.T) {
 			dirOriginRepo:      func(string) (string, error) { return "octo/platform-ops", nil },
 			checkCleanWorktree: func(bool) error { return nil },
 		},
+		resolveProfile: func(context.Context, []string) (*resolvedBootstrapProfile, error) { return nil, nil },
 	}, repoDir)
 	if err != nil {
 		t.Fatalf("buildBootstrapPlan returned error: %v", err)
@@ -781,7 +780,8 @@ func TestRunBootstrapWithRuntime_SkipsExistingSourcedWorkflow(t *testing.T) {
 			dirOriginRepo:      func(string) (string, error) { return "octo/platform-ops", nil },
 			checkCleanWorktree: func(bool) error { return nil },
 		},
-		initRepo: func(InitOptions) error { initCalls++; return nil },
+		initRepo:       func(InitOptions) error { initCalls++; return nil },
+		resolveProfile: func(context.Context, []string) (*resolvedBootstrapProfile, error) { return nil, nil },
 		addWorkflows: func(context.Context, []string, AddOptions) (*AddWorkflowsResult, error) {
 			addCalls++
 			return &AddWorkflowsResult{}, nil

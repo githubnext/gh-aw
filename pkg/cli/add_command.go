@@ -152,8 +152,17 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 		StopAfter:              stopAfter,
 		DisableSecurityScanner: disableSecurityScanner,
 	}
-	_, err := AddWorkflows(cmd.Context(), args, opts)
-	return err
+	resolved, err := ResolveWorkflows(cmd.Context(), args, verbose)
+	if err != nil {
+		return err
+	}
+	if _, err := AddResolvedWorkflows(cmd.Context(), args, resolved, opts); err != nil {
+		return err
+	}
+	if resolved.BootstrapProfile != nil {
+		printBootstrapConfigTODO(cmd.ErrOrStderr(), resolved.BootstrapProfile)
+	}
+	return nil
 }
 
 func registerAddCommandFlags(cmd *cobra.Command) {

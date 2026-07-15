@@ -15,7 +15,10 @@ sandbox:
   agent:
     sudo: false
 
-engine: claude
+engine:
+  id: claude
+  mcp:
+    tool-timeout: 10m
 max-ai-credits: 1500
 tools:
   cli-proxy: true

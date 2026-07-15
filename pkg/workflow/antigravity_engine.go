@@ -16,6 +16,8 @@ type AntigravityEngine struct {
 	BaseEngine
 }
 
+var _ CodingAgentEngine = (*AntigravityEngine)(nil)
+
 func NewAntigravityEngine() *AntigravityEngine {
 	return &AntigravityEngine{
 		BaseEngine: BaseEngine{

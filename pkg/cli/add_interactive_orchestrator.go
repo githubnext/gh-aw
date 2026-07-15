@@ -164,6 +164,17 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 		return err
 	}
 
+	// Step 9b: Apply bootstrap config steps interactively (if the package declares any)
+	if config.resolvedWorkflows != nil && config.resolvedWorkflows.BootstrapProfile != nil {
+		if config.hasWriteAccess {
+			if err := executeBootstrapConfigForAdd(ctx, config.RepoOverride, config.WorkflowSpecs, config.resolvedWorkflows.BootstrapProfile, config.UseCopilotRequests, config.Verbose); err != nil {
+				return err
+			}
+		} else {
+			printBootstrapConfigTODO(os.Stderr, config.resolvedWorkflows.BootstrapProfile)
+		}
+	}
+
 	// Step 10: Check status and offer to run
 	if err := config.checkStatusAndOfferRun(ctx); err != nil {
 		return err

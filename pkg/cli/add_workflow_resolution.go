@@ -58,6 +58,10 @@ type ResolvedWorkflows struct {
 	HasWorkflowDispatch bool
 	// Warnings contains non-fatal package-resolution warnings to show during add
 	Warnings []string
+	// BootstrapProfile holds the bootstrap profile from an aw.yml package manifest,
+	// when exactly one source package declares a config section.
+	// Used by add (non-interactive TODO list) and add-wizard (interactive setup).
+	BootstrapProfile *resolvedBootstrapProfile
 }
 
 // ResolveWorkflows resolves workflow specifications by parsing specs and fetching workflow content.
@@ -79,6 +83,7 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 	// Parse workflow specifications
 	parsedSpecs := make([]*WorkflowSpec, 0, len(workflows))
 	var resolutionWarnings []string
+	var bootstrapProfiles []*resolvedBootstrapProfile
 
 	for _, workflow := range workflows {
 		if pkg, pkgErr := resolveLocalRepositoryPackage(workflow); pkgErr != nil {
@@ -86,6 +91,13 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 		} else if pkg != nil {
 			resolutionWarnings = append(resolutionWarnings, pkg.Warnings...)
 			parsedSpecs = appendLocalRepositoryPackageWorkflowSpecs(parsedSpecs, pkg)
+			if pkg.Bootstrap != nil {
+				bootstrapProfiles = append(bootstrapProfiles, &resolvedBootstrapProfile{
+					PackageID: pkg.ManifestPath,
+					Source:    workflow,
+					Profile:   pkg.Bootstrap,
+				})
+			}
 			continue
 		}
 
@@ -98,6 +110,14 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 			if pkgErr == nil {
 				resolutionWarnings = append(resolutionWarnings, pkg.Warnings...)
 				parsedSpecs = appendRepositoryPackageWorkflowSpecs(parsedSpecs, repoSpec, pkg)
+				if pkg.Bootstrap != nil {
+					packageID := repositoryPackageIdentifier(repoSpec.RepoSlug, repoSpec.PackagePath)
+					bootstrapProfiles = append(bootstrapProfiles, &resolvedBootstrapProfile{
+						PackageID: packageID,
+						Source:    workflow,
+						Profile:   pkg.Bootstrap,
+					})
+				}
 				continue
 			}
 			if repoSpec.PackagePath == "" || !isRepositoryPackageManifestNotFound(pkgErr) {
@@ -118,6 +138,14 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 			}
 			resolutionWarnings = append(resolutionWarnings, pkg.Warnings...)
 			parsedSpecs = appendRepositoryPackageWorkflowSpecs(parsedSpecs, repoSpec, pkg)
+			if pkg.Bootstrap != nil {
+				packageID := repositoryPackageIdentifier(repoSpec.RepoSlug, repoSpec.PackagePath)
+				bootstrapProfiles = append(bootstrapProfiles, &resolvedBootstrapProfile{
+					PackageID: packageID,
+					Source:    workflow,
+					Profile:   pkg.Bootstrap,
+				})
+			}
 			continue
 		}
 
@@ -264,11 +292,31 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 	resolutionLog.Printf("Resolution complete: resolved=%d workflows, has_wildcard=%t, has_dispatch=%t",
 		len(resolvedWorkflows), hasWildcard, hasWorkflowDispatch)
 
+	// Collect the single bootstrap profile if exactly one package declared one.
+	// Multiple conflicting profiles produce a warning; the caller gets nil.
+	var bootstrapProfile *resolvedBootstrapProfile
+	switch len(bootstrapProfiles) {
+	case 0:
+		// nothing to do
+	case 1:
+		bootstrapProfile = bootstrapProfiles[0]
+		resolutionLog.Printf("Bootstrap profile found: packageID=%s", bootstrapProfile.PackageID)
+	default:
+		ids := make([]string, 0, len(bootstrapProfiles))
+		for _, p := range bootstrapProfiles {
+			ids = append(ids, p.PackageID)
+		}
+		resolutionLog.Printf("Multiple bootstrap profiles found (%v); skipping all", ids)
+		resolutionWarnings = append(resolutionWarnings,
+			fmt.Sprintf("multiple bootstrap profiles found (%s); bootstrap config will be skipped — run each package separately to apply its config", strings.Join(ids, ", ")))
+	}
+
 	return &ResolvedWorkflows{
 		Workflows:           resolvedWorkflows,
 		HasWildcard:         hasWildcard,
 		HasWorkflowDispatch: hasWorkflowDispatch,
 		Warnings:            resolutionWarnings,
+		BootstrapProfile:    bootstrapProfile,
 	}, nil
 }
 

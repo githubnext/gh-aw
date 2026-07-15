@@ -40,28 +40,6 @@
         "type": "string"
       }
     },
-    "bootstrap": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["actions"],
-      "properties": {
-        "actions": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "object",
-            "required": ["type"],
-            "properties": {
-              "type": {
-                "type": "string",
-                "minLength": 1
-              }
-            },
-            "additionalProperties": true
-          }
-        }
-      }
-    },
     "skills": {
       "type": "array",
       "description": "Skill directory paths relative to the package root. Each entry is a directory that must contain a SKILL.md file; all direct files in the directory are installed to the agentic engine skill folder.",
@@ -349,6 +327,182 @@
         }
       },
       "additionalProperties": false
+    },
+    "config": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "anyOf": [
+          {
+            "description": "require-owner-type: enforce a repository owner type constraint",
+            "type": "object",
+            "required": ["type", "value"],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "require-owner-type"
+              },
+              "owner": {
+                "type": "string",
+                "const": "repo"
+              },
+              "value": {
+                "type": "string",
+                "enum": ["any", "org", "user"]
+              }
+            }
+          },
+          {
+            "description": "repo-variable: prompt for a repository variable value",
+            "type": "object",
+            "required": ["type", "name", "prompt"],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "repo-variable"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "prompt": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string"
+              },
+              "default": {
+                "type": "string"
+              },
+              "optional": {
+                "type": "boolean"
+              },
+              "enum": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          {
+            "description": "repo-secret: prompt for a repository secret value",
+            "type": "object",
+            "required": ["type", "name", "prompt"],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "repo-secret"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "prompt": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string"
+              },
+              "optional": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "description": "github-app: configure GitHub App credentials",
+            "type": "object",
+            "required": ["type", "app-id-variable", "private-key-secret"],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "github-app"
+              },
+              "owner": {
+                "type": "string",
+                "const": "repo"
+              },
+              "name": {
+                "type": "string"
+              },
+              "app-id-variable": {
+                "type": "string",
+                "minLength": 1
+              },
+              "private-key-secret": {
+                "type": "string",
+                "minLength": 1
+              },
+              "app-name": {
+                "type": "string"
+              },
+              "homepage-url": {
+                "type": "string"
+              },
+              "mode": {
+                "type": "string",
+                "enum": ["create-or-existing", "existing"]
+              },
+              "existing-only": {
+                "type": "boolean"
+              },
+              "permissions": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "events": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          {
+            "description": "copilot-auth: configure Copilot authentication",
+            "type": "object",
+            "required": ["type"],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "copilot-auth"
+              },
+              "secret": {
+                "type": "string"
+              },
+              "strategy": {
+                "type": "string",
+                "const": "prompt-if-actions-auth-unavailable"
+              }
+            }
+          },
+          {
+            "description": "handoff: display a message and hand off to the user",
+            "type": "object",
+            "required": ["type", "message"],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "handoff"
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        ]
+      }
     }
   }
 }

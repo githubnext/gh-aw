@@ -19,7 +19,7 @@ func newSecretsBootstrapSubcommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "bootstrap",
-		Short: "Analyze workflows and set up required secrets",
+		Short: "Analyze workflows and interactively configure required secrets",
 		Long: `Analyze all workflows in the repository to determine which secrets
 are required, check which ones are already configured, and interactively
 prompt for any missing required secrets.

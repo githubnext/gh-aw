@@ -59,6 +59,10 @@ type bootstrapProfileRunConfig struct {
 	PlanOnly bool
 	Verbose  bool
 	Force    bool
+	// UseCopilotRequests indicates the user chose org-billing (copilot-requests) auth
+	// instead of a PAT. When true, copilot-auth config actions are skipped because
+	// the workflow already has permissions.copilot-requests: write injected.
+	UseCopilotRequests bool
 }
 
 type bootstrapProfileExistingState struct {
@@ -108,9 +112,9 @@ func buildBootstrapProfilePlan(ctx context.Context, repo string, profile *resolv
 		return false, nil, nil
 	}
 
-	lines := make([]string, 0, len(profile.Profile.Actions))
+	lines := make([]string, 0, len(profile.Profile.Config))
 	if !repoReady {
-		for _, action := range profile.Profile.Actions {
+		for _, action := range profile.Profile.Config {
 			if err := validateBootstrapActionPreRepo(ctx, repo, action); err != nil {
 				return false, nil, err
 			}
@@ -131,7 +135,7 @@ func buildBootstrapProfilePlan(ctx context.Context, repo string, profile *resolv
 	}
 
 	needsMutation := false
-	for _, action := range profile.Profile.Actions {
+	for _, action := range profile.Profile.Config {
 		pending, err := bootstrapActionNeedsMutation(ctx, repo, action, state, usesActionsToken)
 		if err != nil {
 			return false, nil, err
@@ -159,7 +163,7 @@ func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConf
 		return err
 	}
 
-	for _, action := range config.Profile.Profile.Actions {
+	for _, action := range config.Profile.Profile.Config {
 		pending, err := bootstrapActionNeedsMutation(ctx, config.Repo, action, state, usesActionsToken)
 		if err != nil {
 			return err
@@ -197,6 +201,10 @@ func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConf
 			state.variables[action.AppIDVariable] = struct{}{}
 			state.secrets[action.PrivateKeySecret] = struct{}{}
 		case "copilot-auth":
+			if config.UseCopilotRequests {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping Copilot PAT setup because org Copilot billing is enabled."))
+				continue
+			}
 			applied, err := runBootstrapCopilotAuthAction(ctx, config.Repo, action, state, usesActionsToken)
 			if err != nil {
 				return err
@@ -305,7 +313,7 @@ func runBootstrapRequireOwnerType(ctx context.Context, repo string, action repos
 	}
 	normalized := normalizeSetupOwnerType(ownerType)
 	if action.Value != "" && action.Value != "any" && normalized != action.Value {
-		return fmt.Errorf("owner %s is %s, but bootstrap profile requires %s. Example: set bootstrap.actions[].value to %s or use a repository owned by a matching account type", owner, normalized, action.Value, normalized)
+		return fmt.Errorf("owner %s is %s, but bootstrap profile requires %s. Example: set config[].value to %s or use a repository owned by a matching account type", owner, normalized, action.Value, normalized)
 	}
 	return nil
 }
