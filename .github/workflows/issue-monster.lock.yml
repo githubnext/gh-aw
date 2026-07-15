@@ -2283,8 +2283,8 @@ jobs:
                   }
 
                   // Exclude issues with open PRs from Copilot coding agent
-                  const openCopilotPRs = issue.linkedPRs?.filter(pr => 
-                    pr.state === 'OPEN' && 
+                  const openCopilotPRs = issue.linkedPRs?.filter(pr =>
+                    pr.state === 'OPEN' &&
                     (pr.author === 'copilot-swe-agent' || pr.author?.includes('copilot'))
                   ) || [];
                   if (openCopilotPRs.length > 0) {

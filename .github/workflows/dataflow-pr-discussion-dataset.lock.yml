@@ -687,12 +687,12 @@ jobs:
 
               # Extract discussions and normalize structure
               echo "$RESULT" | jq -r '
-                .data.repository.discussions.nodes 
+                .data.repository.discussions.nodes
                 | map({
-                    number, 
+                    number,
                     title,
                     body,
-                    createdAt, 
+                    createdAt,
                     updatedAt,
                     url,
                     category: .category.name,

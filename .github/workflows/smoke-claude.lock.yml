@@ -454,11 +454,11 @@ jobs:
           5. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item
           6. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-claude-__GH_AW_GITHUB_RUN_ID__.txt` with content "Smoke test passed for Claude at $(date)" (create the directory if it doesn't exist)
           7. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-          8. **Discussion Interaction Testing**: 
+          8. **Discussion Interaction Testing**:
              - Use `gh api repos/__GH_AW_GITHUB_REPOSITORY__/discussions?per_page=1` to get the latest discussion from __GH_AW_GITHUB_REPOSITORY__
              - Extract the discussion number from the result (e.g., if the result is `{"number": 123, "title": "...", ...}`, extract 123)
              - Use the `add_comment` tool with `discussion_number: <extracted_number>` to add a fun, comic-book style comment stating that the smoke test agent was here
-          9. **Agentic Workflows MCP Testing**: 
+          9. **Agentic Workflows MCP Testing**:
              - Call the `agentic-workflows` MCP tool using the `status` method with workflow name `smoke-claude` to query workflow status
              - If the tool returns an error or no results, mark this test as ❌ and note "Tool unavailable or workflow not found" but continue to the Output section
              - If the tool succeeds, extract key information from the response: total runs, success/failure counts, last run timestamp
@@ -496,7 +496,7 @@ jobs:
               - Note: This will bundle all review comments from test #14
               - After submitting, use the GitHub MCP tool to list review threads on the PR and note the thread IDs from review comments you created in test #14 — these will be used in test #16
 
-          16. **Resolve Review Thread Testing**: 
+          16. **Resolve Review Thread Testing**:
               - Use the GitHub MCP tool to list review threads on the PR and filter for threads that are **not yet resolved** (`isResolved: false`)
               - Prefer resolving a thread created by your own review comments from test #14 in this run
               - Use `thread_id: "<thread_id>"` from one of those unresolved threads
@@ -508,7 +508,7 @@ jobs:
               - Verify the tool call succeeds
               - Note: May fail if reviewer is already assigned or doesn't have access
 
-          18. **Push to PR Branch Testing**: 
+          18. **Push to PR Branch Testing**:
               - Create a test file at `smoke-test-files/smoke-claude-push-test.md` in the repository workspace with content "Smoke test push — Run __GH_AW_GITHUB_RUN_ID__"
               - Use the `push_to_pull_request_branch` tool to push this change
               - Use `pr_number: <pr_number>` and `commit_message: "test: Add smoke test file"`
