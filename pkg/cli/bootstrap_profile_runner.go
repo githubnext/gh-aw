@@ -539,11 +539,15 @@ func createBootstrapGitHubApp(ctx context.Context, repo, owner, repoName, ownerT
 	redirectURL := fmt.Sprintf("http://%s/callback", listener.Addr().String())
 	manifest := buildBootstrapGitHubAppManifest(action, appName, homepageURL, redirectURL, description)
 	registrationURL := buildBootstrapGitHubAppRegistrationURL(appOwner, appOwnerType, state)
+	registrationPage, err := renderBootstrapGitHubAppRegistrationPage(registrationURL, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode GitHub App registration manifest for browser handoff; rerun with --verbose and report this issue if it persists: %w", err)
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(renderBootstrapGitHubAppRegistrationPage(registrationURL, manifest)))
+		_, _ = w.Write([]byte(registrationPage))
 	})
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
 		returnedState := r.URL.Query().Get("state")
@@ -959,14 +963,12 @@ func buildBootstrapGitHubAppRegistrationURL(owner, ownerType, state string) stri
 	return "https://github.com/settings/apps/new?state=" + state
 }
 
-func renderBootstrapGitHubAppRegistrationPage(registrationURL string, manifest map[string]any) string {
-	manifestJSON := "{}"
-	if encoded, err := json.Marshal(manifest); err == nil {
-		manifestJSON = string(encoded)
-	} else {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to encode GitHub App manifest for browser handoff: %v", err)))
+func renderBootstrapGitHubAppRegistrationPage(registrationURL string, manifest map[string]any) (string, error) {
+	encoded, err := json.Marshal(manifest)
+	if err != nil {
+		return "", err
 	}
-	return "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Redirecting To GitHub App Creation</title></head><body><p>Redirecting to GitHub App creation...</p><form id=\"manifest-form\" action=\"" + htmlEscape(registrationURL) + "\" method=\"post\"><input type=\"hidden\" name=\"manifest\" value=\"" + htmlEscape(manifestJSON) + "\"><noscript><button type=\"submit\">Continue To GitHub App Creation</button></noscript></form><script>document.getElementById('manifest-form').submit();</script></body></html>"
+	return "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Redirecting To GitHub App Creation</title></head><body><p>Redirecting to GitHub App creation...</p><form id=\"manifest-form\" action=\"" + htmlEscape(registrationURL) + "\" method=\"post\"><input type=\"hidden\" name=\"manifest\" value=\"" + htmlEscape(string(encoded)) + "\"><noscript><button type=\"submit\">Continue To GitHub App Creation</button></noscript></form><script>document.getElementById('manifest-form').submit();</script></body></html>", nil
 }
 
 func printBootstrapGitHubAppManifestReview(owner string, manifest map[string]any) {
