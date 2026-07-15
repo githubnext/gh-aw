@@ -4,12 +4,22 @@ package cli
 
 import (
 	"context"
-	"path/filepath"
+	"os"
 	"testing"
 )
 
 func TestPrepareAddTargetCheckoutWithRuntime_CreatesAndClones(t *testing.T) {
 	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd returned error: %v", err)
+	}
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Chdir returned error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(oldWd)
+	})
 	var createdRepo string
 	var clonedRepo string
 	var clonedDir string
@@ -20,10 +30,13 @@ func TestPrepareAddTargetCheckoutWithRuntime_CreatesAndClones(t *testing.T) {
 		RequireOwnerType: "org",
 	}, bootstrapRuntime{
 		setupRepositoryRuntime: setupRepositoryRuntime{
-			checkAuth:          func(context.Context) error { return nil },
-			repoExists:         func(context.Context, string) (bool, error) { return false, nil },
-			ownerType:          func(context.Context, string) (string, error) { return "Organization", nil },
-			createRepo:         func(_ context.Context, repo string, visibility string) error { createdRepo = repo + ":" + visibility; return nil },
+			checkAuth:  func(context.Context) error { return nil },
+			repoExists: func(context.Context, string) (bool, error) { return false, nil },
+			ownerType:  func(context.Context, string) (string, error) { return "Organization", nil },
+			createRepo: func(_ context.Context, repo string, visibility string) error {
+				createdRepo = repo + ":" + visibility
+				return nil
+			},
 			cloneRepo:          func(_ context.Context, repo string, dir string) error { clonedRepo = repo; clonedDir = dir; return nil },
 			checkCleanWorktree: func(bool) error { return nil },
 		},
@@ -32,7 +45,7 @@ func TestPrepareAddTargetCheckoutWithRuntime_CreatesAndClones(t *testing.T) {
 		t.Fatalf("prepareAddTargetCheckoutWithRuntime returned error: %v", err)
 	}
 
-	expectedDir := filepath.Join(tempDir, "platform-ops")
+	expectedDir := "platform-ops"
 	if checkoutDir != expectedDir {
 		t.Fatalf("expected checkout dir %q, got %q", expectedDir, checkoutDir)
 	}
