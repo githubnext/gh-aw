@@ -36,6 +36,13 @@ describe("no-core-exportvariable-non-string", () => {
     });
   });
 
+  it("valid: coreObj alias with string value is accepted", () => {
+    cjsRuleTester.run("no-core-exportvariable-non-string", noCoreExportVariableNonStringRule, {
+      valid: [`coreObj.exportVariable("GH_AW_AIC", roundedAIC);`, `coreObj.exportVariable("MY_VAR", "hello");`, `coreObj.exportVariable("MY_COUNT", String(items.length));`],
+      invalid: [],
+    });
+  });
+
   it("valid: computed string-literal exportVariable with string value is accepted", () => {
     cjsRuleTester.run("no-core-exportvariable-non-string", noCoreExportVariableNonStringRule, {
       valid: [`core["exportVariable"]("MY_VAR", "hello");`],
@@ -162,6 +169,60 @@ describe("no-core-exportvariable-non-string", () => {
             {
               messageId: "nonStringValue",
               suggestions: [{ messageId: "wrapWithString", output: `core["exportVariable"]("MY_COUNT", String(42));` }],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: coreObj alias with numeric value is flagged", () => {
+    cjsRuleTester.run("no-core-exportvariable-non-string", noCoreExportVariableNonStringRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `coreObj.exportVariable("MY_COUNT", 42);`,
+          errors: [
+            {
+              messageId: "nonStringValue",
+              suggestions: [{ messageId: "wrapWithString", output: `coreObj.exportVariable("MY_COUNT", String(42));` }],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: coreObj alias with boolean value is flagged", () => {
+    cjsRuleTester.run("no-core-exportvariable-non-string", noCoreExportVariableNonStringRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `coreObj.exportVariable("MY_FLAG", true);`,
+          errors: [
+            {
+              messageId: "nonStringValue",
+              suggestions: [{ messageId: "wrapWithString", output: `coreObj.exportVariable("MY_FLAG", String(true));` }],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: coreObj alias with null value is flagged", () => {
+    cjsRuleTester.run("no-core-exportvariable-non-string", noCoreExportVariableNonStringRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `coreObj.exportVariable("MY_VAR", null);`,
+          errors: [
+            {
+              messageId: "nonStringValue",
+              suggestions: [
+                { messageId: "useEmptyString", output: `coreObj.exportVariable("MY_VAR", "");` },
+                { messageId: "wrapWithString", output: `coreObj.exportVariable("MY_VAR", String(null));` },
+              ],
             },
           ],
         },

@@ -34,24 +34,102 @@ describe("no-throw-plain-object", () => {
     });
   });
 
-  it("invalid: throwing a plain object literal is flagged with suggestion", () => {
+  it("valid: JSON-RPC error shape is exempt (negative code + message + optional data)", () => {
     ruleTester.run("no-throw-plain-object", noThrowPlainObjectRule, {
-      valid: [],
+      valid: [
+        // Acceptance-criteria examples — must NOT be flagged
+        `throw { code: -32602, message: "Invalid params" };`,
+        `throw { code: -32603, message: msg };`,
+        `throw { code: -32603, message: msg, data: {} };`,
+        // Template-literal message (common in mcp_server_core.cjs)
+        "throw { code: -32601, message: `Method not found: ${method}` };",
+        // Function-call message (common in safe_outputs_handlers.cjs)
+        `throw { code: -32602, message: getErrorMessage(error) };`,
+      ],
       invalid: [
+        // Positive code → not a valid JSON-RPC error code, still flagged
         {
-          code: `throw { code: -32602, message: "Invalid params" };`,
+          code: `throw { code: 500, message: "internal" };`,
           errors: [
             {
               messageId: "noThrowPlainObject",
               suggestions: [
                 {
                   messageId: "useObjectAssign",
-                  output: `throw Object.assign(new Error("Invalid params"), { code: -32602 });`,
+                  output: `throw Object.assign(new Error("internal"), { code: 500 });`,
                 },
               ],
             },
           ],
         },
+        // Fractional negative code → not a valid JSON-RPC integer code, still flagged
+        {
+          code: `throw { code: -1.5, message: "fractional" };`,
+          errors: [
+            {
+              messageId: "noThrowPlainObject",
+              suggestions: [
+                {
+                  messageId: "useObjectAssign",
+                  output: `throw Object.assign(new Error("fractional"), { code: -1.5 });`,
+                },
+              ],
+            },
+          ],
+        },
+        // Negative zero is not strictly negative, still flagged
+        {
+          code: `throw { code: -0, message: "zero" };`,
+          errors: [
+            {
+              messageId: "noThrowPlainObject",
+              suggestions: [
+                {
+                  messageId: "useObjectAssign",
+                  output: `throw Object.assign(new Error("zero"), { code: -0 });`,
+                },
+              ],
+            },
+          ],
+        },
+        // No message → still flagged
+        {
+          code: `throw { code: -32602 };`,
+          errors: [
+            {
+              messageId: "noThrowPlainObject",
+              suggestions: [
+                {
+                  messageId: "useObjectAssign",
+                  output: `throw Object.assign(new Error(), { code: -32602 });`,
+                },
+              ],
+            },
+          ],
+        },
+        // Extra key beyond code/message/data → still flagged
+        {
+          code: `throw { code: -32602, message: "oops", extra: "field" };`,
+          errors: [
+            {
+              messageId: "noThrowPlainObject",
+              suggestions: [
+                {
+                  messageId: "useObjectAssign",
+                  output: `throw Object.assign(new Error("oops"), { code: -32602, extra: "field" });`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: throwing a plain object literal is flagged with suggestion", () => {
+    ruleTester.run("no-throw-plain-object", noThrowPlainObjectRule, {
+      valid: [],
+      invalid: [
         {
           code: `throw { message: "not found" };`,
           errors: [
@@ -120,25 +198,10 @@ describe("no-throw-plain-object", () => {
     });
   });
 
-  it("suggestion: JSON-RPC shape with code, message, data", () => {
+  it("valid: JSON-RPC shape with code, message, data is exempt", () => {
     ruleTester.run("no-throw-plain-object", noThrowPlainObjectRule, {
-      valid: [],
-      invalid: [
-        {
-          code: `throw { code: -32602, message: "Invalid params", data: { field: "name" } };`,
-          errors: [
-            {
-              messageId: "noThrowPlainObject",
-              suggestions: [
-                {
-                  messageId: "useObjectAssign",
-                  output: `throw Object.assign(new Error("Invalid params"), { code: -32602, data: { field: "name" } });`,
-                },
-              ],
-            },
-          ],
-        },
-      ],
+      valid: [`throw { code: -32602, message: "Invalid params", data: { field: "name" } };`],
+      invalid: [],
     });
   });
 
