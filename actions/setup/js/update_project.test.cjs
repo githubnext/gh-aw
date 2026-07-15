@@ -1230,7 +1230,7 @@ describe("updateProject", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Failed to create field "NonExistentField"'));
   });
 
-  it("warns and skips field updates when fields is a JSON-encoded string (double-encoded)", async () => {
+  it("parses and applies field updates when fields is a JSON-encoded string (double-encoded)", async () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = {
       type: "update_project",

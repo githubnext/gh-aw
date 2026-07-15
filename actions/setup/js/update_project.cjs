@@ -468,7 +468,8 @@ function resolveFieldsObject(fields) {
     core.warning("update_project: `fields` must be a JSON object; skipping field updates");
     return null;
   }
-  return /** @type {Record<string, unknown>} */ fields;
+  const objectFields = /** @type {Record<string, unknown>} */ fields;
+  return objectFields;
 }
 
 /**
