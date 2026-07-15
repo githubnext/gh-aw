@@ -963,6 +963,8 @@ func renderBootstrapGitHubAppRegistrationPage(registrationURL string, manifest m
 	manifestJSON := "{}"
 	if encoded, err := json.Marshal(manifest); err == nil {
 		manifestJSON = string(encoded)
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to encode GitHub App manifest for browser handoff: %v", err)))
 	}
 	return "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Redirecting To GitHub App Creation</title></head><body><p>Redirecting to GitHub App creation...</p><form id=\"manifest-form\" action=\"" + htmlEscape(registrationURL) + "\" method=\"post\"><input type=\"hidden\" name=\"manifest\" value=\"" + htmlEscape(manifestJSON) + "\"><noscript><button type=\"submit\">Continue To GitHub App Creation</button></noscript></form><script>document.getElementById('manifest-form').submit();</script></body></html>"
 }
