@@ -36,4 +36,16 @@ func good() {
 	if _, ok := m[k]; ok {
 		delete(m2, k2)
 	}
+
+	// delete can be shadowed; builtin-only matching should avoid this.
+	delete := func(_ map[string]int, _ string) {}
+	if _, ok := m[k]; ok {
+		delete(m, k)
+	}
+
+	// Potentially side-effectful expressions should not be matched by text alone.
+	nextMap := func() map[string]int { return m }
+	if _, ok := nextMap()[k]; ok {
+		delete(nextMap(), k)
+	}
 }

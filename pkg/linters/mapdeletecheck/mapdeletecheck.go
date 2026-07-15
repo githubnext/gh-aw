@@ -57,17 +57,14 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		initAssign, mapExpr, keyExpr, okIdent := matchMapIndexAssign(pass, ifStmt.Init)
-		if initAssign == nil {
+		mapExpr, keyExpr, okIdent := matchMapIndexAssign(pass, ifStmt.Init)
+		if okIdent == nil {
 			return
 		}
 
 		// The condition must be the ok identifier from the init.
 		condIdent, ok := ifStmt.Cond.(*ast.Ident)
 		if !ok {
-			return
-		}
-		if condIdent.Name != okIdent.Name {
 			return
 		}
 		// Make sure the condition refers to the same object as the init.
@@ -91,6 +88,10 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok || delIdent.Name != "delete" {
 			return
 		}
+		delBuiltin, ok := pass.TypesInfo.Uses[delIdent].(*types.Builtin)
+		if !ok || delBuiltin.Name() != "delete" {
+			return
+		}
 		if len(delCall.Args) != 2 {
 			return
 		}
@@ -102,8 +103,6 @@ func run(pass *analysis.Pass) (any, error) {
 		if !sameExpr(pass, delCall.Args[1], keyExpr) {
 			return
 		}
-
-		_ = initAssign
 
 		mText := astutil.NodeText(pass.Fset, mapExpr)
 		kText := astutil.NodeText(pass.Fset, keyExpr)
@@ -126,60 +125,80 @@ func run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-// matchMapIndexAssign returns the assignment statement, map expression, key expression,
-// and ok identifier if stmt is of the form: _, ok := m[k]
-func matchMapIndexAssign(pass *analysis.Pass, stmt ast.Stmt) (assign *ast.AssignStmt, mapExpr, keyExpr ast.Expr, okIdent *ast.Ident) {
+// matchMapIndexAssign returns map expression, key expression, and ok identifier
+// if stmt is of the form: _, ok := m[k].
+func matchMapIndexAssign(pass *analysis.Pass, stmt ast.Stmt) (mapExpr, keyExpr ast.Expr, okIdent *ast.Ident) {
 	if stmt == nil {
-		return nil, nil, nil, nil
+		return nil, nil, nil
 	}
 	a, ok := stmt.(*ast.AssignStmt)
 	if !ok || a.Tok.String() != ":=" {
-		return nil, nil, nil, nil
+		return nil, nil, nil
 	}
 	if len(a.Lhs) != 2 || len(a.Rhs) != 1 {
-		return nil, nil, nil, nil
+		return nil, nil, nil
 	}
 	// First lhs must be blank identifier.
 	blankIdent, ok := a.Lhs[0].(*ast.Ident)
 	if !ok || blankIdent.Name != "_" {
-		return nil, nil, nil, nil
+		return nil, nil, nil
 	}
 	// Second lhs must be an identifier for the ok bool.
 	okId, ok := a.Lhs[1].(*ast.Ident)
 	if !ok {
-		return nil, nil, nil, nil
+		return nil, nil, nil
 	}
 
 	// Rhs must be a map index expression.
 	idxExpr, ok := a.Rhs[0].(*ast.IndexExpr)
 	if !ok {
-		return nil, nil, nil, nil
+		return nil, nil, nil
 	}
 
 	// Verify the indexed expression is a map type.
 	mapType := pass.TypesInfo.TypeOf(idxExpr.X)
 	if mapType == nil {
-		return nil, nil, nil, nil
+		return nil, nil, nil
 	}
 	if _, ok := mapType.Underlying().(*types.Map); !ok {
-		return nil, nil, nil, nil
+		return nil, nil, nil
 	}
 
-	return a, idxExpr.X, idxExpr.Index, okId
+	return idxExpr.X, idxExpr.Index, okId
 }
 
-// sameExpr reports whether two expressions refer to the same entity
-// (same identifier object or identical literal text).
+// sameExpr reports whether two expressions refer to the same entity.
 func sameExpr(pass *analysis.Pass, a, b ast.Expr) bool {
-	aIdent, aOk := a.(*ast.Ident)
-	bIdent, bOk := b.(*ast.Ident)
-	if aOk && bOk {
-		aObj := pass.TypesInfo.Uses[aIdent]
-		bObj := pass.TypesInfo.Uses[bIdent]
+	switch aExpr := a.(type) {
+	case *ast.Ident:
+		bExpr, ok := b.(*ast.Ident)
+		if !ok {
+			return false
+		}
+		aObj := pass.TypesInfo.Uses[aExpr]
+		bObj := pass.TypesInfo.Uses[bExpr]
 		return aObj != nil && aObj == bObj
+	case *ast.BasicLit:
+		bExpr, ok := b.(*ast.BasicLit)
+		return ok && aExpr.Kind == bExpr.Kind && aExpr.Value == bExpr.Value
+	case *ast.ParenExpr:
+		bExpr, ok := b.(*ast.ParenExpr)
+		return ok && sameExpr(pass, aExpr.X, bExpr.X)
+	case *ast.SelectorExpr:
+		bExpr, ok := b.(*ast.SelectorExpr)
+		if !ok {
+			return false
+		}
+		aSelObj := pass.TypesInfo.Uses[aExpr.Sel]
+		bSelObj := pass.TypesInfo.Uses[bExpr.Sel]
+		return aSelObj != nil && aSelObj == bSelObj && sameExpr(pass, aExpr.X, bExpr.X)
+	case *ast.StarExpr:
+		bExpr, ok := b.(*ast.StarExpr)
+		return ok && sameExpr(pass, aExpr.X, bExpr.X)
+	case *ast.IndexExpr:
+		bExpr, ok := b.(*ast.IndexExpr)
+		return ok && sameExpr(pass, aExpr.X, bExpr.X) && sameExpr(pass, aExpr.Index, bExpr.Index)
+	default:
+		return false
 	}
-	// Fallback: compare source text.
-	aText := astutil.NodeText(pass.Fset, a)
-	bText := astutil.NodeText(pass.Fset, b)
-	return aText != "" && aText == bText
 }
