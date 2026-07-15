@@ -20,6 +20,7 @@ func TestNewDoctorCommand(t *testing.T) {
 	assert.NotNil(t, cmd.Flags().Lookup("repo"), "should expose --repo flag")
 	assert.NotNil(t, cmd.Flags().Lookup("dir"), "should expose --dir flag")
 	assert.NotNil(t, cmd.Flags().Lookup("require-owner-type"), "should expose --require-owner-type flag")
+	assert.NotNil(t, cmd.Flags().Lookup("verbose"), "should expose --verbose flag")
 	assert.False(t, cmd.HasSubCommands())
 }
 

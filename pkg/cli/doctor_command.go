@@ -28,12 +28,14 @@ repository exists, resolves the owner type, and inspects checkout state.`,
 
 			dir, _ := cmd.Flags().GetString("dir")
 			requireOwnerType, _ := cmd.Flags().GetString("require-owner-type")
+			verbose, _ := cmd.Flags().GetBool("verbose")
 
 			return RunSetupRepositoryCheck(SetupRepositoryCheckOptions{
 				Ctx:              cmd.Context(),
 				Repo:             repo,
 				Dir:              dir,
 				RequireOwnerType: requireOwnerType,
+				Verbose:          verbose,
 				JSON:             jsonOutput,
 			})
 		},
@@ -42,6 +44,7 @@ repository exists, resolves the owner type, and inspects checkout state.`,
 	cmd.Flags().StringP("repo", "r", "", "Target repository in owner/repo format")
 	cmd.Flags().StringP("dir", "d", "", "Checkout directory to inspect (defaults to the repo name)")
 	cmd.Flags().String("require-owner-type", "any", "Require a specific owner type: any, org, or user")
+	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
 	addJSONFlag(cmd)
 
 	return cmd
