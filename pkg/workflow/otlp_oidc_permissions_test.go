@@ -69,9 +69,10 @@ engine: copilot
 			section := extractJobSection(lockContent, jobName)
 			require.NotEmpty(t, section, "job %q should be present in the compiled output", jobName)
 
-			// Verify the OTLP OIDC mint step is present so that the permission is genuinely required.
-			assert.Contains(t, lockContent, "id: mint-otlp-oidc-token",
-				"compiled output should contain the OTLP OIDC mint step (id: mint-otlp-oidc-token)")
+			// Verify the OTLP OIDC mint step is present within this job's section so that
+			// the id-token: write permission is genuinely required for this specific job.
+			assert.Contains(t, section, "id: mint-otlp-oidc-token",
+				"job %q should contain the OTLP OIDC mint step (id: mint-otlp-oidc-token)", jobName)
 
 			// The core assertion: every job that receives the mint step must declare id-token: write.
 			assert.Contains(t, section, "id-token: write",
