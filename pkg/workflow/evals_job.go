@@ -53,7 +53,7 @@ func (c *Compiler) buildEvalsJob(data *WorkflowData) (*Job, error) {
 	steps = append(steps, c.buildEvalsJobSteps(data)...)
 
 	// Determine job dependencies.
-	// Evals always depends on agent, and additionally on detection when the detection job is enabled.
+	// Evals always depends on agent and activation, and additionally on detection when the detection job is enabled.
 	// This allows evals to run in parallel with safe_outputs.
 	needs := []string{string(constants.AgentJobName), string(constants.ActivationJobName)}
 	if IsDetectionJobEnabled(data.SafeOutputs) {
