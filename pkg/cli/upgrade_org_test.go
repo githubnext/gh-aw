@@ -260,6 +260,22 @@ func TestRunUpgradeForOrgRepoFilter(t *testing.T) {
 	assert.Equal(t, []string{"octo/api-service", "octo/worker-service"}, upgraded)
 }
 
+func TestSearchOrgLockWorkflowReposRejectsInvalidOrgBeforeSearch(t *testing.T) {
+	origWait := waitForOrgRateLimitFn
+	waitForOrgRateLimitFn = func(context.Context, string, bool) error {
+		t.Fatal("waitForOrgRateLimitFn should not be called for invalid org")
+		return nil
+	}
+	defer func() {
+		waitForOrgRateLimitFn = origWait
+	}()
+
+	repos, err := searchOrgLockWorkflowRepos(context.Background(), "bad org", false)
+	require.Error(t, err)
+	assert.Nil(t, repos)
+	assert.EqualError(t, err, `invalid organization name "bad org": `+orgSlugConstraintDescription)
+}
+
 func TestRunUpgradeForOrgCreateIssue(t *testing.T) {
 	origSearch := searchOrgLockWorkflowReposFn
 	origScan := scanUpgradeRepoFn
