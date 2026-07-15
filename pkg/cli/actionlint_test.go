@@ -366,3 +366,44 @@ func TestBuildActionlintIntegrationStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildActionlintDockerArgs(t *testing.T) {
+	args := buildActionlintDockerArgs("/repo", []string{"a.lock.yml", "b.lock.yml"}, actionlintRunOptions{
+		IncludeShellcheck: false,
+		IncludePyflakes:   true,
+		IgnorePatterns:    []string{"foo", "bar"},
+	})
+
+	assert.Equal(t, []string{
+		"run",
+		"--rm",
+		"-v", "/repo:/workdir",
+		"-w", "/workdir",
+		"rhysd/actionlint:latest",
+		"-format", "{{json .}}",
+		"-shellcheck=",
+		"-ignore", "foo",
+		"-ignore", "bar",
+		"a.lock.yml",
+		"b.lock.yml",
+	}, args)
+}
+
+func TestBuildActionlintCompilerError(t *testing.T) {
+	compilerErr := buildActionlintCompilerError(actionlintError{
+		Message:  "something went wrong",
+		Filepath: ".github/workflows/test.lock.yml",
+		Line:     12,
+		Column:   4,
+		Kind:     "warning-test",
+		Snippet:  "    run: echo test\n    ^~~~",
+	})
+
+	assert.Equal(t, ".github/workflows/test.lock.yml", compilerErr.Position.File)
+	assert.Equal(t, 12, compilerErr.Position.Line)
+	assert.Equal(t, 4, compilerErr.Position.Column)
+	assert.Equal(t, "warning", compilerErr.Type)
+	assert.Equal(t, []string{"    run: echo test"}, compilerErr.Context)
+	assert.Contains(t, compilerErr.Message, "[warning-test] something went wrong")
+	assert.Contains(t, compilerErr.Message, getActionlintDocsURL("warning-test"))
+}
