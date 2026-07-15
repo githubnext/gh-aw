@@ -523,7 +523,7 @@ func createBootstrapGitHubApp(ctx context.Context, repo, owner, repoName, ownerT
 		}
 	}
 
-	appName := deriveBootstrapAppName(repo, firstNonEmpty(overrides.Name, action.Name))
+	appName := deriveBootstrapAppName(repo, firstNonEmpty(overrides.Name, action.AppName, action.Name))
 	homepageURL := strings.TrimSpace(firstNonEmpty(overrides.HomepageURL, action.HomepageURL))
 	if homepageURL == "" {
 		homepageURL = "https://github.com/" + repo

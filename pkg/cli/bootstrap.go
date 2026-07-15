@@ -268,6 +268,15 @@ func normalizeBootstrapRuntime(runtime bootstrapRuntime) bootstrapRuntime {
 	if runtime.compileWorkflows == nil {
 		runtime.compileWorkflows = defaults.compileWorkflows
 	}
+	if runtime.resolveProfile == nil {
+		runtime.resolveProfile = defaults.resolveProfile
+	}
+	if runtime.profileNeedsPlan == nil {
+		runtime.profileNeedsPlan = defaults.profileNeedsPlan
+	}
+	if runtime.executeProfile == nil {
+		runtime.executeProfile = defaults.executeProfile
+	}
 	return runtime
 }
 

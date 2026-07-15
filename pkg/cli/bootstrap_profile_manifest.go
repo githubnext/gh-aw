@@ -260,7 +260,7 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 	if privateKeySecret, ok := stringValue(actionMap["private-key-secret"]); ok {
 		action.PrivateKeySecret = strings.TrimSpace(privateKeySecret)
 	}
-	if appName, ok := stringValue(actionMap["name"]); ok {
+	if appName, ok := stringValue(actionMap["app-name"]); ok {
 		action.AppName = strings.TrimSpace(appName)
 	}
 	if homepageURL, ok := stringValue(actionMap["homepage-url"]); ok {
@@ -316,6 +316,13 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].prompt is required when type=repo-secret. Example: { type: repo-secret, name: EXAMPLE_SECRET, prompt: Enter a secret }", manifestPath, index)
 		}
 	case "github-app":
+		if action.ExistingOnly {
+			if action.Mode == "" {
+				action.Mode = "existing"
+			} else if action.Mode != "existing" {
+				return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].existing-only requires mode=existing when both are set. Example: { type: github-app, existing-only: true, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
+			}
+		}
 		if action.Mode == "" {
 			action.Mode = "create-or-existing"
 		}

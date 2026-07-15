@@ -307,6 +307,44 @@ bootstrap:
 	}
 }
 
+func TestParseRepositoryPackageManifest_GitHubAppUsesAppNameAndExistingOnly(t *testing.T) {
+	manifest, _, err := parseRepositoryPackageManifest("aw.yml", []byte(`name: Control Plane
+bootstrap:
+  actions:
+    - type: github-app
+      app-id-variable: APP_ID
+      private-key-secret: APP_PRIVATE_KEY
+      app-name: Control Plane Bootstrap
+      existing-only: true
+`))
+	if err != nil {
+		t.Fatalf("parseRepositoryPackageManifest returned error: %v", err)
+	}
+	if manifest.Bootstrap == nil || len(manifest.Bootstrap.Actions) != 1 {
+		t.Fatalf("expected one bootstrap action, got %#v", manifest.Bootstrap)
+	}
+	action := manifest.Bootstrap.Actions[0]
+	if action.AppName != "Control Plane Bootstrap" {
+		t.Fatalf("expected app-name to populate AppName, got %q", action.AppName)
+	}
+	if action.Mode != "existing" {
+		t.Fatalf("expected existing-only to map to existing mode, got %q", action.Mode)
+	}
+}
+
+func TestNormalizeBootstrapRuntime_FillsProfileFuncs(t *testing.T) {
+	runtime := normalizeBootstrapRuntime(bootstrapRuntime{})
+	if runtime.resolveProfile == nil {
+		t.Fatal("expected resolveProfile default")
+	}
+	if runtime.profileNeedsPlan == nil {
+		t.Fatal("expected profileNeedsPlan default")
+	}
+	if runtime.executeProfile == nil {
+		t.Fatal("expected executeProfile default")
+	}
+}
+
 func TestResolveBootstrapProfileFromSources(t *testing.T) {
 	originalVersion := GetVersion()
 	originalDownload := downloadPackageFileFromGitHubForHost
