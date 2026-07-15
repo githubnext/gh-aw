@@ -150,6 +150,7 @@ func resolveRunRepoContext(run WorkflowRun, params concurrentRunDownloadParams) 
 // Failure-conclusion runs are kept (with empty metrics) so they appear in reports;
 // all other runs without artifacts are marked as skipped.
 func handleArtifactDownloadError(result *DownloadResult, run WorkflowRun, err error, verbose bool) {
+	result.Run = run
 	if errors.Is(err, ErrNoArtifacts) {
 		logsOrchestratorLog.Printf("No artifacts available for run %d (conclusion=%s)", run.DatabaseID, run.Conclusion)
 		if isFailureConclusion(run.Conclusion) {
