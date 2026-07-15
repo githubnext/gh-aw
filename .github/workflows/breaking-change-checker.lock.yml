@@ -1913,7 +1913,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Breaking Change Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/breaking-change-checker.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.70"
-          GH_AW_INFO_AWF_VERSION: "v0.27.31"
+          GH_AW_INFO_AWF_VERSION: "v0.27.32"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
