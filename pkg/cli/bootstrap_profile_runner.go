@@ -194,10 +194,8 @@ func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConf
 			if err != nil {
 				return err
 			}
-			if pending {
-				state.variables[action.AppIDVariable] = struct{}{}
-				state.secrets[action.PrivateKeySecret] = struct{}{}
-			}
+			state.variables[action.AppIDVariable] = struct{}{}
+			state.secrets[action.PrivateKeySecret] = struct{}{}
 		case "copilot-auth":
 			applied, err := runBootstrapCopilotAuthAction(ctx, config.Repo, action, state, usesActionsToken)
 			if err != nil {

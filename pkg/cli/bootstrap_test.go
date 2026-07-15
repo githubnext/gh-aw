@@ -290,7 +290,15 @@ func TestResolveBootstrapProfileFromSources_IgnoresNestedWorkflowWithoutManifest
 }
 
 func TestParseRepositoryPackageManifest_RejectsUnsupportedBootstrapWhen(t *testing.T) {
-	_, _, err := parseRepositoryPackageManifest("aw.yml", []byte("name: Control Plane\nbootstrap:\n  actions:\n    - type: handoff\n      message: run readiness\n      when:\n        variable: MODE\n        equals: prod\n"))
+	_, _, err := parseRepositoryPackageManifest("aw.yml", []byte(`name: Control Plane
+bootstrap:
+  actions:
+    - type: handoff
+      message: run readiness
+      when:
+        variable: MODE
+        equals: prod
+`))
 	if err == nil {
 		t.Fatal("expected unsupported bootstrap when error")
 	}
