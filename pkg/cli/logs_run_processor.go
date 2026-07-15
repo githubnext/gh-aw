@@ -63,6 +63,8 @@ func buildConcurrentDownloadParams(outputDir string, verbose bool, repoOverride 
 			dlOwner, dlRepo = parts[0], parts[1]
 		}
 	}
+	// ArtifactSetEvals is defined as `"evals"`, matching the string that users pass via
+	// --artifacts evals, so the Contains check is an exact string comparison.
 	evalsArtifactRequested := evalsOnly || slices.Contains(artifactSets, string(ArtifactSetEvals))
 	return concurrentRunDownloadParams{
 		outputDir:              outputDir,
@@ -214,7 +216,7 @@ func processSingleRunDownload(
 			// artifact so those runs are not silently skipped.  This applies both when
 			// --evals is set and when --artifacts evals was explicitly listed.
 			if params.evalsArtifactRequested && !runHasEvals(runOutputDir, params.verbose) {
-				tryDownloadEvalsArtifactFallback(ctx, run.DatabaseID, runOutputDir, params)
+				tryDownloadEvalsArtifactFallback(ctx, run.DatabaseID, runOutputDir, perRunParams)
 			}
 			analyzeRunArtifacts(result, runOutputDir, params.verbose, params.artifactFilter)
 		}
