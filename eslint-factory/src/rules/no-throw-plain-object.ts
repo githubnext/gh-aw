@@ -40,7 +40,7 @@ function isNegativeNumericLiteral(node: TSESTree.Node): boolean {
 /**
  * Returns true when the thrown ObjectExpression matches the intentional JSON-RPC error idiom.
  * All three conditions must hold:
- *   1. Keys are a subset of { code, message, data } (no extra properties).
+ *   1. Keys come only from { code, message, data } (no extra properties allowed).
  *   2. `code` is present and its value is a negative numeric literal (e.g. -32602).
  *   3. `message` is present (the value may be a literal, template, variable, or call expression).
  * The protocol boundary reads these fields directly instead of using a stack trace, so the
