@@ -111,7 +111,7 @@ func checkSetupRepositoryOwnerType(ctx context.Context, owner string) (string, e
 }
 
 func createSetupRepository(ctx context.Context, repo string, visibility string) error {
-	output, err := workflow.RunGHCombinedContext(ctx, "Creating repository...", "repo", "create", repo, "--"+visibility)
+	output, err := workflow.RunGHCombinedContext(ctx, "Creating repository...", "repo", "create", repo, "--"+visibility, "--add-readme")
 	if err != nil {
 		trimmed := strings.TrimSpace(string(output))
 		if trimmed == "" {

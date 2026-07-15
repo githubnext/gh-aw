@@ -21,6 +21,7 @@ func NewAddWizardCommand(validateEngine func(string) error) *cobra.Command {
 This command walks you through:
   - Selecting an AI engine (Copilot, Claude, Codex, or Gemini)
   - Configuring API keys and secrets
+  - Optionally creating a new target repository first
   - Creating a pull request with the workflow
   - Optionally running the workflow immediately
 
@@ -52,6 +53,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard https://example.com/workflow.json        # Import JSON workflow definition with guided setup
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --engine copilot   # Pre-select engine
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-secret        # Skip secret prompt
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --create octo-org/platform-ops --visibility private
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --append "custom footer"            # Append custom content
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-security-scanner             # Skip security scan
 `,
@@ -74,6 +76,9 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			skipSecret := noSecret || skipSecretLegacy
 			appendText, _ := cmd.Flags().GetString("append")
 			disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
+			createTarget, _ := cmd.Flags().GetString("create")
+			createVisibility, _ := cmd.Flags().GetString("visibility")
+			requireOwnerType, _ := cmd.Flags().GetString("require-owner-type")
 
 			addWizardLog.Printf("Starting add-wizard: workflows=%v, engine=%s, verbose=%v", workflows, engineOverride, verbose)
 
@@ -100,6 +105,9 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 				SkipSecret:             skipSecret,
 				AppendText:             appendText,
 				DisableSecurityScanner: disableSecurityScanner,
+				CreateTarget:           createTarget,
+				CreateVisibility:       createVisibility,
+				CreateRequireOwnerType: requireOwnerType,
 			})
 		},
 	}
@@ -129,6 +137,8 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 
 	// Add no-security-scanner flag (matches --no-security-scanner in add command)
 	cmd.Flags().Bool("no-security-scanner", false, "Skip security scanning of workflow markdown content")
+
+	registerAddCreateFlags(cmd)
 
 	// Register completions
 	RegisterEngineFlagCompletion(cmd)

@@ -40,6 +40,7 @@ Workflow specifications:
 
 The -n flag allows you to specify a custom name for the workflow file (not allowed when adding multiple workflows at once).
 The --dir flag allows you to specify the workflow directory (default: .github/workflows).
+The --create flag provisions a target repository before adding workflows into it.
 The --create-pull-request flag creates a pull request with the workflow changes.
 The --force flag overwrites existing workflow files.
 
@@ -60,6 +61,7 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`
   ` + string(constants.CLIExtensionPrefix) + ` add ./my-workflow.md                             # Add local workflow
   ` + string(constants.CLIExtensionPrefix) + ` add ./*.md                                       # Add all local workflows
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --dir .github/workflows/shared   # Add to .github/workflows/shared/
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --create octo-org/platform-ops --visibility private
 `
 )
 
@@ -130,6 +132,9 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 	stopAfter, _ := cmd.Flags().GetString("stop-after")
 	disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
 	disableSecurityScannerLegacy, _ := cmd.Flags().GetBool("disable-security-scanner")
+	createTarget, _ := cmd.Flags().GetString("create")
+	createVisibility, _ := cmd.Flags().GetString("visibility")
+	requireOwnerType, _ := cmd.Flags().GetString("require-owner-type")
 	disableSecurityScanner = disableSecurityScanner || disableSecurityScannerLegacy
 
 	if nameFlag != "" && len(args) > 1 {
@@ -156,13 +161,32 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 	if err != nil {
 		return err
 	}
-	if _, err := AddResolvedWorkflows(cmd.Context(), args, resolved, opts); err != nil {
-		return err
+
+	runAdd := func() error {
+		if _, err := AddResolvedWorkflows(cmd.Context(), args, resolved, opts); err != nil {
+			return err
+		}
+		if resolved.BootstrapProfile != nil {
+			printBootstrapConfigTODO(cmd.ErrOrStderr(), resolved.BootstrapProfile)
+		}
+		return nil
 	}
-	if resolved.BootstrapProfile != nil {
-		printBootstrapConfigTODO(cmd.ErrOrStderr(), resolved.BootstrapProfile)
+
+	if strings.TrimSpace(createTarget) != "" {
+		checkoutDir, err := prepareAddTargetCheckout(cmd.Context(), addCreateOptions{
+			Repo:             createTarget,
+			Visibility:       createVisibility,
+			RequireOwnerType: requireOwnerType,
+			EngineOverride:   engineOverride,
+			Verbose:          verbose,
+		})
+		if err != nil {
+			return err
+		}
+		return withWorkingDir(checkoutDir, runAdd)
 	}
-	return nil
+
+	return runAdd()
 }
 
 func registerAddCommandFlags(cmd *cobra.Command) {
@@ -206,6 +230,8 @@ func registerAddCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("no-security-scanner", false, "Skip security scanning of workflow markdown content")
 	cmd.Flags().Bool("disable-security-scanner", false, "Skip security scanning of workflow markdown content")
 	_ = cmd.Flags().MarkDeprecated("disable-security-scanner", "use --no-security-scanner instead")
+
+	registerAddCreateFlags(cmd)
 
 	// Register completions for add command
 	RegisterEngineFlagCompletion(cmd)

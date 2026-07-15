@@ -178,6 +178,7 @@ func TestCreateSetupRepository_UsesSupportedFlags(t *testing.T) {
 	require.NoError(t, err)
 	logText := string(logData)
 	assert.Contains(t, logText, "repo create octo/platform-ops --private")
+	assert.Contains(t, logText, "--add-readme")
 	assert.NotContains(t, logText, "--confirm")
 	assert.NotContains(t, logText, "--clone=false")
 }

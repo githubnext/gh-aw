@@ -23,6 +23,9 @@ type AddInteractiveConfig struct {
 	WorkflowSpecs          []string
 	Verbose                bool
 	EngineOverride         string
+	CreateTarget           string
+	CreateVisibility       string
+	CreateRequireOwnerType string
 	NoGitattributes        bool
 	WorkflowDir            string
 	NoStopAfter            bool
@@ -82,6 +85,11 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	// Set context on the config
 	config.Ctx = ctx
 
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to determine current directory: %w", err)
+	}
+
 	// Auto-detect GHES host from git remote if not already set
 	if os.Getenv("GH_HOST") == "" { //nolint:osgetenvlibrary
 		detectedHost := getHostFromOriginRemote()
@@ -108,6 +116,25 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	// Step 2: Check gh auth status
 	if err := config.checkGHAuthStatus(); err != nil {
 		return err
+	}
+
+	if strings.TrimSpace(config.CreateTarget) != "" {
+		checkoutDir, err := prepareAddTargetCheckout(ctx, addCreateOptions{
+			Repo:             config.CreateTarget,
+			Visibility:       config.CreateVisibility,
+			RequireOwnerType: config.CreateRequireOwnerType,
+			EngineOverride:   config.EngineOverride,
+			Verbose:          config.Verbose,
+		})
+		if err != nil {
+			return err
+		}
+		if err := os.Chdir(checkoutDir); err != nil {
+			return fmt.Errorf("failed to change directory to %s: %w", checkoutDir, err)
+		}
+		defer func() {
+			_ = os.Chdir(originalDir)
+		}()
 	}
 
 	// Step 3: Check git repository and get org/repo
