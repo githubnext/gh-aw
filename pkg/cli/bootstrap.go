@@ -46,6 +46,9 @@ type bootstrapPlan struct {
 	SkippedSources     []string
 	CompileAfterAdd    bool
 	OwnerType          string
+	BootstrapProfile   *resolvedBootstrapProfile
+	ProfilePlanLines   []string
+	ProfileNeedsAction bool
 	NeedsMutation      bool
 	PlanLines          []string
 }
@@ -56,6 +59,9 @@ type bootstrapRuntime struct {
 	initRepo         func(InitOptions) error
 	addWorkflows     func(context.Context, []string, AddOptions) (*AddWorkflowsResult, error)
 	compileWorkflows func(context.Context, CompileConfig) ([]*workflow.WorkflowData, error)
+	resolveProfile   func(context.Context, []string) (*resolvedBootstrapProfile, error)
+	profileNeedsPlan func(context.Context, string, *resolvedBootstrapProfile, []string, bool) (bool, []string, error)
+	executeProfile   func(context.Context, bootstrapProfileRunConfig) error
 }
 
 const (
@@ -74,6 +80,9 @@ func defaultBootstrapRuntime() bootstrapRuntime {
 		initRepo:               InitRepository,
 		addWorkflows:           AddWorkflows,
 		compileWorkflows:       CompileWorkflows,
+		resolveProfile:         resolveBootstrapProfileFromSources,
+		profileNeedsPlan:       buildBootstrapProfilePlan,
+		executeProfile:         executeBootstrapProfile,
 	}
 }
 
@@ -86,6 +95,8 @@ func RunBootstrap(opts BootstrapOptions) error {
 }
 
 func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, originalDir string) error {
+	runtime = normalizeBootstrapRuntime(runtime)
+
 	if err := validateBootstrapOptions(opts); err != nil {
 		return err
 	}
@@ -209,6 +220,21 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Compiled workflows"))
 		}
 
+		if plan.BootstrapProfile != nil && runtime.executeProfile != nil {
+			if err := runtime.executeProfile(ctx, bootstrapProfileRunConfig{
+				Repo:     plan.Repo,
+				RepoDir:  plan.Dir,
+				Sources:  opts.Sources,
+				Profile:  plan.BootstrapProfile,
+				Yes:      opts.Yes,
+				PlanOnly: opts.PlanOnly,
+				Verbose:  opts.Verbose,
+				Force:    opts.Force,
+			}); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	}); err != nil {
 		return err
@@ -226,6 +252,23 @@ func normalizeBootstrapOptions(opts BootstrapOptions) BootstrapOptions {
 		opts.RequireOwnerType = "any"
 	}
 	return opts
+}
+
+func normalizeBootstrapRuntime(runtime bootstrapRuntime) bootstrapRuntime {
+	defaults := defaultBootstrapRuntime()
+	if runtime.confirmAction == nil {
+		runtime.confirmAction = defaults.confirmAction
+	}
+	if runtime.initRepo == nil {
+		runtime.initRepo = defaults.initRepo
+	}
+	if runtime.addWorkflows == nil {
+		runtime.addWorkflows = defaults.addWorkflows
+	}
+	if runtime.compileWorkflows == nil {
+		runtime.compileWorkflows = defaults.compileWorkflows
+	}
+	return runtime
 }
 
 func validateBootstrapOptions(opts BootstrapOptions) error {
@@ -321,10 +364,30 @@ func buildBootstrapPlan(ctx context.Context, opts BootstrapOptions, runtime boot
 		}
 	}
 
+	if len(opts.Sources) > 0 && runtime.resolveProfile != nil {
+		profile, err := runtime.resolveProfile(ctx, opts.Sources)
+		if err != nil {
+			return nil, err
+		}
+		if profile != nil {
+			plan.BootstrapProfile = profile
+			profileNeedsPlan := runtime.profileNeedsPlan
+			if profileNeedsPlan == nil {
+				profileNeedsPlan = defaultBootstrapRuntime().profileNeedsPlan
+			}
+			needsAction, profileLines, err := profileNeedsPlan(ctx, plan.Repo, profile, opts.Sources, plan.RepoExists)
+			if err != nil {
+				return nil, err
+			}
+			plan.ProfileNeedsAction = needsAction
+			plan.ProfilePlanLines = append(plan.ProfilePlanLines, profileLines...)
+		}
+	}
+
 	plan.PlanLines = buildBootstrapPlanLines(plan, opts)
-	plan.NeedsMutation = plan.CreateRepo || plan.CloneRepo || plan.InitNeeded || len(plan.ResolvedSources) > 0
-	bootstrapLog.Printf("Bootstrap plan built: createRepo=%t, cloneRepo=%t, attached=%t, initNeeded=%t, needsMutation=%t",
-		plan.CreateRepo, plan.CloneRepo, plan.AttachedCheckout, plan.InitNeeded, plan.NeedsMutation)
+	plan.NeedsMutation = plan.CreateRepo || plan.CloneRepo || plan.InitNeeded || len(plan.ResolvedSources) > 0 || plan.ProfileNeedsAction
+	bootstrapLog.Printf("Bootstrap plan built: createRepo=%t, cloneRepo=%t, attached=%t, initNeeded=%t, profileNeedsAction=%t, needsMutation=%t",
+		plan.CreateRepo, plan.CloneRepo, plan.AttachedCheckout, plan.InitNeeded, plan.ProfileNeedsAction, plan.NeedsMutation)
 
 	if !opts.PlanOnly && plan.AttachedCheckout && plan.NeedsMutation {
 		if err := withWorkingDir(plan.Dir, func() error {
@@ -476,6 +539,16 @@ func buildBootstrapPlanLines(plan *bootstrapPlan, opts BootstrapOptions) []strin
 	}
 	if len(plan.SkippedSources) > 0 {
 		lines = append(lines, "- skip already sourced workflows: "+strings.Join(plan.SkippedSources, ", "))
+	}
+
+	if plan.BootstrapProfile != nil {
+		lines = append(lines, fmt.Sprintf("- evaluate bootstrap profile %s from %s", plan.BootstrapProfile.Profile.Profile, plan.BootstrapProfile.PackageID))
+		if plan.ProfileNeedsAction {
+			lines = append(lines, fmt.Sprintf("- apply bootstrap profile actions (%d action(s))", len(plan.BootstrapProfile.Profile.Actions)))
+		} else {
+			lines = append(lines, "- bootstrap profile actions already satisfied")
+		}
+		lines = append(lines, plan.ProfilePlanLines...)
 	}
 
 	if plan.OwnerType != "" {

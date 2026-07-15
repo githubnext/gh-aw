@@ -226,6 +226,46 @@ func TestMainFunction(t *testing.T) {
 		// Reset args for other tests
 		rootCmd.SetArgs([]string{})
 	})
+
+	t.Run("hidden bootstrap direct help falls back to root help", func(t *testing.T) {
+		oldStderr := os.Stderr
+		r, w, _ := os.Pipe()
+		os.Stderr = w
+
+		rootCmd.SetOut(os.Stderr)
+
+		var buf bytes.Buffer
+		done := make(chan struct{})
+		go func() {
+			_, _ = buf.ReadFrom(r)
+			close(done)
+		}()
+
+		rootCmd.SetArgs([]string{"bootstrap", "--help"})
+		err := rootCmd.Execute()
+
+		w.Close()
+		os.Stderr = oldStderr
+		rootCmd.SetOut(os.Stderr)
+
+		<-done
+		output := buf.String()
+
+		require.NoError(t, err, "hidden bootstrap help should not fail")
+		assert.Contains(t, output, "gh aw [command]", "hidden bootstrap help should fall back to root help")
+		assert.NotContains(t, output, "gh aw bootstrap [source]...", "hidden bootstrap help should not render bootstrap usage")
+		assert.NotContains(t, output, "Bootstrap a repository for agentic workflows by combining repository setup", "hidden bootstrap help should not expose bootstrap long help")
+
+		rootCmd.SetArgs([]string{})
+	})
+
+	t.Run("help hidden command topic returns unknown topic", func(t *testing.T) {
+		rootCmd.SetArgs([]string{"help", "bootstrap"})
+		err := rootCmd.Execute()
+		require.Error(t, err, "help on hidden bootstrap command should fail")
+		assert.Equal(t, "unknown help topic [[`bootstrap`]]", err.Error())
+		rootCmd.SetArgs([]string{})
+	})
 }
 
 // TestMainFunctionExecutionPath tests the main function execution path

@@ -6,10 +6,10 @@ import (
 
 func NewSetupCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "setup",
-		Short:  "Run reusable auth and repository setup checks",
+		Use:    "doctor",
+		Short:  "Run reusable auth and repository diagnostics",
 		Hidden: true,
-		Long: `Run reusable auth and repository setup checks.
+		Long: `Run reusable auth and repository diagnostics.
 
 This command exposes the shared setup primitives that bootstrap and future setup
 flows can reuse, without forcing a full bootstrap run.
@@ -17,10 +17,10 @@ flows can reuse, without forcing a full bootstrap run.
 Available subcommands:
   - auth - Verify GitHub CLI authentication
   - repo - Check repository existence, owner type, and checkout state`,
-		Example: `  gh aw setup auth
-  gh aw setup repo --repo github/gh-aw
-  gh aw setup repo --repo github/gh-aw --json
-  gh aw setup repo --repo github/gh-aw --dir ./gh-aw --require-owner-type org`,
+		Example: `  gh aw doctor auth
+  gh aw doctor repo --repo github/gh-aw
+  gh aw doctor repo --repo github/gh-aw --json
+  gh aw doctor repo --repo github/gh-aw --dir ./gh-aw --require-owner-type org`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -39,8 +39,8 @@ func newSetupAuthSubcommand() *cobra.Command {
 
 This reuses the same authentication preflight used by bootstrap and other
 setup-oriented commands.`,
-		Example: `  gh aw setup auth
-  gh aw setup auth --json`,
+		Example: `  gh aw doctor auth
+  gh aw doctor auth --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			jsonOutput, _ := cmd.Flags().GetBool("json")
@@ -60,10 +60,10 @@ func newSetupRepoSubcommand() *cobra.Command {
 This command verifies GitHub CLI authentication, confirms that the target
 repository exists, resolves the owner type, and inspects whether the target
 directory is already attached to the expected checkout or is ready for clone.`,
-		Example: `  gh aw setup repo --repo github/gh-aw
-  gh aw setup repo --repo github/gh-aw --json
-  gh aw setup repo --repo github/gh-aw --dir ./gh-aw
-  gh aw setup repo --repo github/gh-aw --require-owner-type org`,
+		Example: `  gh aw doctor repo --repo github/gh-aw
+  gh aw doctor repo --repo github/gh-aw --json
+  gh aw doctor repo --repo github/gh-aw --dir ./gh-aw
+  gh aw doctor repo --repo github/gh-aw --require-owner-type org`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repo, _ := cmd.Flags().GetString("repo")

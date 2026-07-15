@@ -124,6 +124,261 @@ func TestBuildBootstrapPlan_EnforcesOwnerTypeRequirement(t *testing.T) {
 	}
 }
 
+func TestBuildBootstrapPlan_WithBootstrapProfileNeedsAction(t *testing.T) {
+	repoDir := initBootstrapGitRepo(t)
+	plan, err := buildBootstrapPlan(context.Background(), normalizeBootstrapOptions(BootstrapOptions{
+		Repo:    "octo/platform-ops",
+		Dir:     repoDir,
+		Sources: []string{"github/central-agentic-ops"},
+	}), bootstrapRuntime{
+		setupRepositoryRuntime: setupRepositoryRuntime{
+			checkAuth:          func(context.Context) error { return nil },
+			repoExists:         func(context.Context, string) (bool, error) { return true, nil },
+			dirOriginRepo:      func(string) (string, error) { return "octo/platform-ops", nil },
+			checkCleanWorktree: func(bool) error { return nil },
+		},
+		resolveProfile: func(context.Context, []string) (*resolvedBootstrapProfile, error) {
+			return &resolvedBootstrapProfile{
+				PackageID: "github/central-agentic-ops",
+				Profile: &repositoryPackageBootstrap{
+					Profile: "control-plane",
+					Actions: []repositoryPackageBootstrapAction{{Type: "repo-variable", Name: "CENTRAL_AGENTIC_OPS_MODE"}},
+				},
+			}, nil
+		},
+		profileNeedsPlan: func(context.Context, string, *resolvedBootstrapProfile, []string, bool) (bool, []string, error) {
+			return true, []string{"- bootstrap profile will configure repository variable CENTRAL_AGENTIC_OPS_MODE"}, nil
+		},
+	}, repoDir)
+	if err != nil {
+		t.Fatalf("buildBootstrapPlan returned error: %v", err)
+	}
+	if !plan.ProfileNeedsAction {
+		t.Fatal("expected bootstrap profile action to require mutation")
+	}
+	if !plan.NeedsMutation {
+		t.Fatal("expected bootstrap profile action to contribute to overall mutation state")
+	}
+	if !slices.Contains(plan.PlanLines, "- evaluate bootstrap profile control-plane from github/central-agentic-ops") {
+		t.Fatalf("expected bootstrap profile evaluation line, got %#v", plan.PlanLines)
+	}
+	if !slices.Contains(plan.PlanLines, "- apply bootstrap profile actions (1 action(s))") {
+		t.Fatalf("expected bootstrap profile action line, got %#v", plan.PlanLines)
+	}
+	if !slices.Contains(plan.PlanLines, "- bootstrap profile will configure repository variable CENTRAL_AGENTIC_OPS_MODE") {
+		t.Fatalf("expected bootstrap profile detail line, got %#v", plan.PlanLines)
+	}
+}
+
+func TestRunBootstrapWithRuntime_ExecutesBootstrapProfile(t *testing.T) {
+	repoDir := initBootstrapGitRepo(t)
+	profileCalls := 0
+	err := runBootstrapWithRuntime(normalizeBootstrapOptions(BootstrapOptions{
+		Ctx:     context.Background(),
+		Repo:    "octo/platform-ops",
+		Dir:     repoDir,
+		Yes:     true,
+		Sources: []string{"github/central-agentic-ops"},
+	}), bootstrapRuntime{
+		setupRepositoryRuntime: setupRepositoryRuntime{
+			checkAuth:          func(context.Context) error { return nil },
+			repoExists:         func(context.Context, string) (bool, error) { return true, nil },
+			dirOriginRepo:      func(string) (string, error) { return "octo/platform-ops", nil },
+			checkCleanWorktree: func(bool) error { return nil },
+		},
+		initRepo: func(InitOptions) error { return nil },
+		addWorkflows: func(context.Context, []string, AddOptions) (*AddWorkflowsResult, error) {
+			return &AddWorkflowsResult{}, nil
+		},
+		compileWorkflows: func(context.Context, CompileConfig) ([]*workflow.WorkflowData, error) {
+			return nil, nil
+		},
+		resolveProfile: func(context.Context, []string) (*resolvedBootstrapProfile, error) {
+			return &resolvedBootstrapProfile{
+				PackageID: "github/central-agentic-ops",
+				Profile: &repositoryPackageBootstrap{
+					Profile: "control-plane",
+					Actions: []repositoryPackageBootstrapAction{{Type: "handoff", Message: "Run readiness"}},
+				},
+			}, nil
+		},
+		profileNeedsPlan: func(context.Context, string, *resolvedBootstrapProfile, []string, bool) (bool, []string, error) {
+			return true, nil, nil
+		},
+		executeProfile: func(context.Context, bootstrapProfileRunConfig) error {
+			profileCalls++
+			return nil
+		},
+	}, repoDir)
+	if err != nil {
+		t.Fatalf("runBootstrapWithRuntime returned error: %v", err)
+	}
+	if profileCalls != 1 {
+		t.Fatalf("expected bootstrap profile execution, got %d calls", profileCalls)
+	}
+}
+
+func TestResolveBootstrapProfileFromSources(t *testing.T) {
+	originalVersion := GetVersion()
+	originalDownload := downloadPackageFileFromGitHubForHost
+	originalList := listPackageWorkflowFilesForHost
+	originalDirFiles := listPackageDirFilesForHost
+	originalDirSubdirs := listPackageDirSubdirsForHost
+	originalDefaultBranch := getRepositoryPackageDefaultBranch
+	originalLatestRelease := getRepositoryPackageLatestRelease
+	t.Cleanup(func() {
+		SetVersionInfo(originalVersion)
+		downloadPackageFileFromGitHubForHost = originalDownload
+		listPackageWorkflowFilesForHost = originalList
+		listPackageDirFilesForHost = originalDirFiles
+		listPackageDirSubdirsForHost = originalDirSubdirs
+		getRepositoryPackageDefaultBranch = originalDefaultBranch
+		getRepositoryPackageLatestRelease = originalLatestRelease
+	})
+	SetVersionInfo("v1.2.3")
+	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+		return "main", nil
+	}
+	getRepositoryPackageLatestRelease = func(repoSlug, host string) (string, error) {
+		return "", errors.New("no releases found")
+	}
+	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
+		return nil, createRepositoryPackageNotFoundError(dirPath)
+	}
+	listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
+		return nil, createRepositoryPackageNotFoundError(dirPath)
+	}
+	listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
+		switch workflowPath {
+		case "workflows", "readiness/workflows":
+			return []string{"workflows/readiness.md"}, nil
+		case ".github/workflows", "readiness/.github/workflows":
+			return nil, createRepositoryPackageNotFoundError(workflowPath)
+		default:
+			return nil, errors.New("unexpected workflow path")
+		}
+	}
+
+	t.Run("returns package bootstrap profile", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+			switch path {
+			case "aw.yml":
+				return []byte("name: Control Plane\nbootstrap:\n  profile: control-plane\n  actions:\n    - type: handoff\n      message: Run readiness\n"), nil
+			case "README.md":
+				return []byte("# Control Plane\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(path)
+			}
+		}
+
+		profile, err := resolveBootstrapProfileFromSources(context.Background(), []string{"github/central-agentic-ops"})
+		if err != nil {
+			t.Fatalf("resolveBootstrapProfileFromSources returned error: %v", err)
+		}
+		if profile == nil {
+			t.Fatal("expected bootstrap profile")
+		}
+		if profile.PackageID != "github/central-agentic-ops" {
+			t.Fatalf("unexpected package id: %s", profile.PackageID)
+		}
+		if profile.Profile.Profile != "control-plane" {
+			t.Fatalf("unexpected profile name: %s", profile.Profile.Profile)
+		}
+	})
+
+	t.Run("returns local package bootstrap profile", func(t *testing.T) {
+		packageDir := t.TempDir()
+		manifestPath := filepath.Join(packageDir, "aw.yml")
+		manifest := []byte("name: Control Plane\nbootstrap:\n  profile: control-plane\n  actions:\n    - type: handoff\n      message: Run readiness\n")
+		if err := os.WriteFile(manifestPath, manifest, 0o644); err != nil {
+			t.Fatalf("write manifest: %v", err)
+		}
+
+		profile, err := resolveBootstrapProfileFromSources(context.Background(), []string{packageDir})
+		if err != nil {
+			t.Fatalf("resolveBootstrapProfileFromSources returned error: %v", err)
+		}
+		if profile == nil {
+			t.Fatal("expected bootstrap profile")
+		}
+		if profile.Source != packageDir {
+			t.Fatalf("unexpected source: %s", profile.Source)
+		}
+		if profile.PackageID != filepath.Clean(packageDir) {
+			t.Fatalf("unexpected package id: %s", profile.PackageID)
+		}
+		if profile.Profile.Profile != "control-plane" {
+			t.Fatalf("unexpected profile name: %s", profile.Profile.Profile)
+		}
+	})
+
+	t.Run("rejects multiple package bootstrap profiles", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+			switch path {
+			case "aw.yml":
+				return []byte("name: Root\nbootstrap:\n  profile: first\n  actions:\n    - type: handoff\n      message: one\n"), nil
+			case "readiness/aw.yml":
+				return []byte("name: Readiness\nbootstrap:\n  profile: second\n  actions:\n    - type: handoff\n      message: two\n"), nil
+			case "README.md", "readiness/README.md":
+				return []byte("# Package\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(path)
+			}
+		}
+
+		_, err := resolveBootstrapProfileFromSources(context.Background(), []string{"github/central-agentic-ops", "github/central-agentic-ops/readiness"})
+		if err == nil {
+			t.Fatal("expected multiple profile error")
+		}
+		if !strings.Contains(err.Error(), "multiple bootstrap profiles matched") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestBuildBootstrapPlan_CreateRepoProfileDoesNotAssumeRepoExists(t *testing.T) {
+	t.Parallel()
+
+	tempDir := testutil.TempDir(t, "bootstrap-*")
+	checkoutDir := filepath.Join(tempDir, "platform-ops")
+	var repoReady bool
+
+	plan, err := buildBootstrapPlan(context.Background(), normalizeBootstrapOptions(BootstrapOptions{
+		Repo:       "my-mona-org/platform-ops",
+		Dir:        checkoutDir,
+		CreateRepo: true,
+		Sources:    []string{"github/central-agentic-ops"},
+	}), bootstrapRuntime{
+		setupRepositoryRuntime: setupRepositoryRuntime{
+			checkAuth:          func(context.Context) error { return nil },
+			repoExists:         func(context.Context, string) (bool, error) { return false, nil },
+			checkCleanWorktree: func(bool) error { return nil },
+		},
+		resolveProfile: func(context.Context, []string) (*resolvedBootstrapProfile, error) {
+			return &resolvedBootstrapProfile{
+				PackageID: "github/central-agentic-ops",
+				Profile: &repositoryPackageBootstrap{
+					Profile: "control-plane",
+					Actions: []repositoryPackageBootstrapAction{{Type: "repo-variable", Name: "CENTRAL_AGENTIC_OPS_MODE"}},
+				},
+			}, nil
+		},
+		profileNeedsPlan: func(_ context.Context, _ string, _ *resolvedBootstrapProfile, _ []string, ready bool) (bool, []string, error) {
+			repoReady = ready
+			return true, []string{"- bootstrap profile will configure repository variable CENTRAL_AGENTIC_OPS_MODE"}, nil
+		},
+	}, tempDir)
+	if err != nil {
+		t.Fatalf("buildBootstrapPlan returned error: %v", err)
+	}
+	if repoReady {
+		t.Fatal("expected create-repo plan to treat bootstrap profile state as not yet queryable")
+	}
+	if !plan.ProfileNeedsAction {
+		t.Fatal("expected bootstrap profile action to require mutation")
+	}
+}
+
 func TestRunBootstrapWithRuntime_CreateCloneInitAddCompile(t *testing.T) {
 	tempDir := testutil.TempDir(t, "bootstrap-*")
 	checkoutDir := filepath.Join(tempDir, "platform-ops")

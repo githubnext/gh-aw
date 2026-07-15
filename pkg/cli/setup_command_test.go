@@ -19,11 +19,11 @@ func TestNewSetupCommand(t *testing.T) {
 	cmd := NewSetupCommand()
 
 	require.NotNil(t, cmd)
-	assert.Equal(t, "setup", cmd.Use)
-	assert.Equal(t, "Run reusable auth and repository setup checks", cmd.Short)
+	assert.Equal(t, "doctor", cmd.Use)
+	assert.Equal(t, "Run reusable auth and repository diagnostics", cmd.Short)
 	assert.True(t, cmd.Hidden)
 	assert.Contains(t, cmd.Long, "Available subcommands:")
-	assert.Contains(t, cmd.Example, "gh aw setup repo --repo github/gh-aw --json")
+	assert.Contains(t, cmd.Example, "gh aw doctor repo --repo github/gh-aw --json")
 	assert.Contains(t, cmd.Long, "- auth")
 	assert.Contains(t, cmd.Long, "- repo")
 	assert.True(t, cmd.HasSubCommands())
@@ -47,9 +47,9 @@ func TestSetupSubcommandsAdvertiseJSONExamples(t *testing.T) {
 	authCmd := newSetupAuthSubcommand()
 	repoCmd := newSetupRepoSubcommand()
 
-	assert.Contains(t, authCmd.Example, "gh aw setup auth --json")
+	assert.Contains(t, authCmd.Example, "gh aw doctor auth --json")
 	assert.Contains(t, authCmd.Long, "setup-oriented commands.")
-	assert.Contains(t, repoCmd.Example, "gh aw setup repo --repo github/gh-aw --json")
+	assert.Contains(t, repoCmd.Example, "gh aw doctor repo --repo github/gh-aw --json")
 	assert.NotContains(t, repoCmd.Example, "\t")
 }
 
@@ -69,7 +69,7 @@ func TestSetupCommandUnknownSubcommandReturnsError(t *testing.T) {
 
 	err := cmd.Execute()
 	require.Error(t, err)
-	assert.Equal(t, `unknown command "unknown-cmd" for "setup"`, err.Error())
+	assert.Equal(t, `unknown command "unknown-cmd" for "doctor"`, err.Error())
 }
 
 func TestNewSetupRepoSubcommandRequiresRepoFlagOnExecute(t *testing.T) {
@@ -307,7 +307,7 @@ func TestSetupCommandSubcommandListingsUseHyphenBullets(t *testing.T) {
 		name    string
 		longDoc string
 	}{
-		{name: "setup", longDoc: NewSetupCommand().Long},
+		{name: "doctor", longDoc: NewSetupCommand().Long},
 	}
 
 	for _, tt := range tests {
@@ -339,8 +339,8 @@ func TestSetupCommandStructure(t *testing.T) {
 		commandCreator func() any
 	}{
 		{
-			name:        "setup command exists",
-			expectedUse: "setup",
+			name:        "doctor command exists",
+			expectedUse: "doctor",
 			commandCreator: func() any {
 				return NewSetupCommand()
 			},
