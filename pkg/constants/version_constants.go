@@ -60,7 +60,7 @@ const DefaultPiVersion Version = "0.80.7"
 const DefaultOpenCodeVersion Version = "1.2.14"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v1.5.0"
+const DefaultGitHubMCPServerVersion Version = "v1.6.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 //

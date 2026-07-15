@@ -97,7 +97,7 @@ func writeTOMLInlineStringMapSection(yaml *strings.Builder, indent, name string,
 // trailing slash) because github-mcp-server expects GITHUB_HOST in the same
 // format that GitHub Actions exposes via GITHUB_SERVER_URL (for example
 // https://github.com or https://myorg.ghe.com).
-func buildGitHubMCPEnvVars(tokenValue, hostValue string, readOnly, lockdown bool, toolsets string) map[string]string {
+func buildGitHubMCPEnvVars(tokenValue, hostValue string, readOnly, lockdown bool, toolsets, features string) map[string]string {
 	envVars := map[string]string{
 		"GITHUB_PERSONAL_ACCESS_TOKEN": tokenValue,
 		"GITHUB_HOST":                  hostValue,
@@ -115,13 +115,17 @@ func buildGitHubMCPEnvVars(tokenValue, hostValue string, readOnly, lockdown bool
 		envVars["GITHUB_TOOLSETS"] = toolsets
 	}
 
+	if features != "" {
+		envVars["GITHUB_FEATURES"] = features
+	}
+
 	// Note: tokenValue is a secret and is intentionally not logged.
-	mcpRendererSectionHelpersLog.Printf("Built GitHub MCP env vars: host=%s, readOnly=%v, lockdown=%v, hasToolsets=%v", hostValue, readOnly, lockdown, toolsets != "")
+	mcpRendererSectionHelpersLog.Printf("Built GitHub MCP env vars: host=%s, readOnly=%v, lockdown=%v, hasToolsets=%v, hasFeatures=%v", hostValue, readOnly, lockdown, toolsets != "", features != "")
 
 	return envVars
 }
 
-func buildGitHubMCPRemoteHeaders(authValue string, readOnly, lockdown bool, toolsets string) map[string]string {
+func buildGitHubMCPRemoteHeaders(authValue string, readOnly, lockdown bool, toolsets, features string) map[string]string {
 	headers := map[string]string{
 		"Authorization": authValue,
 	}
@@ -138,8 +142,12 @@ func buildGitHubMCPRemoteHeaders(authValue string, readOnly, lockdown bool, tool
 		headers["X-MCP-Toolsets"] = toolsets
 	}
 
+	if features != "" {
+		headers["X-MCP-Features"] = features
+	}
+
 	// Note: authValue is a secret and is intentionally not logged.
-	mcpRendererSectionHelpersLog.Printf("Built GitHub MCP remote headers: readOnly=%v, lockdown=%v, hasToolsets=%v", readOnly, lockdown, toolsets != "")
+	mcpRendererSectionHelpersLog.Printf("Built GitHub MCP remote headers: readOnly=%v, lockdown=%v, hasToolsets=%v, hasFeatures=%v", readOnly, lockdown, toolsets != "", features != "")
 
 	return headers
 }

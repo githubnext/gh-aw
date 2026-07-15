@@ -41,9 +41,10 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 	shouldUseStepOutputForGuardPolicy := len(explicitGuardPolicies) == 0 && !hasGitHubApp(githubTool)
 
 	toolsets := getGitHubToolsets(githubTool)
+	features := getGitHubFeatures(githubTool)
 
-	mcpRendererLog.Printf("Rendering GitHub MCP: type=%s, read_only=%t, lockdown=%t (explicit=%t), guard_from_step=%t, toolsets=%v, format=%s",
-		githubType, readOnly, lockdown, hasGitHubLockdownExplicitlySet(githubTool), shouldUseStepOutputForGuardPolicy, toolsets, r.options.Format)
+	mcpRendererLog.Printf("Rendering GitHub MCP: type=%s, read_only=%t, lockdown=%t (explicit=%t), guard_from_step=%t, toolsets=%v, features=%s, format=%s",
+		githubType, readOnly, lockdown, hasGitHubLockdownExplicitlySet(githubTool), shouldUseStepOutputForGuardPolicy, toolsets, features, r.options.Format)
 
 	if r.options.Format == "toml" {
 		mcpRendererLog.Print("GitHub MCP format=toml, dispatching to renderGitHubTOML")
@@ -70,6 +71,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 			LockdownFromStep:      false,
 			GuardPoliciesFromStep: shouldUseStepOutputForGuardPolicy,
 			Toolsets:              toolsets,
+			Features:              features,
 			AuthorizationValue:    authValue,
 			IncludeToolsField:     r.options.IncludeCopilotFields,
 			AllowedTools:          getGitHubAllowedTools(githubTool),
@@ -89,6 +91,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 			LockdownFromStep:      false,
 			GuardPoliciesFromStep: shouldUseStepOutputForGuardPolicy,
 			Toolsets:              toolsets,
+			Features:              features,
 			DockerImageVersion:    githubDockerImageVersion,
 			CustomArgs:            customArgs,
 			IncludeTypeField:      r.options.IncludeCopilotFields,
@@ -111,8 +114,9 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 	readOnly := getGitHubReadOnly()
 	lockdown := getGitHubLockdown(githubTool)
 	toolsets := getGitHubToolsets(githubTool)
+	features := getGitHubFeatures(githubTool)
 
-	mcpRendererLog.Printf("Rendering GitHub MCP TOML: type=%s, read_only=%t, lockdown=%t, toolsets=%s", githubType, readOnly, lockdown, toolsets)
+	mcpRendererLog.Printf("Rendering GitHub MCP TOML: type=%s, read_only=%t, lockdown=%t, toolsets=%s, features=%s", githubType, readOnly, lockdown, toolsets, features)
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.github]\n")
@@ -187,6 +191,7 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 			readOnly,
 			lockdown,
 			toolsets,
+			features,
 		)
 
 		// Write environment variables in sorted order for deterministic output
@@ -251,7 +256,7 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 		hostValue = "${GITHUB_SERVER_URL}"
 	}
 
-	envVars := buildGitHubMCPEnvVars(tokenValue, hostValue, options.ReadOnly, options.Lockdown, options.Toolsets)
+	envVars := buildGitHubMCPEnvVars(tokenValue, hostValue, options.ReadOnly, options.Lockdown, options.Toolsets, options.Features)
 	hasGuardPolicies := hasGitHubMCPGuardPolicies(options.GuardPolicies, options.GuardPoliciesFromStep)
 	writeJSONStringMapSection(yaml, "                ", "env", envVars, hasGuardPolicies)
 	renderGitHubMCPGuardPolicies(yaml, options.GuardPolicies, options.GuardPoliciesFromStep, "                ")
@@ -282,7 +287,7 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 		yaml,
 		"                ",
 		"headers",
-		buildGitHubMCPRemoteHeaders(options.AuthorizationValue, options.ReadOnly, options.Lockdown, options.Toolsets),
+		buildGitHubMCPRemoteHeaders(options.AuthorizationValue, options.ReadOnly, options.Lockdown, options.Toolsets, options.Features),
 		(options.IncludeToolsField && len(options.AllowedTools) > 0) || options.IncludeEnvSection || hasGuardPolicies,
 	)
 
@@ -313,7 +318,7 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 			yaml,
 			"                ",
 			"env",
-			buildGitHubMCPEnvVars("${GITHUB_MCP_SERVER_TOKEN}", "${GITHUB_SERVER_URL}", false, false, ""),
+			buildGitHubMCPEnvVars("${GITHUB_MCP_SERVER_TOKEN}", "${GITHUB_SERVER_URL}", false, false, "", ""),
 			hasGuardPolicies,
 		)
 	}
