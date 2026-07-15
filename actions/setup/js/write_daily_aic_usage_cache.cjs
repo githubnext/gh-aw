@@ -15,13 +15,11 @@ const fs = require("fs");
 const path = require("path");
 
 const { findJSONLFiles, sumAICFromUsageJSONLFiles } = require("./daily_aic_workflow_helpers.cjs");
+const { AIC_USAGE_CACHE_FILE_PATH, CACHE_RETENTION_MS, pruneStaleJSONLCacheLines } = require("./daily_aic_cache_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /** Path where the restored (and updated) usage cache lives on the runner. */
-const CACHE_FILE_PATH = "/tmp/gh-aw/agentic-workflow-usage-cache.jsonl";
-
-/** Entries older than this threshold (in ms) are pruned when rewriting the cache. */
-const CACHE_RETENTION_MS = 48 * 60 * 60 * 1000;
+const CACHE_FILE_PATH = AIC_USAGE_CACHE_FILE_PATH;
 
 /**
  * Directory prepared by the "Collect usage artifact files" step in the conclusion job.
@@ -83,29 +81,10 @@ async function mainWithPaths(cacheFilePath, usageDir) {
     try {
       if (fs.existsSync(cachePath)) {
         const raw = fs.readFileSync(cachePath, "utf8").trimEnd();
-        const now = Date.now();
-        const cutoff = now - CACHE_RETENTION_MS;
-        let total = 0;
-        let pruned = 0;
-        for (const rawLine of raw.split("\n")) {
-          const line = rawLine.trim();
-          if (!line) continue;
-          total++;
-          try {
-            const entry = JSON.parse(line);
-            if (typeof entry?.timestamp === "string") {
-              const ts = Date.parse(entry.timestamp);
-              if (Number.isFinite(ts) && ts < cutoff) {
-                pruned++;
-                continue;
-              }
-            }
-            keptLines.push(line);
-          } catch {
-            // Preserve lines that cannot be parsed (defensive: avoids data loss).
-            keptLines.push(line);
-          }
-        }
+        const cutoff = Date.now() - CACHE_RETENTION_MS;
+        const prunedResult = pruneStaleJSONLCacheLines(raw, cutoff);
+        keptLines = prunedResult.keptLines;
+        const { prunedCount: pruned, totalCount: total } = prunedResult;
         logCache("Loaded existing cache entries", { path: cachePath, total, kept: keptLines.length, pruned });
       } else {
         logCache("No existing cache file found; starting fresh", { path: cachePath });

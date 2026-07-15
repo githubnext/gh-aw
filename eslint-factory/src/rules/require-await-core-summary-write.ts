@@ -1,4 +1,5 @@
 import { ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
+import { CORE_ALIASES } from "./core-aliases";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -20,16 +21,6 @@ function getRootIdentifier(node: TSESTree.Node): string | null {
   if (node.type === "CallExpression") return getRootIdentifier(node.callee);
   return null;
 }
-
-// Tightened from the prior `/^core/i` heuristic to an exact allow-list.
-// Only identifiers that are verified @actions/core bindings in the corpus are
-// matched; broad prefix matching would silently flag unrelated objects such as
-// `coreCache`, `coreData`, or `coreference` that happen to start with "core".
-//
-// Known aliases (extend here when a new verified binding is introduced):
-//   "core"    — conventional require("@actions/core") name in github-script steps
-//   "coreObj" — alias used in parse_mcp_gateway_log.cjs
-const CORE_ALIASES = new Set(["core", "coreObj"]);
 
 function isCoreLikeIdentifier(name: string): boolean {
   return CORE_ALIASES.has(name);
