@@ -1,11 +1,7 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
+import { CORE_ALIASES } from "./core-aliases";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
-
-// Known @actions/core binding names (same allow-list as require-return-after-core-setfailed and
-// require-await-core-summary-write). Only exact known aliases are matched — broad prefix matching
-// (e.g. `/^core/i`) would silently flag unrelated objects that happen to start with "core".
-const CORE_ALIASES = new Set(["core", "coreObj"]);
 
 /**
  * Returns a description of the non-string value kind if the node is one of the
