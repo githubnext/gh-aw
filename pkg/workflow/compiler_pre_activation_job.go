@@ -519,7 +519,7 @@ func (c *Compiler) applyPreActivationIfConditionGuards(data *WorkflowData, needs
 	//   2. The compiled on: section itself contains a GitHub Actions expression (contains ${{):
 	//      event detection cannot be performed reliably at compile time.
 	if needsPermissionCheck && hasCommentEventInOn(data.On) && !botsContainExpression(data.Bots) && !strings.Contains(data.On, "${{") {
-		jobIfCondition = combinePreActivationIfCondition(RenderCondition(buildCommentAuthorAssociationCondition(data.Bots)), jobIfCondition)
+		jobIfCondition = combinePreActivationIfCondition(RenderCondition(buildCommentAuthorAssociationCondition(data.Bots, activeCommentEventsInOn(data.On))), jobIfCondition)
 	}
 	// Add optional skip-author-associations event guards as a job-level if condition.
 	// This compiles to a static expression so skipped runs exit early without pre-activation
@@ -575,6 +575,27 @@ func buildLabelNamesCondition(labelNames []string) string {
 // colon (':') reliably identifies a trigger key without false-positives from embedded strings.
 func hasCommentEventInOn(on string) bool {
 	return strings.Contains(on, "issue_comment:") || strings.Contains(on, "pull_request_review_comment:")
+}
+
+// activeCommentEventsInOn returns the subset of guarded comment event names
+// ("issue_comment", "pull_request_review_comment") that are present as trigger
+// keys in the rendered on: section. The result is used to emit a precise
+// author_association guard that only references events actually in the workflow.
+//
+// The on: string is compiler-generated YAML whose trigger keys always appear as
+// top-level YAML keys followed immediately by a colon (e.g. "issue_comment:\n").
+// Matching "<event>:" therefore reliably identifies a trigger key without
+// false-positives from embedded user strings or comments — the same pattern used
+// by the pre-existing hasCommentEventInOn helper.
+func activeCommentEventsInOn(on string) []string {
+	var events []string
+	if strings.Contains(on, "issue_comment:") {
+		events = append(events, "issue_comment")
+	}
+	if strings.Contains(on, "pull_request_review_comment:") {
+		events = append(events, "pull_request_review_comment")
+	}
+	return events
 }
 
 // botsContainExpression reports whether any entry in bots is a GitHub Actions expression
