@@ -542,7 +542,8 @@ function resolveProviderEndpointFromReflect(options) {
   const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
   const provider = normalizeReflectProviderName(options?.provider, "openai");
   const reflectData = options?.reflectData;
-  const reflectRecord = reflectData && typeof reflectData === "object" ? /** @type {{ endpoints?: unknown }} */ reflectData : null;
+  /** @type {({ endpoints?: unknown } | null)} */
+  const reflectRecord = reflectData && typeof reflectData === "object" ? reflectData : null;
   const endpointCandidates = Array.isArray(reflectRecord?.endpoints) ? reflectRecord.endpoints : [];
   const endpoints = endpointCandidates.filter(/** @param {any} ep */ ep => ep && ep.configured === true);
   if (endpoints.length === 0) {
