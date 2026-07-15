@@ -1518,6 +1518,39 @@ function loadReportIncompleteMessages(items) {
   }
 }
 
+const DIAGNOSTIC_AGENT_OUTPUT_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_incomplete"]);
+
+/**
+ * Determine whether agent output contains at least one real task-level item.
+ * @param {Array<any> | undefined} items
+ * @returns {boolean}
+ */
+function hasTaskLevelAgentOutput(items) {
+  if (!Array.isArray(items)) {
+    return false;
+  }
+  return items.some(item => item && typeof item.type === "string" && !DIAGNOSTIC_AGENT_OUTPUT_TYPES.has(item.type));
+}
+
+/**
+ * Detect a spurious report_incomplete caused only by task_complete registration/recognition
+ * trouble after the agent already finished the real task work.
+ * @param {{reason?: string, details?: string} | undefined} item
+ * @returns {boolean}
+ */
+function isTaskCompleteRegistrationIssue(item) {
+  if (!item) {
+    return false;
+  }
+  const text = `${item.reason || ""}\n${item.details || ""}`.toLowerCase();
+  if (!text.includes("task_complete")) {
+    return false;
+  }
+  const registrationSignals = ["not registering", "not registered", "not recognizing", "not recognized", "recognition issue", "not yet marked", "haven't marked", "tool calls are not registering"];
+  const completionSignals = ["completed successfully", "safe-output", "safe output", "no remaining work", "all 8 analysis steps completed"];
+  return registrationSignals.some(signal => text.includes(signal)) && completionSignals.some(signal => text.includes(signal));
+}
+
 /**
  * Build report_incomplete context string for display in failure issues/comments.
  * This surfaces the agent's structured incompletion signal so maintainers can
@@ -2962,6 +2995,13 @@ async function main() {
     let hasCompletedDespiteJobFailure = false;
     const { loadAgentOutput } = require("./load_agent_output.cjs");
     const agentOutputResult = loadAgentOutput();
+    const taskCompleteRegistrationIssueOnlyReportIncomplete =
+      agentOutputResult.success &&
+      agentOutputResult.items &&
+      agentOutputResult.items.some(item => item.type === "report_incomplete") &&
+      hasAgentTerminalReasonCompleted() &&
+      hasTaskLevelAgentOutput(agentOutputResult.items) &&
+      agentOutputResult.items.filter(item => item.type === "report_incomplete").every(isTaskCompleteRegistrationIssue);
 
     if (agentConclusion === "success") {
       if (!agentOutputResult.success || !agentOutputResult.items || agentOutputResult.items.length === 0) {
@@ -2985,7 +3025,7 @@ async function main() {
         if (nonNoopItems.length === 0) {
           hasOnlyNoopOutputs = true;
           core.info("Agent failed with exit code 1 but produced only noop outputs - treating as successful no-action (transient AI model error)");
-        } else if (!nonNoopItems.some(item => item.type === "report_incomplete")) {
+        } else if (!nonNoopItems.some(item => item.type === "report_incomplete" && !isTaskCompleteRegistrationIssue(item))) {
           // The agent produced valid non-noop safe outputs (e.g. create_discussion) but the
           // job exit code is non-zero. If terminal_reason: completed is present in the log,
           // the failure was a transient error after the agent finished its task — do not report
@@ -3006,10 +3046,14 @@ async function main() {
     if (agentOutputResult.success && agentOutputResult.items && agentOutputResult.items.length > 0) {
       const reportIncompleteItems = agentOutputResult.items.filter(item => item.type === "report_incomplete");
       if (reportIncompleteItems.length > 0) {
-        hasReportIncomplete = true;
-        core.info(`Agent emitted ${reportIncompleteItems.length} report_incomplete signal(s) - activating failure handling`);
-        for (const item of reportIncompleteItems) {
-          core.info(`  report_incomplete reason: ${item.reason}`);
+        if (taskCompleteRegistrationIssueOnlyReportIncomplete) {
+          core.info("Ignoring report_incomplete signal(s) caused only by task_complete registration trouble after successful task-level outputs");
+        } else {
+          hasReportIncomplete = true;
+          core.info(`Agent emitted ${reportIncompleteItems.length} report_incomplete signal(s) - activating failure handling`);
+          for (const item of reportIncompleteItems) {
+            core.info(`  report_incomplete reason: ${item.reason}`);
+          }
         }
       }
     }

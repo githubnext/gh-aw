@@ -4093,6 +4093,47 @@ describe("handle_agent_failure", () => {
       // report_incomplete overrides the hasCompletedDespiteJobFailure exemption
       expect(createIssueMock).toHaveBeenCalled();
     });
+
+    it("ignores report_incomplete when it only describes task_complete registration trouble after successful outputs", async () => {
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [
+            { type: "add_comment", body: "done" },
+            { type: "submit_pull_request_review", event: "APPROVE", body: "done" },
+            {
+              type: "report_incomplete",
+              reason: "Test Quality Sentinel analysis completed successfully. However, task_complete tool calls are not registering with the system despite repeated attempts and no remaining work identified.",
+            },
+          ],
+        })
+      );
+      fs.writeFileSync(path.join(tmpDir, "agent-stdio.log"), '{"type":"result","subtype":"success","terminal_reason":"completed","num_turns":10}\n');
+
+      const createIssueMock = vi.fn();
+      const createCommentMock = vi.fn();
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      vi.resetModules();
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+
+      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(createCommentMock).not.toHaveBeenCalled();
+    });
   });
 
   describe("parseFirewallAuthErrors", () => {
