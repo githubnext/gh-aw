@@ -59,6 +59,10 @@ type bootstrapProfileRunConfig struct {
 	PlanOnly bool
 	Verbose  bool
 	Force    bool
+	// UseCopilotRequests indicates the user chose org-billing (copilot-requests) auth
+	// instead of a PAT. When true, copilot-auth config actions are skipped because
+	// the workflow already has permissions.copilot-requests: write injected.
+	UseCopilotRequests bool
 }
 
 type bootstrapProfileExistingState struct {
@@ -197,6 +201,10 @@ func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConf
 			state.variables[action.AppIDVariable] = struct{}{}
 			state.secrets[action.PrivateKeySecret] = struct{}{}
 		case "copilot-auth":
+			if config.UseCopilotRequests {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping Copilot PAT setup because org Copilot billing is enabled."))
+				continue
+			}
 			applied, err := runBootstrapCopilotAuthAction(ctx, config.Repo, action, state, usesActionsToken)
 			if err != nil {
 				return err

@@ -2020,3 +2020,117 @@ func TestIsGhAwRepository(t *testing.T) {
 		})
 	}
 }
+
+// bootstrapTestHelpers sets up the common mock functions used by bootstrap profile
+// propagation tests and registers their cleanup.
+func bootstrapTestHelpers(t *testing.T) {
+	t.Helper()
+	originalFetchFn := fetchWorkflowFromSourceWithContextFn
+	originalDownload := downloadPackageFileFromGitHubForHost
+	originalList := listPackageWorkflowFilesForHost
+	originalDirFiles := listPackageDirFilesForHost
+	originalDirSubdirs := listPackageDirSubdirsForHost
+	originalDefaultBranch := getRepositoryPackageDefaultBranch
+	t.Cleanup(func() {
+		fetchWorkflowFromSourceWithContextFn = originalFetchFn
+		downloadPackageFileFromGitHubForHost = originalDownload
+		listPackageWorkflowFilesForHost = originalList
+		listPackageDirFilesForHost = originalDirFiles
+		listPackageDirSubdirsForHost = originalDirSubdirs
+		getRepositoryPackageDefaultBranch = originalDefaultBranch
+	})
+
+	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+		return "main", nil
+	}
+	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
+		return nil, createRepositoryPackageNotFoundError(dirPath)
+	}
+	listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
+		return nil, createRepositoryPackageNotFoundError(dirPath)
+	}
+	listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
+		t.Fatalf("unexpected scan of %s", workflowPath)
+		return nil, nil
+	}
+	fetchWorkflowFromSourceWithContextFn = func(_ context.Context, spec *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {
+		return &FetchedWorkflow{
+			Content:    []byte("---\nname: Test\non: push\n---\n"),
+			CommitSHA:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			IsLocal:    false,
+			SourcePath: spec.WorkflowPath,
+		}, nil
+	}
+}
+
+func TestResolveWorkflows_BootstrapProfile_SinglePackage(t *testing.T) {
+	bootstrapTestHelpers(t)
+
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+		switch path {
+		case "aw.yml":
+			return []byte(`name: My Package
+files:
+  - workflows/review.md
+config:
+  - type: repo-variable
+    name: MY_VAR
+    prompt: Enter a value
+`), nil
+		case "README.md":
+			return []byte("# My Package\n"), nil
+		}
+		return nil, createRepositoryPackageNotFoundError(path)
+	}
+
+	resolved, err := ResolveWorkflows(context.Background(), []string{"owner/repo"}, false)
+	require.NoError(t, err)
+	require.Len(t, resolved.Workflows, 1)
+
+	require.NotNil(t, resolved.BootstrapProfile, "BootstrapProfile should be populated from the package config")
+	assert.Equal(t, "owner/repo", resolved.BootstrapProfile.PackageID)
+	require.Len(t, resolved.BootstrapProfile.Profile.Config, 1)
+	assert.Equal(t, "repo-variable", resolved.BootstrapProfile.Profile.Config[0].Type)
+	assert.Equal(t, "MY_VAR", resolved.BootstrapProfile.Profile.Config[0].Name)
+}
+
+func TestResolveWorkflows_BootstrapProfile_MultiplePackagesWarnsAndSuppresses(t *testing.T) {
+	bootstrapTestHelpers(t)
+
+	// Two separate repository packages, each declaring a config section.
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+		var pkgName, varName string
+		switch repo {
+		case "pkg-a":
+			pkgName, varName = "Package A", "VAR_A"
+		case "pkg-b":
+			pkgName, varName = "Package B", "VAR_B"
+		default:
+			return nil, createRepositoryPackageNotFoundError(path)
+		}
+		switch path {
+		case "aw.yml":
+			return []byte("name: " + pkgName + "\nfiles:\n  - workflows/review.md\nconfig:\n  - type: repo-variable\n    name: " + varName + "\n    prompt: Enter a value\n"), nil
+		case "README.md":
+			return []byte("# " + pkgName + "\n"), nil
+		}
+		return nil, createRepositoryPackageNotFoundError(path)
+	}
+
+	resolved, err := ResolveWorkflows(context.Background(), []string{"owner/pkg-a", "owner/pkg-b"}, false)
+	require.NoError(t, err)
+
+	assert.Nil(t, resolved.BootstrapProfile, "BootstrapProfile should be nil when multiple packages declare config")
+
+	// Verify the multi-profile warning is present (other deprecation/experimental warnings may also be present)
+	found := false
+	for _, w := range resolved.Warnings {
+		if strings.Contains(w, "multiple bootstrap profiles found") {
+			assert.Contains(t, w, "owner/pkg-a")
+			assert.Contains(t, w, "owner/pkg-b")
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected a warning about multiple bootstrap profiles, got: %v", resolved.Warnings)
+}

@@ -22,7 +22,7 @@ func printBootstrapConfigTODO(profile *resolvedBootstrapProfile) {
 	for _, action := range profile.Profile.Config {
 		switch action.Type {
 		case "require-owner-type":
-			fmt.Fprintf(os.Stderr, "  ✓ Repository owner type constraint: %s\n", action.Value)
+			fmt.Fprintf(os.Stderr, "  ☐ Verify repository owner type: %s\n", action.Value)
 		case "repo-variable":
 			line := "  ☐ Set repository variable: " + action.Name
 			if action.Prompt != "" {
@@ -66,7 +66,7 @@ func printBootstrapConfigTODO(profile *resolvedBootstrapProfile) {
 
 // executeBootstrapConfigForAdd runs the bootstrap config actions interactively.
 // Used by add-wizard after the workflow PR has been created and merged.
-func executeBootstrapConfigForAdd(ctx context.Context, repo string, sources []string, profile *resolvedBootstrapProfile, verbose bool) error {
+func executeBootstrapConfigForAdd(ctx context.Context, repo string, sources []string, profile *resolvedBootstrapProfile, useCopilotRequests bool, verbose bool) error {
 	if profile == nil || profile.Profile == nil || len(profile.Profile.Config) == 0 {
 		return nil
 	}
@@ -75,9 +75,10 @@ func executeBootstrapConfigForAdd(ctx context.Context, repo string, sources []st
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying post-installation steps from "+profile.PackageID+"..."))
 
 	return executeBootstrapProfile(ctx, bootstrapProfileRunConfig{
-		Repo:    repo,
-		Sources: sources,
-		Profile: profile,
-		Verbose: verbose,
+		Repo:               repo,
+		Sources:            sources,
+		Profile:            profile,
+		UseCopilotRequests: useCopilotRequests,
+		Verbose:            verbose,
 	})
 }
