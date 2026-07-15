@@ -7,7 +7,55 @@ description: Query GitHub issues with jq filtering and reusable selectors.
 
 Query GitHub issues efficiently with built-in jq filtering.
 
-## Important: jq Parameter is Optional
+## Triage Mode (Title-Only, No Body)
+
+For triage-style tasks that only need issue metadata, use `query-issues-triage.sh`
+instead of `query-issues.sh`. It omits the issue body to dramatically reduce token cost.
+
+```bash
+./query-issues-triage.sh --owner github --repo gh-aw
+# Returns 10 open issues (default per_page=10), no body field
+```
+
+### Triage Parameters
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `--owner` | Yes | - | Repository owner (username or organization) |
+| `--repo` | Yes | - | Repository name |
+| `--state` | No | open | Issue state: open, closed, or all |
+| `--labels` | No | - | Comma-separated label names to filter by |
+| `--assignee` | No | - | Filter by assignee login |
+| `--per-page` | No | 10 | Results per page (1–100) |
+| `--page` | No | 1 | Page number |
+
+### Triage Output
+
+```json
+{
+  "issues": [
+    {
+      "number": 123,
+      "title": "Fix login bug",
+      "state": "open",
+      "html_url": "https://github.com/owner/repo/issues/123",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-02T00:00:00Z",
+      "author": "octocat",
+      "labels": ["bug", "priority:high"],
+      "assignees": ["monalisa"],
+      "milestone": null
+    }
+  ],
+  "item_count": 10,
+  "per_page": 10,
+  "page": 1
+}
+```
+
+Use `issue_read` to fetch the full body for a specific issue when needed.
+
+## Full-Data Mode (jq Filtering)
 
 The `--jq` parameter is **optional**. Without `--jq`, this skill returns **schema and data size information** instead of full data.
 Use this to avoid oversized responses and inspect structure before targeted queries.

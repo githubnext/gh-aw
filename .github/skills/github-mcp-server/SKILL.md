@@ -105,7 +105,7 @@ The following toolsets are enabled by default when `toolsets:` is not specified:
 |---------|-------------|--------------|
 | `context` | User and environment context | `get_teams`, `get_team_members` |
 | `repos` | Repository management | `get_repository`, `get_file_contents`, `search_code`, `list_commits` |
-| `issues` | Issue management | `issue_read`, `list_issues`, `create_issue`, `search_issues` |
+| `issues` | Issue management | `issue_read`, `list_issues` ⚠️, `create_issue`, `search_issues` ⚠️ |
 | `pull_requests` | Pull request operations | `pull_request_read`, `list_pull_requests`, `create_pull_request` |
 | `actions` | GitHub Actions/CI/CD | `list_workflows`, `list_workflow_runs`, `download_workflow_run_artifact` |
 | `code_security` | Code scanning and security | `list_code_scanning_alerts` ⚠️ (always include `state: open` and `severity: critical,high`), `get_code_scanning_alert` |
@@ -127,6 +127,10 @@ The following toolsets are enabled by default when `toolsets:` is not specified:
 `get_me` is **not recommended** in agentic workflows. It returns HTTP 403 when called under the GitHub Actions integration token (which is the default in all gh-aw runs). Do **not** call `get_me` to determine the agent's identity.
 
 **Canonical identity source**: The `<github-context>` block is injected at the start of every workflow prompt and contains `actor`, `repository`, `run_id`, and other context values. Always read identity from there.
+:::
+
+:::tip[`list_issues` and `search_issues` return full bodies — use bounded wrappers for triage]
+`list_issues` ⚠️ and `search_issues` ⚠️ return the **full issue body** on every result, which inflates context cost even when only titles/numbers are needed. For triage-style agents, import `shared/github-mcp-pagination-wrappers.md` — it provides body-stripped `list_issues` and `search_issues` wrappers with proper `per_page` pagination. Call `issue_read` only for the specific issues that require full detail.
 :::
 
 ## Available Tools by Toolset
@@ -154,6 +158,11 @@ This section maps individual tools to their respective toolsets to help with mig
 - `search_issues` - Search issues across repositories
 - `add_reaction` - Add reaction to an issue or comment
 - `create_issue_comment` - Add a comment to an issue
+
+When invoking `list_issues` or `search_issues` from workflow prompts/templates:
+- Default to a small page size (`perPage: 10` unless a smaller/larger value is justified).
+- Both tools return the **full issue body** by default, which inflates context cost significantly. For triage-style tasks that only need titles and metadata, import `shared/github-mcp-pagination-wrappers.md` — it provides `list_issues` and `search_issues` wrappers that strip the body and respect `per_page` on every call.
+- Only call `issue_read` for the specific issues you need to read in full detail after the triage pass.
 
 ### Pull Requests Toolset
 - `pull_request_read` - Read pull request details
