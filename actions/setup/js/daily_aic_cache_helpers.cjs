@@ -20,7 +20,8 @@ const CACHE_RETENTION_MS = 48 * 60 * 60 * 1000;
  * is older than `cutoffMs`.
  *
  * - Empty lines are discarded.
- * - Lines that cannot be parsed as JSON are preserved (defensive: avoids data loss).
+ * - Lines that do not look like JSON objects (do not start with "{") are discarded.
+ * - Object-like lines that cannot be parsed as JSON are preserved (defensive: avoids data loss).
  * - Lines that have no `timestamp` field are preserved (backward compatibility with
  *   entries written by older versions of the write script).
  *
@@ -38,6 +39,10 @@ function pruneStaleJSONLCacheLines(content, cutoffMs) {
     const line = rawLine.trim();
     if (!line) continue;
     totalCount++;
+    if (!line.startsWith("{")) {
+      prunedCount++;
+      continue;
+    }
     try {
       const entry = JSON.parse(line);
       if (typeof entry?.timestamp === "string") {
@@ -49,7 +54,7 @@ function pruneStaleJSONLCacheLines(content, cutoffMs) {
       }
       keptLines.push(line);
     } catch {
-      // Preserve lines that cannot be parsed (defensive: avoids data loss).
+      // Preserve object-like lines that cannot be parsed (defensive: avoids data loss).
       keptLines.push(line);
     }
   }

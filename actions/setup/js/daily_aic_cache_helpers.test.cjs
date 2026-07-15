@@ -69,13 +69,13 @@ describe("daily_aic_cache_helpers", () => {
       expect(result.prunedCount).toBe(0);
     });
 
-    it("keeps lines that cannot be parsed as JSON (defensive data-loss avoidance)", () => {
+    it("drops non-object lines and keeps malformed object-like lines", () => {
       const content = "not-valid-json\n{bad json\n";
       const result = exports.pruneStaleJSONLCacheLines(content, Date.now());
-      expect(result.keptLines).toHaveLength(2);
-      expect(result.keptLines).toContain("not-valid-json");
+      expect(result.keptLines).toHaveLength(1);
+      expect(result.keptLines).not.toContain("not-valid-json");
       expect(result.keptLines).toContain("{bad json");
-      expect(result.prunedCount).toBe(0);
+      expect(result.prunedCount).toBe(1);
       expect(result.totalCount).toBe(2);
     });
 
@@ -102,14 +102,14 @@ describe("daily_aic_cache_helpers", () => {
       const result = exports.pruneStaleJSONLCacheLines(content, cutoff);
 
       expect(result.totalCount).toBe(4);
-      expect(result.prunedCount).toBe(1);
-      expect(result.keptLines).toHaveLength(3);
+      expect(result.prunedCount).toBe(2);
+      expect(result.keptLines).toHaveLength(2);
 
       const keptRunIds = result.keptLines.filter(l => l.startsWith("{")).map(l => JSON.parse(l).run_id);
       expect(keptRunIds).toContain(1);
       expect(keptRunIds).not.toContain(2);
       expect(keptRunIds).toContain(3);
-      expect(result.keptLines).toContain("malformed");
+      expect(result.keptLines).not.toContain("malformed");
     });
 
     it("keeps an entry whose timestamp exactly equals cutoffMs (boundary: not pruned)", () => {

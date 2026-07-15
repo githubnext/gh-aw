@@ -82,8 +82,9 @@ async function mainWithPaths(cacheFilePath, usageDir) {
       if (fs.existsSync(cachePath)) {
         const raw = fs.readFileSync(cachePath, "utf8").trimEnd();
         const cutoff = Date.now() - CACHE_RETENTION_MS;
-        const { keptLines: kept, prunedCount: pruned, totalCount: total } = pruneStaleJSONLCacheLines(raw, cutoff);
-        keptLines = kept;
+        const prunedResult = pruneStaleJSONLCacheLines(raw, cutoff);
+        keptLines = prunedResult.keptLines;
+        const { prunedCount: pruned, totalCount: total } = prunedResult;
         logCache("Loaded existing cache entries", { path: cachePath, total, kept: keptLines.length, pruned });
       } else {
         logCache("No existing cache file found; starting fresh", { path: cachePath });
