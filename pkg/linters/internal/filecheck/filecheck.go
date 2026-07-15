@@ -41,13 +41,14 @@ func BuildGeneratedIndex(pass *analysis.Pass) GeneratedIndex {
 		if !ast.IsGenerated(file) {
 			continue
 		}
-		originalFilename := pass.Fset.PositionFor(file.Pos(), false).Filename
+		pos := file.Pos()
+		originalFilename := pass.Fset.PositionFor(pos, false).Filename
 		if originalFilename != "" {
 			generated[originalFilename] = struct{}{}
 		}
 
-		adjustedFilename := pass.Fset.Position(file.Pos()).Filename
-		if adjustedFilename != "" {
+		adjustedFilename := pass.Fset.Position(pos).Filename
+		if adjustedFilename != "" && adjustedFilename != originalFilename {
 			generated[adjustedFilename] = struct{}{}
 		}
 	}
