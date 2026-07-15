@@ -330,7 +330,7 @@ describe("check_permissions_utils", () => {
         data: { permission: "write", role_name: "Security Champions" },
       });
 
-      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["admin", "maintainer", "write"]);
+      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["admin", "maintain", "write"]);
 
       expect(result).toEqual({
         authorized: true,
