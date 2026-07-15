@@ -485,8 +485,10 @@ engine: claude
 		}
 
 		lockContentStr := string(lockContent)
-		if !strings.Contains(lockContentStr, "if: ${{ secrets.WORKFLOW_APP_ID != '' && secrets.WORKFLOW_APP_PRIVATE_KEY != '' }}") {
-			t.Error("Expected guard to check app secrets directly when ignore-if-missing is enabled")
+		// Both credentials use secrets.* which is not valid in if: expressions —
+		// no if: guard should be emitted on the token mint step.
+		if strings.Contains(lockContentStr, "if: ${{ secrets.") {
+			t.Error("Expected no guard using secrets context: secrets is not valid in if: expressions")
 		}
 		if strings.Contains(lockContentStr, "GH_AW_APP_CLIENT_ID:") {
 			t.Error("Did not expect step-local GH_AW_APP_CLIENT_ID env in mint step guard")

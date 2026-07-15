@@ -117,7 +117,9 @@ safe-outputs:
 	require.NotNil(t, job, "Job should not be nil")
 
 	stepsStr := strings.Join(job.Steps, "")
-	assert.Contains(t, stepsStr, "if: ${{ secrets.GH_AW_APP_ID != '' && secrets.GH_AW_APP_PRIVATE_KEY != '' }}")
+	// Both credentials use secrets.* context which is not valid in if: expressions,
+	// so no if: condition should be generated for the ignore-if-missing token mint step.
+	assert.NotContains(t, stepsStr, "if: ${{ secrets.")
 	assert.NotContains(t, stepsStr, "GH_AW_APP_CLIENT_ID:")
 	assert.NotContains(t, stepsStr, "GH_AW_APP_PRIVATE_KEY:")
 	assert.Contains(t, stepsStr, "github-token: ${{ steps.safe-outputs-app-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}")
@@ -143,10 +145,22 @@ func TestBuildIgnoreIfMissingCondition(t *testing.T) {
 		expected   string
 	}{
 		{
-			name:       "wrapped expressions",
+			name:       "both secrets - returns empty (secrets context not valid in if:)",
 			appID:      "${{ secrets.GH_AW_APP_ID }}",
 			privateKey: "${{ secrets.GH_AW_APP_PRIVATE_KEY }}",
-			expected:   "${{ secrets.GH_AW_APP_ID != '' && secrets.GH_AW_APP_PRIVATE_KEY != '' }}",
+			expected:   "",
+		},
+		{
+			name:       "vars client-id + secrets private-key - only vars checked",
+			appID:      "${{ vars.APP_CLIENT_ID }}",
+			privateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			expected:   "${{ vars.APP_CLIENT_ID != '' }}",
+		},
+		{
+			name:       "both vars",
+			appID:      "${{ vars.APP_CLIENT_ID }}",
+			privateKey: "${{ vars.APP_PRIVATE_KEY }}",
+			expected:   "${{ vars.APP_CLIENT_ID != '' && vars.APP_PRIVATE_KEY != '' }}",
 		},
 		{
 			name:       "literal values",

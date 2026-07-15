@@ -144,13 +144,48 @@ func buildGitHubExpressionNonEmptyCheck(value string) ConditionNode {
 	return BuildNotEquals(BuildStringLiteral(strings.TrimSpace(githubExpressionWhitespaceReplacer.Replace(trimmed))), BuildStringLiteral(""))
 }
 
+// ifInvalidContextPrefixes lists the GitHub Actions expression context prefixes that
+// are not available in 'if:' conditions. GitHub Actions only allows the github, needs,
+// vars, env, inputs, steps, and runner contexts in if: expressions.
+var ifInvalidContextPrefixes = []string{"secrets.", "jobs.", "matrix."}
+
+// isValidIfContextExpression returns true if the inner expression (the text inside
+// ${{ }}) can be safely used inside a GitHub Actions 'if:' condition.
+func isValidIfContextExpression(inner string) bool {
+	trimmed := strings.TrimSpace(inner)
+	for _, prefix := range ifInvalidContextPrefixes {
+		if strings.HasPrefix(trimmed, prefix) {
+			return false
+		}
+	}
+	return true
+}
+
 // buildIgnoreIfMissingCondition returns a GitHub Actions if-expression that requires
-// both GitHub App credential inputs to be non-empty.
+// all GitHub App credential inputs that can be checked in an if: condition to be non-empty.
+// Values referencing the 'secrets' context are excluded because GitHub Actions does not
+// allow the secrets context in if: expressions (only github, needs, vars, env, inputs,
+// steps, and runner are valid).
+// Returns an empty string when no checkable expressions remain (e.g. both inputs use secrets.*).
 func buildIgnoreIfMissingCondition(app *GitHubAppConfig) string {
-	condition := BuildAnd(
-		buildGitHubExpressionNonEmptyCheck(app.AppID),
-		buildGitHubExpressionNonEmptyCheck(app.PrivateKey),
-	)
+	var checks []ConditionNode
+	for _, value := range []string{app.AppID, app.PrivateKey} {
+		trimmed := strings.TrimSpace(value)
+		if inner, ok := extractWrappedGitHubExpression(trimmed); ok {
+			if !isValidIfContextExpression(inner) {
+				safeOutputsAppLog.Printf("Skipping %q in ignore-if-missing condition: context not valid in if: expressions", inner)
+				continue
+			}
+		}
+		checks = append(checks, buildGitHubExpressionNonEmptyCheck(value))
+	}
+	if len(checks) == 0 {
+		return ""
+	}
+	condition := checks[0]
+	for i := 1; i < len(checks); i++ {
+		condition = BuildAnd(condition, checks[i])
+	}
 	return wrapGitHubExpression(RenderCondition(condition))
 }
 
@@ -226,7 +261,9 @@ func (c *Compiler) buildGitHubAppTokenMintStepWithMeta(app *GitHubAppConfig, per
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", stepName))
 	steps = append(steps, fmt.Sprintf("        id: %s\n", stepID))
 	if app.shouldIgnoreMissingKey() {
-		steps = append(steps, fmt.Sprintf("        if: %s\n", buildIgnoreIfMissingCondition(app)))
+		if condition := buildIgnoreIfMissingCondition(app); condition != "" {
+			steps = append(steps, fmt.Sprintf("        if: %s\n", condition))
+		}
 	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
@@ -486,7 +523,9 @@ func (c *Compiler) buildActivationAppTokenMintStep(app *GitHubAppConfig, permiss
 	steps = append(steps, "      - name: Generate GitHub App token for activation\n")
 	steps = append(steps, "        id: activation-app-token\n")
 	if app.shouldIgnoreMissingKey() {
-		steps = append(steps, fmt.Sprintf("        if: %s\n", buildIgnoreIfMissingCondition(app)))
+		if condition := buildIgnoreIfMissingCondition(app); condition != "" {
+			steps = append(steps, fmt.Sprintf("        if: %s\n", condition))
+		}
 	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
