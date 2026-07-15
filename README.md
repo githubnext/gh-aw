@@ -39,6 +39,8 @@ Hey agent! If this repository hasn't been configured with agentic workflows yet,
    - Use the [Quick Start engine selector](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/setup/quick-start.mdx) to choose your runtime:
      - For `copilot`, grant `copilot-requests: write`
      - For `claude`, set the `ANTHROPIC_API_KEY` repository secret
+     - For `codex`, set the `OPENAI_API_KEY` repository secret
+     - For `gemini`, set the `GEMINI_API_KEY` repository secret
 
 </details>
 
