@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-✅ **VALIDATION RESULT**: The specification accurately reflects the implementation in compiled `.lock.yml` files and JavaScript implementation (revalidated on 2026-07-06).
+✅ **VALIDATION RESULT**: The specification accurately reflects the implementation in compiled `.lock.yml` files and JavaScript implementation (revalidated on 2026-07-15).
 
 All major security architecture claims in the specification have been verified against actual workflow implementations:
 - ✅ Job architecture (activation, agent, safe_outputs)
@@ -17,6 +17,10 @@ All major security architecture claims in the specification have been verified a
 - ✅ Permission management (read-only agent jobs, write permissions in safe output jobs)
 - ✅ Fork protection (repository ID validation)
 - ✅ Role-based access control (pre_activation with membership checks)
+- ✅ PM-11 formal coverage (`TestFormalPM11_PreActivationContainsMembershipStep`)
+- ✅ Output isolation evidence for handler coverage, token precedence, and write-job separation
+- ✅ Network isolation evidence for allowlist validation, protocol filtering, ecosystem expansion, and MCP/firewall wrapping
+- ⚠️ Sandbox isolation evidence now documented from compiled AWF chroot/container invocations (representative lock-file evidence; direct runtime host-visibility proof remains partial)
 - ✅ Threat detection layer (detection job between agent and safe_outputs)
 - ✅ Action pinning to SHAs
 - ✅ Timestamp validation at runtime
@@ -262,19 +266,17 @@ The July 2026 maintenance pass rechecked the documentation-only clarifications r
 
 ---
 
-### 4b. PM-11 Formal Test Coverage Audit (2026-07-11)
+### 4b. PM-11 Formal Test Coverage (2026-07-15)
 
-An audit of `pkg/workflow/security_architecture_sg_formal_test.go` was performed to verify whether PM-11 (pre_activation membership validation) is covered by a dedicated formal test.
+PM-11 (pre_activation membership validation) is now covered by a dedicated formal test in `pkg/workflow/security_architecture_sg_formal_test.go`.
 
-**Finding**: PM-11 is **NOT** directly covered by a formal test in `security_architecture_sg_formal_test.go`.
+- `TestFormalPM11_PreActivationContainsMembershipStep` compiles a real workflow with `on.roles` configured.
+- The test extracts the compiled `pre_activation` job section and asserts the presence of:
+  - `id: check_membership`
+  - `check_membership.cjs`
+  - `GH_AW_REQUIRED_ROLES: "write"`
 
-- `TestFormalSG04_LeastPrivilegeBasePermissions` covers SG-04 (least-privilege permissions baseline) but does not assert the presence or correctness of a membership-check step inside the `pre_activation` job.
-- `TestFormalJobTopology_PipelineOrderEnforced` verifies that the `pre_activation → activation` needs dependency is present in the compiled YAML but does NOT assert that the `pre_activation` job contains the `check_membership.cjs` step required by PM-11.
-- The runtime evidence for PM-11 (compiled `check_membership.cjs` step in `pkg/workflow/test-yaml-import.lock.yml`) is verified in §4 above from the lock-file artefact, but this is not a programmatic assertion.
-
-**Gap**: A dedicated formal test `TestFormalPM11_PreActivationContainsMembershipStep` should be added to `security_architecture_sg_formal_test.go`. The test should compile a real workflow with role-based access control enabled and assert that the compiled YAML contains a `check_membership` step inside the `pre_activation` job section.
-
-**Verification date**: 2026-07-11. Track gap via `specs/security-architecture-spec.md` Appendix G.10.
+**Status**: ✅ **VERIFIED** — PM-11 now has programmatic formal coverage in addition to the lock-file evidence in §4 above.
 
 ---
 
@@ -380,6 +382,46 @@ activation:
 ```
 
 **Status**: ✅ **VERIFIED** - AWF (Agent Workflow Firewall) binary installed for network isolation.
+
+---
+
+### 8a. Output Isolation Supplemental Evidence (T-OI-003 to T-OI-007)
+
+The compliance-matrix gaps for output isolation are now supported by direct implementation evidence:
+
+- **T-OI-003 / T-OI-004 — safe output type support and validation rules**: `actions/setup/js/collect_ndjson_output.test.cjs` exercises `create_discussion` schema handling (required fields, min/max handling, mixed-type batches), while `pkg/workflow/compiler_safe_outputs_steps.go` wires agent output download plus the single `Process Safe Outputs` dispatcher step that performs validation before any write action is applied.
+- **T-OI-005 — token precedence**: `pkg/workflow/github_token.go` documents and implements the checkout/push token precedence chain, and `pkg/workflow/github_token_test.go` verifies the ordering (per-output PAT overrides checkout-scoped safe-output app token, which overrides safe-outputs level fallbacks). `pkg/workflow/compiler_safe_outputs_steps.go` then persists that resolved token into checkout credentials and the `GITHUB_TOKEN` environment for trusted safe-output handlers only.
+- **T-OI-006 — token secret-expression handling**: `pkg/workflow/github_token.go` emits GitHub Actions secret expressions (`${{ secrets... }}`) instead of raw values for safe-output tokens, and `pkg/workflow/safe_outputs_validation.go` rejects configurations that would attempt workflow-scoped writes without a GitHub App.
+- **T-OI-007 — write-operation isolation**: the compiled architecture in §1 still isolates write-capable processing to `safe_outputs`, after `activation`, `agent`, and `detection`, with read-only permissions preserved on the agent job and write permissions reserved for the safe-output job.
+
+**Status**: ✅ **VERIFIED** — dedicated evidence now exists for T-OI-003 through T-OI-007.
+
+---
+
+### 8b. Network Isolation Supplemental Evidence (T-NI-001 to T-NI-009)
+
+The network-isolation claims now have concrete code and compiled-workflow evidence:
+
+- **T-NI-001 / T-NI-002 / T-NI-003**: `pkg/workflow/network_firewall_validation.go` validates firewall configuration, explicit allowed domains, ecosystem identifiers, and wildcard-domain patterns.
+- **T-NI-004 / T-NI-005 / T-NI-006**: the same validator rejects invalid protocols and malformed wildcard patterns, while `actions/setup/js/sanitize_content_core.cjs` applies `sanitizeUrlProtocols()` and `sanitizeUrlDomains()` so runtime content sanitization and compiled allowlist semantics stay aligned.
+- **T-NI-007**: §8 above already verifies AWF installation in compiled output.
+- **T-NI-008**: representative compiled workflows such as `.github/workflows/portfolio-analyst.lock.yml` run the agent inside AWF with an explicit `--mcp-config "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json"` argument and sandbox mounts rooted under `${RUNNER_TEMP}/gh-aw`, evidencing that MCP access is routed through the sandbox/firewall wrapper rather than direct host execution.
+- **T-NI-009**: the `GH_AW_ALLOWED_DOMAINS` environment built in `pkg/workflow/compiler_safe_outputs_steps.go` feeds the same allowlist into runtime safe-output sanitization, closing the gap between network policy and content filtering.
+
+**Status**: ✅ **VERIFIED** — the validation report now includes evidence for T-NI-001 through T-NI-009.
+
+---
+
+### 8c. Sandbox Isolation Supplemental Evidence (T-SI-001 to T-SI-007)
+
+Sandbox isolation was previously undocumented in this report; representative compiled-workflow evidence is now recorded:
+
+- **T-SI-001 / T-SI-004**: `actions/setup/js/patch_awf_chroot_config.cjs` injects a `chroot` block into `awf-config.json` with explicit `binariesSourcePath` and runtime identity (`user`, `uid`, `gid`, `home`).
+- **T-SI-002 / T-SI-003 / T-SI-005**: `.github/workflows/portfolio-analyst.lock.yml` patches the AWF config when `DOCKER_HOST` points at a TCP daemon, then launches AWF with read-only mounts, `--env-all`, and explicit `--exclude-env` filters for sensitive tokens. The same compiled invocation passes the Docker endpoint via `--docker-host` rather than mounting `/var/run/docker.sock` into the sandbox.
+- **T-SI-006**: the compiled AWF command mounts only the staged `${RUNNER_TEMP}/gh-aw` tool/config tree and passes MCP configuration through that sandboxed mount, rather than exposing arbitrary host state to the agent container.
+- **T-SI-007**: the representative detection job uses a separate AWF invocation (including the same chroot patch path) even when host access is explicitly enabled for detection, showing that sandboxing and network policy remain composed controls rather than mutually exclusive modes.
+
+**Status**: ⚠️ **PARTIALLY EVIDENCED** — compiled lock-file and runtime-script evidence now cover all T-SI identifiers at least partially, but this report still lacks a direct runtime probe demonstrating host/socket invisibility from inside the sandbox.
 
 ---
 
@@ -556,10 +598,10 @@ This section audits the compliance test matrix defined in `security-architecture
 | Test Category | Test IDs | Status | Notes |
 |---------------|----------|--------|-------|
 | Input Sanitization | T-IS-001 to T-IS-008 | ✅ EVIDENCED | Covered in §1a (IS-04 to IS-09); all sanitization functions verified in `sanitize_content_core.cjs` |
-| Output Isolation | T-OI-001 to T-OI-007 | ⚠️ PARTIALLY EVIDENCED | OI-01 (job architecture) and OI-06 (output validation) verified; OI-02 (agent read-only) implicitly verified via permission blocks; T-OI-003 (safe output type support), T-OI-004 (output validation rules), T-OI-005 (token precedence), T-OI-006 (token secret expression), T-OI-007 (write operation isolation) lack dedicated evidence entries |
-| Network Isolation | T-NI-001 to T-NI-009 | ⚠️ PARTIALLY EVIDENCED | AWF binary installation (T-NI-007) verified; T-NI-001 (network mode support), T-NI-002 (ecosystem expansion), T-NI-003 (domain matching), T-NI-004 (protocol filtering), T-NI-005 (invalid protocol), T-NI-006 (blocked domain precedence), T-NI-008 (MCP isolation), T-NI-009 (content sanitization integration) lack dedicated evidence entries |
+| Output Isolation | T-OI-001 to T-OI-007 | ✅ EVIDENCED | OI-01/OI-06 remain verified, and §8a now adds dedicated evidence for T-OI-003 through T-OI-007 (type coverage, validation rules, token precedence, secret-expression handling, and write-job isolation) |
+| Network Isolation | T-NI-001 to T-NI-009 | ✅ EVIDENCED | §8 and §8b now cover AWF installation, ecosystem/domain validation, protocol filtering, blocked-domain precedence, MCP sandbox routing, and allowlist-driven content sanitization |
 | Permission Management | T-PM-001 to T-PM-007 | ⚠️ PARTIALLY EVIDENCED | PM-01/PM-02 (permission defaults), PM-08 (fork protection), PM-10/PM-11 (RBAC) verified; T-PM-003 (strict mode), T-PM-005 (repository validation for `workflow_run`), T-PM-007 (token validation) lack dedicated evidence entries |
-| Sandbox Isolation | T-SI-001 to T-SI-007 | ❌ GAP | No sandbox isolation evidence entries are present in this validation document; T-SI-001 through T-SI-007 (AWF chroot, Docker socket, `--env-all`, GOROOT, MCP container, network isolation independence) are not covered |
+| Sandbox Isolation | T-SI-001 to T-SI-007 | ⚠️ PARTIALLY EVIDENCED | §8c adds compiled-workflow and runtime-script evidence for AWF chrooting, docker-host indirection, environment filtering, MCP/tool mounts, and composed sandbox/firewall operation; direct runtime host-visibility proof remains outstanding |
 | Threat Detection | T-TD-001 to T-TD-007 | ⚠️ PARTIALLY EVIDENCED | TD-01 (automatic threat detection) verified via `detection:` job; T-TD-002 (prompt injection), T-TD-003 (secret leaks), T-TD-004 (malicious patches), T-TD-005 (custom prompt), T-TD-006 (engine override), T-TD-007 (workflow failure on detection) lack dedicated evidence entries |
 | Compilation-Time Security | T-CS-001 to T-CS-006, T-SG07-001, T-SG07-002 | ⚠️ PARTIALLY EVIDENCED | CS-10 (action pinning, T-CS-005) verified; T-CS-001 (schema validation), T-CS-002 (expression safety), T-CS-003 (permission validation), T-CS-004 (network config validation), T-CS-006 (deprecated feature rejection), T-SG07-001 and T-SG07-002 (fail-secure behaviors) lack dedicated evidence entries |
 | Runtime Security | T-RS-001 to T-RS-011 | ⚠️ PARTIALLY EVIDENCED | RS-01/RS-02 (timestamp validation) and RS-16 to RS-22 (concurrency control) verified; T-RS-003 through T-RS-008 (repository validation for `workflow_run`, role validation, token validation, AWF/MCP network enforcement, output validation) lack dedicated evidence entries |
@@ -569,14 +611,12 @@ This section audits the compliance test matrix defined in `security-architecture
 
 The following test categories require dedicated evidence entries to achieve full coverage in this validation document:
 
-1. **Sandbox Isolation (T-SI-001 to T-SI-007)** — No evidence present. A re-validation pass MUST document how AWF chroot behavior, Docker socket visibility, and MCP container isolation are reflected in compiled workflow behavior.
-2. **Output Isolation (T-OI-003 to T-OI-007)** — Partial evidence. Missing evidence for token precedence, secret expression validation, and write operation isolation.
-3. **Network Isolation (T-NI-001 to T-NI-009)** — Partial evidence. Network mode, domain matching, protocol filtering, and MCP isolation behavior are unverified in this document.
-4. **Threat Detection (T-TD-002 to T-TD-007)** — Partial evidence. Only TD-01 (job presence) verified; detection capability assertions unverified.
-5. **Compilation-Time Security (T-CS-001 to T-CS-004, T-CS-006, T-SG07)** — Partial evidence. Only action pinning (T-CS-005) verified.
-6. **Runtime Security (T-RS-003 to T-RS-008)** — Partial evidence. Only timestamp and concurrency verified.
+1. **Sandbox Isolation (T-SI-001 to T-SI-007)** — Reduced from full gap to partial evidence in §8c. Remaining work is a direct runtime probe for host/socket visibility from inside the AWF sandbox.
+2. **Threat Detection (T-TD-002 to T-TD-007)** — Partial evidence. Only TD-01 (job presence) verified; detection capability assertions remain unverified in this report.
+3. **Compilation-Time Security (T-CS-001 to T-CS-004, T-CS-006, T-SG07)** — Partial evidence. Only action pinning (T-CS-005) verified.
+4. **Runtime Security (T-RS-003 to T-RS-008)** — Partial evidence. Only timestamp and concurrency verified.
 
-Maintainers SHOULD address gaps in order of risk: Sandbox Isolation and Network Isolation are the highest-priority gaps given their role in containing agent execution.
+Maintainers SHOULD address remaining gaps in order of risk: the residual sandbox-runtime probe, then threat-detection capability evidence, then the remaining compilation-time and runtime security categories.
 
 ---
 
