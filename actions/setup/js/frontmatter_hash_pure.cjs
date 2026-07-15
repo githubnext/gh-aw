@@ -526,7 +526,7 @@ function extractHashFromLockFile(lockFileContent) {
 async function checkRemoteSymlink(github, owner, repo, dirPath, ref, symlinkLookupCache) {
   const cachedLookup = symlinkLookupCache && symlinkLookupCache.get(dirPath);
   if (cachedLookup) {
-    return cachedLookup;
+    return await cachedLookup;
   }
 
   const lookupPromise = (async () => {
@@ -652,7 +652,7 @@ function createGitHubFileReader(github, owner, repo, ref) {
   async function resolveRemoteSymlinksCached(filePath) {
     const cachedResolution = resolvedPathCache.get(filePath);
     if (cachedResolution) {
-      return cachedResolution;
+      return await cachedResolution;
     }
 
     const resolutionPromise = resolveRemoteSymlinks(github, owner, repo, filePath, ref, symlinkLookupCache);
