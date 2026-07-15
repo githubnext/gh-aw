@@ -103,10 +103,7 @@ func (c *Compiler) buildSetupEvalsStep(data *WorkflowData) []string {
 	}
 
 	questionsJSON := marshalEvalsQuestions(data.Evals.Questions)
-	model := data.Evals.Model
-	if model == "" {
-		model = "small"
-	}
+	model := c.resolveEvalsExecutionModel(data)
 
 	script := `const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
 setupGlobals(core, github, context, exec, io, getOctokit);
@@ -151,11 +148,6 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 		}
 	}
 
-	// Override model from evals frontmatter if specified.
-	if data.Evals != nil && data.Evals.Model != "" {
-		evalsEngineConfig.Model = data.Evals.Model
-	}
-
 	// Apply engine and enterprise default detection model (cost-effective for Q&A tasks).
 	engine, err := c.getAgenticEngine(engineID)
 	if err != nil {
@@ -164,27 +156,12 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 		}
 	}
 
-	if evalsEngineConfig.Model == "" {
-		if defaultModel := compilerenv.ResolveDefaultDetectionModel(""); defaultModel != "" {
-			evalsEngineConfig.Model = defaultModel
-		} else if defaultModel := engine.GetDefaultDetectionModel(); defaultModel != "" {
-			evalsEngineConfig.Model = defaultModel
-		}
-	}
-
 	// Inherit APITarget from the main engine config for GHE/custom endpoints.
 	if evalsEngineConfig.APITarget == "" && data.EngineConfig != nil && data.EngineConfig.APITarget != "" {
 		evalsEngineConfig.APITarget = data.EngineConfig.APITarget
 	}
 
-	// Normalize Pi engine model to bare model ID for Copilot CLI.
-	originalEngineID := data.AI
-	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
-		originalEngineID = data.EngineConfig.ID
-	}
-	if engineID == "copilot" && originalEngineID == "pi" {
-		evalsEngineConfig.Model = extractPiModelID(evalsEngineConfig.Model)
-	}
+	evalsEngineConfig.Model = c.resolveEvalsExecutionModel(data)
 
 	// Build a minimal WorkflowData for evals engine execution.
 	// IsDetectionRun reuses detection-style network restrictions and MaxAI credits,
@@ -282,10 +259,7 @@ func (c *Compiler) buildParseEvalsResultsStep(data *WorkflowData) []string {
 	}
 
 	questionsJSON := marshalEvalsQuestions(data.Evals.Questions)
-	model := data.Evals.Model
-	if model == "" {
-		model = "small"
-	}
+	model := c.resolveEvalsExecutionModel(data)
 
 	script := `const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
 setupGlobals(core, github, context, exec, io, getOctokit);
@@ -313,17 +287,48 @@ await main();`
 func (c *Compiler) buildRedactEvalsSecretsStep(data *WorkflowData) []string {
 	script := `const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
 setupGlobals(core, github, context, exec, io, getOctokit);
-const { main } = require('` + SetupActionDestination + `/redact_secrets.cjs');
-await main();`
+const fs = require('fs');
+const { EVALS_OUTPUT_PATH } = require('` + SetupActionDestination + `/evals_constants.cjs');
+const { main, redactSecrets, redactBuiltInPatterns, extractMCPGatewayTokens, MCP_GATEWAY_CONFIG_PATHS } = require('` + SetupActionDestination + `/redact_secrets.cjs');
+await main();
+if (fs.existsSync(EVALS_OUTPUT_PATH)) {
+  const content = fs.readFileSync(EVALS_OUTPUT_PATH, 'utf8');
+  const secretNames = (process.env.GH_AW_SECRET_NAMES || '').split(',').map(name => name.trim()).filter(Boolean);
+  const secretValues = secretNames
+    .map(name => process.env['SECRET_' + name])
+    .filter(value => typeof value === 'string' && value.trim() !== '')
+    .map(value => value.trim());
+  secretValues.push(...extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS));
+  const lingeringRedactions = redactBuiltInPatterns(content).redactionCount + redactSecrets(content, secretValues).redactionCount;
+  if (lingeringRedactions > 0) {
+    core.setFailed('Secret redaction verification failed for ' + EVALS_OUTPUT_PATH + ': ' + lingeringRedactions + ' unredacted value(s) remain');
+  }
+}`
+
+	secretReferences := c.collectEvalsSecretReferences(data)
 
 	steps := []string{
 		"      - name: Redact secrets in evals results\n",
+		"        id: redact_evals_results\n",
 		"        if: always()\n",
-		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+	}
+	if len(secretReferences) > 0 {
+		steps = append(steps, "        env:\n")
+		escapedRefs := make([]string, len(secretReferences))
+		for i, ref := range secretReferences {
+			escapedRefs[i] = escapeSingleQuoteBackslash(ref)
+		}
+		steps = append(steps, fmt.Sprintf("          GH_AW_SECRET_NAMES: '%s'\n", strings.Join(escapedRefs, ",")))
+		for _, secretName := range secretReferences {
+			escapedSecretName := escapeSingleQuoteBackslash(secretName)
+			steps = append(steps, fmt.Sprintf("          SECRET_%s: ${{ secrets.%s }}\n", escapedSecretName, secretName))
+		}
+	}
+	steps = append(steps,
 		"        with:\n",
 		"          script: |\n",
-	}
+	)
 	steps = append(steps, FormatJavaScriptForYAML(script)...)
 	return steps
 }
@@ -340,7 +345,7 @@ await main();`
 
 	steps := []string{
 		"      - name: Render evals results to step summary\n",
-		"        if: always()\n",
+		"        if: steps.redact_evals_results.outcome == 'success'\n",
 		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        with:\n",
@@ -356,7 +361,7 @@ func (c *Compiler) buildUploadEvalsArtifactStep(data *WorkflowData) []string {
 	evalsArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.EvalsArtifactName
 	return []string{
 		"      - name: Upload evals results\n",
-		"        if: always()\n",
+		"        if: steps.redact_evals_results.outcome == 'success'\n",
 		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")),
 		"        with:\n",
 		"          name: " + evalsArtifactName + "\n",
@@ -379,6 +384,45 @@ func (c *Compiler) getEvalsEngineID(data *WorkflowData) string {
 		return data.AI
 	}
 	return "copilot"
+}
+
+func (c *Compiler) resolveEvalsExecutionModel(data *WorkflowData) string {
+	model := ""
+	if data.EngineConfig != nil && data.EngineConfig.Model != "" {
+		model = data.EngineConfig.Model
+	}
+	if data.Evals != nil && data.Evals.Model != "" {
+		model = data.Evals.Model
+	}
+
+	engineID := c.getEvalsEngineID(data)
+	if model == "" {
+		if defaultModel := compilerenv.ResolveDefaultDetectionModel(""); defaultModel != "" {
+			model = defaultModel
+		} else if engine, err := c.getAgenticEngine(engineID); err == nil {
+			model = engine.GetDefaultDetectionModel()
+		}
+	}
+	if model == "" {
+		model = "small"
+	}
+
+	originalEngineID := data.AI
+	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		originalEngineID = data.EngineConfig.ID
+	}
+	if engineID == "copilot" && originalEngineID == "pi" {
+		model = extractPiModelID(model)
+	}
+
+	return model
+}
+
+func (c *Compiler) collectEvalsSecretReferences(data *WorkflowData) []string {
+	if data.Evals == nil {
+		return nil
+	}
+	return CollectSecretReferences(marshalEvalsQuestions(data.Evals.Questions) + "\n" + c.resolveEvalsExecutionModel(data))
 }
 
 // ---------------------------------------------------------------------------

@@ -15,9 +15,8 @@
 "use strict";
 
 const fs = require("fs");
+const { EVALS_OUTPUT_PATH } = require("./evals_constants.cjs");
 const { buildStepSummaryDetailsSection } = require("./log_parser_step_summary_builder.cjs");
-
-const EVALS_OUTPUT_PATH = "/tmp/gh-aw/evals.jsonl";
 
 /**
  * Reads and parses evals.jsonl records.
@@ -46,7 +45,9 @@ function readEvalsResults() {
         results.push({
           id: String(record.id ?? ""),
           question: String(record.question ?? ""),
-          answer: String(record.answer ?? "UNKNOWN"),
+          answer: String(record.answer ?? "UNKNOWN")
+            .trim()
+            .toUpperCase(),
           model: String(record.model ?? ""),
           timestamp: String(record.timestamp ?? ""),
         });
@@ -97,7 +98,10 @@ function buildEvalsBody(results) {
  * @returns {string}
  */
 function escapeMarkdownCell(text) {
-  return text.replace(/\|/g, "\\|").replace(/\n/g, " ");
+  return text
+    .replace(/[\r\n]/g, " ")
+    .replace(/\|/g, "\\|")
+    .replace(/`/g, "\\`");
 }
 
 /**

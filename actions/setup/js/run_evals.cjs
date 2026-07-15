@@ -34,10 +34,10 @@ const fs = require("fs");
 const path = require("path");
 
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { EVALS_OUTPUT_PATH } = require("./evals_constants.cjs");
 
 const EVALS_DIR = "/tmp/gh-aw/evals";
 const EVALS_LOG_PATH = "/tmp/gh-aw/evals/evals.log";
-const EVALS_OUTPUT_PATH = "/tmp/gh-aw/evals.jsonl";
 const AGENT_OUTPUT_FILENAME = "agent_output.json";
 
 // ---------------------------------------------------------------------------
