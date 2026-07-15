@@ -208,7 +208,7 @@ security-scan: security-gosec security-govulncheck
 .PHONY: security-gosec
 security-gosec:
 	@echo "Running gosec security scanner..."
-	@command -v gosec >/dev/null || go install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
+	@go install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
 	@# Keep only globally noisy rules here.
 	@# G602 (slice bounds check) is excluded globally due persistent false positives.
 	@# Use inline '#nosec Gxxx -- justification' suppressions for specific findings.
