@@ -165,6 +165,107 @@ func TestValidateSafeOutputsMax(t *testing.T) {
 	})
 }
 
+func TestCheckMaxFieldAtMostOne(t *testing.T) {
+	t.Run("max of 1 is valid", func(t *testing.T) {
+		err := checkMaxFieldAtMostOne("submit_pull_request_review", strPtr("1"))
+		assert.NoError(t, err, "max: 1 should be valid")
+	})
+
+	t.Run("nil max is valid", func(t *testing.T) {
+		err := checkMaxFieldAtMostOne("submit_pull_request_review", nil)
+		assert.NoError(t, err, "nil max should be valid")
+	})
+
+	t.Run("expression max is skipped", func(t *testing.T) {
+		err := checkMaxFieldAtMostOne("submit_pull_request_review", strPtr("${{ inputs.max }}"))
+		assert.NoError(t, err, "expression max should be skipped")
+	})
+
+	t.Run("max of 2 is rejected", func(t *testing.T) {
+		err := checkMaxFieldAtMostOne("submit_pull_request_review", strPtr("2"))
+		require.Error(t, err, "max: 2 should be rejected")
+		assert.Contains(t, err.Error(), "max must be 1", "error should say max must be 1")
+		assert.Contains(t, err.Error(), "submit-pull-request-review", "error should name the tool")
+		assert.Contains(t, err.Error(), "single shared review buffer", "error should explain why")
+	})
+
+	t.Run("max of 5 is rejected", func(t *testing.T) {
+		err := checkMaxFieldAtMostOne("submit_pull_request_review", strPtr("5"))
+		require.Error(t, err, "max: 5 should be rejected")
+		assert.Contains(t, err.Error(), "max must be 1", "error should say max must be 1")
+	})
+
+	t.Run("max of -1 (unlimited) is rejected", func(t *testing.T) {
+		err := checkMaxFieldAtMostOne("submit_pull_request_review", strPtr("-1"))
+		require.Error(t, err, "max: -1 should be rejected for submit_pull_request_review")
+		assert.Contains(t, err.Error(), "max must be 1", "error should say max must be 1")
+	})
+
+	t.Run("max of 0 is rejected via standard range check", func(t *testing.T) {
+		err := checkMaxFieldAtMostOne("submit_pull_request_review", strPtr("0"))
+		require.Error(t, err, "max: 0 should be rejected")
+		assert.Contains(t, err.Error(), "max must be a positive integer or -1", "error from standard range check")
+	})
+}
+
+func TestSubmitPullRequestReviewMaxValidation(t *testing.T) {
+	t.Run("max of 2 is rejected for submit_pull_request_review", func(t *testing.T) {
+		config := &SafeOutputsConfig{
+			SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("2")},
+			},
+		}
+		err := validateSafeOutputsMax(config)
+		require.Error(t, err, "submit_pull_request_review max: 2 should be rejected")
+		assert.Contains(t, err.Error(), "max must be 1", "error should say max must be 1")
+		assert.Contains(t, err.Error(), "submit-pull-request-review", "error should name the tool")
+		assert.Contains(t, err.Error(), "single shared review buffer", "error should explain the reason")
+		assert.Contains(t, err.Error(), "target: \"*\"", "error should suggest target wildcard pattern")
+	})
+
+	t.Run("max of -1 is rejected for submit_pull_request_review", func(t *testing.T) {
+		config := &SafeOutputsConfig{
+			SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("-1")},
+			},
+		}
+		err := validateSafeOutputsMax(config)
+		require.Error(t, err, "submit_pull_request_review max: -1 (unlimited) should be rejected")
+		assert.Contains(t, err.Error(), "max must be 1", "error should say max must be 1")
+		assert.Contains(t, err.Error(), "submit-pull-request-review", "error should name the tool")
+	})
+
+	t.Run("max of 1 is accepted for submit_pull_request_review", func(t *testing.T) {
+		config := &SafeOutputsConfig{
+			SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+			},
+		}
+		err := validateSafeOutputsMax(config)
+		assert.NoError(t, err, "submit_pull_request_review max: 1 should be accepted")
+	})
+
+	t.Run("nil max is accepted for submit_pull_request_review", func(t *testing.T) {
+		config := &SafeOutputsConfig{
+			SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: nil},
+			},
+		}
+		err := validateSafeOutputsMax(config)
+		assert.NoError(t, err, "submit_pull_request_review nil max should be accepted")
+	})
+
+	t.Run("expression max is skipped for submit_pull_request_review", func(t *testing.T) {
+		config := &SafeOutputsConfig{
+			SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("${{ inputs.max }}")},
+			},
+		}
+		err := validateSafeOutputsMax(config)
+		assert.NoError(t, err, "submit_pull_request_review expression max should be skipped")
+	})
+}
+
 // TestValidateSafeOutputsMaxFieldCoverage verifies that validateSafeOutputsMax detects
 // invalid max values for every field listed in safeOutputFieldMapping (except
 // DispatchRepository, which has a different map-of-tools structure and is validated
