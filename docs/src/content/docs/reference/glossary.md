@@ -1001,6 +1001,14 @@ A GitHub Actions environment variable pointing to a per-job temporary directory 
 
 The `gh aw` extension for GitHub CLI providing commands for managing agentic workflows: compile, run, status, logs, add, deploy, and project management.
 
+### `secrets bootstrap` (`gh aw secrets bootstrap`)
+
+A CLI subcommand that analyzes workflows in the current repository to determine which secrets are required, checks for missing ones, and interactively prompts to upload them. Auto-detects the engines in use (copilot, claude, codex, gemini) and validates tokens before uploading to the repository. Pass `--non-interactive` to display missing secrets without prompting — useful in CI. See [CLI Reference](/gh-aw/setup/cli/).
+
+### Safe Update Mode
+
+A compiler enforcement mechanism activated automatically when recompiling a workflow that already has a lock file. In safe update mode, any newly added secrets or custom actions not present in the previous manifest require explicit approval via `--approve`. On first compile (no existing lock file), enforcement is skipped. Safe update mode is disabled when `strict: false` is set in frontmatter. See [Safe Update Specification](/gh-aw/specs/safe-update-specification/).
+
 ### Codemod
 
 An automated transformation script applied by `gh aw fix` that updates workflow markdown files from deprecated syntax to the current format. Codemods rename frontmatter keys, restructure values, or remove obsolete settings without changing workflow behavior. They run in dry-run mode by default; pass `--write` to apply changes. `gh aw upgrade` applies all relevant codemods automatically as part of the upgrade process. List available codemods with `gh aw fix --list-codemods`. See [Upgrading](/gh-aw/guides/upgrading/).
