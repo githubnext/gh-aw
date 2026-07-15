@@ -1041,3 +1041,51 @@ func TestBuildLogsDataAggregatesAIC(t *testing.T) {
 		t.Fatalf("Expected run AIC = 1.25, got %v", data.Runs[0].AIC)
 	}
 }
+
+// TestBuildLogsDataAggregatesTokensFromRunTokenUsage verifies that TotalTokens is
+// populated from Run.TokenUsage. For AWF-based engines (Claude, Codex, Gemini) the
+// run processor backfills Run.TokenUsage from the firewall proxy
+// (TotalInputTokens + TotalOutputTokens) when event logs return 0.  This test
+// confirms that buildLogsData faithfully aggregates whatever value ends up in
+// Run.TokenUsage so that the fleet-wide token total is surfaced in the summary.
+func TestBuildLogsDataAggregatesTokensFromRunTokenUsage(t *testing.T) {
+	processedRuns := []ProcessedRun{
+		{
+			// Run.TokenUsage is populated (either directly from events or via the
+			// firewall-proxy backfill in logs_run_processor.go).
+			Run: WorkflowRun{DatabaseID: 1, WorkflowName: "wf-1", TokenUsage: 3000},
+			TokenUsage: &TokenUsageSummary{
+				TotalInputTokens:  2000,
+				TotalOutputTokens: 1000,
+				TotalAIC:          1.5,
+			},
+		},
+		{
+			Run: WorkflowRun{DatabaseID: 2, WorkflowName: "wf-2", TokenUsage: 2000},
+			TokenUsage: &TokenUsageSummary{
+				TotalInputTokens:  1500,
+				TotalOutputTokens: 500,
+				TotalAIC:          0.5,
+			},
+		},
+		{
+			// Run with no token data at all (e.g., run that did not emit telemetry).
+			Run:        WorkflowRun{DatabaseID: 3, WorkflowName: "wf-3", TokenUsage: 0},
+			TokenUsage: nil,
+		},
+	}
+
+	data := buildLogsData(processedRuns, "/tmp/logs", nil)
+	if data.Summary.TotalTokens != 5000 {
+		t.Fatalf("Expected TotalTokens = 5000, got %d", data.Summary.TotalTokens)
+	}
+	if data.Runs[0].TokenUsage != 3000 {
+		t.Fatalf("Expected run[0].TokenUsage = 3000, got %d", data.Runs[0].TokenUsage)
+	}
+	if data.Runs[1].TokenUsage != 2000 {
+		t.Fatalf("Expected run[1].TokenUsage = 2000, got %d", data.Runs[1].TokenUsage)
+	}
+	if data.Runs[2].TokenUsage != 0 {
+		t.Fatalf("Expected run[2].TokenUsage = 0, got %d", data.Runs[2].TokenUsage)
+	}
+}

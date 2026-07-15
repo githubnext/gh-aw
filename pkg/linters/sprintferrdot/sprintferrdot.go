@@ -39,7 +39,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "sprintferrdot",
 	Doc:      "reports redundant .Error() calls on error arguments passed to fmt format functions",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/sprintferrdot",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -48,7 +48,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "sprintferrdot")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -61,7 +68,7 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		pos := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.IsTestFile(pos.Filename) {
+		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			return
 		}
 
@@ -92,7 +99,7 @@ func run(pass *analysis.Pass) (any, error) {
 				continue
 			}
 			if isErrorDotCall(pass, arg) {
-				if nolint.HasDirective(pass.Fset.PositionFor(arg.Pos(), false), noLintLinesByFile) {
+				if nolint.HasDirectiveForLinter(pass.Fset.PositionFor(arg.Pos(), false), noLintIndex, "sprintferrdot") {
 					continue
 				}
 				pass.Reportf(arg.Pos(),

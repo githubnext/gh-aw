@@ -40,6 +40,28 @@
         "type": "string"
       }
     },
+    "bootstrap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actions"],
+      "properties": {
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    },
     "skills": {
       "type": "array",
       "description": "Skill directory paths relative to the package root. Each entry is a directory that must contain a SKILL.md file; all direct files in the directory are installed to the agentic engine skill folder.",

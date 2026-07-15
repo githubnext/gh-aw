@@ -26,7 +26,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "sprintfint",
 	Doc:      `reports fmt.Sprintf("%d", x) calls where x is a single int value; use strconv.Itoa(x) instead`,
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/sprintfint",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -35,7 +35,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "sprintfint")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	// seenImportFiles tracks files that have already received an import edit in
 	// this pass, preventing duplicate overlapping edits when a single file
@@ -53,10 +60,10 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		pos := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.IsTestFile(pos.Filename) {
+		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			return
 		}
-		if nolint.HasDirective(pos, noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(pos, noLintIndex, "sprintfint") {
 			return
 		}
 

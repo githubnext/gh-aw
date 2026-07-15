@@ -23,7 +23,7 @@ var Analyzer = &analysis.Analyzer{
 		"(len(s) > 0, len(s) >= 1, len(s) < 1, len(s) <= 0) on string values " +
 		"that should use == \"\" or != \"\" instead",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/lenstringzero",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -32,7 +32,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "lenstringzero")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 	lenStringAliases := collectLenStringAliases(pass)
 
 	nodeFilter := []ast.Node{(*ast.BinaryExpr)(nil)}
@@ -49,10 +56,10 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		pos := pass.Fset.PositionFor(expr.Pos(), false)
-		if filecheck.IsTestFile(pos.Filename) {
+		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			return
 		}
-		if nolint.HasDirective(pos, noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(pos, noLintIndex, "lenstringzero") {
 			return
 		}
 

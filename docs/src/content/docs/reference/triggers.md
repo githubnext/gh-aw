@@ -392,7 +392,7 @@ For conditions based on GitHub search results, use [`skip-if-match:`](#skip-if-m
 
 ### Filtering by Repository Access Roles (`on.roles:`, `on.skip-roles:`)
 
-Controls who can trigger agentic workflows using an **exact-match allowlist** — each role is matched literally against the actor's repository role with no privilege hierarchy. Defaults to `[admin, maintainer, write]`. Use `skip-roles:` to exempt team members from checks that should only apply to external contributors.
+Controls who can trigger agentic workflows using an **exact-match allowlist** against the actor's repository role. Defaults to `[admin, maintainer, write]`. Use `skip-roles:` to exempt team members from checks that should only apply to external contributors.
 
 ```yaml wrap
 on:
@@ -407,6 +407,10 @@ on:
 :::
 
 Available roles: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`, `all`. Workflows with unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce permission checks. Failed checks cancel the workflow with a warning.
+
+#### Custom organization repository roles
+
+GitHub organizations can define [custom repository roles](https://docs.github.com/en/organizations/managing-user-access-to-your-organizations-repositories/managing-repository-roles/about-custom-repository-roles) with an inherited standard role (for example `write` or `maintain`). Actors whose access comes from a custom role (e.g. `Security Champions`) are authorized against that **inherited standard role** — the custom role name itself cannot appear in `on.roles:`. For example, a user with the custom role `Security Champions` (inherited role: `write`) will be authorized when the required roles include `write`, while a custom role inherited from `maintain` will still be rejected by `roles: [write]`.
 
 ### Filtering by Bot (`on.bots:`, `on.skip-bots:`)
 

@@ -22,7 +22,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "stringscountcontains",
 	Doc:      "reports strings.Count(s, sub) comparisons with 0 or 1 (e.g. > 0, >= 1, == 0, != 0, < 1, <= 0) and their yoda-order variants that should use strings.Contains(s, sub) or !strings.Contains(s, sub)",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/stringscountcontains",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -31,7 +31,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "stringscountcontains")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{(*ast.BinaryExpr)(nil)}
 
@@ -42,10 +49,10 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		pos := pass.Fset.PositionFor(expr.Pos(), false)
-		if filecheck.IsTestFile(pos.Filename) {
+		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			return
 		}
-		if nolint.HasDirective(pos, noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(pos, noLintIndex, "stringscountcontains") {
 			return
 		}
 

@@ -12,10 +12,11 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
 
-var expressionValidationLog = newValidationLogger("expression")
+var expressionValidationLog = logger.New("workflow:expression_safety_validation")
 
 // maxFuzzyMatchSuggestions is the maximum number of similar expressions to suggest
 // when an unauthorized expression is found

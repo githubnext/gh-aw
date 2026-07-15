@@ -8,9 +8,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var githubAppPermissionsLog = newValidationLogger("github_app_permissions")
+var githubAppPermissionsLog = logger.New("workflow:github_app_permissions_validation")
 
 // validateGitHubAppOnlyPermissions validates that when GitHub App-only permissions
 // are specified in the workflow, a GitHub App is configured somewhere in the workflow,

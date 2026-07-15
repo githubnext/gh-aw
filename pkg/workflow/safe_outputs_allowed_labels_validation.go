@@ -3,9 +3,11 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var safeOutputsAllowedLabelsValidationLog = newValidationLogger("safe_outputs_allowed_labels")
+var safeOutputsAllowedLabelsValidationLog = logger.New("workflow:safe_outputs_allowed_labels_validation")
 
 // validateSafeOutputsAllowedLabelsGlobScope returns an error when any safe-outputs
 // allowed-labels field contains a bare "*" glob pattern (CTR-015).

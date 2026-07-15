@@ -25,7 +25,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "httpnoctx",
 	Doc:      "reports context-free net/http request paths: http.Client/http package helpers without context, http.NewRequest in context-aware functions, and http.DefaultClient.Do",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/httpnoctx",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -43,7 +43,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "httpnoctx")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	for cursor := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
 		call, ok := cursor.Node().(*ast.CallExpr)
@@ -52,10 +59,10 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		pos := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.IsTestFile(pos.Filename) {
+		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			continue
 		}
-		if nolint.HasDirective(pos, noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(pos, noLintIndex, "httpnoctx") {
 			continue
 		}
 

@@ -28,7 +28,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "errormessage",
 	Doc:      "reports non-actionable error message patterns in changed files",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/errormessage",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -46,7 +46,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "errormessage")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
 	insp.Preorder(nodeFilter, func(n ast.Node) {
@@ -56,10 +63,10 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		pos := pass.Fset.PositionFor(call.Pos(), false)
-		if !shouldCheckFile(pos.Filename, changed) || filecheck.IsTestFile(pos.Filename) {
+		if !shouldCheckFile(pos.Filename, changed) || filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			return
 		}
-		if nolint.HasDirective(pos, noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(pos, noLintIndex, "errormessage") {
 			return
 		}
 

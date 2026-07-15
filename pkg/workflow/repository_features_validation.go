@@ -49,6 +49,7 @@ import (
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/syncutil"
 )
 
@@ -56,7 +57,7 @@ import (
 // (mirrors the copilot-billing probe timeout).
 const repositoryFeaturesTimeout = 3 * time.Second
 
-var repositoryFeaturesLog = newValidationLogger("repository_features")
+var repositoryFeaturesLog = logger.New("workflow:repository_features_validation")
 
 // checkRepositoryHasDiscussionsQuery is a hardcoded static GraphQL query template used to check
 // if discussions are enabled for a repository. Declared as a named constant to make clear

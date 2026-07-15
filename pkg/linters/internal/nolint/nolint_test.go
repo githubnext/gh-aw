@@ -46,6 +46,17 @@ var _ = 5
 	if _, ok := lines[9]; ok {
 		t.Fatalf("line 9 unexpectedly matched prefix-only directive")
 	}
+
+	shared := BuildDirectiveIndex(&analysis.Pass{Fset: fset, Files: []*ast.File{file}})
+	if !HasDirectiveForLinter(token.Position{Filename: filename, Line: 4}, shared, "tolowerequalfold") {
+		t.Fatalf("expected previous-line shared directive match")
+	}
+	if !HasDirectiveForLinter(token.Position{Filename: filename, Line: 13}, shared, "differentlinter") {
+		t.Fatalf("expected nolint:all shared directive match")
+	}
+	if HasDirectiveForLinter(token.Position{Filename: filename, Line: 10}, shared, "tolowerequalfold") {
+		t.Fatalf("unexpected shared directive match for prefix-only directive")
+	}
 }
 
 func TestHasDirective_SameLineAndPreviousLine(t *testing.T) {

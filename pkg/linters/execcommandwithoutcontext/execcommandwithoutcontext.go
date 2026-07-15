@@ -22,7 +22,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "execcommandwithoutcontext",
 	Doc:      "reports exec.Command calls inside context-receiving functions where exec.CommandContext should be used to propagate cancellation",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/execcommandwithoutcontext",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -31,7 +31,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "execcommandwithoutcontext")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
 		call, ok := cur.Node().(*ast.CallExpr)
@@ -44,10 +51,10 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		pos := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.IsTestFile(pos.Filename) {
+		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			continue
 		}
-		if nolint.HasDirective(pos, noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(pos, noLintIndex, "execcommandwithoutcontext") {
 			continue
 		}
 

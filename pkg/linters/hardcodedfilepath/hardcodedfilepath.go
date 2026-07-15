@@ -33,7 +33,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "hardcodedfilepath",
 	Doc:      "reports hard-coded file path string literals that should be replaced with named constants",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/hardcodedfilepath",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -238,7 +238,14 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 
-	noLintLines := nolint.BuildLineIndex(pass, "hardcodedfilepath")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 	knownConsts := collectKnownPathConsts(pass)
 
 	for cur := range insp.Root().Preorder((*ast.BasicLit)(nil)) {
@@ -248,10 +255,10 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		pos := pass.Fset.PositionFor(lit.Pos(), false)
-		if filecheck.IsTestFile(pos.Filename) {
+		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			continue
 		}
-		if nolint.HasDirective(pos, noLintLines) {
+		if nolint.HasDirectiveForLinter(pos, noLintIndex, "hardcodedfilepath") {
 			continue
 		}
 

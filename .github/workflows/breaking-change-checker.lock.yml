@@ -1754,7 +1754,7 @@ jobs:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_DUMMY_BYOK: dummy-byok-key-for-offline-mode
           COPILOT_GITHUB_TOKEN: ${{ github.token }}
-          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'claude-sonnet-4.6' }}
+          COPILOT_MODEL: small
           COPILOT_SDK_URI: http://127.0.0.1:3002
           GH_AW_COPILOT_SDK_DRIVER: 1
           GH_AW_COPILOT_SDK_SERVER_ARGS: '["--headless","--no-auto-update","--port","3002","--add-dir","/tmp/gh-aw/","--log-level","all","--log-dir","/tmp/gh-aw/sandbox/agent/logs/","--disable-builtin-mcps","--no-ask-user","--allow-all-tools"]'
@@ -1796,17 +1796,27 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/run_evals.cjs');
             await main();
       - name: Redact secrets in evals results
+        id: redact_evals_results
         if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/redact_evals_results.cjs');
+            await main();
+      - name: Render evals results to step summary
+        if: steps.redact_evals_results.outcome == 'success'
         continue-on-error: true
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/redact_secrets.cjs');
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/render_evals_summary.cjs');
             await main();
       - name: Upload evals results
-        if: always()
+        if: steps.redact_evals_results.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: evals

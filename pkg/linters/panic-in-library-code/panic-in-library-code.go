@@ -24,7 +24,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "panicinlibrarycode",
 	Doc:      "reports panic() calls in library code under pkg/ that should return errors instead",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/panic-in-library-code",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -39,7 +39,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "panicinlibrarycode")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
 		call, ok := cur.Node().(*ast.CallExpr)
@@ -47,7 +54,7 @@ func run(pass *analysis.Pass) (any, error) {
 			continue
 		}
 		// Skip test files
-		if strings.HasSuffix(pkgPath, ".test") || filecheck.IsTestFile(pass.Fset.Position(call.Pos()).Filename) {
+		if strings.HasSuffix(pkgPath, ".test") || filecheck.ShouldSkipFilename(pass.Fset.Position(call.Pos()).Filename, generatedFiles) {
 			continue
 		}
 
@@ -68,7 +75,7 @@ func run(pass *analysis.Pass) (any, error) {
 			continue
 		}
 		position := pass.Fset.PositionFor(call.Pos(), false)
-		if nolint.HasDirective(position, noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(position, noLintIndex, "panicinlibrarycode") {
 			continue
 		}
 

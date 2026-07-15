@@ -29,11 +29,12 @@ import (
 	"sync"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
-var modelAliasValidationLog = newValidationLogger("model_alias")
+var modelAliasValidationLog = logger.New("workflow:model_alias_validation")
 
 // builtinCycleCheckOnce caches the result of the first cycle-detection DFS over
 // the pure builtin alias map.  The builtins are a compile-time constant so cycles

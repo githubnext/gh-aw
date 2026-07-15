@@ -7,9 +7,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var pushToPullRequestBranchValidationLog = newValidationLogger("push_to_pull_request_branch_validation")
+var pushToPullRequestBranchValidationLog = logger.New("workflow:push_to_pull_request_branch_validation")
 
 var fetchRepositoryVisibility = getRepositoryVisibilityForSlug
 

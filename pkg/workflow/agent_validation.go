@@ -54,10 +54,11 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
 
-var agentValidationLog = newValidationLogger("agent")
+var agentValidationLog = logger.New("workflow:agent_validation")
 
 // validateAgentFile validates that the custom agent file specified in imports exists
 func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath string) error {

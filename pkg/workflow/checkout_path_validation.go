@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var checkoutPathValidationLog = newValidationLogger("checkout_path")
+var checkoutPathValidationLog = logger.New("workflow:checkout_path_validation")
 
 // deriveAndWarnCrossRepoCheckoutPaths emits warnings for cross-repository
 // checkout entries that have no explicit path: field, and auto-derives a path from

@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
-var safeOutputsDomainsValidationLog = newValidationLogger("safe_outputs_domains")
+var safeOutputsDomainsValidationLog = logger.New("workflow:safe_outputs_domains_validation")
 
 const (
 	SafeOutputsURLsPolicyAllowedOnly         = "allowed-only"
@@ -68,7 +69,7 @@ func (c *Compiler) validateSafeOutputsAllowedDomains(config *SafeOutputsConfig) 
 	return nil
 }
 
-var safeOutputsTargetValidationLog = newValidationLogger("safe_outputs_target")
+var safeOutputsTargetValidationLog = logger.New("workflow:safe_outputs_target_validation")
 
 // validateSafeOutputsTarget validates target fields in all safe-outputs configurations
 // Valid target values:
@@ -212,9 +213,9 @@ func validateTargetValue(configName, target string) error {
 	)
 }
 
-var safeOutputsAllowWorkflowsValidationLog = newValidationLogger("safe_outputs_allow_workflows")
+var safeOutputsAllowWorkflowsValidationLog = logger.New("workflow:safe_outputs_allow_workflows_validation")
 
-var safeOutputsMergePullRequestValidationLog = newValidationLogger("safe_outputs_merge_pull_request")
+var safeOutputsMergePullRequestValidationLog = logger.New("workflow:safe_outputs_merge_pull_request_validation")
 
 // validateSafeOutputsMergePullRequest validates merge-pull-request policy configuration.
 func validateSafeOutputsMergePullRequest(config *SafeOutputsConfig) error {

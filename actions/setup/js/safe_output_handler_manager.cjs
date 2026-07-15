@@ -18,7 +18,7 @@ const { setCollectedMissings } = require("./missing_messages_helper.cjs");
 const { writeSafeOutputSummaries } = require("./safe_output_summary.cjs");
 const { getAssignToAgentAssigned, getAssignToAgentErrors, getAssignToAgentErrorCount, writeAssignToAgentSummary } = require("./assign_to_agent.cjs");
 const { getCreateAgentSessionNumber, getCreateAgentSessionUrl, writeCreateAgentSessionSummary } = require("./create_agent_session.cjs");
-const { createReviewBuffer } = require("./pr_review_buffer.cjs");
+const { createPrReviewBufferRegistry } = require("./pr_review_buffer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult, writeTemporaryIdMapFile } = require("./safe_output_manifest.cjs");
@@ -287,11 +287,11 @@ const PR_REVIEW_HANDLER_TYPES = new Set(["create_pull_request_review_comment", "
  * Load and initialize handlers for enabled safe output types
  * Calls each handler's factory function (main) to get message processors
  * @param {Object} config - Safe outputs configuration
- * @param {Object} prReviewBuffer - Shared PR review buffer instance
+ * @param {Object} prReviewBufferRegistry - PR review buffer registry instance
  * @param {string[]} [resolvedAllowedMentionAliases] - Pre-resolved mention aliases shared across handlers
  * @returns {Promise<Map<string, Function>>} Map of type to message handler function
  */
-async function loadHandlers(config, prReviewBuffer, resolvedAllowedMentionAliases = []) {
+async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMentionAliases = []) {
   const messageHandlers = new Map();
 
   core.info("Loading and initializing safe output handlers based on configuration...");
@@ -315,9 +315,9 @@ async function loadHandlers(config, prReviewBuffer, resolvedAllowedMentionAliase
             handlerConfig.allowedMentionAliases = resolvedAllowedMentionAliases;
           }
 
-          // Inject shared PR review buffer into handlers that need it
+          // Inject shared PR review buffer registry into handlers that need it
           if (PR_REVIEW_HANDLER_TYPES.has(type)) {
-            handlerConfig._prReviewBuffer = prReviewBuffer;
+            handlerConfig._prReviewBufferRegistry = prReviewBufferRegistry;
           }
 
           const messageHandler = await handlerModule.main(handlerConfig);
@@ -535,6 +535,41 @@ function rollbackReviewResults(results, errorMessage) {
 }
 
 /**
+ * Roll back processing results for a specific PR when its review finalization fails.
+ * Matches results by repo and pull_request_number. Falls back to rolling back all
+ * review results when no results carry per-PR identifiers.
+ *
+ * @param {Array<{type: string, success: boolean, error?: string, repo?: string, pull_request_number?: number, result?: {repo?: string, pull_request_number?: number}}>} results
+ * @param {string} repo - Repository slug (owner/repo)
+ * @param {number} prNumber - Pull request number
+ * @param {string} errorMessage - Error message to attach to the rolled-back results
+ */
+function rollbackReviewResultsForPR(results, repo, prNumber, errorMessage) {
+  // processMessages wraps each handler result under r.result, so per-PR identifiers
+  // are nested there. Fall back to top-level for backward compatibility with callers
+  // that pass raw handler results directly.
+  const prResults = results.filter(
+    r => (r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") && r.success === true && (r.result?.repo ?? r.repo) === repo && (r.result?.pull_request_number ?? r.pull_request_number) === prNumber
+  );
+  if (prResults.length > 0) {
+    for (const r of prResults) {
+      r.success = false;
+      r.error = `Review finalization failed: ${errorMessage}`;
+    }
+  } else {
+    // No results carry per-PR identifiers (e.g. legacy submit_pr_review results without repo/pull_request_number).
+    // Fall back to rolling back all buffered review results for this run.
+    core.warning(`rollbackReviewResultsForPR: no results matched ${repo}#${prNumber} — falling back to rolling back all review results`);
+    for (const r of results) {
+      if ((r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") && r.success === true) {
+        r.success = false;
+        r.error = `Review finalization failed: ${errorMessage}`;
+      }
+    }
+  }
+}
+
+/**
  * Mark buffered review results as skipped when the PR is locked and submission was
  * soft-skipped (success:true, skipped:true). Both submit_pull_request_review and
  * create_pull_request_review_comment handlers buffer during message processing, so
@@ -550,6 +585,26 @@ function rollbackReviewResults(results, errorMessage) {
 function skipReviewResults(results, skipReason) {
   for (const r of results) {
     if ((r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") && r.success === true) {
+      r.skipped = true;
+      r.skipReason = skipReason;
+    }
+  }
+}
+
+/**
+ * Mark buffered review results for a specific PR as skipped.
+ *
+ * @param {Array<{type: string, success: boolean, skipped?: boolean, skipReason?: string, repo?: string, pull_request_number?: number, result?: {repo?: string, pull_request_number?: number}}>} results
+ * @param {string} repo - Repository slug (owner/repo)
+ * @param {number} prNumber - Pull request number
+ * @param {string} skipReason - Human-readable reason for the skip
+ */
+function skipReviewResultsForPR(results, repo, prNumber, skipReason) {
+  for (const r of results) {
+    // processMessages wraps each handler result under r.result, so per-PR identifiers
+    // are nested there. Fall back to top-level for backward compatibility with callers
+    // that pass raw handler results directly.
+    if ((r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") && r.success === true && (r.result?.repo ?? r.repo) === repo && (r.result?.pull_request_number ?? r.pull_request_number) === prNumber) {
       r.skipped = true;
       r.skipReason = skipReason;
     }
@@ -1383,8 +1438,8 @@ async function main() {
       return;
     }
 
-    // Create the shared PR review buffer instance (no global state)
-    const prReviewBuffer = createReviewBuffer();
+    // Create the PR review buffer registry (one per-PR buffer created on demand)
+    const prReviewBufferRegistry = createPrReviewBufferRegistry();
 
     // Apply footer config with priority:
     // 1. submit_pull_request_review.footer (highest priority — footer controls review body)
@@ -1397,13 +1452,13 @@ async function main() {
     }
 
     if (footerConfig !== undefined) {
-      prReviewBuffer.setFooterMode(footerConfig);
+      prReviewBufferRegistry.setDefaultFooterMode(footerConfig);
     }
 
     const allowedMentionAliases = config.mentions != null ? await resolveAllowedMentionsFromPayload(context, github, core, config.mentions) : [];
 
     // Load and initialize handlers based on configuration (factory pattern)
-    const messageHandlers = await loadHandlers(config, prReviewBuffer, allowedMentionAliases);
+    const messageHandlers = await loadHandlers(config, prReviewBufferRegistry, allowedMentionAliases);
 
     if (messageHandlers.size === 0) {
       core.info("No handlers loaded - nothing to process");
@@ -1428,44 +1483,43 @@ async function main() {
     // Process all messages in order of appearance
     const processingResult = await processMessages(messageHandlers, allMessages, logCreatedItem);
 
-    // Finalize buffered PR review — submit when comments or metadata exist
-    if (prReviewBuffer.hasBufferedComments() || prReviewBuffer.hasReviewMetadata()) {
-      core.info(`\n=== Finalizing PR Review ===`);
-      const bufferedCount = prReviewBuffer.getBufferedCount();
-      if (bufferedCount > 0) {
-        core.info(`Submitting ${bufferedCount} buffered review comment(s) as a single PR review`);
-      } else {
-        core.info("Submitting PR review (body-only, no inline comments)");
-      }
-      /** @type {any} */
-      let reviewFailureError = null;
-      try {
-        const reviewResult = await prReviewBuffer.submitReview();
-        if (reviewResult.success && !reviewResult.skipped) {
-          logCreatedItemFromResult(logCreatedItem, "submit_pull_request_review", reviewResult);
-          core.info(`✓ PR review submitted successfully: ${reviewResult.review_url}`);
-        } else if (reviewResult.success && reviewResult.skipped) {
-          const skipReason = reviewResult.reason || "PR review submission skipped";
-          core.warning(`⚠ ${skipReason}`);
-          if (reviewResult.pr_locked) {
-            core.setOutput("pr_locked", "true");
-          }
-          skipReviewResults(processingResult.results, skipReason);
-        } else if (!reviewResult.success) {
-          reviewFailureError = reviewResult.error || "PR review finalization failed";
-          core.error(`✗ Failed to submit PR review: ${reviewFailureError}`);
+    // Finalize buffered PR reviews — one review submission per distinct PR
+    const registryEntries = prReviewBufferRegistry.getAllEntries();
+    for (const { repo: reviewRepo, prNumber: reviewPrNum, buffer: reviewBuffer } of registryEntries) {
+      if (reviewBuffer.hasBufferedComments() || reviewBuffer.hasReviewMetadata()) {
+        core.info(`\n=== Finalizing PR Review for ${reviewRepo}#${reviewPrNum} ===`);
+        const bufferedCount = reviewBuffer.getBufferedCount();
+        if (bufferedCount > 0) {
+          core.info(`Submitting ${bufferedCount} buffered review comment(s) for ${reviewRepo}#${reviewPrNum}`);
+        } else {
+          core.info(`Submitting PR review for ${reviewRepo}#${reviewPrNum} (body-only, no inline comments)`);
         }
-      } catch (reviewError) {
-        reviewFailureError = getErrorMessage(reviewError);
-        core.error(`✗ Exception while submitting PR review: ${reviewFailureError}`);
-      }
+        /** @type {any} */
+        let reviewFailureError = null;
+        try {
+          const reviewResult = await reviewBuffer.submitReview();
+          if (reviewResult.success && !reviewResult.skipped) {
+            logCreatedItemFromResult(logCreatedItem, "submit_pull_request_review", reviewResult);
+            core.info(`✓ PR review submitted for ${reviewRepo}#${reviewPrNum}: ${reviewResult.review_url}`);
+          } else if (reviewResult.success && reviewResult.skipped) {
+            const skipReason = reviewResult.reason || `PR review for ${reviewRepo}#${reviewPrNum} skipped`;
+            core.warning(`⚠ ${skipReason}`);
+            if (reviewResult.pr_locked) {
+              core.setOutput("pr_locked", "true");
+            }
+            skipReviewResultsForPR(processingResult.results, reviewRepo, reviewPrNum, skipReason);
+          } else if (!reviewResult.success) {
+            reviewFailureError = reviewResult.error || `PR review finalization failed for ${reviewRepo}#${reviewPrNum}`;
+            core.error(`✗ Failed to submit PR review for ${reviewRepo}#${reviewPrNum}: ${reviewFailureError}`);
+          }
+        } catch (reviewError) {
+          reviewFailureError = getErrorMessage(reviewError);
+          core.error(`✗ Exception while submitting PR review for ${reviewRepo}#${reviewPrNum}: ${reviewFailureError}`);
+        }
 
-      // Roll back per-message success counts when the finalization POST failed.
-      // Both submit_pull_request_review and create_pull_request_review_comment handlers
-      // return success:true during message processing (they only buffer), so the failure
-      // must be reflected here to ensure the Processing Summary shows the correct counts.
-      if (reviewFailureError !== null) {
-        rollbackReviewResults(processingResult.results, reviewFailureError);
+        if (reviewFailureError !== null) {
+          rollbackReviewResultsForPR(processingResult.results, reviewRepo, reviewPrNum, reviewFailureError);
+        }
       }
     }
 
@@ -1662,7 +1716,9 @@ module.exports = {
   processMessages,
   buildCommentMemoryMessagesFromFiles,
   rollbackReviewResults,
+  rollbackReviewResultsForPR,
   skipReviewResults,
+  skipReviewResultsForPR,
   logCreatedItemFromResult,
   isFailedProcessingResult,
   isReportOnlyFailureResult,

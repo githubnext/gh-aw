@@ -21,7 +21,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "wgdonenotdeferred",
 	Doc:      "reports sync.WaitGroup Done() calls that are not deferred, which can cause deadlock if the function panics",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/wgdonenotdeferred",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -30,7 +30,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "wgdonenotdeferred")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
@@ -42,16 +49,16 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		pos := pass.Fset.PositionFor(fn.Pos(), false)
-		if filecheck.IsTestFile(pos.Filename) {
+		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			return
 		}
-		inspectBody(pass, noLintLinesByFile, fn.Body)
+		inspectBody(pass, noLintIndex, fn.Body)
 	})
 
 	return nil, nil
 }
 
-func inspectBody(pass *analysis.Pass, noLintLinesByFile map[string]map[int]struct{}, body *ast.BlockStmt) {
+func inspectBody(pass *analysis.Pass, noLintIndex nolint.DirectiveIndex, body *ast.BlockStmt) {
 	var stack []ast.Node
 
 	ast.Inspect(body, func(node ast.Node) bool {
@@ -91,7 +98,7 @@ func inspectBody(pass *analysis.Pass, noLintLinesByFile map[string]map[int]struc
 				if call, ok := exprStmt.X.(*ast.CallExpr); ok {
 					if isWaitGroupDone(pass, call) {
 						pos := pass.Fset.PositionFor(call.Pos(), false)
-						if !nolint.HasDirective(pos, noLintLinesByFile) {
+						if !nolint.HasDirectiveForLinter(pos, noLintIndex, "wgdonenotdeferred") {
 							pass.ReportRangef(call,
 								"sync.WaitGroup Done() should be deferred to prevent deadlock if the function panics")
 						}

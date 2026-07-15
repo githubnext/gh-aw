@@ -25,7 +25,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "deferinloop",
 	Doc:      "reports defer statements enclosed anywhere within a for or range loop body; a function literal between a defer and an enclosing loop is treated as a new scope boundary, making the defer exempt; test files are not checked",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/deferinloop",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -36,7 +36,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "deferinloop")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	for cur := range insp.Root().Preorder((*ast.DeferStmt)(nil)) {
 		deferStmt, ok := cur.Node().(*ast.DeferStmt)
@@ -45,10 +52,10 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		pos := pass.Fset.PositionFor(deferStmt.Pos(), false)
-		if filecheck.IsTestFile(pos.Filename) {
+		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			continue
 		}
-		if nolint.HasDirective(pos, noLintLinesByFile) {
+		if nolint.HasDirectiveForLinter(pos, noLintIndex, "deferinloop") {
 			continue
 		}
 

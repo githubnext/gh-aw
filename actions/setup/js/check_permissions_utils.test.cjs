@@ -325,6 +325,125 @@ describe("check_permissions_utils", () => {
       expect(mockCore.warning).toHaveBeenCalledWith("User permission 'maintain' does not meet requirements: write");
     });
 
+    it("should authorize custom org role via base permission when base permission matches", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write", role_name: "Security Champions", inherited_role: "write" },
+      });
+
+      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["admin", "maintain", "write"]);
+
+      expect(result).toEqual({
+        authorized: true,
+        permission: "Security Champions",
+      });
+      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission API fields for 'testuser': permission='write', role='Security Champions', inherited='write'");
+      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission computed roles for 'testuser': effective='Security Champions', custom_role=true, inherited_standard_role='write'");
+      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission matched required role 'write' via inherited-standard-role");
+      expect(mockCore.info).toHaveBeenCalledWith("✅ User has Security Champions access to repository");
+    });
+
+    it("should reject maintain-based custom org role when only write is required", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write", role_name: "Security Champions", inherited_role: "maintain" },
+      });
+
+      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["write"]);
+
+      expect(result).toEqual({
+        authorized: false,
+        permission: "Security Champions",
+      });
+      expect(mockCore.warning).toHaveBeenCalledWith("User permission 'Security Champions' does not meet requirements: write");
+    });
+
+    it("should authorize maintain-based custom org role when maintain is required", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write", role_name: "Security Champions", inherited_role: "maintain" },
+      });
+
+      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["maintain"]);
+
+      expect(result).toEqual({
+        authorized: true,
+        permission: "Security Champions",
+      });
+      expect(mockCore.info).toHaveBeenCalledWith("✅ User has Security Champions access to repository");
+    });
+
+    it("should authorize read-based custom org role when read is required", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "read", role_name: "Security Champions", inherited_role: "read" },
+      });
+
+      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["read"]);
+
+      expect(result).toEqual({
+        authorized: true,
+        permission: "Security Champions",
+      });
+      expect(mockCore.info).toHaveBeenCalledWith("✅ User has Security Champions access to repository");
+    });
+
+    it("should reject read-based custom org role when required permission does not match", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "read", role_name: "Security Champions", inherited_role: "read" },
+      });
+
+      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["write"]);
+
+      expect(result).toEqual({
+        authorized: false,
+        permission: "Security Champions",
+      });
+      expect(mockCore.warning).toHaveBeenCalledWith("User permission 'Security Champions' does not meet requirements: write");
+    });
+
+    it("should authorize when required permissions include the exact custom role name", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write", role_name: "Security Champions", inherited_role: "maintain" },
+      });
+
+      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["Security Champions"]);
+
+      expect(result).toEqual({
+        authorized: true,
+        permission: "Security Champions",
+      });
+      expect(mockCore.info).toHaveBeenCalledWith("✅ User has Security Champions access to repository");
+    });
+
+    it("should not treat an empty role_name as a custom org role", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write", role_name: "", inherited_role: "maintain" },
+      });
+
+      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["maintain"]);
+
+      expect(result).toEqual({
+        authorized: false,
+        permission: "write",
+      });
+      expect(mockCore.warning).toHaveBeenCalledWith("User permission 'write' does not meet requirements: maintain");
+    });
+
+    it("should fail closed for custom org role when inherited role metadata is unavailable", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write", role_name: "Security Champions" },
+      });
+
+      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["write"]);
+
+      expect(result).toEqual({
+        authorized: false,
+        permission: "Security Champions",
+      });
+      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission API fields for 'testuser': permission='write', role='Security Champions', inherited='<empty>'");
+      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission computed roles for 'testuser': effective='Security Champions', custom_role=true, inherited_standard_role='<empty>'");
+      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission fallback unavailable for custom role 'Security Champions' because GitHub did not provide an inherited standard role");
+      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission did not match required roles: write");
+      expect(mockCore.warning).toHaveBeenCalledWith("User permission 'Security Champions' does not meet requirements: write");
+    });
+
     it("should check permissions in order and stop at first match", async () => {
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
         data: { permission: "write" },

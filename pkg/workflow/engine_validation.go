@@ -45,10 +45,11 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
 
-var engineValidationLog = newValidationLogger("engine")
+var engineValidationLog = logger.New("workflow:engine_validation")
 var safeHarnessScriptPattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]*$`)
 
 // safeSDKDriverSegmentPattern allows path segments that may start with a dot followed by an

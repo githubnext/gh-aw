@@ -23,7 +23,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "httprespbodyclose",
 	Doc:      "reports HTTP response Body.Close() calls that are not deferred, which risks resource leaks on early return",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/httprespbodyclose",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -34,7 +34,14 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "httprespbodyclose")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
@@ -42,13 +49,13 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		inspectFunc(pass, n, noLintLinesByFile)
+		inspectFunc(pass, n, noLintIndex, generatedFiles)
 	})
 
 	return nil, nil
 }
 
-func inspectFunc(pass *analysis.Pass, n ast.Node, noLintLinesByFile map[string]map[int]struct{}) {
+func inspectFunc(pass *analysis.Pass, n ast.Node, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex) {
 	var body *ast.BlockStmt
 	switch fn := n.(type) {
 	case *ast.FuncDecl:
@@ -64,26 +71,26 @@ func inspectFunc(pass *analysis.Pass, n ast.Node, noLintLinesByFile map[string]m
 	}
 
 	pos := pass.Fset.PositionFor(n.Pos(), false)
-	if filecheck.IsTestFile(pos.Filename) {
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 		return
 	}
 
 	respVars := make(map[types.Object]*respVarState)
 
 	ast.Inspect(body, func(node ast.Node) bool {
-		return inspectNode(pass, respVars, node, noLintLinesByFile)
+		return inspectNode(pass, respVars, node, noLintIndex)
 	})
 
 	for _, state := range respVars {
 		if state.hasManualClose && !state.hasDeferClose {
-			if !nolint.HasDirective(pass.Fset.PositionFor(state.assignPos, false), noLintLinesByFile) {
+			if !nolint.HasDirectiveForLinter(pass.Fset.PositionFor(state.assignPos, false), noLintIndex, "httprespbodyclose") {
 				reportMissingDefer(pass, state)
 			}
 		}
 	}
 }
 
-func inspectNode(pass *analysis.Pass, respVars map[types.Object]*respVarState, node ast.Node, noLintLinesByFile map[string]map[int]struct{}) bool {
+func inspectNode(pass *analysis.Pass, respVars map[types.Object]*respVarState, node ast.Node, noLintIndex nolint.DirectiveIndex) bool {
 	if node == nil {
 		return false
 	}
@@ -92,7 +99,7 @@ func inspectNode(pass *analysis.Pass, respVars map[types.Object]*respVarState, n
 	}
 
 	if assign, ok := node.(*ast.AssignStmt); ok {
-		trackHTTPAssignment(pass, respVars, assign, noLintLinesByFile)
+		trackHTTPAssignment(pass, respVars, assign, noLintIndex)
 		// Also check RHS for manual Body.Close() in assignments like: err := resp.Body.Close()
 		for _, rhs := range assign.Rhs {
 			if call, ok := rhs.(*ast.CallExpr); ok {
@@ -131,7 +138,7 @@ func markBodyClose(pass *analysis.Pass, respVars map[types.Object]*respVarState,
 	}
 }
 
-func trackHTTPAssignment(pass *analysis.Pass, respVars map[types.Object]*respVarState, assign *ast.AssignStmt, noLintLinesByFile map[string]map[int]struct{}) {
+func trackHTTPAssignment(pass *analysis.Pass, respVars map[types.Object]*respVarState, assign *ast.AssignStmt, noLintIndex nolint.DirectiveIndex) {
 	for i, lhs := range assign.Lhs {
 		ident, ok := lhs.(*ast.Ident)
 		if !ok || ident.Name == "_" {
@@ -161,7 +168,7 @@ func trackHTTPAssignment(pass *analysis.Pass, respVars map[types.Object]*respVar
 
 		// Report any prior unresolved violation before overwriting state.
 		if prev, exists := respVars[obj]; exists && prev.hasManualClose && !prev.hasDeferClose {
-			if !nolint.HasDirective(pass.Fset.PositionFor(prev.assignPos, false), noLintLinesByFile) {
+			if !nolint.HasDirectiveForLinter(pass.Fset.PositionFor(prev.assignPos, false), noLintIndex, "httprespbodyclose") {
 				reportMissingDefer(pass, prev)
 			}
 		}

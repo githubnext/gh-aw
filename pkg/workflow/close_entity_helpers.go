@@ -156,6 +156,10 @@ type closeEntityDefinition struct {
 	Logger           *logger.Logger
 }
 
+var logCloseIssue = logger.New("workflow:close_issue")
+var logClosePullRequest = logger.New("workflow:close_pull_request")
+var logCloseDiscussion = logger.New("workflow:close_discussion")
+
 // closeEntityRegistry holds all close entity definitions
 var closeEntityRegistry = []closeEntityDefinition{
 	{
@@ -169,7 +173,7 @@ var closeEntityRegistry = []closeEntityDefinition{
 		EventNumberPath1: "github.event.issue.number",
 		EventNumberPath2: "github.event.comment.issue.number",
 		PermissionsFunc:  NewPermissionsContentsReadIssuesWrite,
-		Logger:           logger.New("workflow:close_issue"),
+		Logger:           logCloseIssue,
 	},
 	{
 		EntityType:       CloseEntityPullRequest,
@@ -182,7 +186,7 @@ var closeEntityRegistry = []closeEntityDefinition{
 		EventNumberPath1: "github.event.pull_request.number",
 		EventNumberPath2: "github.event.comment.pull_request.number",
 		PermissionsFunc:  NewPermissionsContentsReadPRWrite,
-		Logger:           logger.New("workflow:close_pull_request"),
+		Logger:           logClosePullRequest,
 	},
 	{
 		EntityType:       CloseEntityDiscussion,
@@ -195,7 +199,7 @@ var closeEntityRegistry = []closeEntityDefinition{
 		EventNumberPath1: "github.event.discussion.number",
 		EventNumberPath2: "github.event.comment.discussion.number",
 		PermissionsFunc:  NewPermissionsContentsReadDiscussionsWrite,
-		Logger:           logger.New("workflow:close_discussion"),
+		Logger:           logCloseDiscussion,
 	},
 }
 

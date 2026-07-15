@@ -26,7 +26,85 @@ const mockGithub = {
 global.core = mockCore;
 global.github = mockGithub;
 
-const { createReviewBuffer } = require("./pr_review_buffer.cjs");
+const { createReviewBuffer, createPrReviewBufferRegistry } = require("./pr_review_buffer.cjs");
+
+describe("createPrReviewBufferRegistry", () => {
+  let savedCore;
+  beforeEach(() => {
+    savedCore = global.core;
+    global.core = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+    };
+  });
+  afterEach(() => {
+    global.core = savedCore;
+  });
+
+  it("returns separate buffers for different (repo, prNumber) pairs", () => {
+    const registry = createPrReviewBufferRegistry();
+    const buf1 = registry.getOrCreate("o/r", 1);
+    const buf2 = registry.getOrCreate("o/r", 2);
+    const buf3 = registry.getOrCreate("other/repo", 1);
+    expect(buf1).not.toBe(buf2);
+    expect(buf1).not.toBe(buf3);
+    expect(buf2).not.toBe(buf3);
+  });
+
+  it("returns the same buffer for repeated calls with the same key", () => {
+    const registry = createPrReviewBufferRegistry();
+    const buf1 = registry.getOrCreate("o/r", 5);
+    const buf2 = registry.getOrCreate("o/r", 5);
+    expect(buf1).toBe(buf2);
+  });
+
+  it("returns null when repo is falsy", () => {
+    const registry = createPrReviewBufferRegistry();
+    expect(registry.getOrCreate(null, 1)).toBeNull();
+    expect(registry.getOrCreate("", 1)).toBeNull();
+  });
+
+  it("returns null when prNumber is falsy", () => {
+    const registry = createPrReviewBufferRegistry();
+    expect(registry.getOrCreate("o/r", null)).toBeNull();
+    expect(registry.getOrCreate("o/r", 0)).toBeNull();
+  });
+
+  it("getAllEntries returns entries in insertion order", () => {
+    const registry = createPrReviewBufferRegistry();
+    registry.getOrCreate("o/r", 3);
+    registry.getOrCreate("o/r", 1);
+    registry.getOrCreate("o/r", 2);
+    const entries = registry.getAllEntries();
+    expect(entries.map(e => e.prNumber)).toEqual([3, 1, 2]);
+  });
+
+  it("hasAnyContent returns false when all buffers are empty", () => {
+    const registry = createPrReviewBufferRegistry();
+    registry.getOrCreate("o/r", 1);
+    expect(registry.hasAnyContent()).toBe(false);
+  });
+
+  it("hasAnyContent returns true when any buffer has metadata", () => {
+    const registry = createPrReviewBufferRegistry();
+    const buf = registry.getOrCreate("o/r", 1);
+    buf.setReviewMetadata("body", "COMMENT");
+    expect(registry.hasAnyContent()).toBe(true);
+  });
+
+  it("setDefaultFooterMode applies to newly created buffers", () => {
+    const registry = createPrReviewBufferRegistry();
+    registry.setDefaultFooterMode("none");
+    // We can't directly inspect footerMode, but we can check that the
+    // new buffer was created (no throw) and that setting metadata works
+    const buf = registry.getOrCreate("o/r", 1);
+    expect(buf).not.toBeNull();
+    buf.setReviewMetadata("body", "COMMENT");
+    expect(buf.hasReviewMetadata()).toBe(true);
+  });
+});
 
 describe("pr_review_buffer (factory pattern)", () => {
   let buffer;

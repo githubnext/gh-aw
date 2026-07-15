@@ -49,6 +49,7 @@ type resolvedRepositoryPackage struct {
 	License            string
 	DocsPath           string
 	InstallationSource []string
+	Bootstrap          *repositoryPackageBootstrap
 	SkillFiles         []resolvedPackageSkillFile
 	AgentFiles         []string
 	Warnings           []string
@@ -164,6 +165,7 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 		License:            manifest.License,
 		DocsPath:           docsPath,
 		InstallationSource: installationSources,
+		Bootstrap:          manifest.Bootstrap,
 		SkillFiles:         skillFiles,
 		AgentFiles:         agentFiles,
 		Warnings:           warnings,
@@ -197,6 +199,7 @@ type repositoryPackageManifest struct {
 	License         string
 	Includes        []string
 	Files           []string
+	Bootstrap       *repositoryPackageBootstrap
 	Skills          []string // skill directory paths (e.g. "skills/my-skill")
 	Agents          []string // agent .md file paths (e.g. "agents/my-agent.md")
 }
@@ -289,6 +292,15 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 		agents, agentWarnings := extractManifestAgentFiles(agentsValue, manifestPath)
 		manifest.Agents = agents
 		warnings = append(warnings, agentWarnings...)
+	}
+
+	if bootstrapValue, ok := root["bootstrap"]; ok {
+		warnings = append(warnings, "Using experimental feature: manifest.bootstrap")
+		bootstrap, err := extractManifestBootstrap(bootstrapValue, manifestPath)
+		if err != nil {
+			return nil, nil, err
+		}
+		manifest.Bootstrap = bootstrap
 	}
 
 	return manifest, warnings, nil

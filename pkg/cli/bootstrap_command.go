@@ -45,7 +45,7 @@ Sources use the same syntax as '` + string(constants.CLIExtensionPrefix) + ` add
 			verbose, _ := cmd.Flags().GetBool("verbose")
 
 			if repo == "" {
-				return fmt.Errorf("--repo is required\n\nRun '%s --help' for usage information", cmd.CommandPath())
+				return fmt.Errorf("--repo is required. Example: %s --repo github/gh-aw\n\nRun '%s --help' for usage information", cmd.CommandPath(), cmd.CommandPath())
 			}
 
 			return RunBootstrap(BootstrapOptions{

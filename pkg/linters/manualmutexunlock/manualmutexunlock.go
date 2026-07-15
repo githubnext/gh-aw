@@ -40,7 +40,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "manualmutexunlock",
 	Doc:      "reports mutex Unlock() calls that are not deferred",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/manualmutexunlock",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -49,27 +49,34 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintLinesByFile := nolint.BuildLineIndex(pass, "manualmutexunlock")
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		inspectMutexFuncDecl(pass, noLintLinesByFile, n)
+		inspectMutexFuncDecl(pass, noLintIndex, generatedFiles, n)
 	})
 
 	return nil, nil
 }
 
-func inspectMutexFuncDecl(pass *analysis.Pass, noLintLinesByFile map[string]map[int]struct{}, n ast.Node) {
+func inspectMutexFuncDecl(pass *analysis.Pass, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex, n ast.Node) {
 	fn, ok := n.(*ast.FuncDecl)
 	if !ok || fn.Body == nil {
 		return
 	}
 
 	pos := pass.Fset.PositionFor(fn.Pos(), false)
-	if filecheck.IsTestFile(pos.Filename) {
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 		return
 	}
 
@@ -78,14 +85,14 @@ func inspectMutexFuncDecl(pass *analysis.Pass, noLintLinesByFile map[string]map[
 
 	// Walk all statements in the function body
 	ast.Inspect(fn.Body, func(node ast.Node) bool {
-		return inspectMutexNode(pass, noLintLinesByFile, mutexVars, node)
+		return inspectMutexNode(pass, noLintIndex, mutexVars, node)
 	})
 
 	// Report mutexes with manual unlock but no defer
 	for _, state := range mutexVars {
 		if state.hasManualUnlock && !state.hasDefer {
 			position := pass.Fset.PositionFor(state.lockPos, false)
-			if nolint.HasDirective(position, noLintLinesByFile) {
+			if nolint.HasDirectiveForLinter(position, noLintIndex, "manualmutexunlock") {
 				continue
 			}
 			pass.Report(analysis.Diagnostic{
@@ -96,7 +103,7 @@ func inspectMutexFuncDecl(pass *analysis.Pass, noLintLinesByFile map[string]map[
 	}
 }
 
-func inspectMutexNode(pass *analysis.Pass, noLintLinesByFile map[string]map[int]struct{}, mutexVars map[mutexKey]*mutexVarState, node ast.Node) bool {
+func inspectMutexNode(pass *analysis.Pass, noLintIndex nolint.DirectiveIndex, mutexVars map[mutexKey]*mutexVarState, node ast.Node) bool {
 	if node == nil {
 		return false
 	}
@@ -114,7 +121,7 @@ func inspectMutexNode(pass *analysis.Pass, noLintLinesByFile map[string]map[int]
 				// binding, report any unresolved violation before overwriting state.
 				if prev, exists := mutexVars[key]; exists && prev.hasManualUnlock && !prev.hasDefer {
 					position := pass.Fset.PositionFor(prev.lockPos, false)
-					if nolint.HasDirective(position, noLintLinesByFile) {
+					if nolint.HasDirectiveForLinter(position, noLintIndex, "manualmutexunlock") {
 						mutexVars[key] = &mutexVarState{
 							lockPos: call.Pos(),
 						}

@@ -205,13 +205,13 @@ func validatePrivateToPublicFlowsServerIDs(workflowData *WorkflowData) error {
 		return nil
 	}
 	// Collect valid server IDs from the merged tools map.
-	validIDs := make(map[string]bool, len(workflowData.Tools))
+	validIDs := make(map[string]struct{}, len(workflowData.Tools))
 	for id := range workflowData.Tools {
-		validIDs[id] = true
+		validIDs[id] = struct{}{}
 	}
 	var unknown []string
 	for _, id := range servers {
-		if !validIDs[id] {
+		if _, ok := validIDs[id]; !ok {
 			unknown = append(unknown, id)
 		}
 	}

@@ -17,9 +17,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
 
-var sandboxValidationLog = newValidationLogger("sandbox")
+var sandboxValidationLog = logger.New("workflow:sandbox_validation")
 
 const minSandboxDisableJustificationLength = 20
 

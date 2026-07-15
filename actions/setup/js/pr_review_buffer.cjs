@@ -721,7 +721,110 @@ function createReviewBuffer() {
   };
 }
 
-module.exports = { createReviewBuffer };
+/**
+ * Create a registry that manages per-PR review buffers.
+ * Each distinct (repo, prNumber) pair gets its own independent buffer instance.
+ *
+ * Default settings applied to every newly created buffer (footerMode, footerContext,
+ * staged, supersedeOlderReviews) can be configured via the returned setters before
+ * any messages are processed.
+ *
+ * @returns {Object} Registry with getOrCreate, getAllEntries, hasAnyContent, and config setters
+ */
+function createPrReviewBufferRegistry() {
+  /** @type {Map<string, Object>} */
+  const bufferMap = new Map();
+
+  /** @type {{repo: string, prNumber: number, buffer: Object}[]} */
+  const insertionOrder = [];
+
+  // Defaults applied to each new buffer when it is first created.
+  /** @type {string|boolean} */
+  let defaultFooterMode = "always";
+  /** @type {Object | null} */
+  let defaultFooterContext = null;
+  let defaultStaged = false;
+  let defaultSupersedeOlderReviews = false;
+
+  /**
+   * Get or create the buffer for the given (repo, prNumber) pair.
+   * Returns null when repo or prNumber are falsy (unresolvable target).
+   * @param {string | null} repo - Repository slug (owner/repo)
+   * @param {number | null} prNumber - Pull request number
+   * @returns {Object | null} Buffer for this PR, or null if target cannot be resolved
+   */
+  function getOrCreate(repo, prNumber) {
+    if (!repo || !prNumber) {
+      return null;
+    }
+    const k = `${repo}#${prNumber}`;
+    if (!bufferMap.has(k)) {
+      const buffer = createReviewBuffer();
+      buffer.setFooterMode(defaultFooterMode);
+      if (defaultFooterContext) {
+        buffer.setFooterContext(defaultFooterContext);
+      }
+      if (defaultStaged) {
+        buffer.setStaged(true);
+      }
+      if (defaultSupersedeOlderReviews) {
+        buffer.setSupersedeOlderReviews(true);
+      }
+      bufferMap.set(k, buffer);
+      insertionOrder.push({ repo, prNumber, buffer });
+      core.info(`PR review registry: created buffer for ${repo}#${prNumber}`);
+    }
+    return bufferMap.get(k);
+  }
+
+  /**
+   * Return all buffered entries in insertion order.
+   * @returns {{repo: string, prNumber: number, buffer: Object}[]}
+   */
+  function getAllEntries() {
+    return insertionOrder;
+  }
+
+  /**
+   * Returns true if any buffer has buffered comments or review metadata.
+   * @returns {boolean}
+   */
+  function hasAnyContent() {
+    return insertionOrder.some(e => e.buffer.hasBufferedComments() || e.buffer.hasReviewMetadata());
+  }
+
+  /** @param {string|boolean} value */
+  function setDefaultFooterMode(value) {
+    defaultFooterMode = value;
+  }
+
+  /** @param {Object} ctx */
+  function setDefaultFooterContext(ctx) {
+    defaultFooterContext = ctx;
+  }
+
+  /** @param {boolean} value */
+  function setDefaultStaged(value) {
+    defaultStaged = value === true;
+  }
+
+  /** @param {boolean} value */
+  function setDefaultSupersedeOlderReviews(value) {
+    defaultSupersedeOlderReviews = value === true;
+  }
+
+  return {
+    getOrCreate,
+    getAllEntries,
+    hasAnyContent,
+    setDefaultFooterMode,
+    setDefaultFooterContext,
+    setDefaultStaged,
+    setDefaultSupersedeOlderReviews,
+  };
+}
+
+module.exports = { createReviewBuffer, createPrReviewBufferRegistry };
 /**
  * Append a fallback section that preserves inline comment content when comments cannot be anchored.
  * @param {string} reviewBody
