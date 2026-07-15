@@ -193,6 +193,7 @@ describe("mcp_http_server_runner.cjs - runHttpServer", () => {
   it("calls configureServer callback with the http.Server instance before binding", async () => {
     const transport = makeMockTransport();
     const logger = makeMockLogger();
+    /** @type {any} */
     let capturedServer = null;
     currentServer = await runHttpServer({
       transport,

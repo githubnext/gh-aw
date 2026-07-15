@@ -129,6 +129,7 @@ function computeIncrementalDiffSize({ baseRef, headRef, cwd, tmpPath, excludedFi
     return null;
   }
   const excludeArgs = buildExcludePathspecs(excludedFiles);
+  /** @type {any} */
   let diffSize = null;
   try {
     execGitSync(["diff", "--binary", `--output=${tmpPath}`, `${baseRef}..${headRef}`, ...excludeArgs], { cwd });

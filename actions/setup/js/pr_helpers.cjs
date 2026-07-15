@@ -17,7 +17,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * flag caused false positives that forced `gh pr checkout` instead of fast
  * `git fetch`, which then failed due to stale GH_HOST values. See #24208.
  *
- * @param {object} pullRequest - The pull request object from GitHub context
+ * @param {any} pullRequest - The pull request object from GitHub context
  * @returns {{isFork: boolean, reason: string}} Fork detection result with reason
  */
 function detectForkPR(pullRequest) {
@@ -41,8 +41,8 @@ function detectForkPR(pullRequest) {
  * 1. The message's pull_request_number field (if provided)
  * 2. The GitHub context payload (if in a PR context)
  *
- * @param {object|undefined} messageItem - The message object that might contain pull_request_number
- * @param {object} context - The GitHub context object with payload information
+ * @param {any|undefined} messageItem - The message object that might contain pull_request_number
+ * @param {any} context - The GitHub context object with payload information
  * @returns {{prNumber: number|null, error: string|null}} Result with PR number or error message
  */
 function getPullRequestNumber(messageItem, context) {
@@ -127,6 +127,7 @@ function buildBranchInstruction(effectiveBaseBranch, resolvedDefaultBranch) {
  */
 async function checkBranchPushable(githubClient, owner, repo, branchName, checkBranchProtection) {
   // Check whether the branch is the repository default branch
+  /** @type {any} */
   let defaultBranch = null;
   try {
     const { data: repoData } = await githubClient.rest.repos.get({ owner, repo });

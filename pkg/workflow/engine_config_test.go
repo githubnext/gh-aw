@@ -190,6 +190,29 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "claude", LLMProvider: "github"},
 		},
 		{
+			name: "object format - with provider override",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":       "claude",
+					"provider": "openai",
+				},
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude", LLMProvider: "openai"},
+		},
+		{
+			name: "object format - provider override wins over model-provider",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":             "claude",
+					"model-provider": "github",
+					"provider":       "openai",
+				},
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude", LLMProvider: "openai"},
+		},
+		{
 			name: "object format - deprecated llm-provider ignored",
 			frontmatter: map[string]any{
 				"engine": map[string]any{

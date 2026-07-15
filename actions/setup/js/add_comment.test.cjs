@@ -107,6 +107,7 @@ describe("add_comment", () => {
     it("should use triggering PR context when target is 'triggering'", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
+      /** @type {any} */
       let capturedIssueNumber = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedIssueNumber = params.issue_number;
@@ -136,6 +137,7 @@ describe("add_comment", () => {
     it("should use explicit PR number when target is a number", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
+      /** @type {any} */
       let capturedIssueNumber = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedIssueNumber = params.issue_number;
@@ -165,6 +167,7 @@ describe("add_comment", () => {
     it("should use item_number from message when target is '*'", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
+      /** @type {any} */
       let capturedIssueNumber = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedIssueNumber = params.issue_number;
@@ -195,6 +198,7 @@ describe("add_comment", () => {
     it("should accept pr-number as alias for item_number when target is '*'", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
+      /** @type {any} */
       let capturedIssueNumber = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedIssueNumber = params.issue_number;
@@ -260,6 +264,7 @@ describe("add_comment", () => {
     it("should use explicit item_number even with triggering target", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
+      /** @type {any} */
       let capturedIssueNumber = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedIssueNumber = params.issue_number;
@@ -290,6 +295,7 @@ describe("add_comment", () => {
     it("should resolve from context when item_number is not provided", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
+      /** @type {any} */
       let capturedIssueNumber = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedIssueNumber = params.issue_number;
@@ -327,6 +333,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedIssueNumber = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedIssueNumber = params.issue_number;
@@ -356,7 +363,9 @@ describe("add_comment", () => {
     it('should allow commenting on any repo when target-repo is "*"', async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
+      /** @type {any} */
       let capturedOwner = null;
+      /** @type {any} */
       let capturedRepo = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedOwner = params.owner;
@@ -434,6 +443,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedReplyParams = null;
       let issueCommentCalled = false;
       mockGithub.rest.pulls.createReplyForReviewComment = async params => {
@@ -491,6 +501,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedIssueNumber = null;
       let reviewReplyCalled = false;
       mockGithub.rest.issues.createComment = async params => {
@@ -541,6 +552,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedReplyParams = null;
       let issueCommentCalled = false;
       mockGithub.rest.pulls.createReplyForReviewComment = async params => {
@@ -592,6 +604,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedReplyParams = null;
       let issueCommentCalled = false;
       mockGithub.rest.pulls.createReplyForReviewComment = async params => {
@@ -634,6 +647,7 @@ describe("add_comment", () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
       process.env.GH_AW_COMMENT_ID = "55555";
 
+      /** @type {any} */
       let capturedUpdateParams = null;
       let createCommentCalled = false;
       mockGithub.rest.issues.updateComment = async params => {
@@ -673,6 +687,7 @@ describe("add_comment", () => {
     it("should update existing comment when comment-id alias is provided", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
+      /** @type {any} */
       let capturedUpdateParams = null;
       let createCommentCalled = false;
       mockGithub.rest.issues.updateComment = async params => {
@@ -780,6 +795,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedDiscussionNumber = null;
       let graphqlCallCount = 0;
       mockGithub.graphql = async (query, variables) => {
@@ -840,6 +856,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedReplyToId = undefined;
       mockGithub.graphql = async (query, variables) => {
         if (query.includes("addDiscussionComment")) {
@@ -898,6 +915,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedReplyToId = undefined;
       mockGithub.graphql = async (query, variables) => {
         if (query.includes("addDiscussionComment")) {
@@ -956,6 +974,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedReplyToId = undefined;
       mockGithub.graphql = async (query, variables) => {
         if (query.includes("addDiscussionComment")) {
@@ -1021,6 +1040,7 @@ describe("add_comment", () => {
         throw err;
       };
 
+      /** @type {any} */
       let capturedReplyToId = undefined;
       mockGithub.graphql = async (query, variables) => {
         if (query.includes("addDiscussionComment")) {
@@ -1082,6 +1102,7 @@ describe("add_comment", () => {
         throw err;
       };
 
+      /** @type {any} */
       let capturedReplyToId = undefined;
       mockGithub.graphql = async (query, variables) => {
         if (query.includes("addDiscussionComment")) {
@@ -1142,6 +1163,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedReplyToId = undefined;
       mockGithub.graphql = async (query, variables) => {
         if (query.includes("addDiscussionComment")) {
@@ -1207,6 +1229,7 @@ describe("add_comment", () => {
         throw err;
       };
 
+      /** @type {any} */
       let capturedReplyToId = undefined;
       mockGithub.graphql = async (query, variables) => {
         if (query.includes("addDiscussionComment")) {
@@ -1264,6 +1287,7 @@ describe("add_comment", () => {
         throw err;
       };
 
+      /** @type {any} */
       let capturedReplyToId = undefined;
       mockGithub.graphql = async (query, variables) => {
         if (query.includes("addDiscussionComment")) {
@@ -1326,6 +1350,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedIssueNumber = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedIssueNumber = params.issue_number;
@@ -1393,6 +1418,7 @@ describe("add_comment", () => {
         };
       };
 
+      /** @type {any} */
       let capturedComment = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedComment = params;
@@ -1461,6 +1487,7 @@ describe("add_comment", () => {
         };
       };
 
+      /** @type {any} */
       let capturedComment = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedComment = params;
@@ -1527,6 +1554,7 @@ describe("add_comment", () => {
         };
       };
 
+      /** @type {any} */
       let capturedComment = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedComment = params;
@@ -2205,6 +2233,7 @@ describe("add_comment", () => {
     it("should resolve temporary ID in item_number field", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
+      /** @type {any} */
       let capturedIssueNumber = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedIssueNumber = params.issue_number;
@@ -2260,6 +2289,7 @@ describe("add_comment", () => {
     it("should handle temporary ID with hash prefix", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
+      /** @type {any} */
       let capturedIssueNumber = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedIssueNumber = params.issue_number;
@@ -2312,6 +2342,7 @@ describe("add_comment", () => {
     it("should replace temporary IDs in comment body", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -2349,6 +2380,7 @@ describe("add_comment", () => {
     it("should resolve temporary ID in issue_number field", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
+      /** @type {any} */
       let capturedIssueNumber = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedIssueNumber = params.issue_number;
@@ -2381,6 +2413,7 @@ describe("add_comment", () => {
     it("should prefer item_number over issue_number when both are provided", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
+      /** @type {any} */
       let capturedIssueNumber = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedIssueNumber = params.issue_number;
@@ -2441,6 +2474,7 @@ describe("add_comment", () => {
       process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
       process.env.GH_AW_TRACKER_ID = "test-tracker-123";
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -2480,6 +2514,7 @@ describe("add_comment", () => {
       // Setup environment
       process.env.GH_AW_WORKFLOW_NAME = "Security Test Workflow";
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -2519,6 +2554,7 @@ describe("add_comment", () => {
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
       process.env.GH_AW_DETECTION_REASON = "threat_detected";
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -2558,6 +2594,7 @@ describe("add_comment", () => {
     it("should sanitize user content but preserve system markers", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -2597,6 +2634,7 @@ describe("add_comment", () => {
       process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
       process.env.GH_AW_CALLER_WORKFLOW_ID = "owner/repo/TestWorkflow";
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -2631,6 +2669,7 @@ describe("add_comment", () => {
       process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
       delete process.env.GH_AW_CALLER_WORKFLOW_ID;
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -2671,6 +2710,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -2713,6 +2753,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -2751,6 +2792,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -2788,6 +2830,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -2823,6 +2866,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -2859,6 +2903,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -2895,6 +2940,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -2931,6 +2977,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -2973,6 +3020,7 @@ describe("add_comment", () => {
         throw new Error("Issue not found");
       };
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -3017,6 +3065,7 @@ describe("add_comment", () => {
         throw new Error("Issue not found");
       };
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -3059,6 +3108,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -3093,6 +3143,7 @@ describe("add_comment", () => {
         throw new Error("API error");
       };
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;
@@ -3134,6 +3185,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedBody = null;
       // Mock graphql for discussion
       mockGithub.graphql = async query => {
@@ -3209,6 +3261,7 @@ describe("add_comment", () => {
       const infoMessages = [];
       mockCore.info = msg => infoMessages.push(msg);
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async ({ body }) => {
         capturedBody = body;
@@ -3240,6 +3293,7 @@ describe("add_comment", () => {
       const infoMessages = [];
       mockCore.info = msg => infoMessages.push(msg);
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async ({ body }) => {
         capturedBody = body;
@@ -3346,6 +3400,7 @@ describe("add_comment", () => {
       process.env.GH_AW_WORKFLOW_NAME = "No-Footer Workflow";
 
       try {
+        /** @type {any} */
         let capturedBody = null;
         mockGithub.rest.issues.createComment = async params => {
           capturedBody = params.body;
@@ -3383,6 +3438,7 @@ describe("add_comment", () => {
         },
       };
 
+      /** @type {any} */
       let capturedBody = null;
       mockGithub.rest.issues.createComment = async params => {
         capturedBody = params.body;

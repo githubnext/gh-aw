@@ -497,7 +497,7 @@ function createReviewBuffer() {
       }
       const workflowCallMarker = workflowCallId ? generateWorkflowCallIdMarker(workflowCallId) : "";
       try {
-        /** @type {Array<{id: number, state?: string, user?: {login?: string, type?: string}, body?: string}>} */
+        /** @type {any[]} */
         const reviews = [];
         let page = 1;
         const perPage = 100;

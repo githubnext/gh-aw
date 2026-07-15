@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,6 +22,8 @@ var actionlintLog = logger.New("cli:actionlint")
 
 // actionlintVersion caches the actionlint version to avoid repeated Docker calls
 var actionlintVersion string
+
+const actionlintShellMetacharacters = " \t\n'\"`$&;|*?[](){}<>!#"
 
 // actionlintRunOptions configures optional actionlint integrations and ignores.
 type actionlintRunOptions struct {
@@ -220,47 +223,125 @@ func runActionlintOnFiles(ctx context.Context, lockFiles []string, verbose bool,
 	})
 }
 
+type actionlintCommandResult struct {
+	stdout          string
+	stderr          string
+	err             error
+	timeoutDuration time.Duration
+	ctxErr          error
+}
+
 func runActionlintOnFilesWithOptions(ctx context.Context, lockFiles []string, verbose bool, strict bool, options actionlintRunOptions) error {
 	if len(lockFiles) == 0 {
 		return nil
 	}
 	actionlintLog.Printf("Running actionlint on %d file(s): %v (verbose=%t, strict=%t)", len(lockFiles), lockFiles, verbose, strict)
+	maybePrintActionlintVersion(ctx)
 
-	// Display actionlint version on first use
-	if actionlintVersion == "" {
-		version, err := getActionlintVersion(ctx)
-		if err != nil {
-			// Log error but continue - version display is not critical
-			actionlintLog.Printf("Could not fetch actionlint version: %v", err)
-		} else {
-			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Using actionlint "+version))
+	gitRoot, relPaths, err := resolveActionlintPaths(lockFiles)
+	if err != nil {
+		return err
+	}
+
+	runResult := runActionlintCommand(ctx, gitRoot, lockFiles, relPaths, verbose, options)
+	if err := actionlintContextError(runResult, lockFiles); err != nil {
+		return err
+	}
+
+	// Parse and reformat the output only when actionlint completed validation and
+	// returned either success or lint findings.
+	totalErrors := 0
+	var errorsByKind map[string]int
+	var parseErr error
+	shouldParseOutput := actionlintShouldParseOutput(runResult.err)
+	if shouldParseOutput {
+		totalErrors, errorsByKind, parseErr = parseAndDisplayActionlintOutput(runResult.stdout, verbose)
+		if parseErr != nil {
+			actionlintLog.Printf("Failed to parse actionlint output: %v", parseErr)
+			// Track this as an integration error: output was produced but could not be parsed.
+			if actionlintStats != nil {
+				actionlintStats.IntegrationErrors++
+			}
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				"actionlint output could not be parsed — this is a tooling error, not a workflow validation failure: "+parseErr.Error()))
+			// Fall back to showing raw output.
+			if runResult.stdout != "" {
+				fmt.Fprint(os.Stderr, runResult.stdout)
+			}
+			if runResult.stderr != "" {
+				fmt.Fprint(os.Stderr, runResult.stderr)
+			}
+		} else if actionlintStats != nil {
+			// Track error statistics.
+			actionlintStats.TotalErrors += totalErrors
+			for kind, count := range errorsByKind {
+				actionlintStats.ErrorsByKind[kind] += count
+			}
 		}
 	}
 
-	// Find git root to get the absolute path for Docker volume mount
+	if shouldParseOutput && actionlintStats != nil {
+		actionlintStats.TotalWorkflows += len(lockFiles)
+	}
+	return handleActionlintExecutionError(runResult.err, strict, lockFiles, totalErrors, parseErr)
+}
+
+func maybePrintActionlintVersion(ctx context.Context) {
+	if actionlintVersion != "" {
+		return
+	}
+	version, err := getActionlintVersion(ctx)
+	if err != nil {
+		// Log error but continue - version display is not critical
+		actionlintLog.Printf("Could not fetch actionlint version: %v", err)
+		return
+	}
+	fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Using actionlint "+version))
+}
+
+func resolveActionlintPaths(lockFiles []string) (string, []string, error) {
 	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
-		return fmt.Errorf("failed to find git root: %w", err)
+		return "", nil, fmt.Errorf("failed to find git root: %w", err)
 	}
-
-	// Get relative paths from git root for all files
-	var relPaths []string
+	relPaths := make([]string, 0, len(lockFiles))
 	for _, lockFile := range lockFiles {
 		relPath, err := filepath.Rel(gitRoot, lockFile)
 		if err != nil {
-			return fmt.Errorf("failed to get relative path for %s: %w", lockFile, err)
+			return "", nil, fmt.Errorf("failed to get relative path for %s: %w", lockFile, err)
 		}
 		relPaths = append(relPaths, relPath)
 	}
+	return gitRoot, relPaths, nil
+}
 
-	// Build the Docker command with JSON output for easier parsing
-	// docker run --rm -v "$(pwd)":/workdir -w /workdir rhysd/actionlint:latest -format '{{json .}}' <file1> <file2> ...
-	// Adjust timeout based on number of files (1 minute per file, minimum 5 minutes)
+func runActionlintCommand(ctx context.Context, gitRoot string, lockFiles, relPaths []string, verbose bool, options actionlintRunOptions) actionlintCommandResult {
 	timeoutDuration := time.Duration(max(5, len(lockFiles))) * time.Minute
 	runCtx, cancel := context.WithTimeout(ctx, timeoutDuration)
 	defer cancel()
 
-	// Build Docker command arguments
+	verboseHint := ""
+	if verbose {
+		verboseHint = buildActionlintDockerCommand(gitRoot, relPaths, options)
+	}
+	printActionlintRunMessage(lockFiles, relPaths, verboseHint, options)
+
+	cmd := exec.CommandContext(runCtx, "docker", buildActionlintDockerArgs(gitRoot, relPaths, options)...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+
+	return actionlintCommandResult{
+		stdout:          stdout.String(),
+		stderr:          stderr.String(),
+		err:             err,
+		timeoutDuration: timeoutDuration,
+		ctxErr:          runCtx.Err(),
+	}
+}
+
+func buildActionlintDockerArgs(gitRoot string, relPaths []string, options actionlintRunOptions) []string {
 	dockerArgs := []string{
 		"run",
 		"--rm",
@@ -270,132 +351,74 @@ func runActionlintOnFilesWithOptions(ctx context.Context, lockFiles []string, ve
 		"-format", "{{json .}}",
 	}
 	if !options.IncludeShellcheck {
-		// Empty value disables shellcheck integration in actionlint.
 		dockerArgs = append(dockerArgs, "-shellcheck=")
 	}
 	if !options.IncludePyflakes {
-		// Empty value disables pyflakes integration in actionlint.
 		dockerArgs = append(dockerArgs, "-pyflakes=")
 	}
 	for _, ignorePattern := range options.IgnorePatterns {
 		dockerArgs = append(dockerArgs, "-ignore", ignorePattern)
 	}
-	dockerArgs = append(dockerArgs, relPaths...)
+	return append(dockerArgs, relPaths...)
+}
 
-	cmd := exec.CommandContext(runCtx, "docker", dockerArgs...)
+func buildActionlintDockerCommand(gitRoot string, relPaths []string, options actionlintRunOptions) string {
+	args := buildActionlintDockerArgs(gitRoot, relPaths, options)
+	formattedArgs := append([]string(nil), args...)
+	for i, arg := range formattedArgs {
+		formattedArgs[i] = actionlintShellQuoteArg(arg)
+	}
+	return "docker " + strings.Join(formattedArgs, " ")
+}
 
-	// Always show that actionlint is running (regular verbosity)
+func actionlintShellQuoteArg(arg string) string {
+	if arg == "" || strings.ContainsAny(arg, actionlintShellMetacharacters) {
+		return strconv.Quote(arg)
+	}
+	return arg
+}
+
+func printActionlintRunMessage(lockFiles, relPaths []string, verboseHint string, options actionlintRunOptions) {
 	integrationStatus := buildActionlintIntegrationStatus(options.IncludeShellcheck, options.IncludePyflakes)
 	if len(lockFiles) == 1 {
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running actionlint ("+integrationStatus+") on "+relPaths[0]))
 	} else {
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running actionlint (%s) on %d files", integrationStatus, len(lockFiles))))
 	}
-
-	// In verbose mode, also show the command that users can run directly
-	if verbose {
-		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir rhysd/actionlint:latest -format '{{json .}}' %s",
-			gitRoot, strings.Join(relPaths, " "))
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run actionlint directly: "+dockerCmd))
+	if verboseHint == "" {
+		return
 	}
+	fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run actionlint directly: "+verboseHint))
+}
 
-	// Capture output
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+func actionlintShouldParseOutput(err error) bool {
+	if err == nil {
+		return true
+	}
+	var exitErr *exec.ExitError
+	return errors.As(err, &exitErr) && exitErr.ExitCode() == 1
+}
 
-	// Run the command
-	err = cmd.Run()
-
-	// Check for timeout
-	if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
-		fileList := "files"
-		if len(lockFiles) == 1 {
-			fileList = filepath.Base(lockFiles[0])
-		}
+func actionlintContextError(result actionlintCommandResult, lockFiles []string) error {
+	if errors.Is(result.ctxErr, context.DeadlineExceeded) {
 		if actionlintStats != nil {
 			actionlintStats.IntegrationErrors++
 		}
-		return fmt.Errorf("actionlint timed out after %d minutes on %s - this may indicate a Docker or network issue", int(timeoutDuration.Minutes()), fileList)
+		return fmt.Errorf("actionlint timed out after %d minutes on %s - this may indicate a Docker or network issue",
+			int(result.timeoutDuration.Minutes()), actionlintFileDescription(lockFiles))
 	}
-	if errors.Is(runCtx.Err(), context.Canceled) {
+	if errors.Is(result.ctxErr, context.Canceled) {
 		return errors.New("actionlint was canceled before completion (for example by Ctrl+C or caller cancellation)")
 	}
+	return nil
+}
 
-	// Track workflows in statistics (count number of files validated)
-	if actionlintStats != nil {
-		actionlintStats.TotalWorkflows += len(lockFiles)
+func handleActionlintExecutionError(err error, strict bool, lockFiles []string, totalErrors int, parseErr error) error {
+	if err == nil {
+		return nil
 	}
-
-	// Parse and reformat the output, get total error count and error details
-	totalErrors, errorsByKind, parseErr := parseAndDisplayActionlintOutput(stdout.String(), verbose)
-	if parseErr != nil {
-		actionlintLog.Printf("Failed to parse actionlint output: %v", parseErr)
-		// Track this as an integration error: output was produced but could not be parsed
-		if actionlintStats != nil {
-			actionlintStats.IntegrationErrors++
-		}
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-			"actionlint output could not be parsed — this is a tooling error, not a workflow validation failure: "+parseErr.Error()))
-		// Fall back to showing raw output
-		if stdout.Len() > 0 {
-			fmt.Fprint(os.Stderr, stdout.String())
-		}
-		if stderr.Len() > 0 {
-			fmt.Fprint(os.Stderr, stderr.String())
-		}
-	} else {
-		// Track error statistics
-		if actionlintStats != nil {
-			actionlintStats.TotalErrors += totalErrors
-			for kind, count := range errorsByKind {
-				actionlintStats.ErrorsByKind[kind] += count
-			}
-		}
-	}
-
-	// Check if the error is due to findings (expected) or actual failure
-	if err != nil {
-		// actionlint uses exit code 1 when errors are found
-		// Exit code 0 = no errors
-		// Exit code 1 = errors found
-		// Other codes = actual errors
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			exitCode := exitErr.ExitCode()
-			actionlintLog.Printf("Actionlint exited with code %d, found %d errors", exitCode, totalErrors)
-			// Exit code 1 indicates errors were found
-			if exitCode == 1 {
-				// In strict mode, errors are treated as compilation failures
-				if strict {
-					fileDescription := "workflows"
-					if len(lockFiles) == 1 {
-						fileDescription = filepath.Base(lockFiles[0])
-					}
-					// When the output could not be parsed (parseErr != nil), totalErrors will be
-					// 0 even though actionlint signalled failures via exit code 1.  Produce an
-					// unambiguous message so the caller understands this is a tooling issue.
-					if parseErr != nil {
-						return fmt.Errorf("strict mode: actionlint exited with errors on %s but output could not be parsed — this is likely a tooling or integration error", fileDescription)
-					}
-					return fmt.Errorf("strict mode: actionlint found %d errors in %s - workflows must have no actionlint errors in strict mode", totalErrors, fileDescription)
-				}
-				// In non-strict mode, errors are logged but not treated as failures
-				return nil
-			}
-			// Other exit codes indicate actual tooling/subprocess failures, not lint findings.
-			fileDescription := "workflows"
-			if len(lockFiles) == 1 {
-				fileDescription = filepath.Base(lockFiles[0])
-			}
-			if actionlintStats != nil {
-				actionlintStats.IntegrationErrors++
-			}
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-				fmt.Sprintf("actionlint failed with exit code %d on %s — this is a tooling error, not a workflow validation failure", exitCode, fileDescription)))
-			return fmt.Errorf("actionlint failed with exit code %d on %s", exitCode, fileDescription)
-		}
-		// Non-ExitError errors (e.g., command not found) are integration/tooling failures.
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
 		if actionlintStats != nil {
 			actionlintStats.IntegrationErrors++
 		}
@@ -404,7 +427,40 @@ func runActionlintOnFilesWithOptions(ctx context.Context, lockFiles []string, ve
 		return fmt.Errorf("actionlint failed: %w", err)
 	}
 
-	return nil
+	exitCode := exitErr.ExitCode()
+	actionlintLog.Printf("Actionlint exited with code %d, found %d errors", exitCode, totalErrors)
+	if exitCode == 1 {
+		return handleActionlintFindings(strict, lockFiles, totalErrors, parseErr)
+	}
+
+	fileDescription := actionlintFileDescription(lockFiles)
+	if actionlintStats != nil {
+		actionlintStats.IntegrationErrors++
+	}
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+		fmt.Sprintf("actionlint failed with exit code %d on %s — this is a tooling error, not a workflow validation failure", exitCode, fileDescription)))
+	return fmt.Errorf("actionlint failed with exit code %d on %s", exitCode, fileDescription)
+}
+
+func handleActionlintFindings(strict bool, lockFiles []string, totalErrors int, parseErr error) error {
+	if !strict {
+		if parseErr != nil {
+			actionlintLog.Printf("actionlint findings could not be parsed in non-strict mode: %v", parseErr)
+		}
+		return nil
+	}
+	fileDescription := actionlintFileDescription(lockFiles)
+	if parseErr != nil {
+		return fmt.Errorf("strict mode: actionlint exited with errors on %s but output could not be parsed — this is likely a tooling or integration error", fileDescription)
+	}
+	return fmt.Errorf("strict mode: actionlint found %d errors in %s - workflows must have no actionlint errors in strict mode", totalErrors, fileDescription)
+}
+
+func actionlintFileDescription(lockFiles []string) string {
+	if len(lockFiles) == 1 {
+		return filepath.Base(lockFiles[0])
+	}
+	return "workflows"
 }
 
 // parseAndDisplayActionlintOutput parses actionlint JSON output and displays it in the desired format
@@ -427,54 +483,47 @@ func parseAndDisplayActionlintOutput(stdout string, verbose bool) (int, map[stri
 
 	// Track errors by kind
 	errorsByKind := make(map[string]int)
-
-	// Display errors using CompilerError format
 	for _, err := range errors {
-		// Track error kind
 		if err.Kind != "" {
 			errorsByKind[err.Kind]++
 		}
-
-		// Use snippet from actionlint JSON output for context display.
-		// actionlint's snippet includes a caret ("^~~~") pointer line; we only
-		// keep the actual source line so console.FormatError can render its own
-		// underline based on Column and keep line numbers aligned.
-		var context []string
-		if err.Snippet != "" {
-			lines := strings.Split(err.Snippet, "\n")
-			if len(lines) > 0 {
-				context = []string{lines[0]}
-			}
-		}
-
-		// Map kind to error type
-		// Most actionlint errors are actual errors, not warnings
-		errorType := "error"
-		if strings.Contains(strings.ToLower(err.Kind), "warning") {
-			errorType = "warning"
-		}
-
-		// Build message with kind and documentation URL if available
-		message := err.Message
-		if err.Kind != "" {
-			docsURL := getActionlintDocsURL(err.Kind)
-			message = fmt.Sprintf("[%s] %s\n\n  📖 %s", err.Kind, err.Message, docsURL)
-		}
-
-		// Create and format CompilerError
-		compilerErr := console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   err.Filepath,
-				Line:   err.Line,
-				Column: err.Column,
-			},
-			Type:    errorType,
-			Message: message,
-			Context: context,
-		}
-
-		fmt.Fprint(os.Stderr, console.FormatError(compilerErr))
+		fmt.Fprint(os.Stderr, console.FormatError(buildActionlintCompilerError(err)))
 	}
 
 	return totalErrors, errorsByKind, nil
+}
+
+func buildActionlintCompilerError(err actionlintError) console.CompilerError {
+	return console.CompilerError{
+		Position: console.ErrorPosition{
+			File:   err.Filepath,
+			Line:   err.Line,
+			Column: err.Column,
+		},
+		Type:    actionlintErrorType(err.Kind),
+		Message: actionlintErrorMessage(err),
+		Context: actionlintErrorContext(err.Snippet),
+	}
+}
+
+func actionlintErrorType(kind string) string {
+	if strings.Contains(strings.ToLower(kind), "warning") {
+		return "warning"
+	}
+	return "error"
+}
+
+func actionlintErrorMessage(err actionlintError) string {
+	if err.Kind == "" {
+		return err.Message
+	}
+	return fmt.Sprintf("[%s] %s\n\n  📖 %s", err.Kind, err.Message, getActionlintDocsURL(err.Kind))
+}
+
+func actionlintErrorContext(snippet string) []string {
+	if snippet == "" {
+		return nil
+	}
+	lines := strings.Split(snippet, "\n")
+	return []string{lines[0]}
 }

@@ -381,6 +381,7 @@ const mockCore = {
                 throw new Error("Permission denied");
               });
             process.env.GH_AW_SAFE_OUTPUTS = testFile;
+            /** @type {any} */
             let thrownError = null;
             try {
               await eval(`(async () => { ${sanitizeScript}; await main(); })()`);

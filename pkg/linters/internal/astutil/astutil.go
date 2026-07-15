@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/constant"
 	"go/printer"
 	"go/token"
 	"go/types"
@@ -342,4 +343,65 @@ func QualifierShadowed(pkg *types.Package, pos token.Pos, name, importPath strin
 	// A PkgName bound to a different import path also makes the qualifier unsafe:
 	// the intended package is not accessible under this name.
 	return pkgName.Imported().Path() != importPath
+}
+
+// ConstIntValue returns the integer constant value of expr, if it is a
+// constant integer.
+func ConstIntValue(pass *analysis.Pass, expr ast.Expr) (int64, bool) {
+	tv, ok := pass.TypesInfo.Types[expr]
+	if !ok || tv.Value == nil || tv.Value.Kind() != constant.Int {
+		return 0, false
+	}
+	v, exact := constant.Int64Val(tv.Value)
+	return v, exact
+}
+
+// AsStringsMethodCall returns the *ast.CallExpr if expr is a call to the
+// named method on the "strings" package (e.g. "Index" or "Count").
+func AsStringsMethodCall(pass *analysis.Pass, expr ast.Expr, methodName string) (*ast.CallExpr, bool) {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return nil, false
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != methodName {
+		return nil, false
+	}
+	if !IsPkgSelector(pass, sel, "strings") {
+		return nil, false
+	}
+	return call, true
+}
+
+// CallQualifierText returns the source text of the package qualifier in a
+// selector call such as pkg.Method(...). For example, for strings.Index(...)
+// it returns "strings" (or the local alias when the import is aliased).
+// Returns "" if call.Fun is not a *ast.SelectorExpr.
+func CallQualifierText(fset *token.FileSet, call *ast.CallExpr) string {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return ""
+	}
+	return NodeText(fset, sel.X)
+}
+
+// BuildContainsFix builds the suggested fix rewriting a comparison to
+// strings.Contains. fixMessage is used as the SuggestedFix.Message field so
+// callers can identify the rewritten function (e.g. "Index" vs "Count").
+func BuildContainsFix(expr *ast.BinaryExpr, pkgText, sText, subText string, negated bool, fixMessage string) []analysis.SuggestedFix {
+	var replacement string
+	if negated {
+		replacement = "!" + pkgText + ".Contains(" + sText + ", " + subText + ")"
+	} else {
+		replacement = pkgText + ".Contains(" + sText + ", " + subText + ")"
+	}
+
+	return []analysis.SuggestedFix{{
+		Message: fixMessage,
+		TextEdits: []analysis.TextEdit{{
+			Pos:     expr.Pos(),
+			End:     expr.End(),
+			NewText: []byte(replacement),
+		}},
+	}}
 }

@@ -629,6 +629,7 @@ describe("update_handler_factory.cjs", () => {
   describe("authentication: github-token and cross-repo routing", () => {
     it("should use the global github client when no github-token in config", async () => {
       // Capture which github client is passed to executeUpdate
+      /** @type {any} */
       let capturedClient = null;
       const mockExecuteUpdate = vi.fn().mockImplementation(async (githubClient, context, num, data) => {
         capturedClient = githubClient;
@@ -654,6 +655,7 @@ describe("update_handler_factory.cjs", () => {
     });
 
     it("should route to target-repo when no message.repo is set", async () => {
+      /** @type {any} */
       let capturedContext = null;
       const mockExecuteUpdate = vi.fn().mockImplementation(async (githubClient, context, num, data) => {
         capturedContext = context;
@@ -679,6 +681,7 @@ describe("update_handler_factory.cjs", () => {
     });
 
     it("should route to message.repo when it matches the configured target-repo", async () => {
+      /** @type {any} */
       let capturedContext = null;
       const mockExecuteUpdate = vi.fn().mockImplementation(async (githubClient, context, num, data) => {
         capturedContext = context;
@@ -732,6 +735,7 @@ describe("update_handler_factory.cjs", () => {
     });
 
     it("should inject _workflowRepo into updateData before calling executeUpdate", async () => {
+      /** @type {any} */
       let capturedUpdateData = null;
       const mockExecuteUpdate = vi.fn().mockImplementation(async (githubClient, context, num, data) => {
         capturedUpdateData = data;
@@ -758,6 +762,7 @@ describe("update_handler_factory.cjs", () => {
     });
 
     it("should route to message.repo when target-repo is wildcard", async () => {
+      /** @type {any} */
       let capturedContext = null;
       const mockExecuteUpdate = vi.fn().mockImplementation(async (githubClient, context, num, data) => {
         capturedContext = context;

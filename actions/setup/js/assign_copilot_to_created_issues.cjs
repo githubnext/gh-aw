@@ -40,6 +40,7 @@ async function main() {
 
   const agentName = "copilot";
   const results = [];
+  /** @type {any} */
   let agentId = null;
 
   for (let i = 0; i < issueEntries.length; i++) {

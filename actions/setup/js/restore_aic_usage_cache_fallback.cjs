@@ -36,6 +36,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  */
 async function getTokenFromGithub() {
   try {
+    /** @type {any} */
     const auth = await github.auth({ type: "token" });
     return (auth && typeof auth.token === "string" && auth.token) || "";
   } catch {
@@ -80,7 +81,7 @@ function logFallback(message, details) {
  * recent runs and writes it to {@link CACHE_FILE_PATH}.
  *
  * @param {string} [cacheFilePath] Override for the target cache file path (used in tests).
- * @param {{ createArtifactClient?: () => import("./artifact_client.cjs").DefaultArtifactClient, cacheHit?: string, cacheMatchedKey?: string }} [options]
+ * @param {{ createArtifactClient?: () => any, cacheHit?: string, cacheMatchedKey?: string }} [options]
  *   Optional overrides for testing (e.g. inject a mock artifact client factory, override env var values).
  * @returns {Promise<void>}
  */

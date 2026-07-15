@@ -16,20 +16,29 @@ const (
 	LLMProviderOpenAI    = "openai"
 )
 
+var llmProviderAliases = map[string]string{
+	"copilot":        LLMProviderGitHub,
+	"github":         LLMProviderGitHub,
+	"github-copilot": LLMProviderGitHub,
+	"github_models":  LLMProviderGitHub,
+	"anthropic":      LLMProviderAnthropic,
+	"openai":         LLMProviderOpenAI,
+}
+
 type llmProviderProfile struct {
 	id          string
 	gatewayPort int
 }
 
 func normalizeLLMProvider(provider string) string {
-	switch strings.ToLower(strings.TrimSpace(provider)) {
-	case LLMProviderGitHub:
-		return LLMProviderGitHub
-	case LLMProviderOpenAI:
-		return LLMProviderOpenAI
-	default:
+	normalized := strings.ToLower(strings.TrimSpace(provider))
+	if normalized == "" {
 		return LLMProviderAnthropic
 	}
+	if alias, ok := llmProviderAliases[normalized]; ok {
+		return alias
+	}
+	return normalized
 }
 
 func resolveEngineLLMProvider(workflowData *WorkflowData, defaultProvider string) string {

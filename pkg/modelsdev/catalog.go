@@ -26,7 +26,7 @@ var catalogURL = "https://models.dev/catalog.json"
 // differing only in ".", "_", or "-" compare equal.
 var modelIDReplacer = strings.NewReplacer(".", "-", "_", "-")
 
-var log = logger.New("modelsdev:catalog")
+var pkgLog = logger.New("modelsdev:catalog")
 
 // rawCatalog mirrors the top-level models.dev catalog JSON structure.
 type rawCatalog struct {
@@ -71,19 +71,19 @@ func FindPricing(ctx context.Context, provider, model string) (map[string]float6
 	normalizedModel := strings.ToLower(trimmedModel)
 	comparableModel := NormalizeComparableModelID(normalizedModel)
 
-	log.Printf("FindPricing: looking up provider=%q model=%q", normalizedProvider, normalizedModel)
+	pkgLog.Printf("FindPricing: looking up provider=%q model=%q", normalizedProvider, normalizedModel)
 
 	// Provider-scoped exact match.
 	if normalizedProvider != "" {
 		if providerModels, ok := catalog[normalizedProvider]; ok {
 			if pricing, ok := providerModels[normalizedModel]; ok {
-				log.Printf("FindPricing: provider-scoped exact match for %q/%q", normalizedProvider, normalizedModel)
+				pkgLog.Printf("FindPricing: provider-scoped exact match for %q/%q", normalizedProvider, normalizedModel)
 				return pricing, true
 			}
 			// Comparable (dot/underscore-normalized) model ID match.
 			for mn, pricing := range providerModels {
 				if NormalizeComparableModelID(mn) == comparableModel {
-					log.Printf("FindPricing: provider-scoped comparable match %q for %q", mn, normalizedModel)
+					pkgLog.Printf("FindPricing: provider-scoped comparable match %q for %q", mn, normalizedModel)
 					return pricing, true
 				}
 			}
@@ -93,18 +93,18 @@ func FindPricing(ctx context.Context, provider, model string) (map[string]float6
 	// Cross-provider fallback (when provider is unknown or empty).
 	for _, providerModels := range catalog {
 		if pricing, ok := providerModels[normalizedModel]; ok {
-			log.Printf("FindPricing: cross-provider fallback match for model %q", normalizedModel)
+			pkgLog.Printf("FindPricing: cross-provider fallback match for model %q", normalizedModel)
 			return pricing, true
 		}
 		for mn, pricing := range providerModels {
 			if NormalizeComparableModelID(mn) == comparableModel {
-				log.Printf("FindPricing: cross-provider comparable match %q for %q", mn, normalizedModel)
+				pkgLog.Printf("FindPricing: cross-provider comparable match %q for %q", mn, normalizedModel)
 				return pricing, true
 			}
 		}
 	}
 
-	log.Printf("FindPricing: no pricing found for provider=%q model=%q", normalizedProvider, normalizedModel)
+	pkgLog.Printf("FindPricing: no pricing found for provider=%q model=%q", normalizedProvider, normalizedModel)
 	return nil, false
 }
 
@@ -115,14 +115,14 @@ func ensureCatalog(ctx context.Context) pricingCache {
 	downloaded, _ := catalogCache.Get(func() (pricingCache, error) {
 		downloaded, err := downloadAndParseCatalog(ctx)
 		if err != nil {
-			log.Printf("models.dev catalog download failed (pricing fallback unavailable): %v", err)
+			pkgLog.Printf("models.dev catalog download failed (pricing fallback unavailable): %v", err)
 			return pricingCache{}, nil
 		} else {
 			total := 0
 			for _, models := range downloaded {
 				total += len(models)
 			}
-			log.Printf("Downloaded models.dev catalog: %d providers, %d total models", len(downloaded), total)
+			pkgLog.Printf("Downloaded models.dev catalog: %d providers, %d total models", len(downloaded), total)
 		}
 		return downloaded, nil
 	})

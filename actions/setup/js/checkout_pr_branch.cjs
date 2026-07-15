@@ -69,6 +69,7 @@ function logPRContext(eventName, pullRequest) {
   // Only call detectForkPR when head/base data is present (pull_request and
   // pull_request_target payloads). For minimal PR objects (e.g. issue_comment)
   // fork status is unknown until we fetch full PR details from the API.
+  /** @type {any} */
   let isFork = null;
   if (pullRequest.head?.repo && pullRequest.base?.repo) {
     const { isFork: detected, reason: forkReason } = detectForkPR(pullRequest);

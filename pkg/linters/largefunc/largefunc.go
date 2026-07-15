@@ -14,7 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-var log = logger.New("linters:largefunc")
+var pkgLog = logger.New("linters:largefunc")
 
 // DefaultMaxLines is the default maximum number of lines allowed in a function body.
 const DefaultMaxLines = 60
@@ -37,7 +37,7 @@ func init() {
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	log.Printf("analyzing package %s (max-lines=%d)", pass.Pkg.Path(), maxLines)
+	pkgLog.Printf("analyzing package %s (max-lines=%d)", pass.Pkg.Path(), maxLines)
 
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
@@ -84,7 +84,7 @@ func run(pass *analysis.Pass) (any, error) {
 			if nolint.HasDirective(position, noLintLinesByFile) {
 				return
 			}
-			log.Printf("flagging %s: %d lines exceeds limit %d", name, lines, maxLines)
+			pkgLog.Printf("flagging %s: %d lines exceeds limit %d", name, lines, maxLines)
 			pass.ReportRangef(
 				reportNode,
 				"%s is %d lines long (limit: %d); consider breaking it up",

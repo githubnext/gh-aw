@@ -52,7 +52,7 @@ const KIND_AGENT_TOOL_DONE = "agent_tool_done";
 /**
  * Parses a JSONL string into an array of objects, skipping blank/malformed lines.
  * @param {string} content
- * @returns {object[]}
+ * @returns {any[]}
  */
 function parseJsonl(content) {
   const results = [];

@@ -238,6 +238,7 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
   `;
 
   const comments = [];
+  /** @type {any} */
   let cursor = null;
 
   while (true) {
@@ -309,9 +310,7 @@ async function hideOlderComments(github, owner, repo, itemNumber, workflowIds, i
 
   let hiddenCount = 0;
   for (const comment of comments) {
-    // TypeScript can't narrow the union type here, but we know it's safe due to isDiscussion check
-    // @ts-expect-error - comment has node_id when not a discussion
-    const nodeId = isDiscussion ? String(comment.id) : comment.node_id;
+    const nodeId = isDiscussion ? String(comment.id) : /** @type {any} */ comment.node_id;
     core.info(`Hiding comment: ${nodeId}`);
 
     await minimizeComment(github, nodeId, normalizedReason);
@@ -779,6 +778,7 @@ async function main(config = {}) {
     }
     const isStatusCommentTarget = rawTarget === "status";
     const statusCommentIdRaw = process.env.GH_AW_COMMENT_ID || "";
+    /** @type {any} */
     let commentIdToReuse = null;
     if (explicitCommentIdRaw !== undefined && explicitCommentIdRaw !== null && String(explicitCommentIdRaw).trim() !== "") {
       commentIdToReuse = Number(explicitCommentIdRaw);

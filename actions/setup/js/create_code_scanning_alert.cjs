@@ -177,6 +177,7 @@ async function main(config = {}) {
     }
 
     // Parse optional rule ID suffix
+    /** @type {any} */
     let ruleIdSuffix = null;
     if (securityItem.ruleIdSuffix !== undefined) {
       if (typeof securityItem.ruleIdSuffix !== "string") {

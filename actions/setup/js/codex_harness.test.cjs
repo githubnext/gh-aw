@@ -25,6 +25,7 @@ const {
   extractOpenAIProxyBaseURLFromToml,
   getConfiguredOpenAIPortFromReflect,
   validateCodexOpenAIBaseURLFromReflect,
+  configureCodexProviderFromReflect,
   hasNoopInSafeOutputs,
   resolveRetryConfig,
 } = require("./codex_harness.cjs");
@@ -204,6 +205,28 @@ describe("codex_harness.cjs", () => {
       expect(extractPortFromURL("http://172.30.0.30:10000")).toBe(10000);
       expect(extractPortFromURL("https://example.com")).toBeNull();
       expect(extractPortFromURL("not-a-url")).toBeNull();
+    });
+
+    describe("configureCodexProviderFromReflect", () => {
+      it("configures OPENAI_BASE_URL from reflected github/copilot endpoint", () => {
+        const tmpDir = makeHarnessTempDir("codex-provider-");
+        const configPath = path.join(tmpDir, "config.toml");
+        const reflectPath = path.join(tmpDir, "awf-reflect.json");
+        fs.writeFileSync(configPath, `[model_providers.openai-proxy]\nbase_url = "http://172.30.0.30:10000"\n`, "utf8");
+        fs.writeFileSync(reflectPath, JSON.stringify({ endpoints: [{ provider: "copilot", configured: true, port: 10002 }] }), "utf8");
+        try {
+          const result = configureCodexProviderFromReflect({
+            codexConfigPath: configPath,
+            reflectPath,
+            provider: "github",
+          });
+          expect(result.configured).toBe(true);
+          expect(result.env.OPENAI_BASE_URL).toBe("http://api-proxy:10002");
+          expect(fs.readFileSync(configPath, "utf8")).toContain(`base_url = "http://api-proxy:10002"`);
+        } finally {
+          fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+      });
     });
 
     it("extracts openai-proxy base_url from TOML", () => {

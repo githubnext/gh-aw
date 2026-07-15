@@ -39,7 +39,7 @@ function formatValue(value) {
  * Convert a plain JavaScript object to Markdown bullet points.
  * Nested objects and arrays are rendered as indented sub-lists.
  *
- * @param {object} obj - The object to render
+ * @param {any} obj - The object to render
  * @param {number} [depth=0] - Current indentation depth
  * @returns {string} - Markdown bullet list string
  */

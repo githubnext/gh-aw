@@ -46,6 +46,8 @@ const {
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  normalizeReflectProviderName,
+  resolveProviderEndpointFromReflect,
 } = require("./awf_reflect.cjs");
 const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
@@ -321,6 +323,28 @@ function stripContinueArgs(args) {
 }
 
 /**
+ * Build Claude child process env with provider endpoint overrides resolved from /reflect.
+ * @returns {Promise<NodeJS.ProcessEnv>}
+ */
+async function buildClaudeChildEnv() {
+  const childEnv = { ...process.env };
+  const provider = normalizeReflectProviderName(process.env.GH_AW_LLM_PROVIDER, "anthropic");
+  try {
+    const raw = fs.readFileSync(AWF_REFLECT_OUTPUT_PATH, "utf8");
+    const reflectData = JSON.parse(raw);
+    const resolved = resolveProviderEndpointFromReflect({ provider, reflectData, logger: log });
+    if (resolved && resolved.baseUrl) {
+      childEnv.ANTHROPIC_BASE_URL = resolved.baseUrl;
+      log(`configured ANTHROPIC_BASE_URL from /reflect for provider=${provider}: ${resolved.baseUrl}`);
+    }
+  } catch (error) {
+    const err = /** @type {Error} */ error;
+    log(`warning: unable to resolve provider endpoint from /reflect: ${err.message}`);
+  }
+  return childEnv;
+}
+
+/**
  * Main entry point: run claude with retry logic for transient API failures.
  */
 async function main() {
@@ -364,6 +388,7 @@ async function main() {
   // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
   // This is best-effort: failures are logged but do not affect the agent run.
   await fetchAWFReflect({ logger: log });
+  const childEnv = await buildClaudeChildEnv();
 
   // Pre-flight: skip the agent entirely when a noop has already been written by a prior step.
   // A noop indicates the work is complete or there is nothing to do — starting the agent
@@ -419,7 +444,7 @@ async function main() {
       }
     }
 
-    const result = await runProcess({ command, args: currentArgs, attempt, log, logArgs });
+    const result = await runProcess({ command, args: currentArgs, attempt, log, logArgs, env: childEnv });
     lastExitCode = result.exitCode;
 
     // Success — stop retrying

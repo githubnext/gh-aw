@@ -84,7 +84,8 @@ Record which mode you used (`incremental` vs `backfill`) and the chosen `start_d
 
 This downloads one directory per run to `/tmp/gh-aw/aw-mcp/logs/`. Each run directory contains:
 - `aw_info.json` — engine, workflow name, status, tokens, cost, duration
-- `safe_output.jsonl` — agent safe-output actions (type, created_at, success)
+- `safe_output.jsonl` — agent safe-output actions (type, created_at, success) — **pre-processing attempts; not authoritative for actuation count**
+- `run_summary.json` — cached CLI analysis with `run.safe_items_count` — **authoritative post-processing actuation count**
 - `agent/` — raw agent step logs
 
 **Do NOT call the CLI directly** — always use the MCP tools.
@@ -274,12 +275,6 @@ From `aw_info.json`, use:
   "conclusion": "success",
   "started_at": "2024-01-15T08:00:00Z",
   "completed_at": "2024-01-15T08:05:00Z",
-  "safe_outputs": {
-    "issues_created": 1,
-    "prs_created": 0,
-    "comments_added": 2,
-    "discussions_created": 0
-  },
   "turns": 12
 }
 ```
@@ -289,12 +284,22 @@ From `run_summary.json`, use:
 {
   "github_rate_limit_usage": {
     "core_consumed": 157
+  },
+  "run": {
+    "safe_items_count": 3
   }
 }
 ```
 
 `github_rate_limit_usage.core_consumed` is the actual GitHub REST API quota consumed by the run.
 Use it for REST API consumption metrics instead of safe-output counts.
+
+`run.safe_items_count` is the authoritative count of safe-output items that were **actually actuated**
+(written to GitHub) by the safe_outputs job. This field is populated from the `safe-outputs-items`
+artifact downloaded by the conclusion job. Use this for the `github_safe_output_calls` metric.
+Do NOT use `safe_output.jsonl` for this metric — that file contains pre-processing agent attempts
+and will overcount by including items that were filtered, rate-limited, or never executed.
+If `run_summary.json` is absent, treat `safe_items_count` as 0.
 
 Compute these metrics for the report date's UTC day:
 
@@ -305,7 +310,7 @@ Compute these metrics for the report date's UTC day:
 | `failed_runs` | total − successful |
 | `success_rate_pct` | `successful / total * 100` |
 | `github_api_calls` | sum of `github_rate_limit_usage.core_consumed` from all `run_summary.json` files |
-| `github_safe_output_calls` | sum of `issues_created + prs_created + comments_added + discussions_created` |
+| `github_safe_output_calls` | sum of `run.safe_items_count` from all `run_summary.json` files |
 | `github_api_by_workflow` | aggregate runs by workflow name: `{"workflow": name, "runs": N, "core_consumed": total, "avg_duration_s": avg}` sorted by `core_consumed` descending |
 | `avg_duration_s` | mean of `(completed_at − started_at)` in seconds |
 | `p95_duration_s` | 95th-percentile duration |
@@ -340,7 +345,7 @@ Example daily entry:
 Requirements:
 - Create parent directories as needed.
 - Use filesystem-safe timestamps for `recorded_at`: `YYYY-MM-DD-HH-MM-SS`.
-- Treat a missing `run_summary.json` or missing `github_rate_limit_usage.core_consumed` as zero API calls.
+- Treat a missing `run_summary.json`, missing `github_rate_limit_usage.core_consumed`, or missing `run.safe_items_count` as zero.
 - Skip malformed files with a brief warning rather than failing the whole task.
 - Return a concise confirmation mentioning the files written.
 

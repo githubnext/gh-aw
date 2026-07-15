@@ -226,6 +226,7 @@ describe("create_check_run", () => {
           },
         };
 
+        /** @type {any} */
         let coreErrorMessage = null;
         mockCore.error = msg => {
           coreErrorMessage = msg;

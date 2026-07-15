@@ -294,6 +294,7 @@ async function main() {
       // caller repo) will receive a 404/401/403 from the callee's Contents API.  Record this so
       // that the final error message can give actionable remediation guidance instead of
       // directing the user to re-run `gh aw compile`.
+      /** @type {any} */
       let crossRepoAuthFailure = null;
       if (!lockFileContent && workflowRepo !== currentRepo && (errorStatus === 401 || errorStatus === 403 || errorStatus === 404)) {
         crossRepoAuthFailure = { status: errorStatus, repo: workflowRepo };

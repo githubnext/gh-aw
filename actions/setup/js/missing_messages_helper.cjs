@@ -12,6 +12,7 @@ const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
  * Global storage for collected missing messages
  * @type {{missingTools: Array<any>, missingData: Array<any>, noopMessages?: Array<any>, reportIncomplete: Array<any>} | null}
  */
+/** @type {any} */
 let collectedMissings = null;
 
 /**

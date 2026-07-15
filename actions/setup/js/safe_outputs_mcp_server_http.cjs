@@ -334,6 +334,7 @@ async function startHttpServer(options = {}) {
     });
   } catch (error) {
     logStartupError(error, "safe-outputs-startup-error", { Port: port });
+    return undefined;
   }
 }
 

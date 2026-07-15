@@ -142,7 +142,7 @@ function validateNumericValue(value, varName) {
 /**
  * Validates numeric context variables using explicit core and ctx parameters.
  * @param {typeof import('@actions/core')} coreArg - GitHub Actions core library
- * @param {object} ctx - GitHub Actions context object
+ * @param {any} ctx - GitHub Actions context object
  */
 async function validateContextVariables(coreArg, ctx) {
   coreArg.info("Starting context variable validation...");
