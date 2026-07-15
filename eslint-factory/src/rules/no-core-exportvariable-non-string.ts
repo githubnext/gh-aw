@@ -2,6 +2,11 @@ import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-esl
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
+// Known @actions/core binding names (same allow-list as require-return-after-core-setfailed and
+// require-await-core-summary-write). Only exact known aliases are matched — broad prefix matching
+// (e.g. `/^core/i`) would silently flag unrelated objects that happen to start with "core".
+const CORE_ALIASES = new Set(["core", "coreObj"]);
+
 /**
  * Returns a description of the non-string value kind if the node is one of the
  * low-false-positive forms targeted by this rule, or null if the value may already
@@ -70,8 +75,8 @@ export const noCoreExportVariableNonStringRule = createRule({
         // Must be a member expression: something.exportVariable(...)
         if (callee.type !== AST_NODE_TYPES.MemberExpression) return;
 
-        // Object must be `core` (the @actions/core import convention in actions/setup/js)
-        if (callee.object.type !== AST_NODE_TYPES.Identifier || callee.object.name !== "core") return;
+        // Object must be a known @actions/core alias (`core` or `coreObj`)
+        if (callee.object.type !== AST_NODE_TYPES.Identifier || !CORE_ALIASES.has(callee.object.name)) return;
 
         // Property must be `exportVariable` (direct or computed string-literal access)
         const prop = callee.property;
