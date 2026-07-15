@@ -22,6 +22,9 @@ const (
 
 	// evalsResultsPath is the parsed JSONL results file produced by the parse step.
 	evalsResultsPath = "/tmp/gh-aw/" + constants.EvalsResultFilename
+
+	// evalsArtifactUploadStepID is the step ID used to expose upload-artifact outputs.
+	evalsArtifactUploadStepID = "upload_evals_results"
 )
 
 // buildEvalsJobSteps builds all steps that run inside the evals job.
@@ -346,6 +349,7 @@ func (c *Compiler) buildUploadEvalsArtifactStep(data *WorkflowData) []string {
 	evalsArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.EvalsArtifactName
 	return []string{
 		"      - name: Upload evals results\n",
+		fmt.Sprintf("        id: %s\n", evalsArtifactUploadStepID),
 		"        if: steps.redact_evals_results.outcome == 'success'\n",
 		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")),
 		"        with:\n",

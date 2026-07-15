@@ -32,6 +32,37 @@ const { execGitSync, getGitAuthEnv } = require("./git_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
 
 /**
+ * Adds run/artifact metadata to evals.jsonl records when available.
+ * Leaves malformed lines unchanged.
+ *
+ * @param {string} raw
+ * @param {string} runID
+ * @param {string} artifactID
+ * @returns {string}
+ */
+function enrichEvalsJSONL(raw, runID, artifactID) {
+  return raw
+    .split("\n")
+    .map(line => {
+      if (!line.trim()) {
+        return line;
+      }
+      try {
+        const record = JSON.parse(line);
+        if (!record || typeof record !== "object" || Array.isArray(record)) {
+          return line;
+        }
+        record.runid = runID;
+        record.artifactid = artifactID;
+        return JSON.stringify(record);
+      } catch {
+        return line;
+      }
+    })
+    .join("\n");
+}
+
+/**
  * Checkout or create an orphan git branch for experiment state.
  * Returns the remote HEAD SHA (empty string for a new branch).
  *
@@ -82,6 +113,8 @@ async function main() {
   const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
   const githubServerUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/$/, "");
   const serverHost = githubServerUrl.replace(/^https?:\/\//, "");
+  const stateRecordRunID = process.env.GH_AW_STATE_RECORD_RUNID || githubRunId;
+  const stateRecordArtifactID = process.env.GH_AW_STATE_RECORD_ARTIFACTID || "";
 
   if (!branchName) {
     core.setFailed("GH_AW_STATE_BRANCH (or GH_AW_EXPERIMENT_BRANCH) is not set");
@@ -137,7 +170,12 @@ async function main() {
     const src = path.join(stateDir, name);
     const dest = path.join(workspaceDir, name);
     try {
-      fs.copyFileSync(src, dest);
+      if (name === "evals.jsonl") {
+        const raw = fs.readFileSync(src, "utf8");
+        fs.writeFileSync(dest, enrichEvalsJSONL(raw, stateRecordRunID, stateRecordArtifactID));
+      } else {
+        fs.copyFileSync(src, dest);
+      }
       core.info(`Copied ${name}`);
     } catch (err) {
       core.setFailed(`Failed to copy ${name}: ${getErrorMessage(err)}`);
@@ -223,4 +261,4 @@ async function main() {
   }
 }
 
-module.exports = { main, checkoutOrCreateBranch };
+module.exports = { main, checkoutOrCreateBranch, enrichEvalsJSONL };

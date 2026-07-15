@@ -3935,6 +3935,8 @@ func TestBuildPushEvalsStateJob_WithEvals(t *testing.T) {
 	stepsYAML := strings.Join(job.Steps, "\n")
 	assert.Contains(t, stepsYAML, "evals/myworkflow", "steps should reference sanitized evals branch name")
 	assert.Contains(t, stepsYAML, "GH_AW_STATE_FILES: evals.jsonl", "steps should configure evals filename")
+	assert.Contains(t, stepsYAML, "GH_AW_STATE_RECORD_RUNID: ${{ github.run_id }}", "steps should pass the run ID for evals records")
+	assert.Contains(t, stepsYAML, "GH_AW_STATE_RECORD_ARTIFACTID: ${{ needs.evals.outputs.evals_artifact_id }}", "steps should pass the evals artifact ID for evals records")
 	assert.Contains(t, stepsYAML, "push_experiment_state.cjs", "steps should reuse push_experiment_state.cjs helper")
 }
 

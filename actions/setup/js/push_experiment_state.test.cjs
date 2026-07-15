@@ -26,7 +26,7 @@ global.exec = mockExec;
 global.context = mockContext;
 global.github = {};
 
-const { main } = await import("./push_experiment_state.cjs");
+const { main, enrichEvalsJSONL } = await import("./push_experiment_state.cjs");
 
 describe("push_experiment_state", () => {
   let tmpDir;
@@ -100,5 +100,13 @@ describe("push_experiment_state", () => {
 
     expect(mockCore.setFailed).not.toHaveBeenCalled();
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No experiment state files found"));
+  });
+
+  it("adds runid and artifactid to evals.jsonl records", () => {
+    const raw = [JSON.stringify({ id: "labels-applied", answer: "YES" }), "not-json", JSON.stringify({ id: "report-created", answer: "NO" }), ""].join("\n");
+
+    expect(enrichEvalsJSONL(raw, "123456789", "987654321")).toBe(
+      [JSON.stringify({ id: "labels-applied", answer: "YES", runid: "123456789", artifactid: "987654321" }), "not-json", JSON.stringify({ id: "report-created", answer: "NO", runid: "123456789", artifactid: "987654321" }), ""].join("\n")
+    );
   });
 });
