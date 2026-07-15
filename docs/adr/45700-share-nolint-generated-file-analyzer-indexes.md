@@ -1,7 +1,7 @@
 # ADR-45700: Share nolint and generated-file indexes across custom Go analyzers
 
 **Date**: 2026-07-15
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: Unknown (copilot-swe-agent, pelikhan)
 
 ---
@@ -36,9 +36,9 @@ A shared utility function could cache results per `*analysis.Pass` using a globa
 - The `DirectiveIndex` now stores all linter names across all `nolint:` directives in a package rather than only those for the requesting linter; this trades a wider map at index-build time for elimination of repeated scans.
 
 #### Neutral
-- `HasDirective` (the old API) is preserved for backward compatibility but is now backed by `BuildDirectiveIndex`; callers on the old API continue to work without changes.
+- `HasDirective` and `BuildLineIndex` are preserved for backward compatibility but marked deprecated in favor of shared-index APIs (`HasDirectiveForLinter` and `Index`).
 - The `nolintindex` and `generatedfileindex` analyzers set `RunDespiteErrors: true`, so analysis proceeds even when the package has type errors.
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent] and finalized in this PR.*

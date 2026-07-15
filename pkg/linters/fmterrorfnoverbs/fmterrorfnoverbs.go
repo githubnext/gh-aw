@@ -11,6 +11,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
@@ -19,7 +20,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "fmterrorfnoverbs",
 	Doc:      "reports fmt.Errorf calls whose format string contains no verbs, preferring errors.New",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/fmterrorfnoverbs",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -29,6 +30,10 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +69,9 @@ func run(pass *analysis.Pass) (any, error) {
 
 		if !hasRealFormatVerb(val) {
 			position := pass.Fset.PositionFor(call.Pos(), false)
+			if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
+				return
+			}
 			if nolint.HasDirectiveForLinter(position, noLintIndex, "fmterrorfnoverbs") {
 				return
 			}
