@@ -66,7 +66,7 @@ Test workflow content.
 		cmd.Dir = filepath.Join(tempDir, "test-ci")
 		cmd.Env = append(os.Environ(),
 			"CI=true",
-			"DEBUG=cli:update_check",
+			"DEBUG=cli:compile_update_check",
 		)
 
 		output, err := cmd.CombinedOutput()
@@ -111,7 +111,7 @@ Test workflow content.
 		cmd.Env = []string{
 			"PATH=" + os.Getenv("PATH"),
 			"HOME=" + os.Getenv("HOME"),
-			"DEBUG=cli:update_check",
+			"DEBUG=cli:compile_update_check",
 		}
 
 		output, err := cmd.CombinedOutput()
@@ -168,7 +168,7 @@ Test workflow content.
 		cmd.Env = []string{
 			"PATH=" + os.Getenv("PATH"),
 			"HOME=" + os.Getenv("HOME"),
-			"DEBUG=cli:update_check",
+			"DEBUG=cli:compile_update_check",
 			"TMPDIR=" + tempDir, // Override temp directory
 		}
 
@@ -219,7 +219,7 @@ Test workflow content.
 		cmd.Env = []string{
 			"PATH=" + os.Getenv("PATH"),
 			"HOME=" + os.Getenv("HOME"),
-			"DEBUG=cli:update_check",
+			"DEBUG=cli:compile_update_check",
 		}
 
 		output, err := cmd.CombinedOutput()
