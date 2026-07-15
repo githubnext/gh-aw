@@ -2,21 +2,24 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { createRequire } from "module";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-let exports;
+const require = createRequire(import.meta.url);
+const exports = require("./daily_aic_workflow_helpers.cjs");
 
 describe("daily_aic_workflow_helpers", () => {
   let tmpDir;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "daily-aic-helpers-test-"));
-    const mod = await import("./daily_aic_workflow_helpers.cjs");
-    exports = mod.default || mod;
   });
 
   afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+      tmpDir = undefined;
+    }
   });
 
   describe("sumAICFromUsageJSONLFiles", () => {
@@ -71,11 +74,9 @@ describe("daily_aic_workflow_helpers", () => {
 
     it("falls back to inference-cost computation from token fields when no explicit AIC", () => {
       const filePath = path.join(tmpDir, "usage.jsonl");
-      // gpt-4o has a known cost; supply enough tokens to get a non-zero AIC
       fs.writeFileSync(filePath, JSON.stringify({ model: "gpt-4o", provider: "openai", input_tokens: 1000, output_tokens: 500 }), "utf8");
       const result = exports.sumAICFromUsageJSONLFiles([filePath]);
-      expect(result).toBeGreaterThan(0);
-      expect(Number.isFinite(result)).toBe(true);
+      expect(result).toBe(0.75);
     });
 
     it("ignores malformed (non-JSON) lines", () => {
@@ -103,6 +104,12 @@ describe("daily_aic_workflow_helpers", () => {
       fs.writeFileSync(filePath, [JSON.stringify({ aiCredits: 0.2, usage: { aiCredits: "" } }), JSON.stringify({ aic: 0.3, usage: { aic: "" } })].join("\n"), "utf8");
       // usage fields are empty strings → fall through to top-level values
       expect(exports.sumAICFromUsageJSONLFiles([filePath])).toBe(0.5);
+    });
+
+    it("ignores negative explicit AIC aliases without token fallback data", () => {
+      const filePath = path.join(tmpDir, "usage.jsonl");
+      fs.writeFileSync(filePath, [JSON.stringify({ aic: -1 }), JSON.stringify({ ai_credits: -2 }), JSON.stringify({ aiCredits: -3 })].join("\n"), "utf8");
+      expect(exports.sumAICFromUsageJSONLFiles([filePath])).toBe(0);
     });
   });
 });
