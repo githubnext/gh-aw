@@ -51,9 +51,10 @@ function parseRunUrl(runUrl) {
 
   // Parse a full GitHub Actions URL
   // Pattern: https://github.com/{owner}/{repo}/actions/runs/{runId}[/job/{jobId}]
-  const match = trimmed.match(/github\.com\/([^/]+)\/([^/]+)\/actions\/runs\/(\d+)/);
-  if (match) {
-    return { runId: match[3], owner: match[1], repo: match[2] };
+  const match = trimmed.match(/github\.com\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/actions\/runs\/(?<runId>\d+)/);
+  if (match?.groups) {
+    const { owner, repo, runId } = match.groups;
+    return { runId, owner, repo };
   }
 
   throw new Error(`${ERR_VALIDATION}: Cannot parse run ID from: ${trimmed}. Expected a plain run ID (digits only) or a GitHub Actions run URL (https://github.com/{owner}/{repo}/actions/runs/{runId}).`);
@@ -72,10 +73,7 @@ async function downloadAgentArtifact(runId, destDir, repoSlug) {
 
   fs.mkdirSync(destDir, { recursive: true });
 
-  const args = ["run", "download", runId, "--name", "agent", "--dir", destDir];
-  if (repoSlug) {
-    args.push("--repo", repoSlug);
-  }
+  const args = ["run", "download", runId, "--name", "agent", "--dir", destDir, ...(repoSlug ? ["--repo", repoSlug] : [])];
 
   const exitCode = await exec.exec("gh", args);
   if (exitCode !== 0) {
