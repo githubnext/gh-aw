@@ -7,6 +7,9 @@ const { ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 const MAX_FRONTMATTER_HASH_INPUT_BYTES = 1 << 20; // 1 MiB
+const HTTP_STATUS_UNAUTHORIZED = 401;
+const HTTP_STATUS_FORBIDDEN = 403;
+const HTTP_STATUS_NOT_FOUND = 404;
 
 /**
  * Maximum depth for recursive symlink resolution when fetching remote files via the GitHub API.
@@ -548,7 +551,7 @@ async function checkRemoteSymlink(github, owner, repo, dirPath, ref, symlinkLook
       return null;
     } catch (err) {
       const status = err.status || (err.response && err.response.status);
-      if (status === 404 || status === 403 || status === 401) {
+      if (status === HTTP_STATUS_NOT_FOUND || status === HTTP_STATUS_FORBIDDEN || status === HTTP_STATUS_UNAUTHORIZED) {
         return null;
       }
       throw err;
@@ -622,9 +625,10 @@ async function resolveRemoteSymlinks(github, owner, repo, filePath, ref, symlink
       return null;
     }
 
-    // Only the first symlink is resolved per call. If the resolved path also
-    // contains a symlink, fetchFile will re-invoke resolveRemoteSymlinks via
-    // another 404 retry (bounded by MAX_SYMLINK_DEPTH).
+    // Only the first symlink is resolved per call so each retry validates the
+    // next filesystem view independently. If the resolved path also contains a
+    // symlink, fetchFile will re-invoke resolveRemoteSymlinks via another 404
+    // retry (bounded by MAX_SYMLINK_DEPTH).
     return resolvedPath;
   }
 
@@ -688,7 +692,7 @@ function createGitHubFileReader(github, owner, repo, ref) {
       // (e.g. .github/agents → ../.ai/agents), which the GitHub Contents API cannot
       // follow automatically. Mirrors the Go logic in remote_download_file.go.
       const status = error.status || (error.response && error.response.status);
-      if (status === 404) {
+      if (status === HTTP_STATUS_NOT_FOUND) {
         if (symlinkDepth >= MAX_SYMLINK_DEPTH) {
           throw new Error(`${ERR_SYSTEM}: Failed to read file ${filePath} from GitHub: symlink resolution exceeded max depth ${MAX_SYMLINK_DEPTH}`);
         }

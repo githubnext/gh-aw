@@ -633,7 +633,7 @@ name: "Test Workflow"`;
 });
 
 // ---------------------------------------------------------------------------
-// Symlink traversal regression tests for activation-hash symlink handling
+// Symlink traversal regression tests for activation-hash stale-lock false-positives
 // These tests verify that createGitHubFileReader, resolveRemoteSymlinks, and
 // computeFrontmatterHash correctly handle import paths that traverse symlinked
 // directories — the scenario that triggered the stale-lock false-positive.
@@ -711,6 +711,22 @@ describe("symlink traversal regression for activation hash symlink handling", ()
             getContent: async () => {
               const err = new Error("Forbidden");
               err.status = 403;
+              throw err;
+            },
+          },
+        },
+      };
+      const result = await checkRemoteSymlink(github, "owner", "repo", ".github/agents", "main");
+      expect(result).toBeNull();
+    });
+
+    it("should return null for unauthorized errors", async () => {
+      const github = {
+        rest: {
+          repos: {
+            getContent: async () => {
+              const err = new Error("Unauthorized");
+              err.status = 401;
               throw err;
             },
           },
