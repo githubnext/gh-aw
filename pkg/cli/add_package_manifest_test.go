@@ -443,13 +443,12 @@ files:
 		assert.Equal(t, "Repo Assist", pkg.Name)
 	})
 
-	t.Run("accepts bootstrap profile metadata", func(t *testing.T) {
+	t.Run("accepts bootstrap action metadata", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
 				return []byte(`name: Repo Assist
 bootstrap:
-  profile: control-plane
   actions:
     - type: require-owner-type
       owner: repo
@@ -482,7 +481,6 @@ bootstrap:
 		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		require.NotNil(t, pkg.Bootstrap)
-		assert.Equal(t, "control-plane", pkg.Bootstrap.Profile)
 		require.Len(t, pkg.Bootstrap.Actions, 3)
 		assert.Equal(t, "require-owner-type", pkg.Bootstrap.Actions[0].Type)
 		assert.Equal(t, "repo-variable", pkg.Bootstrap.Actions[1].Type)

@@ -141,7 +141,6 @@ func TestBuildBootstrapPlan_WithBootstrapProfileNeedsAction(t *testing.T) {
 			return &resolvedBootstrapProfile{
 				PackageID: "github/central-agentic-ops",
 				Profile: &repositoryPackageBootstrap{
-					Profile: "control-plane",
 					Actions: []repositoryPackageBootstrapAction{{Type: "repo-variable", Name: "CENTRAL_AGENTIC_OPS_MODE"}},
 				},
 			}, nil
@@ -159,7 +158,7 @@ func TestBuildBootstrapPlan_WithBootstrapProfileNeedsAction(t *testing.T) {
 	if !plan.NeedsMutation {
 		t.Fatal("expected bootstrap profile action to contribute to overall mutation state")
 	}
-	if !slices.Contains(plan.PlanLines, "- evaluate bootstrap profile control-plane from github/central-agentic-ops") {
+	if !slices.Contains(plan.PlanLines, "- evaluate bootstrap actions from github/central-agentic-ops") {
 		t.Fatalf("expected bootstrap profile evaluation line, got %#v", plan.PlanLines)
 	}
 	if !slices.Contains(plan.PlanLines, "- apply bootstrap profile actions (1 action(s))") {
@@ -197,7 +196,6 @@ func TestRunBootstrapWithRuntime_ExecutesBootstrapProfile(t *testing.T) {
 			return &resolvedBootstrapProfile{
 				PackageID: "github/central-agentic-ops",
 				Profile: &repositoryPackageBootstrap{
-					Profile: "control-plane",
 					Actions: []repositoryPackageBootstrapAction{{Type: "handoff", Message: "Run readiness"}},
 				},
 			}, nil
@@ -263,7 +261,7 @@ func TestResolveBootstrapProfileFromSources(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
-				return []byte("name: Control Plane\nbootstrap:\n  profile: control-plane\n  actions:\n    - type: handoff\n      message: Run readiness\n"), nil
+				return []byte("name: Control Plane\nbootstrap:\n  actions:\n    - type: handoff\n      message: Run readiness\n"), nil
 			case "README.md":
 				return []byte("# Control Plane\n"), nil
 			default:
@@ -281,15 +279,15 @@ func TestResolveBootstrapProfileFromSources(t *testing.T) {
 		if profile.PackageID != "github/central-agentic-ops" {
 			t.Fatalf("unexpected package id: %s", profile.PackageID)
 		}
-		if profile.Profile.Profile != "control-plane" {
-			t.Fatalf("unexpected profile name: %s", profile.Profile.Profile)
+		if len(profile.Profile.Actions) != 1 {
+			t.Fatalf("unexpected action count: %d", len(profile.Profile.Actions))
 		}
 	})
 
 	t.Run("returns local package bootstrap profile", func(t *testing.T) {
 		packageDir := t.TempDir()
 		manifestPath := filepath.Join(packageDir, "aw.yml")
-		manifest := []byte("name: Control Plane\nbootstrap:\n  profile: control-plane\n  actions:\n    - type: handoff\n      message: Run readiness\n")
+		manifest := []byte("name: Control Plane\nbootstrap:\n  actions:\n    - type: handoff\n      message: Run readiness\n")
 		if err := os.WriteFile(manifestPath, manifest, 0o644); err != nil {
 			t.Fatalf("write manifest: %v", err)
 		}
@@ -307,8 +305,8 @@ func TestResolveBootstrapProfileFromSources(t *testing.T) {
 		if profile.PackageID != filepath.Clean(packageDir) {
 			t.Fatalf("unexpected package id: %s", profile.PackageID)
 		}
-		if profile.Profile.Profile != "control-plane" {
-			t.Fatalf("unexpected profile name: %s", profile.Profile.Profile)
+		if len(profile.Profile.Actions) != 1 {
+			t.Fatalf("unexpected action count: %d", len(profile.Profile.Actions))
 		}
 	})
 
@@ -316,9 +314,9 @@ func TestResolveBootstrapProfileFromSources(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
-				return []byte("name: Root\nbootstrap:\n  profile: first\n  actions:\n    - type: handoff\n      message: one\n"), nil
+				return []byte("name: Root\nbootstrap:\n  actions:\n    - type: handoff\n      message: one\n"), nil
 			case "readiness/aw.yml":
-				return []byte("name: Readiness\nbootstrap:\n  profile: second\n  actions:\n    - type: handoff\n      message: two\n"), nil
+				return []byte("name: Readiness\nbootstrap:\n  actions:\n    - type: handoff\n      message: two\n"), nil
 			case "README.md", "readiness/README.md":
 				return []byte("# Package\n"), nil
 			default:
@@ -358,7 +356,6 @@ func TestBuildBootstrapPlan_CreateRepoProfileDoesNotAssumeRepoExists(t *testing.
 			return &resolvedBootstrapProfile{
 				PackageID: "github/central-agentic-ops",
 				Profile: &repositoryPackageBootstrap{
-					Profile: "control-plane",
 					Actions: []repositoryPackageBootstrapAction{{Type: "repo-variable", Name: "CENTRAL_AGENTIC_OPS_MODE"}},
 				},
 			}, nil

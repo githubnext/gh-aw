@@ -44,11 +44,34 @@ const AWF_MODELS_URL_OIDC_INITIAL_DELAY_MS_DEFAULT = 5000;
 // Gemini model name prefix stripped from model IDs in the Gemini models API response.
 // Example: { name: "models/gemini-1.5-pro" } → "gemini-1.5-pro"
 const GEMINI_MODEL_NAME_PREFIX = "models/";
+const REFLECT_PROVIDER_GITHUB = "github";
+const REFLECT_PROVIDER_OPENAI = "openai";
+const REFLECT_PROVIDER_ANTHROPIC = "anthropic";
+const REFLECT_PROVIDER_ALIASES = {
+  // Only GitHub has multiple externally-visible aliases in reflect payloads.
+  github: new Set(["github", "copilot", "github-copilot", "github_models"]),
+  openai: new Set(["openai"]),
+  anthropic: new Set(["anthropic"]),
+};
 
 // Default logger used by fetchAWFReflect when no logger is provided via options.
 // All lines are prefixed with "[awf-reflect]" for easy grepping in combined logs.
 // prettier-ignore
 const DEFAULT_REFLECT_LOGGER = /** @type {(msg: string) => void} */ (msg => process.stderr.write(`[awf-reflect] ${new Date().toISOString()} ${msg}\n`));
+
+/**
+ * Normalize provider IDs used in reflect/provider resolution.
+ *
+ * @param {unknown} provider
+ * @param {string} [fallback]
+ * @returns {string}
+ */
+function normalizeReflectProviderName(provider, fallback = "") {
+  const normalized = String(provider || "")
+    .toLowerCase()
+    .trim();
+  return normalized || fallback;
+}
 
 /**
  * Extract model IDs from a provider API response body.
@@ -506,6 +529,57 @@ function endpointBaseUrl(endpoint) {
 }
 
 /**
+ * Resolve a configured provider endpoint from AWF /reflect data.
+ *
+ * @param {{
+ *   provider?: string,
+ *   reflectData: object | null | undefined,
+ *   logger?: (msg: string) => void,
+ * }} options
+ * @returns {{ provider: string, endpointProvider: string, port: number|null, baseUrl: string } | null}
+ */
+function resolveProviderEndpointFromReflect(options) {
+  const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
+  const provider = normalizeReflectProviderName(options?.provider, "openai");
+  const reflectData = options?.reflectData;
+  const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints.filter(ep => ep && ep.configured === true) : [];
+  if (endpoints.length === 0) {
+    logger(`awf-reflect: no configured endpoints available while resolving provider=${provider}`);
+    return null;
+  }
+
+  /** @param {string} endpointProvider */
+  const endpointProviderMatches = endpointProvider => {
+    // Keep aliases aligned with pkg/workflow/llm_provider.go (llmProviderAliases).
+    // If alias handling changes, update both places in the same PR.
+    const normalized = normalizeReflectProviderName(endpointProvider);
+    if (!normalized) return false;
+    if (provider === REFLECT_PROVIDER_GITHUB) {
+      return REFLECT_PROVIDER_ALIASES.github.has(normalized);
+    }
+    if (provider === REFLECT_PROVIDER_OPENAI) {
+      return REFLECT_PROVIDER_ALIASES.openai.has(normalized);
+    }
+    if (provider === REFLECT_PROVIDER_ANTHROPIC) {
+      return REFLECT_PROVIDER_ALIASES.anthropic.has(normalized);
+    }
+    return normalized === provider;
+  };
+
+  const matched = endpoints.find(ep => endpointProviderMatches(ep?.provider)) || endpoints[0];
+  const baseUrl = endpointBaseUrl(matched);
+  if (!baseUrl) {
+    logger(`awf-reflect: matched provider=${provider} but could not derive baseUrl`);
+    return null;
+  }
+  const endpointProvider = String(matched.provider || "unknown");
+  const parsedPort = matched.port == null ? null : Number(matched.port);
+  const port = Number.isFinite(parsedPort) ? parsedPort : null;
+  logger(`awf-reflect: provider=${provider} mapped to endpoint provider=${endpointProvider} baseUrl=${baseUrl}`);
+  return { provider, endpointProvider, port, baseUrl };
+}
+
+/**
  * Resolve multi-provider BYOK configuration from AWF /reflect data.
  *
  * Returns `null` when no configured endpoints are present or the data is
@@ -650,6 +724,8 @@ if (typeof module !== "undefined" && module.exports) {
     getCatalogModelEntry,
     inferProviderTypeForModel,
     inferWireApiForModel,
+    normalizeReflectProviderName,
+    resolveProviderEndpointFromReflect,
     resolveMultiProviderFromReflect,
   };
 }

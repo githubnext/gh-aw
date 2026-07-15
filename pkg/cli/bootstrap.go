@@ -542,7 +542,7 @@ func buildBootstrapPlanLines(plan *bootstrapPlan, opts BootstrapOptions) []strin
 	}
 
 	if plan.BootstrapProfile != nil {
-		lines = append(lines, fmt.Sprintf("- evaluate bootstrap profile %s from %s", plan.BootstrapProfile.Profile.Profile, plan.BootstrapProfile.PackageID))
+		lines = append(lines, fmt.Sprintf("- evaluate bootstrap actions from %s", plan.BootstrapProfile.PackageID))
 		if plan.ProfileNeedsAction {
 			lines = append(lines, fmt.Sprintf("- apply bootstrap profile actions (%d action(s))", len(plan.BootstrapProfile.Profile.Actions)))
 		} else {

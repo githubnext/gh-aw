@@ -21,6 +21,7 @@ const {
   getCatalogModelEntry,
   inferProviderTypeForModel,
   inferWireApiForModel,
+  resolveProviderEndpointFromReflect,
   resolveMultiProviderFromReflect,
 } = require("./awf_reflect.cjs");
 
@@ -86,6 +87,43 @@ describe("awf_reflect.cjs", () => {
   describe("enrichReflectModels", () => {
     afterEach(() => {
       vi.unstubAllGlobals();
+    });
+
+    describe("resolveProviderEndpointFromReflect", () => {
+      it("maps github provider to copilot endpoint", () => {
+        const resolved = resolveProviderEndpointFromReflect({
+          provider: "github",
+          reflectData: {
+            endpoints: [
+              { provider: "openai", configured: true, port: 10000 },
+              { provider: "copilot", configured: true, port: 10002, models_url: "http://api-proxy:10002/models" },
+            ],
+          },
+          logger: () => {},
+        });
+        expect(resolved).toEqual({
+          provider: "github",
+          endpointProvider: "copilot",
+          port: 10002,
+          baseUrl: "http://api-proxy:10002",
+        });
+      });
+
+      it("falls back to first configured endpoint when provider is not found", () => {
+        const resolved = resolveProviderEndpointFromReflect({
+          provider: "unknown-provider",
+          reflectData: {
+            endpoints: [{ provider: "openai", configured: true, port: 10000 }],
+          },
+          logger: () => {},
+        });
+        expect(resolved).toEqual({
+          provider: "unknown-provider",
+          endpointProvider: "openai",
+          port: 10000,
+          baseUrl: "http://api-proxy:10000",
+        });
+      });
     });
 
     it("does nothing when all configured endpoints already have models", async () => {

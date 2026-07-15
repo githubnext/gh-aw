@@ -11,7 +11,6 @@ import (
 )
 
 type repositoryPackageBootstrap struct {
-	Profile string
 	Actions []repositoryPackageBootstrapAction
 }
 
@@ -182,11 +181,6 @@ func extractManifestBootstrap(value any, manifestPath string) (*repositoryPackag
 		return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap must be a mapping", manifestPath)
 	}
 
-	profile, ok := stringValue(root["profile"])
-	if !ok || strings.TrimSpace(profile) == "" {
-		return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.profile must be a non-empty string", manifestPath)
-	}
-
 	actionsValue, ok := root["actions"]
 	if !ok {
 		return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions is required", manifestPath)
@@ -200,7 +194,7 @@ func extractManifestBootstrap(value any, manifestPath string) (*repositoryPackag
 		return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions must not be empty", manifestPath)
 	}
 
-	bootstrap := &repositoryPackageBootstrap{Profile: strings.TrimSpace(profile)}
+	bootstrap := &repositoryPackageBootstrap{}
 	for index, item := range actionItems {
 		actionMap, ok := item.(map[string]any)
 		if !ok {
