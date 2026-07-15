@@ -687,8 +687,8 @@ func waitForBootstrapGitHubAppInstallation(ctx context.Context, repo string, cre
 	if createdApp == nil || createdApp.InstallURL == "" || createdApp.Slug == "" {
 		return nil
 	}
-	deadline := time.NewTimer(bootstrapProfileManifestTimeout)
-	defer deadline.Stop()
+	deadlineTimer := time.NewTimer(bootstrapProfileManifestTimeout)
+	defer deadlineTimer.Stop()
 	pollTicker := time.NewTicker(bootstrapProfileInstallPollDelay)
 	defer pollTicker.Stop()
 	var lastErr error
@@ -707,7 +707,7 @@ func waitForBootstrapGitHubAppInstallation(ctx context.Context, repo string, cre
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-deadline.C:
+		case <-deadlineTimer.C:
 			if lastErr != nil {
 				return fmt.Errorf("timed out waiting for the GitHub App installation to complete for %s: %w", repo, lastErr)
 			}
@@ -989,11 +989,21 @@ func printBootstrapGitHubAppManifestReview(owner string, manifest map[string]any
 		permissionNames = append(permissionNames, name)
 	}
 	sort.Strings(permissionNames)
-	name, _ := manifest["name"].(string)
-	homepage, _ := manifest["url"].(string)
-	redirectURL, _ := manifest["redirect_url"].(string)
-	description, _ := manifest["description"].(string)
-	lines := []string{"GitHub App manifest for " + owner + ":", "- name: " + name, "- homepage: " + homepage, "- redirect URL: " + redirectURL, "- description: " + description, "- permissions:"}
+	manifestField := func(key string) string {
+		value, ok := manifest[key].(string)
+		if !ok || strings.TrimSpace(value) == "" {
+			return "<unavailable>"
+		}
+		return value
+	}
+	lines := []string{
+		"GitHub App manifest for " + owner + ":",
+		"- name: " + manifestField("name"),
+		"- homepage: " + manifestField("url"),
+		"- redirect URL: " + manifestField("redirect_url"),
+		"- description: " + manifestField("description"),
+		"- permissions:",
+	}
 	for _, permissionName := range permissionNames {
 		lines = append(lines, fmt.Sprintf("  - %s: %s", permissionName, permissions[permissionName]))
 	}
