@@ -119,6 +119,31 @@ func TestDoctorCommandRunsRepositoryCheckWhenRepoProvided(t *testing.T) {
 	assert.True(t, got.Verbose)
 }
 
+func TestDoctorCommandUsesDefaultRequireOwnerTypeWhenOmitted(t *testing.T) {
+	origAuth := runDoctorSetupAuth
+	origRepo := runDoctorSetupRepositoryCheck
+	t.Cleanup(func() {
+		runDoctorSetupAuth = origAuth
+		runDoctorSetupRepositoryCheck = origRepo
+	})
+
+	var got SetupRepositoryCheckOptions
+	runDoctorSetupAuth = func(opts SetupAuthOptions) error {
+		return errors.New("unexpected auth-only check")
+	}
+	runDoctorSetupRepositoryCheck = func(opts SetupRepositoryCheckOptions) error {
+		got = opts
+		return nil
+	}
+
+	root := &cobra.Command{Use: "aw"}
+	root.AddCommand(NewDoctorCommand())
+	root.SetArgs([]string{"doctor", "--repo", "github/gh-aw"})
+
+	require.NoError(t, root.Execute())
+	assert.Equal(t, "any", got.RequireOwnerType)
+}
+
 func TestDoctorCommandRejectsRepoOnlyFlagsWithoutRepo(t *testing.T) {
 	tests := []struct {
 		name string
