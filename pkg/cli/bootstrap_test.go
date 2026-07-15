@@ -64,7 +64,7 @@ func TestNewBootstrapCommand_RequiresRepoFlagOnExecute(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected missing --repo error")
 	}
-	if err.Error() != "--repo is required\n\nRun 'bootstrap --help' for usage information" {
+	if err.Error() != "--repo is required. Example: bootstrap --repo github/gh-aw\n\nRun 'bootstrap --help' for usage information" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -553,7 +553,7 @@ func TestRunBootstrapWithRuntime_RequiresYesInCIWhenMutationPending(t *testing.T
 	if err == nil {
 		t.Fatal("expected CI confirmation error")
 	}
-	if err.Error() != "--yes is required in CI when bootstrap would make changes" {
+	if err.Error() != "--yes is required in CI when bootstrap would make changes. Example: gh aw bootstrap --repo OWNER/REPO --yes" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if confirmCalls != 0 {

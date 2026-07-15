@@ -126,7 +126,7 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 
 	if !opts.Yes {
 		if IsRunningInCI() {
-			return errors.New("--yes is required in CI when bootstrap would make changes")
+			return errors.New("--yes is required in CI when bootstrap would make changes. Example: gh aw bootstrap --repo OWNER/REPO --yes")
 		}
 		confirmed, err := runtime.confirmAction(
 			fmt.Sprintf("Apply bootstrap changes to %s?", plan.Repo),
@@ -273,19 +273,19 @@ func normalizeBootstrapRuntime(runtime bootstrapRuntime) bootstrapRuntime {
 
 func validateBootstrapOptions(opts BootstrapOptions) error {
 	if !isValidOwnerRepoSlug(opts.Repo) {
-		return errors.New("--repo must use the OWNER/REPO format")
+		return errors.New("--repo must use the OWNER/REPO format. Example: --repo github/gh-aw")
 	}
 
 	switch opts.Visibility {
 	case "private", "public", "internal":
 	default:
-		return errors.New("--visibility must be one of: private, public, internal")
+		return errors.New("--visibility must be one of: private, public, internal. Example: --visibility private")
 	}
 
 	switch opts.RequireOwnerType {
 	case "any", "org", "user":
 	default:
-		return errors.New("--require-owner-type must be one of: any, org, user")
+		return errors.New("--require-owner-type must be one of: any, org, user. Example: --require-owner-type org")
 	}
 
 	return nil

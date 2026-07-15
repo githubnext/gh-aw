@@ -207,7 +207,7 @@ func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConf
 		case "handoff":
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(action.Message))
 		default:
-			return fmt.Errorf("unsupported bootstrap action type %q", action.Type)
+			return fmt.Errorf("unsupported bootstrap action type %q. Example: use one of require-owner-type, repo-variable, repo-secret, github-app, copilot-auth, or handoff", action.Type)
 		}
 	}
 
@@ -257,7 +257,7 @@ func bootstrapActionNeedsMutation(ctx context.Context, repo string, action repos
 	case "handoff":
 		return false, nil
 	default:
-		return false, fmt.Errorf("unsupported bootstrap action type %q", action.Type)
+		return false, fmt.Errorf("unsupported bootstrap action type %q. Example: use one of require-owner-type, repo-variable, repo-secret, github-app, copilot-auth, or handoff", action.Type)
 	}
 }
 
@@ -305,7 +305,7 @@ func runBootstrapRequireOwnerType(ctx context.Context, repo string, action repos
 	}
 	normalized := normalizeSetupOwnerType(ownerType)
 	if action.Value != "" && action.Value != "any" && normalized != action.Value {
-		return fmt.Errorf("owner %s is %s, but bootstrap profile requires %s", owner, normalized, action.Value)
+		return fmt.Errorf("owner %s is %s, but bootstrap profile requires %s. Example: set bootstrap.actions[].value to %s or use a repository owned by a matching account type", owner, normalized, action.Value, normalized)
 	}
 	return nil
 }
@@ -438,7 +438,7 @@ func runBootstrapGitHubAppAction(ctx context.Context, repo string, action reposi
 	}
 
 	if !bootstrapIsInteractive() && overrides.Mode != "create" {
-		return nil, fmt.Errorf("creating a new GitHub App requires an interactive browser flow; provide existing credentials via %s and %s, or set %s=create to force browser-based creation", bootstrapGitHubAppClientIDEnv, bootstrapGitHubAppPrivateKeyEnv, bootstrapGitHubAppModeEnv)
+		return nil, fmt.Errorf("creating a new GitHub App requires an interactive browser flow; provide existing credentials via %s and %s, or set %s=create to force browser-based creation. Example: export %s=Iv23example and %s='-----BEGIN PRIVATE KEY-----...'", bootstrapGitHubAppClientIDEnv, bootstrapGitHubAppPrivateKeyEnv, bootstrapGitHubAppModeEnv, bootstrapGitHubAppClientIDEnv, bootstrapGitHubAppPrivateKeyEnv)
 	}
 	createdApp, err := bootstrapCreateGitHubApp(ctx, repo, owner, repoName, ownerType, action, overrides)
 	if err != nil {
@@ -462,7 +462,7 @@ func runBootstrapGitHubAppAction(ctx context.Context, repo string, action reposi
 
 func chooseBootstrapGitHubAppMode() (string, error) {
 	if !bootstrapIsInteractive() {
-		return "", fmt.Errorf("choose an existing GitHub App or set %s=create to allow browser-based creation in non-interactive environments", bootstrapGitHubAppModeEnv)
+		return "", fmt.Errorf("choose an existing GitHub App or set %s=create to allow browser-based creation in non-interactive environments. Example: export %s=existing", bootstrapGitHubAppModeEnv, bootstrapGitHubAppModeEnv)
 	}
 	var choice string
 	form := console.NewSelectForm(huh.NewSelect[string]().
@@ -632,7 +632,7 @@ func loadBootstrapGitHubAppOverrides() (bootstrapGitHubAppOverrides, error) {
 	case "create", "existing":
 		overrides.Mode = mode
 	default:
-		return bootstrapGitHubAppOverrides{}, fmt.Errorf("%s must be one of: auto, create, existing", bootstrapGitHubAppModeEnv)
+		return bootstrapGitHubAppOverrides{}, fmt.Errorf("%s must be one of: auto, create, existing. Example: export %s=create", bootstrapGitHubAppModeEnv, bootstrapGitHubAppModeEnv)
 	}
 
 	if raw := strings.TrimSpace(os.Getenv(bootstrapNoOpenBrowserEnv)); raw != "" {
@@ -653,7 +653,7 @@ func parseBootstrapBool(raw string) (bool, error) {
 	case "0", "false", "no", "off":
 		return false, nil
 	default:
-		return false, errors.New("expected one of: 1, true, yes, on, 0, false, no, off")
+		return false, errors.New("expected one of: 1, true, yes, on, 0, false, no, off. Example: GH_AW_BOOTSTRAP_NO_OPEN_BROWSER=true")
 	}
 }
 
@@ -803,7 +803,7 @@ func resolveBootstrapTextValue(envName, title, description, defaultValue string,
 		if optional {
 			return "", false, nil
 		}
-		return "", false, fmt.Errorf("%s is required; set environment variable %s or rerun interactively", title, envName)
+		return "", false, fmt.Errorf("%s is required; set environment variable %s or rerun interactively. Example: export %s='example-value'", title, envName, envName)
 	}
 
 	var value string
@@ -820,7 +820,7 @@ func resolveBootstrapTextValue(envName, title, description, defaultValue string,
 			return nil
 		}
 		if trimmed == "" {
-			return errors.New("value cannot be empty")
+			return errors.New("value cannot be empty. Example: enter a non-empty value such as example-value")
 		}
 		return validateBootstrapEnumValue(trimmed, allowed, optional)
 	})
@@ -845,7 +845,7 @@ func resolveBootstrapSecretValue(envName, title, description string, optional bo
 		if optional {
 			return "", false, nil
 		}
-		return "", false, fmt.Errorf("%s is required; set environment variable %s or rerun interactively", title, envName)
+		return "", false, fmt.Errorf("%s is required; set environment variable %s or rerun interactively. Example: export %s='example-secret'", title, envName, envName)
 	}
 	value, err := console.PromptSecretInput(title, description)
 	if err != nil {
@@ -868,7 +868,7 @@ func validateBootstrapEnumValue(value string, allowed []string, optional bool) e
 	if slices.Contains(allowed, value) {
 		return nil
 	}
-	return fmt.Errorf("value must be one of: %s", strings.Join(allowed, ", "))
+	return fmt.Errorf("value must be one of: %s. Example: %s", strings.Join(allowed, ", "), allowed[0])
 }
 
 func profileSourcesUseActionsTokenCopilotAuth(ctx context.Context, sources []string) (bool, error) {
