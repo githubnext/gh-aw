@@ -199,6 +199,45 @@ function loadAICUsageCache(filePath) {
 }
 
 /**
+ * Appends confirmed-zero-AIC run entries to the usage cache file so that
+ * subsequent activations can skip re-querying them via the GitHub API.
+ * Each entry is written as a JSONL line: `{ run_id, aic: 0, timestamp }`.
+ *
+ * @param {number[]} runIds  IDs of runs confirmed to have no AIC usage artifact.
+ * @param {string} [filePath]  Destination cache file (defaults to {@link AIC_USAGE_CACHE_FILE_PATH}).
+ * @returns {void}
+ */
+function appendZeroAICEntriesToCache(runIds, filePath) {
+  if (!Array.isArray(runIds) || runIds.length === 0) {
+    return;
+  }
+  const cachePath = filePath || AIC_USAGE_CACHE_FILE_PATH;
+  try {
+    const dir = path.dirname(cachePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const timestamp = new Date().toISOString();
+    const validIds = runIds.filter(id => typeof id === "number" && Number.isFinite(id) && id > 0);
+    const lines = validIds.map(id => JSON.stringify({ run_id: id, aic: 0, timestamp })).join("\n");
+    if (!lines) {
+      return;
+    }
+    fs.appendFileSync(cachePath, lines + "\n", "utf8");
+    logDailyGuardrail("Appended zero-AIC run entries to usage cache", {
+      path: cachePath,
+      count: validIds.length,
+      runIds: validIds,
+    });
+  } catch (err) {
+    logDailyGuardrail("Failed to append zero-AIC entries to usage cache", {
+      path: cachePath,
+      error: typeof err === "object" && err !== null && "message" in err ? String(err.message) : String(err),
+    });
+  }
+}
+
+/**
  * @param {string} artifactName
  * @returns {boolean}
  */
@@ -558,6 +597,8 @@ async function main() {
     let totalAIC = 0;
     /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string, aic:number}>} */
     const countedRuns = [];
+    /** @type {number[]} */
+    const confirmedZeroAICRunIds = [];
     // Track how many cache-miss API operations have been consumed inside this loop.
     // Used to trigger periodic rate-limit re-checks so concurrent activations that
     // collectively drain the shared budget are caught early (rather than relying solely
@@ -584,6 +625,7 @@ async function main() {
       }
       try {
         let runAIC;
+        let isCacheMiss = false;
         if (usageCache.has(run.id)) {
           // Cache hit: use the previously recorded AIC without downloading the artifact.
           runAIC = usageCache.get(run.id) ?? 0;
@@ -593,6 +635,7 @@ async function main() {
           });
         } else {
           // Cache miss: fetch AIC from the run's usage artifact.
+          isCacheMiss = true;
           apiCallsInLoop += ESTIMATED_API_OPERATIONS_PER_RUN;
           runAIC = await module.exports.getRunAIC(artifactClient, run.id, token, owner, repo);
         }
@@ -602,6 +645,9 @@ async function main() {
             currentAIC: totalAIC,
             threshold,
           });
+          if (isCacheMiss) {
+            confirmedZeroAICRunIds.push(run.id);
+          }
           continue;
         }
         totalAIC += runAIC;
@@ -626,6 +672,10 @@ async function main() {
 
     core.setOutput("daily_ai_credits_total_effective_tokens", String(totalAIC));
     core.setOutput("daily_ai_credits_threshold", String(threshold));
+
+    // Persist confirmed-zero-AIC run IDs to the usage cache so future activations
+    // skip re-querying these runs via the API entirely.
+    module.exports.appendZeroAICEntriesToCache(confirmedZeroAICRunIds);
 
     /** @type {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean}} */
     const summaryMeta = {
@@ -685,6 +735,7 @@ module.exports = {
   getArtifactClient,
   getRunAIC,
   loadAICUsageCache,
+  appendZeroAICEntriesToCache,
   shouldSkipDailyAICGuardrail,
   matchesGuardrailArtifactName,
   findJSONLFiles,
