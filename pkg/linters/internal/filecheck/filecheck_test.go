@@ -59,3 +59,26 @@ func TestShouldSkipFilename(t *testing.T) {
 		t.Fatalf("did not expect regular file to be skipped")
 	}
 }
+
+func TestBuildGeneratedIndexDoesNotMarkNonGeneratedWithLineDirective(t *testing.T) {
+	const regularFilename = "regular.go"
+	const adjustedFilename = "/virtual/regular_alias.go"
+
+	fset := token.NewFileSet()
+	regularFile, err := parser.ParseFile(fset, regularFilename, `//line /virtual/regular_alias.go:1
+package p
+
+func regular() {}
+`, parser.ParseComments)
+	if err != nil {
+		t.Fatalf("ParseFile(regular) error = %v", err)
+	}
+
+	idx := BuildGeneratedIndex(&analysis.Pass{Fset: fset, Files: []*ast.File{regularFile}})
+	if IsGeneratedFile(regularFilename, idx) {
+		t.Fatalf("did not expect %q to be marked generated", regularFilename)
+	}
+	if IsGeneratedFile(adjustedFilename, idx) {
+		t.Fatalf("did not expect adjusted filename %q to be marked generated", adjustedFilename)
+	}
+}

@@ -42,14 +42,15 @@ func BuildGeneratedIndex(pass *analysis.Pass) GeneratedIndex {
 			continue
 		}
 		pos := file.Pos()
+		// PositionFor(..., false) preserves the original parsed filename, while
+		// Position(...) may return a //line-adjusted logical filename.
+		// Record both so callers using either position source can match.
 		originalFilename := pass.Fset.PositionFor(pos, false).Filename
 		if originalFilename != "" {
 			generated[originalFilename] = struct{}{}
 		}
 
 		adjustedFilename := pass.Fset.Position(pos).Filename
-		// //line directives can remap positions to a different logical file path.
-		// Record both names so callers using adjusted or unadjusted positions can match.
 		if adjustedFilename != "" && adjustedFilename != originalFilename {
 			generated[adjustedFilename] = struct{}{}
 		}
