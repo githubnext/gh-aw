@@ -162,6 +162,18 @@ async function main() {
 
   fs.writeFileSync(stateFile, content, "utf8");
   core.info(`Experiment state written to ${stateFile}`);
+
+  // Also fetch experiments.jsonl if present so pick_experiment.cjs can append to it.
+  let experimentsJsonlContent = null;
+  try {
+    experimentsJsonlContent = await fetchFileFromBranch(octokit, owner, repo, branch, "experiments.jsonl");
+  } catch (/** @type {any} */ err) {
+    core.warning(`Failed to fetch experiments.jsonl from branch "${branch}": ${getErrorMessage(err)} – will start fresh`);
+  }
+  if (experimentsJsonlContent !== null) {
+    fs.writeFileSync(path.join(stateDir, "experiments.jsonl"), experimentsJsonlContent, "utf8");
+    core.info(`Experiment run records written to ${path.join(stateDir, "experiments.jsonl")}`);
+  }
 }
 
 module.exports = { main, fetchFileFromBranch, validateInputs };

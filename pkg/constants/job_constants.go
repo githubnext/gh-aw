@@ -108,6 +108,11 @@ const EvalsResultFilename = "evals.jsonl"
 // EvalsBranchPrefix is the branch prefix used for durable eval result storage.
 const EvalsBranchPrefix = "evals"
 
+// ExperimentsRunsFilename is the filename of the experiment run records JSONL file.
+// Each line is a JSON object with run_id, timestamp, and assignments for one workflow run.
+// Written by pick_experiment.cjs alongside state.json and assignments.json.
+const ExperimentsRunsFilename = "experiments.jsonl"
+
 // LegacyDetectionArtifactName is the old artifact name used before the rename.
 // Kept for backward compatibility when downloading artifacts from older workflow runs.
 const LegacyDetectionArtifactName = "threat-detection.log"

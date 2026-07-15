@@ -703,6 +703,7 @@ func (c *Compiler) buildPushExperimentsStateJob(data *WorkflowData) (*Job, error
 	pushStep.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
 	fmt.Fprintf(&pushStep, "          GH_AW_EXPERIMENT_STATE_DIR: %s\n", experimentsCacheDir)
 	fmt.Fprintf(&pushStep, "          GH_AW_EXPERIMENT_BRANCH: %s\n", branchName)
+	fmt.Fprintf(&pushStep, "          GH_AW_STATE_FILES: state.json,assignments.json,%s\n", constants.ExperimentsRunsFilename)
 	pushStep.WriteString("        with:\n")
 	pushStep.WriteString("          script: |\n")
 	pushStep.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")

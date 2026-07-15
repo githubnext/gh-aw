@@ -759,7 +759,94 @@ describe("pick_experiment", () => {
     });
   });
 
-  // ── OTEL resource attributes ──────────────────────────────────────────────
+  // ── experiments.jsonl ────────────────────────────────────────────────────
+
+  describe("experiments.jsonl", () => {
+    it("writes experiments.jsonl with run_id when experiments are assigned", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      fs.writeFileSync(stateFile, JSON.stringify({ counts: { feat: { X: 1, Y: 0 } }, runs: [] }), "utf8");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      process.env.GITHUB_RUN_ID = "99";
+
+      await main();
+
+      const jsonlFile = path.join(tmpDir, "experiments.jsonl");
+      expect(fs.existsSync(jsonlFile)).toBe(true);
+      const lines = fs
+        .readFileSync(jsonlFile, "utf8")
+        .split("\n")
+        .filter(l => l.trim());
+      expect(lines).toHaveLength(1);
+      const entry = JSON.parse(lines[0]);
+      expect(entry.run_id).toBe("99");
+      expect(entry.assignments).toEqual({ feat: "Y" });
+      expect(typeof entry.timestamp).toBe("string");
+    });
+
+    it("does not write experiments.jsonl when no experiments are assigned", async () => {
+      process.env.GH_AW_EXPERIMENT_SPEC = "{}";
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      const jsonlFile = path.join(tmpDir, "experiments.jsonl");
+      expect(fs.existsSync(jsonlFile)).toBe(false);
+    });
+
+    it("appends entries to an existing experiments.jsonl across successive runs", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      process.env.GITHUB_RUN_ID = "10";
+
+      await main();
+      vi.clearAllMocks();
+
+      process.env.GITHUB_RUN_ID = "20";
+      await main();
+
+      const jsonlFile = path.join(tmpDir, "experiments.jsonl");
+      const lines = fs
+        .readFileSync(jsonlFile, "utf8")
+        .split("\n")
+        .filter(l => l.trim());
+      expect(lines).toHaveLength(2);
+      expect(JSON.parse(lines[0]).run_id).toBe("10");
+      expect(JSON.parse(lines[1]).run_id).toBe("20");
+    });
+
+    it("prunes experiments.jsonl to last MAX_RUN_HISTORY entries", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      // Pre-populate experiments.jsonl with 512 entries.
+      const existingEntries = Array.from({ length: 512 }, (_, i) => ({
+        run_id: String(i),
+        timestamp: "2026-01-01T00:00:00.000Z",
+        assignments: { feat: "X" },
+      }));
+      const jsonlFile = path.join(tmpDir, "experiments.jsonl");
+      fs.writeFileSync(jsonlFile, existingEntries.map(r => JSON.stringify(r)).join("\n") + "\n", "utf8");
+      // Also set up state so the pick is deterministic.
+      fs.writeFileSync(stateFile, JSON.stringify({ counts: { feat: { X: 512, Y: 0 } }, runs: [] }), "utf8");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      process.env.GITHUB_RUN_ID = "9999";
+
+      await main();
+
+      const lines = fs
+        .readFileSync(jsonlFile, "utf8")
+        .split("\n")
+        .filter(l => l.trim());
+      // 512 existing + 1 new = 513, pruned to last 512.
+      expect(lines).toHaveLength(512);
+      expect(JSON.parse(lines[lines.length - 1]).run_id).toBe("9999");
+    });
+  });
 
   describe("OTEL resource attributes", () => {
     it("exports OTEL_RESOURCE_ATTRIBUTES with experiment assignments", async () => {

@@ -2133,6 +2133,7 @@ jobs:
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
           GH_AW_EXPERIMENT_BRANCH: experiments/plan
+          GH_AW_STATE_FILES: state.json,assignments.json,experiments.jsonl
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

@@ -436,7 +436,8 @@ async function main() {
     if (!state.runs) {
       state.runs = [];
     }
-    state.runs.push({ run_id: runId, timestamp, assignments: { ...assignments } });
+    const runRecord = { run_id: runId, timestamp, assignments: { ...assignments } };
+    state.runs.push(runRecord);
     // Prune run history to avoid state.json growing without bound over many runs.
     if (state.runs.length > MAX_RUN_HISTORY) {
       state.runs = state.runs.slice(-MAX_RUN_HISTORY);
@@ -451,9 +452,33 @@ async function main() {
   // OTLP telemetry can read which variant was selected without recomputing it.
   // Only written when at least one experiment was successfully assigned.
   if (Object.keys(assignments).length > 0) {
+    const runId = process.env.GITHUB_RUN_ID || "";
+    const timestamp = new Date().toISOString();
+
     const assignmentsFile = path.join(stateDir, "assignments.json");
     fs.writeFileSync(assignmentsFile, JSON.stringify(assignments, null, 2) + "\n", "utf8");
     core.info(`Experiment assignments written to ${assignmentsFile}`);
+
+    // Append a structured JSONL record so the action workflow run id is always
+    // present in durable experiment logs. Each line is a self-contained JSON
+    // object that can be correlated with GitHub Actions run metadata.
+    const experimentsJsonlFile = path.join(stateDir, "experiments.jsonl");
+    let jsonlEntries = [];
+    try {
+      const existing = fs.readFileSync(experimentsJsonlFile, "utf8");
+      jsonlEntries = existing
+        .split("\n")
+        .filter(line => line.trim())
+        .map(line => JSON.parse(line));
+    } catch {
+      // File does not exist or is unreadable – start fresh.
+    }
+    jsonlEntries.push({ run_id: runId, timestamp, assignments: { ...assignments } });
+    if (jsonlEntries.length > MAX_RUN_HISTORY) {
+      jsonlEntries = jsonlEntries.slice(-MAX_RUN_HISTORY);
+    }
+    fs.writeFileSync(experimentsJsonlFile, jsonlEntries.map(r => JSON.stringify(r)).join("\n") + "\n", "utf8");
+    core.info(`Experiment run records written to ${experimentsJsonlFile}`);
 
     // Emit OTEL resource attributes so every span in this run carries the
     // experiment assignments for filtering in Honeycomb/Grafana.
