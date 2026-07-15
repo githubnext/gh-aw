@@ -57,6 +57,26 @@ func TestRunHasEvals(t *testing.T) {
 			expected: false,
 		},
 		{
+			name: "usage/evals.jsonl (compact usage artifact)",
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				usageDir := filepath.Join(dir, constants.UsageArtifactName)
+				require.NoError(t, os.Mkdir(usageDir, 0700))
+				require.NoError(t, os.WriteFile(filepath.Join(usageDir, constants.EvalsResultFilename), []byte("{}"), 0600))
+			},
+			expected: true,
+		},
+		{
+			name: "hash-prefixed {hash}-usage/evals.jsonl (workflow_call compact usage artifact)",
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				usageDir := filepath.Join(dir, "abc123-"+constants.UsageArtifactName)
+				require.NoError(t, os.Mkdir(usageDir, 0700))
+				require.NoError(t, os.WriteFile(filepath.Join(usageDir, constants.EvalsResultFilename), []byte("{}"), 0600))
+			},
+			expected: true,
+		},
+		{
 			name:     "empty directory",
 			setup:    func(t *testing.T, dir string) {},
 			expected: false,
@@ -78,4 +98,39 @@ func TestRunHasEvals(t *testing.T) {
 			assert.Equal(t, tc.expected, runHasEvals(dir, false))
 		})
 	}
+}
+
+func TestBackfillRunTokenUsageFromFirewall(t *testing.T) {
+	t.Run("backfills run and metrics token usage from firewall summary", func(t *testing.T) {
+		metrics := LogMetrics{}
+		result := DownloadResult{}
+		tokenUsage := &TokenUsageSummary{
+			TotalInputTokens:  2000,
+			TotalOutputTokens: 1000,
+		}
+
+		backfillRunTokenUsageFromFirewall(&metrics, &result, tokenUsage)
+
+		assert.Equal(t, 3000, metrics.TokenUsage)
+		assert.Equal(t, 3000, result.Metrics.TokenUsage)
+		assert.Equal(t, 3000, result.Run.TokenUsage)
+	})
+
+	t.Run("does not overwrite non-zero event token usage", func(t *testing.T) {
+		metrics := LogMetrics{TokenUsage: 123}
+		result := DownloadResult{
+			Run:     WorkflowRun{TokenUsage: 123},
+			Metrics: LogMetrics{TokenUsage: 123},
+		}
+		tokenUsage := &TokenUsageSummary{
+			TotalInputTokens:  2000,
+			TotalOutputTokens: 1000,
+		}
+
+		backfillRunTokenUsageFromFirewall(&metrics, &result, tokenUsage)
+
+		assert.Equal(t, 123, metrics.TokenUsage)
+		assert.Equal(t, 123, result.Metrics.TokenUsage)
+		assert.Equal(t, 123, result.Run.TokenUsage)
+	})
 }

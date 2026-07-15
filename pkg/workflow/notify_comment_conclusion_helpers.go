@@ -46,7 +46,7 @@ func (c *Compiler) buildConclusionSetupSteps(data *WorkflowData) []string {
 	// Add artifact download steps once (shared by noop and conclusion steps).
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
 	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
-	steps = append(steps, buildUsageArtifactUploadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
+	steps = append(steps, buildUsageArtifactUploadSteps(artifactPrefixExprForDownstreamJob(data), data.Evals != nil && data.Evals.HasEvals(), c.getActionPin)...)
 	if hasMaxDailyAICGuardrail(data) && data.WorkflowID != "" {
 		steps = append(steps, buildDailyAICUsageCacheSteps(data, c.getActionPin)...)
 	}

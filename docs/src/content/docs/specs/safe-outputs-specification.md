@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.24.0  
+**Version**: 1.25.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-06-13  
+**Publication Date**: 2026-07-15  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -4646,6 +4646,19 @@ This section defines required behavior for unusual or boundary conditions.
 
 *Rationale*: Deterministic behavior prevents confusion.
 
+**Replay Authorization with Custom Repository Roles**
+
+*Scenario*: A user manually replays safe outputs through the Agentic Maintenance workflow in a repository that uses custom organization repository roles.
+
+*Behavior*:
+
+- Implementations MUST authorize replay only for actors whose effective standard repository role is exactly `admin` or `maintain`.
+- When GitHub reports a custom repository role name, implementations MUST resolve authorization from the inherited standard role metadata supplied by GitHub, not from the custom role name string.
+- Implementations MUST NOT infer exact authorization from the legacy `permission` bucket alone, because that bucket may collapse `maintain` to `write` and `triage` to `read`.
+- If the inherited standard role for a custom repository role cannot be resolved, the replay request MUST be rejected.
+
+*Rationale*: This preserves exact-match authorization semantics for standard roles while still permitting custom organization roles that inherit an authorized standard role.
+
 ---
 
 ## 11. Cache Memory Integrity
@@ -5230,6 +5243,12 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.25.0** (2026-07-15):
+
+- **Added**: Replay authorization requirements in Section 10.6 for Agentic Maintenance `safe_outputs` replays in repositories using custom organization repository roles.
+- **Specified**: Replay authorization MUST use exact `admin` or `maintain` standard roles and, for custom roles, the inherited standard-role metadata reported by GitHub rather than the custom role name or the collapsed legacy `permission` bucket.
+- **Updated**: Publication metadata to 1.25.0.
 
 **Version 1.24.0** (2026-06-13):
 

@@ -3,6 +3,17 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 
+const STANDARD_ROLES = new Set(["admin", "maintain", "write", "triage", "read"]);
+
+/**
+ * Normalize GitHub permission/role aliases to the canonical values used by on.roles.
+ * @param {string} role
+ * @returns {string}
+ */
+function normalizeRoleName(role) {
+  return role === "maintainer" ? "maintain" : role;
+}
+
 /**
  * Shared utility for repository permission validation
  * Used by both check_permissions.cjs and check_membership.cjs
@@ -242,27 +253,60 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
       username: actor,
     });
 
-    const permission = repoPermission.data.permission;
-    const rawRoleName = repoPermission.data.role_name;
+    /** @type {{ permission: string, role_name?: unknown, inherited_role?: unknown }} */
+    const repoPermissionData = repoPermission.data;
+    const permission = repoPermissionData.permission;
+    const rawRoleName = repoPermissionData.role_name;
     const roleName = rawRoleName == null ? "" : typeof rawRoleName === "string" ? rawRoleName : "";
-    const normalizedRoleName = roleName === "maintainer" ? "maintain" : roleName;
-    const normalizedPermission = permission === "maintainer" ? "maintain" : permission;
+    const rawInheritedRole = repoPermissionData.inherited_role;
+    const inheritedRole = rawInheritedRole == null ? "" : typeof rawInheritedRole === "string" ? rawInheritedRole : "";
+    const normalizedRoleName = normalizeRoleName(roleName);
+    const normalizedPermission = normalizeRoleName(permission);
+    const normalizedInheritedRole = normalizeRoleName(inheritedRole);
     const effectiveRole = normalizedRoleName || normalizedPermission;
     const logDetails = normalizedRoleName && normalizedRoleName !== normalizedPermission ? `${normalizedPermission} (role: ${normalizedRoleName})` : normalizedPermission;
     core.info(`Repository permission level: ${logDetails}`);
 
-    // Check if user has one of the required permission levels.
-    // Prefer role_name (API's precise repository role) when present; fall back to permission.
-    const hasPermission = requiredPermissions.some(requiredPerm => {
-      const normalizedRequired = requiredPerm === "maintainer" ? "maintain" : requiredPerm;
-      return normalizedRequired === effectiveRole;
-    });
+    // Standard GitHub repository permission levels. Custom org repository roles (e.g.
+    // "Security Champions") have a role_name that is not one of these — for those, use
+    // the inherited standard role from GitHub's custom-role metadata so the actor is not
+    // blocked simply because their custom role name is not literally listed in on.roles.
+    const isCustomRole = normalizedRoleName !== "" && !STANDARD_ROLES.has(normalizedRoleName);
+    const inheritedStandardRole = isCustomRole && STANDARD_ROLES.has(normalizedInheritedRole) ? normalizedInheritedRole : "";
+    const debugRoleName = normalizedRoleName || "<empty>";
+    const debugInheritedRole = normalizedInheritedRole || "<empty>";
+    const debugInheritedStandardRole = inheritedStandardRole || "<empty>";
+    core.debug?.(`Repository permission API fields for '${actor}': permission='${normalizedPermission}', role='${debugRoleName}', inherited='${debugInheritedRole}'`);
+    core.debug?.(`Repository permission computed roles for '${actor}': effective='${effectiveRole}', custom_role=${isCustomRole}, inherited_standard_role='${debugInheritedStandardRole}'`);
+    if (isCustomRole && inheritedStandardRole === "") {
+      core.debug?.(`Repository permission fallback unavailable for custom role '${normalizedRoleName}' because GitHub did not provide an inherited standard role`);
+    }
 
-    if (hasPermission) {
+    // Check if user has one of the required permission levels.
+    // For standard roles, use role_name (precise: maintain/triage are not collapsed to
+    // write/read). For custom org roles, only fall back to the inherited standard role
+    // from custom-role metadata; fail closed if GitHub does not provide it.
+    /** @type {{ permission: string, roleMatchType: string }|null} */
+    let permissionMatch = null;
+    for (const requiredPerm of requiredPermissions) {
+      const normalizedRequired = normalizeRoleName(requiredPerm);
+      if (normalizedRequired === effectiveRole) {
+        permissionMatch = { permission: normalizedRequired, roleMatchType: "effective-role" };
+        break;
+      }
+      if (normalizedRequired === inheritedStandardRole) {
+        permissionMatch = { permission: normalizedRequired, roleMatchType: "inherited-standard-role" };
+        break;
+      }
+    }
+
+    if (permissionMatch) {
+      core.debug?.(`Repository permission matched required role '${permissionMatch.permission}' via ${permissionMatch.roleMatchType}`);
       core.info(`✅ User has ${effectiveRole} access to repository`);
       return { authorized: true, permission: effectiveRole };
     }
 
+    core.debug?.(`Repository permission did not match required roles: ${requiredPermissions.join(", ")}`);
     core.warning(`User permission '${effectiveRole}' does not meet requirements: ${requiredPermissions.join(", ")}`);
     return { authorized: false, permission: effectiveRole };
   } catch (repoError) {

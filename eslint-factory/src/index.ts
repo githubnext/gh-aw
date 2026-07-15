@@ -13,6 +13,7 @@ import { requireFsSyncTryCatchRule } from "./rules/require-fs-sync-try-catch";
 import { requireJsonParseTryCatchRule } from "./rules/require-json-parse-try-catch";
 import { requireErrorCauseInRethrowRule } from "./rules/require-error-cause-in-rethrow";
 import { requireParseIntRadixRule } from "./rules/require-parseInt-radix";
+import { requireMkdirSyncTryCatchRule } from "./rules/require-mkdirsync-try-catch";
 import { requireReturnAfterCoreSetFailedRule } from "./rules/require-return-after-core-setfailed";
 import { requireSpawnSyncErrorCheckRule } from "./rules/require-spawnsync-error-check";
 
@@ -36,6 +37,7 @@ const plugin = {
     "require-error-cause-in-rethrow": requireErrorCauseInRethrowRule,
     "require-fs-sync-try-catch": requireFsSyncTryCatchRule,
     "require-json-parse-try-catch": requireJsonParseTryCatchRule,
+    "require-mkdirsync-try-catch": requireMkdirSyncTryCatchRule,
     "require-parseInt-radix": requireParseIntRadixRule,
     "require-return-after-core-setfailed": requireReturnAfterCoreSetFailedRule,
     "require-spawnsync-error-check": requireSpawnSyncErrorCheckRule,
