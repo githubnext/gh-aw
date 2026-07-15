@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const mockCore = {
   debug: vi.fn(),
@@ -828,14 +828,20 @@ describe("submit_pr_review multi-buffer (registry mode)", () => {
     expect(ctx2.pullRequestNumber).toBe(2);
   });
 
-  it("two calls to the same PR reuse the same buffer", async () => {
+  it("second call targeting the same PR is rejected with an error", async () => {
     const registry = createPrReviewBufferRegistry();
     const { main } = require("./submit_pr_review.cjs");
     const handler = await main({ max: 5, target: "*", _prReviewBufferRegistry: registry });
 
-    await handler({ body: "First call", event: "COMMENT", pull_request_number: 7 }, {});
-    await handler({ body: "Second call", event: "APPROVE", pull_request_number: 7 }, {});
+    const result1 = await handler({ body: "First call", event: "COMMENT", pull_request_number: 7 }, {});
+    const result2 = await handler({ body: "Second call", event: "APPROVE", pull_request_number: 7 }, {});
 
+    expect(result1.success).toBe(true);
+    // Second call to the same PR must be rejected — only one submit per PR per run is allowed
+    expect(result2.success).toBe(false);
+    expect(result2.error).toMatch(/already has a pending review submission/);
+
+    // Only one buffer entry created (PR 7)
     const entries = registry.getAllEntries();
     expect(entries).toHaveLength(1);
     expect(entries[0].prNumber).toBe(7);

@@ -83,18 +83,25 @@ async function main(config = {}) {
   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
   const runUrl = buildWorkflowRunUrl(context, context.repo);
 
+  // Build the shared footer context object used by both modes.
+  const footerCtx = {
+    workflowName,
+    runUrl,
+    workflowSource,
+    workflowSourceURL,
+    triggeringIssueNumber,
+    triggeringPRNumber,
+    triggeringDiscussionNumber,
+  };
+
   // For legacy single-buffer mode, set footer context once at init (unchanged behavior).
-  // For registry mode, footer context is applied per-PR buffer inside the message handler.
+  // For registry mode, set the registry default so that buffers created via
+  // submit_pull_request_review (without a create_pull_request_review_comment call) also
+  // receive the correct footer context when getOrCreate() initialises them.
   if (legacyBuffer) {
-    legacyBuffer.setFooterContext({
-      workflowName,
-      runUrl,
-      workflowSource,
-      workflowSourceURL,
-      triggeringIssueNumber,
-      triggeringPRNumber,
-      triggeringDiscussionNumber,
-    });
+    legacyBuffer.setFooterContext(footerCtx);
+  } else if (registry) {
+    registry.setDefaultFooterContext(footerCtx);
   }
 
   // Track how many items we've processed for max limit
