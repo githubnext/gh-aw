@@ -78,27 +78,6 @@ func BuildDirectiveIndex(pass *analysis.Pass) DirectiveIndex {
 	return noLintLinesByFile
 }
 
-// HasDirective reports whether the given source position is covered by any
-// suppression directive line in the legacy line-index shape. Both same-line and
-// previous-line directives are recognised, matching golangci-lint behaviour.
-//
-// Deprecated: use HasDirectiveForLinter instead, which operates on the shared
-// DirectiveIndex result and preserves per-linter filtering.
-func HasDirective(position token.Position, idx map[string]map[int]struct{}) bool {
-	if position.Filename == "" {
-		return false
-	}
-
-	noLintLines := idx[position.Filename]
-	if noLintLines == nil {
-		return false
-	}
-
-	_, sameLine := noLintLines[position.Line]
-	_, previousLine := noLintLines[position.Line-1]
-	return sameLine || previousLine
-}
-
 // HasDirectiveForLinter reports whether the given source position is covered by
 // a suppression directive for linterName (or "nolint:all"). Both same-line and
 // previous-line directives are recognised, matching golangci-lint behaviour.
@@ -108,34 +87,6 @@ func HasDirectiveForLinter(position token.Position, idx DirectiveIndex, linterNa
 	}
 	return hasDirectiveForLine(position.Line, idx[position.Filename], linterName) ||
 		hasDirectiveForLine(position.Line-1, idx[position.Filename], linterName)
-}
-
-// BuildLineIndex scans all comments in the analysis pass and returns a map
-// from filename → set of line numbers that carry a nolint directive for
-// linterName (e.g. "errstringmatch") or "all".
-//
-// Deprecated: use Index together with HasDirectiveForLinter so linters reuse
-// the shared analyzer result instead of rebuilding a per-linter map.
-func BuildLineIndex(pass *analysis.Pass, linterName string) map[string]map[int]struct{} {
-	noLintLinesByFile := make(map[string]map[int]struct{}, len(pass.Files))
-	directiveIndex, err := Index(pass)
-	if err != nil {
-		// Keep legacy callers working even when nolint.Analyzer is not listed in
-		// Requires by rebuilding directly from comments.
-		directiveIndex = BuildDirectiveIndex(pass)
-	}
-	for filename, lines := range directiveIndex {
-		for line, names := range lines {
-			if !hasDirectiveName(names, linterName) {
-				continue
-			}
-			if noLintLinesByFile[filename] == nil {
-				noLintLinesByFile[filename] = make(map[int]struct{})
-			}
-			noLintLinesByFile[filename][line] = struct{}{}
-		}
-	}
-	return noLintLinesByFile
 }
 
 func hasDirectiveForLine(line int, lines map[int]map[string]struct{}, linterName string) bool {

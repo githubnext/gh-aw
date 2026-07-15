@@ -62,6 +62,11 @@ features:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: audit-completed
+    question: Did the workflow complete the blog availability audit, including page access and content validation checks?
+  - id: discussion-created
+    question: Was an audit discussion created summarizing the pass or fail results and suggested remediation when needed?
 ---
 # Blog Auditor
 

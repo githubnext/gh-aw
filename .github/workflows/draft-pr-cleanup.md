@@ -42,6 +42,11 @@ safe-outputs:
     run-success: "✅ Draft PR cleanup complete! [{workflow_name}]({run_url}) has reviewed and processed stale drafts."
     run-failure: "❌ Draft PR cleanup failed! [{workflow_name}]({run_url}) {status}. Some draft PRs may not be processed."
 timeout-minutes: 20
+evals:
+  - id: stale-drafts-triaged
+    question: Did the workflow review open draft pull requests and classify stale drafts according to the warning and cleanup policy?
+  - id: warnings-or-closures-applied
+    question: Were the expected labels, comments, and closures applied to stale draft pull requests when appropriate?
 ---
 
 # Draft PR Cleanup Agent 🧹

@@ -328,6 +328,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: digest-generated
+    question: Did the workflow analyze the prefetched repository activity and generate a coherent daily news digest?
+  - id: discussion-created
+    question: Was a daily-news discussion created or updated successfully with the report output?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
