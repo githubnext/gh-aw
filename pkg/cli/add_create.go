@@ -57,7 +57,7 @@ func validateAddCreateOptions(opts addCreateOptions) error {
 func prepareAddTargetCheckout(ctx context.Context, opts addCreateOptions) (string, error) {
 	originalDir, err := os.Getwd()
 	if err != nil {
-		return "", fmt.Errorf("failed to determine current directory: %w", err)
+		return "", fmt.Errorf("failed to determine current directory before preparing the target repository checkout: %w", err)
 	}
 	return prepareAddTargetCheckoutWithRuntime(ctx, opts, defaultBootstrapRuntime(), originalDir)
 }

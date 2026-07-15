@@ -133,7 +133,9 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 			return fmt.Errorf("failed to change directory to %s: %w", checkoutDir, err)
 		}
 		defer func() {
-			_ = os.Chdir(originalDir)
+			if chdirErr := os.Chdir(originalDir); chdirErr != nil {
+				addInteractiveLog.Printf("Failed to restore working directory %s: %v", originalDir, chdirErr)
+			}
 		}()
 	}
 
