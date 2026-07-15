@@ -172,6 +172,32 @@ func TestFindTokenUsageFile(t *testing.T) {
 		assert.Equal(t, tokenFile, result, "should find file in primary path")
 	})
 
+	t.Run("finds in sandbox/firewall/audit path (AWF v0.27.7+)", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "find-token-usage")
+		auditDir := filepath.Join(tmpDir, "sandbox", "firewall", "audit", "api-proxy-logs")
+		require.NoError(t, os.MkdirAll(auditDir, 0o755))
+		tokenFile := filepath.Join(auditDir, "token-usage.jsonl")
+		require.NoError(t, os.WriteFile(tokenFile, []byte(`{"input_tokens":1}`+"\n"), 0o644))
+
+		result := findTokenUsageFile(tmpDir)
+		assert.Equal(t, tokenFile, result, "should find file in AWF audit path")
+	})
+
+	t.Run("prefers sandbox/firewall/logs over sandbox/firewall/audit when both exist", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "find-token-usage")
+		logsDir := filepath.Join(tmpDir, "sandbox", "firewall", "logs", "api-proxy-logs")
+		auditDir := filepath.Join(tmpDir, "sandbox", "firewall", "audit", "api-proxy-logs")
+		require.NoError(t, os.MkdirAll(logsDir, 0o755))
+		require.NoError(t, os.MkdirAll(auditDir, 0o755))
+		logsFile := filepath.Join(logsDir, "token-usage.jsonl")
+		auditFile := filepath.Join(auditDir, "token-usage.jsonl")
+		require.NoError(t, os.WriteFile(logsFile, []byte(`{"input_tokens":1}`+"\n"), 0o644))
+		require.NoError(t, os.WriteFile(auditFile, []byte(`{"input_tokens":2}`+"\n"), 0o644))
+
+		result := findTokenUsageFile(tmpDir)
+		assert.Equal(t, logsFile, result, "should prefer primary logs path over AWF audit path")
+	})
+
 	t.Run("finds in firewall-audit-logs directory", func(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "find-token-usage")
 		logsDir := filepath.Join(tmpDir, "firewall-audit-logs", "api-proxy-logs")

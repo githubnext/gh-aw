@@ -443,6 +443,52 @@ files:
 		assert.Equal(t, "Repo Assist", pkg.Name)
 	})
 
+	t.Run("accepts bootstrap action metadata", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+			switch path {
+			case "aw.yml":
+				return []byte(`name: Repo Assist
+bootstrap:
+  actions:
+    - type: require-owner-type
+      owner: repo
+      value: org
+    - type: repo-variable
+      name: CENTRAL_AGENTIC_OPS_MODE
+      prompt: Rollout mode
+      default: preview
+      enum: [preview, review, live]
+    - type: handoff
+      message: Run gh aw run readiness.
+`), nil
+			case "README.md":
+				return []byte("# Repo Assist\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(path)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
+			switch workflowPath {
+			case "workflows":
+				return []string{"workflows/review.md"}, nil
+			case ".github/workflows":
+				return nil, createRepositoryPackageNotFoundError(workflowPath)
+			default:
+				return nil, fmt.Errorf("unexpected workflow path %s", workflowPath)
+			}
+		}
+
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.NoError(t, err)
+		require.NotNil(t, pkg.Bootstrap)
+		require.Len(t, pkg.Bootstrap.Actions, 3)
+		assert.Equal(t, "require-owner-type", pkg.Bootstrap.Actions[0].Type)
+		assert.Equal(t, "repo-variable", pkg.Bootstrap.Actions[1].Type)
+		assert.Equal(t, []string{"preview", "review", "live"}, pkg.Bootstrap.Actions[1].Enum)
+		assert.Equal(t, "handoff", pkg.Bootstrap.Actions[2].Type)
+		assert.Contains(t, pkg.Warnings, "Using experimental feature: manifest.bootstrap")
+	})
+
 	t.Run("rejects unsupported branding icon", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {

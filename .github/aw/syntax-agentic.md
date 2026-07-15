@@ -270,12 +270,12 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - `setup-steps`/`pre-steps` also apply to built-in jobs (e.g. `activation`): use `setup-steps` for OIDC/secret bootstrap that must run before framework token minting, then verify the result in `pre-steps`.
 
 - **`engine:`** - AI processor configuration
-  - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, `"gemini"`, or the experimental `"antigravity"`, `"opencode"`, `"crush"`, `"pi"`
+  - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, `"gemini"`, or the experimental `"antigravity"`, `"opencode"`, `"pi"`
   - Object format for extended configuration:
 
     ```yaml
     engine:
-      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, gemini; experimental: antigravity, opencode, crush, pi)
+      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, gemini; experimental: antigravity, opencode, pi)
       version: beta                     # Optional: version of the action (has sensible default); also accepts GitHub Actions expressions: ${{ inputs.engine-version }}
       model: gpt-5                      # Optional: LLM model to use (has sensible default)
       permission-mode: acceptEdits      # Optional (claude only): auto | acceptEdits | plan | bypassPermissions. Default: acceptEdits (auto when tools.edit is false)
