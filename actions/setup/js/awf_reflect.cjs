@@ -158,15 +158,16 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
           }
           return models;
         } catch (err) {
-          const e = /** @type {any} */ err;
-          if (e.name === "AbortError") {
+          if (err instanceof Error && err.name === "AbortError") {
             return null; // already logged above
           }
+          /** @type {any} */
+          const e = err;
           const status = e?.status ?? e?.response?.status ?? null;
           if (status === 503) {
             throw e;
           }
-          logger(`awf-reflect: models fetch error for ${modelsUrl}: ${e.message}`);
+          logger(`awf-reflect: models fetch error for ${modelsUrl}: ${err instanceof Error ? err.message : String(err)}`);
           return null;
         } finally {
           clearTimeout(timer);
@@ -176,14 +177,15 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
       `awf-reflect models fetch for ${modelsUrl}`
     );
   } catch (err) {
-    const e = /** @type {any} */ err;
+    /** @type {any} */
+    const e = err;
     const original = e?.originalError || e;
     const status = original?.status ?? original?.response?.status ?? null;
     if (status === 503) {
       logger(`awf-reflect: models fetch returned 503 for ${modelsUrl}`);
       return null;
     }
-    logger(`awf-reflect: models fetch error for ${modelsUrl}: ${e.message}`);
+    logger(`awf-reflect: models fetch error for ${modelsUrl}: ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }
