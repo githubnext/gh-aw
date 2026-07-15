@@ -168,10 +168,14 @@ type ignoreIfMissingGuard struct {
 	EnvAssignments []stepEnvAssignment
 }
 
+// isGitHubExpressionIdentifierChar reports whether a byte can appear in a GitHub
+// Actions expression identifier token (ASCII letter, digit, or underscore).
 func isGitHubExpressionIdentifierChar(ch byte) bool {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'
 }
 
+// isGitHubExpressionIdentifierStart reports whether inner[i] begins an identifier
+// token rather than landing in the middle of one.
 func isGitHubExpressionIdentifierStart(inner string, i int) bool {
 	if i >= len(inner) {
 		return false
@@ -179,6 +183,9 @@ func isGitHubExpressionIdentifierStart(inner string, i int) bool {
 	return isGitHubExpressionIdentifierChar(inner[i]) && (i == 0 || !isGitHubExpressionIdentifierChar(inner[i-1]))
 }
 
+// consumeSingleQuotedGitHubExpressionString skips over a single-quoted GitHub
+// expression string literal, honoring doubled single quotes as escapes. It returns
+// the first byte position after the closing quote, or len(inner) if unterminated.
 func consumeSingleQuotedGitHubExpressionString(inner string, start int) int {
 	i := start + 1
 	for i < len(inner) {
