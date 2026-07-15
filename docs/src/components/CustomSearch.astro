@@ -48,7 +48,7 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
 					<div style="margin: auto; text-align: center; white-space: pre-line;" dir="ltr">
 						<p>{Astro.locals.t('search.devWarning')}</p>
 						<p>
-							<a href={PRODUCTION_DOCS_URL}>Search the production docs →</a>
+							<a href={PRODUCTION_DOCS_URL} aria-label="Search the production documentation site">Search the production docs →</a>
 						</p>
 					</div>
 				) : (
