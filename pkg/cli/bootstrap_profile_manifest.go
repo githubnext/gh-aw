@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+const bootstrapActionTypeExample = "require-owner-type, repo-variable, repo-secret, github-app, copilot-auth, or handoff"
+
 type repositoryPackageBootstrap struct {
 	Actions []repositoryPackageBootstrapAction
 }
@@ -344,7 +346,7 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].message is required when type=handoff. Example: { type: handoff, message: Continue with repository-specific setup. }", manifestPath, index)
 		}
 	default:
-		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].type %q is not supported. Example: use one of require-owner-type, repo-variable, repo-secret, github-app, copilot-auth, or handoff", manifestPath, index, actionType)
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].type %q is not supported. Example: use one of %s", manifestPath, index, actionType, bootstrapActionTypeExample)
 	}
 
 	return action, nil
@@ -389,5 +391,16 @@ func stringMapValue(value any) (map[string]string, error) {
 }
 
 func manifestBootstrapFieldError(manifestPath string, index int, field string, err error) error {
-	return fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].%s %s. Example: bootstrap.actions[%d].%s: [\"example\"]", manifestPath, index, field, err.Error(), index, field)
+	return fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].%s %s. Example: bootstrap.actions[%d].%s: %s", manifestPath, index, field, err.Error(), index, field, manifestBootstrapFieldExample(field))
+}
+
+func manifestBootstrapFieldExample(field string) string {
+	switch field {
+	case "enum", "events":
+		return `["issues", "pull_request"]`
+	case "permissions":
+		return `{ contents: "read", issues: "write" }`
+	default:
+		return `"example"`
+	}
 }

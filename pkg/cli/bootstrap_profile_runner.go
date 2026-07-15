@@ -207,7 +207,7 @@ func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConf
 		case "handoff":
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(action.Message))
 		default:
-			return fmt.Errorf("unsupported bootstrap action type %q. Example: use one of require-owner-type, repo-variable, repo-secret, github-app, copilot-auth, or handoff", action.Type)
+			return fmt.Errorf("unsupported bootstrap action type %q. Example: use one of %s", action.Type, bootstrapActionTypeExample)
 		}
 	}
 
@@ -257,7 +257,7 @@ func bootstrapActionNeedsMutation(ctx context.Context, repo string, action repos
 	case "handoff":
 		return false, nil
 	default:
-		return false, fmt.Errorf("unsupported bootstrap action type %q. Example: use one of require-owner-type, repo-variable, repo-secret, github-app, copilot-auth, or handoff", action.Type)
+		return false, fmt.Errorf("unsupported bootstrap action type %q. Example: use one of %s", action.Type, bootstrapActionTypeExample)
 	}
 }
 
