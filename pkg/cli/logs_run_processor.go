@@ -343,6 +343,18 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				}
 				result.TokenUsage = tokenUsage
 
+				// Backfill run-level token count from the firewall proxy summary when the
+				// event-log parser returned 0. This is common for AWF-based engines (Claude,
+				// Codex, Gemini) where token counts live in the proxy's token-usage.jsonl
+				// rather than in events.jsonl, so the raw log metrics miss them.
+				// Using input+output (not cache) keeps semantics consistent with what
+				// extractLogMetrics measures from events.jsonl.
+				if result.Run.TokenUsage == 0 && tokenUsage != nil {
+					if firewallTokens := tokenUsage.TotalInputTokens + tokenUsage.TotalOutputTokens; firewallTokens > 0 {
+						result.Run.TokenUsage = firewallTokens
+					}
+				}
+
 				// Propagate effective tokens from the firewall proxy summary when available
 				if tokenUsage != nil && tokenUsage.TotalEffectiveTokens > 0 {
 					result.Run.EffectiveTokens = tokenUsage.TotalEffectiveTokens
