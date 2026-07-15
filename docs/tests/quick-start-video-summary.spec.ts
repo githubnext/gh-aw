@@ -15,6 +15,12 @@ test.describe('Quick Start video summary', () => {
       'gh aw add-wizard githubnext/agentics/daily-repo-status'
     );
     await expect(quickStartSummary).toContainText(
+      'Choose an AI engine and set the matching repository secret when prompted.'
+    );
+    await expect(quickStartSummary).toContainText(
+      'Let the wizard add .github/workflows/daily-repo-status.md and its compiled .lock.yml'
+    );
+    await expect(quickStartSummary).toContainText(
       'check Issues for the generated daily report'
     );
   });
