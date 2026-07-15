@@ -49,7 +49,7 @@ function enrichEvalsJSONL(raw, runID, artifactID) {
       }
       try {
         const record = JSON.parse(line);
-        if (!record || typeof record !== "object" || Array.isArray(record)) {
+        if (typeof record !== "object" || record === null || Array.isArray(record)) {
           return line;
         }
         record.runid = runID;
