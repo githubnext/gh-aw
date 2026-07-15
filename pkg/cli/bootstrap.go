@@ -224,7 +224,7 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 			if err := runtime.executeProfile(ctx, bootstrapProfileRunConfig{
 				Repo:     plan.Repo,
 				RepoDir:  plan.Dir,
-				Sources:  opts.Sources,
+				Sources:  resolveDeployWorkflowSpecs(opts.Sources, originalDir),
 				Profile:  plan.BootstrapProfile,
 				Yes:      opts.Yes,
 				PlanOnly: opts.PlanOnly,
@@ -542,7 +542,7 @@ func buildBootstrapPlanLines(plan *bootstrapPlan, opts BootstrapOptions) []strin
 	}
 
 	if plan.BootstrapProfile != nil {
-		lines = append(lines, fmt.Sprintf("- evaluate bootstrap actions from %s", plan.BootstrapProfile.PackageID))
+		lines = append(lines, "- evaluate bootstrap actions from "+plan.BootstrapProfile.PackageID)
 		if plan.ProfileNeedsAction {
 			lines = append(lines, fmt.Sprintf("- apply bootstrap profile actions (%d action(s))", len(plan.BootstrapProfile.Profile.Actions)))
 		} else {

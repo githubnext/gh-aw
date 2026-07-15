@@ -172,12 +172,13 @@ func TestBuildBootstrapPlan_WithBootstrapProfileNeedsAction(t *testing.T) {
 func TestRunBootstrapWithRuntime_ExecutesBootstrapProfile(t *testing.T) {
 	repoDir := initBootstrapGitRepo(t)
 	profileCalls := 0
+	packageDir := filepath.Join(repoDir, "bootstrap-package")
 	err := runBootstrapWithRuntime(normalizeBootstrapOptions(BootstrapOptions{
 		Ctx:     context.Background(),
 		Repo:    "octo/platform-ops",
 		Dir:     repoDir,
 		Yes:     true,
-		Sources: []string{"github/central-agentic-ops"},
+		Sources: []string{"./bootstrap-package"},
 	}), bootstrapRuntime{
 		setupRepositoryRuntime: setupRepositoryRuntime{
 			checkAuth:          func(context.Context) error { return nil },
@@ -203,8 +204,11 @@ func TestRunBootstrapWithRuntime_ExecutesBootstrapProfile(t *testing.T) {
 		profileNeedsPlan: func(context.Context, string, *resolvedBootstrapProfile, []string, bool) (bool, []string, error) {
 			return true, nil, nil
 		},
-		executeProfile: func(context.Context, bootstrapProfileRunConfig) error {
+		executeProfile: func(_ context.Context, config bootstrapProfileRunConfig) error {
 			profileCalls++
+			if len(config.Sources) != 1 || config.Sources[0] != packageDir {
+				t.Fatalf("expected resolved absolute source %q, got %#v", packageDir, config.Sources)
+			}
 			return nil
 		},
 	}, repoDir)
@@ -213,6 +217,85 @@ func TestRunBootstrapWithRuntime_ExecutesBootstrapProfile(t *testing.T) {
 	}
 	if profileCalls != 1 {
 		t.Fatalf("expected bootstrap profile execution, got %d calls", profileCalls)
+	}
+}
+
+func TestBuildBootstrapPlan_CreateRepoProfileValidatesRequireOwnerType(t *testing.T) {
+	originalCheckOwnerType := bootstrapCheckOwnerType
+	t.Cleanup(func() {
+		bootstrapCheckOwnerType = originalCheckOwnerType
+	})
+	bootstrapCheckOwnerType = func(context.Context, string) (string, error) { return "Organization", nil }
+
+	tempDir := testutil.TempDir(t, "bootstrap-*")
+	checkoutDir := filepath.Join(tempDir, "platform-ops")
+
+	_, err := buildBootstrapPlan(context.Background(), normalizeBootstrapOptions(BootstrapOptions{
+		Repo:       "my-user/platform-ops",
+		Dir:        checkoutDir,
+		CreateRepo: true,
+		Sources:    []string{"github/central-agentic-ops"},
+	}), bootstrapRuntime{
+		setupRepositoryRuntime: setupRepositoryRuntime{
+			checkAuth:          func(context.Context) error { return nil },
+			repoExists:         func(context.Context, string) (bool, error) { return false, nil },
+			checkCleanWorktree: func(bool) error { return nil },
+		},
+		resolveProfile: func(context.Context, []string) (*resolvedBootstrapProfile, error) {
+			return &resolvedBootstrapProfile{
+				PackageID: "github/central-agentic-ops",
+				Profile: &repositoryPackageBootstrap{
+					Actions: []repositoryPackageBootstrapAction{{Type: "require-owner-type", Value: "user"}},
+				},
+			}, nil
+		},
+	}, tempDir)
+	if err == nil {
+		t.Fatal("expected create-repo bootstrap profile owner type mismatch")
+	}
+	if !strings.Contains(err.Error(), "bootstrap profile requires user") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestResolveBootstrapProfileFromSources_IgnoresNestedWorkflowWithoutManifest(t *testing.T) {
+	originalVersion := GetVersion()
+	originalDownload := downloadPackageFileFromGitHubForHost
+	originalDefaultBranch := getRepositoryPackageDefaultBranch
+	originalLatestRelease := getRepositoryPackageLatestRelease
+	t.Cleanup(func() {
+		SetVersionInfo(originalVersion)
+		downloadPackageFileFromGitHubForHost = originalDownload
+		getRepositoryPackageDefaultBranch = originalDefaultBranch
+		getRepositoryPackageLatestRelease = originalLatestRelease
+	})
+	SetVersionInfo("v1.2.3")
+	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+		return "main", nil
+	}
+	getRepositoryPackageLatestRelease = func(repoSlug, host string) (string, error) {
+		return "", errors.New("no releases found")
+	}
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+		return nil, createRepositoryPackageNotFoundError(path)
+	}
+
+	profile, err := resolveBootstrapProfileFromSources(context.Background(), []string{"github/central-agentic-ops/readiness/workflows/daily-status"})
+	if err != nil {
+		t.Fatalf("resolveBootstrapProfileFromSources returned error: %v", err)
+	}
+	if profile != nil {
+		t.Fatalf("expected no bootstrap profile, got %#v", profile)
+	}
+}
+
+func TestParseRepositoryPackageManifest_RejectsUnsupportedBootstrapWhen(t *testing.T) {
+	_, _, err := parseRepositoryPackageManifest("aw.yml", []byte("name: Control Plane\nbootstrap:\n  actions:\n    - type: handoff\n      message: run readiness\n      when:\n        variable: MODE\n        equals: prod\n"))
+	if err == nil {
+		t.Fatal("expected unsupported bootstrap when error")
+	}
+	if !strings.Contains(err.Error(), "bootstrap.actions[0].when is not supported yet") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

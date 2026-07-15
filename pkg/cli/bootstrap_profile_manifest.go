@@ -75,7 +75,10 @@ func resolveBootstrapProfileFromSources(ctx context.Context, sources []string) (
 
 		pkg, err := resolveRepositoryPackage(ctx, repoSpec, explicitHostForRepo(repoSpec.RepoSlug))
 		if err != nil {
-			return nil, err
+			if repoSpec.PackagePath == "" || !isRepositoryPackageManifestNotFound(err) {
+				return nil, err
+			}
+			continue
 		}
 		if pkg.Bootstrap == nil {
 			continue
@@ -277,12 +280,8 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 	} else if ok {
 		action.Events = events
 	}
-	if whenValue, exists := actionMap["when"]; exists {
-		when, err := parseManifestBootstrapCondition(whenValue, manifestPath, index)
-		if err != nil {
-			return repositoryPackageBootstrapAction{}, err
-		}
-		action.When = when
+	if _, exists := actionMap["when"]; exists {
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].when is not supported yet", manifestPath, index)
 	}
 	if permissionsValue, exists := actionMap["permissions"]; exists {
 		permissions, err := stringMapValue(permissionsValue)
@@ -351,25 +350,6 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 	return action, nil
 }
 
-func parseManifestBootstrapCondition(value any, manifestPath string, index int) (*repositoryPackageBootstrapCondition, error) {
-	root, ok := value.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].when must be a mapping", manifestPath, index)
-	}
-	variable, ok := stringValue(root["variable"])
-	if !ok || strings.TrimSpace(variable) == "" {
-		return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].when.variable must be a non-empty string", manifestPath, index)
-	}
-	equals, ok := stringValue(root["equals"])
-	if !ok {
-		return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].when.equals must be a string", manifestPath, index)
-	}
-	return &repositoryPackageBootstrapCondition{
-		Variable: strings.TrimSpace(variable),
-		Equals:   equals,
-	}, nil
-}
-
 func stringListValue(value any) ([]string, bool, error) {
 	if value == nil {
 		return nil, false, nil
@@ -379,13 +359,13 @@ func stringListValue(value any) ([]string, bool, error) {
 		if direct, ok := value.([]string); ok {
 			return direct, true, nil
 		}
-		return nil, false, fmt.Errorf("must be a list of strings")
+		return nil, false, errors.New("must be a list of strings")
 	}
 	result := make([]string, 0, len(items))
 	for _, item := range items {
 		stringItem, ok := stringValue(item)
 		if !ok {
-			return nil, false, fmt.Errorf("must be a list of strings")
+			return nil, false, errors.New("must be a list of strings")
 		}
 		result = append(result, stringItem)
 	}
@@ -395,13 +375,13 @@ func stringListValue(value any) ([]string, bool, error) {
 func stringMapValue(value any) (map[string]string, error) {
 	root, ok := value.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("must be a string map")
+		return nil, errors.New("must be a string map")
 	}
 	result := make(map[string]string, len(root))
 	for key, rawValue := range root {
 		stringValue, ok := stringValue(rawValue)
 		if !ok {
-			return nil, fmt.Errorf("must be a string map")
+			return nil, errors.New("must be a string map")
 		}
 		result[key] = stringValue
 	}

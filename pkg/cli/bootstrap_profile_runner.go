@@ -12,13 +12,16 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"charm.land/huh/v2"
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/tty"
@@ -33,7 +36,18 @@ const (
 	bootstrapGitHubAppNameEnv        = "GH_AW_BOOTSTRAP_GITHUB_APP_NAME"
 	bootstrapGitHubAppURLEnv         = "GH_AW_BOOTSTRAP_GITHUB_APP_URL"
 	bootstrapGitHubAppDescriptionEnv = "GH_AW_BOOTSTRAP_GITHUB_APP_DESCRIPTION"
+	bootstrapGitHubAppClientIDEnv    = "GH_AW_BOOTSTRAP_GITHUB_APP_CLIENT_ID"
+	bootstrapGitHubAppPrivateKeyEnv  = "GH_AW_BOOTSTRAP_GITHUB_APP_PRIVATE_KEY"
 	bootstrapNoOpenBrowserEnv        = "GH_AW_BOOTSTRAP_NO_OPEN_BROWSER"
+)
+
+var (
+	runBootstrapGHContext    = workflow.RunGHContext
+	bootstrapIsInteractive   = tty.IsStderrTerminal
+	bootstrapUpsertVariable  = upsertBootstrapRepoVariable
+	bootstrapSetSecret       = setBootstrapRepoSecret
+	bootstrapCreateGitHubApp = createBootstrapGitHubApp
+	bootstrapCheckOwnerType  = checkSetupRepositoryOwnerType
 )
 
 type bootstrapProfileRunConfig struct {
@@ -82,15 +96,11 @@ type bootstrapGitHubAppExchangeResponse struct {
 	Name     string `json:"name"`
 }
 
-type bootstrapGitHubAppInstallation struct {
+type bootstrapGitHubAppRepositoryInstallation struct {
 	ClientID string `json:"client_id"`
 	AppID    int64  `json:"app_id"`
 	AppSlug  string `json:"app_slug"`
 	ID       int64  `json:"id"`
-}
-
-type bootstrapGitHubAppInstallationsResponse struct {
-	Installations []bootstrapGitHubAppInstallation `json:"installations"`
 }
 
 func buildBootstrapProfilePlan(ctx context.Context, repo string, profile *resolvedBootstrapProfile, sources []string, repoReady bool) (bool, []string, error) {
@@ -101,6 +111,9 @@ func buildBootstrapProfilePlan(ctx context.Context, repo string, profile *resolv
 	lines := make([]string, 0, len(profile.Profile.Actions))
 	if !repoReady {
 		for _, action := range profile.Profile.Actions {
+			if err := validateBootstrapActionPreRepo(ctx, repo, action); err != nil {
+				return false, nil, err
+			}
 			if bootstrapActionCanMutate(action, sources) {
 				lines = append(lines, "- bootstrap profile will configure "+bootstrapActionPlanLabel(action))
 			}
@@ -177,11 +190,11 @@ func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConf
 				state.secrets[action.Name] = struct{}{}
 			}
 		case "github-app":
-			created, err := runBootstrapGitHubAppAction(ctx, config.Repo, action, state)
+			_, err := runBootstrapGitHubAppAction(ctx, config.Repo, action, state)
 			if err != nil {
 				return err
 			}
-			if created != nil {
+			if pending {
 				state.variables[action.AppIDVariable] = struct{}{}
 				state.secrets[action.PrivateKeySecret] = struct{}{}
 			}
@@ -239,7 +252,7 @@ func bootstrapActionNeedsMutation(ctx context.Context, repo string, action repos
 	case "github-app":
 		_, hasVar := state.variables[action.AppIDVariable]
 		_, hasSecret := state.secrets[action.PrivateKeySecret]
-		return !(hasVar && hasSecret), nil
+		return !hasVar || !hasSecret, nil
 	case "copilot-auth":
 		_, hasSecret := state.secrets[action.Secret]
 		return !hasSecret && !usesActionsToken, nil
@@ -248,6 +261,13 @@ func bootstrapActionNeedsMutation(ctx context.Context, repo string, action repos
 	default:
 		return false, fmt.Errorf("unsupported bootstrap action type %q", action.Type)
 	}
+}
+
+func validateBootstrapActionPreRepo(ctx context.Context, repo string, action repositoryPackageBootstrapAction) error {
+	if action.Type == "require-owner-type" {
+		return runBootstrapRequireOwnerType(ctx, repo, action)
+	}
+	return nil
 }
 
 func bootstrapActionCanMutate(action repositoryPackageBootstrapAction, sources []string) bool {
@@ -281,7 +301,7 @@ func runBootstrapRequireOwnerType(ctx context.Context, repo string, action repos
 	if err != nil {
 		return err
 	}
-	ownerType, err := checkSetupRepositoryOwnerType(ctx, owner)
+	ownerType, err := bootstrapCheckOwnerType(ctx, owner)
 	if err != nil {
 		return err
 	}
@@ -296,14 +316,14 @@ func runBootstrapRepoVariableAction(ctx context.Context, repo string, action rep
 	if _, exists := state.variables[action.Name]; exists {
 		return false, nil
 	}
-	value, ok, err := resolveBootstrapTextValue(action.Name, action.Prompt, action.Description, action.Default, action.Enum, action.Optional)
+	value, ok, err := resolveBootstrapTextValue(bootstrapRepositoryVariableEnvName(action.Name), action.Prompt, action.Description, action.Default, action.Enum, action.Optional)
 	if err != nil {
 		return false, err
 	}
 	if !ok {
 		return false, nil
 	}
-	if err := upsertBootstrapRepoVariable(ctx, repo, action.Name, value); err != nil {
+	if err := bootstrapUpsertVariable(ctx, repo, action.Name, value); err != nil {
 		return false, err
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Set repository variable "+action.Name))
@@ -314,14 +334,14 @@ func runBootstrapRepoSecretAction(ctx context.Context, repo string, action repos
 	if _, exists := state.secrets[action.Name]; exists {
 		return false, nil
 	}
-	value, ok, err := resolveBootstrapSecretValue(action.Name, action.Prompt, action.Description, action.Optional)
+	value, ok, err := resolveBootstrapSecretValue(bootstrapRepositorySecretEnvName(action.Name), action.Prompt, action.Description, action.Optional)
 	if err != nil {
 		return false, err
 	}
 	if !ok {
 		return false, nil
 	}
-	if err := setBootstrapRepoSecret(ctx, repo, action.Name, value); err != nil {
+	if err := bootstrapSetSecret(ctx, repo, action.Name, value); err != nil {
 		return false, err
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Set repository secret "+action.Name))
@@ -346,7 +366,7 @@ func runBootstrapCopilotAuthAction(ctx context.Context, repo string, action repo
 	if err := stringutil.ValidateCopilotPAT(value); err != nil {
 		return false, err
 	}
-	if err := setBootstrapRepoSecret(ctx, repo, action.Secret, value); err != nil {
+	if err := bootstrapSetSecret(ctx, repo, action.Secret, value); err != nil {
 		return false, err
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Set repository secret "+action.Secret))
@@ -369,36 +389,28 @@ func runBootstrapGitHubAppAction(ctx context.Context, repo string, action reposi
 	if err != nil {
 		return nil, err
 	}
-	ownerType, err := checkSetupRepositoryOwnerType(ctx, owner)
+	ownerType, err := bootstrapCheckOwnerType(ctx, owner)
 	if err != nil {
 		return nil, err
 	}
 
 	var clientID string
 	var privateKey string
-	if !hasVar {
-		clientID = strings.TrimSpace(os.Getenv(action.AppIDVariable))
-	}
-	if !hasSecret {
-		privateKey = strings.TrimRight(os.Getenv(action.PrivateKeySecret), "\r\n")
-	}
+	clientID = strings.TrimSpace(os.Getenv(bootstrapGitHubAppClientIDEnv))
+	privateKey = strings.TrimRight(os.Getenv(bootstrapGitHubAppPrivateKeyEnv), "\r\n")
 	if clientID != "" || privateKey != "" || action.Mode == "existing" || overrides.Mode == "existing" {
 		resolvedClientID, resolvedPrivateKey, err := completeExistingGitHubAppCredentials(clientID, privateKey, action, repo)
 		if err != nil {
 			return nil, err
 		}
-		if !hasVar {
-			if err := upsertBootstrapRepoVariable(ctx, repo, action.AppIDVariable, resolvedClientID); err != nil {
-				return nil, err
-			}
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Set repository variable "+action.AppIDVariable))
+		if err := bootstrapUpsertVariable(ctx, repo, action.AppIDVariable, resolvedClientID); err != nil {
+			return nil, err
 		}
-		if !hasSecret {
-			if err := setBootstrapRepoSecret(ctx, repo, action.PrivateKeySecret, resolvedPrivateKey); err != nil {
-				return nil, err
-			}
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Set repository secret "+action.PrivateKeySecret))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Set repository variable "+action.AppIDVariable))
+		if err := bootstrapSetSecret(ctx, repo, action.PrivateKeySecret, resolvedPrivateKey); err != nil {
+			return nil, err
 		}
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Set repository secret "+action.PrivateKeySecret))
 		return nil, nil
 	}
 
@@ -416,10 +428,10 @@ func runBootstrapGitHubAppAction(ctx context.Context, repo string, action reposi
 			if err != nil {
 				return nil, err
 			}
-			if err := upsertBootstrapRepoVariable(ctx, repo, action.AppIDVariable, resolvedClientID); err != nil {
+			if err := bootstrapUpsertVariable(ctx, repo, action.AppIDVariable, resolvedClientID); err != nil {
 				return nil, err
 			}
-			if err := setBootstrapRepoSecret(ctx, repo, action.PrivateKeySecret, resolvedPrivateKey); err != nil {
+			if err := bootstrapSetSecret(ctx, repo, action.PrivateKeySecret, resolvedPrivateKey); err != nil {
 				return nil, err
 			}
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured existing GitHub App credentials"))
@@ -427,24 +439,23 @@ func runBootstrapGitHubAppAction(ctx context.Context, repo string, action reposi
 		}
 	}
 
-	createdApp, err := createBootstrapGitHubApp(ctx, repo, owner, repoName, ownerType, action, overrides)
+	if !bootstrapIsInteractive() && overrides.Mode != "create" {
+		return nil, fmt.Errorf("creating a new GitHub App requires an interactive browser flow; provide existing credentials via %s and %s, or set %s=create to force browser-based creation", bootstrapGitHubAppClientIDEnv, bootstrapGitHubAppPrivateKeyEnv, bootstrapGitHubAppModeEnv)
+	}
+	createdApp, err := bootstrapCreateGitHubApp(ctx, repo, owner, repoName, ownerType, action, overrides)
 	if err != nil {
 		return nil, err
 	}
-	if !hasVar {
-		if err := upsertBootstrapRepoVariable(ctx, repo, action.AppIDVariable, createdApp.ClientID); err != nil {
-			return nil, err
-		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Set repository variable "+action.AppIDVariable))
+	if err := bootstrapUpsertVariable(ctx, repo, action.AppIDVariable, createdApp.ClientID); err != nil {
+		return nil, err
 	}
-	if !hasSecret {
-		if err := setBootstrapRepoSecret(ctx, repo, action.PrivateKeySecret, createdApp.PEM); err != nil {
-			return nil, err
-		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Set repository secret "+action.PrivateKeySecret))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Set repository variable "+action.AppIDVariable))
+	if err := bootstrapSetSecret(ctx, repo, action.PrivateKeySecret, createdApp.PEM); err != nil {
+		return nil, err
 	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Set repository secret "+action.PrivateKeySecret))
 	if createdApp.InstallURL != "" {
-		if err := waitForBootstrapGitHubAppInstallation(ctx, owner, createdApp); err != nil {
+		if err := waitForBootstrapGitHubAppInstallation(ctx, repo, createdApp); err != nil {
 			return nil, err
 		}
 	}
@@ -452,8 +463,8 @@ func runBootstrapGitHubAppAction(ctx context.Context, repo string, action reposi
 }
 
 func chooseBootstrapGitHubAppMode() (string, error) {
-	if !tty.IsStderrTerminal() {
-		return "create", nil
+	if !bootstrapIsInteractive() {
+		return "", fmt.Errorf("choose an existing GitHub App or set %s=create to allow browser-based creation in non-interactive environments", bootstrapGitHubAppModeEnv)
 	}
 	var choice string
 	form := console.NewSelectForm(huh.NewSelect[string]().
@@ -478,13 +489,13 @@ func completeExistingGitHubAppCredentials(existingClientID string, existingPriva
 	privateKey := strings.TrimSpace(existingPrivateKey)
 	var err error
 	if clientID == "" {
-		clientID, _, err = resolveBootstrapTextValue(action.AppIDVariable, "GitHub App client ID", "Enter the GitHub App client ID to store in "+action.AppIDVariable+".", "", nil, false)
+		clientID, _, err = resolveBootstrapTextValue(bootstrapGitHubAppClientIDEnv, "GitHub App client ID", "Enter the GitHub App client ID to store in "+action.AppIDVariable+".", "", nil, false)
 		if err != nil {
 			return "", "", err
 		}
 	}
 	if privateKey == "" {
-		privateKey, _, err = resolveBootstrapSecretValue(action.PrivateKeySecret, "GitHub App private key", "Paste the PEM private key for the GitHub App used by "+repo+".", false)
+		privateKey, _, err = resolveBootstrapSecretValue(bootstrapGitHubAppPrivateKeyEnv, "GitHub App private key", "Paste the PEM private key for the GitHub App used by "+repo+".", false)
 		if err != nil {
 			return "", "", err
 		}
@@ -508,7 +519,7 @@ func createBootstrapGitHubApp(ctx context.Context, repo, owner, repoName, ownerT
 	appOwnerType := ownerType
 	if overrides.Owner != "" {
 		appOwner = overrides.Owner
-		appOwnerType, err = checkSetupRepositoryOwnerType(ctx, appOwner)
+		appOwnerType, err = bootstrapCheckOwnerType(ctx, appOwner)
 		if err != nil {
 			return nil, err
 		}
@@ -644,7 +655,7 @@ func parseBootstrapBool(raw string) (bool, error) {
 	case "0", "false", "no", "off":
 		return false, nil
 	default:
-		return false, fmt.Errorf("expected one of: 1, true, yes, on, 0, false, no, off")
+		return false, errors.New("expected one of: 1, true, yes, on, 0, false, no, off")
 	}
 }
 
@@ -664,53 +675,64 @@ func exchangeBootstrapGitHubAppCode(ctx context.Context, code, owner, ownerType,
 		SettingsURL: payload.HTMLURL,
 		InstallURL:  buildBootstrapGitHubAppInstallURL(payload.Slug),
 		ClientID:    payload.ClientID,
-		AppID:       fmt.Sprintf("%d", payload.ID),
+		AppID:       strconv.FormatInt(payload.ID, 10),
 		PEM:         payload.PEM,
 		Slug:        payload.Slug,
 	}, nil
 }
 
-func waitForBootstrapGitHubAppInstallation(ctx context.Context, owner string, createdApp *bootstrapCreatedGitHubApp) error {
+func waitForBootstrapGitHubAppInstallation(ctx context.Context, repo string, createdApp *bootstrapCreatedGitHubApp) error {
 	if createdApp == nil || createdApp.InstallURL == "" || createdApp.Slug == "" {
 		return nil
 	}
 	deadline := time.NewTimer(bootstrapProfileManifestTimeout)
 	defer deadline.Stop()
+	var lastErr error
 	for {
-		installed, err := bootstrapGitHubAppInstalled(ctx, owner, createdApp)
+		installed, err := bootstrapGitHubAppInstalled(ctx, repo, createdApp)
 		if err == nil && installed {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("GitHub App installation detected in "+owner))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("GitHub App installation detected for "+repo))
 			return nil
+		}
+		if err != nil {
+			if !isRetryableBootstrapGitHubAppInstallationError(err) {
+				return fmt.Errorf("failed to check GitHub App installation for %s: %w", repo, err)
+			}
+			lastErr = err
 		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-deadline.C:
-			return fmt.Errorf("timed out waiting for the GitHub App installation to complete in %s", owner)
+			if lastErr != nil {
+				return fmt.Errorf("timed out waiting for the GitHub App installation to complete for %s: %w", repo, lastErr)
+			}
+			return fmt.Errorf("timed out waiting for the GitHub App installation to complete for %s", repo)
 		case <-time.After(bootstrapProfileInstallPollDelay):
 		}
 	}
 }
 
-func bootstrapGitHubAppInstalled(ctx context.Context, owner string, createdApp *bootstrapCreatedGitHubApp) (bool, error) {
-	output, err := workflow.RunGHContext(ctx, "Checking GitHub App installations...", "api", fmt.Sprintf("/orgs/%s/installations?per_page=100", owner))
+func bootstrapGitHubAppInstalled(ctx context.Context, repo string, createdApp *bootstrapCreatedGitHubApp) (bool, error) {
+	output, err := runBootstrapGHContext(ctx, "Checking GitHub App installation...", "api", "/repos/"+repo+"/installation")
 	if err != nil {
 		return false, err
 	}
-	var payload bootstrapGitHubAppInstallationsResponse
+	var payload bootstrapGitHubAppRepositoryInstallation
 	if err := json.Unmarshal(output, &payload); err != nil {
 		return false, err
 	}
-	for _, installation := range payload.Installations {
-		if installation.ClientID == createdApp.ClientID || installation.AppSlug == createdApp.Slug || fmt.Sprintf("%d", installation.AppID) == createdApp.AppID {
-			return installation.ID > 0, nil
-		}
+	if payload.ClientID != "" && payload.ClientID == createdApp.ClientID {
+		return payload.ID > 0, nil
+	}
+	if payload.AppSlug == createdApp.Slug || strconv.FormatInt(payload.AppID, 10) == createdApp.AppID {
+		return payload.ID > 0, nil
 	}
 	return false, nil
 }
 
 func listBootstrapRepoVariableNames(ctx context.Context, repo string) ([]string, error) {
-	output, err := workflow.RunGHContext(ctx, "Checking repository variables...", "api", fmt.Sprintf("/repos/%s/actions/variables", repo), "--jq", ".variables[].name")
+	output, err := runBootstrapGHContext(ctx, "Checking repository variables...", "api", fmt.Sprintf("/repos/%s/actions/variables?per_page=100", repo), "--paginate", "--jq", ".variables[].name")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list repository variables for %s: %w", repo, err)
 	}
@@ -718,7 +740,7 @@ func listBootstrapRepoVariableNames(ctx context.Context, repo string) ([]string,
 }
 
 func listBootstrapRepoSecretNames(ctx context.Context, repo string) ([]string, error) {
-	output, err := workflow.RunGHContext(ctx, "Checking repository secrets...", "api", fmt.Sprintf("/repos/%s/actions/secrets", repo), "--jq", ".secrets[].name")
+	output, err := runBootstrapGHContext(ctx, "Checking repository secrets...", "api", fmt.Sprintf("/repos/%s/actions/secrets?per_page=100", repo), "--paginate", "--jq", ".secrets[].name")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list repository secrets for %s: %w", repo, err)
 	}
@@ -845,10 +867,8 @@ func validateBootstrapEnumValue(value string, allowed []string, optional bool) e
 	if len(allowed) == 0 {
 		return nil
 	}
-	for _, candidate := range allowed {
-		if value == candidate {
-			return nil
-		}
+	if slices.Contains(allowed, value) {
+		return nil
 	}
 	return fmt.Errorf("value must be one of: %s", strings.Join(allowed, ", "))
 }
@@ -871,7 +891,7 @@ func profileSourcesUseActionsTokenCopilotAuth(ctx context.Context, sources []str
 			continue
 		}
 		hasCopilot = true
-		if !strings.Contains(string(candidate.Content), "copilot-requests: write") {
+		if !workflowGrantsCopilotRequestsWrite(candidate.Content) {
 			return false, nil
 		}
 	}
@@ -903,10 +923,7 @@ func deriveBootstrapAppName(repo, explicitName string) string {
 		return result
 	}
 	suffix := strings.TrimLeft(result[len(result)-15:], "-")
-	prefixLength := 34 - len(suffix) - 1
-	if prefixLength < 1 {
-		prefixLength = 1
-	}
+	prefixLength := max(1, 34-len(suffix)-1)
 	prefix := strings.TrimRight(result[:prefixLength], "-")
 	return strings.Trim(prefix+"-"+suffix, "-")
 }
@@ -939,7 +956,7 @@ func buildBootstrapGitHubAppRegistrationURL(owner, ownerType, state string) stri
 	if strings.EqualFold(ownerType, "Organization") {
 		return fmt.Sprintf("https://github.com/organizations/%s/settings/apps/new?state=%s", owner, state)
 	}
-	return fmt.Sprintf("https://github.com/settings/apps/new?state=%s", state)
+	return "https://github.com/settings/apps/new?state=" + state
 }
 
 func renderBootstrapGitHubAppRegistrationPage(registrationURL string, manifest map[string]any) string {
@@ -986,11 +1003,12 @@ func htmlEscape(value string) string {
 
 func openBootstrapBrowser(url string) bool {
 	commands := [][]string{{"gh", "browse", url}}
-	if runtime.GOOS == "darwin" {
+	switch runtime.GOOS {
+	case "darwin":
 		commands = append([][]string{{"open", url}}, commands...)
-	} else if runtime.GOOS == "windows" {
+	case "windows":
 		commands = append([][]string{{"cmd", "/c", "start", "", url}}, commands...)
-	} else {
+	default:
 		commands = append([][]string{{"xdg-open", url}}, commands...)
 	}
 	for _, args := range commands {
@@ -1013,4 +1031,63 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func bootstrapRepositoryVariableEnvName(name string) string {
+	return bootstrapInputEnvName("VAR", name)
+}
+
+func bootstrapRepositorySecretEnvName(name string) string {
+	return bootstrapInputEnvName("SECRET", name)
+}
+
+func bootstrapInputEnvName(kind, name string) string {
+	suffix := strings.ToUpper(strings.TrimSpace(name))
+	if suffix == "" {
+		suffix = "VALUE"
+	}
+	var builder strings.Builder
+	lastUnderscore := false
+	for _, ch := range suffix {
+		switch {
+		case ch >= 'A' && ch <= 'Z', ch >= '0' && ch <= '9':
+			builder.WriteRune(ch)
+			lastUnderscore = false
+		default:
+			if !lastUnderscore {
+				builder.WriteByte('_')
+				lastUnderscore = true
+			}
+		}
+	}
+	suffix = strings.Trim(builder.String(), "_")
+	if suffix == "" {
+		suffix = "VALUE"
+	}
+	return "GH_AW_BOOTSTRAP_" + kind + "_" + suffix
+}
+
+func workflowGrantsCopilotRequestsWrite(content []byte) bool {
+	frontmatter, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil || frontmatter == nil {
+		return false
+	}
+	permissions, ok := frontmatter.Frontmatter["permissions"].(map[string]any)
+	if !ok {
+		return false
+	}
+	level, ok := permissions[string(workflow.PermissionCopilotRequests)].(string)
+	return ok && strings.TrimSpace(level) == "write"
+}
+
+func isRetryableBootstrapGitHubAppInstallationError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := err.Error()
+	return strings.Contains(message, "HTTP 404") ||
+		strings.Contains(message, "HTTP 500") ||
+		strings.Contains(message, "HTTP 502") ||
+		strings.Contains(message, "HTTP 503") ||
+		strings.Contains(message, "HTTP 504")
 }
