@@ -2818,8 +2818,9 @@ jobs:
   evals:
     needs:
       - activation
-      - safe_outputs
-    if: always() && needs.safe_outputs.result != 'skipped'
+      - agent
+      - detection
+    if: always() && needs.agent.result != 'skipped'
     runs-on: ubuntu-latest
     permissions:
       contents: read
