@@ -3,6 +3,8 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 
+const STANDARD_ROLES = new Set(["admin", "maintain", "write", "triage", "read"]);
+
 /**
  * Shared utility for repository permission validation
  * Used by both check_permissions.cjs and check_membership.cjs
@@ -242,10 +244,12 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
       username: actor,
     });
 
-    const permission = repoPermission.data.permission;
-    const rawRoleName = repoPermission.data.role_name;
+    /** @type {{ permission: string, role_name?: unknown, inherited_role?: unknown }} */
+    const repoPermissionData = repoPermission.data;
+    const permission = repoPermissionData.permission;
+    const rawRoleName = repoPermissionData.role_name;
     const roleName = rawRoleName == null ? "" : typeof rawRoleName === "string" ? rawRoleName : "";
-    const rawInheritedRole = repoPermission.data.inherited_role;
+    const rawInheritedRole = repoPermissionData.inherited_role;
     const inheritedRole = rawInheritedRole == null ? "" : typeof rawInheritedRole === "string" ? rawInheritedRole : "";
     const normalizedRoleName = roleName === "maintainer" ? "maintain" : roleName;
     const normalizedPermission = permission === "maintainer" ? "maintain" : permission;
@@ -258,7 +262,6 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     // "Security Champions") have a role_name that is not one of these — for those, use
     // the inherited standard role from GitHub's custom-role metadata so the actor is not
     // blocked simply because their custom role name is not literally listed in on.roles.
-    const STANDARD_ROLES = new Set(["admin", "maintain", "write", "triage", "read"]);
     const isCustomRole = normalizedRoleName !== "" && !STANDARD_ROLES.has(normalizedRoleName);
     const inheritedStandardRole = isCustomRole && STANDARD_ROLES.has(normalizedInheritedRole) ? normalizedInheritedRole : "";
 
