@@ -992,8 +992,8 @@ func printBootstrapGitHubAppManifestReview(owner string, manifest map[string]any
 	redirectURL, _ := manifest["redirect_url"].(string)
 	description, _ := manifest["description"].(string)
 	lines := []string{"GitHub App manifest for " + owner + ":", "- name: " + name, "- homepage: " + homepage, "- redirect URL: " + redirectURL, "- description: " + description, "- permissions:"}
-	for _, name := range permissionNames {
-		lines = append(lines, fmt.Sprintf("  - %s: %s", name, permissions[name]))
+	for _, permissionName := range permissionNames {
+		lines = append(lines, fmt.Sprintf("  - %s: %s", permissionName, permissions[permissionName]))
 	}
 	lines = append(lines, "")
 	for _, line := range lines {
