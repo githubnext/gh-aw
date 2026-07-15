@@ -168,7 +168,7 @@ async function main() {
   try {
     experimentsJsonlContent = await fetchFileFromBranch(octokit, owner, repo, branch, "experiments.jsonl");
   } catch (/** @type {any} */ err) {
-    core.warning(`Failed to fetch experiments.jsonl from branch "${branch}": ${getErrorMessage(err)} – will start fresh`);
+    core.warning(`Failed to fetch experiments.jsonl from branch "${branch}": ${getErrorMessage(err)} – will start with empty run history`);
   }
   if (experimentsJsonlContent !== null) {
     fs.writeFileSync(path.join(stateDir, "experiments.jsonl"), experimentsJsonlContent, "utf8");

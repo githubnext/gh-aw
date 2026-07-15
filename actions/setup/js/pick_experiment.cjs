@@ -430,31 +430,27 @@ async function main() {
   core.info(`Experiment assignments (JSON): ${experimentsJSON}`);
 
   if (Object.keys(assignments).length > 0) {
-    // Append a per-run record to state.runs so each assignment is traceable.
+    // Capture run metadata once and share it across state.runs, experiments.jsonl, and assignments.
     const runId = process.env.GITHUB_RUN_ID || "";
     const timestamp = new Date().toISOString();
+    const runRecord = { run_id: runId, timestamp, assignments: { ...assignments } };
+
+    // Append a per-run record to state.runs so each assignment is traceable.
     if (!state.runs) {
       state.runs = [];
     }
-    const runRecord = { run_id: runId, timestamp, assignments: { ...assignments } };
     state.runs.push(runRecord);
     // Prune run history to avoid state.json growing without bound over many runs.
     if (state.runs.length > MAX_RUN_HISTORY) {
       state.runs = state.runs.slice(-MAX_RUN_HISTORY);
     }
-  }
 
-  // Persist updated counts and run history.
-  saveState(stateFile, state);
-  core.info(`Experiment state written to ${stateFile}`);
+    // Persist updated counts and run history.
+    saveState(stateFile, state);
+    core.info(`Experiment state written to ${stateFile}`);
 
-  // Persist current-run assignments to a separate file so downstream jobs and
-  // OTLP telemetry can read which variant was selected without recomputing it.
-  // Only written when at least one experiment was successfully assigned.
-  if (Object.keys(assignments).length > 0) {
-    const runId = process.env.GITHUB_RUN_ID || "";
-    const timestamp = new Date().toISOString();
-
+    // Persist current-run assignments to a separate file so downstream jobs and
+    // OTLP telemetry can read which variant was selected without recomputing it.
     const assignmentsFile = path.join(stateDir, "assignments.json");
     fs.writeFileSync(assignmentsFile, JSON.stringify(assignments, null, 2) + "\n", "utf8");
     core.info(`Experiment assignments written to ${assignmentsFile}`);
@@ -473,7 +469,7 @@ async function main() {
     } catch {
       // File does not exist or is unreadable – start fresh.
     }
-    jsonlEntries.push({ run_id: runId, timestamp, assignments: { ...assignments } });
+    jsonlEntries.push(runRecord);
     if (jsonlEntries.length > MAX_RUN_HISTORY) {
       jsonlEntries = jsonlEntries.slice(-MAX_RUN_HISTORY);
     }
@@ -488,6 +484,10 @@ async function main() {
     const existingAttrs = process.env.OTEL_RESOURCE_ATTRIBUTES || "";
     core.exportVariable("OTEL_RESOURCE_ATTRIBUTES", existingAttrs ? `${existingAttrs},${otelAttrs}` : otelAttrs);
     core.info(`OTEL resource attributes set: ${otelAttrs}`);
+  } else {
+    // No assignments – still persist updated counts.
+    saveState(stateFile, state);
+    core.info(`Experiment state written to ${stateFile}`);
   }
 
   // Write step summary.
