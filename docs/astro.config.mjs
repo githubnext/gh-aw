@@ -218,6 +218,7 @@ export default defineConfig({
 			components: {
 				Banner: './src/components/RecruitmentBanner.astro',
 				Head: './src/components/CustomHead.astro',
+				Search: './src/components/CustomSearch.astro',
 				SkipLink: './src/components/SkipLink.astro',
 				SocialIcons: './src/components/CustomHeader.astro',
 				ThemeSelect: './src/components/ThemeToggle.astro',
