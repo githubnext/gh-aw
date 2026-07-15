@@ -180,6 +180,10 @@ If **drift is detected**, create an issue with:
 
 **Body structure**:
 
+Use `###` (h3) or lower for all headers in the report body. Never use `#` (h1) or `##` (h2) — these are reserved for the issue/discussion title rendered by GitHub.
+
+Wrap long sections (>5 items) in `<details><summary><b>Section Name</b></summary>` blocks.
+
 ```
 ### Designer Drift Report — <date>
 

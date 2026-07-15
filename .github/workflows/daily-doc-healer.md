@@ -313,3 +313,7 @@ Call `noop` with a summary:
 ### Output Format
 
 Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
+Use `###` (h3) or lower for all headers in the report body. Never use `#` (h1) or `##` (h2) — these are reserved for the issue/discussion title rendered by GitHub.
+
+Wrap long sections (>5 items) in `<details><summary><b>Section Name</b></summary>` blocks.

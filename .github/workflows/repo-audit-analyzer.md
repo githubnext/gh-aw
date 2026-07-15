@@ -393,14 +393,18 @@ Create a detailed analysis report with actionable recommendations:
 
 ### Report Structure
 
+Use `###` (h3) or lower for all headers in the report body. Never use `#` (h1) or `##` (h2) — these are reserved for the issue/discussion title rendered by GitHub.
+
+Wrap long sections (>5 items) in `<details><summary><b>Section Name</b></summary>` blocks.
+
 ```markdown
-# 🔍 Repository Audit & Agentic Workflow Opportunities Report
+### 🔍 Repository Audit & Agentic Workflow Opportunities Report
 
 **Repository**: ${{ inputs.repository }}  
 **Analysis Date**: $(date +%Y-%m-%d)  
 **Audit Type**: Comprehensive (code + workflows + issues + patterns)
 
-## 📋 Executive Summary
+#### 📋 Executive Summary
 
 [3-4 paragraphs summarizing the repository, current state, key findings, and top opportunities]
 
@@ -414,12 +418,12 @@ Create a detailed analysis report with actionable recommendations:
 
 ---
 
-## 🏗️ Repository Overview
+#### 🏗️ Repository Overview
 
 <details>
 <summary>Project Details</summary>
 
-### Project Information
+##### Project Information
 - **Name**: [Name]
 - **Description**: [Description]
 - **Stars**: [N] ⭐
@@ -427,15 +431,15 @@ Create a detailed analysis report with actionable recommendations:
 - **Language**: [Primary Language]
 - **Topics**: [List of topics]
 
-### Technology Stack
+##### Technology Stack
 [Languages and frameworks used]
 
-### Repository Structure
+##### Repository Structure
 ```
 [Key directories and their purposes]
 ```
 
-### Development Activity
+##### Development Activity
 - **Recent Commits**: [N] in last 30 days
 - **Open Issues**: [N]
 - **Open Pull Requests**: [N]
@@ -445,15 +449,15 @@ Create a detailed analysis report with actionable recommendations:
 
 ---
 
-## 🤖 GitHub Actions Analysis
+#### 🤖 GitHub Actions Analysis
 
-### Current Workflows
+##### Current Workflows
 
 | Workflow Name | Trigger | Purpose | Status |
 |---------------|---------|---------|--------|
 | [Name] | [on: push/pr/schedule] | [Purpose] | ✅/⚠️/❌ |
 
-### Workflow Health Assessment
+##### Workflow Health Assessment
 
 **Strengths:**
 - [List strengths in current automation]
@@ -471,11 +475,11 @@ Create a detailed analysis report with actionable recommendations:
 
 ---
 
-## 🎯 Agentic Workflow Opportunities
+#### 🎯 Agentic Workflow Opportunities
 
-### High Priority Opportunities
+##### High Priority Opportunities
 
-#### 1. [Opportunity Name]
+###### 1. [Opportunity Name]
 
 **Type**: Daily Improver / Event-Driven / On-Demand  
 **Priority**: High 🔴  
@@ -515,29 +519,29 @@ safe-outputs:
 
 ---
 
-#### 2. [Opportunity Name]
+###### 2. [Opportunity Name]
 [Same structure as above]
 
 ---
 
-#### 3. [Opportunity Name]
+###### 3. [Opportunity Name]
 [Same structure as above]
 
 ---
 
-### Medium Priority Opportunities
+##### Medium Priority Opportunities
 
 [Brief list of 3-5 medium priority opportunities with shorter descriptions]
 
-### Future Opportunities
+##### Future Opportunities
 
 [List of 3-5 future opportunities for consideration]
 
 ---
 
-## 📊 Issue Pattern Analysis
+#### 📊 Issue Pattern Analysis
 
-### Common Issue Categories
+##### Common Issue Categories
 
 | Category | Count (90d) | % of Total | Automation Potential |
 |----------|-------------|------------|---------------------|
@@ -545,7 +549,7 @@ safe-outputs:
 | [Feature Request] | [N] | [X]% | [High/Medium/Low] |
 | [Documentation] | [N] | [X]% | [High/Medium/Low] |
 
-### Recurring Patterns
+##### Recurring Patterns
 
 **Pattern 1**: [Description]
 - **Frequency**: [N] occurrences
@@ -555,7 +559,7 @@ safe-outputs:
 - **Frequency**: [N] occurrences
 - **Automation Opportunity**: [How to automate]
 
-### Issue Lifecycle Metrics
+##### Issue Lifecycle Metrics
 
 - **Average Time to First Response**: [X] hours
 - **Average Time to Close**: [X] days
@@ -563,9 +567,9 @@ safe-outputs:
 
 ---
 
-## 💻 Code Pattern Analysis
+#### 💻 Code Pattern Analysis
 
-### Code Quality Insights
+##### Code Quality Insights
 
 **Positive Findings:**
 - [Strength 1]
@@ -576,7 +580,7 @@ safe-outputs:
 - [Area 2: e.g., "12 files >1000 lines - potential refactoring targets"]
 - [Area 3: e.g., "Test coverage gaps in core modules"]
 
-### Technical Debt Indicators
+##### Technical Debt Indicators
 
 | Indicator | Count | Severity | Automation Opportunity |
 |-----------|-------|----------|----------------------|
@@ -586,32 +590,32 @@ safe-outputs:
 
 ---
 
-## 🚀 Implementation Roadmap
+#### 🚀 Implementation Roadmap
 
-### Phase 1: Quick Wins (Week 1-2)
+##### Phase 1: Quick Wins (Week 1-2)
 1. **[Workflow 1]** - [Why it's a quick win]
 2. **[Workflow 2]** - [Why it's a quick win]
 
-### Phase 2: High Impact (Week 3-6)
+##### Phase 2: High Impact (Week 3-6)
 1. **[Workflow 3]** - [Expected impact]
 2. **[Workflow 4]** - [Expected impact]
 
-### Phase 3: Long-term (Month 2-3)
+##### Phase 3: Long-term (Month 2-3)
 1. **[Workflow 5]** - [Strategic value]
 2. **[Workflow 6]** - [Strategic value]
 
 ---
 
-## 📈 Expected Impact
+#### 📈 Expected Impact
 
-### Quantitative Benefits
+##### Quantitative Benefits
 
 - **Time Savings**: ~[X] hours/week freed from manual tasks
 - **Issue Triage Speed**: [X]% faster average response time
 - **Code Quality**: [X]% reduction in technical debt indicators
 - **Workflow Efficiency**: [X]% improvement in CI/CD success rate
 
-### Qualitative Benefits
+##### Qualitative Benefits
 
 - Improved developer experience
 - Better issue management
@@ -621,9 +625,9 @@ safe-outputs:
 
 ---
 
-## 🔄 Continuous Improvement
+#### 🔄 Continuous Improvement
 
-### Monitoring & Metrics
+##### Monitoring & Metrics
 
 **Track these metrics after implementation:**
 1. Workflow success rates
@@ -632,7 +636,7 @@ safe-outputs:
 4. Code quality metrics
 5. Community engagement metrics
 
-### Iteration Strategy
+##### Iteration Strategy
 
 1. Start with high-priority, low-effort workflows
 2. Monitor performance for 2 weeks
@@ -642,9 +646,9 @@ safe-outputs:
 
 ---
 
-## 📚 Repository-Specific Recommendations
+#### 📚 Repository-Specific Recommendations
 
-### Custom Insights for ${{ inputs.repository }}
+##### Custom Insights for ${{ inputs.repository }}
 
 [Based on actual analysis, provide specific recommendations that are unique to this repository, not generic advice]
 
@@ -659,7 +663,7 @@ safe-outputs:
 
 ---
 
-## 💾 Cache Memory Update
+#### 💾 Cache Memory Update
 
 [Document what was stored in cache for future analysis]
 
@@ -674,16 +678,16 @@ safe-outputs:
 
 ---
 
-## 🎯 Next Steps
+#### 🎯 Next Steps
 
-### Immediate Actions
+##### Immediate Actions
 
 1. **Review this report** with repository maintainers
 2. **Prioritize opportunities** based on team needs and capacity
 3. **Create workflow specifications** for top 3 priorities
 4. **Set up a pilot workflow** to validate approach
 
-### Getting Started
+##### Getting Started
 
 To implement these workflows:
 1. Use the `gh aw` CLI to create workflow files
@@ -691,7 +695,7 @@ To implement these workflows:
 3. Test with `workflow_dispatch` before enabling automatic triggers
 4. Monitor and iterate based on results
 
-### Resources
+##### Resources
 
 - GitHub Agentic Workflows documentation: [Link]
 - Example workflows: `.github/workflows/` in gh-aw repository

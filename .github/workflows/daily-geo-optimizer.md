@@ -180,15 +180,19 @@ Use today's date derived from the metadata.json timestamp.
 
 ### Body
 
+Use `###` (h3) or lower for all headers in the report body. Never use `#` (h1) or `##` (h2) — these are reserved for the issue/discussion title rendered by GitHub.
+
+Wrap long sections (>5 items) in `<details><summary><b>Section Name</b></summary>` blocks.
+
 ```markdown
-## GEO Audit Report — ${{ github.repository }}
+### GEO Audit Report — ${{ github.repository }}
 
 **Audit Date**: [date from metadata]
 **Run**: [link to run]
 
 ---
 
-### 📊 Scores
+#### 📊 Scores
 
 | Target | Score | Band |
 |--------|-------|------|
@@ -197,19 +201,19 @@ Use today's date derived from the metadata.json timestamp.
 
 ---
 
-### ✅ Top Strengths
+#### ✅ Top Strengths
 
 [3–5 items already optimized well]
 
 ---
 
-### 🚨 Critical Gaps
+#### 🚨 Critical Gaps
 
 [Top 3–5 issues preventing AI engine citations]
 
 ---
 
-### 🔧 Recommended Fixes
+#### 🔧 Recommended Fixes
 
 [Prioritized, actionable list of specific improvements ordered by impact]
 
@@ -253,21 +257,21 @@ If **all scores are already Excellent (90+/100)** and there are no actionable re
 ### Issue body
 
 ```markdown
-## GEO Improvement: <short title>
+### GEO Improvement: <short title>
 
 **Source audit**: [GEO Audit Report — YYYY-MM-DD](<link to the discussion you just created>)
 **Audit date**: <date from metadata>
 **Run**: <link to GitHub Actions run>
 
-### Finding
+#### Finding
 
 > <exact quote or paraphrase of the recommendation from the audit JSON>
 
-### Why this matters
+#### Why this matters
 
 <1–2 sentences on what AI-engine citation signal this fixes and approximate score impact>
 
-### Suggested fix
+#### Suggested fix
 
 <Specific, actionable steps to implement the improvement>
 ```

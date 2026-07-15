@@ -112,6 +112,10 @@ Body structure:
 
 Use progressive disclosure. Keep `Executive Summary`, `Top Reliability Findings`, and `Recommendations` always visible. Put verbose evidence and supporting detail inside `<details><summary>...</summary>` blocks.
 
+Use `###` (h3) or lower for all headers in the report body. Never use `#` (h1) or `##` (h2) — these are reserved for the issue/discussion title rendered by GitHub.
+
+Wrap long sections (>5 items) in `<details><summary><b>Section Name</b></summary>` blocks.
+
 ### Executive Summary
 - Overall health for the last 24 hours.
 

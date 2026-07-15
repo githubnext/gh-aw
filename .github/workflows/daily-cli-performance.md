@@ -519,6 +519,10 @@ Now, for each regression found, use the `create issue` tool to open an issue wit
 
 Generate a comprehensive summary of today's benchmark run:
 
+Use `###` (h3) or lower for all headers in the report body. Never use `#` (h1) or `##` (h2) — these are reserved for the issue/discussion title rendered by GitHub.
+
+Wrap long sections (>5 items) in `<details><summary><b>Section Name</b></summary>` blocks.
+
 ```bash
 cat > /tmp/gh-aw/agent/benchmarks/generate_report.py << 'EOF'
 #!/usr/bin/env python3
