@@ -258,7 +258,7 @@ function isDetectionPhase(phase) {
 
 /**
  * Read AWF config written by the compiler before the agent runs.
- * @returns {object|null}
+ * @returns {any|null}
  */
 function loadAwfConfigData() {
   try {
@@ -831,6 +831,7 @@ async function main() {
   // In SDK/BYOK mode the live data is used immediately to resolve the custom provider
   // configuration that is injected into the driver subprocess environment.
   // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. sandbox.agent: false — no api-proxy running).
+  /** @type {any} */
   let awfReflectData = null;
   if (process.env.AWF_REFLECT_ENABLED === "1") {
     const reflectResult = await fetchAWFReflect({ logger: log });

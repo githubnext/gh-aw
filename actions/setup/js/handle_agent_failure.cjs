@@ -2809,6 +2809,7 @@ async function main() {
     const reportFailureAsIssue = parseBoolTemplatable(process.env.GH_AW_FAILURE_REPORT_AS_ISSUE, true);
     // Parse included categories filter for report-failure-as-issue (optional JSON array of category strings)
     const failureCategoriesFilterRaw = process.env.GH_AW_FAILURE_CATEGORIES_FILTER || "";
+    /** @type {any} */
     let failureCategoriesFilter = null;
     if (failureCategoriesFilterRaw) {
       try {
@@ -2826,6 +2827,7 @@ async function main() {
     }
     // Parse excluded categories filter for report-failure-as-issue (optional JSON array of category strings)
     const failureExcludedCategoriesFilterRaw = process.env.GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER || "";
+    /** @type {any} */
     let failureExcludedCategoriesFilter = null;
     if (failureExcludedCategoriesFilterRaw) {
       try {

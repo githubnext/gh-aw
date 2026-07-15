@@ -128,11 +128,14 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
   }
 
   let patchGenerated = false;
+  /** @type {any} */
   let errorMessage = null;
   // Track the resolved base commit SHA so consumers (e.g. create_pull_request fallback)
   // can use it directly. The From <sha> header in format-patch output contains the
   // *new* commit SHA which won't exist in the target checkout.
+  /** @type {any} */
   let baseCommitSha = null;
+  /** @type {any} */
   let resolvedTipRef = null;
 
   try {
@@ -219,6 +222,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
 
           // If origin/<defaultBranch> is unavailable (e.g. credentials were cleaned),
           // fall back to the local base branch ref when it exists.
+          /** @type {any} */
           let defaultBranchRef = null;
           if (hasLocalDefaultBranch) {
             defaultBranchRef = `origin/${defaultBranch}`;
@@ -401,7 +405,9 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
               // Choose the closest merge-base across all remote refs.
               // for-each-ref output is lexicographic, so "first ref" is arbitrary and can
               // point to stale branches that produce oversized patches.
+              /** @type {any} */
               let bestBaseCommit = null;
+              /** @type {any} */
               let bestBaseRef = null;
               let bestCommitCount = Number.POSITIVE_INFINITY;
               for (const ref of remoteRefs) {
@@ -503,6 +509,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
     let diffBaseForSize = baseCommitSha;
     if (mode === "incremental" && baseCommitSha && resolvedTipRef && defaultBranch) {
       try {
+        /** @type {any} */
         let baseBranchRemoteRef = null;
         try {
           execGitSync(["show-ref", "--verify", "--quiet", `refs/remotes/origin/${defaultBranch}`], { cwd });
@@ -551,6 +558,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
       }
     }
 
+    /** @type {any} */
     let diffSize = null;
     if (mode === "incremental" && diffBaseForSize && resolvedTipRef) {
       diffSize = computeIncrementalDiffSize({

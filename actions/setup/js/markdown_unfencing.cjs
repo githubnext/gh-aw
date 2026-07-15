@@ -38,6 +38,7 @@ function unfenceMarkdown(content) {
   const lastLine = lines[lines.length - 1].trim();
 
   // Check if first line is a markdown code fence
+  /** @type {any} */
   let fenceChar = null;
   let fenceLength = 0;
   let isMarkdownFence = false;

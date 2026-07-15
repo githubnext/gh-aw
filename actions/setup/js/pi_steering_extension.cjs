@@ -92,4 +92,5 @@ function piSteeringExtension(pi) {
 }
 
 module.exports = piSteeringExtension;
-module.exports.loadSteeringConfig = loadSteeringConfig;
+const _steeringExports = /** @type {any} */ module.exports;
+_steeringExports.loadSteeringConfig = loadSteeringConfig;

@@ -57,7 +57,7 @@ const DEFAULT_REFLECT_LOGGER = /** @type {(msg: string) => void} */ (msg => proc
  *   - OpenAI / Anthropic / Copilot format: { data: [{ id: "..." }, ...] }
  *   - Gemini format: { models: [{ name: "models/gemini-1.5-pro" }, ...] }
  *
- * @param {object|null} json - Parsed API response
+ * @param {any|null} json - Parsed API response
  * @returns {string[]|null} Sorted array of model IDs, or null if unavailable
  */
 function extractModelIds(json) {
@@ -194,7 +194,7 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
  *
  * This is a best-effort fallback: failures are logged but do not throw.
  *
- * @param {object} reflectData - Parsed /reflect response (mutated in-place)
+ * @param {any} reflectData - Parsed /reflect response (mutated in-place)
  * @param {number} timeoutMs - Per-request timeout for models_url fetches
  * @param {(msg: string) => void} logger
  * @returns {Promise<void>}
@@ -281,7 +281,7 @@ async function fetchAWFReflect(options) {
         status: res.status,
       };
     }
-    const reflectData = await res.json();
+    const reflectData = /** @type {any} */ await res.json();
     // Attempt to fill in null models for configured providers by fetching directly
     // from each endpoint's models_url. The api-proxy injects auth headers when
     // forwarding these requests, so this succeeds without needing the raw API keys.
@@ -346,10 +346,10 @@ function isOpenAIModelName(model) {
 /**
  * Look up a model entry in the models.json catalog, case-insensitively.
  *
- * @param {object | null | undefined} modelsJson
+ * @param {any} modelsJson
  * @param {string} modelName
  * @param {string | null | undefined} [providerName]
- * @returns {object | null}
+ * @returns {any | null}
  */
 function getCatalogModelEntry(modelsJson, modelName, providerName) {
   const model = String(modelName || "")
@@ -406,7 +406,7 @@ function getCatalogModelEntry(modelsJson, modelName, providerName) {
  *
  * @param {string} endpointProvider - The `provider` field from the AWF reflect endpoint entry.
  * @param {string} modelName - The resolved model name to use for heuristic fallback.
- * @param {object | null | undefined} catalogEntryOrModelsJson - Matching models.json catalog entry or full catalog (optional).
+ * @param {any} catalogEntryOrModelsJson - Matching models.json catalog entry or full catalog (optional).
  * @returns {"openai" | "azure" | "anthropic"}
  */
 function inferProviderTypeForModel(endpointProvider, modelName, catalogEntryOrModelsJson) {
@@ -455,7 +455,7 @@ function inferProviderTypeForModel(endpointProvider, modelName, catalogEntryOrMo
  *
  * @param {"openai" | "azure" | "anthropic"} providerType
  * @param {string} modelName
- * @param {object | null | undefined} catalogEntryOrModelsJson
+ * @param {any} catalogEntryOrModelsJson
  * @returns {"completions" | "responses" | undefined}
  */
 function inferWireApiForModel(providerType, modelName, catalogEntryOrModelsJson) {
@@ -538,7 +538,8 @@ function resolveMultiProviderFromReflect(options) {
     return null;
   }
 
-  const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints.filter(ep => ep && ep.configured === true) : [];
+  const rd = /** @type {any} */ reflectData;
+  const endpoints = Array.isArray(rd?.endpoints) ? rd.endpoints.filter(ep => ep && ep.configured === true) : [];
 
   if (endpoints.length === 0) {
     logger(`sdk-mode(multi): no configured endpoints in awf-reflect data; cannot build multi-provider config`);

@@ -357,7 +357,7 @@ async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi) {
  * This ensures fallback issue creation remains reliable even if an assignee username
  * is invalid, the repository does not have that collaborator, or the installation token
  * quota is temporarily exhausted.
- * @param {object} githubClient - Authenticated GitHub client
+ * @param {any} githubClient - Authenticated GitHub client
  * @param {{owner: string, repo: string}} repoParts - Repository owner and name
  * @param {string} title - Issue title
  * @param {string} body - Issue body
@@ -559,7 +559,7 @@ function enforcePullRequestLimits(patchContent, maxFiles = MAX_FILES) {
  * @param {object} [options] - Additional options.
  * @param {boolean} [options.recreateRef] - Whether recreate-ref is enabled.
  *   Only meaningful when preserveBranchName is true.
- * @param {object} [options.githubClient] - Authenticated Octokit client used to delete the
+ * @param {any} [options.githubClient] - Authenticated Octokit client used to delete the
  *   existing remote ref when recreate-ref is enabled.
  * @param {string} [options.owner] - Repository owner for the deleteRef call.
  * @param {string} [options.repo] - Repository name for the deleteRef call.
@@ -967,6 +967,7 @@ async function main(config = {}) {
     // 1. checkout_mapping: repos checked out into subdirectories (wildcard target-repo)
     // 2. findRepoCheckout: scan workspace for repo checkouts (subdirectory discovery)
     // 3. createCheckoutManager: dynamic git remote switching (legacy allowed-repos)
+    /** @type {any} */
     let repoCwd = undefined;
     const workflowRepo = process.env.GITHUB_REPOSITORY || "";
     const isTargetingDifferentRepo = itemRepo && itemRepo.toLowerCase() !== workflowRepo.toLowerCase();
@@ -1767,6 +1768,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 
         // Apply the patch using git CLI (skip if empty)
         if (!isEmpty && patchFilePath) {
+          /** @type {any} */
           let postApplyBaseRef = null;
           const capturePostApplyBaseRef = async () => {
             const headResult = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);

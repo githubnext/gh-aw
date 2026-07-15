@@ -1389,6 +1389,7 @@ async function main() {
     // Apply footer config with priority:
     // 1. submit_pull_request_review.footer (highest priority — footer controls review body)
     // 2. Default: "always"
+    /** @type {any} */
     let footerConfig = undefined;
     if (config.submit_pull_request_review?.footer !== undefined) {
       footerConfig = config.submit_pull_request_review.footer;
@@ -1436,6 +1437,7 @@ async function main() {
       } else {
         core.info("Submitting PR review (body-only, no inline comments)");
       }
+      /** @type {any} */
       let reviewFailureError = null;
       try {
         const reviewResult = await prReviewBuffer.submitReview();

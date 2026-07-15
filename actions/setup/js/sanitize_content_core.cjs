@@ -465,7 +465,7 @@ function getFencedCodeRanges(s) {
  * non-code text; inline code spans are preserved verbatim.
  *
  * @param {string} text - The text to process (should not contain fenced code blocks)
- * @param {function(string): string} fn - Transformation to apply to non-code portions
+ * @param {(s: string) => string} fn - Transformation to apply to non-code portions
  * @returns {string} The processed text
  */
 function applyFnOutsideInlineCode(text, fn) {
@@ -539,7 +539,7 @@ function applyFnOutsideInlineCode(text, fn) {
  * Falls back to applying fn to the entire string if any parsing error occurs.
  *
  * @param {string} s - Markdown content to process
- * @param {function(string): string} fn - Transformation to apply outside code regions
+ * @param {(s: string) => string} fn - Transformation to apply outside code regions
  * @returns {string} The content with the transformation applied only outside code regions
  */
 function applyToNonCodeRegions(s, fn) {

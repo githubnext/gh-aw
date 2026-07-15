@@ -10,7 +10,7 @@ const AWF_MODELS_PATH = "/tmp/gh-aw/sandbox/firewall/models.json";
 /**
  * Read the AWF reflect payload that was persisted to disk by copilot_harness.cjs.
  * Returns null when the file is absent or unparseable (AWF not running / not enabled).
- * @returns {object|null}
+ * @returns {any|null}
  */
 function readReflectData() {
   if (!fs.existsSync(AWF_REFLECT_PATH)) {
@@ -27,7 +27,7 @@ function readReflectData() {
  * Read the AWF config payload when available.
  * Returns null when the file is absent or unparseable.
  *
- * @returns {object|null}
+ * @returns {any|null}
  */
 function readAWFConfigData() {
   if (!fs.existsSync(AWF_CONFIG_PATH)) {
@@ -44,7 +44,7 @@ function readAWFConfigData() {
  * Read the sandbox.firewall models.json payload when available.
  * Returns null when the file is absent or unparseable.
  *
- * @returns {object|null}
+ * @returns {any|null}
  */
 function readRuntimeModelsData() {
   if (!fs.existsSync(AWF_MODELS_PATH)) {
@@ -184,7 +184,7 @@ function normalizeModelAliasRows(awfConfigData) {
  *   - Whether a key/token is configured
  *   - Available models (first `maxModels` entries, with overflow indicator)
  *
- * @param {object} reflectData - Parsed /reflect JSON response
+ * @param {any} reflectData - Parsed /reflect JSON response
  * @param {{ maxModels?: number, runtimeModelsData?: object, awfConfigData?: object }} options
  * @returns {string}
  */

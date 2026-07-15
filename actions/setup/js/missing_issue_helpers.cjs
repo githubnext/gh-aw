@@ -22,9 +22,9 @@ const { parseBoolTemplatable } = require("./templatable.cjs");
  * @param {string} options.itemsField - Field name in the message containing the items array
  * @param {string} options.templatePath - Absolute path to the issue body template file
  * @param {string} options.templateListKey - Template variable name for the rendered items list
- * @param {function(string): string[]} options.buildCommentHeader - Returns header lines for the comment body given runUrl
- * @param {function(Object, number): string[]} options.renderCommentItem - Renders a single item for an existing-issue comment
- * @param {function(Object, number): string[]} options.renderIssueItem - Renders a single item for a new-issue body
+ * @param {(runUrl: string) => string[]} options.buildCommentHeader - Returns header lines for the comment body given runUrl
+ * @param {(item: any, index: number) => string[]} options.renderCommentItem - Renders a single item for an existing-issue comment
+ * @param {(item: any, index: number) => string[]} options.renderIssueItem - Renders a single item for a new-issue body
  * @param {string[]} [options.defaultLabels] - Labels always applied to created issues (merged with config.labels)
  * @returns {HandlerFactoryFunction}
  */

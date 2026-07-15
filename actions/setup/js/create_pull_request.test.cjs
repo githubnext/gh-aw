@@ -3138,6 +3138,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
   });
 
   it("should rename with random suffix when deleteRef is blocked by branch protection rules (recreate-ref fallback)", async () => {
+    /** @type {any} */
     let capturedRenamedBranch = null;
     global.exec = {
       exec: vi.fn().mockImplementation((cmd, args) => {

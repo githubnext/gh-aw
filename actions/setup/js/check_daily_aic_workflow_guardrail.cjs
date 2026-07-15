@@ -36,7 +36,7 @@ const INTEGER_FORMATTER = new Intl.NumberFormat("en-US");
 const AIC_USAGE_CACHE_FILE_PATH = "/tmp/gh-aw/agentic-workflow-usage-cache.jsonl";
 
 /**
- * @returns {Promise<DefaultArtifactClient>}
+ * @returns {Promise<any>}
  */
 async function getArtifactClient() {
   return new DefaultArtifactClient();

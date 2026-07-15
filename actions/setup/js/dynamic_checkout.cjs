@@ -22,6 +22,7 @@ async function getCurrentCheckoutRepo() {
 
     // Extract repo slug from URL
     // Handle HTTPS and SSH formats
+    /** @type {any} */
     let slug = null;
 
     // Remove .git suffix if present
@@ -158,6 +159,7 @@ async function checkoutRepo(repoSlug, token, options = {}) {
  * @returns {Object} Checkout manager with switchTo method
  */
 function createCheckoutManager(token, options = {}) {
+  /** @type {any} */
   let currentRepo = null;
   const defaultBaseBranch = options.defaultBaseBranch || "main";
 

@@ -22,7 +22,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * Reads JSON inputs from stdin, calls execute(inputs), and writes the JSON
  * result to stdout.  On error, writes to stderr and exits with code 1.
  *
- * @param {function(Object): Promise<any>} execute - The tool execute function
+ * @param {(inputs: any) => Promise<any>} execute - The tool execute function
  */
 function runMCPScript(execute) {
   let inputJson = "";
@@ -31,6 +31,7 @@ function runMCPScript(execute) {
     inputJson += chunk;
   });
   process.stdin.on("end", async () => {
+    /** @type {any} */
     let inputs = {};
     try {
       if (inputJson.trim()) {

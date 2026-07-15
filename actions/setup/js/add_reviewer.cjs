@@ -172,6 +172,7 @@ async function main(config = {}) {
 
     try {
       const beforeState = await fetchPullRequestReviewState(githubClient, repoParts, prNumber);
+      /** @type {any} */
       let latestPullRequest = null;
 
       // Special handling for "copilot" reviewer - separate it from other reviewers

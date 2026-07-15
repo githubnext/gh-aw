@@ -18,7 +18,7 @@ const { renderMarkdownTemplate } = require("./render_template.cjs");
  * Parses a single firewall log line
  * Format: timestamp client_ip:port domain dest_ip:port proto method status decision url user_agent
  * @param {string} line - Log line to parse
- * @returns {object|null} Parsed entry or null if invalid
+ * @returns {any|null} Parsed entry or null if invalid
  */
 function parseFirewallLogLine(line) {
   const trimmed = line.trim();

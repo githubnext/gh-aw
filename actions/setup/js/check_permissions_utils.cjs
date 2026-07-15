@@ -54,7 +54,7 @@ function isAllowedBot(actor, allowedBots) {
  * Returns `true` only when the flag is explicitly set to the boolean `true` in a
  * valid JSON aw_context object.  Any parse error or missing field returns `false`.
  *
- * @param {object|undefined} payload - The GitHub event payload (context.payload)
+ * @param {any|undefined} payload - The GitHub event payload (context.payload)
  * @returns {boolean}
  */
 function readAllowBotAuthoredTriggerComment(payload) {
@@ -86,7 +86,7 @@ function readAllowBotAuthoredTriggerComment(payload) {
  *
  * @param {string} actor - The current github.actor
  * @param {string} eventName - The GitHub event name (e.g. "pull_request", "issue_comment")
- * @param {object|undefined} payload - The GitHub event payload (context.payload)
+ * @param {any|undefined} payload - The GitHub event payload (context.payload)
  * @returns {boolean} true if the event looks like a confused deputy attack
  */
 function isConfusedDeputyAttack(actor, eventName, payload) {

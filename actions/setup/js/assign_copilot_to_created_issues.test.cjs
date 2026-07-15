@@ -71,6 +71,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
       
       const agentName = "copilot";
       const results = [];
+      /** @type {any} */
       let agentId = null;
       
       for (const entry of issueEntries) {
@@ -96,6 +97,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
     await eval(`(async () => {
       const agentName = "copilot";
       const results = [];
+      /** @type {any} */
       let agentId = null;
       const issuesToAssignStr = "owner/repo:123";
       const issueEntries = issuesToAssignStr.split(",").map(e => e.trim()).filter(Boolean);
@@ -137,6 +139,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
     // Test multiple issues
     await eval(`(async () => {
       const agentName = "copilot";
+      /** @type {any} */
       let agentId = null;
       const issuesToAssignStr = "owner/repo:123,owner/repo:456";
       const issueEntries = issuesToAssignStr.split(",").map(e => e.trim()).filter(Boolean);
