@@ -320,7 +320,7 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 			if action.Mode == "" {
 				action.Mode = "existing"
 			} else if action.Mode != "existing" {
-				return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].existing-only requires mode=existing when both are set. Example: { type: github-app, existing-only: true, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
+				return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].existing-only requires mode=existing when both are set. Example: either remove mode or set mode: existing", manifestPath, index)
 			}
 		}
 		if action.Mode == "" {
