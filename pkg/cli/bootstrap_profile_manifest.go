@@ -316,11 +316,14 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].prompt is required when type=repo-secret. Example: { type: repo-secret, name: EXAMPLE_SECRET, prompt: Enter a secret }", manifestPath, index)
 		}
 	case "github-app":
+		if action.AppName == "" && action.Name != "" {
+			action.AppName = action.Name
+		}
 		if action.ExistingOnly {
 			if action.Mode == "" {
 				action.Mode = "existing"
 			} else if action.Mode != "existing" {
-				return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].existing-only requires mode=existing when mode is also set. Example: either remove mode or set mode: existing", manifestPath, index)
+				return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: bootstrap.actions[%d].existing-only is incompatible with mode=%q. Example: use mode: existing or omit the mode field", manifestPath, index, action.Mode)
 			}
 		}
 		if action.Mode == "" {

@@ -332,6 +332,24 @@ bootstrap:
 	}
 }
 
+func TestParseRepositoryPackageManifest_GitHubAppLegacyNameBackfillsAppName(t *testing.T) {
+	manifest, _, err := parseRepositoryPackageManifest("aw.yml", []byte(`name: Control Plane
+bootstrap:
+  actions:
+    - type: github-app
+      name: Legacy Bootstrap App
+      app-id-variable: APP_ID
+      private-key-secret: APP_PRIVATE_KEY
+`))
+	if err != nil {
+		t.Fatalf("parseRepositoryPackageManifest returned error: %v", err)
+	}
+	action := manifest.Bootstrap.Actions[0]
+	if action.AppName != "Legacy Bootstrap App" {
+		t.Fatalf("expected legacy name to backfill AppName, got %q", action.AppName)
+	}
+}
+
 func TestNormalizeBootstrapRuntime_SetsDefaultProfileHooks(t *testing.T) {
 	normalizedRuntime := normalizeBootstrapRuntime(bootstrapRuntime{})
 	if normalizedRuntime.resolveProfile == nil {
