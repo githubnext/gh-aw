@@ -31,33 +31,21 @@ describe("require-mkdirsync-try-catch", () => {
 
   it("valid: destructured mkdirSync inside try block passes", () => {
     cjsRuleTester.run("require-mkdirsync-try-catch", requireMkdirSyncTryCatchRule, {
-      valid: [
-        `const { mkdirSync } = require("fs"); try { mkdirSync(dir, { recursive: true }); } catch (e) {}`,
-        `const { mkdirSync } = require("node:fs"); try { mkdirSync(dir); } catch (e) {}`,
-      ],
+      valid: [`const { mkdirSync } = require("fs"); try { mkdirSync(dir, { recursive: true }); } catch (e) {}`, `const { mkdirSync } = require("node:fs"); try { mkdirSync(dir); } catch (e) {}`],
       invalid: [],
     });
   });
 
   it("valid: non-fs objects with mkdirSync name are ignored", () => {
     cjsRuleTester.run("require-mkdirsync-try-catch", requireMkdirSyncTryCatchRule, {
-      valid: [
-        `mockFs.mkdirSync(dir, { recursive: true });`,
-        `storage.mkdirSync(dir);`,
-        `myObj.mkdirSync(path);`,
-      ],
+      valid: [`mockFs.mkdirSync(dir, { recursive: true });`, `storage.mkdirSync(dir);`, `myObj.mkdirSync(path);`, `const fs = require("mock-fs"); fs.mkdirSync(dir, { recursive: true });`],
       invalid: [],
     });
   });
 
   it("valid: other fs methods remain out of scope", () => {
     cjsRuleTester.run("require-mkdirsync-try-catch", requireMkdirSyncTryCatchRule, {
-      valid: [
-        `fs.existsSync(path);`,
-        `fs.unlinkSync(path);`,
-        `fs.statSync(path);`,
-        `fs.readdirSync(dir);`,
-      ],
+      valid: [`fs.existsSync(path);`, `fs.unlinkSync(path);`, `fs.statSync(path);`, `fs.readdirSync(dir);`],
       invalid: [],
     });
   });
@@ -176,11 +164,27 @@ describe("require-mkdirsync-try-catch", () => {
     });
   });
 
+  it("invalid: fs.mkdirSync inside try/finally without catch is flagged", () => {
+    cjsRuleTester.run("require-mkdirsync-try-catch", requireMkdirSyncTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { fs.mkdirSync(dir, { recursive: true }); } finally { cleanup(); }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { arg: "dir" },
+              suggestions: 1,
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it("valid: fs.mkdirSync inside try block passes (ESM)", () => {
     esmRuleTester.run("require-mkdirsync-try-catch", requireMkdirSyncTryCatchRule, {
-      valid: [
-        `try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {}`,
-      ],
+      valid: [`try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {}`],
       invalid: [],
     });
   });
@@ -201,6 +205,16 @@ describe("require-mkdirsync-try-catch", () => {
                   output: `try {\n  fs.mkdirSync(dir, { recursive: true });\n} catch (err) {\n  // TODO: handle filesystem failure for this fs.mkdirSync call.\n  throw new Error(\n    "fs.mkdirSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
                 },
               ],
+            },
+          ],
+        },
+        {
+          code: `import { mkdirSync } from "fs"; mkdirSync(dir, { recursive: true });`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { arg: "dir" },
+              suggestions: 1,
             },
           ],
         },

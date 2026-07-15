@@ -19,8 +19,7 @@ export const requireMkdirSyncTryCatchRule = createRule({
     },
     schema: [],
     messages: {
-      requireTryCatch:
-        "Wrap fs.mkdirSync({{arg}}) in try/catch — mkdirSync throws on permission denied, invalid path, or filesystem errors and will crash the action if unhandled.",
+      requireTryCatch: "Wrap fs.mkdirSync({{arg}}) in try/catch — mkdirSync throws on permission denied, invalid path, or filesystem errors and will crash the action if unhandled.",
       wrapInTryCatch: "Wrap in try { ... } catch { ... } and re-throw with { cause: err } to preserve context.",
     },
   },
@@ -74,12 +73,22 @@ export const requireMkdirSyncTryCatchRule = createRule({
       );
     }
 
+    function isFsImportBinding(definition: { type: string; node: TSESTree.Node; parent?: TSESTree.Node | null }): boolean {
+      if (definition.type !== "ImportBinding") return false;
+      if (!definition.parent || definition.parent.type !== AST_NODE_TYPES.ImportDeclaration) return false;
+      if (definition.parent.source.type !== AST_NODE_TYPES.Literal) return false;
+      return FS_MODULE_SPECIFIERS.has(definition.parent.source.value as string);
+    }
+
     function isIdentifierBoundToFsModule(identifierName: string, scopeNode: TSESTree.Node): boolean {
       let scope: SourceCodeScope | null = sourceCode.getScope(scopeNode);
       while (scope) {
         const variable = scope.set.get(identifierName);
         if (variable && variable.defs.length > 0) {
           for (const def of variable.defs) {
+            if (isFsImportBinding(def)) {
+              return true;
+            }
             if (def.type !== "Variable") continue;
             const declarator = def.node as TSESTree.VariableDeclarator;
             if (declarator.id.type === AST_NODE_TYPES.Identifier && isRequireFsCall(declarator.init)) {
@@ -90,7 +99,8 @@ export const requireMkdirSyncTryCatchRule = createRule({
         }
         scope = scope.upper;
       }
-      return false;
+      // If `fs` has no local binding, treat it as the conventional top-level Node fs binding.
+      return identifierName === "fs";
     }
 
     /**
@@ -106,6 +116,12 @@ export const requireMkdirSyncTryCatchRule = createRule({
         const variable = scope.set.get(callee.name);
         if (variable && variable.defs.length > 0) {
           for (const def of variable.defs) {
+            if (isFsImportBinding(def)) {
+              if (def.node.type === AST_NODE_TYPES.ImportSpecifier && def.node.imported.type === AST_NODE_TYPES.Identifier && def.node.imported.name === "mkdirSync") {
+                return true;
+              }
+              continue;
+            }
             if (def.type !== "Variable") continue;
             const declarator = def.node as TSESTree.VariableDeclarator;
 
@@ -122,13 +138,7 @@ export const requireMkdirSyncTryCatchRule = createRule({
             // Shape: `const mkdirSync = fs.mkdirSync`
             if (declarator.id.type === AST_NODE_TYPES.Identifier && declarator.init?.type === AST_NODE_TYPES.MemberExpression) {
               const init = declarator.init;
-              if (
-                init.object.type === AST_NODE_TYPES.Identifier &&
-                isIdentifierBoundToFsModule(init.object.name, init.object) &&
-                !init.computed &&
-                init.property.type === AST_NODE_TYPES.Identifier &&
-                init.property.name === "mkdirSync"
-              ) {
+              if (init.object.type === AST_NODE_TYPES.Identifier && isIdentifierBoundToFsModule(init.object.name, init.object) && !init.computed && init.property.type === AST_NODE_TYPES.Identifier && init.property.name === "mkdirSync") {
                 return true;
               }
             }
@@ -145,7 +155,7 @@ export const requireMkdirSyncTryCatchRule = createRule({
 
       if (callee.type === AST_NODE_TYPES.MemberExpression) {
         if (callee.object.type !== AST_NODE_TYPES.Identifier) return false;
-        if (callee.object.name !== "fs" && !isIdentifierBoundToFsModule(callee.object.name, callee.object)) return false;
+        if (!isIdentifierBoundToFsModule(callee.object.name, callee.object)) return false;
 
         if (!callee.computed && callee.property.type === AST_NODE_TYPES.Identifier && callee.property.name === "mkdirSync") return true;
         if (callee.computed && callee.property.type === AST_NODE_TYPES.Literal && callee.property.value === "mkdirSync") return true;
