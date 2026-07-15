@@ -426,8 +426,9 @@ func finalizeAndSaveRunSummary(result *DownloadResult, runOutputDir string, metr
 	jobDetails, jobErr := fetchJobDetails(result.Run.DatabaseID, verbose)
 	if jobErr != nil && verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details for run %d: %v", result.Run.DatabaseID, jobErr)))
+	} else {
+		result.JobDetails = jobDetails
 	}
-	result.JobDetails = jobDetails
 
 	artifacts, listErr := listArtifacts(runOutputDir)
 	if listErr != nil && verbose {
