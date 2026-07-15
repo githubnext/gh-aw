@@ -29,7 +29,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintIndex, err := nolint.Index(pass)
+	nolintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func run(pass *analysis.Pass) (any, error) {
 			if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
 				return
 			}
-			if nolint.HasDirectiveForLinter(position, noLintIndex, "fmterrorfnoverbs") {
+			if nolint.HasDirectiveForLinter(position, nolintIndex, "fmterrorfnoverbs") {
 				return
 			}
 			pass.ReportRangef(call, "fmt.Errorf called with no format verbs; use errors.New(%s) instead", lit.Value)

@@ -38,7 +38,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintIndex, err := nolint.Index(pass)
+	nolintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func run(pass *analysis.Pass) (any, error) {
 					if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
 						return
 					}
-					if nolint.HasDirectiveForLinter(position, noLintIndex, "strconvparseignorederror") {
+					if nolint.HasDirectiveForLinter(position, nolintIndex, "strconvparseignorederror") {
 						return
 					}
 					pass.ReportRangef(call, "error return from strconv.%s is discarded; parse failures produce zero values silently", sel.Sel.Name)
