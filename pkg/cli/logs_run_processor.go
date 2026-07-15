@@ -29,48 +29,23 @@ import (
 	"github.com/sourcegraph/conc/pool"
 )
 
-// downloadRunArtifactsConcurrent downloads artifacts for multiple workflow runs concurrently
-func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, outputDir string, verbose bool, maxRuns int, repoOverride string, artifactFilter []string) []DownloadResult {
-	logsOrchestratorLog.Printf("Starting concurrent artifact download: runs=%d, outputDir=%s, maxRuns=%d", len(runs), outputDir, maxRuns)
-	if len(runs) == 0 {
-		return []DownloadResult{}
-	}
+// concurrentRunDownloadParams holds parameters shared across all goroutines
+// in the concurrent download pool, avoiding repetitive parameter passing.
+type concurrentRunDownloadParams struct {
+	outputDir      string
+	verbose        bool
+	dlHost         string
+	dlOwner        string
+	dlRepo         string
+	artifactFilter []string
+}
 
-	// Process all runs in the batch to account for caching and filtering
-	// The maxRuns parameter indicates how many successful results we need, but we may need to
-	// process more runs to account for:
-	// 1. Cached runs that may fail filters (engine, firewall, etc.)
-	// 2. Runs that may be skipped due to errors
-	// 3. Runs without artifacts
-	//
-	// By processing all runs in the batch, we ensure that the count parameter correctly
-	// reflects the number of matching logs (both downloaded and cached), not just attempts.
-	actualRuns := runs
-
-	totalRuns := len(actualRuns)
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing %d runs in parallel...", totalRuns)))
-	}
-
-	// Create progress bar for tracking run processing (only in non-verbose, non-CI mode)
-	// In CI environments \r is treated as a newline, producing excessive output for each update.
-	var progressBar *console.ProgressBar
-	if !verbose && !IsRunningInCI() {
-		progressBar = console.NewProgressBar(int64(totalRuns))
-		fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(0))
-	}
-
-	// Use atomic counter for thread-safe progress tracking
-	var completedCount atomic.Int64
-
-	// Get configured max concurrent downloads (default or from environment variable)
-	maxConcurrent := getMaxConcurrentDownloads()
-
-	// Parse repoOverride into host/owner/repo once for cross-repo artifact download.
-	// Accepted formats: "owner/repo" or "HOST/owner/repo".
+// buildConcurrentDownloadParams constructs download parameters by parsing the optional
+// repoOverride ("owner/repo" or "HOST/owner/repo") once for the whole batch.
+func buildConcurrentDownloadParams(outputDir string, verbose bool, repoOverride string, artifactFilter []string) concurrentRunDownloadParams {
 	var dlHost, dlOwner, dlRepo string
 	if repoOverride != "" {
+		// Accepted formats: "owner/repo" or "HOST/owner/repo".
 		parts := strings.SplitN(repoOverride, "/", 3)
 		switch len(parts) {
 		case 3: // HOST/owner/repo
@@ -79,400 +54,431 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 			dlOwner, dlRepo = parts[0], parts[1]
 		}
 	}
+	return concurrentRunDownloadParams{
+		outputDir:      outputDir,
+		verbose:        verbose,
+		dlHost:         dlHost,
+		dlOwner:        dlOwner,
+		dlRepo:         dlRepo,
+		artifactFilter: artifactFilter,
+	}
+}
+
+// initDownloadProgressBar creates and displays a progress bar when running interactively.
+// Returns nil when verbose is true or when running in CI (where \r produces unwanted newlines).
+func initDownloadProgressBar(verbose bool, total int) *console.ProgressBar {
+	if verbose || IsRunningInCI() {
+		return nil
+	}
+	pb := console.NewProgressBar(int64(total))
+	fmt.Fprintf(os.Stderr, "Processing runs: %s\r", pb.Update(0))
+	return pb
+}
+
+// logConcurrentDownloadSummary emits a verbose completion summary for concurrent downloads.
+func logConcurrentDownloadSummary(results []DownloadResult) {
+	successCount := 0
+	for _, result := range results {
+		if result.Error == nil && !result.Skipped {
+			successCount++
+		}
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(
+		fmt.Sprintf("Completed parallel processing: %d successful, %d total", successCount, len(results))))
+}
+
+// downloadRunArtifactsConcurrent downloads artifacts for multiple workflow runs concurrently
+func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, outputDir string, verbose bool, maxRuns int, repoOverride string, artifactFilter []string) []DownloadResult {
+	logsOrchestratorLog.Printf("Starting concurrent artifact download: runs=%d, outputDir=%s, maxRuns=%d", len(runs), outputDir, maxRuns)
+	if len(runs) == 0 {
+		return []DownloadResult{}
+	}
+
+	// maxRuns is a hint only; all runs are processed so that cache hits and
+	// filter passes are counted correctly.
+	totalRuns := len(runs)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing %d runs in parallel...", totalRuns)))
+	}
+
+	progressBar := initDownloadProgressBar(verbose, totalRuns)
+	var completedCount atomic.Int64
+	maxConcurrent := getMaxConcurrentDownloads()
+	params := buildConcurrentDownloadParams(outputDir, verbose, repoOverride, artifactFilter)
 
 	// Configure concurrent download pool with bounded parallelism and context cancellation.
 	// The conc pool automatically handles panic recovery and prevents goroutine leaks.
-	// WithContext enables graceful cancellation via Ctrl+C.
 	p := pool.NewWithResults[DownloadResult]().
 		WithContext(ctx).
 		WithMaxGoroutines(maxConcurrent)
 
 	// Each download task runs concurrently with context awareness.
-	// Context cancellation (e.g., via Ctrl+C) will stop all in-flight downloads gracefully.
-	// Panics are automatically recovered by the pool and re-raised with full stack traces
-	// after all tasks complete. This ensures one failing download doesn't break others.
-	for _, run := range actualRuns {
+	for _, run := range runs {
 		p.Go(func(ctx context.Context) (DownloadResult, error) {
-			// Check for context cancellation before starting download
-			select {
-			case <-ctx.Done():
-				return DownloadResult{
-					Run:     run,
-					Skipped: true,
-					Error:   ctx.Err(),
-				}, nil
-			default:
-			}
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing run %d (%s)...", run.DatabaseID, run.Status)))
-			}
-
-			// Download artifacts and logs for this run
-			runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", run.DatabaseID))
-			// Use the global owner/repo/host override from --repo when available.
-			// When the global override is absent (stdin mode with per-run URLs), derive
-			// the context from run.URL so each run downloads from the correct repository.
-			runOwner, runRepo, runHost := dlOwner, dlRepo, dlHost
-			if runOwner == "" && run.URL != "" {
-				if c, parseErr := parser.ParseRunURLExtended(run.URL); parseErr == nil && c.Owner != "" {
-					runOwner, runRepo, runHost = c.Owner, c.Repo, c.Host
-				}
-			}
-
-			// Try to load cached summary first
-			if summary, ok := loadRunSummary(runOutputDir, verbose); ok {
-				// When the caller requested the evals artifact and it is not
-				// present in the cached run directory, the cache was created
-				// without evals (e.g., an earlier default usage-only download).
-				// Bypass the cache so the fresh download below can fetch evals;
-				// the post-download filter will then decide whether to skip.
-				evalsRequested := slices.Contains(artifactFilter, constants.EvalsArtifactName)
-				hasEvals := runHasEvals(runOutputDir, verbose) ||
-					ensureEvalsResultsFromBranch(ctx, summary.Run, runOutputDir, runOwner, runRepo, runHost, verbose)
-				if evalsRequested && !hasEvals {
-					logsOrchestratorLog.Printf("Cache bypass for run %d: evals artifact requested but not present locally", run.DatabaseID)
-				} else {
-					logsOrchestratorLog.Printf("Cache hit for run %d, using cached summary", run.DatabaseID)
-					// Valid cached summary exists, use it directly
-					result := DownloadResult{
-						Run:                     summary.Run,
-						Metrics:                 summary.Metrics,
-						AwContext:               summary.AwContext,
-						TaskDomain:              summary.TaskDomain,
-						BehaviorFingerprint:     summary.BehaviorFingerprint,
-						AgenticAssessments:      summary.AgenticAssessments,
-						AccessAnalysis:          summary.AccessAnalysis,
-						FirewallAnalysis:        summary.FirewallAnalysis,
-						RedactedDomainsAnalysis: summary.RedactedDomainsAnalysis,
-						MissingTools:            summary.MissingTools,
-						MissingData:             summary.MissingData,
-						Noops:                   summary.Noops,
-						MCPFailures:             summary.MCPFailures,
-						MCPToolUsage:            summary.MCPToolUsage,
-						TokenUsage:              summary.TokenUsage,
-						GitHubRateLimitUsage:    summary.GitHubRateLimitUsage,
-						JobDetails:              summary.JobDetails,
-						LogsPath:                runOutputDir,
-						Cached:                  true, // Mark as cached
-					}
-					// Re-apply the usage activity backfill to heal stale cache entries.
-					backfillCacheHitIfNeeded(&result, runOutputDir, verbose)
-					// Update progress counter
-					completed := completedCount.Add(1)
-					if progressBar != nil {
-						fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(completed))
-					}
-					return result, nil
-				}
-			}
-
-			// No cached summary or version mismatch - download and process.
-			logsOrchestratorLog.Printf("Downloading artifacts for run %d: owner=%s, repo=%s", run.DatabaseID, runOwner, runRepo)
-			err := downloadRunArtifacts(ctx, run.DatabaseID, runOutputDir, verbose, runOwner, runRepo, runHost, artifactFilter)
-
-			result := DownloadResult{
-				Run:      run,
-				LogsPath: runOutputDir,
-			}
-
-			if err != nil {
-				// Check if this is a "no artifacts" case
-				if errors.Is(err, ErrNoArtifacts) {
-					logsOrchestratorLog.Printf("No artifacts available for run %d (conclusion=%s)", run.DatabaseID, run.Conclusion)
-					// For runs with important conclusions (timed_out, failure, cancelled),
-					// still process them even without artifacts to show the failure in reports
-					if isFailureConclusion(run.Conclusion) {
-						// Don't skip - we want these to appear in the report
-						// Just use empty metrics
-						result.Metrics = LogMetrics{}
-
-						// Try to fetch job details to get error count
-						if failedJobCount, jobErr := fetchJobStatuses(run.DatabaseID, verbose); jobErr == nil {
-							run.ErrorCount = failedJobCount
-						}
-					} else {
-						// For other runs (success, neutral, etc.) without artifacts, skip them
-						result.Skipped = true
-						result.Error = err
-					}
-				} else {
-					result.Error = err
-				}
-			} else {
-				// Extract metrics from logs
-				metrics, metricsErr := extractLogMetrics(runOutputDir, verbose)
-				if metricsErr != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract metrics for run %d: %v", run.DatabaseID, metricsErr)))
-					}
-					// Don't fail the whole download for metrics errors
-					metrics = LogMetrics{}
-				}
-				result.Metrics = metrics
-
-				// Update run with metrics so fingerprint computation uses the same data
-				// as the audit tool, which also derives these fields from extracted log metrics.
-				result.Run.TokenUsage = metrics.TokenUsage
-				result.Run.Turns = metrics.Turns
-				result.Run.AvgTimeBetweenTurns = metrics.AvgTimeBetweenTurns
-				result.Run.LogsPath = runOutputDir
-
-				// Load precomputed activity aggregates from the usage artifact when available.
-				// These aggregates are generated by the conclusion job and allow lightweight
-				// usage-only downloads to include firewall/session summaries.
-				usageActivitySummary, usageActivityErr := loadUsageActivitySummary(runOutputDir)
-				if usageActivityErr != nil && verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read usage activity summary for run %d: %v", run.DatabaseID, usageActivityErr)))
-				}
-
-				// If the GitHub API returned an empty workflow path (which can happen for
-				// scheduled or agentic workflow runs), infer it from aw_info.json so that
-				// the cached RunSummary and downstream consumers have a usable identifier.
-				if result.Run.WorkflowPath == "" {
-					awInfoPath := filepath.Join(runOutputDir, "aw_info.json")
-					if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil && info.WorkflowName != "" {
-						result.Run.WorkflowPath = inferWorkflowPathFromDisplayName(info.WorkflowName)
-					}
-				}
-
-				// Calculate duration and billable minutes from GitHub API timestamps.
-				// This mirrors the identical computation in audit.go so that
-				// processedRun.Run.Duration is consistent across both tools.
-				if !result.Run.StartedAt.IsZero() && !result.Run.UpdatedAt.IsZero() {
-					result.Run.Duration = result.Run.UpdatedAt.Sub(result.Run.StartedAt)
-					result.Run.ActionMinutes = math.Ceil(result.Run.Duration.Minutes())
-				}
-
-				// Analyze access logs if available
-				accessAnalysis, accessErr := analyzeAccessLogs(runOutputDir, verbose)
-				if accessErr != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs for run %d: %v", run.DatabaseID, accessErr)))
-					}
-				}
-				result.AccessAnalysis = accessAnalysis
-
-				// Analyze firewall/gateway data only when the agent artifact was downloaded.
-				// Firewall audit logs are now included in the unified agent artifact.
-				// Skip silently when the artifact was intentionally excluded from the filter to
-				// avoid spurious "not found" warnings in verbose mode.
-				hasFirewallArtifact := artifactMatchesFilter(constants.AgentArtifactName, artifactFilter)
-
-				// Analyze firewall logs if available
-				var firewallAnalysis *FirewallAnalysis
-				if hasFirewallArtifact {
-					var firewallErr error
-					firewallAnalysis, firewallErr = analyzeFirewallLogs(runOutputDir, verbose)
-					if firewallErr != nil {
-						if verbose {
-							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs for run %d: %v", run.DatabaseID, firewallErr)))
-						}
-					}
-				}
-				result.FirewallAnalysis = firewallAnalysis
-
-				// Analyze redacted domains if available
-				redactedDomainsAnalysis, redactedErr := analyzeRedactedDomains(runOutputDir, verbose)
-				if redactedErr != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze redacted domains for run %d: %v", run.DatabaseID, redactedErr)))
-					}
-				}
-				result.RedactedDomainsAnalysis = redactedDomainsAnalysis
-
-				// Resolve experiment assignment once for all extraction functions below.
-				expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(runOutputDir))
-
-				// Extract missing tools if available
-				missingTools, missingErr := extractMissingToolsFromRun(runOutputDir, run, verbose, expName, expVariant)
-				if missingErr != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing tools for run %d: %v", run.DatabaseID, missingErr)))
-					}
-				}
-				result.MissingTools = missingTools
-
-				// Extract missing data if available
-				missingData, missingDataErr := extractMissingDataFromRun(runOutputDir, run, verbose, expName, expVariant)
-				if missingDataErr != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing data for run %d: %v", run.DatabaseID, missingDataErr)))
-					}
-				}
-				result.MissingData = missingData
-
-				// Extract noops if available
-				noops, noopErr := extractNoopsFromRun(runOutputDir, run, verbose, expName, expVariant)
-				if noopErr != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract noops for run %d: %v", run.DatabaseID, noopErr)))
-					}
-				}
-				result.Noops = noops
-
-				// Extract MCP failures if available
-				mcpFailures, mcpErr := extractMCPFailuresFromRun(runOutputDir, run, verbose, expName, expVariant)
-				if mcpErr != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP failures for run %d: %v", run.DatabaseID, mcpErr)))
-					}
-				}
-				result.MCPFailures = mcpFailures
-
-				// Extract MCP tool usage data from gateway logs if available.
-				// Gated on hasFirewallArtifact since gateway.jsonl lives in the agent artifact.
-				var mcpToolUsage *MCPToolUsageData
-				if hasFirewallArtifact {
-					var mcpToolErr error
-					mcpToolUsage, mcpToolErr = extractMCPToolUsageData(runOutputDir, verbose)
-					if mcpToolErr != nil {
-						if verbose {
-							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP tool usage for run %d: %v", run.DatabaseID, mcpToolErr)))
-						}
-					}
-				}
-				result.MCPToolUsage = mcpToolUsage
-
-				// Analyze token usage from firewall proxy logs.
-				// token-usage.jsonl is also available in the compact usage artifact.
-				tokenUsage, tokenErr := analyzeTokenUsage(runOutputDir, verbose)
-				if tokenErr != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze token usage for run %d: %v", run.DatabaseID, tokenErr)))
-					}
-				}
-				result.TokenUsage = tokenUsage
-
-				// Propagate effective tokens from the firewall proxy summary when available
-				if tokenUsage != nil && tokenUsage.TotalEffectiveTokens > 0 {
-					result.Run.EffectiveTokens = tokenUsage.TotalEffectiveTokens
-				}
-
-				// Analyze GitHub API rate limit consumption from github_rate_limits.jsonl
-				rateLimitUsage, rlErr := analyzeGitHubRateLimits(runOutputDir, verbose)
-				if rlErr != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze GitHub rate limit usage for run %d: %v", run.DatabaseID, rlErr)))
-					}
-				}
-				result.GitHubRateLimitUsage = rateLimitUsage
-				// Count safe output items created in GitHub (from manifest artifact).
-				// This runs before applyUsageActivitySummaryToResult so that the summary
-				// backfill only activates when the manifest returned zero items.
-				result.Run.SafeItemsCount = len(extractCreatedItemsFromManifest(runOutputDir))
-
-				// Fill missing activity summaries from usage artifact precomputes.
-				// This call is unconditional but only backfills fields that are still empty.
-				applyUsageActivitySummaryToResult(usageActivitySummary, &result, !hasFirewallArtifact)
-
-				// Fetch job details for the summary
-				jobDetails, jobErr := fetchJobDetails(run.DatabaseID, verbose)
-				if jobErr != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details for run %d: %v", run.DatabaseID, jobErr)))
-					}
-				}
-
-				// List all artifacts
-				artifacts, listErr := listArtifacts(runOutputDir)
-				if listErr != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list artifacts for run %d: %v", run.DatabaseID, listErr)))
-					}
-				}
-
-				processedRun := ProcessedRun{
-					Run:                     result.Run,
-					AccessAnalysis:          accessAnalysis,
-					FirewallAnalysis:        firewallAnalysis,
-					RedactedDomainsAnalysis: redactedDomainsAnalysis,
-					MissingTools:            missingTools,
-					MissingData:             missingData,
-					Noops:                   noops,
-					MCPFailures:             mcpFailures,
-					MCPToolUsage:            mcpToolUsage,
-					TokenUsage:              tokenUsage,
-					GitHubRateLimitUsage:    rateLimitUsage,
-					JobDetails:              jobDetails,
-				}
-				awContext, _, _, taskDomain, behaviorFingerprint, agenticAssessments := deriveRunAgenticAnalysis(processedRun, metrics)
-				result.AwContext = awContext
-				result.TaskDomain = taskDomain
-				result.BehaviorFingerprint = behaviorFingerprint
-				result.AgenticAssessments = agenticAssessments
-
-				// Create and save run summary
-				summary := &RunSummary{
-					CLIVersion:              GetVersion(),
-					RunID:                   run.DatabaseID,
-					ProcessedAt:             time.Now(),
-					Run:                     result.Run,
-					Metrics:                 metrics,
-					AwContext:               result.AwContext,
-					TaskDomain:              result.TaskDomain,
-					BehaviorFingerprint:     result.BehaviorFingerprint,
-					AgenticAssessments:      result.AgenticAssessments,
-					AccessAnalysis:          accessAnalysis,
-					FirewallAnalysis:        firewallAnalysis,
-					RedactedDomainsAnalysis: redactedDomainsAnalysis,
-					MissingTools:            missingTools,
-					MissingData:             missingData,
-					Noops:                   noops,
-					MCPFailures:             mcpFailures,
-					MCPToolUsage:            mcpToolUsage,
-					TokenUsage:              tokenUsage,
-					GitHubRateLimitUsage:    rateLimitUsage,
-					ArtifactsList:           artifacts,
-					JobDetails:              jobDetails,
-				}
-
-				if saveErr := saveRunSummary(runOutputDir, summary, verbose); saveErr != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save run summary for run %d: %v", run.DatabaseID, saveErr)))
-					}
-				}
-			}
-
-			// Update progress counter for completed downloads
-			completed := completedCount.Add(1)
-			if progressBar != nil {
-				fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(completed))
-			}
-
-			return result, nil
+			return processSingleRunDownload(ctx, run, params, &completedCount, progressBar)
 		})
 	}
 
-	// Wait blocks until all downloads complete, context is cancelled, or panic occurs.
-	// With context support, the pool guarantees:
-	// - All goroutines finish gracefully on cancellation (no leaks)
-	// - Panics are propagated with stack traces
-	// - Partial results are returned when context is cancelled
-	// - Results are collected in submission order
 	results, err := p.Wait()
-
-	// Handle context cancellation
 	if err != nil && verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Download interrupted: %v", err)))
 	}
-
-	// Clear progress bar silently - detailed summary shown at the end
 	if progressBar != nil {
-		console.ClearLine() // Clear the line
+		console.ClearLine()
 	}
-
 	if verbose {
-		successCount := 0
-		for _, result := range results {
-			if result.Error == nil && !result.Skipped {
-				successCount++
-			}
+		logConcurrentDownloadSummary(results)
+	}
+	logsOrchestratorLog.Printf("Concurrent download complete: total=%d, results=%d", totalRuns, len(results))
+	return results
+}
+
+// resolveRunRepoContext returns a copy of params with dlOwner/dlRepo/dlHost resolved to
+// the per-run repository.  The global override takes precedence; for stdin mode (no global
+// override), the context is derived from run.URL.
+func resolveRunRepoContext(run WorkflowRun, params concurrentRunDownloadParams) concurrentRunDownloadParams {
+	if params.dlOwner != "" || run.URL == "" {
+		return params
+	}
+	if c, err := parser.ParseRunURLExtended(run.URL); err == nil && c.Owner != "" {
+		params.dlOwner, params.dlRepo, params.dlHost = c.Owner, c.Repo, c.Host
+	}
+	return params
+}
+
+// handleArtifactDownloadError fills result based on the artifact download error.
+// Failure-conclusion runs are kept (with empty metrics) so they appear in reports;
+// all other runs without artifacts are marked as skipped.
+func handleArtifactDownloadError(result *DownloadResult, err error, verbose bool) {
+	run := result.Run
+	if errors.Is(err, ErrNoArtifacts) {
+		logsOrchestratorLog.Printf("No artifacts available for run %d (conclusion=%s)", run.DatabaseID, run.Conclusion)
+		if isFailureConclusion(run.Conclusion) {
+			result.Metrics = LogMetrics{}
+			// ErrorCount will be populated by buildProcessedRun via fetchJobStatuses.
+		} else {
+			result.Skipped = true
+			result.Error = err
 		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Completed parallel processing: %d successful, %d total", successCount, len(results))))
+	} else {
+		result.Error = err
+	}
+}
+
+// processSingleRunDownload executes the full download and analysis pipeline for one run.
+// It is called concurrently from downloadRunArtifactsConcurrent for each run in the batch.
+func processSingleRunDownload(
+	ctx context.Context,
+	run WorkflowRun,
+	params concurrentRunDownloadParams,
+	completedCount *atomic.Int64,
+	progressBar *console.ProgressBar,
+) (DownloadResult, error) {
+	select {
+	case <-ctx.Done():
+		return DownloadResult{Run: run, Skipped: true, Error: ctx.Err()}, nil
+	default:
+	}
+	if params.verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing run %d (%s)...", run.DatabaseID, run.Status)))
 	}
 
-	logsOrchestratorLog.Printf("Concurrent download complete: total=%d, results=%d", len(actualRuns), len(results))
-	return results
+	runOutputDir := filepath.Join(params.outputDir, fmt.Sprintf("run-%d", run.DatabaseID))
+	perRunParams := resolveRunRepoContext(run, params)
+
+	result, ok := tryLoadCachedRunResult(ctx, run, runOutputDir, perRunParams)
+	if !ok {
+		logsOrchestratorLog.Printf("Downloading artifacts for run %d: owner=%s, repo=%s", run.DatabaseID, perRunParams.dlOwner, perRunParams.dlRepo)
+		err := downloadRunArtifacts(ctx, run.DatabaseID, runOutputDir, params.verbose, perRunParams.dlOwner, perRunParams.dlRepo, perRunParams.dlHost, params.artifactFilter)
+
+		result = &DownloadResult{Run: run, LogsPath: runOutputDir}
+		if err != nil {
+			handleArtifactDownloadError(result, err, params.verbose)
+		} else {
+			analyzeRunArtifacts(result, runOutputDir, params.verbose, params.artifactFilter)
+		}
+	} else {
+		logsOrchestratorLog.Printf("Cache hit for run %d, using cached summary", run.DatabaseID)
+	}
+
+	completed := completedCount.Add(1)
+	if progressBar != nil {
+		fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(completed))
+	}
+	return *result, nil
+}
+
+// tryLoadCachedRunResult attempts to return a pre-built DownloadResult from the on-disk
+// cache.  Returns (result, true) on a valid cache hit; (nil, false) otherwise.
+func tryLoadCachedRunResult(
+	ctx context.Context,
+	run WorkflowRun,
+	runOutputDir string,
+	params concurrentRunDownloadParams,
+) (*DownloadResult, bool) {
+	summary, ok := loadRunSummary(runOutputDir, params.verbose)
+	if !ok {
+		return nil, false
+	}
+
+	// When the caller requested the evals artifact and it is not present in the
+	// cached run directory, the cache was created without evals.  Bypass the cache
+	// so the fresh download can fetch evals; the post-download filter decides whether
+	// to skip.
+	evalsRequested := slices.Contains(params.artifactFilter, constants.EvalsArtifactName)
+	hasEvals := runHasEvals(runOutputDir, params.verbose) ||
+		ensureEvalsResultsFromBranch(ctx, summary.Run, runOutputDir, params.dlOwner, params.dlRepo, params.dlHost, params.verbose)
+	if evalsRequested && !hasEvals {
+		logsOrchestratorLog.Printf("Cache bypass for run %d: evals artifact requested but not present locally", run.DatabaseID)
+		return nil, false
+	}
+
+	result := DownloadResult{
+		Run:                     summary.Run,
+		Metrics:                 summary.Metrics,
+		AwContext:               summary.AwContext,
+		TaskDomain:              summary.TaskDomain,
+		BehaviorFingerprint:     summary.BehaviorFingerprint,
+		AgenticAssessments:      summary.AgenticAssessments,
+		AccessAnalysis:          summary.AccessAnalysis,
+		FirewallAnalysis:        summary.FirewallAnalysis,
+		RedactedDomainsAnalysis: summary.RedactedDomainsAnalysis,
+		MissingTools:            summary.MissingTools,
+		MissingData:             summary.MissingData,
+		Noops:                   summary.Noops,
+		MCPFailures:             summary.MCPFailures,
+		MCPToolUsage:            summary.MCPToolUsage,
+		TokenUsage:              summary.TokenUsage,
+		GitHubRateLimitUsage:    summary.GitHubRateLimitUsage,
+		JobDetails:              summary.JobDetails,
+		LogsPath:                runOutputDir,
+		Cached:                  true,
+	}
+	// Re-apply the usage activity backfill to heal stale cache entries.
+	backfillCacheHitIfNeeded(&result, runOutputDir, params.verbose)
+	return &result, true
+}
+
+// analyzeRunArtifacts populates a DownloadResult with all analysis data derived from
+// freshly-downloaded artifacts in runOutputDir.  Called only when the download succeeded
+// and no valid cached summary was found.
+func analyzeRunArtifacts(result *DownloadResult, runOutputDir string, verbose bool, artifactFilter []string) {
+	metrics := extractRunMetricsAndMetadata(result, runOutputDir, verbose)
+
+	usageActivitySummary, usageActivityErr := loadUsageActivitySummary(runOutputDir)
+	if usageActivityErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read usage activity summary for run %d: %v", result.Run.DatabaseID, usageActivityErr)))
+	}
+
+	// Firewall artifact gating: firewall/gateway logs live in the agent artifact.
+	// Skip silently when the artifact was intentionally excluded from the filter.
+	hasFirewallArtifact := artifactMatchesFilter(constants.AgentArtifactName, artifactFilter)
+
+	applyRunSecurityAnalysis(result, runOutputDir, verbose, hasFirewallArtifact)
+
+	// Resolve experiment assignment once for all extraction functions below.
+	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(runOutputDir))
+
+	applyRunBehavioralSignals(result, runOutputDir, verbose, hasFirewallArtifact, expName, expVariant)
+
+	applyRunUsageMetrics(result, runOutputDir, verbose, usageActivitySummary, hasFirewallArtifact)
+
+	finalizeAndSaveRunSummary(result, runOutputDir, metrics, verbose)
+}
+
+// extractRunMetricsAndMetadata extracts log metrics, infers missing workflow path, and
+// computes duration.  It populates the matching fields on result.Run and returns the
+// LogMetrics so callers can pass them to functions that need them (e.g. agentic analysis).
+func extractRunMetricsAndMetadata(result *DownloadResult, runOutputDir string, verbose bool) LogMetrics {
+	metrics, metricsErr := extractLogMetrics(runOutputDir, verbose)
+	if metricsErr != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract metrics for run %d: %v", result.Run.DatabaseID, metricsErr)))
+		}
+		metrics = LogMetrics{}
+	}
+	result.Metrics = metrics
+	// Update run with metrics so fingerprint computation uses the same data as the audit tool.
+	result.Run.TokenUsage = metrics.TokenUsage
+	result.Run.Turns = metrics.Turns
+	result.Run.AvgTimeBetweenTurns = metrics.AvgTimeBetweenTurns
+	result.Run.LogsPath = runOutputDir
+
+	// If the GitHub API returned an empty workflow path (e.g. for scheduled or agentic
+	// workflow runs), infer it from aw_info.json so the cached RunSummary and downstream
+	// consumers have a usable identifier.
+	if result.Run.WorkflowPath == "" {
+		awInfoPath := filepath.Join(runOutputDir, "aw_info.json")
+		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil && info.WorkflowName != "" {
+			result.Run.WorkflowPath = inferWorkflowPathFromDisplayName(info.WorkflowName)
+		}
+	}
+
+	// Calculate duration and billable minutes from GitHub API timestamps.
+	// This mirrors the identical computation in audit.go for consistency.
+	if !result.Run.StartedAt.IsZero() && !result.Run.UpdatedAt.IsZero() {
+		result.Run.Duration = result.Run.UpdatedAt.Sub(result.Run.StartedAt)
+		result.Run.ActionMinutes = math.Ceil(result.Run.Duration.Minutes())
+	}
+	return metrics
+}
+
+// applyRunSecurityAnalysis runs access-log, firewall, and redacted-domain analyses and
+// stores the results directly on result.
+func applyRunSecurityAnalysis(result *DownloadResult, runOutputDir string, verbose bool, hasFirewallArtifact bool) {
+	accessAnalysis, accessErr := analyzeAccessLogs(runOutputDir, verbose)
+	if accessErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs for run %d: %v", result.Run.DatabaseID, accessErr)))
+	}
+	result.AccessAnalysis = accessAnalysis
+
+	var firewallAnalysis *FirewallAnalysis
+	if hasFirewallArtifact {
+		var firewallErr error
+		firewallAnalysis, firewallErr = analyzeFirewallLogs(runOutputDir, verbose)
+		if firewallErr != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs for run %d: %v", result.Run.DatabaseID, firewallErr)))
+		}
+	}
+	result.FirewallAnalysis = firewallAnalysis
+
+	redactedDomainsAnalysis, redactedErr := analyzeRedactedDomains(runOutputDir, verbose)
+	if redactedErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze redacted domains for run %d: %v", result.Run.DatabaseID, redactedErr)))
+	}
+	result.RedactedDomainsAnalysis = redactedDomainsAnalysis
+}
+
+// applyRunBehavioralSignals extracts missing-tool, missing-data, noop, MCP failure, and
+// MCP tool-usage signals and stores them directly on result.
+func applyRunBehavioralSignals(result *DownloadResult, runOutputDir string, verbose bool, hasFirewallArtifact bool, expName, expVariant string) {
+	missingTools, missingErr := extractMissingToolsFromRun(runOutputDir, result.Run, verbose, expName, expVariant)
+	if missingErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing tools for run %d: %v", result.Run.DatabaseID, missingErr)))
+	}
+	result.MissingTools = missingTools
+
+	missingData, missingDataErr := extractMissingDataFromRun(runOutputDir, result.Run, verbose, expName, expVariant)
+	if missingDataErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing data for run %d: %v", result.Run.DatabaseID, missingDataErr)))
+	}
+	result.MissingData = missingData
+
+	noops, noopErr := extractNoopsFromRun(runOutputDir, result.Run, verbose, expName, expVariant)
+	if noopErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract noops for run %d: %v", result.Run.DatabaseID, noopErr)))
+	}
+	result.Noops = noops
+
+	mcpFailures, mcpErr := extractMCPFailuresFromRun(runOutputDir, result.Run, verbose, expName, expVariant)
+	if mcpErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP failures for run %d: %v", result.Run.DatabaseID, mcpErr)))
+	}
+	result.MCPFailures = mcpFailures
+
+	// MCP tool usage data lives in gateway.jsonl which is part of the agent artifact.
+	var mcpToolUsage *MCPToolUsageData
+	if hasFirewallArtifact {
+		var mcpToolErr error
+		mcpToolUsage, mcpToolErr = extractMCPToolUsageData(runOutputDir, verbose)
+		if mcpToolErr != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP tool usage for run %d: %v", result.Run.DatabaseID, mcpToolErr)))
+		}
+	}
+	result.MCPToolUsage = mcpToolUsage
+}
+
+// applyRunUsageMetrics extracts token usage, GitHub rate-limit consumption, safe-output
+// item counts, and backfills any missing activity summaries from the usage artifact.
+func applyRunUsageMetrics(result *DownloadResult, runOutputDir string, verbose bool, usageActivitySummary *usageActivitySummary, hasFirewallArtifact bool) {
+	// token-usage.jsonl is also available in the compact usage artifact.
+	tokenUsage, tokenErr := analyzeTokenUsage(runOutputDir, verbose)
+	if tokenErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze token usage for run %d: %v", result.Run.DatabaseID, tokenErr)))
+	}
+	result.TokenUsage = tokenUsage
+	if tokenUsage != nil && tokenUsage.TotalEffectiveTokens > 0 {
+		result.Run.EffectiveTokens = tokenUsage.TotalEffectiveTokens
+	}
+
+	rateLimitUsage, rlErr := analyzeGitHubRateLimits(runOutputDir, verbose)
+	if rlErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze GitHub rate limit usage for run %d: %v", result.Run.DatabaseID, rlErr)))
+	}
+	result.GitHubRateLimitUsage = rateLimitUsage
+
+	// Count safe output items created in GitHub (from manifest artifact).
+	// This runs before applyUsageActivitySummaryToResult so that the summary
+	// backfill only activates when the manifest returned zero items.
+	result.Run.SafeItemsCount = len(extractCreatedItemsFromManifest(runOutputDir))
+
+	// Fill missing activity summaries from usage artifact precomputes.
+	// This call is unconditional but only backfills fields that are still empty.
+	applyUsageActivitySummaryToResult(usageActivitySummary, result, !hasFirewallArtifact)
+}
+
+// finalizeAndSaveRunSummary fetches job details, derives the agentic analysis, builds the
+// RunSummary struct, and writes it to disk.  It also sets the agentic-analysis fields on
+// result directly so they are available to the caller.
+func finalizeAndSaveRunSummary(result *DownloadResult, runOutputDir string, metrics LogMetrics, verbose bool) {
+	jobDetails, jobErr := fetchJobDetails(result.Run.DatabaseID, verbose)
+	if jobErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details for run %d: %v", result.Run.DatabaseID, jobErr)))
+	} else {
+		result.JobDetails = jobDetails
+	}
+
+	artifacts, listErr := listArtifacts(runOutputDir)
+	if listErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list artifacts for run %d: %v", result.Run.DatabaseID, listErr)))
+	}
+
+	processedRun := ProcessedRun{
+		Run:                     result.Run,
+		AccessAnalysis:          result.AccessAnalysis,
+		FirewallAnalysis:        result.FirewallAnalysis,
+		RedactedDomainsAnalysis: result.RedactedDomainsAnalysis,
+		MissingTools:            result.MissingTools,
+		MissingData:             result.MissingData,
+		Noops:                   result.Noops,
+		MCPFailures:             result.MCPFailures,
+		MCPToolUsage:            result.MCPToolUsage,
+		TokenUsage:              result.TokenUsage,
+		GitHubRateLimitUsage:    result.GitHubRateLimitUsage,
+		JobDetails:              jobDetails,
+	}
+	awContext, _, _, taskDomain, behaviorFingerprint, agenticAssessments := deriveRunAgenticAnalysis(processedRun, metrics)
+	result.AwContext = awContext
+	result.TaskDomain = taskDomain
+	result.BehaviorFingerprint = behaviorFingerprint
+	result.AgenticAssessments = agenticAssessments
+
+	summary := &RunSummary{
+		CLIVersion:              GetVersion(),
+		RunID:                   result.Run.DatabaseID,
+		ProcessedAt:             time.Now(),
+		Run:                     result.Run,
+		Metrics:                 metrics,
+		AwContext:               result.AwContext,
+		TaskDomain:              result.TaskDomain,
+		BehaviorFingerprint:     result.BehaviorFingerprint,
+		AgenticAssessments:      result.AgenticAssessments,
+		AccessAnalysis:          result.AccessAnalysis,
+		FirewallAnalysis:        result.FirewallAnalysis,
+		RedactedDomainsAnalysis: result.RedactedDomainsAnalysis,
+		MissingTools:            result.MissingTools,
+		MissingData:             result.MissingData,
+		Noops:                   result.Noops,
+		MCPFailures:             result.MCPFailures,
+		MCPToolUsage:            result.MCPToolUsage,
+		TokenUsage:              result.TokenUsage,
+		GitHubRateLimitUsage:    result.GitHubRateLimitUsage,
+		ArtifactsList:           artifacts,
+		JobDetails:              jobDetails,
+	}
+	if saveErr := saveRunSummary(runOutputDir, summary, verbose); saveErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save run summary for run %d: %v", result.Run.DatabaseID, saveErr)))
+	}
 }
 
 // backfillCacheHitIfNeeded re-applies the usage activity summary backfill to heal
