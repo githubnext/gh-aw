@@ -196,6 +196,12 @@ func processSingleRunDownload(
 		if err != nil {
 			handleArtifactDownloadError(result, err, params.verbose)
 		} else {
+			// When evals are requested but not found in the usage artifact (older runs
+			// that predate the conclusion-job copy), fall back to the dedicated evals
+			// artifact so those runs are not silently skipped.
+			if params.evalsOnly && !runHasEvals(runOutputDir, params.verbose) {
+				tryDownloadEvalsArtifactFallback(ctx, run.DatabaseID, runOutputDir, params)
+			}
 			analyzeRunArtifacts(result, runOutputDir, params.verbose, params.artifactFilter)
 		}
 	} else {
@@ -207,6 +213,24 @@ func processSingleRunDownload(
 		fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(completed))
 	}
 	return *result, nil
+}
+
+// tryDownloadEvalsArtifactFallback attempts to download the dedicated evals artifact for
+// a run that already has its primary artifacts on disk but does not contain evals.jsonl.
+// This handles older runs where evals.jsonl was uploaded as a standalone artifact instead
+// of being included in the usage artifact by the conclusion job.
+// Errors are logged but not propagated — the caller proceeds with whatever was downloaded.
+func tryDownloadEvalsArtifactFallback(ctx context.Context, runID int64, runOutputDir string, params concurrentRunDownloadParams) {
+	logsOrchestratorLog.Printf("evals not found in usage artifact for run %d, attempting fallback download of dedicated evals artifact", runID)
+	evalsFilter := []string{constants.EvalsArtifactName}
+	if err := downloadRunArtifacts(ctx, runID, runOutputDir, params.verbose, params.dlOwner, params.dlRepo, params.dlHost, evalsFilter); err != nil {
+		logsOrchestratorLog.Printf("Fallback evals artifact download failed for run %d: %v", runID, err)
+		if params.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Evals not found in usage artifact for run %d and fallback download failed: %v", runID, err)))
+		}
+	} else {
+		logsOrchestratorLog.Printf("Fallback evals artifact downloaded for run %d", runID)
+	}
 }
 
 // tryLoadCachedRunResult attempts to return a pre-built DownloadResult from the on-disk
