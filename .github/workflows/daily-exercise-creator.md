@@ -193,5 +193,7 @@ Example: `Create your first agentic workflow — Beginner exercise outline`
 - Wrap any extra-long sections in `<details><summary>...</summary>` blocks.
 - Keep the top-level outline visible (do not collapse the main sections).
 
-After creating the issue, call `noop` only if you could not find a new topic and could not invent one.
 Always call `create_issue` when a valid new outline was produced.
+The topic bank is a starting point — if all suggested topics are covered, invent a new gh-aw topic;
+there is always something new to teach. Call `noop` only if a tool or infrastructure failure
+prevents you from completing the outline after genuine attempts.
