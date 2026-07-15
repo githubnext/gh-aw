@@ -45,43 +45,6 @@ func checkMaxField(toolName string, maxPtr *string) error {
 	return nil
 }
 
-// checkMaxFieldAtMostOne validates that a safe-output max field is exactly 1.
-// This is used for tools whose runtime handler uses a single shared buffer that
-// cannot preserve independent state across multiple targets in one run.
-// It applies the standard range validation first (rejecting 0, -2, etc.), and then
-// additionally rejects values greater than 1 or -1 (unlimited) with an actionable error.
-// Returns nil if the max pointer is nil, the value is an expression, or equals 1.
-func checkMaxFieldAtMostOne(toolName string, maxPtr *string) error {
-	// Apply standard range validation first: rejects 0 and negative values except -1.
-	if err := checkMaxField(toolName, maxPtr); err != nil {
-		return err
-	}
-	if maxPtr == nil || isExpression(*maxPtr) {
-		return nil
-	}
-	n, err := strconv.Atoi(*maxPtr)
-	if err != nil {
-		// Non-numeric, non-expression values are skipped (consistent with checkMaxField).
-		return nil
-	}
-	// At this point n is a valid max per checkMaxField (positive or -1).
-	// Reject -1 (unlimited) and any value > 1: both allow more calls than the
-	// single shared buffer can handle correctly.
-	if n != 1 {
-		toolDisplayName := strings.ReplaceAll(toolName, "_", "-")
-		safeOutputsMaxValidationLog.Printf("Invalid max value %d for %s: must be 1", n, toolDisplayName)
-		return fmt.Errorf(
-			"safe-outputs.%s: max must be 1; the runtime uses a single shared review buffer and cannot "+
-				"submit multiple independent reviews in one run. "+
-				"To review multiple PRs, use target: \"*\" with max: 1 (or omit max entirely) so each PR "+
-				"gets its own invocation and review buffer. "+
-				"Multi-buffer support will be added in a future release",
-			toolDisplayName,
-		)
-	}
-	return nil
-}
-
 // validateSafeOutputsMax validates that all max fields in safe-outputs configs hold valid values.
 // Valid values are positive integers (n > 0) or -1 (unlimited per spec).
 // 0 and other negative values are rejected.
@@ -283,7 +246,7 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 		}
 	}
 	if config.SubmitPullRequestReview != nil {
-		if err := checkMaxFieldAtMostOne("submit_pull_request_review", config.SubmitPullRequestReview.Max); err != nil {
+		if err := checkMaxField("submit_pull_request_review", config.SubmitPullRequestReview.Max); err != nil {
 			return err
 		}
 	}
