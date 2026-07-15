@@ -112,7 +112,7 @@ describe("daily_aic_cache_helpers", () => {
       expect(result.keptLines).toContain("malformed");
     });
 
-    it("keeps an entry whose timestamp exactly equals cutoffMs (not strictly less than)", () => {
+    it("keeps an entry whose timestamp exactly equals cutoffMs (boundary: not pruned)", () => {
       const cutoff = Date.now() - 48 * 60 * 60 * 1000;
       const exactTs = new Date(cutoff).toISOString();
       const line = JSON.stringify({ run_id: 5, aic: 1, timestamp: exactTs });

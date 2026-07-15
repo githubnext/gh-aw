@@ -158,9 +158,6 @@ function loadAICUsageCache(filePath) {
     const { keptLines, prunedCount: skippedStale } = pruneStaleJSONLCacheLines(content, cutoff);
     let loaded = 0;
     for (const line of keptLines) {
-      if (!line.startsWith("{")) {
-        continue;
-      }
       try {
         const entry = JSON.parse(line);
         const runId = Number(entry?.run_id);
