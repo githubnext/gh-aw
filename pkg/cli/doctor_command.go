@@ -31,8 +31,8 @@ repository exists, resolves the owner type, and inspects checkout state.`,
 			verbose, _ := cmd.Flags().GetBool("verbose")
 
 			if repo == "" {
-				if cmd.Flags().Changed("dir") || cmd.Flags().Changed("require-owner-type") || cmd.Flags().Changed("verbose") {
-					return errors.New("--dir, --require-owner-type, and --verbose require --repo")
+				if cmd.Flags().Changed("dir") || cmd.Flags().Changed("require-owner-type") {
+					return errors.New("--dir and --require-owner-type require --repo")
 				}
 
 				return runDoctorSetupAuth(SetupAuthOptions{Ctx: cmd.Context(), JSON: jsonOutput})

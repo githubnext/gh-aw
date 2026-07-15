@@ -127,7 +127,6 @@ func TestDoctorCommandRejectsRepoOnlyFlagsWithoutRepo(t *testing.T) {
 		{name: "dir only", args: []string{"doctor", "--dir", "."}},
 		{name: "require-owner-type only", args: []string{"doctor", "--require-owner-type", "org"}},
 		{name: "dir and require-owner-type", args: []string{"doctor", "--dir", ".", "--require-owner-type", "org"}},
-		{name: "verbose only", args: []string{"doctor", "--verbose"}},
 		{name: "all repo-only flags", args: []string{"doctor", "--dir", ".", "--require-owner-type", "org", "--verbose"}},
 	}
 
@@ -155,7 +154,34 @@ func TestDoctorCommandRejectsRepoOnlyFlagsWithoutRepo(t *testing.T) {
 
 			err := root.Execute()
 			require.Error(t, err)
-			assert.Equal(t, "--dir, --require-owner-type, and --verbose require --repo", err.Error())
+			assert.Equal(t, "--dir and --require-owner-type require --repo", err.Error())
 		})
 	}
+}
+
+func TestDoctorCommandAllowsVerboseWithoutRepo(t *testing.T) {
+	origAuth := runDoctorSetupAuth
+	origRepo := runDoctorSetupRepositoryCheck
+	t.Cleanup(func() {
+		runDoctorSetupAuth = origAuth
+		runDoctorSetupRepositoryCheck = origRepo
+	})
+
+	authCalled := false
+	runDoctorSetupAuth = func(opts SetupAuthOptions) error {
+		authCalled = true
+		return nil
+	}
+	runDoctorSetupRepositoryCheck = func(opts SetupRepositoryCheckOptions) error {
+		return errors.New("should not run repo path without --repo")
+	}
+
+	root := &cobra.Command{Use: "aw"}
+	var verbose bool
+	root.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output showing detailed information")
+	root.AddCommand(NewDoctorCommand())
+	root.SetArgs([]string{"doctor", "--verbose"})
+
+	require.NoError(t, root.Execute())
+	assert.True(t, authCalled)
 }
