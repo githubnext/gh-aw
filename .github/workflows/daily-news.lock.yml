@@ -510,6 +510,13 @@ jobs:
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
       unknown_model_ai_credits: ${{ steps.parse-mcp-gateway.outputs.unknown_model_ai_credits || 'false' }}
     steps:
+      - name: Validate Node.js on custom runner
+        run: |
+          if ! command -v node >/dev/null 2>&1; then
+            echo "::error title=Missing Node.js runtime::This self-hosted or GPU runner is missing 'node' on PATH. GitHub JavaScript actions such as actions/checkout and gh-aw setup actions require Node.js before workflow runtime setup runs. Install Node.js on the runner image or switch to a GitHub-hosted runner and re-run the workflow."
+            echo "::error::The workflow 'runtimes.node' setting applies later in the job and cannot satisfy this prerequisite."
+            exit 127
+          fi
       - name: Checkout actions folder
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

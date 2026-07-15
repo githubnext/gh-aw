@@ -22,6 +22,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	workflowLog.Printf("Building main job for workflow: %s", data.Name)
 	var steps []string
 
+	steps = append(steps, c.generateCustomRunnerNodeValidationStep(data)...)
+
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" || c.actionMode.IsScript() {
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)

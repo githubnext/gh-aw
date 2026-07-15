@@ -302,6 +302,23 @@ func (c *Compiler) generateSetRuntimePathsStep() []string {
 	}
 }
 
+func (c *Compiler) generateCustomRunnerNodeValidationStep(data *WorkflowData) []string {
+	if data == nil || !isCustomImageRunner(data.RunsOn) {
+		return nil
+	}
+
+	compilerYamlStepGenerationLog.Printf("Generating fail-fast Node.js validation step for custom runner: %q", data.RunsOn)
+	return []string{
+		"      - name: Validate Node.js on custom runner\n",
+		"        run: |\n",
+		"          if ! command -v node >/dev/null 2>&1; then\n",
+		"            echo \"::error title=Missing Node.js runtime::This self-hosted or GPU runner is missing 'node' on PATH. GitHub JavaScript actions such as actions/checkout and gh-aw setup actions require Node.js before workflow runtime setup runs. Install Node.js on the runner image or switch to a GitHub-hosted runner and re-run the workflow.\"\n",
+		"            echo \"::error::The workflow 'runtimes.node' setting applies later in the job and cannot satisfy this prerequisite.\"\n",
+		"            exit 127\n",
+		"          fi\n",
+	}
+}
+
 // generateScriptModeCleanupStep generates a cleanup step for script mode that sends an OTLP
 // conclusion span and removes /tmp/gh-aw/. This mirrors the post.js post step that runs
 // automatically when using a `uses:` action in dev/release/action mode.
