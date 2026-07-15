@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"testing"
 
@@ -480,8 +481,24 @@ func TestActionlintShouldParseOutput(t *testing.T) {
 func exitErrorFromCommand(t *testing.T, command string) error {
 	t.Helper()
 
-	cmd := exec.Command("sh", "-c", command)
+	cmd := exec.Command(os.Args[0], "-test.run=TestActionlintExitHelperProcess")
+	cmd.Env = append(os.Environ(), "GH_AW_ACTIONLINT_EXIT_HELPER_PROCESS=1", "GH_AW_ACTIONLINT_EXIT_CODE="+command)
 	err := cmd.Run()
 	require.Error(t, err)
 	return err
+}
+
+func TestActionlintExitHelperProcess(t *testing.T) {
+	if os.Getenv("GH_AW_ACTIONLINT_EXIT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	switch os.Getenv("GH_AW_ACTIONLINT_EXIT_CODE") {
+	case "exit 1":
+		os.Exit(1)
+	case "exit 2":
+		os.Exit(2)
+	default:
+		os.Exit(0)
+	}
 }

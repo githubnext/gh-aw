@@ -365,10 +365,12 @@ func buildActionlintDockerCommand(gitRoot string, relPaths []string, options act
 	formattedArgs := append([]string(nil), args...)
 	for i, arg := range formattedArgs {
 		switch arg {
-		case gitRoot + ":/workdir":
-			formattedArgs[i] = fmt.Sprintf("%q", arg)
 		case "{{json .}}":
 			formattedArgs[i] = "'{{json .}}'"
+		default:
+			if i > 0 && formattedArgs[i-1] == "-v" {
+				formattedArgs[i] = fmt.Sprintf("%q", arg)
+			}
 		}
 	}
 	return "docker " + strings.Join(formattedArgs, " ")
