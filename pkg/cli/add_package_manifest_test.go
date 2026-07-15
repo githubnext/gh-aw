@@ -449,7 +449,7 @@ files:
 			case "aw.yml":
 				return []byte(`name: Repo Assist
 bootstrap:
-  actions:
+  config:
     - type: require-owner-type
       owner: repo
       value: org
@@ -481,11 +481,11 @@ bootstrap:
 		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		require.NotNil(t, pkg.Bootstrap)
-		require.Len(t, pkg.Bootstrap.Actions, 3)
-		assert.Equal(t, "require-owner-type", pkg.Bootstrap.Actions[0].Type)
-		assert.Equal(t, "repo-variable", pkg.Bootstrap.Actions[1].Type)
-		assert.Equal(t, []string{"preview", "review", "live"}, pkg.Bootstrap.Actions[1].Enum)
-		assert.Equal(t, "handoff", pkg.Bootstrap.Actions[2].Type)
+		require.Len(t, pkg.Bootstrap.Config, 3)
+		assert.Equal(t, "require-owner-type", pkg.Bootstrap.Config[0].Type)
+		assert.Equal(t, "repo-variable", pkg.Bootstrap.Config[1].Type)
+		assert.Equal(t, []string{"preview", "review", "live"}, pkg.Bootstrap.Config[1].Enum)
+		assert.Equal(t, "handoff", pkg.Bootstrap.Config[2].Type)
 		assert.Contains(t, pkg.Warnings, "Using experimental feature: manifest.bootstrap")
 	})
 
