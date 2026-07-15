@@ -1519,6 +1519,9 @@ function loadReportIncompleteMessages(items) {
 }
 
 const DIAGNOSTIC_AGENT_OUTPUT_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_incomplete"]);
+const TASK_COMPLETE_REGISTRATION_SIGNALS = ["not registering", "not registered", "not recognizing", "not recognized", "recognition issue", "not yet marked", "haven't marked", "tool calls are not registering"];
+const TASK_COMPLETE_COMPLETION_SIGNALS = ["completed successfully", "safe-output", "safe output", "no remaining work"];
+const TASK_COMPLETE_COMPLETION_REGEXPS = [/\banalysis steps? completed\b/, /\ball steps completed\b/];
 
 /**
  * Determine whether agent output contains at least one real task-level item.
@@ -1546,9 +1549,9 @@ function isTaskCompleteRegistrationIssue(item) {
   if (!text.includes("task_complete")) {
     return false;
   }
-  const registrationSignals = ["not registering", "not registered", "not recognizing", "not recognized", "recognition issue", "not yet marked", "haven't marked", "tool calls are not registering"];
-  const completionSignals = ["completed successfully", "safe-output", "safe output", "no remaining work", "all 8 analysis steps completed"];
-  return registrationSignals.some(signal => text.includes(signal)) && completionSignals.some(signal => text.includes(signal));
+  const hasRegistrationSignal = TASK_COMPLETE_REGISTRATION_SIGNALS.some(signal => text.includes(signal));
+  const hasCompletionSignal = TASK_COMPLETE_COMPLETION_SIGNALS.some(signal => text.includes(signal)) || TASK_COMPLETE_COMPLETION_REGEXPS.some(regexp => regexp.test(text));
+  return hasRegistrationSignal && hasCompletionSignal;
 }
 
 /**
