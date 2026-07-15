@@ -336,9 +336,8 @@ describe("check_permissions_utils", () => {
         authorized: true,
         permission: "Security Champions",
       });
-      expect(mockCore.debug).toHaveBeenCalledWith(
-        "Repository permission resolution for 'testuser': permission='write', role='Security Champions', inherited='write', effective='Security Champions', custom_role=true, inherited_standard_role='write'"
-      );
+      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission API fields for 'testuser': permission='write', role='Security Champions', inherited='write'");
+      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission computed roles for 'testuser': effective='Security Champions', custom_role=true, inherited_standard_role='write'");
       expect(mockCore.debug).toHaveBeenCalledWith("Repository permission matched required role 'write' via inherited-standard-role");
       expect(mockCore.info).toHaveBeenCalledWith("✅ User has Security Champions access to repository");
     });
@@ -438,9 +437,8 @@ describe("check_permissions_utils", () => {
         authorized: false,
         permission: "Security Champions",
       });
-      expect(mockCore.debug).toHaveBeenCalledWith(
-        "Repository permission resolution for 'testuser': permission='write', role='Security Champions', inherited='<empty>', effective='Security Champions', custom_role=true, inherited_standard_role='<empty>'"
-      );
+      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission API fields for 'testuser': permission='write', role='Security Champions', inherited='<empty>'");
+      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission computed roles for 'testuser': effective='Security Champions', custom_role=true, inherited_standard_role='<empty>'");
       expect(mockCore.debug).toHaveBeenCalledWith("Repository permission fallback unavailable for custom role 'Security Champions' because GitHub did not provide an inherited standard role");
       expect(mockCore.debug).toHaveBeenCalledWith("Repository permission did not match required roles: write");
       expect(mockCore.warning).toHaveBeenCalledWith("User permission 'Security Champions' does not meet requirements: write");

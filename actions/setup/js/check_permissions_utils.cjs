@@ -267,9 +267,8 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     const debugRoleName = normalizedRoleName || "<empty>";
     const debugInheritedRole = normalizedInheritedRole || "<empty>";
     const debugInheritedStandardRole = inheritedStandardRole || "<empty>";
-    core.debug?.(
-      `Repository permission resolution for '${actor}': permission='${normalizedPermission}', role='${debugRoleName}', inherited='${debugInheritedRole}', effective='${effectiveRole}', custom_role=${isCustomRole}, inherited_standard_role='${debugInheritedStandardRole}'`
-    );
+    core.debug?.(`Repository permission API fields for '${actor}': permission='${normalizedPermission}', role='${debugRoleName}', inherited='${debugInheritedRole}'`);
+    core.debug?.(`Repository permission computed roles for '${actor}': effective='${effectiveRole}', custom_role=${isCustomRole}, inherited_standard_role='${debugInheritedStandardRole}'`);
     if (isCustomRole && inheritedStandardRole === "") {
       core.debug?.(`Repository permission fallback unavailable for custom role '${normalizedRoleName}' because GitHub did not provide an inherited standard role`);
     }
@@ -279,24 +278,24 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     // write/read). For custom org roles, only fall back to the inherited standard role
     // from custom-role metadata; fail closed if GitHub does not provide it.
     let matchedPermission = "";
-    let matchSource = "";
+    let roleMatchType = "";
     const hasPermission = requiredPermissions.some(requiredPerm => {
       const normalizedRequired = requiredPerm === "maintainer" ? "maintain" : requiredPerm;
       if (normalizedRequired === effectiveRole) {
         matchedPermission = normalizedRequired;
-        matchSource = "effective-role";
+        roleMatchType = "effective-role";
         return true;
       }
       if (normalizedRequired === inheritedStandardRole) {
         matchedPermission = normalizedRequired;
-        matchSource = "inherited-standard-role";
+        roleMatchType = "inherited-standard-role";
         return true;
       }
       return false;
     });
 
     if (hasPermission) {
-      core.debug?.(`Repository permission matched required role '${matchedPermission}' via ${matchSource}`);
+      core.debug?.(`Repository permission matched required role '${matchedPermission}' via ${roleMatchType}`);
       core.info(`✅ User has ${effectiveRole} access to repository`);
       return { authorized: true, permission: effectiveRole };
     }
