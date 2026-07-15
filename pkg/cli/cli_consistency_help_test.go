@@ -77,10 +77,12 @@ func TestCLIDocsReflectStatusAuditAndExperimentsCommands(t *testing.T) {
 
 	text := string(content)
 	assert.Contains(t, text, "#### `experiments`", "CLI setup docs should include the experiments command")
+	assert.Contains(t, text, "#### `doctor`", "CLI setup docs should include the doctor command")
 	assert.Contains(t, text, "The `audit` command has two modes", "audit docs should describe the current two-mode behavior")
 	assert.NotContains(t, text, "enabled/disabled status, schedules, and labels", "status docs should not promise schedule output in console mode")
 	assert.Contains(t, text, "Use `--json` to inspect the raw `on` data, including schedules", "status docs should direct schedule inspection to JSON output")
 	assert.Contains(t, text, "runs codemods, action version updates, and workflow compilation by default and uses `--no-fix` to skip all three steps", "upgrade docs should explain the inverse --fix/--no-fix behavior")
+	assert.Contains(t, text, "Print the current version and build information for the gh aw CLI extension.", "version docs should match the command help text")
 }
 
 func TestSubcommandListingsUseHyphenBullets(t *testing.T) {

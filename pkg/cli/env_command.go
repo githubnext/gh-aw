@@ -134,7 +134,7 @@ func newDefaultsGetCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "get [file]",
-		Short: "Download defaults into a YAML file",
+		Short: "Download default compiler variables into a YAML file",
 		Long: `Download compiler defaults into a YAML file.
 
 When [file] is omitted, the command writes to file.yml in the current directory.
@@ -171,7 +171,7 @@ func newDefaultsUpdateCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "update [file]",
-		Short: "Upload defaults from a YAML file",
+		Short: "Upload default compiler variables from a YAML file",
 		Long: `Upload compiler defaults from a YAML file.
 
 When [file] is omitted, the command reads from file.yml in the current directory.
