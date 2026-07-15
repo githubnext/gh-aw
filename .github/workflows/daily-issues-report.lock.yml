@@ -2037,6 +2037,7 @@ jobs:
           GH_AW_EVALS_QUESTIONS: '[{"id":"report-generated","question":"Did the workflow analyze the prefetched issues data and generate a clustered daily issues report with metrics and trends?"},{"id":"discussion-created","question":"Was a daily issues discussion created successfully with the report findings and recommendations?"}]'
           GH_AW_EVALS_MODEL: "small"
           GH_AW_EVALS_PHASE: parse
+          GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

@@ -1971,6 +1971,7 @@ jobs:
           GH_AW_EVALS_QUESTIONS: '[{"id":"gaps-confirmed","question":"Did the workflow identify at least one confirmed documentation gap to fix, or correctly conclude that no actionable gap remained?"},{"id":"pr-issue-or-noop","question":"Was a documentation pull request or issue created for confirmed gaps, or was noop used appropriately when nothing required action?"}]'
           GH_AW_EVALS_MODEL: "${{ needs.activation.outputs.model_size }}"
           GH_AW_EVALS_PHASE: parse
+          GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

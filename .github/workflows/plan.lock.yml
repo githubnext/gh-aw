@@ -1905,6 +1905,7 @@ jobs:
           GH_AW_EVALS_QUESTIONS: '[{"id":"subissues-planned","question":"Did the workflow analyze the triggering issue or discussion and break the work into actionable sub-issues?"},{"id":"issue-actions-completed","question":"Were the planned sub-issues created successfully, with discussion closure handled correctly when required?"}]'
           GH_AW_EVALS_MODEL: "small"
           GH_AW_EVALS_PHASE: parse
+          GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

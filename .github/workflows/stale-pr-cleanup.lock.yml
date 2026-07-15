@@ -1755,6 +1755,7 @@ jobs:
           GH_AW_EVALS_QUESTIONS: '[{"id":"stale-prs-triaged","question":"Did the workflow review pull requests open for 30 or more days and classify them according to the cleanup policy?"},{"id":"actions-taken-or-noop","question":"Were the appropriate stale PR comments, labels, and closures applied when needed, or was noop used correctly when no action was required?"}]'
           GH_AW_EVALS_MODEL: "small"
           GH_AW_EVALS_PHASE: parse
+          GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
