@@ -12,7 +12,7 @@
 
 ### Decision
 
-We will split `compiler_yaml.go` into five focused files — `compiler_yaml_normalize.go`, `compiler_yaml_header.go`, `compiler_yaml_policy.go`, `compiler_yaml_prompt.go`, and `compiler_yaml_step_lifecycle.go` — leaving `compiler_yaml.go` as a thin orchestration layer (~221 lines). All functions remain in the `workflow` package with identical signatures; this is a purely structural reorganization with no behavior changes.
+We will split `compiler_yaml.go` into five focused files — `compiler_yaml_normalize.go`, `compiler_yaml_header.go`, `compiler_yaml_policy.go`, `compiler_yaml_prompt.go`, and `compiler_yaml_step_lifecycle.go` — leaving `compiler_yaml.go` as a thin orchestration layer (~221 lines). Of these, `compiler_yaml_normalize.go` was extracted in an earlier pass; this ADR covers all five together. All functions remain in the `workflow` package with identical signatures; this is a purely structural reorganization with no behavior changes.
 
 The split follows three additional design rules:
 

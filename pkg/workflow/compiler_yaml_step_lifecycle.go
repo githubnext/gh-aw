@@ -10,7 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
-var compilerYamlStepsLog = logger.New("workflow:compiler_yaml:steps")
+var compilerYamlStepLifecycleLog = logger.New("workflow:compiler_yaml:steps")
 
 func (c *Compiler) generatePreSteps(yaml *strings.Builder, data *WorkflowData) {
 	writeStepsSection(yaml, data.PreSteps)
@@ -215,7 +215,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			escapedSkillsJSON := strings.ReplaceAll(string(skillsJSON), "'", "''")
 			fmt.Fprintf(yaml, "          GH_AW_INFO_SKILLS: '%s'\n", escapedSkillsJSON)
 		} else {
-			compilerYamlStepsLog.Printf("Failed to marshal skills for GH_AW_INFO_SKILLS, engine will not receive skill list: %v", err)
+			compilerYamlStepLifecycleLog.Printf("Failed to marshal skills for GH_AW_INFO_SKILLS, engine will not receive skill list: %v", err)
 		}
 	}
 	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
