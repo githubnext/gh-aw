@@ -277,25 +277,22 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     // For standard roles, use role_name (precise: maintain/triage are not collapsed to
     // write/read). For custom org roles, only fall back to the inherited standard role
     // from custom-role metadata; fail closed if GitHub does not provide it.
-    let matchedPermission = "";
-    let roleMatchType = "";
-    const hasPermission = requiredPermissions.some(requiredPerm => {
+    /** @type {{ permission: string, roleMatchType: string }|null} */
+    let matchedRole = null;
+    for (const requiredPerm of requiredPermissions) {
       const normalizedRequired = requiredPerm === "maintainer" ? "maintain" : requiredPerm;
       if (normalizedRequired === effectiveRole) {
-        matchedPermission = normalizedRequired;
-        roleMatchType = "effective-role";
-        return true;
+        matchedRole = { permission: normalizedRequired, roleMatchType: "effective-role" };
+        break;
       }
       if (normalizedRequired === inheritedStandardRole) {
-        matchedPermission = normalizedRequired;
-        roleMatchType = "inherited-standard-role";
-        return true;
+        matchedRole = { permission: normalizedRequired, roleMatchType: "inherited-standard-role" };
+        break;
       }
-      return false;
-    });
+    }
 
-    if (hasPermission) {
-      core.debug?.(`Repository permission matched required role '${matchedPermission}' via ${roleMatchType}`);
+    if (matchedRole) {
+      core.debug?.(`Repository permission matched required role '${matchedRole.permission}' via ${matchedRole.roleMatchType}`);
       core.info(`✅ User has ${effectiveRole} access to repository`);
       return { authorized: true, permission: effectiveRole };
     }
