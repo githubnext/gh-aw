@@ -144,52 +144,148 @@ func buildGitHubExpressionNonEmptyCheck(value string) ConditionNode {
 	return BuildNotEquals(BuildStringLiteral(strings.TrimSpace(githubExpressionWhitespaceReplacer.Replace(trimmed))), BuildStringLiteral(""))
 }
 
-// ifInvalidContextPrefixes lists the GitHub Actions expression context prefixes that
-// are not available in 'if:' conditions. GitHub Actions only allows the github, needs,
-// vars, env, inputs, steps, and runner contexts in if: expressions — the secrets,
-// jobs, and matrix contexts are evaluated later in the workflow lifecycle and are
-// therefore not accessible at the condition-evaluation stage.
+// ifInvalidContextNames lists the GitHub Actions expression contexts that are not
+// available in step-level 'if:' conditions. GitHub Actions allows matrix in this
+// position, but still rejects secrets and jobs references.
 // See: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/evaluate-expressions-in-workflows-and-actions#contexts
-var ifInvalidContextPrefixes = []string{"secrets.", "jobs.", "matrix."}
+var ifInvalidContextNames = map[string]struct{}{
+	"jobs":    {},
+	"secrets": {},
+}
 
-// isValidIfContextExpression returns true if the inner expression (the text inside
-// ${{ }}) can be safely used inside a GitHub Actions 'if:' condition.
-func isValidIfContextExpression(inner string) bool {
-	trimmed := strings.TrimSpace(inner)
-	for _, prefix := range ifInvalidContextPrefixes {
-		if strings.HasPrefix(trimmed, prefix) {
-			return false
+const (
+	ignoreIfMissingAppIDEnvVar      = "GH_AW_IGNORE_IF_MISSING_APP_ID"
+	ignoreIfMissingPrivateKeyEnvVar = "GH_AW_IGNORE_IF_MISSING_PRIVATE_KEY"
+)
+
+type stepEnvAssignment struct {
+	Name  string
+	Value string
+}
+
+type ignoreIfMissingGuard struct {
+	Condition      string
+	EnvAssignments []stepEnvAssignment
+}
+
+func isGitHubExpressionIdentifierChar(ch byte) bool {
+	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'
+}
+
+// containsInvalidIfContextReference returns true when the inner expression body
+// contains a jobs or secrets context token anywhere outside single-quoted string
+// literals, including bracket notation such as secrets['TOKEN'].
+func containsInvalidIfContextReference(inner string) bool {
+	for i := 0; i < len(inner); {
+		if inner[i] == '\'' {
+			i++
+			for i < len(inner) {
+				if inner[i] != '\'' {
+					i++
+					continue
+				}
+				if i+1 < len(inner) && inner[i+1] == '\'' {
+					i += 2
+					continue
+				}
+				i++
+				break
+			}
+			continue
+		}
+
+		if !isGitHubExpressionIdentifierChar(inner[i]) || (i > 0 && isGitHubExpressionIdentifierChar(inner[i-1])) {
+			i++
+			continue
+		}
+
+		start := i
+		for i < len(inner) && isGitHubExpressionIdentifierChar(inner[i]) {
+			i++
+		}
+		name := inner[start:i]
+		if _, ok := ifInvalidContextNames[name]; !ok {
+			continue
+		}
+
+		j := i
+		for j < len(inner) && (inner[j] == ' ' || inner[j] == '\t' || inner[j] == '\n' || inner[j] == '\r') {
+			j++
+		}
+		if j < len(inner) && (inner[j] == '.' || inner[j] == '[') {
+			return true
 		}
 	}
-	return true
+	return false
+}
+
+func combineGitHubIfExpressions(expressions ...string) string {
+	var parts []string
+	for _, expression := range expressions {
+		trimmed := strings.TrimSpace(expression)
+		if trimmed == "" {
+			continue
+		}
+		if inner, ok := extractWrappedGitHubExpression(trimmed); ok {
+			parts = append(parts, inner)
+			continue
+		}
+		parts = append(parts, trimmed)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return wrapGitHubExpression(strings.Join(parts, " && "))
+}
+
+func appendStepEnvAssignments(steps []string, assignments []stepEnvAssignment) []string {
+	if len(assignments) == 0 {
+		return steps
+	}
+	steps = append(steps, "        env:\n")
+	for _, assignment := range assignments {
+		steps = append(steps, fmt.Sprintf("          %s: %s\n", assignment.Name, assignment.Value))
+	}
+	return steps
 }
 
 // buildIgnoreIfMissingCondition returns a GitHub Actions if-expression that requires
 // all GitHub App credential inputs that can be checked in an if: condition to be non-empty.
-// Values referencing the 'secrets' context are excluded because GitHub Actions does not
-// allow the secrets context in if: expressions (only github, needs, vars, env, inputs,
-// steps, and runner are valid).
-// Returns an empty string when no checkable expressions remain (e.g. both inputs use secrets.*).
-func buildIgnoreIfMissingCondition(app *GitHubAppConfig) string {
+// Values referencing the secrets or jobs contexts are routed through step-local env
+// aliases so the guard can still check them through the supported env context.
+func buildIgnoreIfMissingCondition(app *GitHubAppConfig) ignoreIfMissingGuard {
 	var checks []ConditionNode
-	for _, value := range []string{app.AppID, app.PrivateKey} {
-		trimmed := strings.TrimSpace(value)
+	guard := ignoreIfMissingGuard{}
+	for _, credential := range []struct {
+		value   string
+		envName string
+	}{
+		{value: app.AppID, envName: ignoreIfMissingAppIDEnvVar},
+		{value: app.PrivateKey, envName: ignoreIfMissingPrivateKeyEnvVar},
+	} {
+		trimmed := strings.TrimSpace(credential.value)
 		if inner, ok := extractWrappedGitHubExpression(trimmed); ok {
-			if !isValidIfContextExpression(inner) {
-				safeOutputsAppLog.Printf("Skipping %q in ignore-if-missing condition: context not valid in if: expressions", inner)
+			if containsInvalidIfContextReference(inner) {
+				safeOutputsAppLog.Printf("Rewriting %q in ignore-if-missing condition through env.%s: context not valid in if: expressions", inner, credential.envName)
+				guard.EnvAssignments = append(guard.EnvAssignments, stepEnvAssignment{
+					Name:  credential.envName,
+					Value: trimmed,
+				})
+				checks = append(checks, BuildNotEquals(&ExpressionNode{Expression: "env." + credential.envName}, BuildStringLiteral("")))
 				continue
 			}
 		}
-		checks = append(checks, buildGitHubExpressionNonEmptyCheck(value))
+		checks = append(checks, buildGitHubExpressionNonEmptyCheck(credential.value))
 	}
 	if len(checks) == 0 {
-		return ""
+		return guard
 	}
 	condition := checks[0]
 	for i := 1; i < len(checks); i++ {
 		condition = BuildAnd(condition, checks[i])
 	}
-	return wrapGitHubExpression(RenderCondition(condition))
+	guard.Condition = wrapGitHubExpression(RenderCondition(condition))
+	return guard
 }
 
 // ========================================
@@ -264,8 +360,10 @@ func (c *Compiler) buildGitHubAppTokenMintStepWithMeta(app *GitHubAppConfig, per
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", stepName))
 	steps = append(steps, fmt.Sprintf("        id: %s\n", stepID))
 	if app.shouldIgnoreMissingKey() {
-		if condition := buildIgnoreIfMissingCondition(app); condition != "" {
-			steps = append(steps, fmt.Sprintf("        if: %s\n", condition))
+		guard := buildIgnoreIfMissingCondition(app)
+		steps = appendStepEnvAssignments(steps, guard.EnvAssignments)
+		if guard.Condition != "" {
+			steps = append(steps, fmt.Sprintf("        if: %s\n", guard.Condition))
 		}
 	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))
@@ -526,8 +624,10 @@ func (c *Compiler) buildActivationAppTokenMintStep(app *GitHubAppConfig, permiss
 	steps = append(steps, "      - name: Generate GitHub App token for activation\n")
 	steps = append(steps, "        id: activation-app-token\n")
 	if app.shouldIgnoreMissingKey() {
-		if condition := buildIgnoreIfMissingCondition(app); condition != "" {
-			steps = append(steps, fmt.Sprintf("        if: %s\n", condition))
+		guard := buildIgnoreIfMissingCondition(app)
+		steps = appendStepEnvAssignments(steps, guard.EnvAssignments)
+		if guard.Condition != "" {
+			steps = append(steps, fmt.Sprintf("        if: %s\n", guard.Condition))
 		}
 	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))

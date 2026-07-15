@@ -753,8 +753,10 @@ func (c *Compiler) buildPreActivationAppTokenMintStep(app *GitHubAppConfig) []st
 	steps = append(steps, "      - name: Generate GitHub App token for skip-if checks\n")
 	steps = append(steps, fmt.Sprintf("        id: %s\n", tokenStepID))
 	if app.shouldIgnoreMissingKey() {
-		if condition := buildIgnoreIfMissingCondition(app); condition != "" {
-			steps = append(steps, fmt.Sprintf("        if: %s\n", condition))
+		guard := buildIgnoreIfMissingCondition(app)
+		steps = appendStepEnvAssignments(steps, guard.EnvAssignments)
+		if guard.Condition != "" {
+			steps = append(steps, fmt.Sprintf("        if: %s\n", guard.Condition))
 		}
 	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))
