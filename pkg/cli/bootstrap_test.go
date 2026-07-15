@@ -333,14 +333,14 @@ bootstrap:
 }
 
 func TestNormalizeBootstrapRuntime_FillsProfileFuncs(t *testing.T) {
-	runtime := normalizeBootstrapRuntime(bootstrapRuntime{})
-	if runtime.resolveProfile == nil {
+	normalizedRuntime := normalizeBootstrapRuntime(bootstrapRuntime{})
+	if normalizedRuntime.resolveProfile == nil {
 		t.Fatal("expected resolveProfile default")
 	}
-	if runtime.profileNeedsPlan == nil {
+	if normalizedRuntime.profileNeedsPlan == nil {
 		t.Fatal("expected profileNeedsPlan default")
 	}
-	if runtime.executeProfile == nil {
+	if normalizedRuntime.executeProfile == nil {
 		t.Fatal("expected executeProfile default")
 	}
 }
