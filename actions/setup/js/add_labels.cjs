@@ -44,6 +44,7 @@ const main = createCountGatedHandler({
   handlerType: HANDLER_TYPE,
   setup: async (config, maxCount, isStaged) => {
     const { allowed: allowedLabels = [], blocked: blockedPatterns = [] } = config;
+    const issueIntentEnabled = config.issue_intent === true;
     const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
     const requiredTitlePrefix = config.required_title_prefix || "";
     const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
@@ -190,7 +191,7 @@ const main = createCountGatedHandler({
       const labelsRequestPayload = uniqueLabels.map(name => {
         const labelSpec = requestedLabelSpecByLowerName.get(name.toLowerCase()) ?? { name };
         const hasIntentMetadata = Boolean(labelSpec.rationale || labelSpec.confidence || labelSpec.suggest);
-        return hasIntentMetadata ? labelSpec : labelSpec.name;
+        return issueIntentEnabled && hasIntentMetadata ? labelSpec : labelSpec.name;
       });
 
       core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}: ${JSON.stringify(labelsRequestPayload)}`);
