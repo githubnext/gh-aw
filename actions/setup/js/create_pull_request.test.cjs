@@ -7,6 +7,7 @@ import * as path from "path";
 import * as os from "os";
 
 const require = createRequire(import.meta.url);
+const promptsSourceDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md");
 
 const { getPatchPathForBranch, getPatchPathForBranchInRepo } = require("./git_patch_utils.cjs");
 const { getBundlePathForBranch, getBundlePathForBranchInRepo } = require("./generate_git_bundle.cjs");
@@ -41,8 +42,19 @@ function cleanupCanonicalTransports() {
   createdTransportPaths.clear();
 }
 
+function copyPromptTemplate(promptsDir, templateName) {
+  fs.copyFileSync(path.join(promptsSourceDir, templateName), path.join(promptsDir, templateName));
+}
+
+function ensureDefaultDisclosureHeaderPrompt() {
+  const promptsDir = path.join(process.env.RUNNER_TEMP || os.tmpdir(), "gh-aw", "prompts");
+  fs.mkdirSync(promptsDir, { recursive: true });
+  copyPromptTemplate(promptsDir, "safe_outputs_disclosure_header.md");
+}
+
 beforeEach(() => {
   cleanupCanonicalTransports();
+  ensureDefaultDisclosureHeaderPrompt();
 });
 afterEach(() => {
   cleanupCanonicalTransports();
@@ -1674,12 +1686,10 @@ describe("create_pull_request - allowed-files strict allowlist", () => {
     pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("bundle-tip");
     const promptsDir = path.join(tempDir, "prompts");
     fs.mkdirSync(promptsDir, { recursive: true });
-    const requestReviewTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_request_review.md");
-    fs.copyFileSync(requestReviewTemplateSrc, path.join(promptsDir, "manifest_protection_request_review.md"));
-    const requestChangesTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_request_changes_review.md");
-    fs.copyFileSync(requestChangesTemplateSrc, path.join(promptsDir, "manifest_protection_request_changes_review.md"));
-    const threatWarningTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/threat_warning_request_changes_review.md");
-    fs.copyFileSync(threatWarningTemplateSrc, path.join(promptsDir, "threat_warning_request_changes_review.md"));
+    copyPromptTemplate(promptsDir, "manifest_protection_request_review.md");
+    copyPromptTemplate(promptsDir, "manifest_protection_request_changes_review.md");
+    copyPromptTemplate(promptsDir, "threat_warning_request_changes_review.md");
+    copyPromptTemplate(promptsDir, "safe_outputs_disclosure_header.md");
     process.env.GH_AW_PROMPTS_DIR = promptsDir;
 
     // Clear module cache so globals are picked up fresh
@@ -1882,10 +1892,9 @@ ${diffs}
     const patchPath = writePatch("feature/protected", createPatchWithFiles(".github/aw/instructions.md"));
     const promptsDir = path.join(tempDir, "prompts");
     fs.mkdirSync(promptsDir, { recursive: true });
-    const templateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_create_pr_fallback.md");
-    fs.copyFileSync(templateSrc, path.join(promptsDir, "manifest_protection_create_pr_fallback.md"));
-    const pushFailedTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_push_failed_fallback.md");
-    fs.copyFileSync(pushFailedTemplateSrc, path.join(promptsDir, "manifest_protection_push_failed_fallback.md"));
+    copyPromptTemplate(promptsDir, "manifest_protection_create_pr_fallback.md");
+    copyPromptTemplate(promptsDir, "manifest_protection_push_failed_fallback.md");
+    copyPromptTemplate(promptsDir, "safe_outputs_disclosure_header.md");
     process.env.GH_AW_PROMPTS_DIR = promptsDir;
 
     global.github.rest.issues = {
@@ -1922,10 +1931,9 @@ ${diffs}
     fs.writeFileSync(bundlePath, "bundle content");
     const promptsDir = path.join(tempDir, "prompts");
     fs.mkdirSync(promptsDir, { recursive: true });
-    const templateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_create_pr_fallback.md");
-    fs.copyFileSync(templateSrc, path.join(promptsDir, "manifest_protection_create_pr_fallback.md"));
-    const pushFailedTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_push_failed_fallback.md");
-    fs.copyFileSync(pushFailedTemplateSrc, path.join(promptsDir, "manifest_protection_push_failed_fallback.md"));
+    copyPromptTemplate(promptsDir, "manifest_protection_create_pr_fallback.md");
+    copyPromptTemplate(promptsDir, "manifest_protection_push_failed_fallback.md");
+    copyPromptTemplate(promptsDir, "safe_outputs_disclosure_header.md");
     process.env.GH_AW_PROMPTS_DIR = promptsDir;
 
     global.github.rest.issues = {
@@ -2851,6 +2859,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     fs.mkdirSync(promptsDir, { recursive: true });
     fs.writeFileSync(path.join(promptsDir, "manifest_protection_request_review.md"), "Protected files: {{files}}", "utf8");
     fs.writeFileSync(path.join(promptsDir, "manifest_protection_request_changes_review.md"), "Protected files: {{files}}", "utf8");
+    copyPromptTemplate(promptsDir, "safe_outputs_disclosure_header.md");
     process.env.GH_AW_PROMPTS_DIR = promptsDir;
     global.exec = {
       exec: vi.fn().mockImplementation((cmd, args) => {
@@ -3393,12 +3402,10 @@ describe("create_pull_request - threat detection caution", () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-threat-test-"));
     const promptsDir = path.join(tempDir, "prompts");
     fs.mkdirSync(promptsDir, { recursive: true });
-    const requestReviewTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_request_review.md");
-    fs.copyFileSync(requestReviewTemplateSrc, path.join(promptsDir, "manifest_protection_request_review.md"));
-    const requestChangesTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_request_changes_review.md");
-    fs.copyFileSync(requestChangesTemplateSrc, path.join(promptsDir, "manifest_protection_request_changes_review.md"));
-    const threatWarningTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/threat_warning_request_changes_review.md");
-    fs.copyFileSync(threatWarningTemplateSrc, path.join(promptsDir, "threat_warning_request_changes_review.md"));
+    copyPromptTemplate(promptsDir, "manifest_protection_request_review.md");
+    copyPromptTemplate(promptsDir, "manifest_protection_request_changes_review.md");
+    copyPromptTemplate(promptsDir, "threat_warning_request_changes_review.md");
+    copyPromptTemplate(promptsDir, "safe_outputs_disclosure_header.md");
     process.env.GH_AW_PROMPTS_DIR = promptsDir;
 
     global.core = {
@@ -4165,8 +4172,8 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
     // Set up prompts directory with the E003 template so getPromptPath resolves
     const promptsDir = path.join(tempDir, "prompts");
     fs.mkdirSync(promptsDir, { recursive: true });
-    const templateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/e003_file_limit_fallback.md");
-    fs.copyFileSync(templateSrc, path.join(promptsDir, "e003_file_limit_fallback.md"));
+    copyPromptTemplate(promptsDir, "e003_file_limit_fallback.md");
+    copyPromptTemplate(promptsDir, "safe_outputs_disclosure_header.md");
     process.env.GH_AW_PROMPTS_DIR = promptsDir;
 
     global.core = {

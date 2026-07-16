@@ -101,16 +101,17 @@ engine: copilot
 	assert.Contains(t, preActivationSection, "||")
 	assert.Contains(t, preActivationSection, "&&")
 
-	// Commented-out on: blocks are flattened to the block base indentation (2),
-	// so the nested skip-author-associations content is emitted at indent 2.
+	// The skip-author-associations block is the trailing commented block of the on:
+	// section, so it is de-indented to column 0 to align with the top-level key that
+	// follows the on: section (yamllint comments-indentation).
 	assert.Contains(t, lockContentStr, "# skip-author-associations:")
-	assert.Contains(t, lockContentStr, "  # issue_comment: contributor")
-	assert.Contains(t, lockContentStr, "  # pull_request_review_comment:")
-	assert.Contains(t, lockContentStr, "  # pull_request_review: collaborator")
-	assert.Contains(t, lockContentStr, "  # issues: owner")
-	assert.Contains(t, lockContentStr, "  # pull_request: member")
-	assert.Contains(t, lockContentStr, "  # - first_time_contributor")
-	assert.Contains(t, lockContentStr, "  # - none")
+	assert.Contains(t, lockContentStr, "\n# issue_comment: contributor")
+	assert.Contains(t, lockContentStr, "\n# pull_request_review_comment:")
+	assert.Contains(t, lockContentStr, "\n# pull_request_review: collaborator")
+	assert.Contains(t, lockContentStr, "\n# issues: owner")
+	assert.Contains(t, lockContentStr, "\n# pull_request: member")
+	assert.Contains(t, lockContentStr, "\n# - first_time_contributor")
+	assert.Contains(t, lockContentStr, "\n# - none")
 	assert.NotContains(t, lockContentStr, "skip-author-association:")
 
 	var workflow map[string]any

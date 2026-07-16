@@ -564,6 +564,8 @@ function enforcePullRequestLimits(patchContent, maxFiles = MAX_FILES) {
  *   existing remote ref when recreate-ref is enabled.
  * @param {string} [options.owner] - Repository owner for the deleteRef call.
  * @param {string} [options.repo] - Repository name for the deleteRef call.
+ * @param {string} [options.remoteTarget] - Remote name or URL used for remote branch existence checks.
+ * @param {string} [options.remoteToken] - Optional token used for authenticated remote branch checks.
  * @returns {Promise<string>} The (possibly renamed) branch name to use going forward.
  */
 async function handleRemoteBranchCollision(branchName, preserveBranchName, options = {}) {
