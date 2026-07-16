@@ -32,18 +32,13 @@ type AccessLogEntry struct {
 
 // DomainAnalysis represents analysis of domains from access logs
 type DomainAnalysis struct {
-	DomainBuckets
-	TotalRequests int `json:"total_requests"`
-	AllowedCount  int `json:"allowed_count"`
-	BlockedCount  int `json:"blocked_count"`
+	AnalysisBase
 }
 
 // AddMetrics adds metrics from another analysis
 func (d *DomainAnalysis) AddMetrics(other LogAnalysis) {
 	if otherDomain, ok := other.(*DomainAnalysis); ok {
-		d.TotalRequests += otherDomain.TotalRequests
-		d.AllowedCount += otherDomain.AllowedCount
-		d.BlockedCount += otherDomain.BlockedCount
+		d.addBaseMetrics(&otherDomain.AnalysisBase)
 	}
 }
 
@@ -101,14 +96,14 @@ func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) 
 			strings.Contains(statusCode, "/304")
 
 		if isAllowed {
-			analysis.AllowedCount++
+			analysis.AllowedRequests++
 			if !setutil.Contains(allowedDomainsSet, domain) {
 				allowedDomainsSet[domain] = struct {
 				}{}
 				analysis.AllowedDomains = append(analysis.AllowedDomains, domain)
 			}
 		} else {
-			analysis.BlockedCount++
+			analysis.BlockedRequests++
 			if !setutil.Contains(blockedDomainsSet, domain) {
 				blockedDomainsSet[domain] = struct {
 				}{}
@@ -126,7 +121,7 @@ func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) 
 	sort.Strings(analysis.BlockedDomains)
 
 	accessLogLog.Printf("Parsed access log: total_requests=%d, allowed=%d, blocked=%d, unique_allowed_domains=%d, unique_blocked_domains=%d",
-		analysis.TotalRequests, analysis.AllowedCount, analysis.BlockedCount, len(analysis.AllowedDomains), len(analysis.BlockedDomains))
+		analysis.TotalRequests, analysis.AllowedRequests, analysis.BlockedRequests, len(analysis.AllowedDomains), len(analysis.BlockedDomains))
 
 	return analysis, nil
 }

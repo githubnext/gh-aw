@@ -505,24 +505,28 @@ func TestAggregateDomainStats(t *testing.T) {
 		processedRuns := []ProcessedRun{
 			{
 				AccessAnalysis: &DomainAnalysis{
-					DomainBuckets: DomainBuckets{
-						AllowedDomains: []string{"example.com", "api.github.com"},
-						BlockedDomains: []string{"blocked.com"},
+					AnalysisBase: AnalysisBase{
+						DomainBuckets: DomainBuckets{
+							AllowedDomains: []string{"example.com", "api.github.com"},
+							BlockedDomains: []string{"blocked.com"},
+						},
+						TotalRequests:   10,
+						AllowedRequests: 8,
+						BlockedRequests: 2,
 					},
-					TotalRequests: 10,
-					AllowedCount:  8,
-					BlockedCount:  2,
 				},
 			},
 			{
 				AccessAnalysis: &DomainAnalysis{
-					DomainBuckets: DomainBuckets{
-						AllowedDomains: []string{"api.github.com", "docs.github.com"},
-						BlockedDomains: []string{"spam.com"},
+					AnalysisBase: AnalysisBase{
+						DomainBuckets: DomainBuckets{
+							AllowedDomains: []string{"api.github.com", "docs.github.com"},
+							BlockedDomains: []string{"spam.com"},
+						},
+						TotalRequests:   5,
+						AllowedRequests: 4,
+						BlockedRequests: 1,
 					},
-					TotalRequests: 5,
-					AllowedCount:  4,
-					BlockedCount:  1,
 				},
 			},
 		}
@@ -534,8 +538,8 @@ func TestAggregateDomainStats(t *testing.T) {
 			return pr.AccessAnalysis.AllowedDomains,
 				pr.AccessAnalysis.BlockedDomains,
 				pr.AccessAnalysis.TotalRequests,
-				pr.AccessAnalysis.AllowedCount,
-				pr.AccessAnalysis.BlockedCount,
+				pr.AccessAnalysis.AllowedRequests,
+				pr.AccessAnalysis.BlockedRequests,
 				true
 		})
 
@@ -576,12 +580,14 @@ func TestAggregateDomainStats(t *testing.T) {
 			},
 			{
 				AccessAnalysis: &DomainAnalysis{
-					DomainBuckets: DomainBuckets{
-						AllowedDomains: []string{"example.com"},
+					AnalysisBase: AnalysisBase{
+						DomainBuckets: DomainBuckets{
+							AllowedDomains: []string{"example.com"},
+						},
+						TotalRequests:   5,
+						AllowedRequests: 5,
+						BlockedRequests: 0,
 					},
-					TotalRequests: 5,
-					AllowedCount:  5,
-					BlockedCount:  0,
 				},
 			},
 		}
@@ -593,8 +599,8 @@ func TestAggregateDomainStats(t *testing.T) {
 			return pr.AccessAnalysis.AllowedDomains,
 				pr.AccessAnalysis.BlockedDomains,
 				pr.AccessAnalysis.TotalRequests,
-				pr.AccessAnalysis.AllowedCount,
-				pr.AccessAnalysis.BlockedCount,
+				pr.AccessAnalysis.AllowedRequests,
+				pr.AccessAnalysis.BlockedRequests,
 				true
 		})
 
@@ -686,13 +692,15 @@ func TestBuildAccessLogSummaryWithSharedHelper(t *testing.T) {
 				WorkflowName: "workflow-a",
 			},
 			AccessAnalysis: &DomainAnalysis{
-				DomainBuckets: DomainBuckets{
-					AllowedDomains: []string{"example.com", "api.github.com"},
-					BlockedDomains: []string{"blocked.com"},
+				AnalysisBase: AnalysisBase{
+					DomainBuckets: DomainBuckets{
+						AllowedDomains: []string{"example.com", "api.github.com"},
+						BlockedDomains: []string{"blocked.com"},
+					},
+					TotalRequests:   10,
+					AllowedRequests: 8,
+					BlockedRequests: 2,
 				},
-				TotalRequests: 10,
-				AllowedCount:  8,
-				BlockedCount:  2,
 			},
 		},
 		{
@@ -700,13 +708,15 @@ func TestBuildAccessLogSummaryWithSharedHelper(t *testing.T) {
 				WorkflowName: "workflow-b",
 			},
 			AccessAnalysis: &DomainAnalysis{
-				DomainBuckets: DomainBuckets{
-					AllowedDomains: []string{"docs.github.com"},
-					BlockedDomains: []string{},
+				AnalysisBase: AnalysisBase{
+					DomainBuckets: DomainBuckets{
+						AllowedDomains: []string{"docs.github.com"},
+						BlockedDomains: []string{},
+					},
+					TotalRequests:   5,
+					AllowedRequests: 5,
+					BlockedRequests: 0,
 				},
-				TotalRequests: 5,
-				AllowedCount:  5,
-				BlockedCount:  0,
 			},
 		},
 	}
@@ -756,13 +766,15 @@ func TestBuildFirewallLogSummaryWithSharedHelper(t *testing.T) {
 				WorkflowName: "workflow-a",
 			},
 			FirewallAnalysis: &FirewallAnalysis{
-				DomainBuckets: DomainBuckets{
-					AllowedDomains: []string{"example.com"},
-					BlockedDomains: []string{"blocked.com"},
+				AnalysisBase: AnalysisBase{
+					DomainBuckets: DomainBuckets{
+						AllowedDomains: []string{"example.com"},
+						BlockedDomains: []string{"blocked.com"},
+					},
+					TotalRequests:   10,
+					AllowedRequests: 8,
+					BlockedRequests: 2,
 				},
-				TotalRequests:   10,
-				AllowedRequests: 8,
-				BlockedRequests: 2,
 				RequestsByDomain: map[string]DomainRequestStats{
 					"example.com": {Allowed: 8, Blocked: 0},
 					"blocked.com": {Allowed: 0, Blocked: 2},
@@ -774,13 +786,15 @@ func TestBuildFirewallLogSummaryWithSharedHelper(t *testing.T) {
 				WorkflowName: "workflow-b",
 			},
 			FirewallAnalysis: &FirewallAnalysis{
-				DomainBuckets: DomainBuckets{
-					AllowedDomains: []string{"example.com", "api.github.com"},
-					BlockedDomains: []string{},
+				AnalysisBase: AnalysisBase{
+					DomainBuckets: DomainBuckets{
+						AllowedDomains: []string{"example.com", "api.github.com"},
+						BlockedDomains: []string{},
+					},
+					TotalRequests:   5,
+					AllowedRequests: 5,
+					BlockedRequests: 0,
 				},
-				TotalRequests:   5,
-				AllowedRequests: 5,
-				BlockedRequests: 0,
 				RequestsByDomain: map[string]DomainRequestStats{
 					"example.com":    {Allowed: 3, Blocked: 0},
 					"api.github.com": {Allowed: 2, Blocked: 0},

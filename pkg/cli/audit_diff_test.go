@@ -13,16 +13,13 @@ import (
 
 func TestComputeFirewallDiff_NewDomains(t *testing.T) {
 	run1 := &FirewallAnalysis{
-		TotalRequests:   5,
-		AllowedRequests: 5,
+		AnalysisBase: AnalysisBase{TotalRequests: 5, AllowedRequests: 5},
 		RequestsByDomain: map[string]DomainRequestStats{
 			"api.github.com:443": {Allowed: 5, Blocked: 0},
 		},
 	}
 	run2 := &FirewallAnalysis{
-		TotalRequests:   20,
-		AllowedRequests: 17,
-		BlockedRequests: 3,
+		AnalysisBase: AnalysisBase{TotalRequests: 20, AllowedRequests: 17, BlockedRequests: 3},
 		RequestsByDomain: map[string]DomainRequestStats{
 			"api.github.com:443":        {Allowed: 5, Blocked: 0},
 			"registry.npmjs.org:443":    {Allowed: 15, Blocked: 0},
@@ -228,9 +225,7 @@ func TestComputeFirewallDiff_NoChanges(t *testing.T) {
 
 func TestComputeFirewallDiff_CompleteScenario(t *testing.T) {
 	run1 := &FirewallAnalysis{
-		TotalRequests:   46,
-		AllowedRequests: 38,
-		BlockedRequests: 8,
+		AnalysisBase: AnalysisBase{TotalRequests: 46, AllowedRequests: 38, BlockedRequests: 8},
 		RequestsByDomain: map[string]DomainRequestStats{
 			"api.github.com:443":       {Allowed: 23, Blocked: 0},
 			"old-api.internal.com:443": {Allowed: 8, Blocked: 0},
@@ -239,9 +234,7 @@ func TestComputeFirewallDiff_CompleteScenario(t *testing.T) {
 		},
 	}
 	run2 := &FirewallAnalysis{
-		TotalRequests:   108,
-		AllowedRequests: 106,
-		BlockedRequests: 2,
+		AnalysisBase: AnalysisBase{TotalRequests: 108, AllowedRequests: 106, BlockedRequests: 2},
 		RequestsByDomain: map[string]DomainRequestStats{
 			"api.github.com:443":        {Allowed: 89, Blocked: 0},
 			"registry.npmjs.org:443":    {Allowed: 15, Blocked: 0},

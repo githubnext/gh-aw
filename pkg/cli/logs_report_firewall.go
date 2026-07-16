@@ -87,8 +87,8 @@ func buildAccessLogSummary(processedRuns []ProcessedRun) *AccessLogSummary {
 		return pr.AccessAnalysis.AllowedDomains,
 			pr.AccessAnalysis.BlockedDomains,
 			pr.AccessAnalysis.TotalRequests,
-			pr.AccessAnalysis.AllowedCount,
-			pr.AccessAnalysis.BlockedCount,
+			pr.AccessAnalysis.AllowedRequests,
+			pr.AccessAnalysis.BlockedRequests,
 			true
 	})
 

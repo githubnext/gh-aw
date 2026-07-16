@@ -177,7 +177,7 @@ func TestLoadUsageActivitySummaryRejectsUnsupportedSchema(t *testing.T) {
 func TestApplyUsageActivitySummaryDoesNotOverwriteExistingData(t *testing.T) {
 	t.Parallel()
 
-	existingFirewall := &FirewallAnalysis{TotalRequests: 100}
+	existingFirewall := &FirewallAnalysis{AnalysisBase: AnalysisBase{TotalRequests: 100}}
 	existingMCP := &MCPToolUsageData{
 		Summary:   []MCPToolSummary{},
 		ToolCalls: []MCPToolCall{},

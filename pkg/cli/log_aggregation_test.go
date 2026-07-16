@@ -32,9 +32,11 @@ func TestFirewallAnalysisImplementsMutableLogAnalysis(t *testing.T) {
 
 func TestDomainAnalysisGettersSetters(t *testing.T) {
 	analysis := &DomainAnalysis{
-		DomainBuckets: DomainBuckets{
-			AllowedDomains: []string{"example.com", "test.com"},
-			BlockedDomains: []string{"blocked.com"},
+		AnalysisBase: AnalysisBase{
+			DomainBuckets: DomainBuckets{
+				AllowedDomains: []string{"example.com", "test.com"},
+				BlockedDomains: []string{"blocked.com"},
+			},
 		},
 	}
 
@@ -65,15 +67,11 @@ func TestDomainAnalysisGettersSetters(t *testing.T) {
 
 func TestDomainAnalysisAddMetrics(t *testing.T) {
 	analysis1 := &DomainAnalysis{
-		TotalRequests: 10,
-		AllowedCount:  6,
-		BlockedCount:  4,
+		AnalysisBase: AnalysisBase{TotalRequests: 10, AllowedRequests: 6, BlockedRequests: 4},
 	}
 
 	analysis2 := &DomainAnalysis{
-		TotalRequests: 5,
-		AllowedCount:  3,
-		BlockedCount:  2,
+		AnalysisBase: AnalysisBase{TotalRequests: 5, AllowedRequests: 3, BlockedRequests: 2},
 	}
 
 	analysis1.AddMetrics(analysis2)
@@ -81,19 +79,21 @@ func TestDomainAnalysisAddMetrics(t *testing.T) {
 	if analysis1.TotalRequests != 15 {
 		t.Errorf("Expected TotalRequests 15, got %d", analysis1.TotalRequests)
 	}
-	if analysis1.AllowedCount != 9 {
-		t.Errorf("Expected AllowedCount 9, got %d", analysis1.AllowedCount)
+	if analysis1.AllowedRequests != 9 {
+		t.Errorf("Expected AllowedRequests 9, got %d", analysis1.AllowedRequests)
 	}
-	if analysis1.BlockedCount != 6 {
-		t.Errorf("Expected BlockedCount 6, got %d", analysis1.BlockedCount)
+	if analysis1.BlockedRequests != 6 {
+		t.Errorf("Expected BlockedRequests 6, got %d", analysis1.BlockedRequests)
 	}
 }
 
 func TestFirewallAnalysisGettersSetters(t *testing.T) {
 	analysis := &FirewallAnalysis{
-		DomainBuckets: DomainBuckets{
-			AllowedDomains: []string{"api.github.com:443", "api.npmjs.org:443"},
-			BlockedDomains: []string{"blocked.example.com:443"},
+		AnalysisBase: AnalysisBase{
+			DomainBuckets: DomainBuckets{
+				AllowedDomains: []string{"api.github.com:443", "api.npmjs.org:443"},
+				BlockedDomains: []string{"blocked.example.com:443"},
+			},
 		},
 		RequestsByDomain: make(map[string]DomainRequestStats),
 	}
@@ -125,18 +125,14 @@ func TestFirewallAnalysisGettersSetters(t *testing.T) {
 
 func TestFirewallAnalysisAddMetrics(t *testing.T) {
 	analysis1 := &FirewallAnalysis{
-		TotalRequests:   10,
-		AllowedRequests: 6,
-		BlockedRequests: 4,
+		AnalysisBase: AnalysisBase{TotalRequests: 10, AllowedRequests: 6, BlockedRequests: 4},
 		RequestsByDomain: map[string]DomainRequestStats{
 			"api.github.com:443": {Allowed: 3, Blocked: 1},
 		},
 	}
 
 	analysis2 := &FirewallAnalysis{
-		TotalRequests:   5,
-		AllowedRequests: 3,
-		BlockedRequests: 2,
+		AnalysisBase: AnalysisBase{TotalRequests: 5, AllowedRequests: 3, BlockedRequests: 2},
 		RequestsByDomain: map[string]DomainRequestStats{
 			"api.github.com:443": {Allowed: 2, Blocked: 0},
 			"api.npmjs.org:443":  {Allowed: 1, Blocked: 2},
@@ -209,12 +205,7 @@ func TestAggregateLogFilesWithAccessLogs(t *testing.T) {
 		false,
 		parseSquidAccessLog,
 		func() *DomainAnalysis {
-			return &DomainAnalysis{
-				DomainBuckets: DomainBuckets{
-					AllowedDomains: []string{},
-					BlockedDomains: []string{},
-				},
-			}
+			return &DomainAnalysis{}
 		},
 	)
 
@@ -227,12 +218,12 @@ func TestAggregateLogFilesWithAccessLogs(t *testing.T) {
 		t.Errorf("Expected 4 total requests, got %d", analysis.TotalRequests)
 	}
 
-	if analysis.AllowedCount != 2 {
-		t.Errorf("Expected 2 allowed requests, got %d", analysis.AllowedCount)
+	if analysis.AllowedRequests != 2 {
+		t.Errorf("Expected 2 allowed requests, got %d", analysis.AllowedRequests)
 	}
 
-	if analysis.BlockedCount != 2 {
-		t.Errorf("Expected 2 denied requests, got %d", analysis.BlockedCount)
+	if analysis.BlockedRequests != 2 {
+		t.Errorf("Expected 2 denied requests, got %d", analysis.BlockedRequests)
 	}
 
 	// Check allowed domains
@@ -285,10 +276,6 @@ func TestAggregateLogFilesWithFirewallLogs(t *testing.T) {
 		parseFirewallLog,
 		func() *FirewallAnalysis {
 			return &FirewallAnalysis{
-				DomainBuckets: DomainBuckets{
-					AllowedDomains: []string{},
-					BlockedDomains: []string{},
-				},
 				RequestsByDomain: make(map[string]DomainRequestStats),
 			}
 		},
@@ -334,12 +321,7 @@ func TestAggregateLogFilesNoFiles(t *testing.T) {
 		false,
 		parseSquidAccessLog,
 		func() *DomainAnalysis {
-			return &DomainAnalysis{
-				DomainBuckets: DomainBuckets{
-					AllowedDomains: []string{},
-					BlockedDomains: []string{},
-				},
-			}
+			return &DomainAnalysis{}
 		},
 	)
 
@@ -383,12 +365,7 @@ func TestAggregateLogFilesWithParseErrors(t *testing.T) {
 		false,
 		parseSquidAccessLog,
 		func() *DomainAnalysis {
-			return &DomainAnalysis{
-				DomainBuckets: DomainBuckets{
-					AllowedDomains: []string{},
-					BlockedDomains: []string{},
-				},
-			}
+			return &DomainAnalysis{}
 		},
 	)
 

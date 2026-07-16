@@ -35,8 +35,8 @@ func TestAccessLogParsing(t *testing.T) {
 
 	// Verify results
 	assert.Equal(t, 4, analysis.TotalRequests, "should count all log entries")
-	assert.Equal(t, 2, analysis.AllowedCount, "should count allowed requests")
-	assert.Equal(t, 2, analysis.BlockedCount, "should count blocked requests")
+	assert.Equal(t, 2, analysis.AllowedRequests, "should count allowed requests")
+	assert.Equal(t, 2, analysis.BlockedRequests, "should count blocked requests")
 
 	// Check allowed domains
 	expectedAllowed := []string{"api.github.com", "example.com"}
@@ -73,8 +73,8 @@ func TestMultipleAccessLogAnalysis(t *testing.T) {
 
 	// Verify aggregated results
 	assert.Equal(t, 4, analysis.TotalRequests, "should count all requests from multiple logs")
-	assert.Equal(t, 2, analysis.AllowedCount, "should count allowed requests")
-	assert.Equal(t, 2, analysis.BlockedCount, "should count blocked requests")
+	assert.Equal(t, 2, analysis.AllowedRequests, "should count allowed requests")
+	assert.Equal(t, 2, analysis.BlockedRequests, "should count blocked requests")
 
 	// Check allowed domains
 	expectedAllowed := []string{"api.github.com", "example.com"}
@@ -249,55 +249,37 @@ func TestAddMetrics(t *testing.T) {
 		{
 			name: "add valid domain analysis",
 			base: &DomainAnalysis{
-				TotalRequests: 10,
-				AllowedCount:  8,
-				BlockedCount:  2,
+				AnalysisBase: AnalysisBase{TotalRequests: 10, AllowedRequests: 8, BlockedRequests: 2},
 			},
 			toAdd: &DomainAnalysis{
-				TotalRequests: 5,
-				AllowedCount:  4,
-				BlockedCount:  1,
+				AnalysisBase: AnalysisBase{TotalRequests: 5, AllowedRequests: 4, BlockedRequests: 1},
 			},
 			expected: &DomainAnalysis{
-				TotalRequests: 15,
-				AllowedCount:  12,
-				BlockedCount:  3,
+				AnalysisBase: AnalysisBase{TotalRequests: 15, AllowedRequests: 12, BlockedRequests: 3},
 			},
 		},
 		{
 			name: "add zero values",
 			base: &DomainAnalysis{
-				TotalRequests: 10,
-				AllowedCount:  8,
-				BlockedCount:  2,
+				AnalysisBase: AnalysisBase{TotalRequests: 10, AllowedRequests: 8, BlockedRequests: 2},
 			},
 			toAdd: &DomainAnalysis{
-				TotalRequests: 0,
-				AllowedCount:  0,
-				BlockedCount:  0,
+				AnalysisBase: AnalysisBase{TotalRequests: 0, AllowedRequests: 0, BlockedRequests: 0},
 			},
 			expected: &DomainAnalysis{
-				TotalRequests: 10,
-				AllowedCount:  8,
-				BlockedCount:  2,
+				AnalysisBase: AnalysisBase{TotalRequests: 10, AllowedRequests: 8, BlockedRequests: 2},
 			},
 		},
 		{
 			name: "add to empty base",
 			base: &DomainAnalysis{
-				TotalRequests: 0,
-				AllowedCount:  0,
-				BlockedCount:  0,
+				AnalysisBase: AnalysisBase{TotalRequests: 0, AllowedRequests: 0, BlockedRequests: 0},
 			},
 			toAdd: &DomainAnalysis{
-				TotalRequests: 5,
-				AllowedCount:  3,
-				BlockedCount:  2,
+				AnalysisBase: AnalysisBase{TotalRequests: 5, AllowedRequests: 3, BlockedRequests: 2},
 			},
 			expected: &DomainAnalysis{
-				TotalRequests: 5,
-				AllowedCount:  3,
-				BlockedCount:  2,
+				AnalysisBase: AnalysisBase{TotalRequests: 5, AllowedRequests: 3, BlockedRequests: 2},
 			},
 		},
 	}
@@ -306,8 +288,8 @@ func TestAddMetrics(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.base.AddMetrics(tt.toAdd)
 			assert.Equal(t, tt.expected.TotalRequests, tt.base.TotalRequests, "total requests should match")
-			assert.Equal(t, tt.expected.AllowedCount, tt.base.AllowedCount, "allowed count should match")
-			assert.Equal(t, tt.expected.BlockedCount, tt.base.BlockedCount, "blocked count should match")
+			assert.Equal(t, tt.expected.AllowedRequests, tt.base.AllowedRequests, "allowed requests should match")
+			assert.Equal(t, tt.expected.BlockedRequests, tt.base.BlockedRequests, "blocked requests should match")
 		})
 	}
 }
