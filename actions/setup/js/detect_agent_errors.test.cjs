@@ -3,12 +3,15 @@ import { describe, it, expect } from "vitest";
 const {
   detectErrors,
   isCAPIQuotaExceededError,
+  isInvocationCapExceededError,
   INFERENCE_ACCESS_ERROR_PATTERN,
   MCP_POLICY_BLOCKED_PATTERN,
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
   MODEL_NOT_SUPPORTED_PATTERN,
   HTTP_400_RESPONSE_ERROR_PATTERN,
   CAPI_QUOTA_EXCEEDED_PATTERN,
+  INVOCATION_CAP_EXCEEDED_PATTERN,
+  buildOutputLines,
 } = require("./detect_agent_errors.cjs");
 
 describe("detect_agent_errors.cjs", () => {
@@ -191,6 +194,45 @@ describe("detect_agent_errors.cjs", () => {
       expect(isCAPIQuotaExceededError("MCP servers were blocked by policy: 'github'")).toBe(false);
       expect(isCAPIQuotaExceededError("")).toBe(false);
     });
+
+    it("CAPI_QUOTA_EXCEEDED_PATTERN does not match the invocation cap error (different 429 subtype)", () => {
+      // "Maximum LLM invocations exceeded" is a distinct error from quota/rate-limit —
+      // it should NOT match the CAPI quota pattern.
+      expect(isCAPIQuotaExceededError("CAPIError: 429 Maximum LLM invocations exceeded (25/25)")).toBe(false);
+    });
+  });
+
+  describe("INVOCATION_CAP_EXCEEDED_PATTERN / isInvocationCapExceededError", () => {
+    it("matches the CAPI form: CAPIError 429 Maximum LLM invocations exceeded", () => {
+      expect(INVOCATION_CAP_EXCEEDED_PATTERN.test("CAPIError: 429 Maximum LLM invocations exceeded (25/25)")).toBe(true);
+      expect(isInvocationCapExceededError("CAPIError: 429 Maximum LLM invocations exceeded (25/25)")).toBe(true);
+    });
+
+    it("matches when embedded in larger log output", () => {
+      const log = "Some agent output\nExecution failed: CAPIError: 429 Maximum LLM invocations exceeded (20/20)\nMore output";
+      expect(isInvocationCapExceededError(log)).toBe(true);
+    });
+
+    it("matches the Anthropic JSON error type field", () => {
+      const output = '{"error":{"type":"max_runs_exceeded","message":"Maximum LLM invocations exceeded (20 / 20).","invocation_count":20,"max_runs":20}}';
+      expect(INVOCATION_CAP_EXCEEDED_PATTERN.test(output)).toBe(true);
+      expect(isInvocationCapExceededError(output)).toBe(true);
+    });
+
+    it("matches the human-readable Anthropic message form", () => {
+      expect(isInvocationCapExceededError("Failed to authenticate. API Error: 403 Maximum LLM invocations exceeded (20 / 20).")).toBe(true);
+    });
+
+    it("matches case-insensitively for the human-readable form", () => {
+      expect(isInvocationCapExceededError("maximum llm invocations exceeded (25/25)")).toBe(true);
+    });
+
+    it("does not match unrelated errors", () => {
+      expect(isInvocationCapExceededError("CAPIError: 429 429 quota exceeded")).toBe(false);
+      expect(isInvocationCapExceededError("CAPIError: Too Many Requests")).toBe(false);
+      expect(isInvocationCapExceededError("Access denied by policy settings")).toBe(false);
+      expect(isInvocationCapExceededError("")).toBe(false);
+    });
   });
 
   describe("HTTP_400_RESPONSE_ERROR_PATTERN", () => {
@@ -238,6 +280,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.modelNotSupportedError).toBe(false);
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(false);
     });
 
     it("detects inference access error only", () => {
@@ -248,6 +291,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.modelNotSupportedError).toBe(false);
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(false);
     });
 
     it("detects MCP policy error only", () => {
@@ -258,6 +302,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.modelNotSupportedError).toBe(false);
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(false);
     });
 
     it("detects engine timeout only", () => {
@@ -268,6 +313,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.modelNotSupportedError).toBe(false);
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(false);
     });
 
     it("detects model not supported error only", () => {
@@ -278,6 +324,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.modelNotSupportedError).toBe(true);
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(false);
     });
 
     it("detects invalid model name errors", () => {
@@ -288,6 +335,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.modelNotSupportedError).toBe(true);
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(false);
     });
 
     it("detects CAPI quota exceeded error only", () => {
@@ -298,6 +346,35 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.modelNotSupportedError).toBe(false);
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(true);
+      expect(result.invocationCapExceeded).toBe(false);
+    });
+
+    it("detects invocation cap exceeded error only (CAPI form)", () => {
+      const result = detectErrors("Execution failed: CAPIError: 429 Maximum LLM invocations exceeded (25/25)");
+      expect(result.inferenceAccessError).toBe(false);
+      expect(result.mcpPolicyError).toBe(false);
+      expect(result.agenticEngineTimeout).toBe(false);
+      expect(result.modelNotSupportedError).toBe(false);
+      expect(result.http400ResponseError).toBe(false);
+      expect(result.capiQuotaExceededError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(true);
+    });
+
+    it("detects invocation cap exceeded error only (Anthropic JSON form)", () => {
+      const result = detectErrors('{"error":{"type":"max_runs_exceeded","message":"Maximum LLM invocations exceeded (20 / 20).","invocation_count":20,"max_runs":20}}');
+      expect(result.inferenceAccessError).toBe(false);
+      expect(result.mcpPolicyError).toBe(false);
+      expect(result.agenticEngineTimeout).toBe(false);
+      expect(result.modelNotSupportedError).toBe(false);
+      expect(result.http400ResponseError).toBe(false);
+      expect(result.capiQuotaExceededError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(true);
+    });
+
+    it("detects both capi quota and invocation-cap flags when both signatures are present", () => {
+      const result = detectErrors("CAPIError: Too Many Requests\nCAPIError: 429 Maximum LLM invocations exceeded (25/25)");
+      expect(result.capiQuotaExceededError).toBe(true);
+      expect(result.invocationCapExceeded).toBe(true);
     });
 
     it("detects HTTP 400 response error only", () => {
@@ -308,6 +385,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.modelNotSupportedError).toBe(false);
       expect(result.http400ResponseError).toBe(true);
       expect(result.capiQuotaExceededError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(false);
     });
 
     it("detects both errors in the same log", () => {
@@ -319,6 +397,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.modelNotSupportedError).toBe(false);
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(false);
     });
 
     it("detects timeout alongside other errors", () => {
@@ -330,6 +409,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.modelNotSupportedError).toBe(false);
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(false);
     });
 
     it("detects SDK session.idle timeout", () => {
@@ -340,6 +420,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.modelNotSupportedError).toBe(false);
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(false);
     });
 
     it("detects SDK session.idle timeout alongside other errors", () => {
@@ -351,6 +432,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.modelNotSupportedError).toBe(false);
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(false);
     });
 
     it("returns false for unrelated log content", () => {
@@ -361,6 +443,24 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.modelNotSupportedError).toBe(false);
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(false);
+    });
+  });
+
+  describe("buildOutputLines", () => {
+    it("suppresses generic capi_quota_exceeded_error when invocation cap is present", () => {
+      const lines = buildOutputLines({
+        inferenceAccessError: false,
+        mcpPolicyError: false,
+        agenticEngineTimeout: false,
+        modelNotSupportedError: false,
+        http400ResponseError: false,
+        capiQuotaExceededError: true,
+        invocationCapExceeded: true,
+      });
+
+      expect(lines).toContain("capi_quota_exceeded_error=false");
+      expect(lines).toContain("invocation_cap_exceeded=true");
     });
   });
 });

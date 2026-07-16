@@ -142,7 +142,7 @@ func TestRenderGitHubMCPGuardPoliciesFromStep(t *testing.T) {
 }
 
 func TestBuildGitHubMCPEnvVarsOmitsEmptyToolsets(t *testing.T) {
-	envVars := buildGitHubMCPEnvVars("$TOKEN", "$GITHUB_SERVER_URL", false, false, "")
+	envVars := buildGitHubMCPEnvVars("$TOKEN", "$GITHUB_SERVER_URL", false, false, "", "")
 
 	if _, exists := envVars["GITHUB_TOOLSETS"]; exists {
 		t.Fatalf("expected empty toolsets to be omitted, got: %#v", envVars)

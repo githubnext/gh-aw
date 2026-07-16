@@ -19,7 +19,7 @@ describe.sequential("safe_outputs_mcp_server.cjs large content handling", () => 
       tools = JSON.parse(fs.readFileSync(path.join(__dirname, "safe_outputs_tools.json"), "utf8")),
       createIssueTool = tools.find(tool => tool.name === "create_issue");
     if (createIssueTool?.inputSchema?.properties?.body) {
-      createIssueTool.inputSchema.properties.body.maxLength = 2e5;
+      createIssueTool.inputSchema.properties.body.maxLength = 2e6;
     }
     fs.writeFileSync(toolsJsonPath, JSON.stringify(tools));
   }),

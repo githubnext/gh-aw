@@ -618,3 +618,30 @@ func getGitHubDockerImageVersion(githubTool map[string]any) string {
 	githubConfigLog.Printf("GitHub MCP Docker image version: %s", githubDockerImageVersion)
 	return githubDockerImageVersion
 }
+
+// getGitHubFeatures returns the comma-separated feature flag string for the GitHub MCP server.
+// When "features" is explicitly set in tools.github, that value is returned as-is.
+// Otherwise, "fields_param" is enabled by default when the effective server version is v1.6.0
+// or later, because that version introduced the optional fields-filtering parameter for
+// list/search tools (search_code, list_pull_requests, search_issues, etc.).
+// Enabling fields_param reduces token usage by letting agents request only the fields they need.
+func getGitHubFeatures(githubTool map[string]any) string {
+	// Respect an explicit user-supplied features override.
+	// An explicit empty string disables all feature flags; any other string is forwarded as-is.
+	if featuresRaw, exists := githubTool["features"]; exists {
+		if features, ok := featuresRaw.(string); ok {
+			githubConfigLog.Printf("GitHub MCP features (explicit): %q", features)
+			return features
+		}
+	}
+
+	// Default: enable fields_param when the server version supports it (v1.6.0+)
+	version := getGitHubDockerImageVersion(githubTool)
+	if versionAtLeast(version, string(constants.DefaultGitHubMCPServerVersion), "v1.6.0") {
+		githubConfigLog.Printf("GitHub MCP features (default v1.6.0+): fields_param")
+		return GitHubMCPFeatureFieldsParam
+	}
+
+	githubConfigLog.Printf("GitHub MCP features: none (version %s < v1.6.0)", version)
+	return ""
+}

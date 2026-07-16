@@ -24,7 +24,10 @@
  *     "CAPIError: Too Many Requests"). All matched forms are treated as
  *     non-retryable because the Copilot SDK has already retried internally
  *     before surfacing the error.
- *
+ *   - invocation_cap_exceeded: The per-run pooled LLM invocation cap is
+ *     fully exhausted (e.g., "CAPIError: 429 Maximum LLM invocations exceeded (N/N)"
+ *     or `"type":"max_runs_exceeded"`). This is more specific than generic
+ *     CAPI quota exhaustion and takes precedence in step outputs.
  * This replaces the individual bash scripts (detect_inference_access_error.sh,
  * detect_mcp_policy_error.sh) with a single JavaScript step.
  *
@@ -35,6 +38,7 @@
 "use strict";
 
 const fs = require("fs");
+const { MAX_RUNS_EXCEEDED_PATTERNS, isMaxRunsExceededError } = require("./harness_retry_guard.cjs");
 
 const LOG_FILE = "/tmp/gh-aw/agent-stdio.log";
 
@@ -86,6 +90,24 @@ const HTTP_400_RESPONSE_ERROR_PATTERN =
 const CAPI_QUOTA_EXCEEDED_PATTERN = /CAPIError:\s*(?:429\s+)?(?:429\s+quota exceeded|Too Many Requests)/i;
 
 /**
+ * Build a case-insensitive merged RegExp from literal/regex patterns.
+ * @param {(RegExp|string)[]} patterns
+ * @returns {RegExp}
+ */
+function buildCombinedPattern(patterns) {
+  const patternSources = patterns.map(pattern => (pattern instanceof RegExp ? pattern.source : String(pattern))).filter(Boolean);
+  return new RegExp(patternSources.join("|"), "i");
+}
+
+// Pattern: per-run LLM invocation cap exhausted.
+// Matches both the Anthropic JSON error type ("max_runs_exceeded") and the
+// human-readable message form ("Maximum LLM invocations exceeded") seen in
+// both CAPI (Copilot CLI: "CAPIError: 429 Maximum LLM invocations exceeded (N/N)")
+// and direct Anthropic API responses ("max_runs_exceeded").
+// The pooled per-run invocation budget is saturated — retries cannot make progress.
+const INVOCATION_CAP_EXCEEDED_PATTERN = buildCombinedPattern(MAX_RUNS_EXCEEDED_PATTERNS);
+
+/**
  * Determines if the collected output contains the observed Copilot/CAPI quota exhaustion error.
  * @param {string} output - Collected stdout+stderr from the process
  * @returns {boolean}
@@ -95,9 +117,21 @@ function isCAPIQuotaExceededError(output) {
 }
 
 /**
+ * Determines if the collected output indicates the per-run LLM invocation cap is exhausted.
+ * This covers both the CAPI form ("CAPIError: 429 Maximum LLM invocations exceeded (N/N)")
+ * and the Anthropic JSON form ("max_runs_exceeded"). The pooled budget cannot be recovered
+ * within the current run — retrying is pointless.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isInvocationCapExceededError(output) {
+  return isMaxRunsExceededError(output);
+}
+
+/**
  * Detect known error patterns in a log string and return detection results.
  * @param {string} logContent - Contents of the agent stdio log
- * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean }}
+ * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean }}
  */
 function detectErrors(logContent) {
   return {
@@ -107,12 +141,31 @@ function detectErrors(logContent) {
     modelNotSupportedError: MODEL_NOT_SUPPORTED_PATTERN.test(logContent),
     http400ResponseError: HTTP_400_RESPONSE_ERROR_PATTERN.test(logContent),
     capiQuotaExceededError: isCAPIQuotaExceededError(logContent),
+    invocationCapExceeded: isInvocationCapExceededError(logContent),
   };
 }
 
 /**
+ * Build GitHub Actions output lines from detection results.
+ * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean }} results
+ * @returns {string[]}
+ */
+function buildOutputLines(results) {
+  const effectiveCAPIQuotaExceeded = results.capiQuotaExceededError && !results.invocationCapExceeded;
+  return [
+    `inference_access_error=${results.inferenceAccessError}`,
+    `mcp_policy_error=${results.mcpPolicyError}`,
+    `agentic_engine_timeout=${results.agenticEngineTimeout}`,
+    `model_not_supported_error=${results.modelNotSupportedError}`,
+    `http_400_response_error=${results.http400ResponseError}`,
+    `capi_quota_exceeded_error=${effectiveCAPIQuotaExceeded}`,
+    `invocation_cap_exceeded=${results.invocationCapExceeded}`,
+  ];
+}
+
+/**
  * Write GitHub Actions outputs to $GITHUB_OUTPUT.
- * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean }} results
+ * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean }} results
  */
 function writeOutputs(results) {
   const outputFile = process.env.GITHUB_OUTPUT;
@@ -121,14 +174,7 @@ function writeOutputs(results) {
     return;
   }
 
-  const lines = [
-    `inference_access_error=${results.inferenceAccessError}`,
-    `mcp_policy_error=${results.mcpPolicyError}`,
-    `agentic_engine_timeout=${results.agenticEngineTimeout}`,
-    `model_not_supported_error=${results.modelNotSupportedError}`,
-    `http_400_response_error=${results.http400ResponseError}`,
-    `capi_quota_exceeded_error=${results.capiQuotaExceededError}`,
-  ];
+  const lines = buildOutputLines(results);
   fs.appendFileSync(outputFile, lines.join("\n") + "\n");
 }
 
@@ -161,6 +207,9 @@ function main() {
   if (results.capiQuotaExceededError) {
     process.stderr.write("[detect-agent-errors] Detected CAPI quota exhaustion: Copilot quota has been exceeded\n");
   }
+  if (results.invocationCapExceeded) {
+    process.stderr.write("[detect-agent-errors] Detected invocation cap exhaustion: the pooled per-run LLM invocation budget is fully saturated\n");
+  }
 
   writeOutputs(results);
 }
@@ -172,10 +221,13 @@ if (require.main === module) {
 module.exports = {
   detectErrors,
   isCAPIQuotaExceededError,
+  isInvocationCapExceededError,
   INFERENCE_ACCESS_ERROR_PATTERN,
   MCP_POLICY_BLOCKED_PATTERN,
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
   MODEL_NOT_SUPPORTED_PATTERN,
   HTTP_400_RESPONSE_ERROR_PATTERN,
   CAPI_QUOTA_EXCEEDED_PATTERN,
+  INVOCATION_CAP_EXCEEDED_PATTERN,
+  buildOutputLines,
 };

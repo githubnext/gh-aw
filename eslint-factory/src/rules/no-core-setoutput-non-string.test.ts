@@ -38,6 +38,13 @@ describe("no-core-setoutput-non-string", () => {
     });
   });
 
+  it("valid: coreObj alias with string value is accepted", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [`coreObj.setOutput("aic", roundedAIC);`, `coreObj.setOutput("result", "hello");`, `coreObj.setOutput("count", String(items.length));`],
+      invalid: [],
+    });
+  });
+
   it("valid: computed string-literal setOutput with string value is accepted", () => {
     cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
       valid: [`core["setOutput"]("count", "42");`],
@@ -181,6 +188,61 @@ describe("no-core-setoutput-non-string", () => {
         {
           code: `core["setOutput"]("count", 0);`,
           errors: [{ messageId: "nonStringValue", suggestions: [{ messageId: "wrapWithString", output: `core["setOutput"]("count", String(0));` }] }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: coreObj alias with numeric value is flagged", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `coreObj.setOutput("aic", 0);`,
+          errors: [
+            {
+              messageId: "nonStringValue",
+              data: { kind: "numeric literal", valueText: "0" },
+              suggestions: [{ messageId: "wrapWithString", data: { valueText: "0" }, output: `coreObj.setOutput("aic", String(0));` }],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: coreObj alias with boolean value is flagged", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `coreObj.setOutput("success", true);`,
+          errors: [
+            {
+              messageId: "nonStringValue",
+              suggestions: [{ messageId: "wrapWithString", output: `coreObj.setOutput("success", String(true));` }],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: coreObj alias with null value is flagged", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `coreObj.setOutput("result", null);`,
+          errors: [
+            {
+              messageId: "nonStringValue",
+              suggestions: [
+                { messageId: "useEmptyString", output: `coreObj.setOutput("result", "");` },
+                { messageId: "wrapWithString", output: `coreObj.setOutput("result", String(null));` },
+              ],
+            },
+          ],
         },
       ],
     });

@@ -70,6 +70,9 @@ type GitHubMCPDockerOptions struct {
 	GuardPoliciesFromStep bool
 	// Toolsets specifies the GitHub toolsets to enable
 	Toolsets string
+	// Features is a comma-separated list of GitHub MCP feature flags to enable (e.g. "fields_param").
+	// Emitted as GITHUB_FEATURES env var for the Docker container.
+	Features string
 	// DockerImageVersion specifies the GitHub MCP server Docker image version
 	DockerImageVersion string
 	// CustomArgs are additional arguments to append to the Docker command
@@ -97,6 +100,9 @@ type GitHubMCPRemoteOptions struct {
 	GuardPoliciesFromStep bool
 	// Toolsets specifies the GitHub toolsets to enable
 	Toolsets string
+	// Features is a comma-separated list of GitHub MCP feature flags to enable (e.g. "fields_param").
+	// Emitted as X-MCP-Features header for the hosted endpoint.
+	Features string
 	// AuthorizationValue is the value for the Authorization header
 	// For Claude: "Bearer {effectiveToken}"
 	// For Copilot: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"

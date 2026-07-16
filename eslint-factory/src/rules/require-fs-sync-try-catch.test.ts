@@ -74,7 +74,11 @@ describe("require-fs-sync-try-catch", () => {
 
   it("valid: fs inside try block (ES module) passes", () => {
     esmRuleTester.run("require-fs-sync-try-catch", requireFsSyncTryCatchRule, {
-      valid: [`try { const x = fs.readFileSync(path, "utf8"); } catch (e) {}`],
+      valid: [
+        `try { const x = fs.readFileSync(path, "utf8"); } catch (e) {}`,
+        `import { readFileSync } from "node:fs"; try { readFileSync(path, "utf8"); } catch (e) {}`,
+        `import { writeFileSync as write } from "fs"; try { write(path, data); } catch (e) {}`,
+      ],
       invalid: [],
     });
   });
@@ -348,6 +352,51 @@ describe("require-fs-sync-try-catch", () => {
               messageId: "requireTryCatch",
               data: { method: "readFileSync", arg: "p" },
               suggestions: [],
+            },
+          ],
+        },
+        {
+          code: `import { readFileSync } from "node:fs"; readFileSync(p, "utf8");`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "readFileSync", arg: "p" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `import { readFileSync } from "node:fs"; try {\n  readFileSync(p, "utf8");\n} catch (err) {\n  // TODO: handle I/O failure for this fs.readFileSync call.\n  throw new Error(\n    "fs.readFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `import { appendFileSync as append } from "fs"; append(logPath, line);`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "appendFileSync", arg: "logPath" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `import { appendFileSync as append } from "fs"; try {\n  append(logPath, line);\n} catch (err) {\n  // TODO: handle I/O failure for this fs.appendFileSync call.\n  throw new Error(\n    "fs.appendFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `import { writeFileSync } from "node:fs"; writeFileSync(outputPath, data);`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { method: "writeFileSync", arg: "outputPath" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `import { writeFileSync } from "node:fs"; try {\n  writeFileSync(outputPath, data);\n} catch (err) {\n  // TODO: handle I/O failure for this fs.writeFileSync call.\n  throw new Error(\n    "fs.writeFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
+                },
+              ],
             },
           ],
         },

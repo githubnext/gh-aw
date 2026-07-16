@@ -4236,6 +4236,10 @@
                       "minItems": 1
                     }
                   ]
+                },
+                "features": {
+                  "type": "string",
+                  "description": "Comma-separated list of GitHub MCP server feature flags to enable. Forwarded as GITHUB_FEATURES (Docker/local) or X-MCP-Features (remote). When omitted, 'fields_param' is enabled by default for server v1.6.0 and later. Set to an empty string to disable all feature flags."
                 }
               },
               "additionalProperties": false,
