@@ -135,8 +135,13 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 		return err
 	}
 
+	initFiles, err := ensureAddRepositoryInitializedWithDetails(config.EngineOverride, config.Verbose)
+	if err != nil {
+		return err
+	}
+
 	// Step 7: Determine files to add
-	filesToAdd, initFiles, err := config.determineFilesToAdd()
+	filesToAdd, _, err := config.determineFilesToAdd()
 	if err != nil {
 		return err
 	}
@@ -311,6 +316,13 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string,
 	addInteractiveLog.Print("Confirming changes with user")
 
 	fmt.Fprintln(os.Stderr, "")
+	if len(initFiles) > 0 {
+		fmt.Fprintln(os.Stderr, "The repository will also be initialized with:")
+		for _, f := range initFiles {
+			fmt.Fprintf(os.Stderr, "  • %s\n", f)
+		}
+		fmt.Fprintln(os.Stderr, "")
+	}
 
 	confirmed := true // Default to yes
 	form := console.NewConfirmForm(
