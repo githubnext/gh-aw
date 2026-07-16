@@ -514,16 +514,18 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		targets["anthropic"] = &AWFAPITargetConfig{Host: anthropicTarget}
 		awfConfigLog.Printf("API proxy: custom anthropic target=%s", anthropicTarget)
 	} else if config.EngineName == string(constants.ClaudeEngine) {
-		// When the Claude engine uses the GitHub provider, route the anthropic sidecar to
-		// api.githubcopilot.com so the Anthropic SDK can reach GitHub's inference endpoint.
-		// The Copilot token is passed as ANTHROPIC_API_KEY; the authHeader override switches
-		// the outgoing header from "x-api-key" to "Authorization" to match the Copilot API.
+		// When the Claude engine uses the GitHub provider, configure the copilot proxy
+		// (port 10002) to forward to api.githubcopilot.com. The driver sets
+		// ANTHROPIC_BASE_URL to http://host.docker.internal:10002 so the Anthropic SDK
+		// sends requests to the copilot proxy; the harness refines this to
+		// http://api-proxy:10002 via /reflect. The copilot proxy handles the
+		// Anthropic-format requests and forwards them to the Copilot API with the
+		// appropriate Authorization header.
 		if provider := resolveEngineLLMProvider(config.WorkflowData, LLMProviderAnthropic); provider == LLMProviderGitHub {
-			targets["anthropic"] = &AWFAPITargetConfig{
-				Host:       "api.githubcopilot.com",
-				AuthHeader: "Authorization",
+			targets["copilot"] = &AWFAPITargetConfig{
+				Host: "api.githubcopilot.com",
 			}
-			awfConfigLog.Printf("API proxy: claude github provider - routing anthropic sidecar to api.githubcopilot.com with Authorization header")
+			awfConfigLog.Printf("API proxy: claude github provider - configuring copilot sidecar to forward to api.githubcopilot.com")
 		}
 	}
 
