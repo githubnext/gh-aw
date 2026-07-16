@@ -318,6 +318,11 @@ steps:
       PY
 features:
   gh-aw-detection: true
+evals:
+  - id: failures_investigated
+    question: Did the agent investigate agentic workflow failures from the last 6 hours and produce findings?
+  - id: issues_created_or_closed
+    question: Were fix sub-issues created for unresolved failures, or were resolved tracking issues closed?
 ---
 
 # [aw] Failure Investigator (6h)

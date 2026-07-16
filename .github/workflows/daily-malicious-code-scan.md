@@ -36,6 +36,11 @@ features:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: scan_completed
+    question: Did the agent complete a scan of recent code changes and report on whether malicious patterns were found?
+  - id: alert_or_noop
+    question: Was a code scanning alert created when threats were found, or does the agent output confirm the scan found no suspicious patterns?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

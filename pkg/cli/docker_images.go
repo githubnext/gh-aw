@@ -31,7 +31,7 @@ func (e *DockerUnavailableError) Error() string {
 const (
 	ZizmorImage      = "ghcr.io/zizmorcore/zizmor:latest"
 	PoutineImage     = "ghcr.io/boostsecurityio/poutine:latest"
-	ActionlintImage  = "rhysd/actionlint:latest"
+	ActionlintImage  = "rhysd/actionlint:1.7.12"
 	RunnerGuardImage = "ghcr.io/vigilant-llc/runner-guard:latest"
 )
 

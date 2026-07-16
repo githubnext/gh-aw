@@ -79,6 +79,11 @@ tools:
 
 timeout-minutes: 10
 
+evals:
+  - id: topic_reviewed
+    question: Did the agent review and improve documentation for the specified topic input?
+  - id: pr_or_comment_created
+    question: Was a pull request or comment created with documentation improvements for the requested topic?
 
 ---
 

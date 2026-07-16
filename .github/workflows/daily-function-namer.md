@@ -50,6 +50,11 @@ timeout-minutes: 30
 strict: true
 features:
   gh-aw-detection: true
+evals:
+  - id: package_analyzed
+    question: Did the agent analyze at least one Go package for function naming quality and discoverability?
+  - id: issue_created_or_noop
+    question: Was an issue created with function rename suggestions, or was noop used when no naming improvements were identified?
 ---
 
 # Daily Go Function Namer
