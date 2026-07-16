@@ -5,6 +5,8 @@ package workflow
 // When enabled, tools such as list_pull_requests, search_code, and search_issues
 // advertise a `fields` array parameter that lets agents restrict which fields are
 // returned, reducing response size and context-window consumption.
+//
+// See: https://github.com/github/github-mcp-server/releases/tag/v1.6.0
 const GitHubMCPFeatureFieldsParam = "fields_param"
 
 // GitHubMCPDefaultFields maps each fields-enabled GitHub MCP tool to its recommended
