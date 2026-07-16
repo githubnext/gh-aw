@@ -68,14 +68,15 @@ func TestFormalOutcomeDomainInvariant(t *testing.T) {
 		{Type: "add_comment", Result: OutcomeIgnored},
 		{Type: "add_labels", Result: OutcomePending},
 		{Type: "close_issue", Result: OutcomeLifecycle},
+		{Type: "close_pull_request", Result: OutcomeLifecycleClose},
 	}
 	summary := ComputeOutcomeSummary(reports, github.DefaultObjectiveMapping())
-	assert.Equal(t, 5, summary.Total, "P1: total must cover the five spec-defined non-internal outcomes")
+	assert.Equal(t, 6, summary.Total, "P1: total must cover the six spec-defined non-internal outcomes")
 	assert.Equal(t, 1, summary.Accepted, "P1: one accepted")
 	assert.Equal(t, 1, summary.Rejected, "P1: one rejected")
 	assert.Equal(t, 1, summary.Ignored, "P1: one ignored")
 	assert.Equal(t, 1, summary.Pending, "P1: one pending")
-	assert.Equal(t, 1, summary.Lifecycle, "P1: one lifecycle")
+	assert.Equal(t, 2, summary.Lifecycle, "P1: lifecycle and lifecycle_close must both count as lifecycle outcomes")
 }
 
 // TestFormalAPIFailurePending verifies that GitHub API 5xx and rate-limit errors
@@ -290,14 +291,10 @@ func TestFormalIssueBotCloseLifecycle(t *testing.T) {
 		wantSignal string
 	}{
 		{
-			// Bot-closed not_planned carries the lifecycle signal.
-			// OutcomeStatus is normalized to unknown with signal="lifecycle" in the
-			// current implementation pending a dedicated lifecycle OutcomeStatus constant.
-			// TODO: when OutcomeStatusLifecycle is introduced, update wantStatus to that value.
 			name:       "bot closed not_planned → lifecycle signal",
 			result:     OutcomeLifecycle,
 			detail:     "closed by bot (lifecycle)",
-			wantStatus: OutcomeStatusUnknown,
+			wantStatus: OutcomeStatusLifecycle,
 			wantSignal: "lifecycle",
 		},
 		{
@@ -448,35 +445,73 @@ func TestFormalUpdateSnapshotComparison(t *testing.T) {
 	})
 }
 
-// TestFormalCloseStickyReopenRejection verifies that a still-closed object is accepted
-// and a reopened object is rejected.
+// TestFormalCloseStickyReopenRejection verifies that close-stickiness respects
+// lifecycle provenance: lifecycle-bot closes remain lifecycle_close, while
+// reopened or human-closed objects are rejected.
 //
 // Formal predicate (TLA+):
 //
 //	CloseStickyReopenRejection ≜
 //	  ∀ item : close_issue ∪ close_pull_request →
-//	    current.state = "closed" ⟹ result = accepted ∧
-//	    current.state = "open"   ⟹ result = rejected
+//	    current.state = "closed" ∧ closedByBot  ⟹ result = lifecycle_close ∧
+//	    current.state = "closed" ∧ ¬closedByBot ⟹ result = rejected ∧
+//	    current.state = "open"                  ⟹ result = rejected
 //
 // Specification reference: specs/safe-output-outcome-evaluation.md §8. `close_issue`, §9. `close_pull_request`
 func TestFormalCloseStickyReopenRejection(t *testing.T) {
 	cases := []struct {
 		name       string
 		state      string
+		events     []map[string]any
 		wantResult OutcomeResult
 		wantDetail string
 	}{
-		{"closed → accepted", "closed", OutcomeAccepted, "still closed"},
-		{"reopened → rejected", "open", OutcomeRejected, "reopened"},
+		{
+			name:  "lifecycle bot close → lifecycle_close",
+			state: "closed",
+			events: []map[string]any{
+				{"event": "closed", "actor": map[string]any{"login": "github-actions[bot]"}},
+			},
+			wantResult: OutcomeLifecycleClose,
+			wantDetail: "closed by bot (lifecycle_close)",
+		},
+		{
+			name:  "human close → rejected",
+			state: "closed",
+			events: []map[string]any{
+				{"event": "closed", "actor": map[string]any{"login": "octocat"}},
+			},
+			wantResult: OutcomeRejected,
+			wantDetail: "closed by non-bot",
+		},
+		{
+			name:       "reopened → rejected",
+			state:      "open",
+			wantResult: OutcomeRejected,
+			wantDetail: "reopened",
+		},
+		{
+			name:       "missing close event provenance → error",
+			state:      "closed",
+			wantResult: OutcomeError,
+			wantDetail: "close provenance unavailable",
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			old := closeStickyGHAPIGet
-			t.Cleanup(func() { closeStickyGHAPIGet = old })
+			oldArray := closeStickyGHAPIGetArray
+			t.Cleanup(func() {
+				closeStickyGHAPIGet = old
+				closeStickyGHAPIGetArray = oldArray
+			})
 			stateVal := tc.state
 			closeStickyGHAPIGet = func(endpoint, repo string) (map[string]any, error) {
 				return map[string]any{"state": stateVal}, nil
+			}
+			closeStickyGHAPIGetArray = func(endpoint, repo string) ([]map[string]any, error) {
+				return tc.events, nil
 			}
 
 			item := CreatedItemReport{Type: "close_issue", Number: 99, Repo: "owner/repo"}
@@ -486,6 +521,63 @@ func TestFormalCloseStickyReopenRejection(t *testing.T) {
 				"P9: state=%q must yield %s", tc.state, tc.wantResult)
 			assert.Equal(t, tc.wantDetail, report.Detail,
 				"P9: state=%q must set detail %q", tc.state, tc.wantDetail)
+		})
+	}
+}
+
+func TestFormalCloseStickyRejectsMergedPullRequest(t *testing.T) {
+	old := closeStickyGHAPIGet
+	oldArray := closeStickyGHAPIGetArray
+	t.Cleanup(func() {
+		closeStickyGHAPIGet = old
+		closeStickyGHAPIGetArray = oldArray
+	})
+	closeStickyGHAPIGet = func(endpoint, repo string) (map[string]any, error) {
+		return map[string]any{"state": "closed", "merged": true}, nil
+	}
+	closeStickyGHAPIGetArray = func(endpoint, repo string) ([]map[string]any, error) {
+		return []map[string]any{{"event": "closed", "actor": map[string]any{"login": "github-actions[bot]"}}}, nil
+	}
+
+	report := evalCloseSticky(CreatedItemReport{Type: "close_pull_request", Number: 99, Repo: "owner/repo"}, "owner/repo")
+
+	assert.Equal(t, OutcomeRejected, report.Result, "P9: merged PR must be rejected for close_pull_request")
+	assert.Equal(t, "merged", report.Detail, "P9: merged PR must record merged detail")
+	assert.Empty(t, report.EvalError, "P9: merged PR classification must not depend on close provenance lookup")
+}
+
+func TestFormalLifecycleNormalizationFallbacks(t *testing.T) {
+	cases := []struct {
+		name       string
+		report     OutcomeReport
+		wantStatus OutcomeStatus
+		wantSignal string
+	}{
+		{
+			name:       "lifecycle result fallback without detail",
+			report:     OutcomeReport{Type: "close_issue", Result: OutcomeLifecycle},
+			wantStatus: OutcomeStatusLifecycle,
+			wantSignal: "lifecycle",
+		},
+		{
+			name:       "lifecycle_close result fallback without detail",
+			report:     OutcomeReport{Type: "close_issue", Result: OutcomeLifecycleClose},
+			wantStatus: OutcomeStatusLifecycleClose,
+			wantSignal: "lifecycle_close",
+		},
+		{
+			name:       "lifecycle_close detail maps before generic bot close",
+			report:     OutcomeReport{Type: "close_issue", Result: OutcomeUnknown, Detail: "closed by bot (lifecycle_close)"},
+			wantStatus: OutcomeStatusLifecycleClose,
+			wantSignal: "lifecycle_close",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			eval := normalizeOutcomeEvaluation(tc.report)
+			assert.Equal(t, tc.wantStatus, eval.OutcomeStatus)
+			assert.Equal(t, tc.wantSignal, eval.Signal)
 		})
 	}
 }
@@ -578,7 +670,7 @@ func TestFormalOTelGracefulDegradation(t *testing.T) {
 
 	validResults := map[OutcomeResult]bool{
 		OutcomeAccepted: true, OutcomeRejected: true, OutcomeIgnored: true,
-		OutcomePending: true, OutcomeLifecycle: true, OutcomeUnknown: true, OutcomeError: true,
+		OutcomePending: true, OutcomeLifecycle: true, OutcomeLifecycleClose: true, OutcomeUnknown: true, OutcomeError: true,
 	}
 
 	items := []CreatedItemReport{
@@ -623,22 +715,36 @@ func TestFormalOTelGracefulDegradation(t *testing.T) {
 //
 // Specification reference: specs/safe-output-outcome-evaluation.md §Conformance →§Conformance Safeguard Coverage Requirements
 func TestFormalConformanceClassCoverage(t *testing.T) {
-	t.Run("Class A: close_issue accepted state transition", func(t *testing.T) {
+	t.Run("Class A: close_issue lifecycle_close state transition", func(t *testing.T) {
 		old := closeStickyGHAPIGet
-		t.Cleanup(func() { closeStickyGHAPIGet = old })
+		oldArray := closeStickyGHAPIGetArray
+		t.Cleanup(func() {
+			closeStickyGHAPIGet = old
+			closeStickyGHAPIGetArray = oldArray
+		})
 		closeStickyGHAPIGet = func(endpoint, repo string) (map[string]any, error) {
 			return map[string]any{"state": "closed"}, nil
 		}
+		closeStickyGHAPIGetArray = func(endpoint, repo string) ([]map[string]any, error) {
+			return []map[string]any{{"event": "closed", "actor": map[string]any{"login": "github-actions[bot]"}}}, nil
+		}
 		report := evalCloseSticky(CreatedItemReport{Type: "close_issue", Number: 1, Repo: "o/r"}, "o/r")
-		assert.Equal(t, OutcomeAccepted, report.Result,
-			"P12 Class A: still-closed issue must be accepted")
+		assert.Equal(t, OutcomeLifecycleClose, report.Result,
+			"P12 Class A: lifecycle-bot-closed issue must be lifecycle_close")
 	})
 
 	t.Run("Class A: close_issue rejected state transition", func(t *testing.T) {
 		old := closeStickyGHAPIGet
-		t.Cleanup(func() { closeStickyGHAPIGet = old })
+		oldArray := closeStickyGHAPIGetArray
+		t.Cleanup(func() {
+			closeStickyGHAPIGet = old
+			closeStickyGHAPIGetArray = oldArray
+		})
 		closeStickyGHAPIGet = func(endpoint, repo string) (map[string]any, error) {
 			return map[string]any{"state": "open"}, nil
+		}
+		closeStickyGHAPIGetArray = func(endpoint, repo string) ([]map[string]any, error) {
+			return nil, nil
 		}
 		report := evalCloseSticky(CreatedItemReport{Type: "close_issue", Number: 1, Repo: "o/r"}, "o/r")
 		assert.Equal(t, OutcomeRejected, report.Result,

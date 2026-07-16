@@ -78,7 +78,6 @@ async function setIssueTypeById(githubClient, issueNodeId, issueTypeId, intentMe
     {
       issueId: issueNodeId,
       issueType,
-      headers: { "GraphQL-Features": "update_issue_suggestions" },
     }
   );
 }
@@ -182,6 +181,7 @@ async function main(config = {}) {
   core.info(`Set issue type configuration: max=${maxCount}`);
   const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
   const requiredTitlePrefix = config.required_title_prefix || "";
+  const issueIntentEnabled = config.issue_intent === true;
   if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
   if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
   if (allowedTypes.length > 0) {
@@ -283,26 +283,35 @@ async function main(config = {}) {
 
     try {
       const { owner, repo } = repoParts;
-      const intentMetadata = normalizeIssueIntentMetadata(item);
+      const intentMetadata = issueIntentEnabled ? normalizeIssueIntentMetadata(item) : {};
 
       if (!isClear) {
-        // GraphQL intent path: resolve the type's node ID from org issue types, then
-        // call setIssueTypeById with IssueTypeUpdateInput + the GraphQL-Features header.
-        core.info("Using GraphQL intent path with IssueTypeUpdateInput");
-        core.info(`Fetching issue node ID for issue #${issueNumber}`);
-        const issueNodeId = await getIssueNodeId(githubClient, owner, repo, issueNumber);
-        core.info(`Fetching issue types for repo ${owner}/${repo}`);
-        const issueTypes = await fetchIssueTypesForRepo(githubClient, owner, repo);
-        core.info(`Found ${issueTypes.length} issue type(s) for repo ${owner}/${repo}`);
-        const typeNode = issueTypes.find(t => t.name.toLowerCase() === resolvedIssueTypeName.toLowerCase());
-        if (!typeNode) {
-          const availableNames = issueTypes.map(t => t.name).join(", ");
-          const error = availableNames ? `Issue type ${JSON.stringify(resolvedIssueTypeName)} not found. Available types: ${availableNames}` : NO_ISSUE_TYPES_AVAILABLE_ERROR;
-          core.error(`Failed to set issue type on issue #${issueNumber}: ${error}`);
-          return { success: false, error };
+        if (issueIntentEnabled) {
+          // GraphQL intent path: resolve the type's node ID from org issue types, then
+          // call setIssueTypeById with IssueTypeUpdateInput.
+          core.info("Using GraphQL intent path with IssueTypeUpdateInput");
+          core.info(`Fetching issue node ID for issue #${issueNumber}`);
+          const issueNodeId = await getIssueNodeId(githubClient, owner, repo, issueNumber);
+          core.info(`Fetching issue types for repo ${owner}/${repo}`);
+          const issueTypes = await fetchIssueTypesForRepo(githubClient, owner, repo);
+          core.info(`Found ${issueTypes.length} issue type(s) for repo ${owner}/${repo}`);
+          const typeNode = issueTypes.find(t => t.name.toLowerCase() === resolvedIssueTypeName.toLowerCase());
+          if (!typeNode) {
+            const availableNames = issueTypes.map(t => t.name).join(", ");
+            const error = availableNames ? `Issue type ${JSON.stringify(resolvedIssueTypeName)} not found. Available types: ${availableNames}` : NO_ISSUE_TYPES_AVAILABLE_ERROR;
+            core.error(`Failed to set issue type on issue #${issueNumber}: ${error}`);
+            return { success: false, error };
+          }
+          core.info(`Resolved issue type ${JSON.stringify(resolvedIssueTypeName)} to node ID ${typeNode.id}`);
+          await setIssueTypeById(githubClient, issueNodeId, typeNode.id, intentMetadata);
+        } else {
+          await githubClient.rest.issues.update({
+            owner,
+            repo,
+            issue_number: issueNumber,
+            type: resolvedIssueTypeName,
+          });
         }
-        core.info(`Resolved issue type ${JSON.stringify(resolvedIssueTypeName)} to node ID ${typeNode.id}`);
-        await setIssueTypeById(githubClient, issueNodeId, typeNode.id, intentMetadata);
       } else {
         // REST path: preserve the existing clear behavior.
         await githubClient.rest.issues.update({
