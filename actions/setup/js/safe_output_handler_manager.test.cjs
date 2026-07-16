@@ -277,14 +277,16 @@ describe("Safe Output Handler Manager", () => {
             max: 1,
             mentions: mentionsConfig,
             allowedMentionAliases: ["copilot", "octocat"],
-          })
+          }),
+          null
         );
         expect(createIssueMainSpy).toHaveBeenCalledWith(
           expect.objectContaining({
             max: 1,
             mentions: mentionsConfig,
             allowedMentionAliases: ["copilot", "octocat"],
-          })
+          }),
+          null
         );
       } finally {
         addCommentMainSpy.mockRestore();
