@@ -625,12 +625,6 @@ type updateActionsOptions struct {
 
 func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, opts updateActionsOptions) error {
 	workflowsDir := opts.workflowsDir
-	engineOverride := opts.engineOverride
-	verbose := opts.verbose
-	disableReleaseBump := opts.disableReleaseBump
-	noCompile := opts.noCompile
-	coolDown := opts.coolDown
-	approve := opts.approve
 	if workflowsDir == "" {
 		workflowsDir = getWorkflowsDir()
 	}
@@ -657,22 +651,22 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, op
 
 		content, err := os.ReadFile(path)
 		if err != nil {
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read %s: %v", path, err)))
 			}
 			return nil
 		}
 
-		updatedActions, newContent, err := updateActionRefsInContentWithDeps(ctx, deps, string(content), cache, coolDownCache, !disableReleaseBump, verbose, coolDown)
+		updatedActions, newContent, err := updateActionRefsInContentWithDeps(ctx, deps, string(content), cache, coolDownCache, !opts.disableReleaseBump, opts.verbose, opts.coolDown)
 		if err != nil {
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update action refs in %s: %v", path, err)))
 			}
 			return nil
 		}
-		updatedSkills, newContent, err := updateSkillRefsInContent(ctx, newContent, !disableReleaseBump, verbose, coolDown)
+		updatedSkills, newContent, err := updateSkillRefsInContent(ctx, newContent, !opts.disableReleaseBump, opts.verbose, opts.coolDown)
 		if err != nil {
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update skill refs in %s: %v", path, err)))
 			}
 			return nil
@@ -690,9 +684,9 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, op
 		updatedFiles = append(updatedFiles, path)
 
 		// Recompile the updated workflow (unless --no-compile is set)
-		if !noCompile {
-			if err := compileWorkflowWithRefresh(ctx, path, verbose, false, engineOverride, false, approve); err != nil {
-				if verbose {
+		if !opts.noCompile {
+			if err := compileWorkflowWithRefresh(ctx, path, opts.verbose, false, opts.engineOverride, false, opts.approve); err != nil {
+				if opts.verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to recompile %s: %v", path, err)))
 				}
 			}
@@ -703,7 +697,7 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, op
 		return fmt.Errorf("failed to walk workflows directory: %w", err)
 	}
 
-	if len(updatedFiles) == 0 && verbose {
+	if len(updatedFiles) == 0 && opts.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No action references needed updating in workflow files"))
 	}
 

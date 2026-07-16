@@ -659,37 +659,30 @@ func retryCriticalArtifacts(ctx context.Context, opts downloadArtifactsOptions) 
 // downloadRunArtifacts downloads artifacts for a specific workflow run.
 // artifactFilter is a list of artifact base names to download; nil means download all.
 func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) error {
-	// Unpack opts for readability; artifactFilter is a local copy since it may be narrowed below.
-	runID := opts.runID
-	outputDir := opts.outputDir
-	verbose := opts.verbose
-	owner := opts.owner
-	repo := opts.repo
-	hostname := opts.hostname
 	artifactFilter := opts.artifactFilter
-	logsDownloadLog.Printf("Downloading run artifacts: run_id=%d, output_dir=%s, owner=%s, repo=%s, artifactFilter=%v", runID, outputDir, owner, repo, artifactFilter)
-	shouldLogProgress := IsRunningInCI() || verbose
+	logsDownloadLog.Printf("Downloading run artifacts: run_id=%d, output_dir=%s, owner=%s, repo=%s, artifactFilter=%v", opts.runID, opts.outputDir, opts.owner, opts.repo, artifactFilter)
+	shouldLogProgress := IsRunningInCI() || opts.verbose
 
 	// Check if artifacts already exist on disk (since they're immutable)
-	if fileutil.DirExists(outputDir) && !fileutil.IsDirEmpty(outputDir) {
+	if fileutil.DirExists(opts.outputDir) && !fileutil.IsDirEmpty(opts.outputDir) {
 		if len(artifactFilter) > 0 {
 			// A specific artifact set is requested. Check whether each requested
 			// artifact base name already has a matching directory on disk so we
 			// can avoid re-downloading artifacts that are already present and only
 			// fetch the ones that are missing.
-			missing := findMissingFilterEntries(artifactFilter, outputDir)
+			missing := findMissingFilterEntries(artifactFilter, opts.outputDir)
 			if len(missing) == 0 {
-				logsDownloadLog.Printf("All requested artifacts already on disk for run %d", runID)
+				logsDownloadLog.Printf("All requested artifacts already on disk for run %d", opts.runID)
 				if shouldLogProgress {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("All requested artifacts already present for run %d, skipping download", runID)))
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("All requested artifacts already present for run %d, skipping download", opts.runID)))
 				}
-				ensureUsageAwInfoFallback(ctx, downloadArtifactsOptions{runID: runID, outputDir: outputDir, verbose: verbose, owner: owner, repo: repo, hostname: hostname, artifactFilter: artifactFilter})
+				ensureUsageAwInfoFallback(ctx, opts)
 				return nil
 			}
 			// Restrict the download to only the artifacts that are not yet on disk.
-			logsDownloadLog.Printf("Downloading missing artifacts for run %d: %v (already have: %v)", runID, missing, artifactFilter)
+			logsDownloadLog.Printf("Downloading missing artifacts for run %d: %v (already have: %v)", opts.runID, missing, artifactFilter)
 			if shouldLogProgress {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Downloading missing artifacts for run %d: %v", runID, missing)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Downloading missing artifacts for run %d: %v", opts.runID, missing)))
 			}
 			artifactFilter = missing
 			// Fall through to the download code below (MkdirAll is a no-op for existing dir).
@@ -697,34 +690,34 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 			// No filter — caller wants all artifacts. Keep the existing behaviour:
 			// if the directory is non-empty we assume the run was previously fully
 			// downloaded and skip the download.
-			if summary, ok := loadRunSummary(outputDir, verbose); ok {
+			if summary, ok := loadRunSummary(opts.outputDir, opts.verbose); ok {
 				// Valid cached summary exists, skip download
-				logsDownloadLog.Printf("Using cached artifacts for run %d", runID)
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using cached artifacts for run %d at %s (from %s)", runID, outputDir, summary.ProcessedAt.Format("2006-01-02 15:04:05"))))
+				logsDownloadLog.Printf("Using cached artifacts for run %d", opts.runID)
+				if opts.verbose {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using cached artifacts for run %d at %s (from %s)", opts.runID, opts.outputDir, summary.ProcessedAt.Format("2006-01-02 15:04:05"))))
 				}
 				return nil
 			}
 			// Summary doesn't exist or version mismatch - artifacts exist but need reprocessing
 			// Don't re-download, just reprocess what's there
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run folder exists with artifacts, will reprocess run %d without re-downloading", runID)))
+			if opts.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run folder exists with artifacts, will reprocess run %d without re-downloading", opts.runID)))
 			}
 			return nil
 		}
 	}
 
-	if err := os.MkdirAll(outputDir, constants.DirPermPublic); err != nil {
+	if err := os.MkdirAll(opts.outputDir, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create run output directory: %w", err)
 	}
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Created output directory "+outputDir))
+	if opts.verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Created output directory "+opts.outputDir))
 	}
 
 	// Proactively list artifacts to detect .dockerbuild files that gh run download cannot
 	// extract (they are not zip archives). When found, skip them and download the
 	// remaining artifacts individually so the bulk download never encounters them.
-	artifactNames, listErr := listRunArtifactNames(ctx, runID, owner, repo, hostname, verbose)
+	artifactNames, listErr := listRunArtifactNames(ctx, opts.runID, opts.owner, opts.repo, opts.hostname, opts.verbose)
 	var dockerBuildArtifacts, downloadableNames []string
 	if listErr == nil {
 		for _, name := range artifactNames {
@@ -737,7 +730,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 		if len(dockerBuildArtifacts) > 0 {
 			skipDockerBuildMessage := fmt.Sprintf("Skipping %d .dockerbuild artifact(s) (not valid zip archives): %s", len(dockerBuildArtifacts), strings.Join(dockerBuildArtifacts, ", "))
 			logsDownloadLog.Printf("Found %d .dockerbuild artifact(s) that will be skipped: %v", len(dockerBuildArtifacts), dockerBuildArtifacts)
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(skipDockerBuildMessage))
 			}
 		}
@@ -746,8 +739,8 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 	}
 
 	// Start spinner for network operation
-	spinner := console.NewSpinner(fmt.Sprintf("Downloading artifacts for run %d...", runID))
-	if !verbose {
+	spinner := console.NewSpinner(fmt.Sprintf("Downloading artifacts for run %d...", opts.runID))
+	if !opts.verbose {
 		spinner.Start()
 	}
 
@@ -756,7 +749,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 		// only the selected artifacts individually instead of using the bulk downloader.
 		// The bulk downloader (gh run download without --name) cannot apply a name filter,
 		// and it aborts on non-zip artifacts.
-		if !verbose {
+		if !opts.verbose {
 			spinner.Stop()
 		}
 		if len(downloadableNames) == 0 {
@@ -764,39 +757,39 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 			// For usage-only mode, skip workflow logs entirely to keep downloads lightweight.
 			if !isUsageOnlyArtifactFilter(artifactFilter) {
 				// Attempt workflow run logs for diagnostics before returning.
-				if logErr := downloadWorkflowRunLogs(ctx, runID, outputDir, verbose, owner, repo, hostname); logErr != nil {
-					if verbose {
+				if logErr := downloadWorkflowRunLogs(ctx, opts.runID, opts.outputDir, opts.verbose, opts.owner, opts.repo, opts.hostname); logErr != nil {
+					if opts.verbose {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download workflow run logs: %v", logErr)))
 					}
-					if fileutil.IsDirEmpty(outputDir) {
-						if removeErr := os.RemoveAll(outputDir); removeErr != nil && verbose {
-							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up empty directory %s: %v", outputDir, removeErr)))
+					if fileutil.IsDirEmpty(opts.outputDir) {
+						if removeErr := os.RemoveAll(opts.outputDir); removeErr != nil && opts.verbose {
+							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up empty directory %s: %v", opts.outputDir, removeErr)))
 						}
 					}
 				}
 			}
 			return ErrNoArtifacts
 		}
-		if err := downloadArtifactsByName(ctx, downloadableNames, downloadArtifactsOptions{runID: runID, outputDir: outputDir, verbose: verbose, owner: owner, repo: repo, hostname: hostname}); err != nil {
+		if err := downloadArtifactsByName(ctx, downloadableNames, opts); err != nil {
 			return err
 		}
-		if fileutil.IsDirEmpty(outputDir) {
+		if fileutil.IsDirEmpty(opts.outputDir) {
 			// Downloads were attempted but none succeeded; treat as no artifacts.
 			return ErrNoArtifacts
 		}
 	} else {
 		// No .dockerbuild artifacts detected (or listing failed) — use efficient bulk download.
 		// Build gh run download command with optional repo/hostname override for cross-repo and multi-host support
-		ghArgs := []string{"run", "download", strconv.FormatInt(runID, 10), "--dir", outputDir}
-		if owner != "" && repo != "" {
-			if hostname != "" && hostname != "github.com" {
-				ghArgs = append(ghArgs, "-R", hostname+"/"+owner+"/"+repo)
+		ghArgs := []string{"run", "download", strconv.FormatInt(opts.runID, 10), "--dir", opts.outputDir}
+		if opts.owner != "" && opts.repo != "" {
+			if opts.hostname != "" && opts.hostname != "github.com" {
+				ghArgs = append(ghArgs, "-R", opts.hostname+"/"+opts.owner+"/"+opts.repo)
 			} else {
-				ghArgs = append(ghArgs, "-R", owner+"/"+repo)
+				ghArgs = append(ghArgs, "-R", opts.owner+"/"+opts.repo)
 			}
 		}
 
-		if verbose {
+		if opts.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Executing: gh "+strings.Join(ghArgs, " ")))
 		}
 
@@ -812,28 +805,28 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 
 		if err != nil {
 			// Stop spinner on error
-			if !verbose {
+			if !opts.verbose {
 				spinner.Stop()
 			}
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(string(output)))
 			}
 
 			// Check if it's because there are no artifacts
 			if strings.Contains(string(output), "no valid artifacts") || strings.Contains(string(output), "not found") {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No artifacts found for run %d (gh run download reported none)", runID)))
+				if opts.verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No artifacts found for run %d (gh run download reported none)", opts.runID)))
 				}
 				// Even with no artifacts, attempt to download workflow run logs so that
 				// pre-agent step failures (e.g., activation job errors) can be diagnosed.
-				if logErr := downloadWorkflowRunLogs(ctx, runID, outputDir, verbose, owner, repo, hostname); logErr != nil {
-					if verbose {
+				if logErr := downloadWorkflowRunLogs(ctx, opts.runID, opts.outputDir, opts.verbose, opts.owner, opts.repo, opts.hostname); logErr != nil {
+					if opts.verbose {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download workflow run logs: %v", logErr)))
 					}
 					// Clean up empty directory only if logs download also produced nothing
-					if fileutil.IsDirEmpty(outputDir) {
-						if removeErr := os.RemoveAll(outputDir); removeErr != nil && verbose {
-							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up empty directory %s: %v", outputDir, removeErr)))
+					if fileutil.IsDirEmpty(opts.outputDir) {
+						if removeErr := os.RemoveAll(opts.outputDir); removeErr != nil && opts.verbose {
+							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up empty directory %s: %v", opts.outputDir, removeErr)))
 						}
 					}
 				}
@@ -855,7 +848,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Some artifacts could not be fully extracted due to case-colliding file paths. Retrying artifacts individually and continuing."))
 				skippedCaseCollisionArtifacts = true
 			} else {
-				return fmt.Errorf("failed to download artifacts for run %d: %w (output: %s)", runID, err, string(output))
+				return fmt.Errorf("failed to download artifacts for run %d: %w (output: %s)", opts.runID, err, string(output))
 			}
 		}
 
@@ -863,7 +856,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 		// before downloading all valid artifacts. Retry individually for critical artifacts
 		// that are missing, so flattening and audit analysis can proceed.
 		if skippedNonZipArtifacts {
-			retryCriticalArtifacts(ctx, downloadArtifactsOptions{runID: runID, outputDir: outputDir, verbose: verbose, owner: owner, repo: repo, hostname: hostname, artifactFilter: artifactFilter})
+			retryCriticalArtifacts(ctx, downloadArtifactsOptions{runID: opts.runID, outputDir: opts.outputDir, verbose: opts.verbose, owner: opts.owner, repo: opts.repo, hostname: opts.hostname, artifactFilter: artifactFilter})
 		}
 
 		// When bulk download fails on case-colliding entries, gh CLI aborts and may skip
@@ -873,7 +866,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 			retryNames := downloadableNames
 			if len(retryNames) == 0 {
 				// Initial artifact listing was unavailable, so fetch names now for targeted retry.
-				artifactNamesRetry, retryListErr := listRunArtifactNames(ctx, runID, owner, repo, hostname, verbose)
+				artifactNamesRetry, retryListErr := listRunArtifactNames(ctx, opts.runID, opts.owner, opts.repo, opts.hostname, opts.verbose)
 				if retryListErr != nil {
 					return fmt.Errorf("bulk artifact download hit case-colliding entries and could not list artifacts for individual retry: %w", retryListErr)
 				}
@@ -887,13 +880,13 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 				}
 			}
 			if len(retryNames) > 0 {
-				if err := downloadArtifactsByName(ctx, retryNames, downloadArtifactsOptions{runID: runID, outputDir: outputDir, verbose: verbose, owner: owner, repo: repo, hostname: hostname}); err != nil {
+				if err := downloadArtifactsByName(ctx, retryNames, opts); err != nil {
 					return err
 				}
 			}
 		}
 
-		if skippedNonZipArtifacts && fileutil.IsDirEmpty(outputDir) {
+		if skippedNonZipArtifacts && fileutil.IsDirEmpty(opts.outputDir) {
 			// All artifacts were non-zip (none could be extracted) so nothing was downloaded.
 			// Treat this the same as a run with no artifacts — the audit will rely solely on
 			// workflow logs rather than artifact content.
@@ -902,50 +895,50 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 	}
 
 	// Stop spinner with success message
-	if !verbose {
-		spinner.StopWithMessage(fmt.Sprintf("✓ Downloaded artifacts for run %d", runID))
+	if !opts.verbose {
+		spinner.StopWithMessage(fmt.Sprintf("✓ Downloaded artifacts for run %d", opts.runID))
 	}
 
 	// Flatten single-file artifacts
-	if err := flattenSingleFileArtifacts(outputDir, verbose); err != nil {
+	if err := flattenSingleFileArtifacts(opts.outputDir, opts.verbose); err != nil {
 		return fmt.Errorf("failed to flatten artifacts: %w", err)
 	}
 
 	// Flatten activation artifact directory structure (contains aw_info.json and prompt.txt)
-	if err := flattenActivationArtifact(outputDir, verbose); err != nil {
+	if err := flattenActivationArtifact(opts.outputDir, opts.verbose); err != nil {
 		return fmt.Errorf("failed to flatten activation artifact: %w", err)
 	}
 
-	ensureUsageAwInfoFallback(ctx, downloadArtifactsOptions{runID: runID, outputDir: outputDir, verbose: verbose, owner: owner, repo: repo, hostname: hostname, artifactFilter: artifactFilter})
+	ensureUsageAwInfoFallback(ctx, downloadArtifactsOptions{runID: opts.runID, outputDir: opts.outputDir, verbose: opts.verbose, owner: opts.owner, repo: opts.repo, hostname: opts.hostname, artifactFilter: artifactFilter})
 
 	// Flatten unified agent directory structure
-	if err := flattenUnifiedArtifact(outputDir, verbose); err != nil {
+	if err := flattenUnifiedArtifact(opts.outputDir, opts.verbose); err != nil {
 		return fmt.Errorf("failed to flatten unified artifact: %w", err)
 	}
 
 	// Flatten agent_outputs artifact if present
-	if err := flattenAgentOutputsArtifact(outputDir, verbose); err != nil {
+	if err := flattenAgentOutputsArtifact(opts.outputDir, opts.verbose); err != nil {
 		return fmt.Errorf("failed to flatten agent_outputs artifact: %w", err)
 	}
 
 	// Download and unzip workflow run logs unless caller requested usage-only mode.
 	if !isUsageOnlyArtifactFilter(artifactFilter) {
-		if err := downloadWorkflowRunLogs(ctx, runID, outputDir, verbose, owner, repo, hostname); err != nil {
+		if err := downloadWorkflowRunLogs(ctx, opts.runID, opts.outputDir, opts.verbose, opts.owner, opts.repo, opts.hostname); err != nil {
 			// Log the error but don't fail the entire download process
 			// Logs may not be available for all runs (e.g., expired or deleted)
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download workflow run logs: %v", err)))
 			}
 		}
 	}
 
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded artifacts for run %d to %s", runID, outputDir)))
+	if opts.verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded artifacts for run %d to %s", opts.runID, opts.outputDir)))
 		// Enumerate created files (shallow + summary) for immediate visibility
 		var fileCount int
 		var firstFiles []string
 		var walkFailed bool
-		if walkErr := filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
+		if walkErr := filepath.Walk(opts.outputDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				logsDownloadLog.Printf("walk error at %s: %v", path, err)
 				walkFailed = true
@@ -956,14 +949,14 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 			}
 			fileCount++
 			if len(firstFiles) < 12 { // capture a reasonable preview
-				rel, relErr := filepath.Rel(outputDir, path)
+				rel, relErr := filepath.Rel(opts.outputDir, path)
 				if relErr == nil {
 					firstFiles = append(firstFiles, rel)
 				}
 			}
 			return nil
 		}); walkErr != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error enumerating artifacts in %s: %v", outputDir, walkErr)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error enumerating artifacts in %s: %v", opts.outputDir, walkErr)))
 		}
 		if fileCount == 0 {
 			if walkFailed {
