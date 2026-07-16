@@ -61,8 +61,9 @@ func installStepsContainNodeSetup(steps []GitHubActionStep) bool {
 //
 // Returns steps for installing the npm package (optionally with Node.js setup)
 func GenerateNpmInstallSteps(packageName, version, stepName, cacheKeyPrefix string, options NPMInstallOptions) []GitHubActionStep {
-	options.IsGlobal = true
-	return GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPrefix, options)
+	scopeOptions := options
+	scopeOptions.IsGlobal = true
+	return GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPrefix, scopeOptions)
 }
 
 // BuildStandardNpmEngineInstallStepsNoCooldown creates standard npm installation

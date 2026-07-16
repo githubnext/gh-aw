@@ -171,7 +171,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		modelEnvVar,
 		timeoutValue,
 		copilotStepEnvFlags{
-			isBYOKMode:      isBYOKMode,
+			byokMode:        isBYOKMode,
 			sandboxEnabled:  sandboxEnabled,
 			modelConfigured: modelConfigured,
 		},
@@ -470,7 +470,7 @@ touch %s
 }
 
 type copilotStepEnvFlags struct {
-	isBYOKMode      bool
+	byokMode        bool
 	sandboxEnabled  bool
 	modelConfigured bool
 }
@@ -484,7 +484,7 @@ func (e *CopilotEngine) buildCopilotStepEnv(
 	copilotSDKServerArgsJSON string,
 ) map[string]string {
 	useCopilotRequests := hasCopilotRequestsWritePermission(workflowData)
-	env := e.buildCopilotBaseStepEnv(workflowData, llmProvider, timeoutValue, flags.isBYOKMode, useCopilotRequests)
+	env := e.buildCopilotBaseStepEnv(workflowData, llmProvider, timeoutValue, flags.byokMode, useCopilotRequests)
 	e.addCopilotWorkflowStepEnv(env, workflowData, flags.sandboxEnabled)
 	e.addCopilotGitHubToolEnv(env, workflowData)
 	e.addCopilotModelEnv(env, workflowData, flags.modelConfigured, modelEnvVar)
