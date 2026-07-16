@@ -127,8 +127,16 @@ async function parseMain() {
   const logContent = fs.readFileSync(EVALS_LOG_PATH, "utf-8");
   core.info(`Parsing evals log: ${EVALS_LOG_PATH} (${logContent.length} bytes)`);
 
+  // Build a search corpus that includes both raw log lines AND any assistant text
+  // extracted from JSONL log entries (e.g. Pi engine turn_end events).  The engine
+  // may emit answers inside JSON-encoded strings where newlines are represented as
+  // the escape sequence "\n", so the line-based regex patterns below would miss them
+  // unless the JSON content is decoded first.
+  const extractedText = extractAssistantTextFromJsonlLog(logContent);
+  const searchContent = extractedText ? logContent + "\n" + extractedText : logContent;
+
   // Collect all positional Q1/Q2/... answers from the log for fallback lookup
-  const positionalAnswers = extractAllPositionalAnswers(logContent);
+  const positionalAnswers = extractAllPositionalAnswers(searchContent);
 
   const timestamp = new Date().toISOString();
   const results = [];
@@ -137,7 +145,7 @@ async function parseMain() {
     const q = questions[i];
 
     // Try ID-specific match first (e.g. "builds: YES"), then positional (Q1: YES)
-    let answer = extractAnswerByID(logContent, q.id);
+    let answer = extractAnswerByID(searchContent, q.id);
     if (answer === "UNKNOWN" && i < positionalAnswers.length && positionalAnswers[i]) {
       answer = positionalAnswers[i];
     }
@@ -252,4 +260,48 @@ function extractAnswerByID(logContent, id) {
   return "UNKNOWN";
 }
 
-module.exports = { main, setupMain, parseMain };
+/**
+ * Extracts all assistant text content from a JSONL engine log.
+ * Engines such as Pi emit one JSON object per line (JSONL). The assistant's
+ * final answer lives in a `turn_end` event (v3 schema) or `assistant` events
+ * (v1 legacy schema) where newlines are JSON-encoded as the two-character
+ * sequence `\n`.  Parsing those JSON objects restores the actual newlines so
+ * the positional regex patterns can match correctly.
+ *
+ * Returns a single string with all extracted text joined by newlines, or an
+ * empty string when no JSONL content is found.
+ * @param {string} logContent
+ * @returns {string}
+ */
+function extractAssistantTextFromJsonlLog(logContent) {
+  const texts = [];
+  for (const line of logContent.split("\n")) {
+    const trimmed = line.trim();
+    // Find the first '{' which starts the JSON object.  Some runner environments
+    // prefix log lines with a timestamp (e.g. "2026-07-16T07:21:45Z {...}");
+    // stripping that prefix lets us parse the JSON regardless.
+    const jsonStart = trimmed.indexOf("{");
+    if (jsonStart === -1) continue;
+    let obj;
+    try {
+      obj = JSON.parse(trimmed.slice(jsonStart));
+    } catch {
+      continue;
+    }
+    // v3 schema: turn_end carries the complete assistant message
+    if (obj.type === "turn_end" && obj.message && Array.isArray(obj.message.content)) {
+      for (const part of obj.message.content) {
+        if (part && typeof part.text === "string") {
+          texts.push(part.text);
+        }
+      }
+    }
+    // v1 legacy schema: assistant event carries raw text content
+    if (obj.type === "assistant" && typeof obj.content === "string" && obj.content) {
+      texts.push(obj.content);
+    }
+  }
+  return texts.join("\n");
+}
+
+module.exports = { main, setupMain, parseMain, extractAssistantTextFromJsonlLog };

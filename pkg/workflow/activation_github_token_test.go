@@ -148,6 +148,34 @@ func TestActivationGitHubApp(t *testing.T) {
 		assert.Contains(t, stepsStr, "github-token: ${{ steps.activation-app-token.outputs.token }}", "Add-comment step should use app token")
 	})
 
+	t.Run("repositories_wildcard_omits_repositories_input_in_activation_mint_step", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:       "Test Workflow",
+			AIReaction: "eyes",
+			ActivationGitHubApp: &GitHubAppConfig{
+				AppID:        "${{ vars.APP_ID }}",
+				PrivateKey:   "${{ secrets.APP_PRIVATE_KEY }}",
+				Repositories: []string{"*"},
+			},
+		}
+
+		job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+		require.NoError(t, err, "buildActivationJob should succeed")
+		require.NotNil(t, job)
+
+		stepsStr := strings.Join(job.Steps, "")
+		mintIdx := strings.Index(stepsStr, "id: activation-app-token")
+		require.Greater(t, mintIdx, -1, "Token mint step should be present")
+
+		mintSection := stepsStr[mintIdx:]
+		nextStepIdx := strings.Index(mintSection[len("id: activation-app-token"):], "      - name:")
+		if nextStepIdx > -1 {
+			mintSection = mintSection[:nextStepIdx+len("id: activation-app-token")]
+		}
+
+		assert.NotContains(t, mintSection, "repositories:", "Activation mint step should omit repositories when repositories is [\"*\"]")
+	})
+
 	t.Run("missing_key_ignore_adds_guard_and_fallback_token", func(t *testing.T) {
 		statusComment := true
 		workflowData := &WorkflowData{

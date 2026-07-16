@@ -1394,6 +1394,28 @@ MUST NOT:
 - Block same-repository operations
 - Silently ignore allowlist configuration
 
+#### GP5: github-app.repositories
+
+**Syntax**: `safe-outputs.github-app.repositories: ["*"] | [<repository-name>, ...]`
+
+**Default**: Implementation-defined repository scope when `github-app` is configured without `repositories`
+
+**Semantics**: Specifies the repository scope requested when minting GitHub App installation tokens for safe outputs execution.
+
+When `safe-outputs.github-app.repositories` is exactly `["*"]`, implementations:
+
+- MUST omit the installation-token `repositories` parameter
+- MUST NOT substitute `${{ github.event.repository.name }}`
+- MUST NOT rewrite the wildcard sentinel to a single repository scope
+
+When `safe-outputs.github-app.repositories` contains one or more explicit repository names, implementations MUST request exactly the configured repository set.
+
+When `safe-outputs.github-app.repositories` is omitted, implementations MAY use the triggering repository as the default repository scope.
+
+The `["*"]` behavior MUST apply to activation-job token minting and to subsequent safe-output-job token minting that inherits the same `safe-outputs.github-app` settings.
+
+In `workflow_call` and other reusable-workflow scenarios, conforming implementations MUST preserve the `["*"]` behavior so that activation can read agent configuration from the callee repository when the App installation grant permits it.
+
 ### 5.3 Type-Specific Common Parameters
 
 Every safe output type supports these parameters:
@@ -5279,6 +5301,12 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **Specified**: Owner-qualified head references, dual-repository allowlist enforcement, least-privilege upstream/head credential roles, and required summary/manifest provenance fields (`upstream_repo`, `head_repo`, `base_sha`, `pushed_head_sha`, `credential_role`).
 - **Specified**: `push_to_pull_request_branch` follow-up pushes remain limited to pull requests whose head repository exactly matches the configured `head-repo`; arbitrary contributor forks remain forbidden.
 - **Updated**: Publication metadata to 1.26.0.
+
+**Version 1.25.1** (2026-07-16):
+
+- **Specified**: When `safe-outputs.github-app.repositories` is `["*"]`, implementations MUST omit the GitHub App installation-token `repositories` parameter rather than substituting `${{ github.event.repository.name }}`.
+- **Clarified**: The wildcard repository behavior applies to activation-job token minting and to subsequent safe-output-job token minting, including `workflow_call` and other reusable-workflow scenarios.
+- **Updated**: Publication metadata to 1.25.1.
 
 **Version 1.25.0** (2026-07-15):
 
