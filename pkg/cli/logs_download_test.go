@@ -400,8 +400,8 @@ func TestDownloadRunArtifacts_CachedUsageFallbackToActivation(t *testing.T) {
 	assert.Contains(t, string(argsLog), "run download 12345 --name abc123-activation")
 }
 
-func TestDownloadRunArtifactsListFailureFallback(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "usage-filter-list-fallback-*")
+func TestDownloadRunArtifactsFallbackToRequestedNamesWhenListFails(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "artifact-list-fallback-*")
 
 	fakeBinDir := testutil.TempDir(t, "fake-gh-*")
 	fakeGH := filepath.Join(fakeBinDir, "gh")
