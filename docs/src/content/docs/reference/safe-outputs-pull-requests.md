@@ -60,6 +60,9 @@ safe-outputs:
     max-patch-size: 2048          # max patch size in KB (default: 4096)
     github-token: ${{ secrets.UPSTREAM_PR_TOKEN }} # optional credential for upstream PR creation
     head-github-token: ${{ secrets.FORK_PUSH_TOKEN }} # optional credential for fork branch writes
+    head-github-app:                 # optional GitHub App to mint the fork credential at runtime
+      client-id: ${{ vars.FORK_APP_CLIENT_ID }}
+      private-key: ${{ secrets.FORK_APP_PRIVATE_KEY }}
     github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }} # optional token to push empty commit triggering CI
     signed-commits: true          # signed commits via GraphQL API (default: true); set false to use git push directly
     protected-files: fallback-to-issue  # push branch, create review issue if protected files modified
@@ -329,6 +332,10 @@ safe-outputs:
     target-repo: "owner/repo"    # upstream repository containing the PR
     head-repo: "automation/fork" # required for supported fork-backed follow-up pushes
     allowed-repos: ["owner/repo", "automation/fork"] # allowlisted upstream/head repositories
+    head-github-token: ${{ secrets.FORK_PUSH_TOKEN }} # optional credential for fork branch writes
+    head-github-app:                 # optional GitHub App to mint the fork credential at runtime
+      client-id: ${{ vars.FORK_APP_CLIENT_ID }}
+      private-key: ${{ secrets.FORK_APP_PRIVATE_KEY }}
 ```
 
 When `push-to-pull-request-branch` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
@@ -386,7 +393,7 @@ Same-repository and single-repository cross-repo flows persist one checkout cred
 
 Because only one token can govern that shared checkout, **if you configure both `create-pull-request` and `push-to-pull-request-branch` for the same repository, give them the same token.** If they specify different `github-token` values, the higher-precedence one wins for the checkout, so the other output's git operations run with a token you did not intend. Set the token once at `safe-outputs.github-token` (or `safe-outputs.github-app`) and let both outputs inherit it, or set identical `github-token` values on each.
 
-Fork-backed `create-pull-request` is different: upstream pull request management can use `github-token`, while branch writes to `head-repo` can use `head-github-token`. Prefer separate least-privilege credentials: `pull-requests: write` (and, if needed, `issues: write`) on the upstream repository, and `contents: write` only on the configured automation-owned fork. Do not use the fork credential for upstream PR management, and do not allow follow-up `push-to-pull-request-branch` against contributor-owned forks.
+Fork-backed `create-pull-request` is different: upstream pull request management can use `github-token`, while branch writes to `head-repo` can use `head-github-token` or `head-github-app`. Prefer separate least-privilege credentials: `pull-requests: write` (and, if needed, `issues: write`) on the upstream repository, and `contents: write` only on the configured automation-owned fork. When both `head-github-token` and `head-github-app` are configured, `head-github-app` takes precedence and mints an ephemeral token scoped to the head repository at runtime. Do not use the fork credential for upstream PR management, and do not allow follow-up `push-to-pull-request-branch` against contributor-owned forks.
 
 :::note
 This applies to the git checkout used by the handlers' `fetch`/`push`. The GitHub API calls each handler makes still honor that handler's own `github-token` precedence.

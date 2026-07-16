@@ -2345,6 +2345,7 @@ safe-outputs:
 - `footer`: Footer override
 - `github-token`: Optional credential for upstream pull request creation and related upstream metadata operations
 - `head-github-token`: Optional credential for `head-repo` branch writes. When specified, it SHOULD be limited to `contents: write` on `head-repo`
+- `head-github-app`: Optional GitHub App configuration to mint an ephemeral credential for `head-repo` branch writes at runtime. When `head-github-app` is configured, the minted token takes precedence over `head-github-token`. The app installation MUST have `contents: write` on `head-repo`
 - `preserve-branch-name`: When `true`, use the agent-supplied branch name verbatim without appending a random salt suffix (default: `false`)
 - `recreate-ref`: When `true` (and `preserve-branch-name: true`), allows the handler to force-delete an existing remote branch ref and recreate it from the agent's local HEAD on collision. When `false` (default), an existing remote branch under `preserve-branch-name: true` causes a fallback rather than overwriting the remote ref. Has no effect when `preserve-branch-name: false`. (default: `false`)
 
@@ -3165,6 +3166,8 @@ This section provides complete definitions for all remaining safe output types. 
 - `target-repo`: Upstream repository containing the pull request
 - `head-repo`: Optional expected head repository for fork-backed pull requests. When omitted, the expected head repository is `target-repo`
 - `allowed-repos`: Cross-repository allowlist applied to both `target-repo` and `head-repo`
+- `head-github-token`: Optional credential for `head-repo` branch writes
+- `head-github-app`: Optional GitHub App configuration to mint an ephemeral credential for `head-repo` branch writes at runtime; takes precedence over `head-github-token` when both are specified
 
 **Notes**:
 
@@ -5298,6 +5301,7 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 **Version 1.26.0** (2026-07-16):
 
 - **Added**: First-class fork-backed pull request semantics for `create_pull_request`, including distinct `target-repo` (upstream) and `head-repo` (automation-owned fork) roles.
+- **Added**: `head-github-app` configuration for both `create_pull_request` and `push_to_pull_request_branch`, allowing a GitHub App to mint an ephemeral credential scoped to the fork/head repository at runtime. When `head-github-app` is configured, it takes precedence over `head-github-token`.
 - **Specified**: Owner-qualified head references, dual-repository allowlist enforcement, least-privilege upstream/head credential roles, and required summary/manifest provenance fields (`upstream_repo`, `head_repo`, `base_sha`, `pushed_head_sha`, `credential_role`).
 - **Specified**: `push_to_pull_request_branch` follow-up pushes remain limited to pull requests whose head repository exactly matches the configured `head-repo`; arbitrary contributor forks remain forbidden.
 - **Updated**: Publication metadata to 1.26.0.

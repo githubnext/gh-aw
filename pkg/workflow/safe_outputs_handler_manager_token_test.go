@@ -162,6 +162,27 @@ func TestHandlerManagerGitHubTokenEnvVarForCrossRepo(t *testing.T) {
 			expectedGitHubTokenLine: "GITHUB_TOKEN: ${{ secrets.CREATE_PR_PAT }}",
 			shouldHaveGitHubToken:   true,
 		},
+		{
+			name: "create-pull-request head-github-app does not override checkout token",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"github-token": "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+					"create-pull-request": map[string]any{
+						"head-github-app": map[string]any{
+							"client-id":   "${{ vars.HEAD_APP_ID }}",
+							"private-key": "${{ secrets.HEAD_APP_PRIVATE_KEY }}",
+						},
+						"head-repo": "fork-owner/test-repo",
+						"max":       2,
+					},
+				},
+			},
+			// head-github-app mints a fork-write credential and must not govern the checkout.
+			// The safe-outputs-level github-token should be used instead.
+			expectedGitHubTokenLine: "GITHUB_TOKEN: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+			shouldHaveGitHubToken:   true,
+		},
 	}
 
 	for _, tt := range tests {

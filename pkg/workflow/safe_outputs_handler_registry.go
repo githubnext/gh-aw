@@ -520,7 +520,6 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddDefault("max_patch_size", maxPatchSize).
 			AddDefault("max_patch_files", maxPatchFiles).
 			AddIfNotEmpty("github-token", c.GitHubToken).
-			AddIfNotEmpty("head-github-token", c.HeadGitHubToken).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddBoolPtr("normalize_closing_keywords", c.NormalizeClosingKeywords).
 			AddBoolPtr("fallback_as_issue", c.FallbackAsIssue).
@@ -540,6 +539,13 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("close_older_pull_requests", c.CloseOlderPullRequests).
 			AddIfNotEmpty("close_older_key", c.CloseOlderKey).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
+		// Use app-minted token if head-github-app is configured; fall back to head-github-token.
+		if c.HeadGitHubApp != nil {
+			//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
+			builder.AddIfNotEmpty("head-github-token", "${{ steps.safe-outputs-head-app-token.outputs.token }}")
+		} else {
+			builder.AddIfNotEmpty("head-github-token", c.HeadGitHubToken)
+		}
 		return builder.Build()
 	},
 	"push_to_pull_request_branch": func(cfg *SafeOutputsConfig) map[string]any {
@@ -554,7 +560,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		if c.MaxPatchSize > 0 {
 			maxPatchSize = c.MaxPatchSize
 		}
-		return newHandlerConfigBuilder().
+		builder := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("title_prefix", c.TitlePrefix).
@@ -568,7 +574,6 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("base_branch", c.BaseBranch).
 			AddTemplatableStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
-			AddIfNotEmpty("head-github-token", c.HeadGitHubToken).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			AddStringPtr("protected_files_policy", c.ManifestFilesPolicy).
 			AddStringSlice("protected_files", getAllManifestFiles()).
@@ -581,8 +586,15 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddBoolPtr("fallback_as_pull_request", c.FallbackAsPullRequest).
 			AddBoolPtr("signed_commits", c.SignedCommits).
 			AddBoolPtr("check_branch_protection", c.CheckBranchProtection).
-			AddIfTrue("allow_workflows", c.AllowWorkflows).
-			Build()
+			AddIfTrue("allow_workflows", c.AllowWorkflows)
+		// Use app-minted token if head-github-app is configured; fall back to head-github-token.
+		if c.HeadGitHubApp != nil {
+			//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
+			builder.AddIfNotEmpty("head-github-token", "${{ steps.safe-outputs-head-app-token.outputs.token }}")
+		} else {
+			builder.AddIfNotEmpty("head-github-token", c.HeadGitHubToken)
+		}
+		return builder.Build()
 	},
 	"update_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.UpdatePullRequests == nil {
