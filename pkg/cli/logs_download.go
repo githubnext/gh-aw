@@ -35,6 +35,9 @@ var logsDownloadLog = logger.New("cli:logs_download")
 
 // downloadArtifactsOptions bundles the common parameters shared by the artifact
 // download helpers, avoiding repeated positional argument lists.
+// runID identifies the workflow run; outputDir is the local destination directory;
+// verbose enables progress messages; owner, repo, hostname identify the GitHub repository;
+// artifactFilter is an optional list of artifact base names to download (nil means all).
 type downloadArtifactsOptions struct {
 	runID          int64
 	outputDir      string

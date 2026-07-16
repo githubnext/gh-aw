@@ -613,6 +613,11 @@ func UpdateActionsInWorkflowFiles(ctx context.Context, workflowsDir, engineOverr
 
 // updateActionsOptions bundles the configuration parameters for updateActionsInWorkflowFiles,
 // collapsing a long positional parameter list into a struct.
+// engineOverride sets a non-default agentic engine for recompiled workflows.
+// disableReleaseBump prevents upgrading action/skill references to newer releases.
+// noCompile skips recompilation of updated workflow files.
+// coolDown is the minimum age a release must have before it is considered for upgrade.
+// approve auto-approves any interactive prompts during recompilation.
 type updateActionsOptions struct {
 	workflowsDir       string
 	engineOverride     string

@@ -47,6 +47,10 @@ type concurrentRunDownloadParams struct {
 
 // runArtifactsConcurrentOptions bundles the per-invocation options for
 // downloadRunArtifactsConcurrent, collapsing a long positional parameter list into a struct.
+// maxRuns is a hint for the maximum number of runs to process concurrently (0 means unlimited).
+// artifactFilter restricts which artifacts are downloaded; nil means download all.
+// artifactSets is the original pre-resolution set list used to determine evalsOnly fallback behavior.
+// evalsOnly skips non-evals artifacts to reduce download volume on evals-focused runs.
 type runArtifactsConcurrentOptions struct {
 	outputDir      string
 	verbose        bool
