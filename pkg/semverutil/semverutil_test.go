@@ -187,6 +187,49 @@ func TestCompare(t *testing.T) {
 	}
 }
 
+func TestNormalizeGitDescribeSemver(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "release tag unchanged",
+			input: "v1.2.3",
+			want:  "v1.2.3",
+		},
+		{
+			name:  "git describe output collapses to base tag",
+			input: "v1.2.3-27-g117acb7f9c",
+			want:  "v1.2.3",
+		},
+		{
+			name:  "dirty tag collapses to base tag",
+			input: "v1.2.3-dirty",
+			want:  "v1.2.3",
+		},
+		{
+			name:  "git describe dirty output collapses to base tag",
+			input: "v1.2.3-27-g117acb7f9c-dirty",
+			want:  "v1.2.3",
+		},
+		{
+			name:  "real prerelease remains prerelease",
+			input: "v1.2.3-beta.1",
+			want:  "v1.2.3-beta.1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := NormalizeGitDescribeSemver(tt.input)
+			if got != tt.want {
+				t.Errorf("NormalizeGitDescribeSemver(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestIsCompatible(t *testing.T) {
 	tests := []struct {
 		pin       string

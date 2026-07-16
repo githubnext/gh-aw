@@ -3379,6 +3379,157 @@ func TestPRPolicyFieldsExpressionsPassThrough(t *testing.T) {
 	}
 }
 
+func TestForkBackedPRFieldsPassThrough(t *testing.T) {
+	t.Parallel()
+
+	headRepoExpr := "${{ inputs.head-repo }}"
+	headTokenExpr := "${{ secrets.FORK_PAT }}"
+
+	tests := []struct {
+		name        string
+		safeOutputs *SafeOutputsConfig
+		handlerKey  string
+	}{
+		{
+			name: "create-pull-request emits fork head fields",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					HeadRepoSlug:         headRepoExpr,
+					HeadGitHubToken:      headTokenExpr,
+				},
+			},
+			handlerKey: "create_pull_request",
+		},
+		{
+			name: "push-to-pull-request-branch emits fork head fields",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					HeadRepoSlug:         headRepoExpr,
+					HeadGitHubToken:      headTokenExpr,
+				},
+			},
+			handlerKey: "push_to_pull_request_branch",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				Name:        "Test Workflow",
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			var steps []string
+			compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+			require.NotEmpty(t, steps, "should produce config steps")
+
+			var configJSON string
+			for _, step := range steps {
+				if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+					parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+					require.Len(t, parts, 2, "should split env var line")
+					configJSON = strings.TrimSpace(parts[1])
+					configJSON = strings.Trim(configJSON, "\"")
+					configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
+				}
+			}
+			require.NotEmpty(t, configJSON, "should have extracted JSON")
+
+			var config map[string]map[string]any
+			require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+
+			handlerConfig, ok := config[tt.handlerKey]
+			require.True(t, ok, "should have %s config", tt.handlerKey)
+			assert.Equal(t, headRepoExpr, handlerConfig["head-repo"])
+			assert.Equal(t, headTokenExpr, handlerConfig["head-github-token"])
+		})
+	}
+}
+
+func TestForkBackedPRHeadGitHubAppFieldsPassThrough(t *testing.T) {
+	t.Parallel()
+
+	headRepoExpr := "automation-owner/vscode"
+	headAppID := "${{ vars.HEAD_APP_ID }}"
+	headAppKey := "${{ secrets.HEAD_APP_PRIVATE_KEY }}"
+	// When head-github-app is configured, the handler config should receive the step
+	// expression rather than a raw token value.
+	expectedHeadTokenExpr := "${{ steps.safe-outputs-head-app-token.outputs.token }}"
+
+	tests := []struct {
+		name        string
+		safeOutputs *SafeOutputsConfig
+		handlerKey  string
+	}{
+		{
+			name: "create-pull-request emits app-minted head token expression",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					HeadRepoSlug:         headRepoExpr,
+					HeadGitHubApp: &GitHubAppConfig{
+						AppID:      headAppID,
+						PrivateKey: headAppKey,
+					},
+				},
+			},
+			handlerKey: "create_pull_request",
+		},
+		{
+			name: "push-to-pull-request-branch emits app-minted head token expression",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					HeadRepoSlug:         headRepoExpr,
+					HeadGitHubApp: &GitHubAppConfig{
+						AppID:      headAppID,
+						PrivateKey: headAppKey,
+					},
+				},
+			},
+			handlerKey: "push_to_pull_request_branch",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				Name:        "Test Workflow",
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			var steps []string
+			compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+			require.NotEmpty(t, steps, "should produce config steps")
+
+			var configJSON string
+			for _, step := range steps {
+				if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+					parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+					require.Len(t, parts, 2, "should split env var line")
+					configJSON = strings.TrimSpace(parts[1])
+					configJSON = strings.Trim(configJSON, "\"")
+					configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
+				}
+			}
+			require.NotEmpty(t, configJSON, "should have extracted JSON")
+
+			var config map[string]map[string]any
+			require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+
+			handlerConfig, ok := config[tt.handlerKey]
+			require.True(t, ok, "should have %s config", tt.handlerKey)
+			assert.Equal(t, headRepoExpr, handlerConfig["head-repo"])
+			assert.Equal(t, expectedHeadTokenExpr, handlerConfig["head-github-token"],
+				"head-github-app should produce the safe-outputs-head-app-token step expression")
+		})
+	}
+}
+
 func TestCreatePullRequestProtectedFilesPolicyDefault(t *testing.T) {
 	t.Parallel()
 

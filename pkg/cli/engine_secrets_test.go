@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"net/url"
 	"os"
 	"testing"
 
@@ -142,6 +143,66 @@ func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 				assert.Empty(t, req.EngineName, "System secret should have empty engine name")
 			}
 		}
+	})
+}
+
+func TestBuildCopilotPATCreationURL(t *testing.T) {
+	rawURL := buildCopilotPATCreationURL()
+	parsed, err := url.Parse(rawURL)
+	require.NoError(t, err)
+
+	assert.Equal(t, "https", parsed.Scheme)
+	assert.Equal(t, "github.com", parsed.Host)
+	assert.Equal(t, "/settings/personal-access-tokens/new", parsed.Path)
+	assert.Equal(t, constants.CopilotGitHubToken, parsed.Query().Get("name"), "token name must be prefilled to COPILOT_GITHUB_TOKEN")
+	assert.Equal(t, "read", parsed.Query().Get("user_copilot_requests"))
+	assert.Empty(t, parsed.Query().Get("contents"), "Copilot PAT setup URL should not request unrelated repository permissions")
+	assert.Empty(t, parsed.Query().Get("issues"), "Copilot PAT setup URL should not request unrelated issue permissions")
+	assert.Empty(t, parsed.Query().Get("pull_requests"), "Copilot PAT setup URL should not request unrelated pull request permissions")
+}
+
+func TestEnsureSecretAvailable_CopilotRepromptsWithOverwrite(t *testing.T) {
+	copilotReq := SecretRequirement{
+		Name:           constants.CopilotGitHubToken,
+		IsEngineSecret: true,
+		EngineName:     string(constants.CopilotEngine),
+	}
+	claudeReq := SecretRequirement{
+		Name:           "ANTHROPIC_API_KEY",
+		IsEngineSecret: true,
+		EngineName:     string(constants.ClaudeEngine),
+	}
+
+	t.Run("existing Copilot secret triggers re-prompt with OverwriteExistingSecret=true", func(t *testing.T) {
+		var capturedConfig EngineSecretConfig
+		orig := engineSecretsPromptFn
+		t.Cleanup(func() { engineSecretsPromptFn = orig })
+		engineSecretsPromptFn = func(req SecretRequirement, config EngineSecretConfig) error {
+			capturedConfig = config
+			return nil
+		}
+
+		cfg := EngineSecretConfig{
+			ExistingSecrets: map[string]struct{}{constants.CopilotGitHubToken: {}},
+		}
+		require.NoError(t, ensureSecretAvailable(copilotReq, cfg))
+		assert.True(t, capturedConfig.OverwriteExistingSecret, "prompt must be called with OverwriteExistingSecret=true")
+	})
+
+	t.Run("existing non-Copilot secret skips prompt", func(t *testing.T) {
+		called := false
+		orig := engineSecretsPromptFn
+		t.Cleanup(func() { engineSecretsPromptFn = orig })
+		engineSecretsPromptFn = func(_ SecretRequirement, _ EngineSecretConfig) error {
+			called = true
+			return nil
+		}
+
+		cfg := EngineSecretConfig{
+			ExistingSecrets: map[string]struct{}{"ANTHROPIC_API_KEY": {}},
+		}
+		require.NoError(t, ensureSecretAvailable(claudeReq, cfg))
+		assert.False(t, called, "non-Copilot existing secret must not trigger a prompt")
 	})
 }
 
@@ -413,6 +474,37 @@ func TestGetEngineSecretNameAndValue(t *testing.T) {
 		assert.Equal(t, "COPILOT_GITHUB_TOKEN", name)
 		assert.Empty(t, value, "Should prefer existing repo secret over environment")
 		assert.True(t, existsInRepo, "Should indicate secret exists in repo")
+	})
+}
+
+func TestMustValidateExistingSecretValue(t *testing.T) {
+	t.Run("copilot engine secret requires revalidation", func(t *testing.T) {
+		req := SecretRequirement{
+			Name:           "COPILOT_GITHUB_TOKEN",
+			IsEngineSecret: true,
+			EngineName:     string(constants.CopilotEngine),
+		}
+
+		assert.True(t, mustValidateExistingSecretValue(req))
+	})
+
+	t.Run("non-copilot engine secret does not require revalidation", func(t *testing.T) {
+		req := SecretRequirement{
+			Name:           "ANTHROPIC_API_KEY",
+			IsEngineSecret: true,
+			EngineName:     string(constants.ClaudeEngine),
+		}
+
+		assert.False(t, mustValidateExistingSecretValue(req))
+	})
+
+	t.Run("system secret does not require revalidation", func(t *testing.T) {
+		req := SecretRequirement{
+			Name:           "GH_AW_GITHUB_TOKEN",
+			IsEngineSecret: false,
+		}
+
+		assert.False(t, mustValidateExistingSecretValue(req))
 	})
 }
 

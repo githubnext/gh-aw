@@ -78,11 +78,16 @@ func probeCopilotBillingForOrgWithClient(ctx context.Context, orgLogin string, c
 			BillingStatus: cliStatus,
 			LabelSuffix:   " [recommended — org Copilot CLI billing enabled]",
 		}
-	default: // "disabled" or any other policy value
+	case cliStatus == "disabled":
 		return orgCopilotBillingProbeResult{
 			BillingStatus: cliStatus,
 			LabelSuffix:   fmt.Sprintf(" [not available — org Copilot CLI billing: %s]", cliStatus),
 			Disabled:      true,
+		}
+	default: // Unknown policy values are treated as inconclusive.
+		return orgCopilotBillingProbeResult{
+			BillingStatus: cliStatus,
+			InfoNote:      copilotBillingInconclusiveNote,
 		}
 	}
 }

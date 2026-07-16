@@ -13,27 +13,30 @@ var pushToPullRequestBranchLog = logger.New("workflow:push_to_pull_request_branc
 // PushToPullRequestBranchConfig holds configuration for pushing changes to a specific branch from agent output
 type PushToPullRequestBranchConfig struct {
 	BaseSafeOutputConfig           `yaml:",inline"`
-	Target                         string   `yaml:"target,omitempty"`                              // Target for push-to-pull-request-branch: like add-comment but for pull requests
-	TitlePrefix                    string   `yaml:"title-prefix,omitempty"`                        // Required title prefix for pull request validation
-	RequiredLabels                 []string `yaml:"required-labels,omitempty"`                     // Required labels for pull request validation
-	Labels                         []string `yaml:"labels,omitempty"`                              // Deprecated alias for required-labels
-	IfNoChanges                    string   `yaml:"if-no-changes,omitempty"`                       // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
-	IgnoreMissingBranchFailure     bool     `yaml:"ignore-missing-branch-failure,omitempty"`       // When true, missing/deleted target branches are treated as skipped instead of hard failures.
-	CommitTitleSuffix              string   `yaml:"commit-title-suffix,omitempty"`                 // Optional suffix to append to generated commit titles
-	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
-	TargetRepoSlug                 string   `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository push to pull request branch
-	BaseBranch                     string   `yaml:"base-branch,omitempty"`                         // Base branch of the target repository for incremental patch computation. When unset, the runtime resolves it from the local checkout or the repo's default branch.
-	AllowedRepos                   []string `yaml:"allowed-repos,omitempty"`                       // List of additional repositories in format "owner/repo" that push to pull request branch can target
-	ManifestFilesPolicy            *string  `yaml:"protected-files,omitempty"`                     // Controls protected-file protection: "blocked" (default) hard-blocks, "allowed" permits all changes, "fallback-to-issue" creates a review issue instead of pushing.
-	ProtectedFilesExclude          []string `yaml:"-"`                                             // Files/prefixes to exclude from the default protected list (from object-form protected-files.exclude). Not sourced from YAML directly; populated during parsing.
-	AllowedFiles                   []string `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for push. Checked independently of protected-files; both checks must pass.
-	ExcludedFiles                  []string `yaml:"excluded-files,omitempty"`                      // List of glob patterns for files to exclude from the patch using git :(exclude) pathspecs. Matching files are stripped by git at generation time and will not appear in the commit or be subject to allowed-files or protected-files checks.
-	MaxPatchSize                   int      `yaml:"max-patch-size,omitempty"`                      // Maximum allowed patch size in KB for push-to-pull-request-branch only. Overrides safe-outputs.max-patch-size when set.
-	PatchFormat                    string   `yaml:"patch-format,omitempty"`                        // Transport format for packaging changes: "bundle" (default, uses git bundle and preserves merge topology/per-commit metadata) or "am" (uses git format-patch).
-	FallbackAsPullRequest          *bool    `yaml:"fallback-as-pull-request,omitempty"`            // When true (default), creates a fallback pull request if direct push fails due to diverged/non-fast-forward branch. When false, fallback is disabled and pull-requests: write is not requested.
-	SignedCommits                  *bool    `yaml:"signed-commits,omitempty"`                      // When false, skips GitHub GraphQL signed commits and pushes the local git history directly. Default is true.
-	AllowWorkflows                 bool     `yaml:"allow-workflows,omitempty"`                     // When true, adds workflows: write to the GitHub App token. Requires safe-outputs.github-app to be configured.
-	CheckBranchProtection          *bool    `yaml:"check-branch-protection,omitempty"`             // When false, skips the branch protection API pre-flight check. Default is true (check enabled). Set to false to avoid needing administration: read permission.
+	Target                         string           `yaml:"target,omitempty"`                              // Target for push-to-pull-request-branch: like add-comment but for pull requests
+	TitlePrefix                    string           `yaml:"title-prefix,omitempty"`                        // Required title prefix for pull request validation
+	RequiredLabels                 []string         `yaml:"required-labels,omitempty"`                     // Required labels for pull request validation
+	Labels                         []string         `yaml:"labels,omitempty"`                              // Deprecated alias for required-labels
+	IfNoChanges                    string           `yaml:"if-no-changes,omitempty"`                       // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
+	IgnoreMissingBranchFailure     bool             `yaml:"ignore-missing-branch-failure,omitempty"`       // When true, missing/deleted target branches are treated as skipped instead of hard failures.
+	CommitTitleSuffix              string           `yaml:"commit-title-suffix,omitempty"`                 // Optional suffix to append to generated commit titles
+	GithubTokenForExtraEmptyCommit string           `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
+	TargetRepoSlug                 string           `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository push to pull request branch
+	HeadRepoSlug                   string           `yaml:"head-repo,omitempty"`                           // Head repository in format "owner/repo" for allowed fork-backed pull request updates
+	HeadGitHubToken                string           `yaml:"head-github-token,omitempty"`                   // GitHub token used for branch writes to the head repository when it differs from the target repo
+	HeadGitHubApp                  *GitHubAppConfig `yaml:"-"`                                             // GitHub App used to mint the head token for fork branch writes; parsed manually to support app-id alias
+	BaseBranch                     string           `yaml:"base-branch,omitempty"`                         // Base branch of the target repository for incremental patch computation. When unset, the runtime resolves it from the local checkout or the repo's default branch.
+	AllowedRepos                   []string         `yaml:"allowed-repos,omitempty"`                       // List of additional repositories in format "owner/repo" that push to pull request branch can target
+	ManifestFilesPolicy            *string          `yaml:"protected-files,omitempty"`                     // Controls protected-file protection: "blocked" (default) hard-blocks, "allowed" permits all changes, "fallback-to-issue" creates a review issue instead of pushing.
+	ProtectedFilesExclude          []string         `yaml:"-"`                                             // Files/prefixes to exclude from the default protected list (from object-form protected-files.exclude). Not sourced from YAML directly; populated during parsing.
+	AllowedFiles                   []string         `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for push. Checked independently of protected-files; both checks must pass.
+	ExcludedFiles                  []string         `yaml:"excluded-files,omitempty"`                      // List of glob patterns for files to exclude from the patch using git :(exclude) pathspecs. Matching files are stripped by git at generation time and will not appear in the commit or be subject to allowed-files or protected-files checks.
+	MaxPatchSize                   int              `yaml:"max-patch-size,omitempty"`                      // Maximum allowed patch size in KB for push-to-pull-request-branch only. Overrides safe-outputs.max-patch-size when set.
+	PatchFormat                    string           `yaml:"patch-format,omitempty"`                        // Transport format for packaging changes: "bundle" (default, uses git bundle and preserves merge topology/per-commit metadata) or "am" (uses git format-patch).
+	FallbackAsPullRequest          *bool            `yaml:"fallback-as-pull-request,omitempty"`            // When true (default), creates a fallback pull request if direct push fails due to diverged/non-fast-forward branch. When false, fallback is disabled and pull-requests: write is not requested.
+	SignedCommits                  *bool            `yaml:"signed-commits,omitempty"`                      // When false, skips GitHub GraphQL signed commits and pushes the local git history directly. Default is true.
+	AllowWorkflows                 bool             `yaml:"allow-workflows,omitempty"`                     // When true, adds workflows: write to the GitHub App token. Requires safe-outputs.github-app to be configured.
+	CheckBranchProtection          *bool            `yaml:"check-branch-protection,omitempty"`             // When false, skips the branch protection API pre-flight check. Default is true (check enabled). Set to false to avoid needing administration: read permission.
 }
 
 // buildCheckoutRepository generates a checkout step with optional target repository and custom token
@@ -157,6 +160,18 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 
 			// Parse target-repo for cross-repository push
 			pushToBranchConfig.TargetRepoSlug = extractStringFromMap(configMap, "target-repo", pushToPullRequestBranchLog)
+			pushToBranchConfig.HeadRepoSlug = extractStringFromMap(configMap, "head-repo", pushToPullRequestBranchLog)
+			pushToBranchConfig.HeadGitHubToken = extractStringFromMap(configMap, "head-github-token", pushToPullRequestBranchLog)
+
+			// Parse head-github-app manually so that the app-id alias is honoured
+			// (YAML unmarshal would silently ignore app-id since GitHubAppConfig only
+			// declares the canonical client-id tag).
+			if headAppData, exists := configMap["head-github-app"]; exists {
+				if headAppMap, ok := headAppData.(map[string]any); ok {
+					pushToPullRequestBranchLog.Print("Parsed head-github-app from config")
+					pushToBranchConfig.HeadGitHubApp = parseAppConfig(headAppMap)
+				}
+			}
 
 			// Parse base-branch for explicit override of the target repo's base branch.
 			// When unset, the safe-outputs MCP server resolves it at runtime from the local

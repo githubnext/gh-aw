@@ -38,8 +38,9 @@ safe-outputs:
     max: 3                        # max PRs per run (default: 1)
     expires: 14                   # auto-close after N days (same-repo only; also accepts 2h, 7d, 2w, 1m, 1y)
     if-no-changes: "warn"         # "warn" (default), "error", or "ignore"
-    target-repo: "owner/repo"     # cross-repository target
-    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
+    target-repo: "owner/repo"     # upstream repository that receives the PR
+    head-repo: "automation/fork"  # optional automation-owned fork that receives the branch push
+    allowed-repos: ["org/repo1", "org/repo2", "automation/fork"]  # allowlisted upstream/head repositories
     base-branch: "vnext"          # PR target branch (default: github.base_ref || github.ref_name)
     allowed-base-branches:        # allow agent to override base branch at runtime (glob patterns)
       - main
@@ -57,11 +58,17 @@ safe-outputs:
       - "dist/**"
     max-patch-files: 300          # max unique files in the patch (default: 100)
     max-patch-size: 2048          # max patch size in KB (default: 4096)
-    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
+    github-token: ${{ secrets.UPSTREAM_PR_TOKEN }} # optional credential for upstream PR creation
+    head-github-token: ${{ secrets.FORK_PUSH_TOKEN }} # optional credential for fork branch writes
+    head-github-app:                 # optional GitHub App to mint the fork credential at runtime
+      client-id: ${{ vars.FORK_APP_CLIENT_ID }}
+      private-key: ${{ secrets.FORK_APP_PRIVATE_KEY }}
     github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }} # optional token to push empty commit triggering CI
     signed-commits: true          # signed commits via GraphQL API (default: true); set false to use git push directly
     protected-files: fallback-to-issue  # push branch, create review issue if protected files modified
 ```
+
+`target-repo` names the upstream repository that owns the base branch. `head-repo`, when set, names the automation-owned fork that receives the pushed branch. When `head-repo` differs from `target-repo`, the created pull request uses an owner-qualified head reference (`fork-owner:branch`) and both repositories must be explicitly allowlisted.
 
 See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for `target-repo`, `allowed-repos`, and authentication configuration.
 
@@ -116,6 +123,8 @@ An older **patch transport** (`git format-patch` / `git am --3way`) is used when
 :::note[Cross-repo targets]
 The `safe_outputs` job always mirrors the agent job's checkout layout. When a `checkout:` entry places a repository in a subdirectory (a `path:` is set), `safe_outputs` checks out **every** repository to the same location the agent used — the workflow repository at the workspace root plus each cross-repo checkout at its `path:` — regardless of whether `target-repo` names a specific repository or the wildcard `"*"`. This lets a specific `target-repo` (and the two-or-more cross-repo case) operate against an identical layout. When the target repository is checked out at the workspace root (no `path:`), it is checked out there in both jobs.
 :::
+
+When `head-repo` is set, the preferred model is an ephemeral upstream-based branch: the safe output job resolves the upstream base SHA from `target-repo`, creates or refreshes a temporary branch in `head-repo` from that SHA, pushes the agent's commits there, and opens the PR back to the upstream base. Supported synchronization is limited to that configured upstream/head pairing; arbitrary reuse of unrelated fork branches is not supported.
 
 ## Pull Request Updates (`update-pull-request:`)
 
@@ -299,8 +308,8 @@ See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for docume
 
 Pushes changes to a PR's branch. Validates via `required-title-prefix` and `required-labels` to ensure only approved PRs receive changes. Multiple pushes per run are supported by setting `max` higher than 1.
 
-:::caution[Fork PRs Not Supported]
-This safe output **cannot push to PRs from forks**. Fork PRs will fail early with a clear error message. This is a security restriction—the workflow does not have write access to fork repositories.
+:::caution[Fork PRs Are Restricted]
+This safe output can push only to same-repository pull requests or to fork-backed pull requests whose head repository exactly matches the configured `head-repo`. Arbitrary contributor forks remain unsupported and fail early with a clear error message.
 :::
 
 ```yaml wrap
@@ -320,8 +329,13 @@ safe-outputs:
     ignore-missing-branch-failure: false  # treat deleted/missing branch errors as skipped instead of failed (default: false)
     check-branch-protection: true         # set to false to skip the branch protection pre-flight check (default: true)
     protected-files: fallback-to-issue  # create review issue if protected files modified
-    target-repo: "owner/repo"    # cross-repository (target repo must be checked out)
-    allowed-repos: ["org/repo1"] # additional allowed repositories
+    target-repo: "owner/repo"    # upstream repository containing the PR
+    head-repo: "automation/fork" # required for supported fork-backed follow-up pushes
+    allowed-repos: ["owner/repo", "automation/fork"] # allowlisted upstream/head repositories
+    head-github-token: ${{ secrets.FORK_PUSH_TOKEN }} # optional credential for fork branch writes
+    head-github-app:                 # optional GitHub App to mint the fork credential at runtime
+      client-id: ${{ vars.FORK_APP_CLIENT_ID }}
+      private-key: ${{ secrets.FORK_APP_PRIVATE_KEY }}
 ```
 
 When `push-to-pull-request-branch` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
@@ -344,7 +358,7 @@ By default, pushes are replayed through GitHub's signed commit API because `sign
 
 ### Cross-repo usage
 
-`push-to-pull-request-branch` supports pushing to pull requests in a different repository via `target-repo` (and optionally `allowed-repos`). When `target-repo` is set, **the target repository must be checked out into the workflow workspace** using the `checkout:` frontmatter field with a `path:` specified. Use `target-repo: "*"` to let the agent choose the target repository at runtime (the safe_outputs job will check out all `checkout:` repositories into subdirectories automatically).
+`push-to-pull-request-branch` supports pushing to pull requests in a different repository via `target-repo` (and optionally `allowed-repos`). For fork-backed pull requests, set `head-repo` to the exact repository that owns the PR head branch; follow-up pushes are permitted only when the PR head repository matches that value exactly. When `target-repo` is set, **the target repository must be checked out into the workflow workspace** using the `checkout:` frontmatter field with a `path:` specified. Use `target-repo: "*"` to let the agent choose the target repository at runtime (the safe_outputs job will check out all `checkout:` repositories into subdirectories automatically).
 
 ```yaml wrap
 checkout:
@@ -369,7 +383,7 @@ Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger 
 
 ### Checkout token for git operations
 
-`create-pull-request` and `push-to-pull-request-branch` run their git operations (fetch/push) against a repository that the `safe_outputs` job checks out with credentials persisted in `.git/config`. A **single** token is persisted into that checkout, resolved with this precedence:
+Same-repository and single-repository cross-repo flows persist one checkout credential into `.git/config` for handler git operations. In that mode, the token is resolved with this precedence:
 
 1. `create-pull-request.github-token`
 2. `push-to-pull-request-branch.github-token`
@@ -377,7 +391,9 @@ Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger 
 4. `safe-outputs.github-token`
 5. The default `${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`
 
-Because only one token can govern the shared checkout, **if you configure both `create-pull-request` and `push-to-pull-request-branch` for the same repository, give them the same token.** If they specify different `github-token` values, the higher-precedence one wins for the checkout, so the other output's git operations run with a token you did not intend. Set the token once at `safe-outputs.github-token` (or `safe-outputs.github-app`) and let both outputs inherit it, or set identical `github-token` values on each.
+Because only one token can govern that shared checkout, **if you configure both `create-pull-request` and `push-to-pull-request-branch` for the same repository, give them the same token.** If they specify different `github-token` values, the higher-precedence one wins for the checkout, so the other output's git operations run with a token you did not intend. Set the token once at `safe-outputs.github-token` (or `safe-outputs.github-app`) and let both outputs inherit it, or set identical `github-token` values on each.
+
+Fork-backed `create-pull-request` is different: upstream pull request management can use `github-token`, while branch writes to `head-repo` can use `head-github-token` or `head-github-app`. Prefer separate least-privilege credentials: `pull-requests: write` (and, if needed, `issues: write`) on the upstream repository, and `contents: write` only on the configured automation-owned fork. When both `head-github-token` and `head-github-app` are configured, `head-github-app` takes precedence and mints an ephemeral token scoped to the head repository at runtime. Do not use the fork credential for upstream PR management, and do not allow follow-up `push-to-pull-request-branch` against contributor-owned forks.
 
 :::note
 This applies to the git checkout used by the handlers' `fetch`/`push`. The GitHub API calls each handler makes still honor that handler's own `github-token` precedence.
