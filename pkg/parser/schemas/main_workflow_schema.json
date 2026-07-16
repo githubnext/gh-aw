@@ -3528,6 +3528,11 @@
                         }
                       },
                       "additionalProperties": false
+                    },
+                    "legacy-security": {
+                      "type": "string",
+                      "enum": ["enable"],
+                      "description": "Opt into legacy security mode. When set to 'enable', AWF runs with sudo and --enable-host-access for backward compatibility. The default (omitted) uses strict security mode where AWF runs rootless without host-access flags."
                     }
                   },
                   "additionalProperties": false
@@ -11174,6 +11179,10 @@
                 "ignore-if-missing": {
                   "type": "boolean",
                   "description": "If true, skip token minting when client-id/private-key resolve to empty strings at runtime. Defaults to false."
+                },
+                "audience": {
+                  "type": "string",
+                  "description": "Optional OIDC audience passed to core.getIDToken(audience) when using credential-less OIDC mode (github-app present without app-id/private-key). Leave omitted to use the default audience."
                 }
               },
               "additionalProperties": false

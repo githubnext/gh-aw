@@ -1230,6 +1230,86 @@ describe("updateProject", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Failed to create field "NonExistentField"'));
   });
 
+  it("parses and applies field updates when fields is a JSON-encoded string (double-encoded)", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 21,
+      // Agent double-encoded the fields object as a JSON string
+      fields: '{"Lifecycle":"Sandbox"}',
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-test"),
+      issueResponse("issue-id-21"),
+      existingItemResponse("issue-id-21", "item-test"),
+      fieldsResponse([{ id: "field-lifecycle", name: "Lifecycle", options: [{ id: "opt-sandbox", name: "Sandbox" }] }]),
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    // Should NOT create bogus numeric fields (0, 1, 2, …)
+    const createFieldCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("createProjectV2Field"));
+    expect(createFieldCall).toBeUndefined();
+
+    // Should have applied the parsed field update
+    const updateCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCall).toBeDefined();
+  });
+
+  it("warns and skips field updates when fields is an invalid JSON string", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 22,
+      fields: "not-valid-json",
+    };
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-test"), issueResponse("issue-id-22"), existingItemResponse("issue-id-22", "item-test")]);
+
+    await updateProject(output);
+
+    // Should warn about the bad string value
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("`fields` was a string and could not be parsed as JSON"));
+
+    // Should NOT attempt any field GraphQL operations
+    const createFieldCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("createProjectV2Field"));
+    expect(createFieldCall).toBeUndefined();
+    const updateCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCall).toBeUndefined();
+  });
+
+  it("warns and skips field updates when fields is an array", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 23,
+      fields: ["Status", "In Progress"],
+    };
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-test"), issueResponse("issue-id-23"), existingItemResponse("issue-id-23", "item-test")]);
+
+    await updateProject(output);
+
+    // Should warn about the non-object value
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("`fields` must be a JSON object"));
+
+    // Should NOT attempt any field GraphQL operations
+    const createFieldCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("createProjectV2Field"));
+    expect(createFieldCall).toBeUndefined();
+    const updateCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCall).toBeUndefined();
+  });
+
   it("rejects non-URL project identifier", async () => {
     const output = { type: "update_project", project: "Engineering Roadmap" };
     await expect(updateProject(output)).rejects.toThrow(/full GitHub project URL/);

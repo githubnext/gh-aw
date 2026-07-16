@@ -117,9 +117,12 @@ safe-outputs:
 	require.NotNil(t, job, "Job should not be nil")
 
 	stepsStr := strings.Join(job.Steps, "")
-	assert.Contains(t, stepsStr, "if: ${{ secrets.GH_AW_APP_ID != '' && secrets.GH_AW_APP_PRIVATE_KEY != '' }}")
-	assert.NotContains(t, stepsStr, "GH_AW_APP_CLIENT_ID:")
-	assert.NotContains(t, stepsStr, "GH_AW_APP_PRIVATE_KEY:")
+	// Both credentials use secrets.* context, so the ignore-if-missing guard must
+	// check step-local env aliases instead of emitting secrets.* directly in if:.
+	assert.NotContains(t, stepsStr, "if: ${{ secrets.")
+	assert.Contains(t, stepsStr, "GH_AW_IGNORE_IF_MISSING_APP_ID: ${{ secrets.GH_AW_APP_ID }}")
+	assert.Contains(t, stepsStr, "GH_AW_IGNORE_IF_MISSING_PRIVATE_KEY: ${{ secrets.GH_AW_APP_PRIVATE_KEY }}")
+	assert.Contains(t, stepsStr, "if: ${{ env.GH_AW_IGNORE_IF_MISSING_APP_ID != '' && env.GH_AW_IGNORE_IF_MISSING_PRIVATE_KEY != '' }}")
 	assert.Contains(t, stepsStr, "github-token: ${{ steps.safe-outputs-app-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}")
 }
 
@@ -140,19 +143,77 @@ func TestBuildIgnoreIfMissingCondition(t *testing.T) {
 		name       string
 		appID      string
 		privateKey string
-		expected   string
+		expected   ignoreIfMissingGuard
 	}{
 		{
-			name:       "wrapped expressions",
+			name:       "both secrets - route through env aliases",
 			appID:      "${{ secrets.GH_AW_APP_ID }}",
 			privateKey: "${{ secrets.GH_AW_APP_PRIVATE_KEY }}",
-			expected:   "${{ secrets.GH_AW_APP_ID != '' && secrets.GH_AW_APP_PRIVATE_KEY != '' }}",
+			expected: ignoreIfMissingGuard{
+				Condition: "${{ env.GH_AW_IGNORE_IF_MISSING_APP_ID != '' && env.GH_AW_IGNORE_IF_MISSING_PRIVATE_KEY != '' }}",
+				EnvAssignments: []stepEnvAssignment{
+					{Name: ignoreIfMissingAppIDEnvVar, Value: "${{ secrets.GH_AW_APP_ID }}"},
+					{Name: ignoreIfMissingPrivateKeyEnvVar, Value: "${{ secrets.GH_AW_APP_PRIVATE_KEY }}"},
+				},
+			},
+		},
+		{
+			name:       "vars client-id + secrets private-key",
+			appID:      "${{ vars.APP_CLIENT_ID }}",
+			privateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			expected: ignoreIfMissingGuard{
+				Condition: "${{ vars.APP_CLIENT_ID != '' && env.GH_AW_IGNORE_IF_MISSING_PRIVATE_KEY != '' }}",
+				EnvAssignments: []stepEnvAssignment{
+					{Name: ignoreIfMissingPrivateKeyEnvVar, Value: "${{ secrets.APP_PRIVATE_KEY }}"},
+				},
+			},
+		},
+		{
+			name:       "both vars",
+			appID:      "${{ vars.APP_CLIENT_ID }}",
+			privateKey: "${{ vars.APP_PRIVATE_KEY }}",
+			expected: ignoreIfMissingGuard{
+				Condition: "${{ vars.APP_CLIENT_ID != '' && vars.APP_PRIVATE_KEY != '' }}",
+			},
 		},
 		{
 			name:       "literal values",
 			appID:      "  id value  ",
 			privateKey: "key'value",
-			expected:   "${{ 'id value' != '' && 'key''value' != '' }}",
+			expected: ignoreIfMissingGuard{
+				Condition: "${{ 'id value' != '' && 'key''value' != '' }}",
+			},
+		},
+		{
+			name:       "matrix remains valid in step if",
+			appID:      "${{ matrix.app_id }}",
+			privateKey: "${{ matrix.key }}",
+			expected: ignoreIfMissingGuard{
+				Condition: "${{ matrix.app_id != '' && matrix.key != '' }}",
+			},
+		},
+		{
+			name:       "jobs context with bracket syntax routes through env aliases",
+			appID:      "${{ jobs.build.outputs['app-id'] }}",
+			privateKey: "${{ jobs.build.outputs['private-key'] }}",
+			expected: ignoreIfMissingGuard{
+				Condition: "${{ env.GH_AW_IGNORE_IF_MISSING_APP_ID != '' && env.GH_AW_IGNORE_IF_MISSING_PRIVATE_KEY != '' }}",
+				EnvAssignments: []stepEnvAssignment{
+					{Name: ignoreIfMissingAppIDEnvVar, Value: "${{ jobs.build.outputs['app-id'] }}"},
+					{Name: ignoreIfMissingPrivateKeyEnvVar, Value: "${{ jobs.build.outputs['private-key'] }}"},
+				},
+			},
+		},
+		{
+			name:       "composite expression with secrets routes through env alias",
+			appID:      "${{ vars.APP_ID || secrets.FALLBACK_ID }}",
+			privateKey: "${{ vars.APP_KEY }}",
+			expected: ignoreIfMissingGuard{
+				Condition: "${{ env.GH_AW_IGNORE_IF_MISSING_APP_ID != '' && vars.APP_KEY != '' }}",
+				EnvAssignments: []stepEnvAssignment{
+					{Name: ignoreIfMissingAppIDEnvVar, Value: "${{ vars.APP_ID || secrets.FALLBACK_ID }}"},
+				},
+			},
 		},
 	}
 

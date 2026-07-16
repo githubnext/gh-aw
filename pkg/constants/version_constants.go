@@ -70,7 +70,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.5.0"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.27.31"
+const DefaultFirewallVersion Version = "v0.27.35"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -110,6 +110,11 @@ const AWFArcDindMinVersion Version = "v0.27.20"
 // AWFContainerRuntimeMinVersion is the minimum AWF version that supports the
 // containerRuntime field in the container config (gh-aw-firewall#6093).
 const AWFContainerRuntimeMinVersion Version = "v0.27.30"
+
+// AWFLegacySecurityMinVersion is the minimum AWF version that supports the
+// --legacy-security flag and unconditional API proxy (gh-aw-firewall#6207).
+// Workflows pinning an older AWF version must use the old --security-mode compat behavior.
+const AWFLegacySecurityMinVersion Version = "v0.27.32"
 
 // DefaultGVisorVersion is the pinned gVisor release used by the compiler-generated
 // install step. A specific dated release name is used instead of "latest" to ensure
