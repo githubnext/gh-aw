@@ -138,6 +138,33 @@ describe("mcp_scripts_config_loader.cjs", () => {
       expect(() => loadConfig(configPath)).toThrow("'bad_tool'");
     });
 
+    it("should throw ERR_VALIDATION error for null tool entry", async () => {
+      const { loadConfig } = await import("./mcp_scripts_config_loader.cjs");
+
+      const configPath = path.join(tempDir, "null-tool.json");
+      fs.writeFileSync(configPath, JSON.stringify({ tools: [null] }));
+
+      expect(() => loadConfig(configPath)).toThrow("must be a non-null object");
+    });
+
+    it("should throw ERR_VALIDATION error for array tool entry", async () => {
+      const { loadConfig } = await import("./mcp_scripts_config_loader.cjs");
+
+      const configPath = path.join(tempDir, "array-tool.json");
+      fs.writeFileSync(configPath, JSON.stringify({ tools: [["not", "an", "object"]] }));
+
+      expect(() => loadConfig(configPath)).toThrow("must be a non-null object");
+    });
+
+    it("should throw ERR_VALIDATION error for array inputSchema", async () => {
+      const { loadConfig } = await import("./mcp_scripts_config_loader.cjs");
+
+      const configPath = path.join(tempDir, "array-schema.json");
+      fs.writeFileSync(configPath, JSON.stringify({ tools: [{ name: "tool1", description: "A tool", inputSchema: [] }] }));
+
+      expect(() => loadConfig(configPath)).toThrow("must have an 'inputSchema' object field");
+    });
+
     it("should load configuration with multiple tools", async () => {
       const { loadConfig } = await import("./mcp_scripts_config_loader.cjs");
 

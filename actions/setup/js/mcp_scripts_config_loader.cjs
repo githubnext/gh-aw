@@ -54,13 +54,16 @@ function loadConfig(configPath) {
   }
 
   for (const [i, tool] of config.tools.entries()) {
+    if (tool === null || Array.isArray(tool) || typeof tool !== "object") {
+      throw new Error(`${ERR_VALIDATION}: Tool at index ${i} must be a non-null object`);
+    }
     if (!tool.name || typeof tool.name !== "string") {
       throw new Error(`${ERR_VALIDATION}: Tool at index ${i} must have a 'name' string field`);
     }
     if (!tool.description || typeof tool.description !== "string") {
       throw new Error(`${ERR_VALIDATION}: Tool at index ${i} ('${tool.name}') must have a 'description' string field`);
     }
-    if (!tool.inputSchema || typeof tool.inputSchema !== "object") {
+    if (!tool.inputSchema || typeof tool.inputSchema !== "object" || Array.isArray(tool.inputSchema)) {
       throw new Error(`${ERR_VALIDATION}: Tool at index ${i} ('${tool.name}') must have an 'inputSchema' object field`);
     }
   }
