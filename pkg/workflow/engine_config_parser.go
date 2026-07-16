@@ -37,27 +37,23 @@ func parseMaxTurnCacheMissesValue(raw any) int {
 }
 
 func parsePositiveIntValue(raw any, fieldName string) int {
-	if val, ok := typeutil.ParseIntValue(raw); ok && val > 0 {
-		return val
+	s := parseIntOrExpressionValue(raw, 1, fieldName)
+	if s == "" {
+		return 0
 	}
-	if rawStr, ok := raw.(string); ok {
-		if parsed, err := strconv.Atoi(rawStr); err == nil && parsed > 0 {
-			return parsed
-		}
-		engineLog.Printf("Ignoring invalid %s value: %q", fieldName, rawStr)
-	}
-	return 0
+	val, _ := strconv.Atoi(s)
+	return val
 }
 
 func parseMaxTurnsValue(raw any) string {
 	return parseIntOrExpressionValue(raw, 1, "max-turns")
 }
 
-// parseNonNegativeIntOrExpressionValue parses a raw frontmatter value that must be a
-// non-negative integer (≥ 0) or a GitHub Actions expression template (${{ ... }}).
+// parseHarnessMaxRetriesValue parses harness.max-retries from a raw frontmatter value
+// that must be a non-negative integer (≥ 0) or a GitHub Actions expression template (${{ ... }}).
 // It is intentionally distinct from parseMaxTurnsValue which rejects zero.
 // Returns the canonical string representation, or "" when the value is absent/invalid.
-func parseNonNegativeIntOrExpressionValue(raw any) string {
+func parseHarnessMaxRetriesValue(raw any) string {
 	return parseIntOrExpressionValue(raw, 0, "harness.max-retries")
 }
 
