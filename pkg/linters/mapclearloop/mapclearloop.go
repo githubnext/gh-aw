@@ -153,6 +153,7 @@ func run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
+// builtinVisibleAtPos reports whether name resolves to a builtin object at pos.
 func builtinVisibleAtPos(pkg *types.Package, pos token.Pos, name string) bool {
 	if pkg == nil {
 		return false
@@ -162,10 +163,14 @@ func builtinVisibleAtPos(pkg *types.Package, pos token.Pos, name string) bool {
 		return false
 	}
 	_, obj := scope.LookupParent(name, pos)
+	if obj == nil {
+		return false
+	}
 	builtin, ok := obj.(*types.Builtin)
 	return ok && builtin.Name() == name
 }
 
+// hasOverlappingComment reports whether any comment group overlaps [start, end).
 func hasOverlappingComment(files []*ast.File, start, end token.Pos) bool {
 	for _, file := range files {
 		if end <= file.Pos() || start >= file.End() {
