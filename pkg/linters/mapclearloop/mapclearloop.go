@@ -176,7 +176,6 @@ func hasOverlappingComment(files []*ast.File, start, end token.Pos) bool {
 				return true
 			}
 		}
-		return false
 	}
 	return false
 }
