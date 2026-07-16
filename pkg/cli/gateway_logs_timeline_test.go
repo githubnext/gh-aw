@@ -567,6 +567,38 @@ func TestRenderAgentToolDoneRow_StatusFromSuccessFlag(t *testing.T) {
 	}
 }
 
+func TestRenderAgentAssistantMessageRow(t *testing.T) {
+	evt := UnifiedTimelineEvent{
+		Time:           time.Date(2024, 1, 15, 10, 0, 3, 0, time.UTC),
+		Source:         TimelineSourceAgent,
+		Kind:           TimelineKindAssistantMessage,
+		MessageContent: "assistant response",
+	}
+	row := renderAgentAssistantMessageRow(evt)
+	if !strings.Contains(row[2], string(TimelineKindAssistantMessage)) {
+		t.Errorf("Kind = %q; want assistant_message label", row[2])
+	}
+	if row[3] != "assistant response" {
+		t.Errorf("Detail = %q; want assistant response", row[3])
+	}
+}
+
+func TestRenderAgentReasoningRow(t *testing.T) {
+	evt := UnifiedTimelineEvent{
+		Time:           time.Date(2024, 1, 15, 10, 0, 4, 0, time.UTC),
+		Source:         TimelineSourceAgent,
+		Kind:           TimelineKindReasoning,
+		MessageContent: "reasoning summary",
+	}
+	row := renderAgentReasoningRow(evt)
+	if !strings.Contains(row[2], string(TimelineKindReasoning)) {
+		t.Errorf("Kind = %q; want reasoning label", row[2])
+	}
+	if row[3] != "reasoning summary" {
+		t.Errorf("Detail = %q; want reasoning summary", row[3])
+	}
+}
+
 // ─── timelineEventIcon / timelineEventKindLabel / timelineSourceLabel ─────────
 
 func TestTimelineEventIcon_AllKinds(t *testing.T) {

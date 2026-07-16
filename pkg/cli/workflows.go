@@ -180,7 +180,7 @@ func getWorkflowStatus(workflowIdOrName string, repoOverride string, verbose boo
 	workflowsLog.Printf("Getting workflow status: workflow=%s", workflowIdOrName)
 
 	// Extract workflow name for lookup
-	filename := strings.TrimSuffix(filepath.Base(workflowIdOrName), ".md")
+	filename := normalizeWorkflowID(workflowIdOrName)
 
 	// Get all GitHub workflows
 	githubWorkflows, err := fetchGitHubWorkflows(repoOverride, verbose)
@@ -243,7 +243,7 @@ func getAvailableWorkflowNames() []string {
 	}
 
 	return sliceutil.Map(mdFiles, func(file string) string {
-		return strings.TrimSuffix(filepath.Base(file), ".md")
+		return normalizeWorkflowID(file)
 	})
 }
 
@@ -256,7 +256,7 @@ func suggestWorkflowNames(target string) []string {
 	}
 
 	// Normalize target: strip .md extension and get basename if it's a path
-	normalizedTarget := strings.TrimSuffix(filepath.Base(target), ".md")
+	normalizedTarget := normalizeWorkflowID(target)
 
 	workflowsLog.Printf("Suggesting workflow names for %q (available: %d)", normalizedTarget, len(availableNames))
 	// Use the existing FindClosestMatches function from parser package
