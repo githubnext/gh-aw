@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -1115,5 +1116,50 @@ func TestBuildLogsDataPreservesExplicitWorkflowPath(t *testing.T) {
 	got := logsData.Runs[0].WorkflowPath
 	if got != explicitPath {
 		t.Errorf("WorkflowPath = %q, want %q (explicit path must not be overwritten)", got, explicitPath)
+	}
+}
+
+// TestCompactLogsDataEpisodesEmptySliceNotNull verifies that compactLogsData produces
+// empty slices (not nil) for Episodes and Edges when all episodes are standalone.
+// nil slices marshal to JSON null, which breaks agent Python code that calls
+// len(d.get('episodes', [])) — the default [] is only used when the key is absent,
+// but null is a present key with a null value, causing a TypeError.
+func TestCompactLogsDataEpisodesEmptySliceNotNull(t *testing.T) {
+	data := LogsData{
+		Episodes: []EpisodeData{
+			{
+				EpisodeID: "standalone:1",
+				Kind:      "standalone",
+				TotalRuns: 1,
+			},
+		},
+		Edges: []EpisodeEdge{},
+	}
+
+	compact := compactLogsData(data)
+
+	// After compaction with only standalone episodes, Episodes and Edges must be
+	// non-nil empty slices so JSON marshaling emits [] rather than null.
+	if compact.Episodes == nil {
+		t.Error("compactLogsData: Episodes must be an empty slice (not nil) when all episodes are standalone")
+	}
+	if compact.Edges == nil {
+		t.Error("compactLogsData: Edges must be an empty slice (not nil) when all episodes are standalone")
+	}
+	if len(compact.Episodes) != 0 {
+		t.Errorf("compactLogsData: expected 0 episodes, got %d", len(compact.Episodes))
+	}
+
+	// Marshal to JSON and confirm episodes/edges appear as [] not null.
+	b, err := json.Marshal(compact)
+	if err != nil {
+		t.Fatalf("json.Marshal failed: %v", err)
+	}
+	jsonStr := string(b)
+	if !strings.Contains(jsonStr, `"episodes":[]`) {
+		t.Errorf("expected JSON to contain \"episodes\":[], got: %s", jsonStr)
+	}
+	if !strings.Contains(jsonStr, `"edges":[]`) {
+		t.Errorf("expected JSON to contain \"edges\":[], got: %s", jsonStr)
 	}
 }

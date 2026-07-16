@@ -744,6 +744,16 @@ func dedentTrailingOnCommentBlock(lines []string) []string {
 	if start == 0 {
 		return lines
 	}
+
+	// Only dedent comments at the direct `on:` children level (≤2 spaces / 1 tab).
+	// Comments nested deeper — e.g. `forks:` inside `pull_request:` at 4-space indent —
+	// are part of a nested event section and must keep their indentation so that the
+	// visual structure of the `on:` block is preserved.
+	firstLineIndent := len(lines[start]) - len(strings.TrimLeft(lines[start], " \t"))
+	if firstLineIndent > 2 {
+		return lines
+	}
+
 	for i := start; i <= last; i++ {
 		lines[i] = strings.TrimLeft(lines[i], " \t")
 	}
