@@ -37,10 +37,10 @@ func TestApplyContainerPins(t *testing.T) {
 		},
 		{
 			name:            "embedded firewall pin used when cache is absent",
-			images:          []string{"ghcr.io/github/gh-aw-firewall/agent:0.27.0"},
+			images:          []string{"ghcr.io/github/gh-aw-firewall/agent:0.27.35"},
 			pins:            nil,
-			expectedRefs:    []string{"ghcr.io/github/gh-aw-firewall/agent:0.27.0@sha256:3816d1692e6d96887b27f1e4f1d64b8d7edb43ed9d7506b8f203913cbb81c248"},
-			expectedDigests: []string{"sha256:3816d1692e6d96887b27f1e4f1d64b8d7edb43ed9d7506b8f203913cbb81c248"},
+			expectedRefs:    []string{"ghcr.io/github/gh-aw-firewall/agent:0.27.35@sha256:2202f63e8650b2b8b0d38033b44a05387b2b71ad3e690c4d23a34786f5462aed"},
+			expectedDigests: []string{"sha256:2202f63e8650b2b8b0d38033b44a05387b2b71ad3e690c4d23a34786f5462aed"},
 		},
 		{
 			name:            "embedded gh-aw-node pin used when cache is absent",
