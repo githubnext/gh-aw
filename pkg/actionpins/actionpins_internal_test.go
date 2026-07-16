@@ -266,14 +266,9 @@ func TestGetContainerPin_MCPGatewayVersionsArePinned(t *testing.T) {
 		digest string
 	}{
 		{
-			name:   "v0.3.6",
-			image:  "ghcr.io/github/gh-aw-mcpg:v0.3.6",
-			digest: "sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c",
-		},
-		{
-			name:   "v0.3.9",
-			image:  "ghcr.io/github/gh-aw-mcpg:v0.3.9",
-			digest: "sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388",
+			name:   "v0.4.1",
+			image:  "ghcr.io/github/gh-aw-mcpg:v0.4.1",
+			digest: "sha256:ad2a979c2cd8b50098e84938ca9c9c1580eb8e91526f101a90adfba7859b2c32",
 		},
 	}
 
