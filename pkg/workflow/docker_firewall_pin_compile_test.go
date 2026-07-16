@@ -15,13 +15,14 @@ import (
 
 func TestCompileWorkflow_FirewallImagesPinnedForAWF0270(t *testing.T) {
 	imageTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+
 	frontmatter := `---
 on: workflow_dispatch
 engine: claude
 sandbox:
   agent:
     id: awf
-    version: v` + imageTag + `
+    version: ` + string(constants.DefaultFirewallVersion) + `
 network:
   allowed:
     - defaults
@@ -142,42 +143,49 @@ Test workflow.`
 
 	yamlStr := string(yaml)
 
-	requireEmbeddedPin := func(image string) ContainerPin {
-		t.Helper()
-		pin, ok := getEmbeddedContainerPin(image)
+	expectedPins := []struct {
+		name  string
+		image string
+	}{
+		{name: "agent", image: constants.DefaultFirewallRegistry + "/agent:" + imageTag},
+		{name: "api-proxy", image: constants.DefaultFirewallRegistry + "/api-proxy:" + imageTag},
+		{name: "cli-proxy", image: constants.DefaultFirewallRegistry + "/cli-proxy:" + imageTag},
+		{name: "squid", image: constants.DefaultFirewallRegistry + "/squid:" + imageTag},
+	}
+
+	for _, expectedPin := range expectedPins {
+		pin, ok := getEmbeddedContainerPin(expectedPin.image)
 		if !ok {
-			t.Fatalf("Expected embedded pin for %s", image)
+			t.Fatalf("Expected embedded pin for %s", expectedPin.image)
 		}
-		return pin
-	}
-	expectedImages := []string{
-		"ghcr.io/github/gh-aw-firewall/agent:" + imageTag,
-		"ghcr.io/github/gh-aw-firewall/api-proxy:" + imageTag,
-		"ghcr.io/github/gh-aw-firewall/cli-proxy:" + imageTag,
-		"ghcr.io/github/gh-aw-firewall/squid:" + imageTag,
-	}
-
-	for _, image := range expectedImages {
-		pin := requireEmbeddedPin(image)
-		if !strings.Contains(yamlStr, `"image":"`+pin.Image+`","digest":"`+pin.Digest+`","pinned_image":"`+pin.PinnedImage+`"`) {
-			t.Errorf("Expected manifest header to include pinned metadata for %s", image)
+		pinnedImage := pin.Image + "@" + pin.Digest
+		if !strings.Contains(yamlStr, `"image":"`+pin.Image+`","digest":"`+pin.Digest+`","pinned_image":"`+pinnedImage+`"`) {
+			t.Errorf("Expected manifest header to include pinned metadata for %s", pin.Image)
 		}
-		if !strings.Contains(yamlStr, "#   - "+pin.PinnedImage) {
-			t.Errorf("Expected pinned container comment for %s", image)
+		if !strings.Contains(yamlStr, "#   - "+pinnedImage) {
+			t.Errorf("Expected pinned container comment for %s", pin.Image)
 		}
-		if !strings.Contains(yamlStr, pin.PinnedImage) {
-			t.Errorf("Expected pinned download reference for %s", image)
+		if !strings.Contains(yamlStr, pinnedImage) {
+			t.Errorf("Expected pinned download reference for %s", pin.Image)
 		}
 	}
 
-	for _, imageTagPart := range []string{
+	imageTagParts := []string{
 		`imageTag`,
 		imageTag + `,`,
-		`agent=` + requireEmbeddedPin("ghcr.io/github/gh-aw-firewall/agent:"+imageTag).Digest,
-		`api-proxy=` + requireEmbeddedPin("ghcr.io/github/gh-aw-firewall/api-proxy:"+imageTag).Digest,
-		`cli-proxy=` + requireEmbeddedPin("ghcr.io/github/gh-aw-firewall/cli-proxy:"+imageTag).Digest,
-		`squid=` + requireEmbeddedPin("ghcr.io/github/gh-aw-firewall/squid:"+imageTag).Digest,
-	} {
+	}
+	for _, expectedPin := range expectedPins {
+		pin, ok := getEmbeddedContainerPin(expectedPin.image)
+		if !ok {
+			t.Fatalf("Expected embedded pin for %s", expectedPin.image)
+		}
+		imageTagParts = append(imageTagParts, expectedPin.name+"="+pin.Digest)
+	}
+	if pin, ok := getEmbeddedContainerPin(constants.DefaultFirewallRegistry + "/agent-act:" + imageTag); ok {
+		imageTagParts = append(imageTagParts, `agent-act=`+pin.Digest)
+	}
+
+	for _, imageTagPart := range imageTagParts {
 		if !strings.Contains(yamlStr, imageTagPart) {
 			t.Errorf("Expected AWF config JSON to include %s", imageTagPart)
 		}
@@ -212,6 +220,13 @@ Test workflow.`
 	}
 
 	compiler := NewCompiler()
+	buildToolsImage := "ghcr.io/github/gh-aw-firewall/build-tools:" + imageTag
+	// Use a synthetic (but valid-format) digest to deterministically verify cache-driven
+	// pin propagation when runner.topology=arc-dind, even if embedded pins do not include
+	// the build-tools image for the default firewall tag.
+	buildToolsDigest := "sha256:9f1e0b27f54f2271ca2897f9d2a18fb8c0f0d5a7fdb6f441b8c8137f95ae3b24"
+	pinnedBuildTools := buildToolsImage + "@" + buildToolsDigest
+	compiler.GetSharedActionCache().SetContainerPin(buildToolsImage, buildToolsDigest, pinnedBuildTools)
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -224,17 +239,7 @@ Test workflow.`
 
 	yamlStr := string(yaml)
 
-	buildToolsImage := "ghcr.io/github/gh-aw-firewall/build-tools:" + imageTag
-	buildToolsPin, hasBuildToolsPin := getEmbeddedContainerPin(buildToolsImage)
-	if !hasBuildToolsPin {
-		if strings.Contains(yamlStr, "build-tools=sha256:") {
-			t.Errorf("Did not expect build-tools digest metadata when no embedded pin exists for %s", buildToolsImage)
-		}
-		return
-	}
-	pinnedBuildTools := buildToolsPin.PinnedImage
-
-	if !strings.Contains(yamlStr, `"image":"`+buildToolsPin.Image+`","digest":"`+buildToolsPin.Digest+`","pinned_image":"`+pinnedBuildTools+`"`) {
+	if !strings.Contains(yamlStr, `"image":"`+buildToolsImage+`","digest":"`+buildToolsDigest+`","pinned_image":"`+pinnedBuildTools+`"`) {
 		t.Errorf("Expected manifest header to include pinned metadata for %s", buildToolsImage)
 	}
 	if !strings.Contains(yamlStr, "#   - "+pinnedBuildTools) {
@@ -244,7 +249,7 @@ Test workflow.`
 		t.Errorf("Expected pinned download reference for %s", buildToolsImage)
 	}
 
-	if !strings.Contains(yamlStr, `build-tools=`+buildToolsPin.Digest) {
-		t.Errorf("Expected AWF config JSON to include build-tools=%s", buildToolsPin.Digest)
+	if !strings.Contains(yamlStr, `build-tools=`+buildToolsDigest) {
+		t.Errorf("Expected AWF config JSON to include build-tools=%s", buildToolsDigest)
 	}
 }

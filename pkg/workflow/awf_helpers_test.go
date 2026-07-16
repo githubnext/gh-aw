@@ -2033,17 +2033,20 @@ func TestBuildAWFImageTagWithDigests(t *testing.T) {
 
 	t.Run("includes build-tools digest for arc-dind topology", func(t *testing.T) {
 		imageTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+		buildToolsImage := constants.DefaultFirewallRegistry + "/build-tools:" + imageTag
+		cache := &ActionCache{ContainerPins: make(map[string]ContainerPin)}
+		cache.SetContainerPin(
+			buildToolsImage,
+			"sha256:1111111111111111111111111111111111111111111111111111111111111111",
+			buildToolsImage+"@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+		)
 		workflowData := &WorkflowData{
 			RunnerConfig: &RunnerConfig{Topology: RunnerTopologyArcDind},
+			ActionCache:  cache,
 		}
 		tag := buildAWFImageTagWithDigests(imageTag, workflowData)
 
-		buildToolsImage := constants.DefaultFirewallRegistry + "/build-tools:" + imageTag
-		if _, ok := getEmbeddedContainerPin(buildToolsImage); ok {
-			assert.Contains(t, tag, "build-tools=sha256:", "should include build-tools digest metadata for arc-dind topology when embedded pin exists")
-		} else {
-			assert.NotContains(t, tag, "build-tools=sha256:", "should not include build-tools digest metadata when embedded pin is unavailable")
-		}
+		assert.Contains(t, tag, "build-tools=sha256:", "should include build-tools digest metadata for arc-dind topology")
 	})
 
 	t.Run("excludes build-tools digest without arc-dind topology", func(t *testing.T) {
@@ -2055,15 +2058,14 @@ func TestBuildAWFImageTagWithDigests(t *testing.T) {
 }
 
 func TestBuildAWFArgs_ImageTagIncludesDigests(t *testing.T) {
-	// Use the default pinned firewall version so digest metadata is included.
-	imageTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+	// Use the default firewall version so this test tracks pin/version updates.
 	config := AWFCommandConfig{
 		EngineName:     "copilot",
 		AllowedDomains: "github.com",
 		WorkflowData: &WorkflowData{
 			EngineConfig: &EngineConfig{ID: "copilot"},
 			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{Enabled: true, Version: imageTag},
+				Firewall: &FirewallConfig{Enabled: true, Version: string(constants.DefaultFirewallVersion)},
 			},
 		},
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/github/gh-aw/pkg/actionpins"
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 type testContextKey string
@@ -538,10 +539,10 @@ func TestSpec_PublicAPI_GetContainerPin(t *testing.T) {
 	})
 
 	t.Run("returns pinned container for known image", func(t *testing.T) {
-		// "node:lts-alpine" is present in the embedded action_pins.json containers map.
-		pin, ok := actionpins.GetContainerPin("node:lts-alpine")
+		knownImage := constants.DefaultMCPGatewayContainer + ":" + string(constants.DefaultMCPGatewayVersion)
+		pin, ok := actionpins.GetContainerPin(knownImage)
 		require.True(t, ok, "should return true for a known container image")
-		assert.Equal(t, "node:lts-alpine", pin.Image, "ContainerPin.Image should match the queried image")
+		assert.Equal(t, knownImage, pin.Image, "ContainerPin.Image should match the queried image")
 		require.NotEmpty(t, pin.Digest, "ContainerPin.Digest should be non-empty for a known image")
 		assert.NotEmpty(t, pin.PinnedImage, "ContainerPin.PinnedImage should be non-empty for a known image")
 		assert.Contains(t, pin.PinnedImage, pin.Digest, "PinnedImage should contain the digest")
