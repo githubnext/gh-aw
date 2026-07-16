@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 
@@ -28,7 +29,7 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 	}
 
 	if os.Getenv("GH_HOST") == "" { //nolint:osgetenvlibrary
-		if detectedHost := getHostFromOriginRemote(); detectedHost != "github.com" && detectedHost != "" {
+		if detectedHost := getHostFromOriginRemote(); detectedHost != "github.com" && detectedHost != "" && !isLocalhostOrigin(detectedHost) {
 			compileOrchestratorLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)
 			workflow.SetDefaultGHHost(detectedHost)
 		} else if detectedHost == "github.com" {
@@ -117,4 +118,14 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 
 	// Compile all workflow files in directory
 	return compileAllFilesInDirectory(ctx, compiler, config, workflowDir, stats, &validationResults)
+}
+
+// isLocalhostOrigin reports whether host is a loopback address (with optional port).
+// Loopback remotes are used by CI agent proxies and should not be treated as GHES.
+func isLocalhostOrigin(host string) bool {
+	h, _, _ := net.SplitHostPort(host)
+	if h == "" {
+		h = host
+	}
+	return h == "localhost" || h == "127.0.0.1" || h == "::1"
 }

@@ -75,6 +75,24 @@ func TestCompileWorkflowsAutoDetectsDefaultGHHost(t *testing.T) {
 
 		assert.Equal(t, "ghes.example.com", getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
 	})
+
+	t.Run("does not treat localhost remote as GHES host", func(t *testing.T) {
+		workflow.SetDefaultGHHost("")
+		t.Cleanup(func() { workflow.SetDefaultGHHost("") })
+		if prev, ok := os.LookupEnv("GH_HOST"); ok {
+			t.Cleanup(func() { _ = os.Setenv("GH_HOST", prev) })
+		} else {
+			t.Cleanup(func() { _ = os.Unsetenv("GH_HOST") })
+		}
+		require.NoError(t, os.Unsetenv("GH_HOST"))
+
+		// CI agent proxies expose git over localhost:PORT; those should not be
+		// treated as GHES, otherwise hardcoded action-pin fallback is disabled
+		// and lock files get bare SHA comments instead of version annotations.
+		runCompileWorkflowsHostDetectionCheck(t, "http://localhost:26831/owner/repo")
+
+		assert.Empty(t, getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
+	})
 }
 
 func runCompileWorkflowsHostDetectionCheck(t *testing.T, remoteURL string) {

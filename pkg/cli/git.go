@@ -287,19 +287,27 @@ func getRepositorySlugFromDirPreferringUpstream(dir string) string {
 		} else {
 			gitLog.Printf("Failed to resolve remote URL for path: %v", err)
 		}
-		return ""
-	}
-
-	slug := parseGitHubRepoSlugFromURL(remoteURL)
-	if slug != "" {
-		if dir == "" {
-			gitLog.Printf("Repository slug: %s", slug)
-		} else {
-			gitLog.Printf("Repository slug for path: %s", slug)
+	} else {
+		slug := parseGitHubRepoSlugFromURL(remoteURL)
+		if slug != "" {
+			if dir == "" {
+				gitLog.Printf("Repository slug: %s", slug)
+			} else {
+				gitLog.Printf("Repository slug for path: %s", slug)
+			}
+			return slug
 		}
 	}
 
-	return slug
+	// When git remotes do not point to a recognizable GitHub host (e.g. CI
+	// agent proxies that use localhost), fall back to the GITHUB_REPOSITORY
+	// environment variable set by GitHub Actions.
+	if envSlug := os.Getenv("GITHUB_REPOSITORY"); envSlug != "" { //nolint:osgetenvlibrary
+		gitLog.Printf("Repository slug from GITHUB_REPOSITORY env: %s", envSlug)
+		return envSlug
+	}
+
+	return ""
 }
 
 // getRepositorySlugFromRemoteForPath extracts the repository slug (owner/repo) from the git remote URL
