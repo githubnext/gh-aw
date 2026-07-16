@@ -113,6 +113,18 @@ safe-outputs:
   create-issue:
 ```
 
+### GitHub App Repositories (`github-app.repositories`)
+
+A `safe-outputs.github-app` field that controls which repositories are included in the GitHub App installation token scope. Accepts `["*"]` to request an installation token without an explicit repository restriction (granting access to all repositories the App installation covers), or an array of explicit repository names to request a narrowly-scoped token. When `["*"]` is specified, implementations omit the `repositories` parameter from the token-minting API call — they do not substitute the triggering repository name. This behavior applies to both the activation-job token and subsequent safe-output-job tokens, including `workflow_call` reusable-workflow scenarios where the agent configuration may live in the callee repository. When the field is omitted, implementations default to the triggering repository as the token scope. See [Safe Outputs Specification](/gh-aw/specs/safe-outputs-specification/).
+
+```aw wrap
+safe-outputs:
+  github-app:
+    client-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    repositories: ["*"]
+```
+
 ## Security and Outputs
 
 ### MCP Scripts

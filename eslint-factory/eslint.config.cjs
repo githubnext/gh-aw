@@ -30,6 +30,7 @@ module.exports = [
       "gh-aw-custom/require-parseInt-radix": "warn",
       "gh-aw-custom/require-return-after-core-setfailed": "warn",
       "gh-aw-custom/require-spawnsync-error-check": "warn",
+      "gh-aw-custom/require-new-url-try-catch": "warn",
     },
   },
   {

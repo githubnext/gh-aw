@@ -52,6 +52,11 @@ experiments:
     analysis_type: proportion_test
     tags: [security, output-quality, semgrep]
     issue: 32795
+evals:
+  - id: scan_completed
+    question: Did the agent complete a Semgrep security scan and report on the findings?
+  - id: alert_created_or_noop
+    question: Was a code scanning alert created for real security findings, or does the agent output confirm no vulnerabilities were found?
 
 ---
 

@@ -16,6 +16,7 @@ import { requireParseIntRadixRule } from "./rules/require-parseInt-radix";
 import { requireMkdirSyncTryCatchRule } from "./rules/require-mkdirsync-try-catch";
 import { requireReturnAfterCoreSetFailedRule } from "./rules/require-return-after-core-setfailed";
 import { requireSpawnSyncErrorCheckRule } from "./rules/require-spawnsync-error-check";
+import { requireNewUrlTryCatchRule } from "./rules/require-new-url-try-catch";
 
 const plugin = {
   meta: {
@@ -41,6 +42,7 @@ const plugin = {
     "require-parseInt-radix": requireParseIntRadixRule,
     "require-return-after-core-setfailed": requireReturnAfterCoreSetFailedRule,
     "require-spawnsync-error-check": requireSpawnSyncErrorCheckRule,
+    "require-new-url-try-catch": requireNewUrlTryCatchRule,
   },
 };
 

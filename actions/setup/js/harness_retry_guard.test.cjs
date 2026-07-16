@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard } = require("./harness_retry_guard.cjs");
+const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, isMaxRunsExceededError } = require("./harness_retry_guard.cjs");
 
 describe("harness_retry_guard.cjs", () => {
   it("detects AI credits exceeded markers", () => {
@@ -116,6 +116,18 @@ describe("harness_retry_guard.cjs", () => {
   it("does not falsely detect max_runs_exceeded for unrelated output", () => {
     const result = detectNonRetryableHarnessGuard("transient network timeout");
     expect(result.maxRunsExceeded).toBe(false);
+  });
+
+  it("isMaxRunsExceededError matches max_runs_exceeded JSON signatures", () => {
+    expect(isMaxRunsExceededError('{"error":{"type":"max_runs_exceeded"}}')).toBe(true);
+  });
+
+  it("isMaxRunsExceededError matches human-readable invocation-cap signatures", () => {
+    expect(isMaxRunsExceededError("CAPIError: 429 Maximum LLM invocations exceeded (25/25)")).toBe(true);
+  });
+
+  it("isMaxRunsExceededError ignores unrelated output", () => {
+    expect(isMaxRunsExceededError("transient network timeout")).toBe(false);
   });
 });
 

@@ -484,6 +484,26 @@ process.exit(1);
       expect(result.stderr).toContain("startup retry budget exhausted: 0/0");
     });
 
+    it("does not retry when maximum LLM invocations are exceeded", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+if (priorCalls > 0) {
+  process.stderr.write("unexpected retry after max_runs_exceeded\\n");
+  process.exit(9);
+}
+process.stderr.write('{"error":{"type":"max_runs_exceeded","message":"Maximum LLM invocations exceeded (20 / 20)."}}\\n');
+process.exit(1);
+`;
+      const { result, calls } = runHarnessWithStub({ stubScript });
+      expect(result.status).toBe(1);
+      expect(calls.length).toBe(1);
+      expect(result.stderr).toContain("maximum LLM invocations exceeded — not retrying");
+    });
+
     it("returns true for normal partial-execution retry", () => {
       const result = shouldRetryWithContinue({
         attempt: 0,

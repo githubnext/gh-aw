@@ -68,6 +68,11 @@ steps:
   - name: Install development dependencies
     run: make deps-dev
 strict: true
+evals:
+  - id: tidy_completed
+    question: Did the agent run code formatting and tidying tools on the codebase?
+  - id: pr_created_or_noop
+    question: Was a pull request created with formatting and tidying fixes, or was noop used when no changes were needed?
 
 ---
 
