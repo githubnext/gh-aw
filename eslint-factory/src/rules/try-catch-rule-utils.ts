@@ -120,7 +120,7 @@ function isFsImportBinding(definition: FsBindingDefinition): boolean {
   if (definition.type !== "ImportBinding") return false;
   if (!definition.parent || definition.parent.type !== AST_NODE_TYPES.ImportDeclaration) return false;
   if (definition.parent.source.type !== AST_NODE_TYPES.Literal) return false;
-  return FS_MODULE_SPECIFIERS.has(definition.parent.source.value as string);
+  return typeof definition.parent.source.value === "string" && FS_MODULE_SPECIFIERS.has(definition.parent.source.value);
 }
 
 function getFsMethodFromImportBinding(definition: FsBindingDefinition, fsSyncMethods: ReadonlySet<string>): string | null {

@@ -1,4 +1,4 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { ESLintUtils, TSESTree } from "@typescript-eslint/utils";
 import { buildTryCatchSuggestion, createFsSyncMethodResolver, findEnclosingStatement, isInsideTryBlock } from "./try-catch-rule-utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
@@ -33,12 +33,7 @@ export const requireFsSyncTryCatchRule = createRule({
 
     return {
       CallExpression(node) {
-        const callee = node.callee;
-        let methodName: string | null = null;
-
-        if (callee.type === AST_NODE_TYPES.MemberExpression || callee.type === AST_NODE_TYPES.Identifier) {
-          methodName = resolveFsSyncMethod(node);
-        }
+        const methodName = resolveFsSyncMethod(node);
 
         if (!methodName) return;
 
