@@ -49,7 +49,8 @@ func normalizeAddCreateOptions(opts addCreateOptions) addCreateOptions {
 		currentRepoSlug := getRepositorySlugFromRemote()
 		if currentRepoSlug != "" {
 			parts := strings.Split(currentRepoSlug, "/")
-			if len(parts) >= 1 {
+			// Ensure we have at least owner and repo parts
+			if len(parts) >= 2 && strings.TrimSpace(parts[0]) != "" {
 				owner := parts[0]
 				opts.Repo = owner + "/" + opts.Repo
 			}

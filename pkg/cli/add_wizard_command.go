@@ -28,7 +28,17 @@ func promptForCreateTarget(createTarget *string) error {
 					if trimmed == "" {
 						return errors.New("repository name cannot be empty")
 					}
-					// Allow OWNER/REPO or just REPO
+					// Validate that if slash is present, we have both owner and repo
+					if strings.Contains(trimmed, "/") {
+						parts := strings.Split(trimmed, "/")
+						if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
+							return errors.New("OWNER/REPO format requires both owner and repo parts to be non-empty")
+						}
+					}
+					// Validate repo name has valid characters (simplified check)
+					if strings.ContainsAny(trimmed, " \t\n\r") {
+						return errors.New("repository name cannot contain whitespace")
+					}
 					return nil
 				}),
 		),

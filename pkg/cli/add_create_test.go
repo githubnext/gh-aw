@@ -192,3 +192,38 @@ func TestNormalizeAddCreateOptions_PreservesFullSlug(t *testing.T) {
 		t.Fatalf("expected repo to remain 'owner/repo', got %q", opts.Repo)
 	}
 }
+
+func TestNormalizeAddCreateOptions_FailsWhenNoRemote(t *testing.T) {
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd returned error: %v", err)
+	}
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Chdir returned error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(oldWd)
+	})
+
+	// Initialize a git repo WITHOUT a remote
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+	if err := exec.Command("git", "config", "user.name", "Test User").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+	if err := exec.Command("git", "config", "user.email", "test@example.com").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	// Try to normalize without a remote - should leave repo unchanged
+	opts := normalizeAddCreateOptions(addCreateOptions{
+		Repo: "new-repo",
+	})
+
+	// Without a remote, owner inference should fail and repo should remain unchanged
+	if opts.Repo != "new-repo" {
+		t.Fatalf("expected repo to remain 'new-repo' when no remote exists, got %q", opts.Repo)
+	}
+}
