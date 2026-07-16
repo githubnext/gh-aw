@@ -37,11 +37,12 @@ engine:
         - --quiet
       step-name: Execute Auggie CLI
       model-env-var: GH_AW_MODEL_AGENT_AUGGIE
+      detection-model-env-var: GH_AW_MODEL_DETECTION_AUGGIE
       model-flag: --model
       mcp-config-flag: --mcp-config
       write-timestamp: true
     mcp:
-      config-path: "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json"
+      config-path: "${{ runner.temp }}/gh-aw/mcp-config/mcp-servers.json"
 ---
 
 <!-- # Auggie CLI

@@ -15,7 +15,7 @@
 //
 // # Built-in Engines
 //
-// NewEngineCatalog registers the built-in engines: claude, codex, copilot, gemini, opencode, pi, antigravity.
+// NewEngineCatalog registers the built-in engines: claude, codex, copilot, gemini, opencode, pi, antigravity, auggie.
 // Each EngineDefinition carries the engine's RuntimeID which maps to the corresponding
 // CodingAgentEngine registered in the EngineRegistry.
 //
@@ -172,16 +172,17 @@ type EngineConfigFileDefinition struct {
 // EngineExecutionDefinition describes the common CLI execution pattern used by
 // behavior-defined engines.
 type EngineExecutionDefinition struct {
-	CommandName            string   `yaml:"command-name,omitempty"`
-	Args                   []string `yaml:"args,omitempty"`
-	StepName               string   `yaml:"step-name,omitempty"`
-	ModelEnvVarName        string   `yaml:"model-env-var,omitempty"`
-	ModelEnvProviderPrefix string   `yaml:"model-env-provider-prefix,omitempty"`
-	ModelFlag              string   `yaml:"model-flag,omitempty"`
-	MCPConfigEnvVar        string   `yaml:"mcp-config-env-var,omitempty"`
-	MCPConfigFlag          string   `yaml:"mcp-config-flag,omitempty"`
-	WriteTimestamp         bool     `yaml:"write-timestamp,omitempty"`
-	ProviderEnvMode        string   `yaml:"provider-env-mode,omitempty"`
+	CommandName              string   `yaml:"command-name,omitempty"`
+	Args                     []string `yaml:"args,omitempty"`
+	StepName                 string   `yaml:"step-name,omitempty"`
+	ModelEnvVarName          string   `yaml:"model-env-var,omitempty"`
+	DetectionModelEnvVarName string   `yaml:"detection-model-env-var,omitempty"`
+	ModelEnvProviderPrefix   string   `yaml:"model-env-provider-prefix,omitempty"`
+	ModelFlag                string   `yaml:"model-flag,omitempty"`
+	MCPConfigEnvVar          string   `yaml:"mcp-config-env-var,omitempty"`
+	MCPConfigFlag            string   `yaml:"mcp-config-flag,omitempty"`
+	WriteTimestamp           bool     `yaml:"write-timestamp,omitempty"`
+	ProviderEnvMode          string   `yaml:"provider-env-mode,omitempty"`
 	// Env holds additional static environment variables to inject into the
 	// execution step.  Values are rendered verbatim and are not filtered
 	// through the secrets allowlist, so they must not contain secret values.
@@ -282,7 +283,7 @@ type ResolvedEngineTarget struct {
 }
 
 // NewEngineCatalog creates an EngineCatalog that wraps the given EngineRegistry and
-// pre-registers the built-in engine definitions (claude, codex, copilot, gemini, opencode, pi, antigravity)
+// pre-registers the built-in engine definitions (claude, codex, copilot, gemini, opencode, pi, antigravity, auggie)
 // loaded from the embedded Markdown files in data/engines/*.md.
 func NewEngineCatalog(registry *EngineRegistry) *EngineCatalog {
 	catalog := &EngineCatalog{

@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/goccy/go-yaml"
 )
 
@@ -87,7 +88,10 @@ func (e *BehaviorDefinedEngine) GetRequiredSecretNames(workflowData *WorkflowDat
 	if e.usesUniversalLLMConsumer() {
 		return e.GetUniversalRequiredSecretNames(workflowData)
 	}
+	return e.executionSecretNames(workflowData)
+}
 
+func (e *BehaviorDefinedEngine) authSecretNames() []string {
 	seen := make(map[string]struct{})
 	var secrets []string
 	addSecret := func(secret string) {
@@ -100,6 +104,19 @@ func (e *BehaviorDefinedEngine) GetRequiredSecretNames(workflowData *WorkflowDat
 	for _, binding := range e.definition.Auth {
 		addSecret(binding.Secret)
 	}
+	return secrets
+}
+
+func (e *BehaviorDefinedEngine) auxiliarySecretNames(workflowData *WorkflowData) []string {
+	seen := make(map[string]struct{})
+	var secrets []string
+	addSecret := func(secret string) {
+		if secret == "" || setutil.Contains(seen, secret) {
+			return
+		}
+		seen[secret] = struct{}{}
+		secrets = append(secrets, secret)
+	}
 	for _, secret := range collectCommonMCPSecrets(workflowData) {
 		addSecret(secret)
 	}
@@ -111,6 +128,32 @@ func (e *BehaviorDefinedEngine) GetRequiredSecretNames(workflowData *WorkflowDat
 		addSecret(varName)
 	}
 	return secrets
+}
+
+func (e *BehaviorDefinedEngine) executionSecretNames(workflowData *WorkflowData) []string {
+	seen := make(map[string]struct{})
+	var secrets []string
+	addSecret := func(secret string) {
+		if secret == "" || setutil.Contains(seen, secret) {
+			return
+		}
+		seen[secret] = struct{}{}
+		secrets = append(secrets, secret)
+	}
+	for _, secret := range e.authSecretNames() {
+		addSecret(secret)
+	}
+	for _, secret := range e.auxiliarySecretNames(workflowData) {
+		addSecret(secret)
+	}
+	return secrets
+}
+
+func (e *BehaviorDefinedEngine) awfExcludedSecretNames(workflowData *WorkflowData) []string {
+	if len(e.authSecretNames()) > 0 {
+		return e.auxiliarySecretNames(workflowData)
+	}
+	return e.executionSecretNames(workflowData)
 }
 
 func (e *BehaviorDefinedEngine) GetSupportedEnvVarKeys() []string {
@@ -143,7 +186,10 @@ func (e *BehaviorDefinedEngine) GetSecretValidationStep(workflowData *WorkflowDa
 			behavior.Installation.DocumentationURL,
 		)
 	}
-	secrets := e.GetRequiredSecretNames(workflowData)
+	secrets := e.authSecretNames()
+	if len(secrets) == 0 {
+		secrets = e.executionSecretNames(workflowData)
+	}
 	if len(secrets) == 0 {
 		return GitHubActionStep{}
 	}
@@ -372,7 +418,8 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 	applyEngineAndAgentEnv(env, workflowData, behaviorDefinedEngineLog)
 	applyMCPScriptsSecretEnv(env, workflowData)
 
-	if exec.ModelEnvVarName != "" {
+	modelEnvVarName := e.modelEnvVarName(exec, workflowData)
+	if modelEnvVarName != "" {
 		if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
 			modelVal := workflowData.EngineConfig.Model
 			if exec.ModelEnvProviderPrefix != "" {
@@ -380,7 +427,9 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 					modelVal = exec.ModelEnvProviderPrefix + "/" + parts[1]
 				}
 			}
-			env[exec.ModelEnvVarName] = modelVal
+			env[modelEnvVarName] = modelVal
+		} else if isWorkflowModelOverrideEnvVar(modelEnvVarName) {
+			env[modelEnvVarName] = buildBehaviorDefinedModelOverrideExpression(modelEnvVarName, e.GetID())
 		}
 	}
 
@@ -402,13 +451,38 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 }
 
 func (e *BehaviorDefinedEngine) modelFlagFragment(exec *EngineExecutionDefinition, workflowData *WorkflowData) string {
-	if exec.ModelEnvVarName == "" || exec.ModelFlag == "" {
+	modelEnvVarName := e.modelEnvVarName(exec, workflowData)
+	if modelEnvVarName == "" || exec.ModelFlag == "" {
 		return ""
 	}
 	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Model == "" {
+		if !isWorkflowModelOverrideEnvVar(modelEnvVarName) {
+			return ""
+		}
+		return fmt.Sprintf(`${%s:+ %s "$%s"}`, modelEnvVarName, exec.ModelFlag, modelEnvVarName)
+	}
+	return fmt.Sprintf(`%s "$%s"`, exec.ModelFlag, modelEnvVarName)
+}
+
+func (e *BehaviorDefinedEngine) modelEnvVarName(exec *EngineExecutionDefinition, workflowData *WorkflowData) string {
+	if exec == nil {
 		return ""
 	}
-	return fmt.Sprintf(`%s "$%s"`, exec.ModelFlag, exec.ModelEnvVarName)
+	if workflowData != nil && workflowData.IsDetectionRun && exec.DetectionModelEnvVarName != "" {
+		return exec.DetectionModelEnvVarName
+	}
+	return exec.ModelEnvVarName
+}
+
+func isWorkflowModelOverrideEnvVar(modelEnvVarName string) bool {
+	return strings.HasPrefix(modelEnvVarName, "GH_AW_MODEL_")
+}
+
+func buildBehaviorDefinedModelOverrideExpression(modelEnvVarName, engineID string) string {
+	if defaultOverrideVar := getDefaultModelOverrideVar(engineID); defaultOverrideVar != "" {
+		return compilerenv.BuildModelOverrideExpressionEmptyFallback(modelEnvVarName, defaultOverrideVar)
+	}
+	return fmt.Sprintf("${{ vars.%s || '' }}", modelEnvVarName)
 }
 
 func (e *BehaviorDefinedEngine) mcpFlagFragment(exec *EngineExecutionDefinition, workflowData *WorkflowData) string {
@@ -434,6 +508,11 @@ func (e *BehaviorDefinedEngine) buildFirewallCommand(exec *EngineExecutionDefini
 		engineCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, engineCommandWithPath)
 	}
 
+	excludedSecrets := e.awfExcludedSecretNames(workflowData)
+	if e.usesUniversalLLMConsumer() {
+		excludedSecrets = e.GetRequiredSecretNames(workflowData)
+	}
+
 	return BuildAWFCommand(AWFCommandConfig{
 		EngineName:         e.GetID(),
 		EngineCommand:      engineCommandWithPath,
@@ -441,7 +520,7 @@ func (e *BehaviorDefinedEngine) buildFirewallCommand(exec *EngineExecutionDefini
 		WorkflowData:       workflowData,
 		UsesTTY:            false,
 		AllowedDomains:     allowedDomains,
-		ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, e.GetRequiredSecretNames(workflowData)),
+		ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, excludedSecrets),
 	})
 }
 

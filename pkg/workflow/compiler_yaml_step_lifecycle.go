@@ -59,17 +59,38 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	modelConfigured := data.EngineConfig != nil && data.EngineConfig.Model != ""
 	var modelEnvVar string
 	if !modelConfigured {
+		isDetectionRun := data != nil && data.IsDetectionRun
 		switch engineID {
 		case "copilot":
-			modelEnvVar = constants.EnvVarModelAgentCopilot
+			if isDetectionRun {
+				modelEnvVar = constants.EnvVarModelDetectionCopilot
+			} else {
+				modelEnvVar = constants.EnvVarModelAgentCopilot
+			}
 		case "claude":
-			modelEnvVar = constants.EnvVarModelAgentClaude
+			if isDetectionRun {
+				modelEnvVar = constants.EnvVarModelDetectionClaude
+			} else {
+				modelEnvVar = constants.EnvVarModelAgentClaude
+			}
 		case "codex":
-			modelEnvVar = constants.EnvVarModelAgentCodex
+			if isDetectionRun {
+				modelEnvVar = constants.EnvVarModelDetectionCodex
+			} else {
+				modelEnvVar = constants.EnvVarModelAgentCodex
+			}
 		case "opencode":
-			modelEnvVar = constants.EnvVarModelAgentOpenCode
+			if isDetectionRun {
+				modelEnvVar = constants.EnvVarModelDetectionOpenCode
+			} else {
+				modelEnvVar = constants.EnvVarModelAgentOpenCode
+			}
 		case "auggie":
-			modelEnvVar = constants.EnvVarModelAgentAuggie
+			if isDetectionRun {
+				modelEnvVar = constants.EnvVarModelDetectionAuggie
+			} else {
+				modelEnvVar = constants.EnvVarModelAgentAuggie
+			}
 		case "custom":
 			modelEnvVar = constants.EnvVarModelAgentCustom
 		default:
