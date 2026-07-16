@@ -173,7 +173,6 @@ async function closeIssue(github, owner, repo, issueNumber, stateReason, intentM
       const { data: issue } = await github.request("PATCH /repos/{owner}/{repo}/issues/{issue_number}", {
         ...baseParams,
         ...intentMetadata,
-        headers: { "GraphQL-Features": "update_issue_suggestions" },
       });
       return issue;
     } catch (error) {

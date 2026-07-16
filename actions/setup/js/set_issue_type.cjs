@@ -78,7 +78,6 @@ async function setIssueTypeById(githubClient, issueNodeId, issueTypeId, intentMe
     {
       issueId: issueNodeId,
       issueType,
-      headers: { "GraphQL-Features": "update_issue_suggestions" },
     }
   );
 }
@@ -289,7 +288,7 @@ async function main(config = {}) {
       if (!isClear) {
         if (issueIntentEnabled) {
           // GraphQL intent path: resolve the type's node ID from org issue types, then
-          // call setIssueTypeById with IssueTypeUpdateInput + the GraphQL-Features header.
+          // call setIssueTypeById with IssueTypeUpdateInput.
           core.info("Using GraphQL intent path with IssueTypeUpdateInput");
           core.info(`Fetching issue node ID for issue #${issueNumber}`);
           const issueNodeId = await getIssueNodeId(githubClient, owner, repo, issueNumber);

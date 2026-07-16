@@ -157,9 +157,7 @@ const main = createCountGatedHandler({
           assignees: uniqueAssignees,
         };
         if (issueIntentEnabled && Object.keys(intentMetadata).length > 0) {
-          Object.assign(addAssigneesParams, intentMetadata, {
-            headers: { "GraphQL-Features": "update_issue_suggestions" },
-          });
+          Object.assign(addAssigneesParams, intentMetadata);
         }
         await githubClient.rest.issues.addAssignees(addAssigneesParams);
 

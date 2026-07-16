@@ -40,6 +40,7 @@ const ADD_COMMENT_REPLY_SUPPORT_SENTENCE = "Supports reply_to_id for discussion 
 const ADD_COMMENT_REPLY_SUPPORT_REGEX = /\s*Supports reply_to_id for discussion threading\./g;
 const ISSUE_INTENT_SUFFIX = "INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.";
 const ISSUE_INTENT_TOOL_NAMES = new Set(["set_issue_type", "set_issue_field", "add_labels", "close_issue", "assign_to_user", "assign_to_agent"]);
+const ISSUE_INTENT_SCHEMA_FIELDS = ["rationale", "confidence", "suggest"];
 
 /**
  * Determine whether issue-intent guidance is enabled for a tool.
@@ -54,6 +55,42 @@ function isIssueIntentEnabledForTool(toolName, toolConfig) {
     return false;
   }
   return !!(toolConfig && typeof toolConfig === "object" && "issue_intent" in toolConfig && toolConfig.issue_intent === true);
+}
+
+/**
+ * Determine whether issue-intent schema fields should be omitted for a tool.
+ * Default is optional (present, not required); explicit issue_intent: false omits them.
+ *
+ * @param {string} toolName
+ * @param {unknown} toolConfig
+ * @returns {boolean}
+ */
+function isIssueIntentDisabledForTool(toolName, toolConfig) {
+  if (!ISSUE_INTENT_TOOL_NAMES.has(toolName)) {
+    return false;
+  }
+  return !!(toolConfig && typeof toolConfig === "object" && "issue_intent" in toolConfig && toolConfig.issue_intent === false);
+}
+
+/**
+ * Remove issue-intent properties from a tool schema.
+ * @param {{inputSchema?: {properties?: Record<string, unknown>, required?: string[]}}} tool
+ */
+function stripIssueIntentSchemaFields(tool) {
+  if (!tool.inputSchema || !tool.inputSchema.properties) {
+    return;
+  }
+  for (const field of ISSUE_INTENT_SCHEMA_FIELDS) {
+    if (field in tool.inputSchema.properties) {
+      delete tool.inputSchema.properties[field];
+    }
+  }
+  if (Array.isArray(tool.inputSchema.required)) {
+    tool.inputSchema.required = tool.inputSchema.required.filter(f => !ISSUE_INTENT_SCHEMA_FIELDS.includes(f));
+    if (tool.inputSchema.required.length === 0) {
+      delete tool.inputSchema.required;
+    }
+  }
 }
 
 /**
@@ -167,6 +204,9 @@ async function main() {
       }
       if (isIssueIntentEnabledForTool(tool.name, config[tool.name])) {
         enhancedTool.description = `${enhancedTool.description || ""} ${ISSUE_INTENT_SUFFIX}`.trim();
+      }
+      if (isIssueIntentDisabledForTool(tool.name, config[tool.name])) {
+        stripIssueIntentSchemaFields(enhancedTool);
       }
 
       if (tool.name === "add_comment") {

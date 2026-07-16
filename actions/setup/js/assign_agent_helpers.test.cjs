@@ -396,7 +396,6 @@ describe("assign_agent_helpers.cjs", () => {
         assignees: ["copilot-swe-agent[bot]"],
         rationale: "Agent owns the code path",
         confidence: "HIGH",
-        headers: { "GraphQL-Features": "update_issue_suggestions" },
       });
     });
 

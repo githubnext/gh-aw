@@ -98,7 +98,6 @@ describe("assign_to_user (Handler Factory Architecture)", () => {
       assignees: ["user1"],
       rationale: "Primary maintainer for impacted area",
       confidence: "LOW",
-      headers: { "GraphQL-Features": "update_issue_suggestions" },
     });
   });
 

@@ -475,7 +475,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("No issue fields were discovered"));
   });
 
-  it("should send the GraphQL-Features header even without optional intent metadata", async () => {
+  it("should set issue field without optional intent metadata", async () => {
     const result = await handler(
       {
         type: "set_issue_field",
@@ -491,7 +491,6 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
       expect.stringContaining("setIssueFieldValue"),
       expect.objectContaining({
         issueFields: [expect.objectContaining({ fieldId: textFieldId, textValue: "High" })],
-        headers: { "GraphQL-Features": "update_issue_suggestions" },
       })
     );
   });
@@ -526,12 +525,11 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
             suggest: true,
           }),
         ],
-        headers: { "GraphQL-Features": "update_issue_suggestions" },
       })
     );
   });
 
-  it("should omit intent metadata and GraphQL feature header when issue_intent is disabled", async () => {
+  it("should omit intent metadata when issue_intent is disabled", async () => {
     const { main } = require("./set_issue_field.cjs");
     const handlerWithoutIntent = await main({ max: 5, issue_intent: false });
 
@@ -551,7 +549,6 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     expect(result.success).toBe(true);
     const mutationCall = mockGraphql.mock.calls.find(([query]) => query.includes("setIssueFieldValue"));
     expect(mutationCall).toBeTruthy();
-    expect(mutationCall[1]).not.toHaveProperty("headers");
     expect(mutationCall[1].issueFields[0]).toEqual(expect.objectContaining({ fieldId: textFieldId, textValue: "High" }));
     expect(mutationCall[1].issueFields[0]).not.toHaveProperty("rationale");
     expect(mutationCall[1].issueFields[0]).not.toHaveProperty("confidence");

@@ -402,7 +402,7 @@ async function assignAgentToIssue(
       assignees: [agentLogin],
     };
     if (useIssueIntent && intentMetadata && Object.keys(intentMetadata).length > 0) {
-      Object.assign(assignParams, intentMetadata, { headers: { "GraphQL-Features": "update_issue_suggestions" } });
+      Object.assign(assignParams, intentMetadata);
     }
     await githubClient.request("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", assignParams);
     return true;

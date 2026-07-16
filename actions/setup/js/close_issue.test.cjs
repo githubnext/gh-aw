@@ -168,7 +168,7 @@ describe("close_issue", () => {
       expect(requestCalls[0].route).toBe("PATCH /repos/{owner}/{repo}/issues/{issue_number}");
       expect(requestCalls[0].params.rationale).toBe("Duplicate confirmed");
       expect(requestCalls[0].params.confidence).toBe("MEDIUM");
-      expect(requestCalls[0].params.headers).toEqual({ "GraphQL-Features": "update_issue_suggestions" });
+      expect(requestCalls[0].params.headers).toBeUndefined();
     });
 
     it("should skip issue-intent metadata when explicitly disabled", async () => {

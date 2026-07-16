@@ -106,7 +106,6 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
         issueType: {
           issueTypeId: "IT_kwDO_bug",
         },
-        headers: { "GraphQL-Features": "update_issue_suggestions" },
       })
     );
   });
@@ -355,7 +354,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     );
   });
 
-  it("should use GraphQL intent path with IssueTypeUpdateInput and GraphQL-Features header", async () => {
+  it("should use GraphQL intent path with IssueTypeUpdateInput", async () => {
     const issueNodeId = "I_kwDO_testissue";
     const issueTypeNodeId = "IT_kwDO_bug";
 
@@ -403,7 +402,6 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
           confidence: "HIGH",
           suggest: true,
         },
-        headers: { "GraphQL-Features": "update_issue_suggestions" },
       })
     );
   });
