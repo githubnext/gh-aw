@@ -307,17 +307,31 @@ describe("generate_safe_outputs_tools", () => {
     expect(addCommentTool.description).not.toContain("Supports reply_to_id for discussion threading.");
   });
 
-  it("adds issue intent suffix for issue tools without requiring a runtime feature", () => {
+  it("adds issue intent suffix for issue tools when explicitly enabled", () => {
     fs.writeFileSync(
       toolsSourcePath,
       JSON.stringify([
         { name: "set_issue_type", description: "Sets issue type.", inputSchema: { type: "object", properties: {} } },
         { name: "set_issue_field", description: "Sets issue field.", inputSchema: { type: "object", properties: {} } },
         { name: "add_labels", description: "Adds labels.", inputSchema: { type: "object", properties: {} } },
+        { name: "close_issue", description: "Closes issue.", inputSchema: { type: "object", properties: {} } },
+        { name: "assign_to_user", description: "Assigns users.", inputSchema: { type: "object", properties: {} } },
+        { name: "assign_to_agent", description: "Assigns agent.", inputSchema: { type: "object", properties: {} } },
         { name: "create_issue", description: "Creates a GitHub issue.", inputSchema: { type: "object", properties: {} } },
       ])
     );
-    fs.writeFileSync(configPath, JSON.stringify({ set_issue_type: {}, set_issue_field: {}, add_labels: {}, create_issue: {} }));
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        set_issue_type: { issue_intent: true },
+        set_issue_field: { issue_intent: true },
+        add_labels: { issue_intent: true },
+        close_issue: { issue_intent: true },
+        assign_to_user: { issue_intent: true },
+        assign_to_agent: { issue_intent: true },
+        create_issue: {},
+      })
+    );
     fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
 
     runScript();
@@ -327,6 +341,9 @@ describe("generate_safe_outputs_tools", () => {
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_type").description).toContain(intentSuffix);
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_field").description).toContain(intentSuffix);
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_labels").description).toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "close_issue").description).toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "assign_to_user").description).toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "assign_to_agent").description).toContain(intentSuffix);
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "create_issue").description).not.toContain(intentSuffix);
   });
 
@@ -339,7 +356,7 @@ describe("generate_safe_outputs_tools", () => {
         { name: "add_labels", description: "Adds labels.", inputSchema: { type: "object", properties: {} } },
       ])
     );
-    fs.writeFileSync(configPath, JSON.stringify({ set_issue_type: {}, set_issue_field: {}, add_labels: {} }));
+    fs.writeFileSync(configPath, JSON.stringify({ set_issue_type: { issue_intent: true }, set_issue_field: { issue_intent: true }, add_labels: { issue_intent: true } }));
     fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
 
     runScript({ GH_AW_RUNTIME_FEATURES: "other\nanother=true" });
@@ -349,5 +366,98 @@ describe("generate_safe_outputs_tools", () => {
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_type").description).toContain(intentSuffix);
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_field").description).toContain(intentSuffix);
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_labels").description).toContain(intentSuffix);
+  });
+
+  it("omits issue intent suffix by default and when explicitly disabled per tool", () => {
+    fs.writeFileSync(
+      toolsSourcePath,
+      JSON.stringify([
+        { name: "close_issue", description: "Closes issue.", inputSchema: { type: "object", properties: {} } },
+        { name: "assign_to_user", description: "Assigns users.", inputSchema: { type: "object", properties: {} } },
+      ])
+    );
+    fs.writeFileSync(configPath, JSON.stringify({ close_issue: { issue_intent: false }, assign_to_user: {} }));
+    fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const intentSuffix = "INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.";
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "close_issue").description).not.toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "assign_to_user").description).not.toContain(intentSuffix);
+  });
+
+  it("reflects required/optional/absent intent fields per tool configuration", () => {
+    fs.writeFileSync(
+      toolsSourcePath,
+      JSON.stringify([
+        {
+          name: "close_issue",
+          description: "Closes issue.",
+          inputSchema: {
+            type: "object",
+            properties: { body: { type: "string" }, rationale: { type: "string" }, confidence: { type: "string" }, suggest: { type: "boolean" } },
+            required: ["body"],
+          },
+        },
+        {
+          name: "assign_to_user",
+          description: "Assigns users.",
+          inputSchema: {
+            type: "object",
+            properties: { issue_number: { type: "number" }, rationale: { type: "string" }, confidence: { type: "string" }, suggest: { type: "boolean" } },
+            required: ["issue_number"],
+          },
+        },
+        {
+          name: "assign_to_agent",
+          description: "Assigns agent.",
+          inputSchema: {
+            type: "object",
+            properties: { issue_number: { type: "number" }, rationale: { type: "string" }, confidence: { type: "string" }, suggest: { type: "boolean" } },
+            required: ["issue_number"],
+          },
+        },
+      ])
+    );
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        close_issue: { issue_intent: true },
+        assign_to_user: {},
+        assign_to_agent: { issue_intent: false },
+      })
+    );
+    fs.writeFileSync(
+      toolsMetaPath,
+      JSON.stringify({
+        description_suffixes: {},
+        repo_params: {},
+        dynamic_tools: [],
+        required_field_additions: { close_issue: ["rationale", "confidence"] },
+      })
+    );
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const closeIssue = result.find((/** @type {{name: string, inputSchema: {properties: Record<string, unknown>, required: string[]}}} */ t) => t.name === "close_issue");
+    const assignToUser = result.find((/** @type {{name: string, inputSchema: {properties: Record<string, unknown>, required: string[]}}} */ t) => t.name === "assign_to_user");
+    const assignToAgent = result.find((/** @type {{name: string, inputSchema: {properties: Record<string, unknown>, required: string[]}}} */ t) => t.name === "assign_to_agent");
+
+    expect(closeIssue.inputSchema.properties).toHaveProperty("rationale");
+    expect(closeIssue.inputSchema.properties).toHaveProperty("confidence");
+    expect(closeIssue.inputSchema.required).toEqual(expect.arrayContaining(["rationale", "confidence"]));
+
+    expect(assignToUser.inputSchema.properties).toHaveProperty("rationale");
+    expect(assignToUser.inputSchema.properties).toHaveProperty("confidence");
+    expect(assignToUser.inputSchema.required).not.toContain("rationale");
+    expect(assignToUser.inputSchema.required).not.toContain("confidence");
+
+    expect(assignToAgent.inputSchema.properties).not.toHaveProperty("rationale");
+    expect(assignToAgent.inputSchema.properties).not.toHaveProperty("confidence");
+    expect(assignToAgent.inputSchema.properties).not.toHaveProperty("suggest");
+    expect(assignToAgent.inputSchema.required).not.toContain("rationale");
+    expect(assignToAgent.inputSchema.required).not.toContain("confidence");
   });
 });
