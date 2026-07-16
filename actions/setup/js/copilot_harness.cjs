@@ -431,6 +431,7 @@ function extractOutputTail(output, options) {
  *   isMCPPolicy?: boolean,
  *   isModelNotSupported?: boolean,
  *   isHTTP400ResponseError?: boolean,
+ *   isInvocationCapExceeded?: boolean,
  *   isNullTypeToolCall?: boolean,
  *   isQuotaExceeded?: boolean,
  *   isSDKSessionIdleTimeout?: boolean,
@@ -439,6 +440,7 @@ function extractOutputTail(output, options) {
  * @returns {string}
  */
 function classifyCopilotFailure(detection) {
+  if (detection.isInvocationCapExceeded) return "invocation_cap_exceeded";
   if (detection.isQuotaExceeded) return "capi_quota_exceeded";
   if (detection.isMCPPolicy) return "mcp_policy_blocked";
   if (detection.isModelNotSupported) return "model_not_supported";
@@ -451,6 +453,21 @@ function classifyCopilotFailure(detection) {
   if (detection.hasNumerousPermissionDenied) return "permission_denied";
   if (detection.isTransientCAPIError) return "capi_error_400";
   return detection.hasOutput ? "partial_execution" : "no_output";
+}
+
+/**
+ * Shared retry predicate for the generic partial-execution branch.
+ * Used by the runtime loop and unit tests to avoid divergence.
+ * @param {{ exitCode: number, hasOutput: boolean, output: string, attempt: number, maxRetries: number }} params
+ *   output must be the combined stdout/stderr text for the failed attempt.
+ * @returns {boolean}
+ */
+function shouldRetryFailedExecution(params) {
+  if (params.exitCode === 0) return false;
+  if (hasNumerousPermissionDeniedIssues(params.output)) return false;
+  if (isCAPIQuotaExceededError(params.output)) return false;
+  if (detectNonRetryableHarnessGuard(params.output).maxRunsExceeded) return false;
+  return params.attempt < params.maxRetries && params.hasOutput;
 }
 
 /**
@@ -1050,6 +1067,8 @@ async function main() {
         const isMCPGatewayShutdown = isMCPGatewayShutdownError(result.output);
         const permissionDeniedCount = countPermissionDeniedIssues(result.output);
         const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
+        const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
+        const isInvocationCapExceeded = nonRetryableGuard.maxRunsExceeded;
         const failureClass = classifyCopilotFailure({
           hasOutput: result.hasOutput,
           isAuthErr,
@@ -1059,6 +1078,7 @@ async function main() {
           isMCPPolicy,
           isModelNotSupported,
           isHTTP400ResponseError: hasHTTP400ResponseError,
+          isInvocationCapExceeded,
           isNullTypeToolCall,
           isQuotaExceeded,
           isSDKSessionIdleTimeout,
@@ -1071,6 +1091,7 @@ async function main() {
             ` failureClass=${failureClass}` +
             ` isCAPIError400=${isCAPIError}` +
             ` isCAPIQuotaExceededError=${isQuotaExceeded}` +
+            ` isInvocationCapExceeded=${isInvocationCapExceeded}` +
             ` isMCPPolicyError=${isMCPPolicy}` +
             ` isModelNotSupportedError=${isModelNotSupported}` +
             ` isHTTP400ResponseError=${hasHTTP400ResponseError}` +
@@ -1097,11 +1118,13 @@ async function main() {
           break;
         }
 
-        const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
-        if (nonRetryableGuard.aiCreditsExceeded || nonRetryableGuard.awfAPIProxyBlockingRequests) {
+        if (nonRetryableGuard.aiCreditsExceeded || nonRetryableGuard.awfAPIProxyBlockingRequests || isInvocationCapExceeded) {
           const reasons = [];
           if (nonRetryableGuard.aiCreditsExceeded) reasons.push("AI credits budget exceeded");
           if (nonRetryableGuard.awfAPIProxyBlockingRequests) reasons.push("AWF API proxy is blocking requests");
+          if (isInvocationCapExceeded) {
+            reasons.push("LLM invocation cap saturated — the pooled per-run budget is fully exhausted; retries cannot make progress");
+          }
           log(`attempt ${attempt + 1}: ${reasons.join(" and ")} — not retrying (non-retryable guard condition)`);
           break;
         }
@@ -1226,7 +1249,7 @@ async function main() {
           break;
         }
 
-        if (attempt < maxRetries && result.hasOutput) {
+        if (shouldRetryFailedExecution({ ...result, attempt, maxRetries })) {
           const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
           // --continue is only meaningful in CLI mode; SDK mode always restarts fresh.
           useContinueOnRetry = !copilotSDKMode && !continueDisabledPermanently;
@@ -1299,6 +1322,7 @@ if (typeof module !== "undefined" && module.exports) {
     countPermissionDeniedIssues,
     detectCopilotErrors,
     classifyCopilotFailure,
+    shouldRetryFailedExecution,
     extractOutputTail,
     isRetryableProxyAuthenticationFailure,
     hasNumerousPermissionDeniedIssues,
