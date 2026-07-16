@@ -32,16 +32,19 @@ model: my-custom-model
 max-ai-credits: 500
 models:
   providers:
-    openai:
+    openai:            # github-copilot | anthropic | openai | google
       models:
         my-custom-model:
           cost:
-            input: "3.75e-06"   # $3.75 per million input tokens
-            output: "1.5e-05"   # $15.00 per million output tokens
+            input: "3.75e-06"      # $3.75 per million input tokens (required)
+            output: "1.5e-05"      # $15.00 per million output tokens (required)
+            cache_read: "3.75e-07" # $0.375 per million cached-read tokens (optional)
+            cache_write: "4.5e-06" # $4.50 per million cache-write tokens (optional)
+            reasoning: "1.5e-05"   # $15.00 per million reasoning tokens (optional, defaults to output price)
 ---
 ```
 
-Use the provider key matching your engine: `github-copilot` (Copilot), `anthropic` (Claude), `openai` (Codex), or `google` (Gemini).
+Use the provider key matching your engine: `github-copilot` (Copilot), `anthropic` (Claude), `openai` (Codex), or `google` (Gemini). Only `input` and `output` are required; the rest default to zero (or `output` for `reasoning`).
 
 **Option 3 — Use a model already in the built-in pricing table:**
 
