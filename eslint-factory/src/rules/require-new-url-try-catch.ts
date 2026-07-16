@@ -110,19 +110,21 @@ export const requireNewUrlTryCatchRule = createRule({
         const firstArg = node.arguments[0];
         const secondArg = node.arguments[1];
 
+        // `new URL()` with zero arguments always throws TypeError at runtime — always flag it.
+        const noArgs = firstArg === undefined;
         // Flag when the first argument is a runtime-dynamic expression.
-        const firstArgDynamic = firstArg !== undefined && isDynamicArg(firstArg);
+        const firstArgDynamic = !noArgs && isDynamicArg(firstArg);
         // Flag when the second (base) argument is dynamic and not a known-safe value such as
         // import.meta.url. An invalid base throws the same TypeError as an invalid URL string.
         const secondArgDynamic = secondArg !== undefined && !isKnownSafeBase(secondArg) && isDynamicArg(secondArg);
 
-        if (!firstArgDynamic && !secondArgDynamic) return;
+        if (!noArgs && !firstArgDynamic && !secondArgDynamic) return;
 
         if (isInsideTryBlock(node)) return;
 
-        // Show the first dynamic argument in the diagnostic message.
-        const reportArgNode = firstArgDynamic ? firstArg : (secondArg as TSESTree.CallExpressionArgument);
-        const argText = sourceCode.getText(reportArgNode as TSESTree.Node);
+        // Show the first dynamic argument in the diagnostic message, or empty string for zero-arg calls.
+        const reportArgNode = noArgs ? null : firstArgDynamic ? firstArg : (secondArg as TSESTree.CallExpressionArgument);
+        const argText = reportArgNode !== null ? sourceCode.getText(reportArgNode as TSESTree.Node) : "";
         const stmt = findEnclosingStatement(node);
 
         context.report({

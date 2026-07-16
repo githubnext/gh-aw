@@ -194,4 +194,65 @@ describe("require-new-url-try-catch", () => {
       ],
     });
   });
+
+  it("invalid: new URL() with no arguments always throws (CommonJS)", () => {
+    cjsRuleTester.run("require-new-url-try-catch", requireNewUrlTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          // ExpressionStatement — suggestion wraps the whole call
+          code: `new URL();`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { arg: "" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `try {\n  new URL();\n} catch (err) {\n  // TODO: handle invalid URL for this new URL(...) call.\n  throw new Error(\n    "URL constructor call failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: new URL in arrow-expression body has no wrappable ancestor — no suggestion emitted (CommonJS)", () => {
+    cjsRuleTester.run("require-new-url-try-catch", requireNewUrlTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          // Arrow expression body is not a statement — findEnclosingStatement returns null, so suggestions is []
+          code: `const f = () => new URL(urlStr);`,
+          errors: [{ messageId: "requireTryCatch", suggestions: [] }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: new URL inside setTimeout callback is not protected by outer try (CommonJS)", () => {
+    cjsRuleTester.run("require-new-url-try-catch", requireNewUrlTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          // The outer try does NOT protect the URL call: isDeferredCallback detects the
+          // setTimeout boundary and crossedDeferredBoundary = true.
+          code: `try { setTimeout(() => { new URL(urlStr); }, 0); } catch(e) {}`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `try { setTimeout(() => { try {\n  new URL(urlStr);\n} catch (err) {\n  // TODO: handle invalid URL for this new URL(...) call.\n  throw new Error(\n    "URL constructor call failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }, 0); } catch(e) {}`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
 });
