@@ -272,12 +272,13 @@ function extractImportsFromText(frontmatterText) {
       // Extract array item
       if (trimmed.startsWith("-")) {
         let item = trimmed.substring(1).trim();
-        // Skip YAML object-form imports (uses: <path> / path: <path>) — these require full
-        // YAML parsing and are not supported by the text-based hash parser. The Go implementation
-        // silently skips them at the filesystem level (file not found); we skip them here to
-        // match that behavior and avoid spurious GitHub API calls.
-        if (item.startsWith("uses:") || item.startsWith("path:")) {
-          continue;
+        // Extract path from object-form imports (uses: <path> / path: <path>).
+        // These are valid import forms that the compiler accepts; extract the path
+        // value so that changes to imported files are reflected in the hash.
+        if (item.startsWith("uses:")) {
+          item = item.substring("uses:".length).trim();
+        } else if (item.startsWith("path:")) {
+          item = item.substring("path:".length).trim();
         }
         // Remove quotes if present
         item = item.replace(/^["']|["']$/g, "");
