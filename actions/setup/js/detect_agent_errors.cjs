@@ -38,7 +38,7 @@
 "use strict";
 
 const fs = require("fs");
-const { MAX_RUNS_EXCEEDED_PATTERNS } = require("./harness_retry_guard.cjs");
+const { MAX_RUNS_EXCEEDED_PATTERNS, isMaxRunsExceededError } = require("./harness_retry_guard.cjs");
 
 const LOG_FILE = "/tmp/gh-aw/agent-stdio.log";
 
@@ -125,7 +125,7 @@ function isCAPIQuotaExceededError(output) {
  * @returns {boolean}
  */
 function isInvocationCapExceededError(output) {
-  return INVOCATION_CAP_EXCEEDED_PATTERN.test(output);
+  return isMaxRunsExceededError(output);
 }
 
 /**
