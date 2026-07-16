@@ -2,7 +2,7 @@
   "counts": {
     "tone_style": {
       "conversational": 19,
-      "formal": 18
+      "formal": 19
     }
   },
   "runs": [
@@ -263,6 +263,13 @@
       "timestamp": "2026-07-15T11:50:40.959Z",
       "assignments": {
         "tone_style": "conversational"
+      }
+    },
+    {
+      "run_id": "29496019210",
+      "timestamp": "2026-07-16T11:53:17.513Z",
+      "assignments": {
+        "tone_style": "formal"
       }
     }
   ]
