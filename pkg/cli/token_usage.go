@@ -89,14 +89,17 @@ type ModelTokenUsage struct {
 }
 
 // ModelTokenUsageRow is a table-rendering view of per-model token statistics.
-// It embeds TokenCoreMetrics for the token quartet and adds display-only fields.
+// Keep this row schema limited to the token quartet to preserve output shape.
 type ModelTokenUsageRow struct {
-	Model    string `json:"model" console:"header:Model"`
-	Provider string `json:"provider" console:"header:Provider"`
-	TokenCoreMetrics
-	AIC         float64 `json:"aic,omitempty"`
-	Requests    int     `json:"requests" console:"header:Requests"`
-	AvgDuration string  `json:"avg_duration" console:"header:Avg Duration"`
+	Model            string  `json:"model" console:"header:Model"`
+	Provider         string  `json:"provider" console:"header:Provider"`
+	InputTokens      int     `json:"input_tokens" console:"header:Input,format:number"`
+	OutputTokens     int     `json:"output_tokens" console:"header:Output,format:number"`
+	CacheReadTokens  int     `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
+	CacheWriteTokens int     `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
+	AIC              float64 `json:"aic,omitempty"`
+	Requests         int     `json:"requests" console:"header:Requests"`
+	AvgDuration      string  `json:"avg_duration" console:"header:Avg Duration"`
 }
 
 // SubagentModelRequest captures requested/effective model attribution for a sub-agent.
@@ -1096,7 +1099,10 @@ func (s *TokenUsageSummary) ModelRows() []ModelTokenUsageRow {
 		rows = append(rows, ModelTokenUsageRow{
 			Model:            model,
 			Provider:         usage.Provider,
-			TokenCoreMetrics: usage.TokenCoreMetrics,
+			InputTokens:      usage.InputTokens,
+			OutputTokens:     usage.OutputTokens,
+			CacheReadTokens:  usage.CacheReadTokens,
+			CacheWriteTokens: usage.CacheWriteTokens,
 			AIC:              usage.AIC,
 			Requests:         usage.Requests,
 			AvgDuration:      timeutil.FormatDurationMs(avgDur),

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/github/gh-aw/pkg/timeutil"
 	"github.com/stretchr/testify/assert"
@@ -370,6 +371,8 @@ func TestTokenUsageSummaryMethods(t *testing.T) {
 						OutputTokens:     200,
 						CacheReadTokens:  5000,
 						CacheWriteTokens: 3000,
+						ReasoningTokens:  30,
+						EffectiveTokens:  8330,
 					},
 					Requests:   5,
 					DurationMs: 5000,
@@ -382,6 +385,15 @@ func TestTokenUsageSummaryMethods(t *testing.T) {
 		assert.Equal(t, "large-model", rows[0].Model, "first row should be model with most tokens")
 		assert.Equal(t, "small-model", rows[1].Model, "second row should be model with fewer tokens")
 		assert.Equal(t, "1.0s", rows[0].AvgDuration, "avg duration for large model")
+
+		encoded, err := json.Marshal(rows[0])
+		require.NoError(t, err)
+		assert.NotContains(t, string(encoded), "reasoning_tokens", "row JSON should preserve legacy shape")
+		assert.NotContains(t, string(encoded), "effective_tokens", "row JSON should preserve legacy shape")
+
+		rendered := console.RenderStruct(rows)
+		assert.NotContains(t, rendered, "ReasoningTokens", "row table should preserve legacy columns")
+		assert.NotContains(t, rendered, "EffectiveTokens", "row table should preserve legacy columns")
 	})
 }
 
