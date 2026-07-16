@@ -230,12 +230,10 @@ func TestFieldValidationMarshaling(t *testing.T) {
 }
 
 func TestIssueIntentRationaleMaxLength(t *testing.T) {
-	if got := ValidationConfig["set_issue_type"].Fields["rationale"].MaxLength; got != 280 {
-		t.Fatalf("set_issue_type rationale maxLength = %d, want 280", got)
-	}
-
-	if got := ValidationConfig["set_issue_field"].Fields["rationale"].MaxLength; got != 280 {
-		t.Fatalf("set_issue_field rationale maxLength = %d, want 280", got)
+	for _, typeName := range []string{"set_issue_type", "set_issue_field", "close_issue", "assign_to_user", "assign_to_agent"} {
+		if got := ValidationConfig[typeName].Fields["rationale"].MaxLength; got != 280 {
+			t.Fatalf("%s rationale maxLength = %d, want 280", typeName, got)
+		}
 	}
 }
 
@@ -290,7 +288,7 @@ func TestUpdateIssueValidationConfig(t *testing.T) {
 }
 
 func TestIssueIntentValidationFields(t *testing.T) {
-	for _, typeName := range []string{"set_issue_type", "set_issue_field"} {
+	for _, typeName := range []string{"set_issue_type", "set_issue_field", "close_issue", "assign_to_user", "assign_to_agent"} {
 		config, ok := ValidationConfig[typeName]
 		if !ok {
 			t.Fatalf("%s not found in ValidationConfig", typeName)

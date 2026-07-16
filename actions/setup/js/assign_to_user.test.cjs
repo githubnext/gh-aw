@@ -78,6 +78,57 @@ describe("assign_to_user (Handler Factory Architecture)", () => {
     });
   });
 
+  it("should include issue-intent metadata when enabled", async () => {
+    mockGithub.rest.issues.addAssignees.mockResolvedValue({});
+
+    const message = {
+      type: "assign_to_user",
+      assignees: ["user1"],
+      rationale: "Primary maintainer for impacted area",
+      confidence: "low",
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.issues.addAssignees).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      issue_number: 123,
+      assignees: ["user1"],
+      rationale: "Primary maintainer for impacted area",
+      confidence: "LOW",
+    });
+  });
+
+  it("should omit issue-intent metadata when disabled", async () => {
+    const { main } = require("./assign_to_user.cjs");
+    const noIntentHandler = await main({
+      max: 10,
+      allowed: ["user1", "user2", "user3"],
+      issue_intent: false,
+    });
+    mockGithub.rest.issues.addAssignees.mockResolvedValue({});
+
+    const result = await noIntentHandler(
+      {
+        type: "assign_to_user",
+        assignees: ["user1"],
+        rationale: "Primary maintainer for impacted area",
+        confidence: "high",
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.issues.addAssignees).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      issue_number: 123,
+      assignees: ["user1"],
+    });
+  });
+
   it("should support singular assignee field", async () => {
     mockGithub.rest.issues.addAssignees.mockResolvedValue({});
 
