@@ -377,27 +377,40 @@ describe("git_helpers.cjs", () => {
       expect(process.env.GIT_CONFIG_VALUE_1).toBe("/workspace/repo");
     });
 
-    it("should handle a malformed GIT_CONFIG_COUNT gracefully", async () => {
+    it("should handle malformed GIT_CONFIG_COUNT values gracefully", async () => {
       const { ensureSafeDirectoryTrust } = await import("./git_helpers.cjs");
 
-      process.env.GIT_CONFIG_COUNT = "-1";
+      for (const malformedCount of ["not-a-number", "-1", "1.5", String(Number.MAX_SAFE_INTEGER + 1)]) {
+        for (const key of Object.keys(process.env)) {
+          if (key.startsWith("GIT_CONFIG_")) {
+            delete process.env[key];
+          }
+        }
 
-      ensureSafeDirectoryTrust("/workspace/repo");
+        process.env.GIT_CONFIG_COUNT = malformedCount;
 
-      expect(process.env.GIT_CONFIG_COUNT).toBe("1");
-      expect(process.env.GIT_CONFIG_KEY_0).toBe("safe.directory");
-      expect(process.env.GIT_CONFIG_VALUE_0).toBe("/workspace/repo");
+        ensureSafeDirectoryTrust("/workspace/repo");
+
+        expect(process.env.GIT_CONFIG_COUNT).toBe("1");
+        expect(process.env.GIT_CONFIG_KEY_0).toBe("safe.directory");
+        expect(process.env.GIT_CONFIG_VALUE_0).toBe("/workspace/repo");
+      }
     });
 
     it("should not require a shimmed core global", async () => {
       const { ensureSafeDirectoryTrust } = await import("./git_helpers.cjs");
+      const originalCore = global.core;
 
       global.core = undefined;
 
-      expect(() => ensureSafeDirectoryTrust("/workspace/repo")).not.toThrow();
-      expect(process.env.GIT_CONFIG_COUNT).toBe("1");
-      expect(process.env.GIT_CONFIG_KEY_0).toBe("safe.directory");
-      expect(process.env.GIT_CONFIG_VALUE_0).toBe("/workspace/repo");
+      try {
+        expect(() => ensureSafeDirectoryTrust("/workspace/repo")).not.toThrow();
+        expect(process.env.GIT_CONFIG_COUNT).toBe("1");
+        expect(process.env.GIT_CONFIG_KEY_0).toBe("safe.directory");
+        expect(process.env.GIT_CONFIG_VALUE_0).toBe("/workspace/repo");
+      } finally {
+        global.core = originalCore;
+      }
     });
   });
 
