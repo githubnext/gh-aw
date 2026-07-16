@@ -6798,6 +6798,10 @@
                   "$ref": "#/$defs/github_token",
                   "description": "Optional GitHub token used only for branch writes to head-repo. Use this when the upstream PR repository and the fork head repository require different credentials."
                 },
+                "head-github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "Optional GitHub App credentials to mint an ephemeral token for head-repo branch writes at runtime. When configured, the minted token takes precedence over head-github-token. The app installation must have contents: write on head-repo."
+                },
                 "expires": {
                   "oneOf": [
                     {
@@ -9001,6 +9005,14 @@
                 "head-repo": {
                   "type": "string",
                   "description": "Optional head repository in format 'owner/repo' that is allowed for fork-backed pull request branch updates. When set, the pull request head repository must match exactly."
+                },
+                "head-github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "Optional GitHub token used only for branch writes to head-repo. Use this when the upstream pull request repository and the fork head repository require different credentials."
+                },
+                "head-github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "Optional GitHub App credentials to mint an ephemeral token for head-repo branch writes at runtime. When configured, the minted token takes precedence over head-github-token. The app installation must have contents: write on head-repo."
                 },
                 "allowed-repos": {
                   "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-repos\\'] }}').",
