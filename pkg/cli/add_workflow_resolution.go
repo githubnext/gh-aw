@@ -405,8 +405,8 @@ func selectBootstrapProfile(bootstrapProfiles []*resolvedBootstrapProfile, resol
 		return bootstrapProfile, resolutionWarnings
 	default:
 		ids := make([]string, 0, len(bootstrapProfiles))
-		for _, profile := range bootstrapProfiles {
-			ids = append(ids, profile.PackageID)
+		for _, p := range bootstrapProfiles {
+			ids = append(ids, p.PackageID)
 		}
 		resolutionLog.Printf("Multiple bootstrap profiles found (%v); skipping all", ids)
 		resolutionWarnings = append(resolutionWarnings,
