@@ -1192,7 +1192,7 @@ index 0000000..abc1234
       expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
     });
 
-    it("should return typed workflows_scope_required error when fallback branch push is rejected for missing workflows scope", async () => {
+    it("should skip non-fatally when fallback branch has pre-existing workflow files (agent has none)", async () => {
       createPatchFile("fallback-branch-workflows-scope-rejection");
 
       mockExec.exec.mockResolvedValueOnce(0); // fetch
@@ -1223,7 +1223,16 @@ index 0000000..abc1234
           return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\trefs/heads/feature-branch\n", stderr: "" };
         }
         if (argList[0] === "log") {
+          // Pre-flight git log targets .github/workflows/ — simulate pre-existing workflow
+          // files in branch history without the agent having added them.
+          if (argList.includes(".github/workflows/")) {
+            return { exitCode: 0, stdout: ".github/workflows/ci.yml\n", stderr: "" };
+          }
           return { exitCode: 0, stdout: "Test commit\n", stderr: "" };
+        }
+        if (argList[0] === "diff" && argList[1] === "--name-only" && argList[2] === "--no-renames") {
+          // Agent's post-apply diff has no workflow files
+          return { exitCode: 0, stdout: "src/index.js\n", stderr: "" };
         }
         if (argList[0] === "diff-tree") {
           return { exitCode: 0, stdout: "", stderr: "" };
@@ -1248,10 +1257,9 @@ index 0000000..abc1234
       const result = await handler({ branch: "fallback-branch-workflows-scope-rejection" }, {});
 
       expect(result.success).toBe(false);
-      expect(result.error_type).toBe("workflows_scope_required");
-      expect(result.error).toContain("'workflows' scope");
-      expect(result.error).toContain("allow-workflows");
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("'workflows' scope"));
+      expect(result.skipped).toBe(true);
+      expect(result.error_type).toBeUndefined();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("pre-existing commits"));
     });
 
     it("should diagnose deleted branch when push fails", async () => {
@@ -1366,7 +1374,7 @@ index 0000000..abc1234
       mockExec.getExecOutput = savedGetExecOutput;
     });
 
-    it("should return typed workflows_scope_required error when review branch push is rejected for missing workflows scope (timeout variant)", async () => {
+    it("should skip non-fatally when review branch is rejected for workflows scope (timeout variant, agent has none)", async () => {
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
       createPatchFile("review-branch-workflows-scope-timeout");
 
@@ -1388,17 +1396,15 @@ index 0000000..abc1234
       const result = await handler({ branch: "review-branch-workflows-scope-timeout" }, {});
 
       expect(result.success).toBe(false);
-      expect(result.error_type).toBe("workflows_scope_required");
-      expect(result.error).toContain("'workflows' scope");
-      expect(result.error).toContain("allow-workflows");
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("'workflows' scope"));
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("allow-workflows"));
+      expect(result.skipped).toBe(true);
+      expect(result.error_type).toBeUndefined();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("pre-existing commits"));
       // Should NOT fall through to the generic "Failed to create review PR" catch message
       const errorCalls = mockCore.error.mock.calls.map(c => c[0]);
       expect(errorCalls.some(msg => msg.includes("Failed to create review PR"))).toBe(false);
     });
 
-    it("should return typed workflows_scope_required error when review branch push is rejected with backtick workflows scope message", async () => {
+    it("should skip non-fatally when review branch is rejected with backtick workflows scope (agent has none)", async () => {
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
       createPatchFile("review-branch-workflows-scope-backtick");
 
@@ -1420,7 +1426,8 @@ index 0000000..abc1234
       const result = await handler({ branch: "review-branch-workflows-scope-backtick" }, {});
 
       expect(result.success).toBe(false);
-      expect(result.error_type).toBe("workflows_scope_required");
+      expect(result.skipped).toBe(true);
+      expect(result.error_type).toBeUndefined();
     });
 
     it("should wrap generic review branch push failure in actionable error message", async () => {
@@ -1446,7 +1453,7 @@ index 0000000..abc1234
       expect(result.error).toContain("Failed to create review PR");
     });
 
-    it("should fail pre-flight with workflows_scope_required when branch history contains workflow files", async () => {
+    it("should skip non-fatally when branch history has pre-existing workflow files (pre-flight fires before checkout)", async () => {
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
       createPatchFile("review-branch-preflight-workflow-files");
 
@@ -1454,11 +1461,15 @@ index 0000000..abc1234
       mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args, options) => {
         const argList = Array.isArray(args) ? args : [];
         // Pre-flight git log targets .github/workflows/ directory — returns a workflow
-        // file path to simulate branch history containing .github/workflows/** changes.
+        // file path to simulate branch history containing pre-existing workflow changes.
         if (cmd === "git" && argList[0] === "log" && argList.includes(".github/workflows/")) {
           return { exitCode: 0, stdout: ".github/workflows/ci.yml\n", stderr: "" };
         }
-        // The git push should NOT be reached — pre-flight check fires first
+        // Agent's post-apply diff has no workflow files
+        if (cmd === "git" && argList[0] === "diff" && argList[1] === "--name-only" && argList[2] === "--no-renames") {
+          return { exitCode: 0, stdout: "src/app.js\n", stderr: "" };
+        }
+        // The git push should NOT be reached — pre-flight check returns skip first
         if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
           throw new Error("git push should not be called when pre-flight check fires");
         }
@@ -1471,13 +1482,13 @@ index 0000000..abc1234
       const result = await handler({ branch: "review-branch-preflight-workflow-files" }, {});
 
       expect(result.success).toBe(false);
-      expect(result.error_type).toBe("workflows_scope_required");
-      expect(result.error).toContain("'workflows' scope");
-      expect(result.error).toContain("allow-workflows");
+      expect(result.skipped).toBe(true);
+      expect(result.error_type).toBeUndefined();
       // Pre-flight fires before checkout — no "Failed to create review PR" message
       const errorCalls = mockCore.error.mock.calls.map(c => c[0]);
       expect(errorCalls.some(msg => msg.includes("Failed to create review PR"))).toBe(false);
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Pre-flight check"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("pre-existing commits"));
     });
 
     it("should skip pre-flight check and attempt push when allow_workflows is true", async () => {
@@ -1510,6 +1521,338 @@ index 0000000..abc1234
       // Push should have been attempted
       expect(pushCalled).toBe(true);
       expect(result.success).toBe(true);
+    });
+
+    // ──────────────────────────────────────────────────────
+    // Workflow scope: agent-added vs pre-existing files
+    // ──────────────────────────────────────────────────────
+
+    it("should return hard workflows_scope_required error when agent itself adds a workflow file (review branch pre-flight)", async () => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      createPatchFile("review-branch-agent-adds-workflow-preflight");
+
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args, options) => {
+        const argList = Array.isArray(args) ? args : [];
+        // Pre-flight detects workflow file in branch history
+        if (cmd === "git" && argList[0] === "log" && argList.includes(".github/workflows/")) {
+          return { exitCode: 0, stdout: ".github/workflows/ci.yml\n", stderr: "" };
+        }
+        // Agent's post-apply diff includes a workflow file
+        if (cmd === "git" && argList[0] === "diff" && argList[1] === "--name-only" && argList[2] === "--no-renames") {
+          return { exitCode: 0, stdout: ".github/workflows/ci.yml\n", stderr: "" };
+        }
+        if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
+          throw new Error("git push should not be called when pre-flight fires a hard error");
+        }
+        return originalGetExecOutput(cmd, args, options);
+      });
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ branch: "review-branch-agent-adds-workflow-preflight" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error_type).toBe("workflows_scope_required");
+      expect(result.error).toContain("'workflows' scope");
+      expect(result.error).toContain("allow-workflows");
+      expect(result.skipped).toBeUndefined();
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("'workflows' scope"));
+      const errorCalls = mockCore.error.mock.calls.map(c => c[0]);
+      expect(errorCalls.some(msg => msg.includes("Failed to create review PR"))).toBe(false);
+    });
+
+    it("should return hard workflows_scope_required error when agent itself adds a workflow file (review branch post-push rejection)", async () => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      createPatchFile("review-branch-agent-adds-workflow-postpush");
+
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args, options) => {
+        const argList = Array.isArray(args) ? args : [];
+        // Pre-flight finds no workflow files — push proceeds
+        if (cmd === "git" && argList[0] === "log" && argList.includes(".github/workflows/")) {
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        // Agent's post-apply diff includes a workflow file
+        if (cmd === "git" && argList[0] === "diff" && argList[1] === "--name-only" && argList[2] === "--no-renames") {
+          return { exitCode: 0, stdout: ".github/workflows/ci.yml\n", stderr: "" };
+        }
+        // Push is rejected for workflows scope
+        if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
+          return {
+            exitCode: 1,
+            stdout: "",
+            stderr: "! [remote rejected] branch -> branch (`workflows` scope may be required.)",
+          };
+        }
+        return originalGetExecOutput(cmd, args, options);
+      });
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ branch: "review-branch-agent-adds-workflow-postpush" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error_type).toBe("workflows_scope_required");
+      expect(result.error).toContain("'workflows' scope");
+      expect(result.skipped).toBeUndefined();
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("'workflows' scope"));
+    });
+
+    it("should return hard workflows_scope_required error when agent adds workflow file (fallback branch pre-flight)", async () => {
+      createPatchFile("fallback-branch-agent-adds-workflow-preflight");
+
+      mockExec.exec.mockResolvedValueOnce(0); // fetch
+      mockExec.exec.mockResolvedValueOnce(0); // rev-parse
+      mockExec.exec.mockResolvedValueOnce(0); // checkout
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "before-sha\n", stderr: "" }); // git rev-parse HEAD (before patch)
+      mockExec.exec.mockResolvedValueOnce(0); // git am
+
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args, options) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (argList[0] === "rev-parse" && argList[1] === "origin/feature-branch^{commit}") {
+          return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\n", stderr: "" };
+        }
+        if (argList[0] === "rev-list" && argList[1] === "--merges") {
+          return { exitCode: 0, stdout: "0\n", stderr: "" };
+        }
+        if (argList[0] === "rev-list" && argList[1] === "--parents") {
+          return { exitCode: 0, stdout: "2222222222222222222222222222222222222222 1111111111111111111111111111111111111111\n", stderr: "" };
+        }
+        if (argList[0] === "ls-remote" && argList[2] === "refs/heads/feature-branch") {
+          return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\trefs/heads/feature-branch\n", stderr: "" };
+        }
+        if (argList[0] === "log") {
+          if (argList.includes(".github/workflows/")) {
+            // Pre-flight detects workflow file in branch history
+            return { exitCode: 0, stdout: ".github/workflows/ci.yml\n", stderr: "" };
+          }
+          return { exitCode: 0, stdout: "Test commit\n", stderr: "" };
+        }
+        // Agent's post-apply diff includes a workflow file
+        if (argList[0] === "diff" && argList[1] === "--name-only" && argList[2] === "--no-renames") {
+          return { exitCode: 0, stdout: ".github/workflows/ci.yml\n", stderr: "" };
+        }
+        if (argList[0] === "diff-tree") {
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        return originalGetExecOutput(cmd, args, options);
+      });
+
+      mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: branch protection"));
+      mockExec.exec.mockRejectedValueOnce(new Error("! [rejected] feature-branch -> feature-branch (non-fast-forward)"));
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ branch: "fallback-branch-agent-adds-workflow-preflight" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error_type).toBe("workflows_scope_required");
+      expect(result.error).toContain("'workflows' scope");
+      expect(result.skipped).toBeUndefined();
+    });
+
+    it("should return hard workflows_scope_required error when agent adds workflow file (fallback branch post-push rejection)", async () => {
+      createPatchFile("fallback-branch-agent-adds-workflow-postpush");
+
+      mockExec.exec.mockResolvedValueOnce(0); // fetch
+      mockExec.exec.mockResolvedValueOnce(0); // rev-parse
+      mockExec.exec.mockResolvedValueOnce(0); // checkout
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "before-sha\n", stderr: "" }); // git rev-parse HEAD (before patch)
+      mockExec.exec.mockResolvedValueOnce(0); // git am
+
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args, options) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (argList[0] === "rev-parse" && argList[1] === "origin/feature-branch^{commit}") {
+          return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\n", stderr: "" };
+        }
+        if (argList[0] === "rev-list" && argList[1] === "--merges") {
+          return { exitCode: 0, stdout: "0\n", stderr: "" };
+        }
+        if (argList[0] === "rev-list" && argList[1] === "--parents") {
+          return { exitCode: 0, stdout: "2222222222222222222222222222222222222222 1111111111111111111111111111111111111111\n", stderr: "" };
+        }
+        if (argList[0] === "ls-remote" && argList[2] === "refs/heads/feature-branch") {
+          return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\trefs/heads/feature-branch\n", stderr: "" };
+        }
+        if (argList[0] === "log") {
+          if (argList.includes(".github/workflows/")) {
+            // Pre-flight finds nothing — push proceeds
+            return { exitCode: 0, stdout: "", stderr: "" };
+          }
+          return { exitCode: 0, stdout: "Test commit\n", stderr: "" };
+        }
+        // Agent's post-apply diff includes a workflow file
+        if (argList[0] === "diff" && argList[1] === "--name-only" && argList[2] === "--no-renames") {
+          return { exitCode: 0, stdout: ".github/workflows/ci.yml\n", stderr: "" };
+        }
+        if (argList[0] === "diff-tree") {
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        // Fallback branch push rejected for workflows scope
+        if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
+          return {
+            exitCode: 1,
+            stdout: "",
+            stderr: "! [remote rejected] branch -> branch (`workflows` scope may be required.)",
+          };
+        }
+        return originalGetExecOutput(cmd, args, options);
+      });
+
+      mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: branch protection"));
+      mockExec.exec.mockRejectedValueOnce(new Error("! [rejected] feature-branch -> feature-branch (non-fast-forward)"));
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ branch: "fallback-branch-agent-adds-workflow-postpush" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error_type).toBe("workflows_scope_required");
+      expect(result.error).toContain("'workflows' scope");
+      expect(result.skipped).toBeUndefined();
+    });
+
+    it("should skip non-fatally when GITHUB_BASE_SHA fallback detects pre-existing workflow files and agent has none (review branch pre-flight)", async () => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      process.env.GITHUB_BASE_SHA = "base-sha-from-github-actions";
+      createPatchFile("review-branch-github-base-sha-fallback-skip");
+
+      let workflowLogCallCount = 0;
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args, options) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (cmd === "git" && argList[0] === "log" && argList.includes(".github/workflows/")) {
+          workflowLogCallCount++;
+          if (workflowLogCallCount === 1) {
+            // First call: primary baseline (origin/<base>) unavailable in shallow clone
+            return { exitCode: 128, stdout: "", stderr: "fatal: ambiguous argument: unknown revision" };
+          }
+          // Second call: GITHUB_BASE_SHA fallback detects pre-existing workflow file
+          return { exitCode: 0, stdout: ".github/workflows/ci.yml\n", stderr: "" };
+        }
+        // Agent's post-apply diff has no workflow files
+        if (cmd === "git" && argList[0] === "diff" && argList[1] === "--name-only" && argList[2] === "--no-renames") {
+          return { exitCode: 0, stdout: "README.md\n", stderr: "" };
+        }
+        if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
+          throw new Error("git push should not be called when pre-flight fires");
+        }
+        return originalGetExecOutput(cmd, args, options);
+      });
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ branch: "review-branch-github-base-sha-fallback-skip" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error_type).toBeUndefined();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("pre-existing commits"));
+      // Verify both baselines were tried (primary failed, GITHUB_BASE_SHA succeeded)
+      expect(workflowLogCallCount).toBe(2);
+    });
+
+    it("should return hard workflows_scope_required when GITHUB_BASE_SHA fallback detects agent-added workflow files", async () => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      process.env.GITHUB_BASE_SHA = "base-sha-from-github-actions";
+      createPatchFile("review-branch-github-base-sha-fallback-hard-error");
+
+      let workflowLogCallCount = 0;
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args, options) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (cmd === "git" && argList[0] === "log" && argList.includes(".github/workflows/")) {
+          workflowLogCallCount++;
+          if (workflowLogCallCount === 1) {
+            // Primary baseline unavailable in shallow clone
+            return { exitCode: 128, stdout: "", stderr: "fatal: ambiguous argument: unknown revision" };
+          }
+          // GITHUB_BASE_SHA fallback detects workflow file
+          return { exitCode: 0, stdout: ".github/workflows/ci.yml\n", stderr: "" };
+        }
+        // Agent's post-apply diff includes a workflow file
+        if (cmd === "git" && argList[0] === "diff" && argList[1] === "--name-only" && argList[2] === "--no-renames") {
+          return { exitCode: 0, stdout: ".github/workflows/ci.yml\n", stderr: "" };
+        }
+        if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
+          throw new Error("git push should not be called when pre-flight fires a hard error");
+        }
+        return originalGetExecOutput(cmd, args, options);
+      });
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ branch: "review-branch-github-base-sha-fallback-hard-error" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error_type).toBe("workflows_scope_required");
+      expect(result.skipped).toBeUndefined();
+      expect(workflowLogCallCount).toBe(2);
+    });
+
+    it("should skip non-fatally when fallback branch push rejected for workflows scope and agent has no workflow files (post-push path)", async () => {
+      createPatchFile("fallback-branch-scope-skip-postpush");
+
+      mockExec.exec.mockResolvedValueOnce(0); // fetch
+      mockExec.exec.mockResolvedValueOnce(0); // rev-parse
+      mockExec.exec.mockResolvedValueOnce(0); // checkout
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "before-sha\n", stderr: "" }); // git rev-parse HEAD (before patch)
+      mockExec.exec.mockResolvedValueOnce(0); // git am
+
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args, options) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (argList[0] === "rev-parse" && argList[1] === "origin/feature-branch^{commit}") {
+          return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\n", stderr: "" };
+        }
+        if (argList[0] === "rev-list" && argList[1] === "--merges") {
+          return { exitCode: 0, stdout: "0\n", stderr: "" };
+        }
+        if (argList[0] === "rev-list" && argList[1] === "--parents") {
+          return { exitCode: 0, stdout: "2222222222222222222222222222222222222222 1111111111111111111111111111111111111111\n", stderr: "" };
+        }
+        if (argList[0] === "ls-remote" && argList[2] === "refs/heads/feature-branch") {
+          return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\trefs/heads/feature-branch\n", stderr: "" };
+        }
+        if (argList[0] === "log") {
+          // Pre-flight finds nothing (no workflow files in branch history)
+          if (argList.includes(".github/workflows/")) {
+            return { exitCode: 0, stdout: "", stderr: "" };
+          }
+          return { exitCode: 0, stdout: "Test commit\n", stderr: "" };
+        }
+        // Agent's post-apply diff has no workflow files
+        if (argList[0] === "diff" && argList[1] === "--name-only" && argList[2] === "--no-renames") {
+          return { exitCode: 0, stdout: "docs/readme.md\n", stderr: "" };
+        }
+        if (argList[0] === "diff-tree") {
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        // Fallback branch push rejected for workflows scope
+        if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
+          return {
+            exitCode: 1,
+            stdout: "",
+            stderr: "! [remote rejected] branch -> branch (`workflows` scope may be required.)",
+          };
+        }
+        return originalGetExecOutput(cmd, args, options);
+      });
+
+      mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: branch protection"));
+      mockExec.exec.mockRejectedValueOnce(new Error("! [rejected] feature-branch -> feature-branch (non-fast-forward)"));
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ branch: "fallback-branch-scope-skip-postpush" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error_type).toBeUndefined();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("pre-existing commits"));
     });
   });
 
