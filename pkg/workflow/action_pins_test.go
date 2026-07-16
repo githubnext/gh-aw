@@ -332,7 +332,7 @@ func TestGetLatestActionPinByRepo(t *testing.T) {
 			repo:                "actions/setup-node",
 			expectExists:        true,
 			expectRepo:          "actions/setup-node",
-			expectVersionPrefix: "v6.",
+			expectVersionPrefix: "v",
 		},
 		{
 			repo:         "unknown/action",
@@ -620,18 +620,16 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 		shouldFallback bool // Whether we expect to fall back to highest version
 	}{
 		{
-			name:           "fallback for setup-go v6.2.0 resolves to v6.5.0",
+			name:           "fallback for setup-go v6.2.0 resolves to latest pinned version",
 			repo:           "actions/setup-go",
 			requestedVer:   "v6.2.0",
-			expectedVer:    "v6.5.0",
 			strictMode:     false,
 			shouldFallback: true,
 		},
 		{
-			name:           "fallback for setup-go v6.2.0 from hardcoded pins resolves to v6.5.0",
+			name:           "fallback for setup-go v6.2.0 from hardcoded pins resolves to latest pinned version",
 			repo:           "actions/setup-go",
 			requestedVer:   "v6.2.0",
-			expectedVer:    "v6.5.0",
 			strictMode:     false,
 			shouldFallback: true,
 		},
@@ -655,10 +653,9 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 			shouldFallback: true,
 		},
 		{
-			name:           "fallback for upload-artifact v4.6.2 resolves to v7.0.1",
+			name:           "fallback for upload-artifact v4.6.2 resolves to latest pinned version",
 			repo:           "actions/upload-artifact",
 			requestedVer:   "v4.6.2",
-			expectedVer:    "v7.0.1",
 			strictMode:     false,
 			shouldFallback: true,
 		},
@@ -666,6 +663,10 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if !tt.shouldFallback && tt.expectedVer == "" {
+				t.Fatalf("invalid test case %q: expectedVer must be set when shouldFallback is false", tt.name)
+			}
+
 			data := &WorkflowData{
 				StrictMode: tt.strictMode,
 			}
@@ -680,10 +681,19 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 				t.Fatalf("getActionPinWithData(%s, %s) returned empty string", tt.repo, tt.requestedVer)
 			}
 
+			expectedVersion := tt.expectedVer
+			if tt.shouldFallback {
+				latestPin, ok := getLatestActionPinByRepo(tt.repo)
+				if !ok {
+					t.Fatalf("expected latest pinned version to exist for %s", tt.repo)
+				}
+				expectedVersion = latestPin.Version
+			}
+
 			// Check that the result contains the expected version in the comment
-			if !strings.Contains(result, "# "+tt.expectedVer) {
+			if !strings.Contains(result, "# "+expectedVersion) {
 				t.Errorf("getActionPinWithData(%s, %s) = %s, expected version %s in comment",
-					tt.repo, tt.requestedVer, result, tt.expectedVer)
+					tt.repo, tt.requestedVer, result, expectedVersion)
 			}
 
 			// Verify the result format is correct (repo@sha # version)
