@@ -1,4 +1,8 @@
 import { describe, it, expect } from "vitest";
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { spawnSync } from "child_process";
 
 const {
   detectErrors,
@@ -370,6 +374,12 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.invocationCapExceeded).toBe(true);
     });
 
+    it("detects both capi quota and invocation-cap flags when both signatures are present", () => {
+      const result = detectErrors("CAPIError: Too Many Requests\nCAPIError: 429 Maximum LLM invocations exceeded (25/25)");
+      expect(result.capiQuotaExceededError).toBe(true);
+      expect(result.invocationCapExceeded).toBe(true);
+    });
+
     it("detects HTTP 400 response error only", () => {
       const result = detectErrors("Response status code does not indicate success: 400 (Bad Request)");
       expect(result.inferenceAccessError).toBe(false);
@@ -437,6 +447,33 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
       expect(result.invocationCapExceeded).toBe(false);
+    });
+  });
+
+  describe("main output emission", () => {
+    it("emits invocation_cap_exceeded and suppresses generic capi_quota_exceeded_error when invocation cap is present", () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "detect-agent-errors-"));
+      const outputPath = path.join(tempDir, "github-output.txt");
+      const logDir = "/tmp/gh-aw";
+      const logPath = path.join(logDir, "agent-stdio.log");
+
+      try {
+        fs.mkdirSync(logDir, { recursive: true });
+        fs.writeFileSync(logPath, "CAPIError: Too Many Requests\nCAPIError: 429 Maximum LLM invocations exceeded (25/25)", "utf8");
+
+        const run = spawnSync(process.execPath, [require.resolve("./detect_agent_errors.cjs")], {
+          env: { ...process.env, GITHUB_OUTPUT: outputPath },
+          encoding: "utf8",
+        });
+
+        expect(run.status).toBe(0);
+        const output = fs.readFileSync(outputPath, "utf8");
+        expect(output).toContain("capi_quota_exceeded_error=false");
+        expect(output).toContain("invocation_cap_exceeded=true");
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+        fs.rmSync(logPath, { force: true });
+      }
     });
   });
 });

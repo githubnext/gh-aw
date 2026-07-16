@@ -24,6 +24,10 @@
  *     "CAPIError: Too Many Requests"). All matched forms are treated as
  *     non-retryable because the Copilot SDK has already retried internally
  *     before surfacing the error.
+ *   - invocation_cap_exceeded: The per-run pooled LLM invocation cap is
+ *     fully exhausted (e.g., "CAPIError: 429 Maximum LLM invocations exceeded (N/N)"
+ *     or `"type":"max_runs_exceeded"`). This is more specific than generic
+ *     CAPI quota exhaustion and takes precedence in step outputs.
  * This replaces the individual bash scripts (detect_inference_access_error.sh,
  * detect_mcp_policy_error.sh) with a single JavaScript step.
  *
@@ -152,13 +156,15 @@ function writeOutputs(results) {
     return;
   }
 
+  const effectiveCAPIQuotaExceeded = results.capiQuotaExceededError && !results.invocationCapExceeded;
   const lines = [
     `inference_access_error=${results.inferenceAccessError}`,
     `mcp_policy_error=${results.mcpPolicyError}`,
     `agentic_engine_timeout=${results.agenticEngineTimeout}`,
     `model_not_supported_error=${results.modelNotSupportedError}`,
     `http_400_response_error=${results.http400ResponseError}`,
-    `capi_quota_exceeded_error=${results.capiQuotaExceededError}`,
+    `capi_quota_exceeded_error=${effectiveCAPIQuotaExceeded}`,
+    `invocation_cap_exceeded=${results.invocationCapExceeded}`,
   ];
   fs.appendFileSync(outputFile, lines.join("\n") + "\n");
 }

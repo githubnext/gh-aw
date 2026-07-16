@@ -162,6 +162,7 @@ func TestBuildMainJobOutputs(t *testing.T) {
 		assert.Contains(t, outputs, "effective_tokens")
 		assert.Contains(t, outputs, "aic")
 		assert.Contains(t, outputs, "setup-trace-id")
+		assert.Contains(t, outputs, "invocation_cap_exceeded")
 	})
 
 	t.Run("safe-outputs fields added when SafeOutputs set", func(t *testing.T) {
