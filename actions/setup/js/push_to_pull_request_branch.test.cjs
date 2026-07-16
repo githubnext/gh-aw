@@ -673,11 +673,47 @@ index 0000000..abc1234
       const handler = await module.main({ target: "triggering" });
       const result = await handler({ branch: "should-handle-deleted-head-repo-likely-a-fork-and-fail-early" }, {});
 
-      // When head.repo is null, this is likely a deleted fork
-      // The handler should give a clear error about the fork
+      // When head.repo is null, the handler should reject immediately before any fork checks
       expect(result.success).toBe(false);
-      expect(result.error).toContain("fork");
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Cannot push to fork PR"));
+      expect(result.error).toContain("null");
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("head repository is null"));
+    });
+
+    it("should reject when head.repo is null even with configured head-repo", async () => {
+      // Even when head-repo is explicitly configured, a null head.repo means we
+      // cannot verify which fork the PR came from — reject to prevent writes to an
+      // unverifiable PR.
+      delete mockContext.payload.pull_request.head.repo;
+
+      mockGithub.rest.pulls.get.mockResolvedValue({
+        data: {
+          head: {
+            ref: "feature-branch",
+            repo: null, // Deleted fork
+          },
+          base: {
+            repo: {
+              full_name: "test-owner/test-repo",
+            },
+          },
+          title: "Deleted Fork PR with configured head-repo",
+          labels: [],
+        },
+      });
+
+      createPatchFile("should-reject-when-head-repo-is-null-even-with-configured-h");
+
+      const module = await loadModule();
+      const handler = await module.main({
+        target: "triggering",
+        "head-repo": "fork-owner/test-repo",
+        allowed_repos: ["test-owner/test-repo", "fork-owner/test-repo"],
+      });
+      const result = await handler({ branch: "should-reject-when-head-repo-is-null-even-with-configured-h" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("null");
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("head repository is null"));
     });
   });
 

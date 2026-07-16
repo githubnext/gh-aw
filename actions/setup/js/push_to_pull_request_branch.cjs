@@ -691,6 +691,14 @@ async function main(config = {}) {
     let pushGithubClient = githubClient;
     const actualHeadRepo = typeof pullRequest.head?.repo?.full_name === "string" ? pullRequest.head.repo.full_name : "";
 
+    // SECURITY: When head.repo is null (likely a deleted fork) we cannot verify which
+    // repository the PR head came from. Always reject to prevent writes to an unverifiable PR.
+    if (pullRequest.head?.repo == null) {
+      const nullHeadErr = "Cannot push to PR: head repository is null (likely a deleted fork)";
+      core.error(nullHeadErr);
+      return { success: false, error: nullHeadErr };
+    }
+
     // SECURITY: Validate the PR head repository against the configured or default expected value
     // before any fork-status branching. This prevents writes to a same-repo PR when head-repo
     // names an automation fork, and prevents writes to a fork PR when head-repo is not set.
