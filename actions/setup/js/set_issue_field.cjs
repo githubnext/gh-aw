@@ -141,11 +141,11 @@ function buildFieldUpdatePayload(field, rawValue) {
 async function setIssueFieldValue(githubClient, issueNodeId, fieldUpdate) {
   await githubClient.graphql(
     `mutation($issueId: ID!, $issueFields: [IssueFieldCreateOrUpdateInput!]!) {
-    setIssueFieldValue(input: { issueId: $issueId, issueFields: $issueFields }) {
-      issue {
-        id
+      setIssueFieldValue(input: { issueId: $issueId, issueFields: $issueFields }) {
+        issue {
+          id
+        }
       }
-    }
     }`,
     {
       issueId: issueNodeId,
