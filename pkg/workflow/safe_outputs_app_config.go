@@ -662,8 +662,24 @@ func (c *Compiler) buildActivationAppTokenMintStep(app *GitHubAppConfig, permiss
 	}
 	steps = append(steps, fmt.Sprintf("          owner: %s\n", owner))
 
-	// Default to current repository
-	steps = append(steps, "          repositories: ${{ github.event.repository.name }}\n")
+	// Add repositories - behavior depends on configuration:
+	// - If repositories is ["*"], omit the field to allow org-wide access
+	// - If repositories is a single value, use inline format
+	// - If repositories has multiple values, use block scalar format (newline-separated)
+	// - If repositories is empty/not specified, default to the current repository
+	if len(app.Repositories) == 1 && app.Repositories[0] == "*" {
+		// Org-wide access: omit repositories field entirely
+		safeOutputsAppLog.Print("Using org-wide GitHub App token for activation (repositories: *)")
+	} else if len(app.Repositories) == 1 {
+		steps = append(steps, fmt.Sprintf("          repositories: %s\n", app.Repositories[0]))
+	} else if len(app.Repositories) > 1 {
+		steps = append(steps, "          repositories: |-\n")
+		for _, repo := range app.Repositories {
+			steps = append(steps, fmt.Sprintf("            %s\n", repo))
+		}
+	} else {
+		steps = append(steps, "          repositories: ${{ github.event.repository.name }}\n")
+	}
 
 	// Always add github-api-url from environment variable
 	steps = append(steps, "          github-api-url: ${{ github.api_url }}\n")
