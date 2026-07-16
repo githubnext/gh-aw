@@ -15,6 +15,11 @@ var secretLog = logger.New("workflow:secret_extraction")
 var (
 	// secretsNamePattern extracts the secret variable name from an expression
 	secretsNamePattern = regexp.MustCompile(`secrets\.([A-Z_][A-Z0-9_]*)`)
+
+	// jobOutputExprPattern matches a ${{ needs.JOB.outputs.OUTPUT }} expression anywhere in a string.
+	// Used to detect job-output credential references for --exclude-env, treating them
+	// the same as ${{ secrets.* }} references.
+	jobOutputExprPattern = regexp.MustCompile(`\$\{\{\s*needs\.[A-Za-z_][A-Za-z0-9_-]*\.outputs\.[A-Za-z_][A-Za-z0-9_-]*`)
 )
 
 // SecretExpression represents a parsed secret expression
@@ -90,6 +95,16 @@ func ExtractSecretsFromMap(values map[string]string) map[string]string {
 
 	secretLog.Printf("Extracted total of %d unique secrets from map", len(allSecrets))
 	return allSecrets
+}
+
+// ContainsJobOutputExpr reports whether value contains a GitHub Actions job-output
+// expression of the form ${{ needs.JOB.outputs.OUTPUT }}.  These expressions carry
+// values that are computed at runtime by an upstream job and are often sensitive
+// (e.g. ephemeral GitHub App tokens), so they must be treated the same as
+// ${{ secrets.* }} references when deciding whether to exclude an env var from the
+// agent container via AWF --exclude-env.
+func ContainsJobOutputExpr(value string) bool {
+	return jobOutputExprPattern.MatchString(value)
 }
 
 // ExtractEnvExpressionsFromMap extracts all env variable expressions from a map of string values

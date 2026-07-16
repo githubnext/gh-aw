@@ -1205,6 +1205,83 @@ func TestComputeAWFExcludeEnvVarNames(t *testing.T) {
 			coreSecretVarNames: []string{"COPILOT_GITHUB_TOKEN"},
 			want:               []string{"COPILOT_GITHUB_TOKEN"},
 		},
+		// --- job-output expression tests ---
+		{
+			name: "mcp-scripts env var with job-output value is excluded",
+			workflowData: &WorkflowData{
+				MCPScripts: &MCPScriptsConfig{
+					Tools: map[string]*MCPScriptToolConfig{
+						"example": {
+							Env: map[string]string{
+								"GH_TOKEN": "${{ needs.fetch_token.outputs.token }}",
+							},
+						},
+					},
+				},
+			},
+			coreSecretVarNames: []string{},
+			want:               []string{"GH_TOKEN"},
+		},
+		{
+			name: "mcp-scripts env var with static value is not excluded",
+			workflowData: &WorkflowData{
+				MCPScripts: &MCPScriptsConfig{
+					Tools: map[string]*MCPScriptToolConfig{
+						"example": {
+							Env: map[string]string{
+								"GH_DEBUG": "1",
+							},
+						},
+					},
+				},
+			},
+			coreSecretVarNames: []string{},
+			want:               []string{},
+			notWant:            []string{"GH_DEBUG"},
+		},
+		{
+			name: "engine.env var with job-output value is excluded",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"GITHUB_TOKEN": "${{ needs.token_job.outputs.github_token }}",
+					},
+				},
+			},
+			coreSecretVarNames: []string{},
+			want:               []string{"GITHUB_TOKEN"},
+		},
+		{
+			name: "engine.env non-credential job-output var is excluded (consistent with secret behavior)",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"REPO_URL": "${{ needs.setup.outputs.repo_url }}",
+					},
+				},
+			},
+			coreSecretVarNames: []string{},
+			want:               []string{"REPO_URL"},
+		},
+		{
+			name: "mcp-scripts env var with job-output value mixed with secret: both excluded",
+			workflowData: &WorkflowData{
+				MCPScripts: &MCPScriptsConfig{
+					Tools: map[string]*MCPScriptToolConfig{
+						"tool1": {
+							Env: map[string]string{
+								"GH_TOKEN":    "${{ needs.fetch_token.outputs.token }}",
+								"API_KEY":     "${{ secrets.API_KEY }}",
+								"STATIC_HOST": "https://api.example.com",
+							},
+						},
+					},
+				},
+			},
+			coreSecretVarNames: []string{},
+			want:               []string{"GH_TOKEN", "API_KEY"},
+			notWant:            []string{"STATIC_HOST"},
+		},
 	}
 
 	for _, tt := range tests {

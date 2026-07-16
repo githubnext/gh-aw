@@ -586,3 +586,59 @@ func TestFormatInputNameAsEnvVar(t *testing.T) {
 		})
 	}
 }
+
+func TestContainsJobOutputExpr(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{
+			name:  "pure job output expression",
+			value: "${{ needs.fetch_token.outputs.token }}",
+			want:  true,
+		},
+		{
+			name:  "job output with extra whitespace",
+			value: "${{  needs.fetch_token.outputs.token  }}",
+			want:  true,
+		},
+		{
+			name:  "job output embedded in a larger string",
+			value: "Bearer ${{ needs.auth_job.outputs.access_token }}",
+			want:  true,
+		},
+		{
+			name:  "secret expression is not a job output",
+			value: "${{ secrets.GH_TOKEN }}",
+			want:  false,
+		},
+		{
+			name:  "static value is not a job output",
+			value: "https://api.example.com",
+			want:  false,
+		},
+		{
+			name:  "needs.result (no .outputs.) is not a job output",
+			value: "${{ needs.some_job.result }}",
+			want:  false,
+		},
+		{
+			name:  "github token expression is not a job output",
+			value: "${{ github.token }}",
+			want:  false,
+		},
+		{
+			name:  "job output with hyphenated job name",
+			value: "${{ needs.fetch-token.outputs.token }}",
+			want:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ContainsJobOutputExpr(tt.value)
+			assert.Equal(t, tt.want, got, "ContainsJobOutputExpr(%q)", tt.value)
+		})
+	}
+}
