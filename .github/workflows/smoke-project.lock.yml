@@ -2195,7 +2195,7 @@ jobs:
           GH_AW_PROJECT_URL: "https://github.com/orgs/github/projects/24068"
           GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
         with:
-          github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);

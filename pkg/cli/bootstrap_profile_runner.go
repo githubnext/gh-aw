@@ -100,54 +100,12 @@ type bootstrapGitHubAppExchangeResponse struct {
 	Name     string `json:"name"`
 }
 
-type bootstrapGitHubAppRepositoryInstallation struct {
-	ClientID string `json:"client_id"`
-	AppID    int64  `json:"app_id"`
-	AppSlug  string `json:"app_slug"`
-	ID       int64  `json:"id"`
-}
-
-func buildBootstrapProfilePlan(ctx context.Context, repo string, profile *resolvedBootstrapProfile, sources []string, repoReady bool) (bool, []string, error) {
-	if profile == nil || profile.Profile == nil {
-		return false, nil, nil
-	}
-
-	lines := make([]string, 0, len(profile.Profile.Config))
-	if !repoReady {
-		for _, action := range profile.Profile.Config {
-			if err := validateBootstrapActionPreRepo(ctx, repo, action); err != nil {
-				return false, nil, err
-			}
-			if bootstrapActionCanMutate(action, sources) {
-				lines = append(lines, "- bootstrap profile will configure "+bootstrapActionPlanLabel(action))
-			}
-		}
-		return len(lines) > 0, lines, nil
-	}
-
-	state, err := bootstrapProfileState(ctx, repo)
-	if err != nil {
-		return false, nil, err
-	}
-	usesActionsToken, err := profileSourcesUseActionsTokenCopilotAuth(ctx, sources)
-	if err != nil {
-		return false, nil, err
-	}
-
-	needsMutation := false
-	for _, action := range profile.Profile.Config {
-		pending, err := bootstrapActionNeedsMutation(ctx, repo, action, state, usesActionsToken)
-		if err != nil {
-			return false, nil, err
-		}
-		if pending {
-			needsMutation = true
-			lines = append(lines, "- bootstrap profile will configure "+bootstrapActionPlanLabel(action))
-		}
-	}
-
-	bootstrapLog.Printf("Built bootstrap profile plan: repo=%s, needsMutation=%t, planLines=%d", repo, needsMutation, len(lines))
-	return needsMutation, lines, nil
+type bootstrapGitHubAppUserInstallation struct {
+	ID                  int64
+	ClientID            string
+	AppID               string
+	AppSlug             string
+	RepositorySelection string
 }
 
 func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConfig) error {
@@ -217,6 +175,10 @@ func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConf
 			if applied {
 				state.secrets[action.Secret] = struct{}{}
 			}
+		case "commit-and-push":
+			if err := runBootstrapCommitAndPushAction(ctx, config.RepoDir, action); err != nil {
+				return err
+			}
 		case "handoff":
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(action.Message))
 		default:
@@ -267,6 +229,8 @@ func bootstrapActionNeedsMutation(ctx context.Context, repo string, action repos
 	case "copilot-auth":
 		_, hasSecret := state.secrets[action.Secret]
 		return !hasSecret && !usesActionsToken, nil
+	case "commit-and-push":
+		return true, nil
 	case "handoff":
 		return false, nil
 	default:
@@ -274,37 +238,54 @@ func bootstrapActionNeedsMutation(ctx context.Context, repo string, action repos
 	}
 }
 
-func validateBootstrapActionPreRepo(ctx context.Context, repo string, action repositoryPackageBootstrapAction) error {
-	if action.Type == "require-owner-type" {
-		return runBootstrapRequireOwnerType(ctx, repo, action)
+func runBootstrapCommitAndPushAction(ctx context.Context, repoDir string, action repositoryPackageBootstrapAction) error {
+	if repoDir == "" {
+		return errors.New("bootstrap commit-and-push requires a local checkout directory. Example: rerun from a git checkout and then rerun gh aw add from that checkout")
 	}
+
+	pending, err := bootstrapRepoHasPendingChanges(ctx, repoDir)
+	if err != nil {
+		return err
+	}
+	if !pending {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping commit and push because the local checkout is already clean."))
+		return nil
+	}
+
+	if _, err := runBootstrapGitCommand(ctx, repoDir, "add", "-A"); err != nil {
+		return err
+	}
+	if _, err := runBootstrapGitCommand(ctx, repoDir, "commit", "-m", action.Message); err != nil {
+		return err
+	}
+	branch, err := getCurrentBranchIn(repoDir)
+	if err != nil {
+		return fmt.Errorf("failed to determine current branch for bootstrap commit-and-push: %w", err)
+	}
+	if _, err := runBootstrapGitCommand(ctx, repoDir, "push", "-u", "origin", branch); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Committed and pushed bootstrap changes"))
 	return nil
 }
 
-func bootstrapActionCanMutate(action repositoryPackageBootstrapAction, sources []string) bool {
-	switch action.Type {
-	case "repo-variable", "repo-secret", "github-app":
-		return true
-	case "copilot-auth":
-		return true
-	default:
-		return false
+func bootstrapRepoHasPendingChanges(ctx context.Context, repoDir string) (bool, error) {
+	output, err := runBootstrapGitCommand(ctx, repoDir, "status", "--porcelain")
+	if err != nil {
+		return false, err
 	}
+	return strings.TrimSpace(string(output)) != "", nil
 }
 
-func bootstrapActionPlanLabel(action repositoryPackageBootstrapAction) string {
-	switch action.Type {
-	case "repo-variable":
-		return "repository variable " + action.Name
-	case "repo-secret":
-		return "repository secret " + action.Name
-	case "github-app":
-		return fmt.Sprintf("GitHub App credentials (%s, %s)", action.AppIDVariable, action.PrivateKeySecret)
-	case "copilot-auth":
-		return "Copilot secret " + action.Secret
-	default:
-		return action.Type
+func runBootstrapGitCommand(ctx context.Context, repoDir string, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Dir = repoDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return output, fmt.Errorf("failed to run git %s in %s: %w\n%s", strings.Join(args, " "), repoDir, err, strings.TrimSpace(string(output)))
 	}
+	return output, nil
 }
 
 func runBootstrapRequireOwnerType(ctx context.Context, repo string, action repositoryPackageBootstrapAction) error {
@@ -733,21 +714,97 @@ func waitForBootstrapGitHubAppInstallation(ctx context.Context, repo string, cre
 }
 
 func bootstrapGitHubAppInstalled(ctx context.Context, repo string, createdApp *bootstrapCreatedGitHubApp) (bool, error) {
-	output, err := runBootstrapGHContext(ctx, "Checking GitHub App installation...", "api", "/repos/"+repo+"/installation")
+	installations, err := listBootstrapUserInstallations(ctx)
 	if err != nil {
 		return false, err
 	}
-	var payload bootstrapGitHubAppRepositoryInstallation
-	if err := json.Unmarshal(output, &payload); err != nil {
-		return false, err
-	}
-	if payload.ClientID != "" && payload.ClientID == createdApp.ClientID {
-		return payload.ID > 0, nil
-	}
-	if payload.AppSlug == createdApp.Slug || strconv.FormatInt(payload.AppID, 10) == createdApp.AppID {
-		return payload.ID > 0, nil
+	for _, installation := range installations {
+		if !bootstrapGitHubAppInstallationMatches(installation, createdApp) {
+			continue
+		}
+		if installation.RepositorySelection != "selected" || repo == "" {
+			return installation.ID > 0, nil
+		}
+		repositories, err := listBootstrapUserInstallationRepositories(ctx, installation.ID)
+		if err != nil {
+			return false, err
+		}
+		for _, repository := range repositories {
+			if strings.EqualFold(repository, repo) {
+				return true, nil
+			}
+		}
+		return false, nil
 	}
 	return false, nil
+}
+
+func listBootstrapUserInstallations(ctx context.Context) ([]bootstrapGitHubAppUserInstallation, error) {
+	output, err := runBootstrapGHContext(
+		ctx,
+		"Checking GitHub App installation...",
+		"api",
+		"/user/installations?per_page=100",
+		"--paginate",
+		"--jq",
+		`.installations[] | [(.id|tostring), (.client_id // ""), (.app_id|tostring), .app_slug, .repository_selection] | @tsv`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	trimmed := strings.TrimSpace(string(output))
+	if trimmed == "" {
+		return nil, nil
+	}
+	lines := strings.Split(trimmed, "\n")
+	installations := make([]bootstrapGitHubAppUserInstallation, 0, len(lines))
+	for _, line := range lines {
+		fields := strings.Split(line, "\t")
+		if len(fields) != 5 {
+			return nil, fmt.Errorf("failed to parse user installation response line %q", line)
+		}
+		installationID, err := strconv.ParseInt(fields[0], 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse user installation id %q: %w", fields[0], err)
+		}
+		installations = append(installations, bootstrapGitHubAppUserInstallation{
+			ID:                  installationID,
+			ClientID:            fields[1],
+			AppID:               fields[2],
+			AppSlug:             fields[3],
+			RepositorySelection: fields[4],
+		})
+	}
+	return installations, nil
+}
+
+func listBootstrapUserInstallationRepositories(ctx context.Context, installationID int64) ([]string, error) {
+	output, err := runBootstrapGHContext(
+		ctx,
+		"Checking GitHub App installation repositories...",
+		"api",
+		fmt.Sprintf("/user/installations/%d/repositories?per_page=100", installationID),
+		"--paginate",
+		"--jq",
+		".repositories[].full_name",
+	)
+	if err != nil {
+		return nil, err
+	}
+	return parseBootstrapNames(output), nil
+}
+
+func bootstrapGitHubAppInstallationMatches(installation bootstrapGitHubAppUserInstallation, createdApp *bootstrapCreatedGitHubApp) bool {
+	if createdApp == nil {
+		return false
+	}
+	if installation.ClientID != "" && createdApp.ClientID != "" && installation.ClientID == createdApp.ClientID {
+		return true
+	}
+	if installation.AppSlug != "" && createdApp.Slug != "" && installation.AppSlug == createdApp.Slug {
+		return true
+	}
+	return installation.AppID != "" && createdApp.AppID != "" && installation.AppID == createdApp.AppID
 }
 
 func listBootstrapRepoVariableNames(ctx context.Context, repo string) ([]string, error) {

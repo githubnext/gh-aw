@@ -78,10 +78,12 @@ func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActio
 		version,
 		"Install Playwright CLI",
 		"playwright-cli",
-		needsNodeSetup, // true only when engine.command skips standard engine install steps
-		true,           // Global install so playwright-cli is on PATH
-		true,           // Allow install scripts for browser setup
-		resolveRuntimeCooldown(workflowData, "node"),
+		NPMInstallOptions{
+			IncludeNodeSetup:  needsNodeSetup,
+			IsGlobal:          true,
+			RunInstallScripts: true,
+			CooldownEnabled:   resolveRuntimeCooldown(workflowData, "node"),
+		},
 	)
 	for i := range steps {
 		if len(steps[i]) > 0 && steps[i][0] == "      - name: Install Playwright CLI" {

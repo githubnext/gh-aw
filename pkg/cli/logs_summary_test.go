@@ -283,13 +283,15 @@ func TestRunSummaryJSONStructure(t *testing.T) {
 			Turns:      5,
 		},
 		AccessAnalysis: &DomainAnalysis{
-			DomainBuckets: DomainBuckets{
-				AllowedDomains: []string{"github.com", "api.github.com"},
-				BlockedDomains: []string{},
+			AnalysisBase: AnalysisBase{
+				DomainBuckets: DomainBuckets{
+					AllowedDomains: []string{"github.com", "api.github.com"},
+					BlockedDomains: []string{},
+				},
+				TotalRequests:   10,
+				AllowedRequests: 10,
+				BlockedRequests: 0,
 			},
-			TotalRequests: 10,
-			AllowedCount:  10,
-			BlockedCount:  0,
 		},
 		MissingTools: []MissingToolReport{
 			{

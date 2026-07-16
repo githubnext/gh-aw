@@ -444,7 +444,7 @@ outerLoop:
 			chunk := runsRemaining[:chunkSize]
 			runsRemaining = runsRemaining[chunkSize:]
 
-			downloadResults := downloadRunArtifactsConcurrent(activeCtx, chunk, outputDir, verbose, remainingNeeded, repoOverride, artifactFilter, evalsOnly, artifactSets)
+			downloadResults := downloadRunArtifactsConcurrent(activeCtx, chunk, runArtifactsConcurrentOptions{outputDir: outputDir, verbose: verbose, maxRuns: remainingNeeded, repoOverride: repoOverride, artifactFilter: artifactFilter, evalsOnly: evalsOnly, artifactSets: artifactSets})
 
 			for _, result := range downloadResults {
 				if result.Skipped {

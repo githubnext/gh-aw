@@ -304,6 +304,20 @@ func TestMainWorkflowSchema_SafeOutputsTargetProperties(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "issue-intent toggle accepted for close and assignment tools",
+			safeOutputs: map[string]any{
+				"close-issue": map[string]any{
+					"issue-intent": false,
+				},
+				"assign-to-user": map[string]any{
+					"issue-intent": false,
+				},
+				"assign-to-agent": map[string]any{
+					"issue-intent": false,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {

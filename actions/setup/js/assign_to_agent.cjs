@@ -10,6 +10,7 @@ const { sleep } = require("./error_recovery.cjs");
 const { parseAllowedRepos, validateRepo, resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { resolvePullRequestRepo } = require("./pr_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
 
 /**
  * Module-level state — populated by main(), read by the exported getters below.
@@ -64,6 +65,7 @@ async function main(config = {}) {
   const configuredBaseBranch = config["base-branch"] ? String(config["base-branch"]).trim() : null;
   const targetConfig = config.target ? String(config.target).trim() : "triggering";
   const ignoreIfError = config["ignore-if-error"] === true || config["ignore-if-error"] === "true";
+  const issueIntentEnabled = config.issue_intent !== false;
   const allowedAgents = config.allowed
     ? Array.isArray(config.allowed)
       ? config.allowed.map(a => String(a).trim()).filter(Boolean)
@@ -87,6 +89,7 @@ async function main(config = {}) {
   if (configuredBaseBranch) core.info(`Configured base branch: ${configuredBaseBranch}`);
   core.info(`Target configuration: ${targetConfig}`);
   core.info(`Max count: ${maxCount}`);
+  core.info(`Issue intent enabled: ${issueIntentEnabled}`);
   if (ignoreIfError) core.info("Ignore-if-error mode enabled: Will not fail if agent assignment encounters auth or availability errors");
   if (allowedAgents) core.info(`Allowed agents: ${allowedAgents.join(", ")}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);
@@ -179,6 +182,7 @@ async function main(config = {}) {
     }
 
     const agentName = message.agent ?? defaultAgent;
+    const intentMetadata = issueIntentEnabled ? normalizeIssueIntentMetadata(message) : {};
     const model = defaultModel;
     const customAgent = defaultCustomAgent;
     const customInstructions = defaultCustomInstructions || null;
@@ -387,7 +391,22 @@ async function main(config = {}) {
       if (customInstructions) core.info(`Using custom instructions: ${customInstructions.substring(0, 100)}${customInstructions.length > 100 ? "..." : ""}`);
       if (effectiveBaseBranch) core.info(`Using base branch: ${effectiveBaseBranch}`);
 
-      const success = await assignAgentToIssue(assignableId, agentLogin, currentAssignees, agentName, allowedAgents, model, customAgent, customInstructions, effectiveBaseBranch, githubClient, taskContext, effectivePullRequestRepoSlug);
+      const success = await assignAgentToIssue(
+        assignableId,
+        agentLogin,
+        currentAssignees,
+        agentName,
+        allowedAgents,
+        model,
+        customAgent,
+        customInstructions,
+        effectiveBaseBranch,
+        githubClient,
+        taskContext,
+        effectivePullRequestRepoSlug,
+        intentMetadata,
+        issueIntentEnabled
+      );
       if (!success) throw new Error(`Failed to assign ${agentName} via REST`);
 
       core.info(`Successfully assigned ${agentName} coding agent to ${type} #${number}`);

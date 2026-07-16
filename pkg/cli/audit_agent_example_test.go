@@ -66,19 +66,21 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 	}
 
 	firewallAnalysis := &FirewallAnalysis{
-		DomainBuckets: DomainBuckets{
-			AllowedDomains: []string{
-				"api.github.com:443",
-				"search.brave.com:443",
-				"npmjs.org:443",
+		AnalysisBase: AnalysisBase{
+			DomainBuckets: DomainBuckets{
+				AllowedDomains: []string{
+					"api.github.com:443",
+					"search.brave.com:443",
+					"npmjs.org:443",
+				},
+				BlockedDomains: []string{
+					"tracking.example.com:443",
+				},
 			},
-			BlockedDomains: []string{
-				"tracking.example.com:443",
-			},
+			TotalRequests:   42,
+			AllowedRequests: 40,
+			BlockedRequests: 2,
 		},
-		TotalRequests:   42,
-		AllowedRequests: 40,
-		BlockedRequests: 2,
 		RequestsByDomain: map[string]DomainRequestStats{
 			"api.github.com:443":       {Allowed: 25, Blocked: 0},
 			"search.brave.com:443":     {Allowed: 10, Blocked: 0},

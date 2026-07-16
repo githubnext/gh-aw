@@ -114,7 +114,7 @@ describe("add_labels", () => {
     });
 
     it("should accept structured label entries and add normalized label names", async () => {
-      const handler = await main({ max: 10 });
+      const handler = await main({ max: 10, issue_intent: true });
       const addLabelsCalls = [];
 
       mockGithub.rest.issues.addLabels = async params => {
@@ -137,7 +137,7 @@ describe("add_labels", () => {
     });
 
     it("should send structured label metadata without requiring a runtime feature", async () => {
-      const handler = await main({ max: 10 });
+      const handler = await main({ max: 10, issue_intent: true });
       const addLabelsCalls = [];
 
       mockGithub.rest.issues.addLabels = async params => {
@@ -159,7 +159,7 @@ describe("add_labels", () => {
     });
 
     it("should normalize lowercase confidence in structured label metadata", async () => {
-      const handler = await main({ max: 10 });
+      const handler = await main({ max: 10, issue_intent: true });
       const addLabelsCalls = [];
 
       mockGithub.rest.issues.addLabels = async params => {
@@ -513,7 +513,7 @@ describe("add_labels", () => {
     });
 
     it("should prefer the metadata-bearing entry when a duplicate label name appears", async () => {
-      const handler = await main({ max: 10 });
+      const handler = await main({ max: 10, issue_intent: true });
       const addLabelsCalls = [];
 
       mockGithub.rest.issues.addLabels = async params => {
@@ -535,6 +535,28 @@ describe("add_labels", () => {
       expect(addLabelsCalls.length).toBe(1);
       // The payload sent to the API must use the spec with metadata, not the plain string
       expect(addLabelsCalls[0].labels).toEqual([{ name: "bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }]);
+    });
+
+    it("should strip structured intent metadata when issue_intent is disabled", async () => {
+      const handler = await main({ max: 10, issue_intent: false });
+      const addLabelsCalls = [];
+
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          item_number: 456,
+          labels: [{ name: "bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(addLabelsCalls).toHaveLength(1);
+      expect(addLabelsCalls[0].labels).toEqual(["bug"]);
     });
 
     it("should sanitize and trim label names", async () => {

@@ -486,6 +486,22 @@
             }
           },
           {
+            "description": "commit-and-push: stage, commit, and push local repository changes",
+            "type": "object",
+            "required": ["type", "message"],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "commit-and-push"
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          {
             "description": "handoff: display a message and hand off to the user",
             "type": "object",
             "required": ["type", "message"],

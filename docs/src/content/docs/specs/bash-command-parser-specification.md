@@ -322,6 +322,14 @@ The following examples illustrate security misuse patterns that conforming consu
 
 A Class I (Integration Consumer) conforming implementation MUST NOT treat any parser output — including non-empty command-name results and empty lists — as proof that the corresponding shell invocation is safe or permitted. Permission-enforcement logic MUST remain fully operative independent of what the parser returns.
 
+### 11.3 Safeguards
+
+The following MUST-level norms apply to all Class I (Integration Consumer) conforming implementations:
+
+1. **Empty-result default-deny**: When `extractCommandNamesFromPipeline` returns an empty list (`length === 0`), the integration MUST apply default-deny and MUST NOT proceed with command execution. An empty result is never implicit authorization. This norm strengthens the requirement stated in §2.2 and §5, and applies regardless of whether the empty result arises from a blank input, a fully structural-keyword input, or a parse that yields only redirections.
+
+2. **Parse-error denial**: When the parser encounters input that cannot be processed without throwing an exception (or equivalent unrecoverable error condition), the integration MUST NOT silently allow execution. Parse errors MUST be treated as denial conditions. The integration MUST log or surface a diagnostic indicating that the command could not be parsed and that execution was denied.
+
 ---
 
 ## 12. References
