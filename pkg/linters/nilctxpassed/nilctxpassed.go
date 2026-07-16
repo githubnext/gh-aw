@@ -57,6 +57,11 @@ func run(pass *analysis.Pass) (any, error) {
 		for i, arg := range call.Args {
 			var paramType types.Type
 			if sig.Variadic() && params.Len() > 0 && i >= params.Len()-1 {
+				if call.Ellipsis.IsValid() && i == len(call.Args)-1 {
+					// Spread call passes the whole variadic slice (e.g. f(nil...)),
+					// not an individual variadic element.
+					continue
+				}
 				// Variadic: the last param is a slice; check its element type.
 				sliceType, ok := params.At(params.Len() - 1).Type().(*types.Slice)
 				if !ok {
