@@ -1,13 +1,14 @@
 {
-  "timestamp": "2026-07-15T04:36:46Z",
-  "run_id": "29389314532",
-  "total_workflows": 255,
+  "timestamp": "2026-07-16T04:44:16Z",
+  "run_id": "29472014909",
+  "total_workflows": 257,
   "engine_breakdown": {
-    "copilot_simple": 37,
+    "copilot_simple": 32,
+    "copilot_extended_id": 93,
     "copilot_sdk": 65,
-    "copilot_total": 102,
-    "claude": 46,
-    "codex": 10,
+    "copilot_total": 125,
+    "claude": 44,
+    "codex": 8,
     "no_engine_block": 34
   },
   "features_available": [
@@ -15,7 +16,7 @@
     "engine.copilot-sdk (headless sidecar mode)",
     "engine.bare (--no-custom-instructions)",
     "max-continuations (--autopilot mode)",
-    "engine.args (custom CLI flags)",
+    "engine.args (custom CLI arguments)",
     "engine.version (version pinning)",
     "engine.model (model override)",
     "engine.command (custom executable)",
@@ -38,7 +39,7 @@
   ],
   "features_usage": {
     "copilot_sdk": {"count": 65},
-    "bare": {"count": 19},
+    "bare": {"count": 11},
     "max_continuations": {"count": 11},
     "engine_args": {"count": 0},
     "engine_harness_custom": {"count": 1},
@@ -48,37 +49,30 @@
     "byok": {"count": 3},
     "lsp": {"count": 3},
     "mcp_scripts": {"count": 1},
-    "tracker_id": {"count": 95},
-    "bare_mode": {"count": 19},
-    "sandbox_copilot_simple": {"count": 18, "of": 37},
-    "strict_mode": {"count": 156},
-    "model_provider": {"count": 1}
-  },
-  "sandbox_gaps": {
-    "copilot_simple_without_sandbox": 19,
-    "note": "mostly smoke tests, likely intentional"
+    "engine_agent_flag": {"count": 5},
+    "version_pinning": {"count": 18},
+    "model_overrides_top_level": {"count": 10}
   },
   "key_findings": [
-    "19 copilot-simple workflows lack sandbox config (smoke tests likely intentional)",
-    "107 workflows with timeout>=30min may benefit from max-continuations",
-    "engine.cwd = 0 usage (supported but unused)",
-    "engine.harness retry tuning = 0 (no max-attempts or delay customization)",
-    "engine.args = 0 (still unused)",
-    "LSP servers still only 3 workflows",
-    "mcp-scripts dropped from 3 to 1 (regression!)",
-    "tracker-id stable at 95 workflows",
-    "model-provider usage extremely low (1 workflow)"
+    "engine.args: 0 usage (feature fully unused)",
+    "engine.cwd: 0 usage (feature fully unused)",
+    "harness retry tuning: 0 (max-attempts/delay never configured)",
+    "mcp-scripts: dropped from 3 to 1 (regression from last run)",
+    "LSP servers: only 3 workflows despite language-server benefits for Go/TS repos",
+    "max-continuations only 11/125 copilot workflows, many long-running workflows uncapped",
+    "engine.agent flag: only 5 workflows, agent import feature underutilized",
+    "bare mode inconsistency: 11 copilot workflows, not standardized across fact/news/poem workflows"
   ],
   "trend_vs_previous": {
-    "total_workflows": "257->255 (-2)",
-    "copilot_total": "102->102 (stable)",
-    "copilot_simple": "37->37 (stable)",
-    "copilot_sdk": "65->65 (stable)",
-    "engine_args": "0->0 (still unused)",
-    "lsp_servers": "3->3 (unchanged)",
-    "sandbox_gaps_copilot_simple": "19->19 (stable)",
+    "total_workflows": "255->257 (+2)",
+    "copilot_simple": "37->32 (-5, some migrated to extended)",
+    "copilot_extended": "stable",
+    "engine_args": "0->0 (still fully unused)",
+    "lsp_servers": "3->3 (unchanged, no new LSP adoption)",
+    "mcp_scripts": "1->1 (regression persists from last run)",
+    "max_continuations": "11->11 (stable, no growth)",
     "byok": "3->3 (stable)",
-    "mcp_scripts": "3->1 (-2, regression!)",
-    "max_continuations": "11->11 (stable, still low vs eligible)"
+    "engine_cwd": "0->0 (still unused)",
+    "harness_retry": "0->0 (still unused)"
   }
 }
