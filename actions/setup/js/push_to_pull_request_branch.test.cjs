@@ -1192,7 +1192,7 @@ index 0000000..abc1234
       expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
     });
 
-    it("should skip non-fatally when fallback branch history has workflow files but agent changeset does not", async () => {
+    it("should skip non-fatally when fallback branch has pre-existing workflow files (agent has none)", async () => {
       createPatchFile("fallback-branch-workflows-scope-rejection");
 
       mockExec.exec.mockResolvedValueOnce(0); // fetch
@@ -1374,7 +1374,7 @@ index 0000000..abc1234
       mockExec.getExecOutput = savedGetExecOutput;
     });
 
-    it("should skip non-fatally when review branch push is rejected for missing workflows scope (timeout variant, agent has no workflow files)", async () => {
+    it("should skip non-fatally when review branch is rejected for workflows scope (timeout variant, agent has none)", async () => {
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
       createPatchFile("review-branch-workflows-scope-timeout");
 
@@ -1404,7 +1404,7 @@ index 0000000..abc1234
       expect(errorCalls.some(msg => msg.includes("Failed to create review PR"))).toBe(false);
     });
 
-    it("should skip non-fatally when review branch push is rejected with backtick workflows scope message and agent has no workflow files", async () => {
+    it("should skip non-fatally when review branch is rejected with backtick workflows scope (agent has none)", async () => {
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
       createPatchFile("review-branch-workflows-scope-backtick");
 
@@ -1453,7 +1453,7 @@ index 0000000..abc1234
       expect(result.error).toContain("Failed to create review PR");
     });
 
-    it("should skip non-fatally when branch history has workflow files but agent changeset does not (pre-flight fires before checkout)", async () => {
+    it("should skip non-fatally when branch history has pre-existing workflow files (pre-flight fires before checkout)", async () => {
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
       createPatchFile("review-branch-preflight-workflow-files");
 

@@ -215,7 +215,8 @@ async function detectWorkflowFileChanges(exec, gitOptions, baseBranch, coreLogge
  * @param {string | undefined} baseBranch - PR base branch name passed through to detectWorkflowFileChanges
  * @param {string} context - Short label for the push path (e.g. "Review branch", "Fallback branch")
  * @param {typeof core} coreLogger - Actions core logger
- * @param {string[] | undefined} agentChangedFiles - Files from the agent's post-apply diff; used to distinguish agent vs pre-existing workflow changes
+ * @param {string[] | undefined} agentChangedFiles - Files from the agent's post-apply diff; used to distinguish agent vs pre-existing workflow changes.
+ *   Pass `undefined` when the distinction cannot be made — the function will fall back to the original hard-error behavior.
  * @returns {Promise<{ success: false, error_type: string, error: string } | { success: false, skipped: true } | null>}
  */
 async function runWorkflowScopePreflightCheck(exec, gitOptions, allowWorkflows, baseBranch, context, coreLogger, agentChangedFiles) {
@@ -265,7 +266,8 @@ function buildWorkflowsScopeSkip(context, coreLogger) {
   coreLogger.warning(
     `${context}: branch history contains workflow file changes (.github/workflows/**) requiring the 'workflows' scope, ` +
       `but the agent's own changeset does not include workflow files — the scope requirement originates from pre-existing commits. ` +
-      `Skipping push to avoid a scope rejection. No action required unless you intend to push workflow file changes.`
+      `Skipping push to avoid a scope rejection. ` +
+      `To allow pushing workflow file changes, configure 'push-to-pull-request-branch.allow-workflows: true' with a GitHub App in 'safe-outputs.github-app'.`
   );
   return { success: false, skipped: true };
 }
