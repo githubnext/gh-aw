@@ -1,7 +1,7 @@
 # Git Simulator Strategy Notes
 
 Z3 sweep of 3600 cells (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT, COMMIT innermost).
-**108/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
+**112/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
 `commit=i%3, branch=(i//3)%3, patch=(i//9)%5, files=(i//45)%4, history=(i//180)%4,
 size=(i//720)%5`. sizes[tiny,small,medium,large,huge] hist[none,shallow,medium,deep]
 files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]=
@@ -45,6 +45,15 @@ files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]
   reconfirmed single-parent, ff rc0. GOTCHA: `git diff --name-only main..feature`
   (endpoint) over-lists +1 (main's history.md phantom) under divergence; true set =
   per-commit `log --name-only` or three-dot `diff main...feature`. Cap = TWO-dot.
+  **idx108-111: PASS (tiny-none-many-MEDIUM tier opens).** clean-single(108) 207.92
+  KB/1.patch (framing ~405 B/file → payload:total 0.962, ~3.9% at medium/10KB-files);
+  clean-multi(109) 208.43 KB/3.patch disjoint 7/7/6 ~1×; clean-merge_msg(110) 207.92
+  KB/1.patch leak 0001-Merge-branch-topic-into-feature.patch reconfirmed (parent=1,
+  --merges empty); ahead-single(111) cpr 207.9→push 218.6 KB/2.patch, ff is-ancestor
+  =0 no force. many-medium framing ~+8 KB/20 files (~405 B/file: ~150-270 B header +
+  ~135 B of `+`-line prefixes over ~135 base64 lines). All ≪4096. NB per-file framing
+  at medium (~405 B) > earlier ~0.27 KB estimate — the `+`-prefix line tax scales with
+  payload lines, so framing is ~3.9% of payload here, not a fixed per-file constant.
 
 ## THE CAPS (grounded)
 
@@ -116,9 +125,9 @@ first max-patch-FILES `rejected` needs batch under a default-100 config.
 
 ## Next
 
-Next index: **108** → tiny-none-many-MEDIUM tier (patch=medium=200KB, idx108-116:
-clean/ahead/diverged × single/multi/merge_msg), then large(117-125)/xlarge(126-134)
-many tiers. many-small COMPLETE 99-107. FILES=many runs
+Next index: **112** → tiny-none-many-MEDIUM tier continues (idx112-116: ahead-multi,
+ahead-merge_msg, diverged-single/multi/merge_msg), then large(117-125)/xlarge(126-134)
+many tiers. many-medium 108-111 done. many-small COMPLETE 99-107. FILES=many runs
 90-179, batch 180-269. **many-xlarge ~4058 KB still <4096 (safe).** batch-xlarge
 ~4080 KB <4096 BUT batch=100 files == max-patch-files default 100 (200 here) — watch
 the `>` vs `>=` boundary. HISTORY=deep(500) & SIZE>tiny (idx 720+) far ahead — no
