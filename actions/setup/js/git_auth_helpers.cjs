@@ -22,14 +22,13 @@ function normalizeServerUrl(serverUrl) {
  * Returns an empty array when the key is absent (exit code ≠ 0).
  *
  * @param {string} serverUrl
+ * @param {string} [cwd] - Optional working directory for the git config command
  * @returns {Promise<string[]>}
  */
-async function getExtraheaderValues(serverUrl) {
+async function getExtraheaderValues(serverUrl, cwd) {
   const normalizedUrl = normalizeServerUrl(serverUrl);
-  const result = await exec.getExecOutput("git", ["config", "--get-all", `http.${normalizedUrl}/.extraheader`], {
-    silent: true,
-    ignoreReturnCode: true,
-  });
+  const execOptions = cwd ? { silent: true, ignoreReturnCode: true, cwd } : { silent: true, ignoreReturnCode: true };
+  const result = await exec.getExecOutput("git", ["config", "--get-all", `http.${normalizedUrl}/.extraheader`], execOptions);
   if (result.exitCode !== 0 || !result.stdout.trim()) {
     return [];
   }
@@ -61,13 +60,14 @@ async function checkoutHasPersistedExtraheader(serverUrl) {
  *
  * @param {string} serverUrl
  * @param {string} token
+ * @param {string} [cwd] - Optional working directory for the git config command
  * @returns {Promise<string[]>}
  */
-async function overridePersistedExtraheader(serverUrl, token) {
+async function overridePersistedExtraheader(serverUrl, token, cwd) {
   const normalizedUrl = normalizeServerUrl(serverUrl);
   let previousValues;
   try {
-    previousValues = await getExtraheaderValues(serverUrl);
+    previousValues = await getExtraheaderValues(serverUrl, cwd);
     core.info(`git_auth_helpers: read ${previousValues.length} existing extraheader value(s) for ${normalizedUrl}`);
   } catch (err) {
     core.warning(`git_auth_helpers: could not read existing extraheader values — restoration will proceed with empty defaults: ${getErrorMessage(err)}`);
@@ -75,7 +75,11 @@ async function overridePersistedExtraheader(serverUrl, token) {
   }
   core.info(`git_auth_helpers: overriding http.${normalizedUrl}/.extraheader with CI trigger token`);
   const tokenBase64 = Buffer.from(`x-access-token:${token.trim()}`).toString("base64");
-  await exec.exec("git", ["config", "--replace-all", `http.${normalizedUrl}/.extraheader`, `Authorization: basic ${tokenBase64}`]);
+  if (cwd) {
+    await exec.exec("git", ["config", "--replace-all", `http.${normalizedUrl}/.extraheader`, `Authorization: basic ${tokenBase64}`], { cwd });
+  } else {
+    await exec.exec("git", ["config", "--replace-all", `http.${normalizedUrl}/.extraheader`, `Authorization: basic ${tokenBase64}`]);
+  }
   core.info(`git_auth_helpers: extraheader override applied`);
   return previousValues;
 }
@@ -85,14 +89,19 @@ async function overridePersistedExtraheader(serverUrl, token) {
  *
  * @param {string} serverUrl
  * @param {string[]} previousValues
+ * @param {string} [cwd] - Optional working directory for the git config command
  * @returns {Promise<void>}
  */
-async function restorePersistedExtraheader(serverUrl, previousValues) {
+async function restorePersistedExtraheader(serverUrl, previousValues, cwd) {
   const key = `http.${normalizeServerUrl(serverUrl)}/.extraheader`;
   if (!previousValues || previousValues.length === 0) {
     core.info(`git_auth_helpers: no previous extraheader values — unsetting ${key}`);
     try {
-      await exec.exec("git", ["config", "--unset-all", key]);
+      if (cwd) {
+        await exec.exec("git", ["config", "--unset-all", key], { cwd });
+      } else {
+        await exec.exec("git", ["config", "--unset-all", key]);
+      }
     } catch {
       // Nothing to restore/unset.
     }
@@ -108,14 +117,25 @@ async function restorePersistedExtraheader(serverUrl, previousValues) {
   // best-effort cleanup by unsetting the key entirely, then re-throw so the caller
   // is aware that restoration failed.
   try {
-    await exec.exec("git", ["config", "--replace-all", key, previousValues[0]]);
-    for (const value of previousValues.slice(1)) {
-      await exec.exec("git", ["config", "--add", key, value]);
+    if (cwd) {
+      await exec.exec("git", ["config", "--replace-all", key, previousValues[0]], { cwd });
+      for (const value of previousValues.slice(1)) {
+        await exec.exec("git", ["config", "--add", key, value], { cwd });
+      }
+    } else {
+      await exec.exec("git", ["config", "--replace-all", key, previousValues[0]]);
+      for (const value of previousValues.slice(1)) {
+        await exec.exec("git", ["config", "--add", key, value]);
+      }
     }
   } catch (err) {
     core.warning(`git_auth_helpers: partial extraheader restore for ${key} — attempting cleanup: ${getErrorMessage(err)}`);
     try {
-      await exec.exec("git", ["config", "--unset-all", key]);
+      if (cwd) {
+        await exec.exec("git", ["config", "--unset-all", key], { cwd });
+      } else {
+        await exec.exec("git", ["config", "--unset-all", key]);
+      }
     } catch {
       // Best-effort only; ignore secondary failure.
     }

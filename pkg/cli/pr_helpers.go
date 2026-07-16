@@ -55,7 +55,7 @@ func CreatePRWithChanges(branchPrefix, commitMessage, prTitle, prBody string, ve
 
 	if err := pushBranch(branchName, verbose); err != nil {
 		_ = switchBranch(currentBranch, verbose)
-		return "", fmt.Errorf("failed to push branch %s: %w", branchName, err)
+		return "", err
 	}
 
 	_, prURL, err := createPR(branchName, prTitle, prBody, verbose)

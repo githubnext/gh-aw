@@ -272,6 +272,14 @@ function extractImportsFromText(frontmatterText) {
       // Extract array item
       if (trimmed.startsWith("-")) {
         let item = trimmed.substring(1).trim();
+        // Extract path from object-form imports (uses: <path> / path: <path>).
+        // These are valid import forms that the compiler accepts; extract the path
+        // value so that changes to imported files are reflected in the hash.
+        if (item.startsWith("uses:")) {
+          item = item.substring("uses:".length).trim();
+        } else if (item.startsWith("path:")) {
+          item = item.substring("path:".length).trim();
+        }
         // Remove quotes if present
         item = item.replace(/^["']|["']$/g, "");
         if (item) {
@@ -597,7 +605,19 @@ async function resolveRemoteSymlinks(github, owner, repo, filePath, ref, symlink
   // filesystem view independently. If the resolved path also contains a
   // symlink, fetchFile will re-invoke resolveRemoteSymlinks via another 404
   // retry (bounded by MAX_SYMLINK_DEPTH).
-  for (let i = 1; i < parts.length; i++) {
+  //
+  // Skip well-known non-symlink prefix components to avoid spurious API calls:
+  //   - ".github" alone is never a symlink
+  //   - ".github/workflows" is a reserved GitHub Actions directory and never a symlink
+  // Starting at a higher index reduces unnecessary probes when a path 404s for unrelated
+  // reasons (e.g. malformed nested import resolution that produces double directory names).
+  let startIndex = 1;
+  if (filePath.startsWith(".github/workflows/")) {
+    startIndex = 3; // Skip ".github" and ".github/workflows" components
+  } else if (filePath.startsWith(".github/")) {
+    startIndex = 2; // Skip ".github" component; still check e.g. ".github/agents"
+  }
+  for (let i = startIndex; i < parts.length; i++) {
     const dirPath = parts.slice(0, i).join("/");
     const target = await checkRemoteSymlink(github, owner, repo, dirPath, ref, symlinkLookupCache);
     if (target === null) {

@@ -237,15 +237,14 @@ func TestProbeCopilotBillingForOrgWithClient(t *testing.T) {
 			},
 		},
 		{
-			name: "200 with unknown cli value → not-available label with that value, disabled",
+			name: "200 with unknown cli value → info note, not disabled",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(map[string]any{"cli": "unconfigured"})
 			},
 			wantProbe: orgCopilotBillingProbeResult{
 				BillingStatus: "unconfigured",
-				LabelSuffix:   " [not available — org Copilot CLI billing: unconfigured]",
-				Disabled:      true,
+				InfoNote:      copilotBillingInconclusiveNote,
 			},
 		},
 		{

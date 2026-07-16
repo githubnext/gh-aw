@@ -55,6 +55,10 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 
 	// Step 8b: Optionally merge the PR – loop until merged, confirmed-merged, or user exits
 	if result.PRNumber == 0 {
+		if result.PRURL == "" {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Requested workflow files already exist locally; no pull request was created."))
+			return nil
+		}
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not determine PR number"))
 		fmt.Fprintln(os.Stderr, "Please merge the PR manually from the GitHub web interface.")
 	} else {
