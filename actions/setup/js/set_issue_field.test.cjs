@@ -90,7 +90,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     });
 
     const { main } = require("./set_issue_field.cjs");
-    handler = await main({ max: 5 });
+    handler = await main({ max: 5, issue_intent: true });
   });
 
   it("should return a function from main()", async () => {
@@ -475,7 +475,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("No issue fields were discovered"));
   });
 
-  it("should send the GraphQL-Features header even without optional intent metadata", async () => {
+  it("should set issue field without optional intent metadata", async () => {
     const result = await handler(
       {
         type: "set_issue_field",
@@ -491,14 +491,13 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
       expect.stringContaining("setIssueFieldValue"),
       expect.objectContaining({
         issueFields: [expect.objectContaining({ fieldId: textFieldId, textValue: "High" })],
-        headers: { "GraphQL-Features": "update_issue_suggestions" },
       })
     );
   });
 
   it("should include issue intent metadata without requiring a runtime feature", async () => {
     const { main } = require("./set_issue_field.cjs");
-    const featureHandler = await main({ max: 5 });
+    const featureHandler = await main({ max: 5, issue_intent: true });
 
     const result = await featureHandler(
       {
@@ -526,8 +525,33 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
             suggest: true,
           }),
         ],
-        headers: { "GraphQL-Features": "update_issue_suggestions" },
       })
     );
+  });
+
+  it("should omit intent metadata when issue_intent is disabled", async () => {
+    const { main } = require("./set_issue_field.cjs");
+    const handlerWithoutIntent = await main({ max: 5, issue_intent: false });
+
+    const result = await handlerWithoutIntent(
+      {
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "Customer Impact",
+        value: "High",
+        rationale: "should be ignored",
+        confidence: "HIGH",
+        suggest: true,
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+    const mutationCall = mockGraphql.mock.calls.find(([query]) => query.includes("setIssueFieldValue"));
+    expect(mutationCall).toBeTruthy();
+    expect(mutationCall[1].issueFields[0]).toEqual(expect.objectContaining({ fieldId: textFieldId, textValue: "High" }));
+    expect(mutationCall[1].issueFields[0]).not.toHaveProperty("rationale");
+    expect(mutationCall[1].issueFields[0]).not.toHaveProperty("confidence");
+    expect(mutationCall[1].issueFields[0]).not.toHaveProperty("suggest");
   });
 });

@@ -91,7 +91,7 @@ interface CloseDiscussionItem extends BaseSafeOutputItem {
 /**
  * JSONL item for closing a GitHub issue
  */
-interface CloseIssueItem extends BaseSafeOutputItem {
+interface CloseIssueItem extends BaseSafeOutputItem, IssueIntentMetadata {
   type: "close_issue";
   /** Comment body to add when closing the issue */
   body: string;
@@ -368,7 +368,7 @@ interface SetIssueFieldItem extends BaseSafeOutputItem, IssueIntentMetadata {
 /**
  * JSONL item for assigning a GitHub Copilot coding agent to an issue or project item
  */
-interface AssignToAgentItem extends BaseSafeOutputItem {
+interface AssignToAgentItem extends BaseSafeOutputItem, IssueIntentMetadata {
   type: "assign_to_agent";
   /** Issue number to assign agent to */
   issue_number: number | string;
