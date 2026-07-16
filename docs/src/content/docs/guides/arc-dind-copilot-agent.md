@@ -143,8 +143,12 @@ Pass `--rootless` to `install_copilot_cli.sh` in your `copilot-setup-steps` to i
 copilot-setup-steps:
   runs-on: arc-runner-set
   steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      with:
+        repository: github/gh-aw
+        path: gh-aw
     - name: Install Copilot CLI (rootless)
-      run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" --rootless
+      run: bash "${GITHUB_WORKSPACE}/gh-aw/actions/setup/sh/install_copilot_cli.sh" --rootless
       env:
         GH_HOST: github.com
 ```
