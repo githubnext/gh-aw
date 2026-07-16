@@ -48,6 +48,7 @@ Sources use the same syntax as '` + string(constants.CLIExtensionPrefix) + ` add
 				return fmt.Errorf("--repo is required. Example: %s --repo github/gh-aw\n\nRun '%s --help' for usage information", cmd.CommandPath(), cmd.CommandPath())
 			}
 
+			bootstrapLog.Printf("Bootstrap command invoked: repo=%s, createRepo=%t, planOnly=%t, noCompile=%t, sources=%d", repo, createRepo, planOnly, noCompile, len(args))
 			return RunBootstrap(BootstrapOptions{
 				Ctx:              cmd.Context(),
 				Repo:             repo,

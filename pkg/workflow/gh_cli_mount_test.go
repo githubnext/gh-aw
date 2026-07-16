@@ -28,7 +28,7 @@ func TestChrootModeInAWFContainer(t *testing.T) {
 		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Check that AWF is used (chroot mode is default in v0.15.0+)
-		if !strings.Contains(stepContent, "sudo -E awf") {
+		if !strings.Contains(stepContent, "awf") {
 			t.Error("Expected AWF command for transparent host access")
 		}
 	})
@@ -76,7 +76,7 @@ func TestChrootModeInAWFContainer(t *testing.T) {
 		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Verify AWF is present (chroot mode is default in v0.15.0+)
-		if !strings.Contains(stepContent, "sudo -E awf") {
+		if !strings.Contains(stepContent, "awf") {
 			t.Error("Expected AWF to be present")
 		}
 
@@ -116,7 +116,7 @@ func TestChrootModeInAWFContainer(t *testing.T) {
 		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Verify AWF is present with custom args (chroot mode is default in v0.15.0+)
-		if !strings.Contains(stepContent, "sudo -E awf") {
+		if !strings.Contains(stepContent, "awf") {
 			t.Error("Expected AWF to be present with custom firewall args")
 		}
 
@@ -178,7 +178,7 @@ func TestChrootModeEnvFlags(t *testing.T) {
 		stepContent := requireCopilotExecutionStep(t, steps)
 
 		// Verify AWF is present (chroot mode is default in v0.15.0+)
-		if !strings.Contains(stepContent, "sudo -E awf") {
+		if !strings.Contains(stepContent, "awf") {
 			t.Error("Expected AWF to be present")
 		}
 

@@ -196,3 +196,11 @@ func validateEvals(cfg *EvalsConfig) error {
 	}
 	return nil
 }
+
+// ParseEvalsFromFrontmatter extracts and validates the evals configuration from the
+// raw frontmatter map. Returns nil when the evals field is absent or invalid.
+// This is a public standalone convenience wrapper around the compiler method.
+func ParseEvalsFromFrontmatter(frontmatter map[string]any) (*EvalsConfig, error) {
+	var c Compiler
+	return c.parseEvalsFromFrontmatter(frontmatter)
+}

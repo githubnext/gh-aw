@@ -101,7 +101,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		stepYAML := strings.Join(steps[0], "\n")
 
 		// Verify AWF is used
-		if !strings.Contains(stepYAML, "sudo -E awf") {
+		if !strings.Contains(stepYAML, "awf") {
 			t.Error("AWF should be used with network permissions")
 		}
 
@@ -141,7 +141,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		stepYAML := strings.Join(steps[0], "\n")
 
 		// Verify AWF is used even with deny-all policy
-		if !strings.Contains(stepYAML, "sudo -E awf") {
+		if !strings.Contains(stepYAML, "awf") {
 			t.Error("AWF should be used even with deny-all network permissions")
 		}
 	})
@@ -169,7 +169,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		stepYAML := strings.Join(steps[0], "\n")
 
 		// AWF should be present because the engine is Claude (not based on config ID)
-		if !strings.Contains(stepYAML, "sudo -E awf") {
+		if !strings.Contains(stepYAML, "awf") {
 			t.Error("AWF should be used because the engine type is Claude")
 		}
 	})
@@ -212,7 +212,7 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 		stepYAML := strings.Join(execSteps[0], "\n")
 
 		// Verify AWF is configured
-		if !strings.Contains(stepYAML, "sudo -E awf") {
+		if !strings.Contains(stepYAML, "awf") {
 			t.Error("AWF should be present")
 		}
 

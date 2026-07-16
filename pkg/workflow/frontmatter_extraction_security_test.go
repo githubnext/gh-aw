@@ -78,6 +78,42 @@ func TestExtractAgentSandboxConfigSudo(t *testing.T) {
 	})
 }
 
+func TestExtractAgentSandboxConfigLegacySecurity(t *testing.T) {
+	compiler := &Compiler{}
+
+	t.Run("extracts sandbox.agent.legacy-security: enable", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id":              "awf",
+			"legacy-security": "enable",
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.True(t, config.LegacySecurity, "legacy-security: enable should set LegacySecurity=true")
+	})
+
+	t.Run("ignores invalid legacy-security value", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id":              "awf",
+			"legacy-security": "disable",
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.False(t, config.LegacySecurity, "legacy-security: disable should not set LegacySecurity")
+	})
+
+	t.Run("legacy-security omitted defaults to false (strict mode)", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id": "awf",
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.False(t, config.LegacySecurity, "omitting legacy-security should default to strict mode (LegacySecurity=false)")
+	})
+}
+
 func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {
 	compiler := &Compiler{}
 

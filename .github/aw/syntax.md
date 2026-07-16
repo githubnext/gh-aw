@@ -13,6 +13,7 @@ Use the smallest relevant reference instead of loading one large schema file.
 | Cache configuration, tools, imports, and permission patterns | [syntax-tools-imports.md](syntax-tools-imports.md) |
 | `skills` field | [skills.md](skills.md) |
 | `lsp` field | [lsp.md](lsp.md) |
+| `evals` field (BinEval binary evaluations) | [evals.md](evals.md) |
 
 ## Usage Guidance
 
