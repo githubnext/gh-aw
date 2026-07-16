@@ -327,7 +327,10 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
             handlerConfig._prReviewBufferRegistry = prReviewBufferRegistry;
           }
 
-          const handlerGithubClient = handlerConfig["github-token"] && typeof global.getOctokit === "function" ? global.getOctokit(handlerConfig["github-token"]) : null;
+          let handlerGithubClient = null;
+          if (handlerConfig["github-token"] && typeof global.getOctokit === "function") {
+            handlerGithubClient = global.getOctokit(handlerConfig["github-token"]);
+          }
           const messageHandler = await handlerModule.main(handlerConfig, handlerGithubClient);
 
           if (typeof messageHandler !== "function") {

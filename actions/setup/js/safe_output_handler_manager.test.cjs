@@ -360,6 +360,7 @@ describe("Safe Output Handler Manager", () => {
 
       const updateProjectModule = require("./update_project.cjs");
       const updateProjectMainSpy = vi.spyOn(updateProjectModule, "main").mockImplementation(async () => async () => {
+        // outer function: handler factory at loadHandlers() time; inner function: message handler at processMessages() time
         seenGithub = global.github;
         return { success: true };
       });
