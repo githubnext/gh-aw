@@ -53,6 +53,8 @@ func getSafeOutputsHeadRepoSlug(safeOutputs *SafeOutputsConfig) string {
 // headRepoNameFromSlug extracts the repository name (without owner) from an "owner/repo"
 // slug for use as the fallback repositories value in app token minting.
 // Returns an empty string when the slug is absent, cannot be parsed, or contains an expression.
+// The expression guard uses "${{" as a conservative prefix; standard GitHub Actions expressions
+// always begin with exactly this prefix so this check is sufficient in practice.
 func headRepoNameFromSlug(slug string) string {
 	if slug == "" {
 		return ""
