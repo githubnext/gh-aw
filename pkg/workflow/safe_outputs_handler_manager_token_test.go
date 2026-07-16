@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"encoding/json"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -346,6 +348,15 @@ func TestHandlerManagerProjectGitHubTokenEnvVar(t *testing.T) {
 // github-script client token remains sourced from safe-outputs.github-token regardless of which
 // safe-output handler is configured alongside project-specific token settings.
 func TestHandlerManagerGitHubTokenIsolationAcrossSafeOutputHandlers(t *testing.T) {
+	const safeOutputsToken = "${{ secrets.SAFE_OUTPUTS_TOKEN }}"
+	const handlerToken = "${{ secrets.HANDLER_TOKEN }}"
+
+	projectHandlers := map[string]bool{
+		"update_project":               true,
+		"create_project_status_update": true,
+		"create_project":               true,
+	}
+
 	handlerNames := make([]string, 0, len(handlerRegistry))
 	for handlerName := range handlerRegistry {
 		handlerNames = append(handlerNames, handlerName)
@@ -354,43 +365,125 @@ func TestHandlerManagerGitHubTokenIsolationAcrossSafeOutputHandlers(t *testing.T
 
 	for _, handlerName := range handlerNames {
 		t.Run(handlerName, func(t *testing.T) {
-			safeOutputs := map[string]any{
-				"github-token": "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
-				"update-project": map[string]any{
-					"github-token": "${{ secrets.PROJECTS_PAT }}",
-					"project":      "https://github.com/orgs/myorg/projects/1",
-				},
+			safeOutputs := &SafeOutputsConfig{
+				GitHubToken: safeOutputsToken,
 			}
-
-			safeOutputKey := strings.ReplaceAll(handlerName, "_", "-")
-			if safeOutputKey != "update-project" {
-				safeOutputs[safeOutputKey] = map[string]any{}
-			}
-
-			frontmatter := map[string]any{
-				"name":         "Test Workflow",
-				"safe-outputs": safeOutputs,
-			}
+			enableHandlerForIsolationTest(t, safeOutputs, handlerName, handlerToken)
 
 			compiler := NewCompiler()
 			workflowData := &WorkflowData{
 				Name:        "test-workflow",
-				SafeOutputs: compiler.extractSafeOutputsConfig(frontmatter),
+				SafeOutputs: safeOutputs,
 			}
 
 			steps, err := compiler.buildHandlerManagerStep(workflowData)
 			require.NoError(t, err)
 
 			yamlStr := strings.Join(steps, "")
-			handlerConfigKey := "\\\"" + handlerName + "\\\":"
-			if !strings.Contains(yamlStr, handlerConfigKey) {
-				t.Skipf("handler %q not materialized from minimal config; skipping isolation assertions", handlerName)
-			}
-			assert.Contains(t, yamlStr, "github-token: ${{ secrets.SAFE_OUTPUTS_TOKEN }}")
-			assert.NotContains(t, yamlStr, "github-token: ${{ secrets.PROJECTS_PAT }}")
-			if handlerName == "update_project" {
-				assert.Contains(t, yamlStr, "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.PROJECTS_PAT }}")
+			handlerConfig := extractHandlerManagerConfigFromYAML(t, yamlStr)
+			_, ok := handlerConfig[handlerName]
+			assert.True(t, ok, "expected handler %q to be present in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG", handlerName)
+
+			assert.Contains(t, yamlStr, "github-token: "+safeOutputsToken)
+			assert.NotContains(t, yamlStr, "github-token: "+handlerToken)
+			if projectHandlers[handlerName] {
+				assert.Contains(t, yamlStr, "GH_AW_PROJECT_GITHUB_TOKEN: "+handlerToken)
+			} else {
+				assert.NotContains(t, yamlStr, "GH_AW_PROJECT_GITHUB_TOKEN:")
 			}
 		})
 	}
+}
+
+func enableHandlerForIsolationTest(t *testing.T, safeOutputs *SafeOutputsConfig, handlerName, token string) {
+	t.Helper()
+
+	switch handlerName {
+	case "dispatch_repository":
+		safeOutputs.DispatchRepository = &DispatchRepositoryConfig{
+			Tools: map[string]*DispatchRepositoryToolConfig{
+				"default": {
+					Workflow:    "safe-outputs-dispatch",
+					EventType:   "safe-outputs-dispatch",
+					Repository:  "github/gh-aw",
+					Max:         strPtr("1"),
+					GitHubToken: token,
+				},
+			},
+		}
+		return
+	case "create_report_incomplete_issue":
+		safeOutputs.ReportIncomplete = &ReportIncompleteConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Max:         strPtr("1"),
+				GitHubToken: token,
+			},
+		}
+		return
+	}
+
+	configValue := reflect.ValueOf(safeOutputs).Elem()
+	configType := configValue.Type()
+
+	for i := range configType.NumField() {
+		field := configType.Field(i)
+		yamlTag := strings.Split(field.Tag.Get("yaml"), ",")[0]
+		if yamlTag == "" || yamlTag == "-" {
+			continue
+		}
+		if strings.ReplaceAll(yamlTag, "-", "_") != handlerName {
+			continue
+		}
+
+		require.Equal(t, reflect.Pointer, field.Type.Kind(), "handler field %s must be a pointer type", field.Name)
+		handlerValue := reflect.New(field.Type.Elem())
+		initializeHandlerConfigForIsolationTest(handlerValue.Elem(), token)
+		configValue.Field(i).Set(handlerValue)
+		return
+	}
+
+	require.Failf(t, "missing handler field", "no SafeOutputsConfig field found for handler %q", handlerName)
+}
+
+func initializeHandlerConfigForIsolationTest(handlerStruct reflect.Value, token string) {
+	baseField := handlerStruct.FieldByName("BaseSafeOutputConfig")
+	if baseField.IsValid() {
+		if maxField := baseField.FieldByName("Max"); maxField.IsValid() && maxField.CanSet() {
+			maxField.Set(reflect.ValueOf(strPtr("1")))
+		}
+		if tokenField := baseField.FieldByName("GitHubToken"); tokenField.IsValid() && tokenField.CanSet() {
+			tokenField.SetString(token)
+		}
+	}
+	if tokenField := handlerStruct.FieldByName("GitHubToken"); tokenField.IsValid() && tokenField.CanSet() && tokenField.Kind() == reflect.String {
+		tokenField.SetString(token)
+	}
+
+	// project URL is required for update-project and create-project-status-update
+	if projectField := handlerStruct.FieldByName("Project"); projectField.IsValid() && projectField.CanSet() && projectField.Kind() == reflect.String {
+		projectField.SetString("https://github.com/orgs/myorg/projects/1")
+	}
+}
+
+func extractHandlerManagerConfigFromYAML(t *testing.T, yamlStr string) map[string]map[string]any {
+	t.Helper()
+
+	const prefix = "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "
+	for line := range strings.SplitSeq(yamlStr, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, prefix) {
+			continue
+		}
+
+		configJSON := strings.TrimPrefix(trimmed, prefix)
+		configJSON = strings.Trim(configJSON, "\"")
+		configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
+
+		var config map[string]map[string]any
+		require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "handler config JSON should be valid")
+		return config
+	}
+
+	require.Fail(t, "missing GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG in compiled YAML")
+	return nil
 }
