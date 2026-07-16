@@ -2016,9 +2016,10 @@ func TestGeminiEngineIncludesGeminiAPITarget(t *testing.T) {
 
 func TestBuildAWFImageTagWithDigests(t *testing.T) {
 	t.Run("includes digest metadata for known firewall images", func(t *testing.T) {
-		tag := buildAWFImageTagWithDigests("0.25.28", nil)
+		imageTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+		tag := buildAWFImageTagWithDigests(imageTag, nil)
 
-		assert.Contains(t, tag, "0.25.28", "should keep original AWF tag")
+		assert.Contains(t, tag, imageTag, "should keep original AWF tag")
 		assert.Contains(t, tag, "squid=sha256:", "should include squid digest metadata")
 		assert.Contains(t, tag, "agent=sha256:", "should include agent digest metadata")
 		assert.Contains(t, tag, "api-proxy=sha256:", "should include api-proxy digest metadata")
@@ -2037,7 +2038,12 @@ func TestBuildAWFImageTagWithDigests(t *testing.T) {
 		}
 		tag := buildAWFImageTagWithDigests(imageTag, workflowData)
 
-		assert.Contains(t, tag, "build-tools=sha256:", "should include build-tools digest metadata for arc-dind topology")
+		buildToolsImage := constants.DefaultFirewallRegistry + "/build-tools:" + imageTag
+		if _, ok := getEmbeddedContainerPin(buildToolsImage); ok {
+			assert.Contains(t, tag, "build-tools=sha256:", "should include build-tools digest metadata for arc-dind topology when embedded pin exists")
+		} else {
+			assert.NotContains(t, tag, "build-tools=sha256:", "should not include build-tools digest metadata when embedded pin is unavailable")
+		}
 	})
 
 	t.Run("excludes build-tools digest without arc-dind topology", func(t *testing.T) {
@@ -2049,15 +2055,15 @@ func TestBuildAWFImageTagWithDigests(t *testing.T) {
 }
 
 func TestBuildAWFArgs_ImageTagIncludesDigests(t *testing.T) {
-	// Use a version that has embedded container pins so we can verify digest metadata
-	// is included in the AWF config JSON. Version 0.25.29 has full embedded pins.
+	// Use the default pinned firewall version so digest metadata is included.
+	imageTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
 	config := AWFCommandConfig{
 		EngineName:     "copilot",
 		AllowedDomains: "github.com",
 		WorkflowData: &WorkflowData{
 			EngineConfig: &EngineConfig{ID: "copilot"},
 			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{Enabled: true, Version: "0.25.29"},
+				Firewall: &FirewallConfig{Enabled: true, Version: imageTag},
 			},
 		},
 	}
