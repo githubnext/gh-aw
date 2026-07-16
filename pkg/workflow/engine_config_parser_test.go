@@ -48,6 +48,7 @@ func TestParseIntOrExpressionValues(t *testing.T) {
 		{name: "max-turns trims whitespace", parse: parseMaxTurnsValue, raw: " 3 ", expected: "3"},
 		{name: "non-negative accepts zero", parse: parseHarnessMaxRetriesValue, raw: 0, expected: "0"},
 		{name: "non-negative accepts expression", parse: parseHarnessMaxRetriesValue, raw: "${{ inputs.max_retries }}", expected: "${{ inputs.max_retries }}"},
+		{name: "non-negative trims whitespace", parse: parseHarnessMaxRetriesValue, raw: " 2 ", expected: "2"},
 		{name: "max-tool-denials rejects zero", parse: parseMaxToolDenialsValue, raw: "0", expected: ""},
 		{name: "max-tool-denials accepts expression", parse: parseMaxToolDenialsValue, raw: "${{ inputs.max_tool_denials }}", expected: "${{ inputs.max_tool_denials }}"},
 	}
