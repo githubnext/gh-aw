@@ -203,6 +203,88 @@ func TestEmitExperimentalFeatureWarningsGHAWDetection(t *testing.T) {
 	}
 }
 
+func TestEmitExperimentalFeatureWarningsClaudeModelProvider(t *testing.T) {
+	tests := []struct {
+		name          string
+		engineConfig  *EngineConfig
+		expectWarning bool
+	}{
+		{
+			name: "claude engine with github model-provider produces experimental warning",
+			engineConfig: &EngineConfig{
+				ID:          "claude",
+				LLMProvider: "github",
+			},
+			expectWarning: true,
+		},
+		{
+			name: "claude engine with anthropic model-provider does not produce experimental warning",
+			engineConfig: &EngineConfig{
+				ID:          "claude",
+				LLMProvider: "anthropic",
+			},
+			expectWarning: false,
+		},
+		{
+			name: "claude engine with no model-provider does not produce experimental warning",
+			engineConfig: &EngineConfig{
+				ID: "claude",
+			},
+			expectWarning: false,
+		},
+		{
+			name: "non-claude engine with github model-provider does not produce experimental warning",
+			engineConfig: &EngineConfig{
+				ID:          "copilot",
+				LLMProvider: "github",
+			},
+			expectWarning: false,
+		},
+		{
+			name:          "nil engine config does not produce experimental warning",
+			engineConfig:  nil,
+			expectWarning: false,
+		},
+	}
+
+	expectedMessage := "Using experimental feature: claude engine.model-provider"
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				EngineConfig: tt.engineConfig,
+			}
+
+			oldStderr := os.Stderr
+			r, w, err := os.Pipe()
+			require.NoError(t, err)
+			os.Stderr = w
+			t.Cleanup(func() {
+				os.Stderr = oldStderr
+				_ = w.Close()
+				_ = r.Close()
+			})
+
+			compiler.emitExperimentalFeatureWarnings(workflowData)
+
+			require.NoError(t, w.Close())
+			os.Stderr = oldStderr
+			var buf bytes.Buffer
+			_, err = io.Copy(&buf, r)
+			require.NoError(t, err)
+			stderrOutput := buf.String()
+
+			if tt.expectWarning {
+				assert.Contains(t, stderrOutput, expectedMessage)
+				assert.Positive(t, compiler.GetWarningCount())
+			} else {
+				assert.NotContains(t, stderrOutput, expectedMessage)
+				assert.Zero(t, compiler.GetWarningCount())
+			}
+		})
+	}
+}
+
 // TestValidatePermissions tests permission parsing and MCP tool constraint validation.
 func TestValidatePermissions(t *testing.T) {
 	tests := []struct {
