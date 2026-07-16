@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -20,6 +21,16 @@ import (
 )
 
 var engineSecretsLog = logger.New("cli:engine_secrets")
+
+// Overridable for testing
+var (
+	engineSecretsPromptFn = func(req SecretRequirement, config EngineSecretConfig) error {
+		return promptForSecret(req, config)
+	}
+	engineSecretsUploadFn = func(secretName, secretValue, repoSlug string, verbose bool, overwriteExisting bool) error {
+		return uploadSecretToRepo(secretName, secretValue, repoSlug, verbose, overwriteExisting)
+	}
+)
 
 // promptCancelled handles graceful cancellation of an interactive prompt.
 // It prints "Cancelled." to stderr and returns an ExitCodeError with code 130.
@@ -53,6 +64,8 @@ type EngineSecretConfig struct {
 	Verbose bool
 	// ExistingSecrets is a map of secret names that already exist in the repository
 	ExistingSecrets map[string]struct{}
+	// OverwriteExistingSecret forces uploads to replace an existing repository secret value.
+	OverwriteExistingSecret bool
 	// IncludeSystemSecrets includes system-level secrets like GH_AW_GITHUB_TOKEN
 	IncludeSystemSecrets bool
 	// IncludeOptional includes optional secrets in the requirements list
@@ -225,6 +238,13 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 
 	// Check if secret already exists in the repository
 	if setutil.Contains(config.ExistingSecrets, req.Name) {
+		if mustValidateExistingSecretValue(req) {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(req.Name+" already exists, but GitHub does not expose stored secret values for validation."))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Paste the current or replacement fine-grained PAT so gh aw can validate it and update the repository secret."))
+			revalidateConfig := config
+			revalidateConfig.OverwriteExistingSecret = true
+			return engineSecretsPromptFn(req, revalidateConfig)
+		}
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Using existing %s secret in repository", req.Name)))
 		return nil
 	}
@@ -232,6 +252,13 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 	// Check alternative secret names in repository
 	for _, alt := range req.AlternativeEnvVars {
 		if setutil.Contains(config.ExistingSecrets, alt) {
+			if mustValidateExistingSecretValue(req) {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(alt+" already exists in the repository, but GitHub does not expose stored secret values for validation."))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Paste the current or replacement fine-grained PAT so gh aw can validate it and store it as %s.", req.Name)))
+				revalidateConfig := config
+				revalidateConfig.OverwriteExistingSecret = true
+				return engineSecretsPromptFn(req, revalidateConfig)
+			}
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Using existing %s secret in repository (alternative for %s)", alt, req.Name)))
 			return nil
 		}
@@ -261,7 +288,7 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found valid %s in environment", req.Name)))
 				// Upload to repository if we have a repo slug
 				if config.RepoSlug != "" {
-					return uploadSecretToRepo(req.Name, envValue, config.RepoSlug, config.Verbose)
+					return engineSecretsUploadFn(req.Name, envValue, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
 				}
 				return nil
 			}
@@ -269,14 +296,14 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %s in environment", req.Name)))
 			// Upload to repository if we have a repo slug
 			if config.RepoSlug != "" {
-				return uploadSecretToRepo(req.Name, envValue, config.RepoSlug, config.Verbose)
+				return engineSecretsUploadFn(req.Name, envValue, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
 			}
 			return nil
 		}
 	}
 
 	// Secret not found, prompt user for it
-	return promptForSecret(req, config)
+	return engineSecretsPromptFn(req, config)
 }
 
 // promptForSecret prompts the user to provide a secret value
@@ -296,31 +323,54 @@ func promptForSecret(req SecretRequirement, config EngineSecretConfig) error {
 	return promptForGenericAPIKeyUnified(req, config)
 }
 
+func mustValidateExistingSecretValue(req SecretRequirement) bool {
+	return req.IsEngineSecret && req.EngineName == string(constants.CopilotEngine)
+}
+
 // promptForCopilotPATUnified prompts the user for a Copilot PAT with detailed instructions
 func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig) error {
+	preconfiguredPATURL := buildCopilotPATCreationURL()
+
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "GitHub Copilot requires a fine-grained Personal Access Token (PAT) with 'Copilot requests' permissions.")
+	fmt.Fprintln(os.Stderr, "Create a fine-grained Personal Access Token (PAT) from the preconfigured page below, then paste it back here.")
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Please create a token at:")
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  "+req.KeyURL))
+	fmt.Fprintln(os.Stderr, "Preconfigured token creation page:")
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  "+preconfiguredPATURL))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Configure the token with:")
-	fmt.Fprintln(os.Stderr, "  • Token name: Agentic Workflows Copilot")
-	fmt.Fprintln(os.Stderr, "  • Expiration: 90 days (recommended for testing)")
-	fmt.Fprintln(os.Stderr, "  • Resource owner: Your personal account")
-	fmt.Fprintln(os.Stderr, "  • Repository access: \"Public repositories\" (you must use this setting for Copilot Requests permission to appear)")
-	fmt.Fprintln(os.Stderr, "  • Add permissions → Copilot Requests: Read-only")
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "If you run into trouble see https://github.github.com/gh-aw/reference/auth/#copilot_github_token.")
+
+	openBrowser := true
+	confirmForm := console.NewConfirmForm(
+		huh.NewConfirm().
+			Title("Open the preconfigured token creation page in your browser now?").
+			Affirmative("Yes, open browser").
+			Negative("No, I'll use the URL above").
+			Value(&openBrowser),
+	)
+	if err := confirmForm.RunWithContext(config.ctx()); err != nil {
+		if console.IsCancelled(err) {
+			return promptCancelled()
+		}
+		// Non-interactive: skip the consent gate and fall through to token input
+	} else if openBrowser {
+		if openBootstrapBrowser(preconfiguredPATURL) {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Opened the preconfigured Copilot PAT page in your browser."))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Couldn't open your browser automatically (no supported opener found) — open the URL above manually."))
+		}
+	}
 
 	var token string
 	form := console.NewInputForm(
 		huh.NewInput().
-			Title("After creating, please paste your fine-grained Copilot PAT:").
-			Description("Must start with 'github_pat_'. Classic PATs (ghp_...) are not supported.").
+			Title("Paste an existing or newly created fine-grained Copilot PAT:").
+			Description("The page only prefills the token form. You still need to complete token creation in GitHub. Resource owner and repository access require manual selection in the browser. A reusable token must be a fine-grained PAT for your personal account with repository access set to Public repositories and Copilot Requests permission available. Do not rely on the PAT display name alone in GitHub's token list. Copy the token you want to use from GitHub, paste it into this hidden field, then press Enter. Must start with 'github_pat_'. Classic PATs (ghp_...) are not supported. Help: https://github.github.com/gh-aw/reference/auth/#copilot_github_token.").
 			EchoMode(huh.EchoModePassword).
 			Value(&token).
 			Validate(func(s string) error {
+				s = strings.TrimSpace(s)
+				if s == "" {
+					return errors.New("token is required")
+				}
 				if len(s) < 10 {
 					return errors.New("token appears to be too short")
 				}
@@ -335,14 +385,24 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 		return fmt.Errorf("failed to get Copilot token: %w", err)
 	}
 
+	token = strings.TrimSpace(token)
+
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Valid fine-grained Copilot token received"))
 
 	// Upload to repository if we have a repo slug
 	if config.RepoSlug != "" {
-		return uploadSecretToRepo(req.Name, token, config.RepoSlug, config.Verbose)
+		return uploadSecretToRepo(req.Name, token, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
 	}
 
 	return nil
+}
+
+func buildCopilotPATCreationURL() string {
+	const baseURL = "https://github.com/settings/personal-access-tokens/new"
+	values := url.Values{}
+	values.Set("name", constants.CopilotGitHubToken)
+	values.Set("user_copilot_requests", "read")
+	return baseURL + "?" + values.Encode()
 }
 
 // promptForSystemTokenUnified prompts the user for a system-level GitHub token (PAT)
@@ -386,7 +446,7 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 
 	// Upload to repository if we have a repo slug
 	if config.RepoSlug != "" {
-		return uploadSecretToRepo(req.Name, token, config.RepoSlug, config.Verbose)
+		return uploadSecretToRepo(req.Name, token, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
 	}
 
 	return nil
@@ -438,7 +498,7 @@ func promptForGenericAPIKeyUnified(req SecretRequirement, config EngineSecretCon
 
 	// Upload to repository if we have a repo slug
 	if config.RepoSlug != "" {
-		return uploadSecretToRepo(req.Name, apiKey, config.RepoSlug, config.Verbose)
+		return uploadSecretToRepo(req.Name, apiKey, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
 	}
 
 	return nil
@@ -465,17 +525,22 @@ func checkOptionalSecret(req SecretRequirement, config EngineSecretConfig) error
 	return errors.New("not configured")
 }
 
-// uploadSecretToRepo uploads a secret to the repository if it doesn't already exist
-func uploadSecretToRepo(secretName, secretValue, repoSlug string, verbose bool) error {
+// uploadSecretToRepo uploads a secret to the repository and can optionally replace an existing value.
+func uploadSecretToRepo(secretName, secretValue, repoSlug string, verbose bool, overwriteExisting bool) error {
 	engineSecretsLog.Printf("Uploading secret %s to %s", secretName, repoSlug)
 
 	// Check if secret already exists
 	output, err := workflow.RunGHCombined("Checking secrets...", "secret", "list", "--repo", repoSlug)
 	if err == nil && stringContainsSecretName(string(output), secretName) {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Secret %s already exists, skipping upload", secretName)))
+		if !overwriteExisting {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Secret %s already exists, skipping upload", secretName)))
+			}
+			return nil
 		}
-		return nil
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Secret %s already exists, replacing it with the validated value", secretName)))
+		}
 	}
 
 	// Upload the secret

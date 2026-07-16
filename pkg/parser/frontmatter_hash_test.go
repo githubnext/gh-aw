@@ -276,3 +276,28 @@ func TestFrontmatterHashInputSizeLimit(t *testing.T) {
 	require.Error(t, err, "Should return the same deterministic error on repeated calls")
 	require.EqualError(t, err, "frontmatter hash input exceeds 1048576 bytes after normalization")
 }
+
+func TestExtractImportsFromText_ObjectFormUsesImport(t *testing.T) {
+	// Object-form "uses:" imports must have their path extracted (not silently dropped).
+	frontmatterText := `imports:
+  - uses: ./serena.md
+    with:
+      languages: ["go"]
+  - shared/common.md`
+
+	result := extractImportsFromText(frontmatterText)
+	assert.Equal(t, []string{"./serena.md", "shared/common.md"}, result,
+		"Object-form uses: import path must be extracted alongside plain string imports")
+}
+
+func TestExtractImportsFromText_ObjectFormPathImport(t *testing.T) {
+	// Object-form "path:" imports must have their path extracted (not silently dropped).
+	frontmatterText := `imports:
+  - path: shared/tool.md
+    inputs:
+      key: value`
+
+	result := extractImportsFromText(frontmatterText)
+	assert.Equal(t, []string{"shared/tool.md"}, result,
+		"Object-form path: import path must be extracted")
+}

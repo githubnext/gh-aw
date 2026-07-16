@@ -142,7 +142,10 @@ func resolvePRCheckoutToken(safeOutputs *SafeOutputsConfig, checkoutMgr *Checkou
 		pushToPRBranchToken = safeOutputs.PushToPullRequestBranch.GitHubToken
 	}
 
-	// Per-config PAT tokens take highest precedence (overrides GitHub App)
+	// Per-config PAT tokens take highest precedence (overrides GitHub App).
+	// head-github-token is intentionally excluded: it is a fork-write credential
+	// scoped to head-repo only and must not be used for the shared checkout or
+	// upstream API calls.
 	perConfigToken := createPRToken
 	if perConfigToken == "" {
 		perConfigToken = pushToPRBranchToken
@@ -182,11 +185,17 @@ func resolvePRCheckoutTargetRepo(safeOutputs *SafeOutputsConfig) string {
 		return ""
 	}
 	if safeOutputs.CreatePullRequests != nil {
+		if repo := strings.TrimSpace(safeOutputs.CreatePullRequests.HeadRepoSlug); repo != "" && repo != "*" {
+			return repo
+		}
 		if repo := strings.TrimSpace(safeOutputs.CreatePullRequests.TargetRepoSlug); repo != "" && repo != "*" {
 			return repo
 		}
 	}
 	if safeOutputs.PushToPullRequestBranch != nil {
+		if repo := strings.TrimSpace(safeOutputs.PushToPullRequestBranch.HeadRepoSlug); repo != "" && repo != "*" {
+			return repo
+		}
 		if repo := strings.TrimSpace(safeOutputs.PushToPullRequestBranch.TargetRepoSlug); repo != "" && repo != "*" {
 			return repo
 		}
@@ -217,8 +226,14 @@ func resolveStaticCheckoutToken(safeOutputs *SafeOutputsConfig, checkoutMgr *Che
 		return getEffectiveSafeOutputGitHubToken("")
 	}
 
+	if safeOutputs.CreatePullRequests != nil && safeOutputs.CreatePullRequests.HeadGitHubToken != "" {
+		return getEffectiveSafeOutputGitHubToken(safeOutputs.CreatePullRequests.HeadGitHubToken)
+	}
 	if safeOutputs.CreatePullRequests != nil && safeOutputs.CreatePullRequests.GitHubToken != "" {
 		return getEffectiveSafeOutputGitHubToken(safeOutputs.CreatePullRequests.GitHubToken)
+	}
+	if safeOutputs.PushToPullRequestBranch != nil && safeOutputs.PushToPullRequestBranch.HeadGitHubToken != "" {
+		return getEffectiveSafeOutputGitHubToken(safeOutputs.PushToPullRequestBranch.HeadGitHubToken)
 	}
 	if safeOutputs.PushToPullRequestBranch != nil && safeOutputs.PushToPullRequestBranch.GitHubToken != "" {
 		return getEffectiveSafeOutputGitHubToken(safeOutputs.PushToPullRequestBranch.GitHubToken)

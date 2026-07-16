@@ -309,7 +309,7 @@ A recognized "magic" repository secret name used as the default fallback token f
 
 ### COPILOT_GITHUB_TOKEN
 
-A repository secret name used to authenticate Copilot inference with a specific user's fine-grained Personal Access Token (PAT). Required in personal repositories or when centralized organization billing is unavailable. The activation job validates that this token is not a GitHub OAuth token (`gho_` prefix) — OAuth tokens are rejected with an actionable error because they cannot be scoped to a specific repository. When `permissions: copilot-requests: write` is set in the workflow, this secret is ignored for inference and `GITHUB_TOKEN` is used instead. See [Authentication Reference](/gh-aw/reference/auth/#copilot_github_token).
+A repository secret name used to authenticate Copilot inference with a specific user's fine-grained Personal Access Token (PAT). Required in personal repositories or when centralized organization billing is unavailable. In `gh aw add-wizard`, the PAT setup flow auto-opens a preconfigured GitHub token creation page, but the token still must be created and confirmed in GitHub's browser UI. The activation job validates that this token is not a GitHub OAuth token (`gho_` prefix) — OAuth tokens are rejected with an actionable error because they cannot be scoped to a specific repository. When `permissions: copilot-requests: write` is set in the workflow, this secret is ignored for inference and `GITHUB_TOKEN` is used instead. See [Authentication Reference](/gh-aw/reference/auth/#copilot_github_token).
 
 ### Custom Safe Outputs
 

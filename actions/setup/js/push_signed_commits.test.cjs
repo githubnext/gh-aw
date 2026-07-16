@@ -2146,4 +2146,173 @@ describe("push_signed_commits integration tests", () => {
       expect(githubClient.graphql).not.toHaveBeenCalled();
     });
   });
+
+  // ──────────────────────────────────────────────────────
+  // Fork-backed push (pushRemoteUrl + pushToken)
+  // ──────────────────────────────────────────────────────
+
+  describe("fork-backed push via pushRemoteUrl", () => {
+    let forkBareDir;
+
+    beforeEach(() => {
+      forkBareDir = fs.mkdtempSync(path.join(os.tmpdir(), "push-signed-fork-"));
+      execGit(["init", "--bare"], { cwd: forkBareDir });
+      execGit(["symbolic-ref", "HEAD", "refs/heads/main"], { cwd: forkBareDir });
+      // Seed the fork with the same initial commit as origin so pushes have a common base
+      execGit(["push", forkBareDir, "main"], { cwd: workDir });
+    });
+
+    afterEach(() => {
+      cleanupDir(forkBareDir);
+    });
+
+    it("routes direct git push to the fork remote, not origin, when signedCommits=false", async () => {
+      const branchName = "fork/direct-push-branch";
+      execGit(["checkout", "-b", branchName], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "fork-file.txt"), "fork content\n");
+      execGit(["add", "fork-file.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add fork-file.txt"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      const headSha = await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: branchName,
+        baseRef: "origin/main",
+        cwd: workDir,
+        pushRemoteUrl: forkBareDir,
+        pushToken: "fake-token",
+        signedCommits: false,
+      });
+
+      // The returned SHA must be a valid 40-char OID
+      expect(headSha).toMatch(/^[0-9a-f]{40}$/i);
+
+      // The branch must exist on the fork bare repo
+      const forkRefs = execGit(["ls-remote", "--heads", forkBareDir, `refs/heads/${branchName}`], { cwd: workDir });
+      expect(forkRefs.stdout).toContain(branchName);
+
+      // The branch must NOT exist on origin (upstream)
+      const originRefs = execGit(["ls-remote", "--heads", bareDir, `refs/heads/${branchName}`], { cwd: workDir });
+      expect(originRefs.stdout).toBe("");
+
+      // GraphQL must not have been called (signedCommits=false)
+      expect(githubClient.graphql).not.toHaveBeenCalled();
+    });
+
+    it("routes git push fallback to the fork remote when GraphQL mutation fails", async () => {
+      const branchName = "fork/graphql-fallback-branch";
+      execGit(["checkout", "-b", branchName], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "fallback.txt"), "fallback content\n");
+      execGit(["add", "fallback.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add fallback.txt"], { cwd: workDir });
+
+      // Push the branch to the fork so ls-remote can probe its current tip
+      execGit(["push", forkBareDir, branchName], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient({ failWithError: new Error("GraphQL unavailable") });
+
+      const headSha = await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: branchName,
+        baseRef: "origin/main",
+        cwd: workDir,
+        pushRemoteUrl: forkBareDir,
+        pushToken: "fake-token",
+      });
+
+      expect(headSha).toMatch(/^[0-9a-f]{40}$/i);
+
+      // Branch must exist on the fork
+      const forkRefs = execGit(["ls-remote", "--heads", forkBareDir, `refs/heads/${branchName}`], { cwd: workDir });
+      expect(forkRefs.stdout).toContain(branchName);
+
+      // Branch must NOT exist on origin
+      const originRefs = execGit(["ls-remote", "--heads", bareDir, `refs/heads/${branchName}`], { cwd: workDir });
+      expect(originRefs.stdout).toBe("");
+    });
+
+    it("routes ls-remote probe to the fork so a new fork branch is detected as absent", async () => {
+      const branchName = "fork/ls-remote-probe-branch";
+      execGit(["checkout", "-b", branchName], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "probe.txt"), "probe content\n");
+      execGit(["add", "probe.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add probe.txt"], { cwd: workDir });
+
+      // The branch exists on origin but NOT on the fork bare repo.
+      // This means lsRemoteHeadOid should see no existing tip on the fork,
+      // which forces the GraphQL createRef path.
+      execGit(["push", "origin", branchName], { cwd: workDir });
+
+      const lsRemoteTargets = [];
+      const realExec = makeRealExec(workDir);
+      global.exec = {
+        getExecOutput: async (program, args, opts = {}) => {
+          if (program === "git" && args[0] === "ls-remote") {
+            lsRemoteTargets.push(args[1]);
+          }
+          return realExec.getExecOutput(program, args, opts);
+        },
+        exec: realExec.exec,
+      };
+
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: branchName,
+        baseRef: "origin/main",
+        cwd: workDir,
+        pushRemoteUrl: forkBareDir,
+        pushToken: "fake-token",
+      });
+
+      // Every ls-remote call must target the fork bare directory, not "origin"
+      expect(lsRemoteTargets.length).toBeGreaterThan(0);
+      for (const target of lsRemoteTargets) {
+        expect(target).toBe(forkBareDir);
+        expect(target).not.toBe("origin");
+      }
+    });
+
+    it("pushes a new orphan branch to the fork when baseRef is empty", async () => {
+      const branchName = "fork/orphan-branch";
+      execGit(["checkout", "--orphan", branchName], { cwd: workDir });
+      execGit(["reset", "--hard"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "orphan.txt"), "first commit\n");
+      execGit(["add", "orphan.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Orphan first commit"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      const headSha = await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: branchName,
+        baseRef: "",
+        cwd: workDir,
+        pushRemoteUrl: forkBareDir,
+        pushToken: "fake-token",
+      });
+
+      expect(headSha).toMatch(/^[0-9a-f]{40}$/i);
+
+      const forkRefs = execGit(["ls-remote", "--heads", forkBareDir, `refs/heads/${branchName}`], { cwd: workDir });
+      expect(forkRefs.stdout).toContain(branchName);
+
+      // Upstream must not receive the orphan branch
+      const originRefs = execGit(["ls-remote", "--heads", bareDir, `refs/heads/${branchName}`], { cwd: workDir });
+      expect(originRefs.stdout).toBe("");
+    });
+  });
 });
