@@ -235,19 +235,20 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 
 	branchName := experimentsBranchPrefix + config.ExperimentName
 
-	// Load experiment configs from the workflow frontmatter to enrich the statistical output
-	// with hypothesis text, analysis_type, min_samples, and guardrail thresholds.
+	// Load experiment configs and evals from the workflow frontmatter to enrich the statistical
+	// output with hypothesis text, analysis_type, min_samples, guardrail thresholds, and resolved
+	// eval metric questions.
 	// Config loading is best-effort: failures are silently ignored and analysis falls back to
 	// defaults (min_samples=20, equal expected proportions, no hypothesis displayed).
 	// This ensures the command remains functional even when the workflow .md file is absent
 	// (e.g., when analysing experiments from a remote repository without the workflow checked out).
-	var experimentConfigs map[string]*workflow.ExperimentConfig
+	var frontmatterResult experimentFrontmatterResult
 	if config.RepoOverride != "" {
-		experimentConfigs = loadRemoteExperimentConfigs(config.RepoOverride, config.ExperimentName)
+		frontmatterResult = loadRemoteExperimentConfigs(config.RepoOverride, config.ExperimentName)
 	} else {
-		experimentConfigs = loadLocalExperimentConfigs(config.ExperimentName)
+		frontmatterResult = loadLocalExperimentConfigs(config.ExperimentName)
 	}
-	experimentsLog.Printf("Loaded %d experiment config(s) for %s", len(experimentConfigs), config.ExperimentName)
+	experimentsLog.Printf("Loaded %d experiment config(s) for %s", len(frontmatterResult.ExperimentConfigs), config.ExperimentName)
 
 	var details *ExperimentDetails
 	var err error
@@ -264,7 +265,7 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 	}
 
 	// Compute statistical analyses for each named experiment.
-	details.Analyses = computeExperimentAnalyses(details.Experiments, experimentConfigs)
+	details.Analyses = computeExperimentAnalyses(details.Experiments, frontmatterResult.ExperimentConfigs, frontmatterResult.Evals)
 
 	if config.JSONOutput {
 		jsonBytes, err := json.MarshalIndent(details, "", "  ")
@@ -281,7 +282,8 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 
 // computeExperimentAnalyses computes statistical analyses for all named experiments.
 // configs maps experiment names to their configuration; values may be nil.
-func computeExperimentAnalyses(experiments []ExperimentVariantStats, configs map[string]*workflow.ExperimentConfig) []ExperimentAnalysis {
+// evals provides the eval definitions for resolving eval-backed metric references; may be nil.
+func computeExperimentAnalyses(experiments []ExperimentVariantStats, configs map[string]*workflow.ExperimentConfig, evals *workflow.EvalsConfig) []ExperimentAnalysis {
 	if len(experiments) == 0 {
 		return nil
 	}
@@ -291,22 +293,29 @@ func computeExperimentAnalyses(experiments []ExperimentVariantStats, configs map
 		if configs != nil {
 			cfg = configs[exp.Name]
 		}
-		analyses = append(analyses, computeExperimentAnalysis(exp, cfg))
+		analyses = append(analyses, computeExperimentAnalysis(exp, cfg, evals))
 	}
 	return analyses
 }
 
+// experimentFrontmatterResult holds both the experiment configs and evals config parsed
+// from a workflow's frontmatter.
+type experimentFrontmatterResult struct {
+	ExperimentConfigs map[string]*workflow.ExperimentConfig
+	Evals             *workflow.EvalsConfig
+}
+
 // loadLocalExperimentConfigs reads the workflow .md file for the given experiment name
-// and returns the ExperimentConfig map from its frontmatter.
+// and returns the ExperimentConfig map and EvalsConfig from its frontmatter.
 // experimentName is the sanitized workflow ID (the part after "experiments/" in the branch name).
-// Returns nil when the workflow file cannot be found or parsed.
-func loadLocalExperimentConfigs(experimentName string) map[string]*workflow.ExperimentConfig {
+// Returns a zero-value result when the workflow file cannot be found or parsed.
+func loadLocalExperimentConfigs(experimentName string) experimentFrontmatterResult {
 	experimentsLog.Printf("Loading local experiment configs for %s", experimentName)
 
 	filePath := findWorkflowFileForExperiment(experimentName)
 	if filePath == "" {
 		experimentsLog.Printf("No workflow file found for experiment %s", experimentName)
-		return nil
+		return experimentFrontmatterResult{}
 	}
 
 	// Verify that the resolved path is within .github/workflows/ to prevent path traversal.
@@ -315,43 +324,52 @@ func loadLocalExperimentConfigs(experimentName string) map[string]*workflow.Expe
 	absFilePath, err := filepath.Abs(filePath)
 	if err != nil {
 		experimentsLog.Printf("Failed to resolve absolute path for %s: %v", filePath, err)
-		return nil
+		return experimentFrontmatterResult{}
 	}
 	workflowsDir, err := filepath.Abs(getWorkflowsDir())
 	if err != nil {
 		experimentsLog.Printf("Failed to resolve workflows dir: %v", err)
-		return nil
+		return experimentFrontmatterResult{}
 	}
 	if !strings.HasPrefix(absFilePath, workflowsDir+string(filepath.Separator)) {
 		experimentsLog.Printf("Refusing to read workflow file outside .github/workflows/: %s", absFilePath)
-		return nil
+		return experimentFrontmatterResult{}
 	}
 
 	content, err := os.ReadFile(absFilePath) // #nosec G304 — path confirmed within .github/workflows/
 	if err != nil {
 		experimentsLog.Printf("Failed to read workflow file %s: %v", absFilePath, err)
-		return nil
+		return experimentFrontmatterResult{}
 	}
 
 	result, err := parser.ExtractFrontmatterFromContent(string(content))
 	if err != nil {
 		experimentsLog.Printf("Failed to parse frontmatter from %s: %v", filePath, err)
-		return nil
+		return experimentFrontmatterResult{}
 	}
 
 	cfg, err := workflow.ParseFrontmatterConfig(result.Frontmatter)
 	if err != nil {
 		experimentsLog.Printf("Failed to parse frontmatter config from %s: %v", filePath, err)
-		return nil
+		return experimentFrontmatterResult{}
 	}
 
-	return cfg.ExperimentConfigs
+	evals, err := workflow.ParseEvalsFromFrontmatter(result.Frontmatter)
+	if err != nil {
+		experimentsLog.Printf("Failed to parse evals config from %s: %v", filePath, err)
+		// Non-fatal: continue without evals resolution.
+	}
+
+	return experimentFrontmatterResult{
+		ExperimentConfigs: cfg.ExperimentConfigs,
+		Evals:             evals,
+	}
 }
 
 // loadRemoteExperimentConfigs fetches the workflow .md file from the repository default branch
-// via the GitHub API and returns the ExperimentConfig map from its frontmatter.
-// Returns nil when the file cannot be fetched or parsed.
-func loadRemoteExperimentConfigs(repoOverride, experimentName string) map[string]*workflow.ExperimentConfig {
+// via the GitHub API and returns the ExperimentConfig map and EvalsConfig from its frontmatter.
+// Returns a zero-value result when the file cannot be fetched or parsed.
+func loadRemoteExperimentConfigs(repoOverride, experimentName string) experimentFrontmatterResult {
 	experimentsLog.Printf("Loading remote experiment configs for %s from %s", experimentName, repoOverride)
 
 	// Build the candidate list. First, use the directory listing to find the exact filename
@@ -394,14 +412,23 @@ func loadRemoteExperimentConfigs(repoOverride, experimentName string) map[string
 			continue
 		}
 
+		evals, err := workflow.ParseEvalsFromFrontmatter(result.Frontmatter)
+		if err != nil {
+			experimentsLog.Printf("Failed to parse evals config from %s: %v", apiPath, err)
+			// Non-fatal: continue without evals resolution.
+		}
+
 		if len(cfg.ExperimentConfigs) > 0 {
 			experimentsLog.Printf("Loaded remote configs from %s", apiPath)
-			return cfg.ExperimentConfigs
+			return experimentFrontmatterResult{
+				ExperimentConfigs: cfg.ExperimentConfigs,
+				Evals:             evals,
+			}
 		}
 	}
 
 	experimentsLog.Printf("No remote workflow file found for experiment %s", experimentName)
-	return nil
+	return experimentFrontmatterResult{}
 }
 
 // findRemoteWorkflowFilenameForExperiment lists .md files in .github/workflows/ via the

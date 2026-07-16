@@ -3,8 +3,15 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestFirewallWorkflowNetworkConfiguration verifies that the firewall workflow
@@ -62,7 +69,7 @@ func TestFirewallWorkflowNetworkConfiguration(t *testing.T) {
 		stepYAML := strings.Join(steps[0], "\n")
 
 		// Verify AWF wrapper is present (required for network sandboxing)
-		if !strings.Contains(stepYAML, "sudo -E awf") {
+		if !strings.Contains(stepYAML, "awf ") {
 			t.Error("AWF wrapper should be present with firewall enabled")
 		}
 
@@ -169,4 +176,94 @@ func TestFirewallWorkflowBlocksExampleCom(t *testing.T) {
 			t.Errorf("Infrastructure domain '%s' should be allowed by default network permissions", domain)
 		}
 	}
+}
+
+// TestCompileWorkflow_LegacySecurityFromFrontmatter validates that legacy-security: enable
+// passes schema validation and produces the expected AWF command with sudo and --legacy-security.
+func TestCompileWorkflow_LegacySecurityFromFrontmatter(t *testing.T) {
+	frontmatter := `---
+on: workflow_dispatch
+engine: copilot
+sandbox:
+  agent:
+    id: awf
+    legacy-security: enable
+network:
+  allowed:
+    - defaults
+tools:
+  web-fetch:
+---
+
+# Test
+Test workflow with legacy security.`
+
+	tmpDir := testutil.TempDir(t, "legacy-security-compile-test")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(frontmatter), 0644))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "Compilation with legacy-security: enable should succeed")
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Should read compiled lock file")
+
+	lockStr := string(lockContent)
+
+	// Legacy mode should use sudo -E awf
+	assert.Contains(t, lockStr, "sudo -E awf", "Legacy security mode should use 'sudo -E awf' command")
+
+	// Should emit --legacy-security flag
+	assert.Contains(t, lockStr, "--legacy-security", "Legacy security mode should emit --legacy-security flag")
+
+	// Should emit --enable-host-access
+	assert.Contains(t, lockStr, "--enable-host-access", "Legacy security mode should emit --enable-host-access flag")
+}
+
+// TestCompileWorkflow_StrictSecurityDefault validates that omitting legacy-security
+// produces the strict mode AWF command without sudo.
+func TestCompileWorkflow_StrictSecurityDefault(t *testing.T) {
+	frontmatter := `---
+on: workflow_dispatch
+engine: copilot
+sandbox:
+  agent:
+    id: awf
+network:
+  allowed:
+    - defaults
+tools:
+  web-fetch:
+---
+
+# Test
+Test workflow with strict security (default).`
+
+	tmpDir := testutil.TempDir(t, "strict-security-compile-test")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(frontmatter), 0644))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "Compilation with strict security (default) should succeed")
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Should read compiled lock file")
+
+	lockStr := string(lockContent)
+
+	// Strict mode should NOT use sudo
+	assert.NotContains(t, lockStr, "sudo -E awf", "Strict security mode should NOT use 'sudo -E awf'")
+
+	// Should NOT emit --legacy-security flag
+	assert.NotContains(t, lockStr, "--legacy-security", "Strict security mode should NOT emit --legacy-security")
+
+	// Should NOT emit --enable-host-access
+	assert.NotContains(t, lockStr, "--enable-host-access", "Strict security mode should NOT emit --enable-host-access")
+
+	// Should still have awf command
+	assert.Contains(t, lockStr, "awf ", "Strict security mode should still use 'awf' command")
 }

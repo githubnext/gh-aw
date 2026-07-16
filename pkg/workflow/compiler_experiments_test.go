@@ -526,7 +526,7 @@ func TestParseExperimentMetricEvalReference(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotID, gotMatch := parseExperimentMetricEvalReference(tt.metric)
+			gotID, gotMatch := ParseExperimentMetricEvalReference(tt.metric)
 			assert.Equal(t, tt.wantID, gotID)
 			assert.Equal(t, tt.wantMatch, gotMatch)
 		})
