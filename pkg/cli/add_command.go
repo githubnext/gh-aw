@@ -412,7 +412,11 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 	if resolved.IsPackageAgentFile {
 		return addAgentFileWithTracking(resolved, tracker, opts, gitRoot)
 	}
-	skip, err := validateWorkflowDestination(githubWorkflowsDir, workflowName, opts)
+	sourceRepo := ""
+	if sourceInfo != nil && !sourceInfo.IsLocal {
+		sourceRepo = workflowSpec.RepoSlug
+	}
+	skip, err := validateWorkflowDestination(githubWorkflowsDir, workflowName, sourceRepo, opts)
 	if err != nil {
 		return err
 	}
@@ -452,10 +456,17 @@ func reportAddWorkflowStart(workflowSpec *WorkflowSpec, sourceContent []byte, op
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Using pre-fetched workflow content (%d bytes)", len(sourceContent))))
 }
 
-func validateWorkflowDestination(githubWorkflowsDir, workflowName string, opts AddOptions) (bool, error) {
+func validateWorkflowDestination(githubWorkflowsDir, workflowName, sourceRepo string, opts AddOptions) (bool, error) {
 	existingFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
 	if !fileutil.FileExists(existingFile) || opts.Force {
 		return false, nil
+	}
+	if sourceRepo != "" {
+		existingSourceRepo := readSourceRepoFromFile(existingFile)
+		if existingSourceRepo == sourceRepo {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Workflow from same source already exists, skipping: "+existingFile))
+			return true, nil
+		}
 	}
 	if opts.FromWildcard {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow '%s' already exists in .github/workflows/. Skipping.", workflowName)))

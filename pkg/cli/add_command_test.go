@@ -469,6 +469,35 @@ func TestAddResolvedWorkflows_IgnoresBootstrapRequireOwnerTypeDuringInstall(t *t
 	require.NoError(t, err)
 }
 
+func TestValidateWorkflowDestination_SkipsExistingWorkflowFromSameSource(t *testing.T) {
+	workflowsDir := t.TempDir()
+	existingPath := filepath.Join(workflowsDir, "dependabot.md")
+	require.NoError(t, os.WriteFile(existingPath, []byte(`---
+source: githubnext/central-agentic-ops/.github/workflows/dependabot.md@main
+---
+# Dependabot
+`), 0o644))
+
+	skip, err := validateWorkflowDestination(workflowsDir, "dependabot", "githubnext/central-agentic-ops", AddOptions{})
+	require.NoError(t, err)
+	assert.True(t, skip)
+}
+
+func TestValidateWorkflowDestination_ErrorsForExistingWorkflowFromDifferentSource(t *testing.T) {
+	workflowsDir := t.TempDir()
+	existingPath := filepath.Join(workflowsDir, "dependabot.md")
+	require.NoError(t, os.WriteFile(existingPath, []byte(`---
+source: octo/other/.github/workflows/dependabot.md@main
+---
+# Dependabot
+`), 0o644))
+
+	skip, err := validateWorkflowDestination(workflowsDir, "dependabot", "githubnext/central-agentic-ops", AddOptions{})
+	require.Error(t, err)
+	assert.False(t, skip)
+	assert.Contains(t, err.Error(), "workflow 'dependabot' already exists")
+}
+
 // TestAddMultipleWorkflowsNameFlag verifies that --name is not allowed when multiple workflows are specified.
 func TestAddMultipleWorkflowsNameFlag(t *testing.T) {
 	cmd := NewAddCommand(validateEngineStub)
