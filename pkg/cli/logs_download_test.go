@@ -328,7 +328,7 @@ func TestDownloadArtifactsByName_LogsArtifactNamesInCI(t *testing.T) {
 		os.Stderr = originalStderr
 	})
 
-	err = downloadArtifactsByName(context.Background(), []string{"usage"}, downloadArtifactsOptions{runID: 12345, outputDir: t.TempDir()})
+	err = downloadArtifactsByName(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: t.TempDir()}, []string{"usage"})
 	require.NoError(t, err)
 
 	require.NoError(t, writer.Close())

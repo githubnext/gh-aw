@@ -560,7 +560,7 @@ func listRunArtifactNames(ctx context.Context, runID int64, owner, repo, hostnam
 // downloadArtifactsByName downloads a list of artifacts individually by name.
 // This is used when some artifacts (e.g. .dockerbuild) need to be skipped and
 // only a subset of the run's artifacts should be downloaded.
-func downloadArtifactsByName(ctx context.Context, names []string, opts downloadArtifactsOptions) error {
+func downloadArtifactsByName(ctx context.Context, opts downloadArtifactsOptions, names []string) error {
 	var repoFlag string
 	shouldLogProgress := IsRunningInCI() || opts.verbose
 	if opts.owner != "" && opts.repo != "" {
@@ -769,7 +769,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 			}
 			return ErrNoArtifacts
 		}
-		if err := downloadArtifactsByName(ctx, downloadableNames, opts); err != nil {
+		if err := downloadArtifactsByName(ctx, opts, downloadableNames); err != nil {
 			return err
 		}
 		if fileutil.IsDirEmpty(opts.outputDir) {
@@ -879,7 +879,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 				}
 			}
 			if len(retryNames) > 0 {
-				if err := downloadArtifactsByName(ctx, retryNames, opts); err != nil {
+				if err := downloadArtifactsByName(ctx, opts, retryNames); err != nil {
 					return err
 				}
 			}
@@ -1007,7 +1007,7 @@ func ensureUsageAwInfoFallback(ctx context.Context, opts downloadArtifactsOption
 		logsDownloadLog.Printf("Failed to list artifacts for activation fallback: %v", err)
 	}
 
-	if err := downloadArtifactsByName(ctx, activationNames, opts); err != nil {
+	if err := downloadArtifactsByName(ctx, opts, activationNames); err != nil {
 		logsDownloadLog.Printf("Activation artifact fallback download failed: %v", err)
 		if opts.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not download activation artifact fallback: %v", err)))
