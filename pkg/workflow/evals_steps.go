@@ -44,7 +44,7 @@ func (c *Compiler) buildEvalsJobSteps(data *WorkflowData) []string {
 	// For codex, buildEvalsEngineSteps calls generateMCPSetup which already emits
 	// the Docker download step via generateDownloadDockerImagesStep, so skip here
 	// to avoid a duplicate "Download container images" step name.
-	if c.getEvalsEngineID(data) != "codex" {
+	if c.getEvalsEngineID(data) != string(constants.CodexEngine) {
 		steps = append(steps, c.buildPullAWFContainersStep(data)...)
 	}
 
