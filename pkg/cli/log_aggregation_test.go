@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 // Test that DomainAnalysis implements LogAnalysis interface
@@ -101,27 +102,8 @@ func TestDomainAnalysisAddMetrics(t *testing.T) {
 	}
 
 	// Domain lists must be deduplicated and sorted.
-	expectedAllowed := []string{"api.github.com", "example.com", "new.com"}
-	if len(analysis1.AllowedDomains) != len(expectedAllowed) {
-		t.Errorf("Expected %d allowed domains, got %d: %v", len(expectedAllowed), len(analysis1.AllowedDomains), analysis1.AllowedDomains)
-	} else {
-		for i, d := range expectedAllowed {
-			if analysis1.AllowedDomains[i] != d {
-				t.Errorf("AllowedDomains[%d]: expected %q, got %q", i, d, analysis1.AllowedDomains[i])
-			}
-		}
-	}
-
-	expectedBlocked := []string{"blocked.com", "extra-blocked.com"}
-	if len(analysis1.BlockedDomains) != len(expectedBlocked) {
-		t.Errorf("Expected %d blocked domains, got %d: %v", len(expectedBlocked), len(analysis1.BlockedDomains), analysis1.BlockedDomains)
-	} else {
-		for i, d := range expectedBlocked {
-			if analysis1.BlockedDomains[i] != d {
-				t.Errorf("BlockedDomains[%d]: expected %q, got %q", i, d, analysis1.BlockedDomains[i])
-			}
-		}
-	}
+	assert.Equal(t, []string{"api.github.com", "example.com", "new.com"}, analysis1.AllowedDomains)
+	assert.Equal(t, []string{"blocked.com", "extra-blocked.com"}, analysis1.BlockedDomains)
 }
 
 func TestFirewallAnalysisGettersSetters(t *testing.T) {
