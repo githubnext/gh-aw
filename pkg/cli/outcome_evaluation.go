@@ -63,6 +63,8 @@ func normalizeOutcomeEvaluation(report OutcomeReport) OutcomeEvaluation {
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceStrong, Signal: "closed_without_merge"}
 	case strings.Contains(detail, "closed as not planned"):
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceStrong, Signal: "closed_not_planned"}
+	case strings.Contains(detail, "closed by bot") && strings.Contains(detail, "lifecycle_close"):
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusLifecycleClose, EvidenceStrength: EvidenceMedium, Signal: "lifecycle_close"}
 	case strings.Contains(detail, "closed by bot"):
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusLifecycle, EvidenceStrength: EvidenceMedium, Signal: "lifecycle"}
 	case strings.Contains(detail, "merged"):

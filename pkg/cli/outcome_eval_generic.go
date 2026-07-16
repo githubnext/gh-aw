@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -9,6 +10,7 @@ import (
 var outcomeEvalGenericLog = logger.New("cli:outcome_eval_generic")
 var genericOutcomeGHAPIGet = ghAPIGet
 var closeStickyGHAPIGet = ghAPIGet
+var closeStickyGHAPIGetArray = ghAPIGetArray
 
 // evalCloseSticky checks whether a closed issue or PR stayed closed.
 func evalCloseSticky(item CreatedItemReport, repoOverride string) OutcomeReport {
@@ -27,7 +29,12 @@ func evalCloseSticky(item CreatedItemReport, repoOverride string) OutcomeReport 
 		return report
 	}
 
-	data, err := closeStickyGHAPIGet(fmt.Sprintf("issues/%d", num), repo)
+	endpoint := fmt.Sprintf("issues/%d", num)
+	if item.Type == "close_pull_request" {
+		endpoint = fmt.Sprintf("pulls/%d", num)
+	}
+
+	data, err := closeStickyGHAPIGet(endpoint, repo)
 	if err != nil {
 		report.Result = OutcomeError
 		report.EvalError = err.Error()
@@ -35,14 +42,44 @@ func evalCloseSticky(item CreatedItemReport, repoOverride string) OutcomeReport 
 	}
 
 	state, _ := data["state"].(string)
-	if state == "closed" {
-		report.Result = OutcomeAccepted
-		report.Detail = "still closed"
-	} else {
+	merged, _ := data["merged"].(bool)
+	if state != "closed" {
 		report.Result = OutcomeRejected
 		report.Detail = "reopened"
+		return report
+	}
+
+	if merged {
+		report.Result = OutcomeRejected
+		report.Detail = "merged"
+		return report
+	}
+
+	if isClosedByLifecycleBot(num, repo) {
+		report.Result = OutcomeLifecycleClose
+		report.Detail = "closed by bot (lifecycle_close)"
+	} else {
+		report.Result = OutcomeRejected
+		report.Detail = "closed by non-bot"
 	}
 	return report
+}
+
+func isClosedByLifecycleBot(number int, repo string) bool {
+	events, err := closeStickyGHAPIGetArray(fmt.Sprintf("issues/%d/events", number), repo)
+	if err != nil {
+		return false
+	}
+	for i := range slices.Backward(events) {
+		event, _ := events[i]["event"].(string)
+		if event != "closed" {
+			continue
+		}
+		actor, _ := events[i]["actor"].(map[string]any)
+		login, _ := actor["login"].(string)
+		return isBotUser(login)
+	}
+	return false
 }
 
 // evalCloseDiscussion checks whether a closed discussion stayed closed.
