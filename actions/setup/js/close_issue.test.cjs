@@ -139,6 +139,69 @@ describe("close_issue", () => {
       expect(updateCalls[0].state).toBe("closed");
     });
 
+    it("should include issue-intent metadata on close when enabled", async () => {
+      const handler = await main({ max: 10 });
+      const requestCalls = [];
+      mockGithub.request = async (route, params) => {
+        requestCalls.push({ route, params });
+        return {
+          data: {
+            number: params.issue_number,
+            title: "Test Issue",
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          },
+        };
+      };
+
+      const result = await handler(
+        {
+          issue_number: 456,
+          body: "Closing this issue",
+          rationale: "Duplicate confirmed",
+          confidence: "medium",
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(requestCalls).toHaveLength(1);
+      expect(requestCalls[0].route).toBe("PATCH /repos/{owner}/{repo}/issues/{issue_number}");
+      expect(requestCalls[0].params.rationale).toBe("Duplicate confirmed");
+      expect(requestCalls[0].params.confidence).toBe("MEDIUM");
+      expect(requestCalls[0].params.headers).toBeUndefined();
+    });
+
+    it("should skip issue-intent metadata when explicitly disabled", async () => {
+      const handler = await main({ max: 10, issue_intent: false });
+      const updateCalls = [];
+      mockGithub.rest.issues.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.issue_number,
+            title: "Test Issue",
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          },
+        };
+      };
+
+      const result = await handler(
+        {
+          issue_number: 456,
+          body: "Closing this issue",
+          rationale: "Duplicate confirmed",
+          confidence: "high",
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(updateCalls).toHaveLength(1);
+      expect(updateCalls[0].rationale).toBeUndefined();
+      expect(updateCalls[0].confidence).toBeUndefined();
+      expect(updateCalls[0].headers).toBeUndefined();
+    });
+
     it("should close an issue from context when issue_number not provided", async () => {
       const handler = await main({ max: 10 });
       const updateCalls = [];

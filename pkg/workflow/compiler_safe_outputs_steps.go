@@ -272,24 +272,18 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 	}
 
 	// With section for github-token
-	// Use the standard safe outputs token for all operations.
-	// If project operations are configured, prefer the project token for the github-script client.
-	// Rationale: update_project/create_project_status_update call the Projects v2 GraphQL API, which
-	// cannot be accessed with the default GITHUB_TOKEN. GH_AW_PROJECT_GITHUB_TOKEN is the required
-	// token for Projects v2 operations.
+	// Use the standard safe-outputs token for the shared github-script client.
+	// Project operations use GH_AW_PROJECT_GITHUB_TOKEN from env with dedicated handler logic.
 	steps = append(steps, "        with:\n")
 	// Token precedence for the handler manager step:
-	//   1. Project token (if project operations are configured) - already set above
-	//   2. Safe-outputs level token (so.GitHubToken)
-	//   3. Magic secret fallback via getEffectiveSafeOutputGitHubToken()
+	//   1. Safe-outputs level token (so.GitHubToken)
+	//   2. Magic secret fallback via getEffectiveSafeOutputGitHubToken()
 	//
 	// Note: We do NOT fall back to per-output tokens (add-comment, create-issue, etc.)
 	// because those are specific to their operations. The handler manager needs a
 	// general-purpose token for the github-script client.
 	configToken := ""
-	if projectToken != "" {
-		configToken = projectToken
-	} else if data.SafeOutputs != nil && data.SafeOutputs.GitHubToken != "" {
+	if data.SafeOutputs != nil && data.SafeOutputs.GitHubToken != "" {
 		configToken = data.SafeOutputs.GitHubToken
 	}
 	c.addSafeOutputGitHubTokenForConfig(&steps, data, configToken)

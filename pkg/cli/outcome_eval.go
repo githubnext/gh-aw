@@ -187,7 +187,7 @@ func ComputeOutcomeSummary(reports []OutcomeReport, mapping *github.ObjectiveMap
 			s.FallbackExistsOnlyCount++
 		}
 		switch r.Result {
-		case OutcomeLifecycle:
+		case OutcomeLifecycle, OutcomeLifecycleClose:
 			s.Lifecycle++
 		case OutcomeError:
 			s.Errors++

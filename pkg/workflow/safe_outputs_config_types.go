@@ -24,6 +24,7 @@ type BaseSafeOutputConfig struct {
 	GitHubToken              string           `yaml:"github-token,omitempty"`               // GitHub token for this specific output type
 	GitHubApp                *GitHubAppConfig `yaml:"github-app,omitempty"`                 // GitHub App credentials for minting a per-handler installation access token
 	Staged                   *TemplatableBool `yaml:"staged,omitempty"`                     // Templatable preview-only mode for this specific output type
+	IssueIntent              *bool            `yaml:"issue-intent,omitempty"`               // When true, enable issue-intent rationale/confidence guidance and schema requirements for this output type.
 	NormalizeClosingKeywords *bool            `yaml:"normalize-closing-keywords,omitempty"` // When true for this output type, strip backticks from recognized issue-closing keywords in body fields.
 	// Samples carries deterministic replay samples for the hidden
 	// `gh aw compile --use-samples` flag. Each entry is the JSON object

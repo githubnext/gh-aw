@@ -29,6 +29,7 @@ const { checkRateLimitHeadroom } = require("./rate_limit_helpers.cjs");
 const { redactSensitiveConfig } = require("./safe_outputs_config_redact.cjs");
 const nodePath = require("path");
 const fs = require("fs");
+const GITHUB_TOKEN_CONFIG_KEY = "github-token";
 
 /**
  * Handler map configuration
@@ -100,6 +101,9 @@ const STANDALONE_STEP_TYPES = new Set(["upload_asset", "noop"]);
  * If any of these fail, the remaining non-code-push messages are cancelled with a clear reason.
  */
 const CODE_PUSH_TYPES = new Set(["push_to_pull_request_branch", "create_pull_request"]);
+
+/** @type {Set<string>} Project-safe-output handlers that should default to GH_AW_PROJECT_GITHUB_TOKEN when no per-handler github-token is configured. */
+const PROJECT_HANDLER_TYPES = new Set(["create_project", "create_project_status_update", "update_project"]);
 
 // Threat-detection warn-mode requirement IDs from safe-outputs specification:
 // - WTD2: Convertible outputs must be mapped to a reviewable type.
@@ -284,6 +288,37 @@ function loadConfig() {
 const PR_REVIEW_HANDLER_TYPES = new Set(["create_pull_request_review_comment", "submit_pull_request_review"]);
 
 /**
+ * Wrap a handler so project-safe-output execution can temporarily bind global.github
+ * to the handler-specific authenticated client.
+ *
+ * @param {string} type - Safe-output handler type
+ * @param {Function} messageHandler - Loaded handler function
+ * @param {Object|null} handlerGithubClient - Optional per-handler GitHub client
+ * @returns {Function} Wrapped handler function
+ */
+function wrapWithClientRebinding(type, messageHandler, handlerGithubClient) {
+  if (!PROJECT_HANDLER_TYPES.has(type) || !handlerGithubClient) {
+    return messageHandler;
+  }
+  return async (...args) => {
+    /** @type {any} */
+    const globalState = global;
+    const hadGithub = Object.prototype.hasOwnProperty.call(globalState, "github");
+    const previousGithub = globalState.github;
+    globalState.github = handlerGithubClient;
+    try {
+      return await messageHandler(...args);
+    } finally {
+      if (hadGithub) {
+        globalState.github = previousGithub;
+      } else {
+        delete globalState.github;
+      }
+    }
+  };
+}
+
+/**
  * Load and initialize handlers for enabled safe output types
  * Calls each handler's factory function (main) to get message processors
  * @param {Object} config - Safe outputs configuration
@@ -306,6 +341,10 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
           // Call the factory function with config to get the message handler
           const handlerConfig = { ...(config[type] || {}) };
 
+          if (PROJECT_HANDLER_TYPES.has(type) && !handlerConfig[GITHUB_TOKEN_CONFIG_KEY] && process.env.GH_AW_PROJECT_GITHUB_TOKEN) {
+            handlerConfig[GITHUB_TOKEN_CONFIG_KEY] = process.env.GH_AW_PROJECT_GITHUB_TOKEN;
+          }
+
           // Pass top-level mentions policy through so handlers can preserve
           // the same allowed mention aliases used during collection.
           if (handlerConfig.mentions == null && config.mentions != null) {
@@ -320,7 +359,14 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
             handlerConfig._prReviewBufferRegistry = prReviewBufferRegistry;
           }
 
-          const messageHandler = await handlerModule.main(handlerConfig);
+          /** @type {any|null} */
+          let handlerGithubClient = null;
+          /** @type {any} */
+          const globalState = global;
+          if (handlerConfig[GITHUB_TOKEN_CONFIG_KEY] && typeof globalState.getOctokit === "function") {
+            handlerGithubClient = globalState.getOctokit(handlerConfig[GITHUB_TOKEN_CONFIG_KEY]);
+          }
+          const messageHandler = await handlerModule.main(handlerConfig, handlerGithubClient);
 
           if (typeof messageHandler !== "function") {
             // This is a fatal error - the handler is misconfigured
@@ -330,7 +376,7 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
             throw error;
           }
 
-          messageHandlers.set(type, messageHandler);
+          messageHandlers.set(type, wrapWithClientRebinding(type, messageHandler, handlerGithubClient));
           core.info(`✓ Loaded and initialized handler for: ${type}`);
         } else {
           core.warning(`Handler module ${type} does not export a main function`);
