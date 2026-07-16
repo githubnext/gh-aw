@@ -344,12 +344,17 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
           const wrappedMessageHandler =
             PROJECT_HANDLER_TYPES.has(type) && handlerGithubClient
               ? async (...args) => {
+                  const hadGithub = Object.prototype.hasOwnProperty.call(global, "github");
                   const previousGithub = global.github;
                   global.github = handlerGithubClient;
                   try {
                     return await messageHandler(...args);
                   } finally {
-                    global.github = previousGithub;
+                    if (hadGithub) {
+                      global.github = previousGithub;
+                    } else {
+                      delete global.github;
+                    }
                   }
                 }
               : messageHandler;

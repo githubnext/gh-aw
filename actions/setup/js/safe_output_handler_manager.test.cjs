@@ -383,6 +383,33 @@ describe("Safe Output Handler Manager", () => {
         global.github = previousGithub;
       }
     });
+
+    it("restores global.github to absent state after wrapped project handler execution", async () => {
+      process.env.GH_AW_PROJECT_GITHUB_TOKEN = "projects-token";
+      const projectClient = { client: "project-client" };
+      global.getOctokit = vi.fn().mockReturnValue(projectClient);
+      delete global.github;
+
+      const updateProjectModule = require("./update_project.cjs");
+      const updateProjectMainSpy = vi.spyOn(updateProjectModule, "main").mockImplementation(async () => async () => ({ success: true }));
+
+      try {
+        const handlers = await loadHandlers({
+          update_project: { project: "https://github.com/orgs/myorg/projects/1" },
+        });
+        const handler = handlers.get("update_project");
+        expect(typeof handler).toBe("function");
+
+        await handler({ type: "update_project" });
+
+        expect("github" in global).toBe(false);
+      } finally {
+        updateProjectMainSpy.mockRestore();
+        delete process.env.GH_AW_PROJECT_GITHUB_TOKEN;
+        delete global.getOctokit;
+        delete global.github;
+      }
+    });
   });
 
   describe("loadHandlers - path traversal sanitization", () => {
