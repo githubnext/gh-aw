@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  copilot-requests: write
 name: Smoke Claude on Copilot
 engine:
   id: claude
