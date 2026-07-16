@@ -290,7 +290,7 @@ func resolveWorkflowSpecs(ctx context.Context, parsedSpecs []*WorkflowSpec, warn
 		if err != nil {
 			return nil, false, nil, err
 		}
-		if result.HasWorkflowDispatch {
+		if result.Workflow.HasWorkflowDispatch {
 			hasWorkflowDispatch = true
 		}
 		if result.Warning != "" {
@@ -304,9 +304,8 @@ func resolveWorkflowSpecs(ctx context.Context, parsedSpecs []*WorkflowSpec, warn
 
 // resolvedWorkflowResult holds the outcome of resolving a single workflow spec.
 type resolvedWorkflowResult struct {
-	Workflow            *ResolvedWorkflow
-	HasWorkflowDispatch bool
-	Warning             string
+	Workflow *ResolvedWorkflow
+	Warning  string
 }
 
 func resolveSingleWorkflowSpec(ctx context.Context, spec *WorkflowSpec, verbose bool) (*resolvedWorkflowResult, error) {
@@ -395,8 +394,7 @@ func resolveStandardWorkflow(spec, resolvedSpec *WorkflowSpec, fetched *FetchedW
 			Engine:              engine,
 			HasWorkflowDispatch: workflowHasDispatch,
 		},
-		HasWorkflowDispatch: workflowHasDispatch,
-		Warning:             warning,
+		Warning: warning,
 	}, nil
 }
 
