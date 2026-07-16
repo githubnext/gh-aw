@@ -3,9 +3,14 @@
 package cli
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSanitizeBranchName(t *testing.T) {
@@ -197,4 +202,38 @@ func TestSanitizeBranchName(t *testing.T) {
 			assert.Equal(t, tt.expected, result, "sanitizeBranchName(%q) should return %q", tt.input, tt.expected)
 		})
 	}
+}
+
+func TestFilterExistingWorkflowsForPR(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-filter-existing-workflows-*")
+	originalDir, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() { _ = os.Chdir(originalDir) }()
+	require.NoError(t, os.Chdir(tmpDir))
+
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+	require.NoError(t, os.MkdirAll(filepath.Join(".github", "workflows"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(".github", "workflows", "ci-doctor.md"), []byte("existing"), 0o644))
+
+	workflows := []*ResolvedWorkflow{
+		{Spec: &WorkflowSpec{WorkflowName: "ci-doctor", WorkflowPath: "workflows/ci-doctor.md"}},
+		{Spec: &WorkflowSpec{WorkflowName: "daily-qa", WorkflowPath: "workflows/daily-qa.md"}},
+	}
+
+	pending, skipped, err := filterExistingWorkflowsForPR(workflows, AddOptions{})
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	assert.Equal(t, "daily-qa", pending[0].Spec.WorkflowName)
+	assert.Equal(t, []string{"ci-doctor"}, skipped)
+}
+
+func TestTrackerHasMeaningfulChanges(t *testing.T) {
+	tracker := NewFileTracker()
+	tracker.TrackCreated("/tmp/.gitattributes")
+	assert.False(t, trackerHasMeaningfulChanges(tracker))
+
+	tracker.TrackCreated("/tmp/.github/workflows/ci-doctor.md")
+	assert.True(t, trackerHasMeaningfulChanges(tracker))
 }

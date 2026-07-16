@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 
 	"charm.land/huh/v2"
@@ -299,14 +301,14 @@ func promptForSecret(req SecretRequirement, config EngineSecretConfig) error {
 
 // promptForCopilotPATUnified prompts the user for a Copilot PAT with detailed instructions
 func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig) error {
-	preconfiguredPATURL := buildCopilotPATCreationURL()
+	preconfiguredPATURL := buildCopilotPATCreationURL(config.RepoSlug)
 
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "GitHub Copilot requires a fine-grained Personal Access Token (PAT) with 'Copilot requests' permissions.")
+	fmt.Fprintln(os.Stderr, "Create a fine-grained Personal Access Token (PAT) from the preconfigured page below, then paste it back here.")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Open the preconfigured token creation page:")
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  "+preconfiguredPATURL))
-	if shouldOpenBrowser, err := promptForCopilotPATAdvanceConsent(config); err != nil {
+	if shouldOpenBrowser, err := shouldOpenCopilotPATBrowser(); err != nil {
 		return err
 	} else if shouldOpenBrowser {
 		if openBootstrapBrowser(preconfiguredPATURL) {
@@ -314,32 +316,22 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 		} else {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Couldn't open your browser automatically (no supported opener found) — open the URL above manually."))
 		}
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Browser auto-open is disabled; open the URL above manually."))
 	}
-
-	if req.KeyURL != "" && req.KeyURL != preconfiguredPATURL {
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Alternative token page:")
-		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  "+req.KeyURL))
-	}
-
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Configure the token with:")
-	fmt.Fprintln(os.Stderr, "  • Token name: Agentic Workflows Copilot")
-	fmt.Fprintln(os.Stderr, "  • Expiration: 90 days (recommended for testing)")
-	fmt.Fprintln(os.Stderr, "  • Resource owner: Your personal account")
-	fmt.Fprintln(os.Stderr, "  • Repository access: \"Public repositories\" (you must use this setting for Copilot Requests permission to appear)")
-	fmt.Fprintln(os.Stderr, "  • Add permissions → Copilot Requests: Read-only")
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "If you run into trouble see https://github.github.com/gh-aw/reference/auth/#copilot_github_token.")
 
 	var token string
 	form := console.NewInputForm(
 		huh.NewInput().
-			Title("After creating, please paste your fine-grained Copilot PAT:").
-			Description("Must start with 'github_pat_'. Classic PATs (ghp_...) are not supported.").
+			Title("Paste your new fine-grained Copilot PAT, or leave blank to read it from your clipboard:").
+			Description("The page already prefills the token name, expiration (90 days), and Copilot Requests permission. Resource owner and repository access still require manual selection in GitHub. For Copilot Requests to appear, keep the resource owner on your personal account and set repository access to Public repositories. If you use GitHub's Copy token button, you can leave this field empty and press Enter. Must start with 'github_pat_'. Classic PATs (ghp_...) are not supported. Help: https://github.github.com/gh-aw/reference/auth/#copilot_github_token.").
 			EchoMode(huh.EchoModePassword).
 			Value(&token).
 			Validate(func(s string) error {
+				s = strings.TrimSpace(s)
+				if s == "" {
+					return nil
+				}
 				if len(s) < 10 {
 					return errors.New("token appears to be too short")
 				}
@@ -354,6 +346,19 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 		return fmt.Errorf("failed to get Copilot token: %w", err)
 	}
 
+	token = strings.TrimSpace(token)
+	if token == "" {
+		clipboardToken, err := readClipboardText()
+		if err != nil {
+			return fmt.Errorf("failed to read Copilot token from clipboard: %w", err)
+		}
+		if err := stringutil.ValidateCopilotPAT(clipboardToken); err != nil {
+			return fmt.Errorf("clipboard does not contain a valid fine-grained Copilot PAT: %w", err)
+		}
+		token = clipboardToken
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Read fine-grained Copilot token from clipboard."))
+	}
+
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Valid fine-grained Copilot token received"))
 
 	// Upload to repository if we have a repo slug
@@ -364,33 +369,95 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 	return nil
 }
 
-func buildCopilotPATCreationURL() string {
+func buildCopilotPATCreationURL(repoSlug string) string {
 	const baseURL = "https://github.com/settings/personal-access-tokens/new"
+	name := buildCopilotPATDisplayName(repoSlug)
+	description := "Used by GitHub Agentic Workflows to make Copilot requests."
+	if repoSlug != "" {
+		description = fmt.Sprintf("Used by GitHub Agentic Workflows for %s to make Copilot requests.", repoSlug)
+	}
+
 	values := url.Values{}
-	values.Set("name", constants.CopilotGitHubToken)
+	values.Set("name", name)
+	values.Set("description", description)
+	values.Set("expires_in", "90")
 	values.Set("user_copilot_requests", "read")
 	return baseURL + "?" + values.Encode()
 }
 
-func promptForCopilotPATAdvanceConsent(config EngineSecretConfig) (bool, error) {
-	openBrowser := true
-	form := console.NewConfirmForm(
-		huh.NewConfirm().
-			Title("Open this preconfigured page in your browser now?").
-			Description("Choosing 'Yes' continues directly to token paste input after opening (no extra confirmation step).").
-			Affirmative("Yes, open browser and continue").
-			Negative("No, I'll open it manually").
-			Value(&openBrowser),
-	)
+func buildCopilotPATDisplayName(repoSlug string) string {
+	const defaultName = "Agentic Workflows Copilot"
+	const contextualBase = "gh-aw Copilot"
+	const maxNameLength = 40
 
-	if err := form.RunWithContext(config.ctx()); err != nil {
-		if console.IsCancelled(err) {
-			return false, promptCancelled()
-		}
-		return false, fmt.Errorf("failed to confirm browser opening for Copilot PAT setup: %w", err)
+	if repoSlug == "" {
+		return defaultName
 	}
 
-	return openBrowser, nil
+	reservedLength := len(contextualBase) + len(" ()")
+	maxRepoSlugLength := maxNameLength - reservedLength
+	if maxRepoSlugLength <= 0 {
+		return contextualBase
+	}
+
+	return fmt.Sprintf("%s (%s)", contextualBase, truncateWithASCIIEllipsis(repoSlug, maxRepoSlugLength))
+}
+
+func truncateWithASCIIEllipsis(value string, maxLength int) string {
+	if len(value) <= maxLength {
+		return value
+	}
+	if maxLength <= 3 {
+		return value[:maxLength]
+	}
+	return value[:maxLength-3] + "..."
+}
+
+func shouldOpenCopilotPATBrowser() (bool, error) {
+	if raw := strings.TrimSpace(os.Getenv(bootstrapNoOpenBrowserEnv)); raw != "" {
+		disabled, err := parseBootstrapBool(raw)
+		if err != nil {
+			return false, fmt.Errorf("%s: %w", bootstrapNoOpenBrowserEnv, err)
+		}
+		return !disabled, nil
+	}
+
+	return true, nil
+}
+
+func readClipboardText() (string, error) {
+	for _, args := range clipboardReadCommands(runtime.GOOS) {
+		output, err := exec.Command(args[0], args[1:]...).Output()
+		if err != nil {
+			continue
+		}
+
+		text := strings.TrimSpace(string(output))
+		if text == "" {
+			return "", errors.New("clipboard is empty")
+		}
+		return text, nil
+	}
+
+	return "", fmt.Errorf("no supported clipboard reader succeeded on %s", runtime.GOOS)
+}
+
+func clipboardReadCommands(goos string) [][]string {
+	switch goos {
+	case "darwin":
+		return [][]string{{"pbpaste"}}
+	case "windows":
+		return [][]string{
+			{"powershell.exe", "-NoProfile", "-Command", "Get-Clipboard -Raw"},
+			{"powershell", "-NoProfile", "-Command", "Get-Clipboard -Raw"},
+		}
+	default:
+		return [][]string{
+			{"wl-paste", "--no-newline"},
+			{"xclip", "-selection", "clipboard", "-o"},
+			{"xsel", "--clipboard", "--output"},
+		}
+	}
 }
 
 // promptForSystemTokenUnified prompts the user for a system-level GitHub token (PAT)

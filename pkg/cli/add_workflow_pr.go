@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var addWorkflowPRLog = logger.New("cli:add_workflow_pr")
@@ -53,6 +56,19 @@ func sanitizeBranchName(name string) string {
 func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts AddOptions) (int, string, error) {
 	addWorkflowPRLog.Printf("Adding %d workflow(s) with PR creation (resolved)", len(workflows))
 
+	pendingWorkflows, skippedWorkflowNames, err := filterExistingWorkflowsForPR(workflows, opts)
+	if err != nil {
+		return 0, "", err
+	}
+	for _, workflowName := range skippedWorkflowNames {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow '%s' already exists. Skipping.", workflowName)))
+	}
+	if len(pendingWorkflows) == 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("All requested workflow files already exist locally. Skipping pull request creation."))
+		return 0, "", nil
+	}
+	workflows = pendingWorkflows
+
 	// Get current branch for restoration later
 	currentBranch, err := getCurrentBranch()
 	if err != nil {
@@ -90,6 +106,13 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 	if err := addWorkflowsWithTracking(ctx, workflows, tracker, prOpts); err != nil {
 		addWorkflowPRLog.Printf("Failed to add workflows: %v", err)
 		return 0, "", fmt.Errorf("failed to add workflows: %w", err)
+	}
+	if !trackerHasMeaningfulChanges(tracker) {
+		if rollbackErr := tracker.RollbackAllFiles(opts.Verbose); rollbackErr != nil {
+			return 0, "", fmt.Errorf("failed to rollback no-op tracked files: %w", rollbackErr)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("All requested workflow files already exist locally. Skipping pull request creation."))
+		return 0, "", nil
 	}
 
 	// Stage all files before creating PR
@@ -149,14 +172,14 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 		addWorkflowPRLog.Printf("Failed to push branch: %v", err)
 		// Treat push failure as a warning: keep the files and commit intact so the
 		// user can push manually. Do NOT rollback.
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to push branch %s: %v", branchName, err)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(err.Error()))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 			"The workflow files have been committed to local branch "+branchName+".\n"+
 				"  To push the branch and create a pull request, run:\n\n"+
 				"    git push -u origin "+branchName+"\n"+
 				"    gh pr create --title "+fmt.Sprintf("%q", prTitle),
 		))
-		return 0, "", fmt.Errorf("failed to push branch %s: %w", branchName, err)
+		return 0, "", err
 	}
 
 	// Create PR
@@ -179,4 +202,70 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created pull request "+prURL))
 	return prNumber, prURL, nil
+}
+
+func filterExistingWorkflowsForPR(workflows []*ResolvedWorkflow, opts AddOptions) ([]*ResolvedWorkflow, []string, error) {
+	if opts.Force {
+		return workflows, nil, nil
+	}
+
+	gitRoot, githubWorkflowsDir, err := resolveWorkflowTargetDir(opts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	pending := make([]*ResolvedWorkflow, 0, len(workflows))
+	skipped := make([]string, 0)
+	for _, resolved := range workflows {
+		exists, displayName, err := resolvedWorkflowTargetExists(resolved, gitRoot, githubWorkflowsDir, opts)
+		if err != nil {
+			return nil, nil, err
+		}
+		if exists {
+			skipped = append(skipped, displayName)
+			continue
+		}
+		pending = append(pending, resolved)
+	}
+
+	return pending, skipped, nil
+}
+
+func resolvedWorkflowTargetExists(resolved *ResolvedWorkflow, gitRoot, githubWorkflowsDir string, opts AddOptions) (bool, string, error) {
+	workflowName := resolved.Spec.WorkflowName
+	if opts.Name != "" {
+		workflowName = opts.Name
+	}
+
+	if resolved.IsActionWorkflow {
+		return fileutil.FileExists(filepath.Join(githubWorkflowsDir, workflowName+".yml")), workflowName + ".yml", nil
+	}
+	if resolved.IsPackageSkillFile {
+		relPath, err := resolveSkillRelativePath(resolved)
+		if err != nil {
+			return false, "", err
+		}
+		engineSkillDir := workflow.GetEngineSkillDir(opts.EngineOverride)
+		displayName := filepath.ToSlash(filepath.Join(engineSkillDir, resolved.SkillName, relPath))
+		destFile := filepath.Join(gitRoot, engineSkillDir, resolved.SkillName, relPath)
+		return fileutil.FileExists(destFile), displayName, nil
+	}
+	if resolved.IsPackageAgentFile {
+		engineAgentsDir := workflow.GetEngineSubAgentDir(opts.EngineOverride)
+		fileName := filepath.Base(resolved.Spec.WorkflowPath)
+		displayName := filepath.ToSlash(filepath.Join(engineAgentsDir, fileName))
+		destFile := filepath.Join(gitRoot, engineAgentsDir, fileName)
+		return fileutil.FileExists(destFile), displayName, nil
+	}
+
+	return fileutil.FileExists(filepath.Join(githubWorkflowsDir, workflowName+".md")), workflowName, nil
+}
+
+func trackerHasMeaningfulChanges(tracker *FileTracker) bool {
+	for _, file := range tracker.GetAllFiles() {
+		if filepath.Base(file) != ".gitattributes" {
+			return true
+		}
+	}
+	return false
 }

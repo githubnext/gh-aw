@@ -147,18 +147,72 @@ func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 }
 
 func TestBuildCopilotPATCreationURL(t *testing.T) {
-	rawURL := buildCopilotPATCreationURL()
+	rawURL := buildCopilotPATCreationURL("")
 	parsed, err := url.Parse(rawURL)
 	require.NoError(t, err)
 
 	assert.Equal(t, "https", parsed.Scheme)
 	assert.Equal(t, "github.com", parsed.Host)
 	assert.Equal(t, "/settings/personal-access-tokens/new", parsed.Path)
-	assert.Equal(t, constants.CopilotGitHubToken, parsed.Query().Get("name"))
+	assert.Equal(t, "Agentic Workflows Copilot", parsed.Query().Get("name"))
+	assert.Equal(t, "Used by GitHub Agentic Workflows to make Copilot requests.", parsed.Query().Get("description"))
+	assert.Equal(t, "90", parsed.Query().Get("expires_in"))
 	assert.Equal(t, "read", parsed.Query().Get("user_copilot_requests"))
 	assert.Empty(t, parsed.Query().Get("contents"), "Copilot PAT setup URL should not request unrelated repository permissions")
 	assert.Empty(t, parsed.Query().Get("issues"), "Copilot PAT setup URL should not request unrelated issue permissions")
 	assert.Empty(t, parsed.Query().Get("pull_requests"), "Copilot PAT setup URL should not request unrelated pull request permissions")
+}
+
+func TestBuildCopilotPATCreationURLIncludesRepoSlug(t *testing.T) {
+	rawURL := buildCopilotPATCreationURL("github/gh-aw")
+	parsed, err := url.Parse(rawURL)
+	require.NoError(t, err)
+
+	assert.Equal(t, "gh-aw Copilot (github/gh-aw)", parsed.Query().Get("name"))
+	assert.Equal(t, "Used by GitHub Agentic Workflows for github/gh-aw to make Copilot requests.", parsed.Query().Get("description"))
+	assert.Equal(t, "read", parsed.Query().Get("user_copilot_requests"))
+}
+
+func TestBuildCopilotPATCreationURLTruncatesLongRepoSlugInName(t *testing.T) {
+	rawURL := buildCopilotPATCreationURL("my-mona-org/my-awesome-repo")
+	parsed, err := url.Parse(rawURL)
+	require.NoError(t, err)
+
+	assert.Equal(t, "gh-aw Copilot (my-mona-org/my-awesom...)", parsed.Query().Get("name"))
+	assert.Len(t, parsed.Query().Get("name"), 40)
+	assert.Equal(t, "Used by GitHub Agentic Workflows for my-mona-org/my-awesome-repo to make Copilot requests.", parsed.Query().Get("description"))
+	assert.Equal(t, "read", parsed.Query().Get("user_copilot_requests"))
+}
+
+func TestShouldOpenCopilotPATBrowser(t *testing.T) {
+	t.Run("defaults to opening browser", func(t *testing.T) {
+		shouldOpen, err := shouldOpenCopilotPATBrowser()
+		require.NoError(t, err)
+		assert.True(t, shouldOpen)
+	})
+
+	t.Run("respects no-open override", func(t *testing.T) {
+		t.Setenv(bootstrapNoOpenBrowserEnv, "true")
+
+		shouldOpen, err := shouldOpenCopilotPATBrowser()
+		require.NoError(t, err)
+		assert.False(t, shouldOpen)
+	})
+
+	t.Run("rejects invalid override", func(t *testing.T) {
+		t.Setenv(bootstrapNoOpenBrowserEnv, "maybe")
+
+		_, err := shouldOpenCopilotPATBrowser()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), bootstrapNoOpenBrowserEnv)
+	})
+}
+
+func TestClipboardReadCommands(t *testing.T) {
+	assert.Equal(t, [][]string{{"pbpaste"}}, clipboardReadCommands("darwin"))
+	assert.Equal(t, [][]string{{"powershell.exe", "-NoProfile", "-Command", "Get-Clipboard -Raw"}, {"powershell", "-NoProfile", "-Command", "Get-Clipboard -Raw"}}, clipboardReadCommands("windows"))
+	assert.Equal(t, [][]string{{"wl-paste", "--no-newline"}, {"xclip", "-selection", "clipboard", "-o"}, {"xsel", "--clipboard", "--output"}}, clipboardReadCommands("linux"))
+	assert.Equal(t, [][]string{{"wl-paste", "--no-newline"}, {"xclip", "-selection", "clipboard", "-o"}, {"xsel", "--clipboard", "--output"}}, clipboardReadCommands("freebsd"))
 }
 
 func TestStringContainsSecretName(t *testing.T) {
