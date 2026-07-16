@@ -287,6 +287,35 @@ function loadConfig() {
 const PR_REVIEW_HANDLER_TYPES = new Set(["create_pull_request_review_comment", "submit_pull_request_review"]);
 
 /**
+ * Wrap a handler so project-safe-output execution can temporarily bind global.github
+ * to the handler-specific authenticated client.
+ *
+ * @param {string} type - Safe-output handler type
+ * @param {Function} messageHandler - Loaded handler function
+ * @param {Object|null} handlerGithubClient - Optional per-handler GitHub client
+ * @returns {Function} Wrapped handler function
+ */
+function wrapWithClientRebinding(type, messageHandler, handlerGithubClient) {
+  if (!PROJECT_HANDLER_TYPES.has(type) || !handlerGithubClient) {
+    return messageHandler;
+  }
+  return async (...args) => {
+    const hadGithub = Object.prototype.hasOwnProperty.call(global, "github");
+    const previousGithub = global.github;
+    global.github = handlerGithubClient;
+    try {
+      return await messageHandler(...args);
+    } finally {
+      if (hadGithub) {
+        global.github = previousGithub;
+      } else {
+        delete global.github;
+      }
+    }
+  };
+}
+
+/**
  * Load and initialize handlers for enabled safe output types
  * Calls each handler's factory function (main) to get message processors
  * @param {Object} config - Safe outputs configuration
@@ -341,25 +370,7 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
             throw error;
           }
 
-          const wrappedMessageHandler =
-            PROJECT_HANDLER_TYPES.has(type) && handlerGithubClient
-              ? async (...args) => {
-                  const hadGithub = Object.prototype.hasOwnProperty.call(global, "github");
-                  const previousGithub = global.github;
-                  global.github = handlerGithubClient;
-                  try {
-                    return await messageHandler(...args);
-                  } finally {
-                    if (hadGithub) {
-                      global.github = previousGithub;
-                    } else {
-                      delete global.github;
-                    }
-                  }
-                }
-              : messageHandler;
-
-          messageHandlers.set(type, wrappedMessageHandler);
+          messageHandlers.set(type, wrapWithClientRebinding(type, messageHandler, handlerGithubClient));
           core.info(`✓ Loaded and initialized handler for: ${type}`);
         } else {
           core.warning(`Handler module ${type} does not export a main function`);

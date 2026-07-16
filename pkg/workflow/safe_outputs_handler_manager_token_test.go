@@ -382,7 +382,8 @@ func TestHandlerManagerGitHubTokenIsolationAcrossSafeOutputHandlers(t *testing.T
 			require.NoError(t, err)
 
 			yamlStr := strings.Join(steps, "")
-			if !strings.Contains(yamlStr, handlerName) {
+			handlerConfigKey := "\\\"" + handlerName + "\\\":"
+			if !strings.Contains(yamlStr, handlerConfigKey) {
 				t.Skipf("handler %q not materialized from minimal config; skipping isolation assertions", handlerName)
 			}
 			assert.Contains(t, yamlStr, "github-token: ${{ secrets.SAFE_OUTPUTS_TOKEN }}")
