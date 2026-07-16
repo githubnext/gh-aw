@@ -1893,6 +1893,59 @@ safe-outputs:
 	assert.NoError(t, err, "force=true should bypass conflict detection and return nil (download fails silently)")
 }
 
+func TestFetchAndSaveRemoteDispatchWorkflows_FetchesNestedFrontmatterImports(t *testing.T) {
+	dir := t.TempDir()
+	originalDownloadRemoteImportFile := downloadRemoteImportFile
+	t.Cleanup(func() {
+		downloadRemoteImportFile = originalDownloadRemoteImportFile
+	})
+
+	content := `---
+safe-outputs:
+  dispatch-workflow:
+    workflows:
+      - dependent-workflow
+---
+# Main
+`
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+		WorkflowPath: ".github/workflows/main.md",
+	}
+
+	mockDownloader := func(_ context.Context, _, _, filePath, _ string) ([]byte, error) {
+		switch filePath {
+		case ".github/workflows/dependent-workflow.md":
+			return []byte(`---
+imports:
+  - uses: shared/helper.md
+---
+# Dependent
+`), nil
+		default:
+			return nil, errors.New("unexpected workflow path: " + filePath)
+		}
+	}
+
+	downloadRemoteImportFile = func(_ context.Context, owner, repo, filePath, ref string) ([]byte, error) {
+		if owner != "github" || repo != "gh-aw" || ref != "main" {
+			return nil, errors.New("unexpected import coordinates")
+		}
+		if filePath == ".github/workflows/shared/helper.md" {
+			return []byte("---\n# Helper\n"), nil
+		}
+		return nil, errors.New("unexpected import path: " + filePath)
+	}
+
+	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, dir, false, false, nil, mockDownloader)
+	require.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(dir, "dependent-workflow.md"))
+	require.NoError(t, err)
+	_, err = os.Stat(filepath.Join(dir, "shared", "helper.md"))
+	require.NoError(t, err)
+}
+
 // ---------------------------------------------------------------------------
 // fetchAndSaveRemoteResources — conflict detection
 // ---------------------------------------------------------------------------

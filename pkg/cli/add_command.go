@@ -156,13 +156,29 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 	if err != nil {
 		return err
 	}
+	if err := rejectBootstrapProfileForRegularAdd(args, resolved.BootstrapProfile); err != nil {
+		return err
+	}
+	if err := ensureAddRepositoryInitialized(engineOverride, verbose); err != nil {
+		return err
+	}
 	if _, err := AddResolvedWorkflows(cmd.Context(), args, resolved, opts); err != nil {
 		return err
 	}
-	if resolved.BootstrapProfile != nil {
-		printBootstrapConfigTODO(cmd.ErrOrStderr(), resolved.BootstrapProfile)
-	}
 	return nil
+}
+
+func rejectBootstrapProfileForRegularAdd(sources []string, profile *resolvedBootstrapProfile) error {
+	if profile == nil || profile.Profile == nil || len(profile.Profile.Config) == 0 {
+		return nil
+	}
+
+	requestedSources := strings.Join(sources, " ")
+	if requestedSources == "" {
+		requestedSources = profile.PackageID
+	}
+
+	return fmt.Errorf("package %s declares aw.yml config and cannot be installed with 'gh aw add'. Use 'gh aw add-wizard %s' so the config steps can run interactively", profile.PackageID, requestedSources)
 }
 
 func registerAddCommandFlags(cmd *cobra.Command) {
@@ -390,7 +406,11 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 	if resolved.IsPackageAgentFile {
 		return addAgentFileWithTracking(resolved, tracker, opts, gitRoot)
 	}
-	skip, err := validateWorkflowDestination(githubWorkflowsDir, workflowName, opts)
+	sourceRepo := ""
+	if sourceInfo != nil && !sourceInfo.IsLocal {
+		sourceRepo = workflowSpec.RepoSlug
+	}
+	skip, err := validateWorkflowDestination(githubWorkflowsDir, workflowName, sourceRepo, opts)
 	if err != nil {
 		return err
 	}
@@ -430,10 +450,17 @@ func reportAddWorkflowStart(workflowSpec *WorkflowSpec, sourceContent []byte, op
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Using pre-fetched workflow content (%d bytes)", len(sourceContent))))
 }
 
-func validateWorkflowDestination(githubWorkflowsDir, workflowName string, opts AddOptions) (bool, error) {
+func validateWorkflowDestination(githubWorkflowsDir, workflowName, sourceRepo string, opts AddOptions) (bool, error) {
 	existingFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
 	if !fileutil.FileExists(existingFile) || opts.Force {
 		return false, nil
+	}
+	if sourceRepo != "" {
+		existingSourceRepo := readSourceRepoFromFile(existingFile)
+		if existingSourceRepo == sourceRepo {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Workflow from same source already exists, skipping: "+existingFile))
+			return true, nil
+		}
 	}
 	if opts.FromWildcard {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow '%s' already exists in .github/workflows/. Skipping.", workflowName)))

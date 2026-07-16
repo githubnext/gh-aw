@@ -628,7 +628,121 @@ func mergeEnv(topEnv map[string]any, importedEnvJSON string) (map[string]any, er
 
 	// Top-level env vars take precedence: copy last so they override any imported values
 	maps.Copy(result, topEnv)
+	if err := normalizeWorkflowEnvReferences(result); err != nil {
+		return nil, err
+	}
 
 	importsLog.Printf("Merged %d total env vars", len(result))
 	return result, nil
+}
+
+func normalizeWorkflowEnvReferences(env map[string]any) error {
+	if len(env) == 0 {
+		return nil
+	}
+
+	resolved := make(map[string]string, len(env))
+	resolving := make(map[string]struct{}, len(env))
+	for key, raw := range env {
+		value, ok := raw.(string)
+		if !ok {
+			continue
+		}
+		normalized, err := resolveWorkflowEnvValue(key, value, env, resolved, resolving)
+		if err != nil {
+			return err
+		}
+		env[key] = normalized
+	}
+	return nil
+}
+
+func resolveWorkflowEnvValue(key, value string, env map[string]any, resolved map[string]string, resolving map[string]struct{}) (string, error) {
+	if normalized, ok := resolved[key]; ok {
+		return normalized, nil
+	}
+	if _, ok := resolving[key]; ok {
+		return "", fmt.Errorf("workflow env %q references itself recursively", key)
+	}
+
+	resolving[key] = struct{}{}
+	defer delete(resolving, key)
+
+	normalized, err := inlineWorkflowEnvReferences(value, env, resolved, resolving)
+	if err != nil {
+		return "", err
+	}
+	resolved[key] = normalized
+	return normalized, nil
+}
+
+func inlineWorkflowEnvReferences(value string, env map[string]any, resolved map[string]string, resolving map[string]struct{}) (string, error) {
+	inner, ok := extractWrappedGitHubExpression(value)
+	if !ok {
+		return value, nil
+	}
+
+	var builder strings.Builder
+	for i := 0; i < len(inner); {
+		if inner[i] == '\'' {
+			next := consumeSingleQuotedGitHubExpressionString(inner, i)
+			builder.WriteString(inner[i:next])
+			i = next
+			continue
+		}
+
+		if !isGitHubExpressionIdentifierStart(inner, i) {
+			builder.WriteByte(inner[i])
+			i++
+			continue
+		}
+
+		start := i
+		for i < len(inner) && isGitHubExpressionIdentifierChar(inner[i]) {
+			i++
+		}
+		if inner[start:i] != "env" || i >= len(inner) || inner[i] != '.' || i+1 >= len(inner) || !isGitHubExpressionIdentifierStart(inner, i+1) {
+			builder.WriteString(inner[start:i])
+			continue
+		}
+
+		refStart := i + 1
+		refEnd := refStart + 1
+		for refEnd < len(inner) && isGitHubExpressionIdentifierChar(inner[refEnd]) {
+			refEnd++
+		}
+
+		replacement, replaced, err := renderWorkflowEnvReferenceValue(inner[refStart:refEnd], env, resolved, resolving)
+		if err != nil {
+			return "", err
+		}
+		if replaced {
+			builder.WriteString(replacement)
+		} else {
+			builder.WriteString(inner[start:refEnd])
+		}
+		i = refEnd
+	}
+
+	return wrapGitHubExpression(builder.String()), nil
+}
+
+func renderWorkflowEnvReferenceValue(name string, env map[string]any, resolved map[string]string, resolving map[string]struct{}) (string, bool, error) {
+	raw, ok := env[name]
+	if !ok {
+		return "", false, nil
+	}
+	value, ok := raw.(string)
+	if !ok {
+		return "", false, nil
+	}
+
+	normalized, err := resolveWorkflowEnvValue(name, value, env, resolved, resolving)
+	if err != nil {
+		return "", false, err
+	}
+	if inner, ok := extractWrappedGitHubExpression(normalized); ok {
+		return "(" + inner + ")", true, nil
+	}
+	return BuildStringLiteral(normalized).Render(), true, nil
 }
