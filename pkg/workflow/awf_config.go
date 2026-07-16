@@ -518,9 +518,8 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		// (port 10002) to forward to api.githubcopilot.com. The driver sets
 		// ANTHROPIC_BASE_URL to http://host.docker.internal:10002 so the Anthropic SDK
 		// sends requests to the copilot proxy; the harness refines this to
-		// http://api-proxy:10002 via /reflect. The copilot proxy handles the
-		// Anthropic-format requests and forwards them to the Copilot API with the
-		// appropriate Authorization header.
+		// http://api-proxy:10002 via /reflect. The copilot proxy uses the
+		// Authorization header by default when forwarding to api.githubcopilot.com.
 		if provider := resolveEngineLLMProvider(config.WorkflowData, LLMProviderAnthropic); provider == LLMProviderGitHub {
 			targets["copilot"] = &AWFAPITargetConfig{
 				Host: "api.githubcopilot.com",
