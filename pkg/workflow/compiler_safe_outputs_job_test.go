@@ -1229,6 +1229,95 @@ func TestGitHubAppTokenStepWithOTLPHeadersAndAttributes(t *testing.T) {
 		"app token step must not split setup-agent-output-env into a nested echo under with:")
 }
 
+// TestHeadGitHubAppTokenStepGenerated verifies that when head-github-app is configured on
+// create-pull-request or push-to-pull-request-branch, the compiler generates a separate
+// safe-outputs-head-app-token step that comes before the main safe-outputs handler step.
+func TestHeadGitHubAppTokenStepGenerated(t *testing.T) {
+	tests := []struct {
+		name        string
+		safeOutputs *SafeOutputsConfig
+	}{
+		{
+			name: "create-pull-request with head-github-app",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
+					HeadRepoSlug:         "fork-owner/test-repo",
+					HeadGitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.HEAD_APP_ID }}",
+						PrivateKey: "${{ secrets.HEAD_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		},
+		{
+			name: "push-to-pull-request-branch with head-github-app",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
+					HeadRepoSlug:         "fork-owner/test-repo",
+					HeadGitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.HEAD_APP_ID }}",
+						PrivateKey: "${{ secrets.HEAD_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		},
+		{
+			name: "create-pull-request with both main and head github-app",
+			safeOutputs: &SafeOutputsConfig{
+				GitHubApp: &GitHubAppConfig{
+					AppID:      "${{ vars.MAIN_APP_ID }}",
+					PrivateKey: "${{ secrets.MAIN_APP_PRIVATE_KEY }}",
+				},
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
+					HeadRepoSlug:         "fork-owner/test-repo",
+					HeadGitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.HEAD_APP_ID }}",
+						PrivateKey: "${{ secrets.HEAD_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.jobManager = NewJobManager()
+
+			workflowData := &WorkflowData{
+				Name:        "Test Workflow",
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test.md")
+			require.NoError(t, err, "Should build job without error")
+			require.NotNil(t, job, "Job should not be nil")
+
+			stepsContent := strings.Join(job.Steps, "")
+
+			// The head app token step must be present with the correct ID.
+			require.Contains(t, stepsContent, "id: safe-outputs-head-app-token",
+				"head app token step should be emitted with correct step ID")
+
+			// The head app token step should reference the configured app credentials.
+			require.Contains(t, stepsContent, "${{ vars.HEAD_APP_ID }}",
+				"head app token step should contain head app-id expression")
+			require.Contains(t, stepsContent, "${{ secrets.HEAD_APP_PRIVATE_KEY }}",
+				"head app token step should contain head private-key expression")
+
+			// The head app token step must come before the safe-outputs handler step.
+			headTokenIdx := strings.Index(stepsContent, "id: safe-outputs-head-app-token")
+			handlerStepIdx := strings.LastIndex(stepsContent, "Process Safe Outputs")
+			require.Greater(t, handlerStepIdx, -1, "handler step must be present")
+			assert.Less(t, headTokenIdx, handlerStepIdx,
+				"head app token step must be inserted before the safe outputs handler step")
+		})
+	}
+}
+
 // a safe-output job compiled for a workflow_call trigger uses
 // needs.activation.outputs.target_repo_name (repo name only, no owner prefix) as the repositories
 // fallback for the GitHub App token mint step, instead of the full target_repo slug.

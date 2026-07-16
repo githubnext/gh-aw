@@ -456,7 +456,7 @@ The `cli` package exports many types used across its command implementations. Th
 |----------|-------|-------------|
 | `ZizmorImage` | `"ghcr.io/zizmorcore/zizmor:latest"` | Default image for Zizmor security scanner. |
 | `PoutineImage` | `"ghcr.io/boostsecurityio/poutine:latest"` | Default image for Poutine supply-chain scanner. |
-| `ActionlintImage` | `"rhysd/actionlint:latest"` | Default image for Actionlint workflow linter. |
+| `ActionlintImage` | `"rhysd/actionlint:1.7.12"` | Default image for Actionlint workflow linter. |
 | `RunnerGuardImage` | `"ghcr.io/vigilant-llc/runner-guard:latest"` | Default image for Runner Guard sandbox. |
 
 #### Timeline Event Constants

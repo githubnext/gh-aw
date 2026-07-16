@@ -6769,6 +6769,10 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository pull request creation, or '*' to let the agent choose the target repository at runtime (requires checkout: configs with path: for each possible target). Takes precedence over trial target repo settings."
                 },
+                "head-repo": {
+                  "type": "string",
+                  "description": "Optional fork or head repository in format 'owner/repo' where the pull request branch is pushed. When set, the pull request is still created in target-repo but uses an owner-qualified head."
+                },
                 "allowed-repos": {
                   "description": "List of additional repositories in format 'owner/repo' that pull requests can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the pull request in. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-repos\\'] }}').",
                   "oneOf": [
@@ -6789,6 +6793,14 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "head-github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "Optional GitHub token used only for branch writes to head-repo. Use this when the upstream PR repository and the fork head repository require different credentials."
+                },
+                "head-github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "Optional GitHub App credentials to mint an ephemeral token for head-repo branch writes at runtime. When configured, the minted token takes precedence over head-github-token. The app installation must have contents: write on head-repo."
                 },
                 "expires": {
                   "oneOf": [
@@ -8990,6 +9002,18 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository push to pull request branch, or '*' to let the agent choose the target repository at runtime (requires checkout: configs with path: for each possible target). Takes precedence over trial target repo settings."
                 },
+                "head-repo": {
+                  "type": "string",
+                  "description": "Optional head repository in format 'owner/repo' that is allowed for fork-backed pull request branch updates. When set, the pull request head repository must match exactly."
+                },
+                "head-github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "Optional GitHub token used only for branch writes to head-repo. Use this when the upstream pull request repository and the fork head repository require different credentials."
+                },
+                "head-github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "Optional GitHub App credentials to mint an ephemeral token for head-repo branch writes at runtime. When configured, the minted token takes precedence over head-github-token. The app installation must have contents: write on head-repo."
+                },
                 "allowed-repos": {
                   "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-repos\\'] }}').",
                   "oneOf": [
@@ -9241,6 +9265,10 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "head-github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "Optional GitHub token used only for branch writes to head-repo. Use this when the upstream pull request repository and the fork head repository require different credentials."
                 },
                 "staged": {
                   "$ref": "#/$defs/templatable_boolean",

@@ -22,22 +22,32 @@ models:
 ---
 ```
 
-**Option 2 — Use a model already in the built-in pricing table:**
+**Option 2 — Add pricing for your model in the frontmatter:**
 
-Switch to a model name that the AWF pricing system recognizes directly (e.g. `gpt-4.1`, `claude-sonnet-4-5`, `gemini-2.0-flash`).
-
-**Option 3 — Set a default AI credits price as a fallback:**
-
-Add `defaultAiCreditsPricing` to supply a price for any unrecognized models:
+Use the `models.providers` field to supply per-token pricing for your custom model. Use the provider key that matches your engine (`github-copilot`, `anthropic`, `openai`, `google`):
 
 ```yaml
 ---
 model: my-custom-model
 max-ai-credits: 500
 models:
-  my-custom-model:
-    defaultAiCreditsPricing: 3.0
+  providers:
+    openai:            # github-copilot | anthropic | openai | google
+      models:
+        my-custom-model:
+          cost:
+            input: "3.75e-06"      # $3.75 per million input tokens (required)
+            output: "1.5e-05"      # $15.00 per million output tokens (required)
+            cache_read: "3.75e-07" # $0.375 per million cached-read tokens (optional)
+            cache_write: "4.5e-06" # $4.50 per million cache-write tokens (optional)
+            reasoning: "1.5e-05"   # $15.00 per million reasoning tokens (optional, defaults to output price)
 ---
 ```
+
+Use the provider key matching your engine: `github-copilot` (Copilot), `anthropic` (Claude), `openai` (Codex), or `google` (Gemini). Only `input` and `output` are required; the rest default to zero (or `output` for `reasoning`).
+
+**Option 3 — Use a model already in the built-in pricing table:**
+
+Switch to a model name that the AWF pricing system recognizes directly (e.g. `gpt-4.1`, `claude-sonnet-4-5`, `gemini-2.0-flash`).
 
 </details>

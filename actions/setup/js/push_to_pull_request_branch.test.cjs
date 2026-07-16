@@ -558,6 +558,62 @@ index 0000000..abc1234
       expect(mockExec.exec).not.toHaveBeenCalled();
     });
 
+    it("should allow updates to a configured automation fork head repo", async () => {
+      mockContext.payload.pull_request.head.repo.full_name = "fork-owner/test-repo";
+      mockContext.payload.pull_request.head.repo.owner.login = "fork-owner";
+
+      mockGithub.rest.pulls.get.mockResolvedValue({
+        data: {
+          head: {
+            ref: "feature-branch",
+            repo: {
+              full_name: "fork-owner/test-repo",
+              fork: true,
+            },
+          },
+          base: {
+            repo: {
+              full_name: "test-owner/test-repo",
+            },
+          },
+          title: "Fork PR",
+          labels: [],
+        },
+      });
+
+      createPatchFile("should-allow-updates-to-a-configured-automation-fork-head-r");
+      mockExec.getExecOutput
+        .mockResolvedValueOnce({ exitCode: 0, stdout: "preflight-sha\trefs/heads/feature-branch\n", stderr: "" })
+        .mockResolvedValueOnce({ exitCode: 0, stdout: "remote-head-before\n", stderr: "" })
+        .mockResolvedValueOnce({ exitCode: 0, stdout: "abc123\n", stderr: "" })
+        .mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+
+      const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+      const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("fork-head-sha");
+
+      try {
+        const module = await loadModule();
+        const handler = await module.main({
+          target: "triggering",
+          "head-repo": "fork-owner/test-repo",
+          allowed_repos: ["test-owner/test-repo", "fork-owner/test-repo"],
+        });
+        const result = await handler({ branch: "should-allow-updates-to-a-configured-automation-fork-head-r" }, {});
+
+        expect(result.success).toBe(true);
+        expect(result.head_repo).toBe("fork-owner/test-repo");
+        expect(result.commit_url).toContain("fork-owner/test-repo/commit/fork-head-sha");
+        expect(pushSignedSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            owner: "fork-owner",
+            repo: "test-repo",
+          })
+        );
+      } finally {
+        pushSignedSpy.mockRestore();
+      }
+    });
+
     it("should NOT treat same-repo PR as fork even when repo has fork flag", async () => {
       // A repository that is itself a fork of another repo has fork=true,
       // but a same-repo PR within it is NOT a cross-repo fork PR (#24208)
@@ -617,11 +673,47 @@ index 0000000..abc1234
       const handler = await module.main({ target: "triggering" });
       const result = await handler({ branch: "should-handle-deleted-head-repo-likely-a-fork-and-fail-early" }, {});
 
-      // When head.repo is null, this is likely a deleted fork
-      // The handler should give a clear error about the fork
+      // When head.repo is null, the handler should reject immediately before any fork checks
       expect(result.success).toBe(false);
-      expect(result.error).toContain("fork");
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Cannot push to fork PR"));
+      expect(result.error).toContain("null");
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("head repository is null"));
+    });
+
+    it("should reject when head.repo is null even with configured head-repo", async () => {
+      // Even when head-repo is explicitly configured, a null head.repo means we
+      // cannot verify which fork the PR came from — reject to prevent writes to an
+      // unverifiable PR.
+      delete mockContext.payload.pull_request.head.repo;
+
+      mockGithub.rest.pulls.get.mockResolvedValue({
+        data: {
+          head: {
+            ref: "feature-branch",
+            repo: null, // Deleted fork
+          },
+          base: {
+            repo: {
+              full_name: "test-owner/test-repo",
+            },
+          },
+          title: "Deleted Fork PR with configured head-repo",
+          labels: [],
+        },
+      });
+
+      createPatchFile("should-reject-when-head-repo-is-null-even-with-configured-h");
+
+      const module = await loadModule();
+      const handler = await module.main({
+        target: "triggering",
+        "head-repo": "fork-owner/test-repo",
+        allowed_repos: ["test-owner/test-repo", "fork-owner/test-repo"],
+      });
+      const result = await handler({ branch: "should-reject-when-head-repo-is-null-even-with-configured-h" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("null");
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("head repository is null"));
     });
   });
 

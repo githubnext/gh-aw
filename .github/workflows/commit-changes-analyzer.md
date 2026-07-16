@@ -43,6 +43,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: changes_analyzed
+    question: Did the agent analyze all repository changes since the specified commit and produce a comprehensive report?
+  - id: discussion_created
+    question: Was a discussion or report created summarizing the changes since the specified commit?
 ---
 
 # Commit Changes Analyzer

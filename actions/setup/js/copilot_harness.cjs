@@ -63,7 +63,7 @@ const {
 } = require("./awf_reflect.cjs");
 const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
-const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal } = require("./harness_retry_guard.cjs");
+const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError: isCommonAuthenticationFailedError } = require("./harness_retry_guard.cjs");
 const { isCAPIQuotaExceededError } = require("./detect_agent_errors.cjs");
 const { loadModelsJson } = require("./model_costs.cjs");
 const { resolveConfiguredCopilotModel } = require("./resolve_model_alias.cjs");
@@ -113,14 +113,16 @@ const NO_AUTH_INFO_PATTERN = /No authentication information found|Session was no
 // After a first-attempt auth failure, retrying is futile because the entrypoint unsets
 // COPILOT_GITHUB_TOKEN between attempts.
 //
-// Also matches the Copilot CAPI 400 response emitted when the supplied token is a
+// This pattern covers the Copilot CAPI 400 response emitted when the supplied token is a
 // Personal Access Token (classic or fine-grained):
 //   "400 400 checking third-party user token: bad request: Personal Access Tokens
 //    are not supported for this endpoint"
 // PAT rejection is a persistent credential-type problem — retrying with the same
 // token always produces the same 400.  Treating it as an auth failure short-circuits
 // the retry loop instead of burning all 4 attempts.
-const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[^)]+\))?|checking third-party user token:[^\n]*Personal Access Tokens are not supported/i;
+// Common auth failure signals ("Authentication failed", "authentication_failed", "not logged in")
+// are handled by isCommonAuthenticationFailedError from harness_retry_guard.cjs.
+const COPILOT_PAT_AUTH_FAILED_PATTERN = /checking third-party user token:[^\n]*Personal Access Tokens are not supported/i;
 // Pattern: Copilot CLI inference access denied
 const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/;
 // Pattern: Agentic engine process killed by signal (timeout)
@@ -368,11 +370,13 @@ function isNoAuthInfoError(output) {
 
 /**
  * Determines if the collected output contains an authentication failed error.
+ * Covers both the common signals (from harness_retry_guard) and the Copilot-specific
+ * PAT rejection error.
  * @param {string} output - Collected stdout+stderr from the process
  * @returns {boolean}
  */
 function isAuthenticationFailedError(output) {
-  return AUTHENTICATION_FAILED_PATTERN.test(output);
+  return isCommonAuthenticationFailedError(output) || COPILOT_PAT_AUTH_FAILED_PATTERN.test(output);
 }
 
 /**

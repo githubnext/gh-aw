@@ -17,6 +17,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { checkFileProtection, checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
+const { overridePersistedExtraheader, restorePersistedExtraheader } = require("./git_auth_helpers.cjs");
 const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, isShallowOrSparseCheckout, linearizeRangeAsCommit } = require("./git_helpers.cjs");
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
@@ -100,6 +101,33 @@ function parsePositiveInteger(value) {
   }
   const parsed = Number.parseInt(String(value), 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+/**
+ * Temporarily override the persisted GitHub extraheader for remote git operations.
+ *
+ * @template T
+ * @param {string} token
+ * @param {() => Promise<T>} callback
+ * @param {string} [cwd] - Optional working directory; scopes the git config override to the correct checkout
+ * @returns {Promise<T>}
+ */
+async function withGitHubHostToken(token, callback, cwd) {
+  if (!token) {
+    return callback();
+  }
+  const githubServerUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/+$/, "");
+  let previousExtraheaders = [];
+  let overrideApplied = false;
+  try {
+    previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, token, cwd);
+    overrideApplied = true;
+    return await callback();
+  } finally {
+    if (overrideApplied) {
+      await restorePersistedExtraheader(githubServerUrl, previousExtraheaders, cwd);
+    }
+  }
 }
 
 /**
@@ -310,6 +338,8 @@ async function main(config = {}) {
   // Base branch from config (if set) - used only for logging at factory level
   // Dynamic base branch resolution happens per-message after resolving the actual target repo
   const configBaseBranch = config.base_branch || null;
+  const configuredHeadRepo = typeof config["head-repo"] === "string" ? config["head-repo"].trim() : "";
+  const headGitHubToken = typeof config["head-github-token"] === "string" ? config["head-github-token"].trim() : "";
 
   // Check if we're in staged mode (either globally or per-handler config)
   const isStaged = isStagedMode(config);
@@ -335,6 +365,9 @@ async function main(config = {}) {
   core.info(`Max patch size: ${maxSizeKb} KB`);
   core.info(`Max count: ${maxCount || "unlimited"}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);
+  if (configuredHeadRepo) {
+    core.info(`Configured head repo: ${configuredHeadRepo}`);
+  }
   if (allowedRepos.size > 0) {
     core.info(`Allowed repos: ${[...allowedRepos].join(", ")}`);
   }
@@ -653,19 +686,66 @@ async function main(config = {}) {
       return { success: false, error: `Failed to determine branch name for PR ${pullNumber} in ${itemRepo}` };
     }
 
-    // SECURITY: Check if this is a fork PR - we cannot push to fork branches
-    // The workflow token only has access to the base repository, not the fork
-    const { isFork, reason: forkReason } = detectForkPR(pullRequest);
-    if (isFork) {
-      core.error(`Cannot push to fork PR branch: ${forkReason}`);
-      core.error("The workflow token does not have permission to push to fork repositories.");
-      core.error("Fork PRs must be updated by the fork owner or through other mechanisms.");
+    let pushRepo = itemRepo;
+    let pushRepoParts = repoParts;
+    let pushGithubClient = githubClient;
+    const actualHeadRepo = typeof pullRequest.head?.repo?.full_name === "string" ? pullRequest.head.repo.full_name : "";
+
+    // SECURITY: When head.repo is null (likely a deleted fork) we cannot verify which
+    // repository the PR head came from. Always reject to prevent writes to an unverifiable PR.
+    if (pullRequest.head?.repo == null) {
+      const nullHeadErr = "Cannot push to PR: head repository is null (likely a deleted fork)";
+      core.error(nullHeadErr);
+      return { success: false, error: nullHeadErr };
+    }
+
+    // SECURITY: Validate the PR head repository against the configured or default expected value
+    // before any fork-status branching. This prevents writes to a same-repo PR when head-repo
+    // names an automation fork, and prevents writes to a fork PR when head-repo is not set.
+    const expectedHeadRepo = configuredHeadRepo || itemRepo;
+    if (actualHeadRepo && actualHeadRepo.toLowerCase() !== expectedHeadRepo.toLowerCase()) {
+      const { isFork: actualIsFork } = detectForkPR(pullRequest);
+      if (actualIsFork && !configuredHeadRepo) {
+        core.error(`Cannot push to fork PR branch: head is '${actualHeadRepo}', not '${itemRepo}'`);
+        core.error("Fork PRs remain blocked unless safe-outputs.push-to-pull-request-branch.head-repo is configured.");
+        return {
+          success: false,
+          error: `Cannot push to fork PR: head repository '${actualHeadRepo}' does not match target '${itemRepo}'. Configure safe-outputs.push-to-pull-request-branch.head-repo and matching credentials to allow an automation-owned fork.`,
+        };
+      }
       return {
         success: false,
-        error: `Cannot push to fork PR: ${forkReason}. The workflow token does not have permission to push to fork repositories.`,
+        error: `Cannot push to PR: head repository '${actualHeadRepo}' does not match expected '${expectedHeadRepo}'. Writes to repositories other than the configured head-repo remain blocked.`,
       };
     }
-    core.info(`Fork PR check: not a fork (${forkReason})`);
+
+    // SECURITY: Check if this is a fork PR - only explicitly configured automation-owned
+    // forks are eligible for updates.
+    const { isFork, reason: forkReason } = detectForkPR(pullRequest);
+    if (isFork) {
+      if (!configuredHeadRepo) {
+        core.error(`Cannot push to fork PR branch: ${forkReason}`);
+        core.error("Fork PRs remain blocked unless safe-outputs.push-to-pull-request-branch.head-repo is configured.");
+        return {
+          success: false,
+          error: `Cannot push to fork PR: ${forkReason}. Configure safe-outputs.push-to-pull-request-branch.head-repo and matching credentials to allow an automation-owned fork.`,
+        };
+      }
+      const headRepoResult = resolveAndValidateRepo({ repo: configuredHeadRepo }, itemRepo, allowedRepos, "pull request head repository");
+      if (!headRepoResult.success) {
+        return { success: false, error: headRepoResult.error };
+      }
+      pushRepo = headRepoResult.repo;
+      pushRepoParts = headRepoResult.repoParts;
+      if (headGitHubToken && typeof global.getOctokit === "function") {
+        pushGithubClient = global.getOctokit(headGitHubToken);
+      }
+      core.info(`Fork PR update allowed via configured head repo: ${pushRepo}`);
+    } else {
+      core.info(`Fork PR check: not a fork (${forkReason})`);
+    }
+    const pushRemoteUrl = pushRepo.toLowerCase() === itemRepo.toLowerCase() ? "" : `${(process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/+$/, "")}/${pushRepo}.git`;
+    const branchRemoteName = pushRemoteUrl || "origin";
 
     // SECURITY: Sanitize branch name to prevent shell injection (CWE-78)
     // Branch names from GitHub API must be normalized before use in git commands
@@ -682,6 +762,7 @@ async function main(config = {}) {
         core.info(`Branch name sanitized: "${originalBranchName}" -> "${branchName}"`);
       }
     }
+    const branchRemoteRef = pushRemoteUrl ? `refs/remotes/gh-aw-head/${branchName}` : `refs/remotes/origin/${branchName}`;
 
     core.info(`Target branch: ${branchName}`);
     core.info(`PR title: ${prTitle}`);
@@ -692,7 +773,7 @@ async function main(config = {}) {
     // This prevents agents from pushing directly to branches that should only receive
     // changes through reviewed pull requests.
     {
-      const blockReason = await checkBranchPushable(githubClient, repoParts.owner, repoParts.repo, branchName, checkBranchProtection);
+      const blockReason = await checkBranchPushable(pushGithubClient, pushRepoParts.owner, pushRepoParts.repo, branchName, checkBranchProtection);
       if (blockReason) {
         core.error(blockReason);
         return { success: false, error: blockReason };
@@ -784,11 +865,16 @@ async function main(config = {}) {
     // Detect missing/deleted branches early and return a clear error.
     // This avoids an opaque git fetch exit code when the PR branch was deleted.
     {
-      const lsRemoteResult = await exec.getExecOutput("git", ["ls-remote", "--exit-code", "--heads", "origin", branchName], {
-        env: { ...process.env, ...gitAuthEnv },
-        ...baseGitOpts,
-        ignoreReturnCode: true,
-      });
+      const lsRemoteResult = await withGitHubHostToken(
+        headGitHubToken,
+        async () =>
+          exec.getExecOutput("git", ["ls-remote", "--exit-code", "--heads", branchRemoteName, branchName], {
+            env: { ...process.env, ...gitAuthEnv },
+            ...baseGitOpts,
+            ignoreReturnCode: true,
+          }),
+        baseGitOpts.cwd
+      );
 
       if (lsRemoteResult.exitCode === 2) {
         const missingBranchError = MISSING_BRANCH_ERROR_TEMPLATE(branchName);
@@ -810,7 +896,7 @@ async function main(config = {}) {
         const stderr = (lsRemoteResult.stderr || "").trim();
         return {
           success: false,
-          error: `Failed to verify branch ${branchName} exists on origin: ${stderr || `git ls-remote exited with code ${lsRemoteResult.exitCode}`}`,
+          error: `Failed to verify branch ${branchName} exists on ${pushRepo}: ${stderr || `git ls-remote exited with code ${lsRemoteResult.exitCode}`}`,
         };
       }
     }
@@ -820,10 +906,15 @@ async function main(config = {}) {
     // for the safe_outputs job; no GIT_CONFIG_* extraheader is injected (see gitAuthEnv above).
     try {
       core.info(`Fetching branch: ${branchName}`);
-      await exec.exec("git", ["fetch", "origin", `${branchName}:refs/remotes/origin/${branchName}`], {
-        env: { ...process.env, ...gitAuthEnv },
-        ...baseGitOpts,
-      });
+      await withGitHubHostToken(
+        headGitHubToken,
+        async () =>
+          exec.exec("git", ["fetch", branchRemoteName, `${branchName}:${branchRemoteRef}`], {
+            env: { ...process.env, ...gitAuthEnv },
+            ...baseGitOpts,
+          }),
+        baseGitOpts.cwd
+      );
     } catch (fetchError) {
       const fetchErrorMessage = getErrorMessage(fetchError);
       if (ignoreMissingBranchFailure && looksLikeMissingRemoteBranchError(fetchErrorMessage)) {
@@ -836,7 +927,7 @@ async function main(config = {}) {
 
     // Check if branch exists on origin
     try {
-      await exec.exec(`git rev-parse --verify origin/${branchName}`, [], baseGitOpts);
+      await exec.exec(`git rev-parse --verify ${branchRemoteRef}`, [], baseGitOpts);
     } catch (verifyError) {
       const missingBranchError = MISSING_BRANCH_ERROR_TEMPLATE(branchName);
       if (ignoreMissingBranchFailure) {
@@ -848,8 +939,8 @@ async function main(config = {}) {
 
     // Checkout the branch from origin
     try {
-      await exec.exec(`git checkout -B ${branchName} origin/${branchName}`, [], baseGitOpts);
-      core.info(`Checked out existing branch from origin: ${branchName}`);
+      await exec.exec(`git checkout -B ${branchName} ${branchRemoteRef}`, [], baseGitOpts);
+      core.info(`Checked out existing branch from ${pushRepo}: ${branchName}`);
     } catch (checkoutError) {
       return { success: false, error: `Failed to checkout branch ${branchName}: ${getErrorMessage(checkoutError)}` };
     }
@@ -861,7 +952,7 @@ async function main(config = {}) {
     let newCommitCount = 0;
     let remoteHeadBeforePatch = "";
     let pushedCommitSha = "";
-    let rangeBaseRef = `origin/${branchName}`;
+    let rangeBaseRef = branchRemoteRef;
     if (hasChanges) {
       // Capture HEAD before applying changes to compute new-commit count later
       try {
@@ -892,9 +983,9 @@ async function main(config = {}) {
               core.info(`Note: could not fetch base_commit ${recordedBaseCommit} explicitly (${getErrorMessage(fetchError)}); will verify local availability next`);
             }
             await exec.exec("git", ["cat-file", "-e", recordedBaseCommit], baseGitOpts);
-            const ancestryCheck = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", recordedBaseCommit, `origin/${branchName}`], { ...baseGitOpts, ignoreReturnCode: true });
+            const ancestryCheck = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", recordedBaseCommit, branchRemoteRef], { ...baseGitOpts, ignoreReturnCode: true });
             if (ancestryCheck.exitCode !== 0) {
-              throw new Error(`recorded base_commit ${recordedBaseCommit} is not an ancestor of origin/${branchName}; cannot safely re-anchor patch apply`);
+              throw new Error(`recorded base_commit ${recordedBaseCommit} is not an ancestor of ${branchRemoteRef}; cannot safely re-anchor patch apply`);
             }
             if (remoteHeadBeforePatch && remoteHeadBeforePatch !== recordedBaseCommit) {
               core.warning(`Remote PR branch advanced since patch generation (remote HEAD ${remoteHeadBeforePatch}, patch base ${recordedBaseCommit}); applying patch from recorded base commit`);
@@ -1185,11 +1276,18 @@ async function main(config = {}) {
           // Push the review branch — use getExecOutput to capture stderr so we
           // can detect GitHub's "workflows scope required" rejection and surface
           // a typed, actionable error instead of a bare git exit-1.
-          const reviewPushOutput = await exec.getExecOutput("git", ["push", "origin", reviewBranchName], {
-            env: { ...process.env, ...gitAuthEnv },
-            ...baseGitOpts,
-            ignoreReturnCode: true,
-          });
+          // For fork-backed PRs, push to the head repo remote instead of origin.
+          const reviewPushRemote = pushRemoteUrl || "origin";
+          const reviewPushOutput = await withGitHubHostToken(
+            pushRemoteUrl ? headGitHubToken : "",
+            async () =>
+              exec.getExecOutput("git", ["push", reviewPushRemote, reviewBranchName], {
+                env: { ...process.env, ...gitAuthEnv },
+                ...baseGitOpts,
+                ignoreReturnCode: true,
+              }),
+            baseGitOpts.cwd
+          );
           if (reviewPushOutput.exitCode !== 0) {
             const reviewPushStderr = (reviewPushOutput.stderr || "").trim();
             // GitHub rejects pushes to branches containing .github/workflows/** changes
@@ -1202,11 +1300,13 @@ async function main(config = {}) {
               }
               return buildWorkflowsScopeError("Review branch", core);
             }
-            throw new Error(`git push origin ${reviewBranchName} failed (exit code ${reviewPushOutput.exitCode}): ${reviewPushStderr}`);
+            throw new Error(`git push ${reviewPushRemote} ${reviewBranchName} failed (exit code ${reviewPushOutput.exitCode}): ${reviewPushStderr}`);
           }
           core.info(`Pushed review branch: ${reviewBranchName}`);
 
-          // Create PR from review branch to original branch
+          // Create PR from review branch to original branch.
+          // For fork-backed PRs, use an owner-qualified head reference.
+          const reviewHeadRef = pushRemoteUrl ? `${pushRepoParts.owner}:${reviewBranchName}` : reviewBranchName;
           const detectionReasonEnv = process.env.GH_AW_DETECTION_REASON || "unknown";
           const prBody = [
             "> [!CAUTION]",
@@ -1227,7 +1327,7 @@ async function main(config = {}) {
             repo: repoParts.repo,
             title: `[review] ${prTitle || `Changes for #${pullNumber}`}`,
             body: prBody,
-            head: reviewBranchName,
+            head: reviewHeadRef,
             base: branchName,
           });
 
@@ -1301,13 +1401,15 @@ async function main(config = {}) {
       // Push the applied commits to the branch using signed GraphQL commits (outside patch try/catch so push failures are not misattributed)
       try {
         const pushedSha = await pushSignedCommits({
-          githubClient,
-          owner: repoParts.owner,
-          repo: repoParts.repo,
+          githubClient: pushGithubClient,
+          owner: pushRepoParts.owner,
+          repo: pushRepoParts.repo,
           branch: branchName,
           baseRef: rangeBaseRef,
           cwd: repoCwd || process.cwd(),
           gitAuthEnv,
+          pushRemoteUrl,
+          pushToken: headGitHubToken,
           signedCommits,
           resolvedTemporaryIds,
           currentRepo: itemRepo,
@@ -1360,12 +1462,19 @@ async function main(config = {}) {
             if (preflightError) return preflightError;
 
             await exec.exec("git", ["checkout", "-b", fallbackBranchName], baseGitOpts);
-            // Use getExecOutput to capture stderr for 'workflows' scope diagnostics
-            const fallbackPushOutput = await exec.getExecOutput("git", ["push", "origin", fallbackBranchName], {
-              env: { ...process.env, ...gitAuthEnv },
-              ...baseGitOpts,
-              ignoreReturnCode: true,
-            });
+            // Use getExecOutput to capture stderr for 'workflows' scope diagnostics.
+            // For fork-backed PRs, push to the head repo remote instead of origin.
+            const fallbackPushRemote = pushRemoteUrl || "origin";
+            const fallbackPushOutput = await withGitHubHostToken(
+              pushRemoteUrl ? headGitHubToken : "",
+              async () =>
+                exec.getExecOutput("git", ["push", fallbackPushRemote, fallbackBranchName], {
+                  env: { ...process.env, ...gitAuthEnv },
+                  ...baseGitOpts,
+                  ignoreReturnCode: true,
+                }),
+              baseGitOpts.cwd
+            );
             if (fallbackPushOutput.exitCode !== 0) {
               const fallbackPushStderr = (fallbackPushOutput.stderr || "").trim();
               if (isWorkflowsScopeRejection(fallbackPushStderr)) {
@@ -1375,8 +1484,11 @@ async function main(config = {}) {
                 }
                 return buildWorkflowsScopeError("Fallback branch", core);
               }
-              throw new Error(`git push origin ${fallbackBranchName} failed (exit code ${fallbackPushOutput.exitCode}): ${fallbackPushStderr}`);
+              throw new Error(`git push ${fallbackPushRemote} ${fallbackBranchName} failed (exit code ${fallbackPushOutput.exitCode}): ${fallbackPushStderr}`);
             }
+
+            // For fork-backed PRs, use an owner-qualified head reference.
+            const fallbackHeadRef = pushRemoteUrl ? `${pushRepoParts.owner}:${fallbackBranchName}` : fallbackBranchName;
 
             const fallbackBody = [
               "> [!NOTE]",
@@ -1394,7 +1506,7 @@ async function main(config = {}) {
               repo: repoParts.repo,
               title: `[fallback] ${prTitle || `Changes for #${pullNumber}`}`,
               body: fallbackBody,
-              head: fallbackBranchName,
+              head: fallbackHeadRef,
               base: branchName,
             });
 
@@ -1409,6 +1521,7 @@ async function main(config = {}) {
               pull_request_url: fallbackPR.html_url,
               branch_name: fallbackBranchName,
               repo: itemRepo,
+              head_repo: pushRepo,
               number: fallbackPR.number,
               url: fallbackPR.html_url,
             };
@@ -1466,8 +1579,9 @@ async function main(config = {}) {
     // For cross-repo scenarios, use repoParts (the target repo) not context.repo (the workflow repo)
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const repoUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}`;
-    const pushUrl = `${repoUrl}/tree/${branchName}`;
-    const commitUrl = `${repoUrl}/commit/${commitSha}`;
+    const pushRepoUrl = `${githubServer}/${pushRepoParts.owner}/${pushRepoParts.repo}`;
+    const pushUrl = `${pushRepoUrl}/tree/${branchName}`;
+    const commitUrl = `${pushRepoUrl}/commit/${commitSha}`;
 
     // Update the activation comment with commit link (if a comment was created and changes were pushed)
     // Pass pullNumber so a new comment is created on the PR when no activation comment exists (e.g., schedule triggers)
@@ -1525,8 +1639,8 @@ async function main(config = {}) {
     if (hasChanges) {
       const ciTriggerResult = await pushExtraEmptyCommit({
         branchName,
-        repoOwner: repoParts.owner,
-        repoName: repoParts.repo,
+        repoOwner: pushRepoParts.owner,
+        repoName: pushRepoParts.repo,
         newCommitCount,
       });
       if (ciTriggerResult.success && !ciTriggerResult.skipped) {
@@ -1539,6 +1653,7 @@ async function main(config = {}) {
         success: true,
         number: pullNumber,
         repo: itemRepo,
+        head_repo: pushRepo,
         url: `${repoUrl}/pull/${pullNumber}`,
         branch_name: branchName,
         commit_sha: commitSha,

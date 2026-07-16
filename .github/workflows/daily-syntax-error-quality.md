@@ -58,6 +58,11 @@ steps:
 imports:
   - shared/reporting.md
   - shared/otlp.md
+evals:
+  - id: errors_tested
+    question: Did the agent introduce syntax errors into candidate workflows and evaluate the quality of the resulting compiler error messages?
+  - id: issue_created_or_noop
+    question: Was a quality report issue created with improvement suggestions, or was noop used when all error messages already met quality standards?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

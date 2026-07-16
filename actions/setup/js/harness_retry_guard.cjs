@@ -21,6 +21,13 @@ const GOAL_ALREADY_ACTIVE_PATTERNS = [/\bthis thread already has a goal\b[\s\S]*
 // ("Maximum LLM invocations exceeded").
 const MAX_RUNS_EXCEEDED_PATTERNS = [/\bmax_runs_exceeded\b/i, /Maximum LLM invocations exceeded/i];
 
+// Common authentication failure patterns shared across all harnesses.
+// Matches:
+//   - "Authentication failed (Request ID: ...)" — Anthropic/OpenAI direct auth error
+//   - `"error":"authentication_failed"` — Claude Code stream-JSON error field (e.g. 401 via AWF proxy)
+//   - "not logged in" — Claude Code message when no credentials are available
+const AUTHENTICATION_FAILED_PATTERNS = [/Authentication failed(?:\s*\(Request ID:[^)]+\))?/i, /"error"\s*:\s*"authentication_failed"/i, /not logged in/i];
+
 /**
  * @param {unknown} output
  * @returns {boolean}
@@ -28,6 +35,16 @@ const MAX_RUNS_EXCEEDED_PATTERNS = [/\bmax_runs_exceeded\b/i, /Maximum LLM invoc
 function isMaxRunsExceededError(output) {
   const safeOutput = typeof output === "string" ? output : "";
   return MAX_RUNS_EXCEEDED_PATTERNS.some(pattern => pattern.test(safeOutput));
+}
+
+/**
+ * Determines if the collected output contains an authentication failed error.
+ * @param {unknown} output
+ * @returns {boolean}
+ */
+function isAuthenticationFailedError(output) {
+  const safeOutput = typeof output === "string" ? output : "";
+  return AUTHENTICATION_FAILED_PATTERNS.some(pattern => pattern.test(safeOutput));
 }
 
 /**
@@ -81,7 +98,9 @@ if (typeof module !== "undefined" && module.exports) {
     AWF_API_PROXY_BLOCKING_REQUESTS_PATTERNS,
     GOAL_ALREADY_ACTIVE_PATTERNS,
     MAX_RUNS_EXCEEDED_PATTERNS,
+    AUTHENTICATION_FAILED_PATTERNS,
     isMaxRunsExceededError,
+    isAuthenticationFailedError,
     SOFT_TIMEOUT_BUFFER_MS,
     buildSoftTimeoutGuard,
     emitSoftTimeoutSignal,

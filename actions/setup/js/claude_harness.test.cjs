@@ -190,6 +190,23 @@ describe("claude_harness.cjs", () => {
       expect(isAuthenticationFailedError("Authentication failed (Request ID: C818:3ED713:19D401B:1C446B7:69D653CA)")).toBe(true);
     });
 
+    it('returns true for Claude Code stream-JSON "error":"authentication_failed" field', () => {
+      const jsonLine = JSON.stringify({
+        type: "assistant",
+        error: "authentication_failed",
+        message: { content: [{ type: "text", text: "Not logged in · Please run /login" }] },
+      });
+      expect(isAuthenticationFailedError(jsonLine)).toBe(true);
+    });
+
+    it('returns true for Claude Code "Not logged in" message', () => {
+      expect(isAuthenticationFailedError("Not logged in · Please run /login")).toBe(true);
+    });
+
+    it('returns true for "not logged in" (case-insensitive)', () => {
+      expect(isAuthenticationFailedError("NOT LOGGED IN")).toBe(true);
+    });
+
     describe("isInvalidModelError", () => {
       it("returns true for model-not-supported errors", () => {
         expect(isInvalidModelError("Execution failed: CAPIError: 400 The requested model is not supported.")).toBe(true);

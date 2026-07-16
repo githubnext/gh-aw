@@ -443,6 +443,11 @@ safe-outputs:
     run-started: "🍪 ISSUE! ISSUE! [{workflow_name}]({run_url}) hungry for issues on this {event_type}! Om nom nom..."
     run-success: "🍪 YUMMY! [{workflow_name}]({run_url}) ate the issues! That was DELICIOUS! Me want MORE! 😋"
     run-failure: "🍪 Aww... [{workflow_name}]({run_url}) {status}. No cookie for monster today... 😢"
+evals:
+  - id: issue_assigned
+    question: Did the agent assign at least one issue to the Copilot coding agent, or correctly skip when no suitable issues were found?
+  - id: single_issue_scoped
+    question: Does the agent output show that at most one issue was assigned to Copilot per run?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

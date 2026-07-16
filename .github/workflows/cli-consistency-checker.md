@@ -76,6 +76,11 @@ features:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: cli_inspected
+    question: Did the agent inspect the gh-aw CLI commands and analyze their output for inconsistencies, typos, or documentation gaps?
+  - id: issue_created_or_noop
+    question: Was an issue created with specific CLI inconsistencies found, or was noop used when no issues were detected?
 ---
 
 # CLI Consistency Checker
