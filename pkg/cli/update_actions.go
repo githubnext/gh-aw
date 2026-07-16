@@ -612,7 +612,7 @@ func UpdateActionsInWorkflowFiles(ctx context.Context, workflowsDir, engineOverr
 }
 
 // updateActionsOptions bundles the configuration parameters for updateActionsInWorkflowFiles,
-// replacing the previous 8-parameter positional list.
+// collapsing a long positional parameter list into a struct.
 type updateActionsOptions struct {
 	workflowsDir       string
 	engineOverride     string
