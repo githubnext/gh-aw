@@ -358,19 +358,21 @@ func TestTokenUsageSummaryMethods(t *testing.T) {
 		summary := &TokenUsageSummary{
 			ByModel: map[string]*ModelTokenUsage{
 				"small-model": {
-					Provider:    "provider-a",
-					InputTokens: 10,
-					Requests:    1,
-					DurationMs:  100,
+					Provider:         "provider-a",
+					TokenCoreMetrics: TokenCoreMetrics{InputTokens: 10},
+					Requests:         1,
+					DurationMs:       100,
 				},
 				"large-model": {
-					Provider:         "provider-b",
-					InputTokens:      100,
-					OutputTokens:     200,
-					CacheReadTokens:  5000,
-					CacheWriteTokens: 3000,
-					Requests:         5,
-					DurationMs:       5000,
+					Provider: "provider-b",
+					TokenCoreMetrics: TokenCoreMetrics{
+						InputTokens:      100,
+						OutputTokens:     200,
+						CacheReadTokens:  5000,
+						CacheWriteTokens: 3000,
+					},
+					Requests:   5,
+					DurationMs: 5000,
 				},
 			},
 		}
@@ -742,10 +744,12 @@ func TestCacheEfficiency(t *testing.T) {
 
 func TestModelTokenUsageReasoningTokensJSONRoundTrip(t *testing.T) {
 	original := ModelTokenUsage{
-		Provider:        "anthropic",
-		InputTokens:     10,
-		OutputTokens:    20,
-		ReasoningTokens: 30,
+		Provider: "anthropic",
+		TokenCoreMetrics: TokenCoreMetrics{
+			InputTokens:     10,
+			OutputTokens:    20,
+			ReasoningTokens: 30,
+		},
 	}
 
 	raw, err := json.Marshal(original)
