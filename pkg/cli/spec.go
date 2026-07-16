@@ -417,7 +417,7 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 			Version:  version,
 		},
 		WorkflowPath: workflowPath,
-		WorkflowName: strings.TrimSuffix(filepath.Base(workflowPath), ".md"),
+		WorkflowName: normalizeWorkflowID(workflowPath),
 		Host:         explicitHost,
 	}, nil
 }
@@ -439,7 +439,7 @@ func parseLocalWorkflowSpec(spec string) (*WorkflowSpec, error) {
 			Version:  "", // Local workflows have no version
 		},
 		WorkflowPath: spec, // Keep the "./" prefix in WorkflowPath
-		WorkflowName: strings.TrimSuffix(filepath.Base(spec), ".md"),
+		WorkflowName: normalizeWorkflowID(spec),
 	}, nil
 }
 

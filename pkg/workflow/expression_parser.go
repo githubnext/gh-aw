@@ -17,7 +17,7 @@ func stripExpressionWrapper(expression string) string {
 	// Trim whitespace
 	expr := strings.TrimSpace(expression)
 	// Check if it starts with ${{ and ends with }}
-	if strings.HasPrefix(expr, "${{") && strings.HasSuffix(expr, "}}") {
+	if isExpression(expr) {
 		// Remove the wrapper and trim inner whitespace
 		return strings.TrimSpace(expr[3 : len(expr)-2])
 	}
