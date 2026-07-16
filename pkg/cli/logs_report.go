@@ -495,8 +495,11 @@ func compactLogsData(data LogsData) LogsData {
 		}
 	}
 	if allStandalone {
-		data.Episodes = nil
-		data.Edges = nil
+		// Use empty slices (not nil) so JSON marshaling produces [] instead of null.
+		// A null value breaks agent-side Python code that calls len(d.get('episodes', []))
+		// because d.get returns None (the existing key's value) rather than the default [].
+		data.Episodes = []EpisodeData{}
+		data.Edges = []EpisodeEdge{}
 	}
 
 	return data
