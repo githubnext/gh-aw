@@ -103,13 +103,16 @@ export function findEnclosingStatement(sourceCode: TSESLint.SourceCode, node: TS
 
 function isRequireFsCall(node: TSESTree.Node | null | undefined): boolean {
   if (!node) return false;
+  const firstArg = node.type === AST_NODE_TYPES.CallExpression ? node.arguments[0] : null;
+  const firstArgValue = firstArg?.type === AST_NODE_TYPES.Literal ? firstArg.value : null;
   return (
     node.type === AST_NODE_TYPES.CallExpression &&
     node.callee.type === AST_NODE_TYPES.Identifier &&
     node.callee.name === "require" &&
     node.arguments.length >= 1 &&
     node.arguments[0].type === AST_NODE_TYPES.Literal &&
-    FS_MODULE_SPECIFIERS.has(node.arguments[0].value as string)
+    typeof firstArgValue === "string" &&
+    FS_MODULE_SPECIFIERS.has(firstArgValue)
   );
 }
 
