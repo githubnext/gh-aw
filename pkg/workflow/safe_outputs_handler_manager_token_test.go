@@ -194,7 +194,23 @@ func TestHandlerManagerProjectGitHubTokenEnvVar(t *testing.T) {
 				},
 			},
 			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.PROJECTS_PAT }}",
-			expectedWithToken:   "github-token: ${{ secrets.PROJECTS_PAT }}",
+			expectedWithToken:   "github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+			shouldHaveToken:     true,
+		},
+		{
+			name: "update-project with custom github-token and safe-outputs github-token",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"github-token": "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+					"update-project": map[string]any{
+						"github-token": "${{ secrets.PROJECTS_PAT }}",
+						"project":      "https://github.com/orgs/myorg/projects/1",
+					},
+				},
+			},
+			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.PROJECTS_PAT }}",
+			expectedWithToken:   "github-token: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
 			shouldHaveToken:     true,
 		},
 		{
@@ -208,7 +224,7 @@ func TestHandlerManagerProjectGitHubTokenEnvVar(t *testing.T) {
 				},
 			},
 			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
-			expectedWithToken:   "github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+			expectedWithToken:   "github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 			shouldHaveToken:     true,
 		},
 		{
@@ -238,7 +254,7 @@ func TestHandlerManagerProjectGitHubTokenEnvVar(t *testing.T) {
 				},
 			},
 			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.STATUS_PAT }}",
-			expectedWithToken:   "github-token: ${{ secrets.STATUS_PAT }}",
+			expectedWithToken:   "github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 			shouldHaveToken:     true,
 		},
 		{
@@ -252,7 +268,7 @@ func TestHandlerManagerProjectGitHubTokenEnvVar(t *testing.T) {
 				},
 			},
 			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.CREATE_PAT }}",
-			expectedWithToken:   "github-token: ${{ secrets.CREATE_PAT }}",
+			expectedWithToken:   "github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 			shouldHaveToken:     true,
 		},
 		{
@@ -274,7 +290,7 @@ func TestHandlerManagerProjectGitHubTokenEnvVar(t *testing.T) {
 				},
 			},
 			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.UPDATE_PAT }}",
-			expectedWithToken:   "github-token: ${{ secrets.UPDATE_PAT }}",
+			expectedWithToken:   "github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 			shouldHaveToken:     true,
 		},
 		{
@@ -312,7 +328,7 @@ func TestHandlerManagerProjectGitHubTokenEnvVar(t *testing.T) {
 					"Expected environment variable %q to be set in handler manager step",
 					tt.expectedEnvVarValue)
 
-				// Check that the github-script token matches the effective project token
+				// Check that the github-script token uses safe-outputs token precedence.
 				assert.Contains(t, yamlStr, tt.expectedWithToken,
 					"Expected github-script token %q to be set in handler manager step",
 					tt.expectedWithToken)
