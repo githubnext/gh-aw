@@ -410,7 +410,8 @@ func selectBootstrapProfile(bootstrapProfiles []*resolvedBootstrapProfile, resol
 			ids = append(ids, p.PackageID)
 		}
 		resolutionLog.Printf("Multiple bootstrap profiles found (%v); skipping all", ids)
-		updatedWarnings := append([]string{}, resolutionWarnings...)
+		updatedWarnings := make([]string, len(resolutionWarnings), len(resolutionWarnings)+1)
+		copy(updatedWarnings, resolutionWarnings)
 		updatedWarnings = append(updatedWarnings,
 			fmt.Sprintf("multiple bootstrap profiles found (%s); bootstrap config will be skipped — run each package separately to apply its config", strings.Join(ids, ", ")))
 		return nil, updatedWarnings
