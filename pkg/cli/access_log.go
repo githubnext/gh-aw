@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -33,6 +34,46 @@ type AccessLogEntry struct {
 // DomainAnalysis represents analysis of domains from access logs
 type DomainAnalysis struct {
 	AnalysisBase
+}
+
+// domainAnalysisWire is the stable JSON schema for DomainAnalysis.
+// It preserves the original "allowed_count"/"blocked_count" field names so that
+// cached RunSummary.access_analysis JSON and AccessLogSummary.by_workflow values
+// remain backward-compatible after the AnalysisBase refactor, which renamed those
+// fields to AllowedRequests/BlockedRequests internally.
+type domainAnalysisWire struct {
+	TotalRequests  int      `json:"total_requests"`
+	AllowedCount   int      `json:"allowed_count"`
+	BlockedCount   int      `json:"blocked_count"`
+	AllowedDomains []string `json:"allowed_domains,omitempty"`
+	BlockedDomains []string `json:"blocked_domains,omitempty"`
+}
+
+// MarshalJSON emits the original "allowed_count"/"blocked_count" wire names so
+// existing consumers of the access-analysis JSON do not see a silent field rename.
+func (d DomainAnalysis) MarshalJSON() ([]byte, error) {
+	return json.Marshal(domainAnalysisWire{
+		TotalRequests:  d.TotalRequests,
+		AllowedCount:   d.AllowedRequests,
+		BlockedCount:   d.BlockedRequests,
+		AllowedDomains: d.AllowedDomains,
+		BlockedDomains: d.BlockedDomains,
+	})
+}
+
+// UnmarshalJSON accepts the original "allowed_count"/"blocked_count" wire names,
+// keeping round-trip compatibility with cached JSON produced before the refactor.
+func (d *DomainAnalysis) UnmarshalJSON(data []byte) error {
+	var wire domainAnalysisWire
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	d.TotalRequests = wire.TotalRequests
+	d.AllowedRequests = wire.AllowedCount
+	d.BlockedRequests = wire.BlockedCount
+	d.AllowedDomains = wire.AllowedDomains
+	d.BlockedDomains = wire.BlockedDomains
+	return nil
 }
 
 // AddMetrics adds metrics from another analysis

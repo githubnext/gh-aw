@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -292,4 +293,42 @@ func TestAddMetrics(t *testing.T) {
 			assert.Equal(t, tt.expected.BlockedRequests, tt.base.BlockedRequests, "blocked requests should match")
 		})
 	}
+}
+
+// TestDomainAnalysisJSONWireNames verifies that DomainAnalysis serializes with the
+// original "allowed_count"/"blocked_count" JSON keys (not "allowed_requests"/
+// "blocked_requests") so that cached access-analysis JSON remains backward-compatible.
+func TestDomainAnalysisJSONWireNames(t *testing.T) {
+	d := DomainAnalysis{
+		AnalysisBase: AnalysisBase{
+			TotalRequests:   10,
+			AllowedRequests: 7,
+			BlockedRequests: 3,
+			DomainBuckets: DomainBuckets{
+				AllowedDomains: []string{"example.com"},
+				BlockedDomains: []string{"blocked.com"},
+			},
+		},
+	}
+
+	data, err := json.Marshal(d)
+	require.NoError(t, err)
+
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal(data, &raw))
+
+	assert.EqualValues(t, 7, raw["allowed_count"], "should use legacy key allowed_count")
+	assert.EqualValues(t, 3, raw["blocked_count"], "should use legacy key blocked_count")
+	assert.Nil(t, raw["allowed_requests"], "should not emit allowed_requests")
+	assert.Nil(t, raw["blocked_requests"], "should not emit blocked_requests")
+	assert.EqualValues(t, 10, raw["total_requests"])
+
+	// Round-trip: unmarshal back should restore fields correctly.
+	var d2 DomainAnalysis
+	require.NoError(t, json.Unmarshal(data, &d2))
+	assert.Equal(t, d.TotalRequests, d2.TotalRequests)
+	assert.Equal(t, d.AllowedRequests, d2.AllowedRequests)
+	assert.Equal(t, d.BlockedRequests, d2.BlockedRequests)
+	assert.Equal(t, d.AllowedDomains, d2.AllowedDomains)
+	assert.Equal(t, d.BlockedDomains, d2.BlockedDomains)
 }

@@ -67,11 +67,25 @@ func TestDomainAnalysisGettersSetters(t *testing.T) {
 
 func TestDomainAnalysisAddMetrics(t *testing.T) {
 	analysis1 := &DomainAnalysis{
-		AnalysisBase: AnalysisBase{TotalRequests: 10, AllowedRequests: 6, BlockedRequests: 4},
+		AnalysisBase: AnalysisBase{
+			TotalRequests: 10, AllowedRequests: 6, BlockedRequests: 4,
+			DomainBuckets: DomainBuckets{
+				AllowedDomains: []string{"api.github.com", "example.com"},
+				BlockedDomains: []string{"blocked.com"},
+			},
+		},
 	}
 
 	analysis2 := &DomainAnalysis{
-		AnalysisBase: AnalysisBase{TotalRequests: 5, AllowedRequests: 3, BlockedRequests: 2},
+		AnalysisBase: AnalysisBase{
+			TotalRequests: 5, AllowedRequests: 3, BlockedRequests: 2,
+			DomainBuckets: DomainBuckets{
+				// "example.com" is a duplicate; "new.com" is new
+				AllowedDomains: []string{"example.com", "new.com"},
+				// "extra-blocked.com" is new
+				BlockedDomains: []string{"blocked.com", "extra-blocked.com"},
+			},
+		},
 	}
 
 	analysis1.AddMetrics(analysis2)
@@ -84,6 +98,29 @@ func TestDomainAnalysisAddMetrics(t *testing.T) {
 	}
 	if analysis1.BlockedRequests != 6 {
 		t.Errorf("Expected BlockedRequests 6, got %d", analysis1.BlockedRequests)
+	}
+
+	// Domain lists must be deduplicated and sorted.
+	expectedAllowed := []string{"api.github.com", "example.com", "new.com"}
+	if len(analysis1.AllowedDomains) != len(expectedAllowed) {
+		t.Errorf("Expected %d allowed domains, got %d: %v", len(expectedAllowed), len(analysis1.AllowedDomains), analysis1.AllowedDomains)
+	} else {
+		for i, d := range expectedAllowed {
+			if analysis1.AllowedDomains[i] != d {
+				t.Errorf("AllowedDomains[%d]: expected %q, got %q", i, d, analysis1.AllowedDomains[i])
+			}
+		}
+	}
+
+	expectedBlocked := []string{"blocked.com", "extra-blocked.com"}
+	if len(analysis1.BlockedDomains) != len(expectedBlocked) {
+		t.Errorf("Expected %d blocked domains, got %d: %v", len(expectedBlocked), len(analysis1.BlockedDomains), analysis1.BlockedDomains)
+	} else {
+		for i, d := range expectedBlocked {
+			if analysis1.BlockedDomains[i] != d {
+				t.Errorf("BlockedDomains[%d]: expected %q, got %q", i, d, analysis1.BlockedDomains[i])
+			}
+		}
 	}
 }
 
