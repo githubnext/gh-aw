@@ -436,7 +436,7 @@ func findRemoteWorkflowFilenameForExperiment(repoOverride, experimentName string
 func matchWorkflowFilenameByExperiment(filenames []string, experimentName string) string {
 	var matches []string
 	for _, filename := range filenames {
-		base := strings.TrimSuffix(filename, ".md")
+		base := normalizeWorkflowID(filename)
 		if workflow.SanitizeWorkflowIDForCacheKey(base) == experimentName {
 			matches = append(matches, base)
 		}
@@ -459,7 +459,7 @@ func findWorkflowFileForExperiment(experimentName string) string {
 		return ""
 	}
 	for _, f := range mdFiles {
-		base := strings.TrimSuffix(filepath.Base(f), ".md")
+		base := normalizeWorkflowID(f)
 		if workflow.SanitizeWorkflowIDForCacheKey(base) == experimentName {
 			return f
 		}

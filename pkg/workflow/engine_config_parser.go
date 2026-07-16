@@ -27,21 +27,16 @@ func parseMaxAICreditsValue(raw any) int64 {
 // parseMaxRunsValue parses max-runs from either integer or numeric-string
 // frontmatter values.
 func parseMaxRunsValue(raw any) int {
-	if val, ok := typeutil.ParseIntValue(raw); ok && val > 0 {
-		return val
-	}
-	if rawStr, ok := raw.(string); ok {
-		if parsed, err := strconv.Atoi(rawStr); err == nil && parsed > 0 {
-			return parsed
-		}
-		engineLog.Printf("Ignoring invalid max-runs value: %q", rawStr)
-	}
-	return 0
+	return parsePositiveIntValue(raw, "max-runs")
 }
 
 // parseMaxTurnCacheMissesValue parses max-turn-cache-misses from either integer or
 // numeric-string frontmatter values.
 func parseMaxTurnCacheMissesValue(raw any) int {
+	return parsePositiveIntValue(raw, "max-turn-cache-misses")
+}
+
+func parsePositiveIntValue(raw any, fieldName string) int {
 	if val, ok := typeutil.ParseIntValue(raw); ok && val > 0 {
 		return val
 	}
@@ -49,32 +44,13 @@ func parseMaxTurnCacheMissesValue(raw any) int {
 		if parsed, err := strconv.Atoi(rawStr); err == nil && parsed > 0 {
 			return parsed
 		}
-		engineLog.Printf("Ignoring invalid max-turn-cache-misses value: %q", rawStr)
+		engineLog.Printf("Ignoring invalid %s value: %q", fieldName, rawStr)
 	}
 	return 0
 }
 
 func parseMaxTurnsValue(raw any) string {
-	if val, ok := typeutil.ParseIntValue(raw); ok && val > 0 {
-		return strconv.Itoa(val)
-	}
-	if rawStr, ok := raw.(string); ok {
-		trimmed := strings.TrimSpace(rawStr)
-		if trimmed == "" {
-			return ""
-		}
-		if parsed, err := strconv.Atoi(trimmed); err == nil && parsed > 0 {
-			return strconv.Itoa(parsed)
-		}
-		// Match the same GitHub Actions expression wrapper accepted by the schema.
-		// The schema and GitHub Actions runtime are responsible for validating the
-		// expression body itself; this helper only needs to preserve templated values.
-		if strings.HasPrefix(trimmed, "${{") && strings.HasSuffix(trimmed, "}}") {
-			return trimmed
-		}
-		engineLog.Printf("Ignoring invalid max-turns value: %q", rawStr)
-	}
-	return ""
+	return parseIntOrExpressionValue(raw, 1, "max-turns")
 }
 
 // parseNonNegativeIntOrExpressionValue parses a raw frontmatter value that must be a
@@ -82,7 +58,11 @@ func parseMaxTurnsValue(raw any) string {
 // It is intentionally distinct from parseMaxTurnsValue which rejects zero.
 // Returns the canonical string representation, or "" when the value is absent/invalid.
 func parseNonNegativeIntOrExpressionValue(raw any) string {
-	if val, ok := typeutil.ParseIntValue(raw); ok && val >= 0 {
+	return parseIntOrExpressionValue(raw, 0, "harness.max-retries")
+}
+
+func parseIntOrExpressionValue(raw any, minValue int, fieldName string) string {
+	if val, ok := typeutil.ParseIntValue(raw); ok && val >= minValue {
 		return strconv.Itoa(val)
 	}
 	if rawStr, ok := raw.(string); ok {
@@ -90,35 +70,22 @@ func parseNonNegativeIntOrExpressionValue(raw any) string {
 		if trimmed == "" {
 			return ""
 		}
-		if parsed, err := strconv.Atoi(trimmed); err == nil && parsed >= 0 {
+		if parsed, err := strconv.Atoi(trimmed); err == nil && parsed >= minValue {
 			return strconv.Itoa(parsed)
 		}
-		if strings.HasPrefix(trimmed, "${{") && strings.HasSuffix(trimmed, "}}") {
+		// Match the same GitHub Actions expression wrapper accepted by the schema.
+		// The schema and GitHub Actions runtime are responsible for validating the
+		// expression body itself; this helper only needs to preserve templated values.
+		if isExpression(trimmed) {
 			return trimmed
 		}
-		engineLog.Printf("Ignoring invalid harness.max-retries value: %q", rawStr)
+		engineLog.Printf("Ignoring invalid %s value: %q", fieldName, rawStr)
 	}
 	return ""
 }
 
 func parseMaxToolDenialsValue(raw any) string {
-	if val, ok := typeutil.ParseIntValue(raw); ok && val > 0 {
-		return strconv.Itoa(val)
-	}
-	if rawStr, ok := raw.(string); ok {
-		trimmed := strings.TrimSpace(rawStr)
-		if trimmed == "" {
-			return ""
-		}
-		if parsed, err := strconv.Atoi(trimmed); err == nil && parsed > 0 {
-			return strconv.Itoa(parsed)
-		}
-		if strings.HasPrefix(trimmed, "${{") && strings.HasSuffix(trimmed, "}}") {
-			return trimmed
-		}
-		engineLog.Printf("Ignoring invalid max-tool-denials value: %q", rawStr)
-	}
-	return ""
+	return parseIntOrExpressionValue(raw, 1, "max-tool-denials")
 }
 
 // parseAuthDefinition converts a raw auth config map (from engine.provider.auth) into
