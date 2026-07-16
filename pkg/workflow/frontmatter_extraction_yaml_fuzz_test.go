@@ -46,14 +46,14 @@ func FuzzCommentOutProcessedFieldsInOnSectionTopLevelLabels(f *testing.F) {
 			}
 		}
 
-		// Commented-out blocks in the on: section are flattened to the block's base
-		// indentation (indent 2 here) so yamllint's comments-indentation rule does
-		// not fire on the deeper-nested step content.
-		mustContain("  # labels: # Label filtering applied via job conditions")
+		// The commented labels/steps block is the trailing block of the on: section, so
+		// it is de-indented to column 0 to align with the top-level key that follows the
+		// on: section (yamllint comments-indentation).
+		mustContain("# labels: # Label filtering applied via job conditions")
 		mustContain("# - " + topAQuoted + " # Label filtering applied via job conditions")
 		mustContain("# - " + topBQuoted + " # Label filtering applied via job conditions")
-		mustContain("  # - " + nestedAQuoted)
-		mustContain("  # - " + nestedBQuoted)
+		mustContain("# - " + nestedAQuoted)
+		mustContain("# - " + nestedBQuoted)
 		// Because commented blocks are flattened to indent 2, nested step-label items
 		// are no longer distinguishable from top-level label items by indentation.
 		// The annotation-count invariant below is what guarantees the nested items are
@@ -93,11 +93,12 @@ func FuzzCommentOutProcessedFieldsInOnSectionNoTopLevelLabels(f *testing.F) {
 
 		result := compiler.commentOutProcessedFieldsInOnSection(yamlStr, map[string]any{})
 
-		// Commented on.steps content is flattened to the block base indentation (2).
-		if !strings.Contains(result, "  # - "+nestedAQuoted) {
+		// Commented on.steps content is the trailing block of the on: section, so it is
+		// de-indented to column 0 (yamllint comments-indentation).
+		if !strings.Contains(result, "# - "+nestedAQuoted) {
 			t.Fatalf("expected nested labels item to remain in on.steps output:\n%s", result)
 		}
-		if !strings.Contains(result, "  # - "+nestedBQuoted) {
+		if !strings.Contains(result, "# - "+nestedBQuoted) {
 			t.Fatalf("expected nested labels item to remain in on.steps output:\n%s", result)
 		}
 		if strings.Contains(result, "Label filtering applied via job conditions") {

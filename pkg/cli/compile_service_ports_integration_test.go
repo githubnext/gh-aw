@@ -13,6 +13,7 @@ import (
 // TestCompileServicePortsWorkflow compiles the canonical test-service-ports.md workflow
 // and verifies that the generated lock file contains --allow-host-service-ports with the
 // correct ${{ job.services['<id>'].ports['<port>'] }} expressions for every service port.
+// The fixture opts into legacy-security because service-port passthrough requires host access.
 func TestCompileServicePortsWorkflow(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
@@ -99,6 +100,57 @@ This workflow has no services block and should not include --allow-host-service-
 	}
 }
 
+// TestCompileServicePorts_StrictModeWithServices verifies that workflows with services
+// still compile in strict mode, but do not emit --allow-host-service-ports unless they
+// opt into legacy-security: enable.
+func TestCompileServicePorts_StrictModeWithServices(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+services:
+  redis:
+    image: redis:7
+    ports:
+      - 6379:6379
+---
+
+# Strict Services Workflow
+
+This workflow has services but omits legacy-security: enable, so it should not include
+--allow-host-service-ports.
+`
+	testPath := filepath.Join(setup.workflowsDir, "strict-services.md")
+	if err := os.WriteFile(testPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write workflow: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Compile failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "strict-services.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lock := string(lockContent)
+	if strings.Contains(lock, "--allow-host-service-ports") {
+		t.Errorf("Lock file should NOT contain --allow-host-service-ports in strict mode\nLock content:\n%s", lock)
+	}
+	if strings.Contains(lock, "job.services['redis'].ports['6379']") {
+		t.Errorf("Lock file should NOT contain service-port expressions in strict mode\nLock content:\n%s", lock)
+	}
+}
+
 // TestCompileServicePorts_HyphenatedServiceID verifies that service IDs containing
 // hyphens are emitted with bracket notation (not dot notation) in the compiled lock file.
 func TestCompileServicePorts_HyphenatedServiceID(t *testing.T) {
@@ -111,6 +163,9 @@ on:
 permissions:
   contents: read
 engine: copilot
+sandbox:
+  agent:
+    legacy-security: enable
 services:
   my-postgres:
     image: postgres:15

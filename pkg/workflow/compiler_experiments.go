@@ -322,13 +322,13 @@ func extractIntSlice(raw any) []int {
 	return nil
 }
 
-// parseExperimentMetricEvalReference returns the referenced eval question ID when metric
+// ParseExperimentMetricEvalReference returns the referenced eval question ID when metric
 // declares an eval-backed success metric.
 // Supported forms:
 //   - eval:<id>
 //   - evals.<id>
 //   - evals.<id>.<suffix> (suffix reserved for future derived metrics)
-func parseExperimentMetricEvalReference(metric string) (string, bool) {
+func ParseExperimentMetricEvalReference(metric string) (string, bool) {
 	trimmed := strings.TrimSpace(metric)
 	if trimmed == "" {
 		return "", false
@@ -367,7 +367,7 @@ func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, ev
 		if cfg == nil {
 			continue
 		}
-		referencedEvalID, referencesEval := parseExperimentMetricEvalReference(cfg.Metric)
+		referencedEvalID, referencesEval := ParseExperimentMetricEvalReference(cfg.Metric)
 		if !referencesEval {
 			continue
 		}

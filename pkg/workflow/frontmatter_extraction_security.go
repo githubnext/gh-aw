@@ -274,6 +274,14 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
+	// Extract legacy-security (opt-in to legacy sudo/iptables mode)
+	if legacyVal, hasLegacy := agentObj["legacy-security"]; hasLegacy {
+		if legacyStr, ok := legacyVal.(string); ok && legacyStr == "enable" {
+			agentConfig.LegacySecurity = true
+			frontmatterExtractionSecurityLog.Print("Extracted sandbox.agent.legacy-security: enable")
+		}
+	}
+
 	// Extract model-fallback (AWF API proxy model fallback enable/disable flag)
 	if mfVal, hasMF := agentObj["model-fallback"]; hasMF {
 		switch v := mfVal.(type) {

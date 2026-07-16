@@ -144,14 +144,168 @@ func buildGitHubExpressionNonEmptyCheck(value string) ConditionNode {
 	return BuildNotEquals(BuildStringLiteral(strings.TrimSpace(githubExpressionWhitespaceReplacer.Replace(trimmed))), BuildStringLiteral(""))
 }
 
+// ifInvalidContextNames lists the GitHub Actions expression contexts that are not
+// available in step-level 'if:' conditions. GitHub Actions allows matrix in this
+// position, but still rejects secrets and jobs references.
+// See: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/evaluate-expressions-in-workflows-and-actions#contexts
+var ifInvalidContextNames = map[string]struct{}{
+	"jobs":    {},
+	"secrets": {},
+}
+
+const (
+	ignoreIfMissingAppIDEnvVar      = "GH_AW_IGNORE_IF_MISSING_APP_ID"
+	ignoreIfMissingPrivateKeyEnvVar = "GH_AW_IGNORE_IF_MISSING_PRIVATE_KEY"
+)
+
+type stepEnvAssignment struct {
+	Name  string
+	Value string
+}
+
+type ignoreIfMissingGuard struct {
+	Condition      string
+	EnvAssignments []stepEnvAssignment
+}
+
+// isGitHubExpressionIdentifierChar reports whether a byte can appear in a GitHub
+// Actions expression identifier token (ASCII letter, digit, or underscore).
+func isGitHubExpressionIdentifierChar(ch byte) bool {
+	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'
+}
+
+// isGitHubExpressionIdentifierStart reports whether inner[i] begins an identifier
+// token rather than landing in the middle of one.
+func isGitHubExpressionIdentifierStart(inner string, i int) bool {
+	if i >= len(inner) {
+		return false
+	}
+	return isGitHubExpressionIdentifierChar(inner[i]) && (i == 0 || !isGitHubExpressionIdentifierChar(inner[i-1]))
+}
+
+// consumeSingleQuotedGitHubExpressionString skips over a single-quoted GitHub
+// expression string literal, honoring doubled single quotes as escapes. It returns
+// the first byte position after the closing quote, or len(inner) if unterminated.
+func consumeSingleQuotedGitHubExpressionString(inner string, start int) int {
+	i := start + 1
+	for i < len(inner) {
+		if inner[i] != '\'' {
+			i++
+			continue
+		}
+		if i+1 < len(inner) && inner[i+1] == '\'' {
+			i += 2
+			continue
+		}
+		return i + 1
+	}
+	return i
+}
+
+// containsInvalidIfContextReference returns true when the inner expression body
+// contains a jobs or secrets context token anywhere outside single-quoted string
+// literals, including bracket notation such as secrets['TOKEN'].
+func containsInvalidIfContextReference(inner string) bool {
+	for i := 0; i < len(inner); {
+		if inner[i] == '\'' {
+			i = consumeSingleQuotedGitHubExpressionString(inner, i)
+			continue
+		}
+
+		if !isGitHubExpressionIdentifierStart(inner, i) {
+			i++
+			continue
+		}
+
+		start := i
+		for i < len(inner) && isGitHubExpressionIdentifierChar(inner[i]) {
+			i++
+		}
+		name := inner[start:i]
+		if _, ok := ifInvalidContextNames[name]; !ok {
+			continue
+		}
+
+		j := i
+		for j < len(inner) && (inner[j] == ' ' || inner[j] == '\t' || inner[j] == '\n' || inner[j] == '\r') {
+			j++
+		}
+		if j < len(inner) && (inner[j] == '.' || inner[j] == '[') {
+			return true
+		}
+	}
+	return false
+}
+
+// combineGitHubIfExpressions accepts either wrapped `${{ ... }}` conditions or raw
+// inner expression fragments and normalizes them into one wrapped if-expression.
+func combineGitHubIfExpressions(expressions ...string) string {
+	var parts []string
+	for _, expression := range expressions {
+		trimmed := strings.TrimSpace(expression)
+		if trimmed == "" {
+			continue
+		}
+		if inner, ok := extractWrappedGitHubExpression(trimmed); ok {
+			parts = append(parts, inner)
+			continue
+		}
+		parts = append(parts, trimmed)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return wrapGitHubExpression(strings.Join(parts, " && "))
+}
+
+func appendStepEnvAssignments(steps []string, assignments []stepEnvAssignment) []string {
+	if len(assignments) == 0 {
+		return steps
+	}
+	steps = append(steps, "        env:\n")
+	for _, assignment := range assignments {
+		steps = append(steps, fmt.Sprintf("          %s: %s\n", assignment.Name, assignment.Value))
+	}
+	return steps
+}
+
 // buildIgnoreIfMissingCondition returns a GitHub Actions if-expression that requires
-// both GitHub App credential inputs to be non-empty.
-func buildIgnoreIfMissingCondition(app *GitHubAppConfig) string {
-	condition := BuildAnd(
-		buildGitHubExpressionNonEmptyCheck(app.AppID),
-		buildGitHubExpressionNonEmptyCheck(app.PrivateKey),
-	)
-	return wrapGitHubExpression(RenderCondition(condition))
+// all GitHub App credential inputs that can be checked in an if: condition to be non-empty.
+// Values referencing the secrets or jobs contexts are routed through step-local env
+// aliases so the guard can still check them through the supported env context.
+func buildIgnoreIfMissingCondition(app *GitHubAppConfig) ignoreIfMissingGuard {
+	var checks []ConditionNode
+	guard := ignoreIfMissingGuard{}
+	for _, credential := range []struct {
+		value   string
+		envName string
+	}{
+		{value: app.AppID, envName: ignoreIfMissingAppIDEnvVar},
+		{value: app.PrivateKey, envName: ignoreIfMissingPrivateKeyEnvVar},
+	} {
+		trimmed := strings.TrimSpace(credential.value)
+		if inner, ok := extractWrappedGitHubExpression(trimmed); ok {
+			if containsInvalidIfContextReference(inner) {
+				safeOutputsAppLog.Printf("Rewriting %q in ignore-if-missing condition through env.%s: context not valid in if: expressions", inner, credential.envName)
+				guard.EnvAssignments = append(guard.EnvAssignments, stepEnvAssignment{
+					Name:  credential.envName,
+					Value: trimmed,
+				})
+				checks = append(checks, BuildNotEquals(&ExpressionNode{Expression: "env." + credential.envName}, BuildStringLiteral("")))
+				continue
+			}
+		}
+		checks = append(checks, buildGitHubExpressionNonEmptyCheck(credential.value))
+	}
+	if len(checks) == 0 {
+		return guard
+	}
+	condition := checks[0]
+	for i := 1; i < len(checks); i++ {
+		condition = BuildAnd(condition, checks[i])
+	}
+	guard.Condition = wrapGitHubExpression(RenderCondition(condition))
+	return guard
 }
 
 // ========================================
@@ -226,7 +380,11 @@ func (c *Compiler) buildGitHubAppTokenMintStepWithMeta(app *GitHubAppConfig, per
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", stepName))
 	steps = append(steps, fmt.Sprintf("        id: %s\n", stepID))
 	if app.shouldIgnoreMissingKey() {
-		steps = append(steps, fmt.Sprintf("        if: %s\n", buildIgnoreIfMissingCondition(app)))
+		guard := buildIgnoreIfMissingCondition(app)
+		steps = appendStepEnvAssignments(steps, guard.EnvAssignments)
+		if guard.Condition != "" {
+			steps = append(steps, fmt.Sprintf("        if: %s\n", guard.Condition))
+		}
 	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
@@ -486,7 +644,11 @@ func (c *Compiler) buildActivationAppTokenMintStep(app *GitHubAppConfig, permiss
 	steps = append(steps, "      - name: Generate GitHub App token for activation\n")
 	steps = append(steps, "        id: activation-app-token\n")
 	if app.shouldIgnoreMissingKey() {
-		steps = append(steps, fmt.Sprintf("        if: %s\n", buildIgnoreIfMissingCondition(app)))
+		guard := buildIgnoreIfMissingCondition(app)
+		steps = appendStepEnvAssignments(steps, guard.EnvAssignments)
+		if guard.Condition != "" {
+			steps = append(steps, fmt.Sprintf("        if: %s\n", guard.Condition))
+		}
 	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")

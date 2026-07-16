@@ -72,6 +72,12 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	// Compute permissions and threat detection flag up front; both are used across phases.
 	permissions := ComputePermissionsForSafeOutputs(data.SafeOutputs)
+	// When observability.otlp.github-app is configured without app-id/private-key
+	// credentials, id-token: write is needed so the safe_outputs job can mint the OTLP
+	// OIDC token via core.getIDToken(audience) (mirrors threat_detection_job.go).
+	if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
+		permissions.Set(PermissionIdToken, PermissionWrite)
+	}
 	threatDetectionEnabled := IsDetectionJobEnabled(data.SafeOutputs)
 
 	// Compute artifact prefix once; it is referenced in all three phases.

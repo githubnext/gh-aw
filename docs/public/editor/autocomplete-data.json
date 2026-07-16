@@ -2383,6 +2383,11 @@
                   "desc": "If true, skip token minting when client-id/private-key resolve to empty strings at runtime.",
                   "enum": [true, false],
                   "leaf": true
+                },
+                "audience": {
+                  "type": "string",
+                  "desc": "Optional OIDC audience passed to core.getIDToken(audience) when using credential-less OIDC mode (github-app present without app-id/private-key). Leave omitted to use the default audience.",
+                  "leaf": true
                 }
               }
             }

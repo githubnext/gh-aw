@@ -125,6 +125,8 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		firewallType = "squid"
 	}
 
+	compilerYamlStepLifecycleLog.Printf("Generating aw_info step: engine=%s, modelConfigured=%t, version=%s, firewallEnabled=%t, staged=%s", engineID, modelConfigured, version, firewallEnabled, stagedValue)
+
 	yaml.WriteString("      - name: Generate agentic run info\n")
 	yaml.WriteString("        id: generate_aw_info\n")
 	yaml.WriteString("        env:\n")

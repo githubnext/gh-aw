@@ -500,9 +500,9 @@ func TestSpec_URLConstants_Values(t *testing.T) {
 // TestSpec_AWFConstants_Values validates the documented AWF constants.
 // Spec section: "## AWF (Agentic Workflow Firewall) Constants"
 func TestSpec_AWFConstants_Values(t *testing.T) {
-	// From spec: AWFDefaultCommand // "sudo -E awf"
-	assert.Equal(t, "sudo -E awf", constants.AWFDefaultCommand,
-		"AWFDefaultCommand should be 'sudo -E awf' as documented")
+	// From spec: AWFDefaultCommand // "awf" (strict mode default; legacy mode uses AWFLegacySecurityCommand)
+	assert.Equal(t, "awf", constants.AWFDefaultCommand,
+		"AWFDefaultCommand should be 'awf' for strict security mode")
 
 	// From spec: AWFProxyLogsDir // "/tmp/gh-aw/sandbox/firewall/logs"
 	assert.Equal(t, "/tmp/gh-aw/sandbox/firewall/logs", constants.AWFProxyLogsDir,

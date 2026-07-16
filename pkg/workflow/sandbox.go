@@ -69,6 +69,7 @@ type AgentSandboxConfig struct {
 	Runtime               AgentRuntime                          `yaml:"runtime,omitempty"`        // Container runtime for the agent container (e.g., "gvisor")
 	NetworkIsolation      bool                                  `yaml:"sudo,omitempty"`           // Internal: true = isolation mode (AWF --network-isolation). Frontmatter sudo: false (or omitted) maps to NetworkIsolation=true; sudo: true maps to NetworkIsolation=false.
 	SudoExplicitlyEnabled bool                                  `yaml:"-"`                        // True when sudo: true was explicitly set in frontmatter. Used to emit an error (strict) or warning (non-strict) at compile time.
+	LegacySecurity        bool                                  `yaml:"-"`                        // True when legacy-security: enable was set in frontmatter. Enables sudo, host-access, and iptables-based mode.
 	Disabled              bool                                  `yaml:"-"`                        // True when agent is explicitly set to false (disables firewall). This is a runtime flag, not serialized to YAML.
 	DisableReason         string                                `yaml:"-"`                        // Operator-authored justification from dangerously-disable-sandbox-agent feature; available for diagnostics and audit logging.
 	Config                *SandboxRuntimeConfig                 `yaml:"config,omitempty"`         // Custom SRT config (optional)

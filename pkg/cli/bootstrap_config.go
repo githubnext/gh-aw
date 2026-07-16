@@ -18,6 +18,7 @@ func printBootstrapConfigTODO(w io.Writer, profile *resolvedBootstrapProfile) {
 		return
 	}
 
+	bootstrapLog.Printf("Printing bootstrap config TODO: package=%s, actions=%d", profile.PackageID, len(profile.Profile.Config))
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, console.FormatInfoMessage("Post-installation steps from "+profile.PackageID+":"))
 
@@ -77,6 +78,7 @@ func executeBootstrapConfigForAdd(ctx context.Context, repo string, sources []st
 		return errors.New("--repo OWNER/REPO is required to apply bootstrap config steps interactively")
 	}
 
+	bootstrapLog.Printf("Applying bootstrap config for add: repo=%s, package=%s, actions=%d, useCopilotRequests=%t", repo, profile.PackageID, len(profile.Profile.Config), useCopilotRequests)
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying post-installation steps from "+profile.PackageID+"..."))
 
