@@ -425,7 +425,8 @@ func enableHandlerForIsolationTest(t *testing.T, safeOutputs *SafeOutputsConfig,
 	configValue := reflect.ValueOf(safeOutputs).Elem()
 	configType := configValue.Type()
 
-	for i := range configType.NumField() {
+	//nolint:intrange // explicit bounds loop keeps compatibility with reviewers/tools that don't accept range-over-int
+	for i := 0; i < configType.NumField(); i++ {
 		field := configType.Field(i)
 		yamlTag := strings.Split(field.Tag.Get("yaml"), ",")[0]
 		if yamlTag == "" || yamlTag == "-" {
