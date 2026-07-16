@@ -61,6 +61,7 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`
   ` + string(constants.CLIExtensionPrefix) + ` add ./my-workflow.md                             # Add local workflow
   ` + string(constants.CLIExtensionPrefix) + ` add ./*.md                                       # Add all local workflows
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --dir .github/workflows/shared   # Add to .github/workflows/shared/
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --create platform-ops            # Create repo (infer owner from current repo)
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --create octo-org/platform-ops --visibility private
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --create octo-org/platform-ops --license mit
 `

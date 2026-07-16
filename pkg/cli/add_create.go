@@ -24,7 +24,10 @@ type addCreateOptions struct {
 }
 
 func registerAddCreateFlags(cmd *cobra.Command) {
-	cmd.Flags().String("create", "", "Create or attach a target repository (OWNER/REPO format) before adding workflows")
+	createFlag := cmd.Flags().String("create", "", "Create or attach a target repository before adding workflows. Formats: OWNER/REPO, REPO (infers owner from current repo), or no value (prompts for repo name in add-wizard)")
+	// Support --create without a value: when flag is present but no value given, cobra sets it to NoOptDefVal
+	cmd.Flags().Lookup("create").NoOptDefVal = "prompt"
+	_ = createFlag // flag is registered, value retrieved via GetString
 	cmd.Flags().String("visibility", "private", "Repository visibility for --create: private, public, or internal")
 	cmd.Flags().String("license", "", "Repository license for --create (for example: mit, apache-2.0, gpl-3.0)")
 	cmd.Flags().String("require-owner-type", "any", "Require the --create repository owner to be org, user, or any")
@@ -37,12 +40,33 @@ func normalizeAddCreateOptions(opts addCreateOptions) addCreateOptions {
 	if opts.RequireOwnerType == "" {
 		opts.RequireOwnerType = "any"
 	}
+	// Skip normalization if repo is "prompt" (will be prompted for in add-wizard)
+	if opts.Repo == "prompt" || opts.Repo == "" {
+		return opts
+	}
+	// Infer owner from current repo if only repo name is provided
+	if !strings.Contains(opts.Repo, "/") {
+		currentRepoSlug := getRepositorySlugFromRemote()
+		if currentRepoSlug != "" {
+			parts := strings.Split(currentRepoSlug, "/")
+			if len(parts) >= 1 {
+				owner := parts[0]
+				opts.Repo = owner + "/" + opts.Repo
+			}
+		}
+	}
 	return opts
 }
 
 func validateAddCreateOptions(opts addCreateOptions) error {
+	// Repo is required (should have been set by normalization or prompt)
+	if opts.Repo == "" {
+		return errors.New("--create requires a repository name. Use OWNER/REPO, REPO (to infer owner), or no value in add-wizard (to prompt)")
+	}
+
+	// After normalization, repo must be in OWNER/REPO format
 	if !isValidOwnerRepoSlug(opts.Repo) {
-		return errors.New("--create must use the OWNER/REPO format. Example: --create github/gh-aw")
+		return fmt.Errorf("invalid repository format %q after normalization. Expected OWNER/REPO format", opts.Repo)
 	}
 
 	switch opts.Visibility {

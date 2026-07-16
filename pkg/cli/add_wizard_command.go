@@ -2,7 +2,10 @@ package cli
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 
+	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/tty"
@@ -10,6 +13,34 @@ import (
 )
 
 var addWizardLog = logger.New("cli:add_wizard_command")
+
+// promptForCreateTarget prompts the user for a repository name when --create is used without a value
+func promptForCreateTarget(createTarget *string) error {
+	var repoInput string
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Repository Name").
+				Description("Enter repository name (OWNER/REPO or just REPO to infer owner from current repo)").
+				Value(&repoInput).
+				Validate(func(s string) error {
+					trimmed := strings.TrimSpace(s)
+					if trimmed == "" {
+						return errors.New("repository name cannot be empty")
+					}
+					// Allow OWNER/REPO or just REPO
+					return nil
+				}),
+		),
+	)
+
+	if err := form.Run(); err != nil {
+		return fmt.Errorf("failed to prompt for repository name: %w", err)
+	}
+
+	*createTarget = strings.TrimSpace(repoInput)
+	return nil
+}
 
 // NewAddWizardCommand creates the add-wizard command, which is always interactive.
 func NewAddWizardCommand(validateEngine func(string) error) *cobra.Command {
@@ -53,6 +84,8 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard https://example.com/workflow.json        # Import JSON workflow definition with guided setup
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --engine copilot   # Pre-select engine
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-secret        # Skip secret prompt
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --create                            # Prompt for repo name
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --create platform-ops               # Infer owner from current repo
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --create octo-org/platform-ops --visibility private
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --create octo-org/platform-ops --license mit
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --append "custom footer"            # Append custom content
@@ -94,6 +127,13 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			addWizardLog.Printf("Terminal check: is_terminal=%v, is_ci=%v", isTerminal, isCIEnv)
 			if !isTerminal || isCIEnv {
 				return errors.New("add-wizard requires an interactive terminal; use 'add' for non-interactive environments")
+			}
+
+			// If --create is "prompt", prompt for the repository name
+			if createTarget == "prompt" {
+				if err := promptForCreateTarget(&createTarget); err != nil {
+					return err
+				}
 			}
 
 			return RunAddInteractive(cmd.Context(), &AddInteractiveConfig{

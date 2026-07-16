@@ -5,6 +5,7 @@ package cli
 import (
 	"context"
 	"os"
+	"os/exec"
 	"testing"
 )
 
@@ -130,7 +131,64 @@ func TestPrepareAddTargetCheckoutWithRuntime_RejectsInvalidRepo(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected invalid --create error")
 	}
-	if err.Error() != "--create must use the OWNER/REPO format. Example: --create github/gh-aw" {
-		t.Fatalf("unexpected error: %v", err)
+	expectedErr := "invalid repository format \"not-a-slug\" after normalization. Expected OWNER/REPO format"
+	if err.Error() != expectedErr {
+		t.Fatalf("unexpected error: got %q, want %q", err.Error(), expectedErr)
+	}
+}
+
+func TestNormalizeAddCreateOptions_InfersOwner(t *testing.T) {
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd returned error: %v", err)
+	}
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Chdir returned error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(oldWd)
+	})
+
+	// Initialize a git repo with a remote using actual git commands
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+	if err := exec.Command("git", "config", "user.name", "Test User").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+	if err := exec.Command("git", "config", "user.email", "test@example.com").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+	if err := exec.Command("git", "remote", "add", "origin", "https://github.com/test-org/test-repo.git").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	opts := normalizeAddCreateOptions(addCreateOptions{
+		Repo: "new-repo",
+	})
+
+	if opts.Repo != "test-org/new-repo" {
+		t.Fatalf("expected repo to be test-org/new-repo, got %q", opts.Repo)
+	}
+}
+
+func TestNormalizeAddCreateOptions_SkipsPromptValue(t *testing.T) {
+	opts := normalizeAddCreateOptions(addCreateOptions{
+		Repo: "prompt",
+	})
+
+	if opts.Repo != "prompt" {
+		t.Fatalf("expected repo to remain 'prompt', got %q", opts.Repo)
+	}
+}
+
+func TestNormalizeAddCreateOptions_PreservesFullSlug(t *testing.T) {
+	opts := normalizeAddCreateOptions(addCreateOptions{
+		Repo: "owner/repo",
+	})
+
+	if opts.Repo != "owner/repo" {
+		t.Fatalf("expected repo to remain 'owner/repo', got %q", opts.Repo)
 	}
 }
