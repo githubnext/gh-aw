@@ -409,6 +409,16 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	if isFirewallEnabled(workflowData) && provider != LLMProviderAnthropic {
 		env["ANTHROPIC_BASE_URL"] = llmProviderGatewayBaseURL(provider)
 	}
+	// When the GitHub provider is used, inject COPILOT_GITHUB_TOKEN so the AWF
+	// copilot proxy sidecar (port 10002) becomes configured. The AWF /reflect
+	// endpoint marks the copilot proxy as "configured" only when COPILOT_GITHUB_TOKEN
+	// is present; the harness then maps provider=github → copilot endpoint
+	// (http://api-proxy:10002) and overrides ANTHROPIC_BASE_URL accordingly.
+	// Without this, the harness falls back to the anthropic proxy (port 10001)
+	// which forwards to api.anthropic.com — causing 401s with a Copilot token.
+	if provider == LLMProviderGitHub {
+		env["COPILOT_GITHUB_TOKEN"] = llmProviderSecretExpression(provider, workflowData)
+	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection
 	// Include the compiler version so agents can identify which gh-aw version generated the workflow
