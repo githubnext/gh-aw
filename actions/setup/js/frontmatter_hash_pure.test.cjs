@@ -96,6 +96,29 @@ engine: copilot`;
       const result = extractImportsFromText(frontmatterText);
       expect(result).toEqual(["shared/test.md"]);
     });
+
+    it("should extract path from uses: format", () => {
+      const frontmatterText = `imports:
+  - uses: ./serena.md
+    with:
+      languages: ["go"]
+  - shared/common.md`;
+
+      const result = extractImportsFromText(frontmatterText);
+      // uses: object-form items are skipped by the text-based parser (requires full YAML)
+      expect(result).toEqual(["shared/common.md"]);
+    });
+
+    it("should extract path from path: format", () => {
+      const frontmatterText = `imports:
+  - path: shared/tool.md
+    inputs:
+      key: value`;
+
+      const result = extractImportsFromText(frontmatterText);
+      // path: object-form items are skipped by the text-based parser (requires full YAML)
+      expect(result).toEqual([]);
+    });
   });
 
   describe("extractRelevantTemplateExpressions", () => {
@@ -971,7 +994,9 @@ describe("symlink traversal regression for activation hash symlink handling", ()
       await expect(fileReader(".github/agents/one.md")).resolves.toBe("content:.ai/agents/one.md");
       await expect(fileReader(".github/agents/two.md")).resolves.toBe("content:.ai/agents/two.md");
 
-      expect(callCounts.get(".github")).toBe(1);
+      // ".github" alone is no longer probed (startIndex=2 for ".github/" paths skips it).
+      expect(callCounts.get(".github")).toBeUndefined();
+      // ".github/agents" is still probed and memoized (only once for both reads).
       expect(callCounts.get(".github/agents")).toBe(1);
     });
 
