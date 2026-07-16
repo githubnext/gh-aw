@@ -146,6 +146,24 @@ function detectErrors(logContent) {
 }
 
 /**
+ * Build GitHub Actions output lines from detection results.
+ * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean }} results
+ * @returns {string[]}
+ */
+function buildOutputLines(results) {
+  const effectiveCAPIQuotaExceeded = results.capiQuotaExceededError && !results.invocationCapExceeded;
+  return [
+    `inference_access_error=${results.inferenceAccessError}`,
+    `mcp_policy_error=${results.mcpPolicyError}`,
+    `agentic_engine_timeout=${results.agenticEngineTimeout}`,
+    `model_not_supported_error=${results.modelNotSupportedError}`,
+    `http_400_response_error=${results.http400ResponseError}`,
+    `capi_quota_exceeded_error=${effectiveCAPIQuotaExceeded}`,
+    `invocation_cap_exceeded=${results.invocationCapExceeded}`,
+  ];
+}
+
+/**
  * Write GitHub Actions outputs to $GITHUB_OUTPUT.
  * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean }} results
  */
@@ -156,16 +174,7 @@ function writeOutputs(results) {
     return;
   }
 
-  const effectiveCAPIQuotaExceeded = results.capiQuotaExceededError && !results.invocationCapExceeded;
-  const lines = [
-    `inference_access_error=${results.inferenceAccessError}`,
-    `mcp_policy_error=${results.mcpPolicyError}`,
-    `agentic_engine_timeout=${results.agenticEngineTimeout}`,
-    `model_not_supported_error=${results.modelNotSupportedError}`,
-    `http_400_response_error=${results.http400ResponseError}`,
-    `capi_quota_exceeded_error=${effectiveCAPIQuotaExceeded}`,
-    `invocation_cap_exceeded=${results.invocationCapExceeded}`,
-  ];
+  const lines = buildOutputLines(results);
   fs.appendFileSync(outputFile, lines.join("\n") + "\n");
 }
 
@@ -220,4 +229,5 @@ module.exports = {
   HTTP_400_RESPONSE_ERROR_PATTERN,
   CAPI_QUOTA_EXCEEDED_PATTERN,
   INVOCATION_CAP_EXCEEDED_PATTERN,
+  buildOutputLines,
 };
