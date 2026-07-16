@@ -546,13 +546,7 @@ jobs:
                 "add_comment": " CONSTRAINTS: Maximum 1 comment(s) can be added. Target: *. Supports reply_to_id for discussion threading."
               },
               "repo_params": {},
-              "dynamic_tools": [],
-              "required_field_additions": {
-                "assign_to_user": [
-                  "rationale",
-                  "confidence"
-                ]
-              }
+              "dynamic_tools": []
             }
           GH_AW_VALIDATION_JSON: |
             {

@@ -568,13 +568,7 @@ jobs:
                 "create_issue": " CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[refactor] \". Labels [\"refactoring\" \"code-quality\" \"automated-analysis\" \"cookie\"] will be automatically added."
               },
               "repo_params": {},
-              "dynamic_tools": [],
-              "required_field_additions": {
-                "close_issue": [
-                  "rationale",
-                  "confidence"
-                ]
-              }
+              "dynamic_tools": []
             }
           GH_AW_VALIDATION_JSON: |
             {

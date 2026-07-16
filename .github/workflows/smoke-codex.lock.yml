@@ -749,13 +749,7 @@ jobs:
                   },
                   "name": "add_smoked_label"
                 }
-              ],
-              "required_field_additions": {
-                "set_issue_field": [
-                  "rationale",
-                  "confidence"
-                ]
-              }
+              ]
             }
           GH_AW_VALIDATION_JSON: |
             {

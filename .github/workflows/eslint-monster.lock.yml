@@ -562,17 +562,7 @@ jobs:
                 "update_issue": " CONSTRAINTS: Maximum 10 issue(s) can be updated. The target issue title must start with \"[eslint-monster] \"."
               },
               "repo_params": {},
-              "dynamic_tools": [],
-              "required_field_additions": {
-                "assign_to_agent": [
-                  "rationale",
-                  "confidence"
-                ],
-                "close_issue": [
-                  "rationale",
-                  "confidence"
-                ]
-              }
+              "dynamic_tools": []
             }
           GH_AW_VALIDATION_JSON: |
             {

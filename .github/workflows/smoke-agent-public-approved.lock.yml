@@ -629,13 +629,7 @@ jobs:
                 "assign_to_agent": " CONSTRAINTS: Maximum 1 issue(s) can be assigned to agent."
               },
               "repo_params": {},
-              "dynamic_tools": [],
-              "required_field_additions": {
-                "assign_to_agent": [
-                  "rationale",
-                  "confidence"
-                ]
-              }
+              "dynamic_tools": []
             }
           GH_AW_VALIDATION_JSON: |
             {
