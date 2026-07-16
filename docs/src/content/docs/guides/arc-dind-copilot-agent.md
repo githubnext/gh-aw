@@ -135,7 +135,7 @@ To migrate:
 
 ## Known limitations
 
-- **`allowPrivilegeEscalation: false` is not supported.** The Copilot CLI install script uses `sudo`. Clusters that enforce `no-new-privileges` via PodSecurity Admission or OPA policies will fail at the install step.
+- **`allowPrivilegeEscalation: false` is not supported.** The Copilot CLI binary installation script (`install_copilot_cli.sh`) uses `sudo` to install to `/usr/local/bin` and fix file ownership. Clusters that enforce `no-new-privileges` via PodSecurity Admission or OPA policies will fail at the install step. Note that the AWF install script already supports rootless installation; this constraint is specific to the Copilot CLI. Rootless Copilot CLI installation support is tracked in [#46046](https://github.com/github/gh-aw/issues/46046).
 
 ## Troubleshooting
 
