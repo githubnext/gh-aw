@@ -91,8 +91,8 @@ const CAPI_QUOTA_EXCEEDED_PATTERN = /CAPIError:\s*(?:429\s+)?(?:429\s+quota exce
 // both CAPI (Copilot CLI: "CAPIError: 429 Maximum LLM invocations exceeded (N/N)")
 // and direct Anthropic API responses ("max_runs_exceeded").
 // The pooled per-run invocation budget is saturated — retries cannot make progress.
-const invocationCapPatternSources = MAX_RUNS_EXCEEDED_PATTERNS.map(pattern => (pattern instanceof RegExp ? pattern.source : String(pattern))).filter(Boolean);
-const INVOCATION_CAP_EXCEEDED_PATTERN = new RegExp(invocationCapPatternSources.join("|"), "i");
+const patternSources = MAX_RUNS_EXCEEDED_PATTERNS.map(pattern => (pattern instanceof RegExp ? pattern.source : String(pattern))).filter(Boolean);
+const INVOCATION_CAP_EXCEEDED_PATTERN = new RegExp(patternSources.join("|"), "i");
 
 /**
  * Determines if the collected output contains the observed Copilot/CAPI quota exhaustion error.

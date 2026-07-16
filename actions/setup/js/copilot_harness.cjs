@@ -462,7 +462,7 @@ function classifyCopilotFailure(detection) {
  *   output must be the combined stdout/stderr text for the failed attempt.
  * @returns {boolean}
  */
-function shouldRetryPartialExecution(params) {
+function shouldRetryFailedExecution(params) {
   if (params.exitCode === 0) return false;
   if (hasNumerousPermissionDeniedIssues(params.output)) return false;
   if (isCAPIQuotaExceededError(params.output)) return false;
@@ -1249,7 +1249,7 @@ async function main() {
           break;
         }
 
-        if (shouldRetryPartialExecution({ exitCode: result.exitCode, hasOutput: result.hasOutput, output: result.output, attempt, maxRetries })) {
+        if (shouldRetryFailedExecution({ exitCode: result.exitCode, hasOutput: result.hasOutput, output: result.output, attempt, maxRetries })) {
           const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
           // --continue is only meaningful in CLI mode; SDK mode always restarts fresh.
           useContinueOnRetry = !copilotSDKMode && !continueDisabledPermanently;
@@ -1322,7 +1322,7 @@ if (typeof module !== "undefined" && module.exports) {
     countPermissionDeniedIssues,
     detectCopilotErrors,
     classifyCopilotFailure,
-    shouldRetryPartialExecution,
+    shouldRetryFailedExecution,
     extractOutputTail,
     isRetryableProxyAuthenticationFailure,
     hasNumerousPermissionDeniedIssues,

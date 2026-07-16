@@ -51,7 +51,7 @@ const {
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
   resolveRetryConfig,
-  shouldRetryPartialExecution,
+  shouldRetryFailedExecution,
   writeCopilotOutputs,
   parseCopilotSDKServerArgsFromEnv,
 } = require("./copilot_harness.cjs");
@@ -287,7 +287,7 @@ describe("copilot_harness.cjs", () => {
      * @returns {boolean}
      */
     function shouldRetry(result, attempt) {
-      return shouldRetryPartialExecution({ ...result, attempt, maxRetries: MAX_RETRIES });
+      return shouldRetryFailedExecution({ ...result, attempt, maxRetries: MAX_RETRIES });
     }
 
     /**
