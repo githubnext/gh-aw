@@ -255,7 +255,7 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 		options = []huh.Option[string]{copilotRequestsOpt.Selected(true), patOpt}
 	default:
 		// PAT is default (first) for disabled or inconclusive
-		options = []huh.Option[string]{patOpt, copilotRequestsOpt}
+		options = []huh.Option[string]{patOpt.Selected(true), copilotRequestsOpt}
 	}
 
 	var authMethod string

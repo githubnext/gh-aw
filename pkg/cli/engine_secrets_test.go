@@ -147,14 +147,14 @@ func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 }
 
 func TestBuildCopilotPATCreationURL(t *testing.T) {
-	rawURL := buildCopilotPATCreationURL("")
+	rawURL := buildCopilotPATCreationURLWithSuffix("", "a1b2")
 	parsed, err := url.Parse(rawURL)
 	require.NoError(t, err)
 
 	assert.Equal(t, "https", parsed.Scheme)
 	assert.Equal(t, "github.com", parsed.Host)
 	assert.Equal(t, "/settings/personal-access-tokens/new", parsed.Path)
-	assert.Equal(t, "Agentic Workflows Copilot", parsed.Query().Get("name"))
+	assert.Equal(t, "Agentic Workflows Copilot a1b2", parsed.Query().Get("name"))
 	assert.Equal(t, "Used by GitHub Agentic Workflows to make Copilot requests.", parsed.Query().Get("description"))
 	assert.Equal(t, "90", parsed.Query().Get("expires_in"))
 	assert.Equal(t, "read", parsed.Query().Get("user_copilot_requests"))
@@ -164,55 +164,24 @@ func TestBuildCopilotPATCreationURL(t *testing.T) {
 }
 
 func TestBuildCopilotPATCreationURLIncludesRepoSlug(t *testing.T) {
-	rawURL := buildCopilotPATCreationURL("github/gh-aw")
+	rawURL := buildCopilotPATCreationURLWithSuffix("github/gh-aw", "a1b2")
 	parsed, err := url.Parse(rawURL)
 	require.NoError(t, err)
 
-	assert.Equal(t, "gh-aw Copilot (github/gh-aw)", parsed.Query().Get("name"))
+	assert.Equal(t, "gh-aw Copilot (github/gh-aw-a1b2)", parsed.Query().Get("name"))
 	assert.Equal(t, "Used by GitHub Agentic Workflows for github/gh-aw to make Copilot requests.", parsed.Query().Get("description"))
 	assert.Equal(t, "read", parsed.Query().Get("user_copilot_requests"))
 }
 
 func TestBuildCopilotPATCreationURLTruncatesLongRepoSlugInName(t *testing.T) {
-	rawURL := buildCopilotPATCreationURL("my-mona-org/my-awesome-repo")
+	rawURL := buildCopilotPATCreationURLWithSuffix("my-mona-org/my-awesome-repo", "a1b2")
 	parsed, err := url.Parse(rawURL)
 	require.NoError(t, err)
 
-	assert.Equal(t, "gh-aw Copilot (my-mona-org/my-awesom...)", parsed.Query().Get("name"))
+	assert.Equal(t, "gh-aw Copilot (my-mona-org/my-a...-a1b2)", parsed.Query().Get("name"))
 	assert.Len(t, parsed.Query().Get("name"), 40)
 	assert.Equal(t, "Used by GitHub Agentic Workflows for my-mona-org/my-awesome-repo to make Copilot requests.", parsed.Query().Get("description"))
 	assert.Equal(t, "read", parsed.Query().Get("user_copilot_requests"))
-}
-
-func TestShouldOpenCopilotPATBrowser(t *testing.T) {
-	t.Run("defaults to opening browser", func(t *testing.T) {
-		shouldOpen, err := shouldOpenCopilotPATBrowser()
-		require.NoError(t, err)
-		assert.True(t, shouldOpen)
-	})
-
-	t.Run("respects no-open override", func(t *testing.T) {
-		t.Setenv(bootstrapNoOpenBrowserEnv, "true")
-
-		shouldOpen, err := shouldOpenCopilotPATBrowser()
-		require.NoError(t, err)
-		assert.False(t, shouldOpen)
-	})
-
-	t.Run("rejects invalid override", func(t *testing.T) {
-		t.Setenv(bootstrapNoOpenBrowserEnv, "maybe")
-
-		_, err := shouldOpenCopilotPATBrowser()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), bootstrapNoOpenBrowserEnv)
-	})
-}
-
-func TestClipboardReadCommands(t *testing.T) {
-	assert.Equal(t, [][]string{{"pbpaste"}}, clipboardReadCommands("darwin"))
-	assert.Equal(t, [][]string{{"powershell.exe", "-NoProfile", "-Command", "Get-Clipboard -Raw"}, {"powershell", "-NoProfile", "-Command", "Get-Clipboard -Raw"}}, clipboardReadCommands("windows"))
-	assert.Equal(t, [][]string{{"wl-paste", "--no-newline"}, {"xclip", "-selection", "clipboard", "-o"}, {"xsel", "--clipboard", "--output"}}, clipboardReadCommands("linux"))
-	assert.Equal(t, [][]string{{"wl-paste", "--no-newline"}, {"xclip", "-selection", "clipboard", "-o"}, {"xsel", "--clipboard", "--output"}}, clipboardReadCommands("freebsd"))
 }
 
 func TestStringContainsSecretName(t *testing.T) {
@@ -483,6 +452,37 @@ func TestGetEngineSecretNameAndValue(t *testing.T) {
 		assert.Equal(t, "COPILOT_GITHUB_TOKEN", name)
 		assert.Empty(t, value, "Should prefer existing repo secret over environment")
 		assert.True(t, existsInRepo, "Should indicate secret exists in repo")
+	})
+}
+
+func TestMustValidateExistingSecretValue(t *testing.T) {
+	t.Run("copilot engine secret requires revalidation", func(t *testing.T) {
+		req := SecretRequirement{
+			Name:           "COPILOT_GITHUB_TOKEN",
+			IsEngineSecret: true,
+			EngineName:     string(constants.CopilotEngine),
+		}
+
+		assert.True(t, mustValidateExistingSecretValue(req))
+	})
+
+	t.Run("non-copilot engine secret does not require revalidation", func(t *testing.T) {
+		req := SecretRequirement{
+			Name:           "ANTHROPIC_API_KEY",
+			IsEngineSecret: true,
+			EngineName:     string(constants.ClaudeEngine),
+		}
+
+		assert.False(t, mustValidateExistingSecretValue(req))
+	})
+
+	t.Run("system secret does not require revalidation", func(t *testing.T) {
+		req := SecretRequirement{
+			Name:           "GH_AW_GITHUB_TOKEN",
+			IsEngineSecret: false,
+		}
+
+		assert.False(t, mustValidateExistingSecretValue(req))
 	})
 }
 
