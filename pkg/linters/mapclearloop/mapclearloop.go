@@ -168,7 +168,7 @@ func builtinVisibleAtPos(pkg *types.Package, pos token.Pos, name string) bool {
 
 func hasOverlappingComment(files []*ast.File, start, end token.Pos) bool {
 	for _, file := range files {
-		if start < file.Pos() || end > file.End() {
+		if end <= file.Pos() || start >= file.End() {
 			continue
 		}
 		for _, group := range file.Comments {
