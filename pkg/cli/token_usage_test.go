@@ -385,6 +385,8 @@ func TestTokenUsageSummaryMethods(t *testing.T) {
 		assert.Equal(t, "large-model", rows[0].Model, "first row should be model with most tokens")
 		assert.Equal(t, "small-model", rows[1].Model, "second row should be model with fewer tokens")
 		assert.Equal(t, "1.0s", rows[0].AvgDuration, "avg duration for large model")
+		assert.Equal(t, 30, summary.ByModel["large-model"].ReasoningTokens, "reasoning tokens should remain tracked in model core metrics")
+		assert.Equal(t, 8330, summary.ByModel["large-model"].EffectiveTokens, "effective tokens should remain tracked in model core metrics")
 
 		encoded, err := json.Marshal(rows[0])
 		require.NoError(t, err)
@@ -392,6 +394,10 @@ func TestTokenUsageSummaryMethods(t *testing.T) {
 		assert.NotContains(t, string(encoded), "effective_tokens", "row JSON should preserve legacy shape")
 
 		rendered := console.RenderStruct(rows)
+		assert.Contains(t, rendered, "Input", "row table should keep quartet columns")
+		assert.Contains(t, rendered, "Output", "row table should keep quartet columns")
+		assert.Contains(t, rendered, "Cache Read", "row table should keep quartet columns")
+		assert.Contains(t, rendered, "Cache Write", "row table should keep quartet columns")
 		assert.NotContains(t, rendered, "ReasoningTokens", "row table should preserve legacy columns")
 		assert.NotContains(t, rendered, "EffectiveTokens", "row table should preserve legacy columns")
 	})
