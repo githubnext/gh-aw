@@ -591,7 +591,7 @@ func downloadAuditArtifactsIfNeeded(ctx context.Context, cfg auditRunConfig, run
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run: %s (Status: %s, Conclusion: %s)", run.WorkflowName, run.Status, run.Conclusion)))
 	}
 	auditLog.Printf("Downloading artifacts for run %d", cfg.runID)
-	err := downloadRunArtifacts(ctx, cfg.runID, cfg.outputDir, cfg.verbose, cfg.owner, cfg.repo, cfg.hostname, cfg.artifactFilter)
+	err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: cfg.runID, outputDir: cfg.outputDir, verbose: cfg.verbose, owner: cfg.owner, repo: cfg.repo, hostname: cfg.hostname, artifactFilter: cfg.artifactFilter})
 	if err == nil || errors.Is(err, ErrNoArtifacts) {
 		downloadLegacyEvalsArtifactIfNeeded(ctx, cfg)
 		if errors.Is(err, ErrNoArtifacts) {
@@ -618,7 +618,7 @@ func downloadLegacyEvalsArtifactIfNeeded(ctx context.Context, cfg auditRunConfig
 	}
 	auditLog.Printf("Evals not found in usage artifact for run %d, attempting fallback download of dedicated evals artifact", cfg.runID)
 	evalsArtifactFilter := []string{constants.EvalsArtifactName}
-	if err := downloadRunArtifacts(ctx, cfg.runID, cfg.outputDir, cfg.verbose, cfg.owner, cfg.repo, cfg.hostname, evalsArtifactFilter); err != nil {
+	if err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: cfg.runID, outputDir: cfg.outputDir, verbose: cfg.verbose, owner: cfg.owner, repo: cfg.repo, hostname: cfg.hostname, artifactFilter: evalsArtifactFilter}); err != nil {
 		auditLog.Printf("Fallback evals artifact download failed for run %d: %v", cfg.runID, err)
 		if cfg.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Evals not found in usage artifact for run %d and fallback download failed: %v", cfg.runID, err)))

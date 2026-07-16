@@ -298,7 +298,7 @@ func TestRetryCriticalArtifactsSkipsExisting(t *testing.T) {
 	}
 
 	// Should complete without panic or error — all dirs exist so no gh CLI calls are made
-	retryCriticalArtifacts(context.Background(), 12345, tmpDir, false, "owner", "repo", "", nil)
+	retryCriticalArtifacts(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: tmpDir, verbose: false, owner: "owner", repo: "repo"})
 
 	// Verify the directories are still intact
 	for _, name := range criticalArtifactNames {
@@ -328,7 +328,7 @@ func TestDownloadArtifactsByName_LogsArtifactNamesInCI(t *testing.T) {
 		os.Stderr = originalStderr
 	})
 
-	err = downloadArtifactsByName(context.Background(), 12345, t.TempDir(), []string{"usage"}, false, "", "", "")
+	err = downloadArtifactsByName(context.Background(), []string{"usage"}, downloadArtifactsOptions{runID: 12345, outputDir: t.TempDir()})
 	require.NoError(t, err)
 
 	require.NoError(t, writer.Close())
@@ -384,7 +384,7 @@ func TestDownloadRunArtifacts_CachedUsageFallbackToActivation(t *testing.T) {
 	originalPath := os.Getenv("PATH")
 	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+originalPath)
 
-	err := downloadRunArtifacts(context.Background(), 12345, tmpDir, false, "github", "gh-aw", "", []string{"usage"})
+	err := downloadRunArtifacts(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: tmpDir, verbose: false, owner: "github", repo: "gh-aw", artifactFilter: []string{"usage"}})
 	require.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(tmpDir, "aw_info.json"))

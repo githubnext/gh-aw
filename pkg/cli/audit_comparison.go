@@ -549,7 +549,7 @@ func buildAuditComparisonForRun(ctx context.Context, currentRun ProcessedRun, cu
 	for _, baselineRun := range baselineRuns {
 		baselineOutputDir := filepath.Join(outputDir, fmt.Sprintf("baseline-%d", baselineRun.DatabaseID))
 		if _, err := os.Stat(baselineOutputDir); err != nil {
-			if downloadErr := downloadRunArtifacts(ctx, baselineRun.DatabaseID, baselineOutputDir, verbose, owner, repo, hostname, nil); downloadErr != nil {
+			if downloadErr := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: baselineRun.DatabaseID, outputDir: baselineOutputDir, verbose: verbose, owner: owner, repo: repo, hostname: hostname}); downloadErr != nil {
 				auditLog.Printf("Skipping candidate baseline for run %d: failed to download baseline artifacts: %v", baselineRun.DatabaseID, downloadErr)
 				continue
 			}

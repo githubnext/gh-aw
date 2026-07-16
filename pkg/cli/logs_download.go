@@ -33,6 +33,18 @@ import (
 
 var logsDownloadLog = logger.New("cli:logs_download")
 
+// downloadArtifactsOptions bundles the common parameters shared by the artifact
+// download helpers, avoiding repeated positional argument lists.
+type downloadArtifactsOptions struct {
+	runID          int64
+	outputDir      string
+	verbose        bool
+	owner          string
+	repo           string
+	hostname       string
+	artifactFilter []string
+}
+
 // isUsageOnlyArtifactFilter reports whether the caller requested only the compact
 // usage artifact. In this mode, workflow-run log downloads are intentionally skipped
 // to minimize API and transfer volume for lightweight reporting paths.
@@ -548,19 +560,19 @@ func listRunArtifactNames(ctx context.Context, runID int64, owner, repo, hostnam
 // downloadArtifactsByName downloads a list of artifacts individually by name.
 // This is used when some artifacts (e.g. .dockerbuild) need to be skipped and
 // only a subset of the run's artifacts should be downloaded.
-func downloadArtifactsByName(ctx context.Context, runID int64, outputDir string, names []string, verbose bool, owner, repo, hostname string) error {
+func downloadArtifactsByName(ctx context.Context, names []string, opts downloadArtifactsOptions) error {
 	var repoFlag string
-	shouldLogProgress := IsRunningInCI() || verbose
-	if owner != "" && repo != "" {
-		if hostname != "" && hostname != "github.com" {
-			repoFlag = hostname + "/" + owner + "/" + repo
+	shouldLogProgress := IsRunningInCI() || opts.verbose
+	if opts.owner != "" && opts.repo != "" {
+		if opts.hostname != "" && opts.hostname != "github.com" {
+			repoFlag = opts.hostname + "/" + opts.owner + "/" + opts.repo
 		} else {
-			repoFlag = owner + "/" + repo
+			repoFlag = opts.owner + "/" + opts.repo
 		}
 	}
 
 	for _, name := range names {
-		args := []string{"run", "download", strconv.FormatInt(runID, 10), "--name", name, "--dir", outputDir}
+		args := []string{"run", "download", strconv.FormatInt(opts.runID, 10), "--name", name, "--dir", opts.outputDir}
 		if repoFlag != "" {
 			args = append(args, "-R", repoFlag)
 		}
@@ -574,7 +586,7 @@ func downloadArtifactsByName(ctx context.Context, runID int64, outputDir string,
 		cmdOutput, cmdErr := cmd.CombinedOutput()
 		if cmdErr != nil {
 			logsDownloadLog.Printf("Failed to download artifact %q: %v (%s)", name, cmdErr, string(cmdOutput))
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download artifact %q: %v", name, cmdErr)))
 			}
 			// Non-fatal: continue downloading other artifacts
@@ -595,36 +607,36 @@ var criticalArtifactNames = []string{"activation", "agent"}
 // was only partially successful. gh run download aborts on the first non-zip artifact,
 // which may prevent valid artifacts from being downloaded.
 // artifactFilter limits which critical artifacts are retried; nil means retry all.
-func retryCriticalArtifacts(ctx context.Context, runID int64, outputDir string, verbose bool, owner, repo, hostname string, artifactFilter []string) {
+func retryCriticalArtifacts(ctx context.Context, opts downloadArtifactsOptions) {
 	// Build the repo flag once for reuse across retries
 	var repoFlag string
-	if owner != "" && repo != "" {
-		if hostname != "" && hostname != "github.com" {
-			repoFlag = hostname + "/" + owner + "/" + repo
+	if opts.owner != "" && opts.repo != "" {
+		if opts.hostname != "" && opts.hostname != "github.com" {
+			repoFlag = opts.hostname + "/" + opts.owner + "/" + opts.repo
 		} else {
-			repoFlag = owner + "/" + repo
+			repoFlag = opts.owner + "/" + opts.repo
 		}
 	}
 
 	for _, name := range criticalArtifactNames {
 		// Skip artifacts not included in the active filter.
-		if !artifactMatchesFilter(name, artifactFilter) {
+		if !artifactMatchesFilter(name, opts.artifactFilter) {
 			logsDownloadLog.Printf("Skipping critical artifact %q (not in artifact filter)", name)
 			continue
 		}
-		artifactDir := filepath.Join(outputDir, name)
+		artifactDir := filepath.Join(opts.outputDir, name)
 		if fileutil.DirExists(artifactDir) {
 			logsDownloadLog.Printf("Critical artifact %q already present, skipping retry", name)
 			continue
 		}
 
-		retryArgs := []string{"run", "download", strconv.FormatInt(runID, 10), "--name", name, "--dir", outputDir}
+		retryArgs := []string{"run", "download", strconv.FormatInt(opts.runID, 10), "--name", name, "--dir", opts.outputDir}
 		if repoFlag != "" {
 			retryArgs = append(retryArgs, "-R", repoFlag)
 		}
 
 		logsDownloadLog.Printf("Retrying individual download for artifact %q: gh %s", name, strings.Join(retryArgs, " "))
-		if verbose {
+		if opts.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Retrying download for missing artifact: "+name))
 		}
 
@@ -632,12 +644,12 @@ func retryCriticalArtifacts(ctx context.Context, runID int64, outputDir string, 
 		retryOutput, retryErr := retryCmd.CombinedOutput()
 		if retryErr != nil {
 			logsDownloadLog.Printf("Failed to download artifact %q individually: %v (%s)", name, retryErr, string(retryOutput))
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not download artifact %q: %v", name, retryErr)))
 			}
 		} else {
 			logsDownloadLog.Printf("Successfully downloaded artifact %q individually", name)
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Downloaded missing artifact: "+name))
 			}
 		}
@@ -646,7 +658,15 @@ func retryCriticalArtifacts(ctx context.Context, runID int64, outputDir string, 
 
 // downloadRunArtifacts downloads artifacts for a specific workflow run.
 // artifactFilter is a list of artifact base names to download; nil means download all.
-func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, verbose bool, owner, repo, hostname string, artifactFilter []string) error {
+func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) error {
+	// Unpack opts for readability; artifactFilter is a local copy since it may be narrowed below.
+	runID := opts.runID
+	outputDir := opts.outputDir
+	verbose := opts.verbose
+	owner := opts.owner
+	repo := opts.repo
+	hostname := opts.hostname
+	artifactFilter := opts.artifactFilter
 	logsDownloadLog.Printf("Downloading run artifacts: run_id=%d, output_dir=%s, owner=%s, repo=%s, artifactFilter=%v", runID, outputDir, owner, repo, artifactFilter)
 	shouldLogProgress := IsRunningInCI() || verbose
 
@@ -663,7 +683,7 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 				if shouldLogProgress {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("All requested artifacts already present for run %d, skipping download", runID)))
 				}
-				ensureUsageAwInfoFallback(ctx, runID, outputDir, verbose, owner, repo, hostname, artifactFilter)
+				ensureUsageAwInfoFallback(ctx, downloadArtifactsOptions{runID: runID, outputDir: outputDir, verbose: verbose, owner: owner, repo: repo, hostname: hostname, artifactFilter: artifactFilter})
 				return nil
 			}
 			// Restrict the download to only the artifacts that are not yet on disk.
@@ -757,7 +777,7 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 			}
 			return ErrNoArtifacts
 		}
-		if err := downloadArtifactsByName(ctx, runID, outputDir, downloadableNames, verbose, owner, repo, hostname); err != nil {
+		if err := downloadArtifactsByName(ctx, downloadableNames, downloadArtifactsOptions{runID: runID, outputDir: outputDir, verbose: verbose, owner: owner, repo: repo, hostname: hostname}); err != nil {
 			return err
 		}
 		if fileutil.IsDirEmpty(outputDir) {
@@ -843,7 +863,7 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 		// before downloading all valid artifacts. Retry individually for critical artifacts
 		// that are missing, so flattening and audit analysis can proceed.
 		if skippedNonZipArtifacts {
-			retryCriticalArtifacts(ctx, runID, outputDir, verbose, owner, repo, hostname, artifactFilter)
+			retryCriticalArtifacts(ctx, downloadArtifactsOptions{runID: runID, outputDir: outputDir, verbose: verbose, owner: owner, repo: repo, hostname: hostname, artifactFilter: artifactFilter})
 		}
 
 		// When bulk download fails on case-colliding entries, gh CLI aborts and may skip
@@ -867,7 +887,7 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 				}
 			}
 			if len(retryNames) > 0 {
-				if err := downloadArtifactsByName(ctx, runID, outputDir, retryNames, verbose, owner, repo, hostname); err != nil {
+				if err := downloadArtifactsByName(ctx, retryNames, downloadArtifactsOptions{runID: runID, outputDir: outputDir, verbose: verbose, owner: owner, repo: repo, hostname: hostname}); err != nil {
 					return err
 				}
 			}
@@ -896,7 +916,7 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 		return fmt.Errorf("failed to flatten activation artifact: %w", err)
 	}
 
-	ensureUsageAwInfoFallback(ctx, runID, outputDir, verbose, owner, repo, hostname, artifactFilter)
+	ensureUsageAwInfoFallback(ctx, downloadArtifactsOptions{runID: runID, outputDir: outputDir, verbose: verbose, owner: owner, repo: repo, hostname: hostname, artifactFilter: artifactFilter})
 
 	// Flatten unified agent directory structure
 	if err := flattenUnifiedArtifact(outputDir, verbose); err != nil {
@@ -965,23 +985,23 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 	return nil
 }
 
-func ensureUsageAwInfoFallback(ctx context.Context, runID int64, outputDir string, verbose bool, owner, repo, hostname string, artifactFilter []string) {
-	if !isUsageOnlyArtifactFilter(artifactFilter) {
+func ensureUsageAwInfoFallback(ctx context.Context, opts downloadArtifactsOptions) {
+	if !isUsageOnlyArtifactFilter(opts.artifactFilter) {
 		return
 	}
 
-	awInfoPath := filepath.Join(outputDir, "aw_info.json")
+	awInfoPath := filepath.Join(opts.outputDir, "aw_info.json")
 	if fileutil.FileExists(awInfoPath) {
 		return
 	}
 
 	logsDownloadLog.Printf("aw_info.json missing from usage artifact, downloading activation artifact as fallback")
-	if verbose {
+	if opts.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("aw_info.json missing from usage artifact; downloading activation artifact as fallback"))
 	}
 
 	activationNames := []string{constants.ActivationArtifactName}
-	if artifactNames, err := listRunArtifactNames(ctx, runID, owner, repo, hostname, verbose); err == nil {
+	if artifactNames, err := listRunArtifactNames(ctx, opts.runID, opts.owner, opts.repo, opts.hostname, opts.verbose); err == nil {
 		var matched []string
 		for _, name := range artifactNames {
 			if artifactMatchesFilter(name, []string{constants.ActivationArtifactName}) {
@@ -995,21 +1015,21 @@ func ensureUsageAwInfoFallback(ctx context.Context, runID int64, outputDir strin
 		logsDownloadLog.Printf("Failed to list artifacts for activation fallback: %v", err)
 	}
 
-	if err := downloadArtifactsByName(ctx, runID, outputDir, activationNames, verbose, owner, repo, hostname); err != nil {
+	if err := downloadArtifactsByName(ctx, activationNames, opts); err != nil {
 		logsDownloadLog.Printf("Activation artifact fallback download failed: %v", err)
-		if verbose {
+		if opts.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not download activation artifact fallback: %v", err)))
 		}
 	}
 	foundActivationDir := false
 	for _, name := range activationNames {
-		activationDir := findArtifactDir(outputDir, name, "")
+		activationDir := findArtifactDir(opts.outputDir, name, "")
 		if activationDir != "" {
 			foundActivationDir = true
 			logsDownloadLog.Printf("Found activation artifact fallback directory: %s", activationDir)
-			if err := flattenActivationArtifact(outputDir, verbose); err != nil {
+			if err := flattenActivationArtifact(opts.outputDir, opts.verbose); err != nil {
 				logsDownloadLog.Printf("Failed to flatten fallback activation artifact: %v", err)
-				if verbose {
+				if opts.verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to flatten activation artifact fallback: %v", err)))
 				}
 			}
@@ -1021,7 +1041,7 @@ func ensureUsageAwInfoFallback(ctx context.Context, runID int64, outputDir strin
 	}
 	if _, err := os.Stat(awInfoPath); os.IsNotExist(err) {
 		logsDownloadLog.Print("aw_info.json still absent after activation artifact fallback")
-		if verbose {
+		if opts.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("aw_info.json still absent after activation artifact fallback"))
 		}
 	}

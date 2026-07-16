@@ -300,7 +300,7 @@ func forecastDownloadUsageArtifact(ctx context.Context, runID int64, outputDir s
 			fmt.Sprintf("Downloading usage artifact(s) for run %d: %v", runID, downloadableNames)))
 	}
 
-	if err := downloadArtifactsByName(ctx, runID, outputDir, downloadableNames, verbose, owner, repo, hostname); err != nil {
+	if err := downloadArtifactsByName(ctx, downloadableNames, downloadArtifactsOptions{runID: runID, outputDir: outputDir, verbose: verbose, owner: owner, repo: repo, hostname: hostname}); err != nil {
 		return fmt.Errorf("failed to download usage artifact for run %d: %w", runID, err)
 	}
 

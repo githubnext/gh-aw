@@ -600,10 +600,37 @@ type latestReleaseResult struct {
 // the latest major version; pass disableReleaseBump=true to only update core
 // (actions/*) references.
 func UpdateActionsInWorkflowFiles(ctx context.Context, workflowsDir, engineOverride string, verbose, disableReleaseBump bool, noCompile bool, coolDown time.Duration, approve bool) error {
-	return updateActionsInWorkflowFiles(ctx, defaultActionUpdateDeps(), workflowsDir, engineOverride, verbose, disableReleaseBump, noCompile, coolDown, approve)
+	return updateActionsInWorkflowFiles(ctx, defaultActionUpdateDeps(), updateActionsOptions{
+		workflowsDir:       workflowsDir,
+		engineOverride:     engineOverride,
+		verbose:            verbose,
+		disableReleaseBump: disableReleaseBump,
+		noCompile:          noCompile,
+		coolDown:           coolDown,
+		approve:            approve,
+	})
 }
 
-func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, workflowsDir, engineOverride string, verbose, disableReleaseBump bool, noCompile bool, coolDown time.Duration, approve bool) error {
+// updateActionsOptions bundles the configuration parameters for updateActionsInWorkflowFiles,
+// replacing the previous 7-parameter positional list.
+type updateActionsOptions struct {
+	workflowsDir       string
+	engineOverride     string
+	verbose            bool
+	disableReleaseBump bool
+	noCompile          bool
+	coolDown           time.Duration
+	approve            bool
+}
+
+func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, opts updateActionsOptions) error {
+	workflowsDir := opts.workflowsDir
+	engineOverride := opts.engineOverride
+	verbose := opts.verbose
+	disableReleaseBump := opts.disableReleaseBump
+	noCompile := opts.noCompile
+	coolDown := opts.coolDown
+	approve := opts.approve
 	if workflowsDir == "" {
 		workflowsDir = getWorkflowsDir()
 	}

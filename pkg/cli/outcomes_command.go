@@ -135,7 +135,7 @@ func RunOutcomes(config OutcomesConfig) error {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Downloading artifacts for run %d...", config.RunID)))
 		}
 		ctx := context.Background()
-		err := downloadRunArtifacts(ctx, config.RunID, runDir, config.Verbose, owner, repoName, hostname, nil)
+		err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: config.RunID, outputDir: runDir, verbose: config.Verbose, owner: owner, repo: repoName, hostname: hostname})
 		if err != nil {
 			return fmt.Errorf("failed to download artifacts for run %d: %w", config.RunID, err)
 		}
