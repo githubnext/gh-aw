@@ -7,7 +7,7 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.25.1  
+**Version**: 1.26.0  
 **Status**: Working Draft  
 **Publication Date**: 2026-07-16  
 **Editor**: GitHub Agentic Workflows Team  
@@ -2283,7 +2283,7 @@ safe-outputs:
 **Purpose**: Create pull requests to propose code changes.
 
 **Default Max**: 1  
-**Cross-Repository Support**: No (same-repository only)  
+**Cross-Repository Support**: Yes  
 **Mandatory**: Yes (required for full conformance)
 
 **MCP Tool Schema**:
@@ -2323,10 +2323,17 @@ safe-outputs:
    | `false` (default) | n/a | Append random hex suffix to local branch name and continue |
    | `true` | `false` (default) | Surface `push_failed`; caller falls back (e.g. opens an issue when `fallback-as-issue: true`) |
    | `true` | `true` | Force-delete the existing remote ref via `DELETE /repos/{owner}/{repo}/git/refs/heads/{branch}` and let the subsequent push recreate it from the agent's local HEAD (force-push semantics). Concurrent-deletion 422 responses with "Reference does not exist" are treated as success. |
+8. **Distinct Upstream and Head Repositories**: `target-repo` identifies the upstream repository that receives the pull request and owns the base branch. `head-repo`, when configured, identifies the repository that receives the pushed branch. When `head-repo` is omitted, the head repository defaults to `target-repo`.
+9. **Owner-Qualified Head Reference**: When `head-repo` differs from `target-repo`, the created pull request MUST use an owner-qualified head reference identifying the head repository owner and pushed branch. Unqualified same-name branch references MUST NOT be used in fork-backed mode.
+10. **Ephemeral Fork Branch Model**: When `head-repo` differs from `target-repo`, implementations SHOULD create or refresh an ephemeral branch in `head-repo` from the resolved upstream base SHA, apply the agent changes, and open the pull request back to the upstream base. Implementations MAY support explicit synchronization of that ephemeral branch with a newer upstream base, but implicit reuse of arbitrary pre-existing fork branches MUST NOT occur.
+11. **Summary and Manifest Provenance**: Successful executions MUST record `head_repo` in the safe-output summary and machine-readable manifest.
 
 **Configuration Parameters**:
 
 - `max`: Operation limit (default: 1)
+- `target-repo`: Upstream repository that receives the pull request and supplies the base branch
+- `head-repo`: Optional repository that receives the pushed head branch. MUST either equal `target-repo` or identify a configured automation-owned fork
+- `allowed-repos`: Cross-repository allowlist applied to both `target-repo` and `head-repo`
 - `base-branch`: Target base branch for the PR. When omitted, the handler resolves the base branch in this order: (1) the runtime checkout manifest entry for the target repository, (2) the local checkout's `origin/HEAD`, (3) the repository default branch via `GET /repos/{owner}/{repo}`. Explicit configuration is RECOMMENDED when the safe-outputs job runs without repository credentials (e.g. cross-repo private targets).
 - `allowed-branches`: Allowed source branch patterns for `branch` tool input
 - `allowed-base-branches`: Allowed base-branch override patterns for per-run `base` tool input
@@ -2336,6 +2343,9 @@ safe-outputs:
 - `labels`: Auto-apply labels
 - `title-prefix`: Prepend to titles
 - `footer`: Footer override
+- `github-token`: Optional credential for upstream pull request creation and related upstream metadata operations
+- `head-github-token`: Optional credential for `head-repo` branch writes. When specified, it SHOULD be limited to `contents: write` on `head-repo`
+- `head-github-app`: Optional GitHub App configuration to mint an ephemeral credential for `head-repo` branch writes at runtime. When `head-github-app` is configured, the minted token takes precedence over `head-github-token`. The app installation MUST have `contents: write` on `head-repo`
 - `preserve-branch-name`: When `true`, use the agent-supplied branch name verbatim without appending a random salt suffix (default: `false`)
 - `recreate-ref`: When `true` (and `preserve-branch-name: true`), allows the handler to force-delete an existing remote branch ref and recreate it from the agent's local HEAD on collision. When `false` (default), an existing remote branch under `preserve-branch-name: true` causes a fallback rather than overwriting the remote ref. Has no effect when `preserve-branch-name: false`. (default: `false`)
 
@@ -2344,6 +2354,9 @@ safe-outputs:
 - Branch name sanitization (prevent injection)
 - Patch content validation
 - Size limits on commits
+- `head-repo` MUST be either the same repository as `target-repo` or an explicitly configured automation-owned fork; arbitrary contributor forks MUST NOT be used as write targets
+- Both `target-repo` and `head-repo` MUST be validated against the configured allowlist before any push or pull request API call
+- When distinct upstream and head credentials are configured, implementations MUST use the least-privilege head-repository credential only for branch writes and the upstream credential only for upstream pull request management
 
 **Required Permissions**:
 
@@ -2364,6 +2377,11 @@ safe-outputs:
 - `pull-requests: write` - Pull request creation
 - `metadata: read` - Repository metadata (automatically granted)
 
+**Fork-Backed Pull Request Credential Roles**:
+
+- **Upstream credential**: `pull-requests: write` on `target-repo`; `issues: write` is additionally required when `fallback-as-issue: true`
+- **Head repository credential**: `contents: write` on `head-repo`
+
 **With `fallback-as-issue: true`** (default):
 
 - `contents: write` - Branch creation and commit operations
@@ -2376,7 +2394,8 @@ safe-outputs:
 - Permission requirements vary based on `fallback-as-issue` configuration
 - When `fallback-as-issue: true` (default), requires `issues: write` for fallback issue creation if PR creation fails
 - When `fallback-as-issue: false`, only requires `contents: write` and `pull-requests: write`
-- Cross-repository pull requests are not supported - operations are limited to same repository
+- Fork-backed pull requests are supported only when `head-repo` is explicitly configured or defaults to `target-repo`; writes to arbitrary contributor forks are forbidden
+- `push_to_pull_request_branch` follow-up support is limited to pull requests whose resolved head repository exactly matches the configured `head-repo` (or `target-repo` when `head-repo` is omitted)
 
 ---
 
@@ -2670,7 +2689,7 @@ This section provides complete definitions for all remaining safe output types. 
 **Purpose**: Create parent-child relationships between issues using task list entries.
 
 **Default Max**: 1  
-**Cross-Repository Support**: No (same repository only)  
+**Cross-Repository Support**: Yes (restricted)  
 **Mandatory**: No
 
 **MCP Tool Schema**:
@@ -3116,7 +3135,7 @@ This section provides complete definitions for all remaining safe output types. 
 **Purpose**: Push commits to pull request branch for automated code changes.
 
 **Default Max**: 1  
-**Cross-Repository Support**: No (same repository only)  
+**Cross-Repository Support**: Yes (restricted)  
 **Mandatory**: No
 
 **Required Permissions**:
@@ -3134,11 +3153,21 @@ This section provides complete definitions for all remaining safe output types. 
 - `pull-requests: write` - Pull request metadata access
 - `metadata: read` - Repository metadata (automatically granted)
 
+**Fork-Backed Follow-Up Push Credential Roles**:
+
+- **Upstream credential**: `pull-requests: write` on `target-repo`; `issues: write` when the implementation posts push-result comments
+- **Head repository credential**: `contents: write` on `head-repo`
+
 **Configuration Parameters**:
 
 - `max`: Operation limit (default: 1)
 - `base-branch`: Target base branch used to compute the incremental patch (e.g. `main`, `master`). When omitted, the handler resolves the base branch in this order: (1) the runtime checkout manifest entry for the target repository, (2) the local checkout's `origin/HEAD`, (3) the repository default branch via `GET /repos/{owner}/{repo}`. Explicit configuration is REQUIRED when the safe-outputs job runs without repository credentials (e.g. cross-repo private targets) and the checkout manifest is unavailable.
 - `target`: Triggering PR selector (see `submit_pull_request_review` semantics)
+- `target-repo`: Upstream repository containing the pull request
+- `head-repo`: Optional expected head repository for fork-backed pull requests. When omitted, the expected head repository is `target-repo`
+- `allowed-repos`: Cross-repository allowlist applied to both `target-repo` and `head-repo`
+- `head-github-token`: Optional credential for `head-repo` branch writes
+- `head-github-app`: Optional GitHub App configuration to mint an ephemeral credential for `head-repo` branch writes at runtime; takes precedence over `head-github-token` when both are specified
 
 **Notes**:
 
@@ -3147,6 +3176,9 @@ This section provides complete definitions for all remaining safe output types. 
 - Validates changes don't exceed size limits before pushing
 - Base-branch resolution MUST NOT depend on interactive credential prompts; git operations issued by the handler MUST run with `GIT_TERMINAL_PROMPT=0` and an enforced timeout so credential-less environments fail fast rather than hanging
 - When `safe-outputs.push-to-pull-request-branch.target` is `"*"`, requests MUST include `pull_request_number`.
+- The handler MUST refuse pushes unless the resolved pull request head repository exactly matches the configured `head-repo` (or `target-repo` when `head-repo` is omitted)
+- Arbitrary contributor forks MUST remain unsupported write targets even when the upstream repository itself is allowlisted
+- Successful executions MUST record `head_repo` in the safe-output summary and machine-readable manifest
 
 ---
 
@@ -5265,6 +5297,14 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.26.0** (2026-07-16):
+
+- **Added**: First-class fork-backed pull request semantics for `create_pull_request`, including distinct `target-repo` (upstream) and `head-repo` (automation-owned fork) roles.
+- **Added**: `head-github-app` configuration for both `create_pull_request` and `push_to_pull_request_branch`, allowing a GitHub App to mint an ephemeral credential scoped to the fork/head repository at runtime. When `head-github-app` is configured, it takes precedence over `head-github-token`.
+- **Specified**: Owner-qualified head references, dual-repository allowlist enforcement, least-privilege upstream/head credential roles, and required summary/manifest provenance fields (`upstream_repo`, `head_repo`, `base_sha`, `pushed_head_sha`, `credential_role`).
+- **Specified**: `push_to_pull_request_branch` follow-up pushes remain limited to pull requests whose head repository exactly matches the configured `head-repo`; arbitrary contributor forks remain forbidden.
+- **Updated**: Publication metadata to 1.26.0.
 
 **Version 1.25.1** (2026-07-16):
 

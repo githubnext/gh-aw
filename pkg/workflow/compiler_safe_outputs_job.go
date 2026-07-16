@@ -19,6 +19,53 @@ var consolidatedSafeOutputsJobLog = logger.New("workflow:compiler_safe_outputs_j
 // step starts in job.Steps (6-space indent + "- name: ").
 const stepNameLinePrefix = "      - name: "
 
+// getSafeOutputsHeadApp returns the first non-nil HeadGitHubApp config from
+// create-pull-request or push-to-pull-request-branch handlers, used to generate
+// the safe-outputs-head-app-token step.
+func getSafeOutputsHeadApp(safeOutputs *SafeOutputsConfig) *GitHubAppConfig {
+	if safeOutputs == nil {
+		return nil
+	}
+	if safeOutputs.CreatePullRequests != nil && safeOutputs.CreatePullRequests.HeadGitHubApp != nil {
+		return safeOutputs.CreatePullRequests.HeadGitHubApp
+	}
+	if safeOutputs.PushToPullRequestBranch != nil && safeOutputs.PushToPullRequestBranch.HeadGitHubApp != nil {
+		return safeOutputs.PushToPullRequestBranch.HeadGitHubApp
+	}
+	return nil
+}
+
+// getSafeOutputsHeadRepoSlug returns the HeadRepoSlug associated with the configured
+// head-github-app, used to scope the minted token to the correct fork repository.
+func getSafeOutputsHeadRepoSlug(safeOutputs *SafeOutputsConfig) string {
+	if safeOutputs == nil {
+		return ""
+	}
+	if safeOutputs.CreatePullRequests != nil && safeOutputs.CreatePullRequests.HeadGitHubApp != nil {
+		return safeOutputs.CreatePullRequests.HeadRepoSlug
+	}
+	if safeOutputs.PushToPullRequestBranch != nil && safeOutputs.PushToPullRequestBranch.HeadGitHubApp != nil {
+		return safeOutputs.PushToPullRequestBranch.HeadRepoSlug
+	}
+	return ""
+}
+
+// headRepoNameFromSlug extracts the repository name (without owner) from an "owner/repo"
+// slug for use as the fallback repositories value in app token minting.
+// Returns an empty string when the slug is absent, cannot be parsed, or contains an expression.
+// The expression guard uses "${{" as a conservative prefix; standard GitHub Actions expressions
+// always begin with exactly this prefix so this check is sufficient in practice.
+func headRepoNameFromSlug(slug string) string {
+	if slug == "" {
+		return ""
+	}
+	parts := strings.SplitN(slug, "/", 2)
+	if len(parts) == 2 && !strings.Contains(parts[1], "${{") {
+		return parts[1]
+	}
+	return ""
+}
+
 // messagesContainPreActivationRef reports whether any message template in cfg
 // contains a reference to a needs.pre_activation.outputs.* expression.
 // When true, the safe_outputs and conclusion jobs must declare pre_activation
@@ -464,7 +511,11 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 	safeOutputStepNames := opts.safeOutputStepNames
 	permissions := opts.permissions
 	threatDetectionEnabled := opts.threatDetectionEnabled
-	// Add GitHub App token minting step at the beginning if app is configured
+
+	// Build all preamble token minting steps to insert before checkout/safe-output steps.
+	var preambleTokenSteps []string
+
+	// Add main GitHub App token minting step if configured.
 	if data.SafeOutputs.GitHubApp != nil {
 		// Track whether the app token minting succeeded so the conclusion job can surface
 		// authentication errors in the failure issue.
@@ -477,13 +528,35 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 		if hasWorkflowCallTrigger(data.On) {
 			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo_name }}"
 		}
-		appTokenSteps := c.buildGitHubAppTokenMintStepForRepository(
+		preambleTokenSteps = append(preambleTokenSteps, c.buildGitHubAppTokenMintStepForRepository(
 			data.SafeOutputs.GitHubApp,
 			permissions,
 			appTokenFallbackRepo,
 			inferSingleCheckoutRepositoryForGitHubAppOwner(data),
-		)
-		// Calculate insertion index: after setup action (if present) and artifact downloads, but before checkout and safe output steps
+		)...)
+	}
+
+	// Add head GitHub App token minting step if any PR handler has head-github-app configured.
+	// The minted token is passed as head-github-token in the handler config so fork branch
+	// operations can authenticate to the configured automation fork without requiring the
+	// main token to have upstream contents: write.
+	if headApp := getSafeOutputsHeadApp(data.SafeOutputs); headApp != nil {
+		headRepoSlug := getSafeOutputsHeadRepoSlug(data.SafeOutputs)
+		headFallbackRepo := headRepoNameFromSlug(headRepoSlug)
+		preambleTokenSteps = append(preambleTokenSteps, c.buildGitHubAppTokenMintStepWithMeta(
+			headApp,
+			nil, // head token is scoped to fork operations; no job-level permissions filter
+			headFallbackRepo,
+			headRepoSlug, // used to derive the owner when HeadGitHubApp.Owner is not set
+			"Generate GitHub App head token",
+			"safe-outputs-head-app-token",
+		)...)
+	}
+
+	// Insert all preamble token steps before checkout and safe-output handler steps.
+	if len(preambleTokenSteps) > 0 {
+		// Calculate insertion index: after setup action (if present) and artifact downloads,
+		// but before checkout and safe output steps.
 		insertIndex := 0
 
 		// Count setup action steps (checkout + setup if in dev mode without action-tag, or just setup)
@@ -526,7 +599,7 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 			insertIndex += len(patchDownloadSteps)
 		}
 
-		// Note: App token step must be inserted BEFORE shared checkout steps
+		// Note: App token steps must be inserted BEFORE shared checkout steps
 		// because those steps reference steps.safe-outputs-app-token.outputs.token
 		//
 		// The insertion index is line-oriented; if it lands in the middle of a
@@ -536,15 +609,15 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 		}
 		if insertIndex == len(steps) {
 			consolidatedSafeOutputsJobLog.Printf(
-				"WARN: app-token insertion reached end of steps slice (len=%d); step ordering may be incorrect",
+				"WARN: preamble-token insertion reached end of steps slice (len=%d); step ordering may be incorrect",
 				len(steps),
 			)
 		}
 
-		// Insert app token steps
+		// Insert all preamble token steps at the computed index.
 		var newSteps []string
 		newSteps = append(newSteps, steps[:insertIndex]...)
-		newSteps = append(newSteps, appTokenSteps...)
+		newSteps = append(newSteps, preambleTokenSteps...)
 		newSteps = append(newSteps, steps[insertIndex:]...)
 		steps = newSteps
 	}

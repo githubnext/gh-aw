@@ -32,42 +32,45 @@ func isCloseOlderPullRequestsEnabled(config *CreatePullRequestsConfig) bool {
 // CreatePullRequestsConfig holds configuration for creating GitHub pull requests from agent output
 type CreatePullRequestsConfig struct {
 	BaseSafeOutputConfig           `yaml:",inline"`
-	BranchPrefix                   string   `yaml:"branch-prefix,omitempty"` // Optional prefix for the pull request branch name (e.g. "signed/"). Applied before the agent-specified or auto-generated branch name.
-	TitlePrefix                    string   `yaml:"title-prefix,omitempty"`
-	RequireTemporaryID             bool     `yaml:"require-temporary-id,omitempty"` // When true, create_pull_request tool calls must include temporary_id.
-	Labels                         []string `yaml:"labels,omitempty"`
-	AllowedLabels                  []string `yaml:"allowed-labels,omitempty"`                      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
-	Reviewers                      []string `yaml:"reviewers,omitempty"`                           // List of users/bots to assign as reviewers to the pull request. Accepts a static list or a single GitHub Actions expression.
-	TeamReviewers                  []string `yaml:"team-reviewers,omitempty"`                      // List of team slugs to assign as team reviewers to the pull request. Accepts a static list or a single GitHub Actions expression.
-	Assignees                      []string `yaml:"assignees,omitempty"`                           // List of users to assign to the created pull request and any fallback issue. Accepts a static list or a single GitHub Actions expression.
-	FallbackLabels                 []string `yaml:"fallback-labels,omitempty"`                     // List of labels to apply to fallback issues created when PR creation cannot proceed. If omitted, fallback issues reuse PR labels.
-	Draft                          *string  `yaml:"draft,omitempty"`                               // Pointer to distinguish between unset (nil), literal bool, and expression values
-	IfNoChanges                    string   `yaml:"if-no-changes,omitempty"`                       // Behavior when no changes to push: "warn" (default), "error", or "ignore"
-	AllowEmpty                     *string  `yaml:"allow-empty,omitempty"`                         // Allow creating PR without patch file or with empty patch (useful for preparing feature branches)
-	TargetRepoSlug                 string   `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository pull requests
-	AllowedRepos                   []string `yaml:"allowed-repos,omitempty"`                       // List of additional repositories that pull requests can be created in (additionally to the target-repo)
-	AllowedBaseBranches            []string `yaml:"allowed-base-branches,omitempty"`               // List of allowed base branch globs (e.g. "release/*"). Enables agent-provided `base` override when configured.
-	AllowedBranches                []string `yaml:"allowed-branches,omitempty"`                    // List of allowed source branch globs (e.g. "feature/*"). Branch in create_pull_request payload must match when configured.
-	MaxPatchSize                   int      `yaml:"max-patch-size,omitempty"`                      // Maximum allowed patch size in KB for create-pull-request only. Overrides safe-outputs.max-patch-size when set.
-	MaxPatchFiles                  int      `yaml:"max-patch-files,omitempty"`                     // Maximum allowed unique files in create-pull-request patch only. Overrides safe-outputs.max-patch-files when set.
-	Expires                        int      `yaml:"expires,omitempty"`                             // Hours until the pull request expires and should be automatically closed (only for same-repo PRs)
-	AutoMerge                      *string  `yaml:"auto-merge,omitempty"`                          // Enable auto-merge for the pull request when all required checks pass
-	BaseBranch                     string   `yaml:"base-branch,omitempty"`                         // Base branch for the pull request (defaults to github.ref_name if not specified)
-	Footer                         *string  `yaml:"footer,omitempty"`                              // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
-	FallbackAsIssue                *bool    `yaml:"fallback-as-issue,omitempty"`                   // When true (default), creates an issue if PR creation fails. When false, no fallback occurs and issues: write permission is not requested.
-	AutoCloseIssue                 *string  `yaml:"auto-close-issue,omitempty"`                    // Auto-add "Fixes #N" closing keyword when triggered from an issue (default: true). Set to false to prevent auto-closing the triggering issue on PR merge. Accepts a boolean or a GitHub Actions expression.
-	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
-	ManifestFilesPolicy            *string  `yaml:"protected-files,omitempty"`                     // Controls protected-file protection: "request_review" (default) creates a PR and submits a REQUEST_CHANGES review, "blocked" hard-blocks, "allowed" permits all changes, and "fallback-to-issue" creates a review issue instead of a PR.
-	ProtectedFilesExclude          []string `yaml:"-"`                                             // Files/prefixes to exclude from the default protected list (from object-form protected-files.exclude). Not sourced from YAML directly; populated during pre-processing.
-	AllowedFiles                   []string `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for create. Checked independently of protected-files; both checks must pass.
-	ExcludedFiles                  []string `yaml:"excluded-files,omitempty"`                      // List of glob patterns for files to exclude from the patch using git :(exclude) pathspecs. Matching files are stripped by git at generation time and will not appear in the commit or be subject to allowed-files or protected-files checks.
-	PreserveBranchName             bool     `yaml:"preserve-branch-name,omitempty"`                // When true, skips the random salt suffix on agent-specified branch names. Invalid characters are still replaced for security; casing is always preserved. Useful when CI enforces branch naming conventions (e.g. Jira keys in uppercase).
-	RecreateRef                    bool     `yaml:"recreate-ref,omitempty"`                        // When true (and preserve-branch-name is true), allows the handler to force-delete an existing remote branch ref and recreate it from the agent's local HEAD. When false (default), an existing remote branch causes a fallback to issue (or push_failed). Useful for long-lived reusable branches whose previous PR was merged.
-	PatchFormat                    string   `yaml:"patch-format,omitempty"`                        // Transport format for packaging changes: "bundle" (default, uses git bundle and preserves merge topology/per-commit metadata) or "am" (uses git format-patch).
-	SignedCommits                  *bool    `yaml:"signed-commits,omitempty"`                      // When false, skips GitHub GraphQL signed commits and pushes the local git history directly. Default is true.
-	AllowWorkflows                 bool     `yaml:"allow-workflows,omitempty"`                     // When true, adds workflows: write to the GitHub App token. Requires safe-outputs.github-app to be configured.
-	CloseOlderPullRequests         *string  `yaml:"close-older-pull-requests,omitempty"`           // When true, close older open pull requests with the same workflow-id marker when a new one is created. Capped at 10 closures per run.
-	CloseOlderKey                  string   `yaml:"close-older-key,omitempty"`                     // Optional explicit deduplication key for close-older matching. When set, uses gh-aw-close-key marker instead of workflow-id markers.
+	BranchPrefix                   string           `yaml:"branch-prefix,omitempty"` // Optional prefix for the pull request branch name (e.g. "signed/"). Applied before the agent-specified or auto-generated branch name.
+	TitlePrefix                    string           `yaml:"title-prefix,omitempty"`
+	RequireTemporaryID             bool             `yaml:"require-temporary-id,omitempty"` // When true, create_pull_request tool calls must include temporary_id.
+	Labels                         []string         `yaml:"labels,omitempty"`
+	AllowedLabels                  []string         `yaml:"allowed-labels,omitempty"`                      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
+	Reviewers                      []string         `yaml:"reviewers,omitempty"`                           // List of users/bots to assign as reviewers to the pull request. Accepts a static list or a single GitHub Actions expression.
+	TeamReviewers                  []string         `yaml:"team-reviewers,omitempty"`                      // List of team slugs to assign as team reviewers to the pull request. Accepts a static list or a single GitHub Actions expression.
+	Assignees                      []string         `yaml:"assignees,omitempty"`                           // List of users to assign to the created pull request and any fallback issue. Accepts a static list or a single GitHub Actions expression.
+	FallbackLabels                 []string         `yaml:"fallback-labels,omitempty"`                     // List of labels to apply to fallback issues created when PR creation cannot proceed. If omitted, fallback issues reuse PR labels.
+	Draft                          *string          `yaml:"draft,omitempty"`                               // Pointer to distinguish between unset (nil), literal bool, and expression values
+	IfNoChanges                    string           `yaml:"if-no-changes,omitempty"`                       // Behavior when no changes to push: "warn" (default), "error", or "ignore"
+	AllowEmpty                     *string          `yaml:"allow-empty,omitempty"`                         // Allow creating PR without patch file or with empty patch (useful for preparing feature branches)
+	TargetRepoSlug                 string           `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository pull requests
+	HeadRepoSlug                   string           `yaml:"head-repo,omitempty"`                           // Head repository in format "owner/repo" for fork-backed pull requests; defaults to target-repo when unset
+	HeadGitHubToken                string           `yaml:"head-github-token,omitempty"`                   // GitHub token used for branch writes to the head repository when it differs from the target repo
+	HeadGitHubApp                  *GitHubAppConfig `yaml:"-"`                                             // GitHub App used to mint the head token for fork branch writes; parsed manually to support app-id alias
+	AllowedRepos                   []string         `yaml:"allowed-repos,omitempty"`                       // List of additional repositories that pull requests can be created in (additionally to the target-repo)
+	AllowedBaseBranches            []string         `yaml:"allowed-base-branches,omitempty"`               // List of allowed base branch globs (e.g. "release/*"). Enables agent-provided `base` override when configured.
+	AllowedBranches                []string         `yaml:"allowed-branches,omitempty"`                    // List of allowed source branch globs (e.g. "feature/*"). Branch in create_pull_request payload must match when configured.
+	MaxPatchSize                   int              `yaml:"max-patch-size,omitempty"`                      // Maximum allowed patch size in KB for create-pull-request only. Overrides safe-outputs.max-patch-size when set.
+	MaxPatchFiles                  int              `yaml:"max-patch-files,omitempty"`                     // Maximum allowed unique files in create-pull-request patch only. Overrides safe-outputs.max-patch-files when set.
+	Expires                        int              `yaml:"expires,omitempty"`                             // Hours until the pull request expires and should be automatically closed (only for same-repo PRs)
+	AutoMerge                      *string          `yaml:"auto-merge,omitempty"`                          // Enable auto-merge for the pull request when all required checks pass
+	BaseBranch                     string           `yaml:"base-branch,omitempty"`                         // Base branch for the pull request (defaults to github.ref_name if not specified)
+	Footer                         *string          `yaml:"footer,omitempty"`                              // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
+	FallbackAsIssue                *bool            `yaml:"fallback-as-issue,omitempty"`                   // When true (default), creates an issue if PR creation fails. When false, no fallback occurs and issues: write permission is not requested.
+	AutoCloseIssue                 *string          `yaml:"auto-close-issue,omitempty"`                    // Auto-add "Fixes #N" closing keyword when triggered from an issue (default: true). Set to false to prevent auto-closing the triggering issue on PR merge. Accepts a boolean or a GitHub Actions expression.
+	GithubTokenForExtraEmptyCommit string           `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
+	ManifestFilesPolicy            *string          `yaml:"protected-files,omitempty"`                     // Controls protected-file protection: "request_review" (default) creates a PR and submits a REQUEST_CHANGES review, "blocked" hard-blocks, "allowed" permits all changes, and "fallback-to-issue" creates a review issue instead of a PR.
+	ProtectedFilesExclude          []string         `yaml:"-"`                                             // Files/prefixes to exclude from the default protected list (from object-form protected-files.exclude). Not sourced from YAML directly; populated during pre-processing.
+	AllowedFiles                   []string         `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for create. Checked independently of protected-files; both checks must pass.
+	ExcludedFiles                  []string         `yaml:"excluded-files,omitempty"`                      // List of glob patterns for files to exclude from the patch using git :(exclude) pathspecs. Matching files are stripped by git at generation time and will not appear in the commit or be subject to allowed-files or protected-files checks.
+	PreserveBranchName             bool             `yaml:"preserve-branch-name,omitempty"`                // When true, skips the random salt suffix on agent-specified branch names. Invalid characters are still replaced for security; casing is always preserved. Useful when CI enforces branch naming conventions (e.g. Jira keys in uppercase).
+	RecreateRef                    bool             `yaml:"recreate-ref,omitempty"`                        // When true (and preserve-branch-name is true), allows the handler to force-delete an existing remote branch ref and recreate it from the agent's local HEAD. When false (default), an existing remote branch causes a fallback to issue (or push_failed). Useful for long-lived reusable branches whose previous PR was merged.
+	PatchFormat                    string           `yaml:"patch-format,omitempty"`                        // Transport format for packaging changes: "bundle" (default, uses git bundle and preserves merge topology/per-commit metadata) or "am" (uses git format-patch).
+	SignedCommits                  *bool            `yaml:"signed-commits,omitempty"`                      // When false, skips GitHub GraphQL signed commits and pushes the local git history directly. Default is true.
+	AllowWorkflows                 bool             `yaml:"allow-workflows,omitempty"`                     // When true, adds workflows: write to the GitHub App token. Requires safe-outputs.github-app to be configured.
+	CloseOlderPullRequests         *string          `yaml:"close-older-pull-requests,omitempty"`           // When true, close older open pull requests with the same workflow-id marker when a new one is created. Capped at 10 closures per run.
+	CloseOlderKey                  string           `yaml:"close-older-key,omitempty"`                     // Optional explicit deduplication key for close-older matching. When set, uses gh-aw-close-key marker instead of workflow-id markers.
 }
 
 // parseCreatePullRequestsConfig handles only create-pull-request (singular) configuration
@@ -120,7 +123,7 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 
 			return true
 		},
-		func(_ map[string]any, config *CreatePullRequestsConfig, expiresDisabled bool) {
+		func(configData map[string]any, config *CreatePullRequestsConfig, expiresDisabled bool) {
 			if expiresDisabled {
 				createPRLog.Print("Pull request expiration disabled")
 			}
@@ -139,6 +142,16 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 				createPRLog.Print("Using default max count: 1")
 			} else {
 				createPRLog.Printf("Pull request max count configured: %s", *config.Max)
+			}
+
+			// Parse head-github-app manually so that the app-id alias is honoured
+			// (YAML unmarshal would silently ignore app-id since GitHubAppConfig only
+			// declares the canonical client-id tag).
+			if headAppData, exists := configData["head-github-app"]; exists {
+				if headAppMap, ok := headAppData.(map[string]any); ok {
+					createPRLog.Print("Parsed head-github-app from config")
+					config.HeadGitHubApp = parseAppConfig(headAppMap)
+				}
 			}
 		},
 	)

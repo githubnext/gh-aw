@@ -377,6 +377,37 @@ files:
 		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
 	})
 
+	t.Run("accepts git describe compiler version for matching min-version", func(t *testing.T) {
+		SetVersionInfo("v1.0.0-27-g117acb7f9c")
+		t.Cleanup(func() {
+			SetVersionInfo("v1.2.3")
+		})
+
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+			switch path {
+			case "aw.yml":
+				return []byte(`manifest-version: "1"
+min-version: v1.0.0
+name: Repo Assist
+files:
+  - workflows/review.md
+`), nil
+			case "README.md":
+				return []byte("# Repo Assist\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(path)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
+			t.Fatalf("unexpected scan of %s", workflowPath)
+			return nil, nil
+		}
+
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.NoError(t, err)
+		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+	})
+
 	t.Run("accepts manifest without manifest-version", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
