@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -365,6 +366,94 @@ func TestAddCommandArgs(t *testing.T) {
 
 	err = cmd.Args(cmd, []string{"workflow1", "workflow2"})
 	require.NoError(t, err, "Should not error with multiple arguments")
+}
+
+func TestRunAddBootstrapConfigFlow(t *testing.T) {
+	originalGetCurrentRepoSlug := addGetCurrentRepoSlug
+	originalExecuteBootstrapConfigForAdd := addExecuteBootstrapConfigForAdd
+	t.Cleanup(func() {
+		addGetCurrentRepoSlug = originalGetCurrentRepoSlug
+		addExecuteBootstrapConfigForAdd = originalExecuteBootstrapConfigForAdd
+	})
+
+	profileWithConfig := &resolvedBootstrapProfile{
+		PackageID: "owner/pkg",
+		Profile: &repositoryPackageBootstrap{
+			Config: []repositoryPackageBootstrapAction{
+				{Type: "repo-variable", Name: "EXAMPLE", Prompt: "Enter value"},
+			},
+		},
+	}
+
+	t.Run("executes bootstrap config with detected current repository", func(t *testing.T) {
+		addGetCurrentRepoSlug = func() (string, error) { return "owner/repo", nil }
+		called := false
+		addExecuteBootstrapConfigForAdd = func(_ context.Context, repo string, sources []string, profile *resolvedBootstrapProfile, useCopilotRequests bool, verbose bool) error {
+			called = true
+			assert.Equal(t, "owner/repo", repo)
+			assert.Equal(t, []string{"owner/pkg"}, sources)
+			assert.Equal(t, profileWithConfig, profile)
+			assert.False(t, useCopilotRequests)
+			assert.True(t, verbose)
+			return nil
+		}
+
+		var out strings.Builder
+		err := runAddBootstrapConfigFlow(context.Background(), &out, []string{"owner/pkg"}, profileWithConfig, "", true)
+		require.NoError(t, err)
+		assert.True(t, called)
+		assert.Empty(t, out.String())
+	})
+
+	t.Run("uses explicit repo override and skips repo detection", func(t *testing.T) {
+		addGetCurrentRepoSlug = func() (string, error) {
+			t.Fatal("getCurrentRepoSlug should not be called when repo override is provided")
+			return "", nil
+		}
+		called := false
+		addExecuteBootstrapConfigForAdd = func(_ context.Context, repo string, _ []string, _ *resolvedBootstrapProfile, _ bool, _ bool) error {
+			called = true
+			assert.Equal(t, "octo/repo", repo)
+			return nil
+		}
+
+		var out strings.Builder
+		err := runAddBootstrapConfigFlow(context.Background(), &out, []string{"owner/pkg"}, profileWithConfig, "octo/repo", false)
+		require.NoError(t, err)
+		assert.True(t, called)
+		assert.Empty(t, out.String())
+	})
+
+	t.Run("falls back to manual checklist when current repository cannot be resolved", func(t *testing.T) {
+		addGetCurrentRepoSlug = func() (string, error) { return "", errors.New("no git remote") }
+		addExecuteBootstrapConfigForAdd = func(_ context.Context, _ string, _ []string, _ *resolvedBootstrapProfile, _ bool, _ bool) error {
+			t.Fatal("executeBootstrapConfigForAdd should not be called when repo resolution fails")
+			return nil
+		}
+
+		var out strings.Builder
+		err := runAddBootstrapConfigFlow(context.Background(), &out, []string{"owner/pkg"}, profileWithConfig, "", false)
+		require.NoError(t, err)
+		assert.Contains(t, out.String(), "Could not determine target repository for automatic config setup")
+		assert.Contains(t, out.String(), "Post-installation steps from owner/pkg")
+		assert.Contains(t, out.String(), "Run 'gh aw bootstrap --repo OWNER/REPO' to apply these steps interactively.")
+	})
+
+	t.Run("returns an error for invalid repo overrides", func(t *testing.T) {
+		addGetCurrentRepoSlug = func() (string, error) {
+			t.Fatal("getCurrentRepoSlug should not be called when repo override is provided")
+			return "", nil
+		}
+		addExecuteBootstrapConfigForAdd = func(_ context.Context, _ string, _ []string, _ *resolvedBootstrapProfile, _ bool, _ bool) error {
+			t.Fatal("executeBootstrapConfigForAdd should not be called for invalid repo override")
+			return nil
+		}
+
+		var out strings.Builder
+		err := runAddBootstrapConfigFlow(context.Background(), &out, []string{"owner/pkg"}, profileWithConfig, "invalid-repo", false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--repo must use the OWNER/REPO format")
+	})
 }
 
 // TestAddMultipleWorkflowsNameFlag verifies that --name is not allowed when multiple workflows are specified.

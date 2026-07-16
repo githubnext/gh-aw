@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +19,8 @@ import (
 )
 
 var addLog = logger.New("cli:add_command")
+var addGetCurrentRepoSlug = GetCurrentRepoSlug
+var addExecuteBootstrapConfigForAdd = executeBootstrapConfigForAdd
 
 var (
 	addCommandLong = `Add one or more agentic workflows from repositories to .github/workflows.
@@ -126,6 +129,7 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 	verbose, _ := cmd.Flags().GetBool("verbose")
 	noGitattributes, _ := cmd.Flags().GetBool("no-gitattributes")
 	workflowDir, _ := cmd.Flags().GetString("dir")
+	repoOverride, _ := cmd.Flags().GetString("repo")
 	noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 	stopAfter, _ := cmd.Flags().GetString("stop-after")
 	disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
@@ -159,10 +163,30 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 	if _, err := AddResolvedWorkflows(cmd.Context(), args, resolved, opts); err != nil {
 		return err
 	}
-	if resolved.BootstrapProfile != nil {
-		printBootstrapConfigTODO(cmd.ErrOrStderr(), resolved.BootstrapProfile)
+	return runAddBootstrapConfigFlow(cmd.Context(), cmd.ErrOrStderr(), args, resolved.BootstrapProfile, repoOverride, verbose)
+}
+
+func runAddBootstrapConfigFlow(ctx context.Context, output io.Writer, sources []string, profile *resolvedBootstrapProfile, repoOverride string, verbose bool) error {
+	if profile == nil || profile.Profile == nil || len(profile.Profile.Config) == 0 {
+		return nil
 	}
-	return nil
+
+	repoSlug := strings.TrimSpace(repoOverride)
+	if repoSlug == "" {
+		currentRepoSlug, err := addGetCurrentRepoSlug()
+		if err != nil {
+			addLog.Printf("Could not determine target repository for automatic bootstrap config setup: %v", err)
+			fmt.Fprintln(output, console.FormatWarningMessage("Could not determine target repository for automatic config setup; showing manual checklist instead."))
+			printBootstrapConfigTODO(output, profile)
+			return nil
+		}
+		repoSlug = currentRepoSlug
+	}
+	if !isValidOwnerRepoSlug(repoSlug) {
+		return fmt.Errorf("--repo must use the OWNER/REPO format when applying package config. Example: --repo github/gh-aw")
+	}
+
+	return addExecuteBootstrapConfigForAdd(ctx, repoSlug, sources, profile, false, verbose)
 }
 
 func registerAddCommandFlags(cmd *cobra.Command) {
