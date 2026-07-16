@@ -34,6 +34,7 @@
 "use strict";
 
 const fs = require("fs");
+const { MAX_RUNS_EXCEEDED_PATTERNS } = require("./harness_retry_guard.cjs");
 
 const LOG_FILE = "/tmp/gh-aw/agent-stdio.log";
 
@@ -90,7 +91,7 @@ const CAPI_QUOTA_EXCEEDED_PATTERN = /CAPIError:\s*(?:429\s+)?(?:429\s+quota exce
 // both CAPI (Copilot CLI: "CAPIError: 429 Maximum LLM invocations exceeded (N/N)")
 // and direct Anthropic API responses ("max_runs_exceeded").
 // The pooled per-run invocation budget is saturated — retries cannot make progress.
-const INVOCATION_CAP_EXCEEDED_PATTERN = /\bmax_runs_exceeded\b|Maximum LLM invocations exceeded/i;
+const INVOCATION_CAP_EXCEEDED_PATTERN = new RegExp(MAX_RUNS_EXCEEDED_PATTERNS.map(pattern => pattern.source).join("|"), "i");
 
 /**
  * Determines if the collected output contains the observed Copilot/CAPI quota exhaustion error.
