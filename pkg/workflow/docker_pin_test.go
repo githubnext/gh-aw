@@ -14,6 +14,11 @@ import (
 // TestApplyContainerPins verifies that applyContainerPins substitutes
 // cached digest references while leaving unpinned images unchanged.
 func TestApplyContainerPins(t *testing.T) {
+	imageTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+	defaultFirewallAgentImage := constants.DefaultFirewallRegistry + "/agent:" + imageTag
+	defaultFirewallAgentPin, ok := getEmbeddedContainerPin(defaultFirewallAgentImage)
+	require.True(t, ok, "embedded pin must exist for %s", defaultFirewallAgentImage)
+
 	tests := []struct {
 		name            string
 		images          []string
@@ -37,10 +42,10 @@ func TestApplyContainerPins(t *testing.T) {
 		},
 		{
 			name:            "embedded firewall pin used when cache is absent",
-			images:          []string{"ghcr.io/github/gh-aw-firewall/agent:0.27.35"},
+			images:          []string{defaultFirewallAgentImage},
 			pins:            nil,
-			expectedRefs:    []string{"ghcr.io/github/gh-aw-firewall/agent:0.27.35@sha256:2202f63e8650b2b8b0d38033b44a05387b2b71ad3e690c4d23a34786f5462aed"},
-			expectedDigests: []string{"sha256:2202f63e8650b2b8b0d38033b44a05387b2b71ad3e690c4d23a34786f5462aed"},
+			expectedRefs:    []string{defaultFirewallAgentPin.PinnedImage},
+			expectedDigests: []string{defaultFirewallAgentPin.Digest},
 		},
 		{
 			name:            "embedded gh-aw-node pin used when cache is absent",

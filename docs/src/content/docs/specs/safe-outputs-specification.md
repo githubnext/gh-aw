@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.25.0  
+**Version**: 1.25.1  
 **Status**: Working Draft  
-**Publication Date**: 2026-07-15  
+**Publication Date**: 2026-07-16  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -1393,6 +1393,28 @@ MUST NOT:
 - Allow non-allowlisted cross-repository operations
 - Block same-repository operations
 - Silently ignore allowlist configuration
+
+#### GP5: github-app.repositories
+
+**Syntax**: `safe-outputs.github-app.repositories: ["*"] | [<repository-name>, ...]`
+
+**Default**: Implementation-defined repository scope when `github-app` is configured without `repositories`
+
+**Semantics**: Specifies the repository scope requested when minting GitHub App installation tokens for safe outputs execution.
+
+When `safe-outputs.github-app.repositories` is exactly `["*"]`, implementations:
+
+- MUST omit the installation-token `repositories` parameter
+- MUST NOT substitute `${{ github.event.repository.name }}`
+- MUST NOT rewrite the wildcard sentinel to a single repository scope
+
+When `safe-outputs.github-app.repositories` contains one or more explicit repository names, implementations MUST request exactly the configured repository set.
+
+When `safe-outputs.github-app.repositories` is omitted, implementations MAY use the triggering repository as the default repository scope.
+
+The `["*"]` behavior MUST apply to activation-job token minting and to subsequent safe-output-job token minting that inherits the same `safe-outputs.github-app` settings.
+
+In `workflow_call` and other reusable-workflow scenarios, conforming implementations MUST preserve the `["*"]` behavior so that activation can read agent configuration from the callee repository when the App installation grant permits it.
 
 ### 5.3 Type-Specific Common Parameters
 
@@ -5243,6 +5265,12 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.25.1** (2026-07-16):
+
+- **Specified**: When `safe-outputs.github-app.repositories` is `["*"]`, implementations MUST omit the GitHub App installation-token `repositories` parameter rather than substituting `${{ github.event.repository.name }}`.
+- **Clarified**: The wildcard repository behavior applies to activation-job token minting and to subsequent safe-output-job token minting, including `workflow_call` and other reusable-workflow scenarios.
+- **Updated**: Publication metadata to 1.25.1.
 
 **Version 1.25.0** (2026-07-15):
 
