@@ -919,9 +919,9 @@ func resolveSafeOutputsEnvironment(data *WorkflowData) string {
 }
 
 // buildSafeOutputItemsManifestUploadStep builds the step that uploads the safe output
-// items manifest and temporary ID map as a separate artifact. The step always runs
-// (if: always()) so the files are available to the audit command even if some safe
-// output steps fail.
+// items manifest, temporary ID map, and process diagnostic log as a separate artifact.
+// The step always runs (if: always()) so the files are available to the audit command
+// even if some safe output steps fail.
 // The files are uploaded as a dedicated "safe-outputs-items" artifact (not merged into the
 // "agent" artifact) to avoid a 409 Conflict when both the agent job and safe_outputs job
 // try to upload an artifact with the same name in the same workflow run.
@@ -937,6 +937,7 @@ func buildSafeOutputItemsManifestUploadStep(prefix string, pinAction func(string
 		"          path: |\n",
 		"            /tmp/gh-aw/safe-output-items.jsonl\n",
 		fmt.Sprintf("            /tmp/gh-aw/%s\n", constants.TemporaryIdMapFilename),
+		fmt.Sprintf("            /tmp/gh-aw/%s\n", constants.SafeOutputsProcessLogFilename),
 		"          if-no-files-found: ignore\n",
 	}
 }

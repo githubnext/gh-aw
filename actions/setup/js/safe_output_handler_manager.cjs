@@ -27,6 +27,7 @@ const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.c
 const { listCommentMemoryFiles, COMMENT_MEMORY_DIR } = require("./comment_memory_helpers.cjs");
 const { checkRateLimitHeadroom } = require("./rate_limit_helpers.cjs");
 const { redactSensitiveConfig } = require("./safe_outputs_config_redact.cjs");
+const { SAFE_OUTPUTS_PROCESS_LOG_PATH } = require("./constants.cjs");
 const nodePath = require("path");
 const fs = require("fs");
 
@@ -1595,6 +1596,10 @@ async function main() {
       core.warning(`${failureCount} message(s) failed to process`);
       const failedItemLines = fatalFailures.map(r => `  - ${r.type}: ${r.error || "Unknown error"}`);
       const failedItems = failedItemLines.join("\n");
+      writeSafeOutputsProcessLog(
+        `${failureCount} safe output(s) failed`,
+        fatalFailures.map(r => ({ type: r.type, error: r.error || "Unknown error" }))
+      );
       core.setFailed(`${failureCount} safe output(s) failed:\n${failedItems}`);
     }
     if (reportOnlyFailureCount > 0) {
@@ -1695,7 +1700,9 @@ async function main() {
 
     core.info("Safe Output Handler Manager completed");
   } catch (error) {
-    core.setFailed(`${ERR_VALIDATION}: Handler manager failed: ${getErrorMessage(error)}`);
+    const errorMessage = getErrorMessage(error);
+    writeSafeOutputsProcessLog(`Handler manager failed: ${errorMessage}`);
+    core.setFailed(`${ERR_VALIDATION}: Handler manager failed: ${errorMessage}`);
   } finally {
     // Guarantee the manifest file exists for artifact upload even when the handler fails.
     // This is a no-op if the file was already created by createManifestLogger().
@@ -1706,6 +1713,32 @@ async function main() {
         // Ignore errors here — we must not mask the original failure
       }
     }
+  }
+}
+
+/**
+ * Write a diagnostic log to the safe-outputs process log file so that hard safe-output
+ * failures (BUNDLE hardfails) are diagnosable from run artifacts without live-log access.
+ * The file is uploaded as part of the safe-outputs-items artifact by the compiler-generated
+ * "Upload Safe Outputs Items" step (if: always()).
+ *
+ * Errors during write are silently swallowed so they never mask the original failure.
+ *
+ * @param {string} reason - Top-level failure reason (shown as header)
+ * @param {Array<{type: string, error: string}>} [failedItems] - Individual handler failures (optional)
+ */
+function writeSafeOutputsProcessLog(reason, failedItems = []) {
+  try {
+    const lines = [`timestamp: ${new Date().toISOString()}`, `reason: ${reason}`];
+    if (failedItems.length > 0) {
+      lines.push(`failed_count: ${failedItems.length}`);
+      for (const item of failedItems) {
+        lines.push(`  - ${item.type}: ${item.error || "Unknown error"}`);
+      }
+    }
+    fs.writeFileSync(SAFE_OUTPUTS_PROCESS_LOG_PATH, lines.join("\n") + "\n", "utf8");
+  } catch (_e) {
+    // Ignore write errors — we must not mask the original failure
   }
 }
 
@@ -1723,4 +1756,5 @@ module.exports = {
   isFailedProcessingResult,
   isReportOnlyFailureResult,
   partitionFailureResults,
+  writeSafeOutputsProcessLog,
 };
