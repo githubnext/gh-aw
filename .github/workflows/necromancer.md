@@ -71,6 +71,11 @@ safe-outputs:
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} while raising regression tests."
 imports:
   - shared/otlp.md
+evals:
+  - id: investigation-completed
+    question: Did the agent investigate the pull request and identify any root-cause issues or missing test coverage?
+  - id: tests-added-or-noop
+    question: Were regression tests added to the pull request branch, or was noop correctly called when no tests were needed?
 ---
 
 # Necromancer

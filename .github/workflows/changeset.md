@@ -55,6 +55,11 @@ imports:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: changeset-created
+    question: Did the agent create a valid changeset file for the labeled pull request?
+  - id: content-accurate
+    question: Does the changeset accurately summarize the changes described in the pull request?
 ---
 
 # Changeset Generator

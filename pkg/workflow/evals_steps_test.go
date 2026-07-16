@@ -197,3 +197,67 @@ func TestBuildParseEvalsResultsStepUsesResolvedExecutionModel(t *testing.T) {
 		t.Errorf("expected parse step to pass github.run_id through to the eval record writer; got:\n%s", steps)
 	}
 }
+
+// TestBuildEvalsJobStepsCodexNoDuplicateContainerDownload verifies that a codex
+// workflow with evals does not generate a duplicate "Download container images" step.
+// Regression: buildEvalsJobSteps previously called buildPullAWFContainersStep
+// unconditionally while buildEvalsEngineSteps → generateMCPSetup also emitted the
+// step for codex, producing two identical steps and tripping duplicate-step validation.
+func TestBuildEvalsJobStepsCodexNoDuplicateContainerDownload(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "codex",
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Type: SandboxTypeAWF,
+			},
+		},
+		Evals: &EvalsConfig{
+			Questions: []EvalDefinition{
+				{ID: "task-completed", Question: "Did the agent complete the assigned task?"},
+			},
+		},
+	}
+
+	steps := compiler.buildEvalsJobSteps(data)
+	allSteps := strings.Join(steps, "")
+
+	count := strings.Count(allSteps, "name: Download container images")
+	if count != 1 {
+		t.Errorf("expected exactly one 'Download container images' step for codex evals job, got %d\n%s", count, allSteps)
+	}
+}
+
+// TestBuildEvalsJobStepsNonCodexIncludesContainerDownload verifies that non-codex
+// engines still get the "Download container images" step in the evals job.
+// Unlike codex, non-codex engines do not call generateMCPSetup in buildEvalsEngineSteps,
+// so buildPullAWFContainersStep must still be called for them.
+func TestBuildEvalsJobStepsNonCodexIncludesContainerDownload(t *testing.T) {
+	compiler := NewCompiler()
+
+	for _, engine := range []string{"copilot", "claude"} {
+		t.Run(engine, func(t *testing.T) {
+			data := &WorkflowData{
+				AI: engine,
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type: SandboxTypeAWF,
+					},
+				},
+				Evals: &EvalsConfig{
+					Questions: []EvalDefinition{
+						{ID: "task-completed", Question: "Did the agent complete the assigned task?"},
+					},
+				},
+			}
+
+			steps := compiler.buildEvalsJobSteps(data)
+			allSteps := strings.Join(steps, "")
+
+			if !strings.Contains(allSteps, "Download container images") {
+				t.Errorf("expected 'Download container images' step in evals job for %s engine\ngot:\n%s", engine, allSteps)
+			}
+		})
+	}
+}
