@@ -25,12 +25,16 @@ const (
 )
 
 // buildEvalsJobSteps builds all steps that run inside the evals job.
-// The steps analyse the agent artifact using a BinEval prompt and write
+// The steps analyse the agent artifact using a BinEval prompt (for question-type evals)
+// and/or run deterministic shell scripts (for run-type evals), then write
 // per-question YES/NO results to evals.jsonl.
 func (c *Compiler) buildEvalsJobSteps(data *WorkflowData) []string {
 	if !data.Evals.HasEvals() {
 		return nil
 	}
+
+	hasQuestionEvals := len(data.Evals.QuestionEvals()) > 0
+	hasScriptEvals := len(data.Evals.ScriptEvals()) > 0
 
 	var steps []string
 
@@ -41,27 +45,35 @@ func (c *Compiler) buildEvalsJobSteps(data *WorkflowData) []string {
 	steps = append(steps, c.buildCleanFirewallDirsStep()...)
 
 	// Step 2: Pre-pull AWF container images for faster engine execution.
+	// Only needed when there are LLM-judged questions; skipped for script-only evals.
 	// For codex, buildEvalsEngineSteps calls generateMCPSetup which already emits
 	// the Docker download step via generateDownloadDockerImagesStep, so skip here
 	// to avoid a duplicate "Download container images" step name.
-	if c.getEvalsEngineID(data) != string(constants.CodexEngine) {
+	if hasQuestionEvals && c.getEvalsEngineID(data) != string(constants.CodexEngine) {
 		steps = append(steps, c.buildPullAWFContainersStep(data)...)
 	}
 
 	// Step 3: Copy agent output files into the evals working directory.
 	steps = append(steps, buildPrepareEvalsFilesStep()...)
 
-	// Step 4: Setup evals – writes the multi-question BinEval prompt via JS.
-	steps = append(steps, c.buildSetupEvalsStep(data)...)
+	if hasQuestionEvals {
+		// Step 4: Setup evals – writes the multi-question BinEval prompt via JS.
+		steps = append(steps, c.buildSetupEvalsStep(data)...)
 
-	// Step 5: Ensure the evals directory and log file exist before engine execution.
-	steps = append(steps, buildEnsureEvalsDirStep()...)
+		// Step 5: Ensure the evals directory and log file exist before engine execution.
+		steps = append(steps, buildEnsureEvalsDirStep()...)
 
-	// Steps 6 & 7: Install engine and execute via AWF (network-restricted sandbox).
-	steps = append(steps, c.buildEvalsEngineSteps(data)...)
+		// Steps 6 & 7: Install engine and execute via AWF (network-restricted sandbox).
+		steps = append(steps, c.buildEvalsEngineSteps(data)...)
 
-	// Step 8: Parse engine output and write evals.jsonl.
-	steps = append(steps, c.buildParseEvalsResultsStep(data)...)
+		// Step 8: Parse engine output and write evals.jsonl.
+		steps = append(steps, c.buildParseEvalsResultsStep(data)...)
+	}
+
+	if hasScriptEvals {
+		// Step (script): Run each deterministic script eval and append YES/NO results to evals.jsonl.
+		steps = append(steps, c.buildRunScriptEvalsStep(data)...)
+	}
 
 	// Step 9: Redact secrets from evals results before upload.
 	steps = append(steps, c.buildRedactEvalsSecretsStep(data)...)
@@ -98,6 +110,51 @@ func buildEnsureEvalsDirStep() []string {
 		fmt.Sprintf("          mkdir -p %s\n", evalsDir),
 		fmt.Sprintf("          touch %s\n", evalsLogPath),
 	}
+}
+
+// buildRunScriptEvalsStep creates a step that executes each script-type eval,
+// captures its stdout, and appends a YES/NO JSONL record to evals.jsonl.
+// The script must print YES or NO as the first token on stdout; any other output
+// is recorded as UNKNOWN. Each script receives the following environment variables:
+//
+//	GH_AW_AGENT_OUTPUT      – path to the agent_output.json file
+//	GH_AW_SAFE_OUTPUT_ITEMS – path to the safe-output-items.jsonl file
+//	GITHUB_RUN_ID           – the GitHub Actions run ID
+func (c *Compiler) buildRunScriptEvalsStep(data *WorkflowData) []string {
+	if data.Evals == nil {
+		return nil
+	}
+	scriptEvals := data.Evals.ScriptEvals()
+	if len(scriptEvals) == 0 {
+		return nil
+	}
+
+	model := c.resolveEvalsExecutionModel(data)
+	scriptDefsJSON := marshalScriptEvalDefs(scriptEvals)
+
+	script := `const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
+setupGlobals(core, github, context, exec, io, getOctokit);
+const { main } = require('` + SetupActionDestination + `/run_evals.cjs');
+await main();`
+
+	steps := []string{
+		"      - name: Run script evals\n",
+		"        id: run_script_evals\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+		"        env:\n",
+		fmt.Sprintf("          GH_AW_EVALS_SCRIPT_DEFS: '%s'\n", escapeYAMLSingleQuoted(scriptDefsJSON)),
+		fmt.Sprintf("          GH_AW_EVALS_MODEL: %q\n", model),
+		"          GH_AW_EVALS_PHASE: run-scripts\n",
+		"          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent_output.json\n",
+		"          GH_AW_SAFE_OUTPUT_ITEMS: /tmp/gh-aw/safe-output-items.jsonl\n",
+		"          GITHUB_RUN_ID: ${{ github.run_id }}\n",
+		"        with:\n",
+		"          script: |\n",
+	}
+	steps = append(steps, FormatJavaScriptForYAML(script)...)
+	return steps
 }
 
 // buildSetupEvalsStep creates the github-script step that writes the multi-question
@@ -420,15 +477,22 @@ func (c *Compiler) collectEvalsSecretReferences(data *WorkflowData) []string {
 // Utility helpers
 // ---------------------------------------------------------------------------
 
-// marshalEvalsQuestions serialises eval question definitions to a compact JSON
+// marshalEvalsQuestions serialises LLM-judged eval question definitions to a compact JSON
 // array string suitable for embedding in a GitHub Actions env var.
+// Script-type evals (Run != "") are excluded because they bypass the LLM path.
 func marshalEvalsQuestions(questions []EvalDefinition) string {
-	if len(questions) == 0 {
+	filtered := make([]EvalDefinition, 0, len(questions))
+	for _, q := range questions {
+		if q.Run == "" {
+			filtered = append(filtered, q)
+		}
+	}
+	if len(filtered) == 0 {
 		return "[]"
 	}
 	var sb strings.Builder
 	sb.WriteString("[")
-	for i, q := range questions {
+	for i, q := range filtered {
 		if i > 0 {
 			sb.WriteString(",")
 		}
@@ -436,6 +500,26 @@ func marshalEvalsQuestions(questions []EvalDefinition) string {
 		idJSON, _ := json.Marshal(q.ID)             //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
 		questionJSON, _ := json.Marshal(q.Question) //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
 		fmt.Fprintf(&sb, `{"id":%s,"question":%s}`, idJSON, questionJSON)
+	}
+	sb.WriteString("]")
+	return sb.String()
+}
+
+// marshalScriptEvalDefs serialises script-type eval definitions to a compact JSON
+// array string suitable for embedding in a GitHub Actions env var.
+func marshalScriptEvalDefs(evals []EvalDefinition) string {
+	if len(evals) == 0 {
+		return "[]"
+	}
+	var sb strings.Builder
+	sb.WriteString("[")
+	for i, q := range evals {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		idJSON, _ := json.Marshal(q.ID)   //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
+		runJSON, _ := json.Marshal(q.Run) //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
+		fmt.Fprintf(&sb, `{"id":%s,"run":%s}`, idJSON, runJSON)
 	}
 	sb.WriteString("]")
 	return sb.String()

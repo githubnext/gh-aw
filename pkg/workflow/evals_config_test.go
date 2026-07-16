@@ -219,8 +219,34 @@ func TestParseEvalDefinition_TrimsWhitespace(t *testing.T) {
 	assert.Equal(t, "Is it OK?", def.Question)
 }
 
+func TestParseEvalDefinition_RunField(t *testing.T) {
+	def, err := parseEvalDefinition(map[string]any{"id": "check", "run": "./scripts/check.sh"}, 0)
+	require.NoError(t, err)
+	assert.Equal(t, "check", def.ID)
+	assert.Equal(t, "./scripts/check.sh", def.Run)
+	assert.Empty(t, def.Question)
+}
+
+func TestParseEvalDefinition_RunFieldTrimsWhitespace(t *testing.T) {
+	def, err := parseEvalDefinition(map[string]any{"id": "check", "run": "  ./scripts/check.sh  "}, 0)
+	require.NoError(t, err)
+	assert.Equal(t, "./scripts/check.sh", def.Run)
+}
+
+func TestParseEvalDefinition_RunAndQuestionMutuallyExclusive(t *testing.T) {
+	_, err := parseEvalDefinition(map[string]any{"id": "q1", "question": "Is it OK?", "run": "./check.sh"}, 0)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mutually exclusive")
+}
+
+func TestParseEvalDefinition_EmptyRun(t *testing.T) {
+	_, err := parseEvalDefinition(map[string]any{"id": "q1", "run": "  "}, 0)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "run")
+}
+
 // ---------------------------------------------------------------------------
-// HasEvals
+// HasEvals / QuestionEvals / ScriptEvals
 // ---------------------------------------------------------------------------
 
 func TestHasEvals_NilConfig(t *testing.T) {
@@ -236,4 +262,94 @@ func TestHasEvals_EmptyQuestions(t *testing.T) {
 func TestHasEvals_NonEmpty(t *testing.T) {
 	cfg := &EvalsConfig{Questions: []EvalDefinition{{ID: "q1", Question: "ok?"}}}
 	assert.True(t, cfg.HasEvals())
+}
+
+func TestHasEvals_ScriptOnlyIsTrue(t *testing.T) {
+	cfg := &EvalsConfig{Questions: []EvalDefinition{{ID: "s1", Run: "./check.sh"}}}
+	assert.True(t, cfg.HasEvals())
+}
+
+func TestQuestionEvals_FiltersCorrectly(t *testing.T) {
+	cfg := &EvalsConfig{
+		Questions: []EvalDefinition{
+			{ID: "q1", Question: "Does it compile?"},
+			{ID: "s1", Run: "./check.sh"},
+			{ID: "q2", Question: "Does it pass?"},
+		},
+	}
+	qs := cfg.QuestionEvals()
+	require.Len(t, qs, 2)
+	assert.Equal(t, "q1", qs[0].ID)
+	assert.Equal(t, "q2", qs[1].ID)
+}
+
+func TestScriptEvals_FiltersCorrectly(t *testing.T) {
+	cfg := &EvalsConfig{
+		Questions: []EvalDefinition{
+			{ID: "q1", Question: "Does it compile?"},
+			{ID: "s1", Run: "./check.sh"},
+			{ID: "s2", Run: "bash -c 'echo YES'"},
+		},
+	}
+	ss := cfg.ScriptEvals()
+	require.Len(t, ss, 2)
+	assert.Equal(t, "s1", ss[0].ID)
+	assert.Equal(t, "s2", ss[1].ID)
+}
+
+func TestQuestionEvals_NilConfig(t *testing.T) {
+	var cfg *EvalsConfig
+	assert.Nil(t, cfg.QuestionEvals())
+}
+
+func TestScriptEvals_NilConfig(t *testing.T) {
+	var cfg *EvalsConfig
+	assert.Nil(t, cfg.ScriptEvals())
+}
+
+// ---------------------------------------------------------------------------
+// parseEvalsFromFrontmatter — run field
+// ---------------------------------------------------------------------------
+
+func TestParseEvalsFromFrontmatter_ShorthandFormWithRunField(t *testing.T) {
+	c := NewCompiler()
+	frontmatter := map[string]any{
+		"evals": []any{
+			map[string]any{"id": "build_check", "run": "./scripts/check_build.sh"},
+		},
+	}
+	cfg, err := c.parseEvalsFromFrontmatter(frontmatter)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	require.Len(t, cfg.Questions, 1)
+	assert.Equal(t, "build_check", cfg.Questions[0].ID)
+	assert.Equal(t, "./scripts/check_build.sh", cfg.Questions[0].Run)
+	assert.Empty(t, cfg.Questions[0].Question)
+}
+
+func TestParseEvalsFromFrontmatter_MixedRunAndQuestion(t *testing.T) {
+	c := NewCompiler()
+	frontmatter := map[string]any{
+		"evals": []any{
+			map[string]any{"id": "q1", "question": "Does it compile?"},
+			map[string]any{"id": "s1", "run": "./scripts/check.sh"},
+		},
+	}
+	cfg, err := c.parseEvalsFromFrontmatter(frontmatter)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	assert.Len(t, cfg.Questions, 2)
+	assert.Len(t, cfg.QuestionEvals(), 1)
+	assert.Len(t, cfg.ScriptEvals(), 1)
+}
+
+func TestParseEvalsFromFrontmatter_RunAndQuestionMutuallyExclusive(t *testing.T) {
+	c := NewCompiler()
+	_, err := c.parseEvalsFromFrontmatter(map[string]any{
+		"evals": []any{
+			map[string]any{"id": "q1", "question": "Is it OK?", "run": "./check.sh"},
+		},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mutually exclusive")
 }

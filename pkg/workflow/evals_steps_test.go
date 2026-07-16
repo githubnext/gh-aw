@@ -261,3 +261,104 @@ func TestBuildEvalsJobStepsNonCodexIncludesContainerDownload(t *testing.T) {
 		})
 	}
 }
+
+// TestBuildRunScriptEvalsStep verifies that script-type evals produce the
+// dedicated "Run script evals" step with the correct env vars and JS call.
+func TestBuildRunScriptEvalsStep(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "copilot",
+		Evals: &EvalsConfig{
+			Questions: []EvalDefinition{
+				{ID: "s1", Run: "./scripts/check_output.sh"},
+				{ID: "s2", Run: "bash -c 'echo YES'"},
+			},
+		},
+	}
+
+	steps := compiler.buildRunScriptEvalsStep(data)
+	allSteps := strings.Join(steps, "")
+
+	if !strings.Contains(allSteps, "- name: Run script evals") {
+		t.Errorf("expected 'Run script evals' step name; got:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "GH_AW_EVALS_SCRIPT_DEFS:") {
+		t.Errorf("expected GH_AW_EVALS_SCRIPT_DEFS env var; got:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "GH_AW_AGENT_OUTPUT:") {
+		t.Errorf("expected GH_AW_AGENT_OUTPUT env var; got:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "GH_AW_SAFE_OUTPUT_ITEMS:") {
+		t.Errorf("expected GH_AW_SAFE_OUTPUT_ITEMS env var; got:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "GITHUB_RUN_ID:") {
+		t.Errorf("expected GITHUB_RUN_ID env var; got:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "run-scripts") {
+		t.Errorf("expected GH_AW_EVALS_PHASE: run-scripts; got:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "run_evals.cjs") {
+		t.Errorf("expected run_evals.cjs reference; got:\n%s", allSteps)
+	}
+}
+
+// TestBuildEvalsJobStepsScriptOnly verifies that script-only evals skip the LLM
+// engine install/execute/parse steps entirely and only emit the script evals step.
+func TestBuildEvalsJobStepsScriptOnly(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "copilot",
+		Evals: &EvalsConfig{
+			Questions: []EvalDefinition{
+				{ID: "s1", Run: "./scripts/check.sh"},
+			},
+		},
+	}
+
+	steps := compiler.buildEvalsJobSteps(data)
+	allSteps := strings.Join(steps, "")
+
+	// Script eval step must be present.
+	if !strings.Contains(allSteps, "Run script evals") {
+		t.Errorf("expected 'Run script evals' step; got:\n%s", allSteps)
+	}
+
+	// LLM-specific steps must be absent.
+	if strings.Contains(allSteps, "Setup BinEval evaluations") {
+		t.Errorf("unexpected 'Setup BinEval evaluations' step for script-only evals; got:\n%s", allSteps)
+	}
+	if strings.Contains(allSteps, "Parse BinEval results") {
+		t.Errorf("unexpected 'Parse BinEval results' step for script-only evals; got:\n%s", allSteps)
+	}
+}
+
+// TestBuildEvalsJobStepsMixed verifies that when both question and script evals are
+// declared, both the LLM path (setup + engine + parse) and the script step are emitted.
+func TestBuildEvalsJobStepsMixed(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "copilot",
+		Evals: &EvalsConfig{
+			Questions: []EvalDefinition{
+				{ID: "q1", Question: "Does the code compile?"},
+				{ID: "s1", Run: "./scripts/check.sh"},
+			},
+		},
+	}
+
+	steps := compiler.buildEvalsJobSteps(data)
+	allSteps := strings.Join(steps, "")
+
+	if !strings.Contains(allSteps, "Setup BinEval evaluations") {
+		t.Errorf("expected 'Setup BinEval evaluations' step for mixed evals; got:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "Parse BinEval results") {
+		t.Errorf("expected 'Parse BinEval results' step for mixed evals; got:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "Run script evals") {
+		t.Errorf("expected 'Run script evals' step for mixed evals; got:\n%s", allSteps)
+	}
+}

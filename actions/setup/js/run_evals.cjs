@@ -175,21 +175,115 @@ async function parseMain() {
 // ---------------------------------------------------------------------------
 
 /**
- * Dispatches to setupMain or parseMain based on GH_AW_EVALS_PHASE.
+ * Dispatches to setupMain, parseMain, or runScriptsMain based on GH_AW_EVALS_PHASE.
  * @returns {Promise<void>}
  */
 async function main() {
   const phase = process.env.GH_AW_EVALS_PHASE || "setup";
   if (phase === "parse") {
     await parseMain();
+  } else if (phase === "run-scripts") {
+    await runScriptsMain();
   } else {
     await setupMain();
   }
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Phase 3 – run-scripts: execute deterministic script evals and write results
 // ---------------------------------------------------------------------------
+
+/**
+ * Reads script eval definitions from GH_AW_EVALS_SCRIPT_DEFS, runs each script
+ * with the appropriate environment variables, captures stdout YES/NO output, and
+ * appends JSONL records to the evals output file.
+ *
+ * Environment variables passed to each script:
+ *   GH_AW_AGENT_OUTPUT       – path to the agent_output.json file
+ *   GH_AW_SAFE_OUTPUT_ITEMS  – path to the safe-output-items.jsonl file
+ *   GITHUB_RUN_ID             – GitHub Actions run ID
+ *
+ * @returns {Promise<void>}
+ */
+async function runScriptsMain() {
+  const scriptDefsRaw = process.env.GH_AW_EVALS_SCRIPT_DEFS;
+  const model = process.env.GH_AW_EVALS_MODEL || "";
+  const runID = process.env.GITHUB_RUN_ID || "unknown";
+
+  if (!scriptDefsRaw) {
+    core.setFailed(`${ERR_VALIDATION}: GH_AW_EVALS_SCRIPT_DEFS is not set`);
+    return;
+  }
+
+  /** @type {Array<{id: string, run: string}>} */
+  let scriptDefs;
+  try {
+    scriptDefs = JSON.parse(scriptDefsRaw);
+  } catch (e) {
+    core.setFailed(`${ERR_VALIDATION}: GH_AW_EVALS_SCRIPT_DEFS is not valid JSON: ` + e.message);
+    return;
+  }
+
+  if (!Array.isArray(scriptDefs) || scriptDefs.length === 0) {
+    core.info("No script evals to run");
+    return;
+  }
+
+  const timestamp = new Date().toISOString();
+  const results = [];
+
+  const scriptEnv = {
+    ...process.env,
+    GH_AW_AGENT_OUTPUT: process.env.GH_AW_AGENT_OUTPUT || "/tmp/gh-aw/agent_output.json",
+    GH_AW_SAFE_OUTPUT_ITEMS: process.env.GH_AW_SAFE_OUTPUT_ITEMS || "/tmp/gh-aw/safe-output-items.jsonl",
+    GITHUB_RUN_ID: runID,
+  };
+
+  for (const def of scriptDefs) {
+    const { id, run: script } = def;
+    core.info(`Running script eval [${id}]: ${script}`);
+
+    let answer = "UNKNOWN";
+    try {
+      let stdout = "";
+      const exitCode = await exec.exec("bash", ["-c", script], {
+        env: scriptEnv,
+        silent: true,
+        listeners: {
+          stdout: data => {
+            stdout += data.toString();
+          },
+        },
+        ignoreReturnCode: true,
+      });
+
+      const trimmed = stdout.trim();
+      const firstToken = trimmed.split(/\s/)[0].toUpperCase();
+      if (firstToken === "YES" || firstToken === "NO") {
+        answer = firstToken;
+      } else {
+        core.warning(`Script eval [${id}] stdout did not start with YES or NO (exit code ${exitCode}): ${trimmed.slice(0, 200)}`);
+      }
+    } catch (e) {
+      core.warning(`Script eval [${id}] failed to execute: ${e.message}`);
+    }
+
+    core.info(`Script eval [${id}]: ${answer}`);
+    results.push({ id, run: script, answer, model, timestamp, runid: runID });
+  }
+
+  if (results.length === 0) {
+    return;
+  }
+
+  // Append results to the evals output file (creating it if it does not exist).
+  fs.mkdirSync(path.dirname(EVALS_OUTPUT_PATH), { recursive: true });
+  const existingContent = fs.existsSync(EVALS_OUTPUT_PATH) ? fs.readFileSync(EVALS_OUTPUT_PATH, "utf-8") : "";
+  const newLines = results.map(r => JSON.stringify(r)).join("\n");
+  const separator = existingContent.length > 0 && !existingContent.endsWith("\n") ? "\n" : "";
+  fs.writeFileSync(EVALS_OUTPUT_PATH, existingContent + separator + newLines + "\n");
+  core.info(`Script eval results appended to ${EVALS_OUTPUT_PATH} (${results.length} record(s))`);
+}
 
 /**
  * Builds a multi-question binary evaluation prompt.
@@ -304,4 +398,4 @@ function extractAssistantTextFromJsonlLog(logContent) {
   return texts.join("\n");
 }
 
-module.exports = { main, setupMain, parseMain, extractAssistantTextFromJsonlLog };
+module.exports = { main, setupMain, parseMain, runScriptsMain, extractAssistantTextFromJsonlLog };

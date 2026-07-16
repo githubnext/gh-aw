@@ -11,13 +11,23 @@ import (
 
 var evalsConfigLog = logger.New("workflow:evals_config")
 
-// EvalDefinition represents a single binary evaluation question in a BinEval workflow.
-// Each question is evaluated independently and answered with YES or NO.
+// EvalDefinition represents a single binary evaluation in a BinEval workflow.
+// Each evaluation is answered with YES or NO, either by an LLM judge (Question)
+// or by running a deterministic shell script (Run). Exactly one of Question or
+// Run must be set; they are mutually exclusive.
 type EvalDefinition struct {
 	ID       string
 	Question string
+	// Run is the shell script to execute for deterministic evaluation. The script
+	// must exit 0 and print exactly YES or NO to stdout. When set, Question must
+	// be empty. Information about the agent output and safe-output items is
+	// provided via environment variables:
+	//   GH_AW_AGENT_OUTPUT       – path to the agent_output.json file
+	//   GH_AW_SAFE_OUTPUT_ITEMS  – path to the safe-output-items.jsonl file
+	Run string
 	// Model is an optional per-question model override. When set, it takes precedence over
 	// EvalsConfig.Model. Use a model alias such as "small" or a full model ID.
+	// Only applicable for question-type evaluations; ignored when Run is set.
 	Model string
 }
 
@@ -34,9 +44,37 @@ type EvalsConfig struct {
 	RunsOn string
 }
 
-// HasEvals returns true when the config contains at least one evaluation question.
+// HasEvals returns true when the config contains at least one evaluation (question or script).
 func (ec *EvalsConfig) HasEvals() bool {
 	return ec != nil && len(ec.Questions) > 0
+}
+
+// QuestionEvals returns the subset of evaluations that use LLM-judged questions.
+func (ec *EvalsConfig) QuestionEvals() []EvalDefinition {
+	if ec == nil {
+		return nil
+	}
+	var out []EvalDefinition
+	for _, q := range ec.Questions {
+		if q.Run == "" {
+			out = append(out, q)
+		}
+	}
+	return out
+}
+
+// ScriptEvals returns the subset of evaluations that use deterministic shell scripts.
+func (ec *EvalsConfig) ScriptEvals() []EvalDefinition {
+	if ec == nil {
+		return nil
+	}
+	var out []EvalDefinition
+	for _, q := range ec.Questions {
+		if q.Run != "" {
+			out = append(out, q)
+		}
+	}
+	return out
 }
 
 // parseEvalsFromFrontmatter extracts and validates the evals configuration from the
@@ -48,6 +86,8 @@ func (ec *EvalsConfig) HasEvals() bool {
 //	evals:
 //	  - id: builds
 //	    question: Does the generated code compile?
+//	  - id: output_check
+//	    run: ./scripts/check_output.sh   # deterministic script, prints YES or NO
 //
 //	# Extended — object with questions list and optional model/runs-on
 //	evals:
@@ -109,12 +149,16 @@ func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*Evals
 	}
 
 	perQuestionOverrides := 0
+	scriptEvals := 0
 	for _, q := range cfg.Questions {
 		if q.Model != "" {
 			perQuestionOverrides++
 		}
+		if q.Run != "" {
+			scriptEvals++
+		}
 	}
-	evalsConfigLog.Printf("Parsed %d eval definitions (model: %q, per-question overrides: %d)", len(cfg.Questions), cfg.Model, perQuestionOverrides)
+	evalsConfigLog.Printf("Parsed %d eval definitions (%d script, model: %q, per-question overrides: %d)", len(cfg.Questions), scriptEvals, cfg.Model, perQuestionOverrides)
 	return cfg, nil
 }
 
@@ -124,7 +168,7 @@ func parseEvalDefinitions(items []any) ([]EvalDefinition, error) {
 	for i, item := range items {
 		m, ok := item.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("item %d must be an object with id and question fields", i)
+			return nil, fmt.Errorf("item %d must be an object with id and question or run fields", i)
 		}
 		def, err := parseEvalDefinition(m, i)
 		if err != nil {
@@ -136,15 +180,20 @@ func parseEvalDefinitions(items []any) ([]EvalDefinition, error) {
 }
 
 // parseEvalDefinition converts a single map entry into an EvalDefinition.
+// Exactly one of "question" or "run" must be present (they are mutually exclusive).
 func parseEvalDefinition(m map[string]any, idx int) (EvalDefinition, error) {
 	idRaw, hasID := m["id"]
 	questionRaw, hasQuestion := m["question"]
+	runRaw, hasRun := m["run"]
 
 	if !hasID {
 		return EvalDefinition{}, fmt.Errorf("item %d: missing required field 'id'", idx)
 	}
-	if !hasQuestion {
-		return EvalDefinition{}, fmt.Errorf("item %d: missing required field 'question'", idx)
+	if hasQuestion && hasRun {
+		return EvalDefinition{}, fmt.Errorf("item %d: 'question' and 'run' are mutually exclusive; set exactly one", idx)
+	}
+	if !hasQuestion && !hasRun {
+		return EvalDefinition{}, fmt.Errorf("item %d: missing required field: set either 'question' or 'run'", idx)
 	}
 
 	id, ok := idRaw.(string)
@@ -152,17 +201,27 @@ func parseEvalDefinition(m map[string]any, idx int) (EvalDefinition, error) {
 		return EvalDefinition{}, fmt.Errorf("item %d: 'id' must be a non-empty string", idx)
 	}
 
-	question, ok := questionRaw.(string)
-	if !ok || strings.TrimSpace(question) == "" {
-		return EvalDefinition{}, fmt.Errorf("item %d: 'question' must be a non-empty string", idx)
-	}
-
 	def := EvalDefinition{
-		ID:       strings.TrimSpace(id),
-		Question: strings.TrimSpace(question),
+		ID: strings.TrimSpace(id),
 	}
 
-	// Optional per-question model override.
+	if hasQuestion {
+		question, ok := questionRaw.(string)
+		if !ok || strings.TrimSpace(question) == "" {
+			return EvalDefinition{}, fmt.Errorf("item %d: 'question' must be a non-empty string", idx)
+		}
+		def.Question = strings.TrimSpace(question)
+	}
+
+	if hasRun {
+		run, ok := runRaw.(string)
+		if !ok || strings.TrimSpace(run) == "" {
+			return EvalDefinition{}, fmt.Errorf("item %d: 'run' must be a non-empty string", idx)
+		}
+		def.Run = strings.TrimSpace(run)
+	}
+
+	// Optional per-question model override (only meaningful for question-type evals).
 	if modelRaw, ok := m["model"]; ok {
 		modelStr, ok := modelRaw.(string)
 		if !ok {
@@ -174,7 +233,7 @@ func parseEvalDefinition(m map[string]any, idx int) (EvalDefinition, error) {
 	return def, nil
 }
 
-// validateEvals checks for duplicate IDs and non-empty questions after parsing.
+// validateEvals checks for duplicate IDs and validates individual eval definitions after parsing.
 func validateEvals(cfg *EvalsConfig) error {
 	if cfg == nil {
 		return nil
@@ -190,8 +249,11 @@ func validateEvals(cfg *EvalsConfig) error {
 		}
 		seen[q.ID] = struct{}{}
 
-		if strings.TrimSpace(q.Question) == "" {
+		if q.Run == "" && strings.TrimSpace(q.Question) == "" {
 			return fmt.Errorf("evals: question for id %q must be non-empty", q.ID)
+		}
+		if q.Run != "" && strings.TrimSpace(q.Run) == "" {
+			return fmt.Errorf("evals: run script for id %q must be non-empty", q.ID)
 		}
 	}
 	return nil
