@@ -469,6 +469,45 @@ func TestAddResolvedWorkflows_IgnoresBootstrapRequireOwnerTypeDuringInstall(t *t
 	require.NoError(t, err)
 }
 
+func TestCompileDispatchWorkflowDependencies_FallsBackToRawFrontmatter(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "dispatch-workflow-fallback-*")
+	workflowsDir := setupMinimalGitRepo(t, tmpDir)
+
+	mainPath := filepath.Join(workflowsDir, "dispatcher.md")
+	workerPath := filepath.Join(workflowsDir, "worker.md")
+
+	require.NoError(t, os.WriteFile(mainPath, []byte(`---
+name: Dispatcher
+on:
+  workflow_dispatch:
+safe-outputs:
+  dispatch-workflow:
+    workflows: [worker]
+imports:
+  - uses: shared/missing.md
+---
+
+# Dispatcher
+`), 0o644))
+	require.NoError(t, os.WriteFile(workerPath, []byte(`---
+name: Worker
+on:
+  workflow_dispatch:
+---
+
+# Worker
+`), 0o644))
+
+	compileDispatchWorkflowDependencies(context.Background(), mainPath, false, true, "", nil)
+
+	lockPath := filepath.Join(workflowsDir, "worker.lock.yml")
+	_, err := os.Stat(lockPath)
+	require.NoError(t, err, "dispatch dependency should still be compiled when merged parse fails")
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(lockContent), "name: \"Worker\"", "compiled dispatch dependency should preserve its workflow name")
+}
+
 func TestValidateWorkflowDestination_SkipsExistingWorkflowFromSameSource(t *testing.T) {
 	workflowsDir := t.TempDir()
 	existingPath := filepath.Join(workflowsDir, "dependabot.md")
