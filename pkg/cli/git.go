@@ -218,7 +218,8 @@ func resolveRemoteURL(dir string) (string, string, error) {
 // configured but exactly one other remote exists, that remote is used instead.
 // For example, a remote URL of "https://ghes.example.com/org/repo.git" returns "ghes.example.com",
 // and "git@github.com:owner/repo.git" returns "github.com".
-// Returns "github.com" as the default if the remote URL cannot be determined.
+// Returns "github.com" as the default if the remote URL cannot be determined or if
+// the remote points to a loopback address (e.g. CI agent proxies using localhost:PORT).
 func getHostFromOriginRemote() string {
 	remoteURL, remoteName, err := resolveRemoteURL("")
 	if err != nil {
@@ -228,6 +229,14 @@ func getHostFromOriginRemote() string {
 
 	host := extractHostFromRemoteURL(remoteURL)
 	gitLog.Printf("Detected GitHub host from remote %q: %s", remoteName, host)
+
+	// CI agent proxies route git traffic through localhost:PORT. Treat those as
+	// github.com so that downstream `gh api --hostname` calls use the correct value.
+	if isLocalhostOrigin(host) {
+		gitLog.Printf("Remote host %q is a loopback address; falling back to github.com", host)
+		return "github.com"
+	}
+
 	return host
 }
 
