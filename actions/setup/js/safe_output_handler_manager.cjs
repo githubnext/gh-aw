@@ -101,6 +101,9 @@ const STANDALONE_STEP_TYPES = new Set(["upload_asset", "noop"]);
  */
 const CODE_PUSH_TYPES = new Set(["push_to_pull_request_branch", "create_pull_request"]);
 
+/** @type {Set<string>} Project-safe-output handlers that should default to GH_AW_PROJECT_GITHUB_TOKEN when no per-handler github-token is configured. */
+const PROJECT_HANDLER_TYPES = new Set(["create_project", "create_project_status_update", "update_project"]);
+
 // Threat-detection warn-mode requirement IDs from safe-outputs specification:
 // - WTD2: Convertible outputs must be mapped to a reviewable type.
 // - WTD3: Non-reviewable outputs must be aborted.
@@ -306,6 +309,10 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
           // Call the factory function with config to get the message handler
           const handlerConfig = { ...(config[type] || {}) };
 
+          if (PROJECT_HANDLER_TYPES.has(type) && !handlerConfig["github-token"] && process.env.GH_AW_PROJECT_GITHUB_TOKEN) {
+            handlerConfig["github-token"] = process.env.GH_AW_PROJECT_GITHUB_TOKEN;
+          }
+
           // Pass top-level mentions policy through so handlers can preserve
           // the same allowed mention aliases used during collection.
           if (handlerConfig.mentions == null && config.mentions != null) {
@@ -320,7 +327,8 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
             handlerConfig._prReviewBufferRegistry = prReviewBufferRegistry;
           }
 
-          const messageHandler = await handlerModule.main(handlerConfig);
+          const handlerGithubClient = handlerConfig["github-token"] && typeof global.getOctokit === "function" ? global.getOctokit(handlerConfig["github-token"]) : null;
+          const messageHandler = await handlerModule.main(handlerConfig, handlerGithubClient);
 
           if (typeof messageHandler !== "function") {
             // This is a fatal error - the handler is misconfigured
@@ -330,7 +338,20 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
             throw error;
           }
 
-          messageHandlers.set(type, messageHandler);
+          const wrappedMessageHandler =
+            PROJECT_HANDLER_TYPES.has(type) && handlerGithubClient
+              ? async (...args) => {
+                  const previousGithub = global.github;
+                  global.github = handlerGithubClient;
+                  try {
+                    return await messageHandler(...args);
+                  } finally {
+                    global.github = previousGithub;
+                  }
+                }
+              : messageHandler;
+
+          messageHandlers.set(type, wrappedMessageHandler);
           core.info(`✓ Loaded and initialized handler for: ${type}`);
         } else {
           core.warning(`Handler module ${type} does not export a main function`);
