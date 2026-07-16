@@ -65,7 +65,11 @@ const OVERLOADED_ERROR_PATTERN = /overloaded_error|"overloaded"/i;
 //   - embedded stream-json result fields (e.g. "api_error_status":429)
 //   - human-readable message text ("rate limit")
 const RATE_LIMIT_ERROR_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit/i;
-const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[^)]+\))?/i;
+// Matches:
+//   - "Authentication failed (Request ID: ...)" — Anthropic-direct auth error
+//   - `"error":"authentication_failed"` — Claude Code stream-JSON error field (e.g. 401 via AWF proxy)
+//   - "Not logged in" — Claude Code message when no credentials are available
+const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[^)]+\))?|"error"\s*:\s*"authentication_failed"|not logged in/i;
 
 // Pattern to detect a clean max-turns exit from Claude Code.
 // Claude Code emits a JSON result object with "subtype":"error_max_turns" when the
