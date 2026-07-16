@@ -16,6 +16,7 @@ import (
 )
 
 var addInteractiveLog = logger.New("cli:add_interactive")
+var addInteractiveRunBootstrap = RunBootstrap
 
 // AddInteractiveConfig holds configuration for interactive add mode
 type AddInteractiveConfig struct {
@@ -104,6 +105,13 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 
 	// Step 1c: Show workflow descriptions if available
 	config.showWorkflowDescriptions()
+
+	if config.shouldRunBootstrapFlow() {
+		if err := config.checkGitRepository(); err != nil {
+			return err
+		}
+		return config.runBootstrapFlow()
+	}
 
 	// Step 2: Check gh auth status
 	if err := config.checkGHAuthStatus(); err != nil {
@@ -196,6 +204,22 @@ func (c *AddInteractiveConfig) resolveWorkflows() error {
 
 	c.resolvedWorkflows = resolved
 	return nil
+}
+
+func (c *AddInteractiveConfig) shouldRunBootstrapFlow() bool {
+	return c.resolvedWorkflows != nil && c.resolvedWorkflows.BootstrapProfile != nil
+}
+
+func (c *AddInteractiveConfig) runBootstrapFlow() error {
+	addInteractiveLog.Printf("Delegating add-wizard to bootstrap flow: repo=%s, sources=%d", c.RepoOverride, len(c.WorkflowSpecs))
+	return addInteractiveRunBootstrap(BootstrapOptions{
+		Ctx:            c.Ctx,
+		Repo:           c.RepoOverride,
+		Dir:            ".",
+		EngineOverride: c.EngineOverride,
+		Sources:        c.WorkflowSpecs,
+		Verbose:        c.Verbose,
+	})
 }
 
 // showWorkflowDescriptions displays the descriptions of resolved workflows

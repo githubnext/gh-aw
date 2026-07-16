@@ -326,3 +326,70 @@ func TestIsRetryableBootstrapGitHubAppInstallationError(t *testing.T) {
 		t.Fatal("expected HTTP 403 to be non-retryable")
 	}
 }
+
+func TestBootstrapGitHubAppInstalled_UsesUserInstallationsForAllRepositories(t *testing.T) {
+	originalRunGH := runBootstrapGHContext
+	t.Cleanup(func() {
+		runBootstrapGHContext = originalRunGH
+	})
+
+	var calls []string
+	runBootstrapGHContext = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		calls = append(calls, strings.Join(args, " "))
+		if len(args) >= 2 && args[0] == "api" && args[1] == "/user/installations?per_page=100" {
+			return []byte("123\tIv1.client\t987\tmy-mona-org-agenticops\tall\n"), nil
+		}
+		return nil, errors.New("unexpected gh api call")
+	}
+
+	installed, err := bootstrapGitHubAppInstalled(context.Background(), "my-mona-org/agenticops", &bootstrapCreatedGitHubApp{
+		ClientID: "Iv1.client",
+		AppID:    "987",
+		Slug:     "my-mona-org-agenticops",
+	})
+	if err != nil {
+		t.Fatalf("bootstrapGitHubAppInstalled returned error: %v", err)
+	}
+	if !installed {
+		t.Fatal("expected installation to be detected")
+	}
+	if len(calls) != 1 {
+		t.Fatalf("expected 1 gh api call, got %d", len(calls))
+	}
+	if strings.Contains(calls[0], "/repos/my-mona-org/agenticops/installation") {
+		t.Fatalf("expected user installations endpoint, got %q", calls[0])
+	}
+}
+
+func TestBootstrapGitHubAppInstalled_SelectedInstallationChecksRepositoryMembership(t *testing.T) {
+	originalRunGH := runBootstrapGHContext
+	t.Cleanup(func() {
+		runBootstrapGHContext = originalRunGH
+	})
+
+	var calls []string
+	runBootstrapGHContext = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		calls = append(calls, strings.Join(args, " "))
+		if len(args) >= 2 && args[0] == "api" && args[1] == "/user/installations?per_page=100" {
+			return []byte("123\t\t987\tmy-mona-org-agenticops\tselected\n"), nil
+		}
+		if len(args) >= 2 && args[0] == "api" && args[1] == "/user/installations/123/repositories?per_page=100" {
+			return []byte("my-mona-org/agenticops\n"), nil
+		}
+		return nil, errors.New("unexpected gh api call")
+	}
+
+	installed, err := bootstrapGitHubAppInstalled(context.Background(), "my-mona-org/agenticops", &bootstrapCreatedGitHubApp{
+		AppID: "987",
+		Slug:  "my-mona-org-agenticops",
+	})
+	if err != nil {
+		t.Fatalf("bootstrapGitHubAppInstalled returned error: %v", err)
+	}
+	if !installed {
+		t.Fatal("expected selected installation to include target repository")
+	}
+	if len(calls) != 2 {
+		t.Fatalf("expected 2 gh api calls, got %d", len(calls))
+	}
+}

@@ -107,6 +107,14 @@ type bootstrapGitHubAppRepositoryInstallation struct {
 	ID       int64  `json:"id"`
 }
 
+type bootstrapGitHubAppUserInstallation struct {
+	ID                  int64
+	ClientID            string
+	AppID               string
+	AppSlug             string
+	RepositorySelection string
+}
+
 func buildBootstrapProfilePlan(ctx context.Context, repo string, profile *resolvedBootstrapProfile, sources []string, repoReady bool) (bool, []string, error) {
 	if profile == nil || profile.Profile == nil {
 		return false, nil, nil
@@ -733,21 +741,97 @@ func waitForBootstrapGitHubAppInstallation(ctx context.Context, repo string, cre
 }
 
 func bootstrapGitHubAppInstalled(ctx context.Context, repo string, createdApp *bootstrapCreatedGitHubApp) (bool, error) {
-	output, err := runBootstrapGHContext(ctx, "Checking GitHub App installation...", "api", "/repos/"+repo+"/installation")
+	installations, err := listBootstrapUserInstallations(ctx)
 	if err != nil {
 		return false, err
 	}
-	var payload bootstrapGitHubAppRepositoryInstallation
-	if err := json.Unmarshal(output, &payload); err != nil {
-		return false, err
-	}
-	if payload.ClientID != "" && payload.ClientID == createdApp.ClientID {
-		return payload.ID > 0, nil
-	}
-	if payload.AppSlug == createdApp.Slug || strconv.FormatInt(payload.AppID, 10) == createdApp.AppID {
-		return payload.ID > 0, nil
+	for _, installation := range installations {
+		if !bootstrapGitHubAppInstallationMatches(installation, createdApp) {
+			continue
+		}
+		if installation.RepositorySelection != "selected" || repo == "" {
+			return installation.ID > 0, nil
+		}
+		repositories, err := listBootstrapUserInstallationRepositories(ctx, installation.ID)
+		if err != nil {
+			return false, err
+		}
+		for _, repository := range repositories {
+			if strings.EqualFold(repository, repo) {
+				return true, nil
+			}
+		}
+		return false, nil
 	}
 	return false, nil
+}
+
+func listBootstrapUserInstallations(ctx context.Context) ([]bootstrapGitHubAppUserInstallation, error) {
+	output, err := runBootstrapGHContext(
+		ctx,
+		"Checking GitHub App installation...",
+		"api",
+		"/user/installations?per_page=100",
+		"--paginate",
+		"--jq",
+		`.installations[] | [(.id|tostring), (.client_id // ""), (.app_id|tostring), .app_slug, .repository_selection] | @tsv`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	trimmed := strings.TrimSpace(string(output))
+	if trimmed == "" {
+		return nil, nil
+	}
+	lines := strings.Split(trimmed, "\n")
+	installations := make([]bootstrapGitHubAppUserInstallation, 0, len(lines))
+	for _, line := range lines {
+		fields := strings.Split(line, "\t")
+		if len(fields) != 5 {
+			return nil, fmt.Errorf("failed to parse user installation response line %q", line)
+		}
+		installationID, err := strconv.ParseInt(fields[0], 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse user installation id %q: %w", fields[0], err)
+		}
+		installations = append(installations, bootstrapGitHubAppUserInstallation{
+			ID:                  installationID,
+			ClientID:            fields[1],
+			AppID:               fields[2],
+			AppSlug:             fields[3],
+			RepositorySelection: fields[4],
+		})
+	}
+	return installations, nil
+}
+
+func listBootstrapUserInstallationRepositories(ctx context.Context, installationID int64) ([]string, error) {
+	output, err := runBootstrapGHContext(
+		ctx,
+		"Checking GitHub App installation repositories...",
+		"api",
+		fmt.Sprintf("/user/installations/%d/repositories?per_page=100", installationID),
+		"--paginate",
+		"--jq",
+		".repositories[].full_name",
+	)
+	if err != nil {
+		return nil, err
+	}
+	return parseBootstrapNames(output), nil
+}
+
+func bootstrapGitHubAppInstallationMatches(installation bootstrapGitHubAppUserInstallation, createdApp *bootstrapCreatedGitHubApp) bool {
+	if createdApp == nil {
+		return false
+	}
+	if installation.ClientID != "" && createdApp.ClientID != "" && installation.ClientID == createdApp.ClientID {
+		return true
+	}
+	if installation.AppSlug != "" && createdApp.Slug != "" && installation.AppSlug == createdApp.Slug {
+		return true
+	}
+	return installation.AppID != "" && createdApp.AppID != "" && installation.AppID == createdApp.AppID
 }
 
 func listBootstrapRepoVariableNames(ctx context.Context, repo string) ([]string, error) {

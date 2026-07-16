@@ -67,6 +67,20 @@ func printBootstrapConfigTODO(w io.Writer, profile *resolvedBootstrapProfile) {
 	fmt.Fprintln(w, "")
 }
 
+func validateBootstrapConfigPreflight(ctx context.Context, repo string, profile *resolvedBootstrapProfile) error {
+	if repo == "" || profile == nil || profile.Profile == nil || len(profile.Profile.Config) == 0 {
+		return nil
+	}
+
+	for _, action := range profile.Profile.Config {
+		if err := validateBootstrapActionPreRepo(ctx, repo, action); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // executeBootstrapConfigForAdd runs the bootstrap config actions interactively.
 // Used by add-wizard after the workflow PR has been created and merged.
 func executeBootstrapConfigForAdd(ctx context.Context, repo string, sources []string, profile *resolvedBootstrapProfile, useCopilotRequests bool, verbose bool) error {

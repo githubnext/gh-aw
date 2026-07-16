@@ -444,6 +444,31 @@ func TestRunAddBootstrapConfigFlow_NilProfile(t *testing.T) {
 	assert.Empty(t, out.String())
 }
 
+func TestAddResolvedWorkflows_IgnoresBootstrapRequireOwnerTypeDuringInstall(t *testing.T) {
+	originalGetCurrentRepoSlug := addGetCurrentRepoSlug
+	originalCheckOwnerType := bootstrapCheckOwnerType
+	t.Cleanup(func() {
+		addGetCurrentRepoSlug = originalGetCurrentRepoSlug
+		bootstrapCheckOwnerType = originalCheckOwnerType
+	})
+
+	addGetCurrentRepoSlug = func() (string, error) { return "octo/project", nil }
+	bootstrapCheckOwnerType = func(context.Context, string) (string, error) { return "User", nil }
+
+	resolved := &ResolvedWorkflows{
+		Workflows: nil,
+		BootstrapProfile: &resolvedBootstrapProfile{
+			PackageID: "githubnext/central-agentic-ops",
+			Profile: &repositoryPackageBootstrap{
+				Config: []repositoryPackageBootstrapAction{{Type: "require-owner-type", Value: "org"}},
+			},
+		},
+	}
+
+	_, err := AddResolvedWorkflows(context.Background(), []string{"githubnext/central-agentic-ops"}, resolved, AddOptions{NoGitattributes: true})
+	require.NoError(t, err)
+}
+
 // TestAddMultipleWorkflowsNameFlag verifies that --name is not allowed when multiple workflows are specified.
 func TestAddMultipleWorkflowsNameFlag(t *testing.T) {
 	cmd := NewAddCommand(validateEngineStub)

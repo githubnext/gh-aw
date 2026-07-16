@@ -3,11 +3,49 @@
 package cli
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAddInteractiveConfig_runBootstrapFlow(t *testing.T) {
+	originalRunBootstrap := addInteractiveRunBootstrap
+	t.Cleanup(func() {
+		addInteractiveRunBootstrap = originalRunBootstrap
+	})
+
+	called := false
+	addInteractiveRunBootstrap = func(opts BootstrapOptions) error {
+		called = true
+		assert.Equal(t, context.Background(), opts.Ctx)
+		assert.Equal(t, "octo/project", opts.Repo)
+		assert.Equal(t, ".", opts.Dir)
+		assert.Equal(t, "copilot", opts.EngineOverride)
+		assert.Equal(t, []string{"githubnext/central-agentic-ops"}, opts.Sources)
+		assert.True(t, opts.Verbose)
+		return nil
+	}
+
+	config := &AddInteractiveConfig{
+		Ctx:            context.Background(),
+		RepoOverride:   "octo/project",
+		EngineOverride: "copilot",
+		WorkflowSpecs:  []string{"githubnext/central-agentic-ops"},
+		Verbose:        true,
+		resolvedWorkflows: &ResolvedWorkflows{
+			BootstrapProfile: &resolvedBootstrapProfile{
+				PackageID: "githubnext/central-agentic-ops",
+				Profile:   &repositoryPackageBootstrap{Config: []repositoryPackageBootstrapAction{{Type: "require-owner-type", Value: "org"}}},
+			},
+		},
+	}
+
+	require.True(t, config.shouldRunBootstrapFlow())
+	require.NoError(t, config.runBootstrapFlow())
+	assert.True(t, called)
+}
 
 func TestAddInteractiveConfig_determineFilesToAdd(t *testing.T) {
 	tests := []struct {
