@@ -1412,7 +1412,7 @@ When `safe-outputs.github-app.repositories` contains one or more explicit reposi
 
 When `safe-outputs.github-app.repositories` is omitted, implementations MAY use the triggering repository as the default repository scope.
 
-The `["*"]` behavior MUST apply to activation-job token minting and to subsequent safe-output-job token minting that uses the same GitHub App configuration.
+The `["*"]` behavior MUST apply to activation-job token minting and to subsequent safe-output-job token minting that inherits the same `safe-outputs.github-app` settings.
 
 In `workflow_call` and other reusable-workflow scenarios, conforming implementations MUST preserve the `["*"]` behavior so that activation can read agent configuration from the callee repository when the App installation grant permits it.
 
