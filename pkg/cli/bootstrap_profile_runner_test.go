@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -276,6 +277,68 @@ func TestRunBootstrapGitHubAppAction_CreateOverwritesPartialCredentialPair(t *te
 	}
 }
 
+func TestRunBootstrapCommitAndPushAction_CommitsAndPushesChanges(t *testing.T) {
+	repoDir := initBootstrapGitRepo(t)
+	remoteDir := t.TempDir()
+
+	runRepoGit := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = repoDir
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %s failed: %v\n%s", strings.Join(args, " "), err, string(output))
+		}
+		return string(output)
+	}
+
+	cmd := exec.Command("git", "init", "--bare", remoteDir)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git init --bare failed: %v\n%s", err, string(output))
+	}
+
+	runRepoGit("config", "user.name", "Bootstrap Test")
+	runRepoGit("config", "user.email", "bootstrap@example.com")
+	runRepoGit("remote", "add", "origin", remoteDir)
+	if err := os.WriteFile(filepath.Join(repoDir, "README.md"), []byte("initial\n"), 0o644); err != nil {
+		t.Fatalf("write initial file: %v", err)
+	}
+	runRepoGit("add", "README.md")
+	runRepoGit("commit", "-m", "initial")
+	if err := os.WriteFile(filepath.Join(repoDir, "README.md"), []byte("updated\n"), 0o644); err != nil {
+		t.Fatalf("write updated file: %v", err)
+	}
+
+	err := runBootstrapCommitAndPushAction(context.Background(), repoDir, repositoryPackageBootstrapAction{
+		Type:    "commit-and-push",
+		Message: "Bootstrap repository changes",
+	})
+	if err != nil {
+		t.Fatalf("runBootstrapCommitAndPushAction returned error: %v", err)
+	}
+
+	if got := strings.TrimSpace(runRepoGit("log", "--format=%s", "-1")); got != "Bootstrap repository changes" {
+		t.Fatalf("unexpected commit message: %q", got)
+	}
+	if got := strings.TrimSpace(runRepoGit("status", "--porcelain")); got != "" {
+		t.Fatalf("expected clean worktree after commit-and-push, got %q", got)
+	}
+
+	branch, err := getCurrentBranchIn(repoDir)
+	if err != nil {
+		t.Fatalf("getCurrentBranchIn returned error: %v", err)
+	}
+	localHead := strings.TrimSpace(runRepoGit("rev-parse", "HEAD"))
+	remoteHeadCmd := exec.Command("git", "--git-dir", remoteDir, "rev-parse", "refs/heads/"+branch)
+	remoteHeadOutput, err := remoteHeadCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to read remote branch head: %v\n%s", err, string(remoteHeadOutput))
+	}
+	if got := strings.TrimSpace(string(remoteHeadOutput)); got != localHead {
+		t.Fatalf("expected remote head %q to match local head %q", got, localHead)
+	}
+}
+
 func TestBootstrapRepositoryInputEnvNames(t *testing.T) {
 	if got := bootstrapRepositoryVariableEnvName("CENTRAL_AGENTIC_OPS_MODE"); got != "GH_AW_BOOTSTRAP_VAR_CENTRAL_AGENTIC_OPS_MODE" {
 		t.Fatalf("unexpected variable env name: %s", got)
@@ -324,5 +387,72 @@ func TestIsRetryableBootstrapGitHubAppInstallationError(t *testing.T) {
 	}
 	if isRetryableBootstrapGitHubAppInstallationError(errors.New("gh: Forbidden (HTTP 403)")) {
 		t.Fatal("expected HTTP 403 to be non-retryable")
+	}
+}
+
+func TestBootstrapGitHubAppInstalled_UsesUserInstallationsForAllRepositories(t *testing.T) {
+	originalRunGH := runBootstrapGHContext
+	t.Cleanup(func() {
+		runBootstrapGHContext = originalRunGH
+	})
+
+	var calls []string
+	runBootstrapGHContext = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		calls = append(calls, strings.Join(args, " "))
+		if len(args) >= 2 && args[0] == "api" && args[1] == "/user/installations?per_page=100" {
+			return []byte("123\tIv1.client\t987\tmy-mona-org-agenticops\tall\n"), nil
+		}
+		return nil, errors.New("unexpected gh api call")
+	}
+
+	installed, err := bootstrapGitHubAppInstalled(context.Background(), "my-mona-org/agenticops", &bootstrapCreatedGitHubApp{
+		ClientID: "Iv1.client",
+		AppID:    "987",
+		Slug:     "my-mona-org-agenticops",
+	})
+	if err != nil {
+		t.Fatalf("bootstrapGitHubAppInstalled returned error: %v", err)
+	}
+	if !installed {
+		t.Fatal("expected installation to be detected")
+	}
+	if len(calls) != 1 {
+		t.Fatalf("expected 1 gh api call, got %d", len(calls))
+	}
+	if strings.Contains(calls[0], "/repos/my-mona-org/agenticops/installation") {
+		t.Fatalf("expected user installations endpoint, got %q", calls[0])
+	}
+}
+
+func TestBootstrapGitHubAppInstalled_SelectedInstallationChecksRepositoryMembership(t *testing.T) {
+	originalRunGH := runBootstrapGHContext
+	t.Cleanup(func() {
+		runBootstrapGHContext = originalRunGH
+	})
+
+	var calls []string
+	runBootstrapGHContext = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		calls = append(calls, strings.Join(args, " "))
+		if len(args) >= 2 && args[0] == "api" && args[1] == "/user/installations?per_page=100" {
+			return []byte("123\t\t987\tmy-mona-org-agenticops\tselected\n"), nil
+		}
+		if len(args) >= 2 && args[0] == "api" && args[1] == "/user/installations/123/repositories?per_page=100" {
+			return []byte("my-mona-org/agenticops\n"), nil
+		}
+		return nil, errors.New("unexpected gh api call")
+	}
+
+	installed, err := bootstrapGitHubAppInstalled(context.Background(), "my-mona-org/agenticops", &bootstrapCreatedGitHubApp{
+		AppID: "987",
+		Slug:  "my-mona-org-agenticops",
+	})
+	if err != nil {
+		t.Fatalf("bootstrapGitHubAppInstalled returned error: %v", err)
+	}
+	if !installed {
+		t.Fatal("expected selected installation to include target repository")
+	}
+	if len(calls) != 2 {
+		t.Fatalf("expected 2 gh api calls, got %d", len(calls))
 	}
 }

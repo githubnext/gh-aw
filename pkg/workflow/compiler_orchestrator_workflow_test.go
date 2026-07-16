@@ -444,6 +444,24 @@ func TestSetMainWorkflowEnvSources_OnlyTracksPresentKeys(t *testing.T) {
 	}, workflowData.EnvSources)
 }
 
+func TestMergeWorkflowEnv_InlinesImportedEnvReferences(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{}
+	importsResult := &parser.ImportsResult{
+		MergedEnv: `{"REVIEW_OUTPUT_REPO":"${{ github.event.inputs.safe_output_repo || vars.CENTRAL_AGENTIC_OPS_REVIEW_REPO || '' }}","SAFE_OUTPUT_REPO":"${{ (github.event.inputs.safe_output_mode || vars.CENTRAL_AGENTIC_OPS_MODE || 'preview') == 'review' && env.REVIEW_OUTPUT_REPO || '' }}"}`,
+		MergedEnvSources: map[string]string{
+			"REVIEW_OUTPUT_REPO": "shared/control.md",
+			"SAFE_OUTPUT_REPO":   "shared/control.md",
+		},
+	}
+
+	err := compiler.mergeWorkflowEnv(map[string]any{}, workflowData, importsResult)
+	require.NoError(t, err)
+	assert.Contains(t, workflowData.Env, "SAFE_OUTPUT_REPO: ${{ (github.event.inputs.safe_output_mode || vars.CENTRAL_AGENTIC_OPS_MODE || 'preview') == 'review' && (github.event.inputs.safe_output_repo || vars.CENTRAL_AGENTIC_OPS_REVIEW_REPO || '') || '' }}")
+	assert.NotContains(t, workflowData.Env, "env.REVIEW_OUTPUT_REPO")
+	assert.Equal(t, "shared/control.md", workflowData.EnvSources["SAFE_OUTPUT_REPO"])
+}
+
 // TestProcessAndMergeSteps_NoSteps tests processAndMergeSteps with no steps
 func TestProcessAndMergeSteps_NoSteps(t *testing.T) {
 	compiler := NewCompiler()
