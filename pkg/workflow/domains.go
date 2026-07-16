@@ -219,6 +219,14 @@ var OpenCodeDefaultDomains = []string{
 	"models.dev",         // OpenCode model capability discovery
 }
 
+// AuggieDefaultDomains are the default domains required for Auggie CLI operation.
+var AuggieDefaultDomains = []string{
+	"*.augmentcode.com",
+	"api.augmentcode.com",
+	"auth.augmentcode.com",
+	"d3.augmentcode.com",
+}
+
 // extractProviderFromModel parses "provider/model" format and returns the
 // lowercase provider prefix. Returns ("", nil) when no model is given or the
 // format contains no slash (no provider prefix detected). Returns an error when
@@ -699,6 +707,7 @@ var engineDefaultDomains = map[constants.EngineName][]string{
 	constants.CodexEngine:       CodexDefaultDomains,
 	constants.GeminiEngine:      GeminiDefaultDomains,
 	constants.AntigravityEngine: AntigravityDefaultDomains,
+	constants.AuggieEngine:      AuggieDefaultDomains,
 }
 
 // GetDefaultDomainsForEngine returns the engine's default required domains.
@@ -905,7 +914,7 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 	engine := constants.EngineName(engineID)
 	switch engine {
 	case constants.CopilotEngine, constants.CodexEngine, constants.ClaudeEngine, constants.GeminiEngine, constants.AntigravityEngine,
-		constants.PiEngine, constants.OpenCodeEngine:
+		constants.PiEngine, constants.OpenCodeEngine, constants.AuggieEngine:
 		model := ""
 		if data.EngineConfig != nil {
 			model = data.EngineConfig.Model

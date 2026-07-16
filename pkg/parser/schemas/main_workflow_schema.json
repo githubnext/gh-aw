@@ -12441,7 +12441,7 @@
                 "id": {
                   "type": "string",
                   "description": "Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini', 'opencode', 'pi')",
-                  "examples": ["codex", "claude", "copilot", "gemini", "opencode", "pi"]
+                  "examples": ["codex", "claude", "copilot", "gemini", "opencode", "pi", "auggie"]
                 },
                 "version": {
                   "type": ["string", "number"],

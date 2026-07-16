@@ -22,7 +22,7 @@ func TestBuiltinEngineMarkdownFiles(t *testing.T) {
 	catalog := NewEngineCatalog(NewEngineRegistry())
 	require.NotNil(t, catalog, "engine catalog should be created")
 
-	builtinEngineIDs := []string{"claude", "codex", "copilot", "gemini", "opencode"}
+	builtinEngineIDs := []string{"auggie", "claude", "codex", "copilot", "gemini", "opencode"}
 
 	for _, id := range builtinEngineIDs {
 		t.Run(id, func(t *testing.T) {
@@ -49,7 +49,7 @@ func TestBuiltinEngineMarkdownFiles(t *testing.T) {
 			require.True(t, isMap, "engine %s .md engine: field must be an object, got %T", id, engineField)
 			assert.Equal(t, id, engineObj["id"],
 				"engine %s .md engine.id should match the engine id", id)
-			if id == "opencode" {
+			if id == "opencode" || id == "auggie" {
 				assert.Equal(t, true, engineObj["experimental"], "engine %s should be marked experimental", id)
 				assert.Contains(t, engineObj, "behaviors", "engine %s should define declarative behaviors", id)
 			}
@@ -76,6 +76,7 @@ func TestBuiltinEngineStringFormInjection(t *testing.T) {
 		{engineID: "codex", engineStep: `GH_AW_INFO_ENGINE_ID: "codex"`},
 		{engineID: "claude", engineStep: `GH_AW_INFO_ENGINE_ID: "claude"`},
 		{engineID: "gemini", engineStep: `GH_AW_INFO_ENGINE_ID: "gemini"`},
+		{engineID: "auggie", engineStep: `GH_AW_INFO_ENGINE_ID: "auggie"`},
 		{
 			engineID:      "opencode",
 			expectError:   true,

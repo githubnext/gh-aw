@@ -281,7 +281,7 @@ func TestSpec_Engine_DocumentedEnginesRegistered(t *testing.T) {
 
 	documentedEngines := []string{
 		"copilot", "claude", "codex", "gemini",
-		"opencode", "pi", "antigravity",
+		"opencode", "pi", "antigravity", "auggie",
 	}
 
 	for _, id := range documentedEngines {

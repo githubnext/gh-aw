@@ -59,6 +59,9 @@ const DefaultPiVersion Version = "0.80.7"
 // DefaultOpenCodeVersion is the default version of the OpenCode CLI
 const DefaultOpenCodeVersion Version = "1.2.14"
 
+// DefaultAuggieVersion is the default version of the Auggie CLI
+const DefaultAuggieVersion Version = "0.29.0"
+
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v1.5.0"
 
