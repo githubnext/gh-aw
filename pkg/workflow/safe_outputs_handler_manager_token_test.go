@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"sort"
 	"strings"
 	"testing"
 
@@ -337,6 +338,53 @@ func TestHandlerManagerProjectGitHubTokenEnvVar(t *testing.T) {
 				assert.NotContains(t, yamlStr, "GH_AW_PROJECT_GITHUB_TOKEN",
 					"Expected GH_AW_PROJECT_GITHUB_TOKEN to NOT be set when no project configs are present")
 			}
+		})
+	}
+}
+
+// TestHandlerManagerGitHubTokenIsolationAcrossSafeOutputHandlers verifies that the shared
+// github-script client token remains sourced from safe-outputs.github-token regardless of which
+// safe-output handler is configured alongside project-specific token settings.
+func TestHandlerManagerGitHubTokenIsolationAcrossSafeOutputHandlers(t *testing.T) {
+	handlerNames := make([]string, 0, len(handlerRegistry))
+	for handlerName := range handlerRegistry {
+		handlerNames = append(handlerNames, handlerName)
+	}
+	sort.Strings(handlerNames)
+
+	for _, handlerName := range handlerNames {
+		t.Run(handlerName, func(t *testing.T) {
+			safeOutputs := map[string]any{
+				"github-token": "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+				"update-project": map[string]any{
+					"github-token": "${{ secrets.PROJECTS_PAT }}",
+					"project":      "https://github.com/orgs/myorg/projects/1",
+				},
+			}
+
+			safeOutputKey := strings.ReplaceAll(handlerName, "_", "-")
+			if safeOutputKey != "update-project" {
+				safeOutputs[safeOutputKey] = map[string]any{}
+			}
+
+			frontmatter := map[string]any{
+				"name":         "Test Workflow",
+				"safe-outputs": safeOutputs,
+			}
+
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				Name:        "test-workflow",
+				SafeOutputs: compiler.extractSafeOutputsConfig(frontmatter),
+			}
+
+			steps, err := compiler.buildHandlerManagerStep(workflowData)
+			require.NoError(t, err)
+
+			yamlStr := strings.Join(steps, "")
+			assert.Contains(t, yamlStr, "github-token: ${{ secrets.SAFE_OUTPUTS_TOKEN }}")
+			assert.NotContains(t, yamlStr, "github-token: ${{ secrets.PROJECTS_PAT }}")
+			assert.Contains(t, yamlStr, "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.PROJECTS_PAT }}")
 		})
 	}
 }
