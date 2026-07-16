@@ -96,6 +96,29 @@ engine: copilot`;
       const result = extractImportsFromText(frontmatterText);
       expect(result).toEqual(["shared/test.md"]);
     });
+
+    it("should extract path from object-form uses: import", () => {
+      const frontmatterText = `imports:
+  - uses: ./serena.md
+    with:
+      languages: ["go"]
+  - shared/common.md`;
+
+      const result = extractImportsFromText(frontmatterText);
+      // Both the object-form uses: import and the plain string import are extracted.
+      expect(result).toEqual(["./serena.md", "shared/common.md"]);
+    });
+
+    it("should extract path from object-form path: import", () => {
+      const frontmatterText = `imports:
+  - path: shared/tool.md
+    inputs:
+      key: value`;
+
+      const result = extractImportsFromText(frontmatterText);
+      // Object-form path: import path is extracted.
+      expect(result).toEqual(["shared/tool.md"]);
+    });
   });
 
   describe("extractRelevantTemplateExpressions", () => {
@@ -884,6 +907,33 @@ describe("symlink traversal regression for activation hash symlink handling", ()
       const result = await resolveRemoteSymlinks(github, "owner", "repo", "dir/file.md", "main");
       expect(result).toBeNull();
     });
+
+    it("should never probe .github or .github/workflows for a .github/workflows/ path", async () => {
+      // Regression: a 404 on a nested workflow path must not trigger probes for
+      // the well-known non-symlink prefixes ".github" or ".github/workflows".
+      // Only ".github/workflows/shared" (and deeper) should be checked.
+      const probedPaths = [];
+      const github = {
+        rest: {
+          repos: {
+            getContent: async ({ path: p }) => {
+              probedPaths.push(p);
+              if (p === ".github/workflows/shared") {
+                return { data: { type: "symlink", target: "../../gh-agent-workflows/shared" } };
+              }
+              return { data: [{ name: "file.md" }] };
+            },
+          },
+        },
+      };
+      const result = await resolveRemoteSymlinks(github, "owner", "repo", ".github/workflows/shared/otlp.md", "main");
+      expect(result).toBe("gh-agent-workflows/shared/otlp.md");
+      // Neither ".github" nor ".github/workflows" must ever be probed.
+      expect(probedPaths).not.toContain(".github");
+      expect(probedPaths).not.toContain(".github/workflows");
+      // The deeper directory ".github/workflows/shared" must have been probed.
+      expect(probedPaths).toContain(".github/workflows/shared");
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -971,7 +1021,9 @@ describe("symlink traversal regression for activation hash symlink handling", ()
       await expect(fileReader(".github/agents/one.md")).resolves.toBe("content:.ai/agents/one.md");
       await expect(fileReader(".github/agents/two.md")).resolves.toBe("content:.ai/agents/two.md");
 
-      expect(callCounts.get(".github")).toBe(1);
+      // ".github" alone is no longer probed (startIndex=2 for ".github/" paths skips it).
+      expect(callCounts.get(".github")).toBeUndefined();
+      // ".github/agents" is still probed and memoized (only once for both reads).
       expect(callCounts.get(".github/agents")).toBe(1);
     });
 

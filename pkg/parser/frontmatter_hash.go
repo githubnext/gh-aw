@@ -398,6 +398,14 @@ func (s *importExtractionState) extractImportItem(trimmed string, lineIndent int
 	}
 
 	item := strings.TrimSpace(trimmed[1:])
+	// Extract path from object-form imports (uses: <path> / path: <path>).
+	// These are valid import forms; extract the path value so that changes to
+	// imported files are reflected in the hash.
+	if after, ok := strings.CutPrefix(item, "uses:"); ok {
+		item = strings.TrimSpace(after)
+	} else if after, ok := strings.CutPrefix(item, "path:"); ok {
+		item = strings.TrimSpace(after)
+	}
 	item = strings.Trim(item, `"'`)
 	if item == "" {
 		return "", false
