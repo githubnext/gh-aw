@@ -13,6 +13,7 @@ export const SAFE_WRAPPABLE_STATEMENT_TYPES = new Set<AST_NODE_TYPES>([AST_NODE_
 const FS_MODULE_SPECIFIERS = new Set(["fs", "node:fs"]);
 
 type SourceCodeScope = ReturnType<TSESLint.SourceCode["getScope"]>;
+type FsBindingDefinition = { type: string; node: TSESTree.Node; parent?: TSESTree.Node | null };
 
 function escapeRegex(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -112,14 +113,14 @@ function isRequireFsCall(node: TSESTree.Node | null | undefined): boolean {
   );
 }
 
-function isFsImportBinding(definition: any): boolean {
+function isFsImportBinding(definition: FsBindingDefinition): boolean {
   if (definition.type !== "ImportBinding") return false;
   if (!definition.parent || definition.parent.type !== AST_NODE_TYPES.ImportDeclaration) return false;
   if (definition.parent.source.type !== AST_NODE_TYPES.Literal) return false;
   return FS_MODULE_SPECIFIERS.has(definition.parent.source.value as string);
 }
 
-function getFsMethodFromImportBinding(definition: any, fsSyncMethods: ReadonlySet<string>): string | null {
+function getFsMethodFromImportBinding(definition: FsBindingDefinition, fsSyncMethods: ReadonlySet<string>): string | null {
   if (!isFsImportBinding(definition)) return null;
   if (definition.node.type !== AST_NODE_TYPES.ImportSpecifier) return null;
   if (definition.node.imported.type !== AST_NODE_TYPES.Identifier) return null;
