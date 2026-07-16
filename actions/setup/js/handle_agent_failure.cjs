@@ -284,6 +284,7 @@ function buildFailureMatchCategories(options) {
  * @param {boolean} options.maxAICreditsExceeded
  * @param {boolean} options.hasAssignmentErrors
  * @param {boolean} options.http400ResponseError
+ * @param {boolean} options.unknownModelAICredits
  * @returns {string}
  */
 function buildFailureIssueTitle(options) {
@@ -294,6 +295,9 @@ function buildFailureIssueTitle(options) {
   // Keep HTTP 400 below AI-credits signals: quota/rate-limit indicates an account-level
   // budget state that should take precedence when both classes are detected.
   if (options.http400ResponseError) return `[aw] ${workflowName} hit HTTP 400 bad request`;
+  // Unknown model pricing is a configuration error that may also trigger a timeout;
+  // report it explicitly so the title is not misleadingly "timed out".
+  if (options.unknownModelAICredits) return `[aw] ${workflowName} has unknown model pricing`;
   if (options.hasAppTokenMintingFailed) return `[aw] ${workflowName} failed to mint GitHub App token`;
   if (options.hasLockdownCheckFailed) return `[aw] ${workflowName} failed lockdown check`;
   if (options.hasOAuthTokenCheckFailed) return `[aw] ${workflowName} has OAuth token misconfiguration`;
@@ -3245,6 +3249,7 @@ async function main() {
       maxAICreditsExceeded,
       hasAssignmentErrors,
       http400ResponseError,
+      unknownModelAICredits,
     });
     const failureCategories = buildFailureMatchCategories({
       agentConclusion,

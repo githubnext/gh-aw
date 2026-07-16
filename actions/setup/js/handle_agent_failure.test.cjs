@@ -89,6 +89,7 @@ describe("handle_agent_failure", () => {
       maxAICreditsExceeded: false,
       hasAssignmentErrors: false,
       http400ResponseError: false,
+      unknownModelAICredits: false,
     };
 
     const cases = [
@@ -96,6 +97,7 @@ describe("handle_agent_failure", () => {
       { flag: "maxAICreditsExceeded", expected: "[aw] Test Workflow exceeded max AI credits" },
       { flag: "aiCreditsRateLimitError", expected: "[aw] Test Workflow hit AI credits rate limit" },
       { flag: "http400ResponseError", expected: "[aw] Test Workflow hit HTTP 400 bad request" },
+      { flag: "unknownModelAICredits", expected: "[aw] Test Workflow has unknown model pricing" },
       { flag: "hasAppTokenMintingFailed", expected: "[aw] Test Workflow failed to mint GitHub App token" },
       { flag: "hasLockdownCheckFailed", expected: "[aw] Test Workflow failed lockdown check" },
       { flag: "hasStaleLockFileFailed", expected: "[aw] Test Workflow has stale lock file" },
@@ -115,6 +117,10 @@ describe("handle_agent_failure", () => {
 
     it("falls back to generic failed title when no specific condition matches", () => {
       expect(buildFailureIssueTitle(baseOptions)).toBe("[aw] Test Workflow failed");
+    });
+
+    it("prefers unknownModelAICredits over isTimedOut when both are true", () => {
+      expect(buildFailureIssueTitle({ ...baseOptions, unknownModelAICredits: true, isTimedOut: true })).toBe("[aw] Test Workflow has unknown model pricing");
     });
   });
 

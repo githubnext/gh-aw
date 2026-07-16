@@ -30,6 +30,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { checkFileProtection, checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 const { renderTemplateFromFile, renderFilesList, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
+const { overridePersistedExtraheader, restorePersistedExtraheader } = require("./git_auth_helpers.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
@@ -563,12 +564,33 @@ function enforcePullRequestLimits(patchContent, maxFiles = MAX_FILES) {
  *   existing remote ref when recreate-ref is enabled.
  * @param {string} [options.owner] - Repository owner for the deleteRef call.
  * @param {string} [options.repo] - Repository name for the deleteRef call.
+ * @param {string} [options.remoteTarget] - Remote name or URL used for remote branch existence checks.
+ * @param {string} [options.remoteToken] - Optional token used for authenticated remote branch checks.
  * @returns {Promise<string>} The (possibly renamed) branch name to use going forward.
  */
 async function handleRemoteBranchCollision(branchName, preserveBranchName, options = {}) {
   let remoteBranchExists = false;
   try {
-    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
+    const remoteTarget = options.remoteTarget || "origin";
+    const checkRemoteBranch = async () => exec.getExecOutput("git", ["ls-remote", "--heads", remoteTarget, branchName]);
+    let checkResult;
+    if (options.remoteToken) {
+      const githubServerUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/+$/, "");
+      let previousExtraheaders = [];
+      let overrideApplied = false;
+      try {
+        previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, options.remoteToken);
+        overrideApplied = true;
+        checkResult = await checkRemoteBranch();
+      } finally {
+        if (overrideApplied) {
+          await restorePersistedExtraheader(githubServerUrl, previousExtraheaders);
+        }
+      }
+    } else {
+      checkResult = await checkRemoteBranch();
+    }
+    const { stdout } = checkResult;
     if (stdout.trim()) {
       remoteBranchExists = true;
     }
@@ -753,6 +775,8 @@ async function main(config = {}) {
   // Base branch from config (if set) - validated at factory level if explicit
   // Dynamic base branch resolution happens per-message after resolving the actual target repo
   const configBaseBranch = config.base_branch || null;
+  const configuredHeadRepo = typeof config["head-repo"] === "string" ? config["head-repo"].trim() : "";
+  const headGitHubToken = typeof config["head-github-token"] === "string" ? config["head-github-token"].trim() : "";
 
   // SECURITY: If base branch is explicitly configured, validate it at factory level
   if (configBaseBranch) {
@@ -788,6 +812,9 @@ async function main(config = {}) {
 
   core.info(`Base branch: ${configBaseBranch || "(dynamic - resolved per target repo)"}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);
+  if (configuredHeadRepo) {
+    core.info(`Configured head repo: ${configuredHeadRepo}`);
+  }
   if (allowedRepos.size > 0) {
     core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
   }
@@ -904,6 +931,23 @@ async function main(config = {}) {
     }
     const { repo: itemRepo, repoParts } = repoResult;
     core.info(`Target repository: ${itemRepo}`);
+    let pushRepo = itemRepo;
+    let pushRepoParts = repoParts;
+    let pushGithubClient = githubClient;
+    if (configuredHeadRepo) {
+      const headRepoResult = resolveAndValidateRepo({ repo: configuredHeadRepo }, itemRepo, allowedRepos, "pull request head repository");
+      if (!headRepoResult.success) {
+        return { success: false, error: headRepoResult.error };
+      }
+      pushRepo = headRepoResult.repo;
+      pushRepoParts = headRepoResult.repoParts;
+      if (headGitHubToken && typeof global.getOctokit === "function") {
+        pushGithubClient = global.getOctokit(headGitHubToken);
+      }
+      core.info(`Resolved head repository: ${pushRepo}`);
+    }
+    const pushRemoteUrl = pushRepo.toLowerCase() === itemRepo.toLowerCase() ? "" : `${(process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/+$/, "")}/${pushRepo}.git`;
+    const getPullRequestHeadRef = branch => (pushRepo.toLowerCase() === itemRepo.toLowerCase() ? branch : `${pushRepoParts.owner}:${branch}`);
 
     // Resolve base branch for this target repository
     // Use config value if set, otherwise resolve dynamically for the specific target repo
@@ -1585,15 +1629,24 @@ async function main(config = {}) {
         // the catch block below.
         {
           try {
-            branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
+            branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, {
+              recreateRef,
+              githubClient: pushGithubClient,
+              owner: pushRepoParts.owner,
+              repo: pushRepoParts.repo,
+              remoteTarget: pushRemoteUrl || "origin",
+              remoteToken: headGitHubToken,
+            });
 
             await pushSignedCommits({
-              githubClient,
-              owner: repoParts.owner,
-              repo: repoParts.repo,
+              githubClient: pushGithubClient,
+              owner: pushRepoParts.owner,
+              repo: pushRepoParts.repo,
               branch: branchName,
               baseRef: `origin/${baseBranch}`,
               cwd: process.cwd(),
+              pushRemoteUrl,
+              pushToken: headGitHubToken,
               signedCommits,
               resolvedTemporaryIds,
               currentRepo: itemRepo,
@@ -1621,12 +1674,14 @@ async function main(config = {}) {
               try {
                 await rewriteBundleBranchAsSingleCommit(baseBranch, exec);
                 await pushSignedCommits({
-                  githubClient,
-                  owner: repoParts.owner,
-                  repo: repoParts.repo,
+                  githubClient: pushGithubClient,
+                  owner: pushRepoParts.owner,
+                  repo: pushRepoParts.repo,
                   branch: branchName,
                   baseRef: `origin/${baseBranch}`,
                   cwd: process.cwd(),
+                  pushRemoteUrl,
+                  pushToken: headGitHubToken,
                   signedCommits,
                   resolvedTemporaryIds,
                   currentRepo: itemRepo,
@@ -1701,10 +1756,10 @@ git reset --hard
 git update-ref -d ${fallbackBundleTempRef}
 
 # Push the branch to origin
-git push origin ${branchName}
+git push ${pushRemoteUrl || "origin"} ${branchName}
 
 # Create the pull request
-gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo ${repoParts.owner}/${repoParts.repo}
+gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHeadRef(branchName)} --repo ${repoParts.owner}/${repoParts.repo}
 \`\`\``;
 
                 try {
@@ -1956,15 +2011,24 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
           // the catch block below.
           {
             try {
-              branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
+              branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, {
+                recreateRef,
+                githubClient: pushGithubClient,
+                owner: pushRepoParts.owner,
+                repo: pushRepoParts.repo,
+                remoteTarget: pushRemoteUrl || "origin",
+                remoteToken: headGitHubToken,
+              });
 
               await pushSignedCommits({
-                githubClient,
-                owner: repoParts.owner,
-                repo: repoParts.repo,
+                githubClient: pushGithubClient,
+                owner: pushRepoParts.owner,
+                repo: pushRepoParts.repo,
                 branch: branchName,
                 baseRef: `origin/${baseBranch}`,
                 cwd: process.cwd(),
+                pushRemoteUrl,
+                pushToken: headGitHubToken,
                 signedCommits,
                 resolvedTemporaryIds,
                 currentRepo: itemRepo,
@@ -2045,10 +2109,10 @@ git checkout -b ${branchName}
 git am --3way /tmp/agent-${runId}/${patchFileName}
 
 # Push the branch to origin
-git push origin ${branchName}
+git push ${pushRemoteUrl || "origin"} ${branchName}
 
 # Create the pull request
-gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo ${repoParts.owner}/${repoParts.repo}
+gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHeadRef(branchName)} --repo ${repoParts.owner}/${repoParts.repo}
 \`\`\`
 ${patchPreview}`;
 
@@ -2086,6 +2150,7 @@ ${patchPreview}`;
                     issue_url: issue.html_url,
                     branch_name: branchName,
                     repo: itemRepo,
+                    head_repo: pushRepo,
                   };
                 } catch (issueError) {
                   const error = `Failed to push and failed to create fallback issue. Push error: ${getErrorMessage(pushError)}. Issue error: ${getErrorMessage(issueError)}`;
@@ -2110,15 +2175,24 @@ ${patchPreview}`;
               await exec.exec(`git commit --allow-empty -m "Initialize"`);
               core.info("Created empty commit");
 
-              branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
+              branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, {
+                recreateRef,
+                githubClient: pushGithubClient,
+                owner: pushRepoParts.owner,
+                repo: pushRepoParts.repo,
+                remoteTarget: pushRemoteUrl || "origin",
+                remoteToken: headGitHubToken,
+              });
 
               await pushSignedCommits({
-                githubClient,
-                owner: repoParts.owner,
-                repo: repoParts.repo,
+                githubClient: pushGithubClient,
+                owner: pushRepoParts.owner,
+                repo: pushRepoParts.repo,
                 branch: branchName,
                 baseRef: `origin/${baseBranch}`,
                 cwd: process.cwd(),
+                pushRemoteUrl,
+                pushToken: headGitHubToken,
                 signedCommits,
                 resolvedTemporaryIds,
                 currentRepo: itemRepo,
@@ -2200,7 +2274,7 @@ ${patchPreview}`;
           });
         } else {
           // Normal case — push succeeded, provide compare URL.
-          const createPrUrl = buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title);
+          const createPrUrl = buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title, undefined, getPullRequestHeadRef(branchName));
           fallbackBody = renderManifestProtectionFallbackBody(issueSafeMainBodyContent, footerContent, fileList, createPrUrl);
         }
 
@@ -2211,7 +2285,7 @@ ${patchPreview}`;
 
           if (!manifestProtectionPushFailedError) {
             try {
-              const createPrUrl = buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title, issue.number);
+              const createPrUrl = buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title, issue.number, getPullRequestHeadRef(branchName));
               const fallbackBodyWithCloseKeyword = renderManifestProtectionFallbackBody(issueSafeMainBodyContent, footerContent, fileList, createPrUrl);
 
               await withRetry(
@@ -2241,6 +2315,7 @@ ${patchPreview}`;
             issue_url: issue.html_url,
             branch_name: branchName,
             repo: itemRepo,
+            head_repo: pushRepo,
           };
         } catch (issueError) {
           const error = `Protected file protection: failed to create review issue. Error: ${getErrorMessage(issueError)}`;
@@ -2258,7 +2333,7 @@ ${patchPreview}`;
               repo: repoParts.repo,
               title: title,
               body: body,
-              head: branchName,
+              head: getPullRequestHeadRef(branchName),
               base: baseBranch,
               draft: draft,
             }),
@@ -2474,8 +2549,8 @@ ${patchPreview}`;
         // multi-commit branches where workflow files may have been iteratively modified.
         const ciTriggerResult = await pushExtraEmptyCommit({
           branchName,
-          repoOwner: repoParts.owner,
-          repoName: repoParts.repo,
+          repoOwner: pushRepoParts.owner,
+          repoName: pushRepoParts.repo,
           newCommitCount,
         });
         if (ciTriggerResult.success && !ciTriggerResult.skipped) {
@@ -2491,6 +2566,7 @@ ${patchPreview}`;
           branch_name: branchName,
           temporaryId: temporaryId,
           repo: itemRepo,
+          head_repo: pushRepo,
         };
       } catch (prError) {
         const errorMessage = getErrorMessage(prError);
@@ -2504,7 +2580,7 @@ ${patchPreview}`;
           const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
           // Encode branch name path segments individually to preserve '/' while encoding other special characters
           const encodedBase = baseBranch.split("/").map(encodeURIComponent).join("/");
-          const encodedHead = branchName.split("/").map(encodeURIComponent).join("/");
+          const encodedHead = getPullRequestHeadRef(branchName).split("/").map(encodeURIComponent).join("/");
           const createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
 
           // Read patch content for preview
@@ -2538,6 +2614,7 @@ ${patchPreview}`;
               issue_url: issue.html_url,
               branch_name: branchName,
               repo: itemRepo,
+              head_repo: pushRepo,
             };
           } catch (issueError) {
             const error = `Failed to create pull request (permission denied) and failed to create fallback issue. PR error: ${errorMessage}. Issue error: ${getErrorMessage(issueError)}`;
@@ -2564,7 +2641,7 @@ ${patchPreview}`;
 
         // Create issue as fallback with enhanced body content
         const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-        const branchUrl = context.payload.repository ? `${context.payload.repository.html_url}/tree/${branchName}` : `${githubServer}/${repoParts.owner}/${repoParts.repo}/tree/${branchName}`;
+        const branchUrl = `${githubServer}/${pushRepoParts.owner}/${pushRepoParts.repo}/tree/${branchName}`;
 
         // Read patch content for preview
         let patchPreview = "";
@@ -2585,7 +2662,7 @@ ${patchPreview}`;
 To create the pull request manually:
 
 \`\`\`sh
-gh pr create --title "${title}" --base ${baseBranch} --head ${branchName} --repo ${repoParts.owner}/${repoParts.repo}
+gh pr create --title "${title}" --base ${baseBranch} --head ${getPullRequestHeadRef(branchName)} --repo ${repoParts.owner}/${repoParts.repo}
 \`\`\`
 ${patchPreview}`;
 
@@ -2608,6 +2685,7 @@ ${patchPreview}`;
             issue_url: issue.html_url,
             branch_name: branchName,
             repo: itemRepo,
+            head_repo: pushRepo,
           };
         } catch (issueError) {
           const error = `Failed to create both pull request and fallback issue. PR error: ${errorMessage}. Issue error: ${getErrorMessage(issueError)}`;

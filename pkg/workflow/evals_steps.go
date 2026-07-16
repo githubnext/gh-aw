@@ -41,7 +41,12 @@ func (c *Compiler) buildEvalsJobSteps(data *WorkflowData) []string {
 	steps = append(steps, c.buildCleanFirewallDirsStep()...)
 
 	// Step 2: Pre-pull AWF container images for faster engine execution.
-	steps = append(steps, c.buildPullAWFContainersStep(data)...)
+	// For codex, buildEvalsEngineSteps calls generateMCPSetup which already emits
+	// the Docker download step via generateDownloadDockerImagesStep, so skip here
+	// to avoid a duplicate "Download container images" step name.
+	if c.getEvalsEngineID(data) != string(constants.CodexEngine) {
+		steps = append(steps, c.buildPullAWFContainersStep(data)...)
+	}
 
 	// Step 3: Copy agent output files into the evals working directory.
 	steps = append(steps, buildPrepareEvalsFilesStep()...)

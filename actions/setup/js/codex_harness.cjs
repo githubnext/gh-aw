@@ -51,7 +51,7 @@ const {
 } = require("./awf_reflect.cjs");
 const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
-const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal } = require("./harness_retry_guard.cjs");
+const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError } = require("./harness_retry_guard.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
 const { resolveRetryConfig } = require("./harness_retry_config.cjs");
 
@@ -73,7 +73,6 @@ const TOKEN_PER_MIN_RATE_LIMIT_PATTERN = /Rate limit reached for [^\s]+(?: in or
 // The backreference \1 requires the two numeric parts of "N/N" to be identical —
 // "5/5" matches (exhausted) but "1/5", "3/5", "4/5" do not (still retrying).
 const RECONNECT_EXHAUSTED_PATTERN = /Reconnecting\.\.\.\s+(\d+)\/\1\b/;
-const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[^)]+\))?/i;
 
 // Pattern to detect a missing API key at startup — Codex emits this before making any API
 // calls when neither CODEX_API_KEY nor OPENAI_API_KEY is available in the environment.
@@ -113,15 +112,6 @@ function isRateLimitError(output) {
  */
 function isTokenPerMinuteRateLimitError(output) {
   return TOKEN_PER_MIN_RATE_LIMIT_PATTERN.test(output);
-}
-
-/**
- * Determines if the collected output contains an authentication failed error.
- * @param {string} output - Collected stdout+stderr from the process
- * @returns {boolean}
- */
-function isAuthenticationFailedError(output) {
-  return AUTHENTICATION_FAILED_PATTERN.test(output);
 }
 
 /**
