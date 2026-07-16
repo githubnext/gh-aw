@@ -74,6 +74,7 @@ function isIssueIntentDisabledForTool(toolName, toolConfig) {
 
 /**
  * Remove issue-intent properties from a tool schema.
+ * If this removes all required fields, the required array is omitted.
  * @param {{inputSchema?: {properties?: Record<string, unknown>, required?: string[]}}} tool
  */
 function stripIssueIntentSchemaFields(tool) {
