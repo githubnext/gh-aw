@@ -257,7 +257,7 @@ jobs:
           echo "✓ Tag created: $RELEASE_TAG"
 
       - name: Setup Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: go.mod
           cache: false  # Disabled for release security - prevent cache poisoning attacks
@@ -271,10 +271,10 @@ jobs:
           echo "✓ Binaries built successfully"
 
       - name: Setup Docker Buildx (pre-validation)
-        uses: docker/setup-buildx-action@v4.1.0
+        uses: docker/setup-buildx-action@v4.2.0
 
       - name: Build Docker image (validation only)
-        uses: docker/build-push-action@v7.2.0
+        uses: docker/build-push-action@v7.3.0
         with:
           context: .
           platforms: linux/amd64
@@ -681,10 +681,10 @@ jobs:
           retention-days: 90  # Long retention since SBOMs are not attached to the release
 
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v4.1.0
+        uses: docker/setup-buildx-action@v4.2.0
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4.2.0
+        uses: docker/login-action@v4.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -692,7 +692,7 @@ jobs:
 
       - name: Extract metadata for Docker
         id: meta
-        uses: docker/metadata-action@v6.1.0
+        uses: docker/metadata-action@v6.2.0
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
@@ -704,7 +704,7 @@ jobs:
 
       - name: Build and push Docker image (amd64)
         id: build
-        uses: docker/build-push-action@v7.2.0
+        uses: docker/build-push-action@v7.3.0
         with:
           context: .
           platforms: linux/amd64

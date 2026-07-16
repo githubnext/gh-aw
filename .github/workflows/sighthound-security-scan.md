@@ -32,7 +32,7 @@ jobs:
 
       - name: Restore Sighthound binary cache
         id: cache-sighthound
-        uses: actions/cache@v6
+        uses: actions/cache@v6.1.0
         with:
           path: ~/.cargo/bin/sighthound
           key: sighthound-${{ runner.os }}-v1
