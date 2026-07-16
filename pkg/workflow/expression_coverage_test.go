@@ -148,31 +148,6 @@ func TestVisitExpressionTreeWithDifferentNodeTypes(t *testing.T) {
 	}
 }
 
-// TestExpressionParserCurrentWithEmptyTokens tests the current() method edge case
-func TestExpressionParserCurrentWithEmptyTokens(t *testing.T) {
-	parser := &ExpressionParser{
-		tokens: []token{},
-		pos:    0,
-	}
-
-	result := parser.current()
-	assert.Equal(t, tokenEOF, result.kind, "current() with empty tokens should return EOF token")
-	assert.Equal(t, -1, result.pos, "current() with empty tokens should return pos -1")
-}
-
-// TestExpressionParserCurrentBeyondLength tests the current() method when pos >= len(tokens)
-func TestExpressionParserCurrentBeyondLength(t *testing.T) {
-	parser := &ExpressionParser{
-		tokens: []token{
-			{tokenLiteral, "test", 0},
-		},
-		pos: 5, // Beyond array length
-	}
-
-	result := parser.current()
-	assert.Equal(t, tokenEOF, result.kind, "current() with pos beyond length should return EOF token")
-}
-
 // TestParseExpressionEmptyString tests ParseExpression with empty string
 func TestParseExpressionEmptyString(t *testing.T) {
 	tests := []struct {

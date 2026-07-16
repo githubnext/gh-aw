@@ -18,11 +18,6 @@ var expressionBracesPattern = regexp.MustCompile(`\$\{\{([^}]*)\}\}`)
 
 // Pre-compiled regexes shared between syntax and safety validation
 var (
-	// stringLiteralRegex matches single-quoted, double-quoted, or backtick-quoted string literals.
-	// Note: escape sequences inside strings are not handled; GitHub Actions uses '' for literal quotes.
-	stringLiteralRegex = regexp.MustCompile(`^'[^']*'$|^"[^"]*"$|^` + "`[^`]*`$")
-	// numberLiteralRegex matches integer and decimal number literals (with optional leading minus)
-	numberLiteralRegex = regexp.MustCompile(`^-?\d+(\.\d+)?$`)
 	// exprPartSplitRe splits expression strings on dot and bracket characters
 	exprPartSplitRe = regexp.MustCompile(`[.\[\]]+`)
 	// exprNumericPartRe matches purely numeric expression parts (array indices)

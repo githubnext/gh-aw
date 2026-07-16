@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/ghexpr"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
@@ -27,8 +28,6 @@ var (
 	// comparisonExpressionPattern matches a full comparison expression so both sides can be
 	// validated recursively instead of allowing a safe-looking prefix to bypass validation.
 	comparisonExpressionPattern = regexp.MustCompile(`^(.+?)\s*(?:==|!=|<|>|<=|>=)\s*(.+)$`)
-	// orExpressionPattern matches "left || right" for fallback literal/expression checking
-	orExpressionPattern = regexp.MustCompile(`^(.+?)\s*\|\|\s*(.+)$`)
 )
 
 // validateExpressionSafety checks that all GitHub Actions expressions in the markdown content
@@ -182,8 +181,8 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 	expression = strings.TrimSpace(expression)
 
 	// Allow literal values (string, number, boolean) — safe leaf nodes in compound expressions.
-	if stringLiteralRegex.MatchString(expression) ||
-		numberLiteralRegex.MatchString(expression) ||
+	if ghexpr.StringLiteralPattern.MatchString(expression) ||
+		ghexpr.NumberLiteralPattern.MatchString(expression) ||
 		expression == "true" || expression == "false" {
 		return nil
 	}
@@ -214,7 +213,7 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 
 	// Check for OR expressions with literals (e.g., "inputs.repository || 'default'")
 	if !allowed {
-		orMatch := orExpressionPattern.FindStringSubmatch(expression)
+		orMatch := ghexpr.OrPattern.FindStringSubmatch(expression)
 		if len(orMatch) > 2 {
 			leftExpr := strings.TrimSpace(orMatch[1])
 			rightExpr := strings.TrimSpace(orMatch[2])
@@ -225,9 +224,9 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 			if leftIsSafe {
 				// Check if right side is a literal string (single, double, or backtick quotes)
 				// Note: Using (?:) for non-capturing group and checking each quote type separately
-				isStringLiteral := stringLiteralRegex.MatchString(rightExpr)
+				isStringLiteral := ghexpr.StringLiteralPattern.MatchString(rightExpr)
 				// Check if right side is a number literal
-				isNumberLiteral := numberLiteralRegex.MatchString(rightExpr)
+				isNumberLiteral := ghexpr.NumberLiteralPattern.MatchString(rightExpr)
 				// Check if right side is a boolean literal
 				isBooleanLiteral := rightExpr == "true" || rightExpr == "false"
 

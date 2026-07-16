@@ -1,102 +1,78 @@
 // This file provides centralized regex patterns for GitHub Actions expression matching.
 //
-// # Expression Patterns
-//
-// This file consolidates regular expression patterns used across multiple validation and
-// extraction files to provide a single source of truth for expression matching logic.
+// Core language-level patterns and predicate helpers are defined in pkg/ghexpr.
+// This file re-exports them as package-level vars for backward compatibility and
+// adds gh-aw–specific context patterns (secrets, inputs, aw-inputs, etc.).
 //
 // # Available Pattern Categories
 //
-// ## Core Expression Patterns
-//   - ExpressionPattern - Matches GitHub Actions expressions: ${{ ... }}
-//   - ExpressionPatternDotAll - Matches expressions with dotall mode (multiline)
+// ## Core Expression Patterns (from pkg/ghexpr)
+//   - ExpressionPattern         - Matches GitHub Actions expressions: ${{ ... }}
+//   - ExpressionPatternDotAll   - Matches expressions with dotall mode (multiline)
+//   - InlineExpressionPattern   - Matches inline ${{ ... }} in template strings
+//   - TemplateIfPattern         - Matches {{#if ...}} template conditionals
+//   - TemplateElseIfPattern     - Matches {{#elseif ...}} template conditionals
+//   - StringLiteralPattern      - Matches string literals ('...', "...", `...`)
+//   - NumberLiteralPattern      - Matches numeric literals
+//   - OrPattern                 - Splits logical-OR expressions
+//   - ComparisonExtractionPattern - Extracts LHS of comparisons
+//   - RangePattern              - Matches numeric ranges (e.g., "1-10")
 //
-// ## Context Access Patterns
-//   - NeedsStepsPattern - Matches needs.* and steps.* patterns
-//   - InputsPattern - Matches github.event.inputs.* patterns
-//   - WorkflowCallInputsPattern - Matches inputs.* patterns (workflow_call)
-//   - AWInputsPattern - Matches github.aw.inputs.* patterns
-//   - EnvPattern - Matches env.* patterns
+// ## Predicate helpers (from pkg/ghexpr)
+//   - hasExpressionMarker  - reports ${{ present
+//   - containsExpression   - reports complete ${{ ... }} present
+//   - isExpression         - reports whole string is ${{ ... }}
+//
+// ## gh-aw Context Access Patterns
+//   - NeedsStepsPattern           - Matches needs.* and steps.* patterns
+//   - InputsPattern               - Matches github.event.inputs.* patterns
+//   - WorkflowCallInputsPattern   - Matches inputs.* patterns (workflow_call)
+//   - AWInputsPattern             - Matches github.aw.inputs.* patterns
+//   - AWInputsExpressionPattern   - Matches full ${{ github.aw.inputs.* }} expressions
+//   - AWImportInputsPattern       - Matches github.aw.import-inputs.* patterns
+//   - AWImportInputsExpressionPattern - Matches full ${{ github.aw.import-inputs.* }} expressions
+//   - EnvPattern                  - Matches env.* patterns
 //
 // ## Secret Patterns
-//   - SecretExpressionPattern - Matches ${{ secrets.SECRET_NAME }} expressions
+//   - SecretExpressionPattern  - Matches ${{ secrets.SECRET_NAME }} expressions
 //   - SecretsExpressionPattern - Validates secrets expression syntax
 //
-// ## Template Patterns
-//   - InlineExpressionPattern - Matches inline expressions in templates
+// ## Template Patterns (gh-aw specific)
 //   - UnsafeContextPattern - Matches potentially unsafe context patterns
-//   - TemplateIfPattern - Matches {{#if ...}} template conditionals
-//
-// ## Utility Patterns
-//   - ComparisonExtractionPattern - Extracts properties from comparison expressions
-//   - StringLiteralPattern - Matches string literals ('...', "...", `...`)
-//   - NumberLiteralPattern - Matches numeric literals
-//   - RangePattern - Matches numeric ranges (e.g., "1-10")
-//
-// # Design Rationale
-//
-// Centralizing regex patterns provides several benefits:
-//   - Single source of truth for expression matching logic
-//   - Consistent behavior across validation and extraction
-//   - Easier to maintain and update patterns
-//   - Better performance through pre-compilation
-//   - Reduced code duplication across files
-//
-// # Migration Notes
-//
-// This file consolidates patterns previously scattered across:
-//   - expression_validation.go
-//   - expression_extraction.go
-//   - secret_extraction.go
-//   - secrets_validation.go
-//   - template.go
-//   - template_injection_validation.go
-//
-// Files are gradually being migrated to use these centralized patterns.
 
 package workflow
 
 import (
 	"regexp"
-	"strings"
+
+	"github.com/github/gh-aw/pkg/ghexpr"
 )
 
-// hasExpressionMarker reports whether s contains a GitHub Actions expression opening marker.
-// This is a permissive check used in scenarios where partial expressions should be treated
-// as dynamic values.
-func hasExpressionMarker(s string) bool {
-	return strings.Contains(s, "${{")
-}
+// hasExpressionMarker re-exports [ghexpr.HasExpressionMarker] with the unexported
+// name used throughout pkg/workflow.
+func hasExpressionMarker(s string) bool { return ghexpr.HasExpressionMarker(s) }
 
-// containsExpression reports whether s contains a complete non-empty GitHub Actions expression.
-// A complete expression has a "${{" marker that appears before a closing "}}" marker
-// with at least one character between them.
-func containsExpression(s string) bool {
-	_, afterOpen, found := strings.Cut(s, "${{")
-	if !found {
-		return false
-	}
-	closeIdx := strings.Index(afterOpen, "}}")
-	return closeIdx > 0
-}
+// containsExpression re-exports [ghexpr.ContainsExpression].
+func containsExpression(s string) bool { return ghexpr.ContainsExpression(s) }
 
-// isExpression reports whether the entire string s is a GitHub Actions expression.
-func isExpression(s string) bool {
-	return strings.HasPrefix(s, "${{") && strings.HasSuffix(s, "}}")
-}
+// isExpression re-exports [ghexpr.IsExpression].
+func isExpression(s string) bool { return ghexpr.IsExpression(s) }
 
-// Core Expression Patterns
+// Core Expression Patterns — sourced from pkg/ghexpr.
 var (
-	// ExpressionPattern matches GitHub Actions expressions: ${{ ... }}
-	// Uses non-greedy matching to handle nested braces properly
-	ExpressionPattern = regexp.MustCompile(`\$\{\{(.*?)\}\}`)
-
-	// ExpressionPatternDotAll matches expressions with dotall mode enabled
-	// The (?s) flag enables dotall mode where . matches newlines
-	ExpressionPatternDotAll = regexp.MustCompile(`(?s)\$\{\{(.*?)\}\}`)
+	ExpressionPattern           = ghexpr.ExpressionPattern
+	ExpressionPatternDotAll     = ghexpr.ExpressionPatternDotAll
+	InlineExpressionPattern     = ghexpr.InlineExpressionPattern
+	TemplateIfPattern           = ghexpr.TemplateIfPattern
+	TemplateElseIfPattern       = ghexpr.TemplateElseIfPattern
+	ComparisonExtractionPattern = ghexpr.ComparisonExtractionPattern
+	OrPattern                   = ghexpr.OrPattern
+	StringLiteralPattern        = ghexpr.StringLiteralPattern
+	NumberLiteralPattern        = ghexpr.NumberLiteralPattern
+	RangePattern                = ghexpr.RangePattern
 )
 
-// Context Access Patterns
+// gh-aw Context Access Patterns
 var (
 	// NeedsStepsPattern matches needs.* and steps.* context patterns
 	// Example: needs.build.outputs.version, steps.setup.outputs.path
@@ -145,55 +121,9 @@ var (
 	SecretsExpressionPattern = regexp.MustCompile(`^\$\{\{\s*secrets\.[A-Za-z_][A-Za-z0-9_]*(\s*\|\|\s*secrets\.[A-Za-z_][A-Za-z0-9_]*)*\s*\}\}$`)
 )
 
-// Template Patterns
+// Template Patterns (gh-aw specific)
 var (
-	// InlineExpressionPattern matches inline ${{ ... }} expressions in templates
-	InlineExpressionPattern = regexp.MustCompile(`\$\{\{[^}]+\}\}`)
-
-	// UnsafeContextPattern matches potentially unsafe context patterns
-	// These patterns may allow injection attacks in templates
+	// UnsafeContextPattern matches potentially unsafe context patterns.
+	// These patterns may allow injection attacks in templates.
 	UnsafeContextPattern = regexp.MustCompile(`\$\{\{\s*(github\.event\.|steps\.[^}]+\.outputs\.|inputs\.)[^}]+\}\}`)
-
-	// TemplateIfPattern matches {{#if condition }} template conditionals
-	// Captures the condition expression (which may contain ${{ ... }})
-	//
-	// Expression group: (?:\$\{\{[^\}]*\}\}|[^\}\{]|\{[^\{])*
-	//   - \$\{\{[^\}]*\}\}  — already-wrapped ${{ ... }} expression
-	//   - [^\}\{]           — any character that is not } or {
-	//   - \{[^\{]           — a { not immediately followed by another { (handles ${ env refs)
-	// Using [^\}\{] (instead of [^\}]) prevents the pattern from greedily consuming
-	// {{ sequences that start a nested template tag, which would embed a raw {{elseif
-	// or similar token inside the wrapped ${{ }} expression and confuse later validation.
-	TemplateIfPattern = regexp.MustCompile(`\{\{#if\s+((?:\$\{\{[^\}]*\}\}|[^\}\{]|\{[^\{])*)\s*\}\}`)
-
-	// TemplateElseIfPattern matches elseif/else-if/else_if template conditionals in all supported
-	// syntax variants:
-	//   {{#elseif expr}}  {{#else-if expr}}  {{#else_if expr}}
-	//   {{elseif expr}}   {{else-if expr}}   {{else_if expr}}
-	// Captures the condition expression (which may contain ${{ ... }})
-	// See TemplateIfPattern for the expression group design rationale.
-	TemplateElseIfPattern = regexp.MustCompile(`\{\{#?else[-_]?if\s+((?:\$\{\{[^\}]*\}\}|[^\}\{]|\{[^\{])*)\s*\}\}`)
-)
-
-// Comparison and Literal Patterns
-var (
-	// ComparisonExtractionPattern extracts property accesses from comparison expressions
-	// Matches patterns like "github.workflow == 'value'" and extracts "github.workflow"
-	ComparisonExtractionPattern = regexp.MustCompile(`([a-zA-Z_][a-zA-Z0-9_.]*)\s*(?:==|!=|<|>|<=|>=)\s*`)
-
-	// OrPattern matches logical OR expressions
-	// Example: value1 || value2
-	OrPattern = regexp.MustCompile(`^(.+?)\s*\|\|\s*(.+)$`)
-
-	// StringLiteralPattern matches string literals in single quotes, double quotes, or backticks
-	// Example: 'hello', "world", `template`
-	StringLiteralPattern = regexp.MustCompile(`^'[^']*'$|^"[^"]*"$|^` + "`[^`]*`$")
-
-	// NumberLiteralPattern matches numeric literals (integers and decimals)
-	// Example: 42, -3.14, 0.5
-	NumberLiteralPattern = regexp.MustCompile(`^-?\d+(\.\d+)?$`)
-
-	// RangePattern matches numeric range patterns
-	// Example: 1-10, 100-200
-	RangePattern = regexp.MustCompile(`^\d+-\d+$`)
 )
