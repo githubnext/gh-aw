@@ -34,6 +34,17 @@ func BadNilVariadic() {
 	takesVariadicCtx(nil) // want `nil passed as context\.Context; use context\.Background\(\) or context\.TODO\(\) instead`
 }
 
+// not flagged: nil spread is a nil variadic slice (zero args), not a context element
+func GoodNilVariadicSpread() {
+	takesVariadicCtx(nil...)
+}
+
+// not flagged: existing slice spread passes slice elements
+func GoodExistingVariadicSpread() {
+	var existing []context.Context
+	takesVariadicCtx(existing...)
+}
+
 // not flagged: proper context values
 func GoodContextBackground() {
 	takesCtx(context.Background())
