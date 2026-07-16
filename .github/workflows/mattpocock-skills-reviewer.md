@@ -1,104 +1,76 @@
 ---
-private: true
-emoji: "🔍"
-description: Reviews pull requests using Matt Pocock's engineering skills to provide targeted, high-quality improvement suggestions based on the type of changes
-on:
-  pull_request:
-    types: [ready_for_review]
-  slash_command:
-    strategy: centralized
-    name: matt
-    events: [pull_request_comment, pull_request_review_comment]
-permissions:
-  contents: read
-  pull-requests: read
-  copilot-requests: write
-skills:
-  - mattpocock/skills/diagnosing-bugs@801dca688564c529fa84f247f64472520d9ebe28
-  - mattpocock/skills/tdd@801dca688564c529fa84f247f64472520d9ebe28
-  - mattpocock/skills/improve-codebase-architecture@801dca688564c529fa84f247f64472520d9ebe28
-  - mattpocock/skills/grill-with-docs@801dca688564c529fa84f247f64472520d9ebe28
-  - mattpocock/skills/to-prd@801dca688564c529fa84f247f64472520d9ebe28
-  - mattpocock/skills/codebase-design@801dca688564c529fa84f247f64472520d9ebe28
-  - mattpocock/skills/domain-modeling@801dca688564c529fa84f247f64472520d9ebe28
-
-sandbox:
-  agent:
-    sudo: false
-
-engine:
-  id: copilot
-  model: claude-sonnet-4.6
-  max-continuations: 6
-imports:
-  - uses: shared/pr-review-base.md
-    with:
-      min-integrity: approved
-  - shared/otlp.md
-pre-agent-steps:
-  - name: Pre-fetch PR diff and review comments
-    env:
-      GH_TOKEN: ${{ github.token }}
-      PR_NUMBER: ${{ github.event.pull_request.number }}
-      EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
-    run: |
-      set -euo pipefail
-      mkdir -p /tmp/gh-aw/agent
-      # Skip fetch if cache already populated this data (actions/cache restore)
-      if [ -f /tmp/gh-aw/agent/pr-diff.patch ] && [ -f /tmp/gh-aw/agent/pr-meta.json ] && [ -f /tmp/gh-aw/agent/pr-review-comments.json ]; then
-        LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
-        COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)
-        echo "Cache hit: using pre-fetched PR data (${LINES} diff lines, ${COMMENT_COUNT} review comments)"
-      else
-        { gh pr diff "$PR_NUMBER" --repo $EXPR_GITHUB_REPOSITORY \
-            --exclude '**/*.lock.yml' \
-            --exclude '**/generated/**' \
-            --exclude '**/dist/**' \
-            --exclude '**/build/**' \
-            || true; } | head -n 3000 > /tmp/gh-aw/agent/pr-diff.patch
-        LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
-        gh pr view "$PR_NUMBER" \
-          --repo $EXPR_GITHUB_REPOSITORY \
-          --json number,title,body,headRefName,additions,deletions,changedFiles,files \
-          > /tmp/gh-aw/agent/pr-meta.json
-        gh api "repos/$EXPR_GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" \
-          --paginate \
-          --jq '.[] | {id, path, line: (.line // .original_line), body: .body[:200], user: .user.login}' \
-          2>/dev/null | jq -s '.' > /tmp/gh-aw/agent/pr-review-comments.json \
-          || echo '[]' > /tmp/gh-aw/agent/pr-review-comments.json
-        COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)
-        echo "Pre-fetched PR diff (${LINES} lines), metadata, and ${COMMENT_COUNT} existing review comments"
-      fi
-tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
 cache:
   key: pr-prefetch-${{ github.event.pull_request.head.sha }}
   path: /tmp/gh-aw/agent
   restore-keys:
-    - pr-prefetch-${{ github.event.pull_request.number }}-
+  - pr-prefetch-${{ github.event.pull_request.number }}-
+description: Reviews pull requests using Matt Pocock's engineering skills to provide targeted, high-quality improvement suggestions based on the type of changes
+emoji: 🔍
+engine:
+  id: copilot
+  max-continuations: 6
+  model: claude-sonnet-4.6
+imports:
+- uses: shared/pr-review-base.md
+  with:
+    min-integrity: approved
+- shared/otlp.md
+max-daily-ai-credits: 10000
+"on":
+  pull_request:
+    types:
+    - ready_for_review
+  slash_command:
+    events:
+    - pull_request_comment
+    - pull_request_review_comment
+    name: matt
+    strategy: centralized
+permissions:
+  contents: read
+  copilot-requests: write
+  pull-requests: read
+pre-agent-steps:
+- env:
+    EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
+    GH_TOKEN: ${{ github.token }}
+    PR_NUMBER: ${{ github.event.pull_request.number }}
+  name: Pre-fetch PR diff and review comments
+  run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/agent\n# Skip fetch if cache already populated this data (actions/cache restore)\nif [ -f /tmp/gh-aw/agent/pr-diff.patch ] && [ -f /tmp/gh-aw/agent/pr-meta.json ] && [ -f /tmp/gh-aw/agent/pr-review-comments.json ]; then\n  LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)\n  COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)\n  echo \"Cache hit: using pre-fetched PR data (${LINES} diff lines, ${COMMENT_COUNT} review comments)\"\nelse\n  { gh pr diff \"$PR_NUMBER\" --repo $EXPR_GITHUB_REPOSITORY \\\n      --exclude '**/*.lock.yml' \\\n      --exclude '**/generated/**' \\\n      --exclude '**/dist/**' \\\n      --exclude '**/build/**' \\\n      || true; } | head -n 3000 > /tmp/gh-aw/agent/pr-diff.patch\n  LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)\n  gh pr view \"$PR_NUMBER\" \\\n    --repo $EXPR_GITHUB_REPOSITORY \\\n    --json number,title,body,headRefName,additions,deletions,changedFiles,files \\\n    > /tmp/gh-aw/agent/pr-meta.json\n  gh api \"repos/$EXPR_GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments\" \\\n    --paginate \\\n    --jq '.[] | {id, path, line: (.line // .original_line), body: .body[:200], user: .user.login}' \\\n    2>/dev/null | jq -s '.' > /tmp/gh-aw/agent/pr-review-comments.json \\\n    || echo '[]' > /tmp/gh-aw/agent/pr-review-comments.json\n  COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)\n  echo \"Pre-fetched PR diff (${LINES} lines), metadata, and ${COMMENT_COUNT} existing review comments\"\nfi\n"
+private: true
 safe-outputs:
   add-comment:
     hide-older-comments: true
     max: 1
   create-pull-request-review-comment:
     max: 10
-  submit-pull-request-review:
-    max: 1
   mentions:
-    allowed: ["@copilot"]
+    allowed:
+    - "@copilot"
   messages:
     footer: "> 🧠 *Reviewed using Matt Pocock's skills by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
-    run-started: "🧠 [{workflow_name}]({run_url}) is reviewing this {event_type} using Matt Pocock's engineering skills..."
-    run-success: "🧠 [{workflow_name}]({run_url}) has completed the skills-based review. ✅"
-    run-failure: "🧠 [{workflow_name}]({run_url}) {status} during the skills-based review."
-max-daily-ai-credits: 10000
+    run-failure: 🧠 [{workflow_name}]({run_url}) {status} during the skills-based review.
+    run-started: 🧠 [{workflow_name}]({run_url}) is reviewing this {event_type} using Matt Pocock's engineering skills...
+    run-success: 🧠 [{workflow_name}]({run_url}) has completed the skills-based review. ✅
+  submit-pull-request-review:
+    max: 1
+sandbox:
+  agent:
+    sudo: false
+skills:
+- mattpocock/skills/diagnosing-bugs@e9fcdf95b402d360f90f1db8d776d5dd450f9234
+- mattpocock/skills/tdd@e9fcdf95b402d360f90f1db8d776d5dd450f9234
+- mattpocock/skills/improve-codebase-architecture@e9fcdf95b402d360f90f1db8d776d5dd450f9234
+- mattpocock/skills/grill-with-docs@e9fcdf95b402d360f90f1db8d776d5dd450f9234
+- mattpocock/skills/to-prd@e9fcdf95b402d360f90f1db8d776d5dd450f9234
+- mattpocock/skills/codebase-design@e9fcdf95b402d360f90f1db8d776d5dd450f9234
+- mattpocock/skills/domain-modeling@e9fcdf95b402d360f90f1db8d776d5dd450f9234
 timeout-minutes: 15
-
-
+tools:
+  cli-proxy: true
+  github:
+    mode: gh-proxy
 ---
-
 # Matt Pocock Skills Reviewer
 
 You are a skilled engineering reviewer who applies [Matt Pocock's engineering skills](https://github.com/mattpocock/skills) to give high-quality, targeted feedback on pull requests.
