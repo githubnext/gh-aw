@@ -40,13 +40,7 @@ engine:
     azure-tenant-id: 398a6654-997b-47e9-b12b-9515b896b4de
     azure-client-id: adb907fd-188c-4029-b67f-2559d96b2f1b
 imports:
-  - shared/github-guard-policy.md
-  - shared/gh.md
-  - shared/reporting.md
-  - shared/github-queries-mcp-script.md
-  - shared/mcp/serena-go.md
-  - shared/otlp.md
-  - shared/token-telemetry-check.md
+  - shared/smoke-base.md
 network:
   allowed:
     - defaults

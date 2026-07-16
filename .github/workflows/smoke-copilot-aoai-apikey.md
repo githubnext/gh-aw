@@ -34,13 +34,7 @@ engine:
     # deployment rejects with HTTP 400. Force the "responses" wire API instead.
     COPILOT_PROVIDER_WIRE_API: responses
 imports:
-  - shared/github-guard-policy.md
-  - shared/gh.md
-  - shared/reporting.md
-  - shared/github-queries-mcp-script.md
-  - shared/mcp/serena-go.md
-  - shared/otlp.md
-  - shared/token-telemetry-check.md
+  - shared/smoke-base.md
 network:
   allowed:
     - defaults
