@@ -659,18 +659,17 @@ func retryCriticalArtifacts(ctx context.Context, opts downloadArtifactsOptions) 
 // downloadRunArtifacts downloads artifacts for a specific workflow run.
 // artifactFilter is a list of artifact base names to download; nil means download all.
 func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) error {
-	artifactFilter := opts.artifactFilter
-	logsDownloadLog.Printf("Downloading run artifacts: run_id=%d, output_dir=%s, owner=%s, repo=%s, artifactFilter=%v", opts.runID, opts.outputDir, opts.owner, opts.repo, artifactFilter)
+	logsDownloadLog.Printf("Downloading run artifacts: run_id=%d, output_dir=%s, owner=%s, repo=%s, artifactFilter=%v", opts.runID, opts.outputDir, opts.owner, opts.repo, opts.artifactFilter)
 	shouldLogProgress := IsRunningInCI() || opts.verbose
 
 	// Check if artifacts already exist on disk (since they're immutable)
 	if fileutil.DirExists(opts.outputDir) && !fileutil.IsDirEmpty(opts.outputDir) {
-		if len(artifactFilter) > 0 {
+		if len(opts.artifactFilter) > 0 {
 			// A specific artifact set is requested. Check whether each requested
 			// artifact base name already has a matching directory on disk so we
 			// can avoid re-downloading artifacts that are already present and only
 			// fetch the ones that are missing.
-			missing := findMissingFilterEntries(artifactFilter, opts.outputDir)
+			missing := findMissingFilterEntries(opts.artifactFilter, opts.outputDir)
 			if len(missing) == 0 {
 				logsDownloadLog.Printf("All requested artifacts already on disk for run %d", opts.runID)
 				if shouldLogProgress {
@@ -680,11 +679,11 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 				return nil
 			}
 			// Restrict the download to only the artifacts that are not yet on disk.
-			logsDownloadLog.Printf("Downloading missing artifacts for run %d: %v (already have: %v)", opts.runID, missing, artifactFilter)
+			logsDownloadLog.Printf("Downloading missing artifacts for run %d: %v (already have: %v)", opts.runID, missing, opts.artifactFilter)
 			if shouldLogProgress {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Downloading missing artifacts for run %d: %v", opts.runID, missing)))
 			}
-			artifactFilter = missing
+			opts.artifactFilter = missing
 			// Fall through to the download code below (MkdirAll is a no-op for existing dir).
 		} else {
 			// No filter — caller wants all artifacts. Keep the existing behaviour:
@@ -723,7 +722,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 		for _, name := range artifactNames {
 			if isDockerBuildArtifact(name) {
 				dockerBuildArtifacts = append(dockerBuildArtifacts, name)
-			} else if artifactMatchesFilter(name, artifactFilter) {
+			} else if artifactMatchesFilter(name, opts.artifactFilter) {
 				downloadableNames = append(downloadableNames, name)
 			}
 		}
@@ -744,7 +743,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 		spinner.Start()
 	}
 
-	if len(dockerBuildArtifacts) > 0 || len(artifactFilter) > 0 {
+	if len(dockerBuildArtifacts) > 0 || len(opts.artifactFilter) > 0 {
 		// When .dockerbuild artifacts are present or an artifact filter is active, download
 		// only the selected artifacts individually instead of using the bulk downloader.
 		// The bulk downloader (gh run download without --name) cannot apply a name filter,
@@ -755,7 +754,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 		if len(downloadableNames) == 0 {
 			// Nothing to download (all artifacts are either .dockerbuild or excluded by filter).
 			// For usage-only mode, skip workflow logs entirely to keep downloads lightweight.
-			if !isUsageOnlyArtifactFilter(artifactFilter) {
+			if !isUsageOnlyArtifactFilter(opts.artifactFilter) {
 				// Attempt workflow run logs for diagnostics before returning.
 				if logErr := downloadWorkflowRunLogs(ctx, opts.runID, opts.outputDir, opts.verbose, opts.owner, opts.repo, opts.hostname); logErr != nil {
 					if opts.verbose {
@@ -856,7 +855,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 		// before downloading all valid artifacts. Retry individually for critical artifacts
 		// that are missing, so flattening and audit analysis can proceed.
 		if skippedNonZipArtifacts {
-			retryCriticalArtifacts(ctx, downloadArtifactsOptions{runID: opts.runID, outputDir: opts.outputDir, verbose: opts.verbose, owner: opts.owner, repo: opts.repo, hostname: opts.hostname, artifactFilter: artifactFilter})
+			retryCriticalArtifacts(ctx, downloadArtifactsOptions{runID: opts.runID, outputDir: opts.outputDir, verbose: opts.verbose, owner: opts.owner, repo: opts.repo, hostname: opts.hostname, artifactFilter: opts.artifactFilter})
 		}
 
 		// When bulk download fails on case-colliding entries, gh CLI aborts and may skip
@@ -874,7 +873,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 					if isDockerBuildArtifact(name) {
 						continue
 					}
-					if artifactMatchesFilter(name, artifactFilter) {
+					if artifactMatchesFilter(name, opts.artifactFilter) {
 						retryNames = append(retryNames, name)
 					}
 				}
@@ -909,7 +908,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 		return fmt.Errorf("failed to flatten activation artifact: %w", err)
 	}
 
-	ensureUsageAwInfoFallback(ctx, downloadArtifactsOptions{runID: opts.runID, outputDir: opts.outputDir, verbose: opts.verbose, owner: opts.owner, repo: opts.repo, hostname: opts.hostname, artifactFilter: artifactFilter})
+	ensureUsageAwInfoFallback(ctx, downloadArtifactsOptions{runID: opts.runID, outputDir: opts.outputDir, verbose: opts.verbose, owner: opts.owner, repo: opts.repo, hostname: opts.hostname, artifactFilter: opts.artifactFilter})
 
 	// Flatten unified agent directory structure
 	if err := flattenUnifiedArtifact(opts.outputDir, opts.verbose); err != nil {
@@ -922,7 +921,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 	}
 
 	// Download and unzip workflow run logs unless caller requested usage-only mode.
-	if !isUsageOnlyArtifactFilter(artifactFilter) {
+	if !isUsageOnlyArtifactFilter(opts.artifactFilter) {
 		if err := downloadWorkflowRunLogs(ctx, opts.runID, opts.outputDir, opts.verbose, opts.owner, opts.repo, opts.hostname); err != nil {
 			// Log the error but don't fail the entire download process
 			// Logs may not be available for all runs (e.g., expired or deleted)

@@ -624,12 +624,11 @@ type updateActionsOptions struct {
 }
 
 func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, opts updateActionsOptions) error {
-	workflowsDir := opts.workflowsDir
-	if workflowsDir == "" {
-		workflowsDir = getWorkflowsDir()
+	if opts.workflowsDir == "" {
+		opts.workflowsDir = getWorkflowsDir()
 	}
 
-	updateLog.Printf("Updating action references in workflow files: dir=%s", workflowsDir)
+	updateLog.Printf("Updating action references in workflow files: dir=%s", opts.workflowsDir)
 
 	// Per-invocation cache: key = "repo@currentVersion", avoids repeated API calls
 	cache := make(map[string]latestReleaseResult)
@@ -638,7 +637,7 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, op
 
 	var updatedFiles []string
 
-	err := filepath.WalkDir(workflowsDir, func(path string, d os.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(opts.workflowsDir, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
