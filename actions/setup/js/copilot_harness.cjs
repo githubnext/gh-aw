@@ -459,6 +459,7 @@ function classifyCopilotFailure(detection) {
  * Shared retry predicate for the generic partial-execution branch.
  * Used by the runtime loop and unit tests to avoid divergence.
  * @param {{ exitCode: number, hasOutput: boolean, output: string, attempt: number, maxRetries: number }} params
+ *   output must be the combined stdout/stderr text for the failed attempt.
  * @returns {boolean}
  */
 function shouldRetryPartialExecution(params) {
