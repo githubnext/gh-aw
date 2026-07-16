@@ -34,7 +34,7 @@ name: Agentic Auto-Upgrade
 
 on:
   schedule:
-    - cron: "11 4 * * 6"  # Weekly (auto-upgrade)
+    - cron: "21 3 * * 5"  # Weekly (auto-upgrade)
   workflow_dispatch:
 
 permissions:
