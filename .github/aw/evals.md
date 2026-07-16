@@ -12,11 +12,11 @@ Evals let you verify automatically whether an agentic run met its goals. Each ev
 
 Per run:
 
-1. **Setup** — the evals job downloads the agent artifact (`agent_output.json`, `prompt.txt`) and writes a BinEval prompt containing all declared questions.
+1. **Setup** — the evals job downloads the agent artifact (`agent_output.json`) and writes a BinEval prompt containing all declared questions.
 2. **Execute** — an LLM judge runs in a network-restricted sandbox (same engine as the agent job) and answers each question with YES or NO.
 3. **Parse** — raw engine output is parsed into per-question records and written to `evals.jsonl`.
 4. **Redact** — any credential patterns are removed from the results before upload.
-5. **Upload** — `evals.jsonl` is uploaded as the `evals` workflow artifact and optionally persisted to the `evals/<workflow-id>` git branch.
+5. **Upload** — `evals.jsonl` is uploaded as the `evals` workflow artifact and committed to the `evals/<workflow-id>` git branch by the `push_evals_state` job.
 
 The evals job runs **after** the agent job and **in parallel with** `safe_outputs`, so it does not block the write path.
 
@@ -26,17 +26,22 @@ The evals job runs **after** the agent job and **in parallel with** `safe_output
 
 ### Shorthand — plain list
 
+> **Prerequisite:** `agent_output.json` is only included in the agent artifact when `safe-outputs` is also declared. Without it the evals job runs with no agent context and every question will receive `UNKNOWN`.
+
 ```yaml
 ---
 on:
   issues:
     types: [opened]
 engine: copilot
+safe-outputs:
+  comment:
+    allowed-tools: ["*"]
 evals:
-  - id: scoped_change
-    question: Is the implementation limited to the scope described in the issue?
-  - id: no_regressions
-    question: Does the change avoid modifying files unrelated to the task?
+  - id: response_provided
+    question: Does the agent output confirm that a response was written?
+  - id: no_unrelated_files
+    question: Does the agent output show that only the expected files were modified?
 ---
 
 Implement the requested change described in ${{ github.event.issue.body }}.
@@ -57,19 +62,16 @@ evals:
     - id: tests_pass
       question: Do all existing tests still pass according to the agent output?
     - id: scoped_change
-      question: Is the implementation limited to the scope described in the issue?
-      model: gpt-4o   # per-question model override
-  model: small         # default model for all questions
+      question: Does the agent output show that only the expected files were modified?
+  model: small         # model for all questions
   runs-on: ubuntu-latest
 ```
 
 **Fields:**
 
 - `questions:` — list of question objects (required in extended form, ≥ 1 entry).
-- `model:` — default LLM model for all questions. Use a model alias (`small`, `gpt-4o`) or a full model ID. Defaults to the engine's detection model (typically a small, cost-effective model).
-- `runs-on:` — optional runner override for the evals job. Inherits the workflow default when omitted.
-
-Each question object may include its own `model:` field to override the top-level default for that question only.
+- `model:` — LLM model for all questions. Use a model alias (`small`, `gpt-4o`) or a full model ID. Defaults to the engine's detection model (typically a small, cost-effective model).
+- `runs-on:` — optional runner override for the evals job. Defaults to `ubuntu-latest` when omitted.
 
 ---
 
@@ -85,7 +87,7 @@ Write one sentence describing what a successful run looks like.
 
 ### 2 — Identify observable properties
 
-Break the goal into properties that a judge can verify from `agent_output.json` and `prompt.txt`:
+Break the goal into properties that a judge can verify from `agent_output.json`:
 
 | Property | Observable signal |
 |---|---|
@@ -113,7 +115,7 @@ evals:
 
 ### 4 — Assign question cost
 
-Prefer `model: small` (the default) for factual YES/NO checks. Reserve a larger model for questions that require nuanced reasoning:
+Prefer `model: small` (the default) for factual YES/NO checks. Reserve a larger model for questions that require nuanced reasoning by setting `model` at the `evals:` level:
 
 ```yaml
 evals:
@@ -121,9 +123,8 @@ evals:
     - id: changelog_updated
       question: Does the agent output confirm that CHANGELOG was updated?
     - id: design_sound
-      question: Is the agent's proposed design consistent with established patterns in the codebase?
-      model: gpt-4o   # nuanced, benefits from a larger model
-  model: small
+      question: Is the agent's proposed design consistent with established patterns described in the agent output?
+  model: gpt-4o   # nuanced questions; override default small model
 ```
 
 ### Good question checklist
@@ -140,10 +141,10 @@ evals:
 
 ### Artifact
 
-Each run uploads `evals.jsonl` as the `evals` artifact (30-day retention). Each line is a JSON object:
+Each run uploads `evals.jsonl` as the `evals` artifact (retention follows repository or organization settings). Each line is a JSON object:
 
 ```json
-{"run_id":"12345678","workflow_id":"my-workflow","id":"compiles","question":"Does the generated code compile?","answer":"YES","timestamp":"2026-07-15T10:00:00Z"}
+{"id":"compiles","question":"Does the generated code compile?","answer":"YES","model":"small","timestamp":"2026-07-15T10:00:00Z","runid":"12345678"}
 ```
 
 ### Git branch
@@ -153,15 +154,20 @@ Results are also committed to `evals/<sanitized-workflow-id>` by the `push_evals
 Read results with:
 
 ```bash
-gh aw audit <run-id>          # includes evals section when present
-gh aw logs <workflow-name>    # aggregates evals.jsonl across recent runs
+gh aw audit <run-id> --artifacts evals    # downloads evals.jsonl from the run artifact
+gh aw logs <workflow-name> --evals        # filter to runs that contain evals results
 ```
 
 ---
 
 ## Required Permissions
 
-The evals job itself reads artifacts and runs the engine — no extra permissions beyond `contents: read`. The `push_evals_state` job that persists results to a git branch needs:
+The evals job itself reads artifacts and runs the engine. The compiler grants `contents: read` by default, and conditionally adds:
+
+- `copilot-requests: write` — when the workflow uses Copilot API requests.
+- `id-token: write` — when the workflow uses GitHub OIDC authentication or OTLP telemetry.
+
+These are added automatically; no manual configuration is needed. The `push_evals_state` job that persists results to a git branch always needs:
 
 ```yaml
 permissions:
@@ -190,12 +196,12 @@ safe-outputs:
   add-label:
     allowed-labels: [bug, enhancement, question, needs-triage]
 evals:
-  - id: label_applied
-    question: Did the agent apply at least one label to the issue?
-  - id: correct_type
-    question: Is the applied label appropriate for the issue content described in the prompt?
+  - id: label_requested
+    question: Does the agent output show that at least one label was requested via a safe-output action?
+  - id: label_in_allowed_set
+    question: Does the agent output show that the requested label belongs to the allowed set (bug, enhancement, question, needs-triage)?
   - id: no_extra_labels
-    question: Did the agent avoid applying more than two labels?
+    question: Does the agent output show that no more than two labels were requested?
 ---
 
 Read ${{ github.event.issue.title }} and ${{ github.event.issue.body }}.
