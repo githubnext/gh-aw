@@ -48,13 +48,9 @@ network:
     - defaults
     - python
 imports:
-  - shared/github-guard-policy.md
+  - shared/github-guard-with-reporting.md
   - shared/python-dataviz.md
   - ../skills/jqschema/SKILL.md
-  - shared/reporting.md
-
-
-  - shared/otlp.md
 ---
 
 # Organization Health Report

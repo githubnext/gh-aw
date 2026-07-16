@@ -22,10 +22,7 @@ safe-outputs:
     allowed: [bug, feature, enhancement, documentation, question, help-wanted, good-first-issue]
   add-comment: {}
 imports:
-  - shared/github-guard-policy.md
-  - shared/reporting.md
-
-  - shared/otlp.md
+  - shared/github-guard-with-reporting.md
 ---
 
 # Issue Triage Agent
