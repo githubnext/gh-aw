@@ -209,14 +209,14 @@ steps:
           updatedAt,
           author: (.author.login // "unknown"),
           mergeStateStatus,
-          failed_checks: (.statusCheckRollup // [] | map(select(
+          failed_checks: ((.statusCheckRollup // []) | if type == "array" then . else [] end | map(select(
             if .__typename == "CheckRun" then
               ((.conclusion // "") | IN("FAILURE", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE"))
             elif .__typename == "StatusContext" then
               ((.state // "") | IN("FAILURE", "ERROR"))
             else false end
           )) | map({
-            name: (.name // .context // "unknown"),
+            name: (if .__typename == "StatusContext" then (.context // "unknown") else (.name // "unknown") end),
             conclusion: (.conclusion // .state // "unknown"),
             url: (.detailsUrl // .targetUrl // null)
           }))
