@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
@@ -67,35 +66,6 @@ func printBootstrapConfigTODO(w io.Writer, profile *resolvedBootstrapProfile) {
 	}
 
 	fmt.Fprintln(w, "")
-}
-
-func printBootstrapConfigRerunHint(w io.Writer, sources []string, afterMerge bool) {
-	if len(sources) == 0 {
-		return
-	}
-
-	prefix := "Rerun"
-	if afterMerge {
-		prefix = "After merging the pull request, rerun"
-	}
-
-	fmt.Fprintln(w, "")
-	fmt.Fprintf(w, "%s 'gh aw add %s' from inside the target repository to apply these steps automatically.\n", console.FormatInfoMessage(prefix), strings.Join(sources, " "))
-	fmt.Fprintln(w, "")
-}
-
-func validateBootstrapConfigPreflight(ctx context.Context, repo string, profile *resolvedBootstrapProfile) error {
-	if repo == "" || profile == nil || profile.Profile == nil || len(profile.Profile.Config) == 0 {
-		return nil
-	}
-
-	for _, action := range profile.Profile.Config {
-		if err := validateBootstrapActionPreRepo(ctx, repo, action); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // executeBootstrapConfigForAdd runs the bootstrap config actions interactively.

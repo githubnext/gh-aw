@@ -100,62 +100,12 @@ type bootstrapGitHubAppExchangeResponse struct {
 	Name     string `json:"name"`
 }
 
-type bootstrapGitHubAppRepositoryInstallation struct {
-	ClientID string `json:"client_id"`
-	AppID    int64  `json:"app_id"`
-	AppSlug  string `json:"app_slug"`
-	ID       int64  `json:"id"`
-}
-
 type bootstrapGitHubAppUserInstallation struct {
 	ID                  int64
 	ClientID            string
 	AppID               string
 	AppSlug             string
 	RepositorySelection string
-}
-
-func buildBootstrapProfilePlan(ctx context.Context, repo string, profile *resolvedBootstrapProfile, sources []string, repoReady bool) (bool, []string, error) {
-	if profile == nil || profile.Profile == nil {
-		return false, nil, nil
-	}
-
-	lines := make([]string, 0, len(profile.Profile.Config))
-	if !repoReady {
-		for _, action := range profile.Profile.Config {
-			if err := validateBootstrapActionPreRepo(ctx, repo, action); err != nil {
-				return false, nil, err
-			}
-			if bootstrapActionCanMutate(action, sources) {
-				lines = append(lines, "- bootstrap profile will configure "+bootstrapActionPlanLabel(action))
-			}
-		}
-		return len(lines) > 0, lines, nil
-	}
-
-	state, err := bootstrapProfileState(ctx, repo)
-	if err != nil {
-		return false, nil, err
-	}
-	usesActionsToken, err := profileSourcesUseActionsTokenCopilotAuth(ctx, sources)
-	if err != nil {
-		return false, nil, err
-	}
-
-	needsMutation := false
-	for _, action := range profile.Profile.Config {
-		pending, err := bootstrapActionNeedsMutation(ctx, repo, action, state, usesActionsToken)
-		if err != nil {
-			return false, nil, err
-		}
-		if pending {
-			needsMutation = true
-			lines = append(lines, "- bootstrap profile will configure "+bootstrapActionPlanLabel(action))
-		}
-	}
-
-	bootstrapLog.Printf("Built bootstrap profile plan: repo=%s, needsMutation=%t, planLines=%d", repo, needsMutation, len(lines))
-	return needsMutation, lines, nil
 }
 
 func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConfig) error {
@@ -285,41 +235,6 @@ func bootstrapActionNeedsMutation(ctx context.Context, repo string, action repos
 		return false, nil
 	default:
 		return false, fmt.Errorf("unsupported bootstrap action type %q. Example: use one of %s", action.Type, bootstrapActionTypeExample)
-	}
-}
-
-func validateBootstrapActionPreRepo(ctx context.Context, repo string, action repositoryPackageBootstrapAction) error {
-	if action.Type == "require-owner-type" {
-		return runBootstrapRequireOwnerType(ctx, repo, action)
-	}
-	return nil
-}
-
-func bootstrapActionCanMutate(action repositoryPackageBootstrapAction, sources []string) bool {
-	switch action.Type {
-	case "repo-variable", "repo-secret", "github-app", "commit-and-push":
-		return true
-	case "copilot-auth":
-		return true
-	default:
-		return false
-	}
-}
-
-func bootstrapActionPlanLabel(action repositoryPackageBootstrapAction) string {
-	switch action.Type {
-	case "repo-variable":
-		return "repository variable " + action.Name
-	case "repo-secret":
-		return "repository secret " + action.Name
-	case "github-app":
-		return fmt.Sprintf("GitHub App credentials (%s, %s)", action.AppIDVariable, action.PrivateKeySecret)
-	case "copilot-auth":
-		return "Copilot secret " + action.Secret
-	case "commit-and-push":
-		return "local git commit and push"
-	default:
-		return action.Type
 	}
 }
 
