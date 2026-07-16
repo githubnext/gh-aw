@@ -46,7 +46,7 @@ type concurrentRunDownloadParams struct {
 }
 
 // runArtifactsConcurrentOptions bundles the per-invocation options for
-// downloadRunArtifactsConcurrent, replacing the previous 7-parameter positional list.
+// downloadRunArtifactsConcurrent, replacing the previous 8-parameter positional list.
 type runArtifactsConcurrentOptions struct {
 	outputDir      string
 	verbose        bool
