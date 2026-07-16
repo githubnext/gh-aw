@@ -312,7 +312,7 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 		if openBootstrapBrowser(preconfiguredPATURL) {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Opened the preconfigured Copilot PAT page in your browser."))
 		} else {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Couldn't open your browser automatically — open the URL above manually."))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Couldn't open your browser automatically (no supported opener found) — open the URL above manually."))
 		}
 	}
 
