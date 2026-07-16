@@ -325,7 +325,7 @@ func bootstrapActionPlanLabel(action repositoryPackageBootstrapAction) string {
 
 func runBootstrapCommitAndPushAction(ctx context.Context, repoDir string, action repositoryPackageBootstrapAction) error {
 	if repoDir == "" {
-		return errors.New("bootstrap commit-and-push requires a local checkout directory. Example: rerun from a git checkout or use gh aw bootstrap --dir PATH")
+		return errors.New("bootstrap commit-and-push requires a local checkout directory. Example: rerun from a git checkout and then rerun gh aw add from that checkout")
 	}
 
 	pending, err := bootstrapRepoHasPendingChanges(ctx, repoDir)

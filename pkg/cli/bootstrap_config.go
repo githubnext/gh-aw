@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
@@ -66,7 +67,20 @@ func printBootstrapConfigTODO(w io.Writer, profile *resolvedBootstrapProfile) {
 	}
 
 	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, console.FormatInfoMessage("Run 'gh aw bootstrap --repo OWNER/REPO' to apply these steps interactively."))
+}
+
+func printBootstrapConfigRerunHint(w io.Writer, sources []string, afterMerge bool) {
+	if len(sources) == 0 {
+		return
+	}
+
+	prefix := "Rerun"
+	if afterMerge {
+		prefix = "After merging the pull request, rerun"
+	}
+
+	fmt.Fprintln(w, "")
+	fmt.Fprintf(w, "%s 'gh aw add %s' from inside the target repository to apply these steps automatically.\n", console.FormatInfoMessage(prefix), strings.Join(sources, " "))
 	fmt.Fprintln(w, "")
 }
 

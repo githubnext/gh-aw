@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
@@ -417,7 +418,7 @@ func TestRunAddBootstrapConfigFlow(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, out.String(), "Could not determine target repository for automatic config setup")
 		assert.Contains(t, out.String(), "Post-installation steps from owner/pkg")
-		assert.Contains(t, out.String(), "Run 'gh aw bootstrap --repo OWNER/REPO' to apply these steps interactively.")
+		assert.Contains(t, out.String(), "Rerun 'gh aw add owner/pkg' from inside the target repository to apply these steps automatically.")
 	})
 }
 
@@ -442,6 +443,73 @@ func TestRunAddBootstrapConfigFlow_NilProfile(t *testing.T) {
 	}, false)
 	require.NoError(t, err)
 	assert.Empty(t, out.String())
+}
+
+func TestEnsureAddRepositoryInitialized(t *testing.T) {
+	originalFindGitRoot := addFindGitRoot
+	originalInitRepository := addInitRepository
+	originalMissingInitMarkers := addMissingInitMarkers
+	t.Cleanup(func() {
+		addFindGitRoot = originalFindGitRoot
+		addInitRepository = originalInitRepository
+		addMissingInitMarkers = originalMissingInitMarkers
+	})
+
+	t.Run("skips initialization outside a git checkout", func(t *testing.T) {
+		addFindGitRoot = func() (string, error) { return "", gitutil.ErrNotGitRepository }
+		addMissingInitMarkers = func(string, string) ([]string, error) {
+			t.Fatal("missing init markers check should be skipped outside a git checkout")
+			return nil, nil
+		}
+		addInitRepository = func(InitOptions) error {
+			t.Fatal("InitRepository should not run outside a git checkout")
+			return nil
+		}
+
+		err := ensureAddRepositoryInitialized("", false)
+		require.NoError(t, err)
+	})
+
+	t.Run("runs init when required markers are missing", func(t *testing.T) {
+		repoDir := t.TempDir()
+		addFindGitRoot = func() (string, error) { return repoDir, nil }
+		addMissingInitMarkers = func(baseDir string, engineOverride string) ([]string, error) {
+			assert.Equal(t, ".", baseDir)
+			assert.Equal(t, "claude", engineOverride)
+			return []string{".gitattributes"}, nil
+		}
+
+		called := false
+		addInitRepository = func(opts InitOptions) error {
+			called = true
+			assert.True(t, opts.Verbose)
+			assert.Equal(t, "claude", opts.Engine)
+			assert.True(t, opts.Skill)
+			assert.True(t, opts.Agent)
+			assert.True(t, opts.MCP)
+			assert.False(t, opts.CodespaceEnabled)
+			assert.False(t, opts.Completions)
+			assert.False(t, opts.CreatePR)
+			return nil
+		}
+
+		err := ensureAddRepositoryInitialized("claude", true)
+		require.NoError(t, err)
+		assert.True(t, called)
+	})
+
+	t.Run("does nothing when markers are already present", func(t *testing.T) {
+		repoDir := t.TempDir()
+		addFindGitRoot = func() (string, error) { return repoDir, nil }
+		addMissingInitMarkers = func(string, string) ([]string, error) { return nil, nil }
+		addInitRepository = func(InitOptions) error {
+			t.Fatal("InitRepository should not run when markers are already present")
+			return nil
+		}
+
+		err := ensureAddRepositoryInitialized("", false)
+		require.NoError(t, err)
+	})
 }
 
 func TestAddResolvedWorkflows_IgnoresBootstrapRequireOwnerTypeDuringInstall(t *testing.T) {

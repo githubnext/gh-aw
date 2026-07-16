@@ -159,6 +159,9 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 	if err != nil {
 		return err
 	}
+	if err := ensureAddRepositoryInitialized(engineOverride, verbose); err != nil {
+		return err
+	}
 	if _, err := AddResolvedWorkflows(cmd.Context(), args, resolved, opts); err != nil {
 		return err
 	}
@@ -166,6 +169,7 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 		// When creating a PR, config cannot be applied until the PR is merged.
 		// Print the manual checklist so the user knows what to do after merge.
 		printBootstrapConfigTODO(cmd.ErrOrStderr(), resolved.BootstrapProfile)
+		printBootstrapConfigRerunHint(cmd.ErrOrStderr(), args, true)
 		return nil
 	}
 	return runAddBootstrapConfigFlow(cmd.Context(), cmd.ErrOrStderr(), args, resolved.BootstrapProfile, verbose)
@@ -181,6 +185,7 @@ func runAddBootstrapConfigFlow(ctx context.Context, output io.Writer, sources []
 		addLog.Printf("Could not determine target repository for automatic bootstrap config setup: %v", err)
 		fmt.Fprintln(output, console.FormatWarningMessage("Could not determine target repository for automatic config setup; showing manual checklist instead."))
 		printBootstrapConfigTODO(output, profile)
+		printBootstrapConfigRerunHint(output, sources, false)
 		return nil
 	}
 

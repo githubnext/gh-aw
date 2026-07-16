@@ -2227,5 +2227,6 @@ func TestPrintBootstrapConfigTODO(t *testing.T) {
 		assert.Contains(t, out, "☐ Set Copilot PAT secret: COPILOT_TOKEN")
 		assert.Contains(t, out, "☐ Commit and push local changes — Bootstrap repository changes")
 		assert.Contains(t, out, "Run the bootstrap wizard.")
+		assert.NotContains(t, out, "gh aw bootstrap")
 	})
 }

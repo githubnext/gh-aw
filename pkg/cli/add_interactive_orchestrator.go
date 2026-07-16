@@ -16,7 +16,6 @@ import (
 )
 
 var addInteractiveLog = logger.New("cli:add_interactive")
-var addInteractiveRunBootstrap = RunBootstrap
 
 // AddInteractiveConfig holds configuration for interactive add mode
 type AddInteractiveConfig struct {
@@ -106,13 +105,6 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	// Step 1c: Show workflow descriptions if available
 	config.showWorkflowDescriptions()
 
-	if config.shouldRunBootstrapFlow() {
-		if err := config.checkGitRepository(); err != nil {
-			return err
-		}
-		return config.runBootstrapFlow()
-	}
-
 	// Step 2: Check gh auth status
 	if err := config.checkGHAuthStatus(); err != nil {
 		return err
@@ -143,8 +135,13 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 		return err
 	}
 
+	initFiles, err := ensureAddRepositoryInitializedWithDetails(config.EngineOverride, config.Verbose)
+	if err != nil {
+		return err
+	}
+
 	// Step 7: Determine files to add
-	filesToAdd, initFiles, err := config.determineFilesToAdd()
+	filesToAdd, _, err := config.determineFilesToAdd()
 	if err != nil {
 		return err
 	}
@@ -204,22 +201,6 @@ func (c *AddInteractiveConfig) resolveWorkflows() error {
 
 	c.resolvedWorkflows = resolved
 	return nil
-}
-
-func (c *AddInteractiveConfig) shouldRunBootstrapFlow() bool {
-	return c.resolvedWorkflows != nil && c.resolvedWorkflows.BootstrapProfile != nil
-}
-
-func (c *AddInteractiveConfig) runBootstrapFlow() error {
-	addInteractiveLog.Printf("Delegating add-wizard to bootstrap flow: repo=%s, sources=%d", c.RepoOverride, len(c.WorkflowSpecs))
-	return addInteractiveRunBootstrap(BootstrapOptions{
-		Ctx:            c.Ctx,
-		Repo:           c.RepoOverride,
-		Dir:            ".",
-		EngineOverride: c.EngineOverride,
-		Sources:        c.WorkflowSpecs,
-		Verbose:        c.Verbose,
-	})
 }
 
 // showWorkflowDescriptions displays the descriptions of resolved workflows
@@ -335,6 +316,13 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string,
 	addInteractiveLog.Print("Confirming changes with user")
 
 	fmt.Fprintln(os.Stderr, "")
+	if len(initFiles) > 0 {
+		fmt.Fprintln(os.Stderr, "The repository will also be initialized with:")
+		for _, f := range initFiles {
+			fmt.Fprintf(os.Stderr, "  • %s\n", f)
+		}
+		fmt.Fprintln(os.Stderr, "")
+	}
 
 	confirmed := true // Default to yes
 	form := console.NewConfirmForm(
