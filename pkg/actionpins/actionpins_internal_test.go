@@ -4,6 +4,7 @@ package actionpins
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -260,30 +261,24 @@ func TestGetContainerPin_ReturnsPinnedImage(t *testing.T) {
 }
 
 func TestGetContainerPin_MCPGatewayVersionsArePinned(t *testing.T) {
-	tests := []struct {
-		name   string
-		image  string
-		digest string
-	}{
-		{
-			name:   "v0.3.6",
-			image:  "ghcr.io/github/gh-aw-mcpg:v0.3.6",
-			digest: "sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c",
-		},
-		{
-			name:   "v0.3.9",
-			image:  "ghcr.io/github/gh-aw-mcpg:v0.3.9",
-			digest: "sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388",
-		},
-	}
+	getActionPins()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pin, ok := GetContainerPin(tt.image)
-			require.True(t, ok, "Expected embedded container pin for %s", tt.image)
-			assert.Equal(t, tt.image, pin.Image, "Expected image name to match key")
-			assert.Equal(t, tt.digest, pin.Digest, "Expected digest to match for %s", tt.image)
-			assert.Equal(t, tt.image+"@"+tt.digest, pin.PinnedImage, "Expected pinned image to include digest for %s", tt.image)
+	var mcpgImages []string
+	for image := range cachedContainerPins {
+		if strings.HasPrefix(image, "ghcr.io/github/gh-aw-mcpg:") {
+			mcpgImages = append(mcpgImages, image)
+		}
+	}
+	require.NotEmpty(t, mcpgImages, "Expected at least one embedded MCP Gateway container pin")
+	slices.Sort(mcpgImages)
+
+	for _, image := range mcpgImages {
+		t.Run(image, func(t *testing.T) {
+			pin, ok := GetContainerPin(image)
+			require.True(t, ok, "Expected embedded container pin for %s", image)
+			assert.Equal(t, image, pin.Image, "Expected image name to match key")
+			assert.NotEmpty(t, pin.Digest, "Expected digest to be populated for %s", image)
+			assert.Equal(t, image+"@"+pin.Digest, pin.PinnedImage, "Expected pinned image to include digest for %s", image)
 		})
 	}
 }
