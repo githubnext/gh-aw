@@ -208,7 +208,18 @@ steps:
           headRefName,
           updatedAt,
           author: (.author.login // "unknown"),
-          mergeStateStatus
+          mergeStateStatus,
+          failed_checks: ((.statusCheckRollup // []) | if type == "array" then . else [] end | map(select(
+            if .__typename == "CheckRun" then
+              ((.conclusion // "") | IN("FAILURE", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE"))
+            elif .__typename == "StatusContext" then
+              ((.state // "") | IN("FAILURE", "ERROR"))
+            else false end
+          )) | map({
+            name: (if .__typename == "StatusContext" then (.context // "unknown") else (.name // "unknown") end),
+            conclusion: (.conclusion // .state // "unknown"),
+            url: (.detailsUrl // .targetUrl // null)
+          }))
         })
       }' "$eligible_file" \
         > /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json
@@ -374,7 +385,8 @@ For each PR that is not skipped:
        ```
    - **Otherwise**: inspect PR review threads and comments for unresolved feedback.
      - If unresolved PR reviews exist, include an explicit unresolved-reviews list in the nudge comment (reviewer + direct link for each unresolved review thread, newest first).
-     - Combine all nudges (unresolved review feedback, branch-refresh request, completion plan, etc.) into **one single comment** that includes:
+     - If `failed_checks` in the compact JSON for this PR contains any entries, include an explicit list of failed check names (and their URLs when available) in the nudge comment so the maintainer can investigate them.
+     - Combine all nudges (unresolved review feedback, failed checks, branch-refresh request, completion plan, etc.) into **one single comment** that includes:
        - `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line (required — this is how the cooldown and duplicate-comment checks detect sous-chef).
        - @copilot mention with a concise, actionable instruction covering all relevant nudges in one message, including a direct instruction to run the `pr-finisher` skill.
    - Every `add_comment` must include `pr_number` set to the current PR's numeric `number` from the loop item.
@@ -472,7 +484,7 @@ Given one PR number and compact metadata:
    - whether branch update should be attempted (always false when `conflicting` is true)
    - a single combined nudge comment body:
      - if `conflicting` is true: a targeted nudge asking `@copilot` to run `make merge-main` to resolve conflicts
-     - otherwise: a combined nudge covering unresolved review feedback, branch refresh, and any other forward-progress action including a direct instruction to run the `pr-finisher` skill — one comment only, never two; if unresolved PR reviews exist, include an explicit unresolved-reviews list (reviewer + direct link per unresolved review thread)
+     - otherwise: a combined nudge covering unresolved review feedback, failed checks (from `failed_checks` in the compact JSON — list each by name with URL when available), branch refresh, and any other forward-progress action including a direct instruction to run the `pr-finisher` skill — one comment only, never two; if unresolved PR reviews exist, include an explicit unresolved-reviews list (reviewer + direct link per unresolved review thread)
    - `resolve_review_threads`: an array of unresolved PR review thread node IDs to resolve via safe output; include a thread only when the thread already contains a follow-up response from the PR author or `@copilot` that addresses the feedback
    - `dismiss_reviews`: an array of review IDs — include a review ID only when the review was authored by `github-actions[bot]` with `CHANGES_REQUESTED` state AND all review threads on the PR are resolved (no unresolved threads remain); return an empty array if there are unresolved threads or no qualifying reviews
 4. Make at most 8 tool calls total. If 8 calls are insufficient to reach a confident decision, set all fields to `null` and set `skip_reason: "insufficient_context"`.
