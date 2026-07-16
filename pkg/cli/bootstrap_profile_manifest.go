@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const bootstrapActionTypeExample = "require-owner-type, repo-variable, repo-secret, github-app, copilot-auth, or handoff"
+const bootstrapActionTypeExample = "require-owner-type, repo-variable, repo-secret, github-app, copilot-auth, commit-and-push, or handoff"
 
 type repositoryPackageBootstrap struct {
 	Config []repositoryPackageBootstrapAction
@@ -343,6 +343,10 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 		}
 		if action.Strategy != "prompt-if-actions-auth-unavailable" {
 			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].strategy must be 'prompt-if-actions-auth-unavailable'. Example: { type: copilot-auth, strategy: prompt-if-actions-auth-unavailable }", manifestPath, index)
+		}
+	case "commit-and-push":
+		if action.Message == "" {
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].message is required when type=commit-and-push. Example: { type: commit-and-push, message: Bootstrap repository changes }", manifestPath, index)
 		}
 	case "handoff":
 		if action.Message == "" {

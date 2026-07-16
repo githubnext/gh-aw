@@ -349,6 +349,24 @@ config:
 	}
 }
 
+func TestParseRepositoryPackageManifest_CommitAndPushAction(t *testing.T) {
+	manifest, _, err := parseRepositoryPackageManifest("aw.yml", []byte(`name: Control Plane
+config:
+  - type: commit-and-push
+    message: Bootstrap repository changes
+`))
+	if err != nil {
+		t.Fatalf("parseRepositoryPackageManifest returned error: %v", err)
+	}
+	action := manifest.Bootstrap.Config[0]
+	if action.Type != "commit-and-push" {
+		t.Fatalf("expected commit-and-push action, got %q", action.Type)
+	}
+	if action.Message != "Bootstrap repository changes" {
+		t.Fatalf("expected commit message to be preserved, got %q", action.Message)
+	}
+}
+
 func TestNormalizeBootstrapRuntime_SetsDefaultProfileHooks(t *testing.T) {
 	normalizedRuntime := normalizeBootstrapRuntime(bootstrapRuntime{})
 	if normalizedRuntime.resolveProfile == nil {
