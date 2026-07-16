@@ -301,16 +301,18 @@ function wrapWithClientRebinding(type, messageHandler, handlerGithubClient) {
     return messageHandler;
   }
   return async (...args) => {
-    const hadGithub = Object.prototype.hasOwnProperty.call(global, "github");
-    const previousGithub = global.github;
-    global.github = handlerGithubClient;
+    /** @type {any} */
+    const globalState = global;
+    const hadGithub = Object.prototype.hasOwnProperty.call(globalState, "github");
+    const previousGithub = globalState.github;
+    globalState.github = handlerGithubClient;
     try {
       return await messageHandler(...args);
     } finally {
       if (hadGithub) {
-        global.github = previousGithub;
+        globalState.github = previousGithub;
       } else {
-        delete global.github;
+        delete globalState.github;
       }
     }
   };
@@ -357,9 +359,12 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
             handlerConfig._prReviewBufferRegistry = prReviewBufferRegistry;
           }
 
+          /** @type {any|null} */
           let handlerGithubClient = null;
-          if (handlerConfig[GITHUB_TOKEN_CONFIG_KEY] && typeof global.getOctokit === "function") {
-            handlerGithubClient = global.getOctokit(handlerConfig[GITHUB_TOKEN_CONFIG_KEY]);
+          /** @type {any} */
+          const globalState = global;
+          if (handlerConfig[GITHUB_TOKEN_CONFIG_KEY] && typeof globalState.getOctokit === "function") {
+            handlerGithubClient = globalState.getOctokit(handlerConfig[GITHUB_TOKEN_CONFIG_KEY]);
           }
           const messageHandler = await handlerModule.main(handlerConfig, handlerGithubClient);
 
