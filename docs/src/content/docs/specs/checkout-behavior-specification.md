@@ -111,7 +111,7 @@ Entries with the same `(repository, path, wiki)` key MUST merge with these rules
 ### 3.4 Checkout Manifest
 
 For non-default cross-repo checkouts, the compiler MUST emit a checkout manifest step.  
-Runtime lookup (`find_repo_checkout`) MUST prefer manifest paths and MUST reject manifest paths that are absolute or escape workspace roots.
+Runtime lookup (`find_repo_checkout`) MUST prefer manifest paths and MUST reject manifest paths that are absolute or escape workspace roots (see §7 test T-CHK-014 for compliance test coverage of this requirement).
 
 Checkout-manifest generation MUST include enough per-checkout auth metadata to resolve default branches and safe_outputs repo targeting without relying on implicit defaults.  
 The manifest (or manifest-construction env) MUST NOT persist resolved token values to disk.
@@ -119,6 +119,16 @@ The manifest (or manifest-construction env) MUST NOT persist resolved token valu
 ---
 
 ## 4. Authentication and Token Resolution
+
+### 4.0 Compiler Error Message Requirements
+
+When `github-token` and `github-app` are both specified on the same checkout entry, the compiler MUST reject the workflow with an error. The normative error message format is:
+
+```
+Checkout entry for '<repository>' specifies both 'github-token' and 'github-app'. These fields are mutually exclusive. Remove one of them.
+```
+
+Where `<repository>` is the `repository` field value from the checkout entry (or `"(default)"` when `repository` is unset). The error MUST be emitted as a compiler validation error (not a warning) and MUST halt compilation.
 
 ### 4.1 Checkout Entry Auth
 
@@ -239,6 +249,7 @@ Effective side-repo token precedence MUST be:
 - **T-CHK-011**: `checkout.safe-outputs-github-app` is the sole supported safe_outputs auth override per checkout entry
 - **T-CHK-012**: safe_outputs checkout token MUST NOT use `safe-outputs.github-app` or `safe-outputs.github-token`; only `safe-outputs-github-app` (per entry) or `GITHUB_TOKEN` are permitted
 - **T-CHK-013**: Checkout-manifest generation includes safe_outputs auth metadata without persisting resolved tokens
+- **T-CHK-014**: Checkout-manifest path resolution MUST reject paths that are absolute (e.g., `/etc/passwd`) or escape the workspace root (e.g., `../../sensitive`); rejected paths MUST produce an error and MUST NOT be used for checkout or file lookup
 
 ### 7.2 Compliance Checklist
 
@@ -252,6 +263,17 @@ Effective side-repo token precedence MUST be:
 | Submodule cleanup behavior | T-CHK-010 | C1/C2 | Required |
 | Checkout-level safe_outputs auth field | T-CHK-011, T-CHK-012 | C1/C2 | Required |
 | Checkout-manifest generation requirements | T-CHK-013 | C1/C2 | Required |
+| Checkout-manifest path-escape rejection | T-CHK-014 | C2 | Required |
+
+### 7.3 Safeguards
+
+The following MUST-level norms govern credential and token safety during checkout and `safe_outputs` operations:
+
+1. **Token write-to-disk prohibition**: `safe-outputs-github-app` minted tokens MUST NOT be written to disk at any point before the `safe_outputs` job begins its push/PR operations. Token values MUST be passed only as environment variables or via GitHub Actions secret interpolation at the step level. Any intermediate file, log entry, or env export that materializes the token value to disk MUST be treated as a security violation.
+
+2. **Manifest path rejection**: Checkout-manifest paths that are absolute or that escape the workspace root MUST be rejected before any file I/O is performed against them. The rejection MUST produce an actionable error message (see §3.4 and T-CHK-014).
+
+3. **Credential cleanup**: When `force-clean-git-credentials: true` is active and `keep-credentials-for-push` is not, all credential-bearing git config sections MUST be removed from `.git/config` and `.git/modules/**/config` before the agent step completes.
 
 ---
 
