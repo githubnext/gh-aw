@@ -98,7 +98,8 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 		return nil, err
 	}
 
-	bootstrapProfile, resolutionWarnings := selectBootstrapProfile(specResolution.BootstrapProfiles, resolutionWarnings)
+	bootstrapProfile, updatedWarnings := selectBootstrapProfile(specResolution.BootstrapProfiles, resolutionWarnings)
+	resolutionWarnings = updatedWarnings
 
 	resolutionLog.Printf("Resolution complete: resolved=%d workflows, has_wildcard=%t, has_dispatch=%t",
 		len(resolvedWorkflows), hasWildcard, hasWorkflowDispatch)
@@ -112,7 +113,7 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 	}, nil
 }
 
-type workflowSpecResolution struct {
+type specResolutionResult struct {
 	ParsedSpecs       []*WorkflowSpec
 	Warnings          []string
 	BootstrapProfiles []*resolvedBootstrapProfile
@@ -130,8 +131,8 @@ func validateResolveWorkflowsInput(workflows []string) error {
 	return nil
 }
 
-func parseWorkflowSpecsForResolution(ctx context.Context, workflows []string) (*workflowSpecResolution, error) {
-	result := &workflowSpecResolution{
+func parseWorkflowSpecsForResolution(ctx context.Context, workflows []string) (*specResolutionResult, error) {
+	result := &specResolutionResult{
 		ParsedSpecs: make([]*WorkflowSpec, 0, len(workflows)),
 	}
 	for _, workflow := range workflows {
