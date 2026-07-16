@@ -1,22 +1,27 @@
-# Task Mining Run - 2026-07-16
+# Task Mining Run - 2026-07-16T13:15:00Z
 
 ## Summary
-- Discussions scanned: 13 (new since last run)
-- Tasks identified: 5
-- Issues created: 0 (create_issue limit already exhausted by previous runs this cycle)
+- Discussions scanned: 7 new (20 total processed)
+- Tasks identified: 5 high-value
+- Issues created: 0 (create_issue quota 5/5 already exhausted from prior runs this session)
 - Duplicates avoided: 0
 
-## Tasks Identified (ready for next run)
-1. **Add compile-time assertions for CodingAgentEngine types** — 8 concrete types in `pkg/workflow/*_engine.go` — Source: #45742
-2. **Add compile-time assertions for ConditionNode implementors** — 10 expression node types — Source: #45742
-3. **Introduce MCPTransportType named Go type** — replace ~49 scattered `"stdio"/"http"/"local"` literals — Source: #45727
-4. **Consolidate duplicate safe-output config structs** — 6 files repeat same embedded struct shape — Source: #45727
-5. **Replace `{Raw any}` tool-config wrappers with shared RawToolConfig** — 3 identical structs in `tools_types.go` and `repo_memory.go` — Source: #45727
+## Identified Tasks (pending creation next run)
 
-## Top Patterns Observed
-- Compile-time interface assertions: 0 production assertions for 16+ interfaces (2 discussions)
-- Duplicate struct shapes: 6 identical safe-output config types, 3 identical raw-tool-config types
-- Untyped enums: MCPTransportType (~49 sites), LLMProvider (~31 sites)
+| temporary_id | Source | Title |
+|---|---|---|
+| aw_exp_dedup | #45983 | Consolidate duplicate ExperimentState/ExperimentRunRecord types in pkg/cli |
+| aw_audit_delta | #45983 | Generify AuditComparisonIntDelta/AuditComparisonStringDelta with Go generics |
+| aw_actjob_doc | #45872 | Add godoc comments to unexported helpers in compiler_activation_job.go |
+| aw_otlp_bundle | #45899 | Migrate 52 workflows from separate reporting+otlp imports to reporting-otlp.md bundle |
+| aw_schema_eng | #45924 | Add missing engine to schema built-in engine catalog and remove deprecated alias examples |
 
-## Note
-Issue creation was blocked (limit reached). Tasks above should be created in next run.
+## Top Quality Themes
+- Type duplication (pkg/cli ExperimentState cluster): 2 tasks from #45983
+- Documentation gaps (godoc on unexported helpers): 1 task from #45872
+- Workflow import consolidation (reporting-otlp bundle): 1 task from #45899
+- Schema/docs inconsistency (missing engine, deprecated alias): 1 task from #45924
+
+## Notes
+- create_issue limit was hit (5/5) before any issues could be filed this run.
+- All 5 tasks are queued in extracted-tasks.json with status "pending_create_limit_reached" for the next run.

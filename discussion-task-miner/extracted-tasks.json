@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-07-14T01:08:00Z",
+  "last_run": "2026-07-16T13:15:00Z",
   "tasks": [
     {
       "source_discussion": 45268,
@@ -35,6 +35,41 @@
       "title": "Add compile-time assertions for FileCreationTracker and ToolConfig implementors",
       "created_at": "2026-07-14T01:08:00Z",
       "status": "created"
+    },
+    {
+      "source_discussion": 45983,
+      "temporary_id": "aw_exp_dedup",
+      "title": "Consolidate duplicate ExperimentState/ExperimentRunRecord types in pkg/cli",
+      "created_at": "2026-07-16T13:15:00Z",
+      "status": "pending_create_limit_reached"
+    },
+    {
+      "source_discussion": 45983,
+      "temporary_id": "aw_audit_delta",
+      "title": "Generify AuditComparisonIntDelta/AuditComparisonStringDelta with Go generics",
+      "created_at": "2026-07-16T13:15:00Z",
+      "status": "pending_create_limit_reached"
+    },
+    {
+      "source_discussion": 45872,
+      "temporary_id": "aw_actjob_doc",
+      "title": "Add godoc comments to unexported helpers in compiler_activation_job.go",
+      "created_at": "2026-07-16T13:15:00Z",
+      "status": "pending_create_limit_reached"
+    },
+    {
+      "source_discussion": 45899,
+      "temporary_id": "aw_otlp_bundle",
+      "title": "Migrate 52 workflows from separate reporting+otlp imports to reporting-otlp.md bundle",
+      "created_at": "2026-07-16T13:15:00Z",
+      "status": "pending_create_limit_reached"
+    },
+    {
+      "source_discussion": 45924,
+      "temporary_id": "aw_schema_eng",
+      "title": "Add missing engine to schema built-in engine catalog and remove deprecated alias examples",
+      "created_at": "2026-07-16T13:15:00Z",
+      "status": "pending_create_limit_reached"
     }
   ]
 }

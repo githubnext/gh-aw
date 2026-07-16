@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-07-16T01:15:00Z",
+  "last_run": "2026-07-16T13:15:00Z",
   "discussions_processed": [
     {"id": 45268, "title": "[repository-quality] 🎯 Repository Quality Improvement Report - Compile-Time Interface Compliance Gap (2026-07-13)", "processed_at": "2026-07-14T01:08:00Z"},
     {"id": 45259, "title": "[typist] 🔤 Typist — Go Type Consistency Analysis (github/gh-aw)", "processed_at": "2026-07-14T01:08:00Z"},
@@ -13,6 +13,13 @@
     {"id": 45742, "title": "[repository-quality] 🎯 Repository Quality Improvement Report - Compile-Time Interface Satisfaction Assertions (2026-07-15)", "processed_at": "2026-07-16T01:15:00Z"},
     {"id": 45727, "title": "[typist] 🔤 Typist — Go Type Consistency Analysis (24 duplicate clusters, 7 enum groups to type)", "processed_at": "2026-07-16T01:15:00Z"},
     {"id": 45804, "title": "[daily-code-metrics] Daily Code Metrics Report - 2026-07-15", "processed_at": "2026-07-16T01:15:00Z"},
-    {"id": 45651, "title": "[eslint-refiner] ESLint Refiner Daily Report — 2026-07-15", "processed_at": "2026-07-16T01:15:00Z"}
+    {"id": 45651, "title": "[eslint-refiner] ESLint Refiner Daily Report — 2026-07-15", "processed_at": "2026-07-16T01:15:00Z"},
+    {"id": 45983, "title": "[typist] 🔤 Typist: Go Type Consistency Analysis — 8 duplicate clusters + enum-typing opportunities", "processed_at": "2026-07-16T13:15:00Z"},
+    {"id": 45904, "title": "[sergo] Sergo Report: DELTA 43→45 New-Linter Audit (nilctxpassed) + SuggestedFix Parity Probe - 2026-07-16", "processed_at": "2026-07-16T13:15:00Z"},
+    {"id": 45872, "title": "[daily-compiler-quality] Daily Compiler Code Quality Report - 2026-07-16", "processed_at": "2026-07-16T13:15:00Z"},
+    {"id": 45876, "title": "[lint-monster] Daily lint scan report - 2026-07-16", "processed_at": "2026-07-16T13:15:00Z"},
+    {"id": 45924, "title": "[Schema Consistency] 🔍 Schema Consistency Check - 2026-07-16", "processed_at": "2026-07-16T13:15:00Z"},
+    {"id": 45899, "title": "Workflow Skill Extractor — Shared Component Opportunities Report", "processed_at": "2026-07-16T13:15:00Z"},
+    {"id": 45852, "title": "[observability] Observability Coverage Report - 2026-07-16", "processed_at": "2026-07-16T13:15:00Z"}
   ]
 }
