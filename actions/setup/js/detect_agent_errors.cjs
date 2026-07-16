@@ -85,14 +85,23 @@ const HTTP_400_RESPONSE_ERROR_PATTERN =
 // internally before surfacing this error (evidenced by "retried 5 times" context).
 const CAPI_QUOTA_EXCEEDED_PATTERN = /CAPIError:\s*(?:429\s+)?(?:429\s+quota exceeded|Too Many Requests)/i;
 
+/**
+ * Build a case-insensitive merged RegExp from literal/regex patterns.
+ * @param {(RegExp|string)[]} patterns
+ * @returns {RegExp}
+ */
+function buildCombinedPattern(patterns) {
+  const patternSources = patterns.map(pattern => (pattern instanceof RegExp ? pattern.source : String(pattern))).filter(Boolean);
+  return new RegExp(patternSources.join("|"), "i");
+}
+
 // Pattern: per-run LLM invocation cap exhausted.
 // Matches both the Anthropic JSON error type ("max_runs_exceeded") and the
 // human-readable message form ("Maximum LLM invocations exceeded") seen in
 // both CAPI (Copilot CLI: "CAPIError: 429 Maximum LLM invocations exceeded (N/N)")
 // and direct Anthropic API responses ("max_runs_exceeded").
 // The pooled per-run invocation budget is saturated — retries cannot make progress.
-const patternSources = MAX_RUNS_EXCEEDED_PATTERNS.map(pattern => (pattern instanceof RegExp ? pattern.source : String(pattern))).filter(Boolean);
-const INVOCATION_CAP_EXCEEDED_PATTERN = new RegExp(patternSources.join("|"), "i");
+const INVOCATION_CAP_EXCEEDED_PATTERN = buildCombinedPattern(MAX_RUNS_EXCEEDED_PATTERNS);
 
 /**
  * Determines if the collected output contains the observed Copilot/CAPI quota exhaustion error.

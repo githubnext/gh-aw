@@ -1249,7 +1249,7 @@ async function main() {
           break;
         }
 
-        if (shouldRetryFailedExecution({ exitCode: result.exitCode, hasOutput: result.hasOutput, output: result.output, attempt, maxRetries })) {
+        if (shouldRetryFailedExecution({ ...result, attempt, maxRetries })) {
           const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
           // --continue is only meaningful in CLI mode; SDK mode always restarts fresh.
           useContinueOnRetry = !copilotSDKMode && !continueDisabledPermanently;
