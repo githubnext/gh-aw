@@ -170,6 +170,7 @@ async function main(config = {}) {
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
   const isStaged = isStagedMode(config);
+  const issueIntentEnabled = config.issue_intent === true;
 
   core.info(`Set issue field configuration: max=${maxCount}`);
   const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
@@ -343,10 +344,12 @@ async function main(config = {}) {
         ...fieldUpdateResult.update,
       };
 
-      Object.assign(fieldUpdate, normalizeIssueIntentMetadata(item));
-      core.info("Using GraphQL-Features header for issue field mutation");
+      if (issueIntentEnabled) {
+        Object.assign(fieldUpdate, normalizeIssueIntentMetadata(item));
+        core.info("Using GraphQL-Features header for issue field mutation");
+      }
 
-      await setIssueFieldValue(githubClient, issueNodeId, fieldUpdate, true);
+      await setIssueFieldValue(githubClient, issueNodeId, fieldUpdate, issueIntentEnabled);
 
       core.info(`Successfully set issue field ${JSON.stringify(fieldName || fieldNodeId)} to ${JSON.stringify(value)} on issue #${issueNumber}`);
 

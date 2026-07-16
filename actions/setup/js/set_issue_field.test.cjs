@@ -90,7 +90,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     });
 
     const { main } = require("./set_issue_field.cjs");
-    handler = await main({ max: 5 });
+    handler = await main({ max: 5, issue_intent: true });
   });
 
   it("should return a function from main()", async () => {
@@ -498,7 +498,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
 
   it("should include issue intent metadata without requiring a runtime feature", async () => {
     const { main } = require("./set_issue_field.cjs");
-    const featureHandler = await main({ max: 5 });
+    const featureHandler = await main({ max: 5, issue_intent: true });
 
     const result = await featureHandler(
       {
@@ -529,5 +529,32 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
         headers: { "GraphQL-Features": "update_issue_suggestions" },
       })
     );
+  });
+
+  it("should omit intent metadata and GraphQL feature header when issue_intent is disabled", async () => {
+    const { main } = require("./set_issue_field.cjs");
+    const handlerWithoutIntent = await main({ max: 5, issue_intent: false });
+
+    const result = await handlerWithoutIntent(
+      {
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "Customer Impact",
+        value: "High",
+        rationale: "should be ignored",
+        confidence: "HIGH",
+        suggest: true,
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+    const mutationCall = mockGraphql.mock.calls.find(([query]) => query.includes("setIssueFieldValue"));
+    expect(mutationCall).toBeTruthy();
+    expect(mutationCall[1]).not.toHaveProperty("headers");
+    expect(mutationCall[1].issueFields[0]).toEqual(expect.objectContaining({ fieldId: textFieldId, textValue: "High" }));
+    expect(mutationCall[1].issueFields[0]).not.toHaveProperty("rationale");
+    expect(mutationCall[1].issueFields[0]).not.toHaveProperty("confidence");
+    expect(mutationCall[1].issueFields[0]).not.toHaveProperty("suggest");
   });
 });
