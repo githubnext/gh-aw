@@ -383,6 +383,22 @@ describe("assign_agent_helpers.cjs", () => {
       expect(mockRequest).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", expect.objectContaining({ owner: "myorg", repo: "myrepo", issue_number: 42 }));
     });
 
+    it("should include issue-intent metadata when enabled", async () => {
+      const mockRequest = vi.fn().mockResolvedValue({ status: 201 });
+      const restClient = { request: mockRequest };
+
+      await assignAgentToIssue("id", "copilot-swe-agent[bot]", [], "copilot", null, null, null, null, null, restClient, taskContext, null, { rationale: "Agent owns the code path", confidence: "HIGH" }, true);
+
+      expect(mockRequest).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", {
+        owner: "myorg",
+        repo: "myrepo",
+        issue_number: 42,
+        assignees: ["copilot-swe-agent[bot]"],
+        rationale: "Agent owns the code path",
+        confidence: "HIGH",
+      });
+    });
+
     it("should return false and not call request when taskContext is missing", async () => {
       const mockRequest = vi.fn();
       const restClient = { request: mockRequest };

@@ -217,6 +217,20 @@
           "description": "Issue number to close. This is the numeric ID from the GitHub URL (e.g., 901 in github.com/owner/repo/issues/901). If omitted, closes the issue that triggered this workflow (requires an issue event trigger).",
           "x-synonyms": ["issueNumber"]
         },
+        "rationale": {
+          "type": "string",
+          "maxLength": 280,
+          "description": "Optional rationale for closing the issue (max 280 characters)."
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["LOW", "MEDIUM", "HIGH"],
+          "description": "Optional confidence level for closing the issue."
+        },
+        "suggest": {
+          "type": "boolean",
+          "description": "When true, route through pending suggestion review."
+        },
         "duplicate_of": {
           "type": ["number", "string"],
           "description": "Issue number or URL of the canonical original issue when closing as a duplicate. Accepts: a bare number (e.g. 123), a #-prefixed number (e.g. #123), an owner/repo#number reference (e.g. github/gh-aw#123), or a full GitHub issue URL. When provided together with state_reason: duplicate, creates a native GitHub duplicate relationship (marked_as_duplicate timeline event). Omit if not closing as a duplicate.",
@@ -858,6 +872,20 @@
           "type": "string",
           "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified."
         },
+        "rationale": {
+          "type": "string",
+          "maxLength": 280,
+          "description": "Optional rationale for the assignment (max 280 characters)."
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["LOW", "MEDIUM", "HIGH"],
+          "description": "Optional confidence level for the assignment."
+        },
+        "suggest": {
+          "type": "boolean",
+          "description": "When true, route through pending suggestion review."
+        },
         "pull_request_repo": {
           "type": "string",
           "description": "Target repository where the pull request should be created, in 'owner/repo' format. If omitted, the PR will be created in the same repository as the issue. This allows issues and code to live in different repositories. The global pull-request-repo configuration (if set) is automatically allowed; additional repositories must be listed in allowed-pull-request-repos.",
@@ -897,6 +925,20 @@
         "assignee": {
           "type": "string",
           "description": "Single GitHub username to assign. Use 'assignees' array for multiple users."
+        },
+        "rationale": {
+          "type": "string",
+          "maxLength": 280,
+          "description": "Optional rationale for the assignment (max 280 characters)."
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["LOW", "MEDIUM", "HIGH"],
+          "description": "Optional confidence level for the assignment."
+        },
+        "suggest": {
+          "type": "boolean",
+          "description": "When true, route through pending suggestion review."
         },
         "secrecy": {
           "type": "string",
