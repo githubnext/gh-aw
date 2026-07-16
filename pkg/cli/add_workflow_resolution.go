@@ -18,6 +18,11 @@ import (
 var resolutionLog = logger.New("cli:add_workflow_resolution")
 var fetchWorkflowFromSourceWithContextFn = FetchWorkflowFromSourceWithContext
 
+// errNotHandled is a sentinel used by package-spec parse helpers to signal
+// that a workflow string was not recognized as their type; callers should
+// fall through to the next parser.
+var errNotHandled = errors.New("not handled")
+
 // ResolvedWorkflow contains metadata about a workflow that has been resolved and is ready to add
 type ResolvedWorkflow struct {
 	// Spec is the parsed workflow specification
@@ -150,14 +155,20 @@ func parseWorkflowSpecsForResolution(ctx context.Context, workflows []string) (*
 }
 
 func parseSingleWorkflowSpecForResolution(ctx context.Context, workflow string) ([]*WorkflowSpec, []string, *resolvedBootstrapProfile, error) {
-	specs, warnings, bootstrapProfile, handled, err := resolveLocalPackageWorkflowSpec(workflow)
-	if err != nil || handled {
-		return specs, warnings, bootstrapProfile, err
+	specs, warnings, bootstrapProfile, err := resolveLocalPackageWorkflowSpec(workflow)
+	if err == nil {
+		return specs, warnings, bootstrapProfile, nil
+	}
+	if !errors.Is(err, errNotHandled) {
+		return nil, nil, nil, err
 	}
 
-	specs, warnings, bootstrapProfile, handled, err = resolveRepositoryPackageWorkflowSpec(ctx, workflow)
-	if err != nil || handled {
-		return specs, warnings, bootstrapProfile, err
+	specs, warnings, bootstrapProfile, err = resolveRepositoryPackageWorkflowSpec(ctx, workflow)
+	if err == nil {
+		return specs, warnings, bootstrapProfile, nil
+	}
+	if !errors.Is(err, errNotHandled) {
+		return nil, nil, nil, err
 	}
 
 	spec, err := parseWorkflowSpec(workflow)
@@ -172,13 +183,13 @@ func parseSingleWorkflowSpecForResolution(ctx context.Context, workflow string) 
 	return specs, warnings, bootstrapProfile, err
 }
 
-func resolveLocalPackageWorkflowSpec(workflow string) ([]*WorkflowSpec, []string, *resolvedBootstrapProfile, bool, error) {
+func resolveLocalPackageWorkflowSpec(workflow string) ([]*WorkflowSpec, []string, *resolvedBootstrapProfile, error) {
 	pkg, err := resolveLocalRepositoryPackage(workflow)
 	if err != nil {
-		return nil, nil, nil, true, err
+		return nil, nil, nil, err
 	}
 	if pkg == nil {
-		return nil, nil, nil, false, nil
+		return nil, nil, nil, errNotHandled
 	}
 
 	var bootstrapProfile *resolvedBootstrapProfile
@@ -190,25 +201,25 @@ func resolveLocalPackageWorkflowSpec(workflow string) ([]*WorkflowSpec, []string
 		}
 	}
 	specs := appendLocalRepositoryPackageWorkflowSpecs(nil, pkg)
-	return specs, pkg.Warnings, bootstrapProfile, true, nil
+	return specs, pkg.Warnings, bootstrapProfile, nil
 }
 
-func resolveRepositoryPackageWorkflowSpec(ctx context.Context, workflow string) ([]*WorkflowSpec, []string, *resolvedBootstrapProfile, bool, error) {
+func resolveRepositoryPackageWorkflowSpec(ctx context.Context, workflow string) ([]*WorkflowSpec, []string, *resolvedBootstrapProfile, error) {
 	repoSpec, ok, err := parseRepositoryPackageSpec(workflow)
 	if !ok {
-		return nil, nil, nil, false, nil
+		return nil, nil, nil, errNotHandled
 	}
 	if err != nil {
-		return nil, nil, nil, true, err
+		return nil, nil, nil, err
 	}
 	specs, warnings, bootstrapProfile, err := resolveRepositoryPackageSpecs(ctx, workflow, repoSpec)
 	if err == nil {
-		return specs, warnings, bootstrapProfile, true, nil
+		return specs, warnings, bootstrapProfile, nil
 	}
 	if repoSpec.PackagePath != "" && isRepositoryPackageManifestNotFound(err) {
-		return nil, nil, nil, false, nil
+		return nil, nil, nil, errNotHandled
 	}
-	return nil, nil, nil, true, err
+	return nil, nil, nil, err
 }
 
 func resolveRepositoryPackageFallback(ctx context.Context, workflow string) ([]*WorkflowSpec, []string, *resolvedBootstrapProfile, error) {
@@ -275,30 +286,37 @@ func resolveWorkflowSpecs(ctx context.Context, parsedSpecs []*WorkflowSpec, warn
 	hasWorkflowDispatch := false
 
 	for _, spec := range parsedSpecs {
-		resolvedWorkflow, workflowHasDispatch, warning, err := resolveSingleWorkflowSpec(ctx, spec, verbose)
+		result, err := resolveSingleWorkflowSpec(ctx, spec, verbose)
 		if err != nil {
 			return nil, false, nil, err
 		}
-		if workflowHasDispatch {
+		if result.HasWorkflowDispatch {
 			hasWorkflowDispatch = true
 		}
-		if warning != "" {
-			resolutionWarnings = append(resolutionWarnings, warning)
+		if result.Warning != "" {
+			resolutionWarnings = append(resolutionWarnings, result.Warning)
 		}
-		resolvedWorkflows = append(resolvedWorkflows, resolvedWorkflow)
+		resolvedWorkflows = append(resolvedWorkflows, result.Workflow)
 	}
 
 	return resolvedWorkflows, hasWorkflowDispatch, resolutionWarnings, nil
 }
 
-func resolveSingleWorkflowSpec(ctx context.Context, spec *WorkflowSpec, verbose bool) (*ResolvedWorkflow, bool, string, error) {
+// resolvedWorkflowResult holds the outcome of resolving a single workflow spec.
+type resolvedWorkflowResult struct {
+	Workflow            *ResolvedWorkflow
+	HasWorkflowDispatch bool
+	Warning             string
+}
+
+func resolveSingleWorkflowSpec(ctx context.Context, spec *WorkflowSpec, verbose bool) (*resolvedWorkflowResult, error) {
 	resolvedSpec, fetched, err := resolveAddWorkflowSpecAndContent(ctx, spec, verbose)
 	if err != nil {
-		return nil, false, "", fmt.Errorf("workflow '%s' not found: %w", spec.String(), err)
+		return nil, fmt.Errorf("workflow '%s' not found: %w", spec.String(), err)
 	}
 
 	if resolvedWorkflow, handled := resolvePackageOrActionWorkflow(spec, resolvedSpec, fetched); handled {
-		return resolvedWorkflow, false, "", nil
+		return &resolvedWorkflowResult{Workflow: resolvedWorkflow}, nil
 	}
 
 	return resolveStandardWorkflow(spec, resolvedSpec, fetched)
@@ -342,18 +360,17 @@ func resolvePackageOrActionWorkflow(spec, resolvedSpec *WorkflowSpec, fetched *F
 	return nil, false
 }
 
-func resolveStandardWorkflow(spec, resolvedSpec *WorkflowSpec, fetched *FetchedWorkflow) (*ResolvedWorkflow, bool, string, error) {
+func resolveStandardWorkflow(spec, resolvedSpec *WorkflowSpec, fetched *FetchedWorkflow) (*resolvedWorkflowResult, error) {
 	content := string(fetched.Content)
 	description := ExtractWorkflowDescription(content)
 	engine := ExtractWorkflowEngine(content)
 
 	if err := validateManifestWorkflowPrivateSetting(spec, resolvedSpec, content); err != nil {
-		return nil, false, "", err
+		return nil, err
 	}
 
-	isPrivate := ExtractWorkflowPrivate(content)
-	if isPrivate {
-		return nil, false, "", fmt.Errorf("workflow '%s' is private and cannot be added to other repositories", spec.String())
+	if ExtractWorkflowPrivate(content) {
+		return nil, fmt.Errorf("workflow '%s' is private and cannot be added to other repositories", spec.String())
 	}
 
 	workflowHasDispatch := checkWorkflowHasDispatchFromContent(content)
@@ -369,15 +386,18 @@ func resolveStandardWorkflow(spec, resolvedSpec *WorkflowSpec, fetched *FetchedW
 		)
 	}
 
-	return &ResolvedWorkflow{
-		Spec:                resolvedSpec,
-		Content:             fetched.Content,
-		SourceInfo:          fetched,
-		Description:         description,
-		Engine:              engine,
+	return &resolvedWorkflowResult{
+		Workflow: &ResolvedWorkflow{
+			Spec:                resolvedSpec,
+			Content:             fetched.Content,
+			SourceInfo:          fetched,
+			Description:         description,
+			Engine:              engine,
+			HasWorkflowDispatch: workflowHasDispatch,
+		},
 		HasWorkflowDispatch: workflowHasDispatch,
-		IsPrivate:           isPrivate,
-	}, workflowHasDispatch, warning, nil
+		Warning:             warning,
+	}, nil
 }
 
 func validateManifestWorkflowPrivateSetting(spec, resolvedSpec *WorkflowSpec, content string) error {
@@ -410,11 +430,8 @@ func selectBootstrapProfile(bootstrapProfiles []*resolvedBootstrapProfile, resol
 			ids = append(ids, p.PackageID)
 		}
 		resolutionLog.Printf("Multiple bootstrap profiles found (%v); skipping all", ids)
-		updatedWarnings := make([]string, len(resolutionWarnings), len(resolutionWarnings)+1)
-		copy(updatedWarnings, resolutionWarnings)
-		updatedWarnings = append(updatedWarnings,
+		return nil, append(resolutionWarnings,
 			fmt.Sprintf("multiple bootstrap profiles found (%s); bootstrap config will be skipped — run each package separately to apply its config", strings.Join(ids, ", ")))
-		return nil, updatedWarnings
 	}
 }
 
