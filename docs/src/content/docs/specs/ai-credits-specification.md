@@ -163,6 +163,55 @@ For grouped runs (for example, episodes), implementations MUST aggregate AIC by 
 
 ---
 
+### 3.7 Entities
+
+This subsection defines the core data entities used throughout this specification. Implementations MUST model these entities (or equivalents) when processing AIC calculation, catalog lookup, and reporting. Cross-reference: §3.3 uses `InvocationRecord`, §3.3 and §4 use `PricingCatalogEntry`, and §7 reporting consumes `AICRecord`.
+
+#### AICRecord
+
+An `AICRecord` represents the computed AIC result for a single workflow run or reporting period.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `run_id` | `string` | **MUST** | Unique identifier for the workflow run (e.g., GitHub Actions run ID). |
+| `total_aic` | `number` | **MUST** | Sum of all per-invocation AIC values for the run. MUST be `≥ 0`. |
+| `invocations` | `array<InvocationRecord>` | **MUST** | Ordered list of per-invocation records comprising this run's total. |
+| `computed_at` | `string` (ISO 8601) | **MUST** | UTC timestamp when this record was computed. |
+| `catalog_version` | `string` | SHOULD | Version or content hash of the `PricingCatalogEntry` set used for computation. |
+
+#### PricingCatalogEntry
+
+A `PricingCatalogEntry` represents a single model's pricing data within the `models.json` catalog (see §4 for catalog format).
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `model_id` | `string` | **MUST** | Canonical model identifier (normalized; see §4.4). |
+| `provider` | `string` | **MUST** | Normalized provider key (see §4.3). |
+| `input` | `number` | **MUST** | Price per input token in USD. |
+| `output` | `number` | **MUST** | Price per output token in USD. |
+| `cache_read` | `number` | SHOULD | Price per cache-read token in USD. Defaults to `input` when absent (§3.4). |
+| `cache_write` | `number` | SHOULD | Price per cache-write token in USD. Defaults to `input` when absent (§3.4). |
+| `reasoning` | `number` | SHOULD | Price per reasoning token in USD. Defaults to `output` when absent (§3.4). |
+
+#### InvocationRecord
+
+An `InvocationRecord` represents a single LLM API call and its associated token usage and cost.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `invocation_id` | `string` | **MUST** | Unique identifier for this invocation (e.g., request ID or sequential index). |
+| `model_id` | `string` | **MUST** | Model identifier used for this invocation (pre-normalization value accepted; normalized for catalog lookup). |
+| `provider` | `string` | **MUST** | Provider key for this invocation (normalized before catalog lookup; see §4.3). |
+| `input_tokens` | `integer` | **MUST** | Reported input token count (before §3.5 adjustment). |
+| `output_tokens` | `integer` | **MUST** | Reported output token count. |
+| `cache_read_tokens` | `integer` | SHOULD | Cache-read token count; `0` when not reported. |
+| `cache_write_tokens` | `integer` | SHOULD | Cache-write token count; `0` when not reported. |
+| `reasoning_tokens` | `integer` | SHOULD | Reasoning token count; `0` when not reported. |
+| `cost_usd` | `number` | **MUST** | Computed cost in USD using §3.3 formula. |
+| `aic` | `number` | **MUST** | `cost_usd / 0.01` (see §3.3). |
+
+---
+
 ## 4. Pricing Catalog Format (`models.json`)
 
 ### 4.1 Top-Level Structure
@@ -253,6 +302,18 @@ A conforming implementation MUST define and enforce behavior for catalog synchro
 4. **Catalog version mismatch**: When the two required catalog paths (`pkg/cli/data/models.json` and `actions/setup/js/models.json`) diverge in content after a sync operation, the sync tooling/CI gate MUST treat this as a sync failure. The refresh operation MUST fail until consistency is restored. In the gh-aw repository:
    - CI MUST run `make validate-models-json-sync` (or an equivalent normalized-content comparison gate).
    - That gate MUST fail whenever these mirror files cease to represent the same JSON dataset.
+
+### 5.5 Catalog Staleness SLA
+
+A catalog that has not been refreshed from its upstream source within **7 days** is considered stale. Implementations SHOULD track the timestamp of the last successful catalog sync.
+
+When the elapsed time since the last successful sync exceeds 7 days, the implementation SHOULD emit a re-sync warning. The warning MUST include:
+
+- The timestamp of the last successful sync.
+- The number of days elapsed since that sync.
+- A recommendation to run the catalog refresh process.
+
+This is a SHOULD-level norm; catalog staleness does not constitute a hard failure, but implementations MUST NOT suppress the warning if the threshold is exceeded. Implementations that cannot determine the last sync timestamp SHOULD treat the catalog as potentially stale and emit the warning unconditionally.
 
 ---
 
