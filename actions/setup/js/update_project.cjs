@@ -468,7 +468,7 @@ function resolveFieldsObject(fields) {
     core.warning("update_project: `fields` must be a JSON object; skipping field updates");
     return null;
   }
-  return { ...fields };
+  return Object.fromEntries(Object.entries(fields));
 }
 
 /**
