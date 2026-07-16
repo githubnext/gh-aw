@@ -132,6 +132,7 @@ func TestCloseExistingOrgIssuesByMarkerSkipsPRsAndPaginates(t *testing.T) {
 
 	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	expectedHost := getHostFromOriginRemote()
+	require.NotEmpty(t, expectedHost, "test setup should resolve a GitHub host for gh API calls")
 
 	closeExistingOrgIssuesByMarker(context.Background(), "octo/repo", ghawUpdateMarkerPrefix, false)
 
