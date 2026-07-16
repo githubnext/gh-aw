@@ -21,6 +21,7 @@ import (
 
 // includeDirectivePattern matches @include or @include? directives with their path argument
 var includeDirectivePattern = regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
+var downloadRemoteImportFile = parser.DownloadFileFromGitHub
 
 // FetchIncludeFromSource fetches an include file from GitHub directly using a workflowspec format path.
 // The includePath should be in the format: owner/repo/path/to/file.md[@ref]
@@ -387,7 +388,7 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 		// Download from the source repository
 		downloadFn := opts.downloadFn
 		if downloadFn == nil {
-			downloadFn = parser.DownloadFileFromGitHub
+			downloadFn = downloadRemoteImportFile
 		}
 		importContent, err := downloadFn(ctx, opts.owner, opts.repo, remoteFilePath, opts.ref)
 		if err != nil {

@@ -2212,6 +2212,7 @@ func TestPrintBootstrapConfigTODO(t *testing.T) {
 					{Type: "repo-variable", Name: "MY_VAR", Prompt: "Enter a value"},
 					{Type: "repo-secret", Name: "MY_SECRET", Prompt: "Enter secret"},
 					{Type: "copilot-auth", Secret: "COPILOT_TOKEN"},
+					{Type: "commit-and-push", Message: "Bootstrap repository changes"},
 					{Type: "handoff", Message: "Run the bootstrap wizard."},
 				},
 			},
@@ -2224,6 +2225,8 @@ func TestPrintBootstrapConfigTODO(t *testing.T) {
 		assert.Contains(t, out, "☐ Set repository variable: MY_VAR")
 		assert.Contains(t, out, "☐ Set repository secret: MY_SECRET")
 		assert.Contains(t, out, "☐ Set Copilot PAT secret: COPILOT_TOKEN")
+		assert.Contains(t, out, "☐ Commit and push local changes — Bootstrap repository changes")
 		assert.Contains(t, out, "Run the bootstrap wizard.")
+		assert.NotContains(t, out, "gh aw bootstrap")
 	})
 }

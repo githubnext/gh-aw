@@ -48,8 +48,8 @@ type SetupRepositoryCheckResult struct {
 }
 
 // setupRepositoryRuntime holds the reusable repository/auth setup primitives that
-// higher-level setup flows can compose. bootstrap is the first consumer, but the
-// helpers are intentionally generic so future auth/setup commands can reuse them.
+// higher-level setup flows can compose. The helpers are intentionally generic so
+// future auth/setup commands can reuse them.
 type setupRepositoryRuntime struct {
 	checkAuth          func(context.Context) error
 	repoExists         func(context.Context, string) (bool, error)

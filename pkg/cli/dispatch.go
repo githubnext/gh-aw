@@ -250,9 +250,24 @@ func fetchAndSaveRemoteDispatchWorkflows(ctx context.Context, content string, sp
 				tracker.TrackCreated(targetPath)
 			}
 		}
+
+		fetchDownloadedWorkflowFrontmatterImports(ctx, workflowContent, spec, remoteFilePath, targetDir, verbose, force, tracker)
 	}
 
 	return nil
+}
+
+func fetchDownloadedWorkflowFrontmatterImports(ctx context.Context, workflowContent []byte, parentSpec *WorkflowSpec, remoteFilePath, targetDir string, verbose bool, force bool, tracker *FileTracker) {
+	depSpec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: parentSpec.RepoSlug,
+			Version:  parentSpec.Version,
+		},
+		WorkflowPath: remoteFilePath,
+	}
+	if err := fetchAndSaveRemoteFrontmatterImports(ctx, string(workflowContent), depSpec, targetDir, verbose, force, tracker); err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch frontmatter imports for %s: %v", remoteFilePath, err)))
+	}
 }
 
 // fetchAndSaveDispatchWorkflowsFromParsedFile parses a locally-saved workflow file to obtain
@@ -447,5 +462,7 @@ func fetchAndSaveDispatchWorkflowsFromParsedFile(ctx context.Context, destFile s
 				tracker.TrackCreated(targetPath)
 			}
 		}
+
+		fetchDownloadedWorkflowFrontmatterImports(ctx, workflowContent, spec, remoteFilePath, targetDir, verbose, force, tracker)
 	}
 }
