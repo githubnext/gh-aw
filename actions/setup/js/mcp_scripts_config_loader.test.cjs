@@ -151,7 +151,7 @@ describe("mcp_scripts_config_loader.cjs", () => {
       const { loadConfig } = await import("./mcp_scripts_config_loader.cjs");
 
       const configPath = path.join(tempDir, "array-tool.json");
-      fs.writeFileSync(configPath, JSON.stringify({ tools: [["not", "an", "object"]] }));
+      fs.writeFileSync(configPath, JSON.stringify({ tools: [[]] }));
 
       expect(() => loadConfig(configPath)).toThrow("must be a non-null object");
     });
