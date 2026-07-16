@@ -12,12 +12,14 @@ var outcomeEvaluationLog = logger.New("cli:outcome_evaluation")
 type OutcomeStatus string
 
 const (
-	OutcomeStatusAccepted OutcomeStatus = "accepted"
-	OutcomeStatusRejected OutcomeStatus = "rejected"
-	OutcomeStatusPending  OutcomeStatus = "pending"
-	OutcomeStatusIgnored  OutcomeStatus = "ignored"
-	OutcomeStatusSkipped  OutcomeStatus = "skipped"
-	OutcomeStatusUnknown  OutcomeStatus = "unknown"
+	OutcomeStatusAccepted       OutcomeStatus = "accepted"
+	OutcomeStatusRejected       OutcomeStatus = "rejected"
+	OutcomeStatusPending        OutcomeStatus = "pending"
+	OutcomeStatusIgnored        OutcomeStatus = "ignored"
+	OutcomeStatusSkipped        OutcomeStatus = "skipped"
+	OutcomeStatusUnknown        OutcomeStatus = "unknown"
+	OutcomeStatusLifecycle      OutcomeStatus = "lifecycle"
+	OutcomeStatusLifecycleClose OutcomeStatus = "lifecycle_close"
 )
 
 // EvidenceStrength describes how confidently the outcome can be inferred.
@@ -62,7 +64,7 @@ func normalizeOutcomeEvaluation(report OutcomeReport) OutcomeEvaluation {
 	case strings.Contains(detail, "closed as not planned"):
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceStrong, Signal: "closed_not_planned"}
 	case strings.Contains(detail, "closed by bot"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusUnknown, EvidenceStrength: EvidenceMedium, Signal: "lifecycle"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusLifecycle, EvidenceStrength: EvidenceMedium, Signal: "lifecycle"}
 	case strings.Contains(detail, "merged"):
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted, EvidenceStrength: EvidenceStrong, Signal: "merged"}
 	case strings.Contains(detail, "reopened"):
@@ -101,6 +103,10 @@ func normalizeOutcomeEvaluation(report OutcomeReport) OutcomeEvaluation {
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending, EvidenceStrength: EvidenceMedium, Signal: "pending"}
 	case OutcomeIgnored:
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusIgnored, EvidenceStrength: EvidenceMedium, Signal: "ignored"}
+	case OutcomeLifecycle:
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusLifecycle, EvidenceStrength: EvidenceMedium, Signal: "lifecycle"}
+	case OutcomeLifecycleClose:
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusLifecycleClose, EvidenceStrength: EvidenceMedium, Signal: "lifecycle_close"}
 	case OutcomeUnknown:
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusUnknown, EvidenceStrength: EvidenceWeak, Signal: "unknown"}
 	default:

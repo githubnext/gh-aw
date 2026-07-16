@@ -290,14 +290,10 @@ func TestFormalIssueBotCloseLifecycle(t *testing.T) {
 		wantSignal string
 	}{
 		{
-			// Bot-closed not_planned carries the lifecycle signal.
-			// OutcomeStatus is normalized to unknown with signal="lifecycle" in the
-			// current implementation pending a dedicated lifecycle OutcomeStatus constant.
-			// TODO: when OutcomeStatusLifecycle is introduced, update wantStatus to that value.
 			name:       "bot closed not_planned → lifecycle signal",
 			result:     OutcomeLifecycle,
 			detail:     "closed by bot (lifecycle)",
-			wantStatus: OutcomeStatusUnknown,
+			wantStatus: OutcomeStatusLifecycle,
 			wantSignal: "lifecycle",
 		},
 		{
