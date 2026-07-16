@@ -513,12 +513,12 @@ func marshalScriptEvalDefs(evals []EvalDefinition) string {
 	}
 	var sb strings.Builder
 	sb.WriteString("[")
-	for i, q := range evals {
+	for i, e := range evals {
 		if i > 0 {
 			sb.WriteString(",")
 		}
-		idJSON, _ := json.Marshal(q.ID)   //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
-		runJSON, _ := json.Marshal(q.Run) //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
+		idJSON, _ := json.Marshal(e.ID)   //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
+		runJSON, _ := json.Marshal(e.Run) //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
 		fmt.Fprintf(&sb, `{"id":%s,"run":%s}`, idJSON, runJSON)
 	}
 	sb.WriteString("]")

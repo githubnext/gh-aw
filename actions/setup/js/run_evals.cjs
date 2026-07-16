@@ -201,7 +201,7 @@ async function main() {
  * Environment variables passed to each script:
  *   GH_AW_AGENT_OUTPUT       – path to the agent_output.json file
  *   GH_AW_SAFE_OUTPUT_ITEMS  – path to the safe-output-items.jsonl file
- *   GITHUB_RUN_ID             – GitHub Actions run ID
+ *   GITHUB_RUN_ID            – GitHub Actions run ID
  *
  * @returns {Promise<void>}
  */
@@ -254,6 +254,9 @@ async function runScriptsMain() {
             stdout += data.toString();
           },
         },
+        // Exit code is intentionally ignored: the deterministic result is the YES/NO
+        // printed to stdout. A non-zero exit code is recorded as UNKNOWN via the
+        // stdout check below, so every script eval produces a result regardless.
         ignoreReturnCode: true,
       });
 

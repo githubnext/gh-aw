@@ -158,7 +158,7 @@ func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*Evals
 			scriptEvals++
 		}
 	}
-	evalsConfigLog.Printf("Parsed %d eval definitions (%d script, model: %q, per-question overrides: %d)", len(cfg.Questions), scriptEvals, cfg.Model, perQuestionOverrides)
+	evalsConfigLog.Printf("Parsed %d eval definitions (%d script, %d question, model: %q, per-question-model overrides: %d)", len(cfg.Questions), scriptEvals, len(cfg.Questions)-scriptEvals, cfg.Model, perQuestionOverrides)
 	return cfg, nil
 }
 
