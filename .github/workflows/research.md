@@ -28,9 +28,8 @@ sandbox:
     sudo: false
 imports:
   - shared/mcp/tavily.md
-  - shared/reporting.md
+  - shared/reporting-otlp.md
 
-  - shared/otlp.md
 safe-outputs:
   create-discussion:
     expires: 1d

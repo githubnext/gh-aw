@@ -55,10 +55,9 @@ safe-outputs:
     engine: copilot
 timeout-minutes: 180
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
 
 
-  - shared/otlp.md
 features:
   gh-aw-detection: true
 ---

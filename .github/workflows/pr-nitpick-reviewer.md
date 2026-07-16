@@ -16,8 +16,7 @@ engine:
   copilot-sdk: true
 imports:
   - uses: shared/pr-review-base.md
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 tools:
   cli-proxy: true
 safe-outputs:

@@ -37,10 +37,9 @@ safe-outputs:
     max: 1
 timeout-minutes: 30
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
 
 
-  - shared/otlp.md
 features:
   gh-aw-detection: true
 ---

@@ -25,8 +25,7 @@ network:
     - github
 imports:
   - shared/github-guard-policy.md
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 tools:
   cli-proxy: true
   github:

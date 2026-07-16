@@ -34,8 +34,7 @@ timeout-minutes: 30
 # Default AI credit budget for this workflow.
 max-ai-credits: 1500
 imports:
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 steps:
   - name: Build Inventory
     env:

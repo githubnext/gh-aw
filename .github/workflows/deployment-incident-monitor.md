@@ -14,8 +14,7 @@ engine:
   id: copilot
   copilot-sdk: true
 imports:
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 tools:
   cli-proxy: true
   github:

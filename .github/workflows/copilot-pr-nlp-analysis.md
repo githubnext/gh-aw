@@ -42,9 +42,8 @@ imports:
   - shared/copilot-pr-analysis-base.md
   - shared/python-dataviz.md
   - shared/python-nlp.md
-  - shared/reporting.md
+  - shared/reporting-otlp.md
 
-  - shared/otlp.md
 steps:
   - name: Fetch PR comments for detailed analysis
     env:

@@ -38,9 +38,8 @@ engine:
 
 imports:
   - shared/mcp/markitdown.md
-  - shared/reporting.md
+  - shared/reporting-otlp.md
 
-  - shared/otlp.md
 tools:
   cli-proxy: true
   cache-memory: true

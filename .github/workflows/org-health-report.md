@@ -51,10 +51,9 @@ imports:
   - shared/github-guard-policy.md
   - shared/python-dataviz.md
   - ../skills/jqschema/SKILL.md
-  - shared/reporting.md
+  - shared/reporting-otlp.md
 
 
-  - shared/otlp.md
 ---
 
 # Organization Health Report

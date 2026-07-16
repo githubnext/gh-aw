@@ -57,9 +57,8 @@ timeout-minutes: 10
 
 imports:
   - shared/mcp/ast-grep.md
-  - shared/reporting.md
+  - shared/reporting-otlp.md
 
-  - shared/otlp.md
 safe-outputs:
   create-issue:
     expires: 2d

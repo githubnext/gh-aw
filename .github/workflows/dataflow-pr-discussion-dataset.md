@@ -28,8 +28,7 @@ imports:
     with:
       branch-name: memory/dataflow-dataset
       description: Tracks dataset build statistics and run metadata for the DataFlow pipeline
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 tools:
   cli-proxy: true
   github:

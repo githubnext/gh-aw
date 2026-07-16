@@ -30,8 +30,7 @@ imports:
   - uses: shared/meta-analysis-base.md
     with:
       toolsets: [default, actions]
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 steps:
   - name: Build gh-aw from source
     run: |

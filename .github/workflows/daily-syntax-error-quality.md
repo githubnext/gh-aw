@@ -56,8 +56,7 @@ steps:
       fi
       gh aw --version
 imports:
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

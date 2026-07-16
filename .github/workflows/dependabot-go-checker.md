@@ -47,10 +47,9 @@ tools:
   bash: [":*"]
 
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
 
 
-  - shared/otlp.md
 
 experiments:
   prompt_style:

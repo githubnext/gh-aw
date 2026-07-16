@@ -46,8 +46,7 @@ imports:
   - ../skills/jqschema/SKILL.md
   - shared/copilot-session-data-fetch.md
   - shared/copilot-pr-data-fetch.md
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 timeout-minutes: 30
 features:
   gh-aw-detection: true

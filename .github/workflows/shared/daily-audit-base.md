@@ -24,6 +24,5 @@ imports:
     with:
       title-prefix: "${{ github.aw.import-inputs.title-prefix }}"
       expires: "${{ github.aw.import-inputs.expires }}"
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 ---

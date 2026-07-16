@@ -61,8 +61,7 @@ safe-outputs:
 
 imports:
   - shared/hippo-memory.md
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 features:
   gh-aw-detection: true
 ---

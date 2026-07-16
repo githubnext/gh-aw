@@ -27,8 +27,7 @@ safe-outputs:
     title-prefix: "[Daily Report] "
 
 imports:
-  - shared/otlp.md
-  - shared/reporting.md
+  - shared/reporting-otlp.md
 tools:
   github:
     mode: gh-proxy

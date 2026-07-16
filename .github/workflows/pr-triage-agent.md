@@ -18,11 +18,10 @@ engine:
   id: copilot
   copilot-sdk: true
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - uses: shared/pr-review-base.md
     with:
       min-integrity: approved
-  - shared/otlp.md
 tools:
   cli-proxy: true
   github:

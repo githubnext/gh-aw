@@ -26,9 +26,8 @@ network:
     - go
 
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
 
-  - shared/otlp.md
 safe-outputs:
   create-pull-request:
     title-prefix: "[fp-enhancer] "

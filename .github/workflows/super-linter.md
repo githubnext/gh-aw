@@ -20,8 +20,7 @@ engine: copilot
 name: Super Linter Report
 timeout-minutes: 15
 imports:
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 jobs:
   super_linter:
     runs-on: ubuntu-latest
