@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/gitutil"
 )
 
 // printBootstrapConfigTODO prints a TODO checklist of manual steps required by the
@@ -57,13 +58,13 @@ func printBootstrapConfigTODO(w io.Writer, profile *resolvedBootstrapProfile) {
 				secret = "COPILOT_GITHUB_TOKEN"
 			}
 			fmt.Fprintf(w, "  ☐ Set Copilot PAT secret: %s\n", secret)
+		case "commit-and-push":
+			fmt.Fprintf(w, "  ☐ Commit and push local changes — %s\n", action.Message)
 		case "handoff":
 			fmt.Fprintln(w, console.FormatInfoMessage(action.Message))
 		}
 	}
 
-	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, console.FormatInfoMessage("Run 'gh aw bootstrap --repo OWNER/REPO' to apply these steps interactively."))
 	fmt.Fprintln(w, "")
 }
 
@@ -81,9 +82,14 @@ func executeBootstrapConfigForAdd(ctx context.Context, repo string, sources []st
 	bootstrapLog.Printf("Applying bootstrap config for add: repo=%s, package=%s, actions=%d, useCopilotRequests=%t", repo, profile.PackageID, len(profile.Profile.Config), useCopilotRequests)
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying post-installation steps from "+profile.PackageID+"..."))
+	repoDir, err := gitutil.FindGitRoot()
+	if err != nil {
+		bootstrapLog.Printf("Could not determine git root for add bootstrap config: %v", err)
+	}
 
 	return executeBootstrapProfile(ctx, bootstrapProfileRunConfig{
 		Repo:               repo,
+		RepoDir:            repoDir,
 		Sources:            sources,
 		Profile:            profile,
 		UseCopilotRequests: useCopilotRequests,

@@ -14,7 +14,7 @@
  *   2. global github          — step-level token set in the github-script with.github-token
  *
  * The step-level token itself follows (as set by the Go compiler):
- *   project token > global safe-outputs.github-token > magic secrets
+ *   global safe-outputs.github-token > magic secrets
  */
 
 /**

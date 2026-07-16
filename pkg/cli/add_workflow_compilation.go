@@ -2,14 +2,17 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -127,16 +130,14 @@ func compileWorkflowWithTrackingAndRefresh(ctx context.Context, filePath string,
 // called before compiling the main workflow, because the dispatch-workflow validator
 // requires every referenced .md workflow to have an up-to-date .lock.yml.
 func compileDispatchWorkflowDependencies(ctx context.Context, workflowFile string, verbose, quiet bool, engineOverride string, tracker *FileTracker) {
-	// Parse the merged safe-outputs to get the canonical list of dispatch-workflow names.
-	compiler := workflow.NewCompiler()
-	data, err := compiler.ParseWorkflowFile(workflowFile)
-	if err != nil || data == nil || data.SafeOutputs == nil || data.SafeOutputs.DispatchWorkflow == nil {
+	workflowNames := dispatchWorkflowNamesForCompilation(workflowFile)
+	if len(workflowNames) == 0 {
 		return
 	}
 
 	workflowsDir := filepath.Dir(workflowFile)
 
-	for _, name := range data.SafeOutputs.DispatchWorkflow.Workflows {
+	for _, name := range workflowNames {
 		mdPath := filepath.Join(workflowsDir, name+".md")
 		lockPath := stringutil.MarkdownToLockFile(mdPath)
 
@@ -166,6 +167,92 @@ func compileDispatchWorkflowDependencies(ctx context.Context, workflowFile strin
 			}
 		}
 	}
+}
+
+func dispatchWorkflowNamesForCompilation(workflowFile string) []string {
+	compiler := workflow.NewCompiler()
+	data, err := compiler.ParseWorkflowFile(workflowFile)
+	if err == nil && data != nil && data.SafeOutputs != nil && data.SafeOutputs.DispatchWorkflow != nil {
+		if names := dedupeDispatchWorkflowNames(data.SafeOutputs.DispatchWorkflow.Workflows); len(names) > 0 {
+			return names
+		}
+	}
+
+	if err != nil {
+		var sharedErr *workflow.SharedWorkflowError
+		var redirectErr *workflow.RedirectOnlyWorkflowError
+		if !errors.As(err, &sharedErr) && !errors.As(err, &redirectErr) {
+			addWorkflowCompilationLog.Printf("Falling back to raw dispatch-workflow extraction for %s after parse error: %v", workflowFile, err)
+		}
+	}
+
+	return extractDispatchWorkflowNamesFromFrontmatter(workflowFile)
+}
+
+func extractDispatchWorkflowNamesFromFrontmatter(workflowFile string) []string {
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		return nil
+	}
+
+	frontmatter, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil || frontmatter == nil {
+		return nil
+	}
+
+	safeOutputs, ok := frontmatter.Frontmatter["safe-outputs"].(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	dispatchConfig, exists := safeOutputs["dispatch-workflow"]
+	if !exists {
+		return nil
+	}
+
+	var names []string
+	switch config := dispatchConfig.(type) {
+	case []any:
+		names = appendDispatchWorkflowNames(names, config)
+	case map[string]any:
+		if workflows, ok := config["workflows"].([]any); ok {
+			names = appendDispatchWorkflowNames(names, workflows)
+		}
+	}
+
+	return dedupeDispatchWorkflowNames(names)
+}
+
+func appendDispatchWorkflowNames(names []string, raw []any) []string {
+	for _, candidate := range raw {
+		name, ok := candidate.(string)
+		if !ok {
+			continue
+		}
+		trimmed := strings.TrimSpace(name)
+		if trimmed == "" {
+			continue
+		}
+		names = append(names, trimmed)
+	}
+	return names
+}
+
+func dedupeDispatchWorkflowNames(names []string) []string {
+	seen := make(map[string]struct{}, len(names))
+	result := make([]string, 0, len(names))
+	for _, name := range names {
+		trimmed := strings.TrimSpace(name)
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		result = append(result, trimmed)
+	}
+	return result
 }
 
 // This function preserves the existing frontmatter formatting while adding the source field.

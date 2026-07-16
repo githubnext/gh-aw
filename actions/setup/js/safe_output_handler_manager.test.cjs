@@ -277,18 +277,139 @@ describe("Safe Output Handler Manager", () => {
             max: 1,
             mentions: mentionsConfig,
             allowedMentionAliases: ["copilot", "octocat"],
-          })
+          }),
+          null
         );
         expect(createIssueMainSpy).toHaveBeenCalledWith(
           expect.objectContaining({
             max: 1,
             mentions: mentionsConfig,
             allowedMentionAliases: ["copilot", "octocat"],
-          })
+          }),
+          null
         );
       } finally {
         addCommentMainSpy.mockRestore();
         createIssueMainSpy.mockRestore();
+      }
+    });
+
+    it("injects GH_AW_PROJECT_GITHUB_TOKEN for project handlers when github-token is missing", async () => {
+      process.env.GH_AW_PROJECT_GITHUB_TOKEN = "projects-token";
+      global.getOctokit = vi.fn().mockReturnValue({ client: "project-client" });
+
+      const updateProjectModule = require("./update_project.cjs");
+      const updateProjectMainSpy = vi.spyOn(updateProjectModule, "main").mockImplementation(async () => async () => ({ success: true }));
+
+      try {
+        const handlers = await loadHandlers({
+          update_project: { project: "https://github.com/orgs/myorg/projects/1" },
+        });
+
+        expect(handlers.has("update_project")).toBe(true);
+        expect(global.getOctokit).toHaveBeenCalledWith("projects-token");
+        expect(updateProjectMainSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            project: "https://github.com/orgs/myorg/projects/1",
+            "github-token": "projects-token",
+          }),
+          expect.objectContaining({ client: "project-client" })
+        );
+      } finally {
+        updateProjectMainSpy.mockRestore();
+        delete process.env.GH_AW_PROJECT_GITHUB_TOKEN;
+        delete global.getOctokit;
+      }
+    });
+
+    it("preserves explicit project handler github-token over GH_AW_PROJECT_GITHUB_TOKEN fallback", async () => {
+      process.env.GH_AW_PROJECT_GITHUB_TOKEN = "fallback-project-token";
+      global.getOctokit = vi.fn().mockReturnValue({ client: "project-client" });
+
+      const updateProjectModule = require("./update_project.cjs");
+      const updateProjectMainSpy = vi.spyOn(updateProjectModule, "main").mockImplementation(async () => async () => ({ success: true }));
+
+      try {
+        await loadHandlers({
+          update_project: {
+            project: "https://github.com/orgs/myorg/projects/1",
+            "github-token": "explicit-project-token",
+          },
+        });
+
+        expect(global.getOctokit).toHaveBeenCalledWith("explicit-project-token");
+        expect(updateProjectMainSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            "github-token": "explicit-project-token",
+          }),
+          expect.objectContaining({ client: "project-client" })
+        );
+      } finally {
+        updateProjectMainSpy.mockRestore();
+        delete process.env.GH_AW_PROJECT_GITHUB_TOKEN;
+        delete global.getOctokit;
+      }
+    });
+
+    it("wraps project handlers so global.github is set to the project client during execution", async () => {
+      process.env.GH_AW_PROJECT_GITHUB_TOKEN = "projects-token";
+      const projectClient = { client: "project-client" };
+      global.getOctokit = vi.fn().mockReturnValue(projectClient);
+
+      const previousGithub = { client: "shared-client" };
+      global.github = previousGithub;
+      let seenGithub = null;
+
+      const updateProjectModule = require("./update_project.cjs");
+      const updateProjectMainSpy = vi.spyOn(updateProjectModule, "main").mockImplementation(async () => async () => {
+        // outer function: handler factory at loadHandlers() time; inner function: message handler at processMessages() time
+        seenGithub = global.github;
+        return { success: true };
+      });
+
+      try {
+        const handlers = await loadHandlers({
+          update_project: { project: "https://github.com/orgs/myorg/projects/1" },
+        });
+        const handler = handlers.get("update_project");
+        expect(typeof handler).toBe("function");
+
+        await handler({ type: "update_project" });
+
+        expect(seenGithub).toBe(projectClient);
+        expect(global.github).toBe(previousGithub);
+      } finally {
+        updateProjectMainSpy.mockRestore();
+        delete process.env.GH_AW_PROJECT_GITHUB_TOKEN;
+        delete global.getOctokit;
+        global.github = previousGithub;
+      }
+    });
+
+    it("restores global.github to absent state after wrapped project handler execution", async () => {
+      process.env.GH_AW_PROJECT_GITHUB_TOKEN = "projects-token";
+      const projectClient = { client: "project-client" };
+      global.getOctokit = vi.fn().mockReturnValue(projectClient);
+      delete global.github;
+
+      const updateProjectModule = require("./update_project.cjs");
+      const updateProjectMainSpy = vi.spyOn(updateProjectModule, "main").mockImplementation(async () => async () => ({ success: true }));
+
+      try {
+        const handlers = await loadHandlers({
+          update_project: { project: "https://github.com/orgs/myorg/projects/1" },
+        });
+        const handler = handlers.get("update_project");
+        expect(typeof handler).toBe("function");
+
+        await handler({ type: "update_project" });
+
+        expect("github" in global).toBe(false);
+      } finally {
+        updateProjectMainSpy.mockRestore();
+        delete process.env.GH_AW_PROJECT_GITHUB_TOKEN;
+        delete global.getOctokit;
+        delete global.github;
       }
     });
   });
