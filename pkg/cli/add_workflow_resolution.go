@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/sliceutil"
@@ -549,7 +550,7 @@ func resolveLocalPackageAgentFiles(packageDir string, explicitAgentFiles []strin
 	}
 
 	var agentFiles []string
-	for _, root := range []string{packageAgentsDirectory, ".github/" + packageAgentsDirectory} {
+	for _, root := range []string{packageAgentsDirectory, constants.GithubDir + packageAgentsDirectory} {
 		agentsDir := filepath.Join(packageDir, filepath.FromSlash(root))
 		entries, err := os.ReadDir(agentsDir)
 		if err != nil {
@@ -570,7 +571,7 @@ func resolveLocalPackageAgentFiles(packageDir string, explicitAgentFiles []strin
 
 func scanLocalPackageSkillDirs(packageDir string) ([]string, error) {
 	var skillDirs []string
-	for _, root := range []string{packageSkillsDirectory, ".github/" + packageSkillsDirectory} {
+	for _, root := range []string{packageSkillsDirectory, constants.GithubDir + packageSkillsDirectory} {
 		skillsDir := filepath.Join(packageDir, filepath.FromSlash(root))
 		entries, err := os.ReadDir(skillsDir)
 		if err != nil {
