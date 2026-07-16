@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,8 +18,6 @@ import (
 )
 
 var addLog = logger.New("cli:add_command")
-var addGetCurrentRepoSlug = GetCurrentRepoSlug
-var addExecuteBootstrapConfigForAdd = executeBootstrapConfigForAdd
 
 var (
 	addCommandLong = `Add one or more agentic workflows from repositories to .github/workflows.
@@ -159,37 +156,29 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 	if err != nil {
 		return err
 	}
+	if err := rejectBootstrapProfileForRegularAdd(args, resolved.BootstrapProfile); err != nil {
+		return err
+	}
 	if err := ensureAddRepositoryInitialized(engineOverride, verbose); err != nil {
 		return err
 	}
 	if _, err := AddResolvedWorkflows(cmd.Context(), args, resolved, opts); err != nil {
 		return err
 	}
-	if opts.CreatePR {
-		// When creating a PR, config cannot be applied until the PR is merged.
-		// Print the manual checklist so the user knows what to do after merge.
-		printBootstrapConfigTODO(cmd.ErrOrStderr(), resolved.BootstrapProfile)
-		printBootstrapConfigRerunHint(cmd.ErrOrStderr(), args, true)
-		return nil
-	}
-	return runAddBootstrapConfigFlow(cmd.Context(), cmd.ErrOrStderr(), args, resolved.BootstrapProfile, verbose)
+	return nil
 }
 
-func runAddBootstrapConfigFlow(ctx context.Context, output io.Writer, sources []string, profile *resolvedBootstrapProfile, verbose bool) error {
+func rejectBootstrapProfileForRegularAdd(sources []string, profile *resolvedBootstrapProfile) error {
 	if profile == nil || profile.Profile == nil || len(profile.Profile.Config) == 0 {
 		return nil
 	}
 
-	repoSlug, err := addGetCurrentRepoSlug()
-	if err != nil {
-		addLog.Printf("Could not determine target repository for automatic bootstrap config setup: %v", err)
-		fmt.Fprintln(output, console.FormatWarningMessage("Could not determine target repository for automatic config setup; showing manual checklist instead."))
-		printBootstrapConfigTODO(output, profile)
-		printBootstrapConfigRerunHint(output, sources, false)
-		return nil
+	requestedSources := strings.Join(sources, " ")
+	if requestedSources == "" {
+		requestedSources = profile.PackageID
 	}
 
-	return addExecuteBootstrapConfigForAdd(ctx, repoSlug, sources, profile, false, verbose)
+	return fmt.Errorf("package %s declares aw.yml config and cannot be installed with 'gh aw add'. Use 'gh aw add-wizard %s' so the config steps can run interactively", profile.PackageID, requestedSources)
 }
 
 func registerAddCommandFlags(cmd *cobra.Command) {
