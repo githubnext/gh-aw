@@ -105,7 +105,8 @@ engine: copilot`;
   - shared/common.md`;
 
       const result = extractImportsFromText(frontmatterText);
-      // uses: object-form items are skipped by the text-based parser (requires full YAML)
+      // Object-form items (uses:/path: keys with a block mapping) are skipped by the
+      // text-based parser; plain string imports like "shared/common.md" are still extracted.
       expect(result).toEqual(["shared/common.md"]);
     });
 
