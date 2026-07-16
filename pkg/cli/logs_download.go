@@ -855,7 +855,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 		// before downloading all valid artifacts. Retry individually for critical artifacts
 		// that are missing, so flattening and audit analysis can proceed.
 		if skippedNonZipArtifacts {
-			retryCriticalArtifacts(ctx, downloadArtifactsOptions{runID: opts.runID, outputDir: opts.outputDir, verbose: opts.verbose, owner: opts.owner, repo: opts.repo, hostname: opts.hostname, artifactFilter: opts.artifactFilter})
+			retryCriticalArtifacts(ctx, opts)
 		}
 
 		// When bulk download fails on case-colliding entries, gh CLI aborts and may skip
@@ -908,7 +908,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 		return fmt.Errorf("failed to flatten activation artifact: %w", err)
 	}
 
-	ensureUsageAwInfoFallback(ctx, downloadArtifactsOptions{runID: opts.runID, outputDir: opts.outputDir, verbose: opts.verbose, owner: opts.owner, repo: opts.repo, hostname: opts.hostname, artifactFilter: opts.artifactFilter})
+	ensureUsageAwInfoFallback(ctx, opts)
 
 	// Flatten unified agent directory structure
 	if err := flattenUnifiedArtifact(opts.outputDir, opts.verbose); err != nil {
