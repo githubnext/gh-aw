@@ -282,6 +282,114 @@ describe("git_helpers.cjs", () => {
     });
   });
 
+  describe("ensureSafeDirectoryTrust", () => {
+    let originalEnv;
+
+    beforeEach(() => {
+      originalEnv = { ...process.env };
+      // Clean up GIT_CONFIG_* vars injected by a previous test
+      for (const key of Object.keys(process.env)) {
+        if (key.startsWith("GIT_CONFIG_")) {
+          delete process.env[key];
+        }
+      }
+    });
+
+    afterEach(() => {
+      // Restore to original, removing any vars added during the test
+      for (const key of Object.keys(process.env)) {
+        if (!(key in originalEnv)) {
+          delete process.env[key];
+        }
+      }
+      Object.assign(process.env, originalEnv);
+    });
+
+    it("should export ensureSafeDirectoryTrust function", async () => {
+      const { ensureSafeDirectoryTrust } = await import("./git_helpers.cjs");
+      expect(typeof ensureSafeDirectoryTrust).toBe("function");
+    });
+
+    it("should set GIT_CONFIG_* env vars for the given directory", async () => {
+      const { ensureSafeDirectoryTrust } = await import("./git_helpers.cjs");
+
+      ensureSafeDirectoryTrust("/workspace/repo");
+
+      expect(process.env.GIT_CONFIG_COUNT).toBe("1");
+      expect(process.env.GIT_CONFIG_KEY_0).toBe("safe.directory");
+      expect(process.env.GIT_CONFIG_VALUE_0).toBe("/workspace/repo");
+    });
+
+    it("should not add a duplicate entry when called twice with the same directory", async () => {
+      const { ensureSafeDirectoryTrust } = await import("./git_helpers.cjs");
+
+      ensureSafeDirectoryTrust("/workspace/repo");
+      ensureSafeDirectoryTrust("/workspace/repo");
+
+      expect(process.env.GIT_CONFIG_COUNT).toBe("1");
+    });
+
+    it("should append a new entry when called with a different directory", async () => {
+      const { ensureSafeDirectoryTrust } = await import("./git_helpers.cjs");
+
+      ensureSafeDirectoryTrust("/workspace/repo-a");
+      ensureSafeDirectoryTrust("/workspace/repo-b");
+
+      expect(process.env.GIT_CONFIG_COUNT).toBe("2");
+      expect(process.env.GIT_CONFIG_KEY_0).toBe("safe.directory");
+      expect(process.env.GIT_CONFIG_VALUE_0).toBe("/workspace/repo-a");
+      expect(process.env.GIT_CONFIG_KEY_1).toBe("safe.directory");
+      expect(process.env.GIT_CONFIG_VALUE_1).toBe("/workspace/repo-b");
+    });
+
+    it("should be a no-op when called with an empty string", async () => {
+      const { ensureSafeDirectoryTrust } = await import("./git_helpers.cjs");
+
+      ensureSafeDirectoryTrust("");
+
+      expect(process.env.GIT_CONFIG_COUNT).toBeUndefined();
+    });
+
+    it("should be a no-op when called with undefined/falsy", async () => {
+      const { ensureSafeDirectoryTrust } = await import("./git_helpers.cjs");
+
+      ensureSafeDirectoryTrust(undefined);
+
+      expect(process.env.GIT_CONFIG_COUNT).toBeUndefined();
+    });
+
+    it("should preserve existing GIT_CONFIG_* entries set by getGitAuthEnv", async () => {
+      const { ensureSafeDirectoryTrust, getGitAuthEnv } = await import("./git_helpers.cjs");
+
+      // Simulate what getGitAuthEnv returns being already applied via env
+      const authEnv = getGitAuthEnv("test-token");
+      Object.assign(process.env, authEnv);
+
+      ensureSafeDirectoryTrust("/workspace/repo");
+
+      // The count should be incremented by 1 (from 1 to 2)
+      expect(parseInt(process.env.GIT_CONFIG_COUNT, 10)).toBe(2);
+      // Existing auth entry preserved
+      expect(process.env.GIT_CONFIG_KEY_0).toBe(authEnv.GIT_CONFIG_KEY_0);
+      expect(process.env.GIT_CONFIG_VALUE_0).toBe(authEnv.GIT_CONFIG_VALUE_0);
+      // New safe.directory entry appended
+      expect(process.env.GIT_CONFIG_KEY_1).toBe("safe.directory");
+      expect(process.env.GIT_CONFIG_VALUE_1).toBe("/workspace/repo");
+    });
+
+    it("should handle a malformed GIT_CONFIG_COUNT gracefully", async () => {
+      const { ensureSafeDirectoryTrust } = await import("./git_helpers.cjs");
+
+      process.env.GIT_CONFIG_COUNT = "not-a-number";
+
+      ensureSafeDirectoryTrust("/workspace/repo");
+
+      expect(process.env.GIT_CONFIG_COUNT).toBe("1");
+      expect(process.env.GIT_CONFIG_KEY_0).toBe("safe.directory");
+      expect(process.env.GIT_CONFIG_VALUE_0).toBe("/workspace/repo");
+    });
+  });
+
   describe("ensureFullHistoryForBundle", () => {
     it("should unshallow the repository when the repository is shallow", async () => {
       const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
