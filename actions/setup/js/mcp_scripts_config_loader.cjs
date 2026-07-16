@@ -45,12 +45,24 @@ function loadConfig(configPath) {
   try {
     config = JSON.parse(configContent);
   } catch (err) {
-    throw new Error("Failed to parse config file " + configPath + ": " + getErrorMessage(err), { cause: err });
+    throw new Error(`Failed to parse config file ${configPath}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   // Validate required fields
   if (!config.tools || !Array.isArray(config.tools)) {
     throw new Error(`${ERR_VALIDATION}: Configuration must contain a 'tools' array`);
+  }
+
+  for (const [i, tool] of config.tools.entries()) {
+    if (!tool.name || typeof tool.name !== "string") {
+      throw new Error(`${ERR_VALIDATION}: Tool at index ${i} must have a 'name' string field`);
+    }
+    if (!tool.description || typeof tool.description !== "string") {
+      throw new Error(`${ERR_VALIDATION}: Tool at index ${i} ('${tool.name}') must have a 'description' string field`);
+    }
+    if (!tool.inputSchema || typeof tool.inputSchema !== "object") {
+      throw new Error(`${ERR_VALIDATION}: Tool at index ${i} ('${tool.name}') must have an 'inputSchema' object field`);
+    }
   }
 
   return config;

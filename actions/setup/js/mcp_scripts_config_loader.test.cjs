@@ -94,6 +94,50 @@ describe("mcp_scripts_config_loader.cjs", () => {
       expect(loadedConfig.version).toBeUndefined();
     });
 
+    it("should throw error for tool missing name", async () => {
+      const { loadConfig } = await import("./mcp_scripts_config_loader.cjs");
+
+      const configPath = path.join(tempDir, "tool-no-name.json");
+      fs.writeFileSync(configPath, JSON.stringify({ tools: [{ description: "A tool", inputSchema: {} }] }));
+
+      expect(() => loadConfig(configPath)).toThrow("must have a 'name' string field");
+    });
+
+    it("should throw error for tool missing description", async () => {
+      const { loadConfig } = await import("./mcp_scripts_config_loader.cjs");
+
+      const configPath = path.join(tempDir, "tool-no-desc.json");
+      fs.writeFileSync(configPath, JSON.stringify({ tools: [{ name: "tool1", inputSchema: {} }] }));
+
+      expect(() => loadConfig(configPath)).toThrow("must have a 'description' string field");
+    });
+
+    it("should throw error for tool missing inputSchema", async () => {
+      const { loadConfig } = await import("./mcp_scripts_config_loader.cjs");
+
+      const configPath = path.join(tempDir, "tool-no-schema.json");
+      fs.writeFileSync(configPath, JSON.stringify({ tools: [{ name: "tool1", description: "A tool" }] }));
+
+      expect(() => loadConfig(configPath)).toThrow("must have an 'inputSchema' object field");
+    });
+
+    it("should include tool name in error when later tool is invalid", async () => {
+      const { loadConfig } = await import("./mcp_scripts_config_loader.cjs");
+
+      const configPath = path.join(tempDir, "second-tool-invalid.json");
+      fs.writeFileSync(
+        configPath,
+        JSON.stringify({
+          tools: [
+            { name: "good_tool", description: "Good", inputSchema: {} },
+            { name: "bad_tool", description: "Bad" }, // missing inputSchema
+          ],
+        })
+      );
+
+      expect(() => loadConfig(configPath)).toThrow("'bad_tool'");
+    });
+
     it("should load configuration with multiple tools", async () => {
       const { loadConfig } = await import("./mcp_scripts_config_loader.cjs");
 
