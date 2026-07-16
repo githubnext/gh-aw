@@ -173,9 +173,11 @@ func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData)
 		version,
 		install.StepName,
 		install.BinaryName,
-		install.IncludeNodeSetup,
-		install.PostInstallScripts,
-		install.Cooldown,
+		NPMInstallOptions{
+			IncludeNodeSetup:  install.IncludeNodeSetup,
+			RunInstallScripts: install.PostInstallScripts,
+			CooldownEnabled:   install.Cooldown,
+		},
 	)
 	if install.VerifyCommand != "" {
 		npmSteps = append(npmSteps, GitHubActionStep{
