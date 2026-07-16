@@ -1,7 +1,7 @@
 // This file contains glob pattern validation logic for GitHub Actions workflow filters.
 //
 // The validation code is adapted from github.com/rhysd/actionlint (MIT License).
-// Source: https://github.com/rhysd/actionlint/blob/v1.7.11/glob.go
+// Source: https://github.com/rhysd/actionlint/blob/v1.7.12/glob.go
 //
 // It is maintained here as a self-contained copy to avoid importing the full actionlint
 // package (which has transitive dependency compatibility constraints). The glob validator

@@ -594,7 +594,7 @@ check-node-version:
 .PHONY: tools
 tools: ## Install build-time tools from tools.go
 	@echo "Installing build tools..."
-	@go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.11
+	@go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 	@go install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
 	@go install golang.org/x/tools/gopls@v0.21.1
 	@echo "✓ Tools installed successfully"

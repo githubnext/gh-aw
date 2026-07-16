@@ -190,7 +190,7 @@ func getActionlintVersion(ctx context.Context) (string, error) {
 		"docker",
 		"run",
 		"--rm",
-		"rhysd/actionlint:latest",
+		ActionlintImage,
 		"--version",
 	)
 
@@ -347,7 +347,7 @@ func buildActionlintDockerArgs(gitRoot string, relPaths []string, options action
 		"--rm",
 		"-v", gitRoot + ":/workdir",
 		"-w", "/workdir",
-		"rhysd/actionlint:latest",
+		ActionlintImage,
 		"-format", "{{json .}}",
 	}
 	if !options.IncludeShellcheck {
