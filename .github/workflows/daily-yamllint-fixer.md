@@ -103,6 +103,11 @@ imports:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: lint_issues_identified
+    question: Does the agent output confirm that yamllint issues were identified and analyzed in the generated lock files?
+  - id: pr_created_or_noop
+    question: Was a pull request created with Go generator fixes for yamllint issues, or was noop used when no issues required changes?
 ---
 
 # Daily yamllint Fixer

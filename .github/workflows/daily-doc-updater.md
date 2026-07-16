@@ -75,6 +75,11 @@ tools:
 tracker-id: daily-doc-updater
 features:
   gh-aw-detection: true
+evals:
+  - id: docs_reviewed
+    question: Did the agent review documentation and identify whether updates are needed based on recent code changes?
+  - id: pr_created_or_noop
+    question: Was a documentation pull request created with updates, or was noop used when no documentation changes were required?
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

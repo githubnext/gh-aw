@@ -102,6 +102,11 @@ steps:
       echo "$INACTIVE_REPOS" > /tmp/gh-aw/agent/stale-repos-data/inactive-repos.json
       echo "Stale repositories data saved"
       echo "Total stale repositories: $(jq 'length' /tmp/gh-aw/agent/stale-repos-data/inactive-repos.json)"
+evals:
+  - id: repos_analyzed
+    question: Did the agent analyze repositories for staleness indicators such as inactivity, archived status, and lack of recent commits?
+  - id: report_created
+    question: Was a report or issue created summarizing the stale repository findings?
 
 ---
 

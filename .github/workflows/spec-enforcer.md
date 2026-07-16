@@ -68,6 +68,11 @@ tools:
     toolsets:
     - default
 tracker-id: spec-enforcer
+evals:
+  - id: packages_processed
+    question: Did the agent process at least one Go package for specification-driven test generation?
+  - id: pr_created_or_noop
+    question: Was a pull request created with new or updated test suites, or was noop used when no packages required test generation?
 ---
 
 # Package Specification Enforcer
