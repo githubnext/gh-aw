@@ -2,8 +2,6 @@ package cli
 
 import (
 	"context"
-	crand "crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/url"
@@ -23,6 +21,16 @@ import (
 )
 
 var engineSecretsLog = logger.New("cli:engine_secrets")
+
+// Overridable for testing
+var (
+	engineSecretsPromptFn = func(req SecretRequirement, config EngineSecretConfig) error {
+		return promptForSecret(req, config)
+	}
+	engineSecretsUploadFn = func(secretName, secretValue, repoSlug string, verbose bool, overwriteExisting bool) error {
+		return uploadSecretToRepo(secretName, secretValue, repoSlug, verbose, overwriteExisting)
+	}
+)
 
 // promptCancelled handles graceful cancellation of an interactive prompt.
 // It prints "Cancelled." to stderr and returns an ExitCodeError with code 130.
@@ -231,11 +239,11 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 	// Check if secret already exists in the repository
 	if setutil.Contains(config.ExistingSecrets, req.Name) {
 		if mustValidateExistingSecretValue(req) {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s already exists, but GitHub does not expose stored secret values for validation.", req.Name)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(req.Name+" already exists, but GitHub does not expose stored secret values for validation."))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Paste the current or replacement fine-grained PAT so gh aw can validate it and update the repository secret."))
 			revalidateConfig := config
 			revalidateConfig.OverwriteExistingSecret = true
-			return promptForSecret(req, revalidateConfig)
+			return engineSecretsPromptFn(req, revalidateConfig)
 		}
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Using existing %s secret in repository", req.Name)))
 		return nil
@@ -245,11 +253,11 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 	for _, alt := range req.AlternativeEnvVars {
 		if setutil.Contains(config.ExistingSecrets, alt) {
 			if mustValidateExistingSecretValue(req) {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s already exists in the repository, but GitHub does not expose stored secret values for validation.", alt)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(alt+" already exists in the repository, but GitHub does not expose stored secret values for validation."))
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Paste the current or replacement fine-grained PAT so gh aw can validate it and store it as %s.", req.Name)))
 				revalidateConfig := config
 				revalidateConfig.OverwriteExistingSecret = true
-				return promptForSecret(req, revalidateConfig)
+				return engineSecretsPromptFn(req, revalidateConfig)
 			}
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Using existing %s secret in repository (alternative for %s)", alt, req.Name)))
 			return nil
@@ -280,7 +288,7 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found valid %s in environment", req.Name)))
 				// Upload to repository if we have a repo slug
 				if config.RepoSlug != "" {
-					return uploadSecretToRepo(req.Name, envValue, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
+					return engineSecretsUploadFn(req.Name, envValue, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
 				}
 				return nil
 			}
@@ -288,14 +296,14 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %s in environment", req.Name)))
 			// Upload to repository if we have a repo slug
 			if config.RepoSlug != "" {
-				return uploadSecretToRepo(req.Name, envValue, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
+				return engineSecretsUploadFn(req.Name, envValue, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
 			}
 			return nil
 		}
 	}
 
 	// Secret not found, prompt user for it
-	return promptForSecret(req, config)
+	return engineSecretsPromptFn(req, config)
 }
 
 // promptForSecret prompts the user to provide a secret value
@@ -321,17 +329,34 @@ func mustValidateExistingSecretValue(req SecretRequirement) bool {
 
 // promptForCopilotPATUnified prompts the user for a Copilot PAT with detailed instructions
 func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig) error {
-	preconfiguredPATURL := buildCopilotPATCreationURL(config.RepoSlug)
+	preconfiguredPATURL := buildCopilotPATCreationURL()
 
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Create a fine-grained Personal Access Token (PAT) from the preconfigured page below, then paste it back here.")
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Open the preconfigured token creation page:")
+	fmt.Fprintln(os.Stderr, "Preconfigured token creation page:")
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  "+preconfiguredPATURL))
-	if openBootstrapBrowser(preconfiguredPATURL) {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Opened the preconfigured Copilot PAT page in your browser."))
-	} else {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Couldn't open your browser automatically (no supported opener found) — open the URL above manually."))
+	fmt.Fprintln(os.Stderr, "")
+
+	openBrowser := true
+	confirmForm := console.NewConfirmForm(
+		huh.NewConfirm().
+			Title("Open the preconfigured token creation page in your browser now?").
+			Affirmative("Yes, open browser").
+			Negative("No, I'll use the URL above").
+			Value(&openBrowser),
+	)
+	if err := confirmForm.RunWithContext(config.ctx()); err != nil {
+		if console.IsCancelled(err) {
+			return promptCancelled()
+		}
+		// Non-interactive: skip the consent gate and fall through to token input
+	} else if openBrowser {
+		if openBootstrapBrowser(preconfiguredPATURL) {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Opened the preconfigured Copilot PAT page in your browser."))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Couldn't open your browser automatically (no supported opener found) — open the URL above manually."))
+		}
 	}
 
 	var token string
@@ -372,68 +397,12 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 	return nil
 }
 
-func buildCopilotPATCreationURL(repoSlug string) string {
-	return buildCopilotPATCreationURLWithSuffix(repoSlug, newCopilotPATNameSuffix())
-}
-
-func buildCopilotPATCreationURLWithSuffix(repoSlug, suffix string) string {
+func buildCopilotPATCreationURL() string {
 	const baseURL = "https://github.com/settings/personal-access-tokens/new"
-	name := buildCopilotPATDisplayName(repoSlug, suffix)
-	description := "Used by GitHub Agentic Workflows to make Copilot requests."
-	if repoSlug != "" {
-		description = fmt.Sprintf("Used by GitHub Agentic Workflows for %s to make Copilot requests.", repoSlug)
-	}
-
 	values := url.Values{}
-	values.Set("name", name)
-	values.Set("description", description)
-	values.Set("expires_in", "90")
+	values.Set("name", constants.CopilotGitHubToken)
 	values.Set("user_copilot_requests", "read")
 	return baseURL + "?" + values.Encode()
-}
-
-func buildCopilotPATDisplayName(repoSlug, suffix string) string {
-	const defaultName = "Agentic Workflows Copilot"
-	const contextualBase = "gh-aw Copilot"
-	const maxNameLength = 40
-	suffix = strings.TrimSpace(suffix)
-
-	if repoSlug == "" {
-		if suffix == "" {
-			return defaultName
-		}
-		return fmt.Sprintf("%s %s", defaultName, suffix)
-	}
-
-	if suffix == "" {
-		return defaultName
-	}
-
-	reservedLength := len(contextualBase) + len(" ()") + len("-") + len(suffix)
-	maxRepoSlugLength := maxNameLength - reservedLength
-	if maxRepoSlugLength <= 0 {
-		return fmt.Sprintf("%s-%s", contextualBase, suffix)
-	}
-
-	return fmt.Sprintf("%s (%s-%s)", contextualBase, truncateWithASCIIEllipsis(repoSlug, maxRepoSlugLength), suffix)
-}
-
-func newCopilotPATNameSuffix() string {
-	buf := make([]byte, 2)
-	if _, err := crand.Read(buf); err != nil {
-		return "copy"
-	}
-	return hex.EncodeToString(buf)
-}
-
-func truncateWithASCIIEllipsis(value string, maxLength int) string {
-	if len(value) <= maxLength {
-		return value
-	}
-	if maxLength <= 3 {
-		return value[:maxLength]
-	}
-	return value[:maxLength-3] + "..."
 }
 
 // promptForSystemTokenUnified prompts the user for a system-level GitHub token (PAT)

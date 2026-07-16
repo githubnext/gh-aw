@@ -497,31 +497,12 @@ func getCurrentBranchIn(dir string) (string, error) {
 func createAndSwitchBranch(branchName string, verbose bool) error {
 	console.LogVerbose(verbose, "Creating and switching to branch: "+branchName)
 
-	exists, err := localBranchExists(branchName)
-	if err != nil {
-		return fmt.Errorf("failed to check whether branch %s exists: %w", branchName, err)
-	}
-	if exists {
-		return switchBranch(branchName, verbose)
-	}
-
 	cmd := exec.Command("git", "checkout", "-b", branchName)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to create and switch to branch %s: %w", branchName, err)
 	}
 
 	return nil
-}
-
-func localBranchExists(branchName string) (bool, error) {
-	cmd := exec.Command("git", "show-ref", "--verify", "--quiet", "refs/heads/"+branchName)
-	if err := cmd.Run(); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
 }
 
 // switchBranch switches to the specified branch

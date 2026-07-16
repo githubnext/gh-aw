@@ -147,41 +147,63 @@ func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 }
 
 func TestBuildCopilotPATCreationURL(t *testing.T) {
-	rawURL := buildCopilotPATCreationURLWithSuffix("", "a1b2")
+	rawURL := buildCopilotPATCreationURL()
 	parsed, err := url.Parse(rawURL)
 	require.NoError(t, err)
 
 	assert.Equal(t, "https", parsed.Scheme)
 	assert.Equal(t, "github.com", parsed.Host)
 	assert.Equal(t, "/settings/personal-access-tokens/new", parsed.Path)
-	assert.Equal(t, "Agentic Workflows Copilot a1b2", parsed.Query().Get("name"))
-	assert.Equal(t, "Used by GitHub Agentic Workflows to make Copilot requests.", parsed.Query().Get("description"))
-	assert.Equal(t, "90", parsed.Query().Get("expires_in"))
+	assert.Equal(t, constants.CopilotGitHubToken, parsed.Query().Get("name"), "token name must be prefilled to COPILOT_GITHUB_TOKEN")
 	assert.Equal(t, "read", parsed.Query().Get("user_copilot_requests"))
 	assert.Empty(t, parsed.Query().Get("contents"), "Copilot PAT setup URL should not request unrelated repository permissions")
 	assert.Empty(t, parsed.Query().Get("issues"), "Copilot PAT setup URL should not request unrelated issue permissions")
 	assert.Empty(t, parsed.Query().Get("pull_requests"), "Copilot PAT setup URL should not request unrelated pull request permissions")
 }
 
-func TestBuildCopilotPATCreationURLIncludesRepoSlug(t *testing.T) {
-	rawURL := buildCopilotPATCreationURLWithSuffix("github/gh-aw", "a1b2")
-	parsed, err := url.Parse(rawURL)
-	require.NoError(t, err)
+func TestEnsureSecretAvailable_CopilotRepromptsWithOverwrite(t *testing.T) {
+	copilotReq := SecretRequirement{
+		Name:           constants.CopilotGitHubToken,
+		IsEngineSecret: true,
+		EngineName:     string(constants.CopilotEngine),
+	}
+	claudeReq := SecretRequirement{
+		Name:           "ANTHROPIC_API_KEY",
+		IsEngineSecret: true,
+		EngineName:     string(constants.ClaudeEngine),
+	}
 
-	assert.Equal(t, "gh-aw Copilot (github/gh-aw-a1b2)", parsed.Query().Get("name"))
-	assert.Equal(t, "Used by GitHub Agentic Workflows for github/gh-aw to make Copilot requests.", parsed.Query().Get("description"))
-	assert.Equal(t, "read", parsed.Query().Get("user_copilot_requests"))
-}
+	t.Run("existing Copilot secret triggers re-prompt with OverwriteExistingSecret=true", func(t *testing.T) {
+		var capturedConfig EngineSecretConfig
+		orig := engineSecretsPromptFn
+		t.Cleanup(func() { engineSecretsPromptFn = orig })
+		engineSecretsPromptFn = func(req SecretRequirement, config EngineSecretConfig) error {
+			capturedConfig = config
+			return nil
+		}
 
-func TestBuildCopilotPATCreationURLTruncatesLongRepoSlugInName(t *testing.T) {
-	rawURL := buildCopilotPATCreationURLWithSuffix("my-mona-org/my-awesome-repo", "a1b2")
-	parsed, err := url.Parse(rawURL)
-	require.NoError(t, err)
+		cfg := EngineSecretConfig{
+			ExistingSecrets: map[string]struct{}{constants.CopilotGitHubToken: {}},
+		}
+		require.NoError(t, ensureSecretAvailable(copilotReq, cfg))
+		assert.True(t, capturedConfig.OverwriteExistingSecret, "prompt must be called with OverwriteExistingSecret=true")
+	})
 
-	assert.Equal(t, "gh-aw Copilot (my-mona-org/my-a...-a1b2)", parsed.Query().Get("name"))
-	assert.Len(t, parsed.Query().Get("name"), 40)
-	assert.Equal(t, "Used by GitHub Agentic Workflows for my-mona-org/my-awesome-repo to make Copilot requests.", parsed.Query().Get("description"))
-	assert.Equal(t, "read", parsed.Query().Get("user_copilot_requests"))
+	t.Run("existing non-Copilot secret skips prompt", func(t *testing.T) {
+		called := false
+		orig := engineSecretsPromptFn
+		t.Cleanup(func() { engineSecretsPromptFn = orig })
+		engineSecretsPromptFn = func(_ SecretRequirement, _ EngineSecretConfig) error {
+			called = true
+			return nil
+		}
+
+		cfg := EngineSecretConfig{
+			ExistingSecrets: map[string]struct{}{"ANTHROPIC_API_KEY": {}},
+		}
+		require.NoError(t, ensureSecretAvailable(claudeReq, cfg))
+		assert.False(t, called, "non-Copilot existing secret must not trigger a prompt")
+	})
 }
 
 func TestStringContainsSecretName(t *testing.T) {

@@ -38,6 +38,7 @@ const (
 	bootstrapGitHubAppDescriptionEnv = "GH_AW_BOOTSTRAP_GITHUB_APP_DESCRIPTION"
 	bootstrapGitHubAppClientIDEnv    = "GH_AW_BOOTSTRAP_GITHUB_APP_CLIENT_ID"
 	bootstrapGitHubAppPrivateKeyEnv  = "GH_AW_BOOTSTRAP_GITHUB_APP_PRIVATE_KEY"
+	bootstrapNoOpenBrowserEnv        = "GH_AW_BOOTSTRAP_NO_OPEN_BROWSER"
 )
 
 var (
@@ -652,7 +653,26 @@ func loadBootstrapGitHubAppOverrides() (bootstrapGitHubAppOverrides, error) {
 		return bootstrapGitHubAppOverrides{}, fmt.Errorf("%s must be one of: auto, create, existing. Example: export %s=create", bootstrapGitHubAppModeEnv, bootstrapGitHubAppModeEnv)
 	}
 
+	if raw := strings.TrimSpace(os.Getenv(bootstrapNoOpenBrowserEnv)); raw != "" {
+		disabled, err := parseBootstrapBool(raw)
+		if err != nil {
+			return bootstrapGitHubAppOverrides{}, fmt.Errorf("%s: %w", bootstrapNoOpenBrowserEnv, err)
+		}
+		overrides.OpenBrowser = !disabled
+	}
+
 	return overrides, nil
+}
+
+func parseBootstrapBool(raw string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "true", "yes", "on":
+		return true, nil
+	case "0", "false", "no", "off":
+		return false, nil
+	default:
+		return false, errors.New("expected one of: 1, true, yes, on, 0, false, no, off. Example: GH_AW_BOOTSTRAP_NO_OPEN_BROWSER=true")
+	}
 }
 
 func exchangeBootstrapGitHubAppCode(ctx context.Context, code, owner, ownerType, appName, description string) (*bootstrapCreatedGitHubApp, error) {

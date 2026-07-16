@@ -106,9 +106,6 @@ func TestCreateAndSwitchBranch(t *testing.T) {
 		t.Skip("Failed to create initial commit")
 	}
 
-	originalBranch, err := getCurrentBranch()
-	require.NoError(t, err, "get current branch before branch creation")
-
 	// Create and switch to new branch
 	branchName := "test-branch"
 	err = createAndSwitchBranch(branchName, false)
@@ -118,14 +115,6 @@ func TestCreateAndSwitchBranch(t *testing.T) {
 	currentBranch, err := getCurrentBranch()
 	require.NoError(t, err, "get current branch after branch switch")
 	assert.Equal(t, branchName, currentBranch, "current branch should match the newly created branch")
-
-	require.NoError(t, switchBranch(originalBranch, false), "switch back to original branch")
-	err = createAndSwitchBranch(branchName, false)
-	require.NoError(t, err, "switching to an existing branch should not fail")
-
-	currentBranch, err = getCurrentBranch()
-	require.NoError(t, err, "get current branch after switching to existing branch")
-	assert.Equal(t, branchName, currentBranch, "current branch should match the reused branch")
 }
 
 func TestSwitchBranch(t *testing.T) {

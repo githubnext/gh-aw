@@ -18,6 +18,7 @@ func TestLoadBootstrapGitHubAppOverrides(t *testing.T) {
 	t.Setenv(bootstrapGitHubAppNameEnv, "octo-control-plane")
 	t.Setenv(bootstrapGitHubAppURLEnv, "https://github.com/octo/platform-ops")
 	t.Setenv(bootstrapGitHubAppDescriptionEnv, "Bootstrap app")
+	t.Setenv(bootstrapNoOpenBrowserEnv, "true")
 
 	overrides, err := loadBootstrapGitHubAppOverrides()
 	if err != nil {
@@ -38,8 +39,8 @@ func TestLoadBootstrapGitHubAppOverrides(t *testing.T) {
 	if overrides.Description != "Bootstrap app" {
 		t.Fatalf("expected description override, got %q", overrides.Description)
 	}
-	if !overrides.OpenBrowser {
-		t.Fatal("expected browser opening to remain enabled")
+	if overrides.OpenBrowser {
+		t.Fatal("expected browser opening to be disabled")
 	}
 }
 
@@ -50,6 +51,40 @@ func TestLoadBootstrapGitHubAppOverrides_RejectsInvalidMode(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected invalid mode error")
 	}
+}
+
+func TestParseBootstrapBool(t *testing.T) {
+	t.Run("truthy", func(t *testing.T) {
+		truthy := []string{"1", "true", "yes", "on"}
+		for _, raw := range truthy {
+			got, err := parseBootstrapBool(raw)
+			if err != nil {
+				t.Fatalf("parseBootstrapBool(%q) returned error: %v", raw, err)
+			}
+			if !got {
+				t.Fatalf("expected %q to parse as true", raw)
+			}
+		}
+	})
+
+	t.Run("falsy", func(t *testing.T) {
+		falsy := []string{"0", "false", "no", "off"}
+		for _, raw := range falsy {
+			got, err := parseBootstrapBool(raw)
+			if err != nil {
+				t.Fatalf("parseBootstrapBool(%q) returned error: %v", raw, err)
+			}
+			if got {
+				t.Fatalf("expected %q to parse as false", raw)
+			}
+		}
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		if _, err := parseBootstrapBool("maybe"); err == nil {
+			t.Fatal("expected invalid boolean error")
+		}
+	})
 }
 
 func TestListBootstrapRepoNamesPaginate(t *testing.T) {
