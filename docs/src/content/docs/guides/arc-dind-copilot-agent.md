@@ -136,7 +136,6 @@ To migrate:
 ## Known limitations
 
 - **`allowPrivilegeEscalation: false` is not supported.** The Copilot CLI install script uses `sudo`. Clusters that enforce `no-new-privileges` via PodSecurity Admission or OPA policies will fail at the install step.
-- **MCP gateway Docker socket access** — on runners where `DOCKER_HOST` is a TCP endpoint and no Unix socket exists at `/var/run/docker.sock`, the MCP gateway may fail to connect to the Docker daemon (`Docker daemon is not accessible`). As a workaround, expose the DinD sidecar's Unix socket on the runner container at `/var/run/docker.sock` via a shared volume or symlink. See [#44251](https://github.com/github/gh-aw/issues/44251) for tracking.
 
 ## Troubleshooting
 
@@ -156,21 +155,6 @@ The threat-detection job can't find the Copilot binary. This was fixed in gh-aw 
 ### `sudo: The "no new privileges" flag is set`
 
 The runner pod's security context has `allowPrivilegeEscalation: false`. Remove that constraint or adjust your PodSecurity policy to allow privilege escalation in the runner container.
-
-### `Docker daemon is not accessible` in MCP gateway
-
-The MCP gateway can't reach the Docker socket. Ensure a Unix socket is available at `/var/run/docker.sock` on the runner container. For DinD setups where the daemon only exposes a TCP endpoint, share the sidecar's socket file via a volume:
-
-```yaml
-# In your custom runner pod template
-volumes:
-  - name: dind-sock
-    emptyDir: {}
-# Mount in both runner and DinD sidecar containers
-volumeMounts:
-  - name: dind-sock
-    mountPath: /var/run
-```
 
 ## Related documentation
 
