@@ -380,10 +380,21 @@ describe("git_helpers.cjs", () => {
     it("should handle a malformed GIT_CONFIG_COUNT gracefully", async () => {
       const { ensureSafeDirectoryTrust } = await import("./git_helpers.cjs");
 
-      process.env.GIT_CONFIG_COUNT = "not-a-number";
+      process.env.GIT_CONFIG_COUNT = "-1";
 
       ensureSafeDirectoryTrust("/workspace/repo");
 
+      expect(process.env.GIT_CONFIG_COUNT).toBe("1");
+      expect(process.env.GIT_CONFIG_KEY_0).toBe("safe.directory");
+      expect(process.env.GIT_CONFIG_VALUE_0).toBe("/workspace/repo");
+    });
+
+    it("should not require a shimmed core global", async () => {
+      const { ensureSafeDirectoryTrust } = await import("./git_helpers.cjs");
+
+      global.core = undefined;
+
+      expect(() => ensureSafeDirectoryTrust("/workspace/repo")).not.toThrow();
       expect(process.env.GIT_CONFIG_COUNT).toBe("1");
       expect(process.env.GIT_CONFIG_KEY_0).toBe("safe.directory");
       expect(process.env.GIT_CONFIG_VALUE_0).toBe("/workspace/repo");

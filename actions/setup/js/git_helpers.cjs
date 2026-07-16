@@ -57,9 +57,11 @@ function ensureSafeDirectoryTrust(gitCwd) {
 
   // Check if gitCwd is already present in the injected env-var config to avoid
   // duplicate entries when the handler is called more than once in the same process.
-  // The `|| 0` guard converts NaN (from a malformed pre-existing GIT_CONFIG_COUNT) to 0,
-  // preventing GIT_CONFIG_KEY_NaN/VALUE_NaN entries that would corrupt the env-var config chain.
-  const existingCount = parseInt(process.env.GIT_CONFIG_COUNT || "0", 10) || 0;
+  // Malformed pre-existing GIT_CONFIG_COUNT values (NaN, negative, fractional,
+  // or unsafe integers) fall back to 0 to avoid corrupting the env-var config chain.
+  const rawCount = process.env.GIT_CONFIG_COUNT || "0";
+  const parsedCount = Number(rawCount);
+  const existingCount = Number.isSafeInteger(parsedCount) && parsedCount >= 0 ? parsedCount : 0;
   for (let i = 0; i < existingCount; i++) {
     if (process.env[`GIT_CONFIG_KEY_${i}`] === "safe.directory" && process.env[`GIT_CONFIG_VALUE_${i}`] === gitCwd) {
       return;
@@ -70,7 +72,7 @@ function ensureSafeDirectoryTrust(gitCwd) {
   process.env.GIT_CONFIG_COUNT = String(existingCount + 1);
   process.env[`GIT_CONFIG_KEY_${idx}`] = "safe.directory";
   process.env[`GIT_CONFIG_VALUE_${idx}`] = gitCwd;
-  core.debug(`Configured git safe.directory for bridge context: ${gitCwd}`);
+  globalThis.core?.debug?.(`Configured git safe.directory for bridge context: ${gitCwd}`);
 }
 
 /**
