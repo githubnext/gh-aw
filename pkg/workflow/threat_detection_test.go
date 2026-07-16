@@ -2087,7 +2087,7 @@ func TestBuildExternalDetectorExecutionStepPropagatesRunnerTopology(t *testing.T
 	})
 }
 
-func TestBuildExternalDetectorExecutionStepInheritsOpenAIBaseURLForAPITarget(t *testing.T) {
+func TestExternalDetectorInheritsOpenAIBaseURL(t *testing.T) {
 	compiler := NewCompiler()
 	data := &WorkflowData{
 		AI: "codex",
@@ -2113,41 +2113,71 @@ func TestBuildExternalDetectorExecutionStepInheritsOpenAIBaseURLForAPITarget(t *
 	if len(steps) == 0 {
 		t.Fatal("expected non-empty steps")
 	}
-	allSteps := strings.Join(steps, "")
+	stepsContent := strings.Join(steps, "")
 
-	if !strings.Contains(allSteps, "apiProxy") {
-		t.Fatalf("expected external detector AWF config to include api-proxy target; got:\n%s", allSteps)
+	if !strings.Contains(stepsContent, "apiProxy") {
+		t.Fatalf("expected external detector AWF config to include api-proxy target; got:\n%s", stepsContent)
 	}
-	if !strings.Contains(allSteps, "llm-router.internal.example.com") {
-		t.Fatalf("expected external detector AWF config to include host from OPENAI_BASE_URL; got:\n%s", allSteps)
+	if !strings.Contains(stepsContent, "llm-router.internal.example.com") {
+		t.Fatalf("expected external detector AWF config to include host from OPENAI_BASE_URL; got:\n%s", stepsContent)
 	}
 }
 
-func TestGetThreatDetectionAdditionalAllowedDomains_WithOpenAIBaseURL(t *testing.T) {
-	data := &WorkflowData{
-		EngineConfig: &EngineConfig{
-			Env: map[string]string{
-				"OPENAI_BASE_URL": "https://llm-router.internal.example.com/v1",
-			},
+func TestGetThreatDetectionAdditionalAllowedDomains_WithCustomProviderBaseURL(t *testing.T) {
+	tests := []struct {
+		name         string
+		baseURLVar   string
+		baseURLValue string
+	}{
+		{
+			name:         "openai base URL",
+			baseURLVar:   "OPENAI_BASE_URL",
+			baseURLValue: "https://llm-router.internal.example.com/v1",
 		},
-		NetworkPermissions: &NetworkPermissions{
-			Allowed: []string{
-				"llm-router.internal.example.com",
-				"api.openai.com",
-				"${{ inputs.allowed_domains }}",
-				"chatgpt.com",
-			},
+		{
+			name:         "anthropic base URL",
+			baseURLVar:   "ANTHROPIC_BASE_URL",
+			baseURLValue: "https://anthropic-router.internal.example.com/v1",
+		},
+		{
+			name:         "copilot provider base URL",
+			baseURLVar:   constants.CopilotProviderBaseURL,
+			baseURLValue: "https://copilot-router.internal.example.com/v1",
 		},
 	}
 
-	got := getThreatDetectionAdditionalAllowedDomains(data)
-	want := []string{
-		"llm-router.internal.example.com",
-		"api.openai.com",
-		"chatgpt.com",
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("expected additional allowed domains %v, got %v", want, got)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						tt.baseURLVar: tt.baseURLValue,
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Allowed: []string{
+						"llm-router.internal.example.com",
+						"anthropic-router.internal.example.com",
+						"copilot-router.internal.example.com",
+						"api.openai.com",
+						"${{ inputs.allowed_domains }}",
+						"chatgpt.com",
+					},
+				},
+			}
+
+			got := getThreatDetectionAdditionalAllowedDomains(data)
+			want := []string{
+				"llm-router.internal.example.com",
+				"anthropic-router.internal.example.com",
+				"copilot-router.internal.example.com",
+				"api.openai.com",
+				"chatgpt.com",
+			}
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("expected additional allowed domains %v, got %v", want, got)
+			}
+		})
 	}
 }
 

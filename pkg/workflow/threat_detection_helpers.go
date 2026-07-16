@@ -109,20 +109,38 @@ func canReuseThreatDetectionEngineConfigForExternalDetector(data *WorkflowData, 
 		(data.SafeOutputs.ThreatDetection.EngineConfig.ID == "" || data.SafeOutputs.ThreatDetection.EngineConfig.ID == engineID)
 }
 
+// mergeThreatDetectionEngineEnv composes detection engine env vars from the main
+// engine env and detection-specific overrides.
+//
+// Detection values take precedence when keys overlap. When detectionEnv is empty,
+// it still returns a copy of the main env map to avoid aliasing/mutation of the
+// parent WorkflowData.EngineConfig.Env by downstream detection-specific updates.
 func mergeThreatDetectionEngineEnv(data *WorkflowData, detectionEnv map[string]string) map[string]string {
 	if data == nil || data.EngineConfig == nil || len(data.EngineConfig.Env) == 0 {
 		return detectionEnv
 	}
 	if len(detectionEnv) == 0 {
-		merged := make(map[string]string, len(data.EngineConfig.Env))
-		maps.Copy(merged, data.EngineConfig.Env)
-		return merged
+		// Return a copy (not the original map) so subsequent detection-specific
+		// env merges cannot mutate the main engine's env map by aliasing.
+		return maps.Clone(data.EngineConfig.Env)
 	}
 
 	merged := make(map[string]string, len(data.EngineConfig.Env)+len(detectionEnv))
 	maps.Copy(merged, data.EngineConfig.Env)
 	maps.Copy(merged, detectionEnv)
 	return merged
+}
+
+// cloneThreatDetectionEngineConfig returns a shallow copy of source with engine ID
+// normalized to the provided detection engineID. If source is nil, it returns a
+// minimal config containing only the ID.
+func cloneThreatDetectionEngineConfig(engineID string, source *EngineConfig) *EngineConfig {
+	if source == nil {
+		return &EngineConfig{ID: engineID}
+	}
+	cloned := *source
+	cloned.ID = engineID
+	return &cloned
 }
 
 // engineCoreSecretVarNames returns the secret-backed env var names for the given engine ID
