@@ -307,7 +307,7 @@ describe("generate_safe_outputs_tools", () => {
     expect(addCommentTool.description).not.toContain("Supports reply_to_id for discussion threading.");
   });
 
-  it("adds issue intent suffix for issue tools without requiring a runtime feature", () => {
+  it("adds issue intent suffix for issue tools when explicitly enabled", () => {
     fs.writeFileSync(
       toolsSourcePath,
       JSON.stringify([
@@ -323,12 +323,12 @@ describe("generate_safe_outputs_tools", () => {
     fs.writeFileSync(
       configPath,
       JSON.stringify({
-        set_issue_type: {},
-        set_issue_field: {},
-        add_labels: {},
-        close_issue: {},
-        assign_to_user: {},
-        assign_to_agent: {},
+        set_issue_type: { issue_intent: true },
+        set_issue_field: { issue_intent: true },
+        add_labels: { issue_intent: true },
+        close_issue: { issue_intent: true },
+        assign_to_user: { issue_intent: true },
+        assign_to_agent: { issue_intent: true },
         create_issue: {},
       })
     );
@@ -356,7 +356,7 @@ describe("generate_safe_outputs_tools", () => {
         { name: "add_labels", description: "Adds labels.", inputSchema: { type: "object", properties: {} } },
       ])
     );
-    fs.writeFileSync(configPath, JSON.stringify({ set_issue_type: {}, set_issue_field: {}, add_labels: {} }));
+    fs.writeFileSync(configPath, JSON.stringify({ set_issue_type: { issue_intent: true }, set_issue_field: { issue_intent: true }, add_labels: { issue_intent: true } }));
     fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
 
     runScript({ GH_AW_RUNTIME_FEATURES: "other\nanother=true" });
@@ -368,7 +368,7 @@ describe("generate_safe_outputs_tools", () => {
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_labels").description).toContain(intentSuffix);
   });
 
-  it("omits issue intent suffix when explicitly disabled per tool", () => {
+  it("omits issue intent suffix by default and when explicitly disabled per tool", () => {
     fs.writeFileSync(
       toolsSourcePath,
       JSON.stringify([
@@ -384,6 +384,6 @@ describe("generate_safe_outputs_tools", () => {
     const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
     const intentSuffix = "INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.";
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "close_issue").description).not.toContain(intentSuffix);
-    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "assign_to_user").description).toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "assign_to_user").description).not.toContain(intentSuffix);
   });
 });

@@ -43,7 +43,7 @@ const ISSUE_INTENT_TOOL_NAMES = new Set(["set_issue_type", "set_issue_field", "a
 
 /**
  * Determine whether issue-intent guidance is enabled for a tool.
- * Default is enabled; explicit issue_intent: false disables it.
+ * Default is disabled; explicit issue_intent: true enables it.
  *
  * @param {string} toolName
  * @param {unknown} toolConfig
@@ -53,10 +53,7 @@ function isIssueIntentEnabledForTool(toolName, toolConfig) {
   if (!ISSUE_INTENT_TOOL_NAMES.has(toolName)) {
     return false;
   }
-  if (toolConfig && typeof toolConfig === "object" && "issue_intent" in toolConfig) {
-    return toolConfig.issue_intent !== false;
-  }
-  return true;
+  return !!(toolConfig && typeof toolConfig === "object" && "issue_intent" in toolConfig && toolConfig.issue_intent === true);
 }
 
 /**
