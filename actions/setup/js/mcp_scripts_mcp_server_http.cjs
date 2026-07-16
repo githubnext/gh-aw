@@ -24,7 +24,7 @@ require("./shim.cjs");
 
 const { randomUUID } = require("crypto");
 const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
-const { validateRequiredFields, validateStringInputLengths } = require("./mcp_scripts_validation.cjs");
+const { validateRequiredFields, validateStringInputLengths, buildStringLengthValidationError } = require("./mcp_scripts_validation.cjs");
 const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 const { createLogger } = require("./mcp_logger.cjs");
 const { bootstrapMCPScriptsServer, cleanupConfigFile } = require("./mcp_scripts_bootstrap.cjs");
@@ -97,8 +97,7 @@ function createMCPServer(configPath, options = {}) {
       // SM-IS-01: Validate per-string input length limits (default 10 KB, or explicit schema maxLength when set).
       const oversized = validateStringInputLengths(args, tool.inputSchema);
       if (oversized.length) {
-        const details = oversized.map(v => `'${v.field}' (${v.actualLength} ${v.unit})`).join(", ");
-        throw new Error(`Input string parameter(s) exceed configured size limits for tool '${tool.name}': ${details}`);
+        throw new Error(buildStringLengthValidationError(tool.name, oversized));
       }
 
       // Call the handler

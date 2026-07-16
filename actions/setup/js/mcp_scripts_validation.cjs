@@ -49,7 +49,7 @@ function validateRequiredFields(args, inputSchema) {
  * @param {Object} args - The arguments object to validate
  * @param {Object} inputSchema - The input schema describing property types
  * @param {number} [maxBytes] - Maximum allowed bytes per string (defaults to MAX_STRING_INPUT_BYTES)
- * @returns {{ field: string, actualLength: number, unit: "bytes" | "characters" }[]} Array of violations (empty if all within limit)
+ * @returns {{ field: string, actualLength: number, limit: number, unit: "bytes" | "characters" }[]} Array of violations (empty if all within limit)
  */
 function validateStringInputLengths(args, inputSchema, maxBytes) {
   const limit = typeof maxBytes === "number" ? maxBytes : MAX_STRING_INPUT_BYTES;
@@ -63,20 +63,32 @@ function validateStringInputLengths(args, inputSchema, maxBytes) {
         if (typeof schema.maxLength === "number") {
           const characterLength = Array.from(value).length;
           if (characterLength > schema.maxLength) {
-            violations.push({ field, actualLength: characterLength, unit: "characters" });
+            violations.push({ field, actualLength: characterLength, limit: schema.maxLength, unit: "characters" });
           }
           continue;
         }
 
         const byteLength = Buffer.byteLength(value, "utf8");
         if (byteLength > limit) {
-          violations.push({ field, actualLength: byteLength, unit: "bytes" });
+          violations.push({ field, actualLength: byteLength, limit, unit: "bytes" });
         }
       }
     }
   }
 
   return violations;
+}
+
+/**
+ * Build actionable E006 validation message for string length violations.
+ *
+ * @param {string} toolName - Tool name being validated
+ * @param {{ field: string, actualLength: number, limit: number, unit: "bytes" | "characters" }[]} violations - Violations returned by validateStringInputLengths
+ * @returns {string} E006 message
+ */
+function buildStringLengthValidationError(toolName, violations) {
+  const details = violations.map(v => `'${v.field}' exceeds maximum length of ${v.limit} ${v.unit} (got ${v.actualLength} ${v.unit})`).join(", ");
+  return `E006: Input string parameter(s) exceed maximum length for tool '${toolName}': ${details}`;
 }
 
 /**
@@ -111,6 +123,7 @@ function validateStringMinLengths(args, inputSchema) {
 module.exports = {
   validateRequiredFields,
   validateStringInputLengths,
+  buildStringLengthValidationError,
   validateStringMinLengths,
   MAX_STRING_INPUT_BYTES,
 };
