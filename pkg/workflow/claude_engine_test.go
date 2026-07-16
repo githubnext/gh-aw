@@ -192,10 +192,13 @@ func TestClaudeEngineLLMProviderGitHubUsesCopilotCredentials(t *testing.T) {
 
 	assert.Contains(t, stepContent, "GH_AW_LLM_PROVIDER: github")
 	assert.Contains(t, stepContent, "ANTHROPIC_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
-	assert.Contains(t, stepContent, fmt.Sprintf("ANTHROPIC_BASE_URL: http://host.docker.internal:%d", constants.CopilotLLMGatewayPort))
-	// COPILOT_GITHUB_TOKEN must be injected so the AWF copilot proxy sidecar becomes
-	// configured in /reflect; without it, the harness falls back to the anthropic proxy.
-	assert.Contains(t, stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
+	// Route through the AWF anthropic proxy (port 10001) which accepts full Anthropic
+	// API format including stream_options; the copilot proxy (port 10002) rejects it.
+	assert.Contains(t, stepContent, fmt.Sprintf("ANTHROPIC_BASE_URL: http://host.docker.internal:%d", constants.CodexLLMGatewayPort))
+	// COPILOT_GITHUB_TOKEN must NOT be injected separately: it would configure the
+	// copilot proxy (10002) in /reflect and the harness would route there instead of
+	// the anthropic proxy (10001) that handles stream_options correctly.
+	assert.NotContains(t, stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
 }
 
 func TestClaudeEngineAllowsMountedMCPCLICommandsInRestrictedBash(t *testing.T) {

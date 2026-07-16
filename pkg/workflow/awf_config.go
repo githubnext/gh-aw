@@ -514,17 +514,21 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		targets["anthropic"] = &AWFAPITargetConfig{Host: anthropicTarget}
 		awfConfigLog.Printf("API proxy: custom anthropic target=%s", anthropicTarget)
 	} else if config.EngineName == string(constants.ClaudeEngine) {
-		// When the Claude engine uses the GitHub provider, configure the copilot proxy
-		// (port 10002) to forward to api.githubcopilot.com. The driver sets
-		// ANTHROPIC_BASE_URL to http://host.docker.internal:10002 so the Anthropic SDK
-		// sends requests to the copilot proxy; the harness refines this to
-		// http://api-proxy:10002 via /reflect. The copilot proxy uses the
-		// Authorization header by default when forwarding to api.githubcopilot.com.
+		// When the Claude engine uses the GitHub provider, configure the anthropic proxy
+		// (port 10001) to forward to api.githubcopilot.com. The anthropic proxy accepts
+		// the full Anthropic API format (including stream_options sent by Claude Code
+		// CLI 2.1.210+), unlike the copilot proxy (port 10002) whose schema rejects
+		// stream_options. ANTHROPIC_API_KEY is already set to the Copilot token;
+		// authHeader "Authorization" ensures the proxy sends "Authorization: <token>"
+		// instead of the default "x-api-key: <token>" required by the Copilot endpoint.
+		// COPILOT_GITHUB_TOKEN is intentionally NOT injected so the copilot proxy
+		// stays unconfigured; the harness then falls back to the anthropic proxy.
 		if provider := resolveEngineLLMProvider(config.WorkflowData, LLMProviderAnthropic); provider == LLMProviderGitHub {
-			targets["copilot"] = &AWFAPITargetConfig{
-				Host: "api.githubcopilot.com",
+			targets["anthropic"] = &AWFAPITargetConfig{
+				Host:       "api.githubcopilot.com",
+				AuthHeader: "Authorization",
 			}
-			awfConfigLog.Printf("API proxy: claude github provider - configuring copilot sidecar to forward to api.githubcopilot.com")
+			awfConfigLog.Printf("API proxy: claude github provider - configuring anthropic sidecar to forward to api.githubcopilot.com")
 		}
 	}
 

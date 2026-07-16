@@ -542,7 +542,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, "corp-gateway.example.com", "should include the anthropic host")
 	})
 
-	t.Run("claude github provider configures copilot sidecar to api.githubcopilot.com", func(t *testing.T) {
+	t.Run("claude github provider configures anthropic sidecar to api.githubcopilot.com", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "claude",
 			AllowedDomains: "github.com",
@@ -560,9 +560,10 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err)
 
-		assert.Contains(t, jsonStr, `"copilot"`, "should configure copilot target for github provider")
-		assert.Contains(t, jsonStr, "api.githubcopilot.com", "should route copilot sidecar to api.githubcopilot.com for github provider")
-		assert.NotContains(t, jsonStr, `"anthropic"`, "should not configure anthropic target for github provider")
+		assert.Contains(t, jsonStr, `"anthropic"`, "should configure anthropic target for github provider")
+		assert.Contains(t, jsonStr, "api.githubcopilot.com", "should route anthropic sidecar to api.githubcopilot.com for github provider")
+		assert.Contains(t, jsonStr, `"Authorization"`, "should set Authorization authHeader for github provider")
+		assert.NotContains(t, jsonStr, `"copilot"`, "should not configure copilot target for github provider")
 	})
 
 	t.Run("claude github provider does not override explicit ANTHROPIC_BASE_URL", func(t *testing.T) {
