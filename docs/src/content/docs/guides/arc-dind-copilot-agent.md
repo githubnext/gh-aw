@@ -105,7 +105,7 @@ Use versions at or above these minimums:
 
 | Component | Minimum version | Why |
 | --- | --- | --- |
-| `gh-aw` | `v0.82.5` | Includes ARC DinD workspace and detection fixes. |
+| `gh-aw` | `v0.82.8` | Includes ARC DinD workspace/detection fixes and the MCP gateway Docker socket access fix. |
 | AWF (`agentic-workflow-firewall`) | `v0.27.22` | Includes DinD squid log permission fixes. |
 
 ## Required and optional configuration
