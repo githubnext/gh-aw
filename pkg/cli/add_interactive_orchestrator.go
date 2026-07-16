@@ -127,6 +127,7 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 			RequireOwnerType: config.CreateRequireOwnerType,
 			EngineOverride:   config.EngineOverride,
 			Verbose:          config.Verbose,
+			SkipInit:         true, // wizard always creates a PR; skip init so the clean-worktree preflight passes
 		})
 		if err != nil {
 			return err

@@ -182,6 +182,7 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 			RequireOwnerType: requireOwnerType,
 			EngineOverride:   engineOverride,
 			Verbose:          verbose,
+			SkipInit:         createPRFlag || prFlagAlias,
 		})
 		if err != nil {
 			return err

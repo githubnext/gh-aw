@@ -73,11 +73,53 @@ func TestPrepareAddTargetCheckoutWithRuntime_CreatesAndClones(t *testing.T) {
 	if initCalls != 1 {
 		t.Fatalf("expected init to run once, got %d", initCalls)
 	}
-	if !initOpts.CodespaceEnabled {
-		t.Fatal("expected add create init to enable codespaces")
+	if initOpts.CodespaceEnabled {
+		t.Fatal("expected add create init to leave codespaces disabled (matches bootstrap default)")
 	}
 	if len(initOpts.CodespaceRepos) != 0 {
 		t.Fatalf("expected add create init to configure current repo only, got %v", initOpts.CodespaceRepos)
+	}
+}
+
+func TestPrepareAddTargetCheckoutWithRuntime_SkipsInitWhenRequested(t *testing.T) {
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd returned error: %v", err)
+	}
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Chdir returned error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(oldWd)
+	})
+	initCalls := 0
+
+	_, err = prepareAddTargetCheckoutWithRuntime(context.Background(), addCreateOptions{
+		Repo:       "octo/platform-ops",
+		Visibility: "private",
+		SkipInit:   true,
+	}, bootstrapRuntime{
+		setupRepositoryRuntime: setupRepositoryRuntime{
+			checkAuth:  func(context.Context) error { return nil },
+			repoExists: func(context.Context, string) (bool, error) { return false, nil },
+			ownerType:  func(context.Context, string) (string, error) { return "User", nil },
+			createRepo: func(_ context.Context, _ string, _ setupRepositoryCreateOptions) error { return nil },
+			cloneRepo: func(_ context.Context, _ string, dir string) error {
+				return os.MkdirAll(dir, 0o755)
+			},
+			checkCleanWorktree: func(bool) error { return nil },
+		},
+		initRepo: func(InitOptions) error {
+			initCalls++
+			return nil
+		},
+	}, tempDir)
+	if err != nil {
+		t.Fatalf("prepareAddTargetCheckoutWithRuntime returned error: %v", err)
+	}
+	if initCalls != 0 {
+		t.Fatalf("expected init to be skipped (SkipInit=true), but it ran %d time(s)", initCalls)
 	}
 }
 

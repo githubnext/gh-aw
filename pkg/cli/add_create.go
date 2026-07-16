@@ -17,6 +17,10 @@ type addCreateOptions struct {
 	RequireOwnerType string
 	EngineOverride   string
 	Verbose          bool
+	// SkipInit, when true, skips repository initialization in the checkout so
+	// that PR-based flows (add-wizard, add --create-pull-request) receive a
+	// clean working tree and their preflight check does not fail.
+	SkipInit bool
 }
 
 func registerAddCreateFlags(cmd *cobra.Command) {
@@ -103,8 +107,10 @@ func prepareAddTargetCheckoutWithRuntime(ctx context.Context, opts addCreateOpti
 		}
 	}
 
-	if err := initializeAddTargetCheckoutIfNeeded(ctx, runtime, plan.Dir, opts); err != nil {
-		return "", err
+	if !opts.SkipInit {
+		if err := initializeAddTargetCheckoutIfNeeded(ctx, runtime, plan.Dir, opts); err != nil {
+			return "", err
+		}
 	}
 
 	return strings.TrimSpace(plan.Dir), nil
@@ -133,7 +139,7 @@ func addCreateInitOptions(ctx context.Context, opts addCreateOptions) InitOption
 		Agent:            true,
 		MCP:              true,
 		CodespaceRepos:   []string{},
-		CodespaceEnabled: true,
+		CodespaceEnabled: false,
 		Completions:      false,
 		CreatePR:         false,
 	}
