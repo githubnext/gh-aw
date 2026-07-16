@@ -209,12 +209,18 @@ func TestRunWorkflowOnGitHub_FlagCombinations(t *testing.T) {
 				"GH_TOKEN environment variable",
 				"HTTP 404",
 				"HTTP 403",
+				"TLS handshake timeout",
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("GH_HOST", "")
+			t.Setenv("GITHUB_HOST", "")
+			t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+			t.Setenv("GITHUB_SERVER_URL", "")
+
 			err := RunWorkflowOnGitHub(
 				ctx,
 				"test-workflow",

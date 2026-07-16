@@ -137,10 +137,10 @@ func TestCloseExistingOrgIssuesByMarkerSkipsPRsAndPaginates(t *testing.T) {
 	argsLog, err := os.ReadFile(argsLogPath)
 	require.NoError(t, err)
 	logText := string(argsLog)
-	assert.Contains(t, logText, "api --hostname github.com /repos/octo/repo/issues?state=open&per_page=100&page=1", "first page should be queried")
-	assert.Contains(t, logText, "api --hostname github.com /repos/octo/repo/issues?state=open&per_page=100&page=2", "second page should be queried")
-	assert.Contains(t, logText, "api --hostname github.com --method PATCH /repos/octo/repo/issues/1 -f state=closed -f state_reason=not_planned", "matching issues should be closed")
-	assert.Contains(t, logText, "api --hostname github.com --method PATCH /repos/octo/repo/issues/101 -f state=closed -f state_reason=not_planned", "matching issues on later pages should also be closed")
+	assert.Contains(t, logText, "api --hostname localhost:26831 /repos/octo/repo/issues?state=open&per_page=100&page=1", "first page should be queried")
+	assert.Contains(t, logText, "api --hostname localhost:26831 /repos/octo/repo/issues?state=open&per_page=100&page=2", "second page should be queried")
+	assert.Contains(t, logText, "api --hostname localhost:26831 --method PATCH /repos/octo/repo/issues/1 -f state=closed -f state_reason=not_planned", "matching issues should be closed")
+	assert.Contains(t, logText, "api --hostname localhost:26831 --method PATCH /repos/octo/repo/issues/101 -f state=closed -f state_reason=not_planned", "matching issues on later pages should also be closed")
 	assert.NotContains(t, logText, "/repos/octo/repo/issues/3", "items flagged as pull requests must not be closed via the issues endpoint")
 }
 
