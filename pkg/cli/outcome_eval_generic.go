@@ -55,7 +55,15 @@ func evalCloseSticky(item CreatedItemReport, repoOverride string) OutcomeReport 
 		return report
 	}
 
-	if isClosedByLifecycleBot(num, repo) {
+	closedByBot, err := isClosedByLifecycleBot(num, repo)
+	if err != nil {
+		report.Result = OutcomeError
+		report.EvalError = err.Error()
+		report.Detail = "close provenance unavailable"
+		return report
+	}
+
+	if closedByBot {
 		report.Result = OutcomeLifecycleClose
 		report.Detail = "closed by bot (lifecycle_close)"
 	} else {
@@ -65,10 +73,10 @@ func evalCloseSticky(item CreatedItemReport, repoOverride string) OutcomeReport 
 	return report
 }
 
-func isClosedByLifecycleBot(number int, repo string) bool {
+func isClosedByLifecycleBot(number int, repo string) (bool, error) {
 	events, err := closeStickyGHAPIGetArray(fmt.Sprintf("issues/%d/events", number), repo)
 	if err != nil {
-		return false
+		return false, err
 	}
 	for i := range slices.Backward(events) {
 		event, _ := events[i]["event"].(string)
@@ -77,9 +85,9 @@ func isClosedByLifecycleBot(number int, repo string) bool {
 		}
 		actor, _ := events[i]["actor"].(map[string]any)
 		login, _ := actor["login"].(string)
-		return isBotUser(login)
+		return isBotUser(login), nil
 	}
-	return false
+	return false, fmt.Errorf("no close event found for %s#%d", repo, number)
 }
 
 // evalCloseDiscussion checks whether a closed discussion stayed closed.

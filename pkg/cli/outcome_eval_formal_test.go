@@ -490,6 +490,12 @@ func TestFormalCloseStickyReopenRejection(t *testing.T) {
 			wantResult: OutcomeRejected,
 			wantDetail: "reopened",
 		},
+		{
+			name:       "missing close event provenance → error",
+			state:      "closed",
+			wantResult: OutcomeError,
+			wantDetail: "close provenance unavailable",
+		},
 	}
 
 	for _, tc := range cases {
@@ -537,6 +543,7 @@ func TestFormalCloseStickyRejectsMergedPullRequest(t *testing.T) {
 
 	assert.Equal(t, OutcomeRejected, report.Result, "P9: merged PR must be rejected for close_pull_request")
 	assert.Equal(t, "merged", report.Detail, "P9: merged PR must record merged detail")
+	assert.Empty(t, report.EvalError, "P9: merged PR classification must not depend on close provenance lookup")
 }
 
 func TestFormalLifecycleNormalizationFallbacks(t *testing.T) {
