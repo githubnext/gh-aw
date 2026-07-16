@@ -111,7 +111,7 @@ func registerAuditCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("stdin", false, "Read workflow run IDs or URLs from stdin (one per line) instead of positional arguments")
 	cmd.Flags().String("experiment", "", "Filter to runs that include this experiment name")
 	cmd.Flags().String("variant", "", "Filter to runs with a specific variant value (requires --experiment)")
-	cmd.Flags().Bool("evals", false, "Skip runs that do not contain evals results (evals.jsonl); automatically downloads the evals artifact when --artifacts is narrowed")
+	cmd.Flags().Bool("evals", false, "Skip runs that do not contain evals results (evals.jsonl); automatically downloads the usage artifact (which includes evals) when --artifacts is narrowed")
 	RegisterDirFlagCompletion(cmd, "output")
 }
 
@@ -155,9 +155,9 @@ func getAuditCommandOptions(cmd *cobra.Command) (auditCommandOptions, error) {
 			[]string{"Add --experiment <name> to filter by experiment name alongside --variant"},
 		))
 	}
-	// Auto-include the evals artifact when --evals is specified and the user has
-	// narrowed the artifact set (non-empty --artifacts).  When --artifacts is empty
-	// the default is "all", which already includes every artifact including evals,
+	// Auto-include the usage artifact (which now contains evals) when --evals is
+	// specified and the user has narrowed the artifact set (non-empty --artifacts).
+	// When --artifacts is empty the default is "all", which already includes usage,
 	// so we must not append here: doing so would change the default from "all" to
 	// "evals-only" and omit the activation/agent artifacts required for a full report.
 	if len(opts.artifacts) > 0 {
@@ -322,6 +322,10 @@ type auditRunConfig struct {
 	experimentFilter string
 	variantFilter    string
 	evalsOnly        bool
+	// evalsArtifactRequested is true when evals were requested via --evals or
+	// explicit --artifacts evals, and is used to trigger legacy dedicated-evals
+	// fallback behavior for older runs.
+	evalsArtifactRequested bool
 }
 
 type auditAnalysisResults struct {
@@ -386,20 +390,21 @@ func newAuditRunConfig(runID int64, opts AuditOptions) (auditRunConfig, error) {
 		return auditRunConfig{}, err
 	}
 	return auditRunConfig{
-		runID:            runID,
-		owner:            opts.Owner,
-		repo:             opts.Repo,
-		hostname:         resolveAuditHostname(opts.Hostname),
-		outputDir:        resolveAuditOutputDir(opts.OutputDir, runID),
-		verbose:          opts.Verbose,
-		parse:            opts.Parse,
-		jsonOutput:       opts.JSONOutput,
-		jobID:            opts.JobID,
-		stepNumber:       opts.StepNumber,
-		artifactFilter:   ResolveArtifactFilter(opts.ArtifactSets),
-		experimentFilter: opts.ExperimentFilter,
-		variantFilter:    opts.VariantFilter,
-		evalsOnly:        opts.EvalsOnly,
+		runID:                  runID,
+		owner:                  opts.Owner,
+		repo:                   opts.Repo,
+		hostname:               resolveAuditHostname(opts.Hostname),
+		outputDir:              resolveAuditOutputDir(opts.OutputDir, runID),
+		verbose:                opts.Verbose,
+		parse:                  opts.Parse,
+		jsonOutput:             opts.JSONOutput,
+		jobID:                  opts.JobID,
+		stepNumber:             opts.StepNumber,
+		artifactFilter:         ResolveArtifactFilter(opts.ArtifactSets),
+		experimentFilter:       opts.ExperimentFilter,
+		variantFilter:          opts.VariantFilter,
+		evalsOnly:              opts.EvalsOnly,
+		evalsArtifactRequested: isEvalsArtifactRequested(opts.EvalsOnly, opts.ArtifactSets),
 	}, nil
 }
 
@@ -494,13 +499,13 @@ func renderCachedAuditIfAvailable(ctx context.Context, cfg auditRunConfig) (bool
 	if shouldSkipAuditRun(cfg.runID, cfg.outputDir, cfg.experimentFilter, cfg.variantFilter) {
 		return true, nil
 	}
-	// When --evals is set but the evals artifact is not present locally, the cache
-	// was created without evals (e.g., default usage-only download).  Bypass the
-	// cache so prepareAuditWorkflowRun can fetch the evals artifact; the filter at
+	// When evals are requested but evals are not present locally (e.g., the run was
+	// cached before evals were included in the usage artifact), bypass the cache
+	// so prepareAuditWorkflowRun can fetch the usage artifact; the filter at
 	// the post-download check will then correctly decide whether to skip the run.
-	if cfg.evalsOnly && !runHasEvals(cfg.outputDir, cfg.verbose) &&
+	if cfg.evalsArtifactRequested && !runHasEvals(cfg.outputDir, cfg.verbose) &&
 		!ensureEvalsResultsFromBranch(ctx, summary.Run, cfg.outputDir, cfg.owner, cfg.repo, cfg.hostname, cfg.verbose) {
-		auditLog.Printf("Cache miss for run %d evals: evals artifact not present locally, bypassing cache", cfg.runID)
+		auditLog.Printf("Cache miss for run %d evals: evals not present locally, bypassing cache", cfg.runID)
 		return false, nil
 	}
 	processedRun := processedRunFromSummary(summary, cfg.outputDir)
@@ -588,6 +593,7 @@ func downloadAuditArtifactsIfNeeded(ctx context.Context, cfg auditRunConfig, run
 	auditLog.Printf("Downloading artifacts for run %d", cfg.runID)
 	err := downloadRunArtifacts(ctx, cfg.runID, cfg.outputDir, cfg.verbose, cfg.owner, cfg.repo, cfg.hostname, cfg.artifactFilter)
 	if err == nil || errors.Is(err, ErrNoArtifacts) {
+		downloadLegacyEvalsArtifactIfNeeded(ctx, cfg)
 		if errors.Is(err, ErrNoArtifacts) {
 			auditLog.Printf("No artifacts found for run %d", cfg.runID)
 			if cfg.verbose {
@@ -604,6 +610,22 @@ func downloadAuditArtifactsIfNeeded(ctx context.Context, cfg auditRunConfig, run
 		return false, cacheRecoveryError("failed to download artifacts due to permissions and no local cache found.", cfg.runID, cfg.outputDir, err)
 	}
 	return false, fmt.Errorf("failed to download artifacts: %w", err)
+}
+
+func downloadLegacyEvalsArtifactIfNeeded(ctx context.Context, cfg auditRunConfig) {
+	if !cfg.evalsArtifactRequested || runHasEvals(cfg.outputDir, cfg.verbose) {
+		return
+	}
+	auditLog.Printf("Evals not found in usage artifact for run %d, attempting fallback download of dedicated evals artifact", cfg.runID)
+	evalsArtifactFilter := []string{constants.EvalsArtifactName}
+	if err := downloadRunArtifacts(ctx, cfg.runID, cfg.outputDir, cfg.verbose, cfg.owner, cfg.repo, cfg.hostname, evalsArtifactFilter); err != nil {
+		auditLog.Printf("Fallback evals artifact download failed for run %d: %v", cfg.runID, err)
+		if cfg.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Evals not found in usage artifact for run %d and fallback download failed: %v", cfg.runID, err)))
+		}
+		return
+	}
+	auditLog.Printf("Fallback evals artifact downloaded for run %d", cfg.runID)
 }
 
 func cacheRecoveryError(message string, runID int64, runOutputDir string, err error) error {

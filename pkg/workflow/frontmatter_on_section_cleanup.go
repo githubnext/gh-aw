@@ -705,7 +705,49 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		}
 	}
 
+	result = dedentTrailingOnCommentBlock(result)
+
 	return strings.Join(result, "\n")
+}
+
+// dedentTrailingOnCommentBlock re-indents the final run of commented-out lines at the
+// end of the `on:` section to column 0.
+//
+// A commented-out processed field (e.g. `# roles:` or `# state:`) that is the last
+// thing in the `on:` section is followed, in the assembled workflow, by a top-level
+// key (`permissions:`, `concurrency:`, …) at column 0. yamllint's comments-indentation
+// rule flags a comment whose indentation matches neither the preceding content line nor
+// the following one, so a trailing block indented under `on:` (indent 2 or deeper) is
+// reported because the next real line sits at column 0. Aligning the trailing block to
+// column 0 gives it a matching anchor and clears the warning.
+//
+// Only the final block is adjusted. Commented blocks with real `on:` content after them
+// already have a matching indentation anchor below and are left untouched.
+func dedentTrailingOnCommentBlock(lines []string) []string {
+	// Locate the last non-blank line; the trailing block must end in a comment.
+	last := len(lines) - 1
+	for last >= 0 && strings.TrimSpace(lines[last]) == "" {
+		last--
+	}
+	if last < 0 || !strings.HasPrefix(strings.TrimSpace(lines[last]), "#") {
+		return lines
+	}
+
+	// Walk back over the consecutive comment lines that form the trailing block.
+	start := last
+	for start-1 >= 0 && strings.HasPrefix(strings.TrimSpace(lines[start-1]), "#") {
+		start--
+	}
+
+	// The block must sit under the `on:` mapping (i.e. be indented) and be preceded by
+	// real content, so a file that is entirely comments is left alone.
+	if start == 0 {
+		return lines
+	}
+	for i := start; i <= last; i++ {
+		lines[i] = strings.TrimLeft(lines[i], " \t")
+	}
+	return lines
 }
 
 // addZizmorIgnoreForWorkflowRun adds a zizmor ignore comment for workflow_run triggers

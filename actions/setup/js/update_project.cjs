@@ -442,6 +442,36 @@ function inferFieldDataType(fieldName, fieldValue, datePattern) {
 }
 
 /**
+ * Coerce an agent-supplied `fields` value to a plain object, or return null.
+ *
+ * Agents occasionally double-encode the value as a JSON string.  If that
+ * happens we parse it transparently.  Arrays, null, and other non-object
+ * types are rejected with a warning so that callers can skip field updates
+ * without silently iterating over character indices or array elements.
+ *
+ * @param {unknown} fields - Raw value from the agent output
+ * @returns {Record<string, unknown>|null} Plain object or null when unusable
+ */
+function resolveFieldsObject(fields) {
+  if (fields == null) return null;
+  if (typeof fields === "string") {
+    try {
+      fields = JSON.parse(fields);
+    } catch {
+      core.warning("update_project: `fields` was a string and could not be parsed as JSON; skipping field updates");
+      return null;
+    }
+    // JSON.parse of "null", "1", or a quoted string yields a non-object
+    if (fields == null) return null;
+  }
+  if (Array.isArray(fields) || typeof fields !== "object") {
+    core.warning("update_project: `fields` must be a JSON object; skipping field updates");
+    return null;
+  }
+  return Object.fromEntries(Object.entries(fields));
+}
+
+/**
  * Apply field value updates to a project item, creating fields as needed.
  * @param {Object} github - GitHub client (Octokit instance)
  * @param {string} projectId - Project node ID
@@ -1105,8 +1135,9 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
         }
       }
 
-      if (output.fields && Object.keys(output.fields).length > 0) {
-        await applyFieldUpdates(github, projectId, itemId, output.fields);
+      const resolvedFields1 = resolveFieldsObject(output.fields);
+      if (resolvedFields1 && Object.keys(resolvedFields1).length > 0) {
+        await applyFieldUpdates(github, projectId, itemId, resolvedFields1);
       }
 
       core.setOutput("item-id", itemId);
@@ -1195,8 +1226,9 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
         ).addProjectV2ItemById.item.id;
       }
 
-      if (output.fields && Object.keys(output.fields).length > 0) {
-        await applyFieldUpdates(github, projectId, itemId, output.fields);
+      const resolvedFields2 = resolveFieldsObject(output.fields);
+      if (resolvedFields2 && Object.keys(resolvedFields2).length > 0) {
+        await applyFieldUpdates(github, projectId, itemId, resolvedFields2);
       }
 
       core.setOutput("item-id", itemId);

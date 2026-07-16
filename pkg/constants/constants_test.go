@@ -118,7 +118,7 @@ func TestConstantValues(t *testing.T) {
 		{"CLIExtensionPrefix", string(CLIExtensionPrefix), "gh aw"},
 		{"DefaultMCPRegistryURL", string(DefaultMCPRegistryURL), "https://api.mcp.github.com/v0.1"},
 		{"OTELSentryEndpointSecretName", OTELSentryEndpointSecretName, "GH_AW_OTEL_SENTRY_ENDPOINT"},
-		{"AWFDefaultCommand", AWFDefaultCommand, "sudo -E awf"},
+		{"AWFDefaultCommand", AWFDefaultCommand, "awf"},
 		{"AWFProxyLogsDir", AWFProxyLogsDir, "/tmp/gh-aw/sandbox/firewall/logs"},
 		{"AWFAuditDir", AWFAuditDir, "/tmp/gh-aw/sandbox/firewall/audit"},
 		{"PreAgentAuditFilePath", PreAgentAuditFilePath, "/tmp/gh-aw/pre-agent-audit.txt"},

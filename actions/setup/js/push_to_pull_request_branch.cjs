@@ -142,10 +142,12 @@ function isWorkflowsScopeRejection(stderr) {
  *
  * Uses `origin/${baseBranch}` as the exclusion baseline so that commits already on the
  * PR's target branch (which GitHub has already accepted) are excluded.  Falls back to
- * `origin/HEAD` when `baseBranch` is not available, and to an empty array (no workflow
- * changes detected) when the baseline ref is not resolvable or the git command fails —
- * in that case the push is still attempted and any real 'workflows' scope rejection will
- * be caught and surfaced as the typed error downstream.
+ * `origin/HEAD` when `baseBranch` is not available.  In shallow PR checkouts where the
+ * named remote ref is not fetched, falls back to `GITHUB_BASE_SHA` (always present as a
+ * commit object in GitHub Actions `pull_request` events).  Returns an empty array only
+ * when all baselines are exhausted — in that case the push is still attempted and any
+ * real 'workflows' scope rejection will be caught and surfaced as the typed error
+ * downstream.
  *
  * Note: `origin/${baseBranch}` and `origin/HEAD` are intentionally different baselines
  * for their respective layers.  `origin/${baseBranch}` limits detection to commits the
@@ -160,34 +162,49 @@ function isWorkflowsScopeRejection(stderr) {
  * @returns {Promise<string[]>} Unique workflow file paths found in the branch history
  */
 async function detectWorkflowFileChanges(exec, gitOptions, baseBranch, coreLogger) {
-  const baseline = baseBranch && baseBranch.trim() ? `origin/${baseBranch}` : "origin/HEAD";
-  try {
-    const result = await exec.getExecOutput("git", ["log", "--name-only", "--pretty=format:", "HEAD", "--not", baseline, "--", ".github/workflows/"], { ...gitOptions, ignoreReturnCode: true });
-    if (result.exitCode !== 0) {
-      // Non-zero exit means the baseline ref was not resolvable or git failed;
-      // treat as no workflow changes so the push proceeds and any real scope
-      // rejection surfaces downstream.
-      coreLogger.debug(`detectWorkflowFileChanges: git log exited ${result.exitCode} (baseline '${baseline}' may be unavailable); skipping pre-flight`);
-      return [];
-    }
-    return [
-      ...new Set(
-        result.stdout
-          .split("\n")
-          .map(f => f.trim())
-          .filter(Boolean)
-      ),
-    ];
-  } catch (err) {
-    coreLogger.debug(`detectWorkflowFileChanges: git log threw (baseline '${baseline}'); skipping pre-flight: ${getErrorMessage(err)}`);
-    return [];
+  const primary = baseBranch && baseBranch.trim() ? `origin/${baseBranch}` : "origin/HEAD";
+  const baselines = [primary];
+  const githubBaseSha = process.env.GITHUB_BASE_SHA;
+  if (githubBaseSha && githubBaseSha.trim()) {
+    baselines.push(githubBaseSha.trim());
   }
+
+  for (const baseline of baselines) {
+    try {
+      const result = await exec.getExecOutput("git", ["log", "--name-only", "--pretty=format:", "HEAD", "--not", baseline, "--", ".github/workflows/"], { ...gitOptions, ignoreReturnCode: true });
+      if (result.exitCode !== 0) {
+        // Non-zero exit means the baseline ref was not resolvable (e.g. shallow clone
+        // without the named remote ref fetched); try the next fallback.
+        coreLogger.debug(`detectWorkflowFileChanges: git log exited ${result.exitCode} (baseline '${baseline}' may be unavailable); trying next fallback`);
+        continue;
+      }
+      const files = [
+        ...new Set(
+          result.stdout
+            .split("\n")
+            .map(f => f.trim())
+            .filter(Boolean)
+        ),
+      ];
+      if (baseline !== primary) {
+        coreLogger.debug(`detectWorkflowFileChanges: used fallback baseline '${baseline}'; found ${files.length} workflow file(s)`);
+      }
+      return files;
+    } catch (err) {
+      coreLogger.debug(`detectWorkflowFileChanges: git log threw (baseline '${baseline}'): ${getErrorMessage(err)}; trying next fallback`);
+    }
+  }
+
+  coreLogger.debug(`detectWorkflowFileChanges: all baselines exhausted; skipping pre-flight`);
+  return [];
 }
 
 /**
  * Performs a pre-flight workflow-scope check before pushing a new branch ref.
- * Returns the typed error object when the branch history contains workflow file changes
- * and `allowWorkflows` is false; returns null when the push may proceed.
+ * Returns a non-fatal skip result when the branch history contains workflow file changes
+ * but the agent's own changeset has none (scope requirement originates from pre-existing
+ * commits).  Returns a hard typed error only when the agent itself staged workflow files.
+ * Returns null when the push may proceed.
  *
  * Extracts the duplicated guard that appears in both the review-branch and
  * fallback-branch push paths so future changes only need to be made in one place.
@@ -198,13 +215,21 @@ async function detectWorkflowFileChanges(exec, gitOptions, baseBranch, coreLogge
  * @param {string | undefined} baseBranch - PR base branch name passed through to detectWorkflowFileChanges
  * @param {string} context - Short label for the push path (e.g. "Review branch", "Fallback branch")
  * @param {typeof core} coreLogger - Actions core logger
- * @returns {Promise<{ success: false, error_type: string, error: string } | null>}
+ * @param {string[] | undefined} agentChangedFiles - Files from the agent's post-apply diff; used to distinguish agent vs pre-existing workflow changes.
+ *   Pass `undefined` when the distinction cannot be made — the function will fall back to the original hard-error behavior.
+ * @returns {Promise<{ success: false, error_type: string, error: string } | { success: false, skipped: true, error: string } | null>}
  */
-async function runWorkflowScopePreflightCheck(exec, gitOptions, allowWorkflows, baseBranch, context, coreLogger) {
+async function runWorkflowScopePreflightCheck(exec, gitOptions, allowWorkflows, baseBranch, context, coreLogger, agentChangedFiles) {
   if (allowWorkflows) return null;
   const workflowFiles = await detectWorkflowFileChanges(exec, gitOptions, baseBranch, coreLogger);
   if (workflowFiles.length > 0) {
     coreLogger.info(`Pre-flight check: branch history contains workflow file changes (${workflowFiles.join(", ")}). Failing before push attempt.`);
+    if (agentChangedFiles !== undefined) {
+      const agentWorkflowFiles = agentChangedFiles.filter(f => f.startsWith(".github/workflows/"));
+      if (agentWorkflowFiles.length === 0) {
+        return buildWorkflowsScopeSkip(context, coreLogger);
+      }
+    }
     return buildWorkflowsScopeError(`${context} pre-flight`, coreLogger);
   }
   return null;
@@ -226,6 +251,25 @@ function buildWorkflowsScopeError(context, coreLogger) {
     error_type: "workflows_scope_required",
     error: `${context} push rejected: the branch includes changes to workflow files (.github/workflows/**) requiring the 'workflows' scope. The token used for the safe-outputs checkout does not have this scope. Fix: configure 'push-to-pull-request-branch.allow-workflows: true' with a GitHub App in 'safe-outputs.github-app', or exclude workflow files from the changeset.`,
   };
+}
+
+/**
+ * Builds a non-fatal skip result and emits a warning when the branch history requires
+ * the 'workflows' scope but the scope requirement originates from pre-existing commits
+ * rather than the agent's own changeset.
+ *
+ * @param {string} context - Short label identifying the push path (e.g. "Review branch", "Fallback branch")
+ * @param {typeof core} coreLogger - Actions core logger
+ * @returns {{ success: false, skipped: true, error: string }}
+ */
+function buildWorkflowsScopeSkip(context, coreLogger) {
+  const message =
+    `${context}: branch history contains workflow file changes (.github/workflows/**) requiring the 'workflows' scope, ` +
+    `but the agent's own changeset does not include workflow files — the scope requirement originates from pre-existing commits. ` +
+    `Skipping push to avoid a scope rejection. ` +
+    `To allow pushing workflow file changes, configure 'push-to-pull-request-branch.allow-workflows: true' with a GitHub App in 'safe-outputs.github-app'.`;
+  coreLogger.warning(message);
+  return { success: false, skipped: true, error: message };
 }
 
 /**
@@ -1085,12 +1129,14 @@ async function main(config = {}) {
       // This is the primary defense against parser-differential attacks where the JS
       // patch parser and git am disagree on which files a patch contains.
       // (see github/agentic-workflows#539)
+      let agentChangedFiles = [];
       {
         const diffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", `${rangeBaseRef}..HEAD`], baseGitOpts);
         const actualFiles = diffResult.stdout
           .split("\n")
           .map(f => f.trim())
           .filter(Boolean);
+        agentChangedFiles = actualFiles;
         if (actualFiles.length > 0) {
           core.info(`Post-apply verification: ${actualFiles.length} file(s) actually modified`);
           const postApplyProtection = checkFileProtectionPostApply(actualFiles, config);
@@ -1127,7 +1173,9 @@ async function main(config = {}) {
           // even if the current changeset itself does not touch workflow files.
           // Failing here avoids leaving the local branch in a renamed state after
           // a rejected push, and surfaces the error before any side effects.
-          const preflightError = await runWorkflowScopePreflightCheck(exec, baseGitOpts, allowWorkflows, pullRequest?.base?.ref, "Review branch", core);
+          // When the workflow files are from pre-existing commits (not the agent's
+          // own changeset), a non-fatal skip is returned instead of a hard error.
+          const preflightError = await runWorkflowScopePreflightCheck(exec, baseGitOpts, allowWorkflows, pullRequest?.base?.ref, "Review branch", core, agentChangedFiles);
           if (preflightError) return preflightError;
 
           // Rename current local branch to review branch
@@ -1145,9 +1193,13 @@ async function main(config = {}) {
           if (reviewPushOutput.exitCode !== 0) {
             const reviewPushStderr = (reviewPushOutput.stderr || "").trim();
             // GitHub rejects pushes to branches containing .github/workflows/** changes
-            // when the token lacks the 'workflows' scope.  Surface this as a typed
-            // error so the caller can distinguish it from a generic push failure.
+            // when the token lacks the 'workflows' scope.  Distinguish between the
+            // agent's own workflow files (hard error) and pre-existing commits (skip).
             if (isWorkflowsScopeRejection(reviewPushStderr)) {
+              const agentWorkflowFiles = agentChangedFiles.filter(f => f.startsWith(".github/workflows/"));
+              if (agentWorkflowFiles.length === 0) {
+                return buildWorkflowsScopeSkip("Review branch", core);
+              }
               return buildWorkflowsScopeError("Review branch", core);
             }
             throw new Error(`git push origin ${reviewBranchName} failed (exit code ${reviewPushOutput.exitCode}): ${reviewPushStderr}`);
@@ -1302,7 +1354,9 @@ async function main(config = {}) {
             // Pre-flight: check full branch history for workflow file changes.
             // Like the review branch path, creating a new fallback branch ref triggers
             // GitHub's scope check on the full commit history, not just the new commits.
-            const preflightError = await runWorkflowScopePreflightCheck(exec, baseGitOpts, allowWorkflows, pullRequest?.base?.ref, "Fallback branch", core);
+            // When the workflow files are from pre-existing commits (not the agent's
+            // own changeset), a non-fatal skip is returned instead of a hard error.
+            const preflightError = await runWorkflowScopePreflightCheck(exec, baseGitOpts, allowWorkflows, pullRequest?.base?.ref, "Fallback branch", core, agentChangedFiles);
             if (preflightError) return preflightError;
 
             await exec.exec("git", ["checkout", "-b", fallbackBranchName], baseGitOpts);
@@ -1315,6 +1369,10 @@ async function main(config = {}) {
             if (fallbackPushOutput.exitCode !== 0) {
               const fallbackPushStderr = (fallbackPushOutput.stderr || "").trim();
               if (isWorkflowsScopeRejection(fallbackPushStderr)) {
+                const agentWorkflowFiles = agentChangedFiles.filter(f => f.startsWith(".github/workflows/"));
+                if (agentWorkflowFiles.length === 0) {
+                  return buildWorkflowsScopeSkip("Fallback branch", core);
+                }
                 return buildWorkflowsScopeError("Fallback branch", core);
               }
               throw new Error(`git push origin ${fallbackBranchName} failed (exit code ${fallbackPushOutput.exitCode}): ${fallbackPushStderr}`);

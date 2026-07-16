@@ -150,6 +150,12 @@ func (c *Compiler) buildActivationBasePermissions(ctx *activationJobBuildContext
 		statusCommentIncludesPullRequests: ctx.statusCommentPRs,
 		statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
 	})
+	// When observability.otlp.github-app is configured without app-id/private-key
+	// credentials, id-token: write is needed so the activation job can mint the OTLP
+	// OIDC token via core.getIDToken(audience) (mirrors threat_detection_job.go).
+	if hasOTLPGitHubOIDCAuth(ctx.data.ParsedFrontmatter, ctx.data.RawFrontmatter) {
+		permsMap[PermissionIdToken] = PermissionWrite
+	}
 	return permsMap
 }
 

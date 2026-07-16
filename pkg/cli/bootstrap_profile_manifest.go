@@ -52,6 +52,7 @@ type resolvedBootstrapProfile struct {
 }
 
 func resolveBootstrapProfileFromSources(ctx context.Context, sources []string) (*resolvedBootstrapProfile, error) {
+	bootstrapLog.Printf("Resolving bootstrap profile from %d source(s)", len(sources))
 	profiles := make([]*resolvedBootstrapProfile, 0, 1)
 	seenPackageIDs := make(map[string]struct{})
 
@@ -100,9 +101,11 @@ func resolveBootstrapProfileFromSources(ctx context.Context, sources []string) (
 	}
 
 	if len(profiles) == 0 {
+		bootstrapLog.Print("No bootstrap profile matched the selected sources")
 		return nil, nil
 	}
 	if len(profiles) == 1 {
+		bootstrapLog.Printf("Resolved bootstrap profile: packageID=%s, actions=%d", profiles[0].PackageID, len(profiles[0].Profile.Config))
 		return profiles[0], nil
 	}
 
@@ -208,6 +211,7 @@ func extractManifestConfig(value any, manifestPath string) (*repositoryPackageBo
 		bootstrap.Config = append(bootstrap.Config, action)
 	}
 
+	bootstrapLog.Printf("Extracted bootstrap manifest config: actions=%d, manifest=%s", len(bootstrap.Config), manifestPath)
 	return bootstrap, nil
 }
 

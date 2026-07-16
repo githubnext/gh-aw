@@ -172,7 +172,9 @@ Downloaded artifacts include (when using --artifacts all):
 					return err
 				}
 
-				artifacts = applyEvalsArtifact(artifacts, evalsOnly)
+				if len(artifacts) > 0 {
+					artifacts = applyEvalsArtifact(artifacts, evalsOnly)
+				}
 
 				return DownloadWorkflowLogsFromStdin(cmd.Context(), StdinLogsOptions{
 					RunURLs:           runURLs,
@@ -327,7 +329,9 @@ Downloaded artifacts include (when using --artifacts all):
 
 			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v, cache_before=%s", workflowName, count, engine, train, cacheBefore)
 
-			artifacts = applyEvalsArtifact(artifacts, evalsOnly)
+			if len(artifacts) > 0 {
+				artifacts = applyEvalsArtifact(artifacts, evalsOnly)
+			}
 
 			return DownloadWorkflowLogs(cmd.Context(), LogsDownloadOptions{
 				WorkflowName:      workflowName,
@@ -377,7 +381,7 @@ Downloaded artifacts include (when using --artifacts all):
 	logsCmd.Flags().Bool("no-firewall", false, "Filter to only runs without firewall enabled")
 	logsCmd.Flags().String("safe-output", "", "Filter to runs containing a specific safe output type (e.g., create-issue, missing-tool, missing-data, noop, report-incomplete)")
 	logsCmd.Flags().Bool("filtered-integrity", false, "Filter to runs containing items that were filtered by gateway integrity checks")
-	logsCmd.Flags().Bool("evals", false, "Filter to runs containing evals results (evals.jsonl); automatically includes the evals artifact")
+	logsCmd.Flags().Bool("evals", false, "Filter to runs containing evals results (evals.jsonl); automatically includes the usage artifact (which contains evals)")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	addJSONFlag(logsCmd)
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in minutes (0 = no timeout)")

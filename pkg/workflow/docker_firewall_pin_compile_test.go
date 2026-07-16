@@ -142,10 +142,10 @@ Test workflow.`
 	yamlStr := string(yaml)
 
 	expectedPins := map[string]string{
-		"ghcr.io/github/gh-aw-firewall/agent:" + imageTag:     "sha256:84d861cb6da723ac10b7a00dddf778be681b8cd74b2091f18ce1d67fe4b3e7a1",
-		"ghcr.io/github/gh-aw-firewall/api-proxy:" + imageTag: "sha256:80d982fe7925c640d76cbbfbe94081d2d34f7657b7c37494d8d5488f5dae3c63",
-		"ghcr.io/github/gh-aw-firewall/cli-proxy:" + imageTag: "sha256:7c63bc4e57d6eac1be996bb793a5a2d74d40b15a616003f4b6805a457046c673",
-		"ghcr.io/github/gh-aw-firewall/squid:" + imageTag:     "sha256:c05a3f086946fab0833e078f46d35571080f187ca72f038958d45aa5cc150494",
+		"ghcr.io/github/gh-aw-firewall/agent:" + imageTag:     "sha256:2202f63e8650b2b8b0d38033b44a05387b2b71ad3e690c4d23a34786f5462aed",
+		"ghcr.io/github/gh-aw-firewall/api-proxy:" + imageTag: "sha256:755b79d0dfda82bd6b43a208d68666721e504110c5d342a4eeb199802644ff04",
+		"ghcr.io/github/gh-aw-firewall/cli-proxy:" + imageTag: "sha256:fe83cd274636efa9de3f456e2b078fae137328b9bb6ee4986ae510acaef0cec5",
+		"ghcr.io/github/gh-aw-firewall/squid:" + imageTag:     "sha256:f69282ec7b1326ba53891c399cf5b10475c0d3ccf4e1519b33d234a5427b57d3",
 	}
 
 	for image, digest := range expectedPins {
@@ -164,11 +164,11 @@ Test workflow.`
 	for _, imageTagPart := range []string{
 		`imageTag`,
 		imageTag + `,`,
-		`agent=sha256:84d861cb6da723ac10b7a00dddf778be681b8cd74b2091f18ce1d67fe4b3e7a1`,
-		`agent-act=sha256:58fee05c1c54ba5ca1e7056b3aaea30281841d5899093002e2c650710c50540f`,
-		`api-proxy=sha256:80d982fe7925c640d76cbbfbe94081d2d34f7657b7c37494d8d5488f5dae3c63`,
-		`cli-proxy=sha256:7c63bc4e57d6eac1be996bb793a5a2d74d40b15a616003f4b6805a457046c673`,
-		`squid=sha256:c05a3f086946fab0833e078f46d35571080f187ca72f038958d45aa5cc150494`,
+		`agent=sha256:2202f63e8650b2b8b0d38033b44a05387b2b71ad3e690c4d23a34786f5462aed`,
+		`agent-act=sha256:b00340a7b09c917c522cb806af6da1d12f2146e25a4a6198f1589b0116aee992`,
+		`api-proxy=sha256:755b79d0dfda82bd6b43a208d68666721e504110c5d342a4eeb199802644ff04`,
+		`cli-proxy=sha256:fe83cd274636efa9de3f456e2b078fae137328b9bb6ee4986ae510acaef0cec5`,
+		`squid=sha256:f69282ec7b1326ba53891c399cf5b10475c0d3ccf4e1519b33d234a5427b57d3`,
 	} {
 		if !strings.Contains(yamlStr, imageTagPart) {
 			t.Errorf("Expected AWF config JSON to include %s", imageTagPart)
@@ -217,7 +217,7 @@ Test workflow.`
 	yamlStr := string(yaml)
 
 	buildToolsImage := "ghcr.io/github/gh-aw-firewall/build-tools:" + imageTag
-	buildToolsDigest := "sha256:b10c0c125cb63fc0f039503a4594b40391be7991985e6e19aee63d068a84d7ad"
+	buildToolsDigest := "sha256:b7a01d0d67fe6f0162fb4da3162ef5569db872e25c1cbb7694e86c66ab62c3a0"
 	pinnedBuildTools := buildToolsImage + "@" + buildToolsDigest
 
 	if !strings.Contains(yamlStr, `"image":"`+buildToolsImage+`","digest":"`+buildToolsDigest+`","pinned_image":"`+pinnedBuildTools+`"`) {

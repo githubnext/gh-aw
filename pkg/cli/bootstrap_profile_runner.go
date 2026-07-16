@@ -146,6 +146,7 @@ func buildBootstrapProfilePlan(ctx context.Context, repo string, profile *resolv
 		}
 	}
 
+	bootstrapLog.Printf("Built bootstrap profile plan: repo=%s, needsMutation=%t, planLines=%d", repo, needsMutation, len(lines))
 	return needsMutation, lines, nil
 }
 
@@ -153,6 +154,8 @@ func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConf
 	if config.Profile == nil || config.Profile.Profile == nil {
 		return nil
 	}
+
+	bootstrapLog.Printf("Executing bootstrap profile: repo=%s, actions=%d, useCopilotRequests=%t", config.Repo, len(config.Profile.Profile.Config), config.UseCopilotRequests)
 
 	state, err := bootstrapProfileState(ctx, config.Repo)
 	if err != nil {
@@ -169,9 +172,11 @@ func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConf
 			return err
 		}
 		if !pending && action.Type != "handoff" {
+			bootstrapLog.Printf("Skipping bootstrap action (no mutation needed): type=%s", action.Type)
 			continue
 		}
 
+		bootstrapLog.Printf("Applying bootstrap action: type=%s", action.Type)
 		switch action.Type {
 		case "require-owner-type":
 			if err := runBootstrapRequireOwnerType(ctx, config.Repo, action); err != nil {
@@ -546,6 +551,7 @@ func createBootstrapGitHubApp(ctx context.Context, repo, owner, repoName, ownerT
 	server := &http.Server{}
 	redirectURL := fmt.Sprintf("http://%s/callback", listener.Addr().String())
 	manifest := buildBootstrapGitHubAppManifest(action, appName, homepageURL, redirectURL, description)
+	bootstrapLog.Printf("Creating GitHub App via browser manifest flow: appOwner=%s, appName=%s, redirectURL=%s", appOwner, appName, redirectURL)
 	registrationURL := buildBootstrapGitHubAppRegistrationURL(appOwner, appOwnerType, state)
 	registrationPage, err := renderBootstrapGitHubAppRegistrationPage(registrationURL, manifest)
 	if err != nil {
@@ -695,6 +701,7 @@ func waitForBootstrapGitHubAppInstallation(ctx context.Context, repo string, cre
 	if createdApp == nil || createdApp.InstallURL == "" || createdApp.Slug == "" {
 		return nil
 	}
+	bootstrapLog.Printf("Polling for GitHub App installation: repo=%s, slug=%s", repo, createdApp.Slug)
 	deadlineTimer := time.NewTimer(bootstrapProfileManifestTimeout)
 	defer deadlineTimer.Stop()
 	pollTicker := time.NewTicker(bootstrapProfileInstallPollDelay)

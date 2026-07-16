@@ -93,7 +93,7 @@ func TestBehaviorDefinedEngineHarnessScript(t *testing.T) {
 
 		execStepContent := strings.Join(steps[len(steps)-1], "\n")
 		assert.Contains(t, execStepContent, "AWF_REFLECT_ENABLED: 1", "AWF_REFLECT_ENABLED must be set when harness-script forces AWF execution")
-		assert.Contains(t, execStepContent, "sudo", "execution step must use AWF when harness-script is present")
+		assert.Contains(t, execStepContent, "awf --config", "execution step must use AWF when harness-script is present")
 	})
 
 	t.Run("env_vars_still_set", func(t *testing.T) {

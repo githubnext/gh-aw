@@ -3,9 +3,11 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
@@ -133,4 +135,47 @@ func TestBackfillRunTokenUsageFromFirewall(t *testing.T) {
 		assert.Equal(t, 123, result.Metrics.TokenUsage)
 		assert.Equal(t, 123, result.Run.TokenUsage)
 	})
+}
+
+func TestTryLoadCachedRunResultBypassesForExplicitEvalsArtifactRequest(t *testing.T) {
+	runOutputDir := t.TempDir()
+	summary := &RunSummary{
+		CLIVersion:  GetVersion(),
+		RunID:       123,
+		ProcessedAt: time.Now(),
+		Run: WorkflowRun{
+			DatabaseID: 123,
+		},
+	}
+	require.NoError(t, saveRunSummary(runOutputDir, summary, false))
+
+	result, ok := tryLoadCachedRunResult(context.Background(), WorkflowRun{DatabaseID: 123}, runOutputDir, concurrentRunDownloadParams{
+		evalsOnly:              false,
+		evalsArtifactRequested: true,
+		verbose:                false,
+	})
+	assert.False(t, ok, "cache should be bypassed so fallback download can run for explicit --artifacts evals")
+	assert.Nil(t, result)
+}
+
+func TestTryLoadCachedRunResultUsesCacheWhenEvalsNotRequested(t *testing.T) {
+	runOutputDir := t.TempDir()
+	summary := &RunSummary{
+		CLIVersion:  GetVersion(),
+		RunID:       124,
+		ProcessedAt: time.Now(),
+		Run: WorkflowRun{
+			DatabaseID: 124,
+		},
+	}
+	require.NoError(t, saveRunSummary(runOutputDir, summary, false))
+
+	result, ok := tryLoadCachedRunResult(context.Background(), WorkflowRun{DatabaseID: 124}, runOutputDir, concurrentRunDownloadParams{
+		evalsOnly:              false,
+		evalsArtifactRequested: false,
+		verbose:                false,
+	})
+	require.True(t, ok)
+	require.NotNil(t, result)
+	assert.True(t, result.Cached)
 }
