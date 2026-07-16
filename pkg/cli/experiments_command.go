@@ -460,10 +460,15 @@ func findRemoteWorkflowFilenameForExperiment(repoOverride, experimentName string
 // matchWorkflowFilenameByExperiment returns the basename (without .md) of the first file in
 // filenames whose sanitized name matches experimentName. Returns "" when no match is found.
 // Logs a warning when more than one file maps to the same sanitized name.
+//
+// Note: normalizeWorkflowID calls filepath.Base internally, so any path prefix in filenames
+// is stripped before matching. Callers that supply bare filenames (e.g. "my-flow.md") are
+// unaffected; callers supplying full paths (e.g. ".github/workflows/my-flow.md") will have
+// the directory component removed — only the basename is returned and compared.
 func matchWorkflowFilenameByExperiment(filenames []string, experimentName string) string {
 	var matches []string
 	for _, filename := range filenames {
-		base := strings.TrimSuffix(filename, ".md")
+		base := normalizeWorkflowID(filename)
 		if workflow.SanitizeWorkflowIDForCacheKey(base) == experimentName {
 			matches = append(matches, base)
 		}
@@ -486,7 +491,7 @@ func findWorkflowFileForExperiment(experimentName string) string {
 		return ""
 	}
 	for _, f := range mdFiles {
-		base := strings.TrimSuffix(filepath.Base(f), ".md")
+		base := normalizeWorkflowID(f)
 		if workflow.SanitizeWorkflowIDForCacheKey(base) == experimentName {
 			return f
 		}

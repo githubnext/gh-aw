@@ -428,7 +428,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 						config.HarnessScript = use
 					}
 					if v, ok := h["max-retries"]; ok {
-						config.HarnessMaxRetries = parseNonNegativeIntOrExpressionValue(v)
+						config.HarnessMaxRetries = parseHarnessMaxRetriesValue(v)
 					}
 					if v, ok := h["initial-delay-ms"]; ok {
 						config.HarnessInitialDelayMs = parseMaxTurnsValue(v)
