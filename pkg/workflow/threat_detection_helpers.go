@@ -3,6 +3,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -70,7 +71,14 @@ func isThreatDetectionExplicitlyDisabledInConfigs(configs []string) bool {
 }
 
 func getThreatDetectionAdditionalAllowedDomains(data *WorkflowData) []string {
-	if !engineEnvHasKey(data, constants.CopilotProviderBaseURL) || data == nil || data.NetworkPermissions == nil {
+	if data == nil || data.NetworkPermissions == nil {
+		return []string{}
+	}
+
+	hasCustomTarget := extractAPITargetHost(data, "OPENAI_BASE_URL") != "" ||
+		extractAPITargetHost(data, "ANTHROPIC_BASE_URL") != "" ||
+		extractAPITargetHost(data, constants.CopilotProviderBaseURL) != ""
+	if !hasCustomTarget {
 		return []string{}
 	}
 
@@ -99,6 +107,22 @@ func canReuseThreatDetectionEngineConfigForExternalDetector(data *WorkflowData, 
 		data.SafeOutputs.ThreatDetection != nil &&
 		data.SafeOutputs.ThreatDetection.EngineConfig != nil &&
 		(data.SafeOutputs.ThreatDetection.EngineConfig.ID == "" || data.SafeOutputs.ThreatDetection.EngineConfig.ID == engineID)
+}
+
+func mergeThreatDetectionEngineEnv(data *WorkflowData, detectionEnv map[string]string) map[string]string {
+	if data == nil || data.EngineConfig == nil || len(data.EngineConfig.Env) == 0 {
+		return detectionEnv
+	}
+	if len(detectionEnv) == 0 {
+		merged := make(map[string]string, len(data.EngineConfig.Env))
+		maps.Copy(merged, data.EngineConfig.Env)
+		return merged
+	}
+
+	merged := make(map[string]string, len(data.EngineConfig.Env)+len(detectionEnv))
+	maps.Copy(merged, data.EngineConfig.Env)
+	maps.Copy(merged, detectionEnv)
+	return merged
 }
 
 // engineCoreSecretVarNames returns the secret-backed env var names for the given engine ID

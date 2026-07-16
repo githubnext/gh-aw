@@ -2087,6 +2087,70 @@ func TestBuildExternalDetectorExecutionStepPropagatesRunnerTopology(t *testing.T
 	})
 }
 
+func TestBuildExternalDetectorExecutionStepInheritsOpenAIBaseURLForAPITarget(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		AI: "codex",
+		EngineConfig: &EngineConfig{
+			ID: "codex",
+			Env: map[string]string{
+				"OPENAI_BASE_URL": "https://llm-router.internal.example.com/v1",
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				EngineConfig: &EngineConfig{
+					ID: "codex",
+					Env: map[string]string{
+						"CUSTOM_FLAG": "1",
+					},
+				},
+			},
+		},
+	}
+
+	steps := compiler.buildExternalDetectorExecutionStep(data)
+	if len(steps) == 0 {
+		t.Fatal("expected non-empty steps")
+	}
+	allSteps := strings.Join(steps, "")
+
+	if !strings.Contains(allSteps, "apiProxy") {
+		t.Fatalf("expected external detector AWF config to include api-proxy target; got:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "llm-router.internal.example.com") {
+		t.Fatalf("expected external detector AWF config to include host from OPENAI_BASE_URL; got:\n%s", allSteps)
+	}
+}
+
+func TestGetThreatDetectionAdditionalAllowedDomains_WithOpenAIBaseURL(t *testing.T) {
+	data := &WorkflowData{
+		EngineConfig: &EngineConfig{
+			Env: map[string]string{
+				"OPENAI_BASE_URL": "https://llm-router.internal.example.com/v1",
+			},
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Allowed: []string{
+				"llm-router.internal.example.com",
+				"api.openai.com",
+				"${{ inputs.allowed_domains }}",
+				"chatgpt.com",
+			},
+		},
+	}
+
+	got := getThreatDetectionAdditionalAllowedDomains(data)
+	want := []string{
+		"llm-router.internal.example.com",
+		"api.openai.com",
+		"chatgpt.com",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("expected additional allowed domains %v, got %v", want, got)
+	}
+}
+
 func TestAppendThreatDetectionRWMount(t *testing.T) {
 	threatDetectionMount := constants.ThreatDetectionDir + ":" + constants.ThreatDetectionDir + ":rw"
 
