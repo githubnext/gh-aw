@@ -332,6 +332,8 @@ async function getPullRequestDetails(owner, repo, pullNumber, githubClient = git
  * @param {Object} [githubClient] - Authenticated GitHub client (defaults to global github)
  * @param {{owner: string, repo: string, type: "issue"|"pull", number: number}|null} [taskContext] - Source issue/PR context for REST path
  * @param {string|null} [pullRequestRepoSlug] - Optional pull request repository slug (owner/repo) for REST path
+ * @param {{rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean}} [intentMetadata] - Optional issue-intent metadata
+ * @param {boolean} [useIssueIntent] - Whether to include issue-intent metadata/headers
  * @returns {Promise<boolean>} True if successful
  */
 async function assignAgentToIssue(
@@ -346,7 +348,9 @@ async function assignAgentToIssue(
   baseBranch = null,
   githubClient = github,
   taskContext = null,
-  pullRequestRepoSlug = null
+  pullRequestRepoSlug = null,
+  intentMetadata = {},
+  useIssueIntent = true
 ) {
   // SECURITY: pullRequestRepoSlug specifies a cross-repo target repository slug.
   // Callers MUST validate the corresponding repository slug against allowedRepos using
@@ -391,12 +395,16 @@ async function assignAgentToIssue(
 
   try {
     core.info(`Assigning via issues assignees REST API with login: ${agentLogin}`);
-    await githubClient.request("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", {
+    const assignParams = {
       owner: targetOwner,
       repo: targetRepo,
       issue_number: issueNumber,
       assignees: [agentLogin],
-    });
+    };
+    if (useIssueIntent && intentMetadata && Object.keys(intentMetadata).length > 0) {
+      Object.assign(assignParams, intentMetadata);
+    }
+    await githubClient.request("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", assignParams);
     return true;
   } catch (error) {
     const errorMessage = getErrorMessage(error);
