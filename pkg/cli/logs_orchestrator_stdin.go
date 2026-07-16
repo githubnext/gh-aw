@@ -147,7 +147,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 	}
 
 	// Download artifacts for all runs concurrently.
-	downloadResults := downloadRunArtifactsConcurrent(ctx, runs, opts.OutputDir, opts.Verbose, len(runs), opts.RepoOverride, artifactFilter)
+	downloadResults := downloadRunArtifactsConcurrent(ctx, runs, opts.OutputDir, opts.Verbose, len(runs), opts.RepoOverride, artifactFilter, opts.EvalsOnly, opts.ArtifactSets)
 
 	filters := runFilterOpts{
 		engine:            opts.Engine,
