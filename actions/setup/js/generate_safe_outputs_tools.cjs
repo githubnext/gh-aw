@@ -38,6 +38,26 @@ const ADD_COMMENT_DISCUSSIONS_DISABLED_NOTE =
   "NOTE: Discussion comments are disabled for this workflow because discussions:write permission is not available. Set 'discussions: true' in the workflow's safe-outputs.add-comment configuration to enable discussion comments and request this permission.";
 const ADD_COMMENT_REPLY_SUPPORT_SENTENCE = "Supports reply_to_id for discussion threading.";
 const ADD_COMMENT_REPLY_SUPPORT_REGEX = /\s*Supports reply_to_id for discussion threading\./g;
+const ISSUE_INTENT_SUFFIX = "INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.";
+const ISSUE_INTENT_TOOL_NAMES = new Set(["set_issue_type", "set_issue_field", "add_labels", "close_issue", "assign_to_user", "assign_to_agent"]);
+
+/**
+ * Determine whether issue-intent guidance is enabled for a tool.
+ * Default is enabled; explicit issue_intent: false disables it.
+ *
+ * @param {string} toolName
+ * @param {unknown} toolConfig
+ * @returns {boolean}
+ */
+function isIssueIntentEnabledForTool(toolName, toolConfig) {
+  if (!ISSUE_INTENT_TOOL_NAMES.has(toolName)) {
+    return false;
+  }
+  if (toolConfig && typeof toolConfig === "object" && "issue_intent" in toolConfig) {
+    return toolConfig.issue_intent !== false;
+  }
+  return true;
+}
 
 /**
  * Update add_comment description to match runtime-safe-output permissions.
@@ -148,8 +168,8 @@ async function main() {
       if (descSuffix) {
         enhancedTool.description = (enhancedTool.description || "") + descSuffix;
       }
-      if (["set_issue_type", "set_issue_field", "add_labels"].includes(tool.name)) {
-        enhancedTool.description = `${enhancedTool.description || ""} INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.`.trim();
+      if (isIssueIntentEnabledForTool(tool.name, config[tool.name])) {
+        enhancedTool.description = `${enhancedTool.description || ""} ${ISSUE_INTENT_SUFFIX}`.trim();
       }
 
       if (tool.name === "add_comment") {

@@ -411,3 +411,28 @@ func TestComputeRequiredFieldAdditionsDisabledByDefault(t *testing.T) {
 	})
 	assert.Empty(t, additions)
 }
+
+func TestComputeRequiredFieldAdditionsIssueIntentDefaultEnabled(t *testing.T) {
+	additions := computeRequiredFieldAdditions(&SafeOutputsConfig{
+		CloseIssues:   &CloseIssuesConfig{},
+		AssignToUser:  &AssignToUserConfig{},
+		AssignToAgent: &AssignToAgentConfig{},
+	})
+
+	assert.Equal(t, []string{"rationale", "confidence"}, additions["close_issue"])
+	assert.Equal(t, []string{"rationale", "confidence"}, additions["assign_to_user"])
+	assert.Equal(t, []string{"rationale", "confidence"}, additions["assign_to_agent"])
+}
+
+func TestComputeRequiredFieldAdditionsIssueIntentOptOut(t *testing.T) {
+	disabled := false
+	additions := computeRequiredFieldAdditions(&SafeOutputsConfig{
+		CloseIssues:   &CloseIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{IssueIntent: &disabled}},
+		AssignToUser:  &AssignToUserConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{IssueIntent: &disabled}},
+		AssignToAgent: &AssignToAgentConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{IssueIntent: &disabled}},
+	})
+
+	assert.NotContains(t, additions, "close_issue")
+	assert.NotContains(t, additions, "assign_to_user")
+	assert.NotContains(t, additions, "assign_to_agent")
+}

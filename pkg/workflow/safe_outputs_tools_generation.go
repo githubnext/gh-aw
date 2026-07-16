@@ -254,7 +254,27 @@ func computeRequiredFieldAdditions(safeOutputs *SafeOutputsConfig) map[string][]
 	if safeOutputs.CreatePullRequests != nil && safeOutputs.CreatePullRequests.RequireTemporaryID {
 		additions["create_pull_request"] = []string{"temporary_id"}
 	}
+	issueIntentRequiredFields := []string{"rationale", "confidence"}
+	if safeOutputs.SetIssueType != nil && issueIntentEnabled(safeOutputs.SetIssueType.IssueIntent) {
+		additions["set_issue_type"] = issueIntentRequiredFields
+	}
+	if safeOutputs.SetIssueField != nil && issueIntentEnabled(safeOutputs.SetIssueField.IssueIntent) {
+		additions["set_issue_field"] = issueIntentRequiredFields
+	}
+	if safeOutputs.CloseIssues != nil && issueIntentEnabled(safeOutputs.CloseIssues.IssueIntent) {
+		additions["close_issue"] = issueIntentRequiredFields
+	}
+	if safeOutputs.AssignToUser != nil && issueIntentEnabled(safeOutputs.AssignToUser.IssueIntent) {
+		additions["assign_to_user"] = issueIntentRequiredFields
+	}
+	if safeOutputs.AssignToAgent != nil && issueIntentEnabled(safeOutputs.AssignToAgent.IssueIntent) {
+		additions["assign_to_agent"] = issueIntentRequiredFields
+	}
 	return additions
+}
+
+func issueIntentEnabled(issueIntent *bool) bool {
+	return issueIntent == nil || *issueIntent
 }
 
 // generateToolsMetaJSON generates the content for tools_meta.json: a compact file

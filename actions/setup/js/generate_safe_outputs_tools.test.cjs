@@ -314,10 +314,24 @@ describe("generate_safe_outputs_tools", () => {
         { name: "set_issue_type", description: "Sets issue type.", inputSchema: { type: "object", properties: {} } },
         { name: "set_issue_field", description: "Sets issue field.", inputSchema: { type: "object", properties: {} } },
         { name: "add_labels", description: "Adds labels.", inputSchema: { type: "object", properties: {} } },
+        { name: "close_issue", description: "Closes issue.", inputSchema: { type: "object", properties: {} } },
+        { name: "assign_to_user", description: "Assigns users.", inputSchema: { type: "object", properties: {} } },
+        { name: "assign_to_agent", description: "Assigns agent.", inputSchema: { type: "object", properties: {} } },
         { name: "create_issue", description: "Creates a GitHub issue.", inputSchema: { type: "object", properties: {} } },
       ])
     );
-    fs.writeFileSync(configPath, JSON.stringify({ set_issue_type: {}, set_issue_field: {}, add_labels: {}, create_issue: {} }));
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        set_issue_type: {},
+        set_issue_field: {},
+        add_labels: {},
+        close_issue: {},
+        assign_to_user: {},
+        assign_to_agent: {},
+        create_issue: {},
+      })
+    );
     fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
 
     runScript();
@@ -327,6 +341,9 @@ describe("generate_safe_outputs_tools", () => {
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_type").description).toContain(intentSuffix);
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_field").description).toContain(intentSuffix);
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_labels").description).toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "close_issue").description).toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "assign_to_user").description).toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "assign_to_agent").description).toContain(intentSuffix);
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "create_issue").description).not.toContain(intentSuffix);
   });
 
@@ -349,5 +366,24 @@ describe("generate_safe_outputs_tools", () => {
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_type").description).toContain(intentSuffix);
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_field").description).toContain(intentSuffix);
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_labels").description).toContain(intentSuffix);
+  });
+
+  it("omits issue intent suffix when explicitly disabled per tool", () => {
+    fs.writeFileSync(
+      toolsSourcePath,
+      JSON.stringify([
+        { name: "close_issue", description: "Closes issue.", inputSchema: { type: "object", properties: {} } },
+        { name: "assign_to_user", description: "Assigns users.", inputSchema: { type: "object", properties: {} } },
+      ])
+    );
+    fs.writeFileSync(configPath, JSON.stringify({ close_issue: { issue_intent: false }, assign_to_user: {} }));
+    fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const intentSuffix = "INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.";
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "close_issue").description).not.toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "assign_to_user").description).toContain(intentSuffix);
   });
 });
