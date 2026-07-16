@@ -74,12 +74,19 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		}
 	}
 	notifyCommentLog.Printf("Job built successfully: dependencies_count=%d", len(needs))
+	conclusionPerms := ComputePermissionsForSafeOutputs(data.SafeOutputs)
+	// When observability.otlp.github-app is configured without app-id/private-key
+	// credentials, id-token: write is needed so the conclusion job can mint the OTLP
+	// OIDC token via core.getIDToken(audience) (mirrors threat_detection_job.go).
+	if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
+		conclusionPerms.Set(PermissionIdToken, PermissionWrite)
+	}
 	return &Job{
 		Name:        "conclusion",
 		If:          RenderCondition(buildConclusionJobCondition(data, mainJobName, safeOutputJobNames)),
 		RunsOn:      c.formatFrameworkJobRunsOn(data),
 		Environment: c.indentYAMLLines(resolveSafeOutputsEnvironment(data), "    "),
-		Permissions: ComputePermissionsForSafeOutputs(data.SafeOutputs).RenderToYAML(),
+		Permissions: conclusionPerms.RenderToYAML(),
 		Concurrency: c.buildConclusionJobConcurrency(data),
 		Steps:       steps,
 		Needs:       needs,

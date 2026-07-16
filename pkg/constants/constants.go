@@ -171,8 +171,13 @@ const OTELSentryEndpointSecretName = "GH_AW_OTEL_SENTRY_ENDPOINT"
 
 // AWF (Agentic Workflow Firewall) constants
 
-// AWFDefaultCommand is the default AWF command prefix
-const AWFDefaultCommand = "sudo -E awf"
+// AWFDefaultCommand is the default AWF command prefix.
+// Strict security (no sudo) is the default since AWF v0.27.32.
+const AWFDefaultCommand = "awf"
+
+// AWFLegacySecurityCommand is the AWF command prefix for legacy security mode.
+// Used when legacy-security: enable is set in frontmatter.
+const AWFLegacySecurityCommand = "sudo -E awf"
 
 // AWFProxyLogsDir is the default directory for AWF proxy logs
 const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"

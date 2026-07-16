@@ -220,10 +220,12 @@ type AWFPlatformConfig struct {
 }
 
 // AWFAPIProxyConfig is the "apiProxy" section of the AWF config file.
-// It maps to the --enable-api-proxy and --*-api-target CLI flags.
+// It maps to the apiProxy.* fields in the AWF config schema.
+// Note: --enable-api-proxy is deprecated since AWF v0.27.32 (API proxy is always on).
 type AWFAPIProxyConfig struct {
 	// Enabled enables the API proxy sidecar for LLM gateway credential isolation.
-	// Maps to: --enable-api-proxy
+	// Since AWF v0.27.32, the API proxy is always enabled; this field is kept
+	// for backward compatibility with older AWF versions.
 	Enabled bool `json:"enabled"`
 
 	// EnableTokenSteering enables budget-warning system message injection near ET budget exhaustion.

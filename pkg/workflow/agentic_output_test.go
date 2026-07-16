@@ -391,7 +391,7 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 		result := allStepsStr.String()
 
 		// Verify AWF is used instead of hooks
-		if !strings.Contains(result, "sudo -E awf") {
+		if !strings.Contains(result, "awf") {
 			t.Error("Expected AWF wrapper to be used with network permissions")
 		}
 
@@ -483,7 +483,7 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 		result := allStepsStr.String()
 
 		// Verify AWF is used
-		if !strings.Contains(result, "sudo -E awf") {
+		if !strings.Contains(result, "awf") {
 			t.Error("Expected AWF to be used even with deny-all policy")
 		}
 

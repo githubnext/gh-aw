@@ -485,14 +485,19 @@ engine: claude
 		}
 
 		lockContentStr := string(lockContent)
-		if !strings.Contains(lockContentStr, "if: ${{ secrets.WORKFLOW_APP_ID != '' && secrets.WORKFLOW_APP_PRIVATE_KEY != '' }}") {
-			t.Error("Expected guard to check app secrets directly when ignore-if-missing is enabled")
+		// Both credentials use secrets.* so ignore-if-missing should guard on
+		// step-local env aliases instead of secrets.* directly.
+		if strings.Contains(lockContentStr, "if: ${{ secrets.") {
+			t.Error("Expected no guard using secrets context: secrets is not valid in if: expressions")
 		}
-		if strings.Contains(lockContentStr, "GH_AW_APP_CLIENT_ID:") {
-			t.Error("Did not expect step-local GH_AW_APP_CLIENT_ID env in mint step guard")
+		if !strings.Contains(lockContentStr, "GH_AW_IGNORE_IF_MISSING_APP_ID: ${{ secrets.WORKFLOW_APP_ID }}") {
+			t.Error("Expected step-local env alias for app ID in mint step guard")
 		}
-		if strings.Contains(lockContentStr, "GH_AW_APP_PRIVATE_KEY:") {
-			t.Error("Did not expect step-local GH_AW_APP_PRIVATE_KEY env in mint step guard")
+		if !strings.Contains(lockContentStr, "GH_AW_IGNORE_IF_MISSING_PRIVATE_KEY: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}") {
+			t.Error("Expected step-local env alias for private key in mint step guard")
+		}
+		if !strings.Contains(lockContentStr, "if: ${{ env.GH_AW_IGNORE_IF_MISSING_APP_ID != '' && env.GH_AW_IGNORE_IF_MISSING_PRIVATE_KEY != '' }}") {
+			t.Error("Expected skip-if-match app token mint step to use env-based ignore-if-missing guard")
 		}
 		if !strings.Contains(lockContentStr, "github-token: ${{ steps.pre-activation-app-token.outputs.token || secrets.GITHUB_TOKEN }}") {
 			t.Error("Expected skip-if-match to fall back to GITHUB_TOKEN when app minting is skipped")

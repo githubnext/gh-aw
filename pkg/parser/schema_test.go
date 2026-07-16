@@ -1375,9 +1375,9 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPResourceAttrib
 	}
 }
 
-func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppAudienceRejected(t *testing.T) {
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppAudienceAccepted(t *testing.T) {
 	frontmatter := map[string]any{
-		"name": "OTLP github-app audience rejection",
+		"name": "OTLP github-app audience acceptance",
 		"on": map[string]any{
 			"issues": map[string]any{
 				"types": []any{"opened"},
@@ -1392,14 +1392,9 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppAudie
 		},
 	}
 
-	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/otlp-github-app-audience-reject-schema-test.md")
-	if err == nil {
-		t.Fatal("expected observability.otlp.github-app.audience to fail schema validation")
-	}
-	errText := err.Error()
-	if !strings.Contains(errText, "audience") ||
-		(!strings.Contains(errText, "github-app") && !strings.Contains(errText, "Unknown property")) {
-		t.Fatalf("expected schema validation error to reference unsupported github-app.audience syntax, got: %v", err)
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/otlp-github-app-audience-accept-schema-test.md")
+	if err != nil {
+		t.Fatalf("expected observability.otlp.github-app.audience to pass schema validation (it is the credential-less OIDC audience field), got: %v", err)
 	}
 }
 

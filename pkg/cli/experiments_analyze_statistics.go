@@ -33,6 +33,15 @@ type ExperimentAnalysis struct {
 	// (t_test, mann_whitney, proportion_test, bayesian_ab).
 	AnalysisType string `json:"analysis_type,omitempty"`
 
+	// Metric is the primary metric string declared in the experiment config
+	// (e.g. "effective_tokens" or "evals.builds").
+	Metric string `json:"metric,omitempty"`
+
+	// MetricQuestion is the resolved eval question text when Metric references a declared
+	// eval question ID (e.g. "evals.builds" resolves to "Does the generated code compile?").
+	// Empty when Metric is absent or does not reference an eval.
+	MetricQuestion string `json:"metric_question,omitempty"`
+
 	// MinSamples is the minimum runs per variant required before analysis is reliable.
 	// Defaults to 20 when not declared in the experiment config (R-STAT-007).
 	MinSamples int `json:"min_samples"`
@@ -97,21 +106,13 @@ type GuardrailStatus struct {
 
 // computeExperimentAnalysis computes the statistical analysis for a single named experiment.
 // cfg may be nil when no workflow frontmatter is available, in which case defaults are used.
-func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.ExperimentConfig) ExperimentAnalysis {
+// evals provides the eval definitions for resolving eval-backed metric references; may be nil.
+func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.ExperimentConfig, evals *workflow.EvalsConfig) ExperimentAnalysis {
 	experimentsStatsLog.Printf("Computing analysis for experiment %q: %d variant(s), %d total runs", exp.Name, len(exp.Variants), exp.Total)
 	a := ExperimentAnalysis{
 		ExperimentName: exp.Name,
 		TotalRuns:      exp.Total,
 		MinSamples:     defaultMinSamples,
-	}
-
-	// Degenerate: fewer than 2 variants cannot be meaningfully analysed.
-	if len(exp.Variants) < 2 {
-		experimentsStatsLog.Printf("Experiment %q has fewer than 2 variants; skipping analysis", exp.Name)
-		a.IsBalanced = true
-		a.Recommendation = "EXTEND"
-		a.Rationale = "experiment has fewer than 2 variants; cannot perform statistical analysis"
-		return a
 	}
 
 	// Extract metadata from config when available.
@@ -127,6 +128,28 @@ func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.Experim
 				Threshold: g.Threshold,
 			})
 		}
+		// Populate metric and resolve any eval reference to its question text.
+		if cfg.Metric != "" {
+			a.Metric = cfg.Metric
+			evalID, isEval := workflow.ParseExperimentMetricEvalReference(cfg.Metric)
+			if isEval && evalID != "" && evals != nil {
+				for _, q := range evals.Questions {
+					if q.ID == evalID {
+						a.MetricQuestion = q.Question
+						break
+					}
+				}
+			}
+		}
+	}
+
+	// Degenerate: fewer than 2 variants cannot be meaningfully analysed.
+	if len(exp.Variants) < 2 {
+		experimentsStatsLog.Printf("Experiment %q has fewer than 2 variants; skipping analysis", exp.Name)
+		a.IsBalanced = true
+		a.Recommendation = "EXTEND"
+		a.Rationale = "experiment has fewer than 2 variants; cannot perform statistical analysis"
+		return a
 	}
 
 	// Collect variant names in alphabetical order for deterministic output.
@@ -289,6 +312,13 @@ func printOneExperimentAnalysis(a ExperimentAnalysis) {
 	}
 	if a.AnalysisType != "" {
 		fmt.Fprintf(os.Stderr, "  Test type  : %s\n", a.AnalysisType)
+	}
+	if a.Metric != "" {
+		if a.MetricQuestion != "" {
+			fmt.Fprintf(os.Stderr, "  Metric     : %s — %s\n", a.Metric, a.MetricQuestion)
+		} else {
+			fmt.Fprintf(os.Stderr, "  Metric     : %s\n", a.Metric)
+		}
 	}
 	fmt.Fprintf(os.Stderr, "  Min samples: %d per variant\n", a.MinSamples)
 
