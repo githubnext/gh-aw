@@ -103,14 +103,14 @@ func prepareAddTargetCheckoutWithRuntime(ctx context.Context, opts addCreateOpti
 		}
 	}
 
-	if err := initializePreparedAddTargetCheckout(ctx, runtime, plan.Dir, opts); err != nil {
+	if err := initializeAddTargetCheckoutIfNeeded(ctx, runtime, plan.Dir, opts); err != nil {
 		return "", err
 	}
 
 	return strings.TrimSpace(plan.Dir), nil
 }
 
-func initializePreparedAddTargetCheckout(ctx context.Context, runtime bootstrapRuntime, checkoutDir string, opts addCreateOptions) error {
+func initializeAddTargetCheckoutIfNeeded(ctx context.Context, runtime bootstrapRuntime, checkoutDir string, opts addCreateOptions) error {
 	missingMarkers, err := missingBootstrapInitMarkers(checkoutDir, opts.EngineOverride)
 	if err != nil {
 		return err
@@ -120,17 +120,21 @@ func initializePreparedAddTargetCheckout(ctx context.Context, runtime bootstrapR
 	}
 
 	return withWorkingDir(checkoutDir, func() error {
-		return runtime.initRepo(InitOptions{
-			Ctx:              ctx,
-			Verbose:          opts.Verbose,
-			Engine:           opts.EngineOverride,
-			Skill:            true,
-			Agent:            true,
-			MCP:              true,
-			CodespaceRepos:   []string{},
-			CodespaceEnabled: false,
-			Completions:      false,
-			CreatePR:         false,
-		})
+		return runtime.initRepo(addCreateInitOptions(ctx, opts))
 	})
+}
+
+func addCreateInitOptions(ctx context.Context, opts addCreateOptions) InitOptions {
+	return InitOptions{
+		Ctx:              ctx,
+		Verbose:          opts.Verbose,
+		Engine:           opts.EngineOverride,
+		Skill:            true,
+		Agent:            true,
+		MCP:              true,
+		CodespaceRepos:   []string{},
+		CodespaceEnabled: false,
+		Completions:      false,
+		CreatePR:         false,
+	}
 }

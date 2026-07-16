@@ -116,7 +116,8 @@ func checkSetupRepositoryOwnerType(ctx context.Context, owner string) (string, e
 }
 
 func createSetupRepository(ctx context.Context, repo string, opts setupRepositoryCreateOptions) error {
-	args := []string{"repo", "create", repo, "--" + opts.Visibility, "--add-readme"}
+	visibilityFlag := fmt.Sprintf("--%s", opts.Visibility)
+	args := []string{"repo", "create", repo, visibilityFlag, "--add-readme"}
 	if license := strings.TrimSpace(opts.License); license != "" {
 		args = append(args, "--license", license)
 	}
