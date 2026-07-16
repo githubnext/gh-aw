@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -272,7 +271,7 @@ func expandWorkflowSpecsIfNeeded(parsedSpecs []*WorkflowSpec, verbose bool) ([]*
 
 func resolveWorkflowSpecs(ctx context.Context, parsedSpecs []*WorkflowSpec, warnings []string, verbose bool) ([]*ResolvedWorkflow, bool, []string, error) {
 	resolvedWorkflows := make([]*ResolvedWorkflow, 0, len(parsedSpecs))
-	resolutionWarnings := slices.Clone(warnings)
+	resolutionWarnings := warnings
 	hasWorkflowDispatch := false
 
 	for _, spec := range parsedSpecs {
@@ -411,9 +410,10 @@ func selectBootstrapProfile(bootstrapProfiles []*resolvedBootstrapProfile, resol
 			ids = append(ids, p.PackageID)
 		}
 		resolutionLog.Printf("Multiple bootstrap profiles found (%v); skipping all", ids)
-		resolutionWarnings = append(resolutionWarnings,
+		updatedWarnings := append([]string{}, resolutionWarnings...)
+		updatedWarnings = append(updatedWarnings,
 			fmt.Sprintf("multiple bootstrap profiles found (%s); bootstrap config will be skipped — run each package separately to apply its config", strings.Join(ids, ", ")))
-		return nil, resolutionWarnings
+		return nil, updatedWarnings
 	}
 }
 
