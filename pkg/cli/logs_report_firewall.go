@@ -9,21 +9,22 @@ var firewallReportLog = logger.New("cli:logs_report_firewall")
 
 // AccessLogSummary contains aggregated access log analysis
 type AccessLogSummary struct {
-	TotalRequests  int                        `json:"total_requests" console:"header:Total Requests"`
-	AllowedCount   int                        `json:"allowed_count" console:"header:Allowed"`
-	BlockedCount   int                        `json:"blocked_count" console:"header:Blocked"`
-	AllowedDomains []string                   `json:"allowed_domains" console:"-"`
-	BlockedDomains []string                   `json:"blocked_domains" console:"-"`
-	ByWorkflow     map[string]*DomainAnalysis `json:"by_workflow,omitempty" console:"-"`
+	FirewallSummaryBase
+	ByWorkflow map[string]*DomainAnalysis `json:"by_workflow,omitempty" console:"-"`
+}
+
+// FirewallSummaryBase contains shared aggregated request and domain fields.
+type FirewallSummaryBase struct {
+	TotalRequests   int      `json:"total_requests" console:"header:Total Requests"`
+	AllowedRequests int      `json:"allowed_requests" console:"header:Allowed"`
+	BlockedRequests int      `json:"blocked_requests" console:"header:Blocked"`
+	AllowedDomains  []string `json:"allowed_domains" console:"-"`
+	BlockedDomains  []string `json:"blocked_domains" console:"-"`
 }
 
 // FirewallLogSummary contains aggregated firewall log data
 type FirewallLogSummary struct {
-	TotalRequests    int                           `json:"total_requests" console:"header:Total Requests"`
-	AllowedRequests  int                           `json:"allowed_requests" console:"header:Allowed"`
-	BlockedRequests  int                           `json:"blocked_requests" console:"header:Blocked"`
-	AllowedDomains   []string                      `json:"allowed_domains" console:"-"`
-	BlockedDomains   []string                      `json:"blocked_domains" console:"-"`
+	FirewallSummaryBase
 	RequestsByDomain map[string]DomainRequestStats `json:"requests_by_domain,omitempty" console:"-"`
 	ByWorkflow       map[string]*FirewallAnalysis  `json:"by_workflow,omitempty" console:"-"`
 }
@@ -99,12 +100,14 @@ func buildAccessLogSummary(processedRuns []ProcessedRun) *AccessLogSummary {
 	allowedDomains, blockedDomains := convertDomainsToSortedSlices(agg.allAllowedDomains, agg.allBlockedDomains)
 
 	return &AccessLogSummary{
-		TotalRequests:  agg.totalRequests,
-		AllowedCount:   agg.allowedCount,
-		BlockedCount:   agg.blockedCount,
-		AllowedDomains: allowedDomains,
-		BlockedDomains: blockedDomains,
-		ByWorkflow:     byWorkflow,
+		FirewallSummaryBase: FirewallSummaryBase{
+			TotalRequests:   agg.totalRequests,
+			AllowedRequests: agg.allowedCount,
+			BlockedRequests: agg.blockedCount,
+			AllowedDomains:  allowedDomains,
+			BlockedDomains:  blockedDomains,
+		},
+		ByWorkflow: byWorkflow,
 	}
 }
 
@@ -143,11 +146,13 @@ func buildFirewallLogSummary(processedRuns []ProcessedRun) *FirewallLogSummary {
 	allowedDomains, blockedDomains := convertDomainsToSortedSlices(agg.allAllowedDomains, agg.allBlockedDomains)
 
 	return &FirewallLogSummary{
-		TotalRequests:    agg.totalRequests,
-		AllowedRequests:  agg.allowedCount,
-		BlockedRequests:  agg.blockedCount,
-		AllowedDomains:   allowedDomains,
-		BlockedDomains:   blockedDomains,
+		FirewallSummaryBase: FirewallSummaryBase{
+			TotalRequests:   agg.totalRequests,
+			AllowedRequests: agg.allowedCount,
+			BlockedRequests: agg.blockedCount,
+			AllowedDomains:  allowedDomains,
+			BlockedDomains:  blockedDomains,
+		},
 		RequestsByDomain: allRequestsByDomain,
 		ByWorkflow:       byWorkflow,
 	}
