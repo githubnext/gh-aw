@@ -54,6 +54,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --engine copilot   # Pre-select engine
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-secret        # Skip secret prompt
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --create octo-org/platform-ops --visibility private
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --create octo-org/platform-ops --license mit
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --append "custom footer"            # Append custom content
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-security-scanner             # Skip security scan
 `,
@@ -78,6 +79,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
 			createTarget, _ := cmd.Flags().GetString("create")
 			createVisibility, _ := cmd.Flags().GetString("visibility")
+			createLicense, _ := cmd.Flags().GetString("license")
 			requireOwnerType, _ := cmd.Flags().GetString("require-owner-type")
 
 			addWizardLog.Printf("Starting add-wizard: workflows=%v, engine=%s, verbose=%v", workflows, engineOverride, verbose)
@@ -107,6 +109,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 				DisableSecurityScanner: disableSecurityScanner,
 				CreateTarget:           createTarget,
 				CreateVisibility:       createVisibility,
+				CreateLicense:          createLicense,
 				CreateRequireOwnerType: requireOwnerType,
 			})
 		},

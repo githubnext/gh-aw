@@ -13,6 +13,7 @@ import (
 type addCreateOptions struct {
 	Repo             string
 	Visibility       string
+	License          string
 	RequireOwnerType string
 	EngineOverride   string
 	Verbose          bool
@@ -21,6 +22,7 @@ type addCreateOptions struct {
 func registerAddCreateFlags(cmd *cobra.Command) {
 	cmd.Flags().String("create", "", "Create or attach a target repository (OWNER/REPO format) before adding workflows")
 	cmd.Flags().String("visibility", "private", "Repository visibility for --create: private, public, or internal")
+	cmd.Flags().String("license", "", "Repository license for --create (for example: mit, apache-2.0, gpl-3.0)")
 	cmd.Flags().String("require-owner-type", "any", "Require the --create repository owner to be org, user, or any")
 }
 
@@ -87,7 +89,10 @@ func prepareAddTargetCheckoutWithRuntime(ctx context.Context, opts addCreateOpti
 	}
 
 	if plan.CreateRepo {
-		if err := runtime.createRepo(ctx, plan.Repo, opts.Visibility); err != nil {
+		if err := runtime.createRepo(ctx, plan.Repo, setupRepositoryCreateOptions{
+			Visibility: opts.Visibility,
+			License:    opts.License,
+		}); err != nil {
 			return "", err
 		}
 	}
@@ -98,5 +103,34 @@ func prepareAddTargetCheckoutWithRuntime(ctx context.Context, opts addCreateOpti
 		}
 	}
 
+	if err := initializePreparedAddTargetCheckout(ctx, runtime, plan.Dir, opts); err != nil {
+		return "", err
+	}
+
 	return strings.TrimSpace(plan.Dir), nil
+}
+
+func initializePreparedAddTargetCheckout(ctx context.Context, runtime bootstrapRuntime, checkoutDir string, opts addCreateOptions) error {
+	missingMarkers, err := missingBootstrapInitMarkers(checkoutDir, opts.EngineOverride)
+	if err != nil {
+		return err
+	}
+	if len(missingMarkers) == 0 {
+		return nil
+	}
+
+	return withWorkingDir(checkoutDir, func() error {
+		return runtime.initRepo(InitOptions{
+			Ctx:              ctx,
+			Verbose:          opts.Verbose,
+			Engine:           opts.EngineOverride,
+			Skill:            true,
+			Agent:            true,
+			MCP:              true,
+			CodespaceRepos:   []string{},
+			CodespaceEnabled: false,
+			Completions:      false,
+			CreatePR:         false,
+		})
+	})
 }

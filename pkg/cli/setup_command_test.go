@@ -172,13 +172,17 @@ func TestCreateSetupRepository_UsesSupportedFlags(t *testing.T) {
 	require.NoError(t, os.WriteFile(fakeGH, []byte(script), 0o755))
 	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
-	require.NoError(t, createSetupRepository(context.Background(), "octo/platform-ops", "private"))
+	require.NoError(t, createSetupRepository(context.Background(), "octo/platform-ops", setupRepositoryCreateOptions{
+		Visibility: "private",
+		License:    "mit",
+	}))
 
 	logData, err := os.ReadFile(argsLog)
 	require.NoError(t, err)
 	logText := string(logData)
 	assert.Contains(t, logText, "repo create octo/platform-ops --private")
 	assert.Contains(t, logText, "--add-readme")
+	assert.Contains(t, logText, "--license mit")
 	assert.NotContains(t, logText, "--confirm")
 	assert.NotContains(t, logText, "--clone=false")
 }

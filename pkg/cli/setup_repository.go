@@ -54,10 +54,15 @@ type setupRepositoryRuntime struct {
 	checkAuth          func(context.Context) error
 	repoExists         func(context.Context, string) (bool, error)
 	ownerType          func(context.Context, string) (string, error)
-	createRepo         func(context.Context, string, string) error
+	createRepo         func(context.Context, string, setupRepositoryCreateOptions) error
 	cloneRepo          func(context.Context, string, string) error
 	dirOriginRepo      func(string) (string, error)
 	checkCleanWorktree func(bool) error
+}
+
+type setupRepositoryCreateOptions struct {
+	Visibility string
+	License    string
 }
 
 func defaultSetupRepositoryRuntime() setupRepositoryRuntime {
@@ -110,8 +115,13 @@ func checkSetupRepositoryOwnerType(ctx context.Context, owner string) (string, e
 	return strings.TrimSpace(string(output)), nil
 }
 
-func createSetupRepository(ctx context.Context, repo string, visibility string) error {
-	output, err := workflow.RunGHCombinedContext(ctx, "Creating repository...", "repo", "create", repo, "--"+visibility, "--add-readme")
+func createSetupRepository(ctx context.Context, repo string, opts setupRepositoryCreateOptions) error {
+	args := []string{"repo", "create", repo, "--" + opts.Visibility, "--add-readme"}
+	if license := strings.TrimSpace(opts.License); license != "" {
+		args = append(args, "--license", license)
+	}
+
+	output, err := workflow.RunGHCombinedContext(ctx, "Creating repository...", args...)
 	if err != nil {
 		trimmed := strings.TrimSpace(string(output))
 		if trimmed == "" {

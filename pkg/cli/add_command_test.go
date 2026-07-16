@@ -30,6 +30,7 @@ func TestNewAddCommand(t *testing.T) {
 	assert.Equal(t, "Add agentic workflows from repositories, local files, or URLs to .github/workflows", cmd.Short, "Command short description should match")
 	assert.Contains(t, cmd.Long, "Add one or more agentic workflows", "Command long description should contain expected text")
 	assert.Contains(t, cmd.Long, "The --create flag provisions a target repository before adding workflows into it.")
+	assert.Contains(t, cmd.Example, "--create octo-org/platform-ops --license mit")
 
 	// Verify Args validator is set
 	assert.NotNil(t, cmd.Args, "Args validator should be set")
@@ -56,6 +57,8 @@ func TestNewAddCommand(t *testing.T) {
 	assert.NotNil(t, createFlag, "Should have 'create' flag")
 	visibilityFlag := flags.Lookup("visibility")
 	assert.NotNil(t, visibilityFlag, "Should have 'visibility' flag")
+	licenseFlag := flags.Lookup("license")
+	assert.NotNil(t, licenseFlag, "Should have 'license' flag")
 	requireOwnerTypeFlag := flags.Lookup("require-owner-type")
 	assert.NotNil(t, requireOwnerTypeFlag, "Should have 'require-owner-type' flag")
 
@@ -332,6 +335,7 @@ func TestAddCommandFlagDefaults(t *testing.T) {
 		{"repo", ""},
 		{"create", ""},
 		{"visibility", "private"},
+		{"license", ""},
 		{"require-owner-type", "any"},
 		{"append", ""},
 		{"dir", ""},

@@ -142,7 +142,7 @@ func runBootstrapWithRuntime(opts BootstrapOptions, runtime bootstrapRuntime, or
 	}
 
 	if plan.CreateRepo {
-		if err := runtime.createRepo(ctx, plan.Repo, opts.Visibility); err != nil {
+		if err := runtime.createRepo(ctx, plan.Repo, setupRepositoryCreateOptions{Visibility: opts.Visibility}); err != nil {
 			return err
 		}
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created "+plan.Repo))

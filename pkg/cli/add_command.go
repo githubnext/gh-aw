@@ -62,6 +62,7 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`
   ` + string(constants.CLIExtensionPrefix) + ` add ./*.md                                       # Add all local workflows
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --dir .github/workflows/shared   # Add to .github/workflows/shared/
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --create octo-org/platform-ops --visibility private
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --create octo-org/platform-ops --license mit
 `
 )
 
@@ -134,6 +135,7 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 	disableSecurityScannerLegacy, _ := cmd.Flags().GetBool("disable-security-scanner")
 	createTarget, _ := cmd.Flags().GetString("create")
 	createVisibility, _ := cmd.Flags().GetString("visibility")
+	createLicense, _ := cmd.Flags().GetString("license")
 	requireOwnerType, _ := cmd.Flags().GetString("require-owner-type")
 	disableSecurityScanner = disableSecurityScanner || disableSecurityScannerLegacy
 
@@ -176,6 +178,7 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 		checkoutDir, err := prepareAddTargetCheckout(cmd.Context(), addCreateOptions{
 			Repo:             createTarget,
 			Visibility:       createVisibility,
+			License:          createLicense,
 			RequireOwnerType: requireOwnerType,
 			EngineOverride:   engineOverride,
 			Verbose:          verbose,

@@ -543,7 +543,7 @@ func TestRunBootstrapWithRuntime_CreateCloneInitAddCompile(t *testing.T) {
 		setupRepositoryRuntime: setupRepositoryRuntime{
 			checkAuth:  func(context.Context) error { return nil },
 			repoExists: func(context.Context, string) (bool, error) { return false, nil },
-			createRepo: func(context.Context, string, string) error {
+			createRepo: func(context.Context, string, setupRepositoryCreateOptions) error {
 				createCalls++
 				return nil
 			},

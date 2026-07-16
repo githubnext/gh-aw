@@ -29,7 +29,7 @@ func TestAddWizardCommand_FlagUsageMatchesAddCommand(t *testing.T) {
 	addCmd := NewAddCommand(validateEngineStub)
 	wizardCmd := NewAddWizardCommand(validateEngineStub)
 
-	for _, flagName := range []string{"append", "no-security-scanner", "create", "visibility", "require-owner-type"} {
+	for _, flagName := range []string{"append", "no-security-scanner", "create", "visibility", "license", "require-owner-type"} {
 		addFlag := addCmd.Flags().Lookup(flagName)
 		wizardFlag := wizardCmd.Flags().Lookup(flagName)
 
@@ -46,4 +46,5 @@ func TestAddWizardCommand_ExamplesMentionNewFlags(t *testing.T) {
 	assert.Contains(t, cmd.Example, "--append \"custom footer\"", "add-wizard examples should show append usage")
 	assert.Contains(t, cmd.Example, "--no-security-scanner", "add-wizard examples should show no-security-scanner usage")
 	assert.Contains(t, cmd.Example, "--create octo-org/platform-ops --visibility private", "add-wizard examples should show create usage")
+	assert.Contains(t, cmd.Example, "--create octo-org/platform-ops --license mit", "add-wizard examples should show license usage")
 }

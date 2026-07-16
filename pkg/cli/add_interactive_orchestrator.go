@@ -25,6 +25,7 @@ type AddInteractiveConfig struct {
 	EngineOverride         string
 	CreateTarget           string
 	CreateVisibility       string
+	CreateLicense          string
 	CreateRequireOwnerType string
 	NoGitattributes        bool
 	WorkflowDir            string
@@ -122,6 +123,7 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 		checkoutDir, err := prepareAddTargetCheckout(ctx, addCreateOptions{
 			Repo:             config.CreateTarget,
 			Visibility:       config.CreateVisibility,
+			License:          config.CreateLicense,
 			RequireOwnerType: config.CreateRequireOwnerType,
 			EngineOverride:   config.EngineOverride,
 			Verbose:          config.Verbose,
