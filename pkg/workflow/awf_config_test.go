@@ -542,6 +542,54 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, "corp-gateway.example.com", "should include the anthropic host")
 	})
 
+	t.Run("claude github provider routes anthropic sidecar to api.githubcopilot.com", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:          "claude",
+					LLMProvider: "github",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		assert.Contains(t, jsonStr, `"anthropic"`, "should include anthropic target")
+		assert.Contains(t, jsonStr, "api.githubcopilot.com", "should route to api.githubcopilot.com for github provider")
+		assert.Contains(t, jsonStr, `"Authorization"`, "should use Authorization header for github provider")
+	})
+
+	t.Run("claude github provider does not override explicit ANTHROPIC_BASE_URL", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:          "claude",
+					LLMProvider: "github",
+					Env: map[string]string{
+						"ANTHROPIC_BASE_URL": "https://custom-gateway.example.com",
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		assert.Contains(t, jsonStr, "custom-gateway.example.com", "explicit ANTHROPIC_BASE_URL should take precedence")
+		assert.NotContains(t, jsonStr, "api.githubcopilot.com", "should not override explicit ANTHROPIC_BASE_URL")
+	})
+
 	t.Run("antigravity engine routes API target through gemini provider", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "antigravity",

@@ -513,6 +513,18 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	if anthropicTarget := extractAPITargetHost(config.WorkflowData, "ANTHROPIC_BASE_URL"); anthropicTarget != "" {
 		targets["anthropic"] = &AWFAPITargetConfig{Host: anthropicTarget}
 		awfConfigLog.Printf("API proxy: custom anthropic target=%s", anthropicTarget)
+	} else if config.EngineName == string(constants.ClaudeEngine) {
+		// When the Claude engine uses the GitHub provider, route the anthropic sidecar to
+		// api.githubcopilot.com so the Anthropic SDK can reach GitHub's inference endpoint.
+		// The Copilot token is passed as ANTHROPIC_API_KEY; the authHeader override switches
+		// the outgoing header from "x-api-key" to "Authorization" to match the Copilot API.
+		if provider := resolveEngineLLMProvider(config.WorkflowData, LLMProviderAnthropic); provider == LLMProviderGitHub {
+			targets["anthropic"] = &AWFAPITargetConfig{
+				Host:       "api.githubcopilot.com",
+				AuthHeader: "Authorization",
+			}
+			awfConfigLog.Printf("API proxy: claude github provider - routing anthropic sidecar to api.githubcopilot.com with Authorization header")
+		}
 	}
 
 	// Apply authHeader overrides from sandbox.agent.targets frontmatter.

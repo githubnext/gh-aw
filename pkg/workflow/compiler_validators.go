@@ -323,6 +323,7 @@ func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {
 		{enabled: workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK, message: "Using experimental feature: engine.copilot-sdk"},
 		{enabled: isFeatureEnabled(constants.GHAWDetectionFeatureFlag, workflowData), message: "Using experimental feature: gh-aw-detection"},
 		{enabled: len(workflowData.LSP) > 0, message: "Using experimental feature: lsp"},
+		{enabled: workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == string(constants.ClaudeEngine) && workflowData.EngineConfig.LLMProvider != "" && normalizeLLMProvider(workflowData.EngineConfig.LLMProvider) != LLMProviderAnthropic, message: "Using experimental feature: claude engine.model-provider"},
 	}
 	for _, warning := range warnings {
 		if warning.enabled {

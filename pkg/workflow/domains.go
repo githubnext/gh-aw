@@ -76,6 +76,7 @@ var ClaudeDefaultDomains = []string{
 	"anthropic.com",
 	"api.anthropic.com",
 	"api.github.com",
+	"api.githubcopilot.com",
 	"api.snapcraft.io",
 	"archive.ubuntu.com",
 	"azure.archive.ubuntu.com",
