@@ -39,6 +39,11 @@ imports:
   - shared/security-analysis-base.md
 
   - shared/otlp.md
+evals:
+  - id: security_review_posted
+    question: Did the agent post a security review comment or finding on the pull request?
+  - id: findings_specific
+    question: Does the agent output describe specific, concrete security concerns tied to the pull request changes rather than generic advice?
 ---
 
 # Security Review Agent 🔒

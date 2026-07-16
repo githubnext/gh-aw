@@ -31,6 +31,11 @@ safe-outputs:
     target: "*"
     max: 20
 timeout-minutes: 15
+evals:
+  - id: issues_checked
+    question: Did the agent check parent issues for the completion status of all their sub-issues?
+  - id: issues_closed_or_noop
+    question: Were completed parent issues closed with a comment, or does the agent output confirm no issues were ready to close?
 
 ---
 

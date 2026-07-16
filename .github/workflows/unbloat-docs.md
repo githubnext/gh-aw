@@ -206,6 +206,11 @@ steps:
       npm run generate-agent-factory
       npm run generate-model-tables
       npx astro build
+evals:
+  - id: docs_analyzed
+    question: Did the agent analyze documentation files for verbosity and unnecessary content?
+  - id: pr_created_or_noop
+    question: Was a pull request created with simplified documentation, or was noop used when no documentation required simplification?
 ---
 
 # Documentation Unbloat Workflow

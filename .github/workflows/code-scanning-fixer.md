@@ -47,6 +47,11 @@ features:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: alerts_analyzed
+    question: Did the agent analyze code scanning alerts and identify at least one fixable alert, or correctly skip when no fixable alerts were found?
+  - id: pr_created_or_noop
+    question: Was a pull request created with a remediation for a code scanning alert, or was noop used when no fixable alerts existed?
 ---
 
 # Code Scanning Alert Fixer Agent

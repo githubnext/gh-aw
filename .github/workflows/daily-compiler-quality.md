@@ -98,6 +98,11 @@ features:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: files_analyzed
+    question: Did the agent analyze compiler code files for quality standards such as readability and maintainability?
+  - id: discussion_created_or_noop
+    question: Was a discussion or report created with quality findings, or was noop used when all analyzed files met the quality standards?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
