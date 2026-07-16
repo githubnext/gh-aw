@@ -137,27 +137,16 @@ func resolvePRCheckoutToken(safeOutputs *SafeOutputsConfig, checkoutMgr *Checkou
 	if safeOutputs.CreatePullRequests != nil {
 		createPRToken = safeOutputs.CreatePullRequests.GitHubToken
 	}
-	var createPRHeadToken string
-	if safeOutputs.CreatePullRequests != nil {
-		createPRHeadToken = safeOutputs.CreatePullRequests.HeadGitHubToken
-	}
 	var pushToPRBranchToken string
 	if safeOutputs.PushToPullRequestBranch != nil {
 		pushToPRBranchToken = safeOutputs.PushToPullRequestBranch.GitHubToken
 	}
-	var pushToPRBranchHeadToken string
-	if safeOutputs.PushToPullRequestBranch != nil {
-		pushToPRBranchHeadToken = safeOutputs.PushToPullRequestBranch.HeadGitHubToken
-	}
 
-	// Per-config PAT tokens take highest precedence (overrides GitHub App)
-	perConfigToken := createPRHeadToken
-	if perConfigToken == "" {
-		perConfigToken = createPRToken
-	}
-	if perConfigToken == "" {
-		perConfigToken = pushToPRBranchHeadToken
-	}
+	// Per-config PAT tokens take highest precedence (overrides GitHub App).
+	// head-github-token is intentionally excluded: it is a fork-write credential
+	// scoped to head-repo only and must not be used for the shared checkout or
+	// upstream API calls.
+	perConfigToken := createPRToken
 	if perConfigToken == "" {
 		perConfigToken = pushToPRBranchToken
 	}

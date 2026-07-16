@@ -2304,7 +2304,7 @@ safe-outputs:
 8. **Distinct Upstream and Head Repositories**: `target-repo` identifies the upstream repository that receives the pull request and owns the base branch. `head-repo`, when configured, identifies the repository that receives the pushed branch. When `head-repo` is omitted, the head repository defaults to `target-repo`.
 9. **Owner-Qualified Head Reference**: When `head-repo` differs from `target-repo`, the created pull request MUST use an owner-qualified head reference identifying the head repository owner and pushed branch. Unqualified same-name branch references MUST NOT be used in fork-backed mode.
 10. **Ephemeral Fork Branch Model**: When `head-repo` differs from `target-repo`, implementations SHOULD create or refresh an ephemeral branch in `head-repo` from the resolved upstream base SHA, apply the agent changes, and open the pull request back to the upstream base. Implementations MAY support explicit synchronization of that ephemeral branch with a newer upstream base, but implicit reuse of arbitrary pre-existing fork branches MUST NOT occur.
-11. **Summary and Manifest Provenance**: Successful executions MUST record `upstream_repo`, `head_repo`, `base_sha`, `pushed_head_sha`, and `credential_role` in the safe-output summary and machine-readable manifest.
+11. **Summary and Manifest Provenance**: Successful executions MUST record `head_repo` in the safe-output summary and machine-readable manifest.
 
 **Configuration Parameters**:
 
@@ -2322,7 +2322,7 @@ safe-outputs:
 - `title-prefix`: Prepend to titles
 - `footer`: Footer override
 - `github-token`: Optional credential for upstream pull request creation and related upstream metadata operations
-- `head-repo-github-token`: Optional credential for `head-repo` branch writes. When specified, it SHOULD be limited to `contents: write` on `head-repo`
+- `head-github-token`: Optional credential for `head-repo` branch writes. When specified, it SHOULD be limited to `contents: write` on `head-repo`
 - `preserve-branch-name`: When `true`, use the agent-supplied branch name verbatim without appending a random salt suffix (default: `false`)
 - `recreate-ref`: When `true` (and `preserve-branch-name: true`), allows the handler to force-delete an existing remote branch ref and recreate it from the agent's local HEAD on collision. When `false` (default), an existing remote branch under `preserve-branch-name: true` causes a fallback rather than overwriting the remote ref. Has no effect when `preserve-branch-name: false`. (default: `false`)
 
@@ -3153,7 +3153,7 @@ This section provides complete definitions for all remaining safe output types. 
 - When `safe-outputs.push-to-pull-request-branch.target` is `"*"`, requests MUST include `pull_request_number`.
 - The handler MUST refuse pushes unless the resolved pull request head repository exactly matches the configured `head-repo` (or `target-repo` when `head-repo` is omitted)
 - Arbitrary contributor forks MUST remain unsupported write targets even when the upstream repository itself is allowlisted
-- Successful executions MUST record `upstream_repo`, `head_repo`, `base_sha`, `pushed_head_sha`, and `credential_role` in the safe-output summary and machine-readable manifest
+- Successful executions MUST record `head_repo` in the safe-output summary and machine-readable manifest
 
 ---
 

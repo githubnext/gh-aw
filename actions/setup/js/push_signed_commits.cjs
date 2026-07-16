@@ -211,6 +211,41 @@ function maybeReplaceTemporaryIdsInBase64Content(base64Content, temporaryIdMap, 
 }
 
 /**
+ * Probe the remote for a branch HEAD OID using ls-remote.
+ * Uses an explicit push remote URL and token when provided (fork-backed pushes).
+ *
+ * @param {string} branch
+ * @param {string} cwd
+ * @param {any} [gitAuthEnv]
+ * @param {string} [pushRemoteUrl]
+ * @param {string} [pushToken]
+ * @returns {Promise<string | undefined>} The OID if the branch exists on the remote, otherwise undefined
+ */
+async function lsRemoteHeadOid(branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken) {
+  const remote = pushRemoteUrl || "origin";
+  const doLsRemote = () => exec.getExecOutput("git", ["ls-remote", remote, `refs/heads/${branch}`], { cwd, env: { ...process.env, ...(gitAuthEnv || {}) } });
+  let result;
+  if (pushRemoteUrl && pushToken) {
+    const githubServerUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/+$/, "");
+    let previousExtraheaders = [];
+    let overrideApplied = false;
+    try {
+      previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, pushToken);
+      overrideApplied = true;
+      result = await doLsRemote();
+    } finally {
+      if (overrideApplied) {
+        await restorePersistedExtraheader(githubServerUrl, previousExtraheaders);
+      }
+    }
+  } else {
+    result = await doLsRemote();
+  }
+  const resolved = result.stdout.trim().split(/\s+/)[0];
+  return OID_PATTERN.test(resolved) ? resolved : undefined;
+}
+
+/**
  * Push the local branch to origin using git directly and return the local HEAD
  * SHA after the push succeeds.
  *
@@ -410,11 +445,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
 
   let remoteHeadOid;
   try {
-    const { stdout: oidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd, env: { ...process.env, ...(gitAuthEnv || {}) } });
-    const resolved = oidOut.trim().split(/\s+/)[0];
-    if (OID_PATTERN.test(resolved)) {
-      remoteHeadOid = resolved;
-    }
+    remoteHeadOid = await lsRemoteHeadOid(branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken);
   } catch {
     // Non-fatal. The existing branch-creation logic handles missing remote refs.
   }
@@ -665,8 +696,8 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
         core.info(`pushSignedCommits: using chained OID from previous mutation: ${expectedHeadOid}`);
       } else {
         // First commit: check whether the branch already exists on the remote.
-        const { stdout: oidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd, env: { ...process.env, ...(gitAuthEnv || {}) } });
-        expectedHeadOid = oidOut.trim().split(/\s+/)[0];
+        const oidResult = await lsRemoteHeadOid(branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken);
+        expectedHeadOid = oidResult || "";
         if (!expectedHeadOid) {
           // Branch does not exist on the remote yet.
           // createCommitOnBranch requires the branch to already exist – it does NOT auto-create branches.
@@ -701,15 +732,11 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
             // GitHub returns 422 "Reference refs/heads/<branch> already exists". Treat that as success and continue.
             if (status === 422 && /reference.*already exists/i.test(message)) {
               core.info(`pushSignedCommits: remote branch ${branch} was created concurrently (422 Reference already exists); continuing with signed commits`);
-              const { stdout: refreshedOidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd, env: { ...process.env, ...(gitAuthEnv || {}) } });
-              const refreshedHeadOid = refreshedOidOut.trim().split(/\s+/)[0];
-              if (!refreshedHeadOid) {
-                throw new Error(`${ERR_API}: Could not resolve remote branch OID for ${branch} after concurrent creation; ls-remote output was ${JSON.stringify(refreshedOidOut)}`);
+              const refreshedOid = await lsRemoteHeadOid(branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken);
+              if (!refreshedOid) {
+                throw new Error(`${ERR_API}: Could not resolve remote branch OID for ${branch} after concurrent creation`);
               }
-              if (!OID_PATTERN.test(refreshedHeadOid)) {
-                throw new Error(`${ERR_API}: Invalid remote branch OID for ${branch} after concurrent creation; ls-remote output was ${JSON.stringify(refreshedOidOut)}`);
-              }
-              expectedHeadOid = refreshedHeadOid;
+              expectedHeadOid = refreshedOid;
             } else {
               throw createRefError;
             }

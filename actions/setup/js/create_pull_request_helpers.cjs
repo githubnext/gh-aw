@@ -222,8 +222,8 @@ function generatePatchPreview(patchContent) {
  * @param {string} baseBranch
  * @param {string} branchName
  * @param {string} title
- * @param {string} [headRef]
  * @param {number} [fallbackIssueNumber]
+ * @param {string} [headRef]
  * @returns {string}
  */
 function buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title, fallbackIssueNumber, headRef) {
