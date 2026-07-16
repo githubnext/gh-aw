@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"net/url"
 	"os"
 	"testing"
 
@@ -143,6 +144,21 @@ func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestBuildCopilotPATCreationURL(t *testing.T) {
+	rawURL := buildCopilotPATCreationURL()
+	parsed, err := url.Parse(rawURL)
+	require.NoError(t, err)
+
+	assert.Equal(t, "https", parsed.Scheme)
+	assert.Equal(t, "github.com", parsed.Host)
+	assert.Equal(t, "/settings/personal-access-tokens/new", parsed.Path)
+	assert.Equal(t, constants.CopilotGitHubToken, parsed.Query().Get("name"))
+	assert.Equal(t, "read", parsed.Query().Get("user_copilot_requests"))
+	assert.Empty(t, parsed.Query().Get("contents"), "Copilot PAT setup URL should not request unrelated repository permissions")
+	assert.Empty(t, parsed.Query().Get("issues"), "Copilot PAT setup URL should not request unrelated issue permissions")
+	assert.Empty(t, parsed.Query().Get("pull_requests"), "Copilot PAT setup URL should not request unrelated pull request permissions")
 }
 
 func TestStringContainsSecretName(t *testing.T) {

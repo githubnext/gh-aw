@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -298,11 +299,29 @@ func promptForSecret(req SecretRequirement, config EngineSecretConfig) error {
 
 // promptForCopilotPATUnified prompts the user for a Copilot PAT with detailed instructions
 func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig) error {
+	preconfiguredPATURL := buildCopilotPATCreationURL()
+
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "GitHub Copilot requires a fine-grained Personal Access Token (PAT) with 'Copilot requests' permissions.")
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Please create a token at:")
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  "+req.KeyURL))
+	fmt.Fprintln(os.Stderr, "Open the preconfigured token creation page:")
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  "+preconfiguredPATURL))
+	if shouldOpenBrowser, err := promptForCopilotPATAdvanceConsent(config); err != nil {
+		return err
+	} else if shouldOpenBrowser {
+		if openBootstrapBrowser(preconfiguredPATURL) {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Opened the preconfigured Copilot PAT page in your browser."))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Couldn't open your browser automatically — open the URL above manually."))
+		}
+	}
+
+	if req.KeyURL != "" && req.KeyURL != preconfiguredPATURL {
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "Alternative token page:")
+		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  "+req.KeyURL))
+	}
+
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Configure the token with:")
 	fmt.Fprintln(os.Stderr, "  • Token name: Agentic Workflows Copilot")
@@ -343,6 +362,35 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 	}
 
 	return nil
+}
+
+func buildCopilotPATCreationURL() string {
+	const baseURL = "https://github.com/settings/personal-access-tokens/new"
+	values := url.Values{}
+	values.Set("name", constants.CopilotGitHubToken)
+	values.Set("user_copilot_requests", "read")
+	return baseURL + "?" + values.Encode()
+}
+
+func promptForCopilotPATAdvanceConsent(config EngineSecretConfig) (bool, error) {
+	openBrowser := true
+	form := console.NewConfirmForm(
+		huh.NewConfirm().
+			Title("Open this preconfigured page in your browser now?").
+			Description("Choosing 'Yes' continues directly to token paste input after opening (no extra confirmation step).").
+			Affirmative("Yes, open browser and continue").
+			Negative("No, I'll open it manually").
+			Value(&openBrowser),
+	)
+
+	if err := form.RunWithContext(config.ctx()); err != nil {
+		if console.IsCancelled(err) {
+			return false, promptCancelled()
+		}
+		return false, fmt.Errorf("failed to confirm browser opening for Copilot PAT setup: %w", err)
+	}
+
+	return openBrowser, nil
 }
 
 // promptForSystemTokenUnified prompts the user for a system-level GitHub token (PAT)

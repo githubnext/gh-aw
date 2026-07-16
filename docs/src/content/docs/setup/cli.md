@@ -174,7 +174,7 @@ gh aw add-wizard githubnext/agentics/ci-doctor --no-secret  # Skip secret prompt
 
 **Options:** `--no-secret`, `--dir/-d`, `--engine/-e`, `--no-gitattributes`, `--no-stop-after`, `--stop-after`, `--append`, `--no-security-scanner`
 
-When the Copilot engine is selected, the wizard prompts the user to choose an authentication method: organization billing via [`permissions.copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) (no PAT required), or a [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) personal access token. Selecting org billing injects the `copilot-requests: write` permission into the workflow frontmatter and skips the API key secret prompt.
+When the Copilot engine is selected, the wizard prompts the user to choose an authentication method: organization billing via [`permissions.copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) (no PAT required), or a [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) personal access token. On the PAT path, the wizard offers to open a preconfigured fine-grained PAT creation page (prefilled token name, Copilot Requests read-only permission), then collects the token via masked input, validates the `github_pat_` format, and stores it as a repository secret.
 
 #### `add`
 
