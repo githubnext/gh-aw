@@ -75,9 +75,18 @@ func getThreatDetectionAdditionalAllowedDomains(data *WorkflowData) []string {
 		return []string{}
 	}
 
-	hasCustomTarget := extractAPITargetHost(data, "OPENAI_BASE_URL") != "" ||
-		extractAPITargetHost(data, "ANTHROPIC_BASE_URL") != "" ||
-		extractAPITargetHost(data, constants.CopilotProviderBaseURL) != ""
+	// Evaluate the effective merged detection environment (main + detection-specific
+	// overrides) so that a custom base URL configured only in
+	// safe-outputs.threat-detection.engine.env also triggers domain propagation.
+	var detectionSpecificEnv map[string]string
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.EngineConfig != nil {
+		detectionSpecificEnv = data.SafeOutputs.ThreatDetection.EngineConfig.Env
+	}
+	effectiveEnv := mergeThreatDetectionEngineEnv(data, detectionSpecificEnv)
+
+	hasCustomTarget := effectiveEnv["OPENAI_BASE_URL"] != "" ||
+		effectiveEnv["ANTHROPIC_BASE_URL"] != "" ||
+		effectiveEnv[constants.CopilotProviderBaseURL] != ""
 	if !hasCustomTarget {
 		return []string{}
 	}

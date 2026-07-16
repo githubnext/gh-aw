@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -2115,11 +2116,12 @@ func TestExternalDetectorInheritsOpenAIBaseURL(t *testing.T) {
 	}
 	stepsContent := strings.Join(steps, "")
 
-	if !strings.Contains(stepsContent, "apiProxy") {
-		t.Fatalf("expected external detector AWF config to include api-proxy target; got:\n%s", stepsContent)
-	}
-	if !strings.Contains(stepsContent, "llm-router.internal.example.com") {
-		t.Fatalf("expected external detector AWF config to include host from OPENAI_BASE_URL; got:\n%s", stepsContent)
+	// Assert the specific serialized apiProxy.targets.openai.host entry to verify
+	// that OPENAI_BASE_URL is reflected as a custom target in the AWF config, not
+	// just that the hostname appears somewhere in the step output.
+	wantTarget := `\"targets\":{\"openai\":{\"host\":\"llm-router.internal.example.com\"`
+	if !strings.Contains(stepsContent, wantTarget) {
+		t.Fatalf("expected external detector AWF config to include apiProxy.targets.openai.host=%q; got:\n%s", "llm-router.internal.example.com", stepsContent)
 	}
 }
 
@@ -2178,6 +2180,90 @@ func TestGetThreatDetectionAdditionalAllowedDomains_WithCustomProviderBaseURL(t 
 				t.Fatalf("expected additional allowed domains %v, got %v", want, got)
 			}
 		})
+	}
+}
+
+// TestGetThreatDetectionAdditionalAllowedDomains_DetectionOnlyBaseURL verifies that
+// a custom base URL configured only in safe-outputs.threat-detection.engine.env (not
+// in the main engine env) still triggers domain propagation. This is the case where
+// the effective merged detection env must be evaluated, not just data.EngineConfig.Env.
+func TestGetThreatDetectionAdditionalAllowedDomains_DetectionOnlyBaseURL(t *testing.T) {
+	data := &WorkflowData{
+		// Main engine has no custom base URL.
+		EngineConfig: &EngineConfig{
+			Env: map[string]string{
+				"SOME_OTHER_VAR": "value",
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"OPENAI_BASE_URL": "https://detection-router.internal.example.com/v1",
+					},
+				},
+			},
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Allowed: []string{
+				"detection-router.internal.example.com",
+				"api.openai.com",
+			},
+		},
+	}
+
+	got := getThreatDetectionAdditionalAllowedDomains(data)
+	want := []string{
+		"detection-router.internal.example.com",
+		"api.openai.com",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("expected additional allowed domains %v, got %v (detection-only base URL must also trigger propagation)", want, got)
+	}
+}
+
+// TestBuildDetectionJobNeedsIncludesMainEngineEnvJobs verifies that when the main
+// engine env contains a needs expression and a detection-specific engine config also
+// exists, the referenced custom job is still added to the detection job's needs.
+// This tests the merged-env dependency scan path.
+func TestBuildDetectionJobNeedsIncludesMainEngineEnvJobs(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		AI: "codex",
+		EngineConfig: &EngineConfig{
+			ID: "codex",
+			Env: map[string]string{
+				// This expression references a custom job "router" from the main engine env.
+				"OPENAI_BASE_URL": "${{ needs.router.outputs.url }}",
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				// Detection-specific config exists, which previously caused the scan
+				// to use only this env, missing the main engine env expression above.
+				EngineConfig: &EngineConfig{
+					ID: "codex",
+					Env: map[string]string{
+						"CUSTOM_FLAG": "1",
+					},
+				},
+			},
+		},
+		Jobs: map[string]any{
+			"router": map[string]any{},
+		},
+	}
+
+	job, err := compiler.buildDetectionJob(data)
+	if err != nil {
+		t.Fatalf("buildDetectionJob() error: %v", err)
+	}
+	if job == nil {
+		t.Fatal("buildDetectionJob() returned nil job")
+	}
+
+	if !slices.Contains(job.Needs, "router") {
+		t.Fatalf("expected detection job needs to include 'router' (referenced via main engine OPENAI_BASE_URL); got needs: %v", job.Needs)
 	}
 }
 
