@@ -110,6 +110,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("state_reason", c.StateReason).
 			AddBoolPtr("allow_body", c.AllowBody).
+			AddBoolPtr("issue_intent", c.IssueIntent).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},
@@ -138,6 +139,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableInt("max", c.Max).
 			AddStringSlice("allowed", c.Allowed).
 			AddStringSlice("blocked", c.Blocked).
+			AddBoolPtr("issue_intent", c.IssueIntent).
 			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
@@ -805,6 +807,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("custom-agent", c.DefaultCustomAgent).
 			AddIfNotEmpty("custom-instructions", c.DefaultCustomInstructions).
 			AddStringSlice("allowed", c.Allowed).
+			AddBoolPtr("issue_intent", c.IssueIntent).
 			AddIfTrue("ignore-if-error", c.IgnoreIfError).
 			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
@@ -929,6 +932,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddTemplatableBool("unassign_first", c.UnassignFirst).
+			AddBoolPtr("issue_intent", c.IssueIntent).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},
@@ -970,6 +974,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		config := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddStringSlice("allowed", c.Allowed).
+			AddBoolPtr("issue_intent", c.IssueIntent).
 			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
@@ -992,6 +997,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		config := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddStringSlice("allowed_fields", c.AllowedFields).
+			AddBoolPtr("issue_intent", c.IssueIntent).
 			AddIfNotEmpty("target", c.Target).AddStringSlice("required_labels", c.RequiredLabels).
 			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).

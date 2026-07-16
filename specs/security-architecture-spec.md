@@ -2002,4 +2002,9 @@ A full revalidation pass **MUST** be triggered and the results in `specs/securit
 4. The reference implementation (GitHub Agentic Workflows) ships a change that affects a control described in Sections 4–11.
 
 The revalidation cadence **SHOULD** also include a review of `specs/security-architecture-spec-validation.md` on every minor version bump, even in the absence of the above triggers, to ensure the validation summary table remains current.
+
+### Last Revalidation
+
+The most recent full validation pass against this specification was completed on **2026-07-15**. The results are recorded in `specs/security-architecture-spec-validation.md`. Any changes to MUST-level requirements after this date require a new validation pass per the triggers above.
+
 *This specification is provided under the MIT License.*

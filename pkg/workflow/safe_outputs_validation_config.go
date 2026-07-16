@@ -166,6 +166,9 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"issue_number":      {IssueNumberOrTemporaryID: true},
 			"pull_number":       {OptionalPositiveInteger: true},
 			"agent":             {Type: "string", Sanitize: true, MaxLength: 128},
+			"rationale":         {Type: "string", Sanitize: true, MaxLength: 280, StripOnError: true},
+			"confidence":        {Type: "string", Enum: []string{"LOW", "MEDIUM", "HIGH"}, StripOnError: true},
+			"suggest":           {Type: "boolean"},
 			"pull_request_repo": {Type: "string", MaxLength: 256}, // Optional: repository where the PR should be created
 			"repo":              {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
@@ -176,7 +179,10 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"issue_number": {IssueOrPRNumber: true},
 			"assignees":    {Type: "[]string", Sanitize: true, MaxLength: 39}, // GitHub username max length is 39
 			"assignee":     {Type: "string", Sanitize: true, MaxLength: 39},   // Single assignee alternative
-			"repo":         {Type: "string", MaxLength: 256},                  // Optional: target repository in format "owner/repo"
+			"rationale":    {Type: "string", Sanitize: true, MaxLength: 280, StripOnError: true},
+			"confidence":   {Type: "string", Enum: []string{"LOW", "MEDIUM", "HIGH"}, StripOnError: true},
+			"suggest":      {Type: "boolean"},
+			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"update_issue": {
@@ -285,6 +291,9 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"body":         {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"issue_number": {OptionalPositiveInteger: true},
+			"rationale":    {Type: "string", Sanitize: true, MaxLength: 280, StripOnError: true},
+			"confidence":   {Type: "string", Enum: []string{"LOW", "MEDIUM", "HIGH"}, StripOnError: true},
+			"suggest":      {Type: "boolean"},
 			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
