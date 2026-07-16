@@ -230,6 +230,17 @@ func TestBuildConsolidatedSafeOutputsJobConcurrencyGroup(t *testing.T) {
 	}
 }
 
+func TestBuildSafeOutputItemsManifestUploadStepIncludesProcessLog(t *testing.T) {
+	steps := strings.Join(buildSafeOutputItemsManifestUploadStep("", func(action string) string {
+		return action
+	}), "")
+
+	assert.Contains(t, steps, "name: Upload Safe Outputs Items")
+	assert.Contains(t, steps, "/tmp/gh-aw/safe-output-items.jsonl")
+	assert.Contains(t, steps, "/tmp/gh-aw/"+constants.TemporaryIdMapFilename)
+	assert.Contains(t, steps, "/tmp/gh-aw/"+constants.SafeOutputsProcessLogFilename)
+}
+
 func TestBuildConsolidatedSafeOutputsJobNeedsIncludesConfiguredDependencies(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()

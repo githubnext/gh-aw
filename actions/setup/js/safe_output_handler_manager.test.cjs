@@ -16,6 +16,7 @@ import {
   isFailedProcessingResult,
   isReportOnlyFailureResult,
   partitionFailureResults,
+  writeSafeOutputsProcessLog,
 } from "./safe_output_handler_manager.cjs";
 
 const require = createRequire(import.meta.url);
@@ -41,6 +42,7 @@ describe("Safe Output Handler Manager", () => {
     delete process.env.GH_AW_SAFE_OUTPUT_SCRIPTS;
     delete process.env.GH_AW_DETECTION_CONCLUSION;
     fs.rmSync("/tmp/gh-aw/comment-memory", { recursive: true, force: true });
+    fs.rmSync("/tmp/gh-aw/safe-outputs-process.log", { force: true });
   });
 
   describe("loadConfig", () => {
@@ -103,6 +105,43 @@ describe("Safe Output Handler Manager", () => {
       expect(isFailedProcessingResult({ success: false, deferred: true })).toBe(false);
       expect(isFailedProcessingResult({ success: false, skipped: true })).toBe(false);
       expect(isFailedProcessingResult({ success: false, cancelled: true })).toBe(false);
+    });
+
+    describe("writeSafeOutputsProcessLog", () => {
+      const processLogPath = "/tmp/gh-aw/safe-outputs-process.log";
+
+      it("writes top-level reason and per-item details with default error text", () => {
+        fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+
+        writeSafeOutputsProcessLog("2 safe output(s) failed", [{ type: "create_issue", error: "Validation failed" }, { type: "add_comment" }]);
+
+        const content = fs.readFileSync(processLogPath, "utf8");
+        expect(content).toContain("reason: 2 safe output(s) failed");
+        expect(content).toContain("failed_count: 2");
+        expect(content).toContain("  - create_issue: Validation failed");
+        expect(content).toContain("  - add_comment: Unknown error");
+      });
+
+      it("appends repeated writes instead of overwriting earlier diagnostics", () => {
+        fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+
+        writeSafeOutputsProcessLog("1 safe output(s) failed", [{ type: "create_issue", error: "first" }]);
+        writeSafeOutputsProcessLog("Handler manager failed: second");
+
+        const content = fs.readFileSync(processLogPath, "utf8");
+        expect(content).toContain("reason: 1 safe output(s) failed");
+        expect(content).toContain("reason: Handler manager failed: second");
+        expect(content.indexOf("reason: 1 safe output(s) failed")).toBeLessThan(content.indexOf("reason: Handler manager failed: second"));
+      });
+
+      it("swallows filesystem write errors", () => {
+        const appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => {
+          throw new Error("disk full");
+        });
+
+        expect(() => writeSafeOutputsProcessLog("Handler manager failed: disk full")).not.toThrow();
+        appendSpy.mockRestore();
+      });
     });
 
     it("treats failed assign_to_agent results as report-only", () => {

@@ -1736,7 +1736,7 @@ function writeSafeOutputsProcessLog(reason, failedItems = []) {
         lines.push(`  - ${item.type}: ${item.error || "Unknown error"}`);
       }
     }
-    fs.writeFileSync(SAFE_OUTPUTS_PROCESS_LOG_PATH, lines.join("\n") + "\n", "utf8");
+    fs.appendFileSync(SAFE_OUTPUTS_PROCESS_LOG_PATH, lines.join("\n") + "\n\n", "utf8");
   } catch (_e) {
     // Ignore write errors — we must not mask the original failure
   }
