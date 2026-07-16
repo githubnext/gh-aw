@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -271,7 +272,7 @@ func expandWorkflowSpecsIfNeeded(parsedSpecs []*WorkflowSpec, verbose bool) ([]*
 
 func resolveWorkflowSpecs(ctx context.Context, parsedSpecs []*WorkflowSpec, warnings []string, verbose bool) ([]*ResolvedWorkflow, bool, []string, error) {
 	resolvedWorkflows := make([]*ResolvedWorkflow, 0, len(parsedSpecs))
-	resolutionWarnings := append([]string{}, warnings...)
+	resolutionWarnings := slices.Clone(warnings)
 	hasWorkflowDispatch := false
 
 	for _, spec := range parsedSpecs {
