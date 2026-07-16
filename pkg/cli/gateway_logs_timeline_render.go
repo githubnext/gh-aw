@@ -323,11 +323,15 @@ func renderAgentToolDoneRow(evt UnifiedTimelineEvent) []string {
 //
 // Detail shows a truncated preview of the message content. Status is left empty.
 func renderAgentAssistantMessageRow(evt UnifiedTimelineEvent) []string {
+	return renderMessageContentTimelineRow(TimelineKindAssistantMessage, evt)
+}
+
+func renderMessageContentTimelineRow(kind TimelineEventKind, evt UnifiedTimelineEvent) []string {
 	ts := formatTimelineTime(evt)
 	src := timelineSourceLabel(evt.Source)
-	kind := timelineEventIcon(TimelineKindAssistantMessage) + " " + timelineEventKindLabel(TimelineKindAssistantMessage)
+	kindLabel := timelineEventIcon(kind) + " " + timelineEventKindLabel(kind)
 	detail := stringutil.Truncate(evt.MessageContent, 48)
-	return []string{ts, src, kind, detail, ""}
+	return []string{ts, src, kindLabel, detail, ""}
 }
 
 // renderAgentReasoningRow renders a TimelineKindReasoning event as a table row.
@@ -336,11 +340,7 @@ func renderAgentAssistantMessageRow(evt UnifiedTimelineEvent) []string {
 //
 // Detail shows a truncated preview of the reasoning content. Status is left empty.
 func renderAgentReasoningRow(evt UnifiedTimelineEvent) []string {
-	ts := formatTimelineTime(evt)
-	src := timelineSourceLabel(evt.Source)
-	kind := timelineEventIcon(TimelineKindReasoning) + " " + timelineEventKindLabel(TimelineKindReasoning)
-	detail := stringutil.Truncate(evt.MessageContent, 48)
-	return []string{ts, src, kind, detail, ""}
+	return renderMessageContentTimelineRow(TimelineKindReasoning, evt)
 }
 
 // renderSteeringRow renders a TimelineKindSteering event as a table row.
