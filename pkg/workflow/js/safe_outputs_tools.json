@@ -268,6 +268,24 @@
             "issueNumber"
           ]
         },
+        "rationale": {
+          "type": "string",
+          "maxLength": 280,
+          "description": "Optional rationale for closing the issue (max 280 characters)."
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "LOW",
+            "MEDIUM",
+            "HIGH"
+          ],
+          "description": "Optional confidence level for closing the issue."
+        },
+        "suggest": {
+          "type": "boolean",
+          "description": "When true, route through pending suggestion review."
+        },
         "duplicate_of": {
           "type": [
             "number",
@@ -1100,6 +1118,24 @@
           "type": "string",
           "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified."
         },
+        "rationale": {
+          "type": "string",
+          "maxLength": 280,
+          "description": "Optional rationale for the assignment (max 280 characters)."
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "LOW",
+            "MEDIUM",
+            "HIGH"
+          ],
+          "description": "Optional confidence level for the assignment."
+        },
+        "suggest": {
+          "type": "boolean",
+          "description": "When true, route through pending suggestion review."
+        },
         "pull_request_repo": {
           "type": "string",
           "description": "Target repository where the pull request should be created, in 'owner/repo' format. If omitted, the PR will be created in the same repository as the issue. This allows issues and code to live in different repositories. The global pull-request-repo configuration (if set) is automatically allowed; additional repositories must be listed in allowed-pull-request-repos.",
@@ -1148,6 +1184,24 @@
         "assignee": {
           "type": "string",
           "description": "Single GitHub username to assign. Use 'assignees' array for multiple users."
+        },
+        "rationale": {
+          "type": "string",
+          "maxLength": 280,
+          "description": "Optional rationale for the assignment (max 280 characters)."
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "LOW",
+            "MEDIUM",
+            "HIGH"
+          ],
+          "description": "Optional confidence level for the assignment."
+        },
+        "suggest": {
+          "type": "boolean",
+          "description": "When true, route through pending suggestion review."
         },
         "secrecy": {
           "type": "string",

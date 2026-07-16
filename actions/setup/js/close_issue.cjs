@@ -11,6 +11,7 @@ const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { createCloseEntityHandler, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
 const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
 
 /**
  * Parse a `duplicate_of` value into { owner, repo, issueNumber }.
@@ -154,17 +155,32 @@ async function addIssueComment(github, owner, repo, issueNumber, message) {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue number
- * @param {string} [stateReason] - The reason for closing: "COMPLETED", "NOT_PLANNED", or "DUPLICATE"
+ * @param {string} stateReason - The reason for closing: "COMPLETED", "NOT_PLANNED", or "DUPLICATE"
  * @returns {Promise<{number: number, html_url: string, title: string, node_id: string}>} Issue details
  */
-async function closeIssue(github, owner, repo, issueNumber, stateReason) {
-  const { data: issue } = await github.rest.issues.update({
+async function closeIssue(github, owner, repo, issueNumber, stateReason, intentMetadata, useIssueIntent) {
+  const baseParams = {
     owner,
     repo,
     issue_number: issueNumber,
     state: "closed",
     state_reason: (stateReason || "COMPLETED").toLowerCase(),
-  });
+  };
+
+  const hasIntentMetadata = Boolean(intentMetadata && Object.keys(intentMetadata).length > 0);
+  if (useIssueIntent && hasIntentMetadata) {
+    try {
+      const { data: issue } = await github.request("PATCH /repos/{owner}/{repo}/issues/{issue_number}", {
+        ...baseParams,
+        ...intentMetadata,
+      });
+      return issue;
+    } catch (error) {
+      core.warning(`Issue-intent close path unavailable, falling back to legacy close path: ${getErrorMessage(error)}`);
+    }
+  }
+
+  const { data: issue } = await github.rest.issues.update(baseParams);
 
   return issue;
 }
@@ -176,12 +192,13 @@ async function closeIssue(github, owner, repo, issueNumber, stateReason) {
  */
 async function main(config = {}) {
   const configStateReason = config.state_reason || "COMPLETED";
+  const issueIntentEnabled = config.issue_intent !== false;
   const requiredLabels = config.required_labels || [];
   const requiredTitlePrefix = config.required_title_prefix || "";
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
 
-  core.info(`Close issue configuration: max=${config.max || 10}, state_reason=${configStateReason}`);
+  core.info(`Close issue configuration: max=${config.max || 10}, state_reason=${configStateReason}, issue_intent=${issueIntentEnabled}`);
   if (requiredLabels.length > 0) {
     core.info(`Required labels: ${requiredLabels.join(", ")}`);
   }
@@ -265,9 +282,10 @@ async function main(config = {}) {
       closeEntity(github, owner, repo, entityNumber, item) {
         // Support item-level state_reason override, falling back to config-level default
         const stateReason = item.state_reason || configStateReason;
+        const intentMetadata = issueIntentEnabled ? normalizeIssueIntentMetadata(item) : {};
         core.info(`Closing issue #${entityNumber} with state_reason=${stateReason}`);
 
-        const closePromise = closeIssue(github, owner, repo, entityNumber, stateReason);
+        const closePromise = closeIssue(github, owner, repo, entityNumber, stateReason, intentMetadata, issueIntentEnabled);
 
         // When duplicate_of is provided and state_reason is DUPLICATE, create the native duplicate relationship
         const stateReasonUpper = stateReason.toUpperCase();

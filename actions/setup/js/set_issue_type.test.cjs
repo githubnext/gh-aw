@@ -77,7 +77,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     });
 
     const { main } = require("./set_issue_type.cjs");
-    handler = await main({ max: 5 });
+    handler = await main({ max: 5, issue_intent: true });
   });
 
   it("should return a function from main()", async () => {
@@ -106,7 +106,6 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
         issueType: {
           issueTypeId: "IT_kwDO_bug",
         },
-        headers: { "GraphQL-Features": "update_issue_suggestions" },
       })
     );
   });
@@ -157,6 +156,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     const handlerWithAllowed = await main({
       max: 5,
       allowed: ["Bug", "Feature"],
+      issue_intent: true,
     });
 
     const message = {
@@ -174,6 +174,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     const handlerWithAllowed = await main({
       max: 5,
       allowed: ["Bug", "Feature"],
+      issue_intent: true,
     });
 
     const message = {
@@ -192,6 +193,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     const handlerWithAllowed = await main({
       max: 5,
       allowed: ["Bug", "Feature"],
+      issue_intent: true,
     });
 
     const message = {
@@ -330,6 +332,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     const handlerWithAllowed = await main({
       max: 5,
       allowed: ["Bug", "Feature"],
+      issue_intent: true,
     });
 
     const message = {
@@ -351,7 +354,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     );
   });
 
-  it("should use GraphQL intent path with IssueTypeUpdateInput and GraphQL-Features header", async () => {
+  it("should use GraphQL intent path with IssueTypeUpdateInput", async () => {
     const issueNodeId = "I_kwDO_testissue";
     const issueTypeNodeId = "IT_kwDO_bug";
 
@@ -373,7 +376,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     });
 
     const { main } = require("./set_issue_type.cjs");
-    const featureHandler = await main({ max: 5 });
+    const featureHandler = await main({ max: 5, issue_intent: true });
 
     const result = await featureHandler(
       {
@@ -399,7 +402,6 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
           confidence: "HIGH",
           suggest: true,
         },
-        headers: { "GraphQL-Features": "update_issue_suggestions" },
       })
     );
   });
@@ -427,7 +429,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     });
 
     const { main } = require("./set_issue_type.cjs");
-    const featureHandler = await main({ max: 5 });
+    const featureHandler = await main({ max: 5, issue_intent: true });
 
     const result = await featureHandler(
       {
@@ -467,5 +469,30 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     const metadata = normalizeIssueIntentMetadata({ rationale: "   " });
 
     expect(metadata).not.toHaveProperty("rationale");
+  });
+
+  it("should use legacy REST issue type update when issue_intent is disabled", async () => {
+    const { main } = require("./set_issue_type.cjs");
+    const handlerWithoutIntent = await main({ max: 5, issue_intent: false });
+
+    const result = await handlerWithoutIntent(
+      {
+        type: "set_issue_type",
+        issue_number: 99,
+        issue_type: "Bug",
+        rationale: "should be ignored",
+        confidence: "HIGH",
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      issue_number: 99,
+      type: "Bug",
+    });
+    expect(mockGithub.graphql).not.toHaveBeenCalledWith(expect.stringContaining("updateIssue"), expect.anything());
   });
 });

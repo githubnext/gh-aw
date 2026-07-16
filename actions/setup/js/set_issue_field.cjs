@@ -136,18 +136,9 @@ function buildFieldUpdatePayload(field, rawValue) {
  * @param {Object} githubClient - Authenticated GitHub client
  * @param {string} issueNodeId - GraphQL node ID of the issue
  * @param {{fieldId: string, singleSelectOptionId?: string, numberValue?: number, dateValue?: string, textValue?: string, rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean}} fieldUpdate
- * @param {boolean} [useIntentHeader] - When true, includes the GraphQL-Features header to expose intent input types
  * @returns {Promise<void>}
  */
-async function setIssueFieldValue(githubClient, issueNodeId, fieldUpdate, useIntentHeader) {
-  /** @type {Record<string, unknown>} */
-  const variables = {
-    issueId: issueNodeId,
-    issueFields: [fieldUpdate],
-  };
-  if (useIntentHeader) {
-    variables.headers = { "GraphQL-Features": "update_issue_suggestions" };
-  }
+async function setIssueFieldValue(githubClient, issueNodeId, fieldUpdate) {
   await githubClient.graphql(
     `mutation($issueId: ID!, $issueFields: [IssueFieldCreateOrUpdateInput!]!) {
       setIssueFieldValue(input: { issueId: $issueId, issueFields: $issueFields }) {
@@ -156,7 +147,10 @@ async function setIssueFieldValue(githubClient, issueNodeId, fieldUpdate, useInt
         }
       }
     }`,
-    variables
+    {
+      issueId: issueNodeId,
+      issueFields: [fieldUpdate],
+    }
   );
 }
 
@@ -170,6 +164,7 @@ async function main(config = {}) {
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
   const isStaged = isStagedMode(config);
+  const issueIntentEnabled = config.issue_intent === true;
 
   core.info(`Set issue field configuration: max=${maxCount}`);
   const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
@@ -343,10 +338,11 @@ async function main(config = {}) {
         ...fieldUpdateResult.update,
       };
 
-      Object.assign(fieldUpdate, normalizeIssueIntentMetadata(item));
-      core.info("Using GraphQL-Features header for issue field mutation");
+      if (issueIntentEnabled) {
+        Object.assign(fieldUpdate, normalizeIssueIntentMetadata(item));
+      }
 
-      await setIssueFieldValue(githubClient, issueNodeId, fieldUpdate, true);
+      await setIssueFieldValue(githubClient, issueNodeId, fieldUpdate);
 
       core.info(`Successfully set issue field ${JSON.stringify(fieldName || fieldNodeId)} to ${JSON.stringify(value)} on issue #${issueNumber}`);
 
