@@ -21,7 +21,7 @@ permissions:
 name: Smoke Copilot MAI
 engine:
   id: copilot
-  model: mai-code-1-flash-picker
+  model: mai-code
   bare: true
 network:
   allowed:
