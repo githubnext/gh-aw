@@ -1402,7 +1402,11 @@ MUST NOT:
 
 **Semantics**: Specifies the repository scope requested when minting GitHub App installation tokens for safe outputs execution.
 
-When `safe-outputs.github-app.repositories` is exactly `["*"]`, implementations MUST omit the installation-token `repositories` parameter. Implementations MUST NOT substitute `${{ github.event.repository.name }}` and MUST NOT rewrite the wildcard sentinel to a single repository scope.
+When `safe-outputs.github-app.repositories` is exactly `["*"]`, implementations:
+
+- MUST omit the installation-token `repositories` parameter
+- MUST NOT substitute `${{ github.event.repository.name }}`
+- MUST NOT rewrite the wildcard sentinel to a single repository scope
 
 When `safe-outputs.github-app.repositories` contains one or more explicit repository names, implementations MUST request exactly the configured repository set.
 
