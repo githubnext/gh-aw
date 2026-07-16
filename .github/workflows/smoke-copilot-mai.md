@@ -1,7 +1,7 @@
 ---
 private: true
 emoji: "⚡"
-description: Smoke test for MAI-Code-1-Flash - summarizes commit messages from the last 24h
+description: "Smoke test for MAI-Code-1-Flash (mai-code-1-flash-picker) — pricing: $0.75/M input, $0.075/M cached, $4.50/M output"
 on:
   slash_command:
     name: smoke-copilot-mai
@@ -21,7 +21,7 @@ permissions:
 name: Smoke Copilot MAI
 engine:
   id: copilot
-  model: mai-code
+  model: mai-code-1-flash-picker
   bare: true
 network:
   allowed:
