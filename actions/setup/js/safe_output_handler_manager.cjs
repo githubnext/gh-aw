@@ -29,6 +29,7 @@ const { checkRateLimitHeadroom } = require("./rate_limit_helpers.cjs");
 const { redactSensitiveConfig } = require("./safe_outputs_config_redact.cjs");
 const nodePath = require("path");
 const fs = require("fs");
+const GITHUB_TOKEN_CONFIG_KEY = "github-token";
 
 /**
  * Handler map configuration
@@ -338,8 +339,8 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
           // Call the factory function with config to get the message handler
           const handlerConfig = { ...(config[type] || {}) };
 
-          if (PROJECT_HANDLER_TYPES.has(type) && !handlerConfig["github-token"] && process.env.GH_AW_PROJECT_GITHUB_TOKEN) {
-            handlerConfig["github-token"] = process.env.GH_AW_PROJECT_GITHUB_TOKEN;
+          if (PROJECT_HANDLER_TYPES.has(type) && !handlerConfig[GITHUB_TOKEN_CONFIG_KEY] && process.env.GH_AW_PROJECT_GITHUB_TOKEN) {
+            handlerConfig[GITHUB_TOKEN_CONFIG_KEY] = process.env.GH_AW_PROJECT_GITHUB_TOKEN;
           }
 
           // Pass top-level mentions policy through so handlers can preserve
@@ -357,8 +358,8 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
           }
 
           let handlerGithubClient = null;
-          if (handlerConfig["github-token"] && typeof global.getOctokit === "function") {
-            handlerGithubClient = global.getOctokit(handlerConfig["github-token"]);
+          if (handlerConfig[GITHUB_TOKEN_CONFIG_KEY] && typeof global.getOctokit === "function") {
+            handlerGithubClient = global.getOctokit(handlerConfig[GITHUB_TOKEN_CONFIG_KEY]);
           }
           const messageHandler = await handlerModule.main(handlerConfig, handlerGithubClient);
 
