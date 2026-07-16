@@ -2016,9 +2016,9 @@ func TestGeminiEngineIncludesGeminiAPITarget(t *testing.T) {
 
 func TestBuildAWFImageTagWithDigests(t *testing.T) {
 	t.Run("includes digest metadata for known firewall images", func(t *testing.T) {
-		tag := buildAWFImageTagWithDigests("0.25.28", nil)
+		tag := buildAWFImageTagWithDigests("0.27.35", nil)
 
-		assert.Contains(t, tag, "0.25.28", "should keep original AWF tag")
+		assert.Contains(t, tag, "0.27.35", "should keep original AWF tag")
 		assert.Contains(t, tag, "squid=sha256:", "should include squid digest metadata")
 		assert.Contains(t, tag, "agent=sha256:", "should include agent digest metadata")
 		assert.Contains(t, tag, "api-proxy=sha256:", "should include api-proxy digest metadata")
@@ -2030,14 +2030,15 @@ func TestBuildAWFImageTagWithDigests(t *testing.T) {
 		assert.Equal(t, "0.0.1", tag, "should not append digest metadata when no pins are available")
 	})
 
-	t.Run("includes build-tools digest for arc-dind topology", func(t *testing.T) {
+	t.Run("excludes build-tools digest for arc-dind topology when no embedded pin exists", func(t *testing.T) {
 		imageTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
 		workflowData := &WorkflowData{
 			RunnerConfig: &RunnerConfig{Topology: RunnerTopologyArcDind},
 		}
 		tag := buildAWFImageTagWithDigests(imageTag, workflowData)
 
-		assert.Contains(t, tag, "build-tools=sha256:", "should include build-tools digest metadata for arc-dind topology")
+		// build-tools image no longer has embedded pins as of package update 401db81
+		assert.NotContains(t, tag, "build-tools=", "should not include build-tools digest when no embedded pin exists")
 	})
 
 	t.Run("excludes build-tools digest without arc-dind topology", func(t *testing.T) {
@@ -2050,14 +2051,14 @@ func TestBuildAWFImageTagWithDigests(t *testing.T) {
 
 func TestBuildAWFArgs_ImageTagIncludesDigests(t *testing.T) {
 	// Use a version that has embedded container pins so we can verify digest metadata
-	// is included in the AWF config JSON. Version 0.25.29 has full embedded pins.
+	// is included in the AWF config JSON. Version 0.27.35 has full embedded pins.
 	config := AWFCommandConfig{
 		EngineName:     "copilot",
 		AllowedDomains: "github.com",
 		WorkflowData: &WorkflowData{
 			EngineConfig: &EngineConfig{ID: "copilot"},
 			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{Enabled: true, Version: "0.25.29"},
+				Firewall: &FirewallConfig{Enabled: true, Version: "0.27.35"},
 			},
 		},
 	}

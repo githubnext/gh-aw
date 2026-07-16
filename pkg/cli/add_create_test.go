@@ -136,7 +136,7 @@ func TestPrepareAddTargetCheckoutWithRuntime_RejectsInvalidRepo(t *testing.T) {
 	t.Cleanup(func() {
 		_ = os.Chdir(oldWd)
 	})
-	
+
 	// Validation happens before any runtime methods are called, so we can pass
 	// a minimal runtime. The normalizeAddCreateOptions will not add an owner
 	// because there's no git remote in the test temp dir.
