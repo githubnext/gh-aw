@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, isMaxRunsExceededError } = require("./harness_retry_guard.cjs");
+const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, isMaxRunsExceededError, isAuthenticationFailedError } = require("./harness_retry_guard.cjs");
 
 describe("harness_retry_guard.cjs", () => {
   it("detects AI credits exceeded markers", () => {
@@ -128,6 +128,35 @@ describe("harness_retry_guard.cjs", () => {
 
   it("isMaxRunsExceededError ignores unrelated output", () => {
     expect(isMaxRunsExceededError("transient network timeout")).toBe(false);
+  });
+
+  it("isAuthenticationFailedError returns true for Anthropic-direct auth failure with request ID", () => {
+    expect(isAuthenticationFailedError("Authentication failed (Request ID: C818:3ED713:19D401B:1C446B7:69D653CA)")).toBe(true);
+  });
+
+  it("isAuthenticationFailedError returns true for bare Authentication failed", () => {
+    expect(isAuthenticationFailedError("Authentication failed")).toBe(true);
+  });
+
+  it('isAuthenticationFailedError returns true for Claude Code stream-JSON "error":"authentication_failed" field', () => {
+    const jsonLine = JSON.stringify({ type: "result", error: "authentication_failed" });
+    expect(isAuthenticationFailedError(jsonLine)).toBe(true);
+  });
+
+  it('isAuthenticationFailedError returns true for Claude Code "not logged in" message (case-insensitive)', () => {
+    expect(isAuthenticationFailedError("Not logged in · Please run /login")).toBe(true);
+    expect(isAuthenticationFailedError("NOT LOGGED IN")).toBe(true);
+  });
+
+  it("isAuthenticationFailedError returns false for unrelated output", () => {
+    expect(isAuthenticationFailedError("No authentication information found")).toBe(false);
+    expect(isAuthenticationFailedError("rate_limit_error")).toBe(false);
+    expect(isAuthenticationFailedError("")).toBe(false);
+  });
+
+  it("isAuthenticationFailedError returns false for non-string input", () => {
+    expect(isAuthenticationFailedError(null)).toBe(false);
+    expect(isAuthenticationFailedError(undefined)).toBe(false);
   });
 });
 

@@ -51,7 +51,7 @@ const {
 } = require("./awf_reflect.cjs");
 const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
-const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal } = require("./harness_retry_guard.cjs");
+const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError } = require("./harness_retry_guard.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
 
 // Pattern to detect Anthropic API overload errors (HTTP 529).
@@ -65,11 +65,6 @@ const OVERLOADED_ERROR_PATTERN = /overloaded_error|"overloaded"/i;
 //   - embedded stream-json result fields (e.g. "api_error_status":429)
 //   - human-readable message text ("rate limit")
 const RATE_LIMIT_ERROR_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit/i;
-// Matches:
-//   - "Authentication failed (Request ID: ...)" — Anthropic-direct auth error
-//   - `"error":"authentication_failed"` — Claude Code stream-JSON error field (e.g. 401 via AWF proxy)
-//   - "Not logged in" — Claude Code message when no credentials are available
-const AUTHENTICATION_FAILED_PATTERN = /(?:Authentication failed(?:\s*\(Request ID:[^)]+\))?|"error"\s*:\s*"authentication_failed"|not logged in)/i;
 
 // Pattern to detect a clean max-turns exit from Claude Code.
 // Claude Code emits a JSON result object with "subtype":"error_max_turns" when the
@@ -151,15 +146,6 @@ function isOverloadedError(output) {
  */
 function isRateLimitError(output) {
   return RATE_LIMIT_ERROR_PATTERN.test(output);
-}
-
-/**
- * Determines if the collected output contains an authentication failed error.
- * @param {string} output - Collected stdout+stderr from the process
- * @returns {boolean}
- */
-function isAuthenticationFailedError(output) {
-  return AUTHENTICATION_FAILED_PATTERN.test(output);
 }
 
 /**
