@@ -20,6 +20,7 @@ permissions:
 name: Smoke Auggie
 engine:
   id: auggie
+  model: copilot/claude-sonnet-4.5
 strict: true
 imports:
   - shared/gh.md
