@@ -72,7 +72,7 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 		steps = append(steps, c.buildPrepareDetectionEngineConfigForExternalDetectorStep(data)...)
 
 		// Step 10: Install the threat-detect binary from GitHub Releases
-		steps = append(steps, c.buildInstallThreatDetectStep(data)...)
+		steps = append(steps, c.buildInstallThreatDetectStep()...)
 
 		// Step 11: Run threat-detect under AWF with a read-write mount for the result file
 		steps = append(steps, c.buildExternalDetectorExecutionStep(data)...)
@@ -435,21 +435,12 @@ func (c *Compiler) buildUploadDetectionLogStep(data *WorkflowData) []string {
 // buildInstallThreatDetectStep creates a step that installs the threat-detect binary
 // from GitHub Releases at the pinned version. This is used when the gh-aw-detection
 // feature flag is set, replacing the inline engine installation steps.
-func (c *Compiler) buildInstallThreatDetectStep(data *WorkflowData) []string {
+func (c *Compiler) buildInstallThreatDetectStep() []string {
 	version := string(constants.DefaultThreatDetectVersion)
-	installCmd := fmt.Sprintf(`bash "${RUNNER_TEMP}/gh-aw/actions/install_threat_detect_binary.sh" %s`, version)
-
-	// When network isolation is enabled, pass --rootless so the script installs
-	// into $HOME/.local/bin without sudo.
-	agentConfig := getAgentConfig(data)
-	if agentConfig != nil && agentConfig.NetworkIsolation && !agentConfig.Disabled {
-		installCmd += " --rootless"
-	}
-
 	return []string{
 		"      - name: Install threat-detect binary\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		"        run: |\n",
-		fmt.Sprintf("          %s\n", installCmd),
+		fmt.Sprintf("          bash \"${RUNNER_TEMP}/gh-aw/actions/install_threat_detect_binary.sh\" %s\n", version),
 	}
 }
