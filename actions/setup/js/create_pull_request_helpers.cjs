@@ -222,12 +222,13 @@ function generatePatchPreview(patchContent) {
  * @param {string} baseBranch
  * @param {string} branchName
  * @param {string} title
+ * @param {string} [headRef]
  * @param {number} [fallbackIssueNumber]
  * @returns {string}
  */
-function buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title, fallbackIssueNumber) {
+function buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title, fallbackIssueNumber, headRef) {
   const encodedBase = encodePathSegments(baseBranch);
-  const encodedHead = encodePathSegments(branchName);
+  const encodedHead = encodePathSegments(headRef || branchName);
   let createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
   if (typeof fallbackIssueNumber === "number") {
     createPrUrl += `&body=${encodeURIComponent(`Closes #${fallbackIssueNumber}`)}`;

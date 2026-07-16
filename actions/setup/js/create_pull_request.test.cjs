@@ -3052,14 +3052,14 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     let renameCalled = false;
     global.exec = {
       exec: vi.fn().mockImplementation((cmd, args) => {
-        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        const cmdStr = `${cmd} ${(args || []).join(" ")}`;
         if (cmdStr.includes("git branch -m")) {
           renameCalled = true;
         }
         return Promise.resolve(0);
       }),
       getExecOutput: vi.fn().mockImplementation((cmd, args) => {
-        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        const cmdStr = `${cmd} ${(args || []).join(" ")}`;
         if (cmdStr.includes("ls-remote --heads origin")) {
           return Promise.resolve({ exitCode: 0, stdout: "abc123\trefs/heads/preserve-me\n", stderr: "" });
         }
@@ -3092,7 +3092,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     global.exec = {
       exec: vi.fn().mockResolvedValue(0),
       getExecOutput: vi.fn().mockImplementation((cmd, args) => {
-        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        const cmdStr = `${cmd} ${(args || []).join(" ")}`;
         if (cmdStr.includes("ls-remote --heads origin")) {
           return Promise.resolve({ exitCode: 0, stdout: "abc123\trefs/heads/preserve-me\n", stderr: "" });
         }
@@ -3117,7 +3117,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     global.exec = {
       exec: vi.fn().mockResolvedValue(0),
       getExecOutput: vi.fn().mockImplementation((cmd, args) => {
-        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        const cmdStr = `${cmd} ${(args || []).join(" ")}`;
         if (cmdStr.includes("ls-remote --heads origin")) {
           return Promise.resolve({ exitCode: 0, stdout: "abc123\trefs/heads/preserve-me\n", stderr: "" });
         }
@@ -3142,7 +3142,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     let capturedRenamedBranch = null;
     global.exec = {
       exec: vi.fn().mockImplementation((cmd, args) => {
-        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        const cmdStr = `${cmd} ${(args || []).join(" ")}`;
         // Capture the new branch name from: git branch -m <old> <new>
         const renameMatch = cmdStr.match(/git branch -m \S+ (\S+)/);
         if (renameMatch) {
@@ -3151,7 +3151,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
         return Promise.resolve(0);
       }),
       getExecOutput: vi.fn().mockImplementation((cmd, args) => {
-        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        const cmdStr = `${cmd} ${(args || []).join(" ")}`;
         if (cmdStr.includes("ls-remote --heads origin")) {
           return Promise.resolve({ exitCode: 0, stdout: "abc123\trefs/heads/chaos/preserve-me\n", stderr: "" });
         }
@@ -3196,14 +3196,14 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     let renameCalled = false;
     global.exec = {
       exec: vi.fn().mockImplementation((cmd, args) => {
-        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        const cmdStr = `${cmd} ${(args || []).join(" ")}`;
         if (cmdStr.includes("git branch -m")) {
           renameCalled = true;
         }
         return Promise.resolve(0);
       }),
       getExecOutput: vi.fn().mockImplementation((cmd, args) => {
-        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        const cmdStr = `${cmd} ${(args || []).join(" ")}`;
         if (cmdStr.includes("ls-remote --heads origin")) {
           return Promise.resolve({ exitCode: 0, stdout: "abc123\trefs/heads/some-branch\n", stderr: "" });
         }
@@ -4120,6 +4120,22 @@ describe("create_pull_request - branch-prefix config", () => {
     const branchArg = global.github.rest.pulls.create.mock.calls[0][0].head;
     expect(branchArg).toMatch(/^jsweep-/);
     expect(branchArg).not.toContain("signed/");
+  });
+
+  it("should use an owner-qualified PR head when head-repo differs from target-repo", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      allow_empty: true,
+      "head-repo": "fork-owner/test-repo",
+      allowed_repos: ["test-owner/test-repo", "fork-owner/test-repo"],
+    });
+
+    await handler({ title: "Test PR", body: "body", branch: "my-feature" }, {});
+
+    const createCall = global.github.rest.pulls.create.mock.calls[0][0];
+    expect(createCall.owner).toBe("test-owner");
+    expect(createCall.repo).toBe("test-repo");
+    expect(createCall.head).toMatch(/^fork-owner:my-feature(?:-[0-9a-f]+)?$/);
   });
 
   it("should normalize an invalid branch-prefix and emit a warning", async () => {

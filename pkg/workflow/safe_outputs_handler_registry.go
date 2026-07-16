@@ -513,12 +513,14 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("auto_merge", c.AutoMerge).
 			AddIfPositive("expires", c.Expires).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddIfNotEmpty("head-repo", c.HeadRepoSlug).
 			AddTemplatableStringSlice("allowed_repos", c.AllowedRepos).
 			AddTemplatableStringSlice("allowed_base_branches", c.AllowedBaseBranches).
 			AddTemplatableStringSlice("allowed_branches", c.AllowedBranches).
 			AddDefault("max_patch_size", maxPatchSize).
 			AddDefault("max_patch_files", maxPatchFiles).
 			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfNotEmpty("head-github-token", c.HeadGitHubToken).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddBoolPtr("normalize_closing_keywords", c.NormalizeClosingKeywords).
 			AddBoolPtr("fallback_as_issue", c.FallbackAsIssue).
@@ -562,9 +564,11 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("commit_title_suffix", c.CommitTitleSuffix).
 			AddDefault("max_patch_size", maxPatchSize).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddIfNotEmpty("head-repo", c.HeadRepoSlug).
 			AddIfNotEmpty("base_branch", c.BaseBranch).
 			AddTemplatableStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfNotEmpty("head-github-token", c.HeadGitHubToken).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			AddStringPtr("protected_files_policy", c.ManifestFilesPolicy).
 			AddStringSlice("protected_files", getAllManifestFiles()).

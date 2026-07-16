@@ -95,6 +95,22 @@ func TestHandlerManagerGitHubTokenEnvVarForCrossRepo(t *testing.T) {
 			shouldHaveGitHubToken:   true,
 		},
 		{
+			name: "create-pull-request head-github-token takes precedence over safe-outputs token",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"github-token": "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+					"create-pull-request": map[string]any{
+						"head-github-token": "${{ secrets.FORK_PAT }}",
+						"head-repo":         "fork-owner/test-repo",
+						"max":               2,
+					},
+				},
+			},
+			expectedGitHubTokenLine: "GITHUB_TOKEN: ${{ secrets.FORK_PAT }}",
+			shouldHaveGitHubToken:   true,
+		},
+		{
 			name: "add-comment without patches - no GITHUB_TOKEN override",
 			frontmatter: map[string]any{
 				"name": "Test Workflow",

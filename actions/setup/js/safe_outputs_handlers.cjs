@@ -591,6 +591,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
     const { repoParts } = repoResult;
+    const configuredHeadRepo = typeof prConfig["head-repo"] === "string" ? prConfig["head-repo"].trim() : "";
+    if (configuredHeadRepo) {
+      entry.head_repo = configuredHeadRepo;
+    }
 
     // Determine the working directory for git operations
     // If repo is specified or configured, find where it's checked out
@@ -1030,6 +1034,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
     const { repoParts } = repoResult;
+    const configuredHeadRepo = typeof pushConfig["head-repo"] === "string" ? pushConfig["head-repo"].trim() : "";
+    if (configuredHeadRepo) {
+      entry.head_repo = configuredHeadRepo;
+    }
 
     // Determine the working directory for git operations.
     // Look up the checkout path when the target repo is explicitly provided by the agent

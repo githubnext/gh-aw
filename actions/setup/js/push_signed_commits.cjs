@@ -11,6 +11,7 @@ const { ERR_API } = require("./error_codes.cjs");
 const { loadTemporaryIdMapFromResolved, replaceTemporaryIdReferencesInPatch, TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN } = require("./temporary_id.cjs");
 const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 const { backfillCommitObjects } = require("./git_helpers.cjs");
+const { overridePersistedExtraheader, restorePersistedExtraheader } = require("./git_auth_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const OID_PATTERN = /^[0-9a-f]{40}$/i;
 
@@ -217,14 +218,35 @@ function maybeReplaceTemporaryIdsInBase64Content(base64Content, temporaryIdMap, 
  * @param {string} opts.branch
  * @param {string} opts.cwd
  * @param {any} [opts.gitAuthEnv]
+ * @param {string} [opts.pushRemoteUrl]
+ * @param {string} [opts.pushToken]
  * @returns {Promise<string>}
  */
-async function pushBranchAndResolveHead({ branch, cwd, gitAuthEnv }) {
-  await exec.exec("git", ["push", "origin", branch], {
-    cwd,
-    env: { ...process.env, ...(gitAuthEnv || {}) },
-  });
-  return resolveLocalHeadSha(cwd);
+async function pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken }) {
+  const pushArgs = pushRemoteUrl ? ["push", pushRemoteUrl, branch] : ["push", "origin", branch];
+  const pushOnce = async () => {
+    await exec.exec("git", pushArgs, {
+      cwd,
+      env: { ...process.env, ...(gitAuthEnv || {}) },
+    });
+    return resolveLocalHeadSha(cwd);
+  };
+  if (!pushRemoteUrl || !pushToken) {
+    return pushOnce();
+  }
+
+  const githubServerUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/+$/, "");
+  let previousExtraheaders = [];
+  let overrideApplied = false;
+  try {
+    previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, pushToken);
+    overrideApplied = true;
+    return await pushOnce();
+  } finally {
+    if (overrideApplied) {
+      await restorePersistedExtraheader(githubServerUrl, previousExtraheaders);
+    }
+  }
 }
 
 /**
@@ -288,6 +310,8 @@ async function resolveLocalHeadSha(cwd) {
  * @param {string} opts.baseRef - Git ref of the remote head before commits were applied (used for rev-list)
  * @param {string} opts.cwd - Working directory of the local git checkout
  * @param {any} [opts.gitAuthEnv] - Environment variables for git push fallback auth
+ * @param {string} [opts.pushRemoteUrl] - Optional explicit git remote URL used for direct git push fallback
+ * @param {string} [opts.pushToken] - Optional token used when pushing to pushRemoteUrl
  * @param {boolean} [opts.signedCommits=true] - When false, skip GraphQL signed commits and use git push directly
  * @param {boolean} [opts.allowGitPushFallback=true] - When false, refuse any fallback path that would use direct git push
  * @param {Record<string, any>} [opts.resolvedTemporaryIds] - Resolved temporary IDs map
@@ -295,7 +319,7 @@ async function resolveLocalHeadSha(cwd) {
  * @param {Record<string, any>} [opts.validationConfig] - Optional safe-output policy config applied to synthesized GraphQL fileChanges
  * @returns {Promise<string | undefined>} SHA of the commit that landed on the target branch
  */
-async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv, signedCommits = true, allowGitPushFallback = true, resolvedTemporaryIds, currentRepo, validationConfig }) {
+async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv, pushRemoteUrl, pushToken, signedCommits = true, allowGitPushFallback = true, resolvedTemporaryIds, currentRepo, validationConfig }) {
   const effectiveCurrentRepo = currentRepo || `${owner}/${repo}`;
   const temporaryIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds, {
     defaultRepo: effectiveCurrentRepo,
@@ -308,7 +332,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   // The default parameter value converts undefined to true; this check tests only the explicit false value.
   if (signedCommits === false) {
     core.info(`pushSignedCommits: signed-commits disabled (using direct git push) for branch ${branch}`);
-    const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
+    const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken });
     core.info(`pushSignedCommits: git push and HEAD resolution completed, HEAD=${headSha}`);
     return headSha;
   }
@@ -323,7 +347,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     }
     core.info(`pushSignedCommits: empty baseRef detected (orphan branch first push), using git push directly for branch ${branch}`);
     try {
-      const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
+      const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken });
       core.info(`pushSignedCommits: git push completed for orphan branch, HEAD=${headSha}`);
       return headSha;
     } catch (pushErr) {
@@ -749,7 +773,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       throw new Error(`pushSignedCommits: signed commit push failed for branch '${branch}' and git push fallback is disabled: ${getErrorMessage(err)}`, { cause: err });
     }
     core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${getErrorMessage(err)}`);
-    const fallbackSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
+    const fallbackSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken });
     core.info(`pushSignedCommits: git push fallback completed, using pushed SHA ${fallbackSha}`);
     return fallbackSha;
   }

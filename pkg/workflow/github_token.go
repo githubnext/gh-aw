@@ -137,13 +137,27 @@ func resolvePRCheckoutToken(safeOutputs *SafeOutputsConfig, checkoutMgr *Checkou
 	if safeOutputs.CreatePullRequests != nil {
 		createPRToken = safeOutputs.CreatePullRequests.GitHubToken
 	}
+	var createPRHeadToken string
+	if safeOutputs.CreatePullRequests != nil {
+		createPRHeadToken = safeOutputs.CreatePullRequests.HeadGitHubToken
+	}
 	var pushToPRBranchToken string
 	if safeOutputs.PushToPullRequestBranch != nil {
 		pushToPRBranchToken = safeOutputs.PushToPullRequestBranch.GitHubToken
 	}
+	var pushToPRBranchHeadToken string
+	if safeOutputs.PushToPullRequestBranch != nil {
+		pushToPRBranchHeadToken = safeOutputs.PushToPullRequestBranch.HeadGitHubToken
+	}
 
 	// Per-config PAT tokens take highest precedence (overrides GitHub App)
-	perConfigToken := createPRToken
+	perConfigToken := createPRHeadToken
+	if perConfigToken == "" {
+		perConfigToken = createPRToken
+	}
+	if perConfigToken == "" {
+		perConfigToken = pushToPRBranchHeadToken
+	}
 	if perConfigToken == "" {
 		perConfigToken = pushToPRBranchToken
 	}
@@ -182,11 +196,17 @@ func resolvePRCheckoutTargetRepo(safeOutputs *SafeOutputsConfig) string {
 		return ""
 	}
 	if safeOutputs.CreatePullRequests != nil {
+		if repo := strings.TrimSpace(safeOutputs.CreatePullRequests.HeadRepoSlug); repo != "" && repo != "*" {
+			return repo
+		}
 		if repo := strings.TrimSpace(safeOutputs.CreatePullRequests.TargetRepoSlug); repo != "" && repo != "*" {
 			return repo
 		}
 	}
 	if safeOutputs.PushToPullRequestBranch != nil {
+		if repo := strings.TrimSpace(safeOutputs.PushToPullRequestBranch.HeadRepoSlug); repo != "" && repo != "*" {
+			return repo
+		}
 		if repo := strings.TrimSpace(safeOutputs.PushToPullRequestBranch.TargetRepoSlug); repo != "" && repo != "*" {
 			return repo
 		}
@@ -217,8 +237,14 @@ func resolveStaticCheckoutToken(safeOutputs *SafeOutputsConfig, checkoutMgr *Che
 		return getEffectiveSafeOutputGitHubToken("")
 	}
 
+	if safeOutputs.CreatePullRequests != nil && safeOutputs.CreatePullRequests.HeadGitHubToken != "" {
+		return getEffectiveSafeOutputGitHubToken(safeOutputs.CreatePullRequests.HeadGitHubToken)
+	}
 	if safeOutputs.CreatePullRequests != nil && safeOutputs.CreatePullRequests.GitHubToken != "" {
 		return getEffectiveSafeOutputGitHubToken(safeOutputs.CreatePullRequests.GitHubToken)
+	}
+	if safeOutputs.PushToPullRequestBranch != nil && safeOutputs.PushToPullRequestBranch.HeadGitHubToken != "" {
+		return getEffectiveSafeOutputGitHubToken(safeOutputs.PushToPullRequestBranch.HeadGitHubToken)
 	}
 	if safeOutputs.PushToPullRequestBranch != nil && safeOutputs.PushToPullRequestBranch.GitHubToken != "" {
 		return getEffectiveSafeOutputGitHubToken(safeOutputs.PushToPullRequestBranch.GitHubToken)

@@ -22,6 +22,8 @@ type PushToPullRequestBranchConfig struct {
 	CommitTitleSuffix              string   `yaml:"commit-title-suffix,omitempty"`                 // Optional suffix to append to generated commit titles
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
 	TargetRepoSlug                 string   `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository push to pull request branch
+	HeadRepoSlug                   string   `yaml:"head-repo,omitempty"`                           // Head repository in format "owner/repo" for allowed fork-backed pull request updates
+	HeadGitHubToken                string   `yaml:"head-github-token,omitempty"`                   // GitHub token used for branch writes to the head repository when it differs from the target repo
 	BaseBranch                     string   `yaml:"base-branch,omitempty"`                         // Base branch of the target repository for incremental patch computation. When unset, the runtime resolves it from the local checkout or the repo's default branch.
 	AllowedRepos                   []string `yaml:"allowed-repos,omitempty"`                       // List of additional repositories in format "owner/repo" that push to pull request branch can target
 	ManifestFilesPolicy            *string  `yaml:"protected-files,omitempty"`                     // Controls protected-file protection: "blocked" (default) hard-blocks, "allowed" permits all changes, "fallback-to-issue" creates a review issue instead of pushing.
@@ -157,6 +159,8 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 
 			// Parse target-repo for cross-repository push
 			pushToBranchConfig.TargetRepoSlug = extractStringFromMap(configMap, "target-repo", pushToPullRequestBranchLog)
+			pushToBranchConfig.HeadRepoSlug = extractStringFromMap(configMap, "head-repo", pushToPullRequestBranchLog)
+			pushToBranchConfig.HeadGitHubToken = extractStringFromMap(configMap, "head-github-token", pushToPullRequestBranchLog)
 
 			// Parse base-branch for explicit override of the target repo's base branch.
 			// When unset, the safe-outputs MCP server resolves it at runtime from the local
