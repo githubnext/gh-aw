@@ -62,10 +62,10 @@
 name: "Deployment Incident Monitor"
 on:
   deployment_status:
-# state: # State filtering compiled into if condition
-# - error # State filtering compiled into if condition
-# - failure # State filtering compiled into if condition
-# skip-if-match: is:issue is:open label:incident label:deployment-failure # Skip-if-match processed as search check in pre-activation job
+    # state: # State filtering compiled into if condition
+    # - error # State filtering compiled into if condition
+    # - failure # State filtering compiled into if condition
+    # skip-if-match: is:issue is:open label:incident label:deployment-failure # Skip-if-match processed as search check in pre-activation job
 
 permissions: {}
 
