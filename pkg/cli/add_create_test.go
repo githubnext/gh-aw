@@ -125,9 +125,33 @@ func TestPrepareAddTargetCheckoutWithRuntime_SkipsInitWhenRequested(t *testing.T
 }
 
 func TestPrepareAddTargetCheckoutWithRuntime_RejectsInvalidRepo(t *testing.T) {
-	_, err := prepareAddTargetCheckoutWithRuntime(context.Background(), addCreateOptions{
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd returned error: %v", err)
+	}
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Chdir returned error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(oldWd)
+	})
+	
+	// Validation happens before any runtime methods are called, so we can pass
+	// a minimal runtime. The normalizeAddCreateOptions will not add an owner
+	// because there's no git remote in the test temp dir.
+	_, err = prepareAddTargetCheckoutWithRuntime(context.Background(), addCreateOptions{
 		Repo: "not-a-slug",
-	}, bootstrapRuntime{}, t.TempDir())
+	}, bootstrapRuntime{
+		setupRepositoryRuntime: setupRepositoryRuntime{
+			checkAuth:  func(context.Context) error { return nil },
+			repoExists: func(context.Context, string) (bool, error) { return false, nil },
+			ownerType:  func(context.Context, string) (string, error) { return "Organization", nil },
+			createRepo: func(_ context.Context, _ string, _ setupRepositoryCreateOptions) error { return nil },
+			cloneRepo:  func(_ context.Context, _ string, _ string) error { return nil },
+		},
+		initRepo: func(InitOptions) error { return nil },
+	}, tempDir)
 	if err == nil {
 		t.Fatal("expected invalid --create error")
 	}

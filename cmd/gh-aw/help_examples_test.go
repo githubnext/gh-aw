@@ -138,6 +138,15 @@ func validateExampleTokens(t *testing.T, cmd *cobra.Command, tokens []string) {
 			if flag.Value.Type() == "bool" {
 				continue
 			}
+			// Flags with NoOptDefVal can be used without a value
+			if flag.NoOptDefVal != "" {
+				// Check if next token is a value for this flag or another flag/argument
+				if i+1 < len(tokens) && !strings.HasPrefix(tokens[i+1], "-") {
+					i++
+					validateExampleToken(t, tokens[i])
+				}
+				continue
+			}
 			if i+1 >= len(tokens) {
 				t.Fatalf("flag %q in example for command %q is missing a value", "--"+name, cmd.CommandPath())
 			}
