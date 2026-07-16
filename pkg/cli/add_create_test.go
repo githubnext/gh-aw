@@ -24,6 +24,7 @@ func TestPrepareAddTargetCheckoutWithRuntime_CreatesAndClones(t *testing.T) {
 	var clonedRepo string
 	var clonedDir string
 	initCalls := 0
+	var initOpts InitOptions
 
 	checkoutDir, err := prepareAddTargetCheckoutWithRuntime(context.Background(), addCreateOptions{
 		Repo:             "octo/platform-ops",
@@ -46,8 +47,9 @@ func TestPrepareAddTargetCheckoutWithRuntime_CreatesAndClones(t *testing.T) {
 			},
 			checkCleanWorktree: func(bool) error { return nil },
 		},
-		initRepo: func(InitOptions) error {
+		initRepo: func(got InitOptions) error {
 			initCalls++
+			initOpts = got
 			return nil
 		},
 	}, tempDir)
@@ -70,6 +72,12 @@ func TestPrepareAddTargetCheckoutWithRuntime_CreatesAndClones(t *testing.T) {
 	}
 	if initCalls != 1 {
 		t.Fatalf("expected init to run once, got %d", initCalls)
+	}
+	if !initOpts.CodespaceEnabled {
+		t.Fatal("expected add create init to enable codespaces")
+	}
+	if len(initOpts.CodespaceRepos) != 0 {
+		t.Fatalf("expected add create init to configure current repo only, got %v", initOpts.CodespaceRepos)
 	}
 }
 

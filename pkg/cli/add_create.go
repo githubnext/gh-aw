@@ -133,7 +133,7 @@ func addCreateInitOptions(ctx context.Context, opts addCreateOptions) InitOption
 		Agent:            true,
 		MCP:              true,
 		CodespaceRepos:   []string{},
-		CodespaceEnabled: false,
+		CodespaceEnabled: true,
 		Completions:      false,
 		CreatePR:         false,
 	}
