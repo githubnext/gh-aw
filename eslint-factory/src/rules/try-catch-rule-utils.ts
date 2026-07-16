@@ -253,7 +253,7 @@ export function buildTryCatchSuggestion(stmtText: string, options: TryCatchSugge
     `${indent}} catch (err) {`,
     `${indent}  // ${todoComment}`,
     `${indent}  throw new Error(`,
-    `${indent}    \"${errorPrefix}\" + (err instanceof Error ? err.message : String(err)),`,
+    `${indent}    "${errorPrefix}" + (err instanceof Error ? err.message : String(err)),`,
     `${indent}    { cause: err },`,
     `${indent}  );`,
     `${indent}}`,
