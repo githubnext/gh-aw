@@ -41,6 +41,8 @@ models:
 ---
 ```
 
+Use the provider key matching your engine: `github-copilot` (Copilot), `anthropic` (Claude), `openai` (Codex), or `google` (Gemini).
+
 **Option 3 — Use a model already in the built-in pricing table:**
 
 Switch to a model name that the AWF pricing system recognizes directly (e.g. `gpt-4.1`, `claude-sonnet-4-5`, `gemini-2.0-flash`).
