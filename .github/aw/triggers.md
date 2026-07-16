@@ -63,24 +63,9 @@ Non-engineering personas:
   - call `noop` when no material drift is detected in the selected window
 - **Compliance review (regulatory/policy)**: trigger `schedule` (monthly) or `pull_request` with `paths:` scoped to policy files, read current policy state via `github` (`gh-proxy`), produce a structured compliance report per control or requirement, publish with `create-issue` and `close-older-issues: true`, call `noop` when all controls pass.
 
-### Program Manager and Information-Worker Digest Defaults
+### Recurring digest defaults
 
-For recurring PM, stakeholder, and other information-worker digests, specify all three of these elements up front:
-
-| Element | Default guidance | Examples |
-|---|---|---|
-| Report window | Use a closed, explicit UTC window or `since previous successful run` | `last 7 full days ending at run start (UTC)`, `previous calendar month (UTC)` |
-| Grouping dimensions | Group by the dimensions the audience already uses to make decisions | team, area, milestone, owner, severity, status, repository |
-| Deduplication key | Derive one stable key per scope and window before creating output | `pm-digest:platform:2026-W27`, `stakeholder-digest:mobile:2026-07-02` |
-
-Use week-based keys for weekly digests and calendar-date keys for daily or monthly reports.
-
-Duplicate-suppression rule:
-
-- Search for an existing open issue with the same key before creating a new digest.
-- Search by a stable title prefix or dedicated label that includes the key before creating a new digest.
-- If one exists, update it with `add-comment` instead of opening a duplicate issue.
-- If the selected window has zero qualifying updates, call `noop`.
+For PM, stakeholder, and information-worker digests, fix the report window, grouping dimensions, deduplication key, and duplicate-suppression rule up front. See [report.md](report.md) for the canonical defaults.
 
 ### Pattern-specific `noop` examples
 

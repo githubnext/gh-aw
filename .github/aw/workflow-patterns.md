@@ -187,14 +187,9 @@ For PRs touching design tokens or CSS files that require a linked design referen
 
 - trigger: `pull_request` with `paths:` scoped to token/style files (for example `tokens/**`, `**/*.tokens.json`, `**/*.css`, `src/styles/**`, `design-system/**`)
 - permissions: `pull-requests: read`, `contents: read`; agent job read-only
-- reads: PR body and comments via `gh pr view` to locate the linked design reference; then validate that the link target is reachable and matches the changed components
-- output:
-  - Link present and valid → `add-comment` with ✅ summary
-  - Link present but incomplete (for example wrong component, outdated version) → `add-comment` describing the specific gap
-  - Required link missing → `add-comment` requesting it; escalate to `create-issue` only when the workflow prompt explicitly requires a blocking review gate (for example a CODEOWNERS or policy rule) and no open issue already covers the same scope
-- fallback: `noop` when `paths:` guard excludes all changed files
-
-See also: the PR Checks with Linked References pattern in [github-agentic-workflows.md](github-agentic-workflows.md).
+- reads: PR body and comments via `gh pr view` to locate the linked design reference; validate the link target is reachable and matches the changed components
+- output: apply the classify flow from [PR Checks with Linked References](github-agentic-workflows.md) (valid → ✅ comment; incomplete → gap comment; missing → request comment, escalating to `create-issue` only for a required blocking gate with no open issue already covering the scope)
+- fallback: `noop` when the `paths:` guard excludes all changed files
 
 ## QA Coverage Report Pattern
 
