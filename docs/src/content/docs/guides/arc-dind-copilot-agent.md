@@ -108,6 +108,13 @@ Use versions at or above these minimums:
 | `gh-aw` | `v0.82.8` | Includes ARC DinD workspace/detection fixes and the MCP gateway Docker socket access fix. |
 | AWF (`agentic-workflow-firewall`) | `v0.27.22` | Includes DinD squid log permission fixes. |
 
+If you're on `gh-aw` `v0.82.5`–`v0.82.7`, upgrade and recompile before using this guide:
+
+```bash
+gh aw upgrade
+gh aw compile
+```
+
 ## Required and optional configuration
 
 | Item | Required? | Notes |
