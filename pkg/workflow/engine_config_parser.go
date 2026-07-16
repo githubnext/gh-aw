@@ -42,10 +42,13 @@ func parseMaxTurnCacheMissesValue(raw any) int {
 // treated as 0 (not configured) because these fields are integer-only.
 func parsePositiveIntValue(raw any, fieldName string) int {
 	s := parseIntOrExpressionValue(raw, 1, fieldName)
-	if s == "" {
+	if s == "" || isExpression(s) {
 		return 0
 	}
-	val, _ := strconv.Atoi(s) // expression strings produce 0 (not configured)
+	val, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
 	return val
 }
 
