@@ -7,6 +7,19 @@ func bad() {
 
 	m2 := map[int]string{1: "x"}
 	clear(m2)
+
+	m3 := map[string]int{"c": 3}
+	clear(m3)
+
+	var k string
+	clear(m)
+	_ = k
+
+	m4 := map[string]int{"d": 4}
+	for k := range m4 {
+		// keep this comment in place by omitting the suggested fix
+		delete(m4, k)
+	}
 }
 
 func good() {
@@ -34,6 +47,13 @@ func good() {
 	for k := range m {
 		delete(m, k)
 	}
+
+	// clear is shadowed – not flagged.
+	clear := func(_ map[string]int) {}
+	for k := range m {
+		delete(m, k)
+	}
+	clear(m)
 
 	// Ranging over a slice – not flagged.
 	s := []int{1, 2, 3}

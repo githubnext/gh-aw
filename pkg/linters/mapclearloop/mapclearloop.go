@@ -5,6 +5,7 @@ package mapclearloop
 
 import (
 	"go/ast"
+	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
@@ -70,6 +71,9 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 		keyObj := pass.TypesInfo.Defs[keyIdent]
 		if keyObj == nil {
+			keyObj = pass.TypesInfo.Uses[keyIdent]
+		}
+		if keyObj == nil {
 			return
 		}
 
@@ -121,23 +125,60 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		mText := astutil.NodeText(pass.Fset, rangeStmt.X)
+		if mText == "" {
+			return
+		}
+		if !builtinVisibleAtPos(pass.Pkg, rangeStmt.Pos(), "clear") {
+			return
+		}
 
-		pass.Report(analysis.Diagnostic{
+		diag := analysis.Diagnostic{
 			Pos:     rangeStmt.Pos(),
 			End:     rangeStmt.End(),
 			Message: "range-delete loop over map can be replaced with clear(" + mText + ")",
-			SuggestedFixes: []analysis.SuggestedFix{{
+		}
+		if !hasOverlappingComment(pass.Files, rangeStmt.Pos(), rangeStmt.End()) {
+			diag.SuggestedFixes = []analysis.SuggestedFix{{
 				Message: "Replace range-delete loop with clear",
 				TextEdits: []analysis.TextEdit{{
 					Pos:     rangeStmt.Pos(),
 					End:     rangeStmt.End(),
 					NewText: []byte("clear(" + mText + ")"),
 				}},
-			}},
-		})
+			}}
+		}
+		pass.Report(diag)
 	})
 
 	return nil, nil
+}
+
+func builtinVisibleAtPos(pkg *types.Package, pos token.Pos, name string) bool {
+	if pkg == nil {
+		return false
+	}
+	scope := pkg.Scope().Innermost(pos)
+	if scope == nil {
+		return false
+	}
+	_, obj := scope.LookupParent(name, pos)
+	builtin, ok := obj.(*types.Builtin)
+	return ok && builtin.Name() == name
+}
+
+func hasOverlappingComment(files []*ast.File, start, end token.Pos) bool {
+	for _, file := range files {
+		if start < file.Pos() || end > file.End() {
+			continue
+		}
+		for _, group := range file.Comments {
+			if group.Pos() < end && start < group.End() {
+				return true
+			}
+		}
+		return false
+	}
+	return false
 }
 
 // sameObject reports whether expr refers to the same declared object as ref.
