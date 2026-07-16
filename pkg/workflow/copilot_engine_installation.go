@@ -125,7 +125,9 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 
 	// Use the installer script for global installation
 	copilotInstallLog.Print("Using new installer script for Copilot installation")
-	npmSteps := GenerateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI")
+	agentConfig := getAgentConfig(workflowData)
+	rootless := agentConfig != nil && agentConfig.NetworkIsolation && !agentConfig.Disabled
+	npmSteps := GenerateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI", rootless)
 	if len(sdkInstallStep) > 0 {
 		npmSteps = append(npmSteps, sdkInstallStep)
 	}

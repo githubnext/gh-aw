@@ -104,7 +104,9 @@ func (e *AntigravityEngine) GetInstallationSteps(workflowData *WorkflowData) []G
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 		version = workflowData.EngineConfig.Version
 	}
-	installSteps := GenerateAntigravityInstallerSteps(version, "Install Antigravity CLI")
+	agentConfig := getAgentConfig(workflowData)
+	rootless := agentConfig != nil && agentConfig.NetworkIsolation && !agentConfig.Disabled
+	installSteps := GenerateAntigravityInstallerSteps(version, "Install Antigravity CLI", rootless)
 	return BuildNpmEngineInstallStepsWithAWF(installSteps, workflowData)
 }
 
