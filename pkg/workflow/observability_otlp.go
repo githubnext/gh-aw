@@ -103,7 +103,7 @@ func shouldRewriteAuthorizationForSentry(endpoint string) bool {
 // whitespace.
 func isGitHubActionsExpression(value string) bool {
 	trimmed := strings.TrimSpace(value)
-	return strings.HasPrefix(trimmed, "${{") && strings.HasSuffix(trimmed, "}}")
+	return isExpression(trimmed)
 }
 
 // extractOTLPEndpointDomain parses an OTLP endpoint URL and returns its hostname.
