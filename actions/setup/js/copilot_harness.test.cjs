@@ -51,6 +51,7 @@ const {
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
   resolveRetryConfig,
+  shouldRetryPartialExecution,
   writeCopilotOutputs,
   parseCopilotSDKServerArgsFromEnv,
 } = require("./copilot_harness.cjs");
@@ -277,9 +278,6 @@ describe("copilot_harness.cjs", () => {
   });
 
   describe("retry policy: continue on partial execution", () => {
-    // Inline the same retry-eligibility logic as the driver for unit testing.
-    // The driver retries whenever the session produced output (hasOutput), regardless
-    // of the specific error type.  CAPIError 400 is just the well-known case.
     const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
     const MAX_RETRIES = 3;
 
@@ -289,11 +287,7 @@ describe("copilot_harness.cjs", () => {
      * @returns {boolean}
      */
     function shouldRetry(result, attempt) {
-      if (result.exitCode === 0) return false;
-      if (hasNumerousPermissionDeniedIssues(result.output)) return false;
-      if (isCAPIQuotaExceededError(result.output)) return false;
-      if (detectNonRetryableHarnessGuard(result.output).maxRunsExceeded) return false;
-      return attempt < MAX_RETRIES && result.hasOutput;
+      return shouldRetryPartialExecution({ ...result, attempt, maxRetries: MAX_RETRIES });
     }
 
     /**
@@ -441,6 +435,10 @@ describe("copilot_harness.cjs", () => {
       it("invocation_cap_exceeded outranks capi_quota_exceeded in failure classification", () => {
         // Both flags set — invocation cap is more specific than generic quota exceeded.
         expect(classifyCopilotFailure({ hasOutput: true, isInvocationCapExceeded: true, isQuotaExceeded: true })).toBe("invocation_cap_exceeded");
+      });
+
+      it("invocation_cap_exceeded outranks no_output when hasOutput is false", () => {
+        expect(classifyCopilotFailure({ hasOutput: false, isInvocationCapExceeded: true })).toBe("invocation_cap_exceeded");
       });
 
       it("sdk_session_idle_timeout outranks permission_denied in failure classification", () => {

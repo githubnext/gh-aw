@@ -456,6 +456,20 @@ function classifyCopilotFailure(detection) {
 }
 
 /**
+ * Shared retry predicate for the generic partial-execution branch.
+ * Used by the runtime loop and unit tests to avoid divergence.
+ * @param {{ exitCode: number, hasOutput: boolean, output: string, attempt: number, maxRetries: number }} params
+ * @returns {boolean}
+ */
+function shouldRetryPartialExecution(params) {
+  if (params.exitCode === 0) return false;
+  if (hasNumerousPermissionDeniedIssues(params.output)) return false;
+  if (isCAPIQuotaExceededError(params.output)) return false;
+  if (detectNonRetryableHarnessGuard(params.output).maxRunsExceeded) return false;
+  return params.attempt < params.maxRetries && params.hasOutput;
+}
+
+/**
  * Extract provider auth failure details from Copilot output when available.
  * @param {string} output
  * @returns {{ providerUrl: string, statusCode: string } | null}
@@ -1108,8 +1122,7 @@ async function main() {
           if (nonRetryableGuard.aiCreditsExceeded) reasons.push("AI credits budget exceeded");
           if (nonRetryableGuard.awfAPIProxyBlockingRequests) reasons.push("AWF API proxy is blocking requests");
           if (isInvocationCapExceeded) {
-            const budgetMsg = result.hasOutput ? `attempt ${attempt + 1} partial output preserved as run result` : "no output produced";
-            reasons.push(`LLM invocation cap saturated — the pooled per-run budget is fully exhausted; retries cannot make progress (${budgetMsg})`);
+            reasons.push("LLM invocation cap saturated — the pooled per-run budget is fully exhausted; retries cannot make progress");
           }
           log(`attempt ${attempt + 1}: ${reasons.join(" and ")} — not retrying (non-retryable guard condition)`);
           break;
@@ -1235,7 +1248,7 @@ async function main() {
           break;
         }
 
-        if (attempt < maxRetries && result.hasOutput) {
+        if (shouldRetryPartialExecution({ exitCode: result.exitCode, hasOutput: result.hasOutput, output: result.output, attempt, maxRetries })) {
           const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
           // --continue is only meaningful in CLI mode; SDK mode always restarts fresh.
           useContinueOnRetry = !copilotSDKMode && !continueDisabledPermanently;
@@ -1308,6 +1321,7 @@ if (typeof module !== "undefined" && module.exports) {
     countPermissionDeniedIssues,
     detectCopilotErrors,
     classifyCopilotFailure,
+    shouldRetryPartialExecution,
     extractOutputTail,
     isRetryableProxyAuthenticationFailure,
     hasNumerousPermissionDeniedIssues,

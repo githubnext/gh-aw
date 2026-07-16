@@ -24,12 +24,6 @@
  *     "CAPIError: Too Many Requests"). All matched forms are treated as
  *     non-retryable because the Copilot SDK has already retried internally
  *     before surfacing the error.
- *   - invocation_cap_exceeded: The per-run LLM invocation cap is exhausted.
- *     The pooled budget is shared across all retry attempts for the Execute step,
- *     so once saturated, further retries cannot make progress. Matches both the
- *     CAPI form ("CAPIError: 429 Maximum LLM invocations exceeded (N/N)") and
- *     the Anthropic JSON form ("max_runs_exceeded").
- *
  * This replaces the individual bash scripts (detect_inference_access_error.sh,
  * detect_mcp_policy_error.sh) with a single JavaScript step.
  *
@@ -154,7 +148,6 @@ function writeOutputs(results) {
     `model_not_supported_error=${results.modelNotSupportedError}`,
     `http_400_response_error=${results.http400ResponseError}`,
     `capi_quota_exceeded_error=${results.capiQuotaExceededError}`,
-    `invocation_cap_exceeded=${results.invocationCapExceeded}`,
   ];
   fs.appendFileSync(outputFile, lines.join("\n") + "\n");
 }
