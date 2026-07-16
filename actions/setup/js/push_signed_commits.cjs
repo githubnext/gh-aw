@@ -230,12 +230,12 @@ async function lsRemoteHeadOid(branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken
     let previousExtraheaders = [];
     let overrideApplied = false;
     try {
-      previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, pushToken);
+      previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, pushToken, cwd);
       overrideApplied = true;
       result = await doLsRemote();
     } finally {
       if (overrideApplied) {
-        await restorePersistedExtraheader(githubServerUrl, previousExtraheaders);
+        await restorePersistedExtraheader(githubServerUrl, previousExtraheaders, cwd);
       }
     }
   } else {
@@ -274,12 +274,12 @@ async function pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl
   let previousExtraheaders = [];
   let overrideApplied = false;
   try {
-    previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, pushToken);
+    previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, pushToken, cwd);
     overrideApplied = true;
     return await pushOnce();
   } finally {
     if (overrideApplied) {
-      await restorePersistedExtraheader(githubServerUrl, previousExtraheaders);
+      await restorePersistedExtraheader(githubServerUrl, previousExtraheaders, cwd);
     }
   }
 }
