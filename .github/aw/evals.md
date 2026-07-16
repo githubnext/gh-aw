@@ -26,7 +26,7 @@ The evals job runs **after** the agent job and **in parallel with** `safe_output
 
 ### Shorthand — plain list
 
-> **Prerequisite:** `agent_output.json` is only included in the agent artifact when `safe-outputs` is also declared. Without it the evals job runs with no agent context and every question will receive `UNKNOWN`.
+> **Prerequisite:** `agent_output.json` is only included in the agent artifact when `safe-outputs` is also declared. Without it, the evals job runs with no agent context and every question will receive `UNKNOWN`.
 
 ```yaml
 ---
@@ -162,7 +162,7 @@ gh aw logs <workflow-name> --evals        # filter to runs that contain evals re
 
 ## Required Permissions
 
-The evals job itself reads artifacts and runs the engine. The compiler grants `contents: read` by default, and conditionally adds:
+The evals job itself reads artifacts and runs the engine. The compiler grants `contents: read` by default, and conditionally adds the following when the corresponding features are used in the workflow:
 
 - `copilot-requests: write` — when the workflow uses Copilot API requests.
 - `id-token: write` — when the workflow uses GitHub OIDC authentication or OTLP telemetry.
