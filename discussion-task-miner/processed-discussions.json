@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-07-14T07:31:00Z",
+  "last_run": "2026-07-16T01:15:00Z",
   "discussions_processed": [
     {"id": 45268, "title": "[repository-quality] 🎯 Repository Quality Improvement Report - Compile-Time Interface Compliance Gap (2026-07-13)", "processed_at": "2026-07-14T01:08:00Z"},
     {"id": 45259, "title": "[typist] 🔤 Typist — Go Type Consistency Analysis (github/gh-aw)", "processed_at": "2026-07-14T01:08:00Z"},
@@ -9,6 +9,10 @@
     {"id": 45389, "title": "[Schema Consistency] 🔍 Schema Consistency Check - 2026-07-14", "processed_at": "2026-07-14T07:31:00Z"},
     {"id": 45370, "title": "[daily-compiler-quality] Daily Compiler Code Quality Report - 2026-07-14", "processed_at": "2026-07-14T07:31:00Z"},
     {"id": 45369, "title": "[lint-monster] LintMonster daily report — function-length backlog refresh", "processed_at": "2026-07-14T07:31:00Z"},
-    {"id": 45346, "title": "[observability] Observability Coverage Report - 2026-07-14", "processed_at": "2026-07-14T07:31:00Z"}
+    {"id": 45346, "title": "[observability] Observability Coverage Report - 2026-07-14", "processed_at": "2026-07-14T07:31:00Z"},
+    {"id": 45742, "title": "[repository-quality] 🎯 Repository Quality Improvement Report - Compile-Time Interface Satisfaction Assertions (2026-07-15)", "processed_at": "2026-07-16T01:15:00Z"},
+    {"id": 45727, "title": "[typist] 🔤 Typist — Go Type Consistency Analysis (24 duplicate clusters, 7 enum groups to type)", "processed_at": "2026-07-16T01:15:00Z"},
+    {"id": 45804, "title": "[daily-code-metrics] Daily Code Metrics Report - 2026-07-15", "processed_at": "2026-07-16T01:15:00Z"},
+    {"id": 45651, "title": "[eslint-refiner] ESLint Refiner Daily Report — 2026-07-15", "processed_at": "2026-07-16T01:15:00Z"}
   ]
 }
