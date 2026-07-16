@@ -737,7 +737,14 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 			}
 		}
 	} else {
-		logsDownloadLog.Printf("Could not list artifacts (will use bulk download): %v", listErr)
+		if len(opts.artifactFilter) > 0 {
+			// When artifact listing fails, still try the requested artifact names directly
+			// so filtered downloads don't incorrectly return ErrNoArtifacts.
+			downloadableNames = append(downloadableNames, opts.artifactFilter...)
+			logsDownloadLog.Printf("Could not list artifacts (will try requested artifact names directly): %v", listErr)
+		} else {
+			logsDownloadLog.Printf("Could not list artifacts (will use bulk download): %v", listErr)
+		}
 	}
 
 	// Start spinner for network operation
