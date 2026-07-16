@@ -90,6 +90,11 @@ pre-agent-steps:
         echo "Pre-fetched PR diff (${LINES} lines), metadata, and ${COMMENT_COUNT} existing review comments"
       fi
 timeout-minutes: 15
+evals:
+  - id: review_posted
+    question: Did the agent post a code review comment on the pull request?
+  - id: findings_scoped
+    question: Does the agent output show that the review findings are limited to changes in the pull request diff rather than unrelated code?
 
 ---
 
