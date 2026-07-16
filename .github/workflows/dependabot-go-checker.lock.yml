@@ -596,7 +596,13 @@ jobs:
                 "create_issue": " CONSTRAINTS: Maximum 10 issue(s) can be created. Title will be prefixed with \"[deps]\". Labels [\"dependencies\" \"go\" \"cookie\"] will be automatically added."
               },
               "repo_params": {},
-              "dynamic_tools": []
+              "dynamic_tools": [],
+              "required_field_additions": {
+                "close_issue": [
+                  "rationale",
+                  "confidence"
+                ]
+              }
             }
           GH_AW_VALIDATION_JSON: |
             {
@@ -608,12 +614,30 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
+                  "confidence": {
+                    "type": "string",
+                    "enum": [
+                      "LOW",
+                      "MEDIUM",
+                      "HIGH"
+                    ],
+                    "x-strip-on-error": true
+                  },
                   "issue_number": {
                     "optionalPositiveInteger": true
+                  },
+                  "rationale": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 280,
+                    "x-strip-on-error": true
                   },
                   "repo": {
                     "type": "string",
                     "maxLength": 256
+                  },
+                  "suggest": {
+                    "type": "boolean"
                   }
                 }
               },

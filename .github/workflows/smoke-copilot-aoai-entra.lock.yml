@@ -879,7 +879,13 @@ jobs:
                   },
                   "name": "haiku_printer"
                 }
-              ]
+              ],
+              "required_field_additions": {
+                "set_issue_type": [
+                  "rationale",
+                  "confidence"
+                ]
+              }
             }
           GH_AW_VALIDATION_JSON: |
             {

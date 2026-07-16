@@ -546,7 +546,13 @@ jobs:
                 "add_comment": " CONSTRAINTS: Maximum 1 comment(s) can be added. Target: *. Supports reply_to_id for discussion threading."
               },
               "repo_params": {},
-              "dynamic_tools": []
+              "dynamic_tools": [],
+              "required_field_additions": {
+                "assign_to_user": [
+                  "rationale",
+                  "confidence"
+                ]
+              }
             }
           GH_AW_VALIDATION_JSON: |
             {
@@ -585,12 +591,30 @@ jobs:
                     "sanitize": true,
                     "maxLength": 39
                   },
+                  "confidence": {
+                    "type": "string",
+                    "enum": [
+                      "LOW",
+                      "MEDIUM",
+                      "HIGH"
+                    ],
+                    "x-strip-on-error": true
+                  },
                   "issue_number": {
                     "issueOrPRNumber": true
+                  },
+                  "rationale": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 280,
+                    "x-strip-on-error": true
                   },
                   "repo": {
                     "type": "string",
                     "maxLength": 256
+                  },
+                  "suggest": {
+                    "type": "boolean"
                   }
                 }
               },

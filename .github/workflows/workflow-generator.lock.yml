@@ -600,7 +600,13 @@ jobs:
                 "update_issue": " CONSTRAINTS: Maximum 1 issue(s) can be updated. Body updates are allowed."
               },
               "repo_params": {},
-              "dynamic_tools": []
+              "dynamic_tools": [],
+              "required_field_additions": {
+                "assign_to_agent": [
+                  "rationale",
+                  "confidence"
+                ]
+              }
             }
           GH_AW_VALIDATION_JSON: |
             {
@@ -612,6 +618,15 @@ jobs:
                     "sanitize": true,
                     "maxLength": 128
                   },
+                  "confidence": {
+                    "type": "string",
+                    "enum": [
+                      "LOW",
+                      "MEDIUM",
+                      "HIGH"
+                    ],
+                    "x-strip-on-error": true
+                  },
                   "issue_number": {
                     "issueNumberOrTemporaryId": true
                   },
@@ -622,9 +637,18 @@ jobs:
                     "type": "string",
                     "maxLength": 256
                   },
+                  "rationale": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 280,
+                    "x-strip-on-error": true
+                  },
                   "repo": {
                     "type": "string",
                     "maxLength": 256
+                  },
+                  "suggest": {
+                    "type": "boolean"
                   }
                 },
                 "customValidation": "requiresOneOf:issue_number,pull_number"
