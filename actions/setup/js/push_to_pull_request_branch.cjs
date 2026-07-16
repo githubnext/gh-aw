@@ -217,7 +217,7 @@ async function detectWorkflowFileChanges(exec, gitOptions, baseBranch, coreLogge
  * @param {typeof core} coreLogger - Actions core logger
  * @param {string[] | undefined} agentChangedFiles - Files from the agent's post-apply diff; used to distinguish agent vs pre-existing workflow changes.
  *   Pass `undefined` when the distinction cannot be made — the function will fall back to the original hard-error behavior.
- * @returns {Promise<{ success: false, error_type: string, error: string } | { success: false, skipped: true } | null>}
+ * @returns {Promise<{ success: false, error_type: string, error: string } | { success: false, skipped: true, error: string } | null>}
  */
 async function runWorkflowScopePreflightCheck(exec, gitOptions, allowWorkflows, baseBranch, context, coreLogger, agentChangedFiles) {
   if (allowWorkflows) return null;
@@ -260,16 +260,16 @@ function buildWorkflowsScopeError(context, coreLogger) {
  *
  * @param {string} context - Short label identifying the push path (e.g. "Review branch", "Fallback branch")
  * @param {typeof core} coreLogger - Actions core logger
- * @returns {{ success: false, skipped: true }}
+ * @returns {{ success: false, skipped: true, error: string }}
  */
 function buildWorkflowsScopeSkip(context, coreLogger) {
-  coreLogger.warning(
+  const message =
     `${context}: branch history contains workflow file changes (.github/workflows/**) requiring the 'workflows' scope, ` +
-      `but the agent's own changeset does not include workflow files — the scope requirement originates from pre-existing commits. ` +
-      `Skipping push to avoid a scope rejection. ` +
-      `To allow pushing workflow file changes, configure 'push-to-pull-request-branch.allow-workflows: true' with a GitHub App in 'safe-outputs.github-app'.`
-  );
-  return { success: false, skipped: true };
+    `but the agent's own changeset does not include workflow files — the scope requirement originates from pre-existing commits. ` +
+    `Skipping push to avoid a scope rejection. ` +
+    `To allow pushing workflow file changes, configure 'push-to-pull-request-branch.allow-workflows: true' with a GitHub App in 'safe-outputs.github-app'.`;
+  coreLogger.warning(message);
+  return { success: false, skipped: true, error: message };
 }
 
 /**
