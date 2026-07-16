@@ -47,28 +47,22 @@ func (a *AnalysisBase) addBaseMetrics(other *AnalysisBase) {
 	a.TotalRequests += other.TotalRequests
 	a.AllowedRequests += other.AllowedRequests
 	a.BlockedRequests += other.BlockedRequests
+	a.BlockedDomains = mergeDomainList(a.BlockedDomains, other.BlockedDomains)
+	a.AllowedDomains = mergeDomainList(a.AllowedDomains, other.AllowedDomains)
+}
 
-	// Merge blocked domain lists
-	if len(other.BlockedDomains) > 0 {
-		domainSet := make(map[string]struct{}, len(a.BlockedDomains)+len(other.BlockedDomains))
-		for _, d := range a.BlockedDomains {
-			domainSet[d] = struct{}{}
-		}
-		for _, d := range other.BlockedDomains {
-			domainSet[d] = struct{}{}
-		}
-		a.BlockedDomains = sliceutil.SortedKeys(domainSet)
+// mergeDomainList returns a sorted, deduplicated union of existing and incoming domain lists.
+// If incoming is empty, existing is returned unchanged.
+func mergeDomainList(existing, incoming []string) []string {
+	if len(incoming) == 0 {
+		return existing
 	}
-
-	// Merge allowed domain lists
-	if len(other.AllowedDomains) > 0 {
-		domainSet := make(map[string]struct{}, len(a.AllowedDomains)+len(other.AllowedDomains))
-		for _, d := range a.AllowedDomains {
-			domainSet[d] = struct{}{}
-		}
-		for _, d := range other.AllowedDomains {
-			domainSet[d] = struct{}{}
-		}
-		a.AllowedDomains = sliceutil.SortedKeys(domainSet)
+	domainSet := make(map[string]struct{}, len(existing)+len(incoming))
+	for _, d := range existing {
+		domainSet[d] = struct{}{}
 	}
+	for _, d := range incoming {
+		domainSet[d] = struct{}{}
+	}
+	return sliceutil.SortedKeys(domainSet)
 }
