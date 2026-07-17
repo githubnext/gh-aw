@@ -28,6 +28,31 @@ const EVENT_TYPE_DESCRIPTIONS = {
 const VALID_REACTIONS = Object.freeze(Object.keys(REACTION_MAP));
 
 /**
+ * @typedef {{ route: string, params: Record<string, unknown> }} RestEndpoint
+ */
+
+/**
+ * @param {unknown} endpoint
+ * @returns {endpoint is RestEndpoint}
+ */
+function isRestEndpoint(endpoint) {
+  return typeof endpoint === "object" && endpoint !== null && "route" in endpoint && "params" in endpoint;
+}
+
+/**
+ * @param {unknown} endpoint
+ * @param {string} endpointName
+ * @param {string} eventName
+ * @returns {RestEndpoint}
+ */
+function expectRestEndpoint(endpoint, endpointName, eventName) {
+  if (!isRestEndpoint(endpoint)) {
+    throw new Error(`${ERR_VALIDATION}: Unexpected ${endpointName} endpoint shape for event: ${eventName}`);
+  }
+  return endpoint;
+}
+
+/**
  * Resolve the reaction and comment API endpoints for a given event.
  * Returns null (after calling core.setFailed) when the event or payload is invalid.
  * @param {string} eventName - The GitHub event name
@@ -175,9 +200,12 @@ async function main() {
 
     // For discussions, reactionEndpoint is a node ID (GraphQL), otherwise it's a typed REST route
     if (eventName === "discussion" || eventName === "discussion_comment") {
-      await addDiscussionReaction(/** @type {string} */ reactionEndpoint, reaction);
+      if (typeof reactionEndpoint !== "string") {
+        throw new Error(`${ERR_VALIDATION}: Unexpected reaction endpoint shape for event: ${eventName}`);
+      }
+      await addDiscussionReaction(reactionEndpoint, reaction);
     } else {
-      const { route, params } = /** @type {{ route: string, params: Record<string, unknown> }} */ reactionEndpoint;
+      const { route, params } = expectRestEndpoint(reactionEndpoint, "reaction", eventName);
       await addReaction(route, params, reaction);
     }
 
@@ -252,8 +280,11 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
     const commentBody = commentParts.join("\n\n");
 
     if (eventName === "discussion" || eventName === "discussion_comment") {
+      if (typeof endpoint !== "string") {
+        throw new Error(`${ERR_VALIDATION}: Unexpected comment endpoint shape for event: ${eventName}`);
+      }
       // Parse discussion number from special format: "discussion:NUMBER" or "discussion_comment:NUMBER:COMMENT_ID"
-      const discussionNumber = parseInt(/** @type {string} */ endpoint.split(":")[1], 10);
+      const discussionNumber = parseInt(endpoint.split(":")[1], 10);
       const discussionId = await getDiscussionNodeId(eventRepo.owner, eventRepo.repo, discussionNumber);
       // For discussion_comment events, thread the reply under the triggering comment.
       // GitHub Discussions only supports two nesting levels, so resolve the top-level parent node ID.
@@ -264,7 +295,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
     }
 
     // Create a new comment for non-discussion events using typed route
-    const { route, params } = /** @type {{ route: string, params: Record<string, unknown> }} */ endpoint;
+    const { route, params } = expectRestEndpoint(endpoint, "comment", eventName);
     const createResponse = await github.request(route, {
       ...params,
       body: commentBody,
@@ -281,4 +312,4 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
   }
 }
 
-module.exports = { main, addCommentWithWorkflowLink, resolveEventEndpoints, VALID_REACTIONS, addReaction, addDiscussionReaction };
+module.exports = { main, addCommentWithWorkflowLink, resolveEventEndpoints, VALID_REACTIONS, addReaction, addDiscussionReaction, isRestEndpoint, expectRestEndpoint };

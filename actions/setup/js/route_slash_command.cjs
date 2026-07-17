@@ -132,6 +132,12 @@ async function resolveDispatchRef() {
   return normalizeDispatchRef(defaultBranch);
 }
 
+/** @typedef {"+1" | "-1" | "confused" | "eyes" | "heart" | "hooray" | "laugh" | "rocket"} ReactionName */
+
+/**
+ * @param {unknown} reaction
+ * @returns {ReactionName | ""}
+ */
 function normalizeReaction(reaction) {
   if (typeof reaction !== "string") {
     return "";
@@ -140,7 +146,7 @@ function normalizeReaction(reaction) {
   if (!trimmed || trimmed === "none" || !Object.hasOwn(REACTION_MAP, trimmed)) {
     return "";
   }
-  return trimmed;
+  return /** @type {ReactionName} */ trimmed;
 }
 
 function maintainsStatusComment(route) {
@@ -150,7 +156,7 @@ function maintainsStatusComment(route) {
 /**
  * Returns the first valid non-"none" ai_reaction configured on matching routes.
  * @param {Array<{ai_reaction?: unknown}>} routes
- * @returns {string}
+ * @returns {ReactionName | ""}
  */
 function resolveImmediateReaction(routes) {
   for (const route of routes) {

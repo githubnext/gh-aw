@@ -13,6 +13,14 @@ const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
 /**
+ * @param {unknown} endpoint
+ * @returns {endpoint is { route: string, params: Record<string, unknown> }}
+ */
+function isRestEndpoint(endpoint) {
+  return typeof endpoint === "object" && endpoint !== null && "route" in endpoint && "params" in endpoint;
+}
+
+/**
  * @typedef {{ owner: string, repo: string }} RepoRef
  * @typedef {{ id: string, url: string, repo: RepoRef }} CommentMetadata
  * @typedef {{ id: string, url: string, repo: RepoRef | null }} ReusableStatusComment
@@ -426,14 +434,20 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
   const commentBody = buildCommentBody(eventName, runUrl);
 
   if (eventName === "discussion") {
+    if (typeof endpoint !== "string") {
+      throw new Error(`${ERR_VALIDATION}: Unexpected comment endpoint shape for event: ${eventName}`);
+    }
     // Parse discussion number from special format: "discussion:NUMBER"
-    const discussionNumber = parseInt(/** @type {string} */ endpoint.split(":")[1], 10);
+    const discussionNumber = parseInt(endpoint.split(":")[1], 10);
     return postDiscussionComment(discussionNumber, commentBody, null, eventRepo);
   }
 
   if (eventName === "discussion_comment") {
+    if (typeof endpoint !== "string") {
+      throw new Error(`${ERR_VALIDATION}: Unexpected comment endpoint shape for event: ${eventName}`);
+    }
     // Parse discussion number from special format: "discussion_comment:NUMBER:COMMENT_ID"
-    const discussionNumber = parseInt(/** @type {string} */ endpoint.split(":")[1], 10);
+    const discussionNumber = parseInt(endpoint.split(":")[1], 10);
 
     // GitHub Discussions only supports two nesting levels, so resolve the top-level parent's node ID
     const commentNodeId = await resolveTopLevelDiscussionCommentId(github, eventPayload?.comment?.node_id);
@@ -441,7 +455,10 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
   }
 
   // Create a new comment for non-discussion events using typed route
-  const { route, params } = /** @type {{ route: string, params: Record<string, unknown> }} */ endpoint;
+  if (!isRestEndpoint(endpoint)) {
+    throw new Error(`${ERR_VALIDATION}: Unexpected comment endpoint shape for event: ${eventName}`);
+  }
+  const { route, params } = endpoint;
   const createResponse = await github.request(route, {
     ...params,
     body: commentBody,

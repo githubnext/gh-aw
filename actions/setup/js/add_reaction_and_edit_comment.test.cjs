@@ -38,8 +38,8 @@ global.context = mockContext;
 
 // Helper to import the module fresh (bust module cache)
 async function loadModule() {
-  const { main, addCommentWithWorkflowLink, addReaction, addDiscussionReaction, resolveEventEndpoints, VALID_REACTIONS } = await import("./add_reaction_and_edit_comment.cjs?" + Date.now());
-  return { main, addCommentWithWorkflowLink, addReaction, addDiscussionReaction, resolveEventEndpoints, VALID_REACTIONS };
+  const { main, addCommentWithWorkflowLink, addReaction, addDiscussionReaction, resolveEventEndpoints, VALID_REACTIONS, expectRestEndpoint } = await import("./add_reaction_and_edit_comment.cjs?" + Date.now());
+  return { main, addCommentWithWorkflowLink, addReaction, addDiscussionReaction, resolveEventEndpoints, VALID_REACTIONS, expectRestEndpoint };
 }
 
 describe("add_reaction_and_edit_comment.cjs", () => {
@@ -83,6 +83,14 @@ describe("add_reaction_and_edit_comment.cjs", () => {
 
       expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", expect.objectContaining({ content: "eyes", owner: "testowner", repo: "testrepo", issue_number: 123 }));
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "456");
+    });
+
+    describe("Endpoint validation", () => {
+      it("should throw a validation error when a REST endpoint is unexpectedly a string", async () => {
+        const { expectRestEndpoint } = await loadModule();
+
+        expect(() => expectRestEndpoint("discussion:12", "reaction", "issues")).toThrow(`${ERR_VALIDATION}: Unexpected reaction endpoint shape for event: issues`);
+      });
     });
 
     it("should default to 'eyes' reaction when GH_AW_REACTION is not set", async () => {

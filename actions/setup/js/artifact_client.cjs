@@ -28,6 +28,14 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function parseURL(url, base, errorMessage) {
+  try {
+    return base === undefined ? new URL(url) : new URL(url, base);
+  } catch {
+    throw new Error(errorMessage);
+  }
+}
+
 function decodeJWTPayload(token) {
   const parts = String(token || "").split(".");
   if (parts.length < 2 || !parts[1]) {
@@ -70,11 +78,7 @@ function getResultsServiceOrigin() {
   if (!url) {
     throw new Error("ACTIONS_RESULTS_URL is required for artifact upload");
   }
-  try {
-    return new URL(url).origin;
-  } catch {
-    throw new Error(`ACTIONS_RESULTS_URL is not a valid URL: ${url}`);
-  }
+  return parseURL(url, undefined, `ACTIONS_RESULTS_URL is not a valid URL: ${url}`).origin;
 }
 
 async function twirpRequest(method, body) {
@@ -82,9 +86,10 @@ async function twirpRequest(method, body) {
   if (!runtimeToken) {
     throw new Error("ACTIONS_RUNTIME_TOKEN is required for artifact upload");
   }
+  const resultsServiceOrigin = getResultsServiceOrigin();
   const url = (() => {
     try {
-      return new URL(`/twirp/${TWIRP_ARTIFACT_SERVICE}/${method}`, getResultsServiceOrigin()).toString();
+      return parseURL(`/twirp/${TWIRP_ARTIFACT_SERVICE}/${method}`, resultsServiceOrigin, `Failed to construct twirp URL for method: ${method}`).toString();
     } catch {
       throw new Error(`Failed to construct twirp URL for method: ${method}`);
     }
@@ -155,7 +160,7 @@ function isZipResponse(url, contentType) {
     return true;
   }
   try {
-    return new URL(url).pathname.toLowerCase().endsWith(".zip");
+    return parseURL(url, undefined, `Invalid URL for zip detection: ${url}`).pathname.toLowerCase().endsWith(".zip");
   } catch {
     return false;
   }
@@ -259,13 +264,7 @@ class DefaultArtifactClient {
     let page = 1;
     const maxPages = Math.ceil(MAX_ARTIFACTS / PAGE_SIZE);
     for (; page <= maxPages; page++) {
-      const url = (() => {
-        try {
-          return new URL(`/repos/${findBy.repositoryOwner}/${findBy.repositoryName}/actions/runs/${findBy.workflowRunId}/artifacts`, serverUrl);
-        } catch {
-          throw new Error(`Failed to construct artifacts URL for run ${findBy.workflowRunId}`);
-        }
-      })();
+      const url = parseURL(`/repos/${findBy.repositoryOwner}/${findBy.repositoryName}/actions/runs/${findBy.workflowRunId}/artifacts`, serverUrl, `Failed to construct artifacts URL for run ${findBy.workflowRunId}`);
       url.searchParams.set("per_page", String(PAGE_SIZE));
       url.searchParams.set("page", String(page));
       const response = await fetch(url.toString(), {
@@ -309,13 +308,11 @@ class DefaultArtifactClient {
     const destination = options.path || process.env.GITHUB_WORKSPACE || process.cwd();
     fs.mkdirSync(destination, { recursive: true });
 
-    const apiUrl = (() => {
-      try {
-        return new URL(`/repos/${findBy.repositoryOwner}/${findBy.repositoryName}/actions/artifacts/${artifactId}/zip`, process.env.GITHUB_API_URL || "https://api.github.com");
-      } catch {
-        throw new Error(`Failed to construct download URL for artifact ${artifactId}`);
-      }
-    })();
+    const apiUrl = parseURL(
+      `/repos/${findBy.repositoryOwner}/${findBy.repositoryName}/actions/artifacts/${artifactId}/zip`,
+      process.env.GITHUB_API_URL || "https://api.github.com",
+      `Failed to construct download URL for artifact ${artifactId}`
+    );
     const redirectResponse = await fetch(apiUrl.toString(), {
       headers: {
         Authorization: "Bearer " + findBy.token,
