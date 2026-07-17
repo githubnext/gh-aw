@@ -60,7 +60,7 @@ class ReadBuffer {
     try {
       return JSON.parse(line);
     } catch (error) {
-      throw new Error(`${ERR_PARSE}: Parse error: ${getErrorMessage(error)}`);
+      throw new Error(`${ERR_PARSE}: Parse error: ${getErrorMessage(error)}`, { cause: error });
     }
   }
 }

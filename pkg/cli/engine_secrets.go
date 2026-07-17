@@ -398,10 +398,45 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 }
 
 func buildCopilotPATCreationURL() string {
-	const baseURL = "https://github.com/settings/personal-access-tokens/new"
 	values := url.Values{}
 	values.Set("name", constants.CopilotGitHubToken)
 	values.Set("user_copilot_requests", "read")
+	return buildPATCreationURL(values)
+}
+
+func buildGenericPATCreationURL() string {
+	return buildPATCreationURL(nil)
+}
+
+// isAnyGitHubHostEnvVarSet returns true when any of the environment variables
+// consumed by getGitHubHost() is explicitly set.  When at least one is present
+// the caller has made an explicit host choice and the git-remote fallback should
+// not be consulted.
+func isAnyGitHubHostEnvVarSet() bool {
+	for _, envVar := range []string{"GITHUB_SERVER_URL", "GITHUB_ENTERPRISE_HOST", "GITHUB_HOST", "GH_HOST"} {
+		if os.Getenv(envVar) != "" { //nolint:osgetenvlibrary
+			return true
+		}
+	}
+	return false
+}
+
+func buildPATCreationURL(values url.Values) string {
+	hostURL := getGitHubHost()
+	// Only consult the git remote when the caller has not made an explicit host
+	// choice via an environment variable.  Falling back when an env var selects
+	// public GitHub would silently override that explicit choice.
+	if !isAnyGitHubHostEnvVarSet() {
+		if detectedHost := getHostFromOriginRemote(); detectedHost != "" && detectedHost != "github.com" {
+			hostURL = stringutil.NormalizeGitHubHostURL(detectedHost)
+		}
+	}
+
+	baseURL := strings.TrimRight(hostURL, "/") + "/settings/personal-access-tokens/new"
+	if len(values) == 0 {
+		return baseURL
+	}
+
 	return baseURL + "?" + values.Encode()
 }
 
@@ -409,6 +444,7 @@ func buildCopilotPATCreationURL() string {
 // This uses PAT-specific wording instead of "API key" since system secrets are GitHub tokens
 func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfig) error {
 	engineSecretsLog.Printf("Prompting for system token: %s", req.Name)
+	patURL := buildGenericPATCreationURL()
 
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintf(os.Stderr, "%s requires a GitHub Personal Access Token (PAT).\n", req.Name)
@@ -417,7 +453,7 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Recommended scopes: "+req.Description))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Create a token at:")
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  https://github.com/settings/personal-access-tokens/new"))
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  "+patURL))
 	fmt.Fprintln(os.Stderr, "")
 
 	var token string
