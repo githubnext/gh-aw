@@ -211,7 +211,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   // Ensure the workspace is trusted for the lifetime of this server process.
   // This covers all current and future handlers automatically; per-handler calls
   // additionally cover per-request checkout paths that differ from GITHUB_WORKSPACE.
-  ensureSafeDirectoryTrust(process.env.GITHUB_WORKSPACE || process.cwd());
+  ensureSafeDirectoryTrust(process.env.GITHUB_WORKSPACE || process.cwd(), server);
 
   const TOKEN_THRESHOLD = 16000;
 
@@ -769,7 +769,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // This prevents TOCTOU races where the agent flips the ref between patch and bundle
     // generation, causing the two to represent different commit sets.
     const gitCwd = repoCwd || process.env.GITHUB_WORKSPACE || process.cwd();
-    ensureSafeDirectoryTrust(gitCwd);
+    ensureSafeDirectoryTrust(gitCwd, server);
     let pinnedSha;
     try {
       pinnedSha = execGitSync(["rev-parse", "--verify", `refs/heads/${entry.branch}^{commit}`], { cwd: gitCwd })
@@ -1205,7 +1205,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // This prevents TOCTOU races where the agent flips the ref between patch and bundle
     // generation, causing the two to represent different commit sets.
     const pushGitCwd = repoCwd || process.env.GITHUB_WORKSPACE || process.cwd();
-    ensureSafeDirectoryTrust(pushGitCwd);
+    ensureSafeDirectoryTrust(pushGitCwd, server);
     let pushPinnedSha;
     try {
       pushPinnedSha = execGitSync(["rev-parse", "--verify", `refs/heads/${entry.branch}^{commit}`], { cwd: pushGitCwd })

@@ -364,17 +364,20 @@ describe("git_helpers.cjs", () => {
       // Simulate what getGitAuthEnv returns being already applied via env
       const authEnv = getGitAuthEnv("test-token");
       Object.assign(process.env, authEnv);
+      const existingConfigCount = parseInt(authEnv.GIT_CONFIG_COUNT, 10);
 
       ensureSafeDirectoryTrust("/workspace/repo");
 
-      // The count should be incremented by 1 (from 1 to 2)
-      expect(parseInt(process.env.GIT_CONFIG_COUNT, 10)).toBe(2);
-      // Existing auth entry preserved
-      expect(process.env.GIT_CONFIG_KEY_0).toBe(authEnv.GIT_CONFIG_KEY_0);
-      expect(process.env.GIT_CONFIG_VALUE_0).toBe(authEnv.GIT_CONFIG_VALUE_0);
+      // The count should be incremented by 1.
+      expect(parseInt(process.env.GIT_CONFIG_COUNT, 10)).toBe(existingConfigCount + 1);
+      // Existing auth entries preserved
+      for (let i = 0; i < existingConfigCount; i++) {
+        expect(process.env[`GIT_CONFIG_KEY_${i}`]).toBe(authEnv[`GIT_CONFIG_KEY_${i}`]);
+        expect(process.env[`GIT_CONFIG_VALUE_${i}`]).toBe(authEnv[`GIT_CONFIG_VALUE_${i}`]);
+      }
       // New safe.directory entry appended
-      expect(process.env.GIT_CONFIG_KEY_1).toBe("safe.directory");
-      expect(process.env.GIT_CONFIG_VALUE_1).toBe("/workspace/repo");
+      expect(process.env[`GIT_CONFIG_KEY_${existingConfigCount}`]).toBe("safe.directory");
+      expect(process.env[`GIT_CONFIG_VALUE_${existingConfigCount}`]).toBe("/workspace/repo");
     });
 
     it("should handle malformed GIT_CONFIG_COUNT values gracefully", async () => {
@@ -408,6 +411,21 @@ describe("git_helpers.cjs", () => {
         expect(process.env.GIT_CONFIG_COUNT).toBe("1");
         expect(process.env.GIT_CONFIG_KEY_0).toBe("safe.directory");
         expect(process.env.GIT_CONFIG_VALUE_0).toBe("/workspace/repo");
+      } finally {
+        global.core = originalCore;
+      }
+    });
+
+    it("should use a provided logger when core is not shimmed", async () => {
+      const { ensureSafeDirectoryTrust } = await import("./git_helpers.cjs");
+      const originalCore = global.core;
+      const logger = { debug: vi.fn() };
+
+      global.core = undefined;
+
+      try {
+        ensureSafeDirectoryTrust("/workspace/repo", logger);
+        expect(logger.debug).toHaveBeenCalledWith("Configured git safe.directory for bridge context: /workspace/repo");
       } finally {
         global.core = originalCore;
       }

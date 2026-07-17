@@ -50,9 +50,11 @@ function getGitAuthEnv(token) {
  * GIT_CONFIG_COUNT/KEY/VALUE is supported since git 2.31.
  *
  * @param {string} gitCwd - The directory to trust (e.g. GITHUB_WORKSPACE or a repo checkout path)
+ * @param {Object|Function} [logger] - Optional logger object
+ *   with a debug method (for example the MCP server) or a direct debug function.
  * @returns {void}
  */
-function ensureSafeDirectoryTrust(gitCwd) {
+function ensureSafeDirectoryTrust(gitCwd, logger) {
   if (!gitCwd) return;
 
   // Check if gitCwd is already present in the injected env-var config to avoid
@@ -72,7 +74,15 @@ function ensureSafeDirectoryTrust(gitCwd) {
   process.env.GIT_CONFIG_COUNT = String(existingCount + 1);
   process.env[`GIT_CONFIG_KEY_${idx}`] = "safe.directory";
   process.env[`GIT_CONFIG_VALUE_${idx}`] = gitCwd;
-  globalThis.core?.debug?.(`Configured git safe.directory for bridge context: ${gitCwd}`);
+  let debug;
+  if (typeof logger === "function") {
+    debug = logger;
+  } else if (typeof logger?.debug === "function") {
+    debug = logger.debug.bind(logger);
+  } else if (typeof globalThis.core?.debug === "function") {
+    debug = globalThis.core.debug.bind(globalThis.core);
+  }
+  debug?.(`Configured git safe.directory for bridge context: ${gitCwd}`);
 }
 
 /**
