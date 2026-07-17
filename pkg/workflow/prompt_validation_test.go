@@ -49,6 +49,33 @@ func TestGitHubMCPToolsWithSafeOutputsPromptBoundsCodeScanningAlertQueries(t *te
 		"prompt should require severity: critical,high to bound list_code_scanning_alerts queries")
 }
 
+// TestGitHubMCPToolsPromptHasFieldSelectionGuidance verifies that both prompt files
+// contain guidance about the fields parameter introduced in GitHub MCP server 1.6.0.
+// Field selection allows agents to request only the fields they need, significantly
+// reducing response size for list/search tools.
+func TestGitHubMCPToolsPromptHasFieldSelectionGuidance(t *testing.T) {
+	promptFiles := []string{
+		filepath.Join("..", "..", "actions", "setup", "md", "github_mcp_tools_prompt.md"),
+		filepath.Join("..", "..", "actions", "setup", "md", "github_mcp_tools_with_safeoutputs_prompt.md"),
+	}
+
+	for _, promptPath := range promptFiles {
+		t.Run(filepath.Base(promptPath), func(t *testing.T) {
+			data, err := os.ReadFile(promptPath)
+			require.NoError(t, err, "should be able to read %s", promptPath)
+
+			content := string(data)
+
+			assert.Contains(t, content, "fields",
+				"prompt should mention fields parameter for response size reduction")
+			assert.Contains(t, content, "list_pull_requests",
+				"prompt should reference list_pull_requests as a tool that supports fields")
+			assert.Contains(t, content, "1.6.0",
+				"prompt should reference the GitHub MCP server version that introduced fields")
+		})
+	}
+}
+
 // TestGitHubMCPToolsPromptIncludedForCodeSecurityToolset verifies that when a
 // workflow uses the code_security GitHub toolset the generated lock file references
 // one of the github_mcp_tools prompt files (which carry the list_code_scanning_alerts
