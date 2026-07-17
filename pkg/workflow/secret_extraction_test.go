@@ -633,6 +633,36 @@ func TestContainsJobOutputExpr(t *testing.T) {
 			value: "${{ needs.fetch-token.outputs.token }}",
 			want:  true,
 		},
+		{
+			name:  "needs not first token in expression (sub-expression with &&)",
+			value: "${{ github.ref && needs.auth.outputs.token }}",
+			want:  true,
+		},
+		{
+			name:  "needs not first token in expression (sub-expression with ||)",
+			value: "${{ env.FALLBACK || needs.mint.outputs.gh_token }}",
+			want:  true,
+		},
+		{
+			name:  "bracket notation with single quotes",
+			value: "${{ needs['auth'].outputs['token'] }}",
+			want:  true,
+		},
+		{
+			name:  "bracket notation with double quotes",
+			value: `${{ needs["auth"].outputs["token"] }}`,
+			want:  true,
+		},
+		{
+			name:  "full bracket notation (job and outputs key both in brackets)",
+			value: "${{ needs['auth']['outputs']['token'] }}",
+			want:  true,
+		},
+		{
+			name:  "bracket notation embedded after other token",
+			value: "${{ github.token || needs['mint'].outputs['gh_token'] }}",
+			want:  true,
+		},
 	}
 
 	for _, tt := range tests {

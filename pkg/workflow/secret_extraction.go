@@ -16,10 +16,15 @@ var (
 	// secretsNamePattern extracts the secret variable name from an expression
 	secretsNamePattern = regexp.MustCompile(`secrets\.([A-Z_][A-Z0-9_]*)`)
 
-	// jobOutputExprPattern matches a ${{ needs.JOB.outputs.OUTPUT }} expression anywhere in a string.
-	// Used to detect job-output credential references for --exclude-env, treating them
-	// the same as ${{ secrets.* }} references.
-	jobOutputExprPattern = regexp.MustCompile(`\$\{\{\s*needs\.[A-Za-z_][A-Za-z0-9_-]*\.outputs\.[A-Za-z_][A-Za-z0-9_-]*`)
+	// jobOutputBodyDotPattern matches needs.JOB.outputs.OUTPUT anywhere within an expression body
+	// using dot notation. The word boundary ensures we don't match partial identifiers.
+	// Used inside ContainsJobOutputExpr after expressions have been extracted by InlineExpressionPattern.
+	jobOutputBodyDotPattern = regexp.MustCompile(`\bneeds\.[A-Za-z_][A-Za-z0-9_-]*\.outputs\.[A-Za-z_][A-Za-z0-9_-]*`)
+
+	// jobOutputBodyBracketPattern matches bracket-notation job-output references anywhere within
+	// an expression body: needs['JOB'].outputs, needs["JOB"].outputs, or needs['JOB']['outputs'].
+	// Used inside ContainsJobOutputExpr alongside jobOutputBodyDotPattern.
+	jobOutputBodyBracketPattern = regexp.MustCompile(`\bneeds\[['"][A-Za-z_][A-Za-z0-9_-]*['"]\](?:\.outputs\b|\[['"]outputs['"]\])`)
 )
 
 // SecretExpression represents a parsed secret expression
@@ -98,13 +103,24 @@ func ExtractSecretsFromMap(values map[string]string) map[string]string {
 }
 
 // ContainsJobOutputExpr reports whether value contains a GitHub Actions job-output
-// expression of the form ${{ needs.JOB.outputs.OUTPUT }}.  These expressions carry
-// values that are computed at runtime by an upstream job and are often sensitive
-// (e.g. ephemeral GitHub App tokens), so they must be treated the same as
+// expression. Detected forms include:
+//   - Dot notation:     ${{ needs.JOB.outputs.OUTPUT }}
+//   - Sub-expression:   ${{ github.ref && needs.JOB.outputs.OUTPUT }}
+//   - Bracket notation: ${{ needs['JOB'].outputs['OUTPUT'] }}
+//   - Double-quote:     ${{ needs["JOB"]["outputs"]["OUTPUT"] }}
+//
+// These expressions carry values computed at runtime by an upstream job and are often
+// sensitive (e.g. ephemeral GitHub App tokens), so they must be treated the same as
 // ${{ secrets.* }} references when deciding whether to exclude an env var from the
 // agent container via AWF --exclude-env.
 func ContainsJobOutputExpr(value string) bool {
-	return jobOutputExprPattern.MatchString(value)
+	expressions := InlineExpressionPattern.FindAllString(value, -1)
+	for _, expr := range expressions {
+		if jobOutputBodyDotPattern.MatchString(expr) || jobOutputBodyBracketPattern.MatchString(expr) {
+			return true
+		}
+	}
+	return false
 }
 
 // ExtractEnvExpressionsFromMap extracts all env variable expressions from a map of string values
