@@ -355,7 +355,11 @@ async function main() {
   }
   // Post-creation check
   assertNotSymlink(configDir);
-  fs.chmodSync(configDir, 0o700);
+  try {
+    fs.chmodSync(configDir, 0o700);
+  } catch (err) {
+    throw new Error(`Failed to set permissions on ${configDir}: ${String(err)}`, { cause: err });
+  }
 
   // -----------------------------------------------------------------------
   // Validate container syntax
@@ -754,7 +758,11 @@ async function main() {
   }
 
   // Restrict permissions
-  fs.chmodSync(outputPath, 0o600);
+  try {
+    fs.chmodSync(outputPath, 0o600);
+  } catch (err) {
+    throw new Error(`Failed to set permissions on ${outputPath}: ${String(err)}`, { cause: err });
+  }
 
   // Check for error payload
   let gatewayOutput;
@@ -847,10 +855,18 @@ async function main() {
       } catch {
         core.error("ERROR: Failed to filter CLI-mounted servers from agent MCP config");
         core.info("Falling back to unfiltered config");
-        fs.copyFileSync(outputPath, copilotConfigFile);
+        try {
+          fs.copyFileSync(outputPath, copilotConfigFile);
+        } catch (err) {
+          throw new Error(`Failed to copy file ${outputPath} to ${copilotConfigFile}: ${String(err)}`, { cause: err });
+        }
       }
     } else {
-      fs.copyFileSync(outputPath, copilotConfigFile);
+      try {
+        fs.copyFileSync(outputPath, copilotConfigFile);
+      } catch (err) {
+        throw new Error(`Failed to copy file ${outputPath} to ${copilotConfigFile}: ${String(err)}`, { cause: err });
+      }
     }
     let copilotConfigContent;
     try {

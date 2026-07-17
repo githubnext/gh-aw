@@ -42,10 +42,10 @@ function writeEnvLine(filePath, key, value, logLabel, fileLabel) {
   if (!filePath || !value) return;
   try {
     appendFileSync(filePath, `${key}=${value}\n`);
+    console.log(`[otlp] ${logLabel} written to ${fileLabel}`);
   } catch {
     /* ignore */
   }
-  console.log(`[otlp] ${logLabel} written to ${fileLabel}`);
 }
 
 /**

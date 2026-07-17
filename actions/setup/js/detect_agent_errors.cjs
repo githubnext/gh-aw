@@ -177,8 +177,8 @@ function writeOutputs(results) {
   const lines = buildOutputLines(results);
   try {
     fs.appendFileSync(outputFile, lines.join("\n") + "\n");
-  } catch {
-    /* ignore */
+  } catch (err) {
+    process.stderr.write(`[detect-agent-errors] Failed to write to GITHUB_OUTPUT: ${String(err)}\n`);
   }
 }
 

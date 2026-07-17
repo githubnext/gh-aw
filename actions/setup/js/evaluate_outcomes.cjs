@@ -150,7 +150,11 @@ function writeJSONAtomic(filePath, data) {
   } catch (err) {
     throw new Error(`Failed to write file ${tmp}: ${String(err)}`, { cause: err });
   }
-  fs.renameSync(tmp, filePath);
+  try {
+    fs.renameSync(tmp, filePath);
+  } catch (err) {
+    throw new Error(`Failed to rename file ${tmp} to ${filePath}: ${String(err)}`, { cause: err });
+  }
 }
 
 /**
