@@ -832,3 +832,37 @@ func TestAppendModelsField_ProvidersAndAliasesBothExtracted(t *testing.T) {
 	require.Len(t, acc.models, 1)
 	assert.Equal(t, []string{"gpt-5"}, acc.models[0]["agent"])
 }
+
+func TestMergeExcludedEnv_SingleImport(t *testing.T) {
+	acc := newImportAccumulator()
+	fm := map[string]any{
+		"excluded-env": []any{"TOKEN_A", "TOKEN_B"},
+	}
+	acc.mergeExcludedEnv(fm)
+	assert.Equal(t, []string{"TOKEN_A", "TOKEN_B"}, acc.excludedEnv)
+}
+
+func TestMergeExcludedEnv_Deduplication(t *testing.T) {
+	acc := newImportAccumulator()
+	fm1 := map[string]any{"excluded-env": []any{"TOKEN_A", "TOKEN_B"}}
+	fm2 := map[string]any{"excluded-env": []any{"TOKEN_B", "TOKEN_C"}}
+	acc.mergeExcludedEnv(fm1)
+	acc.mergeExcludedEnv(fm2)
+	// TOKEN_B should appear only once
+	assert.Equal(t, []string{"TOKEN_A", "TOKEN_B", "TOKEN_C"}, acc.excludedEnv)
+}
+
+func TestMergeExcludedEnv_EmptyOrMissing(t *testing.T) {
+	acc := newImportAccumulator()
+	acc.mergeExcludedEnv(map[string]any{})
+	acc.mergeExcludedEnv(map[string]any{"excluded-env": []any{}})
+	assert.Empty(t, acc.excludedEnv)
+}
+
+func TestToImportsResult_MergedExcludedEnv(t *testing.T) {
+	acc := newImportAccumulator()
+	fm := map[string]any{"excluded-env": []any{"MY_TOKEN"}}
+	acc.mergeExcludedEnv(fm)
+	result := acc.toImportsResult(nil)
+	assert.Equal(t, []string{"MY_TOKEN"}, result.MergedExcludedEnv)
+}

@@ -60,7 +60,8 @@ async function setupMain() {
   try {
     questions = JSON.parse(questionsRaw);
   } catch (e) {
-    core.setFailed(`${ERR_VALIDATION}: GH_AW_EVALS_QUESTIONS is not valid JSON: ` + e.message);
+    const eAny = /** @type {any} */ e;
+    core.setFailed(`${ERR_VALIDATION}: GH_AW_EVALS_QUESTIONS is not valid JSON: ` + (eAny?.message ?? String(e)));
     return;
   }
 
