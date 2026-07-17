@@ -14,7 +14,8 @@ timeout-minutes: 30
 strict: false
 engine:
   id: auggie
-  model: copilot/claude-sonnet-4.5
+  model-provider: github
+  model: claude-sonnet-4.5
 
 permissions:
   contents: read
