@@ -1,0 +1,23 @@
+{
+  "github-copilot": {
+    "gemini-2.5-pro": "completions",
+    "gemini-3-flash-preview": "completions",
+    "gemini-3.1-pro-preview": "completions",
+    "gemini-3.5-flash": "completions",
+    "gpt-4.1": "completions",
+    "gpt-5-mini": "responses",
+    "gpt-5.2": "responses",
+    "gpt-5.2-codex": "responses",
+    "gpt-5.3-codex": "responses",
+    "gpt-5.4": "responses",
+    "gpt-5.4-mini": "responses",
+    "gpt-5.4-nano": "responses",
+    "gpt-5.5": "responses",
+    "gpt-5.6-luna": "responses",
+    "gpt-5.6-sol": "responses",
+    "gpt-5.6-terra": "responses",
+    "kimi-k2.7-code": "completions",
+    "mai-code-1-flash-picker": "responses",
+    "raptor-mini": "completions"
+  }
+}

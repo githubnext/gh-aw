@@ -952,6 +952,16 @@ jobs:
           printf '%s' '{"builtInAgents":{"rubberDuck":false}}' > "$HOME/.copilot/settings.json"
           export XDG_CONFIG_HOME="$HOME"
           export GH_AW_MCP_CONFIG="$HOME/.copilot/mcp-config.json"
+          if [ -z "${COPILOT_PROVIDER_WIRE_API:-}" ]; then
+            case "${COPILOT_MODEL:-}" in
+              gpt-5-mini|gpt-5.2|gpt-5.2-codex|gpt-5.3-codex|gpt-5.4|gpt-5.4-mini|gpt-5.4-nano|gpt-5.5|gpt-5.6-luna|gpt-5.6-sol|gpt-5.6-terra|mai-code-1-flash-picker)
+                export COPILOT_PROVIDER_WIRE_API=responses
+                ;;
+              gemini-2.5-pro|gemini-3-flash-preview|gemini-3.1-pro-preview|gemini-3.5-flash|gpt-4.1|kimi-k2.7-code|raptor-mini)
+                export COPILOT_PROVIDER_WIRE_API=completions
+                ;;
+            esac
+          fi
           touch /tmp/gh-aw/agent-step-summary.md
           GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)
           export GH_AW_NODE_BIN
@@ -1626,6 +1636,16 @@ jobs:
           mkdir -p "$HOME/.copilot"
           printf '%s' '{"builtInAgents":{"rubberDuck":false}}' > "$HOME/.copilot/settings.json"
           export XDG_CONFIG_HOME="$HOME"
+          if [ -z "${COPILOT_PROVIDER_WIRE_API:-}" ]; then
+            case "${COPILOT_MODEL:-}" in
+              gpt-5-mini|gpt-5.2|gpt-5.2-codex|gpt-5.3-codex|gpt-5.4|gpt-5.4-mini|gpt-5.4-nano|gpt-5.5|gpt-5.6-luna|gpt-5.6-sol|gpt-5.6-terra|mai-code-1-flash-picker)
+                export COPILOT_PROVIDER_WIRE_API=responses
+                ;;
+              gemini-2.5-pro|gemini-3-flash-preview|gemini-3.1-pro-preview|gemini-3.5-flash|gpt-4.1|kimi-k2.7-code|raptor-mini)
+                export COPILOT_PROVIDER_WIRE_API=completions
+                ;;
+            esac
+          fi
           touch /tmp/gh-aw/agent-step-summary.md
           GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)
           export GH_AW_NODE_BIN
