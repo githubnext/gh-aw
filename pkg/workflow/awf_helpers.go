@@ -889,8 +889,10 @@ func WrapCommandInShell(command string) string {
 // ComputeAWFExcludeEnvVarNames returns the list of environment variable names that must be
 // excluded from the agent container's visible environment via AWF's --exclude-env flag.
 //
-// Only env var names whose step-env values WILL contain a ${{ secrets.* }} reference are
-// included, so non-secret vars (e.g. GH_DEBUG: "1" in mcp-scripts) are never excluded.
+// Env var names are included when their step-env values contain a ${{ secrets.* }} reference
+// OR a ${{ needs.JOB.outputs.OUTPUT }} job-output expression (which commonly carries
+// ephemeral tokens such as GitHub App installation tokens).  Non-secret static vars
+// (e.g. GH_DEBUG: "1" in mcp-scripts) are never excluded.
 //
 // Parameters:
 //   - workflowData: the workflow being compiled
@@ -900,9 +902,10 @@ func WrapCommandInShell(command string) string {
 //   - MCP_GATEWAY_API_KEY when MCP servers are present
 //   - GITHUB_MCP_SERVER_TOKEN when the GitHub tool is present
 //   - HTTP MCP header secret var names (values always contain ${{ secrets.* }})
-//   - mcp-scripts env var names whose values contain ${{ secrets.* }}
-//   - engine.env var names whose values contain ${{ secrets.* }}
-//   - agent.env var names whose values contain ${{ secrets.* }}
+//   - mcp-scripts env var names whose values contain ${{ secrets.* }} or a job-output expression
+//   - engine.env var names whose values contain ${{ secrets.* }} or a job-output expression
+//   - agent.env var names whose values contain ${{ secrets.* }} or a job-output expression
+//   - names listed in the frontmatter excluded-env field (unconditionally)
 func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames []string) []string {
 	seen := make(map[string]struct {
 	})
@@ -936,32 +939,33 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 		addUnique(varName)
 	}
 
-	// mcp-scripts env vars: only add those whose configured values contain a secret reference.
+	// mcp-scripts env vars: only add those whose configured values contain a secret reference
+	// or a job-output expression (e.g. ${{ needs.fetch_token.outputs.token }}).
 	// (Non-secret vars like GH_DEBUG: "1" must NOT be excluded.)
 	if workflowData.MCPScripts != nil {
 		for _, toolConfig := range workflowData.MCPScripts.Tools {
 			for envName, envValue := range toolConfig.Env {
-				if strings.Contains(envValue, "${{ secrets.") {
+				if strings.Contains(envValue, "${{ secrets.") || ContainsJobOutputExpr(envValue) {
 					addUnique(envName)
 				}
 			}
 		}
 	}
 
-	// engine.env vars that contain a secret reference.
+	// engine.env vars that contain a secret reference or a job-output expression.
 	if workflowData.EngineConfig != nil {
 		for varName, varValue := range workflowData.EngineConfig.Env {
-			if strings.Contains(varValue, "${{ secrets.") {
+			if strings.Contains(varValue, "${{ secrets.") || ContainsJobOutputExpr(varValue) {
 				addUnique(varName)
 			}
 		}
 	}
 
-	// agent.env vars that contain a secret reference.
+	// agent.env vars that contain a secret reference or a job-output expression.
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig != nil {
 		for varName, varValue := range agentConfig.Env {
-			if strings.Contains(varValue, "${{ secrets.") {
+			if strings.Contains(varValue, "${{ secrets.") || ContainsJobOutputExpr(varValue) {
 				addUnique(varName)
 			}
 		}
@@ -971,6 +975,12 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 	// host difc-proxy but must be excluded from the agent container.
 	if isGitHubCLIModeEnabled(workflowData) {
 		addUnique("GH_TOKEN")
+	}
+
+	// Explicitly excluded env vars from the frontmatter excluded-env field.
+	// These are always excluded regardless of their value content.
+	for _, name := range workflowData.ExcludedEnv {
+		addUnique(name)
 	}
 
 	awfHelpersLog.Printf("Computed %d AWF env vars to exclude", len(names))

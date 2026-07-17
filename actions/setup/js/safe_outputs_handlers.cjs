@@ -423,7 +423,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   try {
     deduplicateByTitle = parseDeduplicateByTitle(createIssueConfig.deduplicate_by_title);
   } catch (error) {
-    throw new Error(`${ERR_VALIDATION}: ${getErrorMessage(error)}`);
+    throw new Error(`${ERR_VALIDATION}: ${getErrorMessage(error)}`, { cause: error });
   }
   const createIssueTitlePrefix = createIssueConfig.title_prefix ?? "";
   /** @type {Map<string, Array<{title: string, normalizedTitle: string}>>} */
