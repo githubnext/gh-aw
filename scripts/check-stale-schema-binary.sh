@@ -125,7 +125,8 @@ fi
 # always run `make build` before executing the binary regardless.
 stale_schemas=()
 while IFS= read -r f; do
-    [ -n "$f" ] || [ -f "$f" ] || continue
+    [ -n "$f" ] || continue
+    [ -f "$f" ] || continue
     if [ "$f" -nt "$BINARY" ]; then
         stale_schemas+=("$f")
     fi
