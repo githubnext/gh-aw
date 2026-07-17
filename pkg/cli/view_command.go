@@ -142,7 +142,7 @@ func ViewWorkflowRun(ctx context.Context, runID int64, opts ViewOptions) error {
 	// log files we need.  We deliberately pass a nil artifact filter so that all
 	// artifacts are downloaded — the timeline relies on whichever JSONL files
 	// happen to be present; no single one is strictly required.
-	if err := downloadRunArtifacts(ctx, runID, runDir, opts.Verbose, opts.Owner, opts.Repo, hostname, nil); err != nil {
+	if err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: runID, outputDir: runDir, verbose: opts.Verbose, owner: opts.Owner, repo: opts.Repo, hostname: hostname}); err != nil {
 		if !errors.Is(err, ErrNoArtifacts) {
 			return fmt.Errorf("failed to download artifacts for run %d: %w", runID, err)
 		}

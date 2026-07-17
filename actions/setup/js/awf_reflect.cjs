@@ -20,6 +20,7 @@ require("./shim.cjs");
 const fs = require("fs");
 const path = require("path");
 const { withRetry, sleep } = require("./error_recovery.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 // AWF API proxy management endpoint for discovering configured LLM providers and available models.
 // The api-proxy sidecar exposes /reflect on its management port (port 10000) inside the AWF
@@ -206,7 +207,7 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
           if (status === 503) {
             throw e;
           }
-          logger(`awf-reflect: models fetch error for ${modelsUrl}: ${err instanceof Error ? err.message : String(err)}`);
+          logger(`awf-reflect: models fetch error for ${modelsUrl}: ${getErrorMessage(err)}`);
           return null;
         } finally {
           clearTimeout(timer);
@@ -224,7 +225,7 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
       logger(`awf-reflect: models fetch returned 503 for ${modelsUrl}`);
       return null;
     }
-    logger(`awf-reflect: models fetch error for ${modelsUrl}: ${err instanceof Error ? err.message : String(err)}`);
+    logger(`awf-reflect: models fetch error for ${modelsUrl}: ${getErrorMessage(err)}`);
     return null;
   }
 }

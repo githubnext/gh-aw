@@ -37,7 +37,7 @@ async function ensureDetectionRunsIssue() {
       };
     }
   } catch (error) {
-    throw new Error(`${ERR_API}: Failed to search for existing detection runs issue: ${getErrorMessage(error)}`);
+    throw new Error(`${ERR_API}: Failed to search for existing detection runs issue: ${getErrorMessage(error)}`, { cause: error });
   }
 
   // Create detection runs issue if it doesn't exist

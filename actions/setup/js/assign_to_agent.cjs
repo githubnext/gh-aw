@@ -120,7 +120,7 @@ async function main(config = {}) {
           core.info(`Resolved pull request repository default branch: ${effectiveBaseBranch}`);
         }
       } catch (error) {
-        throw new Error(`Failed to fetch pull request repository for ${pullRequestOwner}/${pullRequestRepo}: ${getErrorMessage(error)}`);
+        throw new Error(`Failed to fetch pull request repository for ${pullRequestOwner}/${pullRequestRepo}: ${getErrorMessage(error)}`, { cause: error });
       }
     } else {
       core.warning(`Invalid pull-request-repo format: ${pullRequestRepoConfig}. Expected owner/repo. PRs will be created in issue repository.`);

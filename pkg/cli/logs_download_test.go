@@ -298,7 +298,7 @@ func TestRetryCriticalArtifactsSkipsExisting(t *testing.T) {
 	}
 
 	// Should complete without panic or error — all dirs exist so no gh CLI calls are made
-	retryCriticalArtifacts(context.Background(), 12345, tmpDir, false, "owner", "repo", "", nil)
+	retryCriticalArtifacts(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: tmpDir, verbose: false, owner: "owner", repo: "repo"})
 
 	// Verify the directories are still intact
 	for _, name := range criticalArtifactNames {
@@ -328,7 +328,7 @@ func TestDownloadArtifactsByName_LogsArtifactNamesInCI(t *testing.T) {
 		os.Stderr = originalStderr
 	})
 
-	err = downloadArtifactsByName(context.Background(), 12345, t.TempDir(), []string{"usage"}, false, "", "", "")
+	err = downloadArtifactsByName(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: t.TempDir()}, []string{"usage"})
 	require.NoError(t, err)
 
 	require.NoError(t, writer.Close())
@@ -384,7 +384,7 @@ func TestDownloadRunArtifacts_CachedUsageFallbackToActivation(t *testing.T) {
 	originalPath := os.Getenv("PATH")
 	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+originalPath)
 
-	err := downloadRunArtifacts(context.Background(), 12345, tmpDir, false, "github", "gh-aw", "", []string{"usage"})
+	err := downloadRunArtifacts(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: tmpDir, verbose: false, owner: "github", repo: "gh-aw", artifactFilter: []string{"usage"}})
 	require.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(tmpDir, "aw_info.json"))
@@ -398,6 +398,62 @@ func TestDownloadRunArtifacts_CachedUsageFallbackToActivation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(argsLog), "api --paginate repos/github/gh-aw/actions/runs/12345/artifacts")
 	assert.Contains(t, string(argsLog), "run download 12345 --name abc123-activation")
+}
+
+func TestDownloadRunArtifactsFallbackWhenListFails(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-download-fallback-*")
+
+	fakeBinDir := testutil.TempDir(t, "fake-gh-*")
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	argsLogPath := filepath.Join(fakeBinDir, "gh-args.log")
+	fakeGHScript := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$*\" >> \"" + argsLogPath + "\"\n" +
+		"if [ \"$1\" = \"api\" ]; then\n" +
+		"  echo \"list failed\" >&2\n" +
+		"  exit 1\n" +
+		"fi\n" +
+		"if [ \"$1\" = \"run\" ] && [ \"$2\" = \"download\" ]; then\n" +
+		"  name=\"\"\n" +
+		"  dir=\"\"\n" +
+		"  while [ $# -gt 0 ]; do\n" +
+		"    if [ \"$1\" = \"--name\" ]; then\n" +
+		"      name=\"$2\"\n" +
+		"      shift 2\n" +
+		"      continue\n" +
+		"    fi\n" +
+		"    if [ \"$1\" = \"--dir\" ]; then\n" +
+		"      dir=\"$2\"\n" +
+		"      shift 2\n" +
+		"      continue\n" +
+		"    fi\n" +
+		"    shift\n" +
+		"  done\n" +
+		"  if [ \"$name\" = \"usage\" ]; then\n" +
+		"    mkdir -p \"$dir/$name\"\n" +
+		"    printf '%s' '{\"tokens\":1}' > \"$dir/$name/usage.jsonl\"\n" +
+		"  fi\n" +
+		"  exit 0\n" +
+		"fi\n" +
+		"exit 1\n"
+	require.NoError(t, os.WriteFile(fakeGH, []byte(fakeGHScript), 0o755))
+
+	originalPath := os.Getenv("PATH")
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+originalPath)
+
+	err := downloadRunArtifacts(context.Background(), downloadArtifactsOptions{
+		runID:          12345,
+		outputDir:      tmpDir,
+		verbose:        false,
+		owner:          "github",
+		repo:           "gh-aw",
+		artifactFilter: []string{"usage"},
+	})
+	require.NoError(t, err)
+
+	argsLog, err := os.ReadFile(argsLogPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(argsLog), "api --paginate repos/github/gh-aw/actions/runs/12345/artifacts")
+	assert.Contains(t, string(argsLog), "run download 12345 --name usage")
 }
 
 func TestListWorkflowRunsWithPagination(t *testing.T) {

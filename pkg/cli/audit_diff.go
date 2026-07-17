@@ -941,7 +941,7 @@ func loadRunSummaryForDiff(ctx context.Context, runID int64, outputDir string, o
 	}
 
 	// Download artifacts if needed
-	if err := downloadRunArtifacts(ctx, runID, runOutputDir, verbose, owner, repo, hostname, artifactFilter); err != nil {
+	if err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: runID, outputDir: runOutputDir, verbose: verbose, owner: owner, repo: repo, hostname: hostname, artifactFilter: artifactFilter}); err != nil {
 		if !errors.Is(err, ErrNoArtifacts) {
 			auditDiffLog.Printf("Failed to download artifacts for run %d: %v", runID, err)
 			return nil, fmt.Errorf("failed to download artifacts for run %d: %w", runID, err)

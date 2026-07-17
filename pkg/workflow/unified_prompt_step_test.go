@@ -606,3 +606,115 @@ func TestCollectPromptSections_PRCommentPushToPRBranchGuidance(t *testing.T) {
 		}
 	})
 }
+
+// TestGenerateUnifiedPromptCreationStep_TrailingWhitespace verifies that trailing
+// whitespace is stripped from every user-prompt content line.
+func TestGenerateUnifiedPromptCreationStep_TrailingWhitespace(t *testing.T) {
+	compiler := &Compiler{}
+	data := &WorkflowData{
+		ParsedTools: NewTools(map[string]any{}),
+	}
+	builtinSections := compiler.collectPromptSections(data)
+
+	// Chunk lines with assorted trailing whitespace
+	userPromptChunks := []string{"line one   \nline two\t\nline three  \t  "}
+
+	var sb strings.Builder
+	compiler.generateUnifiedPromptCreationStep(&sb, builtinSections, userPromptChunks, nil, data)
+	output := sb.String()
+
+	assert.NotContains(t, output, "line one   ", "trailing spaces should be stripped")
+	assert.NotContains(t, output, "line two\t", "trailing tab should be stripped")
+	assert.NotContains(t, output, "line three  \t  ", "mixed trailing whitespace should be stripped")
+	assert.Contains(t, output, "          line one\n", "content should be present with indentation")
+	assert.Contains(t, output, "          line two\n", "content should be present with indentation")
+	assert.Contains(t, output, "          line three\n", "content should be present with indentation")
+}
+
+// TestGenerateUnifiedPromptCreationStep_BlankRunCapWithinChunk verifies that a run of
+// more than maxConsecutiveBlankLines blank lines inside a single chunk is capped.
+func TestGenerateUnifiedPromptCreationStep_BlankRunCapWithinChunk(t *testing.T) {
+	compiler := &Compiler{}
+	data := &WorkflowData{
+		ParsedTools: NewTools(map[string]any{}),
+	}
+	builtinSections := compiler.collectPromptSections(data)
+
+	// Four consecutive blank lines between content lines – should be collapsed to two.
+	userPromptChunks := []string{"# Start\n\n\n\n\n# End"}
+
+	var sb strings.Builder
+	compiler.generateUnifiedPromptCreationStep(&sb, builtinSections, userPromptChunks, nil, data)
+	output := sb.String()
+
+	assert.Contains(t, output, "# Start", "start marker should be present")
+	assert.Contains(t, output, "# End", "end marker should be present")
+
+	// At most maxConsecutiveBlankLines (2) blank lines should appear between them.
+	startIdx := strings.Index(output, "# Start")
+	endIdx := strings.Index(output, "# End")
+	require.Less(t, startIdx, endIdx)
+	between := output[startIdx:endIdx]
+	// Three or more consecutive newlines would indicate a blank run of >2.
+	assert.NotContains(t, between, "\n\n\n\n", "blank run should be capped at 2")
+}
+
+// TestGenerateUnifiedPromptCreationStep_BlankRunCapAcrossChunks verifies that a blank
+// run straddling two adjacent chunks is still capped correctly.
+func TestGenerateUnifiedPromptCreationStep_BlankRunCapAcrossChunks(t *testing.T) {
+	compiler := &Compiler{}
+	data := &WorkflowData{
+		ParsedTools: NewTools(map[string]any{}),
+	}
+	builtinSections := compiler.collectPromptSections(data)
+
+	// chunk1 ends with two blank lines; chunk2 starts with two blank lines.
+	// Across the boundary that would be four consecutive blanks; they should be collapsed.
+	userPromptChunks := []string{
+		"# Chunk1\n\n\n",
+		"\n\n# Chunk2",
+	}
+
+	var sb strings.Builder
+	compiler.generateUnifiedPromptCreationStep(&sb, builtinSections, userPromptChunks, nil, data)
+	output := sb.String()
+
+	startIdx := strings.Index(output, "# Chunk1")
+	endIdx := strings.Index(output, "# Chunk2")
+	require.Less(t, startIdx, endIdx)
+	between := output[startIdx:endIdx]
+	assert.NotContains(t, between, "\n\n\n\n", "blank run across chunk boundary should be capped at 2")
+}
+
+// TestGenerateUnifiedPromptCreationStep_BlankRunCapAdjacentToRuntimeImport verifies
+// that blank-run tracking resets correctly around a runtime-import macro so blank lines
+// on both sides of the macro are handled independently.
+func TestGenerateUnifiedPromptCreationStep_BlankRunCapAdjacentToRuntimeImport(t *testing.T) {
+	compiler := &Compiler{}
+	data := &WorkflowData{
+		ParsedTools: NewTools(map[string]any{}),
+	}
+	builtinSections := compiler.collectPromptSections(data)
+
+	// chunk[0] ends with a long blank run, chunk[1] is a runtime-import macro,
+	// chunk[2] starts with a long blank run.
+	userPromptChunks := []string{
+		"# Before\n\n\n\n",
+		"{{#runtime-import docs/task.md}}",
+		"\n\n\n\n# After",
+	}
+
+	var sb strings.Builder
+	compiler.generateUnifiedPromptCreationStep(&sb, builtinSections, userPromptChunks, nil, data)
+	output := sb.String()
+
+	// Runtime-import macro must be present verbatim.
+	assert.Contains(t, output, "{{#runtime-import docs/task.md}}", "runtime-import macro must be emitted verbatim")
+
+	// Content markers must appear.
+	assert.Contains(t, output, "# Before", "before-marker should be present")
+	assert.Contains(t, output, "# After", "after-marker should be present")
+
+	// No run of four or more newlines (i.e., 3+ consecutive blank lines) anywhere.
+	assert.NotContains(t, output, "\n\n\n\n", "blank run should be capped throughout the output")
+}

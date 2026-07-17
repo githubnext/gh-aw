@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -131,8 +132,15 @@ func TestCloseExistingOrgIssuesByMarkerSkipsPRsAndPaginates(t *testing.T) {
 	require.NoError(t, os.WriteFile(fakeGH, []byte(fakeGHScript), 0o755))
 
 	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	// Isolate getHostFromOriginRemote() from the real git remote by running inside
+	// a temporary repository whose origin points to github.com.
+	fakeGitDir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", fakeGitDir, "init").Run())
+	require.NoError(t, exec.Command("git", "-C", fakeGitDir, "remote", "add", "origin", "https://github.com/octo/repo.git").Run())
+	t.Chdir(fakeGitDir)
 	expectedHost := getHostFromOriginRemote()
-	require.NotEmpty(t, expectedHost, "test setup should resolve a GitHub host for gh API calls")
+	require.Equal(t, "github.com", expectedHost, "test setup should resolve the temporary repository host for gh API calls")
 
 	closeExistingOrgIssuesByMarker(context.Background(), "octo/repo", ghawUpdateMarkerPrefix, false)
 

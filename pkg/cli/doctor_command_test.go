@@ -3,9 +3,14 @@
 package cli
 
 import (
+	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,6 +41,12 @@ func TestDoctorCommandAdvertisesJSONExample(t *testing.T) {
 	cmd := NewDoctorCommand()
 	assert.Contains(t, cmd.Example, "gh aw doctor --json")
 	assert.Contains(t, cmd.Example, "gh aw doctor --repo github/gh-aw --json")
+}
+
+func TestDoctorCommandLongMentionsEnterpriseHostFallback(t *testing.T) {
+	cmd := NewDoctorCommand()
+	assert.Contains(t, cmd.Long, "auto-detects the host from the git remote")
+	assert.Contains(t, cmd.Long, "gh auth login --hostname <host>")
 }
 
 func TestDoctorCommandExampleHasNoTabs(t *testing.T) {
@@ -209,4 +220,70 @@ func TestDoctorCommandAllowsVerboseWithoutRepo(t *testing.T) {
 	require.NoError(t, root.Execute())
 	assert.True(t, authCalled)
 	assert.True(t, verbose)
+}
+
+func TestRunSetupAuthAutoDetectsDefaultGHHost(t *testing.T) {
+	workflow.SetDefaultGHHost("")
+	t.Cleanup(func() { workflow.SetDefaultGHHost("") })
+	if prev, ok := os.LookupEnv("GH_HOST"); ok {
+		t.Cleanup(func() { _ = os.Setenv("GH_HOST", prev) })
+	} else {
+		t.Cleanup(func() { _ = os.Unsetenv("GH_HOST") })
+	}
+	require.NoError(t, os.Unsetenv("GH_HOST"))
+
+	tempDir := testutil.TempDir(t, "doctor-gh-host-*")
+	require.NoError(t, initTestGitRepo(tempDir))
+	require.NoError(t, addOriginRemoteToTestRepo(tempDir, "https://ghes.example.com/owner/repo.git"))
+	t.Chdir(tempDir)
+
+	runtime := setupRepositoryRuntime{
+		checkAuth: func(context.Context) error {
+			assert.Equal(t, "ghes.example.com", getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
+			return nil
+		},
+	}
+
+	require.NoError(t, runSetupAuthWithRuntime(SetupAuthOptions{}, runtime))
+}
+
+func TestRunSetupRepositoryCheckAutoDetectsDefaultGHHost(t *testing.T) {
+	workflow.SetDefaultGHHost("")
+	t.Cleanup(func() { workflow.SetDefaultGHHost("") })
+	if prev, ok := os.LookupEnv("GH_HOST"); ok {
+		t.Cleanup(func() { _ = os.Setenv("GH_HOST", prev) })
+	} else {
+		t.Cleanup(func() { _ = os.Unsetenv("GH_HOST") })
+	}
+	require.NoError(t, os.Unsetenv("GH_HOST"))
+
+	tempDir := testutil.TempDir(t, "doctor-repo-gh-host-*")
+	require.NoError(t, initTestGitRepo(tempDir))
+	require.NoError(t, addOriginRemoteToTestRepo(tempDir, "git@ghes.example.com:owner/repo.git"))
+	t.Chdir(tempDir)
+
+	checkoutDir := filepath.Join(tempDir, "checkout")
+	require.NoError(t, os.MkdirAll(checkoutDir, 0755))
+
+	runtime := setupRepositoryRuntime{
+		checkAuth: func(context.Context) error {
+			assert.Equal(t, "ghes.example.com", getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
+			return nil
+		},
+		repoExists: func(context.Context, string) (bool, error) { return true, nil },
+		ownerType:  func(context.Context, string) (string, error) { return "Organization", nil },
+		dirOriginRepo: func(string) (string, error) {
+			return "owner/repo", nil
+		},
+		checkCleanWorktree: func(bool) error { return nil },
+	}
+
+	err := runSetupRepositoryCheckWithRuntime(SetupRepositoryCheckOptions{
+		Repo:             "owner/repo",
+		Dir:              checkoutDir,
+		RequireOwnerType: "any",
+	}, runtime)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "git checkout")
+	assert.Equal(t, "ghes.example.com", getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
 }

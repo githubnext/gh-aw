@@ -98,11 +98,11 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
-		if !isByteSliceConversion(pass, conv) {
+		if !astutil.IsByteSliceConversion(pass, conv) {
 			return
 		}
 		strArg := conv.Args[0]
-		if !isStringType(pass, strArg) {
+		if !astutil.IsStringType(pass, strArg) {
 			return
 		}
 
@@ -144,39 +144,6 @@ func run(pass *analysis.Pass) (any, error) {
 	})
 
 	return nil, nil
-}
-
-// isByteSliceConversion reports whether conv is a []byte or []uint8 conversion expression.
-func isByteSliceConversion(pass *analysis.Pass, conv *ast.CallExpr) bool {
-	funTypeInfo, ok := pass.TypesInfo.Types[conv.Fun]
-	if !ok || !funTypeInfo.IsType() {
-		return false
-	}
-	return isByteSlice(pass, conv)
-}
-
-// isByteSlice reports whether expr has type []byte ([]uint8).
-func isByteSlice(pass *analysis.Pass, expr ast.Expr) bool {
-	t := pass.TypesInfo.TypeOf(expr)
-	if t == nil {
-		return false
-	}
-	sl, ok := t.Underlying().(*types.Slice)
-	if !ok {
-		return false
-	}
-	elem, ok := sl.Elem().(*types.Basic)
-	return ok && elem.Kind() == types.Byte
-}
-
-// isStringType reports whether expr has type string (or named string type).
-func isStringType(pass *analysis.Pass, expr ast.Expr) bool {
-	t := pass.TypesInfo.TypeOf(expr)
-	if t == nil {
-		return false
-	}
-	basic, ok := t.Underlying().(*types.Basic)
-	return ok && basic.Kind() == types.String
 }
 
 // isExactString reports whether t is the predeclared string type, not a named

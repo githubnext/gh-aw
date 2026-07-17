@@ -600,15 +600,40 @@ type latestReleaseResult struct {
 // the latest major version; pass disableReleaseBump=true to only update core
 // (actions/*) references.
 func UpdateActionsInWorkflowFiles(ctx context.Context, workflowsDir, engineOverride string, verbose, disableReleaseBump bool, noCompile bool, coolDown time.Duration, approve bool) error {
-	return updateActionsInWorkflowFiles(ctx, defaultActionUpdateDeps(), workflowsDir, engineOverride, verbose, disableReleaseBump, noCompile, coolDown, approve)
+	return updateActionsInWorkflowFiles(ctx, defaultActionUpdateDeps(), updateActionsOptions{
+		workflowsDir:       workflowsDir,
+		engineOverride:     engineOverride,
+		verbose:            verbose,
+		disableReleaseBump: disableReleaseBump,
+		noCompile:          noCompile,
+		coolDown:           coolDown,
+		approve:            approve,
+	})
 }
 
-func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, workflowsDir, engineOverride string, verbose, disableReleaseBump bool, noCompile bool, coolDown time.Duration, approve bool) error {
-	if workflowsDir == "" {
-		workflowsDir = getWorkflowsDir()
+// updateActionsOptions bundles the configuration parameters for updateActionsInWorkflowFiles,
+// collapsing a long positional parameter list into a struct.
+// engineOverride sets a non-default agentic engine for recompiled workflows.
+// disableReleaseBump prevents upgrading action/skill references to newer releases.
+// noCompile skips recompilation of updated workflow files.
+// coolDown is the minimum age a release must have before it is considered for upgrade.
+// approve auto-approves any interactive prompts during recompilation.
+type updateActionsOptions struct {
+	workflowsDir       string
+	engineOverride     string
+	verbose            bool
+	disableReleaseBump bool
+	noCompile          bool
+	coolDown           time.Duration
+	approve            bool
+}
+
+func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, opts updateActionsOptions) error {
+	if opts.workflowsDir == "" {
+		opts.workflowsDir = getWorkflowsDir()
 	}
 
-	updateLog.Printf("Updating action references in workflow files: dir=%s", workflowsDir)
+	updateLog.Printf("Updating action references in workflow files: dir=%s", opts.workflowsDir)
 
 	// Per-invocation cache: key = "repo@currentVersion", avoids repeated API calls
 	cache := make(map[string]latestReleaseResult)
@@ -617,7 +642,7 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, wo
 
 	var updatedFiles []string
 
-	err := filepath.WalkDir(workflowsDir, func(path string, d os.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(opts.workflowsDir, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -630,22 +655,22 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, wo
 
 		content, err := os.ReadFile(path)
 		if err != nil {
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read %s: %v", path, err)))
 			}
 			return nil
 		}
 
-		updatedActions, newContent, err := updateActionRefsInContentWithDeps(ctx, deps, string(content), cache, coolDownCache, !disableReleaseBump, verbose, coolDown)
+		updatedActions, newContent, err := updateActionRefsInContentWithDeps(ctx, deps, string(content), cache, coolDownCache, !opts.disableReleaseBump, opts.verbose, opts.coolDown)
 		if err != nil {
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update action refs in %s: %v", path, err)))
 			}
 			return nil
 		}
-		updatedSkills, newContent, err := updateSkillRefsInContent(ctx, newContent, !disableReleaseBump, verbose, coolDown)
+		updatedSkills, newContent, err := updateSkillRefsInContent(ctx, newContent, !opts.disableReleaseBump, opts.verbose, opts.coolDown)
 		if err != nil {
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update skill refs in %s: %v", path, err)))
 			}
 			return nil
@@ -663,9 +688,9 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, wo
 		updatedFiles = append(updatedFiles, path)
 
 		// Recompile the updated workflow (unless --no-compile is set)
-		if !noCompile {
-			if err := compileWorkflowWithRefresh(ctx, path, verbose, false, engineOverride, false, approve); err != nil {
-				if verbose {
+		if !opts.noCompile {
+			if err := compileWorkflowWithRefresh(ctx, path, opts.verbose, false, opts.engineOverride, false, opts.approve); err != nil {
+				if opts.verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to recompile %s: %v", path, err)))
 				}
 			}
@@ -676,7 +701,7 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, wo
 		return fmt.Errorf("failed to walk workflows directory: %w", err)
 	}
 
-	if len(updatedFiles) == 0 && verbose {
+	if len(updatedFiles) == 0 && opts.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No action references needed updating in workflow files"))
 	}
 

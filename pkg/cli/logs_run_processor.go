@@ -45,6 +45,22 @@ type concurrentRunDownloadParams struct {
 	evalsArtifactRequested bool
 }
 
+// runArtifactsConcurrentOptions bundles the per-invocation options for
+// downloadRunArtifactsConcurrent, collapsing a long positional parameter list into a struct.
+// maxRuns is a hint for the maximum number of runs to process concurrently (0 means unlimited).
+// artifactFilter restricts which artifacts are downloaded; nil means download all.
+// artifactSets is the original pre-resolution set list used to determine evalsOnly fallback behavior.
+// evalsOnly skips non-evals artifacts to reduce download volume on evals-focused runs.
+type runArtifactsConcurrentOptions struct {
+	outputDir      string
+	verbose        bool
+	maxRuns        int
+	repoOverride   string
+	artifactFilter []string
+	evalsOnly      bool
+	artifactSets   []string
+}
+
 // buildConcurrentDownloadParams constructs download parameters by parsing the optional
 // repoOverride ("owner/repo" or "HOST/owner/repo") once for the whole batch.
 // artifactSets is the original (pre-resolution) set list; it is used to detect whether
@@ -101,8 +117,8 @@ func logConcurrentDownloadSummary(results []DownloadResult) {
 // downloadRunArtifactsConcurrent downloads artifacts for multiple workflow runs concurrently.
 // artifactSets is the original (pre-resolution) set list passed by the caller; it is used
 // alongside evalsOnly to determine whether the evals artifact fallback should run.
-func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, outputDir string, verbose bool, maxRuns int, repoOverride string, artifactFilter []string, evalsOnly bool, artifactSets []string) []DownloadResult {
-	logsOrchestratorLog.Printf("Starting concurrent artifact download: runs=%d, outputDir=%s, maxRuns=%d", len(runs), outputDir, maxRuns)
+func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, opts runArtifactsConcurrentOptions) []DownloadResult {
+	logsOrchestratorLog.Printf("Starting concurrent artifact download: runs=%d, outputDir=%s, maxRuns=%d", len(runs), opts.outputDir, opts.maxRuns)
 	if len(runs) == 0 {
 		return []DownloadResult{}
 	}
@@ -110,14 +126,14 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 	// maxRuns is a hint only; all runs are processed so that cache hits and
 	// filter passes are counted correctly.
 	totalRuns := len(runs)
-	if verbose {
+	if opts.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing %d runs in parallel...", totalRuns)))
 	}
 
-	progressBar := initDownloadProgressBar(verbose, totalRuns)
+	progressBar := initDownloadProgressBar(opts.verbose, totalRuns)
 	var completedCount atomic.Int64
 	maxConcurrent := getMaxConcurrentDownloads()
-	params := buildConcurrentDownloadParams(outputDir, verbose, repoOverride, artifactFilter, evalsOnly, artifactSets)
+	params := buildConcurrentDownloadParams(opts.outputDir, opts.verbose, opts.repoOverride, opts.artifactFilter, opts.evalsOnly, opts.artifactSets)
 
 	// Configure concurrent download pool with bounded parallelism and context cancellation.
 	// The conc pool automatically handles panic recovery and prevents goroutine leaks.
@@ -133,13 +149,13 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 	}
 
 	results, err := p.Wait()
-	if err != nil && verbose {
+	if err != nil && opts.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Download interrupted: %v", err)))
 	}
 	if progressBar != nil {
 		console.ClearLine()
 	}
-	if verbose {
+	if opts.verbose {
 		logConcurrentDownloadSummary(results)
 	}
 	logsOrchestratorLog.Printf("Concurrent download complete: total=%d, results=%d", totalRuns, len(results))
@@ -202,7 +218,7 @@ func processSingleRunDownload(
 	result, ok := tryLoadCachedRunResult(ctx, run, runOutputDir, perRunParams)
 	if !ok {
 		logsOrchestratorLog.Printf("Downloading artifacts for run %d: owner=%s, repo=%s", run.DatabaseID, perRunParams.dlOwner, perRunParams.dlRepo)
-		err := downloadRunArtifacts(ctx, run.DatabaseID, runOutputDir, params.verbose, perRunParams.dlOwner, perRunParams.dlRepo, perRunParams.dlHost, params.artifactFilter)
+		err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: run.DatabaseID, outputDir: runOutputDir, verbose: params.verbose, owner: perRunParams.dlOwner, repo: perRunParams.dlRepo, hostname: perRunParams.dlHost, artifactFilter: params.artifactFilter})
 
 		result = &DownloadResult{Run: run, LogsPath: runOutputDir}
 		if err != nil {
@@ -236,7 +252,7 @@ func processSingleRunDownload(
 func tryDownloadEvalsArtifactFallback(ctx context.Context, runID int64, runOutputDir string, params concurrentRunDownloadParams) {
 	logsOrchestratorLog.Printf("evals not found in usage artifact for run %d, attempting fallback download of dedicated evals artifact", runID)
 	evalsFilter := []string{constants.EvalsArtifactName}
-	if err := downloadRunArtifacts(ctx, runID, runOutputDir, params.verbose, params.dlOwner, params.dlRepo, params.dlHost, evalsFilter); err != nil {
+	if err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: runID, outputDir: runOutputDir, verbose: params.verbose, owner: params.dlOwner, repo: params.dlRepo, hostname: params.dlHost, artifactFilter: evalsFilter}); err != nil {
 		logsOrchestratorLog.Printf("Fallback evals artifact download failed for run %d: %v", runID, err)
 		if params.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Evals not found in usage artifact for run %d and fallback download failed: %v", runID, err)))

@@ -130,3 +130,34 @@ func TestExtractMainModelCostsOverlay_ExtractsOnlyProvidersAndExcludesPolicyKeys
 	assert.Contains(t, costs, "providers")
 	assert.NotContains(t, costs, "allowed")
 }
+
+func TestMergeExcludedEnvVarNames_UnionizesAndSorts(t *testing.T) {
+	got := mergeExcludedEnvVarNames(
+		[]string{"TOKEN_B", "TOKEN_A"},
+		[]string{"TOKEN_C", "TOKEN_A"},
+	)
+	assert.Equal(t, []string{"TOKEN_A", "TOKEN_B", "TOKEN_C"}, got)
+}
+
+func TestMergeExcludedEnvVarNames_ImportsOnly(t *testing.T) {
+	got := mergeExcludedEnvVarNames([]string{"IMPORT_TOKEN"}, nil)
+	assert.Equal(t, []string{"IMPORT_TOKEN"}, got)
+}
+
+func TestMergeExcludedEnvVarNames_MainOnly(t *testing.T) {
+	got := mergeExcludedEnvVarNames(nil, []string{"MAIN_TOKEN"})
+	assert.Equal(t, []string{"MAIN_TOKEN"}, got)
+}
+
+func TestMergeExcludedEnvVarNames_BothEmpty(t *testing.T) {
+	got := mergeExcludedEnvVarNames(nil, nil)
+	assert.Nil(t, got)
+}
+
+func TestMergeExcludedEnvVarNames_DeduplicatesAcrossSources(t *testing.T) {
+	got := mergeExcludedEnvVarNames(
+		[]string{"SHARED", "IMPORT_ONLY"},
+		[]string{"SHARED", "MAIN_ONLY"},
+	)
+	assert.Equal(t, []string{"IMPORT_ONLY", "MAIN_ONLY", "SHARED"}, got)
+}

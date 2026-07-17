@@ -11332,6 +11332,16 @@
       "description": "Control whether the compile-agentic version update check runs in the activation job. When true (default), the activation job downloads config.json from the gh-aw repository and verifies the compiled version is not blocked and meets the minimum supported version. Set to false to disable the check (not allowed in strict mode). See: https://github.github.com/gh-aw/reference/frontmatter/#check-for-updates",
       "examples": [true, false]
     },
+    "excluded-env": {
+      "type": "array",
+      "description": "Optional list of environment variable names to unconditionally exclude from the AWF agent container via --exclude-env. Use when an env var is set from a source the compiler cannot auto-detect as credential-bearing (e.g. a workflow_dispatch input carrying a token). Names are deduplicated and merged with those auto-detected from secrets.* and needs.*.outputs.* references.",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Environment variable name to exclude from the agent container."
+      },
+      "examples": [["MY_DISPATCH_TOKEN", "ANOTHER_SENSITIVE_VAR"], ["GH_TOKEN"]]
+    },
     "mcp-scripts": {
       "type": "object",
       "description": "MCP Scripts configuration for defining custom lightweight MCP tools as JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server and have access to secrets specified by the user. Only one of 'script' (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.",

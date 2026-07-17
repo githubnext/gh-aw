@@ -166,7 +166,16 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		workflowData, copilotArgs, execPrefix, customCommandScriptSetup, logFile, mkdirCommands, isBYOKMode,
 	)
 	env := e.buildCopilotStepEnv(
-		workflowData, llmProvider, modelEnvVar, timeoutValue, isBYOKMode, sandboxEnabled, modelConfigured, copilotSDKServerArgsJSON,
+		workflowData,
+		llmProvider,
+		modelEnvVar,
+		timeoutValue,
+		copilotStepEnvFlags{
+			byokMode:        isBYOKMode,
+			sandboxEnabled:  sandboxEnabled,
+			modelConfigured: modelConfigured,
+		},
+		copilotSDKServerArgsJSON,
 	)
 
 	return []GitHubActionStep{e.buildCopilotExecutionStep(workflowData, command, env, timeoutValue)}
@@ -460,14 +469,27 @@ touch %s
 %s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, preCommandSetup, copilotCommand, logFile)
 }
 
-func (e *CopilotEngine) buildCopilotStepEnv(workflowData *WorkflowData, llmProvider, modelEnvVar, timeoutValue string, isBYOKMode, sandboxEnabled, modelConfigured bool, copilotSDKServerArgsJSON string) map[string]string {
+type copilotStepEnvFlags struct {
+	byokMode        bool
+	sandboxEnabled  bool
+	modelConfigured bool
+}
+
+func (e *CopilotEngine) buildCopilotStepEnv(
+	workflowData *WorkflowData,
+	llmProvider string,
+	modelEnvVar string,
+	timeoutValue string,
+	flags copilotStepEnvFlags,
+	copilotSDKServerArgsJSON string,
+) map[string]string {
 	useCopilotRequests := hasCopilotRequestsWritePermission(workflowData)
-	env := e.buildCopilotBaseStepEnv(workflowData, llmProvider, timeoutValue, isBYOKMode, useCopilotRequests)
-	e.addCopilotWorkflowStepEnv(env, workflowData, sandboxEnabled)
+	env := e.buildCopilotBaseStepEnv(workflowData, llmProvider, timeoutValue, flags.byokMode, useCopilotRequests)
+	e.addCopilotWorkflowStepEnv(env, workflowData, flags.sandboxEnabled)
 	e.addCopilotGitHubToolEnv(env, workflowData)
-	e.addCopilotModelEnv(env, workflowData, modelConfigured, modelEnvVar)
+	e.addCopilotModelEnv(env, workflowData, flags.modelConfigured, modelEnvVar)
 	e.addCopilotFinalStepEnv(env, workflowData)
-	e.addCopilotSandboxEnv(env, sandboxEnabled)
+	e.addCopilotSandboxEnv(env, flags.sandboxEnabled)
 	e.addCopilotSDKStepEnv(env, workflowData, copilotSDKServerArgsJSON)
 	return env
 }
