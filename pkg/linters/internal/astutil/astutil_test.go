@@ -5,12 +5,36 @@ package astutil
 import (
 	"go/ast"
 	"go/constant"
+	"go/importer"
+	"go/parser"
 	"go/token"
 	"go/types"
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
 )
+
+func typecheckSnippet(t *testing.T, src string) (*analysis.Pass, *ast.File) {
+	t.Helper()
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "snippet.go", src, parser.SkipObjectResolution)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+
+	info := &types.Info{
+		Types: make(map[ast.Expr]types.TypeAndValue),
+		Defs:  make(map[*ast.Ident]types.Object),
+		Uses:  make(map[*ast.Ident]types.Object),
+	}
+	cfg := types.Config{Importer: importer.Default()}
+	if _, err := cfg.Check("example.com/p", fset, []*ast.File{file}, info); err != nil {
+		t.Fatalf("type checking failed: %v", err)
+	}
+
+	return &analysis.Pass{TypesInfo: info}, file
+}
 
 func TestRhsExprForIndex(t *testing.T) {
 	t.Parallel()
@@ -422,5 +446,89 @@ func TestBuildContainsFix(t *testing.T) {
 	}
 	if fixes[0].Message != "negated message" {
 		t.Fatalf("negated Message = %q, want %q", fixes[0].Message, "negated message")
+	}
+}
+
+func TestByteStringTypeHelpers(t *testing.T) {
+	t.Parallel()
+
+	const src = `package p
+
+func g(s string) []byte { return nil }
+
+func f(s string, b []byte) {
+	type myString string
+	var ms myString
+
+	_ = []byte(s)
+	_ = g(s)
+	_ = b
+	_ = s
+	_ = ms
+}
+`
+
+	pass, file := typecheckSnippet(t, src)
+
+	var (
+		byteConv *ast.CallExpr
+		gCall    *ast.CallExpr
+		bIdent   *ast.Ident
+		sIdent   *ast.Ident
+		msIdent  *ast.Ident
+	)
+
+	ast.Inspect(file, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.CallExpr:
+			switch fun := n.Fun.(type) {
+			case *ast.ArrayType:
+				if elt, ok := fun.Elt.(*ast.Ident); ok && elt.Name == "byte" {
+					byteConv = n
+				}
+			case *ast.Ident:
+				if fun.Name == "g" {
+					gCall = n
+				}
+			}
+		case *ast.Ident:
+			switch n.Name {
+			case "b":
+				bIdent = n
+			case "s":
+				sIdent = n
+			case "ms":
+				msIdent = n
+			}
+		}
+		return true
+	})
+
+	if byteConv == nil || gCall == nil || bIdent == nil || sIdent == nil || msIdent == nil {
+		t.Fatalf("failed to locate test expressions: byteConv=%v gCall=%v b=%v s=%v ms=%v", byteConv != nil, gCall != nil, bIdent != nil, sIdent != nil, msIdent != nil)
+	}
+
+	if !IsByteSlice(pass, bIdent) {
+		t.Fatal("IsByteSlice(b) = false, want true")
+	}
+	if IsByteSlice(pass, sIdent) {
+		t.Fatal("IsByteSlice(s) = true, want false")
+	}
+
+	if !IsByteSliceConversion(pass, byteConv) {
+		t.Fatal("IsByteSliceConversion([]byte(s)) = false, want true")
+	}
+	if IsByteSliceConversion(pass, gCall) {
+		t.Fatal("IsByteSliceConversion(g(s)) = true, want false")
+	}
+
+	if !IsStringType(pass, sIdent) {
+		t.Fatal("IsStringType(s) = false, want true")
+	}
+	if !IsStringType(pass, msIdent) {
+		t.Fatal("IsStringType(ms) = false, want true for named string")
+	}
+	if IsStringType(pass, bIdent) {
+		t.Fatal("IsStringType(b) = true, want false")
 	}
 }
