@@ -177,7 +177,10 @@ async function addImmediateReaction(reaction) {
           core.warning("Skipping immediate reaction: issue number was not found in payload.");
           return;
         }
-        await github.request(`POST /repos/${owner}/${repo}/issues/${issueNumber}/reactions`, {
+        await github.request("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", {
+          owner,
+          repo,
+          issue_number: issueNumber,
           content: normalized,
           headers: { Accept: "application/vnd.github+json" },
         });
@@ -189,7 +192,10 @@ async function addImmediateReaction(reaction) {
           core.warning("Skipping immediate reaction: comment id was not found in payload.");
           return;
         }
-        await github.request(`POST /repos/${owner}/${repo}/issues/comments/${commentId}/reactions`, {
+        await github.request("POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions", {
+          owner,
+          repo,
+          comment_id: commentId,
           content: normalized,
           headers: { Accept: "application/vnd.github+json" },
         });
@@ -201,7 +207,10 @@ async function addImmediateReaction(reaction) {
           core.warning("Skipping immediate reaction: pull request number was not found in payload.");
           return;
         }
-        await github.request(`POST /repos/${owner}/${repo}/issues/${prNumber}/reactions`, {
+        await github.request("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", {
+          owner,
+          repo,
+          issue_number: prNumber,
           content: normalized,
           headers: { Accept: "application/vnd.github+json" },
         });
@@ -213,7 +222,10 @@ async function addImmediateReaction(reaction) {
           core.warning("Skipping immediate reaction: review comment id was not found in payload.");
           return;
         }
-        await github.request(`POST /repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`, {
+        await github.request("POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions", {
+          owner,
+          repo,
+          comment_id: reviewCommentId,
           content: normalized,
           headers: { Accept: "application/vnd.github+json" },
         });

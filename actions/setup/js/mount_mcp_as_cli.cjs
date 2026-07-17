@@ -153,7 +153,13 @@ function toContainerUrl(rawUrl) {
  */
 function httpPostJSON(urlStr, headers, body, timeoutMs = DEFAULT_HTTP_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
-    const parsedUrl = new URL(urlStr);
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(urlStr);
+    } catch {
+      reject(new Error(`Invalid URL: ${urlStr}`));
+      return;
+    }
     const bodyStr = JSON.stringify(body);
 
     const options = {

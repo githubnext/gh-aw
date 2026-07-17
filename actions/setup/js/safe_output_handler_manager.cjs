@@ -1637,11 +1637,12 @@ async function main() {
     core.info(`Temporary IDs registered: ${Object.keys(processingResult.temporaryIdMap).length}`);
     core.info(`Synthetic updates: ${syntheticUpdateCount}`);
 
+    let failedOutputsMessage = null;
     if (failureCount > 0) {
       core.warning(`${failureCount} message(s) failed to process`);
       const failedItemLines = fatalFailures.map(r => `  - ${r.type}: ${r.error || "Unknown error"}`);
       const failedItems = failedItemLines.join("\n");
-      core.setFailed(`${failureCount} safe output(s) failed:\n${failedItems}`);
+      failedOutputsMessage = `${failureCount} safe output(s) failed:\n${failedItems}`;
     }
     if (reportOnlyFailureCount > 0) {
       const reportOnlyTypes = [...new Set(reportOnlyFailures.map(r => r.type || "unknown"))];
@@ -1740,6 +1741,10 @@ async function main() {
     if (!isStaged) ensureManifestExists();
 
     core.info("Safe Output Handler Manager completed");
+    if (failedOutputsMessage !== null) {
+      core.setFailed(failedOutputsMessage);
+      return;
+    }
   } catch (error) {
     core.setFailed(`${ERR_VALIDATION}: Handler manager failed: ${getErrorMessage(error)}`);
   } finally {

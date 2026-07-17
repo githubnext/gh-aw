@@ -70,7 +70,11 @@ function getResultsServiceOrigin() {
   if (!url) {
     throw new Error("ACTIONS_RESULTS_URL is required for artifact upload");
   }
-  return new URL(url).origin;
+  try {
+    return new URL(url).origin;
+  } catch {
+    throw new Error(`ACTIONS_RESULTS_URL is not a valid URL: ${url}`);
+  }
 }
 
 async function twirpRequest(method, body) {
@@ -78,7 +82,13 @@ async function twirpRequest(method, body) {
   if (!runtimeToken) {
     throw new Error("ACTIONS_RUNTIME_TOKEN is required for artifact upload");
   }
-  const url = new URL(`/twirp/${TWIRP_ARTIFACT_SERVICE}/${method}`, getResultsServiceOrigin()).toString();
+  const url = (() => {
+    try {
+      return new URL(`/twirp/${TWIRP_ARTIFACT_SERVICE}/${method}`, getResultsServiceOrigin()).toString();
+    } catch {
+      throw new Error(`Failed to construct twirp URL for method: ${method}`);
+    }
+  })();
 
   let lastError;
   for (let attempt = 1; attempt <= DEFAULT_RETRY_ATTEMPTS; attempt++) {
@@ -240,7 +250,13 @@ class DefaultArtifactClient {
     let page = 1;
     const maxPages = Math.ceil(MAX_ARTIFACTS / PAGE_SIZE);
     for (; page <= maxPages; page++) {
-      const url = new URL(`/repos/${findBy.repositoryOwner}/${findBy.repositoryName}/actions/runs/${findBy.workflowRunId}/artifacts`, serverUrl);
+      const url = (() => {
+        try {
+          return new URL(`/repos/${findBy.repositoryOwner}/${findBy.repositoryName}/actions/runs/${findBy.workflowRunId}/artifacts`, serverUrl);
+        } catch {
+          throw new Error(`Failed to construct artifacts URL for run ${findBy.workflowRunId}`);
+        }
+      })();
       url.searchParams.set("per_page", String(PAGE_SIZE));
       url.searchParams.set("page", String(page));
       const response = await fetch(url.toString(), {
@@ -284,7 +300,13 @@ class DefaultArtifactClient {
     const destination = options.path || process.env.GITHUB_WORKSPACE || process.cwd();
     fs.mkdirSync(destination, { recursive: true });
 
-    const apiUrl = new URL(`/repos/${findBy.repositoryOwner}/${findBy.repositoryName}/actions/artifacts/${artifactId}/zip`, process.env.GITHUB_API_URL || "https://api.github.com");
+    const apiUrl = (() => {
+      try {
+        return new URL(`/repos/${findBy.repositoryOwner}/${findBy.repositoryName}/actions/artifacts/${artifactId}/zip`, process.env.GITHUB_API_URL || "https://api.github.com");
+      } catch {
+        throw new Error(`Failed to construct download URL for artifact ${artifactId}`);
+      }
+    })();
     const redirectResponse = await fetch(apiUrl.toString(), {
       headers: {
         Authorization: "Bearer " + findBy.token,

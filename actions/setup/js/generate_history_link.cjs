@@ -58,7 +58,13 @@ function generateHistoryUrl({ owner, repo, itemType, workflowCallId, workflowId,
 
   queryParts.push(`"${markerId}"`);
 
-  const url = new URL(`${server}/search`);
+  const url = (() => {
+    try {
+      return new URL(`${server}/search`);
+    } catch {
+      throw new Error(`Invalid server URL: ${server}`);
+    }
+  })();
   url.searchParams.set("q", queryParts.join(" "));
 
   // Set the type parameter based on itemType for correct GitHub search filtering

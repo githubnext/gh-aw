@@ -285,7 +285,7 @@ async function createOrReuseStatusComment(rawContext = context) {
         reportCommentError(rawContext, `${ERR_NOT_FOUND}: Issue number not found in event payload`);
         return null;
       }
-      commentEndpoint = `/repos/${owner}/${repo}/issues/${number}/comments`;
+      commentEndpoint = { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/comments", params: { owner, repo, issue_number: number } };
       break;
     }
 
@@ -298,7 +298,7 @@ async function createOrReuseStatusComment(rawContext = context) {
         reportCommentError(rawContext, `${ERR_NOT_FOUND}: Pull request number not found in event payload`);
         return null;
       }
-      commentEndpoint = `/repos/${owner}/${repo}/issues/${number}/comments`;
+      commentEndpoint = { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/comments", params: { owner, repo, issue_number: number } };
       break;
     }
 
@@ -328,7 +328,7 @@ async function createOrReuseStatusComment(rawContext = context) {
       return null;
   }
 
-  core.info(`Creating comment on: ${commentEndpoint}`);
+  core.info(`Creating comment on: ${typeof commentEndpoint === "object" ? commentEndpoint.route : commentEndpoint}`);
   return addCommentWithWorkflowLink(commentEndpoint, runUrl, eventName, invocationContext);
 }
 
@@ -409,7 +409,7 @@ async function postDiscussionComment(discussionNumber, commentBody, replyToNodeI
 
 /**
  * Add a comment with a workflow run link
- * @param {string} endpoint - The GitHub API endpoint to create the comment (or special format for discussions)
+ * @param {{ route: string, params: Record<string, unknown> } | string} endpoint - Typed route info for REST events, or special format string for discussions ("discussion:NUMBER" or "discussion_comment:NUMBER:COMMENT_ID")
  * @param {string} runUrl - The URL of the workflow run
  * @param {string} eventName - The event type (to determine the comment text)
  * @param {{
@@ -427,21 +427,23 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
 
   if (eventName === "discussion") {
     // Parse discussion number from special format: "discussion:NUMBER"
-    const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+    const discussionNumber = parseInt(/** @type {string} */ endpoint.split(":")[1], 10);
     return postDiscussionComment(discussionNumber, commentBody, null, eventRepo);
   }
 
   if (eventName === "discussion_comment") {
     // Parse discussion number from special format: "discussion_comment:NUMBER:COMMENT_ID"
-    const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+    const discussionNumber = parseInt(/** @type {string} */ endpoint.split(":")[1], 10);
 
     // GitHub Discussions only supports two nesting levels, so resolve the top-level parent's node ID
     const commentNodeId = await resolveTopLevelDiscussionCommentId(github, eventPayload?.comment?.node_id);
     return postDiscussionComment(discussionNumber, commentBody, commentNodeId, eventRepo);
   }
 
-  // Create a new comment for non-discussion events
-  const createResponse = await github.request("POST " + endpoint, {
+  // Create a new comment for non-discussion events using typed route
+  const { route, params } = /** @type {{ route: string, params: Record<string, unknown> }} */ endpoint;
+  const createResponse = await github.request(route, {
+    ...params,
     body: commentBody,
     headers: { Accept: "application/vnd.github+json" },
   });
