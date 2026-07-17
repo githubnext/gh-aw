@@ -192,7 +192,7 @@ function resolveCodexPromptFileArgs(args) {
       // An unreadable prompt file means no task instructions can be delivered to Codex.
       // Propagate as a fatal error rather than forwarding the harness-only flag to the
       // codex subprocess (which would fail with an "unknown option" error).
-      throw new Error(`--prompt-file '${promptFile}' is not readable: ${err.message}`);
+      throw new Error(`--prompt-file '${promptFile}' is not readable: ${err.message}`, { cause: err });
     }
     i++; // Skip the prompt-file path argument
   }

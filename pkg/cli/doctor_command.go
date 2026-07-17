@@ -19,7 +19,12 @@ func NewDoctorCommand() *cobra.Command {
 		Long: `Run diagnostics to verify CLI authentication and repository setup.
 
 Checks GitHub CLI authentication. When --repo is provided, also verifies the
-repository exists, resolves the owner type, and inspects checkout state.`,
+repository exists, resolves the owner type, and inspects checkout state.
+
+When running inside a GitHub Enterprise checkout and GH_HOST is unset, doctor
+auto-detects the host from the git remote. Outside a checkout, authenticate with
+gh auth login --hostname <host> and set GH_HOST=<host> so repository diagnostics
+target the correct host.`,
 		Example: `  gh aw doctor
   gh aw doctor --json
   gh aw doctor --repo github/gh-aw

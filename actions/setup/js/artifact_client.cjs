@@ -161,6 +161,9 @@ async function streamToFile(response, filePath) {
 
 function ensureZipAvailable() {
   const result = spawnSync("zip", ["-v"], { stdio: "ignore" });
+  if (result.error) {
+    throw result.error;
+  }
   if (result.status !== 0) {
     throw new Error("zip command is required to upload artifacts (for example: apt-get install zip)");
   }
@@ -168,6 +171,9 @@ function ensureZipAvailable() {
 
 function ensureUnzipAvailable() {
   const result = spawnSync("unzip", ["-v"], { stdio: "ignore" });
+  if (result.error) {
+    throw result.error;
+  }
   if (result.status !== 0) {
     throw new Error("unzip command is required to download artifacts (for example: apt-get install unzip)");
   }
@@ -184,6 +190,9 @@ function createZipFromFiles(files, rootDirectory, outputPath) {
     cwd: rootDirectory,
     encoding: "utf8",
   });
+  if (result.error) {
+    throw result.error;
+  }
   if (result.status !== 0) {
     throw new Error(`zip command failed: ${result.stderr || result.stdout || "unknown error"}`);
   }
@@ -314,6 +323,9 @@ class DefaultArtifactClient {
       const tempZip = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-artifact-download-")), "artifact.zip");
       digest = await streamToFile(blobResponse, tempZip);
       const unzipResult = spawnSync("unzip", ["-q", tempZip, "-d", destination], { encoding: "utf8" });
+      if (unzipResult.error) {
+        throw unzipResult.error;
+      }
       if (unzipResult.status !== 0) {
         throw new Error(`unzip failed: ${unzipResult.stderr || unzipResult.stdout || "unknown error"}`);
       }

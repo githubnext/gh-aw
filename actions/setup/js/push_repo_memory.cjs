@@ -91,7 +91,7 @@ async function main() {
     try {
       return JSON.parse(raw);
     } catch (e) {
-      throw new Error(`Invalid JSON in ${absPath}: ${getErrorMessage(e)}`);
+      throw new Error(`Invalid JSON in ${absPath}: ${getErrorMessage(e)}`, { cause: e });
     }
   }
 
