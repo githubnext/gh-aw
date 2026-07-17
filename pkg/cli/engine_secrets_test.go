@@ -150,6 +150,26 @@ func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 
 func TestBuildCopilotPATCreationURL(t *testing.T) {
 	t.Run("defaults to public github", func(t *testing.T) {
+		// Clear all host env vars so the remote-detection fallback is exercised in
+		// isolation.  Higher-priority variables (GITHUB_SERVER_URL, etc.) are set
+		// by GitHub Actions and would otherwise override the expected default.
+		t.Setenv("GITHUB_SERVER_URL", "")
+		t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+		t.Setenv("GITHUB_HOST", "")
+		t.Setenv("GH_HOST", "")
+
+		// Run outside any git checkout so that getHostFromOriginRemote() has no
+		// remote to detect, guaranteeing the github.com default is returned.
+		tmpDir := testutil.TempDir(t, "copilot-pat-url-default-*")
+		originalDir, err := os.Getwd()
+		require.NoError(t, err)
+		defer func() {
+			if err := os.Chdir(originalDir); err != nil {
+				t.Logf("Warning: failed to restore directory: %v", err)
+			}
+		}()
+		require.NoError(t, os.Chdir(tmpDir))
+
 		rawURL := buildCopilotPATCreationURL()
 		parsed, err := url.Parse(rawURL)
 		require.NoError(t, err)
@@ -165,6 +185,11 @@ func TestBuildCopilotPATCreationURL(t *testing.T) {
 	})
 
 	t.Run("uses GH_HOST when gh auth is configured for enterprise", func(t *testing.T) {
+		// Clear higher-priority variables first so GH_HOST (the lowest-priority
+		// consumer in getGitHubHost) is actually honoured.
+		t.Setenv("GITHUB_SERVER_URL", "")
+		t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+		t.Setenv("GITHUB_HOST", "")
 		t.Setenv("GH_HOST", "ghe.example.com")
 
 		rawURL := buildCopilotPATCreationURL()
