@@ -5,12 +5,36 @@ package astutil
 import (
 	"go/ast"
 	"go/constant"
+	"go/importer"
+	"go/parser"
 	"go/token"
 	"go/types"
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
 )
+
+func typecheckSnippet(t *testing.T, src string) (*analysis.Pass, *ast.File) {
+	t.Helper()
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "snippet.go", src, parser.SkipObjectResolution)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+
+	info := &types.Info{
+		Types: make(map[ast.Expr]types.TypeAndValue),
+		Defs:  make(map[*ast.Ident]types.Object),
+		Uses:  make(map[*ast.Ident]types.Object),
+	}
+	cfg := types.Config{Importer: importer.Default()}
+	if _, err := cfg.Check("example.com/p", fset, []*ast.File{file}, info); err != nil {
+		t.Fatalf("type checking failed: %v", err)
+	}
+
+	return &analysis.Pass{TypesInfo: info}, file
+}
 
 func TestRhsExprForIndex(t *testing.T) {
 	t.Parallel()
@@ -422,5 +446,96 @@ func TestBuildContainsFix(t *testing.T) {
 	}
 	if fixes[0].Message != "negated message" {
 		t.Fatalf("negated Message = %q, want %q", fixes[0].Message, "negated message")
+	}
+}
+
+func TestByteStringTypeHelpers(t *testing.T) {
+	t.Parallel()
+
+	const src = `package p
+
+func g(s string) []byte { return nil }
+
+func f(s string, b []byte) {
+	type myString string
+	var ms myString
+
+	_ = []byte(s)
+	_ = g(s)
+	_ = b
+	_ = s
+	_ = ms
+}
+`
+
+	pass, file := typecheckSnippet(t, src)
+
+	var fn *ast.FuncDecl
+	for _, decl := range file.Decls {
+		decl, ok := decl.(*ast.FuncDecl)
+		if ok && decl.Name.Name == "f" {
+			fn = decl
+			break
+		}
+	}
+	if fn == nil || fn.Body == nil {
+		t.Fatal("failed to find function f in test snippet")
+	}
+
+	var rhsExprs []ast.Expr
+	for _, stmt := range fn.Body.List {
+		assign, ok := stmt.(*ast.AssignStmt)
+		if !ok || len(assign.Rhs) != 1 {
+			continue
+		}
+		rhsExprs = append(rhsExprs, assign.Rhs[0])
+	}
+	if len(rhsExprs) != 5 {
+		t.Fatalf("found %d assignment expressions in f, want 5", len(rhsExprs))
+	}
+
+	byteConv, ok := rhsExprs[0].(*ast.CallExpr)
+	if !ok {
+		t.Fatalf("rhs[0] type = %T, want *ast.CallExpr", rhsExprs[0])
+	}
+	gCall, ok := rhsExprs[1].(*ast.CallExpr)
+	if !ok {
+		t.Fatalf("rhs[1] type = %T, want *ast.CallExpr", rhsExprs[1])
+	}
+	bIdent, ok := rhsExprs[2].(*ast.Ident)
+	if !ok {
+		t.Fatalf("rhs[2] type = %T, want *ast.Ident", rhsExprs[2])
+	}
+	sIdent, ok := rhsExprs[3].(*ast.Ident)
+	if !ok {
+		t.Fatalf("rhs[3] type = %T, want *ast.Ident", rhsExprs[3])
+	}
+	msIdent, ok := rhsExprs[4].(*ast.Ident)
+	if !ok {
+		t.Fatalf("rhs[4] type = %T, want *ast.Ident", rhsExprs[4])
+	}
+
+	if !IsByteSlice(pass, bIdent) {
+		t.Fatal("IsByteSlice(b) = false, want true")
+	}
+	if IsByteSlice(pass, sIdent) {
+		t.Fatal("IsByteSlice(s) = true, want false")
+	}
+
+	if !IsByteSliceConversion(pass, byteConv) {
+		t.Fatal("IsByteSliceConversion([]byte(s)) = false, want true")
+	}
+	if IsByteSliceConversion(pass, gCall) {
+		t.Fatal("IsByteSliceConversion(g(s)) = true, want false")
+	}
+
+	if !IsStringType(pass, sIdent) {
+		t.Fatal("IsStringType(s) = false, want true")
+	}
+	if !IsStringType(pass, msIdent) {
+		t.Fatal("IsStringType(ms) = false, want true for named string")
+	}
+	if IsStringType(pass, bIdent) {
+		t.Fatal("IsStringType(b) = true, want false")
 	}
 }

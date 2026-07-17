@@ -205,21 +205,9 @@ func (c *Compiler) buildInstallDetectionEngineForExternalDetectorStep(data *Work
 	threatDetectionData.EngineConfig = &EngineConfig{ID: engineID}
 
 	if canReuseThreatDetectionEngineConfigForExternalDetector(data, engineID) {
-		ec := data.SafeOutputs.ThreatDetection.EngineConfig
-		threatDetectionData.EngineConfig = &EngineConfig{
-			ID:            engineID,
-			Model:         ec.Model,
-			Version:       ec.Version,
-			Env:           ec.Env,
-			Config:        ec.Config,
-			Args:          ec.Args,
-			Command:       ec.Command,
-			APITarget:     ec.APITarget,
-			HarnessScript: ec.HarnessScript,
-			Driver:        ec.Driver,
-			CopilotSDK:    ec.CopilotSDK,
-		}
+		threatDetectionData.EngineConfig = cloneThreatDetectionEngineConfig(engineID, data.SafeOutputs.ThreatDetection.EngineConfig)
 	}
+	threatDetectionData.EngineConfig.Env = mergeThreatDetectionEngineEnv(data, threatDetectionData.EngineConfig.Env)
 	if threatDetectionData.EngineConfig.APITarget == "" && data.EngineConfig != nil {
 		threatDetectionData.EngineConfig.APITarget = data.EngineConfig.APITarget
 	}
@@ -292,12 +280,9 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 
 	// Inherit engine config overrides from threat-detection config when set.
 	if canReuseThreatDetectionEngineConfigForExternalDetector(data, engineID) {
-		ec := data.SafeOutputs.ThreatDetection.EngineConfig
-		threatDetectionData.EngineConfig = &EngineConfig{
-			ID:        engineID,
-			APITarget: ec.APITarget,
-		}
+		threatDetectionData.EngineConfig = cloneThreatDetectionEngineConfig(engineID, data.SafeOutputs.ThreatDetection.EngineConfig)
 	}
+	threatDetectionData.EngineConfig.Env = mergeThreatDetectionEngineEnv(data, threatDetectionData.EngineConfig.Env)
 	// Inherit APITarget from main engine config for GHE/custom endpoints.
 	if threatDetectionData.EngineConfig.APITarget == "" && data.EngineConfig != nil {
 		threatDetectionData.EngineConfig.APITarget = data.EngineConfig.APITarget

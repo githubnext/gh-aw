@@ -805,6 +805,7 @@ jobs:
             core.info(`Comment body to post:\n${commentBody}`);
 
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+            const commentDelayMs = 1000;
             const withRetry = async (fn, label) => {
               const maxAttempts = 3;
               for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -837,6 +838,10 @@ jobs:
               if (alreadyCommented) {
                 skippedCount += 1;
                 continue;
+              }
+
+              if (commentedCount > 0) {
+                await sleep(commentDelayMs);
               }
 
               await withRetry(

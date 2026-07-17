@@ -12,6 +12,14 @@ var nodejsLog = logger.New("workflow:nodejs")
 
 const npmDefaultCooldownDays = 3
 
+// NPMInstallOptions configures generated npm installation steps.
+type NPMInstallOptions struct {
+	IncludeNodeSetup  bool
+	IsGlobal          bool
+	RunInstallScripts bool
+	CooldownEnabled   bool
+}
+
 // GenerateNodeJsSetupStep creates a GitHub Actions step for setting up Node.js
 // Returns a step that installs Node.js using the default version from constants.DefaultNodeVersion
 // Caching is disabled by default to prevent cache poisoning vulnerabilities in release workflows
@@ -47,13 +55,15 @@ func installStepsContainNodeSetup(steps []GitHubActionStep) bool {
 //   - version: The package version to install
 //   - stepName: The name to display for the install step (e.g., "Install Claude Code CLI")
 //   - cacheKeyPrefix: The prefix for the cache key (unused, kept for API compatibility)
-//   - includeNodeSetup: If true, includes Node.js setup step before npm install
-//   - runInstallScripts: If true, allow pre/post install scripts (omits --ignore-scripts)
-//   - cooldownEnabled: If true, apply a default 3-day npm release-age cooldown
+//   - options.IncludeNodeSetup: If true, includes Node.js setup step before npm install
+//   - options.RunInstallScripts: If true, allow pre/post install scripts (omits --ignore-scripts)
+//   - options.CooldownEnabled: If true, apply a default 3-day npm release-age cooldown
 //
 // Returns steps for installing the npm package (optionally with Node.js setup)
-func GenerateNpmInstallSteps(packageName, version, stepName, cacheKeyPrefix string, includeNodeSetup bool, runInstallScripts bool, cooldownEnabled bool) []GitHubActionStep {
-	return GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPrefix, includeNodeSetup, true, runInstallScripts, cooldownEnabled)
+func GenerateNpmInstallSteps(packageName, version, stepName, cacheKeyPrefix string, options NPMInstallOptions) []GitHubActionStep {
+	scopeOptions := options
+	scopeOptions.IsGlobal = true
+	return GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPrefix, scopeOptions)
 }
 
 // BuildStandardNpmEngineInstallStepsNoCooldown creates standard npm installation
@@ -94,9 +104,11 @@ func buildStandardNpmEngineInstallSteps(
 		version,
 		stepName,
 		cacheKeyPrefix,
-		true,  // Include Node.js setup
-		false, // Always disable scripts for engine CLI installs
-		cooldownEnabled,
+		NPMInstallOptions{
+			IncludeNodeSetup:  true,
+			RunInstallScripts: false,
+			CooldownEnabled:   cooldownEnabled,
+		},
 	)
 }
 
@@ -266,28 +278,35 @@ func GetDockerSbxNpmCLIPathSetup(workflowData *WorkflowData) string {
 
 // GenerateNpmInstallStepsWithScope generates npm installation steps with control over global vs local installation.
 // By default, --ignore-scripts is added to the install command to prevent pre/post install
-// scripts from executing (supply chain security). Pass runInstallScripts=true to allow scripts.
-func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPrefix string, includeNodeSetup bool, isGlobal bool, runInstallScripts bool, cooldownEnabled bool) []GitHubActionStep {
-	nodejsLog.Printf("Generating npm install steps: package=%s, version=%s, includeNodeSetup=%v, isGlobal=%v, runInstallScripts=%v", packageName, version, includeNodeSetup, isGlobal, runInstallScripts)
+// scripts from executing (supply chain security). Pass options.RunInstallScripts=true to allow scripts.
+func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPrefix string, options NPMInstallOptions) []GitHubActionStep {
+	nodejsLog.Printf(
+		"Generating npm install steps: package=%s, version=%s, includeNodeSetup=%v, isGlobal=%v, runInstallScripts=%v",
+		packageName,
+		version,
+		options.IncludeNodeSetup,
+		options.IsGlobal,
+		options.RunInstallScripts,
+	)
 
 	var steps []GitHubActionStep
 
 	// Add Node.js setup if requested
-	if includeNodeSetup {
+	if options.IncludeNodeSetup {
 		nodejsLog.Print("Including Node.js setup step")
 		steps = append(steps, GenerateNodeJsSetupStep())
 	}
 
 	// Add npm install step
 	globalFlag := ""
-	if isGlobal {
+	if options.IsGlobal {
 		globalFlag = "-g "
 	}
 
 	// Add --ignore-scripts by default to prevent pre/post install scripts (supply chain security).
 	// runInstallScripts=true disables this protection (emits a warning at compile time).
 	ignoreScriptsFlag := "--ignore-scripts "
-	if runInstallScripts {
+	if options.RunInstallScripts {
 		ignoreScriptsFlag = ""
 	}
 
@@ -305,7 +324,7 @@ func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPr
 			"        env:",
 			"          ENGINE_VERSION: " + version,
 		}
-		if cooldownEnabled {
+		if options.CooldownEnabled {
 			installStep = append(installStep, fmt.Sprintf("          NPM_CONFIG_MIN_RELEASE_AGE: '%d'", npmDefaultCooldownDays))
 		}
 	} else {
@@ -314,7 +333,7 @@ func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPr
 			"      - name: " + stepName,
 			"        run: " + installCmd,
 		}
-		if cooldownEnabled {
+		if options.CooldownEnabled {
 			installStep = append(installStep,
 				"        env:",
 				fmt.Sprintf("          NPM_CONFIG_MIN_RELEASE_AGE: '%d'", npmDefaultCooldownDays),

@@ -17,6 +17,19 @@ import (
 
 var setupRepositoryLog = logger.New("cli:setup_repository")
 
+func configureDefaultGHHostFromOriginRemoteIfUnset() {
+	if os.Getenv("GH_HOST") != "" { //nolint:osgetenvlibrary
+		return
+	}
+
+	if detectedHost := getHostFromOriginRemote(); detectedHost != "" && detectedHost != "github.com" {
+		setupRepositoryLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)
+		workflow.SetDefaultGHHost(detectedHost)
+	} else if detectedHost == "github.com" {
+		workflow.SetDefaultGHHost("")
+	}
+}
+
 type SetupAuthOptions struct {
 	Ctx  context.Context
 	JSON bool
@@ -48,8 +61,8 @@ type SetupRepositoryCheckResult struct {
 }
 
 // setupRepositoryRuntime holds the reusable repository/auth setup primitives that
-// higher-level setup flows can compose. bootstrap is the first consumer, but the
-// helpers are intentionally generic so future auth/setup commands can reuse them.
+// higher-level setup flows can compose. The helpers are intentionally generic so
+// future auth/setup commands can reuse them.
 type setupRepositoryRuntime struct {
 	checkAuth          func(context.Context) error
 	repoExists         func(context.Context, string) (bool, error)
@@ -299,6 +312,8 @@ func runSetupAuthWithRuntime(opts SetupAuthOptions, runtime setupRepositoryRunti
 		ctx = context.Background()
 	}
 
+	configureDefaultGHHostFromOriginRemoteIfUnset()
+
 	if err := runtime.checkAuth(ctx); err != nil {
 		return fmt.Errorf("failed to verify GitHub CLI authentication: %w", err)
 	}
@@ -352,6 +367,8 @@ func runSetupRepositoryCheckWithRuntime(opts SetupRepositoryCheckOptions, runtim
 	if ctx == nil {
 		ctx = context.Background()
 	}
+
+	configureDefaultGHHostFromOriginRemoteIfUnset()
 
 	if err := runtime.checkAuth(ctx); err != nil {
 		return fmt.Errorf("failed to verify GitHub CLI authentication: %w", err)

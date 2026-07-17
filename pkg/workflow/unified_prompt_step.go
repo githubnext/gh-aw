@@ -457,6 +457,16 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	// 2. Write user prompt chunks (appended after built-in sections).
 	// All chunks are written into the same heredoc block (opened above or here)
 	// to minimise the number of delimiter lines in the compiled lock file.
+	//
+	// The heredoc payload is a YAML block scalar, so normalizeBlankLines preserves
+	// it verbatim (it must, since arbitrary block scalars can carry semantically
+	// significant trailing whitespace and blank runs). Prompt content is markdown
+	// text the compiler owns, where trailing whitespace is never meaningful and
+	// long blank runs are noise, so it is cleaned here instead: trailing whitespace
+	// is trimmed from every line and consecutive blank lines are capped at
+	// maxConsecutiveBlankLines. userBlankRun is tracked across chunks so a run that
+	// straddles a chunk boundary is still collapsed.
+	userBlankRun := 0
 	for chunkIdx, chunk := range userPromptChunks {
 		unifiedPromptLog.Printf("Writing user prompt chunk %d/%d", chunkIdx+1, len(userPromptChunks))
 
@@ -472,6 +482,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 				inHeredoc = true
 			}
 			yaml.WriteString("          " + chunk + "\n")
+			userBlankRun = 0
 			continue
 		}
 
@@ -483,8 +494,20 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 
 		lines := strings.SplitSeq(chunk, "\n")
 		for line := range lines {
+			trimmed := strings.TrimRight(line, " \t")
+			if trimmed == "" {
+				// Collapse over-long blank runs; emit truly empty lines (no
+				// indentation) so they carry no trailing whitespace.
+				if userBlankRun >= maxConsecutiveBlankLines {
+					continue
+				}
+				userBlankRun++
+				yaml.WriteByte('\n')
+				continue
+			}
+			userBlankRun = 0
 			yaml.WriteString("          ")
-			yaml.WriteString(line)
+			yaml.WriteString(trimmed)
 			yaml.WriteByte('\n')
 		}
 	}

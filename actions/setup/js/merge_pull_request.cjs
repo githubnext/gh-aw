@@ -68,7 +68,9 @@ async function getPullRequestWithMergeability(githubClient, owner, repo, pullNum
         return fallback.data;
       }
     } catch (fallbackError) {
-      throw new Error(`${SAFE_OUTPUT_E099}: Failed to fetch pull request #${pullNumber} after retry and fallback attempts. Retry error: ${getErrorMessage(error)}. Fallback error: ${getErrorMessage(fallbackError)}`);
+      throw new Error(`${SAFE_OUTPUT_E099}: Failed to fetch pull request #${pullNumber} after retry and fallback attempts. Retry error: ${getErrorMessage(error)}. Fallback error: ${getErrorMessage(fallbackError)}`, {
+        cause: fallbackError,
+      });
     }
     throw error;
   });

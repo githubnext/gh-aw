@@ -75,9 +75,11 @@ func TestGenerateNpmInstallSteps_IgnoreScriptsByDefault(t *testing.T) {
 		"latest",
 		"Install Claude Code CLI",
 		"claude",
-		false, // no Node.js setup step
-		false, // runInstallScripts=false (default)
-		true,  // cooldown enabled by default
+		NPMInstallOptions{
+			IncludeNodeSetup:  false,
+			RunInstallScripts: false,
+			CooldownEnabled:   true,
+		},
 	)
 
 	require.Len(t, steps, 1, "Expected 1 install step")
@@ -94,9 +96,11 @@ func TestGenerateNpmInstallSteps_RunInstallScriptsEnabled(t *testing.T) {
 		"latest",
 		"Install Claude Code CLI",
 		"claude",
-		false, // no Node.js setup step
-		true,  // runInstallScripts=true
-		true,  // cooldown enabled by default
+		NPMInstallOptions{
+			IncludeNodeSetup:  false,
+			RunInstallScripts: true,
+			CooldownEnabled:   true,
+		},
 	)
 
 	require.Len(t, steps, 1, "Expected 1 install step")
@@ -113,10 +117,12 @@ func TestGenerateNpmInstallStepsWithScope_LocalInstall(t *testing.T) {
 		"2.0.1",
 		"Install qmd",
 		"qmd",
-		false, // no Node.js setup
-		false, // local install (not global)
-		false, // runInstallScripts=false
-		false, // cooldown disabled
+		NPMInstallOptions{
+			IncludeNodeSetup:  false,
+			IsGlobal:          false,
+			RunInstallScripts: false,
+			CooldownEnabled:   false,
+		},
 	)
 
 	require.Len(t, steps, 1, "Expected 1 install step")

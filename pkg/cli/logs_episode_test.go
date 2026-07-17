@@ -95,9 +95,11 @@ func TestBuildEpisodeDataSetsBlockedAtCapWhenFirewallCountHitsCap(t *testing.T) 
 				WorkflowName: "firewall-heavy",
 			},
 			FirewallAnalysis: &FirewallAnalysis{
-				TotalRequests:   100,
-				BlockedRequests: firewallBlockedRequestCap, // exactly at the proxy cap
-				AllowedRequests: 50,
+				AnalysisBase: AnalysisBase{
+					TotalRequests:   100,
+					BlockedRequests: firewallBlockedRequestCap, // exactly at the proxy cap
+					AllowedRequests: 50,
+				},
 			},
 		},
 	}
@@ -126,9 +128,11 @@ func TestBuildEpisodeDataDoesNotSetBlockedAtCapBelowThreshold(t *testing.T) {
 				WorkflowName: "low-block",
 			},
 			FirewallAnalysis: &FirewallAnalysis{
-				TotalRequests:   100,
-				BlockedRequests: 8,
-				AllowedRequests: 92,
+				AnalysisBase: AnalysisBase{
+					TotalRequests:   100,
+					BlockedRequests: 8,
+					AllowedRequests: 92,
+				},
 			},
 		},
 	}

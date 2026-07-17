@@ -548,7 +548,7 @@ func TestAuditCachingBehavior(t *testing.T) {
 	// Verify that downloadRunArtifacts skips download when valid summary exists
 	// This is tested by checking that the function returns without error
 	// and doesn't attempt to call `gh run download`
-	err := downloadRunArtifacts(context.Background(), run.DatabaseID, runOutputDir, false, "", "", "", nil)
+	err := downloadRunArtifacts(context.Background(), downloadArtifactsOptions{runID: run.DatabaseID, outputDir: runOutputDir})
 	if err != nil {
 		t.Errorf("downloadRunArtifacts should skip download when valid summary exists, but got error: %v", err)
 	}
@@ -725,13 +725,15 @@ func TestBuildAuditDataWithFirewall(t *testing.T) {
 	}
 
 	firewallAnalysis := &FirewallAnalysis{
-		DomainBuckets: DomainBuckets{
-			AllowedDomains: []string{"api.github.com:443", "npmjs.org:443"},
-			BlockedDomains: []string{"blocked.example.com:443"},
+		AnalysisBase: AnalysisBase{
+			DomainBuckets: DomainBuckets{
+				AllowedDomains: []string{"api.github.com:443", "npmjs.org:443"},
+				BlockedDomains: []string{"blocked.example.com:443"},
+			},
+			TotalRequests:   10,
+			AllowedRequests: 7,
+			BlockedRequests: 3,
 		},
-		TotalRequests:   10,
-		AllowedRequests: 7,
-		BlockedRequests: 3,
 		RequestsByDomain: map[string]DomainRequestStats{
 			"api.github.com:443":      {Allowed: 5, Blocked: 0},
 			"npmjs.org:443":           {Allowed: 2, Blocked: 0},
@@ -775,13 +777,15 @@ func TestBuildAuditDataWithFirewall(t *testing.T) {
 func TestRenderJSONWithFirewall(t *testing.T) {
 	// Create test audit data with firewall analysis
 	firewallAnalysis := &FirewallAnalysis{
-		DomainBuckets: DomainBuckets{
-			AllowedDomains: []string{"api.github.com:443"},
-			BlockedDomains: []string{"blocked.example.com:443"},
+		AnalysisBase: AnalysisBase{
+			DomainBuckets: DomainBuckets{
+				AllowedDomains: []string{"api.github.com:443"},
+				BlockedDomains: []string{"blocked.example.com:443"},
+			},
+			TotalRequests:   10,
+			AllowedRequests: 7,
+			BlockedRequests: 3,
 		},
-		TotalRequests:   10,
-		AllowedRequests: 7,
-		BlockedRequests: 3,
 		RequestsByDomain: map[string]DomainRequestStats{
 			"api.github.com:443":      {Allowed: 7, Blocked: 0},
 			"blocked.example.com:443": {Allowed: 0, Blocked: 3},

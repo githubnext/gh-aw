@@ -6,7 +6,6 @@ package appendbytestring
 import (
 	"fmt"
 	"go/ast"
-	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -67,7 +66,7 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		// The first argument must be []byte.
-		if !isByteSlice(pass, call.Args[0]) {
+		if !astutil.IsByteSlice(pass, call.Args[0]) {
 			return
 		}
 
@@ -76,14 +75,14 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
-		if !isByteSliceConversion(pass, conv) {
+		if !astutil.IsByteSliceConversion(pass, conv) {
 			return
 		}
 		if len(conv.Args) != 1 {
 			return
 		}
 		strArg := conv.Args[0]
-		if !isStringType(pass, strArg) {
+		if !astutil.IsStringType(pass, strArg) {
 			return
 		}
 
@@ -101,40 +100,6 @@ func run(pass *analysis.Pass) (any, error) {
 	})
 
 	return nil, nil
-}
-
-// isByteSlice reports whether expr has type []byte.
-func isByteSlice(pass *analysis.Pass, expr ast.Expr) bool {
-	t := pass.TypesInfo.TypeOf(expr)
-	if t == nil {
-		return false
-	}
-	sl, ok := t.Underlying().(*types.Slice)
-	if !ok {
-		return false
-	}
-	elem, ok := sl.Elem().(*types.Basic)
-	return ok && elem.Kind() == types.Byte
-}
-
-// isByteSliceConversion reports whether conv is a []byte/[]uint8 conversion expression.
-func isByteSliceConversion(pass *analysis.Pass, conv *ast.CallExpr) bool {
-	// A type conversion has a type expression as the call function.
-	funTypeInfo, ok := pass.TypesInfo.Types[conv.Fun]
-	if !ok || !funTypeInfo.IsType() {
-		return false
-	}
-	return isByteSlice(pass, conv)
-}
-
-// isStringType reports whether expr has type string.
-func isStringType(pass *analysis.Pass, expr ast.Expr) bool {
-	t := pass.TypesInfo.TypeOf(expr)
-	if t == nil {
-		return false
-	}
-	basic, ok := t.Underlying().(*types.Basic)
-	return ok && basic.Kind() == types.String
 }
 
 // buildFix returns a SuggestedFix rewriting append(b, []byte(s)...) to append(b, s...).
