@@ -30,7 +30,7 @@ function createAppendFunction(outputFile) {
     try {
       fs.appendFileSync(outputFile, jsonLine);
     } catch (error) {
-      throw new Error(`${ERR_SYSTEM}: Failed to write to output file: ${getErrorMessage(error)}`);
+      throw new Error(`${ERR_SYSTEM}: Failed to write to output file: ${getErrorMessage(error)}`, { cause: error });
     }
   };
 }

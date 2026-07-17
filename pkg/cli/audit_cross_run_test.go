@@ -31,9 +31,11 @@ func TestBuildCrossRunAuditReport_SingleRunWithData(t *testing.T) {
 			WorkflowName: "test-workflow",
 			Conclusion:   "success",
 			FirewallAnalysis: &FirewallAnalysis{
-				TotalRequests:   10,
-				AllowedRequests: 8,
-				BlockedRequests: 2,
+				AnalysisBase: AnalysisBase{
+					TotalRequests:   10,
+					AllowedRequests: 8,
+					BlockedRequests: 2,
+				},
 				RequestsByDomain: map[string]DomainRequestStats{
 					"api.github.com:443":     {Allowed: 5, Blocked: 0},
 					"evil.example.com:443":   {Allowed: 0, Blocked: 2},
@@ -72,9 +74,11 @@ func TestBuildCrossRunAuditReport_MultipleRuns(t *testing.T) {
 			WorkflowName: "workflow-a",
 			Conclusion:   "success",
 			FirewallAnalysis: &FirewallAnalysis{
-				TotalRequests:   5,
-				AllowedRequests: 5,
-				BlockedRequests: 0,
+				AnalysisBase: AnalysisBase{
+					TotalRequests:   5,
+					AllowedRequests: 5,
+					BlockedRequests: 0,
+				},
 				RequestsByDomain: map[string]DomainRequestStats{
 					"api.github.com:443":     {Allowed: 3, Blocked: 0},
 					"npm.pkg.github.com:443": {Allowed: 2, Blocked: 0},
@@ -86,9 +90,11 @@ func TestBuildCrossRunAuditReport_MultipleRuns(t *testing.T) {
 			WorkflowName: "workflow-a",
 			Conclusion:   "failure",
 			FirewallAnalysis: &FirewallAnalysis{
-				TotalRequests:   8,
-				AllowedRequests: 5,
-				BlockedRequests: 3,
+				AnalysisBase: AnalysisBase{
+					TotalRequests:   8,
+					AllowedRequests: 5,
+					BlockedRequests: 3,
+				},
 				RequestsByDomain: map[string]DomainRequestStats{
 					"api.github.com:443":   {Allowed: 3, Blocked: 0},
 					"evil.example.com:443": {Allowed: 0, Blocked: 3},
@@ -174,9 +180,11 @@ func TestBuildCrossRunAuditReport_DomainInventorySorted(t *testing.T) {
 			WorkflowName: "wf",
 			Conclusion:   "success",
 			FirewallAnalysis: &FirewallAnalysis{
-				TotalRequests:   6,
-				AllowedRequests: 6,
-				BlockedRequests: 0,
+				AnalysisBase: AnalysisBase{
+					TotalRequests:   6,
+					AllowedRequests: 6,
+					BlockedRequests: 0,
+				},
 				RequestsByDomain: map[string]DomainRequestStats{
 					"z-domain.com:443": {Allowed: 2},
 					"a-domain.com:443": {Allowed: 2},

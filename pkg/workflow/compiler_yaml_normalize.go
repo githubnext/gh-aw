@@ -1,6 +1,12 @@
 package workflow
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var compilerYAMLNormalizeLog = logger.New("workflow:compiler_yaml_normalize")
 
 // maxConsecutiveBlankLines is the largest run of blank lines allowed in the
 // normalized YAML. yamllint's empty-lines rule flags more than two consecutive
@@ -22,6 +28,7 @@ const maxConsecutiveBlankLines = 2
 // This implementation avoids strings.Split/strings.Join to reduce allocations: it scans
 // the input byte-by-byte and builds the result with a single pre-allocated strings.Builder.
 func normalizeBlankLines(yamlContent string) string {
+	compilerYAMLNormalizeLog.Printf("Normalizing blank lines in %d bytes of YAML", len(yamlContent))
 	var b strings.Builder
 	b.Grow(len(yamlContent))
 
@@ -118,11 +125,13 @@ func normalizeBlankLines(yamlContent string) string {
 	// the original strings.TrimRight(…, "\n") + "\n" behaviour for that case.
 	// NOTE: b.String()[:0] must NOT be used here; the early return is intentional.
 	if lastNonBlankEnd == 0 {
+		compilerYAMLNormalizeLog.Print("Input contained no non-blank lines, returning single newline")
 		return "\n"
 	}
 	// Slice the builder string to drop trailing blank lines. b.String() copies
 	// the builder's internal buffer into a new string once; the slice avoids a
 	// second copy that a separate strings.Builder trim would incur.
+	compilerYAMLNormalizeLog.Printf("Normalized YAML to %d bytes", lastNonBlankEnd)
 	return b.String()[:lastNonBlankEnd]
 }
 

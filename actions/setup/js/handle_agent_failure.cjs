@@ -1833,7 +1833,7 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
   try {
     templatePath = getPromptPath(templateName);
   } catch (error) {
-    throw new Error(`failed to resolve template path for ${templateName} (${getErrorMessage(error)}); ensure RUNNER_TEMP or GH_AW_PROMPTS_DIR is set and the template file exists`);
+    throw new Error(`failed to resolve template path for ${templateName} (${getErrorMessage(error)}); ensure RUNNER_TEMP or GH_AW_PROMPTS_DIR is set and the template file exists`, { cause: error });
   }
 
   try {
@@ -1845,7 +1845,7 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
       })
     );
   } catch (error) {
-    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; verify template syntax and required placeholders: metrics_summary, suggested_credits`);
+    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; verify template syntax and required placeholders: metrics_summary, suggested_credits`, { cause: error });
   }
 }
 

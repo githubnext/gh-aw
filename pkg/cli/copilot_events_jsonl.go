@@ -97,6 +97,9 @@ type copilotRequestMetrics struct {
 }
 
 // copilotUsageMetrics holds token usage for a model.
+// NOTE: JSON tags intentionally use camelCase to match the Copilot events.jsonl
+// format written by the Copilot CLI. This differs from the snake_case convention
+// used in TokenCoreMetrics for our own token-usage files.
 type copilotUsageMetrics struct {
 	InputTokens      int `json:"inputTokens"`
 	OutputTokens     int `json:"outputTokens"`

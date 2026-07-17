@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
@@ -365,6 +366,198 @@ func TestAddCommandArgs(t *testing.T) {
 
 	err = cmd.Args(cmd, []string{"workflow1", "workflow2"})
 	require.NoError(t, err, "Should not error with multiple arguments")
+}
+
+func TestRejectBootstrapProfileForRegularAdd(t *testing.T) {
+	profileWithConfig := &resolvedBootstrapProfile{
+		PackageID: "githubnext/central-agentic-ops",
+		Profile: &repositoryPackageBootstrap{
+			Config: []repositoryPackageBootstrapAction{
+				{Type: "repo-variable", Name: "EXAMPLE", Prompt: "Enter value"},
+			},
+		},
+	}
+
+	t.Run("rejects regular add for packages with manifest config", func(t *testing.T) {
+		err := rejectBootstrapProfileForRegularAdd([]string{"githubnext/central-agentic-ops"}, profileWithConfig)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "package githubnext/central-agentic-ops declares aw.yml config")
+		assert.Contains(t, err.Error(), "gh aw add-wizard githubnext/central-agentic-ops")
+	})
+
+	t.Run("uses requested sources in the add-wizard guidance", func(t *testing.T) {
+		err := rejectBootstrapProfileForRegularAdd([]string{"githubnext/central-agentic-ops", "./local-workflow.md"}, profileWithConfig)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "gh aw add-wizard githubnext/central-agentic-ops ./local-workflow.md")
+	})
+
+	t.Run("allows packages without manifest config", func(t *testing.T) {
+		err := rejectBootstrapProfileForRegularAdd([]string{"owner/pkg"}, nil)
+		require.NoError(t, err)
+
+		err = rejectBootstrapProfileForRegularAdd([]string{"owner/pkg"}, &resolvedBootstrapProfile{
+			PackageID: "owner/pkg",
+			Profile:   &repositoryPackageBootstrap{Config: nil},
+		})
+		require.NoError(t, err)
+	})
+}
+
+func TestEnsureAddRepositoryInitialized(t *testing.T) {
+	originalFindGitRoot := addFindGitRoot
+	originalInitRepository := addInitRepository
+	originalMissingInitMarkers := addMissingInitMarkers
+	t.Cleanup(func() {
+		addFindGitRoot = originalFindGitRoot
+		addInitRepository = originalInitRepository
+		addMissingInitMarkers = originalMissingInitMarkers
+	})
+
+	t.Run("skips initialization outside a git checkout", func(t *testing.T) {
+		addFindGitRoot = func() (string, error) { return "", gitutil.ErrNotGitRepository }
+		addMissingInitMarkers = func(string, string) ([]string, error) {
+			t.Fatal("missing init markers check should be skipped outside a git checkout")
+			return nil, nil
+		}
+		addInitRepository = func(InitOptions) error {
+			t.Fatal("InitRepository should not run outside a git checkout")
+			return nil
+		}
+
+		err := ensureAddRepositoryInitialized("", false)
+		require.NoError(t, err)
+	})
+
+	t.Run("runs init when required markers are missing", func(t *testing.T) {
+		repoDir := t.TempDir()
+		addFindGitRoot = func() (string, error) { return repoDir, nil }
+		addMissingInitMarkers = func(baseDir string, engineOverride string) ([]string, error) {
+			assert.Equal(t, ".", baseDir)
+			assert.Equal(t, "claude", engineOverride)
+			return []string{".gitattributes"}, nil
+		}
+
+		called := false
+		addInitRepository = func(opts InitOptions) error {
+			called = true
+			assert.True(t, opts.Verbose)
+			assert.Equal(t, "claude", opts.Engine)
+			assert.True(t, opts.Skill)
+			assert.True(t, opts.Agent)
+			assert.True(t, opts.MCP)
+			assert.False(t, opts.CodespaceEnabled)
+			assert.False(t, opts.Completions)
+			assert.False(t, opts.CreatePR)
+			return nil
+		}
+
+		err := ensureAddRepositoryInitialized("claude", true)
+		require.NoError(t, err)
+		assert.True(t, called)
+	})
+
+	t.Run("does nothing when markers are already present", func(t *testing.T) {
+		repoDir := t.TempDir()
+		addFindGitRoot = func() (string, error) { return repoDir, nil }
+		addMissingInitMarkers = func(string, string) ([]string, error) { return nil, nil }
+		addInitRepository = func(InitOptions) error {
+			t.Fatal("InitRepository should not run when markers are already present")
+			return nil
+		}
+
+		err := ensureAddRepositoryInitialized("", false)
+		require.NoError(t, err)
+	})
+}
+
+func TestAddResolvedWorkflows_IgnoresBootstrapRequireOwnerTypeDuringInstall(t *testing.T) {
+	originalCheckOwnerType := bootstrapCheckOwnerType
+	t.Cleanup(func() {
+		bootstrapCheckOwnerType = originalCheckOwnerType
+	})
+
+	bootstrapCheckOwnerType = func(context.Context, string) (string, error) { return "User", nil }
+
+	resolved := &ResolvedWorkflows{
+		Workflows: nil,
+		BootstrapProfile: &resolvedBootstrapProfile{
+			PackageID: "githubnext/central-agentic-ops",
+			Profile: &repositoryPackageBootstrap{
+				Config: []repositoryPackageBootstrapAction{{Type: "require-owner-type", Value: "org"}},
+			},
+		},
+	}
+
+	_, err := AddResolvedWorkflows(context.Background(), []string{"githubnext/central-agentic-ops"}, resolved, AddOptions{NoGitattributes: true})
+	require.NoError(t, err)
+}
+
+func TestCompileDispatchWorkflowDependencies_FallsBackToRawFrontmatter(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "dispatch-workflow-fallback-*")
+	workflowsDir := setupMinimalGitRepo(t, tmpDir)
+
+	mainPath := filepath.Join(workflowsDir, "dispatcher.md")
+	workerPath := filepath.Join(workflowsDir, "worker.md")
+
+	require.NoError(t, os.WriteFile(mainPath, []byte(`---
+name: Dispatcher
+on:
+  workflow_dispatch:
+safe-outputs:
+  dispatch-workflow:
+    workflows: [worker]
+imports:
+  - uses: shared/missing.md
+---
+
+# Dispatcher
+`), 0o644))
+	require.NoError(t, os.WriteFile(workerPath, []byte(`---
+name: Worker
+on:
+  workflow_dispatch:
+---
+
+# Worker
+`), 0o644))
+
+	compileDispatchWorkflowDependencies(context.Background(), mainPath, false, true, "", nil)
+
+	lockPath := filepath.Join(workflowsDir, "worker.lock.yml")
+	_, err := os.Stat(lockPath)
+	require.NoError(t, err, "dispatch dependency should still be compiled when merged parse fails")
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(lockContent), "name: \"Worker\"", "compiled dispatch dependency should preserve its workflow name")
+}
+
+func TestValidateWorkflowDestination_SkipsExistingWorkflowFromSameSource(t *testing.T) {
+	workflowsDir := t.TempDir()
+	existingPath := filepath.Join(workflowsDir, "dependabot.md")
+	require.NoError(t, os.WriteFile(existingPath, []byte(`---
+source: githubnext/central-agentic-ops/.github/workflows/dependabot.md@main
+---
+# Dependabot
+`), 0o644))
+
+	skip, err := validateWorkflowDestination(workflowsDir, "dependabot", "githubnext/central-agentic-ops", AddOptions{})
+	require.NoError(t, err)
+	assert.True(t, skip)
+}
+
+func TestValidateWorkflowDestination_ErrorsForExistingWorkflowFromDifferentSource(t *testing.T) {
+	workflowsDir := t.TempDir()
+	existingPath := filepath.Join(workflowsDir, "dependabot.md")
+	require.NoError(t, os.WriteFile(existingPath, []byte(`---
+source: octo/other/.github/workflows/dependabot.md@main
+---
+# Dependabot
+`), 0o644))
+
+	skip, err := validateWorkflowDestination(workflowsDir, "dependabot", "githubnext/central-agentic-ops", AddOptions{})
+	require.Error(t, err)
+	assert.False(t, skip)
+	assert.Contains(t, err.Error(), "workflow 'dependabot' already exists")
 }
 
 // TestAddMultipleWorkflowsNameFlag verifies that --name is not allowed when multiple workflows are specified.

@@ -98,11 +98,12 @@ type PinContext struct {
 	Warnings map[string]bool
 	// RecordResolutionFailure receives unresolved pinning failures for auditing.
 	RecordResolutionFailure func(f ResolutionFailure)
-	// SkipHardcodedFallback skips the entire hardcoded-pin lookup (both exact/strict
-	// and non-strict matches) when dynamic resolution fails. Set this when GH_HOST is
-	// configured to a non-github.com host: the dynamic resolver will query the wrong
-	// host and fail, so silently falling back to bundled pins would produce unverified
-	// SHA pins and mask the real misconfiguration.
+	// SkipHardcodedFallback skips version→SHA hardcoded fallback when dynamic
+	// resolution fails. Exact SHA→version labeling is still allowed so
+	// already-pinned actions keep their human-readable version comments. Set this
+	// when GH_HOST is configured to a non-github.com host: the dynamic resolver
+	// will query the wrong host and fail, so silently falling back to bundled pins
+	// would produce unverified SHA pins and mask the real misconfiguration.
 	SkipHardcodedFallback bool
 	// Mappings redirects action repository@version references to replacement
 	// repository@version references before pin resolution. Keys and values use
@@ -391,9 +392,13 @@ func resolveActionPinFromHardcodedPins(actionRepo, version string, isAlreadySHA 
 	// When the caller is targeting a non-github.com host (e.g. GHES/GHEC), the
 	// dynamic resolver already failed because it queried the wrong host.  Silently
 	// falling back to bundled pins in that case produces unverified SHA pins and
-	// masks the real problem, so skip this fallback entirely.
-	if ctx.SkipHardcodedFallback {
-		actionPinsLog.Printf("SkipHardcodedFallback set, skipping hardcoded pin lookup for %s@%s", actionRepo, version)
+	// masks the real problem, so skip this fallback for version→SHA resolution.
+	//
+	// However, when version is already a SHA (isAlreadySHA), the lookup is purely
+	// SHA→version (to find a human-readable version label for the comment). That
+	// operation carries no security risk regardless of host, so it is always allowed.
+	if ctx.SkipHardcodedFallback && !isAlreadySHA {
+		actionPinsLog.Printf("SkipHardcodedFallback set, skipping version→SHA hardcoded pin lookup for %s@%s", actionRepo, version)
 		return "", false
 	}
 
