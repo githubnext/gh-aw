@@ -4176,8 +4176,9 @@ func TestBuildDetectionJobEngineEnvBuiltinWarning(t *testing.T) {
 }
 
 // TestBuildDetectionJobEngineEnvNeedsExpression verifies that the detection job scans the
-// effective detection engine env, so safe-outputs.threat-detection.engine overrides the
-// top-level engine env when resolving custom job dependencies.
+// effective merged detection engine env (main + detection-specific overrides) when resolving
+// custom job dependencies. Both the detection-specific env and the main engine env are
+// included so that expressions merged into the detection step have their jobs listed in needs.
 func TestBuildDetectionJobEngineEnvNeedsExpression(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.stepOrderTracker = NewStepOrderTracker()
@@ -4233,11 +4234,13 @@ func TestBuildDetectionJobEngineEnvNeedsExpression(t *testing.T) {
 	require.NoError(t, err, "buildDetectionJob should succeed")
 	require.NotNil(t, job, "detection job should be created")
 
-	// The detection job must use the threat-detection override env, not the top-level env.
+	// The detection job must scan the merged env (main + detection-specific overrides).
+	// Both select_model (from detection env) and ignored_job (from main env, merged in)
+	// must appear in needs so their expressions resolve correctly in the detection step.
 	assert.Contains(t, job.Needs, "select_model",
 		"detection job must directly depend on select_model referenced in threat-detection.engine.env")
-	assert.NotContains(t, job.Needs, "ignored_job",
-		"detection job must ignore top-level engine.env references when threat-detection.engine overrides env")
+	assert.Contains(t, job.Needs, "ignored_job",
+		"detection job must also depend on ignored_job merged from main engine.env")
 	assert.Contains(t, job.Needs, string(constants.AgentJobName),
 		"detection job must still depend on agent")
 	assert.Contains(t, job.Needs, string(constants.ActivationJobName),
@@ -4292,6 +4295,8 @@ func TestBuildDetectionJobEngineEnvNeedsNotDuplicated(t *testing.T) {
 // TestBuildDetectionJobEngineEnvNeedsIntegration is an end-to-end integration test that
 // compiles a workflow where engine.env references a custom job output, and verifies that the
 // compiled lock file includes the custom job as a direct dependency of the detection job.
+// With merged-env dependency scanning, both the detection-specific env and main engine env
+// references appear in detection needs.
 func TestBuildDetectionJobEngineEnvNeedsIntegration(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "detection_engine_env_needs_test")
 
@@ -4306,16 +4311,16 @@ permissions:
 engine:
   id: copilot
   env:
-    IGNORED_MODEL: ${{ needs.ignored_job.outputs.model }}
+    MAIN_MODEL: ${{ needs.main_job.outputs.model }}
 strict: false
 jobs:
-  ignored_job:
+  main_job:
     runs-on: ubuntu-latest
     outputs:
       model: ${{ steps.pick.outputs.model }}
     steps:
       - id: pick
-        run: echo "model=ignored" >> "$GITHUB_OUTPUT"
+        run: echo "model=from-main" >> "$GITHUB_OUTPUT"
   select_model:
     runs-on: ubuntu-latest
     needs: pre_activation
@@ -4369,6 +4374,6 @@ This workflow tests that engine.env needs expressions create detection job depen
 
 	assert.Contains(t, detectionNeeds, "select_model",
 		"detection job must list select_model in needs when referenced via threat-detection.engine.env")
-	assert.NotContains(t, detectionNeeds, "ignored_job",
-		"detection job must not inherit top-level engine.env dependencies when threat-detection.engine overrides env")
+	assert.Contains(t, detectionNeeds, "main_job",
+		"detection job must also list main_job in needs when main engine.env is merged into detection env")
 }

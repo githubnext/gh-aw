@@ -492,7 +492,7 @@
             "cache_read": "7.5e-08"
           },
           "provider_type": "openai",
-          "wire_api": "completions"
+          "wire_api": "responses"
         },
         "kimi-k2.7-code": {
           "cost": {
