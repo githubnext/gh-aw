@@ -131,47 +131,16 @@ type FirewallLogEntry struct {
 // FirewallAnalysis represents analysis of firewall logs
 // This mirrors the structure from the JavaScript parser
 type FirewallAnalysis struct {
-	DomainBuckets
-	TotalRequests    int                           `json:"total_requests"`
-	AllowedRequests  int                           `json:"allowed_requests"`
-	BlockedRequests  int                           `json:"blocked_requests"`
+	AnalysisBase
 	RequestsByDomain map[string]DomainRequestStats `json:"requests_by_domain,omitempty"`
 }
 
 // AddMetrics adds metrics from another analysis
 func (f *FirewallAnalysis) AddMetrics(other LogAnalysis) {
 	if otherFirewall, ok := other.(*FirewallAnalysis); ok {
-		f.TotalRequests += otherFirewall.TotalRequests
-		f.AllowedRequests += otherFirewall.AllowedRequests
-		f.BlockedRequests += otherFirewall.BlockedRequests
+		f.addBaseMetrics(&otherFirewall.AnalysisBase)
 
-		// Merge blocked domain lists
-		if len(otherFirewall.BlockedDomains) > 0 {
-			domainSet := make(map[string]struct{}, len(f.BlockedDomains)+len(otherFirewall.BlockedDomains))
-			for _, d := range f.BlockedDomains {
-				domainSet[d] = struct{}{}
-			}
-			for _, d := range otherFirewall.BlockedDomains {
-				domainSet[d] = struct{}{}
-			}
-			merged := sliceutil.SortedKeys(domainSet)
-			f.SetBlockedDomains(merged)
-		}
-
-		// Merge allowed domain lists
-		if len(otherFirewall.AllowedDomains) > 0 {
-			domainSet := make(map[string]struct{}, len(f.AllowedDomains)+len(otherFirewall.AllowedDomains))
-			for _, d := range f.AllowedDomains {
-				domainSet[d] = struct{}{}
-			}
-			for _, d := range otherFirewall.AllowedDomains {
-				domainSet[d] = struct{}{}
-			}
-			merged := sliceutil.SortedKeys(domainSet)
-			f.SetAllowedDomains(merged)
-		}
-
-		// Merge request stats by domain
+		// Merge request stats by domain (firewall-specific)
 		if f.RequestsByDomain == nil {
 			f.RequestsByDomain = make(map[string]DomainRequestStats)
 		}
@@ -512,9 +481,10 @@ func extractFirewallFromAgentLog(logsPath string, verbose bool) *FirewallAnalysi
 	blockedDomains := sliceutil.SortedKeys(blockedDomainsSet)
 
 	analysis := &FirewallAnalysis{
-		TotalRequests:    len(blockedDomains),
-		AllowedRequests:  0,
-		BlockedRequests:  len(blockedDomains),
+		AnalysisBase: AnalysisBase{
+			TotalRequests:   len(blockedDomains),
+			BlockedRequests: len(blockedDomains),
+		},
 		RequestsByDomain: make(map[string]DomainRequestStats),
 	}
 	analysis.SetBlockedDomains(blockedDomains)

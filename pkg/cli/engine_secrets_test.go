@@ -12,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/testutil"
 )
 
 func TestGetRequiredSecretsForEngine(t *testing.T) {
@@ -147,18 +148,70 @@ func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 }
 
 func TestBuildCopilotPATCreationURL(t *testing.T) {
-	rawURL := buildCopilotPATCreationURL()
-	parsed, err := url.Parse(rawURL)
-	require.NoError(t, err)
+	t.Run("defaults to public github", func(t *testing.T) {
+		// Clear all host env vars so the remote-detection fallback is exercised in
+		// isolation.  Higher-priority variables (GITHUB_SERVER_URL, etc.) are set
+		// by GitHub Actions and would otherwise override the expected default.
+		t.Setenv("GITHUB_SERVER_URL", "")
+		t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+		t.Setenv("GITHUB_HOST", "")
+		t.Setenv("GH_HOST", "")
 
-	assert.Equal(t, "https", parsed.Scheme)
-	assert.Equal(t, "github.com", parsed.Host)
-	assert.Equal(t, "/settings/personal-access-tokens/new", parsed.Path)
-	assert.Equal(t, constants.CopilotGitHubToken, parsed.Query().Get("name"), "token name must be prefilled to COPILOT_GITHUB_TOKEN")
-	assert.Equal(t, "read", parsed.Query().Get("user_copilot_requests"))
-	assert.Empty(t, parsed.Query().Get("contents"), "Copilot PAT setup URL should not request unrelated repository permissions")
-	assert.Empty(t, parsed.Query().Get("issues"), "Copilot PAT setup URL should not request unrelated issue permissions")
-	assert.Empty(t, parsed.Query().Get("pull_requests"), "Copilot PAT setup URL should not request unrelated pull request permissions")
+		// Run outside any git checkout so that getHostFromOriginRemote() has no
+		// remote to detect, guaranteeing the github.com default is returned.
+		tmpDir := testutil.TempDir(t, "copilot-pat-url-default-*")
+		t.Chdir(tmpDir)
+
+		rawURL := buildCopilotPATCreationURL()
+		parsed, err := url.Parse(rawURL)
+		require.NoError(t, err)
+
+		assert.Equal(t, "https", parsed.Scheme)
+		assert.Equal(t, "github.com", parsed.Host)
+		assert.Equal(t, "/settings/personal-access-tokens/new", parsed.Path)
+		assert.Equal(t, constants.CopilotGitHubToken, parsed.Query().Get("name"), "token name must be prefilled to COPILOT_GITHUB_TOKEN")
+		assert.Equal(t, "read", parsed.Query().Get("user_copilot_requests"))
+		assert.Empty(t, parsed.Query().Get("contents"), "Copilot PAT setup URL should not request unrelated repository permissions")
+		assert.Empty(t, parsed.Query().Get("issues"), "Copilot PAT setup URL should not request unrelated issue permissions")
+		assert.Empty(t, parsed.Query().Get("pull_requests"), "Copilot PAT setup URL should not request unrelated pull request permissions")
+	})
+
+	t.Run("uses GH_HOST when gh auth is configured for enterprise", func(t *testing.T) {
+		// Clear higher-priority variables first so GH_HOST (the lowest-priority
+		// consumer in getGitHubHost) is actually honoured.
+		t.Setenv("GITHUB_SERVER_URL", "")
+		t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+		t.Setenv("GITHUB_HOST", "")
+		t.Setenv("GH_HOST", "ghe.example.com")
+
+		rawURL := buildCopilotPATCreationURL()
+		parsed, err := url.Parse(rawURL)
+		require.NoError(t, err)
+
+		assert.Equal(t, "https", parsed.Scheme)
+		assert.Equal(t, "ghe.example.com", parsed.Host)
+		assert.Equal(t, "/settings/personal-access-tokens/new", parsed.Path)
+	})
+
+	t.Run("falls back to origin remote host when GH_HOST is unset", func(t *testing.T) {
+		t.Setenv("GH_HOST", "")
+		t.Setenv("GITHUB_HOST", "")
+		t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+		t.Setenv("GITHUB_SERVER_URL", "")
+
+		tmpDir := testutil.TempDir(t, "copilot-pat-url-host-*")
+		require.NoError(t, initTestGitRepo(tmpDir))
+		require.NoError(t, addOriginRemoteToTestRepo(tmpDir, "https://ghes.example.com/org/repo.git"))
+		t.Chdir(tmpDir)
+
+		rawURL := buildCopilotPATCreationURL()
+		parsed, err := url.Parse(rawURL)
+		require.NoError(t, err)
+
+		assert.Equal(t, "https", parsed.Scheme)
+		assert.Equal(t, "ghes.example.com", parsed.Host)
+		assert.Equal(t, "/settings/personal-access-tokens/new", parsed.Path)
+	})
 }
 
 func TestEnsureSecretAvailable_CopilotRepromptsWithOverwrite(t *testing.T) {

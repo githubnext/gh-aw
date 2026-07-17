@@ -558,7 +558,8 @@ async function checkRemoteSymlink(github, owner, repo, dirPath, ref, symlinkLook
       }
       return null;
     } catch (err) {
-      const status = err.status || (err.response && err.response.status);
+      const errAny = /** @type {any} */ err;
+      const status = errAny?.status || (errAny?.response && errAny.response.status);
       if (status === HTTP_STATUS_NOT_FOUND || status === HTTP_STATUS_FORBIDDEN || status === HTTP_STATUS_UNAUTHORIZED) {
         return null;
       }

@@ -382,9 +382,11 @@ func TestGenerateFindings(t *testing.T) {
 			processedRun: func() ProcessedRun {
 				pr := createTestProcessedRun()
 				pr.FirewallAnalysis = &FirewallAnalysis{
-					TotalRequests:   10,
-					BlockedRequests: 5,
-					AllowedRequests: 5,
+					AnalysisBase: AnalysisBase{
+						TotalRequests:   10,
+						BlockedRequests: 5,
+						AllowedRequests: 5,
+					},
 				}
 				return pr
 			}(),
@@ -503,7 +505,7 @@ func TestGenerateRecommendations(t *testing.T) {
 			processedRun: func() ProcessedRun {
 				pr := createTestProcessedRun()
 				pr.FirewallAnalysis = &FirewallAnalysis{
-					BlockedRequests: 15, // > 10 threshold
+					AnalysisBase: AnalysisBase{BlockedRequests: 15}, // > 10 threshold
 				}
 				return pr
 			}(),
@@ -610,7 +612,7 @@ func TestGeneratePerformanceMetrics(t *testing.T) {
 			processedRun: func() ProcessedRun {
 				pr := createTestProcessedRun()
 				pr.FirewallAnalysis = &FirewallAnalysis{
-					TotalRequests: 50,
+					AnalysisBase: AnalysisBase{TotalRequests: 50},
 				}
 				return pr
 			}(),
@@ -718,13 +720,15 @@ func TestBuildAuditDataComplete(t *testing.T) {
 			{ServerName: "test-mcp", Status: "connection_error"},
 		},
 		FirewallAnalysis: &FirewallAnalysis{
-			DomainBuckets: DomainBuckets{
-				AllowedDomains: []string{"api.github.com"},
-				BlockedDomains: []string{"blocked.example.com"},
+			AnalysisBase: AnalysisBase{
+				DomainBuckets: DomainBuckets{
+					AllowedDomains: []string{"api.github.com"},
+					BlockedDomains: []string{"blocked.example.com"},
+				},
+				TotalRequests:   15,
+				AllowedRequests: 10,
+				BlockedRequests: 5,
 			},
-			TotalRequests:   15,
-			AllowedRequests: 10,
-			BlockedRequests: 5,
 			RequestsByDomain: map[string]DomainRequestStats{
 				"api.github.com":      {Allowed: 10, Blocked: 0},
 				"blocked.example.com": {Allowed: 0, Blocked: 5},
@@ -1103,7 +1107,7 @@ func TestRecommendationPriorityOrdering(t *testing.T) {
 			{Tool: "missing", Reason: "Not available"},
 		},
 		FirewallAnalysis: &FirewallAnalysis{
-			BlockedRequests: 20, // Many blocked requests
+			AnalysisBase: AnalysisBase{BlockedRequests: 20}, // Many blocked requests
 		},
 	}
 
@@ -1634,9 +1638,11 @@ func TestGenerateFindingsFirewallWithBlockedDomains(t *testing.T) {
 	// A single blocked domain should produce a finding naming the domain.
 	pr := createTestProcessedRun()
 	fw := &FirewallAnalysis{
-		TotalRequests:    1,
-		BlockedRequests:  1,
-		AllowedRequests:  0,
+		AnalysisBase: AnalysisBase{
+			TotalRequests:   1,
+			BlockedRequests: 1,
+			AllowedRequests: 0,
+		},
 		RequestsByDomain: map[string]DomainRequestStats{},
 	}
 	fw.SetBlockedDomains([]string{"chatgpt.com"})
@@ -1661,9 +1667,11 @@ func TestGenerateRecommendationsFirewallSingleBlock(t *testing.T) {
 	// should generate a recommendation with the domain name in the example.
 	pr := createTestProcessedRun()
 	fw := &FirewallAnalysis{
-		TotalRequests:    1,
-		BlockedRequests:  1,
-		AllowedRequests:  0,
+		AnalysisBase: AnalysisBase{
+			TotalRequests:   1,
+			BlockedRequests: 1,
+			AllowedRequests: 0,
+		},
 		RequestsByDomain: map[string]DomainRequestStats{},
 	}
 	fw.SetBlockedDomains([]string{"chatgpt.com"})
@@ -1692,9 +1700,11 @@ func TestGenerateRecommendationsFiltersDashPlaceholder(t *testing.T) {
 	// still produce "-" entries.
 	pr := createTestProcessedRun()
 	fw := &FirewallAnalysis{
-		TotalRequests:    1,
-		BlockedRequests:  1,
-		AllowedRequests:  0,
+		AnalysisBase: AnalysisBase{
+			TotalRequests:   1,
+			BlockedRequests: 1,
+			AllowedRequests: 0,
+		},
 		RequestsByDomain: map[string]DomainRequestStats{"-": {Blocked: 1}},
 	}
 	fw.SetBlockedDomains([]string{"-"})
@@ -1721,9 +1731,11 @@ func TestGenerateRecommendationsFiltersUnknownSentinel(t *testing.T) {
 	// sentinel in the allow-list example.
 	pr := createTestProcessedRun()
 	fw := &FirewallAnalysis{
-		TotalRequests:    1,
-		BlockedRequests:  1,
-		AllowedRequests:  0,
+		AnalysisBase: AnalysisBase{
+			TotalRequests:   1,
+			BlockedRequests: 1,
+			AllowedRequests: 0,
+		},
 		RequestsByDomain: map[string]DomainRequestStats{unknownDomain: {Blocked: 1}},
 	}
 	fw.SetBlockedDomains([]string{unknownDomain})

@@ -130,13 +130,15 @@ func applyUsageActivitySummaryToResult(summary *usageActivitySummary, result *Do
 		blockedDomains := sliceutil.SortedKeys(blockedSet)
 
 		result.FirewallAnalysis = &FirewallAnalysis{
-			DomainBuckets: DomainBuckets{
-				AllowedDomains: allowedDomains,
-				BlockedDomains: blockedDomains,
+			AnalysisBase: AnalysisBase{
+				DomainBuckets: DomainBuckets{
+					AllowedDomains: allowedDomains,
+					BlockedDomains: blockedDomains,
+				},
+				TotalRequests:   summary.Firewall.TotalRequests,
+				AllowedRequests: summary.Firewall.AllowedRequests,
+				BlockedRequests: summary.Firewall.BlockedRequests,
 			},
-			TotalRequests:    summary.Firewall.TotalRequests,
-			AllowedRequests:  summary.Firewall.AllowedRequests,
-			BlockedRequests:  summary.Firewall.BlockedRequests,
 			RequestsByDomain: requestsByDomain,
 		}
 	}

@@ -969,18 +969,14 @@ func TestExtractFirewallFromAgentLogNoFile(t *testing.T) {
 
 func TestFirewallAnalysisAddMetricsMergesDomains(t *testing.T) {
 	base := &FirewallAnalysis{
-		TotalRequests:    2,
-		AllowedRequests:  1,
-		BlockedRequests:  1,
+		AnalysisBase:     AnalysisBase{TotalRequests: 2, AllowedRequests: 1, BlockedRequests: 1},
 		RequestsByDomain: map[string]DomainRequestStats{},
 	}
 	base.SetBlockedDomains([]string{"blocked-a.com"})
 	base.SetAllowedDomains([]string{"allowed-a.com"})
 
 	other := &FirewallAnalysis{
-		TotalRequests:    2,
-		AllowedRequests:  1,
-		BlockedRequests:  1,
+		AnalysisBase:     AnalysisBase{TotalRequests: 2, AllowedRequests: 1, BlockedRequests: 1},
 		RequestsByDomain: map[string]DomainRequestStats{},
 	}
 	other.SetBlockedDomains([]string{"blocked-b.com"})
@@ -1109,16 +1105,14 @@ func TestAnalyzeFirewallLogsSandboxEmptySquidSubdirFallsBackToTopLevel(t *testin
 
 func TestFirewallAnalysisAddMetricsDeduplicatesDomains(t *testing.T) {
 	base := &FirewallAnalysis{
-		TotalRequests:    1,
-		BlockedRequests:  1,
+		AnalysisBase:     AnalysisBase{TotalRequests: 1, BlockedRequests: 1},
 		RequestsByDomain: map[string]DomainRequestStats{},
 	}
 	base.SetBlockedDomains([]string{"chatgpt.com"})
 
 	// Same domain added again (e.g. from two different log sources)
 	other := &FirewallAnalysis{
-		TotalRequests:    1,
-		BlockedRequests:  1,
+		AnalysisBase:     AnalysisBase{TotalRequests: 1, BlockedRequests: 1},
 		RequestsByDomain: map[string]DomainRequestStats{},
 	}
 	other.SetBlockedDomains([]string{"chatgpt.com"})

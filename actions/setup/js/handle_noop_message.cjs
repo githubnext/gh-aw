@@ -41,7 +41,7 @@ async function ensureAgentRunsIssue() {
       };
     }
   } catch (error) {
-    throw new Error(`${ERR_API}: Failed to search for existing no-op runs issue: ${getErrorMessage(error)}`);
+    throw new Error(`${ERR_API}: Failed to search for existing no-op runs issue: ${getErrorMessage(error)}`, { cause: error });
   }
 
   // Create no-op runs issue if it doesn't exist

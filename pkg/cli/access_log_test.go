@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -35,8 +36,8 @@ func TestAccessLogParsing(t *testing.T) {
 
 	// Verify results
 	assert.Equal(t, 4, analysis.TotalRequests, "should count all log entries")
-	assert.Equal(t, 2, analysis.AllowedCount, "should count allowed requests")
-	assert.Equal(t, 2, analysis.BlockedCount, "should count blocked requests")
+	assert.Equal(t, 2, analysis.AllowedRequests, "should count allowed requests")
+	assert.Equal(t, 2, analysis.BlockedRequests, "should count blocked requests")
 
 	// Check allowed domains
 	expectedAllowed := []string{"api.github.com", "example.com"}
@@ -73,8 +74,8 @@ func TestMultipleAccessLogAnalysis(t *testing.T) {
 
 	// Verify aggregated results
 	assert.Equal(t, 4, analysis.TotalRequests, "should count all requests from multiple logs")
-	assert.Equal(t, 2, analysis.AllowedCount, "should count allowed requests")
-	assert.Equal(t, 2, analysis.BlockedCount, "should count blocked requests")
+	assert.Equal(t, 2, analysis.AllowedRequests, "should count allowed requests")
+	assert.Equal(t, 2, analysis.BlockedRequests, "should count blocked requests")
 
 	// Check allowed domains
 	expectedAllowed := []string{"api.github.com", "example.com"}
@@ -249,55 +250,37 @@ func TestAddMetrics(t *testing.T) {
 		{
 			name: "add valid domain analysis",
 			base: &DomainAnalysis{
-				TotalRequests: 10,
-				AllowedCount:  8,
-				BlockedCount:  2,
+				AnalysisBase: AnalysisBase{TotalRequests: 10, AllowedRequests: 8, BlockedRequests: 2},
 			},
 			toAdd: &DomainAnalysis{
-				TotalRequests: 5,
-				AllowedCount:  4,
-				BlockedCount:  1,
+				AnalysisBase: AnalysisBase{TotalRequests: 5, AllowedRequests: 4, BlockedRequests: 1},
 			},
 			expected: &DomainAnalysis{
-				TotalRequests: 15,
-				AllowedCount:  12,
-				BlockedCount:  3,
+				AnalysisBase: AnalysisBase{TotalRequests: 15, AllowedRequests: 12, BlockedRequests: 3},
 			},
 		},
 		{
 			name: "add zero values",
 			base: &DomainAnalysis{
-				TotalRequests: 10,
-				AllowedCount:  8,
-				BlockedCount:  2,
+				AnalysisBase: AnalysisBase{TotalRequests: 10, AllowedRequests: 8, BlockedRequests: 2},
 			},
 			toAdd: &DomainAnalysis{
-				TotalRequests: 0,
-				AllowedCount:  0,
-				BlockedCount:  0,
+				AnalysisBase: AnalysisBase{TotalRequests: 0, AllowedRequests: 0, BlockedRequests: 0},
 			},
 			expected: &DomainAnalysis{
-				TotalRequests: 10,
-				AllowedCount:  8,
-				BlockedCount:  2,
+				AnalysisBase: AnalysisBase{TotalRequests: 10, AllowedRequests: 8, BlockedRequests: 2},
 			},
 		},
 		{
 			name: "add to empty base",
 			base: &DomainAnalysis{
-				TotalRequests: 0,
-				AllowedCount:  0,
-				BlockedCount:  0,
+				AnalysisBase: AnalysisBase{TotalRequests: 0, AllowedRequests: 0, BlockedRequests: 0},
 			},
 			toAdd: &DomainAnalysis{
-				TotalRequests: 5,
-				AllowedCount:  3,
-				BlockedCount:  2,
+				AnalysisBase: AnalysisBase{TotalRequests: 5, AllowedRequests: 3, BlockedRequests: 2},
 			},
 			expected: &DomainAnalysis{
-				TotalRequests: 5,
-				AllowedCount:  3,
-				BlockedCount:  2,
+				AnalysisBase: AnalysisBase{TotalRequests: 5, AllowedRequests: 3, BlockedRequests: 2},
 			},
 		},
 	}
@@ -306,8 +289,46 @@ func TestAddMetrics(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.base.AddMetrics(tt.toAdd)
 			assert.Equal(t, tt.expected.TotalRequests, tt.base.TotalRequests, "total requests should match")
-			assert.Equal(t, tt.expected.AllowedCount, tt.base.AllowedCount, "allowed count should match")
-			assert.Equal(t, tt.expected.BlockedCount, tt.base.BlockedCount, "blocked count should match")
+			assert.Equal(t, tt.expected.AllowedRequests, tt.base.AllowedRequests, "allowed requests should match")
+			assert.Equal(t, tt.expected.BlockedRequests, tt.base.BlockedRequests, "blocked requests should match")
 		})
 	}
+}
+
+// TestDomainAnalysisJSONWireNames verifies that DomainAnalysis serializes with the
+// original "allowed_count"/"blocked_count" JSON keys (not "allowed_requests"/
+// "blocked_requests") so that cached access-analysis JSON remains backward-compatible.
+func TestDomainAnalysisJSONWireNames(t *testing.T) {
+	d := DomainAnalysis{
+		AnalysisBase: AnalysisBase{
+			TotalRequests:   10,
+			AllowedRequests: 7,
+			BlockedRequests: 3,
+			DomainBuckets: DomainBuckets{
+				AllowedDomains: []string{"example.com"},
+				BlockedDomains: []string{"blocked.com"},
+			},
+		},
+	}
+
+	data, err := json.Marshal(d)
+	require.NoError(t, err)
+
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal(data, &raw))
+
+	assert.EqualValues(t, 7, raw["allowed_count"], "should use legacy key allowed_count")
+	assert.EqualValues(t, 3, raw["blocked_count"], "should use legacy key blocked_count")
+	assert.Nil(t, raw["allowed_requests"], "should not emit allowed_requests")
+	assert.Nil(t, raw["blocked_requests"], "should not emit blocked_requests")
+	assert.EqualValues(t, 10, raw["total_requests"])
+
+	// Round-trip: unmarshal back should restore fields correctly.
+	var d2 DomainAnalysis
+	require.NoError(t, json.Unmarshal(data, &d2))
+	assert.Equal(t, d.TotalRequests, d2.TotalRequests)
+	assert.Equal(t, d.AllowedRequests, d2.AllowedRequests)
+	assert.Equal(t, d.BlockedRequests, d2.BlockedRequests)
+	assert.Equal(t, d.AllowedDomains, d2.AllowedDomains)
+	assert.Equal(t, d.BlockedDomains, d2.BlockedDomains)
 }
