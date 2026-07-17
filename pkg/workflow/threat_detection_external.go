@@ -198,19 +198,7 @@ func (c *Compiler) buildInstallDetectionEngineForExternalDetectorStep(data *Work
 
 	// Build a synthetic detection WorkflowData solely to generate the engine's
 	// installation steps for this separate detection job context.
-	threatDetectionData := buildThreatDetectionWorkflowData(data, engineID)
-	threatDetectionData.Tools = map[string]any{
-		"bash": []any{"*"},
-	}
-	threatDetectionData.EngineConfig = &EngineConfig{ID: engineID}
-
-	if canReuseThreatDetectionEngineConfigForExternalDetector(data, engineID) {
-		threatDetectionData.EngineConfig = cloneThreatDetectionEngineConfig(engineID, data.SafeOutputs.ThreatDetection.EngineConfig)
-	}
-	threatDetectionData.EngineConfig.Env = mergeThreatDetectionEngineEnv(data, threatDetectionData.EngineConfig.Env)
-	if threatDetectionData.EngineConfig.APITarget == "" && data.EngineConfig != nil {
-		threatDetectionData.EngineConfig.APITarget = data.EngineConfig.APITarget
-	}
+	threatDetectionData := buildExternalDetectorWorkflowData(data, engineID)
 
 	installSteps := engine.GetInstallationSteps(threatDetectionData)
 	var lines []string
@@ -265,11 +253,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// Build detection WorkflowData for the external detector.
 	// The rw mount for ThreatDetectionDir allows the threat-detect binary to write
 	// detection_result.json from inside the AWF container to the host filesystem.
-	threatDetectionData := buildThreatDetectionWorkflowData(data, engineID)
-	threatDetectionData.Tools = map[string]any{
-		"bash": []any{"*"},
-	}
-	threatDetectionData.EngineConfig = &EngineConfig{ID: engineID}
+	threatDetectionData := buildExternalDetectorWorkflowData(data, engineID)
 	threatDetectionData.NetworkPermissions = &NetworkPermissions{
 		Allowed: getThreatDetectionAdditionalAllowedDomains(data),
 	}
@@ -277,16 +261,6 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// detection_result.json inside the container and it becomes visible
 	// on the host through the bind mount.
 	threatDetectionData.SandboxConfig.Agent.Mounts = appendThreatDetectionRWMount(threatDetectionData.SandboxConfig.Agent.Mounts)
-
-	// Inherit engine config overrides from threat-detection config when set.
-	if canReuseThreatDetectionEngineConfigForExternalDetector(data, engineID) {
-		threatDetectionData.EngineConfig = cloneThreatDetectionEngineConfig(engineID, data.SafeOutputs.ThreatDetection.EngineConfig)
-	}
-	threatDetectionData.EngineConfig.Env = mergeThreatDetectionEngineEnv(data, threatDetectionData.EngineConfig.Env)
-	// Inherit APITarget from main engine config for GHE/custom endpoints.
-	if threatDetectionData.EngineConfig.APITarget == "" && data.EngineConfig != nil {
-		threatDetectionData.EngineConfig.APITarget = data.EngineConfig.APITarget
-	}
 
 	// Compute which env vars to exclude from the AWF container. The API proxy
 	// handles authentication, so the raw credentials must not reach the container.
