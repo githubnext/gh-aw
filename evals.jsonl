@@ -1,0 +1,2 @@
+{"id":"analysis-completed","question":"Did the agent analyze the codebase for duplicate code patterns and produce findings?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-17T06:11:48.319Z","runid":"29558767696"}
+{"id":"issue-created-or-noop","question":"Was a code duplication issue created when significant duplication was found, or was noop correctly called when none was detected?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-17T06:11:48.319Z","runid":"29558767696"}
