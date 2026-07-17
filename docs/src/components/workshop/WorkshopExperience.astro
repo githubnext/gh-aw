@@ -46,10 +46,17 @@ function escapeHtml(value: string) {
 		.replace(/'/gu, '&#39;');
 }
 
+function safeJson(value: unknown): string {
+	return JSON.stringify(value)
+		.replace(/</gu, '\\u003c')
+		.replace(/>/gu, '\\u003e')
+		.replace(/&/gu, '\\u0026');
+}
+
 function resolveWorkshopAssetUrl(value: string) {
 	if (/^(?:https?:|mailto:|#|\/)/u.test(value)) return value;
 	if (value.startsWith('images/')) return new URL(value, workshopImageBase).toString();
-	return value;
+	return '#';
 }
 
 function renderInlineMarkdown(value: string) {
@@ -69,14 +76,27 @@ function renderInlineMarkdown(value: string) {
 		.replace(/_([^_]+)_/gu, '<em>$1</em>');
 }
 
+function slugId(text: string) {
+	return text
+		.toLowerCase()
+		.replace(/[^\w\s-]/gu, '')
+		.replace(/[\s_]+/gu, '-')
+		.replace(/^-+|-+$/gu, '');
+}
+
 function renderWorkshopMarkdown(markdown: string) {
 	const lines = markdown.split('\n');
 	const blocks: string[] = [];
 	let paragraph: string[] = [];
 	let list: string[] = [];
+	let orderedList: string[] = [];
 	let checklist: string[] = [];
+	let tableRows: string[][] = [];
 	let code: string[] = [];
+	let codeLanguage = '';
 	let inCode = false;
+	let admonitionType = '';
+	let admonitionLines: string[] = [];
 
 	const flushParagraph = () => {
 		if (paragraph.length === 0) return;
@@ -89,21 +109,47 @@ function renderWorkshopMarkdown(markdown: string) {
 			blocks.push(`<ul>${list.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join('')}</ul>`);
 			list = [];
 		}
+		if (orderedList.length > 0) {
+			blocks.push(`<ol>${orderedList.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join('')}</ol>`);
+			orderedList = [];
+		}
 		if (checklist.length > 0) {
 			blocks.push(`<ul class="aw-workshop-checklist">${checklist.join('')}</ul>`);
 			checklist = [];
 		}
 	};
 
+	const flushTable = () => {
+		if (tableRows.length === 0) return;
+		const [header, , ...body] = tableRows;
+		if (!header) { tableRows = []; return; }
+		const th = header.map((cell) => `<th>${renderInlineMarkdown(cell)}</th>`).join('');
+		const rows = body.map((row) => `<tr>${row.map((cell) => `<td>${renderInlineMarkdown(cell)}</td>`).join('')}</tr>`).join('');
+		blocks.push(`<div class="aw-workshop-table-wrap"><table><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>`);
+		tableRows = [];
+	};
+
+	const flushAdmonition = () => {
+		if (!admonitionType) return;
+		const content = admonitionLines.join(' ');
+		blocks.push(`<aside class="aw-workshop-admonition aw-workshop-admonition-${admonitionType.toLowerCase()}">${renderInlineMarkdown(content)}</aside>`);
+		admonitionType = '';
+		admonitionLines = [];
+	};
+
 	for (const line of lines) {
 		if (line.startsWith('```')) {
+			flushAdmonition();
 			if (inCode) {
-				blocks.push(`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`);
+				blocks.push(`<pre><code class="language-${escapeHtml(codeLanguage)}">${escapeHtml(code.join('\n'))}</code></pre>`);
 				code = [];
+				codeLanguage = '';
 				inCode = false;
 			} else {
 				flushParagraph();
 				flushList();
+				flushTable();
+				codeLanguage = line.slice(3).trim();
 				inCode = true;
 			}
 			continue;
@@ -118,15 +164,55 @@ function renderWorkshopMarkdown(markdown: string) {
 		if (!trimmed || trimmed === '---') {
 			flushParagraph();
 			flushList();
+			flushTable();
+			flushAdmonition();
 			continue;
 		}
+
+		// GitHub-flavored admonitions: > [!TYPE]
+		if (trimmed.startsWith('>')) {
+			const admonitionMatch = trimmed.match(/^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/iu);
+			if (admonitionMatch) {
+				flushParagraph();
+				flushList();
+				flushTable();
+				flushAdmonition();
+				admonitionType = admonitionMatch[1];
+				admonitionLines = [];
+				continue;
+			}
+			const continuationText = trimmed.replace(/^>\s?/u, '');
+			if (admonitionType) {
+				if (continuationText) admonitionLines.push(continuationText);
+				continue;
+			}
+			flushParagraph();
+			flushList();
+			flushTable();
+			blocks.push(`<aside>${renderInlineMarkdown(continuationText)}</aside>`);
+			continue;
+		}
+
+		// Flush open admonition before non-blockquote lines
+		if (admonitionType) flushAdmonition();
+
+		// Tables: lines with pipes
+		if (trimmed.startsWith('|')) {
+			flushParagraph();
+			flushList();
+			const cells = trimmed.slice(1, -1).split('|').map((c) => c.trim());
+			tableRows.push(cells);
+			continue;
+		}
+		if (tableRows.length > 0) flushTable();
 
 		const heading = trimmed.match(/^(#{1,4})\s+(.+)$/u);
 		if (heading) {
 			flushParagraph();
 			flushList();
 			const level = Math.min(heading[1].length + 1, 4);
-			blocks.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`);
+			const id = slugId(heading[2].replace(/[*_`[\]]/gu, ''));
+			blocks.push(`<h${level} id="${id}">${renderInlineMarkdown(heading[2])}</h${level}>`);
 			continue;
 		}
 
@@ -134,8 +220,18 @@ function renderWorkshopMarkdown(markdown: string) {
 		if (checklistItem) {
 			flushParagraph();
 			list = [];
+			orderedList = [];
 			const checked = checklistItem[1].toLowerCase() === 'x' ? ' checked' : '';
 			checklist.push(`<li><label><input type="checkbox" disabled${checked} /> <span>${renderInlineMarkdown(checklistItem[2])}</span></label></li>`);
+			continue;
+		}
+
+		const orderedItem = trimmed.match(/^\d+\.\s+(.+)$/u);
+		if (orderedItem) {
+			flushParagraph();
+			checklist = [];
+			list = [];
+			orderedList.push(orderedItem[1]);
 			continue;
 		}
 
@@ -143,14 +239,8 @@ function renderWorkshopMarkdown(markdown: string) {
 		if (listItem) {
 			flushParagraph();
 			checklist = [];
+			orderedList = [];
 			list.push(listItem[1]);
-			continue;
-		}
-
-		if (trimmed.startsWith('>')) {
-			flushParagraph();
-			flushList();
-			blocks.push(`<aside>${renderInlineMarkdown(trimmed.replace(/^>\s?/u, ''))}</aside>`);
 			continue;
 		}
 
@@ -159,6 +249,8 @@ function renderWorkshopMarkdown(markdown: string) {
 
 	flushParagraph();
 	flushList();
+	flushTable();
+	flushAdmonition();
 	return blocks.join('');
 }
 
@@ -314,25 +406,16 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 			<section class="aw-workshop-tunnel-panel" data-workshop-tunnel-panel hidden>
 				<div>
-					<p class="aw-workshop-picker-kicker">VS Code IDE</p>
-					<h3>Choose your VS Code setup</h3>
+					<p class="aw-workshop-picker-kicker">Codespaces</p>
+					<h3>GitHub Codespaces</h3>
 					<p>
-						Use Codespaces if it is available, local VS Code if your machine is ready, or Remote Tunnel if you want to connect <code>vscode.dev</code> to a machine you control.
+						This path uses a GitHub Codespace with VS Code. Open your repository in Codespaces and VS Code will start automatically in the browser or your desktop app.
 					</p>
 				</div>
-				<div class="aw-workshop-tunnel-command">
-					<code>code tunnel</code>
-					<button type="button" class="aw-workshop-inline-button" data-workshop-copy-tunnel-command>
-						Copy command
-					</button>
-				</div>
 				<div class="aw-workshop-tunnel-actions">
-					<a href="https://code.visualstudio.com/docs/remote/tunnels" target="_blank" rel="noreferrer">VS Code tunnel docs</a>
-					<a href="https://vscode.dev/" target="_blank" rel="noreferrer">Open vscode.dev</a>
+					<a href="https://docs.github.com/en/codespaces/overview" target="_blank" rel="noreferrer">Codespaces docs</a>
+					<a href="https://github.com/codespaces" target="_blank" rel="noreferrer">Open Codespaces</a>
 				</div>
-				<p class="aw-workshop-tunnel-note" data-workshop-copy-tunnel-status>
-					Only Remote Tunnel uses this command. This guide never starts tunnels, runs commands, or receives credentials.
-				</p>
 			</section>
 
 			<div class="aw-workshop-setup-nav aw-workshop-setup-nav-start">
@@ -404,7 +487,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	<script
 		type="application/json"
 		id="aw-workshop-step-data"
-		set:html={JSON.stringify(workshopSteps.map((step) => ({
+		set:html={safeJson(workshopSteps.map((step) => ({
 			key: step.key,
 			file: step.file,
 			title: step.title,
@@ -418,7 +501,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	<script
 		type="application/json"
 		id="aw-workshop-manifest"
-		set:html={JSON.stringify({
+		set:html={safeJson({
 			defaults: workshopDefaults,
 			journeys: workshopJourneys,
 			routes: workshopRoutes,
@@ -448,8 +531,9 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 					scenarioRoute.designStep,
 					scenarioRoute.buildStepByWorkspace[journey.id],
 					...journeyRoute.postBuild,
-					...manifest.routes.wrapUp,
+					...(manifest.routes.preSchedule || []),
 					journeyRoute.scheduleStep,
+					...manifest.routes.wrapUp,
 				];
 
 				return [...new Set(ordered)].filter((stepKey) => stepMap.has(stepKey));
@@ -498,8 +582,11 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 			const resolveWorkshopAssetUrl = (value) => {
 				if (/^(?:https?:|mailto:|#|\/)/u.test(value)) return value;
-				if (value.startsWith('images/')) return new URL(value, root.dataset.imageBase || window.location.href).toString();
-				return value;
+				if (value.startsWith('images/')) {
+					const resolved = new URL(value, root.dataset.imageBase || window.location.href).toString();
+					return /^https?:/u.test(resolved) ? resolved : '#';
+				}
+				return '#';
 			};
 
 			const renderInlineMarkdown = (value) => escapeHtml(value)
@@ -526,14 +613,25 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				.replace(/<[^>]+>/gu, '')
 				.trim();
 
+			const slugId = (text) => text
+				.toLowerCase()
+				.replace(/[^\w\s-]/gu, '')
+				.replace(/[\s_]+/gu, '-')
+				.replace(/^-+|-+$/gu, '');
+
 			const renderStepBody = (body) => {
 				const lines = String(body || '').split('\n');
 				const blocks = [];
 				let paragraph = [];
 				let list = [];
+				let orderedList = [];
 				let checklist = [];
+				let tableRows = [];
 				let code = [];
+				let codeLanguage = '';
 				let inCode = false;
+				let admonitionType = '';
+				let admonitionLines = [];
 
 				const flushParagraph = () => {
 					if (paragraph.length === 0) return;
@@ -546,21 +644,47 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 						blocks.push(`<ul>${list.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join('')}</ul>`);
 						list = [];
 					}
+					if (orderedList.length > 0) {
+						blocks.push(`<ol>${orderedList.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join('')}</ol>`);
+						orderedList = [];
+					}
 					if (checklist.length > 0) {
 						blocks.push(`<ul class="aw-workshop-checklist">${checklist.join('')}</ul>`);
 						checklist = [];
 					}
 				};
 
+				const flushTable = () => {
+					if (tableRows.length === 0) return;
+					const [header, , ...body] = tableRows;
+					if (!header) { tableRows = []; return; }
+					const th = header.map((cell) => `<th>${renderInlineMarkdown(cell)}</th>`).join('');
+					const rows = body.map((row) => `<tr>${row.map((cell) => `<td>${renderInlineMarkdown(cell)}</td>`).join('')}</tr>`).join('');
+					blocks.push(`<div class="aw-workshop-table-wrap"><table><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>`);
+					tableRows = [];
+				};
+
+				const flushAdmonition = () => {
+					if (!admonitionType) return;
+					const content = admonitionLines.join(' ');
+					blocks.push(`<aside class="aw-workshop-admonition aw-workshop-admonition-${admonitionType.toLowerCase()}">${renderInlineMarkdown(content)}</aside>`);
+					admonitionType = '';
+					admonitionLines = [];
+				};
+
 				for (const line of lines) {
 					if (line.startsWith('```')) {
+						flushAdmonition();
 						if (inCode) {
-							blocks.push(`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`);
+							blocks.push(`<pre><code class="language-${escapeHtml(codeLanguage)}">${escapeHtml(code.join('\n'))}</code></pre>`);
 							code = [];
+							codeLanguage = '';
 							inCode = false;
 						} else {
 							flushParagraph();
 							flushList();
+							flushTable();
+							codeLanguage = line.slice(3).trim();
 							inCode = true;
 						}
 						continue;
@@ -575,15 +699,55 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 					if (!trimmed || trimmed === '---') {
 						flushParagraph();
 						flushList();
+						flushTable();
+						flushAdmonition();
 						continue;
 					}
+
+					// GitHub-flavored admonitions: > [!TYPE]
+					if (trimmed.startsWith('>')) {
+						const admonitionMatch = trimmed.match(/^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/iu);
+						if (admonitionMatch) {
+							flushParagraph();
+							flushList();
+							flushTable();
+							flushAdmonition();
+							admonitionType = admonitionMatch[1];
+							admonitionLines = [];
+							continue;
+						}
+						const continuationText = trimmed.replace(/^>\s?/u, '');
+						if (admonitionType) {
+							if (continuationText) admonitionLines.push(continuationText);
+							continue;
+						}
+						flushParagraph();
+						flushList();
+						flushTable();
+						blocks.push(`<aside>${renderInlineMarkdown(continuationText)}</aside>`);
+						continue;
+					}
+
+					// Flush open admonition before non-blockquote lines
+					if (admonitionType) flushAdmonition();
+
+					// Tables: lines with pipes
+					if (trimmed.startsWith('|')) {
+						flushParagraph();
+						flushList();
+						const cells = trimmed.slice(1, -1).split('|').map((c) => c.trim());
+						tableRows.push(cells);
+						continue;
+					}
+					if (tableRows.length > 0) flushTable();
 
 					const heading = trimmed.match(/^(#{1,4})\s+(.+)$/u);
 					if (heading) {
 						flushParagraph();
 						flushList();
 						const level = Math.min(heading[1].length + 1, 4);
-						blocks.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`);
+						const id = slugId(heading[2].replace(/[*_`[\]]/gu, ''));
+						blocks.push(`<h${level} id="${id}">${renderInlineMarkdown(heading[2])}</h${level}>`);
 						continue;
 					}
 
@@ -591,8 +755,18 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 					if (checklistItem) {
 						flushParagraph();
 						list = [];
+						orderedList = [];
 						const checked = checklistItem[1].toLowerCase() === 'x' ? ' checked' : '';
 						checklist.push(`<li><label><input type="checkbox" disabled${checked} /> <span>${renderInlineMarkdown(checklistItem[2])}</span></label></li>`);
+						continue;
+					}
+
+					const orderedItem = trimmed.match(/^\d+\.\s+(.+)$/u);
+					if (orderedItem) {
+						flushParagraph();
+						checklist = [];
+						list = [];
+						orderedList.push(orderedItem[1]);
 						continue;
 					}
 
@@ -600,14 +774,8 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 					if (listItem) {
 						flushParagraph();
 						checklist = [];
+						orderedList = [];
 						list.push(listItem[1]);
-						continue;
-					}
-
-					if (trimmed.startsWith('>')) {
-						flushParagraph();
-						flushList();
-						blocks.push(`<aside>${renderInlineMarkdown(trimmed.replace(/^>\s?/u, ''))}</aside>`);
 						continue;
 					}
 
@@ -616,6 +784,8 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 				flushParagraph();
 				flushList();
+				flushTable();
+				flushAdmonition();
 				return blocks.join('');
 			};
 
@@ -630,7 +800,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			const currentJourneyLabel = root.querySelector('[data-workshop-current-journey]');
 			const currentScenarioLabel = root.querySelector('[data-workshop-current-scenario]');
 			const tunnelPanel = root.querySelector('[data-workshop-tunnel-panel]');
-			const tunnelCopyStatus = root.querySelector('[data-workshop-copy-tunnel-status]');
 			const flowTitle = root.querySelector('[data-workshop-flow-title]');
 			const stepPosition = root.querySelector('[data-workshop-step-position]');
 			const prevButton = root.querySelector('[data-workshop-prev]');
@@ -719,15 +888,18 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				const index = flow.indexOf(state.stepKey);
 				const nextIndex = direction === 'next' ? index + 1 : index - 1;
 				const target = flow[nextIndex];
-				if (target) {
-					if (direction === 'next') {
-						const completed = new Set(state.completed);
-						completed.add(state.stepKey);
-						state.completed = [...completed];
-					}
-					setCurrentStep(target);
-					root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				if (direction === 'next') {
+					const completed = new Set(state.completed);
+					completed.add(state.stepKey);
+					state.completed = [...completed];
 				}
+				if (target) {
+					setCurrentStep(target);
+				} else {
+					saveState();
+					render();
+				}
+				root.scrollIntoView({ behavior: 'smooth', block: 'start' });
 			};
 
 			const render = () => {
@@ -756,9 +928,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				if (progressLabel) progressLabel.textContent = `${completedInFlow} of ${visibleFlow.length} complete`;
 				if (tunnelPanel) {
 					tunnelPanel.hidden = state.journeyId !== 'vscode' || setupStep !== 'scenario';
-				}
-				if (tunnelCopyStatus && state.journeyId === 'vscode') {
-					tunnelCopyStatus.textContent = 'Only Remote Tunnel uses this command. This guide never starts tunnels, runs commands, or receives credentials.';
 				}
 				lessonPercent.textContent = `${progressPercent}%`;
 				lessonBar.style.width = `${progressPercent}%`;
@@ -800,13 +969,20 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				}
 
 				const flowIndex = visibleFlow.indexOf(activeStep.key);
+				const isLastStep = flowIndex >= 0 && flowIndex >= visibleFlow.length - 1;
 				prevButton.disabled = flowIndex <= 0;
-				nextButton.disabled = flowIndex < 0 || flowIndex >= visibleFlow.length - 1;
+				nextButton.disabled = flowIndex < 0;
+				nextButton.textContent = isLastStep ? 'Finish workshop' : 'Next step';
 			};
 
 			root.addEventListener('click', (event) => {
 				const target = event.target instanceof Element ? event.target.closest('button, a') : null;
 				if (!target) return;
+
+				if (target.matches('[data-workshop-change]')) {
+					showSetup();
+					return;
+				}
 
 				if (target.matches('[data-workshop-journey]')) {
 					setJourney(target.getAttribute('data-workshop-journey'));
@@ -839,22 +1015,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 				if (target.matches('[data-workshop-next]')) {
 					navigate('next');
-					return;
-				}
-
-				if (target.matches('[data-workshop-copy-tunnel-command]')) {
-					const command = 'code tunnel';
-					if (navigator.clipboard?.writeText) {
-						navigator.clipboard.writeText(command)
-							.then(() => {
-								if (tunnelCopyStatus) tunnelCopyStatus.textContent = 'Copied: code tunnel';
-							})
-							.catch(() => {
-								if (tunnelCopyStatus) tunnelCopyStatus.textContent = 'Copy failed. Select the command and copy it manually.';
-							});
-					} else if (tunnelCopyStatus) {
-						tunnelCopyStatus.textContent = 'Select the command and copy it manually.';
-					}
 					return;
 				}
 
@@ -973,21 +1133,11 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		line-height: 1.55;
 	}
 
-	.aw-workshop-tunnel-command,
 	.aw-workshop-tunnel-actions {
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
 		flex-wrap: wrap;
-	}
-
-	.aw-workshop-tunnel-command > code {
-		min-width: min(100%, 14rem);
-		padding: 0.75rem 0.9rem;
-		border-radius: 0.75rem;
-		border: 1px solid var(--aw-border);
-		background: rgba(255, 255, 255, 0.05);
-		color: var(--sl-color-white);
 	}
 
 	.aw-workshop-tunnel-actions a {
@@ -998,10 +1148,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 	.aw-workshop-tunnel-actions a:hover {
 		text-decoration: underline;
-	}
-
-	.aw-workshop-tunnel-note {
-		font-size: 0.9rem;
 	}
 
 	.aw-workshop-picker {
@@ -1041,7 +1187,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		padding: 0.62rem;
 		border-radius: 0.7rem;
 		border: 1px solid color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 35%, transparent);
-		background: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 10%, rgba(13, 17, 23, 0.65));
+		background: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 10%, var(--aw-bg-elevated));
 		color: inherit;
 		cursor: pointer;
 		transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
@@ -1308,6 +1454,50 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		border-radius: 0.75rem;
 		background: rgba(var(--aw-accent-rgb), 0.09);
 		color: var(--aw-text-muted);
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-admonition-warning),
+	.aw-workshop-step-content :global(.aw-workshop-admonition-caution) {
+		border-left-color: #d4a008;
+		background: rgba(212, 160, 8, 0.09);
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-admonition-important) {
+		border-left-color: #c678dd;
+		background: rgba(198, 120, 221, 0.09);
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-admonition-tip) {
+		border-left-color: #56b6c2;
+		background: rgba(86, 182, 194, 0.09);
+	}
+
+	.aw-workshop-step-content :global(ol) {
+		margin: 0;
+		padding-left: 1.4rem;
+		line-height: 1.65;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-table-wrap) {
+		overflow-x: auto;
+	}
+
+	.aw-workshop-step-content :global(table) {
+		border-collapse: collapse;
+		width: 100%;
+		font-size: 0.9rem;
+	}
+
+	.aw-workshop-step-content :global(th),
+	.aw-workshop-step-content :global(td) {
+		padding: 0.4rem 0.7rem;
+		border: 1px solid var(--aw-border);
+		text-align: left;
+	}
+
+	.aw-workshop-step-content :global(th) {
+		background: rgba(var(--aw-accent-rgb), 0.08);
+		font-weight: 700;
 	}
 
 	.aw-workshop-step-content :global(img) {

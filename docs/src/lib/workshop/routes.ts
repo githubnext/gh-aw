@@ -7,6 +7,7 @@ export type WorkshopScenarioRoute = {
 };
 export type WorkshopRoutes = {
 	curriculum: CurriculumRow[];
+	preSchedule: string[];
 	wrapUp: string[];
 	workspaces: Record<WorkshopRouteId, {
 		prelude: string[];
@@ -100,8 +101,14 @@ export function createWorkshopRoutes(entries: WorkshopContentEntry[]): WorkshopR
 	const isCoreOrder = (order: string) => /^\d+$/u.test(order);
 	const orderNumber = (order: string) => Number(order.match(/^\d+/u)?.[0] ?? Number.NaN);
 	const routeWith = (parts: Array<string | (() => string)>) => parts.map((part) => typeof part === 'function' ? part() : onlyLink(part));
+	const preSchedule = curriculum
+		.filter((row) => isCoreOrder(row.order) && orderNumber(row.order) === 12)
+		.map((row) => {
+			if (row.links.length !== 1) throw new Error(`Expected one pre-schedule link for curriculum row ${row.order}.`);
+			return existing(row.links[0].id);
+		});
 	const wrapUp = curriculum
-		.filter((row) => isCoreOrder(row.order) && (orderNumber(row.order) === 12 || orderNumber(row.order) >= 14))
+		.filter((row) => isCoreOrder(row.order) && orderNumber(row.order) >= 14)
 		.map((row) => {
 			if (row.links.length !== 1) throw new Error(`Expected one wrap-up link for curriculum row ${row.order}.`);
 			return existing(row.links[0].id);
@@ -130,6 +137,7 @@ export function createWorkshopRoutes(entries: WorkshopContentEntry[]): WorkshopR
 
 	return {
 		curriculum,
+		preSchedule,
 		wrapUp,
 		workspaces: {
 			github: {

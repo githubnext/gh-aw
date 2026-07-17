@@ -57,10 +57,10 @@ export const workshopJourneys: WorkshopJourney[] = [
 	},
 	{
 		id: 'vscode',
-		label: 'VS Code IDE',
+		label: 'Codespaces',
 		icon: 'device-desktop',
-		kicker: 'Editor + terminal',
-		summary: 'Use Codespaces, local VS Code, or Remote Tunnel.',
+		kicker: 'Cloud IDE',
+		summary: 'Use VS Code in a GitHub Codespace.',
 		accent: 'var(--sl-color-accent-high)',
 	},
 ];
@@ -93,7 +93,8 @@ export function buildWorkshopFlow(
 		scenarioRoute.designStep,
 		scenarioRoute.buildStepByWorkspace[journey.id],
 		...journeyRoute.postBuild,
-		...workshopRoutes.wrapUp,
+		...workshopRoutes.preSchedule,
 		journeyRoute.scheduleStep,
+		...workshopRoutes.wrapUp,
 	])];
 }
