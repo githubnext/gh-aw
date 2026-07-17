@@ -317,6 +317,7 @@ function applyCopilotModelAliasResolution(options) {
  */
 function applyCopilotWireAPI({ modelsJson, logger = log }) {
   if (process.env.COPILOT_PROVIDER_WIRE_API) {
+    logger(`COPILOT_PROVIDER_WIRE_API already set to ${process.env.COPILOT_PROVIDER_WIRE_API} — skipping auto-configure`);
     return; // User override wins — do not auto-configure.
   }
   const modelName = typeof process.env.COPILOT_MODEL === "string" ? process.env.COPILOT_MODEL.trim() : "";

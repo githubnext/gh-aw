@@ -2333,8 +2333,10 @@ process.exit(1);`,
     it("does not override when COPILOT_PROVIDER_WIRE_API is already set", () => {
       process.env.COPILOT_MODEL = "gpt-5-mini";
       process.env.COPILOT_PROVIDER_WIRE_API = "completions";
-      applyCopilotWireAPI({ modelsJson: makeModelsJson(), logger: () => {} });
+      const logs = [];
+      applyCopilotWireAPI({ modelsJson: makeModelsJson(), logger: msg => logs.push(msg) });
       expect(process.env.COPILOT_PROVIDER_WIRE_API).toBe("completions");
+      expect(logs.some(l => l.includes("already set"))).toBe(true);
     });
 
     it("leaves COPILOT_PROVIDER_WIRE_API unset for models without wire_api entry", () => {
