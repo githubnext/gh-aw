@@ -74,7 +74,7 @@ function findVariableByName(sourceCode: Readonly<TSESLint.SourceCode>, node: TSE
 }
 
 /**
- * Returns true when `node` is the sole initializer of a `const`/`let` single-identifier
+ * Returns true when `node` is the sole initializer of a single-identifier variable
  * binding and at least one reference to that binding satisfies `isGuardingErrorUsage`.
  *
  * This recognises one level of aliasing such as:
