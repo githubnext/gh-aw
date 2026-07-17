@@ -5,6 +5,7 @@ import {
 	buildWorkshopFlow,
 	workshopDefaults,
 	workshopJourneys,
+	workshopRoutes,
 	workshopScenarios,
 } from '../../lib/workshop/manifest';
 import { workshopContent, workshopSource, type WorkshopContentEntry } from '../../generated/workshop-content.ts';
@@ -420,6 +421,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		set:html={JSON.stringify({
 			defaults: workshopDefaults,
 			journeys: workshopJourneys,
+			routes: workshopRoutes,
 			scenarios: workshopScenarios,
 		})}
 	/>
@@ -439,16 +441,15 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			const buildFlow = (journeyId, scenarioId) => {
 				const journey = manifest.journeys.find((item) => item.id === journeyId) || manifest.journeys[0];
 				const scenario = manifest.scenarios.find((item) => item.id === scenarioId) || manifest.scenarios[0];
+				const journeyRoute = manifest.routes.workspaces[journey.id];
+				const scenarioRoute = manifest.routes.scenarios[scenario.id];
 				const ordered = [
-					...journey.prelude,
-					scenario.designStep,
-					scenario.buildStepByJourney[journey.id],
-					...journey.postBuild,
-					'12-test-and-iterate',
-					journey.scheduleStep,
-					'14-next-steps',
-					'15-conditional-logic',
-					'16-connect-data-source',
+					...journeyRoute.prelude,
+					scenarioRoute.designStep,
+					scenarioRoute.buildStepByWorkspace[journey.id],
+					...journeyRoute.postBuild,
+					...manifest.routes.wrapUp,
+					journeyRoute.scheduleStep,
 				];
 
 				return [...new Set(ordered)].filter((stepKey) => stepMap.has(stepKey));

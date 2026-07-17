@@ -1,7 +1,7 @@
 import { workshopContent } from '../../generated/workshop-content';
 import { createWorkshopRoutes, type WorkshopRouteId } from './routes';
 
-const workshopRoutes = createWorkshopRoutes(workshopContent);
+export const workshopRoutes = createWorkshopRoutes(workshopContent);
 
 export type WorkshopJourneyId = WorkshopRouteId;
 export type WorkshopScenarioId = keyof typeof workshopRoutes.scenarios;
