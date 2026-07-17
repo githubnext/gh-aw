@@ -1,5 +1,4 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
-import { CORE_ALIASES } from "./core-aliases";
+import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -27,28 +26,6 @@ function getConsoleMethod(node: TSESTree.CallExpression): string | null {
   return prop.name in CONSOLE_TO_CORE ? prop.name : null;
 }
 
-/**
- * Walks the scope chain to determine whether any binding for a known
- * @actions/core alias (`core`, `coreObj`) is visible at the given node.
- *
- * Accepted patterns:
- *   - `const core = require("@actions/core")`
- *   - `import * as core from "@actions/core"`
- *   - A function parameter named `core` or `coreObj` (used in github-script style)
- */
-function hasCoreInScope(node: TSESTree.Node, sourceCode: TSESLint.SourceCode): boolean {
-  let scope: TSESLint.Scope.Scope | null = sourceCode.getScope(node);
-  while (scope) {
-    for (const variable of scope.variables) {
-      if (CORE_ALIASES.has(variable.name) && variable.defs.length > 0) {
-        return true;
-      }
-    }
-    scope = scope.upper;
-  }
-  return false;
-}
-
 export const preferCoreLoggingRule = createRule({
   name: "prefer-core-logging",
   meta: {
@@ -56,14 +33,14 @@ export const preferCoreLoggingRule = createRule({
     hasSuggestions: true,
     docs: {
       description:
-        "Prefer @actions/core logging methods (core.info, core.error, core.warning, core.debug) over console.* in files that have access to @actions/core. " +
+        "Prefer @actions/core logging methods (core.info, core.error, core.warning, core.debug) over console.* — " +
+        "global.core is always available via shim.cjs in Node.js context and via github-script in Actions context. " +
         "console.* bypasses GitHub Actions' built-in secret masking and structured annotation system; core logging ensures secrets in output are redacted and messages appear correctly in the Actions UI.",
     },
     schema: [],
     messages: {
-      preferCoreLogging:
-        "Use {{replacement}} instead of console.{{method}}() — @actions/core logging masks secrets and integrates with the Actions annotation system. console.* output is not masked.",
-      replaceWithCoreMethod: "Replace with {{replacement}}({{args}}) — ensure a @actions/core alias (core / coreObj) is in scope.",
+      preferCoreLogging: "Use {{replacement}} instead of console.{{method}}() — @actions/core logging masks secrets and integrates with the Actions annotation system. console.* output is not masked.",
+      replaceWithCoreMethod: "Replace with {{replacement}}({{args}}).",
     },
   },
   defaultOptions: [],
@@ -74,9 +51,6 @@ export const preferCoreLoggingRule = createRule({
       CallExpression(node) {
         const method = getConsoleMethod(node);
         if (!method) return;
-
-        // Only flag when @actions/core alias is demonstrably in scope
-        if (!hasCoreInScope(node, sourceCode)) return;
 
         const replacement = CONSOLE_TO_CORE[method]!;
 

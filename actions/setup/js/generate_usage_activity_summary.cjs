@@ -12,6 +12,8 @@ const fs = require("fs");
 const { globSync } = require("node:fs");
 const path = require("path");
 
+require("./shim.cjs");
+
 const SQUID_STATUS_INDEX = 6;
 const SQUID_DECISION_INDEX = 7;
 const SQUID_DOMAIN_INDEX = 2;
@@ -464,7 +466,7 @@ function main() {
   // Write summary to file
   const outputPath = "/tmp/gh-aw/usage/activity/summary.json";
   fs.writeFileSync(outputPath, JSON.stringify(summary, null, 2), "utf-8");
-  console.log(outputPath);
+  core.info(outputPath);
 }
 
 // Run main function

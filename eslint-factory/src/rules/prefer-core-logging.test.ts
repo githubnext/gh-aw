@@ -18,15 +18,37 @@ describe("prefer-core-logging", () => {
     expect(preferCoreLoggingRule.meta.hasSuggestions).toBe(true);
   });
 
-  it("valid: console.log with no core in scope is allowed", () => {
+  it("invalid: plain console.log with no core in scope is now flagged", () => {
     ruleTester.run("prefer-core-logging", preferCoreLoggingRule, {
-      valid: [
-        // No core in scope — plain scripts are allowed to use console
-        `console.log("hello");`,
-        `console.error("bad thing");`,
-        `const foo = "bar"; console.log(foo);`,
+      valid: [],
+      invalid: [
+        {
+          code: `console.log("hello");`,
+          errors: [
+            { messageId: "preferCoreLogging", data: { method: "log", replacement: "core.info" }, suggestions: [{ messageId: "replaceWithCoreMethod", data: { replacement: "core.info", args: `"hello"` }, output: `core.info("hello");` }] },
+          ],
+        },
+        {
+          code: `console.error("bad thing");`,
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "error", replacement: "core.error" },
+              suggestions: [{ messageId: "replaceWithCoreMethod", data: { replacement: "core.error", args: `"bad thing"` }, output: `core.error("bad thing");` }],
+            },
+          ],
+        },
+        {
+          code: `const foo = "bar"; console.log(foo);`,
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [{ messageId: "replaceWithCoreMethod", data: { replacement: "core.info", args: `foo` }, output: `const foo = "bar"; core.info(foo);` }],
+            },
+          ],
+        },
       ],
-      invalid: [],
     });
   });
 
@@ -42,10 +64,21 @@ describe("prefer-core-logging", () => {
     });
   });
 
-  it("valid: console.log in a function where core is not a param and not declared", () => {
+  it("invalid: console.log in a function where core is not declared", () => {
     ruleTester.run("prefer-core-logging", preferCoreLoggingRule, {
-      valid: [`function helper() { console.log("no core here"); }`],
-      invalid: [],
+      valid: [],
+      invalid: [
+        {
+          code: `function helper() { console.log("no core here"); }`,
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [{ messageId: "replaceWithCoreMethod", data: { replacement: "core.info", args: `"no core here"` }, output: `function helper() { core.info("no core here"); }` }],
+            },
+          ],
+        },
+      ],
     });
   });
 
