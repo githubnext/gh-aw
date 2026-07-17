@@ -3,8 +3,11 @@ package cli
 import (
 	"errors"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
 )
+
+var doctorCommandLog = logger.New("cli:doctor_command")
 
 var runDoctorSetupAuth = RunSetupAuth
 var runDoctorSetupRepositoryCheck = RunSetupRepositoryCheck
@@ -35,9 +38,11 @@ repository exists, resolves the owner type, and inspects checkout state.`,
 					return errors.New("--dir and --require-owner-type require --repo")
 				}
 
+				doctorCommandLog.Print("Running authentication diagnostics (no --repo provided)")
 				return runDoctorSetupAuth(SetupAuthOptions{Ctx: cmd.Context(), JSON: jsonOutput})
 			}
 
+			doctorCommandLog.Printf("Running repository diagnostics for %q (require-owner-type=%q)", repo, requireOwnerType)
 			return runDoctorSetupRepositoryCheck(SetupRepositoryCheckOptions{
 				Ctx:              cmd.Context(),
 				Repo:             repo,
