@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var frontmatterTriggerLog = logger.New("workflow:frontmatter_trigger_helpers")
 
 // extractOnTriggerValue returns the raw value for on.<trigger> when the frontmatter
 // contains an "on" map with that trigger configured.
@@ -76,8 +80,10 @@ func extractDeploymentStatusStateCondition(frontmatter map[string]any) (string, 
 		return "", nil
 	}
 
+	frontmatterTriggerLog.Printf("Building deployment_status state condition from %d state value(s)", len(states))
 	for _, s := range states {
 		if !isValidDeploymentStatusState(s) {
+			frontmatterTriggerLog.Printf("Rejecting invalid on.deployment_status.state value %q", s)
 			return "", fmt.Errorf("invalid on.deployment_status.state value %q: must be one of %s",
 				s, strings.Join(validDeploymentStatusStates, ", "))
 		}
@@ -134,8 +140,10 @@ func extractWorkflowRunConclusionCondition(frontmatter map[string]any) (string, 
 		return "", nil
 	}
 
+	frontmatterTriggerLog.Printf("Building workflow_run conclusion condition from %d conclusion value(s)", len(conclusions))
 	for _, c := range conclusions {
 		if !isValidWorkflowRunConclusion(c) {
+			frontmatterTriggerLog.Printf("Rejecting invalid on.workflow_run.conclusion value %q", c)
 			return "", fmt.Errorf("invalid on.workflow_run.conclusion value %q: must be one of %s",
 				c, strings.Join(validWorkflowRunConclusions, ", "))
 		}
