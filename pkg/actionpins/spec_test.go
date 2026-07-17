@@ -334,8 +334,8 @@ func TestSpec_PublicAPI_ResolveActionPin_EnforcePinned(t *testing.T) {
 }
 
 // TestSpec_PublicAPI_ResolveActionPin_SkipHardcodedFallback validates that setting
-// PinContext.SkipHardcodedFallback=true prevents the embedded hardcoded pins from
-// being consulted, even for a well-known action that is present in the embedded data.
+// PinContext.SkipHardcodedFallback=true blocks version→SHA fallback against the
+// embedded hardcoded pins while still allowing SHA→version comment labeling.
 func TestSpec_PublicAPI_ResolveActionPin_SkipHardcodedFallback(t *testing.T) {
 	t.Run("known action with SkipHardcodedFallback=true returns empty result", func(t *testing.T) {
 		// actions/checkout has entries in the embedded pins.
