@@ -17,6 +17,19 @@ import (
 
 var setupRepositoryLog = logger.New("cli:setup_repository")
 
+func configureDefaultGHHostFromOriginRemoteIfUnset() {
+	if os.Getenv("GH_HOST") != "" { //nolint:osgetenvlibrary
+		return
+	}
+
+	if detectedHost := getHostFromOriginRemote(); detectedHost != "" && detectedHost != "github.com" {
+		setupRepositoryLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)
+		workflow.SetDefaultGHHost(detectedHost)
+	} else if detectedHost == "github.com" {
+		workflow.SetDefaultGHHost("")
+	}
+}
+
 type SetupAuthOptions struct {
 	Ctx  context.Context
 	JSON bool
@@ -299,6 +312,8 @@ func runSetupAuthWithRuntime(opts SetupAuthOptions, runtime setupRepositoryRunti
 		ctx = context.Background()
 	}
 
+	configureDefaultGHHostFromOriginRemoteIfUnset()
+
 	if err := runtime.checkAuth(ctx); err != nil {
 		return fmt.Errorf("failed to verify GitHub CLI authentication: %w", err)
 	}
@@ -352,6 +367,8 @@ func runSetupRepositoryCheckWithRuntime(opts SetupRepositoryCheckOptions, runtim
 	if ctx == nil {
 		ctx = context.Background()
 	}
+
+	configureDefaultGHHostFromOriginRemoteIfUnset()
 
 	if err := runtime.checkAuth(ctx); err != nil {
 		return fmt.Errorf("failed to verify GitHub CLI authentication: %w", err)

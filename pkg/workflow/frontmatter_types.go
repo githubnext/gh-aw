@@ -418,4 +418,10 @@ type FrontmatterConfig struct {
 	// Can be a plain list (shorthand) or an object with a questions list and optional
 	// engine-config / runs-on overrides.
 	Evals any `json:"evals,omitempty"`
+
+	// ExcludedEnv lists additional environment variable names that must be excluded from
+	// the agent container via AWF's --exclude-env flag.  Use this when an env var is set
+	// from a source that the compiler cannot automatically detect as credential-bearing
+	// (e.g. a workflow_dispatch input that carries a token).
+	ExcludedEnv []string `json:"excluded-env,omitempty"`
 }

@@ -64,7 +64,7 @@ function loadSamples() {
   try {
     parsed = JSON.parse(raw);
   } catch (err) {
-    throw new Error(`${ERR_PARSE}: apply_samples: failed to parse GH_AW_SAMPLES as JSON: ${getErrorMessage(err)}`);
+    throw new Error(`${ERR_PARSE}: apply_samples: failed to parse GH_AW_SAMPLES as JSON: ${getErrorMessage(err)}`, { cause: err });
   }
   // Tolerate a literal JSON `null` payload (older compiler emitted it for
   // workflows with --use-samples but no `samples:` entries). Treat as empty.
@@ -95,6 +95,9 @@ function loadSamples() {
 function runGit(args, cwd) {
   const { spawnSync } = require("child_process");
   const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+  if (result.error) {
+    throw result.error;
+  }
   if (result.status !== 0) {
     throw new Error(`${ERR_SYSTEM}: git ${args.join(" ")} failed (exit ${result.status}): ${result.stderr || result.stdout}`);
   }
@@ -440,7 +443,7 @@ async function sendJsonRpc(child, stdin, request, responseIterator) {
     try {
       return JSON.parse(line);
     } catch (err) {
-      throw new Error(`${ERR_PARSE}: apply_samples: failed to parse MCP JSON-RPC response for request id=${request.id}: ${getErrorMessage(err)} (line: ${line})`);
+      throw new Error(`${ERR_PARSE}: apply_samples: failed to parse MCP JSON-RPC response for request id=${request.id}: ${getErrorMessage(err)} (line: ${line})`, { cause: err });
     }
   }
 }

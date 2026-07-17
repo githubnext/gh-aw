@@ -430,14 +430,33 @@ func TestResolveNonStrictHardcodedPin_FallsBackToHighestWhenNoCompatible(t *test
 }
 
 func TestResolveActionPinFromHardcodedPins_SkipHardcodedFallback(t *testing.T) {
-	t.Run("returns false immediately when SkipHardcodedFallback is set", func(t *testing.T) {
+	t.Run("returns false immediately when SkipHardcodedFallback is set and version is a tag", func(t *testing.T) {
 		ctx := &PinContext{SkipHardcodedFallback: true, Warnings: make(map[string]bool)}
 
-		// actions/checkout has hardcoded pins, but SkipHardcodedFallback should prevent use
+		// actions/checkout has hardcoded pins, but SkipHardcodedFallback should prevent version→SHA lookup
 		result, ok := resolveActionPinFromHardcodedPins("actions/checkout", "v4", false, ctx)
 
-		assert.False(t, ok, "Expected SkipHardcodedFallback to prevent hardcoded pin lookup")
-		assert.Empty(t, result, "Expected no pinned result when SkipHardcodedFallback is set")
+		assert.False(t, ok, "Expected SkipHardcodedFallback to prevent version→SHA hardcoded pin lookup")
+		assert.Empty(t, result, "Expected no pinned result when SkipHardcodedFallback is set for version tag")
+	})
+
+	t.Run("allows SHA→version lookup even when SkipHardcodedFallback is set", func(t *testing.T) {
+		// This is the regression test for the non-deterministic pinning bug.
+		// When a workflow already pins an action with a SHA (e.g. @9c091bb... # v7.0.0)
+		// and SkipHardcodedFallback is true (e.g. because GH_HOST is a non-github.com host),
+		// the SHA→version lookup must still succeed to preserve the human-readable version comment.
+		// Without the fix, the fallback would emit FormatPinnedActionReference(repo, sha, sha),
+		// producing "# 9c091bb..." instead of "# v7.0.0".
+		latestPin, ok := GetLatestActionPinByRepo("actions/checkout")
+		require.True(t, ok, "expected embedded pin for actions/checkout")
+
+		ctx := &PinContext{SkipHardcodedFallback: true, Warnings: make(map[string]bool)}
+
+		result, found := resolveActionPinFromHardcodedPins("actions/checkout", latestPin.SHA, true, ctx)
+
+		require.True(t, found, "Expected SHA→version lookup to succeed even with SkipHardcodedFallback=true")
+		assert.Equal(t, FormatPinnedActionReference("actions/checkout", latestPin.SHA, latestPin.Version), result,
+			"Expected version comment to use tag, not SHA")
 	})
 
 	t.Run("allows hardcoded pins when SkipHardcodedFallback is not set", func(t *testing.T) {

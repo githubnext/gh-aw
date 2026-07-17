@@ -334,8 +334,8 @@ func TestSpec_PublicAPI_ResolveActionPin_EnforcePinned(t *testing.T) {
 }
 
 // TestSpec_PublicAPI_ResolveActionPin_SkipHardcodedFallback validates that setting
-// PinContext.SkipHardcodedFallback=true prevents the embedded hardcoded pins from
-// being consulted, even for a well-known action that is present in the embedded data.
+// PinContext.SkipHardcodedFallback=true blocks version→SHA fallback against the
+// embedded hardcoded pins while still allowing SHA→version comment labeling.
 func TestSpec_PublicAPI_ResolveActionPin_SkipHardcodedFallback(t *testing.T) {
 	t.Run("known action with SkipHardcodedFallback=true returns empty result", func(t *testing.T) {
 		// actions/checkout has entries in the embedded pins.
@@ -359,6 +359,33 @@ func TestSpec_PublicAPI_ResolveActionPin_SkipHardcodedFallback(t *testing.T) {
 		require.NoError(t, err, "hardcoded pin lookup should succeed when SkipHardcodedFallback is false")
 		require.NotEmpty(t, result, "SkipHardcodedFallback=false should allow hardcoded pin lookup")
 		assert.Contains(t, result, "actions/checkout@", "result should reference actions/checkout")
+	})
+
+	t.Run("SHA-pinned action with SkipHardcodedFallback=true still produces version comment", func(t *testing.T) {
+		// Regression test for non-deterministic pin comments bug.
+		//
+		// When a workflow already uses a SHA-pinned action reference (e.g.
+		// actions/checkout@9c091bb... # v7.0.0) and SkipHardcodedFallback=true
+		// is set (triggered when GH_HOST points to a non-github.com host), the
+		// SHA→version lookup must still succeed so that the human-readable version
+		// tag is preserved in the comment.
+		//
+		// Before the fix, the hardcoded-pin lookup was skipped entirely when
+		// SkipHardcodedFallback=true, causing the fallback to emit
+		// FormatPinnedActionReference(repo, sha, sha) which produces "# <sha>"
+		// instead of "# v7.0.0", making the lock files non-deterministic.
+		latestPin, ok := actionpins.GetLatestActionPinByRepo("actions/checkout")
+		require.True(t, ok, "expected embedded pin for actions/checkout")
+
+		ctx := &actionpins.PinContext{
+			SkipHardcodedFallback: true,
+			Warnings:              make(map[string]bool),
+		}
+		result, err := actionpins.ResolveActionPin("actions/checkout", latestPin.SHA, ctx)
+		require.NoError(t, err, "SHA resolution should not return an error")
+		expected := actionpins.FormatPinnedActionReference("actions/checkout", latestPin.SHA, latestPin.Version)
+		assert.Equal(t, expected, result, "SHA-pinned action should use version tag as comment, not the SHA itself")
+		assert.Contains(t, result, "# "+latestPin.Version, "version comment must use the human-readable tag, not the SHA")
 	})
 }
 

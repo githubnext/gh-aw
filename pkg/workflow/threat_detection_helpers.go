@@ -3,6 +3,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -70,7 +71,23 @@ func isThreatDetectionExplicitlyDisabledInConfigs(configs []string) bool {
 }
 
 func getThreatDetectionAdditionalAllowedDomains(data *WorkflowData) []string {
-	if !engineEnvHasKey(data, constants.CopilotProviderBaseURL) || data == nil || data.NetworkPermissions == nil {
+	if data == nil || data.NetworkPermissions == nil {
+		return []string{}
+	}
+
+	// Evaluate the effective merged detection environment (main + detection-specific
+	// overrides) so that a custom base URL configured only in
+	// safe-outputs.threat-detection.engine.env also triggers domain propagation.
+	var detectionSpecificEnv map[string]string
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.EngineConfig != nil {
+		detectionSpecificEnv = data.SafeOutputs.ThreatDetection.EngineConfig.Env
+	}
+	effectiveEnv := mergeThreatDetectionEngineEnv(data, detectionSpecificEnv)
+
+	hasCustomTarget := effectiveEnv["OPENAI_BASE_URL"] != "" ||
+		effectiveEnv["ANTHROPIC_BASE_URL"] != "" ||
+		effectiveEnv[constants.CopilotProviderBaseURL] != ""
+	if !hasCustomTarget {
 		return []string{}
 	}
 
@@ -99,6 +116,40 @@ func canReuseThreatDetectionEngineConfigForExternalDetector(data *WorkflowData, 
 		data.SafeOutputs.ThreatDetection != nil &&
 		data.SafeOutputs.ThreatDetection.EngineConfig != nil &&
 		(data.SafeOutputs.ThreatDetection.EngineConfig.ID == "" || data.SafeOutputs.ThreatDetection.EngineConfig.ID == engineID)
+}
+
+// mergeThreatDetectionEngineEnv composes detection engine env vars from the main
+// engine env and detection-specific overrides.
+//
+// Detection values take precedence when keys overlap. When detectionEnv is empty,
+// it still returns a copy of the main env map to avoid aliasing/mutation of the
+// parent WorkflowData.EngineConfig.Env by downstream detection-specific updates.
+func mergeThreatDetectionEngineEnv(data *WorkflowData, detectionEnv map[string]string) map[string]string {
+	if data == nil || data.EngineConfig == nil || len(data.EngineConfig.Env) == 0 {
+		return detectionEnv
+	}
+	if len(detectionEnv) == 0 {
+		// Return a copy (not the original map) so subsequent detection-specific
+		// env merges cannot mutate the main engine's env map by aliasing.
+		return maps.Clone(data.EngineConfig.Env)
+	}
+
+	merged := make(map[string]string, len(data.EngineConfig.Env)+len(detectionEnv))
+	maps.Copy(merged, data.EngineConfig.Env)
+	maps.Copy(merged, detectionEnv)
+	return merged
+}
+
+// cloneThreatDetectionEngineConfig returns a shallow copy of source with engine ID
+// normalized to the provided detection engineID. If source is nil, it returns a
+// minimal config containing only the ID.
+func cloneThreatDetectionEngineConfig(engineID string, source *EngineConfig) *EngineConfig {
+	if source == nil {
+		return &EngineConfig{ID: engineID}
+	}
+	cloned := *source
+	cloned.ID = engineID
+	return &cloned
 }
 
 // engineCoreSecretVarNames returns the secret-backed env var names for the given engine ID

@@ -271,6 +271,8 @@ See [Authentication](/gh-aw/reference/auth/) for details.
 
 Run diagnostics to verify CLI authentication and repository setup.
 
+When running inside a GitHub Enterprise checkout and `GH_HOST` is unset, `doctor` auto-detects the host from the git remote. Outside a checkout, run `gh auth login --hostname <host>` to authenticate and set `GH_HOST=<host>` so repository diagnostics target the correct host.
+
 ```bash wrap
 gh aw doctor
 gh aw doctor --json
