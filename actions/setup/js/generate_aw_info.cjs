@@ -165,10 +165,18 @@ async function main(core, ctx) {
   }
 
   // Write to /tmp/gh-aw directory to avoid inclusion in PR
-  fs.mkdirSync(TMP_GH_AW_PATH, { recursive: true });
+  try {
+    fs.mkdirSync(TMP_GH_AW_PATH, { recursive: true });
+  } catch (err) {
+    throw new Error(`Failed to create directory ${TMP_GH_AW_PATH}: ${String(err)}`, { cause: err });
+  }
   writeMergedModelsJSON(core);
   const tmpPath = TMP_GH_AW_PATH + "/aw_info.json";
-  fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
+  try {
+    fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
+  } catch (err) {
+    throw new Error(`Failed to write file ${tmpPath}: ${String(err)}`, { cause: err });
+  }
 
   if (awInfo.staged) {
     logStagedPreviewInfo("Generating workflow info in staged mode — no changes applied");

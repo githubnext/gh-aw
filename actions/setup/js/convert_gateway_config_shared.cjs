@@ -154,8 +154,12 @@ function logServerStats(servers, includedCount) {
  * @param {string} output
  */
 function writeSecureOutput(outputPath, output) {
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, output, { mode: 0o600 });
+  try {
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+    fs.writeFileSync(outputPath, output, { mode: 0o600 });
+  } catch (err) {
+    throw new Error(`Failed to write file ${outputPath}: ${String(err)}`, { cause: err });
+  }
   fs.chmodSync(outputPath, 0o600);
 }
 

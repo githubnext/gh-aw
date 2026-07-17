@@ -23,7 +23,11 @@ const MAX_SYMLINK_DEPTH = 5;
  * @returns {Promise<string>} File content
  */
 async function defaultFileReader(filePath) {
-  return fs.readFileSync(filePath, "utf8");
+  try {
+    return fs.readFileSync(filePath, "utf8");
+  } catch (err) {
+    throw new Error(`Failed to read file ${filePath}: ${String(err)}`, { cause: err });
+  }
 }
 
 /**

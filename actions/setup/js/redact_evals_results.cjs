@@ -29,7 +29,12 @@ function verifyRedaction() {
     return;
   }
 
-  const content = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8");
+  let content;
+  try {
+    content = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8");
+  } catch (err) {
+    throw new Error(`Failed to read file ${EVALS_OUTPUT_PATH}: ${String(err)}`, { cause: err });
+  }
   const secretValues = getSecretValues();
   const lingeringRedactions = redactBuiltInPatterns(content).redactionCount + redactSecrets(content, secretValues).redactionCount;
 

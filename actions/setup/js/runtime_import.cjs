@@ -665,7 +665,11 @@ function hasGitHubActionsMacros(content) {
 async function fetchUrlContent(url, cacheDir) {
   // Create cache directory if it doesn't exist
   if (!fs.existsSync(cacheDir)) {
-    fs.mkdirSync(cacheDir, { recursive: true });
+    try {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    } catch (err) {
+      throw new Error(`Failed to create directory ${cacheDir}: ${String(err)}`, { cause: err });
+    }
   }
 
   // Generate cache filename from URL (hash it for safety)
@@ -681,7 +685,11 @@ async function fetchUrlContent(url, cacheDir) {
 
     if (ageInMs < oneHourInMs) {
       core.info(`Using cached content for URL: ${url}`);
-      return fs.readFileSync(cacheFile, "utf8");
+      try {
+        return fs.readFileSync(cacheFile, "utf8");
+      } catch (err) {
+        throw new Error(`Failed to read file ${cacheFile}: ${String(err)}`, { cause: err });
+      }
     }
   }
 
@@ -705,7 +713,12 @@ async function fetchUrlContent(url, cacheDir) {
 
         res.on("end", () => {
           // Cache the content
-          fs.writeFileSync(cacheFile, data, "utf8");
+          try {
+            fs.writeFileSync(cacheFile, data, "utf8");
+          } catch (err) {
+            reject(new Error(`Failed to write file ${cacheFile}: ${String(err)}`, { cause: err }));
+            return;
+          }
           resolve(data);
         });
       })
@@ -1036,7 +1049,12 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
   }
 
   // Read the file
-  let content = fs.readFileSync(normalizedPath, "utf8");
+  let content;
+  try {
+    content = fs.readFileSync(normalizedPath, "utf8");
+  } catch (err) {
+    throw new Error(`Failed to read file ${normalizedPath}: ${String(err)}`, { cause: err });
+  }
 
   // If line range is specified, extract those lines first (before other processing)
   if (startLine !== undefined || endLine !== undefined) {

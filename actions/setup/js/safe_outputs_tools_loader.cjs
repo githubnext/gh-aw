@@ -347,7 +347,11 @@ function registerDynamicTools(server, tools, config, outputFile, registerTool, n
         // Write the entry to the output file in JSONL format
         // CRITICAL: Use JSON.stringify WITHOUT formatting parameters for JSONL format
         // Each entry must be on a single line, followed by a newline character
-        fs.appendFileSync(outputFile, `${JSON.stringify(entry)}\n`);
+        try {
+          fs.appendFileSync(outputFile, `${JSON.stringify(entry)}\n`);
+        } catch (err) {
+          throw new Error(`Failed to append to file ${outputFile}: ${String(err)}`, { cause: err });
+        }
 
         // Use output from safe-job config if available
         const outputText = jobConfig?.output ?? `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;

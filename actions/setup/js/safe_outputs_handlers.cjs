@@ -493,11 +493,20 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // the artifact-upload step), matching the same pattern used by upload_artifact.
     const assetsDir = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "safeoutputs", "assets");
     if (!fs.existsSync(assetsDir)) {
-      fs.mkdirSync(assetsDir, { recursive: true });
+      try {
+        fs.mkdirSync(assetsDir, { recursive: true });
+      } catch (err) {
+        throw new Error(`Failed to create directory ${assetsDir}: ${String(err)}`, { cause: err });
+      }
     }
 
     // Read file and compute hash
-    const fileContent = fs.readFileSync(filePath);
+    let fileContent;
+    try {
+      fileContent = fs.readFileSync(filePath);
+    } catch (err) {
+      throw new Error(`Failed to read file ${filePath}: ${String(err)}`, { cause: err });
+    }
     const sha = crypto.createHash("sha256").update(fileContent).digest("hex");
 
     // Extract filename and extension
@@ -2030,7 +2039,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    */
   function copyDirectoryRecursive(srcDir, destDir) {
     if (!fs.existsSync(destDir)) {
-      fs.mkdirSync(destDir, { recursive: true });
+      try {
+        fs.mkdirSync(destDir, { recursive: true });
+      } catch (err) {
+        throw new Error(`Failed to create directory ${destDir}: ${String(err)}`, { cause: err });
+      }
     }
     for (const ent of fs.readdirSync(srcDir, { withFileTypes: true })) {
       const srcPath = path.join(srcDir, ent.name);
@@ -2089,7 +2102,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
       const stagingDir = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "safeoutputs", "upload-artifacts");
       if (!fs.existsSync(stagingDir)) {
-        fs.mkdirSync(stagingDir, { recursive: true });
+        try {
+          fs.mkdirSync(stagingDir, { recursive: true });
+        } catch (err) {
+          throw new Error(`Failed to create directory ${stagingDir}: ${String(err)}`, { cause: err });
+        }
       }
 
       const destName = path.basename(filePath);

@@ -116,7 +116,11 @@ async function main() {
   const validationResult = validateInputs(branch, owner, repo, repository);
   if (!validationResult.valid) {
     core.warning(`${validationResult.error} – starting with empty experiment state`);
-    fs.mkdirSync(stateDir, { recursive: true });
+    try {
+      fs.mkdirSync(stateDir, { recursive: true });
+    } catch (err) {
+      throw new Error(`Failed to create directory ${stateDir}: ${String(err)}`, { cause: err });
+    }
     return;
   }
 
@@ -136,7 +140,11 @@ async function main() {
   }
 
   // Ensure the directory exists regardless of whether we fetched the file.
-  fs.mkdirSync(stateDir, { recursive: true });
+  try {
+    fs.mkdirSync(stateDir, { recursive: true });
+  } catch (err) {
+    throw new Error(`Failed to create directory ${stateDir}: ${String(err)}`, { cause: err });
+  }
 
   if (content === null) {
     core.info(`No experiment state found in branch "${branch}" – starting with empty state`);
@@ -160,7 +168,11 @@ async function main() {
     return;
   }
 
-  fs.writeFileSync(stateFile, content, "utf8");
+  try {
+    fs.writeFileSync(stateFile, content, "utf8");
+  } catch (err) {
+    throw new Error(`Failed to write file ${stateFile}: ${String(err)}`, { cause: err });
+  }
   core.info(`Experiment state written to ${stateFile}`);
 }
 
