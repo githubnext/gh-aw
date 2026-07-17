@@ -107,6 +107,33 @@ When compiled workflows detect a `tcp://` value in `DOCKER_HOST` (set automatica
 - **Artifact consolidation** — agent output files are consolidated under `${{ runner.temp }}/gh-aw/` before upload so downstream jobs (detection, safe-outputs) can find them.
 - **Network isolation** — AWF enforces egress via Docker network topology: an internal Docker network (`awf-net`) with no internet route and a dual-homed Squid proxy as the sole egress path. The runner container issues Docker API commands to the DinD sidecar daemon; the daemon creates the networks and manages all traffic enforcement. No host `iptables` rules are applied from the runner container.
 
+## Network requirements
+
+ARC DinD runners need outbound HTTPS (port 443) access from the runner pod. If your cluster uses Kubernetes NetworkPolicies or a service mesh, ensure the runner pod can reach:
+
+| Destination | Purpose |
+| --- | --- |
+| `github.com` (or your GHES instance) | Git clone, API calls, Actions runtime |
+| `api.githubcopilot.com` (or your enterprise Copilot endpoint) | Copilot engine communication |
+| `ghcr.io` and `pkg-containers.githubusercontent.com` | Pull MCP gateway and AWF container images |
+| Domains in your workflow's `network.allowed` list | Agent egress (npm registries, PyPI, etc.) |
+
+### Intra-pod communication
+
+The runner container communicates with the DinD sidecar over `DOCKER_HOST` (typically `tcp://localhost:2375`). This is intra-pod traffic over the loopback interface — no NetworkPolicy is needed for it.
+
+AWF creates Docker networks inside the DinD daemon for sandbox isolation. All agent egress is routed through a Squid proxy container on the `awf-net` Docker network. This is internal to the DinD daemon and invisible to Kubernetes networking.
+
+### What is NOT required
+
+- **`NET_ADMIN` capability** — AWF uses Docker network topology for egress enforcement, not host `iptables`.
+- **`iptables` binary** — not used in network-isolation mode. Log lines mentioning `iptables` are a legacy artifact from `sandbox.agent.sudo: true` mode and can be ignored.
+- **Host network mode** — the runner pod uses standard pod networking. Do not set `hostNetwork: true`.
+- **Privileged runner container** — only the DinD sidecar needs `privileged: true`. The runner container runs unprivileged.
+
+> [!NOTE]
+> If you see `iptables`-related output in workflow logs, it does not mean `iptables` is required. In network-isolation mode (the default for `topology: arc-dind`), AWF logs this as informational context but does not execute any `iptables` commands from the runner container.
+
 ## 7. Required versions
 
 Use versions at or above these minimums:
