@@ -329,8 +329,10 @@ function applyCopilotWireAPI({ modelsJson, logger = log }) {
   const models = githubCopilotData !== null && typeof githubCopilotData === "object" && "models" in githubCopilotData ? githubCopilotData.models : null;
   if (!models || typeof models !== "object") return;
 
+  // Strip query parameters before catalog lookup (e.g. "gpt-5-mini?effort=high" → "gpt-5-mini").
+  const baseModelName = modelName.split("?")[0];
   // Case-insensitive lookup.
-  const normalizedModelName = modelName.toLowerCase();
+  const normalizedModelName = baseModelName.toLowerCase();
   for (const [key, value] of Object.entries(models)) {
     if (key.toLowerCase() === normalizedModelName) {
       const wireApi = value !== null && typeof value === "object" && "wire_api" in value ? value.wire_api : null;

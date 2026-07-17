@@ -2357,6 +2357,12 @@ process.exit(1);`,
       expect(process.env.COPILOT_PROVIDER_WIRE_API).toBe("responses");
     });
 
+    it("strips query parameters before catalog lookup (e.g. model?effort=high)", () => {
+      process.env.COPILOT_MODEL = "gpt-5-mini?effort=high";
+      applyCopilotWireAPI({ modelsJson: makeModelsJson(), logger: () => {} });
+      expect(process.env.COPILOT_PROVIDER_WIRE_API).toBe("responses");
+    });
+
     it("skips configuration when COPILOT_MODEL is empty", () => {
       process.env.COPILOT_MODEL = "";
       applyCopilotWireAPI({ modelsJson: makeModelsJson(), logger: () => {} });
