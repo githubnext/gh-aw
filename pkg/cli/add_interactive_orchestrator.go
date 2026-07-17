@@ -135,7 +135,7 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 		return err
 	}
 
-	initFiles, err := ensureAddRepositoryInitializedWithDetails(config.EngineOverride, config.Verbose)
+	initFiles, err := ensureAddRepositoryInitializedWithDetails(config.EngineOverride, config.Verbose, config.NoGitattributes)
 	if err != nil {
 		return err
 	}
