@@ -87,13 +87,7 @@ async function twirpRequest(method, body) {
     throw new Error("ACTIONS_RUNTIME_TOKEN is required for artifact upload");
   }
   const resultsServiceOrigin = getResultsServiceOrigin();
-  const url = (() => {
-    try {
-      return parseURL(`/twirp/${TWIRP_ARTIFACT_SERVICE}/${method}`, resultsServiceOrigin, `Failed to construct twirp URL for method: ${method}`).toString();
-    } catch {
-      throw new Error(`Failed to construct twirp URL for method: ${method}`);
-    }
-  })();
+  const url = parseURL(`/twirp/${TWIRP_ARTIFACT_SERVICE}/${method}`, resultsServiceOrigin, `Failed to construct twirp URL for method: ${method}`).toString();
 
   let lastError;
   for (let attempt = 1; attempt <= DEFAULT_RETRY_ATTEMPTS; attempt++) {
