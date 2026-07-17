@@ -95,6 +95,11 @@ describe("require-spawnsync-error-check", () => {
           code: `const result = spawnSync("git", ["status"]); const e = result.error; core.info(String(e));`,
           errors: [{ messageId: "missingErrorCheck" }],
         },
+        {
+          // mutable alias: error is stored then overwritten before the guard — not a valid error check
+          code: `const result = spawnSync("git", ["status"]); let e = result.error; e = undefined; if (e) throw e;`,
+          errors: [{ messageId: "missingErrorCheck" }],
+        },
       ],
     });
   });

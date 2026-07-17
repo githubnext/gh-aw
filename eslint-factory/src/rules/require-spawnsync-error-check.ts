@@ -75,11 +75,16 @@ function findVariableByName(sourceCode: Readonly<TSESLint.SourceCode>, node: TSE
 
 /**
  * Returns true when `node` is the sole initializer of a single-identifier variable
- * binding and at least one reference to that binding satisfies `isGuardingErrorUsage`.
+ * binding, that binding is never reassigned, and at least one reference to it satisfies
+ * `isGuardingErrorUsage`.
  *
  * This recognises one level of aliasing such as:
  *   const e = result.error;  // node = result.error MemberExpression (or `error` Identifier)
  *   if (e) throw e;          // guards `e` → treated as a valid error check
+ *
+ * Mutable aliases are rejected: if the binding has any write reference that is not the
+ * initializer (e.g. `let e = result.error; e = undefined;`), the original error value
+ * may have been discarded before the guard, so this returns false.
  */
 function isAssignedToGuardedAlias(sourceCode: Readonly<TSESLint.SourceCode>, node: TSESTree.Node): boolean {
   const parent = node.parent;
@@ -90,6 +95,10 @@ function isAssignedToGuardedAlias(sourceCode: Readonly<TSESLint.SourceCode>, nod
 
   const variable = findVariableByName(sourceCode, node, idNode.name);
   if (!variable) return false;
+
+  // Reject mutable aliases: any write that is not the initialization means
+  // the original error value may have been overwritten before the guard.
+  if (variable.references.some(ref => ref.isWrite() && !ref.init)) return false;
 
   return variable.references.some(ref => ref.identifier.type === AST_NODE_TYPES.Identifier && isGuardingErrorUsage(ref.identifier));
 }
