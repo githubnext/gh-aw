@@ -111,3 +111,18 @@ CLI entry points → core packages (cli, workflow, parser, console) → domain h
 | `importinpututil` | Util | Import path / sub-key resolver |
 | `testutil` | Util | Test helpers (test-only, not used in production) |
 | `colorwriter` | Util | Color-profile-aware io.Writer (NO_COLOR/COLORTERM/TERM aware) |
+
+## Maintenance
+
+### Sync Policy
+
+The diagram and package table above must stay in sync with the actual Go package layout under `pkg/`. Without an explicit policy, new packages added to the codebase will silently diverge from this document.
+
+**Sync trigger:** Any PR that adds or removes a Go package under `pkg/` **must** update this document. Reviewers should verify that:
+1. The ASCII diagram reflects the new package and its correct layer (Core / Domain / Util).
+2. A corresponding row is added to (or removed from) the Package Reference table.
+3. The `Last updated` date on line 3 is refreshed.
+
+**Tracking:** A CI lint rule or OWNERS note enforcing this policy is tracked in a future issue. Until that check is automated, the PR author is responsible for updating the diagram as part of their change.
+
+**Ownership:** The `architecture.md` document is owned by the gh-aw maintainer team. Any contributor may propose updates via PR; changes to the diagram layers or the package categorization require at least one maintainer approval.
