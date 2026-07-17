@@ -351,6 +351,9 @@ func QualifierShadowed(pkg *types.Package, pos token.Pos, name, importPath strin
 // be silently discarded by the autofix tool.
 func HasOverlappingComment(files []*ast.File, start, end token.Pos) bool {
 	for _, file := range files {
+		if file == nil {
+			continue
+		}
 		if end <= file.Pos() || start >= file.End() {
 			continue
 		}
