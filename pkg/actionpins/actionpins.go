@@ -391,8 +391,12 @@ func resolveActionPinFromHardcodedPins(actionRepo, version string, isAlreadySHA 
 	// When the caller is targeting a non-github.com host (e.g. GHES/GHEC), the
 	// dynamic resolver already failed because it queried the wrong host.  Silently
 	// falling back to bundled pins in that case produces unverified SHA pins and
-	// masks the real problem, so skip this fallback entirely.
-	if ctx.SkipHardcodedFallback {
+	// masks the real problem, so skip this fallback for version→SHA resolution.
+	//
+	// However, when version is already a SHA (isAlreadySHA), the lookup is purely
+	// SHA→version (to find a human-readable version label for the comment). That
+	// operation carries no security risk regardless of host, so it is always allowed.
+	if ctx.SkipHardcodedFallback && !isAlreadySHA {
 		actionPinsLog.Printf("SkipHardcodedFallback set, skipping hardcoded pin lookup for %s@%s", actionRepo, version)
 		return "", false
 	}
