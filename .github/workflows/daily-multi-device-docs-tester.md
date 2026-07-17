@@ -94,6 +94,16 @@ pre-agent-steps:
     run: |
       cd "$EXPR_GITHUB_WORKSPACE/docs"
       node ../scripts/ensure-docs-slide-pdf.js
+  - name: Configure Chrome sandbox
+    run: |
+      # The chrome-sandbox helper must be owned by root with mode 4755 (SUID) for Chrome
+      # to launch inside the agent container. The runner has mode 0777 by default.
+      if [ -f /opt/google/chrome/chrome-sandbox ]; then
+        sudo chmod 4755 /opt/google/chrome/chrome-sandbox
+        echo "chrome-sandbox configured (mode 4755)"
+      else
+        echo "chrome-sandbox not found — skipping"
+      fi
   - name: Start docs server
     env:
       EXPR_GITHUB_RUN_ID: ${{ github.run_id }}
@@ -103,7 +113,7 @@ pre-agent-steps:
       PID_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.pid"
       cd "$EXPR_GITHUB_WORKSPACE/docs"
       npm run build
-      nohup npm run preview -- --host 127.0.0.1 --port 4321 > "$LOG_FILE" 2>&1 &
+      nohup npm run preview -- --host 0.0.0.0 --port 4321 > "$LOG_FILE" 2>&1 &
       PID=$!
       echo $PID > "$PID_FILE"
       echo "Server PID: $PID"
@@ -183,11 +193,11 @@ Start the documentation preview server and perform comprehensive multi-device te
 
 ## Step 1: Verify Server Availability
 
-The workflow pre-agent steps already installed docs dependencies, built the docs site, and started the Astro preview server.
+The workflow pre-agent steps already installed docs dependencies, built the docs site, and started the Astro preview server **bound to all interfaces on port 4321**.
 Quickly verify it is reachable before testing:
 
 ```bash
-curl -sf http://localhost:4321/gh-aw/ > /dev/null && echo "Docs server is ready"
+curl -sf http://host.docker.internal:4321/gh-aw/ > /dev/null && echo "Docs server is ready"
 ```
 
 ## Step 2: Device Configuration
@@ -204,7 +214,7 @@ Test these device types based on input `${{ inputs.devices }}`:
 
 Playwright is pre-installed as `@playwright/cli`. Use `playwright-cli <command>` in bash — no MCP tools or Docker container is involved:
 
-- ✅ **Correct**: `playwright-cli browser_navigate --url "http://localhost:4321/gh-aw/"`
+- ✅ **Correct**: `playwright-cli browser_navigate --url "http://host.docker.internal:4321/gh-aw/"`
 - ✅ **Correct**: Use `playwright-cli browser_run_code --code "async (page) => { ... }"` for custom Playwright code
 - ❌ **Incorrect**: Do NOT use `playwright-cli open` in this workflow (it is less reliable in CI than explicit `browser_*` commands)
 - ❌ **Incorrect**: Do NOT try to `require('playwright')` or create standalone Node.js scripts
@@ -217,16 +227,16 @@ Use `waitUntil: 'domcontentloaded'` for navigation to keep checks fast and consi
 ```bash
 playwright-cli browser_run_code --code "async (page) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('http://localhost:4321/gh-aw/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.goto('http://host.docker.internal:4321/gh-aw/', { waitUntil: 'domcontentloaded', timeout: 30000 });
   return { url: page.url(), title: await page.title() };
 }"
 ```
 
-- ✅ **Use `localhost` directly** — playwright-cli runs on the runner, so `localhost` reaches the dev server
-- ❌ **Do NOT use bridge IP detection** — that is only needed in the deprecated MCP mode
+- ✅ **Use `host.docker.internal`** — the agent runs inside a container; `host.docker.internal` reaches the docs server that was started in the pre-agent step on the host
+- ❌ **Do NOT use `localhost`** — the container's loopback is isolated from the runner's loopback; `localhost:4321` will not be reachable
 
 For each device viewport, use playwright-cli to:
-- Set viewport size and navigate to `http://localhost:4321/gh-aw/`
+- Set viewport size and navigate to `http://host.docker.internal:4321/gh-aw/`
 - Take screenshots and run accessibility audits
 - Test interactions (navigation, search, buttons)
 - Check for layout issues (overflow, truncation, broken layouts)
