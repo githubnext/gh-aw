@@ -5,11 +5,13 @@ package console
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
 	lipgloss "charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
+	"github.com/github/gh-aw/pkg/colorwriter"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
@@ -27,12 +29,19 @@ func isStderrTTY() bool {
 	return tty.IsStderrTerminal()
 }
 
-// applyStyle conditionally applies styling based on TTY status
+// applyStyle conditionally applies styling based on TTY status and color profile.
+// When stdout is a TTY the rendered ANSI is downgraded through the colorprofile
+// writer so that NO_COLOR, COLORTERM, and TERM are honored.
 func applyStyle(style lipgloss.Style, text string) string {
-	return applyStyleWithTTY(style, text, isTTY)
+	if !isTTY() {
+		return text
+	}
+	return colorwriter.Degrade(style.Render(text), os.Environ())
 }
 
 // applyStyleWithTTY conditionally applies styling based on a provided TTY check.
+// Used for stderr-bound helpers where the rendered string is subsequently printed
+// through stderrWriter() (which also applies colorprofile degradation).
 func applyStyleWithTTY(style lipgloss.Style, text string, ttyCheck func() bool) string {
 	if ttyCheck() {
 		return style.Render(text)
