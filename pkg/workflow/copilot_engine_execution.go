@@ -448,15 +448,6 @@ func (e *CopilotEngine) buildCopilotAWFPathSetup(workflowData *WorkflowData, cus
 	if customCommandScriptSetup != "" {
 		pathSetup = customCommandScriptSetup + "\n" + pathSetup
 	}
-	// Prepend the runtime wire API resolution so that COPILOT_PROVIDER_WIRE_API is set
-	// before the Copilot CLI starts. This handles the case where the model name is only
-	// known at runtime (e.g. resolved from a GitHub org variable). The script is a no-op
-	// when COPILOT_PROVIDER_WIRE_API is already present in the environment (user override
-	// or auto-configured from a statically known model).
-	wireAPIScript := buildCopilotWireAPIResolutionScript()
-	if wireAPIScript != "" {
-		pathSetup = wireAPIScript + pathSetup
-	}
 	// Write the Copilot settings file before AWF starts. The file is created on the host and mounted
 	// into the container, where the Copilot CLI reads it to disable the rubber-duck sub-agent.
 	return buildCopilotSettingsCleanupTrap() + buildCopilotSettingsSetup(buildCopilotSettingsContent(workflowData), customCommandScriptSetup != "") + buildCopilotMCPConfigExport(workflowData) + pathSetup
@@ -468,11 +459,6 @@ func (e *CopilotEngine) buildCopilotDirectCommand(workflowData *WorkflowData, co
 	preCommandSetup := mkdirCommands
 	if customCommandScriptSetup != "" {
 		preCommandSetup = customCommandScriptSetup + "\n" + preCommandSetup
-	}
-	// Prepend the runtime wire API resolution so that COPILOT_PROVIDER_WIRE_API is set
-	// before the Copilot CLI starts, handling the dynamic model case (org variable).
-	if wireAPIScript := buildCopilotWireAPIResolutionScript(); wireAPIScript != "" {
-		preCommandSetup = wireAPIScript + preCommandSetup
 	}
 	// Write the Copilot settings file before the agent runs to disable the rubber-duck sub-agent.
 	preCommandSetup = buildCopilotSettingsCleanupTrap() + buildCopilotSettingsSetup(buildCopilotSettingsContent(workflowData), customCommandScriptSetup != "") + buildCopilotMCPConfigExport(workflowData) + preCommandSetup
@@ -602,16 +588,8 @@ func (e *CopilotEngine) addCopilotModelEnv(env map[string]string, workflowData *
 	// The model is always passed via the native COPILOT_MODEL env var, which the Copilot CLI reads directly.
 	// When model is not configured, map the GitHub org variable to COPILOT_MODEL so users can set a default.
 	if modelConfigured {
-		modelName := workflowData.EngineConfig.Model
-		copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, modelName)
-		env[constants.CopilotCLIModelEnvVar] = modelName
-		// Auto-configure COPILOT_PROVIDER_WIRE_API based on the model's wire API when
-		// the model is known at compile time. This value may be overridden later by an
-		// explicit engine.env setting (applied in addCopilotFinalStepEnv).
-		if wireAPI := copilotWireAPIForModel(modelName); wireAPI == wireAPIResponses {
-			copilotExecLog.Printf("Auto-configuring %s=%s for model %s", constants.CopilotProviderWireAPI, wireAPI, modelName)
-			env[constants.CopilotProviderWireAPI] = wireAPI
-		}
+		copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, workflowData.EngineConfig.Model)
+		env[constants.CopilotCLIModelEnvVar] = workflowData.EngineConfig.Model
 		return
 	}
 	env[constants.CopilotCLIModelEnvVar] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
