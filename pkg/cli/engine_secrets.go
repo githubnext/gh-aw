@@ -398,10 +398,29 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 }
 
 func buildCopilotPATCreationURL() string {
-	const baseURL = "https://github.com/settings/personal-access-tokens/new"
 	values := url.Values{}
 	values.Set("name", constants.CopilotGitHubToken)
 	values.Set("user_copilot_requests", "read")
+	return buildPATCreationURL(values)
+}
+
+func buildGenericPATCreationURL() string {
+	return buildPATCreationURL(nil)
+}
+
+func buildPATCreationURL(values url.Values) string {
+	hostURL := getGitHubHost()
+	if hostURL == string(constants.PublicGitHubHost) {
+		if detectedHost := getHostFromOriginRemote(); detectedHost != "" && detectedHost != "github.com" {
+			hostURL = stringutil.NormalizeGitHubHostURL(detectedHost)
+		}
+	}
+
+	baseURL := strings.TrimRight(hostURL, "/") + "/settings/personal-access-tokens/new"
+	if len(values) == 0 {
+		return baseURL
+	}
+
 	return baseURL + "?" + values.Encode()
 }
 
@@ -409,6 +428,7 @@ func buildCopilotPATCreationURL() string {
 // This uses PAT-specific wording instead of "API key" since system secrets are GitHub tokens
 func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfig) error {
 	engineSecretsLog.Printf("Prompting for system token: %s", req.Name)
+	patURL := buildGenericPATCreationURL()
 
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintf(os.Stderr, "%s requires a GitHub Personal Access Token (PAT).\n", req.Name)
@@ -417,7 +437,7 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Recommended scopes: "+req.Description))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Create a token at:")
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  https://github.com/settings/personal-access-tokens/new"))
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  "+patURL))
 	fmt.Fprintln(os.Stderr, "")
 
 	var token string

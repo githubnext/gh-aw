@@ -5,6 +5,7 @@ package cli
 import (
 	"net/url"
 	"os"
+	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/testutil"
 )
 
 func TestGetRequiredSecretsForEngine(t *testing.T) {
@@ -147,18 +149,62 @@ func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 }
 
 func TestBuildCopilotPATCreationURL(t *testing.T) {
-	rawURL := buildCopilotPATCreationURL()
-	parsed, err := url.Parse(rawURL)
-	require.NoError(t, err)
+	t.Run("defaults to public github", func(t *testing.T) {
+		rawURL := buildCopilotPATCreationURL()
+		parsed, err := url.Parse(rawURL)
+		require.NoError(t, err)
 
-	assert.Equal(t, "https", parsed.Scheme)
-	assert.Equal(t, "github.com", parsed.Host)
-	assert.Equal(t, "/settings/personal-access-tokens/new", parsed.Path)
-	assert.Equal(t, constants.CopilotGitHubToken, parsed.Query().Get("name"), "token name must be prefilled to COPILOT_GITHUB_TOKEN")
-	assert.Equal(t, "read", parsed.Query().Get("user_copilot_requests"))
-	assert.Empty(t, parsed.Query().Get("contents"), "Copilot PAT setup URL should not request unrelated repository permissions")
-	assert.Empty(t, parsed.Query().Get("issues"), "Copilot PAT setup URL should not request unrelated issue permissions")
-	assert.Empty(t, parsed.Query().Get("pull_requests"), "Copilot PAT setup URL should not request unrelated pull request permissions")
+		assert.Equal(t, "https", parsed.Scheme)
+		assert.Equal(t, "github.com", parsed.Host)
+		assert.Equal(t, "/settings/personal-access-tokens/new", parsed.Path)
+		assert.Equal(t, constants.CopilotGitHubToken, parsed.Query().Get("name"), "token name must be prefilled to COPILOT_GITHUB_TOKEN")
+		assert.Equal(t, "read", parsed.Query().Get("user_copilot_requests"))
+		assert.Empty(t, parsed.Query().Get("contents"), "Copilot PAT setup URL should not request unrelated repository permissions")
+		assert.Empty(t, parsed.Query().Get("issues"), "Copilot PAT setup URL should not request unrelated issue permissions")
+		assert.Empty(t, parsed.Query().Get("pull_requests"), "Copilot PAT setup URL should not request unrelated pull request permissions")
+	})
+
+	t.Run("uses GH_HOST when gh auth is configured for enterprise", func(t *testing.T) {
+		t.Setenv("GH_HOST", "ghe.example.com")
+
+		rawURL := buildCopilotPATCreationURL()
+		parsed, err := url.Parse(rawURL)
+		require.NoError(t, err)
+
+		assert.Equal(t, "https", parsed.Scheme)
+		assert.Equal(t, "ghe.example.com", parsed.Host)
+		assert.Equal(t, "/settings/personal-access-tokens/new", parsed.Path)
+	})
+
+	t.Run("falls back to origin remote host when GH_HOST is unset", func(t *testing.T) {
+		t.Setenv("GH_HOST", "")
+		t.Setenv("GITHUB_HOST", "")
+		t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+		t.Setenv("GITHUB_SERVER_URL", "")
+
+		tmpDir := testutil.TempDir(t, "copilot-pat-url-host-*")
+		originalDir, err := os.Getwd()
+		require.NoError(t, err)
+		defer func() {
+			if err := os.Chdir(originalDir); err != nil {
+				t.Logf("Warning: failed to restore directory: %v", err)
+			}
+		}()
+
+		require.NoError(t, os.Chdir(tmpDir))
+		if err := exec.Command("git", "init").Run(); err != nil {
+			t.Skip("Git not available")
+		}
+		require.NoError(t, exec.Command("git", "remote", "add", "origin", "https://ghes.example.com/org/repo.git").Run())
+
+		rawURL := buildCopilotPATCreationURL()
+		parsed, err := url.Parse(rawURL)
+		require.NoError(t, err)
+
+		assert.Equal(t, "https", parsed.Scheme)
+		assert.Equal(t, "ghes.example.com", parsed.Host)
+		assert.Equal(t, "/settings/personal-access-tokens/new", parsed.Path)
+	})
 }
 
 func TestEnsureSecretAvailable_CopilotRepromptsWithOverwrite(t *testing.T) {

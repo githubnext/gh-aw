@@ -86,6 +86,7 @@ func TestCLIDocsReflectStatusAuditAndExperimentsCommands(t *testing.T) {
 	assert.Contains(t, text, "**Options:** `--repo/-r`, `--dir/-d`, `--require-owner-type`, `--json/-j`", "doctor docs should include the --dir shorthand")
 	assert.Contains(t, text, "`--require-owner-type` accepts `any`, `user`, or `org` and defaults to `any`", "doctor docs should document the full owner type set and default")
 	assert.Contains(t, text, "`--dir` and `--require-owner-type` require `--repo`", "doctor docs should document the repo requirement for repository-only flags")
+	assert.Contains(t, text, "Outside a checkout, run `gh auth login --hostname <host>` or set `GH_HOST` explicitly.", "doctor docs should explain how to use enterprise hosts outside a checkout")
 }
 
 func TestSubcommandListingsUseHyphenBullets(t *testing.T) {
