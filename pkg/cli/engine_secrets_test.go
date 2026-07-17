@@ -5,7 +5,6 @@ package cli
 import (
 	"net/url"
 	"os"
-	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -161,14 +160,7 @@ func TestBuildCopilotPATCreationURL(t *testing.T) {
 		// Run outside any git checkout so that getHostFromOriginRemote() has no
 		// remote to detect, guaranteeing the github.com default is returned.
 		tmpDir := testutil.TempDir(t, "copilot-pat-url-default-*")
-		originalDir, err := os.Getwd()
-		require.NoError(t, err)
-		defer func() {
-			if err := os.Chdir(originalDir); err != nil {
-				t.Logf("Warning: failed to restore directory: %v", err)
-			}
-		}()
-		require.NoError(t, os.Chdir(tmpDir))
+		t.Chdir(tmpDir)
 
 		rawURL := buildCopilotPATCreationURL()
 		parsed, err := url.Parse(rawURL)
@@ -208,19 +200,9 @@ func TestBuildCopilotPATCreationURL(t *testing.T) {
 		t.Setenv("GITHUB_SERVER_URL", "")
 
 		tmpDir := testutil.TempDir(t, "copilot-pat-url-host-*")
-		originalDir, err := os.Getwd()
-		require.NoError(t, err)
-		defer func() {
-			if err := os.Chdir(originalDir); err != nil {
-				t.Logf("Warning: failed to restore directory: %v", err)
-			}
-		}()
-
-		require.NoError(t, os.Chdir(tmpDir))
-		if err := exec.Command("git", "init").Run(); err != nil {
-			t.Skip("Git not available")
-		}
-		require.NoError(t, exec.Command("git", "remote", "add", "origin", "https://ghes.example.com/org/repo.git").Run())
+		require.NoError(t, initTestGitRepo(tmpDir))
+		require.NoError(t, addOriginRemoteToTestRepo(tmpDir, "https://ghes.example.com/org/repo.git"))
+		t.Chdir(tmpDir)
 
 		rawURL := buildCopilotPATCreationURL()
 		parsed, err := url.Parse(rawURL)
