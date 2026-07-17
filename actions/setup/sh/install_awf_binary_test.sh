@@ -123,23 +123,13 @@ fi
 # umask 022, a restrictive ambient umask (e.g. 0111 masking the execute bit)
 # produces mode=600 on that directory, making it non-traversable and causing a
 # fatal EACCES when AWF tries to write /etc/hosts inside it.
-echo "Test 7: wrapper script contains 'umask 022' to guard against restrictive ambient umask..."
-FAKE_WRAPPER=$(mktemp)
-FAKE_NODE="/usr/bin/node"
-FAKE_BUNDLE="/usr/local/lib/awf/awf-bundle.js"
-bash -c "
-  cat > '${FAKE_WRAPPER}' <<'WRAPPER'
-#!/bin/bash
-umask 022
-exec \"${FAKE_NODE}\" \"${FAKE_BUNDLE}\" \"\$@\"
-WRAPPER
-"
-if grep -q "umask 022" "${FAKE_WRAPPER}"; then
-  pass "wrapper contains 'umask 022'"
+echo "Test 7: install_awf_binary.sh wrapper template contains 'umask 022'..."
+if grep -q 'umask 022' "${SCRIPT_DIR}/install_awf_binary.sh"; then
+  pass "install_awf_binary.sh wrapper template contains 'umask 022'"
 else
-  fail "wrapper does not contain 'umask 022'" "$(cat "${FAKE_WRAPPER}")"
+  fail "install_awf_binary.sh wrapper template does not contain 'umask 022'" \
+    "Rootless chroot hosts EACCES fix is missing (see https://github.com/github/gh-aw/issues/46172)"
 fi
-rm -f "${FAKE_WRAPPER}"
 
 # Test 8: with umask 022, mkdtemp produces mode=700 (execute bit present),
 # so AWF can create /etc/hosts inside the chroot staging directory.
@@ -165,10 +155,10 @@ else
   if [ "$CREATED_MODE" = "skip" ]; then
     echo "  (skipping: node execution failed)"
     TESTS_PASSED=$((TESTS_PASSED + 1))
-  elif [ "$CREATED_MODE" -eq 448 ] 2>/dev/null; then  # 448 decimal = 0700 octal
+  elif [ "$CREATED_MODE" -eq $((0700)) ]; then
     pass "mkdtemp produced mode=0700 with umask 022 — chroot dir is traversable"
   else
-    fail "unexpected mkdtemp mode ${CREATED_MODE} with umask 022 (expected 448/0700)" \
+    fail "unexpected mkdtemp mode ${CREATED_MODE} with umask 022 (expected $((0700))/0700)" \
       "mode=${CREATED_MODE}"
   fi
 fi
