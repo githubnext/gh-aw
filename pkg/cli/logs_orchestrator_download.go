@@ -173,8 +173,12 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 	var timeoutReached, countLimitReached bool
 	for iteration < MaxIterations {
 		stop, timedOut, err := shouldStopLogsIteration(runtime, opts)
-		if err != nil || stop {
+		if err != nil {
 			return processedRuns, timeoutReached || timedOut, countLimitReached, err
+		}
+		if stop {
+			timeoutReached = timeoutReached || timedOut
+			break
 		}
 		if len(processedRuns) >= opts.Count {
 			countLimitReached = runtime.fetchAllInRange
