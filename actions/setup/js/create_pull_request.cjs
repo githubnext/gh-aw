@@ -645,7 +645,7 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
         core.warning(`Remote branch "${branchName}" cannot be deleted due to branch protection rules (recreate-ref blocked). ` + `Falling back to rename with random suffix.`);
         deleteBlocked = true;
       } else {
-        throw new Error(`Failed to delete existing remote branch "${branchName}" for reuse with recreate-ref: ${message || String(err)}`);
+        throw new Error(`Failed to delete existing remote branch "${branchName}" for reuse with recreate-ref: ${message || String(err)}`, { cause: err });
       }
     }
     if (!deleteBlocked) {

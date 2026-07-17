@@ -266,8 +266,9 @@ function loadAwfConfigData() {
   try {
     return JSON.parse(fs.readFileSync(AWF_CONFIG_PATH, "utf8"));
   } catch (err) {
-    if (err.code !== "ENOENT") {
-      log(`awf-config load error: ${err.message}`);
+    const errAny = /** @type {any} */ err;
+    if (errAny?.code !== "ENOENT") {
+      log(`awf-config load error: ${getErrorMessage(err)}`);
     }
     return null;
   }

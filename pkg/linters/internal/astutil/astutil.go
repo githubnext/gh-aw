@@ -345,6 +345,39 @@ func QualifierShadowed(pkg *types.Package, pos token.Pos, name, importPath strin
 	return pkgName.Imported().Path() != importPath
 }
 
+// IsByteSlice reports whether expr has underlying type []byte ([]uint8).
+func IsByteSlice(pass *analysis.Pass, expr ast.Expr) bool {
+	t := pass.TypesInfo.TypeOf(expr)
+	if t == nil {
+		return false
+	}
+	sl, ok := t.Underlying().(*types.Slice)
+	if !ok {
+		return false
+	}
+	elem, ok := sl.Elem().(*types.Basic)
+	return ok && elem.Kind() == types.Byte
+}
+
+// IsByteSliceConversion reports whether conv is a []byte or []uint8 conversion expression.
+func IsByteSliceConversion(pass *analysis.Pass, conv *ast.CallExpr) bool {
+	funTypeInfo, ok := pass.TypesInfo.Types[conv.Fun]
+	if !ok || !funTypeInfo.IsType() {
+		return false
+	}
+	return IsByteSlice(pass, conv)
+}
+
+// IsStringType reports whether expr has underlying type string (or a named string type).
+func IsStringType(pass *analysis.Pass, expr ast.Expr) bool {
+	t := pass.TypesInfo.TypeOf(expr)
+	if t == nil {
+		return false
+	}
+	basic, ok := t.Underlying().(*types.Basic)
+	return ok && basic.Kind() == types.String
+}
+
 // ConstIntValue returns the integer constant value of expr, if it is a
 // constant integer.
 func ConstIntValue(pass *analysis.Pass, expr ast.Expr) (int64, bool) {

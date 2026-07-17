@@ -85,6 +85,9 @@ type importAccumulator struct {
 	mergedMaxTurnCacheMisses string
 	mergedMaxAICredits       string
 	mergedMaxDailyAICredits  string
+	// Union of excluded-env lists from all imported files (deduplicated).
+	excludedEnv    []string
+	excludedEnvSet map[string]bool
 	// Best-effort sub-agent frontmatter warnings collected during BFS traversal.
 	warnings []string
 }
@@ -106,6 +109,7 @@ func newImportAccumulator() *importAccumulator {
 		importInputs:          make(map[string]any),
 		envSources:            make(map[string]string),
 		sandboxAgentMountsSet: make(map[string]bool),
+		excludedEnvSet:        make(map[string]bool),
 	}
 }
 
@@ -624,11 +628,11 @@ func (acc *importAccumulator) extractStepAndJobFields(fm map[string]any, importP
 }
 
 // extractFeatureAndObservabilityFields extracts labels, cache, feature flags, model
-// aliases, the run-install-scripts flag, and observability configuration from the
-// frontmatter map.
+// aliases, the run-install-scripts flag, observability configuration, and excluded-env
+// from the frontmatter map.
 //
 // Side effects: acc.labels, acc.labelsSet, acc.caches, acc.features, acc.models,
-// acc.runInstallScripts, acc.observabilityConfigs.
+// acc.runInstallScripts, acc.observabilityConfigs, acc.excludedEnv, acc.excludedEnvSet.
 func (acc *importAccumulator) extractFeatureAndObservabilityFields(fm map[string]any, fullPath string) {
 	acc.mergeLabels(fm)
 	acc.appendCacheField(fm)
@@ -636,6 +640,13 @@ func (acc *importAccumulator) extractFeatureAndObservabilityFields(fm map[string
 	acc.appendModelsField(fm, fullPath)
 	acc.extractRunInstallScripts(fm, fullPath)
 	acc.appendObservabilityField(fm, fullPath)
+	acc.mergeExcludedEnv(fm)
+}
+
+func (acc *importAccumulator) mergeExcludedEnv(fm map[string]any) {
+	mergeJSONStringListField(fm, "excluded-env", "[]", acc.excludedEnvSet, &acc.excludedEnv, func(m map[string]any, field string) (string, error) {
+		return extractFieldJSONFromMap(m, field, "[]")
+	})
 }
 
 func (acc *importAccumulator) mergeLabels(fm map[string]any) {
@@ -910,6 +921,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedMaxTurnCacheMisses:      acc.mergedMaxTurnCacheMisses,
 		MergedMaxAICredits:            acc.mergedMaxAICredits,
 		MergedMaxDailyAICredits:       acc.mergedMaxDailyAICredits,
+		MergedExcludedEnv:             acc.excludedEnv,
 		Warnings:                      acc.warnings,
 	}
 }
