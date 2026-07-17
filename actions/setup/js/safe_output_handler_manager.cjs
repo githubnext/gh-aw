@@ -280,7 +280,7 @@ function loadConfig() {
     // Normalize config keys: convert hyphens to underscores
     return Object.fromEntries(Object.entries(config).map(([k, v]) => [k.replace(/-/g, "_"), v]));
   } catch (error) {
-    throw new Error(`${ERR_PARSE}: Failed to parse GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${getErrorMessage(error)}`);
+    throw new Error(`${ERR_PARSE}: Failed to parse GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${getErrorMessage(error)}`, { cause: error });
   }
 }
 

@@ -372,7 +372,7 @@ async function dispatchWorkflow(workflowId, ref, inputs) {
       core.info(`Skipping workflow '${workflowId}' because it is disabled.`);
       return { dispatched: false };
     }
-    throw new Error(`Failed to dispatch workflow '${workflowId}' on ref '${ref}': ${String(error)}`);
+    throw new Error(`Failed to dispatch workflow '${workflowId}' on ref '${ref}': ${String(error)}`, { cause: error });
   }
 }
 
