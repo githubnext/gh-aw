@@ -12,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters"
 	"github.com/github/gh-aw/pkg/linters/appendbytestring"
+	"github.com/github/gh-aw/pkg/linters/bytesbufferstring"
 	"github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred"
 	"github.com/github/gh-aw/pkg/linters/ctxbackground"
 	"github.com/github/gh-aw/pkg/linters/deferinloop"
@@ -26,11 +27,15 @@ import (
 	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
 	"github.com/github/gh-aw/pkg/linters/hardcodedfilepath"
 	"github.com/github/gh-aw/pkg/linters/httpnoctx"
+	"github.com/github/gh-aw/pkg/linters/ioutildeprecated"
 	"github.com/github/gh-aw/pkg/linters/jsonmarshalignoredeerror"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
 	"github.com/github/gh-aw/pkg/linters/lenstringsplit"
 	"github.com/github/gh-aw/pkg/linters/lenstringzero"
+	"github.com/github/gh-aw/pkg/linters/logfatallibrary"
 	"github.com/github/gh-aw/pkg/linters/manualmutexunlock"
+	"github.com/github/gh-aw/pkg/linters/mapclearloop"
+	"github.com/github/gh-aw/pkg/linters/mapdeletecheck"
 	"github.com/github/gh-aw/pkg/linters/nilctxpassed"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
 	"github.com/github/gh-aw/pkg/linters/ossetenvlibrary"
@@ -67,22 +72,23 @@ type docAnalyzer struct {
 }
 
 // documentedAnalyzers returns the analyzer subpackages documented in the README
-// "Public API > Subpackages" table. The README documents 41 analyzers
+// "Public API > Subpackages" table. The README documents 46 analyzers
 // subpackages (the non-analyzer `internal` helper subpackage is excluded because
 // it exposes no Analyzer).
 //
 // Spec (README "Public API > Subpackages"):
 //
-//	appendbytestring, contextcancelnotdeferred, ctxbackground, deferinloop, errorfwrapv, excessivefuncparams, errormessage,
+//	appendbytestring, bytesbufferstring, contextcancelnotdeferred, ctxbackground, deferinloop, errorfwrapv, excessivefuncparams, errormessage,
 //	errortypeassertion, errstringmatch, execcommandwithoutcontext, fileclosenotdeferred, fmterrorfnoverbs, fprintlnsprintf,
-//	hardcodedfilepath, httpnoctx, jsonmarshalignoredeerror, largefunc, lenstringsplit, lenstringzero,
-//	manualmutexunlock, nilctxpassed, osexitinlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
+//	hardcodedfilepath, httpnoctx, ioutildeprecated, jsonmarshalignoredeerror, largefunc, lenstringsplit, lenstringzero,
+//	logfatallibrary, manualmutexunlock, mapclearloop, mapdeletecheck, nilctxpassed, osexitinlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
 //	regexpcompileinfunction, seenmapbool, sortslice, sprintferrdot, sprintferrorsnew, ssljson,
 //	strconvparseignorederror, stringreplaceminusone, stringscountcontains, stringsindexcontains, timeafterleak, timesleepnocontext,
 //	tolowerequalfold, uncheckedtypeassertion, wgdonenotdeferred, writebytestring
 func documentedAnalyzers() []docAnalyzer {
 	return []docAnalyzer{
 		{"appendbytestring", appendbytestring.Analyzer},
+		{"bytesbufferstring", bytesbufferstring.Analyzer},
 		{"contextcancelnotdeferred", contextcancelnotdeferred.Analyzer},
 		{"ctxbackground", ctxbackground.Analyzer},
 		{"deferinloop", deferinloop.Analyzer},
@@ -97,11 +103,15 @@ func documentedAnalyzers() []docAnalyzer {
 		{"fprintlnsprintf", fprintlnsprintf.Analyzer},
 		{"hardcodedfilepath", hardcodedfilepath.Analyzer},
 		{"httpnoctx", httpnoctx.Analyzer},
+		{"ioutildeprecated", ioutildeprecated.Analyzer},
 		{"jsonmarshalignoredeerror", jsonmarshalignoredeerror.Analyzer},
 		{"largefunc", largefunc.Analyzer},
 		{"lenstringsplit", lenstringsplit.Analyzer},
 		{"lenstringzero", lenstringzero.Analyzer},
+		{"logfatallibrary", logfatallibrary.Analyzer},
 		{"manualmutexunlock", manualmutexunlock.Analyzer},
+		{"mapclearloop", mapclearloop.Analyzer},
+		{"mapdeletecheck", mapdeletecheck.Analyzer},
 		{"nilctxpassed", nilctxpassed.Analyzer},
 		{"osexitinlibrary", osexitinlibrary.Analyzer},
 		{"ossetenvlibrary", ossetenvlibrary.Analyzer},
