@@ -4,9 +4,11 @@ func bad() {
 	m := map[string]int{"a": 1, "b": 2}
 	k := "a"
 
+	// want +1 `redundant existence check before delete`
 	delete(m, k)
 
 	// With a literal key.
+	// want +1 `redundant existence check before delete`
 	delete(m, "b")
 }
 
@@ -15,12 +17,14 @@ func badWithComments() {
 	key := "key"
 
 	// Leading comment inside the if body suppresses autofix but still reports.
+	// want +1 `redundant existence check before delete`
 	if _, ok := cache[key]; ok {
 		// evict the stale entry before refetching
 		delete(cache, key)
 	}
 
 	// Trailing comment on the delete line suppresses autofix but still reports.
+	// want +1 `redundant existence check before delete`
 	if _, ok := cache[key]; ok {
 		delete(cache, key) // evict
 	}
