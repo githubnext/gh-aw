@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -730,11 +731,11 @@ func TestBuildAccessLogSummaryWithSharedHelper(t *testing.T) {
 	if summary.TotalRequests != 15 {
 		t.Errorf("Expected TotalRequests = 15, got %d", summary.TotalRequests)
 	}
-	if summary.AllowedCount != 13 {
-		t.Errorf("Expected AllowedCount = 13, got %d", summary.AllowedCount)
+	if summary.AllowedRequests != 13 {
+		t.Errorf("Expected AllowedRequests = 13, got %d", summary.AllowedRequests)
 	}
-	if summary.BlockedCount != 2 {
-		t.Errorf("Expected BlockedCount = 2, got %d", summary.BlockedCount)
+	if summary.BlockedRequests != 2 {
+		t.Errorf("Expected BlockedRequests = 2, got %d", summary.BlockedRequests)
 	}
 
 	// Check sorted domains
@@ -755,6 +756,41 @@ func TestBuildAccessLogSummaryWithSharedHelper(t *testing.T) {
 	// Check by workflow
 	if len(summary.ByWorkflow) != 2 {
 		t.Errorf("Expected 2 workflows, got %d", len(summary.ByWorkflow))
+	}
+}
+
+func TestAccessLogSummaryJSONUsesEmbeddedBaseFields(t *testing.T) {
+	summary := AccessLogSummary{
+		FirewallSummaryBase: FirewallSummaryBase{
+			TotalRequests:   3,
+			AllowedRequests: 2,
+			BlockedRequests: 1,
+			AllowedDomains:  []string{"example.com"},
+			BlockedDomains:  []string{"blocked.com"},
+		},
+	}
+
+	data, err := json.Marshal(summary)
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+
+	if got["allowed_requests"] != float64(2) {
+		t.Fatalf("expected allowed_requests = 2, got %v", got["allowed_requests"])
+	}
+	if got["blocked_requests"] != float64(1) {
+		t.Fatalf("expected blocked_requests = 1, got %v", got["blocked_requests"])
+	}
+	if _, ok := got["allowed_count"]; ok {
+		t.Fatalf("did not expect legacy allowed_count field in %s", string(data))
+	}
+	if _, ok := got["blocked_count"]; ok {
+		t.Fatalf("did not expect legacy blocked_count field in %s", string(data))
 	}
 }
 
