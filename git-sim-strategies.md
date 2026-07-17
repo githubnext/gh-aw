@@ -54,6 +54,15 @@ files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]
   ~135 B of `+`-line prefixes over ~135 base64 lines). All ≪4096. NB per-file framing
   at medium (~405 B) > earlier ~0.27 KB estimate — the `+`-prefix line tax scales with
   payload lines, so framing is ~3.9% of payload here, not a fixed per-file constant.
+  **idx112-115: PASS (tiny-none-many-MEDIUM tier COMPLETE).** ahead-multi(112) 3.patch
+  208.113 KB disjoint 6/6/8 ~1×, push ff exit0 push_merges=0 (4 commits); ahead-
+  merge_msg(113) 1.patch 207.573 KB, leak 0001-Merge-branch-topic-into-feature.patch
+  reconfirmed, --merges=0 parent=1, ff exit0; diverged-single(114) 207.568 KB two-dot
+  (excl main history.md) vs three-dot 208.050 (+0.48 KB phantom), ff exit0; diverged-
+  multi(115) 208.113 two-dot vs 208.591 three-dot (+0.48), disjoint ~1×, ff exit0.
+  GOTCHA reconfirmed: `git diff --name-only main..feature` endpoint-lists 21 (main's
+  history.md phantom) under divergence; format-patch two-dot = true 20-file cap set.
+  many-medium (108-115) DONE. All ~208 KB ≪4096, 20≤100.
 
 ## THE CAPS (grounded)
 
@@ -125,9 +134,9 @@ first max-patch-FILES `rejected` needs batch under a default-100 config.
 
 ## Next
 
-Next index: **112** → tiny-none-many-MEDIUM tier continues (idx112-116: ahead-multi,
-ahead-merge_msg, diverged-single/multi/merge_msg), then large(117-125)/xlarge(126-134)
-many tiers. many-medium 108-111 done. many-small COMPLETE 99-107. FILES=many runs
+Next index: **116** → tiny-none-many-LARGE tier (idx117-125 patch=large 1000KB) opens
+after idx116 (tiny-none-many-medium-diverged-merge_msg, LAST of medium tier), then
+xlarge(126-134). many-medium COMPLETE 108-115. many-small COMPLETE 99-107. FILES=many runs
 90-179, batch 180-269. **many-xlarge ~4058 KB still <4096 (safe).** batch-xlarge
 ~4080 KB <4096 BUT batch=100 files == max-patch-files default 100 (200 here) — watch
 the `>` vs `>=` boundary. HISTORY=deep(500) & SIZE>tiny (idx 720+) far ahead — no
