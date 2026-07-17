@@ -905,6 +905,7 @@ func WrapCommandInShell(command string) string {
 //   - mcp-scripts env var names whose values contain ${{ secrets.* }} or a job-output expression
 //   - engine.env var names whose values contain ${{ secrets.* }} or a job-output expression
 //   - agent.env var names whose values contain ${{ secrets.* }} or a job-output expression
+//   - names listed in the frontmatter excluded-env field (unconditionally)
 func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames []string) []string {
 	seen := make(map[string]struct {
 	})
@@ -974,6 +975,12 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 	// host difc-proxy but must be excluded from the agent container.
 	if isGitHubCLIModeEnabled(workflowData) {
 		addUnique("GH_TOKEN")
+	}
+
+	// Explicitly excluded env vars from the frontmatter excluded-env field.
+	// These are always excluded regardless of their value content.
+	for _, name := range workflowData.ExcludedEnv {
+		addUnique(name)
 	}
 
 	awfHelpersLog.Printf("Computed %d AWF env vars to exclude", len(names))

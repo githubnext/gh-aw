@@ -171,6 +171,11 @@ func (c *Compiler) buildInitialWorkflowData(
 		workflowData.ModelPolicyBlocked = disallowedModels
 	}
 
+	// Populate explicitly excluded env var names from the excluded-env frontmatter field.
+	if toolsResult.parsedFrontmatter != nil && len(toolsResult.parsedFrontmatter.ExcludedEnv) > 0 {
+		workflowData.ExcludedEnv = toolsResult.parsedFrontmatter.ExcludedEnv
+	}
+
 	return workflowData
 }
 

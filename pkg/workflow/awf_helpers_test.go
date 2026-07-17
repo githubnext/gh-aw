@@ -1282,6 +1282,44 @@ func TestComputeAWFExcludeEnvVarNames(t *testing.T) {
 			want:               []string{"GH_TOKEN", "API_KEY"},
 			notWant:            []string{"STATIC_HOST"},
 		},
+		// --- excluded-env frontmatter field tests ---
+		{
+			name: "excluded-env frontmatter field adds names unconditionally",
+			workflowData: &WorkflowData{
+				ExcludedEnv: []string{"MY_CUSTOM_TOKEN", "ANOTHER_SECRET"},
+			},
+			coreSecretVarNames: []string{},
+			want:               []string{"MY_CUSTOM_TOKEN", "ANOTHER_SECRET"},
+		},
+		{
+			name: "excluded-env combined with core secrets: all excluded",
+			workflowData: &WorkflowData{
+				ExcludedEnv: []string{"CUSTOM_PAT"},
+			},
+			coreSecretVarNames: []string{"COPILOT_GITHUB_TOKEN"},
+			want:               []string{"COPILOT_GITHUB_TOKEN", "CUSTOM_PAT"},
+		},
+		{
+			name: "excluded-env deduplicates with auto-detected secrets",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"MY_TOKEN": "${{ secrets.MY_TOKEN }}",
+					},
+				},
+				ExcludedEnv: []string{"MY_TOKEN"},
+			},
+			coreSecretVarNames: []string{},
+			want:               []string{"MY_TOKEN"},
+		},
+		{
+			name: "empty excluded-env has no effect",
+			workflowData: &WorkflowData{
+				ExcludedEnv: []string{},
+			},
+			coreSecretVarNames: []string{},
+			want:               []string{},
+		},
 	}
 
 	for _, tt := range tests {
