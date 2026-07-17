@@ -467,9 +467,8 @@ func resolveInlinedImports(rawFrontmatter map[string]any) bool {
 }
 
 // mergeExcludedEnvVarNames unions the imported and main excluded-env name lists,
-// removes duplicates, and returns a sorted slice for deterministic output.
-// The imported list is processed first so main-workflow entries that duplicate
-// import entries are quietly dropped rather than appearing twice.
+// deduplicates entries across both sources, and returns a sorted slice for
+// deterministic output.
 func mergeExcludedEnvVarNames(fromImports, fromMain []string) []string {
 	if len(fromImports) == 0 && len(fromMain) == 0 {
 		return nil
