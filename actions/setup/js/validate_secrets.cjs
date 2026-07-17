@@ -53,20 +53,15 @@ const SECRET_DOCS = {
  * @returns {Promise<{statusCode: number, data: string}>}
  */
 async function makeRequest(hostname, path, headers) {
-  try {
-    const res = await fetch(`https://${hostname}${path}`, {
-      method: "GET",
-      headers,
-      signal: AbortSignal.timeout(10000),
-    });
-    const data = await res.text();
-    return { statusCode: res.status, data };
-  } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") {
-      throw new Error("Request timeout");
-    }
-    throw err;
-  }
+  const res = await fetch(`https://${hostname}${path}`, {
+    method: "GET",
+    headers,
+    signal: AbortSignal.timeout(10000),
+  }).catch(err => {
+    throw err instanceof Error && err.name === "AbortError" ? new Error("Request timeout") : err;
+  });
+  const data = await res.text();
+  return { statusCode: res.status, data };
 }
 
 /**
@@ -80,21 +75,16 @@ async function makeRequest(hostname, path, headers) {
  */
 async function makePostRequest(hostname, path, headers, body) {
   const hasContentType = Object.keys(headers).some(k => k.toLowerCase() === "content-type");
-  try {
-    const res = await fetch(`https://${hostname}${path}`, {
-      method: "POST",
-      headers: hasContentType ? headers : { ...headers, "Content-Type": "application/json" },
-      body,
-      signal: AbortSignal.timeout(10000),
-    });
-    const data = await res.text();
-    return { statusCode: res.status, data };
-  } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") {
-      throw new Error("Request timeout");
-    }
-    throw err;
-  }
+  const res = await fetch(`https://${hostname}${path}`, {
+    method: "POST",
+    headers: hasContentType ? headers : { ...headers, "Content-Type": "application/json" },
+    body,
+    signal: AbortSignal.timeout(10000),
+  }).catch(err => {
+    throw err instanceof Error && err.name === "AbortError" ? new Error("Request timeout") : err;
+  });
+  const data = await res.text();
+  return { statusCode: res.status, data };
 }
 
 /**
