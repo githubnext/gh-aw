@@ -95,7 +95,7 @@ function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
     try {
       fs.appendFileSync(manifestFile, jsonLine);
     } catch (error) {
-      throw new Error(`${ERR_SYSTEM}: Failed to write to manifest file: ${getErrorMessage(error)}`);
+      throw new Error(`${ERR_SYSTEM}: Failed to write to manifest file: ${getErrorMessage(error)}`, { cause: error });
     }
   };
 }
@@ -112,7 +112,7 @@ function ensureManifestExists(manifestFile = MANIFEST_FILE_PATH) {
     try {
       fs.writeFileSync(manifestFile, "");
     } catch (error) {
-      throw new Error(`${ERR_SYSTEM}: Failed to create manifest file: ${getErrorMessage(error)}`);
+      throw new Error(`${ERR_SYSTEM}: Failed to create manifest file: ${getErrorMessage(error)}`, { cause: error });
     }
   }
 }
@@ -178,7 +178,7 @@ function writeTemporaryIdMapFile(temporaryIdMap, filePath = TEMPORARY_ID_MAP_FIL
     }
     fs.writeFileSync(filePath, JSON.stringify(temporaryIdMap, null, 2) + "\n");
   } catch (error) {
-    throw new Error(`${ERR_SYSTEM}: Failed to write temporary ID map file: ${getErrorMessage(error)}`);
+    throw new Error(`${ERR_SYSTEM}: Failed to write temporary ID map file: ${getErrorMessage(error)}`, { cause: error });
   }
 }
 

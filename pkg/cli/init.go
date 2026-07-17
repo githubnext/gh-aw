@@ -25,6 +25,7 @@ type InitOptions struct {
 	Ctx              context.Context
 	Verbose          bool
 	Engine           string
+	NoGitattributes  bool
 	Skill            bool
 	Agent            bool
 	MCP              bool
@@ -72,13 +73,17 @@ func InitRepository(opts InitOptions) error {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to configure GHES repo config: %v", err)))
 	}
 
-	// Configure .gitattributes
-	initLog.Print("Configuring .gitattributes")
-	if updated, err := ensureGitAttributes(); err != nil {
-		initLog.Printf("Failed to configure .gitattributes: %v", err)
-		return fmt.Errorf("failed to configure .gitattributes: %w", err)
-	} else if updated && opts.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
+	if opts.NoGitattributes {
+		initLog.Print("Skipping .gitattributes configuration")
+	} else {
+		// Configure .gitattributes
+		initLog.Print("Configuring .gitattributes")
+		if updated, err := ensureGitAttributes(); err != nil {
+			initLog.Printf("Failed to configure .gitattributes: %v", err)
+			return fmt.Errorf("failed to configure .gitattributes: %w", err)
+		} else if updated && opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
+		}
 	}
 
 	// Write dispatcher skill for Copilot engine only

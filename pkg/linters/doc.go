@@ -1,8 +1,9 @@
 // Package linters is a namespace for gh-aw's custom Go analysis linters.
 //
-// All 45 active analyzers:
+// All 51 active analyzers:
 //
 //   - appendbytestring — flags append(b, []byte(s)...) calls where s is a string that can be simplified to append(b, s...)
+//   - bytesbufferstring — reports string(buf.Bytes()) calls where buf is a bytes.Buffer value and suggests buf.String() instead
 //   - bytescomparestring — flags string(a) == string(b) and string(a) != string(b) comparisons where a and b are []byte values and recommends bytes.Equal for clearer intent
 //   - contextcancelnotdeferred — flags context cancel functions called directly instead of deferred
 //   - ctxbackground — flags context.Background() inside functions that already receive a context
@@ -20,11 +21,15 @@
 //   - httpnoctx — flags HTTP calls that do not accept a context.Context
 //   - httprespbodyclose — flags HTTP response bodies that are not closed
 //   - httpstatuscode — flags HTTP status code anti-patterns
+//   - ioutildeprecated — reports uses of deprecated io/ioutil functions that should be replaced with io or os package equivalents
 //   - jsonmarshalignoredeerror — flags json.Marshal/Unmarshal calls where the error is discarded with _
 //   - largefunc — flags function bodies that exceed a configurable line-count threshold
 //   - lenstringsplit — flags len(strings.Split(s, sep)) with a non-empty separator that should use strings.Count(s, sep)+1
 //   - lenstringzero — flags len(s) == 0 / len(s) != 0 on string values that should use s == "" / s != ""
+//   - logfatallibrary — reports log.Fatal, log.Fatalf, and log.Fatalln calls inside library packages where they implicitly call os.Exit and bypass deferred cleanup
 //   - manualmutexunlock — flags non-deferred mutex Unlock() calls
+//   - mapclearloop — reports range-over-map loops that delete every entry and can be replaced with clear(m)
+//   - mapdeletecheck — reports redundant map membership checks before delete(m, k) calls since delete is already a no-op for missing keys
 //   - nilctxpassed — flags function calls where nil is passed as a context.Context argument
 //   - osexitinlibrary — flags os.Exit calls in library packages
 //   - osgetenvlibrary — flags os.Getenv calls in library packages
@@ -40,6 +45,7 @@
 //   - ssljson — validates ssl.json skill artifacts in .github/skills/ against the SSL spec
 //   - strconvparseignorederror — flags strconv parsing calls where the error is discarded with _
 //   - stringreplaceminusone — flags strings.Replace calls with n=-1 that should use strings.ReplaceAll
+//   - stringscountcontains — reports strings.Count(s, sub) comparisons with 0 or 1 (e.g. > 0, >= 1, == 0, != 0, < 1, <= 0) and their yoda-order variants that should use strings.Contains(s, sub) or !strings.Contains(s, sub)
 //   - stringsindexcontains — flags strings.Index(s, substr) comparisons that should use strings.Contains
 //   - timeafterleak — flags time.After in select cases inside loops that leak timer channels
 //   - timesleepnocontext — flags time.Sleep calls in context-aware functions that should propagate cancellation

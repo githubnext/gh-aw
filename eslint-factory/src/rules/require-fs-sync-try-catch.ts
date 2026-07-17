@@ -1,4 +1,4 @@
-import { ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { ESLintUtils } from "@typescript-eslint/utils";
 import { buildTryCatchSuggestion, createFsSyncMethodResolver, findEnclosingStatement, isInsideTryBlock } from "./try-catch-rule-utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
