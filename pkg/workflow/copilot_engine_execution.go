@@ -699,11 +699,13 @@ func buildEngineCommandScriptSetup(command string) string {
 	}
 
 	return fmt.Sprintf(`mkdir -p /tmp/gh-aw
+GH_AW_PREV_UMASK="$(umask)"
 umask 0177
 cat > %s <<'%s'
 %s
 %s
-chmod 700 %s`, customEngineCommandScriptPath, heredocDelimiter, scriptContent, heredocDelimiter, customEngineCommandScriptPath)
+chmod 700 %s
+umask "$GH_AW_PREV_UMASK"`, customEngineCommandScriptPath, heredocDelimiter, scriptContent, heredocDelimiter, customEngineCommandScriptPath)
 }
 
 // generateCopilotSessionFileCopyStep generates a step to copy the entire Copilot
