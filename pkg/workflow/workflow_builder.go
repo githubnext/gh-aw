@@ -171,9 +171,14 @@ func (c *Compiler) buildInitialWorkflowData(
 		workflowData.ModelPolicyBlocked = disallowedModels
 	}
 
-	// Populate explicitly excluded env var names from the excluded-env frontmatter field.
-	if toolsResult.parsedFrontmatter != nil && len(toolsResult.parsedFrontmatter.ExcludedEnv) > 0 {
-		workflowData.ExcludedEnv = toolsResult.parsedFrontmatter.ExcludedEnv
+	// Populate explicitly excluded env var names: union of imported workflows' excluded-env
+	// and the main workflow's excluded-env. Deduplicate and sort for stability.
+	var mainExcludedEnv []string
+	if toolsResult.parsedFrontmatter != nil {
+		mainExcludedEnv = toolsResult.parsedFrontmatter.ExcludedEnv
+	}
+	if names := mergeExcludedEnvVarNames(importsResult.MergedExcludedEnv, mainExcludedEnv); len(names) > 0 {
+		workflowData.ExcludedEnv = names
 	}
 
 	return workflowData
@@ -459,6 +464,32 @@ func modelPolicyPatternMatches(pattern, value string) bool {
 // populated regardless of whether ParseFrontmatterConfig succeeded.
 func resolveInlinedImports(rawFrontmatter map[string]any) bool {
 	return ParseBoolFromConfig(rawFrontmatter, "inlined-imports", nil)
+}
+
+// mergeExcludedEnvVarNames unions the imported and main excluded-env name lists,
+// removes duplicates, and returns a sorted slice for deterministic output.
+// The imported list is processed first so main-workflow entries that duplicate
+// import entries are quietly dropped rather than appearing twice.
+func mergeExcludedEnvVarNames(fromImports, fromMain []string) []string {
+	if len(fromImports) == 0 && len(fromMain) == 0 {
+		return nil
+	}
+	seen := make(map[string]bool, len(fromImports)+len(fromMain))
+	merged := make([]string, 0, len(fromImports)+len(fromMain))
+	for _, name := range fromImports {
+		if !seen[name] {
+			seen[name] = true
+			merged = append(merged, name)
+		}
+	}
+	for _, name := range fromMain {
+		if !seen[name] {
+			seen[name] = true
+			merged = append(merged, name)
+		}
+	}
+	sort.Strings(merged)
+	return merged
 }
 
 // extractYAMLSections extracts YAML configuration sections from frontmatter
