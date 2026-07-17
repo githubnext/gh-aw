@@ -137,7 +137,7 @@ func run(pass *analysis.Pass) (any, error) {
 			End:     rangeStmt.End(),
 			Message: "range-delete loop over map can be replaced with clear(" + mText + ")",
 		}
-		if !hasOverlappingComment(pass.Files, rangeStmt.Pos(), rangeStmt.End()) {
+		if !astutil.HasOverlappingComment(pass.Files, rangeStmt.Pos(), rangeStmt.End()) {
 			diag.SuggestedFixes = []analysis.SuggestedFix{{
 				Message: "Replace range-delete loop with clear",
 				TextEdits: []analysis.TextEdit{{
@@ -168,21 +168,6 @@ func builtinVisibleAtPos(pkg *types.Package, pos token.Pos, name string) bool {
 	}
 	builtin, ok := obj.(*types.Builtin)
 	return ok && builtin.Name() == name
-}
-
-// hasOverlappingComment reports whether any comment group overlaps [start, end).
-func hasOverlappingComment(files []*ast.File, start, end token.Pos) bool {
-	for _, file := range files {
-		if end <= file.Pos() || start >= file.End() {
-			continue
-		}
-		for _, group := range file.Comments {
-			if group.Pos() < end && start < group.End() {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // sameObject reports whether expr refers to the same declared object as ref.
