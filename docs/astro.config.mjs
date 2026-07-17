@@ -304,7 +304,6 @@ export default defineConfig({
 					label: 'Setup',
 					items: [
 						{ label: 'Quick Start', link: '/setup/quick-start/' },
-						{ label: 'Workshop', link: '/workshop/' },
 						{ label: 'Creating Workflows', link: '/setup/creating-workflows/' },
 						{ label: 'CLI Commands', link: '/setup/cli/' },
 					],
