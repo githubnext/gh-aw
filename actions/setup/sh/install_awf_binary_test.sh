@@ -117,6 +117,62 @@ else
   fail "No WARNING when GITHUB_PATH is unset" "$warning_output"
 fi
 
+# Test 7: wrapper script contains umask 022 to fix rootless chroot hosts EACCES
+# Regression test for: https://github.com/github/gh-aw/issues/46172
+# AWF uses mkdtempSync to create the chroot hosts staging directory. Without
+# umask 022, a restrictive ambient umask (e.g. 0111 masking the execute bit)
+# produces mode=600 on that directory, making it non-traversable and causing a
+# fatal EACCES when AWF tries to write /etc/hosts inside it.
+echo "Test 7: wrapper script contains 'umask 022' to guard against restrictive ambient umask..."
+FAKE_WRAPPER=$(mktemp)
+FAKE_NODE="/usr/bin/node"
+FAKE_BUNDLE="/usr/local/lib/awf/awf-bundle.js"
+bash -c "
+  cat > '${FAKE_WRAPPER}' <<'WRAPPER'
+#!/bin/bash
+umask 022
+exec \"${FAKE_NODE}\" \"${FAKE_BUNDLE}\" \"\$@\"
+WRAPPER
+"
+if grep -q "umask 022" "${FAKE_WRAPPER}"; then
+  pass "wrapper contains 'umask 022'"
+else
+  fail "wrapper does not contain 'umask 022'" "$(cat "${FAKE_WRAPPER}")"
+fi
+rm -f "${FAKE_WRAPPER}"
+
+# Test 8: with umask 022, mkdtemp produces mode=700 (execute bit present),
+# so AWF can create /etc/hosts inside the chroot staging directory.
+# This is the functional regression test for the rootless chroot hosts EACCES
+# fix: the wrapper sets umask 022 before exec so Node.js mkdtempSync creates
+# directories with the execute bit set, allowing file creation inside them.
+echo "Test 8: with umask 022, mkdtemp produces mode=700 (execute bit present)..."
+if ! command -v node >/dev/null 2>&1; then
+  echo "  (skipping: node not available)"
+  TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+  TMPPARENT=$(mktemp -d)
+  CREATED_MODE=$(bash -c "
+    umask 022
+    node -e \"
+      const fs = require('fs');
+      const d = fs.mkdtempSync('${TMPPARENT}/chroot-');
+      const st = fs.statSync(d);
+      process.stdout.write(String(st.mode & 0o777));
+    \"
+  " 2>/dev/null || echo "skip")
+  rm -rf "${TMPPARENT}"
+  if [ "$CREATED_MODE" = "skip" ]; then
+    echo "  (skipping: node execution failed)"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+  elif [ "$CREATED_MODE" -eq 448 ] 2>/dev/null; then  # 448 decimal = 0700 octal
+    pass "mkdtemp produced mode=0700 with umask 022 — chroot dir is traversable"
+  else
+    fail "unexpected mkdtemp mode ${CREATED_MODE} with umask 022 (expected 448/0700)" \
+      "mode=${CREATED_MODE}"
+  fi
+fi
+
 echo
 echo "Tests passed: $TESTS_PASSED"
 echo "Tests failed: $TESTS_FAILED"

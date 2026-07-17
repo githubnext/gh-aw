@@ -179,8 +179,21 @@ install_bundle() {
   # Using an unquoted heredoc (<<WRAPPER) so that ${node_bin} is expanded
   # at wrapper-creation time, while \$@ is left as the literal $@ for
   # runtime argument forwarding.
+  #
+  # umask 022 is set before exec so the Node.js process inherits it.
+  # AWF uses mkdtempSync to create the chroot hosts staging directory; without
+  # a permissive umask a restrictive default (e.g. 0111 masking the execute
+  # bit) produces mode=600 on that directory. A directory without the execute
+  # bit cannot be entered, causing EACCES when AWF tries to write /etc/hosts
+  # inside it. umask 022 ensures mkdtempSync produces mode=700 (owner
+  # read/write/execute), which is the minimum required for a writable directory.
   maybe_sudo tee "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" > /dev/null <<WRAPPER
 #!/bin/bash
+# Ensure directories created by AWF (e.g. chroot hosts staging dir) have the
+# execute bit set. A restrictive ambient umask (e.g. masking bit 0100) turns
+# mkdtemp's default 0700 into 0600, making the directory non-traversable and
+# causing EACCES on rootless GitHub-hosted runners.
+umask 022
 exec "${node_bin}" "${AWF_LIB_DIR}/awf-bundle.js" "\$@"
 WRAPPER
   maybe_sudo chmod +x "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
