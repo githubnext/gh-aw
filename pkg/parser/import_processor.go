@@ -72,6 +72,7 @@ type ImportsResult struct {
 	MergedMaxTurnCacheMisses      string                // First max-turn-cache-misses value found across all imports (JSON-encoded, first-wins)
 	MergedMaxAICredits            string                // First max-ai-credits value found across all imports (JSON-encoded, first-wins)
 	MergedMaxDailyAICredits       string                // First max-daily-ai-credits value found across all imports (JSON-encoded, first-wins)
+	MergedExcludedEnv             []string              // Union of excluded-env lists from all imports (deduplicated, used to extend the main workflow's excluded-env)
 	ImportedFiles                 []string              // List of imported file paths (for manifest)
 	AgentFile                     string                // Path to custom agent file (if imported)
 	AgentImportSpec               string                // Original import specification for agent file (e.g., "owner/repo/path@ref")

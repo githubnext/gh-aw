@@ -276,23 +276,9 @@ func extractByteSliceStringConv(pass *analysis.Pass, expr ast.Expr) (ast.Expr, b
 
 	// The argument must be []byte (or []uint8).
 	arg := call.Args[0]
-	if !isByteSlice(pass, arg) {
+	if !astutil.IsByteSlice(pass, arg) {
 		return nil, false
 	}
 
 	return arg, true
-}
-
-// isByteSlice reports whether expr has underlying type []byte ([]uint8).
-func isByteSlice(pass *analysis.Pass, expr ast.Expr) bool {
-	t := pass.TypesInfo.TypeOf(expr)
-	if t == nil {
-		return false
-	}
-	sl, ok := t.Underlying().(*types.Slice)
-	if !ok {
-		return false
-	}
-	elem, ok := sl.Elem().(*types.Basic)
-	return ok && elem.Kind() == types.Byte
 }

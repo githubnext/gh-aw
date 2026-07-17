@@ -43,6 +43,11 @@ Only required secrets are prompted for. Optional secrets are not shown.`,
 
 func runTokensBootstrap(engine, repo string, nonInteractive bool) error {
 	tokensBootstrapLog.Printf("Running tokens bootstrap: engine=%s, repo=%s, nonInteractive=%v", engine, repo, nonInteractive)
+
+	// Configure the gh CLI host from the git remote before any gh calls so that
+	// secret discovery and upload both target the correct host.
+	configureDefaultGHHostFromOriginRemoteIfUnset()
+
 	var repoSlug string
 	var err error
 

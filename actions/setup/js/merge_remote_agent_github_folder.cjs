@@ -214,7 +214,7 @@ function sparseCheckoutGithubFolder(owner, repo, ref, tempDir) {
 
     coreObj.info("Sparse checkout completed successfully");
   } catch (error) {
-    throw new Error(`${ERR_PARSE}: Sparse checkout failed: ${getErrorMessage(error)}`);
+    throw new Error(`${ERR_PARSE}: Sparse checkout failed: ${getErrorMessage(error)}`, { cause: error });
   }
 }
 
@@ -358,7 +358,7 @@ async function main() {
       try {
         repositoryImports = JSON.parse(repositoryImportsEnv);
       } catch (error) {
-        throw new Error(`${ERR_PARSE}: Failed to parse GH_AW_REPOSITORY_IMPORTS: ${getErrorMessage(error)}`);
+        throw new Error(`${ERR_PARSE}: Failed to parse GH_AW_REPOSITORY_IMPORTS: ${getErrorMessage(error)}`, { cause: error });
       }
 
       if (!Array.isArray(repositoryImports)) {
