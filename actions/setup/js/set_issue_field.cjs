@@ -164,7 +164,7 @@ async function main(config = {}) {
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
   const isStaged = isStagedMode(config);
-  const issueIntentEnabled = config.issue_intent === true;
+  const issueIntentEnabled = config.issue_intent !== false;
 
   core.info(`Set issue field configuration: max=${maxCount}`);
   const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];

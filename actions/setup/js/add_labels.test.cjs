@@ -559,6 +559,66 @@ describe("add_labels", () => {
       expect(addLabelsCalls[0].labels).toEqual(["bug"]);
     });
 
+    it("should forward per-label intent metadata by default when issue_intent is omitted", async () => {
+      const handler = await main({ max: 10 });
+      const addLabelsCalls = [];
+
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          item_number: 456,
+          labels: [{ name: "bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(addLabelsCalls).toHaveLength(1);
+      expect(addLabelsCalls[0].labels).toEqual([{ name: "bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }]);
+    });
+
+    it("should accept plain string labels by default when issue_intent is omitted", async () => {
+      const handler = await main({ max: 10 });
+      const addLabelsCalls = [];
+
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          item_number: 456,
+          labels: ["bug", "enhancement"],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(addLabelsCalls).toHaveLength(1);
+      expect(addLabelsCalls[0].labels).toEqual(["bug", "enhancement"]);
+    });
+
+    it("should reject plain string labels when issue_intent is explicitly true (strict mode)", async () => {
+      const handler = await main({ max: 10, issue_intent: true });
+
+      const result = await handler(
+        {
+          item_number: 456,
+          labels: ["bug", "enhancement"],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Plain string label names are not permitted when issue_intent is explicitly enabled");
+      expect(result.error).toContain('"bug"');
+    });
+
     it("should sanitize and trim label names", async () => {
       const handler = await main({ max: 10 });
       const addLabelsCalls = [];
