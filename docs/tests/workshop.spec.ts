@@ -161,15 +161,22 @@ test.describe('Workshop URL hash navigation', () => {
 
 		await page.getByRole('button', { name: /Next step/i }).click();
 		const tutorialUrl = page.url();
+		// Capture which step is currently displayed so we can assert the same step is restored.
+		const stepPosition = await page.locator('[data-workshop-step-position]').textContent();
 
+		// Navigate away so storage would otherwise default back to step 1.
 		await page.goto('/gh-aw/workshop/');
 		await page.waitForLoadState('networkidle');
-		await expect(page.locator('[data-workshop-setup]')).toBeVisible();
+		// Clear session storage so the only source of truth for the step is the URL hash.
+		await page.evaluate(() => sessionStorage.clear());
 
+		// Navigate directly to the captured URL — hash must take precedence over (empty) storage.
 		await page.goto(tutorialUrl);
 		await page.waitForLoadState('networkidle');
 		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
 		expect(page.url()).toBe(tutorialUrl);
+		// Assert the specific step is displayed, not merely some tutorial state.
+		await expect(page.locator('[data-workshop-step-position]')).toHaveText(stepPosition || '');
 	});
 
 	test('supports browser back navigation from tutorial to setup', async ({ page }) => {

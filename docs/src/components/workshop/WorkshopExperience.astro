@@ -647,11 +647,16 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				if (!hash) return { screen: 'setup-workspace', journeyId: null, scenarioId: null, stepKey: null };
 				try {
 					const params = new URLSearchParams(hash);
-					const journeyId = params.get('j');
-					const scenarioId = params.get('s');
-					const stepKey = params.get('t');
+					const rawJourneyId = params.get('j');
+					const rawScenarioId = params.get('s');
+					const rawStepKey = params.get('t');
+					// Validate each ID against the manifest before deriving the screen so that
+					// an unknown journey/scenario cannot silently open a tutorial with stale state.
+					const journeyId = rawJourneyId && manifest.journeys.find((j) => j.id === rawJourneyId) ? rawJourneyId : null;
 					if (!journeyId) return { screen: 'setup-workspace', journeyId: null, scenarioId: null, stepKey: null };
+					const scenarioId = rawScenarioId && manifest.scenarios.find((s) => s.id === rawScenarioId) ? rawScenarioId : null;
 					if (!scenarioId) return { screen: 'setup-scenario', journeyId, scenarioId: null, stepKey: null };
+					const stepKey = rawStepKey && stepMap.has(rawStepKey) ? rawStepKey : null;
 					return { screen: 'tutorial', journeyId, scenarioId, stepKey };
 				} catch {
 					return { screen: 'setup-workspace', journeyId: null, scenarioId: null, stepKey: null };
@@ -662,7 +667,8 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				const base = window.location.pathname + window.location.search;
 				if (!journeyId || screen === 'setup-workspace') return base;
 				if (screen === 'setup-scenario' || !scenarioId) return `${base}#j=${encodeURIComponent(journeyId)}`;
-				return `${base}#j=${encodeURIComponent(journeyId)}&s=${encodeURIComponent(scenarioId)}&t=${encodeURIComponent(stepKey ?? '')}`;
+				if (!stepKey) return `${base}#j=${encodeURIComponent(journeyId)}&s=${encodeURIComponent(scenarioId)}`;
+				return `${base}#j=${encodeURIComponent(journeyId)}&s=${encodeURIComponent(scenarioId)}&t=${encodeURIComponent(stepKey)}`;
 			};
 
 			const readState = () => {
@@ -684,13 +690,14 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 			const state = readState();
 
-			// Override state from URL hash when present (hash takes precedence over localStorage)
+			// Override state from URL hash when present (hash takes precedence over localStorage).
+			// parseHash validates all IDs against the manifest, so any non-null field is safe to apply.
 			const hashOnLoad = parseHash();
-			if (hashOnLoad.journeyId && manifest.journeys.find((j) => j.id === hashOnLoad.journeyId)) {
+			if (hashOnLoad.journeyId) {
 				state.journeyId = hashOnLoad.journeyId;
-				if (hashOnLoad.scenarioId && manifest.scenarios.find((s) => s.id === hashOnLoad.scenarioId)) {
+				if (hashOnLoad.scenarioId) {
 					state.scenarioId = hashOnLoad.scenarioId;
-					if (hashOnLoad.stepKey && stepMap.has(hashOnLoad.stepKey)) {
+					if (hashOnLoad.stepKey) {
 						state.stepKey = hashOnLoad.stepKey;
 					}
 				}
@@ -1074,19 +1081,20 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 			// Applies valid fields from a parsed hash state object onto the mutable state.
 			// Used by the popstate handler to synchronize state with the URL on back/forward navigation.
+			// All IDs in parsed are pre-validated by parseHash; apply directly without re-checking.
 			const applyHashState = (parsed) => {
-				if (parsed.journeyId && manifest.journeys.find((j) => j.id === parsed.journeyId)) {
+				if (parsed.journeyId) {
 					state.journeyId = parsed.journeyId;
 				}
-				if (parsed.scenarioId && manifest.scenarios.find((s) => s.id === parsed.scenarioId)) {
+				if (parsed.scenarioId) {
 					state.scenarioId = parsed.scenarioId;
 				} else {
-					// No valid scenario in the URL: reset step so that returning to the tutorial
-					// via forward navigation starts at the first step rather than wherever the
-					// user left off.
+					// No valid scenario in the URL: clear scenario and reset step so the picker
+					// shows no pre-selected value and forward-navigation restarts at the first step.
+					state.scenarioId = '';
 					state.stepKey = getFallbackStepKey();
 				}
-				if (parsed.stepKey && stepMap.has(parsed.stepKey)) {
+				if (parsed.stepKey) {
 					state.stepKey = parsed.stepKey;
 				}
 			};
@@ -1312,10 +1320,11 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				routeToScreen(parsed);
 			});
 
-			// Replace the initial history entry so that back navigation from this page works correctly,
-			// then route to the screen encoded in the URL hash (or the default setup screen).
+			// Replace the initial history entry with the canonical URL derived from the effective
+			// parsed state. This normalizes invalid or partial hashes (e.g. #j=unknown&s=unknown
+			// becomes the plain path) so that back navigation works correctly.
 			ensureCurrentStepIsVisible();
-			history.replaceState(null, '', window.location.href);
+			history.replaceState(null, '', buildHashUrl(hashOnLoad.screen, hashOnLoad.journeyId, hashOnLoad.scenarioId, hashOnLoad.stepKey));
 			routeToScreen(hashOnLoad, { scroll: false });
 		}
 	</script>
