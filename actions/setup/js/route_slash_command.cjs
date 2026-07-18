@@ -135,6 +135,14 @@ async function resolveDispatchRef() {
 /** @typedef {"+1" | "-1" | "confused" | "eyes" | "heart" | "hooray" | "laugh" | "rocket"} ReactionName */
 
 /**
+ * @param {string} value
+ * @returns {value is ReactionName}
+ */
+function isReactionName(value) {
+  return Object.hasOwn(REACTION_MAP, value);
+}
+
+/**
  * @param {unknown} reaction
  * @returns {ReactionName | ""}
  */
@@ -146,19 +154,7 @@ function normalizeReaction(reaction) {
   if (!trimmed || trimmed === "none") {
     return "";
   }
-  switch (trimmed) {
-    case "+1":
-    case "-1":
-    case "confused":
-    case "eyes":
-    case "heart":
-    case "hooray":
-    case "laugh":
-    case "rocket":
-      return trimmed;
-    default:
-      return "";
-  }
+  return isReactionName(trimmed) ? trimmed : "";
 }
 
 function maintainsStatusComment(route) {
