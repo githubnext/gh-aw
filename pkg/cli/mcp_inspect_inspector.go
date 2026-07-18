@@ -127,8 +127,8 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping server %s: command not found: %s", config.Name, config.Command)))
 							continue
 						}
-						// #nosec G204 -- config.Command is validated via exec.LookPath above;
-						// exec.Command with separate args (not shell execution) prevents shell injection.
+						// #nosec G204 -- config.Command is validated via mcpInspectorLookPath above;
+						// mcpInspectorCommandContext passes separate args (not shell execution), which prevents shell injection.
 						cmd = mcpInspectorCommandContext(gctx, config.Command, config.Args...)
 					}
 

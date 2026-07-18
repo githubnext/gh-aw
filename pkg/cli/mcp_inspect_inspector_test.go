@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const helperProcessErrorExitCode = 2
+
 func TestSpawnMCPInspector_ContextCancellationWaitsForServerMonitor(t *testing.T) {
 	stateDir := testutil.TempDir(t, "mcp-inspector-state-*")
 	workflowPath := writeMCPInspectorWorkflow(t, stateDir)
@@ -118,27 +120,14 @@ func spawnMCPInspectorHelperCommand(ctx context.Context, stateDir, role, behavio
 }
 
 func TestSpawnMCPInspectorHelperProcess(t *testing.T) {
-	sentinel := -1
-	for i, arg := range os.Args {
-		if arg == "gh-aw-mcp-helper" {
-			sentinel = i
-			break
-		}
-	}
-	if sentinel == -1 || len(os.Args) < sentinel+3 {
+	role, stateDir, behavior, ok := parseSpawnMCPInspectorHelperArgs(os.Args)
+	if !ok {
 		return
-	}
-
-	role := os.Args[sentinel+1]
-	stateDir := os.Args[sentinel+2]
-	behavior := ""
-	if len(os.Args) > sentinel+3 {
-		behavior = os.Args[sentinel+3]
 	}
 
 	if err := os.WriteFile(filepath.Join(stateDir, role+"-started"), []byte(role), 0600); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
+		os.Exit(helperProcessErrorExitCode)
 	}
 
 	switch role {
@@ -153,8 +142,54 @@ func TestSpawnMCPInspectorHelperProcess(t *testing.T) {
 		}
 	default:
 		fmt.Fprintf(os.Stderr, "unknown helper role: %s\n", role)
-		os.Exit(2)
+		os.Exit(helperProcessErrorExitCode)
 	}
+}
+
+func TestParseSpawnMCPInspectorHelperArgs(t *testing.T) {
+	t.Run("skips normal test execution", func(t *testing.T) {
+		role, stateDir, behavior, ok := parseSpawnMCPInspectorHelperArgs([]string{"test-binary", "-test.run=TestSpawnMCPInspector"})
+		require.False(t, ok)
+		require.Empty(t, role)
+		require.Empty(t, stateDir)
+		require.Empty(t, behavior)
+	})
+
+	t.Run("parses helper subprocess args", func(t *testing.T) {
+		role, stateDir, behavior, ok := parseSpawnMCPInspectorHelperArgs([]string{
+			"test-binary",
+			"-test.run=TestSpawnMCPInspectorHelperProcess",
+			"--",
+			"gh-aw-mcp-helper",
+			"server",
+			"/tmp/state",
+			"wait",
+		})
+		require.True(t, ok)
+		require.Equal(t, "server", role)
+		require.Equal(t, "/tmp/state", stateDir)
+		require.Equal(t, "wait", behavior)
+	})
+}
+
+func parseSpawnMCPInspectorHelperArgs(args []string) (role, stateDir, behavior string, ok bool) {
+	sentinel := -1
+	for i, arg := range args {
+		if arg == "gh-aw-mcp-helper" {
+			sentinel = i
+			break
+		}
+	}
+	if sentinel == -1 || len(args) < sentinel+3 {
+		return "", "", "", false
+	}
+
+	role = args[sentinel+1]
+	stateDir = args[sentinel+2]
+	if len(args) > sentinel+3 {
+		behavior = args[sentinel+3]
+	}
+	return role, stateDir, behavior, true
 }
 
 func writeMCPInspectorWorkflow(t *testing.T, dir string) string {
