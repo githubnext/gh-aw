@@ -337,4 +337,34 @@ test.describe('Workshop Astro rendering contract', () => {
 		await localLink.click();
 		await expect(page.locator('[data-workshop-step-position]')).not.toHaveText(positionBefore ?? '');
 	});
+
+	test('GFM alerts in step data are rendered as aside elements, not raw blockquotes', async ({ page }) => {
+		await startWorkshop(page);
+
+		// Check the embedded step-data JSON for GFM alert markers. If any step's HTML
+		// contains raw [!NOTE]/[!TIP]/etc. text it means rewriteGfmAlerts did not run
+		// or failed to match. If the content has no GFM alerts the test passes vacuously.
+		const result = await page.evaluate(() => {
+			const node = document.getElementById('aw-workshop-step-data');
+			if (!node) return { hasAlerts: false, hasRawMarkers: false, firstAlertStepIndex: -1 };
+			const steps = JSON.parse(node.textContent?.trim() || '[]') as Array<{ html: string }>;
+			const alertPattern = /\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]/i;
+			const asidePattern = /class="aw-workshop-admonition-(?:note|tip|warning|important|caution)"/i;
+			const hasRawMarkers = steps.some((s) => alertPattern.test(s.html));
+			const firstAlertStepIndex = steps.findIndex((s) => asidePattern.test(s.html));
+			return { hasAlerts: firstAlertStepIndex >= 0, hasRawMarkers, firstAlertStepIndex };
+		});
+
+		// Raw [!TYPE] markers must not appear in any step HTML.
+		expect(result.hasRawMarkers).toBe(false);
+
+		// If the workshop content includes GFM alerts, navigate directly to the step
+		// that contains one and assert the aside is rendered.
+		if (result.hasAlerts && result.firstAlertStepIndex >= 0) {
+			const bubbles = page.locator('[data-workshop-step-bubbles] .aw-workshop-step-bubble');
+			await bubbles.nth(result.firstAlertStepIndex).click();
+			const aside = page.locator('[data-workshop-step-content] aside[class*="aw-workshop-admonition-"]').first();
+			await expect(aside).toBeVisible();
+		}
+	});
 });
