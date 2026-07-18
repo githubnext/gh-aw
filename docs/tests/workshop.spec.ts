@@ -106,8 +106,16 @@ test.describe('Workshop tutorial', () => {
 			const layout = await page.evaluate(() => {
 				const stepContent = document.querySelector('.aw-workshop-step-content');
 				const stepContentStyle = stepContent ? window.getComputedStyle(stepContent) : null;
+				const workshopRoot = document.querySelector('.aw-workshop');
+				const panelHeader = document.querySelector('.aw-workshop-panel-header');
+				const panelFooter = document.querySelector('.aw-workshop-panel-footer');
+				const stepContentRect = stepContent?.getBoundingClientRect() ?? null;
+				const panelHeaderRect = panelHeader?.getBoundingClientRect() ?? null;
+				const panelFooterRect = panelFooter?.getBoundingClientRect() ?? null;
 				const selectors = [
+					'.aw-workshop',
 					'.aw-workshop-panel-shell',
+					'.aw-workshop-panel-header',
 					'.aw-workshop-progress-card',
 					'.aw-workshop-step-content',
 					'.aw-workshop-panel-footer',
@@ -131,7 +139,15 @@ test.describe('Workshop tutorial', () => {
 					availableWidth: document.body.getBoundingClientRect().width,
 					scrollWidth: document.scrollingElement?.scrollWidth ?? document.documentElement.scrollWidth,
 					clientWidth: document.scrollingElement?.clientWidth ?? document.documentElement.clientWidth,
+					workshopRootStyle: workshopRoot ? {
+						marginTop: window.getComputedStyle(workshopRoot).marginTop,
+					} : null,
 					bounds,
+					panelAlignment: stepContentRect ? {
+						stepContentLeft: stepContentRect.left,
+						panelHeaderLeft: panelHeaderRect?.left ?? 0,
+						panelFooterLeft: panelFooterRect?.left ?? 0,
+					} : null,
 					stepContentStyle: stepContentStyle ? {
 						borderWidth: stepContentStyle.borderWidth,
 						borderRadius: stepContentStyle.borderRadius,
@@ -150,10 +166,14 @@ test.describe('Workshop tutorial', () => {
 				expect(bound.right).toBeLessThanOrEqual(layout.viewportWidth + PIXEL_TOLERANCE);
 			}
 			if (isZenMobileViewport) {
+				expect(layout.workshopRootStyle).toEqual({ marginTop: '0px' });
 				const panelShell = layout.bounds.find((bound) => bound.selector === '.aw-workshop-panel-shell');
 				expect(panelShell?.left).toBeLessThanOrEqual(PIXEL_TOLERANCE);
 				expect(panelShell?.right).toBeGreaterThanOrEqual(layout.availableWidth - PIXEL_TOLERANCE);
 				expect(panelShell?.width).toBeGreaterThanOrEqual(layout.availableWidth - PIXEL_TOLERANCE);
+				expect(layout.panelAlignment).not.toBeNull();
+				expect(Math.abs((layout.panelAlignment?.panelHeaderLeft ?? 0) - (layout.panelAlignment?.stepContentLeft ?? 0))).toBeLessThanOrEqual(PIXEL_TOLERANCE);
+				expect(Math.abs((layout.panelAlignment?.panelFooterLeft ?? 0) - (layout.panelAlignment?.stepContentLeft ?? 0))).toBeLessThanOrEqual(PIXEL_TOLERANCE);
 				expect(layout.stepContentStyle).toEqual({
 					borderWidth: '0px',
 					borderRadius: '0px',
