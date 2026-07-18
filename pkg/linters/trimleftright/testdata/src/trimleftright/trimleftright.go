@@ -8,9 +8,9 @@ func badTrimLeft(s string) string {
 	return strings.TrimLeft(s, "foo") // want `strings\.TrimLeft with a multi-character cutset`
 }
 
-// bad: TrimRight with multi-char literal — likely meant TrimSuffix
+// bad: TrimRight with repeated alnum cutset — likely meant TrimSuffix
 func badTrimRight(s string) string {
-	return strings.TrimRight(s, "bar") // want `strings\.TrimRight with a multi-character cutset`
+	return strings.TrimRight(s, "barr") // want `strings\.TrimRight with a multi-character cutset`
 }
 
 // good: TrimLeft with single character — valid cutset usage
@@ -36,6 +36,11 @@ func goodTrimSuffix(s string) string {
 // good: TrimLeft with single Unicode rune
 func goodUnicodeRune(s string) string {
 	return strings.TrimLeft(s, "→")
+}
+
+// good: intentional multi-character cutset
+func goodIntentionalCutset(s string) string {
+	return strings.TrimLeft(s, "aeiou")
 }
 
 // suppressed: nolint directive suppresses the diagnostic

@@ -1,7 +1,7 @@
 # ADR-46465: Add trimleftright Linter to Detect TrimLeft/TrimRight Cutset Misuse
 
 **Date**: 2026-07-18
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan (PR author)
 
 ---
@@ -12,7 +12,9 @@
 
 ### Decision
 
-We will add a new `trimleftright` analyzer at `pkg/linters/trimleftright/` that flags any call to `strings.TrimLeft` or `strings.TrimRight` where the cutset argument is a string literal with more than one Unicode rune, and emit a `SuggestedFix` rewriting the call to `strings.TrimPrefix` or `strings.TrimSuffix` respectively. Single-character cutsets, empty cutsets, and generated files will be excluded as valid uses. Callers that intentionally use multi-character cutsets can suppress the diagnostic with `//nolint:trimleftright`. The analyzer will be registered in `cmd/linters/main.go` alongside existing analyzers.
+We will add a new `trimleftright` analyzer at `pkg/linters/trimleftright/` with a conservative heuristic: flag `strings.TrimLeft`/`strings.TrimRight` only when the cutset is a string literal that is (1) multi-rune, (2) fully alphanumeric, and (3) contains at least one repeated rune (for example `"foo"` or `"barr"`). This sharply reduces false positives for idiomatic character-set trimming such as whitespace classes (`" \t\n\r"`), punctuation sets, or unique-rune sets (`"aeiou"`).  
+
+The analyzer will emit diagnostics only (no `SuggestedFix`) because replacing `TrimLeft`/`TrimRight` with `TrimPrefix`/`TrimSuffix` changes semantics and cannot be proven safe from syntax alone. Generated files are excluded and callers can suppress intentional cases with `//nolint:trimleftright`. The analyzer is registered in `cmd/linters/main.go` alongside existing analyzers.
 
 ### Alternatives Considered
 
@@ -38,11 +40,10 @@ Not chosen because: documentation-only approaches do not catch new instances at 
 #### Negative
 - Any intentional multi-character cutset usage (e.g., trimming a set of punctuation characters) must be explicitly annotated with `//nolint:trimleftright`, adding a small maintenance burden for valid usages.
 - The analyzer adds one more entry to `cmd/linters/main.go` and must be kept in sync with future refactors of the linter registry.
+- The conservative heuristic may miss some genuine mistakes (for example, literal prefixes without repeated runes such as `"bar"`).
 
 #### Neutral
 - The linter applies only to string literals; dynamic cutset values (variables, expressions) are not flagged, which is a deliberate scope limitation—inferring intent from non-literal arguments is not feasible at analysis time.
 - Test fixtures follow the `analysistest` golden-file convention already used by sibling linters, so no new test infrastructure is needed.
 
 ---
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*

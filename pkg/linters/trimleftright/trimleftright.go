@@ -4,7 +4,7 @@
 // the intended function.
 //
 // strings.TrimLeft(s, "foo") does NOT remove the prefix "foo"; it removes any
-// leading byte that appears anywhere in the cutset characters 'f', 'o'.
+// leading rune that appears anywhere in the cutset characters 'f', 'o'.
 // This is a well-known Go gotcha.
 package trimleftright
 
@@ -12,6 +12,7 @@ import (
 	"go/ast"
 	"go/token"
 	"strconv"
+	"unicode"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -24,7 +25,7 @@ import (
 // Analyzer is the trimleftright analysis pass.
 var Analyzer = &analysis.Analyzer{
 	Name:     "trimleftright",
-	Doc:      "reports strings.TrimLeft/TrimRight calls with a multi-character literal cutset that likely intend strings.TrimPrefix/TrimSuffix",
+	Doc:      "reports likely mistaken strings.TrimLeft/TrimRight calls using repeated alphanumeric literal cutsets",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/trimleftright",
 	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
@@ -49,10 +50,7 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return
-		}
+		call := n.(*ast.CallExpr)
 
 		pos := pass.Fset.PositionFor(call.Pos(), false)
 		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
@@ -77,10 +75,11 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		// The cutset (second argument) must be a string literal with more than
-		// one rune to indicate the caller likely confused TrimLeft with TrimPrefix.
+		// Only flag suspicious cutsets where a multi-rune alphanumeric literal
+		// contains repeated runes (e.g., "foo"). This avoids flagging common,
+		// intentional character-set trimming like whitespace classes.
 		cutset, isCutset := stringLitValue(call.Args[1])
-		if !isCutset || len([]rune(cutset)) <= 1 {
+		if !isCutset || !looksSuspiciousCutset(cutset) {
 			return
 		}
 
@@ -97,34 +96,10 @@ func run(pass *analysis.Pass) (any, error) {
 			End: call.End(),
 			Message: "strings." + funcName + " with a multi-character cutset treats each character independently; " +
 				"use strings." + suggested + " if you intend to remove the exact string",
-			SuggestedFixes: buildFix(pass, call, sel, suggested),
 		})
 	})
 
 	return nil, nil
-}
-
-// buildFix returns a SuggestedFix that renames TrimLeft→TrimPrefix or
-// TrimRight→TrimSuffix, preserving the existing package qualifier.
-func buildFix(pass *analysis.Pass, call *ast.CallExpr, sel *ast.SelectorExpr, suggested string) []analysis.SuggestedFix {
-	qualifier := astutil.NodeText(pass.Fset, sel.X)
-	if qualifier == "" {
-		return nil
-	}
-	arg0 := astutil.NodeText(pass.Fset, call.Args[0])
-	arg1 := astutil.NodeText(pass.Fset, call.Args[1])
-	if arg0 == "" || arg1 == "" {
-		return nil
-	}
-	newText := qualifier + "." + suggested + "(" + arg0 + ", " + arg1 + ")"
-	return []analysis.SuggestedFix{{
-		Message: "Replace with " + qualifier + "." + suggested,
-		TextEdits: []analysis.TextEdit{{
-			Pos:     call.Pos(),
-			End:     call.End(),
-			NewText: []byte(newText),
-		}},
-	}}
 }
 
 // stringLitValue returns the unquoted string value of a string-literal AST node.
@@ -138,4 +113,30 @@ func stringLitValue(expr ast.Expr) (string, bool) {
 		return "", false
 	}
 	return s, true
+}
+
+// looksSuspiciousCutset reports likely TrimPrefix/TrimSuffix confusion.
+// We require a multi-rune alphanumeric cutset with at least one repeated rune
+// so valid character-set trimming (whitespace, punctuation, unique rune sets)
+// is not flagged.
+func looksSuspiciousCutset(cutset string) bool {
+	runes := []rune(cutset)
+	if len(runes) <= 1 {
+		return false
+	}
+
+	seen := make(map[rune]struct{}, len(runes))
+	hasRepeatedRune := false
+	for _, r := range runes {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			return false
+		}
+		if _, ok := seen[r]; ok {
+			hasRepeatedRune = true
+			continue
+		}
+		seen[r] = struct{}{}
+	}
+
+	return hasRepeatedRune
 }

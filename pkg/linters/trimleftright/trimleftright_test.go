@@ -11,5 +11,5 @@ import (
 )
 
 func TestAnalyzer(t *testing.T) {
-	analysistest.RunWithSuggestedFixes(t, analysistest.TestData(), trimleftright.Analyzer, "trimleftright")
+	analysistest.Run(t, analysistest.TestData(), trimleftright.Analyzer, "trimleftright")
 }
