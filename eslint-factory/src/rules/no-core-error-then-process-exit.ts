@@ -54,8 +54,10 @@ function isProcessExitNonZero(node: TSESTree.Statement): node is TSESTree.Expres
   // Must have exactly one argument
   if (expr.arguments.length !== 1) return false;
   const arg = expr.arguments[0];
-  // process.exit(0) is intentional — skip
-  if (arg.type === AST_NODE_TYPES.Literal && arg.value === 0) return false;
+  // Only match explicit non-zero integer numeric literals (e.g. process.exit(1), process.exit(2)).
+  // Variables, function calls, and non-numeric literals are not flagged — their runtime value
+  // cannot be proven non-zero at static analysis time.
+  if (arg.type !== AST_NODE_TYPES.Literal || typeof arg.value !== "number" || !Number.isInteger(arg.value) || arg.value === 0) return false;
   return true;
 }
 
@@ -73,8 +75,7 @@ export const noCoreErrorThenProcessExitRule = createRule({
     },
     schema: [],
     messages: {
-      noCoreErrorThenProcessExit:
-        "Avoid `core.error()` followed by `process.exit(nonzero)`. Use `core.setFailed(msg); return;` instead to correctly signal action failure without bypassing cleanup hooks.",
+      noCoreErrorThenProcessExit: "Avoid `core.error()` followed by `process.exit(nonzero)`. Use `core.setFailed(msg); return;` instead to correctly signal action failure without bypassing cleanup hooks.",
       replaceWithSetFailed: "Replace `core.error(msg); process.exit(...)` with `core.setFailed(msg); return;`.",
     },
   },
@@ -106,20 +107,14 @@ export const noCoreErrorThenProcessExitRule = createRule({
                     const ancestors = sourceCode.getAncestors(current);
                     for (let j = ancestors.length - 1; j >= 0; j--) {
                       const a = ancestors[j];
-                      if (
-                        a.type === AST_NODE_TYPES.FunctionDeclaration ||
-                        a.type === AST_NODE_TYPES.FunctionExpression ||
-                        a.type === AST_NODE_TYPES.ArrowFunctionExpression
-                      ) {
+                      if (a.type === AST_NODE_TYPES.FunctionDeclaration || a.type === AST_NODE_TYPES.FunctionExpression || a.type === AST_NODE_TYPES.ArrowFunctionExpression) {
                         return true;
                       }
                     }
                     return false;
                   })();
 
-                  const replacement = isInsideFunction
-                    ? `${objectName}.setFailed(${args}); return;`
-                    : `${objectName}.setFailed(${args});`;
+                  const replacement = isInsideFunction ? `${objectName}.setFailed(${args}); return;` : `${objectName}.setFailed(${args});`;
 
                   return [fixer.replaceText(current, replacement + "\n"), fixer.remove(next)];
                 },
