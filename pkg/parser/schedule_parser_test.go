@@ -3,6 +3,7 @@
 package parser
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -1094,4 +1095,39 @@ func TestParseSchedule(t *testing.T) {
 				"ParseSchedule(%q) original string mismatch", tt.input)
 		})
 	}
+}
+
+// TestParseLongIntervalParts_NumErrorWrapping verifies the error-wrapping contract
+// introduced in parseLongIntervalParts:
+//   - a non-numeric interval string wraps *strconv.NumError so callers can inspect it
+//   - zero and negative intervals use a fresh error (no upstream NumError to wrap)
+func TestParseLongIntervalParts_NumErrorWrapping(t *testing.T) {
+	p := &ScheduleParser{}
+
+	t.Run("non-numeric interval wraps NumError", func(t *testing.T) {
+		p.tokens = []string{"every", "abc", "minutes"}
+		_, _, err := p.parseLongIntervalParts()
+		require.Error(t, err)
+		var numErr *strconv.NumError
+		assert.ErrorAs(t, err, &numErr,
+			"errors.As(*strconv.NumError) should be true for non-numeric interval")
+	})
+
+	t.Run("zero interval does not wrap NumError", func(t *testing.T) {
+		p.tokens = []string{"every", "0", "minutes"}
+		_, _, err := p.parseLongIntervalParts()
+		require.Error(t, err)
+		var numErr *strconv.NumError
+		assert.NotErrorAs(t, err, &numErr,
+			"errors.As(*strconv.NumError) should be false for out-of-range interval")
+	})
+
+	t.Run("negative interval does not wrap NumError", func(t *testing.T) {
+		p.tokens = []string{"every", "-5", "minutes"}
+		_, _, err := p.parseLongIntervalParts()
+		require.Error(t, err)
+		var numErr *strconv.NumError
+		assert.NotErrorAs(t, err, &numErr,
+			"errors.As(*strconv.NumError) should be false for negative interval")
+	})
 }

@@ -3,6 +3,7 @@
 package parser
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
@@ -962,6 +963,45 @@ func TestParseGitHubURL_AdditionalEdgeCases(t *testing.T) {
 
 			if result.Type != tt.wantType {
 				t.Errorf("ParseGitHubURL() type = %v, want %v", result.Type, tt.wantType)
+			}
+		})
+	}
+}
+
+// TestParseGitHubURL_NumErrorWrapping verifies that malformed numeric IDs in URLs
+// wrap the underlying *strconv.NumError so callers can inspect it via errors.As.
+func TestParseGitHubURL_NumErrorWrapping(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{
+			name: "numbered URL - invalid PR number",
+			url:  "https://github.com/owner/repo/pull/abc",
+		},
+		{
+			name: "numbered URL - invalid issue number",
+			url:  "https://github.com/owner/repo/issues/abc",
+		},
+		{
+			name: "run URL - invalid run ID",
+			url:  "https://github.com/owner/repo/actions/runs/notanumber",
+		},
+		{
+			name: "run URL - invalid job ID",
+			url:  "https://github.com/owner/repo/actions/runs/12345/job/notanumber",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseGitHubURL(tt.url)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			var numErr *strconv.NumError
+			if !errors.As(err, &numErr) {
+				t.Errorf("errors.As(*strconv.NumError) = false; want true so NumError is reachable via %v", err)
 			}
 		})
 	}

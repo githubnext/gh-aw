@@ -180,7 +180,10 @@ func resolveAndValidateLocalIncludePath(filePath, resolveBase, securityBase stri
 	if relErr != nil {
 		allowedFolder := filepath.Base(normalizedSecurityBase)
 		remoteLog.Printf("Security: Path escapes allowed folder: %s (rel error: %v)", filePath, relErr)
-		return "", fmt.Errorf("security: path %s must be within %s folder: %w", filePath, allowedFolder, relErr)
+		return "", &pathRelError{
+			msg: fmt.Sprintf("security: path %s must be within %s folder", filePath, allowedFolder),
+			err: relErr,
+		}
 	}
 	if relativePath == ".." || strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) || filepath.IsAbs(relativePath) {
 		allowedFolder := filepath.Base(normalizedSecurityBase)
