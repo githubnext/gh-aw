@@ -120,7 +120,7 @@ When running on schedule:
 When triggered manually as a backfill pass:
 
 1. **Fetch ALL open issues without any labels** using GitHub tools — do not limit to a fixed count
-2. **Also fetch issues with only generic type labels** (`bug`, `enhancement`, `documentation`, `question`) but no component labels — use `search_issues` with `repo:github/gh-aw is:issue is:open label:bug -label:safe-outputs -label:mcp -label:copilot -label:cli -label:compiler -label:workflows -label:security -label:performance -label:threat-detection` as an approximation, or query multiple label combinations
+2. **Also fetch issues with only generic type labels** (`bug`, `enhancement`, `documentation`, `question`) but no component labels — run one `search_issues` query per type label, e.g. `repo:github/gh-aw is:issue is:open label:bug -label:safe-outputs -label:mcp -label:copilot -label:cli -label:compiler -label:workflows -label:security -label:performance -label:threat-detection` and similarly for `label:enhancement`, `label:documentation`, and `label:question`
 3. **If there are no unlabeled or partial-labeled issues**, call `noop` with "No unlabeled issues found during manual backfill — no action needed" and stop. Do not create a discussion.
 
 When unlabeled issues exist:
@@ -167,7 +167,7 @@ Apply component labels based on mentioned areas:
 - `workflows` - Mentions workflow files, `.md` workflows, compilation, `.lock.yml`
 - `compiler` - Mentions `gh aw compile`, `.lock.yml` generation, frontmatter parsing, compilation pipeline
 - `mcp` - Mentions MCP servers, tools, integrations, `tools/list`, MCP gateway, `awmg-mcpg`, CLI-mounted MCP servers
-- `safe-outputs` - Mentions safe-outputs, safeoutputs, `push_to_pull_request_branch`, `add_comment` (via safeoutputs), `outputs.jsonl`, safe-output gateway, "unknown tool" on safeoutputs tools, `report_incomplete`, `noop` (safeoutputs context)
+- `safe-outputs` - Mentions safe-outputs, safeoutputs, `push_to_pull_request_branch`, `add_comment` via safeoutputs, `outputs.jsonl`, safe-output gateway, "unknown tool" on safeoutputs tools, `report_incomplete` (safeoutputs context)
 - `copilot` - Mentions Copilot engine, copilot CLI (`copilot` engine id), `--disable-builtin-mcps`, Copilot coding agent
 - `security` - Mentions security issues, vulnerabilities, CVE, authentication
 - `performance` - Mentions speed, performance, slow, optimization, memory usage
