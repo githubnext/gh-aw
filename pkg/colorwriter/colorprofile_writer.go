@@ -3,7 +3,6 @@
 package colorwriter
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -36,6 +35,8 @@ func Stdout() io.Writer {
 func Degrade(s string, environ []string) string {
 	var buf strings.Builder
 	w := colorprofile.NewWriter(&buf, environ)
-	fmt.Fprint(w, s)
+	// colorprofile.Writer writes synchronously and does not buffer past Write,
+	// so the builder contains the complete transformed string immediately.
+	_, _ = io.WriteString(w, s)
 	return buf.String()
 }
