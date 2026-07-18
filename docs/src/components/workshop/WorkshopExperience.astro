@@ -85,8 +85,16 @@ function firstSentence(value: string) {
 	return value.match(/^.*?[.!?](?:\s|$)/u)?.[0].trim() ?? value.trim();
 }
 
-function rewriteWorkshopHtml(html: string) {
+function sanitizeWorkshopHtml(html: string) {
 	return html
+		.replace(/<script\b[^>]*>[\s\S]*?<\/script>/giu, '')
+		.replace(/<style\b[^>]*>[\s\S]*?<\/style>/giu, '')
+		.replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/giu, '')
+		.replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*')/giu, '');
+}
+
+function rewriteWorkshopHtml(html: string) {
+	return sanitizeWorkshopHtml(html)
 		.replace(/<(\/?)h([1-4])\b/gu, (_match, slash, level) => {
 			return `<${slash}h${Math.min(Number(level) + 1, 4)}`;
 		})

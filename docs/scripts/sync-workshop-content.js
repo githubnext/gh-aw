@@ -124,10 +124,10 @@ function addEntryMetadata(entries) {
 	}));
 }
 
-function rewriteWorkshopMarkdownForAstro(body) {
+function rewriteWorkshopMarkdownForAstro(body, rawBaseUrl = publicWorkshopRawBaseUrl) {
 	return body
 		.replace(/\((images\/[^)\s]+)\)/gu, (_match, assetPath) => {
-			return `(${new URL(assetPath, publicWorkshopRawBaseUrl).toString()})`;
+			return `(${new URL(assetPath, rawBaseUrl).toString()})`;
 		})
 		.replace(/\(([^)\s]+\.md(?:#[^)]+)?)\)/gu, (_match, linkPath) => {
 			return `(${workshopLocalLinkPrefix}${encodeURIComponent(linkPath)})`;
@@ -136,14 +136,34 @@ function rewriteWorkshopMarkdownForAstro(body) {
 
 function loadExistingGeneratedWorkshopEntries() {
 	const content = readFileSync(outputFile, 'utf8');
-	const source = content.match(/^\/\/ Source: (.+)$/mu)?.[1] ?? outputFile;
 	const serializedEntries = content.match(/export const workshopContent: WorkshopContentEntry\[\] = (\[[\s\S]*\]);\s*$/mu)?.[1];
 	if (!serializedEntries) {
 		throw new Error(`Could not parse existing generated workshop content from ${outputFile}`);
 	}
 
+	// Parse the cached workshopSource block so fallback generation uses the same
+	// repo/ref/URLs the content was originally fetched from, rather than the
+	// currently configured env-var values (which may differ on a transient failure).
+	const sourceBlock = content.match(/export const workshopSource = \{([\s\S]*?)\};/mu)?.[1] ?? '';
+	const extractStr = (key) => {
+		const m = sourceBlock.match(new RegExp(`\\b${key}:\\s*("(?:[^"\\\\]|\\\\.)*")`, 'u'));
+		return m ? JSON.parse(m[1]) : null;
+	};
+	const cachedRepo = extractStr('repo') ?? workshopRepo;
+	const cachedRef = extractStr('ref') ?? workshopRef;
+	const cachedTreeUrl = extractStr('treeUrl') ?? publicWorkshopTreeUrl;
+	const cachedGithubBaseUrl = extractStr('githubBaseUrl') ?? publicWorkshopBlobBaseUrl;
+	const cachedRawBaseUrl = extractStr('rawBaseUrl') ?? publicWorkshopRawBaseUrl;
+
 	return {
-		source,
+		source: cachedTreeUrl,
+		sourceMetadata: {
+			repo: cachedRepo,
+			ref: cachedRef,
+			treeUrl: cachedTreeUrl,
+			githubBaseUrl: cachedGithubBaseUrl,
+			rawBaseUrl: cachedRawBaseUrl,
+		},
 		entries: JSON.parse(serializedEntries),
 	};
 }
@@ -172,15 +192,24 @@ async function loadWorkshopEntries() {
 	}
 }
 
-const { source, entries } = await loadWorkshopEntries();
+const { source, sourceMetadata, entries } = await loadWorkshopEntries();
 const workshopEntries = addEntryMetadata(entries);
+
+// When falling back to cached content, use the source metadata embedded in that cache
+// so that image URLs and workshopSource point to the ref the content actually came from,
+// not the currently configured env-var values (which may differ on a transient fetch failure).
+const effectiveRepo = sourceMetadata?.repo ?? workshopRepo;
+const effectiveRef = sourceMetadata?.ref ?? workshopRef;
+const effectiveTreeUrl = sourceMetadata?.treeUrl ?? publicWorkshopTreeUrl;
+const effectiveGithubBaseUrl = sourceMetadata?.githubBaseUrl ?? publicWorkshopBlobBaseUrl;
+const effectiveRawBaseUrl = sourceMetadata?.rawBaseUrl ?? publicWorkshopRawBaseUrl;
 
 mkdirSync(generatedDir, { recursive: true });
 rmSync(markdownOutputDir, { recursive: true, force: true });
 mkdirSync(markdownOutputDir, { recursive: true });
 
 for (const entry of entries) {
-	writeFileSync(join(markdownOutputDir, entry.id), rewriteWorkshopMarkdownForAstro(entry.body), 'utf8');
+	writeFileSync(join(markdownOutputDir, entry.id), rewriteWorkshopMarkdownForAstro(entry.body, effectiveRawBaseUrl), 'utf8');
 }
 
 const output = `${[
@@ -189,11 +218,11 @@ const output = `${[
 	'// Do not edit by hand.',
 	'',
 	'export const workshopSource = {',
-	`\trepo: ${JSON.stringify(workshopRepo)},`,
-	`\tref: ${JSON.stringify(workshopRef)},`,
-	`\ttreeUrl: ${JSON.stringify(publicWorkshopTreeUrl)},`,
-	`\tgithubBaseUrl: ${JSON.stringify(publicWorkshopBlobBaseUrl)},`,
-	`\trawBaseUrl: ${JSON.stringify(publicWorkshopRawBaseUrl)},`,
+	`\trepo: ${JSON.stringify(effectiveRepo)},`,
+	`\tref: ${JSON.stringify(effectiveRef)},`,
+	`\ttreeUrl: ${JSON.stringify(effectiveTreeUrl)},`,
+	`\tgithubBaseUrl: ${JSON.stringify(effectiveGithubBaseUrl)},`,
+	`\trawBaseUrl: ${JSON.stringify(effectiveRawBaseUrl)},`,
 	'};',
 	'',
 	'export type WorkshopContentEntry = {',
