@@ -7,12 +7,13 @@ The `linters` package namespace contains custom static analysis linters used by 
 This package currently provides custom Go analyzers in the following subpackages:
 
 - `appendbytestring` — reports `append(b, []byte(s)...)` calls where `b` is `[]byte` and `s` is a string, which can be simplified to `append(b, s...)`.
+- `appendoneelement` — reports `append(s, []T{x}...)` calls where a single-element slice literal is spread and can be simplified to `append(s, x)`.
 - `bytescomparestring` — reports `string(a) == string(b)` and `string(a) != string(b)` comparisons where `a` and `b` are `[]byte` values; use `bytes.Equal(a, b)` for `==` and `!bytes.Equal(a, b)` for `!=`.
 - `bytesbufferstring` — reports `string(buf.Bytes())` calls where `buf` is a `bytes.Buffer` value receiver, suggesting `buf.String()` instead.
 - `contextcancelnotdeferred` — reports context cancel functions that are called directly instead of deferred.
 - `ctxbackground` — reports `context.Background()` calls inside functions that already receive a `context.Context` parameter.
 - `deferinloop` — reports `defer` statements placed directly inside `for`/`range` loop bodies, which execute when the enclosing function returns rather than each iteration and can cause resource leaks.
-- `errorfwrapv` — reports `fmt.Errorf` calls that format error arguments with `%v` instead of `%w`.
+- `errorfwrapv` — reports `fmt.Errorf` calls that pass error arguments without `%w` wrapping.
 - `excessivefuncparams` — reports function declarations that exceed a configurable parameter-count threshold.
 - `errormessage` — reports non-actionable error-message patterns in changed files.
 - `errortypeassertion` — reports type assertions from `error` to concrete types and recommends `errors.As`.
@@ -66,12 +67,13 @@ This package currently provides custom Go analyzers in the following subpackages
 | Subpackage | Description |
 |------------|-------------|
 | `appendbytestring` | Custom `go/analysis` analyzer that flags `append(b, []byte(s)...)` calls where `s` is a string that can be simplified to `append(b, s...)` |
+| `appendoneelement` | Custom `go/analysis` analyzer that flags `append(s, []T{x}...)` calls where a single-element slice literal is spread and can be simplified to `append(s, x)` |
 | `bytescomparestring` | Custom `go/analysis` analyzer that flags `string(a) == string(b)` / `!=` comparisons on `[]byte` values; use `bytes.Equal(a, b)` for `==` and `!bytes.Equal(a, b)` for `!=` |
 | `bytesbufferstring` | Custom `go/analysis` analyzer that flags `string(buf.Bytes())` calls where `buf` is a `bytes.Buffer` value and suggests `buf.String()` instead |
 | `contextcancelnotdeferred` | Custom `go/analysis` analyzer that flags context cancel functions called directly instead of deferred |
 | `ctxbackground` | Custom `go/analysis` analyzer that flags `context.Background()` calls inside functions that already receive a context parameter |
 | `deferinloop` | Custom `go/analysis` analyzer that flags `defer` statements inside `for`/`range` loop bodies that execute when the enclosing function returns rather than each iteration |
-| `errorfwrapv` | Custom `go/analysis` analyzer that flags `fmt.Errorf` calls that format error arguments with `%v` instead of `%w` |
+| `errorfwrapv` | Custom `go/analysis` analyzer that flags `fmt.Errorf` calls that pass error arguments without `%w` wrapping |
 | `excessivefuncparams` | Custom `go/analysis` analyzer that flags function declarations with too many positional parameters |
 | `errormessage` | Custom `go/analysis` analyzer that flags non-actionable error message patterns in changed files |
 | `errortypeassertion` | Custom `go/analysis` analyzer that flags type assertions from `error` to concrete types and recommends `errors.As` |
@@ -185,6 +187,7 @@ _ = timesleepnocontext.Analyzer
 
 **Internal**:
 - `github.com/github/gh-aw/pkg/linters/appendbytestring` — append-byte-string analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/appendoneelement` — append-one-element analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/bytescomparestring` — bytes-compare-string analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/bytesbufferstring` — bytes-buffer-string analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred` — context-cancel-not-deferred analyzer subpackage

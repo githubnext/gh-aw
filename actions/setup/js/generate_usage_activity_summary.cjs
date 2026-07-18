@@ -12,6 +12,8 @@ const fs = require("fs");
 const { globSync } = require("node:fs");
 const path = require("path");
 
+require("./shim.cjs");
+
 const SQUID_STATUS_INDEX = 6;
 const SQUID_DECISION_INDEX = 7;
 const SQUID_DOMAIN_INDEX = 2;
@@ -468,7 +470,7 @@ function main() {
   } catch (err) {
     throw new Error(`Failed to write file ${outputPath}: ${String(err)}`, { cause: err });
   }
-  console.log(outputPath);
+  core.info(outputPath);
 }
 
 // Run main function

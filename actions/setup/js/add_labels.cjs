@@ -109,10 +109,9 @@ const main = createCountGatedHandler({
             return { success: false, error };
           }
           // In strict mode, objects without rationale and confidence are also rejected
-          const missingMetadataLabels = requestedLabelInputs.filter(label => typeof label === "object" && (!label.rationale || !label.confidence));
+          const missingMetadataLabels = requestedLabelInputs.filter(label => typeof label === "object" && label !== null && (!label.rationale || !label.confidence));
           if (missingMetadataLabels.length > 0) {
-            // The typeof guard is required for TypeScript narrowing; filter already ensures only objects are present
-            const error = `Label objects must include both "rationale" and "confidence" when issue_intent is explicitly enabled. Missing metadata on: ${missingMetadataLabels.map(l => (typeof l === "object" && l !== null ? JSON.stringify(l.name) : "")).join(", ")}`;
+            const error = `Label objects must include both "rationale" and "confidence" when issue_intent is explicitly enabled. Missing metadata on: ${missingMetadataLabels.map(l => JSON.stringify(l.name)).join(", ")}`;
             core.warning(error);
             return { success: false, error };
           }

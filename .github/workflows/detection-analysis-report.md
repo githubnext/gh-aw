@@ -82,6 +82,10 @@ Collect per-run: `workflow_name`, `status`, `total_tokens`, `engine_id`, `detect
 3. Run has `gh-aw-detection: true` but detection-related steps failed
 4. Workflow alternates between detection-enabled and detection-disabled within the 24h window
 
+Before flagging a name-based mismatch from rule 2, check whether the workflow has an explicitly documented repository-level opt-out. Current documented opt-out:
+
+- `Daily Agentic Workflow AIC Usage Audit` (`.github/workflows/agentic-token-audit.md`) is source-managed from `githubnext/agentic-ops` and should not be reported as misconfigured solely because this repository mirrors the upstream file without adding a local `gh-aw-detection: true` override.
+
 For each misconfigured workflow, record: `workflow_name`, `misconfiguration_type`, `run_count`, `example_run_id`, `recommended_fix`.
 
 **Save** aggregated metrics to `/tmp/gh-aw/python/data/metrics.json`:

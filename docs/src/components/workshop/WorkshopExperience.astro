@@ -26,11 +26,17 @@ type WorkshopStep = {
 	githubUrl: string;
 	actions: string[];
 	checks: string[];
-	body: string;
+	html: string;
+};
+
+type WorkshopMarkdownModule = {
+	compiledContent: () => Promise<string>;
 };
 
 const workshopGithubBase = workshopSource.githubBaseUrl;
 const workshopImageBase = workshopSource.rawBaseUrl;
+const workshopLocalLinkPrefix = '/gh-aw/workshop/?__gh_aw_workshop_local__=';
+const workshopMarkdownModules = import.meta.glob('../../generated/workshop-markdown/*.md', { eager: true }) as Record<string, WorkshopMarkdownModule>;
 const primerIcons = octicons as Record<string, { toSVG: (options: Record<string, string | number>) => string }>;
 
 function iconSvg(name: string, size = 20) {
@@ -60,277 +66,185 @@ function resolveWorkshopAssetUrl(value: string) {
 	return '#';
 }
 
-function renderInlineMarkdown(value: string) {
-	return escapeHtml(value)
-		.replace(/!\[([^\]]*)\]\(([^)]+)\)/gu, (_match, alt, src) => {
-			return `<img src="${escapeHtml(resolveWorkshopAssetUrl(src))}" alt="${escapeHtml(alt)}" loading="lazy" />`;
-		})
-		.replace(/\[([^\]]+)\]\(([^)]+)\)/gu, (_match, text, href) => {
-			const link = escapeHtml(resolveWorkshopAssetUrl(href));
-			const localLink = href.endsWith('.md') || href.includes('.md#')
-				? ` data-workshop-local-link="${escapeHtml(href)}"`
-				: '';
-			return `<a href="${link}"${localLink}>${text}</a>`;
-		})
-		.replace(/`([^`]+)`/gu, '<code>$1</code>')
-		.replace(/\*\*([^*]+)\*\*/gu, '<strong>$1</strong>')
-		.replace(/_([^_]+)_/gu, '<em>$1</em>');
+function isLocalWorkshopStepLink(value: string) {
+	return !/^(?:https?:|mailto:|#|\/)/u.test(value) && /\.md(?:#.*)?$/u.test(value);
 }
 
-function slugId(text: string) {
-	return text
-		.toLowerCase()
-		.replace(/[^\w\s-]/gu, '')
-		.replace(/[\s_]+/gu, '-')
-		.replace(/^-+|-+$/gu, '');
+function decodeLocalWorkshopStepLink(value: string) {
+	if (value.startsWith(workshopLocalLinkPrefix)) {
+		try {
+			return decodeURIComponent(value.slice(workshopLocalLinkPrefix.length));
+		} catch {
+			return '';
+		}
+	}
+	return isLocalWorkshopStepLink(value) ? value : '';
 }
 
 function firstSentence(value: string) {
 	return value.match(/^.*?[.!?](?:\s|$)/u)?.[0].trim() ?? value.trim();
 }
 
-function renderDetailsBlock(markup: string) {
-	const match = markup.match(/^<details>\s*<summary>([\s\S]*?)<\/summary>\s*([\s\S]*?)\s*<\/details>$/u);
-	if (!match) {
-		return `<div class="aw-workshop-details-body">${renderWorkshopMarkdown(markup)}</div>`;
-	}
-
-	const [, summary, body] = match;
-	return [
-		'<details class="aw-workshop-details">',
-		`<summary>${renderInlineMarkdown(summary.trim())}</summary>`,
-		`<div class="aw-workshop-details-body">${renderWorkshopMarkdown(body.trim())}</div>`,
-		'</details>',
-	].join('');
+function sanitizeWorkshopHtml(html: string) {
+	return html
+		.replace(/<script\b[^>]*>[\s\S]*?<\/script>/giu, '')
+		.replace(/<style\b[^>]*>[\s\S]*?<\/style>/giu, '')
+		.replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/giu, '')
+		.replace(/\s+on[a-zA-Z]+\s*=\s*(?:"[^"]*"|'[^']*')/giu, '');
 }
 
-function renderEntryPathCards(rows: string[][]) {
-	const cards = rows.map((row) => {
-		const [audience = '', nextStep = '', fit = ''] = row;
-		return [
-			'<article class="aw-workshop-entry-card">',
-			`<p class="aw-workshop-entry-card-kicker">Entry path</p>`,
-			`<h4>${renderInlineMarkdown(audience)}</h4>`,
-			`<p class="aw-workshop-entry-card-summary">${renderInlineMarkdown(fit)}</p>`,
-			'<div class="aw-workshop-entry-card-next">',
-				'<span>Recommended next step</span>',
-				`<p>${renderInlineMarkdown(nextStep)}</p>`,
-			'</div>',
-			'</article>',
-		].join('');
-	});
+function transformTables(html: string) {
+	return html.replace(/<table>([\s\S]*?)<\/table>/gu, (tableHtml) => {
+		// Check if this is the entry path table by inspecting the <thead> cells.
+		const theadMatch = tableHtml.match(/<thead>([\s\S]*?)<\/thead>/u);
+		const thMatches = theadMatch ? [...theadMatch[1].matchAll(/<th(?:\s[^>]*)?>([\s\S]*?)<\/th>/gu)] : [];
+		const normalizeHeader = (value: string) => value
+			.replace(/<[^>]+>/gu, '')
+			.replace(/[‘’]/gu, "'")
+			.replace(/…/gu, '...')
+			.replace(/\s+/gu, ' ')
+			.trim();
 
-	return `<section class="aw-workshop-entry-grid">${cards.join('')}</section>`;
-}
-
-function normalizeStepBody(step: WorkshopStep) {
-	if (step.key !== '00-welcome') return step.body;
-	return step.body.replace(
-		'- [ ] I picked the row in the table above that best matches how I want to work today',
-		'- [ ] I picked the entry path above that best matches how I want to work today',
-	);
-}
-
-function renderWorkshopMarkdown(markdown: string) {
-	const lines = markdown.split('\n');
-	const blocks: string[] = [];
-	let paragraph: string[] = [];
-	let list: string[] = [];
-	let orderedList: string[] = [];
-	let checklist: string[] = [];
-	let tableRows: string[][] = [];
-	let code: string[] = [];
-	let codeLanguage = '';
-	let inCode = false;
-	let detailsLines: string[] = [];
-	let inDetails = false;
-	let admonitionType = '';
-	let admonitionLines: string[] = [];
-
-	const flushParagraph = () => {
-		if (paragraph.length === 0) return;
-		blocks.push(`<p>${renderInlineMarkdown(paragraph.join(' '))}</p>`);
-		paragraph = [];
-	};
-
-	const flushList = () => {
-		if (list.length > 0) {
-			blocks.push(`<ul>${list.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join('')}</ul>`);
-			list = [];
-		}
-		if (orderedList.length > 0) {
-			blocks.push(`<ol>${orderedList.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join('')}</ol>`);
-			orderedList = [];
-		}
-		if (checklist.length > 0) {
-			blocks.push(`<ul class="aw-workshop-checklist">${checklist.join('')}</ul>`);
-			checklist = [];
-		}
-	};
-
-	const flushTable = () => {
-		if (tableRows.length === 0) return;
-		const [header, , ...body] = tableRows;
-		if (!header) { tableRows = []; return; }
 		if (
-			header.length >= 3
-			&& header[0] === "If you're a..."
-			&& header[1] === 'Recommended setup adventure'
-			&& header[2] === 'Why this path fits'
+			thMatches.length >= 3
+			&& normalizeHeader(thMatches[0][1]) === "If you're a..."
+			&& normalizeHeader(thMatches[1][1]) === 'Recommended setup adventure'
+			&& normalizeHeader(thMatches[2][1]) === 'Why this path fits'
 		) {
-			blocks.push(renderEntryPathCards(body));
-			tableRows = [];
-			return;
+			const tbodyMatch = tableHtml.match(/<tbody>([\s\S]*?)<\/tbody>/u);
+			const rows: [string, string, string][] = [];
+			if (tbodyMatch) {
+				for (const rowMatch of tbodyMatch[1].matchAll(/<tr>([\s\S]*?)<\/tr>/gu)) {
+					const tdMatches = [...rowMatch[1].matchAll(/<td(?:\s[^>]*)?>([\s\S]*?)<\/td>/gu)];
+					if (tdMatches.length >= 3) {
+						rows.push([tdMatches[0][1].trim(), tdMatches[1][1].trim(), tdMatches[2][1].trim()]);
+					}
+				}
+			}
+
+			if (rows.length > 0) {
+				const cards = rows.map(([audience, nextStep, fit]) => [
+					'<article class="aw-workshop-entry-card">',
+					'<p class="aw-workshop-entry-card-kicker">Entry path</p>',
+					`<h4>${audience}</h4>`,
+					`<p class="aw-workshop-entry-card-summary">${fit}</p>`,
+					'<div class="aw-workshop-entry-card-next">',
+					'<span>Recommended next step</span>',
+					`<p>${nextStep}</p>`,
+					'</div>',
+					'</article>',
+				].join(''));
+				return `<section class="aw-workshop-entry-grid">${cards.join('')}</section>`;
+			}
 		}
-		const th = header.map((cell) => `<th>${renderInlineMarkdown(cell)}</th>`).join('');
-		const rows = body.map((row) => `<tr>${row.map((cell) => `<td>${renderInlineMarkdown(cell)}</td>`).join('')}</tr>`).join('');
-		blocks.push(`<div class="aw-workshop-table-wrap"><table><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>`);
-		tableRows = [];
-	};
 
-	const flushAdmonition = () => {
-		if (!admonitionType) return;
-		const content = admonitionLines.join('\n');
-		blocks.push(`<aside class="aw-workshop-admonition aw-workshop-admonition-${admonitionType.toLowerCase()}">${renderDetailsBlock(content)}</aside>`);
-		admonitionType = '';
-		admonitionLines = [];
-	};
+		return `<div class="aw-workshop-table-wrap">${tableHtml}</div>`;
+	});
+}
 
-	for (const line of lines) {
-		if (line.startsWith('```')) {
-			flushAdmonition();
-			if (inCode) {
-				blocks.push(`<pre><code class="language-${escapeHtml(codeLanguage)}">${escapeHtml(code.join('\n'))}</code></pre>`);
-				code = [];
-				codeLanguage = '';
-				inCode = false;
+function rewriteGfmAlerts(html: string) {
+	// Pattern to detect a blockquote that opens with a GFM alert type marker.
+	const openingPattern = /<blockquote>\s*<p>\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]/giu;
+	let result = '';
+	let lastIndex = 0;
+	let match: RegExpExecArray | null;
+
+	while ((match = openingPattern.exec(html)) !== null) {
+		const matchStart = match.index;
+		const type = match[1];
+		const afterTypeStart = matchStart + match[0].length;
+
+		// Locate the matching </blockquote> by counting nesting depth so that
+		// blockquotes nested inside the alert body are handled correctly.
+		let depth = 1;
+		let searchPos = afterTypeStart;
+		let foundClose = -1;
+
+		while (depth > 0 && searchPos < html.length) {
+			const nextOpen = html.indexOf('<blockquote', searchPos);
+			const nextClose = html.indexOf('</blockquote>', searchPos);
+
+			if (nextClose === -1) break; // malformed HTML — leave as-is
+
+			if (nextOpen !== -1 && nextOpen < nextClose) {
+				depth++;
+				searchPos = nextOpen + '<blockquote'.length;
 			} else {
-				flushParagraph();
-				flushList();
-				flushTable();
-				codeLanguage = line.slice(3).trim();
-				inCode = true;
+				depth--;
+				if (depth === 0) {
+					foundClose = nextClose;
+					break;
+				}
+				searchPos = nextClose + '</blockquote>'.length;
 			}
+		}
+
+		if (foundClose === -1) {
+			// No matching close tag found; leave this blockquote untransformed.
 			continue;
 		}
 
-		if (inCode) {
-			code.push(line);
-			continue;
+		const blockquoteEnd = foundClose + '</blockquote>'.length;
+		const afterType = html.slice(afterTypeStart, foundClose);
+
+		const cls = `aw-workshop-admonition-${type.toLowerCase()}`;
+		const title = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+		let inner: string;
+		if (afterType.startsWith('</p>')) {
+			// [!TYPE]</p><p>rest...</p> — type was alone in first paragraph
+			inner = afterType.slice(4).trim();
+		} else {
+			// [!TYPE]\ntext... — type and first line of content share a paragraph
+			const newlineIndex = afterType.indexOf('\n');
+			inner = newlineIndex >= 0 ? `<p>${afterType.slice(newlineIndex + 1)}` : afterType;
+			inner = inner.trim();
 		}
 
-		const trimmed = line.trim();
-		if (trimmed === '<details>') {
-			flushParagraph();
-			flushList();
-			flushTable();
-			flushAdmonition();
-			inDetails = true;
-			detailsLines = [trimmed];
-			continue;
-		}
-
-		if (inDetails) {
-			detailsLines.push(line);
-			if (trimmed === '</details>') {
-				blocks.push(renderDetailsBlock(detailsLines.join('\n')));
-				detailsLines = [];
-				inDetails = false;
-			}
-			continue;
-		}
-
-		if (!trimmed || trimmed === '---') {
-			flushParagraph();
-			flushList();
-			flushTable();
-			flushAdmonition();
-			continue;
-		}
-
-		// GitHub-flavored admonitions: > [!TYPE]
-		if (trimmed.startsWith('>')) {
-			const admonitionMatch = trimmed.match(/^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/iu);
-			if (admonitionMatch) {
-				flushParagraph();
-				flushList();
-				flushTable();
-				flushAdmonition();
-				admonitionType = admonitionMatch[1];
-				admonitionLines = [];
-				continue;
-			}
-			const continuationText = trimmed.replace(/^>\s?/u, '');
-			if (admonitionType) {
-				if (continuationText) admonitionLines.push(continuationText);
-				continue;
-			}
-			flushParagraph();
-			flushList();
-			flushTable();
-			blocks.push(`<aside>${renderInlineMarkdown(continuationText)}</aside>`);
-			continue;
-		}
-
-		// Flush open admonition before non-blockquote lines
-		if (admonitionType) flushAdmonition();
-
-		// Tables: lines with pipes
-		if (trimmed.startsWith('|')) {
-			flushParagraph();
-			flushList();
-			const cells = trimmed.slice(1, -1).split('|').map((c) => c.trim());
-			tableRows.push(cells);
-			continue;
-		}
-		if (tableRows.length > 0) flushTable();
-
-		const heading = trimmed.match(/^(#{1,4})\s+(.+)$/u);
-		if (heading) {
-			flushParagraph();
-			flushList();
-			const level = Math.min(heading[1].length + 1, 4);
-			const id = slugId(heading[2].replace(/[*_`[\]]/gu, ''));
-			blocks.push(`<h${level} id="${id}">${renderInlineMarkdown(heading[2])}</h${level}>`);
-			continue;
-		}
-
-		const checklistItem = trimmed.match(/^- \[([ x])\]\s+(.+)$/iu);
-		if (checklistItem) {
-			flushParagraph();
-			list = [];
-			orderedList = [];
-			const checked = checklistItem[1].toLowerCase() === 'x' ? ' checked' : '';
-			checklist.push(`<li><label><input type="checkbox" disabled${checked} /> <span>${renderInlineMarkdown(checklistItem[2])}</span></label></li>`);
-			continue;
-		}
-
-		const orderedItem = trimmed.match(/^\d+\.\s+(.+)$/u);
-		if (orderedItem) {
-			flushParagraph();
-			checklist = [];
-			list = [];
-			orderedList.push(orderedItem[1]);
-			continue;
-		}
-
-		const listItem = trimmed.match(/^-\s+(.+)$/u);
-		if (listItem) {
-			flushParagraph();
-			checklist = [];
-			orderedList = [];
-			list.push(listItem[1]);
-			continue;
-		}
-
-		paragraph.push(trimmed);
+		result += html.slice(lastIndex, matchStart);
+		result += `<aside class="${cls}"><p class="aw-workshop-admonition-title">${escapeHtml(title)}</p>${inner}</aside>`;
+		lastIndex = blockquoteEnd;
+		// Skip the regex past the entire consumed blockquote so it does not
+		// re-match patterns that appear inside the body we just replaced.
+		openingPattern.lastIndex = blockquoteEnd;
 	}
 
-	flushParagraph();
-	flushList();
-	flushTable();
-	flushAdmonition();
-	return blocks.join('');
+	result += html.slice(lastIndex);
+	return result;
+}
+
+function rewriteWorkshopHtml(html: string) {
+	return transformTables(rewriteGfmAlerts(sanitizeWorkshopHtml(html))
+
+		.replace(/<(\/?)h([1-4])\b/gu, (_match, slash, level) => {
+			return `<${slash}h${Math.min(Number(level) + 1, 4)}`;
+		})
+		.replace(/<a([^>]*?)href="([^"]+)"([^>]*)>/gu, (_match, beforeHref, href, afterHref) => {
+			const localLink = decodeLocalWorkshopStepLink(href);
+			if (localLink) {
+				return `<a${beforeHref}href="#" data-workshop-local-link="${escapeHtml(localLink)}"${afterHref}>`;
+			}
+			return `<a${beforeHref}href="${escapeHtml(resolveWorkshopAssetUrl(href))}"${afterHref}>`;
+		})
+		.replace(/<img([^>]*?)src="([^"]+)"([^>]*)>/gu, (_match, beforeSrc, src, afterSrc) => {
+			return `<img${beforeSrc}src="${escapeHtml(resolveWorkshopAssetUrl(src))}"${afterSrc}>`;
+		}));
+}
+
+async function renderWorkshopHtml(entryId: string) {
+	const moduleEntry = Object.entries(workshopMarkdownModules)
+		.find(([path]) => path.endsWith(`/${entryId}`))
+		?.[1];
+	if (!moduleEntry) {
+		throw new Error(`Missing generated workshop markdown for ${entryId}. Expected to find it in src/generated/workshop-markdown/.`);
+	}
+	let html = rewriteWorkshopHtml(await moduleEntry.compiledContent());
+	if (entryId === '00-welcome.md') {
+		html = html.replace(
+			'I picked the row in the table above that best matches how I want to work today',
+			'I picked the entry path above that best matches how I want to work today',
+		);
+	}
+	return html;
 }
 
 function stripMarkdown(value: string) {
@@ -395,7 +309,7 @@ function extractCheckpointItems(markdown: string) {
 }
 
 function renderTutorialStep(step: WorkshopStep) {
-	return renderWorkshopMarkdown(normalizeStepBody(step));
+	return step.html;
 }
 
 function normalizeKey(value: string) {
@@ -409,7 +323,7 @@ const workshopEntries: WorkshopEntry[] = workshopContent.map((entry: WorkshopCon
 	body: entry.body,
 }));
 
-const workshopSteps: WorkshopStep[] = workshopEntries.map((entry: WorkshopEntry) => {
+const workshopSteps: WorkshopStep[] = await Promise.all(workshopEntries.map(async (entry: WorkshopEntry) => {
 	const key = normalizeKey(entry.id);
 
 	return {
@@ -420,9 +334,9 @@ const workshopSteps: WorkshopStep[] = workshopEntries.map((entry: WorkshopEntry)
 		githubUrl: new URL(`${key}.md`, workshopGithubBase).toString(),
 		actions: extractActionItems(entry.body),
 		checks: extractCheckpointItems(entry.body),
-		body: entry.body,
+		html: await renderWorkshopHtml(entry.id),
 	};
-});
+}));
 
 const initialFlow = buildWorkshopFlow(workshopDefaults.journeyId, workshopDefaults.scenarioId);
 const initialStepKey = initialFlow[0] ?? workshopSteps[0]?.key ?? '';
@@ -432,7 +346,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 <section
 	class="aw-workshop"
 	data-workshop-root
-	data-image-base={workshopImageBase}
 	data-initial-step={initialStepKey}
 >
 	<div class="aw-workshop-setup" data-workshop-setup>
@@ -589,7 +502,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			githubUrl: step.githubUrl,
 			actions: step.actions,
 			checks: step.checks,
-			body: step.body,
+			html: step.html,
 		})))}
 	/>
 	<script
@@ -616,7 +529,9 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			const stepMap = new Map(steps.map((step) => [step.key, step]));
 			const allStepKeys = steps.map((step) => step.key);
 			const initialStep = root.getAttribute('data-initial-step') || steps[0]?.key || '';
-			const defaultEntryPath = manifest.entryPaths.find((item) => item.journeyId === manifest.defaults.journeyId) || manifest.entryPaths[0];
+			const defaultEntryPath = manifest.entryPaths.find((item) => item.journeyId === manifest.defaults.journeyId)
+				|| manifest.entryPaths[0]
+				|| { id: '', journeyId: manifest.defaults.journeyId };
 			const createDefaultState = () => ({
 				entryPathId: defaultEntryPath?.id,
 				journeyId: defaultEntryPath?.journeyId || manifest.defaults.journeyId,
@@ -642,6 +557,35 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				return [...new Set(ordered)].filter((stepKey) => stepMap.has(stepKey));
 			};
 
+			const parseHash = () => {
+				const hash = window.location.hash.slice(1);
+				if (!hash) return { screen: 'setup-workspace', journeyId: null, scenarioId: null, stepKey: null };
+				try {
+					const params = new URLSearchParams(hash);
+					const rawJourneyId = params.get('j');
+					const rawScenarioId = params.get('s');
+					const rawStepKey = params.get('t');
+					// Validate each ID against the manifest before deriving the screen so that
+					// an unknown journey/scenario cannot silently open a tutorial with stale state.
+					const journeyId = rawJourneyId && manifest.journeys.find((j) => j.id === rawJourneyId) ? rawJourneyId : null;
+					if (!journeyId) return { screen: 'setup-workspace', journeyId: null, scenarioId: null, stepKey: null };
+					const scenarioId = rawScenarioId && manifest.scenarios.find((s) => s.id === rawScenarioId) ? rawScenarioId : null;
+					if (!scenarioId) return { screen: 'setup-scenario', journeyId, scenarioId: null, stepKey: null };
+					const stepKey = rawStepKey && stepMap.has(rawStepKey) ? rawStepKey : null;
+					return { screen: 'tutorial', journeyId, scenarioId, stepKey };
+				} catch {
+					return { screen: 'setup-workspace', journeyId: null, scenarioId: null, stepKey: null };
+				}
+			};
+
+			const buildHashUrl = (screen, journeyId, scenarioId, stepKey) => {
+				const base = window.location.pathname + window.location.search;
+				if (!journeyId || screen === 'setup-workspace') return base;
+				if (screen === 'setup-scenario' || !scenarioId) return `${base}#j=${encodeURIComponent(journeyId)}`;
+				if (!stepKey) return `${base}#j=${encodeURIComponent(journeyId)}&s=${encodeURIComponent(scenarioId)}`;
+				return `${base}#j=${encodeURIComponent(journeyId)}&s=${encodeURIComponent(scenarioId)}&t=${encodeURIComponent(stepKey)}`;
+			};
+
 			const readState = () => {
 				try {
 					const parsed = JSON.parse(storage.getItem(storageKey) || '{}');
@@ -661,6 +605,19 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 			const state = readState();
 
+			// Override state from URL hash when present (hash takes precedence over localStorage).
+			// parseHash validates all IDs against the manifest, so any non-null field is safe to apply.
+			const hashOnLoad = parseHash();
+			if (hashOnLoad.journeyId) {
+				state.journeyId = hashOnLoad.journeyId;
+				if (hashOnLoad.scenarioId) {
+					state.scenarioId = hashOnLoad.scenarioId;
+					if (hashOnLoad.stepKey) {
+						state.stepKey = hashOnLoad.stepKey;
+					}
+				}
+			}
+
 			const saveState = () => {
 				storage.setItem(storageKey, JSON.stringify(state));
 			};
@@ -677,298 +634,8 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				}
 			};
 
-			const escapeHtml = (value) => String(value)
-				.replace(/&/gu, '&amp;')
-				.replace(/</gu, '&lt;')
-				.replace(/>/gu, '&gt;')
-				.replace(/"/gu, '&quot;')
-				.replace(/'/gu, '&#39;');
-
-			const resolveWorkshopAssetUrl = (value) => {
-				if (/^(?:https?:|mailto:|#|\/)/u.test(value)) return value;
-				if (value.startsWith('images/')) {
-					const resolved = new URL(value, root.dataset.imageBase || window.location.href).toString();
-					return /^https?:/u.test(resolved) ? resolved : '#';
-				}
-				return '#';
-			};
-
-			const renderInlineMarkdown = (value) => escapeHtml(value)
-				.replace(/!\[([^\]]*)\]\(([^)]+)\)/gu, (_match, alt, src) => {
-					return `<img src="${escapeHtml(resolveWorkshopAssetUrl(src))}" alt="${escapeHtml(alt)}" loading="lazy" />`;
-				})
-				.replace(/\[([^\]]+)\]\(([^)]+)\)/gu, (_match, text, href) => {
-					const link = escapeHtml(resolveWorkshopAssetUrl(href));
-					const localLink = href.endsWith('.md') || href.includes('.md#')
-						? ` data-workshop-local-link="${escapeHtml(href)}"`
-						: '';
-					return `<a href="${link}"${localLink}>${text}</a>`;
-				})
-				.replace(/`([^`]+)`/gu, '<code>$1</code>')
-				.replace(/\*\*([^*]+)\*\*/gu, '<strong>$1</strong>')
-				.replace(/_([^_]+)_/gu, '<em>$1</em>');
-
-			const stripMarkdown = (value) => String(value)
-				.replace(/!\[([^\]]*)\]\([^)]+\)/gu, '$1')
-				.replace(/\[([^\]]+)\]\([^)]+\)/gu, '$1')
-				.replace(/`([^`]+)`/gu, '$1')
-				.replace(/\*\*([^*]+)\*\*/gu, '$1')
-				.replace(/_([^_]+)_/gu, '$1')
-				.replace(/<[^>]+>/gu, '')
-				.trim();
-
-			const slugId = (text) => text
-				.toLowerCase()
-				.replace(/[^\w\s-]/gu, '')
-				.replace(/[\s_]+/gu, '-')
-				.replace(/^-+|-+$/gu, '');
-
-			const renderDetailsBlock = (markup) => {
-				const match = String(markup).match(/^<details>\s*<summary>([\s\S]*?)<\/summary>\s*([\s\S]*?)\s*<\/details>$/u);
-				if (!match) {
-					return `<div class="aw-workshop-details-body">${renderStepBody(markup)}</div>`;
-				}
-
-				const [, summary, body] = match;
-				return [
-					'<details class="aw-workshop-details">',
-					`<summary>${renderInlineMarkdown(summary.trim())}</summary>`,
-					`<div class="aw-workshop-details-body">${renderStepBody(body.trim())}</div>`,
-					'</details>',
-				].join('');
-			};
-
-			const renderEntryPathCards = (rows) => {
-				const cards = rows.map((row) => {
-					const [audience = '', nextStep = '', fit = ''] = row;
-					return [
-						'<article class="aw-workshop-entry-card">',
-						`<p class="aw-workshop-entry-card-kicker">Entry path</p>`,
-						`<h4>${renderInlineMarkdown(audience)}</h4>`,
-						`<p class="aw-workshop-entry-card-summary">${renderInlineMarkdown(fit)}</p>`,
-						'<div class="aw-workshop-entry-card-next">',
-							'<span>Recommended next step</span>',
-							`<p>${renderInlineMarkdown(nextStep)}</p>`,
-						'</div>',
-						'</article>',
-					].join('');
-				});
-
-				return `<section class="aw-workshop-entry-grid">${cards.join('')}</section>`;
-			};
-
-			const normalizeStepBody = (step) => {
-				if (step.key !== '00-welcome') return step.body || '';
-				return String(step.body || '').replace(
-					'- [ ] I picked the row in the table above that best matches how I want to work today',
-					'- [ ] I picked the entry path above that best matches how I want to work today',
-				);
-			};
-
-			const renderStepBody = (body) => {
-				const lines = String(body || '').split('\n');
-				const blocks = [];
-				let paragraph = [];
-				let list = [];
-				let orderedList = [];
-				let checklist = [];
-				let tableRows = [];
-				let code = [];
-				let codeLanguage = '';
-				let inCode = false;
-				let detailsLines = [];
-				let inDetails = false;
-				let admonitionType = '';
-				let admonitionLines = [];
-
-				const flushParagraph = () => {
-					if (paragraph.length === 0) return;
-					blocks.push(`<p>${renderInlineMarkdown(paragraph.join(' '))}</p>`);
-					paragraph = [];
-				};
-
-				const flushList = () => {
-					if (list.length > 0) {
-						blocks.push(`<ul>${list.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join('')}</ul>`);
-						list = [];
-					}
-					if (orderedList.length > 0) {
-						blocks.push(`<ol>${orderedList.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join('')}</ol>`);
-						orderedList = [];
-					}
-					if (checklist.length > 0) {
-						blocks.push(`<ul class="aw-workshop-checklist">${checklist.join('')}</ul>`);
-						checklist = [];
-					}
-				};
-
-				const flushTable = () => {
-					if (tableRows.length === 0) return;
-					const [header, , ...body] = tableRows;
-					if (!header) { tableRows = []; return; }
-					if (
-						header.length >= 3
-						&& header[0] === "If you're a..."
-						&& header[1] === 'Recommended setup adventure'
-						&& header[2] === 'Why this path fits'
-					) {
-						blocks.push(renderEntryPathCards(body));
-						tableRows = [];
-						return;
-					}
-					const th = header.map((cell) => `<th>${renderInlineMarkdown(cell)}</th>`).join('');
-					const rows = body.map((row) => `<tr>${row.map((cell) => `<td>${renderInlineMarkdown(cell)}</td>`).join('')}</tr>`).join('');
-					blocks.push(`<div class="aw-workshop-table-wrap"><table><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>`);
-					tableRows = [];
-				};
-
-				const flushAdmonition = () => {
-					if (!admonitionType) return;
-					const content = admonitionLines.join('\n');
-					blocks.push(`<aside class="aw-workshop-admonition aw-workshop-admonition-${admonitionType.toLowerCase()}">${renderDetailsBlock(content)}</aside>`);
-					admonitionType = '';
-					admonitionLines = [];
-				};
-
-				for (const line of lines) {
-					if (line.startsWith('```')) {
-						flushAdmonition();
-						if (inCode) {
-							blocks.push(`<pre><code class="language-${escapeHtml(codeLanguage)}">${escapeHtml(code.join('\n'))}</code></pre>`);
-							code = [];
-							codeLanguage = '';
-							inCode = false;
-						} else {
-							flushParagraph();
-							flushList();
-							flushTable();
-							codeLanguage = line.slice(3).trim();
-							inCode = true;
-						}
-						continue;
-					}
-
-					if (inCode) {
-						code.push(line);
-						continue;
-					}
-
-					const trimmed = line.trim();
-					if (trimmed === '<details>') {
-						flushParagraph();
-						flushList();
-						flushTable();
-						flushAdmonition();
-						inDetails = true;
-						detailsLines = [trimmed];
-						continue;
-					}
-
-					if (inDetails) {
-						detailsLines.push(line);
-						if (trimmed === '</details>') {
-							blocks.push(renderDetailsBlock(detailsLines.join('\n')));
-							detailsLines = [];
-							inDetails = false;
-						}
-						continue;
-					}
-
-					if (!trimmed || trimmed === '---') {
-						flushParagraph();
-						flushList();
-						flushTable();
-						flushAdmonition();
-						continue;
-					}
-
-					// GitHub-flavored admonitions: > [!TYPE]
-					if (trimmed.startsWith('>')) {
-						const admonitionMatch = trimmed.match(/^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/iu);
-						if (admonitionMatch) {
-							flushParagraph();
-							flushList();
-							flushTable();
-							flushAdmonition();
-							admonitionType = admonitionMatch[1];
-							admonitionLines = [];
-							continue;
-						}
-						const continuationText = trimmed.replace(/^>\s?/u, '');
-						if (admonitionType) {
-							if (continuationText) admonitionLines.push(continuationText);
-							continue;
-						}
-						flushParagraph();
-						flushList();
-						flushTable();
-						blocks.push(`<aside>${renderInlineMarkdown(continuationText)}</aside>`);
-						continue;
-					}
-
-					// Flush open admonition before non-blockquote lines
-					if (admonitionType) flushAdmonition();
-
-					// Tables: lines with pipes
-					if (trimmed.startsWith('|')) {
-						flushParagraph();
-						flushList();
-						const cells = trimmed.slice(1, -1).split('|').map((c) => c.trim());
-						tableRows.push(cells);
-						continue;
-					}
-					if (tableRows.length > 0) flushTable();
-
-					const heading = trimmed.match(/^(#{1,4})\s+(.+)$/u);
-					if (heading) {
-						flushParagraph();
-						flushList();
-						const level = Math.min(heading[1].length + 1, 4);
-						const id = slugId(heading[2].replace(/[*_`[\]]/gu, ''));
-						blocks.push(`<h${level} id="${id}">${renderInlineMarkdown(heading[2])}</h${level}>`);
-						continue;
-					}
-
-					const checklistItem = trimmed.match(/^- \[([ x])\]\s+(.+)$/iu);
-					if (checklistItem) {
-						flushParagraph();
-						list = [];
-						orderedList = [];
-						const checked = checklistItem[1].toLowerCase() === 'x' ? ' checked' : '';
-						checklist.push(`<li><label><input type="checkbox" disabled${checked} /> <span>${renderInlineMarkdown(checklistItem[2])}</span></label></li>`);
-						continue;
-					}
-
-					const orderedItem = trimmed.match(/^\d+\.\s+(.+)$/u);
-					if (orderedItem) {
-						flushParagraph();
-						checklist = [];
-						list = [];
-						orderedList.push(orderedItem[1]);
-						continue;
-					}
-
-					const listItem = trimmed.match(/^-\s+(.+)$/u);
-					if (listItem) {
-						flushParagraph();
-						checklist = [];
-						orderedList = [];
-						list.push(listItem[1]);
-						continue;
-					}
-
-					paragraph.push(trimmed);
-				}
-
-				flushParagraph();
-				flushList();
-				flushTable();
-				flushAdmonition();
-				return blocks.join('');
-			};
-
 			const renderTutorialStep = (step) => {
-				return renderStepBody(normalizeStepBody(step));
+				return step.html || '';
 			};
 
 			const calculateProgressPercent = (stepIndex, flowLength) => {
@@ -993,31 +660,40 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			const stepBubbles = root.querySelector('[data-workshop-step-bubbles]');
 			let setupStep = 'workspace';
 
-			const showSetupStep = (stepName) => {
+			const showSetupStep = (stepName, opts = {}) => {
 				setupStep = stepName === 'scenario' ? 'scenario' : 'workspace';
 				setupSteps.forEach((step) => {
 					step.hidden = step.getAttribute('data-workshop-setup-step') !== setupStep;
 				});
 				render();
+				if (opts.pushHistory !== false && setupStep === 'scenario') {
+					history.pushState(null, '', buildHashUrl('setup-scenario', state.journeyId, null, null));
+				}
 			};
 
-			const showSetup = (options = {}) => {
-				const shouldScroll = options.scroll !== false;
+			const showSetup = (opts = {}) => {
+				const shouldScroll = opts.scroll !== false;
 				setupScreen.hidden = false;
 				tutorialScreen.hidden = true;
 				root.classList.remove('is-tutorial-active');
-				showSetupStep('workspace');
+				showSetupStep('workspace', { pushHistory: false });
+				if (opts.pushHistory !== false) {
+					history.pushState(null, '', buildHashUrl('setup-workspace', null, null, null));
+				}
 				if (shouldScroll) {
 					root.scrollIntoView({ behavior: 'smooth', block: 'start' });
 				}
 			};
 
-			const showTutorial = () => {
+			const showTutorial = (opts = {}) => {
 				ensureCurrentStepIsVisible();
 				render();
 				setupScreen.hidden = true;
 				tutorialScreen.hidden = false;
 				root.classList.add('is-tutorial-active');
+				if (opts.pushHistory !== false) {
+					history.pushState(null, '', buildHashUrl('tutorial', state.journeyId, state.scenarioId, state.stepKey));
+				}
 				root.scrollIntoView({ behavior: 'smooth', block: 'start' });
 				track('Workshop Started', { journey: state.journeyId, scenario: state.scenarioId });
 			};
@@ -1026,6 +702,26 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 			const getFallbackStepKey = (flow = getFlow()) => {
 				return flow[0] || initialStep || allStepKeys[0] || '';
+			};
+
+			// Applies valid fields from a parsed hash state object onto the mutable state.
+			// Used by the popstate handler to synchronize state with the URL on back/forward navigation.
+			// All IDs in parsed are pre-validated by parseHash; apply directly without re-checking.
+			const applyHashState = (parsed) => {
+				if (parsed.journeyId) {
+					state.journeyId = parsed.journeyId;
+				}
+				if (parsed.scenarioId) {
+					state.scenarioId = parsed.scenarioId;
+				} else {
+					// No valid scenario in the URL: clear scenario and reset step so the picker
+					// shows no pre-selected value and forward-navigation restarts at the first step.
+					state.scenarioId = '';
+					state.stepKey = getFallbackStepKey();
+				}
+				if (parsed.stepKey) {
+					state.stepKey = parsed.stepKey;
+				}
 			};
 
 			const ensureCurrentStepIsVisible = () => {
@@ -1040,6 +736,9 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				state.stepKey = stepKey;
 				saveState();
 				render();
+				if (options.pushHistory !== false && tutorialScreen && !tutorialScreen.hidden) {
+					history.pushState(null, '', buildHashUrl('tutorial', state.journeyId, state.scenarioId, stepKey));
+				}
 				if (!options.silent) {
 					track('Workshop Step Viewed', {
 						journey: state.journeyId,
@@ -1225,9 +924,33 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				}
 			});
 
+			// Routes the UI to the screen described by a parsed hash state object,
+			// without pushing a new history entry (used by popstate and initial load).
+			const routeToScreen = (parsed, opts = {}) => {
+				const scroll = opts.scroll !== false;
+				if (parsed.screen === 'tutorial') {
+					showTutorial({ pushHistory: false });
+				} else if (parsed.screen === 'setup-scenario') {
+					showSetup({ pushHistory: false, scroll });
+					showSetupStep('scenario', { pushHistory: false });
+				} else {
+					showSetup({ pushHistory: false, scroll });
+				}
+			};
+
+			window.addEventListener('popstate', () => {
+				const parsed = parseHash();
+				applyHashState(parsed);
+				saveState();
+				routeToScreen(parsed);
+			});
+
+			// Replace the initial history entry with the canonical URL derived from the effective
+			// parsed state. This normalizes invalid or partial hashes (e.g. #j=unknown&s=unknown
+			// becomes the plain path) so that back navigation works correctly.
 			ensureCurrentStepIsVisible();
-			render();
-			showSetup({ scroll: false });
+			history.replaceState(null, '', buildHashUrl(hashOnLoad.screen, hashOnLoad.journeyId, hashOnLoad.scenarioId, hashOnLoad.stepKey));
+			routeToScreen(hashOnLoad, { scroll: false });
 		}
 	</script>
 </section>
@@ -1748,6 +1471,20 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		color: var(--aw-text-muted);
 	}
 
+	.aw-workshop-step-content :global(.aw-workshop-admonition-title) {
+		margin: 0 0 0.4rem;
+		font-size: 0.78rem;
+		font-weight: 700;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+		color: inherit;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-admonition-note) {
+		border-left-color: #4e9bf0;
+		background: rgba(78, 155, 240, 0.09);
+	}
+
 	.aw-workshop-step-content :global(.aw-workshop-admonition-warning),
 	.aw-workshop-step-content :global(.aw-workshop-admonition-caution) {
 		border-left-color: #d4a008;
@@ -1920,6 +1657,16 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	}
 
 	@media (max-width: 50rem) {
+		:global(.content-panel:has([data-workshop-root])),
+		:global(.sl-markdown-content:has(> [data-workshop-root])) {
+			padding-inline: 0;
+		}
+
+		.aw-workshop {
+			gap: 0.75rem;
+			margin-top: 0;
+		}
+
 		.aw-workshop-flow-header {
 			display: none;
 		}
@@ -1950,6 +1697,10 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		.aw-workshop-step-content {
 			margin-top: 0;
 			padding: 0.85rem;
+			border: none;
+			border-radius: 0;
+			background: transparent;
+			box-shadow: none;
 		}
 
 		.aw-workshop-step-content :global(p),
@@ -1975,6 +1726,11 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		.aw-workshop-panel-header,
 		.aw-workshop-panel-footer {
 			flex-direction: column;
+		}
+
+		.aw-workshop-panel-header,
+		.aw-workshop-panel-footer {
+			padding-inline: 0.85rem;
 		}
 
 		.aw-workshop-inline-button,

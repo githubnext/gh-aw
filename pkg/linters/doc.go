@@ -1,14 +1,15 @@
 // Package linters is a namespace for gh-aw's custom Go analysis linters.
 //
-// All 51 active analyzers:
+// All 52 active analyzers:
 //
 //   - appendbytestring — flags append(b, []byte(s)...) calls where s is a string that can be simplified to append(b, s...)
+//   - appendoneelement — flags append(s, []T{x}...) calls where a single-element slice literal is spread and can be simplified to append(s, x)
 //   - bytesbufferstring — reports string(buf.Bytes()) calls where buf is a bytes.Buffer value and suggests buf.String() instead
 //   - bytescomparestring — flags string(a) == string(b) and string(a) != string(b) comparisons where a and b are []byte values and recommends bytes.Equal for clearer intent
 //   - contextcancelnotdeferred — flags context cancel functions called directly instead of deferred
 //   - ctxbackground — flags context.Background() inside functions that already receive a context
 //   - deferinloop — flags defer statements placed directly inside for or range loop bodies
-//   - errorfwrapv — flags fmt.Errorf calls that format error arguments with %v instead of %w
+//   - errorfwrapv — flags fmt.Errorf calls that pass error arguments without %w wrapping
 //   - errormessage — flags non-actionable error message patterns in changed files
 //   - errortypeassertion — flags type assertions from error to concrete types and recommends errors.As
 //   - errstringmatch — flags brittle strings.Contains(err.Error(), "...") checks

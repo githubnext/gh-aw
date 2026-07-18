@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/go/analysis/multichecker"
 
 	"github.com/github/gh-aw/pkg/linters/appendbytestring"
+	"github.com/github/gh-aw/pkg/linters/appendoneelement"
 	"github.com/github/gh-aw/pkg/linters/bytesbufferstring"
 	"github.com/github/gh-aw/pkg/linters/bytescomparestring"
 	"github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred"
@@ -64,6 +65,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/timeafterleak"
 	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
 	"github.com/github/gh-aw/pkg/linters/tolowerequalfold"
+	"github.com/github/gh-aw/pkg/linters/trimleftright"
 	"github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion"
 	"github.com/github/gh-aw/pkg/linters/wgdonenotdeferred"
 	"github.com/github/gh-aw/pkg/linters/writebytestring"
@@ -72,6 +74,7 @@ import (
 func main() {
 	multichecker.Main(
 		appendbytestring.Analyzer,
+		appendoneelement.Analyzer,
 		bytesbufferstring.Analyzer,
 		bytescomparestring.Analyzer,
 		contextcancelnotdeferred.Analyzer,
@@ -119,6 +122,7 @@ func main() {
 		timeafterleak.Analyzer,
 		timesleepnocontext.Analyzer,
 		tolowerequalfold.Analyzer,
+		trimleftright.Analyzer,
 		uncheckedtypeassertion.Analyzer,
 		wgdonenotdeferred.Analyzer,
 		writebytestring.Analyzer,
