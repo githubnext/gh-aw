@@ -206,3 +206,79 @@ func TestBuildContinuationIfNeeded(t *testing.T) {
 		assert.Nil(t, c, "expected nil when no runs were processed")
 	})
 }
+
+func TestComputeLogsBatchSize(t *testing.T) {
+	tests := []struct {
+		name            string
+		workflowName    string
+		count           int
+		processedCount  int
+		fetchAllInRange bool
+		want            int
+	}{
+		{
+			name:           "default batch size for named workflow",
+			workflowName:   "logs.yml",
+			count:          100,
+			processedCount: 0,
+			want:           BatchSize,
+		},
+		{
+			name:           "larger default for all workflows",
+			count:          100,
+			processedCount: 0,
+			want:           BatchSizeForAllWorkflows,
+		},
+		{
+			name:           "small remaining count uses buffered batch size",
+			workflowName:   "logs.yml",
+			count:          10,
+			processedCount: 8,
+			want:           6,
+		},
+		{
+			name:            "date range keeps default batch size",
+			workflowName:    "logs.yml",
+			count:           10,
+			processedCount:  8,
+			fetchAllInRange: true,
+			want:            BatchSize,
+		},
+		{
+			name:           "all workflows keep minimum scan size",
+			count:          10,
+			processedCount: 8,
+			want:           BatchSizeForAllWorkflows,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, computeLogsBatchSize(tt.workflowName, tt.count, tt.processedCount, tt.fetchAllInRange))
+		})
+	}
+}
+
+func TestHandleEmptyWorkflowRunBatch(t *testing.T) {
+	t.Run("stop when pagination exhausted", func(t *testing.T) {
+		cursor, shouldContinue, shouldStop := handleEmptyWorkflowRunBatch(workflowRunBatch{
+			totalFetched: 5,
+			batchSize:    10,
+		}, false)
+		assert.Empty(t, cursor)
+		assert.False(t, shouldContinue)
+		assert.True(t, shouldStop)
+	})
+
+	t.Run("advance cursor when more pages may exist", func(t *testing.T) {
+		cursorTime := time.Date(2026, time.July, 1, 12, 0, 0, 0, time.UTC)
+		cursor, shouldContinue, shouldStop := handleEmptyWorkflowRunBatch(workflowRunBatch{
+			totalFetched:           BatchSize,
+			batchSize:              BatchSize,
+			oldestFetchedCreatedAt: cursorTime,
+		}, false)
+		assert.Equal(t, cursorTime.Format(time.RFC3339), cursor)
+		assert.True(t, shouldContinue)
+		assert.False(t, shouldStop)
+	})
+}

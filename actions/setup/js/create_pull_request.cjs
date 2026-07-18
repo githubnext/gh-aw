@@ -1143,7 +1143,11 @@ async function main(config = {}) {
       let patchContent = "";
       let isEmpty = true;
       if (hasPatchFile) {
-        patchContent = fs.readFileSync(patchFilePath, "utf8");
+        try {
+          patchContent = fs.readFileSync(patchFilePath, "utf8");
+        } catch (err) {
+          throw new Error(`Failed to read file ${patchFilePath}: ${String(err)}`, { cause: err });
+        }
         isEmpty = !patchContent || !patchContent.trim();
       }
 
@@ -1341,7 +1345,12 @@ async function main(config = {}) {
         }
 
         if (patchFilePath && fs.existsSync(patchFilePath)) {
-          const patchStats = fs.readFileSync(patchFilePath, "utf8");
+          let patchStats;
+          try {
+            patchStats = fs.readFileSync(patchFilePath, "utf8");
+          } catch (err) {
+            throw new Error(`Failed to read file ${patchFilePath}: ${String(err)}`, { cause: err });
+          }
           if (patchStats.trim()) {
             summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
             summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
@@ -1841,7 +1850,11 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
             patchContent = replaceTemporaryIdReferencesInPatch(patchContent, tempIdMap, itemRepo);
             if (patchContent !== originalPatchContent) {
               core.info("Resolved temporary ID references in patch content");
-              fs.writeFileSync(patchFilePath, patchContent, "utf8");
+              try {
+                fs.writeFileSync(patchFilePath, patchContent, "utf8");
+              } catch (err) {
+                throw new Error(`Failed to write file ${patchFilePath}: ${String(err)}`, { cause: err });
+              }
             }
           }
 
@@ -2075,7 +2088,12 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
                 // Read patch content for preview
                 let patchPreview = "";
                 if (patchFilePath && fs.existsSync(patchFilePath)) {
-                  const patchContent = fs.readFileSync(patchFilePath, "utf8");
+                  let patchContent;
+                  try {
+                    patchContent = fs.readFileSync(patchFilePath, "utf8");
+                  } catch (err) {
+                    throw new Error(`Failed to read file ${patchFilePath}: ${String(err)}`, { cause: err });
+                  }
                   patchPreview = generatePatchPreview(patchContent);
                 }
 
@@ -2586,7 +2604,12 @@ ${patchPreview}`;
           // Read patch content for preview
           let patchPreview = "";
           if (patchFilePath && fs.existsSync(patchFilePath)) {
-            const patchContent = fs.readFileSync(patchFilePath, "utf8");
+            let patchContent;
+            try {
+              patchContent = fs.readFileSync(patchFilePath, "utf8");
+            } catch (err) {
+              throw new Error(`Failed to read file ${patchFilePath}: ${String(err)}`, { cause: err });
+            }
             patchPreview = generatePatchPreview(patchContent);
           }
 
@@ -2646,7 +2669,12 @@ ${patchPreview}`;
         // Read patch content for preview
         let patchPreview = "";
         if (patchFilePath && fs.existsSync(patchFilePath)) {
-          const patchContent = fs.readFileSync(patchFilePath, "utf8");
+          let patchContent;
+          try {
+            patchContent = fs.readFileSync(patchFilePath, "utf8");
+          } catch (err) {
+            throw new Error(`Failed to read file ${patchFilePath}: ${String(err)}`, { cause: err });
+          }
           patchPreview = generatePatchPreview(patchContent);
         }
 

@@ -43,8 +43,12 @@ function patchAWFChrootConfig(options = {}) {
   };
 
   const output = `${JSON.stringify(config)}\n`;
-  fs.writeFileSync(configPath, output);
-  fs.writeFileSync(artifactConfigPath, output);
+  try {
+    fs.writeFileSync(configPath, output);
+    fs.writeFileSync(artifactConfigPath, output);
+  } catch (err) {
+    throw new Error(`Failed to write chroot config: ${String(err)}`, { cause: err });
+  }
   return output;
 }
 

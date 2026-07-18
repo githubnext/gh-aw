@@ -30,7 +30,12 @@ async function main() {
     core.setFailed(`${ERR_VALIDATION}: Threat detection template not found at: ${templatePath}`);
     return;
   }
-  const templateContent = fs.readFileSync(templatePath, "utf-8");
+  let templateContent;
+  try {
+    templateContent = fs.readFileSync(templatePath, "utf-8");
+  } catch (err) {
+    throw new Error(`Failed to read file ${templatePath}: ${String(err)}`, { cause: err });
+  }
   // Check if prompt file exists (soft check; detection can continue with fallback context)
   // The agent artifact is downloaded to /tmp/gh-aw/threat-detection/
   // GitHub Actions preserves the directory structure from the uploaded artifact
@@ -128,8 +133,12 @@ async function main() {
   }
 
   // Write prompt file
-  fs.mkdirSync("/tmp/gh-aw/aw-prompts", { recursive: true });
-  fs.writeFileSync("/tmp/gh-aw/aw-prompts/prompt.txt", promptContent);
+  try {
+    fs.mkdirSync("/tmp/gh-aw/aw-prompts", { recursive: true });
+    fs.writeFileSync("/tmp/gh-aw/aw-prompts/prompt.txt", promptContent);
+  } catch (err) {
+    throw new Error(`Failed to prepare threat detection prompt file: ${String(err)}`, { cause: err });
+  }
   core.exportVariable("GH_AW_PROMPT", "/tmp/gh-aw/aw-prompts/prompt.txt");
 
   // Note: creation of /tmp/gh-aw/threat-detection and detection.log is handled by a separate shell step

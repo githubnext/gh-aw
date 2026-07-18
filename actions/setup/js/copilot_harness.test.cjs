@@ -54,6 +54,7 @@ const {
   shouldRetryFailedExecution,
   writeCopilotOutputs,
   parseCopilotSDKServerArgsFromEnv,
+  applyCopilotWireAPI,
 } = require("./copilot_harness.cjs");
 
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard } = require("./harness_retry_guard.cjs");
@@ -2291,6 +2292,87 @@ process.exit(1);`,
       // Harness exits 1 because no expected output was produced
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("detected numerous permission-denied issues — not retrying");
+    });
+  });
+
+  describe("applyCopilotWireAPI", () => {
+    afterEach(() => {
+      delete process.env.COPILOT_MODEL;
+      delete process.env.COPILOT_PROVIDER_WIRE_API;
+    });
+
+    /** @returns {Record<string, unknown>} */
+    function makeModelsJson() {
+      return {
+        providers: {
+          "github-copilot": {
+            models: {
+              "gpt-5-mini": { wire_api: "responses" },
+              "gpt-5.5": { wire_api: "responses" },
+              "gemini-2.5-pro": { wire_api: "completions" },
+              "mai-code-1-flash-picker": { wire_api: "responses" },
+              "claude-sonnet-4": {},
+            },
+          },
+        },
+      };
+    }
+
+    it("sets COPILOT_PROVIDER_WIRE_API=responses for a responses model", () => {
+      process.env.COPILOT_MODEL = "gpt-5-mini";
+      applyCopilotWireAPI({ modelsJson: makeModelsJson(), logger: () => {} });
+      expect(process.env.COPILOT_PROVIDER_WIRE_API).toBe("responses");
+    });
+
+    it("sets COPILOT_PROVIDER_WIRE_API=completions for a completions model", () => {
+      process.env.COPILOT_MODEL = "gemini-2.5-pro";
+      applyCopilotWireAPI({ modelsJson: makeModelsJson(), logger: () => {} });
+      expect(process.env.COPILOT_PROVIDER_WIRE_API).toBe("completions");
+    });
+
+    it("does not override when COPILOT_PROVIDER_WIRE_API is already set", () => {
+      process.env.COPILOT_MODEL = "gpt-5-mini";
+      process.env.COPILOT_PROVIDER_WIRE_API = "completions";
+      const logs = [];
+      applyCopilotWireAPI({ modelsJson: makeModelsJson(), logger: msg => logs.push(msg) });
+      expect(process.env.COPILOT_PROVIDER_WIRE_API).toBe("completions");
+      expect(logs.some(l => l.includes("already set"))).toBe(true);
+    });
+
+    it("leaves COPILOT_PROVIDER_WIRE_API unset for models without wire_api entry", () => {
+      process.env.COPILOT_MODEL = "claude-sonnet-4";
+      applyCopilotWireAPI({ modelsJson: makeModelsJson(), logger: () => {} });
+      expect(process.env.COPILOT_PROVIDER_WIRE_API).toBeUndefined();
+    });
+
+    it("leaves COPILOT_PROVIDER_WIRE_API unset for unknown models", () => {
+      process.env.COPILOT_MODEL = "some-unknown-byok-model";
+      applyCopilotWireAPI({ modelsJson: makeModelsJson(), logger: () => {} });
+      expect(process.env.COPILOT_PROVIDER_WIRE_API).toBeUndefined();
+    });
+
+    it("is case-insensitive for the model name", () => {
+      process.env.COPILOT_MODEL = "GPT-5-MINI";
+      applyCopilotWireAPI({ modelsJson: makeModelsJson(), logger: () => {} });
+      expect(process.env.COPILOT_PROVIDER_WIRE_API).toBe("responses");
+    });
+
+    it("strips query parameters before catalog lookup (e.g. model?effort=high)", () => {
+      process.env.COPILOT_MODEL = "gpt-5-mini?effort=high";
+      applyCopilotWireAPI({ modelsJson: makeModelsJson(), logger: () => {} });
+      expect(process.env.COPILOT_PROVIDER_WIRE_API).toBe("responses");
+    });
+
+    it("skips configuration when COPILOT_MODEL is empty", () => {
+      process.env.COPILOT_MODEL = "";
+      applyCopilotWireAPI({ modelsJson: makeModelsJson(), logger: () => {} });
+      expect(process.env.COPILOT_PROVIDER_WIRE_API).toBeUndefined();
+    });
+
+    it("skips configuration when modelsJson is null", () => {
+      process.env.COPILOT_MODEL = "gpt-5-mini";
+      applyCopilotWireAPI({ modelsJson: null, logger: () => {} });
+      expect(process.env.COPILOT_PROVIDER_WIRE_API).toBeUndefined();
     });
   });
 });

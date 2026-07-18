@@ -139,7 +139,12 @@ function getPromptPath(name) {
  * @returns {string} Rendered template with placeholders replaced
  */
 function renderTemplateFromFile(templatePath, context) {
-  const template = fs.readFileSync(templatePath, "utf8");
+  let template;
+  try {
+    template = fs.readFileSync(templatePath, "utf8");
+  } catch (err) {
+    throw new Error(`Failed to read file ${templatePath}: ${String(err)}`, { cause: err });
+  }
   return renderTemplate(template, context);
 }
 

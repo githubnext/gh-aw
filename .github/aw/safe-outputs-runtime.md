@@ -6,6 +6,11 @@ description: Safe-output reference for runtime defaults, custom jobs, scripts, a
 
 The `report-incomplete` safe-output is enabled by default and is distinct from `noop`. Use it when required tools or data are unavailable and the task cannot be meaningfully performed (e.g., MCP server crash, missing authentication, inaccessible repository). When an agent emits `report_incomplete`, gh-aw activates failure handling even when the agent process exits 0 — preventing empty outputs from being classified as successful, so every unrecoverable failure is tracked.
 
+**Per-handler modifiers** — most handlers accept `max`, `github-token`, `github-app`, and `staged` to override the global equivalents for that one output type. Two extras:
+
+- `issue-intent:` (boolean) on `close-issue`, `set-issue-type`, `set-issue-field`, `assign-to-user`, and `assign-to-agent` — enables issue-intent metadata (rationale/confidence/suggest) fields and their schema requirements on that tool's payload.
+- `normalize-closing-keywords:` (boolean) on body-carrying handlers (`create-issue`, `add-comment`, `create-pull-request`, …) — strips backticks around recognized issue-closing keywords so they stay active.
+
 - `jobs:` - Custom safe-output jobs registered as MCP tools for third-party integrations
 
   ```yaml

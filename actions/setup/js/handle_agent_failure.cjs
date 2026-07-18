@@ -1475,7 +1475,12 @@ function buildToolDenialsExceededContext(events, workflowId) {
   const recentToolCallsList = Array.isArray(latestEvent.recentToolCalls) && latestEvent.recentToolCalls.length > 0 ? latestEvent.recentToolCalls.map(toolCall => `- \`${toolCall}\``).join("\n") : "- _No tool calls captured_";
 
   const templatePath = getPromptPath("tool_denials_exceeded_context.md");
-  const template = fs.readFileSync(templatePath, "utf8");
+  let template;
+  try {
+    template = fs.readFileSync(templatePath, "utf8");
+  } catch (err) {
+    throw new Error(`Failed to read file ${templatePath}: ${String(err)}`, { cause: err });
+  }
   return (
     "\n" +
     renderTemplate(template, {
@@ -1641,7 +1646,12 @@ function buildInferenceAccessErrorContext(hasInferenceAccessError) {
   }
 
   const templatePath = getPromptPath("inference_access_error.md");
-  const template = fs.readFileSync(templatePath, "utf8");
+  let template;
+  try {
+    template = fs.readFileSync(templatePath, "utf8");
+  } catch (err) {
+    throw new Error(`Failed to read file ${templatePath}: ${String(err)}`, { cause: err });
+  }
   return "\n" + template;
 }
 
@@ -1874,7 +1884,12 @@ function buildLockdownCheckFailedContext(hasLockdownCheckFailed) {
   }
 
   const templatePath = getPromptPath("lockdown_check_failed.md");
-  const template = fs.readFileSync(templatePath, "utf8");
+  let template;
+  try {
+    template = fs.readFileSync(templatePath, "utf8");
+  } catch (err) {
+    throw new Error(`Failed to read file ${templatePath}: ${String(err)}`, { cause: err });
+  }
   return "\n" + template;
 }
 
@@ -1892,7 +1907,12 @@ function buildOAuthTokenCheckFailedContext(hasOAuthTokenCheckFailed, runUrl) {
   }
 
   const templatePath = getPromptPath("oauth_token_check_failed.md");
-  const template = fs.readFileSync(templatePath, "utf8");
+  let template;
+  try {
+    template = fs.readFileSync(templatePath, "utf8");
+  } catch (err) {
+    throw new Error(`Failed to read file ${templatePath}: ${String(err)}`, { cause: err });
+  }
   return "\n" + renderTemplate(template, { run_url: runUrl });
 }
 
@@ -1909,7 +1929,12 @@ function buildStaleLockFileFailedContext(hasStaleLockFileFailed) {
   }
 
   const templatePath = getPromptPath("stale_lock_file_failed.md");
-  const template = fs.readFileSync(templatePath, "utf8");
+  let template;
+  try {
+    template = fs.readFileSync(templatePath, "utf8");
+  } catch (err) {
+    throw new Error(`Failed to read file ${templatePath}: ${String(err)}`, { cause: err });
+  }
   return "\n" + template;
 }
 

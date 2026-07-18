@@ -46,3 +46,52 @@ func TestSpec_PublicAPI_Stderr(t *testing.T) {
 	require.NotNil(t, w, "Stderr should return a non-nil io.Writer")
 	assert.Implements(t, (*io.Writer)(nil), w, "Stderr should return an io.Writer as documented")
 }
+
+// TestSpec_PublicAPI_Stdout validates the documented behavior of Stdout from the
+// README.md specification.
+func TestSpec_PublicAPI_Stdout(t *testing.T) {
+	w := colorwriter.Stdout()
+	require.NotNil(t, w, "Stdout should return a non-nil io.Writer")
+	assert.Implements(t, (*io.Writer)(nil), w, "Stdout should return an io.Writer as documented")
+}
+
+// TestSpec_PublicAPI_Degrade validates the documented behavior of Degrade from the
+// README.md specification.
+func TestSpec_PublicAPI_Degrade(t *testing.T) {
+	const ansiRed = "\x1b[31mhello\x1b[0m"
+
+	tests := []struct {
+		name    string
+		environ []string
+		want    string
+	}{
+		{
+			name:    "strips ansi when NO_COLOR is set",
+			environ: []string{"NO_COLOR=1", "TERM=xterm-256color"},
+			want:    "hello",
+		},
+		{
+			name:    "strips ansi for dumb terminals",
+			environ: []string{"TERM=dumb"},
+			want:    "hello",
+		},
+		{
+			name:    "preserves ansi for forced color profiles",
+			environ: []string{"TERM=xterm-256color", "CLICOLOR_FORCE=1"},
+			want:    ansiRed,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := colorwriter.Degrade(ansiRed, tt.environ)
+			if tt.want == ansiRed {
+				assert.Contains(t, got, "hello")
+				assert.Contains(t, got, "\x1b[31m")
+				assert.Contains(t, got, "\x1b[m")
+				return
+			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

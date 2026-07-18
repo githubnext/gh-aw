@@ -424,7 +424,7 @@ func TestEnsureAddRepositoryInitialized(t *testing.T) {
 			return nil
 		}
 
-		err := ensureAddRepositoryInitialized("", false)
+		err := ensureAddRepositoryInitialized("", false, false)
 		require.NoError(t, err)
 	})
 
@@ -442,6 +442,7 @@ func TestEnsureAddRepositoryInitialized(t *testing.T) {
 			called = true
 			assert.True(t, opts.Verbose)
 			assert.Equal(t, "claude", opts.Engine)
+			assert.True(t, opts.NoGitattributes)
 			assert.True(t, opts.Skill)
 			assert.True(t, opts.Agent)
 			assert.True(t, opts.MCP)
@@ -451,7 +452,7 @@ func TestEnsureAddRepositoryInitialized(t *testing.T) {
 			return nil
 		}
 
-		err := ensureAddRepositoryInitialized("claude", true)
+		err := ensureAddRepositoryInitialized("claude", true, true)
 		require.NoError(t, err)
 		assert.True(t, called)
 	})
@@ -465,7 +466,7 @@ func TestEnsureAddRepositoryInitialized(t *testing.T) {
 			return nil
 		}
 
-		err := ensureAddRepositoryInitialized("", false)
+		err := ensureAddRepositoryInitialized("", false, false)
 		require.NoError(t, err)
 	})
 }

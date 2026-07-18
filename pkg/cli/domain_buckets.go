@@ -1,6 +1,11 @@
 package cli
 
-import "github.com/github/gh-aw/pkg/sliceutil"
+import (
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
+)
+
+var domainBucketsLog = logger.New("cli:domain_buckets")
 
 // DomainBuckets holds allowed and blocked domain lists with accessor methods.
 // This struct is embedded by DomainAnalysis and FirewallAnalysis to share
@@ -44,6 +49,7 @@ type AnalysisBase struct {
 // lists from other into a. It is called by DomainAnalysis.AddMetrics and
 // FirewallAnalysis.AddMetrics to eliminate the shared accumulation logic.
 func (a *AnalysisBase) addBaseMetrics(other *AnalysisBase) {
+	domainBucketsLog.Printf("Merging analysis metrics: +%d total, +%d allowed, +%d blocked requests", other.TotalRequests, other.AllowedRequests, other.BlockedRequests)
 	a.TotalRequests += other.TotalRequests
 	a.AllowedRequests += other.AllowedRequests
 	a.BlockedRequests += other.BlockedRequests
@@ -64,5 +70,7 @@ func mergeDomainList(existing, incoming []string) []string {
 	for _, d := range incoming {
 		domainSet[d] = struct{}{}
 	}
-	return sliceutil.SortedKeys(domainSet)
+	merged := sliceutil.SortedKeys(domainSet)
+	domainBucketsLog.Printf("Merged domain lists: %d existing + %d incoming = %d unique", len(existing), len(incoming), len(merged))
+	return merged
 }

@@ -117,8 +117,12 @@ function loadState(stateFile) {
  */
 function saveState(stateFile, state) {
   const dir = path.dirname(stateFile);
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2) + "\n", "utf8");
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(stateFile, JSON.stringify(state, null, 2) + "\n", "utf8");
+  } catch (err) {
+    throw new Error(`Failed to persist experiment state ${stateFile}: ${String(err)}`, { cause: err });
+  }
 }
 
 /**
@@ -384,7 +388,11 @@ async function main() {
   }
 
   // Ensure the state directory exists so that the cache-save step can find it.
-  fs.mkdirSync(stateDir, { recursive: true });
+  try {
+    fs.mkdirSync(stateDir, { recursive: true });
+  } catch (err) {
+    throw new Error(`Failed to create directory ${stateDir}: ${String(err)}`, { cause: err });
+  }
 
   const state = loadState(stateFile);
 
@@ -452,7 +460,11 @@ async function main() {
   // Only written when at least one experiment was successfully assigned.
   if (Object.keys(assignments).length > 0) {
     const assignmentsFile = path.join(stateDir, "assignments.json");
-    fs.writeFileSync(assignmentsFile, JSON.stringify(assignments, null, 2) + "\n", "utf8");
+    try {
+      fs.writeFileSync(assignmentsFile, JSON.stringify(assignments, null, 2) + "\n", "utf8");
+    } catch (err) {
+      throw new Error(`Failed to write file ${assignmentsFile}: ${String(err)}`, { cause: err });
+    }
     core.info(`Experiment assignments written to ${assignmentsFile}`);
 
     // Emit OTEL resource attributes so every span in this run carries the
