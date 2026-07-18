@@ -146,7 +146,8 @@ function loadExistingGeneratedWorkshopEntries() {
 	// currently configured env-var values (which may differ on a transient failure).
 	const sourceBlock = content.match(/export const workshopSource = \{([\s\S]*?)\};/mu)?.[1] ?? '';
 	const extractStr = (key) => {
-		const m = sourceBlock.match(new RegExp(`\\b${key}:\\s*("(?:[^"\\\\]|\\\\.)*")`, 'u'));
+		const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+		const m = sourceBlock.match(new RegExp(`\\b${escapedKey}:\\s*("(?:[^"\\\\]|\\\\.)*")`, 'u'));
 		return m ? JSON.parse(m[1]) : null;
 	};
 	const cachedRepo = extractStr('repo') ?? workshopRepo;

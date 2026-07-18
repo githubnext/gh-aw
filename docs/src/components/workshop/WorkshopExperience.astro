@@ -90,7 +90,7 @@ function sanitizeWorkshopHtml(html: string) {
 		.replace(/<script\b[^>]*>[\s\S]*?<\/script>/giu, '')
 		.replace(/<style\b[^>]*>[\s\S]*?<\/style>/giu, '')
 		.replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/giu, '')
-		.replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*')/giu, '');
+		.replace(/\s+on[a-zA-Z]+\s*=\s*(?:"[^"]*"|'[^']*')/giu, '');
 }
 
 function rewriteWorkshopHtml(html: string) {
