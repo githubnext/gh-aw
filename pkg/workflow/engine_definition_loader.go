@@ -153,11 +153,13 @@ func loadBuiltinEngineDefinitions() []*EngineDefinition {
 		// marshals the raw "engine:" value (a map[string]any) to JSON; we replicate
 		// that here so the cache key matches exactly.
 		var rawFM map[string]any
-		if jsonErr := yaml.Unmarshal(frontmatterYAML, &rawFM); jsonErr == nil {
-			if engineVal, ok := rawFM["engine"]; ok {
-				if jsonKey, jsonErr := json.Marshal(engineVal); jsonErr == nil {
-					registerBuiltinEngineDefinitionJSON(string(jsonKey))
-				}
+		if jsonErr := yaml.Unmarshal(frontmatterYAML, &rawFM); jsonErr != nil {
+			engineDefinitionLoaderLog.Printf("Warning: failed to unmarshal frontmatter for cache-key registration of %s: %v", path, jsonErr)
+		} else if engineVal, ok := rawFM["engine"]; ok {
+			if jsonKey, jsonErr := json.Marshal(engineVal); jsonErr != nil {
+				engineDefinitionLoaderLog.Printf("Warning: failed to marshal engine value to JSON for cache-key registration of %s: %v", path, jsonErr)
+			} else {
+				registerBuiltinEngineDefinitionJSON(string(jsonKey))
 			}
 		}
 

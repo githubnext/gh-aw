@@ -572,6 +572,29 @@ func parseEngineDefinitionFromJSON(engineJSON string) (*EngineDefinition, error)
 	return &def, nil
 }
 
+// deepCopyAny returns a fully independent copy of v for values produced by
+// yaml.Unmarshal into interface{}. The possible concrete types are:
+// nil, bool, int, float64, string, []any, and map[string]any.
+func deepCopyAny(v any) any {
+	switch val := v.(type) {
+	case map[string]any:
+		cp := make(map[string]any, len(val))
+		for k, elem := range val {
+			cp[k] = deepCopyAny(elem)
+		}
+		return cp
+	case []any:
+		cp := make([]any, len(val))
+		for i, elem := range val {
+			cp[i] = deepCopyAny(elem)
+		}
+		return cp
+	default:
+		// Scalars (nil, bool, int, float64, string) are immutable value types.
+		return v
+	}
+}
+
 // deepCopyEngineDefinition returns a fully independent copy of src. All reference
 // types (pointers, slices, maps) are recursively copied so that neither the caller
 // nor the cache can corrupt the other's state through shared references.
@@ -590,10 +613,12 @@ func deepCopyEngineDefinition(src EngineDefinition) EngineDefinition {
 		copy(dst.Auth, src.Auth)
 	}
 
-	// Options (map[string]any; values are primitives produced by YAML unmarshal)
+	// Options (map[string]any; values may contain nested maps or slices from YAML unmarshal)
 	if src.Options != nil {
 		dst.Options = make(map[string]any, len(src.Options))
-		maps.Copy(dst.Options, src.Options)
+		for k, v := range src.Options {
+			dst.Options[k] = deepCopyAny(v)
+		}
 	}
 
 	// Provider.Auth
