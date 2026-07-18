@@ -513,7 +513,8 @@ describe("add_labels", () => {
     });
 
     it("should prefer the metadata-bearing entry when a duplicate label name appears", async () => {
-      const handler = await main({ max: 10, issue_intent: true });
+      // Default (omitted issue_intent) accepts both strings and objects; deduplication favours the metadata-bearing entry.
+      const handler = await main({ max: 10 });
       const addLabelsCalls = [];
 
       mockGithub.rest.issues.addLabels = async params => {
@@ -617,6 +618,58 @@ describe("add_labels", () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain("Plain string label names are not permitted when issue_intent is explicitly enabled");
       expect(result.error).toContain('"bug"');
+    });
+
+    it("should reject label objects missing rationale or confidence in strict mode", async () => {
+      const handler = await main({ max: 10, issue_intent: true });
+
+      const result = await handler(
+        {
+          item_number: 456,
+          labels: [{ name: "bug" }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('both "rationale" and "confidence"');
+      expect(result.error).toContain('"bug"');
+    });
+
+    it("should reject label object missing confidence in strict mode even when rationale is present", async () => {
+      const handler = await main({ max: 10, issue_intent: true });
+
+      const result = await handler(
+        {
+          item_number: 456,
+          labels: [{ name: "bug", rationale: "Crash on upload" }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('both "rationale" and "confidence"');
+    });
+
+    it("should accept label objects with both rationale and confidence in strict mode", async () => {
+      const handler = await main({ max: 10, issue_intent: true });
+      const addLabelsCalls = [];
+
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          item_number: 456,
+          labels: [{ name: "bug", rationale: "Crash on upload", confidence: "HIGH" }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(addLabelsCalls).toHaveLength(1);
     });
 
     it("should sanitize and trim label names", async () => {
