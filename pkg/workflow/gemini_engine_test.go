@@ -418,9 +418,8 @@ func TestComputeGeminiToolsCore(t *testing.T) {
 	})
 
 	t.Run("bash with specific command before wildcard discards specific entry", func(t *testing.T) {
-		// When a wildcard appears anywhere in the list, only the unrestricted
-		// run_shell_command should be emitted; any pre-wildcard specific entries
-		// (e.g. run_shell_command(git)) must be discarded by the single-pass loop.
+		// A wildcard anywhere in the list means "allow all shell commands".
+		// Specific entries that precede the wildcard must not appear in the output.
 		tools := map[string]any{
 			"bash": []any{"git", "*"},
 		}
