@@ -8,7 +8,7 @@ func badTrimLeft(s string) string {
 	return strings.TrimLeft(s, "foo") // want `strings\.TrimLeft with a multi-character cutset`
 }
 
-// bad: TrimRight with repeated alnum cutset — likely meant TrimSuffix
+// bad: TrimRight with repeated alphanumeric cutset — likely meant TrimSuffix
 func badTrimRight(s string) string {
 	return strings.TrimRight(s, "barr") // want `strings\.TrimRight with a multi-character cutset`
 }

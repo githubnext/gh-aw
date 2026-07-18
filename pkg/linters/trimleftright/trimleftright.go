@@ -50,7 +50,10 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		call := n.(*ast.CallExpr)
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return
+		}
 
 		pos := pass.Fset.PositionFor(call.Pos(), false)
 		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
