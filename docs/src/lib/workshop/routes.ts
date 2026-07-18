@@ -43,10 +43,11 @@ function stripMarkdown(value: string) {
 		.replace(/\*\*([^*]+)\*\*/gu, '$1')
 		.replace(/_([^_]+)_/gu, '$1');
 	let prev;
+	let iterations = 0;
 	do {
 		prev = str;
 		str = str.replace(/<[^>]+>/gu, '');
-	} while (str !== prev);
+	} while (str !== prev && ++iterations < 20);
 	return str.trim();
 }
 
