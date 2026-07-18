@@ -85,6 +85,14 @@ if [ "$ROOTLESS" = "true" ]; then
   fi
 fi
 
+# Clean up any stale AWF chroot directories left by previous runs before we
+# execute awf. Rootless AWF can fail its writeConfigs startup path with EACCES
+# when stale /tmp/awf-*-chroot-home or /tmp/awf-chroot-* directories remain
+# from earlier jobs on the same runner.
+echo "Cleaning up stale AWF chroot directories..."
+sudo find /tmp -maxdepth 1 -name 'awf-*-chroot-home' -type d -exec rm -rf -- {} + 2>/dev/null || true
+sudo find /tmp -maxdepth 1 -name 'awf-chroot-*' -type d -exec rm -rf -- {} + 2>/dev/null || true
+
 # Download URLs
 BASE_URL="https://github.com/${AWF_REPO}/releases/download/${AWF_VERSION}"
 CHECKSUMS_URL="${BASE_URL}/checksums.txt"
