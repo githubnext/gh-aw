@@ -523,6 +523,10 @@ func parseEngineDefinitionFromJSON(engineJSON string) (*EngineDefinition, error)
 			defCopy := def
 			return &defCopy, nil
 		}
+		// Type assertion failure indicates cache corruption or a concurrent Store with
+		// an unexpected type. Log and fall through to re-parse so the caller still works.
+		behaviorDefinedEngineLog.Printf("engineDefinitionCache: unexpected value type %T for key (len=%d); re-parsing", cached, len(engineJSON))
+		engineDefinitionCache.Delete(engineJSON)
 	}
 	var engineData any
 	if err := json.Unmarshal([]byte(engineJSON), &engineData); err != nil {
