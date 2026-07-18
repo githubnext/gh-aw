@@ -401,8 +401,12 @@ async function main() {
 
   core.info(`Found ${servers.length} server(s) in manifest to mount as CLI tools`);
 
-  fs.mkdirSync(CLI_BIN_DIR, { recursive: true });
-  fs.mkdirSync(TOOLS_DIR, { recursive: true });
+  try {
+    fs.mkdirSync(CLI_BIN_DIR, { recursive: true });
+    fs.mkdirSync(TOOLS_DIR, { recursive: true });
+  } catch (err) {
+    throw new Error(`Failed to create MCP CLI directories: ${String(err)}`, { cause: err });
+  }
 
   // The bridge script lives alongside mount_mcp_as_cli.cjs in the setup actions directory.
   // It is accessible inside the AWF sandbox because ${RUNNER_TEMP}/gh-aw is mounted read-only.

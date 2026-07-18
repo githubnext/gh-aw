@@ -75,21 +75,27 @@ export const requireNewUrlTryCatchRule = createRule({
       return null;
     }
 
+    /** Returns true when an expression is a compile-time constant string. */
+    function isStaticStringExpression(arg: TSESTree.CallExpressionArgument): boolean {
+      if (arg.type === AST_NODE_TYPES.Literal && typeof (arg as TSESTree.StringLiteral).value === "string") return true;
+      if (arg.type === AST_NODE_TYPES.TemplateLiteral && (arg as TSESTree.TemplateLiteral).expressions.length === 0) return true;
+      if (arg.type === AST_NODE_TYPES.BinaryExpression && arg.operator === "+") {
+        return isStaticStringExpression(arg.left) && isStaticStringExpression(arg.right);
+      }
+      return false;
+    }
+
     /** Returns true when an argument is a runtime-dynamic expression (not a compile-time constant). */
     function isDynamicArg(arg: TSESTree.CallExpressionArgument): boolean {
       if (arg.type === "SpreadElement") return false;
-      // Literal strings are compile-time constants — no runtime parse risk.
-      if (arg.type === AST_NODE_TYPES.Literal && typeof (arg as TSESTree.StringLiteral).value === "string") return false;
-      // Template literals with no expressions are effectively string constants.
-      if (arg.type === AST_NODE_TYPES.TemplateLiteral && (arg as TSESTree.TemplateLiteral).expressions.length === 0) return false;
-      return true;
+      return !isStaticStringExpression(arg);
     }
 
     /**
-     * Returns true when a base argument is a known-safe compile-time value that never throws.
+     * Returns true when an argument is a known-safe value that never throws in URL position.
      * `import.meta.url` is always a valid absolute URL in ES modules.
      */
-    function isKnownSafeBase(arg: TSESTree.CallExpressionArgument): boolean {
+    function isKnownSafeUrlArgument(arg: TSESTree.CallExpressionArgument): boolean {
       // import.meta.url is a MemberExpression: { object: MetaProperty(import.meta), property: Identifier(url) }
       if (arg.type !== AST_NODE_TYPES.MemberExpression) return false;
       const memberExpr = arg as TSESTree.MemberExpression;
@@ -112,11 +118,12 @@ export const requireNewUrlTryCatchRule = createRule({
 
         // `new URL()` with zero arguments always throws TypeError at runtime — always flag it.
         const noArgs = firstArg === undefined;
-        // Flag when the first argument is a runtime-dynamic expression.
-        const firstArgDynamic = !noArgs && isDynamicArg(firstArg);
+        // Flag when the first argument is a runtime-dynamic expression, excluding known-safe
+        // values such as import.meta.url.
+        const firstArgDynamic = !noArgs && !isKnownSafeUrlArgument(firstArg) && isDynamicArg(firstArg);
         // Flag when the second (base) argument is dynamic and not a known-safe value such as
         // import.meta.url. An invalid base throws the same TypeError as an invalid URL string.
-        const secondArgDynamic = secondArg !== undefined && !isKnownSafeBase(secondArg) && isDynamicArg(secondArg);
+        const secondArgDynamic = secondArg !== undefined && !isKnownSafeUrlArgument(secondArg) && isDynamicArg(secondArg);
 
         if (!noArgs && !firstArgDynamic && !secondArgDynamic) return;
 

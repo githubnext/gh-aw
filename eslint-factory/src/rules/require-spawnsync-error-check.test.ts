@@ -37,6 +37,10 @@ describe("require-spawnsync-error-check", () => {
         `const result = spawnSync("git", ["status"]); if (result.error !== undefined) throw result.error;`,
         // result.error on the right side of || can still guard when the full expression is the test
         `const result = spawnSync("git", ["status"]); if (result.status !== 0 || result.error) throw result.error;`,
+        // single-assignment alias: result.error stored in a const, then guarded
+        `const result = spawnSync("git", ["status"]); const e = result.error; if (e) throw e;`,
+        // single-assignment alias with destructuring: error binding aliased, then guarded
+        `const { status, error } = spawnSync("zip", ["-v"]); const e = error; if (e) throw e;`,
       ],
       invalid: [],
     });
@@ -84,6 +88,16 @@ describe("require-spawnsync-error-check", () => {
         },
         {
           code: `const result = spawnSync("git", ["status"]); const maybeError = result.error ?? null; return maybeError;`,
+          errors: [{ messageId: "missingErrorCheck" }],
+        },
+        {
+          // alias is assigned but only used in a non-guarding position — not a valid error check
+          code: `const result = spawnSync("git", ["status"]); const e = result.error; core.info(String(e));`,
+          errors: [{ messageId: "missingErrorCheck" }],
+        },
+        {
+          // mutable alias: error is stored then overwritten before the guard — not a valid error check
+          code: `const result = spawnSync("git", ["status"]); let e = result.error; e = undefined; if (e) throw e;`,
           errors: [{ messageId: "missingErrorCheck" }],
         },
       ],

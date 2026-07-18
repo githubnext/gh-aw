@@ -224,14 +224,26 @@ function writeInlineSkills(content, workspaceDir, skillsBaseDir, engineId) {
   const skillsDir = path.join(baseDir, dir);
   core.info(`[extractInlineSkills] Engine: "${engineId || "(default)"}" → dir="${dir}" ext="${ext}"`);
   core.info(`[extractInlineSkills] Writing ${skills.length} skill(s) to: ${skillsDir}`);
-  fs.mkdirSync(skillsDir, { recursive: true });
+  try {
+    fs.mkdirSync(skillsDir, { recursive: true });
+  } catch (err) {
+    throw new Error(`Failed to create directory ${skillsDir}: ${String(err)}`, { cause: err });
+  }
 
   for (const skill of skills) {
     const skillPath = path.join(skillsDir, skill.name + ext);
-    fs.mkdirSync(path.dirname(skillPath), { recursive: true });
+    try {
+      fs.mkdirSync(path.dirname(skillPath), { recursive: true });
+    } catch (err) {
+      throw new Error(`Failed to create directory ${path.dirname(skillPath)}: ${String(err)}`, { cause: err });
+    }
     const filteredContent = filterInlineSkillFrontmatter(skill.content, skill.name);
     const skillContent = filteredContent.endsWith("\n") ? filteredContent : filteredContent + "\n";
-    fs.writeFileSync(skillPath, skillContent, "utf8");
+    try {
+      fs.writeFileSync(skillPath, skillContent, "utf8");
+    } catch (err) {
+      throw new Error(`Failed to write file ${skillPath}: ${String(err)}`, { cause: err });
+    }
     core.info(`[extractInlineSkills] Written skill: ${skillPath} (${skillContent.length} bytes)`);
   }
 

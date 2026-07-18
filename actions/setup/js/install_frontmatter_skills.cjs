@@ -146,7 +146,11 @@ async function main() {
   const skills = parseSkillSpecs(process.env.GH_AW_FRONTMATTER_SKILLS || "");
   const skillsDst = path.join("/tmp/gh-aw", skillDir);
 
-  fs.mkdirSync(skillsDst, { recursive: true });
+  try {
+    fs.mkdirSync(skillsDst, { recursive: true });
+  } catch (err) {
+    throw new Error(`Failed to create directory ${skillsDst}: ${String(err)}`, { cause: err });
+  }
 
   core.info(`Installing frontmatter skills to ${skillsDst}`);
   if (skillInstallAgent) {

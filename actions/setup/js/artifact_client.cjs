@@ -291,7 +291,11 @@ class DefaultArtifactClient {
     }
 
     const destination = options.path || process.env.GITHUB_WORKSPACE || process.cwd();
-    fs.mkdirSync(destination, { recursive: true });
+    try {
+      fs.mkdirSync(destination, { recursive: true });
+    } catch (err) {
+      throw new Error(`Failed to create directory ${destination}: ${String(err)}`, { cause: err });
+    }
 
     const apiUrl = new URL(`/repos/${findBy.repositoryOwner}/${findBy.repositoryName}/actions/artifacts/${artifactId}/zip`, process.env.GITHUB_API_URL || "https://api.github.com");
     const redirectResponse = await fetch(apiUrl.toString(), {

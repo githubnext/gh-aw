@@ -124,7 +124,11 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
   // Ensure /tmp/gh-aw directory exists
   const patchDir = path.dirname(patchPath);
   if (!fs.existsSync(patchDir)) {
-    fs.mkdirSync(patchDir, { recursive: true });
+    try {
+      fs.mkdirSync(patchDir, { recursive: true });
+    } catch (err) {
+      throw new Error(`Failed to create directory ${patchDir}: ${String(err)}`, { cause: err });
+    }
   }
 
   let patchGenerated = false;
@@ -469,7 +473,12 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
 
   // Check if patch was generated and has content
   if (patchGenerated && fs.existsSync(patchPath)) {
-    const patchContent = fs.readFileSync(patchPath, "utf8");
+    let patchContent;
+    try {
+      patchContent = fs.readFileSync(patchPath, "utf8");
+    } catch (err) {
+      throw new Error(`Failed to read file ${patchPath}: ${String(err)}`, { cause: err });
+    }
     const patchSize = Buffer.byteLength(patchContent, "utf8");
     const patchLines = patchContent.split("\n").length;
 

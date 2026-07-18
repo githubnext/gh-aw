@@ -659,7 +659,11 @@ function writeCopilotOutputs(results) {
     `model_not_supported_error=${results.modelNotSupportedError}`,
     `http_400_response_error=${results.http400ResponseError}`,
   ];
-  fs.appendFileSync(outputFile, lines.join("\n") + "\n");
+  try {
+    fs.appendFileSync(outputFile, lines.join("\n") + "\n");
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
