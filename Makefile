@@ -1047,7 +1047,7 @@ sync-install-script-hashes:
 .PHONY: recompile
 recompile: build
 	./$(BINARY_NAME) init --codespaces ""
-	./$(BINARY_NAME) compile --validate --verbose --purge
+	./$(BINARY_NAME) compile --validate --verbose --purge --schedule-seed github/gh-aw
 #	./$(BINARY_NAME) compile --dir pkg/cli/workflows --validate --verbose --purge
 
 # Compile workflows under pkg/cli/workflows
