@@ -539,6 +539,29 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				return [...new Set(ordered)].filter((stepKey) => stepMap.has(stepKey));
 			};
 
+			const parseHash = () => {
+				const hash = window.location.hash.slice(1);
+				if (!hash) return { screen: 'setup-workspace', journeyId: null, scenarioId: null, stepKey: null };
+				try {
+					const params = new URLSearchParams(hash);
+					const journeyId = params.get('j');
+					const scenarioId = params.get('s');
+					const stepKey = params.get('t');
+					if (!journeyId) return { screen: 'setup-workspace', journeyId: null, scenarioId: null, stepKey: null };
+					if (!scenarioId) return { screen: 'setup-scenario', journeyId, scenarioId: null, stepKey: null };
+					return { screen: 'tutorial', journeyId, scenarioId, stepKey };
+				} catch {
+					return { screen: 'setup-workspace', journeyId: null, scenarioId: null, stepKey: null };
+				}
+			};
+
+			const buildHashUrl = (screen, journeyId, scenarioId, stepKey) => {
+				const base = window.location.pathname + window.location.search;
+				if (!journeyId || screen === 'setup-workspace') return base;
+				if (screen === 'setup-scenario' || !scenarioId) return `${base}#j=${encodeURIComponent(journeyId)}`;
+				return `${base}#j=${encodeURIComponent(journeyId)}&s=${encodeURIComponent(scenarioId)}&t=${encodeURIComponent(stepKey ?? '')}`;
+			};
+
 			const readState = () => {
 				try {
 					const parsed = JSON.parse(localStorage.getItem(storageKey) || '{}');
@@ -557,6 +580,18 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			};
 
 			const state = readState();
+
+			// Override state from URL hash when present (hash takes precedence over localStorage)
+			const hashOnLoad = parseHash();
+			if (hashOnLoad.journeyId && manifest.journeys.find((j) => j.id === hashOnLoad.journeyId)) {
+				state.journeyId = hashOnLoad.journeyId;
+				if (hashOnLoad.scenarioId && manifest.scenarios.find((s) => s.id === hashOnLoad.scenarioId)) {
+					state.scenarioId = hashOnLoad.scenarioId;
+					if (hashOnLoad.stepKey && stepMap.has(hashOnLoad.stepKey)) {
+						state.stepKey = hashOnLoad.stepKey;
+					}
+				}
+			}
 
 			const saveState = () => {
 				localStorage.setItem(storageKey, JSON.stringify(state));
@@ -810,28 +845,37 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			const stepBubbles = root.querySelector('[data-workshop-step-bubbles]');
 			let setupStep = 'workspace';
 
-			const showSetupStep = (stepName) => {
+			const showSetupStep = (stepName, opts = {}) => {
 				setupStep = stepName === 'scenario' ? 'scenario' : 'workspace';
 				setupSteps.forEach((step) => {
 					step.hidden = step.getAttribute('data-workshop-setup-step') !== setupStep;
 				});
 				render();
+				if (opts.pushHistory !== false && setupStep === 'scenario') {
+					history.pushState(null, '', buildHashUrl('setup-scenario', state.journeyId, null, null));
+				}
 			};
 
-			const showSetup = () => {
+			const showSetup = (opts = {}) => {
 				setupScreen.hidden = false;
 				tutorialScreen.hidden = true;
 				root.classList.remove('is-tutorial-active');
-				showSetupStep('workspace');
+				showSetupStep('workspace', { pushHistory: false });
+				if (opts.pushHistory !== false) {
+					history.pushState(null, '', buildHashUrl('setup-workspace', null, null, null));
+				}
 				root.scrollIntoView({ behavior: 'smooth', block: 'start' });
 			};
 
-			const showTutorial = () => {
+			const showTutorial = (opts = {}) => {
 				ensureCurrentStepIsVisible();
 				render();
 				setupScreen.hidden = true;
 				tutorialScreen.hidden = false;
 				root.classList.add('is-tutorial-active');
+				if (opts.pushHistory !== false) {
+					history.pushState(null, '', buildHashUrl('tutorial', state.journeyId, state.scenarioId, state.stepKey));
+				}
 				root.scrollIntoView({ behavior: 'smooth', block: 'start' });
 				track('Workshop Started', { journey: state.journeyId, scenario: state.scenarioId });
 			};
@@ -840,6 +884,25 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 			const getFallbackStepKey = (flow = getFlow()) => {
 				return flow[0] || initialStep || allStepKeys[0] || '';
+			};
+
+			// Applies valid fields from a parsed hash state object onto the mutable state.
+			// Used by the popstate handler to synchronize state with the URL on back/forward navigation.
+			const applyHashState = (parsed) => {
+				if (parsed.journeyId && manifest.journeys.find((j) => j.id === parsed.journeyId)) {
+					state.journeyId = parsed.journeyId;
+				}
+				if (parsed.scenarioId && manifest.scenarios.find((s) => s.id === parsed.scenarioId)) {
+					state.scenarioId = parsed.scenarioId;
+				} else {
+					// No valid scenario in the URL: reset step so that returning to the tutorial
+					// via forward navigation starts at the first step rather than wherever the
+					// user left off.
+					state.stepKey = getFallbackStepKey();
+				}
+				if (parsed.stepKey && stepMap.has(parsed.stepKey)) {
+					state.stepKey = parsed.stepKey;
+				}
 			};
 
 			const ensureCurrentStepIsVisible = () => {
@@ -854,6 +917,9 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				state.stepKey = stepKey;
 				saveState();
 				render();
+				if (options.pushHistory !== false && tutorialScreen && !tutorialScreen.hidden) {
+					history.pushState(null, '', buildHashUrl('tutorial', state.journeyId, state.scenarioId, stepKey));
+				}
 				if (!options.silent) {
 					track('Workshop Step Viewed', {
 						journey: state.journeyId,
@@ -1021,9 +1087,30 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				}
 			});
 
-			ensureCurrentStepIsVisible();
-			render();
-			showSetup();
+			// Routes the UI to the screen described by a parsed hash state object,
+			// without pushing a new history entry (used by popstate and initial load).
+			const routeToScreen = (parsed) => {
+				if (parsed.screen === 'tutorial') {
+					showTutorial({ pushHistory: false });
+				} else if (parsed.screen === 'setup-scenario') {
+					showSetup({ pushHistory: false });
+					showSetupStep('scenario', { pushHistory: false });
+				} else {
+					showSetup({ pushHistory: false });
+				}
+			};
+
+			window.addEventListener('popstate', () => {
+				const parsed = parseHash();
+				applyHashState(parsed);
+				saveState();
+				routeToScreen(parsed);
+			});
+
+			// Replace the initial history entry so that back navigation from this page works correctly,
+			// then route to the screen encoded in the URL hash (or the default setup screen).
+			history.replaceState(null, '', window.location.href);
+			routeToScreen(hashOnLoad);
 		}
 	</script>
 </section>

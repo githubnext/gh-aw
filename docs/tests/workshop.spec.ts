@@ -99,3 +99,73 @@ test.describe('Workshop tutorial', () => {
 		});
 	}
 });
+
+test.describe('Workshop URL hash navigation', () => {
+	test('encodes journey and scenario in the URL hash after setup', async ({ page }) => {
+		await page.goto('/gh-aw/workshop/');
+		await page.waitForLoadState('networkidle');
+
+		await page.locator('[data-workshop-journey="github"]').click();
+		expect(page.url()).toMatch(/#j=github$/);
+
+		await page.locator('[data-workshop-scenario="daily-status"]').click();
+		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
+		expect(page.url()).toMatch(/#j=github&s=daily-status&t=.+$/);
+	});
+
+	test('encodes current step in the URL hash when navigating steps', async ({ page }) => {
+		await startWorkshop(page);
+
+		const initialUrl = page.url();
+		expect(initialUrl).toContain('#j=github&s=daily-status&t=');
+
+		await page.getByRole('button', { name: /Next step/i }).click();
+		const nextUrl = page.url();
+		expect(nextUrl).toContain('#j=github&s=daily-status&t=');
+		expect(nextUrl).not.toBe(initialUrl);
+	});
+
+	test('restores tutorial step from URL hash on direct navigation', async ({ page }) => {
+		await startWorkshop(page);
+
+		await page.getByRole('button', { name: /Next step/i }).click();
+		const tutorialUrl = page.url();
+
+		await page.goto('/gh-aw/workshop/');
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('[data-workshop-setup]')).toBeVisible();
+
+		await page.goto(tutorialUrl);
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
+		expect(page.url()).toBe(tutorialUrl);
+	});
+
+	test('supports browser back navigation from tutorial to setup', async ({ page }) => {
+		await page.goto('/gh-aw/workshop/');
+		await page.waitForLoadState('networkidle');
+
+		await page.locator('[data-workshop-journey="github"]').click();
+		await page.locator('[data-workshop-scenario="daily-status"]').click();
+		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
+
+		await page.locator('[data-workshop-change]').click();
+		await expect(page.locator('[data-workshop-setup]')).toBeVisible();
+
+		await page.goBack();
+		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
+	});
+
+	test('supports browser back navigation from scenario picker to workspace picker', async ({ page }) => {
+		await page.goto('/gh-aw/workshop/');
+		await page.waitForLoadState('networkidle');
+
+		await page.locator('[data-workshop-journey="github"]').click();
+		expect(page.url()).toMatch(/#j=github$/);
+		await expect(page.locator('[data-workshop-setup-step="scenario"]')).toBeVisible();
+
+		await page.goBack();
+		await expect(page.locator('[data-workshop-setup-step="workspace"]')).toBeVisible();
+		expect(page.url()).not.toContain('#');
+	});
+});
