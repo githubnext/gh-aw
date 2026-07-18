@@ -13,6 +13,14 @@ const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
 /**
+ * @param {unknown} endpoint
+ * @returns {endpoint is { route: string, params: Record<string, unknown> }}
+ */
+function isRestEndpoint(endpoint) {
+  return typeof endpoint === "object" && endpoint !== null && "route" in endpoint && "params" in endpoint;
+}
+
+/**
  * @typedef {{ owner: string, repo: string }} RepoRef
  * @typedef {{ id: string, url: string, repo: RepoRef }} CommentMetadata
  * @typedef {{ id: string, url: string, repo: RepoRef | null }} ReusableStatusComment
@@ -285,7 +293,7 @@ async function createOrReuseStatusComment(rawContext = context) {
         reportCommentError(rawContext, `${ERR_NOT_FOUND}: Issue number not found in event payload`);
         return null;
       }
-      commentEndpoint = `/repos/${owner}/${repo}/issues/${number}/comments`;
+      commentEndpoint = { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/comments", params: { owner, repo, issue_number: number } };
       break;
     }
 
@@ -298,7 +306,7 @@ async function createOrReuseStatusComment(rawContext = context) {
         reportCommentError(rawContext, `${ERR_NOT_FOUND}: Pull request number not found in event payload`);
         return null;
       }
-      commentEndpoint = `/repos/${owner}/${repo}/issues/${number}/comments`;
+      commentEndpoint = { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/comments", params: { owner, repo, issue_number: number } };
       break;
     }
 
@@ -328,7 +336,7 @@ async function createOrReuseStatusComment(rawContext = context) {
       return null;
   }
 
-  core.info(`Creating comment on: ${commentEndpoint}`);
+  core.info(`Creating comment on: ${typeof commentEndpoint === "object" ? commentEndpoint.route : commentEndpoint}`);
   return addCommentWithWorkflowLink(commentEndpoint, runUrl, eventName, invocationContext);
 }
 
@@ -409,7 +417,7 @@ async function postDiscussionComment(discussionNumber, commentBody, replyToNodeI
 
 /**
  * Add a comment with a workflow run link
- * @param {string} endpoint - The GitHub API endpoint to create the comment (or special format for discussions)
+ * @param {{ route: string, params: Record<string, unknown> } | string} endpoint - Typed route info for REST events, or special format string for discussions ("discussion:NUMBER" or "discussion_comment:NUMBER:COMMENT_ID")
  * @param {string} runUrl - The URL of the workflow run
  * @param {string} eventName - The event type (to determine the comment text)
  * @param {{
@@ -426,12 +434,18 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
   const commentBody = buildCommentBody(eventName, runUrl);
 
   if (eventName === "discussion") {
+    if (typeof endpoint !== "string") {
+      throw new Error(`${ERR_VALIDATION}: Unexpected comment endpoint shape for event: ${eventName}`);
+    }
     // Parse discussion number from special format: "discussion:NUMBER"
     const discussionNumber = parseInt(endpoint.split(":")[1], 10);
     return postDiscussionComment(discussionNumber, commentBody, null, eventRepo);
   }
 
   if (eventName === "discussion_comment") {
+    if (typeof endpoint !== "string") {
+      throw new Error(`${ERR_VALIDATION}: Unexpected comment endpoint shape for event: ${eventName}`);
+    }
     // Parse discussion number from special format: "discussion_comment:NUMBER:COMMENT_ID"
     const discussionNumber = parseInt(endpoint.split(":")[1], 10);
 
@@ -440,8 +454,13 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
     return postDiscussionComment(discussionNumber, commentBody, commentNodeId, eventRepo);
   }
 
-  // Create a new comment for non-discussion events
-  const createResponse = await github.request("POST " + endpoint, {
+  // Create a new comment for non-discussion events using typed route
+  if (!isRestEndpoint(endpoint)) {
+    throw new Error(`${ERR_VALIDATION}: Unexpected comment endpoint shape for event: ${eventName}`);
+  }
+  const { route, params } = endpoint;
+  const createResponse = await github.request(route, {
+    ...params,
     body: commentBody,
     headers: { Accept: "application/vnd.github+json" },
   });

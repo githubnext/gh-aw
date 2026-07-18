@@ -116,7 +116,11 @@ function writeMergedModelsJSON(core) {
 
   const merged = Object.keys(overlay).length > 0 ? mergeModelCosts(base, overlay) : base;
 
-  fs.writeFileSync(MERGED_MODELS_JSON_PATH, JSON.stringify(merged), "utf8");
+  try {
+    fs.writeFileSync(MERGED_MODELS_JSON_PATH, JSON.stringify(merged), "utf8");
+  } catch (err) {
+    throw new Error(`Failed to write file ${MERGED_MODELS_JSON_PATH}: ${String(err)}`, { cause: err });
+  }
   core.info(`Generated merged models.json at: ${MERGED_MODELS_JSON_PATH}`);
 }
 

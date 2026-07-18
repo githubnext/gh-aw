@@ -29,7 +29,13 @@ function countBlockedRequests() {
       continue;
     }
 
-    const lines = fs.readFileSync(path, "utf8").split("\n");
+    let fileContent;
+    try {
+      fileContent = fs.readFileSync(path, "utf8");
+    } catch (err) {
+      throw new Error(`Failed to read file ${path}: ${String(err)}`, { cause: err });
+    }
+    const lines = fileContent.split("\n");
     for (const raw of lines) {
       const line = raw.trim();
       if (!line) continue;

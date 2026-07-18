@@ -128,7 +128,11 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
   // Ensure /tmp/gh-aw directory exists
   const bundleDir = path.dirname(bundlePath);
   if (!fs.existsSync(bundleDir)) {
-    fs.mkdirSync(bundleDir, { recursive: true });
+    try {
+      fs.mkdirSync(bundleDir, { recursive: true });
+    } catch (err) {
+      throw new Error(`Failed to create directory ${bundleDir}: ${String(err)}`, { cause: err });
+    }
   }
 
   let bundleGenerated = false;

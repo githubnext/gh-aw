@@ -11,12 +11,12 @@ var addFindGitRoot = gitutil.FindGitRoot
 var addInitRepository = InitRepository
 var addMissingInitMarkers = missingBootstrapInitMarkers
 
-func ensureAddRepositoryInitialized(engineOverride string, verbose bool) error {
-	_, err := ensureAddRepositoryInitializedWithDetails(engineOverride, verbose)
+func ensureAddRepositoryInitialized(engineOverride string, verbose bool, noGitattributes bool) error {
+	_, err := ensureAddRepositoryInitializedWithDetails(engineOverride, verbose, noGitattributes)
 	return err
 }
 
-func ensureAddRepositoryInitializedWithDetails(engineOverride string, verbose bool) ([]string, error) {
+func ensureAddRepositoryInitializedWithDetails(engineOverride string, verbose bool, noGitattributes bool) ([]string, error) {
 	gitRoot, err := addFindGitRoot()
 	if err != nil {
 		if errors.Is(err, gitutil.ErrNotGitRepository) {
@@ -41,6 +41,7 @@ func ensureAddRepositoryInitializedWithDetails(engineOverride string, verbose bo
 		if err := addInitRepository(InitOptions{
 			Verbose:          verbose,
 			Engine:           engineOverride,
+			NoGitattributes:  noGitattributes,
 			Skill:            true,
 			Agent:            true,
 			MCP:              true,

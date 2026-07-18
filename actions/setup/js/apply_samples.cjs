@@ -403,7 +403,11 @@ async function preStagePatch(entry, index, workspace) {
 
   // Write patch to a temp file and apply it.
   const tmpPatch = path.join(os.tmpdir(), `gh-aw-sample-${index + 1}.patch`);
-  fs.writeFileSync(tmpPatch, patch.endsWith("\n") ? patch : patch + "\n");
+  try {
+    fs.writeFileSync(tmpPatch, patch.endsWith("\n") ? patch : patch + "\n");
+  } catch (err) {
+    throw new Error(`Failed to write file ${tmpPatch}: ${String(err)}`, { cause: err });
+  }
   try {
     runGit(["apply", "--whitespace=nowarn", tmpPatch], repoCwd);
   } catch (err) {
@@ -539,7 +543,11 @@ function writeSyntheticStdioLog(logPath, sampleCount) {
     }),
     "",
   ];
-  fs.appendFileSync(logPath, lines.join("\n"));
+  try {
+    fs.appendFileSync(logPath, lines.join("\n"));
+  } catch {
+    /* ignore */
+  }
 }
 
 async function main() {

@@ -40,8 +40,12 @@ const { getActionInput } = require("./action_input_utils.cjs");
  */
 function writeEnvLine(filePath, key, value, logLabel, fileLabel) {
   if (!filePath || !value) return;
-  appendFileSync(filePath, `${key}=${value}\n`);
-  console.log(`[otlp] ${logLabel} written to ${fileLabel}`);
+  try {
+    appendFileSync(filePath, `${key}=${value}\n`);
+    console.log(`[otlp] ${logLabel} written to ${fileLabel}`);
+  } catch {
+    /* ignore */
+  }
 }
 
 /**

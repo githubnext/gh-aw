@@ -174,8 +174,16 @@ function copySingleFileToStaging(sourcePath, destRelPath) {
   if (!stat.isFile()) {
     return { error: `not a regular file: ${sourcePath}` };
   }
-  fs.mkdirSync(path.dirname(destPath), { recursive: true });
-  fs.copyFileSync(sourcePath, destPath);
+  try {
+    fs.mkdirSync(path.dirname(destPath), { recursive: true });
+  } catch (err) {
+    throw new Error(`Failed to create directory ${path.dirname(destPath)}: ${String(err)}`, { cause: err });
+  }
+  try {
+    fs.copyFileSync(sourcePath, destPath);
+  } catch (err) {
+    throw new Error(`Failed to copy file ${sourcePath} to ${destPath}: ${String(err)}`, { cause: err });
+  }
   return { error: null };
 }
 

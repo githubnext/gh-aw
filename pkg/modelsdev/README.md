@@ -49,6 +49,10 @@ _ = outputUSD
 - String catalog costs are treated as already normalized per-token values.
 - Network or parsing failures degrade gracefully to an empty cache so callers can continue without pricing data.
 
+## Source Synchronization
+
+Reviewed against recent source updates on 2026-07-17; no additional public-contract deltas were identified beyond the sections above.
+
 ---
 
 *This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*
