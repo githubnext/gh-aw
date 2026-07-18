@@ -15,6 +15,16 @@ export type WorkshopJourney = {
 	accent: string;
 };
 
+export type WorkshopEntryPath = {
+	id: string;
+	journeyId: WorkshopJourneyId;
+	label: string;
+	icon: string;
+	kicker: string;
+	summary: string;
+	fit: string;
+};
+
 export type WorkshopScenario = {
 	id: WorkshopScenarioId;
 	label: string;
@@ -51,17 +61,73 @@ export const workshopJourneys: WorkshopJourney[] = [
 		id: 'terminal',
 		label: 'Terminal',
 		icon: 'terminal',
-		kicker: 'Local tools',
+		kicker: 'CLI workflow',
 		summary: 'Use your editor, repo clone, and shell.',
 		accent: 'var(--sl-color-accent)',
 	},
 	{
 		id: 'vscode',
-		label: 'Codespaces',
+		label: 'VS Code',
 		icon: 'device-desktop',
-		kicker: 'Cloud IDE',
-		summary: 'Use VS Code in a GitHub Codespace.',
+		kicker: 'Local editor',
+		summary: 'Stay in VS Code with a local repository and terminal.',
 		accent: 'var(--sl-color-accent-high)',
+	},
+	{
+		id: 'copilot',
+		label: 'GitHub Copilot',
+		icon: 'sparkle-fill',
+		kicker: 'Agent assisted',
+		summary: 'Use Copilot to draft, compile, and land the workflow.',
+		accent: 'var(--sl-color-accent-high)',
+	},
+];
+
+export const workshopEntryPaths: WorkshopEntryPath[] = [
+	{
+		id: 'ui-learner',
+		journeyId: 'github',
+		label: 'UI learner',
+		icon: 'browser',
+		kicker: 'GitHub web UI',
+		summary: 'Little or no terminal experience.',
+		fit: 'Stay in the browser without terminal setup.',
+	},
+	{
+		id: 'cli-user',
+		journeyId: 'terminal',
+		label: 'CLI user',
+		icon: 'terminal',
+		kicker: 'Comfortable in a terminal',
+		summary: 'Use your existing local workflow and tools.',
+		fit: 'Best when you want direct compiler feedback and shell control.',
+	},
+	{
+		id: 'vscode-user',
+		journeyId: 'vscode',
+		label: 'VS Code user',
+		icon: 'device-desktop',
+		kicker: 'Editor-first workflow',
+		summary: 'Keep working in VS Code with your local repository.',
+		fit: 'Follow the local path, but stay anchored in your editor.',
+	},
+	{
+		id: 'copilot-app-user',
+		journeyId: 'copilot',
+		label: 'GitHub Copilot app user',
+		icon: 'device-desktop',
+		kicker: 'Desktop app',
+		summary: 'Open your repository in the app and steer an agent.',
+		fit: 'Best when you want Copilot to build the workflow and open the PR.',
+	},
+	{
+		id: 'copilot-agents-user',
+		journeyId: 'copilot',
+		label: 'GitHub Copilot user with the Agents tab enabled',
+		icon: 'hubot',
+		kicker: 'Browser agent session',
+		summary: 'Start a browser session, paste a prompt, and merge a PR.',
+		fit: 'No local install needed before the Copilot build path.',
 	},
 ];
 
