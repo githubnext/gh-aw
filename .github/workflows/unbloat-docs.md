@@ -202,10 +202,7 @@ steps:
     working-directory: ./docs
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      npm run generate-agent-factory
-      npm run generate-model-tables
-      npx astro build
+    run: npm run build
 evals:
   - id: docs_analyzed
     question: Did the agent analyze documentation files for verbosity and unnecessary content?
