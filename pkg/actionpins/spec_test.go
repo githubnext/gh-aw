@@ -326,7 +326,10 @@ func TestSpec_PublicAPI_ResolveActionPin_EnforcePinned(t *testing.T) {
 			} else {
 				require.NoError(t, err, "non-error scenario should not return an error")
 				if tt.wantResultSHA != "" {
-					assert.Contains(t, result, tt.wantResultSHA, "successful resolution should include the resolved SHA")
+					assert.Equal(t,
+						actionpins.FormatPinnedActionReference("does-not-exist/x", tt.wantResultSHA, "v1"),
+						result,
+						"successful resolution should return the exact pinned reference format")
 				} else {
 					assert.Empty(t, result, "downgraded unresolved result should remain empty")
 				}
@@ -583,9 +586,7 @@ func TestSpec_PublicAPI_GetContainerPin(t *testing.T) {
 		assert.Equal(t, knownImage, pin.Image, "ContainerPin.Image should match the queried image")
 		require.NotEmpty(t, pin.Digest, "ContainerPin.Digest should be non-empty for a known image")
 		assert.True(t, strings.HasPrefix(pin.Digest, "sha256:"), "ContainerPin.Digest should use sha256: format, got %q", pin.Digest)
-		assert.NotEmpty(t, pin.PinnedImage, "ContainerPin.PinnedImage should be non-empty for a known image")
-		assert.Contains(t, pin.PinnedImage, pin.Digest, "PinnedImage should contain the digest")
-		assert.Contains(t, pin.PinnedImage, "@sha256:", "PinnedImage should reference the digest using @sha256: notation")
+		assert.Equal(t, knownImage+"@"+pin.Digest, pin.PinnedImage, "PinnedImage should equal image@digest")
 	})
 }
 
@@ -742,6 +743,7 @@ func TestSpec_PublicAPI_ResolveActionPin_NilCtxField(t *testing.T) {
 		require.NotEmpty(t, result)
 	}, "nil PinContext.Ctx should fall back to context.Background() without panicking")
 	require.NotNil(t, resolver.capturedCtx, "resolver must receive a non-nil context even when PinContext.Ctx is nil")
+	assert.Equal(t, context.Background(), resolver.capturedCtx, "resolver must receive context.Background() as the documented fallback")
 }
 
 // TestSpec_PublicAPI_ResolveActionPin_UsesProvidedContext validates that PinContext.Ctx
