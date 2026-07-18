@@ -79,7 +79,10 @@ const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 const MAX_ENV_VAR_PREVIEW_LENGTH = 120;
 const OUTPUT_TAIL_MAX_CHARS = 600;
 const OUTPUT_TAIL_MAX_LINES = 12;
-const POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = 20 * 1000;
+const DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = 20 * 1000;
+const configuredPostResultWatchdogTimeoutMs = Number(process.env.GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS);
+const POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS =
+  Number.isFinite(configuredPostResultWatchdogTimeoutMs) && configuredPostResultWatchdogTimeoutMs > 0 ? Math.max(50, configuredPostResultWatchdogTimeoutMs) : DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS;
 const COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_NAME = "copilot_requests_proxy_auth_403.md";
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;

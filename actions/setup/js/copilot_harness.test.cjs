@@ -2302,9 +2302,8 @@ process.exit(1);`,
       const stubPath = path.join(tempDir, "stub.cjs");
       const promptPath = path.join(tempDir, "prompt.txt");
       const callsPath = path.join(tempDir, "calls.jsonl");
-      // Stub writes a terminal safe-output then exits with code 1 (simulating
-      // the post-result watchdog killing the Copilot process after late-activity commands).
-      // The stub also produces stdout output so hasOutput=true (partial_execution path).
+      // Stub writes a terminal safe-output, then remains alive until SIGTERM.
+      // This exercises the watchdog-fired partial_execution path end-to-end.
       fs.writeFileSync(
         stubPath,
         `const fs = require("fs");
@@ -2313,7 +2312,8 @@ const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS;
 fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
 fs.appendFileSync(safeOutputsPath, JSON.stringify({type:"add_comment",body:"Daily report posted"}) + "\\n");
 process.stdout.write("Report uploaded. Checking logs...\\n");
-process.exit(1);`,
+process.on("SIGTERM", () => process.exit(1));
+setInterval(() => {}, 1000);`,
         "utf8"
       );
       fs.writeFileSync(promptPath, "generate the report", "utf8");
@@ -2324,6 +2324,7 @@ process.exit(1);`,
           ...process.env,
           COPILOT_HARNESS_STUB_CALLS: callsPath,
           GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "100",
         },
         encoding: "utf8",
         timeout: 15000,
@@ -2333,6 +2334,7 @@ process.exit(1);`,
       expect(callCount).toBe(1);
       // Harness exits 0 because the terminal safe-output was already produced
       expect(result.status).toBe(0);
+      expect(result.stderr).toContain("post-result watchdog fired after terminal safe-output was emitted");
       expect(result.stderr).toContain("late-activity exit suppressed");
     });
 
