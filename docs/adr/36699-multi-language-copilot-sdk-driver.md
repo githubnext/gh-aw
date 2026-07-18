@@ -9,7 +9,7 @@ The `engine.copilot-sdk-driver` option let workflow authors supply a custom Copi
 
 ## Decision
 
-We will infer the driver's runtime and its SDK install command from the driver filename's extension rather than adding an explicit runtime field. A relaxed schema pattern makes the extension optional, and Go validation enforces a strict allowlist: `.js/.cjs/.mjs/.ts/.mts` run under Node, `.py` under `python3`, `.rb` under `ruby`, and a bare name (no extension) is treated as an arbitrary executable already in `PATH` (invoked directly, with no setup-action-directory prefix). The same extension drives `buildCopilotSDKInstallStep`, so a `.py` driver triggers `pip install` while everything else falls back to the Node.js `npm install` of the SDK.
+We will infer the driver's runtime and its SDK install command from the driver filename's extension rather than adding an explicit runtime field. A relaxed schema pattern makes the extension optional, and Go validation enforces a strict allowlist: `.js/.cjs/.mjs` run under Node, `.py` under `python3`, `.ts/.mts` under `ts-node`, `.rb` under `ruby`, and a bare name (no extension) is treated as an arbitrary executable already in `PATH` (invoked directly, with no setup-action-directory prefix). The same extension drives `buildCopilotSDKInstallStep`, so a `.py` driver triggers `pip install` while everything else falls back to the Node.js `npm install` of the SDK.
 
 ## Alternatives Considered
 
@@ -28,7 +28,7 @@ Let authors declare the interpreter explicitly (e.g. `copilot-sdk-driver-runtime
 
 ### Negative
 - Ruby, TypeScript, and arbitrary-command drivers fall back to the Node.js `npm install` of the SDK; only Python gets a language-specific (`pip`) install, so other runtimes may need their SDK provisioned by other means.
-- The selected interpreter (`node`, `python3`, `ruby`) and any bare-command executable are assumed to be present on the runner; a missing runtime surfaces only at execution time.
+- The selected interpreter (`python3`, `ts-node`, `ruby`) and any bare-command executable are assumed to be present on the runner; a missing runtime surfaces only at execution time.
 
 ### Neutral
 - The driver name continues to be interpolated into a generated shell command; the extensionless "arbitrary command" path deliberately skips the setup-action-directory prefix and runtime wrapper.

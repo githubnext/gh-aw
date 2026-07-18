@@ -545,8 +545,8 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKTypeScriptDriver(t *testing.T)
 	}
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
-	if !strings.Contains(stepContent, `"$GH_AW_NODE_EXEC"`) {
-		t.Fatalf("Expected TypeScript SDK driver mode to use node runtime, got:\n%s", stepContent)
+	if !strings.Contains(stepContent, "ts-node") {
+		t.Fatalf("Expected TypeScript SDK driver mode to use ts-node runtime, got:\n%s", stepContent)
 	}
 	if !strings.Contains(stepContent, "my_driver.ts") {
 		t.Fatalf("Expected SDK driver mode to include my_driver.ts, got:\n%s", stepContent)
@@ -2314,10 +2314,10 @@ func TestCopilotEngineInstallationWithCopilotSDKDriver(t *testing.T) {
 			expectedRun:  "python3 -m pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
 		},
 		{
-			name:         "typescript driver uses npm sdk install",
+			name:         "typescript driver installs ts-node toolchain and sdk",
 			driver:       "my_driver.ts",
-			expectedName: "name: Install GitHub Copilot SDK (Node.js)",
-			expectedRun:  "npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion),
+			expectedName: "name: Install GitHub Copilot SDK (TypeScript)",
+			expectedRun:  "npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion) + " ts-node typescript",
 		},
 		{
 			name:         "ruby driver uses npm sdk install fallback",

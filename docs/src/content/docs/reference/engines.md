@@ -369,9 +369,6 @@ max-tool-denials: 8
 - bare command names without an extension (resolved from
   `PATH`)
 
-TypeScript drivers (`.ts`, `.mts`) run directly with the resolved
-Node.js runtime.
-
 See [Copilot SDK Driver Specification](/gh-aw/specs/copilot-sdk-driver-specification/)
 for the full driver contract.
 

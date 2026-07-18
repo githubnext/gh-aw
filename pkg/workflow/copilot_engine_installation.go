@@ -168,8 +168,8 @@ func buildCopilotSDKInstallStep(workflowData *WorkflowData) GitHubActionStep {
 
 // sdkDriverInstallCommand returns a synthetic command string for the given driver filename
 // that can be passed to getCopilotSDKInstallSpec/detectRuntimeFromCopilotCommand to select
-// the correct SDK package manager. Only non-Node language extensions need special handling;
-// JS/TypeScript drivers and arbitrary commands (no extension) fall back to the Node.js default.
+// the correct SDK package manager. Only non-JS language extensions need special handling;
+// JS drivers and arbitrary commands (no extension) fall back to the Node.js default.
 func sdkDriverInstallCommand(driverName string) string {
 	ext := strings.ToLower(filepath.Ext(driverName))
 	switch ext {
@@ -177,8 +177,10 @@ func sdkDriverInstallCommand(driverName string) string {
 		return "python3 " + driverName
 	case ".rb":
 		return "ruby " + driverName
+	case ".ts", ".mts":
+		return "ts-node " + driverName
 	default:
-		// .js/.cjs/.mjs, .ts/.mts, and no-extension (arbitrary commands) default to Node.js.
+		// .js/.cjs/.mjs and no-extension (arbitrary commands) default to Node.js.
 		return ""
 	}
 }
@@ -197,6 +199,9 @@ func getCopilotSDKInstallSpec(command string) copilotSDKInstallSpec {
 	case "python":
 		spec.stepName = "Install GitHub Copilot SDK (Python)"
 		spec.command = workspaceCommandPrefix + "python3 -m pip install --disable-pip-version-check github-copilot-sdk==" + version
+	case "typescript":
+		spec.stepName = "Install GitHub Copilot SDK (TypeScript)"
+		spec.command = workspaceCommandPrefix + "npm install --ignore-scripts --no-save @github/copilot-sdk@" + version + " ts-node typescript"
 	case "go":
 		spec.stepName = "Install GitHub Copilot SDK (Go)"
 		spec.command = workspaceCommandPrefix + "go get github.com/github/copilot-sdk/go@v" + version
@@ -226,6 +231,8 @@ func detectRuntimeFromCopilotCommand(command string) string {
 	}
 
 	switch token {
+	case "ts-node":
+		return "typescript"
 	case "cargo", "rustc":
 		return "rust"
 	case "mvnw":
