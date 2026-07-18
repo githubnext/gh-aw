@@ -26,21 +26,25 @@ const (
 	mcpProcessCleanupDelay = 100 * time.Millisecond
 )
 
+var (
+	mcpInspectorLookPath       = exec.LookPath
+	mcpInspectorCommandContext = exec.CommandContext
+	mcpInspectorMonitorDone    = func(string) {}
+)
+
 // spawnMCPInspector launches the official @modelcontextprotocol/inspector tool
 // and spawns any stdio MCP servers beforehand
 func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter string, verbose bool) error {
 	mcpInspectorLog.Printf("Spawning MCP inspector: workflow_file=%s, server_filter=%s", workflowFile, serverFilter)
 	// Check if npx is available
-	if _, err := exec.LookPath("npx"); err != nil {
+	if _, err := mcpInspectorLookPath("npx"); err != nil {
 		return fmt.Errorf("npx not found. Please install Node.js and npm to use the MCP inspector: %w", err)
 	}
 
 	var mcpConfigs []parser.RegistryMCPServerConfig
 	var serverProcesses []*exec.Cmd
 
-	// g tracks all background MCP server monitor goroutines for structured concurrency.
-	// gctx is cancelled if any monitor returns a non-nil error or the parent ctx is done.
-	g, gctx := errgroup.WithContext(ctx)
+	var g errgroup.Group
 
 	// If workflow file is specified, extract MCP configurations and start servers
 	if workflowFile != "" {
@@ -111,7 +115,7 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 					if config.Container != "" {
 						// Docker container mode
 						args := append([]string{"run", "--rm", "-i"}, config.Args...)
-						cmd = exec.Command("docker", args...)
+						cmd = mcpInspectorCommandContext(ctx, "docker", args...)
 					} else {
 						// Direct command mode
 						if config.Command == "" {
@@ -119,13 +123,13 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 							continue
 						}
 						// Validate the command exists before executing
-						if _, err := exec.LookPath(config.Command); err != nil {
+						if _, err := mcpInspectorLookPath(config.Command); err != nil {
 							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping server %s: command not found: %s", config.Name, config.Command)))
 							continue
 						}
 						// #nosec G204 -- config.Command is validated via exec.LookPath above;
 						// exec.Command with separate args (not shell execution) prevents shell injection.
-						cmd = exec.Command(config.Command, config.Args...)
+						cmd = mcpInspectorCommandContext(ctx, config.Command, config.Args...)
 					}
 
 					// Set environment variables
@@ -150,6 +154,13 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 					capturedCmd := cmd
 					capturedName := config.Name
 					g.Go(func() error {
+						defer func() {
+							if r := recover(); r != nil {
+								mcpInspectorLog.Printf("Recovered panic while waiting for MCP server %s: %v", capturedName, r)
+							}
+							mcpInspectorMonitorDone(capturedName)
+						}()
+
 						// Background MCP servers are tolerant of exit errors: a server
 						// crashing should not abort the inspector session. Log the event
 						// and return nil so other monitors and the errgroup itself are
@@ -216,28 +227,8 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 					time.Sleep(mcpProcessCleanupDelay)
 				}
 			}
-			// Wait for all monitoring goroutines to finish (with timeout).
-			waitDone := make(chan struct{})
-			go func() {
-				// Monitors always return nil; the error check is defensive in case
-				// error propagation is added to monitors in the future.
-				if err := g.Wait(); err != nil {
-					mcpInspectorLog.Printf("Error from MCP server monitor goroutine: %v", err)
-				}
-				close(waitDone)
-			}()
-
-			select {
-			case <-waitDone:
-				// All monitoring goroutines finished cleanly.
-			case <-gctx.Done():
-				// Parent context cancelled; abandon waiting for monitor goroutines.
-				// The timeout case is not reached because select picks the first ready case.
-			case <-time.After(5 * time.Second):
-				// Timeout waiting for cleanup
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Timeout waiting for server cleanup"))
-				}
+			if err := g.Wait(); err != nil {
+				mcpInspectorLog.Printf("Error from MCP server monitor goroutine: %v", err)
 			}
 		}
 	}()
@@ -250,7 +241,7 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Configure them in the inspector using the details shown above"))
 	}
 
-	cmd := exec.Command("npx", "@modelcontextprotocol/inspector")
+	cmd := mcpInspectorCommandContext(ctx, "npx", "@modelcontextprotocol/inspector")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
