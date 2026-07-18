@@ -8,7 +8,7 @@
 //   - contextcancelnotdeferred — flags context cancel functions called directly instead of deferred
 //   - ctxbackground — flags context.Background() inside functions that already receive a context
 //   - deferinloop — flags defer statements placed directly inside for or range loop bodies
-//   - errorfwrapv — flags fmt.Errorf calls that format error arguments with %v instead of %w
+//   - errorfwrapv — flags fmt.Errorf calls that pass error arguments without %w wrapping
 //   - errormessage — flags non-actionable error message patterns in changed files
 //   - errortypeassertion — flags type assertions from error to concrete types and recommends errors.As
 //   - errstringmatch — flags brittle strings.Contains(err.Error(), "...") checks

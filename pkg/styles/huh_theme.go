@@ -4,7 +4,7 @@ package styles
 
 import (
 	"charm.land/huh/v2"
-	"charm.land/lipgloss/v2"
+	lipgloss "charm.land/lipgloss/v2"
 )
 
 // HuhTheme is a huh.ThemeFunc that maps the pkg/styles Dracula-inspired
@@ -15,15 +15,17 @@ var HuhTheme huh.ThemeFunc = func(isDark bool) *huh.Styles {
 	lightDark := lipgloss.LightDark(isDark)
 
 	// Map the pkg/styles palette using lipgloss v2's LightDark helper.
+	// The color* vars are the same package-level color.Color values used by
+	// the adaptiveColor vars in theme.go, ensuring a single source of truth.
 	var (
-		primary    = lightDark(lipgloss.Color(hexColorPurpleLight), lipgloss.Color(hexColorPurpleDark))
-		success    = lightDark(lipgloss.Color(hexColorSuccessLight), lipgloss.Color(hexColorSuccessDark))
-		errorColor = lightDark(lipgloss.Color(hexColorErrorLight), lipgloss.Color(hexColorErrorDark))
-		warning    = lightDark(lipgloss.Color(hexColorWarningLight), lipgloss.Color(hexColorWarningDark))
-		comment    = lightDark(lipgloss.Color(hexColorCommentLight), lipgloss.Color(hexColorCommentDark))
-		fg         = lightDark(lipgloss.Color(hexColorForegroundLight), lipgloss.Color(hexColorForegroundDark))
-		bg         = lightDark(lipgloss.Color(hexColorBackgroundLight), lipgloss.Color(hexColorBackgroundDark))
-		border     = lightDark(lipgloss.Color(hexColorBorderLight), lipgloss.Color(hexColorBorderDark))
+		primary    = lightDark(colorPurpleLight, colorPurpleDark)
+		success    = lightDark(colorSuccessLight, colorSuccessDark)
+		errorColor = lightDark(colorErrorLight, colorErrorDark)
+		warning    = lightDark(colorWarningLight, colorWarningDark)
+		comment    = lightDark(colorCommentLight, colorCommentDark)
+		fg         = lightDark(colorForegroundLight, colorForegroundDark)
+		bg         = lightDark(colorBackgroundLight, colorBackgroundDark)
+		border     = lightDark(colorBorderLight, colorBorderDark)
 	)
 
 	// Focused field styles

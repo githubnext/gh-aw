@@ -213,6 +213,21 @@ async function main() {
       }
       if (isIssueIntentEnabledForTool(tool.name, config[tool.name])) {
         enhancedTool.description = `${enhancedTool.description || ""} ${ISSUE_INTENT_SUFFIX}`.trim();
+        // For add_labels strict mode, replace the labels items schema with an object-only
+        // variant that requires name, rationale, and confidence.
+        if (tool.name === "add_labels") {
+          const labelsSchema = enhancedTool.inputSchema?.properties?.labels;
+          if (labelsSchema && labelsSchema.items && Array.isArray(labelsSchema.items.oneOf)) {
+            const objectSchema = labelsSchema.items.oneOf.find(/** @param {{type: string}} s */ s => s.type === "object");
+            if (objectSchema) {
+              labelsSchema.items = {
+                ...objectSchema,
+                required: ["name", "rationale", "confidence"],
+              };
+              delete labelsSchema.items.oneOf;
+            }
+          }
+        }
       }
       if (isIssueIntentDisabledForTool(tool.name, config[tool.name])) {
         stripIssueIntentSchemaFields(enhancedTool);

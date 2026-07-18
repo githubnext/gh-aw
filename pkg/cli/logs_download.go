@@ -304,6 +304,23 @@ func flattenAgentOutputsArtifact(outputDir string, verbose bool) error {
 	return flattenArtifactTree(agentOutputsDir, agentOutputsDir, outputDir, "agent_outputs artifact", verbose)
 }
 
+// flattenSafeOutputsItemsArtifact flattens the safe-outputs-items artifact directory
+// structure. The safe-outputs-items artifact contains safe-output-items.jsonl and
+// temporary-id-map.json. After flattening, these files land at the run directory root
+// where extractCreatedItemsFromManifest and loadResolvedTemporaryIDTargets expect them.
+// The artifact may be prefixed in workflow_call context: "<hash>-safe-outputs-items".
+func flattenSafeOutputsItemsArtifact(outputDir string, verbose bool) error {
+	safeOutputsItemsDir := findArtifactDir(outputDir, constants.SafeOutputItemsArtifactName, "")
+	if safeOutputsItemsDir == "" {
+		// No safe-outputs-items artifact, nothing to flatten
+		return nil
+	}
+
+	logsDownloadLog.Printf("Flattening safe-outputs-items artifact directory: %s", safeOutputsItemsDir)
+
+	return flattenArtifactTree(safeOutputsItemsDir, safeOutputsItemsDir, outputDir, "safe-outputs-items artifact", verbose)
+}
+
 // downloadWorkflowRunLogs downloads and unzips workflow run logs using GitHub API
 func downloadWorkflowRunLogs(ctx context.Context, runID int64, outputDir string, verbose bool, owner, repo, hostname string) error {
 	logsDownloadLog.Printf("Downloading workflow run logs: run_id=%d, output_dir=%s, owner=%s, repo=%s", runID, outputDir, owner, repo)
@@ -928,6 +945,14 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 	// Flatten agent_outputs artifact if present
 	if err := flattenAgentOutputsArtifact(opts.outputDir, opts.verbose); err != nil {
 		return fmt.Errorf("failed to flatten agent_outputs artifact: %w", err)
+	}
+
+	// Flatten safe-outputs-items artifact if present.
+	// This artifact contains safe-output-items.jsonl and temporary-id-map.json.
+	// Flattening moves them to the run root so extractCreatedItemsFromManifest
+	// and loadResolvedTemporaryIDTargets can find them at their expected paths.
+	if err := flattenSafeOutputsItemsArtifact(opts.outputDir, opts.verbose); err != nil {
+		return fmt.Errorf("failed to flatten safe-outputs-items artifact: %w", err)
 	}
 
 	// Download and unzip workflow run logs unless caller requested usage-only mode.
