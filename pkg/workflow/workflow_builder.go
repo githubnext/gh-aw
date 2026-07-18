@@ -473,8 +473,9 @@ func mergeExcludedEnvVarNames(fromImports, fromMain []string) []string {
 	if len(fromImports) == 0 && len(fromMain) == 0 {
 		return nil
 	}
-	seen := make(map[string]bool, len(fromImports)+len(fromMain))
-	merged := make([]string, 0, len(fromImports)+len(fromMain))
+	// Use separate capacity hints to avoid integer overflow when summing two lengths.
+	seen := make(map[string]bool, len(fromImports))
+	merged := make([]string, 0, len(fromImports))
 	for _, name := range fromImports {
 		if !seen[name] {
 			seen[name] = true
