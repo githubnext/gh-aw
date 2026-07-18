@@ -899,16 +899,16 @@ func TestFlattenSafeOutputsItemsArtifact(t *testing.T) {
 
 	// Simulate the directory structure created by `gh run download` for the safe-outputs-items artifact.
 	safeOutputsDir := filepath.Join(tmpDir, "safe-outputs-items")
-	if err := os.MkdirAll(safeOutputsDir, 0755); err != nil {
+	if err := os.MkdirAll(safeOutputsDir, 0o755); err != nil {
 		t.Fatalf("Failed to create safe-outputs-items dir: %v", err)
 	}
 
 	manifestContent := `{"id":"item1","safe":true}` + "\n"
-	if err := os.WriteFile(filepath.Join(safeOutputsDir, "safe-output-items.jsonl"), []byte(manifestContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(safeOutputsDir, "safe-output-items.jsonl"), []byte(manifestContent), 0o644); err != nil {
 		t.Fatalf("Failed to create safe-output-items.jsonl: %v", err)
 	}
 	mapContent := `{"map":{"tmp-1":"real-1"}}`
-	if err := os.WriteFile(filepath.Join(safeOutputsDir, "temporary-id-map.json"), []byte(mapContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(safeOutputsDir, "temporary-id-map.json"), []byte(mapContent), 0o644); err != nil {
 		t.Fatalf("Failed to create temporary-id-map.json: %v", err)
 	}
 
