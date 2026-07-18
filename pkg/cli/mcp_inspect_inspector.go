@@ -44,7 +44,7 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 	var mcpConfigs []parser.RegistryMCPServerConfig
 	var serverProcesses []*exec.Cmd
 
-	var g errgroup.Group
+	g, gctx := errgroup.WithContext(ctx)
 
 	// If workflow file is specified, extract MCP configurations and start servers
 	if workflowFile != "" {
@@ -115,7 +115,7 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 					if config.Container != "" {
 						// Docker container mode
 						args := append([]string{"run", "--rm", "-i"}, config.Args...)
-						cmd = mcpInspectorCommandContext(ctx, "docker", args...)
+						cmd = mcpInspectorCommandContext(gctx, "docker", args...)
 					} else {
 						// Direct command mode
 						if config.Command == "" {
@@ -129,7 +129,7 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 						}
 						// #nosec G204 -- config.Command is validated via exec.LookPath above;
 						// exec.Command with separate args (not shell execution) prevents shell injection.
-						cmd = mcpInspectorCommandContext(ctx, config.Command, config.Args...)
+						cmd = mcpInspectorCommandContext(gctx, config.Command, config.Args...)
 					}
 
 					// Set environment variables
@@ -241,7 +241,7 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Configure them in the inspector using the details shown above"))
 	}
 
-	cmd := mcpInspectorCommandContext(ctx, "npx", "@modelcontextprotocol/inspector")
+	cmd := mcpInspectorCommandContext(gctx, "npx", "@modelcontextprotocol/inspector")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin

@@ -136,7 +136,7 @@ func TestSpawnMCPInspectorHelperProcess(t *testing.T) {
 		behavior = os.Args[sentinel+3]
 	}
 
-	if err := os.WriteFile(filepath.Join(stateDir, role+"-started"), []byte(role), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(stateDir, role+"-started"), []byte(role), 0600); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
@@ -175,7 +175,7 @@ mcp-servers:
 
 # Test Inspector
 `
-	require.NoError(t, os.WriteFile(workflowPath, []byte(content), 0644))
+	require.NoError(t, os.WriteFile(workflowPath, []byte(content), 0600))
 	return workflowPath
 }
 
