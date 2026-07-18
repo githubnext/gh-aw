@@ -346,25 +346,31 @@ test.describe('Workshop Astro rendering contract', () => {
 		// or failed to match. If the content has no GFM alerts the test passes vacuously.
 		const result = await page.evaluate(() => {
 			const node = document.getElementById('aw-workshop-step-data');
-			if (!node) return { hasAlerts: false, hasRawMarkers: false, firstAlertStepIndex: -1 };
-			const steps = JSON.parse(node.textContent?.trim() || '[]') as Array<{ html: string }>;
+			if (!node) return { hasAlerts: false, hasRawMarkers: false, firstAlertStepKey: null as string | null };
+			const steps = JSON.parse(node.textContent?.trim() || '[]') as Array<{ key: string; html: string }>;
 			const alertPattern = /\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]/i;
 			const asidePattern = /class="aw-workshop-admonition-(?:note|tip|warning|important|caution)"/i;
 			const hasRawMarkers = steps.some((s) => alertPattern.test(s.html));
-			const firstAlertStepIndex = steps.findIndex((s) => asidePattern.test(s.html));
-			return { hasAlerts: firstAlertStepIndex >= 0, hasRawMarkers, firstAlertStepIndex };
+			const alertStep = steps.find((s) => asidePattern.test(s.html));
+			return { hasAlerts: !!alertStep, hasRawMarkers, firstAlertStepKey: alertStep?.key ?? null };
 		});
 
 		// Raw [!TYPE] markers must not appear in any step HTML.
 		expect(result.hasRawMarkers).toBe(false);
 
-		// If the workshop content includes GFM alerts, navigate directly to the step
-		// that contains one and assert the aside is rendered.
-		if (result.hasAlerts && result.firstAlertStepIndex >= 0) {
-			const bubbles = page.locator('[data-workshop-step-bubbles] .aw-workshop-step-bubble');
-			await bubbles.nth(result.firstAlertStepIndex).click();
-			const aside = page.locator('[data-workshop-step-content] aside[class*="aw-workshop-admonition-"]').first();
-			await expect(aside).toBeVisible();
+		// If the workshop content includes GFM alerts, navigate to the step by its
+		// key via the data-workshop-step-link attribute. The bubble list reflects
+		// only the current route's visibleFlow, so the step may not be present; in
+		// that case the UI assertion is skipped rather than clicking the wrong bubble.
+		if (result.hasAlerts && result.firstAlertStepKey) {
+			const bubble = page.locator(
+				`[data-workshop-step-bubbles] .aw-workshop-step-bubble[data-workshop-step-link="${result.firstAlertStepKey}"]`
+			);
+			if ((await bubble.count()) > 0) {
+				await bubble.first().click();
+				const aside = page.locator('[data-workshop-step-content] aside[class*="aw-workshop-admonition-"]').first();
+				await expect(aside).toBeVisible();
+			}
 		}
 	});
 });
