@@ -126,22 +126,26 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error {
 // buildAutoUpdateSeed returns the deterministic seed string used to scatter the
 // FUZZY:WEEKLY cron schedule.
 //
-// In release mode the repo slug is incorporated so that different repositories
-// scatter to distinct time slots. In dev mode a stable "dev/" prefix is used
-// instead of the slug, which may not be available (e.g. in sandbox environments
-// where the git remote URL is a localhost proxy). This mirrors the behaviour of
-// normalizeScheduleString in schedule_preprocessing.go and prevents the
-// generated schedule from changing between dev builds when --schedule-seed is
-// sometimes provided and sometimes not.
+// In dev mode a stable "dev/" prefix is used instead of the slug, which may not
+// be available (e.g. in sandbox environments where the git remote URL is a
+// localhost proxy). This mirrors the behaviour of normalizeScheduleString in
+// schedule_preprocessing.go and prevents the generated schedule from changing
+// between dev builds when --schedule-seed is sometimes provided and sometimes not.
+//
+// In all other modes (release, action, script) the repo slug is incorporated so
+// that different repositories scatter to distinct time slots. Note: released
+// binaries auto-detect ActionModeAction, not ActionModeRelease, so checking only
+// IsRelease() would cause ActionModeAction builds to silently use the dev seed.
 func buildAutoUpdateSeed(repoSlug string, actionMode ActionMode) string {
-	if actionMode.IsRelease() {
-		if repoSlug != "" {
-			return repoSlug + "/" + autoUpdateWorkflowIdentifier
-		}
-		return autoUpdateWorkflowIdentifier
+	if actionMode.IsDev() {
+		// Dev mode: use a fixed prefix that does not depend on git remote detection.
+		return "dev/" + autoUpdateWorkflowIdentifier
 	}
-	// Dev mode: use a fixed prefix that does not depend on git remote detection.
-	return "dev/" + autoUpdateWorkflowIdentifier
+	// Release/action/script mode: incorporate repo slug for per-repo scattering.
+	if repoSlug != "" {
+		return repoSlug + "/" + autoUpdateWorkflowIdentifier
+	}
+	return autoUpdateWorkflowIdentifier
 }
 
 // buildAutoUpdateWorkflowYAML generates the YAML content for agentic-auto-upgrade.yml.

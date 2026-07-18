@@ -102,18 +102,19 @@ func TestGenerateAutoUpdateWorkflow_DifferentReposDifferentCron(t *testing.T) {
 	dir1 := t.TempDir()
 	dir2 := t.TempDir()
 
-	// Per-repo schedule scattering only applies in release mode.
+	// Per-repo schedule scattering applies in all non-dev modes.
+	// Use ActionModeAction since that is what released binaries actually detect.
 	require.NoError(t, GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
 		WorkflowDir: dir1,
 		Enabled:     true,
 		RepoSlug:    "org1/repo-alpha",
-		ActionMode:  ActionModeRelease,
+		ActionMode:  ActionModeAction,
 	}))
 	require.NoError(t, GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
 		WorkflowDir: dir2,
 		Enabled:     true,
 		RepoSlug:    "org2/repo-beta",
-		ActionMode:  ActionModeRelease,
+		ActionMode:  ActionModeAction,
 	}))
 
 	data1, err := os.ReadFile(filepath.Join(dir1, AutoUpdateWorkflowFileName))
@@ -128,7 +129,7 @@ func TestGenerateAutoUpdateWorkflow_DifferentReposDifferentCron(t *testing.T) {
 	assert.NotEmpty(t, cron2, "cron should be non-empty for org2/repo-beta")
 	// Schedules are scattered by hash — different repos should typically differ.
 	// This is a best-effort check; hash collisions are possible but unlikely for these slugs.
-	assert.NotEqual(t, cron1, cron2, "different repo slugs should produce different cron schedules in release mode")
+	assert.NotEqual(t, cron1, cron2, "different repo slugs should produce different cron schedules in action mode")
 }
 
 func TestGenerateAutoUpdateWorkflow_NoRepoSlug(t *testing.T) {
@@ -220,6 +221,14 @@ func TestBuildAutoUpdateSeed(t *testing.T) {
 	// Release mode: incorporates repo slug for per-repo scattering.
 	assert.Equal(t, "owner/repo/agentic-auto-upgrade", buildAutoUpdateSeed("owner/repo", ActionModeRelease))
 	assert.Equal(t, "agentic-auto-upgrade", buildAutoUpdateSeed("", ActionModeRelease))
+
+	// Action mode (used by released binaries): also incorporates repo slug for per-repo scattering.
+	assert.Equal(t, "owner/repo/agentic-auto-upgrade", buildAutoUpdateSeed("owner/repo", ActionModeAction))
+	assert.Equal(t, "agentic-auto-upgrade", buildAutoUpdateSeed("", ActionModeAction))
+
+	// Script mode: also incorporates repo slug for per-repo scattering.
+	assert.Equal(t, "owner/repo/agentic-auto-upgrade", buildAutoUpdateSeed("owner/repo", ActionModeScript))
+	assert.Equal(t, "agentic-auto-upgrade", buildAutoUpdateSeed("", ActionModeScript))
 
 	// Dev mode: always uses the stable "dev/" prefix regardless of repo slug,
 	// so that the schedule does not change depending on whether --schedule-seed
