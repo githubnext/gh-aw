@@ -128,18 +128,19 @@ func looksSuspiciousCutset(cutset string) bool {
 		return false
 	}
 
-	seen := make(map[rune]struct{}, len(runes))
-	hasRepeatedRune := false
 	for _, r := range runes {
 		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
 			return false
 		}
+	}
+
+	seen := make(map[rune]struct{}, len(runes))
+	for _, r := range runes {
 		if _, ok := seen[r]; ok {
-			hasRepeatedRune = true
-			continue
+			return true
 		}
 		seen[r] = struct{}{}
 	}
 
-	return hasRepeatedRune
+	return false
 }
