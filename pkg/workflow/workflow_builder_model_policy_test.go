@@ -176,4 +176,9 @@ func TestMergeExcludedEnvVarNames_LargeInputs(t *testing.T) {
 	got := mergeExcludedEnvVarNames(fromImports, fromMain)
 	assert.Len(t, got, 2*n)
 	assert.True(t, sort.StringsAreSorted(got))
+	// Confirm both sources are represented in the result.
+	assert.Contains(t, got, "IMPORT_0")
+	assert.Contains(t, got, fmt.Sprintf("IMPORT_%d", n-1))
+	assert.Contains(t, got, "MAIN_0")
+	assert.Contains(t, got, fmt.Sprintf("MAIN_%d", n-1))
 }
