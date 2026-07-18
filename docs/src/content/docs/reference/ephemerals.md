@@ -18,13 +18,9 @@ on: weekly on monday
   stop-after: "+25h"  # 25 hours from compilation time
 ```
 
-**Accepted formats**:
-- **Absolute dates**: `YYYY-MM-DD`, `MM/DD/YYYY`, `DD/MM/YYYY`, `January 2 2006`, `1st June 2025`, ISO 8601
-- **Relative deltas**: `+7d`, `+25h`, `+1d12h30m` (calculated from compilation time)
+Accepted formats are absolute dates (`YYYY-MM-DD`, `MM/DD/YYYY`, `DD/MM/YYYY`, `January 2 2006`, `1st June 2025`, ISO 8601) and relative deltas such as `+7d`, `+25h`, or `+1d12h30m`, all calculated from compilation time. The minimum granularity is hours, so minute-only units such as `+30m` are not allowed.
 
-The minimum granularity is hours - minute-only units (e.g., `+30m`) are not allowed. Recompiling the workflow resets the stop time.
-
-At the deadline, new runs are prevented while existing runs complete. The stop time persists through recompilation; use `gh aw compile --refresh-stop-time` to reset it. Common uses: trial periods, experimental features, orchestrated initiatives, and cost-controlled schedules.
+At the deadline, new runs are prevented while existing runs complete. Recompiling does not change the stored stop time unless you use `gh aw compile --refresh-stop-time`. Common uses include trial periods, experiments, and cost-controlled schedules.
 
 See [Triggers Reference](/gh-aw/reference/triggers/#stop-after-configuration-stop-after) for complete documentation.
 
@@ -59,11 +55,7 @@ safe-outputs:
     draft: true
 ```
 
-**Supported formats**:
-- **Integer**: Number of days (e.g., `7` = 7 days)
-- **Relative time**: `2h`, `7d`, `2w`, `1m`, `1y`
-
-Hours less than 24 are treated as 1 day minimum for expiration calculation.
+Supported formats are an integer day count (for example, `7`) or a relative duration such as `2h`, `7d`, `2w`, `1m`, or `1y`. Values under 24 hours are rounded up to a 1-day minimum for expiration.
 
 **Maintenance workflow frequency**: The generated `agentics-maintenance.yml` workflow runs at the minimum required frequency based on the shortest expiration time across all workflows:
 
@@ -112,18 +104,23 @@ Available operations:
 
 **Details for select operations:**
 
-- **`update` / `upgrade`**: Runs `gh aw update` or `gh aw upgrade`, stages changed files, and opens a pull request for review. After merging, recompile lock files with `gh aw compile`. See [Upgrading Agentic Workflows](/gh-aw/guides/upgrading/) for the manual upgrade process.
-- **`safe_outputs`**: Replays safe output processing from a previous workflow run. Provide a run URL or numeric run ID in the `run_url` input field. Useful when safe outputs were not applied correctly on the original run.
-- **`create_labels`**: Runs `gh aw compile --json --no-emit`, collects all unique label names across workflows, and creates missing ones with deterministic pastel colors. Requires `issues: write` permission.
-- **`validate`**: Runs `gh aw compile --validate --no-emit --zizmor --actionlint --poutine --verbose`. If errors or warnings are found, creates or updates a GitHub issue titled `[aw] workflow validation findings` with the full output.
-- **`activity_report`**: Runs `gh aw logs --format markdown` for the last 24 hours, 7 days, and 30 days (up to 1000 runs each), then creates an issue titled `[aw] agentic status report` with all three time-range sections as collapsible `<details>` blocks. Downloaded logs are cached under `./.cache/gh-aw/activity-report-logs`. The job has a 2-hour timeout and skips the 30-day query when the GitHub API is rate-limited.
-- **`forecast`**: Warms the forecast cache with `gh aw logs --artifacts agent`, runs `gh aw forecast --repo <owner/repo> --timeout 30 --json` with a 30-minute graceful computation timeout, and always creates an issue summarizing the outcome. Successful runs create `[aw] workflow forecast report`; timeouts and other forecast failures create `[aw] workflow forecast report (error)`.
+`update` and `upgrade` run `gh aw update` or `gh aw upgrade`, stage changed files, and open a pull request for review. After merging, recompile lock files with `gh aw compile`. See [Upgrading Agentic Workflows](/gh-aw/guides/upgrading/) for the manual process.
+
+`safe_outputs` replays safe-output processing from a previous workflow run using a run URL or numeric run ID in `run_url`.
+
+`create_labels` runs `gh aw compile --json --no-emit`, collects unique label names across workflows, and creates any missing labels with deterministic pastel colors. It requires `issues: write` permission.
+
+`validate` runs `gh aw compile --validate --no-emit --zizmor --actionlint --poutine --verbose` and creates or updates `[aw] workflow validation findings` if errors or warnings are found.
+
+`activity_report` runs `gh aw logs --format markdown` for the last 24 hours, 7 days, and 30 days (up to 1000 runs each), then creates `[aw] agentic status report` with each time range in a collapsible `<details>` block. Downloaded logs are cached under `./.cache/gh-aw/activity-report-logs`. The job has a 2-hour timeout and skips the 30-day query when the GitHub API is rate-limited.
+
+`forecast` warms the forecast cache with `gh aw logs --artifacts agent`, runs `gh aw forecast --repo <owner/repo> --timeout 30 --json` with a 30-minute graceful computation timeout, and always creates a summary issue. Successful runs create `[aw] workflow forecast report`; timeouts and other failures create `[aw] workflow forecast report (error)`.
 
 ### Maintenance Configuration
 
 You can customize the maintenance workflow runner or disable maintenance entirely using the `aw.json` configuration file at `.github/workflows/aw.json`.
 
-**Customize the runner:**
+Customize the runner:
 
 ```json
 {
@@ -139,11 +136,11 @@ You can customize the maintenance workflow runner or disable maintenance entirel
 }
 ```
 
-The `runs_on` field accepts a single string or an array of strings for multi-label runners (e.g., `["self-hosted", "linux"]`). The default runner is `ubuntu-slim`.
+`runs_on` accepts a single string or an array of strings for multi-label runners such as `["self-hosted", "linux"]`. The default runner is `ubuntu-slim`.
 
-The `action_failure_issue_expires` field controls expiration (in hours) for failure issues opened by the conclusion job (including grouped parent issues when `group-reports: true`). The default is `168` (7 days).
+`action_failure_issue_expires` sets expiration, in hours, for failure issues opened by the conclusion job, including grouped parent issues when `group-reports: true`. The default is `168` (7 days).
 
-The `disabled_jobs` field lets you omit specific maintenance jobs from the generated workflow. Job IDs are case-insensitive, and `_` / `-` are treated equivalently.
+`disabled_jobs` lets you omit specific maintenance jobs from the generated workflow. Job IDs are case-insensitive, and `_` / `-` are treated equivalently.
 
 Supported job IDs:
 
@@ -233,6 +230,6 @@ safe-outputs:
 
 ## Related Documentation
 
-- [Triggers Reference](/gh-aw/reference/triggers/) - Complete trigger configuration including `stop-after`
-- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - All safe output types and expiration options
-- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — Complete setup for side repository operations
+- [Triggers Reference](/gh-aw/reference/triggers/) for complete trigger configuration, including `stop-after`
+- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for all safe output types and expiration options
+- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for complete side-repository setup guidance

@@ -116,19 +116,22 @@ func run(pass *analysis.Pass) (any, error) {
 		mText := astutil.NodeText(pass.Fset, mapExpr)
 		kText := astutil.NodeText(pass.Fset, keyExpr)
 
-		pass.Report(analysis.Diagnostic{
+		diag := analysis.Diagnostic{
 			Pos:     ifStmt.Pos(),
 			End:     ifStmt.End(),
 			Message: "redundant existence check before delete: delete(" + mText + ", " + kText + ") is already a no-op when the key is absent; remove the if statement",
-			SuggestedFixes: []analysis.SuggestedFix{{
+		}
+		if !astutil.HasOverlappingComment(pass.Files, ifStmt.Pos(), ifStmt.End()) {
+			diag.SuggestedFixes = []analysis.SuggestedFix{{
 				Message: "Replace if-check with plain delete",
 				TextEdits: []analysis.TextEdit{{
 					Pos:     ifStmt.Pos(),
 					End:     ifStmt.End(),
 					NewText: []byte("delete(" + mText + ", " + kText + ")"),
 				}},
-			}},
-		})
+			}}
+		}
+		pass.Report(diag)
 	})
 
 	return nil, nil

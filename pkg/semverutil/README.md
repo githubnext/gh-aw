@@ -145,6 +145,10 @@ semverutil.IsCompatible("v6.0.0", "v5") // false
 - `ParseVersion` uses `semver.Canonical` before splitting into components, ensuring correct handling of short forms like `v1` (canonicalized to `v1.0.0`).
 - `IsCompatible` returns `false` for invalid versions on either side before comparing majors, preventing two malformed version strings from being treated as compatible.
 
+## Source Synchronization
+
+Reviewed against recent source updates on 2026-07-17; no additional public-contract deltas were identified beyond the sections above.
+
 ---
 
 *This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

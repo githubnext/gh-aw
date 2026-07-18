@@ -245,12 +245,12 @@ describe("route_slash_command", () => {
     expect(awContext.status_comment_repo).toBe("github/gh-aw");
     expect(JSON.parse(dispatchCalls[1].inputs.aw_context).status_comment_id).toBe("999");
     expect(globals.github.request.mock.calls.filter(([route]) => String(route).includes("/reactions"))).toHaveLength(1);
-    expect(globals.github.request.mock.calls.filter(([route]) => /\/issues\/77\/comments$/.test(String(route)))).toHaveLength(1);
+    expect(globals.github.request.mock.calls.filter(([route]) => route === "POST /repos/{owner}/{repo}/issues/{issue_number}/comments")).toHaveLength(1);
     const statusUpdateCalls = globals.github.request.mock.calls.filter(([route]) => String(route).startsWith("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}"));
     expect(statusUpdateCalls.length).toBeGreaterThan(0);
     expect(statusUpdateCalls[0][1].body).toContain("[archie](https://github.com/github/gh-aw/actions/runs/444)");
     expect(globals.github.request).toHaveBeenCalledWith(
-      expect.stringContaining("/issues/77/comments"),
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
       expect.objectContaining({
         body: expect.stringContaining("has started processing this issue comment"),
       })
@@ -518,7 +518,7 @@ describe("route_slash_command", () => {
     await main();
     expect(dispatchCalls).toHaveLength(1);
     expect(reactionCalls).toHaveLength(1);
-    expect(reactionCalls[0][0]).toBe("POST /repos/github/gh-aw/issues/42/reactions");
+    expect(reactionCalls[0][0]).toBe("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions");
   });
 
   it("adds immediate reaction for pull_request events using PR number", async () => {
@@ -530,7 +530,7 @@ describe("route_slash_command", () => {
     await main();
     expect(dispatchCalls).toHaveLength(1);
     expect(reactionCalls).toHaveLength(1);
-    expect(reactionCalls[0][0]).toBe("POST /repos/github/gh-aw/issues/7/reactions");
+    expect(reactionCalls[0][0]).toBe("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions");
   });
 
   it("adds immediate reaction for pull_request_review_comment events using comment id", async () => {
@@ -542,7 +542,7 @@ describe("route_slash_command", () => {
     await main();
     expect(dispatchCalls).toHaveLength(1);
     expect(reactionCalls).toHaveLength(1);
-    expect(reactionCalls[0][0]).toBe("POST /repos/github/gh-aw/pulls/comments/99/reactions");
+    expect(reactionCalls[0][0]).toBe("POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions");
   });
 
   it("adds immediate reaction for discussion_comment events using node_id", async () => {

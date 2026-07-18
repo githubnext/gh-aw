@@ -70,14 +70,22 @@ async function setupMain() {
     return;
   }
 
-  fs.mkdirSync(EVALS_DIR, { recursive: true });
+  try {
+    fs.mkdirSync(EVALS_DIR, { recursive: true });
+  } catch (err) {
+    throw new Error(`Failed to create directory ${EVALS_DIR}: ${String(err)}`, { cause: err });
+  }
 
   // Load agent output for evaluation context
   const agentOutputPath = path.join(EVALS_DIR, AGENT_OUTPUT_FILENAME);
   let agentOutputContent = "";
   if (fs.existsSync(agentOutputPath)) {
     const stats = fs.statSync(agentOutputPath);
-    agentOutputContent = fs.readFileSync(agentOutputPath, "utf-8");
+    try {
+      agentOutputContent = fs.readFileSync(agentOutputPath, "utf-8");
+    } catch (err) {
+      throw new Error(`Failed to read file ${agentOutputPath}: ${String(err)}`, { cause: err });
+    }
     core.info(`Agent output loaded: ${agentOutputPath} (${stats.size} bytes)`);
   } else {
     core.warning(`Agent output not found at ${agentOutputPath}. ` + "Ensure the agent artifact includes agent_output.json. " + "Evaluation will proceed without agent context.");
@@ -85,8 +93,12 @@ async function setupMain() {
 
   const prompt = buildEvalPrompt(questions, agentOutputContent);
 
-  fs.mkdirSync("/tmp/gh-aw/aw-prompts", { recursive: true });
-  fs.writeFileSync("/tmp/gh-aw/aw-prompts/prompt.txt", prompt);
+  try {
+    fs.mkdirSync("/tmp/gh-aw/aw-prompts", { recursive: true });
+    fs.writeFileSync("/tmp/gh-aw/aw-prompts/prompt.txt", prompt);
+  } catch (err) {
+    throw new Error(`Failed to prepare eval prompt file: ${String(err)}`, { cause: err });
+  }
   core.exportVariable("GH_AW_PROMPT", "/tmp/gh-aw/aw-prompts/prompt.txt");
 
   core.info(`BinEval setup complete: wrote prompt with ${questions.length} question(s)`);
@@ -121,11 +133,20 @@ async function parseMain() {
 
   if (!fs.existsSync(EVALS_LOG_PATH)) {
     core.warning(`Evals log not found at ${EVALS_LOG_PATH}; no results written`);
-    fs.writeFileSync(EVALS_OUTPUT_PATH, "");
+    try {
+      fs.writeFileSync(EVALS_OUTPUT_PATH, "");
+    } catch (err) {
+      throw new Error(`Failed to write file ${EVALS_OUTPUT_PATH}: ${String(err)}`, { cause: err });
+    }
     return;
   }
 
-  const logContent = fs.readFileSync(EVALS_LOG_PATH, "utf-8");
+  let logContent;
+  try {
+    logContent = fs.readFileSync(EVALS_LOG_PATH, "utf-8");
+  } catch (err) {
+    throw new Error(`Failed to read file ${EVALS_LOG_PATH}: ${String(err)}`, { cause: err });
+  }
   core.info(`Parsing evals log: ${EVALS_LOG_PATH} (${logContent.length} bytes)`);
 
   // Build a search corpus that includes both raw log lines AND any assistant text
@@ -165,7 +186,11 @@ async function parseMain() {
 
   // Write JSONL — one JSON object per line
   const jsonlLines = results.map(r => JSON.stringify(r));
-  fs.writeFileSync(EVALS_OUTPUT_PATH, jsonlLines.join("\n") + (jsonlLines.length > 0 ? "\n" : ""));
+  try {
+    fs.writeFileSync(EVALS_OUTPUT_PATH, jsonlLines.join("\n") + (jsonlLines.length > 0 ? "\n" : ""));
+  } catch (err) {
+    throw new Error(`Failed to write file ${EVALS_OUTPUT_PATH}: ${String(err)}`, { cause: err });
+  }
   core.info(`BinEval results written to ${EVALS_OUTPUT_PATH} (${results.length} record(s))`);
   // Step summary rendering is handled by the dedicated render_evals_summary.cjs step
   // that runs after secret redaction, so the published summary is always redacted.
