@@ -43,6 +43,16 @@ func GoodWWrap(err error) error {
 	return fmt.Errorf("operation failed: %w", err)
 }
 
+// BadMissingWrapNoW passes an error argument but has no %w verb.
+func BadMissingWrapNoW(err error) error {
+	return fmt.Errorf("operation failed: %s", err) // want `fmt\.Errorf passes an error argument without %w`
+}
+
+// BadMissingWrapNoVerbs passes an error argument with no formatting verbs.
+func BadMissingWrapNoVerbs(err error) error {
+	return fmt.Errorf("operation failed", err) // want `fmt\.Errorf passes an error argument without %w`
+}
+
 // GoodNonErrorVerb uses %v for a non-error argument only.
 func GoodNonErrorVerb(name string) error {
 	return fmt.Errorf("operation %v failed", name)

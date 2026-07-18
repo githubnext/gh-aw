@@ -1,6 +1,7 @@
 // Package errorfwrapv implements a Go analysis linter that flags calls to
-// fmt.Errorf that format error arguments with %v instead of %w, which breaks
-// error-chain inspection via errors.Is and errors.As.
+// fmt.Errorf that either format error arguments with %v or otherwise pass
+// error arguments without any %w, which breaks error-chain inspection via
+// errors.Is and errors.As.
 package errorfwrapv
 
 import (
@@ -44,7 +45,7 @@ type formatVerb struct {
 // Analyzer is the errorfwrapv analysis pass.
 var Analyzer = &analysis.Analyzer{
 	Name:     "errorfwrapv",
-	Doc:      "reports fmt.Errorf calls that format error arguments with %v instead of %w",
+	Doc:      "reports fmt.Errorf calls that pass error arguments without %w wrapping",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/errorfwrapv",
 	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
@@ -97,7 +98,11 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		verbs := parseFormatVerbs(lit.Value)
+		hasWVerb := false
 		for _, fv := range verbs {
+			if fv.verb == 'w' {
+				hasWVerb = true
+			}
 			if fv.verb != 'v' {
 				continue
 			}
@@ -116,6 +121,25 @@ func run(pass *analysis.Pass) (any, error) {
 				return
 			}
 			pass.ReportRangef(call, "fmt.Errorf formats an error argument with %%v; use %%w to preserve the error chain")
+			return
+		}
+
+		if hasWVerb {
+			return
+		}
+
+		for i := 1; i < len(call.Args); i++ {
+			tv, ok := pass.TypesInfo.Types[call.Args[i]]
+			if !ok || tv.Type == nil {
+				continue
+			}
+			if !types.Implements(tv.Type, errorIface) {
+				continue
+			}
+			if nolint.HasDirectiveForLinter(position, noLintIndex, "errorfwrapv") {
+				return
+			}
+			pass.ReportRangef(call, "fmt.Errorf passes an error argument without %%w; use %%w to preserve the error chain")
 			return
 		}
 	})
