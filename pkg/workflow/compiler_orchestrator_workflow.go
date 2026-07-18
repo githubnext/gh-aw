@@ -143,6 +143,7 @@ func (c *Compiler) validateWorkflowEngineSettings(cleanPath string, workflowData
 	// implementation executed these checks.
 	checks := []func(*WorkflowData) error{
 		c.validateRunInstallScripts,
+		c.validateCodexModel,
 		c.validateEngineVersion,
 		c.validatePlaywrightMode,
 		c.validateLSPSupport,

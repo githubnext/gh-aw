@@ -104,6 +104,26 @@ func (c *Compiler) validateEngineVersion(workflowData *WorkflowData) error {
 	return nil
 }
 
+func (c *Compiler) validateCodexModel(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.EngineConfig == nil {
+		return nil
+	}
+	if ResolveEngineID(workflowData) != string(constants.CodexEngine) {
+		return nil
+	}
+
+	model := strings.TrimSpace(workflowData.EngineConfig.Model)
+	if model == "" || containsExpression(model) {
+		return nil
+	}
+
+	if err := validateCodexModelName(model); err != nil {
+		return fmt.Errorf("engine.model: %w.\n\nExample:\nengine:\n  id: codex\n  model: %s\n\nSee: %s", err, constants.CodexDefaultModel, constants.DocsEnginesURL)
+	}
+
+	return nil
+}
+
 // validateEngineHarnessScript validates optional engine.harness configuration.
 // engine.harness must point to a Node.js script.
 func (c *Compiler) validateEngineHarnessScript(workflowData *WorkflowData) error {

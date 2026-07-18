@@ -341,6 +341,66 @@ func TestValidateWorkflowEngineSettings_LSPRequiresCopilot(t *testing.T) {
 	assert.Contains(t, err.Error(), "workflow.md: lsp is currently only supported for engine: copilot")
 }
 
+func TestValidateWorkflowEngineSettings_CodexModelValidation(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name        string
+		model       string
+		expectError bool
+		contains    []string
+	}{
+		{
+			name:  "supported literal model passes",
+			model: "gpt-5.4",
+		},
+		{
+			name:  "expression model is deferred to runtime",
+			model: "${{ needs.activation.outputs.model_size }}",
+		},
+		{
+			name:        "alpha snapshot model fails fast",
+			model:       "gpt-5-codex-alpha-2025-11-07",
+			expectError: true,
+			contains: []string{
+				"workflow.md: engine.model:",
+				"Alpha snapshot names like gpt-5-codex-alpha-* have been decommissioned",
+				"gpt-5.4, gpt-5.4-mini",
+			},
+		},
+		{
+			name:        "unknown model fails fast",
+			model:       "gpt-4o",
+			expectError: true,
+			contains: []string{
+				"workflow.md: engine.model:",
+				"Set engine.model to one of: gpt-5.4, gpt-5.4-mini",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := compiler.validateWorkflowEngineSettings("workflow.md", &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:    "codex",
+					Model: tt.model,
+				},
+			})
+
+			if tt.expectError {
+				require.Error(t, err)
+				for _, want := range tt.contains {
+					assert.Contains(t, err.Error(), want)
+				}
+				return
+			}
+
+			require.NoError(t, err)
+		})
+	}
+}
+
 func TestMergeRawOTLPEndpoints_DedupesAndCountsSources(t *testing.T) {
 	mainObs := map[string]any{
 		"otlp": map[string]any{

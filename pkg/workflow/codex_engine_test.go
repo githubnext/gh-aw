@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCodexEngine_ResolveLLMProvider_DefaultOpenAI(t *testing.T) {
@@ -638,6 +639,55 @@ func TestCodexEngineExecutionPassesModelEnvVarIntoAWFStep(t *testing.T) {
 			if !strings.Contains(stepContent, expectedModelFlag) {
 				t.Errorf("Expected AWF command to use %s for --model shell expansion:\n%s", tt.expectedModelEnv, stepContent)
 			}
+		})
+	}
+}
+
+func TestCodexEngineExecutionValidatesResolvedModelBeforeExec(t *testing.T) {
+	engine := NewCodexEngine()
+
+	tests := []struct {
+		name             string
+		safeOutputs      *SafeOutputsConfig
+		expectedModelEnv string
+	}{
+		{
+			name:             "agent job validates agent model env var",
+			safeOutputs:      &SafeOutputsConfig{},
+			expectedModelEnv: constants.EnvVarModelAgentCodex,
+		},
+		{
+			name:             "detection job validates detection model env var",
+			safeOutputs:      nil,
+			expectedModelEnv: constants.EnvVarModelDetectionCodex,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name: "test-workflow",
+				NetworkPermissions: &NetworkPermissions{
+					Allowed: []string{"defaults"},
+					Firewall: &FirewallConfig{
+						Enabled: true,
+					},
+				},
+				Tools: map[string]any{
+					"bash": []any{"echo"},
+				},
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+			if len(steps) == 0 {
+				t.Fatal("Expected execution step")
+			}
+
+			stepContent := strings.Join([]string(steps[0]), "\n")
+			assert.Contains(t, stepContent, `case "$`+tt.expectedModelEnv+`" in gpt-5.4|gpt-5.4-mini) ;;`)
+			assert.Contains(t, stepContent, `Invalid Codex model \"$`+tt.expectedModelEnv+`\"`)
+			assert.Contains(t, stepContent, `engine.model in workflow frontmatter`)
 		})
 	}
 }

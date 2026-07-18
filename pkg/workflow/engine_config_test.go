@@ -172,11 +172,11 @@ func TestExtractEngineConfig(t *testing.T) {
 			frontmatter: map[string]any{
 				"engine": map[string]any{
 					"id":    "codex",
-					"model": "gpt-4o",
+					"model": "gpt-5.4",
 				},
 			},
 			expectedEngineSetting: "codex",
-			expectedConfig:        &EngineConfig{ID: "codex", Model: "gpt-4o"},
+			expectedConfig:        &EngineConfig{ID: "codex", Model: "gpt-5.4"},
 		},
 		{
 			name: "object format - with model-provider override",
@@ -761,14 +761,14 @@ permissions:
 strict: false
 engine:
   id: codex
-  model: gpt-4o
+  model: gpt-5.4
 ---
 
 # Test Workflow
 
 This is a test workflow.`,
 			expectedAI:     "codex",
-			expectedConfig: &EngineConfig{ID: "codex", Model: "gpt-4o"},
+			expectedConfig: &EngineConfig{ID: "codex", Model: "gpt-5.4"},
 		},
 	}
 
@@ -840,9 +840,9 @@ func TestEngineConfigurationWithModel(t *testing.T) {
 			engine: NewCodexEngine(),
 			engineConfig: &EngineConfig{
 				ID:    "codex",
-				Model: "gpt-4o",
+				Model: "gpt-5.4",
 			},
-			expectedModel:  "gpt-4o",
+			expectedModel:  "gpt-5.4",
 			expectedAPIKey: "",
 		},
 	}

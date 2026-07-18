@@ -225,6 +225,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		modelEnvVar = constants.EnvVarModelAgentCodex
 	}
 	modelParam := fmt.Sprintf(`${%s:+ --model "$%s"}`, modelEnvVar, modelEnvVar)
+	modelValidationParam := buildCodexModelValidationCommand(modelEnvVar)
 
 	// Build search parameter: disable web search by default, enable only if web-search tool is present.
 	// Codex enables web search by default, so we must explicitly set web_search="disabled" to disable it.
@@ -319,13 +320,13 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// The harness sets cwd=GITHUB_WORKSPACE when spawning the codex process, so no
 		// shell-level cd prefix is needed.
 		execPrefix := fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
-		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s%s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
-			execPrefix, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
+		codexCommand = fmt.Sprintf("%s%s exec%s%s%s%s%s%s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
+			modelValidationParam, execPrefix, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 	} else {
 		// Without harness: use shell expansion for the prompt (no retry logic).
 		// Apply workspace prefix here since there is no JS harness to set the cwd.
-		codexCommand = getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + fmt.Sprintf("%s exec%s%s%s%s%s%s \"$INSTRUCTION\"",
-			commandName, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
+		codexCommand = getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + fmt.Sprintf("%s%s exec%s%s%s%s%s%s \"$INSTRUCTION\"",
+			modelValidationParam, commandName, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 	}
 
 	// Build the full command with agent file handling and AWF wrapping if enabled
