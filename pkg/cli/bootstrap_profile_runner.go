@@ -579,7 +579,8 @@ func createBootstrapGitHubApp(ctx context.Context, repo, owner, repoName, ownerT
 
 	printBootstrapGitHubAppManifestReview(appOwner, manifest)
 	openURL := fmt.Sprintf("http://%s/register", listener.Addr().String())
-	if !overrides.OpenBrowser || !openBootstrapBrowser(openURL) {
+	opened := overrides.OpenBrowser && openBootstrapBrowser(openURL)
+	if !opened {
 		fmt.Fprintln(os.Stderr, console.FormatCommandMessage(openURL))
 	}
 
