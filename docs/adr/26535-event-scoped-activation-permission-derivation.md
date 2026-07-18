@@ -67,7 +67,7 @@ Request a minimal token at activation time and escalate permissions lazily when 
 
 ### Fallback Behavior
 
-1. When the `on:` section is absent or empty at permission derivation time, implementations **MUST** fall back to granting the full set of broad permissions (`issues: write`, `pull-requests: write`, `discussions: write`) and **MUST** emit a diagnostic log message explaining that the broad fallback is in use. Done condition: a CI test asserts that the log line containing the broad-fallback explanation is emitted whenever the `on:` section is absent or empty during permission derivation.
+1. When the `on:` section is absent or empty at permission derivation time, implementations **MUST** fall back to granting the full set of broad permissions (`issues: write`, `pull-requests: write`, `discussions: write`) and **MUST** emit a diagnostic log message explaining that the broad fallback is in use. **Pending**: a CI test that asserts the log line containing the broad-fallback explanation is emitted whenever the `on:` section is absent or empty during permission derivation has not yet been added; this remains a required follow-up (tracked in the Status Promotion checklist below).
 2. Implementations **MUST NOT** silently grant zero permissions for reactions or status comments when the `on:` section is malformed; a parse failure **SHOULD** be logged and the empty event set **SHOULD** result in no reaction/status-comment-related permissions being added.
 
 ### Conformance

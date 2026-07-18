@@ -42,7 +42,7 @@ An alternative is to accept the tag-object SHA as the pin value and teach the di
 - The two-call strategy is sensitive to rate-limiting: a rate-limit hit on the second (peeling) call results in a hard failure, with no partial-result fallback.
 
 #### Neutral
-- The `ParseTagRefTSV` function is exported from `pkg/workflow`, creating a new public symbol. Because `pkg/workflow` is an **internal** package (not imported by external consumers outside this repository), `ParseTagRefTSV` does **not** constitute a public API with SemVer implications. It is an exported symbol for test-accessibility within the module only. Renaming or changing its signature is a breaking change only for other packages within this repository, and is governed by internal refactoring conventions rather than SemVer guarantees.
+- The `ParseTagRefTSV` function is exported from `pkg/workflow` (`github.com/github/gh-aw/pkg/workflow`), which is importable by external modules and is also documented in `pkg/workflow/README.md`. This means `ParseTagRefTSV` **is** a public symbol with SemVer implications: renaming or changing its signature without a major-version bump would be a breaking change for any external consumer that imports `pkg/workflow`. If the function is intended as an internal implementation detail, it should either be unexported (renamed to `parseTagRefTSV`) or moved to an `internal/` package. Until that refactoring occurs, any change to `ParseTagRefTSV`'s signature must be treated as a public API change.
 - Integration tests require network access to validate the full two-call flow; unit tests cover only the TSV parsing.
 
 ---

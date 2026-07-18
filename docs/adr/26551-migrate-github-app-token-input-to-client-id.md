@@ -85,17 +85,22 @@ An implementation is considered conformant with this ADR if it satisfies all **M
 
 ### Sync Task — Rename `GitHubAppConfig.AppID` to `GitHubAppConfig.ClientID`
 
-The internal Go struct field `GitHubAppConfig.AppID` in `pkg/workflow` currently carries ambiguous semantics: it stores whichever identifier value the user provided (`client-id` or `app-id`) under a field named `AppID`. This mismatch between field name and preferred YAML key is acknowledged technical debt.
+The Go struct field `GitHubAppConfig.AppID` in `pkg/workflow` currently carries ambiguous semantics: it stores whichever identifier value the user provided (`client-id` or `app-id`) under a field named `AppID`. This mismatch between field name and preferred YAML key is acknowledged technical debt.
+
+**Breaking API change notice:** `GitHubAppConfig` and its `AppID` field are exported from `pkg/workflow` (`github.com/github/gh-aw/pkg/workflow`), which is importable by external modules and is documented in `pkg/workflow/README.md`. Renaming `AppID` to `ClientID` is therefore a **breaking Go API change** under SemVer: existing tests and any external consumers that reference `GitHubAppConfig.AppID` will fail to compile after the rename. This follow-up **MUST** be planned as one of:
+
+- A **major-version bump** (breaking change with no compatibility shim), or
+- A **compatibility alias** — retaining `AppID` as a deprecated alias that delegates to `ClientID` — so that existing consumers compile without modification until a subsequent major version removes the alias.
 
 **Scheduled follow-up task:**
 
-- Rename `GitHubAppConfig.AppID` → `GitHubAppConfig.ClientID` in `pkg/workflow` and update all references throughout the repository.
+- Rename `GitHubAppConfig.AppID` → `GitHubAppConfig.ClientID` in `pkg/workflow` and update all call sites throughout the repository.
 - Update any JSON/YAML struct tags on the renamed field as needed.
-- After renaming, verify that all existing tests pass without modification (the rename is internal; no public API surface changes).
+- Update all test references from `.AppID` to `.ClientID`; if a compatibility alias is used, add a test that the alias still compiles and delegates correctly.
 - In the same change, add a deprecation warning at compile time for frontmatter that still uses `app-id`, so authors are prompted to run `gh aw fix` to migrate.
 - Schedule removal of the `app-id` backward-compatibility alias in the next major version bump; record the planned removal version in the deprecation warning.
 
-Done condition: A follow-up PR renames `GitHubAppConfig.AppID` to `GitHubAppConfig.ClientID`, all references are updated, and the PR is linked back to this ADR.
+Done condition: A follow-up PR renames `GitHubAppConfig.AppID` to `GitHubAppConfig.ClientID` (with or without a compatibility alias as decided by the maintainers), all references are updated, tests pass, and the PR is linked back to this ADR.
 
 ---
 

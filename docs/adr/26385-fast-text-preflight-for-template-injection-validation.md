@@ -79,7 +79,7 @@ The line-by-line text scanner is a custom parser that can drift from YAML semant
 1. **Go YAML library upgrade**: Any upgrade to the `go-yaml` (or `goccy/go-yaml`) dependency version **MUST** be accompanied by a review of the scanner's block-scalar and indentation-handling logic to verify that the library's normalisation behaviour (e.g., tab-to-space conversion) remains compatible with the scanner's assumptions.
 2. **New block scalar variants**: If the YAML specification or the Go YAML library introduces support for new block scalar indicators or chomping modifiers not currently listed in normative requirement 5 of the Template Injection Pre-flight Check section, those indicators **MUST** be added to the scanner before the change is merged.
 3. **False-negative CI gate**: The CI test suite **MUST** include at least one negative test case for each `run:` block scalar variant (`|`, `>`, `|-`, `|+`, `>-`, `>+`) asserting that an unsafe expression embedded in that block content causes `hasUnsafeExpressionInRunContent` to return `true`. These tests serve as the catch-all regression gate for scanner false-negatives.
-4. **Benchmark regression gate**: The `BenchmarkCompileComplexWorkflow` benchmark **MUST** remain at or below 3.0 ms/op. If a change causes it to exceed this threshold, the scanner implementation must be profiled and optimised before the change is merged.
+4. **Benchmark regression gate**: The `BenchmarkCompileComplexWorkflow` benchmark **MUST NOT** regress by more than 10% relative to the established baseline, consistent with the existing CI enforcement in `cgo.yml` (benchstat >10% regression gate). An absolute performance budget of `<500ms` per compilation is the baseline target documented in `compiler_performance_benchmark_test.go`. If a change causes a >10% regression relative to the prior baseline, the scanner implementation must be profiled and optimised before the change is merged. Do not introduce a second absolute threshold (e.g., a fixed ms/op cap) that is not enforced by CI, as this creates a gap between the spec and the enforcement mechanism.
 
 ---
 
@@ -90,7 +90,7 @@ This ADR is currently **Draft**. To promote it to **Accepted**, all of the follo
 - [ ] The PR implementing `hasUnsafeExpressionInRunContent` has been merged to the default branch.
 - [ ] All CI checks (tests, linters, compilation) are green on the merged commit.
 - [ ] The CI test suite contains negative test cases for every `run:` block scalar variant (`|`, `>`, `|-`, `|+`, `>-`, `>+`) asserting that unsafe expressions in block content return `true`.
-- [ ] `BenchmarkCompileComplexWorkflow` runs at or below 3.0 ms/op on the merged commit.
+- [ ] `BenchmarkCompileComplexWorkflow` shows no >10% regression relative to the baseline (as enforced by the CI benchstat gate in `cgo.yml`), and remains well below the `<500ms` baseline target documented in the test file.
 - [ ] No open issues reference a conformance failure against this ADR.
 
 Once all boxes are checked, update the `**Status**` field at the top of this document from `Draft` to `Accepted`.
