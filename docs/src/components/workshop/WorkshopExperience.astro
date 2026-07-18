@@ -71,7 +71,11 @@ function isLocalWorkshopStepLink(value: string) {
 
 function decodeLocalWorkshopStepLink(value: string) {
 	if (value.startsWith(workshopLocalLinkPrefix)) {
-		return decodeURIComponent(value.slice(workshopLocalLinkPrefix.length));
+		try {
+			return decodeURIComponent(value.slice(workshopLocalLinkPrefix.length));
+		} catch {
+			return '';
+		}
 	}
 	return isLocalWorkshopStepLink(value) ? value : '';
 }
@@ -98,7 +102,7 @@ async function renderWorkshopHtml(entryId: string) {
 		.find(([path]) => path.endsWith(`/${entryId}`))
 		?.[1];
 	if (!moduleEntry) {
-		throw new Error(`Missing generated workshop markdown for ${entryId}`);
+		throw new Error(`Missing generated workshop markdown for ${entryId}. Expected to find it in src/generated/workshop-markdown/.`);
 	}
 	return rewriteWorkshopHtml(await moduleEntry.compiledContent());
 }
