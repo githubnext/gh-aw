@@ -1920,6 +1920,10 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	}
 
 	@media (max-width: 50rem) {
+		.aw-workshop-flow-header {
+			display: none;
+		}
+
 		.aw-workshop-picker {
 			padding: 0.85rem;
 		}
@@ -1929,12 +1933,31 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		}
 
 		.aw-workshop-panel-shell {
-			padding: 0.9rem;
+			min-height: 0;
+			padding: 0.45rem 0;
+			border: none;
+			background: transparent;
+			box-shadow: none;
+			backdrop-filter: none;
 		}
 
+		.aw-workshop-panel-summary,
 		.aw-workshop-progress-card,
+		.aw-workshop-panel-actions {
+			display: none;
+		}
+
 		.aw-workshop-step-content {
+			margin-top: 0;
 			padding: 0.85rem;
+		}
+
+		.aw-workshop-step-content :global(p),
+		.aw-workshop-step-content :global(ul),
+		.aw-workshop-step-content :global(ol),
+		.aw-workshop-step-content :global(aside) {
+			font-size: 1rem;
+			line-height: 1.72;
 		}
 
 		.aw-workshop-step-bubbles {

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const PIXEL_TOLERANCE = 1;
+const ZEN_MODE_MOBILE_BREAKPOINT = 800;
 
 const workshopDevices = [
 	{ name: 'Galaxy S21', width: 360, height: 800 },
@@ -85,11 +86,22 @@ test.describe('Workshop tutorial', () => {
 		test(`renders the workshop flow cleanly on ${device.name}`, async ({ page }) => {
 			await page.setViewportSize({ width: device.width, height: device.height });
 			await startWorkshop(page);
+			const isZenMobileViewport = device.width <= ZEN_MODE_MOBILE_BREAKPOINT;
 
 			await expect(page.locator('.aw-workshop-panel-shell')).toBeVisible();
-			await expect(page.locator('.aw-workshop-progress-card')).toBeVisible();
 			await expect(page.locator('.aw-workshop-step-content')).toBeVisible();
 			await expect(page.getByRole('button', { name: /Next step|Finish workshop/i })).toBeVisible();
+			if (isZenMobileViewport) {
+				await expect(page.locator('.aw-workshop-flow-header')).toBeHidden();
+				await expect(page.locator('.aw-workshop-progress-card')).toBeHidden();
+				await expect(page.locator('.aw-workshop-panel-summary')).toBeHidden();
+				await expect(page.locator('.aw-workshop-panel-actions')).toBeHidden();
+			} else {
+				await expect(page.locator('.aw-workshop-flow-header')).toBeVisible();
+				await expect(page.locator('.aw-workshop-progress-card')).toBeVisible();
+				await expect(page.locator('.aw-workshop-panel-summary')).toBeVisible();
+				await expect(page.locator('.aw-workshop-panel-actions')).toBeVisible();
+			}
 
 			const layout = await page.evaluate(() => {
 				const selectors = [
