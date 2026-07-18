@@ -119,7 +119,18 @@
       "avg_agent_duration_minutes": 306,
       "success_rate": 0.875,
       "note": "rolling 24h window from 07-16 18:32Z; author app/copilot-swe-agent only; 15 of 31 PRs still open (all <24h old), success_rate over 16 completed; avg_duration is created->merged; 5 older PRs (#46057,#46047,#46045,#46013,#45905) created 07-16 remain open >24h"
+    },
+    {
+      "date": "2026-07-18",
+      "total_prs": 39,
+      "merged_prs": 23,
+      "closed_prs": 10,
+      "open_prs": 6,
+      "avg_comments": 0.03,
+      "avg_agent_duration_minutes": 93,
+      "success_rate": 0.697,
+      "note": "rolling 24h window from 07-17 18:31Z; author app/copilot-swe-agent only; 6 of 39 PRs still open (all <24h old); success_rate over 33 completed; avg_duration created->merged; only 1 human comment across all 39 PRs"
     }
   ],
-  "last_updated": "2026-07-17"
+  "last_updated": "2026-07-18"
 }
