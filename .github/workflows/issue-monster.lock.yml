@@ -648,10 +648,6 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_CONTEXT: ${{ needs.pre_activation.outputs.issue_context }}
-          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_COUNT: ${{ needs.pre_activation.outputs.issue_count }}
-          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_LIST: ${{ needs.pre_activation.outputs.issue_list }}
-          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_NUMBERS: ${{ needs.pre_activation.outputs.issue_numbers }}
         # poutine:ignore untrusted_checkout_exec
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
@@ -713,11 +709,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_ENGINE_ID: "pi"
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_CONTEXT: ${{ needs.pre_activation.outputs.issue_context }}
-          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_COUNT: ${{ needs.pre_activation.outputs.issue_count }}
-          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_LIST: ${{ needs.pre_activation.outputs.issue_list }}
-          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_NUMBERS: ${{ needs.pre_activation.outputs.issue_numbers }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -738,10 +729,6 @@ jobs:
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_MCP_CLI_SERVERS_LIST: '- `safeoutputs` — run `safeoutputs --help` to see available tools'
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
-          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_CONTEXT: ${{ needs.pre_activation.outputs.issue_context }}
-          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_COUNT: ${{ needs.pre_activation.outputs.issue_count }}
-          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_LIST: ${{ needs.pre_activation.outputs.issue_list }}
-          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_NUMBERS: ${{ needs.pre_activation.outputs.issue_numbers }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -762,11 +749,7 @@ jobs:
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
                 GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
                 GH_AW_MCP_CLI_SERVERS_LIST: process.env.GH_AW_MCP_CLI_SERVERS_LIST,
-                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
-                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_CONTEXT: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_CONTEXT,
-                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_COUNT: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_COUNT,
-                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_LIST: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_LIST,
-                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_NUMBERS: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ISSUE_NUMBERS
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED
               }
             });
       - name: Validate prompt placeholders

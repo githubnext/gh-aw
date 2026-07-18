@@ -379,7 +379,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_ENGINE_ID: "claude"
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_EXPERIMENTS_LOG_FETCH_STRATEGY: ${{ steps.pick-experiment.outputs.log_fetch_strategy }}
         with:
           script: |
