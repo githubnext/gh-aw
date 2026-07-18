@@ -12,6 +12,34 @@ import (
 
 var compilerYamlStepLifecycleLog = logger.New("workflow:compiler_yaml:steps")
 
+type awInfoParams struct {
+	engineID               string
+	engineName             string
+	modelConfigured        bool
+	model                  string
+	modelEnvVar            string
+	version                string
+	agentVersion           string
+	workflowName           string
+	stagedValue            string
+	domainsJSON            string
+	firewallEnabled        bool
+	firewallVersion        string
+	mcpGatewayVersion      string
+	firewallType           string
+	experimental           bool
+	supportsToolsAllowlist bool
+	frontmatterSource      string
+	frontmatterEmoji       string
+	compiledStrict         bool
+	targetRepoExpr         string
+	includeLockdown        bool
+	customGitHubToken      string
+	modelCostsJSON         string
+	featuresJSON           string
+	skillsJSON             string
+}
+
 func (c *Compiler) generatePreSteps(yaml *strings.Builder, data *WorkflowData) {
 	writeStepsSection(yaml, data.PreSteps)
 }
@@ -32,7 +60,7 @@ func writeStepsSection(yaml *strings.Builder, stepsYAML string) {
 		return
 	}
 	lines := strings.Split(stepsYAML, "\n")
-	for _, line := range lines[1:] { // skip the "pre-steps:" / "pre-agent-steps:" / "post-steps:" header line
+	for _, line := range lines[1:] {
 		trimmed := strings.TrimRight(line, " ")
 		if strings.TrimSpace(trimmed) == "" {
 			yaml.WriteString("\n")
@@ -47,179 +75,190 @@ func writeStepsSection(yaml *strings.Builder, stepsYAML string) {
 }
 
 func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
-	// Engine ID (prefer EngineConfig.ID, fallback to AI field for backwards compatibility)
-	engineID := engine.GetID()
-	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
-		engineID = data.EngineConfig.ID
-	} else if data.AI != "" {
-		engineID = data.AI
-	}
+	params := resolveAwInfoParams(c, data, engine)
+	compilerYamlStepLifecycleLog.Printf("Generating aw_info step: engine=%s, modelConfigured=%t, version=%s, firewallEnabled=%t, staged=%s", params.engineID, params.modelConfigured, params.version, params.firewallEnabled, params.stagedValue)
+	writeAwInfoStep(yaml, c, data, engine, params)
+}
 
-	// Model - explicit config or runtime env var via vars context
-	modelConfigured := data.EngineConfig != nil && data.EngineConfig.Model != ""
-	var modelEnvVar string
-	if !modelConfigured {
-		switch engineID {
-		case "copilot":
-			modelEnvVar = constants.EnvVarModelAgentCopilot
-		case "claude":
-			modelEnvVar = constants.EnvVarModelAgentClaude
-		case "codex":
-			modelEnvVar = constants.EnvVarModelAgentCodex
-		case "opencode":
-			modelEnvVar = constants.EnvVarModelAgentOpenCode
-		case "custom":
-			modelEnvVar = constants.EnvVarModelAgentCustom
-		default:
-			modelEnvVar = constants.EnvVarModelAgentCustom
-		}
-	}
-
-	// Agent version - use the actual installation version (includes defaults)
+func resolveAwInfoParams(c *Compiler, data *WorkflowData, engine CodingAgentEngine) awInfoParams {
+	engineID := resolveAwInfoEngineID(data, engine)
 	agentVersion := getInstallationVersion(data, engine)
+	params := awInfoParams{
+		engineID:               engineID,
+		engineName:             engine.GetDisplayName(),
+		modelConfigured:        data.EngineConfig != nil && data.EngineConfig.Model != "",
+		version:                resolveAwInfoVersion(data, agentVersion),
+		agentVersion:           agentVersion,
+		workflowName:           data.Name,
+		stagedValue:            resolveAwInfoStagedValue(data),
+		domainsJSON:            resolveAwInfoDomainsJSON(data),
+		firewallEnabled:        resolveAwInfoFirewallEnabled(data),
+		firewallVersion:        resolveAwInfoFirewallVersion(data),
+		mcpGatewayVersion:      resolveAwInfoMCPGatewayVersion(data),
+		firewallType:           resolveAwInfoFirewallType(data),
+		experimental:           engine.IsExperimental(),
+		supportsToolsAllowlist: engine.GetCapabilities().ToolsAllowlist,
+		frontmatterSource:      data.Source,
+		frontmatterEmoji:       data.FrontmatterEmoji,
+		compiledStrict:         c.effectiveStrictMode(data.RawFrontmatter),
+		targetRepoExpr:         resolveAwInfoTargetRepoExpr(data),
+		modelCostsJSON:         marshalAwInfoJSON(data.ModelCosts),
+		featuresJSON:           marshalAwInfoJSON(data.Features),
+		skillsJSON:             marshalAwInfoSkillsJSON(data.Skills),
+	}
+	params.model, params.modelEnvVar = resolveAwInfoModelValues(data, engineID)
+	params.includeLockdown, params.customGitHubToken = resolveAwInfoLockdownValues(data)
+	return params
+}
 
-	// Version: prefer explicit engine config version, fall back to the installation version
-	// so the run details always show the version being used rather than "(none)".
-	version := agentVersion
+func resolveAwInfoEngineID(data *WorkflowData, engine CodingAgentEngine) string {
+	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		return data.EngineConfig.ID
+	}
+	if data.AI != "" {
+		return data.AI
+	}
+	return engine.GetID()
+}
+
+func resolveAwInfoVersion(data *WorkflowData, agentVersion string) string {
 	if data.EngineConfig != nil && data.EngineConfig.Version != "" {
-		version = data.EngineConfig.Version
+		return data.EngineConfig.Version
 	}
+	return agentVersion
+}
 
-	// Staged value from safe-outputs configuration
-	stagedValue := "false"
+func resolveAwInfoStagedValue(data *WorkflowData) string {
 	if data.SafeOutputs != nil && data.SafeOutputs.Staged != nil {
-		stagedValue = data.SafeOutputs.Staged.String()
+		return data.SafeOutputs.Staged.String()
 	}
+	return "false"
+}
 
-	// Network configuration
-	var allowedDomains []string
-	firewallEnabled := false
-	firewallVersion := ""
-	if data.NetworkPermissions != nil {
-		allowedDomains = data.NetworkPermissions.Allowed
+func resolveAwInfoDomainsJSON(data *WorkflowData) string {
+	if data.NetworkPermissions == nil || len(data.NetworkPermissions.Allowed) == 0 {
+		return "[]"
 	}
+	b, _ := json.Marshal(data.NetworkPermissions.Allowed) //nolint:jsonmarshalignoredeerror
+	return string(b)
+}
+
+func resolveAwInfoFirewallEnabled(data *WorkflowData) bool {
 	if firewallConfig := getFirewallConfig(data); firewallConfig != nil {
-		firewallEnabled = firewallConfig.Enabled
-		firewallVersion = firewallConfig.Version
-		if firewallEnabled && firewallVersion == "" {
-			firewallVersion = string(constants.DefaultFirewallVersion)
-		}
+		return firewallConfig.Enabled
 	}
+	return false
+}
 
-	// Allowed domains as JSON array string
-	domainsJSON := "[]"
-	if len(allowedDomains) > 0 {
-		b, _ := json.Marshal(allowedDomains) //nolint:jsonmarshalignoredeerror // marshaling a string slice cannot fail
-		domainsJSON = string(b)
+func resolveAwInfoFirewallVersion(data *WorkflowData) string {
+	firewallConfig := getFirewallConfig(data)
+	if firewallConfig == nil || !firewallConfig.Enabled {
+		return ""
 	}
-
-	// MCP Gateway version
-	mcpGatewayVersion := ""
-	if data.SandboxConfig != nil && data.SandboxConfig.MCP != nil && data.SandboxConfig.MCP.Version != "" {
-		mcpGatewayVersion = data.SandboxConfig.MCP.Version
+	if firewallConfig.Version != "" {
+		return firewallConfig.Version
 	}
+	return string(constants.DefaultFirewallVersion)
+}
 
-	// Firewall type
-	firewallType := ""
+func resolveAwInfoMCPGatewayVersion(data *WorkflowData) string {
+	if data.SandboxConfig != nil && data.SandboxConfig.MCP != nil {
+		return data.SandboxConfig.MCP.Version
+	}
+	return ""
+}
+
+func resolveAwInfoFirewallType(data *WorkflowData) string {
 	if isFirewallEnabled(data) {
-		firewallType = "squid"
+		return "squid"
 	}
+	return ""
+}
 
-	compilerYamlStepLifecycleLog.Printf("Generating aw_info step: engine=%s, modelConfigured=%t, version=%s, firewallEnabled=%t, staged=%s", engineID, modelConfigured, version, firewallEnabled, stagedValue)
+func resolveAwInfoTargetRepoExpr(data *WorkflowData) string {
+	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
+		return "${{ steps.resolve-host-repo.outputs.target_repo }}"
+	}
+	return ""
+}
 
+func resolveAwInfoModelValues(data *WorkflowData, engineID string) (string, string) {
+	if data.EngineConfig != nil && data.EngineConfig.Model != "" {
+		return data.EngineConfig.Model, ""
+	}
+	return "", resolveAwInfoModelEnvVar(engineID)
+}
+
+func resolveAwInfoModelEnvVar(engineID string) string {
+	switch engineID {
+	case "copilot":
+		return constants.EnvVarModelAgentCopilot
+	case "claude":
+		return constants.EnvVarModelAgentClaude
+	case "codex":
+		return constants.EnvVarModelAgentCodex
+	case "opencode":
+		return constants.EnvVarModelAgentOpenCode
+	default:
+		return constants.EnvVarModelAgentCustom
+	}
+}
+
+func resolveAwInfoLockdownValues(data *WorkflowData) (bool, string) {
+	githubTool, hasGitHub := data.Tools["github"]
+	if !hasGitHub || githubTool == false {
+		return false, ""
+	}
+	toolConfig, _ := githubTool.(map[string]any)
+	if !hasGitHubLockdownExplicitlySet(toolConfig) || !getGitHubLockdown(toolConfig) {
+		return false, ""
+	}
+	return true, getGitHubToken(toolConfig)
+}
+
+func marshalAwInfoJSON(value any) string {
+	if isEmptyAwInfoValue(value) {
+		return ""
+	}
+	b, err := json.Marshal(value)
+	if err != nil {
+		return ""
+	}
+	return strings.ReplaceAll(string(b), "'", "''")
+}
+
+func marshalAwInfoSkillsJSON(skills []string) string {
+	if len(skills) == 0 {
+		return ""
+	}
+	b, err := json.Marshal(skills)
+	if err != nil {
+		compilerYamlStepLifecycleLog.Printf("Failed to marshal skills for GH_AW_INFO_SKILLS, engine will not receive skill list: %v", err)
+		return ""
+	}
+	return strings.ReplaceAll(string(b), "'", "''")
+}
+
+func isEmptyAwInfoValue(value any) bool {
+	switch v := value.(type) {
+	case nil:
+		return true
+	case []string:
+		return len(v) == 0
+	case map[string]float64:
+		return len(v) == 0
+	case map[string]any:
+		return len(v) == 0
+	default:
+		return false
+	}
+}
+
+func writeAwInfoStep(yaml *strings.Builder, c *Compiler, data *WorkflowData, engine CodingAgentEngine, p awInfoParams) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
 	yaml.WriteString("        id: generate_aw_info\n")
 	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GH_AW_INFO_ENGINE_ID: \"%s\"\n", engineID)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_ENGINE_NAME: \"%s\"\n", engine.GetDisplayName())
-	if modelConfigured {
-		fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: \"%s\"\n", data.EngineConfig.Model)
-	} else {
-		// Use the engine's default model as fallback when neither explicit model nor
-		// model variable is configured, so the run details show "agent" rather than "(none)".
-		defaultModel := getDefaultAgentModel(engineID)
-		defaultModelOverrideVar := getDefaultModelOverrideVar(engineID)
-		if defaultModel != "" && defaultModelOverrideVar != "" {
-			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: %s\n", compilerenv.BuildModelOverrideExpression(modelEnvVar, defaultModelOverrideVar, defaultModel))
-		} else if defaultModel != "" {
-			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '%s' }}\n", modelEnvVar, defaultModel)
-		} else if defaultModelOverrideVar != "" {
-			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: %s\n", compilerenv.BuildModelOverrideExpressionEmptyFallback(modelEnvVar, defaultModelOverrideVar))
-		} else {
-			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '' }}\n", modelEnvVar)
-		}
-	}
-	fmt.Fprintf(yaml, "          GH_AW_INFO_VERSION: \"%s\"\n", version)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_AGENT_VERSION: \"%s\"\n", agentVersion)
-	// CLI version only for released builds
-	if IsReleasedVersion(c.version) {
-		fmt.Fprintf(yaml, "          GH_AW_INFO_CLI_VERSION: \"%s\"\n", c.version)
-	}
-	fmt.Fprintf(yaml, "          GH_AW_INFO_WORKFLOW_NAME: \"%s\"\n", data.Name)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_EXPERIMENTAL: \"%t\"\n", engine.IsExperimental())
-	fmt.Fprintf(yaml, "          GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: \"%t\"\n", engine.GetCapabilities().ToolsAllowlist)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_STAGED: \"%s\"\n", stagedValue)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_ALLOWED_DOMAINS: '%s'\n", domainsJSON)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_ENABLED: \"%t\"\n", firewallEnabled)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_AWF_VERSION: \"%s\"\n", firewallVersion)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_AWMG_VERSION: \"%s\"\n", mcpGatewayVersion)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_TYPE: \"%s\"\n", firewallType)
-	if data.Source != "" {
-		fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_SOURCE: %q\n", data.Source)
-		// Body-modified defaults to false at compile time; update flows may override this
-		// signal when source/body drift is detected before execution.
-		yaml.WriteString("          GH_AW_INFO_BODY_MODIFIED: \"false\"\n")
-	}
-	if data.FrontmatterEmoji != "" {
-		fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_EMOJI: %q\n", data.FrontmatterEmoji)
-	}
-	// Always include strict mode flag for lockdown validation.
-	// validateLockdownRequirements uses this to enforce strict: true for public repositories.
-	// Use effectiveStrictMode to infer strictness from the source (frontmatter), not just the CLI flag.
-	fmt.Fprintf(yaml, "          GH_AW_COMPILED_STRICT: \"%t\"\n", c.effectiveStrictMode(data.RawFrontmatter))
-	// When a workflow_call trigger is present, pass the target_repo resolved by the
-	// resolve-host-repo step so it can be stored in aw_info.json for observability.
-	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
-		yaml.WriteString("          GH_AW_INFO_TARGET_REPO: ${{ steps.resolve-host-repo.outputs.target_repo }}\n")
-	}
-	// Include lockdown validation env vars when lockdown is explicitly enabled.
-	// validateLockdownRequirements is called from generate_aw_info.cjs and uses these vars.
-	githubTool, hasGitHub := data.Tools["github"]
-	if hasGitHub && githubTool != false {
-		toolConfig, _ := githubTool.(map[string]any)
-		if hasGitHubLockdownExplicitlySet(toolConfig) && getGitHubLockdown(toolConfig) {
-			yaml.WriteString("          GITHUB_MCP_LOCKDOWN_EXPLICIT: \"true\"\n")
-			yaml.WriteString("          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}\n")
-			yaml.WriteString("          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}\n")
-			if customToken := getGitHubToken(toolConfig); customToken != "" {
-				fmt.Fprintf(yaml, "          CUSTOM_GITHUB_TOKEN: %s\n", customToken)
-			}
-		}
-	}
-	// Embed the `models` overlay from frontmatter so the activation job can merge it with
-	// the built-in models.json and write the combined catalog to /tmp/gh-aw/models.json.
-	if len(data.ModelCosts) > 0 {
-		if modelCostsJSON, err := json.Marshal(data.ModelCosts); err == nil {
-			// Escape single quotes for YAML single-quoted scalar safety
-			escapedModelCostsJSON := strings.ReplaceAll(string(modelCostsJSON), "'", "''")
-			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL_COSTS: '%s'\n", escapedModelCostsJSON)
-		}
-	}
-	if len(data.Features) > 0 {
-		if featuresJSON, err := json.Marshal(data.Features); err == nil {
-			// Escape single quotes for YAML single-quoted scalar safety
-			escapedFeaturesJSON := strings.ReplaceAll(string(featuresJSON), "'", "''")
-			fmt.Fprintf(yaml, "          GH_AW_INFO_FEATURES: '%s'\n", escapedFeaturesJSON)
-		}
-	}
-	if len(data.Skills) > 0 {
-		if skillsJSON, err := json.Marshal(data.Skills); err == nil {
-			escapedSkillsJSON := strings.ReplaceAll(string(skillsJSON), "'", "''")
-			fmt.Fprintf(yaml, "          GH_AW_INFO_SKILLS: '%s'\n", escapedSkillsJSON)
-		} else {
-			compilerYamlStepLifecycleLog.Printf("Failed to marshal skills for GH_AW_INFO_SKILLS, engine will not receive skill list: %v", err)
-		}
-	}
+	writeAwInfoEnvVars(yaml, c, p)
 	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
@@ -229,87 +268,160 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("            await main(core, context);\n")
 }
 
+func writeAwInfoEnvVars(yaml *strings.Builder, c *Compiler, p awInfoParams) {
+	fmt.Fprintf(yaml, "          GH_AW_INFO_ENGINE_ID: \"%s\"\n", p.engineID)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_ENGINE_NAME: \"%s\"\n", p.engineName)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: %s\n", resolveAwInfoModelExpression(p.engineID, p.modelEnvVar, p.model))
+	fmt.Fprintf(yaml, "          GH_AW_INFO_VERSION: \"%s\"\n", p.version)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_AGENT_VERSION: \"%s\"\n", p.agentVersion)
+	writeAwInfoOptionalCLIEnvVar(yaml, c.version)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_WORKFLOW_NAME: \"%s\"\n", p.workflowName)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_EXPERIMENTAL: \"%t\"\n", p.experimental)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: \"%t\"\n", p.supportsToolsAllowlist)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_STAGED: \"%s\"\n", p.stagedValue)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_ALLOWED_DOMAINS: '%s'\n", p.domainsJSON)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_ENABLED: \"%t\"\n", p.firewallEnabled)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_AWF_VERSION: \"%s\"\n", p.firewallVersion)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_AWMG_VERSION: \"%s\"\n", p.mcpGatewayVersion)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_TYPE: \"%s\"\n", p.firewallType)
+	writeAwInfoOptionalEnvVars(yaml, p)
+}
+
+func resolveAwInfoModelExpression(engineID string, modelEnvVar string, model string) string {
+	if model != "" {
+		return fmt.Sprintf("\"%s\"", model)
+	}
+	defaultModel := getDefaultAgentModel(engineID)
+	defaultModelOverrideVar := getDefaultModelOverrideVar(engineID)
+	if defaultModel != "" && defaultModelOverrideVar != "" {
+		return compilerenv.BuildModelOverrideExpression(modelEnvVar, defaultModelOverrideVar, defaultModel)
+	}
+	if defaultModel != "" {
+		return fmt.Sprintf("${{ vars.%s || '%s' }}", modelEnvVar, defaultModel)
+	}
+	if defaultModelOverrideVar != "" {
+		return compilerenv.BuildModelOverrideExpressionEmptyFallback(modelEnvVar, defaultModelOverrideVar)
+	}
+	return fmt.Sprintf("${{ vars.%s || '' }}", modelEnvVar)
+}
+
+func writeAwInfoOptionalCLIEnvVar(yaml *strings.Builder, version string) {
+	if IsReleasedVersion(version) {
+		fmt.Fprintf(yaml, "          GH_AW_INFO_CLI_VERSION: \"%s\"\n", version)
+	}
+}
+
+func writeAwInfoOptionalEnvVars(yaml *strings.Builder, p awInfoParams) {
+	writeAwInfoSourceEnvVars(yaml, p)
+	if p.frontmatterEmoji != "" {
+		fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_EMOJI: %q\n", p.frontmatterEmoji)
+	}
+	fmt.Fprintf(yaml, "          GH_AW_COMPILED_STRICT: \"%t\"\n", p.compiledStrict)
+	if p.targetRepoExpr != "" {
+		fmt.Fprintf(yaml, "          GH_AW_INFO_TARGET_REPO: %s\n", p.targetRepoExpr)
+	}
+	writeAwInfoLockdownEnvVars(yaml, p)
+	writeAwInfoJSONEnvVar(yaml, "GH_AW_INFO_MODEL_COSTS", p.modelCostsJSON)
+	writeAwInfoJSONEnvVar(yaml, "GH_AW_INFO_FEATURES", p.featuresJSON)
+	writeAwInfoJSONEnvVar(yaml, "GH_AW_INFO_SKILLS", p.skillsJSON)
+}
+
+func writeAwInfoSourceEnvVars(yaml *strings.Builder, p awInfoParams) {
+	if p.frontmatterSource == "" {
+		return
+	}
+	fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_SOURCE: %q\n", p.frontmatterSource)
+	yaml.WriteString("          GH_AW_INFO_BODY_MODIFIED: \"false\"\n")
+}
+
+func writeAwInfoLockdownEnvVars(yaml *strings.Builder, p awInfoParams) {
+	if !p.includeLockdown {
+		return
+	}
+	yaml.WriteString("          GITHUB_MCP_LOCKDOWN_EXPLICIT: \"true\"\n")
+	yaml.WriteString("          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}\n")
+	yaml.WriteString("          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}\n")
+	if p.customGitHubToken != "" {
+		fmt.Fprintf(yaml, "          CUSTOM_GITHUB_TOKEN: %s\n", p.customGitHubToken)
+	}
+}
+
+func writeAwInfoJSONEnvVar(yaml *strings.Builder, name string, value string) {
+	if value != "" {
+		fmt.Fprintf(yaml, "          %s: '%s'\n", name, value)
+	}
+}
+
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) error {
-	// Copy the raw safe-output NDJSON to a /tmp/gh-aw/ path so it can be included in the
-	// unified agent artifact together with all other /tmp/gh-aw/ outputs.
+	writeOutputCollectionCopyStep(yaml)
+	domainsStr, err := resolveAllowedDomainsStr(c, data)
+	if err != nil {
+		return err
+	}
+	yaml.WriteString("      - name: Ingest agent output\n")
+	yaml.WriteString("        id: collect_output\n")
+	yaml.WriteString("        if: always()\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	writeOutputCollectionEnvVars(yaml, data, domainsStr)
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/collect_ndjson_output.cjs');\n")
+	yaml.WriteString("            await main();\n")
+	return nil
+}
+
+func writeOutputCollectionCopyStep(yaml *strings.Builder) {
 	yaml.WriteString("      - name: Copy Safe Outputs\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}\n")
 	yaml.WriteString("        run: |\n")
-	fmt.Fprintf(yaml, "          mkdir -p /tmp/gh-aw\n")
+	yaml.WriteString("          mkdir -p /tmp/gh-aw\n")
 	fmt.Fprintf(yaml, "          cp \"$GH_AW_SAFE_OUTPUTS\" /tmp/gh-aw/%s 2>/dev/null || true\n", constants.SafeOutputsFilename)
+}
 
-	yaml.WriteString("      - name: Ingest agent output\n")
-	yaml.WriteString("        id: collect_output\n")
-	yaml.WriteString("        if: always()\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+func resolveAllowedDomainsStr(c *Compiler, data *WorkflowData) (string, error) {
+	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
+		return c.computeExpandedAllowedDomainsForSanitization(data)
+	}
+	return c.computeAllowedDomainsForSanitization(data)
+}
 
-	// Add environment variables for JSONL validation
+func writeOutputCollectionEnvVars(yaml *strings.Builder, data *WorkflowData, domainsStr string) {
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}\n")
-
-	// Config is written to file, not passed as env var
-
-	// Add allowed domains configuration for sanitization
-	// Use manually configured domains if available, otherwise compute from network configuration
-	var domainsStr string
-	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
-		// allowed-domains: additional domains unioned with engine/network base set; supports ecosystem identifiers
-		expanded, err := c.computeExpandedAllowedDomainsForSanitization(data)
-		if err != nil {
-			return err
-		}
-		domainsStr = expanded
-	} else {
-		// Fall back to computing from network configuration (same as firewall)
-		computed, err := c.computeAllowedDomainsForSanitization(data)
-		if err != nil {
-			return err
-		}
-		domainsStr = computed
-	}
 	if domainsStr != "" {
 		fmt.Fprintf(yaml, "          GH_AW_ALLOWED_DOMAINS: %q\n", domainsStr)
 	}
 	if data.SafeOutputs != nil && data.SafeOutputs.URLs != "" {
 		fmt.Fprintf(yaml, "          GH_AW_SAFE_OUTPUTS_URLS: %q\n", data.SafeOutputs.URLs)
 	}
+	writeOutputCollectionOptionalEnvVars(yaml, data)
+}
 
-	// Add allowed GitHub references configuration for reference escaping
+func writeOutputCollectionOptionalEnvVars(yaml *strings.Builder, data *WorkflowData) {
 	if data.SafeOutputs != nil && data.SafeOutputs.AllowGitHubReferences != nil {
-		refsStr := strings.Join(data.SafeOutputs.AllowGitHubReferences, ",")
-		fmt.Fprintf(yaml, "          GH_AW_ALLOWED_GITHUB_REFS: %q\n", refsStr)
+		fmt.Fprintf(yaml, "          GH_AW_ALLOWED_GITHUB_REFS: %q\n", strings.Join(data.SafeOutputs.AllowGitHubReferences, ","))
 	}
-
-	// Add GitHub server URL and API URL for dynamic domain extraction
-	// This allows the sanitization code to permit GitHub domains that vary by deployment
 	yaml.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
 	yaml.WriteString("          GITHUB_API_URL: ${{ github.api_url }}\n")
-
-	// Add command names for command trigger prevention in safe outputs
 	if len(data.Command) > 0 {
-		if commandsJSON, err := json.Marshal(data.Command); err == nil {
-			fmt.Fprintf(yaml, "          GH_AW_COMMANDS: %q\n", string(commandsJSON))
-		}
-		if data.CommandPlaceholder != "" {
-			fmt.Fprintf(yaml, "          GH_AW_COMMAND_PLACEHOLDER: %q\n", data.CommandPlaceholder)
-		}
+		writeOutputCollectionCommandEnvVars(yaml, data)
 	}
 	if len(data.LabelCommand) > 0 {
 		if labelCommandsJSON, err := json.Marshal(data.LabelCommand); err == nil {
 			fmt.Fprintf(yaml, "          GH_AW_LABEL_COMMANDS: %q\n", string(labelCommandsJSON))
 		}
 	}
+}
 
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          script: |\n")
-
-	// Load script from external file using require()
-	yaml.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
-	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/collect_ndjson_output.cjs');\n")
-	yaml.WriteString("            await main();\n")
-
-	return nil
+func writeOutputCollectionCommandEnvVars(yaml *strings.Builder, data *WorkflowData) {
+	if commandsJSON, err := json.Marshal(data.Command); err == nil {
+		fmt.Fprintf(yaml, "          GH_AW_COMMANDS: %q\n", string(commandsJSON))
+	}
+	if data.CommandPlaceholder != "" {
+		fmt.Fprintf(yaml, "          GH_AW_COMMAND_PLACEHOLDER: %q\n", data.CommandPlaceholder)
+	}
 }

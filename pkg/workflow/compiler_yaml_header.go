@@ -18,176 +18,163 @@ var compilerYamlHeaderLog = logger.New("workflow:compiler_yaml:header")
 // All ANSI escape codes are stripped from the output.
 // The gh-aw-metadata line is placed first for easy machine parsing.
 func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowData, frontmatterHash string, bodyHash string, secrets []string, actions []string) {
-	// Skip the ASCII art banner in wasm/editor mode — it takes up too much space
 	if c.skipHeader {
 		return
 	}
+	writeHeaderMetadataLine(yaml, data, frontmatterHash, bodyHash, secrets, actions, c)
+	yaml.WriteString(GenerateWorkflowHeader(resolveWorkflowHeaderSource(data), "gh-aw", ""))
+	writeHeaderCommentBlock(yaml, data, secrets, actions)
+	yaml.WriteString("\n")
+}
 
-	// Add lock metadata as the very first line for easy machine parsing.
-	// Single-line JSON format to minimize merge conflicts.
+func writeHeaderMetadataLine(yaml *strings.Builder, data *WorkflowData, frontmatterHash string, bodyHash string, secrets []string, actions []string, c *Compiler) {
 	if frontmatterHash != "" {
-		agentInfo := AgentMetadataInfo{}
-		// Agent ID: prefer EngineConfig.ID, fall back to legacy AI field
-		if data.EngineConfig != nil && data.EngineConfig.ID != "" {
-			agentInfo.AgentID = data.EngineConfig.ID
-		} else if data.AI != "" {
-			agentInfo.AgentID = data.AI
-		}
-		// Agent model: only include if statically configured
-		if data.EngineConfig != nil && data.EngineConfig.Model != "" {
-			agentInfo.AgentModel = data.EngineConfig.Model
-		}
-		// Detection agent info: only if threat detection has its own engine config
-		if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.EngineConfig != nil {
-			agentInfo.DetectionAgentID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
-			agentInfo.DetectionAgentModel = data.SafeOutputs.ThreatDetection.EngineConfig.Model
-		}
-		agentInfo.EngineVersions = collectEngineVersionsForMetadata(data)
-		agentInfo.AgentImageRunner = resolveAgentImageRunnerIdentifier(data.RawFrontmatter)
-		metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: frontmatterHash, BodyHash: bodyHash}, data.StopTime, c.effectiveStrictMode(data.RawFrontmatter), agentInfo)
-		if metadata.CompilerVersion == "" && c.GetActionTag() != "" {
-			metadata.CompilerVersion = c.GetVersion()
-		}
-		metadataJSON, err := metadata.ToJSON()
-		if err != nil {
-			// Fallback to legacy format if JSON serialization fails
-			fmt.Fprintf(yaml, "# frontmatter-hash: %s\n", frontmatterHash)
-		} else {
-			fmt.Fprintf(yaml, "# gh-aw-metadata: %s\n", metadataJSON)
-		}
+		writeLockMetadataLine(yaml, data, frontmatterHash, bodyHash, c)
 	}
-
-	// Embed the gh-aw-manifest immediately after gh-aw-metadata for easy machine parsing.
-	// The manifest records all secrets, external actions, container images, and frontmatter
-	// skills detected at compile time so that subsequent compilations can perform safe update
-	// enforcement.
 	manifest := NewGHAWManifest(secrets, actions, data.ActionResolutionFailures, data.DockerImagePins, data.Redirect, data.Skills, data.RawFrontmatter["on"])
 	if manifestJSON, err := manifest.ToJSON(); err == nil {
 		fmt.Fprintf(yaml, "# gh-aw-manifest: %s\n", manifestJSON)
 	} else {
 		compilerYamlHeaderLog.Printf("Failed to serialize gh-aw-manifest: %v. Safe update mode will not be available for future compilations of this workflow.", err)
 	}
+}
 
-	// Add workflow header with logo and instructions
-	sourceFile := "the corresponding .md file"
+func writeLockMetadataLine(yaml *strings.Builder, data *WorkflowData, frontmatterHash string, bodyHash string, c *Compiler) {
+	agentInfo := AgentMetadataInfo{}
+	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		agentInfo.AgentID = data.EngineConfig.ID
+	} else if data.AI != "" {
+		agentInfo.AgentID = data.AI
+	}
+	if data.EngineConfig != nil && data.EngineConfig.Model != "" {
+		agentInfo.AgentModel = data.EngineConfig.Model
+	}
+	if hasDedicatedDetectionAgent(data) {
+		agentInfo.DetectionAgentID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
+		agentInfo.DetectionAgentModel = data.SafeOutputs.ThreatDetection.EngineConfig.Model
+	}
+	agentInfo.EngineVersions = collectEngineVersionsForMetadata(data)
+	agentInfo.AgentImageRunner = resolveAgentImageRunnerIdentifier(data.RawFrontmatter)
+	metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: frontmatterHash, BodyHash: bodyHash}, data.StopTime, c.effectiveStrictMode(data.RawFrontmatter), agentInfo)
+	if metadata.CompilerVersion == "" && c.GetActionTag() != "" {
+		metadata.CompilerVersion = c.GetVersion()
+	}
+	if metadataJSON, err := metadata.ToJSON(); err == nil {
+		fmt.Fprintf(yaml, "# gh-aw-metadata: %s\n", metadataJSON)
+	} else {
+		fmt.Fprintf(yaml, "# frontmatter-hash: %s\n", frontmatterHash)
+	}
+}
+
+func hasDedicatedDetectionAgent(data *WorkflowData) bool {
+	return data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.EngineConfig != nil
+}
+
+func resolveWorkflowHeaderSource(data *WorkflowData) string {
 	if data.Source != "" {
-		sourceFile = data.Source
+		return data.Source
 	}
-	header := GenerateWorkflowHeader(sourceFile, "gh-aw", "")
-	yaml.WriteString(header)
+	return "the corresponding .md file"
+}
 
-	// Add description comment if provided
-	if data.Description != "" {
-		cleanDescription := stringutil.StripANSI(data.Description)
-		// Split description into lines and prefix each with "# "
-		descriptionLines := strings.SplitSeq(strings.TrimSpace(cleanDescription), "\n")
-		for line := range descriptionLines {
-			fmt.Fprintf(yaml, "# %s\n", strings.TrimSpace(line))
-		}
+func writeHeaderCommentBlock(yaml *strings.Builder, data *WorkflowData, secrets []string, actions []string) {
+	writeDescriptionComments(yaml, data.Description)
+	writeSourceComment(yaml, data.Source)
+	writeResolvedManifestComment(yaml, visibleImportedFiles(data.ImportedFiles), data.IncludedFiles)
+	writeInlinedImportsComment(yaml, data.InlinedImports)
+	writeFrontmatterEnvComments(yaml, data.EnvSources)
+	writeSimpleCommentList(yaml, "Secrets used", secrets)
+	writeSimpleCommentList(yaml, "Custom actions used", actions)
+	writeSimpleCommentList(yaml, "Container images used", data.DockerImages)
+	writeSingleValueComment(yaml, "Effective stop-time", data.StopTime)
+	writeManualApprovalComment(yaml, data.ManualApproval)
+}
+
+func writeDescriptionComments(yaml *strings.Builder, description string) {
+	if description == "" {
+		return
 	}
-
-	// Add source comment if provided
-	if data.Source != "" {
-		yaml.WriteString("#\n")
-		cleanSource := stringutil.StripANSI(data.Source)
-		// Normalize to Unix paths (forward slashes) for cross-platform compatibility
-		cleanSource = filepath.ToSlash(cleanSource)
-		fmt.Fprintf(yaml, "# Source: %s\n", cleanSource)
+	for line := range strings.SplitSeq(strings.TrimSpace(stringutil.StripANSI(description)), "\n") {
+		fmt.Fprintf(yaml, "# %s\n", strings.TrimSpace(line))
 	}
+}
 
-	// Add manifest of imported/included files if any exist
-	// Build a user-visible imports list by filtering out internal builtin engine paths
-	// (e.g. "@builtin:engines/copilot.md") which are implementation details.
-	var visibleImports []string
-	for _, file := range data.ImportedFiles {
+func writeSourceComment(yaml *strings.Builder, source string) {
+	if source == "" {
+		return
+	}
+	yaml.WriteString("#\n")
+	fmt.Fprintf(yaml, "# Source: %s\n", filepath.ToSlash(stringutil.StripANSI(source)))
+}
+
+func visibleImportedFiles(importedFiles []string) []string {
+	var visible []string
+	for _, file := range importedFiles {
 		if !strings.HasPrefix(file, parser.BuiltinPathPrefix) {
-			visibleImports = append(visibleImports, file)
+			visible = append(visible, file)
 		}
 	}
+	return visible
+}
 
-	if len(visibleImports) > 0 || len(data.IncludedFiles) > 0 {
-		yaml.WriteString("#\n")
-		yaml.WriteString("# Resolved workflow manifest:\n")
-
-		if len(visibleImports) > 0 {
-			yaml.WriteString("#   Imports:\n")
-			for _, file := range visibleImports {
-				cleanFile := stringutil.StripANSI(file)
-				// Normalize to Unix paths (forward slashes) for cross-platform compatibility
-				cleanFile = filepath.ToSlash(cleanFile)
-				fmt.Fprintf(yaml, "#     - %s\n", cleanFile)
-			}
-		}
-
-		if len(data.IncludedFiles) > 0 {
-			yaml.WriteString("#   Includes:\n")
-			for _, file := range data.IncludedFiles {
-				cleanFile := stringutil.StripANSI(file)
-				// Normalize to Unix paths (forward slashes) for cross-platform compatibility
-				cleanFile = filepath.ToSlash(cleanFile)
-				fmt.Fprintf(yaml, "#     - %s\n", cleanFile)
-			}
-		}
+func writeResolvedManifestComment(yaml *strings.Builder, imports []string, includes []string) {
+	if len(imports) == 0 && len(includes) == 0 {
+		return
 	}
+	yaml.WriteString("#\n# Resolved workflow manifest:\n")
+	writeCommentSubList(yaml, "Imports", imports)
+	writeCommentSubList(yaml, "Includes", includes)
+}
 
-	// Add inlined-imports comment to indicate the field was used at compile time
-	if data.InlinedImports {
-		yaml.WriteString("#\n")
-		yaml.WriteString("# inlined-imports: true\n")
+func writeCommentSubList(yaml *strings.Builder, title string, values []string) {
+	if len(values) == 0 {
+		return
 	}
-
-	// Add frontmatter-declared env vars with source attribution.
-	// Note: programmatically injected env vars (e.g. OTEL_* from OTLP config) are not listed here.
-	if len(data.EnvSources) > 0 {
-		yaml.WriteString("#\n")
-		yaml.WriteString("# Frontmatter env variables:\n")
-		// Sort keys for deterministic output
-		keys := sliceutil.SortedKeys(data.EnvSources)
-		for _, k := range keys {
-			fmt.Fprintf(yaml, "#   - %s: %s\n", k, data.EnvSources[k])
-		}
+	fmt.Fprintf(yaml, "#   %s:\n", title)
+	for _, value := range values {
+		fmt.Fprintf(yaml, "#     - %s\n", filepath.ToSlash(stringutil.StripANSI(value)))
 	}
+}
 
-	// Add list of secrets referenced in the workflow
-	if len(secrets) > 0 {
-		yaml.WriteString("#\n")
-		yaml.WriteString("# Secrets used:\n")
-		for _, s := range secrets {
-			fmt.Fprintf(yaml, "#   - %s\n", s)
-		}
+func writeInlinedImportsComment(yaml *strings.Builder, inlinedImports bool) {
+	if inlinedImports {
+		yaml.WriteString("#\n# inlined-imports: true\n")
 	}
+}
 
-	// Add list of external custom actions referenced in the workflow
-	if len(actions) > 0 {
-		yaml.WriteString("#\n")
-		yaml.WriteString("# Custom actions used:\n")
-		for _, a := range actions {
-			fmt.Fprintf(yaml, "#   - %s\n", a)
-		}
+func writeFrontmatterEnvComments(yaml *strings.Builder, envSources map[string]string) {
+	if len(envSources) == 0 {
+		return
 	}
-
-	// Add list of container images used in the workflow
-	if len(data.DockerImages) > 0 {
-		yaml.WriteString("#\n")
-		yaml.WriteString("# Container images used:\n")
-		for _, img := range data.DockerImages {
-			fmt.Fprintf(yaml, "#   - %s\n", img)
-		}
+	yaml.WriteString("#\n# Frontmatter env variables:\n")
+	for _, key := range sliceutil.SortedKeys(envSources) {
+		fmt.Fprintf(yaml, "#   - %s: %s\n", key, envSources[key])
 	}
+}
 
-	// Add stop-time comment if configured
-	if data.StopTime != "" {
-		yaml.WriteString("#\n")
-		cleanStopTime := stringutil.StripANSI(data.StopTime)
-		fmt.Fprintf(yaml, "# Effective stop-time: %s\n", cleanStopTime)
+func writeSimpleCommentList(yaml *strings.Builder, title string, values []string) {
+	if len(values) == 0 {
+		return
 	}
-
-	// Add manual-approval comment if configured
-	if data.ManualApproval != "" {
-		yaml.WriteString("#\n")
-		cleanManualApproval := stringutil.StripANSI(data.ManualApproval)
-		fmt.Fprintf(yaml, "# Manual approval required: environment '%s'\n", cleanManualApproval)
+	yaml.WriteString("#\n")
+	fmt.Fprintf(yaml, "# %s:\n", title)
+	for _, value := range values {
+		fmt.Fprintf(yaml, "#   - %s\n", value)
 	}
+}
 
-	yaml.WriteString("\n")
+func writeSingleValueComment(yaml *strings.Builder, label string, value string) {
+	if value == "" {
+		return
+	}
+	yaml.WriteString("#\n")
+	fmt.Fprintf(yaml, "# %s: %s\n", label, stringutil.StripANSI(value))
+}
+
+func writeManualApprovalComment(yaml *strings.Builder, manualApproval string) {
+	if manualApproval == "" {
+		return
+	}
+	yaml.WriteString("#\n")
+	fmt.Fprintf(yaml, "# Manual approval required: environment '%s'\n", stringutil.StripANSI(manualApproval))
 }
