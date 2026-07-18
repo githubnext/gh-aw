@@ -67,20 +67,32 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 }
 
 func buildUserPromptChunks(c *Compiler, data *WorkflowData) ([]string, []*ExpressionMapping) {
+	var chunks []string
+	var mappings []*ExpressionMapping
 	if len(data.PromptImports) > 0 {
-		return buildOrderedPromptImportChunks(c, data)
+		chunks, mappings = buildOrderedPromptImportChunks(c, data)
+	} else {
+		chunks, mappings = buildLegacyPromptImportChunks(c, data)
 	}
-	chunks, mappings := buildLegacyPromptImportChunks(c, data)
-	if !c.inlinePrompt && !data.InlinedImports && data.MainWorkflowMarkdown != "" {
-		compilerYamlPromptLog.Printf("Extracting expressions from main workflow markdown (%d bytes)", len(data.MainWorkflowMarkdown))
-		extractor := NewExpressionExtractor()
-		mainMappings, err := extractor.ExtractExpressions(data.MainWorkflowMarkdown)
-		if err == nil && len(mainMappings) > 0 {
-			compilerYamlPromptLog.Printf("Extracted %d expressions from main workflow markdown", len(mainMappings))
-			mappings = append(mappings, mainMappings...)
-		}
+	mainMappings := extractMainWorkflowPromptMappings(c, data)
+	if len(mainMappings) > 0 {
+		mappings = append(mappings, mainMappings...)
 	}
 	return chunks, mappings
+}
+
+func extractMainWorkflowPromptMappings(c *Compiler, data *WorkflowData) []*ExpressionMapping {
+	if c.inlinePrompt || data.InlinedImports || data.MainWorkflowMarkdown == "" {
+		return nil
+	}
+	compilerYamlPromptLog.Printf("Extracting expressions from main workflow markdown (%d bytes)", len(data.MainWorkflowMarkdown))
+	extractor := NewExpressionExtractor()
+	mainMappings, err := extractor.ExtractExpressions(data.MainWorkflowMarkdown)
+	if err != nil || len(mainMappings) == 0 {
+		return nil
+	}
+	compilerYamlPromptLog.Printf("Extracted %d expressions from main workflow markdown", len(mainMappings))
+	return mainMappings
 }
 
 func buildOrderedPromptImportChunks(c *Compiler, data *WorkflowData) ([]string, []*ExpressionMapping) {

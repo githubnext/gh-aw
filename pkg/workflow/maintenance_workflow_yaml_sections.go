@@ -621,7 +621,11 @@ func (b *maintenanceWorkflowYAMLBuilder) writeCloseExpiredJobs() {
 	if b.opts.maintenanceConfig.IsJobDisabled("close-expired-entities") {
 		return
 	}
-	jobs := []maintenanceCloseExpiredJob{{"close-expired-discussions", "discussions: write", "Close expired discussions", "close_expired_discussions"}, {"close-expired-issues", "issues: write", "Close expired issues", "close_expired_issues"}, {"close-expired-pull-requests", "pull-requests: write", "Close expired pull requests", "close_expired_pull_requests"}}
+	jobs := []maintenanceCloseExpiredJob{
+		{"close-expired-discussions", "discussions: write", "Close expired discussions", "close_expired_discussions"},
+		{"close-expired-issues", "issues: write", "Close expired issues", "close_expired_issues"},
+		{"close-expired-pull-requests", "pull-requests: write", "Close expired pull requests", "close_expired_pull_requests"},
+	}
 	for _, job := range jobs {
 		b.writeCloseExpiredJob(job)
 	}
@@ -632,7 +636,34 @@ func (b *maintenanceWorkflowYAMLBuilder) writeCleanupCacheJob() {
 }
 
 func (b *maintenanceWorkflowYAMLBuilder) writeRunOperationJob() {
-	fmt.Fprintf(b.yaml, maintenanceRunOperationJobTemplate, RenderCondition(buildRunOperationCondition("safe_outputs", "create_labels", "activity_report", "close_agentic_workflows_issues", "clean_cache_memories", "update_pull_request_branches", "validate", "forecast")), b.opts.runsOnValue, b.repositoryCheckoutBlock(), b.setupScriptsBlock(), b.adminPermissionsBlock(""), generateInstallCLISteps(b.ctx, b.opts.actionMode, b.opts.version, b.opts.actionTag, b.opts.resolver), b.githubScriptPin(), getCLICmdPrefix(b.opts.actionMode))
+	condition := RenderCondition(buildRunOperationCondition(
+		"safe_outputs",
+		"create_labels",
+		"activity_report",
+		"close_agentic_workflows_issues",
+		"clean_cache_memories",
+		"update_pull_request_branches",
+		"validate",
+		"forecast",
+	))
+	repositoryCheckout := b.repositoryCheckoutBlock()
+	scripts := b.setupScriptsBlock()
+	adminPermissions := b.adminPermissionsBlock("")
+	installCLISteps := generateInstallCLISteps(b.ctx, b.opts.actionMode, b.opts.version, b.opts.actionTag, b.opts.resolver)
+	githubScriptPin := b.githubScriptPin()
+	cliCmdPrefix := getCLICmdPrefix(b.opts.actionMode)
+	fmt.Fprintf(
+		b.yaml,
+		maintenanceRunOperationJobTemplate,
+		condition,
+		b.opts.runsOnValue,
+		repositoryCheckout,
+		scripts,
+		adminPermissions,
+		installCLISteps,
+		githubScriptPin,
+		cliCmdPrefix,
+	)
 }
 
 func (b *maintenanceWorkflowYAMLBuilder) writeUpdatePRBranchesJob() {

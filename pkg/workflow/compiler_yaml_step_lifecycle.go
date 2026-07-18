@@ -152,17 +152,18 @@ func resolveAwInfoFirewallEnabled(data *WorkflowData) bool {
 
 func resolveAwInfoFirewallVersion(data *WorkflowData) string {
 	firewallConfig := getFirewallConfig(data)
-	if firewallConfig == nil || !firewallConfig.Enabled {
+	if firewallConfig == nil {
 		return ""
 	}
-	if firewallConfig.Version != "" {
-		return firewallConfig.Version
+	firewallVersion := firewallConfig.Version
+	if firewallConfig.Enabled && firewallVersion == "" {
+		return string(constants.DefaultFirewallVersion)
 	}
-	return string(constants.DefaultFirewallVersion)
+	return firewallVersion
 }
 
 func resolveAwInfoMCPGatewayVersion(data *WorkflowData) string {
-	if data.SandboxConfig != nil && data.SandboxConfig.MCP != nil {
+	if data.SandboxConfig != nil && data.SandboxConfig.MCP != nil && data.SandboxConfig.MCP.Version != "" {
 		return data.SandboxConfig.MCP.Version
 	}
 	return ""

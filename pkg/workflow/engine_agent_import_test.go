@@ -719,6 +719,36 @@ func TestGeneratePromptFallsBackWhenPromptImportsIsEmpty(t *testing.T) {
 	}
 }
 
+func TestGeneratePromptExtractsMainWorkflowExpressionsWithPromptImports(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, ".github", "workflows", "test.md")
+	if err := os.MkdirAll(filepath.Dir(workflowFile), 0o755); err != nil {
+		t.Fatalf("Failed to create workflow directory: %v", err)
+	}
+	if err := os.WriteFile(workflowFile, []byte("# Main workflow\n"), 0o644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	workflowData := &WorkflowData{
+		Name:                 "test-workflow",
+		AI:                   "claude",
+		EngineConfig:         &EngineConfig{ID: "claude"},
+		PromptImports:        []parser.PromptImportEntry{{Markdown: "Imported section"}},
+		MainWorkflowMarkdown: "Use ${{ steps.sanitized.outputs.text }} in the main body.",
+	}
+
+	compiler := NewCompiler()
+	compiler.markdownPath = workflowFile
+
+	var buf strings.Builder
+	compiler.generatePrompt(&buf, workflowData, false, nil)
+	generated := buf.String()
+
+	if !strings.Contains(generated, "GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT") {
+		t.Fatalf("Expected main workflow expression env var to be emitted with prompt imports present, got:\n%s", generated)
+	}
+}
+
 func TestResolveMarkdownArtifactsPreservesNilPromptImports(t *testing.T) {
 	tmpDir := t.TempDir()
 	workflowPath := filepath.Join(tmpDir, "test.md")

@@ -162,6 +162,7 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 func TestAwfVersionInAwInfo(t *testing.T) {
 	tests := []struct {
 		name               string
+		firewallConfigured bool
 		firewallEnabled    bool
 		firewallVersion    string
 		agentVersion       string
@@ -170,6 +171,7 @@ func TestAwfVersionInAwInfo(t *testing.T) {
 	}{
 		{
 			name:               "Firewall enabled with explicit version",
+			firewallConfigured: true,
 			firewallEnabled:    true,
 			firewallVersion:    "v1.0.0",
 			expectedAwfVersion: "v1.0.0",
@@ -177,6 +179,7 @@ func TestAwfVersionInAwInfo(t *testing.T) {
 		},
 		{
 			name:               "Firewall enabled with default version",
+			firewallConfigured: true,
 			firewallEnabled:    true,
 			firewallVersion:    "",
 			expectedAwfVersion: string(constants.DefaultFirewallVersion),
@@ -184,6 +187,7 @@ func TestAwfVersionInAwInfo(t *testing.T) {
 		},
 		{
 			name:               "Firewall disabled",
+			firewallConfigured: true,
 			firewallEnabled:    false,
 			firewallVersion:    "",
 			agentVersion:       "",
@@ -191,7 +195,16 @@ func TestAwfVersionInAwInfo(t *testing.T) {
 			description:        "Should have empty awf_version when firewall is disabled",
 		},
 		{
+			name:               "Firewall disabled with explicit version",
+			firewallConfigured: true,
+			firewallEnabled:    false,
+			firewallVersion:    "v1.2.3",
+			expectedAwfVersion: "v1.2.3",
+			description:        "Should preserve explicit firewall version even when disabled",
+		},
+		{
 			name:               "sandbox.agent.version overrides firewall version",
+			firewallConfigured: true,
 			firewallEnabled:    true,
 			firewallVersion:    "",
 			agentVersion:       "v0.30.1",
@@ -213,10 +226,10 @@ func TestAwfVersionInAwInfo(t *testing.T) {
 				Name: "Test Workflow",
 			}
 
-			if tt.firewallEnabled {
+			if tt.firewallConfigured {
 				workflowData.NetworkPermissions = &NetworkPermissions{
 					Firewall: &FirewallConfig{
-						Enabled: true,
+						Enabled: tt.firewallEnabled,
 						Version: tt.firewallVersion,
 					},
 				}
@@ -288,28 +301,38 @@ func TestBothVersionsInAwInfo(t *testing.T) {
 
 func TestAwmgVersionInAwInfo(t *testing.T) {
 	tests := []struct {
-		name                string
-		mcpGatewayVersion   string
-		expectedAwmgVersion string
-		description         string
+		name                 string
+		mcpGatewayConfigured bool
+		mcpGatewayVersion    string
+		expectedAwmgVersion  string
+		description          string
 	}{
 		{
-			name:                "MCP Gateway with explicit version",
-			mcpGatewayVersion:   "v0.0.10",
-			expectedAwmgVersion: "v0.0.10",
-			description:         "Should use explicit MCP gateway version",
+			name:                 "MCP Gateway with explicit version",
+			mcpGatewayConfigured: true,
+			mcpGatewayVersion:    "v0.0.10",
+			expectedAwmgVersion:  "v0.0.10",
+			description:          "Should use explicit MCP gateway version",
 		},
 		{
-			name:                "MCP Gateway with default version",
-			mcpGatewayVersion:   string(constants.DefaultMCPGatewayVersion),
-			expectedAwmgVersion: string(constants.DefaultMCPGatewayVersion),
-			description:         "Should use default MCP gateway version",
+			name:                 "MCP Gateway with default version",
+			mcpGatewayConfigured: true,
+			mcpGatewayVersion:    string(constants.DefaultMCPGatewayVersion),
+			expectedAwmgVersion:  string(constants.DefaultMCPGatewayVersion),
+			description:          "Should use default MCP gateway version",
 		},
 		{
 			name:                "No MCP Gateway configured",
 			mcpGatewayVersion:   "",
 			expectedAwmgVersion: "",
 			description:         "Should have empty awmg_version when MCP gateway is not configured",
+		},
+		{
+			name:                 "MCP Gateway configured with empty version",
+			mcpGatewayConfigured: true,
+			mcpGatewayVersion:    "",
+			expectedAwmgVersion:  "",
+			description:          "Should keep awmg_version empty when configured without a version",
 		},
 	}
 
@@ -326,7 +349,7 @@ func TestAwmgVersionInAwInfo(t *testing.T) {
 				Name: "Test Workflow",
 			}
 
-			if tt.mcpGatewayVersion != "" {
+			if tt.mcpGatewayConfigured {
 				workflowData.SandboxConfig = &SandboxConfig{
 					MCP: &MCPGatewayRuntimeConfig{
 						Version: tt.mcpGatewayVersion,
