@@ -1,7 +1,7 @@
 # Git Simulator Strategy Notes
 
 Z3 sweep of 3600 cells (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT, COMMIT innermost).
-**112/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
+**120/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
 `commit=i%3, branch=(i//3)%3, patch=(i//9)%5, files=(i//45)%4, history=(i//180)%4,
 size=(i//720)%5`. sizes[tiny,small,medium,large,huge] hist[none,shallow,medium,deep]
 files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]=
@@ -13,56 +13,27 @@ files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]
 - **tiny-none-few (idx 45-89): COMPLETE.** micro/small/medium/large/xlarge all tiers,
   all branches+commits. Representative KB: micro ~2-4, small ~52-56, medium ~204-207,
   large ~1001-1016, xlarge ~4053-4054. Bundle ~75% of patch throughout.
-- **tiny-none-many (idx 90-91, OPENED): PASS.** micro-clean-single(90) 5.374 KB /1
-  .patch (20 file-diffs in one commit's patch, ~224 B/file framing, header:payload
-  ≈4.4:1 at micro); micro-clean-multi(91) 5.473 KB /3 .patch (framing×3, disjoint
-  1-7/8-14/15-20). At micro payload the per-file+per-commit framing dominates ~5.5×.
-  **idx92-95 (tiny-none-many-micro): PASS.** clean-merge_msg(92) 5.011 KB/1.patch,
-  ahead-single(93) 4.98 KB, ahead-multi(94) 5.55 KB/3.patch, ahead-merge_msg(95)
-  4.874 KB — all ~5 KB (framing-dominated, ~15 KB short of any concern). All ahead
-  cells fast-forward (--is-ancestor=0, no force). merge_msg leak reconfirmed (92,95:
-  0001-Merge-branch-topic-into-feature.patch, single-parent, --merges=0). Disjoint
-  multi still ~1× payload. many-micro fully consistent w/ prior tiers.
-  **idx96-99: PASS.** diverged-single(96) 5.496 KB/1.patch, diverged-multi(97)
-  6.024 KB/3.patch (disjoint 7+7+6, ~1×), diverged-merge_msg(98) 5.481 KB/1.patch
-  (0001-Merge-branch-topic-into-feature.patch leak reconfirmed, single-parent) — all
-  three diverged: main's history.md commit excluded by two-dot, ff push exit 0, no
-  merge into feature. **idx99 = FIRST tiny-none-many-small: PASS.** clean-single
-  54.466 KB/1.patch for 50.000 KB payload → framing +4.47 KB (~9% at many/small,
-  ~0.22 KB/file × 20). many-micro tier (90-98) DONE; small tier open at 99.
-  **idx100-103: PASS (tiny-none-many-small continued).** clean-multi(100) 56.19 KB
-  /3.patch (disjoint 7/7/6, ~1×); clean-merge_msg(101) 55.65 KB/1.patch (leak
-  0001-Merge-branch-topic-into-feature.patch reconfirmed, --merges=0, parent=1);
-  ahead-single(102) cpr 55.67→push 56.48 KB/2.patch (ff is-ancestor=0); ahead-multi
-  (103) cpr 56.19→push 57.01 KB/4.patch (disjoint ~1×, ff is-ancestor=0). All 20
-  files ≤200, ~56 KB ≪4096. many-small framing ~+6 KB (~0.3 KB/file, per-commit
-  From-headers add ~0.3 KB/commit). tiny-none-many-small now covers idx99-103.
-  **idx104-107: PASS (tiny-none-many-small tier COMPLETE).** ahead-merge_msg(104)
-  59.94 KB/2.patch push (ff rc0, leak 0001-Merge-branch-topic-into-feature.patch,
-  --merges=0); diverged-single(105) 56.63 KB two-dot excludes main history.md
-  (three-dot +0.44 KB), ff rc0; diverged-multi(106) 55.90 KB disjoint ratio 1.118
-  (~1×, three-dot +1 patch cosmetic), ff rc0; diverged-merge_msg(107) 56.06 KB leak
-  reconfirmed single-parent, ff rc0. GOTCHA: `git diff --name-only main..feature`
-  (endpoint) over-lists +1 (main's history.md phantom) under divergence; true set =
-  per-commit `log --name-only` or three-dot `diff main...feature`. Cap = TWO-dot.
-  **idx108-111: PASS (tiny-none-many-MEDIUM tier opens).** clean-single(108) 207.92
-  KB/1.patch (framing ~405 B/file → payload:total 0.962, ~3.9% at medium/10KB-files);
-  clean-multi(109) 208.43 KB/3.patch disjoint 7/7/6 ~1×; clean-merge_msg(110) 207.92
-  KB/1.patch leak 0001-Merge-branch-topic-into-feature.patch reconfirmed (parent=1,
-  --merges empty); ahead-single(111) cpr 207.9→push 218.6 KB/2.patch, ff is-ancestor
-  =0 no force. many-medium framing ~+8 KB/20 files (~405 B/file: ~150-270 B header +
-  ~135 B of `+`-line prefixes over ~135 base64 lines). All ≪4096. NB per-file framing
-  at medium (~405 B) > earlier ~0.27 KB estimate — the `+`-prefix line tax scales with
-  payload lines, so framing is ~3.9% of payload here, not a fixed per-file constant.
-  **idx112-115: PASS (tiny-none-many-MEDIUM tier COMPLETE).** ahead-multi(112) 3.patch
-  208.113 KB disjoint 6/6/8 ~1×, push ff exit0 push_merges=0 (4 commits); ahead-
-  merge_msg(113) 1.patch 207.573 KB, leak 0001-Merge-branch-topic-into-feature.patch
-  reconfirmed, --merges=0 parent=1, ff exit0; diverged-single(114) 207.568 KB two-dot
-  (excl main history.md) vs three-dot 208.050 (+0.48 KB phantom), ff exit0; diverged-
-  multi(115) 208.113 two-dot vs 208.591 three-dot (+0.48), disjoint ~1×, ff exit0.
-  GOTCHA reconfirmed: `git diff --name-only main..feature` endpoint-lists 21 (main's
-  history.md phantom) under divergence; format-patch two-dot = true 20-file cap set.
-  many-medium (108-115) DONE. All ~208 KB ≪4096, 20≤100.
+- **tiny-none-many-MICRO (idx 90-98): COMPLETE, all PASS.** ~5-6 KB/cell, framing-
+  dominated (header:payload ≈4.4-5.5× at 1 KB payload; ~224 B/file). All branches+
+  commits. merge_msg leak, disjoint multi ~1×, ff push rc0 all reconfirmed.
+- **tiny-none-many-SMALL (idx 99-107): COMPLETE, all PASS.** ~54-60 KB/cell for 50 KB
+  payload → framing +~6 KB (~0.3 KB/file, ~9%). ahead/diverged ff rc0, two-dot excludes
+  main history.md (three-dot +0.44 KB cosmetic).
+- **tiny-none-many-MEDIUM (idx 108-116): COMPLETE, all PASS.** ~207-208 KB/cell for
+  200 KB payload → framing ~+8 KB (~405 B/file: header + `+`-prefix line tax scaling
+  with payload lines → ~3.9% at 10 KB files). idx116 diverged-merge_msg two-dot 207.92
+  vs three-dot 208.34 (+431 B phantom). All ff rc0, merge_msg leak reconfirmed.
+- **tiny-none-many-LARGE (idx 117-119, clean opened): PASS.** clean-single(117) 1.patch
+  1018.30 KB for 1000 KB payload → framing +18.30 KB (~0.915 KB/file, payload:total
+  0.982, ~1.8%); bundle 762.24 KB = 25.2% smaller. clean-multi(118) 3.patch 1018.81 KB
+  disjoint 7/7/6 → ~1.02× (per-commit From-header ~0.87-0.97 KB, ~2.8 KB/3 commits, NOT
+  2×/3×). clean-merge_msg(119) 1.patch 1018.31 KB, leak reconfirmed, structural clean
+  (parent=1, --merges=0, --no-merges counts=1 → message-substring 'Merge branch'
+  heuristic would misfire). All ~1018 KB = ~24.9% of 4096 (3078 KB headroom), 20≤200.
+  **KEY: framing % DROPS as file payload grows (micro ~5× → small ~9% → medium ~3.9%
+  → large ~1.8%): fixed ~150-270 B header amortizes over larger base64 body.**
+  GOTCHA reconfirmed (idx116): endpoint `git diff --name-only main..feature` lists 21
+  (main history.md phantom under divergence) but format-patch two-dot = true 20 files.
 
 ## THE CAPS (grounded)
 
@@ -134,10 +105,10 @@ first max-patch-FILES `rejected` needs batch under a default-100 config.
 
 ## Next
 
-Next index: **116** → tiny-none-many-LARGE tier (idx117-125 patch=large 1000KB) opens
-after idx116 (tiny-none-many-medium-diverged-merge_msg, LAST of medium tier), then
-xlarge(126-134). many-medium COMPLETE 108-115. many-small COMPLETE 99-107. FILES=many runs
-90-179, batch 180-269. **many-xlarge ~4058 KB still <4096 (safe).** batch-xlarge
+Next index: **120** → tiny-none-many-large-AHEAD/DIVERGED (idx120-125), then many-
+xlarge (126-134). many-large clean DONE 117-119. many-medium COMPLETE 108-116. many-
+small COMPLETE 99-107. many-micro COMPLETE 90-98. FILES=many runs 90-179, batch 180-269.
+**many-xlarge ~4058 KB still <4096 (safe).** batch-xlarge
 ~4080 KB <4096 BUT batch=100 files == max-patch-files default 100 (200 here) — watch
 the `>` vs `>=` boundary. HISTORY=deep(500) & SIZE>tiny (idx 720+) far ahead — no
 real `rejected` expected before then unless a PATCH tier is tuned >4096, batch runs

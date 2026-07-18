@@ -1,1 +1,1 @@
-{"schema_version":1,"last_run":"2026-07-17","tested_count":116,"total_cells":3600,"tested":{},"strategies":[],"next_index":116,"note":"tested map is FAILURES-ONLY. Cells [0,next_index) with no entry = pass. No fail/error/rejected seen through idx115."}
+{"schema_version":1,"last_run":"2026-07-18","tested_count":120,"total_cells":3600,"tested":{},"strategies":[],"next_index":120,"note":"tested map is FAILURES-ONLY. Cells [0,next_index) with no entry = pass. No fail/error/rejected seen through idx119."}
