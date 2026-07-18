@@ -242,3 +242,79 @@ test.describe('Workshop URL hash navigation', () => {
 		expect(page.url()).not.toContain('#');
 	});
 });
+
+test.describe('Workshop Astro rendering contract', () => {
+	test('step content renders Astro-compiled HTML with block-level elements', async ({ page }) => {
+		await startWorkshop(page);
+
+		const stepContent = page.locator('[data-workshop-step-content]');
+		await expect(stepContent).toBeVisible();
+
+		// Astro-compiled markdown always produces block-level HTML elements. If the
+		// pipeline were broken and raw markdown text were embedded instead, none of
+		// these tags would appear.
+		const html = await stepContent.innerHTML();
+		expect(html).toMatch(/<(?:p|h[1-6]|ul|ol|pre|table)\b/i);
+	});
+
+	test('workshop images embedded in step data resolve to absolute URLs', async ({ page }) => {
+		await startWorkshop(page);
+
+		// The image URLs are rewritten to absolute raw.githubusercontent.com paths at
+		// build time (rewriteWorkshopMarkdownForAstro + rewriteWorkshopHtml). Check
+		// every img src in the embedded step-data JSON to verify no relative paths slipped
+		// through. If there are no images in this workshop build the test passes vacuously.
+		const imageSrcs = await page.evaluate(() => {
+			const node = document.getElementById('aw-workshop-step-data');
+			if (!node) return [] as string[];
+			const steps = JSON.parse(node.textContent ?? '[]') as Array<{ html: string }>;
+			const srcs: string[] = [];
+			for (const step of steps) {
+				for (const [, src] of step.html.matchAll(/<img[^>]+src="([^"]+)"/gi)) {
+					srcs.push(src);
+				}
+			}
+			return srcs;
+		});
+
+		for (const src of imageSrcs) {
+			expect(src, `Image src "${src}" should be an absolute URL`).toMatch(/^https?:\/\//);
+		}
+	});
+
+	test('clicking an in-content workshop link navigates to the linked step', async ({ page }) => {
+		await startWorkshop(page);
+
+		// Locate the first step in the visible flow that contains a data-workshop-local-link,
+		// navigating forward until one is found or the flow ends.
+		const bubbles = page.locator('[data-workshop-step-bubbles] .aw-workshop-step-bubble');
+		const flowLength = await bubbles.count();
+
+		let localLink = page.locator('[data-workshop-step-content] [data-workshop-local-link]').first();
+		let found = await localLink.isVisible();
+
+		for (let step = 1; step < flowLength && !found; step++) {
+			await page.getByRole('button', { name: /Next step/i }).click();
+			localLink = page.locator('[data-workshop-step-content] [data-workshop-local-link]').first();
+			found = await localLink.isVisible();
+		}
+
+		if (!found) {
+			// Confirm via the embedded data whether any step carries local links at all.
+			// If none exist, the test passes vacuously (the content simply has no links).
+			// If they exist but are not rendered, that is a bug and the test should fail.
+			const hasLocalLinks = await page.evaluate(() => {
+				const node = document.getElementById('aw-workshop-step-data');
+				if (!node) return false;
+				const steps = JSON.parse(node.textContent ?? '[]') as Array<{ html: string }>;
+				return steps.some((s) => s.html.includes('data-workshop-local-link'));
+			});
+			expect(hasLocalLinks).toBe(false);
+			return;
+		}
+
+		const positionBefore = await page.locator('[data-workshop-step-position]').textContent();
+		await localLink.click();
+		await expect(page.locator('[data-workshop-step-position]')).not.toHaveText(positionBefore ?? '');
+	});
+});
