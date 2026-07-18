@@ -35,11 +35,11 @@ export const preferCoreLoggingRule = createRule({
       description:
         "Prefer @actions/core logging methods (core.info, core.error, core.warning, core.debug) over console.* — " +
         "global.core is always available via shim.cjs in Node.js context and via github-script in Actions context. " +
-        "console.* bypasses GitHub Actions' built-in secret masking and structured annotation system; core logging ensures secrets in output are redacted and messages appear correctly in the Actions UI.",
+        "core.* methods integrate with the Actions annotation system (errors and warnings appear as file annotations in the UI) and produce structured log output; console.* does not.",
     },
     schema: [],
     messages: {
-      preferCoreLogging: "Use {{replacement}} instead of console.{{method}}() — @actions/core logging masks secrets and integrates with the Actions annotation system. console.* output is not masked.",
+      preferCoreLogging: "Use {{replacement}} instead of console.{{method}}() — @actions/core logging integrates with the Actions annotation system and structured output. global.core is always available via shim.cjs.",
       replaceWithCoreMethod: "Replace with {{replacement}}({{args}}).",
     },
   },
