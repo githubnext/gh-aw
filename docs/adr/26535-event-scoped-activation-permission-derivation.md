@@ -62,17 +62,31 @@ Request a minimal token at activation time and escalate permissions lazily when 
 
 ### Metadata Field Filtering
 
-1. Implementations **MUST** maintain an explicit allowlist of gh-aw metadata trigger fields (e.g., `reaction`, `status-comment`, `command`, `slash_command`, `label_command`, `stop-after`, `github-token`, `github-app`) and **MUST** exclude them from the derived event set.
+1. Implementations **MUST** maintain an explicit allowlist of gh-aw metadata trigger fields and **MUST** exclude them from the derived event set. The complete allowlist is: `reaction`, `status-comment`, `command`, `slash_command`, `label_command`, `stop-after`, `github-token`, `github-app`. This list has been verified to match the `activationMetadataTriggerFields` map in `pkg/workflow/compiler_activation_job.go`; implementation and spec are identical.
 2. Implementations **MUST NOT** treat an unrecognized key in the `on:` map as a metadata field; unknown keys **SHOULD** be treated as real GitHub event names to avoid silent under-granting.
 
 ### Fallback Behavior
 
-1. When the `on:` section is absent or empty at permission derivation time, implementations **SHOULD** fall back to granting the full set of broad permissions (`issues: write`, `pull-requests: write`, `discussions: write`) and **MUST** emit a diagnostic log message explaining that the broad fallback is in use.
+1. When the `on:` section is absent or empty at permission derivation time, implementations **MUST** fall back to granting the full set of broad permissions (`issues: write`, `pull-requests: write`, `discussions: write`) and **MUST** emit a diagnostic log message explaining that the broad fallback is in use. **Pending**: a CI test that asserts the log line containing the broad-fallback explanation is emitted whenever the `on:` section is absent or empty during permission derivation has not yet been added; this remains a required follow-up (tracked in the Status Promotion checklist below).
 2. Implementations **MUST NOT** silently grant zero permissions for reactions or status comments when the `on:` section is malformed; a parse failure **SHOULD** be logged and the empty event set **SHOULD** result in no reaction/status-comment-related permissions being added.
 
 ### Conformance
 
 An implementation is considered conformant with this ADR if it satisfies all **MUST** and **MUST NOT** requirements above. Failure to meet any **MUST** or **MUST NOT** requirement constitutes non-conformance.
+
+---
+
+### Status Promotion
+
+This ADR is currently **Draft**. To promote it to **Accepted**, all of the following criteria must be satisfied:
+
+- [ ] The PR implementing the permission derivation logic has been merged to the default branch.
+- [ ] All CI checks (tests, linters, compilation) are green on the merged commit.
+- [ ] A CI test asserts that the diagnostic log line is emitted for the empty `on:` fallback path.
+- [ ] The `activationMetadataTriggerFields` allowlist in `pkg/workflow/compiler_activation_job.go` is verified to match the explicit list in this ADR, with no open conformance issues.
+- [ ] No open issues reference a conformance failure against this ADR.
+
+Once all boxes are checked, update the `**Status**` field at the top of this document from `Draft` to `Accepted`.
 
 ---
 
