@@ -12,7 +12,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `contextcancelnotdeferred` — reports context cancel functions that are called directly instead of deferred.
 - `ctxbackground` — reports `context.Background()` calls inside functions that already receive a `context.Context` parameter.
 - `deferinloop` — reports `defer` statements placed directly inside `for`/`range` loop bodies, which execute when the enclosing function returns rather than each iteration and can cause resource leaks.
-- `errorfwrapv` — reports `fmt.Errorf` calls that format error arguments with `%v` instead of `%w`.
+- `errorfwrapv` — reports `fmt.Errorf` calls that pass error arguments without `%w` wrapping.
 - `excessivefuncparams` — reports function declarations that exceed a configurable parameter-count threshold.
 - `errormessage` — reports non-actionable error-message patterns in changed files.
 - `errortypeassertion` — reports type assertions from `error` to concrete types and recommends `errors.As`.
@@ -71,7 +71,7 @@ This package currently provides custom Go analyzers in the following subpackages
 | `contextcancelnotdeferred` | Custom `go/analysis` analyzer that flags context cancel functions called directly instead of deferred |
 | `ctxbackground` | Custom `go/analysis` analyzer that flags `context.Background()` calls inside functions that already receive a context parameter |
 | `deferinloop` | Custom `go/analysis` analyzer that flags `defer` statements inside `for`/`range` loop bodies that execute when the enclosing function returns rather than each iteration |
-| `errorfwrapv` | Custom `go/analysis` analyzer that flags `fmt.Errorf` calls that format error arguments with `%v` instead of `%w` |
+| `errorfwrapv` | Custom `go/analysis` analyzer that flags `fmt.Errorf` calls that pass error arguments without `%w` wrapping |
 | `excessivefuncparams` | Custom `go/analysis` analyzer that flags function declarations with too many positional parameters |
 | `errormessage` | Custom `go/analysis` analyzer that flags non-actionable error message patterns in changed files |
 | `errortypeassertion` | Custom `go/analysis` analyzer that flags type assertions from `error` to concrete types and recommends `errors.As` |

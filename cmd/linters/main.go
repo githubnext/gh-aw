@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/go/analysis/multichecker"
 
 	"github.com/github/gh-aw/pkg/linters/appendbytestring"
+	"github.com/github/gh-aw/pkg/linters/appendoneelement"
 	"github.com/github/gh-aw/pkg/linters/bytesbufferstring"
 	"github.com/github/gh-aw/pkg/linters/bytescomparestring"
 	"github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred"
@@ -72,6 +73,7 @@ import (
 func main() {
 	multichecker.Main(
 		appendbytestring.Analyzer,
+		appendoneelement.Analyzer,
 		bytesbufferstring.Analyzer,
 		bytescomparestring.Analyzer,
 		contextcancelnotdeferred.Analyzer,

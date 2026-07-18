@@ -807,6 +807,28 @@ check-workflow-drift:
 	fi
 	@bash scripts/check-workflow-drift.sh ./$(BINARY_NAME)
 
+# Guard against a stale binary when files under pkg/parser/schemas/ are modified.
+# Schema files are embedded at compile time via //go:embed, so changing them without
+# rebuilding means the running binary still holds the old schema.  This target
+# detects when schema files have been modified (via git) but the binary has not been
+# rebuilt.  It is the schema-side parallel of check-stale-lock-files.
+# Requires the gh-aw binary to exist (run `make build` first).
+.PHONY: check-stale-schema-binary
+check-stale-schema-binary:
+	@base_ref="$${CHECK_STALE_SCHEMA_BASE_REF:-}"; \
+	if [ -z "$$base_ref" ] && [ -n "$${GITHUB_BASE_REF:-}" ]; then \
+		if git rev-parse --verify "origin/$${GITHUB_BASE_REF}^{commit}" >/dev/null 2>&1; then \
+			base_ref="origin/$${GITHUB_BASE_REF}"; \
+		elif git rev-parse --verify "$${GITHUB_BASE_REF}^{commit}" >/dev/null 2>&1; then \
+			base_ref="$${GITHUB_BASE_REF}"; \
+		fi; \
+	fi; \
+	if [ -n "$$base_ref" ]; then \
+		bash scripts/check-stale-schema-binary.sh --binary "./$(BINARY_NAME)" --base-ref "$$base_ref"; \
+	else \
+		bash scripts/check-stale-schema-binary.sh --binary "./$(BINARY_NAME)"; \
+	fi
+
 # Format code
 .PHONY: fmt
 fmt: fmt-go fmt-cjs fmt-json
@@ -958,7 +980,7 @@ lint-action-sh:
 
 # Validate all project files
 .PHONY: lint
-lint: check-stale-lock-files fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh
+lint: check-stale-lock-files fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh check-stale-schema-binary
 	@echo "✓ All validations passed"
 
 # Install the binary locally
@@ -1219,6 +1241,7 @@ help:
 	@echo "  validate-workflows - Validate compiled workflow lock files (depends on build)"
 	@echo "  check-workflow-drift - Check for drift between .md sources and .lock.yml files (builds binary if missing)"
 	@echo "  check-stale-lock-files - Fast guard: detect modified .md files without regenerated .lock.yml (no binary needed)"
+	@echo "  check-stale-schema-binary - Guard: detect modified schema files under pkg/parser/schemas/ without a binary rebuild"
 	@echo "  install          - Install binary locally"
 	@echo "  sync-action-pins - Sync actions-lock.json from .github/aw to pkg/actionpins/data and pkg/workflow/data (runs automatically during build)"
 	@echo "  sync-action-scripts - Sync install-gh-aw.sh and install-gh-aw.ps1 to actions/setup-cli/ (runs automatically during build)"
