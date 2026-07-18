@@ -13,7 +13,7 @@ const workshopDevices = [
 async function startWorkshop(page: Page) {
 	await page.goto('/gh-aw/workshop/');
 	await page.waitForLoadState('networkidle');
-	await page.locator('[data-workshop-journey="github"]').click();
+	await page.locator('[data-workshop-entry-path="ui-learner"]').click();
 	await page.locator('[data-workshop-scenario="daily-status"]').click();
 	await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
 }
@@ -50,20 +50,51 @@ test.describe('Workshop tutorial', () => {
 		await expect(bubbles.nth(1)).not.toHaveClass(/is-complete/);
 	});
 
+	test('switching entry path clears previous scenario and restarts the flow', async ({ page }) => {
+		await startWorkshop(page);
+
+		await page.getByRole('button', { name: /Next step/i }).click();
+		await expect(page.locator('[data-workshop-step-position]')).toHaveText(/Step 2 of/);
+
+		await page.getByRole('button', { name: /Change route/i }).click();
+		await page.locator('[data-workshop-entry-path="cli-user"]').click();
+
+		await expect(page.locator('[data-workshop-setup-step="scenario"]')).toBeVisible();
+		await expect(page.locator('[data-workshop-scenario][aria-pressed="true"]')).toHaveCount(0);
+
+		const stateAfterPathChange = await page.evaluate(() => {
+			return window.sessionStorage.getItem('gh-aw-docs-workshop-state');
+		});
+		expect(stateAfterPathChange).toContain('"journeyId":"terminal"');
+		expect(stateAfterPathChange).toContain('"scenarioId":""');
+		expect(stateAfterPathChange).toContain('"stepKey":"00-welcome"');
+
+		await page.locator('[data-workshop-scenario="daily-docs"]').click();
+		await expect(page.locator('[data-workshop-step-position]')).toHaveText(/Step 1 of/);
+
+		await page.getByRole('button', { name: /Home/i }).click();
+		await expect(page.locator('[data-workshop-setup-step="workspace"]')).toBeVisible();
+
+		const stateAfterHome = await page.evaluate(() => {
+			return window.sessionStorage.getItem('gh-aw-docs-workshop-state');
+		});
+		expect(stateAfterHome).toBeNull();
+	});
+
 	for (const device of workshopDevices) {
 		test(`renders the workshop flow cleanly on ${device.name}`, async ({ page }) => {
 			await page.setViewportSize({ width: device.width, height: device.height });
 			await startWorkshop(page);
 
 			await expect(page.locator('.aw-workshop-panel-shell')).toBeVisible();
-			await expect(page.locator('.aw-workshop-lesson-rail')).toBeVisible();
+			await expect(page.locator('.aw-workshop-progress-card')).toBeVisible();
 			await expect(page.locator('.aw-workshop-step-content')).toBeVisible();
 			await expect(page.getByRole('button', { name: /Next step|Finish workshop/i })).toBeVisible();
 
 			const layout = await page.evaluate(() => {
 				const selectors = [
 					'.aw-workshop-panel-shell',
-					'.aw-workshop-lesson-rail',
+					'.aw-workshop-progress-card',
 					'.aw-workshop-step-content',
 					'.aw-workshop-panel-footer',
 				];

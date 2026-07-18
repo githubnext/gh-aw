@@ -4,6 +4,7 @@ import octicons from '@primer/octicons';
 import {
 	buildWorkshopFlow,
 	workshopDefaults,
+	workshopEntryPaths,
 	workshopJourneys,
 	workshopRoutes,
 	workshopScenarios,
@@ -84,6 +85,52 @@ function slugId(text: string) {
 		.replace(/^-+|-+$/gu, '');
 }
 
+function firstSentence(value: string) {
+	return value.match(/^.*?[.!?](?:\s|$)/u)?.[0].trim() ?? value.trim();
+}
+
+function renderDetailsBlock(markup: string) {
+	const match = markup.match(/^<details>\s*<summary>([\s\S]*?)<\/summary>\s*([\s\S]*?)\s*<\/details>$/u);
+	if (!match) {
+		return `<div class="aw-workshop-details-body">${renderWorkshopMarkdown(markup)}</div>`;
+	}
+
+	const [, summary, body] = match;
+	return [
+		'<details class="aw-workshop-details">',
+		`<summary>${renderInlineMarkdown(summary.trim())}</summary>`,
+		`<div class="aw-workshop-details-body">${renderWorkshopMarkdown(body.trim())}</div>`,
+		'</details>',
+	].join('');
+}
+
+function renderEntryPathCards(rows: string[][]) {
+	const cards = rows.map((row) => {
+		const [audience = '', nextStep = '', fit = ''] = row;
+		return [
+			'<article class="aw-workshop-entry-card">',
+			`<p class="aw-workshop-entry-card-kicker">Entry path</p>`,
+			`<h4>${renderInlineMarkdown(audience)}</h4>`,
+			`<p class="aw-workshop-entry-card-summary">${renderInlineMarkdown(fit)}</p>`,
+			'<div class="aw-workshop-entry-card-next">',
+				'<span>Recommended next step</span>',
+				`<p>${renderInlineMarkdown(nextStep)}</p>`,
+			'</div>',
+			'</article>',
+		].join('');
+	});
+
+	return `<section class="aw-workshop-entry-grid">${cards.join('')}</section>`;
+}
+
+function normalizeStepBody(step: WorkshopStep) {
+	if (step.key !== '00-welcome') return step.body;
+	return step.body.replace(
+		'- [ ] I picked the row in the table above that best matches how I want to work today',
+		'- [ ] I picked the entry path above that best matches how I want to work today',
+	);
+}
+
 function renderWorkshopMarkdown(markdown: string) {
 	const lines = markdown.split('\n');
 	const blocks: string[] = [];
@@ -95,6 +142,8 @@ function renderWorkshopMarkdown(markdown: string) {
 	let code: string[] = [];
 	let codeLanguage = '';
 	let inCode = false;
+	let detailsLines: string[] = [];
+	let inDetails = false;
 	let admonitionType = '';
 	let admonitionLines: string[] = [];
 
@@ -123,6 +172,16 @@ function renderWorkshopMarkdown(markdown: string) {
 		if (tableRows.length === 0) return;
 		const [header, , ...body] = tableRows;
 		if (!header) { tableRows = []; return; }
+		if (
+			header.length >= 3
+			&& header[0] === "If you're a..."
+			&& header[1] === 'Recommended setup adventure'
+			&& header[2] === 'Why this path fits'
+		) {
+			blocks.push(renderEntryPathCards(body));
+			tableRows = [];
+			return;
+		}
 		const th = header.map((cell) => `<th>${renderInlineMarkdown(cell)}</th>`).join('');
 		const rows = body.map((row) => `<tr>${row.map((cell) => `<td>${renderInlineMarkdown(cell)}</td>`).join('')}</tr>`).join('');
 		blocks.push(`<div class="aw-workshop-table-wrap"><table><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>`);
@@ -131,8 +190,8 @@ function renderWorkshopMarkdown(markdown: string) {
 
 	const flushAdmonition = () => {
 		if (!admonitionType) return;
-		const content = admonitionLines.join(' ');
-		blocks.push(`<aside class="aw-workshop-admonition aw-workshop-admonition-${admonitionType.toLowerCase()}">${renderInlineMarkdown(content)}</aside>`);
+		const content = admonitionLines.join('\n');
+		blocks.push(`<aside class="aw-workshop-admonition aw-workshop-admonition-${admonitionType.toLowerCase()}">${renderDetailsBlock(content)}</aside>`);
 		admonitionType = '';
 		admonitionLines = [];
 	};
@@ -161,6 +220,26 @@ function renderWorkshopMarkdown(markdown: string) {
 		}
 
 		const trimmed = line.trim();
+		if (trimmed === '<details>') {
+			flushParagraph();
+			flushList();
+			flushTable();
+			flushAdmonition();
+			inDetails = true;
+			detailsLines = [trimmed];
+			continue;
+		}
+
+		if (inDetails) {
+			detailsLines.push(line);
+			if (trimmed === '</details>') {
+				blocks.push(renderDetailsBlock(detailsLines.join('\n')));
+				detailsLines = [];
+				inDetails = false;
+			}
+			continue;
+		}
+
 		if (!trimmed || trimmed === '---') {
 			flushParagraph();
 			flushList();
@@ -316,7 +395,7 @@ function extractCheckpointItems(markdown: string) {
 }
 
 function renderTutorialStep(step: WorkshopStep) {
-	return renderWorkshopMarkdown(step.body);
+	return renderWorkshopMarkdown(normalizeStepBody(step));
 }
 
 function normalizeKey(value: string) {
@@ -360,24 +439,30 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		<div class="aw-workshop-setup-step" data-workshop-setup-step="workspace">
 			<section class="aw-workshop-picker">
 				<div class="aw-workshop-picker-header">
-					<p class="aw-workshop-picker-kicker">Workspace</p>
-					<h3>Where do you like to work?</h3>
-					<p class="aw-workshop-picker-help">The guide stays here. Pick the workspace you will use beside it.</p>
+					<p class="aw-workshop-picker-kicker">Entry path</p>
+					<h3>How do you want to go through the workshop?</h3>
+					<p class="aw-workshop-picker-help">Choose the route that matches the way you work. Each path starts fresh and switches to its authored step flow behind the scenes.</p>
 				</div>
 				<div class="aw-workshop-card-grid">
-					{workshopJourneys.map((journey) => (
+					{workshopEntryPaths.map((path) => {
+						const journey = workshopJourneys.find((item) => item.id === path.journeyId) ?? workshopJourneys[0];
+						return (
 						<button
 							type="button"
 							class="aw-workshop-card"
-							data-workshop-journey={journey.id}
+							data-workshop-entry-path={path.id}
+							data-workshop-journey={path.journeyId}
 							style={`--aw-workshop-card-accent: ${journey.accent};`}
 						>
-							<span class="aw-workshop-card-icon" set:html={iconSvg(journey.icon)} />
-							<span class="aw-workshop-card-kicker">{journey.kicker}</span>
-							<strong>{journey.label}</strong>
-							<span>{journey.summary}</span>
+							<span class="aw-workshop-card-icon" set:html={iconSvg(path.icon)} />
+							<span class="aw-workshop-card-kicker">{path.kicker}</span>
+							<span class="aw-workshop-card-route">{journey.label}</span>
+							<strong class="aw-workshop-card-title">{path.label}</strong>
+							<span class="aw-workshop-card-summary">{path.summary}</span>
+							<small class="aw-workshop-card-fit">{path.fit}</small>
 						</button>
-					))}
+						);
+					})}
 				</div>
 			</section>
 		</div>
@@ -397,8 +482,8 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 						>
 							<span class="aw-workshop-card-icon" set:html={iconSvg(scenario.icon)} />
 							<span class="aw-workshop-card-kicker">{scenario.kicker}</span>
-							<strong>{scenario.label}</strong>
-							<span>{scenario.summary}</span>
+							<strong class="aw-workshop-card-title">{scenario.label}</strong>
+							<span class="aw-workshop-card-summary">{firstSentence(scenario.summary)}</span>
 						</button>
 					))}
 				</div>
@@ -406,15 +491,15 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 			<section class="aw-workshop-tunnel-panel" data-workshop-tunnel-panel hidden>
 				<div>
-					<p class="aw-workshop-picker-kicker">Codespaces</p>
-					<h3>GitHub Codespaces</h3>
+					<p class="aw-workshop-picker-kicker">VS Code</p>
+					<h3>VS Code local path</h3>
 					<p>
-						This path uses a GitHub Codespace with VS Code. Open your repository in Codespaces and VS Code will start automatically in the browser or your desktop app.
+						This route follows the local setup path from the workshop content, but keeps you anchored in VS Code. If you prefer browser-based VS Code, you can still use Codespaces and follow the same terminal-style steps.
 					</p>
 				</div>
 				<div class="aw-workshop-tunnel-actions">
-					<a href="https://docs.github.com/en/codespaces/overview" target="_blank" rel="noreferrer">Codespaces docs</a>
-					<a href="https://github.com/codespaces" target="_blank" rel="noreferrer">Open Codespaces</a>
+					<a href="https://code.visualstudio.com/docs/sourcecontrol/overview" target="_blank" rel="noreferrer">VS Code git docs</a>
+					<a href="https://docs.github.com/en/codespaces/overview" target="_blank" rel="noreferrer">Codespaces option</a>
 				</div>
 			</section>
 
@@ -436,42 +521,51 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 		<div class="aw-workshop-panel-shell">
 			<div class="aw-workshop-panel-header">
-				<div>
+				<div class="aw-workshop-panel-heading">
 					<p class="aw-workshop-panel-meta" data-workshop-step-position>Step 1</p>
+					<p class="aw-workshop-panel-summary" data-workshop-step-summary>{initialStep?.summary ?? 'Start with the welcome step, then follow the path selected above.'}</p>
+				</div>
+				<div class="aw-workshop-panel-actions">
+					<button type="button" class="aw-workshop-inline-button aw-workshop-inline-button-home" data-workshop-home>
+						<span class="aw-workshop-button-icon" set:html={iconSvg('home', 16)} />
+						<span>Home</span>
+					</button>
+					<button type="button" class="aw-workshop-inline-button aw-workshop-inline-button-subtle" data-workshop-change>
+						Change route
+					</button>
 				</div>
 			</div>
 
-			<div class="aw-workshop-lesson-shell">
-				<aside class="aw-workshop-lesson-rail" aria-label="Workshop progress">
-					<div class="aw-workshop-lesson-progress">
+			<section class="aw-workshop-progress-card" aria-label="Workshop progress">
+				<div class="aw-workshop-progress-overview">
+					<div class="aw-workshop-progress-stat">
 						<span data-workshop-lesson-percent>0%</span>
-						<div class="aw-workshop-progress-timeline">
-							<div class="aw-workshop-progress-track"><span data-workshop-lesson-bar style={`width: ${initialFlow.length ? '0%' : '100%'};`} /></div>
-							<div class="aw-workshop-step-bubbles" data-workshop-step-bubbles aria-label="Workshop steps">
-								{initialFlow.map((stepKey, index) => {
-									const step = workshopSteps.find((item) => item.key === stepKey);
-									if (!step) return null;
-
-									return (
-										<button
-											type="button"
-											class="aw-workshop-step-bubble"
-											data-workshop-step-link={step.key}
-											title={`${index + 1}. ${step.title}`}
-											aria-label={`Go to step ${index + 1}: ${step.title}`}
-										/>
-									);
-								})}
-							</div>
-						</div>
+						<p>Complete</p>
 					</div>
-					<p data-workshop-lesson-context>Start with the welcome step, then follow the path selected above.</p>
-					<button type="button" class="aw-workshop-rail-link" data-workshop-change>
-						Change workspace or scenario
-					</button>
-				</aside>
-				<article class="aw-workshop-step-content sl-markdown-content" data-workshop-step-content set:html={initialStep ? renderTutorialStep(initialStep) : ''} />
-			</div>
+					<p class="aw-workshop-progress-context" data-workshop-lesson-context>Start with the welcome step, then follow the path selected above.</p>
+				</div>
+				<div class="aw-workshop-progress-timeline">
+					<div class="aw-workshop-progress-track"><span data-workshop-lesson-bar style={`width: ${initialFlow.length ? '0%' : '100%'};`} /></div>
+					<div class="aw-workshop-step-bubbles" data-workshop-step-bubbles aria-label="Workshop steps">
+						{initialFlow.map((stepKey, index) => {
+							const step = workshopSteps.find((item) => item.key === stepKey);
+							if (!step) return null;
+
+							return (
+								<button
+									type="button"
+									class="aw-workshop-step-bubble"
+									data-workshop-step-link={step.key}
+									title={`${index + 1}. ${step.title}`}
+									aria-label={`Go to step ${index + 1}: ${step.title}`}
+								/>
+							);
+						})}
+					</div>
+				</div>
+			</section>
+
+			<article class="aw-workshop-step-content sl-markdown-content" data-workshop-step-content set:html={initialStep ? renderTutorialStep(initialStep) : ''} />
 
 			<div class="aw-workshop-panel-footer">
 				<button type="button" class="aw-workshop-nav-button" data-workshop-prev>
@@ -503,6 +597,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		id="aw-workshop-manifest"
 		set:html={safeJson({
 			defaults: workshopDefaults,
+			entryPaths: workshopEntryPaths,
 			journeys: workshopJourneys,
 			routes: workshopRoutes,
 			scenarios: workshopScenarios,
@@ -517,9 +612,17 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			const steps = JSON.parse(stepDataNode.textContent || '[]');
 			const manifest = JSON.parse(manifestNode.textContent || '{}');
 			const storageKey = 'gh-aw-docs-workshop-state';
+			const storage = window.sessionStorage;
 			const stepMap = new Map(steps.map((step) => [step.key, step]));
 			const allStepKeys = steps.map((step) => step.key);
 			const initialStep = root.getAttribute('data-initial-step') || steps[0]?.key || '';
+			const defaultEntryPath = manifest.entryPaths.find((item) => item.journeyId === manifest.defaults.journeyId) || manifest.entryPaths[0];
+			const createDefaultState = () => ({
+				entryPathId: defaultEntryPath?.id,
+				journeyId: defaultEntryPath?.journeyId || manifest.defaults.journeyId,
+				scenarioId: '',
+				stepKey: initialStep,
+			});
 
 			const buildFlow = (journeyId, scenarioId) => {
 				const journey = manifest.journeys.find((item) => item.id === journeyId) || manifest.journeys[0];
@@ -541,25 +644,30 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 			const readState = () => {
 				try {
-					const parsed = JSON.parse(localStorage.getItem(storageKey) || '{}');
+					const parsed = JSON.parse(storage.getItem(storageKey) || '{}');
+					const selectedEntryPath = manifest.entryPaths.find((item) => item.id === parsed.entryPathId)
+						|| manifest.entryPaths.find((item) => item.journeyId === (parsed.journeyId || manifest.defaults.journeyId))
+						|| defaultEntryPath;
 					return {
-						journeyId: parsed.journeyId || manifest.defaults.journeyId,
-						scenarioId: parsed.scenarioId || manifest.defaults.scenarioId,
+						entryPathId: selectedEntryPath?.id || defaultEntryPath?.id,
+						journeyId: parsed.journeyId || selectedEntryPath?.journeyId || manifest.defaults.journeyId,
+						scenarioId: typeof parsed.scenarioId === 'string' ? parsed.scenarioId : '',
 						stepKey: parsed.stepKey || initialStep,
 					};
 				} catch {
-					return {
-						journeyId: manifest.defaults.journeyId,
-						scenarioId: manifest.defaults.scenarioId,
-						stepKey: initialStep,
-					};
+					return createDefaultState();
 				}
 			};
 
 			const state = readState();
 
 			const saveState = () => {
-				localStorage.setItem(storageKey, JSON.stringify(state));
+				storage.setItem(storageKey, JSON.stringify(state));
+			};
+
+			const resetState = () => {
+				Object.assign(state, createDefaultState());
+				storage.removeItem(storageKey);
 			};
 
 			const track = (name, detail) => {
@@ -615,6 +723,48 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				.replace(/[\s_]+/gu, '-')
 				.replace(/^-+|-+$/gu, '');
 
+			const renderDetailsBlock = (markup) => {
+				const match = String(markup).match(/^<details>\s*<summary>([\s\S]*?)<\/summary>\s*([\s\S]*?)\s*<\/details>$/u);
+				if (!match) {
+					return `<div class="aw-workshop-details-body">${renderStepBody(markup)}</div>`;
+				}
+
+				const [, summary, body] = match;
+				return [
+					'<details class="aw-workshop-details">',
+					`<summary>${renderInlineMarkdown(summary.trim())}</summary>`,
+					`<div class="aw-workshop-details-body">${renderStepBody(body.trim())}</div>`,
+					'</details>',
+				].join('');
+			};
+
+			const renderEntryPathCards = (rows) => {
+				const cards = rows.map((row) => {
+					const [audience = '', nextStep = '', fit = ''] = row;
+					return [
+						'<article class="aw-workshop-entry-card">',
+						`<p class="aw-workshop-entry-card-kicker">Entry path</p>`,
+						`<h4>${renderInlineMarkdown(audience)}</h4>`,
+						`<p class="aw-workshop-entry-card-summary">${renderInlineMarkdown(fit)}</p>`,
+						'<div class="aw-workshop-entry-card-next">',
+							'<span>Recommended next step</span>',
+							`<p>${renderInlineMarkdown(nextStep)}</p>`,
+						'</div>',
+						'</article>',
+					].join('');
+				});
+
+				return `<section class="aw-workshop-entry-grid">${cards.join('')}</section>`;
+			};
+
+			const normalizeStepBody = (step) => {
+				if (step.key !== '00-welcome') return step.body || '';
+				return String(step.body || '').replace(
+					'- [ ] I picked the row in the table above that best matches how I want to work today',
+					'- [ ] I picked the entry path above that best matches how I want to work today',
+				);
+			};
+
 			const renderStepBody = (body) => {
 				const lines = String(body || '').split('\n');
 				const blocks = [];
@@ -626,6 +776,8 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				let code = [];
 				let codeLanguage = '';
 				let inCode = false;
+				let detailsLines = [];
+				let inDetails = false;
 				let admonitionType = '';
 				let admonitionLines = [];
 
@@ -654,6 +806,16 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 					if (tableRows.length === 0) return;
 					const [header, , ...body] = tableRows;
 					if (!header) { tableRows = []; return; }
+					if (
+						header.length >= 3
+						&& header[0] === "If you're a..."
+						&& header[1] === 'Recommended setup adventure'
+						&& header[2] === 'Why this path fits'
+					) {
+						blocks.push(renderEntryPathCards(body));
+						tableRows = [];
+						return;
+					}
 					const th = header.map((cell) => `<th>${renderInlineMarkdown(cell)}</th>`).join('');
 					const rows = body.map((row) => `<tr>${row.map((cell) => `<td>${renderInlineMarkdown(cell)}</td>`).join('')}</tr>`).join('');
 					blocks.push(`<div class="aw-workshop-table-wrap"><table><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>`);
@@ -662,8 +824,8 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 				const flushAdmonition = () => {
 					if (!admonitionType) return;
-					const content = admonitionLines.join(' ');
-					blocks.push(`<aside class="aw-workshop-admonition aw-workshop-admonition-${admonitionType.toLowerCase()}">${renderInlineMarkdown(content)}</aside>`);
+					const content = admonitionLines.join('\n');
+					blocks.push(`<aside class="aw-workshop-admonition aw-workshop-admonition-${admonitionType.toLowerCase()}">${renderDetailsBlock(content)}</aside>`);
 					admonitionType = '';
 					admonitionLines = [];
 				};
@@ -692,6 +854,26 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 					}
 
 					const trimmed = line.trim();
+					if (trimmed === '<details>') {
+						flushParagraph();
+						flushList();
+						flushTable();
+						flushAdmonition();
+						inDetails = true;
+						detailsLines = [trimmed];
+						continue;
+					}
+
+					if (inDetails) {
+						detailsLines.push(line);
+						if (trimmed === '</details>') {
+							blocks.push(renderDetailsBlock(detailsLines.join('\n')));
+							detailsLines = [];
+							inDetails = false;
+						}
+						continue;
+					}
+
 					if (!trimmed || trimmed === '---') {
 						flushParagraph();
 						flushList();
@@ -786,7 +968,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			};
 
 			const renderTutorialStep = (step) => {
-				return renderStepBody(step.body || '');
+				return renderStepBody(normalizeStepBody(step));
 			};
 
 			const calculateProgressPercent = (stepIndex, flowLength) => {
@@ -804,6 +986,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			const prevButton = root.querySelector('[data-workshop-prev]');
 			const nextButton = root.querySelector('[data-workshop-next]');
 			const stepBodyContainer = root.querySelector('[data-workshop-step-content]');
+			const stepSummary = root.querySelector('[data-workshop-step-summary]');
 			const lessonPercent = root.querySelector('[data-workshop-lesson-percent]');
 			const lessonBar = root.querySelector('[data-workshop-lesson-bar]');
 			const lessonContext = root.querySelector('[data-workshop-lesson-context]');
@@ -818,12 +1001,15 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				render();
 			};
 
-			const showSetup = () => {
+			const showSetup = (options = {}) => {
+				const shouldScroll = options.scroll !== false;
 				setupScreen.hidden = false;
 				tutorialScreen.hidden = true;
 				root.classList.remove('is-tutorial-active');
 				showSetupStep('workspace');
-				root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				if (shouldScroll) {
+					root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				}
 			};
 
 			const showTutorial = () => {
@@ -863,9 +1049,15 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				}
 			};
 
-			const setJourney = (journeyId) => {
+			const setJourney = (journeyId, entryPathId = state.entryPathId) => {
 				if (typeof journeyId !== 'string') return;
+				const journeyChanged = state.journeyId !== journeyId || state.entryPathId !== entryPathId;
+				state.entryPathId = entryPathId;
 				state.journeyId = journeyId;
+				if (journeyChanged) {
+					state.scenarioId = '';
+					state.stepKey = getFallbackStepKey(buildFlow(journeyId, manifest.defaults.scenarioId));
+				}
 				ensureCurrentStepIsVisible();
 				saveState();
 				render();
@@ -874,7 +1066,11 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 			const setScenario = (scenarioId) => {
 				if (typeof scenarioId !== 'string') return;
+				const scenarioChanged = state.scenarioId !== scenarioId;
 				state.scenarioId = scenarioId;
+				if (scenarioChanged) {
+					state.stepKey = getFallbackStepKey(buildFlow(state.journeyId, scenarioId));
+				}
 				ensureCurrentStepIsVisible();
 				saveState();
 				render();
@@ -921,12 +1117,13 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				lessonContext.textContent = stepIndex >= 0
 					? `${stepIndex + 1} of ${visibleFlow.length} in this ${journey.label.toLowerCase()} run.`
 					: 'Linked step from the workshop source.';
+				stepSummary.textContent = activeStep.summary || 'Follow the guided path for this lesson.';
 				flowTitle.textContent = `${journey.label} x ${scenario.label}`;
 				stepPosition.textContent = stepIndex >= 0 ? `Step ${stepIndex + 1} of ${visibleFlow.length}` : 'Linked step';
 				stepBodyContainer.innerHTML = renderTutorialStep(activeStep);
 
-				root.querySelectorAll('[data-workshop-journey]').forEach((button) => {
-					const isActive = button.getAttribute('data-workshop-journey') === state.journeyId;
+				root.querySelectorAll('[data-workshop-entry-path]').forEach((button) => {
+					const isActive = button.getAttribute('data-workshop-entry-path') === state.entryPathId;
 					button.classList.toggle('is-active', isActive);
 					button.setAttribute('aria-pressed', String(isActive));
 				});
@@ -971,8 +1168,15 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 					return;
 				}
 
-				if (target.matches('[data-workshop-journey]')) {
-					setJourney(target.getAttribute('data-workshop-journey'));
+				if (target.matches('[data-workshop-home]')) {
+					resetState();
+					render();
+					showSetup();
+					return;
+				}
+
+				if (target.matches('[data-workshop-entry-path]')) {
+					setJourney(target.getAttribute('data-workshop-journey'), target.getAttribute('data-workshop-entry-path'));
 					showSetupStep('scenario');
 					root.scrollIntoView({ behavior: 'smooth', block: 'start' });
 					return;
@@ -1023,7 +1227,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 			ensureCurrentStepIsVisible();
 			render();
-			showSetup();
+			showSetup({ scroll: false });
 		}
 	</script>
 </section>
@@ -1033,6 +1237,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		display: grid;
 		gap: 1.5rem;
 		margin: 2rem 0 1rem;
+		scroll-margin-top: 6.5rem;
 	}
 
 	.aw-workshop [hidden] {
@@ -1138,13 +1343,14 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	}
 
 	.aw-workshop-picker {
-		padding: 0.75rem;
+		padding: clamp(1rem, 2vw, 1.35rem);
 	}
 
 	.aw-workshop-picker-header {
 		display: grid;
-		gap: 0.15rem;
-		margin-bottom: 0.55rem;
+		gap: 0.3rem;
+		margin-bottom: 0.9rem;
+		max-width: 48rem;
 	}
 
 	.aw-workshop-picker-help {
@@ -1156,28 +1362,33 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 	.aw-workshop-card-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-		gap: 0.5rem;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 15.5rem), 1fr));
+		gap: 0.85rem;
 	}
 
 	.aw-workshop-card {
 		display: grid;
-		grid-template-columns: 1.9rem 1fr;
+		grid-template-columns: 2rem 1fr auto;
 		grid-template-areas:
-			"icon kicker"
-			"icon title"
-			"icon summary";
+			"icon kicker route"
+			"icon title route"
+			"icon summary summary"
+			"fit fit fit";
 		align-items: start;
-		gap: 0.12rem 0.55rem;
+		align-content: start;
+		gap: 0.22rem 0.75rem;
 		text-align: left;
-		min-height: 6.35rem;
-		padding: 0.62rem;
-		border-radius: 0.7rem;
+		min-height: 0;
+		min-height: 15rem;
+		padding: 1rem;
+		border-radius: 0.9rem;
 		border: 1px solid color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 35%, transparent);
-		background: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 10%, var(--aw-bg-elevated));
+		background:
+			linear-gradient(180deg, color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 12%, transparent), transparent 72%),
+			color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 8%, var(--aw-bg-elevated));
 		color: inherit;
 		cursor: pointer;
-		transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+		transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 	}
 
 	.aw-workshop-card-icon {
@@ -1192,23 +1403,53 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		grid-area: kicker;
 	}
 
+	.aw-workshop-card-route {
+		grid-area: route;
+		align-self: start;
+		padding: 0.22rem 0.5rem;
+		border-radius: 999px;
+		border: 1px solid color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 24%, transparent);
+		background: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 14%, transparent);
+		color: var(--aw-text-muted);
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		white-space: nowrap;
+	}
+
 	.aw-workshop-card-scenario {
 		--aw-workshop-card-accent: var(--sl-color-accent-low);
 	}
 
 	.aw-workshop-card strong {
 		grid-area: title;
-		margin-top: 0.03rem;
-		font-size: 0.95rem;
-		line-height: 1.15;
+		margin-top: 0.06rem;
+		font-size: 1.18rem;
+		line-height: 1.08;
+		text-wrap: pretty;
 	}
 
-	.aw-workshop-card span:last-child {
+	.aw-workshop-card-summary {
 		grid-area: summary;
-		max-width: 24ch;
 		color: var(--aw-text-muted);
-		font-size: 0.82rem;
-		line-height: 1.3;
+		font-size: 0.98rem;
+		line-height: 1.55;
+		text-wrap: pretty;
+	}
+
+	.aw-workshop-card-fit {
+		grid-area: fit;
+		margin-top: auto;
+		padding-top: 0.7rem;
+		border-top: 1px solid color-mix(in srgb, var(--aw-border) 82%, transparent);
+		color: var(--aw-text-muted);
+		font-size: 0.79rem;
+		line-height: 1.35;
+		opacity: 0;
+		max-height: 0;
+		overflow: hidden;
+		transform: translateY(-0.2rem);
+		transition: opacity 0.2s ease, max-height 0.2s ease, transform 0.2s ease;
 	}
 
 	.aw-workshop-card:hover,
@@ -1216,6 +1457,17 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		transform: translateY(-1px);
 		border-color: var(--aw-workshop-card-accent, var(--sl-color-accent));
 		box-shadow: 0 12px 30px rgba(1, 4, 9, 0.2);
+	}
+
+	.aw-workshop-card:hover .aw-workshop-card-fit,
+	.aw-workshop-card.is-active .aw-workshop-card-fit {
+		opacity: 1;
+		max-height: 5rem;
+		transform: translateY(0);
+	}
+
+	.aw-workshop-card-scenario {
+		min-height: 12rem;
 	}
 
 	.aw-workshop-flow {
@@ -1234,11 +1486,19 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		align-items: start;
 	}
 
+	.aw-workshop-panel-actions {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		gap: 0.65rem;
+	}
+
 	.aw-workshop-inline-button,
 	.aw-workshop-nav-button {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
+		gap: 0.45rem;
 		border-radius: 999px;
 		min-height: 2.75rem;
 		padding: 0.7rem 1rem;
@@ -1256,6 +1516,20 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		text-decoration: none;
 	}
 
+	.aw-workshop-inline-button-subtle {
+		background: rgba(255, 255, 255, 0.03);
+	}
+
+	.aw-workshop-inline-button-home {
+		background: color-mix(in srgb, rgba(var(--aw-accent-rgb), 0.18) 70%, rgba(255, 255, 255, 0.03));
+	}
+
+	.aw-workshop-button-icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+	}
+
 	.aw-workshop-panel-shell {
 		display: flex;
 		flex-direction: column;
@@ -1265,49 +1539,83 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		padding: 1.25rem;
 	}
 
-	.aw-workshop-lesson-shell {
-		flex: 1;
+	.aw-workshop-panel-heading {
 		display: grid;
-		min-width: 0;
-		grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
-		gap: 1rem;
-		margin-top: 1rem;
+		gap: 0.35rem;
 	}
 
-	.aw-workshop-lesson-rail {
-		position: sticky;
-		top: 1rem;
-		align-self: start;
+	.aw-workshop-panel-summary {
+		margin: 0;
+		max-width: 62ch;
+		color: var(--aw-text-muted);
+		font-size: 0.96rem;
+		line-height: 1.5;
+	}
+
+	.aw-workshop-progress-card {
 		display: grid;
-		min-width: 0;
-		gap: 1rem;
+		gap: 0.85rem;
+		margin-top: 1rem;
 		padding: 1rem;
 		border-radius: 1rem;
 		border: 1px solid var(--aw-border);
-		background: rgba(255, 255, 255, 0.03);
+		background:
+			linear-gradient(135deg, rgba(var(--aw-accent-rgb), 0.12), transparent 58%),
+			rgba(255, 255, 255, 0.035);
 	}
 
-	.aw-workshop-lesson-progress {
+	.aw-workshop-progress-overview {
 		display: grid;
-		gap: 0.5rem;
+		min-width: 0;
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 1rem;
 	}
 
-	.aw-workshop-lesson-progress > span {
+	.aw-workshop-progress-stat {
+		display: grid;
+		gap: 0.15rem;
+		min-width: 6rem;
+	}
+
+	.aw-workshop-progress-stat > span {
 		font-size: 2rem;
 		font-weight: 800;
 		letter-spacing: -0.04em;
+	}
+
+	.aw-workshop-progress-stat > p,
+	.aw-workshop-progress-context {
+		margin: 0;
+		color: var(--aw-text-muted);
+	}
+
+	.aw-workshop-progress-stat > p {
+		font-size: 0.78rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	.aw-workshop-progress-context {
+		align-self: center;
+		font-size: 0.95rem;
+		line-height: 1.55;
 	}
 
 	.aw-workshop-progress-timeline {
 		position: relative;
 		display: grid;
 		align-items: center;
-		min-height: 1.25rem;
+		min-height: 1.6rem;
+		padding: 0.1rem 0.35rem;
+		border-radius: 999px;
+		border: 1px solid var(--aw-border);
+		background: rgba(255, 255, 255, 0.03);
 	}
 
 	.aw-workshop-progress-track {
 		grid-area: 1 / 1;
-		height: 0.5rem;
+		height: 0.72rem;
 		overflow: hidden;
 		border-radius: 999px;
 		background: rgba(230, 237, 243, 0.12);
@@ -1329,17 +1637,17 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.2rem;
-		padding: 0 0.15rem;
+		gap: 0.18rem;
+		padding: 0 0.25rem;
 	}
 
 	.aw-workshop-step-bubbles :global(.aw-workshop-step-bubble) {
-		width: 0.62rem;
-		height: 0.62rem;
-		min-width: 0.62rem;
+		width: 0.78rem;
+		height: 0.78rem;
+		min-width: 0.78rem;
 		padding: 0;
 		border-radius: 999px;
-		border: 2px solid #151b24;
+		border: 2px solid rgba(13, 17, 23, 0.8);
 		background: rgba(230, 237, 243, 0.28);
 		cursor: pointer;
 		transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
@@ -1362,37 +1670,18 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		box-shadow: 0 0 0 3px rgba(var(--aw-accent-rgb), 0.2);
 	}
 
-	.aw-workshop-lesson-rail p {
-		margin: 0;
-		color: var(--aw-text-muted);
-	}
-
-	.aw-workshop-rail-link {
-		justify-self: start;
-		padding: 0;
-		border: 0;
-		background: transparent;
-		color: var(--sl-color-text-accent);
-		font: inherit;
-		font-size: 0.88rem;
-		font-weight: 700;
-		cursor: pointer;
-	}
-
-	.aw-workshop-rail-link:hover,
-	.aw-workshop-rail-link:focus-visible {
-		text-decoration: underline;
-	}
-
 	.aw-workshop-step-content {
-		display: grid;
-		gap: 0.8rem;
+		display: block;
 		min-width: 0;
 		min-height: 22rem;
-		padding: 1rem;
+		margin-top: 1rem;
+		padding: clamp(1rem, 2vw, 1.5rem);
 		border-radius: 1rem;
 		border: 1px solid var(--aw-border);
-		background: rgba(1, 4, 9, 0.22);
+		background:
+			linear-gradient(180deg, rgba(var(--aw-accent-rgb), 0.06), transparent 14%),
+			rgba(1, 4, 9, 0.22);
+		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 	}
 
 	.aw-workshop-step-content :global(h2),
@@ -1404,10 +1693,20 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 	.aw-workshop-step-content :global(h2:first-child) {
 		margin-top: 0;
+		margin-bottom: 0.65rem;
+		font-size: clamp(1.7rem, 2.8vw, 2.3rem);
+		line-height: 1.05;
+	}
+
+	.aw-workshop-step-content :global(h3),
+	.aw-workshop-step-content :global(h4) {
+		padding-top: 1rem;
+		border-top: 1px solid color-mix(in srgb, var(--aw-border) 78%, transparent);
 	}
 
 	.aw-workshop-step-content :global(p),
 	.aw-workshop-step-content :global(ul),
+	.aw-workshop-step-content :global(ol),
 	.aw-workshop-step-content :global(aside) {
 		margin: 0;
 		line-height: 1.65;
@@ -1463,6 +1762,74 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	.aw-workshop-step-content :global(.aw-workshop-admonition-tip) {
 		border-left-color: #56b6c2;
 		background: rgba(86, 182, 194, 0.09);
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-details) {
+		display: grid;
+		gap: 0.75rem;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-details summary) {
+		cursor: pointer;
+		font-weight: 700;
+		list-style: none;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-details summary::-webkit-details-marker) {
+		display: none;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-details-body) {
+		display: grid;
+		gap: 0.85rem;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-entry-grid) {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+		gap: 0.85rem;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-entry-card) {
+		display: grid;
+		gap: 0.6rem;
+		padding: 1rem;
+		border-radius: 0.95rem;
+		border: 1px solid color-mix(in srgb, var(--aw-border) 88%, transparent);
+		background:
+			linear-gradient(180deg, rgba(var(--aw-accent-rgb), 0.1), transparent 65%),
+			rgba(255, 255, 255, 0.03);
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-entry-card h4),
+	.aw-workshop-step-content :global(.aw-workshop-entry-card p) {
+		margin: 0;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-entry-card-kicker),
+	.aw-workshop-step-content :global(.aw-workshop-entry-card-next span) {
+		font-size: 0.72rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--aw-text-muted);
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-entry-card-summary) {
+		color: var(--aw-text-muted);
+		line-height: 1.5;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-entry-card-next) {
+		display: grid;
+		gap: 0.25rem;
+		padding-top: 0.6rem;
+		border-top: 1px solid color-mix(in srgb, var(--aw-border) 82%, transparent);
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-entry-card-next p) {
+		color: color-mix(in srgb, var(--sl-color-accent-high) 86%, white 14%);
+		font-weight: 600;
 	}
 
 	.aw-workshop-step-content :global(ol) {
@@ -1547,12 +1914,8 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	}
 
 	@media (max-width: 72rem) {
-		.aw-workshop-lesson-shell {
+		.aw-workshop-progress-overview {
 			grid-template-columns: 1fr;
-		}
-
-		.aw-workshop-lesson-rail {
-			position: static;
 		}
 	}
 
@@ -1561,13 +1924,28 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			padding: 0.85rem;
 		}
 
+		.aw-workshop-card {
+			min-height: 0;
+		}
+
 		.aw-workshop-panel-shell {
 			padding: 0.9rem;
 		}
 
-		.aw-workshop-lesson-rail,
+		.aw-workshop-progress-card,
 		.aw-workshop-step-content {
 			padding: 0.85rem;
+		}
+
+		.aw-workshop-step-bubbles {
+			gap: 0.12rem;
+			padding: 0 0.12rem;
+		}
+
+		.aw-workshop-step-bubbles :global(.aw-workshop-step-bubble) {
+			width: 0.62rem;
+			height: 0.62rem;
+			min-width: 0.62rem;
 		}
 
 		.aw-workshop-flow-header,
