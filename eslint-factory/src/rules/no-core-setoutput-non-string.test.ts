@@ -247,4 +247,87 @@ describe("no-core-setoutput-non-string", () => {
       ],
     });
   });
+
+  it("valid: single-assignment const alias with string value is accepted", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [`const c = core; c.setOutput("n", "str");`, `const c = core; c.setOutput("n", someVariable);`, `const c = coreObj; c.setOutput("n", "str");`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: single-assignment const alias with non-string value is flagged", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const c = core; c.setOutput("count", items.length);`,
+          errors: [{ messageId: "nonStringValue", suggestions: [{ messageId: "wrapWithString", output: `const c = core; c.setOutput("count", String(items.length));` }] }],
+        },
+        {
+          code: `const c = core; c.setOutput("flag", true);`,
+          errors: [{ messageId: "nonStringValue", suggestions: [{ messageId: "wrapWithString", output: `const c = core; c.setOutput("flag", String(true));` }] }],
+        },
+        {
+          code: `const c = core; c.setOutput("result", null);`,
+          errors: [
+            {
+              messageId: "nonStringValue",
+              suggestions: [
+                { messageId: "useEmptyString", output: `const c = core; c.setOutput("result", "");` },
+                { messageId: "wrapWithString", output: `const c = core; c.setOutput("result", String(null));` },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("valid: let alias with reassignment is NOT flagged (not a safe const alias)", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [`let c = core; c = other; c.setOutput("n", 1);`],
+      invalid: [],
+    });
+  });
+
+  it("valid: non-core const alias is NOT flagged", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [`const c = other; c.setOutput("n", 1);`],
+      invalid: [],
+    });
+  });
+
+  it("valid: destructured setOutput from core with string value is accepted", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [`const { setOutput } = core; setOutput("n", "str");`, `const { setOutput } = core; setOutput("n", someVariable);`, `const { setOutput: so } = core; so("n", "str");`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: destructured setOutput from core with non-string value is flagged", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const { setOutput } = core; setOutput("count", items.length);`,
+          errors: [{ messageId: "nonStringValue", suggestions: [{ messageId: "wrapWithString", output: `const { setOutput } = core; setOutput("count", String(items.length));` }] }],
+        },
+        {
+          code: `const { setOutput } = core; setOutput("flag", true);`,
+          errors: [{ messageId: "nonStringValue", suggestions: [{ messageId: "wrapWithString", output: `const { setOutput } = core; setOutput("flag", String(true));` }] }],
+        },
+        {
+          code: `const { setOutput: so } = core; so("n", items.length);`,
+          errors: [{ messageId: "nonStringValue", suggestions: [{ messageId: "wrapWithString", output: `const { setOutput: so } = core; so("n", String(items.length));` }] }],
+        },
+      ],
+    });
+  });
+
+  it("valid: standalone setOutput identifier from non-core source is NOT flagged", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [`function setOutput(k, v) {} setOutput("n", 1);`, `const { setOutput } = other; setOutput("n", 1);`],
+      invalid: [],
+    });
+  });
 });
