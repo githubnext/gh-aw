@@ -568,7 +568,7 @@ func createBootstrapGitHubApp(ctx context.Context, repo, owner, repoName, ownerT
 	errCh := make(chan error, 1)
 	flowCh := bootstrapGitHubAppFlowChannels{resultCh: resultCh, errCh: errCh}
 	server := &http.Server{
-		Handler: buildBootstrapGitHubAppMux(ctx, state, owner, ownerType, appName, description, registrationPage, flowCh),
+		Handler: buildBootstrapGitHubAppMux(ctx, state, appOwner, appOwnerType, appName, description, registrationPage, flowCh),
 	}
 	go func() {
 		_ = server.Serve(listener)
@@ -601,26 +601,27 @@ func createBootstrapGitHubApp(ctx context.Context, repo, owner, repoName, ownerT
 
 // setupBootstrapGitHubAppDetails resolves the effective app owner (applying any override)
 // and derives the app name, homepage URL, and description from the action and overrides.
-func setupBootstrapGitHubAppDetails(ctx context.Context, repo, owner, ownerType string, action repositoryPackageBootstrapAction, overrides bootstrapGitHubAppOverrides) (appOwner, appOwnerType, appName, homepageURL, description string, err error) {
-	appOwner = owner
-	appOwnerType = ownerType
+func setupBootstrapGitHubAppDetails(ctx context.Context, repo, owner, ownerType string, action repositoryPackageBootstrapAction, overrides bootstrapGitHubAppOverrides) (string, string, string, string, string, error) {
+	appOwner := owner
+	appOwnerType := ownerType
 	if overrides.Owner != "" {
 		appOwner = overrides.Owner
+		var err error
 		appOwnerType, err = bootstrapCheckOwnerType(ctx, appOwner)
 		if err != nil {
-			return
+			return "", "", "", "", "", err
 		}
 	}
-	appName = deriveBootstrapAppName(repo, firstNonEmpty(overrides.Name, action.AppName))
-	homepageURL = strings.TrimSpace(firstNonEmpty(overrides.HomepageURL, action.HomepageURL))
+	appName := deriveBootstrapAppName(repo, firstNonEmpty(overrides.Name, action.AppName))
+	homepageURL := strings.TrimSpace(firstNonEmpty(overrides.HomepageURL, action.HomepageURL))
 	if homepageURL == "" {
 		homepageURL = "https://github.com/" + repo
 	}
-	description = strings.TrimSpace(firstNonEmpty(overrides.Description, action.Description))
+	description := strings.TrimSpace(firstNonEmpty(overrides.Description, action.Description))
 	if description == "" {
 		description = "Bootstrap app for " + repo
 	}
-	return
+	return appOwner, appOwnerType, appName, homepageURL, description, nil
 }
 
 // buildBootstrapGitHubAppMux constructs the HTTP mux that handles the GitHub App manifest
