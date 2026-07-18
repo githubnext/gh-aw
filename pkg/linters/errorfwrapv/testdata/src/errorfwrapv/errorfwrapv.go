@@ -48,6 +48,11 @@ func GoodIndexedWidthWrap(err error) error {
 	return fmt.Errorf("%[2]*[1]w", err, 10)
 }
 
+// BadIndexedWidthNoW uses indexed width and value but does not wrap the error.
+func BadIndexedWidthNoW(err error) error {
+	return fmt.Errorf("%[2]*[1]s", err, 10) // want `fmt\.Errorf passes an error argument without %w`
+}
+
 // BadMissingWrapNoW passes an error argument but has no %w verb.
 func BadMissingWrapNoW(err error) error {
 	return fmt.Errorf("operation failed: %s", err) // want `fmt\.Errorf passes an error argument without %w`
