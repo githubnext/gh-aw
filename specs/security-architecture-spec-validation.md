@@ -1,7 +1,7 @@
 # Security Architecture Specification Validation
 
 **Document**: Validation of `security-architecture-spec.md` against compiled `.lock.yml` files  
-**Date**: July 6, 2026  
+**Date**: July 18, 2026  
 **Validator**: GitHub Copilot Agent  
 **Scope**: Cross-reference specification requirements with actual implementation
 
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-✅ **VALIDATION RESULT**: The specification accurately reflects the implementation in compiled `.lock.yml` files and JavaScript implementation (revalidated on 2026-07-15).
+✅ **VALIDATION RESULT**: The specification accurately reflects the implementation in compiled `.lock.yml` files and JavaScript implementation (revalidated on 2026-07-18).
 
 All major security architecture claims in the specification have been verified against actual workflow implementations:
 - ✅ Job architecture (activation, agent, safe_outputs)
@@ -26,6 +26,117 @@ All major security architecture claims in the specification have been verified a
 - ✅ Timestamp validation at runtime
 - ✅ Concurrency control (context-aware grouping with cancel-in-progress)
 - ✅ Documentation maintenance follow-ups for `pre_activation`, `detection`, optional `conclusion`, and companion `trusted-users` references remain aligned with implementation behavior
+
+---
+
+## Formal Model
+
+The validation pass is encoded as a compiled-workflow conformance model over job topology, sanitization rewrites, permission isolation, and concurrency guards.
+
+**State space** (`ValidationState`):
+
+```tla
+ValidationState ≜ [
+  compiledJobs   : Seq(JobName),
+  jobSections    : JobName → YAMLText,
+  runStep        : Step,
+  permissions    : PermissionScope → PermissionValue,
+  concurrencyYAML: YAMLText
+]
+```
+
+**Representative invariants**:
+
+```tla
+VAL_P1_TripartiteJobArchitecture ≜
+  <<"activation", "agent", "safe_outputs">> ⊆ CompiledJobNames
+
+VAL_P2_InputSanitizationPipeline ≜
+  ContainsExpression(runStep.run) ⟹
+    (runStep.env ≠ nil ∧ ¬ContainsExpression(Sanitize(runStep).run))
+
+VAL_P4_ForkProtectionRepoIDGuard ≜
+  pull_request_trigger ⟹
+    Contains(jobSections["activation"], "github.event.pull_request.head.repo.id == github.repository_id")
+
+VAL_P6_ThreatDetectionOrdering ≜
+  IndexOf("agent", compiledJobs) < IndexOf("detection", compiledJobs) ∧
+  IndexOf("detection", compiledJobs) < IndexOf("safe_outputs", compiledJobs)
+
+VAL_P10_PermissionWriteOnlySafeOutput ≜
+  NoWrite(jobSections["activation"]) ∧
+  NoWrite(jobSections["agent"]) ∧
+  HasWrite(jobSections["safe_outputs"])
+```
+
+**F* contracts** (selected):
+
+```fstar
+val sanitizeRunStepExpressions :
+  step:map string any ->
+  Tot (map string any * list string * bool)
+  (requires True)
+  (ensures fun (sanitized, _, changed) ->
+    ContainsExpression(step["run"]) ==> (changed /\ Map.mem "env" sanitized))
+
+val validateConcurrencyQueueConfiguration :
+  concurrencyYAML:string ->
+  Tot (option error)
+  (requires True)
+  (ensures fun err ->
+    Contains(concurrencyYAML, "queue: max") /\ Contains(concurrencyYAML, "cancel-in-progress: true")
+      ==> Some? err)
+```
+
+**Z3 / SMT-LIB constraints** (ordering and isolation):
+
+```smt2
+(declare-const agent Int)
+(declare-const detection Int)
+(declare-const safe_outputs Int)
+(assert (< agent detection))
+(assert (< detection safe_outputs))
+(check-sat) ; sat
+```
+
+## Behavioral Coverage Map
+
+| Predicate / Invariant | Test Function | Description |
+|---|---|---|
+| `VAL-P1 JobArchitectureTripartite` | `TestFormalVAL_P1_TripartiteJobArchitecture` | activation, agent, safe_outputs jobs all present (OI-01) |
+| `VAL-P2 InputSanitizationPipeline` | `TestFormalVAL_P2_SanitizationPipelineOrder` | `${{ }}` expressions moved to env: before other transforms (IS-10) |
+| `VAL-P3 PermissionDefaultReadOnly` | `TestFormalVAL_P3_AgentJobHasOnlyReadPermissions` | agent job permissions are read-only, never write (PM-01/PM-02) |
+| `VAL-P4 ForkProtectionRepoIDGuard` | `TestFormalVAL_P4_ForkProtectionRepoIDComparison` | PR workflows contain `head.repo.id == repository_id` guard (PM-08) |
+| `VAL-P5 RBACPreActivationGates` | `TestFormalVAL_P5_PreActivationGatesActivation` | `pre_activation` gates activation via membership check (PM-10/PM-11) |
+| `VAL-P6 ThreatDetectionOrdering` | `TestFormalVAL_P6_DetectionJobBetweenAgentAndSafeOutputs` | detection sits between agent and safe_outputs (TD-01) |
+| `VAL-P7 ActionPinningSHA40` | `TestFormalVAL_P7_ActionPinsAre40CharSHA` | all non-local `uses:` are pinned to 40-char SHAs (CS-10) |
+| `VAL-P8 TimestampValidationStep` | `TestFormalVAL_P8_ActivationContainsTimestampCheck` | activation references `check_workflow_timestamp_api.cjs` (RS-01/RS-02) |
+| `VAL-P9 ConcurrencyDynamicGroup` | `TestFormalVAL_P9_ConcurrencyGroupContainsDynamicExpr` | `concurrency.group` contains a dynamic `${{ }}` expression (RS-16/RS-17) |
+| `VAL-P10 PermissionWriteOnlySafeOutput` | `TestFormalVAL_P10_WritePermissionsIsolatedToSafeOutputs` | activation/agent have no write permissions while safe_outputs does (OI-07) |
+| `VAL-P11 ConcurrencyQueueConflict` | `TestFormalVAL_P11_QueueMaxConflictsWithCancelInProgress` | `queue:max` + `cancel-in-progress:true` rejected (RS-22) |
+| `VAL-P12 SanitizationRunStepExpr` | `TestFormalVAL_P12_RunStepExpressionsExtractedToEnv` | table-driven empty/no-expr/multi-expr run-step cases (IS-04) |
+| `VAL-P13 EmptyGroupExpressionRejected` | `TestFormalVAL_P13_EmptyConcurrencyGroupRejected` | empty or whitespace concurrency group rejected (RS-17) |
+| `VAL-P14 MalformedGroupExprRejected` | `TestFormalVAL_P14_MalformedConcurrencyExprRejected` | malformed `${{ }}` concurrency expressions rejected (RS-17) |
+| `VAL-P15 WritePolicyRejectedInStrict` | `TestFormalVAL_P15_WritePermissionsRejectedInStrictMode` | strict-mode compiled activation/agent jobs retain no write perms (PM-01) |
+
+## Generated Test Suite
+
+The 15 predicate-mapped tests above are implemented in:
+
+- `/home/runner/work/gh-aw/gh-aw/pkg/workflow/security_architecture_validation_formal_test.go`
+
+They follow the repository’s existing formal-test conventions:
+
+- `//go:build !integration` so they run in the default unit-test suite
+- direct calls into production compiler and validator code (no mocks)
+- representative compiled-YAML assertions for topology, permission, and pinning requirements
+- direct validator assertions for concurrency-expression and queue-compatibility edge cases
+
+Run the validation suite directly:
+
+```sh
+go test ./pkg/workflow -run 'TestFormalVAL_' -v
+```
 
 ---
 
