@@ -78,7 +78,12 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error {
 		return nil
 	}
 
-	seed := buildAutoUpdateSeed(opts.RepoSlug)
+	actionMode := opts.ActionMode
+	if actionMode == "" {
+		actionMode = ActionModeDev
+	}
+
+	seed := buildAutoUpdateSeed(opts.RepoSlug, actionMode)
 	cronSchedule, err := parser.ScatterSchedule("FUZZY:WEEKLY", seed)
 	if err != nil {
 		return fmt.Errorf("failed to scatter FUZZY:WEEKLY schedule for auto-update workflow: %w", err)
@@ -94,10 +99,6 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error {
 		githubScriptPin = getActionPin("actions/github-script")
 	}
 
-	actionMode := opts.ActionMode
-	if actionMode == "" {
-		actionMode = ActionModeDev
-	}
 	ctx := opts.Context
 	if ctx == nil {
 		ctx = context.Background()
@@ -123,13 +124,24 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error {
 }
 
 // buildAutoUpdateSeed returns the deterministic seed string used to scatter the
-// FUZZY:WEEKLY cron schedule. It combines the repo slug with the fixed workflow
-// identifier so that repositories scatter to distinct time slots.
-func buildAutoUpdateSeed(repoSlug string) string {
-	if repoSlug != "" {
-		return repoSlug + "/" + autoUpdateWorkflowIdentifier
+// FUZZY:WEEKLY cron schedule.
+//
+// In release mode the repo slug is incorporated so that different repositories
+// scatter to distinct time slots. In dev mode a stable "dev/" prefix is used
+// instead of the slug, which may not be available (e.g. in sandbox environments
+// where the git remote URL is a localhost proxy). This mirrors the behaviour of
+// normalizeScheduleString in schedule_preprocessing.go and prevents the
+// generated schedule from changing between dev builds when --schedule-seed is
+// sometimes provided and sometimes not.
+func buildAutoUpdateSeed(repoSlug string, actionMode ActionMode) string {
+	if actionMode.IsRelease() {
+		if repoSlug != "" {
+			return repoSlug + "/" + autoUpdateWorkflowIdentifier
+		}
+		return autoUpdateWorkflowIdentifier
 	}
-	return autoUpdateWorkflowIdentifier
+	// Dev mode: use a fixed prefix that does not depend on git remote detection.
+	return "dev/" + autoUpdateWorkflowIdentifier
 }
 
 // buildAutoUpdateWorkflowYAML generates the YAML content for agentic-auto-upgrade.yml.
