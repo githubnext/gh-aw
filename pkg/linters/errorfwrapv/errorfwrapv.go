@@ -52,6 +52,8 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	const formatArgOffset = 1 // call.Args[0] is the format string.
+
 	if errorIface == nil {
 		return nil, errors.New("failed to resolve built-in error interface from types.Universe")
 	}
@@ -96,17 +98,22 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok || lit.Kind != token.STRING {
 			return
 		}
+		suppressed := nolint.HasDirectiveForLinter(position, noLintIndex, "errorfwrapv")
 
 		verbs := parseFormatVerbs(lit.Value)
+		// Call-scoped tracking: once a %w verb is present in this fmt.Errorf call,
+		// the missing-%w check is not applicable.
 		hasWVerb := false
 		for _, fv := range verbs {
 			if fv.verb == 'w' {
+				// Keep scanning verbs: this call may still have a %v misuse on an
+				// error argument that should be reported.
 				hasWVerb = true
 			}
 			if fv.verb != 'v' {
 				continue
 			}
-			callArgIdx := fv.argIdx + 1
+			callArgIdx := fv.argIdx + formatArgOffset
 			if callArgIdx >= len(call.Args) {
 				continue
 			}
@@ -117,18 +124,22 @@ func run(pass *analysis.Pass) (any, error) {
 			if !types.Implements(tv.Type, errorIface) {
 				continue
 			}
-			if nolint.HasDirectiveForLinter(position, noLintIndex, "errorfwrapv") {
+			if suppressed {
 				return
 			}
 			pass.ReportRangef(call, "fmt.Errorf formats an error argument with %%v; use %%w to preserve the error chain")
+			// Keep diagnostics to one per call to avoid noisy duplicate reports.
 			return
 		}
 
 		if hasWVerb {
 			return
 		}
+		if len(call.Args) <= formatArgOffset {
+			return
+		}
 
-		for i := 1; i < len(call.Args); i++ {
+		for i := formatArgOffset; i < len(call.Args); i++ {
 			tv, ok := pass.TypesInfo.Types[call.Args[i]]
 			if !ok || tv.Type == nil {
 				continue
@@ -136,10 +147,11 @@ func run(pass *analysis.Pass) (any, error) {
 			if !types.Implements(tv.Type, errorIface) {
 				continue
 			}
-			if nolint.HasDirectiveForLinter(position, noLintIndex, "errorfwrapv") {
+			if suppressed {
 				return
 			}
 			pass.ReportRangef(call, "fmt.Errorf passes an error argument without %%w; use %%w to preserve the error chain")
+			// Keep diagnostics to one per call to avoid noisy duplicate reports.
 			return
 		}
 	})
