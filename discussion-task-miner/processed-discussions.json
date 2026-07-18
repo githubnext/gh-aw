@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-07-16T13:15:00Z",
+  "last_run": "2026-07-18T01:17:00Z",
   "discussions_processed": [
     {"id": 45268, "title": "[repository-quality] 🎯 Repository Quality Improvement Report - Compile-Time Interface Compliance Gap (2026-07-13)", "processed_at": "2026-07-14T01:08:00Z"},
     {"id": 45259, "title": "[typist] 🔤 Typist — Go Type Consistency Analysis (github/gh-aw)", "processed_at": "2026-07-14T01:08:00Z"},
@@ -20,6 +20,9 @@
     {"id": 45876, "title": "[lint-monster] Daily lint scan report - 2026-07-16", "processed_at": "2026-07-16T13:15:00Z"},
     {"id": 45924, "title": "[Schema Consistency] 🔍 Schema Consistency Check - 2026-07-16", "processed_at": "2026-07-16T13:15:00Z"},
     {"id": 45899, "title": "Workflow Skill Extractor — Shared Component Opportunities Report", "processed_at": "2026-07-16T13:15:00Z"},
-    {"id": 45852, "title": "[observability] Observability Coverage Report - 2026-07-16", "processed_at": "2026-07-16T13:15:00Z"}
+    {"id": 45852, "title": "[observability] Observability Coverage Report - 2026-07-16", "processed_at": "2026-07-16T13:15:00Z"},
+    {"id": 46240, "title": "[typist] 🔤 Typist — Go Type Consistency Analysis (2026-07-17)", "processed_at": "2026-07-18T01:17:00Z"},
+    {"id": 46253, "title": "[repository-quality] Repository Quality Improvement Report — Error Chain Transparency & Non-Wrapping fmt.Errorf Gap", "processed_at": "2026-07-18T01:17:00Z"},
+    {"id": 46294, "title": "[daily-code-metrics] Daily Code Metrics Report - 2026-07-17", "processed_at": "2026-07-18T01:17:00Z"}
   ]
 }

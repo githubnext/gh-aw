@@ -1,27 +1,38 @@
-# Task Mining Run - 2026-07-16T13:15:00Z
+# Task Mining Run - 2026-07-18
 
 ## Summary
-- Discussions scanned: 7 new (20 total processed)
-- Tasks identified: 5 high-value
-- Issues created: 0 (create_issue quota 5/5 already exhausted from prior runs this session)
-- Duplicates avoided: 0
+- Discussions scanned: 3 new (23 total processed)
+- Tasks identified: 3 new tasks
+- Issues created: 0 (issue creation limit already reached from previous run)
+- Pending tasks carried over: 10
 
-## Identified Tasks (pending creation next run)
+## New Discussions Analyzed
+- #46240: [typist] Go Type Consistency Analysis — 6 duplicate clusters (JobStep exact dup, JobInfo/JobData near dup, MCPToolUsage near dup, etc.)
+- #46253: [repository-quality] Error Chain Transparency — 788 non-wrapping fmt.Errorf, 4 strings.Contains(err.Error()) suppressions
+- #46294: [daily-code-metrics] Quality score 76.5/100, 806 large files (>500 LOC)
 
-| temporary_id | Source | Title |
-|---|---|---|
-| aw_exp_dedup | #45983 | Consolidate duplicate ExperimentState/ExperimentRunRecord types in pkg/cli |
-| aw_audit_delta | #45983 | Generify AuditComparisonIntDelta/AuditComparisonStringDelta with Go generics |
-| aw_actjob_doc | #45872 | Add godoc comments to unexported helpers in compiler_activation_job.go |
-| aw_otlp_bundle | #45899 | Migrate 52 workflows from separate reporting+otlp imports to reporting-otlp.md bundle |
-| aw_schema_eng | #45924 | Add missing engine to schema built-in engine catalog and remove deprecated alias examples |
+## Pending Tasks (carry to next run)
+From #45983:
+- Consolidate ExperimentState/ExperimentRunRecord types
+- Generify AuditComparisonIntDelta/AuditComparisonStringDelta with generics
 
-## Top Quality Themes
-- Type duplication (pkg/cli ExperimentState cluster): 2 tasks from #45983
-- Documentation gaps (godoc on unexported helpers): 1 task from #45872
-- Workflow import consolidation (reporting-otlp bundle): 1 task from #45899
-- Schema/docs inconsistency (missing engine, deprecated alias): 1 task from #45924
+From #45872:
+- Add godoc to unexported helpers in compiler_activation_job.go
 
-## Notes
-- create_issue limit was hit (5/5) before any issues could be filed this run.
-- All 5 tasks are queued in extracted-tasks.json with status "pending_create_limit_reached" for the next run.
+From #45899:
+- Migrate 52 workflows to reporting-otlp.md bundle
+
+From #45924:
+- Add missing engine to schema catalog
+
+From #46240:
+- Consolidate JobStep/JobStepData exact duplicate structs (HIGH priority, ~15 min)
+- Consolidate JobInfo/JobData near-duplicate structs
+
+From #46253:
+- Introduce sentinel errors for "already merged"/"INSUFFICIENT_SCOPES" (HIGH priority)
+
+## Top Patterns Observed
+- Type duplication (JobStep, JobData, MCPToolUsage variants) in pkg/cli
+- Error chain transparency gaps (788 non-wrapping fmt.Errorf, 4 strings.Contains suppressions)
+- Large file count (806 files >500 LOC) pulling quality score down
