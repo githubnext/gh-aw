@@ -193,20 +193,24 @@ describe("install_awf_binary.sh chroot-home cleanup", () => {
   it("cleans stale chroot directories before starting AWF installation", () => {
     const script = fs.readFileSync(INSTALL_AWF_BINARY_SCRIPT_PATH, "utf8");
 
-    const rootlessPreflightIndex = script.indexOf("# Rootless mode preflight");
+    const rootlessPreflightIndex = script.indexOf('if ! { mkdir -p "${AWF_INSTALL_DIR}" && [ -w "${AWF_INSTALL_DIR}" ]; }; then');
     const cleanupBannerIndex = script.indexOf('echo "Cleaning up stale AWF chroot directories..."');
+    const sudoGuardIndex = script.indexOf("if command -v sudo >/dev/null 2>&1; then");
     const cleanupHomeCommandIndex = script.indexOf(
-      "sudo find /tmp -maxdepth 1 -name 'awf-*-chroot-home' -type d -exec rm -rf -- {} + 2>/dev/null || true"
+      `sudo find /tmp -maxdepth 1 -name 'awf-*-chroot-home' -type d \\( -user root -o -user "$(id -un)" \\) -exec rm -rf -- {} + || true`
     );
     const cleanupChrootCommandIndex = script.indexOf(
-      "sudo find /tmp -maxdepth 1 -name 'awf-chroot-*' -type d -exec rm -rf -- {} + 2>/dev/null || true"
+      `sudo find /tmp -maxdepth 1 -name 'awf-chroot-*' -type d \\( -user root -o -user "$(id -un)" \\) -exec rm -rf -- {} + || true`
     );
+    const sudoWarningIndex = script.indexOf('echo "Warning: sudo is unavailable; skipping stale AWF chroot cleanup" >&2');
     const downloadUrlIndex = script.indexOf("# Download URLs");
 
     expect(rootlessPreflightIndex).toBeGreaterThanOrEqual(0);
     expect(cleanupBannerIndex).toBeGreaterThan(rootlessPreflightIndex);
-    expect(cleanupHomeCommandIndex).toBeGreaterThan(cleanupBannerIndex);
+    expect(sudoGuardIndex).toBeGreaterThan(cleanupBannerIndex);
+    expect(cleanupHomeCommandIndex).toBeGreaterThan(sudoGuardIndex);
     expect(cleanupChrootCommandIndex).toBeGreaterThan(cleanupHomeCommandIndex);
+    expect(sudoWarningIndex).toBeGreaterThan(cleanupChrootCommandIndex);
     expect(downloadUrlIndex).toBeGreaterThan(cleanupChrootCommandIndex);
   });
 });
