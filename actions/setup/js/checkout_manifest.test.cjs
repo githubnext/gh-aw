@@ -7,6 +7,8 @@ import * as path from "path";
 import * as os from "os";
 
 const req = createRequire(import.meta.url);
+// Use createRequire so the CJS module shares the same module cache as tests that import it,
+// which is required for the caching/singleton tests to work correctly.
 const { lookupCheckout, loadAllCheckouts, _resetCache } = req("./checkout_manifest.cjs");
 
 describe("checkout_manifest", () => {
