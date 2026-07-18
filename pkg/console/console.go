@@ -20,6 +20,8 @@ import (
 
 var consoleLog = logger.New("console:console")
 
+// stdoutEnviron caches the process environment on first use so stdout styling
+// helpers do not repeatedly copy and re-parse it while rendering output.
 var stdoutEnviron = sync.OnceValue(os.Environ)
 
 // isTTY checks if stdout is a terminal

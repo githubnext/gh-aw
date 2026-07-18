@@ -36,7 +36,10 @@ func Degrade(s string, environ []string) string {
 	var buf strings.Builder
 	w := colorprofile.NewWriter(&buf, environ)
 	// colorprofile.Writer writes synchronously and does not buffer past Write,
-	// so the builder contains the complete transformed string immediately.
-	_, _ = io.WriteString(w, s)
+	// and strings.Builder writes cannot fail, so a write error would indicate an
+	// unexpected future behavior change; fall back to the original string then.
+	if _, err := io.WriteString(w, s); err != nil {
+		return s
+	}
 	return buf.String()
 }

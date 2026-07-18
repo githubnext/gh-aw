@@ -227,8 +227,10 @@ func TestFormatHelpersWithTTYCheck(t *testing.T) {
 		if got := formatListItemWithTTY("item", func() bool { return true }, environ); got != "  • item" {
 			t.Fatalf("expected list item without ANSI, got %q", got)
 		}
-		if got := formatSectionHeaderWithTTY("Header", func() bool { return true }, environ); strings.Contains(got, "\x1b[") || !strings.Contains(got, "Header") {
+		if got := formatSectionHeaderWithTTY("Header", func() bool { return true }, environ); strings.Contains(got, "\x1b[") {
 			t.Fatalf("expected section header without ANSI, got %q", got)
+		} else if !strings.Contains(got, "Header") {
+			t.Fatalf("expected section header text to be preserved, got %q", got)
 		}
 	})
 }
