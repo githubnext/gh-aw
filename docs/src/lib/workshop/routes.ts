@@ -36,14 +36,18 @@ function normalizeStepId(fileName: string) {
 }
 
 function stripMarkdown(value: string) {
-	return String(value)
+	let str = String(value)
 		.replace(/!\[([^\]]*)\]\([^)]+\)/gu, '$1')
 		.replace(/\[([^\]]+)\]\([^)]+\)/gu, '$1')
 		.replace(/`([^`]+)`/gu, '$1')
 		.replace(/\*\*([^*]+)\*\*/gu, '$1')
-		.replace(/_([^_]+)_/gu, '$1')
-		.replace(/[<>]/gu, '')
-		.trim();
+		.replace(/_([^_]+)_/gu, '$1');
+	let prev;
+	do {
+		prev = str;
+		str = str.replace(/<[^>]+>/gu, '');
+	} while (str !== prev);
+	return str.trim();
 }
 
 function parseCurriculumRows(readmeBody: string): CurriculumRow[] {
