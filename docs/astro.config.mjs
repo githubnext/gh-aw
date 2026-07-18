@@ -293,6 +293,9 @@ export default defineConfig({
 				starlightLinksValidator({
 					errorOnRelativeLinks: true,
 					errorOnLocalLinks: true,
+					exclude: ({ file, link }) =>
+						file.includes('/src/generated/workshop-markdown/')
+						&& link.startsWith('/gh-aw/workshop/?__gh_aw_workshop_local__='),
 				})
 			],
 			sidebar: [
