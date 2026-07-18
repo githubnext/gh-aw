@@ -503,24 +503,41 @@ func isEngineDefinitionForm(def *EngineDefinition) bool {
 	return def.Models.Default != "" || len(def.Models.Supported) > 0 || len(def.Options) > 0
 }
 
-// engineDefinitionCache caches the parsed EngineDefinition for a given JSON input string.
-// Built-in engine definitions (e.g. copilot, claude, codex) are re-parsed on every
-// CompileWorkflow call due to the import injection mechanism, but the JSON input is
-// always identical for the same engine. Caching avoids the repeated JSON→any→YAML→struct
-// round-trip that accounted for ~24% of BenchmarkCompileMCPWorkflow wall-clock time.
+// engineDefinitionBuiltinKeys is the set of JSON strings corresponding to
+// built-in engine definitions. It is populated once at startup by
+// loadBuiltinEngineDefinitions (via registerBuiltinEngineDefinitionJSON) and
+// never modified afterward. Only JSON keys present in this set are eligible for
+// caching in engineDefinitionCache, which prevents unbounded growth in long-lived
+// compile --watch sessions where each edit to a custom engine definition would
+// otherwise create a new cache entry.
+var engineDefinitionBuiltinKeys sync.Map // map[string]struct{}
+
+// registerBuiltinEngineDefinitionJSON marks jsonKey as a known built-in engine
+// JSON string so that parseEngineDefinitionFromJSON will cache it.
+func registerBuiltinEngineDefinitionJSON(jsonKey string) {
+	engineDefinitionBuiltinKeys.Store(jsonKey, struct{}{})
+}
+
+// engineDefinitionCache caches parsed EngineDefinition values for built-in
+// engine JSON strings. Built-in engine files are injected as imports on every
+// CompileWorkflow call and their JSON representation is always identical, so
+// caching avoids the repeated JSON→any→YAML→struct round-trip that accounted
+// for ~24% of BenchmarkCompileMCPWorkflow wall-clock time.
 //
-// Stored values are EngineDefinition values (not pointers) so cached entries are
-// never mutated by callers that modify the returned pointer's fields.
+// Only keys present in engineDefinitionBuiltinKeys are stored to bound the cache
+// to the fixed set of built-in engines. Deep copies are returned on every lookup
+// so callers cannot corrupt the cached state through mutations to pointers, slices,
+// or maps within the returned definition.
 var engineDefinitionCache sync.Map // map[string]EngineDefinition
 
 func parseEngineDefinitionFromJSON(engineJSON string) (*EngineDefinition, error) {
 	if engineJSON == "" {
 		return nil, nil
 	}
-	// Fast path: return a copy of the cached definition when available.
+	// Fast path: return a deep copy of the cached definition when available.
 	if cached, ok := engineDefinitionCache.Load(engineJSON); ok {
 		if def, ok := cached.(EngineDefinition); ok {
-			defCopy := def
+			defCopy := deepCopyEngineDefinition(def)
 			return &defCopy, nil
 		}
 		// Type assertion failure indicates cache corruption or a concurrent Store with
@@ -546,10 +563,125 @@ func parseEngineDefinitionFromJSON(engineJSON string) (*EngineDefinition, error)
 	if def.RuntimeID == "" {
 		def.RuntimeID = def.ID
 	}
-	// Store a value copy so the cache entry is never mutated by callers.
-	engineDefinitionCache.Store(engineJSON, def)
-	defCopy := def
-	return &defCopy, nil
+	// Cache only built-in engine definitions (keys pre-seeded by loadBuiltinEngineDefinitions)
+	// to prevent unbounded memory growth. Store the freshly-parsed value; return the
+	// original so the caller gets an independent copy without an extra allocation.
+	if _, isBuiltin := engineDefinitionBuiltinKeys.Load(engineJSON); isBuiltin {
+		engineDefinitionCache.Store(engineJSON, def)
+	}
+	return &def, nil
+}
+
+// deepCopyEngineDefinition returns a fully independent copy of src. All reference
+// types (pointers, slices, maps) are recursively copied so that neither the caller
+// nor the cache can corrupt the other's state through shared references.
+func deepCopyEngineDefinition(src EngineDefinition) EngineDefinition {
+	dst := src // value copy covers all scalar fields
+
+	// Models.Supported
+	if src.Models.Supported != nil {
+		dst.Models.Supported = make([]string, len(src.Models.Supported))
+		copy(dst.Models.Supported, src.Models.Supported)
+	}
+
+	// Auth ([]AuthBinding; elements contain only string fields so element copy suffices)
+	if src.Auth != nil {
+		dst.Auth = make([]AuthBinding, len(src.Auth))
+		copy(dst.Auth, src.Auth)
+	}
+
+	// Options (map[string]any; values are primitives produced by YAML unmarshal)
+	if src.Options != nil {
+		dst.Options = make(map[string]any, len(src.Options))
+		maps.Copy(dst.Options, src.Options)
+	}
+
+	// Provider.Auth
+	if src.Provider.Auth != nil {
+		authCopy := *src.Provider.Auth // AuthDefinition contains only string fields
+		dst.Provider.Auth = &authCopy
+	}
+
+	// Provider.Request
+	if src.Provider.Request != nil {
+		reqCopy := *src.Provider.Request
+		if src.Provider.Request.Query != nil {
+			reqCopy.Query = make(map[string]string, len(src.Provider.Request.Query))
+			maps.Copy(reqCopy.Query, src.Provider.Request.Query)
+		}
+		if src.Provider.Request.BodyInject != nil {
+			reqCopy.BodyInject = make(map[string]string, len(src.Provider.Request.BodyInject))
+			maps.Copy(reqCopy.BodyInject, src.Provider.Request.BodyInject)
+		}
+		dst.Provider.Request = &reqCopy
+	}
+
+	// Behaviors
+	if src.Behaviors != nil {
+		behaviorsCopy := deepCopyEngineBehaviorDefinition(*src.Behaviors)
+		dst.Behaviors = &behaviorsCopy
+	}
+
+	return dst
+}
+
+// deepCopyEngineBehaviorDefinition returns a fully independent copy of src.
+func deepCopyEngineBehaviorDefinition(src EngineBehaviorDefinition) EngineBehaviorDefinition {
+	dst := src // value copy covers all scalar fields
+
+	// SupportedEnvVarKeys
+	if src.SupportedEnvVarKeys != nil {
+		dst.SupportedEnvVarKeys = make([]string, len(src.SupportedEnvVarKeys))
+		copy(dst.SupportedEnvVarKeys, src.SupportedEnvVarKeys)
+	}
+
+	// Manifest
+	if src.Manifest != nil {
+		manifestCopy := *src.Manifest
+		if src.Manifest.Files != nil {
+			manifestCopy.Files = make([]string, len(src.Manifest.Files))
+			copy(manifestCopy.Files, src.Manifest.Files)
+		}
+		if src.Manifest.PathPrefixes != nil {
+			manifestCopy.PathPrefixes = make([]string, len(src.Manifest.PathPrefixes))
+			copy(manifestCopy.PathPrefixes, src.Manifest.PathPrefixes)
+		}
+		dst.Manifest = &manifestCopy
+	}
+
+	// Installation (only scalar fields; pointer dereference suffices)
+	if src.Installation != nil {
+		installCopy := *src.Installation
+		dst.Installation = &installCopy
+	}
+
+	// ConfigFile (only scalar fields)
+	if src.ConfigFile != nil {
+		cfCopy := *src.ConfigFile
+		dst.ConfigFile = &cfCopy
+	}
+
+	// Execution (has Args []string and Env map[string]string)
+	if src.Execution != nil {
+		execCopy := *src.Execution
+		if src.Execution.Args != nil {
+			execCopy.Args = make([]string, len(src.Execution.Args))
+			copy(execCopy.Args, src.Execution.Args)
+		}
+		if src.Execution.Env != nil {
+			execCopy.Env = make(map[string]string, len(src.Execution.Env))
+			maps.Copy(execCopy.Env, src.Execution.Env)
+		}
+		dst.Execution = &execCopy
+	}
+
+	// MCP (only scalar fields)
+	if src.MCP != nil {
+		mcpCopy := *src.MCP
+		dst.MCP = &mcpCopy
+	}
+
+	return dst
 }
 
 func (c *Compiler) registerNamedEngineDefinitionFromJSON(engineJSON string) error {
