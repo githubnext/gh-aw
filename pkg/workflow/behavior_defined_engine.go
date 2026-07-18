@@ -564,10 +564,11 @@ func parseEngineDefinitionFromJSON(engineJSON string) (*EngineDefinition, error)
 		def.RuntimeID = def.ID
 	}
 	// Cache only built-in engine definitions (keys pre-seeded by loadBuiltinEngineDefinitions)
-	// to prevent unbounded memory growth. Store the freshly-parsed value; return the
-	// original so the caller gets an independent copy without an extra allocation.
+	// to prevent unbounded memory growth. Store a deep copy so that any mutations the
+	// caller makes to the returned definition cannot corrupt the cached entry.
 	if _, isBuiltin := engineDefinitionBuiltinKeys.Load(engineJSON); isBuiltin {
-		engineDefinitionCache.Store(engineJSON, def)
+		cacheCopy := deepCopyEngineDefinition(def)
+		engineDefinitionCache.Store(engineJSON, cacheCopy)
 	}
 	return &def, nil
 }
