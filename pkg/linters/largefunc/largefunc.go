@@ -58,47 +58,51 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		var body *ast.BlockStmt
-		var name string
-		var reportNode ast.Node
-
-		switch fn := n.(type) {
-		case *ast.FuncDecl:
-			body = fn.Body
-			name = fn.Name.Name
-			reportNode = fn.Name
-		case *ast.FuncLit:
-			body = fn.Body
-			name = "func literal"
-			reportNode = body
-		}
-
-		if body == nil {
-			return
-		}
-
-		position := pass.Fset.PositionFor(reportNode.Pos(), false)
-		if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
-			return
-		}
-
-		start := pass.Fset.Position(body.Lbrace)
-		end := pass.Fset.Position(body.Rbrace)
-		// Subtract 1 to exclude the closing brace line itself, counting only body lines.
-		lines := end.Line - start.Line - 1
-
-		if lines > maxLines {
-			if nolint.HasDirectiveForLinter(position, noLintIndex, "largefunc") {
-				return
-			}
-			pkgLog.Printf("flagging %s: %d lines exceeds limit %d", name, lines, maxLines)
-			pass.ReportRangef(
-				reportNode,
-				"%s is %d lines long (limit: %d); consider breaking it up",
-				name, lines, maxLines,
-			)
-		}
+		checkFuncSizeNode(pass, n, noLintIndex, generatedFiles)
 	})
 
 	return nil, nil
+}
+
+func checkFuncSizeNode(pass *analysis.Pass, n ast.Node, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex) {
+	var body *ast.BlockStmt
+	var name string
+	var reportNode ast.Node
+
+	switch fn := n.(type) {
+	case *ast.FuncDecl:
+		body = fn.Body
+		name = fn.Name.Name
+		reportNode = fn.Name
+	case *ast.FuncLit:
+		body = fn.Body
+		name = "func literal"
+		reportNode = body
+	}
+
+	if body == nil {
+		return
+	}
+
+	position := pass.Fset.PositionFor(reportNode.Pos(), false)
+	if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
+		return
+	}
+
+	start := pass.Fset.Position(body.Lbrace)
+	end := pass.Fset.Position(body.Rbrace)
+	// Subtract 1 to exclude the closing brace line itself, counting only body lines.
+	lines := end.Line - start.Line - 1
+
+	if lines > maxLines {
+		if nolint.HasDirectiveForLinter(position, noLintIndex, "largefunc") {
+			return
+		}
+		pkgLog.Printf("flagging %s: %d lines exceeds limit %d", name, lines, maxLines)
+		pass.ReportRangef(
+			reportNode,
+			"%s is %d lines long (limit: %d); consider breaking it up",
+			name, lines, maxLines,
+		)
+	}
 }

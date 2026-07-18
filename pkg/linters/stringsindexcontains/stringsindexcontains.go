@@ -42,59 +42,65 @@ func run(pass *analysis.Pass) (any, error) {
 	nodeFilter := []ast.Node{(*ast.BinaryExpr)(nil)}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		expr, ok := n.(*ast.BinaryExpr)
-		if !ok {
-			return
-		}
-
-		pos := pass.Fset.PositionFor(expr.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			return
-		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "stringsindexcontains") {
-			return
-		}
-
-		// Match patterns:
-		//   strings.Index(s, sub) != -1  → strings.Contains(s, sub)
-		//   strings.Index(s, sub) >= 0   → strings.Contains(s, sub)
-		//   strings.Index(s, sub) == -1  → !strings.Contains(s, sub)
-		//   strings.Index(s, sub) < 0    → !strings.Contains(s, sub)
-		// (and yoda variants: -1 != strings.Index(...), etc.)
-
-		indexCall, negated, matched := matchIndexComparison(pass, expr)
-		if !matched {
-			return
-		}
-
-		if len(indexCall.Args) != 2 {
-			return
-		}
-
-		sText := astutil.NodeText(pass.Fset, indexCall.Args[0])
-		subText := astutil.NodeText(pass.Fset, indexCall.Args[1])
-		pkgText := astutil.CallQualifierText(pass.Fset, indexCall)
-		if sText == "" || subText == "" || pkgText == "" {
-			return
-		}
-
-		var msg string
-		if negated {
-			msg = "use !strings.Contains(" + sText + ", " + subText + ") instead of strings.Index comparison"
-		} else {
-			msg = "use strings.Contains(" + sText + ", " + subText + ") instead of strings.Index comparison"
-		}
-
-		fix := astutil.BuildContainsFix(expr, pkgText, sText, subText, negated, "Replace strings.Index comparison with strings.Contains")
-		pass.Report(analysis.Diagnostic{
-			Pos:            expr.Pos(),
-			End:            expr.End(),
-			Message:        msg,
-			SuggestedFixes: fix,
-		})
+		checkStringsIndexNode(pass, n, noLintIndex, generatedFiles)
 	})
 
 	return nil, nil
+}
+
+// checkStringsIndexNode inspects a single BinaryExpr and reports if it is a
+// strings.Index comparison with -1 or 0 that can use strings.Contains instead.
+func checkStringsIndexNode(pass *analysis.Pass, n ast.Node, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex) {
+	expr, ok := n.(*ast.BinaryExpr)
+	if !ok {
+		return
+	}
+
+	pos := pass.Fset.PositionFor(expr.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "stringsindexcontains") {
+		return
+	}
+
+	// Match patterns:
+	//   strings.Index(s, sub) != -1  → strings.Contains(s, sub)
+	//   strings.Index(s, sub) >= 0   → strings.Contains(s, sub)
+	//   strings.Index(s, sub) == -1  → !strings.Contains(s, sub)
+	//   strings.Index(s, sub) < 0    → !strings.Contains(s, sub)
+	// (and yoda variants: -1 != strings.Index(...), etc.)
+
+	indexCall, negated, matched := matchIndexComparison(pass, expr)
+	if !matched {
+		return
+	}
+
+	if len(indexCall.Args) != 2 {
+		return
+	}
+
+	sText := astutil.NodeText(pass.Fset, indexCall.Args[0])
+	subText := astutil.NodeText(pass.Fset, indexCall.Args[1])
+	pkgText := astutil.CallQualifierText(pass.Fset, indexCall)
+	if sText == "" || subText == "" || pkgText == "" {
+		return
+	}
+
+	var msg string
+	if negated {
+		msg = "use !strings.Contains(" + sText + ", " + subText + ") instead of strings.Index comparison"
+	} else {
+		msg = "use strings.Contains(" + sText + ", " + subText + ") instead of strings.Index comparison"
+	}
+
+	fix := astutil.BuildContainsFix(expr, pkgText, sText, subText, negated, "Replace strings.Index comparison with strings.Contains")
+	pass.Report(analysis.Diagnostic{
+		Pos:            expr.Pos(),
+		End:            expr.End(),
+		Message:        msg,
+		SuggestedFixes: fix,
+	})
 }
 
 // matchIndexComparison reports whether expr is a strings.Index comparison with -1 or 0.

@@ -148,6 +148,12 @@ func isInsideLoopSelectComm(cur inspector.Cursor) bool {
 
 	// Walk up from the CommClause to find an enclosing for or range loop,
 	// stopping at any function literal boundary.
+	return hasEnclosingLoop(clauseCur)
+}
+
+// hasEnclosingLoop reports whether clauseCur has an enclosing for or range loop
+// before any function literal boundary.
+func hasEnclosingLoop(clauseCur inspector.Cursor) bool {
 	for encl := range clauseCur.Enclosing(
 		(*ast.ForStmt)(nil),
 		(*ast.RangeStmt)(nil),

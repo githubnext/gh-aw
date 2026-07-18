@@ -53,69 +53,73 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		bin, ok := n.(*ast.BinaryExpr)
-		if !ok {
-			return
-		}
-
-		// Only flag == and != operators.
-		if bin.Op != token.EQL && bin.Op != token.NEQ {
-			return
-		}
-
-		pos := pass.Fset.PositionFor(bin.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			return
-		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "bytescomparestring") {
-			return
-		}
-
-		// Both sides must be string(x) conversions where x is []byte.
-		lhsArg, ok := extractByteSliceStringConv(pass, bin.X)
-		if !ok {
-			return
-		}
-		rhsArg, ok := extractByteSliceStringConv(pass, bin.Y)
-		if !ok {
-			return
-		}
-
-		lText := astutil.NodeText(pass.Fset, lhsArg)
-		rText := astutil.NodeText(pass.Fset, rhsArg)
-		if lText == "" || rText == "" {
-			return
-		}
-
-		// Determine the local qualifier for "bytes" and whether the fix is safe.
-		qualifier, skipFix := bytesQualifier(pass, bin.Pos())
-
-		if bin.Op == token.EQL {
-			var fixes []analysis.SuggestedFix
-			if !skipFix {
-				fixes = buildFix(pass, bin, fmt.Sprintf("%s.Equal(%s, %s)", qualifier, lText, rText), seenImportFiles)
-			}
-			pass.Report(analysis.Diagnostic{
-				Pos:            bin.Pos(),
-				End:            bin.End(),
-				Message:        fmt.Sprintf("string(%s) == string(%s) is a []byte comparison written the long way; use bytes.Equal(%s, %s) for clearer intent", lText, rText, lText, rText),
-				SuggestedFixes: fixes,
-			})
-		} else {
-			var fixes []analysis.SuggestedFix
-			if !skipFix {
-				fixes = buildFix(pass, bin, fmt.Sprintf("!%s.Equal(%s, %s)", qualifier, lText, rText), seenImportFiles)
-			}
-			pass.Report(analysis.Diagnostic{
-				Pos:            bin.Pos(),
-				End:            bin.End(),
-				Message:        fmt.Sprintf("string(%s) != string(%s) is a []byte comparison written the long way; use !bytes.Equal(%s, %s) for clearer intent", lText, rText, lText, rText),
-				SuggestedFixes: fixes,
-			})
-		}
+		checkBinaryExprForBytesComp(pass, n, noLintIndex, generatedFiles, seenImportFiles)
 	})
 
 	return nil, nil
+}
+
+func checkBinaryExprForBytesComp(pass *analysis.Pass, n ast.Node, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex, seenImportFiles map[token.Pos]bool) {
+	bin, ok := n.(*ast.BinaryExpr)
+	if !ok {
+		return
+	}
+
+	// Only flag == and != operators.
+	if bin.Op != token.EQL && bin.Op != token.NEQ {
+		return
+	}
+
+	pos := pass.Fset.PositionFor(bin.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "bytescomparestring") {
+		return
+	}
+
+	// Both sides must be string(x) conversions where x is []byte.
+	lhsArg, ok := extractByteSliceStringConv(pass, bin.X)
+	if !ok {
+		return
+	}
+	rhsArg, ok := extractByteSliceStringConv(pass, bin.Y)
+	if !ok {
+		return
+	}
+
+	lText := astutil.NodeText(pass.Fset, lhsArg)
+	rText := astutil.NodeText(pass.Fset, rhsArg)
+	if lText == "" || rText == "" {
+		return
+	}
+
+	// Determine the local qualifier for "bytes" and whether the fix is safe.
+	qualifier, skipFix := bytesQualifier(pass, bin.Pos())
+
+	if bin.Op == token.EQL {
+		var fixes []analysis.SuggestedFix
+		if !skipFix {
+			fixes = buildFix(pass, bin, fmt.Sprintf("%s.Equal(%s, %s)", qualifier, lText, rText), seenImportFiles)
+		}
+		pass.Report(analysis.Diagnostic{
+			Pos:            bin.Pos(),
+			End:            bin.End(),
+			Message:        fmt.Sprintf("string(%s) == string(%s) is a []byte comparison written the long way; use bytes.Equal(%s, %s) for clearer intent", lText, rText, lText, rText),
+			SuggestedFixes: fixes,
+		})
+	} else {
+		var fixes []analysis.SuggestedFix
+		if !skipFix {
+			fixes = buildFix(pass, bin, fmt.Sprintf("!%s.Equal(%s, %s)", qualifier, lText, rText), seenImportFiles)
+		}
+		pass.Report(analysis.Diagnostic{
+			Pos:            bin.Pos(),
+			End:            bin.End(),
+			Message:        fmt.Sprintf("string(%s) != string(%s) is a []byte comparison written the long way; use !bytes.Equal(%s, %s) for clearer intent", lText, rText, lText, rText),
+			SuggestedFixes: fixes,
+		})
+	}
 }
 
 // bytesQualifier returns the local binding name for the "bytes" package in the
@@ -200,9 +204,12 @@ func addBytesImportEdit(pass *analysis.Pass, pos token.Pos, seenImportFiles map[
 		}
 	}
 
-	// Compute the edit to add and mark the file so subsequent violations in the
-	// same pass do not emit a duplicate overlapping TextEdit.
+	return insertBytesImportEdit(pass, file, seenImportFiles)
+}
 
+// insertBytesImportEdit adds an import edit for bytesPkg to the given file,
+// choosing grouped, single-converted-to-grouped, or standalone import placement.
+func insertBytesImportEdit(pass *analysis.Pass, file *ast.File, seenImportFiles map[token.Pos]bool) (analysis.TextEdit, bool) {
 	// Find an existing grouped import declaration to add into.
 	for _, decl := range file.Decls {
 		genDecl, ok := decl.(*ast.GenDecl)

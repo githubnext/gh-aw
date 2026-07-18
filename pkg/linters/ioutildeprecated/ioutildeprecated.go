@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
@@ -54,7 +55,16 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, nil
 	}
 
-	// Handle regular qualified imports: ioutil.ReadAll(...), ioutil.Discard, etc.
+	checkQualifiedIoutilUses(pass, root, noLintIndex, generatedFiles)
+	checkDotImportIoutilUses(pass, root, noLintIndex, generatedFiles)
+
+	return nil, nil
+}
+
+// checkQualifiedIoutilUses flags ioutil.Xxx(...) and ioutil.Discard-style
+// qualified references, i.e. SelectorExpr nodes where the object's package
+// is "io/ioutil".
+func checkQualifiedIoutilUses(pass *analysis.Pass, root inspector.Cursor, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex) {
 	for cur := range root.Preorder((*ast.SelectorExpr)(nil)) {
 		sel, ok := cur.Node().(*ast.SelectorExpr)
 		if !ok {
@@ -87,10 +97,11 @@ func run(pass *analysis.Pass) (any, error) {
 			pass.ReportRangef(sel, "ioutil.%s is deprecated; use %s instead", funcName, replacement)
 		}
 	}
+}
 
-	// Handle dot imports: import . "io/ioutil" followed by bare ReadAll(r) or Discard.
-	// In this case the identifier is an *ast.Ident (not a SelectorExpr), and
-	// TypesInfo.Uses resolves it to an object whose package path is "io/ioutil".
+// checkDotImportIoutilUses flags bare identifier references that resolve to
+// functions/values from "io/ioutil" introduced via a dot-import.
+func checkDotImportIoutilUses(pass *analysis.Pass, root inspector.Cursor, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex) {
 	for cur := range root.Preorder((*ast.Ident)(nil)) {
 		ident, ok := cur.Node().(*ast.Ident)
 		if !ok {
@@ -125,6 +136,4 @@ func run(pass *analysis.Pass) (any, error) {
 			pass.ReportRangef(ident, "ioutil.%s is deprecated; use %s instead", name, replacement)
 		}
 	}
-
-	return nil, nil
 }

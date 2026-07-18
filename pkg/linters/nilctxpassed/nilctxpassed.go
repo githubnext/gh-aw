@@ -42,60 +42,63 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			continue
 		}
-
-		callPos := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.ShouldSkipFilename(callPos.Filename, generatedFiles) {
-			continue
-		}
-
-		sig := calleeSignature(pass, call)
-		if sig == nil {
-			continue
-		}
-
-		params := sig.Params()
-		for i, arg := range call.Args {
-			var paramType types.Type
-			if sig.Variadic() && params.Len() > 0 && i >= params.Len()-1 {
-				if call.Ellipsis.IsValid() && i == len(call.Args)-1 {
-					// Spread call passes the whole variadic slice (e.g. f(nil...)),
-					// not an individual variadic element.
-					continue
-				}
-				// Variadic: the last param is a slice; check its element type.
-				sliceType, ok := params.At(params.Len() - 1).Type().(*types.Slice)
-				if !ok {
-					continue
-				}
-				paramType = sliceType.Elem()
-			} else if i < params.Len() {
-				paramType = params.At(i).Type()
-			} else {
-				continue
-			}
-
-			if !isContextContext(paramType) {
-				continue
-			}
-
-			if !isBuiltinNil(pass, arg) {
-				continue
-			}
-
-			argPos := pass.Fset.PositionFor(arg.Pos(), false)
-			if nolint.HasDirectiveForLinter(argPos, noLintIndex, "nilctxpassed") {
-				continue
-			}
-
-			pass.Report(analysis.Diagnostic{
-				Pos:     arg.Pos(),
-				End:     arg.End(),
-				Message: "nil passed as context.Context; use context.Background() or context.TODO() instead",
-			})
-		}
+		checkNilCtxPassedCall(pass, call, noLintIndex, generatedFiles)
 	}
 
 	return nil, nil
+}
+
+func checkNilCtxPassedCall(pass *analysis.Pass, call *ast.CallExpr, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex) {
+	callPos := pass.Fset.PositionFor(call.Pos(), false)
+	if filecheck.ShouldSkipFilename(callPos.Filename, generatedFiles) {
+		return
+	}
+
+	sig := calleeSignature(pass, call)
+	if sig == nil {
+		return
+	}
+
+	params := sig.Params()
+	for i, arg := range call.Args {
+		var paramType types.Type
+		if sig.Variadic() && params.Len() > 0 && i >= params.Len()-1 {
+			if call.Ellipsis.IsValid() && i == len(call.Args)-1 {
+				// Spread call passes the whole variadic slice (e.g. f(nil...)),
+				// not an individual variadic element.
+				continue
+			}
+			// Variadic: the last param is a slice; check its element type.
+			sliceType, ok := params.At(params.Len() - 1).Type().(*types.Slice)
+			if !ok {
+				continue
+			}
+			paramType = sliceType.Elem()
+		} else if i < params.Len() {
+			paramType = params.At(i).Type()
+		} else {
+			continue
+		}
+
+		if !isContextContext(paramType) {
+			continue
+		}
+
+		if !isBuiltinNil(pass, arg) {
+			continue
+		}
+
+		argPos := pass.Fset.PositionFor(arg.Pos(), false)
+		if nolint.HasDirectiveForLinter(argPos, noLintIndex, "nilctxpassed") {
+			continue
+		}
+
+		pass.Report(analysis.Diagnostic{
+			Pos:     arg.Pos(),
+			End:     arg.End(),
+			Message: "nil passed as context.Context; use context.Background() or context.TODO() instead",
+		})
+	}
 }
 
 // isContextContext reports whether t is the context.Context interface type,

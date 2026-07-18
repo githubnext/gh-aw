@@ -43,51 +43,57 @@ func run(pass *analysis.Pass) (any, error) {
 	nodeFilter := []ast.Node{(*ast.BinaryExpr)(nil)}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		expr, ok := n.(*ast.BinaryExpr)
-		if !ok {
-			return
-		}
-
-		pos := pass.Fset.PositionFor(expr.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			return
-		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "stringscountcontains") {
-			return
-		}
-
-		countCall, negated, matched := matchCountComparison(pass, expr)
-		if !matched {
-			return
-		}
-
-		if len(countCall.Args) != 2 {
-			return
-		}
-
-		sText := astutil.NodeText(pass.Fset, countCall.Args[0])
-		subText := astutil.NodeText(pass.Fset, countCall.Args[1])
-		pkgText := astutil.CallQualifierText(pass.Fset, countCall)
-		if sText == "" || subText == "" || pkgText == "" {
-			return
-		}
-
-		var msg string
-		if negated {
-			msg = fmt.Sprintf("use !strings.Contains(%s, %s) instead of strings.Count comparison", sText, subText)
-		} else {
-			msg = fmt.Sprintf("use strings.Contains(%s, %s) instead of strings.Count comparison", sText, subText)
-		}
-
-		pass.Report(analysis.Diagnostic{
-			Pos:            expr.Pos(),
-			End:            expr.End(),
-			Message:        msg,
-			SuggestedFixes: astutil.BuildContainsFix(expr, pkgText, sText, subText, negated, "Replace strings.Count comparison with strings.Contains"),
-		})
+		checkStringsCountNode(pass, n, noLintIndex, generatedFiles)
 	})
 
 	return nil, nil
+}
+
+// checkStringsCountNode inspects a single BinaryExpr and reports if it is a
+// strings.Count comparison with 0 or 1 that can use strings.Contains instead.
+func checkStringsCountNode(pass *analysis.Pass, n ast.Node, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex) {
+	expr, ok := n.(*ast.BinaryExpr)
+	if !ok {
+		return
+	}
+
+	pos := pass.Fset.PositionFor(expr.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "stringscountcontains") {
+		return
+	}
+
+	countCall, negated, matched := matchCountComparison(pass, expr)
+	if !matched {
+		return
+	}
+
+	if len(countCall.Args) != 2 {
+		return
+	}
+
+	sText := astutil.NodeText(pass.Fset, countCall.Args[0])
+	subText := astutil.NodeText(pass.Fset, countCall.Args[1])
+	pkgText := astutil.CallQualifierText(pass.Fset, countCall)
+	if sText == "" || subText == "" || pkgText == "" {
+		return
+	}
+
+	var msg string
+	if negated {
+		msg = fmt.Sprintf("use !strings.Contains(%s, %s) instead of strings.Count comparison", sText, subText)
+	} else {
+		msg = fmt.Sprintf("use strings.Contains(%s, %s) instead of strings.Count comparison", sText, subText)
+	}
+
+	pass.Report(analysis.Diagnostic{
+		Pos:            expr.Pos(),
+		End:            expr.End(),
+		Message:        msg,
+		SuggestedFixes: astutil.BuildContainsFix(expr, pkgText, sText, subText, negated, "Replace strings.Count comparison with strings.Contains"),
+	})
 }
 
 // matchCountComparison reports whether expr is a strings.Count comparison with

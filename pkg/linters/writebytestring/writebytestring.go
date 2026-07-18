@@ -71,79 +71,87 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return
-		}
-
-		// Match <expr>.Write(<arg>)
-		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok || sel.Sel.Name != "Write" {
-			return
-		}
-		if len(call.Args) != 1 {
-			return
-		}
-
-		pos := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			return
-		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "writebytestring") {
-			return
-		}
-
-		// The single argument must be a []byte(s) conversion where s is a string.
-		conv, ok := call.Args[0].(*ast.CallExpr)
-		if !ok {
-			return
-		}
-		if !astutil.IsByteSliceConversion(pass, conv) {
-			return
-		}
-		strArg := conv.Args[0]
-		if !astutil.IsStringType(pass, strArg) {
-			return
-		}
-
-		// The receiver must implement io.Writer.
-		if !implementsWriter(pass, sel.X) {
-			return
-		}
-
-		sText := astutil.NodeText(pass.Fset, strArg)
-		wText := astutil.NodeText(pass.Fset, sel.X)
-		if sText == "" || wText == "" {
-			return
-		}
-
-		// io.WriteString requires an exact predeclared string argument. If the
-		// argument is a named string type (e.g. type MyStr string), wrap it with
-		// string(...) so the emitted fix compiles.
-		sExpr := sText
-		if st := pass.TypesInfo.TypeOf(strArg); st != nil && !isExactString(st) {
-			sExpr = "string(" + sText + ")"
-		}
-
-		// When the receiver is an addressable value whose Write method lives on
-		// the pointer type (e.g. var buf bytes.Buffer), io.WriteString requires
-		// the pointer form so that the interface conversion compiles.
-		writerArg := wText
-		if t := pass.TypesInfo.TypeOf(sel.X); t != nil &&
-			!types.Implements(t, writerIface) &&
-			types.Implements(types.NewPointer(t), writerIface) {
-			writerArg = "&" + wText
-		}
-
-		pass.Report(analysis.Diagnostic{
-			Pos:            call.Pos(),
-			End:            call.End(),
-			Message:        fmt.Sprintf("%s.Write([]byte(%s)) can be replaced with io.WriteString(%s, %s) to potentially avoid a []byte allocation if the writer implements io.StringWriter", wText, sText, writerArg, sExpr),
-			SuggestedFixes: buildFix(pass, call, writerArg, sExpr, filesWithImportEdit),
-		})
+		checkWriteByteStringCall(pass, n, noLintIndex, generatedFiles, filesWithImportEdit)
 	})
 
 	return nil, nil
+}
+
+// checkWriteByteStringCall inspects a single CallExpr and reports if it is a
+// w.Write([]byte(s)) call that can be replaced with io.WriteString(w, s).
+func checkWriteByteStringCall(pass *analysis.Pass, n ast.Node, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex, filesWithImportEdit map[token.Pos]bool) {
+	call, ok := n.(*ast.CallExpr)
+	if !ok {
+		return
+	}
+
+	// Match <expr>.Write(<arg>)
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "Write" {
+		return
+	}
+	if len(call.Args) != 1 {
+		return
+	}
+
+	pos := pass.Fset.PositionFor(call.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "writebytestring") {
+		return
+	}
+
+	// The single argument must be a []byte(s) conversion where s is a string.
+	conv, ok := call.Args[0].(*ast.CallExpr)
+	if !ok {
+		return
+	}
+	if !astutil.IsByteSliceConversion(pass, conv) {
+		return
+	}
+	strArg := conv.Args[0]
+	if !astutil.IsStringType(pass, strArg) {
+		return
+	}
+
+	// The receiver must implement io.Writer.
+	if !implementsWriter(pass, sel.X) {
+		return
+	}
+
+	sText, sExpr, wText, writerArg, argsOK := buildWriteStringArgs(pass, strArg, sel)
+	if !argsOK {
+		return
+	}
+
+	pass.Report(analysis.Diagnostic{
+		Pos:            call.Pos(),
+		End:            call.End(),
+		Message:        fmt.Sprintf("%s.Write([]byte(%s)) can be replaced with io.WriteString(%s, %s) to potentially avoid a []byte allocation if the writer implements io.StringWriter", wText, sText, writerArg, sExpr),
+		SuggestedFixes: buildFix(pass, call, writerArg, sExpr, filesWithImportEdit),
+	})
+}
+
+// buildWriteStringArgs computes the text representations and adjustments for
+// the string and writer arguments needed to emit the io.WriteString replacement.
+func buildWriteStringArgs(pass *analysis.Pass, strArg ast.Expr, sel *ast.SelectorExpr) (sText, sExpr, wText, writerArg string, ok bool) {
+	sText = astutil.NodeText(pass.Fset, strArg)
+	wText = astutil.NodeText(pass.Fset, sel.X)
+	if sText == "" || wText == "" {
+		return "", "", "", "", false
+	}
+	sExpr = sText
+	if st := pass.TypesInfo.TypeOf(strArg); st != nil && !isExactString(st) {
+		sExpr = "string(" + sText + ")"
+	}
+	writerArg = wText
+	if t := pass.TypesInfo.TypeOf(sel.X); t != nil &&
+		!types.Implements(t, writerIface) &&
+		types.Implements(types.NewPointer(t), writerIface) {
+		writerArg = "&" + wText
+	}
+	return sText, sExpr, wText, writerArg, true
 }
 
 // isExactString reports whether t is the predeclared string type, not a named
@@ -242,19 +250,24 @@ func addIOImportEdit(pass *analysis.Pass, pos token.Pos, filesWithImportEdit map
 	if file == nil {
 		return analysis.TextEdit{}, false
 	}
-
 	if filesWithImportEdit[file.Pos()] {
 		return analysis.TextEdit{}, false
 	}
-	markAndReturn := func(edit analysis.TextEdit) (analysis.TextEdit, bool) {
-		filesWithImportEdit[file.Pos()] = true
-		return edit, true
-	}
+	return insertIOImportEdit(pass, file, filesWithImportEdit)
+}
 
+// insertIOImportEdit inserts an "io" import into file. It assumes the caller
+// has already verified that no edit has been emitted for this file in this pass.
+func insertIOImportEdit(pass *analysis.Pass, file *ast.File, filesWithImportEdit map[token.Pos]bool) (analysis.TextEdit, bool) {
 	for _, imp := range file.Imports {
 		if imp.Path.Value == `"`+ioPkg+`"` {
 			return analysis.TextEdit{}, false
 		}
+	}
+
+	markAndReturn := func(edit analysis.TextEdit) (analysis.TextEdit, bool) {
+		filesWithImportEdit[file.Pos()] = true
+		return edit, true
 	}
 
 	for _, decl := range file.Decls {

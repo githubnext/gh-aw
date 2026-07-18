@@ -45,56 +45,60 @@ func run(pass *analysis.Pass) (any, error) {
 	nodeFilter := []ast.Node{(*ast.BinaryExpr)(nil)}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		expr, ok := n.(*ast.BinaryExpr)
-		if !ok {
-			return
-		}
-		switch expr.Op {
-		case token.EQL, token.NEQ, token.GTR, token.GEQ, token.LSS, token.LEQ:
-		default:
-			return
-		}
-
-		pos := pass.Fset.PositionFor(expr.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			return
-		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "lenstringzero") {
-			return
-		}
-
-		lenArg, isDirect, normalOp, lit, matched := matchLenLiteralExpr(pass, expr, lenStringAliases)
-		if !matched {
-			return
-		}
-
-		fixOp, cmpVerb, valid := resolveFixOp(normalOp, lit)
-		if !valid {
-			return
-		}
-
-		t := pass.TypesInfo.TypeOf(lenArg)
-		if t == nil {
-			return
-		}
-		basic, ok := t.Underlying().(*types.Basic)
-		if !ok || basic.Kind() != types.String {
-			return
-		}
-
-		var fixes []analysis.SuggestedFix
-		if isDirect {
-			fixes = buildLenStringFix(pass, expr, lenArg, fixOp)
-		}
-		pass.Report(analysis.Diagnostic{
-			Pos:            expr.Pos(),
-			End:            expr.End(),
-			Message:        fmt.Sprintf(`use s %s "" to check for %s string instead of len(s) %s %d`, fixOp, cmpVerb, normalOp, lit),
-			SuggestedFixes: fixes,
-		})
+		checkLenStringZeroNode(pass, n, noLintIndex, generatedFiles, lenStringAliases)
 	})
 
 	return nil, nil
+}
+
+func checkLenStringZeroNode(pass *analysis.Pass, n ast.Node, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex, lenStringAliases map[types.Object]ast.Expr) {
+	expr, ok := n.(*ast.BinaryExpr)
+	if !ok {
+		return
+	}
+	switch expr.Op {
+	case token.EQL, token.NEQ, token.GTR, token.GEQ, token.LSS, token.LEQ:
+	default:
+		return
+	}
+
+	pos := pass.Fset.PositionFor(expr.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "lenstringzero") {
+		return
+	}
+
+	lenArg, isDirect, normalOp, lit, matched := matchLenLiteralExpr(pass, expr, lenStringAliases)
+	if !matched {
+		return
+	}
+
+	fixOp, cmpVerb, valid := resolveFixOp(normalOp, lit)
+	if !valid {
+		return
+	}
+
+	t := pass.TypesInfo.TypeOf(lenArg)
+	if t == nil {
+		return
+	}
+	basic, ok := t.Underlying().(*types.Basic)
+	if !ok || basic.Kind() != types.String {
+		return
+	}
+
+	var fixes []analysis.SuggestedFix
+	if isDirect {
+		fixes = buildLenStringFix(pass, expr, lenArg, fixOp)
+	}
+	pass.Report(analysis.Diagnostic{
+		Pos:            expr.Pos(),
+		End:            expr.End(),
+		Message:        fmt.Sprintf(`use s %s "" to check for %s string instead of len(s) %s %d`, fixOp, cmpVerb, normalOp, lit),
+		SuggestedFixes: fixes,
+	})
 }
 
 // matchLenLiteralExpr tries to match len(s)/alias OP literal or literal OP len(s)/alias.

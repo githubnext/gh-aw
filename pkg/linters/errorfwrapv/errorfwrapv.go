@@ -73,54 +73,58 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return
-		}
-
-		position := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
-			return
-		}
-
-		if !astutil.IsFmtErrorf(pass, call) {
-			return
-		}
-
-		if len(call.Args) == 0 {
-			return
-		}
-
-		lit, ok := call.Args[0].(*ast.BasicLit)
-		if !ok || lit.Kind != token.STRING {
-			return
-		}
-
-		verbs := parseFormatVerbs(lit.Value)
-		for _, fv := range verbs {
-			if fv.verb != 'v' {
-				continue
-			}
-			callArgIdx := fv.argIdx + 1
-			if callArgIdx >= len(call.Args) {
-				continue
-			}
-			tv, ok := pass.TypesInfo.Types[call.Args[callArgIdx]]
-			if !ok || tv.Type == nil {
-				continue
-			}
-			if !types.Implements(tv.Type, errorIface) {
-				continue
-			}
-			if nolint.HasDirectiveForLinter(position, noLintIndex, "errorfwrapv") {
-				return
-			}
-			pass.ReportRangef(call, "fmt.Errorf formats an error argument with %%v; use %%w to preserve the error chain")
-			return
-		}
+		checkErrorfWrapVNode(pass, n, noLintIndex, generatedFiles)
 	})
 
 	return nil, nil
+}
+
+func checkErrorfWrapVNode(pass *analysis.Pass, n ast.Node, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex) {
+	call, ok := n.(*ast.CallExpr)
+	if !ok {
+		return
+	}
+
+	position := pass.Fset.PositionFor(call.Pos(), false)
+	if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
+		return
+	}
+
+	if !astutil.IsFmtErrorf(pass, call) {
+		return
+	}
+
+	if len(call.Args) == 0 {
+		return
+	}
+
+	lit, ok := call.Args[0].(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING {
+		return
+	}
+
+	verbs := parseFormatVerbs(lit.Value)
+	for _, fv := range verbs {
+		if fv.verb != 'v' {
+			continue
+		}
+		callArgIdx := fv.argIdx + 1
+		if callArgIdx >= len(call.Args) {
+			continue
+		}
+		tv, ok := pass.TypesInfo.Types[call.Args[callArgIdx]]
+		if !ok || tv.Type == nil {
+			continue
+		}
+		if !types.Implements(tv.Type, errorIface) {
+			continue
+		}
+		if nolint.HasDirectiveForLinter(position, noLintIndex, "errorfwrapv") {
+			return
+		}
+		pass.ReportRangef(call, "fmt.Errorf formats an error argument with %%v; use %%w to preserve the error chain")
+		return
+	}
 }
 
 func parseFormatVerbs(s string) []formatVerb {

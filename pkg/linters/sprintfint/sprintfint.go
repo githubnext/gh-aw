@@ -54,56 +54,62 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return
-		}
-
-		pos := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			return
-		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "sprintfint") {
-			return
-		}
-
-		// Match fmt.Sprintf(format, arg) with exactly two arguments.
-		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok || sel.Sel.Name != "Sprintf" {
-			return
-		}
-		if !astutil.IsPkgSelector(pass, sel, "fmt") {
-			return
-		}
-		if len(call.Args) != 2 {
-			return
-		}
-
-		// The format argument must be the string literal "%d".
-		formatLit, ok := call.Args[0].(*ast.BasicLit)
-		if !ok || formatLit.Kind != token.STRING || formatLit.Value != `"%d"` {
-			return
-		}
-
-		// The value argument must have the exact type int (not int64, uint, etc.).
-		arg := call.Args[1]
-		argType := pass.TypesInfo.TypeOf(arg)
-		if argType == nil {
-			return
-		}
-		if argType != types.Typ[types.Int] {
-			return
-		}
-
-		pass.Report(analysis.Diagnostic{
-			Pos:            call.Pos(),
-			End:            call.End(),
-			Message:        `use strconv.Itoa(x) instead of fmt.Sprintf("%d", x)`,
-			SuggestedFixes: buildItoaFix(pass, call, arg, seenImportFiles),
-		})
+		checkSprintfIntCall(pass, n, noLintIndex, generatedFiles, seenImportFiles)
 	})
 
 	return nil, nil
+}
+
+// checkSprintfIntCall inspects a single CallExpr and reports if it is
+// fmt.Sprintf("%d", x) where x is an int, suggesting strconv.Itoa(x) instead.
+func checkSprintfIntCall(pass *analysis.Pass, n ast.Node, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex, seenImportFiles map[token.Pos]bool) {
+	call, ok := n.(*ast.CallExpr)
+	if !ok {
+		return
+	}
+
+	pos := pass.Fset.PositionFor(call.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "sprintfint") {
+		return
+	}
+
+	// Match fmt.Sprintf(format, arg) with exactly two arguments.
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "Sprintf" {
+		return
+	}
+	if !astutil.IsPkgSelector(pass, sel, "fmt") {
+		return
+	}
+	if len(call.Args) != 2 {
+		return
+	}
+
+	// The format argument must be the string literal "%d".
+	formatLit, ok := call.Args[0].(*ast.BasicLit)
+	if !ok || formatLit.Kind != token.STRING || formatLit.Value != `"%d"` {
+		return
+	}
+
+	// The value argument must have the exact type int (not int64, uint, etc.).
+	arg := call.Args[1]
+	argType := pass.TypesInfo.TypeOf(arg)
+	if argType == nil {
+		return
+	}
+	if argType != types.Typ[types.Int] {
+		return
+	}
+
+	pass.Report(analysis.Diagnostic{
+		Pos:            call.Pos(),
+		End:            call.End(),
+		Message:        `use strconv.Itoa(x) instead of fmt.Sprintf("%d", x)`,
+		SuggestedFixes: buildItoaFix(pass, call, arg, seenImportFiles),
+	})
 }
 
 // buildItoaFix returns a SuggestedFix rewriting fmt.Sprintf("%d", x) →
