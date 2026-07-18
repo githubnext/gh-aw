@@ -126,18 +126,16 @@ const nodeRuntimeResolutionCommandForCopilotSDK = `GH_AW_NODE_EXEC="${GH_AW_NODE
 //
 //   - .js/.cjs/.mjs → ("$GH_AW_NODE_EXEC", "driver.cjs")
 //   - .py           → ("python3",           "driver.py")
-//   - .ts/.mts      → ("ts-node",           "driver.ts")
+//   - .ts/.mts      → ("$GH_AW_NODE_EXEC", "driver.ts")
 //   - .rb           → ("ruby",              "driver.rb")
 //   - (no ext)      → ("my-driver",         "")
 func copilotSDKDriverExecArgs(driverName string) (runtimeCmd, driverArg string) {
 	ext := strings.ToLower(filepath.Ext(driverName))
 	switch ext {
-	case ".js", ".cjs", ".mjs":
+	case ".js", ".cjs", ".mjs", ".ts", ".mts":
 		return `"$GH_AW_NODE_EXEC"`, driverName
 	case ".py":
 		return "python3", driverName
-	case ".ts", ".mts":
-		return "ts-node", driverName
 	case ".rb":
 		return "ruby", driverName
 	default:
