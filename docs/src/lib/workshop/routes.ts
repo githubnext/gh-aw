@@ -1,6 +1,6 @@
 import type { WorkshopContentEntry } from '../../generated/workshop-content';
 
-export type WorkshopRouteId = 'github' | 'terminal' | 'vscode';
+export type WorkshopRouteId = 'github' | 'terminal' | 'vscode' | 'copilot';
 export type WorkshopScenarioRoute = {
 	designStep: string;
 	buildStepByWorkspace: Record<WorkshopRouteId, string>;
@@ -131,6 +131,7 @@ export function createWorkshopRoutes(entries: WorkshopContentEntry[]): WorkshopR
 				github: existing(githubBuild.id),
 				terminal: existing(terminalBuild.id),
 				vscode: existing(terminalBuild.id),
+				copilot: linkMatching('11d', () => true, 'GitHub Copilot build step'),
 			},
 		}];
 	}));
@@ -181,11 +182,11 @@ export function createWorkshopRoutes(entries: WorkshopContentEntry[]): WorkshopR
 				prelude: routeWith([
 					'0',
 					'1',
-					() => linkMatching('2', (link) => /codespace/u.test(link.id), 'Codespaces setup step'),
+					() => linkMatching('2', (link) => /local/u.test(link.id), 'local setup step'),
 					() => linkMatching('3a', () => true, 'terminal repository setup step'),
 					'4',
 					'5',
-					() => linkMatching('6a', () => true, 'Codespaces install step'),
+					() => linkMatching('6b', () => true, 'local install step'),
 					() => linkMatching('7a', (link) => !/part2/u.test(link.id), 'terminal first workflow step'),
 					'7d',
 					'8',
@@ -195,6 +196,24 @@ export function createWorkshopRoutes(entries: WorkshopContentEntry[]): WorkshopR
 				]),
 				postBuild: [],
 				scheduleStep: linkMatching('13a', () => true, 'terminal schedule step'),
+			},
+			copilot: {
+				prelude: routeWith([
+					'0',
+					'1',
+					() => linkMatching('3b', () => true, 'GitHub.com repository setup step'),
+					'4',
+					'5',
+					() => linkMatching('6c', () => true, 'GitHub.com install step'),
+					() => linkMatching('7c', () => true, 'GitHub Copilot first workflow step'),
+					'7d',
+					'8',
+					'8b',
+					'9',
+					'10',
+				]),
+				postBuild: [],
+				scheduleStep: linkMatching('13b', () => true, 'GitHub.com schedule step'),
 			},
 		},
 		scenarios,
