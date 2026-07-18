@@ -79,13 +79,14 @@ const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 const MAX_ENV_VAR_PREVIEW_LENGTH = 120;
 const OUTPUT_TAIL_MAX_CHARS = 600;
 const OUTPUT_TAIL_MAX_LINES = 12;
+const MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS = 50;
 const DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = 20 * 1000;
 function resolvePostResultWatchdogIdleTimeoutMs(env = process.env) {
   const configuredTimeoutMs = Number(env.GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS);
   if (!Number.isFinite(configuredTimeoutMs) || configuredTimeoutMs <= 0) {
     return DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS;
   }
-  return Math.max(50, configuredTimeoutMs);
+  return Math.max(MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS, configuredTimeoutMs);
 }
 const POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = resolvePostResultWatchdogIdleTimeoutMs();
 const COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_NAME = "copilot_requests_proxy_auth_403.md";
