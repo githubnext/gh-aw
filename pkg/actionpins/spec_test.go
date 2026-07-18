@@ -713,18 +713,29 @@ func TestSpec_DynamicResolution_EmptySHAFallsThrough(t *testing.T) {
 		result, err := actionpins.ResolveActionPin(known, latestPin.Version, ctx)
 		require.NoError(t, err)
 		require.NotEmpty(t, result, "empty-SHA resolver should fall through to hardcoded pins")
-		assert.Contains(t, result, latestPin.SHA, "result should use the hardcoded pin SHA")
+		assert.Equal(t,
+			actionpins.FormatPinnedActionReference(known, latestPin.SHA, latestPin.Version),
+			result,
+			"result should match the exact hardcoded pin format")
 	})
 
 	t.Run("empty SHA with nil error falls through and produces empty for unknown repo", func(t *testing.T) {
 		// Resolver returns ("", nil) — empty SHA is treated as a non-result and falls through.
+		// The auditing contract requires a ResolutionFailure to be recorded for the unresolved pin.
+		var failures []actionpins.ResolutionFailure
 		ctx := &actionpins.PinContext{
 			Resolver: &testSHAResolver{sha: "", err: nil},
 			Warnings: make(map[string]bool),
+			RecordResolutionFailure: func(f actionpins.ResolutionFailure) {
+				failures = append(failures, f)
+			},
 		}
 		result, err := actionpins.ResolveActionPin("does-not-exist/x", "v1", ctx)
 		require.NoError(t, err)
 		assert.Empty(t, result, "empty-SHA resolver on unknown repo should produce empty result")
+		require.Len(t, failures, 1, "unresolved pin should be recorded as a resolution failure")
+		assert.Equal(t, actionpins.ResolutionErrorTypeDynamicResolutionFailed, failures[0].ErrorType,
+			"failure should be classified as dynamic resolution failed")
 	})
 }
 
@@ -739,8 +750,8 @@ func TestSpec_PublicAPI_ResolveActionPin_NilCtxField(t *testing.T) {
 	}
 	require.NotPanics(t, func() {
 		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
-		require.NoError(t, err)
-		require.NotEmpty(t, result)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, result)
 	}, "nil PinContext.Ctx should fall back to context.Background() without panicking")
 	require.NotNil(t, resolver.capturedCtx, "resolver must receive a non-nil context even when PinContext.Ctx is nil")
 	assert.Equal(t, context.Background(), resolver.capturedCtx, "resolver must receive context.Background() as the documented fallback")
