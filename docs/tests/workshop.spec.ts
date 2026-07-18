@@ -293,7 +293,7 @@ test.describe('Workshop Astro rendering contract', () => {
 				return [...nextSection.matchAll(/data-workshop-local-link="([^"]+)"/g)].map((match) => decodeURIComponent(match[1]));
 			});
 			const knownTargets = new Set(
-				steps.flatMap((step) => [step.key, step.file?.replace(/\.md$/u, '')]).filter((value): value is string => Boolean(value)),
+				steps.flatMap((step) => [step.key, step.file?.replace(/\.md$/u, '')]).filter((value): value is string => value != null),
 			);
 			return {
 				cardCount,
