@@ -156,6 +156,18 @@ describe("validate_secrets", () => {
 
       await expect(makePostRequest("api.example.com", "/v1/test", {}, "{}")).rejects.toThrow("Request timeout");
     });
+
+    it("rejects with timeout error when abort fires during body read", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          status: 200,
+          text: () => Promise.reject(Object.assign(new Error("The operation was aborted"), { name: "AbortError" })),
+        })
+      );
+
+      await expect(makePostRequest("api.example.com", "/v1/test", {}, "{}")).rejects.toThrow("Request timeout");
+    });
   });
 
   describe("generateMarkdownReport", () => {

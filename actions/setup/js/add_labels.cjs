@@ -44,7 +44,8 @@ const main = createCountGatedHandler({
   handlerType: HANDLER_TYPE,
   setup: async (config, maxCount, isStaged) => {
     const { allowed: allowedLabels = [], blocked: blockedPatterns = [] } = config;
-    const issueIntentEnabled = config.issue_intent === true;
+    const issueIntentEnabled = config.issue_intent !== false;
+    const issueIntentStrict = config.issue_intent === true; // strict mode: plain-string labels rejected, metadata required
     const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
     const requiredTitlePrefix = config.required_title_prefix || "";
     const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
@@ -98,6 +99,24 @@ const main = createCountGatedHandler({
       let requestedLabelNames;
       try {
         const requestedLabelInputs = normalizeIssueIntentLabelInputs(requestedLabels);
+
+        // In strict mode (issue_intent: true), reject plain string labels — metadata is required
+        if (issueIntentStrict) {
+          const plainStringLabels = requestedLabelInputs.filter(label => typeof label === "string");
+          if (plainStringLabels.length > 0) {
+            const error = `Plain string label names are not permitted when issue_intent is explicitly enabled. Provide label objects with a "name" field and intent metadata (rationale, confidence). Plain labels: ${plainStringLabels.map(l => JSON.stringify(l)).join(", ")}`;
+            core.warning(error);
+            return { success: false, error };
+          }
+          // In strict mode, objects without rationale and confidence are also rejected
+          const missingMetadataLabels = requestedLabelInputs.filter(label => typeof label === "object" && (!label.rationale || !label.confidence));
+          if (missingMetadataLabels.length > 0) {
+            const error = `Label objects must include both "rationale" and "confidence" when issue_intent is explicitly enabled. Missing metadata on: ${missingMetadataLabels.map(l => JSON.stringify(l.name)).join(", ")}`;
+            core.warning(error);
+            return { success: false, error };
+          }
+        }
+
         requestedLabelNames = requestedLabelInputs.map(label => {
           if (typeof label === "string") {
             return label;

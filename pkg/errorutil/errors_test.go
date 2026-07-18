@@ -1,5 +1,8 @@
 //go:build !integration
 
+// errors_test.go — behavioral edge-case and boundary tests.
+// Spec-contract tests (documented public API) live in spec_test.go.
+
 package errorutil_test
 
 import (
@@ -24,6 +27,9 @@ func TestIsNotFoundError(t *testing.T) {
 		{name: "uppercase NOT FOUND", err: errors.New("RESOURCE NOT FOUND"), want: true},
 		{name: "wrapped lowercase not found", err: fmt.Errorf("request failed: %w", errors.New("not found")), want: true},
 		{name: "bare 404 in message", err: errors.New("server returned 404"), want: true},
+		{name: "exact 404 boundary", err: errors.New("404"), want: true},
+		{name: "partial prefix 404abc", err: errors.New("404abc"), want: true},
+		{name: "double-wrapped not found", err: fmt.Errorf("outer: %w", fmt.Errorf("inner: %w", errors.New("not found"))), want: true},
 		{name: "Could not resolve (DNS)", err: errors.New("Could not resolve host"), want: false},
 		{name: "401 Unauthorized", err: errors.New("HTTP 401: Unauthorized"), want: false},
 		{name: "500 Internal Server Error", err: errors.New("HTTP 500: Internal Server Error"), want: false},
@@ -34,7 +40,7 @@ func TestIsNotFoundError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := errorutil.IsNotFoundError(tt.err)
-			assert.Equal(t, tt.want, got, "IsNotFoundError result mismatch for subtest %s", tt.name)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -50,6 +56,7 @@ func TestIsForbiddenError(t *testing.T) {
 		{name: "parenthesized http 403", err: errors.New("gh: API rate limit exceeded (HTTP 403)"), want: true},
 		{name: "status 403", err: errors.New("request failed with status 403"), want: true},
 		{name: "wrapped http 403", err: fmt.Errorf("request failed: %w", errors.New("HTTP 403: access denied")), want: true},
+		{name: "double-wrapped http 403", err: fmt.Errorf("outer: %w", fmt.Errorf("inner: %w", errors.New("HTTP 403: access denied"))), want: true},
 		{name: "forbidden without http status", err: errors.New("request forbidden"), want: false},
 		{name: "forbidden character", err: errors.New("invalid forbidden character in query"), want: false},
 		{name: "bare 403 in message", err: errors.New("server returned 403"), want: false},
@@ -60,7 +67,7 @@ func TestIsForbiddenError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := errorutil.IsForbiddenError(tt.err)
-			assert.Equal(t, tt.want, got, "IsForbiddenError result mismatch for subtest %s", tt.name)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -76,6 +83,7 @@ func TestIsGoneError(t *testing.T) {
 		{name: "parenthesized http 410", err: errors.New("gh: workflow logs expired (HTTP 410)"), want: true},
 		{name: "status 410", err: errors.New("request failed with status 410"), want: true},
 		{name: "wrapped http 410", err: fmt.Errorf("request failed: %w", errors.New("HTTP 410: logs unavailable")), want: true},
+		{name: "double-wrapped http 410", err: fmt.Errorf("outer: %w", fmt.Errorf("inner: %w", errors.New("HTTP 410: logs unavailable"))), want: true},
 		{name: "gone without http status", err: errors.New("artifact gone"), want: false},
 		{name: "gone away", err: errors.New("connection has gone away"), want: false},
 		{name: "bare 410 in message", err: errors.New("server returned 410"), want: false},
@@ -86,7 +94,7 @@ func TestIsGoneError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := errorutil.IsGoneError(tt.err)
-			assert.Equal(t, tt.want, got, "IsGoneError result mismatch for subtest %s", tt.name)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
