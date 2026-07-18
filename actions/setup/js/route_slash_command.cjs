@@ -143,10 +143,22 @@ function normalizeReaction(reaction) {
     return "";
   }
   const trimmed = reaction.trim();
-  if (!trimmed || trimmed === "none" || !Object.hasOwn(REACTION_MAP, trimmed)) {
+  if (!trimmed || trimmed === "none") {
     return "";
   }
-  return /** @type {ReactionName} */ trimmed;
+  switch (trimmed) {
+    case "+1":
+    case "-1":
+    case "confused":
+    case "eyes":
+    case "heart":
+    case "hooray":
+    case "laugh":
+    case "rocket":
+      return trimmed;
+    default:
+      return "";
+  }
 }
 
 function maintainsStatusComment(route) {
