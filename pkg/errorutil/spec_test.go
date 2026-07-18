@@ -1,5 +1,8 @@
 //go:build !integration
 
+// spec_test.go — public API contract tests tied to README documentation.
+// Implementation edge cases live in errors_test.go.
+
 package errorutil_test
 
 import (

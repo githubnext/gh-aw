@@ -28,13 +28,38 @@ const EVENT_TYPE_DESCRIPTIONS = {
 const VALID_REACTIONS = Object.freeze(Object.keys(REACTION_MAP));
 
 /**
+ * @typedef {{ route: string, params: Record<string, unknown> }} RestEndpoint
+ */
+
+/**
+ * @param {unknown} endpoint
+ * @returns {endpoint is RestEndpoint}
+ */
+function isRestEndpoint(endpoint) {
+  return typeof endpoint === "object" && endpoint !== null && "route" in endpoint && "params" in endpoint;
+}
+
+/**
+ * @param {unknown} endpoint
+ * @param {string} endpointName
+ * @param {string} eventName
+ * @returns {RestEndpoint}
+ */
+function expectRestEndpoint(endpoint, endpointName, eventName) {
+  if (!isRestEndpoint(endpoint)) {
+    throw new Error(`${ERR_VALIDATION}: Unexpected ${endpointName} endpoint shape for event: ${eventName}`);
+  }
+  return endpoint;
+}
+
+/**
  * Resolve the reaction and comment API endpoints for a given event.
  * Returns null (after calling core.setFailed) when the event or payload is invalid.
  * @param {string} eventName - The GitHub event name
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {Record<string, any>} payload - The event payload
- * @returns {Promise<{reactionEndpoint: string, commentUpdateEndpoint: string} | null>}
+ * @returns {Promise<{reactionEndpoint: { route: string, params: Record<string, unknown> } | string, commentUpdateEndpoint: { route: string, params: Record<string, unknown> } | string} | null>}
  */
 async function resolveEventEndpoints(eventName, owner, repo, payload) {
   switch (eventName) {
@@ -45,8 +70,8 @@ async function resolveEventEndpoints(eventName, owner, repo, payload) {
         return null;
       }
       return {
-        reactionEndpoint: `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`,
-        commentUpdateEndpoint: `/repos/${owner}/${repo}/issues/${issueNumber}/comments`,
+        reactionEndpoint: { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", params: { owner, repo, issue_number: issueNumber } },
+        commentUpdateEndpoint: { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/comments", params: { owner, repo, issue_number: issueNumber } },
       };
     }
 
@@ -62,9 +87,9 @@ async function resolveEventEndpoints(eventName, owner, repo, payload) {
         return null;
       }
       return {
-        reactionEndpoint: `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`,
+        reactionEndpoint: { route: "POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions", params: { owner, repo, comment_id: commentId } },
         // Create new comment on the issue itself, not on the comment
-        commentUpdateEndpoint: `/repos/${owner}/${repo}/issues/${issueNumber}/comments`,
+        commentUpdateEndpoint: { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/comments", params: { owner, repo, issue_number: issueNumber } },
       };
     }
 
@@ -76,8 +101,8 @@ async function resolveEventEndpoints(eventName, owner, repo, payload) {
       }
       // PRs are "issues" for the reactions endpoint
       return {
-        reactionEndpoint: `/repos/${owner}/${repo}/issues/${prNumber}/reactions`,
-        commentUpdateEndpoint: `/repos/${owner}/${repo}/issues/${prNumber}/comments`,
+        reactionEndpoint: { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", params: { owner, repo, issue_number: prNumber } },
+        commentUpdateEndpoint: { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/comments", params: { owner, repo, issue_number: prNumber } },
       };
     }
 
@@ -93,9 +118,9 @@ async function resolveEventEndpoints(eventName, owner, repo, payload) {
         return null;
       }
       return {
-        reactionEndpoint: `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`,
+        reactionEndpoint: { route: "POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions", params: { owner, repo, comment_id: reviewCommentId } },
         // Create new comment on the PR itself (using issues endpoint since PRs are issues)
-        commentUpdateEndpoint: `/repos/${owner}/${repo}/issues/${prNumber}/comments`,
+        commentUpdateEndpoint: { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/comments", params: { owner, repo, issue_number: prNumber } },
       };
     }
 
@@ -171,16 +196,20 @@ async function main() {
 
     const { reactionEndpoint, commentUpdateEndpoint } = endpoints;
 
-    core.info(`Reaction API endpoint: ${reactionEndpoint}`);
+    core.info(`Reaction API endpoint: ${typeof reactionEndpoint === "object" ? reactionEndpoint.route : reactionEndpoint}`);
 
-    // For discussions, reactionEndpoint is a node ID (GraphQL), otherwise it's a REST API path
+    // For discussions, reactionEndpoint is a node ID (GraphQL), otherwise it's a typed REST route
     if (eventName === "discussion" || eventName === "discussion_comment") {
+      if (typeof reactionEndpoint !== "string") {
+        throw new Error(`${ERR_VALIDATION}: Unexpected reaction endpoint shape for event: ${eventName}`);
+      }
       await addDiscussionReaction(reactionEndpoint, reaction);
     } else {
-      await addReaction(reactionEndpoint, reaction);
+      const { route, params } = expectRestEndpoint(reactionEndpoint, "reaction", eventName);
+      await addReaction(route, params, reaction);
     }
 
-    core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
+    core.info(`Comment endpoint: ${typeof commentUpdateEndpoint === "object" ? commentUpdateEndpoint.route : commentUpdateEndpoint}`);
     await addCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName, invocationContext);
   } catch (error) {
     if (isLockedError(error)) {
@@ -211,7 +240,7 @@ function setCommentOutputs(commentId, commentUrl, eventRepo = context.repo) {
 
 /**
  * Add a comment with a workflow run link
- * @param {string} endpoint - The GitHub API endpoint to create the comment (or special format for discussions)
+ * @param {{ route: string, params: Record<string, unknown> } | string} endpoint - Typed route info for REST events, or special format string for discussions
  * @param {string} runUrl - The URL of the workflow run
  * @param {string} eventName - The event type (to determine the comment text)
  * @param {{
@@ -251,6 +280,9 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
     const commentBody = commentParts.join("\n\n");
 
     if (eventName === "discussion" || eventName === "discussion_comment") {
+      if (typeof endpoint !== "string") {
+        throw new Error(`${ERR_VALIDATION}: Unexpected comment endpoint shape for event: ${eventName}`);
+      }
       // Parse discussion number from special format: "discussion:NUMBER" or "discussion_comment:NUMBER:COMMENT_ID"
       const discussionNumber = parseInt(endpoint.split(":")[1], 10);
       const discussionId = await getDiscussionNodeId(eventRepo.owner, eventRepo.repo, discussionNumber);
@@ -262,8 +294,10 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
       return;
     }
 
-    // Create a new comment for non-discussion events
-    const createResponse = await github.request(`POST ${endpoint}`, {
+    // Create a new comment for non-discussion events using typed route
+    const { route, params } = expectRestEndpoint(endpoint, "comment", eventName);
+    const createResponse = await github.request(route, {
+      ...params,
       body: commentBody,
       headers: {
         Accept: "application/vnd.github+json",
@@ -278,4 +312,4 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
   }
 }
 
-module.exports = { main, addCommentWithWorkflowLink, resolveEventEndpoints, VALID_REACTIONS, addReaction, addDiscussionReaction };
+module.exports = { main, addCommentWithWorkflowLink, resolveEventEndpoints, VALID_REACTIONS, addReaction, addDiscussionReaction, expectRestEndpoint };
