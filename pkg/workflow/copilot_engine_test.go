@@ -383,6 +383,11 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	if !strings.Contains(stepContent, `export PATH="$GH_AW_WORKSPACE_NODE_MODULES_BIN:$PATH"`) {
 		t.Fatalf("Expected SDK mode command to prepend workspace node_modules/.bin to PATH for SDK runtimes, got:\n%s", stepContent)
 	}
+	npmRootIndex := strings.Index(stepContent, `npm root -g`)
+	pathExportIndex := strings.Index(stepContent, `export PATH="$GH_AW_WORKSPACE_NODE_MODULES_BIN:$PATH"`)
+	if npmRootIndex == -1 || pathExportIndex == -1 || npmRootIndex > pathExportIndex {
+		t.Fatalf("Expected SDK mode command to resolve npm root before prepending workspace node_modules/.bin to PATH, got:\n%s", stepContent)
+	}
 	if !strings.Contains(stepContent, `${NODE_PATH:+:${NODE_PATH}}`) {
 		t.Fatalf("Expected SDK mode command to preserve existing NODE_PATH entries, got:\n%s", stepContent)
 	}
@@ -553,6 +558,11 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKTypeScriptDriver(t *testing.T)
 	stepContent := strings.Join([]string(steps[0]), "\n")
 	if !strings.Contains(stepContent, "ts-node") {
 		t.Fatalf("Expected TypeScript SDK driver mode to use ts-node runtime, got:\n%s", stepContent)
+	}
+	pathExportIndex := strings.Index(stepContent, `export PATH="$GH_AW_WORKSPACE_NODE_MODULES_BIN:$PATH"`)
+	tsNodeIndex := strings.Index(stepContent, "ts-node")
+	if pathExportIndex == -1 || tsNodeIndex == -1 || pathExportIndex > tsNodeIndex {
+		t.Fatalf("Expected SDK mode command to prepend workspace node_modules/.bin before invoking ts-node, got:\n%s", stepContent)
 	}
 	if !strings.Contains(stepContent, "my_driver.ts") {
 		t.Fatalf("Expected SDK driver mode to include my_driver.ts, got:\n%s", stepContent)
