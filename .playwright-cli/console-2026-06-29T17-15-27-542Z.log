@@ -1,3 +1,0 @@
-[    6388ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://unpkg.com/@primer/css@21/dist/primer.css:0
-[    6390ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/app.js:0
-[    6575ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/favicon.ico:0

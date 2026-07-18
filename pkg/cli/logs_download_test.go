@@ -890,7 +890,76 @@ func TestFlattenActivationArtifact(t *testing.T) {
 	}
 }
 
-// TestCountParameterBehavior verifies that the count parameter limits matching results
+// TestFlattenSafeOutputsItemsArtifact verifies that the safe-outputs-items artifact
+// directory is correctly flattened so extractCreatedItemsFromManifest and
+// loadResolvedTemporaryIDTargets can find their files at the run directory root.
+// The artifact contains safe-output-items.jsonl and temporary-id-map.json.
+func TestFlattenSafeOutputsItemsArtifact(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-flatten-safe-outputs-items-*")
+
+	// Simulate the directory structure created by `gh run download` for the safe-outputs-items artifact.
+	safeOutputsDir := filepath.Join(tmpDir, "safe-outputs-items")
+	if err := os.MkdirAll(safeOutputsDir, 0o755); err != nil {
+		t.Fatalf("Failed to create safe-outputs-items dir: %v", err)
+	}
+
+	manifestContent := `{"id":"item1","safe":true}` + "\n"
+	if err := os.WriteFile(filepath.Join(safeOutputsDir, "safe-output-items.jsonl"), []byte(manifestContent), 0o644); err != nil {
+		t.Fatalf("Failed to create safe-output-items.jsonl: %v", err)
+	}
+	mapContent := `{"map":{"tmp-1":"real-1"}}`
+	if err := os.WriteFile(filepath.Join(safeOutputsDir, "temporary-id-map.json"), []byte(mapContent), 0o644); err != nil {
+		t.Fatalf("Failed to create temporary-id-map.json: %v", err)
+	}
+
+	if err := flattenSafeOutputsItemsArtifact(tmpDir, false); err != nil {
+		t.Fatalf("flattenSafeOutputsItemsArtifact failed: %v", err)
+	}
+
+	// safe-output-items.jsonl must be at the root for extractCreatedItemsFromManifest.
+	manifestPath := filepath.Join(tmpDir, "safe-output-items.jsonl")
+	if !fileutil.FileExists(manifestPath) {
+		t.Error("safe-output-items.jsonl should be at the root output directory after flattening")
+	} else {
+		content, err := os.ReadFile(manifestPath)
+		if err != nil {
+			t.Fatalf("Failed to read safe-output-items.jsonl: %v", err)
+		}
+		if string(content) != manifestContent {
+			t.Errorf("safe-output-items.jsonl content mismatch: got %q, want %q", string(content), manifestContent)
+		}
+	}
+
+	// temporary-id-map.json must also be at the root for loadResolvedTemporaryIDTargets.
+	mapPath := filepath.Join(tmpDir, "temporary-id-map.json")
+	if !fileutil.FileExists(mapPath) {
+		t.Error("temporary-id-map.json should be at the root output directory after flattening")
+	} else {
+		content, err := os.ReadFile(mapPath)
+		if err != nil {
+			t.Fatalf("Failed to read temporary-id-map.json: %v", err)
+		}
+		if string(content) != mapContent {
+			t.Errorf("temporary-id-map.json content mismatch: got %q, want %q", string(content), mapContent)
+		}
+	}
+
+	// The safe-outputs-items/ subdirectory should have been removed.
+	if fileutil.DirExists(filepath.Join(tmpDir, "safe-outputs-items")) {
+		t.Error("safe-outputs-items/ directory should have been removed after flattening")
+	}
+}
+
+// TestFlattenSafeOutputsItemsArtifactMissing verifies that flattenSafeOutputsItemsArtifact
+// is a no-op (returns nil) when no safe-outputs-items artifact directory is present.
+func TestFlattenSafeOutputsItemsArtifactMissing(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-flatten-safe-outputs-items-missing-*")
+
+	if err := flattenSafeOutputsItemsArtifact(tmpDir, false); err != nil {
+		t.Errorf("flattenSafeOutputsItemsArtifact should return nil when artifact is absent, got: %v", err)
+	}
+}
+
 // not the number of runs fetched when date filters are specified
 func TestCountParameterBehavior(t *testing.T) {
 	// This test documents the expected behavior:

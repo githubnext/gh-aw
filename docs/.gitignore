@@ -27,6 +27,7 @@ pnpm-debug.log*
 test-results/
 playwright-report/
 playwright/.cache/
+src/generated/workshop-markdown/
 custom-original.css
 custom.css.backup
 take-screenshots.mjs

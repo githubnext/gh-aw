@@ -54,7 +54,7 @@ function loadManifest() {
   try {
     const raw = fs.readFileSync(manifestPath, "utf8");
     const parsed = JSON.parse(raw);
-    cached = parsed && typeof parsed === "object" ? parsed : {};
+    cached = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
   } catch (err) {
     if (err && err.code !== "ENOENT" && typeof core !== "undefined") {
       core.debug(`checkout_manifest: failed to read ${manifestPath}: ${getErrorMessage(err)}`);

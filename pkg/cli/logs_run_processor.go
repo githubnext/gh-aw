@@ -308,7 +308,21 @@ func tryLoadCachedRunResult(
 		Cached:                  true,
 	}
 	// Re-apply the usage activity backfill to heal stale cache entries.
+	// Capture the SafeItemsCount before backfill to detect whether the field was healed.
+	safeItemsBefore := result.Run.SafeItemsCount
 	backfillCacheHitIfNeeded(&result, runOutputDir, params.verbose)
+	// If the backfill populated SafeItemsCount (i.e. it was 0 before and is now non-zero),
+	// persist the healed value back to run_summary.json so downstream readers (e.g.
+	// the api-consumption-report) see the correct count without having to fall back to
+	// usage/activity/summary.json.
+	if result.Run.SafeItemsCount != safeItemsBefore {
+		healed := *summary
+		healed.Run = result.Run
+		healed.Metrics = result.Metrics
+		if err := saveRunSummary(runOutputDir, &healed, params.verbose); err != nil {
+			logsOrchestratorLog.Printf("Warning: failed to persist healed run summary for run %d: %v", result.Run.DatabaseID, err)
+		}
+	}
 	return &result, true
 }
 

@@ -297,7 +297,7 @@ The command will:
 
 			// Handle spawn inspector flag
 			if spawnInspector {
-				return spawnMCPInspector(workflowFile, serverFilter, verbose)
+				return spawnMCPInspector(cmd.Context(), workflowFile, serverFilter, verbose)
 			}
 
 			return InspectWorkflowMCP(cmd.Context(), workflowFile, serverFilter, toolFilter, verbose, checkSecrets)

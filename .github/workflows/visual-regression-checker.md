@@ -27,6 +27,7 @@ tools:
     - "npx *"
     - "node *"
     - "curl http://localhost:*"
+    - "curl http://host.docker.internal:*"
 network:
   allowed:
     - defaults
@@ -59,8 +60,9 @@ steps:
     run: npm run build
 
   - name: Start docs server
+    working-directory: ./docs
     run: |
-      nohup make dev-docs > /tmp/gh-aw/agent/preview.log 2>&1 &
+      nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/gh-aw/agent/preview.log 2>&1 &
       PID=$!
       echo "$PID" > /tmp/gh-aw/agent/server.pid
       echo "Server PID: $PID"
@@ -101,12 +103,12 @@ steps:
 
 # Visual Regression Checker
 
-You are a visual quality agent. The workflow started the docs server and verified readiness. It is running at `http://localhost:4321/gh-aw/`. For this pull request, use playwright-cli commands in bash to capture screenshots of key pages and report any visual differences.
+You are a visual quality agent. The workflow started the docs server and verified readiness. It is running on the host at `http://host.docker.internal:4321/gh-aw/`. For this pull request, use playwright-cli commands in bash to capture screenshots of key pages and report any visual differences.
 
 ## Steps
 
 1. **Capture screenshots** — Use `playwright-cli` to resize the viewport and take full-page screenshots of the key pages:
-   - **Mobile**: `playwright-cli browser_resize --width 375 --height 812 && playwright-cli browser_navigate --url "http://localhost:4321/gh-aw/" && playwright-cli browser_take_screenshot --filename /tmp/gh-aw/agent/screenshot-mobile.png --full-page true`
+   - **Mobile**: `playwright-cli browser_resize --width 375 --height 812 && playwright-cli browser_navigate --url "http://host.docker.internal:4321/gh-aw/" && playwright-cli browser_take_screenshot --filename /tmp/gh-aw/agent/screenshot-mobile.png --full-page true`
    - **Tablet**: resize to 768 × 1024, navigate, screenshot
    - **Desktop**: resize to 1440 × 900, navigate, screenshot
 2. **Accessibility snapshot** — For each page, run `playwright-cli browser_snapshot` and note any violations.
