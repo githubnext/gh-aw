@@ -23,16 +23,20 @@ const (
 
 func missingBootstrapInitMarkers(baseDir string, engineOverride string) ([]string, error) {
 	markers := expectedBootstrapInitMarkers(engineOverride)
+	bootstrapLog.Printf("Checking %d bootstrap init markers in %s (engine=%q)", len(markers), baseDir, engineOverride)
 	missing := make([]string, 0)
 	for _, marker := range markers {
 		ok, err := isBootstrapInitMarkerSatisfied(baseDir, marker)
 		if err != nil {
+			bootstrapLog.Printf("Failed to inspect bootstrap marker %s: %v", marker, err)
 			return nil, err
 		}
 		if !ok {
+			bootstrapLog.Printf("Bootstrap marker not satisfied: %s", marker)
 			missing = append(missing, marker)
 		}
 	}
+	bootstrapLog.Printf("Bootstrap marker check complete: %d of %d markers missing", len(missing), len(markers))
 	return missing, nil
 }
 
@@ -136,6 +140,7 @@ func withWorkingDir(dir string, fn func() error) error {
 	if err := os.Chdir(dir); err != nil {
 		return fmt.Errorf("failed to change directory to %s: %w", dir, err)
 	}
+	bootstrapLog.Printf("Changed working directory to %s (will restore %s)", dir, originalDir)
 	defer func() {
 		_ = os.Chdir(originalDir)
 	}()

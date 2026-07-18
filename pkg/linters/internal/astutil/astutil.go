@@ -345,6 +345,27 @@ func QualifierShadowed(pkg *types.Package, pos token.Pos, name, importPath strin
 	return pkgName.Imported().Path() != importPath
 }
 
+// HasOverlappingComment reports whether any comment group in files overlaps
+// the half-open range [start, end). This is used by linters to suppress a
+// SuggestedFix when a comment inside the to-be-replaced span would otherwise
+// be silently discarded by the autofix tool.
+func HasOverlappingComment(files []*ast.File, start, end token.Pos) bool {
+	for _, file := range files {
+		if file == nil {
+			continue
+		}
+		if end <= file.Pos() || start >= file.End() {
+			continue
+		}
+		for _, group := range file.Comments {
+			if group.Pos() < end && start < group.End() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // IsByteSlice reports whether expr has underlying type []byte ([]uint8).
 func IsByteSlice(pass *analysis.Pass, expr ast.Expr) bool {
 	t := pass.TypesInfo.TypeOf(expr)

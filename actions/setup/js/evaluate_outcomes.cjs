@@ -145,8 +145,16 @@ function readJSONL(filePath) {
  */
 function writeJSONAtomic(filePath, data) {
   const tmp = filePath + ".tmp";
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2) + "\n");
-  fs.renameSync(tmp, filePath);
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2) + "\n");
+  } catch (err) {
+    throw new Error(`Failed to write file ${tmp}: ${String(err)}`, { cause: err });
+  }
+  try {
+    fs.renameSync(tmp, filePath);
+  } catch (err) {
+    throw new Error(`Failed to rename file ${tmp} to ${filePath}: ${String(err)}`, { cause: err });
+  }
 }
 
 /**
@@ -2035,8 +2043,12 @@ function main() {
   }
 
   // Ensure directories exist
-  fs.mkdirSync(CACHE_DIR, { recursive: true });
-  fs.mkdirSync(OUTCOMES_DIR, { recursive: true });
+  try {
+    fs.mkdirSync(CACHE_DIR, { recursive: true });
+    fs.mkdirSync(OUTCOMES_DIR, { recursive: true });
+  } catch (err) {
+    throw new Error(`Failed to create evaluation directories: ${String(err)}`, { cause: err });
+  }
 
   // Load seen-runs cache
   const seenIds = new Set(readJSON(SEEN_FILE, []));
@@ -2077,7 +2089,11 @@ function main() {
   const resolutionTimes = [];
 
   // Clear the evaluations file
-  fs.writeFileSync(EVAL_JSONL, "");
+  try {
+    fs.writeFileSync(EVAL_JSONL, "");
+  } catch (err) {
+    throw new Error(`Failed to write file ${EVAL_JSONL}: ${String(err)}`, { cause: err });
+  }
 
   /** @type {number[]} */
   const evaluatedIds = [];
@@ -2118,23 +2134,27 @@ function main() {
     // Write noop entries
     for (const n of noops) {
       const normalized = normalizeOutcome("noop", n.type || "");
-      fs.appendFileSync(
-        EVAL_JSONL,
-        JSON.stringify({
-          type: n.type,
-          url: "",
-          repo,
-          result: "noop",
-          outcome_status: normalized.outcome_status,
-          evidence_strength: normalized.evidence_strength,
-          signal: normalized.signal,
-          detail: n.type,
-          workflow,
-          run_id: runId,
-          timestamp: "",
-          event,
-        }) + "\n"
-      );
+      try {
+        fs.appendFileSync(
+          EVAL_JSONL,
+          JSON.stringify({
+            type: n.type,
+            url: "",
+            repo,
+            result: "noop",
+            outcome_status: normalized.outcome_status,
+            evidence_strength: normalized.evidence_strength,
+            signal: normalized.signal,
+            detail: n.type,
+            workflow,
+            run_id: runId,
+            timestamp: "",
+            event,
+          }) + "\n"
+        );
+      } catch (err) {
+        throw new Error(`Failed to append to file ${EVAL_JSONL}: ${String(err)}`, { cause: err });
+      }
     }
 
     if (runItems === 0) {
@@ -2190,34 +2210,38 @@ function main() {
         resolutionTimes.push(evalResult.resolution_sec);
       }
 
-      fs.appendFileSync(
-        EVAL_JSONL,
-        JSON.stringify({
-          type: item.type || "",
-          url: item.url || "",
-          repo: item.repo || repo,
-          result: evalResult.result,
-          outcome_status: normalized.outcome_status,
-          evidence_strength: normalized.evidence_strength,
-          signal: normalized.signal,
-          detail: evalResult.detail,
-          workflow,
-          run_id: runId,
-          timestamp: item.timestamp || "",
-          event,
-          resolution_sec: evalResult.resolution_sec,
-          pending_age_sec: evalResult.pending_age_sec,
-          review_comments: evalResult.review_comments,
-          changed_files: evalResult.changed_files,
-          additions: evalResult.additions,
-          deletions: evalResult.deletions,
-          reactions_total: evalResult.reactions_total,
-          reactions_positive: evalResult.reactions_positive,
-          reactions_negative: evalResult.reactions_negative,
-          comments: evalResult.comments,
-          zero_touch: evalResult.zero_touch || false,
-        }) + "\n"
-      );
+      try {
+        fs.appendFileSync(
+          EVAL_JSONL,
+          JSON.stringify({
+            type: item.type || "",
+            url: item.url || "",
+            repo: item.repo || repo,
+            result: evalResult.result,
+            outcome_status: normalized.outcome_status,
+            evidence_strength: normalized.evidence_strength,
+            signal: normalized.signal,
+            detail: evalResult.detail,
+            workflow,
+            run_id: runId,
+            timestamp: item.timestamp || "",
+            event,
+            resolution_sec: evalResult.resolution_sec,
+            pending_age_sec: evalResult.pending_age_sec,
+            review_comments: evalResult.review_comments,
+            changed_files: evalResult.changed_files,
+            additions: evalResult.additions,
+            deletions: evalResult.deletions,
+            reactions_total: evalResult.reactions_total,
+            reactions_positive: evalResult.reactions_positive,
+            reactions_negative: evalResult.reactions_negative,
+            comments: evalResult.comments,
+            zero_touch: evalResult.zero_touch || false,
+          }) + "\n"
+        );
+      } catch (err) {
+        throw new Error(`Failed to append to file ${EVAL_JSONL}: ${String(err)}`, { cause: err });
+      }
     }
 
     // Save per-run data

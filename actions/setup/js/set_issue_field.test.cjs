@@ -554,4 +554,35 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     expect(mutationCall[1].issueFields[0]).not.toHaveProperty("confidence");
     expect(mutationCall[1].issueFields[0]).not.toHaveProperty("suggest");
   });
+
+  it("should include intent metadata by default when issue_intent is omitted", async () => {
+    const { main } = require("./set_issue_field.cjs");
+    const defaultHandler = await main({ max: 5 });
+
+    const result = await defaultHandler(
+      {
+        type: "set_issue_field",
+        issue_number: 42,
+        field_name: "Customer Impact",
+        value: "High",
+        rationale: "Customer-reported with SLA breach risk",
+        confidence: "high",
+        suggest: true,
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+    const mutationCall = mockGraphql.mock.calls.find(([query]) => query.includes("setIssueFieldValue"));
+    expect(mutationCall).toBeTruthy();
+    expect(mutationCall[1].issueFields[0]).toEqual(
+      expect.objectContaining({
+        fieldId: textFieldId,
+        textValue: "High",
+        rationale: "Customer-reported with SLA breach risk",
+        confidence: "HIGH",
+        suggest: true,
+      })
+    );
+  });
 });

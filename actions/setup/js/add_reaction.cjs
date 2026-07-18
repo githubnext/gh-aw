@@ -41,7 +41,7 @@ async function main() {
   const { owner, repo } = invocationContext.eventRepo;
   const payload = invocationContext.eventPayload;
 
-  /** @type {string | null} */
+  /** @type {{ route: string, params: Record<string, unknown> } | null} */
   const reactionEndpoint = resolveRestEndpoint(eventName, owner, repo, payload);
 
   if (reactionEndpoint === null) {
@@ -52,22 +52,22 @@ async function main() {
     return;
   }
 
-  core.info(`Adding reaction to: ${reactionEndpoint}`);
+  core.info(`Adding reaction to: ${reactionEndpoint.route}`);
   try {
-    await addReaction(reactionEndpoint, reaction);
+    await addReaction(reactionEndpoint.route, reactionEndpoint.params, reaction);
   } catch (error) {
     handleReactionError(error);
   }
 }
 
 /**
- * Resolve the REST API endpoint for non-discussion events.
+ * Resolve the REST API route and params for non-discussion events.
  * Returns null for discussion/discussion_comment/pull_request_review/unsupported events (handled separately).
  * @param {string} eventName
  * @param {string} owner
  * @param {string} repo
  * @param {Record<string, any>} payload
- * @returns {string | null}
+ * @returns {{ route: string, params: Record<string, unknown> } | null}
  */
 function resolveRestEndpoint(eventName, owner, repo, payload) {
   switch (eventName) {
@@ -77,7 +77,7 @@ function resolveRestEndpoint(eventName, owner, repo, payload) {
         core.setFailed(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
         return null;
       }
-      return `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
+      return { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", params: { owner, repo, issue_number: issueNumber } };
     }
 
     case "issue_comment": {
@@ -86,7 +86,7 @@ function resolveRestEndpoint(eventName, owner, repo, payload) {
         core.setFailed(`${ERR_VALIDATION}: Comment ID not found in event payload`);
         return null;
       }
-      return `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
+      return { route: "POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions", params: { owner, repo, comment_id: commentId } };
     }
 
     case "pull_request": {
@@ -96,7 +96,7 @@ function resolveRestEndpoint(eventName, owner, repo, payload) {
         return null;
       }
       // PRs are "issues" for the reactions endpoint
-      return `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
+      return { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", params: { owner, repo, issue_number: prNumber } };
     }
 
     case "pull_request_review_comment": {
@@ -105,7 +105,7 @@ function resolveRestEndpoint(eventName, owner, repo, payload) {
         core.setFailed(`${ERR_VALIDATION}: Review comment ID not found in event payload`);
         return null;
       }
-      return `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
+      return { route: "POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions", params: { owner, repo, comment_id: reviewCommentId } };
     }
 
     case "pull_request_review":
@@ -186,11 +186,13 @@ function handleReactionError(error) {
 
 /**
  * Add a reaction to a GitHub issue, PR, or comment using REST API
- * @param {string} endpoint - The GitHub API endpoint to add the reaction to
+ * @param {string} route - The typed GitHub API route string (e.g. "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions")
+ * @param {Record<string, unknown>} params - The route parameters (owner, repo, issue_number, etc.)
  * @param {string} reaction - The reaction type to add
  */
-async function addReaction(endpoint, reaction) {
-  const response = await github.request(`POST ${endpoint}`, {
+async function addReaction(route, params, reaction) {
+  const response = await github.request(route, {
+    ...params,
     content: reaction,
     headers: {
       Accept: "application/vnd.github+json",

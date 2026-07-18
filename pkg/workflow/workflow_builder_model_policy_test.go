@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -160,4 +162,23 @@ func TestMergeExcludedEnvVarNames_DeduplicatesAcrossSources(t *testing.T) {
 		[]string{"SHARED", "MAIN_ONLY"},
 	)
 	assert.Equal(t, []string{"IMPORT_ONLY", "MAIN_ONLY", "SHARED"}, got)
+}
+
+func TestMergeExcludedEnvVarNames_LargeInputs(t *testing.T) {
+	// Exercises the code path that triggered CWE-190 alerts #648/#649.
+	n := 100_000
+	fromImports := make([]string, n)
+	fromMain := make([]string, n)
+	for i := range fromImports {
+		fromImports[i] = fmt.Sprintf("IMPORT_%d", i)
+		fromMain[i] = fmt.Sprintf("MAIN_%d", i)
+	}
+	got := mergeExcludedEnvVarNames(fromImports, fromMain)
+	assert.Len(t, got, 2*n)
+	assert.True(t, sort.StringsAreSorted(got))
+	// Confirm both sources are represented in the result.
+	assert.Contains(t, got, "IMPORT_0")
+	assert.Contains(t, got, fmt.Sprintf("IMPORT_%d", n-1))
+	assert.Contains(t, got, "MAIN_0")
+	assert.Contains(t, got, fmt.Sprintf("MAIN_%d", n-1))
 }

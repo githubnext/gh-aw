@@ -311,6 +311,23 @@ Track these to measure effectiveness:
 - Faster issue resolution
 - Better resource utilization
 
+## Requirements
+
+The following table traces each major Quick-Start step to the specification or acceptance criterion that governs it. Every step must satisfy its linked requirement before the feature is considered complete.
+
+| Quick-Start Step | Specification / Acceptance Criterion |
+|------------------|--------------------------------------|
+| Check Workflow Health Dashboard pinned issue for critical issues | Workflow Health Manager must create or update a pinned issue on each run; spec: `scratchpad/agents/hierarchical-agents.md` §Workflow Health Manager |
+| Address P0/P1 issues immediately | Priority labels `priority-p0` and `priority-p1` must be applied to all issues created by meta-orchestrators; spec: `scratchpad/agents/hierarchical-agents.md` §Key Principles |
+| Review Campaign Manager report if campaigns are active | Campaign Manager must generate a discussion report on each daily run when ≥1 active campaign exists; spec: `scratchpad/agents/hierarchical-agents.md` §Campaign Manager |
+| Review Agent Performance Report discussion | Agent Performance Analyzer must publish a performance-report discussion on each daily run; spec: `scratchpad/agents/hierarchical-agents.md` §Agent Performance Analyzer |
+| Check Agent Performance report for best practices before creating a workflow | Agent Performance Analyzer must surface at least the top-3 performing agents with actionable patterns; spec: `scratchpad/agents/hierarchical-agents.md` §Agent Performance Analyzer Success Metrics |
+| Check Campaign Manager for potential conflicts when starting a campaign | Campaign Manager must detect and report cross-campaign conflicts in each portfolio report; spec: `scratchpad/agents/hierarchical-agents.md` §Campaign Manager Responsibilities |
+| Recompile workflow with `gh aw compile <workflow>.md` after schedule changes | Compilation must succeed without errors and regenerate the `.lock.yml` file; spec: `DEVGUIDE.md` §Compilation |
+| Increase `safe-outputs.create-issue.max` if meta-orchestrators hit limits | Safe output limits must be configurable in workflow frontmatter; spec: `scratchpad/safe-outputs-specification.md` |
+
+These requirements are derived from the feature specifications in `scratchpad/agents/hierarchical-agents.md` and the safe-outputs contract in `scratchpad/safe-outputs-specification.md`. Any change to a Quick-Start step must be accompanied by a corresponding update to the linked specification.
+
 ---
 
 **Remember:** Meta-orchestrators are here to help, not to replace human judgment. Use their insights to make better decisions, but always apply context and expertise when acting on recommendations.

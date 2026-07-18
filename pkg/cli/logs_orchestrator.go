@@ -121,6 +121,7 @@ func buildContinuationIfNeeded(
 	}
 	// Use the oldest processed run as the before_run_id cursor for the next page.
 	oldestRunID := processedRuns[len(processedRuns)-1].Run.DatabaseID
+	logsOrchestratorLog.Printf("Building continuation cursor: before_run_id=%d, timeoutReached=%v, countLimitReached=%v", oldestRunID, timeoutReached, countLimitReached)
 	message := "Timeout reached. Use these parameters to continue fetching more logs."
 	if countLimitReached {
 		// In fetchAllInRange mode the date window may contain more runs than count.
@@ -142,6 +143,7 @@ func buildContinuationIfNeeded(
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
 func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
+	logsOrchestratorLog.Printf("Downloading workflow logs: workflow=%q, count=%d, outputDir=%q", opts.WorkflowName, opts.Count, opts.OutputDir)
 	runtime, err := prepareLogsDownload(ctx, opts)
 	if err != nil {
 		return err
@@ -153,10 +155,12 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 		return err
 	}
 	if handled, err := handleEmptyProcessedRuns(processedRuns, opts, timeoutReached); handled || err != nil {
+		logsOrchestratorLog.Printf("No processed runs to render (timeoutReached=%v, err=%v)", timeoutReached, err)
 		return err
 	}
 
 	processedRuns = limitProcessedRuns(processedRuns, opts.Count, opts.Verbose)
+	logsOrchestratorLog.Printf("Collected %d processed runs (timeoutReached=%v, countLimitReached=%v)", len(processedRuns), timeoutReached, countLimitReached)
 	continuation := buildContinuationIfNeeded(processedRuns, timeoutReached, countLimitReached, continuationOptions{
 		workflowName:   opts.WorkflowName,
 		startDate:      opts.StartDate,

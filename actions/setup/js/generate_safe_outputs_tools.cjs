@@ -133,11 +133,19 @@ async function main() {
 
   // Write JSON payloads from env vars if provided (replaces heredoc-based file writing)
   if (process.env.GH_AW_TOOLS_META_JSON) {
-    fs.writeFileSync(toolsMetaPath, process.env.GH_AW_TOOLS_META_JSON);
+    try {
+      fs.writeFileSync(toolsMetaPath, process.env.GH_AW_TOOLS_META_JSON);
+    } catch (err) {
+      throw new Error(`Failed to write file ${toolsMetaPath}: ${String(err)}`, { cause: err });
+    }
   }
   if (process.env.GH_AW_VALIDATION_JSON) {
     const validationPath = path.join(path.dirname(configPath), "validation.json");
-    fs.writeFileSync(validationPath, process.env.GH_AW_VALIDATION_JSON);
+    try {
+      fs.writeFileSync(validationPath, process.env.GH_AW_VALIDATION_JSON);
+    } catch (err) {
+      throw new Error(`Failed to write file ${validationPath}: ${String(err)}`, { cause: err });
+    }
   }
 
   // Load all source tools from the actions folder
@@ -205,6 +213,21 @@ async function main() {
       }
       if (isIssueIntentEnabledForTool(tool.name, config[tool.name])) {
         enhancedTool.description = `${enhancedTool.description || ""} ${ISSUE_INTENT_SUFFIX}`.trim();
+        // For add_labels strict mode, replace the labels items schema with an object-only
+        // variant that requires name, rationale, and confidence.
+        if (tool.name === "add_labels") {
+          const labelsSchema = enhancedTool.inputSchema?.properties?.labels;
+          if (labelsSchema && labelsSchema.items && Array.isArray(labelsSchema.items.oneOf)) {
+            const objectSchema = labelsSchema.items.oneOf.find(/** @param {{type: string}} s */ s => s.type === "object");
+            if (objectSchema) {
+              labelsSchema.items = {
+                ...objectSchema,
+                required: ["name", "rationale", "confidence"],
+              };
+              delete labelsSchema.items.oneOf;
+            }
+          }
+        }
       }
       if (isIssueIntentDisabledForTool(tool.name, config[tool.name])) {
         stripIssueIntentSchemaFields(enhancedTool);
@@ -250,7 +273,11 @@ async function main() {
   const allFilteredTools = [...filteredTools, ...dynamicTools];
 
   // Write the result to the output path
-  fs.writeFileSync(outputPath, JSON.stringify(allFilteredTools, null, 2));
+  try {
+    fs.writeFileSync(outputPath, JSON.stringify(allFilteredTools, null, 2));
+  } catch (err) {
+    throw new Error(`Failed to write file ${outputPath}: ${String(err)}`, { cause: err });
+  }
 
   const debugEnabled = process.env.DEBUG === "*" || (process.env.DEBUG || "").includes("safe_outputs");
   if (debugEnabled) {

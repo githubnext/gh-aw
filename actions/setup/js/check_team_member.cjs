@@ -36,8 +36,9 @@ async function main() {
 
   // Fail the workflow when team membership check fails (cancellation handled by activation job's if condition)
   core.warning(`Access denied: Only authorized team members can trigger this workflow. User '${actor}' is not authorized.`);
-  core.setFailed(`${ERR_PERMISSION}: Access denied: User '${actor}' is not authorized for this workflow`);
   core.setOutput("is_team_member", "false");
+  core.setFailed(`${ERR_PERMISSION}: Access denied: User '${actor}' is not authorized for this workflow`);
+  return;
 }
 
 module.exports = { main };

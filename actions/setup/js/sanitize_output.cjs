@@ -23,7 +23,12 @@ async function main() {
     return;
   }
 
-  const outputContent = fs.readFileSync(outputFile, "utf8");
+  let outputContent;
+  try {
+    outputContent = fs.readFileSync(outputFile, "utf8");
+  } catch (err) {
+    throw new Error(`Failed to read file ${outputFile}: ${String(err)}`, { cause: err });
+  }
   if (outputContent.trim() === "") {
     core.info("Output file is empty");
     core.setOutput("output", "");

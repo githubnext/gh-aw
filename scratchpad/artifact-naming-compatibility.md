@@ -97,6 +97,20 @@ gh aw logs <run-id> --artifacts firewall --json
 
 > **⚠️ Common mistake:** Downloading `agent-artifacts` or `agent` and expecting to find `token-usage.jsonl` there. Token usage data lives in the `firewall-audit-logs` artifact, not in the agent artifact.
 
+## Risks / Edge Cases
+
+The `flattenSingleFileArtifacts()` function assumes that artifacts containing exactly one file are safe to flatten to the root directory. The following edge cases present data-loss or correctness risks and should be handled explicitly:
+
+1. **Empty artifact directory:** An artifact directory that was created but contains zero files will not trigger flattening. However, if a caller iterates over the directory expecting to find a specific file (e.g., `aw_info.json`), it will silently receive nothing. The function must skip empty directories without error, but callers must not treat a missing file as an empty file — they must surface a "not found" error.
+
+2. **Unexpected multi-file artifact where single-file was expected:** If an artifact that is always expected to contain one file (e.g., `aw-info`) unexpectedly contains multiple files after a future schema change, `flattenSingleFileArtifacts()` will skip flattening and leave the directory intact. Downstream CLI code that looks for `aw_info.json` at the root will then fail with a confusing "file not found" error rather than a meaningful "artifact has unexpected structure" diagnostic. A guard should log a warning when a nominally single-file artifact is encountered with multiple files.
+
+3. **File name collision at root:** If two separate artifact directories each contain a file with the same name (e.g., both `aw-info/aw_info.json` and a legacy root-level `aw_info.json` exist in the same download directory), flattening would overwrite the pre-existing file. The function must check for conflicts before moving files and abort with an error rather than silently overwriting.
+
+4. **Artifact name matches an existing root file:** A new artifact type introduced in a future version might coincidentally produce a file whose name collides with one already written by an older artifact. The flattening logic must detect this case (same as collision above) and surface it explicitly instead of masking the conflict.
+
+5. **Non-directory entry in artifact list:** If `gh run download` creates a file (not a directory) at the artifact level — for example, due to a platform-specific behavior — `flattenSingleFileArtifacts()` must skip it gracefully without attempting to read its contents as a directory.
+
 ## Testing
 
 Tests ensure compatibility:

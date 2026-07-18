@@ -41,7 +41,11 @@ const { GITHUB_RATE_LIMITS_JSONL_PATH } = require("./constants.cjs");
 function ensureDir(filePath) {
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch (err) {
+      throw new Error(`Failed to create directory ${dir}: ${String(err)}`, { cause: err });
+    }
   }
 }
 

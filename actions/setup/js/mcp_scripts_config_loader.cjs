@@ -40,7 +40,12 @@ function loadConfig(configPath) {
     throw new Error(`${ERR_SYSTEM}: Configuration file not found: ${configPath}`);
   }
 
-  const configContent = fs.readFileSync(configPath, "utf-8");
+  let configContent;
+  try {
+    configContent = fs.readFileSync(configPath, "utf-8");
+  } catch (err) {
+    throw new Error(`Failed to read file ${configPath}: ${String(err)}`, { cause: err });
+  }
   let config;
   try {
     config = JSON.parse(configContent);

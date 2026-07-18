@@ -127,7 +127,12 @@ function generateDifcFilteredSection(filteredEvents) {
   section += `>\n`;
   const promptsDir = process.env.GH_AW_PROMPTS_DIR || `${process.env.RUNNER_TEMP}/gh-aw/prompts`;
   const remediationPath = `${promptsDir}/integrity_filter_remediation.md`;
-  const remediationText = fs.readFileSync(remediationPath, "utf8");
+  let remediationText;
+  try {
+    remediationText = fs.readFileSync(remediationPath, "utf8");
+  } catch (err) {
+    throw new Error(`Failed to read file ${remediationPath}: ${String(err)}`, { cause: err });
+  }
   for (const line of remediationText.trimEnd().split("\n")) {
     section += line ? `> ${line}\n` : `>\n`;
   }

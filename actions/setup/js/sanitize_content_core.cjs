@@ -61,11 +61,19 @@ function writeRedactedDomainsLog(filePath) {
   // Ensure directory exists
   const dir = path.dirname(targetPath);
   if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch (err) {
+      throw new Error(`Failed to create directory ${dir}: ${String(err)}`, { cause: err });
+    }
   }
 
   // Write domains to file, one per line
-  fs.writeFileSync(targetPath, redactedDomains.join("\n") + "\n");
+  try {
+    fs.writeFileSync(targetPath, redactedDomains.join("\n") + "\n");
+  } catch (err) {
+    throw new Error(`Failed to write file ${targetPath}: ${String(err)}`, { cause: err });
+  }
 
   return targetPath;
 }

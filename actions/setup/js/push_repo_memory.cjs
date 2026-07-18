@@ -84,7 +84,12 @@ async function main() {
 
   /** @param {string} absPath */
   function tryParseJSONFile(absPath) {
-    const raw = fs.readFileSync(absPath, "utf8");
+    let raw;
+    try {
+      raw = fs.readFileSync(absPath, "utf8");
+    } catch (err) {
+      throw new Error(`Failed to read file ${absPath}: ${String(err)}`, { cause: err });
+    }
     if (!raw.trim()) {
       throw new Error(`Empty JSON file: ${absPath}`);
     }

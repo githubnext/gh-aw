@@ -257,8 +257,14 @@ function mergeGithubFolder(sourcePath, destPath) {
     // Check if destination file exists
     if (pathExists(destFile)) {
       // Compare file contents
-      const sourceContent = fs.readFileSync(sourceFile);
-      const destContent = fs.readFileSync(destFile);
+      let sourceContent;
+      let destContent;
+      try {
+        sourceContent = fs.readFileSync(sourceFile);
+        destContent = fs.readFileSync(destFile);
+      } catch (err) {
+        throw new Error(`Failed to read file for merge conflict detection: ${String(err)}`, { cause: err });
+      }
 
       if (!sourceContent.equals(destContent)) {
         conflicts.push(relativePath);
@@ -270,7 +276,11 @@ function mergeGithubFolder(sourcePath, destPath) {
       // Copy file to destination
       const destDir = path.dirname(destFile);
       if (!pathExists(destDir)) {
-        fs.mkdirSync(destDir, { recursive: true });
+        try {
+          fs.mkdirSync(destDir, { recursive: true });
+        } catch (err) {
+          throw new Error(`Failed to create directory ${destDir}: ${String(err)}`, { cause: err });
+        }
         coreObj.info(`Created directory: ${path.relative(destPath, destDir)}`);
       }
 
@@ -319,7 +329,11 @@ async function mergeRepositoryGithubFolder(owner, repo, ref, workspace) {
 
   // Ensure destination .github folder exists
   if (!pathExists(destGithubFolder)) {
-    fs.mkdirSync(destGithubFolder, { recursive: true });
+    try {
+      fs.mkdirSync(destGithubFolder, { recursive: true });
+    } catch (err) {
+      throw new Error(`Failed to create directory ${destGithubFolder}: ${String(err)}`, { cause: err });
+    }
     coreObj.info("Created .github folder in workspace");
   }
 
