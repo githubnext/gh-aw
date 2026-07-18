@@ -487,7 +487,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 			Name:  "test-workflow",
 			Tools: map[string]any{},
 		}
-		step := engine.generateGeminiSettingsStep(workflowData)
+		step := engine.generateSettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
 		assert.Contains(t, content, "Write Gemini Config", "Should have correct step name")
@@ -502,7 +502,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 			Name:  "test-workflow",
 			Tools: map[string]any{},
 		}
-		step := engine.generateGeminiSettingsStep(workflowData)
+		step := engine.generateSettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
 		assert.Contains(t, content, "if [ -f", "Should check for existing settings.json")
@@ -517,7 +517,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 				"bash": []any{"grep", "git"},
 			},
 		}
-		step := engine.generateGeminiSettingsStep(workflowData)
+		step := engine.generateSettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
 		assert.Contains(t, content, "run_shell_command(grep)", "Should include run_shell_command(grep) for bash grep")
@@ -532,7 +532,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 				"edit": map[string]any{},
 			},
 		}
-		step := engine.generateGeminiSettingsStep(workflowData)
+		step := engine.generateSettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
 		assert.Contains(t, content, "write_file", "Should include write_file for edit tool")
@@ -544,7 +544,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 			Name:  "test-workflow",
 			Tools: map[string]any{},
 		}
-		step := engine.generateGeminiSettingsStep(workflowData)
+		step := engine.generateSettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
 		// The JSON value must be single-quoted so YAML doesn't treat it as an object
@@ -558,7 +558,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 				"web-fetch": nil,
 			},
 		}
-		step := engine.generateGeminiSettingsStep(workflowData)
+		step := engine.generateSettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
 		assert.Contains(t, content, "web_fetch", "Should include web_fetch in tools.core when web-fetch is specified")
@@ -569,7 +569,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 			Name:  "test-workflow",
 			Tools: map[string]any{},
 		}
-		step := engine.generateGeminiSettingsStep(workflowData)
+		step := engine.generateSettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
 		assert.NotContains(t, content, "web_fetch", "Should not include web_fetch in tools.core when web-fetch is not specified")
@@ -591,7 +591,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 				NoOp: &NoOpConfig{},
 			},
 		}
-		step := engine.generateGeminiSettingsStep(workflowData)
+		step := engine.generateSettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
 		assert.Contains(t, content, "run_shell_command(echo)", "Should include original restricted bash command")
