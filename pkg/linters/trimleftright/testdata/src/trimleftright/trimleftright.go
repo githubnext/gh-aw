@@ -43,6 +43,11 @@ func goodIntentionalCutset(s string) string {
 	return strings.TrimLeft(s, "aeiou")
 }
 
+// good: alphanumeric literal with no repeated runes
+func goodNoRepeatedAlnum(s string) string {
+	return strings.TrimLeft(s, "abc")
+}
+
 // suppressed: nolint directive suppresses the diagnostic
 func suppressed(s string) string {
 	return strings.TrimLeft(s, "foo") //nolint:trimleftright

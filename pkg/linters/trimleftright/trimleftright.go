@@ -134,7 +134,7 @@ func looksSuspiciousCutset(cutset string) bool {
 		}
 	}
 
-	seen := make(map[rune]struct{}, len(runes))
+	seen := make(map[rune]struct{})
 	for _, r := range runes {
 		if _, ok := seen[r]; ok {
 			return true
