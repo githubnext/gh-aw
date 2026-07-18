@@ -101,18 +101,9 @@ func run(pass *analysis.Pass) (any, error) {
 		suppressed := nolint.HasDirectiveForLinter(position, noLintIndex, "errorfwrapv")
 
 		verbs := parseFormatVerbs(lit.Value)
-		// Call-scoped tracking: once a %w verb is present in this fmt.Errorf call,
-		// the missing-%w check is not applicable.
-		hasWVerb := false
+		errorArgVerbs := make(map[int][]rune)
+		wrappedErrorArgs := make(map[int]bool)
 		for _, fv := range verbs {
-			if fv.verb == 'w' {
-				// Keep scanning verbs: this call may still have a %v misuse on an
-				// error argument that should be reported.
-				hasWVerb = true
-			}
-			if fv.verb != 'v' {
-				continue
-			}
 			callArgIdx := fv.argIdx + formatArgOffset
 			if callArgIdx >= len(call.Args) {
 				continue
@@ -124,6 +115,13 @@ func run(pass *analysis.Pass) (any, error) {
 			if !types.Implements(tv.Type, errorIface) {
 				continue
 			}
+			errorArgVerbs[callArgIdx] = append(errorArgVerbs[callArgIdx], fv.verb)
+			if fv.verb == 'w' {
+				wrappedErrorArgs[callArgIdx] = true
+			}
+			if fv.verb != 'v' {
+				continue
+			}
 			if suppressed {
 				return
 			}
@@ -132,9 +130,6 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		if hasWVerb {
-			return
-		}
 		if len(call.Args) <= formatArgOffset {
 			return
 		}
@@ -146,6 +141,23 @@ func run(pass *analysis.Pass) (any, error) {
 			}
 			if !types.Implements(tv.Type, errorIface) {
 				continue
+			}
+			if wrappedErrorArgs[i] {
+				continue
+			}
+			verbsForArg, ok := errorArgVerbs[i]
+			if ok {
+				needsWrap := false
+				for _, verb := range verbsForArg {
+					if verb == 'T' || verb == 'p' {
+						continue
+					}
+					needsWrap = true
+					break
+				}
+				if !needsWrap {
+					continue
+				}
 			}
 			if suppressed {
 				return
@@ -200,6 +212,12 @@ func parseFormatVerbs(s string) []formatVerb {
 		if i < len(s) && s[i] == '.' {
 			i++
 			i = consumeFormatWidthOrPrecision(s, i, &nextArgIdx)
+		}
+		if idx, nextPos, ok := parseFormatArgIndex(s, i); ok {
+			valueArgIdx = idx
+			nextArgIdx = idx + 1
+			hasExplicitValueArg = true
+			i = nextPos
 		}
 		if i >= len(s) {
 			break

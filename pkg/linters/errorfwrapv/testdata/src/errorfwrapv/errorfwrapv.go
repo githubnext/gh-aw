@@ -43,14 +43,34 @@ func GoodWWrap(err error) error {
 	return fmt.Errorf("operation failed: %w", err)
 }
 
+// GoodIndexedWidthWrap uses indexed width and indexed value with %w.
+func GoodIndexedWidthWrap(err error) error {
+	return fmt.Errorf("%[2]*[1]w", err, 10)
+}
+
 // BadMissingWrapNoW passes an error argument but has no %w verb.
 func BadMissingWrapNoW(err error) error {
 	return fmt.Errorf("operation failed: %s", err) // want `fmt\.Errorf passes an error argument without %w`
 }
 
+// BadMixedWrapAndS wraps one error but not the second.
+func BadMixedWrapAndS(cause, detail error) error {
+	return fmt.Errorf("failed: %w (%s)", cause, detail) // want `fmt\.Errorf passes an error argument without %w`
+}
+
 // BadMissingWrapNoVerbs passes an error argument with no formatting verbs.
 func BadMissingWrapNoVerbs(err error) error {
 	return fmt.Errorf("operation failed", err) // want `fmt\.Errorf passes an error argument without %w`
+}
+
+// GoodTypeVerb uses %T to print an error type without wrapping.
+func GoodTypeVerb(err error) error {
+	return fmt.Errorf("error type: %T", err)
+}
+
+// GoodPointerVerb uses %p with a concrete error pointer.
+func GoodPointerVerb(err *myError) error {
+	return fmt.Errorf("error pointer: %p", err)
 }
 
 // GoodNonErrorVerb uses %v for a non-error argument only.
@@ -66,4 +86,9 @@ func GoodMixedVerbs(name string, err error) error {
 // SuppressedByNolint is intentionally suppressed.
 func SuppressedByNolint(err error) error {
 	return fmt.Errorf("operation failed: %v", err) //nolint:errorfwrapv
+}
+
+// SuppressedMissingWrap is intentionally suppressed for missing %w.
+func SuppressedMissingWrap(err error) error {
+	return fmt.Errorf("operation failed: %s", err) //nolint:errorfwrapv
 }
