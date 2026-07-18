@@ -6,6 +6,7 @@ package appendoneelement
 import (
 	"fmt"
 	"go/ast"
+	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -53,6 +54,9 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok || ident.Name != "append" {
 			return
 		}
+		if pass.TypesInfo.ObjectOf(ident) != types.Universe.Lookup("append") {
+			return
+		}
 		if len(call.Args) != 2 || !call.Ellipsis.IsValid() {
 			return
 		}
@@ -70,8 +74,10 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
-		// Must be a slice type, not a map/struct/array.
-		if _, ok := lit.Type.(*ast.ArrayType); !ok {
+		// Must be a slice type ([]T). *ast.ArrayType covers both slices and arrays;
+		// only slices have Len == nil.
+		arrayType, ok := lit.Type.(*ast.ArrayType)
+		if !ok || arrayType.Len != nil {
 			return
 		}
 		if len(lit.Elts) != 1 {
@@ -79,6 +85,12 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		elem := lit.Elts[0]
+		if _, ok := elem.(*ast.KeyValueExpr); ok {
+			return
+		}
+		if nestedLit, ok := elem.(*ast.CompositeLit); ok && nestedLit.Type == nil {
+			return
+		}
 		elemText := astutil.NodeText(pass.Fset, elem)
 		if elemText == "" {
 			return
@@ -103,7 +115,7 @@ func run(pass *analysis.Pass) (any, error) {
 					{
 						Pos:     call.Pos(),
 						End:     call.End(),
-						NewText: []byte(fmt.Sprintf("append(%s, %s)", sliceText, elemText)),
+						NewText: fmt.Appendf(nil, "append(%s, %s)", sliceText, elemText),
 					},
 				},
 			}},

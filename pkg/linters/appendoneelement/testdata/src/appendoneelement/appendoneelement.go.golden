@@ -40,3 +40,30 @@ func goodEmptyLit() {
 	s = append(s, other...)
 	_ = s
 }
+
+func goodKeyedLiteral() {
+	s := []int{1}
+	// One AST element, but keyed form represents multiple runtime elements.
+	s = append(s, []int{5: 3}...)
+	_ = s
+}
+
+func goodTypeElidedNestedLiteral() {
+	s := [][]int{{0}}
+	// Nested literal omits type; suggested text would be invalid without reconstruction.
+	s = append(s, [][]int{{1}}...)
+	_ = s
+}
+
+func goodNolint() {
+	s := []int{1}
+	s = append(s, []int{2}...) //nolint:appendoneelement
+	_ = s
+}
+
+func goodShadowedAppend() {
+	append := func(dst []int, rest ...int) []int { return dst }
+	s := []int{1}
+	s = append(s, []int{2}...)
+	_ = s
+}
