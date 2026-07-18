@@ -546,16 +546,12 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 						journeyId: parsed.journeyId || manifest.defaults.journeyId,
 						scenarioId: parsed.scenarioId || manifest.defaults.scenarioId,
 						stepKey: parsed.stepKey || initialStep,
-						completed: Array.isArray(parsed.completed)
-							? parsed.completed.filter((stepKey) => typeof stepKey === 'string' && stepMap.has(stepKey))
-							: [],
 					};
 				} catch {
 					return {
 						journeyId: manifest.defaults.journeyId,
 						scenarioId: manifest.defaults.scenarioId,
 						stepKey: initialStep,
-						completed: [],
 					};
 				}
 			};
@@ -796,9 +792,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			const setupScreen = root.querySelector('[data-workshop-setup]');
 			const setupSteps = root.querySelectorAll('[data-workshop-setup-step]');
 			const tutorialScreen = root.querySelector('[data-workshop-tutorial]');
-			const progressLabel = root.querySelector('[data-workshop-progress-label]');
-			const currentJourneyLabel = root.querySelector('[data-workshop-current-journey]');
-			const currentScenarioLabel = root.querySelector('[data-workshop-current-scenario]');
 			const tunnelPanel = root.querySelector('[data-workshop-tunnel-panel]');
 			const flowTitle = root.querySelector('[data-workshop-flow-title]');
 			const stepPosition = root.querySelector('[data-workshop-step-position]');
@@ -888,11 +881,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				const index = flow.indexOf(state.stepKey);
 				const nextIndex = direction === 'next' ? index + 1 : index - 1;
 				const target = flow[nextIndex];
-				if (direction === 'next') {
-					const completed = new Set(state.completed);
-					completed.add(state.stepKey);
-					state.completed = [...completed];
-				}
 				if (target) {
 					setCurrentStep(target);
 				} else {
@@ -915,17 +903,14 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 				state.stepKey = activeStepKey;
 				const visibleFlow = flow.length > 0 ? flow : [activeStepKey];
-				const completedInFlow = visibleFlow.filter((stepKey) => state.completed.includes(stepKey)).length;
 				const journey = manifest.journeys.find((item) => item.id === state.journeyId) || manifest.journeys[0];
 				const scenario = manifest.scenarios.find((item) => item.id === state.scenarioId) || manifest.scenarios[0];
 				const stepIndex = visibleFlow.indexOf(activeStep.key);
-				const progressPercent = visibleFlow.length > 0
-					? Math.round((completedInFlow / visibleFlow.length) * 100)
-					: 0;
-
-				if (currentJourneyLabel) currentJourneyLabel.textContent = journey.label;
-				if (currentScenarioLabel) currentScenarioLabel.textContent = scenario.label;
-				if (progressLabel) progressLabel.textContent = `${completedInFlow} of ${visibleFlow.length} complete`;
+				const progressPercent = stepIndex < 0
+					? 0
+					: visibleFlow.length <= 1
+						? 100
+						: Math.round((stepIndex / (visibleFlow.length - 1)) * 100);
 				if (tunnelPanel) {
 					tunnelPanel.hidden = state.journeyId !== 'vscode' || setupStep !== 'scenario';
 				}
@@ -962,7 +947,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 						button.dataset.workshopStepLink = step.key;
 						button.title = `${index + 1}. ${step.title}`;
 						button.setAttribute('aria-label', `Go to step ${index + 1}: ${step.title}`);
-						button.classList.toggle('is-complete', state.completed.includes(step.key));
+						button.classList.toggle('is-complete', stepIndex > index);
 						button.classList.toggle('is-active', step.key === activeStep.key);
 						stepBubbles.appendChild(button);
 					});
@@ -1234,6 +1219,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	.aw-workshop-flow {
 		display: grid;
 		gap: 1rem;
+		min-width: 0;
 		animation: aw-workshop-enter 0.28s ease-out;
 	}
 
@@ -1271,6 +1257,8 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	.aw-workshop-panel-shell {
 		display: flex;
 		flex-direction: column;
+		width: 100%;
+		min-width: 0;
 		min-height: calc(100svh - 10rem);
 		padding: 1.25rem;
 	}
@@ -1278,6 +1266,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	.aw-workshop-lesson-shell {
 		flex: 1;
 		display: grid;
+		min-width: 0;
 		grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
 		gap: 1rem;
 		margin-top: 1rem;
@@ -1288,6 +1277,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		top: 1rem;
 		align-self: start;
 		display: grid;
+		min-width: 0;
 		gap: 1rem;
 		padding: 1rem;
 		border-radius: 1rem;
@@ -1395,6 +1385,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	.aw-workshop-step-content {
 		display: grid;
 		gap: 0.8rem;
+		min-width: 0;
 		min-height: 22rem;
 		padding: 1rem;
 		border-radius: 1rem;
@@ -1565,6 +1556,15 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 	@media (max-width: 50rem) {
 		.aw-workshop-picker {
+			padding: 0.85rem;
+		}
+
+		.aw-workshop-panel-shell {
+			padding: 0.9rem;
+		}
+
+		.aw-workshop-lesson-rail,
+		.aw-workshop-step-content {
 			padding: 0.85rem;
 		}
 
