@@ -1,0 +1,365 @@
+- generic [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#starlight__main"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "GitHub Agentic Workflows GitHub Agentic Workflows" [ref=e7] [cursor=pointer]:
+          - /url: /gh-aw/
+          - img "GitHub Agentic Workflows" [ref=e8]
+          - generic [ref=e9]: GitHub Agentic Workflows
+        - button "Search" [ref=e12] [cursor=pointer]:
+          - generic [ref=e16]:
+            - generic [ref=e17]: Ctrl
+            - generic [ref=e18]: K
+        - generic [ref=e19]:
+          - generic [ref=e20]:
+            - navigation "Primary navigation" [ref=e21]:
+              - link "Quick Start" [ref=e22] [cursor=pointer]:
+                - /url: /gh-aw/setup/quick-start/
+              - link "Create" [ref=e23] [cursor=pointer]:
+                - /url: /gh-aw/setup/creating-workflows/
+              - link "Examples" [ref=e24] [cursor=pointer]:
+                - /url: /gh-aw/index.html#gallery
+              - link "Docs" [ref=e25] [cursor=pointer]:
+                - /url: /gh-aw/introduction/overview/
+              - link "FAQ" [ref=e26] [cursor=pointer]:
+                - /url: /gh-aw/reference/faq/
+              - link "Blog" [ref=e27] [cursor=pointer]:
+                - /url: /gh-aw/blog/
+              - link "Peli's Agent Factory" [ref=e28] [cursor=pointer]:
+                - /url: /gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/
+            - link "GitHub" [ref=e29] [cursor=pointer]:
+              - /url: https://github.com/github/gh-aw
+            - link "RSS" [ref=e33] [cursor=pointer]:
+              - /url: https://github.github.com/gh-aw/blog/rss.xml
+          - generic [ref=e38] [cursor=pointer]:
+            - generic [ref=e39]: Select theme
+            - combobox "Select theme" [ref=e40]:
+              - option "Auto" [selected]
+              - option "Dark"
+              - option "Light"
+    - main [ref=e54]:
+      - heading "Workshop" [level=1] [ref=e58]
+      - generic [ref=e60]:
+        - generic [ref=e173]:
+          - generic [ref=e175]:
+            - paragraph [ref=e176]: Guided run
+            - heading "GitHub.com x Daily Repo Status Report" [level=3] [ref=e177]
+          - generic [ref=e178]:
+            - generic [ref=e179]:
+              - generic [ref=e180]:
+                - paragraph [ref=e181]: Step 2 of 29
+                - paragraph [ref=e182]: This step checks that all the tools and accounts you need are in place before you start building workflows.
+              - generic [ref=e183]:
+                - button "Home" [ref=e184] [cursor=pointer]
+                - button "Change route" [ref=e189] [cursor=pointer]
+            - region "Workshop progress" [ref=e190]:
+              - generic [ref=e191]:
+                - generic [ref=e192]:
+                  - generic [ref=e193]: 4%
+                  - paragraph [ref=e194]: Complete
+                - paragraph [ref=e195]: 2 of 29 in this github.com run.
+              - generic "Workshop steps" [ref=e198]:
+                - 'button "Go to step 1: Step 0: Welcome — What We''ll Build" [ref=e431] [cursor=pointer]'
+                - 'button "Go to step 2: Step 1: What You Need Before We Start" [ref=e432] [cursor=pointer]'
+                - 'button "Go to step 3: Step 3b: Create Your Practice Repository — GitHub UI Path" [ref=e433] [cursor=pointer]'
+                - 'button "Go to step 4: Step 4: GitHub Actions in 5 Minutes" [ref=e434] [cursor=pointer]'
+                - 'button "Go to step 5: Step 5: What Are Agentic Workflows?" [ref=e435] [cursor=pointer]'
+                - 'button "Go to step 6: Step 6c: GitHub UI Path — No Installation Needed" [ref=e436] [cursor=pointer]'
+                - 'button "Go to step 7: Step 7b: Write Your First Agentic Workflow — GitHub UI Path" [ref=e437] [cursor=pointer]'
+                - 'button "Go to step 8: Step 7d: Confirm Model Access" [ref=e438] [cursor=pointer]'
+                - 'button "Go to step 9: Step 8: Run and Watch Your Workflow" [ref=e439] [cursor=pointer]'
+                - 'button "Go to step 10: Step 8b: Interpret Your First Run" [ref=e440] [cursor=pointer]'
+                - 'button "Go to step 11: Step 9: Reading Workflow Output" [ref=e441] [cursor=pointer]'
+                - 'button "Go to step 12: Step 10: Choose Your Scenario" [ref=e442] [cursor=pointer]'
+                - 'button "Go to step 13: Step 10a: Design — Daily Repo Status Report" [ref=e443] [cursor=pointer]'
+                - 'button "Go to step 14: Step 11a: Build the Daily Repo Status Workflow — GitHub UI Path" [ref=e444] [cursor=pointer]'
+                - 'button "Go to step 15: Test and Improve Your Workflow" [ref=e445] [cursor=pointer]'
+                - 'button "Go to step 16: Schedule It to Run Every Day — GitHub UI Path" [ref=e446] [cursor=pointer]'
+                - 'button "Go to step 17: What''s Next? Keep Exploring" [ref=e447] [cursor=pointer]'
+                - 'button "Go to step 18: Make Your Workflow Smarter with Conditional Logic" [ref=e448] [cursor=pointer]'
+                - 'button "Go to step 19: Connect a Live Data Source to Your Workflow" [ref=e449] [cursor=pointer]'
+                - 'button "Go to step 20: Give Your Agent More Tools with MCP" [ref=e450] [cursor=pointer]'
+                - 'button "Go to step 21: Share and Reuse Your Agentic Workflows" [ref=e451] [cursor=pointer]'
+                - 'button "Go to step 22: Build a Research-Driven Next Training Node" [ref=e452] [cursor=pointer]'
+                - 'button "Go to step 23: Make Your Workflow Remember Across Runs" [ref=e453] [cursor=pointer]'
+                - 'button "Go to step 24: Split Complex Workflows with Inline Sub-Agents" [ref=e454] [cursor=pointer]'
+                - 'button "Go to step 25: Make Your Workflows Resilient to Failure" [ref=e455] [cursor=pointer]'
+                - 'button "Go to step 26: Test Your Prompt Ideas with A/B Experiments" [ref=e456] [cursor=pointer]'
+                - 'button "Go to step 27: Run Your Agentic Workflow on a Self-Hosted Runner" [ref=e457] [cursor=pointer]'
+                - 'button "Go to step 28: Audit and Monitor Your Agentic Workflows" [ref=e458] [cursor=pointer]'
+                - 'button "Go to step 29: Manage Costs and AI Credit Budgets" [ref=e459] [cursor=pointer]'
+            - article [ref=e228]:
+              - 'heading "Step 1: What You Need Before We Start" [level=2] [ref=e460]'
+              - paragraph [ref=e461]:
+                - emphasis [ref=e462]: Starting with the right setup saves you from frustrating detours later.
+              - heading "Before You Start" [level=3] [ref=e463]
+              - paragraph [ref=e464]: This step checks that all the tools and accounts you need are in place before you start building workflows.
+              - heading "Enterprise users" [level=3] [ref=e465]
+              - blockquote [ref=e466]:
+                - paragraph [ref=e467]: "[!IMPORTANT]"
+                - group [ref=e468]:
+                  - generic "Using GHEC, GHES, or EMU? Complete this check before you continue." [ref=e469] [cursor=pointer]
+              - blockquote [ref=e470]:
+                - paragraph [ref=e471]:
+                  - text: "[!TIP]"
+                  - strong [ref=e472]: Using a Codespace (recommended for new users)?
+                  - text: The
+                  - code [ref=e473]: gh
+                  - text: CLI and
+                  - code [ref=e474]: gh-aw
+                  - text: extension come pre-installed. A free GitHub account is enough to begin. →
+                  - 'link "Skip to Adventure A: Codespace Setup" [ref=e475] [cursor=pointer]':
+                    - /url: "#"
+              - heading "✓ Required pre-flight checks" [level=3] [ref=e476]
+              - paragraph [ref=e477]: "Complete these checks before you continue:"
+              - paragraph [ref=e478]:
+                - strong [ref=e479]: "Action:"
+                - text: Open
+                - link "github.com" [ref=e480] [cursor=pointer]:
+                  - /url: https://github.com
+                - text: "and confirm your account menu appears. Review the three development environment options now: Codespace, local terminal, and GitHub UI."
+              - list [ref=e481]:
+                - listitem [ref=e482]:
+                  - checkbox [disabled] [ref=e483]
+                  - text: You can sign in to GitHub with the account you’ll use for the workshop
+                - listitem [ref=e484]:
+                  - checkbox [disabled] [ref=e485]
+                  - text: "You have chosen which development environment you’ll use: Codespace, local terminal, or GitHub UI"
+                - listitem [ref=e486]:
+                  - checkbox [disabled] [ref=e487]
+                  - text: If you chose a local terminal path,
+                  - code [ref=e488]: gh --version
+                  - text: reports
+                  - link "GitHub CLI" [ref=e489] [cursor=pointer]:
+                    - /url: "#"
+                  - text: 2.40+
+                - listitem [ref=e490]:
+                  - checkbox [disabled] [ref=e491]
+                  - text: If you chose a local terminal path,
+                  - code [ref=e492]: git --version
+                  - text: works
+                - listitem [ref=e493]:
+                  - checkbox [disabled] [ref=e494]
+                  - text: If you’re on GHEC, GHES, or EMU, you reviewed
+                  - 'link "Side Quest: Enterprise Setup Considerations" [ref=e495] [cursor=pointer]':
+                    - /url: "#"
+                  - text: and confirmed your environment is ready
+                - listitem [ref=e496]:
+                  - checkbox [disabled] [ref=e497]
+                  - text: Open
+                  - link "github.com/settings/copilot" [ref=e498] [cursor=pointer]:
+                    - /url: https://github.com/settings/copilot
+                  - text: and confirm both
+                  - strong [ref=e499]: Copilot is enabled
+                  - text: and
+                  - strong [ref=e500]: "Models: available"
+              - heading "Choose Your Setup Path" [level=3] [ref=e501]
+              - paragraph [ref=e502]: "Pick one path now, then follow that file:"
+              - table [ref=e504]:
+                - rowgroup [ref=e505]:
+                  - row [ref=e506]:
+                    - columnheader "If you are…" [ref=e507]
+                    - columnheader "Continue with…" [ref=e508]
+                - rowgroup [ref=e509]:
+                  - row [ref=e510]:
+                    - cell "New to coding, using a school/shared machine, or want the quickest start" [ref=e511]
+                    - cell [ref=e512]:
+                      - 'link "Adventure A: Set Up a Codespace" [ref=e513] [cursor=pointer]':
+                        - /url: "#"
+                  - row [ref=e514]:
+                    - cell "Comfortable with local tooling and terminal setup" [ref=e515]
+                    - cell [ref=e516]:
+                      - 'link "Adventure B: Set Up Your Local Terminal" [ref=e517] [cursor=pointer]':
+                        - /url: "#"
+                  - row [ref=e518]:
+                    - cell "Working entirely in the GitHub web UI" [ref=e519]
+                    - cell [ref=e520]:
+                      - 'link "Step 3b: GitHub UI Path" [ref=e521] [cursor=pointer]':
+                        - /url: "#"
+              - paragraph [ref=e522]:
+                - text: If you are unsure, start with a Codespace. It gives you a ready-to-use environment, and you can switch later by returning to
+                - link "Step 1" [ref=e523] [cursor=pointer]:
+                  - /url: "#"
+                - text: and following another path link.
+              - paragraph [ref=e524]:
+                - text: If you choose the GitHub UI path, you can complete the main workshop steps in your browser and still run a real workflow from the Actions tab in
+                - link "Step 8" [ref=e525] [cursor=pointer]:
+                  - /url: "#"
+                - text: .
+              - paragraph [ref=e526]:
+                - text: If you are new to GitHub Actions, that is fine. You will trigger runs from the
+                - strong [ref=e527]: Actions
+                - text: tab with guided steps in this workshop.
+                - link "Step 4" [ref=e528] [cursor=pointer]:
+                  - /url: "#"
+                - text: gives a short background when you want it.
+              - paragraph [ref=e529]:
+                - 'img "Setup path decision diagram: choose between Codespace and Local Terminal based on your environment" [ref=e530]'
+              - heading "What You’ll Do" [level=3] [ref=e531]
+              - paragraph [ref=e532]: In this step, you confirm your account and tool prerequisites, then choose your setup path. After this, you continue directly to the matching setup instructions instead of doing setup work here.
+              - heading "Steps" [level=3] [ref=e533]
+              - heading "Confirm account access" [level=4] [ref=e534]
+              - paragraph [ref=e535]:
+                - text: Sign in at
+                - link "github.com" [ref=e536] [cursor=pointer]:
+                  - /url: https://github.com
+                - text: . If you do not have an account yet, create one at github.com/signup.
+              - heading "Confirm local tools (only if using Adventure B)" [level=4] [ref=e537]
+              - paragraph [ref=e538]:
+                - text: If you plan to use your own computer, run
+                - code [ref=e539]: gh --version
+                - text: to verify GitHub CLI and
+                - code [ref=e540]: git --version
+                - text: to verify Git.
+              - figure "Terminal window" [ref=e542]:
+                - code [ref=e547]:
+                  - generic [ref=e548]: gh --version
+                  - generic [ref=e550]: git --version
+                - button "Copy to clipboard" [ref=e553] [cursor=pointer]
+              - paragraph [ref=e555]:
+                - text: If
+                - code [ref=e556]: gh
+                - text: is missing, install it from
+                - link "cli.github.com" [ref=e557] [cursor=pointer]:
+                  - /url: https://cli.github.com
+                - text: ", re-run"
+                - code [ref=e558]: gh --version
+                - text: ", then continue in"
+                - link "Adventure B" [ref=e559] [cursor=pointer]:
+                  - /url: "#"
+                - text: for full local setup. If both commands work, continue in
+                - link "Adventure B" [ref=e560] [cursor=pointer]:
+                  - /url: "#"
+                - text: .
+              - paragraph [ref=e561]: Need extra help before Step 2?
+              - list [ref=e562]:
+                - listitem [ref=e563]:
+                  - 'link "Side Quest: Terminal Basics" [ref=e564] [cursor=pointer]':
+                    - /url: "#"
+                - listitem [ref=e565]:
+                  - 'link "Side Quest: Environment Reference" [ref=e566] [cursor=pointer]':
+                    - /url: "#"
+              - heading "Verify AI engine access" [level=4] [ref=e567]
+              - paragraph [ref=e568]:
+                - text: Open
+                - link "github.com/settings/copilot" [ref=e569] [cursor=pointer]:
+                  - /url: https://github.com/settings/copilot
+                - text: "and confirm both show:"
+              - list [ref=e570]:
+                - listitem [ref=e571]:
+                  - strong [ref=e572]: Copilot is enabled
+                - listitem [ref=e573]:
+                  - strong [ref=e574]: "Models: available"
+              - paragraph [ref=e575]: Claude, Codex, or Gemini? Confirm your API key.
+              - blockquote [ref=e576]:
+                - paragraph [ref=e577]: "[!IMPORTANT] Complete this check now — Step 7 will not work without it."
+              - heading "Continue to your path file" [level=4] [ref=e578]
+              - paragraph [ref=e579]: "Continue with exactly one of these paths:"
+              - list [ref=e580]:
+                - listitem [ref=e581]:
+                  - strong [ref=e582]: "Adventure A (Codespace):"
+                  - text: open a Codespace and verify preinstalled tools in
+                  - link "02a-setup-codespace.md" [ref=e583] [cursor=pointer]:
+                    - /url: "#"
+                  - text: .
+                - listitem [ref=e584]:
+                  - strong [ref=e585]: "Adventure B (Local):"
+                  - text: install or verify local prerequisites and authentication in
+                  - link "02b-setup-local.md" [ref=e586] [cursor=pointer]:
+                    - /url: "#"
+                  - text: .
+                - listitem [ref=e587]:
+                  - strong [ref=e588]: "GitHub UI path:"
+                  - text: skip terminal setup and continue in
+                  - link "03b-create-your-repo-ui.md" [ref=e589] [cursor=pointer]:
+                    - /url: "#"
+                  - text: .
+              - heading "✓ Checkpoint" [level=3] [ref=e590]
+              - list [ref=e591]:
+                - listitem [ref=e592]:
+                  - checkbox [disabled] [ref=e593]
+                  - strong [ref=e594]: "If you’re on GHEC, GHES, or EMU:"
+                  - text: You reviewed
+                  - 'link "Side Quest: Enterprise Setup Considerations" [ref=e595] [cursor=pointer]':
+                    - /url: "#"
+                  - text: and confirmed your environment meets the enterprise requirements
+                - listitem [ref=e596]:
+                  - checkbox [disabled] [ref=e597]
+                  - text: You can sign in to GitHub with the account you’ll use for the workshop
+                - listitem [ref=e598]:
+                  - checkbox [disabled] [ref=e599]
+                  - text: "You chose one path: Codespace (02a), Local (02b), or GitHub UI (03b)"
+                - listitem [ref=e600]:
+                  - checkbox [disabled] [ref=e601]
+                  - text: If using Local (02b),
+                  - code [ref=e602]: gh
+                  - text: CLI 2.40+ and Git are available
+                - listitem [ref=e603]:
+                  - checkbox [disabled] [ref=e604]
+                  - text: "You confirmed Copilot is enabled and Models: available at"
+                  - link "github.com/settings/copilot" [ref=e605] [cursor=pointer]:
+                    - /url: https://github.com/settings/copilot
+                - listitem [ref=e606]:
+                  - checkbox [disabled] [ref=e607]
+                  - text: You know which file you will open next
+              - paragraph [ref=e608]:
+                - strong [ref=e609]: "Next:"
+                - text: Open your selected path file now —
+                - link "Adventure A" [ref=e610] [cursor=pointer]:
+                  - /url: "#"
+                - text: ","
+                - link "Adventure B" [ref=e611] [cursor=pointer]:
+                  - /url: "#"
+                - text: ", or"
+                - link "Step 3b" [ref=e612] [cursor=pointer]:
+                  - /url: "#"
+                - text: .
+              - heading "See Also" [level=3] [ref=e613]
+              - list [ref=e614]:
+                - listitem [ref=e615]:
+                  - link "Overview of GitHub Agentic Workflows" [ref=e616] [cursor=pointer]:
+                    - /url: https://github.github.com/gh-aw/introduction/overview/
+                - listitem [ref=e617]:
+                  - 'link "Side Quest: Environment Reference" [ref=e618] [cursor=pointer]':
+                    - /url: "#"
+            - generic [ref=e427]:
+              - button "Previous step" [ref=e428] [cursor=pointer]
+              - button "Next step" [active] [ref=e429] [cursor=pointer]
+        - generic [ref=e117]:
+          - link "Community Feedback" [ref=e119] [cursor=pointer]:
+            - /url: https://github.com/orgs/community/discussions/186451
+          - generic [ref=e120]:
+            - link "llms.txt" [ref=e121] [cursor=pointer]:
+              - /url: https://github.github.com/gh-aw/llms.txt
+            - generic [ref=e122]: ·
+            - link "llms-full.txt" [ref=e123] [cursor=pointer]:
+              - /url: https://github.github.com/gh-aw/llms-full.txt
+            - generic [ref=e124]: ·
+            - link "Create Workflow" [ref=e125] [cursor=pointer]:
+              - /url: https://raw.githubusercontent.com/github/gh-aw/main/create.md
+            - generic [ref=e126]: ·
+            - link "Install" [ref=e127] [cursor=pointer]:
+              - /url: https://raw.githubusercontent.com/github/gh-aw/main/install.md
+            - generic [ref=e128]: ·
+            - link "Reference" [ref=e129] [cursor=pointer]:
+              - /url: https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/github-agentic-workflows.md
+          - paragraph [ref=e130]:
+            - generic [ref=e131]:
+              - text: Made with by
+              - link "GitHub Next" [ref=e135] [cursor=pointer]:
+                - /url: https://githubnext.com/
+              - text: "&"
+              - link "Microsoft Research" [ref=e136] [cursor=pointer]:
+                - /url: https://www.microsoft.com/en-us/research/
+            - generic [ref=e137]: •
+            - generic [ref=e138]:
+              - link "Terms" [ref=e139] [cursor=pointer]:
+                - /url: https://docs.github.com/en/site-policy/github-terms/github-terms-of-service
+              - generic [ref=e140]: ·
+              - link "Privacy" [ref=e141] [cursor=pointer]:
+                - /url: https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement
+              - generic [ref=e142]: ·
+              - link "Security" [ref=e143] [cursor=pointer]:
+                - /url: https://github.com/security
