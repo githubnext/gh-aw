@@ -377,6 +377,12 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	if !strings.Contains(stepContent, `${GITHUB_WORKSPACE:-$PWD}/node_modules`) {
 		t.Fatalf("Expected SDK mode command to configure NODE_PATH from workspace node_modules, got:\n%s", stepContent)
 	}
+	if !strings.Contains(stepContent, `GH_AW_WORKSPACE_NODE_MODULES_BIN="$GH_AW_WORKSPACE_NODE_MODULES/.bin"`) {
+		t.Fatalf("Expected SDK mode command to derive a workspace node_modules/.bin path for SDK runtimes, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, `export PATH="$GH_AW_WORKSPACE_NODE_MODULES_BIN:$PATH"`) {
+		t.Fatalf("Expected SDK mode command to prepend workspace node_modules/.bin to PATH for SDK runtimes, got:\n%s", stepContent)
+	}
 	if !strings.Contains(stepContent, `${NODE_PATH:+:${NODE_PATH}}`) {
 		t.Fatalf("Expected SDK mode command to preserve existing NODE_PATH entries, got:\n%s", stepContent)
 	}
