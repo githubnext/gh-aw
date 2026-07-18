@@ -417,6 +417,18 @@ func TestComputeGeminiToolsCore(t *testing.T) {
 		assert.Contains(t, result, "run_shell_command", "Should include unrestricted run_shell_command for :* wildcard")
 	})
 
+	t.Run("bash with specific command before wildcard discards specific entry", func(t *testing.T) {
+		// When a wildcard appears anywhere in the list, only the unrestricted
+		// run_shell_command should be emitted; any pre-wildcard specific entries
+		// (e.g. run_shell_command(git)) must be discarded by the single-pass loop.
+		tools := map[string]any{
+			"bash": []any{"git", "*"},
+		}
+		result := computeGeminiToolsCore(tools)
+		assert.Contains(t, result, "run_shell_command", "Should include unrestricted run_shell_command when wildcard follows specific command")
+		assert.NotContains(t, result, "run_shell_command(git)", "Should discard specific entry when wildcard appears later in the list")
+	})
+
 	t.Run("bash with no specific commands (nil) maps to unrestricted run_shell_command", func(t *testing.T) {
 		tools := map[string]any{
 			"bash": nil,
