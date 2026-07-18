@@ -104,6 +104,8 @@ test.describe('Workshop tutorial', () => {
 			}
 
 			const layout = await page.evaluate(() => {
+				const stepContent = document.querySelector('.aw-workshop-step-content');
+				const stepContentStyle = stepContent ? window.getComputedStyle(stepContent) : null;
 				const selectors = [
 					'.aw-workshop-panel-shell',
 					'.aw-workshop-progress-card',
@@ -126,9 +128,17 @@ test.describe('Workshop tutorial', () => {
 
 				return {
 					viewportWidth: window.innerWidth,
+					availableWidth: document.body.getBoundingClientRect().width,
 					scrollWidth: document.scrollingElement?.scrollWidth ?? document.documentElement.scrollWidth,
 					clientWidth: document.scrollingElement?.clientWidth ?? document.documentElement.clientWidth,
 					bounds,
+					stepContentStyle: stepContentStyle ? {
+						borderWidth: stepContentStyle.borderWidth,
+						borderRadius: stepContentStyle.borderRadius,
+						backgroundImage: stepContentStyle.backgroundImage,
+						backgroundColor: stepContentStyle.backgroundColor,
+						boxShadow: stepContentStyle.boxShadow,
+					} : null,
 				};
 			});
 
@@ -138,6 +148,19 @@ test.describe('Workshop tutorial', () => {
 				if (!bound.exists) continue;
 				expect(bound.left).toBeGreaterThanOrEqual(-PIXEL_TOLERANCE);
 				expect(bound.right).toBeLessThanOrEqual(layout.viewportWidth + PIXEL_TOLERANCE);
+			}
+			if (isZenMobileViewport) {
+				const panelShell = layout.bounds.find((bound) => bound.selector === '.aw-workshop-panel-shell');
+				expect(panelShell?.left).toBeLessThanOrEqual(PIXEL_TOLERANCE);
+				expect(panelShell?.right).toBeGreaterThanOrEqual(layout.availableWidth - PIXEL_TOLERANCE);
+				expect(panelShell?.width).toBeGreaterThanOrEqual(layout.availableWidth - PIXEL_TOLERANCE);
+				expect(layout.stepContentStyle).toEqual({
+					borderWidth: '0px',
+					borderRadius: '0px',
+					backgroundImage: 'none',
+					backgroundColor: 'rgba(0, 0, 0, 0)',
+					boxShadow: 'none',
+				});
 			}
 		});
 	}

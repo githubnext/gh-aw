@@ -1920,6 +1920,11 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	}
 
 	@media (max-width: 50rem) {
+		:global(.content-panel:has([data-workshop-root])),
+		:global(.sl-markdown-content:has(> [data-workshop-root])) {
+			padding-inline: 0;
+		}
+
 		.aw-workshop-flow-header {
 			display: none;
 		}
@@ -1950,6 +1955,10 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		.aw-workshop-step-content {
 			margin-top: 0;
 			padding: 0.85rem;
+			border: none;
+			border-radius: 0;
+			background: transparent;
+			box-shadow: none;
 		}
 
 		.aw-workshop-step-content :global(p),
