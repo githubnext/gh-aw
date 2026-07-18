@@ -222,7 +222,10 @@ func (p *ScheduleParser) minimumIntervalTokenCount(hasWeekdaysSuffix bool) int {
 func (p *ScheduleParser) parseLongIntervalParts() (int, string, error) {
 	intervalStr := p.tokens[1]
 	interval, err := strconv.Atoi(intervalStr)
-	if err != nil || interval < 1 {
+	if err != nil {
+		return 0, "", fmt.Errorf("invalid interval '%s', must be a positive integer: %w", intervalStr, err)
+	}
+	if interval < 1 {
 		return 0, "", fmt.Errorf("invalid interval '%s', must be a positive integer", intervalStr)
 	}
 

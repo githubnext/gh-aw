@@ -106,8 +106,12 @@ func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 	normalizedSecurityBase := filepath.Clean(securityBase)
 	normalizedFullPath := filepath.Clean(fullPath)
 
-	relativePath, err := filepath.Rel(normalizedSecurityBase, normalizedFullPath)
-	if err != nil || relativePath == ".." || strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) || filepath.IsAbs(relativePath) {
+	relativePath, relErr := filepath.Rel(normalizedSecurityBase, normalizedFullPath)
+	if relErr != nil {
+		allowedFolder := filepath.Base(normalizedSecurityBase)
+		return "", fmt.Errorf("security: path %s must be within %s folder: %w", filePath, allowedFolder, relErr)
+	}
+	if relativePath == ".." || strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) || filepath.IsAbs(relativePath) {
 		allowedFolder := filepath.Base(normalizedSecurityBase)
 		return "", fmt.Errorf("security: path %s must be within %s folder (resolves to: %s)", filePath, allowedFolder, relativePath)
 	}

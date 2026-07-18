@@ -132,7 +132,7 @@ func parseActionsRunURL(parsedURL *url.URL, host, owner, repo string, parts []st
 func parseNumberedURL(host, owner, repo string, urlType GitHubURLType, label, numberText string) (*GitHubURLComponents, error) {
 	number, err := strconv.ParseInt(numberText, 10, 32)
 	if err != nil {
-		return nil, fmt.Errorf("invalid %s number: %s", label, numberText)
+		return nil, fmt.Errorf("invalid %s number %s: %w", label, numberText, err)
 	}
 	return &GitHubURLComponents{
 		Host:   host,
@@ -185,7 +185,7 @@ func parseRunURL(host, owner, repo string, parts []string) (*GitHubURLComponents
 
 	runID, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("invalid run ID: %s", parts[0])
+		return nil, fmt.Errorf("invalid run ID %s: %w", parts[0], err)
 	}
 
 	components := &GitHubURLComponents{
@@ -200,7 +200,7 @@ func parseRunURL(host, owner, repo string, parts []string) (*GitHubURLComponents
 	if len(parts) >= 3 && parts[1] == "job" {
 		jobID, err := strconv.ParseInt(parts[2], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("invalid job ID: %s", parts[2])
+			return nil, fmt.Errorf("invalid job ID %s: %w", parts[2], err)
 		}
 		components.JobID = jobID
 	}
