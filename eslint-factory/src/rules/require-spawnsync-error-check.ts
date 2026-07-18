@@ -73,6 +73,36 @@ function findVariableByName(sourceCode: Readonly<TSESLint.SourceCode>, node: TSE
   return undefined;
 }
 
+/**
+ * Returns true when `node` is the sole initializer of a single-identifier variable
+ * binding, that binding is never reassigned, and at least one reference to it satisfies
+ * `isGuardingErrorUsage`.
+ *
+ * This recognises one level of aliasing such as:
+ *   const e = result.error;  // node = result.error MemberExpression (or `error` Identifier)
+ *   if (e) throw e;          // guards `e` → treated as a valid error check
+ *
+ * Mutable aliases are rejected: if the binding has any write reference that is not the
+ * initializer (e.g. `let e = result.error; e = undefined;`), the original error value
+ * may have been discarded before the guard, so this returns false.
+ */
+function isAssignedToGuardedAlias(sourceCode: Readonly<TSESLint.SourceCode>, node: TSESTree.Node): boolean {
+  const parent = node.parent;
+  if (!parent || parent.type !== AST_NODE_TYPES.VariableDeclarator || parent.init !== node) return false;
+
+  const idNode = parent.id;
+  if (idNode.type !== AST_NODE_TYPES.Identifier) return false;
+
+  const variable = findVariableByName(sourceCode, node, idNode.name);
+  if (!variable) return false;
+
+  // Reject mutable aliases: any write that is not the initialization means
+  // the original error value may have been overwritten before the guard.
+  if (variable.references.some(ref => ref.isWrite() && !ref.init)) return false;
+
+  return variable.references.some(ref => ref.identifier.type === AST_NODE_TYPES.Identifier && isGuardingErrorUsage(ref.identifier));
+}
+
 function isErrorKey(node: TSESTree.PropertyName): boolean {
   return (node.type === AST_NODE_TYPES.Identifier && node.name === "error") || (node.type === AST_NODE_TYPES.Literal && node.value === "error");
 }
@@ -141,7 +171,9 @@ export const requireSpawnSyncErrorCheckRule = createRule({
         "Require spawnSync result variables in actions/setup/js scripts to check result.error in addition to result.status. " +
         "When spawnSync cannot spawn the child process (e.g. ENOENT, ETIMEDOUT), result.status is null and result.error holds the actual Error — " +
         "checking only result.status silently swallows spawn-level failures or reports a misleading 'exit null' message. " +
-        "Scope: this rule checks variable declarator initializers (including object destructuring) and does not analyze AssignmentExpression forms (`result = spawnSync(...)`) or inline chains (`spawnSync(...).status`).",
+        "Scope: this rule checks variable declarator initializers (including object destructuring) and does not analyze AssignmentExpression forms (`result = spawnSync(...)`) or inline chains (`spawnSync(...).status`). " +
+        "Single-assignment aliases (e.g. `const e = result.error; if (e) throw e`) are recognized as valid guards. " +
+        "Passing the result object to a helper function that checks `.error` is out of scope and will not satisfy the rule.",
     },
     schema: [],
     messages: {
@@ -170,7 +202,7 @@ export const requireSpawnSyncErrorCheckRule = createRule({
           const hasGuardingErrorCheck = errorBindingNames.some(varName => {
             const variable = findVariableByName(sourceCode, node, varName);
             if (!variable) return false;
-            return variable.references.some(ref => ref.identifier.type === AST_NODE_TYPES.Identifier && isGuardingErrorUsage(ref.identifier));
+            return variable.references.some(ref => ref.identifier.type === AST_NODE_TYPES.Identifier && (isGuardingErrorUsage(ref.identifier) || isAssignedToGuardedAlias(sourceCode, ref.identifier)));
           });
 
           if (!hasGuardingErrorCheck) {
@@ -196,7 +228,7 @@ export const requireSpawnSyncErrorCheckRule = createRule({
             parent.object === id &&
             parent.property.type === AST_NODE_TYPES.Identifier &&
             parent.property.name === "error" &&
-            isGuardingErrorUsage(parent)
+            (isGuardingErrorUsage(parent) || isAssignedToGuardedAlias(sourceCode, parent))
           );
         });
 

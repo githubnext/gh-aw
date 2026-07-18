@@ -1,0 +1,1596 @@
+---
+// @ts-ignore The docs app already uses this runtime package from Astro components.
+import octicons from '@primer/octicons';
+import {
+	buildWorkshopFlow,
+	workshopDefaults,
+	workshopJourneys,
+	workshopRoutes,
+	workshopScenarios,
+} from '../../lib/workshop/manifest';
+import { workshopContent, workshopSource, type WorkshopContentEntry } from '../../generated/workshop-content.ts';
+
+type WorkshopEntry = {
+	id: string;
+	title: string;
+	summary: string;
+	body: string;
+};
+
+type WorkshopStep = {
+	key: string;
+	file: string;
+	title: string;
+	summary: string;
+	githubUrl: string;
+	actions: string[];
+	checks: string[];
+	body: string;
+};
+
+const workshopGithubBase = workshopSource.githubBaseUrl;
+const workshopImageBase = workshopSource.rawBaseUrl;
+const primerIcons = octicons as Record<string, { toSVG: (options: Record<string, string | number>) => string }>;
+
+function iconSvg(name: string, size = 20) {
+	const icon = primerIcons[name] ?? primerIcons.workflow;
+	return icon.toSVG({ width: size, height: size, 'aria-hidden': 'true' });
+}
+
+function escapeHtml(value: string) {
+	return value
+		.replace(/&/gu, '&amp;')
+		.replace(/</gu, '&lt;')
+		.replace(/>/gu, '&gt;')
+		.replace(/"/gu, '&quot;')
+		.replace(/'/gu, '&#39;');
+}
+
+function safeJson(value: unknown): string {
+	return JSON.stringify(value)
+		.replace(/</gu, '\\u003c')
+		.replace(/>/gu, '\\u003e')
+		.replace(/&/gu, '\\u0026');
+}
+
+function resolveWorkshopAssetUrl(value: string) {
+	if (/^(?:https?:|mailto:|#|\/)/u.test(value)) return value;
+	if (value.startsWith('images/')) return new URL(value, workshopImageBase).toString();
+	return '#';
+}
+
+function renderInlineMarkdown(value: string) {
+	return escapeHtml(value)
+		.replace(/!\[([^\]]*)\]\(([^)]+)\)/gu, (_match, alt, src) => {
+			return `<img src="${escapeHtml(resolveWorkshopAssetUrl(src))}" alt="${escapeHtml(alt)}" loading="lazy" />`;
+		})
+		.replace(/\[([^\]]+)\]\(([^)]+)\)/gu, (_match, text, href) => {
+			const link = escapeHtml(resolveWorkshopAssetUrl(href));
+			const localLink = href.endsWith('.md') || href.includes('.md#')
+				? ` data-workshop-local-link="${escapeHtml(href)}"`
+				: '';
+			return `<a href="${link}"${localLink}>${text}</a>`;
+		})
+		.replace(/`([^`]+)`/gu, '<code>$1</code>')
+		.replace(/\*\*([^*]+)\*\*/gu, '<strong>$1</strong>')
+		.replace(/_([^_]+)_/gu, '<em>$1</em>');
+}
+
+function slugId(text: string) {
+	return text
+		.toLowerCase()
+		.replace(/[^\w\s-]/gu, '')
+		.replace(/[\s_]+/gu, '-')
+		.replace(/^-+|-+$/gu, '');
+}
+
+function renderWorkshopMarkdown(markdown: string) {
+	const lines = markdown.split('\n');
+	const blocks: string[] = [];
+	let paragraph: string[] = [];
+	let list: string[] = [];
+	let orderedList: string[] = [];
+	let checklist: string[] = [];
+	let tableRows: string[][] = [];
+	let code: string[] = [];
+	let codeLanguage = '';
+	let inCode = false;
+	let admonitionType = '';
+	let admonitionLines: string[] = [];
+
+	const flushParagraph = () => {
+		if (paragraph.length === 0) return;
+		blocks.push(`<p>${renderInlineMarkdown(paragraph.join(' '))}</p>`);
+		paragraph = [];
+	};
+
+	const flushList = () => {
+		if (list.length > 0) {
+			blocks.push(`<ul>${list.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join('')}</ul>`);
+			list = [];
+		}
+		if (orderedList.length > 0) {
+			blocks.push(`<ol>${orderedList.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join('')}</ol>`);
+			orderedList = [];
+		}
+		if (checklist.length > 0) {
+			blocks.push(`<ul class="aw-workshop-checklist">${checklist.join('')}</ul>`);
+			checklist = [];
+		}
+	};
+
+	const flushTable = () => {
+		if (tableRows.length === 0) return;
+		const [header, , ...body] = tableRows;
+		if (!header) { tableRows = []; return; }
+		const th = header.map((cell) => `<th>${renderInlineMarkdown(cell)}</th>`).join('');
+		const rows = body.map((row) => `<tr>${row.map((cell) => `<td>${renderInlineMarkdown(cell)}</td>`).join('')}</tr>`).join('');
+		blocks.push(`<div class="aw-workshop-table-wrap"><table><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>`);
+		tableRows = [];
+	};
+
+	const flushAdmonition = () => {
+		if (!admonitionType) return;
+		const content = admonitionLines.join(' ');
+		blocks.push(`<aside class="aw-workshop-admonition aw-workshop-admonition-${admonitionType.toLowerCase()}">${renderInlineMarkdown(content)}</aside>`);
+		admonitionType = '';
+		admonitionLines = [];
+	};
+
+	for (const line of lines) {
+		if (line.startsWith('```')) {
+			flushAdmonition();
+			if (inCode) {
+				blocks.push(`<pre><code class="language-${escapeHtml(codeLanguage)}">${escapeHtml(code.join('\n'))}</code></pre>`);
+				code = [];
+				codeLanguage = '';
+				inCode = false;
+			} else {
+				flushParagraph();
+				flushList();
+				flushTable();
+				codeLanguage = line.slice(3).trim();
+				inCode = true;
+			}
+			continue;
+		}
+
+		if (inCode) {
+			code.push(line);
+			continue;
+		}
+
+		const trimmed = line.trim();
+		if (!trimmed || trimmed === '---') {
+			flushParagraph();
+			flushList();
+			flushTable();
+			flushAdmonition();
+			continue;
+		}
+
+		// GitHub-flavored admonitions: > [!TYPE]
+		if (trimmed.startsWith('>')) {
+			const admonitionMatch = trimmed.match(/^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/iu);
+			if (admonitionMatch) {
+				flushParagraph();
+				flushList();
+				flushTable();
+				flushAdmonition();
+				admonitionType = admonitionMatch[1];
+				admonitionLines = [];
+				continue;
+			}
+			const continuationText = trimmed.replace(/^>\s?/u, '');
+			if (admonitionType) {
+				if (continuationText) admonitionLines.push(continuationText);
+				continue;
+			}
+			flushParagraph();
+			flushList();
+			flushTable();
+			blocks.push(`<aside>${renderInlineMarkdown(continuationText)}</aside>`);
+			continue;
+		}
+
+		// Flush open admonition before non-blockquote lines
+		if (admonitionType) flushAdmonition();
+
+		// Tables: lines with pipes
+		if (trimmed.startsWith('|')) {
+			flushParagraph();
+			flushList();
+			const cells = trimmed.slice(1, -1).split('|').map((c) => c.trim());
+			tableRows.push(cells);
+			continue;
+		}
+		if (tableRows.length > 0) flushTable();
+
+		const heading = trimmed.match(/^(#{1,4})\s+(.+)$/u);
+		if (heading) {
+			flushParagraph();
+			flushList();
+			const level = Math.min(heading[1].length + 1, 4);
+			const id = slugId(heading[2].replace(/[*_`[\]]/gu, ''));
+			blocks.push(`<h${level} id="${id}">${renderInlineMarkdown(heading[2])}</h${level}>`);
+			continue;
+		}
+
+		const checklistItem = trimmed.match(/^- \[([ x])\]\s+(.+)$/iu);
+		if (checklistItem) {
+			flushParagraph();
+			list = [];
+			orderedList = [];
+			const checked = checklistItem[1].toLowerCase() === 'x' ? ' checked' : '';
+			checklist.push(`<li><label><input type="checkbox" disabled${checked} /> <span>${renderInlineMarkdown(checklistItem[2])}</span></label></li>`);
+			continue;
+		}
+
+		const orderedItem = trimmed.match(/^\d+\.\s+(.+)$/u);
+		if (orderedItem) {
+			flushParagraph();
+			checklist = [];
+			list = [];
+			orderedList.push(orderedItem[1]);
+			continue;
+		}
+
+		const listItem = trimmed.match(/^-\s+(.+)$/u);
+		if (listItem) {
+			flushParagraph();
+			checklist = [];
+			orderedList = [];
+			list.push(listItem[1]);
+			continue;
+		}
+
+		paragraph.push(trimmed);
+	}
+
+	flushParagraph();
+	flushList();
+	flushTable();
+	flushAdmonition();
+	return blocks.join('');
+}
+
+function stripMarkdown(value: string) {
+	return value
+		.replace(/!\[([^\]]*)\]\([^)]+\)/gu, '$1')
+		.replace(/\[([^\]]+)\]\([^)]+\)/gu, '$1')
+		.replace(/`([^`]+)`/gu, '$1')
+		.replace(/\*\*([^*]+)\*\*/gu, '$1')
+		.replace(/_([^_]+)_/gu, '$1')
+		.replace(/<[^>]+>/gu, '')
+		.trim();
+}
+
+function uniqueItems(items: string[]) {
+	const seen = new Set<string>();
+	return items.filter((item) => {
+		const normalized = item.toLowerCase();
+		if (seen.has(normalized)) return false;
+		seen.add(normalized);
+		return true;
+	});
+}
+
+function extractActionItems(markdown: string) {
+	const lines = markdown.split('\n').map((line) => line.trim());
+	const actions: string[] = [];
+	let inCode = false;
+
+	for (const line of lines) {
+		if (line.startsWith('```')) {
+			inCode = !inCode;
+			continue;
+		}
+		if (inCode) continue;
+
+		const action = line.match(/^\*\*Action:\*\*\s+(.+)$/u);
+		if (action) actions.push(stripMarkdown(action[1]));
+
+		const numbered = line.match(/^\d+\.\s+(.+)$/u);
+		if (numbered) actions.push(stripMarkdown(numbered[1]));
+
+		const checkbox = line.match(/^- \[[ x]\]\s+(.+)$/iu);
+		if (checkbox) actions.push(stripMarkdown(checkbox[1]));
+	}
+
+	return uniqueItems(actions)
+		.filter((item) => item.length > 0 && item.length < 180)
+		.slice(0, 4);
+}
+
+function extractCheckpointItems(markdown: string) {
+	const checkpoint = markdown.match(/##\s+✅\s+Checkpoint[\s\S]*?(?=\n##\s+|\n#\s+|$)/u)?.[0] ?? markdown;
+	const checks = checkpoint
+		.split('\n')
+		.map((line) => line.trim().match(/^- \[[ x]\]\s+(.+)$/iu)?.[1])
+		.filter((item): item is string => Boolean(item))
+		.map(stripMarkdown);
+
+	return uniqueItems(checks)
+		.filter((item) => item.length > 0 && item.length < 180)
+		.slice(0, 5);
+}
+
+function renderTutorialStep(step: WorkshopStep) {
+	return renderWorkshopMarkdown(step.body);
+}
+
+function normalizeKey(value: string) {
+	return value.replace(/\.md$/u, '');
+}
+
+const workshopEntries: WorkshopEntry[] = workshopContent.map((entry: WorkshopContentEntry) => ({
+	id: entry.id,
+	title: entry.title,
+	summary: entry.summary,
+	body: entry.body,
+}));
+
+const workshopSteps: WorkshopStep[] = workshopEntries.map((entry: WorkshopEntry) => {
+	const key = normalizeKey(entry.id);
+
+	return {
+		key,
+		file: `${key}.md`,
+		title: entry.title,
+		summary: entry.summary,
+		githubUrl: new URL(`${key}.md`, workshopGithubBase).toString(),
+		actions: extractActionItems(entry.body),
+		checks: extractCheckpointItems(entry.body),
+		body: entry.body,
+	};
+});
+
+const initialFlow = buildWorkshopFlow(workshopDefaults.journeyId, workshopDefaults.scenarioId);
+const initialStepKey = initialFlow[0] ?? workshopSteps[0]?.key ?? '';
+const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ?? workshopSteps[0];
+---
+
+<section
+	class="aw-workshop"
+	data-workshop-root
+	data-image-base={workshopImageBase}
+	data-initial-step={initialStepKey}
+>
+	<div class="aw-workshop-setup" data-workshop-setup>
+		<div class="aw-workshop-setup-step" data-workshop-setup-step="workspace">
+			<section class="aw-workshop-picker">
+				<div class="aw-workshop-picker-header">
+					<p class="aw-workshop-picker-kicker">Workspace</p>
+					<h3>Where do you like to work?</h3>
+					<p class="aw-workshop-picker-help">The guide stays here. Pick the workspace you will use beside it.</p>
+				</div>
+				<div class="aw-workshop-card-grid">
+					{workshopJourneys.map((journey) => (
+						<button
+							type="button"
+							class="aw-workshop-card"
+							data-workshop-journey={journey.id}
+							style={`--aw-workshop-card-accent: ${journey.accent};`}
+						>
+							<span class="aw-workshop-card-icon" set:html={iconSvg(journey.icon)} />
+							<span class="aw-workshop-card-kicker">{journey.kicker}</span>
+							<strong>{journey.label}</strong>
+							<span>{journey.summary}</span>
+						</button>
+					))}
+				</div>
+			</section>
+		</div>
+
+		<div class="aw-workshop-setup-step" data-workshop-setup-step="scenario" hidden>
+			<section class="aw-workshop-picker">
+				<div class="aw-workshop-picker-header">
+					<p class="aw-workshop-picker-kicker">Scenario</p>
+					<h3>What do you want to automate?</h3>
+				</div>
+				<div class="aw-workshop-card-grid aw-workshop-card-grid-scenarios">
+					{workshopScenarios.map((scenario) => (
+						<button
+							type="button"
+							class="aw-workshop-card aw-workshop-card-scenario"
+							data-workshop-scenario={scenario.id}
+						>
+							<span class="aw-workshop-card-icon" set:html={iconSvg(scenario.icon)} />
+							<span class="aw-workshop-card-kicker">{scenario.kicker}</span>
+							<strong>{scenario.label}</strong>
+							<span>{scenario.summary}</span>
+						</button>
+					))}
+				</div>
+			</section>
+
+			<section class="aw-workshop-tunnel-panel" data-workshop-tunnel-panel hidden>
+				<div>
+					<p class="aw-workshop-picker-kicker">Codespaces</p>
+					<h3>GitHub Codespaces</h3>
+					<p>
+						This path uses a GitHub Codespace with VS Code. Open your repository in Codespaces and VS Code will start automatically in the browser or your desktop app.
+					</p>
+				</div>
+				<div class="aw-workshop-tunnel-actions">
+					<a href="https://docs.github.com/en/codespaces/overview" target="_blank" rel="noreferrer">Codespaces docs</a>
+					<a href="https://github.com/codespaces" target="_blank" rel="noreferrer">Open Codespaces</a>
+				</div>
+			</section>
+
+			<div class="aw-workshop-setup-nav aw-workshop-setup-nav-start">
+				<button type="button" class="aw-workshop-inline-button" data-workshop-setup-back>
+					Back
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<section class="aw-workshop-flow" data-workshop-tutorial hidden>
+		<div class="aw-workshop-flow-header">
+			<div>
+				<p class="aw-workshop-picker-kicker">Guided run</p>
+				<h3 data-workshop-flow-title>Step map</h3>
+			</div>
+		</div>
+
+		<div class="aw-workshop-panel-shell">
+			<div class="aw-workshop-panel-header">
+				<div>
+					<p class="aw-workshop-panel-meta" data-workshop-step-position>Step 1</p>
+				</div>
+			</div>
+
+			<div class="aw-workshop-lesson-shell">
+				<aside class="aw-workshop-lesson-rail" aria-label="Workshop progress">
+					<div class="aw-workshop-lesson-progress">
+						<span data-workshop-lesson-percent>0%</span>
+						<div class="aw-workshop-progress-timeline">
+							<div class="aw-workshop-progress-track"><span data-workshop-lesson-bar style={`width: ${initialFlow.length ? '0%' : '100%'};`} /></div>
+							<div class="aw-workshop-step-bubbles" data-workshop-step-bubbles aria-label="Workshop steps">
+								{initialFlow.map((stepKey, index) => {
+									const step = workshopSteps.find((item) => item.key === stepKey);
+									if (!step) return null;
+
+									return (
+										<button
+											type="button"
+											class="aw-workshop-step-bubble"
+											data-workshop-step-link={step.key}
+											title={`${index + 1}. ${step.title}`}
+											aria-label={`Go to step ${index + 1}: ${step.title}`}
+										/>
+									);
+								})}
+							</div>
+						</div>
+					</div>
+					<p data-workshop-lesson-context>Start with the welcome step, then follow the path selected above.</p>
+					<button type="button" class="aw-workshop-rail-link" data-workshop-change>
+						Change workspace or scenario
+					</button>
+				</aside>
+				<article class="aw-workshop-step-content sl-markdown-content" data-workshop-step-content set:html={initialStep ? renderTutorialStep(initialStep) : ''} />
+			</div>
+
+			<div class="aw-workshop-panel-footer">
+				<button type="button" class="aw-workshop-nav-button" data-workshop-prev>
+					Previous step
+				</button>
+				<button type="button" class="aw-workshop-nav-button aw-workshop-nav-button-primary" data-workshop-next>
+					Next step
+				</button>
+			</div>
+		</div>
+	</section>
+
+	<script
+		type="application/json"
+		id="aw-workshop-step-data"
+		set:html={safeJson(workshopSteps.map((step) => ({
+			key: step.key,
+			file: step.file,
+			title: step.title,
+			summary: step.summary,
+			githubUrl: step.githubUrl,
+			actions: step.actions,
+			checks: step.checks,
+			body: step.body,
+		})))}
+	/>
+	<script
+		type="application/json"
+		id="aw-workshop-manifest"
+		set:html={safeJson({
+			defaults: workshopDefaults,
+			journeys: workshopJourneys,
+			routes: workshopRoutes,
+			scenarios: workshopScenarios,
+		})}
+	/>
+	<script is:inline>
+		const root = document.querySelector('[data-workshop-root]');
+		const stepDataNode = document.getElementById('aw-workshop-step-data');
+		const manifestNode = document.getElementById('aw-workshop-manifest');
+
+		if (root && stepDataNode && manifestNode) {
+			const steps = JSON.parse(stepDataNode.textContent || '[]');
+			const manifest = JSON.parse(manifestNode.textContent || '{}');
+			const storageKey = 'gh-aw-docs-workshop-state';
+			const stepMap = new Map(steps.map((step) => [step.key, step]));
+			const allStepKeys = steps.map((step) => step.key);
+			const initialStep = root.getAttribute('data-initial-step') || steps[0]?.key || '';
+
+			const buildFlow = (journeyId, scenarioId) => {
+				const journey = manifest.journeys.find((item) => item.id === journeyId) || manifest.journeys[0];
+				const scenario = manifest.scenarios.find((item) => item.id === scenarioId) || manifest.scenarios[0];
+				const journeyRoute = manifest.routes.workspaces[journey.id];
+				const scenarioRoute = manifest.routes.scenarios[scenario.id];
+				const ordered = [
+					...journeyRoute.prelude,
+					scenarioRoute.designStep,
+					scenarioRoute.buildStepByWorkspace[journey.id],
+					...journeyRoute.postBuild,
+					...(manifest.routes.preSchedule || []),
+					journeyRoute.scheduleStep,
+					...manifest.routes.wrapUp,
+				];
+
+				return [...new Set(ordered)].filter((stepKey) => stepMap.has(stepKey));
+			};
+
+			const readState = () => {
+				try {
+					const parsed = JSON.parse(localStorage.getItem(storageKey) || '{}');
+					return {
+						journeyId: parsed.journeyId || manifest.defaults.journeyId,
+						scenarioId: parsed.scenarioId || manifest.defaults.scenarioId,
+						stepKey: parsed.stepKey || initialStep,
+						completed: Array.isArray(parsed.completed)
+							? parsed.completed.filter((stepKey) => typeof stepKey === 'string' && stepMap.has(stepKey))
+							: [],
+					};
+				} catch {
+					return {
+						journeyId: manifest.defaults.journeyId,
+						scenarioId: manifest.defaults.scenarioId,
+						stepKey: initialStep,
+						completed: [],
+					};
+				}
+			};
+
+			const state = readState();
+
+			const saveState = () => {
+				localStorage.setItem(storageKey, JSON.stringify(state));
+			};
+
+			const track = (name, detail) => {
+				window.dispatchEvent(new CustomEvent('gh-aw-workshop-analytics', { detail: { name, ...detail } }));
+				if (typeof window.plausible === 'function') {
+					window.plausible(name, { props: detail });
+				}
+			};
+
+			const escapeHtml = (value) => String(value)
+				.replace(/&/gu, '&amp;')
+				.replace(/</gu, '&lt;')
+				.replace(/>/gu, '&gt;')
+				.replace(/"/gu, '&quot;')
+				.replace(/'/gu, '&#39;');
+
+			const resolveWorkshopAssetUrl = (value) => {
+				if (/^(?:https?:|mailto:|#|\/)/u.test(value)) return value;
+				if (value.startsWith('images/')) {
+					const resolved = new URL(value, root.dataset.imageBase || window.location.href).toString();
+					return /^https?:/u.test(resolved) ? resolved : '#';
+				}
+				return '#';
+			};
+
+			const renderInlineMarkdown = (value) => escapeHtml(value)
+				.replace(/!\[([^\]]*)\]\(([^)]+)\)/gu, (_match, alt, src) => {
+					return `<img src="${escapeHtml(resolveWorkshopAssetUrl(src))}" alt="${escapeHtml(alt)}" loading="lazy" />`;
+				})
+				.replace(/\[([^\]]+)\]\(([^)]+)\)/gu, (_match, text, href) => {
+					const link = escapeHtml(resolveWorkshopAssetUrl(href));
+					const localLink = href.endsWith('.md') || href.includes('.md#')
+						? ` data-workshop-local-link="${escapeHtml(href)}"`
+						: '';
+					return `<a href="${link}"${localLink}>${text}</a>`;
+				})
+				.replace(/`([^`]+)`/gu, '<code>$1</code>')
+				.replace(/\*\*([^*]+)\*\*/gu, '<strong>$1</strong>')
+				.replace(/_([^_]+)_/gu, '<em>$1</em>');
+
+			const stripMarkdown = (value) => String(value)
+				.replace(/!\[([^\]]*)\]\([^)]+\)/gu, '$1')
+				.replace(/\[([^\]]+)\]\([^)]+\)/gu, '$1')
+				.replace(/`([^`]+)`/gu, '$1')
+				.replace(/\*\*([^*]+)\*\*/gu, '$1')
+				.replace(/_([^_]+)_/gu, '$1')
+				.replace(/<[^>]+>/gu, '')
+				.trim();
+
+			const slugId = (text) => text
+				.toLowerCase()
+				.replace(/[^\w\s-]/gu, '')
+				.replace(/[\s_]+/gu, '-')
+				.replace(/^-+|-+$/gu, '');
+
+			const renderStepBody = (body) => {
+				const lines = String(body || '').split('\n');
+				const blocks = [];
+				let paragraph = [];
+				let list = [];
+				let orderedList = [];
+				let checklist = [];
+				let tableRows = [];
+				let code = [];
+				let codeLanguage = '';
+				let inCode = false;
+				let admonitionType = '';
+				let admonitionLines = [];
+
+				const flushParagraph = () => {
+					if (paragraph.length === 0) return;
+					blocks.push(`<p>${renderInlineMarkdown(paragraph.join(' '))}</p>`);
+					paragraph = [];
+				};
+
+				const flushList = () => {
+					if (list.length > 0) {
+						blocks.push(`<ul>${list.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join('')}</ul>`);
+						list = [];
+					}
+					if (orderedList.length > 0) {
+						blocks.push(`<ol>${orderedList.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join('')}</ol>`);
+						orderedList = [];
+					}
+					if (checklist.length > 0) {
+						blocks.push(`<ul class="aw-workshop-checklist">${checklist.join('')}</ul>`);
+						checklist = [];
+					}
+				};
+
+				const flushTable = () => {
+					if (tableRows.length === 0) return;
+					const [header, , ...body] = tableRows;
+					if (!header) { tableRows = []; return; }
+					const th = header.map((cell) => `<th>${renderInlineMarkdown(cell)}</th>`).join('');
+					const rows = body.map((row) => `<tr>${row.map((cell) => `<td>${renderInlineMarkdown(cell)}</td>`).join('')}</tr>`).join('');
+					blocks.push(`<div class="aw-workshop-table-wrap"><table><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>`);
+					tableRows = [];
+				};
+
+				const flushAdmonition = () => {
+					if (!admonitionType) return;
+					const content = admonitionLines.join(' ');
+					blocks.push(`<aside class="aw-workshop-admonition aw-workshop-admonition-${admonitionType.toLowerCase()}">${renderInlineMarkdown(content)}</aside>`);
+					admonitionType = '';
+					admonitionLines = [];
+				};
+
+				for (const line of lines) {
+					if (line.startsWith('```')) {
+						flushAdmonition();
+						if (inCode) {
+							blocks.push(`<pre><code class="language-${escapeHtml(codeLanguage)}">${escapeHtml(code.join('\n'))}</code></pre>`);
+							code = [];
+							codeLanguage = '';
+							inCode = false;
+						} else {
+							flushParagraph();
+							flushList();
+							flushTable();
+							codeLanguage = line.slice(3).trim();
+							inCode = true;
+						}
+						continue;
+					}
+
+					if (inCode) {
+						code.push(line);
+						continue;
+					}
+
+					const trimmed = line.trim();
+					if (!trimmed || trimmed === '---') {
+						flushParagraph();
+						flushList();
+						flushTable();
+						flushAdmonition();
+						continue;
+					}
+
+					// GitHub-flavored admonitions: > [!TYPE]
+					if (trimmed.startsWith('>')) {
+						const admonitionMatch = trimmed.match(/^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/iu);
+						if (admonitionMatch) {
+							flushParagraph();
+							flushList();
+							flushTable();
+							flushAdmonition();
+							admonitionType = admonitionMatch[1];
+							admonitionLines = [];
+							continue;
+						}
+						const continuationText = trimmed.replace(/^>\s?/u, '');
+						if (admonitionType) {
+							if (continuationText) admonitionLines.push(continuationText);
+							continue;
+						}
+						flushParagraph();
+						flushList();
+						flushTable();
+						blocks.push(`<aside>${renderInlineMarkdown(continuationText)}</aside>`);
+						continue;
+					}
+
+					// Flush open admonition before non-blockquote lines
+					if (admonitionType) flushAdmonition();
+
+					// Tables: lines with pipes
+					if (trimmed.startsWith('|')) {
+						flushParagraph();
+						flushList();
+						const cells = trimmed.slice(1, -1).split('|').map((c) => c.trim());
+						tableRows.push(cells);
+						continue;
+					}
+					if (tableRows.length > 0) flushTable();
+
+					const heading = trimmed.match(/^(#{1,4})\s+(.+)$/u);
+					if (heading) {
+						flushParagraph();
+						flushList();
+						const level = Math.min(heading[1].length + 1, 4);
+						const id = slugId(heading[2].replace(/[*_`[\]]/gu, ''));
+						blocks.push(`<h${level} id="${id}">${renderInlineMarkdown(heading[2])}</h${level}>`);
+						continue;
+					}
+
+					const checklistItem = trimmed.match(/^- \[([ x])\]\s+(.+)$/iu);
+					if (checklistItem) {
+						flushParagraph();
+						list = [];
+						orderedList = [];
+						const checked = checklistItem[1].toLowerCase() === 'x' ? ' checked' : '';
+						checklist.push(`<li><label><input type="checkbox" disabled${checked} /> <span>${renderInlineMarkdown(checklistItem[2])}</span></label></li>`);
+						continue;
+					}
+
+					const orderedItem = trimmed.match(/^\d+\.\s+(.+)$/u);
+					if (orderedItem) {
+						flushParagraph();
+						checklist = [];
+						list = [];
+						orderedList.push(orderedItem[1]);
+						continue;
+					}
+
+					const listItem = trimmed.match(/^-\s+(.+)$/u);
+					if (listItem) {
+						flushParagraph();
+						checklist = [];
+						orderedList = [];
+						list.push(listItem[1]);
+						continue;
+					}
+
+					paragraph.push(trimmed);
+				}
+
+				flushParagraph();
+				flushList();
+				flushTable();
+				flushAdmonition();
+				return blocks.join('');
+			};
+
+			const renderTutorialStep = (step) => {
+				return renderStepBody(step.body || '');
+			};
+
+			const setupScreen = root.querySelector('[data-workshop-setup]');
+			const setupSteps = root.querySelectorAll('[data-workshop-setup-step]');
+			const tutorialScreen = root.querySelector('[data-workshop-tutorial]');
+			const progressLabel = root.querySelector('[data-workshop-progress-label]');
+			const currentJourneyLabel = root.querySelector('[data-workshop-current-journey]');
+			const currentScenarioLabel = root.querySelector('[data-workshop-current-scenario]');
+			const tunnelPanel = root.querySelector('[data-workshop-tunnel-panel]');
+			const flowTitle = root.querySelector('[data-workshop-flow-title]');
+			const stepPosition = root.querySelector('[data-workshop-step-position]');
+			const prevButton = root.querySelector('[data-workshop-prev]');
+			const nextButton = root.querySelector('[data-workshop-next]');
+			const stepBodyContainer = root.querySelector('[data-workshop-step-content]');
+			const lessonPercent = root.querySelector('[data-workshop-lesson-percent]');
+			const lessonBar = root.querySelector('[data-workshop-lesson-bar]');
+			const lessonContext = root.querySelector('[data-workshop-lesson-context]');
+			const stepBubbles = root.querySelector('[data-workshop-step-bubbles]');
+			let setupStep = 'workspace';
+
+			const showSetupStep = (stepName) => {
+				setupStep = stepName === 'scenario' ? 'scenario' : 'workspace';
+				setupSteps.forEach((step) => {
+					step.hidden = step.getAttribute('data-workshop-setup-step') !== setupStep;
+				});
+				render();
+			};
+
+			const showSetup = () => {
+				setupScreen.hidden = false;
+				tutorialScreen.hidden = true;
+				root.classList.remove('is-tutorial-active');
+				showSetupStep('workspace');
+				root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			};
+
+			const showTutorial = () => {
+				ensureCurrentStepIsVisible();
+				render();
+				setupScreen.hidden = true;
+				tutorialScreen.hidden = false;
+				root.classList.add('is-tutorial-active');
+				root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				track('Workshop Started', { journey: state.journeyId, scenario: state.scenarioId });
+			};
+
+			const getFlow = () => buildFlow(state.journeyId, state.scenarioId);
+
+			const getFallbackStepKey = (flow = getFlow()) => {
+				return flow[0] || initialStep || allStepKeys[0] || '';
+			};
+
+			const ensureCurrentStepIsVisible = () => {
+				const flow = getFlow();
+				if (!flow.includes(state.stepKey)) {
+					state.stepKey = getFallbackStepKey(flow);
+				}
+			};
+
+			const setCurrentStep = (stepKey, options = {}) => {
+				if (typeof stepKey !== 'string' || !stepMap.has(stepKey)) return;
+				state.stepKey = stepKey;
+				saveState();
+				render();
+				if (!options.silent) {
+					track('Workshop Step Viewed', {
+						journey: state.journeyId,
+						scenario: state.scenarioId,
+						step: stepKey,
+					});
+				}
+			};
+
+			const setJourney = (journeyId) => {
+				if (typeof journeyId !== 'string') return;
+				state.journeyId = journeyId;
+				ensureCurrentStepIsVisible();
+				saveState();
+				render();
+				track('Workshop Journey Selected', { journey: journeyId, scenario: state.scenarioId });
+			};
+
+			const setScenario = (scenarioId) => {
+				if (typeof scenarioId !== 'string') return;
+				state.scenarioId = scenarioId;
+				ensureCurrentStepIsVisible();
+				saveState();
+				render();
+				track('Workshop Scenario Selected', { journey: state.journeyId, scenario: scenarioId });
+			};
+
+			const navigate = (direction) => {
+				const flow = getFlow();
+				if (flow.length === 0) return;
+				const index = flow.indexOf(state.stepKey);
+				const nextIndex = direction === 'next' ? index + 1 : index - 1;
+				const target = flow[nextIndex];
+				if (direction === 'next') {
+					const completed = new Set(state.completed);
+					completed.add(state.stepKey);
+					state.completed = [...completed];
+				}
+				if (target) {
+					setCurrentStep(target);
+				} else {
+					saveState();
+					render();
+				}
+				root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			};
+
+			const render = () => {
+				const flow = getFlow();
+				const fallbackStepKey = getFallbackStepKey(flow);
+				const activeStepKey = typeof state.stepKey === 'string' && stepMap.has(state.stepKey)
+					? state.stepKey
+					: fallbackStepKey;
+				const activeStep = activeStepKey ? stepMap.get(activeStepKey) : undefined;
+				if (!activeStep || !activeStepKey) {
+					return;
+				}
+
+				state.stepKey = activeStepKey;
+				const visibleFlow = flow.length > 0 ? flow : [activeStepKey];
+				const completedInFlow = visibleFlow.filter((stepKey) => state.completed.includes(stepKey)).length;
+				const journey = manifest.journeys.find((item) => item.id === state.journeyId) || manifest.journeys[0];
+				const scenario = manifest.scenarios.find((item) => item.id === state.scenarioId) || manifest.scenarios[0];
+				const stepIndex = visibleFlow.indexOf(activeStep.key);
+				const progressPercent = visibleFlow.length > 0
+					? Math.round((completedInFlow / visibleFlow.length) * 100)
+					: 0;
+
+				if (currentJourneyLabel) currentJourneyLabel.textContent = journey.label;
+				if (currentScenarioLabel) currentScenarioLabel.textContent = scenario.label;
+				if (progressLabel) progressLabel.textContent = `${completedInFlow} of ${visibleFlow.length} complete`;
+				if (tunnelPanel) {
+					tunnelPanel.hidden = state.journeyId !== 'vscode' || setupStep !== 'scenario';
+				}
+				lessonPercent.textContent = `${progressPercent}%`;
+				lessonBar.style.width = `${progressPercent}%`;
+				lessonContext.textContent = stepIndex >= 0
+					? `${stepIndex + 1} of ${visibleFlow.length} in this ${journey.label.toLowerCase()} run.`
+					: 'Linked step from the workshop source.';
+				flowTitle.textContent = `${journey.label} x ${scenario.label}`;
+				stepPosition.textContent = stepIndex >= 0 ? `Step ${stepIndex + 1} of ${visibleFlow.length}` : 'Linked step';
+				stepBodyContainer.innerHTML = renderTutorialStep(activeStep);
+
+				root.querySelectorAll('[data-workshop-journey]').forEach((button) => {
+					const isActive = button.getAttribute('data-workshop-journey') === state.journeyId;
+					button.classList.toggle('is-active', isActive);
+					button.setAttribute('aria-pressed', String(isActive));
+				});
+
+				root.querySelectorAll('[data-workshop-scenario]').forEach((button) => {
+					const isActive = button.getAttribute('data-workshop-scenario') === state.scenarioId;
+					button.classList.toggle('is-active', isActive);
+					button.setAttribute('aria-pressed', String(isActive));
+				});
+
+				if (stepBubbles) {
+					stepBubbles.innerHTML = '';
+					visibleFlow.forEach((stepKey, index) => {
+						const step = stepMap.get(stepKey);
+						if (!step) return;
+
+						const button = document.createElement('button');
+						button.type = 'button';
+						button.className = 'aw-workshop-step-bubble';
+						button.dataset.workshopStepLink = step.key;
+						button.title = `${index + 1}. ${step.title}`;
+						button.setAttribute('aria-label', `Go to step ${index + 1}: ${step.title}`);
+						button.classList.toggle('is-complete', state.completed.includes(step.key));
+						button.classList.toggle('is-active', step.key === activeStep.key);
+						stepBubbles.appendChild(button);
+					});
+				}
+
+				const flowIndex = visibleFlow.indexOf(activeStep.key);
+				const isLastStep = flowIndex >= 0 && flowIndex >= visibleFlow.length - 1;
+				prevButton.disabled = flowIndex <= 0;
+				nextButton.disabled = flowIndex < 0;
+				nextButton.textContent = isLastStep ? 'Finish workshop' : 'Next step';
+			};
+
+			root.addEventListener('click', (event) => {
+				const target = event.target instanceof Element ? event.target.closest('button, a') : null;
+				if (!target) return;
+
+				if (target.matches('[data-workshop-change]')) {
+					showSetup();
+					return;
+				}
+
+				if (target.matches('[data-workshop-journey]')) {
+					setJourney(target.getAttribute('data-workshop-journey'));
+					showSetupStep('scenario');
+					root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+					return;
+				}
+
+				if (target.matches('[data-workshop-scenario]')) {
+					setScenario(target.getAttribute('data-workshop-scenario'));
+					showTutorial();
+					return;
+				}
+
+				if (target.matches('[data-workshop-setup-back]')) {
+					showSetupStep('workspace');
+					root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+					return;
+				}
+
+				if (target.matches('[data-workshop-step-link]')) {
+					setCurrentStep(target.getAttribute('data-workshop-step-link'));
+					return;
+				}
+
+				if (target.matches('[data-workshop-prev]')) {
+					navigate('prev');
+					return;
+				}
+
+				if (target.matches('[data-workshop-next]')) {
+					navigate('next');
+					return;
+				}
+
+				if (target.matches('[data-workshop-local-link]')) {
+					event.preventDefault();
+					const localHref = target.getAttribute('data-workshop-local-link') || '';
+					const [filePart, anchorPart] = localHref.split('#');
+					const stepKey = filePart.replace(/\.md$/u, '');
+					setCurrentStep(stepKey);
+					if (anchorPart) {
+						requestAnimationFrame(() => {
+							root.querySelector(`#${CSS.escape(anchorPart)}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+						});
+						return;
+					}
+					root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				}
+			});
+
+			ensureCurrentStepIsVisible();
+			render();
+			showSetup();
+		}
+	</script>
+</section>
+
+<style>
+	.aw-workshop {
+		display: grid;
+		gap: 1.5rem;
+		margin: 2rem 0 1rem;
+	}
+
+	.aw-workshop [hidden] {
+		display: none !important;
+	}
+
+	.aw-workshop-setup {
+		display: grid;
+		gap: 0.9rem;
+	}
+
+	.aw-workshop-setup-step {
+		display: grid;
+		gap: 0.9rem;
+	}
+
+	.aw-workshop-picker,
+	.aw-workshop-panel-shell {
+		border: 1px solid var(--aw-border);
+		background:
+			linear-gradient(135deg, rgba(var(--aw-accent-rgb), 0.12), transparent 50%),
+			var(--aw-bg-elevated);
+		backdrop-filter: blur(12px);
+		border-radius: 1.25rem;
+		box-shadow: var(--aw-shadow);
+	}
+
+	.aw-workshop-picker-kicker,
+	.aw-workshop-panel-meta,
+	.aw-workshop-card-kicker {
+		margin: 0;
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--aw-text-muted);
+	}
+
+	.aw-workshop-picker h3,
+	.aw-workshop-flow h3,
+	.aw-workshop-panel-header h3 {
+		margin: 0;
+		letter-spacing: -0.02em;
+	}
+
+	.aw-workshop-card-icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--aw-workshop-card-accent, var(--sl-color-accent));
+	}
+
+	.aw-workshop-setup-nav {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.75rem;
+	}
+
+	.aw-workshop-setup-nav-start {
+		justify-content: flex-start;
+	}
+
+	.aw-workshop-tunnel-panel {
+		display: grid;
+		gap: 0.85rem;
+		padding: 0.95rem;
+		border-radius: 1rem;
+		border: 1px solid var(--aw-border);
+		background:
+			linear-gradient(135deg, rgba(var(--aw-accent-rgb), 0.12), transparent 55%),
+			var(--aw-bg-elevated);
+	}
+
+	.aw-workshop-tunnel-panel h3,
+	.aw-workshop-tunnel-panel p {
+		margin: 0;
+	}
+
+	.aw-workshop-tunnel-panel h3 {
+		margin-top: 0.2rem;
+	}
+
+	.aw-workshop-tunnel-panel p {
+		color: var(--aw-text-muted);
+		line-height: 1.55;
+	}
+
+	.aw-workshop-tunnel-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+	}
+
+	.aw-workshop-tunnel-actions a {
+		color: var(--sl-color-accent-high);
+		font-weight: 700;
+		text-decoration: none;
+	}
+
+	.aw-workshop-tunnel-actions a:hover {
+		text-decoration: underline;
+	}
+
+	.aw-workshop-picker {
+		padding: 0.75rem;
+	}
+
+	.aw-workshop-picker-header {
+		display: grid;
+		gap: 0.15rem;
+		margin-bottom: 0.55rem;
+	}
+
+	.aw-workshop-picker-help {
+		margin: 0;
+		color: var(--aw-text-muted);
+		font-size: 0.9rem;
+		line-height: 1.4;
+	}
+
+	.aw-workshop-card-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+		gap: 0.5rem;
+	}
+
+	.aw-workshop-card {
+		display: grid;
+		grid-template-columns: 1.9rem 1fr;
+		grid-template-areas:
+			"icon kicker"
+			"icon title"
+			"icon summary";
+		align-items: start;
+		gap: 0.12rem 0.55rem;
+		text-align: left;
+		min-height: 6.35rem;
+		padding: 0.62rem;
+		border-radius: 0.7rem;
+		border: 1px solid color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 35%, transparent);
+		background: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 10%, var(--aw-bg-elevated));
+		color: inherit;
+		cursor: pointer;
+		transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+	}
+
+	.aw-workshop-card-icon {
+		grid-area: icon;
+		width: 1.9rem;
+		height: 1.9rem;
+		border-radius: 0.58rem;
+		background: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 18%, transparent);
+	}
+
+	.aw-workshop-card-kicker {
+		grid-area: kicker;
+	}
+
+	.aw-workshop-card-scenario {
+		--aw-workshop-card-accent: var(--sl-color-accent-low);
+	}
+
+	.aw-workshop-card strong {
+		grid-area: title;
+		margin-top: 0.03rem;
+		font-size: 0.95rem;
+		line-height: 1.15;
+	}
+
+	.aw-workshop-card span:last-child {
+		grid-area: summary;
+		max-width: 24ch;
+		color: var(--aw-text-muted);
+		font-size: 0.82rem;
+		line-height: 1.3;
+	}
+
+	.aw-workshop-card:hover,
+	.aw-workshop-card.is-active {
+		transform: translateY(-1px);
+		border-color: var(--aw-workshop-card-accent, var(--sl-color-accent));
+		box-shadow: 0 12px 30px rgba(1, 4, 9, 0.2);
+	}
+
+	.aw-workshop-flow {
+		display: grid;
+		gap: 1rem;
+		animation: aw-workshop-enter 0.28s ease-out;
+	}
+
+	.aw-workshop-flow-header,
+	.aw-workshop-panel-header,
+	.aw-workshop-panel-footer {
+		display: flex;
+		justify-content: space-between;
+		gap: 1rem;
+		align-items: start;
+	}
+
+	.aw-workshop-inline-button,
+	.aw-workshop-nav-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 999px;
+		min-height: 2.75rem;
+		padding: 0.7rem 1rem;
+		border: 1px solid var(--aw-border-strong);
+		background: rgba(255, 255, 255, 0.02);
+		color: inherit;
+		text-decoration: none;
+		font: inherit;
+		cursor: pointer;
+	}
+
+	.aw-workshop-inline-button:hover,
+	.aw-workshop-nav-button:hover {
+		border-color: var(--sl-color-accent);
+		text-decoration: none;
+	}
+
+	.aw-workshop-panel-shell {
+		display: flex;
+		flex-direction: column;
+		min-height: calc(100svh - 10rem);
+		padding: 1.25rem;
+	}
+
+	.aw-workshop-lesson-shell {
+		flex: 1;
+		display: grid;
+		grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+		gap: 1rem;
+		margin-top: 1rem;
+	}
+
+	.aw-workshop-lesson-rail {
+		position: sticky;
+		top: 1rem;
+		align-self: start;
+		display: grid;
+		gap: 1rem;
+		padding: 1rem;
+		border-radius: 1rem;
+		border: 1px solid var(--aw-border);
+		background: rgba(255, 255, 255, 0.03);
+	}
+
+	.aw-workshop-lesson-progress {
+		display: grid;
+		gap: 0.5rem;
+	}
+
+	.aw-workshop-lesson-progress > span {
+		font-size: 2rem;
+		font-weight: 800;
+		letter-spacing: -0.04em;
+	}
+
+	.aw-workshop-progress-timeline {
+		position: relative;
+		display: grid;
+		align-items: center;
+		min-height: 1.25rem;
+	}
+
+	.aw-workshop-progress-track {
+		grid-area: 1 / 1;
+		height: 0.5rem;
+		overflow: hidden;
+		border-radius: 999px;
+		background: rgba(230, 237, 243, 0.12);
+	}
+
+	.aw-workshop-progress-track > span {
+		display: block;
+		height: 100%;
+		border-radius: inherit;
+		background: var(--sl-color-accent);
+		box-shadow: 0 0 16px rgba(var(--aw-accent-rgb), 0.36);
+		transition: width 0.25s ease;
+	}
+
+	.aw-workshop-step-bubbles {
+		grid-area: 1 / 1;
+		position: relative;
+		z-index: 1;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.2rem;
+		padding: 0 0.15rem;
+	}
+
+	.aw-workshop-step-bubbles :global(.aw-workshop-step-bubble) {
+		width: 0.62rem;
+		height: 0.62rem;
+		min-width: 0.62rem;
+		padding: 0;
+		border-radius: 999px;
+		border: 2px solid #151b24;
+		background: rgba(230, 237, 243, 0.28);
+		cursor: pointer;
+		transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+	}
+
+	.aw-workshop-step-bubbles :global(.aw-workshop-step-bubble:hover),
+	.aw-workshop-step-bubbles :global(.aw-workshop-step-bubble:focus-visible) {
+		background: var(--sl-color-text-accent);
+		box-shadow: 0 0 0 3px rgba(var(--aw-accent-rgb), 0.18);
+		outline: none;
+		transform: translateY(-1px) scale(1.08);
+	}
+
+	.aw-workshop-step-bubbles :global(.aw-workshop-step-bubble.is-complete) {
+		background: var(--sl-color-accent);
+	}
+
+	.aw-workshop-step-bubbles :global(.aw-workshop-step-bubble.is-active) {
+		background: var(--sl-color-text-accent);
+		box-shadow: 0 0 0 3px rgba(var(--aw-accent-rgb), 0.2);
+	}
+
+	.aw-workshop-lesson-rail p {
+		margin: 0;
+		color: var(--aw-text-muted);
+	}
+
+	.aw-workshop-rail-link {
+		justify-self: start;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: var(--sl-color-text-accent);
+		font: inherit;
+		font-size: 0.88rem;
+		font-weight: 700;
+		cursor: pointer;
+	}
+
+	.aw-workshop-rail-link:hover,
+	.aw-workshop-rail-link:focus-visible {
+		text-decoration: underline;
+	}
+
+	.aw-workshop-step-content {
+		display: grid;
+		gap: 0.8rem;
+		min-height: 22rem;
+		padding: 1rem;
+		border-radius: 1rem;
+		border: 1px solid var(--aw-border);
+		background: rgba(1, 4, 9, 0.22);
+	}
+
+	.aw-workshop-step-content :global(h2),
+	.aw-workshop-step-content :global(h3),
+	.aw-workshop-step-content :global(h4) {
+		margin: 1.2rem 0 0.3rem;
+		letter-spacing: -0.02em;
+	}
+
+	.aw-workshop-step-content :global(h2:first-child) {
+		margin-top: 0;
+	}
+
+	.aw-workshop-step-content :global(p),
+	.aw-workshop-step-content :global(ul),
+	.aw-workshop-step-content :global(aside) {
+		margin: 0;
+		line-height: 1.65;
+	}
+
+	.aw-workshop-step-content :global(ul) {
+		padding-left: 1.3rem;
+	}
+
+	.aw-workshop-step-content :global(a) {
+		color: var(--sl-color-text-accent);
+	}
+
+	.aw-workshop-step-content :global(code) {
+		padding: 0.1rem 0.3rem;
+		border-radius: 0.35rem;
+		background: rgba(255, 255, 255, 0.08);
+	}
+
+	.aw-workshop-step-content :global(pre) {
+		margin: 0;
+		padding: 1rem;
+		border-radius: 0.8rem;
+		border: 1px solid var(--aw-border);
+		background: rgba(255, 255, 255, 0.04);
+		overflow-x: auto;
+	}
+
+	.aw-workshop-step-content :global(pre code) {
+		padding: 0;
+		background: transparent;
+	}
+
+	.aw-workshop-step-content :global(aside) {
+		padding: 0.85rem 1rem;
+		border-left: 3px solid var(--sl-color-accent);
+		border-radius: 0.75rem;
+		background: rgba(var(--aw-accent-rgb), 0.09);
+		color: var(--aw-text-muted);
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-admonition-warning),
+	.aw-workshop-step-content :global(.aw-workshop-admonition-caution) {
+		border-left-color: #d4a008;
+		background: rgba(212, 160, 8, 0.09);
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-admonition-important) {
+		border-left-color: #c678dd;
+		background: rgba(198, 120, 221, 0.09);
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-admonition-tip) {
+		border-left-color: #56b6c2;
+		background: rgba(86, 182, 194, 0.09);
+	}
+
+	.aw-workshop-step-content :global(ol) {
+		margin: 0;
+		padding-left: 1.4rem;
+		line-height: 1.65;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-table-wrap) {
+		overflow-x: auto;
+	}
+
+	.aw-workshop-step-content :global(table) {
+		border-collapse: collapse;
+		width: 100%;
+		font-size: 0.9rem;
+	}
+
+	.aw-workshop-step-content :global(th),
+	.aw-workshop-step-content :global(td) {
+		padding: 0.4rem 0.7rem;
+		border: 1px solid var(--aw-border);
+		text-align: left;
+	}
+
+	.aw-workshop-step-content :global(th) {
+		background: rgba(var(--aw-accent-rgb), 0.08);
+		font-weight: 700;
+	}
+
+	.aw-workshop-step-content :global(img) {
+		max-width: 100%;
+		border-radius: 0.9rem;
+		border: 1px solid var(--aw-border);
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-checklist) {
+		display: grid;
+		gap: 0.45rem;
+		padding-left: 0;
+		list-style: none;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-checklist label) {
+		display: flex;
+		gap: 0.5rem;
+		align-items: flex-start;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-checklist input) {
+		margin-top: 0.35rem;
+	}
+
+	.aw-workshop-step-markdown {
+		margin: 0;
+		padding: 1rem;
+		border-radius: 1rem;
+		border: 1px solid var(--aw-border);
+		background: rgba(255, 255, 255, 0.03);
+		overflow-x: auto;
+		white-space: pre-wrap;
+		font: 0.95rem/1.5 var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+	}
+
+	.aw-workshop-panel-footer {
+		margin-top: auto;
+		padding-top: 1.5rem;
+		align-items: center;
+	}
+
+	.aw-workshop-nav-button[disabled] {
+		opacity: 0.45;
+		cursor: not-allowed;
+	}
+
+	.aw-workshop-nav-button-primary {
+		font-weight: 800;
+		background: var(--sl-color-accent);
+		color: var(--sl-color-text-invert);
+		border-color: transparent;
+		box-shadow: 0 12px 28px rgba(var(--aw-accent-rgb), 0.22);
+	}
+
+	@media (max-width: 72rem) {
+		.aw-workshop-lesson-shell {
+			grid-template-columns: 1fr;
+		}
+
+		.aw-workshop-lesson-rail {
+			position: static;
+		}
+	}
+
+	@media (max-width: 50rem) {
+		.aw-workshop-picker {
+			padding: 0.85rem;
+		}
+
+		.aw-workshop-flow-header,
+		.aw-workshop-panel-header,
+		.aw-workshop-panel-footer {
+			flex-direction: column;
+		}
+
+		.aw-workshop-inline-button,
+		.aw-workshop-nav-button {
+			width: 100%;
+			justify-content: center;
+			text-align: center;
+		}
+	}
+
+	@keyframes aw-workshop-enter {
+		from {
+			opacity: 0;
+			transform: translateY(0.6rem);
+		}
+
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+</style>

@@ -304,6 +304,48 @@ function applyCopilotModelAliasResolution(options) {
 }
 
 /**
+ * Auto-configure COPILOT_PROVIDER_WIRE_API based on the resolved COPILOT_MODEL.
+ *
+ * Skips configuration when COPILOT_PROVIDER_WIRE_API is already set so that
+ * explicit engine.env values always take precedence. Looks up the wire_api for
+ * the current COPILOT_MODEL in the github-copilot provider section of models.json.
+ *
+ * @param {{
+ *   modelsJson: Record<string, unknown> | null,
+ *   logger?: (msg: string) => void,
+ * }} options
+ */
+function applyCopilotWireAPI({ modelsJson, logger = log }) {
+  if (process.env.COPILOT_PROVIDER_WIRE_API) {
+    logger(`COPILOT_PROVIDER_WIRE_API already set to ${process.env.COPILOT_PROVIDER_WIRE_API} — skipping auto-configure`);
+    return; // User override wins — do not auto-configure.
+  }
+  const modelName = typeof process.env.COPILOT_MODEL === "string" ? process.env.COPILOT_MODEL.trim() : "";
+  if (!modelName) return;
+
+  // Look up wire_api for the resolved model in the github-copilot provider catalog.
+  const providers = modelsJson !== null && typeof modelsJson === "object" && "providers" in modelsJson ? modelsJson.providers : null;
+  const githubCopilotData = providers !== null && typeof providers === "object" && "github-copilot" in providers ? providers["github-copilot"] : null;
+  const models = githubCopilotData !== null && typeof githubCopilotData === "object" && "models" in githubCopilotData ? githubCopilotData.models : null;
+  if (!models || typeof models !== "object") return;
+
+  // Strip query parameters before catalog lookup (e.g. "gpt-5-mini?effort=high" → "gpt-5-mini").
+  const baseModelName = modelName.split("?")[0];
+  // Case-insensitive lookup.
+  const normalizedModelName = baseModelName.toLowerCase();
+  for (const [key, value] of Object.entries(models)) {
+    if (key.toLowerCase() === normalizedModelName) {
+      const wireApi = value !== null && typeof value === "object" && "wire_api" in value ? value.wire_api : null;
+      if (wireApi && typeof wireApi === "string") {
+        logger(`auto-configuring COPILOT_PROVIDER_WIRE_API=${wireApi} for model ${modelName}`);
+        process.env.COPILOT_PROVIDER_WIRE_API = wireApi;
+      }
+      return;
+    }
+  }
+}
+
+/**
  * Check whether a model is present in AWF /reflect endpoint data.
  * @param {string} model
  * @param {unknown} reflectData
@@ -659,7 +701,11 @@ function writeCopilotOutputs(results) {
     `model_not_supported_error=${results.modelNotSupportedError}`,
     `http_400_response_error=${results.http400ResponseError}`,
   ];
-  fs.appendFileSync(outputFile, lines.join("\n") + "\n");
+  try {
+    fs.appendFileSync(outputFile, lines.join("\n") + "\n");
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
@@ -863,6 +909,7 @@ async function main() {
   }
 
   applyCopilotModelAliasResolution({ awfReflectData, logger: log });
+  applyCopilotWireAPI({ modelsJson: loadModelsJson(), logger: log });
 
   // Resolve BYOK provider from live reflect data (SDK mode only).
   // Multi-provider BYOK is the only supported mode — fail immediately if the
@@ -1347,6 +1394,7 @@ if (typeof module !== "undefined" && module.exports) {
     isCAPIQuotaExceededError,
     hasTerminalSafeOutput,
     applyCopilotModelAliasResolution,
+    applyCopilotWireAPI,
     loadAwfConfigData,
   };
 }

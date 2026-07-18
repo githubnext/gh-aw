@@ -430,7 +430,12 @@ async function main(config = {}) {
       }
     }
 
-    let patchContent = fs.readFileSync(patchFilePath, "utf8");
+    let patchContent;
+    try {
+      patchContent = fs.readFileSync(patchFilePath, "utf8");
+    } catch (err) {
+      throw new Error(`Failed to read file ${patchFilePath}: ${String(err)}`, { cause: err });
+    }
 
     // Check for actual error conditions
     if (patchContent.includes("Failed to generate patch")) {
@@ -563,7 +568,12 @@ async function main(config = {}) {
           }
 
           if (patchFilePath && fs.existsSync(patchFilePath)) {
-            const patchStats = fs.readFileSync(patchFilePath, "utf8");
+            let patchStats;
+            try {
+              patchStats = fs.readFileSync(patchFilePath, "utf8");
+            } catch (err) {
+              throw new Error(`Failed to read file ${patchFilePath}: ${String(err)}`, { cause: err });
+            }
             if (patchStats.trim()) {
               content += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
               content += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;

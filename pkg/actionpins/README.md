@@ -26,6 +26,20 @@ Resolution supports two modes:
 | `ResolutionFailure` | struct | Captures an unresolved action-ref pinning event (repo, ref, error type) |
 | `PinContext` | struct | Runtime context for resolution (resolver, strict mode, warning dedupe map, action-pin mappings) |
 
+#### `PinContext` fields
+
+| Field | Type | Description |
+|---|---|---|
+| `Ctx` | `context.Context` | Context propagated into dynamic SHA resolution calls; defaults to `context.Background()` when nil |
+| `Resolver` | `SHAResolver` | Dynamic `repo@version` → SHA resolver (optional) |
+| `StrictMode` | `bool` | Enables strict handling for unresolved refs |
+| `EnforcePinned` | `bool` | Requires unresolved refs to fail unless `AllowActionRefs` is enabled |
+| `AllowActionRefs` | `bool` | Downgrades unresolved pinning failures to warnings |
+| `Warnings` | `map[string]bool` | Shared warning dedupe map keyed by `repo@version` |
+| `RecordResolutionFailure` | `func(ResolutionFailure)` | Optional callback for unresolved pinning events |
+| `SkipHardcodedFallback` | `bool` | Skips version→SHA hardcoded fallback after dynamic resolver failure while preserving SHA→version labeling |
+| `Mappings` | `map[string]string` | Optional `owner/repo@ref` remapping before pin resolution |
+
 ### Functions
 
 | Function | Signature | Description |

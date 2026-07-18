@@ -158,6 +158,30 @@ Meta-orchestrators use a shared repository memory branch (`memory/meta-orchestra
 - Workflow Health Manager identifies that Agent Performance Analyzer found quality issues in a specific workflow
 - Agent Performance Analyzer notes that Campaign Manager deprioritized a campaign, reducing urgency of related improvements
 
+### Safeguards
+
+The shared memory path `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/` is ephemeral and may be absent or unreadable at runtime. Meta-orchestrators **must** treat it as optional and degrade gracefully under the following failure modes:
+
+1. **Memory path missing (fresh environment):** The `/tmp/gh-aw/repo-memory-default/` directory may not exist on the first run or in a freshly provisioned runner. Each meta-orchestrator must check for path existence before reading and continue without historical context if the directory is absent. No error should be surfaced to the user; instead, the orchestrator starts with an empty baseline.
+
+2. **Memory branch unreadable (checkout failure):** If the `memory/meta-orchestrators` branch fails to check out (e.g., the branch was deleted, a network error occurred, or the repo-memory action is unavailable), the orchestrator must log a warning and proceed with in-session data only. Avoid writing to a failed checkout path, as doing so could corrupt subsequent reads.
+
+3. **Stale or corrupted memory file:** A shared file (e.g., `shared-alerts.md`) may contain truncated content due to a previous run crashing mid-write. Each orchestrator must validate that the file is parseable before consuming it. If parsing fails, the file should be treated as absent and overwritten with a fresh snapshot at the end of the run.
+
+4. **Concurrent write collision:** All three meta-orchestrators run on the same daily schedule and could write to the same memory branch simultaneously. Memory writes must be treated as best-effort: if a push fails due to a concurrent update, the orchestrator logs a warning and proceeds without blocking. Consumers must tolerate reading a version written by a sibling run from the previous cycle.
+
+5. **Permission denied on memory branch:** If the GitHub token used for the run lacks permission to push to the `memory/meta-orchestrators` branch (e.g., PR-scoped token restrictions), the orchestrator must skip the write step and emit a single warning rather than failing the entire run.
+
+### Operations Order
+
+When all three meta-orchestrators are triggered simultaneously (e.g., on the same daily schedule), the following order governs their execution and memory access:
+
+1. **Workflow Health Manager** — runs first. It has no dependency on the other orchestrators' outputs and produces the foundational health snapshot (`workflow-health-latest.md`) that the other two may read.
+2. **Campaign Manager** — runs second. It reads the workflow health snapshot to cross-reference failing workflows against active campaigns before writing `campaign-manager-latest.md`.
+3. **Agent Performance Analyzer** — runs third. It reads both workflow health and campaign data to provide context-aware quality assessments and writes `agent-performance-latest.md`.
+
+**Concurrency contract:** Because the three workflows are scheduled independently and GitHub Actions does not guarantee serial execution, they may overlap. Each orchestrator must be designed to produce a correct result using only the memory snapshot present at its *start*, without assuming that sibling orchestrators have already completed. The ordering above is the *recommended* sequence for coordinated scheduling; it is not enforced by the platform.
+
 ## How Meta-Orchestrators Work
 
 ### Discovery

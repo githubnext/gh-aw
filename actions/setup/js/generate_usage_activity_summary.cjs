@@ -463,7 +463,11 @@ function main() {
 
   // Write summary to file
   const outputPath = "/tmp/gh-aw/usage/activity/summary.json";
-  fs.writeFileSync(outputPath, JSON.stringify(summary, null, 2), "utf-8");
+  try {
+    fs.writeFileSync(outputPath, JSON.stringify(summary, null, 2), "utf-8");
+  } catch (err) {
+    throw new Error(`Failed to write file ${outputPath}: ${String(err)}`, { cause: err });
+  }
   console.log(outputPath);
 }
 

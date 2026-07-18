@@ -140,6 +140,27 @@ func mergeThreatDetectionEngineEnv(data *WorkflowData, detectionEnv map[string]s
 	return merged
 }
 
+// buildExternalDetectorWorkflowData creates the base WorkflowData for an external
+// detector step. It calls buildThreatDetectionWorkflowData and then applies the
+// detection engine config, env, and APITarget inheritance that is shared by both
+// the install step and the execution step. Callers add step-specific overrides
+// (such as network permissions or mounts) on top of the returned value.
+func buildExternalDetectorWorkflowData(data *WorkflowData, engineID string) *WorkflowData {
+	d := buildThreatDetectionWorkflowData(data, engineID)
+	d.Tools = map[string]any{
+		"bash": []any{"*"},
+	}
+	d.EngineConfig = &EngineConfig{ID: engineID}
+	if canReuseThreatDetectionEngineConfigForExternalDetector(data, engineID) {
+		d.EngineConfig = cloneThreatDetectionEngineConfig(engineID, data.SafeOutputs.ThreatDetection.EngineConfig)
+	}
+	d.EngineConfig.Env = mergeThreatDetectionEngineEnv(data, d.EngineConfig.Env)
+	if d.EngineConfig.APITarget == "" && data.EngineConfig != nil {
+		d.EngineConfig.APITarget = data.EngineConfig.APITarget
+	}
+	return d
+}
+
 // cloneThreatDetectionEngineConfig returns a shallow copy of source with engine ID
 // normalized to the provided detection engineID. If source is nil, it returns a
 // minimal config containing only the ID.

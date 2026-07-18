@@ -175,14 +175,22 @@ function writeOutputs(results) {
   }
 
   const lines = buildOutputLines(results);
-  fs.appendFileSync(outputFile, lines.join("\n") + "\n");
+  try {
+    fs.appendFileSync(outputFile, lines.join("\n") + "\n");
+  } catch (err) {
+    process.stderr.write(`[detect-agent-errors] Failed to write to GITHUB_OUTPUT: ${String(err)}\n`);
+  }
 }
 
 function main() {
   let logContent = "";
 
   if (fs.existsSync(LOG_FILE)) {
-    logContent = fs.readFileSync(LOG_FILE, "utf8");
+    try {
+      logContent = fs.readFileSync(LOG_FILE, "utf8");
+    } catch (err) {
+      throw new Error(`Failed to read file ${LOG_FILE}: ${String(err)}`, { cause: err });
+    }
   } else {
     process.stderr.write(`[detect-agent-errors] Log file not found: ${LOG_FILE}\n`);
   }

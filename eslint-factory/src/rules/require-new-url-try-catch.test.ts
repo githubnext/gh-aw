@@ -19,7 +19,13 @@ const esmRuleTester = new RuleTester({
 describe("require-new-url-try-catch", () => {
   it("valid: new URL with string literal is always safe (CommonJS)", () => {
     cjsRuleTester.run("require-new-url-try-catch", requireNewUrlTryCatchRule, {
-      valid: [`const u = new URL("https://github.com");`, `const u = new URL("https://github.com/owner/repo");`, `const u = new URL(\`https://github.com/static\`);`],
+      valid: [
+        `const u = new URL("https://github.com");`,
+        `const u = new URL("https://github.com/owner/repo");`,
+        `const u = new URL(\`https://github.com/static\`);`,
+        `const u = new URL("https://github.com" + "/owner/repo");`,
+        `const u = new URL("https://github.com" + \`/static\` + "/path");`,
+      ],
       invalid: [],
     });
   });
@@ -60,6 +66,7 @@ describe("require-new-url-try-catch", () => {
       valid: [
         // First arg is static, base is import.meta.url — never throws
         `new URL("./relative/path", import.meta.url);`,
+        `const u = new URL(import.meta.url);`,
         // First arg is dynamic but we're inside try
         `try { new URL(path, import.meta.url); } catch (e) {}`,
       ],
@@ -130,6 +137,23 @@ describe("require-new-url-try-catch", () => {
           errors: [
             {
               messageId: "requireTryCatch",
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: new URL with string concatenation containing variables (CommonJS)", () => {
+    cjsRuleTester.run("require-new-url-try-catch", requireNewUrlTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const u = new URL(host + "/x");`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { arg: 'host + "/x"' },
             },
           ],
         },
