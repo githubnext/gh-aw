@@ -394,7 +394,9 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			const stepMap = new Map(steps.map((step) => [step.key, step]));
 			const allStepKeys = steps.map((step) => step.key);
 			const initialStep = root.getAttribute('data-initial-step') || steps[0]?.key || '';
-			const defaultEntryPath = manifest.entryPaths.find((item) => item.journeyId === manifest.defaults.journeyId) || manifest.entryPaths[0];
+			const defaultEntryPath = manifest.entryPaths.find((item) => item.journeyId === manifest.defaults.journeyId)
+				|| manifest.entryPaths[0]
+				|| { id: '', journeyId: manifest.defaults.journeyId };
 			const createDefaultState = () => ({
 				entryPathId: defaultEntryPath?.id,
 				journeyId: defaultEntryPath?.journeyId || manifest.defaults.journeyId,
