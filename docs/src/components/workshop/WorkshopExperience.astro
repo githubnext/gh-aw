@@ -1039,8 +1039,8 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				}
 			};
 
-<<<<<<< HEAD
 			const showSetup = (opts = {}) => {
+				const shouldScroll = opts.scroll !== false;
 				setupScreen.hidden = false;
 				tutorialScreen.hidden = true;
 				root.classList.remove('is-tutorial-active');
@@ -1048,18 +1048,9 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				if (opts.pushHistory !== false) {
 					history.pushState(null, '', buildHashUrl('setup-workspace', null, null, null));
 				}
-				root.scrollIntoView({ behavior: 'smooth', block: 'start' });
-=======
-			const showSetup = (options = {}) => {
-				const shouldScroll = options.scroll !== false;
-				setupScreen.hidden = false;
-				tutorialScreen.hidden = true;
-				root.classList.remove('is-tutorial-active');
-				showSetupStep('workspace');
 				if (shouldScroll) {
 					root.scrollIntoView({ behavior: 'smooth', block: 'start' });
 				}
->>>>>>> origin/main
 			};
 
 			const showTutorial = (opts = {}) => {
@@ -1300,17 +1291,17 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				}
 			});
 
-<<<<<<< HEAD
 			// Routes the UI to the screen described by a parsed hash state object,
 			// without pushing a new history entry (used by popstate and initial load).
-			const routeToScreen = (parsed) => {
+			const routeToScreen = (parsed, opts = {}) => {
+				const scroll = opts.scroll !== false;
 				if (parsed.screen === 'tutorial') {
 					showTutorial({ pushHistory: false });
 				} else if (parsed.screen === 'setup-scenario') {
-					showSetup({ pushHistory: false });
+					showSetup({ pushHistory: false, scroll });
 					showSetupStep('scenario', { pushHistory: false });
 				} else {
-					showSetup({ pushHistory: false });
+					showSetup({ pushHistory: false, scroll });
 				}
 			};
 
@@ -1323,13 +1314,9 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 			// Replace the initial history entry so that back navigation from this page works correctly,
 			// then route to the screen encoded in the URL hash (or the default setup screen).
-			history.replaceState(null, '', window.location.href);
-			routeToScreen(hashOnLoad);
-=======
 			ensureCurrentStepIsVisible();
-			render();
-			showSetup({ scroll: false });
->>>>>>> origin/main
+			history.replaceState(null, '', window.location.href);
+			routeToScreen(hashOnLoad, { scroll: false });
 		}
 	</script>
 </section>
