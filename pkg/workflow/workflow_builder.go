@@ -473,9 +473,11 @@ func mergeExcludedEnvVarNames(fromImports, fromMain []string) []string {
 	if len(fromImports) == 0 && len(fromMain) == 0 {
 		return nil
 	}
-	// Use separate capacity hints to avoid integer overflow when summing two lengths.
-	seen := make(map[string]bool, len(fromImports))
-	merged := make([]string, 0, len(fromImports))
+	// Use max() for capacity hints: overflow-safe (no addition) and a tighter
+	// lower-bound than either length alone.
+	hint := max(len(fromImports), len(fromMain))
+	seen := make(map[string]bool, hint)
+	merged := make([]string, 0, hint)
 	for _, name := range fromImports {
 		if !seen[name] {
 			seen[name] = true
