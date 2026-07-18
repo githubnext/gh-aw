@@ -80,7 +80,7 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error {
 
 	actionMode := opts.ActionMode
 	if actionMode == "" {
-		actionMode = ActionModeDev
+		actionMode = DetectActionMode(opts.Version)
 	}
 
 	seed := buildAutoUpdateSeed(opts.RepoSlug, actionMode)
