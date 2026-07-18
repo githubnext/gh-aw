@@ -18,8 +18,8 @@ func isAlreadyMergedGHError(err error) bool {
 	if err == nil {
 		return false
 	}
-	//nolint:errstringmatch // gh pr merge reports already-merged states only via CLI text.
-	return strings.Contains(err.Error(), "already merged") || strings.Contains(err.Error(), "MERGED")
+	errMsg := err.Error()
+	return strings.Contains(errMsg, "already merged") || strings.Contains(errMsg, "MERGED")
 }
 
 // createWorkflowPRAndConfigureSecret creates the PR, merges it, and adds the secret

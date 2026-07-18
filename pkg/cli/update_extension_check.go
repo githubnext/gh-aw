@@ -430,12 +430,12 @@ func isWindowsLockError(output string, err error) bool {
 		// remove, which is a symptom of the same locked-binary problem.
 		"failed to remove previous extension update state",
 	}
+	errMsg := ""
+	if err != nil {
+		errMsg = err.Error()
+	}
 	for _, msg := range lockMsgs {
-		if strings.Contains(output, msg) {
-			return true
-		}
-		//nolint:errstringmatch // gh extension upgrade reports Windows locked-binary failures only via stderr text fragments.
-		if err != nil && strings.Contains(err.Error(), msg) {
+		if strings.Contains(output, msg) || strings.Contains(errMsg, msg) {
 			return true
 		}
 	}
