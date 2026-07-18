@@ -7,6 +7,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -502,9 +503,26 @@ func isEngineDefinitionForm(def *EngineDefinition) bool {
 	return def.Models.Default != "" || len(def.Models.Supported) > 0 || len(def.Options) > 0
 }
 
+// engineDefinitionCache caches the parsed EngineDefinition for a given JSON input string.
+// Built-in engine definitions (e.g. copilot, claude, codex) are re-parsed on every
+// CompileWorkflow call due to the import injection mechanism, but the JSON input is
+// always identical for the same engine. Caching avoids the repeated JSON→any→YAML→struct
+// round-trip that accounted for ~24% of BenchmarkCompileMCPWorkflow wall-clock time.
+//
+// Stored values are EngineDefinition values (not pointers) so cached entries are
+// never mutated by callers that modify the returned pointer's fields.
+var engineDefinitionCache sync.Map // map[string]EngineDefinition
+
 func parseEngineDefinitionFromJSON(engineJSON string) (*EngineDefinition, error) {
 	if engineJSON == "" {
 		return nil, nil
+	}
+	// Fast path: return a copy of the cached definition when available.
+	if cached, ok := engineDefinitionCache.Load(engineJSON); ok {
+		if def, ok := cached.(EngineDefinition); ok {
+			defCopy := def
+			return &defCopy, nil
+		}
 	}
 	var engineData any
 	if err := json.Unmarshal([]byte(engineJSON), &engineData); err != nil {
@@ -524,7 +542,10 @@ func parseEngineDefinitionFromJSON(engineJSON string) (*EngineDefinition, error)
 	if def.RuntimeID == "" {
 		def.RuntimeID = def.ID
 	}
-	return &def, nil
+	// Store a value copy so the cache entry is never mutated by callers.
+	engineDefinitionCache.Store(engineJSON, def)
+	defCopy := def
+	return &defCopy, nil
 }
 
 func (c *Compiler) registerNamedEngineDefinitionFromJSON(engineJSON string) error {
