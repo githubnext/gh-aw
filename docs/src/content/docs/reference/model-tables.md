@@ -35,6 +35,7 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `gpt-5-codex` | `copilot/gpt-5*codex*`, `openai/gpt-5*codex*` |
 | `coding` | `copilot/gpt-5*codex*`, `openai/gpt-5*codex*`, `gpt-5-codex`, `kimi` |
 | `mai-code` | `copilot/MAI-Code*`, `copilot/mai-code*`, `openai/MAI-Code*` |
+| `mai-code-1-flash-picker` | `copilot/MAI-Code-1-Flash-picker*`, `copilot/mai-code-1-flash-picker*`, `openai/MAI-Code-1-Flash-picker*` |
 | `kimi` | `copilot/kimi*`, `openai/kimi*` |
 | `kiwi` | `copilot/kiwi*`, `openai/kiwi*` |
 | `gpt-5-pro` | `copilot/gpt-5*pro*`, `openai/gpt-5*pro*` |
