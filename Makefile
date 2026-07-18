@@ -260,13 +260,14 @@ test-impacted-js: build-js
 	fi; \
 	CHANGED_SETUP_JS_FILES=$$(printf '%s\n' "$$CHANGED_JS_FILES" | grep '^actions/setup/js/' || true); \
 	CHANGED_ESLINT_FACTORY_FILES=$$(printf '%s\n' "$$CHANGED_JS_FILES" | grep '^eslint-factory/' || true); \
+	ROOT=$$(pwd); \
 	if [ -n "$$CHANGED_SETUP_JS_FILES" ]; then \
 		echo "Running impacted JavaScript unit tests in actions/setup/js for changed files: $$CHANGED_SETUP_JS_FILES"; \
-		cd actions/setup/js && printf '%s\n' "$$CHANGED_SETUP_JS_FILES" | sed 's|^actions/setup/js/||' | tr '\n' '\0' | xargs -0 -r npm run test:js -- --no-file-parallelism --passWithNoTests $(JS_IMPACTED_TEST_EXCLUDES); \
+		cd "$$ROOT/actions/setup/js" && printf '%s\n' "$$CHANGED_SETUP_JS_FILES" | sed 's|^actions/setup/js/||' | tr '\n' '\0' | xargs -0 -r npm run test:js -- --no-file-parallelism --passWithNoTests $(JS_IMPACTED_TEST_EXCLUDES); \
 	fi; \
 	if [ -n "$$CHANGED_ESLINT_FACTORY_FILES" ]; then \
 		echo "Running eslint-factory tests for changed files: $$CHANGED_ESLINT_FACTORY_FILES"; \
-		cd eslint-factory && npm test; \
+		cd "$$ROOT/eslint-factory" && npm test; \
 	fi
 
 # Test impacted Go unit tests only (excluding integration tests)

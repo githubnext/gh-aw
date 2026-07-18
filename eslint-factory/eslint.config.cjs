@@ -31,6 +31,7 @@ module.exports = [
       "gh-aw-custom/require-return-after-core-setfailed": "warn",
       "gh-aw-custom/require-spawnsync-error-check": "warn",
       "gh-aw-custom/require-new-url-try-catch": "warn",
+      "gh-aw-custom/prefer-core-logging": "warn",
       "gh-aw-custom/no-core-error-then-process-exit": "warn",
     },
   },
