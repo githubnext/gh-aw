@@ -1,8 +1,9 @@
 // Package linters is a namespace for gh-aw's custom Go analysis linters.
 //
-// All 51 active analyzers:
+// All 52 active analyzers:
 //
 //   - appendbytestring — flags append(b, []byte(s)...) calls where s is a string that can be simplified to append(b, s...)
+//   - appendoneelement — flags append(s, []T{x}...) calls where a single-element slice literal is spread and can be simplified to append(s, x)
 //   - bytesbufferstring — reports string(buf.Bytes()) calls where buf is a bytes.Buffer value and suggests buf.String() instead
 //   - bytescomparestring — flags string(a) == string(b) and string(a) != string(b) comparisons where a and b are []byte values and recommends bytes.Equal for clearer intent
 //   - contextcancelnotdeferred — flags context cancel functions called directly instead of deferred

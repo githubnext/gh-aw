@@ -142,8 +142,79 @@ function transformTables(html: string) {
 	});
 }
 
+function rewriteGfmAlerts(html: string) {
+	// Pattern to detect a blockquote that opens with a GFM alert type marker.
+	const openingPattern = /<blockquote>\s*<p>\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]/giu;
+	let result = '';
+	let lastIndex = 0;
+	let match: RegExpExecArray | null;
+
+	while ((match = openingPattern.exec(html)) !== null) {
+		const matchStart = match.index;
+		const type = match[1];
+		const afterTypeStart = matchStart + match[0].length;
+
+		// Locate the matching </blockquote> by counting nesting depth so that
+		// blockquotes nested inside the alert body are handled correctly.
+		let depth = 1;
+		let searchPos = afterTypeStart;
+		let foundClose = -1;
+
+		while (depth > 0 && searchPos < html.length) {
+			const nextOpen = html.indexOf('<blockquote', searchPos);
+			const nextClose = html.indexOf('</blockquote>', searchPos);
+
+			if (nextClose === -1) break; // malformed HTML — leave as-is
+
+			if (nextOpen !== -1 && nextOpen < nextClose) {
+				depth++;
+				searchPos = nextOpen + '<blockquote'.length;
+			} else {
+				depth--;
+				if (depth === 0) {
+					foundClose = nextClose;
+					break;
+				}
+				searchPos = nextClose + '</blockquote>'.length;
+			}
+		}
+
+		if (foundClose === -1) {
+			// No matching close tag found; leave this blockquote untransformed.
+			continue;
+		}
+
+		const blockquoteEnd = foundClose + '</blockquote>'.length;
+		const afterType = html.slice(afterTypeStart, foundClose);
+
+		const cls = `aw-workshop-admonition-${type.toLowerCase()}`;
+		const title = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+		let inner: string;
+		if (afterType.startsWith('</p>')) {
+			// [!TYPE]</p><p>rest...</p> — type was alone in first paragraph
+			inner = afterType.slice(4).trim();
+		} else {
+			// [!TYPE]\ntext... — type and first line of content share a paragraph
+			const newlineIndex = afterType.indexOf('\n');
+			inner = newlineIndex >= 0 ? `<p>${afterType.slice(newlineIndex + 1)}` : afterType;
+			inner = inner.trim();
+		}
+
+		result += html.slice(lastIndex, matchStart);
+		result += `<aside class="${cls}"><p class="aw-workshop-admonition-title">${escapeHtml(title)}</p>${inner}</aside>`;
+		lastIndex = blockquoteEnd;
+		// Skip the regex past the entire consumed blockquote so it does not
+		// re-match patterns that appear inside the body we just replaced.
+		openingPattern.lastIndex = blockquoteEnd;
+	}
+
+	result += html.slice(lastIndex);
+	return result;
+}
+
 function rewriteWorkshopHtml(html: string) {
-	return transformTables(sanitizeWorkshopHtml(html)
+	return transformTables(rewriteGfmAlerts(sanitizeWorkshopHtml(html))
+
 		.replace(/<(\/?)h([1-4])\b/gu, (_match, slash, level) => {
 			return `<${slash}h${Math.min(Number(level) + 1, 4)}`;
 		})
@@ -1398,6 +1469,20 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		border-radius: 0.75rem;
 		background: rgba(var(--aw-accent-rgb), 0.09);
 		color: var(--aw-text-muted);
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-admonition-title) {
+		margin: 0 0 0.4rem;
+		font-size: 0.78rem;
+		font-weight: 700;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+		color: inherit;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-admonition-note) {
+		border-left-color: #4e9bf0;
+		background: rgba(78, 155, 240, 0.09);
 	}
 
 	.aw-workshop-step-content :global(.aw-workshop-admonition-warning),
