@@ -1,13 +1,15 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -26,7 +28,7 @@ const (
 
 // spawnMCPInspector launches the official @modelcontextprotocol/inspector tool
 // and spawns any stdio MCP servers beforehand
-func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) error {
+func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter string, verbose bool) error {
 	mcpInspectorLog.Printf("Spawning MCP inspector: workflow_file=%s, server_filter=%s", workflowFile, serverFilter)
 	// Check if npx is available
 	if _, err := exec.LookPath("npx"); err != nil {
@@ -35,7 +37,10 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 
 	var mcpConfigs []parser.RegistryMCPServerConfig
 	var serverProcesses []*exec.Cmd
-	var wg sync.WaitGroup
+
+	// g tracks all background MCP server monitor goroutines for structured concurrency.
+	// gctx is cancelled if any monitor returns a non-nil error or the parent ctx is done.
+	g, gctx := errgroup.WithContext(ctx)
 
 	// If workflow file is specified, extract MCP configurations and start servers
 	if workflowFile != "" {
@@ -141,19 +146,22 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 					mcpInspectorLog.Printf("Started MCP server %s (PID: %d, type: %s)", config.Name, cmd.Process.Pid, config.Type)
 					serverProcesses = append(serverProcesses, cmd)
 
-					// Monitor the process in the background
-					wg.Add(1)
-					go func(serverCmd *exec.Cmd, serverName string) {
-						defer wg.Done()
-						defer func() {
-							if r := recover(); r != nil {
-								mcpInspectorLog.Printf("Panic in MCP server monitor for %s (recovered): %v", serverName, r)
+					// Monitor the process in the background using errgroup for structured concurrency.
+					capturedCmd := cmd
+					capturedName := config.Name
+					g.Go(func() error {
+						// Background MCP servers are tolerant of exit errors: a server
+						// crashing should not abort the inspector session. Log the event
+						// and return nil so other monitors and the errgroup itself are
+						// unaffected.
+						if err := capturedCmd.Wait(); err != nil {
+							mcpInspectorLog.Printf("MCP server %s exited with error: %v", capturedName, err)
+							if verbose {
+								fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Server %s exited with error: %v", capturedName, err)))
 							}
-						}()
-						if err := serverCmd.Wait(); err != nil && verbose {
-							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Server %s exited with error: %v", serverName, err)))
 						}
-					}(cmd, config.Name)
+						return nil
+					})
 
 					if verbose {
 						fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Started server: %s (PID: %d)", config.Name, cmd.Process.Pid)))
@@ -208,21 +216,23 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 					time.Sleep(mcpProcessCleanupDelay)
 				}
 			}
-			// Wait for all background goroutines to finish (with timeout)
-			done := make(chan struct{})
+			// Wait for all monitoring goroutines to finish (with timeout).
+			waitDone := make(chan struct{})
 			go func() {
-				defer func() {
-					if r := recover(); r != nil {
-						mcpInspectorLog.Printf("Panic in MCP server cleanup wait (recovered): %v", r)
-					}
-				}()
-				wg.Wait()
-				close(done)
+				// Monitors always return nil; the error check is defensive in case
+				// error propagation is added to monitors in the future.
+				if err := g.Wait(); err != nil {
+					mcpInspectorLog.Printf("Error from MCP server monitor goroutine: %v", err)
+				}
+				close(waitDone)
 			}()
 
 			select {
-			case <-done:
-				// All finished
+			case <-waitDone:
+				// All monitoring goroutines finished cleanly.
+			case <-gctx.Done():
+				// Parent context cancelled; abandon waiting for monitor goroutines.
+				// The timeout case is not reached because select picks the first ready case.
 			case <-time.After(5 * time.Second):
 				// Timeout waiting for cleanup
 				if verbose {
