@@ -46,6 +46,15 @@ const SECRET_DOCS = {
 };
 
 /**
+ * Re-throws an AbortError as a "Request timeout" error; otherwise re-throws unchanged.
+ * @param {unknown} err
+ * @returns {never}
+ */
+function rethrowAbortError(err) {
+  throw err instanceof Error && err.name === "AbortError" ? new Error("Request timeout") : err;
+}
+
+/**
  * Make an HTTPS GET request
  * @param {string} hostname
  * @param {string} path
@@ -57,10 +66,8 @@ async function makeRequest(hostname, path, headers) {
     method: "GET",
     headers,
     signal: AbortSignal.timeout(10000),
-  }).catch(err => {
-    throw err instanceof Error && err.name === "AbortError" ? new Error("Request timeout") : err;
-  });
-  const data = await res.text();
+  }).catch(rethrowAbortError);
+  const data = await res.text().catch(rethrowAbortError);
   return { statusCode: res.status, data };
 }
 
@@ -80,10 +87,8 @@ async function makePostRequest(hostname, path, headers, body) {
     headers: hasContentType ? headers : { ...headers, "Content-Type": "application/json" },
     body,
     signal: AbortSignal.timeout(10000),
-  }).catch(err => {
-    throw err instanceof Error && err.name === "AbortError" ? new Error("Request timeout") : err;
-  });
-  const data = await res.text();
+  }).catch(rethrowAbortError);
+  const data = await res.text().catch(rethrowAbortError);
   return { statusCode: res.status, data };
 }
 
