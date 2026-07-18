@@ -8,7 +8,7 @@ If a task can be solved using deterministic tools, use deterministic tools. Only
 
 ## Quick-Reference Checklist
 
-Apply these in order — each check can halve costs:
+Apply these in order, measuring cost and quality after each change:
 
 - [ ] **Cheap triage first**: classify duplicates, stale items, low-value events, and known cases before escalating
 - [ ] **Frontier model as planner**: use frontier models for planning, synthesis, ambiguous decisions, and final judgment — not bulk extraction
@@ -22,6 +22,9 @@ Apply these in order — each check can halve costs:
 - [ ] **Pull context on demand**: query logs/data only after a hypothesis forms; avoid preloading large raw dumps into the initial prompt
 - [ ] **Prompt caching**: Put stable instructions before dynamic content to maximize cache hits
 - [ ] **Context hygiene**: keep the orchestrator context compact; prefer short worker summaries over raw output
+- [ ] **Harness-wide diagnosis**: classify failures across context, tools, generation, orchestration, memory, and output processing before changing configuration
+- [ ] **Execution experience**: retain compact diagnoses and outcomes, then reuse recurring patterns instead of restarting optimization from scratch
+- [ ] **Correctness first**: compare quality before cost; use AIC or token count only to choose among equally successful variants
 - [ ] **Cadence**: If the result is not time-sensitive, schedule less often (`hourly` → `daily`, `daily` → `weekly`)
 - [ ] **Batching**: Prefer scheduled batch processing over reactive events when delayed processing is acceptable
 - [ ] **Telemetry**: Configure `observability.otlp` so token usage and run phases are measurable outside individual run logs
@@ -358,7 +361,30 @@ Loop: export OTEL → summarize usage → open optimization issues → re-measur
 
 ---
 
-## Technique 8 — Enable Prompt Caching
+## Technique 8 — Learn from Harness Execution Experience
+
+Treat the agent harness as six separate control surfaces rather than one prompt:
+
+| Dimension | gh-aw control surface |
+|---|---|
+| Context assembly | Prompt structure, imports, DataOps, and context compression |
+| Tool interaction | Tool selection, `gh-proxy`, `cli-proxy`, permissions, and result filtering |
+| Generation control | Engine and model selection, `max-turns`, and `timeout-minutes` |
+| Orchestration | Deterministic steps, sub-agents, planning, execution, and refinement |
+| Memory management | `cache-memory`, `repo-memory`, summaries, and stale-context removal |
+| Output processing | Safe outputs, schema validation, fallbacks, and `noop` behavior |
+
+Start with the smallest known-good harness. For each experiment, record a compact entry containing task features, the configuration change, outcome quality, AIC/token cost, and the diagnosed failure dimension. Periodically distill repeated diagnoses into reusable patterns. For later cases, retrieve only relevant successes, failures, and patterns instead of repeating a broad search.
+
+Select changes **correctness first**: maximize the workflow's quality metric, then minimize AIC among variants with equivalent quality. This prevents a cheap but degraded result from winning.
+
+Prioritize this approach for long-horizon, tool-heavy workflows with measurable headroom. Keep retrieved experience stable and compact so prompt caching can offset its input-token overhead.
+
+These recommendations are based on [MemoHarness: Agent Harnesses That Learn from Experience](https://arxiv.org/pdf/2607.14159), which reports gains from experience-guided, case-adaptive harnesses across shell, code, and analytical tasks. Treat the results as directional: the primary held-out shell evaluation contains 18 tasks, component effects were not fully ablated, transfer was selective, and the reported cost advantage depended on a 93.9% prompt-cache hit rate.
+
+---
+
+## Technique 9 — Enable Prompt Caching
 
 Prompt caching is automatic via the AWF gateway. Cached input tokens are weighted at `0.1` versus `1.0` for uncached input — repeated context (system prompt, shared preamble) costs ~10× less when cached.
 
@@ -370,7 +396,7 @@ To maximize cache hits:
 
 ---
 
-## Technique 9 — Cap Spend with AI-Credit Guardrails
+## Technique 10 — Cap Spend with AI-Credit Guardrails
 
 Two top-level frontmatter fields enforce AI Credit budgets directly, independent of the techniques above. Both accept an integer or a `K`/`M` short-form string (e.g. `100M`, `500K`). Typical workflow range: `100` to `2500`.
 
@@ -393,6 +419,7 @@ For custom or private models, the top-level **`models:`** frontmatter field supp
 | Inline sub-agents syntax | [subagents.md](subagents.md) |
 | A/B experiments | [experiments.md](experiments.md) |
 | Persistent memory | [memory.md](memory.md) |
+| Experience-guided harness optimization | [MemoHarness](https://arxiv.org/pdf/2607.14159) |
 | DataOps pattern | [DataOps guide](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/data-ops.md) |
 | Audit command reference | [cli-commands.md](cli-commands.md) |
 | Frontmatter syntax | [syntax.md](syntax.md) |

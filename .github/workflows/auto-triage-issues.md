@@ -43,10 +43,21 @@ steps:
       GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
     run: |
       mkdir -p /tmp/gh-aw/agent
+      # Fetch issues with no labels at all
       gh api "repos/github/gh-aw/issues?state=open&labels=&per_page=30" \
         --jq '[.[] | select(.labels | length == 0) | {number: .number, title: .title, body: .body}]' \
         > /tmp/gh-aw/agent/unlabeled-issues.json
       echo "Unlabeled issues: $(jq length /tmp/gh-aw/agent/unlabeled-issues.json)"
+      # Also fetch issues that have only type labels (bug/enhancement/documentation/question)
+      # but are missing component labels — these slipped through partial triage
+      gh api "repos/github/gh-aw/issues?state=open&per_page=50" \
+        --jq '[.[] | select(
+          (.labels | length > 0) and
+          (.labels | length <= 2) and
+          (.labels | map(.name) | all(. == "bug" or . == "enhancement" or . == "documentation" or . == "question" or . == "community"))
+        ) | {number: .number, title: .title, body: .body, labels: [.labels[].name]}]' \
+        > /tmp/gh-aw/agent/partial-labeled-issues.json
+      echo "Partial-labeled issues (type-only, missing component): $(jq length /tmp/gh-aw/agent/partial-labeled-issues.json)"
 safe-outputs:
   add-labels:
     max: 10
@@ -87,7 +98,7 @@ When triggered by an issue event (opened/edited), scheduled run, or manual dispa
 When an issue is opened or edited:
 
 1. **Analyze the issue** that triggered this workflow (available in `github.event.issue`)
-2. **Check if the issue already has labels** — if it already has appropriate labels covering its type and component, call `noop` with "Issue #[N] already has labels: [comma-separated label names, e.g. bug, documentation]" and stop.
+2. **Check if the issue already has labels** — if it already has appropriate labels covering its type and component (both a type label and at least one component label where applicable), call `noop` with "Issue #[N] already has labels: [comma-separated label names, e.g. bug, safe-outputs]" and stop. **Do not stop early** if the issue has only a type label (e.g., `bug`) but no component label — proceed to add the missing component label.
 3. **Check if the author is a community member** — if `author_association` is `NONE`, `FIRST_TIME_CONTRIBUTOR`, `FIRST_TIMER`, or `CONTRIBUTOR`, and the author is **not** a bot (`user.type != "Bot"` and login does not end with `[bot]`), include `community` in the labels to apply
 4. **Classify the issue** based on its title and body content
 5. **Apply all labels** (including `community` if applicable) in a single `add_labels` call
@@ -98,23 +109,25 @@ When an issue is opened or edited:
 When running on schedule:
 
 1. **Read pre-fetched unlabeled issues** from `/tmp/gh-aw/agent/unlabeled-issues.json` (populated by the pre-agent step). If the file is missing or contains an empty JSON array (`[]`), fall back to `search_issues` with query `repo:github/gh-aw is:issue is:open no:label` — **do NOT use `list_issues`** as it returns an oversized payload.
-2. **If there are no unlabeled issues**, call `noop` with "No unlabeled issues found — no action needed" and stop. Do not create a discussion.
-3. **Process up to 10 unlabeled issues** (respecting safe-output limits)
-4. **Apply labels** to each issue based on classification; the pre-fetched data already includes `number`, `title`, and `body`. Only call `issue_read` when you need additional metadata not present in those fields (e.g., comments, reactions, or author association details not available in the pre-fetch).
-5. **Create a summary report** as a discussion with statistics on processed issues
+2. **Also read partially-labeled issues** from `/tmp/gh-aw/agent/partial-labeled-issues.json` — these are issues that have only generic type labels (`bug`, `enhancement`, `documentation`, `question`) but no component labels. Process these in the same pass to add missing component labels (e.g., `safe-outputs`, `mcp`, `copilot`). Skip this file if it's missing or empty.
+3. **If there are no unlabeled or partial-labeled issues**, call `noop` with "No unlabeled issues found — no action needed" and stop. Do not create a discussion.
+4. **Process up to 10 issues total** (respecting safe-output limits), prioritizing fully-unlabeled issues first
+5. **Apply labels** to each issue based on classification; the pre-fetched data already includes `number`, `title`, `body`, and `labels` (for partial-labeled). Only call `issue_read` when you need additional metadata not present in those fields (e.g., comments, reactions, or author association details not available in the pre-fetch).
+6. **Create a summary report** as a discussion with statistics on processed issues
 
 ### On Manual/On-Demand Runs (workflow_dispatch)
 
 When triggered manually as a backfill pass:
 
 1. **Fetch ALL open issues without any labels** using GitHub tools — do not limit to a fixed count
-2. **If there are no unlabeled issues**, call `noop` with "No unlabeled issues found during manual backfill — no action needed" and stop. Do not create a discussion.
+2. **Also fetch issues with only generic type labels** (`bug`, `enhancement`, `documentation`, `question`) but no component labels — run one `search_issues` query per type label, e.g. `repo:github/gh-aw is:issue is:open label:bug -label:safe-outputs -label:mcp -label:copilot -label:cli -label:compiler -label:workflows -label:security -label:performance -label:threat-detection` and similarly for `label:enhancement`, `label:documentation`, and `label:question`
+3. **If there are no unlabeled or partial-labeled issues**, call `noop` with "No unlabeled issues found during manual backfill — no action needed" and stop. Do not create a discussion.
 
 When unlabeled issues exist:
 
-3. **Process up to 10 unlabeled issues** in this run (respecting safe-output limits); if more exist, note the remainder in the report
-4. **Apply labels** to each issue based on classification rules below, using title/body heuristics and existing triage rules
-5. **Create a summary report** as a discussion listing every issue processed, the labels applied, and how many unlabeled issues (if any) still remain for the next pass
+4. **Process up to 10 issues** in this run (respecting safe-output limits); if more exist, note the remainder in the report
+5. **Apply labels** to each issue based on classification rules below, using title/body heuristics and existing triage rules
+6. **Create a summary report** as a discussion listing every issue processed, the labels applied, and how many unlabeled issues (if any) still remain for the next pass
 
 ## Classification Rules
 
@@ -153,14 +166,16 @@ Apply component labels based on mentioned areas:
 - `cli` - Mentions CLI commands, command-line interface, `gh aw` commands
 - `workflows` - Mentions workflow files, `.md` workflows, compilation, `.lock.yml`
 - `compiler` - Mentions `gh aw compile`, `.lock.yml` generation, frontmatter parsing, compilation pipeline
-- `mcp` - Mentions MCP servers, tools, integrations
+- `mcp` - Mentions MCP servers, tools, integrations, `tools/list`, MCP gateway, `awmg-mcpg`, CLI-mounted MCP servers
+- `safe-outputs` - Mentions safe-outputs, safeoutputs, `push_to_pull_request_branch`, `add_comment` via safeoutputs, `outputs.jsonl`, safe-output gateway, "unknown tool" on safeoutputs tools, `report_incomplete` (safeoutputs context)
+- `copilot` - Mentions Copilot engine, copilot CLI (`copilot` engine id), `--disable-builtin-mcps`, Copilot coding agent
 - `security` - Mentions security issues, vulnerabilities, CVE, authentication
 - `performance` - Mentions speed, performance, slow, optimization, memory usage
 - `threat-detection` - Mentions threat detection, detection job, `detection_agentic_execution`, safe outputs detection
 
 ### Priority Indicators
 
-- `priority-high` - Contains "critical", "urgent", "blocking", "important"
+- `high-priority` - Contains "critical", "urgent", "blocking", "important", "silent failure", "silent no-op", "silent green", "indistinguishable from", "laundered into", "masks real", "no channel to report", "every call fails"
 - `good first issue` - Explicitly labeled as beginner-friendly or mentions "first time", "newcomer"
 
 ### Community Label
