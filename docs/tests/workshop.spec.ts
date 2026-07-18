@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
+const PIXEL_TOLERANCE = 1;
+
 const workshopDevices = [
 	{ name: 'Galaxy S21', width: 360, height: 800 },
 	{ name: 'iPhone 12', width: 390, height: 844 },
@@ -87,12 +89,12 @@ test.describe('Workshop tutorial', () => {
 				};
 			});
 
-			expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth + 1);
+			expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth + PIXEL_TOLERANCE);
 			for (const bound of layout.bounds) {
 				expect(bound.exists).toBe(true);
 				if (!bound.exists) continue;
-				expect(bound.left).toBeGreaterThanOrEqual(-1);
-				expect(bound.right).toBeLessThanOrEqual(layout.viewportWidth + 1);
+				expect(bound.left).toBeGreaterThanOrEqual(-PIXEL_TOLERANCE);
+				expect(bound.right).toBeLessThanOrEqual(layout.viewportWidth + PIXEL_TOLERANCE);
 			}
 		});
 	}

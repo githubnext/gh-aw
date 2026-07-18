@@ -789,6 +789,12 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				return renderStepBody(step.body || '');
 			};
 
+			const calculateProgressPercent = (stepIndex, flowLength) => {
+				if (stepIndex < 0) return 0;
+				if (flowLength <= 1) return 100;
+				return Math.round((stepIndex / (flowLength - 1)) * 100);
+			};
+
 			const setupScreen = root.querySelector('[data-workshop-setup]');
 			const setupSteps = root.querySelectorAll('[data-workshop-setup-step]');
 			const tutorialScreen = root.querySelector('[data-workshop-tutorial]');
@@ -906,11 +912,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				const journey = manifest.journeys.find((item) => item.id === state.journeyId) || manifest.journeys[0];
 				const scenario = manifest.scenarios.find((item) => item.id === state.scenarioId) || manifest.scenarios[0];
 				const stepIndex = visibleFlow.indexOf(activeStep.key);
-				const progressPercent = stepIndex < 0
-					? 0
-					: visibleFlow.length <= 1
-						? 100
-						: Math.round((stepIndex / (visibleFlow.length - 1)) * 100);
+				const progressPercent = calculateProgressPercent(stepIndex, visibleFlow.length);
 				if (tunnelPanel) {
 					tunnelPanel.hidden = state.journeyId !== 'vscode' || setupStep !== 'scenario';
 				}
