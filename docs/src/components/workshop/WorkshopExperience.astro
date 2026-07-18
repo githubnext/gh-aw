@@ -154,7 +154,9 @@ function rewriteGfmAlerts(html: string) {
 		result += html.slice(lastIndex, matchStart);
 		result += `<aside class="${cls}"><p class="aw-workshop-admonition-title">${escapeHtml(title)}</p>${inner}</aside>`;
 		lastIndex = blockquoteEnd;
-		openingPattern.lastIndex = lastIndex;
+		// Skip the regex past the entire consumed blockquote so it does not
+		// re-match patterns that appear inside the body we just replaced.
+		openingPattern.lastIndex = blockquoteEnd;
 	}
 
 	result += html.slice(lastIndex);
