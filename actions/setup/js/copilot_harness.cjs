@@ -1170,6 +1170,20 @@ async function main() {
           break;
         }
 
+        // When the run fails with partial_execution and the safe-outputs file already contains a
+        // terminal result, treat the run as a success-with-late-activity rather than a
+        // retryable failure.  This covers the common case where the post-result watchdog fires
+        // because the agent kept running exploratory commands after its deliverable was ready
+        // (watchdogFired=true), as well as any other partial_execution failure that occurs
+        // after the primary task output was already produced.  Retrying would reproduce the
+        // same pattern and exhaust the retry budget without ever posting a final safe-output.
+        if (failureClass === "partial_execution" && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath)) {
+          const reason = result.watchdogFired ? "post-result watchdog fired after terminal safe-output was emitted" : "partial execution after terminal safe-output was already produced";
+          log(`attempt ${attempt + 1}: ${reason} — treating as success (late-activity exit suppressed)`);
+          lastExitCode = 0;
+          break;
+        }
+
         if (nonRetryableGuard.aiCreditsExceeded || nonRetryableGuard.awfAPIProxyBlockingRequests || isInvocationCapExceeded) {
           const reasons = [];
           if (nonRetryableGuard.aiCreditsExceeded) reasons.push("AI credits budget exceeded");
