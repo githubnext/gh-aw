@@ -23,11 +23,6 @@ engine:
   id: copilot
   model: mai-code-1-flash-picker
   bare: true
-  env:
-    # MAI-Code-1-Flash-picker uses the OpenAI Responses API; the Copilot CLI
-    # defaults custom providers to the legacy "completions" endpoint, which
-    # this model rejects with HTTP 400. Force the "responses" wire API instead.
-    COPILOT_PROVIDER_WIRE_API: responses
 network:
   allowed:
     - defaults

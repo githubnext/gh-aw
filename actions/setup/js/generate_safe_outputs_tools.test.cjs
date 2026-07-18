@@ -387,6 +387,90 @@ describe("generate_safe_outputs_tools", () => {
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "assign_to_user").description).not.toContain(intentSuffix);
   });
 
+  it("makes add_labels label items object-only with required name/rationale/confidence when issue_intent is true", () => {
+    const addLabelsSourceTool = {
+      name: "add_labels",
+      description: "Adds labels.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          labels: {
+            type: "array",
+            items: {
+              oneOf: [
+                { type: "string" },
+                {
+                  type: "object",
+                  required: ["name"],
+                  properties: {
+                    name: { type: "string" },
+                    rationale: { type: "string" },
+                    confidence: { type: "string" },
+                    suggest: { type: "boolean" },
+                  },
+                  additionalProperties: false,
+                },
+              ],
+            },
+          },
+        },
+        required: ["labels"],
+      },
+    };
+    fs.writeFileSync(toolsSourcePath, JSON.stringify([addLabelsSourceTool]));
+    fs.writeFileSync(configPath, JSON.stringify({ add_labels: { issue_intent: true } }));
+    fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const tool = result.find((/** @type {{name: string}} */ t) => t.name === "add_labels");
+    expect(tool).toBeDefined();
+    const items = tool.inputSchema.properties.labels.items;
+    // No longer a oneOf — plain strings are removed
+    expect(items.oneOf).toBeUndefined();
+    expect(items.type).toBe("object");
+    // name, rationale, and confidence are all required
+    expect(items.required).toEqual(expect.arrayContaining(["name", "rationale", "confidence"]));
+  });
+
+  it("does not modify add_labels label items schema when issue_intent is omitted or false", () => {
+    const addLabelsSourceTool = {
+      name: "add_labels",
+      description: "Adds labels.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          labels: {
+            type: "array",
+            items: {
+              oneOf: [{ type: "string" }, { type: "object", required: ["name"], properties: { name: { type: "string" } } }],
+            },
+          },
+        },
+        required: ["labels"],
+      },
+    };
+    fs.writeFileSync(toolsSourcePath, JSON.stringify([addLabelsSourceTool]));
+    // Test omitted (default)
+    fs.writeFileSync(configPath, JSON.stringify({ add_labels: {} }));
+    fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
+
+    runScript();
+
+    const defaultResult = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const defaultTool = defaultResult.find((/** @type {{name: string}} */ t) => t.name === "add_labels");
+    expect(defaultTool.inputSchema.properties.labels.items.oneOf).toBeDefined();
+
+    // Test explicit false
+    fs.writeFileSync(configPath, JSON.stringify({ add_labels: { issue_intent: false } }));
+    runScript();
+
+    const disabledResult = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const disabledTool = disabledResult.find((/** @type {{name: string}} */ t) => t.name === "add_labels");
+    expect(disabledTool.inputSchema.properties.labels.items.oneOf).toBeDefined();
+  });
+
   it("reflects required/optional/absent intent fields per tool configuration", () => {
     fs.writeFileSync(
       toolsSourcePath,

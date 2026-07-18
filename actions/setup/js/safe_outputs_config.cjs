@@ -70,7 +70,11 @@ function loadConfig(server) {
   const outputDir = path.dirname(outputFile);
   if (!fs.existsSync(outputDir)) {
     server.debug(`Creating output directory: ${outputDir}`);
-    fs.mkdirSync(outputDir, { recursive: true });
+    try {
+      fs.mkdirSync(outputDir, { recursive: true });
+    } catch (err) {
+      throw new Error(`Failed to create directory ${outputDir}: ${String(err)}`, { cause: err });
+    }
   }
 
   return {

@@ -61,7 +61,11 @@ function createShellHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
     server.debug(`  [${toolName}] Output file: ${outputFile}`);
 
     // Create the output file (empty)
-    fs.writeFileSync(outputFile, "");
+    try {
+      fs.writeFileSync(outputFile, "");
+    } catch (err) {
+      throw new Error(`Failed to write file ${outputFile}: ${String(err)}`, { cause: err });
+    }
 
     return executeProcess({
       server,

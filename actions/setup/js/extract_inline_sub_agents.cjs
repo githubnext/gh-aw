@@ -166,13 +166,21 @@ function writeInlineSubAgents(content, workspaceDir, agentsBaseDir, engineId) {
   const agentsDir = path.join(baseDir, dir);
   core.info(`[extractInlineSubAgents] Engine: "${engineId || "(default)"}" → dir="${dir}" ext="${ext}"`);
   core.info(`[extractInlineSubAgents] Writing ${agents.length} sub-agent(s) to: ${agentsDir}`);
-  fs.mkdirSync(agentsDir, { recursive: true });
+  try {
+    fs.mkdirSync(agentsDir, { recursive: true });
+  } catch (err) {
+    throw new Error(`Failed to create directory ${agentsDir}: ${String(err)}`, { cause: err });
+  }
 
   for (const agent of agents) {
     const agentPath = path.join(agentsDir, agent.name + ext);
     const filteredContent = preserveSubAgentFrontmatter(agent.content);
     const agentContent = filteredContent.endsWith("\n") ? filteredContent : filteredContent + "\n";
-    fs.writeFileSync(agentPath, agentContent, "utf8");
+    try {
+      fs.writeFileSync(agentPath, agentContent, "utf8");
+    } catch (err) {
+      throw new Error(`Failed to write file ${agentPath}: ${String(err)}`, { cause: err });
+    }
     core.info(`[extractInlineSubAgents] Written sub-agent: ${agentPath} (${agentContent.length} bytes)`);
   }
 

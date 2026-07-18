@@ -136,7 +136,11 @@ async function appendStepSummarySection(title, markdown) {
   const section = buildStepSummarySection(title, markdown);
   const summaryPath = process.env.GITHUB_STEP_SUMMARY;
   if (summaryPath) {
-    fs.appendFileSync(summaryPath, section, "utf8");
+    try {
+      fs.appendFileSync(summaryPath, section, "utf8");
+    } catch {
+      /* ignore */
+    }
     return;
   }
 

@@ -1,5 +1,6 @@
-import { AST_NODE_TYPES, AST_TOKEN_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, AST_TOKEN_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
 import { CORE_ALIASES } from "./core-aliases";
+import { isCoreAliasIdentifier, isDestructuredCoreMethodIdentifier } from "./core-method-resolve";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -167,63 +168,6 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
     const sourceCode = context.sourceCode;
 
     /**
-     * Checks whether an Identifier is a single-assignment alias for a core-like
-     * object (e.g., `const c = core`). Re-assigned let bindings are rejected.
-     * Local shadows (e.g., a parameter also named `c`) are excluded because they
-     * are found first in the scope chain and their definition type will not match.
-     */
-    function isCoreAliasIdentifier(identifier: TSESTree.Identifier): boolean {
-      let currentScope: TSESLint.Scope.Scope | null = sourceCode.getScope(identifier);
-      while (currentScope !== null) {
-        const variable = currentScope.set.get(identifier.name);
-        if (variable !== undefined) {
-          if (variable.defs.length !== 1) return false;
-          const def = variable.defs[0];
-          if (def.type !== "Variable") return false;
-          if (variable.references.some(ref => ref.isWrite() && !ref.init)) return false;
-          const declarator = def.node as TSESTree.VariableDeclarator;
-          if (!declarator.init) return false;
-          return declarator.id.type === AST_NODE_TYPES.Identifier && declarator.init.type === AST_NODE_TYPES.Identifier && isCoreLikeIdentifier(declarator.init.name);
-        }
-        currentScope = currentScope.upper;
-      }
-      return false;
-    }
-
-    /**
-     * Checks whether an Identifier is the destructured `setFailed` binding from
-     * a core-like object (e.g., `const { setFailed } = core` or
-     * `const { setFailed: sf } = core` where `sf` is the identifier).
-     * Re-assigned let bindings are rejected. Local `function setFailed()` or
-     * parameter shadows are excluded via the `def.type !== "Variable"` guard.
-     */
-    function isDestructuredSetFailedIdentifier(identifier: TSESTree.Identifier): boolean {
-      let currentScope: TSESLint.Scope.Scope | null = sourceCode.getScope(identifier);
-      while (currentScope !== null) {
-        const variable = currentScope.set.get(identifier.name);
-        if (variable !== undefined) {
-          if (variable.defs.length !== 1) return false;
-          const def = variable.defs[0];
-          if (def.type !== "Variable") return false;
-          if (variable.references.some(ref => ref.isWrite() && !ref.init)) return false;
-          const declarator = def.node as TSESTree.VariableDeclarator;
-          if (!declarator.init) return false;
-          if (declarator.id.type === AST_NODE_TYPES.ObjectPattern && declarator.init.type === AST_NODE_TYPES.Identifier && isCoreLikeIdentifier(declarator.init.name)) {
-            return declarator.id.properties.some(prop => {
-              if (prop.type !== AST_NODE_TYPES.Property || prop.computed) return false;
-              const keyIsSetFailed = prop.key.type === AST_NODE_TYPES.Identifier && prop.key.name === "setFailed";
-              const valueIsAlias = prop.value.type === AST_NODE_TYPES.Identifier && prop.value.name === identifier.name;
-              return keyIsSetFailed && valueIsAlias;
-            });
-          }
-          return false;
-        }
-        currentScope = currentScope.upper;
-      }
-      return false;
-    }
-
-    /**
      * Returns true when the statement is a call to core.setFailed(...) in any
      * recognized form:
      *  - Direct non-computed: core.setFailed(...)
@@ -244,12 +188,12 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
         const isComputedSetFailed = callee.computed && prop.type === AST_NODE_TYPES.Literal && prop.value === "setFailed";
         if ((isNonComputedSetFailed || isComputedSetFailed) && obj.type === AST_NODE_TYPES.Identifier) {
           if (isCoreLikeIdentifier(obj.name)) return true;
-          if (isCoreAliasIdentifier(obj)) return true;
+          if (isCoreAliasIdentifier(obj, sourceCode)) return true;
         }
       }
 
       if (callee.type === AST_NODE_TYPES.Identifier) {
-        if (isDestructuredSetFailedIdentifier(callee)) return true;
+        if (isDestructuredCoreMethodIdentifier(callee, "setFailed", sourceCode)) return true;
       }
 
       return false;

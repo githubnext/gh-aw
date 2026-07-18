@@ -132,15 +132,29 @@ async function resolveDispatchRef() {
   return normalizeDispatchRef(defaultBranch);
 }
 
+/** @typedef {"+1" | "-1" | "confused" | "eyes" | "heart" | "hooray" | "laugh" | "rocket"} ReactionName */
+
+/**
+ * @param {string} value
+ * @returns {value is ReactionName}
+ */
+function isReactionName(value) {
+  return Object.hasOwn(REACTION_MAP, value);
+}
+
+/**
+ * @param {unknown} reaction
+ * @returns {ReactionName | ""}
+ */
 function normalizeReaction(reaction) {
   if (typeof reaction !== "string") {
     return "";
   }
   const trimmed = reaction.trim();
-  if (!trimmed || trimmed === "none" || !Object.hasOwn(REACTION_MAP, trimmed)) {
+  if (!trimmed || trimmed === "none") {
     return "";
   }
-  return trimmed;
+  return isReactionName(trimmed) ? trimmed : "";
 }
 
 function maintainsStatusComment(route) {
@@ -150,7 +164,7 @@ function maintainsStatusComment(route) {
 /**
  * Returns the first valid non-"none" ai_reaction configured on matching routes.
  * @param {Array<{ai_reaction?: unknown}>} routes
- * @returns {string}
+ * @returns {ReactionName | ""}
  */
 function resolveImmediateReaction(routes) {
   for (const route of routes) {
@@ -177,7 +191,10 @@ async function addImmediateReaction(reaction) {
           core.warning("Skipping immediate reaction: issue number was not found in payload.");
           return;
         }
-        await github.request(`POST /repos/${owner}/${repo}/issues/${issueNumber}/reactions`, {
+        await github.request("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", {
+          owner,
+          repo,
+          issue_number: issueNumber,
           content: normalized,
           headers: { Accept: "application/vnd.github+json" },
         });
@@ -189,7 +206,10 @@ async function addImmediateReaction(reaction) {
           core.warning("Skipping immediate reaction: comment id was not found in payload.");
           return;
         }
-        await github.request(`POST /repos/${owner}/${repo}/issues/comments/${commentId}/reactions`, {
+        await github.request("POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions", {
+          owner,
+          repo,
+          comment_id: commentId,
           content: normalized,
           headers: { Accept: "application/vnd.github+json" },
         });
@@ -201,7 +221,10 @@ async function addImmediateReaction(reaction) {
           core.warning("Skipping immediate reaction: pull request number was not found in payload.");
           return;
         }
-        await github.request(`POST /repos/${owner}/${repo}/issues/${prNumber}/reactions`, {
+        await github.request("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", {
+          owner,
+          repo,
+          issue_number: prNumber,
           content: normalized,
           headers: { Accept: "application/vnd.github+json" },
         });
@@ -213,7 +236,10 @@ async function addImmediateReaction(reaction) {
           core.warning("Skipping immediate reaction: review comment id was not found in payload.");
           return;
         }
-        await github.request(`POST /repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`, {
+        await github.request("POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions", {
+          owner,
+          repo,
+          comment_id: reviewCommentId,
           content: normalized,
           headers: { Accept: "application/vnd.github+json" },
         });

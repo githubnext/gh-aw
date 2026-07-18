@@ -229,4 +229,87 @@ describe("no-core-exportvariable-non-string", () => {
       ],
     });
   });
+
+  it("valid: single-assignment const alias with string value is accepted", () => {
+    cjsRuleTester.run("no-core-exportvariable-non-string", noCoreExportVariableNonStringRule, {
+      valid: [`const c = core; c.exportVariable("MY_VAR", "hello");`, `const c = core; c.exportVariable("MY_VAR", someVariable);`, `const c = coreObj; c.exportVariable("MY_VAR", "hello");`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: single-assignment const alias with non-string value is flagged", () => {
+    cjsRuleTester.run("no-core-exportvariable-non-string", noCoreExportVariableNonStringRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const c = core; c.exportVariable("MY_COUNT", items.length);`,
+          errors: [{ messageId: "nonStringValue", suggestions: [{ messageId: "wrapWithString", output: `const c = core; c.exportVariable("MY_COUNT", String(items.length));` }] }],
+        },
+        {
+          code: `const c = core; c.exportVariable("READY", true);`,
+          errors: [{ messageId: "nonStringValue", suggestions: [{ messageId: "wrapWithString", output: `const c = core; c.exportVariable("READY", String(true));` }] }],
+        },
+        {
+          code: `const c = core; c.exportVariable("MY_VAR", null);`,
+          errors: [
+            {
+              messageId: "nonStringValue",
+              suggestions: [
+                { messageId: "useEmptyString", output: `const c = core; c.exportVariable("MY_VAR", "");` },
+                { messageId: "wrapWithString", output: `const c = core; c.exportVariable("MY_VAR", String(null));` },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("valid: let alias with reassignment is NOT flagged (not a safe const alias)", () => {
+    cjsRuleTester.run("no-core-exportvariable-non-string", noCoreExportVariableNonStringRule, {
+      valid: [`let c = core; c = other; c.exportVariable("MY_VAR", 1);`],
+      invalid: [],
+    });
+  });
+
+  it("valid: non-core const alias is NOT flagged", () => {
+    cjsRuleTester.run("no-core-exportvariable-non-string", noCoreExportVariableNonStringRule, {
+      valid: [`const c = other; c.exportVariable("MY_VAR", 1);`],
+      invalid: [],
+    });
+  });
+
+  it("valid: destructured exportVariable from core with string value is accepted", () => {
+    cjsRuleTester.run("no-core-exportvariable-non-string", noCoreExportVariableNonStringRule, {
+      valid: [`const { exportVariable } = core; exportVariable("MY_VAR", "hello");`, `const { exportVariable } = core; exportVariable("MY_VAR", someVariable);`, `const { exportVariable: ev } = core; ev("MY_VAR", "hello");`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: destructured exportVariable from core with non-string value is flagged", () => {
+    cjsRuleTester.run("no-core-exportvariable-non-string", noCoreExportVariableNonStringRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const { exportVariable } = core; exportVariable("MY_COUNT", items.length);`,
+          errors: [{ messageId: "nonStringValue", suggestions: [{ messageId: "wrapWithString", output: `const { exportVariable } = core; exportVariable("MY_COUNT", String(items.length));` }] }],
+        },
+        {
+          code: `const { exportVariable } = core; exportVariable("READY", true);`,
+          errors: [{ messageId: "nonStringValue", suggestions: [{ messageId: "wrapWithString", output: `const { exportVariable } = core; exportVariable("READY", String(true));` }] }],
+        },
+        {
+          code: `const { exportVariable: ev } = core; ev("MY_COUNT", items.length);`,
+          errors: [{ messageId: "nonStringValue", suggestions: [{ messageId: "wrapWithString", output: `const { exportVariable: ev } = core; ev("MY_COUNT", String(items.length));` }] }],
+        },
+      ],
+    });
+  });
+
+  it("valid: standalone exportVariable identifier from non-core source is NOT flagged", () => {
+    cjsRuleTester.run("no-core-exportvariable-non-string", noCoreExportVariableNonStringRule, {
+      valid: [`function exportVariable(k, v) {} exportVariable("MY_VAR", 1);`, `const { exportVariable } = other; exportVariable("MY_VAR", 1);`],
+      invalid: [],
+    });
+  });
 });
