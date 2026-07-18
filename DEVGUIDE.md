@@ -351,9 +351,10 @@ still holds the old schema.
 make build
 ```
 
-Running `go test ./pkg/parser/...` (or `make test-unit`) is also sufficient, because
-`go test` re-embeds the files. The `TestEmbeddedSchemasAreValid` test explicitly
-validates that every embedded schema is well-formed JSON and a compilable schema.
+Running `go test ./pkg/parser/...` (or `make test-unit`) validates that every
+embedded schema is well-formed JSON via the `TestEmbeddedSchemasAreValid` test,
+but it does **not** rebuild the `./gh-aw` CLI.  If you need the running CLI to
+reflect your schema edits, `make build` is still required.
 
 The `make check-stale-schema-binary` target (also run as part of `make lint`) uses
 `git diff` to detect schema-file changes and verifies the binary is up to date.

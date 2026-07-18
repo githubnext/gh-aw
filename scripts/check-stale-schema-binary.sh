@@ -78,14 +78,15 @@ fi
 collect_modified_files() {
     if [ -n "$BASE_REF" ]; then
         if git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
-            git diff --name-only "${BASE_REF}...HEAD" 2>/dev/null || true
+            git diff --name-only "${BASE_REF}...HEAD"
             return
         fi
         echo -e "${YELLOW}WARN${NC}: --base-ref not found (${BASE_REF}); falling back to working-tree check." >&2
     fi
 
-    # Local path: staged/unstaged changes relative to HEAD.
+    # Local path: staged/unstaged changes relative to HEAD plus untracked files.
     git diff --name-only HEAD 2>/dev/null || true
+    git ls-files --others --exclude-standard "$SCHEMAS_DIR" 2>/dev/null || true
 }
 
 all_modified=$(collect_modified_files)
@@ -123,21 +124,29 @@ fi
 # Note: git checkout does not preserve file timestamps, so this check is meaningful
 # only in a local working tree where file edits set real mtimes.  CI workflows should
 # always run `make build` before executing the binary regardless.
+#
+# For deleted schema files the individual path no longer exists; use the schemas
+# directory mtime as a proxy (directory mtime updates on any entry add/remove).
 stale_schemas=()
 while IFS= read -r f; do
     [ -n "$f" ] || continue
-    [ -f "$f" ] || continue
-    if [ "$f" -nt "$BINARY" ]; then
+    if [ -f "$f" ]; then
+        ref_path="$f"
+    else
+        # Deleted file: fall back to the schemas directory mtime.
+        ref_path="$SCHEMAS_DIR"
+    fi
+    if [ "$ref_path" -nt "$BINARY" ]; then
         stale_schemas+=("$f")
     fi
 done <<< "$modified_schemas"
 
 if [ ${#stale_schemas[@]} -eq 0 ]; then
-    echo -e "${GREEN}✓ Binary is up to date with all modified schema files.${NC}"
+    echo -e "${GREEN}✓ Binary is up to date with all schema changes.${NC}"
     exit 0
 fi
 
-echo -e "${RED}ERROR${NC}: The following schema file(s) are newer than the binary at '${BINARY}':"
+echo -e "${RED}ERROR${NC}: The following schema change(s) are not yet reflected in the binary at '${BINARY}':"
 echo ""
 for f in "${stale_schemas[@]}"; do
     echo "  $f"
@@ -148,5 +157,5 @@ echo ""
 echo "  make build"
 echo ""
 echo "Schema files are embedded at compile time via //go:embed."
-echo "Running \`go test ./pkg/parser/...\` is also sufficient to verify the embedded schemas."
+echo "Running \`go test ./pkg/parser/...\` validates schemas but does not rebuild the ./gh-aw binary."
 exit 1
