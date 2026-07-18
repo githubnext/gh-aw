@@ -13,6 +13,13 @@
       "notation": "TLA+ / F* / Z3",
       "predicate_count": 10,
       "issue_number": null
+    },
+    "specs/security-architecture-spec-validation.md": {
+      "slug": "security-architecture-spec-validation",
+      "last_formalized": "2026-07-18-15-41-29",
+      "notation": "TLA+ / Z3 / F*",
+      "predicate_count": 15,
+      "issue_number": null
     }
   }
 }
