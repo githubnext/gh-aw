@@ -72,16 +72,104 @@ const defaultMessage = {
 describe("missing_issue_helpers.cjs - buildMissingIssueHandler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Clear environment variable fallbacks between tests
+    delete process.env.GH_AW_WORKFLOW_NAME;
+    delete process.env.GH_AW_WORKFLOW_SOURCE_URL;
+    delete process.env.GITHUB_SERVER_URL;
+    delete process.env.GITHUB_REPOSITORY;
+    delete process.env.GITHUB_RUN_ID;
   });
 
   describe("validation", () => {
-    it("should return error when workflow_name is missing", async () => {
+    it("should return error when workflow_name is missing and env var not set", async () => {
       const handler = await buildMissingIssueHandler(makeOptions())({});
       const result = await handler({ test_items: [{ name: "x", reason: "y" }] });
 
       expect(result.success).toBe(false);
       expect(result.error).toBe("Missing required field: workflow_name");
       expect(mockCore.warning).toHaveBeenCalledWith("Missing required field: workflow_name");
+    });
+
+    it("should fall back to GH_AW_WORKFLOW_NAME env var when workflow_name is missing from message", async () => {
+      process.env.GH_AW_WORKFLOW_NAME = "Env Workflow Name";
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: { total_count: 0, items: [] },
+      });
+      mockGithub.rest.issues.create.mockResolvedValue({
+        data: { number: 1, html_url: "https://github.com/owner/repo/issues/1" },
+      });
+
+      const handler = await buildMissingIssueHandler(makeOptions())({});
+      const result = await handler({ test_items: [{ name: "x", reason: "y", timestamp: "2026-01-01T00:00:00Z" }] });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: expect.stringContaining("Env Workflow Name"),
+        })
+      );
+    });
+
+    it("should prefer message workflow_name over GH_AW_WORKFLOW_NAME env var", async () => {
+      process.env.GH_AW_WORKFLOW_NAME = "Env Workflow Name";
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: { total_count: 0, items: [] },
+      });
+      mockGithub.rest.issues.create.mockResolvedValue({
+        data: { number: 2, html_url: "https://github.com/owner/repo/issues/2" },
+      });
+
+      const handler = await buildMissingIssueHandler(makeOptions())({});
+      const result = await handler({ ...defaultMessage, workflow_name: "Message Workflow Name" });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: expect.stringContaining("Message Workflow Name"),
+        })
+      );
+    });
+
+    it("should fall back to GH_AW_WORKFLOW_SOURCE_URL when workflow_source_url is missing from message", async () => {
+      process.env.GH_AW_WORKFLOW_SOURCE_URL = "https://github.com/env-owner/env-repo/blob/main/wf.md";
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: { total_count: 1, items: [{ number: 3, html_url: "https://github.com/owner/repo/issues/3" }] },
+      });
+      mockGithub.rest.issues.createComment.mockResolvedValue({ data: {} });
+
+      const handler = await buildMissingIssueHandler(makeOptions())({});
+      const messageWithoutSourceURL = { ...defaultMessage };
+      delete messageWithoutSourceURL.workflow_source_url;
+      const result = await handler(messageWithoutSourceURL);
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining("https://github.com/env-owner/env-repo/blob/main/wf.md"),
+        })
+      );
+    });
+
+    it("should construct run_url from GitHub env vars when run_url is missing from message", async () => {
+      process.env.GITHUB_SERVER_URL = "https://github.com";
+      process.env.GITHUB_REPOSITORY = "env-owner/env-repo";
+      process.env.GITHUB_RUN_ID = "999";
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: { total_count: 1, items: [{ number: 4, html_url: "https://github.com/owner/repo/issues/4" }] },
+      });
+      mockGithub.rest.issues.createComment.mockResolvedValue({ data: {} });
+
+      const handler = await buildMissingIssueHandler(makeOptions())({});
+      const messageWithoutRunUrl = { ...defaultMessage };
+      delete messageWithoutRunUrl.run_url;
+      const result = await handler(messageWithoutRunUrl);
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining("https://github.com/env-owner/env-repo/actions/runs/999"),
+        })
+      );
     });
 
     it("should return error when items field is missing", async () => {

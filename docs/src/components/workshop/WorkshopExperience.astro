@@ -642,6 +642,35 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				return [...new Set(ordered)].filter((stepKey) => stepMap.has(stepKey));
 			};
 
+			const parseHash = () => {
+				const hash = window.location.hash.slice(1);
+				if (!hash) return { screen: 'setup-workspace', journeyId: null, scenarioId: null, stepKey: null };
+				try {
+					const params = new URLSearchParams(hash);
+					const rawJourneyId = params.get('j');
+					const rawScenarioId = params.get('s');
+					const rawStepKey = params.get('t');
+					// Validate each ID against the manifest before deriving the screen so that
+					// an unknown journey/scenario cannot silently open a tutorial with stale state.
+					const journeyId = rawJourneyId && manifest.journeys.find((j) => j.id === rawJourneyId) ? rawJourneyId : null;
+					if (!journeyId) return { screen: 'setup-workspace', journeyId: null, scenarioId: null, stepKey: null };
+					const scenarioId = rawScenarioId && manifest.scenarios.find((s) => s.id === rawScenarioId) ? rawScenarioId : null;
+					if (!scenarioId) return { screen: 'setup-scenario', journeyId, scenarioId: null, stepKey: null };
+					const stepKey = rawStepKey && stepMap.has(rawStepKey) ? rawStepKey : null;
+					return { screen: 'tutorial', journeyId, scenarioId, stepKey };
+				} catch {
+					return { screen: 'setup-workspace', journeyId: null, scenarioId: null, stepKey: null };
+				}
+			};
+
+			const buildHashUrl = (screen, journeyId, scenarioId, stepKey) => {
+				const base = window.location.pathname + window.location.search;
+				if (!journeyId || screen === 'setup-workspace') return base;
+				if (screen === 'setup-scenario' || !scenarioId) return `${base}#j=${encodeURIComponent(journeyId)}`;
+				if (!stepKey) return `${base}#j=${encodeURIComponent(journeyId)}&s=${encodeURIComponent(scenarioId)}`;
+				return `${base}#j=${encodeURIComponent(journeyId)}&s=${encodeURIComponent(scenarioId)}&t=${encodeURIComponent(stepKey)}`;
+			};
+
 			const readState = () => {
 				try {
 					const parsed = JSON.parse(storage.getItem(storageKey) || '{}');
@@ -660,6 +689,19 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			};
 
 			const state = readState();
+
+			// Override state from URL hash when present (hash takes precedence over localStorage).
+			// parseHash validates all IDs against the manifest, so any non-null field is safe to apply.
+			const hashOnLoad = parseHash();
+			if (hashOnLoad.journeyId) {
+				state.journeyId = hashOnLoad.journeyId;
+				if (hashOnLoad.scenarioId) {
+					state.scenarioId = hashOnLoad.scenarioId;
+					if (hashOnLoad.stepKey) {
+						state.stepKey = hashOnLoad.stepKey;
+					}
+				}
+			}
 
 			const saveState = () => {
 				storage.setItem(storageKey, JSON.stringify(state));
@@ -993,31 +1035,40 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			const stepBubbles = root.querySelector('[data-workshop-step-bubbles]');
 			let setupStep = 'workspace';
 
-			const showSetupStep = (stepName) => {
+			const showSetupStep = (stepName, opts = {}) => {
 				setupStep = stepName === 'scenario' ? 'scenario' : 'workspace';
 				setupSteps.forEach((step) => {
 					step.hidden = step.getAttribute('data-workshop-setup-step') !== setupStep;
 				});
 				render();
+				if (opts.pushHistory !== false && setupStep === 'scenario') {
+					history.pushState(null, '', buildHashUrl('setup-scenario', state.journeyId, null, null));
+				}
 			};
 
-			const showSetup = (options = {}) => {
-				const shouldScroll = options.scroll !== false;
+			const showSetup = (opts = {}) => {
+				const shouldScroll = opts.scroll !== false;
 				setupScreen.hidden = false;
 				tutorialScreen.hidden = true;
 				root.classList.remove('is-tutorial-active');
-				showSetupStep('workspace');
+				showSetupStep('workspace', { pushHistory: false });
+				if (opts.pushHistory !== false) {
+					history.pushState(null, '', buildHashUrl('setup-workspace', null, null, null));
+				}
 				if (shouldScroll) {
 					root.scrollIntoView({ behavior: 'smooth', block: 'start' });
 				}
 			};
 
-			const showTutorial = () => {
+			const showTutorial = (opts = {}) => {
 				ensureCurrentStepIsVisible();
 				render();
 				setupScreen.hidden = true;
 				tutorialScreen.hidden = false;
 				root.classList.add('is-tutorial-active');
+				if (opts.pushHistory !== false) {
+					history.pushState(null, '', buildHashUrl('tutorial', state.journeyId, state.scenarioId, state.stepKey));
+				}
 				root.scrollIntoView({ behavior: 'smooth', block: 'start' });
 				track('Workshop Started', { journey: state.journeyId, scenario: state.scenarioId });
 			};
@@ -1026,6 +1077,26 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 			const getFallbackStepKey = (flow = getFlow()) => {
 				return flow[0] || initialStep || allStepKeys[0] || '';
+			};
+
+			// Applies valid fields from a parsed hash state object onto the mutable state.
+			// Used by the popstate handler to synchronize state with the URL on back/forward navigation.
+			// All IDs in parsed are pre-validated by parseHash; apply directly without re-checking.
+			const applyHashState = (parsed) => {
+				if (parsed.journeyId) {
+					state.journeyId = parsed.journeyId;
+				}
+				if (parsed.scenarioId) {
+					state.scenarioId = parsed.scenarioId;
+				} else {
+					// No valid scenario in the URL: clear scenario and reset step so the picker
+					// shows no pre-selected value and forward-navigation restarts at the first step.
+					state.scenarioId = '';
+					state.stepKey = getFallbackStepKey();
+				}
+				if (parsed.stepKey) {
+					state.stepKey = parsed.stepKey;
+				}
 			};
 
 			const ensureCurrentStepIsVisible = () => {
@@ -1040,6 +1111,9 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				state.stepKey = stepKey;
 				saveState();
 				render();
+				if (options.pushHistory !== false && tutorialScreen && !tutorialScreen.hidden) {
+					history.pushState(null, '', buildHashUrl('tutorial', state.journeyId, state.scenarioId, stepKey));
+				}
 				if (!options.silent) {
 					track('Workshop Step Viewed', {
 						journey: state.journeyId,
@@ -1225,9 +1299,33 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				}
 			});
 
+			// Routes the UI to the screen described by a parsed hash state object,
+			// without pushing a new history entry (used by popstate and initial load).
+			const routeToScreen = (parsed, opts = {}) => {
+				const scroll = opts.scroll !== false;
+				if (parsed.screen === 'tutorial') {
+					showTutorial({ pushHistory: false });
+				} else if (parsed.screen === 'setup-scenario') {
+					showSetup({ pushHistory: false, scroll });
+					showSetupStep('scenario', { pushHistory: false });
+				} else {
+					showSetup({ pushHistory: false, scroll });
+				}
+			};
+
+			window.addEventListener('popstate', () => {
+				const parsed = parseHash();
+				applyHashState(parsed);
+				saveState();
+				routeToScreen(parsed);
+			});
+
+			// Replace the initial history entry with the canonical URL derived from the effective
+			// parsed state. This normalizes invalid or partial hashes (e.g. #j=unknown&s=unknown
+			// becomes the plain path) so that back navigation works correctly.
 			ensureCurrentStepIsVisible();
-			render();
-			showSetup({ scroll: false });
+			history.replaceState(null, '', buildHashUrl(hashOnLoad.screen, hashOnLoad.journeyId, hashOnLoad.scenarioId, hashOnLoad.stepKey));
+			routeToScreen(hashOnLoad, { scroll: false });
 		}
 	</script>
 </section>
@@ -1920,6 +2018,15 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	}
 
 	@media (max-width: 50rem) {
+		:global(.content-panel:has([data-workshop-root])),
+		:global(.sl-markdown-content:has(> [data-workshop-root])) {
+			padding-inline: 0;
+		}
+
+		.aw-workshop-flow-header {
+			display: none;
+		}
+
 		.aw-workshop-picker {
 			padding: 0.85rem;
 		}
@@ -1929,12 +2036,35 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		}
 
 		.aw-workshop-panel-shell {
-			padding: 0.9rem;
+			min-height: 0;
+			padding: 0.45rem 0;
+			border: none;
+			background: transparent;
+			box-shadow: none;
+			backdrop-filter: none;
 		}
 
+		.aw-workshop-panel-summary,
 		.aw-workshop-progress-card,
+		.aw-workshop-panel-actions {
+			display: none;
+		}
+
 		.aw-workshop-step-content {
+			margin-top: 0;
 			padding: 0.85rem;
+			border: none;
+			border-radius: 0;
+			background: transparent;
+			box-shadow: none;
+		}
+
+		.aw-workshop-step-content :global(p),
+		.aw-workshop-step-content :global(ul),
+		.aw-workshop-step-content :global(ol),
+		.aw-workshop-step-content :global(aside) {
+			font-size: 1rem;
+			line-height: 1.72;
 		}
 
 		.aw-workshop-step-bubbles {

@@ -341,6 +341,24 @@ make build
 make recompile
 ```
 
+#### Schema changes not taking effect / stale schema errors
+Files under `pkg/parser/schemas/` are embedded in the binary at compile time via
+`//go:embed`. Changing those JSON files without rebuilding means the running binary
+still holds the old schema.
+
+**Solution**: Rebuild after any schema edit:
+```bash
+make build
+```
+
+Running `go test ./pkg/parser/...` (or `make test-unit`) validates that every
+embedded schema is well-formed JSON via the `TestEmbeddedSchemasAreValid` test,
+but it does **not** rebuild the `./gh-aw` CLI.  If you need the running CLI to
+reflect your schema edits, `make build` is still required.
+
+The `make check-stale-schema-binary` target (also run as part of `make lint`) uses
+`git diff` to detect schema-file changes and verifies the binary is up to date.
+
 #### "cannot find package" errors
 **Solution**: Clean and reinstall dependencies:
 ```bash
