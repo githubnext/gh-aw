@@ -32,6 +32,7 @@ func (c *Compiler) buildMainJobCondition(data *WorkflowData, activationJobCreate
 		// we keep the condition on the agent job
 	}
 	if activationJobCreated && hasMaxDailyAICGuardrail(data) {
+		compilerMainJobLog.Print("Applying daily-AIC guardrail to main job condition")
 		guard := &ExpressionNode{Expression: fmt.Sprintf("needs.%s.outputs.daily_ai_credits_exceeded != 'true'", constants.ActivationJobName)}
 		if jobCondition == "" {
 			jobCondition = RenderCondition(guard)
@@ -39,6 +40,7 @@ func (c *Compiler) buildMainJobCondition(data *WorkflowData, activationJobCreate
 			jobCondition = RenderCondition(BuildAnd(&ExpressionNode{Expression: stripExpressionWrapper(jobCondition)}, guard))
 		}
 	}
+	compilerMainJobLog.Printf("Built main job condition: activationJobCreated=%v, hasCondition=%v", activationJobCreated, jobCondition != "")
 	return jobCondition
 }
 
@@ -250,6 +252,7 @@ func (c *Compiler) buildMainJobEnv(data *WorkflowData) map[string]string {
 	var env map[string]string
 
 	if data.SafeOutputs != nil {
+		compilerMainJobLog.Printf("Configuring safe-outputs job env for main job (uploadAssets=%v)", data.SafeOutputs.UploadAssets != nil)
 		env = make(map[string]string)
 
 		// Set GH_AW_MCP_LOG_DIR for safe outputs MCP server logging
@@ -310,12 +313,14 @@ func (c *Compiler) buildMainJobPermissions(data *WorkflowData) (string, error) {
 	if len(agentAllScripts) == 0 {
 		return permissions, nil
 	}
+	compilerMainJobLog.Printf("Analyzing %d agent job script(s) for gh command permissions", len(agentAllScripts))
 
 	writeCmds, err := detectWriteCommandsInShellScripts(agentAllScripts)
 	if err != nil {
 		return "", err
 	}
 	if len(writeCmds) > 0 {
+		compilerMainJobLog.Printf("Rejecting main job: %d write gh command(s) found in agent steps", len(writeCmds))
 		return "", fmt.Errorf(
 			"agent job uses write gh command(s) [%s]; write operations are not permitted in agent job steps because the agent job runs with read-only permissions. Use safe-outputs for write operations. See: https://github.github.com/gh-aw/reference/safe-outputs/",
 			strings.Join(writeCmds, ", "),
@@ -333,6 +338,7 @@ func (c *Compiler) buildMainJobPermissions(data *WorkflowData) (string, error) {
 			return "", err
 		}
 		if len(inferred) > 0 {
+			compilerMainJobLog.Printf("Inferred %d read permission(s) from agent shell scripts", len(inferred))
 			permissions = mergeInferredIntoPermissionsYAML(permissions, inferred)
 		}
 	}
@@ -351,6 +357,7 @@ func augmentPermissionsForDevMode(c *Compiler, data *WorkflowData, permissions s
 	if !needsContentsRead {
 		return permissions
 	}
+	compilerMainJobLog.Print("Augmenting main job permissions with contents: read for dev/script mode")
 	if permissions == "" {
 		perms := NewPermissionsContentsRead()
 		return filterJobLevelPermissions(perms.RenderToYAML())

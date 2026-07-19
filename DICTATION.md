@@ -11,7 +11,6 @@ gh-aw (GitHub Agentic Workflows) is a CLI extension for GitHub that compiles mar
 
 ## Project Glossary
 
-@copilot
 acceptEdits
 action_required
 actionlint
@@ -40,6 +39,7 @@ ANTHROPIC_API_KEY
 api-proxy
 api.github.com
 api.githubcopilot.com
+approval-labels
 artifact
 artifacts
 audit
@@ -47,6 +47,7 @@ aw.json
 aw.yml
 bash
 batch-ops
+blocked-users
 branch
 bypassPermissions
 cache
@@ -61,7 +62,9 @@ compilation
 compile
 compiler
 concurrency
+@copilot
 copilot
+COPILOT_GITHUB_TOKEN
 create-issue
 create-pull-request
 cross-repository
@@ -108,11 +111,15 @@ gemini-flash-lite
 GEMINI_API_KEY
 gemma
 gh-aw
+gh-aw-audit
+gh-aw-compile
+gh-aw-logs
 gh-proxy
 github-app
 github-token
 github.com
 GITHUB_TOKEN
+head-repo
 hide-older-comments
 inline-sub-agents
 integrity
@@ -142,6 +149,7 @@ model
 monitor-ops
 multi-repo-ops
 network
+network.allowed
 NetworkPermissions
 no-op
 noop
@@ -171,10 +179,12 @@ pull-request
 pull-request-number
 pull-requests
 pull_request
+pull_request_number
 pull_request_target
 push-to-pull-request-branch
 rate-limit
 reasoning
+refusal-labels
 remove-labels
 replay
 report-as-issue
@@ -201,12 +211,14 @@ secrets
 self-hosted
 set-issue-type
 settings.json
+sink-visibility
 slash-command
 sonnet
 spec-ops
 staged
 staged-output
 start-date
+state.json
 stop-after
 sub-agent
 sub-agents
@@ -226,6 +238,7 @@ tools.playwright
 tools.timeout
 toolsets
 trial-ops
+trigger
 trusted-users
 ubuntu-latest
 update-discussion

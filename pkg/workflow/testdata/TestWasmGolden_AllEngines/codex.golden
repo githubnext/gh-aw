@@ -62,7 +62,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-codex-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.144.4"
+          GH_AW_INFO_VERSION: "0.144.5"
           GH_AW_INFO_AWF_VERSION: "v0.27.35"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Generate agentic run info
@@ -71,8 +71,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "codex"
           GH_AW_INFO_ENGINE_NAME: "Codex"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CODEX || vars.GH_AW_DEFAULT_MODEL_CODEX || 'default' }}
-          GH_AW_INFO_VERSION: "0.144.4"
-          GH_AW_INFO_AGENT_VERSION: "0.144.4"
+          GH_AW_INFO_VERSION: "0.144.5"
+          GH_AW_INFO_AGENT_VERSION: "0.144.5"
           GH_AW_INFO_WORKFLOW_NAME: "engine-codex-test"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -365,7 +365,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-codex-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.144.4"
+          GH_AW_INFO_VERSION: "0.144.5"
           GH_AW_INFO_AWF_VERSION: "v0.27.35"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Checkout repository
@@ -409,7 +409,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex CLI
-        run: npm install --ignore-scripts -g @openai/codex@0.144.4
+        run: npm install --ignore-scripts -g @openai/codex@0.144.5
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.35 --rootless
       - name: Determine automatic lockdown mode for GitHub MCP Server
@@ -734,7 +734,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-codex-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.144.4"
+          GH_AW_INFO_VERSION: "0.144.5"
           GH_AW_INFO_AWF_VERSION: "v0.27.35"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Check team membership for workflow

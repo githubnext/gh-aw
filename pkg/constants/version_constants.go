@@ -32,20 +32,20 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.210"
+const DefaultClaudeCodeVersion Version = "2.1.214"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // When unpinning or upgrading this version, verify:
 //   - MCPs are not blocked from loading (tools.mcp configuration still works end-to-end)
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
-const DefaultCopilotVersion Version = "1.0.70"
+const DefaultCopilotVersion Version = "1.0.71"
 
 // DefaultCopilotSDKVersion is the default version of the @github/copilot-sdk package.
-const DefaultCopilotSDKVersion Version = "1.0.6"
+const DefaultCopilotSDKVersion Version = "1.0.7"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.144.4"
+const DefaultCodexVersion Version = "0.144.5"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
 const DefaultGeminiVersion Version = "0.39.1"
@@ -54,7 +54,7 @@ const DefaultGeminiVersion Version = "0.39.1"
 const DefaultAntigravityVersion Version = "1.0.2-6113393518706688"
 
 // DefaultPiVersion is the default version of the Pi CLI
-const DefaultPiVersion Version = "0.80.7"
+const DefaultPiVersion Version = "0.80.10"
 
 // DefaultOpenCodeVersion is the default version of the OpenCode CLI
 const DefaultOpenCodeVersion Version = "1.2.14"
