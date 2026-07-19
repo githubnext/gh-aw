@@ -308,6 +308,16 @@ function applyCopilotModelAliasResolution(options) {
   const logger = options.logger || log;
   const configuredModel = typeof process.env.COPILOT_MODEL === "string" ? process.env.COPILOT_MODEL.trim() : "";
   if (!configuredModel) {
+    // When COPILOT_MODEL is not set but BYOK mode is active, inject the default model.
+    // This handles the case where `model: auto` compiled to no COPILOT_MODEL env var
+    // (because COPILOT_PROVIDER_BASE_URL was a runtime secret, not in engine.env at
+    // compile time), but BYOK providers require an explicit model ID at runtime.
+    if (process.env.COPILOT_PROVIDER_BASE_URL) {
+      const byokFallback = "claude-sonnet-4.6";
+      logger(`COPILOT_MODEL unset in BYOK mode: injecting BYOK default model '${byokFallback}'`);
+      process.env.COPILOT_MODEL = byokFallback;
+      return byokFallback;
+    }
     return configuredModel;
   }
 

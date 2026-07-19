@@ -2600,6 +2600,26 @@ process.exit(1);`,
       expect(process.env.COPILOT_MODEL).toBeUndefined();
     });
 
+    it("injects BYOK default model when COPILOT_MODEL is unset and BYOK mode is active", () => {
+      // COPILOT_MODEL not set (e.g. model: auto compiled to no env var when BYOK
+      // provider URL is a runtime secret, not in engine.env at compile time)
+      delete process.env.COPILOT_MODEL;
+      process.env.COPILOT_PROVIDER_BASE_URL = "https://api.example.com/v1";
+      const logs = [];
+      const result = applyCopilotModelAliasResolution({ awfReflectData: null, logger: msg => logs.push(msg) });
+      expect(process.env.COPILOT_MODEL).toBe("claude-sonnet-4.6");
+      expect(result).toBe("claude-sonnet-4.6");
+      expect(logs.some(m => m.includes("BYOK"))).toBe(true);
+    });
+
+    it("does not inject a model when COPILOT_MODEL is unset and BYOK mode is inactive", () => {
+      delete process.env.COPILOT_MODEL;
+      delete process.env.COPILOT_PROVIDER_BASE_URL;
+      const result = applyCopilotModelAliasResolution({ awfReflectData: null });
+      expect(process.env.COPILOT_MODEL).toBeUndefined();
+      expect(result).toBe("");
+    });
+
     it("replaces 'auto' sentinel with BYOK default model in BYOK mode (COPILOT_PROVIDER_BASE_URL set)", () => {
       process.env.COPILOT_MODEL = "auto";
       process.env.COPILOT_PROVIDER_BASE_URL = "https://api.example.com/v1";
