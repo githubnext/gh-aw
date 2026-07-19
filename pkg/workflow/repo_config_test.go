@@ -388,6 +388,7 @@ func TestLoadRepoConfig_AutoUpgradeCron(t *testing.T) {
 		dir := t.TempDir()
 		writeAWJSON(t, dir, `{"auto_upgrade": true, "auto_upgrade_cron": "not-a-cron"}`)
 
+		// Invalid cron is rejected by JSON schema validation in LoadRepoConfig.
 		_, err := LoadRepoConfig(dir)
 		assert.Error(t, err, "invalid auto_upgrade_cron should return an error")
 	})

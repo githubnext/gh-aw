@@ -173,7 +173,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 			Version:         version,
 			ActionTag:       actionTag,
 			Resolver:        resolver,
-			CustomCron:      repoConfig.AutoUpgradeCron,
+			CustomCron:      autoUpgradeCronFrom(repoConfig),
 		})
 	}
 
