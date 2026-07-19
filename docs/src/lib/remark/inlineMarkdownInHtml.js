@@ -23,8 +23,14 @@ import rehypeStringify from 'rehype-stringify';
 
 /**
  * Reusable processor for converting markdown inline content to HTML.
- * allowDangerousHtml is required to preserve inline HTML (e.g. `<b>`, `<code>`)
- * that authors place inside target tags alongside their markdown.
+ *
+ * `allowDangerousHtml` is required to preserve inline HTML (e.g. `<b>`,
+ * `<code>`) that authors place inside target tags alongside their markdown.
+ * This is safe here because:
+ *  - the processor runs **at build time**, never in a browser;
+ *  - inputs are documentation source files committed by repository maintainers
+ *    and are not derived from end-user input;
+ *  - no output is injected into an HTTP response or an untrusted context.
  */
 const inlineProcessor = unified()
 	.use(remarkParse)
