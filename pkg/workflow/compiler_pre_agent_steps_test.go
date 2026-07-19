@@ -12,6 +12,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type compiledWorkflowJobs struct {
+	Jobs map[string]map[string]any `yaml:"jobs"`
+}
+
 func TestPreAgentStepsGeneration(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "pre-agent-steps-test")
 
@@ -68,9 +72,7 @@ Test pre-agent-steps.
 	if preAgentStepIndex >= aiStepIndex {
 		t.Errorf("Pre-agent-step (%d) should appear before AI execution step (%d)", preAgentStepIndex, aiStepIndex)
 	}
-	var compiled struct {
-		Jobs map[string]map[string]any `yaml:"jobs"`
-	}
+	var compiled compiledWorkflowJobs
 	if err := yaml.Unmarshal(content, &compiled); err != nil {
 		t.Fatalf("Failed to parse generated lock file as YAML: %v", err)
 	}
