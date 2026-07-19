@@ -65,7 +65,7 @@ describe("no-core-error-then-process-exit", () => {
           errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [] }],
         },
         {
-          // nested function main() inside another function: must NOT get autofix — `return` only
+          // nested function main() inside another function: must NOT get autofix -- `return` only
           // exits the inner `main`, so the outer helper continues (module-scope restriction).
           code: `function setup() { function main() { core.error("fatal"); process.exit(1); } main(); }`,
           errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [] }],

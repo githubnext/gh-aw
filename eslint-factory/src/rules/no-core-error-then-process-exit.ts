@@ -20,7 +20,12 @@ function getImmediateEnclosingFunction(node: TSESTree.Node, sourceCode: SourceCo
   const ancestors = sourceCode.getAncestors(node);
   for (let i = ancestors.length - 1; i >= 0; i--) {
     const ancestor = ancestors[i];
-    if (ancestor.type === AST_NODE_TYPES.FunctionDeclaration || ancestor.type === AST_NODE_TYPES.FunctionExpression || ancestor.type === AST_NODE_TYPES.ArrowFunctionExpression) {
+    // prettier-ignore
+    if (
+      ancestor.type === AST_NODE_TYPES.FunctionDeclaration ||
+      ancestor.type === AST_NODE_TYPES.FunctionExpression ||
+      ancestor.type === AST_NODE_TYPES.ArrowFunctionExpression
+    ) {
       return ancestor as FunctionNode;
     }
   }
@@ -40,7 +45,13 @@ function isFunctionNamedMain(fn: FunctionNode): boolean {
   }
   // FunctionExpression or ArrowFunctionExpression assigned to a variable named `main`
   const declarator = fn.parent;
-  if (declarator == null || declarator.type !== AST_NODE_TYPES.VariableDeclarator || declarator.id.type !== AST_NODE_TYPES.Identifier || declarator.id.name !== "main") {
+  // prettier-ignore
+  if (
+    declarator == null ||
+    declarator.type !== AST_NODE_TYPES.VariableDeclarator ||
+    declarator.id.type !== AST_NODE_TYPES.Identifier ||
+    declarator.id.name !== "main"
+  ) {
     return false;
   }
   // The VariableDeclaration containing this declarator must be at module top level
