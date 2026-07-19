@@ -90,6 +90,9 @@ This will take you through an interactive process to:
 <Tabs>
   <TabItem label="Copilot">
     **Setting up `COPILOT_GITHUB_TOKEN`:**
+
+    This is separate from the default `GITHUB_TOKEN` because the agent needs elevated Copilot API access that the ephemeral workflow token does not carry.
+
     1. [Create a fine-grained Personal Access Token (PAT)](https://github.com/settings/personal-access-tokens/new) under your user account.
     2. Under **Permissions → Account permissions**, set **Copilot Requests** to **Read**, then generate the token.
     3. Add it as a repository secret from your repository root with `gh secret set COPILOT_GITHUB_TOKEN < /path/to/token.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#copilot_github_token) for more detail.
