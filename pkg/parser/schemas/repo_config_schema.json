@@ -35,8 +35,27 @@
       "examples": ["+00:00", "-08:00", "+05:30"]
     },
     "auto_upgrade": {
-      "description": "When true, the compiler generates agentic-auto-upgrade.yml that runs on a fuzzy weekly schedule and inlines the 'upgrade' operation to check for and report available workflow upgrades via a GitHub issue. Defaults to false (opt-in).",
-      "type": "boolean"
+      "description": "Controls agentic-auto-upgrade.yml generation. Set to true to enable with the default fuzzy weekly schedule, false to disable, or an object to configure a custom schedule. Defaults to false (opt-in).",
+      "oneOf": [
+        {
+          "type": "boolean",
+          "description": "Set to true to enable agentic-auto-upgrade.yml with the default fuzzy weekly schedule, or false to disable."
+        },
+        {
+          "type": "object",
+          "description": "Enable auto-upgrade with a custom schedule. Providing an object implies enabled.",
+          "additionalProperties": false,
+          "properties": {
+            "cron": {
+              "description": "Custom cron expression for the agentic-auto-upgrade workflow schedule. When set, overrides the default fuzzy weekly schedule. Must be a valid 5-field POSIX cron expression (e.g. '0 9 * * 1' for Monday at 09:00 UTC).",
+              "type": "string",
+              "minLength": 9,
+              "pattern": "^[0-9*/,\\-]+ [0-9*/,\\-]+ [0-9*/,\\-]+ [0-9*/,\\-]+ [0-9*/,\\-]+$",
+              "examples": ["0 9 * * 1", "30 5 * * 1-5", "0 0 * * 0"]
+            }
+          }
+        }
+      ]
     },
     "maintenance": {
       "description": "Configuration for the agentic-maintenance workflow. Set to false to disable maintenance entirely, or provide an object to configure it.",

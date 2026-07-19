@@ -376,8 +376,8 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 	applyMCPScriptsSecretEnv(env, workflowData)
 
 	if exec.ModelEnvVarName != "" {
-		if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
-			modelVal := workflowData.EngineConfig.Model
+		if workflowData != nil && workflowData.Model != "" {
+			modelVal := workflowData.Model
 			if exec.ModelEnvProviderPrefix != "" {
 				if parts := strings.SplitN(modelVal, "/", 2); len(parts) == 2 {
 					modelVal = exec.ModelEnvProviderPrefix + "/" + parts[1]
@@ -408,7 +408,7 @@ func (e *BehaviorDefinedEngine) modelFlagFragment(exec *EngineExecutionDefinitio
 	if exec.ModelEnvVarName == "" || exec.ModelFlag == "" {
 		return ""
 	}
-	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Model == "" {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.Model == "" {
 		return ""
 	}
 	return fmt.Sprintf(`%s "$%s"`, exec.ModelFlag, exec.ModelEnvVarName)
@@ -451,7 +451,7 @@ func (e *BehaviorDefinedEngine) buildFirewallCommand(exec *EngineExecutionDefini
 func (e *BehaviorDefinedEngine) allowedDomains(workflowData *WorkflowData) string {
 	engineName := constants.EngineName(e.GetID())
 	if e.usesUniversalLLMConsumer() && workflowData != nil && workflowData.EngineConfig != nil {
-		return mustGetAllowedDomainsForEngineWithModel(engineName, workflowData.EngineConfig.Model, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		return mustGetAllowedDomainsForEngineWithModel(engineName, workflowData.Model, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 	}
 	return GetAllowedDomainsForEngine(engineName, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 }

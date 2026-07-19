@@ -13,7 +13,7 @@ const { getBaseBranch } = require("./get_base_branch.cjs");
 const { lookupCheckout } = require("./checkout_manifest.cjs");
 const { generateGitPatch } = require("./generate_git_patch.cjs");
 const { generateGitBundle } = require("./generate_git_bundle.cjs");
-const { hasMergeCommitsInRange, execGitSync } = require("./git_helpers.cjs");
+const { hasMergeCommitsInRange, execGitSync, ensureSafeDirectoryTrust } = require("./git_helpers.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
@@ -198,39 +198,6 @@ function resolvePatchWorkspacePath(workspacePath) {
     return { success: false, error: `Invalid patch_workspace_path '${candidatePath}': path is not a directory` };
   }
   return { success: true, absolutePath: resolved };
-}
-
-/**
- * Ensure the current git checkout path is trusted in this process context.
- * Injects safe.directory via GIT_CONFIG_COUNT/KEY/VALUE env vars so that all
- * subsequent git commands in this process inherit the trust without writing to
- * ~/.gitconfig (no persistent global git config side effects).
- *
- * GIT_CONFIG_COUNT/KEY/VALUE is supported since git 2.31.
- *
- * @param {string} gitCwd
- * @param {{ debug: (message: string) => void }} server
- * @returns {void}
- */
-function ensureSafeDirectoryTrust(gitCwd, server) {
-  if (!gitCwd) return;
-
-  // Check if gitCwd is already present in the injected env-var config to avoid
-  // duplicate entries when the handler is called more than once in the same process.
-  // The `|| 0` guard converts NaN (from a malformed pre-existing GIT_CONFIG_COUNT) to 0,
-  // preventing GIT_CONFIG_KEY_NaN/VALUE_NaN entries that would corrupt the env-var config chain.
-  const existingCount = parseInt(process.env.GIT_CONFIG_COUNT || "0", 10) || 0;
-  for (let i = 0; i < existingCount; i++) {
-    if (process.env[`GIT_CONFIG_KEY_${i}`] === "safe.directory" && process.env[`GIT_CONFIG_VALUE_${i}`] === gitCwd) {
-      return;
-    }
-  }
-
-  const idx = existingCount;
-  process.env.GIT_CONFIG_COUNT = String(existingCount + 1);
-  process.env[`GIT_CONFIG_KEY_${idx}`] = "safe.directory";
-  process.env[`GIT_CONFIG_VALUE_${idx}`] = gitCwd;
-  server.debug(`Configured git safe.directory for bridge context: ${gitCwd}`);
 }
 
 /**

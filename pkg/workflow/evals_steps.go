@@ -166,8 +166,6 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 		evalsEngineConfig.APITarget = data.EngineConfig.APITarget
 	}
 
-	evalsEngineConfig.Model = c.resolveEvalsExecutionModel(data)
-
 	// Build a minimal WorkflowData for evals engine execution.
 	// IsDetectionRun reuses detection-style network restrictions and MaxAI credits,
 	// which are appropriate for binary (YES/NO) evaluation tasks.
@@ -179,6 +177,7 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 			"bash": []any{"*"},
 		},
 		SafeOutputs:       nil,
+		Model:             c.resolveEvalsExecutionModel(data),
 		EngineConfig:      evalsEngineConfig,
 		AI:                engineID,
 		Features:          data.Features,
@@ -379,8 +378,8 @@ func (c *Compiler) getEvalsEngineID(data *WorkflowData) string {
 
 func (c *Compiler) resolveEvalsExecutionModel(data *WorkflowData) string {
 	model := ""
-	if data.EngineConfig != nil && data.EngineConfig.Model != "" {
-		model = data.EngineConfig.Model
+	if data.Model != "" {
+		model = data.Model
 	}
 	if data.Evals != nil && data.Evals.Model != "" {
 		model = data.Evals.Model

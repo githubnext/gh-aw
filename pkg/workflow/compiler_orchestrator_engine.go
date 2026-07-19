@@ -18,6 +18,7 @@ var orchestratorEngineLog = logger.New("workflow:compiler_orchestrator_engine")
 // engineSetupResult holds the results of engine configuration and validation
 type engineSetupResult struct {
 	engineSetting      string
+	model              string
 	engineConfig       *EngineConfig
 	agenticEngine      CodingAgentEngine
 	networkPermissions *NetworkPermissions
@@ -35,7 +36,7 @@ type engineSetupResult struct {
 // - Strict mode validations
 func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, cleanPath string, content []byte, markdownDir string) (*engineSetupResult, error) {
 	orchestratorEngineLog.Printf("Setting up engine and processing imports")
-	engineSetting, engineConfig := c.ExtractEngineConfig(result.Frontmatter)
+	engineSetting, engineConfig, model := c.ExtractEngineConfig(result.Frontmatter)
 	preservedMaxTurns, preservedMaxAICredits, preservedMaxRuns, preservedMaxTurnCacheMisses := extractEngineBudgetLimits(engineConfig)
 	if err := c.validateAndRegisterInlineEngineConfig(engineConfig); err != nil {
 		return nil, err
@@ -64,11 +65,11 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		return nil, err
 	}
 	sandboxConfig = mergeImportedSandboxAgentMounts(sandboxConfig, importsResult.MergedSandboxAgentMounts)
-	engineSetting, engineConfig, err = c.resolveEngineFromIncludesAndImports(result, markdownDir, importsResult, engineSetting, engineConfig)
+	engineSetting, engineConfig, model, err = c.resolveEngineFromIncludesAndImports(result, markdownDir, importsResult, engineSetting, engineConfig, model)
 	if err != nil {
 		return nil, err
 	}
-	engineConfig = c.applyEngineImportDefaults(engineConfig, engineSetting, importsResult, preservedMaxTurns, preservedMaxAICredits, preservedMaxRuns, preservedMaxTurnCacheMisses)
+	engineConfig, model = c.applyEngineImportDefaults(engineConfig, model, engineSetting, importsResult, preservedMaxTurns, preservedMaxAICredits, preservedMaxRuns, preservedMaxTurnCacheMisses)
 	agenticEngine, configSteps, err := c.resolveEngineRuntimeConfig(engineSetting, engineConfig)
 	if err != nil {
 		return nil, err
@@ -78,6 +79,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	}
 	return &engineSetupResult{
 		engineSetting:      engineSetting,
+		model:              model,
 		engineConfig:       engineConfig,
 		agenticEngine:      agenticEngine,
 		networkPermissions: networkPermissions,
@@ -254,37 +256,38 @@ func (c *Compiler) resolveEngineFromIncludesAndImports(
 	importsResult *parser.ImportsResult,
 	engineSetting string,
 	engineConfig *EngineConfig,
-) (string, *EngineConfig, error) {
+	model string,
+) (string, *EngineConfig, string, error) {
 	orchestratorEngineLog.Printf("Expanding includes for engine configurations")
 	includedEngines, err := parser.ExpandIncludesForEngines(result.Markdown, markdownDir)
 	if err != nil {
 		orchestratorEngineLog.Printf("Failed to expand includes for engines: %v", err)
-		return "", nil, fmt.Errorf("failed to expand includes for engines: %w", err)
+		return "", nil, "", fmt.Errorf("failed to expand includes for engines: %w", err)
 	}
 	allEngines := append(importsResult.MergedEngines, includedEngines...)
 	orchestratorEngineLog.Printf("Validating single engine specification")
 	finalEngineSetting, err := c.validateSingleEngineSpecification(engineSetting, allEngines)
 	if err != nil {
 		orchestratorEngineLog.Printf("Engine specification validation failed: %v", err)
-		return "", nil, err
+		return "", nil, "", err
 	}
 	if finalEngineSetting != "" {
 		engineSetting = finalEngineSetting
 	}
 	for _, engineJSON := range allEngines {
 		if err := c.registerNamedEngineDefinitionFromJSON(engineJSON); err != nil {
-			return "", nil, fmt.Errorf("failed to register engine definition from included file: %w", err)
+			return "", nil, "", fmt.Errorf("failed to register engine definition from included file: %w", err)
 		}
 	}
 	if engineConfig == nil && len(allEngines) > 0 {
 		orchestratorEngineLog.Printf("Extracting engine config from included file")
-		engineConfig, err = c.extractEngineConfigFromJSON(allEngines[0])
+		engineConfig, model, err = c.extractEngineConfigFromJSON(allEngines[0])
 		if err != nil {
 			orchestratorEngineLog.Printf("Failed to extract engine config: %v", err)
-			return "", nil, fmt.Errorf("failed to extract engine config from included file: %w", err)
+			return "", nil, "", fmt.Errorf("failed to extract engine config from included file: %w", err)
 		}
 		if err := c.validateAndRegisterInlineEngineConfig(engineConfig); err != nil {
-			return "", nil, err
+			return "", nil, "", err
 		}
 	}
 	if engineSetting == "" {
@@ -298,7 +301,7 @@ func (c *Compiler) resolveEngineFromIncludesAndImports(
 		engineConfig.ID = engineSetting
 		orchestratorEngineLog.Printf("Normalized engineConfig.ID from engineSetting: %s", engineSetting)
 	}
-	return engineSetting, engineConfig, nil
+	return engineSetting, engineConfig, model, nil
 }
 
 // applyEngineImportDefaults merges import-derived engine defaults into engineConfig.
@@ -307,13 +310,14 @@ func (c *Compiler) resolveEngineFromIncludesAndImports(
 // when the input engineConfig is nil.
 func (c *Compiler) applyEngineImportDefaults(
 	engineConfig *EngineConfig,
+	model string,
 	engineSetting string,
 	importsResult *parser.ImportsResult,
 	preservedMaxTurns string,
 	preservedMaxAICredits int64,
 	preservedMaxRuns int,
 	preservedMaxTurnCacheMisses int,
-) *EngineConfig {
+) (*EngineConfig, string) {
 	if engineConfig == nil {
 		engineConfig = &EngineConfig{ID: engineSetting}
 	}
@@ -382,11 +386,11 @@ func (c *Compiler) applyEngineImportDefaults(
 		engineConfig.MCPSessionTimeout = importsResult.MergedEngineMCPSessionTimeout
 		orchestratorEngineLog.Printf("Applied engine.mcp.session-timeout from import: %s", engineConfig.MCPSessionTimeout)
 	}
-	if engineConfig.Model == "" && importsResult.MergedEngineModel != "" {
-		engineConfig.Model = importsResult.MergedEngineModel
-		orchestratorEngineLog.Printf("Applied engine.model preference from import: %s", engineConfig.Model)
+	if model == "" && importsResult.MergedEngineModel != "" {
+		model = importsResult.MergedEngineModel
+		orchestratorEngineLog.Printf("Applied model preference from import: %s", model)
 	}
-	return engineConfig
+	return engineConfig, model
 }
 
 func (c *Compiler) resolveEngineRuntimeConfig(engineSetting string, engineConfig *EngineConfig) (CodingAgentEngine, []map[string]any, error) {

@@ -18,9 +18,9 @@ permissions:
   issues: read
   pull-requests: read
 name: Smoke Pi
+model: copilot/gpt-5.4
 engine:
   id: pi
-  model: copilot/gpt-5.4
 strict: true
 sandbox:
   agent:

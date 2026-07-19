@@ -13,6 +13,8 @@ export type WorkshopJourney = {
 	kicker: string;
 	summary: string;
 	accent: string;
+	/** Content journey values from workshop frontmatter that match this manifest journey. */
+	contentJourneyIds: string[];
 };
 
 export type WorkshopEntryPath = {
@@ -56,6 +58,7 @@ export const workshopJourneys: WorkshopJourney[] = [
 		kicker: 'Browser only',
 		summary: 'Use the web editor and Actions tab.',
 		accent: 'var(--sl-color-accent-high)',
+		contentJourneyIds: ['ui'],
 	},
 	{
 		id: 'terminal',
@@ -64,6 +67,7 @@ export const workshopJourneys: WorkshopJourney[] = [
 		kicker: 'CLI workflow',
 		summary: 'Use your editor, repo clone, and shell.',
 		accent: 'var(--sl-color-accent)',
+		contentJourneyIds: ['terminal', 'local'],
 	},
 	{
 		id: 'vscode',
@@ -72,6 +76,7 @@ export const workshopJourneys: WorkshopJourney[] = [
 		kicker: 'Local editor',
 		summary: 'Stay in VS Code with a local repository and terminal.',
 		accent: 'var(--sl-color-accent-high)',
+		contentJourneyIds: ['local', 'terminal'],
 	},
 	{
 		id: 'copilot',
@@ -80,6 +85,7 @@ export const workshopJourneys: WorkshopJourney[] = [
 		kicker: 'Agent assisted',
 		summary: 'Use Copilot to draft, compile, and land the workflow.',
 		accent: 'var(--sl-color-accent-high)',
+		contentJourneyIds: ['copilot', 'ui'],
 	},
 ];
 
@@ -140,27 +146,76 @@ export const workshopScenarios: WorkshopScenario[] = [
 	})),
 ];
 
+/**
+ * Maps manifest scenario IDs to the corresponding adventure frontmatter value
+ * used in workshop content files.
+ */
+export const workshopScenarioAdventures: Record<WorkshopScenarioId, string> = {
+	'daily-status': 'scenario-a',
+	'daily-docs': 'scenario-b',
+	'pr-reviewer': 'scenario-c',
+};
+
 export const workshopDefaults = {
 	journeyId: 'github' as WorkshopJourneyId,
 	scenarioId: 'daily-status' as WorkshopScenarioId,
 };
+
+function normalizeStepId(fileName: string) {
+	return fileName.replace(/\.md$/u, '');
+}
 
 export function buildWorkshopFlow(
 	journeyId: WorkshopJourneyId,
 	scenarioId: WorkshopScenarioId,
 ): string[] {
 	const journey = workshopJourneys.find((item) => item.id === journeyId) ?? workshopJourneys[0];
-	const scenario = workshopScenarios.find((item) => item.id === scenarioId) ?? workshopScenarios[0];
-	const journeyRoute = workshopRoutes.workspaces[journey.id];
-	const scenarioRoute = workshopRoutes.scenarios[scenario.id];
+	const scenarioAdventure = workshopScenarioAdventures[scenarioId] ?? '';
+	const { contentJourneyIds } = journey;
+	const isCopilot = contentJourneyIds.includes('copilot');
 
-	return [...new Set([
-		...journeyRoute.prelude,
-		scenarioRoute.designStep,
-		scenarioRoute.buildStepByWorkspace[journey.id],
-		...journeyRoute.postBuild,
-		...workshopRoutes.preSchedule,
-		journeyRoute.scheduleStep,
-		...workshopRoutes.wrapUp,
-	])];
+	const includedAdventures = new Set(['core', 'setup', 'advanced']);
+	if (scenarioAdventure) includedAdventures.add(scenarioAdventure);
+	if (isCopilot) includedAdventures.add('scenario-d');
+
+	// Filter entries by journey and adventure; exclude side-quests from the main flow.
+	const candidates = workshopContent.filter((entry) => {
+		// Copilot journey uses the UI path for setup/scheduling but not for
+		// journey-specific scenario build steps; those are covered by scenario-d (11d).
+		if (isCopilot && entry.journey === 'ui' && !['core', 'setup', 'advanced', 'scenario-d'].includes(entry.adventure)) {
+			return false;
+		}
+		const journeyMatch = entry.journey === 'all' || contentJourneyIds.includes(entry.journey);
+		const adventureMatch = includedAdventures.has(entry.adventure);
+		return journeyMatch && adventureMatch && entry.adventure !== 'side-quest';
+	});
+
+	// Hub detection: use full content filtered only by journey ID membership (no adventure or
+	// copilot-exclusion filter). This correctly identifies hub pages even when the copilot
+	// filter removes some journey-specific variants from the candidates set.
+	const hubPrefixes = new Set(
+		workshopContent
+			.filter((e) => contentJourneyIds.includes(e.journey))
+			.map((e) => normalizeStepId(e.id).split('-')[0]),
+	);
+
+	// Exclude hub/overview pages: a journey:all entry is a hub page when:
+	// 1. Its exact prefix matches a journey-specific entry (e.g. '11a' when '11a-build-*-ui.md' exists), OR
+	// 2. Its numeric-only prefix (e.g. '06') has letter-suffixed journey-specific variants ('06a', '06b').
+	return candidates
+		.filter((entry) => {
+			if (entry.journey !== 'all') return true;
+			const keyPrefix = normalizeStepId(entry.id).split('-')[0];
+			// Case 1: exact prefix match (e.g. '11a' hub when '11a-build-*-ui' exists for this journey).
+			if (hubPrefixes.has(keyPrefix)) return false;
+			// Case 2: numeric-only prefix (e.g. '06'): hub if letter-variant specific entries exist ('06a', '06b').
+			const numericOnly = keyPrefix.match(/^(\d+)$/u);
+			if (numericOnly) {
+				const hubRe = new RegExp(`^${numericOnly[1]}[a-z]`, 'u');
+				return ![...hubPrefixes].some((p) => hubRe.test(p));
+			}
+			return true;
+		})
+		.map((entry) => normalizeStepId(entry.id))
+		.filter((key) => key !== 'README');
 }
