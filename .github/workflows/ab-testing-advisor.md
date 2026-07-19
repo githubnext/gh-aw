@@ -32,10 +32,10 @@ safe-outputs:
     title-prefix: "[ab-advisor] "
 description: Daily A/B testing advisor that picks a random agentic workflow without an experiments section, devises an experiment campaign to improve it, and creates a GitHub issue with the implementation task
 emoji: 🧪
+model: copilot/gpt-5.4
 engine:
   bare: true
   id: pi
-  model: copilot/gpt-5.4
 strict: true
 timeout-minutes: 30
 tools:

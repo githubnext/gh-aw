@@ -110,7 +110,7 @@ func TestExtractEngineConcurrencyField(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, config := compiler.ExtractEngineConfig(tt.frontmatter)
+			_, config, _ := compiler.ExtractEngineConfig(tt.frontmatter)
 
 			if config == nil {
 				t.Fatalf("Expected config to be non-nil")

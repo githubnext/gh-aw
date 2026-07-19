@@ -46,7 +46,6 @@ func toEngineEnvValueString(value any) (string, bool) {
 type EngineConfig struct {
 	ID                 string
 	Version            string
-	Model              string
 	LLMProvider        string // Inference provider override for this engine (engine.provider / engine.model-provider)
 	PermissionMode     string
 	MaxTurns           string
@@ -195,8 +194,9 @@ func (e *EngineConfig) GetMaxTurnCacheMisses() int {
 	return e.MaxTurnCacheMisses
 }
 
-// ExtractEngineConfig extracts engine configuration from frontmatter, supporting both string and object formats
-func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *EngineConfig) {
+// ExtractEngineConfig extracts engine configuration from frontmatter, supporting both string and object formats.
+// It returns the resolved engine setting, the parsed engine configuration, and the resolved model string.
+func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *EngineConfig, string) {
 	topLevelMaxTurns := parseMaxTurnsValue(frontmatter["max-turns"])
 	topLevelMaxToolDenials := parseMaxToolDenialsValue(frontmatter["max-tool-denials"])
 	topLevelMaxAICredits := parseMaxAICreditsValue(frontmatter["max-ai-credits"])
@@ -215,19 +215,19 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			engineLog.Printf("Found engine in string format: %s", engineStr)
 			return engineStr, &EngineConfig{
 				ID:                 engineStr,
-				Model:              topLevelModel,
 				MaxTurns:           topLevelMaxTurns,
 				MaxToolDenials:     topLevelMaxToolDenials,
 				MaxRuns:            topLevelMaxRuns,
 				MaxTurnCacheMisses: topLevelMaxTurnCacheMisses,
 				MaxAICredits:       topLevelMaxAICredits,
-			}
+			}, topLevelModel
 		}
 
 		// Handle object format
 		if engineObj, ok := engine.(map[string]any); ok {
 			engineLog.Print("Found engine in object format, parsing configuration")
 			config := &EngineConfig{}
+			resolvedModel := ""
 
 			// Detect inline definition: engine.runtime sub-object present instead of engine.id
 			if runtime, hasRuntime := engineObj["runtime"]; hasRuntime {
@@ -256,7 +256,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 							config.InlineProviderID = id
 						}
 						if model, ok := providerTyped["model"].(string); ok {
-							config.Model = model
+							resolvedModel = model
 						}
 						if auth, hasAuth := providerTyped["auth"]; hasAuth {
 							if authObj, ok := auth.(map[string]any); ok {
@@ -302,12 +302,18 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				config.MaxRuns = topLevelMaxRuns
 				config.MaxTurnCacheMisses = topLevelMaxTurnCacheMisses
 				config.MaxAICredits = topLevelMaxAICredits
+				if model, hasModel := engineObj["model"]; hasModel {
+					if modelStr, ok := model.(string); ok {
+						resolvedModel = modelStr
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage("'engine.model' is deprecated. Use top-level 'model' instead. Run 'gh aw fix' to automatically migrate."))
+					}
+				}
 				if topLevelModel != "" {
-					config.Model = topLevelModel
+					resolvedModel = topLevelModel
 				}
 
 				engineLog.Printf("Extracted inline engine definition: runtimeID=%s, providerID=%s", config.ID, config.InlineProviderID)
-				return config.ID, config
+				return config.ID, config, resolvedModel
 			}
 
 			// Extract required 'id' field
@@ -325,13 +331,13 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			// Extract optional 'model' field
 			if model, hasModel := engineObj["model"]; hasModel {
 				if modelStr, ok := model.(string); ok {
-					config.Model = modelStr
+					resolvedModel = modelStr
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("'engine.model' is deprecated. Use top-level 'model' instead. Run 'gh aw fix' to automatically migrate."))
 				}
 			}
 			// Top-level 'model' takes precedence over engine.model.
 			if topLevelModel != "" {
-				config.Model = topLevelModel
+				resolvedModel = topLevelModel
 			}
 
 			// Extract optional 'model-provider' field.
@@ -600,24 +606,23 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			}
 
 			engineLog.Printf("Extracted engine configuration: ID=%s", config.ID)
-			return config.ID, config
+			return config.ID, config, resolvedModel
 		}
 	}
 
 	if topLevelMaxTurns != "" || topLevelMaxToolDenials != "" || topLevelMaxAICredits != 0 || topLevelMaxRuns > 0 || topLevelMaxTurnCacheMisses > 0 || topLevelModel != "" {
 		return "", &EngineConfig{
-			Model:              topLevelModel,
 			MaxTurns:           topLevelMaxTurns,
 			MaxToolDenials:     topLevelMaxToolDenials,
 			MaxRuns:            topLevelMaxRuns,
 			MaxTurnCacheMisses: topLevelMaxTurnCacheMisses,
 			MaxAICredits:       topLevelMaxAICredits,
-		}
+		}, topLevelModel
 	}
 
 	// No engine specified
 	engineLog.Print("No engine configuration found in frontmatter")
-	return "", nil
+	return "", nil, ""
 }
 
 // getAgenticEngine returns the agentic engine for the given engine setting
@@ -662,15 +667,15 @@ func (c *Compiler) getAgenticEngine(engineSetting string) (CodingAgentEngine, er
 	return nil, errors.New(errMsg)
 }
 
-// extractEngineConfigFromJSON parses engine configuration from JSON string (from included files)
-func (c *Compiler) extractEngineConfigFromJSON(engineJSON string) (*EngineConfig, error) {
+// extractEngineConfigFromJSON parses engine configuration from JSON string (from included files).
+func (c *Compiler) extractEngineConfigFromJSON(engineJSON string) (*EngineConfig, string, error) {
 	if engineJSON == "" {
-		return nil, nil
+		return nil, "", nil
 	}
 
 	var engineData any
 	if err := json.Unmarshal([]byte(engineJSON), &engineData); err != nil {
-		return nil, fmt.Errorf("failed to parse engine JSON: %w", err)
+		return nil, "", fmt.Errorf("failed to parse engine JSON: %w", err)
 	}
 
 	// Use the existing ExtractEngineConfig function by creating a temporary frontmatter map
@@ -678,8 +683,8 @@ func (c *Compiler) extractEngineConfigFromJSON(engineJSON string) (*EngineConfig
 		"engine": engineData,
 	}
 
-	_, config := c.ExtractEngineConfig(tempFrontmatter)
-	return config, nil
+	_, config, model := c.ExtractEngineConfig(tempFrontmatter)
+	return config, model, nil
 }
 
 // applyEngineAuthEnv populates config.Env with AWF_AUTH_* environment variables
