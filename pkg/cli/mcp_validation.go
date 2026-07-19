@@ -30,98 +30,11 @@ func validateServerSecrets(config parser.RegistryMCPServerConfig, verbose bool, 
 	requiredSecrets := extractSecretsFromConfig(config)
 
 	// Special case: Check for GH_AW_GITHUB_TOKEN when GitHub tool is in remote mode
-	if config.Name == "github" && config.Type == "http" {
-		mcpValidationLog.Print("GitHub remote mode detected, checking for GH_AW_GITHUB_TOKEN")
-		// GitHub remote mode requires GH_AW_GITHUB_TOKEN secret
-		// Check if a custom token is already specified in the env
-		hasCustomToken := false
-		for _, value := range config.Env {
-			if strings.Contains(value, "secrets.") && !strings.Contains(value, "GH_AW_GITHUB_TOKEN") {
-				// Custom token specified, no need to check GH_AW_GITHUB_TOKEN
-				hasCustomToken = true
-				break
-			}
-		}
-
-		if !hasCustomToken {
-			// Add GH_AW_GITHUB_TOKEN to required secrets if not already present
-			alreadyPresent := false
-			for _, secret := range requiredSecrets {
-				if secret.Name == "GH_AW_GITHUB_TOKEN" {
-					alreadyPresent = true
-					break
-				}
-			}
-			if !alreadyPresent {
-				requiredSecrets = append(requiredSecrets, SecretInfo{
-					Name:   "GH_AW_GITHUB_TOKEN",
-					EnvKey: "GITHUB_TOKEN",
-				})
-			}
-		}
-	}
+	requiredSecrets = validateServerSecretsGitHubRemote(config, requiredSecrets)
 
 	if len(requiredSecrets) == 0 {
 		mcpValidationLog.Printf("No required secrets found, validating %d environment variables", len(config.Env))
-		// No secrets required, proceed with normal env var validation
-		for key, value := range config.Env {
-			// Check if value contains variable references
-			if strings.Contains(value, "${") {
-				// Extract variable name (simplified parsing)
-				if strings.Contains(value, "secrets.") {
-					// This should have been caught by extractSecretsFromConfig
-					continue
-				}
-				if strings.Contains(value, "GH_TOKEN") || strings.Contains(value, "GITHUB_TOKEN") || strings.Contains(value, "GITHUB_PERSONAL_ACCESS_TOKEN") {
-					if token, err := parser.GetGitHubToken(); err != nil {
-						return errors.New("GitHub token not found in environment (set GH_TOKEN or GITHUB_TOKEN)")
-					} else {
-						config.Env[key] = token
-					}
-				}
-				// Handle our placeholder for GitHub token requirement
-				if strings.Contains(value, "GITHUB_TOKEN_REQUIRED") {
-					if token, err := parser.GetGitHubToken(); err != nil {
-						return fmt.Errorf("GitHub token required but not available: %w", err)
-					} else {
-						config.Env[key] = token
-					}
-				}
-			} else {
-				// For direct environment variable values (not containing ${}),
-				// check if they represent actual token values
-				if value == "" {
-					return fmt.Errorf("environment variable '%s' has empty value", key)
-				}
-				// If value contains "GITHUB_TOKEN_REQUIRED", treat it as needing validation
-				if strings.Contains(value, "GITHUB_TOKEN_REQUIRED") {
-					if token, err := parser.GetGitHubToken(); err != nil {
-						return fmt.Errorf("GitHub token required but not available: %w", err)
-					} else {
-						config.Env[key] = token
-					}
-				} else {
-					// Automatically try to get GitHub token for GitHub-related environment variables
-					if key == "GITHUB_PERSONAL_ACCESS_TOKEN" || key == "GITHUB_TOKEN" || key == "GH_TOKEN" {
-						if actualValue := os.Getenv(key); actualValue == "" { //nolint:osgetenvlibrary
-							// Try to automatically get the GitHub token
-							if token, err := parser.GetGitHubToken(); err == nil {
-								config.Env[key] = token
-							} else {
-								return fmt.Errorf("GitHub token required for '%s' but not available: %w", key, err)
-							}
-						}
-					} else {
-						// For backward compatibility: check if environment variable with this name exists
-						// This preserves the original behavior for existing tests
-						if actualValue := os.Getenv(key); actualValue == "" { //nolint:osgetenvlibrary
-							return fmt.Errorf("environment variable '%s' not set", key)
-						}
-					}
-				}
-			}
-		}
-		return nil
+		return validateServerSecretsEnv(config)
 	}
 
 	// Check availability of required secrets
@@ -129,9 +42,101 @@ func validateServerSecrets(config parser.RegistryMCPServerConfig, verbose bool, 
 	secretsStatus := checkSecretsAvailability(requiredSecrets, useActionsSecrets)
 
 	// Separate secrets by availability
+	availableSecrets, missingSecrets := validateServerSecretsSplit(secretsStatus)
+
+	// Display information about secrets
+	validateServerSecretsDisplayAvailable(availableSecrets, verbose)
+
+	// Warn about missing secrets
+	validateServerSecretsDisplayMissing(missingSecrets)
+
+	mcpValidationLog.Printf("Secret validation completed: available=%d, missing=%d", len(availableSecrets), len(missingSecrets))
+	return nil
+}
+
+func validateServerSecretsGitHubRemote(config parser.RegistryMCPServerConfig, requiredSecrets []SecretInfo) []SecretInfo {
+	if config.Name != "github" || config.Type != "http" {
+		return requiredSecrets
+	}
+
+	mcpValidationLog.Print("GitHub remote mode detected, checking for GH_AW_GITHUB_TOKEN")
+	hasCustomToken := false
+	for _, value := range config.Env {
+		if strings.Contains(value, "secrets.") && !strings.Contains(value, "GH_AW_GITHUB_TOKEN") {
+			hasCustomToken = true
+			break
+		}
+	}
+	if hasCustomToken || slices.ContainsFunc(requiredSecrets, func(secret SecretInfo) bool {
+		return secret.Name == "GH_AW_GITHUB_TOKEN"
+	}) {
+		return requiredSecrets
+	}
+	return append(requiredSecrets, SecretInfo{Name: "GH_AW_GITHUB_TOKEN", EnvKey: "GITHUB_TOKEN"})
+}
+
+func validateServerSecretsEnv(config parser.RegistryMCPServerConfig) error {
+	// No secrets required, proceed with normal env var validation
+	for key, value := range config.Env {
+		if strings.Contains(value, "${") {
+			if err := validateServerSecretsEnvReference(config, key, value); err != nil {
+				return err
+			}
+		} else if err := validateServerSecretsEnvDirect(config, key, value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateServerSecretsEnvReference(config parser.RegistryMCPServerConfig, key string, value string) error {
+	if strings.Contains(value, "secrets.") {
+		return nil
+	}
+	if strings.Contains(value, "GH_TOKEN") || strings.Contains(value, "GITHUB_TOKEN") || strings.Contains(value, "GITHUB_PERSONAL_ACCESS_TOKEN") {
+		if token, err := parser.GetGitHubToken(); err != nil {
+			return errors.New("GitHub token not found in environment (set GH_TOKEN or GITHUB_TOKEN)")
+		} else {
+			config.Env[key] = token
+		}
+	}
+	if strings.Contains(value, "GITHUB_TOKEN_REQUIRED") {
+		if token, err := parser.GetGitHubToken(); err != nil {
+			return fmt.Errorf("GitHub token required but not available: %w", err)
+		} else {
+			config.Env[key] = token
+		}
+	}
+	return nil
+}
+
+func validateServerSecretsEnvDirect(config parser.RegistryMCPServerConfig, key string, value string) error {
+	if value == "" {
+		return fmt.Errorf("environment variable '%s' has empty value", key)
+	}
+	if strings.Contains(value, "GITHUB_TOKEN_REQUIRED") {
+		if token, err := parser.GetGitHubToken(); err != nil {
+			return fmt.Errorf("GitHub token required but not available: %w", err)
+		} else {
+			config.Env[key] = token
+		}
+	} else if key == "GITHUB_PERSONAL_ACCESS_TOKEN" || key == "GITHUB_TOKEN" || key == "GH_TOKEN" {
+		if actualValue := os.Getenv(key); actualValue == "" { //nolint:osgetenvlibrary
+			if token, err := parser.GetGitHubToken(); err == nil {
+				config.Env[key] = token
+			} else {
+				return fmt.Errorf("GitHub token required for '%s' but not available: %w", key, err)
+			}
+		}
+	} else if actualValue := os.Getenv(key); actualValue == "" { //nolint:osgetenvlibrary
+		return fmt.Errorf("environment variable '%s' not set", key)
+	}
+	return nil
+}
+
+func validateServerSecretsSplit(secretsStatus []SecretInfo) ([]SecretInfo, []SecretInfo) {
 	var availableSecrets []SecretInfo
 	var missingSecrets []SecretInfo
-
 	for _, secret := range secretsStatus {
 		if secret.Available {
 			availableSecrets = append(availableSecrets, secret)
@@ -139,32 +144,32 @@ func validateServerSecrets(config parser.RegistryMCPServerConfig, verbose bool, 
 			missingSecrets = append(missingSecrets, secret)
 		}
 	}
+	return availableSecrets, missingSecrets
+}
 
-	// Display information about secrets
-	if verbose {
-		if len(availableSecrets) > 0 {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d available secret(s):", len(availableSecrets))))
-			for _, secret := range availableSecrets {
-				source := "environment"
-				if secret.Source == "actions" {
-					source = "GitHub Actions"
-				}
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("  ✓ %s (from %s)", secret.Name, source)))
-			}
-		}
+func validateServerSecretsDisplayAvailable(availableSecrets []SecretInfo, verbose bool) {
+	if !verbose || len(availableSecrets) == 0 {
+		return
 	}
-
-	// Warn about missing secrets
-	if len(missingSecrets) > 0 {
-		mcpValidationLog.Printf("Found %d missing secrets", len(missingSecrets))
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠️  %d required secret(s) not found:", len(missingSecrets))))
-		for _, secret := range missingSecrets {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("  ✗ "+secret.Name))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d available secret(s):", len(availableSecrets))))
+	for _, secret := range availableSecrets {
+		source := "environment"
+		if secret.Source == "actions" {
+			source = "GitHub Actions"
 		}
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("  ✓ %s (from %s)", secret.Name, source)))
 	}
+}
 
-	mcpValidationLog.Printf("Secret validation completed: available=%d, missing=%d", len(availableSecrets), len(missingSecrets))
-	return nil
+func validateServerSecretsDisplayMissing(missingSecrets []SecretInfo) {
+	if len(missingSecrets) == 0 {
+		return
+	}
+	mcpValidationLog.Printf("Found %d missing secrets", len(missingSecrets))
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠️  %d required secret(s) not found:", len(missingSecrets))))
+	for _, secret := range missingSecrets {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("  ✗ "+secret.Name))
+	}
 }
 
 // validateMCPServerConfiguration validates that the CLI is properly configured

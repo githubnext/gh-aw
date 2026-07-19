@@ -77,95 +77,103 @@ func fetchGitHubWorkflows(repoOverride string, verbose bool) (map[string]*GitHub
 		spinner.Start()
 	}
 
+	output, err := fetchGitHubWorkflowsRun(repoOverride)
+	if err != nil {
+		if !verbose {
+			spinner.Stop()
+		}
+		return nil, err
+	}
+
+	workflows, err := fetchGitHubWorkflowsParse(output)
+	if err != nil {
+		if !verbose {
+			spinner.Stop()
+		}
+		return nil, err
+	}
+	workflowMap := fetchGitHubWorkflowsMap(workflows)
+	userWorkflowCount := fetchGitHubWorkflowsUserCount(workflowMap)
+
+	if !verbose {
+		fetchGitHubWorkflowsStopSpinner(spinner, userWorkflowCount)
+	}
+
+	workflowsLog.Printf("Fetched %d GitHub workflows (%d with .md files)", len(workflowMap), userWorkflowCount)
+	return workflowMap, nil
+}
+
+func fetchGitHubWorkflowsRun(repoOverride string) ([]byte, error) {
 	args := []string{"workflow", "list", "--all", "--json", "id,name,path,state"}
 	if repoOverride != "" {
 		args = append(args, "--repo", repoOverride)
 	}
 	cmd := workflow.ExecGH(args...)
 	output, err := cmd.Output()
-
 	if err != nil {
-		// Stop spinner on error
-		if !verbose {
-			spinner.Stop()
-		}
-
-		// Extract detailed error information including exit code and stderr
-		var exitCode int
-		var stderr string
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			exitCode = exitErr.ExitCode()
-			stderr = string(exitErr.Stderr)
-			workflowsLog.Printf("gh workflow list command failed with exit code %d. Command: gh %v", exitCode, args)
-			workflowsLog.Printf("stderr output: %s", stderr)
-
-			return nil, fmt.Errorf("failed to execute gh workflow list command (exit code %d): %w. stderr: %s", exitCode, err, stderr)
-		}
-
-		// If not an ExitError, log what we can
-		workflowsLog.Printf("gh workflow list command failed with error (not ExitError): %v. Command: gh %v", err, args)
-		return nil, fmt.Errorf("failed to execute gh workflow list command: %w", err)
+		return nil, fetchGitHubWorkflowsCommandError(err, args)
 	}
-
-	// Check if output is empty
 	if len(output) == 0 {
-		if !verbose {
-			spinner.Stop()
-		}
 		return nil, errors.New("gh workflow list returned empty output - check if repository has workflows and gh CLI is authenticated")
 	}
-
-	// Validate JSON before unmarshaling
 	if !json.Valid(output) {
-		if !verbose {
-			spinner.Stop()
-		}
 		return nil, errors.New("gh workflow list returned invalid JSON - this may be due to network issues or authentication problems")
 	}
+	return output, nil
+}
 
+func fetchGitHubWorkflowsCommandError(err error, args []string) error {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		exitCode := exitErr.ExitCode()
+		stderr := string(exitErr.Stderr)
+		workflowsLog.Printf("gh workflow list command failed with exit code %d. Command: gh %v", exitCode, args)
+		workflowsLog.Printf("stderr output: %s", stderr)
+		return fmt.Errorf("failed to execute gh workflow list command (exit code %d): %w. stderr: %s", exitCode, err, stderr)
+	}
+	workflowsLog.Printf("gh workflow list command failed with error (not ExitError): %v. Command: gh %v", err, args)
+	return fmt.Errorf("failed to execute gh workflow list command: %w", err)
+}
+
+func fetchGitHubWorkflowsParse(output []byte) ([]GitHubWorkflow, error) {
 	var workflows []GitHubWorkflow
 	if err := json.Unmarshal(output, &workflows); err != nil {
-		if !verbose {
-			spinner.Stop()
-		}
 		return nil, fmt.Errorf("failed to parse workflow data: %w", err)
 	}
+	return workflows, nil
+}
 
+func fetchGitHubWorkflowsMap(workflows []GitHubWorkflow) map[string]*GitHubWorkflow {
 	workflowMap := make(map[string]*GitHubWorkflow)
 	for i, workflow := range workflows {
 		name := extractWorkflowNameFromPath(workflow.Path)
 		workflowMap[name] = &workflows[i]
 	}
+	return workflowMap
+}
 
-	// Count user workflows (those with .md files)
+func fetchGitHubWorkflowsUserCount(workflowMap map[string]*GitHubWorkflow) int {
 	mdFiles, _ := getMarkdownWorkflowFiles("")
-	mdWorkflowNames := make(map[string]struct {
-	})
+	mdWorkflowNames := make(map[string]struct{})
 	for _, file := range mdFiles {
 		name := extractWorkflowNameFromPath(file)
-		mdWorkflowNames[name] = struct {
-		}{}
+		mdWorkflowNames[name] = struct{}{}
 	}
-
 	var userWorkflowCount int
 	for name := range workflowMap {
 		if setutil.Contains(mdWorkflowNames, name) {
 			userWorkflowCount++
 		}
 	}
+	return userWorkflowCount
+}
 
-	// Stop spinner with success message showing only user workflow count
-	if !verbose {
-		if userWorkflowCount == 1 {
-			spinner.StopWithMessage("✓ Fetched 1 workflow")
-		} else {
-			spinner.StopWithMessage(fmt.Sprintf("✓ Fetched %d workflows", userWorkflowCount))
-		}
+func fetchGitHubWorkflowsStopSpinner(spinner *console.SpinnerWrapper, userWorkflowCount int) {
+	if userWorkflowCount == 1 {
+		spinner.StopWithMessage("✓ Fetched 1 workflow")
+	} else {
+		spinner.StopWithMessage(fmt.Sprintf("✓ Fetched %d workflows", userWorkflowCount))
 	}
-
-	workflowsLog.Printf("Fetched %d GitHub workflows (%d with .md files)", len(workflowMap), userWorkflowCount)
-	return workflowMap, nil
 }
 
 // extractWorkflowNameFromPath extracts workflow name from path
@@ -357,46 +365,16 @@ func fastParseTitleFromReader(r io.Reader) (string, error) {
 	scanner := bufio.NewScanner(r)
 	// Reuse the small initial scanner buffer across calls while still allowing
 	// growth up to 1 MB for large frontmatter values or long base64-encoded lines.
-	pooled := workflowTitleScannerBufferPool.Get()
-	scannerBufferPtr, ok := pooled.(*[]byte)
-	if !ok || scannerBufferPtr == nil {
-		fallback := make([]byte, workflowTitleScannerBufferSize)
-		scannerBufferPtr = &fallback
-	}
-	scannerBuffer := *scannerBufferPtr
-	if cap(scannerBuffer) != workflowTitleScannerBufferSize {
-		scannerBuffer = make([]byte, workflowTitleScannerBufferSize)
-	} else {
-		scannerBuffer = scannerBuffer[:workflowTitleScannerBufferSize]
-	}
-	defer func() {
-		*scannerBufferPtr = scannerBuffer
-		workflowTitleScannerBufferPool.Put(scannerBufferPtr)
-	}()
+	scannerBufferPtr, scannerBuffer := fastParseTitleFromReaderBuffer()
+	defer fastParseTitleFromReaderPutBuffer(scannerBufferPtr, scannerBuffer)
 	scanner.Buffer(scannerBuffer, 1024*1024)
 	firstLine := true
 	inFrontmatter := false
 	for scanner.Scan() {
 		line := scanner.Bytes()
-		if firstLine {
-			firstLine = false
-			if isFrontmatterDelimiter(line) {
-				inFrontmatter = true
-				continue
-			}
-			if trimmed := bytes.TrimSpace(line); isFrontmatterDelimiter(trimmed) {
-				inFrontmatter = true
-				continue
-			}
-		} else if inFrontmatter {
-			if isFrontmatterDelimiter(line) {
-				inFrontmatter = false
-			} else if trimmed := bytes.TrimSpace(line); isFrontmatterDelimiter(trimmed) {
-				inFrontmatter = false
-			}
+		if fastParseTitleFromReaderFrontmatter(line, &firstLine, &inFrontmatter) {
 			continue
 		}
-
 		if title, ok := extractHeadingTitle(line); ok {
 			return title, nil
 		}
@@ -416,6 +394,45 @@ func fastParseTitleFromReader(r io.Reader) (string, error) {
 	}
 
 	return "", nil
+}
+
+func fastParseTitleFromReaderBuffer() (*[]byte, []byte) {
+	pooled := workflowTitleScannerBufferPool.Get()
+	scannerBufferPtr, ok := pooled.(*[]byte)
+	if !ok || scannerBufferPtr == nil {
+		fallback := make([]byte, workflowTitleScannerBufferSize)
+		scannerBufferPtr = &fallback
+	}
+	scannerBuffer := *scannerBufferPtr
+	if cap(scannerBuffer) != workflowTitleScannerBufferSize {
+		scannerBuffer = make([]byte, workflowTitleScannerBufferSize)
+	} else {
+		scannerBuffer = scannerBuffer[:workflowTitleScannerBufferSize]
+	}
+	return scannerBufferPtr, scannerBuffer
+}
+
+func fastParseTitleFromReaderPutBuffer(scannerBufferPtr *[]byte, scannerBuffer []byte) {
+	*scannerBufferPtr = scannerBuffer
+	workflowTitleScannerBufferPool.Put(scannerBufferPtr)
+}
+
+func fastParseTitleFromReaderFrontmatter(line []byte, firstLine *bool, inFrontmatter *bool) bool {
+	if *firstLine {
+		*firstLine = false
+		if isFrontmatterDelimiter(line) || isFrontmatterDelimiter(bytes.TrimSpace(line)) {
+			*inFrontmatter = true
+			return true
+		}
+		return false
+	}
+	if *inFrontmatter {
+		if isFrontmatterDelimiter(line) || isFrontmatterDelimiter(bytes.TrimSpace(line)) {
+			*inFrontmatter = false
+		}
+		return true
+	}
+	return false
 }
 
 func isFrontmatterDelimiter(line []byte) bool {

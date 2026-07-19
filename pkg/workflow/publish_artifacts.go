@@ -55,114 +55,129 @@ func (c *Compiler) parseUploadArtifactConfig(outputMap map[string]any) *UploadAr
 	if !exists {
 		return nil
 	}
-
-	// Explicit false disables upload-artifact (e.g. when passed via import-inputs).
 	if b, ok := configData.(bool); ok && !b {
 		publishArtifactsLog.Print("upload-artifact explicitly set to false, skipping")
 		return nil
 	}
-
 	publishArtifactsLog.Print("Parsing upload-artifact configuration")
-	config := &UploadArtifactConfig{
-		MaxUploads:   defaultArtifactMaxUploads,
-		MaxSizeBytes: defaultArtifactMaxSizeBytes,
-	}
-
+	config := defaultUploadArtifactConfig()
 	configMap, ok := configData.(map[string]any)
 	if !ok {
-		// No config map (e.g. upload-artifact: true) – use defaults.
 		publishArtifactsLog.Print("upload-artifact enabled with default configuration")
 		return config
 	}
+	applyUploadArtifactConfigMap(c, configMap, config)
+	return config
+}
 
-	// Parse max-uploads.
+func defaultUploadArtifactConfig() *UploadArtifactConfig {
+	return &UploadArtifactConfig{
+		MaxUploads:   defaultArtifactMaxUploads,
+		MaxSizeBytes: defaultArtifactMaxSizeBytes,
+	}
+}
+
+func applyUploadArtifactConfigMap(c *Compiler, configMap map[string]any, config *UploadArtifactConfig) {
 	if maxUploads, exists := configMap["max-uploads"]; exists {
 		if v, ok := typeutil.ParseIntValue(maxUploads); ok && v > 0 {
 			config.MaxUploads = v
 		}
 	}
-
-	// Parse retention-days (templatable int).
-	if err := preprocessIntFieldAsString(configMap, "retention-days", publishArtifactsLog); err != nil {
-		publishArtifactsLog.Printf("Warning: %v", err)
-	}
-	if retDays, exists := configMap["retention-days"]; exists {
-		if s, ok := retDays.(string); ok && s != "" {
-			config.RetentionDays = &s
-		}
-	}
-
-	// Parse skip-archive (templatable bool).
-	if err := preprocessBoolFieldAsString(configMap, "skip-archive", publishArtifactsLog); err != nil {
-		publishArtifactsLog.Printf("Warning: %v", err)
-	}
-	if skipArchive, exists := configMap["skip-archive"]; exists {
-		if s, ok := skipArchive.(string); ok && s != "" {
-			config.SkipArchive = &s
-		}
-	}
-
-	// Parse max-size-bytes.
+	config.RetentionDays = parseTemplatableIntString(configMap, "retention-days")
+	config.SkipArchive = parseTemplatableBoolString(configMap, "skip-archive")
 	if maxBytes, exists := configMap["max-size-bytes"]; exists {
 		if v, ok := typeutil.ParseIntValue(maxBytes); ok && v > 0 {
 			config.MaxSizeBytes = int64(v)
 		}
 	}
-
-	// Parse allowed-paths.
-	if allowedPaths, exists := configMap["allowed-paths"]; exists {
-		if arr, ok := allowedPaths.([]any); ok {
-			for _, p := range arr {
-				if s, ok := p.(string); ok && s != "" {
-					config.AllowedPaths = append(config.AllowedPaths, s)
-				}
-			}
-		}
-	}
-
-	// Parse filters.
-	if filtersData, exists := configMap["filters"]; exists {
-		if filtersMap, ok := filtersData.(map[string]any); ok {
-			filters := &ArtifactFiltersConfig{}
-			if inc, ok := filtersMap["include"].([]any); ok {
-				for _, v := range inc {
-					if s, ok := v.(string); ok {
-						filters.Include = append(filters.Include, s)
-					}
-				}
-			}
-			if exc, ok := filtersMap["exclude"].([]any); ok {
-				for _, v := range exc {
-					if s, ok := v.(string); ok {
-						filters.Exclude = append(filters.Exclude, s)
-					}
-				}
-			}
-			if len(filters.Include) > 0 || len(filters.Exclude) > 0 {
-				config.Filters = filters
-			}
-		}
-	}
-
-	// Parse defaults (if-no-files only).
-	if defaultsData, exists := configMap["defaults"]; exists {
-		if defaultsMap, ok := defaultsData.(map[string]any); ok {
-			defaults := &ArtifactDefaultsConfig{}
-			if ifNoFiles, ok := defaultsMap["if-no-files"].(string); ok && ifNoFiles != "" {
-				defaults.IfNoFiles = ifNoFiles
-			}
-			if defaults.IfNoFiles != "" {
-				config.Defaults = defaults
-			}
-		}
-	}
-
-	// Parse common base fields (max, github-token, staged).
+	config.AllowedPaths = parseStringList(configMap["allowed-paths"])
+	config.Filters = parseArtifactFilters(configMap["filters"])
+	config.Defaults = parseArtifactDefaults(configMap["defaults"])
 	c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 0)
-
 	publishArtifactsLog.Printf("Parsed upload-artifact config: max_uploads=%d, retention_days=%v, skip_archive=%v, max_size_bytes=%d",
 		config.MaxUploads, config.RetentionDays, config.SkipArchive, config.MaxSizeBytes)
-	return config
+}
+
+func parseTemplatableIntString(configMap map[string]any, field string) *string {
+	if err := preprocessIntFieldAsString(configMap, field, publishArtifactsLog); err != nil {
+		publishArtifactsLog.Printf("Warning: %v", err)
+	}
+	if value, exists := configMap[field]; exists {
+		if s, ok := value.(string); ok && s != "" {
+			return &s
+		}
+	}
+	return nil
+}
+
+func parseTemplatableBoolString(configMap map[string]any, field string) *string {
+	if err := preprocessBoolFieldAsString(configMap, field, publishArtifactsLog); err != nil {
+		publishArtifactsLog.Printf("Warning: %v", err)
+	}
+	if value, exists := configMap[field]; exists {
+		if s, ok := value.(string); ok && s != "" {
+			return &s
+		}
+	}
+	return nil
+}
+
+func parseStringList(value any) []string {
+	arr, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	var stringsList []string
+	for _, p := range arr {
+		if s, ok := p.(string); ok && s != "" {
+			stringsList = append(stringsList, s)
+		}
+	}
+	return stringsList
+}
+
+func parseArtifactFilters(value any) *ArtifactFiltersConfig {
+	filtersMap, ok := value.(map[string]any)
+	if !ok {
+		return nil
+	}
+	filters := &ArtifactFiltersConfig{
+		Include: parseStringListAllowEmpty(filtersMap["include"]),
+		Exclude: parseStringListAllowEmpty(filtersMap["exclude"]),
+	}
+	if len(filters.Include) > 0 || len(filters.Exclude) > 0 {
+		return filters
+	}
+	return nil
+}
+
+func parseStringListAllowEmpty(value any) []string {
+	arr, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	var stringsList []string
+	for _, v := range arr {
+		if s, ok := v.(string); ok {
+			stringsList = append(stringsList, s)
+		}
+	}
+	return stringsList
+}
+
+func parseArtifactDefaults(value any) *ArtifactDefaultsConfig {
+	defaultsMap, ok := value.(map[string]any)
+	if !ok {
+		return nil
+	}
+	defaults := &ArtifactDefaultsConfig{}
+	if ifNoFiles, ok := defaultsMap["if-no-files"].(string); ok && ifNoFiles != "" {
+		defaults.IfNoFiles = ifNoFiles
+	}
+	if defaults.IfNoFiles != "" {
+		return defaults
+	}
+	return nil
 }
 
 // generateSafeOutputsArtifactStagingUpload generates a step in the main agent job that uploads

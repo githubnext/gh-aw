@@ -29,98 +29,101 @@ type DispatchRepositoryConfig struct {
 // parseDispatchRepositoryConfig parses dispatch-repository configuration from the safe-outputs map.
 func (c *Compiler) parseDispatchRepositoryConfig(outputMap map[string]any) *DispatchRepositoryConfig {
 	dispatchRepositoryLog.Print("Parsing dispatch-repository configuration")
-
-	var configData any
-	var exists bool
-
-	// dispatch-repository is canonical; keep underscore form as a backward-compatible alias.
-	if configData, exists = outputMap["dispatch-repository"]; !exists {
-		if configData, exists = outputMap["dispatch_repository"]; !exists {
-			return nil
-		}
-		dispatchRepositoryLog.Print("WARNING: safe-outputs.dispatch_repository is deprecated; rename to dispatch-repository or run `gh aw fix`")
+	configData, exists := dispatchRepositoryConfigData(outputMap)
+	if !exists {
+		return nil
 	}
-
 	configMap, ok := configData.(map[string]any)
 	if !ok {
 		dispatchRepositoryLog.Print("dispatch-repository value is not a map, skipping")
 		return nil
 	}
-
 	dispatchRepositoryLog.Printf("Parsing dispatch-repository tools map with %d entries", len(configMap))
-
-	dispatchRepoConfig := &DispatchRepositoryConfig{
-		Tools: make(map[string]*DispatchRepositoryToolConfig),
-	}
-
+	dispatchRepoConfig := &DispatchRepositoryConfig{Tools: make(map[string]*DispatchRepositoryToolConfig)}
 	for toolKey, toolValue := range configMap {
-		toolMap, ok := toolValue.(map[string]any)
-		if !ok {
-			dispatchRepositoryLog.Printf("Skipping tool %q: value is not a map", toolKey)
-			continue
+		tool := c.parseDispatchRepositoryTool(toolKey, toolValue)
+		if tool != nil {
+			dispatchRepoConfig.Tools[toolKey] = tool
 		}
-
-		tool := &DispatchRepositoryToolConfig{}
-
-		if desc, ok := toolMap["description"].(string); ok {
-			tool.Description = desc
-		}
-
-		if workflow, ok := toolMap["workflow"].(string); ok {
-			tool.Workflow = workflow
-		}
-
-		if eventType, ok := toolMap["event_type"].(string); ok {
-			tool.EventType = eventType
-		}
-
-		if repo, ok := toolMap["repository"].(string); ok {
-			tool.Repository = repo
-		}
-
-		// Parse allowed_repositories (list of repos)
-		if allowedReposRaw, exists := toolMap["allowed_repositories"]; exists {
-			if allowedReposList, ok := allowedReposRaw.([]any); ok {
-				for _, r := range allowedReposList {
-					if rStr, ok := r.(string); ok {
-						tool.AllowedRepositories = append(tool.AllowedRepositories, rStr)
-					}
-				}
-			}
-		}
-
-		// Parse inputs (map of input definitions)
-		if inputsRaw, exists := toolMap["inputs"]; exists {
-			if inputsMap, ok := inputsRaw.(map[string]any); ok {
-				tool.Inputs = inputsMap
-			}
-		}
-
-		// Parse max (templatable int, default 1)
-		var baseCfg BaseSafeOutputConfig
-		c.parseBaseSafeOutputConfig(toolMap, &baseCfg, 1)
-		tool.Max = baseCfg.Max
-		tool.GitHubToken = baseCfg.GitHubToken
-		tool.Staged = baseCfg.Staged
-
-		// Cap max at 50
-		if maxVal := templatableIntValue(tool.Max); maxVal > 50 {
-			dispatchRepositoryLog.Printf("Tool %q: max value %d exceeds limit, capping at 50", toolKey, maxVal)
-			tool.Max = defaultIntStr(50)
-		}
-
-		dispatchRepositoryLog.Printf("Parsed dispatch-repository tool %q: workflow=%s, event_type=%s, max=%v",
-			toolKey, tool.Workflow, tool.EventType, tool.Max)
-
-		dispatchRepoConfig.Tools[toolKey] = tool
 	}
-
 	if len(dispatchRepoConfig.Tools) == 0 {
 		dispatchRepositoryLog.Print("No valid tools found in dispatch-repository config")
 		return nil
 	}
-
 	return dispatchRepoConfig
+}
+
+func dispatchRepositoryConfigData(outputMap map[string]any) (any, bool) {
+	configData, exists := outputMap["dispatch-repository"]
+	if exists {
+		return configData, true
+	}
+	configData, exists = outputMap["dispatch_repository"]
+	if exists {
+		dispatchRepositoryLog.Print("WARNING: safe-outputs.dispatch_repository is deprecated; rename to dispatch-repository or run `gh aw fix`")
+	}
+	return configData, exists
+}
+
+func (c *Compiler) parseDispatchRepositoryTool(toolKey string, toolValue any) *DispatchRepositoryToolConfig {
+	toolMap, ok := toolValue.(map[string]any)
+	if !ok {
+		dispatchRepositoryLog.Printf("Skipping tool %q: value is not a map", toolKey)
+		return nil
+	}
+	tool := &DispatchRepositoryToolConfig{}
+	if desc, ok := toolMap["description"].(string); ok {
+		tool.Description = desc
+	}
+	if workflow, ok := toolMap["workflow"].(string); ok {
+		tool.Workflow = workflow
+	}
+	if eventType, ok := toolMap["event_type"].(string); ok {
+		tool.EventType = eventType
+	}
+	if repo, ok := toolMap["repository"].(string); ok {
+		tool.Repository = repo
+	}
+	tool.AllowedRepositories = parseDispatchRepositoryAllowedRepos(toolMap)
+	if inputsRaw, exists := toolMap["inputs"]; exists {
+		if inputsMap, ok := inputsRaw.(map[string]any); ok {
+			tool.Inputs = inputsMap
+		}
+	}
+	c.applyDispatchRepositoryBaseConfig(toolKey, toolMap, tool)
+	dispatchRepositoryLog.Printf("Parsed dispatch-repository tool %q: workflow=%s, event_type=%s, max=%v",
+		toolKey, tool.Workflow, tool.EventType, tool.Max)
+	return tool
+}
+
+func parseDispatchRepositoryAllowedRepos(toolMap map[string]any) []string {
+	allowedReposRaw, exists := toolMap["allowed_repositories"]
+	if !exists {
+		return nil
+	}
+	allowedReposList, ok := allowedReposRaw.([]any)
+	if !ok {
+		return nil
+	}
+	var repos []string
+	for _, r := range allowedReposList {
+		if rStr, ok := r.(string); ok {
+			repos = append(repos, rStr)
+		}
+	}
+	return repos
+}
+
+func (c *Compiler) applyDispatchRepositoryBaseConfig(toolKey string, toolMap map[string]any, tool *DispatchRepositoryToolConfig) {
+	var baseCfg BaseSafeOutputConfig
+	c.parseBaseSafeOutputConfig(toolMap, &baseCfg, 1)
+	tool.Max = baseCfg.Max
+	tool.GitHubToken = baseCfg.GitHubToken
+	tool.Staged = baseCfg.Staged
+	if maxVal := templatableIntValue(tool.Max); maxVal > 50 {
+		dispatchRepositoryLog.Printf("Tool %q: max value %d exceeds limit, capping at 50", toolKey, maxVal)
+		tool.Max = defaultIntStr(50)
+	}
 }
 
 // generateDispatchRepositoryTool generates an MCP tool definition for a specific dispatch-repository tool.

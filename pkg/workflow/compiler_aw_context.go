@@ -57,32 +57,39 @@ func injectInputIntoTrigger(onSection string, triggerName string, inputName stri
 	awContextLog.Printf("Injecting %s input into %s trigger", inputName, triggerName)
 
 	lines := strings.Split(onSection, "\n")
-
-	// Find the trigger line (bare — no sub-value on same line)
-	triggerLineIdx := -1
-	triggerIndent := 0
-	for i, line := range lines {
-		stripped := strings.TrimLeft(line, " \t")
-		rest, found := strings.CutPrefix(stripped, triggerName+":")
-		if found {
-			rest = strings.TrimSpace(rest)
-			if rest == "" || rest == "null" || rest == "~" {
-				triggerLineIdx = i
-				triggerIndent = len(line) - len(stripped)
-				break
-			}
-		}
-	}
-
+	triggerLineIdx, triggerIndent := findBareTriggerLine(lines, triggerName)
 	if triggerLineIdx == -1 {
 		awContextLog.Printf("No bare %s: line found, skipping %s injection", triggerName, inputName)
 		return onSection
 	}
 	awContextLog.Printf("Found %s at line %d (indent=%d), injecting %s", triggerName, triggerLineIdx, triggerIndent, inputName)
 
-	// Look for an "inputs:" key directly inside the trigger block.
-	// Only the first non-empty, non-comment line after the trigger matters.
-	inputsLineIdx := -1
+	inputsLineIdx := findTriggerInputsLine(lines, triggerLineIdx, triggerIndent)
+	if inputsLineIdx != -1 && inputAlreadyInjected(lines, inputsLineIdx, inputName) {
+		awContextLog.Printf("%s already injected into %s, skipping", inputName, triggerName)
+		return onSection
+	}
+
+	inputLines := buildInputLines(triggerIndent)
+	result := injectInputLinesIntoTrigger(lines, triggerLineIdx, triggerIndent, inputsLineIdx, inputLines)
+	return strings.Join(result, "\n")
+}
+
+func findBareTriggerLine(lines []string, triggerName string) (int, int) {
+	for i, line := range lines {
+		stripped := strings.TrimLeft(line, " \t")
+		rest, found := strings.CutPrefix(stripped, triggerName+":")
+		if found {
+			rest = strings.TrimSpace(rest)
+			if rest == "" || rest == "null" || rest == "~" {
+				return i, len(line) - len(stripped)
+			}
+		}
+	}
+	return -1, 0
+}
+
+func findTriggerInputsLine(lines []string, triggerLineIdx int, triggerIndent int) int {
 	for i := triggerLineIdx + 1; i < len(lines); i++ {
 		stripped := strings.TrimLeft(lines[i], " \t")
 		if stripped == "" || strings.HasPrefix(stripped, "#") {
@@ -90,34 +97,35 @@ func injectInputIntoTrigger(onSection string, triggerName string, inputName stri
 		}
 		lineIndent := len(lines[i]) - len(stripped)
 		if lineIndent <= triggerIndent {
-			break // left workflow_dispatch block entirely
+			break
 		}
 		if strings.HasPrefix(stripped, "inputs:") {
-			inputsLineIdx = i
+			return i
 		}
-		break // only inspect the first substantive child key
+		break
 	}
+	return -1
+}
 
-	if inputsLineIdx != -1 {
-		inputsIndent := len(lines[inputsLineIdx]) - len(strings.TrimLeft(lines[inputsLineIdx], " \t"))
-		for i := inputsLineIdx + 1; i < len(lines); i++ {
-			stripped := strings.TrimLeft(lines[i], " \t")
-			if stripped == "" || strings.HasPrefix(stripped, "#") {
-				continue
-			}
-			lineIndent := len(lines[i]) - len(stripped)
-			if lineIndent <= inputsIndent {
-				break
-			}
-			if strings.HasPrefix(stripped, inputName+":") {
-				awContextLog.Printf("%s already injected into %s, skipping", inputName, triggerName)
-				return onSection
-			}
+func inputAlreadyInjected(lines []string, inputsLineIdx int, inputName string) bool {
+	inputsIndent := len(lines[inputsLineIdx]) - len(strings.TrimLeft(lines[inputsLineIdx], " \t"))
+	for i := inputsLineIdx + 1; i < len(lines); i++ {
+		stripped := strings.TrimLeft(lines[i], " \t")
+		if stripped == "" || strings.HasPrefix(stripped, "#") {
+			continue
+		}
+		lineIndent := len(lines[i]) - len(stripped)
+		if lineIndent <= inputsIndent {
+			break
+		}
+		if strings.HasPrefix(stripped, inputName+":") {
+			return true
 		}
 	}
+	return false
+}
 
-	inputLines := buildInputLines(triggerIndent)
-
+func injectInputLinesIntoTrigger(lines []string, triggerLineIdx int, triggerIndent int, inputsLineIdx int, inputLines []string) []string {
 	result := make([]string, 0, safeAllocationCapacity(len(lines), len(inputLines), 1))
 	for i, line := range lines {
 		// When the trigger line contains an explicit null/~ value,
@@ -137,8 +145,7 @@ func injectInputIntoTrigger(onSection string, triggerName string, inputName stri
 			result = append(result, inputLines...)
 		}
 	}
-
-	return strings.Join(result, "\n")
+	return result
 }
 
 // buildAwContextInputLines returns the indented YAML lines for the aw_context input

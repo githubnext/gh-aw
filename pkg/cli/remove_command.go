@@ -20,122 +20,141 @@ var removeLog = logger.New("cli:remove_command")
 // RemoveWorkflows removes workflows matching a pattern
 func RemoveWorkflows(pattern string, keepOrphans bool, workflowDir string) error {
 	removeLog.Printf("Removing workflows: pattern=%q, keepOrphans=%v, workflowDir=%q", pattern, keepOrphans, workflowDir)
-	workflowsDir := workflowDir
-	if workflowsDir == "" {
-		workflowsDir = getWorkflowsDir()
+	workflowsDir := RemoveWorkflowsDir(workflowDir)
+	mdFiles, err := RemoveWorkflowsMarkdownFiles(workflowsDir)
+	if err != nil || len(mdFiles) == 0 {
+		return err
 	}
 
-	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No .github/workflows directory found."))
-		return nil
-	}
-
-	// Find all markdown files in .github/workflows
-	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
-	if err != nil {
-		return fmt.Errorf("failed to find workflow files: %w", err)
-	}
-
-	// Filter out README.md files
-	mdFiles = filterWorkflowFiles(mdFiles)
-
-	removeLog.Printf("Found %d workflow files", len(mdFiles))
-	if len(mdFiles) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflow files found to remove."))
-		return nil
-	}
-
-	var filesToRemove []string
-
-	// If no pattern specified, list all files for user to see
 	if pattern == "" {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Available workflows to remove:"))
-		for _, file := range mdFiles {
-			workflowName, _ := extractWorkflowNameFromFile(file)
-			base := filepath.Base(file)
-			name := normalizeWorkflowID(base)
-			if workflowName != "" {
-				fmt.Fprintf(os.Stderr, "  %-20s - %s\n", name, workflowName)
-			} else {
-				fmt.Fprintf(os.Stderr, "  %s\n", name)
-			}
-		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\nUsage: %s remove <filter>", string(constants.CLIExtensionPrefix))))
+		RemoveWorkflowsPrintAvailable(mdFiles)
 		return nil
 	}
 
-	// Find matching files by workflow name or filename
-	for _, file := range mdFiles {
-		base := filepath.Base(file)
-		filename := normalizeWorkflowID(base)
-		workflowName, _ := extractWorkflowNameFromFile(file)
-
-		// Check if pattern matches filename or workflow name
-		if strings.Contains(strings.ToLower(filename), strings.ToLower(pattern)) ||
-			strings.Contains(strings.ToLower(workflowName), strings.ToLower(pattern)) {
-			filesToRemove = append(filesToRemove, file)
-		}
-	}
-
+	filesToRemove := RemoveWorkflowsMatchingFiles(mdFiles, pattern)
 	if len(filesToRemove) == 0 {
 		removeLog.Printf("No workflows matched pattern: %q", pattern)
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflows found matching pattern: "+pattern))
 		return nil
 	}
-
 	removeLog.Printf("Found %d workflows to remove", len(filesToRemove))
 
-	// Preview orphaned includes that would be removed (if orphan removal is enabled)
-	var orphanedIncludes []string
-	if !keepOrphans {
-		var err error
-		orphanedIncludes, err = previewOrphanedIncludes(filesToRemove, false)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to preview orphaned includes: %v", err)))
-			orphanedIncludes = []string{} // Continue with empty list
-		}
+	orphanedIncludes := RemoveWorkflowsPreviewOrphans(filesToRemove, keepOrphans)
+	RemoveWorkflowsPrintPlan(filesToRemove, orphanedIncludes)
+	confirmed, err := RemoveWorkflowsConfirm()
+	if err != nil || !confirmed {
+		return err
 	}
 
-	// Show what will be removed
+	removedFiles := RemoveWorkflowsDeleteFiles(filesToRemove)
+	RemoveWorkflowsCleanupOrphans(removedFiles, keepOrphans)
+	if len(removedFiles) > 0 && isGitRepo() {
+		stageWorkflowChanges()
+	}
+	return nil
+}
+
+func RemoveWorkflowsDir(workflowDir string) string {
+	if workflowDir != "" {
+		return workflowDir
+	}
+	return getWorkflowsDir()
+}
+
+func RemoveWorkflowsMarkdownFiles(workflowsDir string) ([]string, error) {
+	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No .github/workflows directory found."))
+		return nil, nil
+	}
+	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to find workflow files: %w", err)
+	}
+	mdFiles = filterWorkflowFiles(mdFiles)
+	removeLog.Printf("Found %d workflow files", len(mdFiles))
+	if len(mdFiles) == 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflow files found to remove."))
+	}
+	return mdFiles, nil
+}
+
+func RemoveWorkflowsPrintAvailable(mdFiles []string) {
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Available workflows to remove:"))
+	for _, file := range mdFiles {
+		workflowName, _ := extractWorkflowNameFromFile(file)
+		name := normalizeWorkflowID(filepath.Base(file))
+		if workflowName != "" {
+			fmt.Fprintf(os.Stderr, "  %-20s - %s\n", name, workflowName)
+		} else {
+			fmt.Fprintf(os.Stderr, "  %s\n", name)
+		}
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\nUsage: %s remove <filter>", string(constants.CLIExtensionPrefix))))
+}
+
+func RemoveWorkflowsMatchingFiles(mdFiles []string, pattern string) []string {
+	var filesToRemove []string
+	for _, file := range mdFiles {
+		filename := normalizeWorkflowID(filepath.Base(file))
+		workflowName, _ := extractWorkflowNameFromFile(file)
+		if strings.Contains(strings.ToLower(filename), strings.ToLower(pattern)) ||
+			strings.Contains(strings.ToLower(workflowName), strings.ToLower(pattern)) {
+			filesToRemove = append(filesToRemove, file)
+		}
+	}
+	return filesToRemove
+}
+
+func RemoveWorkflowsPreviewOrphans(filesToRemove []string, keepOrphans bool) []string {
+	if keepOrphans {
+		return nil
+	}
+	orphanedIncludes, err := previewOrphanedIncludes(filesToRemove, false)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to preview orphaned includes: %v", err)))
+		return []string{}
+	}
+	return orphanedIncludes
+}
+
+func RemoveWorkflowsPrintPlan(filesToRemove, orphanedIncludes []string) {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("The following workflows will be removed:"))
 	for _, file := range filesToRemove {
-		workflowName, _ := extractWorkflowNameFromFile(file)
-		if workflowName != "" {
-			fmt.Fprintf(os.Stderr, "  %s - %s\n", filepath.Base(file), workflowName)
-		} else {
-			fmt.Fprintf(os.Stderr, "  %s\n", filepath.Base(file))
-		}
-
-		// Also check for corresponding .lock.yml file in .github/workflows
-		lockFile := stringutil.MarkdownToLockFile(file)
-		if fileutil.FileExists(lockFile) {
-			fmt.Fprintf(os.Stderr, "  %s (compiled workflow)\n", filepath.Base(lockFile))
-		}
+		RemoveWorkflowsPrintPlanFile(file)
 	}
-
-	// Show orphaned includes that will also be removed
 	if len(orphanedIncludes) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nThe following orphaned include files will also be removed (suppress with --keep-orphans):"))
 		for _, include := range orphanedIncludes {
 			fmt.Fprintf(os.Stderr, "  %s (orphaned include)\n", include)
 		}
 	}
+}
 
-	// Ask for confirmation
-	confirmed, err := console.ConfirmAction(
-		"Are you sure you want to remove these workflows?",
-		"Yes, remove",
-		"No, cancel",
-	)
+func RemoveWorkflowsPrintPlanFile(file string) {
+	workflowName, _ := extractWorkflowNameFromFile(file)
+	if workflowName != "" {
+		fmt.Fprintf(os.Stderr, "  %s - %s\n", filepath.Base(file), workflowName)
+	} else {
+		fmt.Fprintf(os.Stderr, "  %s\n", filepath.Base(file))
+	}
+	lockFile := stringutil.MarkdownToLockFile(file)
+	if fileutil.FileExists(lockFile) {
+		fmt.Fprintf(os.Stderr, "  %s (compiled workflow)\n", filepath.Base(lockFile))
+	}
+}
+
+func RemoveWorkflowsConfirm() (bool, error) {
+	confirmed, err := console.ConfirmAction("Are you sure you want to remove these workflows?", "Yes, remove", "No, cancel")
 	if err != nil {
-		return fmt.Errorf("failed to get confirmation: %w", err)
+		return false, fmt.Errorf("failed to get confirmation: %w", err)
 	}
 	if !confirmed {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Operation cancelled."))
-		return nil
 	}
+	return confirmed, nil
+}
 
-	// Remove the files
+func RemoveWorkflowsDeleteFiles(filesToRemove []string) []string {
 	var removedFiles []string
 	for _, file := range filesToRemove {
 		if err := os.Remove(file); err != nil {
@@ -144,40 +163,37 @@ func RemoveWorkflows(pattern string, keepOrphans bool, workflowDir string) error
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed: "+filepath.Base(file)))
 			removedFiles = append(removedFiles, file)
 		}
-
-		// Also remove corresponding .lock.yml file
-		lockFile := stringutil.MarkdownToLockFile(file)
-		if fileutil.FileExists(lockFile) {
-			if err := os.Remove(lockFile); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove %s: %v", lockFile, err)))
-			} else {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed: "+filepath.Base(lockFile)))
-			}
-		}
+		RemoveWorkflowsDeleteLockFile(file)
 	}
+	return removedFiles
+}
 
-	// Clean up orphaned include files (if orphan removal is enabled)
-	if len(removedFiles) > 0 && !keepOrphans {
-		if err := cleanupOrphanedIncludes(false); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up orphaned includes: %v", err)))
-		}
+func RemoveWorkflowsDeleteLockFile(file string) {
+	lockFile := stringutil.MarkdownToLockFile(file)
+	if !fileutil.FileExists(lockFile) {
+		return
 	}
-
-	// Stage changes to git if in a git repository
-	if len(removedFiles) > 0 && isGitRepo() {
-		stageWorkflowChanges()
+	if err := os.Remove(lockFile); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove %s: %v", lockFile, err)))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed: "+filepath.Base(lockFile)))
 	}
+}
 
-	return nil
+func RemoveWorkflowsCleanupOrphans(removedFiles []string, keepOrphans bool) {
+	if len(removedFiles) == 0 || keepOrphans {
+		return
+	}
+	if err := cleanupOrphanedIncludes(false); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up orphaned includes: %v", err)))
+	}
 }
 
 // cleanupOrphanedIncludes removes include files that are no longer used by any workflow
 func cleanupOrphanedIncludes(verbose bool) error {
 	removeLog.Print("Cleaning up orphaned include files")
-	// Get all remaining markdown files
-	mdFiles, err := getMarkdownWorkflowFiles("")
+	usedIncludes, err := cleanupOrphanedIncludesUsed(verbose)
 	if err != nil {
-		// No markdown files means we can clean up all includes
 		removeLog.Print("No markdown files found, cleaning up all includes")
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No markdown files found, cleaning up all includes"))
@@ -185,10 +201,20 @@ func cleanupOrphanedIncludes(verbose bool) error {
 		return cleanupAllIncludes(verbose)
 	}
 
-	// Collect all include dependencies from remaining workflows
-	usedIncludes := make(map[string]struct {
-	})
+	allIncludes, err := getAllIncludeFiles()
+	if err != nil {
+		return fmt.Errorf("failed to scan include files: %w", err)
+	}
+	cleanupOrphanedIncludesRemove(allIncludes, usedIncludes, verbose)
+	return nil
+}
 
+func cleanupOrphanedIncludesUsed(verbose bool) (map[string]struct{}, error) {
+	mdFiles, err := getMarkdownWorkflowFiles("")
+	if err != nil {
+		return nil, err
+	}
+	usedIncludes := make(map[string]struct{})
 	for _, mdFile := range mdFiles {
 		content, err := os.ReadFile(mdFile)
 		if err != nil {
@@ -197,8 +223,6 @@ func cleanupOrphanedIncludes(verbose bool) error {
 			}
 			continue
 		}
-
-		// Find includes used by this workflow
 		includes, err := findIncludesInContent(string(content))
 		if err != nil {
 			if verbose {
@@ -206,119 +230,42 @@ func cleanupOrphanedIncludes(verbose bool) error {
 			}
 			continue
 		}
-
 		for _, include := range includes {
-			usedIncludes[include] = struct {
-			}{}
+			usedIncludes[include] = struct{}{}
 		}
 	}
+	return usedIncludes, nil
+}
 
-	// Find all include files in the workflows directory
-	// Only consider files in subdirectories (like shared/) as potential include files
-	// Root-level .md files are workflow files, not include files
+func cleanupOrphanedIncludesRemove(allIncludes []string, usedIncludes map[string]struct{}, verbose bool) {
 	workflowsDir := constants.GetWorkflowDir()
-	var allIncludes []string
-
-	err = filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !info.IsDir() && strings.HasSuffix(info.Name(), ".md") {
-			relPath, err := filepath.Rel(workflowsDir, path)
-			if err != nil {
-				return err
-			}
-
-			// Only consider files in subdirectories as potential include files
-			// Root-level .md files are workflow files, not include files
-			if strings.Contains(relPath, string(filepath.Separator)) {
-				allIncludes = append(allIncludes, relPath)
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to scan include files: %w", err)
-	}
-
-	// Remove unused includes
 	for _, include := range allIncludes {
-		if !setutil.Contains(usedIncludes, include) {
-			includePath := filepath.Join(workflowsDir, include)
-			if err := os.Remove(includePath); err != nil {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove orphaned include %s: %v", include, err)))
-				}
-			} else {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed orphaned include: "+include))
+		if setutil.Contains(usedIncludes, include) {
+			continue
+		}
+		includePath := filepath.Join(workflowsDir, include)
+		if err := os.Remove(includePath); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove orphaned include %s: %v", include, err)))
 			}
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed orphaned include: "+include))
 		}
 	}
-
-	return nil
 }
 
 // previewOrphanedIncludes returns a list of include files that would become orphaned if the specified files were removed
 func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, error) {
-	// Get all current markdown files
 	allMdFiles, err := getMarkdownWorkflowFiles("")
 	if err != nil {
 		return nil, err
 	}
-
-	// Create a map of files to remove for quick lookup
-	removeMap := make(map[string]struct {
-	})
-	for _, file := range filesToRemove {
-		removeMap[file] = struct {
-		}{}
-	}
-
-	// Get the files that would remain after removal
-	var remainingFiles []string
-	for _, file := range allMdFiles {
-		if !setutil.Contains(removeMap, file) {
-			remainingFiles = append(remainingFiles, file)
-		}
-	}
-
-	// If no files remain, all include files would be orphaned
+	remainingFiles := previewOrphanedIncludesRemainingFiles(allMdFiles, filesToRemove)
 	if len(remainingFiles) == 0 {
 		return getAllIncludeFiles()
 	}
 
-	// Collect all include dependencies from remaining workflows
-	usedIncludes := make(map[string]struct {
-	})
-
-	for _, mdFile := range remainingFiles {
-		content, err := os.ReadFile(mdFile)
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not read %s for include analysis: %v", mdFile, err)))
-			}
-			continue
-		}
-
-		// Find includes used by this workflow
-		includes, err := findIncludesInContent(string(content))
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not analyze includes in %s: %v", mdFile, err)))
-			}
-			continue
-		}
-
-		for _, include := range includes {
-			usedIncludes[include] = struct {
-			}{}
-		}
-	}
-
-	// Find all include files and check which ones would be orphaned
+	usedIncludes := previewOrphanedIncludesUsed(remainingFiles, verbose)
 	allIncludes, err := getAllIncludeFiles()
 	if err != nil {
 		return nil, err
@@ -330,8 +277,45 @@ func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, er
 			orphanedIncludes = append(orphanedIncludes, include)
 		}
 	}
-
 	return orphanedIncludes, nil
+}
+
+func previewOrphanedIncludesRemainingFiles(allMdFiles, filesToRemove []string) []string {
+	removeMap := make(map[string]struct{})
+	for _, file := range filesToRemove {
+		removeMap[file] = struct{}{}
+	}
+	var remainingFiles []string
+	for _, file := range allMdFiles {
+		if !setutil.Contains(removeMap, file) {
+			remainingFiles = append(remainingFiles, file)
+		}
+	}
+	return remainingFiles
+}
+
+func previewOrphanedIncludesUsed(remainingFiles []string, verbose bool) map[string]struct{} {
+	usedIncludes := make(map[string]struct{})
+	for _, mdFile := range remainingFiles {
+		content, err := os.ReadFile(mdFile)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not read %s for include analysis: %v", mdFile, err)))
+			}
+			continue
+		}
+		includes, err := findIncludesInContent(string(content))
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not analyze includes in %s: %v", mdFile, err)))
+			}
+			continue
+		}
+		for _, include := range includes {
+			usedIncludes[include] = struct{}{}
+		}
+	}
+	return usedIncludes
 }
 
 // getAllIncludeFiles returns all include files in .github/workflows subdirectories
@@ -424,69 +408,55 @@ func findIncludesInContent(content string) ([]string, error) {
 // parseIncludePath extracts the file path from @include/@import/{{#import}} directive lines
 // without allocating a regex submatch slice or a directive struct.
 // Returns an empty string if the line is not a recognised directive.
-// Section references (e.g. file.md#Section) are stripped from the returned path.
 func parseIncludePath(line string) string {
 	trimmed := strings.TrimSpace(line)
 	if trimmed == "" {
 		return ""
 	}
-
-	// Fast path: the vast majority of lines are not directives.
-	// Checking the first byte avoids three full HasPrefix comparisons.
 	if trimmed[0] != '@' && trimmed[0] != '{' {
 		return ""
 	}
 
 	var rest string
-
 	switch {
 	case strings.HasPrefix(trimmed, "@include"):
 		rest = trimmed[len("@include"):]
 	case strings.HasPrefix(trimmed, "@import"):
 		rest = trimmed[len("@import"):]
 	case strings.HasPrefix(trimmed, "{{#import"):
-		rest = trimmed[len("{{#import"):]
-		// Skip optional marker '?'
-		if rest != "" && rest[0] == '?' {
-			rest = rest[1:]
-		}
-		// Skip optional whitespace, then an optional single colon, then optional whitespace
-		// (mirrors the regex \s*:?\s* in IncludeDirectivePattern)
-		rest = strings.TrimSpace(rest)
-		if rest != "" && rest[0] == ':' {
-			rest = strings.TrimSpace(rest[1:])
-		}
-		// Extract path up to closing "}}" and require only whitespace after it.
-		before, after, ok := strings.Cut(rest, "}}")
-		if !ok || strings.TrimSpace(after) != "" {
-			return ""
-		}
-		path := strings.TrimSpace(before)
-		if path == "" {
-			return ""
-		}
-		// Strip section reference (file.md#Section → file.md)
-		if filePath, _, ok := strings.Cut(path, "#"); ok {
-			return filePath
-		}
-		return path
+		return parseIncludePathBraceDirective(trimmed[len("{{#import"):])
 	default:
 		return ""
 	}
 
-	// Handle @include and @import: skip optional marker '?'
 	if rest != "" && rest[0] == '?' {
 		rest = rest[1:]
 	}
-	// Require at least one whitespace character after the directive keyword
 	if rest == "" || (rest[0] != ' ' && rest[0] != '\t') {
 		return ""
 	}
-	path := strings.TrimSpace(rest)
+	return parseIncludePathStripSection(strings.TrimSpace(rest))
+}
+
+func parseIncludePathBraceDirective(rest string) string {
+	if rest != "" && rest[0] == '?' {
+		rest = rest[1:]
+	}
+	rest = strings.TrimSpace(rest)
+	if rest != "" && rest[0] == ':' {
+		rest = strings.TrimSpace(rest[1:])
+	}
+	before, after, ok := strings.Cut(rest, "}}")
+	if !ok || strings.TrimSpace(after) != "" {
+		return ""
+	}
+	return parseIncludePathStripSection(strings.TrimSpace(before))
+}
+
+func parseIncludePathStripSection(path string) string {
 	if path == "" {
 		return ""
 	}
-	// Strip section reference (file.md#Section → file.md)
 	if filePath, _, ok := strings.Cut(path, "#"); ok {
 		return filePath
 	}

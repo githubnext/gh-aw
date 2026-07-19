@@ -8,6 +8,15 @@ import (
 
 var discussionTriggerCategoriesCodemodLog = logger.New("cli:codemod_discussion_trigger_categories")
 
+type lowercaseDiscussionTriggerTypesInLinesState struct {
+	inOn           bool
+	onIndent       string
+	currentTrigger string
+	triggerIndent  string
+	inTypes        bool
+	typesIndent    string
+}
+
 // getDiscussionTriggerCategoriesLowercaseCodemod lowercases discussion trigger category values
 // so source matches compile-time normalized values.
 func getDiscussionTriggerCategoriesLowercaseCodemod() Codemod {
@@ -78,75 +87,38 @@ func lowercaseDiscussionTriggerTypesInLines(lines []string) ([]string, bool) {
 	copy(result, lines)
 
 	var modified bool
-	var inOn bool
-	var onIndent string
-	var currentTrigger string
-	var triggerIndent string
-	var inTypes bool
-	var typesIndent string
+	var state lowercaseDiscussionTriggerTypesInLinesState
 
 	for i, line := range result {
 		trimmed := strings.TrimSpace(line)
 		indent := getIndentation(line)
 
-		if isTopLevelKey(line) && isOnBlockStartLine(trimmed) {
-			inOn = true
-			onIndent = indent
-			currentTrigger = ""
-			inTypes = false
+		if lowercaseDiscussionTriggerTypesInLinesStartOn(line, trimmed, indent, &state) {
 			continue
 		}
 
-		if inOn && isTopLevelKey(line) && len(indent) <= len(onIndent) && !isOnBlockStartLine(trimmed) {
-			inOn = false
-			currentTrigger = ""
-			inTypes = false
-		}
-
-		if !inOn || trimmed == "" || strings.HasPrefix(trimmed, "#") {
+		lowercaseDiscussionTriggerTypesInLinesUpdateExits(line, trimmed, indent, &state)
+		if !state.inOn || trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 
-		if currentTrigger != "" && len(indent) <= len(triggerIndent) {
-			currentTrigger = ""
-			inTypes = false
+		if lowercaseDiscussionTriggerTypesInLinesStartTrigger(trimmed, indent, &state) {
+			continue
 		}
-
-		if len(indent) > len(onIndent) {
-			trigger, isTrigger := getDiscussionTriggerFromLine(trimmed)
-			if isTrigger {
-				currentTrigger = trigger
-				triggerIndent = indent
-				inTypes = false
-				continue
-			}
-		}
-
-		if currentTrigger == "" {
+		if state.currentTrigger == "" {
 			continue
 		}
 
-		if inTypes && len(indent) <= len(typesIndent) {
-			inTypes = false
+		updatedLine, changed, handled := lowercaseDiscussionTriggerTypesInLinesUpdateTypeLine(line, trimmed, indent, &state)
+		if changed {
+			result[i] = updatedLine
+			modified = true
 		}
-
-		if strings.HasPrefix(trimmed, "types:") {
-			typesIndent = indent
-			afterColon := strings.TrimSpace(strings.TrimPrefix(trimmed, "types:"))
-			if strings.HasPrefix(afterColon, "[") && strings.HasSuffix(afterColon, "]") {
-				updatedLine, changed := lowercaseInlineTypesArrayLine(line)
-				if changed {
-					result[i] = updatedLine
-					modified = true
-				}
-				inTypes = false
-			} else if afterColon == "" {
-				inTypes = true
-			}
+		if handled {
 			continue
 		}
 
-		if inTypes && strings.HasPrefix(strings.TrimSpace(line), "- ") {
+		if state.inTypes && strings.HasPrefix(strings.TrimSpace(line), "- ") {
 			updatedLine, changed := lowercaseYAMLListItemLine(line)
 			if changed {
 				result[i] = updatedLine
@@ -156,6 +128,63 @@ func lowercaseDiscussionTriggerTypesInLines(lines []string) ([]string, bool) {
 	}
 
 	return result, modified
+}
+
+func lowercaseDiscussionTriggerTypesInLinesStartOn(line string, trimmed string, indent string, state *lowercaseDiscussionTriggerTypesInLinesState) bool {
+	if isTopLevelKey(line) && isOnBlockStartLine(trimmed) {
+		state.inOn = true
+		state.onIndent = indent
+		state.currentTrigger = ""
+		state.inTypes = false
+		return true
+	}
+	return false
+}
+
+func lowercaseDiscussionTriggerTypesInLinesUpdateExits(line string, trimmed string, indent string, state *lowercaseDiscussionTriggerTypesInLinesState) {
+	if state.inOn && isTopLevelKey(line) && len(indent) <= len(state.onIndent) && !isOnBlockStartLine(trimmed) {
+		state.inOn = false
+		state.currentTrigger = ""
+		state.inTypes = false
+	}
+	if state.currentTrigger != "" && len(indent) <= len(state.triggerIndent) {
+		state.currentTrigger = ""
+		state.inTypes = false
+	}
+	if state.inTypes && len(indent) <= len(state.typesIndent) {
+		state.inTypes = false
+	}
+}
+
+func lowercaseDiscussionTriggerTypesInLinesStartTrigger(trimmed string, indent string, state *lowercaseDiscussionTriggerTypesInLinesState) bool {
+	if len(indent) <= len(state.onIndent) {
+		return false
+	}
+	trigger, isTrigger := getDiscussionTriggerFromLine(trimmed)
+	if !isTrigger {
+		return false
+	}
+	state.currentTrigger = trigger
+	state.triggerIndent = indent
+	state.inTypes = false
+	return true
+}
+
+func lowercaseDiscussionTriggerTypesInLinesUpdateTypeLine(line string, trimmed string, indent string, state *lowercaseDiscussionTriggerTypesInLinesState) (string, bool, bool) {
+	if !strings.HasPrefix(trimmed, "types:") {
+		return line, false, false
+	}
+	state.typesIndent = indent
+	afterColon := strings.TrimSpace(strings.TrimPrefix(trimmed, "types:"))
+	if strings.HasPrefix(afterColon, "[") && strings.HasSuffix(afterColon, "]") {
+		updatedLine, changed := lowercaseInlineTypesArrayLine(line)
+		state.inTypes = false
+		return updatedLine, changed, true
+	}
+	if afterColon == "" {
+		state.inTypes = true
+	}
+	return line, false, true
 }
 
 func isOnBlockStartLine(trimmed string) bool {

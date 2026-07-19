@@ -400,225 +400,10 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		Schema: buildAWFConfigSchemaURL(firewallConfig),
 	}
 
-	// ── Runner section ──────────────────────────────────────────────────────
-	if topology := getRunnerTopology(config.WorkflowData); topology != "" {
-		awfConfig.Runner = &AWFRunnerConfig{Topology: topology}
-		awfConfigLog.Printf("Runner section: topology=%s", topology)
-	}
-
-	// ── Network section ──────────────────────────────────────────────────────
-	if config.AllowedDomains != "" {
-		allowList := splitDomainList(config.AllowedDomains)
-		awfConfig.Network = &AWFNetworkConfig{
-			AllowDomains: allowList,
-		}
-		awfConfigLog.Printf("Network section: %d allowed domains", len(allowList))
-
-		// Blocked domains (if configured in the workflow)
-		if config.WorkflowData != nil {
-			blockedDomainsStr := formatBlockedDomains(config.WorkflowData.NetworkPermissions)
-			if blockedDomainsStr != "" {
-				blockList := splitDomainList(blockedDomainsStr)
-				awfConfig.Network.BlockDomains = blockList
-				awfConfigLog.Printf("Network section: %d blocked domains", len(blockList))
-			}
-		}
-	}
-
-	if isAWFNetworkIsolationEnabled(config.WorkflowData) {
-		if awfConfig.Network == nil {
-			awfConfig.Network = &AWFNetworkConfig{}
-		}
-		awfConfig.Network.Isolation = true
-		awfConfig.Network.TopologyAttach = buildAWFTopologyAttachList(config.WorkflowData)
-		awfConfigLog.Printf("Network section: isolation enabled with %d topology attachments", len(awfConfig.Network.TopologyAttach))
-	}
-
-	// docker-sbx: the sbx microVM resolves host services via host.docker.internal
-	// (the Docker bridge gateway, 172.17.0.1). Allow this domain so AWF's network
-	// policy permits connections from the microVM to the api-proxy, MCP gateway, and
-	// Squid proxy that are all published on the host bridge.
-	if isDockerSbxRuntime(config.WorkflowData) {
-		if awfConfig.Network == nil {
-			awfConfig.Network = &AWFNetworkConfig{}
-		}
-		const hostDockerInternal = "host.docker.internal"
-		if !slices.Contains(awfConfig.Network.AllowDomains, hostDockerInternal) {
-			awfConfig.Network.AllowDomains = append(awfConfig.Network.AllowDomains, hostDockerInternal)
-			awfConfigLog.Printf("Network section: added %s for docker-sbx microVM routing", hostDockerInternal)
-		}
-	}
-
-	if platformType := extractPlatformType(config.WorkflowData); platformType != "" {
-		awfConfig.Platform = &AWFPlatformConfig{Type: platformType}
-		awfConfigLog.Printf("Platform section: type=%s", platformType)
-	}
-
-	// ── API proxy section ─────────────────────────────────────────────────────
-	// maxAICredits is taken from frontmatter/imports only; when unset (0) the
-	// runtime value is resolved from vars.GH_AW_DEFAULT_MAX_AI_CREDITS via a
-	// GitHub Actions expression injected directly into the JSON string in
-	// BuildAWFCommand (see injectMaxAICreditsExpression in awf_helpers.go).
-	maxAICredits := int64(0)
-	maxRuns := constants.DefaultMaxRuns
-	// GetMaxTurnCacheMisses handles nil receiver and env-var fallback, so pre-init
-	// via the nil receiver avoids a redundant os.Getenv when EngineConfig is set.
-	maxTurnCacheMisses := (*EngineConfig)(nil).GetMaxTurnCacheMisses()
-	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil {
-		if config.WorkflowData.EngineConfig.MaxAICredits != 0 {
-			maxAICredits = config.WorkflowData.EngineConfig.MaxAICredits
-		}
-		maxRuns = config.WorkflowData.EngineConfig.GetMaxRuns()
-		maxTurnCacheMisses = config.WorkflowData.EngineConfig.GetMaxTurnCacheMisses()
-	}
-
-	// Token steering is enabled by default. Setting max-ai-credits to a negative
-	// value (-1) omits that budget from the AWF config and disables token steering.
-	// When maxAICredits is 0 (runtime default), token steering stays enabled here.
-	enableTokenSteering := maxAICredits >= 0
-	if maxAICredits < 0 {
-		// Negative signals "disabled" — omit the budget from the AWF config.
-		maxAICredits = 0
-	}
-
-	apiProxy := &AWFAPIProxyConfig{
-		Enabled:             true,
-		MaxRuns:             maxRuns,
-		MaxTurnCacheMisses:  maxTurnCacheMisses,
-		MaxAICredits:        maxAICredits,
-		EnableTokenSteering: enableTokenSteering && awfSupportsTokenSteering(firewallConfig),
-	}
-
-	if !enableTokenSteering {
-		awfConfigLog.Printf("Skipping apiProxy.enableTokenSteering: max-ai-credits is negative (disabled)")
-	} else if !awfSupportsTokenSteering(firewallConfig) {
-		awfConfigLog.Printf("Skipping apiProxy.enableTokenSteering: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFTokenSteeringMinVersion)
-	}
-
-	if mf := extractModelFallback(config.WorkflowData); mf != nil {
-		apiProxy.ModelFallback = mf
-		enabledDisplay := "<unset>"
-		if mf.Enabled != nil {
-			enabledDisplay = mf.Enabled.String()
-		}
-		awfConfigLog.Printf("API proxy: modelFallback configured: enabled=%s", enabledDisplay)
-	}
-
-	targets := map[string]*AWFAPITargetConfig{}
-
-	if openaiTarget := extractAPITargetHost(config.WorkflowData, "OPENAI_BASE_URL"); openaiTarget != "" {
-		targets["openai"] = &AWFAPITargetConfig{Host: openaiTarget}
-		awfConfigLog.Printf("API proxy: custom openai target=%s", openaiTarget)
-	}
-	if anthropicTarget := extractAPITargetHost(config.WorkflowData, "ANTHROPIC_BASE_URL"); anthropicTarget != "" {
-		targets["anthropic"] = &AWFAPITargetConfig{Host: anthropicTarget}
-		awfConfigLog.Printf("API proxy: custom anthropic target=%s", anthropicTarget)
-	}
-
-	// Apply authHeader overrides from sandbox.agent.targets frontmatter.
-	// These are independent of the host/env-var settings: authHeader can be set
-	// even when no custom host is configured.
-	for _, provider := range []string{"openai", "anthropic"} {
-		authHeader := extractAPITargetAuthHeader(config.WorkflowData, provider)
-		if authHeader == "" {
-			continue
-		}
-		if existing, ok := targets[provider]; ok {
-			existing.AuthHeader = authHeader
-		} else {
-			targets[provider] = &AWFAPITargetConfig{AuthHeader: authHeader}
-		}
-		awfConfigLog.Printf("API proxy: custom %s authHeader=%s", provider, authHeader)
-	}
-	if copilotTarget := GetCopilotAPITarget(config.WorkflowData); copilotTarget != "" {
-		targets["copilot"] = &AWFAPITargetConfig{Host: copilotTarget}
-		awfConfigLog.Printf("API proxy: custom copilot target=%s", copilotTarget)
-	}
-	if antigravityTarget := GetAntigravityAPITarget(config.WorkflowData, config.EngineName); antigravityTarget != "" {
-		// Route the Antigravity-resolved API target through the "gemini" provider key
-		// to match AWF's supported target providers.
-		awfConfigLog.Printf("API proxy: mapped antigravity target to gemini provider target=%s", antigravityTarget)
-		targets["gemini"] = &AWFAPITargetConfig{Host: antigravityTarget}
-	} else if geminiTarget := GetGeminiAPITarget(config.WorkflowData, config.EngineName); geminiTarget != "" {
-		awfConfigLog.Printf("API proxy: custom gemini target=%s", geminiTarget)
-		targets["gemini"] = &AWFAPITargetConfig{Host: geminiTarget}
-	}
-
-	if len(targets) > 0 {
-		apiProxy.Targets = targets
-		awfConfigLog.Printf("API proxy: %d custom targets configured", len(targets))
-	}
-
-	// ── Models section (nested under apiProxy per AWF config schema) ──────────
-	if config.WorkflowData != nil && len(config.WorkflowData.ModelMappings) > 0 {
-		apiProxy.Models = config.WorkflowData.ModelMappings
-		awfConfigLog.Printf("Models section: %d alias entries", len(config.WorkflowData.ModelMappings))
-	}
-	allowedModels, disallowedModels := resolveModelPolicyForAWFConfig(config.WorkflowData)
-	if len(allowedModels) > 0 {
-		apiProxy.AllowedModels = allowedModels
-		awfConfigLog.Printf("Models policy: %d allowed model pattern(s)", len(allowedModels))
-	}
-	if len(disallowedModels) > 0 {
-		apiProxy.DisallowedModels = disallowedModels
-		awfConfigLog.Printf("Models policy: %d disallowed model pattern(s)", len(disallowedModels))
-	}
-
-	awfConfig.APIProxy = apiProxy
-
-	// ── Container section ─────────────────────────────────────────────────────
-	awfImageTag := buildAWFImageTagWithDigests(getAWFImageTag(firewallConfig), config.WorkflowData)
-	agentRuntime := getAgentContainerRuntime(config.WorkflowData)
-	agentTimeout := 0
-	if isDockerSbxRuntime(config.WorkflowData) {
-		agentTimeout = resolveAWFContainerAgentTimeoutMinutes(config.WorkflowData)
-	}
-	// containerRuntime is only emitted when the effective AWF version supports it.
-	// Gate here to avoid sending an unrecognised field to older AWF binaries.
-	if !awfSupportsContainerRuntime(firewallConfig) {
-		if agentRuntime != "" {
-			awfConfigLog.Printf("Skipping containerRuntime: AWF version %q requires at least %s (gh-aw-firewall#6093)", getAWFImageTag(firewallConfig), constants.AWFContainerRuntimeMinVersion)
-		}
-		agentRuntime = ""
-	}
-	if awfImageTag != "" || isArcDindTopology(config.WorkflowData) || agentRuntime != "" || agentTimeout > 0 {
-		container := &AWFContainerConfig{
-			ImageTag:         awfImageTag,
-			AgentTimeout:     agentTimeout,
-			ContainerRuntime: agentRuntime,
-		}
-		// NOTE: dockerHostPathPrefix is intentionally NOT set for arc-dind topology.
-		// With sysroot-stage active, the Docker daemon can access all needed paths:
-		//  - Workspace & RUNNER_TEMP: on the shared work volume (/home/runner/_work/)
-		//  - System binaries: provided by the sysroot named volume (not bind mounts)
-		//  - Kernel VFS (/dev, /sys): daemon's own kernel
-		// Setting a prefix would incorrectly translate the workspace mount source to
-		// a non-existent path (e.g. /prefix/home/runner/_work/repo → empty dir),
-		// causing the agent to see an empty workspace. See gh-aw#34896.
-		awfConfig.Container = container
-		if awfImageTag != "" {
-			awfConfigLog.Printf("Container section: image_tag=%s", awfImageTag)
-		}
-		if agentRuntime != "" {
-			awfConfigLog.Printf("Container section: containerRuntime=%s", agentRuntime)
-		}
-		if agentTimeout > 0 {
-			awfConfigLog.Printf("Container section: agentTimeout=%d", agentTimeout)
-		}
-	}
-
-	// ── Logging section ──────────────────────────────────────────────────────
-	// Logging paths are set in config. For ARC/DinD, the config file is written at runtime,
-	// so ${RUNNER_TEMP} can be preserved for shell expansion before AWF reads the JSON.
-	awfConfig.Logging = &AWFLoggingConfig{
-		ProxyLogsDir: string(constants.AWFProxyLogsDir),
-		AuditDir:     string(constants.AWFAuditDir),
-	}
-	if isArcDindTopology(config.WorkflowData) {
-		awfConfig.Logging.ProxyLogsDir = awfArcDindProxyLogsDirExpr
-		awfConfig.Logging.AuditDir = awfArcDindAuditDirExpr
-	}
-	awfConfigLog.Printf("Logging section: proxyLogsDir=%s, auditDir=%s", awfConfig.Logging.ProxyLogsDir, awfConfig.Logging.AuditDir)
+	applyAWFRunnerNetworkAndPlatform(&awfConfig, config)
+	awfConfig.APIProxy = buildAWFAPIProxyConfig(config, firewallConfig)
+	applyAWFContainerConfig(&awfConfig, config, firewallConfig)
+	applyAWFLoggingConfig(&awfConfig, config.WorkflowData)
 
 	jsonStr, err := jsonutil.MarshalCompactNoHTMLEscape(awfConfig)
 	if err != nil {
@@ -634,6 +419,216 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 
 	return jsonStr, nil
+}
+
+func applyAWFRunnerNetworkAndPlatform(awfConfig *AWFConfigFile, config AWFCommandConfig) {
+	if topology := getRunnerTopology(config.WorkflowData); topology != "" {
+		awfConfig.Runner = &AWFRunnerConfig{Topology: topology}
+		awfConfigLog.Printf("Runner section: topology=%s", topology)
+	}
+	applyAWFNetworkConfig(awfConfig, config)
+	if platformType := extractPlatformType(config.WorkflowData); platformType != "" {
+		awfConfig.Platform = &AWFPlatformConfig{Type: platformType}
+		awfConfigLog.Printf("Platform section: type=%s", platformType)
+	}
+}
+
+func applyAWFNetworkConfig(awfConfig *AWFConfigFile, config AWFCommandConfig) {
+	if config.AllowedDomains != "" {
+		allowList := splitDomainList(config.AllowedDomains)
+		awfConfig.Network = &AWFNetworkConfig{AllowDomains: allowList}
+		awfConfigLog.Printf("Network section: %d allowed domains", len(allowList))
+		if config.WorkflowData != nil {
+			if blockedDomainsStr := formatBlockedDomains(config.WorkflowData.NetworkPermissions); blockedDomainsStr != "" {
+				blockList := splitDomainList(blockedDomainsStr)
+				awfConfig.Network.BlockDomains = blockList
+				awfConfigLog.Printf("Network section: %d blocked domains", len(blockList))
+			}
+		}
+	}
+	applyAWFNetworkIsolation(awfConfig, config.WorkflowData)
+	applyDockerSbxNetworkAllowlist(awfConfig, config.WorkflowData)
+}
+
+func applyAWFNetworkIsolation(awfConfig *AWFConfigFile, workflowData *WorkflowData) {
+	if !isAWFNetworkIsolationEnabled(workflowData) {
+		return
+	}
+	if awfConfig.Network == nil {
+		awfConfig.Network = &AWFNetworkConfig{}
+	}
+	awfConfig.Network.Isolation = true
+	awfConfig.Network.TopologyAttach = buildAWFTopologyAttachList(workflowData)
+	awfConfigLog.Printf("Network section: isolation enabled with %d topology attachments", len(awfConfig.Network.TopologyAttach))
+}
+
+func applyDockerSbxNetworkAllowlist(awfConfig *AWFConfigFile, workflowData *WorkflowData) {
+	if !isDockerSbxRuntime(workflowData) {
+		return
+	}
+	if awfConfig.Network == nil {
+		awfConfig.Network = &AWFNetworkConfig{}
+	}
+	const hostDockerInternal = "host.docker.internal"
+	if !slices.Contains(awfConfig.Network.AllowDomains, hostDockerInternal) {
+		awfConfig.Network.AllowDomains = append(awfConfig.Network.AllowDomains, hostDockerInternal)
+		awfConfigLog.Printf("Network section: added %s for docker-sbx microVM routing", hostDockerInternal)
+	}
+}
+
+func buildAWFAPIProxyConfig(config AWFCommandConfig, firewallConfig *FirewallConfig) *AWFAPIProxyConfig {
+	maxAICredits, maxRuns, maxTurnCacheMisses, enableTokenSteering := resolveAWFAPIProxyLimits(config.WorkflowData)
+	apiProxy := &AWFAPIProxyConfig{
+		Enabled:             true,
+		MaxRuns:             maxRuns,
+		MaxTurnCacheMisses:  maxTurnCacheMisses,
+		MaxAICredits:        maxAICredits,
+		EnableTokenSteering: enableTokenSteering && awfSupportsTokenSteering(firewallConfig),
+	}
+	logAWFTokenSteeringDecision(enableTokenSteering, firewallConfig)
+	applyAWFAPIProxyFallbackAndTargets(apiProxy, config)
+	applyAWFAPIProxyModels(apiProxy, config.WorkflowData)
+	return apiProxy
+}
+
+func resolveAWFAPIProxyLimits(workflowData *WorkflowData) (int64, int, int, bool) {
+	maxAICredits := int64(0)
+	maxRuns := constants.DefaultMaxRuns
+	maxTurnCacheMisses := (*EngineConfig)(nil).GetMaxTurnCacheMisses()
+	if workflowData != nil && workflowData.EngineConfig != nil {
+		if workflowData.EngineConfig.MaxAICredits != 0 {
+			maxAICredits = workflowData.EngineConfig.MaxAICredits
+		}
+		maxRuns = workflowData.EngineConfig.GetMaxRuns()
+		maxTurnCacheMisses = workflowData.EngineConfig.GetMaxTurnCacheMisses()
+	}
+	enableTokenSteering := maxAICredits >= 0
+	if maxAICredits < 0 {
+		maxAICredits = 0
+	}
+	return maxAICredits, maxRuns, maxTurnCacheMisses, enableTokenSteering
+}
+
+func logAWFTokenSteeringDecision(enableTokenSteering bool, firewallConfig *FirewallConfig) {
+	if !enableTokenSteering {
+		awfConfigLog.Printf("Skipping apiProxy.enableTokenSteering: max-ai-credits is negative (disabled)")
+	} else if !awfSupportsTokenSteering(firewallConfig) {
+		awfConfigLog.Printf("Skipping apiProxy.enableTokenSteering: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFTokenSteeringMinVersion)
+	}
+}
+
+func applyAWFAPIProxyFallbackAndTargets(apiProxy *AWFAPIProxyConfig, config AWFCommandConfig) {
+	if mf := extractModelFallback(config.WorkflowData); mf != nil {
+		apiProxy.ModelFallback = mf
+		enabledDisplay := "<unset>"
+		if mf.Enabled != nil {
+			enabledDisplay = mf.Enabled.String()
+		}
+		awfConfigLog.Printf("API proxy: modelFallback configured: enabled=%s", enabledDisplay)
+	}
+	targets := buildAWFAPITargets(config.WorkflowData, config.EngineName)
+	if len(targets) > 0 {
+		apiProxy.Targets = targets
+		awfConfigLog.Printf("API proxy: %d custom targets configured", len(targets))
+	}
+}
+
+func buildAWFAPITargets(workflowData *WorkflowData, engineName string) map[string]*AWFAPITargetConfig {
+	targets := map[string]*AWFAPITargetConfig{}
+	addAWFHostAPITarget(targets, "openai", extractAPITargetHost(workflowData, "OPENAI_BASE_URL"))
+	addAWFHostAPITarget(targets, "anthropic", extractAPITargetHost(workflowData, "ANTHROPIC_BASE_URL"))
+	applyAWFAPITargetAuthHeaders(targets, workflowData)
+	addAWFHostAPITarget(targets, "copilot", GetCopilotAPITarget(workflowData))
+	if antigravityTarget := GetAntigravityAPITarget(workflowData, engineName); antigravityTarget != "" {
+		awfConfigLog.Printf("API proxy: mapped antigravity target to gemini provider target=%s", antigravityTarget)
+		targets["gemini"] = &AWFAPITargetConfig{Host: antigravityTarget}
+	} else {
+		addAWFHostAPITarget(targets, "gemini", GetGeminiAPITarget(workflowData, engineName))
+	}
+	return targets
+}
+
+func addAWFHostAPITarget(targets map[string]*AWFAPITargetConfig, provider, host string) {
+	if host == "" {
+		return
+	}
+	targets[provider] = &AWFAPITargetConfig{Host: host}
+	awfConfigLog.Printf("API proxy: custom %s target=%s", provider, host)
+}
+
+func applyAWFAPITargetAuthHeaders(targets map[string]*AWFAPITargetConfig, workflowData *WorkflowData) {
+	for _, provider := range []string{"openai", "anthropic"} {
+		authHeader := extractAPITargetAuthHeader(workflowData, provider)
+		if authHeader == "" {
+			continue
+		}
+		if existing, ok := targets[provider]; ok {
+			existing.AuthHeader = authHeader
+		} else {
+			targets[provider] = &AWFAPITargetConfig{AuthHeader: authHeader}
+		}
+		awfConfigLog.Printf("API proxy: custom %s authHeader=%s", provider, authHeader)
+	}
+}
+
+func applyAWFAPIProxyModels(apiProxy *AWFAPIProxyConfig, workflowData *WorkflowData) {
+	if workflowData != nil && len(workflowData.ModelMappings) > 0 {
+		apiProxy.Models = workflowData.ModelMappings
+		awfConfigLog.Printf("Models section: %d alias entries", len(workflowData.ModelMappings))
+	}
+	allowedModels, disallowedModels := resolveModelPolicyForAWFConfig(workflowData)
+	if len(allowedModels) > 0 {
+		apiProxy.AllowedModels = allowedModels
+		awfConfigLog.Printf("Models policy: %d allowed model pattern(s)", len(allowedModels))
+	}
+	if len(disallowedModels) > 0 {
+		apiProxy.DisallowedModels = disallowedModels
+		awfConfigLog.Printf("Models policy: %d disallowed model pattern(s)", len(disallowedModels))
+	}
+}
+
+func applyAWFContainerConfig(awfConfig *AWFConfigFile, config AWFCommandConfig, firewallConfig *FirewallConfig) {
+	awfImageTag := buildAWFImageTagWithDigests(getAWFImageTag(firewallConfig), config.WorkflowData)
+	agentRuntime := getAgentContainerRuntime(config.WorkflowData)
+	agentTimeout := 0
+	if isDockerSbxRuntime(config.WorkflowData) {
+		agentTimeout = resolveAWFContainerAgentTimeoutMinutes(config.WorkflowData)
+	}
+	if !awfSupportsContainerRuntime(firewallConfig) {
+		if agentRuntime != "" {
+			awfConfigLog.Printf("Skipping containerRuntime: AWF version %q requires at least %s (gh-aw-firewall#6093)", getAWFImageTag(firewallConfig), constants.AWFContainerRuntimeMinVersion)
+		}
+		agentRuntime = ""
+	}
+	if awfImageTag == "" && !isArcDindTopology(config.WorkflowData) && agentRuntime == "" && agentTimeout <= 0 {
+		return
+	}
+	awfConfig.Container = &AWFContainerConfig{ImageTag: awfImageTag, AgentTimeout: agentTimeout, ContainerRuntime: agentRuntime}
+	logAWFContainerConfig(awfImageTag, agentRuntime, agentTimeout)
+}
+
+func logAWFContainerConfig(awfImageTag, agentRuntime string, agentTimeout int) {
+	if awfImageTag != "" {
+		awfConfigLog.Printf("Container section: image_tag=%s", awfImageTag)
+	}
+	if agentRuntime != "" {
+		awfConfigLog.Printf("Container section: containerRuntime=%s", agentRuntime)
+	}
+	if agentTimeout > 0 {
+		awfConfigLog.Printf("Container section: agentTimeout=%d", agentTimeout)
+	}
+}
+
+func applyAWFLoggingConfig(awfConfig *AWFConfigFile, workflowData *WorkflowData) {
+	awfConfig.Logging = &AWFLoggingConfig{
+		ProxyLogsDir: string(constants.AWFProxyLogsDir),
+		AuditDir:     string(constants.AWFAuditDir),
+	}
+	if isArcDindTopology(workflowData) {
+		awfConfig.Logging.ProxyLogsDir = awfArcDindProxyLogsDirExpr
+		awfConfig.Logging.AuditDir = awfArcDindAuditDirExpr
+	}
+	awfConfigLog.Printf("Logging section: proxyLogsDir=%s, auditDir=%s", awfConfig.Logging.ProxyLogsDir, awfConfig.Logging.AuditDir)
 }
 
 func resolveAWFContainerAgentTimeoutMinutes(workflowData *WorkflowData) int {

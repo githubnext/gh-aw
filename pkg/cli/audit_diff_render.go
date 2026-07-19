@@ -82,10 +82,24 @@ func renderSingleAuditDiffPretty(diff *AuditDiff) {
 		return
 	}
 
-	// Collect top-level summary across all sections
+	summaryParts, anomalyCount := renderSingleAuditDiffPrettySummary(diff)
+
+	if len(summaryParts) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Changes: "+strings.Join(summaryParts, " | ")))
+	}
+	if anomalyCount > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠️  %d anomalies detected", anomalyCount)))
+	}
+	fmt.Fprintln(os.Stderr)
+
+	renderFirewallDiffPrettySection(diff.FirewallDiff)
+	renderMCPToolsDiffPrettySection(diff.MCPToolsDiff)
+	renderRunMetricsDiffPrettySection(diff.Run1ID, diff.Run2ID, diff.RunMetricsDiff)
+}
+
+func renderSingleAuditDiffPrettySummary(diff *AuditDiff) ([]string, int) {
 	var summaryParts []string
 	anomalyCount := 0
-
 	if diff.FirewallDiff != nil && !isEmptyFirewallDiff(diff.FirewallDiff) {
 		fwParts := []string{}
 		if len(diff.FirewallDiff.NewDomains) > 0 {
@@ -105,35 +119,28 @@ func renderSingleAuditDiffPretty(diff *AuditDiff) {
 		}
 		anomalyCount += diff.FirewallDiff.Summary.AnomalyCount
 	}
+	return renderSingleAuditDiffPrettyMCPSummary(diff, summaryParts, anomalyCount)
+}
 
-	if diff.MCPToolsDiff != nil && !isEmptyMCPToolsDiff(diff.MCPToolsDiff) {
-		mcpParts := []string{}
-		if diff.MCPToolsDiff.Summary.NewToolCount > 0 {
-			mcpParts = append(mcpParts, fmt.Sprintf("%d new tools", diff.MCPToolsDiff.Summary.NewToolCount))
-		}
-		if diff.MCPToolsDiff.Summary.RemovedToolCount > 0 {
-			mcpParts = append(mcpParts, fmt.Sprintf("%d removed tools", diff.MCPToolsDiff.Summary.RemovedToolCount))
-		}
-		if diff.MCPToolsDiff.Summary.ChangedToolCount > 0 {
-			mcpParts = append(mcpParts, fmt.Sprintf("%d changed tools", diff.MCPToolsDiff.Summary.ChangedToolCount))
-		}
-		if len(mcpParts) > 0 {
-			summaryParts = append(summaryParts, "MCP tools: "+strings.Join(mcpParts, ", "))
-		}
-		anomalyCount += diff.MCPToolsDiff.Summary.AnomalyCount
+func renderSingleAuditDiffPrettyMCPSummary(diff *AuditDiff, summaryParts []string, anomalyCount int) ([]string, int) {
+	if diff.MCPToolsDiff == nil || isEmptyMCPToolsDiff(diff.MCPToolsDiff) {
+		return summaryParts, anomalyCount
 	}
-
-	if len(summaryParts) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Changes: "+strings.Join(summaryParts, " | ")))
+	mcpParts := []string{}
+	if diff.MCPToolsDiff.Summary.NewToolCount > 0 {
+		mcpParts = append(mcpParts, fmt.Sprintf("%d new tools", diff.MCPToolsDiff.Summary.NewToolCount))
 	}
-	if anomalyCount > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠️  %d anomalies detected", anomalyCount)))
+	if diff.MCPToolsDiff.Summary.RemovedToolCount > 0 {
+		mcpParts = append(mcpParts, fmt.Sprintf("%d removed tools", diff.MCPToolsDiff.Summary.RemovedToolCount))
 	}
-	fmt.Fprintln(os.Stderr)
-
-	renderFirewallDiffPrettySection(diff.FirewallDiff)
-	renderMCPToolsDiffPrettySection(diff.MCPToolsDiff)
-	renderRunMetricsDiffPrettySection(diff.Run1ID, diff.Run2ID, diff.RunMetricsDiff)
+	if diff.MCPToolsDiff.Summary.ChangedToolCount > 0 {
+		mcpParts = append(mcpParts, fmt.Sprintf("%d changed tools", diff.MCPToolsDiff.Summary.ChangedToolCount))
+	}
+	if len(mcpParts) > 0 {
+		summaryParts = append(summaryParts, "MCP tools: "+strings.Join(mcpParts, ", "))
+	}
+	anomalyCount += diff.MCPToolsDiff.Summary.AnomalyCount
+	return summaryParts, anomalyCount
 }
 
 // renderFirewallDiffMarkdownSection renders the firewall diff sub-section as markdown
@@ -307,78 +314,62 @@ func renderFirewallDiffPrettySection(diff *FirewallDiff) {
 	fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Firewall Changes"))
 	fmt.Fprintln(os.Stderr)
 
-	if len(diff.NewDomains) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("New Domains (%d)", len(diff.NewDomains))))
-		config := console.TableConfig{
-			Headers: []string{"Domain", "Status", "Requests", "Anomaly"},
-			Rows:    make([][]string, 0, len(diff.NewDomains)),
-		}
-		for _, entry := range diff.NewDomains {
-			total := entry.Run2Allowed + entry.Run2Blocked
-			anomalyNote := formatAnomalyNote(entry.IsAnomaly, entry.AnomalyNote)
-			config.Rows = append(config.Rows, []string{
-				entry.Domain,
-				firewallStatusEmoji(entry.Run2Status) + " " + entry.Run2Status,
-				strconv.Itoa(total),
-				anomalyNote,
-			})
-		}
-		fmt.Fprint(os.Stderr, console.RenderTable(config))
-	}
+	renderFirewallDiffPrettyNewDomains(diff.NewDomains)
+	renderFirewallDiffPrettyRemovedDomains(diff.RemovedDomains)
+	renderFirewallDiffPrettyStatusChanges(diff.StatusChanges)
+	renderFirewallDiffPrettyVolumeChanges(diff.VolumeChanges)
+}
 
-	if len(diff.RemovedDomains) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed Domains (%d)", len(diff.RemovedDomains))))
-		config := console.TableConfig{
-			Headers: []string{"Domain", "Previous Status", "Previous Requests"},
-			Rows:    make([][]string, 0, len(diff.RemovedDomains)),
-		}
-		for _, entry := range diff.RemovedDomains {
-			total := entry.Run1Allowed + entry.Run1Blocked
-			config.Rows = append(config.Rows, []string{
-				entry.Domain,
-				firewallStatusEmoji(entry.Run1Status) + " " + entry.Run1Status,
-				strconv.Itoa(total),
-			})
-		}
-		fmt.Fprint(os.Stderr, console.RenderTable(config))
+func renderFirewallDiffPrettyNewDomains(entries []DomainDiffEntry) {
+	if len(entries) == 0 {
+		return
 	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("New Domains (%d)", len(entries))))
+	config := console.TableConfig{Headers: []string{"Domain", "Status", "Requests", "Anomaly"}, Rows: make([][]string, 0, len(entries))}
+	for _, entry := range entries {
+		total := entry.Run2Allowed + entry.Run2Blocked
+		config.Rows = append(config.Rows, []string{entry.Domain, firewallStatusEmoji(entry.Run2Status) + " " + entry.Run2Status, strconv.Itoa(total), formatAnomalyNote(entry.IsAnomaly, entry.AnomalyNote)})
+	}
+	fmt.Fprint(os.Stderr, console.RenderTable(config))
+}
 
-	if len(diff.StatusChanges) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Status Changes (%d)", len(diff.StatusChanges))))
-		config := console.TableConfig{
-			Headers: []string{"Domain", "Before", "After", "Anomaly"},
-			Rows:    make([][]string, 0, len(diff.StatusChanges)),
-		}
-		for _, entry := range diff.StatusChanges {
-			anomalyNote := formatAnomalyNote(entry.IsAnomaly, entry.AnomalyNote)
-			config.Rows = append(config.Rows, []string{
-				entry.Domain,
-				firewallStatusEmoji(entry.Run1Status) + " " + entry.Run1Status,
-				firewallStatusEmoji(entry.Run2Status) + " " + entry.Run2Status,
-				anomalyNote,
-			})
-		}
-		fmt.Fprint(os.Stderr, console.RenderTable(config))
+func renderFirewallDiffPrettyRemovedDomains(entries []DomainDiffEntry) {
+	if len(entries) == 0 {
+		return
 	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed Domains (%d)", len(entries))))
+	config := console.TableConfig{Headers: []string{"Domain", "Previous Status", "Previous Requests"}, Rows: make([][]string, 0, len(entries))}
+	for _, entry := range entries {
+		total := entry.Run1Allowed + entry.Run1Blocked
+		config.Rows = append(config.Rows, []string{entry.Domain, firewallStatusEmoji(entry.Run1Status) + " " + entry.Run1Status, strconv.Itoa(total)})
+	}
+	fmt.Fprint(os.Stderr, console.RenderTable(config))
+}
 
-	if len(diff.VolumeChanges) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Volume Changes"))
-		config := console.TableConfig{
-			Headers: []string{"Domain", "Requests (before)", "Requests (after)", "Change"},
-			Rows:    make([][]string, 0, len(diff.VolumeChanges)),
-		}
-		for _, entry := range diff.VolumeChanges {
-			total1 := entry.Run1Allowed + entry.Run1Blocked
-			total2 := entry.Run2Allowed + entry.Run2Blocked
-			config.Rows = append(config.Rows, []string{
-				entry.Domain,
-				strconv.Itoa(total1),
-				strconv.Itoa(total2),
-				entry.VolumeChange,
-			})
-		}
-		fmt.Fprint(os.Stderr, console.RenderTable(config))
+func renderFirewallDiffPrettyStatusChanges(entries []DomainDiffEntry) {
+	if len(entries) == 0 {
+		return
 	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Status Changes (%d)", len(entries))))
+	config := console.TableConfig{Headers: []string{"Domain", "Before", "After", "Anomaly"}, Rows: make([][]string, 0, len(entries))}
+	for _, entry := range entries {
+		config.Rows = append(config.Rows, []string{entry.Domain, firewallStatusEmoji(entry.Run1Status) + " " + entry.Run1Status, firewallStatusEmoji(entry.Run2Status) + " " + entry.Run2Status, formatAnomalyNote(entry.IsAnomaly, entry.AnomalyNote)})
+	}
+	fmt.Fprint(os.Stderr, console.RenderTable(config))
+}
+
+func renderFirewallDiffPrettyVolumeChanges(entries []DomainDiffEntry) {
+	if len(entries) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Volume Changes"))
+	config := console.TableConfig{Headers: []string{"Domain", "Requests (before)", "Requests (after)", "Change"}, Rows: make([][]string, 0, len(entries))}
+	for _, entry := range entries {
+		total1 := entry.Run1Allowed + entry.Run1Blocked
+		total2 := entry.Run2Allowed + entry.Run2Blocked
+		config.Rows = append(config.Rows, []string{entry.Domain, strconv.Itoa(total1), strconv.Itoa(total2), entry.VolumeChange})
+	}
+	fmt.Fprint(os.Stderr, console.RenderTable(config))
 }
 
 // renderMCPToolsDiffPrettySection renders the MCP tools diff as a pretty console sub-section
@@ -390,61 +381,45 @@ func renderMCPToolsDiffPrettySection(diff *MCPToolsDiff) {
 	fmt.Fprintln(os.Stderr, console.FormatSectionHeader("MCP Tool Changes"))
 	fmt.Fprintln(os.Stderr)
 
-	if len(diff.NewTools) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("New Tools (%d)", len(diff.NewTools))))
-		config := console.TableConfig{
-			Headers: []string{"Server", "Tool", "Calls", "Anomaly"},
-			Rows:    make([][]string, 0, len(diff.NewTools)),
-		}
-		for _, entry := range diff.NewTools {
-			anomalyNote := formatAnomalyNote(entry.IsAnomaly, entry.AnomalyNote)
-			config.Rows = append(config.Rows, []string{
-				entry.ServerName,
-				entry.ToolName,
-				strconv.Itoa(entry.Run2CallCount),
-				anomalyNote,
-			})
-		}
-		fmt.Fprint(os.Stderr, console.RenderTable(config))
-	}
+	renderMCPToolsDiffPrettyNewTools(diff.NewTools)
+	renderMCPToolsDiffPrettyRemovedTools(diff.RemovedTools)
+	renderMCPToolsDiffPrettyChangedTools(diff.ChangedTools)
+}
 
-	if len(diff.RemovedTools) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed Tools (%d)", len(diff.RemovedTools))))
-		config := console.TableConfig{
-			Headers: []string{"Server", "Tool", "Previous Calls"},
-			Rows:    make([][]string, 0, len(diff.RemovedTools)),
-		}
-		for _, entry := range diff.RemovedTools {
-			config.Rows = append(config.Rows, []string{
-				entry.ServerName,
-				entry.ToolName,
-				strconv.Itoa(entry.Run1CallCount),
-			})
-		}
-		fmt.Fprint(os.Stderr, console.RenderTable(config))
+func renderMCPToolsDiffPrettyNewTools(entries []MCPToolDiffEntry) {
+	if len(entries) == 0 {
+		return
 	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("New Tools (%d)", len(entries))))
+	config := console.TableConfig{Headers: []string{"Server", "Tool", "Calls", "Anomaly"}, Rows: make([][]string, 0, len(entries))}
+	for _, entry := range entries {
+		config.Rows = append(config.Rows, []string{entry.ServerName, entry.ToolName, strconv.Itoa(entry.Run2CallCount), formatAnomalyNote(entry.IsAnomaly, entry.AnomalyNote)})
+	}
+	fmt.Fprint(os.Stderr, console.RenderTable(config))
+}
 
-	if len(diff.ChangedTools) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Changed Tools (%d)", len(diff.ChangedTools))))
-		config := console.TableConfig{
-			Headers: []string{"Server", "Tool", "Calls (before)", "Calls (after)", "Change", "Errors (before)", "Errors (after)", "Anomaly"},
-			Rows:    make([][]string, 0, len(diff.ChangedTools)),
-		}
-		for _, entry := range diff.ChangedTools {
-			anomalyNote := formatAnomalyNote(entry.IsAnomaly, entry.AnomalyNote)
-			config.Rows = append(config.Rows, []string{
-				entry.ServerName,
-				entry.ToolName,
-				strconv.Itoa(entry.Run1CallCount),
-				strconv.Itoa(entry.Run2CallCount),
-				entry.CallCountChange,
-				strconv.Itoa(entry.Run1ErrorCount),
-				strconv.Itoa(entry.Run2ErrorCount),
-				anomalyNote,
-			})
-		}
-		fmt.Fprint(os.Stderr, console.RenderTable(config))
+func renderMCPToolsDiffPrettyRemovedTools(entries []MCPToolDiffEntry) {
+	if len(entries) == 0 {
+		return
 	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed Tools (%d)", len(entries))))
+	config := console.TableConfig{Headers: []string{"Server", "Tool", "Previous Calls"}, Rows: make([][]string, 0, len(entries))}
+	for _, entry := range entries {
+		config.Rows = append(config.Rows, []string{entry.ServerName, entry.ToolName, strconv.Itoa(entry.Run1CallCount)})
+	}
+	fmt.Fprint(os.Stderr, console.RenderTable(config))
+}
+
+func renderMCPToolsDiffPrettyChangedTools(entries []MCPToolDiffEntry) {
+	if len(entries) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Changed Tools (%d)", len(entries))))
+	config := console.TableConfig{Headers: []string{"Server", "Tool", "Calls (before)", "Calls (after)", "Change", "Errors (before)", "Errors (after)", "Anomaly"}, Rows: make([][]string, 0, len(entries))}
+	for _, entry := range entries {
+		config.Rows = append(config.Rows, []string{entry.ServerName, entry.ToolName, strconv.Itoa(entry.Run1CallCount), strconv.Itoa(entry.Run2CallCount), entry.CallCountChange, strconv.Itoa(entry.Run1ErrorCount), strconv.Itoa(entry.Run2ErrorCount), formatAnomalyNote(entry.IsAnomaly, entry.AnomalyNote)})
+	}
+	fmt.Fprint(os.Stderr, console.RenderTable(config))
 }
 
 // renderRunMetricsDiffPrettySection renders the run metrics diff as a pretty console sub-section
@@ -461,38 +436,7 @@ func renderRunMetricsDiffPrettySection(run1ID, run2ID int64, diff *RunMetricsDif
 		Rows:    make([][]string, 0),
 	}
 
-	if diff.Run1TokenUsage > 0 || diff.Run2TokenUsage > 0 {
-		config.Rows = append(config.Rows, []string{
-			"Token usage",
-			strconv.Itoa(diff.Run1TokenUsage),
-			strconv.Itoa(diff.Run2TokenUsage),
-			diff.TokenUsageChange,
-		})
-	}
-	if diff.Run1Duration != "" || diff.Run2Duration != "" {
-		config.Rows = append(config.Rows, []string{
-			"Duration",
-			diff.Run1Duration,
-			diff.Run2Duration,
-			diff.DurationChange,
-		})
-	}
-	if diff.Run1Turns > 0 || diff.Run2Turns > 0 {
-		config.Rows = append(config.Rows, []string{
-			"Turns",
-			strconv.Itoa(diff.Run1Turns),
-			strconv.Itoa(diff.Run2Turns),
-			fmt.Sprintf("%+d", diff.TurnsChange),
-		})
-	}
-	if diff.Run1TokensPerTurn > 0 || diff.Run2TokensPerTurn > 0 {
-		config.Rows = append(config.Rows, []string{
-			"Tokens / turn",
-			strconv.Itoa(diff.Run1TokensPerTurn),
-			strconv.Itoa(diff.Run2TokensPerTurn),
-			diff.TokensPerTurnChange,
-		})
-	}
+	renderRunMetricsDiffPrettyRows(&config, diff)
 
 	if len(config.Rows) > 0 {
 		fmt.Fprint(os.Stderr, console.RenderTable(config))
@@ -512,6 +456,21 @@ func renderRunMetricsDiffPrettySection(run1ID, run2ID int64, diff *RunMetricsDif
 	}
 }
 
+func renderRunMetricsDiffPrettyRows(config *console.TableConfig, diff *RunMetricsDiff) {
+	if diff.Run1TokenUsage > 0 || diff.Run2TokenUsage > 0 {
+		config.Rows = append(config.Rows, []string{"Token usage", strconv.Itoa(diff.Run1TokenUsage), strconv.Itoa(diff.Run2TokenUsage), diff.TokenUsageChange})
+	}
+	if diff.Run1Duration != "" || diff.Run2Duration != "" {
+		config.Rows = append(config.Rows, []string{"Duration", diff.Run1Duration, diff.Run2Duration, diff.DurationChange})
+	}
+	if diff.Run1Turns > 0 || diff.Run2Turns > 0 {
+		config.Rows = append(config.Rows, []string{"Turns", strconv.Itoa(diff.Run1Turns), strconv.Itoa(diff.Run2Turns), fmt.Sprintf("%+d", diff.TurnsChange)})
+	}
+	if diff.Run1TokensPerTurn > 0 || diff.Run2TokensPerTurn > 0 {
+		config.Rows = append(config.Rows, []string{"Tokens / turn", strconv.Itoa(diff.Run1TokensPerTurn), strconv.Itoa(diff.Run2TokensPerTurn), diff.TokensPerTurnChange})
+	}
+}
+
 // renderTokenUsageDiffPrettySection renders detailed token usage as a pretty console sub-section
 func renderTokenUsageDiffPrettySection(run1ID, run2ID int64, diff *TokenUsageDiff) {
 	fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Token Usage Details"))
@@ -522,65 +481,34 @@ func renderTokenUsageDiffPrettySection(run1ID, run2ID int64, diff *TokenUsageDif
 		Rows:    make([][]string, 0),
 	}
 
-	if diff.Run1InputTokens > 0 || diff.Run2InputTokens > 0 {
-		config.Rows = append(config.Rows, []string{
-			"Input",
-			strconv.Itoa(diff.Run1InputTokens),
-			strconv.Itoa(diff.Run2InputTokens),
-			diff.InputTokensChange,
-		})
-	}
-	if diff.Run1OutputTokens > 0 || diff.Run2OutputTokens > 0 {
-		config.Rows = append(config.Rows, []string{
-			"Output",
-			strconv.Itoa(diff.Run1OutputTokens),
-			strconv.Itoa(diff.Run2OutputTokens),
-			diff.OutputTokensChange,
-		})
-	}
-	if diff.Run1CacheReadTokens > 0 || diff.Run2CacheReadTokens > 0 {
-		config.Rows = append(config.Rows, []string{
-			"Cache read",
-			strconv.Itoa(diff.Run1CacheReadTokens),
-			strconv.Itoa(diff.Run2CacheReadTokens),
-			diff.CacheReadTokensChange,
-		})
-	}
-	if diff.Run1CacheWriteTokens > 0 || diff.Run2CacheWriteTokens > 0 {
-		config.Rows = append(config.Rows, []string{
-			"Cache write",
-			strconv.Itoa(diff.Run1CacheWriteTokens),
-			strconv.Itoa(diff.Run2CacheWriteTokens),
-			diff.CacheWriteTokensChange,
-		})
-	}
-	if diff.Run1AIC > 0 || diff.Run2AIC > 0 {
-		config.Rows = append(config.Rows, []string{
-			"AI Credits",
-			fmt.Sprintf("%.3f", diff.Run1AIC),
-			fmt.Sprintf("%.3f", diff.Run2AIC),
-			diff.AICChange,
-		})
-	}
-	if diff.Run1TotalRequests > 0 || diff.Run2TotalRequests > 0 {
-		config.Rows = append(config.Rows, []string{
-			"API requests",
-			strconv.Itoa(diff.Run1TotalRequests),
-			strconv.Itoa(diff.Run2TotalRequests),
-			diff.RequestsDelta,
-		})
-	}
-	if diff.Run1CacheEfficiency > 0 || diff.Run2CacheEfficiency > 0 {
-		config.Rows = append(config.Rows, []string{
-			"Cache efficiency",
-			fmt.Sprintf("%.1f%%", diff.Run1CacheEfficiency*100),
-			fmt.Sprintf("%.1f%%", diff.Run2CacheEfficiency*100),
-			diff.CacheEfficiencyChange,
-		})
-	}
+	renderTokenUsageDiffPrettyRows(&config, diff)
 
 	if len(config.Rows) > 0 {
 		fmt.Fprint(os.Stderr, console.RenderTable(config))
+	}
+}
+
+func renderTokenUsageDiffPrettyRows(config *console.TableConfig, diff *TokenUsageDiff) {
+	if diff.Run1InputTokens > 0 || diff.Run2InputTokens > 0 {
+		config.Rows = append(config.Rows, []string{"Input", strconv.Itoa(diff.Run1InputTokens), strconv.Itoa(diff.Run2InputTokens), diff.InputTokensChange})
+	}
+	if diff.Run1OutputTokens > 0 || diff.Run2OutputTokens > 0 {
+		config.Rows = append(config.Rows, []string{"Output", strconv.Itoa(diff.Run1OutputTokens), strconv.Itoa(diff.Run2OutputTokens), diff.OutputTokensChange})
+	}
+	if diff.Run1CacheReadTokens > 0 || diff.Run2CacheReadTokens > 0 {
+		config.Rows = append(config.Rows, []string{"Cache read", strconv.Itoa(diff.Run1CacheReadTokens), strconv.Itoa(diff.Run2CacheReadTokens), diff.CacheReadTokensChange})
+	}
+	if diff.Run1CacheWriteTokens > 0 || diff.Run2CacheWriteTokens > 0 {
+		config.Rows = append(config.Rows, []string{"Cache write", strconv.Itoa(diff.Run1CacheWriteTokens), strconv.Itoa(diff.Run2CacheWriteTokens), diff.CacheWriteTokensChange})
+	}
+	if diff.Run1AIC > 0 || diff.Run2AIC > 0 {
+		config.Rows = append(config.Rows, []string{"AI Credits", fmt.Sprintf("%.3f", diff.Run1AIC), fmt.Sprintf("%.3f", diff.Run2AIC), diff.AICChange})
+	}
+	if diff.Run1TotalRequests > 0 || diff.Run2TotalRequests > 0 {
+		config.Rows = append(config.Rows, []string{"API requests", strconv.Itoa(diff.Run1TotalRequests), strconv.Itoa(diff.Run2TotalRequests), diff.RequestsDelta})
+	}
+	if diff.Run1CacheEfficiency > 0 || diff.Run2CacheEfficiency > 0 {
+		config.Rows = append(config.Rows, []string{"Cache efficiency", fmt.Sprintf("%.1f%%", diff.Run1CacheEfficiency*100), fmt.Sprintf("%.1f%%", diff.Run2CacheEfficiency*100), diff.CacheEfficiencyChange})
 	}
 }
 

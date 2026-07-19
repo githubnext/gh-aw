@@ -105,78 +105,93 @@ func (c *Compiler) validateExpressionSizes(yamlContent string) error {
 	return nil
 }
 
+type blockScalarExpressionState struct {
+	inBlock            bool
+	blockKey           string
+	blockStartLine     int
+	blockIndent        int
+	blockSize          int
+	blockHasExpression bool
+	maxSize            int
+}
+
 // validateBlockScalarExpressionSizes scans the YAML lines for multi-line block scalars
-// (literal | or folded >) and returns an error when any such block both contains a
-// GitHub Actions template expression (${{ }}) and exceeds maxSize bytes in total.
+// and returns an error when any expression-containing block exceeds maxSize bytes.
 func validateBlockScalarExpressionSizes(lines []string, maxSize int) error {
-	// Track whether we are inside a block scalar and its metadata.
-	inBlock := false
-	blockKey := ""
-	blockStartLine := 0
-	blockIndent := -1
-	blockSize := 0
-	blockHasExpression := false
-
-	checkBlock := func() error {
-		if inBlock && blockHasExpression && blockSize > maxSize {
-			actualSize := console.FormatFileSize(int64(blockSize))
-			maxSizeFormatted := console.FormatFileSize(int64(maxSize))
-			return fmt.Errorf("expression value for %q (%s) exceeds maximum allowed size (%s) starting at line %d. "+
-				"GitHub Actions has a 21KB limit for YAML values that contain template expressions (${{ }}). "+
-				"Split the step into separate run: blocks so that no single block containing ${{ }} expressions exceeds the limit",
-				blockKey, actualSize, maxSizeFormatted, blockStartLine+1)
-		}
-		return nil
-	}
-
+	state := blockScalarExpressionState{blockIndent: -1, maxSize: maxSize}
 	for i, line := range lines {
-		// Count leading spaces to determine indentation level.
-		trimmed := strings.TrimLeft(line, " \t")
-		indent := len(line) - len(trimmed)
-
-		if inBlock {
-			// An empty line is part of the block (blank lines are allowed inside block scalars).
-			if strings.TrimSpace(line) == "" {
-				blockSize += len(line) + 1 // +1 for the newline
-				continue
-			}
-			// A line whose indentation is greater than the block header's indentation
-			// is still inside the block scalar.
-			if indent > blockIndent {
-				blockSize += len(line) + 1
-				if strings.Contains(line, "${{") {
-					blockHasExpression = true
-				}
-				continue
-			}
-			// Indentation dropped back – the block has ended.
-			if err := checkBlock(); err != nil {
-				return err
-			}
-			inBlock = false
-			blockKey = ""
-			blockSize = 0
-			blockHasExpression = false
-			blockIndent = -1
-		}
-
-		// Detect the start of a block scalar: a YAML key whose value is | or >
-		// e.g. "        run: |" or "    script: >"
-		if colonIdx := strings.Index(trimmed, ":"); colonIdx > 0 {
-			afterColon := strings.TrimSpace(trimmed[colonIdx+1:])
-			if afterColon == "|" || afterColon == ">" || strings.HasPrefix(afterColon, "|-") || strings.HasPrefix(afterColon, ">-") {
-				inBlock = true
-				blockKey = strings.TrimSpace(trimmed[:colonIdx])
-				blockStartLine = i
-				blockIndent = indent
-				blockSize = 0
-				blockHasExpression = false
-			}
+		if err := state.processLine(i, line); err != nil {
+			return err
 		}
 	}
+	return state.checkBlock()
+}
 
-	// Check any block that was still open when the file ended.
-	return checkBlock()
+func (s *blockScalarExpressionState) processLine(i int, line string) error {
+	trimmed := strings.TrimLeft(line, " \t")
+	indent := len(line) - len(trimmed)
+	if s.inBlock {
+		if s.lineContinuesBlock(line, indent) {
+			s.addBlockLine(line)
+			return nil
+		}
+		if err := s.checkBlock(); err != nil {
+			return err
+		}
+		s.resetBlock()
+	}
+	if key, ok := detectBlockScalarStart(trimmed); ok {
+		s.inBlock = true
+		s.blockKey = key
+		s.blockStartLine = i
+		s.blockIndent = indent
+		s.blockSize = 0
+		s.blockHasExpression = false
+	}
+	return nil
+}
+
+func (s *blockScalarExpressionState) lineContinuesBlock(line string, indent int) bool {
+	return strings.TrimSpace(line) == "" || indent > s.blockIndent
+}
+
+func (s *blockScalarExpressionState) addBlockLine(line string) {
+	s.blockSize += len(line) + 1
+	if strings.Contains(line, "${{") {
+		s.blockHasExpression = true
+	}
+}
+
+func (s *blockScalarExpressionState) checkBlock() error {
+	if s.inBlock && s.blockHasExpression && s.blockSize > s.maxSize {
+		actualSize := console.FormatFileSize(int64(s.blockSize))
+		maxSizeFormatted := console.FormatFileSize(int64(s.maxSize))
+		return fmt.Errorf("expression value for %q (%s) exceeds maximum allowed size (%s) starting at line %d. "+
+			"GitHub Actions has a 21KB limit for YAML values that contain template expressions (${{ }}). "+
+			"Split the step into separate run: blocks so that no single block containing ${{ }} expressions exceeds the limit",
+			s.blockKey, actualSize, maxSizeFormatted, s.blockStartLine+1)
+	}
+	return nil
+}
+
+func (s *blockScalarExpressionState) resetBlock() {
+	s.inBlock = false
+	s.blockKey = ""
+	s.blockSize = 0
+	s.blockHasExpression = false
+	s.blockIndent = -1
+}
+
+func detectBlockScalarStart(trimmed string) (string, bool) {
+	colonIdx := strings.Index(trimmed, ":")
+	if colonIdx <= 0 {
+		return "", false
+	}
+	afterColon := strings.TrimSpace(trimmed[colonIdx+1:])
+	if afterColon == "|" || afterColon == ">" || strings.HasPrefix(afterColon, "|-") || strings.HasPrefix(afterColon, ">-") {
+		return strings.TrimSpace(trimmed[:colonIdx]), true
+	}
+	return "", false
 }
 
 // validateContainerImages validates that container images specified in MCP configs exist and are accessible
@@ -185,68 +200,71 @@ func (c *Compiler) validateContainerImages(workflowData *WorkflowData) error {
 		runtimeValidationLog.Print("No tools configured, skipping container validation")
 		return nil
 	}
-
 	runtimeValidationLog.Printf("Validating container images for %d tools", len(workflowData.Tools))
-
-	// Snapshot daemon availability before iterating so we can detect a
-	// mid-loop transition (available → unavailable) and emit exactly one
-	// warning for it, correctly counted in the compiler's warning total.
 	daemonWasAvailable := isDockerDaemonRunning()
+	validationErrors := c.collectContainerImageValidationErrors(workflowData)
+	c.warnIfDockerDaemonStopped(daemonWasAvailable)
+	if len(validationErrors) > 0 {
+		return containerImageValidationError(validationErrors)
+	}
+	runtimeValidationLog.Print("Container image validation passed")
+	return nil
+}
 
-	var errors []string
+func (c *Compiler) collectContainerImageValidationErrors(workflowData *WorkflowData) []string {
+	var validationErrors []string
 	for toolName, toolConfig := range workflowData.Tools {
-		if config, ok := toolConfig.(map[string]any); ok {
-			// Get the MCP configuration to extract container info
-			mcpConfig, err := getMCPConfig(config, toolName)
-			if err != nil {
-				// If we can't parse the MCP config, skip validation (will be caught elsewhere)
-				continue
-			}
-
-			// Check if this tool originally had a container field (before transformation)
-			if containerName, hasContainer := config["container"]; hasContainer && mcpConfig.Type == "stdio" {
-				// Build the full container image name with version
-				containerStr, ok := containerName.(string)
-				if !ok {
-					continue
-				}
-
-				containerImage := containerStr
-				if version, hasVersion := config["version"]; hasVersion {
-					if versionStr, ok := version.(string); ok && versionStr != "" {
-						containerImage = containerImage + ":" + versionStr
-					}
-				}
-
-				// Validate the container image exists using docker
-				if err := validateDockerImage(containerImage, c.verbose, c.requireDocker); err != nil {
-					errors = append(errors, fmt.Sprintf("tool '%s': %v", toolName, err))
-				}
-			}
+		containerImage, ok := containerImageForValidation(toolName, toolConfig)
+		if !ok {
+			continue
+		}
+		if err := validateDockerImage(containerImage, c.verbose, c.requireDocker); err != nil {
+			validationErrors = append(validationErrors, fmt.Sprintf("tool '%s': %v", toolName, err))
 		}
 	}
+	return validationErrors
+}
 
-	// If the daemon appeared available at the start of the loop but became
-	// unreachable during a pull (requireDocker=false path only), emit a single
-	// visible warning here where we can also increment the warning count.
-	// For requireDocker=true, the per-image errors are already returned below
-	// and surfaced as a warning by the caller — no extra warning is needed.
+func containerImageForValidation(toolName string, toolConfig any) (string, bool) {
+	config, ok := toolConfig.(map[string]any)
+	if !ok {
+		return "", false
+	}
+	mcpConfig, err := getMCPConfig(config, toolName)
+	if err != nil {
+		return "", false
+	}
+	containerName, hasContainer := config["container"]
+	if !hasContainer || mcpConfig.Type != "stdio" {
+		return "", false
+	}
+	containerStr, ok := containerName.(string)
+	if !ok {
+		return "", false
+	}
+	containerImage := containerStr
+	if version, hasVersion := config["version"]; hasVersion {
+		if versionStr, ok := version.(string); ok && versionStr != "" {
+			containerImage += ":" + versionStr
+		}
+	}
+	return containerImage, true
+}
+
+func (c *Compiler) warnIfDockerDaemonStopped(daemonWasAvailable bool) {
 	if daemonWasAvailable && !isDockerDaemonRunning() && !c.requireDocker {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Docker daemon is not running — skipping container image validation"))
 		c.IncrementWarningCount()
 	}
+}
 
-	if len(errors) > 0 {
-		return NewValidationError(
-			"container.images",
-			fmt.Sprintf("%d images failed validation", len(errors)),
-			"container image validation failed",
-			fmt.Sprintf("Fix the following container image issues:\n\n%s\n\nEnsure:\n1. Container images exist and are accessible\n2. Registry URLs are correct\n3. Image tags are specified\n4. You have pull permissions for private images", strings.Join(errors, "\n")),
-		)
-	}
-
-	runtimeValidationLog.Print("Container image validation passed")
-	return nil
+func containerImageValidationError(validationErrors []string) error {
+	return NewValidationError(
+		"container.images",
+		fmt.Sprintf("%d images failed validation", len(validationErrors)),
+		"container image validation failed",
+		fmt.Sprintf("Fix the following container image issues:\n\n%s\n\nEnsure:\n1. Container images exist and are accessible\n2. Registry URLs are correct\n3. Image tags are specified\n4. You have pull permissions for private images", strings.Join(validationErrors, "\n")),
+	)
 }
 
 // validateRuntimePackages validates that packages required by npx, pip, and uv are available

@@ -368,31 +368,7 @@ func ensureGitAttributes() (bool, error) {
 
 	modified := false
 	for _, required := range requiredEntries {
-		found := false
-		for i, line := range lines {
-			trimmedLine := strings.TrimSpace(line)
-			if trimmedLine == required {
-				found = true
-				break
-			}
-			// Check for old format entries that need updating
-			if strings.HasPrefix(trimmedLine, constants.WorkflowsLockYmlGlob) && required == lockYmlEntry {
-				gitLog.Print("Updating old .gitattributes entry format")
-				lines[i] = lockYmlEntry
-				found = true
-				modified = true
-				break
-			}
-		}
-
-		if !found {
-			gitLog.Printf("Adding new .gitattributes entry: %s", required)
-			if len(lines) > 0 && lines[len(lines)-1] != "" {
-				lines = append(lines, "")
-			}
-			lines = append(lines, required)
-			modified = true
-		}
+		lines, modified = ensureGitAttributesRequiredEntry(lines, required, lockYmlEntry, modified)
 	}
 
 	if !modified {
@@ -409,6 +385,35 @@ func ensureGitAttributes() (bool, error) {
 
 	gitLog.Print("Successfully updated .gitattributes")
 	return true, nil
+}
+
+func ensureGitAttributesRequiredEntry(lines []string, required, lockYmlEntry string, modified bool) ([]string, bool) {
+	found := false
+	for i, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine == required {
+			found = true
+			break
+		}
+		// Check for old format entries that need updating
+		if strings.HasPrefix(trimmedLine, constants.WorkflowsLockYmlGlob) && required == lockYmlEntry {
+			gitLog.Print("Updating old .gitattributes entry format")
+			lines[i] = lockYmlEntry
+			found = true
+			modified = true
+			break
+		}
+	}
+
+	if !found {
+		gitLog.Printf("Adding new .gitattributes entry: %s", required)
+		if len(lines) > 0 && lines[len(lines)-1] != "" {
+			lines = append(lines, "")
+		}
+		lines = append(lines, required)
+		modified = true
+	}
+	return lines, modified
 }
 
 // stageGitAttributesIfChanged stages .gitattributes if it was modified
@@ -599,62 +604,83 @@ func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
 	}
 
 	// Make path relative to git root if it's absolute
-	var relPath string
-	if filepath.IsAbs(workflowPath) {
-		var err error
-		relPath, err = filepath.Rel(gitRoot, workflowPath)
-		if err != nil {
-			gitLog.Printf("Failed to make path relative: %v", err)
-			relPath = workflowPath
-		}
-	} else {
-		relPath = workflowPath
-	}
+	relPath := checkWorkflowFileStatusRelativePath(workflowPath, gitRoot)
 
 	gitLog.Printf("Checking git status for: %s", relPath)
 
 	// Check for modified or staged changes using git status --porcelain
-	cmd := exec.Command("git", "-C", gitRoot, "status", "--porcelain", relPath)
-	output, err := cmd.Output()
-	if err != nil {
+	if err := checkWorkflowFileStatusLocalChanges(status, gitRoot, relPath); err != nil {
 		gitLog.Printf("Failed to check git status: %v", err)
 		return status, nil // Ignore error, return empty status
 	}
 
-	statusOutput := string(output) // Don't trim - the leading space is significant!
-	if statusOutput != "" {
-		gitLog.Printf("Git status output: %q", statusOutput)
-		// Parse the status line (format: XY filename)
-		// X = index (staged) status, Y = working tree (unstaged) status
-		// The format is exactly 2 characters followed by a space and then the filename
-		if len(statusOutput) >= 2 {
-			stagedStatus := statusOutput[0]
-			unstagedStatus := statusOutput[1]
-
-			// Check if file is staged (first character is not space or ?)
-			if stagedStatus != ' ' && stagedStatus != '?' {
-				status.IsStaged = true
-				gitLog.Print("File has staged changes")
-			}
-
-			// Check if file is modified in working tree (second character is M or other modification indicators)
-			if unstagedStatus == 'M' || unstagedStatus == 'D' || unstagedStatus == 'A' {
-				status.IsModified = true
-				gitLog.Print("File has unstaged modifications")
-			}
-		}
+	// Check for unpushed commits that affect this file
+	if err := checkWorkflowFileStatusUnpushed(status, gitRoot, relPath); err != nil {
+		gitLog.Printf("Failed to check unpushed commits: %v", err)
+		return status, nil // Ignore error, return current status
 	}
 
-	// Check for unpushed commits that affect this file
+	return status, nil
+}
+
+func checkWorkflowFileStatusRelativePath(workflowPath, gitRoot string) string {
+	if !filepath.IsAbs(workflowPath) {
+		return workflowPath
+	}
+	relPath, err := filepath.Rel(gitRoot, workflowPath)
+	if err != nil {
+		gitLog.Printf("Failed to make path relative: %v", err)
+		return workflowPath
+	}
+	return relPath
+}
+
+func checkWorkflowFileStatusLocalChanges(status *WorkflowFileStatus, gitRoot, relPath string) error {
+	cmd := exec.Command("git", "-C", gitRoot, "status", "--porcelain", relPath)
+	output, err := cmd.Output()
+	if err != nil {
+		return err
+	}
+	statusOutput := string(output) // Don't trim - the leading space is significant!
+	if statusOutput == "" {
+		return nil
+	}
+	gitLog.Printf("Git status output: %q", statusOutput)
+	// Parse the status line (format: XY filename)
+	// X = index (staged) status, Y = working tree (unstaged) status
+	// The format is exactly 2 characters followed by a space and then the filename
+	if len(statusOutput) >= 2 {
+		checkWorkflowFileStatusParsePorcelain(status, statusOutput)
+	}
+	return nil
+}
+
+func checkWorkflowFileStatusParsePorcelain(status *WorkflowFileStatus, statusOutput string) {
+	stagedStatus := statusOutput[0]
+	unstagedStatus := statusOutput[1]
+
+	// Check if file is staged (first character is not space or ?)
+	if stagedStatus != ' ' && stagedStatus != '?' {
+		status.IsStaged = true
+		gitLog.Print("File has staged changes")
+	}
+
+	// Check if file is modified in working tree (second character is M or other modification indicators)
+	if unstagedStatus == 'M' || unstagedStatus == 'D' || unstagedStatus == 'A' {
+		status.IsModified = true
+		gitLog.Print("File has unstaged modifications")
+	}
+}
+
+func checkWorkflowFileStatusUnpushed(status *WorkflowFileStatus, gitRoot, relPath string) error {
 	// First, check if there's a remote tracking branch
-	cmd = exec.Command("git", "-C", gitRoot, "rev-parse", "--abbrev-ref", "@{u}")
-	output, err = cmd.Output()
+	cmd := exec.Command("git", "-C", gitRoot, "rev-parse", "--abbrev-ref", "@{u}")
+	output, err := cmd.Output()
 	if err != nil {
 		// No upstream branch configured, skip unpushed commits check
 		gitLog.Print("No upstream branch configured")
-		return status, nil
+		return nil
 	}
-
 	upstream := strings.TrimSpace(string(output))
 	gitLog.Printf("Upstream branch: %s", upstream)
 
@@ -662,16 +688,13 @@ func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
 	cmd = exec.Command("git", "-C", gitRoot, "log", upstream+"..HEAD", "--oneline", "--", relPath)
 	output, err = cmd.Output()
 	if err != nil {
-		gitLog.Printf("Failed to check unpushed commits: %v", err)
-		return status, nil // Ignore error, return current status
+		return err
 	}
-
 	if strings.TrimSpace(string(output)) != "" {
 		status.HasUnpushedCommits = true
 		gitLog.Print("File has unpushed commits")
 	}
-
-	return status, nil
+	return nil
 }
 
 // stageAllChanges stages all modified files using git add -A

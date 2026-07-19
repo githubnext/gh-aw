@@ -89,75 +89,20 @@ type OutcomesData struct {
 func RunOutcomes(config OutcomesConfig) error {
 	outcomesLog.Printf("Evaluating outcomes for run %d", config.RunID)
 
-	// Resolve repo
-	repo := config.RepoOverride
-	if repo == "" {
-		slug, err := GetCurrentRepoSlug()
-		if err != nil {
-			return fmt.Errorf("could not determine repository: %w", err)
-		}
-		repo = slug
+	repo, err := runOutcomesResolveRepo(config.RepoOverride)
+	if err != nil {
+		return err
 	}
-
-	// Parse owner/repo for artifact download
-	var owner, repoName, hostname string
-	parts := strings.SplitN(repo, "/", 2)
-	if len(parts) == 2 {
-		owner = parts[0]
-		repoName = parts[1]
-	}
-
-	// Determine output directory for this run
-	outputDir := config.OutputDir
-	if outputDir == "" {
-		outputDir = defaultLogsOutputDir
-	}
-	runDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", config.RunID))
-
-	// Try to load from cache first
+	owner, repoName, hostname := runOutcomesRepoParts(repo)
+	runDir := runOutcomesRunDir(config)
 	summary, cached := loadRunSummary(runDir, config.Verbose)
-	var items []CreatedItemReport
-
-	if cached && summary != nil {
-		items = extractCreatedItemsFromManifest(runDir)
-		if len(items) == 0 {
-			items = extractCreatedItemsFromManifest(filepath.Join(runDir, "safe-outputs-items"))
-		}
-		// Enrich with data from raw agent output (has issue_number etc.)
-		items = enrichItemsFromAgentOutput(items, runDir, repo)
-		if config.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Loaded %d safe output items from cache", len(items))))
-		}
+	items, err := runOutcomesLoadItems(config, runDir, repo, owner, repoName, hostname, cached, summary)
+	if err != nil {
+		return err
 	}
 
 	if len(items) == 0 {
-		if config.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Downloading artifacts for run %d...", config.RunID)))
-		}
-		ctx := context.Background()
-		err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: config.RunID, outputDir: runDir, verbose: config.Verbose, owner: owner, repo: repoName, hostname: hostname})
-		if err != nil {
-			return fmt.Errorf("failed to download artifacts for run %d: %w", config.RunID, err)
-		}
-		items = extractCreatedItemsFromManifest(runDir)
-		if len(items) == 0 {
-			items = extractCreatedItemsFromManifest(filepath.Join(runDir, "safe-outputs-items"))
-		}
-		items = enrichItemsFromAgentOutput(items, runDir, repo)
-	}
-
-	if len(items) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No safe output items found for this run"))
-		if config.JSONOutput {
-			data := OutcomesData{
-				RunID:   config.RunID,
-				Items:   []OutcomeReport{},
-				Summary: OutcomeSummary{},
-			}
-			out, _ := json.MarshalIndent(data, "", "  ")
-			fmt.Fprintln(os.Stdout, string(out))
-		}
-		return nil
+		return runOutcomesNoItems(config)
 	}
 
 	if config.Verbose {
@@ -179,85 +124,155 @@ func RunOutcomes(config OutcomesConfig) error {
 		writeOutcomeJSONL(outcomesDir, config.RunID, reports)
 	}
 
-	// Get workflow name from cache if available
-	workflowName := ""
-	if cached && summary != nil {
-		workflowName = summary.Run.WorkflowName
-	}
+	workflowName := runOutcomesWorkflowName(cached, summary)
 
 	if config.JSONOutput {
-		data := OutcomesData{
-			RunID:    config.RunID,
-			Workflow: workflowName,
-			Items:    reports,
-			Summary:  outcomeSummary,
-		}
-		out, err := json.MarshalIndent(data, "", "  ")
-		if err != nil {
-			return fmt.Errorf("failed to marshal JSON: %w", err)
-		}
-		fmt.Fprintln(os.Stdout, string(out))
-		return nil
+		return runOutcomesJSON(config, reports, outcomeSummary, workflowName)
 	}
+	runOutcomesConsole(config, reports, outcomeSummary, workflowName)
+	return nil
+}
 
-	// Console output
+func runOutcomesResolveRepo(repoOverride string) (string, error) {
+	if repoOverride != "" {
+		return repoOverride, nil
+	}
+	slug, err := GetCurrentRepoSlug()
+	if err != nil {
+		return "", fmt.Errorf("could not determine repository: %w", err)
+	}
+	return slug, nil
+}
+
+func runOutcomesRepoParts(repo string) (string, string, string) {
+	var owner, repoName, hostname string
+	parts := strings.SplitN(repo, "/", 2)
+	if len(parts) == 2 {
+		owner = parts[0]
+		repoName = parts[1]
+	}
+	return owner, repoName, hostname
+}
+
+func runOutcomesRunDir(config OutcomesConfig) string {
+	outputDir := config.OutputDir
+	if outputDir == "" {
+		outputDir = defaultLogsOutputDir
+	}
+	return filepath.Join(outputDir, fmt.Sprintf("run-%d", config.RunID))
+}
+
+func runOutcomesLoadItems(config OutcomesConfig, runDir string, repo string, owner string, repoName string, hostname string, cached bool, summary *RunSummary) ([]CreatedItemReport, error) {
+	var items []CreatedItemReport
+	if cached && summary != nil {
+		items = runOutcomesExtractItems(runDir, repo)
+		if config.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Loaded %d safe output items from cache", len(items))))
+		}
+	}
+	if len(items) > 0 {
+		return items, nil
+	}
+	if config.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Downloading artifacts for run %d...", config.RunID)))
+	}
+	ctx := context.Background()
+	err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: config.RunID, outputDir: runDir, verbose: config.Verbose, owner: owner, repo: repoName, hostname: hostname})
+	if err != nil {
+		return nil, fmt.Errorf("failed to download artifacts for run %d: %w", config.RunID, err)
+	}
+	return runOutcomesExtractItems(runDir, repo), nil
+}
+
+func runOutcomesExtractItems(runDir string, repo string) []CreatedItemReport {
+	items := extractCreatedItemsFromManifest(runDir)
+	if len(items) == 0 {
+		items = extractCreatedItemsFromManifest(filepath.Join(runDir, "safe-outputs-items"))
+	}
+	return enrichItemsFromAgentOutput(items, runDir, repo)
+}
+
+func runOutcomesNoItems(config OutcomesConfig) error {
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No safe output items found for this run"))
+	if config.JSONOutput {
+		data := OutcomesData{RunID: config.RunID, Items: []OutcomeReport{}, Summary: OutcomeSummary{}}
+		out, _ := json.MarshalIndent(data, "", "  ")
+		fmt.Fprintln(os.Stdout, string(out))
+	}
+	return nil
+}
+
+func runOutcomesWorkflowName(cached bool, summary *RunSummary) string {
+	if cached && summary != nil {
+		return summary.Run.WorkflowName
+	}
+	return ""
+}
+
+func runOutcomesJSON(config OutcomesConfig, reports []OutcomeReport, outcomeSummary OutcomeSummary, workflowName string) error {
+	data := OutcomesData{RunID: config.RunID, Workflow: workflowName, Items: reports, Summary: outcomeSummary}
+	out, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+	fmt.Fprintln(os.Stdout, string(out))
+	return nil
+}
+
+func runOutcomesConsole(config OutcomesConfig, reports []OutcomeReport, outcomeSummary OutcomeSummary, workflowName string) {
 	if workflowName != "" {
 		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage(fmt.Sprintf("Outcomes for %s (run %d)", workflowName, config.RunID)))
 	} else {
 		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage(fmt.Sprintf("Outcomes for run %d", config.RunID)))
 	}
+	runOutcomesConsoleItems(reports)
+	runOutcomesConsoleSummary(outcomeSummary)
+}
 
-	// Render the items
+func runOutcomesConsoleItems(reports []OutcomeReport) {
 	fmt.Fprintln(os.Stderr)
 	for _, r := range reports {
 		resultStr := string(r.Result)
-		detail := r.Detail
-		if detail != "" {
-			resultStr += " (" + detail + ")"
+		if r.Detail != "" {
+			resultStr += " (" + r.Detail + ")"
 		}
 		numStr := ""
 		if r.ObjectNumber > 0 {
 			numStr = fmt.Sprintf("#%d", r.ObjectNumber)
 		}
-		timeStr := ""
-		if r.TimeToOutcomeHours > 0 {
-			if r.TimeToOutcomeHours < 1 {
-				timeStr = fmt.Sprintf("%.0fm", r.TimeToOutcomeHours*60)
-			} else {
-				timeStr = fmt.Sprintf("%.1fh", r.TimeToOutcomeHours)
-			}
-		}
-		fmt.Fprintf(os.Stderr, "  %-28s %-12s %-40s %s\n", r.Type, numStr, resultStr, timeStr)
+		fmt.Fprintf(os.Stderr, "  %-28s %-12s %-40s %s\n", r.Type, numStr, resultStr, runOutcomesTimeString(r.TimeToOutcomeHours))
 	}
 	fmt.Fprintln(os.Stderr)
+}
 
-	// Render summary
+func runOutcomesTimeString(hours float64) string {
+	if hours <= 0 {
+		return ""
+	}
+	if hours < 1 {
+		return fmt.Sprintf("%.0fm", hours*60)
+	}
+	return fmt.Sprintf("%.1fh", hours)
+}
+
+func runOutcomesConsoleSummary(outcomeSummary OutcomeSummary) {
 	resolved := outcomeSummary.Accepted + outcomeSummary.Rejected
 	fmt.Fprintf(os.Stderr, "  Acceptance: %d/%d", outcomeSummary.Accepted, resolved)
 	if resolved > 0 {
 		fmt.Fprintf(os.Stderr, " (%.0f%%)", outcomeSummary.AcceptanceRate*100)
 	}
 	fmt.Fprintln(os.Stderr)
-
 	if outcomeSummary.Accepted > 0 {
-		fmt.Fprintf(os.Stderr, "  Zero-touch: %d/%d (%.0f%%)\n",
-			outcomeSummary.ZeroTouch, outcomeSummary.Accepted, outcomeSummary.ZeroTouchRate*100)
+		fmt.Fprintf(os.Stderr, "  Zero-touch: %d/%d (%.0f%%)\n", outcomeSummary.ZeroTouch, outcomeSummary.Accepted, outcomeSummary.ZeroTouchRate*100)
 	}
-
 	if outcomeSummary.Rejected > 0 {
-		fmt.Fprintf(os.Stderr, "  Waste: %d/%d (%.0f%%)\n",
-			outcomeSummary.Rejected, outcomeSummary.Total, outcomeSummary.WasteRate*100)
+		fmt.Fprintf(os.Stderr, "  Waste: %d/%d (%.0f%%)\n", outcomeSummary.Rejected, outcomeSummary.Total, outcomeSummary.WasteRate*100)
 	}
-
 	if outcomeSummary.Pending > 0 {
 		fmt.Fprintf(os.Stderr, "  Pending: %d\n", outcomeSummary.Pending)
 	}
-
 	if outcomeSummary.MedianTimeToOutcome > 0 {
 		fmt.Fprintf(os.Stderr, "  Median time to outcome: %.1fh\n", outcomeSummary.MedianTimeToOutcome)
 	}
-
 	fmt.Fprintln(os.Stderr)
-
-	return nil
 }

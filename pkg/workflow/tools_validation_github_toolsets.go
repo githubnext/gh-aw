@@ -24,19 +24,10 @@ func validateGitHubToolsAgainstToolsetsCore(allowedTools []string, enabledToolse
 		return fmt.Errorf("failed to load GitHub tool-to-toolset mapping: %w", err)
 	}
 
-	// Create a set of enabled toolsets for fast lookup
-	enabledSet := make(map[string]struct {
-	})
-	for _, toolset := range enabledToolsets {
-		enabledSet[toolset] = struct {
-		}{}
-	}
+	enabledSet := makeEnabledToolsetSet(enabledToolsets)
 	githubToolToToolsetLog.Printf("Enabled toolsets: %v", enabledToolsets)
 
-	// Track missing toolsets and which tools need them
 	missingToolsets := make(map[string][]string) // toolset -> list of tools that need it
-
-	// Track unknown tools for suggestions
 	var unknownTools []string
 	var suggestions []string
 
@@ -48,23 +39,7 @@ func validateGitHubToolsAgainstToolsetsCore(allowedTools []string, enabledToolse
 
 		requiredToolset, exists := toolToToolsetMap[tool]
 		if !exists {
-			githubToolToToolsetLog.Printf("Tool %s not found in mapping, checking for typo", tool)
-
-			// Get all valid tool names for suggestion
-			validTools := sliceutil.SortedKeys(toolToToolsetMap)
-
-			// Try to find close matches
-			matches := parser.FindClosestMatches(tool, validTools, 1)
-			if len(matches) > 0 {
-				githubToolToToolsetLog.Printf("Found suggestion for unknown tool %s: %s", tool, matches[0])
-				unknownTools = append(unknownTools, tool)
-				suggestions = append(suggestions, fmt.Sprintf("%s → %s", tool, matches[0]))
-			} else {
-				githubToolToToolsetLog.Printf("No suggestion found for unknown tool: %s", tool)
-				unknownTools = append(unknownTools, tool)
-			}
-			// Tool not in our mapping - this could be a new tool or a typo
-			// We'll skip validation for unknown tools to avoid false positives
+			unknownTools, suggestions = recordUnknownGitHubTool(tool, toolToToolsetMap, unknownTools, suggestions)
 			continue
 		}
 
@@ -76,26 +51,7 @@ func validateGitHubToolsAgainstToolsetsCore(allowedTools []string, enabledToolse
 
 	// Report unknown tools with suggestions if any were found
 	if len(unknownTools) > 0 {
-		githubToolToToolsetLog.Printf("Found %d unknown tools", len(unknownTools))
-		var errMsg strings.Builder
-		fmt.Fprintf(&errMsg, "Unknown GitHub tool(s): %s\n\n", stringutil.FormatList(unknownTools))
-
-		if len(suggestions) > 0 {
-			errMsg.WriteString("Did you mean:\n")
-			for _, s := range suggestions {
-				fmt.Fprintf(&errMsg, "  %s\n", s)
-			}
-			errMsg.WriteString("\n")
-		}
-
-		// Show a few examples of valid tools
-		validTools := sliceutil.SortedKeys(toolToToolsetMap)
-
-		exampleCount := min(10, len(validTools))
-		fmt.Fprintf(&errMsg, "Valid GitHub tools include: %s\n\n", stringutil.FormatList(validTools[:exampleCount]))
-		errMsg.WriteString("See all tools: https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_tool_to_toolset.json")
-
-		return errors.New(errMsg.String())
+		return buildUnknownGitHubToolError(unknownTools, suggestions, toolToToolsetMap)
 	}
 
 	if len(missingToolsets) > 0 {
@@ -105,4 +61,44 @@ func validateGitHubToolsAgainstToolsetsCore(allowedTools []string, enabledToolse
 
 	githubToolToToolsetLog.Print("Validation successful: all tools have required toolsets")
 	return nil
+}
+
+func makeEnabledToolsetSet(enabledToolsets []string) map[string]struct{} {
+	enabledSet := make(map[string]struct{})
+	for _, toolset := range enabledToolsets {
+		enabledSet[toolset] = struct{}{}
+	}
+	return enabledSet
+}
+
+func recordUnknownGitHubTool(tool string, toolToToolsetMap map[string]string, unknownTools, suggestions []string) ([]string, []string) {
+	githubToolToToolsetLog.Printf("Tool %s not found in mapping, checking for typo", tool)
+	validTools := sliceutil.SortedKeys(toolToToolsetMap)
+	matches := parser.FindClosestMatches(tool, validTools, 1)
+	unknownTools = append(unknownTools, tool)
+	if len(matches) > 0 {
+		githubToolToToolsetLog.Printf("Found suggestion for unknown tool %s: %s", tool, matches[0])
+		suggestions = append(suggestions, fmt.Sprintf("%s → %s", tool, matches[0]))
+	} else {
+		githubToolToToolsetLog.Printf("No suggestion found for unknown tool: %s", tool)
+	}
+	return unknownTools, suggestions
+}
+
+func buildUnknownGitHubToolError(unknownTools, suggestions []string, toolToToolsetMap map[string]string) error {
+	githubToolToToolsetLog.Printf("Found %d unknown tools", len(unknownTools))
+	var errMsg strings.Builder
+	fmt.Fprintf(&errMsg, "Unknown GitHub tool(s): %s\n\n", stringutil.FormatList(unknownTools))
+	if len(suggestions) > 0 {
+		errMsg.WriteString("Did you mean:\n")
+		for _, s := range suggestions {
+			fmt.Fprintf(&errMsg, "  %s\n", s)
+		}
+		errMsg.WriteString("\n")
+	}
+	validTools := sliceutil.SortedKeys(toolToToolsetMap)
+	exampleCount := min(10, len(validTools))
+	fmt.Fprintf(&errMsg, "Valid GitHub tools include: %s\n\n", stringutil.FormatList(validTools[:exampleCount]))
+	errMsg.WriteString("See all tools: https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_tool_to_toolset.json")
+	return errors.New(errMsg.String())
 }

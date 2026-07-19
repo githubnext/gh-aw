@@ -186,32 +186,49 @@ func findFileInDir(dir, name string) string {
 func parseEventsJSONLMetrics(path string, verbose bool) (workflow.LogMetrics, error) {
 	copilotEventsJSONLLog.Printf("Parsing events.jsonl from: %s", path)
 
-	var metrics workflow.LogMetrics
-
 	// Sanitize path to prevent traversal
 	cleanPath := filepath.Clean(path)
 
 	file, err := os.Open(cleanPath)
 	if err != nil {
-		return metrics, fmt.Errorf("failed to open events.jsonl: %w", err)
+		return workflow.LogMetrics{}, fmt.Errorf("failed to open events.jsonl: %w", err)
 	}
 	defer file.Close()
 
-	toolCallMap := make(map[string]*workflow.ToolCallInfo)
-	var currentSequence []string
-	turns := 0
-	totalTokens := 0
-	fallbackTokens := 0
-	sawShutdownModelMetrics := false
-	foundAnyEvent := false
-
-	// Per-turn timestamps used to compute Time Between Turns (TBT)
-	var turnTimestamps []time.Time
-
+	state := parseEventsJSONLMetricsState{
+		toolCallMap: make(map[string]*workflow.ToolCallInfo),
+	}
 	scanner := bufio.NewScanner(file)
 	buf := make([]byte, maxScannerBufferSize)
 	scanner.Buffer(buf, maxScannerBufferSize)
 
+	parseEventsJSONLMetricsScan(scanner, &state)
+
+	if scanErr := scanner.Err(); scanErr != nil {
+		return state.metrics, fmt.Errorf("error reading events.jsonl: %w", scanErr)
+	}
+
+	if !state.foundAnyEvent {
+		return state.metrics, errors.New("no events found in events.jsonl")
+	}
+
+	parseEventsJSONLMetricsFinalize(&state, verbose)
+	return state.metrics, nil
+}
+
+type parseEventsJSONLMetricsState struct {
+	metrics                 workflow.LogMetrics
+	toolCallMap             map[string]*workflow.ToolCallInfo
+	currentSequence         []string
+	turns                   int
+	totalTokens             int
+	fallbackTokens          int
+	sawShutdownModelMetrics bool
+	foundAnyEvent           bool
+	turnTimestamps          []time.Time
+}
+
+func parseEventsJSONLMetricsScan(scanner *bufio.Scanner, state *parseEventsJSONLMetricsState) {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || !strings.HasPrefix(line, "{") {
@@ -223,127 +240,122 @@ func parseEventsJSONLMetrics(path string, verbose bool) (workflow.LogMetrics, er
 			copilotEventsJSONLLog.Printf("Skipping malformed events.jsonl line: %v", err)
 			continue
 		}
-		fallbackTokens += extractFallbackEventTokens(entry)
+		parseEventsJSONLMetricsEntry(entry, state)
+	}
+}
 
-		foundAnyEvent = true
+func parseEventsJSONLMetricsEntry(entry copilotEventsJSONLEntry, state *parseEventsJSONLMetricsState) {
+	state.fallbackTokens += extractFallbackEventTokens(entry)
+	state.foundAnyEvent = true
 
-		switch entry.Type {
-		case "session.start":
-			copilotEventsJSONLLog.Printf("session.start: sessionId=%s copilotVersion=%s",
-				entry.Data.SessionID, entry.Data.CopilotVersion)
+	switch entry.Type {
+	case "session.start":
+		copilotEventsJSONLLog.Printf("session.start: sessionId=%s copilotVersion=%s",
+			entry.Data.SessionID, entry.Data.CopilotVersion)
+	case "user.message":
+		parseEventsJSONLMetricsUserMessage(entry, state)
+	case "tool.execution_start":
+		parseEventsJSONLMetricsToolStart(entry, state)
+	case "session.shutdown":
+		parseEventsJSONLMetricsShutdown(entry, state)
+	}
+}
 
-		case "user.message":
-			// Each user message represents one conversation turn.
-			// Save the current tool sequence before starting a new turn.
-			turns++
-			if len(currentSequence) > 0 {
-				metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
-				currentSequence = []string{}
-			}
-			// Record the timestamp for TBT computation.
-			if entry.Timestamp != "" {
-				if ts, parseErr := time.Parse(time.RFC3339Nano, entry.Timestamp); parseErr == nil {
-					turnTimestamps = append(turnTimestamps, ts)
-				} else if ts, parseErr = time.Parse(time.RFC3339, entry.Timestamp); parseErr == nil {
-					turnTimestamps = append(turnTimestamps, ts)
-				}
-			}
-			copilotEventsJSONLLog.Printf("user.message: turn=%d", turns)
-
-		case "tool.execution_start":
-			// Record the tool invocation and add to the current turn's sequence.
-			toolName := entry.Data.ToolName
-			if toolName != "" {
-				currentSequence = append(currentSequence, toolName)
-				if toolInfo, exists := toolCallMap[toolName]; exists {
-					toolInfo.CallCount++
-				} else {
-					toolCallMap[toolName] = &workflow.ToolCallInfo{
-						Name:      toolName,
-						CallCount: 1,
-					}
-				}
-				copilotEventsJSONLLog.Printf("tool.execution_start: %s", toolName)
-			}
-
-		case "session.shutdown":
-			// Aggregate token usage across all models from modelMetrics.
-			// Track whether the field was present (even if empty) so the fallback
-			// is only applied when modelMetrics is truly absent (nil), not when the
-			// totals happen to sum to zero.
-			if entry.Data.ModelMetrics != nil {
-				sawShutdownModelMetrics = true
-				for model, m := range entry.Data.ModelMetrics {
-					if m.Usage != nil {
-						modelTokens := m.Usage.InputTokens + m.Usage.OutputTokens
-						totalTokens += modelTokens
-						copilotEventsJSONLLog.Printf("session.shutdown: model=%s inputTokens=%d outputTokens=%d",
-							model, m.Usage.InputTokens, m.Usage.OutputTokens)
-					}
-				}
-			}
-			copilotEventsJSONLLog.Printf("session.shutdown: type=%s totalTokens=%d",
-				entry.Data.ShutdownType, totalTokens)
+func parseEventsJSONLMetricsUserMessage(entry copilotEventsJSONLEntry, state *parseEventsJSONLMetricsState) {
+	// Each user message represents one conversation turn.
+	// Save the current tool sequence before starting a new turn.
+	state.turns++
+	if len(state.currentSequence) > 0 {
+		state.metrics.ToolSequences = append(state.metrics.ToolSequences, state.currentSequence)
+		state.currentSequence = []string{}
+	}
+	if entry.Timestamp != "" {
+		if ts, parseErr := time.Parse(time.RFC3339Nano, entry.Timestamp); parseErr == nil {
+			state.turnTimestamps = append(state.turnTimestamps, ts)
+		} else if ts, parseErr = time.Parse(time.RFC3339, entry.Timestamp); parseErr == nil {
+			state.turnTimestamps = append(state.turnTimestamps, ts)
 		}
 	}
+	copilotEventsJSONLLog.Printf("user.message: turn=%d", state.turns)
+}
 
-	if scanErr := scanner.Err(); scanErr != nil {
-		return metrics, fmt.Errorf("error reading events.jsonl: %w", scanErr)
+func parseEventsJSONLMetricsToolStart(entry copilotEventsJSONLEntry, state *parseEventsJSONLMetricsState) {
+	toolName := entry.Data.ToolName
+	if toolName == "" {
+		return
+	}
+	state.currentSequence = append(state.currentSequence, toolName)
+	if toolInfo, exists := state.toolCallMap[toolName]; exists {
+		toolInfo.CallCount++
+	} else {
+		state.toolCallMap[toolName] = &workflow.ToolCallInfo{
+			Name:      toolName,
+			CallCount: 1,
+		}
+	}
+	copilotEventsJSONLLog.Printf("tool.execution_start: %s", toolName)
+}
+
+func parseEventsJSONLMetricsShutdown(entry copilotEventsJSONLEntry, state *parseEventsJSONLMetricsState) {
+	if entry.Data.ModelMetrics != nil {
+		state.sawShutdownModelMetrics = true
+		for model, m := range entry.Data.ModelMetrics {
+			if m.Usage != nil {
+				modelTokens := m.Usage.InputTokens + m.Usage.OutputTokens
+				state.totalTokens += modelTokens
+				copilotEventsJSONLLog.Printf("session.shutdown: model=%s inputTokens=%d outputTokens=%d",
+					model, m.Usage.InputTokens, m.Usage.OutputTokens)
+			}
+		}
+	}
+	copilotEventsJSONLLog.Printf("session.shutdown: type=%s totalTokens=%d",
+		entry.Data.ShutdownType, state.totalTokens)
+}
+
+func parseEventsJSONLMetricsFinalize(state *parseEventsJSONLMetricsState, verbose bool) {
+	if len(state.currentSequence) > 0 {
+		state.metrics.ToolSequences = append(state.metrics.ToolSequences, state.currentSequence)
+	}
+	for _, toolInfo := range state.toolCallMap {
+		state.metrics.ToolCalls = append(state.metrics.ToolCalls, *toolInfo)
 	}
 
-	if !foundAnyEvent {
-		return metrics, errors.New("no events found in events.jsonl")
+	state.metrics.TokenUsage = state.totalTokens
+	if !state.sawShutdownModelMetrics && state.fallbackTokens > 0 {
+		state.metrics.TokenUsage = state.fallbackTokens
 	}
+	state.metrics.Turns = state.turns
+	parseEventsJSONLMetricsComputeTBT(state)
 
-	// Flush any remaining tool sequence
-	if len(currentSequence) > 0 {
-		metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
+	copilotEventsJSONLLog.Printf("Parsed events.jsonl: turns=%d totalTokens=%d toolCalls=%d sequences=%d",
+		state.turns, state.totalTokens, len(state.toolCallMap), len(state.metrics.ToolSequences))
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(
+			fmt.Sprintf("Parsed events.jsonl: %d turns, %d tokens, %d tool calls",
+				state.turns, state.totalTokens, len(state.toolCallMap))))
 	}
+}
 
-	// Convert tool call map to slice
-	for _, toolInfo := range toolCallMap {
-		metrics.ToolCalls = append(metrics.ToolCalls, *toolInfo)
-	}
-
-	metrics.TokenUsage = totalTokens
-	if !sawShutdownModelMetrics && fallbackTokens > 0 {
-		metrics.TokenUsage = fallbackTokens
-	}
-	metrics.Turns = turns
-
-	// Compute Time Between Turns (TBT) from per-turn timestamps.
-	// TBT[i] = timestamp[i] - timestamp[i-1] for i > 0. Two or more timestamps
-	// are required to measure at least one interval. Only positive intervals are
-	// included so that identical or out-of-order timestamps don't skew the statistics.
-	if len(turnTimestamps) >= 2 {
+func parseEventsJSONLMetricsComputeTBT(state *parseEventsJSONLMetricsState) {
+	if len(state.turnTimestamps) >= 2 {
 		var tbtStats stats.StatVar
-		for i := 1; i < len(turnTimestamps); i++ {
-			tbt := turnTimestamps[i].Sub(turnTimestamps[i-1])
+		for i := 1; i < len(state.turnTimestamps); i++ {
+			tbt := state.turnTimestamps[i].Sub(state.turnTimestamps[i-1])
 			if tbt > 0 {
 				tbtStats.Add(float64(tbt))
 			}
 		}
 		if tbtStats.Count() > 0 {
-			metrics.AvgTimeBetweenTurns = time.Duration(tbtStats.Mean())
-			metrics.MaxTimeBetweenTurns = time.Duration(tbtStats.Max())
-			metrics.MedianTimeBetweenTurns = time.Duration(tbtStats.Median())
-			metrics.StdDevTimeBetweenTurns = time.Duration(tbtStats.SampleStdDev())
+			state.metrics.AvgTimeBetweenTurns = time.Duration(tbtStats.Mean())
+			state.metrics.MaxTimeBetweenTurns = time.Duration(tbtStats.Max())
+			state.metrics.MedianTimeBetweenTurns = time.Duration(tbtStats.Median())
+			state.metrics.StdDevTimeBetweenTurns = time.Duration(tbtStats.SampleStdDev())
 			copilotEventsJSONLLog.Printf("TBT computed: avg=%s max=%s median=%s stddev=%s intervals=%d",
-				metrics.AvgTimeBetweenTurns, metrics.MaxTimeBetweenTurns,
-				metrics.MedianTimeBetweenTurns, metrics.StdDevTimeBetweenTurns, tbtStats.Count())
+				state.metrics.AvgTimeBetweenTurns, state.metrics.MaxTimeBetweenTurns,
+				state.metrics.MedianTimeBetweenTurns, state.metrics.StdDevTimeBetweenTurns, tbtStats.Count())
 		}
 	}
-
-	copilotEventsJSONLLog.Printf("Parsed events.jsonl: turns=%d totalTokens=%d toolCalls=%d sequences=%d",
-		turns, totalTokens, len(toolCallMap), len(metrics.ToolSequences))
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(
-			fmt.Sprintf("Parsed events.jsonl: %d turns, %d tokens, %d tool calls",
-				turns, totalTokens, len(toolCallMap))))
-	}
-
-	return metrics, nil
 }
 
 func extractFallbackEventTokens(entry copilotEventsJSONLEntry) int {

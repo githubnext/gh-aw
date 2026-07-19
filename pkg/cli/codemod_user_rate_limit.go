@@ -38,10 +38,7 @@ func getRateLimitToUserRateLimitCodemod() Codemod {
 func renameRateLimitToUserRateLimit(lines []string) ([]string, bool) {
 	var result []string
 	modified := false
-
-	inUserRateLimit := false
-	userRateLimitIndent := ""
-	userRateLimitChildIndent := ""
+	state := renameRateLimitToUserRateLimitState{}
 
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -51,58 +48,82 @@ func renameRateLimitToUserRateLimit(lines []string) ([]string, bool) {
 			continue
 		}
 
-		if !strings.HasPrefix(trimmed, "#") && inUserRateLimit && hasExitedBlock(line, userRateLimitIndent) {
-			inUserRateLimit = false
-			userRateLimitChildIndent = ""
-		}
+		renameRateLimitToUserRateLimitUpdateBlockState(line, trimmed, &state)
 
 		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "rate-limit:") {
-			lineIndent := getIndentation(line)
-			newLine, replaced := findAndReplaceInLine(line, "rate-limit", "user-rate-limit")
-			if replaced {
+			if newLine, replaced := renameRateLimitToUserRateLimitTopLevel(line, i, &state); replaced {
 				result = append(result, newLine)
 				modified = true
-				inUserRateLimit = true
-				userRateLimitIndent = lineIndent
-				userRateLimitChildIndent = ""
-				userRateLimitCodemodLog.Printf("Renamed 'rate-limit' to 'user-rate-limit' on line %d", i+1)
 				continue
 			}
 		}
 
 		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "user-rate-limit:") {
-			inUserRateLimit = true
-			userRateLimitIndent = getIndentation(line)
-			userRateLimitChildIndent = ""
+			renameRateLimitToUserRateLimitEnterBlock(getIndentation(line), &state)
 			result = append(result, line)
 			continue
 		}
 
-		if inUserRateLimit {
-			lineIndent := getIndentation(line)
-			if isDescendant(lineIndent, userRateLimitIndent) {
-				if trimmed != "" && !strings.HasPrefix(trimmed, "#") && userRateLimitChildIndent == "" {
-					userRateLimitChildIndent = lineIndent
-				}
-				if userRateLimitChildIndent != "" && lineIndent != userRateLimitChildIndent {
-					result = append(result, line)
-					continue
-				}
-				newLine, replaced := findAndReplaceInLine(line, "max-runs", "max-runs-per-window")
-				if !replaced {
-					newLine, replaced = findAndReplaceInLine(line, "max", "max-runs-per-window")
-				}
-				if replaced {
-					result = append(result, newLine)
-					modified = true
-					userRateLimitCodemodLog.Printf("Renamed max field to 'max-runs-per-window' on line %d", i+1)
-					continue
-				}
-			}
+		if newLine, replaced := renameRateLimitToUserRateLimitNestedLine(line, trimmed, i, &state); replaced {
+			result = append(result, newLine)
+			modified = true
+			continue
 		}
 
 		result = append(result, line)
 	}
 
 	return result, modified
+}
+
+type renameRateLimitToUserRateLimitState struct {
+	inUserRateLimit          bool
+	userRateLimitIndent      string
+	userRateLimitChildIndent string
+}
+
+func renameRateLimitToUserRateLimitUpdateBlockState(line, trimmed string, state *renameRateLimitToUserRateLimitState) {
+	if !strings.HasPrefix(trimmed, "#") && state.inUserRateLimit && hasExitedBlock(line, state.userRateLimitIndent) {
+		state.inUserRateLimit = false
+		state.userRateLimitChildIndent = ""
+	}
+}
+
+func renameRateLimitToUserRateLimitEnterBlock(indent string, state *renameRateLimitToUserRateLimitState) {
+	state.inUserRateLimit = true
+	state.userRateLimitIndent = indent
+	state.userRateLimitChildIndent = ""
+}
+
+func renameRateLimitToUserRateLimitTopLevel(line string, lineIndex int, state *renameRateLimitToUserRateLimitState) (string, bool) {
+	newLine, replaced := findAndReplaceInLine(line, "rate-limit", "user-rate-limit")
+	if replaced {
+		renameRateLimitToUserRateLimitEnterBlock(getIndentation(line), state)
+		userRateLimitCodemodLog.Printf("Renamed 'rate-limit' to 'user-rate-limit' on line %d", lineIndex+1)
+	}
+	return newLine, replaced
+}
+
+func renameRateLimitToUserRateLimitNestedLine(line, trimmed string, lineIndex int, state *renameRateLimitToUserRateLimitState) (string, bool) {
+	if !state.inUserRateLimit {
+		return "", false
+	}
+	lineIndent := getIndentation(line)
+	if !isDescendant(lineIndent, state.userRateLimitIndent) {
+		return "", false
+	}
+	if trimmed != "" && !strings.HasPrefix(trimmed, "#") && state.userRateLimitChildIndent == "" {
+		state.userRateLimitChildIndent = lineIndent
+	}
+	if state.userRateLimitChildIndent != "" && lineIndent != state.userRateLimitChildIndent {
+		return "", false
+	}
+	newLine, replaced := findAndReplaceInLine(line, "max-runs", "max-runs-per-window")
+	if !replaced {
+		newLine, replaced = findAndReplaceInLine(line, "max", "max-runs-per-window")
+	}
+	if replaced {
+		userRateLimitCodemodLog.Printf("Renamed max field to 'max-runs-per-window' on line %d", lineIndex+1)
+	}
+	return newLine, replaced
 }

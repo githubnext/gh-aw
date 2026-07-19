@@ -102,34 +102,43 @@ func sanitizeRunStepExpressions(step map[string]any) (map[string]any, []string, 
 		return step, nil, false
 	}
 
-	// Build a deduplicated, ordered list of expressions to extract.
-	extractor := NewExpressionExtractor()
-	seen := make(map[string]struct {
-	})
-	var ordered []sanitizedExpression
+	ordered := collectSanitizedExpressions(matches)
+	if len(ordered) == 0 {
+		return step, nil, false
+	}
+	sortSanitizedExpressionsByLength(ordered)
 
+	newEnv := mergeSanitizedExpressionEnv(step, ordered)
+	newRun := replaceSanitizedExpressionsInRun(runVal, ordered)
+	sanitized := make(map[string]any, len(step))
+	maps.Copy(sanitized, step)
+	sanitized["run"] = newRun
+	sanitized["env"] = newEnv
+
+	return sanitized, sanitizedExpressionDescriptions(step, ordered), true
+}
+
+func collectSanitizedExpressions(matches [][]string) []sanitizedExpression {
+	extractor := NewExpressionExtractor()
+	seen := make(map[string]struct{})
+	var ordered []sanitizedExpression
 	for _, match := range matches {
 		original := match[0]
 		if setutil.Contains(seen, original) {
 			continue
 		}
-		seen[original] = struct {
-		}{}
+		seen[original] = struct{}{}
 		content := strings.TrimSpace(match[1])
-		envVar := extractor.generateEnvVarName(content)
 		ordered = append(ordered, sanitizedExpression{
 			Original: original,
-			EnvVar:   envVar,
+			EnvVar:   extractor.generateEnvVarName(content),
 			Content:  content,
 		})
 	}
+	return ordered
+}
 
-	if len(ordered) == 0 {
-		return step, nil, false
-	}
-
-	// Sort longest expressions first to avoid partial replacements when one
-	// expression is a substring of another.
+func sortSanitizedExpressionsByLength(ordered []sanitizedExpression) {
 	slices.SortFunc(ordered, func(a, b sanitizedExpression) int {
 		switch {
 		case len(a.Original) > len(b.Original):
@@ -140,12 +149,9 @@ func sanitizeRunStepExpressions(step map[string]any) (map[string]any, []string, 
 			return 0
 		}
 	})
+}
 
-	// Merge extracted env vars into a copy of the existing env: map.
-	// Collision handling:
-	//   - If the generated key already exists with the same value → reuse as-is.
-	//   - If it exists with a different value → pick an alternate name by appending
-	//     a numeric suffix (_2, _3, …) so the original user-defined value is preserved.
+func mergeSanitizedExpressionEnv(step map[string]any, ordered []sanitizedExpression) map[string]any {
 	existingEnv, _ := step["env"].(map[string]any)
 	newEnv := make(map[string]any, safeAllocationCapacity(len(existingEnv), len(ordered)))
 	maps.Copy(newEnv, existingEnv)
@@ -163,16 +169,7 @@ func sanitizeRunStepExpressions(step map[string]any) (map[string]any, []string, 
 			// GH_AW_ variables.
 			const maxSuffixes = 100
 			base := s.EnvVar
-			resolved := false
-			for suffix := 2; suffix <= maxSuffixes; suffix++ {
-				candidate := fmt.Sprintf("%s_%d", base, suffix)
-				if _, taken := newEnv[candidate]; !taken {
-					s.EnvVar = candidate
-					resolved = true
-					break
-				}
-			}
-			if !resolved {
+			if !resolveSanitizedEnvCollision(s, newEnv, maxSuffixes) {
 				// Extremely unlikely: all 100 numeric suffixes are taken.
 				// Log and skip this expression to avoid corrupting the env block.
 				runStepSanitizerLog.Printf(
@@ -184,26 +181,30 @@ func sanitizeRunStepExpressions(step map[string]any) (map[string]any, []string, 
 		}
 		newEnv[s.EnvVar] = s.Original
 	}
+	return newEnv
+}
 
-	// Replace every occurrence of each expression in the run: script.
-	// Replacements are limited to non-quoted-heredoc regions: quoted heredocs
-	// (e.g. << 'EOF') suppress shell variable expansion, so replacing
-	// ${{ expr }} with $GH_AW_VAR inside them would write the literal variable
-	// name to the output file instead of the expression value.  Expressions
-	// that appear exclusively inside heredocs are never added to `ordered` (see
-	// the scanContent check above), so they are left intact regardless.
+func resolveSanitizedEnvCollision(s *sanitizedExpression, newEnv map[string]any, maxSuffixes int) bool {
+	base := s.EnvVar
+	for suffix := 2; suffix <= maxSuffixes; suffix++ {
+		candidate := fmt.Sprintf("%s_%d", base, suffix)
+		if _, taken := newEnv[candidate]; !taken {
+			s.EnvVar = candidate
+			return true
+		}
+	}
+	return false
+}
+
+func replaceSanitizedExpressionsInRun(runVal string, ordered []sanitizedExpression) string {
 	newRun := runVal
 	for _, s := range ordered {
 		newRun = replaceOutsideQuotedHeredocs(newRun, s.Original, "$"+s.EnvVar)
 	}
+	return newRun
+}
 
-	// Build the sanitized step as a shallow copy.
-	sanitized := make(map[string]any, len(step))
-	maps.Copy(sanitized, step)
-	sanitized["run"] = newRun
-	sanitized["env"] = newEnv
-
-	// Build human-readable descriptions for caller warnings.
+func sanitizedExpressionDescriptions(step map[string]any, ordered []sanitizedExpression) []string {
 	stepName, _ := step["name"].(string)
 	var descriptions []string
 	for _, s := range ordered {
@@ -221,8 +222,7 @@ func sanitizeRunStepExpressions(step map[string]any) (map[string]any, []string, 
 		}
 		descriptions = append(descriptions, msg)
 	}
-
-	return sanitized, descriptions, true
+	return descriptions
 }
 
 // sanitizeCustomStepsYAML parses a raw "steps: ..." YAML string (as produced by

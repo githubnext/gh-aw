@@ -184,64 +184,10 @@ func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutput
 	var resolvedRef string
 
 	if ref.IsLocal {
-		if !inputsFromFrontmatter {
-			actionYAML, err = readLocalActionYAML(ref.LocalPath, markdownPath)
-			if err != nil {
-				safeOutputActionsLog.Printf("Warning: failed to read local action.yml for %q at %s: %v", actionName, ref.LocalPath, err)
-			}
-		}
+		actionYAML = readLocalActionYAMLForConfig(actionName, ref, markdownPath, inputsFromFrontmatter)
 		resolvedRef = config.Uses // local paths stay as-is
 	} else {
-		// Pin the action ref for security.
-		pinned, pinErr := getActionPinWithData(ref.Repo, ref.Ref, data)
-		var fetchRef string
-		if pinErr != nil {
-			safeOutputActionsLog.Printf("Warning: failed to pin action %q (%s@%s): %v", actionName, ref.Repo, ref.Ref, pinErr)
-			// Fall back to using the original ref
-			resolvedRef = config.Uses
-			fetchRef = ref.Ref
-		} else {
-			resolvedRef = pinned
-			// Extract the pinned SHA from the reference (format: "repo@sha # tag")
-			// and use it to fetch action.yml so the schema matches the exact pinned version.
-			if sha := extractSHAFromPinnedRef(pinned); sha != "" {
-				fetchRef = sha
-			} else {
-				fetchRef = ref.Ref
-			}
-		}
-
-		if !inputsFromFrontmatter {
-			// Check the ActionCache for previously-fetched inputs before going to the network.
-			// The cache key uses the original version tag from the `uses:` field (ref.Ref, e.g.
-			// "v1") which matches the key stored in actions-lock.json.
-			if data.ActionCache != nil {
-				if cachedInputs, ok := data.ActionCache.GetInputs(ref.Repo, ref.Ref); ok {
-					safeOutputActionsLog.Printf("Using cached inputs for %q (%s@%s)", actionName, ref.Repo, ref.Ref)
-					config.Inputs = cachedInputs
-				}
-				if cachedDesc, ok := data.ActionCache.GetActionDescription(ref.Repo, ref.Ref); ok {
-					config.ActionDescription = cachedDesc
-				}
-			}
-
-			// If inputs are still not resolved, fetch action.yml from the network and
-			// store the result in the cache to make future compilations deterministic.
-			if config.Inputs == nil {
-				actionYAML, err = fetchRemoteActionYAML(ref.Repo, ref.Subdir, fetchRef)
-				if err != nil {
-					safeOutputActionsLog.Printf("Warning: failed to fetch action.yml for %q (%s): %v", actionName, config.Uses, err)
-				}
-				// Cache the fetched inputs and description so subsequent compilations are
-				// deterministic even when the network is unavailable.
-				if actionYAML != nil && data.ActionCache != nil {
-					if actionYAML.Inputs != nil {
-						data.ActionCache.SetInputs(ref.Repo, ref.Ref, actionYAML.Inputs)
-					}
-					data.ActionCache.SetActionDescription(ref.Repo, ref.Ref, actionYAML.Description)
-				}
-			}
-		}
+		resolvedRef, actionYAML = fetchRemoteActionYAMLForConfig(actionName, config, ref, data, inputsFromFrontmatter)
 	}
 
 	config.ResolvedRef = resolvedRef
@@ -252,6 +198,69 @@ func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutput
 		config.Inputs = actionYAML.Inputs
 		config.ActionDescription = actionYAML.Description
 	}
+}
+
+func readLocalActionYAMLForConfig(actionName string, ref *actionRef, markdownPath string, inputsFromFrontmatter bool) *actionYAMLFile {
+	if inputsFromFrontmatter {
+		return nil
+	}
+	actionYAML, err := readLocalActionYAML(ref.LocalPath, markdownPath)
+	if err != nil {
+		safeOutputActionsLog.Printf("Warning: failed to read local action.yml for %q at %s: %v", actionName, ref.LocalPath, err)
+	}
+	return actionYAML
+}
+
+func fetchRemoteActionYAMLForConfig(actionName string, config *SafeOutputActionConfig, ref *actionRef, data *WorkflowData, inputsFromFrontmatter bool) (string, *actionYAMLFile) {
+	resolvedRef, fetchRef := resolvePinnedActionRef(actionName, config, ref, data)
+	if inputsFromFrontmatter {
+		return resolvedRef, nil
+	}
+	loadActionConfigFromCache(actionName, config, ref, data)
+	if config.Inputs != nil {
+		return resolvedRef, nil
+	}
+	actionYAML, err := fetchRemoteActionYAML(ref.Repo, ref.Subdir, fetchRef)
+	if err != nil {
+		safeOutputActionsLog.Printf("Warning: failed to fetch action.yml for %q (%s): %v", actionName, config.Uses, err)
+	}
+	cacheFetchedActionYAML(actionYAML, ref, data)
+	return resolvedRef, actionYAML
+}
+
+func resolvePinnedActionRef(actionName string, config *SafeOutputActionConfig, ref *actionRef, data *WorkflowData) (string, string) {
+	pinned, pinErr := getActionPinWithData(ref.Repo, ref.Ref, data)
+	if pinErr != nil {
+		safeOutputActionsLog.Printf("Warning: failed to pin action %q (%s@%s): %v", actionName, ref.Repo, ref.Ref, pinErr)
+		return config.Uses, ref.Ref
+	}
+	if sha := extractSHAFromPinnedRef(pinned); sha != "" {
+		return pinned, sha
+	}
+	return pinned, ref.Ref
+}
+
+func loadActionConfigFromCache(actionName string, config *SafeOutputActionConfig, ref *actionRef, data *WorkflowData) {
+	if data.ActionCache == nil {
+		return
+	}
+	if cachedInputs, ok := data.ActionCache.GetInputs(ref.Repo, ref.Ref); ok {
+		safeOutputActionsLog.Printf("Using cached inputs for %q (%s@%s)", actionName, ref.Repo, ref.Ref)
+		config.Inputs = cachedInputs
+	}
+	if cachedDesc, ok := data.ActionCache.GetActionDescription(ref.Repo, ref.Ref); ok {
+		config.ActionDescription = cachedDesc
+	}
+}
+
+func cacheFetchedActionYAML(actionYAML *actionYAMLFile, ref *actionRef, data *WorkflowData) {
+	if actionYAML == nil || data.ActionCache == nil {
+		return
+	}
+	if actionYAML.Inputs != nil {
+		data.ActionCache.SetInputs(ref.Repo, ref.Ref, actionYAML.Inputs)
+	}
+	data.ActionCache.SetActionDescription(ref.Repo, ref.Ref, actionYAML.Description)
 }
 
 // extractSHAFromPinnedRef parses the SHA from a pinned action reference string.
@@ -374,7 +383,28 @@ func isGitHubExpressionDefault(input *ActionYAMLInput) bool {
 // The tool name is the normalized action name. Inputs are derived from the action.yml.
 func generateActionToolDefinition(actionName string, config *SafeOutputActionConfig) map[string]any {
 	normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
+	description := actionToolDescription(actionName, config)
 
+	// When action.yml could not be fetched at compile time (Inputs == nil), generate a
+	// permissive fallback schema so the agent can still call the tool. The runtime step
+	// passes the raw payload through a single `payload` input rather than individual fields.
+	if config.Inputs == nil {
+		return map[string]any{
+			"name":        normalizedName,
+			"description": description,
+			"inputSchema": fallbackActionInputSchema(),
+		}
+	}
+
+	inputSchema := buildActionInputSchema(config)
+	return map[string]any{
+		"name":        normalizedName,
+		"description": description,
+		"inputSchema": inputSchema,
+	}
+}
+
+func actionToolDescription(actionName string, config *SafeOutputActionConfig) string {
 	description := config.Description
 	if description == "" {
 		description = config.ActionDescription
@@ -382,30 +412,23 @@ func generateActionToolDefinition(actionName string, config *SafeOutputActionCon
 	if description == "" {
 		description = fmt.Sprintf("Run the %s action", actionName)
 	}
-	// Append once-only constraint to description
-	description += " (can only be called once)"
+	return description + " (can only be called once)"
+}
 
-	// When action.yml could not be fetched at compile time (Inputs == nil), generate a
-	// permissive fallback schema so the agent can still call the tool. The runtime step
-	// passes the raw payload through a single `payload` input rather than individual fields.
-	if config.Inputs == nil {
-		inputSchema := map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"payload": map[string]any{
-					"type":        "string",
-					"description": "JSON-encoded payload to pass to the action",
-				},
+func fallbackActionInputSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"payload": map[string]any{
+				"type":        "string",
+				"description": "JSON-encoded payload to pass to the action",
 			},
-			"additionalProperties": true,
-		}
-		return map[string]any{
-			"name":        normalizedName,
-			"description": description,
-			"inputSchema": inputSchema,
-		}
+		},
+		"additionalProperties": true,
 	}
+}
 
+func buildActionInputSchema(config *SafeOutputActionConfig) map[string]any {
 	inputSchema := map[string]any{
 		"type":                 "object",
 		"properties":           make(map[string]any),
@@ -449,12 +472,7 @@ func generateActionToolDefinition(actionName string, config *SafeOutputActionCon
 		sort.Strings(requiredFields)
 		inputSchema["required"] = requiredFields
 	}
-
-	return map[string]any{
-		"name":        normalizedName,
-		"description": description,
-		"inputSchema": inputSchema,
-	}
+	return inputSchema
 }
 
 // buildCustomSafeOutputActionsJSON builds a JSON mapping of normalized action names
@@ -503,67 +521,79 @@ func (c *Compiler) buildActionSteps(data *WorkflowData) []string {
 	var steps []string
 
 	for _, actionName := range actionNames {
-		config := data.SafeOutputs.Actions[actionName]
-		normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
-		outputKey := actionOutputKey(normalizedName)
-
-		// Determine the action reference to use in the step
-		actionRef := config.ResolvedRef
-		if actionRef == "" {
-			// Fall back to original uses value if resolution failed
-			actionRef = config.Uses
-		}
-
-		// Display name: prefer the user description, then action description, then action name
-		displayName := config.Description
-		if displayName == "" {
-			displayName = config.ActionDescription
-		}
-		if displayName == "" {
-			displayName = actionName
-		}
-
-		steps = append(steps, fmt.Sprintf("      - name: %s\n", displayName))
-		steps = append(steps, fmt.Sprintf("        id: action_%s\n", normalizedName))
-		steps = append(steps, fmt.Sprintf("        if: steps.process_safe_outputs.outputs.%s != ''\n", outputKey))
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", actionRef))
-
-		// Build optional env: block for per-action environment variables
-		if len(config.Env) > 0 {
-			steps = append(steps, "        env:\n")
-			envKeys := sliceutil.SortedKeys(config.Env)
-			for _, envKey := range envKeys {
-				steps = append(steps, fmt.Sprintf("          %s: %s\n", envKey, config.Env[envKey]))
-			}
-		}
-
-		// Build the with: block
-		if len(config.Inputs) > 0 {
-			// Filter to only inputs that the agent should provide (exclude those with GitHub
-			// expression defaults like "${{ github.token }}" — GitHub Actions applies them naturally).
-			agentInputNames := make([]string, 0, len(config.Inputs))
-			for k, v := range config.Inputs {
-				if !isGitHubExpressionDefault(v) {
-					agentInputNames = append(agentInputNames, k)
-				}
-			}
-			sort.Strings(agentInputNames)
-
-			if len(agentInputNames) > 0 {
-				steps = append(steps, "        with:\n")
-				for _, inputName := range agentInputNames {
-					steps = append(steps, fmt.Sprintf("          %s: ${{ fromJSON(steps.process_safe_outputs.outputs.%s).%s }}\n",
-						inputName, outputKey, inputName))
-				}
-			}
-		} else {
-			// When inputs couldn't be resolved, pass the raw payload as a single input
-			steps = append(steps, "        with:\n")
-			steps = append(steps, fmt.Sprintf("          payload: ${{ steps.process_safe_outputs.outputs.%s }}\n", outputKey))
-		}
+		steps = append(steps, buildActionStep(actionName, data.SafeOutputs.Actions[actionName])...)
 	}
 
 	return steps
+}
+
+func buildActionStep(actionName string, config *SafeOutputActionConfig) []string {
+	normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
+	outputKey := actionOutputKey(normalizedName)
+	actionRef := config.ResolvedRef
+	if actionRef == "" {
+		actionRef = config.Uses
+	}
+	steps := []string{
+		fmt.Sprintf("      - name: %s\n", actionStepDisplayName(actionName, config)),
+		fmt.Sprintf("        id: action_%s\n", normalizedName),
+		fmt.Sprintf("        if: steps.process_safe_outputs.outputs.%s != ''\n", outputKey),
+		fmt.Sprintf("        uses: %s\n", actionRef),
+	}
+	steps = append(steps, buildActionStepEnv(config)...)
+	return append(steps, buildActionStepWith(config, outputKey)...)
+}
+
+func actionStepDisplayName(actionName string, config *SafeOutputActionConfig) string {
+	if config.Description != "" {
+		return config.Description
+	}
+	if config.ActionDescription != "" {
+		return config.ActionDescription
+	}
+	return actionName
+}
+
+func buildActionStepEnv(config *SafeOutputActionConfig) []string {
+	if len(config.Env) == 0 {
+		return nil
+	}
+	steps := []string{"        env:\n"}
+	envKeys := sliceutil.SortedKeys(config.Env)
+	for _, envKey := range envKeys {
+		steps = append(steps, fmt.Sprintf("          %s: %s\n", envKey, config.Env[envKey]))
+	}
+	return steps
+}
+
+func buildActionStepWith(config *SafeOutputActionConfig, outputKey string) []string {
+	if len(config.Inputs) == 0 {
+		return []string{
+			"        with:\n",
+			fmt.Sprintf("          payload: ${{ steps.process_safe_outputs.outputs.%s }}\n", outputKey),
+		}
+	}
+	agentInputNames := actionAgentInputNames(config)
+	if len(agentInputNames) == 0 {
+		return nil
+	}
+	steps := []string{"        with:\n"}
+	for _, inputName := range agentInputNames {
+		steps = append(steps, fmt.Sprintf("          %s: ${{ fromJSON(steps.process_safe_outputs.outputs.%s).%s }}\n",
+			inputName, outputKey, inputName))
+	}
+	return steps
+}
+
+func actionAgentInputNames(config *SafeOutputActionConfig) []string {
+	agentInputNames := make([]string, 0, len(config.Inputs))
+	for k, v := range config.Inputs {
+		if !isGitHubExpressionDefault(v) {
+			agentInputNames = append(agentInputNames, k)
+		}
+	}
+	sort.Strings(agentInputNames)
+	return agentInputNames
 }
 
 // resolveAllActions fetches action.yml for all configured actions and populates

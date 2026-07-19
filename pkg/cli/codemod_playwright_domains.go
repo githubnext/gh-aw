@@ -17,169 +17,199 @@ func getPlaywrightDomainsToNetworkAllowedCodemod() Codemod {
 		Name:         "Migrate playwright allowed_domains to network.allowed",
 		Description:  "Moves 'tools.playwright.allowed_domains' to top-level 'network.allowed'. Playwright egress is now controlled by the firewall.",
 		IntroducedIn: "0.9.0",
-		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
-			// Check if tools.playwright.allowed_domains exists
-			toolsValue, hasTools := frontmatter["tools"]
-			if !hasTools {
-				return content, false, nil
-			}
-
-			toolsMap, ok := toolsValue.(map[string]any)
-			if !ok {
-				return content, false, nil
-			}
-
-			playwrightValue, hasPlaywright := toolsMap["playwright"]
-			if !hasPlaywright {
-				return content, false, nil
-			}
-
-			playwrightMap, ok := playwrightValue.(map[string]any)
-			if !ok {
-				return content, false, nil
-			}
-
-			allowedDomainsValue, hasAllowedDomains := playwrightMap["allowed_domains"]
-			if !hasAllowedDomains {
-				return content, false, nil
-			}
-
-			// Extract domains from allowed_domains
-			var domains []string
-			switch v := allowedDomainsValue.(type) {
-			case []any:
-				for _, item := range v {
-					if s, ok := item.(string); ok {
-						domains = append(domains, s)
-					}
-				}
-			case []string:
-				domains = v
-			case string:
-				domains = []string{v}
-			}
-
-			// Merge with existing network.allowed
-			existingNetworkValue, hasTopLevelNetwork := frontmatter["network"]
-			var existingAllowed []string
-			if hasTopLevelNetwork {
-				if existingNetworkMap, ok := existingNetworkValue.(map[string]any); ok {
-					if existingAllowedValue, hasExistingAllowed := existingNetworkMap["allowed"]; hasExistingAllowed {
-						switch allowed := existingAllowedValue.(type) {
-						case []any:
-							for _, domain := range allowed {
-								if domainStr, ok := domain.(string); ok {
-									existingAllowed = append(existingAllowed, domainStr)
-								}
-							}
-						case []string:
-							existingAllowed = append(existingAllowed, allowed...)
-						}
-					}
-				}
-			}
-
-			mergedDomains := sliceutil.Deduplicate(append(existingAllowed, domains...))
-
-			return applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				// Remove allowed_domains from the tools.playwright block
-				result, modified := removeFieldFromPlaywright(lines, "allowed_domains")
-				if !modified {
-					return lines, false
-				}
-
-				playwrightDomainsCodemodLog.Printf("Removed allowed_domains from tools.playwright (%d domain(s))", len(domains))
-
-				if hasTopLevelNetwork {
-					result = updateNetworkAllowed(result, mergedDomains)
-					playwrightDomainsCodemodLog.Printf("Updated top-level network.allowed with %d domain(s)", len(mergedDomains))
-				} else {
-					result = addTopLevelNetwork(result, mergedDomains)
-					playwrightDomainsCodemodLog.Printf("Added top-level network.allowed with %d domain(s)", len(mergedDomains))
-				}
-
-				return result, true
-			})
-		},
+		Apply:        getPlaywrightDomainsToNetworkAllowedCodemodApply,
 	}
+}
+
+func getPlaywrightDomainsToNetworkAllowedCodemodApply(content string, frontmatter map[string]any) (string, bool, error) {
+	playwrightMap, ok := getPlaywrightDomainsToNetworkAllowedCodemodPlaywrightMap(frontmatter)
+	if !ok {
+		return content, false, nil
+	}
+	allowedDomainsValue, hasAllowedDomains := playwrightMap["allowed_domains"]
+	if !hasAllowedDomains {
+		return content, false, nil
+	}
+
+	domains := getPlaywrightDomainsToNetworkAllowedCodemodDomains(allowedDomainsValue)
+	existingAllowed, hasTopLevelNetwork := getPlaywrightDomainsToNetworkAllowedCodemodExistingAllowed(frontmatter)
+	mergedDomains := sliceutil.Deduplicate(append(existingAllowed, domains...))
+
+	return applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+		return getPlaywrightDomainsToNetworkAllowedCodemodTransform(lines, domains, mergedDomains, hasTopLevelNetwork)
+	})
+}
+
+func getPlaywrightDomainsToNetworkAllowedCodemodPlaywrightMap(frontmatter map[string]any) (map[string]any, bool) {
+	toolsValue, hasTools := frontmatter["tools"]
+	if !hasTools {
+		return nil, false
+	}
+	toolsMap, ok := toolsValue.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	playwrightValue, hasPlaywright := toolsMap["playwright"]
+	if !hasPlaywright {
+		return nil, false
+	}
+	playwrightMap, ok := playwrightValue.(map[string]any)
+	return playwrightMap, ok
+}
+
+func getPlaywrightDomainsToNetworkAllowedCodemodDomains(allowedDomainsValue any) []string {
+	var domains []string
+	switch v := allowedDomainsValue.(type) {
+	case []any:
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				domains = append(domains, s)
+			}
+		}
+	case []string:
+		domains = v
+	case string:
+		domains = []string{v}
+	}
+	return domains
+}
+
+func getPlaywrightDomainsToNetworkAllowedCodemodExistingAllowed(frontmatter map[string]any) ([]string, bool) {
+	existingNetworkValue, hasTopLevelNetwork := frontmatter["network"]
+	if !hasTopLevelNetwork {
+		return nil, false
+	}
+	existingNetworkMap, ok := existingNetworkValue.(map[string]any)
+	if !ok {
+		return nil, true
+	}
+	existingAllowedValue, hasExistingAllowed := existingNetworkMap["allowed"]
+	if !hasExistingAllowed {
+		return nil, true
+	}
+	var existingAllowed []string
+	switch allowed := existingAllowedValue.(type) {
+	case []any:
+		for _, domain := range allowed {
+			if domainStr, ok := domain.(string); ok {
+				existingAllowed = append(existingAllowed, domainStr)
+			}
+		}
+	case []string:
+		existingAllowed = append(existingAllowed, allowed...)
+	}
+	return existingAllowed, true
+}
+
+func getPlaywrightDomainsToNetworkAllowedCodemodTransform(
+	lines []string,
+	domains []string,
+	mergedDomains []string,
+	hasTopLevelNetwork bool,
+) ([]string, bool) {
+	result, modified := removeFieldFromPlaywright(lines, "allowed_domains")
+	if !modified {
+		return lines, false
+	}
+	playwrightDomainsCodemodLog.Printf("Removed allowed_domains from tools.playwright (%d domain(s))", len(domains))
+
+	if hasTopLevelNetwork {
+		result = updateNetworkAllowed(result, mergedDomains)
+		playwrightDomainsCodemodLog.Printf("Updated top-level network.allowed with %d domain(s)", len(mergedDomains))
+	} else {
+		result = addTopLevelNetwork(result, mergedDomains)
+		playwrightDomainsCodemodLog.Printf("Added top-level network.allowed with %d domain(s)", len(mergedDomains))
+	}
+	return result, true
 }
 
 // removeFieldFromPlaywright removes a field from the tools.playwright block (two-level nesting)
 func removeFieldFromPlaywright(lines []string, fieldName string) ([]string, bool) {
 	var result []string
 	var modified bool
-	var inTools bool
-	var toolsIndent string
-	var inPlaywright bool
-	var playwrightIndent string
-	var inFieldBlock bool
-	var fieldIndent string
+	state := removeFieldFromPlaywrightState{}
 
 	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		// Track if we're in the tools block
-		if strings.HasPrefix(trimmed, "tools:") {
-			inTools = true
-			toolsIndent = getIndentation(line)
-			result = append(result, line)
-			continue
-		}
-
-		// Check if we've left the tools block
-		if inTools && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-			if hasExitedBlock(line, toolsIndent) {
-				inTools = false
-				inPlaywright = false
-			}
-		}
-
-		// Track if we're in the playwright block within tools
-		if inTools && strings.HasPrefix(trimmed, "playwright:") {
-			inPlaywright = true
-			playwrightIndent = getIndentation(line)
-			result = append(result, line)
-			continue
-		}
-
-		// Check if we've left the playwright block
-		if inPlaywright && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-			if hasExitedBlock(line, playwrightIndent) {
-				inPlaywright = false
-			}
-		}
-
-		// Remove the target field if in playwright block
-		if inPlaywright && strings.HasPrefix(trimmed, fieldName+":") {
+		keepLine, lineModified := removeFieldFromPlaywrightKeepLine(line, i, fieldName, &state)
+		if lineModified {
 			modified = true
-			inFieldBlock = true
-			fieldIndent = getIndentation(line)
-			playwrightDomainsCodemodLog.Printf("Removed %s from tools.playwright on line %d", fieldName, i+1)
-			continue
 		}
-
-		// Skip nested properties under the removed field
-		if inFieldBlock {
-			if trimmed == "" {
-				continue
-			}
-			currentIndent := getIndentation(line)
-			if strings.HasPrefix(trimmed, "#") {
-				if len(currentIndent) > len(fieldIndent) {
-					continue
-				}
-				inFieldBlock = false
-				result = append(result, line)
-				continue
-			}
-			if len(currentIndent) > len(fieldIndent) {
-				continue
-			}
-			inFieldBlock = false
+		if keepLine {
+			result = append(result, line)
 		}
-
-		result = append(result, line)
 	}
 
 	return result, modified
+}
+
+type removeFieldFromPlaywrightState struct {
+	inTools          bool
+	toolsIndent      string
+	inPlaywright     bool
+	playwrightIndent string
+	inFieldBlock     bool
+	fieldIndent      string
+}
+
+func removeFieldFromPlaywrightKeepLine(line string, index int, fieldName string, state *removeFieldFromPlaywrightState) (bool, bool) {
+	trimmed := strings.TrimSpace(line)
+
+	if strings.HasPrefix(trimmed, "tools:") {
+		state.inTools = true
+		state.toolsIndent = getIndentation(line)
+		return true, false
+	}
+
+	removeFieldFromPlaywrightExitBlocks(line, trimmed, state)
+
+	if state.inTools && strings.HasPrefix(trimmed, "playwright:") {
+		state.inPlaywright = true
+		state.playwrightIndent = getIndentation(line)
+		return true, false
+	}
+
+	if state.inPlaywright && strings.HasPrefix(trimmed, fieldName+":") {
+		state.inFieldBlock = true
+		state.fieldIndent = getIndentation(line)
+		playwrightDomainsCodemodLog.Printf("Removed %s from tools.playwright on line %d", fieldName, index+1)
+		return false, true
+	}
+
+	if state.inFieldBlock {
+		return removeFieldFromPlaywrightKeepAfterRemovedField(line, trimmed, state), false
+	}
+	return true, false
+}
+
+func removeFieldFromPlaywrightExitBlocks(line string, trimmed string, state *removeFieldFromPlaywrightState) {
+	if state.inTools && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+		if hasExitedBlock(line, state.toolsIndent) {
+			state.inTools = false
+			state.inPlaywright = false
+		}
+	}
+	if state.inPlaywright && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+		if hasExitedBlock(line, state.playwrightIndent) {
+			state.inPlaywright = false
+		}
+	}
+}
+
+func removeFieldFromPlaywrightKeepAfterRemovedField(line string, trimmed string, state *removeFieldFromPlaywrightState) bool {
+	if trimmed == "" {
+		return false
+	}
+	currentIndent := getIndentation(line)
+	if strings.HasPrefix(trimmed, "#") {
+		if len(currentIndent) > len(state.fieldIndent) {
+			return false
+		}
+		state.inFieldBlock = false
+		return true
+	}
+	if len(currentIndent) > len(state.fieldIndent) {
+		return false
+	}
+	state.inFieldBlock = false
+	return true
 }

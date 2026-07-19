@@ -35,105 +35,96 @@ var (
 // are in the allowed list and returns an error if any unauthorized expressions are found
 func validateExpressionSafety(markdownContent string) error {
 	expressionValidationLog.Print("Validating expression safety in markdown content")
-
 	matches := ExpressionPatternDotAll.FindAllStringSubmatch(markdownContent, -1)
 	expressionValidationLog.Printf("Found %d expressions to validate", len(matches))
 
 	var unauthorizedExpressions []string
-
 	for _, match := range matches {
 		if len(match) < 2 {
 			continue
 		}
-
-		// Extract the expression content (everything between ${{ and }})
-		expression := strings.TrimSpace(match[1])
-
-		// Reject expressions that span multiple lines (contain newlines)
-		if strings.Contains(match[1], "\n") {
-			unauthorizedExpressions = append(unauthorizedExpressions, expression)
-			continue
-		}
-
-		// Try to parse the expression using the parser
-		parsed, parseErr := ParseExpression(expression)
-		if parseErr == nil {
-			// If we can parse it, validate each literal expression in the tree
-			validationErr := VisitExpressionTree(parsed, func(expr *ExpressionNode) error {
-				return validateSingleExpression(expr.Expression, ExpressionValidationOptions{
-					NeedsStepsRe:            NeedsStepsPattern,
-					InputsRe:                InputsPattern,
-					WorkflowCallInputsRe:    WorkflowCallInputsPattern,
-					AwInputsRe:              AWInputsPattern,
-					AwImportInputsRe:        AWImportInputsPattern,
-					EnvRe:                   EnvPattern,
-					UnauthorizedExpressions: &unauthorizedExpressions,
-				})
-			})
-			if validationErr != nil {
-				return validationErr
-			}
-		} else {
-			// If parsing fails, fall back to validating the whole expression as a literal
-			err := validateSingleExpression(expression, ExpressionValidationOptions{
-				NeedsStepsRe:            NeedsStepsPattern,
-				InputsRe:                InputsPattern,
-				WorkflowCallInputsRe:    WorkflowCallInputsPattern,
-				AwInputsRe:              AWInputsPattern,
-				AwImportInputsRe:        AWImportInputsPattern,
-				EnvRe:                   EnvPattern,
-				UnauthorizedExpressions: &unauthorizedExpressions,
-			})
-			if err != nil {
-				return err
-			}
+		if err := validateExpressionMatch(match[1], &unauthorizedExpressions); err != nil {
+			return err
 		}
 	}
-
 	if len(unauthorizedExpressions) > 0 {
-		expressionValidationLog.Printf("Expression safety validation failed: %d unauthorized expressions found", len(unauthorizedExpressions))
-		var unauthorizedList strings.Builder
-		unauthorizedList.WriteString("\n")
-		for _, expr := range unauthorizedExpressions {
-			unauthorizedList.WriteString("  - ")
-			unauthorizedList.WriteString(expr)
-
-			// Find closest matches using fuzzy string matching
-			closestMatches := parser.FindClosestMatches(expr, constants.AllowedExpressions, maxFuzzyMatchSuggestions)
-			if len(closestMatches) > 0 {
-				unauthorizedList.WriteString(" (did you mean: ")
-				unauthorizedList.WriteString(strings.Join(closestMatches, ", "))
-				unauthorizedList.WriteString("?)")
-			}
-
-			unauthorizedList.WriteString("\n")
-		}
-
-		var allowedList strings.Builder
-		allowedList.WriteString("\n")
-		for _, expr := range constants.AllowedExpressions {
-			allowedList.WriteString("  - ")
-			allowedList.WriteString(expr)
-			allowedList.WriteString("\n")
-		}
-		allowedList.WriteString("  - needs.*\n")
-		allowedList.WriteString("  - steps.*\n")
-		allowedList.WriteString("  - github.event.inputs.*\n")
-		allowedList.WriteString("  - github.aw.inputs.* (shared workflow inputs)\n")
-		allowedList.WriteString("  - github.aw.import-inputs.* (import-schema inputs)\n")
-		allowedList.WriteString("  - inputs.* (workflow_call)\n")
-		allowedList.WriteString("  - env.*\n")
-
-		return NewValidationError(
-			"expressions",
-			fmt.Sprintf("%d unauthorized expressions found", len(unauthorizedExpressions)),
-			"expressions are not in the allowed list:"+unauthorizedList.String(),
-			fmt.Sprintf("Use only allowed expressions:%s\nFor more details, see the expression security documentation.", allowedList.String()),
-		)
+		return expressionSafetyError(unauthorizedExpressions)
 	}
-
 	expressionValidationLog.Print("Expression safety validation passed")
 	return nil
+}
+
+func validateExpressionMatch(rawExpression string, unauthorizedExpressions *[]string) error {
+	expression := strings.TrimSpace(rawExpression)
+	if strings.Contains(rawExpression, "\n") {
+		*unauthorizedExpressions = append(*unauthorizedExpressions, expression)
+		return nil
+	}
+	opts := defaultExpressionValidationOptions(unauthorizedExpressions)
+	parsed, parseErr := ParseExpression(expression)
+	if parseErr != nil {
+		return validateSingleExpression(expression, opts)
+	}
+	return VisitExpressionTree(parsed, func(expr *ExpressionNode) error {
+		return validateSingleExpression(expr.Expression, opts)
+	})
+}
+
+func defaultExpressionValidationOptions(unauthorizedExpressions *[]string) ExpressionValidationOptions {
+	return ExpressionValidationOptions{
+		NeedsStepsRe:            NeedsStepsPattern,
+		InputsRe:                InputsPattern,
+		WorkflowCallInputsRe:    WorkflowCallInputsPattern,
+		AwInputsRe:              AWInputsPattern,
+		AwImportInputsRe:        AWImportInputsPattern,
+		EnvRe:                   EnvPattern,
+		UnauthorizedExpressions: unauthorizedExpressions,
+	}
+}
+
+func expressionSafetyError(unauthorizedExpressions []string) error {
+	expressionValidationLog.Printf("Expression safety validation failed: %d unauthorized expressions found", len(unauthorizedExpressions))
+	return NewValidationError(
+		"expressions",
+		fmt.Sprintf("%d unauthorized expressions found", len(unauthorizedExpressions)),
+		"expressions are not in the allowed list:"+unauthorizedExpressionList(unauthorizedExpressions),
+		fmt.Sprintf("Use only allowed expressions:%s\nFor more details, see the expression security documentation.", allowedExpressionList()),
+	)
+}
+
+func unauthorizedExpressionList(unauthorizedExpressions []string) string {
+	var unauthorizedList strings.Builder
+	unauthorizedList.WriteString("\n")
+	for _, expr := range unauthorizedExpressions {
+		unauthorizedList.WriteString("  - ")
+		unauthorizedList.WriteString(expr)
+		closestMatches := parser.FindClosestMatches(expr, constants.AllowedExpressions, maxFuzzyMatchSuggestions)
+		if len(closestMatches) > 0 {
+			unauthorizedList.WriteString(" (did you mean: ")
+			unauthorizedList.WriteString(strings.Join(closestMatches, ", "))
+			unauthorizedList.WriteString("?)")
+		}
+		unauthorizedList.WriteString("\n")
+	}
+	return unauthorizedList.String()
+}
+
+func allowedExpressionList() string {
+	var allowedList strings.Builder
+	allowedList.WriteString("\n")
+	for _, expr := range constants.AllowedExpressions {
+		allowedList.WriteString("  - ")
+		allowedList.WriteString(expr)
+		allowedList.WriteString("\n")
+	}
+	allowedList.WriteString("  - needs.*\n")
+	allowedList.WriteString("  - steps.*\n")
+	allowedList.WriteString("  - github.event.inputs.*\n")
+	allowedList.WriteString("  - github.aw.inputs.* (shared workflow inputs)\n")
+	allowedList.WriteString("  - github.aw.import-inputs.* (import-schema inputs)\n")
+	allowedList.WriteString("  - inputs.* (workflow_call)\n")
+	allowedList.WriteString("  - env.*\n")
+	return allowedList.String()
 }
 
 // ExpressionValidationOptions contains the options for validating a single expression
@@ -180,91 +171,81 @@ func validateExpressionForDangerousProps(expression string) error {
 // validateSingleExpression validates a single literal expression
 func validateSingleExpression(expression string, opts ExpressionValidationOptions) error {
 	expression = strings.TrimSpace(expression)
-
-	// Allow literal values (string, number, boolean) — safe leaf nodes in compound expressions.
-	if stringLiteralRegex.MatchString(expression) ||
-		numberLiteralRegex.MatchString(expression) ||
-		expression == "true" || expression == "false" {
+	if isSafeExpressionLiteral(expression) {
 		return nil
 	}
-
-	// Check for dangerous JavaScript property names (prototype pollution, PR #14826)
 	if err := validateExpressionForDangerousProps(expression); err != nil {
 		return err
 	}
-
-	// Check if this expression is in the allowed list
-	allowed := false
-
-	if opts.NeedsStepsRe.MatchString(expression) {
-		allowed = true
-	} else if opts.InputsRe.MatchString(expression) {
-		allowed = true
-	} else if opts.WorkflowCallInputsRe.MatchString(expression) {
-		allowed = true
-	} else if opts.AwInputsRe.MatchString(expression) {
-		allowed = true
-	} else if opts.AwImportInputsRe != nil && opts.AwImportInputsRe.MatchString(expression) {
-		allowed = true
-	} else if opts.EnvRe.MatchString(expression) {
-		allowed = true
-	} else if _, ok := constants.AllowedExpressionsSet[expression]; ok {
-		allowed = true
-	}
-
-	// Check for OR expressions with literals (e.g., "inputs.repository || 'default'")
+	allowed := isDirectlyAllowedExpression(expression, opts)
 	if !allowed {
-		orMatch := orExpressionPattern.FindStringSubmatch(expression)
-		if len(orMatch) > 2 {
-			leftExpr := strings.TrimSpace(orMatch[1])
-			rightExpr := strings.TrimSpace(orMatch[2])
-
-			leftErr := validateSingleExpression(leftExpr, opts)
-			leftIsSafe := leftErr == nil && !containsExpressionInList(opts.UnauthorizedExpressions, leftExpr)
-
-			if leftIsSafe {
-				// Check if right side is a literal string (single, double, or backtick quotes)
-				// Note: Using (?:) for non-capturing group and checking each quote type separately
-				isStringLiteral := stringLiteralRegex.MatchString(rightExpr)
-				// Check if right side is a number literal
-				isNumberLiteral := numberLiteralRegex.MatchString(rightExpr)
-				// Check if right side is a boolean literal
-				isBooleanLiteral := rightExpr == "true" || rightExpr == "false"
-
-				if isStringLiteral || isNumberLiteral || isBooleanLiteral {
-					allowed = true
-				} else {
-					// If right side is also a safe expression, recursively check it
-					rightErr := validateSingleExpression(rightExpr, opts)
-					if rightErr == nil && !containsExpressionInList(opts.UnauthorizedExpressions, rightExpr) {
-						allowed = true
-					}
-				}
-			}
-		}
+		allowed = isAllowedOrExpression(expression, opts)
 	}
-
-	// Validate both sides of comparison expressions recursively.
 	if !allowed {
-		comparisonMatch := comparisonExpressionPattern.FindStringSubmatch(expression)
-		if len(comparisonMatch) > 2 {
-			leftExpr := strings.TrimSpace(comparisonMatch[1])
-			rightExpr := strings.TrimSpace(comparisonMatch[2])
-			leftErr := validateSingleExpression(leftExpr, opts)
-			rightErr := validateSingleExpression(rightExpr, opts)
-			if leftExpr != "" && rightExpr != "" &&
-				leftErr == nil && !containsExpressionInList(opts.UnauthorizedExpressions, leftExpr) &&
-				rightErr == nil && !containsExpressionInList(opts.UnauthorizedExpressions, rightExpr) {
-				allowed = true
-			}
-		}
+		allowed = isAllowedComparisonExpression(expression, opts)
 	}
-
 	if !allowed {
 		*opts.UnauthorizedExpressions = append(*opts.UnauthorizedExpressions, expression)
 	}
-
 	return nil
+}
+
+func isSafeExpressionLiteral(expression string) bool {
+	return stringLiteralRegex.MatchString(expression) || numberLiteralRegex.MatchString(expression) ||
+		expression == "true" || expression == "false"
+}
+
+func isDirectlyAllowedExpression(expression string, opts ExpressionValidationOptions) bool {
+	switch {
+	case opts.NeedsStepsRe.MatchString(expression):
+		return true
+	case opts.InputsRe.MatchString(expression):
+		return true
+	case opts.WorkflowCallInputsRe.MatchString(expression):
+		return true
+	case opts.AwInputsRe.MatchString(expression):
+		return true
+	case opts.AwImportInputsRe != nil && opts.AwImportInputsRe.MatchString(expression):
+		return true
+	case opts.EnvRe.MatchString(expression):
+		return true
+	default:
+		_, ok := constants.AllowedExpressionsSet[expression]
+		return ok
+	}
+}
+
+func isAllowedOrExpression(expression string, opts ExpressionValidationOptions) bool {
+	orMatch := orExpressionPattern.FindStringSubmatch(expression)
+	if len(orMatch) <= 2 {
+		return false
+	}
+	leftExpr := strings.TrimSpace(orMatch[1])
+	rightExpr := strings.TrimSpace(orMatch[2])
+	leftErr := validateSingleExpression(leftExpr, opts)
+	leftIsSafe := leftErr == nil && !containsExpressionInList(opts.UnauthorizedExpressions, leftExpr)
+	if !leftIsSafe {
+		return false
+	}
+	if isSafeExpressionLiteral(rightExpr) {
+		return true
+	}
+	rightErr := validateSingleExpression(rightExpr, opts)
+	return rightErr == nil && !containsExpressionInList(opts.UnauthorizedExpressions, rightExpr)
+}
+
+func isAllowedComparisonExpression(expression string, opts ExpressionValidationOptions) bool {
+	comparisonMatch := comparisonExpressionPattern.FindStringSubmatch(expression)
+	if len(comparisonMatch) <= 2 {
+		return false
+	}
+	leftExpr := strings.TrimSpace(comparisonMatch[1])
+	rightExpr := strings.TrimSpace(comparisonMatch[2])
+	leftErr := validateSingleExpression(leftExpr, opts)
+	rightErr := validateSingleExpression(rightExpr, opts)
+	return leftExpr != "" && rightExpr != "" &&
+		leftErr == nil && !containsExpressionInList(opts.UnauthorizedExpressions, leftExpr) &&
+		rightErr == nil && !containsExpressionInList(opts.UnauthorizedExpressions, rightExpr)
 }
 
 // containsExpressionInList checks if an expression is in the list.

@@ -53,58 +53,10 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 	// User-facing MCP servers require cli-proxy: true.
 	if data.ParsedTools != nil && data.ParsedTools.CLIProxy {
 		mcpCLIMountLog.Print("cli-proxy enabled, collecting user-facing CLI server names")
-
-		// Collect user-facing standard MCP tools from the raw Tools map
-		for toolName, toolValue := range data.Tools {
-			if toolValue == false {
-				continue
-			}
-			// Only include tools that have MCP servers (skip bash, web-fetch, web-search, edit, cache-memory, etc.)
-			// Note: "github" is excluded — it is handled differently and should not be CLI-mounted.
-			switch toolName {
-			case "playwright":
-				// In CLI mode, playwright is installed as @playwright/cli via npm and is NOT
-				// an MCP server, so it must not appear in the CLI-mounted servers list.
-				if !isPlaywrightCLIMode(data.Tools) {
-					servers = append(servers, toolName)
-				}
-			case "qmd":
-				servers = append(servers, toolName)
-			case "agentic-workflows":
-				// The gateway and manifest use "agenticworkflows" (no hyphen) as the server ID.
-				// Using the gateway ID here ensures GH_AW_MCP_CLI_SERVERS matches the manifest entries.
-				servers = append(servers, constants.AgenticWorkflowsMCPServerID.String())
-			default:
-				// Include custom MCP servers (not in the internal list)
-				if !internalMCPServerNames[toolName] {
-					if mcpConfig, ok := toolValue.(map[string]any); ok {
-						if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
-							servers = append(servers, toolName)
-						}
-					}
-				}
-			}
-		}
-
-		// Also check ParsedTools.Custom for custom MCP servers
-		for name := range data.ParsedTools.Custom {
-			if !internalMCPServerNames[name] && !slices.Contains(servers, name) {
-				servers = append(servers, name)
-			}
-		}
+		servers = append(servers, collectUserFacingMCPCLIServers(data)...)
 	}
 
-	// Infrastructure servers (safeoutputs, mcpscripts) are always CLI-mounted when
-	// configured. This allows workflows with engine.command to call safeoutputs or
-	// mcpscripts as shell commands inside the AWF/Copilot chroot without requiring
-	// cli-proxy: true. The PATH setup in GetMCPCLIPathSetup ensures the bin directory
-	// is reachable inside the sandbox.
-	if HasSafeOutputsEnabled(data.SafeOutputs) && !slices.Contains(servers, constants.SafeOutputsMCPServerID.String()) {
-		servers = append(servers, constants.SafeOutputsMCPServerID.String())
-	}
-	if IsMCPScriptsEnabled(data.MCPScripts) && !slices.Contains(servers, constants.MCPScriptsMCPServerID.String()) {
-		servers = append(servers, constants.MCPScriptsMCPServerID.String())
-	}
+	servers = appendInfrastructureMCPCLIServers(servers, data)
 
 	if len(servers) == 0 {
 		mcpCLIMountLog.Print("No MCP CLI servers configured")
@@ -113,6 +65,54 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 
 	sort.Strings(servers)
 	mcpCLIMountLog.Printf("MCP CLI servers selected: %v", servers)
+	return servers
+}
+
+func collectUserFacingMCPCLIServers(data *WorkflowData) []string {
+	var servers []string
+	for toolName, toolValue := range data.Tools {
+		if toolValue == false {
+			continue
+		}
+		servers = appendMCPCLIServerForTool(servers, data.Tools, toolName, toolValue)
+	}
+	for name := range data.ParsedTools.Custom {
+		if !internalMCPServerNames[name] && !slices.Contains(servers, name) {
+			servers = append(servers, name)
+		}
+	}
+	return servers
+}
+
+func appendMCPCLIServerForTool(servers []string, tools map[string]any, toolName string, toolValue any) []string {
+	switch toolName {
+	case "playwright":
+		if !isPlaywrightCLIMode(tools) {
+			return append(servers, toolName)
+		}
+	case "qmd":
+		return append(servers, toolName)
+	case "agentic-workflows":
+		return append(servers, constants.AgenticWorkflowsMCPServerID.String())
+	default:
+		if !internalMCPServerNames[toolName] {
+			if mcpConfig, ok := toolValue.(map[string]any); ok {
+				if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
+					return append(servers, toolName)
+				}
+			}
+		}
+	}
+	return servers
+}
+
+func appendInfrastructureMCPCLIServers(servers []string, data *WorkflowData) []string {
+	if HasSafeOutputsEnabled(data.SafeOutputs) && !slices.Contains(servers, constants.SafeOutputsMCPServerID.String()) {
+		servers = append(servers, constants.SafeOutputsMCPServerID.String())
+	}
+	if IsMCPScriptsEnabled(data.MCPScripts) && !slices.Contains(servers, constants.MCPScriptsMCPServerID.String()) {
+		servers = append(servers, constants.MCPScriptsMCPServerID.String())
+	}
 	return servers
 }
 
@@ -197,49 +197,29 @@ func withMountedCLIShellCommandsInRestrictedBash(workflowData *WorkflowData) map
 
 	augmentedBash := append([]any(nil), bashCommands...)
 	for _, server := range servers {
-		command := server + ":*"
-		exists := false
-		for _, allowed := range augmentedBash {
-			if allowedStr, ok := allowed.(string); ok && allowedStr == command {
-				exists = true
-				break
-			}
-		}
-		if !exists {
-			augmentedBash = append(augmentedBash, command)
-		}
+		augmentedBash = appendBashCommandIfMissing(augmentedBash, server+":*")
 	}
 
-	// When playwright is configured in CLI mode, playwright-cli must be executable.
-	// Automatically add it to the restricted bash allowlist so the agent can invoke it.
-	// This injection only applies when bash is restricted (explicit allowlist); when bash
-	// is unrestricted (nil or wildcard), playwright-cli is already accessible without
-	// explicit allowlisting.
 	if needsPlaywrightCLI {
-		const playwrightCLICommand = "playwright-cli:*"
-		if !slices.ContainsFunc(augmentedBash, func(v any) bool {
-			s, ok := v.(string)
-			return ok && s == playwrightCLICommand
-		}) {
-			augmentedBash = append(augmentedBash, playwrightCLICommand)
-		}
+		augmentedBash = appendBashCommandIfMissing(augmentedBash, "playwright-cli:*")
 	}
 
-	// When GitHub CLI mode is enabled (tools.github.mode: gh-proxy), GitHub access
-	// happens through the pre-authenticated gh binary. Ensure restricted bash
-	// allowlists can invoke it.
 	if needsGitHubCLI {
-		const ghCLICommand = "gh:*"
-		if !slices.ContainsFunc(augmentedBash, func(v any) bool {
-			s, ok := v.(string)
-			return ok && s == ghCLICommand
-		}) {
-			augmentedBash = append(augmentedBash, ghCLICommand)
-		}
+		augmentedBash = appendBashCommandIfMissing(augmentedBash, "gh:*")
 	}
 
 	copiedTools["bash"] = augmentedBash
 	return copiedTools
+}
+
+func appendBashCommandIfMissing(augmentedBash []any, command string) []any {
+	if slices.ContainsFunc(augmentedBash, func(v any) bool {
+		s, ok := v.(string)
+		return ok && s == command
+	}) {
+		return augmentedBash
+	}
+	return append(augmentedBash, command)
 }
 
 // getMCPCLIExcludeFromAgentConfig returns the sorted list of MCP server names that

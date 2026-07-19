@@ -1,0 +1,14 @@
+pkg/cli/audit_report_render.go
+pkg/cli/bootstrap_profile_manifest.go
+pkg/cli/bootstrap_profile_runner.go
+pkg/cli/bootstrap_shared.go
+pkg/cli/codemod_agent_session.go
+pkg/cli/codemod_assign_to_agent.go
+pkg/cli/codemod_bash_single_quoted_args.go
+pkg/cli/codemod_checkout_persist_credentials_false.go
+pkg/cli/codemod_cli_proxy_mode.go
+pkg/cli/codemod_dependabot_permissions.go
+pkg/cli/codemod_difc_proxy.go
+pkg/cli/codemod_discussion_flag.go
+pkg/cli/codemod_discussion_trigger_categories.go
+pkg/cli/codemod_effective_tokens_to_ai_credits.go

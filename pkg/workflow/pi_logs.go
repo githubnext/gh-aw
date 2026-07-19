@@ -49,53 +49,8 @@ func (e *PiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
 	}
 
 	toolCallCounts := make(map[string]int)
-	var turns int
-	var tokenUsage int
-
-	for line := range strings.SplitSeq(logContent, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || !strings.HasPrefix(line, "{") {
-			continue
-		}
-
-		var event piLogEvent
-		if err := json.Unmarshal([]byte(line), &event); err != nil {
-			continue
-		}
-
-		switch event.Type {
-		case "assistant":
-			// Count non-delta assistant messages as turns.
-			if !event.Delta && strings.TrimSpace(event.Content) != "" {
-				turns++
-			}
-
-		case "tool_use":
-			if event.ToolName != "" {
-				toolCallCounts[event.ToolName]++
-			}
-
-		case "result":
-			// Extract aggregate token usage from the final stats event.
-			if event.Stats != nil {
-				if inputTokens, ok := event.Stats["input_tokens"].(float64); ok {
-					tokenUsage += int(inputTokens)
-				}
-				if outputTokens, ok := event.Stats["output_tokens"].(float64); ok {
-					tokenUsage += int(outputTokens)
-				}
-			}
-		}
-	}
-
-	// Build ToolCallInfo slice and ToolCallMap for FinalizeToolMetrics
-	toolCallMap := make(map[string]*ToolCallInfo, len(toolCallCounts))
-	for toolName, count := range toolCallCounts {
-		toolCallMap[toolName] = &ToolCallInfo{
-			Name:      toolName,
-			CallCount: count,
-		}
-	}
+	turns, tokenUsage := parsePiLogEvents(logContent, toolCallCounts)
+	toolCallMap := piToolCallMap(toolCallCounts)
 
 	FinalizeToolMetrics(FinalizeToolMetricsOptions{
 		Metrics:     &metrics,
@@ -107,4 +62,64 @@ func (e *PiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
 	piLogsLog.Printf("Parsed Pi metrics: turns=%d, token_usage=%d, tool_calls=%d",
 		metrics.Turns, metrics.TokenUsage, len(metrics.ToolCalls))
 	return metrics
+}
+
+func parsePiLogEvents(logContent string, toolCallCounts map[string]int) (int, int) {
+	var turns int
+	var tokenUsage int
+	for line := range strings.SplitSeq(logContent, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || !strings.HasPrefix(line, "{") {
+			continue
+		}
+		var event piLogEvent
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			continue
+		}
+		turnDelta, tokenDelta := applyPiLogEvent(event, toolCallCounts)
+		turns += turnDelta
+		tokenUsage += tokenDelta
+	}
+	return turns, tokenUsage
+}
+
+func applyPiLogEvent(event piLogEvent, toolCallCounts map[string]int) (int, int) {
+	switch event.Type {
+	case "assistant":
+		if !event.Delta && strings.TrimSpace(event.Content) != "" {
+			return 1, 0
+		}
+	case "tool_use":
+		if event.ToolName != "" {
+			toolCallCounts[event.ToolName]++
+		}
+	case "result":
+		return 0, piResultTokenUsage(event.Stats)
+	}
+	return 0, 0
+}
+
+func piResultTokenUsage(stats map[string]any) int {
+	if stats == nil {
+		return 0
+	}
+	tokenUsage := 0
+	if inputTokens, ok := stats["input_tokens"].(float64); ok {
+		tokenUsage += int(inputTokens)
+	}
+	if outputTokens, ok := stats["output_tokens"].(float64); ok {
+		tokenUsage += int(outputTokens)
+	}
+	return tokenUsage
+}
+
+func piToolCallMap(toolCallCounts map[string]int) map[string]*ToolCallInfo {
+	toolCallMap := make(map[string]*ToolCallInfo, len(toolCallCounts))
+	for toolName, count := range toolCallCounts {
+		toolCallMap[toolName] = &ToolCallInfo{
+			Name:      toolName,
+			CallCount: count,
+		}
+	}
+	return toolCallMap
 }

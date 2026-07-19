@@ -75,58 +75,68 @@ func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold 
 		}
 	}
 
-	// Accumulate success/failure counts and numerical metrics.
-	successCount := 0
-	failureCount := 0
-	var durationStats, tokenStats stats.StatVar
-	var totalTokens int
-
-	for _, run := range runs {
-		if run.Conclusion == "success" {
-			successCount++
-		} else if isFailureConclusion(run.Conclusion) {
-			failureCount++
-		}
-		totalTokens += run.TokenUsage
-		durationStats.Add(float64(run.Duration))
-		tokenStats.Add(float64(run.TokenUsage))
-	}
-
-	totalRuns := len(runs)
-	successRate := safePercent(successCount, totalRuns)
-
-	avgDuration := time.Duration(durationStats.Mean())
-	avgTokens := int(tokenStats.Mean())
+	metrics := calculateWorkflowHealthMetrics(runs)
 
 	// Calculate trend
 	trend := calculateTrend(runs)
 
 	// Format display values
-	displayRate := fmt.Sprintf("%.0f%%  (%d/%d)", successRate, successCount, totalRuns)
-	displayDur := timeutil.FormatDuration(avgDuration)
-	displayTokens := console.FormatTokens(avgTokens)
+	displayRate := fmt.Sprintf("%.0f%%  (%d/%d)", metrics.successRate, metrics.successCount, metrics.totalRuns)
+	displayDur := timeutil.FormatDuration(metrics.avgDuration)
+	displayTokens := console.FormatTokens(metrics.avgTokens)
 
-	belowThreshold := successRate < threshold
+	belowThreshold := metrics.successRate < threshold
 
 	health := WorkflowHealth{
 		WorkflowName:  workflowName,
-		TotalRuns:     totalRuns,
-		SuccessCount:  successCount,
-		FailureCount:  failureCount,
-		SuccessRate:   successRate,
+		TotalRuns:     metrics.totalRuns,
+		SuccessCount:  metrics.successCount,
+		FailureCount:  metrics.failureCount,
+		SuccessRate:   metrics.successRate,
 		DisplayRate:   displayRate,
 		Trend:         trend.String(),
-		AvgDuration:   avgDuration,
+		AvgDuration:   metrics.avgDuration,
 		DisplayDur:    displayDur,
-		TotalTokens:   totalTokens,
-		AvgTokens:     avgTokens,
+		TotalTokens:   metrics.totalTokens,
+		AvgTokens:     metrics.avgTokens,
 		DisplayTokens: displayTokens,
 		BelowThresh:   belowThreshold,
 	}
 
-	healthMetricsLog.Printf("Health calculated: workflow=%s, successRate=%.2f%%, trend=%s", workflowName, successRate, trend.String())
+	healthMetricsLog.Printf("Health calculated: workflow=%s, successRate=%.2f%%, trend=%s", workflowName, metrics.successRate, trend.String())
 
 	return health
+}
+
+type calculateWorkflowHealthMetricsResult struct {
+	successCount int
+	failureCount int
+	totalRuns    int
+	totalTokens  int
+	successRate  float64
+	avgDuration  time.Duration
+	avgTokens    int
+}
+
+func calculateWorkflowHealthMetrics(runs []WorkflowRun) calculateWorkflowHealthMetricsResult {
+	// Accumulate success/failure counts and numerical metrics.
+	var result calculateWorkflowHealthMetricsResult
+	var durationStats, tokenStats stats.StatVar
+	for _, run := range runs {
+		if run.Conclusion == "success" {
+			result.successCount++
+		} else if isFailureConclusion(run.Conclusion) {
+			result.failureCount++
+		}
+		result.totalTokens += run.TokenUsage
+		durationStats.Add(float64(run.Duration))
+		tokenStats.Add(float64(run.TokenUsage))
+	}
+	result.totalRuns = len(runs)
+	result.successRate = safePercent(result.successCount, result.totalRuns)
+	result.avgDuration = time.Duration(durationStats.Mean())
+	result.avgTokens = int(tokenStats.Mean())
+	return result
 }
 
 // calculateTrend determines the trend direction based on recent vs older runs

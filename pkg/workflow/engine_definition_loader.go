@@ -113,57 +113,13 @@ func loadBuiltinEngineDefinitions() []*EngineDefinition {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
+		if !isBuiltinEngineMarkdownFile(path, d) {
 			return nil
 		}
-		if filepath.Ext(path) != ".md" {
-			return nil
-		}
-
-		data, readErr := builtinEngineFS.ReadFile(path)
+		def, readErr := loadBuiltinEngineDefinition(path)
 		if readErr != nil {
-			return fmt.Errorf("failed to read embedded engine file %s: %w", path, readErr)
+			return readErr
 		}
-
-		// Extract the frontmatter YAML from the Markdown file.
-		frontmatterYAML, fmErr := extractMarkdownFrontmatterYAML(data)
-		if fmErr != nil {
-			return fmt.Errorf("failed to extract frontmatter from %s: %w", path, fmErr)
-		}
-
-		// Parse the engine definition from the frontmatter.
-		var wrapper engineDefinitionFile
-		if parseErr := yaml.Unmarshal(frontmatterYAML, &wrapper); parseErr != nil {
-			return fmt.Errorf("failed to parse embedded engine file %s: %w", path, parseErr)
-		}
-
-		def := wrapper.Engine
-
-		// Default runtime-id to engine id when omitted.
-		if def.RuntimeID == "" {
-			def.RuntimeID = def.ID
-		}
-
-		// Register the full .md content in the parser's builtin virtual FS so the
-		// file can be resolved and read during import processing.
-		parser.RegisterBuiltinVirtualFile(builtinEnginePath(def.ID), data)
-
-		// Register the JSON key that the import processor produces for this built-in
-		// so that parseEngineDefinitionFromJSON will cache it. The import processor
-		// marshals the raw "engine:" value (a map[string]any) to JSON; we replicate
-		// that here so the cache key matches exactly.
-		var rawFM map[string]any
-		if jsonErr := yaml.Unmarshal(frontmatterYAML, &rawFM); jsonErr != nil {
-			engineDefinitionLoaderLog.Printf("Warning: failed to unmarshal frontmatter for cache-key registration of %s: %v", path, jsonErr)
-		} else if engineVal, ok := rawFM["engine"]; ok {
-			if jsonKey, jsonErr := json.Marshal(engineVal); jsonErr != nil {
-				engineDefinitionLoaderLog.Printf("Warning: failed to marshal engine value to JSON for cache-key registration of %s: %v", path, jsonErr)
-			} else {
-				registerBuiltinEngineDefinitionJSON(string(jsonKey))
-			}
-		}
-
-		engineDefinitionLoaderLog.Printf("Loaded built-in engine definition: id=%s runtime-id=%s", def.ID, def.RuntimeID)
 		definitions = append(definitions, &def)
 		return nil
 	})
@@ -174,4 +130,51 @@ func loadBuiltinEngineDefinitions() []*EngineDefinition {
 
 	engineDefinitionLoaderLog.Printf("Loaded %d built-in engine definitions", len(definitions))
 	return definitions
+}
+
+func isBuiltinEngineMarkdownFile(path string, d fs.DirEntry) bool {
+	return !d.IsDir() && filepath.Ext(path) == ".md"
+}
+
+func loadBuiltinEngineDefinition(path string) (EngineDefinition, error) {
+	data, err := builtinEngineFS.ReadFile(path)
+	if err != nil {
+		return EngineDefinition{}, fmt.Errorf("failed to read embedded engine file %s: %w", path, err)
+	}
+	frontmatterYAML, err := extractMarkdownFrontmatterYAML(data)
+	if err != nil {
+		return EngineDefinition{}, fmt.Errorf("failed to extract frontmatter from %s: %w", path, err)
+	}
+
+	var wrapper engineDefinitionFile
+	if err := yaml.Unmarshal(frontmatterYAML, &wrapper); err != nil {
+		return EngineDefinition{}, fmt.Errorf("failed to parse embedded engine file %s: %w", path, err)
+	}
+
+	def := wrapper.Engine
+	if def.RuntimeID == "" {
+		def.RuntimeID = def.ID
+	}
+	parser.RegisterBuiltinVirtualFile(builtinEnginePath(def.ID), data)
+	registerBuiltinEngineDefinitionCacheKey(path, frontmatterYAML)
+	engineDefinitionLoaderLog.Printf("Loaded built-in engine definition: id=%s runtime-id=%s", def.ID, def.RuntimeID)
+	return def, nil
+}
+
+func registerBuiltinEngineDefinitionCacheKey(path string, frontmatterYAML []byte) {
+	var rawFM map[string]any
+	if err := yaml.Unmarshal(frontmatterYAML, &rawFM); err != nil {
+		engineDefinitionLoaderLog.Printf("Warning: failed to unmarshal frontmatter for cache-key registration of %s: %v", path, err)
+		return
+	}
+	engineVal, ok := rawFM["engine"]
+	if !ok {
+		return
+	}
+	jsonKey, err := json.Marshal(engineVal)
+	if err != nil {
+		engineDefinitionLoaderLog.Printf("Warning: failed to marshal engine value to JSON for cache-key registration of %s: %v", path, err)
+		return
+	}
+	registerBuiltinEngineDefinitionJSON(string(jsonKey))
 }

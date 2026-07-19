@@ -23,28 +23,44 @@ var compileWatchLog = logger.New("cli:compile_watch")
 
 // watchAndCompileWorkflows watches for changes to workflow files and recompiles them automatically
 func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler *workflow.Compiler, verbose bool) error {
-	// Find git root for consistent behavior
+	_, workflowsDir, markdownFile, err := watchAndCompileWorkflowsInputs(markdownFile)
+	if err != nil {
+		return err
+	}
+
+	depGraph := watchAndCompileWorkflowsBuildDependencyGraph(workflowsDir, compiler, verbose)
+	watcher, err := watchAndCompileWorkflowsCreateWatcher(workflowsDir)
+	if err != nil {
+		return err
+	}
+	defer watcher.Close()
+
+	watchAndCompileWorkflowsPrintBegin(markdownFile, workflowsDir, verbose)
+	watchAndCompileWorkflowsInitial(ctx, markdownFile, compiler, workflowsDir, verbose)
+	return watchAndCompileWorkflowsLoop(ctx, markdownFile, compiler, verbose, watcher, depGraph)
+}
+
+func watchAndCompileWorkflowsInputs(markdownFile string) (string, string, string, error) {
 	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
-		return fmt.Errorf("watch mode requires being in a git repository: %w", err)
+		return "", "", "", fmt.Errorf("watch mode requires being in a git repository: %w", err)
 	}
-
 	workflowsDir := filepath.Join(gitRoot, constants.GetWorkflowDir())
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return fmt.Errorf("the %s directory does not exist in git root (%s)", constants.GetWorkflowDir(), gitRoot)
+		return "", "", "", fmt.Errorf("the %s directory does not exist in git root (%s)", constants.GetWorkflowDir(), gitRoot)
 	}
-
-	// If a specific file is provided, watch only that file and its directory
 	if markdownFile != "" {
 		if !filepath.IsAbs(markdownFile) {
 			markdownFile = filepath.Join(workflowsDir, markdownFile)
 		}
 		if _, err := os.Stat(markdownFile); os.IsNotExist(err) {
-			return fmt.Errorf("specified markdown file does not exist: %s", markdownFile)
+			return "", "", "", fmt.Errorf("specified markdown file does not exist: %s", markdownFile)
 		}
 	}
+	return gitRoot, workflowsDir, markdownFile, nil
+}
 
-	// Build dependency graph for intelligent recompilation
+func watchAndCompileWorkflowsBuildDependencyGraph(workflowsDir string, compiler *workflow.Compiler, verbose bool) *DependencyGraph {
 	depGraph := NewDependencyGraph(workflowsDir)
 	compileWatchLog.Print("Building dependency graph for watch mode...")
 	if err := depGraph.BuildGraph(compiler); err != nil {
@@ -56,36 +72,38 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Dependency graph built: %d workflows", len(depGraph.nodes))))
 		}
 	}
+	return depGraph
+}
 
-	// Set up file system watcher with buffered events for better handling of burst activity
+func watchAndCompileWorkflowsCreateWatcher(workflowsDir string) (*fsnotify.Watcher, error) {
 	watcher, err := fsnotify.NewBufferedWatcher(100)
 	if err != nil {
-		return fmt.Errorf("failed to create file watcher: %w", err)
+		return nil, fmt.Errorf("failed to create file watcher: %w", err)
 	}
-	defer watcher.Close()
-
-	// addWatchPath adds a path to the watcher with platform-specific configuration.
-	// On Windows, uses a larger buffer (64KB) to prevent event overflow in busy directories.
-	addWatchPath := func(path string) error {
-		if runtime.GOOS == "windows" {
-			return watcher.AddWith(path, fsnotify.WithBufferSize(64*1024))
-		}
-		return watcher.Add(path)
+	if err := watchAndCompileWorkflowsAddWatchPath(watcher, workflowsDir); err != nil {
+		watcher.Close()
+		return nil, fmt.Errorf("failed to watch directory %s: %w", workflowsDir, err)
 	}
-
-	// Add the workflows directory to the watcher
-	if err := addWatchPath(workflowsDir); err != nil {
-		return fmt.Errorf("failed to watch directory %s: %w", workflowsDir, err)
+	if err := watchAndCompileWorkflowsWatchSubdirectories(watcher, workflowsDir); err != nil {
+		compileWatchLog.Printf("Failed to walk subdirectories: %v", err)
 	}
+	return watcher, nil
+}
 
-	// Also watch subdirectories for include files (recursive watching)
-	err = filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
+func watchAndCompileWorkflowsAddWatchPath(watcher *fsnotify.Watcher, path string) error {
+	if runtime.GOOS == "windows" {
+		return watcher.AddWith(path, fsnotify.WithBufferSize(64*1024))
+	}
+	return watcher.Add(path)
+}
+
+func watchAndCompileWorkflowsWatchSubdirectories(watcher *fsnotify.Watcher, workflowsDir string) error {
+	return filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return nil // Skip errors but continue walking
+			return nil
 		}
 		if info.IsDir() && path != workflowsDir {
-			// Add subdirectories to the watcher
-			if err := addWatchPath(path); err != nil {
+			if err := watchAndCompileWorkflowsAddWatchPath(watcher, path); err != nil {
 				compileWatchLog.Printf("Failed to watch subdirectory %s: %v", path, err)
 			} else {
 				compileWatchLog.Printf("Watching subdirectory: %s", path)
@@ -93,28 +111,20 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 		}
 		return nil
 	})
-	if err != nil {
-		compileWatchLog.Printf("Failed to walk subdirectories: %v", err)
-	}
+}
 
-	// Always emit the begin pattern for task integration
+func watchAndCompileWorkflowsPrintBegin(markdownFile string, workflowsDir string, verbose bool) {
 	if markdownFile != "" {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Watching for file changes to %s...", markdownFile)))
 	} else {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Watching for file changes in %s...", workflowsDir)))
 	}
-
 	if verbose {
 		fmt.Fprintln(os.Stderr, "Press Ctrl+C to stop watching.")
 	}
+}
 
-	// Debouncing setup
-	const debounceDelay = 300 * time.Millisecond
-	var debounceTimer *time.Timer
-	var debounceMu sync.Mutex
-	modifiedFiles := make(map[string]struct{})
-
-	// Compile initially if no specific file provided
+func watchAndCompileWorkflowsInitial(ctx context.Context, markdownFile string, compiler *workflow.Compiler, workflowsDir string, verbose bool) {
 	if markdownFile == "" {
 		fmt.Fprintln(os.Stderr, "Watching for file changes")
 		if verbose {
@@ -122,115 +132,161 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 		}
 		stats, err := compileAllWorkflowFiles(ctx, compiler, workflowsDir, verbose)
 		if err != nil {
-			// Always show initial compilation errors, not just in verbose mode
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Initial compilation failed: %v", err)))
 		}
-		// Print summary instead of just "Recompiled"
 		printCompilationSummary(stats, false)
-	} else {
-		// Reset warning count before compilation
-		compiler.ResetWarningCount()
-
-		// Track compilation statistics for single file
-		stats := &CompilationStats{}
-
-		fmt.Fprintln(os.Stderr, "Watching for file changes")
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Initial compilation of %s...", markdownFile)))
-		}
-
-		// Use compileSingleFile to handle both regular workflows and campaign files
-		compileSingleFile(ctx, compiler, markdownFile, stats, verbose, false)
-
-		// Get warning count from compiler
-		stats.Warnings = compiler.GetWarningCount()
-
-		// Print summary instead of just "Recompiled"
-		printCompilationSummary(stats, false)
+		return
 	}
+	watchAndCompileWorkflowsInitialSingle(ctx, markdownFile, compiler, verbose)
+}
 
-	// Main watch loop
+func watchAndCompileWorkflowsInitialSingle(ctx context.Context, markdownFile string, compiler *workflow.Compiler, verbose bool) {
+	compiler.ResetWarningCount()
+	stats := &CompilationStats{}
+	fmt.Fprintln(os.Stderr, "Watching for file changes")
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Initial compilation of %s...", markdownFile)))
+	}
+	compileSingleFile(ctx, compiler, markdownFile, stats, verbose, false)
+	stats.Warnings = compiler.GetWarningCount()
+	printCompilationSummary(stats, false)
+}
+
+func watchAndCompileWorkflowsLoop(
+	ctx context.Context,
+	markdownFile string,
+	compiler *workflow.Compiler,
+	verbose bool,
+	watcher *fsnotify.Watcher,
+	depGraph *DependencyGraph,
+) error {
+	const debounceDelay = 300 * time.Millisecond
+	var debounceTimer *time.Timer
+	var debounceMu sync.Mutex
+	modifiedFiles := make(map[string]struct{})
+
 	for {
 		select {
 		case event, ok := <-watcher.Events:
 			if !ok {
 				return errors.New("watcher channel closed")
 			}
-
-			// Filter out Chmod events (noisy and usually not useful for workflow changes)
-			if event.Has(fsnotify.Chmod) {
-				continue
-			}
-
-			// Only process markdown files and ignore lock files
-			if !strings.HasSuffix(event.Name, ".md") {
-				continue
-			}
-
-			// If watching a specific file, only process that file
-			if markdownFile != "" && event.Name != markdownFile {
-				continue
-			}
-
-			compileWatchLog.Printf("Detected change: %s (%s)", event.Name, event.Op.String())
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Detected change: %s (%s)", event.Name, event.Op.String())))
-			}
-
-			// Handle file operations
-			switch {
-			case event.Has(fsnotify.Remove):
-				// Handle file deletion
-				handleFileDeleted(event.Name, verbose)
-				// Remove from dependency graph
-				depGraph.RemoveWorkflow(event.Name)
-			case event.Has(fsnotify.Write) || event.Has(fsnotify.Create):
-				// Handle file modification or creation - add to debounced compilation
-				func() {
-					debounceMu.Lock()
-					defer debounceMu.Unlock()
-					modifiedFiles[event.Name] = struct{}{}
-
-					// Reset debounce timer
-					if debounceTimer != nil {
-						debounceTimer.Stop()
-					}
-					debounceTimer = time.AfterFunc(debounceDelay, func() {
-						filesToCompile := func() []string {
-							debounceMu.Lock()
-							defer debounceMu.Unlock()
-							files := make([]string, 0, len(modifiedFiles))
-							for file := range modifiedFiles {
-								files = append(files, file)
-							}
-							// Clear the modifiedFiles map
-							modifiedFiles = make(map[string]struct{})
-							return files
-						}()
-
-						// Compile the modified files using dependency graph
-						compileModifiedFilesWithDependencies(ctx, compiler, depGraph, filesToCompile, verbose)
-					})
-				}()
-			}
-
+			watchAndCompileWorkflowsHandleEvent(watchAndCompileWorkflowsHandleEventParams{
+				Ctx:           ctx,
+				MarkdownFile:  markdownFile,
+				Compiler:      compiler,
+				Verbose:       verbose,
+				DepGraph:      depGraph,
+				Event:         event,
+				DebounceTimer: &debounceTimer,
+				DebounceMu:    &debounceMu,
+				ModifiedFiles: &modifiedFiles,
+				DebounceDelay: debounceDelay,
+			})
 		case err, ok := <-watcher.Errors:
 			if !ok {
 				return errors.New("watcher error channel closed")
 			}
-			compileWatchLog.Printf("Watcher error: %v", err)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Watcher error: %v", err)))
-			}
-
+			watchAndCompileWorkflowsHandleError(err, verbose)
 		case <-ctx.Done():
-			if verbose {
-				fmt.Fprintln(os.Stderr, "\n🛑 Stopping watch mode...")
-			}
-			if debounceTimer != nil {
-				debounceTimer.Stop()
-			}
+			watchAndCompileWorkflowsStop(debounceTimer, verbose)
 			return nil
 		}
+	}
+}
+
+type watchAndCompileWorkflowsHandleEventParams struct {
+	Ctx           context.Context
+	MarkdownFile  string
+	Compiler      *workflow.Compiler
+	Verbose       bool
+	DepGraph      *DependencyGraph
+	Event         fsnotify.Event
+	DebounceTimer **time.Timer
+	DebounceMu    *sync.Mutex
+	ModifiedFiles *map[string]struct{}
+	DebounceDelay time.Duration
+}
+
+func watchAndCompileWorkflowsHandleEvent(p watchAndCompileWorkflowsHandleEventParams) {
+	if p.Event.Has(fsnotify.Chmod) || !strings.HasSuffix(p.Event.Name, ".md") {
+		return
+	}
+	if p.MarkdownFile != "" && p.Event.Name != p.MarkdownFile {
+		return
+	}
+	compileWatchLog.Printf("Detected change: %s (%s)", p.Event.Name, p.Event.Op.String())
+	if p.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Detected change: %s (%s)", p.Event.Name, p.Event.Op.String())))
+	}
+	if p.Event.Has(fsnotify.Remove) {
+		handleFileDeleted(p.Event.Name, p.Verbose)
+		p.DepGraph.RemoveWorkflow(p.Event.Name)
+		return
+	}
+	if p.Event.Has(fsnotify.Write) || p.Event.Has(fsnotify.Create) {
+		watchAndCompileWorkflowsDebounce(watchAndCompileWorkflowsDebounceParams{
+			Ctx:           p.Ctx,
+			Compiler:      p.Compiler,
+			Verbose:       p.Verbose,
+			DepGraph:      p.DepGraph,
+			FileName:      p.Event.Name,
+			DebounceTimer: p.DebounceTimer,
+			DebounceMu:    p.DebounceMu,
+			ModifiedFiles: p.ModifiedFiles,
+			DebounceDelay: p.DebounceDelay,
+		})
+	}
+}
+
+type watchAndCompileWorkflowsDebounceParams struct {
+	Ctx           context.Context
+	Compiler      *workflow.Compiler
+	Verbose       bool
+	DepGraph      *DependencyGraph
+	FileName      string
+	DebounceTimer **time.Timer
+	DebounceMu    *sync.Mutex
+	ModifiedFiles *map[string]struct{}
+	DebounceDelay time.Duration
+}
+
+func watchAndCompileWorkflowsDebounce(p watchAndCompileWorkflowsDebounceParams) {
+	p.DebounceMu.Lock()
+	defer p.DebounceMu.Unlock()
+	(*p.ModifiedFiles)[p.FileName] = struct{}{}
+	if *p.DebounceTimer != nil {
+		(*p.DebounceTimer).Stop()
+	}
+	*p.DebounceTimer = time.AfterFunc(p.DebounceDelay, func() {
+		filesToCompile := watchAndCompileWorkflowsTakeModifiedFiles(p.DebounceMu, p.ModifiedFiles)
+		compileModifiedFilesWithDependencies(p.Ctx, p.Compiler, p.DepGraph, filesToCompile, p.Verbose)
+	})
+}
+
+func watchAndCompileWorkflowsTakeModifiedFiles(debounceMu *sync.Mutex, modifiedFiles *map[string]struct{}) []string {
+	debounceMu.Lock()
+	defer debounceMu.Unlock()
+	files := make([]string, 0, len(*modifiedFiles))
+	for file := range *modifiedFiles {
+		files = append(files, file)
+	}
+	*modifiedFiles = make(map[string]struct{})
+	return files
+}
+
+func watchAndCompileWorkflowsHandleError(err error, verbose bool) {
+	compileWatchLog.Printf("Watcher error: %v", err)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Watcher error: %v", err)))
+	}
+}
+
+func watchAndCompileWorkflowsStop(debounceTimer *time.Timer, verbose bool) {
+	if verbose {
+		fmt.Fprintln(os.Stderr, "\n🛑 Stopping watch mode...")
+	}
+	if debounceTimer != nil {
+		debounceTimer.Stop()
 	}
 }

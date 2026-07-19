@@ -86,14 +86,26 @@ func ExtractServicePortExpressions(servicesYAML string) (string, []string) {
 		return "", nil
 	}
 
+	expressions, warnings := collectServicePortExpressions(wrapper.Services)
+	if len(expressions) == 0 {
+		servicePortsLog.Print("No service port expressions generated")
+		return "", warnings
+	}
+
+	result := strings.Join(expressions, ",")
+	servicePortsLog.Printf("Generated %d service port expressions", len(expressions))
+	return result, warnings
+}
+
+func collectServicePortExpressions(services map[string]*serviceContainerConfig) ([]string, []string) {
 	var expressions []string
 	var warnings []string
 
 	// Sort service IDs for deterministic output
-	serviceIDs := sliceutil.SortedKeys(wrapper.Services)
+	serviceIDs := sliceutil.SortedKeys(services)
 
 	for _, serviceID := range serviceIDs {
-		svc := wrapper.Services[serviceID]
+		svc := services[serviceID]
 		if svc == nil {
 			servicePortsLog.Printf("Service %s is nil, skipping", serviceID)
 			continue
@@ -124,15 +136,7 @@ func ExtractServicePortExpressions(servicesYAML string) (string, []string) {
 			}
 		}
 	}
-
-	if len(expressions) == 0 {
-		servicePortsLog.Print("No service port expressions generated")
-		return "", warnings
-	}
-
-	result := strings.Join(expressions, ",")
-	servicePortsLog.Printf("Generated %d service port expressions", len(expressions))
-	return result, warnings
+	return expressions, warnings
 }
 
 // parsePortSpec parses a single port specification and returns the container port(s).
@@ -151,34 +155,19 @@ func parsePortSpec(spec any) ([]int, []string) {
 	var portStr string
 	switch v := spec.(type) {
 	case int:
-		if v < minPort || v > maxPort {
-			return nil, []string{fmt.Sprintf("port %d is outside valid range %d-%d", v, minPort, maxPort)}
-		}
-		servicePortsLog.Printf("Parsed integer port spec: %d", v)
-		return []int{v}, nil
+		return parseNumericPortSpec(v)
 	case uint64:
 		// goccy/go-yaml decodes unquoted integers as uint64
-		p := int(v)
-		if p < minPort || p > maxPort {
-			return nil, []string{fmt.Sprintf("port %d is outside valid range %d-%d", p, minPort, maxPort)}
-		}
-		return []int{p}, nil
+		return parseNumericPortSpec(int(v))
 	case int64:
-		p := int(v)
-		if p < minPort || p > maxPort {
-			return nil, []string{fmt.Sprintf("port %d is outside valid range %d-%d", p, minPort, maxPort)}
-		}
-		return []int{p}, nil
+		return parseNumericPortSpec(int(v))
 	case float64:
 		// Some YAML libraries parse unquoted numbers as float64
 		p := int(v)
 		if float64(p) != v {
 			return nil, []string{fmt.Sprintf("port %v is not an integer", v)}
 		}
-		if p < minPort || p > maxPort {
-			return nil, []string{fmt.Sprintf("port %d is outside valid range %d-%d", p, minPort, maxPort)}
-		}
-		return []int{p}, nil
+		return parseNumericPortSpec(p)
 	case string:
 		portStr = v
 	default:
@@ -206,52 +195,63 @@ func parsePortSpec(spec any) ([]int, []string) {
 		return nil, []string{fmt.Sprintf("unsupported protocol %q for port %q; AWF only supports TCP", protocol, portStr)}
 	}
 
-	// Split host:container
-	var containerPart string
-	if _, after, found := strings.Cut(portStr, ":"); found {
-		containerPart = after
-	} else {
-		containerPart = portStr
-	}
+	containerPart := extractContainerPortPart(portStr)
 
 	// Check for port range (e.g., "6000-6010")
 	if startStr, endStr, found := strings.Cut(containerPart, "-"); found {
-		start, err1 := strconv.Atoi(startStr)
-		end, err2 := strconv.Atoi(endStr)
-		if err1 != nil || err2 != nil {
-			return nil, []string{fmt.Sprintf("invalid port range %q", containerPart)}
-		}
-
-		if end < start {
-			return nil, []string{fmt.Sprintf("invalid port range %q: end < start", containerPart)}
-		}
-
-		count := end - start + 1
-		if count > maxPortRangeExpansion {
-			return nil, []string{fmt.Sprintf("port range %q expands to %d ports, exceeding cap of %d", containerPart, count, maxPortRangeExpansion)}
-		}
-
-		if start < minPort || end > maxPort {
-			return nil, []string{fmt.Sprintf("port range %q contains ports outside valid range %d-%d", containerPart, minPort, maxPort)}
-		}
-
-		ports := make([]int, 0, count)
-		for p := start; p <= end; p++ {
-			ports = append(ports, p)
-		}
-		servicePortsLog.Printf("Parsed port range %q: %d ports (%d-%d)", containerPart, count, start, end)
-		return ports, nil
+		return parsePortRange(containerPart, startStr, endStr)
 	}
 
-	// Single port
+	return parseSinglePort(containerPart)
+}
+
+func parseNumericPortSpec(port int) ([]int, []string) {
+	if port < minPort || port > maxPort {
+		return nil, []string{fmt.Sprintf("port %d is outside valid range %d-%d", port, minPort, maxPort)}
+	}
+	servicePortsLog.Printf("Parsed integer port spec: %d", port)
+	return []int{port}, nil
+}
+
+func extractContainerPortPart(portStr string) string {
+	if _, after, found := strings.Cut(portStr, ":"); found {
+		return after
+	}
+	return portStr
+}
+
+func parsePortRange(containerPart, startStr, endStr string) ([]int, []string) {
+	start, err1 := strconv.Atoi(startStr)
+	end, err2 := strconv.Atoi(endStr)
+	if err1 != nil || err2 != nil {
+		return nil, []string{fmt.Sprintf("invalid port range %q", containerPart)}
+	}
+	if end < start {
+		return nil, []string{fmt.Sprintf("invalid port range %q: end < start", containerPart)}
+	}
+	count := end - start + 1
+	if count > maxPortRangeExpansion {
+		return nil, []string{fmt.Sprintf("port range %q expands to %d ports, exceeding cap of %d", containerPart, count, maxPortRangeExpansion)}
+	}
+	if start < minPort || end > maxPort {
+		return nil, []string{fmt.Sprintf("port range %q contains ports outside valid range %d-%d", containerPart, minPort, maxPort)}
+	}
+
+	ports := make([]int, 0, count)
+	for p := start; p <= end; p++ {
+		ports = append(ports, p)
+	}
+	servicePortsLog.Printf("Parsed port range %q: %d ports (%d-%d)", containerPart, count, start, end)
+	return ports, nil
+}
+
+func parseSinglePort(containerPart string) ([]int, []string) {
 	port, err := strconv.Atoi(containerPart)
 	if err != nil {
 		return nil, []string{fmt.Sprintf("invalid port number %q", containerPart)}
 	}
-
 	if port < minPort || port > maxPort {
 		return nil, []string{fmt.Sprintf("port %d is outside valid range %d-%d", port, minPort, maxPort)}
 	}
-
 	return []int{port}, nil
 }

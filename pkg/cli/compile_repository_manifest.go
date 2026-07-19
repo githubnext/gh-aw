@@ -19,33 +19,14 @@ var findGitRootForManifestValidation = gitutil.FindGitRoot
 func validateRepositoryManifestForCompilation(config CompileConfig, stats *CompilationStats, validationResults *[]ValidationResult) error {
 	compileRepositoryManifestLog.Print("Validating repository manifest for compilation")
 
-	gitRoot, err := findGitRootForManifestValidation()
-	if err != nil {
-		if errors.Is(err, gitutil.ErrNotGitRepository) {
-			compileRepositoryManifestLog.Print("Not in a git repository, skipping manifest validation")
-			return nil
-		}
-		return fmt.Errorf("failed to find git root for manifest validation: %w", err)
-	}
-
-	manifestPath, err := findLocalRepositoryPackageManifest(gitRoot)
-	if err != nil {
+	manifestPath, err := validateRepositoryManifestForCompilationFindManifest()
+	if err != nil || manifestPath == "" {
 		return err
 	}
-	if manifestPath == "" {
-		compileRepositoryManifestLog.Printf("No repository manifest found in %s", gitRoot)
-		return nil
-	}
 
-	compileRepositoryManifestLog.Printf("Found repository manifest at %s", manifestPath)
-	content, err := os.ReadFile(manifestPath)
+	warnings, parseErr, err := validateRepositoryManifestForCompilationReadAndValidate(manifestPath)
 	if err != nil {
-		return fmt.Errorf("failed to read Agentic Workflow manifest %q: %w", manifestPath, err)
-	}
-
-	_, warnings, parseErr := parseRepositoryPackageManifest(manifestPath, content)
-	if parseErr == nil {
-		parseErr = validateLocalRepositoryPackageContents(manifestPath)
+		return err
 	}
 	compileRepositoryManifestLog.Printf("Manifest parse result: warnings=%d, error=%v", len(warnings), parseErr)
 
@@ -53,6 +34,46 @@ func validateRepositoryManifestForCompilation(config CompileConfig, stats *Compi
 		stats.Warnings += len(warnings)
 	}
 
+	result := validateRepositoryManifestForCompilationResult(manifestPath, warnings, parseErr)
+	return validateRepositoryManifestForCompilationHandleResult(config, warnings, parseErr, result, validationResults)
+}
+
+func validateRepositoryManifestForCompilationFindManifest() (string, error) {
+	gitRoot, err := findGitRootForManifestValidation()
+	if err != nil {
+		if errors.Is(err, gitutil.ErrNotGitRepository) {
+			compileRepositoryManifestLog.Print("Not in a git repository, skipping manifest validation")
+			return "", nil
+		}
+		return "", fmt.Errorf("failed to find git root for manifest validation: %w", err)
+	}
+
+	manifestPath, err := findLocalRepositoryPackageManifest(gitRoot)
+	if err != nil {
+		return "", err
+	}
+	if manifestPath == "" {
+		compileRepositoryManifestLog.Printf("No repository manifest found in %s", gitRoot)
+		return "", nil
+	}
+	compileRepositoryManifestLog.Printf("Found repository manifest at %s", manifestPath)
+	return manifestPath, nil
+}
+
+func validateRepositoryManifestForCompilationReadAndValidate(manifestPath string) ([]string, error, error) {
+	content, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read Agentic Workflow manifest %q: %w", manifestPath, err)
+	}
+
+	_, warnings, parseErr := parseRepositoryPackageManifest(manifestPath, content)
+	if parseErr == nil {
+		parseErr = validateLocalRepositoryPackageContents(manifestPath)
+	}
+	return warnings, parseErr, nil
+}
+
+func validateRepositoryManifestForCompilationResult(manifestPath string, warnings []string, parseErr error) ValidationResult {
 	result := ValidationResult{
 		Workflow: filepath.Base(manifestPath),
 		Valid:    parseErr == nil,
@@ -63,7 +84,16 @@ func validateRepositoryManifestForCompilation(config CompileConfig, stats *Compi
 			Message: warning,
 		})
 	}
+	return result
+}
 
+func validateRepositoryManifestForCompilationHandleResult(
+	config CompileConfig,
+	warnings []string,
+	parseErr error,
+	result ValidationResult,
+	validationResults *[]ValidationResult,
+) error {
 	if parseErr != nil {
 		result.Errors = append(result.Errors, CompileValidationError{
 			Type:    "manifest_error",

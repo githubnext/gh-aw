@@ -74,31 +74,17 @@ func checkActorPermission(ctx context.Context, actor string, validateActor bool,
 
 	// If validation is enabled but no actor is specified, deny access
 	if actor == "" {
-		mcpLog.Printf("Tool %s: access denied (no actor specified, validation enabled)", toolName)
-		return newMCPError(jsonrpc.CodeInvalidRequest, "permission denied: insufficient role", map[string]any{
-			"error":  "GITHUB_ACTOR environment variable not set",
-			"tool":   toolName,
-			"reason": "This tool requires at least write access to the repository. Set GITHUB_ACTOR environment variable to enable access.",
-		})
+		return checkActorPermissionMissingActor(toolName)
 	}
 
 	// Get repository using cached lookup
 	repo, err := getRepository(ctx)
 	if err != nil {
-		mcpLog.Printf("Tool %s: failed to get repository context, denying access: %v", toolName, err)
-		return newMCPError(jsonrpc.CodeInternalError, "permission check failed", map[string]any{
-			"error":  err.Error(),
-			"tool":   toolName,
-			"reason": "Could not determine repository context to verify permissions. Ensure you are running from within a git repository with gh authenticated.",
-		})
+		return checkActorPermissionRepositoryError(toolName, err)
 	}
 
 	if repo == "" {
-		mcpLog.Printf("Tool %s: no repository context, denying access", toolName)
-		return newMCPError(jsonrpc.CodeInvalidRequest, "permission check failed", map[string]any{
-			"tool":   toolName,
-			"reason": "No repository context available. Run from within a git repository.",
-		})
+		return checkActorPermissionMissingRepository(toolName)
 	}
 
 	// Query actor's role in the repository with caching
@@ -107,30 +93,64 @@ func checkActorPermission(ctx context.Context, actor string, validateActor bool,
 
 	permission, err := queryActorRole(ctx, actor, repo)
 	if err != nil {
-		mcpLog.Printf("Tool %s: failed to query actor role, denying access: %v", toolName, err)
-		return newMCPError(jsonrpc.CodeInternalError, "permission denied: unable to verify repository access", map[string]any{
-			"error":      err.Error(),
-			"tool":       toolName,
-			"actor":      actor,
-			"repository": repo,
-			"reason":     "Failed to query actor's repository permissions from GitHub API.",
-		})
+		return checkActorPermissionQueryError(toolName, actor, repo, err)
 	}
 
 	// Check if the actor has write+ access
 	if !hasWriteAccess(permission) {
-		mcpLog.Printf("Tool %s: access denied for actor %s (permission: %s, requires: write+)", toolName, actor, permission)
-		return newMCPError(jsonrpc.CodeInvalidRequest, "permission denied: insufficient role", map[string]any{
-			"error":      "insufficient repository permissions",
-			"tool":       toolName,
-			"actor":      actor,
-			"repository": repo,
-			"role":       permission,
-			"required":   "write, maintain, or admin",
-			"reason":     fmt.Sprintf("Actor %s has %s access to %s. This tool requires at least write access.", actor, permission, repo),
-		})
+		return checkActorPermissionInsufficientRole(toolName, actor, repo, permission)
 	}
 
 	mcpLog.Printf("Tool %s: access allowed for actor %s (permission: %s)", toolName, actor, permission)
 	return nil
+}
+
+func checkActorPermissionMissingActor(toolName string) error {
+	mcpLog.Printf("Tool %s: access denied (no actor specified, validation enabled)", toolName)
+	return newMCPError(jsonrpc.CodeInvalidRequest, "permission denied: insufficient role", map[string]any{
+		"error":  "GITHUB_ACTOR environment variable not set",
+		"tool":   toolName,
+		"reason": "This tool requires at least write access to the repository. Set GITHUB_ACTOR environment variable to enable access.",
+	})
+}
+
+func checkActorPermissionRepositoryError(toolName string, err error) error {
+	mcpLog.Printf("Tool %s: failed to get repository context, denying access: %v", toolName, err)
+	return newMCPError(jsonrpc.CodeInternalError, "permission check failed", map[string]any{
+		"error":  err.Error(),
+		"tool":   toolName,
+		"reason": "Could not determine repository context to verify permissions. Ensure you are running from within a git repository with gh authenticated.",
+	})
+}
+
+func checkActorPermissionMissingRepository(toolName string) error {
+	mcpLog.Printf("Tool %s: no repository context, denying access", toolName)
+	return newMCPError(jsonrpc.CodeInvalidRequest, "permission check failed", map[string]any{
+		"tool":   toolName,
+		"reason": "No repository context available. Run from within a git repository.",
+	})
+}
+
+func checkActorPermissionQueryError(toolName string, actor string, repo string, err error) error {
+	mcpLog.Printf("Tool %s: failed to query actor role, denying access: %v", toolName, err)
+	return newMCPError(jsonrpc.CodeInternalError, "permission denied: unable to verify repository access", map[string]any{
+		"error":      err.Error(),
+		"tool":       toolName,
+		"actor":      actor,
+		"repository": repo,
+		"reason":     "Failed to query actor's repository permissions from GitHub API.",
+	})
+}
+
+func checkActorPermissionInsufficientRole(toolName string, actor string, repo string, permission string) error {
+	mcpLog.Printf("Tool %s: access denied for actor %s (permission: %s, requires: write+)", toolName, actor, permission)
+	return newMCPError(jsonrpc.CodeInvalidRequest, "permission denied: insufficient role", map[string]any{
+		"error":      "insufficient repository permissions",
+		"tool":       toolName,
+		"actor":      actor,
+		"repository": repo,
+		"role":       permission,
+		"required":   "write, maintain, or admin",
+		"reason":     fmt.Sprintf("Actor %s has %s access to %s. This tool requires at least write access.", actor, permission, repo),
+	})
 }

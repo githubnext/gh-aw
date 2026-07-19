@@ -78,76 +78,14 @@ func (c *Compiler) GenerateDependabotManifests(workflowDataList []*WorkflowData,
 	ecosystems := make(map[string]struct {
 	})
 
-	// Collect npm dependencies
-	npmDeps := c.collectNpmDependencies(workflowDataList)
-	if len(npmDeps) > 0 {
-		ecosystems["npm"] = struct {
-		}{}
-		dependabotLog.Printf("Found %d unique npm dependencies", len(npmDeps))
-		if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d npm dependencies in workflows", len(npmDeps))))
-		}
-
-		// Generate package.json
-		packageJSONPath := filepath.Join(workflowDir, "package.json")
-		if err := c.generatePackageJSON(packageJSONPath, npmDeps, forceOverwrite); err != nil {
-			if c.strictMode {
-				return fmt.Errorf("failed to generate package.json: %w", err)
-			}
-			c.IncrementWarningCount()
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate package.json: %v", err)))
-		} else {
-			// Generate package-lock.json
-			if err := c.generatePackageLock(workflowDir); err != nil {
-				if c.strictMode {
-					return fmt.Errorf("failed to generate package-lock.json: %w", err)
-				}
-				c.IncrementWarningCount()
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate package-lock.json: %v", err)))
-			}
-		}
+	if err := c.generateDependabotNpmArtifacts(workflowDataList, workflowDir, forceOverwrite, ecosystems); err != nil {
+		return err
 	}
-
-	// Collect pip dependencies
-	pipDeps := c.collectPipDependencies(workflowDataList)
-	if len(pipDeps) > 0 {
-		ecosystems["pip"] = struct {
-		}{}
-		dependabotLog.Printf("Found %d unique pip dependencies", len(pipDeps))
-		if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d pip dependencies in workflows", len(pipDeps))))
-		}
-
-		// Generate requirements.txt
-		requirementsPath := filepath.Join(workflowDir, "requirements.txt")
-		if err := c.generateRequirementsTxt(requirementsPath, pipDeps, forceOverwrite); err != nil {
-			if c.strictMode {
-				return fmt.Errorf("failed to generate requirements.txt: %w", err)
-			}
-			c.IncrementWarningCount()
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate requirements.txt: %v", err)))
-		}
+	if err := c.generateDependabotPipArtifacts(workflowDataList, workflowDir, forceOverwrite, ecosystems); err != nil {
+		return err
 	}
-
-	// Collect go dependencies
-	goDeps := c.collectGoDependencies(workflowDataList)
-	if len(goDeps) > 0 {
-		ecosystems["gomod"] = struct {
-		}{}
-		dependabotLog.Printf("Found %d unique go dependencies", len(goDeps))
-		if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d go dependencies in workflows", len(goDeps))))
-		}
-
-		// Generate go.mod
-		goModPath := filepath.Join(workflowDir, "go.mod")
-		if err := c.generateGoMod(goModPath, goDeps, forceOverwrite); err != nil {
-			if c.strictMode {
-				return fmt.Errorf("failed to generate go.mod: %w", err)
-			}
-			c.IncrementWarningCount()
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate go.mod: %v", err)))
-		}
+	if err := c.generateDependabotGoArtifacts(workflowDataList, workflowDir, forceOverwrite, ecosystems); err != nil {
+		return err
 	}
 
 	// If no dependencies found at all, skip
@@ -162,17 +100,76 @@ func (c *Compiler) GenerateDependabotManifests(workflowDataList []*WorkflowData,
 	// Generate dependabot.yml with all detected ecosystems
 	dependabotPath := filepath.Join(filepath.Dir(workflowDir), "dependabot.yml")
 	if err := c.generateDependabotConfig(dependabotPath, ecosystems, forceOverwrite); err != nil {
-		if c.strictMode {
-			return fmt.Errorf("failed to generate dependabot.yml: %w", err)
-		}
-		c.IncrementWarningCount()
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate dependabot.yml: %v", err)))
+		return c.handleDependabotGenerationError("dependabot.yml", err)
 	}
 
 	if c.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully generated Dependabot manifests"))
 	}
 
+	return nil
+}
+
+func (c *Compiler) generateDependabotNpmArtifacts(workflowDataList []*WorkflowData, workflowDir string, forceOverwrite bool, ecosystems map[string]struct{}) error {
+	npmDeps := c.collectNpmDependencies(workflowDataList)
+	if len(npmDeps) == 0 {
+		return nil
+	}
+	ecosystems["npm"] = struct{}{}
+	dependabotLog.Printf("Found %d unique npm dependencies", len(npmDeps))
+	if c.verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d npm dependencies in workflows", len(npmDeps))))
+	}
+	packageJSONPath := filepath.Join(workflowDir, "package.json")
+	if err := c.generatePackageJSON(packageJSONPath, npmDeps, forceOverwrite); err != nil {
+		return c.handleDependabotGenerationError("package.json", err)
+	}
+	if err := c.generatePackageLock(workflowDir); err != nil {
+		return c.handleDependabotGenerationError("package-lock.json", err)
+	}
+	return nil
+}
+
+func (c *Compiler) generateDependabotPipArtifacts(workflowDataList []*WorkflowData, workflowDir string, forceOverwrite bool, ecosystems map[string]struct{}) error {
+	pipDeps := c.collectPipDependencies(workflowDataList)
+	if len(pipDeps) == 0 {
+		return nil
+	}
+	ecosystems["pip"] = struct{}{}
+	dependabotLog.Printf("Found %d unique pip dependencies", len(pipDeps))
+	if c.verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d pip dependencies in workflows", len(pipDeps))))
+	}
+	requirementsPath := filepath.Join(workflowDir, "requirements.txt")
+	if err := c.generateRequirementsTxt(requirementsPath, pipDeps, forceOverwrite); err != nil {
+		return c.handleDependabotGenerationError("requirements.txt", err)
+	}
+	return nil
+}
+
+func (c *Compiler) generateDependabotGoArtifacts(workflowDataList []*WorkflowData, workflowDir string, forceOverwrite bool, ecosystems map[string]struct{}) error {
+	goDeps := c.collectGoDependencies(workflowDataList)
+	if len(goDeps) == 0 {
+		return nil
+	}
+	ecosystems["gomod"] = struct{}{}
+	dependabotLog.Printf("Found %d unique go dependencies", len(goDeps))
+	if c.verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d go dependencies in workflows", len(goDeps))))
+	}
+	goModPath := filepath.Join(workflowDir, "go.mod")
+	if err := c.generateGoMod(goModPath, goDeps, forceOverwrite); err != nil {
+		return c.handleDependabotGenerationError("go.mod", err)
+	}
+	return nil
+}
+
+func (c *Compiler) handleDependabotGenerationError(artifact string, err error) error {
+	if c.strictMode {
+		return fmt.Errorf("failed to generate %s: %w", artifact, err)
+	}
+	c.IncrementWarningCount()
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate %s: %v", artifact, err)))
 	return nil
 }
 
@@ -256,33 +253,9 @@ func parseNpmPackage(pkg string) NpmDependency {
 func (c *Compiler) generatePackageJSON(path string, deps []NpmDependency, forceOverwrite bool) error {
 	dependabotLog.Printf("Generating package.json at %s", path)
 
-	var pkgJSON PackageJSON
-
-	// Check if package.json already exists
-	if _, err := os.Stat(path); err == nil {
-		// File exists - merge dependencies
-		dependabotLog.Print("Existing package.json found, merging dependencies")
-
-		existingData, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("failed to read existing package.json: %w", err)
-		}
-
-		if err := json.Unmarshal(existingData, &pkgJSON); err != nil {
-			return fmt.Errorf("failed to parse existing package.json: %w", err)
-		}
-
-		if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Merging with existing package.json"))
-		}
-	} else {
-		// New package.json
-		dependabotLog.Print("Creating new package.json")
-		pkgJSON = PackageJSON{
-			Name:    "gh-aw-workflows-deps",
-			Private: true,
-			License: "MIT",
-		}
+	pkgJSON, err := c.loadPackageJSONForDependabot(path)
+	if err != nil {
+		return err
 	}
 
 	// Initialize dependencies map if nil
@@ -295,17 +268,8 @@ func (c *Compiler) generatePackageJSON(path string, deps []NpmDependency, forceO
 		pkgJSON.Dependencies[dep.Name] = dep.Version
 	}
 
-	// Write package.json with nice formatting
-	jsonData, err := json.MarshalIndent(pkgJSON, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal package.json: %w", err)
-	}
-
-	// Add newline at end for POSIX compliance
-	jsonData = append(jsonData, '\n')
-
-	if err := os.WriteFile(path, jsonData, constants.FilePermPublic); err != nil {
-		return fmt.Errorf("failed to write package.json: %w", err)
+	if err := c.writePackageJSONForDependabot(path, pkgJSON); err != nil {
+		return err
 	}
 
 	dependabotLog.Printf("Successfully wrote package.json with %d dependencies", len(pkgJSON.Dependencies))
@@ -318,6 +282,38 @@ func (c *Compiler) generatePackageJSON(path string, deps []NpmDependency, forceO
 		c.fileTracker.TrackCreated(path)
 	}
 
+	return nil
+}
+
+func (c *Compiler) loadPackageJSONForDependabot(path string) (PackageJSON, error) {
+	if _, err := os.Stat(path); err == nil {
+		dependabotLog.Print("Existing package.json found, merging dependencies")
+		existingData, err := os.ReadFile(path)
+		if err != nil {
+			return PackageJSON{}, fmt.Errorf("failed to read existing package.json: %w", err)
+		}
+		var pkgJSON PackageJSON
+		if err := json.Unmarshal(existingData, &pkgJSON); err != nil {
+			return PackageJSON{}, fmt.Errorf("failed to parse existing package.json: %w", err)
+		}
+		if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Merging with existing package.json"))
+		}
+		return pkgJSON, nil
+	}
+	dependabotLog.Print("Creating new package.json")
+	return PackageJSON{Name: "gh-aw-workflows-deps", Private: true, License: "MIT"}, nil
+}
+
+func (c *Compiler) writePackageJSONForDependabot(path string, pkgJSON PackageJSON) error {
+	jsonData, err := json.MarshalIndent(pkgJSON, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal package.json: %w", err)
+	}
+	jsonData = append(jsonData, '\n')
+	if err := os.WriteFile(path, jsonData, constants.FilePermPublic); err != nil {
+		return fmt.Errorf("failed to write package.json: %w", err)
+	}
 	return nil
 }
 
@@ -368,47 +364,13 @@ func (c *Compiler) generateDependabotConfig(path string, ecosystems map[string]s
 }, forceOverwrite bool) error {
 	dependabotLog.Printf("Generating dependabot.yml at %s", path)
 
-	var config DependabotConfig
-
-	// Check if dependabot.yml already exists
-	if _, err := os.Stat(path); err == nil {
-		// File exists - read and merge configuration
-		dependabotLog.Print("Existing dependabot.yml found, merging configuration")
-		existingData, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("failed to read existing dependabot.yml: %w", err)
-		}
-
-		if err := yaml.Unmarshal(existingData, &config); err != nil {
-			// If we can't parse it, start fresh
-			dependabotLog.Print("Could not parse existing dependabot.yml, creating new one")
-			config = DependabotConfig{Version: 2}
-		}
-	} else {
-		// New dependabot.yml
-		dependabotLog.Print("Creating new dependabot.yml")
-		config = DependabotConfig{Version: 2}
+	config, err := loadDependabotConfig(path)
+	if err != nil {
+		return err
 	}
 
 	// Add ecosystems that don't already exist for .github/workflows
-	for ecosystem := range ecosystems {
-		exists := false
-		for _, update := range config.Updates {
-			if update.PackageEcosystem == ecosystem && update.Directory == "/.github/workflows" {
-				exists = true
-				break
-			}
-		}
-
-		if !exists {
-			entry := DependabotUpdateEntry{
-				PackageEcosystem: ecosystem,
-				Directory:        "/.github/workflows",
-			}
-			entry.Schedule.Interval = "weekly"
-			config.Updates = append(config.Updates, entry)
-		}
-	}
+	addDependabotEcosystems(&config, ecosystems)
 
 	// Write dependabot.yml
 	yamlData, err := yaml.Marshal(&config)
@@ -433,6 +395,47 @@ func (c *Compiler) generateDependabotConfig(path string, ecosystems map[string]s
 	return nil
 }
 
+func loadDependabotConfig(path string) (DependabotConfig, error) {
+	if _, err := os.Stat(path); err == nil {
+		dependabotLog.Print("Existing dependabot.yml found, merging configuration")
+		existingData, err := os.ReadFile(path)
+		if err != nil {
+			return DependabotConfig{}, fmt.Errorf("failed to read existing dependabot.yml: %w", err)
+		}
+		var config DependabotConfig
+		if err := yaml.Unmarshal(existingData, &config); err != nil {
+			dependabotLog.Print("Could not parse existing dependabot.yml, creating new one")
+			return DependabotConfig{Version: 2}, nil
+		}
+		return config, nil
+	}
+	dependabotLog.Print("Creating new dependabot.yml")
+	return DependabotConfig{Version: 2}, nil
+}
+
+func addDependabotEcosystems(config *DependabotConfig, ecosystems map[string]struct{}) {
+	for ecosystem := range ecosystems {
+		if hasDependabotUpdate(config.Updates, ecosystem, "/.github/workflows") {
+			continue
+		}
+		entry := DependabotUpdateEntry{
+			PackageEcosystem: ecosystem,
+			Directory:        "/.github/workflows",
+		}
+		entry.Schedule.Interval = "weekly"
+		config.Updates = append(config.Updates, entry)
+	}
+}
+
+func hasDependabotUpdate(updates []DependabotUpdateEntry, ecosystem, directory string) bool {
+	for _, update := range updates {
+		if update.PackageEcosystem == ecosystem && update.Directory == directory {
+			return true
+		}
+	}
+	return false
+}
+
 // ReconcileManagedDependabotIgnores updates existing github-actions entries in .github/dependabot.yml
 // with compiler-managed ignore rules for compiler-emitted action refs.
 // This function is a no-op when dependabot.yml does not exist or has no github-actions update entries.
@@ -441,87 +444,18 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 		return nil
 	}
 
-	original, err := os.ReadFile(path)
+	root, updates, original, err := readDependabotUpdatesRoot(path)
 	if err != nil {
-		return fmt.Errorf("failed to read dependabot.yml: %w", err)
+		return err
 	}
-
-	var root map[string]any
-	if err := yaml.Unmarshal(original, &root); err != nil {
-		return fmt.Errorf("failed to parse dependabot.yml: %w", err)
-	}
-
-	updatesAny, ok := root["updates"]
-	if !ok {
-		return nil
-	}
-	updates, ok := dependabotToAnySlice(updatesAny)
-	if !ok {
+	if updates == nil {
 		return nil
 	}
 
 	managedPatterns := []string{c.effectiveActionsRepo()}
-	changed := false
 	originalStr := string(original)
 	managedPatternsWithComment := managedPatternsWithInlineComment(originalStr, managedPatterns)
-
-	for i, updateAny := range updates {
-		updateMap, ok := dependabotToStringAnyMap(updateAny)
-		if !ok {
-			continue
-		}
-
-		ecosystem, _ := updateMap["package-ecosystem"].(string)
-		if ecosystem != "github-actions" {
-			continue
-		}
-
-		ignoreAny, hasIgnore := updateMap["ignore"]
-		if !hasIgnore || isYAMLNullOrEmptyScalar(ignoreAny) {
-			updateMap["ignore"] = []any{}
-			ignoreAny = updateMap["ignore"]
-			changed = true
-		}
-
-		ignoreEntries, ok := dependabotToAnySlice(ignoreAny)
-		if !ok {
-			continue
-		}
-
-		managedPresent := make(map[string]struct {
-		}, len(managedPatterns))
-		for _, ignoreEntryAny := range ignoreEntries {
-			ignoreEntryMap, ok := dependabotToStringAnyMap(ignoreEntryAny)
-			if !ok {
-				continue
-			}
-			dependencyName, _ := ignoreEntryMap["dependency-name"].(string)
-			if dependencyName == "" {
-				continue
-			}
-
-			for _, pattern := range managedPatterns {
-				if dependencyName == pattern {
-					managedPresent[pattern] = struct {
-					}{}
-					if !setutil.Contains(managedPatternsWithComment, pattern) {
-						changed = true
-					}
-				}
-			}
-		}
-
-		for _, pattern := range managedPatterns {
-			if setutil.Contains(managedPresent, pattern) {
-				continue
-			}
-			ignoreEntries = append(ignoreEntries, map[string]any{"dependency-name": pattern})
-			changed = true
-		}
-
-		updateMap["ignore"] = ignoreEntries
-		updates[i] = updateMap
-	}
+	changed := reconcileManagedDependabotUpdateIgnores(updates, managedPatterns, managedPatternsWithComment)
 
 	if !changed {
 		return nil
@@ -541,6 +475,97 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 		return fmt.Errorf("failed to write dependabot.yml: %w", err)
 	}
 	return nil
+}
+
+func readDependabotUpdatesRoot(path string) (map[string]any, []any, []byte, error) {
+	original, err := os.ReadFile(path)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to read dependabot.yml: %w", err)
+	}
+	var root map[string]any
+	if err := yaml.Unmarshal(original, &root); err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to parse dependabot.yml: %w", err)
+	}
+	updatesAny, ok := root["updates"]
+	if !ok {
+		return root, nil, original, nil
+	}
+	updates, ok := dependabotToAnySlice(updatesAny)
+	if !ok {
+		return root, nil, original, nil
+	}
+	return root, updates, original, nil
+}
+
+func reconcileManagedDependabotUpdateIgnores(updates []any, managedPatterns []string, managedPatternsWithComment map[string]struct{}) bool {
+	changed := false
+	for i, updateAny := range updates {
+		updateMap, ok := dependabotToStringAnyMap(updateAny)
+		if !ok {
+			continue
+		}
+		ecosystem, _ := updateMap["package-ecosystem"].(string)
+		if ecosystem != "github-actions" {
+			continue
+		}
+		if reconcileManagedDependabotIgnoreEntry(updateMap, managedPatterns, managedPatternsWithComment) {
+			changed = true
+		}
+		updates[i] = updateMap
+	}
+	return changed
+}
+
+func reconcileManagedDependabotIgnoreEntry(updateMap map[string]any, managedPatterns []string, managedPatternsWithComment map[string]struct{}) bool {
+	ignoreEntries, changed, ok := dependabotIgnoreEntries(updateMap)
+	if !ok {
+		return changed
+	}
+	managedPresent := managedDependabotIgnorePresence(ignoreEntries, managedPatterns, managedPatternsWithComment, &changed)
+	for _, pattern := range managedPatterns {
+		if setutil.Contains(managedPresent, pattern) {
+			continue
+		}
+		ignoreEntries = append(ignoreEntries, map[string]any{"dependency-name": pattern})
+		changed = true
+	}
+	updateMap["ignore"] = ignoreEntries
+	return changed
+}
+
+func dependabotIgnoreEntries(updateMap map[string]any) ([]any, bool, bool) {
+	ignoreAny, hasIgnore := updateMap["ignore"]
+	changed := false
+	if !hasIgnore || isYAMLNullOrEmptyScalar(ignoreAny) {
+		updateMap["ignore"] = []any{}
+		ignoreAny = updateMap["ignore"]
+		changed = true
+	}
+	ignoreEntries, ok := dependabotToAnySlice(ignoreAny)
+	return ignoreEntries, changed, ok
+}
+
+func managedDependabotIgnorePresence(ignoreEntries []any, managedPatterns []string, managedPatternsWithComment map[string]struct{}, changed *bool) map[string]struct{} {
+	managedPresent := make(map[string]struct{}, len(managedPatterns))
+	for _, ignoreEntryAny := range ignoreEntries {
+		ignoreEntryMap, ok := dependabotToStringAnyMap(ignoreEntryAny)
+		if !ok {
+			continue
+		}
+		dependencyName, _ := ignoreEntryMap["dependency-name"].(string)
+		if dependencyName == "" {
+			continue
+		}
+		for _, pattern := range managedPatterns {
+			if dependencyName == pattern {
+				managedPresent[pattern] = struct{}{}
+				if !setutil.Contains(managedPatternsWithComment, pattern) {
+					*changed = true
+				}
+			}
+		}
+	}
+	return managedPresent
 }
 
 // DependabotConfigPath resolves the repository-local Dependabot config path.
@@ -751,45 +776,12 @@ func (c *Compiler) generateRequirementsTxt(path string, deps []PipDependency, fo
 	dependabotLog.Printf("Generating requirements.txt at %s", path)
 
 	// Build requirements map for merging
-	reqMap := make(map[string]string)
-	for _, dep := range deps {
-		if dep.Version != "" {
-			reqMap[dep.Name] = dep.Version
-		} else {
-			reqMap[dep.Name] = ""
-		}
-	}
+	reqMap := buildRequirementsMap(deps)
 
 	// Check if requirements.txt already exists
 	if _, err := os.Stat(path); err == nil {
-		// File exists - merge dependencies
-		dependabotLog.Print("Existing requirements.txt found, merging dependencies")
-
-		existingData, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("failed to read existing requirements.txt: %w", err)
-		}
-
-		// Parse existing requirements
-		lines := strings.SplitSeq(string(existingData), "\n")
-		for line := range lines {
-			line = strings.TrimSpace(line)
-			if line == "" || strings.HasPrefix(line, "#") {
-				continue
-			}
-			dep := parsePipPackage(line)
-			// Only add if not already in our new deps
-			if _, exists := reqMap[dep.Name]; !exists {
-				if dep.Version != "" {
-					reqMap[dep.Name] = dep.Version
-				} else {
-					reqMap[dep.Name] = ""
-				}
-			}
-		}
-
-		if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Merging with existing requirements.txt"))
+		if err := c.mergeExistingRequirements(path, reqMap); err != nil {
+			return err
 		}
 	} else {
 		dependabotLog.Print("Creating new requirements.txt")
@@ -825,6 +817,37 @@ func (c *Compiler) generateRequirementsTxt(path string, deps []PipDependency, fo
 		c.fileTracker.TrackCreated(path)
 	}
 
+	return nil
+}
+
+func buildRequirementsMap(deps []PipDependency) map[string]string {
+	reqMap := make(map[string]string)
+	for _, dep := range deps {
+		reqMap[dep.Name] = dep.Version
+	}
+	return reqMap
+}
+
+func (c *Compiler) mergeExistingRequirements(path string, reqMap map[string]string) error {
+	dependabotLog.Print("Existing requirements.txt found, merging dependencies")
+	existingData, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read existing requirements.txt: %w", err)
+	}
+	lines := strings.SplitSeq(string(existingData), "\n")
+	for line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		dep := parsePipPackage(line)
+		if _, exists := reqMap[dep.Name]; !exists {
+			reqMap[dep.Name] = dep.Version
+		}
+	}
+	if c.verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Merging with existing requirements.txt"))
+	}
 	return nil
 }
 
@@ -903,56 +926,13 @@ func extractGoFromCommands(commands string) []string {
 func (c *Compiler) generateGoMod(path string, deps []GoDependency, forceOverwrite bool) error {
 	dependabotLog.Printf("Generating go.mod at %s", path)
 
-	// Build module content
-	var lines []string
-
-	// Check if go.mod already exists
-	if _, err := os.Stat(path); err == nil {
-		// File exists - read and preserve module declaration
-		dependabotLog.Print("Existing go.mod found, merging dependencies")
-
-		existingData, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("failed to read existing go.mod: %w", err)
-		}
-
-		existingLines := strings.SplitSeq(string(existingData), "\n")
-		// Keep module declaration and go version
-		for line := range existingLines {
-			trimmed := strings.TrimSpace(line)
-			if strings.HasPrefix(trimmed, "module ") || strings.HasPrefix(trimmed, "go ") {
-				lines = append(lines, line)
-			}
-		}
-
-		if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Merging with existing go.mod"))
-		}
-	} else {
-		// New go.mod
-		dependabotLog.Print("Creating new go.mod")
-		lines = append(lines, "module github.com/github/gh-aw-workflows-deps")
-		lines = append(lines, "")
-		lines = append(lines, "go 1.21")
+	lines, err := c.buildGoModBaseLines(path)
+	if err != nil {
+		return err
 	}
 
 	// Add require section if we have dependencies
-	if len(deps) > 0 {
-		lines = append(lines, "")
-		lines = append(lines, "require (")
-		for _, dep := range deps {
-			version := dep.Version
-			if version == "latest" || version == "" {
-				// Skip dependencies without explicit versions - they should be added manually
-				// or resolved using 'go get' or 'go mod tidy'. Using v0.0.0 as a placeholder
-				// can cause issues with Go module resolution.
-				dependabotLog.Printf("Skipping %s: no version specified (use 'go get %s@latest' to resolve)", dep.Path, dep.Path)
-				continue
-			}
-			lines = append(lines, fmt.Sprintf("\t%s %s", dep.Path, version))
-		}
-		lines = append(lines, ")")
-	}
+	lines = appendGoModRequireSection(lines, deps)
 
 	content := strings.Join(lines, "\n") + "\n"
 
@@ -971,4 +951,43 @@ func (c *Compiler) generateGoMod(path string, deps []GoDependency, forceOverwrit
 	}
 
 	return nil
+}
+
+func (c *Compiler) buildGoModBaseLines(path string) ([]string, error) {
+	if _, err := os.Stat(path); err == nil {
+		dependabotLog.Print("Existing go.mod found, merging dependencies")
+		existingData, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read existing go.mod: %w", err)
+		}
+		var lines []string
+		for line := range strings.SplitSeq(string(existingData), "\n") {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "module ") || strings.HasPrefix(trimmed, "go ") {
+				lines = append(lines, line)
+			}
+		}
+		if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Merging with existing go.mod"))
+		}
+		return lines, nil
+	}
+	dependabotLog.Print("Creating new go.mod")
+	return []string{"module github.com/github/gh-aw-workflows-deps", "", "go 1.21"}, nil
+}
+
+func appendGoModRequireSection(lines []string, deps []GoDependency) []string {
+	if len(deps) == 0 {
+		return lines
+	}
+	lines = append(lines, "", "require (")
+	for _, dep := range deps {
+		version := dep.Version
+		if version == "latest" || version == "" {
+			dependabotLog.Printf("Skipping %s: no version specified (use 'go get %s@latest' to resolve)", dep.Path, dep.Path)
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("\t%s %s", dep.Path, version))
+	}
+	return append(lines, ")")
 }

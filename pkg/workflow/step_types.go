@@ -86,6 +86,20 @@ func MapToStep(stepMap map[string]any) (*WorkflowStep, error) {
 
 	step := &WorkflowStep{}
 
+	mapBasicStepFields(step, stepMap)
+	mapStepEnv(step, stepMap)
+	if continueOnError, ok := stepMap["continue-on-error"]; ok {
+		step.ContinueOnError = continueOnError
+	}
+	if timeoutMinutes, ok := stepMap["timeout-minutes"].(int); ok {
+		step.TimeoutMinutes = timeoutMinutes
+	}
+
+	logMappedStep(step)
+	return step, nil
+}
+
+func mapBasicStepFields(step *WorkflowStep, stepMap map[string]any) {
 	if name, ok := stepMap["name"].(string); ok {
 		step.Name = name
 	}
@@ -110,8 +124,10 @@ func MapToStep(stepMap map[string]any) (*WorkflowStep, error) {
 	if with, ok := stepMap["with"].(map[string]any); ok {
 		step.With = with
 	}
+}
+
+func mapStepEnv(step *WorkflowStep, stepMap map[string]any) {
 	if env, ok := stepMap["env"].(map[string]any); ok {
-		// Convert map[string]any to map[string]string
 		step.Env = make(map[string]string)
 		for k, v := range env {
 			if strVal, ok := v.(string); ok {
@@ -125,14 +141,9 @@ func MapToStep(stepMap map[string]any) (*WorkflowStep, error) {
 			}
 		}
 	}
-	if continueOnError, ok := stepMap["continue-on-error"]; ok {
-		// Preserve the original type (bool or string)
-		step.ContinueOnError = continueOnError
-	}
-	if timeoutMinutes, ok := stepMap["timeout-minutes"].(int); ok {
-		step.TimeoutMinutes = timeoutMinutes
-	}
+}
 
+func logMappedStep(step *WorkflowStep) {
 	stepType := "unknown"
 	if step.Uses != "" {
 		stepType = "uses"
@@ -140,7 +151,6 @@ func MapToStep(stepMap map[string]any) (*WorkflowStep, error) {
 		stepType = "run"
 	}
 	stepTypesLog.Printf("Successfully converted step: type=%s, name=%s", stepType, step.Name)
-	return step, nil
 }
 
 // Clone creates a deep copy of the WorkflowStep

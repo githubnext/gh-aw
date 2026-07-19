@@ -66,24 +66,13 @@ func getRunInstallScriptsToRuntimesNodeCodemod() Codemod {
 // run-install-scripts key and injecting it under runtimes.node.
 func migrateRunInstallScriptsLines(lines []string, risStr string, alreadyNested bool) ([]string, bool) {
 	// Step 1: Find the top-level run-install-scripts line
-	topLevelIdx := -1
-	for i, line := range lines {
-		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "run-install-scripts:") {
-			topLevelIdx = i
-			break
-		}
-	}
+	topLevelIdx := migrateRunInstallScriptsLinesFindTopLevel(lines)
 	if topLevelIdx == -1 {
 		return lines, false
 	}
 
 	// Remove the top-level line
-	result := make([]string, 0, len(lines))
-	for i, line := range lines {
-		if i != topLevelIdx {
-			result = append(result, line)
-		}
-	}
+	result := migrateRunInstallScriptsLinesRemoveTopLevel(lines, topLevelIdx)
 	runInstallScriptsCodemodLog.Printf("Removed top-level 'run-install-scripts' on line %d", topLevelIdx+1)
 
 	if alreadyNested {
@@ -96,13 +85,7 @@ func migrateRunInstallScriptsLines(lines []string, risStr string, alreadyNested 
 	indent := detectFrontmatterIndent(result)
 
 	// Step 3: Find the runtimes: block (top-level key)
-	runtimesIdx := -1
-	for i, line := range result {
-		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "runtimes:") {
-			runtimesIdx = i
-			break
-		}
-	}
+	runtimesIdx := migrateRunInstallScriptsLinesFindRuntimes(result)
 
 	if runtimesIdx == -1 {
 		// No runtimes block – append a new one at the end
@@ -117,49 +100,87 @@ func migrateRunInstallScriptsLines(lines []string, risStr string, alreadyNested 
 
 	// Step 4: Find node: as a direct child of runtimes:
 	runtimesIndent := getIndentation(result[runtimesIdx])
-	nodeIdx := -1
-	for i := runtimesIdx + 1; i < len(result); i++ {
-		line := result[i]
+	nodeIdx := migrateRunInstallScriptsLinesFindNode(result, runtimesIdx, runtimesIndent)
+
+	if nodeIdx == -1 {
+		runInstallScriptsCodemodLog.Print("No 'node:' sub-block found – inserting new one under 'runtimes:'")
+		return migrateRunInstallScriptsLinesInsertNode(result, runtimesIdx, runtimesIndent, indent, risStr), true
+	}
+
+	// Step 5: node: exists – inject run-install-scripts right after node:
+	newResult := migrateRunInstallScriptsLinesInsertField(result, nodeIdx, indent, risStr)
+	runInstallScriptsCodemodLog.Printf("Injected 'run-install-scripts: %s' under existing 'node:' sub-block", risStr)
+	return newResult, true
+}
+
+func migrateRunInstallScriptsLinesFindTopLevel(lines []string) int {
+	for i, line := range lines {
+		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "run-install-scripts:") {
+			return i
+		}
+	}
+	return -1
+}
+
+func migrateRunInstallScriptsLinesRemoveTopLevel(lines []string, topLevelIdx int) []string {
+	result := make([]string, 0, len(lines))
+	for i, line := range lines {
+		if i != topLevelIdx {
+			result = append(result, line)
+		}
+	}
+	return result
+}
+
+func migrateRunInstallScriptsLinesFindRuntimes(lines []string) int {
+	for i, line := range lines {
+		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "runtimes:") {
+			return i
+		}
+	}
+	return -1
+}
+
+func migrateRunInstallScriptsLinesFindNode(lines []string, runtimesIdx int, runtimesIndent string) int {
+	for i := runtimesIdx + 1; i < len(lines); i++ {
+		line := lines[i]
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
 			continue
 		}
 		lineIndent := getIndentation(line)
 		if len(lineIndent) <= len(runtimesIndent) {
-			// Exited the runtimes block without finding node:
-			break
+			return -1
 		}
 		if strings.HasPrefix(trimmed, "node:") {
-			nodeIdx = i
 			runInstallScriptsCodemodLog.Printf("Found 'node:' sub-block at line %d", i+1)
-			break
+			return i
 		}
 	}
+	return -1
+}
 
-	if nodeIdx == -1 {
-		// No node: sub-block – insert one right after runtimes:
-		nodeIndent := runtimesIndent + indent
-		nodeLines := []string{
-			nodeIndent + "node:",
-			fmt.Sprintf("%s%srun-install-scripts: %s", nodeIndent, indent, risStr),
-		}
-		newResult := make([]string, 0, len(result)+2)
-		newResult = append(newResult, result[:runtimesIdx+1]...)
-		newResult = append(newResult, nodeLines...)
-		newResult = append(newResult, result[runtimesIdx+1:]...)
-		runInstallScriptsCodemodLog.Print("No 'node:' sub-block found – inserting new one under 'runtimes:'")
-		return newResult, true
+func migrateRunInstallScriptsLinesInsertNode(lines []string, runtimesIdx int, runtimesIndent string, indent string, risStr string) []string {
+	nodeIndent := runtimesIndent + indent
+	nodeLines := []string{
+		nodeIndent + "node:",
+		fmt.Sprintf("%s%srun-install-scripts: %s", nodeIndent, indent, risStr),
 	}
+	newResult := make([]string, 0, len(lines)+2)
+	newResult = append(newResult, lines[:runtimesIdx+1]...)
+	newResult = append(newResult, nodeLines...)
+	newResult = append(newResult, lines[runtimesIdx+1:]...)
+	return newResult
+}
 
-	// Step 5: node: exists – inject run-install-scripts right after node:
+func migrateRunInstallScriptsLinesInsertField(result []string, nodeIdx int, indent string, risStr string) []string {
 	nodeIndent := getIndentation(result[nodeIdx])
 	fieldLine := fmt.Sprintf("%s%srun-install-scripts: %s", nodeIndent, indent, risStr)
 	newResult := make([]string, 0, len(result)+1)
 	newResult = append(newResult, result[:nodeIdx+1]...)
 	newResult = append(newResult, fieldLine)
 	newResult = append(newResult, result[nodeIdx+1:]...)
-	runInstallScriptsCodemodLog.Printf("Injected 'run-install-scripts: %s' under existing 'node:' sub-block", risStr)
-	return newResult, true
+	return newResult
 }
 
 // detectFrontmatterIndent returns the indentation unit used in the YAML frontmatter

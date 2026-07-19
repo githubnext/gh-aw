@@ -19,26 +19,27 @@ import (
 
 var mcpListLog = logger.New("cli:mcp_list")
 
+type mcpWorkflowData struct {
+	name        string
+	serverCount int
+	serverNames []string
+}
+
 // ListWorkflowMCP lists MCP servers defined in a workflow
 func ListWorkflowMCP(workflowFile string, verbose bool) error {
 	mcpListLog.Printf("Listing MCP servers: workflow=%s, verbose=%t", workflowFile, verbose)
 	// Determine the workflow directory and file
 	workflowsDir := constants.GetWorkflowDir()
-	var workflowPath string
 
-	if workflowFile != "" {
-		// Resolve the workflow file path
-		var err error
-		workflowPath, err = ResolveWorkflowPath(workflowFile)
-		if err != nil {
-			mcpListLog.Printf("Failed to resolve workflow path: %v", err)
-			return err
-		}
-		mcpListLog.Printf("Resolved workflow path: %s", workflowPath)
-	} else {
+	if workflowFile == "" {
 		// No specific workflow file provided, list all workflows with MCP servers
 		mcpListLog.Print("No workflow file specified, listing all workflows with MCP servers")
 		return listWorkflowsWithMCPServers(workflowsDir, verbose)
+	}
+
+	workflowPath, err := listWorkflowMCPWorkflowPath(workflowFile)
+	if err != nil {
+		return err
 	}
 
 	// Parse the specific workflow file and extract MCP configurations
@@ -54,78 +55,84 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 		return nil
 	}
 
-	// Check if workflow has network access configured
-	hasNetworkAccess := checkNetworkAccess(frontmatter.Frontmatter)
-
-	// Display the MCP servers
-	if verbose {
-		// Create detailed table for verbose mode
-		headers := []string{"Server Name", "Type", "Status", "Tools Count", "Network Access", "Command/URL"}
-		rows := make([][]string, 0, len(mcpConfigs))
-
-		for _, config := range mcpConfigs {
-			status := determineConfigStatus(config)
-			toolsCount := formatToolsCount(config.Allowed)
-			networkAccess := formatNetworkAccess(hasNetworkAccess)
-
-			commandOrURL := ""
-			if config.Command != "" {
-				commandOrURL = config.Command
-			} else if config.URL != "" {
-				commandOrURL = config.URL
-			} else if config.Container != "" {
-				commandOrURL = config.Container
-			}
-			// Truncate if too long
-			commandOrURL = stringutil.Truncate(commandOrURL, 40)
-
-			rows = append(rows, []string{
-				config.Name,
-				config.Type,
-				status,
-				toolsCount,
-				networkAccess,
-				commandOrURL,
-			})
-		}
-
-		tableConfig := console.TableConfig{
-			Title:   "MCP servers in " + filepath.Base(workflowPath),
-			Headers: headers,
-			Rows:    rows,
-		}
-		fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
-	} else {
-		// Simple table for basic mode
-		headers := []string{"Server Name", "Status", "Tools Count", "Network Access"}
-		rows := make([][]string, 0, len(mcpConfigs))
-
-		for _, config := range mcpConfigs {
-			status := determineConfigStatus(config)
-			toolsCount := formatToolsCount(config.Allowed)
-			networkAccess := formatNetworkAccess(hasNetworkAccess)
-
-			rows = append(rows, []string{
-				config.Name,
-				status,
-				toolsCount,
-				networkAccess,
-			})
-		}
-
-		tableConfig := console.TableConfig{
-			Title:   "MCP servers in " + filepath.Base(workflowPath),
-			Headers: headers,
-			Rows:    rows,
-		}
-		fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
-	}
+	listWorkflowMCPDisplay(workflowPath, mcpConfigs, checkNetworkAccess(frontmatter.Frontmatter), verbose)
 
 	if !verbose {
 		fmt.Fprintf(os.Stderr, "\nRun 'gh aw mcp list %s --verbose' for detailed information\n", workflowFile)
 	}
 
 	return nil
+}
+
+func listWorkflowMCPWorkflowPath(workflowFile string) (string, error) {
+	// Resolve the workflow file path
+	workflowPath, err := ResolveWorkflowPath(workflowFile)
+	if err != nil {
+		mcpListLog.Printf("Failed to resolve workflow path: %v", err)
+		return "", err
+	}
+	mcpListLog.Printf("Resolved workflow path: %s", workflowPath)
+	return workflowPath, nil
+}
+
+func listWorkflowMCPDisplay(workflowPath string, mcpConfigs []parser.RegistryMCPServerConfig, hasNetworkAccess bool, verbose bool) {
+	if verbose {
+		listWorkflowMCPDisplayVerbose(workflowPath, mcpConfigs, hasNetworkAccess)
+	} else {
+		listWorkflowMCPDisplayBasic(workflowPath, mcpConfigs, hasNetworkAccess)
+	}
+}
+
+func listWorkflowMCPDisplayVerbose(workflowPath string, mcpConfigs []parser.RegistryMCPServerConfig, hasNetworkAccess bool) {
+	headers := []string{"Server Name", "Type", "Status", "Tools Count", "Network Access", "Command/URL"}
+	rows := make([][]string, 0, len(mcpConfigs))
+	for _, config := range mcpConfigs {
+		rows = append(rows, []string{
+			config.Name,
+			config.Type,
+			determineConfigStatus(config),
+			formatToolsCount(config.Allowed),
+			formatNetworkAccess(hasNetworkAccess),
+			listWorkflowMCPCommandOrURL(config),
+		})
+	}
+
+	fmt.Fprint(os.Stderr, console.RenderTable(console.TableConfig{
+		Title:   "MCP servers in " + filepath.Base(workflowPath),
+		Headers: headers,
+		Rows:    rows,
+	}))
+}
+
+func listWorkflowMCPDisplayBasic(workflowPath string, mcpConfigs []parser.RegistryMCPServerConfig, hasNetworkAccess bool) {
+	headers := []string{"Server Name", "Status", "Tools Count", "Network Access"}
+	rows := make([][]string, 0, len(mcpConfigs))
+	for _, config := range mcpConfigs {
+		rows = append(rows, []string{
+			config.Name,
+			determineConfigStatus(config),
+			formatToolsCount(config.Allowed),
+			formatNetworkAccess(hasNetworkAccess),
+		})
+	}
+
+	fmt.Fprint(os.Stderr, console.RenderTable(console.TableConfig{
+		Title:   "MCP servers in " + filepath.Base(workflowPath),
+		Headers: headers,
+		Rows:    rows,
+	}))
+}
+
+func listWorkflowMCPCommandOrURL(config parser.RegistryMCPServerConfig) string {
+	commandOrURL := ""
+	if config.Command != "" {
+		commandOrURL = config.Command
+	} else if config.URL != "" {
+		commandOrURL = config.URL
+	} else if config.Container != "" {
+		commandOrURL = config.Container
+	}
+	return stringutil.Truncate(commandOrURL, 40)
 }
 
 // listWorkflowsWithMCPServers shows available workflow files that contain MCP configurations
@@ -137,28 +144,7 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 		return err
 	}
 
-	var workflowData []struct {
-		name        string
-		serverCount int
-		serverNames []string
-	}
-	var totalMCPCount int
-
-	for _, result := range results {
-		serverNames := sliceutil.Map(result.MCPConfigs, func(config parser.RegistryMCPServerConfig) string { return config.Name })
-
-		workflowData = append(workflowData, struct {
-			name        string
-			serverCount int
-			serverNames []string
-		}{
-			name:        result.BaseName,
-			serverCount: len(result.MCPConfigs),
-			serverNames: serverNames,
-		})
-		totalMCPCount += len(result.MCPConfigs)
-	}
-
+	workflowData := listWorkflowsWithMCPServersData(results)
 	if len(workflowData) == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflows with MCP servers found"))
 		return nil
@@ -175,62 +161,71 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 	// If interactive selection failed or was cancelled, fall back to table display
 	mcpListLog.Printf("Interactive selection failed or cancelled, showing table: %v", err)
 
-	// Display results in table format
-	if verbose {
-		// Detailed table with server names
-		headers := []string{"Workflow", "Server Count", "MCP Servers"}
-		rows := make([][]string, 0, len(workflowData))
-
-		for _, workflow := range workflowData {
-			serverList := strings.Join(workflow.serverNames, ", ")
-			// Truncate if too long
-			serverList = stringutil.Truncate(serverList, 50)
-
-			rows = append(rows, []string{
-				workflow.name,
-				strconv.Itoa(workflow.serverCount),
-				serverList,
-			})
-		}
-
-		tableConfig := console.TableConfig{
-			Headers: headers,
-			Rows:    rows,
-		}
-		fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
-	} else {
-		// Simple table with just workflow names and counts
-		headers := []string{"Workflow", "Server Count"}
-		rows := make([][]string, 0, len(workflowData))
-
-		for _, workflow := range workflowData {
-			rows = append(rows, []string{
-				workflow.name,
-				strconv.Itoa(workflow.serverCount),
-			})
-		}
-
-		tableConfig := console.TableConfig{
-			Headers: headers,
-			Rows:    rows,
-		}
-		fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
-	}
-
-	if !verbose {
-		fmt.Fprintf(os.Stderr, "\nRun 'gh aw mcp list --verbose' for detailed information\n")
-	}
+	listWorkflowsWithMCPServersDisplay(workflowData, verbose)
 	fmt.Fprintf(os.Stderr, "Run 'gh aw mcp list <workflow-name>' to list MCP servers in a specific workflow\n")
 
 	return nil
 }
 
+func listWorkflowsWithMCPServersData(results []WorkflowMCPMetadata) []mcpWorkflowData {
+	var workflowData []mcpWorkflowData
+	for _, result := range results {
+		serverNames := sliceutil.Map(result.MCPConfigs, func(config parser.RegistryMCPServerConfig) string { return config.Name })
+		workflowData = append(workflowData, mcpWorkflowData{
+			name:        result.BaseName,
+			serverCount: len(result.MCPConfigs),
+			serverNames: serverNames,
+		})
+	}
+	return workflowData
+}
+
+func listWorkflowsWithMCPServersDisplay(workflowData []mcpWorkflowData, verbose bool) {
+	if verbose {
+		listWorkflowsWithMCPServersDisplayVerbose(workflowData)
+	} else {
+		listWorkflowsWithMCPServersDisplayBasic(workflowData)
+	}
+
+	if !verbose {
+		fmt.Fprintf(os.Stderr, "\nRun 'gh aw mcp list --verbose' for detailed information\n")
+	}
+}
+
+func listWorkflowsWithMCPServersDisplayVerbose(workflowData []mcpWorkflowData) {
+	headers := []string{"Workflow", "Server Count", "MCP Servers"}
+	rows := make([][]string, 0, len(workflowData))
+	for _, workflow := range workflowData {
+		serverList := stringutil.Truncate(strings.Join(workflow.serverNames, ", "), 50)
+		rows = append(rows, []string{
+			workflow.name,
+			strconv.Itoa(workflow.serverCount),
+			serverList,
+		})
+	}
+	fmt.Fprint(os.Stderr, console.RenderTable(console.TableConfig{
+		Headers: headers,
+		Rows:    rows,
+	}))
+}
+
+func listWorkflowsWithMCPServersDisplayBasic(workflowData []mcpWorkflowData) {
+	headers := []string{"Workflow", "Server Count"}
+	rows := make([][]string, 0, len(workflowData))
+	for _, workflow := range workflowData {
+		rows = append(rows, []string{
+			workflow.name,
+			strconv.Itoa(workflow.serverCount),
+		})
+	}
+	fmt.Fprint(os.Stderr, console.RenderTable(console.TableConfig{
+		Headers: headers,
+		Rows:    rows,
+	}))
+}
+
 // showInteractiveMCPWorkflowSelection displays an interactive list of workflows with MCP servers
-func showInteractiveMCPWorkflowSelection(workflows []struct {
-	name        string
-	serverCount int
-	serverNames []string
-}, verbose bool) (string, error) {
+func showInteractiveMCPWorkflowSelection(workflows []mcpWorkflowData, verbose bool) (string, error) {
 	mcpListLog.Printf("Showing interactive MCP workflow selection: workflows=%d", len(workflows))
 
 	// Convert workflow data to ListItems

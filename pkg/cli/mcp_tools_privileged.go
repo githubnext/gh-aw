@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -78,26 +79,9 @@ func effectiveMCPLogsToolTimeoutMinutes(requestedTimeout, count int) int {
 // The logs tool requires write+ access and checks actor permissions.
 // Returns an error if schema generation fails.
 func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
-	// Generate schema with elicitation defaults
-	logsSchema, err := GenerateSchema[logsArgs]()
+	logsSchema, err := registerLogsToolSchema()
 	if err != nil {
-		mcpLog.Printf("Failed to generate logs tool schema: %v", err)
 		return err
-	}
-	// Add elicitation defaults for common parameters
-	if err := AddSchemaDefault(logsSchema, "count", defaultMCPLogsToolCount); err != nil {
-		mcpLog.Printf("Failed to add default for count: %v", err)
-	}
-	// Schema default corresponds to defaultMCPLogsToolCount; runtime timeout
-	// scales with the effective count used for the request.
-	if err := AddSchemaDefault(logsSchema, "timeout", defaultMCPLogsToolTimeoutMinutesForCount(defaultMCPLogsToolCount)); err != nil {
-		mcpLog.Printf("Failed to add default for timeout: %v", err)
-	}
-	if err := AddSchemaDefault(logsSchema, "max_tokens", 12000); err != nil {
-		mcpLog.Printf("Failed to add default for max_tokens: %v", err)
-	}
-	if err := AddSchemaDefault(logsSchema, "artifacts", []string{"usage"}); err != nil {
-		mcpLog.Printf("Failed to add default for artifacts: %v", err)
 	}
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -107,7 +91,39 @@ func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, val
 			IdempotentHint: true,
 			OpenWorldHint:  boolPtr(true),
 		},
-		Description: `Download and analyze workflow logs.
+		Description: registerLogsToolDescription(),
+		InputSchema: logsSchema,
+		Icons:       mcpToolIcons("📝"),
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
+		return registerLogsToolHandler(ctx, req, execCmd, actor, validateActor, args)
+	})
+
+	return nil
+}
+
+func registerLogsToolSchema() (*jsonschema.Schema, error) {
+	logsSchema, err := GenerateSchema[logsArgs]()
+	if err != nil {
+		mcpLog.Printf("Failed to generate logs tool schema: %v", err)
+		return nil, err
+	}
+	if err := AddSchemaDefault(logsSchema, "count", defaultMCPLogsToolCount); err != nil {
+		mcpLog.Printf("Failed to add default for count: %v", err)
+	}
+	if err := AddSchemaDefault(logsSchema, "timeout", defaultMCPLogsToolTimeoutMinutesForCount(defaultMCPLogsToolCount)); err != nil {
+		mcpLog.Printf("Failed to add default for timeout: %v", err)
+	}
+	if err := AddSchemaDefault(logsSchema, "max_tokens", 12000); err != nil {
+		mcpLog.Printf("Failed to add default for max_tokens: %v", err)
+	}
+	if err := AddSchemaDefault(logsSchema, "artifacts", []string{"usage"}); err != nil {
+		mcpLog.Printf("Failed to add default for artifacts: %v", err)
+	}
+	return logsSchema, nil
+}
+
+func registerLogsToolDescription() string {
+	return `Download and analyze workflow logs.
 
 In the normal case, returns a file path to a JSON file with workflow run data and metrics.
 The data is written to a file to avoid large inline payloads. Use the returned file_path
@@ -119,166 +135,140 @@ in the JSON data with updated parameters to continue fetching more data.
 Check for the presence of the continuation field to determine if there are more logs available.
 
 The continuation field includes all necessary parameters (before_run_id, etc.) to resume fetching
-from where the previous request stopped due to timeout.`,
-		InputSchema: logsSchema,
-		Icons:       mcpToolIcons("📝"),
-	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
-		// Check actor permissions first
-		if err := checkActorPermission(ctx, actor, validateActor, "logs"); err != nil {
-			return nil, nil, err
-		}
+from where the previous request stopped due to timeout.`
+}
 
-		// Check for cancellation before starting
-		select {
-		case <-ctx.Done():
-			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
-		default:
-		}
+func registerLogsToolHandler(ctx context.Context, req *mcp.CallToolRequest, execCmd execCmdFunc, actor string, validateActor bool, args logsArgs) (*mcp.CallToolResult, any, error) {
+	if result, err := registerLogsToolPreflight(ctx, actor, validateActor, args); result != nil || err != nil {
+		return result, nil, err
+	}
 
-		// Validate firewall parameters
-		if args.Firewall && args.NoFirewall {
-			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "conflicting parameters: cannot specify both 'firewall' and 'no_firewall'", nil)
-		}
+	cmdArgs, effectiveCount, timeoutValue := registerLogsToolArgs(args)
+	mcpLog.Printf("Executing logs tool: workflow=%s, requested_count=%d, effective_count=%d, firewall=%v, no_firewall=%v, filtered_integrity=%v, timeout=%d, command_args=%v",
+		args.WorkflowName, args.Count, effectiveCount, args.Firewall, args.NoFirewall, args.FilteredIntegrity, timeoutValue, cmdArgs)
 
-		// Validate workflow name before executing command
-		if err := validateMCPWorkflowName(args.WorkflowName); err != nil {
-			mcpLog.Printf("Workflow name validation failed, returning empty result: %v", err)
-			// Return an empty structured result instead of an MCP protocol error so
-			// callers can always expect consistent JSON from this tool.
-			// Use explicit empty slices so JSON marshaling produces "runs":[], etc.,
-			// rather than null (nil slices), and set TotalDuration to match the normal
-			// zero-duration formatting.
-			emptyData := LogsData{
-				Runs:     []RunData{},
-				Episodes: []EpisodeData{},
-				Edges:    []EpisodeEdge{},
-				Message:  err.Error(),
-			}
-			emptyData.Summary.TotalDuration = "0ns"
-			jsonBytes, jsonErr := json.Marshal(emptyData)
-			if jsonErr != nil {
-				return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), nil)
-			}
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
-			}, nil, nil
-		}
+	notifyProgress(ctx, req, 0, 100, "Downloading workflow logs...")
+	stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
+	outputStr := string(stdout)
+	if err != nil {
+		return nil, nil, registerLogsToolError(err, outputStr, cmdArgs, timeoutValue, args.WorkflowName)
+	}
 
-		// Build command arguments
-		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server
-		cmdArgs := []string{"logs", "-o", constants.TmpAwMcpLogsDir}
-		if args.WorkflowName != "" {
-			cmdArgs = append(cmdArgs, args.WorkflowName)
-		}
-		effectiveCount := effectiveMCPLogsToolCount(args.Count)
-		cmdArgs = append(cmdArgs, "-c", strconv.Itoa(effectiveCount))
-		if args.StartDate != "" {
-			cmdArgs = append(cmdArgs, "--start-date", args.StartDate)
-		}
-		if args.EndDate != "" {
-			cmdArgs = append(cmdArgs, "--end-date", args.EndDate)
-		}
-		if args.Engine != "" {
-			cmdArgs = append(cmdArgs, "--engine", args.Engine)
-		}
-		if args.Firewall {
-			cmdArgs = append(cmdArgs, "--firewall")
-		}
-		if args.NoFirewall {
-			cmdArgs = append(cmdArgs, "--no-firewall")
-		}
-		if args.FilteredIntegrity {
-			cmdArgs = append(cmdArgs, "--filtered-integrity")
-		}
-		if args.Branch != "" {
-			// The MCP parameter is named "branch" for backwards compatibility,
-			// but the logs CLI flag is --ref (which accepts branches and tags).
-			cmdArgs = append(cmdArgs, "--ref", args.Branch)
-		}
-		if args.AfterRunID > 0 {
-			cmdArgs = append(cmdArgs, "--after-run-id", strconv.FormatInt(args.AfterRunID, 10))
-		}
-		if args.BeforeRunID > 0 {
-			cmdArgs = append(cmdArgs, "--before-run-id", strconv.FormatInt(args.BeforeRunID, 10))
-		}
-		if len(args.Artifacts) > 0 {
-			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
-		}
+	finalOutput := buildLogsFileResponse(outputStr)
+	notifyProgress(ctx, req, 100, 100, "Workflow logs downloaded")
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: finalOutput}},
+	}, nil, nil
+}
 
-		cmdArgs = appendRepoFlagFromEnv(cmdArgs)
+func registerLogsToolPreflight(ctx context.Context, actor string, validateActor bool, args logsArgs) (*mcp.CallToolResult, error) {
+	if err := checkActorPermission(ctx, actor, validateActor, "logs"); err != nil {
+		return nil, err
+	}
+	select {
+	case <-ctx.Done():
+		return nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
+	default:
+	}
+	if args.Firewall && args.NoFirewall {
+		return nil, newMCPError(jsonrpc.CodeInvalidParams, "conflicting parameters: cannot specify both 'firewall' and 'no_firewall'", nil)
+	}
+	if err := validateMCPWorkflowName(args.WorkflowName); err != nil {
+		return registerLogsToolEmptyResult(err)
+	}
+	return nil, nil
+}
 
-		// Scale the implicit MCP timeout with the requested fetch window so
-		// larger fleet-wide requests do not hit the default per-tool timeout.
-		timeoutValue := effectiveMCPLogsToolTimeoutMinutes(args.Timeout, effectiveCount)
-		cmdArgs = append(cmdArgs, "--timeout", strconv.Itoa(timeoutValue))
+func registerLogsToolEmptyResult(err error) (*mcp.CallToolResult, error) {
+	mcpLog.Printf("Workflow name validation failed, returning empty result: %v", err)
+	emptyData := LogsData{
+		Runs:     []RunData{},
+		Episodes: []EpisodeData{},
+		Edges:    []EpisodeEdge{},
+		Message:  err.Error(),
+	}
+	emptyData.Summary.TotalDuration = "0ns"
+	jsonBytes, jsonErr := json.Marshal(emptyData)
+	if jsonErr != nil {
+		return nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), nil)
+	}
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
+	}, nil
+}
 
-		// Always use --json mode in MCP server
-		cmdArgs = append(cmdArgs, "--json")
+func registerLogsToolArgs(args logsArgs) ([]string, int, int) {
+	cmdArgs := []string{"logs", "-o", constants.TmpAwMcpLogsDir}
+	if args.WorkflowName != "" {
+		cmdArgs = append(cmdArgs, args.WorkflowName)
+	}
+	effectiveCount := effectiveMCPLogsToolCount(args.Count)
+	cmdArgs = append(cmdArgs, "-c", strconv.Itoa(effectiveCount))
+	cmdArgs = registerLogsToolArgsFilters(cmdArgs, args)
+	cmdArgs = appendRepoFlagFromEnv(cmdArgs)
+	timeoutValue := effectiveMCPLogsToolTimeoutMinutes(args.Timeout, effectiveCount)
+	cmdArgs = append(cmdArgs, "--timeout", strconv.Itoa(timeoutValue), "--json")
+	return cmdArgs, effectiveCount, timeoutValue
+}
 
-		// Log the command being executed for debugging
-		mcpLog.Printf("Executing logs tool: workflow=%s, requested_count=%d, effective_count=%d, firewall=%v, no_firewall=%v, filtered_integrity=%v, timeout=%d, command_args=%v",
-			args.WorkflowName, args.Count, effectiveCount, args.Firewall, args.NoFirewall, args.FilteredIntegrity, timeoutValue, cmdArgs)
+func registerLogsToolArgsFilters(cmdArgs []string, args logsArgs) []string {
+	if args.StartDate != "" {
+		cmdArgs = append(cmdArgs, "--start-date", args.StartDate)
+	}
+	if args.EndDate != "" {
+		cmdArgs = append(cmdArgs, "--end-date", args.EndDate)
+	}
+	if args.Engine != "" {
+		cmdArgs = append(cmdArgs, "--engine", args.Engine)
+	}
+	if args.Firewall {
+		cmdArgs = append(cmdArgs, "--firewall")
+	}
+	if args.NoFirewall {
+		cmdArgs = append(cmdArgs, "--no-firewall")
+	}
+	if args.FilteredIntegrity {
+		cmdArgs = append(cmdArgs, "--filtered-integrity")
+	}
+	if args.Branch != "" {
+		cmdArgs = append(cmdArgs, "--ref", args.Branch)
+	}
+	if args.AfterRunID > 0 {
+		cmdArgs = append(cmdArgs, "--after-run-id", strconv.FormatInt(args.AfterRunID, 10))
+	}
+	if args.BeforeRunID > 0 {
+		cmdArgs = append(cmdArgs, "--before-run-id", strconv.FormatInt(args.BeforeRunID, 10))
+	}
+	if len(args.Artifacts) > 0 {
+		cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
+	}
+	return cmdArgs
+}
 
-		notifyProgress(ctx, req, 0, 100, "Downloading workflow logs...")
-
-		// Execute the CLI command
-		// Use separate stdout/stderr capture instead of CombinedOutput because:
-		// - Stdout contains JSON output (--json flag)
-		// - Stderr contains console messages and error details
-		stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
-
-		// The logs command outputs JSON to stdout when --json flag is used.
-		// If the command fails, we need to provide detailed error information.
-		outputStr := string(stdout)
-
-		if err != nil {
-			// Try to get stderr and exit code for detailed error reporting
-			var stderr string
-			var exitCode int
-			var exitErr *exec.ExitError
-			if errors.As(err, &exitErr) {
-				stderr = string(exitErr.Stderr)
-				exitCode = exitErr.ExitCode()
-			}
-
-			mcpLog.Printf("Logs command exited with error: %v (stdout length: %d, stderr length: %d, exit_code: %d)",
-				err, len(outputStr), len(stderr), exitCode)
-
-			// Build detailed error data
-			errorData := map[string]any{
-				"error":     err.Error(),
-				"command":   strings.Join(cmdArgs, " "),
-				"exit_code": exitCode,
-				"stdout":    outputStr,
-				"stderr":    stderr,
-				"timeout":   timeoutValue,
-				"workflow":  args.WorkflowName,
-			}
-
-			// Extract the user-facing message from stderr, filtering out debug log lines
-			// (e.g. "workflow:script_registry Creating new script registry +151ns")
-			// to avoid leaking internal diagnostic output in the MCP error response.
-			mainMsg := extractLastConsoleMessage(stderr)
-			if mainMsg == "" {
-				mainMsg = err.Error()
-			}
-
-			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to download workflow logs: "+mainMsg, errorData)
-		}
-
-		// Always write output to a file and return schema + file path
-		finalOutput := buildLogsFileResponse(outputStr)
-
-		notifyProgress(ctx, req, 100, 100, "Workflow logs downloaded")
-
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: finalOutput},
-			},
-		}, nil, nil
-	})
-
-	return nil
+func registerLogsToolError(err error, outputStr string, cmdArgs []string, timeoutValue int, workflowName string) error {
+	var stderr string
+	var exitCode int
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		stderr = string(exitErr.Stderr)
+		exitCode = exitErr.ExitCode()
+	}
+	mcpLog.Printf("Logs command exited with error: %v (stdout length: %d, stderr length: %d, exit_code: %d)",
+		err, len(outputStr), len(stderr), exitCode)
+	errorData := map[string]any{
+		"error":     err.Error(),
+		"command":   strings.Join(cmdArgs, " "),
+		"exit_code": exitCode,
+		"stdout":    outputStr,
+		"stderr":    stderr,
+		"timeout":   timeoutValue,
+		"workflow":  workflowName,
+	}
+	mainMsg := extractLastConsoleMessage(stderr)
+	if mainMsg == "" {
+		mainMsg = err.Error()
+	}
+	return newMCPError(jsonrpc.CodeInternalError, "failed to download workflow logs: "+mainMsg, errorData)
 }
 
 // auditArgs holds the input parameters for the audit tool.
@@ -320,10 +310,8 @@ func normalizeAuditRunInput(input any, fieldName string) (string, bool, error) {
 // The audit tool requires write+ access and checks actor permissions.
 // Returns an error if schema generation fails.
 func registerAuditTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
-	// Generate schema for audit tool
-	auditSchema, err := GenerateSchema[auditArgs]()
+	auditSchema, err := registerAuditToolSchema()
 	if err != nil {
-		mcpLog.Printf("Failed to generate audit tool schema: %v", err)
 		return err
 	}
 
@@ -334,7 +322,27 @@ func registerAuditTool(server *mcp.Server, execCmd execCmdFunc, actor string, va
 			IdempotentHint: true,
 			OpenWorldHint:  boolPtr(true),
 		},
-		Description: `Investigate one or more workflow runs and generate a concise report.
+		Description: registerAuditToolDescription(),
+		InputSchema: auditSchema,
+		Icons:       mcpToolIcons("🔍"),
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditArgs) (*mcp.CallToolResult, any, error) {
+		return registerAuditToolHandler(ctx, req, execCmd, actor, validateActor, args)
+	})
+
+	return nil
+}
+
+func registerAuditToolSchema() (*jsonschema.Schema, error) {
+	auditSchema, err := GenerateSchema[auditArgs]()
+	if err != nil {
+		mcpLog.Printf("Failed to generate audit tool schema: %v", err)
+		return nil, err
+	}
+	return auditSchema, nil
+}
+
+func registerAuditToolDescription() string {
+	return `Investigate one or more workflow runs and generate a concise report.
 
 When a single run is provided, generates a detailed audit report.
 When two or more runs are provided, the first is the base (reference) run and
@@ -370,133 +378,115 @@ Single-run returns JSON with:
 - firewall_analysis: Network firewall analysis if available (total_requests, allowed_requests, blocked_requests, allowed_domains, blocked_domains)
 - experiments: A/B experiment assignments if present (assignments map, cumulative_counts map)
 
-Multi-run diff returns JSON describing changes between the base and each comparison run.`,
-		InputSchema: auditSchema,
-		Icons:       mcpToolIcons("🔍"),
-	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditArgs) (*mcp.CallToolResult, any, error) {
-		// Check actor permissions first
-		if err := checkActorPermission(ctx, actor, validateActor, "audit"); err != nil {
-			return nil, nil, err
-		}
+Multi-run diff returns JSON describing changes between the base and each comparison run.`
+}
 
-		// Check for cancellation before starting
-		select {
-		case <-ctx.Done():
-			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
-		default:
-		}
+func registerAuditToolHandler(ctx context.Context, req *mcp.CallToolRequest, execCmd execCmdFunc, actor string, validateActor bool, args auditArgs) (*mcp.CallToolResult, any, error) {
+	runItems, err := registerAuditToolRunItems(ctx, actor, validateActor, args)
+	if err != nil {
+		return nil, nil, err
+	}
 
-		// Resolve the list of run IDs/URLs to pass to the audit command.
-		// run_ids_or_urls takes precedence; fall back to run_id, then deprecated run_id_or_url.
-		runItems := args.RunIDsOrURLs
-		if len(runItems) == 0 {
-			runID, hasRunID, err := normalizeAuditRunInput(args.RunID, "run_id")
-			if err != nil {
-				return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), nil)
-			}
-			if hasRunID {
-				runItems = []string{runID}
-			}
-		}
-		if len(runItems) == 0 {
-			runIDOrURL, hasRunIDOrURL, err := normalizeAuditRunInput(args.RunIDOrURL, "run_id_or_url")
-			if err != nil {
-				return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), nil)
-			}
-			if hasRunIDOrURL {
-				runItems = []string{runIDOrURL}
-			}
-		}
-		if len(runItems) == 0 {
-			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "at least one run ID or URL must be provided via run_ids_or_urls, run_id, or run_id_or_url", nil)
-		}
+	cmdArgs := registerAuditToolArgs(runItems, args)
+	notifyProgress(ctx, req, 0, 100, "Downloading audit artifacts...")
+	stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
+	outputStr := string(stdout)
+	if err != nil {
+		return registerAuditToolError(err, outputStr, runItems)
+	}
 
-		// Build command arguments.
-		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server (same as logs).
-		// Use --json flag to output structured JSON for MCP consumption.
-		// Pass all run IDs/URLs directly - the audit command handles single vs. diff mode.
-		cmdArgs := []string{"audit"}
-		cmdArgs = append(cmdArgs, runItems...)
-		cmdArgs = append(cmdArgs, "-o", constants.TmpAwMcpLogsDir, "--json")
-		if len(args.Artifacts) > 0 {
-			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
-		}
-		if args.Experiment != "" {
-			cmdArgs = append(cmdArgs, "--experiment", args.Experiment)
-		}
-		if args.Variant != "" {
-			cmdArgs = append(cmdArgs, "--variant", args.Variant)
-		}
+	notifyProgress(ctx, req, 100, 100, "Audit complete")
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: outputStr}},
+	}, nil, nil
+}
 
-		cmdArgs = appendRepoFlagFromEnv(cmdArgs)
+func registerAuditToolRunItems(ctx context.Context, actor string, validateActor bool, args auditArgs) ([]string, error) {
+	if err := checkActorPermission(ctx, actor, validateActor, "audit"); err != nil {
+		return nil, err
+	}
+	select {
+	case <-ctx.Done():
+		return nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
+	default:
+	}
+	runItems, err := registerAuditToolResolveRunItems(args)
+	if err != nil {
+		return nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), nil)
+	}
+	if len(runItems) == 0 {
+		return nil, newMCPError(jsonrpc.CodeInvalidParams, "at least one run ID or URL must be provided via run_ids_or_urls, run_id, or run_id_or_url", nil)
+	}
+	return runItems, nil
+}
 
-		notifyProgress(ctx, req, 0, 100, "Downloading audit artifacts...")
-
-		// Execute the CLI command.
-		// Use separate stdout/stderr capture instead of CombinedOutput because:
-		// - Stdout contains JSON output (--json flag)
-		// - Stderr contains console messages and debug logs that shouldn't be mixed with JSON
-		stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
-
-		// The audit command outputs JSON to stdout when --json flag is used.
-		// If the command fails, we need to provide detailed error information.
-		outputStr := string(stdout)
-
+func registerAuditToolResolveRunItems(args auditArgs) ([]string, error) {
+	runItems := args.RunIDsOrURLs
+	if len(runItems) == 0 {
+		runID, hasRunID, err := normalizeAuditRunInput(args.RunID, "run_id")
 		if err != nil {
-			// Try to get stderr for message extraction
-			var stderr string
-			var exitErr *exec.ExitError
-			if errors.As(err, &exitErr) {
-				stderr = string(exitErr.Stderr)
-			}
-
-			mcpLog.Printf("Audit command exited with error: %v (stdout length: %d, stderr length: %d)",
-				err, len(outputStr), len(stderr))
-
-			// Extract the user-facing message from stderr, filtering out debug log lines
-			// (e.g. "workflow:script_registry Creating new script registry +151ns")
-			// to avoid leaking internal diagnostic output in the MCP error response.
-			mainMsg := extractLastConsoleMessage(stderr)
-			if mainMsg == "" {
-				mainMsg = err.Error()
-			}
-
-			// Return a JSON error envelope instead of an MCP protocol error so
-			// callers always receive consistent JSON and the run IDs are always present.
-			// IsError must be false so that callers (e.g. mcp_cli_bridge) treat this as
-			// a graceful not-found / failure response rather than a fatal protocol error.
-			errorMsg := "failed to audit workflow run: " + mainMsg
-			if len(runItems) > 1 {
-				errorMsg = "failed to audit workflow runs: " + mainMsg
-			}
-			errorEnvelope := map[string]any{
-				"error":           errorMsg,
-				"run_ids_or_urls": runItems,
-				"suggestions": []string{
-					"Verify the run ID is correct",
-					"Use the 'logs' tool to list recent run IDs",
-				},
-			}
-			jsonBytes, jsonErr := json.Marshal(errorEnvelope)
-			if jsonErr != nil {
-				return nil, nil, newMCPError(jsonrpc.CodeInternalError, errorMsg, nil)
-			}
-			return &mcp.CallToolResult{
-				IsError: false,
-				Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
-			}, nil, nil
+			return nil, err
 		}
+		if hasRunID {
+			runItems = []string{runID}
+		}
+	}
+	if len(runItems) == 0 {
+		runIDOrURL, hasRunIDOrURL, err := normalizeAuditRunInput(args.RunIDOrURL, "run_id_or_url")
+		if err != nil {
+			return nil, err
+		}
+		if hasRunIDOrURL {
+			runItems = []string{runIDOrURL}
+		}
+	}
+	return runItems, nil
+}
 
-		notifyProgress(ctx, req, 100, 100, "Audit complete")
+func registerAuditToolArgs(runItems []string, args auditArgs) []string {
+	cmdArgs := []string{"audit"}
+	cmdArgs = append(cmdArgs, runItems...)
+	cmdArgs = append(cmdArgs, "-o", constants.TmpAwMcpLogsDir, "--json")
+	if len(args.Artifacts) > 0 {
+		cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
+	}
+	if args.Experiment != "" {
+		cmdArgs = append(cmdArgs, "--experiment", args.Experiment)
+	}
+	if args.Variant != "" {
+		cmdArgs = append(cmdArgs, "--variant", args.Variant)
+	}
+	return appendRepoFlagFromEnv(cmdArgs)
+}
 
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: outputStr},
-			},
-		}, nil, nil
-	})
-
-	return nil
+func registerAuditToolError(err error, outputStr string, runItems []string) (*mcp.CallToolResult, any, error) {
+	var stderr string
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		stderr = string(exitErr.Stderr)
+	}
+	mcpLog.Printf("Audit command exited with error: %v (stdout length: %d, stderr length: %d)", err, len(outputStr), len(stderr))
+	mainMsg := extractLastConsoleMessage(stderr)
+	if mainMsg == "" {
+		mainMsg = err.Error()
+	}
+	errorMsg := "failed to audit workflow run: " + mainMsg
+	if len(runItems) > 1 {
+		errorMsg = "failed to audit workflow runs: " + mainMsg
+	}
+	errorEnvelope := map[string]any{
+		"error":           errorMsg,
+		"run_ids_or_urls": runItems,
+		"suggestions":     []string{"Verify the run ID is correct", "Use the 'logs' tool to list recent run IDs"},
+	}
+	jsonBytes, jsonErr := json.Marshal(errorEnvelope)
+	if jsonErr != nil {
+		return nil, nil, newMCPError(jsonrpc.CodeInternalError, errorMsg, nil)
+	}
+	return &mcp.CallToolResult{
+		IsError: false,
+		Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
+	}, nil, nil
 }
 
 // auditDiffArgs holds the input parameters for the audit-diff tool.
@@ -509,9 +499,8 @@ type auditDiffArgs struct {
 // registerAuditDiffTool registers the audit-diff tool with the MCP server.
 // It exposes the `gh aw audit diff` subcommand for comparing two workflow runs.
 func registerAuditDiffTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
-	schema, err := GenerateSchema[auditDiffArgs]()
+	schema, err := registerAuditDiffToolSchema()
 	if err != nil {
-		mcpLog.Printf("Failed to generate audit-diff tool schema: %v", err)
 		return err
 	}
 
@@ -522,7 +511,27 @@ func registerAuditDiffTool(server *mcp.Server, execCmd execCmdFunc, actor string
 			IdempotentHint: true,
 			OpenWorldHint:  boolPtr(true),
 		},
-		Description: `Compare behavior between a base workflow run and one or more comparison runs.
+		Description: registerAuditDiffToolDescription(),
+		InputSchema: schema,
+		Icons:       mcpToolIcons("🔎"),
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditDiffArgs) (*mcp.CallToolResult, any, error) {
+		return registerAuditDiffToolHandler(ctx, req, execCmd, actor, validateActor, args)
+	})
+
+	return nil
+}
+
+func registerAuditDiffToolSchema() (*jsonschema.Schema, error) {
+	schema, err := GenerateSchema[auditDiffArgs]()
+	if err != nil {
+		mcpLog.Printf("Failed to generate audit-diff tool schema: %v", err)
+		return nil, err
+	}
+	return schema, nil
+}
+
+func registerAuditDiffToolDescription() string {
+	return `Compare behavior between a base workflow run and one or more comparison runs.
 
 Downloads artifacts for all referenced runs (using locally cached data when available),
 then produces a diff showing:
@@ -532,80 +541,81 @@ then produces a diff showing:
 - MCP tool invocation changes (new/removed tools, call/error count diffs)
 - Run metrics comparison (token usage, duration, turns)
 
-Returns JSON describing the differences between the base run and each comparison run.`,
-		InputSchema: schema,
-		Icons:       mcpToolIcons("🔎"),
-	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditDiffArgs) (*mcp.CallToolResult, any, error) {
-		if err := checkActorPermission(ctx, actor, validateActor, "audit-diff"); err != nil {
-			return nil, nil, err
-		}
+Returns JSON describing the differences between the base run and each comparison run.`
+}
 
-		select {
-		case <-ctx.Done():
-			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
-		default:
-		}
+func registerAuditDiffToolHandler(ctx context.Context, req *mcp.CallToolRequest, execCmd execCmdFunc, actor string, validateActor bool, args auditDiffArgs) (*mcp.CallToolResult, any, error) {
+	if err := registerAuditDiffToolValidate(ctx, actor, validateActor, args); err != nil {
+		return nil, nil, err
+	}
 
-		if args.BaseRunID == "" {
-			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "base_run_id is required", nil)
-		}
-		if len(args.CompareRunIDs) == 0 {
-			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "compare_run_ids must contain at least one run ID", nil)
-		}
+	cmdArgs := registerAuditDiffToolArgs(args)
+	notifyProgress(ctx, req, 0, 100, "Downloading artifacts for diff...")
+	stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
+	outputStr := string(stdout)
+	if err != nil {
+		return registerAuditDiffToolError(err, outputStr, args)
+	}
 
-		// Build: gh aw audit diff <base> <compare...> -o ... --json [--artifacts ...]
-		cmdArgs := []string{"audit", "diff", args.BaseRunID}
-		cmdArgs = append(cmdArgs, args.CompareRunIDs...)
-		cmdArgs = append(cmdArgs, "-o", constants.TmpAwMcpLogsDir, "--json")
-		if len(args.Artifacts) > 0 {
-			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
-		}
+	notifyProgress(ctx, req, 100, 100, "Diff complete")
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: outputStr}},
+	}, nil, nil
+}
 
-		cmdArgs = appendRepoFlagFromEnv(cmdArgs)
-
-		notifyProgress(ctx, req, 0, 100, "Downloading artifacts for diff...")
-
-		stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
-		outputStr := string(stdout)
-
-		if err != nil {
-			var stderr string
-			var exitErr *exec.ExitError
-			if errors.As(err, &exitErr) {
-				stderr = string(exitErr.Stderr)
-			}
-			mcpLog.Printf("Audit-diff command failed: %v (stdout: %d bytes, stderr: %d bytes)", err, len(outputStr), len(stderr))
-			mainMsg := extractLastConsoleMessage(stderr)
-			if mainMsg == "" {
-				mainMsg = err.Error()
-			}
-			errorEnvelope := map[string]any{
-				"error":        "failed to diff workflow runs: " + mainMsg,
-				"base_run_id":  args.BaseRunID,
-				"compare_runs": args.CompareRunIDs,
-				"suggestions": []string{
-					"Verify the run IDs are correct",
-					"Use the 'logs' tool to list recent run IDs",
-				},
-			}
-			jsonBytes, jsonErr := json.Marshal(errorEnvelope)
-			if jsonErr != nil {
-				return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to diff workflow runs: "+mainMsg, nil)
-			}
-			return &mcp.CallToolResult{
-				IsError: false,
-				Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
-			}, nil, nil
-		}
-
-		notifyProgress(ctx, req, 100, 100, "Diff complete")
-
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{&mcp.TextContent{Text: outputStr}},
-		}, nil, nil
-	})
-
+func registerAuditDiffToolValidate(ctx context.Context, actor string, validateActor bool, args auditDiffArgs) error {
+	if err := checkActorPermission(ctx, actor, validateActor, "audit-diff"); err != nil {
+		return err
+	}
+	select {
+	case <-ctx.Done():
+		return newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
+	default:
+	}
+	if args.BaseRunID == "" {
+		return newMCPError(jsonrpc.CodeInvalidParams, "base_run_id is required", nil)
+	}
+	if len(args.CompareRunIDs) == 0 {
+		return newMCPError(jsonrpc.CodeInvalidParams, "compare_run_ids must contain at least one run ID", nil)
+	}
 	return nil
+}
+
+func registerAuditDiffToolArgs(args auditDiffArgs) []string {
+	cmdArgs := []string{"audit", "diff", args.BaseRunID}
+	cmdArgs = append(cmdArgs, args.CompareRunIDs...)
+	cmdArgs = append(cmdArgs, "-o", constants.TmpAwMcpLogsDir, "--json")
+	if len(args.Artifacts) > 0 {
+		cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
+	}
+	return appendRepoFlagFromEnv(cmdArgs)
+}
+
+func registerAuditDiffToolError(err error, outputStr string, args auditDiffArgs) (*mcp.CallToolResult, any, error) {
+	var stderr string
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		stderr = string(exitErr.Stderr)
+	}
+	mcpLog.Printf("Audit-diff command failed: %v (stdout: %d bytes, stderr: %d bytes)", err, len(outputStr), len(stderr))
+	mainMsg := extractLastConsoleMessage(stderr)
+	if mainMsg == "" {
+		mainMsg = err.Error()
+	}
+	errorEnvelope := map[string]any{
+		"error":        "failed to diff workflow runs: " + mainMsg,
+		"base_run_id":  args.BaseRunID,
+		"compare_runs": args.CompareRunIDs,
+		"suggestions":  []string{"Verify the run IDs are correct", "Use the 'logs' tool to list recent run IDs"},
+	}
+	jsonBytes, jsonErr := json.Marshal(errorEnvelope)
+	if jsonErr != nil {
+		return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to diff workflow runs: "+mainMsg, nil)
+	}
+	return &mcp.CallToolResult{
+		IsError: false,
+		Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
+	}, nil, nil
 }
 
 // notifyProgress sends a progress notification to the MCP client if the request

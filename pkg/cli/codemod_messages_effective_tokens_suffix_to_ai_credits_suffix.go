@@ -71,96 +71,145 @@ func migrateMessagesEffectiveTokensSuffixToAICreditsSuffix(lines []string) ([]st
 	result := make([]string, 0, len(lines))
 	modified := false
 
-	inSafeOutputs := false
-	safeOutputsIndent := ""
-	safeOutputsChildIndent := ""
-	inMessages := false
-	messagesIndent := ""
-	messagesChildIndent := ""
-	inBlockScalar := false
-	blockScalarIndent := ""
+	state := migrateMessagesEffectiveTokensSuffixToAICreditsSuffixState{}
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		indent := getIndentation(line)
 
-		if inBlockScalar {
-			if trimmed == "" || len(indent) > len(blockScalarIndent) {
-				updated := strings.ReplaceAll(line, effectiveTokensSuffixPlaceholder, aiCreditsSuffixPlaceholder)
-				if updated != line {
-					modified = true
-				}
-				result = append(result, updated)
-				continue
+		if updated, changed, handled := migrateMessagesEffectiveTokensSuffixToAICreditsSuffixBlockScalarLine(line, trimmed, indent, &state); handled {
+			if changed {
+				modified = true
 			}
-			inBlockScalar = false
-			blockScalarIndent = ""
+			result = append(result, updated)
+			continue
 		}
 
-		if !strings.HasPrefix(trimmed, "#") {
-			if inMessages && hasExitedBlock(line, messagesIndent) {
-				inMessages = false
-				messagesIndent = ""
-				messagesChildIndent = ""
-			}
-			if inSafeOutputs && hasExitedBlock(line, safeOutputsIndent) {
-				inSafeOutputs = false
-				safeOutputsIndent = ""
-				safeOutputsChildIndent = ""
-				inMessages = false
-				messagesIndent = ""
-				messagesChildIndent = ""
-			}
-		}
+		migrateMessagesEffectiveTokensSuffixToAICreditsSuffixExitBlocks(line, trimmed, &state)
 
 		if strings.HasPrefix(trimmed, "safe-outputs:") {
-			inSafeOutputs = true
-			safeOutputsIndent = indent
-			safeOutputsChildIndent = ""
-			inMessages = false
-			messagesIndent = ""
-			messagesChildIndent = ""
+			state.inSafeOutputs = true
+			state.safeOutputsIndent = indent
+			state.safeOutputsChildIndent = ""
+			state.inMessages = false
+			state.messagesIndent = ""
+			state.messagesChildIndent = ""
 			result = append(result, line)
 			continue
 		}
 
-		if inSafeOutputs && isDescendant(indent, safeOutputsIndent) && strings.HasSuffix(trimmed, ":") && !strings.HasPrefix(trimmed, "#") {
-			if safeOutputsChildIndent == "" {
-				safeOutputsChildIndent = indent
-			}
-			if indent == safeOutputsChildIndent && trimmed == "messages:" {
-				inMessages = true
-				messagesIndent = indent
-				messagesChildIndent = ""
-			}
+		if migrateMessagesEffectiveTokensSuffixToAICreditsSuffixEnterMessages(trimmed, indent, &state) {
 			result = append(result, line)
 			continue
 		}
 
-		if inMessages && isDescendant(indent, messagesIndent) && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-			if messagesChildIndent == "" {
-				messagesChildIndent = indent
+		if updated, changed, handled := migrateMessagesEffectiveTokensSuffixToAICreditsSuffixMessageLine(line, trimmed, indent, &state); handled {
+			if changed {
+				modified = true
 			}
-			if indent == messagesChildIndent && strings.Contains(trimmed, ":") {
-				updated := strings.ReplaceAll(line, effectiveTokensSuffixPlaceholder, aiCreditsSuffixPlaceholder)
-				if updated != line {
-					modified = true
-				}
-				result = append(result, updated)
-
-				parts := strings.SplitN(updated, ":", 2)
-				if len(parts) == 2 && isBlockScalarIndicator(parts[1]) {
-					inBlockScalar = true
-					blockScalarIndent = indent
-				}
-				continue
-			}
+			result = append(result, updated)
+			continue
 		}
 
 		result = append(result, line)
 	}
 
 	return result, modified
+}
+
+type migrateMessagesEffectiveTokensSuffixToAICreditsSuffixState struct {
+	inSafeOutputs          bool
+	safeOutputsIndent      string
+	safeOutputsChildIndent string
+	inMessages             bool
+	messagesIndent         string
+	messagesChildIndent    string
+	inBlockScalar          bool
+	blockScalarIndent      string
+}
+
+func migrateMessagesEffectiveTokensSuffixToAICreditsSuffixBlockScalarLine(
+	line string,
+	trimmed string,
+	indent string,
+	state *migrateMessagesEffectiveTokensSuffixToAICreditsSuffixState,
+) (string, bool, bool) {
+	if !state.inBlockScalar {
+		return line, false, false
+	}
+	if trimmed == "" || len(indent) > len(state.blockScalarIndent) {
+		updated := strings.ReplaceAll(line, effectiveTokensSuffixPlaceholder, aiCreditsSuffixPlaceholder)
+		return updated, updated != line, true
+	}
+	state.inBlockScalar = false
+	state.blockScalarIndent = ""
+	return line, false, false
+}
+
+func migrateMessagesEffectiveTokensSuffixToAICreditsSuffixExitBlocks(
+	line string,
+	trimmed string,
+	state *migrateMessagesEffectiveTokensSuffixToAICreditsSuffixState,
+) {
+	if strings.HasPrefix(trimmed, "#") {
+		return
+	}
+	if state.inMessages && hasExitedBlock(line, state.messagesIndent) {
+		state.inMessages = false
+		state.messagesIndent = ""
+		state.messagesChildIndent = ""
+	}
+	if state.inSafeOutputs && hasExitedBlock(line, state.safeOutputsIndent) {
+		state.inSafeOutputs = false
+		state.safeOutputsIndent = ""
+		state.safeOutputsChildIndent = ""
+		state.inMessages = false
+		state.messagesIndent = ""
+		state.messagesChildIndent = ""
+	}
+}
+
+func migrateMessagesEffectiveTokensSuffixToAICreditsSuffixEnterMessages(
+	trimmed string,
+	indent string,
+	state *migrateMessagesEffectiveTokensSuffixToAICreditsSuffixState,
+) bool {
+	if !state.inSafeOutputs || !isDescendant(indent, state.safeOutputsIndent) || !strings.HasSuffix(trimmed, ":") || strings.HasPrefix(trimmed, "#") {
+		return false
+	}
+	if state.safeOutputsChildIndent == "" {
+		state.safeOutputsChildIndent = indent
+	}
+	if indent == state.safeOutputsChildIndent && trimmed == "messages:" {
+		state.inMessages = true
+		state.messagesIndent = indent
+		state.messagesChildIndent = ""
+	}
+	return true
+}
+
+func migrateMessagesEffectiveTokensSuffixToAICreditsSuffixMessageLine(
+	line string,
+	trimmed string,
+	indent string,
+	state *migrateMessagesEffectiveTokensSuffixToAICreditsSuffixState,
+) (string, bool, bool) {
+	if !state.inMessages || !isDescendant(indent, state.messagesIndent) || trimmed == "" || strings.HasPrefix(trimmed, "#") {
+		return line, false, false
+	}
+	if state.messagesChildIndent == "" {
+		state.messagesChildIndent = indent
+	}
+	if indent != state.messagesChildIndent || !strings.Contains(trimmed, ":") {
+		return line, false, false
+	}
+	updated := strings.ReplaceAll(line, effectiveTokensSuffixPlaceholder, aiCreditsSuffixPlaceholder)
+	parts := strings.SplitN(updated, ":", 2)
+	if len(parts) == 2 && isBlockScalarIndicator(parts[1]) {
+		state.inBlockScalar = true
+		state.blockScalarIndent = indent
+	}
+	return updated, updated != line, true
 }
 
 func isBlockScalarIndicator(valueSegment string) bool {

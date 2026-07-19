@@ -31,103 +31,116 @@ func cloneRuntimeWithActionOverrides(base *Runtime, actionRepo, actionVersion st
 func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*RuntimeRequirement) {
 	runtimeSetupLog.Printf("Applying runtime overrides for %d configured runtimes", len(runtimes))
 	for runtimeID, configAny := range runtimes {
-		// Parse runtime configuration
 		configMap, ok := configAny.(map[string]any)
 		if !ok {
 			continue
 		}
-
-		// Extract version from config
-		versionAny, hasVersion := configMap["version"]
-		var version string
-		if hasVersion {
-			// Convert version to string (handle both string and numeric types)
-			switch v := versionAny.(type) {
-			case string:
-				version = v
-			case int:
-				version = strconv.Itoa(v)
-			case float64:
-				// Check if it's a whole number
-				if v == float64(int(v)) {
-					version = strconv.Itoa(int(v))
-				} else {
-					version = fmt.Sprintf("%g", v)
-				}
-			default:
-				continue
-			}
+		override, ok := parseRuntimeOverride(configMap)
+		if !ok {
+			continue
 		}
 
-		// Extract action-repo and action-version from config
-		actionRepo, _ := configMap["action-repo"].(string)
-		actionVersion, _ := configMap["action-version"].(string)
-
-		// Extract if condition from config
-		ifCondition, _ := configMap["if"].(string)
-
-		// Extract cooldown flag from config (optional)
-		cooldown, hasCooldown := configMap["cooldown"].(bool)
-
-		// Find or create runtime requirement
 		if existing, exists := requirements[runtimeID]; exists {
-			// Override version for existing requirement
-			if hasVersion {
-				runtimeSetupLog.Printf("Overriding version for runtime %s: %s", runtimeID, version)
-				existing.Version = version
-			}
-
-			// Override if condition if specified
-			if ifCondition != "" {
-				runtimeSetupLog.Printf("Setting if condition for runtime %s: %s", runtimeID, ifCondition)
-				existing.IfCondition = ifCondition
-			}
-
-			// Override cooldown setting if specified
-			if hasCooldown {
-				runtimeSetupLog.Printf("Setting cooldown for runtime %s: %v", runtimeID, cooldown)
-				existing.Cooldown = cooldown
-			}
-
-			// If action-repo or action-version is specified, create a custom Runtime
-			if actionRepo != "" || actionVersion != "" {
-				runtimeSetupLog.Printf("Applying custom action config for runtime %s: repo=%s, version=%s", runtimeID, actionRepo, actionVersion)
-				existing.Runtime = cloneRuntimeWithActionOverrides(existing.Runtime, actionRepo, actionVersion)
-			}
+			applyRuntimeOverrideToRequirement(runtimeID, existing, override)
 		} else {
-			// Check if this is a known runtime
-			runtimeSetupLog.Printf("Runtime %s not in requirements, checking known runtimes", runtimeID)
-			var runtime *Runtime
-			for _, knownRuntime := range knownRuntimes {
-				if knownRuntime.ID == runtimeID {
-					// Clone the known runtime if we need to customize it
-					if actionRepo != "" || actionVersion != "" {
-						runtimeSetupLog.Printf("Cloning known runtime %s with custom action config: repo=%s, version=%s", runtimeID, actionRepo, actionVersion)
-						runtime = cloneRuntimeWithActionOverrides(knownRuntime, actionRepo, actionVersion)
-					} else {
-						runtimeSetupLog.Printf("Using known runtime %s as-is", runtimeID)
-						runtime = knownRuntime
-					}
-					break
-				}
-			}
-
-			// If runtime is known or we have custom action configuration, create a new requirement
-			if runtime != nil {
-				runtimeSetupLog.Printf("Adding new requirement for runtime %s: version=%s", runtimeID, version)
-				requirements[runtimeID] = &RuntimeRequirement{
-					Runtime:     runtime,
-					Version:     version,
-					IfCondition: ifCondition,
-					Cooldown:    true,
-				}
-				if hasCooldown {
-					requirements[runtimeID].Cooldown = cooldown
-				}
-			} else {
-				// If runtime is unknown and no action-repo specified, skip it (user might have typo)
-				runtimeSetupLog.Printf("Skipping unknown runtime %s: not in known runtimes and no action-repo specified", runtimeID)
-			}
+			addRuntimeOverrideRequirement(runtimeID, override, requirements)
 		}
 	}
+}
+
+type runtimeOverride struct {
+	version       string
+	hasVersion    bool
+	actionRepo    string
+	actionVersion string
+	ifCondition   string
+	cooldown      bool
+	hasCooldown   bool
+}
+
+func parseRuntimeOverride(configMap map[string]any) (runtimeOverride, bool) {
+	var override runtimeOverride
+	versionAny, hasVersion := configMap["version"]
+	if hasVersion {
+		version, ok := runtimeVersionToString(versionAny)
+		if !ok {
+			return runtimeOverride{}, false
+		}
+		override.version = version
+		override.hasVersion = true
+	}
+	override.actionRepo, _ = configMap["action-repo"].(string)
+	override.actionVersion, _ = configMap["action-version"].(string)
+	override.ifCondition, _ = configMap["if"].(string)
+	override.cooldown, override.hasCooldown = configMap["cooldown"].(bool)
+	return override, true
+}
+
+func runtimeVersionToString(versionAny any) (string, bool) {
+	switch v := versionAny.(type) {
+	case string:
+		return v, true
+	case int:
+		return strconv.Itoa(v), true
+	case float64:
+		if v == float64(int(v)) {
+			return strconv.Itoa(int(v)), true
+		}
+		return fmt.Sprintf("%g", v), true
+	default:
+		return "", false
+	}
+}
+
+func applyRuntimeOverrideToRequirement(runtimeID string, existing *RuntimeRequirement, override runtimeOverride) {
+	if override.hasVersion {
+		runtimeSetupLog.Printf("Overriding version for runtime %s: %s", runtimeID, override.version)
+		existing.Version = override.version
+	}
+	if override.ifCondition != "" {
+		runtimeSetupLog.Printf("Setting if condition for runtime %s: %s", runtimeID, override.ifCondition)
+		existing.IfCondition = override.ifCondition
+	}
+	if override.hasCooldown {
+		runtimeSetupLog.Printf("Setting cooldown for runtime %s: %v", runtimeID, override.cooldown)
+		existing.Cooldown = override.cooldown
+	}
+	if override.actionRepo != "" || override.actionVersion != "" {
+		runtimeSetupLog.Printf("Applying custom action config for runtime %s: repo=%s, version=%s", runtimeID, override.actionRepo, override.actionVersion)
+		existing.Runtime = cloneRuntimeWithActionOverrides(existing.Runtime, override.actionRepo, override.actionVersion)
+	}
+}
+
+func addRuntimeOverrideRequirement(runtimeID string, override runtimeOverride, requirements map[string]*RuntimeRequirement) {
+	runtimeSetupLog.Printf("Runtime %s not in requirements, checking known runtimes", runtimeID)
+	runtime := findKnownRuntimeWithOverrides(runtimeID, override)
+	if runtime == nil {
+		runtimeSetupLog.Printf("Skipping unknown runtime %s: not in known runtimes and no action-repo specified", runtimeID)
+		return
+	}
+	runtimeSetupLog.Printf("Adding new requirement for runtime %s: version=%s", runtimeID, override.version)
+	requirements[runtimeID] = &RuntimeRequirement{
+		Runtime:     runtime,
+		Version:     override.version,
+		IfCondition: override.ifCondition,
+		Cooldown:    true,
+	}
+	if override.hasCooldown {
+		requirements[runtimeID].Cooldown = override.cooldown
+	}
+}
+
+func findKnownRuntimeWithOverrides(runtimeID string, override runtimeOverride) *Runtime {
+	for _, knownRuntime := range knownRuntimes {
+		if knownRuntime.ID != runtimeID {
+			continue
+		}
+		if override.actionRepo != "" || override.actionVersion != "" {
+			runtimeSetupLog.Printf("Cloning known runtime %s with custom action config: repo=%s, version=%s", runtimeID, override.actionRepo, override.actionVersion)
+			return cloneRuntimeWithActionOverrides(knownRuntime, override.actionRepo, override.actionVersion)
+		}
+		runtimeSetupLog.Printf("Using known runtime %s as-is", runtimeID)
+		return knownRuntime
+	}
+	return nil
 }

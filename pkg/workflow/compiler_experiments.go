@@ -147,81 +147,105 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 			return &ExperimentConfig{Variants: variants}
 		}
 	case map[string]any:
-		// New object form: extract variants and optional metadata fields.
-		cfg := &ExperimentConfig{}
-		varRaw, ok := v["variants"]
-		if !ok {
-			experimentsLog.Printf("Skipping experiment %q: object form requires 'variants' field", name)
-			return nil
-		}
-		switch vv := varRaw.(type) {
-		case []string:
-			cfg.Variants = vv
-		case []any:
-			for _, item := range vv {
-				if s, ok := item.(string); ok {
-					cfg.Variants = append(cfg.Variants, s)
-				}
+		return extractExperimentObjectConfig(name, v)
+	}
+	return nil
+}
+
+func extractExperimentObjectConfig(name string, raw map[string]any) *ExperimentConfig {
+	cfg := &ExperimentConfig{}
+	varRaw, ok := raw["variants"]
+	if !ok {
+		experimentsLog.Printf("Skipping experiment %q: object form requires 'variants' field", name)
+		return nil
+	}
+	cfg.Variants = extractExperimentVariants(varRaw)
+	if len(cfg.Variants) < 2 {
+		experimentsLog.Printf("Skipping experiment %q: must have at least 2 variants", name)
+		return nil
+	}
+	applyExperimentMetadata(cfg, raw)
+	return cfg
+}
+
+func extractExperimentVariants(varRaw any) []string {
+	switch vv := varRaw.(type) {
+	case []string:
+		return vv
+	case []any:
+		var variants []string
+		for _, item := range vv {
+			if s, ok := item.(string); ok {
+				variants = append(variants, s)
 			}
 		}
-		if len(cfg.Variants) < 2 {
-			experimentsLog.Printf("Skipping experiment %q: must have at least 2 variants", name)
-			return nil
-		}
-		if d, ok := v["description"].(string); ok {
-			cfg.Description = d
-		}
-		if m, ok := v["metric"].(string); ok {
-			cfg.Metric = m
-		}
-		if sd, ok := v["start_date"].(string); ok {
-			cfg.StartDate = sd
-		}
-		if ed, ok := v["end_date"].(string); ok {
-			cfg.EndDate = ed
-		}
-		if n, ok := extractIntField(v["issue"]); ok {
-			cfg.Issue = n
-		}
-		if weightRaw, ok := v["weight"]; ok {
-			cfg.Weight = extractIntSlice(weightRaw)
-		}
-		if h, ok := v["hypothesis"].(string); ok {
-			cfg.Hypothesis = h
-		}
-		if smRaw, ok := v["secondary_metrics"]; ok {
-			cfg.SecondaryMetrics = parseStringSliceAny(smRaw, nil)
-		}
-		if gmRaw, ok := v["guardrail_metrics"]; ok {
-			cfg.GuardrailMetrics = extractGuardrailMetrics(gmRaw)
-		}
-		if n, ok := extractIntField(v["min_samples"]); ok {
-			cfg.MinSamples = n
-		}
-		if at, ok := v["analysis_type"].(string); ok {
-			cfg.AnalysisType = at
-		}
-		if tagsRaw, ok := v["tags"]; ok {
-			cfg.Tags = parseStringSliceAny(tagsRaw, nil)
-		}
-		if notifyRaw, ok := v["notify"]; ok {
-			if notifyMap, ok := notifyRaw.(map[string]any); ok {
-				notify := &ExperimentNotify{}
-				hasNotify := false
-				if n, ok := extractIntField(notifyMap["discussion"]); ok {
-					notify.Discussion = n
-					hasNotify = true
-				}
-				if n, ok := extractIntField(notifyMap["issue"]); ok {
-					notify.Issue = n
-					hasNotify = true
-				}
-				if hasNotify {
-					cfg.Notify = notify
-				}
-			}
-		}
-		return cfg
+		return variants
+	default:
+		return nil
+	}
+}
+
+func applyExperimentMetadata(cfg *ExperimentConfig, raw map[string]any) {
+	if d, ok := raw["description"].(string); ok {
+		cfg.Description = d
+	}
+	if m, ok := raw["metric"].(string); ok {
+		cfg.Metric = m
+	}
+	if sd, ok := raw["start_date"].(string); ok {
+		cfg.StartDate = sd
+	}
+	if ed, ok := raw["end_date"].(string); ok {
+		cfg.EndDate = ed
+	}
+	if n, ok := extractIntField(raw["issue"]); ok {
+		cfg.Issue = n
+	}
+	applyExperimentExtendedMetadata(cfg, raw)
+}
+
+func applyExperimentExtendedMetadata(cfg *ExperimentConfig, raw map[string]any) {
+	if weightRaw, ok := raw["weight"]; ok {
+		cfg.Weight = extractIntSlice(weightRaw)
+	}
+	if h, ok := raw["hypothesis"].(string); ok {
+		cfg.Hypothesis = h
+	}
+	if smRaw, ok := raw["secondary_metrics"]; ok {
+		cfg.SecondaryMetrics = parseStringSliceAny(smRaw, nil)
+	}
+	if gmRaw, ok := raw["guardrail_metrics"]; ok {
+		cfg.GuardrailMetrics = extractGuardrailMetrics(gmRaw)
+	}
+	if n, ok := extractIntField(raw["min_samples"]); ok {
+		cfg.MinSamples = n
+	}
+	if at, ok := raw["analysis_type"].(string); ok {
+		cfg.AnalysisType = at
+	}
+	if tagsRaw, ok := raw["tags"]; ok {
+		cfg.Tags = parseStringSliceAny(tagsRaw, nil)
+	}
+	cfg.Notify = extractExperimentNotify(raw["notify"])
+}
+
+func extractExperimentNotify(raw any) *ExperimentNotify {
+	notifyMap, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+	notify := &ExperimentNotify{}
+	hasNotify := false
+	if n, ok := extractIntField(notifyMap["discussion"]); ok {
+		notify.Discussion = n
+		hasNotify = true
+	}
+	if n, ok := extractIntField(notifyMap["issue"]); ok {
+		notify.Issue = n
+		hasNotify = true
+	}
+	if hasNotify {
+		return notify
 	}
 	return nil
 }
@@ -654,9 +678,26 @@ func (c *Compiler) buildPushExperimentsStateJob(data *WorkflowData) (*Job, error
 
 	experimentsLog.Printf("Building push_experiments_state job (branch=%s)", experimentsBranchName(data.WorkflowID))
 
-	var steps []string
+	steps := c.buildPushExperimentsSetupSteps(data)
+	steps = append(steps, buildPushExperimentsCheckoutStep())
+	steps = append(steps, c.generateGitConfigurationSteps()...)
+	steps = append(steps, c.buildPushExperimentsDownloadStep(data))
+	steps = append(steps, buildPushExperimentsStateStep(data))
+	if c.actionMode.IsDev() {
+		steps = append(steps, c.generateRestoreActionsSetupStep())
+	}
+	return &Job{
+		Name:        pushExperimentsStateJobName,
+		RunsOn:      c.formatFrameworkJobRunsOn(data),
+		If:          buildPushExperimentsStateCondition(),
+		Permissions: "permissions:\n      contents: write",
+		Needs:       []string{string(constants.ActivationJobName)},
+		Steps:       steps,
+	}, nil
+}
 
-	// Setup step so the push_experiment_state.cjs script is available.
+func (c *Compiler) buildPushExperimentsSetupSteps(data *WorkflowData) []string {
+	var steps []string
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" || c.actionMode.IsScript() {
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
@@ -664,34 +705,31 @@ func (c *Compiler) buildPushExperimentsStateJob(data *WorkflowData) (*Job, error
 		parentSpanID := setupParentSpanNeedsExpr(constants.ActivationJobName)
 		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, traceID, parentSpanID)...)
 	}
+	return steps
+}
 
-	// Checkout step – configure git credentials without downloading workspace files.
+func buildPushExperimentsCheckoutStep() string {
 	var checkoutStep strings.Builder
 	checkoutStep.WriteString("      - name: Checkout repository\n")
 	fmt.Fprintf(&checkoutStep, "        uses: %s\n", getActionPin("actions/checkout"))
 	checkoutStep.WriteString("        with:\n")
 	checkoutStep.WriteString("          persist-credentials: false\n")
 	checkoutStep.WriteString("          sparse-checkout: .\n")
-	steps = append(steps, checkoutStep.String())
+	return checkoutStep.String()
+}
 
-	// Git configuration (author, email).
-	steps = append(steps, c.generateGitConfigurationSteps()...)
-
-	// Download the experiment artifact uploaded by the activation job.
-	artifactName := experimentArtifactDownloadName(data)
+func (c *Compiler) buildPushExperimentsDownloadStep(data *WorkflowData) string {
 	var downloadStep strings.Builder
 	downloadStep.WriteString("      - name: Download experiment artifact\n")
 	fmt.Fprintf(&downloadStep, "        uses: %s\n", c.getActionPin("actions/download-artifact"))
 	downloadStep.WriteString("        continue-on-error: true\n")
 	downloadStep.WriteString("        with:\n")
-	fmt.Fprintf(&downloadStep, "          name: %s\n", artifactName)
+	fmt.Fprintf(&downloadStep, "          name: %s\n", experimentArtifactDownloadName(data))
 	fmt.Fprintf(&downloadStep, "          path: %s\n", experimentsCacheDir)
-	steps = append(steps, downloadStep.String())
+	return downloadStep.String()
+}
 
-	// Push experiment state to the git branch via push_experiment_state.cjs.
-	// This helper uses pushSignedCommits to create verified (signed) commits.
-	branchName := experimentsBranchName(data.WorkflowID)
-
+func buildPushExperimentsStateStep(data *WorkflowData) string {
 	var pushStep strings.Builder
 	pushStep.WriteString("      - name: Push experiment state to git\n")
 	pushStep.WriteString("        id: push_experiments_state\n")
@@ -702,37 +740,21 @@ func (c *Compiler) buildPushExperimentsStateJob(data *WorkflowData) (*Job, error
 	pushStep.WriteString("          GITHUB_RUN_ID: ${{ github.run_id }}\n")
 	pushStep.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
 	fmt.Fprintf(&pushStep, "          GH_AW_EXPERIMENT_STATE_DIR: %s\n", experimentsCacheDir)
-	fmt.Fprintf(&pushStep, "          GH_AW_EXPERIMENT_BRANCH: %s\n", branchName)
+	fmt.Fprintf(&pushStep, "          GH_AW_EXPERIMENT_BRANCH: %s\n", experimentsBranchName(data.WorkflowID))
 	pushStep.WriteString("        with:\n")
 	pushStep.WriteString("          script: |\n")
 	pushStep.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	pushStep.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	pushStep.WriteString("            const { main } = require('" + SetupActionDestination + "/push_experiment_state.cjs');\n")
 	pushStep.WriteString("            await main();\n")
-	steps = append(steps, pushStep.String())
+	return pushStep.String()
+}
 
-	// Restore the checkout in dev mode (same reason as push_repo_memory).
-	if c.actionMode.IsDev() {
-		steps = append(steps, c.generateRestoreActionsSetupStep())
-	}
-
-	// The push_experiments_state job runs after the activation job succeeds.
-	// It does not depend on the agent job because experiment state was fully resolved in activation.
+func buildPushExperimentsStateCondition() string {
 	activationSucceeded := BuildEquals(
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.ActivationJobName)),
 		BuildStringLiteral("success"),
 	)
 	notCancelled := &NotNode{Child: BuildFunctionCall("cancelled")}
-	jobCondition := RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), notCancelled), activationSucceeded))
-
-	job := &Job{
-		Name:        pushExperimentsStateJobName,
-		RunsOn:      c.formatFrameworkJobRunsOn(data),
-		If:          jobCondition,
-		Permissions: "permissions:\n      contents: write",
-		Needs:       []string{string(constants.ActivationJobName)},
-		Steps:       steps,
-	}
-
-	return job, nil
+	return RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), notCancelled), activationSucceeded))
 }

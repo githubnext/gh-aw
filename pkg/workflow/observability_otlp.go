@@ -692,27 +692,38 @@ func allOTLPHeaders(entries []otlpEndpointEntry) string {
 // When no OTLP endpoint is configured the function is a no-op.
 func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	// Collect all endpoint entries from the endpoint field (string, object, or array).
-	entries := collectAllOTLPEndpoints(workflowData.RawFrontmatter)
-
-	// Fall back to ParsedFrontmatter when raw map extraction found nothing.
-	if len(entries) == 0 {
-		if ep := getOTLPEndpointEnvValue(workflowData.ParsedFrontmatter); ep != "" {
-			var h string
-			if workflowData.ParsedFrontmatter.Observability != nil &&
-				workflowData.ParsedFrontmatter.Observability.OTLP != nil {
-				h = normalizeOTLPHeadersForEndpoint(workflowData.ParsedFrontmatter.Observability.OTLP.Headers, ep)
-			}
-			entries = []otlpEndpointEntry{{URL: ep, Headers: h}}
-		}
-	}
-
+	entries := collectOTLPEndpointsWithParsedFallback(workflowData)
 	if len(entries) == 0 {
 		return
 	}
 
 	otlpLog.Printf("Injecting OTLP configuration: %d endpoint(s)", len(entries))
+	addOTLPEndpointsToNetworkAllowlist(workflowData, entries)
 
-	// 1. Add all static OTLP endpoint domains to the firewall allowlist.
+	ifMissingMode := getOTLPIfMissingMode(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter)
+	otlpEnvLines := buildOTLPEnvLines(workflowData, entries, ifMissingMode)
+	otlpEnvLines = appendOTLPCustomAttributesEnv(workflowData, otlpEnvLines)
+	appendOTLPWorkflowEnv(workflowData, otlpEnvLines)
+	storeResolvedOTLPConfig(workflowData, entries)
+}
+
+func collectOTLPEndpointsWithParsedFallback(workflowData *WorkflowData) []otlpEndpointEntry {
+	entries := collectAllOTLPEndpoints(workflowData.RawFrontmatter)
+	if len(entries) > 0 {
+		return entries
+	}
+	if ep := getOTLPEndpointEnvValue(workflowData.ParsedFrontmatter); ep != "" {
+		var h string
+		if workflowData.ParsedFrontmatter.Observability != nil &&
+			workflowData.ParsedFrontmatter.Observability.OTLP != nil {
+			h = normalizeOTLPHeadersForEndpoint(workflowData.ParsedFrontmatter.Observability.OTLP.Headers, ep)
+		}
+		return []otlpEndpointEntry{{URL: ep, Headers: h}}
+	}
+	return nil
+}
+
+func addOTLPEndpointsToNetworkAllowlist(workflowData *WorkflowData, entries []otlpEndpointEntry) {
 	for _, e := range entries {
 		if domain := extractOTLPEndpointDomain(e.URL); domain != "" {
 			if workflowData.NetworkPermissions == nil {
@@ -722,12 +733,12 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 			otlpLog.Printf("Added OTLP domain to network allowlist: %s", domain)
 		}
 	}
+}
 
+func buildOTLPEnvLines(workflowData *WorkflowData, entries []otlpEndpointEntry, ifMissingMode string) string {
 	firstEndpoint := entries[0].URL
 	firstHeaders := entries[0].Headers
 	serviceName := otelServiceName(workflowData)
-	ifMissingMode := getOTLPIfMissingMode(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter)
-
 	// 2. Inject OTEL env vars into the workflow-level env: block.
 	//    OTEL_EXPORTER_OTLP_ENDPOINT is set to the first endpoint for backward
 	//    compatibility (MCP gateway, legacy scripts). OTEL_SERVICE_NAME is
@@ -759,7 +770,10 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 		otlpEnvLines += "\n  GH_AW_OTLP_IF_MISSING: " + ifMissingMode
 		otlpLog.Printf("Injected GH_AW_OTLP_IF_MISSING env var (%s)", ifMissingMode)
 	}
+	return otlpEnvLines
+}
 
+func appendOTLPCustomAttributesEnv(workflowData *WorkflowData, otlpEnvLines string) string {
 	// 5. Inject OTEL_RESOURCE_ATTRIBUTES so child OTel SDKs (Copilot CLI, MCP
 	//    gateway) inherit gh-aw/GitHub workflow context in their resource block.
 	//
@@ -778,18 +792,21 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 		otlpEnvLines += "\n  GH_AW_OTLP_ATTRIBUTES: '" + escapedEncoded + "'"
 		otlpLog.Printf("Injected GH_AW_OTLP_ATTRIBUTES env var (%d custom attributes)", len(customAttrs))
 	}
+	return otlpEnvLines
+}
 
+func appendOTLPWorkflowEnv(workflowData *WorkflowData, otlpEnvLines string) {
 	if workflowData.Env == "" {
 		workflowData.Env = "env:\n" + otlpEnvLines
 	} else {
 		workflowData.Env = workflowData.Env + "\n" + otlpEnvLines
 	}
 	otlpLog.Printf("Injected OTEL env vars into workflow env block")
+}
 
-	// Store the resolved values so downstream code (mcp_gateway_config,
-	// mcp_setup_generator) can use workflowData fields as the single source of truth.
-	workflowData.OTLPEndpoint = firstEndpoint
-	workflowData.OTLPHeaders = firstHeaders
+func storeResolvedOTLPConfig(workflowData *WorkflowData, entries []otlpEndpointEntry) {
+	workflowData.OTLPEndpoint = entries[0].URL
+	workflowData.OTLPHeaders = entries[0].Headers
 	workflowData.OTLPEndpoints = encodeOTLPEndpoints(entries)
 }
 

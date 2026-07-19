@@ -51,70 +51,115 @@ func validateFrontmatterSkills(frontmatter map[string]any) error {
 	skillsFrontmatterLog.Printf("validateFrontmatterSkills: validating %d skill entr(ies)", len(skills))
 
 	for i, rawSkill := range skills {
-		switch typed := rawSkill.(type) {
-		case string:
-			if err := validateSkillSpecValue(typed, i); err != nil {
-				return err
-			}
-		case map[string]any:
-			if len(typed) == 0 {
-				return fmt.Errorf("skills[%d] must include a non-empty skill field. Example: skills[%d]: {skill: \"owner/repo@sha\"}", i, i)
-			}
-			skillValue, hasSkill := typed["skill"]
-			if !hasSkill {
-				return fmt.Errorf("skills[%d].skill is required. Example: skills[%d].skill: \"owner/repo@sha\"", i, i)
-			}
-			skillSpec, ok := skillValue.(string)
-			if !ok {
-				return fmt.Errorf("skills[%d].skill must be a string. Example: skills[%d].skill: \"owner/repo@sha\"", i, i)
-			}
-			if strings.TrimSpace(skillSpec) == "" {
-				return fmt.Errorf("skills[%d].skill must be a non-empty string. Example: skills[%d].skill: \"owner/repo@sha\"", i, i)
-			}
-			if err := validateSkillSpecValue(skillSpec, i); err != nil {
-				return err
-			}
-			for key := range typed {
-				switch key {
-				case "skill", "github-token", "github-app":
-					// allowed
-				default:
-					return fmt.Errorf("skills[%d].%s is not supported; allowed fields are skill, github-token, github-app", i, key)
-				}
-			}
-			_, hasToken := typed["github-token"]
-			_, hasApp := typed["github-app"]
-			if hasToken && hasApp {
-				return fmt.Errorf("skills[%d]: github-token and github-app are mutually exclusive; use one or the other", i)
-			}
-			if tokenValue, hasToken := typed["github-token"]; hasToken {
-				token, ok := tokenValue.(string)
-				if !ok {
-					return fmt.Errorf("skills[%d].github-token must be a string. Example: skills[%d].github-token: \"${{ secrets.MY_TOKEN }}\"", i, i)
-				}
-				if !githubTokenExpressionRegexp.MatchString(token) {
-					return fmt.Errorf(
-						"skills[%d].github-token must be a valid GitHub token expression. Example: skills[%d].github-token: \"${{ secrets.NAME }}\" or \"${{ needs.auth.outputs.token }}\"",
-						i,
-						i,
-					)
-				}
-			}
-			if app, hasApp := typed["github-app"]; hasApp {
-				appMap, ok := app.(map[string]any)
-				if !ok {
-					return fmt.Errorf("skills[%d].github-app must be an object. Example: skills[%d].github-app: {client-id: \"Iv1.abc\", private-key: \"...\"}", i, i)
-				}
-				parsed := parseAppConfig(appMap)
-				if !parsed.hasRequiredCredentials() {
-					return fmt.Errorf("skills[%d].github-app must include non-empty client-id/app-id and private-key. Example: skills[%d].github-app: {client-id: \"Iv1.abc\", private-key: \"...\"}", i, i)
-				}
-			}
-		default:
-			return fmt.Errorf("skills[%d] must be a string or object. Example: skills[%d]: \"owner/repo@sha\" or {skill: \"owner/repo@sha\"}", i, i)
+		if err := validateFrontmatterSkillEntry(rawSkill, i); err != nil {
+			return err
 		}
 	}
 
+	return nil
+}
+
+func validateFrontmatterSkillEntry(rawSkill any, i int) error {
+	switch typed := rawSkill.(type) {
+	case string:
+		return validateSkillSpecValue(typed, i)
+	case map[string]any:
+		return validateFrontmatterSkillObject(typed, i)
+	default:
+		return fmt.Errorf("skills[%d] must be a string or object. Example: skills[%d]: \"owner/repo@sha\" or {skill: \"owner/repo@sha\"}", i, i)
+	}
+}
+
+func validateFrontmatterSkillObject(typed map[string]any, i int) error {
+	if len(typed) == 0 {
+		return fmt.Errorf("skills[%d] must include a non-empty skill field. Example: skills[%d]: {skill: \"owner/repo@sha\"}", i, i)
+	}
+	skillSpec, err := validateFrontmatterSkillObjectSpec(typed, i)
+	if err != nil {
+		return err
+	}
+	if err := validateSkillSpecValue(skillSpec, i); err != nil {
+		return err
+	}
+	if err := validateFrontmatterSkillObjectKeys(typed, i); err != nil {
+		return err
+	}
+	if err := validateFrontmatterSkillAuthChoice(typed, i); err != nil {
+		return err
+	}
+	if err := validateFrontmatterSkillToken(typed, i); err != nil {
+		return err
+	}
+	return validateFrontmatterSkillApp(typed, i)
+}
+
+func validateFrontmatterSkillObjectSpec(typed map[string]any, i int) (string, error) {
+	skillValue, hasSkill := typed["skill"]
+	if !hasSkill {
+		return "", fmt.Errorf("skills[%d].skill is required. Example: skills[%d].skill: \"owner/repo@sha\"", i, i)
+	}
+	skillSpec, ok := skillValue.(string)
+	if !ok {
+		return "", fmt.Errorf("skills[%d].skill must be a string. Example: skills[%d].skill: \"owner/repo@sha\"", i, i)
+	}
+	if strings.TrimSpace(skillSpec) == "" {
+		return "", fmt.Errorf("skills[%d].skill must be a non-empty string. Example: skills[%d].skill: \"owner/repo@sha\"", i, i)
+	}
+	return skillSpec, nil
+}
+
+func validateFrontmatterSkillObjectKeys(typed map[string]any, i int) error {
+	for key := range typed {
+		switch key {
+		case "skill", "github-token", "github-app":
+		default:
+			return fmt.Errorf("skills[%d].%s is not supported; allowed fields are skill, github-token, github-app", i, key)
+		}
+	}
+	return nil
+}
+
+func validateFrontmatterSkillAuthChoice(typed map[string]any, i int) error {
+	_, hasToken := typed["github-token"]
+	_, hasApp := typed["github-app"]
+	if hasToken && hasApp {
+		return fmt.Errorf("skills[%d]: github-token and github-app are mutually exclusive; use one or the other", i)
+	}
+	return nil
+}
+
+func validateFrontmatterSkillToken(typed map[string]any, i int) error {
+	tokenValue, hasToken := typed["github-token"]
+	if !hasToken {
+		return nil
+	}
+	token, ok := tokenValue.(string)
+	if !ok {
+		return fmt.Errorf("skills[%d].github-token must be a string. Example: skills[%d].github-token: \"${{ secrets.MY_TOKEN }}\"", i, i)
+	}
+	if !githubTokenExpressionRegexp.MatchString(token) {
+		return fmt.Errorf(
+			"skills[%d].github-token must be a valid GitHub token expression. Example: skills[%d].github-token: \"${{ secrets.NAME }}\" or \"${{ needs.auth.outputs.token }}\"",
+			i,
+			i,
+		)
+	}
+	return nil
+}
+
+func validateFrontmatterSkillApp(typed map[string]any, i int) error {
+	app, hasApp := typed["github-app"]
+	if !hasApp {
+		return nil
+	}
+	appMap, ok := app.(map[string]any)
+	if !ok {
+		return fmt.Errorf("skills[%d].github-app must be an object. Example: skills[%d].github-app: {client-id: \"Iv1.abc\", private-key: \"...\"}", i, i)
+	}
+	parsed := parseAppConfig(appMap)
+	if !parsed.hasRequiredCredentials() {
+		return fmt.Errorf("skills[%d].github-app must include non-empty client-id/app-id and private-key. Example: skills[%d].github-app: {client-id: \"Iv1.abc\", private-key: \"...\"}", i, i)
+	}
 	return nil
 }
 

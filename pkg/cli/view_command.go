@@ -31,6 +31,12 @@ var viewLog = logger.New("cli:view")
 
 // NewViewCommand creates the view command.
 func NewViewCommand() *cobra.Command {
+	cmd := newViewCommandBase()
+	newViewCommandFlags(cmd)
+	return cmd
+}
+
+func newViewCommandBase() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "view <run-id-or-url>",
 		Short: "Render unified timeline and safe outputs for a workflow run",
@@ -63,46 +69,45 @@ re-downloading.`,
 		Args:   cobra.ExactArgs(1),
 		Hidden: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			outputDir, _ := cmd.Flags().GetString("output")
-			repoFlag, _ := cmd.Flags().GetString("repo")
-
-			runIDOrURL := args[0]
-
-			components, err := parser.ParseRunURLExtended(runIDOrURL)
-			if err != nil {
-				return err
-			}
-
-			// Apply --repo flag when owner/repo were not inferred from a URL.
-			if repoFlag != "" && components.Owner == "" {
-				parts := strings.SplitN(repoFlag, "/", 2)
-				if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-					return fmt.Errorf("invalid repository format %q: expected 'owner/repo'", repoFlag)
-				}
-				components.Owner = parts[0]
-				components.Repo = parts[1]
-			}
-
-			if outputDir == "" {
-				outputDir = defaultLogsOutputDir
-			}
-
-			return ViewWorkflowRun(cmd.Context(), components.Number, ViewOptions{
-				Owner:     components.Owner,
-				Repo:      components.Repo,
-				Hostname:  components.Host,
-				OutputDir: outputDir,
-				Verbose:   verbose,
-			})
+			return runViewCommand(cmd, args)
 		},
 	}
+	return cmd
+}
 
+func newViewCommandFlags(cmd *cobra.Command) {
 	addOutputFlag(cmd, defaultLogsOutputDir)
 	addRepoFlag(cmd)
 	RegisterDirFlagCompletion(cmd, "output")
+}
 
-	return cmd
+func runViewCommand(cmd *cobra.Command, args []string) error {
+	verbose, _ := cmd.Flags().GetBool("verbose")
+	outputDir, _ := cmd.Flags().GetString("output")
+	repoFlag, _ := cmd.Flags().GetString("repo")
+
+	components, err := parser.ParseRunURLExtended(args[0])
+	if err != nil {
+		return err
+	}
+	if repoFlag != "" && components.Owner == "" {
+		parts := strings.SplitN(repoFlag, "/", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return fmt.Errorf("invalid repository format %q: expected 'owner/repo'", repoFlag)
+		}
+		components.Owner = parts[0]
+		components.Repo = parts[1]
+	}
+	if outputDir == "" {
+		outputDir = defaultLogsOutputDir
+	}
+	return ViewWorkflowRun(cmd.Context(), components.Number, ViewOptions{
+		Owner:     components.Owner,
+		Repo:      components.Repo,
+		Hostname:  components.Host,
+		OutputDir: outputDir,
+		Verbose:   verbose,
+	})
 }
 
 // ViewOptions holds configuration for the view command.
@@ -120,18 +125,8 @@ func ViewWorkflowRun(ctx context.Context, runID int64, opts ViewOptions) error {
 	viewLog.Printf("Starting view for run %d (owner=%s, repo=%s, hostname=%s)", runID, opts.Owner, opts.Repo, opts.Hostname)
 
 	// Auto-detect GHES host from git remote when not explicitly provided.
-	hostname := opts.Hostname
-	if hostname == "" {
-		hostname = getHostFromOriginRemote()
-		if hostname != "github.com" {
-			viewLog.Printf("Auto-detected GHES host from git remote: %s", hostname)
-		}
-	}
-
-	runDir := filepath.Join(opts.OutputDir, fmt.Sprintf("run-%d", runID))
-	if absDir, err := filepath.Abs(runDir); err == nil {
-		runDir = absDir
-	}
+	hostname := viewWorkflowRunHostname(opts.Hostname)
+	runDir := viewWorkflowRunDir(opts.OutputDir, runID)
 
 	if opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Viewing run %d...", runID)))
@@ -142,15 +137,8 @@ func ViewWorkflowRun(ctx context.Context, runID int64, opts ViewOptions) error {
 	// log files we need.  We deliberately pass a nil artifact filter so that all
 	// artifacts are downloaded — the timeline relies on whichever JSONL files
 	// happen to be present; no single one is strictly required.
-	if err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: runID, outputDir: runDir, verbose: opts.Verbose, owner: opts.Owner, repo: opts.Repo, hostname: hostname}); err != nil {
-		if !errors.Is(err, ErrNoArtifacts) {
-			return fmt.Errorf("failed to download artifacts for run %d: %w", runID, err)
-		}
-		// No artifacts is non-fatal: the run may still have useful events in the
-		// workflow logs or the directory may have been populated by a previous run.
-		if opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No artifacts attached to this run; timeline may be empty."))
-		}
+	if err := viewWorkflowRunDownload(ctx, runID, runDir, hostname, opts); err != nil {
+		return err
 	}
 
 	// Collect and merge events from all available JSONL sources.
@@ -178,6 +166,36 @@ func ViewWorkflowRun(ctx context.Context, runID int64, opts ViewOptions) error {
 		fmt.Fprintln(os.Stdout, console.FormatInfoMessage(runURL))
 	}
 
+	return nil
+}
+
+func viewWorkflowRunHostname(hostname string) string {
+	if hostname == "" {
+		hostname = getHostFromOriginRemote()
+		if hostname != "github.com" {
+			viewLog.Printf("Auto-detected GHES host from git remote: %s", hostname)
+		}
+	}
+	return hostname
+}
+
+func viewWorkflowRunDir(outputDir string, runID int64) string {
+	runDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", runID))
+	if absDir, err := filepath.Abs(runDir); err == nil {
+		runDir = absDir
+	}
+	return runDir
+}
+
+func viewWorkflowRunDownload(ctx context.Context, runID int64, runDir, hostname string, opts ViewOptions) error {
+	if err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: runID, outputDir: runDir, verbose: opts.Verbose, owner: opts.Owner, repo: opts.Repo, hostname: hostname}); err != nil {
+		if !errors.Is(err, ErrNoArtifacts) {
+			return fmt.Errorf("failed to download artifacts for run %d: %w", runID, err)
+		}
+		if opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No artifacts attached to this run; timeline may be empty."))
+		}
+	}
 	return nil
 }
 

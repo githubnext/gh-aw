@@ -304,47 +304,53 @@ func buildSessionAnalysis(processedRun ProcessedRun, metrics LogMetrics) *Sessio
 		session.WallTime = timeutil.FormatDuration(run.Duration)
 	}
 
+	buildSessionAnalysisTiming(session, run, metrics)
+	buildSessionAnalysisTokenRate(session, run, metrics)
+	buildSessionAnalysisTimeout(session, processedRun)
+
+	auditExpandedLog.Printf("Built session analysis: turns=%d, wall_time=%s, avg_tbt=%s, max_tbt=%s, timeout=%v",
+		session.TurnCount, session.WallTime, session.AvgTimeBetweenTurns, session.MaxTimeBetweenTurns, session.TimeoutDetected)
+	return session
+}
+
+func buildSessionAnalysisTiming(session *SessionAnalysis, run WorkflowRun, metrics LogMetrics) {
 	// Average turn duration
 	if metrics.Turns > 0 && run.Duration > 0 {
 		avgTurnDuration := run.Duration / (time.Duration(metrics.Turns))
 		session.AvgTurnDuration = timeutil.FormatDuration(avgTurnDuration)
 	}
+	buildSessionAnalysisTimeBetweenTurns(session, run, metrics)
+}
 
+func buildSessionAnalysisTimeBetweenTurns(session *SessionAnalysis, run WorkflowRun, metrics LogMetrics) {
 	// Time Between Turns (TBT): prefer precise per-turn timestamps from log metrics;
 	// fall back to wall-time / turns when timestamps are unavailable.
-	// TBT measures the gap between consecutive LLM API calls (tool execution overhead).
-	// Anthropic's prompt cache TTL is 5 minutes — if TBT exceeds this, cache entries
-	// expire and every turn incurs full prompt re-processing costs.
 	const anthropicCacheTTL = 5 * time.Minute
 	if metrics.AvgTimeBetweenTurns > 0 {
 		session.AvgTimeBetweenTurns = timeutil.FormatDuration(metrics.AvgTimeBetweenTurns)
 		if metrics.MaxTimeBetweenTurns > 0 {
 			session.MaxTimeBetweenTurns = timeutil.FormatDuration(metrics.MaxTimeBetweenTurns)
 		}
-		// Warn when the maximum observed TBT exceeds the Anthropic cache TTL.
-		if metrics.MaxTimeBetweenTurns > anthropicCacheTTL {
-			session.CacheWarning = fmt.Sprintf(
-				"Max TBT (%s) exceeds Anthropic 5-min cache TTL — prompt cache will expire between turns, increasing cost",
-				timeutil.FormatDuration(metrics.MaxTimeBetweenTurns),
-			)
-		} else if metrics.AvgTimeBetweenTurns > anthropicCacheTTL {
-			session.CacheWarning = fmt.Sprintf(
-				"Avg TBT (%s) exceeds Anthropic 5-min cache TTL — prompt cache likely expiring between turns",
-				timeutil.FormatDuration(metrics.AvgTimeBetweenTurns),
-			)
-		}
+		buildSessionAnalysisCacheWarning(session, metrics.AvgTimeBetweenTurns, metrics.MaxTimeBetweenTurns, anthropicCacheTTL)
 	} else if metrics.Turns > 1 && run.Duration > 0 {
-		// Fallback: estimate TBT from wall time over turns-1 intervals.
 		avgTBT := run.Duration / time.Duration(metrics.Turns-1)
 		session.AvgTimeBetweenTurns = timeutil.FormatDuration(avgTBT) + " (estimated)"
 		if avgTBT > anthropicCacheTTL {
-			session.CacheWarning = fmt.Sprintf(
-				"Estimated avg TBT (%s) exceeds Anthropic 5-min cache TTL — prompt cache likely expiring between turns",
-				timeutil.FormatDuration(avgTBT),
-			)
+			session.CacheWarning = fmt.Sprintf("Estimated avg TBT (%s) exceeds Anthropic 5-min cache TTL — prompt cache likely expiring between turns", timeutil.FormatDuration(avgTBT))
 		}
 	}
+}
 
+func buildSessionAnalysisCacheWarning(session *SessionAnalysis, avgTBT, maxTBT, cacheTTL time.Duration) {
+	// Warn when the maximum observed TBT exceeds the Anthropic cache TTL.
+	if maxTBT > cacheTTL {
+		session.CacheWarning = fmt.Sprintf("Max TBT (%s) exceeds Anthropic 5-min cache TTL — prompt cache will expire between turns, increasing cost", timeutil.FormatDuration(maxTBT))
+	} else if avgTBT > cacheTTL {
+		session.CacheWarning = fmt.Sprintf("Avg TBT (%s) exceeds Anthropic 5-min cache TTL — prompt cache likely expiring between turns", timeutil.FormatDuration(avgTBT))
+	}
+}
+
+func buildSessionAnalysisTokenRate(session *SessionAnalysis, run WorkflowRun, metrics LogMetrics) {
 	// Tokens per minute
 	if metrics.TokenUsage > 0 && run.Duration > 0 {
 		minutes := run.Duration.Minutes()
@@ -352,9 +358,11 @@ func buildSessionAnalysis(processedRun ProcessedRun, metrics LogMetrics) *Sessio
 			session.TokensPerMinute = float64(metrics.TokenUsage) / minutes
 		}
 	}
+}
 
+func buildSessionAnalysisTimeout(session *SessionAnalysis, processedRun ProcessedRun) {
 	// Timeout detection: check if the run was cancelled (typically indicates timeout)
-	if run.Conclusion == "cancelled" || run.Conclusion == "timed_out" {
+	if processedRun.Run.Conclusion == "cancelled" || processedRun.Run.Conclusion == "timed_out" {
 		session.TimeoutDetected = true
 	}
 
@@ -365,10 +373,6 @@ func buildSessionAnalysis(processedRun ProcessedRun, metrics LogMetrics) *Sessio
 			break
 		}
 	}
-
-	auditExpandedLog.Printf("Built session analysis: turns=%d, wall_time=%s, avg_tbt=%s, max_tbt=%s, timeout=%v",
-		session.TurnCount, session.WallTime, session.AvgTimeBetweenTurns, session.MaxTimeBetweenTurns, session.TimeoutDetected)
-	return session
 }
 
 // buildSafeOutputSummary creates a summary of safe output items by type
@@ -473,47 +477,54 @@ func buildMCPServerHealth(mcpToolUsage *MCPToolUsageData, mcpFailures []MCPFailu
 
 	health := &MCPServerHealth{}
 
-	// Track failed servers from MCPFailures
-	failedServers := make(map[string]struct {
-	})
-	for _, failure := range mcpFailures {
-		failedServers[failure.ServerName] = struct {
-		}{}
-	}
+	failedServers := buildMCPServerHealthFailedServers(mcpFailures)
 	health.FailedSvrs = len(failedServers)
 
 	// Process server statistics from mcpToolUsage
 	if mcpToolUsage != nil {
-		for _, server := range mcpToolUsage.Servers {
-			health.TotalRequests += server.RequestCount
-			health.TotalErrors += server.ErrorCount
-
-			errorRate := safePercent(server.ErrorCount, server.RequestCount)
-
-			status := "✅ healthy"
-			if _, isFailed := failedServers[server.ServerName]; isFailed {
-				status = "❌ failed"
-			} else if errorRate > 10 {
-				status = "⚠️ degraded"
-			}
-
-			health.Servers = append(health.Servers, MCPServerHealthDetail{
-				ServerName:   server.ServerName,
-				RequestCount: server.RequestCount,
-				ToolCalls:    server.ToolCallCount,
-				ErrorCount:   server.ErrorCount,
-				ErrorRate:    errorRate,
-				ErrorRateStr: fmt.Sprintf("%.1f%%", errorRate),
-				AvgLatency:   server.AvgDuration,
-				Status:       status,
-			})
-		}
-
-		// Build slowest tool calls from individual call records (top 5)
-		health.SlowestCalls = buildSlowestToolCalls(mcpToolUsage.ToolCalls, 5)
+		buildMCPServerHealthStats(health, mcpToolUsage, failedServers)
 	}
 
-	// Add failed servers that don't appear in stats
+	buildMCPServerHealthMissingFailures(health, failedServers)
+
+	health.TotalServers = len(health.Servers)
+
+	buildMCPServerHealthFinalize(health)
+
+	auditExpandedLog.Printf("Built MCP server health: %s, total_requests=%d, error_rate=%.1f%%",
+		health.Summary, health.TotalRequests, health.ErrorRate)
+	return health
+}
+
+func buildMCPServerHealthFailedServers(mcpFailures []MCPFailureReport) map[string]struct{} {
+	failedServers := make(map[string]struct{})
+	for _, failure := range mcpFailures {
+		failedServers[failure.ServerName] = struct{}{}
+	}
+	return failedServers
+}
+
+func buildMCPServerHealthStats(health *MCPServerHealth, mcpToolUsage *MCPToolUsageData, failedServers map[string]struct{}) {
+	for _, server := range mcpToolUsage.Servers {
+		health.TotalRequests += server.RequestCount
+		health.TotalErrors += server.ErrorCount
+		errorRate := safePercent(server.ErrorCount, server.RequestCount)
+		status := "✅ healthy"
+		if _, isFailed := failedServers[server.ServerName]; isFailed {
+			status = "❌ failed"
+		} else if errorRate > 10 {
+			status = "⚠️ degraded"
+		}
+		health.Servers = append(health.Servers, MCPServerHealthDetail{
+			ServerName: server.ServerName, RequestCount: server.RequestCount, ToolCalls: server.ToolCallCount,
+			ErrorCount: server.ErrorCount, ErrorRate: errorRate, ErrorRateStr: fmt.Sprintf("%.1f%%", errorRate),
+			AvgLatency: server.AvgDuration, Status: status,
+		})
+	}
+	health.SlowestCalls = buildSlowestToolCalls(mcpToolUsage.ToolCalls, 5)
+}
+
+func buildMCPServerHealthMissingFailures(health *MCPServerHealth, failedServers map[string]struct{}) {
 	for serverName := range failedServers {
 		found := false
 		for _, s := range health.Servers {
@@ -523,16 +534,12 @@ func buildMCPServerHealth(mcpToolUsage *MCPToolUsageData, mcpFailures []MCPFailu
 			}
 		}
 		if !found {
-			health.Servers = append(health.Servers, MCPServerHealthDetail{
-				ServerName: serverName,
-				Status:     "❌ failed",
-			})
+			health.Servers = append(health.Servers, MCPServerHealthDetail{ServerName: serverName, Status: "❌ failed"})
 		}
 	}
+}
 
-	health.TotalServers = len(health.Servers)
-
-	// Count servers by status for accurate summary
+func buildMCPServerHealthFinalize(health *MCPServerHealth) {
 	degradedCount := 0
 	for _, s := range health.Servers {
 		if strings.Contains(s.Status, "degraded") {
@@ -541,11 +548,7 @@ func buildMCPServerHealth(mcpToolUsage *MCPToolUsageData, mcpFailures []MCPFailu
 	}
 	health.DegradedSvrs = degradedCount
 	health.HealthySvrs = health.TotalServers - health.FailedSvrs - health.DegradedSvrs
-
-	// Calculate overall error rate
 	health.ErrorRate = safePercent(health.TotalErrors, health.TotalRequests)
-
-	// Sort servers by request count (highest first)
 	slices.SortFunc(health.Servers, func(a, b MCPServerHealthDetail) int {
 		if a.RequestCount > b.RequestCount {
 			return -1
@@ -555,14 +558,7 @@ func buildMCPServerHealth(mcpToolUsage *MCPToolUsageData, mcpFailures []MCPFailu
 		}
 		return 0
 	})
-
-	// Build summary string
-	health.Summary = fmt.Sprintf("%d server(s), %d healthy, %d degraded, %d failed",
-		health.TotalServers, health.HealthySvrs, health.DegradedSvrs, health.FailedSvrs)
-
-	auditExpandedLog.Printf("Built MCP server health: %s, total_requests=%d, error_rate=%.1f%%",
-		health.Summary, health.TotalRequests, health.ErrorRate)
-	return health
+	health.Summary = fmt.Sprintf("%d server(s), %d healthy, %d degraded, %d failed", health.TotalServers, health.HealthySvrs, health.DegradedSvrs, health.FailedSvrs)
 }
 
 // buildSlowestToolCalls extracts the N slowest tool calls from the call records

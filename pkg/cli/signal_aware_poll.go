@@ -57,81 +57,80 @@ type PollOptions struct {
 // This provides a reusable pattern for any operation that needs to poll with graceful Ctrl-C handling
 func PollWithSignalHandling(options PollOptions) error {
 	pollLog.Printf("Starting polling: interval=%v, timeout=%v", options.PollInterval, options.Timeout)
-
 	if options.Verbose && options.StartMessage != "" {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(options.StartMessage))
 	}
-
-	// Use provided context or fall back to background context
-	ctx := options.Ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	// Set up signal handling for graceful shutdown
-	// Signal channel provides a fallback when no context is provided or for direct OS signals
+	ctx := pollWithSignalHandlingContext(options)
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sigChan)
-
-	// Set up timeout
 	start := time.Now()
 	ticker := time.NewTicker(options.PollInterval)
 	defer ticker.Stop()
 
-	// Perform initial check immediately
-	result, err := options.PollFunc(ctx)
+	initialResult, initialErr := options.PollFunc(ctx)
+	if done, err := pollWithSignalHandlingResult(initialResult, initialErr, options); done || err != nil {
+		return err
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return pollWithSignalHandlingContextDone(ctx)
+		case <-sigChan:
+			pollLog.Print("Received interrupt signal")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Received interrupt signal, stopping wait..."))
+			return ErrInterrupted
+		case <-ticker.C:
+			if err := pollWithSignalHandlingTick(ctx, start, options); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func pollWithSignalHandlingContext(options PollOptions) context.Context {
+	ctx := options.Ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return ctx
+}
+
+func pollWithSignalHandlingResult(result PollResult, err error, options PollOptions) (bool, error) {
 	switch result {
 	case PollSuccess:
 		if options.Verbose && options.SuccessMessage != "" {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(options.SuccessMessage))
 		}
-		return nil
+		return true, nil
 	case PollFailure:
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func pollWithSignalHandlingContextDone(ctx context.Context) error {
+	pollLog.Printf("Context cancelled (%v), stopping poll", ctx.Err())
+	msg := "Operation cancelled, stopping wait..."
+	if err := ctx.Err(); err != nil {
+		msg = fmt.Sprintf("Operation cancelled (%v), stopping wait...", err)
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(msg))
+	return ErrInterrupted
+}
+
+func pollWithSignalHandlingTick(ctx context.Context, start time.Time, options PollOptions) error {
+	if options.Timeout > 0 && time.Since(start) > options.Timeout {
+		pollLog.Printf("Timeout exceeded: %v", options.Timeout)
+		return fmt.Errorf("operation timed out after %v", options.Timeout)
+	}
+	result, err := options.PollFunc(ctx)
+	if done, err := pollWithSignalHandlingResult(result, err, options); done || err != nil {
 		return err
 	}
-
-	// Continue polling
-	for {
-		select {
-		case <-ctx.Done():
-			pollLog.Printf("Context cancelled (%v), stopping poll", ctx.Err())
-			msg := "Operation cancelled, stopping wait..."
-			if err := ctx.Err(); err != nil {
-				msg = fmt.Sprintf("Operation cancelled (%v), stopping wait...", err)
-			}
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(msg))
-			return ErrInterrupted
-
-		case <-sigChan:
-			pollLog.Print("Received interrupt signal")
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Received interrupt signal, stopping wait..."))
-			return ErrInterrupted
-
-		case <-ticker.C:
-			// Check if timeout exceeded
-			if options.Timeout > 0 && time.Since(start) > options.Timeout {
-				pollLog.Printf("Timeout exceeded: %v", options.Timeout)
-				return fmt.Errorf("operation timed out after %v", options.Timeout)
-			}
-
-			// Poll for status
-			result, err := options.PollFunc(ctx)
-
-			switch result {
-			case PollSuccess:
-				if options.Verbose && options.SuccessMessage != "" {
-					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(options.SuccessMessage))
-				}
-				return nil
-			case PollFailure:
-				return err
-			}
-
-			// Still waiting, show progress if enabled
-			if options.Verbose && options.ProgressMessage != "" {
-				fmt.Fprintln(os.Stderr, console.FormatProgressMessage(options.ProgressMessage))
-			}
-		}
+	if options.Verbose && options.ProgressMessage != "" {
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(options.ProgressMessage))
 	}
+	return nil
 }

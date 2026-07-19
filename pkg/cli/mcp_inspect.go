@@ -31,54 +31,25 @@ func InspectWorkflowMCP(ctx context.Context, workflowFile string, serverFilter s
 	mcpInspectLog.Printf("Inspecting workflow MCP: workflow=%s, serverFilter=%s, toolFilter=%s",
 		workflowFile, serverFilter, toolFilter)
 
-	workflowsDir := getWorkflowsDir()
-
 	// If no workflow file specified, show available workflow files with MCP configs
 	if workflowFile == "" {
-		return listWorkflowsWithMCP(workflowsDir, verbose)
+		return listWorkflowsWithMCP(getWorkflowsDir(), verbose)
 	}
 
-	// Resolve the workflow file path
-	workflowPath, err := ResolveWorkflowPath(workflowFile)
+	workflowPath, err := inspectWorkflowMCPResolvePath(workflowFile)
 	if err != nil {
 		return err
 	}
-
-	// Convert to absolute path if needed
-	if !filepath.IsAbs(workflowPath) {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return fmt.Errorf("failed to get current directory: %w", err)
-		}
-		workflowPath = filepath.Join(cwd, workflowPath)
-	}
-
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Inspecting MCP servers in: "+workflowPath))
 	}
 
-	// Use the compiler to parse the workflow file
-	// This automatically handles imports, merging, and validation
-	compiler := workflow.NewCompiler(
-		workflow.WithVerbose(verbose),
-	)
-	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
+	workflowData, err := inspectWorkflowMCPParse(workflowPath, verbose)
 	if err != nil {
-		// Handle shared workflow error separately (not a fatal error for inspection)
-		if errors.As(err, new(*workflow.SharedWorkflowError)) {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Cannot inspect shared/imported workflows directly - they must be imported by a main workflow"))
-			return nil
-		}
-
-		// Handle redirect-only workflow error separately (not a fatal error for inspection)
-		if errors.As(err, new(*workflow.RedirectOnlyWorkflowError)) {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Cannot inspect redirect-only workflows directly - run 'gh aw update' to follow the redirect and get the full workflow"))
-			return nil
-		}
-
-		errMsg := fmt.Sprintf("failed to parse workflow file: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-		return fmt.Errorf("failed to parse workflow file: %w", err)
+		return err
+	}
+	if workflowData == nil {
+		return nil
 	}
 
 	mcpInspectLog.Printf("Workflow parsed: name=%s, has_mcp_scripts=%t",
@@ -88,67 +59,17 @@ func InspectWorkflowMCP(ctx context.Context, workflowFile string, serverFilter s
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow parsed successfully"))
 	}
 
-	// Build frontmatter map from WorkflowData for MCP extraction
-	// This includes all merged imports and tools
-	frontmatterForMCP := buildFrontmatterFromWorkflowData(workflowData)
-
-	// Extract MCP configurations from the merged frontmatter
-	mcpConfigs, err := parser.ExtractMCPConfigurations(frontmatterForMCP, serverFilter)
+	mcpConfigs, err := inspectWorkflowMCPConfigs(workflowData, serverFilter)
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to extract MCP configurations: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-		return fmt.Errorf("failed to extract MCP configurations: %w", err)
+		return err
 	}
-
-	mcpInspectLog.Printf("Extracted %d MCP configs (server_filter=%q)", len(mcpConfigs), serverFilter)
-
-	// Filter out safe-outputs MCP servers for inspection
-	mcpConfigs = filterOutSafeOutputs(mcpConfigs)
-	mcpInspectLog.Printf("After filtering safe-outputs: %d MCP configs remain", len(mcpConfigs))
 
 	// Start mcp-scripts server if present
-	var mcpScriptsServerCmd *exec.Cmd
-	var mcpScriptsTmpDir string
-	if workflowData != nil && workflowData.MCPScripts != nil && len(workflowData.MCPScripts.Tools) > 0 {
-		// Start mcp-scripts server and add it to the list of MCP configs
-		config, serverCmd, tmpDir, err := startMCPScriptsServer(ctx, workflowData.MCPScripts, verbose)
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to start mcp-scripts server: %v", err)))
-			}
-			mcpInspectLog.Printf("Failed to start mcp-scripts server: %v", err)
-		} else {
-			mcpScriptsServerCmd = serverCmd
-			mcpScriptsTmpDir = tmpDir
-			// Add mcp-scripts config to the list of MCP servers to inspect
-			mcpConfigs = append(mcpConfigs, *config)
-			mcpInspectLog.Print("MCP Scripts server started successfully")
-		}
-	}
+	scriptsServer, scriptsTmpDir, mcpConfigs := inspectWorkflowMCPStartScripts(ctx, workflowData, mcpConfigs, verbose)
 
 	// Cleanup mcp-scripts server when done
-	if mcpScriptsServerCmd != nil {
-		defer func() {
-			if mcpScriptsServerCmd.Process != nil {
-				// Try graceful shutdown first
-				if err := mcpScriptsServerCmd.Process.Signal(os.Interrupt); err != nil && verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to send interrupt signal: %v", err)))
-				}
-				// Wait a moment for graceful shutdown (respects context cancellation)
-				select {
-				case <-time.After(mcpScriptsServerShutdownDelay):
-				case <-ctx.Done():
-				}
-				// Attempt force kill (may fail if process already exited gracefully, which is fine)
-				_ = mcpScriptsServerCmd.Process.Kill()
-			}
-			// Cleanup temporary directory
-			if mcpScriptsTmpDir != "" {
-				if err := os.RemoveAll(mcpScriptsTmpDir); err != nil && verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup temporary directory: %v", err)))
-				}
-			}
-		}()
+	if scriptsServer != nil {
+		defer inspectWorkflowMCPCleanupScripts(ctx, scriptsServer, scriptsTmpDir, verbose)
 	}
 
 	if len(mcpConfigs) == 0 {
@@ -161,6 +82,99 @@ func InspectWorkflowMCP(ctx context.Context, workflowFile string, serverFilter s
 	}
 
 	// Inspect each MCP server
+	inspectWorkflowMCPPrintHeader(workflowPath, workflowData, mcpConfigs, toolFilter)
+	inspectWorkflowMCPServers(mcpConfigs, toolFilter, verbose, useActionsSecrets)
+	return nil
+}
+
+func inspectWorkflowMCPResolvePath(workflowFile string) (string, error) {
+	// Resolve the workflow file path
+	workflowPath, err := ResolveWorkflowPath(workflowFile)
+	if err != nil {
+		return "", err
+	}
+	// Convert to absolute path if needed
+	if !filepath.IsAbs(workflowPath) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("failed to get current directory: %w", err)
+		}
+		workflowPath = filepath.Join(cwd, workflowPath)
+	}
+	return workflowPath, nil
+}
+
+func inspectWorkflowMCPParse(workflowPath string, verbose bool) (*workflow.WorkflowData, error) {
+	// Use the compiler to parse the workflow file.
+	compiler := workflow.NewCompiler(workflow.WithVerbose(verbose))
+	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
+	if err == nil {
+		return workflowData, nil
+	}
+	if errors.As(err, new(*workflow.SharedWorkflowError)) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Cannot inspect shared/imported workflows directly - they must be imported by a main workflow"))
+		return nil, nil
+	}
+	if errors.As(err, new(*workflow.RedirectOnlyWorkflowError)) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Cannot inspect redirect-only workflows directly - run 'gh aw update' to follow the redirect and get the full workflow"))
+		return nil, nil
+	}
+	errMsg := fmt.Sprintf("failed to parse workflow file: %v", err)
+	fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+	return nil, fmt.Errorf("failed to parse workflow file: %w", err)
+}
+
+func inspectWorkflowMCPConfigs(workflowData *workflow.WorkflowData, serverFilter string) ([]parser.RegistryMCPServerConfig, error) {
+	// Build frontmatter map from WorkflowData for MCP extraction
+	frontmatterForMCP := buildFrontmatterFromWorkflowData(workflowData)
+	mcpConfigs, err := parser.ExtractMCPConfigurations(frontmatterForMCP, serverFilter)
+	if err != nil {
+		errMsg := fmt.Sprintf("failed to extract MCP configurations: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+		return nil, fmt.Errorf("failed to extract MCP configurations: %w", err)
+	}
+	mcpInspectLog.Printf("Extracted %d MCP configs (server_filter=%q)", len(mcpConfigs), serverFilter)
+	mcpConfigs = filterOutSafeOutputs(mcpConfigs)
+	mcpInspectLog.Printf("After filtering safe-outputs: %d MCP configs remain", len(mcpConfigs))
+	return mcpConfigs, nil
+}
+
+func inspectWorkflowMCPStartScripts(ctx context.Context, workflowData *workflow.WorkflowData, mcpConfigs []parser.RegistryMCPServerConfig, verbose bool) (*exec.Cmd, string, []parser.RegistryMCPServerConfig) {
+	if workflowData == nil || workflowData.MCPScripts == nil || len(workflowData.MCPScripts.Tools) == 0 {
+		return nil, "", mcpConfigs
+	}
+	config, serverCmd, tmpDir, err := startMCPScriptsServer(ctx, workflowData.MCPScripts, verbose)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to start mcp-scripts server: %v", err)))
+		}
+		mcpInspectLog.Printf("Failed to start mcp-scripts server: %v", err)
+		return nil, "", mcpConfigs
+	}
+	mcpConfigs = append(mcpConfigs, *config)
+	mcpInspectLog.Print("MCP Scripts server started successfully")
+	return serverCmd, tmpDir, mcpConfigs
+}
+
+func inspectWorkflowMCPCleanupScripts(ctx context.Context, mcpScriptsServerCmd *exec.Cmd, mcpScriptsTmpDir string, verbose bool) {
+	if mcpScriptsServerCmd.Process != nil {
+		if err := mcpScriptsServerCmd.Process.Signal(os.Interrupt); err != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to send interrupt signal: %v", err)))
+		}
+		select {
+		case <-time.After(mcpScriptsServerShutdownDelay):
+		case <-ctx.Done():
+		}
+		_ = mcpScriptsServerCmd.Process.Kill()
+	}
+	if mcpScriptsTmpDir != "" {
+		if err := os.RemoveAll(mcpScriptsTmpDir); err != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup temporary directory: %v", err)))
+		}
+	}
+}
+
+func inspectWorkflowMCPPrintHeader(workflowPath string, workflowData *workflow.WorkflowData, mcpConfigs []parser.RegistryMCPServerConfig, toolFilter string) {
 	if toolFilter != "" {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server(s), looking for tool '%s'", len(mcpConfigs), toolFilter)))
 	} else {
@@ -174,7 +188,9 @@ func InspectWorkflowMCP(ctx context.Context, workflowFile string, serverFilter s
 		}
 	}
 	fmt.Fprintln(os.Stderr)
+}
 
+func inspectWorkflowMCPServers(mcpConfigs []parser.RegistryMCPServerConfig, toolFilter string, verbose bool, useActionsSecrets bool) {
 	for i, config := range mcpConfigs {
 		if i > 0 {
 			fmt.Fprintln(os.Stderr)
@@ -186,8 +202,6 @@ func InspectWorkflowMCP(ctx context.Context, workflowFile string, serverFilter s
 			}))
 		}
 	}
-
-	return nil
 }
 
 func renderMCPInspectionTree(workflowPath string, workflowData *workflow.WorkflowData, mcpConfigs []parser.RegistryMCPServerConfig) string {
@@ -272,35 +286,7 @@ The command will:
 `,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var workflowFile string
-			if len(args) > 0 {
-				workflowFile = args[0]
-			}
-
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			// Check for verbose flag from parent commands (root and mcp)
-			if cmd.Parent() != nil {
-				if parentVerbose, _ := cmd.Parent().PersistentFlags().GetBool("verbose"); parentVerbose {
-					verbose = true
-				}
-				if cmd.Parent().Parent() != nil {
-					if rootVerbose, _ := cmd.Parent().Parent().PersistentFlags().GetBool("verbose"); rootVerbose {
-						verbose = true
-					}
-				}
-			}
-
-			// Validate that tool flag requires server flag
-			if toolFilter != "" && serverFilter == "" {
-				return errors.New("--tool flag requires --server flag to be specified")
-			}
-
-			// Handle spawn inspector flag
-			if spawnInspector {
-				return spawnMCPInspector(cmd.Context(), workflowFile, serverFilter, verbose)
-			}
-
-			return InspectWorkflowMCP(cmd.Context(), workflowFile, serverFilter, toolFilter, verbose, checkSecrets)
+			return newMCPInspectSubcommandRun(cmd, args, serverFilter, toolFilter, spawnInspector, checkSecrets)
 		},
 	}
 
@@ -313,6 +299,43 @@ The command will:
 	cmd.ValidArgsFunction = CompleteWorkflowNames
 
 	return cmd
+}
+
+func newMCPInspectSubcommandRun(cmd *cobra.Command, args []string, serverFilter, toolFilter string, spawnInspector, checkSecrets bool) error {
+	var workflowFile string
+	if len(args) > 0 {
+		workflowFile = args[0]
+	}
+
+	verbose, _ := cmd.Flags().GetBool("verbose")
+	verbose = newMCPInspectSubcommandVerbose(cmd, verbose)
+
+	// Validate that tool flag requires server flag
+	if toolFilter != "" && serverFilter == "" {
+		return errors.New("--tool flag requires --server flag to be specified")
+	}
+
+	// Handle spawn inspector flag
+	if spawnInspector {
+		return spawnMCPInspector(cmd.Context(), workflowFile, serverFilter, verbose)
+	}
+
+	return InspectWorkflowMCP(cmd.Context(), workflowFile, serverFilter, toolFilter, verbose, checkSecrets)
+}
+
+func newMCPInspectSubcommandVerbose(cmd *cobra.Command, verbose bool) bool {
+	// Check for verbose flag from parent commands (root and mcp)
+	if cmd.Parent() != nil {
+		if parentVerbose, _ := cmd.Parent().PersistentFlags().GetBool("verbose"); parentVerbose {
+			verbose = true
+		}
+		if cmd.Parent().Parent() != nil {
+			if rootVerbose, _ := cmd.Parent().Parent().PersistentFlags().GetBool("verbose"); rootVerbose {
+				verbose = true
+			}
+		}
+	}
+	return verbose
 }
 
 // buildFrontmatterFromWorkflowData constructs a fully resolved frontmatter map from WorkflowData.

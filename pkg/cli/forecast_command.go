@@ -34,9 +34,22 @@ type ForecastConfig struct {
 // NewForecastCommand creates the forecast command.
 func NewForecastCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "forecast [workflow]...",
-		Short: "[EXPERIMENTAL] Forecast AI Credit (AIC) usage for agentic workflows",
-		Long: `[EXPERIMENTAL] Forecast AI Credit (AIC) usage for agentic workflows by sampling
+		Use:     "forecast [workflow]...",
+		Short:   "[EXPERIMENTAL] Forecast AI Credit (AIC) usage for agentic workflows",
+		Long:    newForecastCommandLong(),
+		Example: newForecastCommandExample(),
+		Args:    cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return newForecastCommandRun(cmd, args)
+		},
+	}
+
+	newForecastCommandRegisterFlags(cmd)
+	return cmd
+}
+
+func newForecastCommandLong() string {
+	return `[EXPERIMENTAL] Forecast AI Credit (AIC) usage for agentic workflows by sampling
 recent run history and projecting forward on a per-week or per-month basis.
 
 The forecaster downloads a sample of recent completed workflow runs and derives
@@ -63,47 +76,24 @@ Backtesting (--eval):
   P10–P90 confidence interval. Use this to validate the model before relying on
   forward projections.
 
-` + WorkflowIDExplanation,
-		Example: `  ` + string(constants.CLIExtensionPrefix) + ` forecast                        # Forecast all workflows (monthly)
-  ` + string(constants.CLIExtensionPrefix) + ` forecast ci-doctor              # Forecast a specific workflow
-  ` + string(constants.CLIExtensionPrefix) + ` forecast ci-doctor daily-news    # Compare two workflows
-  ` + string(constants.CLIExtensionPrefix) + ` forecast --period week           # Weekly projections
-  ` + string(constants.CLIExtensionPrefix) + ` forecast --days 7               # Use 7-day history window
-  ` + string(constants.CLIExtensionPrefix) + ` forecast --sample 50            # Sample up to 50 runs per workflow
-  ` + string(constants.CLIExtensionPrefix) + ` forecast --timeout 10           # Stop gracefully after 10 minutes
-  ` + string(constants.CLIExtensionPrefix) + ` forecast --json                 # Machine-readable JSON output
-  ` + string(constants.CLIExtensionPrefix) + ` forecast --repo owner/repo      # Forecast in another repository
-  ` + string(constants.CLIExtensionPrefix) + ` forecast --eval                 # Backtest: evaluate forecast quality against past data`,
-		Args: cobra.ArbitraryArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			days, _ := cmd.Flags().GetInt("days")
-			period, _ := cmd.Flags().GetString("period")
-			jsonOutput, _ := cmd.Flags().GetBool("json")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			repoOverride, _ := cmd.Flags().GetString("repo")
-			sampleSize, _ := cmd.Flags().GetInt("sample")
-			evalMode, _ := cmd.Flags().GetBool("eval")
-			timeoutMinutes, _ := cmd.Flags().GetInt("timeout")
+` + WorkflowIDExplanation
+}
 
-			forecastRunLog.Printf("Forecast command invoked: workflow_count=%d, days=%d, period=%s, sample_size=%d, eval=%v, timeout_minutes=%d, json=%v, repo=%q",
-				len(args), days, period, sampleSize, evalMode, timeoutMinutes, jsonOutput, repoOverride)
+func newForecastCommandExample() string {
+	prefix := string(constants.CLIExtensionPrefix)
+	return `  ` + prefix + ` forecast                        # Forecast all workflows (monthly)
+  ` + prefix + ` forecast ci-doctor              # Forecast a specific workflow
+  ` + prefix + ` forecast ci-doctor daily-news    # Compare two workflows
+  ` + prefix + ` forecast --period week           # Weekly projections
+  ` + prefix + ` forecast --days 7               # Use 7-day history window
+  ` + prefix + ` forecast --sample 50            # Sample up to 50 runs per workflow
+  ` + prefix + ` forecast --timeout 10           # Stop gracefully after 10 minutes
+  ` + prefix + ` forecast --json                 # Machine-readable JSON output
+  ` + prefix + ` forecast --repo owner/repo      # Forecast in another repository
+  ` + prefix + ` forecast --eval                 # Backtest: evaluate forecast quality against past data`
+}
 
-			config := ForecastConfig{
-				WorkflowIDs:    args,
-				Days:           days,
-				Period:         period,
-				JSONOutput:     jsonOutput,
-				Verbose:        verbose,
-				RepoOverride:   repoOverride,
-				SampleSize:     sampleSize,
-				EvalMode:       evalMode,
-				TimeoutMinutes: timeoutMinutes,
-			}
-
-			return RunForecast(config)
-		},
-	}
-
+func newForecastCommandRegisterFlags(cmd *cobra.Command) {
 	cmd.Flags().Int("days", 30, "Historical window in days to sample run history (allowed values: 7, 30)")
 	cmd.Flags().String("period", "month", "Aggregation period for projections: week or month")
 	cmd.Flags().Int("sample", 100, "Maximum number of completed runs to sample per workflow")
@@ -116,6 +106,34 @@ Backtesting (--eval):
 	_ = cmd.RegisterFlagCompletionFunc("days", func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 		return []string{"7", "30"}, cobra.ShellCompDirectiveNoFileComp
 	})
+}
 
-	return cmd
+func newForecastCommandRun(cmd *cobra.Command, args []string) error {
+	config := newForecastCommandConfig(cmd, args)
+	forecastRunLog.Printf("Forecast command invoked: workflow_count=%d, days=%d, period=%s, sample_size=%d, eval=%v, timeout_minutes=%d, json=%v, repo=%q",
+		len(args), config.Days, config.Period, config.SampleSize, config.EvalMode, config.TimeoutMinutes, config.JSONOutput, config.RepoOverride)
+	return RunForecast(config)
+}
+
+func newForecastCommandConfig(cmd *cobra.Command, args []string) ForecastConfig {
+	days, _ := cmd.Flags().GetInt("days")
+	period, _ := cmd.Flags().GetString("period")
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+	verbose, _ := cmd.Flags().GetBool("verbose")
+	repoOverride, _ := cmd.Flags().GetString("repo")
+	sampleSize, _ := cmd.Flags().GetInt("sample")
+	evalMode, _ := cmd.Flags().GetBool("eval")
+	timeoutMinutes, _ := cmd.Flags().GetInt("timeout")
+
+	return ForecastConfig{
+		WorkflowIDs:    args,
+		Days:           days,
+		Period:         period,
+		JSONOutput:     jsonOutput,
+		Verbose:        verbose,
+		RepoOverride:   repoOverride,
+		SampleSize:     sampleSize,
+		EvalMode:       evalMode,
+		TimeoutMinutes: timeoutMinutes,
+	}
 }

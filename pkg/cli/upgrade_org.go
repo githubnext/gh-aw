@@ -210,47 +210,16 @@ func normalizeDisplayVersion(version string) string {
 // runUpgradeForTargetRepo checks out repo to a temporary directory, runs the
 // upgrade command inside it, and opens a pull request with the resulting changes.
 func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptions, createPR bool, verbose bool) error {
-	gitRoot, err := gitutil.FindGitRoot()
-	if err != nil {
-		return fmt.Errorf("--repo/--org requires running inside a git repository: %w", err)
-	}
-
-	updatesDir, err := ensureUpdateTargetRepoGitignore(gitRoot)
+	checkoutDir, err := runUpgradeForTargetRepoCheckout(ctx, repo, verbose)
 	if err != nil {
 		return err
 	}
 
-	checkoutDir := filepath.Join(updatesDir, sanitizeRepoPath(repo))
-	if err := shallowCloneTargetRepo(ctx, repo, checkoutDir); err != nil {
+	restoreDir, err := runUpgradeForTargetRepoChdir(checkoutDir)
+	if err != nil {
 		return err
 	}
-
-	// Extend sparse checkout to include .github/skills; upgrade also updates
-	// the dispatcher skill (ensureAgenticWorkflowsDispatcher) and needs that path present.
-	sparseAddCmd := exec.CommandContext(ctx, "git", "-C", checkoutDir, "sparse-checkout", "add", orgUpgradeSkillsDir)
-	if output, err := sparseAddCmd.CombinedOutput(); err != nil {
-		trimmed := strings.TrimSpace(string(output))
-		if trimmed == "" {
-			return fmt.Errorf("failed to extend sparse checkout for %s: %w", repo, err)
-		}
-		return fmt.Errorf("failed to extend sparse checkout for %s: %w: %s", repo, err, trimmed)
-	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checked out "+repo+" at "+checkoutDir))
-	}
-
-	originalDir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to read current directory: %w", err)
-	}
-	defer func() {
-		_ = os.Chdir(originalDir)
-	}()
-
-	if err := os.Chdir(checkoutDir); err != nil {
-		return fmt.Errorf("failed to change directory to checkout %s: %w", checkoutDir, err)
-	}
+	defer restoreDir()
 
 	if createPR {
 		if err := PreflightCheckForCreatePR(verbose); err != nil {
@@ -273,8 +242,55 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 	if !createPR {
 		return nil
 	}
+	return runUpgradeForTargetRepoCreatePR(ctx, repo, verbose)
+}
 
-	// Skip PR creation when the upgrade produced no changes (e.g. repo is already up to date).
+func runUpgradeForTargetRepoCheckout(ctx context.Context, repo string, verbose bool) (string, error) {
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return "", fmt.Errorf("--repo/--org requires running inside a git repository: %w", err)
+	}
+	updatesDir, err := ensureUpdateTargetRepoGitignore(gitRoot)
+	if err != nil {
+		return "", err
+	}
+	checkoutDir := filepath.Join(updatesDir, sanitizeRepoPath(repo))
+	if err := shallowCloneTargetRepo(ctx, repo, checkoutDir); err != nil {
+		return "", err
+	}
+	if err := runUpgradeForTargetRepoSparseSkills(ctx, repo, checkoutDir); err != nil {
+		return "", err
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checked out "+repo+" at "+checkoutDir))
+	}
+	return checkoutDir, nil
+}
+
+func runUpgradeForTargetRepoSparseSkills(ctx context.Context, repo, checkoutDir string) error {
+	sparseAddCmd := exec.CommandContext(ctx, "git", "-C", checkoutDir, "sparse-checkout", "add", orgUpgradeSkillsDir)
+	if output, err := sparseAddCmd.CombinedOutput(); err != nil {
+		trimmed := strings.TrimSpace(string(output))
+		if trimmed == "" {
+			return fmt.Errorf("failed to extend sparse checkout for %s: %w", repo, err)
+		}
+		return fmt.Errorf("failed to extend sparse checkout for %s: %w: %s", repo, err, trimmed)
+	}
+	return nil
+}
+
+func runUpgradeForTargetRepoChdir(checkoutDir string) (func(), error) {
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read current directory: %w", err)
+	}
+	if err := os.Chdir(checkoutDir); err != nil {
+		return nil, fmt.Errorf("failed to change directory to checkout %s: %w", checkoutDir, err)
+	}
+	return func() { _ = os.Chdir(originalDir) }, nil
+}
+
+func runUpgradeForTargetRepoCreatePR(ctx context.Context, repo string, verbose bool) error {
 	changed, err := hasPendingChanges()
 	if err != nil {
 		return err

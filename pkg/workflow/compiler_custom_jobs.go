@@ -480,86 +480,79 @@ func configureCustomReusableWorkflow(job *Job, jobName string, usesStr string, c
 }
 
 func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap map[string]any, data *WorkflowData) error {
-	// Add basic steps if specified (only for non-reusable workflow jobs).
-	// `setup-steps` and `pre-steps` stay distinct so setup-steps can remain the
-	// first injected steps in the job, followed by compiler scaffolding,
-	// `pre-steps`, and the regular `steps` list.
-	var setupSteps []string
-	var preSteps []string
-	var regularSteps []string
 	_, hasSetupStepsField := configMap["setup-steps"]
 	_, hasPreStepsField := configMap["pre-steps"]
 	_, hasStepsField := configMap["steps"]
-
-	if hasSetupStepsField {
-		var err error
-		setupSteps, err = c.extractPinnedJobSteps("setup-steps", jobName, configMap, data)
-		if err != nil {
-			return fmt.Errorf("failed to process setup-steps for job '%s': %w", jobName, err)
-		}
+	setupSteps, preSteps, regularSteps, err := c.extractCustomJobStepGroups(jobName, configMap, data)
+	if err != nil {
+		return err
 	}
-	if hasPreStepsField {
-		var err error
-		preSteps, err = c.extractPinnedJobSteps("pre-steps", jobName, configMap, data)
-		if err != nil {
-			return fmt.Errorf("failed to process pre-steps for job '%s': %w", jobName, err)
-		}
-	}
-	if hasStepsField {
-		var err error
-		regularSteps, err = c.extractPinnedJobSteps("steps", jobName, configMap, data)
-		if err != nil {
-			return fmt.Errorf("failed to process steps for job '%s': %w", jobName, err)
-		}
-	}
-
-	// Parse restore-memory configuration.
-	// restore-memory injects read-only memory restore steps into the custom job.
-	// No write-back or commit steps are ever emitted for memory in custom jobs.
 	restoreMemCfg, err := extractRestoreMemoryConfig(configMap, jobName, data)
 	if err != nil {
 		return err
 	}
-
 	hasRestoreMemory := restoreMemCfg != nil
-
-	// When cache-memory restore is requested, inject GH_AW_WORKFLOW_ID_SANITIZED so that
-	// restore keys match those used by the agent job.  Only set it when the user has not
-	// already provided the variable in their job's env: block.
-	if hasRestoreMemory && restoreMemCfg.CacheMemory && data.WorkflowID != "" {
-		sanitized := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
-		if job.Env == nil {
-			job.Env = make(map[string]string)
-		}
-		if _, alreadySet := job.Env["GH_AW_WORKFLOW_ID_SANITIZED"]; !alreadySet {
-			job.Env["GH_AW_WORKFLOW_ID_SANITIZED"] = sanitized
-		}
-	}
-
+	ensureRestoreMemoryCacheEnv(job, restoreMemCfg, data)
 	if hasSetupStepsField || hasPreStepsField || hasStepsField || hasRestoreMemory {
 		job.Steps = append(job.Steps, setupSteps...)
-		// Prepend GH_HOST configuration step for GHES/GHEC compatibility.
-		// Custom frontmatter jobs run as independent GitHub Actions jobs that
-		// don't inherit GITHUB_ENV from the agent job, so the gh CLI won't
-		// know which host to target without this step.
 		job.Steps = append(job.Steps, generateGHESHostConfigurationStep())
-
-		// Inject gh-aw setup + memory restore steps when restore-memory is requested.
-		// Setup lines come first (they install scripts needed by repo/comment memory).
-		// Memory lines follow immediately after (restore/clone/prepare steps).
 		if hasRestoreMemory {
-			memorySetupLines, memoryRestoreLines, memErr := c.buildRestoreMemorySteps(restoreMemCfg, jobName, data)
-			if memErr != nil {
-				return memErr
+			if err := c.appendCustomJobRestoreMemorySteps(job, restoreMemCfg, jobName, data); err != nil {
+				return err
 			}
-			job.Steps = append(job.Steps, memorySetupLines...)
-			job.Steps = append(job.Steps, memoryRestoreLines...)
 		}
-
 		job.Steps = append(job.Steps, preSteps...)
 		job.Steps = append(job.Steps, regularSteps...)
 	}
+	return nil
+}
 
+func (c *Compiler) extractCustomJobStepGroups(jobName string, configMap map[string]any, data *WorkflowData) ([]string, []string, []string, error) {
+	setupSteps, err := c.extractCustomJobStepGroup("setup-steps", jobName, configMap, data)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	preSteps, err := c.extractCustomJobStepGroup("pre-steps", jobName, configMap, data)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	regularSteps, err := c.extractCustomJobStepGroup("steps", jobName, configMap, data)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return setupSteps, preSteps, regularSteps, nil
+}
+
+func (c *Compiler) extractCustomJobStepGroup(fieldName, jobName string, configMap map[string]any, data *WorkflowData) ([]string, error) {
+	if _, hasField := configMap[fieldName]; !hasField {
+		return nil, nil
+	}
+	steps, err := c.extractPinnedJobSteps(fieldName, jobName, configMap, data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to process %s for job '%s': %w", fieldName, jobName, err)
+	}
+	return steps, nil
+}
+
+func ensureRestoreMemoryCacheEnv(job *Job, restoreMemCfg *restoreMemoryConfig, data *WorkflowData) {
+	if restoreMemCfg == nil || !restoreMemCfg.CacheMemory || data.WorkflowID == "" {
+		return
+	}
+	if job.Env == nil {
+		job.Env = make(map[string]string)
+	}
+	if _, alreadySet := job.Env["GH_AW_WORKFLOW_ID_SANITIZED"]; !alreadySet {
+		job.Env["GH_AW_WORKFLOW_ID_SANITIZED"] = SanitizeWorkflowIDForCacheKey(data.WorkflowID)
+	}
+}
+
+func (c *Compiler) appendCustomJobRestoreMemorySteps(job *Job, restoreMemCfg *restoreMemoryConfig, jobName string, data *WorkflowData) error {
+	memorySetupLines, memoryRestoreLines, err := c.buildRestoreMemorySteps(restoreMemCfg, jobName, data)
+	if err != nil {
+		return err
+	}
+	job.Steps = append(job.Steps, memorySetupLines...)
+	job.Steps = append(job.Steps, memoryRestoreLines...)
 	return nil
 }
 
@@ -682,7 +675,6 @@ func (c *Compiler) applyBuiltinJobNeedsAugmentations(data *WorkflowData) error {
 	if data == nil || data.Jobs == nil {
 		return nil
 	}
-
 	allJobs := c.jobManager.GetAllJobs()
 	for configuredJobName, rawConfig := range data.Jobs {
 		targetJobName := normalizeBuiltinJobAlias(configuredJobName)
@@ -702,45 +694,46 @@ func (c *Compiler) applyBuiltinJobNeedsAugmentations(data *WorkflowData) error {
 		if len(augmentedNeeds) == 0 {
 			continue
 		}
-
 		targetJob, exists := c.jobManager.GetJob(targetJobName)
 		if !exists {
 			return fmt.Errorf("jobs.%s.needs: cannot augment %q because this workflow does not generate that job", configuredJobName, targetJobName)
 		}
-
-		normalizedNeeds := make([]string, 0, len(augmentedNeeds))
-		for _, rawNeed := range augmentedNeeds {
-			need := normalizeBuiltinJobAlias(rawNeed)
-			if need == targetJobName {
-				return fmt.Errorf("jobs.%s.needs: %q cannot depend on itself", configuredJobName, rawNeed)
-			}
-			if _, known := allJobs[need]; !known {
-				return fmt.Errorf("jobs.%s.needs: unknown job %q", configuredJobName, rawNeed)
-			}
-			normalizedNeeds = append(normalizedNeeds, need)
+		normalizedNeeds, err := normalizeBuiltinJobNeeds(configuredJobName, targetJobName, augmentedNeeds, allJobs)
+		if err != nil {
+			return err
 		}
-
-		seen := make(map[string]struct{}, len(targetJob.Needs)+len(normalizedNeeds))
-		mergedNeeds := make([]string, 0, len(targetJob.Needs)+len(normalizedNeeds))
-		for _, need := range targetJob.Needs {
-			if _, alreadySeen := seen[need]; alreadySeen {
-				continue
-			}
-			seen[need] = struct{}{}
-			mergedNeeds = append(mergedNeeds, need)
-		}
-		for _, need := range normalizedNeeds {
-			if _, alreadySeen := seen[need]; alreadySeen {
-				continue
-			}
-			seen[need] = struct{}{}
-			mergedNeeds = append(mergedNeeds, need)
-		}
-		targetJob.Needs = mergedNeeds
+		targetJob.Needs = mergeBuiltinJobNeeds(targetJob.Needs, normalizedNeeds)
 		compilerJobsLog.Printf("Applied jobs.%s.needs augmentation to %q: %v", configuredJobName, targetJobName, normalizedNeeds)
 	}
-
 	return nil
+}
+
+func normalizeBuiltinJobNeeds(configuredJobName, targetJobName string, augmentedNeeds []string, allJobs map[string]*Job) ([]string, error) {
+	normalizedNeeds := make([]string, 0, len(augmentedNeeds))
+	for _, rawNeed := range augmentedNeeds {
+		need := normalizeBuiltinJobAlias(rawNeed)
+		if need == targetJobName {
+			return nil, fmt.Errorf("jobs.%s.needs: %q cannot depend on itself", configuredJobName, rawNeed)
+		}
+		if _, known := allJobs[need]; !known {
+			return nil, fmt.Errorf("jobs.%s.needs: unknown job %q", configuredJobName, rawNeed)
+		}
+		normalizedNeeds = append(normalizedNeeds, need)
+	}
+	return normalizedNeeds, nil
+}
+
+func mergeBuiltinJobNeeds(existingNeeds, normalizedNeeds []string) []string {
+	seen := make(map[string]struct{}, len(existingNeeds)+len(normalizedNeeds))
+	mergedNeeds := make([]string, 0, len(existingNeeds)+len(normalizedNeeds))
+	for _, need := range append(existingNeeds, normalizedNeeds...) {
+		if _, alreadySeen := seen[need]; alreadySeen {
+			continue
+		}
+		seen[need] = struct{}{}
+		mergedNeeds = append(mergedNeeds, need)
+	}
+	return mergedNeeds
 }
 
 func validateRestrictedBuiltinSetupSteps(jobName string, hasSetupSteps bool) error {
@@ -777,42 +770,43 @@ func insertPreStepsAtEarliestBoundary(steps []string, preSteps []string) []strin
 	if len(preSteps) == 0 {
 		return steps
 	}
+	insertIdx := findPreStepsInsertIndex(steps)
+	result := make([]string, 0, safeAllocationCapacity(len(steps), len(preSteps)))
+	result = append(result, steps[:insertIdx]...)
+	result = append(result, preSteps...)
+	result = append(result, steps[insertIdx:]...)
+	return result
+}
 
+func findPreStepsInsertIndex(steps []string) int {
 	firstCheckoutIdx := -1
 	firstTokenMintIdx := -1
 	lastSetupIdx := -1
 	for i, step := range steps {
 		if firstCheckoutIdx == -1 && strings.Contains(step, "uses: actions/checkout@") {
-			firstCheckoutIdx = i
-			// Walk backward to the checkout step's list-item boundary ("- ").
-			// If no boundary is found, keep the current index so insertion still
-			// occurs before the checkout uses-line.
-			for j := i; j >= 0; j-- {
-				trimmed := strings.TrimLeft(steps[j], " ")
-				if strings.HasPrefix(trimmed, "- ") {
-					firstCheckoutIdx = j
-					break
-				}
-			}
+			firstCheckoutIdx = findStepBoundaryBefore(steps, i)
 		}
 		if firstTokenMintIdx == -1 && strings.Contains(step, "uses: actions/create-github-app-token@") {
-			firstTokenMintIdx = i
-			// Walk backward to the token-mint step's list-item boundary ("- ").
-			// If no boundary is found, keep the current index so insertion still
-			// occurs before the token-mint uses-line.
-			for j := i; j >= 0; j-- {
-				trimmed := strings.TrimLeft(steps[j], " ")
-				if strings.HasPrefix(trimmed, "- ") {
-					firstTokenMintIdx = j
-					break
-				}
-			}
+			firstTokenMintIdx = findStepBoundaryBefore(steps, i)
 		}
 		if exactSetupStepIDPattern.MatchString(step) {
 			lastSetupIdx = i
 		}
 	}
+	return choosePreStepsInsertIndex(steps, firstCheckoutIdx, firstTokenMintIdx, lastSetupIdx)
+}
 
+func findStepBoundaryBefore(steps []string, index int) int {
+	for j := index; j >= 0; j-- {
+		trimmed := strings.TrimLeft(steps[j], " ")
+		if strings.HasPrefix(trimmed, "- ") {
+			return j
+		}
+	}
+	return index
+}
+
+func choosePreStepsInsertIndex(steps []string, firstCheckoutIdx, firstTokenMintIdx, lastSetupIdx int) int {
 	insertIdx := len(steps)
 	if lastSetupIdx >= 0 {
 		for i := lastSetupIdx + 1; i < len(steps); i++ {
@@ -838,12 +832,7 @@ func insertPreStepsAtEarliestBoundary(steps []string, preSteps []string) []strin
 	if insertIdx > len(steps) {
 		insertIdx = len(steps)
 	}
-
-	result := make([]string, 0, safeAllocationCapacity(len(steps), len(preSteps)))
-	result = append(result, steps[:insertIdx]...)
-	result = append(result, preSteps...)
-	result = append(result, steps[insertIdx:]...)
-	return result
+	return insertIdx
 }
 
 func (c *Compiler) extractPinnedJobSteps(fieldName string, jobName string, configMap map[string]any, data *WorkflowData) ([]string, error) {

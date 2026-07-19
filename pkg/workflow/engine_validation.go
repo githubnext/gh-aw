@@ -392,28 +392,27 @@ func isModelOnlyEngineJSON(engineJSON string) bool {
 
 // validateSingleEngineSpecification validates that only one engine field exists across all files
 func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, includedEnginesJSON []string) (string, error) {
-	var allEngines []string
-	// firstIncludedRealEngine holds the raw JSON of the first non-model-only engine spec
-	// from included files. It is used below to extract the engine ID when the single
-	// engine specification originates from an included file rather than the main workflow.
-	var firstIncludedRealEngine string
+	allEngines, firstIncludedRealEngine := collectRealEngineSpecifications(mainEngineSetting, includedEnginesJSON)
+	if len(allEngines) == 0 {
+		return "", nil // No engine specification found anywhere; will use default
+	}
+	if len(allEngines) > 1 {
+		return "", fmt.Errorf("multiple engine fields found (%d engine specifications detected). Only one engine field is allowed across the main workflow and all included files. Remove duplicate engine specifications to keep only one.\n\nExample:\nengine: copilot\n\nSee: %s", len(allEngines), constants.DocsEnginesURL)
+	}
+	if mainEngineSetting != "" {
+		return mainEngineSetting, nil
+	}
+	return parseIncludedEngineSpecification(firstIncludedRealEngine)
+}
 
-	// Add main engine if specified
+func collectRealEngineSpecifications(mainEngineSetting string, includedEnginesJSON []string) ([]string, string) {
+	var allEngines []string
+	var firstIncludedRealEngine string
 	if mainEngineSetting != "" {
 		allEngines = append(allEngines, mainEngineSetting)
 	}
-
-	// Add included engines — skip preference-only configs (objects with only 'model'/'mcp'
-	// keys and no 'id' or 'runtime'). These express a model or MCP preference without
-	// selecting an engine and must not be counted as engine specifications (avoids spurious
-	// "multiple engine fields" errors when a shared workflow only declares engine.model
-	// without engine.id). Objects with unknown keys or empty objects are not skipped
-	// and will continue through normal validation.
 	for _, engineJSON := range includedEnginesJSON {
-		if engineJSON == "" {
-			continue
-		}
-		if isModelOnlyEngineJSON(engineJSON) {
+		if engineJSON == "" || isModelOnlyEngineJSON(engineJSON) {
 			continue
 		}
 		allEngines = append(allEngines, engineJSON)
@@ -421,50 +420,41 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 			firstIncludedRealEngine = engineJSON
 		}
 	}
+	return allEngines, firstIncludedRealEngine
+}
 
-	// Check count (only counting real engine specifications)
-	if len(allEngines) == 0 {
-		return "", nil // No engine specification found anywhere; will use default
-	}
-
-	if len(allEngines) > 1 {
-		return "", fmt.Errorf("multiple engine fields found (%d engine specifications detected). Only one engine field is allowed across the main workflow and all included files. Remove duplicate engine specifications to keep only one.\n\nExample:\nengine: copilot\n\nSee: %s", len(allEngines), constants.DocsEnginesURL)
-	}
-
-	// Exactly one engine found - parse and return it
-	if mainEngineSetting != "" {
-		return mainEngineSetting, nil
-	}
-
-	// Must be from included file - parse the first real included engine specification
+func parseIncludedEngineSpecification(firstIncludedRealEngine string) (string, error) {
 	var firstEngine any
 	if err := json.Unmarshal([]byte(firstIncludedRealEngine), &firstEngine); err != nil {
 		return "", fmt.Errorf("failed to parse included engine configuration: %w. Expected string or object format.\n\nExample (string):\nengine: copilot\n\nExample (object):\nengine:\n  id: copilot\n  model: gpt-4\n\nSee: %s", err, constants.DocsEnginesURL)
 	}
-
-	// Handle string format
 	if engineStr, ok := firstEngine.(string); ok {
 		return engineStr, nil
-	} else if engineObj, ok := firstEngine.(map[string]any); ok {
-		// Handle object format: either engine.id (named engine) or engine.runtime.id (inline definition)
-		if id, hasID := engineObj["id"]; hasID {
-			if idStr, ok := id.(string); ok {
-				return idStr, nil
-			}
+	}
+	if engineObj, ok := firstEngine.(map[string]any); ok {
+		if idStr, ok := includedEngineID(engineObj); ok {
+			return idStr, nil
 		}
-		// Handle inline definition with 'runtime' sub-object (engine.runtime.id)
-		if runtime, hasRuntime := engineObj["runtime"]; hasRuntime {
-			if runtimeObj, ok := runtime.(map[string]any); ok {
-				if id, hasID := runtimeObj["id"]; hasID {
-					if idStr, ok := id.(string); ok {
-						return idStr, nil
-					}
+	}
+	return "", fmt.Errorf("invalid engine configuration in included file, missing or invalid 'id' field. Expected string, object with 'id' field, or inline definition with 'runtime.id'.\n\nExample (string):\nengine: copilot\n\nExample (object with id):\nengine:\n  id: copilot\n  model: gpt-4\n\nExample (inline runtime definition):\nengine:\n  runtime:\n    id: codex\n\nSee: %s", constants.DocsEnginesURL)
+}
+
+func includedEngineID(engineObj map[string]any) (string, bool) {
+	if id, hasID := engineObj["id"]; hasID {
+		if idStr, ok := id.(string); ok {
+			return idStr, true
+		}
+	}
+	if runtime, hasRuntime := engineObj["runtime"]; hasRuntime {
+		if runtimeObj, ok := runtime.(map[string]any); ok {
+			if id, hasID := runtimeObj["id"]; hasID {
+				if idStr, ok := id.(string); ok {
+					return idStr, true
 				}
 			}
 		}
 	}
-
-	return "", fmt.Errorf("invalid engine configuration in included file, missing or invalid 'id' field. Expected string, object with 'id' field, or inline definition with 'runtime.id'.\n\nExample (string):\nengine: copilot\n\nExample (object with id):\nengine:\n  id: copilot\n  model: gpt-4\n\nExample (inline runtime definition):\nengine:\n  runtime:\n    id: codex\n\nSee: %s", constants.DocsEnginesURL)
+	return "", false
 }
 
 // EngineHasValidateSecretStep checks if the engine provides a validate-secret step.

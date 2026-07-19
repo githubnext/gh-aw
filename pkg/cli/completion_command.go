@@ -12,7 +12,15 @@ var completionLog = logger.New("cli:completion")
 
 // NewCompletionCommand creates the completion command with install subcommand
 func NewCompletionCommand() *cobra.Command {
-	cmd := &cobra.Command{
+	cmd := newCompletionCommandRoot()
+	cmd.AddCommand(newCompletionCommandInstall())
+	cmd.AddCommand(newCompletionCommandUninstall())
+
+	return cmd
+}
+
+func newCompletionCommandRoot() *cobra.Command {
+	return &cobra.Command{
 		Use:   "completion [shell]",
 		Short: "Generate shell completion scripts for gh aw commands",
 		Long: `Generate shell completion scripts to enable tab completion for gh aw commands.
@@ -47,26 +55,32 @@ Supported shells: bash, zsh, fish, PowerShell`,
 		ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
 		Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			shell := args[0]
-			completionLog.Printf("Generating %s completion script", shell)
-
-			switch shell {
-			case "bash":
-				return cmd.Root().GenBashCompletion(os.Stdout)
-			case "zsh":
-				return cmd.Root().GenZshCompletion(os.Stdout)
-			case "fish":
-				return cmd.Root().GenFishCompletion(os.Stdout, true)
-			case "powershell":
-				return cmd.Root().GenPowerShellCompletion(os.Stdout)
-			default:
-				return fmt.Errorf("unsupported shell: %s", shell)
-			}
+			return newCompletionCommandRun(cmd, args)
 		},
 	}
+}
 
-	// Add install subcommand
-	installCmd := &cobra.Command{
+func newCompletionCommandRun(cmd *cobra.Command, args []string) error {
+	shell := args[0]
+	completionLog.Printf("Generating %s completion script", shell)
+
+	switch shell {
+	case "bash":
+		return cmd.Root().GenBashCompletion(os.Stdout)
+	case "zsh":
+		return cmd.Root().GenZshCompletion(os.Stdout)
+	case "fish":
+		return cmd.Root().GenFishCompletion(os.Stdout, true)
+	case "powershell":
+		return cmd.Root().GenPowerShellCompletion(os.Stdout)
+	default:
+		return fmt.Errorf("unsupported shell: %s", shell)
+	}
+}
+
+// Add install subcommand
+func newCompletionCommandInstall() *cobra.Command {
+	return &cobra.Command{
 		Use:   "install",
 		Short: "Install shell completion for the detected shell",
 		Long: `Automatically install shell completion for your current shell.
@@ -88,9 +102,11 @@ Supported shells:
 			return InstallShellCompletion(verbose, cmd.Root())
 		},
 	}
+}
 
-	// Add uninstall subcommand
-	uninstallCmd := &cobra.Command{
+// Add uninstall subcommand
+func newCompletionCommandUninstall() *cobra.Command {
+	return &cobra.Command{
 		Use:   "uninstall",
 		Short: "Uninstall shell completion for the detected shell",
 		Long: `Automatically uninstall shell completion for your current shell.
@@ -112,9 +128,4 @@ Supported shells:
 			return UninstallShellCompletion(verbose)
 		},
 	}
-
-	cmd.AddCommand(installCmd)
-	cmd.AddCommand(uninstallCmd)
-
-	return cmd
 }

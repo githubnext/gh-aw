@@ -16,21 +16,7 @@ var mcpSecretsLog = logger.New("cli:mcp_secrets")
 func checkAndSuggestSecrets(toolConfig map[string]any, verbose bool) error {
 	mcpSecretsLog.Print("Checking and suggesting secrets for MCP tool configuration")
 
-	// Extract environment variables from the tool config
-	var requiredSecrets []string
-
-	if mcpSection, ok := toolConfig["mcp"].(map[string]any); ok {
-		if env, hasEnv := mcpSection["env"].(map[string]string); hasEnv {
-			for _, value := range env {
-				// Extract secret name from GitHub Actions syntax: ${{ secrets.SECRET_NAME }}
-				if strings.HasPrefix(value, "${{ secrets.") && strings.HasSuffix(value, " }}") {
-					secretName := value[12 : len(value)-3] // Remove "${{ secrets." and " }}"
-					requiredSecrets = append(requiredSecrets, secretName)
-				}
-			}
-		}
-	}
-
+	requiredSecrets := checkAndSuggestSecretsRequired(toolConfig)
 	if len(requiredSecrets) == 0 {
 		mcpSecretsLog.Print("No required secrets found in tool configuration")
 		return nil
@@ -41,24 +27,9 @@ func checkAndSuggestSecrets(toolConfig map[string]any, verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking repository secrets..."))
 	}
 
-	// Check each secret using GitHub CLI
-	var missingSecrets []string
-	for _, secretName := range requiredSecrets {
-		exists, err := checkSecretExists(secretName)
-		if err != nil {
-			// If we get a 403 error, ignore it as requested
-			if errorutil.IsForbiddenError(err) {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Repository secrets check skipped (insufficient permissions)"))
-				}
-				return nil
-			}
-			return err
-		}
-
-		if !exists {
-			missingSecrets = append(missingSecrets, secretName)
-		}
+	missingSecrets, err := checkAndSuggestSecretsMissing(requiredSecrets, verbose)
+	if err != nil {
+		return err
 	}
 
 	// Suggest CLI commands for missing secrets
@@ -75,4 +46,44 @@ func checkAndSuggestSecrets(toolConfig map[string]any, verbose bool) error {
 	}
 
 	return nil
+}
+
+func checkAndSuggestSecretsRequired(toolConfig map[string]any) []string {
+	// Extract environment variables from the tool config
+	var requiredSecrets []string
+	if mcpSection, ok := toolConfig["mcp"].(map[string]any); ok {
+		if env, hasEnv := mcpSection["env"].(map[string]string); hasEnv {
+			for _, value := range env {
+				// Extract secret name from GitHub Actions syntax: ${{ secrets.SECRET_NAME }}
+				if strings.HasPrefix(value, "${{ secrets.") && strings.HasSuffix(value, " }}") {
+					secretName := value[12 : len(value)-3] // Remove "${{ secrets." and " }}"
+					requiredSecrets = append(requiredSecrets, secretName)
+				}
+			}
+		}
+	}
+	return requiredSecrets
+}
+
+func checkAndSuggestSecretsMissing(requiredSecrets []string, verbose bool) ([]string, error) {
+	// Check each secret using GitHub CLI
+	var missingSecrets []string
+	for _, secretName := range requiredSecrets {
+		exists, err := checkSecretExists(secretName)
+		if err != nil {
+			// If we get a 403 error, ignore it as requested
+			if errorutil.IsForbiddenError(err) {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Repository secrets check skipped (insufficient permissions)"))
+				}
+				return nil, nil
+			}
+			return nil, err
+		}
+
+		if !exists {
+			missingSecrets = append(missingSecrets, secretName)
+		}
+	}
+	return missingSecrets, nil
 }

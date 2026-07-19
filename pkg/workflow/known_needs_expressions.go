@@ -14,101 +14,69 @@ import (
 var knownNeedsLog = logger.New("workflow:known_needs")
 
 // generateKnownNeedsExpressions generates expression mappings for all known needs.* variables
-// that could be referenced in the prompt. This ensures that these variables are available
-// for interpolation even if the markdown changes without recompilation.
-//
-// IMPORTANT: The prompt is generated in the ACTIVATION job, so it can only access outputs
-// from jobs that the activation job depends on (i.e., jobs that run BEFORE activation).
-// This typically includes:
-// - needs.pre_activation.outputs.* (activated, matched_command) - only when pre_activation job exists
-// - needs.<custom-job>.outputs.* for custom jobs that run before activation
-//
-// The function does NOT generate mappings for jobs that run AFTER activation:
-// - needs.activation.outputs.* (activation is the current job)
-// - needs.agent.outputs.* (agent runs AFTER activation, includes detection_success/detection_conclusion)
-// - needs.<safe-output-job>.outputs.* (these run AFTER agent)
-//
-// preActivationJobCreated indicates whether the pre_activation job was created for this workflow.
-// When false, no pre_activation output mappings are generated to avoid actionlint errors.
-//
-// Returns a slice of ExpressionMapping that should be merged with other expression mappings.
+// that could be referenced in the prompt.
 func generateKnownNeedsExpressions(data *WorkflowData, preActivationJobCreated bool) []*ExpressionMapping {
 	knownNeedsLog.Print("Generating known needs.* expressions for activation job")
-
 	var mappings []*ExpressionMapping
-
-	// Pre-activation job outputs (activation depends on pre_activation only when it exists)
-	// Only generate these mappings when the pre_activation job was actually created;
-	// otherwise referencing needs.pre_activation.outputs.* causes actionlint errors.
 	if preActivationJobCreated {
-		// Always include the "activated" output
-		activatedExpr := fmt.Sprintf("needs.%s.outputs.%s", constants.PreActivationJobName, constants.ActivatedOutput)
-		activatedEnvVar := fmt.Sprintf("GH_AW_NEEDS_%s_OUTPUTS_%s",
-			normalizeJobNameForEnvVar(string(constants.PreActivationJobName)),
-			normalizeJobNameForEnvVar(constants.ActivatedOutput))
-		mappings = append(mappings, &ExpressionMapping{
-			Original: fmt.Sprintf("${{ %s }}", activatedExpr),
-			EnvVar:   activatedEnvVar,
-			Content:  activatedExpr,
-		})
-
-		// Only include "matched_command" when the workflow has a command trigger,
-		// since matched_command is only declared in the pre_activation job outputs for command workflows.
-		if len(data.Command) > 0 {
-			matchedCmdExpr := fmt.Sprintf("needs.%s.outputs.%s", constants.PreActivationJobName, constants.MatchedCommandOutput)
-			matchedCmdEnvVar := fmt.Sprintf("GH_AW_NEEDS_%s_OUTPUTS_%s",
-				normalizeJobNameForEnvVar(string(constants.PreActivationJobName)),
-				normalizeJobNameForEnvVar(constants.MatchedCommandOutput))
-			mappings = append(mappings, &ExpressionMapping{
-				Original: fmt.Sprintf("${{ %s }}", matchedCmdExpr),
-				EnvVar:   matchedCmdEnvVar,
-				Content:  matchedCmdExpr,
-			})
-		}
+		mappings = append(mappings, preActivationNeedsMappings(data)...)
 	}
-
-	// Custom job outputs from frontmatter jobs
-	// Only include custom jobs that would run before activation
-	// (i.e., jobs that don't depend on activation, pre_activation, agent, or detection)
 	if data.Jobs != nil {
-		customJobNames := getCustomJobsBeforeActivation(data)
-		for _, jobName := range customJobNames {
-			// If the job has explicit outputs declared in the frontmatter, skip the generic "output"
-			// env var unless "output" is explicitly among those declared outputs.
-			// This prevents actionlint errors when the job declares specific outputs but not "output".
-			if jobConfig, ok := data.Jobs[jobName].(map[string]any); ok {
-				if outputsField, hasOutputs := jobConfig["outputs"]; hasOutputs && outputsField != nil {
-					if outputsMap, ok := outputsField.(map[string]any); ok {
-						if _, hasOutputKey := outputsMap["output"]; !hasOutputKey {
-							// Job has explicit outputs but "output" is not among them - skip
-							knownNeedsLog.Printf("Skipping generic 'output' env var for job '%s': has explicit outputs without 'output'", jobName)
-							continue
-						}
-					}
-				}
-			}
-
-			// For custom jobs without explicit outputs (or with "output" declared),
-			// add the most commonly used output name: "output"
-			commonCustomOutputs := []string{
-				"output",
-			}
-			for _, output := range commonCustomOutputs {
-				expr := fmt.Sprintf("needs.%s.outputs.%s", jobName, output)
-				envVar := fmt.Sprintf("GH_AW_NEEDS_%s_OUTPUTS_%s",
-					normalizeJobNameForEnvVar(jobName),
-					normalizeJobNameForEnvVar(output))
-				mappings = append(mappings, &ExpressionMapping{
-					Original: fmt.Sprintf("${{ %s }}", expr),
-					EnvVar:   envVar,
-					Content:  expr,
-				})
-			}
-		}
+		mappings = append(mappings, customJobNeedsMappings(data)...)
 	}
-
 	knownNeedsLog.Printf("Generated %d known needs.* expression mappings", len(mappings))
 	return mappings
+}
+
+func preActivationNeedsMappings(data *WorkflowData) []*ExpressionMapping {
+	mappings := []*ExpressionMapping{
+		knownNeedsExpressionMapping(string(constants.PreActivationJobName), constants.ActivatedOutput),
+	}
+	if len(data.Command) > 0 {
+		mappings = append(mappings, knownNeedsExpressionMapping(string(constants.PreActivationJobName), constants.MatchedCommandOutput))
+	}
+	return mappings
+}
+
+func customJobNeedsMappings(data *WorkflowData) []*ExpressionMapping {
+	var mappings []*ExpressionMapping
+	for _, jobName := range getCustomJobsBeforeActivation(data) {
+		if shouldSkipGenericCustomJobOutput(data, jobName) {
+			knownNeedsLog.Printf("Skipping generic 'output' env var for job '%s': has explicit outputs without 'output'", jobName)
+			continue
+		}
+		mappings = append(mappings, knownNeedsExpressionMapping(jobName, "output"))
+	}
+	return mappings
+}
+
+func knownNeedsExpressionMapping(jobName, output string) *ExpressionMapping {
+	expr := fmt.Sprintf("needs.%s.outputs.%s", jobName, output)
+	envVar := fmt.Sprintf("GH_AW_NEEDS_%s_OUTPUTS_%s",
+		normalizeJobNameForEnvVar(jobName),
+		normalizeJobNameForEnvVar(output))
+	return &ExpressionMapping{
+		Original: fmt.Sprintf("${{ %s }}", expr),
+		EnvVar:   envVar,
+		Content:  expr,
+	}
+}
+
+func shouldSkipGenericCustomJobOutput(data *WorkflowData, jobName string) bool {
+	jobConfig, ok := data.Jobs[jobName].(map[string]any)
+	if !ok {
+		return false
+	}
+	outputsField, hasOutputs := jobConfig["outputs"]
+	if !hasOutputs || outputsField == nil {
+		return false
+	}
+	outputsMap, ok := outputsField.(map[string]any)
+	if !ok {
+		return false
+	}
+	_, hasOutputKey := outputsMap["output"]
+	return !hasOutputKey
 }
 
 // filterExpressionsForActivation filters expression mappings to remove any that reference

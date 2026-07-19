@@ -31,9 +31,28 @@ func NewLogsCommand() *cobra.Command {
 	validArtifactSets := strings.Join(ValidArtifactSetNames(), ", ")
 
 	logsCmd := &cobra.Command{
-		Use:   "logs [workflow]",
-		Short: "Download and analyze agentic workflow logs and artifacts",
-		Long: fmt.Sprintf(`Download and analyze agentic workflow logs and artifacts from GitHub Actions.
+		Use:     "logs [workflow]",
+		Short:   "Download and analyze agentic workflow logs and artifacts",
+		Long:    newLogsCommandLong(validArtifactSets),
+		Example: newLogsCommandExample(),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return newLogsCommandRun(cmd, args)
+		},
+	}
+
+	// Add flags to logs command
+	newLogsCommandAddFlags(logsCmd, validArtifactSets)
+
+	// Register completions for logs command
+	logsCmd.ValidArgsFunction = CompleteWorkflowNames
+	RegisterEngineFlagCompletion(logsCmd)
+	RegisterDirFlagCompletion(logsCmd, "output")
+
+	return logsCmd
+}
+
+func newLogsCommandLong(validArtifactSets string) string {
+	return fmt.Sprintf(`Download and analyze agentic workflow logs and artifacts from GitHub Actions.
 
 This command fetches workflow runs, downloads their artifacts, and extracts them into
 organized folders named by run ID. It also provides an overview table with aggregate
@@ -54,8 +73,17 @@ Downloaded artifacts include (when using --artifacts all):
 - aw-{branch}.patch: Git patch of changes for each branch (one file per PR/push)
 - workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
 - summary.json: Complete metrics and run data for all downloaded runs
-`, validArtifactSets) + "\n\n" + WorkflowIDExplanation,
-		Example: `  # Basic usage
+`, validArtifactSets) + "\n\n" + WorkflowIDExplanation
+}
+
+func newLogsCommandExample() string {
+	return newLogsCommandExampleBasicAndDates() +
+		newLogsCommandExampleFiltersAndArtifacts() +
+		newLogsCommandExampleOutputAndCache()
+}
+
+func newLogsCommandExampleBasicAndDates() string {
+	return `  # Basic usage
   ` + string(constants.CLIExtensionPrefix) + ` logs                           # Download logs for all workflows
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research           # Download logs for specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research.md        # Download logs (alternative format)
@@ -68,7 +96,11 @@ Downloaded artifacts include (when using --artifacts all):
   ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1w -c 5     # Download up to 5 runs from last week
   ` + string(constants.CLIExtensionPrefix) + ` logs --end-date -1d            # Download up to 10 runs before yesterday
   ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1mo         # Download up to 10 runs from last month
+`
+}
 
+func newLogsCommandExampleFiltersAndArtifacts() string {
+	return `
   # Content filtering
   ` + string(constants.CLIExtensionPrefix) + ` logs --engine claude           # Filter logs by claude engine
   ` + string(constants.CLIExtensionPrefix) + ` logs --engine codex            # Filter logs by codex engine
@@ -96,7 +128,11 @@ Downloaded artifacts include (when using --artifacts all):
   ` + string(constants.CLIExtensionPrefix) + ` logs --artifacts agent         # Download only agent logs
   ` + string(constants.CLIExtensionPrefix) + ` logs --artifacts agent,firewall # Download agent and firewall artifacts
   ` + string(constants.CLIExtensionPrefix) + ` logs --artifacts mcp           # Download only MCP gateway logs
+`
+}
 
+func newLogsCommandExampleOutputAndCache() string {
+	return `
   # Output options (default output is compact format optimized for agents)
   ` + string(constants.CLIExtensionPrefix) + ` logs -o ./my-logs              # Custom output directory
   ` + string(constants.CLIExtensionPrefix) + ` logs --tool-graph              # Generate Mermaid tool sequence graph
@@ -119,253 +155,10 @@ Downloaded artifacts include (when using --artifacts all):
   ` + string(constants.CLIExtensionPrefix) + ` logs --cache-before -1w          # Evict local cache older than 1 week before downloading runs
   ` + string(constants.CLIExtensionPrefix) + ` logs --cache-before -30d         # Evict local cache older than 30 days before downloading runs
   ` + string(constants.CLIExtensionPrefix) + ` logs --cache-before -1mo         # Evict local cache older than 1 month before downloading runs
-  ` + string(constants.CLIExtensionPrefix) + ` logs --cache-before 2024-01-01   # Evict local cache older than 2024-01-01 before downloading runs`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			logsCommandLog.Printf("Starting logs command: args=%d", len(args))
+  ` + string(constants.CLIExtensionPrefix) + ` logs --cache-before 2024-01-01   # Evict local cache older than 2024-01-01 before downloading runs`
+}
 
-			stdin, _ := cmd.Flags().GetBool("stdin")
-
-			// When --stdin is provided, read run IDs/URLs from stdin and bypass GitHub API discovery.
-			if stdin {
-				if len(args) > 0 {
-					return errors.New(console.FormatErrorWithSuggestions(
-						"positional arguments are not allowed with --stdin",
-						[]string{"Remove the workflow name argument, or omit --stdin to use the normal discovery mode"},
-					))
-				}
-				logsCommandLog.Printf("Reading run IDs from stdin")
-				runURLs, err := readRunIDsFromStdin(os.Stdin)
-				if err != nil {
-					return fmt.Errorf("failed to read run IDs from stdin: %w", err)
-				}
-
-				outputDir, _ := cmd.Flags().GetString("output")
-				engine, _ := cmd.Flags().GetString("engine")
-				repoOverride, _ := cmd.Flags().GetString("repo")
-				verbose, _ := cmd.Flags().GetBool("verbose")
-				toolGraph, _ := cmd.Flags().GetBool("tool-graph")
-				noStaged, _ := cmd.Flags().GetBool("exclude-staged")
-				firewallOnly, _ := cmd.Flags().GetBool("firewall")
-				noFirewall, _ := cmd.Flags().GetBool("no-firewall")
-				parse, _ := cmd.Flags().GetBool("parse")
-				jsonOutput, _ := cmd.Flags().GetBool("json")
-				timeout, _ := cmd.Flags().GetInt("timeout")
-				summaryFile, _ := cmd.Flags().GetString("summary-file")
-				safeOutputType, _ := cmd.Flags().GetString("safe-output")
-				filteredIntegrity, _ := cmd.Flags().GetBool("filtered-integrity")
-				evalsOnly, _ := cmd.Flags().GetBool("evals")
-				train, _ := cmd.Flags().GetBool("train")
-				format, _ := cmd.Flags().GetString("format")
-				reportFile, _ := cmd.Flags().GetString("report-file")
-				artifacts, _ := cmd.Flags().GetStringSlice("artifacts")
-
-				if engine != "" {
-					logsCommandLog.Printf("Validating engine parameter: %s", engine)
-					registry := workflow.GetGlobalEngineRegistry()
-					if !registry.IsValidEngine(engine) {
-						supportedEngines := registry.GetSupportedEngines()
-						return fmt.Errorf("invalid engine value '%s'. Must be one of: %s", engine, strings.Join(supportedEngines, ", "))
-					}
-				}
-
-				if err := validateReportFileFlags(reportFile, format, jsonOutput); err != nil {
-					return err
-				}
-
-				if len(artifacts) > 0 {
-					artifacts = applyEvalsArtifact(artifacts, evalsOnly)
-				}
-
-				return DownloadWorkflowLogsFromStdin(cmd.Context(), StdinLogsOptions{
-					RunURLs:           runURLs,
-					OutputDir:         outputDir,
-					Engine:            engine,
-					RepoOverride:      repoOverride,
-					Verbose:           verbose,
-					ToolGraph:         toolGraph,
-					NoStaged:          noStaged,
-					FirewallOnly:      firewallOnly,
-					NoFirewall:        noFirewall,
-					Parse:             parse,
-					JSONOutput:        jsonOutput,
-					Timeout:           timeout,
-					SummaryFile:       summaryFile,
-					SafeOutputType:    safeOutputType,
-					FilteredIntegrity: filteredIntegrity,
-					EvalsOnly:         evalsOnly,
-					Train:             train,
-					Format:            format,
-					ReportFile:        reportFile,
-					ArtifactSets:      artifacts,
-				})
-			}
-
-			var workflowName string
-			if len(args) > 0 && args[0] != "" {
-				logsCommandLog.Printf("Resolving workflow name from argument: %s", args[0])
-
-				repoOverrideEarly, _ := cmd.Flags().GetString("repo")
-				if repoOverrideEarly != "" {
-					// When --repo is specified, only use local lock-file resolution when
-					// the target repo is the current repository. Local lock files are
-					// authoritative for the current repo and allow us to map the workflow
-					// ID (e.g. "audit-workflows") to its GitHub Actions display name
-					// (e.g. "Agentic Workflow Audit Agent"), which gh run list requires.
-					//
-					// For cross-repo queries, skip local resolution to avoid mapping a
-					// local display name onto a different repository's workflow topology.
-					//
-					// Note: the argument must be a workflow ID (e.g. "test-claude"),
-					// not a display name (e.g. "Test Claude"). Display-name lookup
-					// requires local lock files, which are unavailable for remote repos.
-					if repoIsLocal(repoOverrideEarly) {
-						if resolved, resolveErr := workflow.FindWorkflowName(args[0]); resolveErr == nil {
-							workflowName = resolved
-							logsCommandLog.Printf("Resolved workflow name via local lock files: %s -> %s", args[0], workflowName)
-						} else {
-							workflowName = normalizeWorkflowID(args[0])
-							logsCommandLog.Printf("Local resolution failed, using normalized workflow name: %s", workflowName)
-						}
-					} else {
-						workflowName = normalizeWorkflowID(args[0])
-						logsCommandLog.Printf("Using normalized workflow name for remote repo: %s", workflowName)
-					}
-				} else {
-					// Use flexible workflow name matching (workflow ID or display name)
-					resolvedName, err := workflow.FindWorkflowName(args[0])
-					if err != nil {
-						// Workflow not found - provide suggestions
-						suggestions := []string{
-							fmt.Sprintf("Run '%s status' to see all available workflows", string(constants.CLIExtensionPrefix)),
-							"Check for typos in the workflow name",
-							"Use the workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude')",
-						}
-
-						// Add fuzzy match suggestions
-						similarNames := suggestWorkflowNames(args[0])
-						if len(similarNames) > 0 {
-							suggestions = append([]string{fmt.Sprintf("Did you mean: %s?", strings.Join(similarNames, ", "))}, suggestions...)
-						}
-
-						return errors.New(console.FormatErrorWithSuggestions(
-							fmt.Sprintf("workflow '%s' not found", args[0]),
-							suggestions,
-						))
-					}
-					workflowName = resolvedName
-				}
-			}
-
-			count, _ := cmd.Flags().GetInt("count")
-			// --last is an alias for --count (for compatibility with users of `audit report --last`)
-			if last, _ := cmd.Flags().GetInt("last"); last > 0 {
-				count = last
-			}
-			startDate, _ := cmd.Flags().GetString("start-date")
-			endDate, _ := cmd.Flags().GetString("end-date")
-			outputDir, _ := cmd.Flags().GetString("output")
-			engine, _ := cmd.Flags().GetString("engine")
-			ref, _ := cmd.Flags().GetString("ref")
-			beforeRunID, _ := cmd.Flags().GetInt64("before-run-id")
-			afterRunID, _ := cmd.Flags().GetInt64("after-run-id")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
-			noStaged, _ := cmd.Flags().GetBool("exclude-staged")
-			firewallOnly, _ := cmd.Flags().GetBool("firewall")
-			noFirewall, _ := cmd.Flags().GetBool("no-firewall")
-			parse, _ := cmd.Flags().GetBool("parse")
-			jsonOutput, _ := cmd.Flags().GetBool("json")
-			timeout, _ := cmd.Flags().GetInt("timeout")
-			repoOverride, _ := cmd.Flags().GetString("repo")
-			summaryFile, _ := cmd.Flags().GetString("summary-file")
-			safeOutputType, _ := cmd.Flags().GetString("safe-output")
-			filteredIntegrity, _ := cmd.Flags().GetBool("filtered-integrity")
-			evalsOnly, _ := cmd.Flags().GetBool("evals")
-			train, _ := cmd.Flags().GetBool("train")
-			format, _ := cmd.Flags().GetString("format")
-			reportFile, _ := cmd.Flags().GetString("report-file")
-			artifacts, _ := cmd.Flags().GetStringSlice("artifacts")
-			cacheBefore, _ := cmd.Flags().GetString("cache-before")
-			if !cmd.Flags().Changed("cache-before") {
-				if cmd.Flags().Changed("after") {
-					cacheBefore, _ = cmd.Flags().GetString("after")
-				}
-			}
-
-			// Resolve relative dates to absolute dates for GitHub CLI
-			now := time.Now()
-			if startDate != "" {
-				logsCommandLog.Printf("Resolving start date: %s", startDate)
-				resolvedStartDate, err := workflow.ResolveRelativeDate(startDate, now)
-				if err != nil {
-					return fmt.Errorf("invalid start-date format '%s': %w", startDate, err)
-				}
-				startDate = resolvedStartDate
-				logsCommandLog.Printf("Resolved start date to: %s", startDate)
-			}
-			if endDate != "" {
-				logsCommandLog.Printf("Resolving end date: %s", endDate)
-				resolvedEndDate, err := workflow.ResolveRelativeDate(endDate, now)
-				if err != nil {
-					return fmt.Errorf("invalid end-date format '%s': %w", endDate, err)
-				}
-				endDate = resolvedEndDate
-				logsCommandLog.Printf("Resolved end date to: %s", endDate)
-			}
-
-			// Validate engine parameter using the engine registry
-			if engine != "" {
-				logsCommandLog.Printf("Validating engine parameter: %s", engine)
-				registry := workflow.GetGlobalEngineRegistry()
-				if !registry.IsValidEngine(engine) {
-					supportedEngines := registry.GetSupportedEngines()
-					return fmt.Errorf("invalid engine value '%s'. Must be one of: %s", engine, strings.Join(supportedEngines, ", "))
-				}
-			}
-
-			if err := validateReportFileFlags(reportFile, format, jsonOutput); err != nil {
-				return err
-			}
-
-			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v, cache_before=%s", workflowName, count, engine, train, cacheBefore)
-
-			if len(artifacts) > 0 {
-				artifacts = applyEvalsArtifact(artifacts, evalsOnly)
-			}
-
-			return DownloadWorkflowLogs(cmd.Context(), LogsDownloadOptions{
-				WorkflowName:      workflowName,
-				Count:             count,
-				StartDate:         startDate,
-				EndDate:           endDate,
-				OutputDir:         outputDir,
-				Engine:            engine,
-				Ref:               ref,
-				BeforeRunID:       beforeRunID,
-				AfterRunID:        afterRunID,
-				RepoOverride:      repoOverride,
-				Verbose:           verbose,
-				ToolGraph:         toolGraph,
-				NoStaged:          noStaged,
-				FirewallOnly:      firewallOnly,
-				NoFirewall:        noFirewall,
-				Parse:             parse,
-				JSONOutput:        jsonOutput,
-				TimeoutMinutes:    timeout,
-				SummaryFile:       summaryFile,
-				SafeOutputType:    safeOutputType,
-				FilteredIntegrity: filteredIntegrity,
-				EvalsOnly:         evalsOnly,
-				Train:             train,
-				Format:            format,
-				ReportFile:        reportFile,
-				ArtifactSets:      artifacts,
-				After:             cacheBefore,
-			})
-		},
-	}
-
-	// Add flags to logs command
+func newLogsCommandAddFlags(logsCmd *cobra.Command, validArtifactSets string) {
 	logsCmd.Flags().IntP("count", "c", 10, "Maximum number of matching workflow runs to return (after applying filters)")
 	logsCmd.Flags().String("start-date", "", "Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
@@ -397,13 +190,264 @@ Downloaded artifacts include (when using --artifacts all):
 	_ = logsCmd.Flags().MarkDeprecated("after", "use --cache-before")
 	logsCmd.Flags().Bool("stdin", false, "Read workflow run IDs or URLs from stdin (one per line) instead of discovering runs via the GitHub API")
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
+}
 
-	// Register completions for logs command
-	logsCmd.ValidArgsFunction = CompleteWorkflowNames
-	RegisterEngineFlagCompletion(logsCmd)
-	RegisterDirFlagCompletion(logsCmd, "output")
+type newLogsCommandFlags struct {
+	count             int
+	startDate         string
+	endDate           string
+	outputDir         string
+	engine            string
+	ref               string
+	beforeRunID       int64
+	afterRunID        int64
+	repoOverride      string
+	verbose           bool
+	toolGraph         bool
+	noStaged          bool
+	firewallOnly      bool
+	noFirewall        bool
+	parse             bool
+	jsonOutput        bool
+	timeout           int
+	summaryFile       string
+	safeOutputType    string
+	filteredIntegrity bool
+	evalsOnly         bool
+	train             bool
+	format            string
+	reportFile        string
+	artifacts         []string
+	cacheBefore       string
+}
 
-	return logsCmd
+func newLogsCommandRun(cmd *cobra.Command, args []string) error {
+	logsCommandLog.Printf("Starting logs command: args=%d", len(args))
+	stdin, _ := cmd.Flags().GetBool("stdin")
+	if stdin {
+		return newLogsCommandRunStdin(cmd, args)
+	}
+	workflowName, err := newLogsCommandResolveWorkflowName(cmd, args)
+	if err != nil {
+		return err
+	}
+	flags, err := newLogsCommandReadFlags(cmd)
+	if err != nil {
+		return err
+	}
+	logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v, cache_before=%s", workflowName, flags.count, flags.engine, flags.train, flags.cacheBefore)
+	return DownloadWorkflowLogs(cmd.Context(), newLogsCommandDownloadOptions(workflowName, flags))
+}
+
+func newLogsCommandRunStdin(cmd *cobra.Command, args []string) error {
+	if len(args) > 0 {
+		return errors.New(console.FormatErrorWithSuggestions(
+			"positional arguments are not allowed with --stdin",
+			[]string{"Remove the workflow name argument, or omit --stdin to use the normal discovery mode"},
+		))
+	}
+	logsCommandLog.Printf("Reading run IDs from stdin")
+	runURLs, err := readRunIDsFromStdin(os.Stdin)
+	if err != nil {
+		return fmt.Errorf("failed to read run IDs from stdin: %w", err)
+	}
+	flags, err := newLogsCommandReadCommonFlags(cmd)
+	if err != nil {
+		return err
+	}
+	return DownloadWorkflowLogsFromStdin(cmd.Context(), newLogsCommandStdinOptions(runURLs, flags))
+}
+
+func newLogsCommandReadFlags(cmd *cobra.Command) (newLogsCommandFlags, error) {
+	flags, err := newLogsCommandReadCommonFlags(cmd)
+	if err != nil {
+		return flags, err
+	}
+	flags.count, _ = cmd.Flags().GetInt("count")
+	if last, _ := cmd.Flags().GetInt("last"); last > 0 {
+		flags.count = last
+	}
+	flags.startDate, _ = cmd.Flags().GetString("start-date")
+	flags.endDate, _ = cmd.Flags().GetString("end-date")
+	flags.ref, _ = cmd.Flags().GetString("ref")
+	flags.beforeRunID, _ = cmd.Flags().GetInt64("before-run-id")
+	flags.afterRunID, _ = cmd.Flags().GetInt64("after-run-id")
+	flags.cacheBefore, _ = cmd.Flags().GetString("cache-before")
+	if !cmd.Flags().Changed("cache-before") && cmd.Flags().Changed("after") {
+		flags.cacheBefore, _ = cmd.Flags().GetString("after")
+	}
+	if err := newLogsCommandResolveDates(&flags); err != nil {
+		return flags, err
+	}
+	return flags, nil
+}
+
+func newLogsCommandReadCommonFlags(cmd *cobra.Command) (newLogsCommandFlags, error) {
+	var flags newLogsCommandFlags
+	flags.outputDir, _ = cmd.Flags().GetString("output")
+	flags.engine, _ = cmd.Flags().GetString("engine")
+	flags.repoOverride, _ = cmd.Flags().GetString("repo")
+	flags.verbose, _ = cmd.Flags().GetBool("verbose")
+	flags.toolGraph, _ = cmd.Flags().GetBool("tool-graph")
+	flags.noStaged, _ = cmd.Flags().GetBool("exclude-staged")
+	flags.firewallOnly, _ = cmd.Flags().GetBool("firewall")
+	flags.noFirewall, _ = cmd.Flags().GetBool("no-firewall")
+	flags.parse, _ = cmd.Flags().GetBool("parse")
+	flags.jsonOutput, _ = cmd.Flags().GetBool("json")
+	flags.timeout, _ = cmd.Flags().GetInt("timeout")
+	flags.summaryFile, _ = cmd.Flags().GetString("summary-file")
+	flags.safeOutputType, _ = cmd.Flags().GetString("safe-output")
+	flags.filteredIntegrity, _ = cmd.Flags().GetBool("filtered-integrity")
+	flags.evalsOnly, _ = cmd.Flags().GetBool("evals")
+	flags.train, _ = cmd.Flags().GetBool("train")
+	flags.format, _ = cmd.Flags().GetString("format")
+	flags.reportFile, _ = cmd.Flags().GetString("report-file")
+	flags.artifacts, _ = cmd.Flags().GetStringSlice("artifacts")
+	if err := newLogsCommandValidateCommonFlags(&flags); err != nil {
+		return flags, err
+	}
+	return flags, nil
+}
+
+func newLogsCommandValidateCommonFlags(flags *newLogsCommandFlags) error {
+	if flags.engine != "" {
+		logsCommandLog.Printf("Validating engine parameter: %s", flags.engine)
+		registry := workflow.GetGlobalEngineRegistry()
+		if !registry.IsValidEngine(flags.engine) {
+			supportedEngines := registry.GetSupportedEngines()
+			return fmt.Errorf("invalid engine value '%s'. Must be one of: %s", flags.engine, strings.Join(supportedEngines, ", "))
+		}
+	}
+	if err := validateReportFileFlags(flags.reportFile, flags.format, flags.jsonOutput); err != nil {
+		return err
+	}
+	if len(flags.artifacts) > 0 {
+		flags.artifacts = applyEvalsArtifact(flags.artifacts, flags.evalsOnly)
+	}
+	return nil
+}
+
+func newLogsCommandResolveDates(flags *newLogsCommandFlags) error {
+	now := time.Now()
+	if flags.startDate != "" {
+		logsCommandLog.Printf("Resolving start date: %s", flags.startDate)
+		resolvedStartDate, err := workflow.ResolveRelativeDate(flags.startDate, now)
+		if err != nil {
+			return fmt.Errorf("invalid start-date format '%s': %w", flags.startDate, err)
+		}
+		flags.startDate = resolvedStartDate
+		logsCommandLog.Printf("Resolved start date to: %s", flags.startDate)
+	}
+	if flags.endDate != "" {
+		logsCommandLog.Printf("Resolving end date: %s", flags.endDate)
+		resolvedEndDate, err := workflow.ResolveRelativeDate(flags.endDate, now)
+		if err != nil {
+			return fmt.Errorf("invalid end-date format '%s': %w", flags.endDate, err)
+		}
+		flags.endDate = resolvedEndDate
+		logsCommandLog.Printf("Resolved end date to: %s", flags.endDate)
+	}
+	return nil
+}
+
+func newLogsCommandResolveWorkflowName(cmd *cobra.Command, args []string) (string, error) {
+	if len(args) == 0 || args[0] == "" {
+		return "", nil
+	}
+	logsCommandLog.Printf("Resolving workflow name from argument: %s", args[0])
+	repoOverrideEarly, _ := cmd.Flags().GetString("repo")
+	if repoOverrideEarly != "" {
+		return newLogsCommandResolveRemoteWorkflowName(args[0], repoOverrideEarly), nil
+	}
+	resolvedName, err := workflow.FindWorkflowName(args[0])
+	if err != nil {
+		return "", newLogsCommandWorkflowNotFound(args[0])
+	}
+	return resolvedName, nil
+}
+
+func newLogsCommandResolveRemoteWorkflowName(arg, repoOverride string) string {
+	if repoIsLocal(repoOverride) {
+		if resolved, resolveErr := workflow.FindWorkflowName(arg); resolveErr == nil {
+			logsCommandLog.Printf("Resolved workflow name via local lock files: %s -> %s", arg, resolved)
+			return resolved
+		}
+		normalized := normalizeWorkflowID(arg)
+		logsCommandLog.Printf("Local resolution failed, using normalized workflow name: %s", normalized)
+		return normalized
+	}
+	normalized := normalizeWorkflowID(arg)
+	logsCommandLog.Printf("Using normalized workflow name for remote repo: %s", normalized)
+	return normalized
+}
+
+func newLogsCommandWorkflowNotFound(arg string) error {
+	suggestions := []string{
+		fmt.Sprintf("Run '%s status' to see all available workflows", string(constants.CLIExtensionPrefix)),
+		"Check for typos in the workflow name",
+		"Use the workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude')",
+	}
+	if similarNames := suggestWorkflowNames(arg); len(similarNames) > 0 {
+		suggestions = append([]string{fmt.Sprintf("Did you mean: %s?", strings.Join(similarNames, ", "))}, suggestions...)
+	}
+	return errors.New(console.FormatErrorWithSuggestions(fmt.Sprintf("workflow '%s' not found", arg), suggestions))
+}
+
+func newLogsCommandStdinOptions(runURLs []string, flags newLogsCommandFlags) StdinLogsOptions {
+	return StdinLogsOptions{
+		RunURLs:           runURLs,
+		OutputDir:         flags.outputDir,
+		Engine:            flags.engine,
+		RepoOverride:      flags.repoOverride,
+		Verbose:           flags.verbose,
+		ToolGraph:         flags.toolGraph,
+		NoStaged:          flags.noStaged,
+		FirewallOnly:      flags.firewallOnly,
+		NoFirewall:        flags.noFirewall,
+		Parse:             flags.parse,
+		JSONOutput:        flags.jsonOutput,
+		Timeout:           flags.timeout,
+		SummaryFile:       flags.summaryFile,
+		SafeOutputType:    flags.safeOutputType,
+		FilteredIntegrity: flags.filteredIntegrity,
+		EvalsOnly:         flags.evalsOnly,
+		Train:             flags.train,
+		Format:            flags.format,
+		ReportFile:        flags.reportFile,
+		ArtifactSets:      flags.artifacts,
+	}
+}
+
+func newLogsCommandDownloadOptions(workflowName string, flags newLogsCommandFlags) LogsDownloadOptions {
+	return LogsDownloadOptions{
+		WorkflowName:      workflowName,
+		Count:             flags.count,
+		StartDate:         flags.startDate,
+		EndDate:           flags.endDate,
+		OutputDir:         flags.outputDir,
+		Engine:            flags.engine,
+		Ref:               flags.ref,
+		BeforeRunID:       flags.beforeRunID,
+		AfterRunID:        flags.afterRunID,
+		RepoOverride:      flags.repoOverride,
+		Verbose:           flags.verbose,
+		ToolGraph:         flags.toolGraph,
+		NoStaged:          flags.noStaged,
+		FirewallOnly:      flags.firewallOnly,
+		NoFirewall:        flags.noFirewall,
+		Parse:             flags.parse,
+		JSONOutput:        flags.jsonOutput,
+		TimeoutMinutes:    flags.timeout,
+		SummaryFile:       flags.summaryFile,
+		SafeOutputType:    flags.safeOutputType,
+		FilteredIntegrity: flags.filteredIntegrity,
+		EvalsOnly:         flags.evalsOnly,
+		Train:             flags.train,
+		Format:            flags.format,
+		ReportFile:        flags.reportFile,
+		ArtifactSets:      flags.artifacts,
+		After:             flags.cacheBefore,
+	}
 }
 
 // flattenSingleFileArtifacts applies the artifact unfold rule to downloaded artifacts

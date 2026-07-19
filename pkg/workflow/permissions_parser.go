@@ -37,120 +37,139 @@ func (p *PermissionsParser) parse() {
 		permissionsParserLog.Print("No permissions to parse")
 		return
 	}
-
 	permissionsParserLog.Printf("Parsing permissions YAML: length=%d", len(p.rawPermissions))
-
-	// Remove the "permissions:" prefix if present and get just the YAML content
-	yamlContent := strings.TrimSpace(p.rawPermissions)
-	if strings.HasPrefix(yamlContent, "permissions:") {
-		// Extract everything after "permissions:"
-		lines := strings.Split(yamlContent, "\n")
-		if len(lines) > 1 {
-			// Get the lines after the first, and normalize indentation
-			contentLines := lines[1:]
-			var normalizedLines []string
-
-			// Find the common indentation to remove
-			minIndent := -1
-			for _, line := range contentLines {
-				if strings.TrimSpace(line) == "" {
-					continue // Skip empty lines
-				}
-				indent := 0
-				for _, r := range line {
-					if r == ' ' || r == '\t' {
-						indent++
-					} else {
-						break
-					}
-				}
-				if minIndent == -1 || indent < minIndent {
-					minIndent = indent
-				}
-			}
-
-			// Remove common indentation from all lines
-			if minIndent > 0 {
-				for _, line := range contentLines {
-					if strings.TrimSpace(line) == "" {
-						normalizedLines = append(normalizedLines, "")
-					} else if len(line) > minIndent {
-						normalizedLines = append(normalizedLines, line[minIndent:])
-					} else {
-						normalizedLines = append(normalizedLines, line)
-					}
-				}
-			} else {
-				normalizedLines = contentLines
-			}
-
-			yamlContent = strings.Join(normalizedLines, "\n")
-		} else {
-			// Single line format like "permissions: read-all"
-			parts := strings.SplitN(lines[0], ":", 2)
-			if len(parts) == 2 {
-				yamlContent = strings.TrimSpace(parts[1])
-			}
-		}
-	}
-
-	yamlContent = strings.TrimSpace(yamlContent)
+	yamlContent := normalizePermissionsYAMLContent(p.rawPermissions)
 	if yamlContent == "" {
 		return
 	}
+	if isShorthandPermission(yamlContent) {
+		p.isShorthand = true
+		p.shorthandValue = yamlContent
+		return
+	}
+	p.parsePermissionsMap(yamlContent)
+}
 
-	// Check if it's a shorthand permission (read-all, write-all, none)
-	// Note: "read" and "write" are no longer valid shorthands as they create invalid GitHub Actions YAML
-	shorthandPerms := []string{"read-all", "write-all", "none"}
-	for _, shorthand := range shorthandPerms {
+func normalizePermissionsYAMLContent(rawPermissions string) string {
+	yamlContent := strings.TrimSpace(rawPermissions)
+	if !strings.HasPrefix(yamlContent, "permissions:") {
+		return strings.TrimSpace(yamlContent)
+	}
+	lines := strings.Split(yamlContent, "\n")
+	if len(lines) == 1 {
+		parts := strings.SplitN(lines[0], ":", 2)
+		if len(parts) == 2 {
+			return strings.TrimSpace(parts[1])
+		}
+		return ""
+	}
+	return strings.TrimSpace(removeCommonPermissionsIndent(lines[1:]))
+}
+
+func removeCommonPermissionsIndent(contentLines []string) string {
+	minIndent := commonNonEmptyIndent(contentLines)
+	if minIndent <= 0 {
+		return strings.Join(contentLines, "\n")
+	}
+	normalizedLines := make([]string, 0, len(contentLines))
+	for _, line := range contentLines {
+		if strings.TrimSpace(line) == "" {
+			normalizedLines = append(normalizedLines, "")
+		} else if len(line) > minIndent {
+			normalizedLines = append(normalizedLines, line[minIndent:])
+		} else {
+			normalizedLines = append(normalizedLines, line)
+		}
+	}
+	return strings.Join(normalizedLines, "\n")
+}
+
+func commonNonEmptyIndent(lines []string) int {
+	minIndent := -1
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		indent := leadingWhitespaceLen(line)
+		if minIndent == -1 || indent < minIndent {
+			minIndent = indent
+		}
+	}
+	return minIndent
+}
+
+func leadingWhitespaceLen(line string) int {
+	indent := 0
+	for _, r := range line {
+		if r != ' ' && r != '\t' {
+			break
+		}
+		indent++
+	}
+	return indent
+}
+
+func isShorthandPermission(yamlContent string) bool {
+	for _, shorthand := range []string{"read-all", "write-all", "none"} {
 		if yamlContent == shorthand {
-			p.isShorthand = true
-			p.shorthandValue = shorthand
-			return
+			return true
 		}
 	}
+	return false
+}
 
-	// Try to parse as YAML map
+func (p *PermissionsParser) parsePermissionsMap(yamlContent string) {
 	var perms map[string]any
-	if err := yaml.Unmarshal([]byte(yamlContent), &perms); err == nil {
-		permissionsParserLog.Printf("Successfully parsed permissions map with %d keys", len(perms))
-
-		// Handle 'all' key specially
-		if allValue, exists := perms["all"]; exists {
-			if strValue, ok := allValue.(string); ok {
-				permissionsParserLog.Printf("Found 'all' permission with value: %s", strValue)
-				if strValue == "write" {
-					permissionsParserLog.Print("Invalid 'all: write' not allowed, ignoring permissions")
-					// all: write is not allowed - don't set any permissions
-					return
-				}
-				if strValue == "read" {
-					// Check that no other permissions are set to 'none' when all: read is used
-					for key, value := range perms {
-						if key != "all" {
-							if permValue, ok := value.(string); ok && permValue == "none" {
-								permissionsParserLog.Printf("Invalid combination: all: read with %s: none", key)
-								// all: read cannot be combined with : none - don't set any permissions
-								return
-							}
-						}
-					}
-					p.hasAll = true
-					p.allLevel = strValue
-					permissionsParserLog.Print("Set hasAll=true with level=read")
-				}
-			}
-		}
-		// Convert any values to strings
-		for key, value := range perms {
-			if strValue, ok := value.(string); ok {
-				p.parsedPerms[key] = strValue
-			}
-		}
-		permissionsParserLog.Printf("Parsed %d permission entries", len(p.parsedPerms))
-	} else {
+	if err := yaml.Unmarshal([]byte(yamlContent), &perms); err != nil {
 		permissionsParserLog.Printf("Failed to parse permissions as YAML: %v", err)
+		return
 	}
+	permissionsParserLog.Printf("Successfully parsed permissions map with %d keys", len(perms))
+	if !p.parseAllPermission(perms) {
+		return
+	}
+	for key, value := range perms {
+		if strValue, ok := value.(string); ok {
+			p.parsedPerms[key] = strValue
+		}
+	}
+	permissionsParserLog.Printf("Parsed %d permission entries", len(p.parsedPerms))
+}
+
+func (p *PermissionsParser) parseAllPermission(perms map[string]any) bool {
+	allValue, exists := perms["all"]
+	if !exists {
+		return true
+	}
+	strValue, ok := allValue.(string)
+	if !ok {
+		return true
+	}
+	permissionsParserLog.Printf("Found 'all' permission with value: %s", strValue)
+	if strValue == "write" {
+		permissionsParserLog.Print("Invalid 'all: write' not allowed, ignoring permissions")
+		return false
+	}
+	if strValue == "read" {
+		return p.parseAllReadPermission(perms, strValue)
+	}
+	return true
+}
+
+func (p *PermissionsParser) parseAllReadPermission(perms map[string]any, strValue string) bool {
+	for key, value := range perms {
+		if key == "all" {
+			continue
+		}
+		if permValue, ok := value.(string); ok && permValue == "none" {
+			permissionsParserLog.Printf("Invalid combination: all: read with %s: none", key)
+			return false
+		}
+	}
+	p.hasAll = true
+	p.allLevel = strValue
+	permissionsParserLog.Print("Set hasAll=true with level=read")
+	return true
 }
 
 // HasContentsReadAccess returns true if the permissions allow reading contents

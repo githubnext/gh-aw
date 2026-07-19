@@ -19,80 +19,78 @@ const defaultClaudeTmpWritePath = "/tmp"
 // expandNeutralToolsToClaudeTools converts neutral tool names to Claude-specific tool configurations
 func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map[string]any {
 	claudeToolsLog.Printf("Starting neutral tools expansion: input_tools=%d", len(tools))
-	result := make(map[string]any)
 
-	neutralToolCount := 0
-	// Count neutral tools
-	for key := range tools {
-		switch key {
-		case "bash", "web-fetch", "web-search", "edit", "playwright":
-			neutralToolCount++
-		}
-	}
-
-	if neutralToolCount > 0 {
+	if neutralToolCount := countNeutralClaudeTools(tools); neutralToolCount > 0 {
 		claudeToolsLog.Printf("Expanding %d neutral tools to Claude-specific tools", neutralToolCount)
 	}
 
-	// Copy existing tools that are not neutral tools
+	result := copyNonNeutralClaudeTools(tools)
+	claudeSection := getOrCreateToolMap(result, "claude")
+	claudeAllowed := getOrCreateToolMap(claudeSection, "allowed")
+	addNeutralClaudeTools(tools, result, claudeAllowed)
+
+	claudeToolsLog.Printf("Expansion complete: result_tools=%d, claude_allowed=%d", len(result), len(claudeAllowed))
+	return result
+}
+
+func countNeutralClaudeTools(tools map[string]any) int {
+	count := 0
+	for key := range tools {
+		if isNeutralClaudeTool(key) {
+			count++
+		}
+	}
+	return count
+}
+
+func copyNonNeutralClaudeTools(tools map[string]any) map[string]any {
+	result := make(map[string]any)
 	for key, value := range tools {
-		switch key {
-		case "bash", "web-fetch", "web-search", "edit", "playwright":
-			// These are neutral tools that need conversion - skip copying, will be converted below
-			continue
-		default:
-			// Copy MCP servers and other non-neutral tools as-is
+		if !isNeutralClaudeTool(key) {
 			result[key] = value
 		}
 	}
+	return result
+}
 
-	// Create or get existing claude section and allowed tools map
-	claudeSection := getOrCreateToolMap(result, "claude")
-	claudeAllowed := getOrCreateToolMap(claudeSection, "allowed")
+func isNeutralClaudeTool(key string) bool {
+	switch key {
+	case "bash", "web-fetch", "web-search", "edit", "playwright":
+		return true
+	default:
+		return false
+	}
+}
 
-	// Convert neutral tools to Claude tools
+func addNeutralClaudeTools(tools, result, claudeAllowed map[string]any) {
 	if bashTool, hasBash := tools["bash"]; hasBash {
-		// bash -> Bash, KillBash, BashOutput
 		if bashCommands, ok := bashTool.([]any); ok {
 			claudeAllowed["Bash"] = bashCommands
 		} else {
-			claudeAllowed["Bash"] = nil // Allow all bash commands
+			claudeAllowed["Bash"] = nil
 		}
 	}
-
 	if _, hasWebFetch := tools["web-fetch"]; hasWebFetch {
-		// web-fetch -> WebFetch
 		claudeAllowed["WebFetch"] = nil
 	}
-
 	if _, hasWebSearch := tools["web-search"]; hasWebSearch {
-		// web-search -> WebSearch
 		claudeAllowed["WebSearch"] = nil
 	}
+	addEditAndPlaywrightClaudeTools(tools, result, claudeAllowed)
+}
 
+func addEditAndPlaywrightClaudeTools(tools, result, claudeAllowed map[string]any) {
 	if editTool, hasEdit := tools["edit"]; hasEdit && !isExplicitlyDisabledTool(editTool) {
-		// edit -> Edit, MultiEdit, NotebookEdit, Write
 		claudeAllowed["Edit"] = nil
 		claudeAllowed["MultiEdit"] = nil
 		claudeAllowed["NotebookEdit"] = nil
 		claudeAllowed["Write"] = nil
-
-		// If edit tool has specific configuration, we could handle it here
-		// For now, treating it as enabling all edit capabilities
-		_ = editTool
 	}
-
-	// Handle playwright tool by converting it to an MCP tool configuration
 	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
-		// Create playwright as an MCP tool with the same tools available as copilot agent
-		playwrightMCP := map[string]any{
+		result["playwright"] = map[string]any{
 			"allowed": GetPlaywrightTools(),
 		}
-		result["playwright"] = playwrightMCP
 	}
-
-	claudeToolsLog.Printf("Expansion complete: result_tools=%d, claude_allowed=%d", len(result), len(claudeAllowed))
-	return result
 }
 
 func isExplicitlyDisabledTool(tool any) bool {

@@ -199,81 +199,16 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 		return nil, fmt.Errorf("failed to get safe output type keys: %w", err)
 	}
 
-	// Collect all safe output types defined in the top-level config.
-	// When topRawSafeOutputs is provided (from raw frontmatter), use only keys that are
-	// explicitly present in the raw map to avoid counting auto-defaults as user-defined types.
-	// When nil, fall back to inspecting the processed config struct (legacy/test behaviour).
-	topDefinedTypes := make(map[string]struct {
-	})
-	if topSafeOutputs != nil {
-		for _, key := range typeKeys {
-			if topRawSafeOutputs != nil {
-				if _, exists := topRawSafeOutputs[key]; exists {
-					topDefinedTypes[key] = struct {
-					}{}
-				}
-			} else if hasSafeOutputType(topSafeOutputs, key) {
-				topDefinedTypes[key] = struct {
-				}{}
-			}
-		}
-	}
+	topDefinedTypes := collectTopDefinedSafeOutputTypes(topSafeOutputs, topRawSafeOutputs, typeKeys)
 	importsLog.Printf("Top-level safe-outputs defines %d types", len(topDefinedTypes))
 
-	// Track types defined in imported configs for conflict detection
-	importedDefinedTypes := make(map[string]struct {
-	})
-
-	// Collect all imported configs. This includes configs with only meta fields (like allowed-domains,
-	// staged, env, github-token, max-patch-size, runs-on) as well as those defining safe output types.
-	// Meta fields can be imported even when no safe output types are defined.
-	var importedConfigs []map[string]any
-	// Collect protected-files exclude lists from type-conflicting imports so they can be
-	// merged as a set even when the importing config already defines the same handler type.
-	// These are keyed by handler type name (e.g. "create-pull-request").
-	accumulatedExclude := map[string][]string{}
-
-	for _, configJSON := range importedSafeOutputsJSON {
-		if configJSON == "" || configJSON == "{}" {
-			continue
-		}
-
-		var config map[string]any
-		if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
-			importsLog.Printf("Skipping malformed safe-outputs config: %v", err)
-			continue
-		}
-
-		// Check for conflicts and remove types already defined in top-level config
-		// Main workflow definitions take precedence over imports (override behavior).
-		// Exception: protected-files.exclude is always extracted before deletion so that
-		// exclude lists from imported configs are merged as a set into the result.
-		for _, key := range typeKeys {
-			if _, exists := config[key]; exists {
-				if setutil.Contains(topDefinedTypes, key) {
-					// Main workflow overrides imported definition — extract protected-files
-					// exclude lists before removing the type entry.
-					if handlerCfg, ok := config[key].(map[string]any); ok {
-						if pf, ok := handlerCfg["protected-files"].(map[string]any); ok {
-							if excludeFiles := parseStringSliceAny(pf["exclude"], importsLog); len(excludeFiles) > 0 {
-								accumulatedExclude[key] = sliceutil.MergeUnique(accumulatedExclude[key], excludeFiles...)
-								importsLog.Printf("Saved protected-files exclude from overridden import %s: %v", key, excludeFiles)
-							}
-						}
-					}
-					importsLog.Printf("Main workflow overrides imported safe-output: %s", key)
-					delete(config, key)
-					continue
-				}
-				if setutil.Contains(importedDefinedTypes, key) {
-					return nil, fmt.Errorf("safe-outputs conflict: '%s' is defined in multiple imported workflows. Each safe-output type can only be defined once", key)
-				}
-				importedDefinedTypes[key] = struct {
-				}{}
-			}
-		}
-
-		importedConfigs = append(importedConfigs, config)
+	importedConfigs, importedDefinedTypes, accumulatedExclude, err := collectImportedSafeOutputConfigs(
+		importedSafeOutputsJSON,
+		typeKeys,
+		topDefinedTypes,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	importsLog.Printf("Found %d imported safe-outputs configs with %d types", len(importedConfigs), len(importedDefinedTypes))
@@ -289,7 +224,97 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 		result = &SafeOutputsConfig{}
 	}
 
-	// Merge each imported config
+	if result, err = mergeImportedSafeOutputConfigs(result, importedConfigs, c); err != nil {
+		return nil, err
+	}
+
+	applyAccumulatedProtectedFilesExclude(result, accumulatedExclude)
+
+	importsLog.Printf("Successfully merged safe-outputs from imports")
+	return result, nil
+}
+
+func collectTopDefinedSafeOutputTypes(topSafeOutputs *SafeOutputsConfig, topRawSafeOutputs map[string]any, typeKeys []string) map[string]struct{} {
+	topDefinedTypes := make(map[string]struct{})
+	if topSafeOutputs == nil {
+		return topDefinedTypes
+	}
+	for _, key := range typeKeys {
+		if topRawSafeOutputs != nil {
+			if _, exists := topRawSafeOutputs[key]; exists {
+				topDefinedTypes[key] = struct{}{}
+			}
+		} else if hasSafeOutputType(topSafeOutputs, key) {
+			topDefinedTypes[key] = struct{}{}
+		}
+	}
+	return topDefinedTypes
+}
+
+func collectImportedSafeOutputConfigs(importedJSON []string, typeKeys []string, topDefinedTypes map[string]struct{}) ([]map[string]any, map[string]struct{}, map[string][]string, error) {
+	importedDefinedTypes := make(map[string]struct{})
+	accumulatedExclude := map[string][]string{}
+	var importedConfigs []map[string]any
+	for _, configJSON := range importedJSON {
+		if configJSON == "" || configJSON == "{}" {
+			continue
+		}
+		config, err := decodeImportedSafeOutputConfig(configJSON)
+		if err != nil {
+			continue
+		}
+		if err := reconcileImportedSafeOutputTypes(config, typeKeys, topDefinedTypes, importedDefinedTypes, accumulatedExclude); err != nil {
+			return nil, nil, nil, err
+		}
+		importedConfigs = append(importedConfigs, config)
+	}
+	return importedConfigs, importedDefinedTypes, accumulatedExclude, nil
+}
+
+func decodeImportedSafeOutputConfig(configJSON string) (map[string]any, error) {
+	var config map[string]any
+	if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
+		importsLog.Printf("Skipping malformed safe-outputs config: %v", err)
+		return nil, err
+	}
+	return config, nil
+}
+
+func reconcileImportedSafeOutputTypes(config map[string]any, typeKeys []string, topDefinedTypes, importedDefinedTypes map[string]struct{}, accumulatedExclude map[string][]string) error {
+	for _, key := range typeKeys {
+		if _, exists := config[key]; !exists {
+			continue
+		}
+		if setutil.Contains(topDefinedTypes, key) {
+			saveProtectedFilesExcludeFromOverride(config, key, accumulatedExclude)
+			importsLog.Printf("Main workflow overrides imported safe-output: %s", key)
+			delete(config, key)
+			continue
+		}
+		if setutil.Contains(importedDefinedTypes, key) {
+			return fmt.Errorf("safe-outputs conflict: '%s' is defined in multiple imported workflows. Each safe-output type can only be defined once", key)
+		}
+		importedDefinedTypes[key] = struct{}{}
+	}
+	return nil
+}
+
+func saveProtectedFilesExcludeFromOverride(config map[string]any, key string, accumulatedExclude map[string][]string) {
+	handlerCfg, ok := config[key].(map[string]any)
+	if !ok {
+		return
+	}
+	pf, ok := handlerCfg["protected-files"].(map[string]any)
+	if !ok {
+		return
+	}
+	if excludeFiles := parseStringSliceAny(pf["exclude"], importsLog); len(excludeFiles) > 0 {
+		accumulatedExclude[key] = sliceutil.MergeUnique(accumulatedExclude[key], excludeFiles...)
+		importsLog.Printf("Saved protected-files exclude from overridden import %s: %v", key, excludeFiles)
+	}
+}
+
+func mergeImportedSafeOutputConfigs(result *SafeOutputsConfig, importedConfigs []map[string]any, c *Compiler) (*SafeOutputsConfig, error) {
 	for _, config := range importedConfigs {
 		var err error
 		result, err = mergeSafeOutputConfig(result, config, c)
@@ -297,33 +322,26 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 			return nil, err
 		}
 	}
-
-	// Apply protected-files exclude lists accumulated from type-conflicting imports.
-	// These are merged as a set so that importing a base workflow can add to exclusions
-	// without completely replacing the main workflow's handler configuration.
-	if len(accumulatedExclude) > 0 {
-		if result.CreatePullRequests != nil {
-			if excludeFiles, ok := accumulatedExclude["create-pull-request"]; ok && len(excludeFiles) > 0 {
-				result.CreatePullRequests.ProtectedFilesExclude = sliceutil.MergeUnique(
-					result.CreatePullRequests.ProtectedFilesExclude,
-					excludeFiles...,
-				)
-				importsLog.Printf("Merged %d accumulated protected-files exclude(s) into create-pull-request", len(excludeFiles))
-			}
-		}
-		if result.PushToPullRequestBranch != nil {
-			if excludeFiles, ok := accumulatedExclude["push-to-pull-request-branch"]; ok && len(excludeFiles) > 0 {
-				result.PushToPullRequestBranch.ProtectedFilesExclude = sliceutil.MergeUnique(
-					result.PushToPullRequestBranch.ProtectedFilesExclude,
-					excludeFiles...,
-				)
-				importsLog.Printf("Merged %d accumulated protected-files exclude(s) into push-to-pull-request-branch", len(excludeFiles))
-			}
-		}
-	}
-
-	importsLog.Printf("Successfully merged safe-outputs from imports")
 	return result, nil
+}
+
+func applyAccumulatedProtectedFilesExclude(result *SafeOutputsConfig, accumulatedExclude map[string][]string) {
+	if len(accumulatedExclude) == 0 {
+		return
+	}
+	if result.CreatePullRequests != nil {
+		mergeAccumulatedExclude("create-pull-request", accumulatedExclude, &result.CreatePullRequests.ProtectedFilesExclude)
+	}
+	if result.PushToPullRequestBranch != nil {
+		mergeAccumulatedExclude("push-to-pull-request-branch", accumulatedExclude, &result.PushToPullRequestBranch.ProtectedFilesExclude)
+	}
+}
+
+func mergeAccumulatedExclude(key string, accumulatedExclude map[string][]string, target *[]string) {
+	if excludeFiles, ok := accumulatedExclude[key]; ok && len(excludeFiles) > 0 {
+		*target = sliceutil.MergeUnique(*target, excludeFiles...)
+		importsLog.Printf("Merged %d accumulated protected-files exclude(s) into %s", len(excludeFiles), key)
+	}
 }
 
 // hasSafeOutputType checks if a SafeOutputsConfig has a specific safe output type defined
@@ -357,8 +375,29 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 
 	// Merge each safe output type (only set if nil in result).
 	// Types with custom merge semantics are handled below.
-	specialMergeFields := map[string]struct {
-	}{
+	mergeRegularSafeOutputFields(result, importedConfig)
+	mergePullRequestSafeOutputFields(result, importedConfig)
+	mergeDefaultedSafeOutputFields(result, importedConfig, config)
+	mergeSafeOutputMetaFields(result, importedConfig)
+	mergeSafeOutputMessages(result, importedConfig)
+	mergeAdditionalSafeOutputMetaFields(result, importedConfig)
+
+	// Merge steps: concatenate imported steps after main workflow's steps
+	if len(importedConfig.Steps) > 0 {
+		result.Steps = append(result.Steps, importedConfig.Steps...)
+	}
+
+	// NOTE: Jobs are NOT merged here. They are handled separately in compiler_orchestrator.go
+	// via mergeSafeJobsFromIncludedConfigs and extractSafeJobsFromFrontmatter.
+	// The Jobs field is managed independently from other safe-output types to support
+	// complex merge scenarios and conflict detection across multiple imports.
+
+	importsLog.Print("Safe-output config merge completed")
+	return result, nil
+}
+
+func mergeRegularSafeOutputFields(result, importedConfig *SafeOutputsConfig) {
+	specialMergeFields := map[string]struct{}{
 		"CreatePullRequests":      {},
 		"PushToPullRequestBranch": {},
 		"MissingTool":             {},
@@ -373,12 +412,12 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 		}
 		mergeSafeOutputFieldIfNil(result, importedConfig, handler.StructField)
 	}
+}
 
+func mergePullRequestSafeOutputFields(result, importedConfig *SafeOutputsConfig) {
 	if result.CreatePullRequests == nil && importedConfig.CreatePullRequests != nil {
 		result.CreatePullRequests = importedConfig.CreatePullRequests
 	} else if result.CreatePullRequests != nil && importedConfig.CreatePullRequests != nil {
-		// Merge protected-files exclude lists as a set so that imports can extend exclusions
-		// without replacing the top-level configuration entirely.
 		result.CreatePullRequests.ProtectedFilesExclude = sliceutil.MergeUnique(
 			result.CreatePullRequests.ProtectedFilesExclude,
 			importedConfig.CreatePullRequests.ProtectedFilesExclude...,
@@ -394,6 +433,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 			importedConfig.PushToPullRequestBranch.ProtectedFilesExclude...,
 		)
 	}
+}
+
+func mergeDefaultedSafeOutputFields(result, importedConfig *SafeOutputsConfig, config map[string]any) {
 	// missing-tool, missing-data, noop, and report-incomplete are auto-defaulted by
 	// extractSafeOutputsConfig whenever any safe-outputs are present, even when the user
 	// has not explicitly configured those types. This means result.X can be non-nil (the
@@ -425,8 +467,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if _, hasTD := config["threat-detection"]; hasTD && importedConfig.ThreatDetection != nil {
 		result.ThreatDetection = importedConfig.ThreatDetection
 	}
+}
 
-	// Merge meta-configuration fields (only set if empty/zero in result)
+func mergeSafeOutputMetaFields(result, importedConfig *SafeOutputsConfig) {
 	if len(result.AllowedDomains) == 0 && len(importedConfig.AllowedDomains) > 0 {
 		result.AllowedDomains = importedConfig.AllowedDomains
 	}
@@ -454,8 +497,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if len(importedConfig.Needs) > 0 {
 		result.Needs = sliceutil.MergeUnique(result.Needs, importedConfig.Needs...)
 	}
+}
 
-	// Merge Messages configuration at field level (main workflow entries override imported entries)
+func mergeSafeOutputMessages(result, importedConfig *SafeOutputsConfig) {
 	if importedConfig.Messages != nil {
 		if result.Messages == nil {
 			// If main has no messages, use imported messages entirely
@@ -465,8 +509,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 			result.Messages = mergeMessagesConfig(result.Messages, importedConfig.Messages)
 		}
 	}
+}
 
-	// Merge additional meta-configuration fields
+func mergeAdditionalSafeOutputMetaFields(result, importedConfig *SafeOutputsConfig) {
 	if result.Footer == nil && importedConfig.Footer != nil {
 		result.Footer = importedConfig.Footer
 	}
@@ -490,19 +535,6 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if result.Mentions == nil && importedConfig.Mentions != nil {
 		result.Mentions = importedConfig.Mentions
 	}
-
-	// Merge steps: concatenate imported steps after main workflow's steps
-	if len(importedConfig.Steps) > 0 {
-		result.Steps = append(result.Steps, importedConfig.Steps...)
-	}
-
-	// NOTE: Jobs are NOT merged here. They are handled separately in compiler_orchestrator.go
-	// via mergeSafeJobsFromIncludedConfigs and extractSafeJobsFromFrontmatter.
-	// The Jobs field is managed independently from other safe-output types to support
-	// complex merge scenarios and conflict detection across multiple imports.
-
-	importsLog.Print("Safe-output config merge completed")
-	return result, nil
 }
 
 // mergeMessagesConfig merges two SafeOutputMessagesConfig structs at the field level.

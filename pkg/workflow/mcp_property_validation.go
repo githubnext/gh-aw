@@ -48,53 +48,9 @@ func validateStringProperty(toolName, propertyName string, value any, exists boo
 func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConfig map[string]any) error {
 	mcpPropertyValidationLog.Printf("Validating MCP requirements for tool: %s", toolName)
 
-	// Validate 'type' property - allow inference from other fields
-	mcpType, hasType := mcpConfig["type"]
-	var typeStr string
-
-	if hasType {
-		// Explicit type provided - validate it's a string
-		var ok bool
-		typeStr, ok = mcpType.(string)
-		if !ok {
-			return NewValidationError(
-				fmt.Sprintf("mcp-servers.%s.type", toolName),
-				fmt.Sprintf("%v", mcpType),
-				fmt.Sprintf("'type' must be a string, got %T. Valid types per MCP Gateway Specification: stdio, http. Note: 'local' is accepted for backward compatibility and treated as 'stdio'", mcpType),
-				fmt.Sprintf("Example:\n\ntools:\n  %s:\n    type: \"stdio\"\n    command: \"node server.js\"\n\nSee: %s", toolName, constants.DocsToolsURL),
-			)
-		}
-		mcpPropertyValidationLog.Printf("Tool %s: explicit MCP type=%s", toolName, typeStr)
-	} else {
-		// Infer type from presence of fields
-		typeStr = inferMCPType(mcpConfig)
-		if typeStr == "" {
-			return NewValidationError(
-				"mcp-servers."+toolName,
-				"",
-				"unable to determine MCP type: expected 'type' or one of 'url', 'command', 'container'",
-				fmt.Sprintf("Must specify one of: type, url, command, or container.\n\nExample:\n\ntools:\n  %s:\n    type: stdio\n    command: \"node server.js\"\n    args: [\"--port\", \"3000\"]\n\nSee: %s", toolName, constants.DocsToolsURL),
-			)
-		}
-		mcpPropertyValidationLog.Printf("Tool %s: inferred MCP type=%s", toolName, typeStr)
-	}
-
-	// Normalize type: trim whitespace and convert to lowercase so "Stdio", "HTTP",
-	// and "Local" are accepted the same as their canonical lowercase forms.
-	typeStr = strings.ToLower(strings.TrimSpace(typeStr))
-	// Normalize "local" to "stdio" for validation
-	if typeStr == "local" {
-		typeStr = "stdio"
-	}
-
-	// Validate type is one of the supported types
-	if !parser.IsMCPType(typeStr) {
-		return NewValidationError(
-			fmt.Sprintf("mcp-servers.%s.type", toolName),
-			typeStr,
-			"'type' must be one of: stdio, http. Note: 'local' is accepted for backward compatibility and treated as 'stdio'",
-			fmt.Sprintf("Example:\n\ntools:\n  %s:\n    type: stdio\n    command: \"node server.js\"\n\nSee: %s", toolName, constants.DocsToolsURL),
-		)
+	typeStr, err := resolveMCPValidationType(toolName, mcpConfig)
+	if err != nil {
+		return err
 	}
 
 	// Validate type-specific requirements
@@ -124,95 +80,166 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 		}
 
 		// Validate auth if present: must have a valid type field
-		if authRaw, hasAuth := toolConfig["auth"]; hasAuth {
-			authMap, ok := authRaw.(map[string]any)
-			if !ok {
-				return NewValidationError(
-					fmt.Sprintf("mcp-servers.%s.auth", toolName),
-					fmt.Sprintf("%v", authRaw),
-					"expected 'auth' to be an object",
-					fmt.Sprintf("Example:\n\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    auth:\n      type: github-oidc\n\nSee: %s", toolName, constants.DocsToolsURL),
-				)
-			}
-			authType, hasAuthType := authMap["type"]
-			if !hasAuthType {
-				return NewValidationError(
-					fmt.Sprintf("mcp-servers.%s.auth.type", toolName),
-					"",
-					"'auth.type' is required for HTTP auth configuration",
-					fmt.Sprintf("Example:\n\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    auth:\n      type: github-oidc\n\nSee: %s", toolName, constants.DocsToolsURL),
-				)
-			}
-			authTypeStr, ok := authType.(string)
-			if !ok || authTypeStr == "" {
-				return NewValidationError(
-					fmt.Sprintf("mcp-servers.%s.auth.type", toolName),
-					fmt.Sprintf("%v", authType),
-					"'auth.type' must be a non-empty string",
-					fmt.Sprintf("Example:\n\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    auth:\n      type: github-oidc\n\nSee: %s", toolName, constants.DocsToolsURL),
-				)
-			}
-			if authTypeStr != "github-oidc" {
-				return NewValidationError(
-					fmt.Sprintf("mcp-servers.%s.auth.type", toolName),
-					authTypeStr,
-					fmt.Sprintf("'auth.type' value %q is not supported; expected 'github-oidc'", authTypeStr),
-					fmt.Sprintf("Example:\n\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    auth:\n      type: github-oidc\n\nSee: %s", toolName, constants.DocsToolsURL),
-				)
-			}
+		if err := validateMCPHTTPAuth(toolName, toolConfig); err != nil {
+			return err
 		}
 
 		return validateStringProperty(toolName, "url", url, hasURL)
 
 	case "stdio":
-		// stdio type does not support auth (auth is only valid for HTTP servers)
-		if _, hasAuth := toolConfig["auth"]; hasAuth {
-			return NewValidationError(
-				fmt.Sprintf("mcp-servers.%s.auth", toolName),
-				"auth",
-				"'auth' is only supported for HTTP servers (type: 'http')",
-				fmt.Sprintf("Example:\n\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    auth:\n      type: github-oidc\n\nSee: %s", toolName, constants.DocsToolsURL),
-			)
-		}
-
-		// stdio type requires either 'command' or 'container' property (but not both)
-		command, hasCommand := mcpConfig["command"]
-		container, hasContainer := mcpConfig["container"]
-
-		if hasCommand && hasContainer {
-			return NewValidationError(
-				"mcp-servers."+toolName,
-				"command + container",
-				"cannot specify both 'container' and 'command'; expected exactly one of them for stdio MCP servers",
-				fmt.Sprintf("Choose one.\n\nExample with command:\n\ntools:\n  %s:\n    command: \"node server.js\"\n\nExample with container:\n\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    version: \"latest\"\n\nSee: %s", toolName, toolName, constants.DocsToolsURL),
-			)
-		}
-
-		if hasCommand {
-			if err := validateStringProperty(toolName, "command", command, true); err != nil {
-				return err
-			}
-		} else if hasContainer {
-			if err := validateStringProperty(toolName, "container", container, true); err != nil {
-				return err
-			}
-		} else {
-			return NewValidationError(
-				"mcp-servers."+toolName,
-				"",
-				"must specify either 'command' or 'container' for stdio MCP servers",
-				fmt.Sprintf("Example with command:\n\ntools:\n  %s:\n    command: \"node server.js\"\n    args: [\"--port\", \"3000\"]\n\nExample with container:\n\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    version: \"latest\"\n\nSee: %s", toolName, toolName, constants.DocsToolsURL),
-			)
-		}
-
-		// Validate mount syntax if mounts are specified (MCP Gateway v0.1.5+ requires explicit mode)
-		if mountsRaw, hasMounts := toolConfig["mounts"]; hasMounts {
-			if err := validateMCPMountsSyntax(toolName, mountsRaw); err != nil {
-				return err
-			}
-		}
+		return validateMCPStdioRequirements(toolName, mcpConfig, toolConfig)
 	}
 
+	return nil
+}
+
+// resolveMCPValidationType determines and normalizes the MCP server type from config,
+// returning a validation error when the type is missing, malformed, or unsupported.
+func resolveMCPValidationType(toolName string, mcpConfig map[string]any) (string, error) {
+	// Validate 'type' property - allow inference from other fields
+	mcpType, hasType := mcpConfig["type"]
+	var typeStr string
+
+	if hasType {
+		// Explicit type provided - validate it's a string
+		var ok bool
+		typeStr, ok = mcpType.(string)
+		if !ok {
+			return "", NewValidationError(
+				fmt.Sprintf("mcp-servers.%s.type", toolName),
+				fmt.Sprintf("%v", mcpType),
+				fmt.Sprintf("'type' must be a string, got %T. Valid types per MCP Gateway Specification: stdio, http. Note: 'local' is accepted for backward compatibility and treated as 'stdio'", mcpType),
+				fmt.Sprintf("Example:\n\ntools:\n  %s:\n    type: \"stdio\"\n    command: \"node server.js\"\n\nSee: %s", toolName, constants.DocsToolsURL),
+			)
+		}
+		mcpPropertyValidationLog.Printf("Tool %s: explicit MCP type=%s", toolName, typeStr)
+	} else {
+		// Infer type from presence of fields
+		typeStr = inferMCPType(mcpConfig)
+		if typeStr == "" {
+			return "", NewValidationError(
+				"mcp-servers."+toolName,
+				"",
+				"unable to determine MCP type: expected 'type' or one of 'url', 'command', 'container'",
+				fmt.Sprintf("Must specify one of: type, url, command, or container.\n\nExample:\n\ntools:\n  %s:\n    type: stdio\n    command: \"node server.js\"\n    args: [\"--port\", \"3000\"]\n\nSee: %s", toolName, constants.DocsToolsURL),
+			)
+		}
+		mcpPropertyValidationLog.Printf("Tool %s: inferred MCP type=%s", toolName, typeStr)
+	}
+
+	// Normalize type: trim whitespace and convert to lowercase so "Stdio", "HTTP",
+	// and "Local" are accepted the same as their canonical lowercase forms.
+	typeStr = strings.ToLower(strings.TrimSpace(typeStr))
+	// Normalize "local" to "stdio" for validation
+	if typeStr == "local" {
+		typeStr = "stdio"
+	}
+
+	// Validate type is one of the supported types
+	if !parser.IsMCPType(typeStr) {
+		return "", NewValidationError(
+			fmt.Sprintf("mcp-servers.%s.type", toolName),
+			typeStr,
+			"'type' must be one of: stdio, http. Note: 'local' is accepted for backward compatibility and treated as 'stdio'",
+			fmt.Sprintf("Example:\n\ntools:\n  %s:\n    type: stdio\n    command: \"node server.js\"\n\nSee: %s", toolName, constants.DocsToolsURL),
+		)
+	}
+
+	return typeStr, nil
+}
+
+// validateMCPHTTPAuth validates the optional 'auth' block for HTTP MCP servers.
+func validateMCPHTTPAuth(toolName string, toolConfig map[string]any) error {
+	authRaw, hasAuth := toolConfig["auth"]
+	if !hasAuth {
+		return nil
+	}
+	authMap, ok := authRaw.(map[string]any)
+	if !ok {
+		return NewValidationError(
+			fmt.Sprintf("mcp-servers.%s.auth", toolName),
+			fmt.Sprintf("%v", authRaw),
+			"expected 'auth' to be an object",
+			fmt.Sprintf("Example:\n\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    auth:\n      type: github-oidc\n\nSee: %s", toolName, constants.DocsToolsURL),
+		)
+	}
+	authType, hasAuthType := authMap["type"]
+	if !hasAuthType {
+		return NewValidationError(
+			fmt.Sprintf("mcp-servers.%s.auth.type", toolName),
+			"",
+			"'auth.type' is required for HTTP auth configuration",
+			fmt.Sprintf("Example:\n\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    auth:\n      type: github-oidc\n\nSee: %s", toolName, constants.DocsToolsURL),
+		)
+	}
+	authTypeStr, ok := authType.(string)
+	if !ok || authTypeStr == "" {
+		return NewValidationError(
+			fmt.Sprintf("mcp-servers.%s.auth.type", toolName),
+			fmt.Sprintf("%v", authType),
+			"'auth.type' must be a non-empty string",
+			fmt.Sprintf("Example:\n\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    auth:\n      type: github-oidc\n\nSee: %s", toolName, constants.DocsToolsURL),
+		)
+	}
+	if authTypeStr != "github-oidc" {
+		return NewValidationError(
+			fmt.Sprintf("mcp-servers.%s.auth.type", toolName),
+			authTypeStr,
+			fmt.Sprintf("'auth.type' value %q is not supported; expected 'github-oidc'", authTypeStr),
+			fmt.Sprintf("Example:\n\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    auth:\n      type: github-oidc\n\nSee: %s", toolName, constants.DocsToolsURL),
+		)
+	}
+	return nil
+}
+
+// validateMCPStdioRequirements validates type-specific requirements for stdio MCP servers.
+func validateMCPStdioRequirements(toolName string, mcpConfig map[string]any, toolConfig map[string]any) error {
+	// stdio type does not support auth (auth is only valid for HTTP servers)
+	if _, hasAuth := toolConfig["auth"]; hasAuth {
+		return NewValidationError(
+			fmt.Sprintf("mcp-servers.%s.auth", toolName),
+			"auth",
+			"'auth' is only supported for HTTP servers (type: 'http')",
+			fmt.Sprintf("Example:\n\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    auth:\n      type: github-oidc\n\nSee: %s", toolName, constants.DocsToolsURL),
+		)
+	}
+
+	// stdio type requires either 'command' or 'container' property (but not both)
+	command, hasCommand := mcpConfig["command"]
+	container, hasContainer := mcpConfig["container"]
+
+	if hasCommand && hasContainer {
+		return NewValidationError(
+			"mcp-servers."+toolName,
+			"command + container",
+			"cannot specify both 'container' and 'command'; expected exactly one of them for stdio MCP servers",
+			fmt.Sprintf("Choose one.\n\nExample with command:\n\ntools:\n  %s:\n    command: \"node server.js\"\n\nExample with container:\n\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    version: \"latest\"\n\nSee: %s", toolName, toolName, constants.DocsToolsURL),
+		)
+	}
+
+	if hasCommand {
+		if err := validateStringProperty(toolName, "command", command, true); err != nil {
+			return err
+		}
+	} else if hasContainer {
+		if err := validateStringProperty(toolName, "container", container, true); err != nil {
+			return err
+		}
+	} else {
+		return NewValidationError(
+			"mcp-servers."+toolName,
+			"",
+			"must specify either 'command' or 'container' for stdio MCP servers",
+			fmt.Sprintf("Example with command:\n\ntools:\n  %s:\n    command: \"node server.js\"\n    args: [\"--port\", \"3000\"]\n\nExample with container:\n\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    version: \"latest\"\n\nSee: %s", toolName, toolName, constants.DocsToolsURL),
+		)
+	}
+
+	// Validate mount syntax if mounts are specified (MCP Gateway v0.1.5+ requires explicit mode)
+	if mountsRaw, hasMounts := toolConfig["mounts"]; hasMounts {
+		if err := validateMCPMountsSyntax(toolName, mountsRaw); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

@@ -166,142 +166,11 @@ func ConvertJSONWorkflowToMarkdown(a *JSONWorkflow, opts ConvertOptions) (*Gener
 	jsonWorkflowLog.Printf("Converting JSON workflow: id=%q name=%q filename=%q", a.ID, a.Name, filename)
 
 	// ── Build frontmatter ────────────────────────────────────────────────────────
-	var fm strings.Builder
-	fm.WriteString("---\n")
-
-	if a.Description != "" {
-		fm.WriteString("description: ")
-		fm.WriteString(yamlQuoteString(a.Description))
-		fm.WriteString("\n")
-	}
-
-	if a.Engine != "" {
-		fm.WriteString("engine: ")
-		fm.WriteString(a.Engine)
-		fm.WriteString("\n")
-	}
-
-	// "on:" is resolved from On (explicit, takes precedence) or converted from Triggers.
-	onVal, triggerWarnings := resolveOnValue(a)
-	warnings = append(warnings, triggerWarnings...)
-	if onVal != nil {
-		if s, ok := onVal.(string); ok {
-			// Scalar shorthand e.g. "on: hourly"
-			fm.WriteString("on: ")
-			fm.WriteString(s)
-			fm.WriteString("\n")
-		} else {
-			onYAML, err := marshalFrontmatterValue(onVal)
-			if err == nil {
-				fm.WriteString("on:\n")
-				for line := range strings.SplitSeq(onYAML, "\n") {
-					if line == "" {
-						continue
-					}
-					fm.WriteString("  ")
-					fm.WriteString(line)
-					fm.WriteString("\n")
-				}
-			} else {
-				warnings = append(warnings, fmt.Sprintf("could not serialize 'on' field: %v", err))
-			}
-		}
-	}
-
-	if len(a.Tools) > 0 {
-		toolsConfig, toolWarnings := convertToolsToConfig(a.Tools)
-		warnings = append(warnings, toolWarnings...)
-		if len(toolsConfig) > 0 {
-			toolsYAML, err := marshalFrontmatterValue(toolsConfig)
-			if err == nil {
-				fm.WriteString("tools:\n")
-				for line := range strings.SplitSeq(toolsYAML, "\n") {
-					if line == "" {
-						continue
-					}
-					fm.WriteString("  ")
-					fm.WriteString(line)
-					fm.WriteString("\n")
-				}
-			} else {
-				warnings = append(warnings, fmt.Sprintf("could not serialize 'tools' field: %v", err))
-			}
-		}
-	}
-
-	if len(a.Permissions) > 0 {
-		permYAML, err := marshalFrontmatterValue(a.Permissions)
-		if err == nil {
-			fm.WriteString("permissions:\n")
-			for line := range strings.SplitSeq(permYAML, "\n") {
-				if line == "" {
-					continue
-				}
-				fm.WriteString("  ")
-				fm.WriteString(line)
-				fm.WriteString("\n")
-			}
-		} else {
-			warnings = append(warnings, fmt.Sprintf("could not serialize 'permissions' field: %v", err))
-		}
-	}
-
-	if len(a.Tags) > 0 {
-		fm.WriteString("tags:\n")
-		for _, tag := range a.Tags {
-			fm.WriteString("  - ")
-			fm.WriteString(yamlQuoteString(tag))
-			fm.WriteString("\n")
-		}
-	}
-
-	// Emit unknown fields as YAML comments so the file remains valid YAML while
-	// preserving the original data for the operator to inspect.
-	if len(a.Extra) > 0 {
-		extraYAML, err := marshalFrontmatterValue(a.Extra)
-		if err == nil {
-			fm.WriteString("# Unsupported fields preserved from source JSON:\n")
-			for line := range strings.SplitSeq(extraYAML, "\n") {
-				if line == "" {
-					continue
-				}
-				fm.WriteString("# ")
-				fm.WriteString(line)
-				fm.WriteString("\n")
-			}
-			// Sort keys for deterministic warning output.
-			extraKeys := sliceutil.SortedKeys(a.Extra)
-			for _, k := range extraKeys {
-				warnings = append(warnings, fmt.Sprintf("field %q has no gh-aw frontmatter equivalent and was preserved as a comment", k))
-			}
-		} else {
-			warnings = append(warnings, fmt.Sprintf("could not serialize unsupported fields: %v", err))
-		}
-	}
-
-	fm.WriteString("---\n")
+	fm, frontmatterWarnings := convertJSONWorkflowToMarkdownFrontmatter(a)
+	warnings = append(warnings, frontmatterWarnings...)
 
 	// ── Build body ───────────────────────────────────────────────────────────────
-	var body strings.Builder
-
-	// Heading from name (or ID as fallback).
-	heading := a.Name
-	if heading != "" {
-		body.WriteString("# ")
-		body.WriteString(heading)
-		body.WriteString("\n\n")
-	}
-
-	if a.Instructions != "" {
-		body.WriteString(strings.TrimRight(a.Instructions, "\n"))
-		body.WriteString("\n")
-	} else if a.Prompt != "" {
-		// Prompt is the fallback body text when no Instructions field is present.
-		body.WriteString(strings.TrimRight(a.Prompt, "\n"))
-		body.WriteString("\n")
-	}
-
-	markdown := fm.String() + "\n" + body.String()
+	markdown := fm + "\n" + convertJSONWorkflowToMarkdownBody(a)
 
 	jsonWorkflowLog.Printf("Generated workflow %q: %d byte(s), %d warning(s)", filename, len(markdown), len(warnings))
 
@@ -310,6 +179,145 @@ func ConvertJSONWorkflowToMarkdown(a *JSONWorkflow, opts ConvertOptions) (*Gener
 		Markdown: markdown,
 		Warnings: warnings,
 	}, nil
+}
+
+func convertJSONWorkflowToMarkdownFrontmatter(a *JSONWorkflow) (string, []string) {
+	var warnings []string
+	var fm strings.Builder
+	fm.WriteString("---\n")
+	convertJSONWorkflowToMarkdownBasics(&fm, a)
+	warnings = append(warnings, convertJSONWorkflowToMarkdownOn(&fm, a)...)
+	warnings = append(warnings, convertJSONWorkflowToMarkdownTools(&fm, a)...)
+	warnings = append(warnings, convertJSONWorkflowToMarkdownPermissions(&fm, a)...)
+	convertJSONWorkflowToMarkdownTags(&fm, a)
+	warnings = append(warnings, convertJSONWorkflowToMarkdownExtra(&fm, a)...)
+	fm.WriteString("---\n")
+	return fm.String(), warnings
+}
+
+func convertJSONWorkflowToMarkdownBasics(fm *strings.Builder, a *JSONWorkflow) {
+	if a.Description != "" {
+		fm.WriteString("description: ")
+		fm.WriteString(yamlQuoteString(a.Description))
+		fm.WriteString("\n")
+	}
+	if a.Engine != "" {
+		fm.WriteString("engine: ")
+		fm.WriteString(a.Engine)
+		fm.WriteString("\n")
+	}
+}
+
+func convertJSONWorkflowToMarkdownOn(fm *strings.Builder, a *JSONWorkflow) []string {
+	onVal, warnings := resolveOnValue(a)
+	if onVal == nil {
+		return warnings
+	}
+	if s, ok := onVal.(string); ok {
+		fm.WriteString("on: ")
+		fm.WriteString(s)
+		fm.WriteString("\n")
+		return warnings
+	}
+	if onYAML, err := marshalFrontmatterValue(onVal); err == nil {
+		convertJSONWorkflowToMarkdownIndentedYAML(fm, "on", onYAML)
+	} else {
+		warnings = append(warnings, fmt.Sprintf("could not serialize 'on' field: %v", err))
+	}
+	return warnings
+}
+
+func convertJSONWorkflowToMarkdownTools(fm *strings.Builder, a *JSONWorkflow) []string {
+	if len(a.Tools) == 0 {
+		return nil
+	}
+	toolsConfig, warnings := convertToolsToConfig(a.Tools)
+	if len(toolsConfig) == 0 {
+		return warnings
+	}
+	if toolsYAML, err := marshalFrontmatterValue(toolsConfig); err == nil {
+		convertJSONWorkflowToMarkdownIndentedYAML(fm, "tools", toolsYAML)
+	} else {
+		warnings = append(warnings, fmt.Sprintf("could not serialize 'tools' field: %v", err))
+	}
+	return warnings
+}
+
+func convertJSONWorkflowToMarkdownPermissions(fm *strings.Builder, a *JSONWorkflow) []string {
+	if len(a.Permissions) == 0 {
+		return nil
+	}
+	permYAML, err := marshalFrontmatterValue(a.Permissions)
+	if err != nil {
+		return []string{fmt.Sprintf("could not serialize 'permissions' field: %v", err)}
+	}
+	convertJSONWorkflowToMarkdownIndentedYAML(fm, "permissions", permYAML)
+	return nil
+}
+
+func convertJSONWorkflowToMarkdownTags(fm *strings.Builder, a *JSONWorkflow) {
+	if len(a.Tags) == 0 {
+		return
+	}
+	fm.WriteString("tags:\n")
+	for _, tag := range a.Tags {
+		fm.WriteString("  - ")
+		fm.WriteString(yamlQuoteString(tag))
+		fm.WriteString("\n")
+	}
+}
+
+func convertJSONWorkflowToMarkdownExtra(fm *strings.Builder, a *JSONWorkflow) []string {
+	if len(a.Extra) == 0 {
+		return nil
+	}
+	extraYAML, err := marshalFrontmatterValue(a.Extra)
+	if err != nil {
+		return []string{fmt.Sprintf("could not serialize unsupported fields: %v", err)}
+	}
+	fm.WriteString("# Unsupported fields preserved from source JSON:\n")
+	for line := range strings.SplitSeq(extraYAML, "\n") {
+		if line != "" {
+			fm.WriteString("# ")
+			fm.WriteString(line)
+			fm.WriteString("\n")
+		}
+	}
+	var warnings []string
+	for _, k := range sliceutil.SortedKeys(a.Extra) {
+		warnings = append(warnings, fmt.Sprintf("field %q has no gh-aw frontmatter equivalent and was preserved as a comment", k))
+	}
+	return warnings
+}
+
+func convertJSONWorkflowToMarkdownIndentedYAML(fm *strings.Builder, key, yamlValue string) {
+	fm.WriteString(key + ":\n")
+	for line := range strings.SplitSeq(yamlValue, "\n") {
+		if line == "" {
+			continue
+		}
+		fm.WriteString("  ")
+		fm.WriteString(line)
+		fm.WriteString("\n")
+	}
+}
+
+func convertJSONWorkflowToMarkdownBody(a *JSONWorkflow) string {
+	var body strings.Builder
+	if a.Name != "" {
+		body.WriteString("# ")
+		body.WriteString(a.Name)
+		body.WriteString("\n\n")
+	}
+	if a.Instructions != "" {
+		body.WriteString(strings.TrimRight(a.Instructions, "\n"))
+		body.WriteString("\n")
+	} else if a.Prompt != "" {
+		// Prompt is the fallback body text when no Instructions field is present.
+		body.WriteString(strings.TrimRight(a.Prompt, "\n"))
+		body.WriteString("\n")
+	}
+	return body.String()
 }
 
 // filenameFromJSONWorkflow derives a kebab-cased filename slug from the workflow's name
@@ -403,43 +411,9 @@ func convertTriggersToOn(t *JSONWorkflowTriggers) (any, []string) {
 	// parts accumulates the trigger map entries.
 	parts := map[string]any{}
 
-	if t.Interval != nil && len(t.Interval.Types) > 0 {
-		intervalType := t.Interval.Types[0]
-		if len(t.Interval.Types) > 1 {
-			warnings = append(warnings, fmt.Sprintf(
-				"triggers.interval has multiple types %v; only the first (%q) will be used",
-				t.Interval.Types, intervalType))
-		}
-		switch intervalType {
-		case "hourly", "daily", "weekly":
-			parts["_interval"] = intervalType
-		default:
-			warnings = append(warnings, fmt.Sprintf("triggers.interval type %q is not supported; skipped", intervalType))
-		}
-	}
-
-	if t.Issues != nil && len(t.Issues.Types) > 0 {
-		issueEntry := map[string]any{"types": t.Issues.Types}
-		if t.Issues.Query != "" {
-			warnings = append(warnings, `triggers.issues.query has no gh-aw equivalent; add a skip-if-match block manually if needed`)
-		}
-		parts["issues"] = issueEntry
-	}
-
-	if t.WorkflowRun != nil {
-		if len(t.WorkflowRun.Workflows) == 0 || len(t.WorkflowRun.Types) == 0 {
-			warnings = append(warnings, `triggers.workflow_run requires non-empty workflows and types; skipped`)
-		} else {
-			wfEntry := map[string]any{
-				"workflows": t.WorkflowRun.Workflows,
-				"types":     t.WorkflowRun.Types,
-			}
-			if len(t.WorkflowRun.Conclusions) > 0 {
-				warnings = append(warnings, `triggers.workflow_run.conclusions has no gh-aw equivalent; review the generated "on:" block`)
-			}
-			parts["workflow_run"] = wfEntry
-		}
-	}
+	warnings = append(warnings, convertTriggersToOnInterval(t, parts)...)
+	warnings = append(warnings, convertTriggersToOnIssues(t, parts)...)
+	warnings = append(warnings, convertTriggersToOnWorkflowRun(t, parts)...)
 
 	if len(parts) == 0 {
 		return nil, warnings
@@ -469,6 +443,57 @@ func convertTriggersToOn(t *JSONWorkflowTriggers) (any, []string) {
 	}
 
 	return parts, warnings
+}
+
+func convertTriggersToOnInterval(t *JSONWorkflowTriggers, parts map[string]any) []string {
+	if t.Interval == nil || len(t.Interval.Types) == 0 {
+		return nil
+	}
+	var warnings []string
+	intervalType := t.Interval.Types[0]
+	if len(t.Interval.Types) > 1 {
+		warnings = append(warnings, fmt.Sprintf(
+			"triggers.interval has multiple types %v; only the first (%q) will be used",
+			t.Interval.Types, intervalType))
+	}
+	switch intervalType {
+	case "hourly", "daily", "weekly":
+		parts["_interval"] = intervalType
+	default:
+		warnings = append(warnings, fmt.Sprintf("triggers.interval type %q is not supported; skipped", intervalType))
+	}
+	return warnings
+}
+
+func convertTriggersToOnIssues(t *JSONWorkflowTriggers, parts map[string]any) []string {
+	if t.Issues == nil || len(t.Issues.Types) == 0 {
+		return nil
+	}
+	issueEntry := map[string]any{"types": t.Issues.Types}
+	if t.Issues.Query != "" {
+		parts["issues"] = issueEntry
+		return []string{`triggers.issues.query has no gh-aw equivalent; add a skip-if-match block manually if needed`}
+	}
+	parts["issues"] = issueEntry
+	return nil
+}
+
+func convertTriggersToOnWorkflowRun(t *JSONWorkflowTriggers, parts map[string]any) []string {
+	if t.WorkflowRun == nil {
+		return nil
+	}
+	if len(t.WorkflowRun.Workflows) == 0 || len(t.WorkflowRun.Types) == 0 {
+		return []string{`triggers.workflow_run requires non-empty workflows and types; skipped`}
+	}
+	wfEntry := map[string]any{
+		"workflows": t.WorkflowRun.Workflows,
+		"types":     t.WorkflowRun.Types,
+	}
+	parts["workflow_run"] = wfEntry
+	if len(t.WorkflowRun.Conclusions) > 0 {
+		return []string{`triggers.workflow_run.conclusions has no gh-aw equivalent; review the generated "on:" block`}
+	}
+	return nil
 }
 
 // intervalToFuzzySchedule returns a gh-aw fuzzy schedule expression for a

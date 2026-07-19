@@ -44,174 +44,93 @@ type UploadAssetsConfig struct {
 
 // parseUploadAssetConfig handles upload-asset configuration
 func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAssetsConfig {
-	if configData, exists := outputMap["upload-asset"]; exists {
-		// Explicit false disables upload-asset (e.g. when passed via import-inputs)
-		if b, ok := configData.(bool); ok && !b {
-			publishAssetsLog.Print("upload-asset explicitly set to false, skipping")
-			return nil
-		}
-		publishAssetsLog.Print("Parsing upload-asset configuration")
-		config := &UploadAssetsConfig{
-			BranchName: "assets/${{ github.workflow }}", // Default branch name
-			MaxSizeKB:  10240,                           // Default 10MB
-			AllowedExts: []string{
-				// Default set of extensions as specified in problem statement
-				".png",
-				".jpg",
-				".jpeg",
-			},
-		}
-
-		if configMap, ok := configData.(map[string]any); ok {
-			// Parse branch
-			if branchName, exists := configMap["branch"]; exists {
-				if branchNameStr, ok := branchName.(string); ok {
-					config.BranchName = branchNameStr
-				}
-			}
-
-			// Parse max-size
-			if maxSize, exists := configMap["max-size"]; exists {
-				if maxSizeInt, ok := typeutil.ParseIntValue(maxSize); ok && maxSizeInt > 0 {
-					config.MaxSizeKB = maxSizeInt
-				}
-			}
-
-			// Parse allowed-exts
-			if allowedExts, exists := configMap["allowed-exts"]; exists {
-				if allowedExtsArray, ok := allowedExts.([]any); ok {
-					var extStrings []string
-					seen := make(map[string]struct{})
-					for _, ext := range allowedExtsArray {
-						if extStr, ok := ext.(string); ok {
-							normalized := normalizeAllowedExtension(extStr)
-							if normalized == "" {
-								continue
-							}
-							if _, exists := seen[normalized]; exists {
-								continue
-							}
-							seen[normalized] = struct{}{}
-							extStrings = append(extStrings, normalized)
-						}
-					}
-					if len(extStrings) > 0 {
-						config.AllowedExts = extStrings
-					}
-				}
-			}
-
-			// Parse common base fields with default max of 0 (no limit)
-			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 0)
-			publishAssetsLog.Printf("Parsed upload-asset config: branch=%s, max_size_kb=%d, allowed_exts=%d", config.BranchName, config.MaxSizeKB, len(config.AllowedExts))
-		} else if configData == nil {
-			// Handle null case: create config with defaults
+	configData, exists := outputMap["upload-asset"]
+	if !exists {
+		return nil
+	}
+	if b, ok := configData.(bool); ok && !b {
+		publishAssetsLog.Print("upload-asset explicitly set to false, skipping")
+		return nil
+	}
+	publishAssetsLog.Print("Parsing upload-asset configuration")
+	config := defaultUploadAssetsConfig()
+	configMap, ok := configData.(map[string]any)
+	if !ok {
+		if configData == nil {
 			publishAssetsLog.Print("Using default upload-asset configuration")
-			return config
 		}
-
 		return config
 	}
+	applyUploadAssetConfigMap(c, configMap, config)
+	return config
+}
 
-	return nil
+func defaultUploadAssetsConfig() *UploadAssetsConfig {
+	return &UploadAssetsConfig{
+		BranchName:  "assets/${{ github.workflow }}",
+		MaxSizeKB:   10240,
+		AllowedExts: []string{".png", ".jpg", ".jpeg"},
+	}
+}
+
+func applyUploadAssetConfigMap(c *Compiler, configMap map[string]any, config *UploadAssetsConfig) {
+	if branchName, exists := configMap["branch"]; exists {
+		if branchNameStr, ok := branchName.(string); ok {
+			config.BranchName = branchNameStr
+		}
+	}
+	if maxSize, exists := configMap["max-size"]; exists {
+		if maxSizeInt, ok := typeutil.ParseIntValue(maxSize); ok && maxSizeInt > 0 {
+			config.MaxSizeKB = maxSizeInt
+		}
+	}
+	if allowedExts, exists := configMap["allowed-exts"]; exists {
+		if extStrings := parseAllowedUploadAssetExtensions(allowedExts); len(extStrings) > 0 {
+			config.AllowedExts = extStrings
+		}
+	}
+	c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 0)
+	publishAssetsLog.Printf("Parsed upload-asset config: branch=%s, max_size_kb=%d, allowed_exts=%d", config.BranchName, config.MaxSizeKB, len(config.AllowedExts))
+}
+
+func parseAllowedUploadAssetExtensions(value any) []string {
+	allowedExtsArray, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	extStrings := make([]string, 0, len(allowedExtsArray))
+	seen := make(map[string]struct{})
+	for _, ext := range allowedExtsArray {
+		extStr, ok := ext.(string)
+		if !ok {
+			continue
+		}
+		normalized := normalizeAllowedExtension(extStr)
+		if normalized == "" {
+			continue
+		}
+		if _, exists := seen[normalized]; exists {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		extStrings = append(extStrings, normalized)
+	}
+	return extStrings
 }
 
 // buildUploadAssetsJob creates the publish_assets job
 func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) (*Job, error) {
 	publishAssetsLog.Printf("Building upload_assets job: workflow=%s, main_job=%s, threat_detection=%v", data.Name, mainJobName, threatDetectionEnabled)
-
 	if data.SafeOutputs == nil || data.SafeOutputs.UploadAssets == nil {
 		return nil, errors.New("safe-outputs.upload-asset configuration is required")
 	}
-
-	var preSteps []string
-
-	// Permission checks are now handled by the separate check_membership job
-	// which is always created when needed (when activation job is created)
-
-	// Add setup step to copy scripts
-	setupActionRef := c.resolveActionReference("./actions/setup", data)
-	if setupActionRef != "" || c.actionMode.IsScript() {
-		// For dev mode (local action path), checkout the actions folder first
-		preSteps = append(preSteps, c.generateCheckoutActionsFolder(data)...)
-
-		// Publish assets job doesn't need project support
-		// Publish assets job depends on the agent job; reuse its trace ID so all jobs share one OTLP trace
-		publishTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		publishParentSpanID := setupParentSpanNeedsExpr(constants.ActivationJobName)
-		preSteps = append(preSteps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, publishTraceID, publishParentSpanID)...)
-	}
-
-	// Step 1: Checkout repository
-	preSteps = buildCheckoutRepository(preSteps, c, "", "")
-
-	// Step 2: Configure Git credentials
-	preSteps = append(preSteps, c.generateGitConfigurationSteps()...)
-
-	// Step 3: Download assets artifact if it exists.
-	// In workflow_call context, use the per-invocation prefix from the agent job to match the uploaded artifact name.
-	assetsArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
-	preSteps = append(preSteps, "      - name: Download assets\n")
-	preSteps = append(preSteps, "        continue-on-error: true\n") // Continue if no assets were uploaded
-	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/download-artifact")))
-	preSteps = append(preSteps, "        with:\n")
-	preSteps = append(preSteps, fmt.Sprintf("          name: %ssafe-outputs-assets\n", assetsArtifactPrefix))
-	preSteps = append(preSteps, fmt.Sprintf("          path: %s\n", constants.TmpGhAwAssetsDirSlash))
-
-	// Step 4: List files
-	preSteps = append(preSteps, "      - name: List downloaded asset files\n")
-	preSteps = append(preSteps, "        continue-on-error: true\n") // Continue if no assets were uploaded
-	preSteps = append(preSteps, "        run: |\n")
-	preSteps = append(preSteps, "          echo \"Downloaded asset files:\"\n")
-	preSteps = append(preSteps, fmt.Sprintf("          find %s -maxdepth 1 -ls\n", constants.TmpGhAwAssetsDirSlash))
-
-	// Build custom environment variables specific to upload-assets
-	var customEnvVars []string
-	// Single source of truth for the staged-assets directory: the consumer script
-	// reads exactly the directory the download step above wrote to.
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ASSETS_DIR: %q\n", constants.TmpGhAwAssetsDir))
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ASSETS_BRANCH: %q\n", data.SafeOutputs.UploadAssets.BranchName))
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ASSETS_MAX_SIZE_KB: %d\n", data.SafeOutputs.UploadAssets.MaxSizeKB))
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ASSETS_ALLOWED_EXTS: %q\n", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ",")))
-
-	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...) // No target repo for upload assets
-
-	// Create outputs for the job
+	preSteps := c.buildUploadAssetsPreSteps(data)
+	customEnvVars := c.buildUploadAssetsEnvVars(data)
 	outputs := map[string]string{
 		"published_count": "${{ steps.upload_assets.outputs.published_count }}",
 		"branch_name":     "${{ steps.upload_assets.outputs.branch_name }}",
 	}
-
-	// Build the job condition using expression tree.
-	// When detection is expression-controlled the detection job may be skipped at runtime.
-	// Wrap the condition with always() + detection-passed so this job still runs when the
-	// caller disabled threat detection for this invocation via the expression.
-	jobCondition := BuildSafeOutputType("upload_asset")
-	if IsConditionalDetection(data.SafeOutputs) {
-		jobCondition = BuildAnd(
-			BuildAnd(BuildFunctionCall("always"), BuildSafeOutputType("upload_asset")),
-			buildDetectionPassedCondition(),
-		)
-	}
-
-	// Build job dependencies — always include activation job for OTLP trace ID correlation
-	needs := []string{mainJobName, string(constants.ActivationJobName)}
-
-	// In dev mode the setup action is referenced via a local path (./actions/setup), so its
-	// files live in the workspace. The upload_assets step does a git checkout to the assets
-	// branch, which replaces the workspace content and removes the actions/setup directory.
-	// Without restoring it, the runner's post-step for Setup Scripts would fail with
-	// "Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under .../actions/setup".
-	// We add a restore checkout step (if: always()) after the main step so the post-step
-	// can always find action.yml and complete its /tmp/gh-aw cleanup.
-	var postSteps []string
-	if c.actionMode.IsDev() {
-		postSteps = append(postSteps, c.generateRestoreActionsSetupStep())
-		publishAssetsLog.Print("Added restore actions folder step to upload_assets job (dev mode)")
-	}
-
-	// Use the shared builder function to create the job
+	postSteps := c.buildUploadAssetsPostSteps()
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
 		JobName:       "upload_assets",
 		StepName:      "Push assets",
@@ -222,12 +141,71 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 		Script:        getUploadAssetsScript(),
 		Permissions:   NewPermissionsContentsWrite(),
 		Outputs:       outputs,
-		Condition:     jobCondition,
+		Condition:     uploadAssetsJobCondition(data),
 		PreSteps:      preSteps,
 		PostSteps:     postSteps,
 		Token:         data.SafeOutputs.UploadAssets.GitHubToken,
-		Needs:         needs,
+		Needs:         []string{mainJobName, string(constants.ActivationJobName)},
 	})
+}
+
+func (c *Compiler) buildUploadAssetsPreSteps(data *WorkflowData) []string {
+	var preSteps []string
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" || c.actionMode.IsScript() {
+		preSteps = append(preSteps, c.generateCheckoutActionsFolder(data)...)
+		publishTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
+		publishParentSpanID := setupParentSpanNeedsExpr(constants.ActivationJobName)
+		preSteps = append(preSteps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, publishTraceID, publishParentSpanID)...)
+	}
+	preSteps = buildCheckoutRepository(preSteps, c, "", "")
+	preSteps = append(preSteps, c.generateGitConfigurationSteps()...)
+	preSteps = c.appendUploadAssetsDownloadSteps(preSteps, data)
+	return preSteps
+}
+
+func (c *Compiler) appendUploadAssetsDownloadSteps(preSteps []string, data *WorkflowData) []string {
+	assetsArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
+	preSteps = append(preSteps, "      - name: Download assets\n")
+	preSteps = append(preSteps, "        continue-on-error: true\n")
+	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/download-artifact")))
+	preSteps = append(preSteps, "        with:\n")
+	preSteps = append(preSteps, fmt.Sprintf("          name: %ssafe-outputs-assets\n", assetsArtifactPrefix))
+	preSteps = append(preSteps, fmt.Sprintf("          path: %s\n", constants.TmpGhAwAssetsDirSlash))
+	preSteps = append(preSteps, "      - name: List downloaded asset files\n")
+	preSteps = append(preSteps, "        continue-on-error: true\n")
+	preSteps = append(preSteps, "        run: |\n")
+	preSteps = append(preSteps, "          echo \"Downloaded asset files:\"\n")
+	return append(preSteps, fmt.Sprintf("          find %s -maxdepth 1 -ls\n", constants.TmpGhAwAssetsDirSlash))
+}
+
+func (c *Compiler) buildUploadAssetsEnvVars(data *WorkflowData) []string {
+	customEnvVars := []string{
+		fmt.Sprintf("          GH_AW_ASSETS_DIR: %q\n", constants.TmpGhAwAssetsDir),
+		fmt.Sprintf("          GH_AW_ASSETS_BRANCH: %q\n", data.SafeOutputs.UploadAssets.BranchName),
+		fmt.Sprintf("          GH_AW_ASSETS_MAX_SIZE_KB: %d\n", data.SafeOutputs.UploadAssets.MaxSizeKB),
+		fmt.Sprintf("          GH_AW_ASSETS_ALLOWED_EXTS: %q\n", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ",")),
+	}
+	return append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+}
+
+func uploadAssetsJobCondition(data *WorkflowData) ConditionNode {
+	jobCondition := BuildSafeOutputType("upload_asset")
+	if IsConditionalDetection(data.SafeOutputs) {
+		jobCondition = BuildAnd(
+			BuildAnd(BuildFunctionCall("always"), BuildSafeOutputType("upload_asset")),
+			buildDetectionPassedCondition(),
+		)
+	}
+	return jobCondition
+}
+
+func (c *Compiler) buildUploadAssetsPostSteps() []string {
+	if !c.actionMode.IsDev() {
+		return nil
+	}
+	publishAssetsLog.Print("Added restore actions folder step to upload_assets job (dev mode)")
+	return []string{c.generateRestoreActionsSetupStep()}
 }
 
 // generateSafeOutputsAssetsArtifactUpload generates a step to upload safe-outputs assets as a separate artifact.

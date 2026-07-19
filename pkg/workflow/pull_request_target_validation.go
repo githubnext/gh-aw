@@ -74,50 +74,17 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 
 	pullRequestTargetLog.Print("Validating pull_request_target trigger security")
 
-	// Parse the On field as YAML to confirm pull_request_target is actually a trigger key.
-	var parsedData map[string]any
-	if err := yaml.Unmarshal([]byte(workflowData.On), &parsedData); err != nil {
-		pullRequestTargetLog.Printf("Could not parse On field as YAML: %v", err)
+	if !hasPullRequestTargetTrigger(workflowData.On) {
 		return nil
 	}
 
-	onData, hasOn := parsedData["on"]
-	if !hasOn {
-		return nil
-	}
-
-	onMap, isMap := onData.(map[string]any)
-	if !isMap {
-		return nil
-	}
-
-	_, hasPRT := onMap["pull_request_target"]
-	if !hasPRT {
-		return nil
-	}
-
-	effectiveStrictMode := c.strictMode
-	if workflowData.RawFrontmatter != nil {
-		if strictBool, ok := workflowData.RawFrontmatter["strict"].(bool); ok && !strictBool {
-			pullRequestTargetLog.Print("Frontmatter strict: false detected, disabling strict mode error for pull_request_target validation")
-			effectiveStrictMode = false
-		}
-	}
+	effectiveStrictMode := c.pullRequestTargetStrictMode(workflowData)
 
 	// In strict mode, always emit a warning that pull_request_target is a very dangerous trigger,
 	// regardless of whether checkout is disabled. The workflow still runs with full write
 	// permissions and has access to all repository secrets.
 	if effectiveStrictMode {
-		pullRequestTargetLog.Print("Emitting strict mode warning: pull_request_target is a very dangerous trigger")
-		warningMsg := "pull_request_target is a very dangerous trigger.\n" +
-			"This event runs with full write permissions and access to all repository secrets.\n" +
-			"Unlike pull_request, it runs in the context of the target (base) branch, giving\n" +
-			"the workflow elevated access even for PRs from untrusted fork contributors.\n" +
-			"Even with checkout: false, consider whether pull_request_target is truly necessary.\n" +
-			"If you only need to react to PR events without write access, use pull_request instead.\n" +
-			"See: https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/"
-		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", warningMsg))
-		c.IncrementWarningCount()
+		c.warnPullRequestTargetTrigger(markdownPath)
 	}
 
 	// If checkout is disabled, the workflow will not execute PR code — no further action needed.
@@ -136,7 +103,63 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 	// Checkout is not disabled — the workflow may execute untrusted PR code with elevated privileges.
 	pullRequestTargetLog.Print("checkout is NOT disabled, emitting pull_request_target insecure-checkout diagnostic")
 
-	message := "pull_request_target trigger with checkout enabled is extremely insecure.\n\n" +
+	message := pullRequestTargetCheckoutWarning()
+
+	if effectiveStrictMode {
+		return formatCompilerError(markdownPath, "error", message, nil)
+	}
+
+	// Non-strict mode: emit a warning so existing workflows continue to compile.
+	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
+	c.IncrementWarningCount()
+
+	return nil
+}
+
+func hasPullRequestTargetTrigger(onSection string) bool {
+	var parsedData map[string]any
+	if err := yaml.Unmarshal([]byte(onSection), &parsedData); err != nil {
+		pullRequestTargetLog.Printf("Could not parse On field as YAML: %v", err)
+		return false
+	}
+	onData, hasOn := parsedData["on"]
+	if !hasOn {
+		return false
+	}
+	onMap, isMap := onData.(map[string]any)
+	if !isMap {
+		return false
+	}
+	_, hasPRT := onMap["pull_request_target"]
+	return hasPRT
+}
+
+func (c *Compiler) pullRequestTargetStrictMode(workflowData *WorkflowData) bool {
+	effectiveStrictMode := c.strictMode
+	if workflowData.RawFrontmatter != nil {
+		if strictBool, ok := workflowData.RawFrontmatter["strict"].(bool); ok && !strictBool {
+			pullRequestTargetLog.Print("Frontmatter strict: false detected, disabling strict mode error for pull_request_target validation")
+			effectiveStrictMode = false
+		}
+	}
+	return effectiveStrictMode
+}
+
+func (c *Compiler) warnPullRequestTargetTrigger(markdownPath string) {
+	pullRequestTargetLog.Print("Emitting strict mode warning: pull_request_target is a very dangerous trigger")
+	warningMsg := "pull_request_target is a very dangerous trigger.\n" +
+		"This event runs with full write permissions and access to all repository secrets.\n" +
+		"Unlike pull_request, it runs in the context of the target (base) branch, giving\n" +
+		"the workflow elevated access even for PRs from untrusted fork contributors.\n" +
+		"Even with checkout: false, consider whether pull_request_target is truly necessary.\n" +
+		"If you only need to react to PR events without write access, use pull_request instead.\n" +
+		"See: https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/"
+	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", warningMsg))
+	c.IncrementWarningCount()
+}
+
+func pullRequestTargetCheckoutWarning() string {
+	return "pull_request_target trigger with checkout enabled is extremely insecure.\n\n" +
 		"This event runs with full write permissions and access to repository secrets,\n" +
 		"but the workflow will check out code from a potentially untrusted PR contributor.\n" +
 		"This is a well-known attack vector: a fork PR can inject malicious code that\n" +
@@ -153,16 +176,6 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 		"  repository: ${{ github.repository }}\n\n" +
 		"You can also use 'ref: ${{ github.event.pull_request.base.ref }}'.\n" +
 		"See: https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/"
-
-	if effectiveStrictMode {
-		return formatCompilerError(markdownPath, "error", message, nil)
-	}
-
-	// Non-strict mode: emit a warning so existing workflows continue to compile.
-	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
-	c.IncrementWarningCount()
-
-	return nil
 }
 
 func hasOnlyTrustedPullRequestTargetCheckouts(configs []*CheckoutConfig) bool {

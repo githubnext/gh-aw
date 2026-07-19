@@ -41,17 +41,27 @@ func evalCreateIssue(item CreatedItemReport, repoOverride string) OutcomeReport 
 
 	// Count human comments
 	comments, _ := data["comments"].(float64)
+	report.HumanComments = evalCreateIssueHumanComments(num, repo)
+	return evalCreateIssueClassify(report, item, repo, num, state, stateReason, closedAt, comments)
+}
+
+func evalCreateIssueHumanComments(num int, repo string) int {
 	commentList, cerr := ghAPIGetArray(fmt.Sprintf("issues/%d/comments", num), repo)
-	if cerr == nil {
-		for _, c := range commentList {
-			user, _ := c["user"].(map[string]any)
-			login, _ := user["login"].(string)
-			if !isBotUser(login) {
-				report.HumanComments++
-			}
+	if cerr != nil {
+		return 0
+	}
+	count := 0
+	for _, c := range commentList {
+		user, _ := c["user"].(map[string]any)
+		login, _ := user["login"].(string)
+		if !isBotUser(login) {
+			count++
 		}
 	}
+	return count
+}
 
+func evalCreateIssueClassify(report OutcomeReport, item CreatedItemReport, repo string, num int, state string, stateReason string, closedAt string, comments float64) OutcomeReport {
 	switch {
 	case state == "closed" && stateReason == "completed":
 		report.Result = OutcomeAccepted

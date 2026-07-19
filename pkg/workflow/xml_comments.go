@@ -13,71 +13,76 @@ var xmlCommentsLog = logger.New("workflow:xml_comments")
 func removeXMLComments(content string) string {
 	xmlCommentsLog.Printf("Removing XML comments from content: %d lines", strings.Count(content, "\n")+1)
 
-	// Track if we're inside a code block to avoid removing comments in code
 	lines := strings.Split(content, "\n")
 	var result []string
-	inCodeBlock := false
-	var openMarker string
-	inXMLComment := false
+	state := xmlCommentRemovalState{}
 	removedComments := 0
 
 	for _, line := range lines {
-		// If we're in a code block, preserve the line as-is (ignore XML comment processing)
-		// Code blocks that started BEFORE any XML comment take precedence
-		if inCodeBlock {
-			trimmedLine := strings.TrimSpace(line)
-			// Check if this line closes the code block
-			if isMatchingCodeBlockMarker(trimmedLine, openMarker) {
-				inCodeBlock = false
-				openMarker = ""
-			}
-			result = append(result, line)
-			continue
-		}
-
-		// Process the line for XML comments (not in a code block)
-		processedLine, wasInComment, isInComment := removeXMLCommentsFromLine(line, inXMLComment)
-		inXMLComment = isInComment
-
-		// If we're in an XML comment, skip this line entirely (including code block markers)
-		if wasInComment && isInComment {
-			// In the middle of a comment, skip the line completely
+		updatedResult, removed := state.processXMLCommentLine(result, line)
+		result = updatedResult
+		if removed {
 			removedComments++
-			continue
-		}
-
-		// Check for code block markers (3 or more ` or ~) - but only if not in XML comment
-		trimmedLine := strings.TrimSpace(processedLine)
-
-		if !inCodeBlock && isValidCodeBlockMarker(trimmedLine) {
-			// Opening a code block
-			openMarker, _ = extractCodeBlockMarker(trimmedLine)
-			inCodeBlock = true
-			xmlCommentsLog.Printf("Detected code block opening with marker: %s", openMarker)
-			result = append(result, processedLine)
-			continue
-		}
-
-		// Handle XML comment boundaries
-		if !wasInComment && !isInComment {
-			// Line had no comment involvement, keep as-is
-			result = append(result, processedLine)
-		} else if !wasInComment && isInComment {
-			// Line started a multiline comment, keep the processed part and add empty line
-			if strings.TrimSpace(processedLine) != "" {
-				result = append(result, processedLine)
-			}
-			result = append(result, "")
-		} else if wasInComment && !isInComment {
-			// Line ended a multiline comment, keep the processed part
-			if strings.TrimSpace(processedLine) != "" {
-				result = append(result, processedLine)
-			}
 		}
 	}
 
 	xmlCommentsLog.Printf("XML comment removal completed: removed %d comment lines, output %d lines", removedComments, len(result))
 	return strings.Join(result, "\n")
+}
+
+type xmlCommentRemovalState struct {
+	inCodeBlock  bool
+	openMarker   string
+	inXMLComment bool
+}
+
+func (s *xmlCommentRemovalState) processXMLCommentLine(result []string, line string) ([]string, bool) {
+	if s.inCodeBlock {
+		trimmedLine := strings.TrimSpace(line)
+		if isMatchingCodeBlockMarker(trimmedLine, s.openMarker) {
+			s.inCodeBlock = false
+			s.openMarker = ""
+		}
+		return append(result, line), false
+	}
+
+	processedLine, wasInComment, isInComment := removeXMLCommentsFromLine(line, s.inXMLComment)
+	s.inXMLComment = isInComment
+	if wasInComment && isInComment {
+		return result, true
+	}
+
+	if s.openCodeBlockIfNeeded(processedLine) {
+		return append(result, processedLine), false
+	}
+	return appendProcessedXMLCommentLine(result, processedLine, wasInComment, isInComment), false
+}
+
+func (s *xmlCommentRemovalState) openCodeBlockIfNeeded(processedLine string) bool {
+	trimmedLine := strings.TrimSpace(processedLine)
+	if s.inCodeBlock || !isValidCodeBlockMarker(trimmedLine) {
+		return false
+	}
+	s.openMarker, _ = extractCodeBlockMarker(trimmedLine)
+	s.inCodeBlock = true
+	xmlCommentsLog.Printf("Detected code block opening with marker: %s", s.openMarker)
+	return true
+}
+
+func appendProcessedXMLCommentLine(result []string, processedLine string, wasInComment bool, isInComment bool) []string {
+	if !wasInComment && !isInComment {
+		return append(result, processedLine)
+	}
+	if !wasInComment && isInComment {
+		if strings.TrimSpace(processedLine) != "" {
+			result = append(result, processedLine)
+		}
+		return append(result, "")
+	}
+	if wasInComment && !isInComment && strings.TrimSpace(processedLine) != "" {
+		return append(result, processedLine)
+	}
+	return result
 }
 
 // removeXMLCommentsFromLine removes XML comments from a single line

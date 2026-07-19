@@ -132,13 +132,25 @@ func RenderJSONMCPConfig(
 	options JSONMCPConfigOptions,
 ) error {
 	mcpRendererLog.Printf("Rendering JSON MCP config: %d tools", len(mcpTools))
-
-	// Build the JSON configuration in a separate builder for validation
 	var configBuilder strings.Builder
 	configBuilder.WriteString("          {\n")
 	configBuilder.WriteString("            \"mcpServers\": {\n")
+	renderJSONMCPServers(&configBuilder, tools, filterMCPTools(mcpTools, options), workflowData, options)
+	if err := renderJSONMCPGateway(&configBuilder, options.GatewayConfig); err != nil {
+		return err
+	}
+	configBuilder.WriteString("          }\n")
 
-	// Filter tools if needed (e.g., Copilot filters out cache-memory)
+	generatedConfig := configBuilder.String()
+	delimiter := GenerateHeredocDelimiterFromContent("MCP_CONFIG", generatedConfig)
+	yaml.WriteString("          GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)\n")
+	yaml.WriteString("          cat << " + delimiter + " | \"$GH_AW_NODE\" \"${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs\"\n")
+	yaml.WriteString(generatedConfig)
+	yaml.WriteString("          " + delimiter + "\n")
+	return nil
+}
+
+func filterMCPTools(mcpTools []string, options JSONMCPConfigOptions) []string {
 	var filteredTools []string
 	for _, toolName := range mcpTools {
 		if options.FilterTool != nil && !options.FilterTool(toolName) {
@@ -147,137 +159,118 @@ func RenderJSONMCPConfig(
 		}
 		filteredTools = append(filteredTools, toolName)
 	}
-
 	mcpRendererLog.Printf("Rendering %d MCP tools after filtering", len(filteredTools))
+	return filteredTools
+}
 
-	// Process each MCP tool
+func renderJSONMCPServers(configBuilder *strings.Builder, tools map[string]any, filteredTools []string, workflowData *WorkflowData, options JSONMCPConfigOptions) {
 	totalServers := len(filteredTools)
 	serverCount := 0
-
 	for _, toolName := range filteredTools {
 		serverCount++
 		isLast := serverCount == totalServers
-
-		switch toolName {
-		case "github":
-			githubTool, _ := tools["github"].(map[string]any)
-			options.Renderers.RenderGitHub(&configBuilder, githubTool, isLast, workflowData)
-		case "playwright":
-			playwrightTool := tools["playwright"]
-			options.Renderers.RenderPlaywright(&configBuilder, playwrightTool, isLast)
-		case "cache-memory":
-			options.Renderers.RenderCacheMemory(&configBuilder, isLast, workflowData)
-		case "agentic-workflows":
-			options.Renderers.RenderAgenticWorkflows(&configBuilder, isLast)
-		case "safe-outputs":
-			options.Renderers.RenderSafeOutputs(&configBuilder, isLast, workflowData)
-		case "mcp-scripts":
-			if options.Renderers.RenderMCPScripts != nil {
-				options.Renderers.RenderMCPScripts(&configBuilder, workflowData.MCPScripts, isLast)
-			}
-		default:
-			// Handle custom MCP tools using shared helper
-			HandleCustomMCPToolInSwitch(&configBuilder, toolName, tools, isLast, options.Renderers.RenderCustomMCPConfig)
-		}
+		renderJSONMCPServer(configBuilder, tools, toolName, isLast, workflowData, options)
 	}
+}
 
-	// Write config file footer - but don't add newline yet if we need to add gateway
-	if options.GatewayConfig != nil {
-		configBuilder.WriteString("            },\n")
-		// Add gateway section (needed for gateway to process)
-		// Per MCP Gateway Specification v1.0.0 section 4.2, use "${VARIABLE_NAME}" syntax for variable expressions
-		configBuilder.WriteString("            \"gateway\": {\n")
-		// Port as unquoted variable - shell expands to integer (e.g., 8080) for valid JSON
-		fmt.Fprintf(&configBuilder, "              \"port\": $MCP_GATEWAY_PORT,\n")
-		fmt.Fprintf(&configBuilder, "              \"domain\": \"%s\",\n", options.GatewayConfig.Domain)
-		fmt.Fprintf(&configBuilder, "              \"apiKey\": \"%s\"", options.GatewayConfig.APIKey)
-
-		// Add optional fields if specified (apiKey always precedes them without a trailing comma)
-		if options.GatewayConfig.PayloadDir != "" {
-			fmt.Fprintf(&configBuilder, ",\n              \"payloadDir\": \"%s\"", options.GatewayConfig.PayloadDir)
+func renderJSONMCPServer(configBuilder *strings.Builder, tools map[string]any, toolName string, isLast bool, workflowData *WorkflowData, options JSONMCPConfigOptions) {
+	switch toolName {
+	case "github":
+		githubTool, _ := tools["github"].(map[string]any)
+		options.Renderers.RenderGitHub(configBuilder, githubTool, isLast, workflowData)
+	case "playwright":
+		options.Renderers.RenderPlaywright(configBuilder, tools["playwright"], isLast)
+	case "cache-memory":
+		options.Renderers.RenderCacheMemory(configBuilder, isLast, workflowData)
+	case "agentic-workflows":
+		options.Renderers.RenderAgenticWorkflows(configBuilder, isLast)
+	case "safe-outputs":
+		options.Renderers.RenderSafeOutputs(configBuilder, isLast, workflowData)
+	case "mcp-scripts":
+		if options.Renderers.RenderMCPScripts != nil {
+			options.Renderers.RenderMCPScripts(configBuilder, workflowData.MCPScripts, isLast)
 		}
-		if len(options.GatewayConfig.TrustedBots) > 0 {
-			configBuilder.WriteString(",\n              \"trustedBots\": [")
-			for i, bot := range options.GatewayConfig.TrustedBots {
-				if i > 0 {
-					configBuilder.WriteString(", ")
-				}
-				fmt.Fprintf(&configBuilder, "%q", bot)
-			}
-			configBuilder.WriteString("]")
-		}
-		if options.GatewayConfig.KeepaliveInterval != 0 {
-			fmt.Fprintf(&configBuilder, ",\n              \"keepaliveInterval\": %d", options.GatewayConfig.KeepaliveInterval)
-		}
-		if options.GatewayConfig.SessionTimeout != "" {
-			fmt.Fprintf(&configBuilder, ",\n              \"sessionTimeout\": %q", options.GatewayConfig.SessionTimeout)
-		}
-		if options.GatewayConfig.ToolTimeout != "" {
-			toolTimeoutSeconds, err := durationStringToSeconds(options.GatewayConfig.ToolTimeout)
-			if err != nil {
-				return fmt.Errorf("failed to parse engine.mcp.tool-timeout %q for gateway.toolTimeout: %w", options.GatewayConfig.ToolTimeout, err)
-			}
-			fmt.Fprintf(&configBuilder, ",\n              \"toolTimeout\": %d", toolTimeoutSeconds)
-		}
-		// Emit forcePublicRepos: false when private-to-public-flows: allow is declared.
-		// Only emitted when explicitly set to false; omitting the field lets the gateway default (true).
-		// See MCP Gateway Specification Section 4.1.3.8.
-		if options.GatewayConfig.ForcePublicRepos != nil && !*options.GatewayConfig.ForcePublicRepos {
-			configBuilder.WriteString(",\n              \"forcePublicRepos\": false")
-		}
-		// Emit sinkVisibilityExemptServers when private-to-public-flows lists specific server IDs.
-		// See MCP Gateway Specification Section 10.9.
-		if len(options.GatewayConfig.SinkVisibilityExemptServers) > 0 {
-			configBuilder.WriteString(",\n              \"sinkVisibilityExemptServers\": [")
-			for i, serverID := range options.GatewayConfig.SinkVisibilityExemptServers {
-				if i > 0 {
-					configBuilder.WriteString(", ")
-				}
-				// Validate against safe-identifier pattern before writing into the heredoc.
-				// The config is rendered inside an unquoted bash heredoc; unvalidated IDs
-				// containing shell metacharacters (e.g. $(cmd), `cmd`) would be expanded.
-				if !isSafeMCPServerID(serverID) {
-					return fmt.Errorf("private-to-public-flows: server ID %q contains characters that are unsafe for shell heredoc emission; IDs must match [A-Za-z0-9_-]+", serverID)
-				}
-				fmt.Fprintf(&configBuilder, "%q", serverID)
-			}
-			configBuilder.WriteString("]")
-		}
-		// When OTLP tracing is configured, add the opentelemetry section directly to the
-		// gateway config. The endpoint is passed via the OTEL_EXPORTER_OTLP_ENDPOINT env var
-		// (injected by injectOTLPConfig) so that secrets are never interpolated directly into
-		// the run block (RGS-008 compliance). All four fields use ${VARIABLE_NAME} expressions
-		// expanded by bash from workflow-level env vars.
-		// Per MCP Gateway Specification §4.1.3.7 and the opentelemetryConfig schema.
-		// Note: OTEL_EXPORTER_OTLP_HEADERS is passed as a container env var (not in the JSON
-		// config) so that auth credentials are not embedded in the stdin JSON config pipe.
-		if options.GatewayConfig.OTLPEndpoint != "" {
-			configBuilder.WriteString(",\n              \"opentelemetry\": {\n")
-			configBuilder.WriteString("                \"endpoint\": \"${OTEL_EXPORTER_OTLP_ENDPOINT}\",\n")
-			configBuilder.WriteString("                \"traceId\": \"${GITHUB_AW_OTEL_TRACE_ID}\",\n")
-			configBuilder.WriteString("                \"spanId\": \"${GITHUB_AW_OTEL_PARENT_SPAN_ID}\"\n")
-			configBuilder.WriteString("              }")
-		}
-		configBuilder.WriteString("\n")
-		configBuilder.WriteString("            }\n")
-	} else {
-		configBuilder.WriteString("            }\n")
+	default:
+		HandleCustomMCPToolInSwitch(configBuilder, toolName, tools, isLast, options.Renderers.RenderCustomMCPConfig)
 	}
+}
 
-	configBuilder.WriteString("          }\n")
+func renderJSONMCPGateway(configBuilder *strings.Builder, gatewayConfig *MCPGatewayRuntimeConfig) error {
+	if gatewayConfig == nil {
+		configBuilder.WriteString("            }\n")
+		return nil
+	}
+	configBuilder.WriteString("            },\n")
+	configBuilder.WriteString("            \"gateway\": {\n")
+	fmt.Fprintf(configBuilder, "              \"port\": $MCP_GATEWAY_PORT,\n")
+	fmt.Fprintf(configBuilder, "              \"domain\": \"%s\",\n", gatewayConfig.Domain)
+	fmt.Fprintf(configBuilder, "              \"apiKey\": \"%s\"", gatewayConfig.APIKey)
+	if err := renderJSONMCPGatewayOptionalFields(configBuilder, gatewayConfig); err != nil {
+		return err
+	}
+	configBuilder.WriteString("\n")
+	configBuilder.WriteString("            }\n")
+	return nil
+}
 
-	// Get the generated configuration
-	generatedConfig := configBuilder.String()
+func renderJSONMCPGatewayOptionalFields(configBuilder *strings.Builder, gatewayConfig *MCPGatewayRuntimeConfig) error {
+	if gatewayConfig.PayloadDir != "" {
+		fmt.Fprintf(configBuilder, ",\n              \"payloadDir\": \"%s\"", gatewayConfig.PayloadDir)
+	}
+	renderJSONMCPGatewayTrustedBots(configBuilder, gatewayConfig.TrustedBots)
+	if gatewayConfig.KeepaliveInterval != 0 {
+		fmt.Fprintf(configBuilder, ",\n              \"keepaliveInterval\": %d", gatewayConfig.KeepaliveInterval)
+	}
+	if gatewayConfig.SessionTimeout != "" {
+		fmt.Fprintf(configBuilder, ",\n              \"sessionTimeout\": %q", gatewayConfig.SessionTimeout)
+	}
+	if gatewayConfig.ToolTimeout != "" {
+		toolTimeoutSeconds, err := durationStringToSeconds(gatewayConfig.ToolTimeout)
+		if err != nil {
+			return fmt.Errorf("failed to parse engine.mcp.tool-timeout %q for gateway.toolTimeout: %w", gatewayConfig.ToolTimeout, err)
+		}
+		fmt.Fprintf(configBuilder, ",\n              \"toolTimeout\": %d", toolTimeoutSeconds)
+	}
+	if gatewayConfig.ForcePublicRepos != nil && !*gatewayConfig.ForcePublicRepos {
+		configBuilder.WriteString(",\n              \"forcePublicRepos\": false")
+	}
+	return renderJSONMCPGatewayAdvancedFields(configBuilder, gatewayConfig)
+}
 
-	delimiter := GenerateHeredocDelimiterFromContent("MCP_CONFIG", generatedConfig)
-	// Resolve the node binary to its absolute path so the command is robust
-	// against PATH modifications that may occur later in the workflow.
-	yaml.WriteString("          GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)\n")
-	// Write the configuration to the YAML output
-	yaml.WriteString("          cat << " + delimiter + " | \"$GH_AW_NODE\" \"${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs\"\n")
-	yaml.WriteString(generatedConfig)
-	yaml.WriteString("          " + delimiter + "\n")
+func renderJSONMCPGatewayTrustedBots(configBuilder *strings.Builder, trustedBots []string) {
+	if len(trustedBots) == 0 {
+		return
+	}
+	configBuilder.WriteString(",\n              \"trustedBots\": [")
+	for i, bot := range trustedBots {
+		if i > 0 {
+			configBuilder.WriteString(", ")
+		}
+		fmt.Fprintf(configBuilder, "%q", bot)
+	}
+	configBuilder.WriteString("]")
+}
 
-	// Note: Post-EOF commands are no longer needed since we pipe directly to the gateway script
+func renderJSONMCPGatewayAdvancedFields(configBuilder *strings.Builder, gatewayConfig *MCPGatewayRuntimeConfig) error {
+	if len(gatewayConfig.SinkVisibilityExemptServers) > 0 {
+		configBuilder.WriteString(",\n              \"sinkVisibilityExemptServers\": [")
+		for i, serverID := range gatewayConfig.SinkVisibilityExemptServers {
+			if i > 0 {
+				configBuilder.WriteString(", ")
+			}
+			if !isSafeMCPServerID(serverID) {
+				return fmt.Errorf("private-to-public-flows: server ID %q contains characters that are unsafe for shell heredoc emission; IDs must match [A-Za-z0-9_-]+", serverID)
+			}
+			fmt.Fprintf(configBuilder, "%q", serverID)
+		}
+		configBuilder.WriteString("]")
+	}
+	if gatewayConfig.OTLPEndpoint != "" {
+		configBuilder.WriteString(",\n              \"opentelemetry\": {\n")
+		configBuilder.WriteString("                \"endpoint\": \"${OTEL_EXPORTER_OTLP_ENDPOINT}\",\n")
+		configBuilder.WriteString("                \"traceId\": \"${GITHUB_AW_OTEL_TRACE_ID}\",\n")
+		configBuilder.WriteString("                \"spanId\": \"${GITHUB_AW_OTEL_PARENT_SPAN_ID}\"\n")
+		configBuilder.WriteString("              }")
+	}
 	return nil
 }

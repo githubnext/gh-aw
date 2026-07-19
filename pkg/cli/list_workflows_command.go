@@ -85,28 +85,7 @@ It accepts workflow IDs (basename without .md) or full filenames.`,
 func RunListWorkflows(ctx context.Context, repo, path, pattern string, verbose bool, jsonOutput bool, labelFilter string) error {
 	listWorkflowsLog.Printf("Listing workflows: repo=%s, path=%s, pattern=%s, jsonOutput=%v, labelFilter=%s", repo, path, pattern, jsonOutput, labelFilter)
 
-	var mdFiles []string
-	var err error
-	var isRemote bool
-
-	if repo != "" {
-		// List workflows from remote repository
-		isRemote = true
-		if verbose && !jsonOutput {
-			fmt.Fprintf(os.Stderr, "Listing workflow files from %s\n", repo)
-		}
-		mdFiles, err = getRemoteWorkflowFiles(ctx, repo, path, verbose, jsonOutput)
-	} else {
-		// List workflows from local repository
-		if verbose && !jsonOutput {
-			fmt.Fprintf(os.Stderr, "Listing workflow files\n")
-			if pattern != "" {
-				fmt.Fprintf(os.Stderr, "Filtering by pattern: %s\n", pattern)
-			}
-		}
-		mdFiles, err = getMarkdownWorkflowFiles(path)
-	}
-
+	mdFiles, isRemote, err := runListWorkflowsFiles(ctx, repo, path, pattern, verbose, jsonOutput)
 	if err != nil {
 		listWorkflowsLog.Printf("Failed to get markdown workflow files: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -131,89 +110,108 @@ func RunListWorkflows(ctx context.Context, repo, path, pattern string, verbose b
 	}
 
 	// Build workflow list
+	workflows := runListWorkflowsItems(mdFiles, pattern, labelFilter, isRemote)
+
+	// Output results
+	return runListWorkflowsOutput(workflows, jsonOutput)
+}
+
+func runListWorkflowsFiles(ctx context.Context, repo, path, pattern string, verbose bool, jsonOutput bool) ([]string, bool, error) {
+	if repo != "" {
+		if verbose && !jsonOutput {
+			fmt.Fprintf(os.Stderr, "Listing workflow files from %s\n", repo)
+		}
+		mdFiles, err := getRemoteWorkflowFiles(ctx, repo, path, verbose, jsonOutput)
+		return mdFiles, true, err
+	}
+	if verbose && !jsonOutput {
+		fmt.Fprintf(os.Stderr, "Listing workflow files\n")
+		if pattern != "" {
+			fmt.Fprintf(os.Stderr, "Filtering by pattern: %s\n", pattern)
+		}
+	}
+	mdFiles, err := getMarkdownWorkflowFiles(path)
+	return mdFiles, false, err
+}
+
+func runListWorkflowsItems(mdFiles []string, pattern, labelFilter string, isRemote bool) []WorkflowListItem {
 	var workflows []WorkflowListItem
-
-	// Shared import cache across all iterations to avoid re-creating it for every workflow
 	importCache := parser.NewImportCache("")
-
 	for _, file := range mdFiles {
 		name := extractWorkflowNameFromPath(file)
-
-		// Skip if pattern specified and doesn't match
 		if pattern != "" && !strings.Contains(strings.ToLower(name), strings.ToLower(pattern)) {
 			continue
 		}
-
-		// For remote repos, we can't check compilation status or read local files
 		if isRemote {
-			// For remote repos, skip fetching individual file metadata to avoid slowness
-			// Just show file name with minimal info
-			workflows = append(workflows, WorkflowListItem{
-				Workflow: name,
-				EngineID: "N/A", // Skip fetching to avoid slow API/git calls
-				Compiled: "N/A", // Cannot determine for remote repos
-				Labels:   nil,
-				On:       nil,
-			})
-		} else {
-			// Extract engine ID from workflow file
-			agent := extractEngineIDFromFile(file)
+			workflows = append(workflows, runListWorkflowsRemoteItem(name))
+			continue
+		}
+		item, labels := runListWorkflowsLocalItem(file, name, importCache)
+		if labelFilter != "" && !runListWorkflowsHasLabel(labels, labelFilter) {
+			continue
+		}
+		workflows = append(workflows, item)
+	}
+	return workflows
+}
 
-			// Check if compiled (.lock.yml file is in .github/workflows)
-			lockFile := stringutil.MarkdownToLockFile(file)
-			compiled := "N/A"
+func runListWorkflowsRemoteItem(name string) WorkflowListItem {
+	return WorkflowListItem{
+		Workflow: name,
+		EngineID: "N/A", // Skip fetching to avoid slow API/git calls
+		Compiled: "N/A", // Cannot determine for remote repos
+		Labels:   nil,
+		On:       nil,
+	}
+}
 
-			if _, err := os.Stat(lockFile); err == nil {
-				compiled = isCompiledUpToDateWithCache(file, lockFile, importCache)
-			}
+func runListWorkflowsLocalItem(file, name string, importCache *parser.ImportCache) (WorkflowListItem, []string) {
+	agent := extractEngineIDFromFile(file)
+	lockFile := stringutil.MarkdownToLockFile(file)
+	compiled := "N/A"
+	if _, err := os.Stat(lockFile); err == nil {
+		compiled = isCompiledUpToDateWithCache(file, lockFile, importCache)
+	}
+	onField, labels := runListWorkflowsFrontmatter(file)
+	return WorkflowListItem{
+		Workflow: name,
+		EngineID: agent,
+		Compiled: compiled,
+		Labels:   labels,
+		On:       onField,
+	}, labels
+}
 
-			// Extract "on" field and labels from frontmatter
-			var onField any
-			var labels []string
-			if content, err := os.ReadFile(file); err == nil {
-				if result, err := parser.ExtractFrontmatterFromContent(string(content)); err == nil {
-					if result.Frontmatter != nil {
-						onField = result.Frontmatter["on"]
-						// Extract labels field if present
-						if labelsField, ok := result.Frontmatter["labels"]; ok {
-							if labelsArray, ok := labelsField.([]any); ok {
-								for _, label := range labelsArray {
-									if labelStr, ok := label.(string); ok {
-										labels = append(labels, labelStr)
-									}
-								}
-							}
+func runListWorkflowsFrontmatter(file string) (any, []string) {
+	var onField any
+	var labels []string
+	if content, err := os.ReadFile(file); err == nil {
+		if result, err := parser.ExtractFrontmatterFromContent(string(content)); err == nil && result.Frontmatter != nil {
+			onField = result.Frontmatter["on"]
+			if labelsField, ok := result.Frontmatter["labels"]; ok {
+				if labelsArray, ok := labelsField.([]any); ok {
+					for _, label := range labelsArray {
+						if labelStr, ok := label.(string); ok {
+							labels = append(labels, labelStr)
 						}
 					}
 				}
 			}
-
-			// Skip if label filter specified and workflow doesn't have the label
-			if labelFilter != "" {
-				hasLabel := false
-				for _, label := range labels {
-					if strings.EqualFold(label, labelFilter) {
-						hasLabel = true
-						break
-					}
-				}
-				if !hasLabel {
-					continue
-				}
-			}
-
-			// Build workflow list item
-			workflows = append(workflows, WorkflowListItem{
-				Workflow: name,
-				EngineID: agent,
-				Compiled: compiled,
-				Labels:   labels,
-				On:       onField,
-			})
 		}
 	}
+	return onField, labels
+}
 
-	// Output results
+func runListWorkflowsHasLabel(labels []string, labelFilter string) bool {
+	for _, label := range labels {
+		if strings.EqualFold(label, labelFilter) {
+			return true
+		}
+	}
+	return false
+}
+
+func runListWorkflowsOutput(workflows []WorkflowListItem, jsonOutput bool) error {
 	if jsonOutput {
 		jsonBytes, err := json.MarshalIndent(workflows, "", "  ")
 		if err != nil {
@@ -222,18 +220,12 @@ func RunListWorkflows(ctx context.Context, repo, path, pattern string, verbose b
 		fmt.Fprintln(os.Stdout, string(jsonBytes))
 		return nil
 	}
-
-	// Print workflow count message for text output
-	workflowCount := len(workflows)
-	if workflowCount == 1 {
+	if len(workflows) == 1 {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Found 1 workflow"))
 	} else {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %d workflows", workflowCount)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %d workflows", len(workflows))))
 	}
-
-	// Render the table using struct-based rendering
 	fmt.Fprint(os.Stderr, console.RenderStruct(workflows))
-
 	return nil
 }
 

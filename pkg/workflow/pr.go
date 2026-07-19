@@ -67,14 +67,22 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	useRequire := setupActionRef != ""
 
-	// Always add the step with a condition that checks if PR context is available
 	yaml.WriteString("      - name: Checkout PR branch\n")
 	yaml.WriteString("        id: checkout-pr\n")
+	RenderConditionAsIf(yaml, buildPRReadyForReviewCheckoutCondition(), "          ")
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 
-	// Build condition that checks if github.event.pull_request exists (for pull_request events)
-	// OR github.event.issue.pull_request exists (for issue_comment events on PRs).
-	// Note: issue_comment events on PRs do NOT set github.event.pull_request; instead
-	// github.event.issue.pull_request is set to indicate the issue is a PR.
+	effectiveToken := effectivePRCheckoutToken(data)
+	prLog.Print("PR checkout step configured with GitHub token")
+	yaml.WriteString("        env:\n")
+	fmt.Fprintf(yaml, "          GH_TOKEN: %s\n", effectiveToken)
+	yaml.WriteString("        with:\n")
+	fmt.Fprintf(yaml, "          github-token: %s\n", effectiveToken)
+	yaml.WriteString("          script: |\n")
+	writePRCheckoutScript(yaml, useRequire)
+}
+
+func buildPRReadyForReviewCheckoutCondition() ConditionNode {
 	dispatchPRContextCondition := BuildAnd(
 		BuildEventTypeEquals("workflow_dispatch"),
 		BuildEquals(
@@ -89,41 +97,26 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 		),
 		dispatchPRContextCondition,
 	)
-	RenderConditionAsIf(yaml, condition, "          ")
+	return condition
+}
 
-	// Use actions/github-script instead of shell script
-	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
-
-	// Add env section with GH_TOKEN for gh CLI
-	// Use safe-outputs github-token if available, otherwise default token
+func effectivePRCheckoutToken(data *WorkflowData) string {
 	safeOutputsToken := ""
 	if data.SafeOutputs != nil && data.SafeOutputs.GitHubToken != "" {
 		safeOutputsToken = data.SafeOutputs.GitHubToken
 	}
-	effectiveToken := getEffectiveGitHubToken(safeOutputsToken)
-	prLog.Print("PR checkout step configured with GitHub token")
-	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GH_TOKEN: %s\n", effectiveToken)
+	return getEffectiveGitHubToken(safeOutputsToken)
+}
 
-	yaml.WriteString("        with:\n")
-
-	// Add github-token to make it available to the GitHub API client
-	fmt.Fprintf(yaml, "          github-token: %s\n", effectiveToken)
-
-	yaml.WriteString("          script: |\n")
-
+func writePRCheckoutScript(yaml *strings.Builder, useRequire bool) {
 	if useRequire {
-		// Use require() to load script from copied files using setup_globals helper
 		yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 		yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 		yaml.WriteString("            const { main } = require('" + SetupActionDestination + "/checkout_pr_branch.cjs');\n")
 		yaml.WriteString("            await main();\n")
 	} else {
-		// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
 		yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 		yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-
-		// Add the JavaScript for checking out the PR branch
 		WriteJavaScriptToYAML(yaml, "const { main } = require('${{ runner.temp }}/gh-aw/actions/checkout_pr_branch.cjs'); await main();")
 	}
 }

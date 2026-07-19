@@ -266,83 +266,93 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		return
 	}
 
-	// Normalize path: "." and "" both refer to the workspace root.
-	normalizedPath := cfg.Path
-	if normalizedPath == "." {
-		normalizedPath = ""
-	}
-	// Normalize repository for wiki checkouts: strip a trailing ".wiki" suffix so that
-	// "owner/repo" and "owner/repo.wiki" with Wiki:true resolve to the same deduplication key.
-	normalizedRepo := cfg.Repository
-	if cfg.Wiki && strings.HasSuffix(normalizedRepo, ".wiki") {
-		normalizedRepo = strings.TrimSuffix(normalizedRepo, ".wiki")
-	}
-	key := checkoutKey{
-		repository: normalizedRepo,
-		path:       normalizedPath,
-		wiki:       cfg.Wiki,
-	}
+	key := normalizedCheckoutKey(cfg)
 
 	if idx, exists := cm.index[key]; exists {
-		// Merge into existing entry; first-seen wins for ref and token/app (auth is mutually exclusive:
-		// once either github-token or github-app is set for an entry, the other method is not added
-		// even if a later config provides it — this preserves the main workflow's auth choice).
-		entry := cm.ordered[idx]
-		entry.fetchDepth = deeperFetchDepth(entry.fetchDepth, cfg.FetchDepth)
-		if cfg.Ref != "" && entry.ref == "" {
-			entry.ref = cfg.Ref // first-seen ref wins
-		}
-		if cfg.GitHubToken != "" && entry.token == "" && entry.githubApp == nil {
-			entry.token = cfg.GitHubToken // first-seen auth wins (mutually exclusive with github-app)
-		}
-		if cfg.GitHubApp != nil && entry.githubApp == nil && entry.token == "" {
-			entry.githubApp = cfg.GitHubApp // first-seen auth wins (mutually exclusive with github-token)
-		}
-		if cfg.SafeOutputGitHubApp != nil && entry.safeOutputApp == nil {
-			entry.safeOutputApp = cfg.SafeOutputGitHubApp // first-seen safe_outputs auth wins
-		}
-		if cfg.SparseCheckout != "" {
-			entry.sparsePatterns = mergeSparsePatterns(entry.sparsePatterns, cfg.SparseCheckout)
-		}
-		if cfg.LFS {
-			entry.lfs = true
-		}
-		if cfg.Current {
-			entry.current = true
-		}
-		if cfg.Submodules != "" && entry.submodules == "" {
-			entry.submodules = cfg.Submodules
-		}
-		if len(cfg.Fetch) > 0 {
-			entry.fetchRefs = mergeFetchRefs(entry.fetchRefs, cfg.Fetch)
-		}
-		if cfg.CleanGitCredentials {
-			entry.cleanCreds = true
-		}
+		mergeCheckoutConfigIntoEntry(cm.ordered[idx], cfg)
 		checkoutManagerLog.Printf("Merged checkout for path=%q repository=%q", key.path, key.repository)
 	} else {
-		entry := &resolvedCheckout{
-			key:           key,
-			ref:           cfg.Ref,
-			token:         cfg.GitHubToken,
-			githubApp:     cfg.GitHubApp,
-			safeOutputApp: cfg.SafeOutputGitHubApp,
-			fetchDepth:    cfg.FetchDepth,
-			submodules:    cfg.Submodules,
-			lfs:           cfg.LFS,
-			current:       cfg.Current,
-			cleanCreds:    cfg.CleanGitCredentials,
-		}
-		if cfg.SparseCheckout != "" {
-			entry.sparsePatterns = mergeSparsePatterns(nil, cfg.SparseCheckout)
-		}
-		if len(cfg.Fetch) > 0 {
-			entry.fetchRefs = mergeFetchRefs(nil, cfg.Fetch)
-		}
+		entry := newResolvedCheckoutFromConfig(key, cfg)
 		cm.index[key] = len(cm.ordered)
 		cm.ordered = append(cm.ordered, entry)
 		checkoutManagerLog.Printf("Added checkout for path=%q repository=%q", key.path, key.repository)
 	}
+}
+
+func normalizedCheckoutKey(cfg *CheckoutConfig) checkoutKey {
+	normalizedPath := cfg.Path
+	if normalizedPath == "." {
+		normalizedPath = ""
+	}
+	normalizedRepo := cfg.Repository
+	if cfg.Wiki && strings.HasSuffix(normalizedRepo, ".wiki") {
+		normalizedRepo = strings.TrimSuffix(normalizedRepo, ".wiki")
+	}
+	return checkoutKey{
+		repository: normalizedRepo,
+		path:       normalizedPath,
+		wiki:       cfg.Wiki,
+	}
+}
+
+func mergeCheckoutConfigIntoEntry(entry *resolvedCheckout, cfg *CheckoutConfig) {
+	entry.fetchDepth = deeperFetchDepth(entry.fetchDepth, cfg.FetchDepth)
+	if cfg.Ref != "" && entry.ref == "" {
+		entry.ref = cfg.Ref
+	}
+	if cfg.GitHubToken != "" && entry.token == "" && entry.githubApp == nil {
+		entry.token = cfg.GitHubToken
+	}
+	if cfg.GitHubApp != nil && entry.githubApp == nil && entry.token == "" {
+		entry.githubApp = cfg.GitHubApp
+	}
+	if cfg.SafeOutputGitHubApp != nil && entry.safeOutputApp == nil {
+		entry.safeOutputApp = cfg.SafeOutputGitHubApp
+	}
+	mergeCheckoutConfigFeatures(entry, cfg)
+}
+
+func mergeCheckoutConfigFeatures(entry *resolvedCheckout, cfg *CheckoutConfig) {
+	if cfg.SparseCheckout != "" {
+		entry.sparsePatterns = mergeSparsePatterns(entry.sparsePatterns, cfg.SparseCheckout)
+	}
+	if cfg.LFS {
+		entry.lfs = true
+	}
+	if cfg.Current {
+		entry.current = true
+	}
+	if cfg.Submodules != "" && entry.submodules == "" {
+		entry.submodules = cfg.Submodules
+	}
+	if len(cfg.Fetch) > 0 {
+		entry.fetchRefs = mergeFetchRefs(entry.fetchRefs, cfg.Fetch)
+	}
+	if cfg.CleanGitCredentials {
+		entry.cleanCreds = true
+	}
+}
+
+func newResolvedCheckoutFromConfig(key checkoutKey, cfg *CheckoutConfig) *resolvedCheckout {
+	entry := &resolvedCheckout{
+		key:           key,
+		ref:           cfg.Ref,
+		token:         cfg.GitHubToken,
+		githubApp:     cfg.GitHubApp,
+		safeOutputApp: cfg.SafeOutputGitHubApp,
+		fetchDepth:    cfg.FetchDepth,
+		submodules:    cfg.Submodules,
+		lfs:           cfg.LFS,
+		current:       cfg.Current,
+		cleanCreds:    cfg.CleanGitCredentials,
+	}
+	if cfg.SparseCheckout != "" {
+		entry.sparsePatterns = mergeSparsePatterns(nil, cfg.SparseCheckout)
+	}
+	if len(cfg.Fetch) > 0 {
+		entry.fetchRefs = mergeFetchRefs(nil, cfg.Fetch)
+	}
+	return entry
 }
 
 // GetDefaultCheckoutOverride returns the resolved checkout for the default workspace

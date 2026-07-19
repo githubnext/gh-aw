@@ -30,79 +30,106 @@ type WorkflowOption struct {
 // RunWorkflowInteractively runs a workflow in interactive mode
 func RunWorkflowInteractively(ctx context.Context, verbose bool, repoOverride string, refOverride string, autoMergePRs bool, push bool, engineOverride string, dryRun bool) error {
 	runInteractiveLog.Print("Starting interactive workflow run")
-
-	// Check if running in CI environment
 	if IsRunningInCI() {
 		return errors.New("interactive mode cannot be used in CI environments")
 	}
-
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Starting interactive workflow run..."))
 	}
 
-	// Step 1: Find workflows with workflow_dispatch trigger
-	workflows, err := findRunnableWorkflows(verbose)
+	selectedWorkflow, inputValues, err := runWorkflowInteractivelySelect(ctx, verbose)
 	if err != nil {
-		return fmt.Errorf("failed to find runnable workflows: %w", err)
+		return err
 	}
-
-	if len(workflows) == 0 {
-		return errors.New("no runnable workflows found. Workflows must have 'workflow_dispatch' trigger")
-	}
-
-	// Step 2: Let user select a workflow
-	selectedWorkflow, err := selectWorkflow(ctx, workflows)
-	if err != nil {
-		return fmt.Errorf("workflow selection cancelled or failed: %w", err)
-	}
-
-	runInteractiveLog.Printf("Selected workflow: %s", selectedWorkflow.Name)
-
-	// Step 3: Show workflow information
-	showWorkflowInfo(selectedWorkflow)
-
-	// Step 4: Collect workflow inputs if needed
-	inputValues, err := collectWorkflowInputs(ctx, selectedWorkflow)
-	if err != nil {
-		return fmt.Errorf("failed to collect workflow inputs: %w", err)
-	}
-
-	// Step 5: Confirm execution
 	if !confirmExecution(ctx, selectedWorkflow, inputValues) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow execution cancelled"))
 		return nil
 	}
 
-	// Step 6: Build command string for display
 	cmdStr := buildCommandString(selectedWorkflow.Name, inputValues, repoOverride, refOverride, autoMergePRs, push, engineOverride)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nRunning workflow..."))
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("Equivalent command: "+cmdStr))
-	fmt.Fprintln(os.Stderr, "")
-
-	// Step 7: Execute the workflow
-	err = RunWorkflowOnGitHub(ctx, selectedWorkflow.Name, RunOptions{
-		Enable:         false,
-		EngineOverride: engineOverride,
+	runWorkflowInteractivelyPrintCommand(cmdStr)
+	if err := runWorkflowInteractivelyExecute(runWorkflowInteractivelyExecuteParams{
+		Ctx:            ctx,
+		WorkflowName:   selectedWorkflow.Name,
+		InputValues:    inputValues,
+		Verbose:        verbose,
 		RepoOverride:   repoOverride,
 		RefOverride:    refOverride,
 		AutoMergePRs:   autoMergePRs,
 		Push:           push,
-		Inputs:         inputValues,
-		Verbose:        verbose,
+		EngineOverride: engineOverride,
 		DryRun:         dryRun,
+	}); err != nil {
+		return err
+	}
+	runWorkflowInteractivelyPrintSuccess(cmdStr)
+	return nil
+}
+
+func runWorkflowInteractivelySelect(ctx context.Context, verbose bool) (*WorkflowOption, []string, error) {
+	workflows, err := findRunnableWorkflows(verbose)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to find runnable workflows: %w", err)
+	}
+	if len(workflows) == 0 {
+		return nil, nil, errors.New("no runnable workflows found. Workflows must have 'workflow_dispatch' trigger")
+	}
+	selectedWorkflow, err := selectWorkflow(ctx, workflows)
+	if err != nil {
+		return nil, nil, fmt.Errorf("workflow selection cancelled or failed: %w", err)
+	}
+	runInteractiveLog.Printf("Selected workflow: %s", selectedWorkflow.Name)
+	showWorkflowInfo(selectedWorkflow)
+	inputValues, err := collectWorkflowInputs(ctx, selectedWorkflow)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to collect workflow inputs: %w", err)
+	}
+	return selectedWorkflow, inputValues, nil
+}
+
+func runWorkflowInteractivelyPrintCommand(cmdStr string) {
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nRunning workflow..."))
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("Equivalent command: "+cmdStr))
+	fmt.Fprintln(os.Stderr, "")
+}
+
+type runWorkflowInteractivelyExecuteParams struct {
+	Ctx            context.Context
+	WorkflowName   string
+	InputValues    []string
+	Verbose        bool
+	RepoOverride   string
+	RefOverride    string
+	AutoMergePRs   bool
+	Push           bool
+	EngineOverride string
+	DryRun         bool
+}
+
+func runWorkflowInteractivelyExecute(p runWorkflowInteractivelyExecuteParams) error {
+	err := RunWorkflowOnGitHub(p.Ctx, p.WorkflowName, RunOptions{
+		Enable:         false,
+		EngineOverride: p.EngineOverride,
+		RepoOverride:   p.RepoOverride,
+		RefOverride:    p.RefOverride,
+		AutoMergePRs:   p.AutoMergePRs,
+		Push:           p.Push,
+		Inputs:         p.InputValues,
+		Verbose:        p.Verbose,
+		DryRun:         p.DryRun,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to run workflow: %w", err)
 	}
+	return nil
+}
 
-	// Show success message with command to run again
+func runWorkflowInteractivelyPrintSuccess(cmdStr string) {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Workflow dispatched successfully!"))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To run this workflow again, use:"))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(cmdStr))
-
-	return nil
 }
 
 // findRunnableWorkflows finds all workflows that support workflow_dispatch
@@ -266,57 +293,18 @@ func collectWorkflowInputs(ctx context.Context, wf *WorkflowOption) ([]string, e
 
 // collectInputsWithMap collects inputs using a map to properly capture values
 func collectInputsWithMap(ctx context.Context, inputs map[string]*workflow.InputDefinition) ([]string, error) {
-	// Create a map to store string values for the form
-	inputValues := make(map[string]string)
-	// Create a map to track the string pointers we'll pass to huh
 	inputPtrs := make(map[string]*string)
 	var formGroups []*huh.Group
-
-	// Create input fields for each workflow input
 	for name, input := range inputs {
-		inputName := name
-		inputDef := input
-
-		// Initialize with default value (convert any to string)
-		defaultStr := ""
-		if inputDef.Default != nil {
-			defaultStr = fmt.Sprintf("%v", inputDef.Default)
-		}
-		inputValues[inputName] = defaultStr
-
-		// Create a string variable for this input that huh can update
-		valueStr := defaultStr
-		inputPtrs[inputName] = &valueStr
-
-		// Create input field that updates the string variable
-		field := huh.NewInput().
-			Title(fmt.Sprintf("Enter value for '%s'", inputName)).
-			Value(inputPtrs[inputName])
-
-		if inputDef.Description != "" {
-			field = field.Description(inputDef.Description)
-		}
-
-		if inputDef.Required {
-			field = field.Validate(func(s string) error {
-				if s == "" {
-					return errors.New("this input is required")
-				}
-				return nil
-			})
-		}
-
-		group := huh.NewGroup(field)
+		group := collectInputsWithMapGroup(name, input, inputPtrs)
 		formGroups = append(formGroups, group)
 	}
 
-	// Show the form
 	form := console.NewForm(formGroups...)
 	if err := form.RunWithContext(ctx); err != nil {
 		return nil, fmt.Errorf("input collection cancelled: %w", err)
 	}
 
-	// Collect the final values from the pointers
 	var result []string
 	for name, valuePtr := range inputPtrs {
 		value := *valuePtr
@@ -324,9 +312,32 @@ func collectInputsWithMap(ctx context.Context, inputs map[string]*workflow.Input
 			result = append(result, fmt.Sprintf("%s=%s", name, value))
 		}
 	}
-
 	runInteractiveLog.Printf("Collected %d input values", len(result))
 	return result, nil
+}
+
+func collectInputsWithMapGroup(name string, input *workflow.InputDefinition, inputPtrs map[string]*string) *huh.Group {
+	inputName := name
+	inputDef := input
+	defaultStr := ""
+	if inputDef.Default != nil {
+		defaultStr = fmt.Sprintf("%v", inputDef.Default)
+	}
+	valueStr := defaultStr
+	inputPtrs[inputName] = &valueStr
+	field := huh.NewInput().Title(fmt.Sprintf("Enter value for '%s'", inputName)).Value(inputPtrs[inputName])
+	if inputDef.Description != "" {
+		field = field.Description(inputDef.Description)
+	}
+	if inputDef.Required {
+		field = field.Validate(func(s string) error {
+			if s == "" {
+				return errors.New("this input is required")
+			}
+			return nil
+		})
+	}
+	return huh.NewGroup(field)
 }
 
 // confirmExecution asks the user to confirm workflow execution
@@ -378,57 +389,47 @@ type RunWorkflowOptions struct {
 // since the workflow name is already known. It will still collect inputs if the workflow has them.
 func RunSpecificWorkflowInteractively(ctx context.Context, opts RunWorkflowOptions) error {
 	runInteractiveLog.Printf("Running specific workflow interactively: %s", opts.WorkflowName)
-
-	// Find the workflow file
-	workflowsDir := constants.GetWorkflowDir()
-	mdFile := filepath.Join(workflowsDir, opts.WorkflowName+".md")
-
-	// Check if file exists
-	if _, err := os.Stat(mdFile); os.IsNotExist(err) {
-		return fmt.Errorf("workflow file not found: %s", mdFile)
-	}
-
-	// Get workflow inputs
-	inputs, err := getWorkflowInputs(mdFile)
+	wf, err := runSpecificWorkflowInteractivelyOption(opts.WorkflowName)
 	if err != nil {
-		runInteractiveLog.Printf("Failed to get inputs for workflow %s: %v", opts.WorkflowName, err)
-		// Continue without inputs - they might not be required
-		inputs = nil
+		return err
 	}
-
-	// Create workflow option for display
-	wf := &WorkflowOption{
-		Name:        opts.WorkflowName,
-		Description: buildWorkflowDescription(inputs),
-		FilePath:    mdFile,
-		Inputs:      inputs,
-	}
-
-	// Show workflow info if there are inputs
-	if len(inputs) > 0 {
+	if len(wf.Inputs) > 0 {
 		showWorkflowInfo(wf)
 	}
 
-	// Collect workflow inputs if needed
 	inputValues, err := collectWorkflowInputs(ctx, wf)
 	if err != nil {
 		return fmt.Errorf("failed to collect workflow inputs: %w", err)
 	}
-
-	// Confirm execution (skip if no inputs were collected - user already confirmed they want to run)
 	if len(inputValues) > 0 && !confirmExecution(ctx, wf, inputValues) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow execution cancelled"))
 		return nil
 	}
 
-	// Build command string for display
 	cmdStr := buildCommandString(opts.WorkflowName, inputValues, opts.RepoOverride, opts.RefOverride, opts.AutoMergePRs, opts.Push, opts.EngineOverride)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nRunning workflow..."))
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("Equivalent command: "+cmdStr))
-	fmt.Fprintln(os.Stderr, "")
+	runWorkflowInteractivelyPrintCommand(cmdStr)
+	if err := runSpecificWorkflowInteractivelyExecute(ctx, opts, inputValues); err != nil {
+		return err
+	}
+	return nil
+}
 
-	// Execute the workflow
-	err = RunWorkflowOnGitHub(ctx, opts.WorkflowName, RunOptions{
+func runSpecificWorkflowInteractivelyOption(workflowName string) (*WorkflowOption, error) {
+	workflowsDir := constants.GetWorkflowDir()
+	mdFile := filepath.Join(workflowsDir, workflowName+".md")
+	if _, err := os.Stat(mdFile); os.IsNotExist(err) {
+		return nil, fmt.Errorf("workflow file not found: %s", mdFile)
+	}
+	inputs, err := getWorkflowInputs(mdFile)
+	if err != nil {
+		runInteractiveLog.Printf("Failed to get inputs for workflow %s: %v", workflowName, err)
+		inputs = nil
+	}
+	return &WorkflowOption{Name: workflowName, Description: buildWorkflowDescription(inputs), FilePath: mdFile, Inputs: inputs}, nil
+}
+
+func runSpecificWorkflowInteractivelyExecute(ctx context.Context, opts RunWorkflowOptions, inputValues []string) error {
+	err := RunWorkflowOnGitHub(ctx, opts.WorkflowName, RunOptions{
 		Enable:            false,
 		EngineOverride:    opts.EngineOverride,
 		RepoOverride:      opts.RepoOverride,
@@ -443,7 +444,6 @@ func RunSpecificWorkflowInteractively(ctx context.Context, opts RunWorkflowOptio
 	if err != nil {
 		return fmt.Errorf("failed to run workflow: %w", err)
 	}
-
 	return nil
 }
 

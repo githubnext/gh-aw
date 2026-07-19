@@ -273,153 +273,106 @@ func explicitHostForRepo(repoSlug string) string {
 
 func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 	specLog.Printf("Parsing workflow spec: %q", spec)
-
-	// Check if this is a GitHub URL
 	if strings.HasPrefix(spec, "http://") || strings.HasPrefix(spec, "https://") {
-		specLog.Print("Detected URL format")
-		// Try to parse as a recognized GitHub URL first.
-		parsedURL, urlErr := url.Parse(spec)
-		if urlErr == nil && isGitHubHost(parsedURL.Host) {
-			specLog.Print("Detected GitHub URL format")
-			// Rewrite dotcom automations UI URLs to the CAPI endpoint before further parsing.
-			if capiURL, ok := rewriteAutomationsURL(parsedURL); ok {
-				specLog.Printf("Rewrote automations UI URL to CAPI URL")
-				return &WorkflowSpec{
-					RawURL:       capiURL,
-					WorkflowName: genericURLWorkflowName(capiURL),
-				}, nil
-			}
-			return parseGitHubURL(spec)
-		}
-		// Non-GitHub HTTP(S) URL: return a generic URL spec whose content will be
-		// fetched at resolution time and dispatched on Content-Type.
-		if urlErr != nil {
-			return nil, fmt.Errorf("invalid URL %q: %w", spec, urlErr)
-		}
-		if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-			return nil, fmt.Errorf("unsupported URL scheme %q: only http and https are supported", parsedURL.Scheme)
-		}
-		specLog.Printf("Detected generic import URL: %s", spec)
-		return &WorkflowSpec{
-			RawURL:       spec,
-			WorkflowName: genericURLWorkflowName(spec),
-		}, nil
+		return parseWorkflowSpecURL(spec)
 	}
-
-	// Check if this is a local path
 	if isLocalWorkflowPath(spec) {
-		specLog.Print("Detected local path format")
-
-		ws, err := parseLocalWorkflowSpec(spec)
-		if err != nil {
-			return nil, err
-		}
-
-		// Detect local wildcard specs like "./*.md" and mark them so that
-		// downstream expansion (e.g., expandLocalWildcardWorkflows) can run.
-		if strings.ContainsAny(spec, "*?[") {
-			ws.IsWildcard = true
-			// Ensure a stable WorkflowName for wildcard specs.
-			if ws.WorkflowName == "" {
-				ws.WorkflowName = spec
-			}
-		}
-
-		return ws, nil
+		return parseWorkflowSpecLocal(spec)
 	}
+	return parseWorkflowSpecRemote(spec)
+}
 
-	// Handle version first (anything after @)
+func parseWorkflowSpecURL(spec string) (*WorkflowSpec, error) {
+	specLog.Print("Detected URL format")
+	parsedURL, urlErr := url.Parse(spec)
+	if urlErr == nil && isGitHubHost(parsedURL.Host) {
+		specLog.Print("Detected GitHub URL format")
+		if capiURL, ok := rewriteAutomationsURL(parsedURL); ok {
+			specLog.Printf("Rewrote automations UI URL to CAPI URL")
+			return &WorkflowSpec{RawURL: capiURL, WorkflowName: genericURLWorkflowName(capiURL)}, nil
+		}
+		return parseGitHubURL(spec)
+	}
+	if urlErr != nil {
+		return nil, fmt.Errorf("invalid URL %q: %w", spec, urlErr)
+	}
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return nil, fmt.Errorf("unsupported URL scheme %q: only http and https are supported", parsedURL.Scheme)
+	}
+	specLog.Printf("Detected generic import URL: %s", spec)
+	return &WorkflowSpec{RawURL: spec, WorkflowName: genericURLWorkflowName(spec)}, nil
+}
+
+func parseWorkflowSpecLocal(spec string) (*WorkflowSpec, error) {
+	specLog.Print("Detected local path format")
+	ws, err := parseLocalWorkflowSpec(spec)
+	if err != nil {
+		return nil, err
+	}
+	if strings.ContainsAny(spec, "*?[") {
+		ws.IsWildcard = true
+		if ws.WorkflowName == "" {
+			ws.WorkflowName = spec
+		}
+	}
+	return ws, nil
+}
+
+func parseWorkflowSpecRemote(spec string) (*WorkflowSpec, error) {
 	parts := strings.SplitN(spec, "@", 2)
 	specWithoutVersion := parts[0]
-	var version string
+	version := ""
 	if len(parts) == 2 {
 		version = parts[1]
 	}
-
-	// Split by slashes
 	slashParts := strings.Split(specWithoutVersion, "/")
-
-	// Must have at least 3 parts: owner/repo/workflow-path
 	if len(slashParts) < 3 {
 		return nil, errors.New("workflow specification must be in format 'owner/repo/workflow-name[@version]'")
 	}
-
-	owner := slashParts[0]
-	repo := slashParts[1]
-
-	// Check if this is a /files/REF/ format (e.g., owner/repo/files/main/path.md)
-	// This is the format used when copying file paths from GitHub UI
-	var workflowPath string
-	if len(slashParts) >= 4 && slashParts[2] == "files" {
-		// Extract the ref (branch/tag/commit) from slashParts[3]
-		ref := slashParts[3]
-		// The file path is everything after /files/REF/
-		workflowPath = strings.Join(slashParts[4:], "/")
-
-		// If version was not explicitly provided via @, use the ref from /files/REF/
-		if version == "" {
-			version = ref
-		}
-	} else {
-		// Standard format: owner/repo/path or owner/repo/workflow-name
-		workflowPath = strings.Join(slashParts[2:], "/")
-	}
-
-	// Validate owner and repo parts are not empty
+	owner, repo := slashParts[0], slashParts[1]
+	workflowPath, version := parseWorkflowSpecRemotePath(slashParts, version)
 	if owner == "" || repo == "" {
 		return nil, errors.New("invalid workflow specification: owner and repo cannot be empty")
 	}
-
-	// Basic validation that owner and repo look like GitHub identifiers
 	if !parser.IsValidGitHubIdentifier(owner) || !parser.IsValidGitHubRepositoryName(repo) {
 		return nil, fmt.Errorf("invalid workflow specification: '%s/%s' does not look like a valid GitHub repository", owner, repo)
 	}
-
 	repoSlug := fmt.Sprintf("%s/%s", owner, repo)
-
-	// Determine the API host for this repo. getGitHubHostForRepo returns the canonical
-	// host, which for well-known public-only repos (githubnext/agentics, github/gh-aw)
-	// is always public GitHub regardless of GHE configuration. If the repo's canonical
-	// host differs from the configured host, record the explicit hostname so API fetches
-	// target the correct server.
 	explicitHost := explicitHostForRepo(repoSlug)
-
-	// Check if this is a wildcard specification (owner/repo/*)
 	if workflowPath == "*" {
-		return &WorkflowSpec{
-			RepoSpec: RepoSpec{
-				RepoSlug: repoSlug,
-				Version:  version,
-			},
-			WorkflowPath: "*",
-			WorkflowName: "*",
-			IsWildcard:   true,
-			Host:         explicitHost,
-		}, nil
+		return parseWorkflowSpecRemoteWildcard(repoSlug, version, explicitHost), nil
 	}
+	workflowPath, err := parseWorkflowSpecRemoteWorkflowPath(slashParts, workflowPath)
+	if err != nil {
+		return nil, err
+	}
+	return &WorkflowSpec{RepoSpec: RepoSpec{RepoSlug: repoSlug, Version: version}, WorkflowPath: workflowPath, WorkflowName: normalizeWorkflowID(workflowPath), Host: explicitHost}, nil
+}
 
-	// Handle different cases based on the number of path parts
-	if len(slashParts) == 3 && !strings.HasSuffix(workflowPath, ".md") {
-		// Three-part spec: owner/repo/workflow-name
-		// Add "workflows/" prefix
-		workflowPath = "workflows/" + workflowPath + ".md"
-	} else {
-		// Four or more parts: owner/repo/workflows/workflow-name or owner/repo/path/to/workflow-name
-		// Require .md extension to be explicit
-		if !strings.HasSuffix(workflowPath, ".md") {
-			return nil, fmt.Errorf("workflow specification with path must end with '.md' extension: %s", workflowPath)
+func parseWorkflowSpecRemotePath(slashParts []string, version string) (string, string) {
+	if len(slashParts) >= 4 && slashParts[2] == "files" {
+		ref := slashParts[3]
+		workflowPath := strings.Join(slashParts[4:], "/")
+		if version == "" {
+			version = ref
 		}
+		return workflowPath, version
 	}
+	return strings.Join(slashParts[2:], "/"), version
+}
 
-	return &WorkflowSpec{
-		RepoSpec: RepoSpec{
-			RepoSlug: repoSlug,
-			Version:  version,
-		},
-		WorkflowPath: workflowPath,
-		WorkflowName: normalizeWorkflowID(workflowPath),
-		Host:         explicitHost,
-	}, nil
+func parseWorkflowSpecRemoteWildcard(repoSlug, version, explicitHost string) *WorkflowSpec {
+	return &WorkflowSpec{RepoSpec: RepoSpec{RepoSlug: repoSlug, Version: version}, WorkflowPath: "*", WorkflowName: "*", IsWildcard: true, Host: explicitHost}
+}
+
+func parseWorkflowSpecRemoteWorkflowPath(slashParts []string, workflowPath string) (string, error) {
+	if len(slashParts) == 3 && !strings.HasSuffix(workflowPath, ".md") {
+		return "workflows/" + workflowPath + ".md", nil
+	}
+	if !strings.HasSuffix(workflowPath, ".md") {
+		return "", fmt.Errorf("workflow specification with path must end with '.md' extension: %s", workflowPath)
+	}
+	return workflowPath, nil
 }
 
 // parseLocalWorkflowSpec parses a local workflow specification starting with "./"

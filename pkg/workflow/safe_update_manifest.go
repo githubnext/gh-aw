@@ -74,25 +74,42 @@ type GHAWManifest struct {
 // skillSpecs is the list of skill references from the workflow frontmatter.
 func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWManifestResolutionFailure, containers []GHAWManifestContainer, redirect string, skillSpecs []string, onField any) *GHAWManifest {
 	safeUpdateManifestLog.Printf("Building gh-aw-manifest: raw_secrets=%d, raw_actions=%d, containers=%d, skills=%d", len(secretNames), len(actionRefs), len(containers), len(skillSpecs))
+	secrets := normalizeManifestSecrets(secretNames)
+	actions := parseActionRefs(actionRefs)
+	resolutionFailures := normalizeResolutionFailures(failures)
+	sortedContainers := normalizeManifestContainers(containers)
+	sortedSkills := normalizeManifestSkills(skillSpecs)
+	safeUpdateManifestLog.Printf("Manifest built: version=%d, secrets=%d, actions=%d, containers=%d, skills=%d",
+		currentGHAWManifestVersion, len(secrets), len(actions), len(sortedContainers), len(skillSpecs))
+	hasPR, hasPRTarget := detectPullRequestEvents(onField)
+	return &GHAWManifest{
+		Version:              currentGHAWManifestVersion,
+		Secrets:              secrets,
+		Actions:              actions,
+		Skills:               sortedSkills,
+		ResolutionFailures:   resolutionFailures,
+		Containers:           sortedContainers,
+		Redirect:             strings.TrimSpace(redirect),
+		HasPullRequest:       hasPR,
+		HasPullRequestTarget: hasPRTarget,
+	}
+}
 
-	// Normalize secret names to full "secrets.NAME" form and deduplicate.
-	seen := make(map[string]struct {
-	})
+func normalizeManifestSecrets(secretNames []string) []string {
+	seen := make(map[string]struct{})
 	secrets := make([]string, 0, len(secretNames))
 	for _, name := range secretNames {
 		full := normalizeSecretName(name)
 		if !setutil.Contains(seen, full) {
-			seen[full] = struct {
-			}{}
+			seen[full] = struct{}{}
 			secrets = append(secrets, full)
 		}
 	}
 	sort.Strings(secrets)
+	return secrets
+}
 
-	actions := parseActionRefs(actionRefs)
-	resolutionFailures := normalizeResolutionFailures(failures)
-
-	// Deduplicate container entries by image name and sort for deterministic output.
+func normalizeManifestContainers(containers []GHAWManifestContainer) []GHAWManifestContainer {
 	seenContainers := make(map[string]struct {
 	}, len(containers))
 	sortedContainers := make([]GHAWManifestContainer, 0, len(containers))
@@ -113,11 +130,10 @@ func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWM
 			return 0
 		}
 	})
+	return sortedContainers
+}
 
-	safeUpdateManifestLog.Printf("Manifest built: version=%d, secrets=%d, actions=%d, containers=%d, skills=%d",
-		currentGHAWManifestVersion, len(secrets), len(actions), len(sortedContainers), len(skillSpecs))
-
-	// Deduplicate and sort skill specs for deterministic output.
+func normalizeManifestSkills(skillSpecs []string) []string {
 	seenSkills := make(map[string]struct{}, len(skillSpecs))
 	sortedSkills := make([]string, 0, len(skillSpecs))
 	for _, s := range skillSpecs {
@@ -130,20 +146,7 @@ func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWM
 	if len(sortedSkills) == 0 {
 		sortedSkills = nil // keep JSON output clean: omitempty omits nil but not empty slice
 	}
-
-	hasPR, hasPRTarget := detectPullRequestEvents(onField)
-
-	return &GHAWManifest{
-		Version:              currentGHAWManifestVersion,
-		Secrets:              secrets,
-		Actions:              actions,
-		Skills:               sortedSkills,
-		ResolutionFailures:   resolutionFailures,
-		Containers:           sortedContainers,
-		Redirect:             strings.TrimSpace(redirect),
-		HasPullRequest:       hasPR,
-		HasPullRequestTarget: hasPRTarget,
-	}
+	return sortedSkills
 }
 
 func detectPullRequestEvents(onField any) (hasPR bool, hasPRTarget bool) {

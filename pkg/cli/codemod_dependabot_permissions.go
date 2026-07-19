@@ -118,60 +118,25 @@ func ensureToolsetPermissions(lines []string, missing map[workflow.PermissionSco
 		return lines, false
 	}
 
-	permissionsIdx := -1
-	permissionsIndent := ""
-	permissionsEnd := len(lines)
-
-	for i, line := range lines {
-		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "permissions:") {
-			permissionsIdx = i
-			permissionsIndent = getIndentation(line)
-			for j := i + 1; j < len(lines); j++ {
-				if isTopLevelKey(lines[j]) {
-					permissionsEnd = j
-					break
-				}
-			}
-			break
-		}
-	}
-
+	permissionsIdx, permissionsIndent, permissionsEnd := ensureToolsetPermissionsFindBlock(lines)
 	if permissionsIdx == -1 {
 		insertAt := findPermissionsInsertIndex(lines)
-		block := []string{"permissions:"}
-		for _, key := range sortedMissingPermissionKeys(missing) {
-			block = append(block, fmt.Sprintf("  %s: %s", key, missing[workflow.PermissionScope(key)]))
-		}
-
-		result := make([]string, 0, len(lines)+len(block))
-		result = append(result, lines[:insertAt]...)
-		result = append(result, block...)
-		result = append(result, lines[insertAt:]...)
-		return result, true
+		return ensureToolsetPermissionsInsertBlock(lines, insertAt, "", missing)
 	}
 
 	trimmedPermissionsLine := strings.TrimSpace(lines[permissionsIdx])
 	inlineValue := strings.TrimSpace(strings.TrimPrefix(trimmedPermissionsLine, "permissions:"))
 	if inlineValue != "" && !strings.HasPrefix(inlineValue, "#") {
-		block := []string{"permissions:"}
-		for _, key := range sortedMissingPermissionKeys(missing) {
-			block = append(block, fmt.Sprintf("  %s: %s", key, missing[workflow.PermissionScope(key)]))
-		}
-		result := make([]string, 0, len(lines)+len(block))
-		result = append(result, lines[:permissionsIdx]...)
-		result = append(result, block...)
-		result = append(result, lines[permissionsIdx+1:]...)
-		return result, true
+		return ensureToolsetPermissionsReplaceInline(lines, permissionsIdx, missing)
 	}
 
-	updated := make([]string, len(lines))
-	copy(updated, lines)
+	return ensureToolsetPermissionsMergeExisting(lines, permissionsIdx, permissionsIndent, permissionsEnd, missing)
+}
+
+func ensureToolsetPermissionsMergeExisting(lines []string, permissionsIdx int, permissionsIndent string, permissionsEnd int, missing map[workflow.PermissionScope]workflow.PermissionLevel) ([]string, bool) {
+	updated := append([]string(nil), lines...)
 	modified := false
-	remaining := make(map[string]workflow.PermissionLevel, len(missing))
-	for scope, level := range missing {
-		remaining[string(scope)] = level
-	}
-
+	remaining := ensureToolsetPermissionsRemaining(missing)
 	for i := permissionsIdx + 1; i < permissionsEnd; i++ {
 		trimmed := strings.TrimSpace(updated[i])
 		key := parseYAMLMapKey(trimmed)
@@ -205,6 +170,58 @@ func ensureToolsetPermissions(lines []string, missing map[workflow.PermissionSco
 	result = append(result, updated[:permissionsEnd]...)
 	result = append(result, insertLines...)
 	result = append(result, updated[permissionsEnd:]...)
+	return result, true
+}
+
+func ensureToolsetPermissionsRemaining(missing map[workflow.PermissionScope]workflow.PermissionLevel) map[string]workflow.PermissionLevel {
+	remaining := make(map[string]workflow.PermissionLevel, len(missing))
+	for scope, level := range missing {
+		remaining[string(scope)] = level
+	}
+	return remaining
+}
+
+func ensureToolsetPermissionsReplaceInline(lines []string, permissionsIdx int, missing map[workflow.PermissionScope]workflow.PermissionLevel) ([]string, bool) {
+	block := ensureToolsetPermissionsBuildBlock("", missing)
+	result := make([]string, 0, len(lines)+len(block))
+	result = append(result, lines[:permissionsIdx]...)
+	result = append(result, block...)
+	result = append(result, lines[permissionsIdx+1:]...)
+	return result, true
+}
+
+func ensureToolsetPermissionsFindBlock(lines []string) (int, string, int) {
+	for i, line := range lines {
+		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "permissions:") {
+			return i, getIndentation(line), ensureToolsetPermissionsBlockEnd(lines, i)
+		}
+	}
+	return -1, "", len(lines)
+}
+
+func ensureToolsetPermissionsBlockEnd(lines []string, start int) int {
+	for j := start + 1; j < len(lines); j++ {
+		if isTopLevelKey(lines[j]) {
+			return j
+		}
+	}
+	return len(lines)
+}
+
+func ensureToolsetPermissionsBuildBlock(indent string, missing map[workflow.PermissionScope]workflow.PermissionLevel) []string {
+	block := []string{indent + "permissions:"}
+	for _, key := range sortedMissingPermissionKeys(missing) {
+		block = append(block, fmt.Sprintf("%s  %s: %s", indent, key, missing[workflow.PermissionScope(key)]))
+	}
+	return block
+}
+
+func ensureToolsetPermissionsInsertBlock(lines []string, insertAt int, indent string, missing map[workflow.PermissionScope]workflow.PermissionLevel) ([]string, bool) {
+	block := ensureToolsetPermissionsBuildBlock(indent, missing)
+	result := make([]string, 0, len(lines)+len(block))
+	result = append(result, lines[:insertAt]...)
+	result = append(result, block...)
+	result = append(result, lines[insertAt:]...)
 	return result, true
 }
 

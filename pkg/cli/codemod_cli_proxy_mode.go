@@ -78,37 +78,12 @@ func hasToolsGitHubMode(frontmatter map[string]any) bool {
 }
 
 func addGitHubModeGhProxyToTools(lines []string) []string {
-	toolsLine := -1
-	toolsIndent := ""
-
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "tools:") {
-			toolsLine = i
-			toolsIndent = getIndentation(line)
-			break
-		}
-	}
-
+	toolsLine, toolsIndent := addGitHubModeGhProxyToToolsFindTools(lines)
 	if toolsLine == -1 {
 		return append(lines, "tools:", "  github:", "    mode: gh-proxy")
 	}
 
-	githubLine := -1
-	githubIndent := ""
-	toolsEnd := len(lines)
-	for i := toolsLine + 1; i < len(lines); i++ {
-		trimmed := strings.TrimSpace(lines[i])
-		if trimmed != "" && !strings.HasPrefix(trimmed, "#") && hasExitedBlock(lines[i], toolsIndent) {
-			toolsEnd = i
-			break
-		}
-		if strings.HasPrefix(trimmed, "github:") && strings.HasPrefix(getIndentation(lines[i]), toolsIndent+"  ") {
-			githubLine = i
-			githubIndent = getIndentation(lines[i])
-			break
-		}
-	}
+	githubLine, githubIndent, toolsEnd := addGitHubModeGhProxyToToolsFindGitHub(lines, toolsLine, toolsIndent)
 
 	if githubLine == -1 {
 		result := make([]string, 0, len(lines)+2)
@@ -144,4 +119,28 @@ func addGitHubModeGhProxyToTools(lines []string) []string {
 	result = append(result, fieldIndent+"mode: gh-proxy")
 	result = append(result, lines[insertAt:]...)
 	return result
+}
+
+func addGitHubModeGhProxyToToolsFindTools(lines []string) (int, string) {
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "tools:") {
+			return i, getIndentation(line)
+		}
+	}
+	return -1, ""
+}
+
+func addGitHubModeGhProxyToToolsFindGitHub(lines []string, toolsLine int, toolsIndent string) (int, string, int) {
+	toolsEnd := len(lines)
+	for i := toolsLine + 1; i < len(lines); i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if trimmed != "" && !strings.HasPrefix(trimmed, "#") && hasExitedBlock(lines[i], toolsIndent) {
+			return -1, "", i
+		}
+		if strings.HasPrefix(trimmed, "github:") && strings.HasPrefix(getIndentation(lines[i]), toolsIndent+"  ") {
+			return i, getIndentation(lines[i]), toolsEnd
+		}
+	}
+	return -1, "", toolsEnd
 }

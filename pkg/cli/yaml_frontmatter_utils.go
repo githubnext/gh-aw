@@ -170,78 +170,74 @@ func removeParentBlockIfTrulyEmpty(lines []string, parentBlock string) []string 
 // Returns the modified lines and whether any changes were made.
 func removeFieldFromBlock(lines []string, fieldName string, parentBlock string) ([]string, bool) {
 	var result []string
-	var modified bool
-	var inParentBlock bool
-	var parentIndent string
-	var inFieldBlock bool
-	var fieldIndent string
+	state := &removeFieldFromBlockState{fieldName: fieldName, parentBlock: parentBlock}
 
 	for i, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-
-		// Track if we're in the parent block
-		if strings.HasPrefix(trimmedLine, parentBlock+":") {
-			inParentBlock = true
-			parentIndent = getIndentation(line)
+		keep := removeFieldFromBlockLine(state, line, i+1)
+		if keep {
 			result = append(result, line)
-			continue
 		}
-
-		// Check if we've left the parent block
-		if inParentBlock && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
-			if hasExitedBlock(line, parentIndent) {
-				inParentBlock = false
-			}
-		}
-
-		// Remove field line if in parent block
-		if inParentBlock && strings.HasPrefix(trimmedLine, fieldName+":") {
-			modified = true
-			inFieldBlock = true
-			fieldIndent = getIndentation(line)
-			yamlUtilsLog.Printf("Removed %s.%s on line %d", parentBlock, fieldName, i+1)
-			continue
-		}
-
-		// Skip nested properties under the field (lines with greater indentation)
-		if inFieldBlock {
-			// Empty lines within the field block should be removed
-			if trimmedLine == "" {
-				continue
-			}
-
-			currentIndent := getIndentation(line)
-
-			// Comments need to check indentation
-			if strings.HasPrefix(trimmedLine, "#") {
-				if len(currentIndent) > len(fieldIndent) {
-					// Comment is nested under field, remove it
-					yamlUtilsLog.Printf("Removed nested %s comment on line %d: %s", fieldName, i+1, trimmedLine)
-					continue
-				}
-				// Comment is at same or less indentation, exit field block and keep it
-				inFieldBlock = false
-				result = append(result, line)
-				continue
-			}
-
-			// If this line has more indentation than field, it's a nested property
-			if len(currentIndent) > len(fieldIndent) {
-				yamlUtilsLog.Printf("Removed nested %s property on line %d: %s", fieldName, i+1, trimmedLine)
-				continue
-			}
-			// We've exited the field block (found a line at same or less indentation)
-			inFieldBlock = false
-		}
-
-		result = append(result, line)
 	}
 
-	if modified {
+	if state.modified {
 		result = removeParentBlockIfTrulyEmpty(result, parentBlock)
 	}
 
-	return result, modified
+	return result, state.modified
+}
+
+type removeFieldFromBlockState struct {
+	fieldName     string
+	parentBlock   string
+	modified      bool
+	inParentBlock bool
+	parentIndent  string
+	inFieldBlock  bool
+	fieldIndent   string
+}
+
+func removeFieldFromBlockLine(state *removeFieldFromBlockState, line string, lineNumber int) bool {
+	trimmedLine := strings.TrimSpace(line)
+	if strings.HasPrefix(trimmedLine, state.parentBlock+":") {
+		state.inParentBlock = true
+		state.parentIndent = getIndentation(line)
+		return true
+	}
+	if state.inParentBlock && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") && hasExitedBlock(line, state.parentIndent) {
+		state.inParentBlock = false
+	}
+	if state.inParentBlock && strings.HasPrefix(trimmedLine, state.fieldName+":") {
+		state.modified = true
+		state.inFieldBlock = true
+		state.fieldIndent = getIndentation(line)
+		yamlUtilsLog.Printf("Removed %s.%s on line %d", state.parentBlock, state.fieldName, lineNumber)
+		return false
+	}
+	if state.inFieldBlock {
+		return removeFieldFromBlockNestedLine(state, line, trimmedLine, lineNumber)
+	}
+	return true
+}
+
+func removeFieldFromBlockNestedLine(state *removeFieldFromBlockState, line, trimmedLine string, lineNumber int) bool {
+	if trimmedLine == "" {
+		return false
+	}
+	currentIndent := getIndentation(line)
+	if strings.HasPrefix(trimmedLine, "#") {
+		if len(currentIndent) > len(state.fieldIndent) {
+			yamlUtilsLog.Printf("Removed nested %s comment on line %d: %s", state.fieldName, lineNumber, trimmedLine)
+			return false
+		}
+		state.inFieldBlock = false
+		return true
+	}
+	if len(currentIndent) > len(state.fieldIndent) {
+		yamlUtilsLog.Printf("Removed nested %s property on line %d: %s", state.fieldName, lineNumber, trimmedLine)
+		return false
+	}
+	state.inFieldBlock = false
+	return true
 }
 
 // isDescendant returns true if childIndent is deeper (more indented) than parentIndent.

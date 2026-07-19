@@ -106,61 +106,13 @@ func validateRuntimeImportFiles(markdownContent string, workspaceDir string) ([]
 	var subAgentWarnings []string
 
 	for _, filePath := range paths {
-		// Normalize the path to be relative to .github folder
-		normalizedPath := filePath
-		if strings.HasPrefix(normalizedPath, constants.GithubDir) {
-			normalizedPath = normalizedPath[len(constants.GithubDir):] // Remove ".github/"
-		} else if strings.HasPrefix(normalizedPath, ".github\\") {
-			normalizedPath = normalizedPath[8:] // Remove ".github\" (Windows)
+		warnings, errText, ok := validateRuntimeImportFile(filePath, workspaceDir)
+		subAgentWarnings = append(subAgentWarnings, warnings...)
+		if errText != "" {
+			validationErrors = append(validationErrors, errText)
 		}
-		if strings.HasPrefix(normalizedPath, "./") {
-			normalizedPath = normalizedPath[2:] // Remove "./"
-		} else if strings.HasPrefix(normalizedPath, ".\\") {
-			normalizedPath = normalizedPath[2:] // Remove ".\" (Windows)
-		}
-
-		// Build absolute path to the file
-		githubFolder := filepath.Join(workspaceDir, ".github")
-		absolutePath := filepath.Join(githubFolder, normalizedPath)
-
-		// Security check: ensure the resolved path is within the .github folder
-		// Use filepath.Rel to check if the path escapes the .github folder
-		normalizedGithubFolder := filepath.Clean(githubFolder)
-		normalizedAbsolutePath := filepath.Clean(absolutePath)
-		relativePath, err := filepath.Rel(normalizedGithubFolder, normalizedAbsolutePath)
-		if err != nil || relativePath == ".." || strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) || filepath.IsAbs(relativePath) {
-			validationErrors = append(validationErrors, fmt.Sprintf("%s: Security: Path must be within .github folder (resolves to: %s)", filePath, relativePath))
+		if !ok {
 			continue
-		}
-
-		// Check if file exists; missing files (optional or not) are deferred to runtime
-		if _, err := os.Stat(absolutePath); os.IsNotExist(err) {
-			expressionValidationLog.Printf("Skipping validation for non-existent file: %s", filePath)
-			continue
-		}
-
-		// Read the file content
-		content, err := os.ReadFile(absolutePath)
-		if err != nil {
-			validationErrors = append(validationErrors, fmt.Sprintf("%s: failed to read file: %v", filePath, err))
-			continue
-		}
-
-		// Validate expressions in the imported file
-		if err := validateExpressionSafety(string(content)); err != nil {
-			validationErrors = append(validationErrors, fmt.Sprintf("%s: %v", filePath, err))
-		} else {
-			expressionValidationLog.Printf("✓ Validated expressions in %s", filePath)
-		}
-
-		// Best-effort: detect and validate inline sub-agent frontmatter in the
-		// runtime-imported file. Unknown fields are collected and returned to the
-		// caller so it can emit them through the normal warning counter.
-		for _, w := range parser.ValidateInlineSubAgentsFrontmatter(string(content)) {
-			subAgentWarnings = append(subAgentWarnings, fmt.Sprintf("runtime-import %q: %s", filePath, w))
-		}
-		for _, w := range parser.ValidateInlineSkillsFrontmatter(string(content)) {
-			subAgentWarnings = append(subAgentWarnings, fmt.Sprintf("runtime-import %q: %s", filePath, w))
 		}
 	}
 
@@ -176,4 +128,64 @@ func validateRuntimeImportFiles(markdownContent string, workspaceDir string) ([]
 
 	expressionValidationLog.Print("All runtime-import files validated successfully")
 	return subAgentWarnings, nil
+}
+
+func validateRuntimeImportFile(filePath string, workspaceDir string) ([]string, string, bool) {
+	absolutePath, relativePath, err := resolveRuntimeImportPath(filePath, workspaceDir)
+	if err != nil {
+		return nil, fmt.Sprintf("%s: Security: Path must be within .github folder (resolves to: %s)", filePath, relativePath), false
+	}
+
+	if _, err := os.Stat(absolutePath); os.IsNotExist(err) {
+		expressionValidationLog.Printf("Skipping validation for non-existent file: %s", filePath)
+		return nil, "", false
+	}
+
+	content, err := os.ReadFile(absolutePath)
+	if err != nil {
+		return nil, fmt.Sprintf("%s: failed to read file: %v", filePath, err), false
+	}
+
+	if err := validateExpressionSafety(string(content)); err != nil {
+		return nil, fmt.Sprintf("%s: %v", filePath, err), true
+	}
+	expressionValidationLog.Printf("✓ Validated expressions in %s", filePath)
+	return runtimeImportSubAgentWarnings(filePath, string(content)), "", true
+}
+
+func resolveRuntimeImportPath(filePath string, workspaceDir string) (string, string, error) {
+	normalizedPath := normalizeRuntimeImportPath(filePath)
+	githubFolder := filepath.Join(workspaceDir, ".github")
+	absolutePath := filepath.Join(githubFolder, normalizedPath)
+	normalizedGithubFolder := filepath.Clean(githubFolder)
+	normalizedAbsolutePath := filepath.Clean(absolutePath)
+	relativePath, err := filepath.Rel(normalizedGithubFolder, normalizedAbsolutePath)
+	if err != nil || relativePath == ".." || strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) || filepath.IsAbs(relativePath) {
+		return "", relativePath, fmt.Errorf("path escapes .github")
+	}
+	return absolutePath, relativePath, nil
+}
+
+func normalizeRuntimeImportPath(filePath string) string {
+	normalizedPath := filePath
+	if strings.HasPrefix(normalizedPath, constants.GithubDir) {
+		normalizedPath = normalizedPath[len(constants.GithubDir):]
+	} else if strings.HasPrefix(normalizedPath, ".github\\") {
+		normalizedPath = normalizedPath[8:]
+	}
+	if strings.HasPrefix(normalizedPath, "./") || strings.HasPrefix(normalizedPath, ".\\") {
+		normalizedPath = normalizedPath[2:]
+	}
+	return normalizedPath
+}
+
+func runtimeImportSubAgentWarnings(filePath string, content string) []string {
+	var warnings []string
+	for _, w := range parser.ValidateInlineSubAgentsFrontmatter(content) {
+		warnings = append(warnings, fmt.Sprintf("runtime-import %q: %s", filePath, w))
+	}
+	for _, w := range parser.ValidateInlineSkillsFrontmatter(content) {
+		warnings = append(warnings, fmt.Sprintf("runtime-import %q: %s", filePath, w))
+	}
+	return warnings
 }

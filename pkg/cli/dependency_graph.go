@@ -178,55 +178,61 @@ func (g *DependencyGraph) extractImportsFromFrontmatter(workflowPath string, fro
 	// or an object with 'aw' subfield for agentic workflow paths.
 	workflowDir := filepath.Dir(workflowPath)
 
-	// extractPathsFromArray resolves file paths from a []any import list.
-	extractPathsFromArray := func(items []any) []string {
-		var paths []string
-		for _, item := range items {
-			switch importItem := item.(type) {
-			case string:
-				if resolvedPath := g.resolveImportPath(importItem, workflowDir); resolvedPath != "" {
-					paths = append(paths, resolvedPath)
-				}
-			case map[string]any:
-				if pathValue, hasPath := importItem["path"]; hasPath {
-					if pathStr, ok := pathValue.(string); ok {
-						if resolvedPath := g.resolveImportPath(pathStr, workflowDir); resolvedPath != "" {
-							paths = append(paths, resolvedPath)
-						}
-					}
-				}
-			}
-		}
-		return paths
-	}
-
 	switch v := importsField.(type) {
 	case []any:
-		imports = extractPathsFromArray(v)
+		imports = g.extractImportsFromFrontmatterPathsFromArray(v, workflowDir)
 	case []string:
-		for _, importPath := range v {
-			if resolvedPath := g.resolveImportPath(importPath, workflowDir); resolvedPath != "" {
-				imports = append(imports, resolvedPath)
-			}
-		}
+		imports = g.extractImportsFromFrontmatterPathsFromStrings(v, workflowDir)
 	case map[string]any:
-		// Object form: extract paths from the 'aw' subfield.
-		// The 'apm-packages' subfield contains package names, not file paths.
-		if awAny, hasAW := v["aw"]; hasAW {
-			switch aw := awAny.(type) {
-			case []any:
-				imports = extractPathsFromArray(aw)
-			case []string:
-				for _, importPath := range aw {
-					if resolvedPath := g.resolveImportPath(importPath, workflowDir); resolvedPath != "" {
-						imports = append(imports, resolvedPath)
-					}
-				}
-			}
-		}
+		imports = g.extractImportsFromFrontmatterPathsFromMap(v, workflowDir)
 	}
 
 	return imports
+}
+
+func (g *DependencyGraph) extractImportsFromFrontmatterPathsFromArray(items []any, workflowDir string) []string {
+	var paths []string
+	for _, item := range items {
+		switch importItem := item.(type) {
+		case string:
+			if resolvedPath := g.resolveImportPath(importItem, workflowDir); resolvedPath != "" {
+				paths = append(paths, resolvedPath)
+			}
+		case map[string]any:
+			if pathValue, hasPath := importItem["path"]; hasPath {
+				if pathStr, ok := pathValue.(string); ok {
+					if resolvedPath := g.resolveImportPath(pathStr, workflowDir); resolvedPath != "" {
+						paths = append(paths, resolvedPath)
+					}
+				}
+			}
+		}
+	}
+	return paths
+}
+
+func (g *DependencyGraph) extractImportsFromFrontmatterPathsFromStrings(items []string, workflowDir string) []string {
+	var imports []string
+	for _, importPath := range items {
+		if resolvedPath := g.resolveImportPath(importPath, workflowDir); resolvedPath != "" {
+			imports = append(imports, resolvedPath)
+		}
+	}
+	return imports
+}
+
+func (g *DependencyGraph) extractImportsFromFrontmatterPathsFromMap(items map[string]any, workflowDir string) []string {
+	// Object form: extract paths from the 'aw' subfield.
+	// The 'apm-packages' subfield contains package names, not file paths.
+	if awAny, hasAW := items["aw"]; hasAW {
+		switch aw := awAny.(type) {
+		case []any:
+			return g.extractImportsFromFrontmatterPathsFromArray(aw, workflowDir)
+		case []string:
+			return g.extractImportsFromFrontmatterPathsFromStrings(aw, workflowDir)
+		}
+	}
+	return nil
 }
 
 // resolveImportPath resolves an import path to an absolute file path

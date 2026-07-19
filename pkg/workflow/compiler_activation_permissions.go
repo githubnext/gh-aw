@@ -53,38 +53,10 @@ func buildActivationAppTokenPermissions(ctx *activationJobBuildContext) *Permiss
 		},
 	)
 	if ctx.data.CommandCentralized && (ctx.hasReaction || ctx.hasStatusComment) {
-		syntheticOn := buildCentralizedCommandOnSection(ctx.data.CommandEvents)
-		if syntheticOn != "" {
-			addActivationInteractionPermissions(
-				appPerms,
-				activationInteractionPermissionsOptions{
-					onSection:                         syntheticOn,
-					hasReaction:                       ctx.hasReaction,
-					reactionIncludesIssues:            ctx.reactionIssues,
-					reactionIncludesPullRequests:      ctx.reactionPullRequests,
-					reactionIncludesDiscussions:       ctx.reactionDiscussions,
-					hasStatusComment:                  ctx.hasStatusComment,
-					statusCommentIncludesIssues:       ctx.statusCommentIssues,
-					statusCommentIncludesPullRequests: ctx.statusCommentPRs,
-					statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
-				},
-			)
-		}
+		addCentralizedActivationAppTokenPermissions(appPerms, ctx)
 	}
 	if hasWorkflowCallTrigger(ctx.data.On) && (ctx.hasReaction || ctx.hasStatusComment) {
-		addActivationInteractionPermissions(
-			appPerms,
-			activationInteractionPermissionsOptions{
-				hasReaction:                       ctx.hasReaction,
-				reactionIncludesIssues:            ctx.reactionIssues,
-				reactionIncludesPullRequests:      ctx.reactionPullRequests,
-				reactionIncludesDiscussions:       ctx.reactionDiscussions,
-				hasStatusComment:                  ctx.hasStatusComment,
-				statusCommentIncludesIssues:       ctx.statusCommentIssues,
-				statusCommentIncludesPullRequests: ctx.statusCommentPRs,
-				statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
-			},
-		)
+		addActivationInteractionPermissions(appPerms, activationInteractionOptions(ctx, ""))
 	}
 	// Keep this aligned with addActivationLabelPermissions: app-token scopes are
 	// computed separately from GITHUB_TOKEN scopes because app-token permissions
@@ -94,12 +66,7 @@ func buildActivationAppTokenPermissions(ctx *activationJobBuildContext) *Permiss
 	// ActivationGitHubApp == nil guard because this function runs only when
 	// activationJobNeedsAppToken confirms app-token minting is enabled.
 	if ctx.shouldRemoveLabel {
-		if slices.Contains(ctx.filteredLabelEvents, "issues") || slices.Contains(ctx.filteredLabelEvents, "pull_request") {
-			appPerms.Set(PermissionIssues, PermissionWrite)
-		}
-		if slices.Contains(ctx.filteredLabelEvents, "discussion") {
-			appPerms.Set(PermissionDiscussions, PermissionWrite)
-		}
+		addActivationAppTokenLabelPermissions(appPerms, ctx)
 	}
 	if ctx.needsAppTokenForAccess {
 		appPerms.Set(PermissionContents, PermissionRead)
@@ -116,6 +83,37 @@ func buildActivationAppTokenPermissions(ctx *activationJobBuildContext) *Permiss
 		}
 	}
 	return appPerms
+}
+
+func addCentralizedActivationAppTokenPermissions(appPerms *Permissions, ctx *activationJobBuildContext) {
+	syntheticOn := buildCentralizedCommandOnSection(ctx.data.CommandEvents)
+	if syntheticOn == "" {
+		return
+	}
+	addActivationInteractionPermissions(appPerms, activationInteractionOptions(ctx, syntheticOn))
+}
+
+func activationInteractionOptions(ctx *activationJobBuildContext, onSection string) activationInteractionPermissionsOptions {
+	return activationInteractionPermissionsOptions{
+		onSection:                         onSection,
+		hasReaction:                       ctx.hasReaction,
+		reactionIncludesIssues:            ctx.reactionIssues,
+		reactionIncludesPullRequests:      ctx.reactionPullRequests,
+		reactionIncludesDiscussions:       ctx.reactionDiscussions,
+		hasStatusComment:                  ctx.hasStatusComment,
+		statusCommentIncludesIssues:       ctx.statusCommentIssues,
+		statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+		statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
+	}
+}
+
+func addActivationAppTokenLabelPermissions(appPerms *Permissions, ctx *activationJobBuildContext) {
+	if slices.Contains(ctx.filteredLabelEvents, "issues") || slices.Contains(ctx.filteredLabelEvents, "pull_request") {
+		appPerms.Set(PermissionIssues, PermissionWrite)
+	}
+	if slices.Contains(ctx.filteredLabelEvents, "discussion") {
+		appPerms.Set(PermissionDiscussions, PermissionWrite)
+	}
 }
 
 // buildActivationPermissions builds activation job permissions from workflow features and selected interactions.

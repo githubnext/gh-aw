@@ -204,17 +204,8 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 			}
 		}
 		logWorkflowRunBatchFound(batch, iteration, opts.Verbose)
-		processedRuns, batchProcessed, allRunsConsumed, timedOut := processWorkflowRunBatch(runtime.activeCtx, batch, processedRuns, processWorkflowRunBatchOptions{
-			count:          opts.Count,
-			outputDir:      opts.OutputDir,
-			verbose:        opts.Verbose,
-			repoOverride:   opts.RepoOverride,
-			artifactFilter: runtime.artifactFilter,
-			evalsOnly:      opts.EvalsOnly,
-			artifactSets:   opts.ArtifactSets,
-			parse:          opts.Parse,
-			filters:        runtime.filters,
-		})
+		batchOpts := collectProcessedWorkflowRunsBatchOptions(runtime, opts)
+		processedRuns, batchProcessed, allRunsConsumed, timedOut := processWorkflowRunBatch(runtime.activeCtx, batch, processedRuns, batchOpts)
 		timeoutReached = timeoutReached || timedOut
 		logProcessedWorkflowRunBatch(opts, runtime.fetchAllInRange, iteration, batchProcessed, len(processedRuns), opts.Verbose)
 		if allRunsConsumed {
@@ -229,6 +220,20 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 	logLogsIterationLimit(runtime.fetchAllInRange, iteration, len(processedRuns), opts.Count)
 	logLogsTimeoutResult(timeoutReached, len(processedRuns))
 	return processedRuns, timeoutReached, countLimitReached, nil
+}
+
+func collectProcessedWorkflowRunsBatchOptions(runtime logsDownloadRuntime, opts LogsDownloadOptions) processWorkflowRunBatchOptions {
+	return processWorkflowRunBatchOptions{
+		count:          opts.Count,
+		outputDir:      opts.OutputDir,
+		verbose:        opts.Verbose,
+		repoOverride:   opts.RepoOverride,
+		artifactFilter: runtime.artifactFilter,
+		evalsOnly:      opts.EvalsOnly,
+		artifactSets:   opts.ArtifactSets,
+		parse:          opts.Parse,
+		filters:        runtime.filters,
+	}
 }
 
 func shouldStopLogsIteration(runtime logsDownloadRuntime, opts LogsDownloadOptions) (bool, bool, error) {

@@ -51,47 +51,13 @@ func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, er
 		mcpData.GuardPolicySummary = buildGuardPolicySummary(gatewayMetrics)
 	}
 
-	// Read the log file again to get individual tool call records.
-	// Prefer gateway.jsonl; fall back to rpc-messages.jsonl when not available.
-	gatewayLogPath := filepath.Join(logDir, "gateway.jsonl")
-	usingRPCMessages := false
-
-	if _, err := os.Stat(gatewayLogPath); os.IsNotExist(err) {
-		mcpLogsPath := filepath.Join(logDir, "mcp-logs", "gateway.jsonl")
-		if _, err := os.Stat(mcpLogsPath); os.IsNotExist(err) {
-			// Fall back to rpc-messages.jsonl
-			rpcPath := findRPCMessagesPath(logDir)
-			if rpcPath == "" {
-				return nil, errors.New("gateway.jsonl not found")
-			}
-			gatewayLogPath = rpcPath
-			usingRPCMessages = true
-		} else {
-			gatewayLogPath = mcpLogsPath
-		}
+	gatewayLogPath, usingRPCMessages, err := extractMCPToolUsageDataLogPath(logDir)
+	if err != nil {
+		return nil, err
 	}
 
-	if usingRPCMessages {
-		gatewayLogsLog.Printf("Reading tool calls from rpc-messages.jsonl: %s", gatewayLogPath)
-		// Build tool call records from rpc-messages.jsonl
-		toolCalls, err := buildToolCallsFromRPCMessages(gatewayLogPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read rpc-messages.jsonl: %w", err)
-		}
-		// Correlate tool calls with effective-token deltas from token-usage.jsonl
-		tokenUsageFile := findTokenUsageFile(logDir)
-		toolCalls = correlateToolCallsWithTokenDelta(toolCalls, tokenUsageFile)
-		mcpData.ToolCalls = toolCalls
-		gatewayLogsLog.Printf("Loaded %d tool calls from rpc-messages.jsonl", len(toolCalls))
-	} else {
-		gatewayLogsLog.Printf("Reading tool calls from gateway.jsonl: %s", gatewayLogPath)
-		if err := extractToolCallsFromGatewayLog(gatewayLogPath, mcpData); err != nil {
-			return nil, err
-		}
-		// Correlate tool calls with effective-token deltas from token-usage.jsonl
-		tokenUsageFile := findTokenUsageFile(logDir)
-		mcpData.ToolCalls = correlateToolCallsWithTokenDelta(mcpData.ToolCalls, tokenUsageFile)
-		gatewayLogsLog.Printf("Loaded %d tool calls from gateway.jsonl", len(mcpData.ToolCalls))
+	if err := extractMCPToolUsageDataToolCalls(logDir, gatewayLogPath, usingRPCMessages, mcpData); err != nil {
+		return nil, err
 	}
 
 	// Build summary statistics from aggregated metrics
@@ -99,6 +65,46 @@ func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, er
 	gatewayLogsLog.Printf("Built MCP summary: %d tool summaries, %d server stats", len(mcpData.Summary), len(mcpData.Servers))
 
 	return mcpData, nil
+}
+
+func extractMCPToolUsageDataLogPath(logDir string) (string, bool, error) {
+	// Read the log file again to get individual tool call records.
+	// Prefer gateway.jsonl; fall back to rpc-messages.jsonl when not available.
+	gatewayLogPath := filepath.Join(logDir, "gateway.jsonl")
+	if _, err := os.Stat(gatewayLogPath); err == nil {
+		return gatewayLogPath, false, nil
+	}
+	mcpLogsPath := filepath.Join(logDir, "mcp-logs", "gateway.jsonl")
+	if _, err := os.Stat(mcpLogsPath); err == nil {
+		return mcpLogsPath, false, nil
+	}
+	rpcPath := findRPCMessagesPath(logDir)
+	if rpcPath == "" {
+		return "", false, errors.New("gateway.jsonl not found")
+	}
+	return rpcPath, true, nil
+}
+
+func extractMCPToolUsageDataToolCalls(logDir, gatewayLogPath string, usingRPCMessages bool, mcpData *MCPToolUsageData) error {
+	if usingRPCMessages {
+		gatewayLogsLog.Printf("Reading tool calls from rpc-messages.jsonl: %s", gatewayLogPath)
+		toolCalls, err := buildToolCallsFromRPCMessages(gatewayLogPath)
+		if err != nil {
+			return fmt.Errorf("failed to read rpc-messages.jsonl: %w", err)
+		}
+		tokenUsageFile := findTokenUsageFile(logDir)
+		mcpData.ToolCalls = correlateToolCallsWithTokenDelta(toolCalls, tokenUsageFile)
+		gatewayLogsLog.Printf("Loaded %d tool calls from rpc-messages.jsonl", len(mcpData.ToolCalls))
+		return nil
+	}
+	gatewayLogsLog.Printf("Reading tool calls from gateway.jsonl: %s", gatewayLogPath)
+	if err := extractToolCallsFromGatewayLog(gatewayLogPath, mcpData); err != nil {
+		return err
+	}
+	tokenUsageFile := findTokenUsageFile(logDir)
+	mcpData.ToolCalls = correlateToolCallsWithTokenDelta(mcpData.ToolCalls, tokenUsageFile)
+	gatewayLogsLog.Printf("Loaded %d tool calls from gateway.jsonl", len(mcpData.ToolCalls))
+	return nil
 }
 
 // extractToolCallsFromGatewayLog reads gateway.jsonl and appends tool call records to mcpData.
@@ -123,46 +129,7 @@ func extractToolCallsFromGatewayLog(gatewayLogPath string, mcpData *MCPToolUsage
 			continue // Skip malformed lines
 		}
 
-		// Only process tool call events
-		if entry.Event == "tool_call" || entry.Event == "rpc_call" || entry.Event == "request" {
-			toolName := entry.ToolName
-			if toolName == "" {
-				toolName = entry.Method
-			}
-
-			// Skip entries without tool information
-			if entry.ServerName == "" || toolName == "" {
-				continue
-			}
-
-			// Derive status from available fields when not explicitly set.
-			// Post-OTel-collector migrations may omit the "status" string field,
-			// relying instead on "error" or "level" to signal failures.
-			status := entry.Status
-			if status == "" {
-				if entry.Error != "" || entry.Level == "error" {
-					status = "error"
-				} else {
-					status = "success"
-				}
-			}
-
-			// Create individual tool call record
-			toolCall := MCPToolCall{
-				Timestamp:  entry.Timestamp,
-				ServerName: entry.ServerName,
-				ToolName:   toolName,
-				Method:     entry.Method,
-				InputSize:  entry.InputSize,
-				OutputSize: entry.OutputSize,
-				Status:     status,
-				Error:      entry.Error,
-			}
-
-			if entry.Duration > 0 {
-				toolCall.Duration = timeutil.FormatDuration(time.Duration(entry.Duration * float64(time.Millisecond)))
-			}
-
+		if toolCall, ok := extractToolCallsFromGatewayLogEntry(entry); ok {
 			mcpData.ToolCalls = append(mcpData.ToolCalls, toolCall)
 		}
 	}
@@ -173,67 +140,100 @@ func extractToolCallsFromGatewayLog(gatewayLogPath string, mcpData *MCPToolUsage
 	return nil
 }
 
+func extractToolCallsFromGatewayLogEntry(entry GatewayLogEntry) (MCPToolCall, bool) {
+	// Only process tool call events
+	if entry.Event != "tool_call" && entry.Event != "rpc_call" && entry.Event != "request" {
+		return MCPToolCall{}, false
+	}
+	toolName := entry.ToolName
+	if toolName == "" {
+		toolName = entry.Method
+	}
+	if entry.ServerName == "" || toolName == "" {
+		return MCPToolCall{}, false
+	}
+
+	toolCall := MCPToolCall{
+		Timestamp:  entry.Timestamp,
+		ServerName: entry.ServerName,
+		ToolName:   toolName,
+		Method:     entry.Method,
+		InputSize:  entry.InputSize,
+		OutputSize: entry.OutputSize,
+		Status:     extractToolCallsFromGatewayLogStatus(entry),
+		Error:      entry.Error,
+	}
+	if entry.Duration > 0 {
+		toolCall.Duration = timeutil.FormatDuration(time.Duration(entry.Duration * float64(time.Millisecond)))
+	}
+	return toolCall, true
+}
+
+func extractToolCallsFromGatewayLogStatus(entry GatewayLogEntry) string {
+	if entry.Status != "" {
+		return entry.Status
+	}
+	if entry.Error != "" || entry.Level == "error" {
+		return "error"
+	}
+	return "success"
+}
+
 // buildMCPSummaryStats populates mcpData.Summary and mcpData.Servers from aggregated gateway metrics.
 func buildMCPSummaryStats(gatewayMetrics *GatewayMetrics, mcpData *MCPToolUsageData) {
 	for serverName, serverMetrics := range gatewayMetrics.Servers {
-		// Server-level stats
-		serverStats := MCPServerStats{
-			ServerName:      serverName,
-			RequestCount:    serverMetrics.RequestCount,
-			ToolCallCount:   serverMetrics.ToolCallCount,
-			TotalInputSize:  0,
-			TotalOutputSize: 0,
-			ErrorCount:      serverMetrics.ErrorCount,
-		}
-
-		if serverMetrics.RequestCount > 0 {
-			avgDur := serverMetrics.TotalDuration / float64(serverMetrics.RequestCount)
-			serverStats.AvgDuration = timeutil.FormatDuration(time.Duration(avgDur * float64(time.Millisecond)))
-		}
-
-		// Tool-level stats
-		for toolName, toolMetrics := range serverMetrics.Tools {
-			summary := MCPToolSummary{
-				ServerName:      serverName,
-				ToolName:        toolName,
-				CallCount:       toolMetrics.CallCount,
-				TotalInputSize:  toolMetrics.TotalInputSize,
-				TotalOutputSize: toolMetrics.TotalOutputSize,
-				MaxInputSize:    0, // Will be calculated below
-				MaxOutputSize:   0, // Will be calculated below
-				ErrorCount:      toolMetrics.ErrorCount,
-			}
-
-			if toolMetrics.AvgDuration > 0 {
-				summary.AvgDuration = timeutil.FormatDuration(time.Duration(toolMetrics.AvgDuration * float64(time.Millisecond)))
-			}
-			if toolMetrics.MaxDuration > 0 {
-				summary.MaxDuration = timeutil.FormatDuration(time.Duration(toolMetrics.MaxDuration * float64(time.Millisecond)))
-			}
-
-			// Calculate max input/output sizes from individual tool calls
-			for _, tc := range mcpData.ToolCalls {
-				if tc.ServerName == serverName && tc.ToolName == toolName {
-					if tc.InputSize > summary.MaxInputSize {
-						summary.MaxInputSize = tc.InputSize
-					}
-					if tc.OutputSize > summary.MaxOutputSize {
-						summary.MaxOutputSize = tc.OutputSize
-					}
-				}
-			}
-
-			mcpData.Summary = append(mcpData.Summary, summary)
-
-			// Update server totals
-			serverStats.TotalInputSize += toolMetrics.TotalInputSize
-			serverStats.TotalOutputSize += toolMetrics.TotalOutputSize
-		}
-
+		serverStats := buildMCPSummaryStatsServer(serverName, serverMetrics, mcpData)
 		mcpData.Servers = append(mcpData.Servers, serverStats)
 	}
 
-	// Sort summaries by server name, then tool name
+	buildMCPSummaryStatsSort(mcpData)
+}
+
+func buildMCPSummaryStatsServer(serverName string, serverMetrics *GatewayServerMetrics, mcpData *MCPToolUsageData) MCPServerStats {
+	serverStats := MCPServerStats{
+		ServerName:    serverName,
+		RequestCount:  serverMetrics.RequestCount,
+		ToolCallCount: serverMetrics.ToolCallCount,
+		ErrorCount:    serverMetrics.ErrorCount,
+	}
+	if serverMetrics.RequestCount > 0 {
+		avgDur := serverMetrics.TotalDuration / float64(serverMetrics.RequestCount)
+		serverStats.AvgDuration = timeutil.FormatDuration(time.Duration(avgDur * float64(time.Millisecond)))
+	}
+	for toolName, toolMetrics := range serverMetrics.Tools {
+		summary := buildMCPSummaryStatsTool(serverName, toolName, toolMetrics, mcpData.ToolCalls)
+		mcpData.Summary = append(mcpData.Summary, summary)
+		serverStats.TotalInputSize += toolMetrics.TotalInputSize
+		serverStats.TotalOutputSize += toolMetrics.TotalOutputSize
+	}
+	return serverStats
+}
+
+func buildMCPSummaryStatsTool(serverName, toolName string, toolMetrics *GatewayToolMetrics, toolCalls []MCPToolCall) MCPToolSummary {
+	summary := MCPToolSummary{
+		ServerName:      serverName,
+		ToolName:        toolName,
+		CallCount:       toolMetrics.CallCount,
+		TotalInputSize:  toolMetrics.TotalInputSize,
+		TotalOutputSize: toolMetrics.TotalOutputSize,
+		ErrorCount:      toolMetrics.ErrorCount,
+	}
+	if toolMetrics.AvgDuration > 0 {
+		summary.AvgDuration = timeutil.FormatDuration(time.Duration(toolMetrics.AvgDuration * float64(time.Millisecond)))
+	}
+	if toolMetrics.MaxDuration > 0 {
+		summary.MaxDuration = timeutil.FormatDuration(time.Duration(toolMetrics.MaxDuration * float64(time.Millisecond)))
+	}
+	for _, tc := range toolCalls {
+		if tc.ServerName == serverName && tc.ToolName == toolName {
+			summary.MaxInputSize = max(summary.MaxInputSize, tc.InputSize)
+			summary.MaxOutputSize = max(summary.MaxOutputSize, tc.OutputSize)
+		}
+	}
+	return summary
+}
+
+func buildMCPSummaryStatsSort(mcpData *MCPToolUsageData) {
 	slices.SortFunc(mcpData.Summary, func(a, b MCPToolSummary) int {
 		if a.ServerName != b.ServerName {
 			if a.ServerName < b.ServerName {
@@ -251,7 +251,6 @@ func buildMCPSummaryStats(gatewayMetrics *GatewayMetrics, mcpData *MCPToolUsageD
 		}
 	})
 
-	// Sort servers by name
 	slices.SortFunc(mcpData.Servers, func(a, b MCPServerStats) int {
 		switch {
 		case a.ServerName < b.ServerName:

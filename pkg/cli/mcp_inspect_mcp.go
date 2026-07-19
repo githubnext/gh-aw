@@ -138,32 +138,9 @@ func connectStdioMCPServer(ctx context.Context, config parser.RegistryMCPServerC
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting stdio MCP server: %s %s", config.Command, strings.Join(config.Args, " "))))
 	}
 
-	// Validate the command exists
-	if config.Command != "" {
-		if _, err := exec.LookPath(config.Command); err != nil {
-			return nil, fmt.Errorf("command not found: %s", config.Command)
-		}
-	}
-
-	// Create the command for the MCP server
-	var cmd *exec.Cmd
-	if config.Container != "" {
-		// Docker container mode
-		args := append([]string{"run", "--rm", "-i"}, config.Args...)
-		cmd = exec.CommandContext(ctx, "docker", args...)
-	} else {
-		// Direct command mode
-		// #nosec G204 -- config.Command is validated via exec.LookPath above (line 138);
-		// exec.Command with separate args (not shell execution) prevents shell injection.
-		cmd = exec.CommandContext(ctx, config.Command, config.Args...)
-	}
-
-	// Set environment variables
-	cmd.Env = os.Environ()
-	for key, value := range config.Env {
-		// Resolve environment variable references
-		resolvedValue := os.ExpandEnv(value)
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, resolvedValue))
+	cmd, err := connectStdioMCPServerCommand(ctx, config)
+	if err != nil {
+		return nil, err
 	}
 
 	// Create MCP client and connect
@@ -186,6 +163,42 @@ func connectStdioMCPServer(ctx context.Context, config parser.RegistryMCPServerC
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully connected to MCP server"))
 	}
 
+	return connectStdioMCPServerInfo(ctx, session, config, verbose), nil
+}
+
+func connectStdioMCPServerCommand(ctx context.Context, config parser.RegistryMCPServerConfig) (*exec.Cmd, error) {
+	// Validate the command exists
+	if config.Command != "" {
+		if _, err := exec.LookPath(config.Command); err != nil {
+			return nil, fmt.Errorf("command not found: %s", config.Command)
+		}
+	}
+
+	// Create the command for the MCP server
+	var cmd *exec.Cmd
+	if config.Container != "" {
+		// Docker container mode
+		args := append([]string{"run", "--rm", "-i"}, config.Args...)
+		cmd = exec.CommandContext(ctx, "docker", args...)
+	} else {
+		// Direct command mode
+		// #nosec G204 -- config.Command is validated via exec.LookPath above;
+		// exec.Command with separate args (not shell execution) prevents shell injection.
+		cmd = exec.CommandContext(ctx, config.Command, config.Args...)
+	}
+
+	// Set environment variables
+	cmd.Env = os.Environ()
+	for key, value := range config.Env {
+		// Resolve environment variable references
+		resolvedValue := os.ExpandEnv(value)
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, resolvedValue))
+	}
+
+	return cmd, nil
+}
+
+func connectStdioMCPServerInfo(ctx context.Context, session *mcp.ClientSession, config parser.RegistryMCPServerConfig, verbose bool) *parser.MCPServerInfo {
 	// Query server capabilities
 	info := &parser.MCPServerInfo{
 		Config:    config,
@@ -225,7 +238,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.RegistryMCPServerC
 	// so we'll keep an empty list or try to infer from resources
 	info.Roots = extractRootsFromResources(info.Resources)
 
-	return info, nil
+	return info
 }
 
 // connectHTTPMCPServer connects to an HTTP-based MCP server using the Go SDK
@@ -234,6 +247,26 @@ func connectHTTPMCPServer(ctx context.Context, config parser.RegistryMCPServerCo
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Connecting to HTTP MCP server: "+config.URL))
 	}
 
+	client, transport := connectHTTPMCPServerClient(config)
+
+	// Create a timeout context for connection
+	connectCtx, cancel := context.WithTimeout(ctx, MCPConnectTimeout)
+	defer cancel()
+
+	session, err := client.Connect(connectCtx, transport, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to HTTP MCP server: %w", err)
+	}
+	defer session.Close()
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully connected to HTTP MCP server"))
+	}
+
+	return connectHTTPMCPServerInfo(ctx, session, config, verbose), nil
+}
+
+func connectHTTPMCPServerClient(config parser.RegistryMCPServerConfig) (*mcp.Client, *mcp.StreamableClientTransport) {
 	// Create MCP client with logger for better debugging
 	client := mcp.NewClient(mcpInspectClientImplementation(), &mcp.ClientOptions{
 		Logger: logger.NewSlogLoggerWithHandler(mcpInspectServerLog),
@@ -263,20 +296,10 @@ func connectHTTPMCPServer(ctx context.Context, config parser.RegistryMCPServerCo
 		}
 	}
 
-	// Create a timeout context for connection
-	connectCtx, cancel := context.WithTimeout(ctx, MCPConnectTimeout)
-	defer cancel()
+	return client, transport
+}
 
-	session, err := client.Connect(connectCtx, transport, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to HTTP MCP server: %w", err)
-	}
-	defer session.Close()
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully connected to HTTP MCP server"))
-	}
-
+func connectHTTPMCPServerInfo(ctx context.Context, session *mcp.ClientSession, config parser.RegistryMCPServerConfig, verbose bool) *parser.MCPServerInfo {
 	// Query server capabilities
 	info := &parser.MCPServerInfo{
 		Config:    config,
@@ -315,7 +338,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.RegistryMCPServerCo
 	// Extract root URIs from resources (simple heuristic)
 	info.Roots = extractRootsFromResources(info.Resources)
 
-	return info, nil
+	return info
 }
 
 // extractRootsFromResources infers root URIs from a list of resources by extracting
@@ -357,104 +380,97 @@ func mcpInspectClientImplementation() *mcp.Implementation {
 // displayServerCapabilities shows the server's tools, resources, and roots in formatted tables
 func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
 	mcpInspectServerLog.Printf("Displaying server capabilities: tools=%d, resources=%d, toolFilter=%q", len(info.Tools), len(info.Resources), toolFilter)
+	displayServerCapabilitiesTools(info, toolFilter)
+	displayServerCapabilitiesResources(info, toolFilter)
+	displayServerCapabilitiesRoots(info, toolFilter)
+
+	fmt.Fprintln(os.Stderr)
+}
+
+func displayServerCapabilitiesTools(info *parser.MCPServerInfo, toolFilter string) {
 	// Display tools with allowed/not allowed status
-	if len(info.Tools) > 0 {
-		// If a specific tool is requested, show detailed information
-		if toolFilter != "" {
-			displayDetailedToolInfo(info, toolFilter)
-		} else {
-			fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("🛠️  Tool Access Status"))
-
-			// Configure options for inspect command
-			// Use a slightly shorter truncation length than list-tools for better fit
-			opts := MCPToolTableOptions{
-				TruncateLength:  50,
-				ShowSummary:     true,
-				ShowVerboseHint: false,
-			}
-
-			// Render the table using the shared helper and print to stdout (structured data)
-			fmt.Fprint(os.Stdout, renderMCPToolTable(info, opts))
-
-			// Add helpful hint about how to allow tools in workflow frontmatter
-			displayToolAllowanceHint(info)
-		}
-
-	} else {
+	if len(info.Tools) == 0 {
 		if toolFilter != "" {
 			fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatWarningMessage(fmt.Sprintf("Tool '%s' not found", toolFilter)))
 		} else {
 			fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatWarningMessage("No tools available"))
 		}
+		return
 	}
 
+	// If a specific tool is requested, show detailed information
+	if toolFilter != "" {
+		displayDetailedToolInfo(info, toolFilter)
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("🛠️  Tool Access Status"))
+	opts := MCPToolTableOptions{
+		TruncateLength:  50,
+		ShowSummary:     true,
+		ShowVerboseHint: false,
+	}
+	fmt.Fprint(os.Stdout, renderMCPToolTable(info, opts))
+	displayToolAllowanceHint(info)
+}
+
+func displayServerCapabilitiesResources(info *parser.MCPServerInfo, toolFilter string) {
 	// Display resources (skip if showing specific tool details)
-	if toolFilter == "" && len(info.Resources) > 0 {
-		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("📚 Available Resources"))
-
-		headers := []string{"URI", "Name", "Description", "MIME Type"}
-		rows := make([][]string, 0, len(info.Resources))
-
-		for _, resource := range info.Resources {
-			description := stringutil.Truncate(resource.Description, 40)
-
-			mimeType := resource.MIMEType
-			if mimeType == "" {
-				mimeType = "N/A"
-			}
-
-			rows = append(rows, []string{resource.URI, resource.Name, description, mimeType})
-		}
-
-		fmt.Fprint(os.Stdout, console.RenderTable(console.TableConfig{
-			Headers: headers,
-			Rows:    rows,
-		}))
-	} else if toolFilter == "" {
+	if toolFilter != "" {
+		return
+	}
+	if len(info.Resources) == 0 {
 		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatWarningMessage("No resources available"))
+		return
 	}
 
-	// Display roots (skip if showing specific tool details)
-	if toolFilter == "" && len(info.Roots) > 0 {
-		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("🌳 Available Roots"))
+	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("📚 Available Resources"))
+	headers := []string{"URI", "Name", "Description", "MIME Type"}
+	rows := make([][]string, 0, len(info.Resources))
 
-		headers := []string{"URI", "Name"}
-		rows := make([][]string, 0, len(info.Roots))
-
-		for _, root := range info.Roots {
-			rows = append(rows, []string{root.URI, root.Name})
+	for _, resource := range info.Resources {
+		description := stringutil.Truncate(resource.Description, 40)
+		mimeType := resource.MIMEType
+		if mimeType == "" {
+			mimeType = "N/A"
 		}
-
-		fmt.Fprint(os.Stdout, console.RenderTable(console.TableConfig{
-			Headers: headers,
-			Rows:    rows,
-		}))
-	} else if toolFilter == "" {
-		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatWarningMessage("No roots available"))
+		rows = append(rows, []string{resource.URI, resource.Name, description, mimeType})
 	}
 
-	fmt.Fprintln(os.Stderr)
+	fmt.Fprint(os.Stdout, console.RenderTable(console.TableConfig{
+		Headers: headers,
+		Rows:    rows,
+	}))
+}
+
+func displayServerCapabilitiesRoots(info *parser.MCPServerInfo, toolFilter string) {
+	// Display roots (skip if showing specific tool details)
+	if toolFilter != "" {
+		return
+	}
+	if len(info.Roots) == 0 {
+		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatWarningMessage("No roots available"))
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("🌳 Available Roots"))
+	headers := []string{"URI", "Name"}
+	rows := make([][]string, 0, len(info.Roots))
+	for _, root := range info.Roots {
+		rows = append(rows, []string{root.URI, root.Name})
+	}
+	fmt.Fprint(os.Stdout, console.RenderTable(console.TableConfig{
+		Headers: headers,
+		Rows:    rows,
+	}))
 }
 
 // displayDetailedToolInfo shows detailed information about a specific tool
 func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 	// Find the specific tool
-	var foundTool *mcp.Tool
-	for _, tool := range info.Tools {
-		if tool.Name == toolName {
-			foundTool = tool
-			break
-		}
-	}
-
+	foundTool := displayDetailedToolInfoFindTool(info, toolName)
 	if foundTool == nil {
-		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatWarningMessage(fmt.Sprintf("Tool '%s' not found", toolName)))
-		fmt.Fprintf(os.Stderr, "Available tools: ")
-		toolNames := make([]string, len(info.Tools))
-		for i, tool := range info.Tools {
-			toolNames[i] = tool.Name
-		}
-		fmt.Fprintf(os.Stderr, "%s\n", strings.Join(toolNames, ", "))
+		displayDetailedToolInfoNotFound(info, toolName)
 		return
 	}
 
@@ -480,78 +496,123 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 	fmt.Fprintf(os.Stderr, "📝 **Description:** %s\n", foundTool.Description)
 
 	// Display allowance status
+	displayDetailedToolInfoStatus(isAllowed)
+
+	// Display annotations if available
+	displayDetailedToolInfoAnnotations(foundTool)
+
+	// Display input schema
+	displayDetailedToolInfoSchema("📥 Input Schema", "📥 No input schema defined", foundTool.InputSchema)
+
+	// Display output schema
+	displayDetailedToolInfoSchema("📤 Output Schema", "📤 No output schema defined", foundTool.OutputSchema)
+
+	fmt.Fprintln(os.Stderr)
+}
+
+func displayDetailedToolInfoFindTool(info *parser.MCPServerInfo, toolName string) *mcp.Tool {
+	for _, tool := range info.Tools {
+		if tool.Name == toolName {
+			return tool
+		}
+	}
+	return nil
+}
+
+func displayDetailedToolInfoNotFound(info *parser.MCPServerInfo, toolName string) {
+	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatWarningMessage(fmt.Sprintf("Tool '%s' not found", toolName)))
+	fmt.Fprintf(os.Stderr, "Available tools: ")
+	toolNames := make([]string, len(info.Tools))
+	for i, tool := range info.Tools {
+		toolNames[i] = tool.Name
+	}
+	fmt.Fprintf(os.Stderr, "%s\n", strings.Join(toolNames, ", "))
+}
+
+func displayDetailedToolInfoStatus(isAllowed bool) {
 	if isAllowed {
 		fmt.Fprintf(os.Stderr, "✅ **Status:** Allowed\n")
 	} else {
 		fmt.Fprintf(os.Stderr, "🚫 **Status:** Not allowed (add to 'allowed' list in workflow frontmatter)\n")
 	}
+}
 
-	// Display annotations if available
-	if foundTool.Annotations != nil {
-		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("⚙️  Tool Attributes"))
-
-		if foundTool.Annotations.ReadOnlyHint {
-			fmt.Fprintf(os.Stderr, "🔒 **Read-only:** This tool does not modify its environment\n")
-		} else {
-			fmt.Fprintf(os.Stderr, "🔓 **Modifies environment:** This tool can make changes\n")
-		}
-
-		if foundTool.Annotations.IdempotentHint {
-			fmt.Fprintf(os.Stderr, "🔄 **Idempotent:** Calling with same arguments has no additional effect\n")
-		}
-
-		if foundTool.Annotations.DestructiveHint != nil {
-			if *foundTool.Annotations.DestructiveHint {
-				fmt.Fprintf(os.Stderr, "⚠️  **Destructive:** May perform destructive updates\n")
-			} else {
-				fmt.Fprintf(os.Stderr, "➕ **Additive:** Performs only additive updates\n")
-			}
-		}
-
-		if foundTool.Annotations.OpenWorldHint != nil {
-			if *foundTool.Annotations.OpenWorldHint {
-				fmt.Fprintf(os.Stderr, "🌐 **Open world:** Interacts with external entities\n")
-			} else {
-				fmt.Fprintf(os.Stderr, "🏠 **Closed world:** Domain of interaction is closed\n")
-			}
-		}
+func displayDetailedToolInfoAnnotations(foundTool *mcp.Tool) {
+	if foundTool.Annotations == nil {
+		return
 	}
+	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("⚙️  Tool Attributes"))
 
-	// Display input schema
-	if foundTool.InputSchema != nil {
-		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("📥 Input Schema"))
-		if schemaJSON, err := json.MarshalIndent(foundTool.InputSchema, "", "  "); err == nil {
-			fmt.Fprintf(os.Stderr, "```json\n%s\n```\n", string(schemaJSON))
-		} else {
-			fmt.Fprintf(os.Stderr, "Error displaying input schema: %v\n", err)
-		}
+	if foundTool.Annotations.ReadOnlyHint {
+		fmt.Fprintf(os.Stderr, "🔒 **Read-only:** This tool does not modify its environment\n")
 	} else {
-		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("📥 No input schema defined"))
+		fmt.Fprintf(os.Stderr, "🔓 **Modifies environment:** This tool can make changes\n")
 	}
 
-	// Display output schema
-	if foundTool.OutputSchema != nil {
-		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("📤 Output Schema"))
-		if schemaJSON, err := json.MarshalIndent(foundTool.OutputSchema, "", "  "); err == nil {
-			fmt.Fprintf(os.Stderr, "```json\n%s\n```\n", string(schemaJSON))
-		} else {
-			fmt.Fprintf(os.Stderr, "Error displaying output schema: %v\n", err)
-		}
+	if foundTool.Annotations.IdempotentHint {
+		fmt.Fprintf(os.Stderr, "🔄 **Idempotent:** Calling with same arguments has no additional effect\n")
+	}
+	displayDetailedToolInfoDestructiveHint(foundTool)
+	displayDetailedToolInfoOpenWorldHint(foundTool)
+}
+
+func displayDetailedToolInfoDestructiveHint(foundTool *mcp.Tool) {
+	if foundTool.Annotations.DestructiveHint == nil {
+		return
+	}
+	if *foundTool.Annotations.DestructiveHint {
+		fmt.Fprintf(os.Stderr, "⚠️  **Destructive:** May perform destructive updates\n")
 	} else {
-		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("📤 No output schema defined"))
+		fmt.Fprintf(os.Stderr, "➕ **Additive:** Performs only additive updates\n")
+	}
+}
+
+func displayDetailedToolInfoOpenWorldHint(foundTool *mcp.Tool) {
+	if foundTool.Annotations.OpenWorldHint == nil {
+		return
+	}
+	if *foundTool.Annotations.OpenWorldHint {
+		fmt.Fprintf(os.Stderr, "🌐 **Open world:** Interacts with external entities\n")
+	} else {
+		fmt.Fprintf(os.Stderr, "🏠 **Closed world:** Domain of interaction is closed\n")
+	}
+}
+
+func displayDetailedToolInfoSchema(header string, missing string, schema any) {
+	if schema == nil {
+		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage(missing))
+		return
 	}
 
-	fmt.Fprintln(os.Stderr)
+	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader(header))
+	if schemaJSON, err := json.MarshalIndent(schema, "", "  "); err == nil {
+		fmt.Fprintf(os.Stderr, "```json\n%s\n```\n", string(schemaJSON))
+	} else {
+		fmt.Fprintf(os.Stderr, "Error displaying input schema: %v\n", err)
+	}
 }
 
 // displayToolAllowanceHint shows helpful information about how to allow tools in workflow frontmatter
 func displayToolAllowanceHint(info *parser.MCPServerInfo) {
+	blockedTools := displayToolAllowanceHintBlockedTools(info)
+
+	if len(blockedTools) > 0 {
+		displayToolAllowanceHintBlocked(info, blockedTools)
+	} else if len(info.Config.Allowed) == 0 {
+		displayToolAllowanceHintDefaultAllowed(info)
+	} else {
+		// All tools are explicitly allowed
+		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSuccessMessage("✅ All available tools are explicitly allowed in your workflow"))
+	}
+
+	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("📖 For more information, see: https://github.com/github/gh-aw/blob/main/docs/tools.md"))
+}
+
+func displayToolAllowanceHintBlockedTools(info *parser.MCPServerInfo) []string {
 	// Create a map for quick lookup of allowed tools
-	allowedMap := make(map[string]struct {
-	})
+	allowedMap := make(map[string]struct{})
 	for _, allowed := range info.Config.Allowed {
-		allowedMap[allowed] = struct {
-		}{}
+		allowedMap[allowed] = struct{}{}
 	}
 
 	// Count blocked tools and collect their names
@@ -561,58 +622,52 @@ func displayToolAllowanceHint(info *parser.MCPServerInfo) {
 			blockedTools = append(blockedTools, tool.Name)
 		}
 	}
+	return blockedTools
+}
 
-	if len(blockedTools) > 0 {
-		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("💡 To allow blocked tools, add them to your workflow frontmatter:"))
+func displayToolAllowanceHintBlocked(info *parser.MCPServerInfo, blockedTools []string) {
+	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("💡 To allow blocked tools, add them to your workflow frontmatter:"))
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "```yaml\n")
+	fmt.Fprintf(os.Stderr, "tools:\n")
+	fmt.Fprintf(os.Stderr, "  %s:\n", info.Config.Name)
+	fmt.Fprintf(os.Stderr, "    allowed:\n")
 
-		// Show the frontmatter syntax example
-		fmt.Fprintf(os.Stderr, "\n")
-		fmt.Fprintf(os.Stderr, "```yaml\n")
-		fmt.Fprintf(os.Stderr, "tools:\n")
-		fmt.Fprintf(os.Stderr, "  %s:\n", info.Config.Name)
-		fmt.Fprintf(os.Stderr, "    allowed:\n")
-
-		// Add currently allowed tools first (if any)
-		for _, allowed := range info.Config.Allowed {
-			fmt.Fprintf(os.Stderr, "      - %s\n", allowed)
-		}
-
-		// Show first few blocked tools as examples (limit to 3 for readability)
-		exampleCount := min(len(blockedTools), 3)
-
-		for i := range exampleCount {
-			fmt.Fprintf(os.Stderr, "      - %s\n", blockedTools[i])
-		}
-
-		if len(blockedTools) > 3 {
-			fmt.Fprintf(os.Stderr, "      # ... and %d more tools\n", len(blockedTools)-3)
-		}
-
-		fmt.Fprintf(os.Stderr, "```\n")
-
-		if len(blockedTools) > 3 {
-			fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("📋 All blocked tools: "+strings.Join(blockedTools, ", ")))
-		}
-	} else if len(info.Config.Allowed) == 0 {
-		// No explicit allowed list - all tools are allowed by default
-		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("💡 All tools are currently allowed (no 'allowed' list specified)"))
-		if len(info.Tools) > 0 {
-			fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("To restrict tools, add an 'allowed' list to your workflow frontmatter:"))
-			fmt.Fprintf(os.Stderr, "\n")
-			fmt.Fprintf(os.Stderr, "```yaml\n")
-			fmt.Fprintf(os.Stderr, "tools:\n")
-			fmt.Fprintf(os.Stderr, "  %s:\n", info.Config.Name)
-			fmt.Fprintf(os.Stderr, "    allowed:\n")
-			fmt.Fprintf(os.Stderr, "      - %s  # Allow only specific tools\n", info.Tools[0].Name)
-			if len(info.Tools) > 1 {
-				fmt.Fprintf(os.Stderr, "      - %s\n", info.Tools[1].Name)
-			}
-			fmt.Fprintf(os.Stderr, "```\n")
-		}
-	} else {
-		// All tools are explicitly allowed
-		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSuccessMessage("✅ All available tools are explicitly allowed in your workflow"))
+	for _, allowed := range info.Config.Allowed {
+		fmt.Fprintf(os.Stderr, "      - %s\n", allowed)
 	}
 
-	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("📖 For more information, see: https://github.com/github/gh-aw/blob/main/docs/tools.md"))
+	exampleCount := min(len(blockedTools), 3)
+	for i := range exampleCount {
+		fmt.Fprintf(os.Stderr, "      - %s\n", blockedTools[i])
+	}
+
+	if len(blockedTools) > 3 {
+		fmt.Fprintf(os.Stderr, "      # ... and %d more tools\n", len(blockedTools)-3)
+	}
+	fmt.Fprintf(os.Stderr, "```\n")
+
+	if len(blockedTools) > 3 {
+		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("📋 All blocked tools: "+strings.Join(blockedTools, ", ")))
+	}
+}
+
+func displayToolAllowanceHintDefaultAllowed(info *parser.MCPServerInfo) {
+	// No explicit allowed list - all tools are allowed by default
+	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("💡 All tools are currently allowed (no 'allowed' list specified)"))
+	if len(info.Tools) == 0 {
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("To restrict tools, add an 'allowed' list to your workflow frontmatter:"))
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "```yaml\n")
+	fmt.Fprintf(os.Stderr, "tools:\n")
+	fmt.Fprintf(os.Stderr, "  %s:\n", info.Config.Name)
+	fmt.Fprintf(os.Stderr, "    allowed:\n")
+	fmt.Fprintf(os.Stderr, "      - %s  # Allow only specific tools\n", info.Tools[0].Name)
+	if len(info.Tools) > 1 {
+		fmt.Fprintf(os.Stderr, "      - %s\n", info.Tools[1].Name)
+	}
+	fmt.Fprintf(os.Stderr, "```\n")
 }

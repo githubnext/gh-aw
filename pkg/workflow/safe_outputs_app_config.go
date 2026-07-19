@@ -35,72 +35,82 @@ type GitHubAppConfig struct {
 func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 	safeOutputsAppLog.Print("Parsing GitHub App configuration")
 	appConfig := &GitHubAppConfig{}
-
-	// Parse client-id/app-id (required)
-	// Prefer client-id when both are provided; app-id is accepted for backward compatibility.
-	if clientID, exists := appMap["client-id"]; exists {
-		if clientIDStr, ok := clientID.(string); ok {
-			appConfig.AppID = clientIDStr
-		}
-	} else if appID, exists := appMap["app-id"]; exists {
-		if appIDStr, ok := appID.(string); ok {
-			appConfig.AppID = appIDStr
-		}
-	}
-
-	// Parse private-key (required)
-	if privateKey, exists := appMap["private-key"]; exists {
-		if privateKeyStr, ok := privateKey.(string); ok {
-			appConfig.PrivateKey = privateKeyStr
-		}
-	}
-
-	// Parse ignore-if-missing behavior (optional): true to skip minting when key inputs are empty
-	if ignoreIfMissing, exists := appMap["ignore-if-missing"]; exists {
-		if ignore, ok := ignoreIfMissing.(bool); ok {
-			appConfig.IgnoreIfMissing = ignore
-		} else {
-			safeOutputsAppLog.Printf("Ignoring github-app.ignore-if-missing: expected boolean, got %T", ignoreIfMissing)
-		}
-	}
-
-	// Parse owner (optional)
-	if owner, exists := appMap["owner"]; exists {
-		if ownerStr, ok := owner.(string); ok {
-			appConfig.Owner = ownerStr
-		}
-	}
-
-	// Parse repositories (optional)
-	if repos, exists := appMap["repositories"]; exists {
-		if reposArray, ok := repos.([]any); ok {
-			var repoStrings []string
-			for _, repo := range reposArray {
-				if repoStr, ok := repo.(string); ok {
-					repoStrings = append(repoStrings, repoStr)
-				}
-			}
-			appConfig.Repositories = repoStrings
-		}
-	}
-
-	// Parse permissions (optional) - extra permission-* fields to merge into the minted token
-	if perms, exists := appMap["permissions"]; exists {
-		if permsMap, ok := perms.(map[string]any); ok {
-			appConfig.Permissions = make(map[string]string, len(permsMap))
-			for key, val := range permsMap {
-				if valStr, ok := val.(string); ok {
-					appConfig.Permissions[key] = valStr
-				} else {
-					safeOutputsAppLog.Printf("Ignoring github-app.permissions[%q]: expected string value, got %T", key, val)
-				}
-			}
-		} else {
-			safeOutputsAppLog.Printf("Ignoring github-app.permissions: expected object, got %T", perms)
-		}
-	}
-
+	appConfig.AppID = parseGitHubAppID(appMap)
+	appConfig.PrivateKey = parseGitHubAppString(appMap, "private-key")
+	appConfig.IgnoreIfMissing = parseGitHubAppIgnoreIfMissing(appMap)
+	appConfig.Owner = parseGitHubAppString(appMap, "owner")
+	appConfig.Repositories = parseGitHubAppRepositories(appMap)
+	appConfig.Permissions = parseGitHubAppPermissions(appMap)
 	return appConfig
+}
+
+func parseGitHubAppID(appMap map[string]any) string {
+	if clientID, exists := appMap["client-id"]; exists {
+		clientIDStr, _ := clientID.(string)
+		return clientIDStr
+	}
+	return parseGitHubAppString(appMap, "app-id")
+}
+
+func parseGitHubAppString(appMap map[string]any, key string) string {
+	value, exists := appMap[key]
+	if !exists {
+		return ""
+	}
+	valueStr, _ := value.(string)
+	return valueStr
+}
+
+func parseGitHubAppIgnoreIfMissing(appMap map[string]any) bool {
+	ignoreIfMissing, exists := appMap["ignore-if-missing"]
+	if !exists {
+		return false
+	}
+	ignore, ok := ignoreIfMissing.(bool)
+	if !ok {
+		safeOutputsAppLog.Printf("Ignoring github-app.ignore-if-missing: expected boolean, got %T", ignoreIfMissing)
+		return false
+	}
+	return ignore
+}
+
+func parseGitHubAppRepositories(appMap map[string]any) []string {
+	repos, exists := appMap["repositories"]
+	if !exists {
+		return nil
+	}
+	reposArray, ok := repos.([]any)
+	if !ok {
+		return nil
+	}
+	repoStrings := make([]string, 0, len(reposArray))
+	for _, repo := range reposArray {
+		if repoStr, ok := repo.(string); ok {
+			repoStrings = append(repoStrings, repoStr)
+		}
+	}
+	return repoStrings
+}
+
+func parseGitHubAppPermissions(appMap map[string]any) map[string]string {
+	perms, exists := appMap["permissions"]
+	if !exists {
+		return nil
+	}
+	permsMap, ok := perms.(map[string]any)
+	if !ok {
+		safeOutputsAppLog.Printf("Ignoring github-app.permissions: expected object, got %T", perms)
+		return nil
+	}
+	permissions := make(map[string]string, len(permsMap))
+	for key, val := range permsMap {
+		if valStr, ok := val.(string); ok {
+			permissions[key] = valStr
+		} else {
+			safeOutputsAppLog.Printf("Ignoring github-app.permissions[%q]: expected string value, got %T", key, val)
+		}
+	}
+	return permissions
 }
 
 func (app *GitHubAppConfig) shouldIgnoreMissingKey() bool {
@@ -373,262 +383,178 @@ func (c *Compiler) buildGitHubAppTokenMintStepForRepository(app *GitHubAppConfig
 
 func (c *Compiler) buildGitHubAppTokenMintStepWithMeta(app *GitHubAppConfig, permissions *Permissions, fallbackRepoExpr string, ownerSourceRepository string, stepName string, stepID string) []string {
 	safeOutputsAppLog.Printf("Building GitHub App token mint step: owner=%s, repos=%d", app.Owner, len(app.Repositories))
-	var steps []string
-
 	owner, ownerSteps := resolveGitHubAppOwner(app, ownerSourceRepository, stepName, stepID)
-	steps = append(steps, ownerSteps...)
+	steps := append([]string{}, ownerSteps...)
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", stepName))
 	steps = append(steps, fmt.Sprintf("        id: %s\n", stepID))
-	if app.shouldIgnoreMissingKey() {
-		guard := buildIgnoreIfMissingCondition(app)
-		steps = appendStepEnvAssignments(steps, guard.EnvAssignments)
-		if guard.Condition != "" {
-			steps = append(steps, fmt.Sprintf("        if: %s\n", guard.Condition))
-		}
+	steps = appendGitHubAppTokenGuard(steps, app)
+	steps = appendGitHubAppTokenInputs(steps, app, owner, fallbackRepoExpr)
+	steps = appendGitHubAppPermissionInputs(steps, app, permissions)
+	return steps
+}
+
+func appendGitHubAppTokenGuard(steps []string, app *GitHubAppConfig) []string {
+	if !app.shouldIgnoreMissingKey() {
+		return steps
 	}
+	guard := buildIgnoreIfMissingCondition(app)
+	steps = appendStepEnvAssignments(steps, guard.EnvAssignments)
+	if guard.Condition != "" {
+		steps = append(steps, fmt.Sprintf("        if: %s\n", guard.Condition))
+	}
+	return steps
+}
+
+func appendGitHubAppTokenInputs(steps []string, app *GitHubAppConfig, owner, fallbackRepoExpr string) []string {
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          client-id: %s\n", app.AppID))
 	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
-
-	// Add owner - default to the derived checkout owner when available, otherwise current repository owner.
 	steps = append(steps, fmt.Sprintf("          owner: %s\n", owner))
-
-	// Add repositories - behavior depends on configuration:
-	// - If repositories is ["*"], omit the field to allow org-wide access
-	// - If repositories is a single value, use inline format
-	// - If repositories has multiple values, use block scalar format (newline-separated)
-	//   to ensure clarity and proper parsing by actions/create-github-app-token
-	// - If repositories is empty/not specified, default to fallbackRepoExpr or the current repository
-	if len(app.Repositories) == 1 && app.Repositories[0] == "*" {
-		// Org-wide access: omit repositories field entirely
-		safeOutputsAppLog.Print("Using org-wide GitHub App token (repositories: *)")
-	} else if len(app.Repositories) == 1 {
-		// Single repository: use inline format for clarity
-		steps = append(steps, fmt.Sprintf("          repositories: %s\n", app.Repositories[0]))
-	} else if len(app.Repositories) > 1 {
-		// Multiple repositories: use block scalar format (newline-separated)
-		// This format is more readable and avoids potential issues with comma-separated parsing
-		steps = append(steps, "          repositories: |-\n")
-		for _, repo := range app.Repositories {
-			steps = append(steps, fmt.Sprintf("            %s\n", repo))
-		}
-	} else {
-		// No explicit repositories: use fallback expression, or default to the triggering repo's name.
-		// For workflow_call relay scenarios the caller passes needs.activation.outputs.target_repo_name so
-		// the token is scoped to the platform (host) repo name rather than the full owner/repo slug.
-		repoExpr := fallbackRepoExpr
-		if repoExpr == "" {
-			repoExpr = "${{ github.event.repository.name }}"
-		}
-		steps = append(steps, fmt.Sprintf("          repositories: %s\n", repoExpr))
-	}
-
-	// Always add github-api-url from environment variable
+	steps = appendGitHubAppRepositoryInputs(steps, app.Repositories, fallbackRepoExpr)
 	steps = append(steps, "          github-api-url: ${{ github.api_url }}\n")
-
-	// Add permission-* fields automatically computed from job permissions.
-	// Sort keys to ensure deterministic compilation order.
-	if permissions != nil {
-		permissionFields := convertPermissionsToAppTokenFields(permissions)
-
-		// Apply app.Permissions overrides on top of handler-computed permissions.
-		// This allows workflows to add GitHub App-only scopes (e.g. members: read,
-		// organization-administration: read) that are not expressible via standard
-		// safe-output handler declarations.  The override wins over the computed value
-		// for any scope it declares.
-		for key, val := range app.Permissions {
-			scope := convertStringToPermissionScope(key)
-			if scope == "" {
-				safeOutputsAppLog.Printf("Skipping unknown permission scope %q in github-app.permissions", key)
-				continue
-			}
-			level := strings.ToLower(strings.TrimSpace(val))
-			// Map the scope back to a permission-* field name by running it through
-			// a single-entry Permissions object so the same mapping logic applies.
-			tempPerms := NewPermissionsFromMap(map[PermissionScope]PermissionLevel{scope: PermissionLevel(level)})
-			maps.Copy(permissionFields, convertPermissionsToAppTokenFields(tempPerms))
-		}
-
-		// Extract and sort keys for deterministic ordering
-		keys := sliceutil.SortedKeys(permissionFields)
-
-		// Add permissions in sorted order
-		for _, key := range keys {
-			steps = append(steps, fmt.Sprintf("          %s: %s\n", key, permissionFields[key]))
-		}
-	}
-
 	return steps
 }
 
+func appendGitHubAppRepositoryInputs(steps []string, repositories []string, fallbackRepoExpr string) []string {
+	if len(repositories) == 1 && repositories[0] == "*" {
+		safeOutputsAppLog.Print("Using org-wide GitHub App token (repositories: *)")
+		return steps
+	}
+	if len(repositories) == 1 {
+		return append(steps, fmt.Sprintf("          repositories: %s\n", repositories[0]))
+	}
+	if len(repositories) > 1 {
+		steps = append(steps, "          repositories: |-\n")
+		for _, repo := range repositories {
+			steps = append(steps, fmt.Sprintf("            %s\n", repo))
+		}
+		return steps
+	}
+	repoExpr := fallbackRepoExpr
+	if repoExpr == "" {
+		repoExpr = "${{ github.event.repository.name }}"
+	}
+	return append(steps, fmt.Sprintf("          repositories: %s\n", repoExpr))
+}
+
+func appendGitHubAppPermissionInputs(steps []string, app *GitHubAppConfig, permissions *Permissions) []string {
+	if permissions == nil {
+		return steps
+	}
+	permissionFields := convertPermissionsToAppTokenFields(permissions)
+	mergeGitHubAppPermissionOverrides(permissionFields, app.Permissions)
+	for _, key := range sliceutil.SortedKeys(permissionFields) {
+		steps = append(steps, fmt.Sprintf("          %s: %s\n", key, permissionFields[key]))
+	}
+	return steps
+}
+
+func mergeGitHubAppPermissionOverrides(permissionFields map[string]string, overrides map[string]string) {
+	for key, val := range overrides {
+		scope := convertStringToPermissionScope(key)
+		if scope == "" {
+			safeOutputsAppLog.Printf("Skipping unknown permission scope %q in github-app.permissions", key)
+			continue
+		}
+		level := strings.ToLower(strings.TrimSpace(val))
+		tempPerms := NewPermissionsFromMap(map[PermissionScope]PermissionLevel{scope: PermissionLevel(level)})
+		maps.Copy(permissionFields, convertPermissionsToAppTokenFields(tempPerms))
+	}
+}
+
 // convertPermissionsToAppTokenFields converts job Permissions to permission-* action inputs
-// This follows GitHub's recommendation for explicit permission control
-// Note: This maps all permissions (both GitHub Actions and GitHub App-only) to their
-// corresponding permission-* fields in actions/create-github-app-token.
-// Some GitHub Actions permissions (like 'models', 'id-token', 'attestations', 'copilot-requests')
-// don't have corresponding GitHub App permissions and are skipped.
-//
-// For GitHub Actions permissions (actions, checks, contents, …) we use Get() so that shorthand
-// permissions like "read-all" are correctly expanded.
-// For GitHub App-only permissions (administration, members, organization-secrets, …) we use
-// GetExplicit() so that only scopes the user actually declared are forwarded — a "read-all"
-// shorthand must never accidentally grant broad GitHub App-only permissions.
+// This follows GitHub's recommendation for explicit permission control.
 func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]string {
 	fields := make(map[string]string)
-
-	// Map GitHub Actions permissions to GitHub App permissions
-	// See: https://github.com/actions/create-github-app-token#permissions
-
-	// GitHub Actions permissions that also exist in GitHub App
-	if level, ok := permissions.Get(PermissionActions); ok {
-		fields["permission-actions"] = string(level)
-	}
-	if level, ok := permissions.Get(PermissionChecks); ok {
-		fields["permission-checks"] = string(level)
-	}
-	if level, ok := permissions.Get(PermissionContents); ok {
-		fields["permission-contents"] = string(level)
-	}
-	if level, ok := permissions.Get(PermissionDeployments); ok {
-		fields["permission-deployments"] = string(level)
-	}
-	if level, ok := permissions.Get(PermissionIssues); ok {
-		fields["permission-issues"] = string(level)
-	}
-	if level, ok := permissions.Get(PermissionPackages); ok {
-		fields["permission-packages"] = string(level)
-	}
-	if level, ok := permissions.Get(PermissionPages); ok {
-		fields["permission-pages"] = string(level)
-	}
-	if level, ok := permissions.Get(PermissionPullRequests); ok {
-		fields["permission-pull-requests"] = string(level)
-	}
-	if level, ok := permissions.Get(PermissionSecurityEvents); ok {
-		fields["permission-security-events"] = string(level)
-	}
-	if level, ok := permissions.Get(PermissionStatuses); ok {
-		fields["permission-statuses"] = string(level)
-	}
-	if level, ok := permissions.Get(PermissionVulnerabilityAlerts); ok {
-		fields["permission-vulnerability-alerts"] = string(level)
-	}
-	// "permission-discussions" is a declared input in actions/create-github-app-token v3+.
-	// Crucially, when ANY permission-* input is specified the action scopes the token to ONLY those
-	// permissions (returning undefined → inherit-all only when zero permission-* inputs are present).
-	// Since the compiler always emits other permission-* fields, omitting permission-discussions causes
-	// the minted token to lack discussions access even when the GitHub App installation has that permission.
-	if level, ok := permissions.Get(PermissionDiscussions); ok {
-		fields["permission-discussions"] = string(level)
-	}
-
-	// GitHub App-only permissions (not available in GitHub Actions GITHUB_TOKEN).
-	// Use GetExplicit() so that shorthand permissions like "read-all" do not accidentally
-	// expand into broad GitHub App-only grants that the user never declared.
-	// Repository-level
-	if level, ok := permissions.GetExplicit(PermissionAdministration); ok {
-		fields["permission-administration"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionEnvironments); ok {
-		fields["permission-environments"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionGitSigning); ok {
-		fields["permission-git-signing"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionWorkflows); ok {
-		fields["permission-workflows"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionRepositoryHooks); ok {
-		fields["permission-repository-hooks"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionSingleFile); ok {
-		fields["permission-single-file"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionCodespaces); ok {
-		fields["permission-codespaces"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionRepositoryCustomProperties); ok {
-		fields["permission-repository-custom-properties"] = string(level)
-	}
-	// Organization-level
-	if level, ok := permissions.GetExplicit(PermissionOrganizationProj); ok {
-		fields["permission-organization-projects"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionMembers); ok {
-		fields["permission-members"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationAdministration); ok {
-		fields["permission-organization-administration"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionTeamDiscussions); ok {
-		fields["permission-team-discussions"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationHooks); ok {
-		fields["permission-organization-hooks"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationMembers); ok {
-		fields["permission-organization-members"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationPackages); ok {
-		fields["permission-organization-packages"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationSelfHostedRunners); ok {
-		fields["permission-organization-self-hosted-runners"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationCustomOrgRoles); ok {
-		fields["permission-organization-custom-org-roles"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationCustomProperties); ok {
-		fields["permission-organization-custom-properties"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationCustomRepositoryRoles); ok {
-		fields["permission-organization-custom-repository-roles"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationAnnouncementBanners); ok {
-		fields["permission-organization-announcement-banners"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationEvents); ok {
-		fields["permission-organization-events"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationPlan); ok {
-		fields["permission-organization-plan"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationUserBlocking); ok {
-		fields["permission-organization-user-blocking"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationPersonalAccessTokenReqs); ok {
-		fields["permission-organization-personal-access-token-requests"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationPersonalAccessTokens); ok {
-		fields["permission-organization-personal-access-tokens"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationCopilot); ok {
-		fields["permission-organization-copilot"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionOrganizationCodespaces); ok {
-		fields["permission-organization-codespaces"] = string(level)
-	}
-	// User-level
-	if level, ok := permissions.GetExplicit(PermissionEmailAddresses); ok {
-		fields["permission-email-addresses"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionCodespacesLifecycleAdmin); ok {
-		fields["permission-codespaces-lifecycle-admin"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionCodespacesMetadata); ok {
-		fields["permission-codespaces-metadata"] = string(level)
-	}
-
-	// Note: The following GitHub Actions permissions do NOT have GitHub App equivalents
-	// and are therefore not mapped to permission-* fields:
-	// - models: no GitHub App permission for AI model access
-	// - id-token: not applicable to GitHub Apps (OIDC-specific)
-	// - attestations: no GitHub App permission for this
-	// - copilot-requests: GitHub Actions-specific Copilot authentication token
-	// - metadata: GitHub App metadata permission is automatically included (read-only)
-
+	addActionPermissionFields(fields, permissions)
+	addRepositoryAppPermissionFields(fields, permissions)
+	addOrganizationAppPermissionFields(fields, permissions)
+	addUserAppPermissionFields(fields, permissions)
 	return fields
+}
+
+func addActionPermissionFields(fields map[string]string, permissions *Permissions) {
+	mappings := []struct {
+		scope PermissionScope
+		field string
+	}{
+		{PermissionActions, "permission-actions"},
+		{PermissionChecks, "permission-checks"},
+		{PermissionContents, "permission-contents"},
+		{PermissionDeployments, "permission-deployments"},
+		{PermissionIssues, "permission-issues"},
+		{PermissionPackages, "permission-packages"},
+		{PermissionPages, "permission-pages"},
+		{PermissionPullRequests, "permission-pull-requests"},
+		{PermissionSecurityEvents, "permission-security-events"},
+		{PermissionStatuses, "permission-statuses"},
+		{PermissionVulnerabilityAlerts, "permission-vulnerability-alerts"},
+		{PermissionDiscussions, "permission-discussions"},
+	}
+	for _, mapping := range mappings {
+		if level, ok := permissions.Get(mapping.scope); ok {
+			fields[mapping.field] = string(level)
+		}
+	}
+}
+
+func addRepositoryAppPermissionFields(fields map[string]string, permissions *Permissions) {
+	addExplicitPermissionFields(fields, permissions, []appTokenPermissionMapping{
+		{PermissionAdministration, "permission-administration"},
+		{PermissionEnvironments, "permission-environments"},
+		{PermissionGitSigning, "permission-git-signing"},
+		{PermissionWorkflows, "permission-workflows"},
+		{PermissionRepositoryHooks, "permission-repository-hooks"},
+		{PermissionSingleFile, "permission-single-file"},
+		{PermissionCodespaces, "permission-codespaces"},
+		{PermissionRepositoryCustomProperties, "permission-repository-custom-properties"},
+	})
+}
+
+type appTokenPermissionMapping struct {
+	scope PermissionScope
+	field string
+}
+
+func addExplicitPermissionFields(fields map[string]string, permissions *Permissions, mappings []appTokenPermissionMapping) {
+	for _, mapping := range mappings {
+		if level, ok := permissions.GetExplicit(mapping.scope); ok {
+			fields[mapping.field] = string(level)
+		}
+	}
+}
+
+func addOrganizationAppPermissionFields(fields map[string]string, permissions *Permissions) {
+	addExplicitPermissionFields(fields, permissions, []appTokenPermissionMapping{
+		{PermissionOrganizationProj, "permission-organization-projects"},
+		{PermissionMembers, "permission-members"},
+		{PermissionOrganizationAdministration, "permission-organization-administration"},
+		{PermissionTeamDiscussions, "permission-team-discussions"},
+		{PermissionOrganizationHooks, "permission-organization-hooks"},
+		{PermissionOrganizationMembers, "permission-organization-members"},
+		{PermissionOrganizationPackages, "permission-organization-packages"},
+		{PermissionOrganizationSelfHostedRunners, "permission-organization-self-hosted-runners"},
+		{PermissionOrganizationCustomOrgRoles, "permission-organization-custom-org-roles"},
+		{PermissionOrganizationCustomProperties, "permission-organization-custom-properties"},
+		{PermissionOrganizationCustomRepositoryRoles, "permission-organization-custom-repository-roles"},
+		{PermissionOrganizationAnnouncementBanners, "permission-organization-announcement-banners"},
+		{PermissionOrganizationEvents, "permission-organization-events"},
+		{PermissionOrganizationPlan, "permission-organization-plan"},
+		{PermissionOrganizationUserBlocking, "permission-organization-user-blocking"},
+		{PermissionOrganizationPersonalAccessTokenReqs, "permission-organization-personal-access-token-requests"},
+		{PermissionOrganizationPersonalAccessTokens, "permission-organization-personal-access-tokens"},
+		{PermissionOrganizationCopilot, "permission-organization-copilot"},
+		{PermissionOrganizationCodespaces, "permission-organization-codespaces"},
+	})
+}
+
+func addUserAppPermissionFields(fields map[string]string, permissions *Permissions) {
+	addExplicitPermissionFields(fields, permissions, []appTokenPermissionMapping{
+		{PermissionEmailAddresses, "permission-email-addresses"},
+		{PermissionCodespacesLifecycleAdmin, "permission-codespaces-lifecycle-admin"},
+		{PermissionCodespacesMetadata, "permission-codespaces-metadata"},
+	})
 }
 
 // ========================================

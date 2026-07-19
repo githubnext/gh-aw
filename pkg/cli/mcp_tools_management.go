@@ -105,23 +105,8 @@ func registerUpdateTool(server *mcp.Server, execCmd execCmdFunc) {
 		Annotations: &mcp.ToolAnnotations{
 			OpenWorldHint: new(true),
 		},
-		Description: `Update workflows from their source repositories and check for gh-aw updates.
-
-The command:
-1. Checks if a newer version of gh-aw is available
-2. Updates workflows using the 'source' field in the workflow frontmatter
-3. Compiles each workflow immediately after update
-
-For workflow updates, it fetches the latest version based on the current ref:
-- If the ref is a tag, it updates to the latest release (use major flag for major version updates)
-- If the ref is a branch, it fetches the latest commit from that branch
-- Otherwise, it fetches the latest commit from the default branch
-
-Returns formatted text output showing:
-- Extension update status
-- Updated workflows with their new versions
-- Compilation status for each updated workflow`,
-		Icons: mcpToolIcons("🔄"),
+		Description: registerUpdateToolDescription(),
+		Icons:       mcpToolIcons("🔄"),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args updateArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting
 		select {
@@ -159,6 +144,25 @@ Returns formatted text output showing:
 			},
 		}, nil, nil
 	})
+}
+
+func registerUpdateToolDescription() string {
+	return `Update workflows from their source repositories and check for gh-aw updates.
+
+The command:
+1. Checks if a newer version of gh-aw is available
+2. Updates workflows using the 'source' field in the workflow frontmatter
+3. Compiles each workflow immediately after update
+
+For workflow updates, it fetches the latest version based on the current ref:
+- If the ref is a tag, it updates to the latest release (use major flag for major version updates)
+- If the ref is a branch, it fetches the latest commit from that branch
+- Otherwise, it fetches the latest commit from the default branch
+
+Returns formatted text output showing:
+- Extension update status
+- Updated workflows with their new versions
+- Compilation status for each updated workflow`
 }
 
 // fixArgs holds the input parameters for the fix tool.
@@ -202,40 +206,42 @@ Returns formatted text output showing:
 - Summary of fixes applied`,
 		Icons: mcpToolIcons("🔧"),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args fixArgs) (*mcp.CallToolResult, any, error) {
-		// Check for cancellation before starting
-		select {
-		case <-ctx.Done():
-			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
-		default:
-		}
-
-		mcpToolsManagementLog.Printf("fix tool invoked: workflows=%d, write=%v, list_codemods=%v", len(args.Workflows), args.Write, args.ListCodemods)
-
-		// Build command arguments
-		cmdArgs := []string{"fix"}
-
-		// Add workflow IDs if specified
-		cmdArgs = append(cmdArgs, args.Workflows...)
-
-		// Add optional flags
-		if args.Write {
-			cmdArgs = append(cmdArgs, "--write")
-		}
-		if args.ListCodemods {
-			cmdArgs = append(cmdArgs, "--list-codemods")
-		}
-
-		// Execute the CLI command
-		output, err := runMCPExecCombinedOutput(ctx, execCmd, cmdArgs...)
-
-		if err != nil {
-			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to fix workflows", map[string]any{"error": err.Error(), "output": string(output)})
-		}
-
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: string(output)},
-			},
-		}, nil, nil
+		return registerFixToolHandler(ctx, execCmd, args)
 	})
+}
+
+func registerFixToolHandler(ctx context.Context, execCmd execCmdFunc, args fixArgs) (*mcp.CallToolResult, any, error) {
+	// Check for cancellation before starting
+	select {
+	case <-ctx.Done():
+		return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
+	default:
+	}
+
+	mcpToolsManagementLog.Printf("fix tool invoked: workflows=%d, write=%v, list_codemods=%v", len(args.Workflows), args.Write, args.ListCodemods)
+	cmdArgs := registerFixToolArgs(args)
+
+	// Execute the CLI command
+	output, err := runMCPExecCombinedOutput(ctx, execCmd, cmdArgs...)
+	if err != nil {
+		return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to fix workflows", map[string]any{"error": err.Error(), "output": string(output)})
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: string(output)},
+		},
+	}, nil, nil
+}
+
+func registerFixToolArgs(args fixArgs) []string {
+	cmdArgs := []string{"fix"}
+	cmdArgs = append(cmdArgs, args.Workflows...)
+	if args.Write {
+		cmdArgs = append(cmdArgs, "--write")
+	}
+	if args.ListCodemods {
+		cmdArgs = append(cmdArgs, "--list-codemods")
+	}
+	return cmdArgs
 }

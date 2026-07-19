@@ -24,6 +24,17 @@ func renderJSON(data AuditData) error {
 func renderConsole(data AuditData, logsPath string) {
 	auditReportLog.Print("Rendering compact audit report to console")
 
+	renderConsoleOverview(data)
+	renderConsoleMetrics(data)
+	renderConsoleJobs(data)
+	renderConsoleActionableSections(data)
+	renderConsoleDiagnostics(data)
+	renderConsoleOutputs(data)
+	renderConsoleTools(data)
+	renderConsoleNetwork(data, logsPath)
+}
+
+func renderConsoleOverview(data AuditData) {
 	// Line 1: Identity + outcome
 	statusIcon := "✅"
 	switch data.Overview.Conclusion {
@@ -75,7 +86,9 @@ func renderConsole(data AuditData, logsPath string) {
 			data.BehaviorFingerprint.ResourceProfile,
 			data.BehaviorFingerprint.DispatchMode)
 	}
+}
 
+func renderConsoleMetrics(data AuditData) {
 	// Line 5: Metrics (always present)
 	metricsLine := fmt.Sprintf("  metrics: errors=%d warnings=%d",
 		data.Metrics.ErrorCount, data.Metrics.WarningCount)
@@ -131,7 +144,9 @@ func renderConsole(data AuditData, logsPath string) {
 			console.FormatNumber(data.GitHubRateLimitUsage.CoreConsumed),
 			console.FormatNumber(data.GitHubRateLimitUsage.CoreLimit))
 	}
+}
 
+func renderConsoleJobs(data AuditData) {
 	// Jobs (compact: one line if all pass, table if failures)
 	if len(data.Jobs) > 0 {
 		allPassed := true
@@ -169,7 +184,9 @@ func renderConsole(data AuditData, logsPath string) {
 		}
 		fmt.Fprintln(os.Stderr, promptLine)
 	}
+}
 
+func renderConsoleActionableSections(data AuditData) {
 	// --- Actionable sections below (only rendered when non-trivial) ---
 
 	// Key Findings: only show non-success findings in compact form
@@ -214,7 +231,9 @@ func renderConsole(data AuditData, logsPath string) {
 			fmt.Fprintln(os.Stderr, line)
 		}
 	}
+}
 
+func renderConsoleDiagnostics(data AuditData) {
 	// Errors and Warnings (always show if present)
 	if len(data.Errors) > 0 {
 		fmt.Fprintln(os.Stderr, "  errors:")
@@ -257,7 +276,9 @@ func renderConsole(data AuditData, logsPath string) {
 	if data.MCPServerHealth != nil {
 		renderCompactMCPHealth(data.MCPServerHealth)
 	}
+}
 
+func renderConsoleOutputs(data AuditData) {
 	// Safe Output Summary (compact)
 	if data.SafeOutputSummary != nil && data.SafeOutputSummary.TotalItems > 0 {
 		fmt.Fprintf(os.Stderr, "  safe_outputs: %d items — %s\n",
@@ -277,7 +298,9 @@ func renderConsole(data AuditData, logsPath string) {
 			fmt.Fprintln(os.Stderr, line)
 		}
 	}
+}
 
+func renderConsoleTools(data AuditData) {
 	// Tool Usage (compact table only when tools were used)
 	if len(data.ToolUsage) > 0 {
 		fmt.Fprintln(os.Stderr, "  tools:")
@@ -308,7 +331,9 @@ func renderConsole(data AuditData, logsPath string) {
 			fmt.Fprintf(os.Stderr, "    guard_blocked: %d\n", data.MCPToolUsage.GuardPolicySummary.TotalBlocked)
 		}
 	}
+}
 
+func renderConsoleNetwork(data AuditData, logsPath string) {
 	// Firewall Analysis (compact)
 	if data.FirewallAnalysis != nil && data.FirewallAnalysis.TotalRequests > 0 {
 		renderCompactFirewall(data.FirewallAnalysis)

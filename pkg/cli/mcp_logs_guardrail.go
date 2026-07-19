@@ -41,6 +41,32 @@ type MCPLogsGuardrailResponse struct {
 // The cache directory is kept separate from the artifact download directory so
 // these summary files are never included in artifact uploads.
 func buildLogsFileResponse(outputStr string) string {
+	if errResponse := buildLogsFileResponseEnsureCacheDir(); errResponse != "" {
+		return errResponse
+	}
+
+	// Use SHA256 of content as filename for content-addressed deduplication.
+	filePath := buildLogsFileResponsePath(outputStr)
+
+	if errResponse := buildLogsFileResponseEnsureCacheFile(filePath, outputStr); errResponse != "" {
+		return errResponse
+	}
+
+	response := MCPLogsGuardrailResponse{
+		Message:  fmt.Sprintf("Logs data has been written to '%s'. Use the file_path to read the full data.", filePath),
+		FilePath: filePath,
+	}
+
+	responseJSON, err := json.MarshalIndent(response, "", "  ")
+	if err != nil {
+		mcpLogsGuardrailLog.Printf("Failed to marshal logs file response: %v", err)
+		return fmt.Sprintf(`{"message":"Logs data written to file","file_path":%q}`, filePath)
+	}
+
+	return string(responseJSON)
+}
+
+func buildLogsFileResponseEnsureCacheDir() string {
 	// Verify or create the cache directory. Use Lstat to detect symlinks and
 	// refuse to follow them, hardening against symlink-based directory attacks.
 	if info, err := os.Lstat(mcpLogsCacheDir); err == nil {
@@ -63,12 +89,16 @@ func buildLogsFileResponse(outputStr string) string {
 		mcpLogsGuardrailLog.Printf("Failed to set logs cache directory permissions: %v", chmodErr)
 		return buildLogsFileErrorResponse(fmt.Sprintf("failed to set logs cache directory permissions: %v", chmodErr))
 	}
+	return ""
+}
 
-	// Use SHA256 of content as filename for content-addressed deduplication.
+func buildLogsFileResponsePath(outputStr string) string {
 	sum := sha256.Sum256([]byte(outputStr))
 	fileName := hex.EncodeToString(sum[:]) + ".json"
-	filePath := filepath.Join(mcpLogsCacheDir, fileName)
+	return filepath.Join(mcpLogsCacheDir, fileName)
+}
 
+func buildLogsFileResponseEnsureCacheFile(filePath string, outputStr string) string {
 	// Skip writing if a file with identical content already exists.
 	if fileInfo, err := os.Lstat(filePath); err == nil {
 		if fileInfo.Mode()&os.ModeSymlink != 0 {
@@ -83,24 +113,7 @@ func buildLogsFileResponse(outputStr string) string {
 		}
 		mcpLogsGuardrailLog.Printf("Logs data already cached at: %s", filePath)
 	} else if os.IsNotExist(err) {
-		// Write with O_EXCL to avoid following symlinks or races.
-		writeErr := func() (err error) {
-			f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, constants.FilePermPublic)
-			if err != nil {
-				return fmt.Errorf("failed to create logs cache file: %w", err)
-			}
-			defer func() {
-				if closeErr := f.Close(); closeErr != nil && err == nil {
-					err = fmt.Errorf("failed to write logs data to file: %w", closeErr)
-				}
-			}()
-
-			if _, err = f.WriteString(outputStr); err != nil {
-				return fmt.Errorf("failed to write logs data to file: %w", err)
-			}
-			return nil
-		}()
-		if writeErr != nil {
+		if writeErr := buildLogsFileResponseWriteCacheFile(filePath, outputStr); writeErr != nil {
 			mcpLogsGuardrailLog.Printf("Failed to populate logs cache file %s: %v", filePath, writeErr)
 			_ = os.Remove(filePath)
 			return buildLogsFileErrorResponse(writeErr.Error())
@@ -116,18 +129,25 @@ func buildLogsFileResponse(outputStr string) string {
 		return buildLogsFileErrorResponse(fmt.Sprintf("failed to access logs cache file: %v", err))
 	}
 
-	response := MCPLogsGuardrailResponse{
-		Message:  fmt.Sprintf("Logs data has been written to '%s'. Use the file_path to read the full data.", filePath),
-		FilePath: filePath,
-	}
+	return ""
+}
 
-	responseJSON, err := json.MarshalIndent(response, "", "  ")
+func buildLogsFileResponseWriteCacheFile(filePath string, outputStr string) (err error) {
+	// Write with O_EXCL to avoid following symlinks or races.
+	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, constants.FilePermPublic)
 	if err != nil {
-		mcpLogsGuardrailLog.Printf("Failed to marshal logs file response: %v", err)
-		return fmt.Sprintf(`{"message":"Logs data written to file","file_path":%q}`, filePath)
+		return fmt.Errorf("failed to create logs cache file: %w", err)
 	}
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to write logs data to file: %w", closeErr)
+		}
+	}()
 
-	return string(responseJSON)
+	if _, err = f.WriteString(outputStr); err != nil {
+		return fmt.Errorf("failed to write logs data to file: %w", err)
+	}
+	return nil
 }
 
 // buildLogsFileErrorResponse returns a JSON error response when file writing fails.

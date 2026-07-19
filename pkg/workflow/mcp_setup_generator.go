@@ -261,6 +261,13 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 	if !HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		return
 	}
+	writeSafeOutputsConfigStep(yaml, safeOutputConfig, workflowData)
+	toolsMetaJSON := buildSafeOutputsToolsMetaJSON(workflowData, c.markdownPath)
+	validationConfigJSON := buildSafeOutputsValidationConfigJSON(safeOutputConfig, workflowData)
+	writeSafeOutputsToolsStep(yaml, toolsMetaJSON, validationConfigJSON, workflowData)
+}
+
+func writeSafeOutputsConfigStep(yaml *strings.Builder, safeOutputConfig string, workflowData *WorkflowData) {
 	yaml.WriteString("      - name: Generate Safe Outputs Config\n")
 	sanitizedConfig, envKeys, envValues := buildSafeOutputsConfigRuntimeData(safeOutputConfig)
 	if len(envKeys) > 0 {
@@ -284,13 +291,18 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 		yaml.WriteString("          " + sanitizedConfig + "\n")
 		yaml.WriteString("          " + delimiter + "\n")
 	}
+}
 
-	toolsMetaJSON, err := generateToolsMetaJSON(workflowData, c.markdownPath)
+func buildSafeOutputsToolsMetaJSON(workflowData *WorkflowData, markdownPath string) string {
+	toolsMetaJSON, err := generateToolsMetaJSON(workflowData, markdownPath)
 	if err != nil {
 		mcpSetupGeneratorLog.Printf("Error generating tools meta JSON: %v", err)
 		toolsMetaJSON = `{"description_suffixes":{},"repo_params":{},"dynamic_tools":[]}`
 	}
+	return toolsMetaJSON
+}
 
+func buildSafeOutputsValidationConfigJSON(safeOutputConfig string, workflowData *WorkflowData) string {
 	var enabledTypes []string
 	if safeOutputConfig != "" {
 		var configMap map[string]any
@@ -311,7 +323,10 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 		mcpSetupGeneratorLog.Printf("CRITICAL: Error generating validation config JSON: %v - validation will not work correctly", err)
 		validationConfigJSON = "{}"
 	}
+	return validationConfigJSON
+}
 
+func writeSafeOutputsToolsStep(yaml *strings.Builder, toolsMetaJSON, validationConfigJSON string, workflowData *WorkflowData) {
 	yaml.WriteString("      - name: Generate Safe Outputs Tools\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_TOOLS_META_JSON: |\n")
@@ -377,6 +392,18 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	if !IsMCPScriptsEnabled(workflowData.MCPScripts) {
 		return nil
 	}
+	if err := writeMCPScriptsConfigStep(yaml, workflowData); err != nil {
+		return err
+	}
+	if err := writeMCPScriptsToolFilesStep(yaml, workflowData); err != nil {
+		return err
+	}
+	writeMCPScriptsServerConfigStep(yaml)
+	writeMCPScriptsStartStep(yaml, workflowData)
+	return nil
+}
+
+func writeMCPScriptsConfigStep(yaml *strings.Builder, workflowData *WorkflowData) error {
 	yaml.WriteString("      - name: Write MCP Scripts Config\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/mcp-scripts/logs\"\n")
@@ -404,7 +431,10 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	yaml.WriteString("          " + serverDelimiter + "\n")
 	yaml.WriteString("          chmod +x \"${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs\"\n")
 	yaml.WriteString("          \n")
+	return nil
+}
 
+func writeMCPScriptsToolFilesStep(yaml *strings.Builder, workflowData *WorkflowData) error {
 	yaml.WriteString("      - name: Write MCP Scripts Tool Files\n")
 	yaml.WriteString("        run: |\n")
 	mcpScriptToolNames := sliceutil.MapKeys(workflowData.MCPScripts.Tools)
@@ -416,6 +446,10 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 		}
 	}
 	yaml.WriteString("          \n")
+	return nil
+}
+
+func writeMCPScriptsServerConfigStep(yaml *strings.Builder) {
 	yaml.WriteString("      - name: Generate MCP Scripts Server Config\n")
 	yaml.WriteString("        id: mcp-scripts-config\n")
 	yaml.WriteString("        run: |\n")
@@ -434,6 +468,9 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          echo \"MCP Scripts server will run on port ${PORT}\"\n")
 	yaml.WriteString("          \n")
+}
+
+func writeMCPScriptsStartStep(yaml *strings.Builder, workflowData *WorkflowData) {
 	yaml.WriteString("      - name: Start MCP Scripts HTTP Server\n")
 	yaml.WriteString("        id: mcp-scripts-start\n")
 	yaml.WriteString("        env:\n")
@@ -457,7 +494,6 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          bash \"${RUNNER_TEMP}/gh-aw/actions/start_mcp_scripts_server.sh\"\n")
 	yaml.WriteString("          \n")
-	return nil
 }
 
 func appendMCPScriptToolFile(yaml *strings.Builder, workflowData *WorkflowData, toolName string, toolConfig *MCPScriptToolConfig) error {
@@ -628,33 +664,28 @@ type writeMCPGatewayExportsOptions struct {
 }
 
 func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOptions) {
-	engine := opts.engine
-	workflowData := opts.workflowData
-	gatewayConfig := opts.gatewayConfig
-	hasGitHub := opts.hasGitHub
-	githubTool := opts.githubTool
-	port := opts.port
-	domain := opts.domain
-	payloadDir := opts.payloadDir
-	payloadPathPrefix := opts.payloadPathPrefix
-	payloadSizeThreshold := opts.payloadSizeThreshold
 	yaml.WriteString("          \n")
 	yaml.WriteString("          # Export gateway environment variables for MCP config and gateway script\n")
-	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + strconv.Itoa(port) + "\"\n")
-	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
-	// MCP_GATEWAY_HOST_DOMAIN is the domain used by host-side clients (e.g. Gemini CLI).
-	// When MCP_GATEWAY_DOMAIN is host.docker.internal (only reachable from containers),
-	// or when network isolation is active (gateway on bridge; host reaches it via the
-	// published 127.0.0.1 port), use localhost instead; otherwise inherit the domain.
-	// Exception: for docker-sbx, the CLI wrappers run INSIDE the microVM, so they must
-	// also use host.docker.internal (not localhost) to reach the published gateway port.
-	hostDomain := domain
-	if isDockerSbxRuntime(workflowData) {
+	writeMCPGatewayCoreExports(yaml, opts)
+	writeMCPGatewayAPIKeyExport(yaml, opts.gatewayConfig)
+	writeMCPGatewayPayloadExports(yaml, opts)
+	writeMCPGatewayEngineExports(yaml, opts)
+	writeMCPGatewayCustomEnvExports(yaml, opts.gatewayConfig)
+}
+
+func writeMCPGatewayCoreExports(yaml *strings.Builder, opts writeMCPGatewayExportsOptions) {
+	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + strconv.Itoa(opts.port) + "\"\n")
+	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + opts.domain + "\"\n")
+	hostDomain := opts.domain
+	if isDockerSbxRuntime(opts.workflowData) {
 		hostDomain = "host.docker.internal"
-	} else if domain == "host.docker.internal" || isAWFNetworkIsolationEnabled(workflowData) {
+	} else if opts.domain == "host.docker.internal" || isAWFNetworkIsolationEnabled(opts.workflowData) {
 		hostDomain = "localhost"
 	}
 	yaml.WriteString("          export MCP_GATEWAY_HOST_DOMAIN=\"" + hostDomain + "\"\n")
+}
+
+func writeMCPGatewayAPIKeyExport(yaml *strings.Builder, gatewayConfig *MCPGatewayRuntimeConfig) {
 	if gatewayConfig.APIKey == "" {
 		yaml.WriteString("          MCP_GATEWAY_API_KEY=$(openssl rand -base64 45 | tr -d '/+=')\n")
 		yaml.WriteString("          echo \"::add-mask::${MCP_GATEWAY_API_KEY}\"\n")
@@ -663,25 +694,34 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 		yaml.WriteString("          export MCP_GATEWAY_API_KEY=\"" + gatewayConfig.APIKey + "\"\n")
 		yaml.WriteString("          echo \"::add-mask::${MCP_GATEWAY_API_KEY}\"\n")
 	}
-	yaml.WriteString("          export MCP_GATEWAY_PAYLOAD_DIR=\"" + payloadDir + "\"\n")
+}
+
+func writeMCPGatewayPayloadExports(yaml *strings.Builder, opts writeMCPGatewayExportsOptions) {
+	yaml.WriteString("          export MCP_GATEWAY_PAYLOAD_DIR=\"" + opts.payloadDir + "\"\n")
 	yaml.WriteString("          mkdir -p \"${MCP_GATEWAY_PAYLOAD_DIR}\"\n")
-	if payloadPathPrefix != "" {
-		yaml.WriteString("          export MCP_GATEWAY_PAYLOAD_PATH_PREFIX=\"" + payloadPathPrefix + "\"\n")
+	if opts.payloadPathPrefix != "" {
+		yaml.WriteString("          export MCP_GATEWAY_PAYLOAD_PATH_PREFIX=\"" + opts.payloadPathPrefix + "\"\n")
 	}
-	yaml.WriteString("          export MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD=\"" + strconv.Itoa(payloadSizeThreshold) + "\"\n")
+	yaml.WriteString("          export MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD=\"" + strconv.Itoa(opts.payloadSizeThreshold) + "\"\n")
 	yaml.WriteString("          export DEBUG=\"*\"\n")
 	yaml.WriteString("          \n")
-	yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
-	if cliServers := getMCPCLIExcludeFromAgentConfig(workflowData); len(cliServers) > 0 {
+}
+
+func writeMCPGatewayEngineExports(yaml *strings.Builder, opts writeMCPGatewayExportsOptions) {
+	yaml.WriteString("          export GH_AW_ENGINE=\"" + opts.engine.GetID() + "\"\n")
+	if cliServers := getMCPCLIExcludeFromAgentConfig(opts.workflowData); len(cliServers) > 0 {
 		cliServersJSON, err := json.Marshal(cliServers)
 		if err == nil {
 			escapedCLIServersJSON := shellEscapeArg(string(cliServersJSON))
 			yaml.WriteString("          export GH_AW_MCP_CLI_SERVERS=" + escapedCLIServersJSON + "\n")
 		}
 	}
-	if hasGitHub && getGitHubType(githubTool) == GitHubMCPModeRemote && engine.GetID() == "copilot" {
+	if opts.hasGitHub && getGitHubType(opts.githubTool) == GitHubMCPModeRemote && opts.engine.GetID() == "copilot" {
 		yaml.WriteString("          export GITHUB_PERSONAL_ACCESS_TOKEN=\"$GITHUB_MCP_SERVER_TOKEN\"\n")
 	}
+}
+
+func writeMCPGatewayCustomEnvExports(yaml *strings.Builder, gatewayConfig *MCPGatewayRuntimeConfig) {
 	if len(gatewayConfig.Env) > 0 {
 		envVarNames := sliceutil.MapKeys(gatewayConfig.Env)
 		sort.Strings(envVarNames)
@@ -705,75 +745,77 @@ type buildMCPGatewayContainerCommandOptions struct {
 }
 
 func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions) string {
-	engine := opts.engine
-	workflowData := opts.workflowData
 	gatewayConfig := opts.gatewayConfig
-	mcpEnvVars := opts.mcpEnvVars
-	payloadDir := opts.payloadDir
-	payloadPathPrefix := opts.payloadPathPrefix
-	hasGitHub := opts.hasGitHub
-	githubTool := opts.githubTool
-	tools := opts.tools
-	containerImage := gatewayConfig.Container
-	if gatewayConfig.Version != "" {
-		containerImage += ":" + gatewayConfig.Version
-	} else {
-		containerImage += ":" + string(constants.DefaultMCPGatewayVersion)
-	}
 	var containerCmd strings.Builder
-	// Pre-size the builder to avoid reallocations. The base flags from
-	// appendMCPGatewayBaseEnvFlags alone write ~2KB of -e flags; allocating
-	// 2048 bytes upfront covers the common case without overcommitting.
 	containerCmd.Grow(2048)
 	containerCmd.WriteString("docker run -i --rm")
+	appendMCPGatewayNetworkFlags(&containerCmd, opts.workflowData)
+	containerCmd.WriteString(" --name awmg-mcpg")
+	appendMCPGatewayHostFlags(&containerCmd, opts.workflowData)
+	containerCmd.WriteString(" --user ${MCP_GATEWAY_UID}:${MCP_GATEWAY_GID}")
+	containerCmd.WriteString(" --group-add ${DOCKER_SOCK_GID}")
+	containerCmd.WriteString(" -v ${DOCKER_SOCK_PATH}:/var/run/docker.sock")
+	appendMCPGatewayBaseEnvFlags(&containerCmd, opts.payloadPathPrefix)
+	appendMCPGatewayConditionalEnvFlags(&containerCmd, opts.workflowData, opts.engine, opts.hasGitHub, opts.githubTool, opts.tools)
+	appendMCPGatewayCustomAndHTTPEnvFlags(&containerCmd, opts.workflowData, gatewayConfig, opts.mcpEnvVars, opts.hasGitHub, opts.githubTool, opts.tools, opts.engine)
+	appendMCPGatewayMountFlags(&containerCmd, opts.payloadDir, gatewayConfig)
+	appendMCPGatewayEntrypointFlags(&containerCmd, gatewayConfig)
+	containerCmd.WriteString(" " + mcpGatewayContainerImage(gatewayConfig))
+	appendMCPGatewayCommandArgs(&containerCmd, gatewayConfig)
+	return containerCmd.String()
+}
+
+func appendMCPGatewayNetworkFlags(containerCmd *strings.Builder, workflowData *WorkflowData) {
 	if isAWFNetworkIsolationEnabled(workflowData) {
 		containerCmd.WriteString(" --network bridge")
 		if isDockerSbxRuntime(workflowData) {
-			// docker-sbx: publish to 0.0.0.0 so the microVM can reach the gateway via
-			// host.docker.internal (the Docker bridge gateway, 172.17.0.1).
 			containerCmd.WriteString(" -p 0.0.0.0:${MCP_GATEWAY_PORT}:${MCP_GATEWAY_PORT}")
 		} else {
-			// Publish the gateway port to the host so host-side clients (e.g. Gemini CLI)
-			// can reach the gateway at localhost:${MCP_GATEWAY_PORT}.
 			containerCmd.WriteString(" -p 127.0.0.1:${MCP_GATEWAY_PORT}:${MCP_GATEWAY_PORT}")
 		}
 	} else {
 		containerCmd.WriteString(" --network host")
 	}
-	containerCmd.WriteString(" --name awmg-mcpg")
+}
+
+func appendMCPGatewayHostFlags(containerCmd *strings.Builder, workflowData *WorkflowData) {
 	if !isAWFNetworkIsolationEnabled(workflowData) {
 		containerCmd.WriteString(" --add-host host.docker.internal:127.0.0.1")
 	} else if shouldRewriteLocalhostToDocker(workflowData) {
-		// In bridge (network-isolation) mode the container's loopback differs from the
-		// host's, so host.docker.internal:127.0.0.1 would not resolve to the host.
-		// Use host-gateway (Docker 20.10+) instead so the gateway container can reach
-		// any host-side server (mcp-scripts HTTP server, custom HTTP MCP tools with
-		// localhost URLs) that is running directly on the runner host.
 		containerCmd.WriteString(" --add-host host.docker.internal:host-gateway")
 	}
-	containerCmd.WriteString(" --user ${MCP_GATEWAY_UID}:${MCP_GATEWAY_GID}")
-	containerCmd.WriteString(" --group-add ${DOCKER_SOCK_GID}")
-	containerCmd.WriteString(" -v ${DOCKER_SOCK_PATH}:/var/run/docker.sock")
-	appendMCPGatewayBaseEnvFlags(&containerCmd, payloadPathPrefix)
-	appendMCPGatewayConditionalEnvFlags(&containerCmd, workflowData, engine, hasGitHub, githubTool, tools)
-	appendMCPGatewayCustomAndHTTPEnvFlags(&containerCmd, workflowData, gatewayConfig, mcpEnvVars, hasGitHub, githubTool, tools, engine)
+}
+
+func appendMCPGatewayMountFlags(containerCmd *strings.Builder, payloadDir string, gatewayConfig *MCPGatewayRuntimeConfig) {
 	if payloadDir != "" {
 		containerCmd.WriteString(" -v " + payloadDir + ":" + payloadDir + ":rw")
 	}
 	for _, mount := range gatewayConfig.Mounts {
 		containerCmd.WriteString(" -v " + mount)
 	}
+}
+
+func appendMCPGatewayEntrypointFlags(containerCmd *strings.Builder, gatewayConfig *MCPGatewayRuntimeConfig) {
 	if gatewayConfig.Entrypoint != "" {
 		containerCmd.WriteString(" --entrypoint " + shellEscapeArg(gatewayConfig.Entrypoint))
 	}
-	containerCmd.WriteString(" " + containerImage)
+}
+
+func mcpGatewayContainerImage(gatewayConfig *MCPGatewayRuntimeConfig) string {
+	containerImage := gatewayConfig.Container
+	if gatewayConfig.Version != "" {
+		return containerImage + ":" + gatewayConfig.Version
+	}
+	return containerImage + ":" + string(constants.DefaultMCPGatewayVersion)
+}
+
+func appendMCPGatewayCommandArgs(containerCmd *strings.Builder, gatewayConfig *MCPGatewayRuntimeConfig) {
 	for _, arg := range gatewayConfig.EntrypointArgs {
 		containerCmd.WriteString(" " + shellEscapeArg(arg))
 	}
 	for _, arg := range gatewayConfig.Args {
 		containerCmd.WriteString(" " + shellEscapeArg(arg))
 	}
-	return containerCmd.String()
 }
 
 func appendMCPGatewayBaseEnvFlags(containerCmd *strings.Builder, payloadPathPrefix string) {

@@ -102,44 +102,15 @@ func resolveImportPath(importPath, baseDir string, opts importPathResolverOpts) 
 
 	// 3. Absolute paths (starting with "/").
 	if withoutLeadingSlash, hasLeadingSlash := strings.CutPrefix(importPath, "/"); hasLeadingSlash {
-		if opts.RepoRelativeAbsolute {
-			// Strip "/" and return as a repo-relative string (no disk lookup).
-			return withoutLeadingSlash
-		}
-		if !opts.UseParserFallback {
-			// Resolve against the git root on disk.
-			gitRoot := opts.GitRoot
-			if gitRoot == "" {
-				var err error
-				gitRoot, err = gitutil.FindGitRoot()
-				if err != nil {
-					return ""
-				}
-			}
-			return filepath.Join(gitRoot, withoutLeadingSlash)
+		if resolved, handled := resolveImportPathAbsolute(withoutLeadingSlash, opts); handled {
+			return resolved
 		}
 		// UseParserFallback=true: fall through to parser resolution below.
 	}
 
 	// 4. Relative paths (and "/" prefix paths in parser-fallback mode).
 	if opts.UseParserFallback {
-		// Only attempt stat for non-absolute paths (absolute paths go directly to parser,
-		// matching the original dependency_graph.go behaviour).
-		if !strings.HasPrefix(importPath, "/") {
-			absPath := filepath.Join(baseDir, importPath)
-			if fileutil.FileExists(absPath) {
-				importPathLog.Printf("resolveImportPath: resolved %q via stat to %q", importPath, absPath)
-				return absPath
-			}
-		}
-		importCache := parser.NewImportCache(opts.ParserGitRoot)
-		fullPath, err := parser.ResolveIncludePath(importPath, baseDir, importCache)
-		if err != nil {
-			importPathLog.Printf("resolveImportPath: parser fallback failed for %q: %v", importPath, err)
-			return ""
-		}
-		importPathLog.Printf("resolveImportPath: parser fallback resolved %q to %q", importPath, fullPath)
-		return fullPath
+		return resolveImportPathParserFallback(importPath, baseDir, opts)
 	}
 
 	// Direct resolution with optional path normalisation.
@@ -148,4 +119,45 @@ func resolveImportPath(importPath, baseDir string, opts importPathResolverOpts) 
 		result = filepath.ToSlash(filepath.Clean(result))
 	}
 	return result
+}
+
+func resolveImportPathAbsolute(withoutLeadingSlash string, opts importPathResolverOpts) (string, bool) {
+	if opts.RepoRelativeAbsolute {
+		// Strip "/" and return as a repo-relative string (no disk lookup).
+		return withoutLeadingSlash, true
+	}
+	if opts.UseParserFallback {
+		return "", false
+	}
+
+	// Resolve against the git root on disk.
+	gitRoot := opts.GitRoot
+	if gitRoot == "" {
+		var err error
+		gitRoot, err = gitutil.FindGitRoot()
+		if err != nil {
+			return "", true
+		}
+	}
+	return filepath.Join(gitRoot, withoutLeadingSlash), true
+}
+
+func resolveImportPathParserFallback(importPath, baseDir string, opts importPathResolverOpts) string {
+	// Only attempt stat for non-absolute paths (absolute paths go directly to parser,
+	// matching the original dependency_graph.go behaviour).
+	if !strings.HasPrefix(importPath, "/") {
+		absPath := filepath.Join(baseDir, importPath)
+		if fileutil.FileExists(absPath) {
+			importPathLog.Printf("resolveImportPath: resolved %q via stat to %q", importPath, absPath)
+			return absPath
+		}
+	}
+	importCache := parser.NewImportCache(opts.ParserGitRoot)
+	fullPath, err := parser.ResolveIncludePath(importPath, baseDir, importCache)
+	if err != nil {
+		importPathLog.Printf("resolveImportPath: parser fallback failed for %q: %v", importPath, err)
+		return ""
+	}
+	importPathLog.Printf("resolveImportPath: parser fallback resolved %q to %q", importPath, fullPath)
+	return fullPath
 }

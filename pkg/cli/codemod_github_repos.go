@@ -62,8 +62,7 @@ func renameGitHubReposToAllowedRepos(lines []string) ([]string, bool) {
 	var result []string
 	modified := false
 
-	var inTools, inToolsGithub bool
-	var toolsIndent, toolsGithubIndent string
+	state := renameGitHubReposToAllowedReposState{}
 
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -75,49 +74,69 @@ func renameGitHubReposToAllowedRepos(lines []string) ([]string, bool) {
 		}
 
 		// Exit blocks when indentation signals we've left them
-		if !strings.HasPrefix(trimmed, "#") {
-			if inToolsGithub && hasExitedBlock(line, toolsGithubIndent) {
-				inToolsGithub = false
-			}
-			if inTools && hasExitedBlock(line, toolsIndent) {
-				inTools = false
-				inToolsGithub = false
-			}
-		}
+		renameGitHubReposToAllowedReposExitBlocks(line, trimmed, &state)
 
 		// Detect 'tools:' block
 		if strings.HasPrefix(trimmed, "tools:") {
-			inTools = true
-			inToolsGithub = false
-			toolsIndent = getIndentation(line)
+			state.inTools = true
+			state.inToolsGithub = false
+			state.toolsIndent = getIndentation(line)
 			result = append(result, line)
 			continue
 		}
 
 		// Detect 'github:' block inside 'tools:'
-		if inTools && strings.HasPrefix(trimmed, "github:") {
-			inToolsGithub = true
-			toolsGithubIndent = getIndentation(line)
+		if state.inTools && strings.HasPrefix(trimmed, "github:") {
+			state.inToolsGithub = true
+			state.toolsGithubIndent = getIndentation(line)
 			result = append(result, line)
 			continue
 		}
 
 		// Rename 'repos:' to 'allowed-repos:' when inside tools.github
-		if inToolsGithub && strings.HasPrefix(trimmed, "repos:") {
-			lineIndent := getIndentation(line)
-			if isDescendant(lineIndent, toolsGithubIndent) {
-				newLine, replaced := findAndReplaceInLine(line, "repos", "allowed-repos")
-				if replaced {
-					result = append(result, newLine)
-					modified = true
-					githubReposCodemodLog.Printf("Renamed 'repos' to 'allowed-repos' on line %d", i+1)
-					continue
-				}
-			}
+		if newLine, replaced := renameGitHubReposToAllowedReposLine(line, trimmed, &state, i); replaced {
+			result = append(result, newLine)
+			modified = true
+			continue
 		}
 
 		result = append(result, line)
 	}
 
 	return result, modified
+}
+
+type renameGitHubReposToAllowedReposState struct {
+	inTools           bool
+	inToolsGithub     bool
+	toolsIndent       string
+	toolsGithubIndent string
+}
+
+func renameGitHubReposToAllowedReposExitBlocks(line string, trimmed string, state *renameGitHubReposToAllowedReposState) {
+	if strings.HasPrefix(trimmed, "#") {
+		return
+	}
+	if state.inToolsGithub && hasExitedBlock(line, state.toolsGithubIndent) {
+		state.inToolsGithub = false
+	}
+	if state.inTools && hasExitedBlock(line, state.toolsIndent) {
+		state.inTools = false
+		state.inToolsGithub = false
+	}
+}
+
+func renameGitHubReposToAllowedReposLine(line string, trimmed string, state *renameGitHubReposToAllowedReposState, index int) (string, bool) {
+	if !state.inToolsGithub || !strings.HasPrefix(trimmed, "repos:") {
+		return line, false
+	}
+	lineIndent := getIndentation(line)
+	if !isDescendant(lineIndent, state.toolsGithubIndent) {
+		return line, false
+	}
+	newLine, replaced := findAndReplaceInLine(line, "repos", "allowed-repos")
+	if replaced {
+		githubReposCodemodLog.Printf("Renamed 'repos' to 'allowed-repos' on line %d", index+1)
+	}
+	return newLine, replaced
 }

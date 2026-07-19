@@ -41,198 +41,201 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 		return fmt.Errorf("npx not found. Please install Node.js and npm to use the MCP inspector: %w", err)
 	}
 
-	var mcpConfigs []parser.RegistryMCPServerConfig
-	var serverProcesses []*exec.Cmd
-
 	g, gctx := errgroup.WithContext(ctx)
-
-	// If workflow file is specified, extract MCP configurations and start servers
-	if workflowFile != "" {
-		// Resolve the workflow file path (supports shared workflows)
-		workflowPath, err := ResolveWorkflowPath(workflowFile)
-		if err != nil {
-			return err
-		}
-
-		// Convert to absolute path if needed
-		if !filepath.IsAbs(workflowPath) {
-			cwd, err := os.Getwd()
-			if err != nil {
-				return fmt.Errorf("failed to get current directory: %w", err)
-			}
-			workflowPath = filepath.Join(cwd, workflowPath)
-		}
-
-		// Use the compiler to parse the workflow file
-		// This automatically handles imports, merging, and validation
-		compiler := workflow.NewCompiler(
-			workflow.WithVerbose(verbose),
-		)
-		workflowData, err := compiler.ParseWorkflowFile(workflowPath)
-		if err != nil {
-			return err
-		}
-
-		// Build frontmatter map from WorkflowData for MCP extraction
-		// This includes all merged imports and tools
-		frontmatterForMCP := buildFrontmatterFromWorkflowData(workflowData)
-
-		// Extract MCP configurations from the merged frontmatter
-		mcpConfigs, err = parser.ExtractMCPConfigurations(frontmatterForMCP, serverFilter)
-		if err != nil {
-			mcpInspectorLog.Printf("Failed to extract MCP configurations: %v", err)
-			return err
-		}
-
-		mcpInspectorLog.Printf("Extracted %d MCP server configurations from workflow", len(mcpConfigs))
-
-		if len(mcpConfigs) > 0 {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server(s) in workflow:", len(mcpConfigs))))
-			for _, config := range mcpConfigs {
-				fmt.Fprintf(os.Stderr, "  • %s (%s)\n", config.Name, config.Type)
-			}
-			fmt.Fprintln(os.Stderr)
-
-			// Start stdio MCP servers in the background
-			stdioServers := []parser.RegistryMCPServerConfig{}
-			for _, config := range mcpConfigs {
-				if config.Type == "stdio" {
-					stdioServers = append(stdioServers, config)
-				}
-			}
-
-			if len(stdioServers) > 0 {
-				mcpInspectorLog.Printf("Starting %d stdio MCP servers", len(stdioServers))
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Starting stdio MCP servers..."))
-
-				for _, config := range stdioServers {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Starting server: "+config.Name))
-					}
-
-					// Create the command for the MCP server
-					var cmd *exec.Cmd
-					if config.Container != "" {
-						// Docker container mode
-						args := append([]string{"run", "--rm", "-i"}, config.Args...)
-						cmd = mcpInspectorCommandContext(gctx, "docker", args...)
-					} else {
-						// Direct command mode
-						if config.Command == "" {
-							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping server %s: no command specified", config.Name)))
-							continue
-						}
-						// Validate the command exists before executing
-						if _, err := mcpInspectorLookPath(config.Command); err != nil {
-							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping server %s: command not found: %s", config.Name, config.Command)))
-							continue
-						}
-						// #nosec G204 -- config.Command is validated via mcpInspectorLookPath above;
-						// mcpInspectorCommandContext passes separate args (not shell execution), which prevents shell injection.
-						cmd = mcpInspectorCommandContext(gctx, config.Command, config.Args...)
-					}
-
-					// Set environment variables
-					cmd.Env = os.Environ()
-					for key, value := range config.Env {
-						// Resolve environment variable references
-						resolvedValue := os.ExpandEnv(value)
-						cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, resolvedValue))
-					}
-
-					// Start the server process
-					if err := cmd.Start(); err != nil {
-						mcpInspectorLog.Printf("Failed to start MCP server %s: %v", config.Name, err)
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to start server %s: %v", config.Name, err)))
-						continue
-					}
-
-					mcpInspectorLog.Printf("Started MCP server %s (PID: %d, type: %s)", config.Name, cmd.Process.Pid, config.Type)
-					serverProcesses = append(serverProcesses, cmd)
-
-					// Monitor the process in the background using errgroup for structured concurrency.
-					capturedCmd := cmd
-					capturedName := config.Name
-					g.Go(func() error {
-						defer func() {
-							if r := recover(); r != nil {
-								mcpInspectorLog.Printf("Recovered panic while waiting for MCP server %s: %v", capturedName, r)
-							}
-							mcpInspectorMonitorDone(capturedName)
-						}()
-
-						// Background MCP servers are tolerant of exit errors: a server
-						// crashing should not abort the inspector session. Log the event
-						// and return nil so other monitors and the errgroup itself are
-						// unaffected.
-						if err := capturedCmd.Wait(); err != nil {
-							mcpInspectorLog.Printf("MCP server %s exited with error: %v", capturedName, err)
-							if verbose {
-								fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Server %s exited with error: %v", capturedName, err)))
-							}
-						}
-						return nil
-					})
-
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Started server: %s (PID: %d)", config.Name, cmd.Process.Pid)))
-					}
-				}
-
-				// Give servers a moment to start up
-				time.Sleep(mcpStdioServerStartupDelay)
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All stdio servers started successfully"))
-			}
-
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Configuration details for MCP inspector:"))
-			for _, config := range mcpConfigs {
-				fmt.Fprintf(os.Stderr, "\n📡 %s (%s):\n", config.Name, config.Type)
-				switch config.Type {
-				case "stdio":
-					if config.Container != "" {
-						fmt.Fprintf(os.Stderr, "  Container: %s\n", config.Container)
-					} else {
-						fmt.Fprintf(os.Stderr, "  Command: %s\n", config.Command)
-						if len(config.Args) > 0 {
-							fmt.Fprintf(os.Stderr, "  Args: %s\n", strings.Join(config.Args, " "))
-						}
-					}
-				case "http":
-					fmt.Fprintf(os.Stderr, "  URL: %s\n", config.URL)
-				}
-				if len(config.Env) > 0 {
-					fmt.Fprintf(os.Stderr, "  Environment Variables: %v\n", config.Env)
-				}
-			}
-			fmt.Fprintln(os.Stderr)
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No MCP servers found in workflow"))
-			return nil
-		}
+	mcpConfigs, serverProcesses, err := spawnMCPInspectorWorkflow(gctx, workflowFile, serverFilter, verbose, g)
+	if err != nil {
+		return err
+	}
+	if len(mcpConfigs) == 0 && workflowFile != "" {
+		return nil
 	}
 
 	// Set up cleanup function for stdio servers
-	defer func() {
-		if len(serverProcesses) > 0 {
-			mcpInspectorLog.Printf("Cleaning up %d MCP server processes", len(serverProcesses))
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Cleaning up MCP servers..."))
-			for i, cmd := range serverProcesses {
-				if cmd.Process != nil {
-					if err := cmd.Process.Kill(); err != nil && verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to kill server process %d: %v", cmd.Process.Pid, err)))
-					}
-				}
-				// Give each process a chance to clean up
-				if i < len(serverProcesses)-1 {
-					time.Sleep(mcpProcessCleanupDelay)
-				}
+	defer spawnMCPInspectorCleanup(serverProcesses, verbose, g)
+
+	return spawnMCPInspectorRun(gctx, serverProcesses)
+}
+
+func spawnMCPInspectorWorkflow(ctx context.Context, workflowFile, serverFilter string, verbose bool, g *errgroup.Group) ([]parser.RegistryMCPServerConfig, []*exec.Cmd, error) {
+	if workflowFile == "" {
+		return nil, nil, nil
+	}
+	mcpConfigs, err := spawnMCPInspectorLoadConfigs(workflowFile, serverFilter, verbose)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(mcpConfigs) == 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No MCP servers found in workflow"))
+		return mcpConfigs, nil, nil
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server(s) in workflow:", len(mcpConfigs))))
+	for _, config := range mcpConfigs {
+		fmt.Fprintf(os.Stderr, "  • %s (%s)\n", config.Name, config.Type)
+	}
+	fmt.Fprintln(os.Stderr)
+	serverProcesses := spawnMCPInspectorStartStdioServers(ctx, mcpConfigs, verbose, g)
+	spawnMCPInspectorPrintConfigDetails(mcpConfigs)
+	return mcpConfigs, serverProcesses, nil
+}
+
+func spawnMCPInspectorLoadConfigs(workflowFile, serverFilter string, verbose bool) ([]parser.RegistryMCPServerConfig, error) {
+	workflowPath, err := ResolveWorkflowPath(workflowFile)
+	if err != nil {
+		return nil, err
+	}
+	if !filepath.IsAbs(workflowPath) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current directory: %w", err)
+		}
+		workflowPath = filepath.Join(cwd, workflowPath)
+	}
+	compiler := workflow.NewCompiler(workflow.WithVerbose(verbose))
+	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
+	if err != nil {
+		return nil, err
+	}
+	frontmatterForMCP := buildFrontmatterFromWorkflowData(workflowData)
+	mcpConfigs, err := parser.ExtractMCPConfigurations(frontmatterForMCP, serverFilter)
+	if err != nil {
+		mcpInspectorLog.Printf("Failed to extract MCP configurations: %v", err)
+		return nil, err
+	}
+	mcpInspectorLog.Printf("Extracted %d MCP server configurations from workflow", len(mcpConfigs))
+	return mcpConfigs, nil
+}
+
+func spawnMCPInspectorStartStdioServers(ctx context.Context, mcpConfigs []parser.RegistryMCPServerConfig, verbose bool, g *errgroup.Group) []*exec.Cmd {
+	stdioServers := []parser.RegistryMCPServerConfig{}
+	for _, config := range mcpConfigs {
+		if config.Type == "stdio" {
+			stdioServers = append(stdioServers, config)
+		}
+	}
+	if len(stdioServers) == 0 {
+		return nil
+	}
+	mcpInspectorLog.Printf("Starting %d stdio MCP servers", len(stdioServers))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Starting stdio MCP servers..."))
+	serverProcesses := make([]*exec.Cmd, 0, len(stdioServers))
+	for _, config := range stdioServers {
+		if cmd := spawnMCPInspectorStartServer(ctx, config, verbose, g); cmd != nil {
+			serverProcesses = append(serverProcesses, cmd)
+		}
+	}
+	time.Sleep(mcpStdioServerStartupDelay)
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All stdio servers started successfully"))
+	return serverProcesses
+}
+
+func spawnMCPInspectorStartServer(ctx context.Context, config parser.RegistryMCPServerConfig, verbose bool, g *errgroup.Group) *exec.Cmd {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Starting server: "+config.Name))
+	}
+	cmd := spawnMCPInspectorCommand(ctx, config)
+	if cmd == nil {
+		return nil
+	}
+	if err := cmd.Start(); err != nil {
+		mcpInspectorLog.Printf("Failed to start MCP server %s: %v", config.Name, err)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to start server %s: %v", config.Name, err)))
+		return nil
+	}
+	mcpInspectorLog.Printf("Started MCP server %s (PID: %d, type: %s)", config.Name, cmd.Process.Pid, config.Type)
+	spawnMCPInspectorMonitorServer(g, cmd, config.Name, verbose)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Started server: %s (PID: %d)", config.Name, cmd.Process.Pid)))
+	}
+	return cmd
+}
+
+func spawnMCPInspectorCommand(ctx context.Context, config parser.RegistryMCPServerConfig) *exec.Cmd {
+	var cmd *exec.Cmd
+	if config.Container != "" {
+		args := append([]string{"run", "--rm", "-i"}, config.Args...)
+		cmd = mcpInspectorCommandContext(ctx, "docker", args...)
+	} else {
+		if config.Command == "" {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping server %s: no command specified", config.Name)))
+			return nil
+		}
+		if _, err := mcpInspectorLookPath(config.Command); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping server %s: command not found: %s", config.Name, config.Command)))
+			return nil
+		}
+		cmd = mcpInspectorCommandContext(ctx, config.Command, config.Args...)
+	}
+	cmd.Env = os.Environ()
+	for key, value := range config.Env {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, os.ExpandEnv(value)))
+	}
+	return cmd
+}
+
+func spawnMCPInspectorMonitorServer(g *errgroup.Group, cmd *exec.Cmd, name string, verbose bool) {
+	g.Go(func() error {
+		defer func() {
+			if r := recover(); r != nil {
+				mcpInspectorLog.Printf("Recovered panic while waiting for MCP server %s: %v", name, r)
 			}
-			if err := g.Wait(); err != nil {
-				mcpInspectorLog.Printf("Error from MCP server monitor goroutine: %v", err)
+			mcpInspectorMonitorDone(name)
+		}()
+		if err := cmd.Wait(); err != nil {
+			mcpInspectorLog.Printf("MCP server %s exited with error: %v", name, err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Server %s exited with error: %v", name, err)))
 			}
 		}
-	}()
+		return nil
+	})
+}
 
+func spawnMCPInspectorPrintConfigDetails(mcpConfigs []parser.RegistryMCPServerConfig) {
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Configuration details for MCP inspector:"))
+	for _, config := range mcpConfigs {
+		fmt.Fprintf(os.Stderr, "\n📡 %s (%s):\n", config.Name, config.Type)
+		switch config.Type {
+		case "stdio":
+			if config.Container != "" {
+				fmt.Fprintf(os.Stderr, "  Container: %s\n", config.Container)
+			} else {
+				fmt.Fprintf(os.Stderr, "  Command: %s\n", config.Command)
+				if len(config.Args) > 0 {
+					fmt.Fprintf(os.Stderr, "  Args: %s\n", strings.Join(config.Args, " "))
+				}
+			}
+		case "http":
+			fmt.Fprintf(os.Stderr, "  URL: %s\n", config.URL)
+		}
+		if len(config.Env) > 0 {
+			fmt.Fprintf(os.Stderr, "  Environment Variables: %v\n", config.Env)
+		}
+	}
+	fmt.Fprintln(os.Stderr)
+}
+
+func spawnMCPInspectorCleanup(serverProcesses []*exec.Cmd, verbose bool, g *errgroup.Group) {
+	if len(serverProcesses) == 0 {
+		return
+	}
+	mcpInspectorLog.Printf("Cleaning up %d MCP server processes", len(serverProcesses))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Cleaning up MCP servers..."))
+	for i, cmd := range serverProcesses {
+		if cmd.Process != nil {
+			if err := cmd.Process.Kill(); err != nil && verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to kill server process %d: %v", cmd.Process.Pid, err)))
+			}
+		}
+		if i < len(serverProcesses)-1 {
+			time.Sleep(mcpProcessCleanupDelay)
+		}
+	}
+	if err := g.Wait(); err != nil {
+		mcpInspectorLog.Printf("Error from MCP server monitor goroutine: %v", err)
+	}
+}
+
+func spawnMCPInspectorRun(ctx context.Context, serverProcesses []*exec.Cmd) error {
 	mcpInspectorLog.Print("Launching @modelcontextprotocol/inspector")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Launching @modelcontextprotocol/inspector..."))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Visit http://localhost:5173 after the inspector starts"))
@@ -240,12 +243,10 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("%d stdio MCP server(s) are running in the background", len(serverProcesses))))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Configure them in the inspector using the details shown above"))
 	}
-
-	cmd := mcpInspectorCommandContext(gctx, "npx", "@modelcontextprotocol/inspector")
+	cmd := mcpInspectorCommandContext(ctx, "npx", "@modelcontextprotocol/inspector")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-
 	err := cmd.Run()
 	if err != nil {
 		mcpInspectorLog.Printf("MCP inspector exited with error: %v", err)

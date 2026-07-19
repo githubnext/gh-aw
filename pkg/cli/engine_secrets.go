@@ -236,6 +236,21 @@ func checkAndEnsureEngineSecretsForEngine(config EngineSecretConfig) error {
 func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) error {
 	engineSecretsLog.Printf("Ensuring secret available: %s", req.Name)
 
+	if handled, err := ensureSecretAvailableRepository(req, config); handled || err != nil {
+		return err
+	}
+
+	if envValue := ensureSecretAvailableEnvValue(req); envValue != "" {
+		if handled, err := ensureSecretAvailableUseEnv(req, config, envValue); handled || err != nil {
+			return err
+		}
+	}
+
+	// Secret not found, prompt user for it
+	return engineSecretsPromptFn(req, config)
+}
+
+func ensureSecretAvailableRepository(req SecretRequirement, config EngineSecretConfig) (bool, error) {
 	// Check if secret already exists in the repository
 	if setutil.Contains(config.ExistingSecrets, req.Name) {
 		if mustValidateExistingSecretValue(req) {
@@ -243,67 +258,69 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Paste the current or replacement fine-grained PAT so gh aw can validate it and update the repository secret."))
 			revalidateConfig := config
 			revalidateConfig.OverwriteExistingSecret = true
-			return engineSecretsPromptFn(req, revalidateConfig)
+			return true, engineSecretsPromptFn(req, revalidateConfig)
 		}
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Using existing %s secret in repository", req.Name)))
-		return nil
+		return true, nil
 	}
 
 	// Check alternative secret names in repository
 	for _, alt := range req.AlternativeEnvVars {
 		if setutil.Contains(config.ExistingSecrets, alt) {
-			if mustValidateExistingSecretValue(req) {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(alt+" already exists in the repository, but GitHub does not expose stored secret values for validation."))
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Paste the current or replacement fine-grained PAT so gh aw can validate it and store it as %s.", req.Name)))
-				revalidateConfig := config
-				revalidateConfig.OverwriteExistingSecret = true
-				return engineSecretsPromptFn(req, revalidateConfig)
-			}
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Using existing %s secret in repository (alternative for %s)", alt, req.Name)))
-			return nil
+			return true, ensureSecretAvailableRepositoryAlternative(req, config, alt)
 		}
 	}
+	return false, nil
+}
 
+func ensureSecretAvailableRepositoryAlternative(req SecretRequirement, config EngineSecretConfig, alt string) error {
+	if mustValidateExistingSecretValue(req) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(alt+" already exists in the repository, but GitHub does not expose stored secret values for validation."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Paste the current or replacement fine-grained PAT so gh aw can validate it and store it as %s.", req.Name)))
+		revalidateConfig := config
+		revalidateConfig.OverwriteExistingSecret = true
+		return engineSecretsPromptFn(req, revalidateConfig)
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Using existing %s secret in repository (alternative for %s)", alt, req.Name)))
+	return nil
+}
+
+func ensureSecretAvailableEnvValue(req SecretRequirement) string {
 	// Check environment variable
 	envValue := os.Getenv(req.Name) //nolint:osgetenvlibrary
-	if envValue == "" {
-		// Check alternative environment variables
-		for _, alt := range req.AlternativeEnvVars {
-			envValue = os.Getenv(alt) //nolint:osgetenvlibrary
-			if envValue != "" {
-				engineSecretsLog.Printf("Found secret in alternative env var: %s", alt)
-				break
-			}
-		}
-	}
-
 	if envValue != "" {
-		// Validate if it's a Copilot token
-		if req.IsEngineSecret && req.EngineName == string(constants.CopilotEngine) {
-			if err := stringutil.ValidateCopilotPAT(envValue); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s in environment is not a valid fine-grained PAT: %s", req.Name, stringutil.GetPATTypeDescription(envValue))))
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				// Continue to prompt for a new token
-			} else {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found valid %s in environment", req.Name)))
-				// Upload to repository if we have a repo slug
-				if config.RepoSlug != "" {
-					return engineSecretsUploadFn(req.Name, envValue, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
-				}
-				return nil
-			}
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %s in environment", req.Name)))
-			// Upload to repository if we have a repo slug
-			if config.RepoSlug != "" {
-				return engineSecretsUploadFn(req.Name, envValue, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
-			}
-			return nil
+		return envValue
+	}
+	// Check alternative environment variables
+	for _, alt := range req.AlternativeEnvVars {
+		envValue = os.Getenv(alt) //nolint:osgetenvlibrary
+		if envValue != "" {
+			engineSecretsLog.Printf("Found secret in alternative env var: %s", alt)
+			return envValue
 		}
 	}
+	return ""
+}
 
-	// Secret not found, prompt user for it
-	return engineSecretsPromptFn(req, config)
+func ensureSecretAvailableUseEnv(req SecretRequirement, config EngineSecretConfig, envValue string) (bool, error) {
+	// Validate if it's a Copilot token
+	if req.IsEngineSecret && req.EngineName == string(constants.CopilotEngine) {
+		if err := stringutil.ValidateCopilotPAT(envValue); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s in environment is not a valid fine-grained PAT: %s", req.Name, stringutil.GetPATTypeDescription(envValue))))
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+			// Continue to prompt for a new token
+			return false, nil
+		}
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found valid %s in environment", req.Name)))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %s in environment", req.Name)))
+	}
+
+	// Upload to repository if we have a repo slug
+	if config.RepoSlug != "" {
+		return true, engineSecretsUploadFn(req.Name, envValue, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
+	}
+	return true, nil
 }
 
 // promptForSecret prompts the user to provide a secret value
@@ -331,13 +348,35 @@ func mustValidateExistingSecretValue(req SecretRequirement) bool {
 func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig) error {
 	preconfiguredPATURL := buildCopilotPATCreationURL()
 
+	promptForCopilotPATUnifiedInstructions(preconfiguredPATURL)
+	if err := promptForCopilotPATUnifiedOfferBrowser(preconfiguredPATURL, config); err != nil {
+		return err
+	}
+	token, err := promptForCopilotPATUnifiedReadToken(config)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Valid fine-grained Copilot token received"))
+
+	// Upload to repository if we have a repo slug
+	if config.RepoSlug != "" {
+		return uploadSecretToRepo(req.Name, token, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
+	}
+
+	return nil
+}
+
+func promptForCopilotPATUnifiedInstructions(preconfiguredPATURL string) {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Create a fine-grained Personal Access Token (PAT) from the preconfigured page below, then paste it back here.")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Preconfigured token creation page:")
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  "+preconfiguredPATURL))
 	fmt.Fprintln(os.Stderr, "")
+}
 
+func promptForCopilotPATUnifiedOfferBrowser(preconfiguredPATURL string, config EngineSecretConfig) error {
 	openBrowser := true
 	confirmForm := console.NewConfirmForm(
 		huh.NewConfirm().
@@ -351,14 +390,20 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 			return promptCancelled()
 		}
 		// Non-interactive: skip the consent gate and fall through to token input
-	} else if openBrowser {
-		if openBootstrapBrowser(preconfiguredPATURL) {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Opened the preconfigured Copilot PAT page in your browser."))
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Couldn't open your browser automatically (no supported opener found) — open the URL above manually."))
-		}
+		return nil
 	}
+	if !openBrowser {
+		return nil
+	}
+	if openBootstrapBrowser(preconfiguredPATURL) {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Opened the preconfigured Copilot PAT page in your browser."))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Couldn't open your browser automatically (no supported opener found) — open the URL above manually."))
+	}
+	return nil
+}
 
+func promptForCopilotPATUnifiedReadToken(config EngineSecretConfig) (string, error) {
 	var token string
 	form := console.NewInputForm(
 		huh.NewInput().
@@ -380,21 +425,11 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 
 	if err := form.RunWithContext(config.ctx()); err != nil {
 		if console.IsCancelled(err) {
-			return promptCancelled()
+			return "", promptCancelled()
 		}
-		return fmt.Errorf("failed to get Copilot token: %w", err)
+		return "", fmt.Errorf("failed to get Copilot token: %w", err)
 	}
-
-	token = strings.TrimSpace(token)
-
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Valid fine-grained Copilot token received"))
-
-	// Upload to repository if we have a repo slug
-	if config.RepoSlug != "" {
-		return uploadSecretToRepo(req.Name, token, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
-	}
-
-	return nil
+	return strings.TrimSpace(token), nil
 }
 
 func buildCopilotPATCreationURL() string {
@@ -739,12 +774,7 @@ func displayMissingSecrets(requirements []SecretRequirement, repoSlug string, ex
 func displaySecretsSummaryTable(requirements []SecretRequirement, existingSecrets map[string]struct {
 }) {
 	// Filter to only required secrets (not optional)
-	var requiredOnly []SecretRequirement
-	for _, req := range requirements {
-		if !req.Optional {
-			requiredOnly = append(requiredOnly, req)
-		}
-	}
+	requiredOnly := displaySecretsSummaryTableRequired(requirements)
 
 	// If no required secrets, don't show the table
 	if len(requiredOnly) == 0 {
@@ -756,49 +786,60 @@ func displaySecretsSummaryTable(requirements []SecretRequirement, existingSecret
 	fmt.Fprintln(os.Stderr, "")
 
 	// Calculate max width for alignment
-	maxNameWidth := 0
-	for _, req := range requiredOnly {
-		if len(req.Name) > maxNameWidth {
-			maxNameWidth = len(req.Name)
-		}
-	}
+	maxNameWidth := displaySecretsSummaryTableMaxNameWidth(requiredOnly)
 
 	// Display each required secret with status
 	for _, req := range requiredOnly {
-		// Check if secret exists
-		exists := setutil.Contains(existingSecrets, req.Name)
-		var altUsed string
-		if !exists {
-			// Check alternatives
-			for _, alt := range req.AlternativeEnvVars {
-				if setutil.Contains(existingSecrets, alt) {
-					exists = true
-					altUsed = alt
-					break
-				}
-			}
-		}
-
-		// Format status indicator
-		var statusLine string
-		if exists {
-			if altUsed != "" {
-				statusLine = console.FormatSuccessMessage(fmt.Sprintf("(via %s)", altUsed))
-			} else {
-				statusLine = console.FormatSuccessMessage("")
-			}
-		} else {
-			statusLine = console.FormatErrorMessage("")
-		}
-
 		// Format secret name with padding
 		nameWithPadding := fmt.Sprintf("%-*s", maxNameWidth, req.Name)
 
 		// Display the line
-		fmt.Fprintf(os.Stderr, "  %s %s - %s\n", statusLine, nameWithPadding, req.WhenNeeded)
+		fmt.Fprintf(os.Stderr, "  %s %s - %s\n", displaySecretsSummaryTableStatusLine(req, existingSecrets), nameWithPadding, req.WhenNeeded)
 	}
 
 	fmt.Fprintln(os.Stderr, "")
+}
+
+func displaySecretsSummaryTableRequired(requirements []SecretRequirement) []SecretRequirement {
+	var requiredOnly []SecretRequirement
+	for _, req := range requirements {
+		if !req.Optional {
+			requiredOnly = append(requiredOnly, req)
+		}
+	}
+	return requiredOnly
+}
+
+func displaySecretsSummaryTableMaxNameWidth(requirements []SecretRequirement) int {
+	maxNameWidth := 0
+	for _, req := range requirements {
+		if len(req.Name) > maxNameWidth {
+			maxNameWidth = len(req.Name)
+		}
+	}
+	return maxNameWidth
+}
+
+func displaySecretsSummaryTableStatusLine(req SecretRequirement, existingSecrets map[string]struct{}) string {
+	exists := setutil.Contains(existingSecrets, req.Name)
+	var altUsed string
+	if !exists {
+		for _, alt := range req.AlternativeEnvVars {
+			if setutil.Contains(existingSecrets, alt) {
+				exists = true
+				altUsed = alt
+				break
+			}
+		}
+	}
+
+	if !exists {
+		return console.FormatErrorMessage("")
+	}
+	if altUsed != "" {
+		return console.FormatSuccessMessage(fmt.Sprintf("(via %s)", altUsed))
+	}
+	return console.FormatSuccessMessage("")
 }
 
 // splitRepoSlug splits "owner/repo" into [owner, repo]

@@ -56,14 +56,7 @@ func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, 
 	}
 
 	// Filter PRs to only those created after the specified time
-	var eligiblePRs []PullRequest
-	for _, pr := range prs {
-		if pr.CreatedAt.After(createdAfter) {
-			eligiblePRs = append(eligiblePRs, pr)
-		} else if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Skipping PR #%d: created at %s (before workflow start time)", pr.Number, pr.CreatedAt.Format(time.RFC3339))))
-		}
-	}
+	eligiblePRs := autoMergePullRequestsCreatedAfterEligible(prs, createdAfter, verbose)
 
 	if len(eligiblePRs) == 0 {
 		prAutomergeLog.Print("No eligible PRs found for auto-merge")
@@ -77,37 +70,55 @@ func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d pull request(s) created after workflow start time", len(eligiblePRs))))
 
 	for _, pr := range eligiblePRs {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing PR #%d: %s (draft: %t, mergeable: %s, created: %s)",
-				pr.Number, pr.Title, pr.IsDraft, pr.Mergeable, pr.CreatedAt.Format(time.RFC3339))))
-		}
-
-		// Convert from draft to non-draft if necessary
-		if pr.IsDraft {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Converting PR #%d from draft to ready for review", pr.Number)))
-			if output, err := workflow.RunGHCombined("Converting draft to ready...", "pr", "ready", strconv.Itoa(pr.Number), "--repo", repoSlug); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to convert PR #%d from draft: %v (output: %s)", pr.Number, err, string(output))))
-				continue
-			}
-		}
-
-		// Check if PR is mergeable
-		if pr.Mergeable != "MERGEABLE" {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("PR #%d is not mergeable (status: %s), skipping auto-merge", pr.Number, pr.Mergeable)))
-			continue
-		}
-
-		// Auto-merge the PR
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auto-merging PR #%d", pr.Number)))
-		if output, err := workflow.RunGHCombined("Auto-merging pull request...", "pr", "merge", strconv.Itoa(pr.Number), "--repo", repoSlug, "--auto", "--squash"); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to auto-merge PR #%d: %v (output: %s)", pr.Number, err, string(output))))
-			continue
-		}
-
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully enabled auto-merge for PR #%d", pr.Number)))
+		autoMergePullRequestsCreatedAfterProcess(repoSlug, pr, verbose)
 	}
 
 	return nil
+}
+
+func autoMergePullRequestsCreatedAfterEligible(prs []PullRequest, createdAfter time.Time, verbose bool) []PullRequest {
+	var eligiblePRs []PullRequest
+	for _, pr := range prs {
+		if pr.CreatedAt.After(createdAfter) {
+			eligiblePRs = append(eligiblePRs, pr)
+		} else if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Skipping PR #%d: created at %s (before workflow start time)", pr.Number, pr.CreatedAt.Format(time.RFC3339))))
+		}
+	}
+	return eligiblePRs
+}
+
+func autoMergePullRequestsCreatedAfterProcess(repoSlug string, pr PullRequest, verbose bool) {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing PR #%d: %s (draft: %t, mergeable: %s, created: %s)",
+			pr.Number, pr.Title, pr.IsDraft, pr.Mergeable, pr.CreatedAt.Format(time.RFC3339))))
+	}
+	if pr.IsDraft && !autoMergePullRequestsCreatedAfterReady(repoSlug, pr) {
+		return
+	}
+	if pr.Mergeable != "MERGEABLE" {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("PR #%d is not mergeable (status: %s), skipping auto-merge", pr.Number, pr.Mergeable)))
+		return
+	}
+	autoMergePullRequestsCreatedAfterMerge(repoSlug, pr)
+}
+
+func autoMergePullRequestsCreatedAfterReady(repoSlug string, pr PullRequest) bool {
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Converting PR #%d from draft to ready for review", pr.Number)))
+	if output, err := workflow.RunGHCombined("Converting draft to ready...", "pr", "ready", strconv.Itoa(pr.Number), "--repo", repoSlug); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to convert PR #%d from draft: %v (output: %s)", pr.Number, err, string(output))))
+		return false
+	}
+	return true
+}
+
+func autoMergePullRequestsCreatedAfterMerge(repoSlug string, pr PullRequest) {
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auto-merging PR #%d", pr.Number)))
+	if output, err := workflow.RunGHCombined("Auto-merging pull request...", "pr", "merge", strconv.Itoa(pr.Number), "--repo", repoSlug, "--auto", "--squash"); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to auto-merge PR #%d: %v (output: %s)", pr.Number, err, string(output))))
+		return
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully enabled auto-merge for PR #%d", pr.Number)))
 }
 
 // AutoMergePullRequestsLegacy is the legacy function that auto-merges all open PRs (used by trial command for backward compatibility)

@@ -75,31 +75,16 @@ type compiledAPIPathPattern struct {
 	appPermissions []PermissionScope
 }
 
-var getCompiledGHCLIPermissions = sync.OnceValues(func() (compiledGHCLIPermissions, error) {
+var getCompiledGHCLIPermissions = sync.OnceValues(loadCompiledGHCLIPermissions)
+
+func loadCompiledGHCLIPermissions() (compiledGHCLIPermissions, error) {
 	var data ghCLIPermissionsData
 	if err := json.Unmarshal(ghCLIPermissionsJSON, &data); err != nil {
 		return compiledGHCLIPermissions{}, fmt.Errorf("failed to load gh CLI permissions from JSON: %w", err)
 	}
 
-	cp := compiledGHCLIPermissions{
-		readCommands:            make(map[string][]PermissionScope),
-		writeCommands:           make(map[string][]PermissionScope),
-		groupReadPermissions:    make(map[string][]PermissionScope),
-		appReadCommands:         make(map[string][]PermissionScope),
-		appWriteCommands:        make(map[string][]PermissionScope),
-		groupAppReadPermissions: make(map[string][]PermissionScope),
-	}
-
-	// Build the subcommand regex dynamically from the JSON group keys so that adding a new
-	// group to gh_cli_permissions.json automatically extends the pattern without a code change.
-	groups := make([]string, 0, len(data.SubcommandGroups))
-	for group := range data.SubcommandGroups {
-		groups = append(groups, regexp.QuoteMeta(group))
-	}
-	sort.Strings(groups) // deterministic alternation order
-	subcommandPattern := `(?m)(?:^|[\s|;])gh\s+(` + strings.Join(groups, "|") + `)\s+([\w][\w-]*)\b`
-	// Defensive check: the pattern is built from embedded JSON keys quoted with
-	// regexp.QuoteMeta, so a compile error would indicate unexpected data corruption.
+	cp := newCompiledGHCLIPermissions()
+	subcommandPattern := buildGHCLISubcommandPattern(data.SubcommandGroups)
 	subcommandRE, err := regexp.Compile(subcommandPattern)
 	if err != nil {
 		return compiledGHCLIPermissions{}, fmt.Errorf("invalid gh subcommand pattern %q: %w", subcommandPattern, err)
@@ -107,62 +92,79 @@ var getCompiledGHCLIPermissions = sync.OnceValues(func() (compiledGHCLIPermissio
 	cp.subcommandRE = subcommandRE
 
 	for group, sg := range data.SubcommandGroups {
-		readPerms := make([]PermissionScope, len(sg.ReadPermissions))
-		for i, p := range sg.ReadPermissions {
-			readPerms[i] = PermissionScope(p)
-		}
-		writePerms := make([]PermissionScope, len(sg.WritePermissions))
-		for i, p := range sg.WritePermissions {
-			writePerms[i] = PermissionScope(p)
-		}
-		appReadPerms := make([]PermissionScope, len(sg.AppReadPermissions))
-		for i, p := range sg.AppReadPermissions {
-			appReadPerms[i] = PermissionScope(p)
-		}
-		appWritePerms := make([]PermissionScope, len(sg.AppWritePermissions))
-		for i, p := range sg.AppWritePermissions {
-			appWritePerms[i] = PermissionScope(p)
-		}
-
-		// Store group-level fallback (used when specific action is unknown).
-		cp.groupReadPermissions[group] = readPerms
-		cp.groupAppReadPermissions[group] = appReadPerms
-
-		for _, action := range sg.ReadSubcommands {
-			key := group + " " + action
-			cp.readCommands[key] = readPerms
-			cp.appReadCommands[key] = appReadPerms
-		}
-		for _, action := range sg.WriteSubcommands {
-			key := group + " " + action
-			cp.writeCommands[key] = writePerms
-			cp.appWriteCommands[key] = appWritePerms
-		}
+		addGHCLISubcommandGroup(&cp, group, sg)
 	}
 
 	for _, ap := range data.APIPathPatterns {
-		re, err := regexp.Compile(ap.Pattern)
-		if err != nil {
-			return compiledGHCLIPermissions{}, fmt.Errorf("invalid gh API path pattern %q in gh_cli_permissions.json: %w", ap.Pattern, err)
+		if err := addGHCLIAPIPathPattern(&cp, ap); err != nil {
+			return compiledGHCLIPermissions{}, err
 		}
-		perms := make([]PermissionScope, len(ap.Permissions))
-		for i, p := range ap.Permissions {
-			perms[i] = PermissionScope(p)
-		}
-		appPerms := make([]PermissionScope, len(ap.AppPermissions))
-		for i, p := range ap.AppPermissions {
-			appPerms[i] = PermissionScope(p)
-		}
-		cp.apiPathPatterns = append(cp.apiPathPatterns, compiledAPIPathPattern{
-			re:             re,
-			permissions:    perms,
-			appPermissions: appPerms,
-		})
 	}
 
 	ghCLIPermissionsLog.Printf("Loaded gh CLI permissions: version=%s, subcommand_groups=%d, api_path_patterns=%d", data.Version, len(data.SubcommandGroups), len(data.APIPathPatterns))
 	return cp, nil
-})
+}
+
+func newCompiledGHCLIPermissions() compiledGHCLIPermissions {
+	return compiledGHCLIPermissions{
+		readCommands:            make(map[string][]PermissionScope),
+		writeCommands:           make(map[string][]PermissionScope),
+		groupReadPermissions:    make(map[string][]PermissionScope),
+		appReadCommands:         make(map[string][]PermissionScope),
+		appWriteCommands:        make(map[string][]PermissionScope),
+		groupAppReadPermissions: make(map[string][]PermissionScope),
+	}
+}
+
+func buildGHCLISubcommandPattern(groupsMap map[string]ghCLISubcommandGroup) string {
+	groups := make([]string, 0, len(groupsMap))
+	for group := range groupsMap {
+		groups = append(groups, regexp.QuoteMeta(group))
+	}
+	sort.Strings(groups)
+	return `(?m)(?:^|[\s|;])gh\s+(` + strings.Join(groups, "|") + `)\s+([\w][\w-]*)\b`
+}
+
+func addGHCLISubcommandGroup(cp *compiledGHCLIPermissions, group string, sg ghCLISubcommandGroup) {
+	readPerms := permissionScopesFromStrings(sg.ReadPermissions)
+	writePerms := permissionScopesFromStrings(sg.WritePermissions)
+	appReadPerms := permissionScopesFromStrings(sg.AppReadPermissions)
+	appWritePerms := permissionScopesFromStrings(sg.AppWritePermissions)
+	cp.groupReadPermissions[group] = readPerms
+	cp.groupAppReadPermissions[group] = appReadPerms
+
+	for _, action := range sg.ReadSubcommands {
+		key := group + " " + action
+		cp.readCommands[key] = readPerms
+		cp.appReadCommands[key] = appReadPerms
+	}
+	for _, action := range sg.WriteSubcommands {
+		key := group + " " + action
+		cp.writeCommands[key] = writePerms
+		cp.appWriteCommands[key] = appWritePerms
+	}
+}
+
+func addGHCLIAPIPathPattern(cp *compiledGHCLIPermissions, ap ghCLIAPIPathPattern) error {
+	re, err := regexp.Compile(ap.Pattern)
+	if err != nil {
+		return fmt.Errorf("invalid gh API path pattern %q in gh_cli_permissions.json: %w", ap.Pattern, err)
+	}
+	cp.apiPathPatterns = append(cp.apiPathPatterns, compiledAPIPathPattern{
+		re:             re,
+		permissions:    permissionScopesFromStrings(ap.Permissions),
+		appPermissions: permissionScopesFromStrings(ap.AppPermissions),
+	})
+	return nil
+}
+
+func permissionScopesFromStrings(values []string) []PermissionScope {
+	scopes := make([]PermissionScope, len(values))
+	for i, p := range values {
+		scopes[i] = PermissionScope(p)
+	}
+	return scopes
+}
 
 // ghAPICmdRE matches `gh api` at a command boundary, capturing the rest of the line.
 var ghAPICmdRE = regexp.MustCompile(`(?m)(?:^|[\s|;])gh\s+api\s+(.+)`)
@@ -289,64 +291,72 @@ func inferPermissionsFromShellScripts(scripts []string) (map[PermissionScope]Per
 	}
 
 	addScopes := func(scopes []PermissionScope) {
-		for _, scope := range scopes {
-			if _, exists := perms[scope]; !exists {
-				perms[scope] = PermissionRead
-			}
-		}
+		addReadScopes(perms, scopes)
 	}
 
 	for _, script := range scripts {
-		// Match gh <group> <action> patterns.
-		for _, m := range ghCLIPermissions.subcommandRE.FindAllStringSubmatch(script, -1) {
-			group := strings.ToLower(m[1])
-			action := strings.ToLower(m[2])
-			key := group + " " + action
-
-			matched := false
-			// Check explicit read mapping first.
-			if readPerms, ok := ghCLIPermissions.readCommands[key]; ok {
-				addScopes(readPerms)
-				matched = true
-			}
-			if appReadPerms, ok := ghCLIPermissions.appReadCommands[key]; ok {
-				addScopes(appReadPerms)
-				matched = true
-			}
-			if matched {
-				continue
-			}
-			// Write commands only need read-level permissions in the activation job context.
-			// (Full write escalation is rejected by detectWriteCommandsInShellScripts instead.)
-			if readPerms, ok := ghCLIPermissions.writeCommands[key]; ok {
-				addScopes(readPerms)
-				matched = true
-			}
-			if appWritePerms, ok := ghCLIPermissions.appWriteCommands[key]; ok {
-				addScopes(appWritePerms)
-				matched = true
-			}
-			if matched {
-				continue
-			}
-			// Fall back to group-level read permissions for unrecognised actions.
-			addScopes(ghCLIPermissions.groupReadPermissions[group])
-			addScopes(ghCLIPermissions.groupAppReadPermissions[group])
-		}
-
-		// Match gh api <path> patterns.
+		inferSubcommandPermissions(script, ghCLIPermissions, addScopes)
 		for _, path := range extractGHAPIEndpoints(script) {
-			for _, ap := range ghCLIPermissions.apiPathPatterns {
-				if ap.re.MatchString(path) {
-					addScopes(ap.permissions)
-					addScopes(ap.appPermissions)
-				}
-			}
+			inferAPIPathPermissions(path, ghCLIPermissions.apiPathPatterns, addScopes)
 		}
 	}
 
 	ghCLIPermissionsLog.Printf("Inferred %d permission scope(s) from shell scripts", len(perms))
 	return perms, nil
+}
+
+func addReadScopes(perms map[PermissionScope]PermissionLevel, scopes []PermissionScope) {
+	for _, scope := range scopes {
+		if _, exists := perms[scope]; !exists {
+			perms[scope] = PermissionRead
+		}
+	}
+}
+
+func inferSubcommandPermissions(script string, ghCLIPermissions compiledGHCLIPermissions, addScopes func([]PermissionScope)) {
+	for _, m := range ghCLIPermissions.subcommandRE.FindAllStringSubmatch(script, -1) {
+		group := strings.ToLower(m[1])
+		action := strings.ToLower(m[2])
+		key := group + " " + action
+		if addMappedSubcommandScopes(key, ghCLIPermissions, addScopes) {
+			continue
+		}
+		addScopes(ghCLIPermissions.groupReadPermissions[group])
+		addScopes(ghCLIPermissions.groupAppReadPermissions[group])
+	}
+}
+
+func addMappedSubcommandScopes(key string, ghCLIPermissions compiledGHCLIPermissions, addScopes func([]PermissionScope)) bool {
+	matched := false
+	if readPerms, ok := ghCLIPermissions.readCommands[key]; ok {
+		addScopes(readPerms)
+		matched = true
+	}
+	if appReadPerms, ok := ghCLIPermissions.appReadCommands[key]; ok {
+		addScopes(appReadPerms)
+		matched = true
+	}
+	if matched {
+		return true
+	}
+	if readPerms, ok := ghCLIPermissions.writeCommands[key]; ok {
+		addScopes(readPerms)
+		matched = true
+	}
+	if appWritePerms, ok := ghCLIPermissions.appWriteCommands[key]; ok {
+		addScopes(appWritePerms)
+		matched = true
+	}
+	return matched
+}
+
+func inferAPIPathPermissions(path string, patterns []compiledAPIPathPattern, addScopes func([]PermissionScope)) {
+	for _, ap := range patterns {
+		if ap.re.MatchString(path) {
+			addScopes(ap.permissions)
+			addScopes(ap.appPermissions)
+		}
+	}
 }
 
 // detectWriteCommandsInShellScripts returns all write gh CLI commands found in the

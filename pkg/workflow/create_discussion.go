@@ -75,7 +75,11 @@ func (c *Compiler) parseCreateDiscussionsConfig(outputMap map[string]any) *Creat
 	// Normalize and validate category naming convention
 	config.Category = normalizeDiscussionCategory(config.Category, discussionLog, c.markdownPath)
 
-	// Log configured values
+	logCreateDiscussionConfig(config)
+	return config
+}
+
+func logCreateDiscussionConfig(config *CreateDiscussionsConfig) {
 	if config.TitlePrefix != "" {
 		discussionLog.Printf("Title prefix configured: %q", config.TitlePrefix)
 	}
@@ -106,8 +110,6 @@ func (c *Compiler) parseCreateDiscussionsConfig(outputMap map[string]any) *Creat
 	if config.FallbackToIssue != nil {
 		discussionLog.Printf("Fallback to issue configured: %t", *config.FallbackToIssue)
 	}
-
-	return config
 }
 
 // Returns normalized category (or original if it's a category ID)

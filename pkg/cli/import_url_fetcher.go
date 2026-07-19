@@ -70,36 +70,16 @@ func FetchImportURL(ctx context.Context, rawURL string, opts FetchOptions) (*Fet
 	importURLFetcherLog.Printf("HEAD result: content_type=%q ok=%v", ct, headOK)
 
 	// Always perform the GET to retrieve the body.
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	resp, err := fetchImportURLGet(ctx, client, rawURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build GET request: %w", err)
-	}
-	attachImportAuthHeader(req, rawURL)
-
-	logRequestVerbose(req)
-
-	importURLFetcherLog.Printf("Sending GET request to %s", req.URL.Host)
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch URL: %w", sanitizeHTTPError(err))
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	importURLFetcherLog.Printf("GET response: status=%d content-type=%q", resp.StatusCode, resp.Header.Get("Content-Type"))
 
-	switch resp.StatusCode {
-	case http.StatusUnauthorized, http.StatusForbidden:
-		return nil, errors.New(console.FormatErrorMessage(
-			fmt.Sprintf("access denied (HTTP %d). Check that the URL is accessible or set an auth token.", resp.StatusCode),
-		))
-	case http.StatusNotFound:
-		return nil, errors.New(console.FormatErrorMessage("URL not found (HTTP 404)"))
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		logResponseBodyVerbose(resp)
-		return nil, errors.New(console.FormatErrorMessage(
-			fmt.Sprintf("unexpected HTTP %d response from server", resp.StatusCode),
-		))
+	if err := fetchImportURLCheckStatus(resp); err != nil {
+		return nil, err
 	}
 
 	// Prefer Content-Type obtained via HEAD; fall back to GET response headers.
@@ -108,6 +88,55 @@ func FetchImportURL(ctx context.Context, rawURL string, opts FetchOptions) (*Fet
 	}
 
 	// Guard against oversized responses.
+	body, err := fetchImportURLReadBody(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	importURLFetcherLog.Printf("Fetched import URL: content_type=%s, bytes=%d", ct, len(body))
+
+	return &FetchedResource{
+		URL:         rawURL,
+		ContentType: ct,
+		Body:        body,
+	}, nil
+}
+
+func fetchImportURLGet(ctx context.Context, client *http.Client, rawURL string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build GET request: %w", err)
+	}
+	attachImportAuthHeader(req, rawURL)
+
+	logRequestVerbose(req)
+	importURLFetcherLog.Printf("Sending GET request to %s", req.URL.Host)
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch URL: %w", sanitizeHTTPError(err))
+	}
+	return resp, nil
+}
+
+func fetchImportURLCheckStatus(resp *http.Response) error {
+	switch resp.StatusCode {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return errors.New(console.FormatErrorMessage(
+			fmt.Sprintf("access denied (HTTP %d). Check that the URL is accessible or set an auth token.", resp.StatusCode),
+		))
+	case http.StatusNotFound:
+		return errors.New(console.FormatErrorMessage("URL not found (HTTP 404)"))
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		logResponseBodyVerbose(resp)
+		return errors.New(console.FormatErrorMessage(
+			fmt.Sprintf("unexpected HTTP %d response from server", resp.StatusCode),
+		))
+	}
+	return nil
+}
+
+func fetchImportURLReadBody(resp *http.Response) ([]byte, error) {
 	limited := io.LimitReader(resp.Body, int64(importURLMaxBytes)+1)
 	body, err := io.ReadAll(limited)
 	if err != nil {
@@ -118,14 +147,7 @@ func FetchImportURL(ctx context.Context, rawURL string, opts FetchOptions) (*Fet
 			fmt.Sprintf("response body exceeds size limit (%s)", console.FormatFileSize(importURLMaxBytes)),
 		))
 	}
-
-	importURLFetcherLog.Printf("Fetched import URL: content_type=%s, bytes=%d", ct, len(body))
-
-	return &FetchedResource{
-		URL:         rawURL,
-		ContentType: ct,
-		Body:        body,
-	}, nil
+	return body, nil
 }
 
 // tryHead issues a HEAD request and returns the canonicalized Content-Type and whether

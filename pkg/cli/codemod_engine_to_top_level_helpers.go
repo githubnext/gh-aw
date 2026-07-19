@@ -42,72 +42,90 @@ func migrateEngineFieldToTopLevel(
 	}
 
 	return applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-		for _, line := range lines {
-			trimmed := strings.TrimSpace(line)
-			if !isTopLevelKey(line) || !strings.HasPrefix(trimmed, "engine:") {
-				continue
-			}
-			inlineValue := strings.TrimSpace(strings.TrimPrefix(trimmed, "engine:"))
-			if strings.HasPrefix(inlineValue, "{") && strings.Contains(inlineValue, opts.engineField+":") {
-				if opts.log != nil {
-					opts.log.Print(opts.skipInlineMessage)
-				}
-				return lines, false
-			}
-		}
-
-		fieldSuffix := ""
-		inEngineBlock := false
-		engineIndent := ""
-		engineFieldPrefix := opts.engineField + ":"
-		for _, line := range lines {
-			trimmed := strings.TrimSpace(line)
-			if isTopLevelKey(line) && strings.HasPrefix(trimmed, "engine:") {
-				inEngineBlock = true
-				engineIndent = getIndentation(line)
-				continue
-			}
-			if inEngineBlock && trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(getIndentation(line)) <= len(engineIndent) {
-				inEngineBlock = false
-			}
-			if inEngineBlock && strings.HasPrefix(trimmed, engineFieldPrefix) {
-				parts := strings.SplitN(line, ":", 2)
-				if len(parts) == 2 {
-					fieldSuffix = parts[1]
-				}
-				break
-			}
-		}
-
-		result, removed := removeFieldFromBlock(lines, opts.engineField, "engine")
-		if !removed {
-			return lines, false
-		}
-
-		if hasPreservedTopLevelField {
-			if opts.log != nil {
-				opts.log.Print(opts.removedMessage)
-			}
-			return result, true
-		}
-
-		insertAt := 0
-		for i, line := range result {
-			if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "engine:") {
-				insertAt = i
-				break
-			}
-		}
-
-		topLevelLine := opts.targetTopLevelField + ":" + fieldSuffix
-		withTopLevel := make([]string, 0, len(result)+1)
-		withTopLevel = append(withTopLevel, result[:insertAt]...)
-		withTopLevel = append(withTopLevel, topLevelLine)
-		withTopLevel = append(withTopLevel, result[insertAt:]...)
-
-		if opts.log != nil {
-			opts.log.Print(opts.migratedMessage)
-		}
-		return withTopLevel, true
+		return migrateEngineFieldToTopLevelTransform(lines, opts, hasPreservedTopLevelField)
 	})
+}
+
+func migrateEngineFieldToTopLevelTransform(lines []string, opts migrateEngineFieldToTopLevelOptions, hasPreservedTopLevelField bool) ([]string, bool) {
+	if migrateEngineFieldToTopLevelHasInlineField(lines, opts) {
+		return lines, false
+	}
+
+	fieldSuffix := migrateEngineFieldToTopLevelFieldSuffix(lines, opts.engineField)
+	result, removed := removeFieldFromBlock(lines, opts.engineField, "engine")
+	if !removed {
+		return lines, false
+	}
+
+	if hasPreservedTopLevelField {
+		if opts.log != nil {
+			opts.log.Print(opts.removedMessage)
+		}
+		return result, true
+	}
+
+	withTopLevel := migrateEngineFieldToTopLevelInsertLine(result, opts.targetTopLevelField+":"+fieldSuffix)
+	if opts.log != nil {
+		opts.log.Print(opts.migratedMessage)
+	}
+	return withTopLevel, true
+}
+
+func migrateEngineFieldToTopLevelHasInlineField(lines []string, opts migrateEngineFieldToTopLevelOptions) bool {
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !isTopLevelKey(line) || !strings.HasPrefix(trimmed, "engine:") {
+			continue
+		}
+		inlineValue := strings.TrimSpace(strings.TrimPrefix(trimmed, "engine:"))
+		if strings.HasPrefix(inlineValue, "{") && strings.Contains(inlineValue, opts.engineField+":") {
+			if opts.log != nil {
+				opts.log.Print(opts.skipInlineMessage)
+			}
+			return true
+		}
+	}
+	return false
+}
+
+func migrateEngineFieldToTopLevelFieldSuffix(lines []string, engineField string) string {
+	fieldSuffix := ""
+	inEngineBlock := false
+	engineIndent := ""
+	engineFieldPrefix := engineField + ":"
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "engine:") {
+			inEngineBlock = true
+			engineIndent = getIndentation(line)
+			continue
+		}
+		if inEngineBlock && trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(getIndentation(line)) <= len(engineIndent) {
+			inEngineBlock = false
+		}
+		if inEngineBlock && strings.HasPrefix(trimmed, engineFieldPrefix) {
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) == 2 {
+				fieldSuffix = parts[1]
+			}
+			break
+		}
+	}
+	return fieldSuffix
+}
+
+func migrateEngineFieldToTopLevelInsertLine(lines []string, topLevelLine string) []string {
+	insertAt := 0
+	for i, line := range lines {
+		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "engine:") {
+			insertAt = i
+			break
+		}
+	}
+
+	withTopLevel := make([]string, 0, len(lines)+1)
+	withTopLevel = append(withTopLevel, lines[:insertAt]...)
+	withTopLevel = append(withTopLevel, topLevelLine)
+	withTopLevel = append(withTopLevel, lines[insertAt:]...)
+	return withTopLevel
 }

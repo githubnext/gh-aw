@@ -344,75 +344,22 @@ func buildAuditComparison(currentConclusion string, current auditComparisonSnaps
 	reasonCodes := make([]string, 0, 4)
 	currentConclusion = strings.TrimSpace(strings.ToLower(currentConclusion))
 	currentRunUnsuccessful := currentConclusion != "" && currentConclusion != "success"
-	delta := &AuditComparisonDelta{
-		Turns: AuditComparisonIntDelta{
-			Before:  baseline.Turns,
-			After:   current.Turns,
-			Changed: baseline.Turns != current.Turns,
-		},
-		Posture: AuditComparisonStringDelta{
-			Before:  baseline.Posture,
-			After:   current.Posture,
-			Changed: baseline.Posture != current.Posture,
-		},
-		BlockedRequests: AuditComparisonIntDelta{
-			Before:  baseline.BlockedRequests,
-			After:   current.BlockedRequests,
-			Changed: baseline.BlockedRequests != current.BlockedRequests,
-		},
-	}
+	delta := buildAuditComparisonDelta(current, baseline)
 
-	if current.Turns > baseline.Turns {
-		reasonCodes = append(reasonCodes, "turns_increase")
-	} else if current.Turns < baseline.Turns {
-		reasonCodes = append(reasonCodes, "turns_decrease")
-	}
-	if baseline.Posture != current.Posture {
-		reasonCodes = append(reasonCodes, "posture_changed")
-	}
-	if current.BlockedRequests > baseline.BlockedRequests {
-		reasonCodes = append(reasonCodes, "blocked_requests_increase")
-	} else if current.BlockedRequests < baseline.BlockedRequests {
-		reasonCodes = append(reasonCodes, "blocked_requests_decrease")
-	}
+	reasonCodes = append(reasonCodes, buildAuditComparisonReasonCodes(current, baseline)...)
 	if currentRunUnsuccessful {
 		reasonCodes = append(reasonCodes, "run_unsuccessful")
 	}
 
-	newMCPFailure := len(baseline.MCPFailures) == 0 && len(current.MCPFailures) > 0
-	mcpFailuresResolved := len(baseline.MCPFailures) > 0 && len(current.MCPFailures) == 0
-	if newMCPFailure || len(baseline.MCPFailures) > 0 || len(current.MCPFailures) > 0 {
-		delta.MCPFailure = &AuditComparisonMCPFailureDelta{
-			Before:       baseline.MCPFailures,
-			After:        current.MCPFailures,
-			NewlyPresent: newMCPFailure,
-		}
-	}
-	if newMCPFailure {
+	newMCPFailure, mcpFailuresResolved := buildAuditComparisonMCPFailureDelta(delta, current, baseline)
+	switch {
+	case newMCPFailure:
 		reasonCodes = append(reasonCodes, "new_mcp_failure")
-	} else if mcpFailuresResolved {
+	case mcpFailuresResolved:
 		reasonCodes = append(reasonCodes, "mcp_failures_resolved")
 	}
 
-	label := "stable"
-	switch {
-	case currentRunUnsuccessful:
-		label = "risky"
-	case delta.Posture.Before == "read_only" && delta.Posture.After == "write_capable":
-		label = "risky"
-	case newMCPFailure:
-		label = "risky"
-	case current.BlockedRequests > baseline.BlockedRequests:
-		label = "risky"
-	case delta.Posture.Before != "" && delta.Posture.After != "" && delta.Posture.Before != delta.Posture.After:
-		label = "changed"
-	case mcpFailuresResolved:
-		label = "changed"
-	case current.BlockedRequests < baseline.BlockedRequests:
-		label = "changed"
-	case len(reasonCodes) > 0:
-		label = "changed"
-	}
+	label := buildAuditComparisonLabel(currentRunUnsuccessful, newMCPFailure, mcpFailuresResolved, current, baseline, delta, reasonCodes)
 
 	return &AuditComparisonData{
 		BaselineFound: true,
@@ -431,6 +378,68 @@ func buildAuditComparison(currentConclusion string, current auditComparisonSnaps
 		Recommendation: &AuditComparisonRecommendation{
 			Action: recommendAuditComparisonAction(label, currentConclusion, delta),
 		},
+	}
+}
+
+func buildAuditComparisonDelta(current auditComparisonSnapshot, baseline *auditComparisonSnapshot) *AuditComparisonDelta {
+	return &AuditComparisonDelta{
+		Turns:           AuditComparisonIntDelta{Before: baseline.Turns, After: current.Turns, Changed: baseline.Turns != current.Turns},
+		Posture:         AuditComparisonStringDelta{Before: baseline.Posture, After: current.Posture, Changed: baseline.Posture != current.Posture},
+		BlockedRequests: AuditComparisonIntDelta{Before: baseline.BlockedRequests, After: current.BlockedRequests, Changed: baseline.BlockedRequests != current.BlockedRequests},
+	}
+}
+
+func buildAuditComparisonReasonCodes(current auditComparisonSnapshot, baseline *auditComparisonSnapshot) []string {
+	var reasonCodes []string
+	if current.Turns > baseline.Turns {
+		reasonCodes = append(reasonCodes, "turns_increase")
+	} else if current.Turns < baseline.Turns {
+		reasonCodes = append(reasonCodes, "turns_decrease")
+	}
+	if baseline.Posture != current.Posture {
+		reasonCodes = append(reasonCodes, "posture_changed")
+	}
+	if current.BlockedRequests > baseline.BlockedRequests {
+		reasonCodes = append(reasonCodes, "blocked_requests_increase")
+	} else if current.BlockedRequests < baseline.BlockedRequests {
+		reasonCodes = append(reasonCodes, "blocked_requests_decrease")
+	}
+	return reasonCodes
+}
+
+func buildAuditComparisonMCPFailureDelta(delta *AuditComparisonDelta, current auditComparisonSnapshot, baseline *auditComparisonSnapshot) (bool, bool) {
+	newMCPFailure := len(baseline.MCPFailures) == 0 && len(current.MCPFailures) > 0
+	mcpFailuresResolved := len(baseline.MCPFailures) > 0 && len(current.MCPFailures) == 0
+	if newMCPFailure || len(baseline.MCPFailures) > 0 || len(current.MCPFailures) > 0 {
+		delta.MCPFailure = &AuditComparisonMCPFailureDelta{
+			Before:       baseline.MCPFailures,
+			After:        current.MCPFailures,
+			NewlyPresent: newMCPFailure,
+		}
+	}
+	return newMCPFailure, mcpFailuresResolved
+}
+
+func buildAuditComparisonLabel(currentRunUnsuccessful, newMCPFailure, mcpFailuresResolved bool, current auditComparisonSnapshot, baseline *auditComparisonSnapshot, delta *AuditComparisonDelta, reasonCodes []string) string {
+	switch {
+	case currentRunUnsuccessful:
+		return "risky"
+	case delta.Posture.Before == "read_only" && delta.Posture.After == "write_capable":
+		return "risky"
+	case newMCPFailure:
+		return "risky"
+	case current.BlockedRequests > baseline.BlockedRequests:
+		return "risky"
+	case delta.Posture.Before != "" && delta.Posture.After != "" && delta.Posture.Before != delta.Posture.After:
+		return "changed"
+	case mcpFailuresResolved:
+		return "changed"
+	case current.BlockedRequests < baseline.BlockedRequests:
+		return "changed"
+	case len(reasonCodes) > 0:
+		return "changed"
+	default:
+		return "stable"
 	}
 }
 

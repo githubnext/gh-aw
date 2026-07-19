@@ -10,6 +10,13 @@ var validateLog = logger.New("cli:validate_command")
 
 // NewValidateCommand creates the validate command
 func NewValidateCommand(validateEngine func(string) error) *cobra.Command {
+	cmd := newValidateCommandBase(validateEngine)
+	newValidateCommandFlags(cmd)
+	newValidateCommandCompletions(cmd)
+	return cmd
+}
+
+func newValidateCommandBase(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validate [workflow]...",
 		Short: "Validate agentic workflows without generating lock files",
@@ -29,50 +36,13 @@ If no workflows are specified, all Markdown files in .github/workflows will be v
   ` + string(constants.CLIExtensionPrefix) + ` validate --strict                # Enforce strict mode validation
   ` + string(constants.CLIExtensionPrefix) + ` validate --fail-fast             # Stop at the first validation error`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			engineOverride, _ := cmd.Flags().GetString("engine")
-			dir, _ := cmd.Flags().GetString("dir")
-			strict, _ := cmd.Flags().GetBool("strict")
-			jsonOutput, _ := cmd.Flags().GetBool("json")
-			failFast, _ := cmd.Flags().GetBool("fail-fast")
-			stats, _ := cmd.Flags().GetBool("stats")
-			allowActionRefs, _ := cmd.Flags().GetBool("allow-action-refs")
-			noCheckUpdate, _ := cmd.Flags().GetBool("no-check-update")
-			validateImages, _ := cmd.Flags().GetBool("validate-images")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-
-			if err := validateEngine(engineOverride); err != nil {
-				return err
-			}
-
-			// Check for updates (non-blocking, runs once per day)
-			CheckForUpdatesAsync(cmd.Context(), noCheckUpdate, verbose)
-
-			validateLog.Printf("Running validate command: workflows=%v, dir=%s", args, dir)
-
-			config := CompileConfig{
-				MarkdownFiles:   args,
-				Verbose:         verbose,
-				EngineOverride:  engineOverride,
-				Validate:        true,
-				NoEmit:          true,
-				Zizmor:          true,
-				Actionlint:      true,
-				Poutine:         true,
-				WorkflowDir:     dir,
-				Strict:          strict,
-				JSONOutput:      jsonOutput,
-				FailFast:        failFast,
-				Stats:           stats,
-				AllowActionRefs: allowActionRefs,
-				ValidateImages:  validateImages,
-			}
-			if _, err := CompileWorkflows(cmd.Context(), config); err != nil {
-				return err
-			}
-			return nil
+			return runValidateCommand(cmd, args, validateEngine)
 		},
 	}
+	return cmd
+}
 
+func newValidateCommandFlags(cmd *cobra.Command) {
 	addEngineFlag(cmd)
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: $GH_AW_WORKFLOWS_DIR or .github/workflows)")
 	cmd.Flags().Bool("strict", false, "Override frontmatter to enforce strict mode validation for all workflows (enforces action pinning, network config, safe-outputs, disallows write permissions and deprecated fields). Note: Workflows default to strict mode unless frontmatter sets strict: false")
@@ -82,11 +52,52 @@ If no workflows are specified, all Markdown files in .github/workflows will be v
 	cmd.Flags().Bool("stats", false, "Display statistics table sorted by workflow file size (shows jobs, steps, scripts, and shells)")
 	cmd.Flags().Bool("allow-action-refs", false, "Allow unresolved action refs and emit warnings instead of failing validation")
 	cmd.Flags().Bool("no-check-update", false, "Skip checking for gh-aw updates")
+}
 
+func newValidateCommandCompletions(cmd *cobra.Command) {
 	// Register completions
 	cmd.ValidArgsFunction = CompleteWorkflowNames
 	RegisterEngineFlagCompletion(cmd)
 	RegisterDirFlagCompletion(cmd, "dir")
+}
 
-	return cmd
+func runValidateCommand(cmd *cobra.Command, args []string, validateEngine func(string) error) error {
+	engineOverride, _ := cmd.Flags().GetString("engine")
+	dir, _ := cmd.Flags().GetString("dir")
+	strict, _ := cmd.Flags().GetBool("strict")
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+	failFast, _ := cmd.Flags().GetBool("fail-fast")
+	stats, _ := cmd.Flags().GetBool("stats")
+	allowActionRefs, _ := cmd.Flags().GetBool("allow-action-refs")
+	noCheckUpdate, _ := cmd.Flags().GetBool("no-check-update")
+	validateImages, _ := cmd.Flags().GetBool("validate-images")
+	verbose, _ := cmd.Flags().GetBool("verbose")
+
+	if err := validateEngine(engineOverride); err != nil {
+		return err
+	}
+
+	CheckForUpdatesAsync(cmd.Context(), noCheckUpdate, verbose)
+	validateLog.Printf("Running validate command: workflows=%v, dir=%s", args, dir)
+	config := CompileConfig{
+		MarkdownFiles:   args,
+		Verbose:         verbose,
+		EngineOverride:  engineOverride,
+		Validate:        true,
+		NoEmit:          true,
+		Zizmor:          true,
+		Actionlint:      true,
+		Poutine:         true,
+		WorkflowDir:     dir,
+		Strict:          strict,
+		JSONOutput:      jsonOutput,
+		FailFast:        failFast,
+		Stats:           stats,
+		AllowActionRefs: allowActionRefs,
+		ValidateImages:  validateImages,
+	}
+	if _, err := CompileWorkflows(cmd.Context(), config); err != nil {
+		return err
+	}
+	return nil
 }

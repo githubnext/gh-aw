@@ -66,107 +66,109 @@ func (g *ToolGraph) GenerateMermaidGraph() string {
 		toolGraphLog.Print("No tool calls found for Mermaid graph generation")
 		return console.FormatInfoMessage("No tool calls found")
 	}
-
 	toolGraphLog.Printf("Generating Mermaid graph: tools=%d, transitions=%d", len(g.Tools), len(g.Transitions))
 	var sb strings.Builder
 	sb.WriteString("```mermaid\n")
 	sb.WriteString("stateDiagram-v2\n")
+	toolToStateMap := g.generateMermaidGraphStates(&sb)
+	g.generateMermaidGraphStart(&sb, toolToStateMap)
+	g.generateMermaidGraphTransitions(&sb, toolToStateMap)
+	sb.WriteString("```\n")
+	return sb.String()
+}
 
-	// Add tool states with normalized names for Mermaid
+func (g *ToolGraph) generateMermaidGraphStates(sb *strings.Builder) map[string]string {
 	toolToStateMap := make(map[string]string)
 	tools := sliceutil.SortedKeys(g.Tools)
-
 	for i, tool := range tools {
 		stateId := fmt.Sprintf("tool%d", i)
 		toolToStateMap[tool] = stateId
-		// Escape special characters in tool names for display
 		displayName := strings.ReplaceAll(tool, "\"", "\\\"")
-		fmt.Fprintf(&sb, "    %s : %s\n", stateId, displayName)
+		fmt.Fprintf(sb, "    %s : %s\n", stateId, displayName)
 	}
+	return toolToStateMap
+}
 
-	// Add start state
+func (g *ToolGraph) generateMermaidGraphStart(sb *strings.Builder, toolToStateMap map[string]string) {
 	sb.WriteString("    [*] --> start_tool : begin\n")
-
-	// Find the most common starting tool(s)
 	startCounts := make(map[string]int)
 	for _, sequence := range g.sequences {
 		if len(sequence) > 0 {
 			startCounts[sequence[0]]++
 		}
 	}
-
-	// Connect start to the most common starting tools
-	if len(startCounts) > 0 {
-		var startTools []string
-		maxCount := 0
-		for tool, count := range startCounts {
-			if count > maxCount {
-				maxCount = count
-				startTools = []string{tool}
-			} else if count == maxCount {
-				startTools = append(startTools, tool)
-			}
-		}
-
-		for _, tool := range startTools {
-			if stateId, exists := toolToStateMap[tool]; exists {
-				fmt.Fprintf(&sb, "    start_tool --> %s\n", stateId)
-			}
+	if len(startCounts) == 0 {
+		return
+	}
+	for _, tool := range generateMermaidGraphMostCommon(startCounts) {
+		if stateId, exists := toolToStateMap[tool]; exists {
+			fmt.Fprintf(sb, "    start_tool --> %s\n", stateId)
 		}
 	}
+}
 
-	// Add transitions with counts as labels
-	var transitions []ToolTransition
-	for key, count := range g.Transitions {
-		parts := strings.Split(key, "->")
-		if len(parts) == 2 {
-			transitions = append(transitions, ToolTransition{
-				From:  parts[0],
-				To:    parts[1],
-				Count: count,
-			})
+func generateMermaidGraphMostCommon(counts map[string]int) []string {
+	var result []string
+	maxCount := 0
+	for tool, count := range counts {
+		if count > maxCount {
+			maxCount = count
+			result = []string{tool}
+		} else if count == maxCount {
+			result = append(result, tool)
 		}
 	}
+	return result
+}
 
-	// Sort transitions by count (descending) for better visualization
-	slices.SortFunc(transitions, func(a, b ToolTransition) int {
-		if a.Count != b.Count {
-			if a.Count > b.Count {
-				return -1
-			}
-			return 1
-		}
-		if a.From != b.From {
-			if a.From < b.From {
-				return -1
-			}
-			return 1
-		}
-		switch {
-		case a.To < b.To:
-			return -1
-		case a.To > b.To:
-			return 1
-		default:
-			return 0
-		}
-	})
-
+func (g *ToolGraph) generateMermaidGraphTransitions(sb *strings.Builder, toolToStateMap map[string]string) {
+	transitions := g.generateMermaidGraphTransitionList()
 	for _, transition := range transitions {
 		fromState, fromExists := toolToStateMap[transition.From]
 		toState, toExists := toolToStateMap[transition.To]
-
 		if fromExists && toExists {
 			label := ""
 			if transition.Count > 1 {
 				label = fmt.Sprintf(" : %dx", transition.Count)
 			}
-			fmt.Fprintf(&sb, "    %s --> %s%s\n", fromState, toState, label)
+			fmt.Fprintf(sb, "    %s --> %s%s\n", fromState, toState, label)
 		}
 	}
+}
 
-	sb.WriteString("```\n")
-	return sb.String()
+func (g *ToolGraph) generateMermaidGraphTransitionList() []ToolTransition {
+	var transitions []ToolTransition
+	for key, count := range g.Transitions {
+		parts := strings.Split(key, "->")
+		if len(parts) == 2 {
+			transitions = append(transitions, ToolTransition{From: parts[0], To: parts[1], Count: count})
+		}
+	}
+	slices.SortFunc(transitions, generateMermaidGraphCompareTransition)
+	return transitions
+}
+
+func generateMermaidGraphCompareTransition(a, b ToolTransition) int {
+	if a.Count != b.Count {
+		if a.Count > b.Count {
+			return -1
+		}
+		return 1
+	}
+	if a.From != b.From {
+		if a.From < b.From {
+			return -1
+		}
+		return 1
+	}
+	switch {
+	case a.To < b.To:
+		return -1
+	case a.To > b.To:
+		return 1
+	default:
+		return 0
+	}
 }
 
 // generateToolGraph analyzes processed runs and generates a tool sequence graph

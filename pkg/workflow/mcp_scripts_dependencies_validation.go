@@ -71,68 +71,84 @@ func inferMCPScriptDependencyManager(tool *MCPScriptToolConfig) string {
 func validateMCPScriptDependencyName(toolName, manager, dependency string) error {
 	switch manager {
 	case "npm":
-		name, version, err := splitNpmDependency(dependency)
-		if err != nil {
-			if nameErr := validateNpmPackageName(dependency); nameErr != nil {
-				return newInvalidDependencyNameError(toolName, dependency)
-			}
-			return newUnpinnedDependencyError(toolName, dependency, "npm", "name@1.2.3", "@scope/name@1.2.3")
-		}
-		if err := validateNpmPackageName(name); err != nil {
-			return newInvalidDependencyNameError(toolName, dependency)
-		}
-		if !semverutil.IsValid(version) {
-			return newUnpinnedDependencyError(toolName, dependency, "npm", "name@1.2.3", "@scope/name@1.2.3")
-		}
+		return validateNpmMCPScriptDependency(toolName, dependency)
 	case "pip":
-		name := dependency
-		if idx := strings.IndexAny(name, "=<>!~"); idx > 0 {
-			name = name[:idx]
-		}
-		name = strings.TrimSpace(name)
-		if err := validatePipPackageName(name); err != nil {
-			return newInvalidDependencyNameError(toolName, dependency)
-		}
-		_, version, found := strings.Cut(dependency, "==")
-		if !found {
-			return newUnpinnedDependencyError(toolName, dependency, "pip", "name==1.2.3", "requests==2.32.3")
-		}
-		version = strings.TrimSpace(version)
-		if version == "" {
-			return newUnpinnedDependencyError(toolName, dependency, "pip", "name==1.2.3", "requests==2.32.3")
-		}
-		if !semverutil.IsValid(version) {
-			return newUnpinnedDependencyError(toolName, dependency, "pip", "name==1.2.3", "requests==2.32.3")
-		}
+		return validatePipMCPScriptDependency(toolName, dependency)
 	case "go":
-		moduleName, version, found := strings.Cut(dependency, "@")
-		if !found {
-			if !goModuleNameRE.MatchString(strings.TrimSpace(dependency)) {
-				return newInvalidDependencyNameError(toolName, dependency)
-			}
-			return newUnpinnedDependencyError(toolName, dependency, "go", "module@v1.2.3", "github.com/google/uuid@v1.6.0")
-		}
-		moduleName = strings.TrimSpace(moduleName)
-		version = strings.TrimSpace(version)
-		if moduleName == "" || version == "" {
-			return newUnpinnedDependencyError(toolName, dependency, "go", "module@v1.2.3", "github.com/google/uuid@v1.6.0")
-		}
-		if !goModuleNameRE.MatchString(moduleName) {
-			return newInvalidDependencyNameError(toolName, dependency)
-		}
-		if !strings.HasPrefix(version, "v") || !semverutil.IsValid(version) {
-			return newUnpinnedDependencyError(toolName, dependency, "go", "module@v1.2.3", "github.com/google/uuid@v1.6.0")
-		}
+		return validateGoMCPScriptDependency(toolName, dependency)
 	case "apt":
-		if !shellPackageDependencyNameRE.MatchString(dependency) {
+		return validateAptMCPScriptDependency(toolName, dependency)
+	}
+	return nil
+}
+
+func validateNpmMCPScriptDependency(toolName, dependency string) error {
+	name, version, err := splitNpmDependency(dependency)
+	if err != nil {
+		if nameErr := validateNpmPackageName(dependency); nameErr != nil {
 			return newInvalidDependencyNameError(toolName, dependency)
 		}
-		hasVersionPin := strings.Contains(dependency, "=") || strings.Contains(dependency, ":")
-		if !hasVersionPin {
-			return newUnpinnedDependencyError(toolName, dependency, "shell", "name=1.2.3", "jq=1.6-2.1")
-		}
+		return newUnpinnedDependencyError(toolName, dependency, "npm", "name@1.2.3", "@scope/name@1.2.3")
 	}
+	if err := validateNpmPackageName(name); err != nil {
+		return newInvalidDependencyNameError(toolName, dependency)
+	}
+	if !semverutil.IsValid(version) {
+		return newUnpinnedDependencyError(toolName, dependency, "npm", "name@1.2.3", "@scope/name@1.2.3")
+	}
+	return nil
+}
 
+func validatePipMCPScriptDependency(toolName, dependency string) error {
+	name := dependency
+	if idx := strings.IndexAny(name, "=<>!~"); idx > 0 {
+		name = name[:idx]
+	}
+	name = strings.TrimSpace(name)
+	if err := validatePipPackageName(name); err != nil {
+		return newInvalidDependencyNameError(toolName, dependency)
+	}
+	_, version, found := strings.Cut(dependency, "==")
+	if !found {
+		return newUnpinnedDependencyError(toolName, dependency, "pip", "name==1.2.3", "requests==2.32.3")
+	}
+	version = strings.TrimSpace(version)
+	if version == "" || !semverutil.IsValid(version) {
+		return newUnpinnedDependencyError(toolName, dependency, "pip", "name==1.2.3", "requests==2.32.3")
+	}
+	return nil
+}
+
+func validateGoMCPScriptDependency(toolName, dependency string) error {
+	moduleName, version, found := strings.Cut(dependency, "@")
+	if !found {
+		if !goModuleNameRE.MatchString(strings.TrimSpace(dependency)) {
+			return newInvalidDependencyNameError(toolName, dependency)
+		}
+		return newUnpinnedDependencyError(toolName, dependency, "go", "module@v1.2.3", "github.com/google/uuid@v1.6.0")
+	}
+	moduleName = strings.TrimSpace(moduleName)
+	version = strings.TrimSpace(version)
+	if moduleName == "" || version == "" {
+		return newUnpinnedDependencyError(toolName, dependency, "go", "module@v1.2.3", "github.com/google/uuid@v1.6.0")
+	}
+	if !goModuleNameRE.MatchString(moduleName) {
+		return newInvalidDependencyNameError(toolName, dependency)
+	}
+	if !strings.HasPrefix(version, "v") || !semverutil.IsValid(version) {
+		return newUnpinnedDependencyError(toolName, dependency, "go", "module@v1.2.3", "github.com/google/uuid@v1.6.0")
+	}
+	return nil
+}
+
+func validateAptMCPScriptDependency(toolName, dependency string) error {
+	if !shellPackageDependencyNameRE.MatchString(dependency) {
+		return newInvalidDependencyNameError(toolName, dependency)
+	}
+	hasVersionPin := strings.Contains(dependency, "=") || strings.Contains(dependency, ":")
+	if !hasVersionPin {
+		return newUnpinnedDependencyError(toolName, dependency, "shell", "name=1.2.3", "jq=1.6-2.1")
+	}
 	return nil
 }
 

@@ -136,6 +136,44 @@ func confirmOrgAction(preview orgRepoPreview, action string, autoYes bool) (bool
 //  7. When createPR or createIssue is set, iterates through results calling
 //     cbs.ApplyFn or cbs.IssueFn, continuing past per-repo errors.
 func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs orgRunCallbacks, createPR bool, createIssue bool, verbose bool) error {
+	if err := runCommandForOrgValidate(org, repoGlobs, cbs, createPR, createIssue); err != nil {
+		return err
+	}
+
+	// Handle Ctrl-C / SIGTERM so an interrupted run still renders the report
+	// gathered so far instead of exiting abruptly.
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	repos, err := runCommandForOrgDiscover(ctx, org, repoGlobs, cbs, verbose)
+	if err != nil {
+		return err
+	}
+	if len(repos) == 0 {
+		return nil
+	}
+
+	results, ok := runCommandForOrgScan(ctx, repos, cbs, verbose)
+	if !ok {
+		return nil
+	}
+
+	runCommandForOrgSort(results)
+
+	// Always render the report before applying anything: it is cheap and lets
+	// the user see results even if the run is stopped early.
+	cbs.ReportFn(results, createPR || createIssue)
+
+	if !createPR && !createIssue {
+		return nil
+	}
+	if createIssue {
+		return runCommandForOrgCreateIssues(ctx, results, cbs, verbose)
+	}
+	return runCommandForOrgCreatePRs(ctx, results, cbs, verbose)
+}
+
+func runCommandForOrgValidate(org string, repoGlobs []string, cbs orgRunCallbacks, createPR bool, createIssue bool) error {
 	if strings.TrimSpace(org) == "" {
 		return errors.New("--org cannot be empty")
 	}
@@ -160,12 +198,10 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 	if (createPR || createIssue) && !cbs.AutoYes && isRunningInCIFn() {
 		return errors.New("confirmation is required for --org create operations in CI; re-run with --yes to auto-accept")
 	}
+	return nil
+}
 
-	// Handle Ctrl-C / SIGTERM so an interrupted run still renders the report
-	// gathered so far instead of exiting abruptly.
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
+func runCommandForOrgDiscover(ctx context.Context, org string, repoGlobs []string, cbs orgRunCallbacks, verbose bool) ([]string, error) {
 	discMsg := cbs.DiscoveringMsg
 	if discMsg == "" {
 		discMsg = "Discovering repositories in " + org + "..."
@@ -174,7 +210,7 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 
 	repoPaths, err := cbs.SearchFn(ctx, org, verbose)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if len(repoPaths) == 0 {
 		noReposMsg := cbs.NoReposMsg
@@ -182,87 +218,114 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 			noReposMsg = "No repositories found"
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(noReposMsg))
-		return nil
+		return nil, nil
 	}
 
 	repos := filterOrgRepos(repoPaths, repoGlobs)
 	if len(repos) == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No repositories matched the requested --repos filters"))
-		return nil
 	}
+	return repos, nil
+}
 
-	// Build the result set.
-	var results []orgRepoPreview
-
+func runCommandForOrgScan(ctx context.Context, repos []string, cbs orgRunCallbacks, verbose bool) ([]orgRepoPreview, bool) {
 	if cbs.ScanFn == nil {
-		// No per-repo scanning: include every discovered repo directly.
-		results = make([]orgRepoPreview, 0, len(repos))
+		results := make([]orgRepoPreview, 0, len(repos))
 		for _, repo := range repos {
 			results = append(results, orgRepoPreview{Repo: repo})
 		}
-	} else {
-		total := len(repos)
-		scanLabel := cbs.ScanLabel
-		if scanLabel == "" {
-			scanLabel = "Inspecting"
-		}
-		results = make([]orgRepoPreview, 0, len(repos))
-		stopped := false
-
-		for i, repo := range repos {
-			// Honor a cancellation signal between repos so we can still show
-			// the report for the work completed so far.
-			if ctx.Err() != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cancellation requested; stopping after %d/%d repositories", i, total)))
-				orgRunnerLog.Printf("Context canceled during scan at repo %d/%d: %v", i, total, ctx.Err())
-				stopped = true
-				break
-			}
-
-			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] %s %s", i+1, total, scanLabel, repo)))
-
-			if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil {
-				if errors.Is(err, errOrgRateLimitCritical) {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("GitHub API budget critical; stopping after %d/%d repositories and reporting what was found", i, total)))
-					orgRunnerLog.Printf("Rate limit critical during scan at repo %d/%d", i, total)
-					stopped = true
-					break
-				}
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", repo, err)))
-				}
-			}
-
-			preview, include, scanErr := cbs.ScanFn(ctx, repo, verbose)
-			if scanErr != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", repo, scanErr)))
-				orgRunnerLog.Printf("Failed to scan %s: %v", repo, scanErr)
-				continue
-			}
-			if !include {
-				continue
-			}
-			results = append(results, preview)
-		}
-
-		if len(results) == 0 {
-			if stopped {
-				msg := cbs.NoResultsStopMsg
-				if msg == "" {
-					msg = "No results found before processing stopped"
-				}
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(msg))
-				return nil
-			}
-			msg := cbs.NoResultsMsg
-			if msg == "" {
-				msg = "All matching repositories are already up to date"
-			}
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(msg))
-			return nil
-		}
+		return results, true
 	}
 
+	results, stopped := runCommandForOrgScanRepos(ctx, repos, cbs, verbose)
+	if len(results) > 0 {
+		return results, true
+	}
+	if stopped {
+		msg := cbs.NoResultsStopMsg
+		if msg == "" {
+			msg = "No results found before processing stopped"
+		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(msg))
+		return nil, false
+	}
+	msg := cbs.NoResultsMsg
+	if msg == "" {
+		msg = "All matching repositories are already up to date"
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(msg))
+	return nil, false
+}
+
+func runCommandForOrgScanRepos(ctx context.Context, repos []string, cbs orgRunCallbacks, verbose bool) ([]orgRepoPreview, bool) {
+	total := len(repos)
+	scanLabel := cbs.ScanLabel
+	if scanLabel == "" {
+		scanLabel = "Inspecting"
+	}
+	results := make([]orgRepoPreview, 0, len(repos))
+	stopped := false
+
+	for i, repo := range repos {
+		if runCommandForOrgScanStopped(ctx, i, total) {
+			stopped = true
+			break
+		}
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] %s %s", i+1, total, scanLabel, repo)))
+		if runCommandForOrgRateLimited(ctx, "scan", i, total, repo, 0, verbose) {
+			stopped = true
+			break
+		}
+		preview, include, scanErr := cbs.ScanFn(ctx, repo, verbose)
+		if scanErr != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", repo, scanErr)))
+			orgRunnerLog.Printf("Failed to scan %s: %v", repo, scanErr)
+			continue
+		}
+		if include {
+			results = append(results, preview)
+		}
+	}
+	return results, stopped
+}
+
+func runCommandForOrgScanStopped(ctx context.Context, index int, total int) bool {
+	if ctx.Err() == nil {
+		return false
+	}
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cancellation requested; stopping after %d/%d repositories", index, total)))
+	orgRunnerLog.Printf("Context canceled during scan at repo %d/%d: %v", index, total, ctx.Err())
+	return true
+}
+
+func runCommandForOrgRateLimited(ctx context.Context, phase string, index int, total int, repo string, processed int, verbose bool) bool {
+	if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil {
+		if errors.Is(err, errOrgRateLimitCritical) {
+			runCommandForOrgRateLimitCritical(phase, index, total, processed)
+			return true
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", repo, err)))
+		}
+	}
+	return false
+}
+
+func runCommandForOrgRateLimitCritical(phase string, index int, total int, processed int) {
+	switch phase {
+	case "scan":
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("GitHub API budget critical; stopping after %d/%d repositories and reporting what was found", index, total)))
+		orgRunnerLog.Printf("Rate limit critical during scan at repo %d/%d", index, total)
+	case "issue":
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("GitHub API budget critical; created issues for %d/%d repositories", processed, total)))
+		orgRunnerLog.Printf("Rate limit critical during issue creation at %d/%d", index, total)
+	default:
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("GitHub API budget critical; processed %d/%d repositories", processed, total)))
+		orgRunnerLog.Printf("Rate limit critical during apply at %d/%d", index, total)
+	}
+}
+
+func runCommandForOrgSort(results []orgRepoPreview) {
 	// Sort by oldest-edit time (oldest first); ties broken alphabetically.
 	slices.SortStableFunc(results, func(a, b orgRepoPreview) int {
 		if a.OldestEdit.IsZero() && b.OldestEdit.IsZero() {
@@ -282,112 +345,41 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 		}
 		return 1
 	})
+}
 
-	// Always render the report before applying anything: it is cheap and lets
-	// the user see results even if the run is stopped early.
-	cbs.ReportFn(results, createPR || createIssue)
-
-	if !createPR && !createIssue {
-		return nil
+func runCommandForOrgCreateIssues(ctx context.Context, results []orgRepoPreview, cbs orgRunCallbacks, verbose bool) error {
+	issueLabel := cbs.IssueLabel
+	if issueLabel == "" {
+		issueLabel = "Creating issue in"
 	}
-
-	if createIssue {
-		issueLabel := cbs.IssueLabel
-		if issueLabel == "" {
-			issueLabel = "Creating issue in"
-		}
-		processed := 0
-		attempted := 0
-		for i, result := range results {
-			if ctx.Err() != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cancellation requested; created issues for %d/%d repositories", processed, len(results))))
-				orgRunnerLog.Printf("Context canceled during issue creation at %d/%d: %v", i, len(results), ctx.Err())
-				return nil
-			}
-			if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil {
-				if errors.Is(err, errOrgRateLimitCritical) {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("GitHub API budget critical; created issues for %d/%d repositories", processed, len(results))))
-					orgRunnerLog.Printf("Rate limit critical during issue creation at %d/%d", i, len(results))
-					return nil
-				}
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", result.Repo, err)))
-				}
-			}
-			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] %s %s%s", i+1, len(results), issueLabel, result.Repo, orgWorkflowCountSuffix(result))))
-			confirmed, err := confirmOrgAction(result, "create an issue", cbs.AutoYes)
-			if err != nil {
-				return err
-			}
-			if !confirmed {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipped "+result.Repo))
-				continue
-			}
-			attempted++
-			if err := cbs.IssueFn(ctx, result, verbose); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", result.Repo, err)))
-				orgRunnerLog.Printf("Failed to create issue in %s: %v", result.Repo, err)
-				continue
-			}
-			processed++
-		}
-		if attempted == 0 {
+	processed, attempted, stopped, err := runCommandForOrgApplyLoop(ctx, results, cbs, verbose, issueLabel, "create an issue", "issue")
+	if err != nil || stopped || attempted == 0 {
+		if attempted == 0 && !stopped && err == nil {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No repositories were accepted for issue creation"))
-			return nil
 		}
-		if processed == 0 {
-			msg := cbs.AllFailIssueMsg
-			if msg == "" {
-				msg = "failed to create issues in any repository"
-			}
-			return errors.New(msg)
-		}
-		return nil
+		return err
 	}
+	if processed == 0 {
+		msg := cbs.AllFailIssueMsg
+		if msg == "" {
+			msg = "failed to create issues in any repository"
+		}
+		return errors.New(msg)
+	}
+	return nil
+}
 
-	// createPR
+func runCommandForOrgCreatePRs(ctx context.Context, results []orgRepoPreview, cbs orgRunCallbacks, verbose bool) error {
 	applyLabel := cbs.ApplyLabel
 	if applyLabel == "" {
 		applyLabel = "Processing"
 	}
-	processed := 0
-	attempted := 0
-	for i, result := range results {
-		if ctx.Err() != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cancellation requested; processed %d/%d repositories", processed, len(results))))
-			orgRunnerLog.Printf("Context canceled during apply at %d/%d: %v", i, len(results), ctx.Err())
-			return nil
+	processed, attempted, stopped, err := runCommandForOrgApplyLoop(ctx, results, cbs, verbose, applyLabel, "create a pull request", "apply")
+	if err != nil || stopped || attempted == 0 {
+		if attempted == 0 && !stopped && err == nil {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No repositories were accepted for pull request creation"))
 		}
-		if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil {
-			if errors.Is(err, errOrgRateLimitCritical) {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("GitHub API budget critical; processed %d/%d repositories", processed, len(results))))
-				orgRunnerLog.Printf("Rate limit critical during apply at %d/%d", i, len(results))
-				return nil
-			}
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", result.Repo, err)))
-			}
-		}
-		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] %s %s%s", i+1, len(results), applyLabel, result.Repo, orgWorkflowCountSuffix(result))))
-		confirmed, err := confirmOrgAction(result, "create a pull request", cbs.AutoYes)
-		if err != nil {
-			return err
-		}
-		if !confirmed {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipped "+result.Repo))
-			continue
-		}
-		attempted++
-		if err := cbs.ApplyFn(ctx, result, verbose); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", result.Repo, err)))
-			orgRunnerLog.Printf("Failed to apply to %s: %v", result.Repo, err)
-			continue
-		}
-		processed++
-	}
-	if attempted == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No repositories were accepted for pull request creation"))
-		return nil
+		return err
 	}
 	if processed == 0 {
 		msg := cbs.AllFailApplyMsg
@@ -396,6 +388,65 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 		}
 		return errors.New(msg)
 	}
-
 	return nil
+}
+
+func runCommandForOrgApplyLoop(ctx context.Context, results []orgRepoPreview, cbs orgRunCallbacks, verbose bool, label string, action string, phase string) (int, int, bool, error) {
+	processed := 0
+	attempted := 0
+	for i, result := range results {
+		if runCommandForOrgApplyStopped(ctx, phase, i, len(results), processed) {
+			return processed, attempted, true, nil
+		}
+		if runCommandForOrgRateLimited(ctx, phase, i, len(results), result.Repo, processed, verbose) {
+			return processed, attempted, true, nil
+		}
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] %s %s%s", i+1, len(results), label, result.Repo, orgWorkflowCountSuffix(result))))
+		confirmed, err := confirmOrgAction(result, action, cbs.AutoYes)
+		if err != nil {
+			return processed, attempted, false, err
+		}
+		if !confirmed {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipped "+result.Repo))
+			continue
+		}
+		attempted++
+		if runCommandForOrgApplyOne(ctx, result, cbs, verbose, phase) {
+			processed++
+		}
+	}
+	return processed, attempted, false, nil
+}
+
+func runCommandForOrgApplyStopped(ctx context.Context, phase string, index int, total int, processed int) bool {
+	if ctx.Err() == nil {
+		return false
+	}
+	if phase == "issue" {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cancellation requested; created issues for %d/%d repositories", processed, total)))
+		orgRunnerLog.Printf("Context canceled during issue creation at %d/%d: %v", index, total, ctx.Err())
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cancellation requested; processed %d/%d repositories", processed, total)))
+		orgRunnerLog.Printf("Context canceled during apply at %d/%d: %v", index, total, ctx.Err())
+	}
+	return true
+}
+
+func runCommandForOrgApplyOne(ctx context.Context, result orgRepoPreview, cbs orgRunCallbacks, verbose bool, phase string) bool {
+	var err error
+	if phase == "issue" {
+		err = cbs.IssueFn(ctx, result, verbose)
+	} else {
+		err = cbs.ApplyFn(ctx, result, verbose)
+	}
+	if err == nil {
+		return true
+	}
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", result.Repo, err)))
+	if phase == "issue" {
+		orgRunnerLog.Printf("Failed to create issue in %s: %v", result.Repo, err)
+	} else {
+		orgRunnerLog.Printf("Failed to apply to %s: %v", result.Repo, err)
+	}
+	return false
 }

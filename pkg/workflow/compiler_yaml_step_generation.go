@@ -175,67 +175,50 @@ func (c *Compiler) generateSetupStepWithArtifactClientCondition(data *WorkflowDa
 	lines := c.generateOTLPOIDCMintStep(data)
 	hasOTLPOIDC := len(lines) > 0
 	artifactClientCondition = strings.TrimSpace(artifactClientCondition)
+	setupEngineID := setupEngineIDForWorkflow(data)
 
-	setupEngineID := ""
-	if data != nil {
-		if data.EngineConfig != nil && data.EngineConfig.ID != "" {
-			setupEngineID = data.EngineConfig.ID
-		} else if data.AI != "" {
-			setupEngineID = data.AI
-		}
-	}
-
-	// Script mode: run the setup.sh script directly
 	if c.actionMode.IsScript() {
-		setupLines := []string{
-			"      - name: Setup Scripts\n",
-			"        id: setup\n",
-			"        run: |\n",
-			"          bash /tmp/gh-aw/actions-source/actions/setup/setup.sh\n",
-			"        env:\n",
-			fmt.Sprintf("          INPUT_DESTINATION: %s\n", destination),
-			"          INPUT_JOB_NAME: ${{ github.job }}\n",
-		}
-		if data != nil {
-			setupLines = append(setupLines,
-				fmt.Sprintf("          GH_AW_SETUP_WORKFLOW_NAME: %q\n", data.Name),
-				fmt.Sprintf("          GH_AW_CURRENT_WORKFLOW_REF: %s\n", buildSetupWorkflowRefExpr(data)),
-			)
-			if v := getVersionForSetup(data); v != "" {
-				setupLines = append(setupLines, fmt.Sprintf("          GH_AW_INFO_VERSION: %q\n", v))
-			}
-			if v := getAWFVersionForSetup(data); v != "" {
-				setupLines = append(setupLines, fmt.Sprintf("          GH_AW_INFO_AWF_VERSION: %q\n", v))
-			}
-			if data.Source != "" {
-				setupLines = append(setupLines, "          GH_AW_INFO_BODY_MODIFIED: \"false\"\n")
-			}
-			if setupEngineID != "" {
-				setupLines = append(setupLines, fmt.Sprintf("          GH_AW_INFO_ENGINE_ID: %q\n", setupEngineID))
-			}
-		}
-		if traceID != "" {
-			setupLines = append(setupLines, fmt.Sprintf("          INPUT_TRACE_ID: %s\n", traceID))
-		}
-		if parentSpanID != "" {
-			setupLines = append(setupLines, fmt.Sprintf("          INPUT_PARENT_SPAN_ID: %s\n", parentSpanID))
-		}
-		if hasOTLPOIDC {
-			setupLines = append(setupLines, "          INPUT_OTLP_OIDC_TOKEN: ${{ steps.mint-otlp-oidc-token.outputs.token }}\n")
-		}
-		if enableArtifactClient {
-			if artifactClientCondition != "" {
-				setupLines = append(setupLines, fmt.Sprintf("          INPUT_SAFE_OUTPUT_ARTIFACT_CLIENT: %s\n", artifactClientCondition))
-			} else {
-				setupLines = append(setupLines, "          INPUT_SAFE_OUTPUT_ARTIFACT_CLIENT: 'true'\n")
-			}
-		}
-		lines = append(lines, setupLines...)
-		return lines
+		return append(lines, buildScriptModeSetupLines(data, destination, traceID, parentSpanID, setupEngineID, hasOTLPOIDC, enableArtifactClient, artifactClientCondition)...)
 	}
 
 	// Dev/Release mode: use the setup action
 	compilerYamlStepGenerationLog.Printf("Generating setup step: ref=%s, destination=%s, artifactClient=%t, traceID=%q, parentSpanID=%q", setupActionRef, destination, enableArtifactClient, traceID, parentSpanID)
+	setupLines := buildActionModeSetupLines(data, setupActionRef, destination, traceID, parentSpanID, setupEngineID, hasOTLPOIDC, enableArtifactClient, artifactClientCondition)
+	lines = append(lines, setupLines...)
+	return lines
+}
+
+func setupEngineIDForWorkflow(data *WorkflowData) string {
+	if data == nil {
+		return ""
+	}
+	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		return data.EngineConfig.ID
+	}
+	if data.AI != "" {
+		return data.AI
+	}
+	return ""
+}
+
+func buildScriptModeSetupLines(data *WorkflowData, destination string, traceID string, parentSpanID string, setupEngineID string, hasOTLPOIDC bool, enableArtifactClient bool, artifactClientCondition string) []string {
+	setupLines := []string{
+		"      - name: Setup Scripts\n",
+		"        id: setup\n",
+		"        run: |\n",
+		"          bash /tmp/gh-aw/actions-source/actions/setup/setup.sh\n",
+		"        env:\n",
+		fmt.Sprintf("          INPUT_DESTINATION: %s\n", destination),
+		"          INPUT_JOB_NAME: ${{ github.job }}\n",
+	}
+	if data != nil {
+		setupLines = append(setupLines, setupWorkflowInfoEnvLines(data, setupEngineID)...)
+	}
+	setupLines = appendSetupTraceAndOTLPLines(setupLines, traceID, parentSpanID, hasOTLPOIDC, true)
+	return appendArtifactClientInput(setupLines, enableArtifactClient, artifactClientCondition, true)
+}
+
+func buildActionModeSetupLines(data *WorkflowData, setupActionRef string, destination string, traceID string, parentSpanID string, setupEngineID string, hasOTLPOIDC bool, enableArtifactClient bool, artifactClientCondition string) []string {
 	setupLines := []string{
 		"      - name: Setup Scripts\n",
 		"        id: setup\n",
@@ -244,44 +227,65 @@ func (c *Compiler) generateSetupStepWithArtifactClientCondition(data *WorkflowDa
 		fmt.Sprintf("          destination: %s\n", destination),
 		"          job-name: ${{ github.job }}\n",
 	}
-	if traceID != "" {
-		setupLines = append(setupLines, fmt.Sprintf("          trace-id: %s\n", traceID))
-	}
-	if parentSpanID != "" {
-		setupLines = append(setupLines, fmt.Sprintf("          parent-span-id: %s\n", parentSpanID))
-	}
-	if hasOTLPOIDC {
-		setupLines = append(setupLines, "          otlp-oidc-token: ${{ steps.mint-otlp-oidc-token.outputs.token }}\n")
-	}
-	if enableArtifactClient {
-		if artifactClientCondition != "" {
-			setupLines = append(setupLines, fmt.Sprintf("          safe-output-artifact-client: %s\n", artifactClientCondition))
-		} else {
-			setupLines = append(setupLines, "          safe-output-artifact-client: 'true'\n")
-		}
-	}
-	setupLines = append(setupLines,
-		"        env:\n",
-		fmt.Sprintf("          GH_AW_SETUP_WORKFLOW_NAME: %q\n", data.Name),
-		fmt.Sprintf("          GH_AW_CURRENT_WORKFLOW_REF: %s\n", buildSetupWorkflowRefExpr(data)),
-	)
-	if v := getVersionForSetup(data); v != "" {
-		setupLines = append(setupLines, fmt.Sprintf("          GH_AW_INFO_VERSION: %q\n", v))
-	}
-	if v := getAWFVersionForSetup(data); v != "" {
-		setupLines = append(setupLines, fmt.Sprintf("          GH_AW_INFO_AWF_VERSION: %q\n", v))
-	}
-	if data.Source != "" {
-		setupLines = append(setupLines, "          GH_AW_INFO_BODY_MODIFIED: \"false\"\n")
-	}
-	if setupEngineID != "" {
-		setupLines = append(setupLines, fmt.Sprintf("          GH_AW_INFO_ENGINE_ID: %q\n", setupEngineID))
-	}
+	setupLines = appendSetupTraceAndOTLPLines(setupLines, traceID, parentSpanID, hasOTLPOIDC, false)
+	setupLines = appendArtifactClientInput(setupLines, enableArtifactClient, artifactClientCondition, false)
+	setupLines = append(setupLines, "        env:\n")
+	setupLines = append(setupLines, setupWorkflowInfoEnvLines(data, setupEngineID)...)
 	if hasWorkflowCallTrigger(data.On) {
 		setupLines = append(setupLines, "          GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}\n")
 	}
-	lines = append(lines, setupLines...)
+	return setupLines
+}
+
+func setupWorkflowInfoEnvLines(data *WorkflowData, setupEngineID string) []string {
+	lines := []string{
+		fmt.Sprintf("          GH_AW_SETUP_WORKFLOW_NAME: %q\n", data.Name),
+		fmt.Sprintf("          GH_AW_CURRENT_WORKFLOW_REF: %s\n", buildSetupWorkflowRefExpr(data)),
+	}
+	if v := getVersionForSetup(data); v != "" {
+		lines = append(lines, fmt.Sprintf("          GH_AW_INFO_VERSION: %q\n", v))
+	}
+	if v := getAWFVersionForSetup(data); v != "" {
+		lines = append(lines, fmt.Sprintf("          GH_AW_INFO_AWF_VERSION: %q\n", v))
+	}
+	if data.Source != "" {
+		lines = append(lines, "          GH_AW_INFO_BODY_MODIFIED: \"false\"\n")
+	}
+	if setupEngineID != "" {
+		lines = append(lines, fmt.Sprintf("          GH_AW_INFO_ENGINE_ID: %q\n", setupEngineID))
+	}
 	return lines
+}
+
+func appendSetupTraceAndOTLPLines(setupLines []string, traceID string, parentSpanID string, hasOTLPOIDC bool, scriptMode bool) []string {
+	traceKey, parentKey, otlpKey := "trace-id", "parent-span-id", "otlp-oidc-token"
+	if scriptMode {
+		traceKey, parentKey, otlpKey = "INPUT_TRACE_ID", "INPUT_PARENT_SPAN_ID", "INPUT_OTLP_OIDC_TOKEN"
+	}
+	if traceID != "" {
+		setupLines = append(setupLines, fmt.Sprintf("          %s: %s\n", traceKey, traceID))
+	}
+	if parentSpanID != "" {
+		setupLines = append(setupLines, fmt.Sprintf("          %s: %s\n", parentKey, parentSpanID))
+	}
+	if hasOTLPOIDC {
+		setupLines = append(setupLines, fmt.Sprintf("          %s: ${{ steps.mint-otlp-oidc-token.outputs.token }}\n", otlpKey))
+	}
+	return setupLines
+}
+
+func appendArtifactClientInput(setupLines []string, enableArtifactClient bool, artifactClientCondition string, scriptMode bool) []string {
+	if !enableArtifactClient {
+		return setupLines
+	}
+	key := "safe-output-artifact-client"
+	if scriptMode {
+		key = "INPUT_SAFE_OUTPUT_ARTIFACT_CLIENT"
+	}
+	if artifactClientCondition != "" {
+		return append(setupLines, fmt.Sprintf("          %s: %s\n", key, artifactClientCondition))
+	}
+	return append(setupLines, fmt.Sprintf("          %s: 'true'\n", key))
 }
 
 // generateSetRuntimePathsStep generates a step that sets RUNNER_TEMP-based env vars

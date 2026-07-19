@@ -244,42 +244,37 @@ func (cm *CheckoutManager) GenerateGitHubFolderCheckoutStep(repository, ref, tok
 // condition.
 func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken string, condition ConditionNode) []string {
 	conditionStr := RenderCondition(condition)
-
-	// Collect subdirectory cross-repo checkouts that need per-repo re-authentication.
-	type subRepo struct {
-		repository string
-		path       string
+	subRepos := cm.gitCredentialSubRepos()
+	rootRepo := cm.gitCredentialRootRepo()
+	if len(subRepos) == 0 {
+		return buildSimpleGitCredentialsStep(conditionStr, rootRepo, gitRemoteToken)
 	}
-	var subRepos []subRepo
+	return buildMultiRepoGitCredentialsStep(conditionStr, rootRepo, gitRemoteToken, buildSubRepoEnvVars(subRepos))
+}
+
+type gitCredentialSubRepo struct {
+	repository string
+	path       string
+}
+
+type gitCredentialSubRepoEnvVar struct {
+	repository     string
+	path           string
+	envVarName     string
+	pathEnvVarName string
+}
+
+func (cm *CheckoutManager) gitCredentialSubRepos() []gitCredentialSubRepo {
+	var subRepos []gitCredentialSubRepo
 	for _, entry := range cm.ordered {
 		if entry.key.repository != "" && entry.key.path != "" && !entry.key.wiki {
-			subRepos = append(subRepos, subRepo{repository: entry.key.repository, path: entry.key.path})
+			subRepos = append(subRepos, gitCredentialSubRepo{repository: entry.key.repository, path: entry.key.path})
 		}
 	}
+	return subRepos
+}
 
-	if len(subRepos) == 0 {
-		// Simple case: single root repo, call the script directly.
-		rootRepo := "${{ github.repository }}"
-		for _, entry := range cm.ordered {
-			// If a non-default checkout targets the workspace root (no path:), it will clobber
-			// the root checkout; configure git for the effective repo at the root.
-			if entry.key.wiki || entry.key.path != "" || entry.key.repository == "" {
-				continue
-			}
-			rootRepo = entry.key.repository
-		}
-		return []string{
-			"      - name: Configure Git credentials\n",
-			fmt.Sprintf("        if: %s\n", conditionStr),
-			"        env:\n",
-			fmt.Sprintf("          GITHUB_REPOSITORY: %s\n", rootRepo),
-			"          GITHUB_SERVER_URL: ${{ github.server_url }}\n",
-			fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
-			"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
-		}
-	}
-
-	// Multi-repo case: configure the root repo, then re-authenticate each subdirectory checkout.
+func (cm *CheckoutManager) gitCredentialRootRepo() string {
 	rootRepo := "${{ github.repository }}"
 	for _, entry := range cm.ordered {
 		if entry.key.wiki || entry.key.path != "" || entry.key.repository == "" {
@@ -287,21 +282,25 @@ func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken s
 		}
 		rootRepo = entry.key.repository
 	}
+	return rootRepo
+}
 
-	// Assign each sub-repo a dedicated env var so that GitHub Actions expressions
-	// (e.g. "${{ github.event.inputs.target_repo }}") are never inlined directly
-	// into the shell command, preventing template-injection scanner failures.
-	// pathEnvVarName is set only when path is expression-based; otherwise the
-	// literal path string is used directly in the shell command.
-	type subRepoEnvVar struct {
-		repository     string
-		path           string
-		envVarName     string
-		pathEnvVarName string // non-empty only when path is a GitHub Actions expression
+func buildSimpleGitCredentialsStep(conditionStr, rootRepo, gitRemoteToken string) []string {
+	return []string{
+		"      - name: Configure Git credentials\n",
+		fmt.Sprintf("        if: %s\n", conditionStr),
+		"        env:\n",
+		fmt.Sprintf("          GITHUB_REPOSITORY: %s\n", rootRepo),
+		"          GITHUB_SERVER_URL: ${{ github.server_url }}\n",
+		fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
+		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
 	}
-	subRepoEnvVars := make([]subRepoEnvVar, len(subRepos))
+}
+
+func buildSubRepoEnvVars(subRepos []gitCredentialSubRepo) []gitCredentialSubRepoEnvVar {
+	subRepoEnvVars := make([]gitCredentialSubRepoEnvVar, len(subRepos))
 	for i, repo := range subRepos {
-		ev := subRepoEnvVar{
+		ev := gitCredentialSubRepoEnvVar{
 			repository: repo.repository,
 			path:       repo.path,
 			envVarName: fmt.Sprintf("GH_AW_SUBREPO_%d", i),
@@ -311,8 +310,27 @@ func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken s
 		}
 		subRepoEnvVars[i] = ev
 	}
+	return subRepoEnvVars
+}
 
-	// Build the env block, including a dedicated var for every sub-repo.
+func buildMultiRepoGitCredentialsStep(conditionStr, rootRepo, gitRemoteToken string, subRepoEnvVars []gitCredentialSubRepoEnvVar) []string {
+	steps := []string{
+		"      - name: Configure Git credentials\n",
+		fmt.Sprintf("        if: %s\n", conditionStr),
+	}
+	steps = append(steps, buildSubRepoEnvLines(rootRepo, gitRemoteToken, subRepoEnvVars)...)
+	steps = append(steps,
+		"        run: |\n",
+		"          bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
+		"          GIT_SERVER_URL_STRIPPED=\"${GITHUB_SERVER_URL#https://}\"\n",
+	)
+	for _, repo := range subRepoEnvVars {
+		steps = append(steps, buildSubRepoReauthLines(repo)...)
+	}
+	return append(steps, "          echo \"Git configured with standard GitHub Actions identity\"\n")
+}
+
+func buildSubRepoEnvLines(rootRepo, gitRemoteToken string, subRepoEnvVars []gitCredentialSubRepoEnvVar) []string {
 	envLines := []string{
 		"        env:\n",
 		fmt.Sprintf("          GITHUB_REPOSITORY: %s\n", rootRepo),
@@ -333,39 +351,22 @@ func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken s
 			envLines = append(envLines, fmt.Sprintf("          %s: %s\n", repo.pathEnvVarName, githubExpressionWhitespaceReplacer.Replace(repo.path)))
 		}
 	}
+	return envLines
+}
 
-	steps := []string{
-		"      - name: Configure Git credentials\n",
-		fmt.Sprintf("        if: %s\n", conditionStr),
+func buildSubRepoReauthLines(repo gitCredentialSubRepoEnvVar) []string {
+	gitDir := fmt.Sprintf("%q", repo.path)
+	if repo.pathEnvVarName != "" {
+		gitDir = fmt.Sprintf("\"${%s}\"", repo.pathEnvVarName)
 	}
-	steps = append(steps, envLines...)
-	steps = append(steps,
-		"        run: |\n",
-		"          bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
-		"          GIT_SERVER_URL_STRIPPED=\"${GITHUB_SERVER_URL#https://}\"\n",
-	)
-	for _, repo := range subRepoEnvVars {
-		// Use the path env var reference when path is expression-based to avoid
-		// inlining ${{ }} into the run: block (template-injection scanner risk).
-		gitDir := fmt.Sprintf("%q", repo.path)
-		if repo.pathEnvVarName != "" {
-			gitDir = fmt.Sprintf("\"${%s}\"", repo.pathEnvVarName)
-		}
-		// Comment uses the path literal (or env var reference) — never the raw
-		// repository expression — so ${{ }} never appears in the run: block.
-		commentRef := repo.path
-		if repo.pathEnvVarName != "" {
-			commentRef = "${" + repo.pathEnvVarName + "}"
-		}
-		steps = append(steps,
-			fmt.Sprintf("          # Re-authenticate git for %s\n", commentRef),
-			fmt.Sprintf("          git -C %s remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${GIT_SERVER_URL_STRIPPED}/${%s}.git\"\n", gitDir, repo.envVarName),
-		)
+	commentRef := repo.path
+	if repo.pathEnvVarName != "" {
+		commentRef = "${" + repo.pathEnvVarName + "}"
 	}
-	steps = append(steps,
-		"          echo \"Git configured with standard GitHub Actions identity\"\n",
-	)
-	return steps
+	return []string{
+		fmt.Sprintf("          # Re-authenticate git for %s\n", commentRef),
+		fmt.Sprintf("          git -C %s remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${GIT_SERVER_URL_STRIPPED}/${%s}.git\"\n", gitDir, repo.envVarName),
+	}
 }
 
 // GenerateDefaultCheckoutStep emits the default workspace checkout, applying any
@@ -390,99 +391,19 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	sb.WriteString("      - name: Checkout repository\n")
 	fmt.Fprintf(&sb, "        uses: %s\n", getActionPin("actions/checkout"))
 	sb.WriteString("        with:\n")
-
 	cleanCreds := override != nil && override.cleanCreds
-	if cm.keepCredentialsForPush {
-		// safe_outputs job: retain credentials so later git fetch/push can authenticate
-		// using the push-capable token installed at checkout time.
-		sb.WriteString("          persist-credentials: true\n")
-	} else if cleanCreds {
-		sb.WriteString("          persist-credentials: true\n")
-	} else {
-		// Security: default behavior disables credential persistence so the agent cannot
-		// exfiltrate credentials from disk.
-		sb.WriteString("          persist-credentials: false\n")
-	}
-
-	// Track whether a token has been written to the checkout step so the safe_outputs
-	// push-token fallback below does not double-emit.
+	writeCheckoutPersistCredentials(&sb, cm.keepCredentialsForPush, cleanCreds)
 	tokenEmitted := false
-
-	// Apply trial mode overrides
 	if trialMode {
-		if trialLogicalRepoSlug != "" {
-			fmt.Fprintf(&sb, "          repository: %s\n", trialLogicalRepoSlug)
-		}
-		effectiveToken := getEffectiveGitHubToken("")
-		fmt.Fprintf(&sb, "          token: %s\n", effectiveToken)
+		writeTrialCheckoutOverrides(&sb, trialLogicalRepoSlug)
 		tokenEmitted = true
 	}
-
-	// Apply user overrides (only when NOT in trial mode to avoid conflicts)
 	if !trialMode && override != nil {
-		if override.key.wiki {
-			// Wiki checkout: use "{repository}.wiki" as the effective repository.
-			fmt.Fprintf(&sb, "          repository: %s\n", wikiRepository(override.key.repository))
-		} else if override.key.repository != "" {
-			fmt.Fprintf(&sb, "          repository: %s\n", override.key.repository)
-		}
-		if override.ref != "" {
-			fmt.Fprintf(&sb, "          ref: %s\n", override.ref)
-		}
-		// Prevent actions/checkout from adding --filter=blob:none when sparse-checkout
-		// is specified. Blobless clones require credentials for lazy blob fetches, but
-		// agent jobs intentionally do not retain git credentials after checkout, making
-		// offline git operations fail. Using blob:limit=1073741824 (1 GiB) effectively
-		// fetches all blobs up front on GitHub-hosted repos (GitHub rejects blobs > 100 MiB),
-		// while keeping the filter non-empty so actions/checkout won't substitute blob:none.
-		// The subsequent repair step then clears partial-clone markers entirely.
-		if len(override.sparsePatterns) > 0 {
-			sb.WriteString("          filter: 'blob:limit=1073741824'\n")
-		}
-		// Determine effective token: github-app-minted token takes precedence
-		effectiveOverrideToken := override.token
-		if override.githubApp != nil {
-			// Determine the actual index of the default checkout to reference the correct
-			// app-token step ID. Do not assume it is always at index 0.
-			defaultIdx := 0
-			if idx, ok := cm.index[override.key]; ok {
-				defaultIdx = idx
-			}
-			//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-			effectiveOverrideToken = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", defaultIdx)
-			if override.githubApp.shouldIgnoreMissingKey() {
-				effectiveOverrideToken = combineTokenExpressions(effectiveOverrideToken, getEffectiveGitHubToken(override.token))
-			}
-		}
-		if effectiveOverrideToken != "" {
-			fmt.Fprintf(&sb, "          token: %s\n", effectiveOverrideToken)
-			tokenEmitted = true
-		}
-		if override.fetchDepth != nil {
-			fmt.Fprintf(&sb, "          fetch-depth: %d\n", *override.fetchDepth)
-		}
-		if len(override.sparsePatterns) > 0 {
-			sb.WriteString("          sparse-checkout: |\n")
-			for _, pattern := range override.sparsePatterns {
-				fmt.Fprintf(&sb, "            %s\n", strings.TrimSpace(pattern))
-			}
-		}
-		if override.submodules != "" {
-			fmt.Fprintf(&sb, "          submodules: %s\n", override.submodules)
-		}
-		if override.lfs {
-			sb.WriteString("          lfs: true\n")
-		}
+		tokenEmitted = cm.writeDefaultCheckoutOverride(&sb, override)
 	}
-
-	// safe_outputs job: when no explicit token was written above, persist the resolved
-	// push token so the credential retained in .git/config matches the token the
-	// safe-output handlers use to fetch/push (avoiding both a wrong-token push and the
-	// duplicate Authorization header that a separate per-command extraheader would add).
 	if !trialMode && !tokenEmitted && cm.keepCredentialsForPush && cm.pushToken != "" {
 		fmt.Fprintf(&sb, "          token: %s\n", cm.pushToken)
 	}
-
 	steps := []string{sb.String()}
 	if override != nil && len(override.sparsePatterns) > 0 {
 		steps = append(steps, generateSparseCheckoutPartialCloneResetStep(""))
@@ -490,21 +411,93 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	if cleanCreds && !cm.keepCredentialsForPush {
 		steps = append(steps, generateCheckoutCredentialsCleanupStep())
 	}
-
-	// Emit a git fetch step if the user requested additional refs.
-	// In trial mode the fetch step is still emitted so the behaviour
-	// mirrors production as closely as possible.
 	if override != nil && len(override.fetchRefs) > 0 {
-		defaultIdx := 0
-		if idx, ok := cm.index[override.key]; ok {
-			defaultIdx = idx
-		}
-		if fetchStep := generateFetchStepLines(override, defaultIdx); fetchStep != "" {
+		if fetchStep := generateFetchStepLines(override, cm.defaultCheckoutIndex(override)); fetchStep != "" {
 			steps = append(steps, fetchStep)
 		}
 	}
-
 	return steps
+}
+
+func writeCheckoutPersistCredentials(sb *strings.Builder, keepCredentialsForPush, cleanCreds bool) {
+	if keepCredentialsForPush || cleanCreds {
+		sb.WriteString("          persist-credentials: true\n")
+	} else {
+		sb.WriteString("          persist-credentials: false\n")
+	}
+}
+
+func writeTrialCheckoutOverrides(sb *strings.Builder, trialLogicalRepoSlug string) {
+	if trialLogicalRepoSlug != "" {
+		fmt.Fprintf(sb, "          repository: %s\n", trialLogicalRepoSlug)
+	}
+	fmt.Fprintf(sb, "          token: %s\n", getEffectiveGitHubToken(""))
+}
+
+func (cm *CheckoutManager) writeDefaultCheckoutOverride(sb *strings.Builder, override *resolvedCheckout) bool {
+	writeCheckoutRepositoryRef(sb, override)
+	writeCheckoutSparseFilter(sb, len(override.sparsePatterns) > 0)
+	tokenEmitted := cm.writeDefaultCheckoutToken(sb, override)
+	writeCheckoutOptionalFields(sb, override.fetchDepth, override.sparsePatterns, override.submodules, override.lfs)
+	return tokenEmitted
+}
+
+func writeCheckoutRepositoryRef(sb *strings.Builder, entry *resolvedCheckout) {
+	if entry.key.wiki {
+		fmt.Fprintf(sb, "          repository: %s\n", wikiRepository(entry.key.repository))
+	} else if entry.key.repository != "" {
+		fmt.Fprintf(sb, "          repository: %s\n", entry.key.repository)
+	}
+	if entry.ref != "" {
+		fmt.Fprintf(sb, "          ref: %s\n", entry.ref)
+	}
+}
+
+func writeCheckoutSparseFilter(sb *strings.Builder, hasSparsePatterns bool) {
+	if hasSparsePatterns {
+		sb.WriteString("          filter: 'blob:limit=1073741824'\n")
+	}
+}
+
+func (cm *CheckoutManager) writeDefaultCheckoutToken(sb *strings.Builder, override *resolvedCheckout) bool {
+	effectiveOverrideToken := override.token
+	if override.githubApp != nil {
+		//nolint:gosec // G101: GitHub Actions expression placeholder, not a hardcoded credential
+		effectiveOverrideToken = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", cm.defaultCheckoutIndex(override))
+		if override.githubApp.shouldIgnoreMissingKey() {
+			effectiveOverrideToken = combineTokenExpressions(effectiveOverrideToken, getEffectiveGitHubToken(override.token))
+		}
+	}
+	if effectiveOverrideToken == "" {
+		return false
+	}
+	fmt.Fprintf(sb, "          token: %s\n", effectiveOverrideToken)
+	return true
+}
+
+func (cm *CheckoutManager) defaultCheckoutIndex(override *resolvedCheckout) int {
+	if idx, ok := cm.index[override.key]; ok {
+		return idx
+	}
+	return 0
+}
+
+func writeCheckoutOptionalFields(sb *strings.Builder, fetchDepth *int, sparsePatterns []string, submodules string, lfs bool) {
+	if fetchDepth != nil {
+		fmt.Fprintf(sb, "          fetch-depth: %d\n", *fetchDepth)
+	}
+	if len(sparsePatterns) > 0 {
+		sb.WriteString("          sparse-checkout: |\n")
+		for _, pattern := range sparsePatterns {
+			fmt.Fprintf(sb, "            %s\n", strings.TrimSpace(pattern))
+		}
+	}
+	if submodules != "" {
+		fmt.Fprintf(sb, "          submodules: %s\n", submodules)
+	}
+	if lfs {
+		sb.WriteString("          lfs: true\n")
+	}
 }
 
 // generateCheckoutStepLines generates YAML step lines for a single non-default checkout.
@@ -521,64 +514,17 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, keepCredentia
 	fmt.Fprintf(&sb, "      - name: %s\n", name)
 	fmt.Fprintf(&sb, "        uses: %s\n", getActionPin("actions/checkout"))
 	sb.WriteString("        with:\n")
-
-	if keepCredentialsForPush {
-		// safe_outputs job: retain credentials so later git fetch/push can authenticate.
-		sb.WriteString("          persist-credentials: true\n")
-	} else if entry.cleanCreds {
-		sb.WriteString("          persist-credentials: true\n")
-	} else {
-		// Security: default behavior disables credential persistence
-		sb.WriteString("          persist-credentials: false\n")
-	}
-
-	if entry.key.wiki {
-		// Wiki checkout: use "{repository}.wiki" as the effective repository.
-		fmt.Fprintf(&sb, "          repository: %s\n", wikiRepository(entry.key.repository))
-	} else if entry.key.repository != "" {
-		fmt.Fprintf(&sb, "          repository: %s\n", entry.key.repository)
-	}
-	if entry.ref != "" {
-		fmt.Fprintf(&sb, "          ref: %s\n", entry.ref)
-	}
+	writeCheckoutPersistCredentials(&sb, keepCredentialsForPush, entry.cleanCreds)
+	writeCheckoutRepositoryRef(&sb, entry)
 	if entry.key.path != "" {
 		fmt.Fprintf(&sb, "          path: %s\n", entry.key.path)
 	}
-	// Determine effective token: github-app-minted token takes precedence
-	effectiveToken := resolveCheckoutTokenExpression(entry, index, false)
-	// safe_outputs job: when this checkout declares no token/app of its own, persist the
-	// resolved push token so the retained .git/config credential matches the token the
-	// safe-output handlers use to fetch/push.
-	if effectiveToken == "" && keepCredentialsForPush && pushToken != "" {
-		effectiveToken = pushToken
-	}
-	if effectiveToken != "" {
-		fmt.Fprintf(&sb, "          token: %s\n", effectiveToken)
-	}
-	if entry.fetchDepth != nil {
-		fmt.Fprintf(&sb, "          fetch-depth: %d\n", *entry.fetchDepth)
-	}
+	writeCheckoutToken(&sb, entry, index, keepCredentialsForPush, pushToken)
+	writeCheckoutFetchDepthAndSparse(&sb, entry.fetchDepth, entry.sparsePatterns)
 	if len(entry.sparsePatterns) > 0 {
-		sb.WriteString("          sparse-checkout: |\n")
-		for _, pattern := range entry.sparsePatterns {
-			fmt.Fprintf(&sb, "            %s\n", strings.TrimSpace(pattern))
-		}
-		// Prevent actions/checkout from adding --filter=blob:none when sparse-checkout
-		// is specified. Blobless clones require credentials for lazy blob fetches, but
-		// agent jobs intentionally do not retain git credentials after checkout, making
-		// offline git operations fail. Using blob:limit=1073741824 (1 GiB) effectively
-		// fetches all blobs up front on GitHub-hosted repos (GitHub rejects blobs > 100 MiB),
-		// while keeping the filter non-empty so actions/checkout won't substitute blob:none. The subsequent repair step then
-		// clears partial-clone markers entirely.
 		sb.WriteString("          filter: 'blob:limit=1073741824'\n")
 	}
-	if entry.submodules != "" {
-		fmt.Fprintf(&sb, "          submodules: %s\n", entry.submodules)
-	}
-	if entry.lfs {
-		sb.WriteString("          lfs: true\n")
-	}
-
+	writeCheckoutSubmodulesAndLFS(&sb, entry.submodules, entry.lfs)
 	steps := []string{sb.String()}
 	if len(entry.sparsePatterns) > 0 {
 		steps = append(steps, generateSparseCheckoutPartialCloneResetStep(entry.key.path))
@@ -590,6 +536,37 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, keepCredentia
 		steps = append(steps, fetchStep)
 	}
 	return steps
+}
+
+func writeCheckoutToken(sb *strings.Builder, entry *resolvedCheckout, index int, keepCredentialsForPush bool, pushToken string) {
+	effectiveToken := resolveCheckoutTokenExpression(entry, index, false)
+	if effectiveToken == "" && keepCredentialsForPush && pushToken != "" {
+		effectiveToken = pushToken
+	}
+	if effectiveToken != "" {
+		fmt.Fprintf(sb, "          token: %s\n", effectiveToken)
+	}
+}
+
+func writeCheckoutFetchDepthAndSparse(sb *strings.Builder, fetchDepth *int, sparsePatterns []string) {
+	if fetchDepth != nil {
+		fmt.Fprintf(sb, "          fetch-depth: %d\n", *fetchDepth)
+	}
+	if len(sparsePatterns) > 0 {
+		sb.WriteString("          sparse-checkout: |\n")
+		for _, pattern := range sparsePatterns {
+			fmt.Fprintf(sb, "            %s\n", strings.TrimSpace(pattern))
+		}
+	}
+}
+
+func writeCheckoutSubmodulesAndLFS(sb *strings.Builder, submodules string, lfs bool) {
+	if submodules != "" {
+		fmt.Fprintf(sb, "          submodules: %s\n", submodules)
+	}
+	if lfs {
+		sb.WriteString("          lfs: true\n")
+	}
 }
 
 func generateCheckoutCredentialsCleanupStep() string {

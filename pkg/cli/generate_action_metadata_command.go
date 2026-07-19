@@ -64,74 +64,20 @@ func GenerateActionMetadataCommand() error {
 	generateActionMetadataLog.Print("Starting action metadata generation")
 
 	// Select target JavaScript files (simple ones for proof of concept)
-	targetFiles := []string{
-		"noop.cjs",
-		"minimize_comment.cjs",
-		"close_issue.cjs",
-		"close_pull_request.cjs",
-		"close_discussion.cjs",
-	}
+	targetFiles := generateActionMetadataCommandTargetFiles()
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("🔍 Generating actions for %d JavaScript modules...", len(targetFiles))))
 
 	generatedCount := 0
 	generateActionMetadataLog.Printf("Processing %d target JavaScript files in %s", len(targetFiles), jsDir)
 	for _, filename := range targetFiles {
-		jsPath := filepath.Join(jsDir, filename)
-		generateActionMetadataLog.Printf("Processing file: %s", filename)
-
-		// Read file content directly from filesystem
-		contentBytes, err := os.ReadFile(jsPath)
+		generated, err := generateActionMetadataCommandProcessFile(jsDir, actionsDir, filename)
 		if err != nil {
-			generateActionMetadataLog.Printf("Skipping %s: failed to read file: %v", filename, err)
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠ Skipping %s: %s", filename, err)))
-			continue
+			return err
 		}
-		content := string(contentBytes)
-
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\n📦 Processing: "+filename))
-
-		// Extract metadata
-		metadata, err := extractActionMetadata(filename, content)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("✗ Failed to extract metadata from %s: %s", filename, err)))
-			continue
+		if generated {
+			generatedCount++
 		}
-
-		// Create action directory
-		actionDir := filepath.Join(actionsDir, metadata.ActionName)
-		if err := os.MkdirAll(actionDir, constants.DirPermPublic); err != nil {
-			return fmt.Errorf("failed to create directory %s: %w", actionDir, err)
-		}
-
-		// Create src directory
-		srcDir := filepath.Join(actionDir, "src")
-		if err := os.MkdirAll(srcDir, constants.DirPermPublic); err != nil {
-			return fmt.Errorf("failed to create directory %s: %w", srcDir, err)
-		}
-
-		// Generate action.yml
-		if err := generateActionYml(actionDir, metadata); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("✗ Failed to generate action.yml: "+err.Error()))
-			continue
-		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Generated action.yml"))
-
-		// Generate README.md
-		if err := generateReadme(actionDir, metadata); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("✗ Failed to generate README.md: "+err.Error()))
-			continue
-		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Generated README.md"))
-
-		// Copy source file with owner-only read/write permissions (0600) for security best practices
-		srcPath := filepath.Join(srcDir, "index.js")
-		if err := os.WriteFile(srcPath, []byte(content), constants.FilePermSensitive); err != nil {
-			return fmt.Errorf("failed to write source file: %w", err)
-		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Copied source to src/index.js"))
-
-		generatedCount++
 	}
 
 	generateActionMetadataLog.Printf("Action metadata generation complete: generated=%d, total=%d", generatedCount, len(targetFiles))
@@ -140,13 +86,96 @@ func GenerateActionMetadataCommand() error {
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("\n✨ Successfully generated %d action(s)", generatedCount)))
+	generateActionMetadataCommandPrintNextSteps()
+
+	return nil
+}
+
+func generateActionMetadataCommandTargetFiles() []string {
+	return []string{
+		"noop.cjs",
+		"minimize_comment.cjs",
+		"close_issue.cjs",
+		"close_pull_request.cjs",
+		"close_discussion.cjs",
+	}
+}
+
+func generateActionMetadataCommandProcessFile(jsDir, actionsDir, filename string) (bool, error) {
+	jsPath := filepath.Join(jsDir, filename)
+	generateActionMetadataLog.Printf("Processing file: %s", filename)
+
+	// Read file content directly from filesystem
+	contentBytes, err := os.ReadFile(jsPath)
+	if err != nil {
+		generateActionMetadataLog.Printf("Skipping %s: failed to read file: %v", filename, err)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠ Skipping %s: %s", filename, err)))
+		return false, nil
+	}
+	content := string(contentBytes)
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\n📦 Processing: "+filename))
+	metadata, err := extractActionMetadata(filename, content)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("✗ Failed to extract metadata from %s: %s", filename, err)))
+		return false, nil
+	}
+
+	actionDir, srcDir, err := generateActionMetadataCommandCreateDirs(actionsDir, metadata)
+	if err != nil {
+		return false, err
+	}
+	if !generateActionMetadataCommandWriteMetadata(actionDir, metadata) {
+		return false, nil
+	}
+
+	// Copy source file with owner-only read/write permissions (0600) for security best practices
+	srcPath := filepath.Join(srcDir, "index.js")
+	if err := os.WriteFile(srcPath, []byte(content), constants.FilePermSensitive); err != nil {
+		return false, fmt.Errorf("failed to write source file: %w", err)
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Copied source to src/index.js"))
+	return true, nil
+}
+
+func generateActionMetadataCommandCreateDirs(actionsDir string, metadata *ActionMetadata) (string, string, error) {
+	// Create action directory
+	actionDir := filepath.Join(actionsDir, metadata.ActionName)
+	if err := os.MkdirAll(actionDir, constants.DirPermPublic); err != nil {
+		return "", "", fmt.Errorf("failed to create directory %s: %w", actionDir, err)
+	}
+
+	// Create src directory
+	srcDir := filepath.Join(actionDir, "src")
+	if err := os.MkdirAll(srcDir, constants.DirPermPublic); err != nil {
+		return "", "", fmt.Errorf("failed to create directory %s: %w", srcDir, err)
+	}
+	return actionDir, srcDir, nil
+}
+
+func generateActionMetadataCommandWriteMetadata(actionDir string, metadata *ActionMetadata) bool {
+	// Generate action.yml
+	if err := generateActionYml(actionDir, metadata); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("✗ Failed to generate action.yml: "+err.Error()))
+		return false
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Generated action.yml"))
+
+	// Generate README.md
+	if err := generateReadme(actionDir, metadata); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("✗ Failed to generate README.md: "+err.Error()))
+		return false
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Generated README.md"))
+	return true
+}
+
+func generateActionMetadataCommandPrintNextSteps() {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nNext steps:"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  1. Review the generated action.yml and README.md files"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  2. Update dependency mapping in pkg/cli/actions_build_command.go"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  3. Run 'make actions-build' to build the actions"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  4. Test the actions in a workflow"))
-
-	return nil
 }
 
 // extractActionMetadata extracts metadata from a JavaScript file
@@ -380,55 +409,82 @@ func generateReadme(actionDir string, metadata *ActionMetadata) error {
 	fmt.Fprintf(&content, "This action is generated from `pkg/workflow/js/%s` and provides functionality ", metadata.Filename)
 	content.WriteString("for GitHub Agentic Workflows.\n\n")
 
+	generateReadmeUsage(&content, metadata)
+	generateReadmeInputs(&content, metadata)
+	generateReadmeOutputs(&content, metadata)
+	generateReadmeDependencies(&content, metadata)
+	generateReadmeDevelopment(&content, metadata)
+
+	// Write to file with owner-only read/write permissions (0600) for security best practices
+	readmePath := filepath.Join(actionDir, "README.md")
+	if err := os.WriteFile(readmePath, []byte(content.String()), constants.FilePermSensitive); err != nil {
+		return fmt.Errorf("failed to write README.md: %w", err)
+	}
+
+	return nil
+}
+
+func generateReadmeUsage(content *strings.Builder, metadata *ActionMetadata) {
 	// Usage section
 	content.WriteString("## Usage\n\n")
 	content.WriteString("```yaml\n")
-	fmt.Fprintf(&content, "- uses: ./actions/%s\n", metadata.ActionName)
+	fmt.Fprintf(content, "- uses: ./actions/%s\n", metadata.ActionName)
 	if len(metadata.Inputs) > 0 {
 		content.WriteString("  with:\n")
 		for _, input := range metadata.Inputs {
-			fmt.Fprintf(&content, "    %s: 'value'  # %s\n", input.Name, input.Description)
+			fmt.Fprintf(content, "    %s: 'value'  # %s\n", input.Name, input.Description)
 		}
 	}
 	content.WriteString("```\n\n")
+}
 
+func generateReadmeInputs(content *strings.Builder, metadata *ActionMetadata) {
 	// Inputs section
-	if len(metadata.Inputs) > 0 {
-		content.WriteString("## Inputs\n\n")
-		for _, input := range metadata.Inputs {
-			fmt.Fprintf(&content, "### `%s`\n\n", input.Name)
-			fmt.Fprintf(&content, "**Description**: %s\n\n", input.Description)
-			fmt.Fprintf(&content, "**Required**: %t\n\n", input.Required)
-			if input.Default != "" {
-				fmt.Fprintf(&content, "**Default**: `%s`\n\n", input.Default)
-			}
+	if len(metadata.Inputs) == 0 {
+		return
+	}
+	content.WriteString("## Inputs\n\n")
+	for _, input := range metadata.Inputs {
+		fmt.Fprintf(content, "### `%s`\n\n", input.Name)
+		fmt.Fprintf(content, "**Description**: %s\n\n", input.Description)
+		fmt.Fprintf(content, "**Required**: %t\n\n", input.Required)
+		if input.Default != "" {
+			fmt.Fprintf(content, "**Default**: `%s`\n\n", input.Default)
 		}
 	}
+}
 
+func generateReadmeOutputs(content *strings.Builder, metadata *ActionMetadata) {
 	// Outputs section
-	if len(metadata.Outputs) > 0 {
-		content.WriteString("## Outputs\n\n")
-		for _, output := range metadata.Outputs {
-			fmt.Fprintf(&content, "### `%s`\n\n", output.Name)
-			fmt.Fprintf(&content, "**Description**: %s\n\n", output.Description)
-		}
+	if len(metadata.Outputs) == 0 {
+		return
 	}
+	content.WriteString("## Outputs\n\n")
+	for _, output := range metadata.Outputs {
+		fmt.Fprintf(content, "### `%s`\n\n", output.Name)
+		fmt.Fprintf(content, "**Description**: %s\n\n", output.Description)
+	}
+}
 
+func generateReadmeDependencies(content *strings.Builder, metadata *ActionMetadata) {
 	// Dependencies section
-	if len(metadata.Dependencies) > 0 {
-		content.WriteString("## Dependencies\n\n")
-		content.WriteString("This action depends on the following JavaScript modules:\n\n")
-		for _, dep := range metadata.Dependencies {
-			fmt.Fprintf(&content, "- `%s`\n", dep)
-		}
-		content.WriteString("\n")
+	if len(metadata.Dependencies) == 0 {
+		return
 	}
+	content.WriteString("## Dependencies\n\n")
+	content.WriteString("This action depends on the following JavaScript modules:\n\n")
+	for _, dep := range metadata.Dependencies {
+		fmt.Fprintf(content, "- `%s`\n", dep)
+	}
+	content.WriteString("\n")
+}
 
+func generateReadmeDevelopment(content *strings.Builder, metadata *ActionMetadata) {
 	// Development section
 	content.WriteString("## Development\n\n")
 	content.WriteString("### Building\n\n")
 	content.WriteString("To build this action, you need to:\n\n")
-	fmt.Fprintf(&content, "1. Update the dependency mapping in `pkg/cli/actions_build_command.go` for `%s`\n", metadata.ActionName)
+	fmt.Fprintf(content, "1. Update the dependency mapping in `pkg/cli/actions_build_command.go` for `%s`\n", metadata.ActionName)
 	content.WriteString("2. Run `make actions-build` to bundle the JavaScript dependencies\n")
 	content.WriteString("3. The bundled `index.js` will be generated and committed\n\n")
 
@@ -439,18 +495,10 @@ func generateReadme(actionDir string, metadata *ActionMetadata) error {
 	content.WriteString("  test:\n")
 	content.WriteString("    runs-on: ubuntu-latest\n")
 	content.WriteString("    steps:\n")
-	fmt.Fprintf(&content, "      - uses: ./actions/%s\n", metadata.ActionName)
+	fmt.Fprintf(content, "      - uses: ./actions/%s\n", metadata.ActionName)
 	content.WriteString("```\n\n")
 
 	// License
 	content.WriteString("## License\n\n")
 	content.WriteString("MIT\n")
-
-	// Write to file with owner-only read/write permissions (0600) for security best practices
-	readmePath := filepath.Join(actionDir, "README.md")
-	if err := os.WriteFile(readmePath, []byte(content.String()), constants.FilePermSensitive); err != nil {
-		return fmt.Errorf("failed to write README.md: %w", err)
-	}
-
-	return nil
 }

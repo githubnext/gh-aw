@@ -63,136 +63,153 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating container image pins..."))
 	}
 
-	// Collect all container images referenced in the compiled lock files.
+	images, ok, err := updateContainerPinsCollectImages(workflowDir, verbose)
+	if err != nil || !ok {
+		return false, err
+	}
+
+	actionCache, err := updateContainerPinsLoadCache()
+	if err != nil {
+		return false, err
+	}
+	prunedCount := updateContainerPinsPrune(actionCache, images)
+	result := updateContainerPinsResolve(ctx, actionCache, images, verbose)
+
+	updateContainerPinsSummary(result, prunedCount, verbose)
+	if err := updateContainerPinsSave(actionCache, len(result.updatedImages), prunedCount); err != nil {
+		return false, err
+	}
+	return len(result.updatedImages) > 0, nil
+}
+
+type updateContainerPinsPinnedEntry struct {
+	image       string
+	pinnedImage string // image@sha256:...
+}
+
+type updateContainerPinsResult struct {
+	updatedImages []updateContainerPinsPinnedEntry
+	failedImages  []imageFailure
+	skippedImages []string
+}
+
+func updateContainerPinsCollectImages(workflowDir string, verbose bool) ([]string, bool, error) {
 	images, err := collectImagesFromLockFiles(workflowDir)
 	if err != nil {
 		containerPinsLog.Printf("Failed to collect images from lock files: %v", err)
-		// Non-fatal — just skip
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to collect container images: %v", err)))
 		}
-		return false, nil
+		return nil, false, nil
 	}
-
 	if len(images) == 0 {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("No container images found in lock files"))
 		}
-		return false, nil
+		return nil, false, nil
 	}
-
 	containerPinsLog.Printf("Found %d unique container image(s) across lock files", len(images))
+	return images, true, nil
+}
 
-	// Load the action cache.
+func updateContainerPinsLoadCache() (*workflow.ActionCache, error) {
 	actionsLockPath := filepath.Join(".github", "aw", "actions-lock.json")
 	actionCache := workflow.NewActionCache(".")
 	if fileutil.FileExists(actionsLockPath) {
 		if loadErr := actionCache.Load(); loadErr != nil {
-			return false, fmt.Errorf("failed to load actions-lock.json: %w", loadErr)
+			return nil, fmt.Errorf("failed to load actions-lock.json: %w", loadErr)
 		}
 	}
+	return actionCache, nil
+}
 
-	// Build a set of base image tags (without @sha256: digest suffix) currently
-	// referenced in the compiled lock files so that stale entries (e.g. superseded
-	// AWF versions) can be pruned. Lock files that were previously compiled may
-	// already embed pinned references (image:tag@sha256:...), so we strip the
-	// digest before comparing against container pin keys, which always use the
-	// base tag as the key.
-	imageSet := make(map[string]struct {
-	}, len(images))
+func updateContainerPinsPrune(actionCache *workflow.ActionCache, images []string) int {
+	imageSet := make(map[string]struct{}, len(images))
 	for _, img := range images {
 		base, _, _ := strings.Cut(img, "@sha256:")
-		imageSet[base] = struct {
-		}{}
+		imageSet[base] = struct{}{}
 	}
-
-	// Remove any container pin entries that are no longer referenced by the
-	// compiled lock files.  This keeps actions-lock.json consistent with what
-	// compile actually emits and prevents stale version accumulation.
 	prunedCount := actionCache.PruneStaleContainerPins(imageSet)
 	if prunedCount > 0 {
 		containerPinsLog.Printf("Pruned %d stale container pin(s) from actions-lock.json", prunedCount)
 	}
+	return prunedCount
+}
 
-	// Resolve digests for images that are not yet pinned.
-	type pinnedEntry struct {
-		image       string
-		pinnedImage string // image@sha256:...
-	}
-	var updatedImages []pinnedEntry
-	var failedImages []imageFailure
-	var skippedImages []string
-
+func updateContainerPinsResolve(ctx context.Context, actionCache *workflow.ActionCache, images []string, verbose bool) updateContainerPinsResult {
+	var result updateContainerPinsResult
 	for _, image := range images {
-		// Images already containing @sha256: are immutably pinned — skip them.
-		if strings.Contains(image, "@sha256:") {
-			skippedImages = append(skippedImages, image)
-			continue
-		}
-
-		// Check if we already have a valid pin for this image in the cache.
-		if pin, ok := actionCache.GetContainerPin(image); ok && pin.Digest != "" {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("%s already pinned: %s", image, pin.Digest)))
-			}
-			skippedImages = append(skippedImages, image)
-			continue
-		}
-
-		// Attempt to resolve the digest without pulling.
-		digest, resolveErr := fetchContainerDigest(ctx, image, verbose)
-		if resolveErr != nil {
-			containerPinsLog.Printf("Failed to resolve digest for %s: %v", image, resolveErr)
-			failedImages = append(failedImages, imageFailure{image: image, reason: resolveErr.Error()})
-			continue
-		}
-
-		pinnedImage := image + "@" + digest
-		actionCache.SetContainerPin(image, digest, pinnedImage)
-		updatedImages = append(updatedImages, pinnedEntry{image: image, pinnedImage: pinnedImage})
-
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Pinned %s → %s", image, digest)))
-		}
+		updateContainerPinsResolveImage(ctx, actionCache, image, &result, verbose)
 	}
+	return result
+}
 
-	// Print summary.
+func updateContainerPinsResolveImage(ctx context.Context, actionCache *workflow.ActionCache, image string, result *updateContainerPinsResult, verbose bool) {
+	if strings.Contains(image, "@sha256:") {
+		result.skippedImages = append(result.skippedImages, image)
+		return
+	}
+	if pin, ok := actionCache.GetContainerPin(image); ok && pin.Digest != "" {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("%s already pinned: %s", image, pin.Digest)))
+		}
+		result.skippedImages = append(result.skippedImages, image)
+		return
+	}
+	digest, resolveErr := fetchContainerDigest(ctx, image, verbose)
+	if resolveErr != nil {
+		containerPinsLog.Printf("Failed to resolve digest for %s: %v", image, resolveErr)
+		result.failedImages = append(result.failedImages, imageFailure{image: image, reason: resolveErr.Error()})
+		return
+	}
+	pinnedImage := image + "@" + digest
+	actionCache.SetContainerPin(image, digest, pinnedImage)
+	result.updatedImages = append(result.updatedImages, updateContainerPinsPinnedEntry{image: image, pinnedImage: pinnedImage})
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Pinned %s → %s", image, digest)))
+	}
+}
+
+func updateContainerPinsSummary(result updateContainerPinsResult, prunedCount int, verbose bool) {
 	fmt.Fprintln(os.Stderr, "")
-
-	if len(updatedImages) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Pinned %d container image(s):", len(updatedImages))))
-		for _, entry := range updatedImages {
+	if len(result.updatedImages) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Pinned %d container image(s):", len(result.updatedImages))))
+		for _, entry := range result.updatedImages {
 			fmt.Fprintln(os.Stderr, console.FormatListItem(entry.pinnedImage))
 		}
 		fmt.Fprintln(os.Stderr, "")
 	}
-
 	if prunedCount > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Pruned %d stale container pin(s) from actions-lock.json", prunedCount)))
 		fmt.Fprintln(os.Stderr, "")
 	}
-
-	if len(skippedImages) > 0 && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("%d container image(s) already up to date", len(skippedImages))))
+	if len(result.skippedImages) > 0 && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("%d container image(s) already up to date", len(result.skippedImages))))
 		fmt.Fprintln(os.Stderr, "")
 	}
+	updateContainerPinsFailedSummary(result.failedImages)
+}
 
-	if len(failedImages) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to resolve digest for %d image(s) (Docker/crane may be unavailable):", len(failedImages))))
-		for _, f := range failedImages {
-			fmt.Fprintf(os.Stderr, "  %s: %s\n", f.image, f.reason)
-		}
-		fmt.Fprintln(os.Stderr, "")
+func updateContainerPinsFailedSummary(failedImages []imageFailure) {
+	if len(failedImages) == 0 {
+		return
 	}
-
-	if len(updatedImages) > 0 || prunedCount > 0 {
-		if err := actionCache.Save(); err != nil {
-			return false, fmt.Errorf("failed to save actions-lock.json: %w", err)
-		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updated container pins in actions-lock.json"))
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to resolve digest for %d image(s) (Docker/crane may be unavailable):", len(failedImages))))
+	for _, f := range failedImages {
+		fmt.Fprintf(os.Stderr, "  %s: %s\n", f.image, f.reason)
 	}
+	fmt.Fprintln(os.Stderr, "")
+}
 
-	return len(updatedImages) > 0, nil
+func updateContainerPinsSave(actionCache *workflow.ActionCache, updatedCount, prunedCount int) error {
+	if updatedCount == 0 && prunedCount == 0 {
+		return nil
+	}
+	if err := actionCache.Save(); err != nil {
+		return fmt.Errorf("failed to save actions-lock.json: %w", err)
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updated container pins in actions-lock.json"))
+	return nil
 }
 
 // collectImagesFromLockFiles scans all .lock.yml files under workflowDir and returns

@@ -44,13 +44,7 @@ func evalAddComment(item CreatedItemReport, repoOverride string) OutcomeReport {
 	}
 
 	// Check reactions
-	reactions, _ := data["reactions"].(map[string]any)
-	totalReactions := 0
-	if reactions != nil {
-		if tc, ok := reactions["total_count"].(float64); ok {
-			totalReactions = int(tc)
-		}
-	}
+	totalReactions := evalAddCommentTotalReactions(data)
 
 	// Check if the comment is minimized (hidden)
 	// The REST API field is "performed_via_github_app" but minimized state
@@ -58,27 +52,47 @@ func evalAddComment(item CreatedItemReport, repoOverride string) OutcomeReport {
 	// or the node_id can be checked via GraphQL. For now, use reactions+replies.
 
 	// To check replies, we need the issue number and look for comments posted after this one
-	issueNumber := parseNumberFromURL(item.URL)
+	replyCount := evalAddCommentReplyCount(item.URL, repo, data)
+	report.HumanComments = replyCount
+	return evalAddCommentClassify(report, totalReactions, replyCount)
+}
+
+func evalAddCommentTotalReactions(data map[string]any) int {
+	reactions, _ := data["reactions"].(map[string]any)
+	if reactions == nil {
+		return 0
+	}
+	if tc, ok := reactions["total_count"].(float64); ok {
+		return int(tc)
+	}
+	return 0
+}
+
+func evalAddCommentReplyCount(itemURL string, repo string, data map[string]any) int {
+	issueNumber := parseNumberFromURL(itemURL)
+	if issueNumber == 0 {
+		return 0
+	}
+	commentList, cerr := ghAPIGetArray(fmt.Sprintf("issues/%d/comments", issueNumber), repo)
+	if cerr != nil {
+		return 0
+	}
+	createdAt, _ := data["created_at"].(string)
 	replyCount := 0
-	if issueNumber > 0 {
-		commentList, cerr := ghAPIGetArray(fmt.Sprintf("issues/%d/comments", issueNumber), repo)
-		if cerr == nil {
-			createdAt, _ := data["created_at"].(string)
-			for _, c := range commentList {
-				cCreatedAt, _ := c["created_at"].(string)
-				if cCreatedAt > createdAt {
-					user, _ := c["user"].(map[string]any)
-					login, _ := user["login"].(string)
-					if !isBotUser(login) {
-						replyCount++
-					}
-				}
+	for _, c := range commentList {
+		cCreatedAt, _ := c["created_at"].(string)
+		if cCreatedAt > createdAt {
+			user, _ := c["user"].(map[string]any)
+			login, _ := user["login"].(string)
+			if !isBotUser(login) {
+				replyCount++
 			}
 		}
 	}
+	return replyCount
+}
 
-	report.HumanComments = replyCount
-
+func evalAddCommentClassify(report OutcomeReport, totalReactions int, replyCount int) OutcomeReport {
 	switch {
 	case totalReactions > 0 || replyCount > 0:
 		report.Result = OutcomeAccepted

@@ -46,91 +46,9 @@ func GenerateMCPScriptsToolsConfig(mcpScripts *MCPScriptsConfig) string {
 
 	// Sort tool names for stable output
 	toolNames := sliceutil.SortedKeys(mcpScripts.Tools)
-
 	for _, toolName := range toolNames {
-		toolConfig := mcpScripts.Tools[toolName]
-
-		// Build input schema
-		inputSchema := map[string]any{
-			"type":       "object",
-			"properties": make(map[string]any),
-		}
-
-		props, ok := inputSchema["properties"].(map[string]any)
-		if !ok {
-			props = make(map[string]any)
-			inputSchema["properties"] = props
-		}
-		var required []string
-
-		// Sort input names for stable output
-		inputNames := sliceutil.SortedKeys(toolConfig.Inputs)
-
-		for _, paramName := range inputNames {
-			param := toolConfig.Inputs[paramName]
-			propDef := map[string]any{
-				"type":        param.Type,
-				"description": param.Description,
-			}
-			if param.Default != nil {
-				propDef["default"] = param.Default
-			}
-			props[paramName] = propDef
-			if param.Required {
-				required = append(required, paramName)
-			}
-		}
-
-		sort.Strings(required)
-		if len(required) > 0 {
-			inputSchema["required"] = required
-		}
-
-		// Determine handler path based on script type
-		var handler string
-		if toolConfig.Script != "" {
-			handler = toolName + ".cjs"
-		} else if toolConfig.Run != "" {
-			handler = toolName + ".sh"
-		} else if toolConfig.Py != "" {
-			handler = toolName + ".py"
-		} else if toolConfig.Go != "" {
-			handler = toolName + ".go"
-		}
-
-		// Build env list of required environment variables (not actual secrets)
-		// This documents which env vars the tool needs, but doesn't store secret values
-		// The actual values are passed as environment variables and accessed via process.env
-		var envRefs map[string]string
-		if len(toolConfig.Env) > 0 {
-			envRefs = make(map[string]string)
-			// Sort env var names for stable output
-			envVarNames := sliceutil.SortedKeys(toolConfig.Env)
-
-			for _, envVarName := range envVarNames {
-				// Store just the environment variable name without $ prefix or secret value
-				// Handlers access the actual value via process.env[envVarName] at runtime
-				envRefs[envVarName] = envVarName
-			}
-		}
-
-		var dependencies []string
-		if len(toolConfig.Dependencies) > 0 {
-			dependencies = append([]string(nil), toolConfig.Dependencies...)
-			sort.Strings(dependencies)
-		}
-
-		config.Tools = append(config.Tools, MCPScriptsToolJSON{
-			Name:         toolName,
-			Description:  toolConfig.Description,
-			InputSchema:  inputSchema,
-			Handler:      handler,
-			Dependencies: dependencies,
-			Env:          envRefs,
-			Timeout:      toolConfig.Timeout,
-		})
+		config.Tools = append(config.Tools, buildMCPScriptsToolJSON(toolName, mcpScripts.Tools[toolName]))
 	}
-
 	jsonBytes, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		mcpScriptsGeneratorLog.Printf("Error marshaling tools config: %v", err)
@@ -138,6 +56,79 @@ func GenerateMCPScriptsToolsConfig(mcpScripts *MCPScriptsConfig) string {
 	}
 	mcpScriptsGeneratorLog.Printf("Generated tools.json config: size=%d bytes", len(jsonBytes))
 	return string(jsonBytes)
+}
+
+func buildMCPScriptsToolJSON(toolName string, toolConfig *MCPScriptToolConfig) MCPScriptsToolJSON {
+	return MCPScriptsToolJSON{
+		Name:         toolName,
+		Description:  toolConfig.Description,
+		InputSchema:  buildMCPScriptsInputSchema(toolConfig),
+		Handler:      mcpScriptsToolHandler(toolName, toolConfig),
+		Dependencies: sortedMCPScriptsDependencies(toolConfig),
+		Env:          mcpScriptsEnvRefs(toolConfig),
+		Timeout:      toolConfig.Timeout,
+	}
+}
+
+func buildMCPScriptsInputSchema(toolConfig *MCPScriptToolConfig) map[string]any {
+	props := make(map[string]any)
+	inputSchema := map[string]any{
+		"type":       "object",
+		"properties": props,
+	}
+	var required []string
+	for _, paramName := range sliceutil.SortedKeys(toolConfig.Inputs) {
+		param := toolConfig.Inputs[paramName]
+		propDef := map[string]any{
+			"type":        param.Type,
+			"description": param.Description,
+		}
+		if param.Default != nil {
+			propDef["default"] = param.Default
+		}
+		props[paramName] = propDef
+		if param.Required {
+			required = append(required, paramName)
+		}
+	}
+	sort.Strings(required)
+	if len(required) > 0 {
+		inputSchema["required"] = required
+	}
+	return inputSchema
+}
+
+func mcpScriptsToolHandler(toolName string, toolConfig *MCPScriptToolConfig) string {
+	if toolConfig.Script != "" {
+		return toolName + ".cjs"
+	} else if toolConfig.Run != "" {
+		return toolName + ".sh"
+	} else if toolConfig.Py != "" {
+		return toolName + ".py"
+	} else if toolConfig.Go != "" {
+		return toolName + ".go"
+	}
+	return ""
+}
+
+func mcpScriptsEnvRefs(toolConfig *MCPScriptToolConfig) map[string]string {
+	if len(toolConfig.Env) == 0 {
+		return nil
+	}
+	envRefs := make(map[string]string)
+	for _, envVarName := range sliceutil.SortedKeys(toolConfig.Env) {
+		envRefs[envVarName] = envVarName
+	}
+	return envRefs
+}
+
+func sortedMCPScriptsDependencies(toolConfig *MCPScriptToolConfig) []string {
+	if len(toolConfig.Dependencies) == 0 {
+		return nil
+	}
+	dependencies := append([]string(nil), toolConfig.Dependencies...)
+	sort.Strings(dependencies)
+	return dependencies
 }
 
 // GenerateMCPScriptsMCPServerScript generates the entry point script for the mcp-scripts MCP server

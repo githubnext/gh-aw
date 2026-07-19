@@ -57,21 +57,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	}
 	ctx.steps = append(ctx.steps, buildRuntimeFeaturesSummaryStep()...)
 
-	// Generate experiment selection steps when experiments are declared in the frontmatter.
-	// These steps run before the prompt is built so that experiments.name expressions
-	// can be resolved by the substitute_placeholders step.
-	if experimentSteps := c.generateExperimentSteps(data); len(experimentSteps) > 0 {
-		compilerActivationJobLog.Printf("Adding %d experiment step(s) for %d experiment(s)", len(experimentSteps), len(data.Experiments))
-		ctx.steps = append(ctx.steps, experimentSteps...)
-		// Expose the combined experiment JSON as a job output so downstream jobs can access
-		// the variant assignments via needs.activation.outputs.experiments.
-		ctx.outputs["experiments"] = "${{ steps.pick-experiment.outputs.experiments }}"
-		// Also expose each experiment variant individually so downstream jobs can reference
-		// needs.activation.outputs.<name> in timeout-minutes or other expressions.
-		for _, name := range sortedExperimentNames(data.Experiments) {
-			ctx.outputs[name] = "${{ steps.pick-experiment.outputs." + name + " }}"
-		}
-	}
+	c.addActivationExperimentSteps(ctx, data)
 
 	c.configureActivationNeedsAndCondition(ctx)
 	compilerActivationJobLog.Print("Generating prompt in activation job")
@@ -102,6 +88,19 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		Outputs:                    ctx.outputs,
 		Needs:                      ctx.activationNeeds,
 	}, nil
+}
+
+func (c *Compiler) addActivationExperimentSteps(ctx *activationJobBuildContext, data *WorkflowData) {
+	experimentSteps := c.generateExperimentSteps(data)
+	if len(experimentSteps) == 0 {
+		return
+	}
+	compilerActivationJobLog.Printf("Adding %d experiment step(s) for %d experiment(s)", len(experimentSteps), len(data.Experiments))
+	ctx.steps = append(ctx.steps, experimentSteps...)
+	ctx.outputs["experiments"] = "${{ steps.pick-experiment.outputs.experiments }}"
+	for _, name := range sortedExperimentNames(data.Experiments) {
+		ctx.outputs[name] = "${{ steps.pick-experiment.outputs." + name + " }}"
+	}
 }
 
 func addActivationInteractionPermissions(
@@ -422,61 +421,12 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// In dev mode, actions/setup is referenced via a local workspace path (./actions/setup),
 	// so it must be included in the sparse-checkout to preserve it for the post step.
 	// In release/script/action modes, the action is in the runner cache and not the workspace.
-	var extraPaths []string
-	if c.actionMode.IsDev() {
-		compilerActivationJobLog.Print("Dev mode: adding actions/setup to sparse-checkout to preserve local action post step")
-		extraPaths = append(extraPaths, "actions/setup")
-	}
-
-	// Add engine-specific agent config directories to the sparse checkout.
-	// .github and .agents are already included in GenerateGitHubFolderCheckoutStep's hardcoded list.
-	// Root instruction files (AGENTS.md, CLAUDE.md, GEMINI.md) are excluded — they are not needed
-	// during activation and are omitted to keep the shallow checkout minimal.
-	defaultSparseCheckoutDirs := map[string]struct {
-	}{".github": {}, ".agents": {}}
-	registry := GetGlobalEngineRegistry()
-	for _, folder := range registry.GetAllAgentManifestFolders() {
-		if !setutil.Contains(defaultSparseCheckoutDirs, folder) {
-			extraPaths = append(extraPaths, folder)
-		}
-	}
-	compilerActivationJobLog.Printf("Adding %d engine-specific dirs to sparse-checkout: %v", len(extraPaths), extraPaths)
-
-	// Detect symlinks for well-known .github sub-paths and add their resolved targets
-	// so that sparse checkout fetches the target directory, not just the symlink blob.
-	// Use c.gitRoot so detection works regardless of the process CWD.
-	repoRoot := c.gitRoot
-	if repoRoot == "" {
-		if cwd, err := os.Getwd(); err == nil {
-			repoRoot = cwd
-		}
-	}
-	extraPaths = resolveSymlinkExtraPaths(repoRoot, extraPaths)
+	extraPaths := c.activationSparseCheckoutExtraPaths()
 
 	cm := NewCheckoutManager(nil)
 	activationToken := c.resolveActivationToken(data)
 	if data != nil && hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
-		compilerActivationJobLog.Print("Adding cross-repo-aware .github checkout for workflow_call trigger")
-		cm.SetCrossRepoTargetRepo("${{ steps.resolve-host-repo.outputs.target_repo }}")
-		cm.SetCrossRepoTargetRef("${{ steps.resolve-host-repo.outputs.target_checkout_ref }}")
-		checkoutSteps := cm.GenerateGitHubFolderCheckoutStep(
-			cm.GetCrossRepoTargetRepo(),
-			cm.GetCrossRepoTargetRef(),
-			activationToken,
-			c.getActionPin,
-			extraPaths...,
-		)
-		// When no custom token is configured, GITHUB_TOKEN is scoped to the calling
-		// repository and cannot read a private callee repository in cross-repo invocations
-		// (e.g. nbcnews/tvOS-App calling nbcnews/.github). Add an if: condition so the
-		// checkout is only attempted for same-repo invocations where GITHUB_TOKEN works.
-		// For cross-repo scenarios, users can enable the checkout by configuring
-		// activation-github-token or activation-github-app in the workflow frontmatter.
-		if activationToken == "${{ secrets.GITHUB_TOKEN }}" {
-			compilerActivationJobLog.Print("No custom activation token — restricting cross-repo checkout to same-repo invocations")
-			checkoutSteps = addSameRepoIfConditionToSteps(checkoutSteps)
-		}
-		return checkoutSteps
+		return c.generateCrossRepoActivationCheckout(cm, activationToken, extraPaths)
 	}
 
 	// For activation job, sparse checkout .github, .agents, and engine-specific config directories
@@ -484,6 +434,51 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// during activation. sparse-checkout-cone-mode: true ensures subdirectories are recursively included.
 	compilerActivationJobLog.Print("Adding .github, .agents, and engine-specific dirs to sparse checkout for activation job")
 	return cm.GenerateGitHubFolderCheckoutStep("", "", activationToken, c.getActionPin, extraPaths...)
+}
+
+func (c *Compiler) activationSparseCheckoutExtraPaths() []string {
+	var extraPaths []string
+	if c.actionMode.IsDev() {
+		compilerActivationJobLog.Print("Dev mode: adding actions/setup to sparse-checkout to preserve local action post step")
+		extraPaths = append(extraPaths, "actions/setup")
+	}
+	defaultSparseCheckoutDirs := map[string]struct{}{".github": {}, ".agents": {}}
+	registry := GetGlobalEngineRegistry()
+	for _, folder := range registry.GetAllAgentManifestFolders() {
+		if !setutil.Contains(defaultSparseCheckoutDirs, folder) {
+			extraPaths = append(extraPaths, folder)
+		}
+	}
+	compilerActivationJobLog.Printf("Adding %d engine-specific dirs to sparse-checkout: %v", len(extraPaths), extraPaths)
+	return resolveSymlinkExtraPaths(c.activationRepoRoot(), extraPaths)
+}
+
+func (c *Compiler) activationRepoRoot() string {
+	if c.gitRoot != "" {
+		return c.gitRoot
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		return cwd
+	}
+	return ""
+}
+
+func (c *Compiler) generateCrossRepoActivationCheckout(cm *CheckoutManager, activationToken string, extraPaths []string) []string {
+	compilerActivationJobLog.Print("Adding cross-repo-aware .github checkout for workflow_call trigger")
+	cm.SetCrossRepoTargetRepo("${{ steps.resolve-host-repo.outputs.target_repo }}")
+	cm.SetCrossRepoTargetRef("${{ steps.resolve-host-repo.outputs.target_checkout_ref }}")
+	checkoutSteps := cm.GenerateGitHubFolderCheckoutStep(
+		cm.GetCrossRepoTargetRepo(),
+		cm.GetCrossRepoTargetRef(),
+		activationToken,
+		c.getActionPin,
+		extraPaths...,
+	)
+	if activationToken == "${{ secrets.GITHUB_TOKEN }}" {
+		compilerActivationJobLog.Print("No custom activation token — restricting cross-repo checkout to same-repo invocations")
+		checkoutSteps = addSameRepoIfConditionToSteps(checkoutSteps)
+	}
+	return checkoutSteps
 }
 
 // addSameRepoIfConditionToSteps injects an if: condition into each step that restricts

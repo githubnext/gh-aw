@@ -78,92 +78,93 @@ func parseMentionsConfig(mentions any) *MentionsConfig {
 	// Handle object configuration
 	if mentionsMap, ok := mentions.(map[string]any); ok {
 		// Parse allowed-collaborators (preferred) with fallback to deprecated allow-team-members
-		if allowedCollaborators, exists := mentionsMap["allowed-collaborators"]; exists {
-			if val, ok := allowedCollaborators.(bool); ok {
-				config.AllowedCollaborators = &val
-			}
-		} else if allowTeamMembers, exists := mentionsMap["allow-team-members"]; exists {
-			if val, ok := allowTeamMembers.(bool); ok {
-				config.AllowedCollaborators = &val
-			}
-		}
+		config.AllowedCollaborators = parseMentionBoolPtr(mentionsMap, "allowed-collaborators", "allow-team-members")
 
 		// Parse allow-context
-		if allowContext, exists := mentionsMap["allow-context"]; exists {
-			if val, ok := allowContext.(bool); ok {
-				config.AllowContext = &val
-			}
-		}
+		config.AllowContext = parseMentionBoolPtr(mentionsMap, "allow-context")
 
 		// Parse allowed list
-		if allowed, exists := mentionsMap["allowed"]; exists {
-			if allowedArray, ok := allowed.([]any); ok {
-				var allowedStrings []string
-				for _, item := range allowedArray {
-					if str, ok := item.(string); ok {
-						// Normalize username by removing '@' prefix if present
-						normalized := str
-						if str != "" && str[0] == '@' {
-							normalized = str[1:]
-							safeOutputMessagesLog.Printf("Normalized mention '%s' to '%s'", str, normalized)
-						}
-						allowedStrings = append(allowedStrings, normalized)
-					}
-				}
-				config.Allowed = allowedStrings
-			}
-		}
+		config.Allowed = parseMentionStringList(mentionsMap, "allowed", "mention")
 
 		// Parse allowed-teams list
-		if allowedTeams, exists := mentionsMap["allowed-teams"]; exists {
-			if allowedTeamsArray, ok := allowedTeams.([]any); ok {
-				var allowedTeamsStrings []string
-				for _, item := range allowedTeamsArray {
-					if str, ok := item.(string); ok {
-						// Normalize team slug by removing '@' prefix if present
-						normalized := str
-						if str != "" && str[0] == '@' {
-							normalized = str[1:]
-							safeOutputMessagesLog.Printf("Normalized team mention '%s' to '%s'", str, normalized)
-						}
-						allowedTeamsStrings = append(allowedTeamsStrings, normalized)
-					}
-				}
-				config.AllowedTeams = allowedTeamsStrings
-			}
-		}
+		config.AllowedTeams = parseMentionStringList(mentionsMap, "allowed-teams", "team mention")
 
 		// Parse max
-		if maxVal, exists := mentionsMap["max"]; exists {
-			switch v := maxVal.(type) {
-			case int:
-				if v >= 1 {
-					config.Max = &v
-				}
-			case int64:
-				intVal := int(v)
-				if intVal >= 1 {
-					config.Max = &intVal
-				}
-			case uint64:
-				intVal := int(v)
-				if intVal >= 1 {
-					config.Max = &intVal
-				}
-			case float64:
-				intVal := int(v)
-				// Warn if truncation occurs
-				if v != float64(intVal) {
-					safeOutputMessagesLog.Printf("mentions.max: float value %.2f truncated to integer %d", v, intVal)
-				}
-				if intVal >= 1 {
-					config.Max = &intVal
-				}
-			}
-		}
+		config.Max = parseMentionsMax(mentionsMap)
 	}
 
 	return config
+}
+
+func parseMentionBoolPtr(values map[string]any, keys ...string) *bool {
+	for _, key := range keys {
+		raw, exists := values[key]
+		if !exists {
+			continue
+		}
+		if val, ok := raw.(bool); ok {
+			return &val
+		}
+		return nil
+	}
+	return nil
+}
+
+func parseMentionStringList(values map[string]any, key, logKind string) []string {
+	raw, exists := values[key]
+	if !exists {
+		return nil
+	}
+	items, ok := raw.([]any)
+	if !ok {
+		return nil
+	}
+	var stringsOut []string
+	for _, item := range items {
+		if str, ok := item.(string); ok {
+			stringsOut = append(stringsOut, normalizeMentionString(str, logKind))
+		}
+	}
+	return stringsOut
+}
+
+func normalizeMentionString(value, logKind string) string {
+	normalized := value
+	if value != "" && value[0] == '@' {
+		normalized = value[1:]
+		safeOutputMessagesLog.Printf("Normalized %s '%s' to '%s'", logKind, value, normalized)
+	}
+	return normalized
+}
+
+func parseMentionsMax(values map[string]any) *int {
+	maxVal, exists := values["max"]
+	if !exists {
+		return nil
+	}
+	switch v := maxVal.(type) {
+	case int:
+		return validMentionsMax(v)
+	case int64:
+		return validMentionsMax(int(v))
+	case uint64:
+		return validMentionsMax(int(v))
+	case float64:
+		intVal := int(v)
+		if v != float64(intVal) {
+			safeOutputMessagesLog.Printf("mentions.max: float value %.2f truncated to integer %d", v, intVal)
+		}
+		return validMentionsMax(intVal)
+	default:
+		return nil
+	}
+}
+
+func validMentionsMax(value int) *int {
+	if value < 1 {
+		return nil
+	}
+	return &value
 }
 
 // serializeMessagesConfig converts SafeOutputMessagesConfig to JSON for passing as environment variable

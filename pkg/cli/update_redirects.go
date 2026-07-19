@@ -40,74 +40,109 @@ func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, i
 	history := make([]string, 0, 2)
 
 	for range maxRedirectDepth {
-		currentRef := current.Ref
-		if currentRef == "" {
-			currentRef = resolveDefaultBranchRef(ctx, current.Repo)
-		}
-
-		locationKey := sourceSpecWithRef(current, currentRef)
-		if _, exists := visited[locationKey]; exists {
-			updateRedirectsLog.Printf("Redirect loop detected: workflow=%s, location=%s", workflowName, locationKey)
-			return nil, fmt.Errorf("redirect loop detected while updating %s at %s", workflowName, locationKey)
-		}
-		visited[locationKey] = struct{}{}
-
-		latestRef, err := resolveLatestRefFn(ctx, current.Repo, currentRef, allowMajor, verbose, coolDown)
-		if err != nil {
-			return nil, fmt.Errorf("failed to resolve latest ref for %s: %w", sourceSpecWithRef(current, currentRef), err)
-		}
-
-		content, err := downloadWorkflowContentFn(ctx, current.Repo, current.Path, latestRef, verbose)
-		if err != nil {
-			return nil, fmt.Errorf("failed to download workflow %s: %w", sourceSpecWithRef(current, latestRef), err)
-		}
-
-		redirect, err := extractRedirectFromContent(string(content))
+		result, next, err := resolveRedirectedUpdateLocationStep(resolveRedirectedUpdateLocationStepParams{
+			Ctx:          ctx,
+			WorkflowName: workflowName,
+			Current:      current,
+			Visited:      visited,
+			History:      history,
+			AllowMajor:   allowMajor,
+			Verbose:      verbose,
+			NoRedirect:   noRedirect,
+			CoolDown:     coolDown,
+		})
 		if err != nil {
 			return nil, err
 		}
-
-		sourceFieldRef := latestRef
-		if isBranchRef(currentRef) {
-			sourceFieldRef = currentRef
+		if result != nil {
+			return result, nil
 		}
-
-		if redirect == "" {
-			updateRedirectsLog.Printf("Resolved update location: workflow=%s, repo=%s, latestRef=%s, redirects=%d", workflowName, current.Repo, latestRef, len(history))
-			return &resolvedUpdateLocation{
-				sourceSpec:      current,
-				currentRef:      currentRef,
-				latestRef:       latestRef,
-				sourceFieldRef:  sourceFieldRef,
-				content:         content,
-				redirectHistory: history,
-			}, nil
-		}
-
-		if noRedirect {
-			updateRedirectsLog.Printf("Redirect blocked by --no-redirect: workflow=%s, redirect=%s", workflowName, redirect)
-			return nil, fmt.Errorf("redirect is disabled by --no-redirect for %s: %s declares redirect to %s (remove redirect frontmatter or run update without --no-redirect)", workflowName, sourceSpecWithRef(current, latestRef), redirect)
-		}
-
-		redirectedSource, err := normalizeRedirectToSourceSpec(redirect)
-		if err != nil {
-			return nil, fmt.Errorf("invalid redirect %q in %s: %w", redirect, sourceSpecWithRef(current, latestRef), err)
-		}
-
-		nextRef := redirectedSource.Ref
-		if nextRef == "" {
-			nextRef = resolveDefaultBranchRef(ctx, redirectedSource.Repo)
-		}
-
-		updateRedirectsLog.Printf("Following redirect: workflow=%s, from=%s, to=%s", workflowName, sourceSpecWithRef(current, latestRef), sourceSpecWithRef(redirectedSource, nextRef))
-		redirectMessage := fmt.Sprintf("Workflow %s redirect: %s → %s", workflowName, sourceSpecWithRef(current, latestRef), sourceSpecWithRef(redirectedSource, nextRef))
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(redirectMessage))
-		history = append(history, redirectMessage)
-		current = redirectedSource
+		history = append(history, next.message)
+		current = next.source
 	}
 
 	updateRedirectsLog.Printf("Redirect chain exceeded max depth: workflow=%s, depth=%d", workflowName, maxRedirectDepth)
 	return nil, fmt.Errorf("redirect chain exceeded maximum depth (%d) while updating %s", maxRedirectDepth, workflowName)
+}
+
+type resolveRedirectedUpdateLocationNext struct {
+	source  *SourceSpec
+	message string
+}
+
+type resolveRedirectedUpdateLocationStepParams struct {
+	Ctx          context.Context
+	WorkflowName string
+	Current      *SourceSpec
+	Visited      map[string]struct{}
+	History      []string
+	AllowMajor   bool
+	Verbose      bool
+	NoRedirect   bool
+	CoolDown     time.Duration
+}
+
+func resolveRedirectedUpdateLocationStep(p resolveRedirectedUpdateLocationStepParams) (*resolvedUpdateLocation, resolveRedirectedUpdateLocationNext, error) {
+	currentRef := p.Current.Ref
+	if currentRef == "" {
+		currentRef = resolveDefaultBranchRef(p.Ctx, p.Current.Repo)
+	}
+	locationKey := sourceSpecWithRef(p.Current, currentRef)
+	if _, exists := p.Visited[locationKey]; exists {
+		updateRedirectsLog.Printf("Redirect loop detected: workflow=%s, location=%s", p.WorkflowName, locationKey)
+		return nil, resolveRedirectedUpdateLocationNext{}, fmt.Errorf("redirect loop detected while updating %s at %s", p.WorkflowName, locationKey)
+	}
+	p.Visited[locationKey] = struct{}{}
+
+	latestRef, content, redirect, err := resolveRedirectedUpdateLocationFetch(p.Ctx, p.Current, currentRef, p.AllowMajor, p.Verbose, p.CoolDown)
+	if err != nil {
+		return nil, resolveRedirectedUpdateLocationNext{}, err
+	}
+	sourceFieldRef := latestRef
+	if isBranchRef(currentRef) {
+		sourceFieldRef = currentRef
+	}
+	if redirect == "" {
+		updateRedirectsLog.Printf("Resolved update location: workflow=%s, repo=%s, latestRef=%s, redirects=%d", p.WorkflowName, p.Current.Repo, latestRef, len(p.History))
+		return &resolvedUpdateLocation{sourceSpec: p.Current, currentRef: currentRef, latestRef: latestRef, sourceFieldRef: sourceFieldRef, content: content, redirectHistory: p.History}, resolveRedirectedUpdateLocationNext{}, nil
+	}
+	next, err := resolveRedirectedUpdateLocationRedirect(p.Ctx, p.WorkflowName, p.Current, latestRef, redirect, p.NoRedirect)
+	return nil, next, err
+}
+
+func resolveRedirectedUpdateLocationFetch(ctx context.Context, current *SourceSpec, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (string, []byte, string, error) {
+	latestRef, err := resolveLatestRefFn(ctx, current.Repo, currentRef, allowMajor, verbose, coolDown)
+	if err != nil {
+		return "", nil, "", fmt.Errorf("failed to resolve latest ref for %s: %w", sourceSpecWithRef(current, currentRef), err)
+	}
+	content, err := downloadWorkflowContentFn(ctx, current.Repo, current.Path, latestRef, verbose)
+	if err != nil {
+		return "", nil, "", fmt.Errorf("failed to download workflow %s: %w", sourceSpecWithRef(current, latestRef), err)
+	}
+	redirect, err := extractRedirectFromContent(string(content))
+	if err != nil {
+		return "", nil, "", err
+	}
+	return latestRef, content, redirect, nil
+}
+
+func resolveRedirectedUpdateLocationRedirect(ctx context.Context, workflowName string, current *SourceSpec, latestRef, redirect string, noRedirect bool) (resolveRedirectedUpdateLocationNext, error) {
+	if noRedirect {
+		updateRedirectsLog.Printf("Redirect blocked by --no-redirect: workflow=%s, redirect=%s", workflowName, redirect)
+		return resolveRedirectedUpdateLocationNext{}, fmt.Errorf("redirect is disabled by --no-redirect for %s: %s declares redirect to %s (remove redirect frontmatter or run update without --no-redirect)", workflowName, sourceSpecWithRef(current, latestRef), redirect)
+	}
+	redirectedSource, err := normalizeRedirectToSourceSpec(redirect)
+	if err != nil {
+		return resolveRedirectedUpdateLocationNext{}, fmt.Errorf("invalid redirect %q in %s: %w", redirect, sourceSpecWithRef(current, latestRef), err)
+	}
+	nextRef := redirectedSource.Ref
+	if nextRef == "" {
+		nextRef = resolveDefaultBranchRef(ctx, redirectedSource.Repo)
+	}
+	updateRedirectsLog.Printf("Following redirect: workflow=%s, from=%s, to=%s", workflowName, sourceSpecWithRef(current, latestRef), sourceSpecWithRef(redirectedSource, nextRef))
+	redirectMessage := fmt.Sprintf("Workflow %s redirect: %s → %s", workflowName, sourceSpecWithRef(current, latestRef), sourceSpecWithRef(redirectedSource, nextRef))
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(redirectMessage))
+	return resolveRedirectedUpdateLocationNext{source: redirectedSource, message: redirectMessage}, nil
 }
 
 // resolveDefaultBranchRef returns the repository's default branch name via the

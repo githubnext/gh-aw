@@ -35,31 +35,9 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 		HistoryDays: config.Days,
 	}
 
-	// Load frontmatter metadata (triggers, concurrency, experiments).
-	meta := loadWorkflowMeta(workflowName, config.Verbose)
-	result.ActiveTriggers = meta.activeTriggers
-	result.ConcurrencyLimit = meta.concurrencyLimit
-	result.ExperimentVariants = meta.variants
-	result.Engines = meta.engines
+	forecastWorkflowLoadMeta(workflowName, config, &result)
 
-	// Determine the API name used to filter workflow runs (prefer lock file name).
-	apiName := workflowName
-	if lockFile, err := workflow.GetWorkflowLockFileName(workflowName); err == nil {
-		apiName = lockFile
-	}
-
-	// Fetch completed runs from the history window.
-	opts := ListWorkflowRunsOptions{
-		WorkflowName: apiName,
-		Status:       "completed",
-		StartDate:    startDate,
-		Limit:        config.SampleSize,
-		TargetCount:  config.SampleSize,
-		RepoOverride: config.RepoOverride,
-		Verbose:      config.Verbose,
-	}
-
-	runs, _, err := listRunsWithBackoff(ctx, opts, result.WorkflowID)
+	runs, _, err := listRunsWithBackoff(ctx, forecastWorkflowRunOptions(workflowName, startDate, config), result.WorkflowID)
 	if err != nil {
 		if gitutil.IsRateLimitError(err.Error()) {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
@@ -70,6 +48,56 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 	}
 
 	// Only use completed runs for metric computation.
+	completed := forecastWorkflowCompletedRuns(runs)
+	if len(completed) == 0 {
+		forecastRunLog.Printf("No completed runs found for %s in last %d days", workflowName, config.Days)
+		return result, nil
+	}
+
+	// Compute per-run averages and collect individual run samples.
+	totalAIC, totalDurSec, successCount, aicObservations := forecastWorkflowSamples(ctx, workflowName, completed, config, &result)
+
+	n := len(aicObservations)
+	result.SampledRuns = n
+	if n == 0 {
+		forecastRunLog.Printf("No non-zero AIC run samples found for %s in last %d days", workflowName, config.Days)
+		return result, nil
+	}
+
+	forecastWorkflowComputeMetrics(&result, totalAIC, totalDurSec, successCount, aicObservations, config, periodDays)
+
+	// Populate experiment variant fractions from run history when metadata has variants.
+	result.ExperimentVariants = computeVariantFractions(result.ExperimentVariants, completed)
+
+	return result, nil
+}
+
+func forecastWorkflowLoadMeta(workflowName string, config ForecastConfig, result *ForecastWorkflowResult) {
+	// Load frontmatter metadata (triggers, concurrency, experiments).
+	meta := loadWorkflowMeta(workflowName, config.Verbose)
+	result.ActiveTriggers = meta.activeTriggers
+	result.ConcurrencyLimit = meta.concurrencyLimit
+	result.ExperimentVariants = meta.variants
+	result.Engines = meta.engines
+}
+
+func forecastWorkflowRunOptions(workflowName, startDate string, config ForecastConfig) ListWorkflowRunsOptions {
+	apiName := workflowName
+	if lockFile, err := workflow.GetWorkflowLockFileName(workflowName); err == nil {
+		apiName = lockFile
+	}
+	return ListWorkflowRunsOptions{
+		WorkflowName: apiName,
+		Status:       "completed",
+		StartDate:    startDate,
+		Limit:        config.SampleSize,
+		TargetCount:  config.SampleSize,
+		RepoOverride: config.RepoOverride,
+		Verbose:      config.Verbose,
+	}
+}
+
+func forecastWorkflowCompletedRuns(runs []WorkflowRun) []WorkflowRun {
 	completed := make([]WorkflowRun, 0, len(runs))
 	for _, r := range runs {
 		if isCompletedNonSkippedRun(r) {
@@ -81,12 +109,10 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 			completed = append(completed, r)
 		}
 	}
-	if len(completed) == 0 {
-		forecastRunLog.Printf("No completed runs found for %s in last %d days", workflowName, config.Days)
-		return result, nil
-	}
+	return completed
+}
 
-	// Compute per-run averages and collect individual run samples.
+func forecastWorkflowSamples(ctx context.Context, workflowName string, completed []WorkflowRun, config ForecastConfig, result *ForecastWorkflowResult) (float64, float64, int, []int) {
 	var totalAIC float64
 	var totalDurSec float64
 	successCount := 0
@@ -104,66 +130,66 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 		}
 		totalAIC += runAIC
 		totalDurSec += r.Duration.Seconds()
-		// Monte Carlo currently samples integer observations; keep milli-AIC precision
-		// so sub-1 AIC runs are represented without losing granularity.
 		aicObservations = append(aicObservations, int(math.Round(runAIC*1000)))
 		if r.Conclusion == "success" {
 			successCount++
 		}
-		sample := ForecastRunSample{RunID: r.DatabaseID, AIC: roundForecastAIC(runAIC)}
-		if !r.StartedAt.IsZero() {
-			sample.Date = r.StartedAt.Format("2006-01-02")
-		}
-		if r.URL != "" {
-			sample.RunURL = r.URL
-		}
-		samples = append(samples, sample)
+		samples = append(samples, forecastWorkflowSample(r, runAIC))
 	}
 	result.RunSamples = samples
-	if result.WorkflowPath == "" {
-		for _, r := range completed {
-			if r.WorkflowPath != "" {
-				result.WorkflowPath = r.WorkflowPath
-				break
-			}
+	forecastWorkflowSetPath(result, completed)
+	return totalAIC, totalDurSec, successCount, aicObservations
+}
+
+func forecastWorkflowSample(r WorkflowRun, runAIC float64) ForecastRunSample {
+	sample := ForecastRunSample{RunID: r.DatabaseID, AIC: roundForecastAIC(runAIC)}
+	if !r.StartedAt.IsZero() {
+		sample.Date = r.StartedAt.Format("2006-01-02")
+	}
+	if r.URL != "" {
+		sample.RunURL = r.URL
+	}
+	return sample
+}
+
+func forecastWorkflowSetPath(result *ForecastWorkflowResult, completed []WorkflowRun) {
+	if result.WorkflowPath != "" {
+		return
+	}
+	for _, r := range completed {
+		if r.WorkflowPath != "" {
+			result.WorkflowPath = r.WorkflowPath
+			return
 		}
 	}
+}
 
+func forecastWorkflowComputeMetrics(result *ForecastWorkflowResult, totalAIC, totalDurSec float64, successCount int, aicObservations []int, config ForecastConfig, periodDays int) {
 	n := len(aicObservations)
-	result.SampledRuns = n
-	if n == 0 {
-		forecastRunLog.Printf("No non-zero AIC run samples found for %s in last %d days", workflowName, config.Days)
-		return result, nil
-	}
-
 	result.AvgAIC = roundForecastAIC(totalAIC / float64(n))
 	result.AvgDurationSeconds = totalDurSec / float64(n)
 	result.SuccessRate = float64(successCount) / float64(n)
+	forecastWorkflowPercentiles(result, aicObservations)
 
-	// Compute P50 and P95 of individual run AIC (per-run percentiles, not period totals).
+	observedRunsPerDay := float64(n) / float64(config.Days)
+	result.ObservedRunsPerPeriod = observedRunsPerDay * float64(periodDays)
+	weeklyRuns := observedRunsPerDay * 7
+	monthlyRuns := observedRunsPerDay * 30
+	result.WeeklyProjectedAIC = roundForecastAIC(weeklyRuns * result.AvgAIC)
+	result.MonthlyProjectedAIC = roundForecastAIC(monthlyRuns * result.AvgAIC)
+	result.ProjectedAIC = roundForecastAIC(result.ObservedRunsPerPeriod * result.AvgAIC)
+	forecastWorkflowMonteCarlo(result, aicObservations, successCount, weeklyRuns, monthlyRuns)
+}
+
+func forecastWorkflowPercentiles(result *ForecastWorkflowResult, aicObservations []int) {
 	sortedAIC := make([]int, len(aicObservations))
 	copy(sortedAIC, aicObservations)
 	sort.Ints(sortedAIC)
 	result.P50AIC = roundForecastAIC(float64(percentileInt(sortedAIC, 50)) / 1000)
 	result.P95AIC = roundForecastAIC(float64(percentileInt(sortedAIC, 95)) / 1000)
+}
 
-	// Compute observed run frequency: runs per calendar day over the history window,
-	// scaled to the projection period.
-	observedRunsPerDay := float64(n) / float64(config.Days)
-	result.ObservedRunsPerPeriod = observedRunsPerDay * float64(periodDays)
-
-	// Point estimates for weekly (7-day) and monthly (30-day) projections.
-	weeklyRuns := observedRunsPerDay * 7
-	monthlyRuns := observedRunsPerDay * 30
-	result.WeeklyProjectedAIC = roundForecastAIC(weeklyRuns * result.AvgAIC)
-	result.MonthlyProjectedAIC = roundForecastAIC(monthlyRuns * result.AvgAIC)
-
-	// Projected token usage (point estimate using simple means) for the configured period.
-	result.ProjectedAIC = roundForecastAIC(result.ObservedRunsPerPeriod * result.AvgAIC)
-
-	// Monte Carlo simulation: model run-count (Poisson), per-run token usage
-	// (bootstrap), and per-run success (Bernoulli) to produce P10/P50/P90 ranges.
-	// Two independent RNGs ensure the weekly and monthly simulations are uncorrelated.
+func forecastWorkflowMonteCarlo(result *ForecastWorkflowResult, aicObservations []int, successCount int, weeklyRuns, monthlyRuns float64) {
 	seed := time.Now().UnixNano()
 	rng := rand.New(rand.NewSource(seed))      //nolint:gosec // non-cryptographic simulation RNG
 	rng2 := rand.New(rand.NewSource(seed + 1)) //nolint:gosec
@@ -171,11 +197,6 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 	result.MonteCarlo = runMonteCarlo(aicObservations, successCount, result.ObservedRunsPerPeriod, rng)
 	result.WeeklyMonteCarlo = runMonteCarlo(aicObservations, successCount, weeklyRuns, rng2)
 	result.MonthlyMonteCarlo = runMonteCarlo(aicObservations, successCount, monthlyRuns, rng3)
-
-	// Populate experiment variant fractions from run history when metadata has variants.
-	result.ExperimentVariants = computeVariantFractions(result.ExperimentVariants, completed)
-
-	return result, nil
 }
 
 // loadCachedRunAIC looks up a locally-cached RunSummary for the given
@@ -250,18 +271,10 @@ func forecastDownloadUsageArtifact(ctx context.Context, runID int64, outputDir s
 	shouldLogProgress := IsRunningInCI() || verbose
 
 	// Check if the requested artifacts are already on disk (cache hit from actions/cache restore).
-	if fileutil.DirExists(outputDir) && !fileutil.IsDirEmpty(outputDir) {
-		missing := findMissingFilterEntries(artifactFilter, outputDir)
-		if len(missing) == 0 {
-			forecastRunLog.Printf("Usage artifact already on disk for run %d, skipping download", runID)
-			if shouldLogProgress {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-					fmt.Sprintf("Usage artifact already present for run %d, skipping download", runID)))
-			}
-			return nil
-		}
-		forecastRunLog.Printf("Usage artifact partially missing for run %d: %v; downloading missing entries", runID, missing)
-		artifactFilter = missing
+	if updatedFilter, done := forecastDownloadUsageArtifactCacheHit(runID, outputDir, artifactFilter, shouldLogProgress); done {
+		return nil
+	} else {
+		artifactFilter = updatedFilter
 	}
 
 	if err := os.MkdirAll(outputDir, constants.DirPermPublic); err != nil {
@@ -269,24 +282,10 @@ func forecastDownloadUsageArtifact(ctx context.Context, runID int64, outputDir s
 	}
 
 	// List available artifacts for the run to find which match the filter.
-	artifactNames, listErr := listRunArtifactNames(ctx, runID, owner, repo, hostname, verbose)
-	if listErr != nil {
-		forecastRunLog.Printf("Failed to list artifacts for run %d: %v", runID, listErr)
-		if fileutil.IsDirEmpty(outputDir) {
-			_ = os.RemoveAll(outputDir)
-		}
-		return fmt.Errorf("failed to list artifacts for run %d: %w", runID, listErr)
+	downloadableNames, err := forecastDownloadUsageArtifactNames(ctx, runID, outputDir, verbose, owner, repo, hostname, artifactFilter)
+	if err != nil {
+		return err
 	}
-
-	var downloadableNames []string
-	for _, name := range artifactNames {
-		if !isDockerBuildArtifact(name) && artifactMatchesFilter(name, artifactFilter) {
-			downloadableNames = append(downloadableNames, name)
-		}
-	}
-
-	forecastRunLog.Printf("Run %d: listed artifacts=%v, filter=%v, downloadable=%v", runID, artifactNames, artifactFilter, downloadableNames)
-
 	if len(downloadableNames) == 0 {
 		// No usage artifact — clean up empty directory and report.
 		if fileutil.IsDirEmpty(outputDir) {
@@ -311,6 +310,43 @@ func forecastDownloadUsageArtifact(ctx context.Context, runID int64, outputDir s
 
 	forecastRunLog.Printf("Downloaded usage artifact for run %d to %s", runID, outputDir)
 	return nil
+}
+
+func forecastDownloadUsageArtifactCacheHit(runID int64, outputDir string, artifactFilter []string, shouldLogProgress bool) ([]string, bool) {
+	if !fileutil.DirExists(outputDir) || fileutil.IsDirEmpty(outputDir) {
+		return artifactFilter, false
+	}
+	missing := findMissingFilterEntries(artifactFilter, outputDir)
+	if len(missing) == 0 {
+		forecastRunLog.Printf("Usage artifact already on disk for run %d, skipping download", runID)
+		if shouldLogProgress {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+				fmt.Sprintf("Usage artifact already present for run %d, skipping download", runID)))
+		}
+		return artifactFilter, true
+	}
+	forecastRunLog.Printf("Usage artifact partially missing for run %d: %v; downloading missing entries", runID, missing)
+	return missing, false
+}
+
+func forecastDownloadUsageArtifactNames(ctx context.Context, runID int64, outputDir string, verbose bool, owner, repo, hostname string, artifactFilter []string) ([]string, error) {
+	artifactNames, listErr := listRunArtifactNames(ctx, runID, owner, repo, hostname, verbose)
+	if listErr != nil {
+		forecastRunLog.Printf("Failed to list artifacts for run %d: %v", runID, listErr)
+		if fileutil.IsDirEmpty(outputDir) {
+			_ = os.RemoveAll(outputDir)
+		}
+		return nil, fmt.Errorf("failed to list artifacts for run %d: %w", runID, listErr)
+	}
+
+	var downloadableNames []string
+	for _, name := range artifactNames {
+		if !isDockerBuildArtifact(name) && artifactMatchesFilter(name, artifactFilter) {
+			downloadableNames = append(downloadableNames, name)
+		}
+	}
+	forecastRunLog.Printf("Run %d: listed artifacts=%v, filter=%v, downloadable=%v", runID, artifactNames, artifactFilter, downloadableNames)
+	return downloadableNames, nil
 }
 
 // emitPartialForecastResults outputs whatever workflow results have been collected so
@@ -372,34 +408,14 @@ func isCompletedNonSkippedRun(r WorkflowRun) bool {
 func evaluateForecast(ctx context.Context, workflowName string, forecast ForecastWorkflowResult, validationStartDate, validationEndDate string, config ForecastConfig) *ForecastEvaluation {
 	// Compute the actual ISO-8601 training start date by subtracting HistoryDays
 	// from the validation start (= anchor).
-	var trainingStartDate string
-	if t, err := time.Parse("2006-01-02", validationStartDate); err == nil {
-		trainingStartDate = t.AddDate(0, 0, -forecast.HistoryDays).Format("2006-01-02")
-	} else {
-		trainingStartDate = validationStartDate
-	}
 	eval := &ForecastEvaluation{
-		TrainingStartDate: trainingStartDate,
+		TrainingStartDate: evaluateForecastTrainingStart(validationStartDate, forecast.HistoryDays),
 		TrainingEndDate:   validationStartDate,
 		ValidationEndDate: validationEndDate,
 	}
 
-	// Determine the API name used to filter workflow runs.
-	apiName := workflowName
-	if lockFile, err := workflow.GetWorkflowLockFileName(workflowName); err == nil {
-		apiName = lockFile
-	}
-
 	// Fetch completed runs in the validation window.
-	opts := ListWorkflowRunsOptions{
-		WorkflowName: apiName,
-		Status:       "completed",
-		StartDate:    validationStartDate,
-		Limit:        config.SampleSize,
-		TargetCount:  config.SampleSize,
-		RepoOverride: config.RepoOverride,
-		Verbose:      config.Verbose,
-	}
+	opts := forecastWorkflowRunOptions(workflowName, validationStartDate, config)
 	opts.Context = ctx
 	runs, _, err := listWorkflowRunsWithPagination(opts)
 	if err != nil {
@@ -408,14 +424,27 @@ func evaluateForecast(ctx context.Context, workflowName string, forecast Forecas
 	}
 
 	// Filter to completed runs that fall within the validation window.
+	evaluateForecastActuals(ctx, eval, runs, validationStartDate, config)
+
+	// Compute error metrics against P50 (falls back to point estimate).
+	evaluateForecastMetrics(eval, forecast)
+	return eval
+}
+
+func evaluateForecastTrainingStart(validationStartDate string, historyDays int) string {
+	if t, err := time.Parse("2006-01-02", validationStartDate); err == nil {
+		return t.AddDate(0, 0, -historyDays).Format("2006-01-02")
+	}
+	return validationStartDate
+}
+
+func evaluateForecastActuals(ctx context.Context, eval *ForecastEvaluation, runs []WorkflowRun, validationStartDate string, config ForecastConfig) {
 	validationEnd := time.Now()
 	validationStart, _ := time.Parse("2006-01-02", validationStartDate)
 	for _, r := range runs {
 		if !isCompletedNonSkippedRun(r) {
 			continue
 		}
-		// Skip runs with no timestamp — we cannot verify they belong to the
-		// validation window, so including them would introduce undefined bias.
 		if r.StartedAt.IsZero() {
 			continue
 		}
@@ -425,8 +454,9 @@ func evaluateForecast(ctx context.Context, workflowName string, forecast Forecas
 		eval.ActualRuns++
 		eval.ActualAIC += forecastLoadCachedRunAIC(ctx, r.DatabaseID, config.Verbose)
 	}
+}
 
-	// Compute error metrics against P50 (falls back to point estimate).
+func evaluateForecastMetrics(eval *ForecastEvaluation, forecast ForecastWorkflowResult) {
 	p50 := forecast.ProjectedAIC
 	p10 := forecast.ProjectedAIC
 	p90 := forecast.ProjectedAIC
@@ -441,6 +471,4 @@ func evaluateForecast(ctx context.Context, workflowName string, forecast Forecas
 		eval.P50ErrorPct = eval.P50ErrorAbs / p50 * 100
 	}
 	eval.InCI = eval.ActualAIC >= p10 && eval.ActualAIC <= p90
-
-	return eval
 }

@@ -116,8 +116,17 @@ func runMonteCarlo(aicObservations []int, successCount int, observedRunsPerPerio
 	gammaShape := float64(n) + 0.5
 	gammaScale := observedRunsPerPeriod / float64(n)
 
-	simAICMilli := make([]int, monteCarloIterations)
+	simAICMilli := runMonteCarloSimulate(aicObservations, successRate, gammaShape, gammaScale, rng)
 
+	// Sort for percentile computation.
+	sort.Ints(simAICMilli)
+
+	return runMonteCarloSummary(n, simAICMilli)
+}
+
+func runMonteCarloSimulate(aicObservations []int, successRate, gammaShape, gammaScale float64, rng *rand.Rand) []int {
+	n := len(aicObservations)
+	simAICMilli := make([]int, monteCarloIterations)
 	for i := range monteCarloIterations {
 		// Draw run-count rate from posterior Gamma (accounts for estimation uncertainty in λ).
 		lambdaTrial := gammaSample(rng, gammaShape) * gammaScale
@@ -133,13 +142,12 @@ func runMonteCarlo(aicObservations []int, successCount int, observedRunsPerPerio
 			// Bootstrap: sample AIC from the empirical distribution.
 			totalAICMilli += aicObservations[rng.Intn(n)]
 		}
-
 		simAICMilli[i] = totalAICMilli
 	}
+	return simAICMilli
+}
 
-	// Sort for percentile computation.
-	sort.Ints(simAICMilli)
-
+func runMonteCarloSummary(n int, simAICMilli []int) *ForecastMonteCarloSummary {
 	meanMilli, stddevMilli := meanStdDevInt(simAICMilli)
 	mean := roundForecastAIC(float64(meanMilli) / 1000)
 	stddev := roundForecastAIC(stddevMilli / 1000)

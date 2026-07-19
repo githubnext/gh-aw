@@ -24,14 +24,7 @@ func evalReplaceLabel(item CreatedItemReport, repoOverride string) OutcomeReport
 		Repo:         repo,
 	}
 	if num == 0 || repo == "" || item.BeforeState == nil || item.AfterState == nil {
-		report.Result = OutcomeUnknown
-		report.Detail = "missing execution state"
-		report.OutcomeEvaluation = OutcomeEvaluation{
-			OutcomeStatus:    OutcomeStatusUnknown,
-			EvidenceStrength: EvidenceNone,
-			Signal:           "missing_execution_state",
-		}
-		return report
+		return evalReplaceLabelUnknown(report, "missing execution state", "missing_execution_state")
 	}
 
 	beforeLabels := mutableStringSlice(item.BeforeState["labels"])
@@ -42,14 +35,7 @@ func evalReplaceLabel(item CreatedItemReport, repoOverride string) OutcomeReport
 	removed := labelSetDiff(beforeLabels, afterLabels)
 
 	if len(added) == 0 && len(removed) == 0 {
-		report.Result = OutcomeUnknown
-		report.Detail = "no label delta"
-		report.OutcomeEvaluation = OutcomeEvaluation{
-			OutcomeStatus:    OutcomeStatusUnknown,
-			EvidenceStrength: EvidenceNone,
-			Signal:           "no_state_delta",
-		}
-		return report
+		return evalReplaceLabelUnknown(report, "no label delta", "no_state_delta")
 	}
 
 	currentState, _, err := extractCurrentIssueUpdateState(repo, num)
@@ -64,7 +50,21 @@ func evalReplaceLabel(item CreatedItemReport, repoOverride string) OutcomeReport
 	// all removed labels are still absent, regardless of any other label changes.
 	addedRetained := labelSetContainsAll(currentLabels, added)
 	removedStillAbsent := !labelSetContainsAny(currentLabels, removed)
+	return evalReplaceLabelClassify(report, currentLabels, added, removed, addedRetained, removedStillAbsent)
+}
 
+func evalReplaceLabelUnknown(report OutcomeReport, detail string, signal string) OutcomeReport {
+	report.Result = OutcomeUnknown
+	report.Detail = detail
+	report.OutcomeEvaluation = OutcomeEvaluation{
+		OutcomeStatus:    OutcomeStatusUnknown,
+		EvidenceStrength: EvidenceNone,
+		Signal:           signal,
+	}
+	return report
+}
+
+func evalReplaceLabelClassify(report OutcomeReport, currentLabels []string, added []string, removed []string, addedRetained bool, removedStillAbsent bool) OutcomeReport {
 	if addedRetained && removedStillAbsent {
 		report.Result = OutcomeAccepted
 		report.Detail = "label replacement retained"

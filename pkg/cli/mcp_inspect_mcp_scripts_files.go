@@ -15,6 +15,27 @@ import (
 func writeMCPScriptsFiles(dir string, mcpScriptsConfig *workflow.MCPScriptsConfig, verbose bool) error {
 	mcpInspectLog.Printf("Writing mcp-scripts files to: %s", dir)
 
+	if err := writeMCPScriptsFilesLogsDir(dir); err != nil {
+		return err
+	}
+	if err := writeMCPScriptsFilesJavaScript(dir, verbose); err != nil {
+		return err
+	}
+	if err := writeMCPScriptsFilesToolsConfig(dir, mcpScriptsConfig, verbose); err != nil {
+		return err
+	}
+	if err := writeMCPScriptsFilesServerScript(dir, mcpScriptsConfig, verbose); err != nil {
+		return err
+	}
+	if err := writeMCPScriptsFilesToolHandlers(dir, mcpScriptsConfig, verbose); err != nil {
+		return err
+	}
+
+	mcpInspectLog.Printf("Successfully wrote all mcp-scripts files")
+	return nil
+}
+
+func writeMCPScriptsFilesLogsDir(dir string) error {
 	// Create logs directory
 	logsDir := filepath.Join(dir, "logs")
 	if err := os.MkdirAll(logsDir, constants.DirPermPublic); err != nil {
@@ -22,7 +43,10 @@ func writeMCPScriptsFiles(dir string, mcpScriptsConfig *workflow.MCPScriptsConfi
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return fmt.Errorf("failed to create logs directory: %w", err)
 	}
+	return nil
+}
 
+func writeMCPScriptsFilesJavaScript(dir string, verbose bool) error {
 	// Write JavaScript dependencies that are needed
 	jsFiles := []struct {
 		name    string
@@ -40,41 +64,26 @@ func writeMCPScriptsFiles(dir string, mcpScriptsConfig *workflow.MCPScriptsConfi
 	}
 
 	for _, jsFile := range jsFiles {
-		filePath := filepath.Join(dir, jsFile.name)
-		if err := os.WriteFile(filePath, []byte(jsFile.content), constants.FilePermPublic); err != nil {
-			errMsg := fmt.Sprintf("failed to write %s: %v", jsFile.name, err)
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-			return fmt.Errorf("failed to write %s: %w", jsFile.name, err)
-		}
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Wrote "+jsFile.name))
+		if err := writeMCPScriptsFilesFile(dir, jsFile.name, jsFile.content, constants.FilePermPublic, verbose); err != nil {
+			return err
 		}
 	}
+	return nil
+}
 
+func writeMCPScriptsFilesToolsConfig(dir string, mcpScriptsConfig *workflow.MCPScriptsConfig, verbose bool) error {
 	// Generate and write tools.json
 	toolsJSON := workflow.GenerateMCPScriptsToolsConfig(mcpScriptsConfig)
-	toolsPath := filepath.Join(dir, "tools.json")
-	if err := os.WriteFile(toolsPath, []byte(toolsJSON), constants.FilePermPublic); err != nil {
-		errMsg := fmt.Sprintf("failed to write tools.json: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-		return fmt.Errorf("failed to write tools.json: %w", err)
-	}
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Wrote tools.json"))
-	}
+	return writeMCPScriptsFilesFile(dir, "tools.json", toolsJSON, constants.FilePermPublic, verbose)
+}
 
+func writeMCPScriptsFilesServerScript(dir string, mcpScriptsConfig *workflow.MCPScriptsConfig, verbose bool) error {
 	// Generate and write mcp-server.cjs entry point
 	mcpServerScript := workflow.GenerateMCPScriptsMCPServerScript(mcpScriptsConfig)
-	mcpServerPath := filepath.Join(dir, "mcp-server.cjs")
-	if err := os.WriteFile(mcpServerPath, []byte(mcpServerScript), constants.FilePermExecutable); err != nil {
-		errMsg := fmt.Sprintf("failed to write mcp-server.cjs: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-		return fmt.Errorf("failed to write mcp-server.cjs: %w", err)
-	}
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Wrote mcp-server.cjs"))
-	}
+	return writeMCPScriptsFilesFile(dir, "mcp-server.cjs", mcpServerScript, constants.FilePermExecutable, verbose)
+}
 
+func writeMCPScriptsFilesToolHandlers(dir string, mcpScriptsConfig *workflow.MCPScriptsConfig, verbose bool) error {
 	// Generate and write tool handler files
 	for toolName, toolConfig := range mcpScriptsConfig.Tools {
 		var content string
@@ -107,7 +116,18 @@ func writeMCPScriptsFiles(dir string, mcpScriptsConfig *workflow.MCPScriptsConfi
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Wrote tool handler: %s%s", toolName, extension)))
 		}
 	}
+	return nil
+}
 
-	mcpInspectLog.Printf("Successfully wrote all mcp-scripts files")
+func writeMCPScriptsFilesFile(dir string, name string, content string, mode os.FileMode, verbose bool) error {
+	filePath := filepath.Join(dir, name)
+	if err := os.WriteFile(filePath, []byte(content), mode); err != nil {
+		errMsg := fmt.Sprintf("failed to write %s: %v", name, err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+		return fmt.Errorf("failed to write %s: %w", name, err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Wrote "+name))
+	}
 	return nil
 }

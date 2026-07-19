@@ -81,43 +81,48 @@ func parseRedactedDomainsLog(logPath string, verbose bool) (*RedactedDomainsAnal
 func analyzeRedactedDomains(runDir string, verbose bool) (*RedactedDomainsAnalysis, error) {
 	redactedDomainsLog.Printf("Analyzing redacted domains in: %s", runDir)
 
-	// The file could be in several locations depending on artifact extraction:
-	// 1. Directly in the run directory as "redacted-urls.log"
-	// 2. In an "agent_outputs" subdirectory as "redacted-urls.log"
-	// 3. Following the original path structure: agent_outputs/tmp/gh-aw/redacted-urls.log
-
-	// Check for redacted-urls.log directly in the run directory
-	directPath := filepath.Join(runDir, "redacted-urls.log")
-	if _, err := os.Stat(directPath); err == nil {
-		redactedDomainsLog.Printf("Found redacted-urls.log at direct path: %s", directPath)
+	if path, message := analyzeRedactedDomainsKnownPath(runDir); path != "" {
+		redactedDomainsLog.Printf("Found redacted-urls.log at %s: %s", message, path)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found redacted-urls.log in run directory"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(message))
 		}
-		return parseRedactedDomainsLog(directPath, verbose)
+		return parseRedactedDomainsLog(path, verbose)
 	}
 
-	// Check for redacted-urls.log in agent_outputs directory
-	agentOutputsPath := filepath.Join(runDir, "agent_outputs", "redacted-urls.log")
-	if _, err := os.Stat(agentOutputsPath); err == nil {
-		redactedDomainsLog.Printf("Found redacted-urls.log in agent_outputs: %s", agentOutputsPath)
+	foundPath := analyzeRedactedDomainsWalk(runDir)
+	if foundPath != "" {
+		redactedDomainsLog.Printf("Found redacted-urls.log via recursive search: %s", foundPath)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found redacted-urls.log in agent_outputs directory"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found redacted-urls.log at "+foundPath))
 		}
-		return parseRedactedDomainsLog(agentOutputsPath, verbose)
+		return parseRedactedDomainsLog(foundPath, verbose)
 	}
 
-	// Check for the full path structure that mirrors the upload path
-	// agent_outputs/tmp/gh-aw/redacted-urls.log
-	fullPath := filepath.Join(runDir, "agent_outputs", "tmp", "gh-aw", "redacted-urls.log")
-	if _, err := os.Stat(fullPath); err == nil {
-		redactedDomainsLog.Printf("Found redacted-urls.log at full path: %s", fullPath)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found redacted-urls.log at full artifact path"))
-		}
-		return parseRedactedDomainsLog(fullPath, verbose)
+	redactedDomainsLog.Print("No redacted-urls.log found")
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No redacted-urls.log found in "+runDir))
 	}
+	return nil, nil
+}
 
-	// Fallback: search recursively for redacted-urls.log
+func analyzeRedactedDomainsKnownPath(runDir string) (string, string) {
+	candidates := []struct {
+		path    string
+		message string
+	}{
+		{filepath.Join(runDir, "redacted-urls.log"), "Found redacted-urls.log in run directory"},
+		{filepath.Join(runDir, "agent_outputs", "redacted-urls.log"), "Found redacted-urls.log in agent_outputs directory"},
+		{filepath.Join(runDir, "agent_outputs", "tmp", "gh-aw", "redacted-urls.log"), "Found redacted-urls.log at full artifact path"},
+	}
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate.path); err == nil {
+			return candidate.path, candidate.message
+		}
+	}
+	return "", ""
+}
+
+func analyzeRedactedDomainsWalk(runDir string) string {
 	var foundPath string
 	if walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -135,19 +140,5 @@ func analyzeRedactedDomains(runDir string, verbose bool) (*RedactedDomainsAnalys
 	}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", runDir, walkErr)))
 	}
-
-	if foundPath != "" {
-		redactedDomainsLog.Printf("Found redacted-urls.log via recursive search: %s", foundPath)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found redacted-urls.log at "+foundPath))
-		}
-		return parseRedactedDomainsLog(foundPath, verbose)
-	}
-
-	// No redacted domains log found - this is not an error, just means no URLs were redacted
-	redactedDomainsLog.Print("No redacted-urls.log found")
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No redacted-urls.log found in "+runDir))
-	}
-	return nil, nil
+	return foundPath
 }

@@ -96,23 +96,7 @@ func generateSetupStep(req *RuntimeRequirement, data *WorkflowData) GitHubAction
 	runtimeSetupLog.Printf("Generating setup step for runtime: %s, version=%s, if=%s", runtime.ID, version, req.IfCondition)
 
 	if runtime.ID == "gh-aw" {
-		if version == "" {
-			version = getDefaultGhAWRuntimeVersion()
-		}
-
-		step, err := generateGhAwSetupStep(ghAwSetupStepConfig{
-			actionMode:           actionModeForRuntimeSetup(IsRelease()),
-			ifCondition:          req.IfCondition,
-			cliVersion:           version,
-			actionRepo:           runtime.ActionRepo,
-			fallbackActionRefTag: version,
-			workflowData:         data,
-			withFields:           mergeRuntimeWithFields(req),
-		})
-		if err != nil {
-			runtimeStepGeneratorLog.Printf("Failed to resolve pinned setup-cli action reference for %s@%s: %v", runtime.ActionRepo, version, err)
-		}
-		return step
+		return generateGhAwRuntimeSetupStep(req, data, version)
 	}
 
 	// Use default version if none specified.
@@ -120,53 +104,71 @@ func generateSetupStep(req *RuntimeRequirement, data *WorkflowData) GitHubAction
 		version = runtime.DefaultVersion
 	}
 
-	// Use SHA-pinned action reference for security if available
-	actionRef := getActionPin(runtime.ActionRepo)
-
-	// If no pin exists (custom action repo), use the action repo with its version
-	if actionRef == "" {
-		if runtime.ActionVersion != "" {
-			actionRef = fmt.Sprintf("%s@%s", runtime.ActionRepo, runtime.ActionVersion)
-		} else {
-			// Fallback to just the repo name (shouldn't happen in practice)
-			actionRef = runtime.ActionRepo
-		}
-	}
-
 	step := GitHubActionStep{
 		"      - name: Setup " + runtime.Name,
-		"        uses: " + actionRef,
+		"        uses: " + runtimeActionReference(runtime),
 	}
-
-	// Add if condition if specified
 	if req.IfCondition != "" {
 		step = append(step, "        if: "+req.IfCondition)
 	}
-
-	// Special handling for Go when go-mod-file is explicitly specified
 	if runtime.ID == "go" && req.GoModFile != "" {
-		withFields := mergeRuntimeWithFields(req)
-		delete(withFields, "go-version-file")
-		step = append(step, "        with:")
-		step = append(step, "          go-version-file: "+req.GoModFile)
-		return appendSortedWithFieldEntries(step, withFields)
+		return appendGoRuntimeWithFields(step, req)
 	}
+	step, withFields := appendRuntimeVersionWithFields(step, req, version)
+	return appendSortedWithFieldEntries(step, withFields)
+}
 
+func generateGhAwRuntimeSetupStep(req *RuntimeRequirement, data *WorkflowData, version string) GitHubActionStep {
+	if version == "" {
+		version = getDefaultGhAWRuntimeVersion()
+	}
+	step, err := generateGhAwSetupStep(ghAwSetupStepConfig{
+		actionMode:           actionModeForRuntimeSetup(IsRelease()),
+		ifCondition:          req.IfCondition,
+		cliVersion:           version,
+		actionRepo:           req.Runtime.ActionRepo,
+		fallbackActionRefTag: version,
+		workflowData:         data,
+		withFields:           mergeRuntimeWithFields(req),
+	})
+	if err != nil {
+		runtimeStepGeneratorLog.Printf("Failed to resolve pinned setup-cli action reference for %s@%s: %v", req.Runtime.ActionRepo, version, err)
+	}
+	return step
+}
+
+func runtimeActionReference(runtime *Runtime) string {
+	actionRef := getActionPin(runtime.ActionRepo)
+	if actionRef != "" {
+		return actionRef
+	}
+	if runtime.ActionVersion != "" {
+		return fmt.Sprintf("%s@%s", runtime.ActionRepo, runtime.ActionVersion)
+	}
+	return runtime.ActionRepo
+}
+
+func appendGoRuntimeWithFields(step GitHubActionStep, req *RuntimeRequirement) GitHubActionStep {
 	withFields := mergeRuntimeWithFields(req)
+	delete(withFields, "go-version-file")
+	step = append(step, "        with:")
+	step = append(step, "          go-version-file: "+req.GoModFile)
+	return appendSortedWithFieldEntries(step, withFields)
+}
 
-	// Add version field if we have a version
+func appendRuntimeVersionWithFields(step GitHubActionStep, req *RuntimeRequirement, version string) (GitHubActionStep, map[string]string) {
+	runtime := req.Runtime
+	withFields := mergeRuntimeWithFields(req)
 	if version != "" {
 		step = append(step, "        with:")
 		step = append(step, fmt.Sprintf("          %s: '%s'", runtime.VersionField, version))
 	} else if runtime.ID == "uv" {
-		// For uv without version, no with block needed (unless there are extra fields)
 		if len(withFields) == 0 {
-			return step
+			return step, withFields
 		}
 		step = append(step, "        with:")
 	}
-
-	return appendSortedWithFieldEntries(step, withFields)
+	return step, withFields
 }
 
 func actionModeForRuntimeSetup(isRelease bool) ActionMode {

@@ -71,6 +71,40 @@ type AddInteractiveConfig struct {
 func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error {
 	addInteractiveLog.Print("Starting interactive add workflow")
 
+	if err := runAddInteractivePrepare(ctx, config); err != nil {
+		return err
+	}
+
+	// Step 1: Welcome message
+	console.ShowWelcomeBanner("This tool will walk you through adding an automated workflow to your repository.")
+
+	if err := runAddInteractiveCheckRepository(config); err != nil {
+		return err
+	}
+
+	initFiles, err := runAddInteractiveConfigure(config)
+	if err != nil {
+		return err
+	}
+
+	filesToAdd, secretName, secretValue, err := runAddInteractivePlanChanges(config, initFiles)
+	if err != nil {
+		return err
+	}
+
+	if err := runAddInteractiveApplyChanges(ctx, config, filesToAdd, initFiles, secretName, secretValue); err != nil {
+		return err
+	}
+
+	// Step 10: Check status and offer to run
+	if err := config.checkStatusAndOfferRun(ctx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func runAddInteractivePrepare(ctx context.Context, config *AddInteractiveConfig) error {
 	// Assert this function is not running in automated unit tests or CI.
 	// GO_TEST_MODE intentionally uses GetBoolFromEnv so common boolean spellings
 	// are treated consistently across test and automation environments, while
@@ -81,110 +115,100 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 
 	// Set context on the config
 	config.Ctx = ctx
+	runAddInteractiveDetectGHESHost(config)
+	return nil
+}
 
+func runAddInteractiveDetectGHESHost(config *AddInteractiveConfig) {
 	// Auto-detect GHES host from git remote if not already set
-	if os.Getenv("GH_HOST") == "" { //nolint:osgetenvlibrary
-		detectedHost := getHostFromOriginRemote()
-		if detectedHost != "github.com" {
-			addInteractiveLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)
-			workflow.SetDefaultGHHost(detectedHost)
-			if config.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Auto-detected GitHub Enterprise host: "+detectedHost))
-			}
+	if os.Getenv("GH_HOST") != "" { //nolint:osgetenvlibrary
+		return
+	}
+	detectedHost := getHostFromOriginRemote()
+	if detectedHost != "github.com" {
+		addInteractiveLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)
+		workflow.SetDefaultGHHost(detectedHost)
+		if config.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Auto-detected GitHub Enterprise host: "+detectedHost))
 		}
 	}
+}
 
-	// Step 1: Welcome message
-	console.ShowWelcomeBanner("This tool will walk you through adding an automated workflow to your repository.")
-
+func runAddInteractiveCheckRepository(config *AddInteractiveConfig) error {
 	// Step 1b: Resolve workflows early to get descriptions and validate specs
 	if err := config.resolveWorkflows(); err != nil {
 		return err
 	}
-
 	// Step 1c: Show workflow descriptions if available
 	config.showWorkflowDescriptions()
-
-	// Step 2: Check gh auth status
-	if err := config.checkGHAuthStatus(); err != nil {
-		return err
+	checks := []func() error{
+		config.checkGHAuthStatus,          // Step 2: Check gh auth status
+		config.checkGitRepository,         // Step 3: Check git repository and get org/repo
+		config.checkCleanWorkingDirectory, // Step 3b: Check working directory is clean
+		config.checkActionsEnabled,        // Step 4: Check GitHub Actions is enabled
+		config.checkUserPermissions,       // Step 5: Check user permissions
 	}
-
-	// Step 3: Check git repository and get org/repo
-	if err := config.checkGitRepository(); err != nil {
-		return err
-	}
-
-	// Step 3b: Check working directory is clean (must be clean for PR creation later)
-	if err := config.checkCleanWorkingDirectory(); err != nil {
-		return err
-	}
-
-	// Step 4: Check GitHub Actions is enabled
-	if err := config.checkActionsEnabled(); err != nil {
-		return err
-	}
-
-	// Step 5: Check user permissions
-	if err := config.checkUserPermissions(); err != nil {
-		return err
-	}
-
-	// Step 6: Select coding agent and collect API key
-	if err := config.selectAIEngineAndKey(); err != nil {
-		return err
-	}
-
-	initFiles, err := ensureAddRepositoryInitializedWithDetails(config.EngineOverride, config.Verbose, config.NoGitattributes)
-	if err != nil {
-		return err
-	}
-
-	// Step 7: Determine files to add
-	filesToAdd, _, err := config.determineFilesToAdd()
-	if err != nil {
-		return err
-	}
-
-	// Step 7b: Offer schedule frequency selection for scheduled workflows
-	if err := config.selectScheduleFrequency(); err != nil {
-		return err
-	}
-
-	// Step 8: Confirm with user
-	var secretName, secretValue string
-	if config.hasWriteAccess && !config.SkipSecret && !config.UseCopilotRequests {
-		secretName, secretValue, err = config.resolveEngineApiKeyCredential()
-		if err != nil {
+	for _, check := range checks {
+		if err := check(); err != nil {
 			return err
 		}
 	}
+	return nil
+}
 
-	if err := config.confirmChanges(filesToAdd, initFiles, secretName, secretValue); err != nil {
-		return err
+func runAddInteractiveConfigure(config *AddInteractiveConfig) ([]string, error) {
+	// Step 6: Select coding agent and collect API key
+	if err := config.selectAIEngineAndKey(); err != nil {
+		return nil, err
 	}
+	return ensureAddRepositoryInitializedWithDetails(config.EngineOverride, config.Verbose, config.NoGitattributes)
+}
 
+func runAddInteractivePlanChanges(config *AddInteractiveConfig, initFiles []string) ([]string, string, string, error) {
+	// Step 7: Determine files to add
+	filesToAdd, _, err := config.determineFilesToAdd()
+	if err != nil {
+		return nil, "", "", err
+	}
+	// Step 7b: Offer schedule frequency selection for scheduled workflows
+	if err := config.selectScheduleFrequency(); err != nil {
+		return nil, "", "", err
+	}
+	// Step 8: Confirm with user
+	secretName, secretValue, err := runAddInteractiveResolveSecret(config)
+	if err != nil {
+		return nil, "", "", err
+	}
+	if err := config.confirmChanges(filesToAdd, initFiles, secretName, secretValue); err != nil {
+		return nil, "", "", err
+	}
+	return filesToAdd, secretName, secretValue, nil
+}
+
+func runAddInteractiveResolveSecret(config *AddInteractiveConfig) (string, string, error) {
+	if config.hasWriteAccess && !config.SkipSecret && !config.UseCopilotRequests {
+		return config.resolveEngineApiKeyCredential()
+	}
+	return "", "", nil
+}
+
+func runAddInteractiveApplyChanges(ctx context.Context, config *AddInteractiveConfig, filesToAdd, initFiles []string, secretName, secretValue string) error {
 	// Step 9: Apply changes (create PR, merge, add secret)
 	if err := config.createWorkflowPRAndConfigureSecret(ctx, filesToAdd, initFiles, secretName, secretValue); err != nil {
 		return err
 	}
+	return runAddInteractiveBootstrap(ctx, config)
+}
 
+func runAddInteractiveBootstrap(ctx context.Context, config *AddInteractiveConfig) error {
 	// Step 9b: Apply bootstrap config steps interactively (if the package declares any)
-	if config.resolvedWorkflows != nil && config.resolvedWorkflows.BootstrapProfile != nil {
-		if config.hasWriteAccess {
-			if err := executeBootstrapConfigForAdd(ctx, config.RepoOverride, config.WorkflowSpecs, config.resolvedWorkflows.BootstrapProfile, config.UseCopilotRequests, config.Verbose); err != nil {
-				return err
-			}
-		} else {
-			printBootstrapConfigTODO(os.Stderr, config.resolvedWorkflows.BootstrapProfile)
-		}
+	if config.resolvedWorkflows == nil || config.resolvedWorkflows.BootstrapProfile == nil {
+		return nil
 	}
-
-	// Step 10: Check status and offer to run
-	if err := config.checkStatusAndOfferRun(ctx); err != nil {
-		return err
+	if config.hasWriteAccess {
+		return executeBootstrapConfigForAdd(ctx, config.RepoOverride, config.WorkflowSpecs, config.resolvedWorkflows.BootstrapProfile, config.UseCopilotRequests, config.Verbose)
 	}
-
+	printBootstrapConfigTODO(os.Stderr, config.resolvedWorkflows.BootstrapProfile)
 	return nil
 }
 

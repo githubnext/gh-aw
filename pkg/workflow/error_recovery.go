@@ -147,6 +147,23 @@ func BuildPrioritizedErrorReportFromMessages(messages []string, showAll bool) Pr
 }
 
 func prioritizeErrorMessages(messages []string) ([]PrioritizedError, int) {
+	candidates := classifyUniqueErrorMessages(messages)
+	prioritized, suppressedCount, hasCriticalSyntax := suppressCascadingErrors(candidates)
+
+	if hasCriticalSyntax {
+		errorRecoveryLog.Printf("Critical syntax errors detected, suppressed %d cascading errors", suppressedCount)
+	}
+
+	if len(prioritized) == 0 {
+		prioritized = candidates
+		suppressedCount = 0
+	}
+
+	sortPrioritizedErrors(prioritized)
+	return prioritized, suppressedCount
+}
+
+func classifyUniqueErrorMessages(messages []string) []PrioritizedError {
 	candidates := make([]PrioritizedError, 0, len(messages))
 	seen := make(map[string]struct{}, len(messages))
 	for _, message := range messages {
@@ -161,17 +178,16 @@ func prioritizeErrorMessages(messages []string) ([]PrioritizedError, int) {
 		seen[key] = struct{}{}
 		candidates = append(candidates, classifyErrorMessage(trimmed))
 	}
+	return candidates
+}
+
+func suppressCascadingErrors(candidates []PrioritizedError) ([]PrioritizedError, int, bool) {
+	hasCriticalSyntax := slices.ContainsFunc(candidates, func(candidate PrioritizedError) bool {
+		return candidate.Severity == SeverityCritical && candidate.Category == "syntax"
+	})
 
 	var prioritized []PrioritizedError
 	suppressedCount := 0
-	hasCriticalSyntax := false
-	for _, candidate := range candidates {
-		if candidate.Severity == SeverityCritical && candidate.Category == "syntax" {
-			hasCriticalSyntax = true
-			break
-		}
-	}
-
 	for _, candidate := range candidates {
 		if shouldSuppressCascadingError(candidate, hasCriticalSyntax) {
 			suppressedCount++
@@ -179,16 +195,10 @@ func prioritizeErrorMessages(messages []string) ([]PrioritizedError, int) {
 		}
 		prioritized = append(prioritized, candidate)
 	}
+	return prioritized, suppressedCount, hasCriticalSyntax
+}
 
-	if hasCriticalSyntax {
-		errorRecoveryLog.Printf("Critical syntax errors detected, suppressed %d cascading errors", suppressedCount)
-	}
-
-	if len(prioritized) == 0 {
-		prioritized = candidates
-		suppressedCount = 0
-	}
-
+func sortPrioritizedErrors(prioritized []PrioritizedError) {
 	slices.SortStableFunc(prioritized, func(a, b PrioritizedError) int {
 		if a.Severity != b.Severity {
 			if a.Severity < b.Severity {
@@ -211,8 +221,6 @@ func prioritizeErrorMessages(messages []string) ([]PrioritizedError, int) {
 			return 0
 		}
 	})
-
-	return prioritized, suppressedCount
 }
 
 func shouldSuppressCascadingError(candidate PrioritizedError, hasCriticalSyntax bool) bool {
@@ -263,110 +271,63 @@ func classifyErrorMessage(message string) PrioritizedError {
 	lower := normalizeErrorMessage(message)
 
 	switch {
-	case strings.Contains(lower, "failed to parse frontmatter"),
-		strings.Contains(lower, "failed to parse yaml frontmatter"),
-		strings.Contains(lower, "no frontmatter found"),
-		strings.Contains(lower, "mapping values are not allowed"),
-		strings.Contains(lower, "did not find expected key"),
-		strings.Contains(lower, "missing ':' after key"),
-		strings.Contains(lower, "unexpected ':'"),
-		strings.Contains(lower, "tool config must be a mapping"):
-		return PrioritizedError{
-			Message:    message,
-			Severity:   SeverityCritical,
-			Category:   "syntax",
-			Suggestion: "Fix the YAML/frontmatter syntax first, then re-run `gh aw compile`.",
-		}
+	case isFrontmatterSyntaxMessage(lower):
+		return newPrioritizedError(message, SeverityCritical, "syntax", "Fix the YAML/frontmatter syntax first, then re-run `gh aw compile`.")
 	case strings.Contains(lower, "mapping key") && strings.Contains(lower, "already defined"):
-		return PrioritizedError{
-			Message:    message,
-			Severity:   SeverityCritical,
-			Category:   "syntax",
-			Suggestion: buildDuplicateKeySuggestion(message),
-		}
+		return newPrioritizedError(message, SeverityCritical, "syntax", buildDuplicateKeySuggestion(message))
 	case strings.Contains(lower, "invalid engine"),
 		strings.Contains(lower, "invalid engine value"):
-		return PrioritizedError{
-			Message:    message,
-			Severity:   SeverityCritical,
-			Category:   "configuration",
-			Suggestion: "Use a supported engine name in frontmatter, for example `engine: copilot`.",
-		}
+		return newPrioritizedError(message, SeverityCritical, "configuration", "Use a supported engine name in frontmatter, for example `engine: copilot`.")
 	case strings.Contains(lower, "field 'engine'") && (strings.Contains(lower, "empty") || strings.Contains(lower, "required")):
-		return PrioritizedError{
-			Message:    message,
-			Severity:   SeverityCritical,
-			Category:   "configuration",
-			Suggestion: "Add an `engine:` value to the workflow frontmatter before fixing lower-priority issues.",
-		}
+		return newPrioritizedError(message, SeverityCritical, "configuration", "Add an `engine:` value to the workflow frontmatter before fixing lower-priority issues.")
 	case strings.Contains(lower, "network.allowed"),
 		(strings.Contains(lower, "network") && strings.Contains(lower, "strict mode")):
-		return PrioritizedError{
-			Message:    message,
-			Severity:   SeverityHigh,
-			Category:   "permissions",
-			Suggestion: "Either enable strict mode for the workflow or remove the unsupported network configuration.",
-		}
+		return newPrioritizedError(message, SeverityHigh, "permissions", "Either enable strict mode for the workflow or remove the unsupported network configuration.")
 	case strings.Contains(lower, "mcp"),
 		strings.Contains(lower, "tool configuration"),
 		strings.Contains(lower, "tools."),
 		strings.Contains(lower, "tools/"):
-		return PrioritizedError{
-			Message:    message,
-			Severity:   SeverityHigh,
-			Category:   "tools",
-			Suggestion: "Check the `tools:` and MCP server configuration for missing required fields or unsupported values.",
-		}
+		return newPrioritizedError(message, SeverityHigh, "tools", "Check the `tools:` and MCP server configuration for missing required fields or unsupported values.")
 	case isUnknownPermissionScopeMessage(message):
-		return PrioritizedError{
-			Message:    message,
-			Severity:   SeverityMedium,
-			Category:   "permissions",
-			Suggestion: buildPermissionSuggestion(message),
-		}
+		return newPrioritizedError(message, SeverityMedium, "permissions", buildPermissionSuggestion(message))
 	case strings.Contains(lower, "event"),
 		strings.Contains(lower, "workflow_dispatch"),
 		strings.Contains(lower, "pull-request"),
 		strings.Contains(lower, "pull_request"):
-		return PrioritizedError{
-			Message:    message,
-			Severity:   SeverityMedium,
-			Category:   "events",
-			Suggestion: "Correct the event or filter name, then re-run compilation.",
-		}
+		return newPrioritizedError(message, SeverityMedium, "events", "Correct the event or filter name, then re-run compilation.")
 	case strings.Contains(lower, "permission"):
-		return PrioritizedError{
-			Message:    message,
-			Severity:   SeverityMedium,
-			Category:   "permissions",
-			Suggestion: "Adjust the permissions block to match the workflow's required scopes.",
-		}
+		return newPrioritizedError(message, SeverityMedium, "permissions", "Adjust the permissions block to match the workflow's required scopes.")
 	case strings.Contains(lower, "runtime"),
 		strings.Contains(lower, "node version"),
 		strings.Contains(lower, "python version"),
 		strings.Contains(lower, "version conflict"):
-		return PrioritizedError{
-			Message:    message,
-			Severity:   SeverityMedium,
-			Category:   "runtime",
-			Suggestion: "Resolve the runtime version conflict or choose a supported version.",
-		}
+		return newPrioritizedError(message, SeverityMedium, "runtime", "Resolve the runtime version conflict or choose a supported version.")
 	case strings.Contains(lower, "deprecated"),
 		strings.Contains(lower, "warning"),
 		strings.Contains(lower, "recommend"):
-		return PrioritizedError{
-			Message:    message,
-			Severity:   SeverityLow,
-			Category:   "deprecation",
-			Suggestion: "Clean this up after the higher-priority errors are fixed.",
-		}
+		return newPrioritizedError(message, SeverityLow, "deprecation", "Clean this up after the higher-priority errors are fixed.")
 	default:
-		return PrioritizedError{
-			Message:    message,
-			Severity:   SeverityMedium,
-			Category:   "configuration",
-			Suggestion: "Fix this configuration issue and re-run `gh aw compile`.",
-		}
+		return newPrioritizedError(message, SeverityMedium, "configuration", "Fix this configuration issue and re-run `gh aw compile`.")
+	}
+}
+
+func isFrontmatterSyntaxMessage(lower string) bool {
+	return strings.Contains(lower, "failed to parse frontmatter") ||
+		strings.Contains(lower, "failed to parse yaml frontmatter") ||
+		strings.Contains(lower, "no frontmatter found") ||
+		strings.Contains(lower, "mapping values are not allowed") ||
+		strings.Contains(lower, "did not find expected key") ||
+		strings.Contains(lower, "missing ':' after key") ||
+		strings.Contains(lower, "unexpected ':'") ||
+		strings.Contains(lower, "tool config must be a mapping")
+}
+
+func newPrioritizedError(message string, severity ErrorSeverity, category string, suggestion string) PrioritizedError {
+	return PrioritizedError{
+		Message:    message,
+		Severity:   severity,
+		Category:   category,
+		Suggestion: suggestion,
 	}
 }
 

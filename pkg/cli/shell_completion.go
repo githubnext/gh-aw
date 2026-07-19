@@ -124,28 +124,27 @@ func InstallShellCompletion(verbose bool, rootCmd CommandProvider) error {
 // installBashCompletion installs bash completion
 func installBashCompletion(verbose bool, cmd *cobra.Command) error {
 	shellCompletionLog.Print("Installing bash completion")
-
-	// Generate completion script using Cobra
 	var buf bytes.Buffer
 	if err := cmd.GenBashCompletion(&buf); err != nil {
 		return fmt.Errorf("failed to generate bash completion: %w", err)
 	}
-
-	completionScript := buf.String()
-
-	// Determine installation path
-	var completionPath string
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("failed to get home directory: %w", err)
 	}
+	completionPath := installBashCompletionPath(homeDir)
+	completionPath, err = installBashCompletionWrite(completionPath, homeDir, buf.String())
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Installed bash completion to: "+completionPath))
+	return installBashCompletionInstructions(completionPath, homeDir)
+}
 
-	// Try to determine the best location for bash completions
+func installBashCompletionPath(homeDir string) string {
 	if runtime.GOOS == "darwin" {
-		// macOS with Homebrew
 		brewPrefix := os.Getenv("HOMEBREW_PREFIX") //nolint:osgetenvlibrary
 		if brewPrefix == "" {
-			// Try common locations
 			for _, prefix := range []string{constants.HomebrewPrefix, constants.UsrLocalPrefix} {
 				if fileutil.DirExists(filepath.Join(prefix, "etc", "bash_completion.d")) {
 					brewPrefix = prefix
@@ -154,126 +153,95 @@ func installBashCompletion(verbose bool, cmd *cobra.Command) error {
 			}
 		}
 		if brewPrefix != "" {
-			completionPath = filepath.Join(brewPrefix, "etc", "bash_completion.d", "gh-aw")
-		} else {
-			completionPath = filepath.Join(homeDir, ".bash_completion.d", "gh-aw")
+			return filepath.Join(brewPrefix, "etc", "bash_completion.d", "gh-aw")
 		}
-	} else {
-		// Linux
-		if fileutil.DirExists(constants.BashCompletionDir) {
-			completionPath = constants.BashCompletionGhAwPath
-		} else {
-			completionPath = filepath.Join(homeDir, ".bash_completion.d", "gh-aw")
-		}
+		return filepath.Join(homeDir, ".bash_completion.d", "gh-aw")
 	}
+	if fileutil.DirExists(constants.BashCompletionDir) {
+		return constants.BashCompletionGhAwPath
+	}
+	return filepath.Join(homeDir, ".bash_completion.d", "gh-aw")
+}
 
-	// Create directory if needed (for user-level installations)
+func installBashCompletionWrite(completionPath, homeDir, completionScript string) (string, error) {
 	completionDir := filepath.Dir(completionPath)
 	if strings.HasPrefix(completionDir, homeDir) {
-		// Use restrictive permissions (0750) following principle of least privilege
 		if err := os.MkdirAll(completionDir, constants.DirPermSensitive); err != nil {
-			return fmt.Errorf("failed to create completion directory: %w", err)
+			return "", fmt.Errorf("failed to create completion directory: %w", err)
 		}
 	}
-
-	// Try to write completion file
-	// Use restrictive permissions (0600) following principle of least privilege
-	err = os.WriteFile(completionPath, []byte(completionScript), constants.FilePermSensitive)
+	err := os.WriteFile(completionPath, []byte(completionScript), constants.FilePermSensitive)
 	if err != nil && strings.HasPrefix(completionPath, "/etc") {
-		// If system-wide installation fails, fall back to user directory
 		shellCompletionLog.Printf("Failed to install system-wide, falling back to user directory: %v", err)
 		completionPath = filepath.Join(homeDir, ".bash_completion.d", "gh-aw")
-		// Use restrictive permissions (0750) following principle of least privilege
 		if err := os.MkdirAll(filepath.Dir(completionPath), constants.DirPermSensitive); err != nil {
-			return fmt.Errorf("failed to create user completion directory: %w", err)
+			return "", fmt.Errorf("failed to create user completion directory: %w", err)
 		}
-		// Use restrictive permissions (0600) following principle of least privilege
 		if err := os.WriteFile(completionPath, []byte(completionScript), constants.FilePermSensitive); err != nil {
-			return fmt.Errorf("failed to write completion file: %w", err)
+			return "", fmt.Errorf("failed to write completion file: %w", err)
 		}
 	} else if err != nil {
-		return fmt.Errorf("failed to write completion file: %w", err)
+		return "", fmt.Errorf("failed to write completion file: %w", err)
 	}
+	return completionPath, nil
+}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Installed bash completion to: "+completionPath))
-
-	// Check if .bashrc sources completions
+func installBashCompletionInstructions(completionPath, homeDir string) error {
 	bashrcPath := filepath.Join(homeDir, ".bashrc")
-	if strings.HasPrefix(completionPath, homeDir) {
-		// For user-level installations, check if .bashrc sources the completion directory
-		// Clean and validate the path to prevent path traversal
-		cleanBashrcPath := filepath.Clean(bashrcPath)
-		if !filepath.IsAbs(cleanBashrcPath) {
-			shellCompletionLog.Printf("Invalid bashrc path (not absolute): %s", bashrcPath)
-			return fmt.Errorf("invalid bashrc path: %s", bashrcPath)
-		}
-		// #nosec G304 -- bashrcPath is constructed from trusted os.UserHomeDir() and a constant filename
-		bashrcContent, err := os.ReadFile(cleanBashrcPath)
-		needsSourceLine := true
-		if err == nil {
-			if strings.Contains(string(bashrcContent), ".bash_completion.d") ||
-				strings.Contains(string(bashrcContent), completionPath) {
-				needsSourceLine = false
-			}
-		}
-
-		if needsSourceLine {
-			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To enable completions, add the following to your ~/.bashrc:"))
-			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintf(os.Stderr, "  for f in ~/.bash_completion.d/*; do [ -f \"$f\" ] && source \"$f\"; done\n")
-			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then restart your shell or run: source ~/.bashrc"))
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please restart your shell for completions to take effect"))
-		}
-	} else {
+	if !strings.HasPrefix(completionPath, homeDir) {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please restart your shell for completions to take effect"))
+		return nil
 	}
-
+	cleanBashrcPath := filepath.Clean(bashrcPath)
+	if !filepath.IsAbs(cleanBashrcPath) {
+		shellCompletionLog.Printf("Invalid bashrc path (not absolute): %s", bashrcPath)
+		return fmt.Errorf("invalid bashrc path: %s", bashrcPath)
+	}
+	// #nosec G304 -- bashrcPath is constructed from trusted os.UserHomeDir() and a constant filename
+	bashrcContent, err := os.ReadFile(cleanBashrcPath)
+	needsSourceLine := err != nil || (!strings.Contains(string(bashrcContent), ".bash_completion.d") && !strings.Contains(string(bashrcContent), completionPath))
+	installBashCompletionPrintInstruction(needsSourceLine)
 	return nil
+}
+
+func installBashCompletionPrintInstruction(needsSourceLine bool) {
+	if needsSourceLine {
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To enable completions, add the following to your ~/.bashrc:"))
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintf(os.Stderr, "  for f in ~/.bash_completion.d/*; do [ -f \"$f\" ] && source \"$f\"; done\n")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then restart your shell or run: source ~/.bashrc"))
+		return
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please restart your shell for completions to take effect"))
 }
 
 // installZshCompletion installs zsh completion
 func installZshCompletion(verbose bool, cmd *cobra.Command) error {
 	shellCompletionLog.Print("Installing zsh completion")
-
-	// Generate completion script using Cobra
 	var buf bytes.Buffer
 	if err := cmd.GenZshCompletion(&buf); err != nil {
 		return fmt.Errorf("failed to generate zsh completion: %w", err)
 	}
-
-	completionScript := buf.String()
-
-	// Determine installation path
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("failed to get home directory: %w", err)
 	}
-
-	// Check for fpath directories
-	var completionPath string
-
-	// Try user's local completion directory first
 	userCompletionDir := filepath.Join(homeDir, ".zsh", "completions")
-	// Use restrictive permissions (0750) following principle of least privilege
 	if err := os.MkdirAll(userCompletionDir, constants.DirPermSensitive); err != nil {
 		return fmt.Errorf("failed to create completion directory: %w", err)
 	}
-	completionPath = filepath.Join(userCompletionDir, "_gh-aw")
-
-	// Write completion file
-	// Use restrictive permissions (0600) following principle of least privilege
-	if err := os.WriteFile(completionPath, []byte(completionScript), constants.FilePermSensitive); err != nil {
+	completionPath := filepath.Join(userCompletionDir, "_gh-aw")
+	if err := os.WriteFile(completionPath, []byte(buf.String()), constants.FilePermSensitive); err != nil {
 		return fmt.Errorf("failed to write completion file: %w", err)
 	}
-
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Installed zsh completion to: "+completionPath))
+	return installZshCompletionInstructions(homeDir, userCompletionDir)
+}
 
-	// Check if .zshrc configures fpath
+func installZshCompletionInstructions(homeDir, userCompletionDir string) error {
 	zshrcPath := filepath.Join(homeDir, ".zshrc")
-	// Clean and validate the path to prevent path traversal
 	cleanZshrcPath := filepath.Clean(zshrcPath)
 	if !filepath.IsAbs(cleanZshrcPath) {
 		shellCompletionLog.Printf("Invalid zshrc path (not absolute): %s", zshrcPath)
@@ -281,13 +249,7 @@ func installZshCompletion(verbose bool, cmd *cobra.Command) error {
 	}
 	// #nosec G304 -- zshrcPath is constructed from trusted os.UserHomeDir() and a constant filename
 	zshrcContent, err := os.ReadFile(cleanZshrcPath)
-	needsFpath := true
-	if err == nil {
-		if strings.Contains(string(zshrcContent), userCompletionDir) {
-			needsFpath = false
-		}
-	}
-
+	needsFpath := err != nil || !strings.Contains(string(zshrcContent), userCompletionDir)
 	if needsFpath {
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To enable completions, add the following to your ~/.zshrc:"))
@@ -299,7 +261,6 @@ func installZshCompletion(verbose bool, cmd *cobra.Command) error {
 	} else {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please restart your shell for completions to take effect"))
 	}
-
 	return nil
 }
 
@@ -417,35 +378,10 @@ func uninstallBashCompletion(verbose bool) error {
 		return fmt.Errorf("failed to get home directory: %w", err)
 	}
 
-	// Check all possible locations where completion might be installed
-	var possiblePaths []string
-
-	// User-level installations
-	possiblePaths = append(possiblePaths, filepath.Join(homeDir, ".bash_completion.d", "gh-aw"))
-
-	// macOS with Homebrew
-	if runtime.GOOS == "darwin" {
-		brewPrefix := os.Getenv("HOMEBREW_PREFIX") //nolint:osgetenvlibrary
-		if brewPrefix == "" {
-			for _, prefix := range []string{constants.HomebrewPrefix, constants.UsrLocalPrefix} {
-				if fileutil.DirExists(filepath.Join(prefix, "etc", "bash_completion.d")) {
-					possiblePaths = append(possiblePaths, filepath.Join(prefix, "etc", "bash_completion.d", "gh-aw"))
-				}
-			}
-		} else {
-			possiblePaths = append(possiblePaths, filepath.Join(brewPrefix, "etc", "bash_completion.d", "gh-aw"))
-		}
-	}
-
-	// System-wide installations (Linux)
-	if runtime.GOOS == "linux" {
-		possiblePaths = append(possiblePaths, constants.BashCompletionGhAwPath)
-	}
-
 	removed := false
 	var lastErr error
 
-	for _, path := range possiblePaths {
+	for _, path := range uninstallBashCompletionPaths(homeDir) {
 		if fileutil.FileExists(path) {
 			shellCompletionLog.Printf("Found completion file at: %s", path)
 			if err := os.Remove(path); err != nil {
@@ -469,6 +405,26 @@ func uninstallBashCompletion(verbose bool) error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please restart your shell for changes to take effect"))
 
 	return nil
+}
+
+func uninstallBashCompletionPaths(homeDir string) []string {
+	possiblePaths := []string{filepath.Join(homeDir, ".bash_completion.d", "gh-aw")}
+	if runtime.GOOS == "darwin" {
+		brewPrefix := os.Getenv("HOMEBREW_PREFIX") //nolint:osgetenvlibrary
+		if brewPrefix == "" {
+			for _, prefix := range []string{constants.HomebrewPrefix, constants.UsrLocalPrefix} {
+				if fileutil.DirExists(filepath.Join(prefix, "etc", "bash_completion.d")) {
+					possiblePaths = append(possiblePaths, filepath.Join(prefix, "etc", "bash_completion.d", "gh-aw"))
+				}
+			}
+		} else {
+			possiblePaths = append(possiblePaths, filepath.Join(brewPrefix, "etc", "bash_completion.d", "gh-aw"))
+		}
+	}
+	if runtime.GOOS == "linux" {
+		possiblePaths = append(possiblePaths, constants.BashCompletionGhAwPath)
+	}
+	return possiblePaths
 }
 
 // uninstallZshCompletion uninstalls zsh completion

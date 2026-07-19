@@ -10,6 +10,21 @@ import (
 // extractGlobalConfigFields parses safe-outputs fields that apply across handlers,
 // keeping extractSafeOutputsConfig focused on routing handler-specific configuration.
 func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *SafeOutputsConfig) {
+	c.extractGlobalBasicConfigFields(outputMap, config)
+	c.extractGlobalRuntimeConfigFields(outputMap, config)
+	extractReportFailureConfigFields(outputMap, config)
+	c.extractGlobalLimitAndStepConfigFields(outputMap, config)
+	c.extractGlobalExtensionConfigFields(outputMap, config)
+}
+
+func (c *Compiler) extractGlobalBasicConfigFields(outputMap map[string]any, config *SafeOutputsConfig) {
+	extractAllowedDomainAndReferenceFields(outputMap, config)
+	extractStagedEnvAndTokenFields(c, outputMap, config)
+	config.MaximumPatchSize = parseBoundedIntFieldOrDefault(outputMap, "max-patch-size", 4096, safeOutputsConfigLog)
+	config.MaximumPatchFiles = parseBoundedIntFieldOrDefault(outputMap, "max-patch-files", 100, safeOutputsConfigLog)
+}
+
+func extractAllowedDomainAndReferenceFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Parse allowed-domains configuration (additional domains, unioned with network.allowed; supports ecosystem identifiers)
 	if allowedDomains, exists := outputMap["allowed-domains"]; exists {
 		if domainsArray, ok := allowedDomains.([]any); ok {
@@ -43,7 +58,9 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 			config.AllowGitHubReferences = refStrings
 		}
 	}
+}
 
+func extractStagedEnvAndTokenFields(c *Compiler, outputMap map[string]any, config *SafeOutputsConfig) {
 	// Handle staged flag
 	if err := preprocessBoolFieldAsString(outputMap, "staged", safeOutputsConfigLog); err != nil {
 		safeOutputsConfigLog.Printf("staged: %v", err)
@@ -76,16 +93,9 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 			config.GitHubToken = githubTokenStr
 		}
 	}
+}
 
-	// Handle max-patch-size configuration
-	config.MaximumPatchSize = parseBoundedIntFieldOrDefault(outputMap, "max-patch-size", 4096, safeOutputsConfigLog)
-
-	// Handle max-patch-files configuration (maximum unique files allowed in
-	// a create-pull-request patch). parseBoundedIntField centralizes the
-	// overflow checks, clamping, and float truncation behavior shared with
-	// the other global bounded integer fields.
-	config.MaximumPatchFiles = parseBoundedIntFieldOrDefault(outputMap, "max-patch-files", 100, safeOutputsConfigLog)
-
+func (c *Compiler) extractGlobalRuntimeConfigFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Handle threat-detection
 	threatDetectionConfig := c.parseThreatDetectionConfig(outputMap)
 	if threatDetectionConfig != nil {
@@ -144,7 +154,9 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 			safeOutputsConfigLog.Printf("Group reports control: %t", groupReportsBool)
 		}
 	}
+}
 
+func extractReportFailureConfigFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Handle report-failure-as-issue as templatable bool or array of categories.
 	if reportFailureAsIssue, exists := outputMap["report-failure-as-issue"]; exists {
 		// Support []any category filters.
@@ -203,7 +215,9 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 			safeOutputsConfigLog.Printf("Failure issue repo: %s", failureIssueRepoStr)
 		}
 	}
+}
 
+func (c *Compiler) extractGlobalLimitAndStepConfigFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Handle max-bot-mentions (templatable integer)
 	if err := preprocessIntFieldAsString(outputMap, "max-bot-mentions", safeOutputsConfigLog); err != nil {
 		safeOutputsConfigLog.Printf("max-bot-mentions: %v", err)
@@ -260,7 +274,9 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 	if config.Environment != "" {
 		safeOutputsConfigLog.Printf("Configured environment override for safe-outputs job: %s", config.Environment)
 	}
+}
 
+func (c *Compiler) extractGlobalExtensionConfigFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Handle jobs (safe-jobs must be under safe-outputs)
 	if jobs, exists := outputMap["jobs"]; exists {
 		if jobsMap, ok := jobs.(map[string]any); ok {

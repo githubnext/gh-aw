@@ -51,75 +51,48 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 
 	frontmatterLog.Printf("Extracting YAML section: %s", key)
 
-	// Convert the value back to YAML format with field ordering
-	var yamlBytes []byte
-	var err error
-
-	// Check if value is a map that we should order alphabetically
-	if valueMap, ok := value.(map[string]any); ok {
-		// Use OrderMapFields for alphabetical sorting (empty priority list = all alphabetical)
-		orderedValue := OrderMapFields(valueMap, []string{})
-		// Wrap the ordered value with the key using MapSlice
-		wrappedData := yaml.MapSlice{{Key: key, Value: orderedValue}}
-		marshalOptions := DefaultMarshalOptions
-		if key == "on" || key == "services" {
-			// Indent sequence items (e.g. schedule cron lists, event `types:`
-			// arrays, and service `ports:` lists) under their parent key so that
-			// yamllint's default indentation rule (indent-sequences: true) is
-			// satisfied. Scoped to the `on:` and `services:` sections so that
-			// custom `steps:` marshaling elsewhere is unaffected.
-			marshalOptions = append(append([]yaml.EncodeOption{}, DefaultMarshalOptions...), yaml.IndentSequence(true))
-		}
-		yamlBytes, err = yaml.MarshalWithOptions(wrappedData, marshalOptions...)
-		if err != nil {
-			return ""
-		}
-	} else {
-		// Use standard marshaling for non-map types
-		marshalOptions := DefaultMarshalOptions
-		if key == "on" || key == "services" {
-			marshalOptions = append(append([]yaml.EncodeOption{}, DefaultMarshalOptions...), yaml.IndentSequence(true))
-		}
-		yamlBytes, err = yaml.MarshalWithOptions(map[string]any{key: value}, marshalOptions...)
-		if err != nil {
-			return ""
-		}
+	yamlStr, ok := marshalTopLevelYAMLSection(key, value)
+	if !ok {
+		return ""
 	}
+	return c.postProcessTopLevelYAMLSection(yamlStr, key, frontmatter)
+}
 
-	yamlStr := string(yamlBytes)
-	// Remove the trailing newline
-	yamlStr = strings.TrimSuffix(yamlStr, "\n")
+func marshalTopLevelYAMLSection(key string, value any) (string, bool) {
+	var data any
+	if valueMap, ok := value.(map[string]any); ok {
+		data = yaml.MapSlice{{Key: key, Value: OrderMapFields(valueMap, []string{})}}
+	} else {
+		data = map[string]any{key: value}
+	}
+	yamlBytes, err := yaml.MarshalWithOptions(data, topLevelYAMLMarshalOptions(key)...)
+	if err != nil {
+		return "", false
+	}
+	return strings.TrimSuffix(string(yamlBytes), "\n"), true
+}
 
-	// Post-process YAML to ensure cron expressions are quoted
-	// The YAML library may drop quotes from cron expressions like "0 14 * * 1-5"
-	// which causes validation errors since they start with numbers but contain spaces
+func topLevelYAMLMarshalOptions(key string) []yaml.EncodeOption {
+	if key == "on" || key == "services" {
+		return append(append([]yaml.EncodeOption{}, DefaultMarshalOptions...), yaml.IndentSequence(true))
+	}
+	return DefaultMarshalOptions
+}
+
+func (c *Compiler) postProcessTopLevelYAMLSection(yamlStr, key string, frontmatter map[string]any) string {
 	yamlStr = parser.QuoteCronExpressions(yamlStr)
-
-	// For top-level env values, quote plain scalars containing ": " because YAML
-	// treats this token sequence as a mapping separator in plain style.
 	if key == "env" {
 		yamlStr = quoteEnvValuesContainingColonSpace(yamlStr)
 	}
-
-	// Clean up null values - replace `: null` with `:` for cleaner output
-	// GitHub Actions treats `workflow_dispatch:` and `workflow_dispatch: null` identically
 	yamlStr = CleanYAMLNullValues(yamlStr)
-
-	// Clean up quoted keys - replace "key": with key: at the start of a line
-	// Don't unquote "on" key as it's a YAML boolean keyword and must remain quoted
 	if key != "on" {
 		yamlStr = UnquoteYAMLKey(yamlStr, key)
 	}
-
-	// Special handling for "on" section - comment out draft and fork fields from pull_request
 	if key == "on" {
 		yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr, frontmatter)
-		// Add zizmor ignore comment if workflow_run trigger is present
 		yamlStr = c.addZizmorIgnoreForWorkflowRun(yamlStr)
-		// Add friendly format comments for schedule cron expressions
 		yamlStr = c.addFriendlyScheduleComments(yamlStr, frontmatter)
 	}
-
 	return yamlStr
 }
 

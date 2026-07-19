@@ -52,92 +52,19 @@ type SafeOutputJobConfig struct {
 func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobConfig) (*Job, error) {
 	safeOutputsJobsLog.Printf("Building safe output job: %s (actionMode=%s)", config.JobName, c.actionMode)
 	var steps []string
-
-	// Add pre-steps if provided (e.g., checkout, git config for create-pull-request)
 	if len(config.PreSteps) > 0 {
 		safeOutputsJobsLog.Printf("Adding %d pre-steps to job", len(config.PreSteps))
 		steps = append(steps, config.PreSteps...)
 	}
-
-	// Add GitHub App token minting step if app is configured.
-	// This must run after setup/pre-steps so dynamic credentials can be prepared first.
-	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
-		safeOutputsJobsLog.Print("Adding GitHub App token minting step with auto-computed permissions")
-		// For workflow_call relay workflows, scope the token to the platform repo name only
-		// (not the full slug) because actions/create-github-app-token expects repo names
-		// without the owner prefix when `owner` is also set.
-		var appTokenFallbackRepo string
-		if hasWorkflowCallTrigger(data.On) {
-			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo_name }}"
-		}
-		steps = append(steps, c.buildGitHubAppTokenMintStepForRepository(
-			data.SafeOutputs.GitHubApp,
-			config.Permissions,
-			appTokenFallbackRepo,
-			inferSingleCheckoutRepositoryForGitHubAppOwner(data),
-		)...)
-	}
-
-	// Build the step based on action mode
-	var scriptSteps []string
-	if c.actionMode.UsesExternalActions() && config.ScriptName != "" {
-		// Use custom action mode (dev or release) if enabled and script name is provided
-		safeOutputsJobsLog.Printf("Using custom action mode (%s) for script: %s", c.actionMode, config.ScriptName)
-		scriptSteps = c.buildCustomActionStep(data, GitHubScriptStepConfig{
-			StepName:                   config.StepName,
-			StepID:                     config.StepID,
-			MainJobName:                config.MainJobName,
-			CustomEnvVars:              config.CustomEnvVars,
-			Script:                     config.Script,
-			CustomToken:                config.Token,
-			UseCopilotRequestsToken:    config.UseCopilotRequestsToken,
-			UseCopilotCodingAgentToken: config.UseCopilotCodingAgentToken,
-		}, config.ScriptName)
-	} else {
-		// Use inline mode (default behavior)
-		// If ScriptName is provided, convert it to ScriptFile (.cjs extension)
-		scriptFile := ""
-		if config.ScriptName != "" {
-			scriptFile = config.ScriptName + ".cjs"
-			safeOutputsJobsLog.Printf("Using inline mode with external script: %s", scriptFile)
-		} else {
-			safeOutputsJobsLog.Printf("Using inline mode (actions/github-script)")
-		}
-		scriptSteps = c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-			StepName:                   config.StepName,
-			StepID:                     config.StepID,
-			MainJobName:                config.MainJobName,
-			CustomEnvVars:              config.CustomEnvVars,
-			Script:                     config.Script,
-			ScriptFile:                 scriptFile,
-			CustomToken:                config.Token,
-			UseCopilotRequestsToken:    config.UseCopilotRequestsToken,
-			UseCopilotCodingAgentToken: config.UseCopilotCodingAgentToken,
-		})
-	}
-	steps = append(steps, scriptSteps...)
-
-	// Add post-steps if provided (e.g., assignees, reviewers)
+	steps = append(steps, c.buildSafeOutputGitHubAppTokenSteps(data, config)...)
+	steps = append(steps, c.buildSafeOutputScriptSteps(data, config)...)
 	if len(config.PostSteps) > 0 {
 		steps = append(steps, config.PostSteps...)
 	}
-
-	// Determine job condition
-	jobCondition := config.Condition
-	if jobCondition == nil {
-		safeOutputsJobsLog.Printf("No custom condition provided, using default for job: %s", config.JobName)
-		jobCondition = BuildSafeOutputType(config.JobName)
-	}
-
-	// Determine job needs
-	needs := config.Needs
-	if len(needs) == 0 {
-		needs = []string{config.MainJobName}
-	}
+	jobCondition := safeOutputJobCondition(config)
+	needs := safeOutputJobNeeds(config)
 	safeOutputsJobsLog.Printf("Job %s needs: %v", config.JobName, needs)
-
-	// Create the job with standard configuration
-	job := &Job{
+	return &Job{
 		Name:           config.JobName,
 		If:             RenderCondition(jobCondition),
 		RunsOn:         c.formatFrameworkJobRunsOn(data),
@@ -147,7 +74,65 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 		Steps:          steps,
 		Outputs:        config.Outputs,
 		Needs:          needs,
-	}
+	}, nil
+}
 
-	return job, nil
+func (c *Compiler) buildSafeOutputGitHubAppTokenSteps(data *WorkflowData, config SafeOutputJobConfig) []string {
+	if data.SafeOutputs == nil || data.SafeOutputs.GitHubApp == nil {
+		return nil
+	}
+	safeOutputsJobsLog.Print("Adding GitHub App token minting step with auto-computed permissions")
+	var appTokenFallbackRepo string
+	if hasWorkflowCallTrigger(data.On) {
+		appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo_name }}"
+	}
+	return c.buildGitHubAppTokenMintStepForRepository(
+		data.SafeOutputs.GitHubApp,
+		config.Permissions,
+		appTokenFallbackRepo,
+		inferSingleCheckoutRepositoryForGitHubAppOwner(data),
+	)
+}
+
+func (c *Compiler) buildSafeOutputScriptSteps(data *WorkflowData, config SafeOutputJobConfig) []string {
+	stepConfig := safeOutputGitHubScriptStepConfig(config)
+	if c.actionMode.UsesExternalActions() && config.ScriptName != "" {
+		safeOutputsJobsLog.Printf("Using custom action mode (%s) for script: %s", c.actionMode, config.ScriptName)
+		return c.buildCustomActionStep(data, stepConfig, config.ScriptName)
+	}
+	if config.ScriptName != "" {
+		stepConfig.ScriptFile = config.ScriptName + ".cjs"
+		safeOutputsJobsLog.Printf("Using inline mode with external script: %s", stepConfig.ScriptFile)
+	} else {
+		safeOutputsJobsLog.Printf("Using inline mode (actions/github-script)")
+	}
+	return c.buildGitHubScriptStep(data, stepConfig)
+}
+
+func safeOutputGitHubScriptStepConfig(config SafeOutputJobConfig) GitHubScriptStepConfig {
+	return GitHubScriptStepConfig{
+		StepName:                   config.StepName,
+		StepID:                     config.StepID,
+		MainJobName:                config.MainJobName,
+		CustomEnvVars:              config.CustomEnvVars,
+		Script:                     config.Script,
+		CustomToken:                config.Token,
+		UseCopilotRequestsToken:    config.UseCopilotRequestsToken,
+		UseCopilotCodingAgentToken: config.UseCopilotCodingAgentToken,
+	}
+}
+
+func safeOutputJobCondition(config SafeOutputJobConfig) ConditionNode {
+	if config.Condition != nil {
+		return config.Condition
+	}
+	safeOutputsJobsLog.Printf("No custom condition provided, using default for job: %s", config.JobName)
+	return BuildSafeOutputType(config.JobName)
+}
+
+func safeOutputJobNeeds(config SafeOutputJobConfig) []string {
+	if len(config.Needs) > 0 {
+		return config.Needs
+	}
+	return []string{config.MainJobName}
 }

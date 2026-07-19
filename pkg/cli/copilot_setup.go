@@ -101,9 +101,16 @@ func generateCopilotSetupStepsYAML(ctx context.Context, actionMode workflow.Acti
 	actionRef := getActionRef(ctx, actionMode, version, resolver)
 
 	if actionMode.IsRelease() || actionMode.IsAction() {
-		// Determine the action repo based on mode
-		actionRepo := "github/gh-aw-actions/setup-cli"
-		return fmt.Sprintf(`name: "Copilot Setup Steps"
+		return generateCopilotSetupStepsYAMLActionMode(actionRef, version)
+	}
+
+	return generateCopilotSetupStepsYAMLDevMode(ctx)
+}
+
+func generateCopilotSetupStepsYAMLActionMode(actionRef string, version string) string {
+	// Determine the action repo based on mode
+	actionRepo := "github/gh-aw-actions/setup-cli"
+	return fmt.Sprintf(`name: "Copilot Setup Steps"
 
 # This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
 on:
@@ -130,8 +137,9 @@ jobs:
         with:
           version: %s
 `, actionRepo, actionRef, version)
-	}
+}
 
+func generateCopilotSetupStepsYAMLDevMode(ctx context.Context) string {
 	// Default (dev/script mode): try to resolve the main branch to a pinned SHA so the
 	// downloaded script is immutable; fall back to the mutable branch ref if unavailable.
 	installRef := "refs/heads/main"
@@ -243,14 +251,7 @@ func upgradeCopilotSetupSteps(ctx context.Context, verbose bool, actionMode work
 func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actionMode workflow.ActionMode, version string, upgradeVersion bool) error {
 	copilotSetupLog.Printf("Creating copilot-setup-steps.yml with action mode: %s, version: %s, upgradeVersion: %v", actionMode, version, upgradeVersion)
 
-	// Create a SHA resolver for release/action mode to enable SHA-pinned action references
-	var resolver workflow.SHAResolver
-	if actionMode.IsRelease() || actionMode.IsAction() {
-		cache := workflow.NewActionCache(".")
-		_ = cache.Load() // Ignore errors if cache doesn't exist yet
-		resolver = workflow.NewActionResolver(cache)
-	}
-
+	resolver := ensureCopilotSetupStepsWithUpgradeResolver(actionMode)
 	workflowsDir := constants.GetWorkflowDir()
 	setupStepsPath := filepath.Join(workflowsDir, "copilot-setup-steps.yml")
 	if err := fileutil.EnsureParentDir(setupStepsPath, constants.DirPermPublic); err != nil {
@@ -260,62 +261,7 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 
 	// Check if file already exists
 	if _, err := os.Stat(setupStepsPath); err == nil {
-		copilotSetupLog.Printf("File already exists: %s", setupStepsPath)
-
-		// Read existing file to check if extension install step exists
-		content, err := os.ReadFile(setupStepsPath)
-		if err != nil {
-			return fmt.Errorf("failed to read existing copilot-setup-steps.yml: %w", err)
-		}
-
-		// Check if the extension install step is already present (check for both modes)
-		contentStr := string(content)
-		hasLegacyInstall := strings.Contains(contentStr, "install-gh-aw.sh") ||
-			(strings.Contains(contentStr, "Install gh-aw extension") && strings.Contains(contentStr, "curl -fsSL"))
-		hasActionInstall := strings.Contains(contentStr, "actions/setup-cli")
-
-		// If we have an install step and upgradeVersion is true, this is from upgrade command
-		// In this case, we still update the file for backward compatibility
-		if (hasLegacyInstall || hasActionInstall) && upgradeVersion {
-			copilotSetupLog.Print("Extension install step exists, attempting version upgrade (upgrade command)")
-
-			upgraded, updatedContent, err := upgradeSetupCliVersionInContent(ctx, content, actionMode, version, resolver)
-			if err != nil {
-				return fmt.Errorf("failed to upgrade setup-cli version: %w", err)
-			}
-
-			if !upgraded {
-				copilotSetupLog.Print("No version upgrade needed")
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("No version upgrade needed for "+setupStepsPath))
-				}
-				return nil
-			}
-
-			if err := os.WriteFile(setupStepsPath, updatedContent, constants.FilePermSensitive); err != nil {
-				return fmt.Errorf("failed to update copilot-setup-steps.yml: %w", err)
-			}
-			copilotSetupLog.Printf("Upgraded version in file: %s", setupStepsPath)
-
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr(fmt.Sprintf("Updated %s with new version %s", setupStepsPath, version)))
-			}
-			return nil
-		}
-
-		// File exists - render instructions instead of editing
-		if hasLegacyInstall || hasActionInstall {
-			copilotSetupLog.Print("Extension install step already exists, file is up to date")
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Skipping %s (already has gh-aw extension install step)", setupStepsPath)))
-			}
-			return nil
-		}
-
-		// File exists but needs update - render instructions
-		copilotSetupLog.Print("File exists without install step, rendering update instructions instead of editing")
-		renderCopilotSetupUpdateInstructions(ctx, setupStepsPath, actionMode, version, resolver)
-		return nil
+		return ensureCopilotSetupStepsWithUpgradeExisting(ctx, verbose, actionMode, version, upgradeVersion, resolver, setupStepsPath)
 	}
 
 	// File doesn't exist - create it
@@ -324,6 +270,87 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 	}
 	copilotSetupLog.Printf("Created file: %s", setupStepsPath)
 
+	return nil
+}
+
+func ensureCopilotSetupStepsWithUpgradeResolver(actionMode workflow.ActionMode) workflow.SHAResolver {
+	// Create a SHA resolver for release/action mode to enable SHA-pinned action references
+	if actionMode.IsRelease() || actionMode.IsAction() {
+		cache := workflow.NewActionCache(".")
+		_ = cache.Load() // Ignore errors if cache doesn't exist yet
+		return workflow.NewActionResolver(cache)
+	}
+	return nil
+}
+
+func ensureCopilotSetupStepsWithUpgradeExisting(
+	ctx context.Context,
+	verbose bool,
+	actionMode workflow.ActionMode,
+	version string,
+	upgradeVersion bool,
+	resolver workflow.SHAResolver,
+	setupStepsPath string,
+) error {
+	copilotSetupLog.Printf("File already exists: %s", setupStepsPath)
+	content, err := os.ReadFile(setupStepsPath)
+	if err != nil {
+		return fmt.Errorf("failed to read existing copilot-setup-steps.yml: %w", err)
+	}
+
+	hasInstall := ensureCopilotSetupStepsWithUpgradeHasInstall(content)
+	if hasInstall && upgradeVersion {
+		return ensureCopilotSetupStepsWithUpgradeVersion(ctx, verbose, actionMode, version, resolver, setupStepsPath, content)
+	}
+	if hasInstall {
+		copilotSetupLog.Print("Extension install step already exists, file is up to date")
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Skipping %s (already has gh-aw extension install step)", setupStepsPath)))
+		}
+		return nil
+	}
+
+	copilotSetupLog.Print("File exists without install step, rendering update instructions instead of editing")
+	renderCopilotSetupUpdateInstructions(ctx, setupStepsPath, actionMode, version, resolver)
+	return nil
+}
+
+func ensureCopilotSetupStepsWithUpgradeHasInstall(content []byte) bool {
+	contentStr := string(content)
+	hasLegacyInstall := strings.Contains(contentStr, "install-gh-aw.sh") ||
+		(strings.Contains(contentStr, "Install gh-aw extension") && strings.Contains(contentStr, "curl -fsSL"))
+	hasActionInstall := strings.Contains(contentStr, "actions/setup-cli")
+	return hasLegacyInstall || hasActionInstall
+}
+
+func ensureCopilotSetupStepsWithUpgradeVersion(
+	ctx context.Context,
+	verbose bool,
+	actionMode workflow.ActionMode,
+	version string,
+	resolver workflow.SHAResolver,
+	setupStepsPath string,
+	content []byte,
+) error {
+	copilotSetupLog.Print("Extension install step exists, attempting version upgrade (upgrade command)")
+	upgraded, updatedContent, err := upgradeSetupCliVersionInContent(ctx, content, actionMode, version, resolver)
+	if err != nil {
+		return fmt.Errorf("failed to upgrade setup-cli version: %w", err)
+	}
+	if !upgraded {
+		copilotSetupLog.Print("No version upgrade needed")
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("No version upgrade needed for "+setupStepsPath))
+		}
+		return nil
+	}
+	if err := os.WriteFile(setupStepsPath, updatedContent, constants.FilePermSensitive); err != nil {
+		return fmt.Errorf("failed to update copilot-setup-steps.yml: %w", err)
+	}
+	copilotSetupLog.Printf("Upgraded version in file: %s", setupStepsPath)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr(fmt.Sprintf("Updated %s with new version %s", setupStepsPath, version)))
+	}
 	return nil
 }
 

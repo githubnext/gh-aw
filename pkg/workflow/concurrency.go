@@ -238,112 +238,67 @@ func workflowCallBaseKey(workflowData *WorkflowData) string {
 
 // buildConcurrencyGroupKeys builds an array of keys for the concurrency group
 func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool) []string {
-	// For workflow_call workers, github.workflow resolves to the *calling* workflow's
-	// name at runtime, not the callee's.  Both the gateway and the worker would therefore
-	// share the same concurrency group, causing a deadlock. Hard-bake the compile-time
-	// workflow ID (filename without extension) when available and append github.run_id
-	// so parallel caller fan-out runs don't contend for a single static queue slot.
-	workflowKey := "${{ github.workflow }}"
-	if hasWorkflowCallTrigger(workflowData.On) {
-		workflowKey = workflowCallBaseKey(workflowData) + "-${{ github.run_id }}"
-	}
-	keys := []string{"gh-aw", workflowKey}
-
-	// Whether this workflow exposes inputs.item_number via workflow_dispatch (label trigger shorthand).
-	// When true, include it in the concurrency key so that manual dispatches for different items
-	// use distinct groups and don't cancel each other.
+	keys := []string{"gh-aw", concurrencyWorkflowKey(workflowData)}
 	hasItemNumber := workflowData.HasDispatchItemNumber
-
-	// Detect whether the workflow is at risk of bot-self-cancellation.
-	// When safe-outputs uses a GitHub App token AND the workflow has issue_comment triggers,
-	// App-authored comments can re-trigger the workflow and collide with the primary run's
-	// concurrency group. When this risk is present we use botIsolatedConcurrencyKey so that
-	// bot-triggered runs always resolve to a unique github.run_id key instead.
 	botRisk := hasBotSelfCancelRisk(workflowData)
 	if botRisk {
 		concurrencyLog.Print("Bot self-cancel risk detected: applying bot-actor isolation to concurrency group key")
 	}
+	if entityKey := buildEntityConcurrencyKey(workflowData, isCommandTrigger, hasItemNumber, botRisk); entityKey != "" {
+		keys = append(keys, entityKey)
+	}
+	if hasItemNumber {
+		keys = append(keys, "${{ github.event.label.name || github.run_id }}")
+	}
+	return keys
+}
 
-	// entityKey selects the correct concurrency key builder based on bot risk.
-	// It captures both botRisk and hasItemNumber from the outer scope, so call
-	// sites only need to supply the entity-specific parts.
+func concurrencyWorkflowKey(workflowData *WorkflowData) string {
+	if hasWorkflowCallTrigger(workflowData.On) {
+		return workflowCallBaseKey(workflowData) + "-${{ github.run_id }}"
+	}
+	return "${{ github.workflow }}"
+}
+
+func buildEntityConcurrencyKey(workflowData *WorkflowData, isCommandTrigger, hasItemNumber, botRisk bool) string {
 	entityKey := func(primaryParts []string, tailParts []string) string {
 		if botRisk {
 			return botIsolatedConcurrencyKey(primaryParts, tailParts, hasItemNumber)
 		}
 		return entityConcurrencyKey(primaryParts, tailParts, hasItemNumber)
 	}
-
-	if isCommandTrigger || isSlashCommandWorkflow(workflowData.On) {
-		// For command/slash_command workflows: use issue/PR number; fall back to run_id when
-		// neither is available (e.g. manual workflow_dispatch of the outer workflow).
-		// When bot risk is detected, prepend the bot-actor isolation check.
-		concurrencyLog.Print("Building concurrency key for command/slash_command workflow")
-		if botRisk {
-			keys = append(keys, "${{ contains(github.actor, '[bot]') && github.run_id || github.event.issue.number || github.event.pull_request.number || github.run_id }}")
-		} else {
-			keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}")
-		}
-	} else if isPullRequestWorkflow(workflowData.On) && isIssueWorkflow(workflowData.On) {
-		// Mixed workflows with both issue and PR triggers
+	switch {
+	case isCommandTrigger || isSlashCommandWorkflow(workflowData.On):
+		return commandConcurrencyKey(botRisk)
+	case isPullRequestWorkflow(workflowData.On) && isIssueWorkflow(workflowData.On):
 		concurrencyLog.Print("Building concurrency key for mixed PR+issue workflow")
-		keys = append(keys, entityKey(
-			[]string{"github.event.issue.number", "github.event.pull_request.number"},
-			[]string{"github.run_id"},
-		))
-	} else if isPullRequestWorkflow(workflowData.On) && isDiscussionWorkflow(workflowData.On) {
-		// Mixed workflows with PR and discussion triggers
-		keys = append(keys, entityConcurrencyKey(
-			[]string{"github.event.pull_request.number", "github.event.discussion.number"},
-			[]string{"github.run_id"},
-			hasItemNumber,
-		))
-	} else if isIssueWorkflow(workflowData.On) && isDiscussionWorkflow(workflowData.On) {
-		// Mixed workflows with issue and discussion triggers
-		keys = append(keys, entityKey(
-			[]string{"github.event.issue.number", "github.event.discussion.number"},
-			[]string{"github.run_id"},
-		))
-	} else if isPullRequestWorkflow(workflowData.On) {
-		// PR workflows: use PR number, fall back to ref then run_id
+		return entityKey([]string{"github.event.issue.number", "github.event.pull_request.number"}, []string{"github.run_id"})
+	case isPullRequestWorkflow(workflowData.On) && isDiscussionWorkflow(workflowData.On):
+		return entityConcurrencyKey([]string{"github.event.pull_request.number", "github.event.discussion.number"}, []string{"github.run_id"}, hasItemNumber)
+	case isIssueWorkflow(workflowData.On) && isDiscussionWorkflow(workflowData.On):
+		return entityKey([]string{"github.event.issue.number", "github.event.discussion.number"}, []string{"github.run_id"})
+	case isPullRequestWorkflow(workflowData.On):
 		concurrencyLog.Print("Building concurrency key for PR workflow")
-		keys = append(keys, entityConcurrencyKey(
-			[]string{"github.event.pull_request.number"},
-			[]string{"github.ref", "github.run_id"},
-			hasItemNumber,
-		))
-	} else if isIssueWorkflow(workflowData.On) {
-		// Issue workflows: run_id is the fallback when no issue context is available
-		// (e.g. when a mixed-trigger workflow is started via workflow_dispatch).
+		return entityConcurrencyKey([]string{"github.event.pull_request.number"}, []string{"github.ref", "github.run_id"}, hasItemNumber)
+	case isIssueWorkflow(workflowData.On):
 		concurrencyLog.Print("Building concurrency key for issue workflow")
-		keys = append(keys, entityKey(
-			[]string{"github.event.issue.number"},
-			[]string{"github.run_id"},
-		))
-	} else if isDiscussionWorkflow(workflowData.On) {
-		// Discussion workflows: run_id is the fallback when no discussion context is available.
-		keys = append(keys, entityConcurrencyKey(
-			[]string{"github.event.discussion.number"},
-			[]string{"github.run_id"},
-			hasItemNumber,
-		))
-	} else if isPushWorkflow(workflowData.On) {
-		// Push workflows: use ref to differentiate between branches
+		return entityKey([]string{"github.event.issue.number"}, []string{"github.run_id"})
+	case isDiscussionWorkflow(workflowData.On):
+		return entityConcurrencyKey([]string{"github.event.discussion.number"}, []string{"github.run_id"}, hasItemNumber)
+	case isPushWorkflow(workflowData.On):
 		concurrencyLog.Print("Building concurrency key for push workflow")
-		keys = append(keys, "${{ github.ref || github.run_id }}")
+		return "${{ github.ref || github.run_id }}"
+	default:
+		return ""
 	}
+}
 
-	// For label-triggered workflows (label trigger shorthand or label_command), include
-	// github.event.label.name as an additional segment so that runs triggered by different
-	// labels do not share a concurrency group. Without this, adding multiple labels to the
-	// same PR/issue simultaneously (which fires one labeled event per label) would cause all
-	// matching workflow runs to share a group, and with cancel-in-progress enabled the last
-	// surviving run could be for a different label than the workflow expects.
-	if hasItemNumber {
-		keys = append(keys, "${{ github.event.label.name || github.run_id }}")
+func commandConcurrencyKey(botRisk bool) string {
+	concurrencyLog.Print("Building concurrency key for command/slash_command workflow")
+	if botRisk {
+		return "${{ contains(github.actor, '[bot]') && github.run_id || github.event.issue.number || github.event.pull_request.number || github.run_id }}"
 	}
-
-	return keys
+	return "${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}"
 }
 
 // shouldEnableCancelInProgress determines if cancel-in-progress should be enabled

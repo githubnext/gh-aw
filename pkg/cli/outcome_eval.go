@@ -158,50 +158,72 @@ func EvaluateOutcomes(items []CreatedItemReport, repoOverride string, mapping *g
 // ComputeOutcomeSummary aggregates outcome reports into a summary.
 // The mapping parameter is required and defines how labels map to objective values.
 func ComputeOutcomeSummary(reports []OutcomeReport, mapping *github.ObjectiveMapping) OutcomeSummary {
+	s, times := computeOutcomeSummaryAccumulate(reports)
+	computeOutcomeSummaryRates(&s, times)
+
+	// Compute domain breakdowns
+	s.DomainBreakdowns = ComputeDomainBreakdowns(reports)
+
+	return s
+}
+
+func computeOutcomeSummaryAccumulate(reports []OutcomeReport) (OutcomeSummary, []float64) {
 	s := OutcomeSummary{Total: len(reports)}
 	var times []float64
 	for _, r := range reports {
-		eval := normalizeOutcomeEvaluation(r)
-		switch eval.OutcomeStatus {
-		case OutcomeStatusAccepted:
-			s.Accepted++
-			switch eval.EvidenceStrength {
-			case EvidenceStrong:
-				s.AcceptedStrong++
-			case EvidenceMedium:
-				s.AcceptedMedium++
-			case EvidenceWeak:
-				s.AcceptedWeak++
-			}
-			if r.ZeroTouch {
-				s.ZeroTouch++
-			}
-		case OutcomeStatusRejected:
-			s.Rejected++
-		case OutcomeStatusIgnored:
-			s.Ignored++
-		case OutcomeStatusPending:
-			s.Pending++
-		}
-		if eval.Signal == "target_exists_only" {
-			s.FallbackExistsOnlyCount++
-		}
-		switch r.Result {
-		case OutcomeLifecycle, OutcomeLifecycleClose:
-			s.Lifecycle++
-		case OutcomeError:
-			s.Errors++
-		}
-		if r.TimeToOutcomeHours > 0 {
-			times = append(times, r.TimeToOutcomeHours)
-		}
-
-		// Aggregate objective values
-		s.TotalObjectiveValue += r.ObjectiveValue
-		if eval.OutcomeStatus == OutcomeStatusAccepted {
-			s.AcceptedObjectiveValue += r.ObjectiveValue
-		}
+		computeOutcomeSummaryApplyReport(&s, r, &times)
 	}
+	return s, times
+}
+
+func computeOutcomeSummaryApplyReport(s *OutcomeSummary, r OutcomeReport, times *[]float64) {
+	eval := normalizeOutcomeEvaluation(r)
+	computeOutcomeSummaryApplyStatus(s, eval, r)
+	if eval.Signal == "target_exists_only" {
+		s.FallbackExistsOnlyCount++
+	}
+	switch r.Result {
+	case OutcomeLifecycle, OutcomeLifecycleClose:
+		s.Lifecycle++
+	case OutcomeError:
+		s.Errors++
+	}
+	if r.TimeToOutcomeHours > 0 {
+		*times = append(*times, r.TimeToOutcomeHours)
+	}
+
+	// Aggregate objective values
+	s.TotalObjectiveValue += r.ObjectiveValue
+	if eval.OutcomeStatus == OutcomeStatusAccepted {
+		s.AcceptedObjectiveValue += r.ObjectiveValue
+	}
+}
+
+func computeOutcomeSummaryApplyStatus(s *OutcomeSummary, eval OutcomeEvaluation, r OutcomeReport) {
+	switch eval.OutcomeStatus {
+	case OutcomeStatusAccepted:
+		s.Accepted++
+		switch eval.EvidenceStrength {
+		case EvidenceStrong:
+			s.AcceptedStrong++
+		case EvidenceMedium:
+			s.AcceptedMedium++
+		case EvidenceWeak:
+			s.AcceptedWeak++
+		}
+		if r.ZeroTouch {
+			s.ZeroTouch++
+		}
+	case OutcomeStatusRejected:
+		s.Rejected++
+	case OutcomeStatusIgnored:
+		s.Ignored++
+	case OutcomeStatusPending:
+		s.Pending++
+	}
+}
+
+func computeOutcomeSummaryRates(s *OutcomeSummary, times []float64) {
 	resolved := s.Accepted + s.Rejected
 	if resolved > 0 {
 		s.AcceptanceRate = float64(s.Accepted) / float64(resolved)
@@ -220,11 +242,6 @@ func ComputeOutcomeSummary(reports []OutcomeReport, mapping *github.ObjectiveMap
 	if s.TotalObjectiveValue > 0 {
 		s.ObjectiveEfficiency = float64(s.AcceptedObjectiveValue) / float64(s.TotalObjectiveValue)
 	}
-
-	// Compute domain breakdowns
-	s.DomainBreakdowns = ComputeDomainBreakdowns(reports)
-
-	return s
 }
 
 // escapeOwnerRepo URL-path-encodes each component of an "owner/repo" string to
@@ -501,7 +518,28 @@ func loadPullRequestIntentData(report OutcomeReport, repo string) (intent.PullRe
 		return intent.PullRequestData{}, fmt.Errorf("invalid repo for root tracing: %s", repo)
 	}
 
-	query := fmt.Sprintf(`query {
+	query := loadPullRequestIntentDataQuery(owner, name, prNumber)
+	result, err := objectiveMappingGHAPIGraphQL(query, repo)
+	if err != nil {
+		return intent.PullRequestData{}, err
+	}
+
+	pullRequest := loadPullRequestIntentDataPullRequest(result)
+	prData := intent.PullRequestData{URL: report.ObjectURL}
+	if nodeID, ok := pullRequest["id"].(string); ok {
+		prData.NodeID = nodeID
+	}
+
+	nodes := loadPullRequestIntentDataClosingIssueNodes(pullRequest)
+	if len(nodes) == 0 {
+		return loadPullRequestIntentDataWithFallbackLabels(report, repo, prData)
+	}
+	prData.ClosingIssues = loadPullRequestIntentDataClosingIssues(nodes)
+	return prData, nil
+}
+
+func loadPullRequestIntentDataQuery(owner string, name string, prNumber int) string {
+	return fmt.Sprintf(`query {
 		repository(owner: "%s", name: "%s") {
 			pullRequest(number: %d) {
 				id
@@ -522,30 +560,32 @@ func loadPullRequestIntentData(report OutcomeReport, repo string) (intent.PullRe
 		escapeGraphQLString(name),
 		prNumber,
 	)
+}
 
-	result, err := objectiveMappingGHAPIGraphQL(query, repo)
-	if err != nil {
-		return intent.PullRequestData{}, err
-	}
+func loadPullRequestIntentDataPullRequest(result map[string]any) map[string]any {
 	data, _ := result["data"].(map[string]any)
 	repository, _ := data["repository"].(map[string]any)
 	pullRequest, _ := repository["pullRequest"].(map[string]any)
-	prData := intent.PullRequestData{URL: report.ObjectURL}
-	if nodeID, ok := pullRequest["id"].(string); ok {
-		prData.NodeID = nodeID
-	}
+	return pullRequest
+}
+
+func loadPullRequestIntentDataClosingIssueNodes(pullRequest map[string]any) []any {
 	closingRefs, _ := pullRequest["closingIssuesReferences"].(map[string]any)
 	nodes, _ := closingRefs["nodes"].([]any)
-	if len(nodes) == 0 {
-		labels, labelErr := objectiveMappingGHAPIGetArray(fmt.Sprintf("issues/%d/labels", report.ObjectNumber), repo)
-		if labelErr != nil {
-			return intent.PullRequestData{}, labelErr
-		}
-		prData.Labels = labelsToStringsFromMaps(labels)
-		return prData, nil
-	}
+	return nodes
+}
 
-	prData.ClosingIssues = make([]intent.RootReference, 0, len(nodes))
+func loadPullRequestIntentDataWithFallbackLabels(report OutcomeReport, repo string, prData intent.PullRequestData) (intent.PullRequestData, error) {
+	labels, labelErr := objectiveMappingGHAPIGetArray(fmt.Sprintf("issues/%d/labels", report.ObjectNumber), repo)
+	if labelErr != nil {
+		return intent.PullRequestData{}, labelErr
+	}
+	prData.Labels = labelsToStringsFromMaps(labels)
+	return prData, nil
+}
+
+func loadPullRequestIntentDataClosingIssues(nodes []any) []intent.RootReference {
+	closingIssues := make([]intent.RootReference, 0, len(nodes))
 	for _, node := range nodes {
 		rootNode, _ := node.(map[string]any)
 		root := intent.RootReference{Type: "issue"}
@@ -560,10 +600,9 @@ func loadPullRequestIntentData(report OutcomeReport, repo string) (intent.PullRe
 				root.Labels = labelsToStringsFromNodes(labelNodes)
 			}
 		}
-		prData.ClosingIssues = append(prData.ClosingIssues, root)
+		closingIssues = append(closingIssues, root)
 	}
-
-	return prData, nil
+	return closingIssues
 }
 
 func labelsToStringsFromNodes(nodes []any) []string {

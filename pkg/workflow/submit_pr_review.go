@@ -24,99 +24,105 @@ type SubmitPullRequestReviewConfig struct {
 
 // parseSubmitPullRequestReviewConfig handles submit-pull-request-review configuration
 func (c *Compiler) parseSubmitPullRequestReviewConfig(outputMap map[string]any) *SubmitPullRequestReviewConfig {
-	if _, exists := outputMap["submit-pull-request-review"]; !exists {
+	configData, exists := outputMap["submit-pull-request-review"]
+	if !exists {
 		submitPRReviewLog.Printf("Configuration not found")
 		return nil
 	}
-
 	submitPRReviewLog.Printf("Parsing submit PR review configuration")
-
-	configData := outputMap["submit-pull-request-review"]
 	config := &SubmitPullRequestReviewConfig{}
-
-	if configMap, ok := configData.(map[string]any); ok {
-		// Parse common base fields with default max of 1
-		c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 1)
-
-		// Parse target config (target, target-repo, allowed-repos)
-		// Uses parseTargetRepoWithValidation to disallow wildcard "*" for target-repo
-		if target, exists := configMap["target"]; exists {
-			if targetStr, ok := target.(string); ok {
-				config.Target = targetStr
-			}
-		}
-
-		targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
-		if isInvalid {
-			return nil // Invalid configuration, return nil to cause validation error
-		}
-		config.TargetRepoSlug = targetRepoSlug
-		config.AllowedRepos = ParseStringArrayFromConfig(configMap, "allowed-repos", submitPRReviewLog)
-
-		// Parse footer configuration (string: "always"/"none"/"if-body", or bool for backward compat)
-		if footer, exists := configMap["footer"]; exists {
-			switch f := footer.(type) {
-			case string:
-				// Validate string values: "always", "none", "if-body"
-				if f == "always" || f == "none" || f == "if-body" {
-					config.Footer = &f
-					submitPRReviewLog.Printf("Footer control: %s", f)
-				} else {
-					submitPRReviewLog.Printf("Invalid footer value: %s (must be 'always', 'none', or 'if-body')", f)
-				}
-			case bool:
-				// Map boolean to string: true -> "always", false -> "none"
-				var footerStr string
-				if f {
-					footerStr = "always"
-				} else {
-					footerStr = "none"
-				}
-				config.Footer = &footerStr
-				submitPRReviewLog.Printf("Footer control (mapped from bool): %s", footerStr)
-			}
-		}
-
-		// Parse allowed-events configuration
-		if allowedEvents, exists := configMap["allowed-events"]; exists {
-			eventsSlice, ok := allowedEvents.([]any)
-			if !ok {
-				submitPRReviewLog.Printf("Invalid allowed-events configuration: must be a list of review event types")
-				return nil
-			}
-
-			validEvents := map[string]struct {
-			}{"APPROVE": {}, "COMMENT": {}, "REQUEST_CHANGES": {}}
-			for _, e := range eventsSlice {
-				if eventStr, ok := e.(string); ok {
-					upper := strings.ToUpper(eventStr)
-					if setutil.Contains(validEvents, upper) {
-						config.AllowedEvents = append(config.AllowedEvents, upper)
-					} else {
-						submitPRReviewLog.Printf("Ignoring invalid allowed-events value: %s", eventStr)
-					}
-				}
-			}
-
-			if len(config.AllowedEvents) == 0 {
-				submitPRReviewLog.Printf("Invalid allowed-events configuration: at least one valid event type is required when allowed-events is specified")
-				return nil
-			}
-		}
-
-		if supersedeOlderReviews, exists := configMap["supersede-older-reviews"]; exists {
-			if supersedeEnabled, ok := supersedeOlderReviews.(bool); ok {
-				config.SupersedeOlderReviews = supersedeEnabled
-			} else {
-				submitPRReviewLog.Printf("Invalid supersede-older-reviews value: must be a boolean")
-			}
-		}
-
-		submitPRReviewLog.Printf("Parsed submit-pull-request-review config: max=%d, target=%s, target_repo=%s, allowed_events=%v, supersede_older_reviews=%t", templatableIntValue(config.Max), config.Target, config.TargetRepoSlug, config.AllowedEvents, config.SupersedeOlderReviews)
-	} else {
-		// If configData is nil or not a map, set the default max
+	configMap, ok := configData.(map[string]any)
+	if !ok {
 		config.Max = defaultIntStr(1)
+		return config
 	}
-
+	if !c.applySubmitPullRequestReviewConfig(configMap, config) {
+		return nil
+	}
+	submitPRReviewLog.Printf("Parsed submit-pull-request-review config: max=%d, target=%s, target_repo=%s, allowed_events=%v, supersede_older_reviews=%t", templatableIntValue(config.Max), config.Target, config.TargetRepoSlug, config.AllowedEvents, config.SupersedeOlderReviews)
 	return config
+}
+
+func (c *Compiler) applySubmitPullRequestReviewConfig(configMap map[string]any, config *SubmitPullRequestReviewConfig) bool {
+	c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 1)
+	if target, exists := configMap["target"]; exists {
+		if targetStr, ok := target.(string); ok {
+			config.Target = targetStr
+		}
+	}
+	targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
+	if isInvalid {
+		return false
+	}
+	config.TargetRepoSlug = targetRepoSlug
+	config.AllowedRepos = ParseStringArrayFromConfig(configMap, "allowed-repos", submitPRReviewLog)
+	parseSubmitReviewFooter(configMap, config)
+	if !parseSubmitReviewAllowedEvents(configMap, config) {
+		return false
+	}
+	parseSupersedeOlderReviews(configMap, config)
+	return true
+}
+
+func parseSubmitReviewFooter(configMap map[string]any, config *SubmitPullRequestReviewConfig) {
+	footer, exists := configMap["footer"]
+	if !exists {
+		return
+	}
+	switch f := footer.(type) {
+	case string:
+		if f == "always" || f == "none" || f == "if-body" {
+			config.Footer = &f
+			submitPRReviewLog.Printf("Footer control: %s", f)
+		} else {
+			submitPRReviewLog.Printf("Invalid footer value: %s (must be 'always', 'none', or 'if-body')", f)
+		}
+	case bool:
+		footerStr := "none"
+		if f {
+			footerStr = "always"
+		}
+		config.Footer = &footerStr
+		submitPRReviewLog.Printf("Footer control (mapped from bool): %s", footerStr)
+	}
+}
+
+func parseSubmitReviewAllowedEvents(configMap map[string]any, config *SubmitPullRequestReviewConfig) bool {
+	allowedEvents, exists := configMap["allowed-events"]
+	if !exists {
+		return true
+	}
+	eventsSlice, ok := allowedEvents.([]any)
+	if !ok {
+		submitPRReviewLog.Printf("Invalid allowed-events configuration: must be a list of review event types")
+		return false
+	}
+	validEvents := map[string]struct{}{"APPROVE": {}, "COMMENT": {}, "REQUEST_CHANGES": {}}
+	for _, e := range eventsSlice {
+		if eventStr, ok := e.(string); ok {
+			upper := strings.ToUpper(eventStr)
+			if setutil.Contains(validEvents, upper) {
+				config.AllowedEvents = append(config.AllowedEvents, upper)
+			} else {
+				submitPRReviewLog.Printf("Ignoring invalid allowed-events value: %s", eventStr)
+			}
+		}
+	}
+	if len(config.AllowedEvents) == 0 {
+		submitPRReviewLog.Printf("Invalid allowed-events configuration: at least one valid event type is required when allowed-events is specified")
+		return false
+	}
+	return true
+}
+
+func parseSupersedeOlderReviews(configMap map[string]any, config *SubmitPullRequestReviewConfig) {
+	supersedeOlderReviews, exists := configMap["supersede-older-reviews"]
+	if !exists {
+		return
+	}
+	if supersedeEnabled, ok := supersedeOlderReviews.(bool); ok {
+		config.SupersedeOlderReviews = supersedeEnabled
+	} else {
+		submitPRReviewLog.Printf("Invalid supersede-older-reviews value: must be a boolean")
+	}
 }

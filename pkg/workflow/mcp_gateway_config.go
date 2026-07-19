@@ -134,45 +134,9 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 	// Ensure default configuration is set
 	ensureDefaultMCPGatewayConfig(workflowData)
 
-	// Get payload size threshold (use default if not configured)
-	payloadSizeThreshold := workflowData.SandboxConfig.MCP.PayloadSizeThreshold
-	if payloadSizeThreshold == 0 {
-		payloadSizeThreshold = constants.DefaultMCPGatewayPayloadSizeThreshold
-	}
-
-	// Return gateway config with required fields populated
-	// Use ${...} syntax for environment variable references that will be resolved by the gateway at runtime
-	// Per MCP Gateway Specification v1.0.0 section 4.2, variable expressions use "${VARIABLE_NAME}" syntax
-	//
-	// OTLPEndpoint and OTLPHeaders are read from workflowData fields set by injectOTLPConfig.
-	// These compile-time values (including GitHub Actions expressions such as ${{ secrets.X }})
-	// are written directly into the gateway config JSON.
-	//
-	// SessionTimeout comes from engine.mcp.session-timeout in frontmatter (via EngineConfig).
-	// ToolTimeout comes from engine.mcp.tool-timeout in frontmatter (via EngineConfig).
-	var sessionTimeout, toolTimeout string
-	if workflowData.EngineConfig != nil {
-		sessionTimeout = workflowData.EngineConfig.MCPSessionTimeout
-		toolTimeout = workflowData.EngineConfig.MCPToolTimeout
-	}
-
-	// Derive ForcePublicRepos and SinkVisibilityExemptServers from tools.github.private-to-public-flows.
-	var forcePublicRepos *bool
-	var sinkVisibilityExemptServers []string
-	if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil {
-		switch v := workflowData.ParsedTools.GitHub.PrivateToPublicFlows.(type) {
-		case string:
-			if v == "allow" {
-				// Blanket opt-out: disable the runtime public-repos override.
-				falseVal := false
-				forcePublicRepos = &falseVal
-			}
-		case []string:
-			if len(v) > 0 {
-				sinkVisibilityExemptServers = v
-			}
-		}
-	}
+	payloadSizeThreshold := mcpGatewayPayloadSizeThreshold(workflowData)
+	sessionTimeout, toolTimeout := mcpGatewayTimeouts(workflowData)
+	forcePublicRepos, sinkVisibilityExemptServers := mcpGatewayPrivateToPublicFlowSettings(workflowData)
 
 	return &MCPGatewayRuntimeConfig{
 		Port:                        int(DefaultMCPGatewayPort),                       // Will be formatted as "${MCP_GATEWAY_PORT}" in renderer
@@ -193,6 +157,39 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		OTLPEndpoint: workflowData.OTLPEndpoint,
 		OTLPHeaders:  workflowData.OTLPHeaders,
 	}
+}
+
+func mcpGatewayPayloadSizeThreshold(workflowData *WorkflowData) int {
+	payloadSizeThreshold := workflowData.SandboxConfig.MCP.PayloadSizeThreshold
+	if payloadSizeThreshold == 0 {
+		return constants.DefaultMCPGatewayPayloadSizeThreshold
+	}
+	return payloadSizeThreshold
+}
+
+func mcpGatewayTimeouts(workflowData *WorkflowData) (string, string) {
+	if workflowData.EngineConfig == nil {
+		return "", ""
+	}
+	return workflowData.EngineConfig.MCPSessionTimeout, workflowData.EngineConfig.MCPToolTimeout
+}
+
+func mcpGatewayPrivateToPublicFlowSettings(workflowData *WorkflowData) (*bool, []string) {
+	if workflowData.ParsedTools == nil || workflowData.ParsedTools.GitHub == nil {
+		return nil, nil
+	}
+	switch v := workflowData.ParsedTools.GitHub.PrivateToPublicFlows.(type) {
+	case string:
+		if v == "allow" {
+			falseVal := false
+			return &falseVal, nil
+		}
+	case []string:
+		if len(v) > 0 {
+			return nil, v
+		}
+	}
+	return nil, nil
 }
 
 // isSandboxDisabled checks if sandbox features are completely disabled (sandbox: false)

@@ -194,16 +194,7 @@ func ExtractStopTimeFromLockFile(lockFilePath string) string {
 
 // extractSkipIfMatchFromOn extracts the skip-if-match value from the on: section
 func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any, workflowData ...*WorkflowData) (*SkipIfMatchConfig, error) {
-	// Use cached On field from ParsedFrontmatter if available (when workflowData is provided)
-	var onSection any
-	var exists bool
-	if len(workflowData) > 0 && workflowData[0] != nil && workflowData[0].ParsedFrontmatter != nil && workflowData[0].ParsedFrontmatter.On != nil {
-		onSection = workflowData[0].ParsedFrontmatter.On
-		exists = true
-	} else {
-		onSection, exists = frontmatter["on"]
-	}
-
+	onSection, exists := extractOnSection(frontmatter, workflowData...)
 	if !exists {
 		return nil, nil
 	}
@@ -214,65 +205,7 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any, workflow
 		// Simple string format like "on: push" - no skip-if-match possible
 		return nil, nil
 	case map[string]any:
-		// Complex object format - look for skip-if-match
-		if skipIfMatch, exists := on["skip-if-match"]; exists {
-			// Handle both string and object formats
-			switch skip := skipIfMatch.(type) {
-			case string:
-				// Simple string format: skip-if-match: "query" (implies max=1)
-				return &SkipIfMatchConfig{
-					Query: skip,
-					Max:   1,
-				}, nil
-			case map[string]any:
-				// Object format: skip-if-match: { query: "...", max: 3 }
-				queryVal, hasQuery := skip["query"]
-				if !hasQuery {
-					return nil, errors.New("skip-if-match object must have a 'query' field. Example:\n  skip-if-match:\n    query: \"is:issue is:open\"\n    max: 3")
-				}
-
-				queryStr, ok := queryVal.(string)
-				if !ok {
-					return nil, fmt.Errorf("skip-if-match 'query' field must be a string, got %T", queryVal)
-				}
-
-				// Extract max value (optional, defaults to 1)
-				maxVal := 1
-				if maxRaw, hasMax := skip["max"]; hasMax {
-					switch m := maxRaw.(type) {
-					case int:
-						maxVal = m
-					case int64:
-						maxVal = int(m)
-					case uint64:
-						maxVal = int(m)
-					case float64:
-						maxVal = int(m)
-					default:
-						return nil, fmt.Errorf("skip-if-match 'max' field must be an integer, got %T. Example: max: 3", maxRaw)
-					}
-
-					if maxVal < 1 {
-						return nil, fmt.Errorf("skip-if-match 'max' field must be at least 1, got %d", maxVal)
-					}
-				}
-
-				// Extract scope (auth is now configured via top-level on.github-app / on.github-token)
-				scope, err := extractSkipIfScope(skip, "skip-if-match")
-				if err != nil {
-					return nil, err
-				}
-
-				return &SkipIfMatchConfig{
-					Query: queryStr,
-					Max:   maxVal,
-					Scope: scope,
-				}, nil
-			default:
-				return nil, fmt.Errorf("skip-if-match value must be a string or object, got %T. Examples:\n  skip-if-match: \"is:issue is:open\"\n  skip-if-match:\n    query: \"is:pr is:open\"\n    max: 3", skipIfMatch)
-			}
-		}
-		return nil, nil
+		return extractSkipIfMatchFromOnMap(on)
 	default:
 		return nil, errors.New("invalid on: section format")
 	}
@@ -280,16 +213,7 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any, workflow
 
 // extractSkipIfNoMatchFromOn extracts the skip-if-no-match value from the on: section
 func (c *Compiler) extractSkipIfNoMatchFromOn(frontmatter map[string]any, workflowData ...*WorkflowData) (*SkipIfNoMatchConfig, error) {
-	// Use cached On field from ParsedFrontmatter if available (when workflowData is provided)
-	var onSection any
-	var exists bool
-	if len(workflowData) > 0 && workflowData[0] != nil && workflowData[0].ParsedFrontmatter != nil && workflowData[0].ParsedFrontmatter.On != nil {
-		onSection = workflowData[0].ParsedFrontmatter.On
-		exists = true
-	} else {
-		onSection, exists = frontmatter["on"]
-	}
-
+	onSection, exists := extractOnSection(frontmatter, workflowData...)
 	if !exists {
 		return nil, nil
 	}
@@ -300,68 +224,119 @@ func (c *Compiler) extractSkipIfNoMatchFromOn(frontmatter map[string]any, workfl
 		// Simple string format like "on: push" - no skip-if-no-match possible
 		return nil, nil
 	case map[string]any:
-		// Complex object format - look for skip-if-no-match
-		if skipIfNoMatch, exists := on["skip-if-no-match"]; exists {
-			// Handle both string and object formats
-			switch skip := skipIfNoMatch.(type) {
-			case string:
-				// Simple string format: skip-if-no-match: "query" (implies min=1)
-				return &SkipIfNoMatchConfig{
-					Query: skip,
-					Min:   1,
-				}, nil
-			case map[string]any:
-				// Object format: skip-if-no-match: { query: "...", min: 3 }
-				queryVal, hasQuery := skip["query"]
-				if !hasQuery {
-					return nil, errors.New("skip-if-no-match object must have a 'query' field. Example:\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3")
-				}
-
-				queryStr, ok := queryVal.(string)
-				if !ok {
-					return nil, fmt.Errorf("skip-if-no-match 'query' field must be a string, got %T", queryVal)
-				}
-
-				// Extract min value (optional, defaults to 1)
-				minVal := 1
-				if minRaw, hasMin := skip["min"]; hasMin {
-					switch m := minRaw.(type) {
-					case int:
-						minVal = m
-					case int64:
-						minVal = int(m)
-					case uint64:
-						minVal = int(m)
-					case float64:
-						minVal = int(m)
-					default:
-						return nil, fmt.Errorf("skip-if-no-match 'min' field must be an integer, got %T. Example: min: 3", minRaw)
-					}
-
-					if minVal < 1 {
-						return nil, fmt.Errorf("skip-if-no-match 'min' field must be at least 1, got %d", minVal)
-					}
-				}
-
-				// Extract scope (auth is now configured via top-level on.github-app / on.github-token)
-				scope, err := extractSkipIfScope(skip, "skip-if-no-match")
-				if err != nil {
-					return nil, err
-				}
-
-				return &SkipIfNoMatchConfig{
-					Query: queryStr,
-					Min:   minVal,
-					Scope: scope,
-				}, nil
-			default:
-				return nil, fmt.Errorf("skip-if-no-match value must be a string or object, got %T. Examples:\n  skip-if-no-match: \"is:pr is:open\"\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3", skipIfNoMatch)
-			}
-		}
-		return nil, nil
+		return extractSkipIfNoMatchFromOnMap(on)
 	default:
 		return nil, errors.New("invalid on: section format")
 	}
+}
+
+func extractOnSection(frontmatter map[string]any, workflowData ...*WorkflowData) (any, bool) {
+	if len(workflowData) > 0 &&
+		workflowData[0] != nil &&
+		workflowData[0].ParsedFrontmatter != nil &&
+		workflowData[0].ParsedFrontmatter.On != nil {
+		return workflowData[0].ParsedFrontmatter.On, true
+	}
+	onSection, exists := frontmatter["on"]
+	return onSection, exists
+}
+
+func extractSkipIfMatchFromOnMap(on map[string]any) (*SkipIfMatchConfig, error) {
+	skipIfMatch, exists := on["skip-if-match"]
+	if !exists {
+		return nil, nil
+	}
+	switch skip := skipIfMatch.(type) {
+	case string:
+		return &SkipIfMatchConfig{Query: skip, Max: 1}, nil
+	case map[string]any:
+		return parseSkipIfMatchObject(skip)
+	default:
+		return nil, fmt.Errorf("skip-if-match value must be a string or object, got %T. Examples:\n  skip-if-match: \"is:issue is:open\"\n  skip-if-match:\n    query: \"is:pr is:open\"\n    max: 3", skipIfMatch)
+	}
+}
+
+func parseSkipIfMatchObject(skip map[string]any) (*SkipIfMatchConfig, error) {
+	queryStr, err := requiredSkipQuery(skip, "skip-if-match", "is:issue is:open", "max: 3")
+	if err != nil {
+		return nil, err
+	}
+	maxVal, err := optionalPositiveInt(skip, "max", "skip-if-match", 1)
+	if err != nil {
+		return nil, err
+	}
+	scope, err := extractSkipIfScope(skip, "skip-if-match")
+	if err != nil {
+		return nil, err
+	}
+	return &SkipIfMatchConfig{Query: queryStr, Max: maxVal, Scope: scope}, nil
+}
+
+func extractSkipIfNoMatchFromOnMap(on map[string]any) (*SkipIfNoMatchConfig, error) {
+	skipIfNoMatch, exists := on["skip-if-no-match"]
+	if !exists {
+		return nil, nil
+	}
+	switch skip := skipIfNoMatch.(type) {
+	case string:
+		return &SkipIfNoMatchConfig{Query: skip, Min: 1}, nil
+	case map[string]any:
+		return parseSkipIfNoMatchObject(skip)
+	default:
+		return nil, fmt.Errorf("skip-if-no-match value must be a string or object, got %T. Examples:\n  skip-if-no-match: \"is:pr is:open\"\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3", skipIfNoMatch)
+	}
+}
+
+func parseSkipIfNoMatchObject(skip map[string]any) (*SkipIfNoMatchConfig, error) {
+	queryStr, err := requiredSkipQuery(skip, "skip-if-no-match", "is:pr is:open", "min: 3")
+	if err != nil {
+		return nil, err
+	}
+	minVal, err := optionalPositiveInt(skip, "min", "skip-if-no-match", 1)
+	if err != nil {
+		return nil, err
+	}
+	scope, err := extractSkipIfScope(skip, "skip-if-no-match")
+	if err != nil {
+		return nil, err
+	}
+	return &SkipIfNoMatchConfig{Query: queryStr, Min: minVal, Scope: scope}, nil
+}
+
+func requiredSkipQuery(skip map[string]any, field, exampleQuery, exampleLimit string) (string, error) {
+	queryVal, hasQuery := skip["query"]
+	if !hasQuery {
+		return "", fmt.Errorf("%s object must have a 'query' field. Example:\n  %s:\n    query: %q\n    %s", field, field, exampleQuery, exampleLimit)
+	}
+	queryStr, ok := queryVal.(string)
+	if !ok {
+		return "", fmt.Errorf("%s 'query' field must be a string, got %T", field, queryVal)
+	}
+	return queryStr, nil
+}
+
+func optionalPositiveInt(skip map[string]any, key, field string, defaultValue int) (int, error) {
+	value := defaultValue
+	raw, exists := skip[key]
+	if !exists {
+		return value, nil
+	}
+	switch v := raw.(type) {
+	case int:
+		value = v
+	case int64:
+		value = int(v)
+	case uint64:
+		value = int(v)
+	case float64:
+		value = int(v)
+	default:
+		return 0, fmt.Errorf("%s '%s' field must be an integer, got %T. Example: %s: 3", field, key, raw, key)
+	}
+	if value < 1 {
+		return 0, fmt.Errorf("%s '%s' field must be at least 1, got %d", field, key, value)
+	}
+	return value, nil
 }
 
 // processSkipIfMatchConfiguration extracts and processes skip-if-match configuration from frontmatter
@@ -406,16 +381,7 @@ func (c *Compiler) processSkipIfNoMatchConfiguration(frontmatter map[string]any,
 
 // extractSkipIfCheckFailingFromOn extracts the skip-if-check-failing value from the on: section
 func (c *Compiler) extractSkipIfCheckFailingFromOn(frontmatter map[string]any, workflowData ...*WorkflowData) (*SkipIfCheckFailingConfig, error) {
-	// Use cached On field from ParsedFrontmatter if available (when workflowData is provided)
-	var onSection any
-	var exists bool
-	if len(workflowData) > 0 && workflowData[0] != nil && workflowData[0].ParsedFrontmatter != nil && workflowData[0].ParsedFrontmatter.On != nil {
-		onSection = workflowData[0].ParsedFrontmatter.On
-		exists = true
-	} else {
-		onSection, exists = frontmatter["on"]
-	}
-
+	onSection, exists := extractOnSection(frontmatter, workflowData...)
 	if !exists {
 		return nil, nil
 	}
@@ -426,79 +392,78 @@ func (c *Compiler) extractSkipIfCheckFailingFromOn(frontmatter map[string]any, w
 		// Simple string format like "on: push" - no skip-if-check-failing possible
 		return nil, nil
 	case map[string]any:
-		// Complex object format - look for skip-if-check-failing
-		if skipIfCheckFailing, exists := on["skip-if-check-failing"]; exists {
-			switch skip := skipIfCheckFailing.(type) {
-			case nil:
-				// Null value (bare key with no value): skip-if-check-failing:
-				return &SkipIfCheckFailingConfig{}, nil
-			case bool:
-				// Simple boolean format: skip-if-check-failing: true
-				if !skip {
-					return nil, errors.New("skip-if-check-failing: false is not valid; remove the field to disable the check")
-				}
-				return &SkipIfCheckFailingConfig{}, nil
-			case map[string]any:
-				// Object format: skip-if-check-failing: { include: [...], exclude: [...], branch: "...", allow-pending: true }
-				config := &SkipIfCheckFailingConfig{}
-
-				// Extract include list (optional)
-				if includeRaw, hasInclude := skip["include"]; hasInclude {
-					includeSlice, ok := includeRaw.([]any)
-					if !ok {
-						return nil, errors.New("skip-if-check-failing 'include' field must be a list of strings. Example:\n  skip-if-check-failing:\n    include:\n      - build\n      - test")
-					}
-					for _, item := range includeSlice {
-						s, ok := item.(string)
-						if !ok {
-							return nil, fmt.Errorf("skip-if-check-failing 'include' list items must be strings, got %T", item)
-						}
-						config.Include = append(config.Include, s)
-					}
-				}
-
-				// Extract exclude list (optional)
-				if excludeRaw, hasExclude := skip["exclude"]; hasExclude {
-					excludeSlice, ok := excludeRaw.([]any)
-					if !ok {
-						return nil, errors.New("skip-if-check-failing 'exclude' field must be a list of strings. Example:\n  skip-if-check-failing:\n    exclude:\n      - lint")
-					}
-					for _, item := range excludeSlice {
-						s, ok := item.(string)
-						if !ok {
-							return nil, fmt.Errorf("skip-if-check-failing 'exclude' list items must be strings, got %T", item)
-						}
-						config.Exclude = append(config.Exclude, s)
-					}
-				}
-
-				// Extract branch (optional)
-				if branchRaw, hasBranch := skip["branch"]; hasBranch {
-					branchStr, ok := branchRaw.(string)
-					if !ok {
-						return nil, fmt.Errorf("skip-if-check-failing 'branch' field must be a string, got %T. Example: branch: main", branchRaw)
-					}
-					config.Branch = branchStr
-				}
-
-				// Extract allow-pending (optional, defaults to false — pending counts as failing)
-				if allowPendingRaw, hasAllowPending := skip["allow-pending"]; hasAllowPending {
-					allowPending, ok := allowPendingRaw.(bool)
-					if !ok {
-						return nil, fmt.Errorf("skip-if-check-failing 'allow-pending' field must be a boolean, got %T. Example: allow-pending: true", allowPendingRaw)
-					}
-					config.AllowPending = allowPending
-				}
-
-				return config, nil
-			default:
-				return nil, fmt.Errorf("skip-if-check-failing value must be true or an object, got %T. Examples:\n  skip-if-check-failing:\n  skip-if-check-failing: true\n  skip-if-check-failing:\n    include:\n      - build\n    branch: main\n    allow-pending: true", skipIfCheckFailing)
-			}
-		}
-		return nil, nil
+		return extractSkipIfCheckFailingFromOnMap(on)
 	default:
 		return nil, errors.New("invalid on: section format")
 	}
+}
+
+func extractSkipIfCheckFailingFromOnMap(on map[string]any) (*SkipIfCheckFailingConfig, error) {
+	skipIfCheckFailing, exists := on["skip-if-check-failing"]
+	if !exists {
+		return nil, nil
+	}
+	switch skip := skipIfCheckFailing.(type) {
+	case nil:
+		return &SkipIfCheckFailingConfig{}, nil
+	case bool:
+		if !skip {
+			return nil, errors.New("skip-if-check-failing: false is not valid; remove the field to disable the check")
+		}
+		return &SkipIfCheckFailingConfig{}, nil
+	case map[string]any:
+		return parseSkipIfCheckFailingObject(skip)
+	default:
+		return nil, fmt.Errorf("skip-if-check-failing value must be true or an object, got %T. Examples:\n  skip-if-check-failing:\n  skip-if-check-failing: true\n  skip-if-check-failing:\n    include:\n      - build\n    branch: main\n    allow-pending: true", skipIfCheckFailing)
+	}
+}
+
+func parseSkipIfCheckFailingObject(skip map[string]any) (*SkipIfCheckFailingConfig, error) {
+	config := &SkipIfCheckFailingConfig{}
+	var err error
+	config.Include, err = skipIfCheckFailingStringList(skip, "include", "      - build\n      - test")
+	if err != nil {
+		return nil, err
+	}
+	config.Exclude, err = skipIfCheckFailingStringList(skip, "exclude", "      - lint")
+	if err != nil {
+		return nil, err
+	}
+	if branchRaw, hasBranch := skip["branch"]; hasBranch {
+		branchStr, ok := branchRaw.(string)
+		if !ok {
+			return nil, fmt.Errorf("skip-if-check-failing 'branch' field must be a string, got %T. Example: branch: main", branchRaw)
+		}
+		config.Branch = branchStr
+	}
+	if allowPendingRaw, hasAllowPending := skip["allow-pending"]; hasAllowPending {
+		allowPending, ok := allowPendingRaw.(bool)
+		if !ok {
+			return nil, fmt.Errorf("skip-if-check-failing 'allow-pending' field must be a boolean, got %T. Example: allow-pending: true", allowPendingRaw)
+		}
+		config.AllowPending = allowPending
+	}
+	return config, nil
+}
+
+func skipIfCheckFailingStringList(skip map[string]any, field, exampleItems string) ([]string, error) {
+	raw, exists := skip[field]
+	if !exists {
+		return nil, nil
+	}
+	items, ok := raw.([]any)
+	if !ok {
+		return nil, fmt.Errorf("skip-if-check-failing '%s' field must be a list of strings. Example:\n  skip-if-check-failing:\n    %s:\n%s", field, field, exampleItems)
+	}
+	values := make([]string, 0, len(items))
+	for _, item := range items {
+		s, ok := item.(string)
+		if !ok {
+			return nil, fmt.Errorf("skip-if-check-failing '%s' list items must be strings, got %T", field, item)
+		}
+		values = append(values, s)
+	}
+	return values, nil
 }
 
 // processSkipIfCheckFailingConfiguration extracts and processes skip-if-check-failing configuration from frontmatter

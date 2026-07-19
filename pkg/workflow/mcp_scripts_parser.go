@@ -96,42 +96,7 @@ func parseMCPScriptToolConfig(toolName string, toolMap map[string]any) *MCPScrip
 		}
 	}
 
-	// Parse inputs (optional)
-	if inputs, exists := toolMap["inputs"]; exists {
-		if inputsMap, ok := inputs.(map[string]any); ok {
-			for paramName, paramValue := range inputsMap {
-				if paramMap, ok := paramValue.(map[string]any); ok {
-					param := &MCPScriptParam{
-						Type: "string", // default type
-					}
-
-					if t, exists := paramMap["type"]; exists {
-						if tStr, ok := t.(string); ok {
-							param.Type = tStr
-						}
-					}
-
-					if desc, exists := paramMap["description"]; exists {
-						if descStr, ok := desc.(string); ok {
-							param.Description = descStr
-						}
-					}
-
-					if req, exists := paramMap["required"]; exists {
-						if reqBool, ok := req.(bool); ok {
-							param.Required = reqBool
-						}
-					}
-
-					if def, exists := paramMap["default"]; exists {
-						param.Default = def
-					}
-
-					toolConfig.Inputs[paramName] = param
-				}
-			}
-		}
-	}
+	parseMCPScriptInputs(toolMap, toolConfig)
 
 	// Parse script (JavaScript implementation)
 	if script, exists := toolMap["script"]; exists {
@@ -161,52 +126,104 @@ func parseMCPScriptToolConfig(toolName string, toolMap map[string]any) *MCPScrip
 		}
 	}
 
-	// Parse env (environment variables)
-	if env, exists := toolMap["env"]; exists {
-		if envMap, ok := env.(map[string]any); ok {
-			for envName, envValue := range envMap {
-				if envStr, ok := envValue.(string); ok {
-					toolConfig.Env[envName] = envStr
-				}
-			}
-		}
-	}
-
-	// Parse dependencies (optional list of strings)
-	if dependencies, exists := toolMap["dependencies"]; exists {
-		if depsList, ok := dependencies.([]any); ok {
-			for _, dep := range depsList {
-				if depStr, ok := dep.(string); ok {
-					toolConfig.Dependencies = append(toolConfig.Dependencies, depStr)
-				}
-			}
-		}
-	}
-
-	// Parse timeout (optional, default is 60 seconds)
-	if timeout, exists := toolMap["timeout"]; exists {
-		switch t := timeout.(type) {
-		case int:
-			toolConfig.Timeout = t
-		case uint64:
-			toolConfig.Timeout = typeutil.SafeUint64ToInt(t) // Safe conversion to prevent overflow (alert #413, #414)
-		case float64:
-			maxInt := int(^uint(0) >> 1)
-			if t != t || t < 0 || t > float64(maxInt) {
-				mcpScriptsLog.Printf("Warning: invalid timeout value %v for tool %q, keeping default timeout (60s)", t, toolName)
-			} else {
-				toolConfig.Timeout = int(t)
-			}
-		case string:
-			if n, ok := parseTimeoutString(t); ok {
-				toolConfig.Timeout = n
-			} else {
-				mcpScriptsLog.Printf("Warning: invalid timeout value %q for tool %q, keeping default timeout (60s)", t, toolName)
-			}
-		}
-	}
+	parseMCPScriptEnv(toolMap, toolConfig)
+	parseMCPScriptDependencies(toolMap, toolConfig)
+	parseMCPScriptTimeout(toolName, toolMap, toolConfig)
 
 	return toolConfig
+}
+
+func parseMCPScriptInputs(toolMap map[string]any, toolConfig *MCPScriptToolConfig) {
+	inputsMap, ok := toolMap["inputs"].(map[string]any)
+	if !ok {
+		return
+	}
+	for paramName, paramValue := range inputsMap {
+		if paramMap, ok := paramValue.(map[string]any); ok {
+			toolConfig.Inputs[paramName] = parseMCPScriptParam(paramMap)
+		}
+	}
+}
+
+func parseMCPScriptParam(paramMap map[string]any) *MCPScriptParam {
+	param := &MCPScriptParam{Type: "string"}
+	if t, exists := paramMap["type"]; exists {
+		if tStr, ok := t.(string); ok {
+			param.Type = tStr
+		}
+	}
+	if desc, exists := paramMap["description"]; exists {
+		if descStr, ok := desc.(string); ok {
+			param.Description = descStr
+		}
+	}
+	if req, exists := paramMap["required"]; exists {
+		if reqBool, ok := req.(bool); ok {
+			param.Required = reqBool
+		}
+	}
+	if def, exists := paramMap["default"]; exists {
+		param.Default = def
+	}
+	return param
+}
+
+func parseMCPScriptEnv(toolMap map[string]any, toolConfig *MCPScriptToolConfig) {
+	envMap, ok := toolMap["env"].(map[string]any)
+	if !ok {
+		return
+	}
+	for envName, envValue := range envMap {
+		if envStr, ok := envValue.(string); ok {
+			toolConfig.Env[envName] = envStr
+		}
+	}
+}
+
+func parseMCPScriptDependencies(toolMap map[string]any, toolConfig *MCPScriptToolConfig) {
+	depsList, ok := toolMap["dependencies"].([]any)
+	if !ok {
+		return
+	}
+	for _, dep := range depsList {
+		if depStr, ok := dep.(string); ok {
+			toolConfig.Dependencies = append(toolConfig.Dependencies, depStr)
+		}
+	}
+}
+
+func parseMCPScriptTimeout(toolName string, toolMap map[string]any, toolConfig *MCPScriptToolConfig) {
+	timeout, exists := toolMap["timeout"]
+	if !exists {
+		return
+	}
+	switch t := timeout.(type) {
+	case int:
+		toolConfig.Timeout = t
+	case uint64:
+		toolConfig.Timeout = typeutil.SafeUint64ToInt(t)
+	case float64:
+		parseMCPScriptFloatTimeout(toolName, t, toolConfig)
+	case string:
+		parseMCPScriptStringTimeout(toolName, t, toolConfig)
+	}
+}
+
+func parseMCPScriptFloatTimeout(toolName string, timeout float64, toolConfig *MCPScriptToolConfig) {
+	maxInt := int(^uint(0) >> 1)
+	if timeout != timeout || timeout < 0 || timeout > float64(maxInt) {
+		mcpScriptsLog.Printf("Warning: invalid timeout value %v for tool %q, keeping default timeout (60s)", timeout, toolName)
+		return
+	}
+	toolConfig.Timeout = int(timeout)
+}
+
+func parseMCPScriptStringTimeout(toolName, timeout string, toolConfig *MCPScriptToolConfig) {
+	if n, ok := parseTimeoutString(timeout); ok {
+		toolConfig.Timeout = n
+		return
+	}
+	mcpScriptsLog.Printf("Warning: invalid timeout value %q for tool %q, keeping default timeout (60s)", timeout, toolName)
 }
 
 // parseMCPScriptsMap parses mcp-scripts configuration from a map.

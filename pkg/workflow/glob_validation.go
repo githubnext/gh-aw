@@ -90,74 +90,20 @@ func (v *globValidator) validateNext() bool {
 
 	switch c {
 	case '\\':
-		switch v.scan.Peek() {
-		case '[', '?', '*':
-			c = v.scan.Next()
-			if v.isRef {
-				v.invalidRefChar(c, "ref name cannot contain spaces, ~, ^, :, [, ?, *")
-			}
-		case '+', '\\', '!':
-			c = v.scan.Next()
-		default:
-			if v.isRef {
-				v.invalidRefChar('\\', "only special characters [, ?, +, *, \\, ! can be escaped with \\")
-				c = v.scan.Next()
-			}
-		}
+		c = v.validateEscapedGlobChar()
 	case '?':
-		if !v.prec {
-			v.unexpected('?', "special character ? (zero or one)", "the preceding character must not be special character")
-		}
+		v.validateQuantifier('?', "special character ? (zero or one)")
 		prec = false
 	case '+':
-		if !v.prec {
-			v.unexpected('+', "special character + (one or more)", "the preceding character must not be special character")
-		}
+		v.validateQuantifier('+', "special character + (one or more)")
 		prec = false
 	case '*':
 		prec = false
 	case '[':
-		if v.scan.Peek() == ']' {
-			c = v.scan.Next()
-			v.unexpected(']', "content of character match []", "character match must not be empty")
-			break
-		}
-		chars := 0
-	Loop:
-		for {
-			c = v.scan.Next()
-			switch c {
-			case ']':
-				break Loop
-			case scanner.EOF:
-				v.unexpected(c, "end of character match []", "missing ]")
-				return false
-			default:
-				if v.scan.Peek() != '-' {
-					chars++
-					continue Loop
-				}
-				chars += 2
-				s := c
-				_ = v.scan.Next() // eat '-'; return value not needed
-				switch v.scan.Peek() {
-				case ']':
-					c = v.scan.Next()
-					v.unexpected(c, "character range in []", "end of range is missing")
-					break Loop
-				case scanner.EOF:
-					// do nothing
-				default:
-					c = v.scan.Next()
-					if s > c {
-						why := fmt.Sprintf("start of range %q (%d) is larger than end of range %q (%d)", s, s, c, c)
-						v.unexpected(c, "character range in []", why)
-					}
-				}
-			}
-		}
-		if chars == 1 {
-			v.unexpected(c, "character match []", "character match with single character is useless. simply use x instead of [x]")
+		var ok bool
+		c, ok = v.validateCharacterClass()
+		if !ok {
+			return false
 		}
 	case '\r':
 		if v.scan.Peek() == '\n' {
@@ -174,6 +120,94 @@ func (v *globValidator) validateNext() bool {
 	}
 	v.prec = prec
 
+	return v.validatePatternTail(c)
+}
+
+func (v *globValidator) validateEscapedGlobChar() rune {
+	switch v.scan.Peek() {
+	case '[', '?', '*':
+		c := v.scan.Next()
+		if v.isRef {
+			v.invalidRefChar(c, "ref name cannot contain spaces, ~, ^, :, [, ?, *")
+		}
+		return c
+	case '+', '\\', '!':
+		return v.scan.Next()
+	default:
+		if v.isRef {
+			v.invalidRefChar('\\', "only special characters [, ?, +, *, \\, ! can be escaped with \\")
+			return v.scan.Next()
+		}
+		return '\\'
+	}
+}
+
+func (v *globValidator) validateQuantifier(c rune, what string) {
+	if !v.prec {
+		v.unexpected(c, what, "the preceding character must not be special character")
+	}
+}
+
+func (v *globValidator) validateCharacterClass() (rune, bool) {
+	if v.scan.Peek() == ']' {
+		c := v.scan.Next()
+		v.unexpected(']', "content of character match []", "character match must not be empty")
+		return c, true
+	}
+	c, chars, ok := v.scanCharacterClassBody()
+	if !ok {
+		return c, false
+	}
+	if chars == 1 {
+		v.unexpected(c, "character match []", "character match with single character is useless. simply use x instead of [x]")
+	}
+	return c, true
+}
+
+func (v *globValidator) scanCharacterClassBody() (rune, int, bool) {
+	chars := 0
+	for {
+		c := v.scan.Next()
+		switch c {
+		case ']':
+			return c, chars, true
+		case scanner.EOF:
+			v.unexpected(c, "end of character match []", "missing ]")
+			return c, chars, false
+		default:
+			added, endChar, closed := v.validateCharacterClassRange(c)
+			chars += added
+			if closed {
+				return endChar, chars, true
+			}
+		}
+	}
+}
+
+func (v *globValidator) validateCharacterClassRange(c rune) (int, rune, bool) {
+	if v.scan.Peek() != '-' {
+		return 1, c, false
+	}
+	s := c
+	_ = v.scan.Next() // eat '-'; return value not needed
+	switch v.scan.Peek() {
+	case ']':
+		c = v.scan.Next()
+		v.unexpected(c, "character range in []", "end of range is missing")
+		return 2, c, true
+	case scanner.EOF:
+		return 2, c, false
+	default:
+		c = v.scan.Next()
+		if s > c {
+			why := fmt.Sprintf("start of range %q (%d) is larger than end of range %q (%d)", s, s, c, c)
+			v.unexpected(c, "character range in []", why)
+		}
+		return 2, c, false
+	}
+}
+
+func (v *globValidator) validatePatternTail(c rune) bool {
 	if v.scan.Peek() == scanner.EOF {
 		if v.isRef && (c == '/' || c == '.') {
 			v.invalidRefChar(c, "ref name must not end with / and .")

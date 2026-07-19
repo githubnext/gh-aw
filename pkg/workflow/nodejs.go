@@ -136,37 +136,7 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 
 	// Inject AWF installation after Node.js setup but before the CLI install steps
 	if isFirewallEnabled(workflowData) {
-		firewallConfig := getFirewallConfig(workflowData)
-		agentConfig := getAgentConfig(workflowData)
-		var awfVersion string
-		if firewallConfig != nil {
-			awfVersion = firewallConfig.Version
-		}
-
-		// gVisor must be installed and registered BEFORE AWF starts the agent container.
-		if isGVisorRuntime(workflowData) {
-			steps = append(steps, generateGVisorInstallStep())
-		}
-
-		// docker-sbx must be installed, authenticated, and smoke-tested BEFORE AWF
-		// starts so the microVM runtime is ready when AWF launches the agent.
-		if isDockerSbxRuntime(workflowData) {
-			steps = append(steps, generateDockerSbxKVMCheckStep())
-			steps = append(steps, generateDockerSbxSecretsCheckStep())
-			steps = append(steps, generateDockerSbxInstallStep())
-			steps = append(steps, generateDockerSbxAuthAndDaemonStep())
-			steps = append(steps, generateDockerSbxPreFlightStep())
-		}
-
-		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
-		if len(awfInstall) > 0 {
-			steps = append(steps, awfInstall)
-		}
-
-		// Install Docker Compose plugin for ARC/DinD runners where it may not be pre-installed.
-		if isArcDindTopology(workflowData) {
-			steps = append(steps, generateDockerComposeInstallStep())
-		}
+		steps = append(steps, buildNpmAWFInstallSteps(workflowData)...)
 	}
 
 	if len(npmSteps) > 1 {
@@ -178,17 +148,54 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 	// sysroot image — not the runner's filesystem. On ARC/DinD, the AWF command
 	// references ${RUNNER_TEMP}/gh-aw/bin/copilot which is daemon-visible.
 	if isFirewallEnabled(workflowData) && isArcDindTopology(workflowData) {
-		copyStep := GitHubActionStep([]string{
-			"      - name: Copy Copilot CLI to daemon-visible path",
-			"        run: |",
-			"          mkdir -p \"${RUNNER_TEMP}/gh-aw/bin\"",
-			"          cp /usr/local/bin/copilot \"${RUNNER_TEMP}/gh-aw/bin/copilot\"",
-			"          chmod +x \"${RUNNER_TEMP}/gh-aw/bin/copilot\"",
-		})
-		steps = append(steps, copyStep)
+		steps = append(steps, generateCopyCopilotCLIToDaemonPathStep())
 	}
 
 	return steps
+}
+
+func buildNpmAWFInstallSteps(workflowData *WorkflowData) []GitHubActionStep {
+	firewallConfig := getFirewallConfig(workflowData)
+	agentConfig := getAgentConfig(workflowData)
+	var awfVersion string
+	if firewallConfig != nil {
+		awfVersion = firewallConfig.Version
+	}
+	var steps []GitHubActionStep
+	if isGVisorRuntime(workflowData) {
+		steps = append(steps, generateGVisorInstallStep())
+	}
+	steps = append(steps, buildDockerSbxRuntimeSetupSteps(workflowData)...)
+	if awfInstall := generateAWFInstallationStep(awfVersion, agentConfig); len(awfInstall) > 0 {
+		steps = append(steps, awfInstall)
+	}
+	if isArcDindTopology(workflowData) {
+		steps = append(steps, generateDockerComposeInstallStep())
+	}
+	return steps
+}
+
+func buildDockerSbxRuntimeSetupSteps(workflowData *WorkflowData) []GitHubActionStep {
+	if !isDockerSbxRuntime(workflowData) {
+		return nil
+	}
+	return []GitHubActionStep{
+		generateDockerSbxKVMCheckStep(),
+		generateDockerSbxSecretsCheckStep(),
+		generateDockerSbxInstallStep(),
+		generateDockerSbxAuthAndDaemonStep(),
+		generateDockerSbxPreFlightStep(),
+	}
+}
+
+func generateCopyCopilotCLIToDaemonPathStep() GitHubActionStep {
+	return GitHubActionStep([]string{
+		"      - name: Copy Copilot CLI to daemon-visible path",
+		"        run: |",
+		"          mkdir -p \"${RUNNER_TEMP}/gh-aw/bin\"",
+		"          cp /usr/local/bin/copilot \"${RUNNER_TEMP}/gh-aw/bin/copilot\"",
+		"          chmod +x \"${RUNNER_TEMP}/gh-aw/bin/copilot\"",
+	})
 }
 
 // GetNpmBinPathSetup returns a simple shell command that adds hostedtoolcache bin directories
@@ -310,39 +317,32 @@ func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPr
 		ignoreScriptsFlag = ""
 	}
 
-	var installStep GitHubActionStep
+	steps = append(steps, buildNpmInstallStep(packageName, version, stepName, globalFlag, ignoreScriptsFlag, options.CooldownEnabled))
+
+	return steps
+}
+
+func buildNpmInstallStep(packageName, version, stepName, globalFlag, ignoreScriptsFlag string, cooldownEnabled bool) GitHubActionStep {
 	if ExpressionPattern.MatchString(version) {
-		// Version is a GitHub Actions expression (e.g. ${{ inputs.engine-version }}).
-		// Pass it via an env var instead of direct shell interpolation to prevent injection:
-		// if the expression evaluates to a malicious string, it would otherwise be
-		// substituted verbatim into the shell command before the shell parses it.
 		nodejsLog.Printf("Version contains GitHub Actions expression, using env var for injection safety: %s", version)
 		installCmd := fmt.Sprintf(`npm install %s%s%s@"${ENGINE_VERSION}"`, ignoreScriptsFlag, globalFlag, packageName)
-		installStep = GitHubActionStep{
+		installStep := GitHubActionStep{
 			"      - name: " + stepName,
 			"        run: " + installCmd,
 			"        env:",
 			"          ENGINE_VERSION: " + version,
 		}
-		if options.CooldownEnabled {
+		if cooldownEnabled {
 			installStep = append(installStep, fmt.Sprintf("          NPM_CONFIG_MIN_RELEASE_AGE: '%d'", npmDefaultCooldownDays))
 		}
-	} else {
-		installCmd := fmt.Sprintf("npm install %s%s%s@%s", ignoreScriptsFlag, globalFlag, packageName, version)
-		installStep = GitHubActionStep{
-			"      - name: " + stepName,
-			"        run: " + installCmd,
-		}
-		if options.CooldownEnabled {
-			installStep = append(installStep,
-				"        env:",
-				fmt.Sprintf("          NPM_CONFIG_MIN_RELEASE_AGE: '%d'", npmDefaultCooldownDays),
-			)
-		}
+		return installStep
 	}
-	steps = append(steps, installStep)
-
-	return steps
+	installCmd := fmt.Sprintf("npm install %s%s%s@%s", ignoreScriptsFlag, globalFlag, packageName, version)
+	installStep := GitHubActionStep{"      - name: " + stepName, "        run: " + installCmd}
+	if cooldownEnabled {
+		installStep = append(installStep, "        env:", fmt.Sprintf("          NPM_CONFIG_MIN_RELEASE_AGE: '%d'", npmDefaultCooldownDays))
+	}
+	return installStep
 }
 
 // resolveRuntimeCooldown returns whether runtime-associated dependency installs should apply

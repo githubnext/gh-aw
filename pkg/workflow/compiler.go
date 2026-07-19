@@ -138,13 +138,8 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	// that cannot be bypassed, so we validate it unconditionally
 	workflowLog.Print("Validating expression sizes")
 	if err := c.validateExpressionSizes(yamlContent); err != nil {
-		// Store error first so we can write invalid YAML before returning
 		formattedErr := formatCompilerError(markdownPath, "error", fmt.Sprintf("expression size validation failed: %v", err), err)
-		// Write the invalid YAML to a .invalid.yml file for inspection
-		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
-		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), constants.FilePermPublic); writeErr == nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
-		}
+		writeInvalidWorkflowYAML(lockFile, yamlContent)
 		return "", nil, nil, formattedErr
 	}
 
@@ -158,17 +153,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	// fast-path checks avoid an unnecessary yaml.Unmarshal.
 	needsSchemaCheck := !c.skipValidation
 
-	var parsedWorkflow map[string]any
-	if needsSchemaCheck {
-		// Schema validation requires parsed YAML; parse once and share with the
-		// template injection validator below.
-		workflowLog.Print("Parsing compiled YAML for validation")
-		if parseErr := yaml.Unmarshal([]byte(yamlContent), &parsedWorkflow); parseErr != nil {
-			// If parsing fails here the subsequent validators would also fail; keep going
-			// so we surface the root error from the right validator.
-			parsedWorkflow = nil
-		}
-	}
+	parsedWorkflow := parseCompiledWorkflowForValidation(yamlContent, needsSchemaCheck)
 
 	// Validate for template injection vulnerabilities (unsafe expression usage in run: commands).
 	//
@@ -183,61 +168,8 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 
 	// Validate against GitHub Actions schema (unless skipped)
 	if needsSchemaCheck {
-		workflowLog.Print("Validating workflow against GitHub Actions schema")
-		var schemaErr error
-		if parsedWorkflow != nil {
-			schemaErr = c.validateGitHubActionsSchemaFromParsed(parsedWorkflow)
-		} else {
-			schemaErr = c.validateGitHubActionsSchema(yamlContent)
-		}
-		if schemaErr != nil {
-			// Try to point at the exact line of the failing field in the source markdown.
-			// extractSchemaErrorField unwraps the error chain to find the top-level field
-			// name (e.g. "timeout-minutes"), which findFrontmatterFieldLine then locates in
-			// the source frontmatter so the error is IDE-navigable.
-			fieldLine := 1
-			if fieldName := extractSchemaErrorField(schemaErr); fieldName != "" {
-				frontmatterLines := strings.Split(workflowData.FrontmatterYAML, "\n")
-				if line := findFrontmatterFieldLine(frontmatterLines, 2, fieldName); line > 0 {
-					fieldLine = line
-				}
-			}
-			// Store error first so we can write invalid YAML before returning
-			formattedErr := formatCompilerErrorWithPosition(markdownPath, fieldLine, 1, "error",
-				fmt.Sprintf("invalid workflow: %v", schemaErr), schemaErr)
-			// Write the invalid YAML to a .invalid.yml file for inspection
-			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
-			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), constants.FilePermPublic); writeErr == nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
-			}
-			return "", nil, nil, formattedErr
-		}
-
-		// Validate container images used in MCP configurations
-		workflowLog.Print("Validating container images")
-		if err := c.validateContainerImages(workflowData); err != nil {
-			// Treat container image validation failures as warnings, not errors
-			// This is because validation may fail due to auth issues locally (e.g., private registries)
-			fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", fmt.Sprintf("container image validation failed: %v", err)))
-			c.IncrementWarningCount()
-		}
-
-		// Validate runtime packages (npx, uv)
-		workflowLog.Print("Validating runtime packages")
-		if err := c.validateRuntimePackages(workflowData); err != nil {
-			return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("runtime package validation failed: %v", err), err)
-		}
-
-		// Validate firewall configuration (log-level enum)
-		workflowLog.Print("Validating firewall configuration")
-		if err := c.validateFirewallConfig(workflowData); err != nil {
-			return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("firewall configuration validation failed: %v", err), err)
-		}
-
-		// Validate repository features (discussions, issues)
-		workflowLog.Print("Validating repository features")
-		if err := c.validateRepositoryFeatures(workflowData); err != nil {
-			return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("repository feature validation failed: %v", err), err)
+		if err := c.validateCompiledWorkflowSchemaAndResources(workflowData, markdownPath, lockFile, yamlContent, parsedWorkflow); err != nil {
+			return "", nil, nil, err
 		}
 	} else if c.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
@@ -245,6 +177,98 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	}
 
 	return yamlContent, bodySecrets, bodyActions, nil
+}
+
+func writeInvalidWorkflowYAML(lockFile, yamlContent string) {
+	invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
+	if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), constants.FilePermPublic); writeErr == nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
+	}
+}
+
+func parseCompiledWorkflowForValidation(yamlContent string, needsSchemaCheck bool) map[string]any {
+	if !needsSchemaCheck {
+		return nil
+	}
+	workflowLog.Print("Parsing compiled YAML for validation")
+	var parsedWorkflow map[string]any
+	if parseErr := yaml.Unmarshal([]byte(yamlContent), &parsedWorkflow); parseErr != nil {
+		return nil
+	}
+	return parsedWorkflow
+}
+
+func (c *Compiler) validateCompiledWorkflowSchemaAndResources(workflowData *WorkflowData, markdownPath string, lockFile string, yamlContent string, parsedWorkflow map[string]any) error {
+	if err := c.validateCompiledWorkflowSchema(workflowData, markdownPath, lockFile, yamlContent, parsedWorkflow); err != nil {
+		return err
+	}
+	if err := c.validateCompiledWorkflowRuntimeResources(workflowData, markdownPath); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Compiler) validateCompiledWorkflowSchema(workflowData *WorkflowData, markdownPath string, lockFile string, yamlContent string, parsedWorkflow map[string]any) error {
+	workflowLog.Print("Validating workflow against GitHub Actions schema")
+	var schemaErr error
+	if parsedWorkflow != nil {
+		schemaErr = c.validateGitHubActionsSchemaFromParsed(parsedWorkflow)
+	} else {
+		schemaErr = c.validateGitHubActionsSchema(yamlContent)
+	}
+	if schemaErr == nil {
+		return nil
+	}
+	fieldLine := schemaErrorFrontmatterLine(workflowData, schemaErr)
+	formattedErr := formatCompilerErrorWithPosition(markdownPath, fieldLine, 1, "error", fmt.Sprintf("invalid workflow: %v", schemaErr), schemaErr)
+	writeInvalidWorkflowYAML(lockFile, yamlContent)
+	return formattedErr
+}
+
+func schemaErrorFrontmatterLine(workflowData *WorkflowData, schemaErr error) int {
+	fieldLine := 1
+	if fieldName := extractSchemaErrorField(schemaErr); fieldName != "" {
+		frontmatterLines := strings.Split(workflowData.FrontmatterYAML, "\n")
+		if line := findFrontmatterFieldLine(frontmatterLines, 2, fieldName); line > 0 {
+			fieldLine = line
+		}
+	}
+	return fieldLine
+}
+
+func (c *Compiler) validateCompiledWorkflowRuntimeResources(workflowData *WorkflowData, markdownPath string) error {
+	workflowLog.Print("Validating container images")
+	if err := c.validateContainerImages(workflowData); err != nil {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", fmt.Sprintf("container image validation failed: %v", err)))
+		c.IncrementWarningCount()
+	}
+	if err := c.validateRuntimePackagesWithContext(workflowData, markdownPath); err != nil {
+		return err
+	}
+	if err := c.validateFirewallConfigWithContext(workflowData, markdownPath); err != nil {
+		return err
+	}
+	workflowLog.Print("Validating repository features")
+	if err := c.validateRepositoryFeatures(workflowData); err != nil {
+		return formatCompilerError(markdownPath, "error", fmt.Sprintf("repository feature validation failed: %v", err), err)
+	}
+	return nil
+}
+
+func (c *Compiler) validateRuntimePackagesWithContext(workflowData *WorkflowData, markdownPath string) error {
+	workflowLog.Print("Validating runtime packages")
+	if err := c.validateRuntimePackages(workflowData); err != nil {
+		return formatCompilerError(markdownPath, "error", fmt.Sprintf("runtime package validation failed: %v", err), err)
+	}
+	return nil
+}
+
+func (c *Compiler) validateFirewallConfigWithContext(workflowData *WorkflowData, markdownPath string) error {
+	workflowLog.Print("Validating firewall configuration")
+	if err := c.validateFirewallConfig(workflowData); err != nil {
+		return formatCompilerError(markdownPath, "error", fmt.Sprintf("firewall configuration validation failed: %v", err), err)
+	}
+	return nil
 }
 
 // writeWorkflowOutput writes the compiled workflow to the lock file
@@ -419,158 +443,30 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		workflowLog.Printf("Compilation completed in %v", time.Since(startTime))
 	}()
 
-	// Reset the step order tracker for this compilation
-	c.stepOrderTracker = NewStepOrderTracker()
+	c.resetCompilationState()
+	c.configureGHESArtifactCompatibility()
 
-	// Reset schedule friendly formats for this compilation
-	c.scheduleFriendlyFormats = nil
-
-	// Reset the artifact manager for this compilation
-	if c.artifactManager == nil {
-		c.artifactManager = NewArtifactManager()
-	} else {
-		c.artifactManager.Reset()
-	}
-
-	// Enable GHES artifact compatibility from CLI flag or aw.json (CLI flag wins).
-	// c.ghesCompatFromCLI is set once per compiler instance via SetGHESCompat().
-	c.ghesArtifactCompat = c.ghesCompatFromCLI
-	if !c.ghesArtifactCompat {
-		// Fall back to aw.json ghes field when CLI flag was not passed.
-		if repoConfig, err := c.loadRepoConfig(); err == nil && repoConfig != nil {
-			c.ghesArtifactCompat = repoConfig.GHES
-		}
-	}
-	if c.ghesArtifactCompat {
-		actionPinsLog.Print("GHES compatibility mode enabled: artifact actions continue using latest non-v3 pins")
-	}
-
-	// Generate lock file name
-	lockFile := stringutil.MarkdownToLockFile(markdownPath)
-
-	// Sanitize the lock file path to prevent path traversal attacks
-	lockFile = filepath.Clean(lockFile)
-
+	lockFile := cleanedWorkflowLockFile(markdownPath)
 	workflowLog.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
 
-	// Resolve and cache the baseline manifest only when safe update mode is active.
-	// This avoids unnecessary git/filesystem reads on compile paths that skip safe update
-	// enforcement (e.g., --approve or strict: false).
 	safeUpdateEnabled := c.effectiveSafeUpdate(workflowData)
-	var oldManifest *GHAWManifest
-	var oldHasPR bool
-	var oldHasPRTarget bool
-	if safeUpdateEnabled {
-		// Read the existing lock file to extract the previous gh-aw-manifest for safe update
-		// enforcement.
-		//
-		// Priority (highest to lowest):
-		//  1. Pre-cached manifest supplied by the caller (e.g. MCP server collected at startup
-		//     before any agent interaction, making it tamper-proof without requiring git access).
-		//  2. Content from the last git commit (HEAD) – prevents a local agent from modifying
-		//     the .lock.yml file on disk to forge an approved manifest.
-		//  3. Filesystem read – fallback for first-time compilations or non-git environments.
-		if cached, ok := c.priorManifests[lockFile]; ok {
-			oldManifest = cached
-			if committedContent, readErr := c.readLockFileFromHEAD(lockFile); readErr == nil {
-				oldHasPR, oldHasPRTarget = extractPullRequestEventPresenceFromCompiledWorkflow(committedContent)
-			}
-			secretCount := 0
-			if cached != nil {
-				secretCount = len(cached.Secrets)
-			}
-			workflowLog.Printf("Using pre-cached gh-aw-manifest for %s: %d secret(s)", lockFile, secretCount)
-		} else if committedContent, readErr := c.readLockFileFromHEAD(lockFile); readErr == nil {
-			oldHasPR, oldHasPRTarget = extractPullRequestEventPresenceFromCompiledWorkflow(committedContent)
-			if m, parseErr := ExtractGHAWManifestFromLockFile(committedContent); parseErr == nil {
-				oldManifest = m
-				if oldManifest != nil {
-					workflowLog.Printf("Loaded committed gh-aw-manifest from HEAD: %d secret(s)", len(oldManifest.Secrets))
-				}
-			} else {
-				workflowLog.Printf("Failed to parse committed gh-aw-manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
-			}
-		} else {
-			workflowLog.Printf("Lock file %s not found in HEAD commit (%v); falling back to filesystem read.", lockFile, readErr)
-			if existingContent, fsErr := os.ReadFile(lockFile); fsErr == nil {
-				oldHasPR, oldHasPRTarget = extractPullRequestEventPresenceFromCompiledWorkflow(string(existingContent))
-				if m, parseErr := ExtractGHAWManifestFromLockFile(string(existingContent)); parseErr == nil {
-					oldManifest = m
-					if oldManifest != nil {
-						workflowLog.Printf("Loaded gh-aw-manifest from filesystem: %d secret(s)", len(oldManifest.Secrets))
-					}
-				} else {
-					workflowLog.Printf("Failed to parse filesystem gh-aw-manifest: %v. Safe update enforcement will treat as empty manifest.", parseErr)
-				}
-			} else {
-				// No lock file anywhere — this is a brand-new workflow.  Use an empty
-				// (non-nil) manifest so EnforceSafeUpdate applies enforcement and flags
-				// any newly introduced secrets or actions for review.
-				workflowLog.Printf("Lock file %s not found (new workflow). Safe update enforcement will use an empty baseline.", lockFile)
-				oldManifest = &GHAWManifest{Version: currentGHAWManifestVersion}
-			}
-		}
-		// Keep the first non-nil baseline seen by this compiler instance.
-		// This intentionally does not overwrite an existing cache entry so repeated
-		// compiles in the same process continue to compare against the same trusted
-		// baseline rather than a just-generated local lock file.
-		// Nil baselines (e.g., legacy lock files without gh-aw-manifest) are not
-		// cached so future compiles can pick up a newly available manifest.
-		if oldManifest != nil {
-			if _, ok := c.priorManifests[lockFile]; !ok {
-				c.priorManifests[lockFile] = oldManifest
-			}
-		}
+	oldManifest, oldHasPR, oldHasPRTarget := c.safeUpdateBaselineIfEnabled(lockFile, safeUpdateEnabled)
+
+	if err := c.validateWorkflowDataForCompile(workflowData, markdownPath); err != nil {
+		return err
 	}
 
-	// Validate workflow data
-	if err := c.validateWorkflowData(workflowData, markdownPath); err != nil {
-		// validateWorkflowData always returns formatCompilerError results; pass through directly.
-		// If an unformatted error somehow slips through, wrap it with compiler context.
-		if isFormattedCompilerError(err) {
-			return err
-		}
-		return formatCompilerError(markdownPath, "error", "workflow validation: "+err.Error(), err)
-	}
-
-	// Note: Markdown content size is now handled by splitting into multiple steps in generatePrompt
 	workflowLog.Printf("Workflow: %s, Tools: %d", workflowData.Name, len(workflowData.Tools))
 
-	// Note: compute-text functionality is now inlined directly in the task job
-	// instead of using a shared action file
-
-	// Generate and validate YAML (also embeds the new gh-aw-manifest in the header).
-	// Returns the collected body secrets and action refs to avoid duplicate scans for
-	// safe update enforcement.
-	yamlContent, bodySecrets, bodyActions, err := c.generateAndValidateYAML(workflowData, markdownPath, lockFile)
+	yamlContent, bodySecrets, bodyActions, err := c.generateYAMLForCompile(workflowData, markdownPath, lockFile)
 	if err != nil {
-		// generateAndValidateYAML always returns formatCompilerError results; pass through directly.
-		// If an unformatted error somehow slips through, wrap it with compiler context.
-		if isFormattedCompilerError(err) {
-			return err
-		}
-		return formatCompilerError(markdownPath, "error", "YAML generation: "+err.Error(), err)
+		return err
 	}
 
-	// Enforce safe update mode: emit a warning prompt (not a hard error) when unapproved
-	// secrets or action changes are detected.  body* vars contain data collected from the
-	// workflow body only (not the header) to avoid matching the gh-aw-manifest JSON comment.
-	//
-	// Emitting a warning instead of failing allows compilation to succeed so that the lock
-	// file is written and the agent receives the actionable guidance embedded in the warning.
 	if safeUpdateEnabled {
-		currentHasPR, currentHasPRTarget := extractPullRequestEventPresenceFromOnField(workflowData.RawFrontmatter["on"])
-		if enforceErr := EnforceSafeUpdate(oldManifest, bodySecrets, bodyActions, workflowData.Redirect, oldHasPR, oldHasPRTarget, currentHasPR, currentHasPRTarget); enforceErr != nil {
-			warningMsg := buildSafeUpdateWarningPrompt(enforceErr.Error())
-			c.AddSafeUpdateWarning(warningMsg)
-			fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", enforceErr.Error()))
-			c.IncrementWarningCount()
-		}
+		c.enforceSafeUpdateWarning(workflowData, markdownPath, oldManifest, oldHasPR, oldHasPRTarget, bodySecrets, bodyActions)
 	}
 
-	// Mark compiler-generated actions as used to prevent pruning.
-	// This handles actions that are hardcoded in code generators (cache.go,
-	// checkout_step_generator.go, etc.) rather than resolved from markdown workflows.
 	if resolver := c.GetSharedActionResolver(); resolver != nil {
 		resolver.MarkCompilerGeneratedActionsAsUsed()
 	}
@@ -581,4 +477,144 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	}
 
 	return nil
+}
+
+func cleanedWorkflowLockFile(markdownPath string) string {
+	return filepath.Clean(stringutil.MarkdownToLockFile(markdownPath))
+}
+
+func (c *Compiler) safeUpdateBaselineIfEnabled(lockFile string, enabled bool) (*GHAWManifest, bool, bool) {
+	if !enabled {
+		return nil, false, false
+	}
+	return c.safeUpdateBaseline(lockFile)
+}
+
+func (c *Compiler) validateWorkflowDataForCompile(workflowData *WorkflowData, markdownPath string) error {
+	if err := c.validateWorkflowData(workflowData, markdownPath); err != nil {
+		if isFormattedCompilerError(err) {
+			return err
+		}
+		return formatCompilerError(markdownPath, "error", "workflow validation: "+err.Error(), err)
+	}
+	return nil
+}
+
+func (c *Compiler) generateYAMLForCompile(workflowData *WorkflowData, markdownPath string, lockFile string) (string, []string, []string, error) {
+	yamlContent, bodySecrets, bodyActions, err := c.generateAndValidateYAML(workflowData, markdownPath, lockFile)
+	if err != nil {
+		if isFormattedCompilerError(err) {
+			return "", nil, nil, err
+		}
+		return "", nil, nil, formatCompilerError(markdownPath, "error", "YAML generation: "+err.Error(), err)
+	}
+	return yamlContent, bodySecrets, bodyActions, nil
+}
+
+func (c *Compiler) resetCompilationState() {
+	c.stepOrderTracker = NewStepOrderTracker()
+	c.scheduleFriendlyFormats = nil
+	if c.artifactManager == nil {
+		c.artifactManager = NewArtifactManager()
+	} else {
+		c.artifactManager.Reset()
+	}
+}
+
+func (c *Compiler) configureGHESArtifactCompatibility() {
+	c.ghesArtifactCompat = c.ghesCompatFromCLI
+	if !c.ghesArtifactCompat {
+		if repoConfig, err := c.loadRepoConfig(); err == nil && repoConfig != nil {
+			c.ghesArtifactCompat = repoConfig.GHES
+		}
+	}
+	if c.ghesArtifactCompat {
+		actionPinsLog.Print("GHES compatibility mode enabled: artifact actions continue using latest non-v3 pins")
+	}
+}
+
+func (c *Compiler) safeUpdateBaseline(lockFile string) (*GHAWManifest, bool, bool) {
+	if cached, ok := c.priorManifests[lockFile]; ok {
+		return c.safeUpdateBaselineFromCache(lockFile, cached)
+	}
+	if committedContent, readErr := c.readLockFileFromHEAD(lockFile); readErr == nil {
+		return c.safeUpdateBaselineFromCommitted(lockFile, committedContent)
+	} else {
+		return c.safeUpdateBaselineFromFilesystem(lockFile, readErr)
+	}
+}
+
+func (c *Compiler) safeUpdateBaselineFromCache(lockFile string, cached *GHAWManifest) (*GHAWManifest, bool, bool) {
+	var oldHasPR, oldHasPRTarget bool
+	if committedContent, readErr := c.readLockFileFromHEAD(lockFile); readErr == nil {
+		oldHasPR, oldHasPRTarget = extractPullRequestEventPresenceFromCompiledWorkflow(committedContent)
+	}
+	secretCount := 0
+	if cached != nil {
+		secretCount = len(cached.Secrets)
+	}
+	workflowLog.Printf("Using pre-cached gh-aw-manifest for %s: %d secret(s)", lockFile, secretCount)
+	return cached, oldHasPR, oldHasPRTarget
+}
+
+func (c *Compiler) safeUpdateBaselineFromCommitted(lockFile string, committedContent string) (*GHAWManifest, bool, bool) {
+	oldHasPR, oldHasPRTarget := extractPullRequestEventPresenceFromCompiledWorkflow(committedContent)
+	oldManifest, _ := parseSafeUpdateManifest("committed", committedContent)
+	c.cacheSafeUpdateBaseline(lockFile, oldManifest)
+	return oldManifest, oldHasPR, oldHasPRTarget
+}
+
+func (c *Compiler) safeUpdateBaselineFromFilesystem(lockFile string, readErr error) (*GHAWManifest, bool, bool) {
+	workflowLog.Printf("Lock file %s not found in HEAD commit (%v); falling back to filesystem read.", lockFile, readErr)
+	if existingContent, fsErr := os.ReadFile(lockFile); fsErr == nil {
+		oldHasPR, oldHasPRTarget := extractPullRequestEventPresenceFromCompiledWorkflow(string(existingContent))
+		oldManifest, _ := parseSafeUpdateManifest("filesystem", string(existingContent))
+		c.cacheSafeUpdateBaseline(lockFile, oldManifest)
+		return oldManifest, oldHasPR, oldHasPRTarget
+	}
+	workflowLog.Printf("Lock file %s not found (new workflow). Safe update enforcement will use an empty baseline.", lockFile)
+	oldManifest := &GHAWManifest{Version: currentGHAWManifestVersion}
+	c.cacheSafeUpdateBaseline(lockFile, oldManifest)
+	return oldManifest, false, false
+}
+
+func parseSafeUpdateManifest(source string, content string) (*GHAWManifest, bool) {
+	manifest, parseErr := ExtractGHAWManifestFromLockFile(content)
+	if parseErr != nil {
+		if source == "committed" {
+			workflowLog.Printf("Failed to parse committed gh-aw-manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
+		} else {
+			workflowLog.Printf("Failed to parse filesystem gh-aw-manifest: %v. Safe update enforcement will treat as empty manifest.", parseErr)
+		}
+		return nil, false
+	}
+	if manifest != nil {
+		if source == "committed" {
+			workflowLog.Printf("Loaded committed gh-aw-manifest from HEAD: %d secret(s)", len(manifest.Secrets))
+		} else {
+			workflowLog.Printf("Loaded gh-aw-manifest from filesystem: %d secret(s)", len(manifest.Secrets))
+		}
+	}
+	return manifest, true
+}
+
+func (c *Compiler) cacheSafeUpdateBaseline(lockFile string, oldManifest *GHAWManifest) {
+	if oldManifest == nil {
+		return
+	}
+	if _, ok := c.priorManifests[lockFile]; !ok {
+		c.priorManifests[lockFile] = oldManifest
+	}
+}
+
+func (c *Compiler) enforceSafeUpdateWarning(workflowData *WorkflowData, markdownPath string, oldManifest *GHAWManifest, oldHasPR bool, oldHasPRTarget bool, bodySecrets []string, bodyActions []string) {
+	currentHasPR, currentHasPRTarget := extractPullRequestEventPresenceFromOnField(workflowData.RawFrontmatter["on"])
+	enforceErr := EnforceSafeUpdate(oldManifest, bodySecrets, bodyActions, workflowData.Redirect, oldHasPR, oldHasPRTarget, currentHasPR, currentHasPRTarget)
+	if enforceErr == nil {
+		return
+	}
+	warningMsg := buildSafeUpdateWarningPrompt(enforceErr.Error())
+	c.AddSafeUpdateWarning(warningMsg)
+	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", enforceErr.Error()))
+	c.IncrementWarningCount()
 }

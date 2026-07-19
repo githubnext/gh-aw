@@ -30,14 +30,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 	// not in gateway mode. The MCP gateway cannot identify reaction authors because
 	// the GitHub MCP server protocol does not expose that information. Warn if the
 	// user configured reactions with the gateway path.
-	if isFeatureEnabled(constants.IntegrityReactionsFeatureFlag, workflowData) {
-		if hasReactionFieldsInToolConfig(githubTool) {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-				"integrity-reactions: endorsement/disapproval reactions are ignored in MCP gateway mode because "+
-					"reaction authors cannot be identified from the GitHub MCP server. Reactions are only enforced "+
-					"in proxy mode (DIFC proxy / CLI proxy)."))
-		}
-	}
+	warnIfIntegrityReactionsIgnored(githubTool, workflowData)
 	shouldUseStepOutputForGuardPolicy := len(explicitGuardPolicies) == 0 && !hasGitHubApp(githubTool)
 
 	toolsets := getGitHubToolsets(githubTool)
@@ -65,40 +58,9 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 			authValue = "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"
 		}
 
-		RenderGitHubMCPRemoteConfig(yaml, GitHubMCPRemoteOptions{
-			ReadOnly:              readOnly,
-			Lockdown:              lockdown,
-			LockdownFromStep:      false,
-			GuardPoliciesFromStep: shouldUseStepOutputForGuardPolicy,
-			Toolsets:              toolsets,
-			Features:              features,
-			AuthorizationValue:    authValue,
-			IncludeToolsField:     r.options.IncludeCopilotFields,
-			AllowedTools:          getGitHubAllowedTools(githubTool),
-			IncludeEnvSection:     r.options.IncludeCopilotFields,
-			GuardPolicies:         explicitGuardPolicies,
-		})
+		RenderGitHubMCPRemoteConfig(yaml, r.buildGitHubMCPRemoteOptions(githubTool, authValue, readOnly, lockdown, shouldUseStepOutputForGuardPolicy, toolsets, features, explicitGuardPolicies))
 	} else {
-		// Local mode - use Docker-based GitHub MCP server (default)
-		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
-		customArgs := getGitHubCustomArgs(githubTool)
-
-		mcpRendererLog.Printf("GitHub MCP local docker mode: image_version=%s, custom_args=%d", githubDockerImageVersion, len(customArgs))
-
-		RenderGitHubMCPDockerConfig(yaml, GitHubMCPDockerOptions{
-			ReadOnly:              readOnly,
-			Lockdown:              lockdown,
-			LockdownFromStep:      false,
-			GuardPoliciesFromStep: shouldUseStepOutputForGuardPolicy,
-			Toolsets:              toolsets,
-			Features:              features,
-			DockerImageVersion:    githubDockerImageVersion,
-			CustomArgs:            customArgs,
-			IncludeTypeField:      r.options.IncludeCopilotFields,
-			AllowedTools:          getGitHubAllowedTools(githubTool),
-			EffectiveToken:        "", // Token passed via env
-			GuardPolicies:         explicitGuardPolicies,
-		})
+		r.renderGitHubMCPLocalConfigCall(yaml, githubTool, readOnly, lockdown, shouldUseStepOutputForGuardPolicy, toolsets, features, explicitGuardPolicies)
 	}
 
 	if r.options.IsLast {
@@ -106,6 +68,58 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 	} else {
 		yaml.WriteString("              },\n")
 	}
+}
+
+// warnIfIntegrityReactionsIgnored warns when integrity-reaction fields are configured
+// with the MCP gateway path, where reaction authors cannot be identified.
+func warnIfIntegrityReactionsIgnored(githubTool map[string]any, workflowData *WorkflowData) {
+	if !isFeatureEnabled(constants.IntegrityReactionsFeatureFlag, workflowData) || !hasReactionFieldsInToolConfig(githubTool) {
+		return
+	}
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+		"integrity-reactions: endorsement/disapproval reactions are ignored in MCP gateway mode because "+
+			"reaction authors cannot be identified from the GitHub MCP server. Reactions are only enforced "+
+			"in proxy mode (DIFC proxy / CLI proxy)."))
+}
+
+// buildGitHubMCPRemoteOptions assembles the remote-mode rendering options.
+func (r *MCPConfigRendererUnified) buildGitHubMCPRemoteOptions(githubTool map[string]any, authValue string, readOnly, lockdown, guardPoliciesFromStep bool, toolsets, features string, guardPolicies map[string]any) GitHubMCPRemoteOptions {
+	return GitHubMCPRemoteOptions{
+		ReadOnly:              readOnly,
+		Lockdown:              lockdown,
+		LockdownFromStep:      false,
+		GuardPoliciesFromStep: guardPoliciesFromStep,
+		Toolsets:              toolsets,
+		Features:              features,
+		AuthorizationValue:    authValue,
+		IncludeToolsField:     r.options.IncludeCopilotFields,
+		AllowedTools:          getGitHubAllowedTools(githubTool),
+		IncludeEnvSection:     r.options.IncludeCopilotFields,
+		GuardPolicies:         guardPolicies,
+	}
+}
+
+// renderGitHubMCPLocalConfigCall renders the Docker-based (local mode) GitHub MCP server config.
+func (r *MCPConfigRendererUnified) renderGitHubMCPLocalConfigCall(yaml *strings.Builder, githubTool map[string]any, readOnly, lockdown, guardPoliciesFromStep bool, toolsets, features string, guardPolicies map[string]any) {
+	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+	customArgs := getGitHubCustomArgs(githubTool)
+
+	mcpRendererLog.Printf("GitHub MCP local docker mode: image_version=%s, custom_args=%d", githubDockerImageVersion, len(customArgs))
+
+	RenderGitHubMCPDockerConfig(yaml, GitHubMCPDockerOptions{
+		ReadOnly:              readOnly,
+		Lockdown:              lockdown,
+		LockdownFromStep:      false,
+		GuardPoliciesFromStep: guardPoliciesFromStep,
+		Toolsets:              toolsets,
+		Features:              features,
+		DockerImageVersion:    githubDockerImageVersion,
+		CustomArgs:            customArgs,
+		IncludeTypeField:      r.options.IncludeCopilotFields,
+		AllowedTools:          getGitHubAllowedTools(githubTool),
+		EffectiveToken:        "", // Token passed via env
+		GuardPolicies:         guardPolicies,
+	})
 }
 
 // renderGitHubTOML generates GitHub MCP configuration in TOML format (for Codex engine)
@@ -121,94 +135,111 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.github]\n")
 
-	// Add user_agent field defaulting to workflow identifier
-	userAgent := "github-agentic-workflow"
-	if workflowData != nil {
-		// Check if user_agent is configured in engine config first
-		if workflowData.EngineConfig != nil && workflowData.EngineConfig.UserAgent != "" {
-			userAgent = workflowData.EngineConfig.UserAgent
-		} else if workflowData.Name != "" {
-			// Fall back to sanitizing the workflow name as an artifact/user-agent identifier
-			userAgent = SanitizeArtifactIdentifier(workflowData.Name)
-		}
-	}
-	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")
+	yaml.WriteString("          user_agent = \"" + gitHubTOMLUserAgent(workflowData) + "\"\n")
+	fmt.Fprintf(yaml, "          startup_timeout_sec = %d\n", gitHubTOMLStartupTimeout(workflowData))
+	fmt.Fprintf(yaml, "          tool_timeout_sec = %d\n", gitHubTOMLToolTimeout(workflowData))
 
-	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeout
-	// For GitHub Actions expressions, fall back to default (TOML format doesn't support expressions)
+	// Check if remote mode is enabled
+	if githubType == GitHubMCPModeRemote {
+		renderGitHubTOMLRemote(yaml, readOnly)
+	} else {
+		renderGitHubTOMLLocal(yaml, githubTool, readOnly, lockdown, toolsets, features)
+	}
+}
+
+// gitHubTOMLUserAgent resolves the user_agent value for the GitHub MCP TOML config.
+func gitHubTOMLUserAgent(workflowData *WorkflowData) string {
+	userAgent := "github-agentic-workflow"
+	if workflowData == nil {
+		return userAgent
+	}
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.UserAgent != "" {
+		return workflowData.EngineConfig.UserAgent
+	}
+	if workflowData.Name != "" {
+		return SanitizeArtifactIdentifier(workflowData.Name)
+	}
+	return userAgent
+}
+
+// gitHubTOMLStartupTimeout resolves the startup timeout (seconds) for the GitHub MCP TOML config.
+func gitHubTOMLStartupTimeout(workflowData *WorkflowData) int {
 	startupTimeout := int(constants.DefaultMCPStartupTimeout / time.Second)
 	if workflowData != nil && workflowData.ToolsStartupTimeout != "" {
 		if n := templatableIntValue(&workflowData.ToolsStartupTimeout); n > 0 {
 			startupTimeout = n
 		}
 	}
-	fmt.Fprintf(yaml, "          startup_timeout_sec = %d\n", startupTimeout)
+	return startupTimeout
+}
 
-	// Use tools.timeout if specified, otherwise default to DefaultToolTimeout
-	// For GitHub Actions expressions, fall back to default (TOML format doesn't support expressions)
+// gitHubTOMLToolTimeout resolves the tool timeout (seconds) for the GitHub MCP TOML config.
+func gitHubTOMLToolTimeout(workflowData *WorkflowData) int {
 	toolTimeout := int(constants.DefaultToolTimeout / time.Second)
 	if workflowData != nil && workflowData.ToolsTimeout != "" {
 		if n := templatableIntValue(&workflowData.ToolsTimeout); n > 0 {
 			toolTimeout = n
 		}
 	}
-	fmt.Fprintf(yaml, "          tool_timeout_sec = %d\n", toolTimeout)
+	return toolTimeout
+}
 
-	// Check if remote mode is enabled
-	if githubType == GitHubMCPModeRemote {
-		mcpRendererLog.Printf("GitHub MCP TOML remote mode: readonly_endpoint=%t", readOnly)
-		// Remote mode - use hosted GitHub MCP server with streamable HTTP
-		// Use readonly endpoint if read-only mode is enabled
-		if readOnly {
-			yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp-readonly/\"\n")
-		} else {
-			yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/\"\n")
-		}
-
-		// Use bearer_token_env_var for authentication
-		yaml.WriteString("          bearer_token_env_var = \"GH_AW_GITHUB_TOKEN\"\n")
+// renderGitHubTOMLRemote renders the hosted (remote mode) GitHub MCP TOML config.
+func renderGitHubTOMLRemote(yaml *strings.Builder, readOnly bool) {
+	mcpRendererLog.Printf("GitHub MCP TOML remote mode: readonly_endpoint=%t", readOnly)
+	// Remote mode - use hosted GitHub MCP server with streamable HTTP
+	// Use readonly endpoint if read-only mode is enabled
+	if readOnly {
+		yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp-readonly/\"\n")
 	} else {
-		// Local mode - use Docker-based GitHub MCP server with MCP Gateway spec format
-		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
-		customArgs := getGitHubCustomArgs(githubTool)
-
-		// MCP Gateway spec fields for containerized stdio servers
-		yaml.WriteString("          container = \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
-
-		// Append custom args if present (these are Docker runtime args, go before container image)
-		if len(customArgs) > 0 {
-			yaml.WriteString("          args = [\n")
-			for _, arg := range customArgs {
-				yaml.WriteString("            " + strconv.Quote(arg) + ",\n")
-			}
-			yaml.WriteString("          ]\n")
-		}
-
-		// Build environment variables
-		envVars := buildGitHubMCPEnvVars(
-			"$GH_AW_GITHUB_TOKEN",
-			"$GITHUB_SERVER_URL",
-			readOnly,
-			lockdown,
-			toolsets,
-			features,
-		)
-
-		// Write environment variables in sorted order for deterministic output
-		envKeys := sliceutil.SortedKeys(envVars)
-
-		writeTOMLInlineStringMapSection(yaml, "          ", "env", envVars)
-
-		// Use env_vars array to reference environment variables
-		yaml.WriteString("          env_vars = [")
-		for i, key := range envKeys {
-			if i > 0 {
-				yaml.WriteString(", ")
-			}
-			fmt.Fprintf(yaml, "\"%s\"", key)
-		}
-		yaml.WriteString("]\n")
+		yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/\"\n")
 	}
+
+	// Use bearer_token_env_var for authentication
+	yaml.WriteString("          bearer_token_env_var = \"GH_AW_GITHUB_TOKEN\"\n")
+}
+
+// renderGitHubTOMLLocal renders the Docker-based (local mode) GitHub MCP TOML config.
+func renderGitHubTOMLLocal(yaml *strings.Builder, githubTool map[string]any, readOnly, lockdown bool, toolsets, features string) {
+	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+	customArgs := getGitHubCustomArgs(githubTool)
+
+	// MCP Gateway spec fields for containerized stdio servers
+	yaml.WriteString("          container = \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
+
+	// Append custom args if present (these are Docker runtime args, go before container image)
+	if len(customArgs) > 0 {
+		yaml.WriteString("          args = [\n")
+		for _, arg := range customArgs {
+			yaml.WriteString("            " + strconv.Quote(arg) + ",\n")
+		}
+		yaml.WriteString("          ]\n")
+	}
+
+	// Build environment variables
+	envVars := buildGitHubMCPEnvVars(
+		"$GH_AW_GITHUB_TOKEN",
+		"$GITHUB_SERVER_URL",
+		readOnly,
+		lockdown,
+		toolsets,
+		features,
+	)
+
+	// Write environment variables in sorted order for deterministic output
+	envKeys := sliceutil.SortedKeys(envVars)
+
+	writeTOMLInlineStringMapSection(yaml, "          ", "env", envVars)
+
+	// Use env_vars array to reference environment variables
+	yaml.WriteString("          env_vars = [")
+	for i, key := range envKeys {
+		if i > 0 {
+			yaml.WriteString(", ")
+		}
+		fmt.Fprintf(yaml, "\"%s\"", key)
+	}
+	yaml.WriteString("]\n")
 }
 
 // RenderGitHubMCPDockerConfig renders the GitHub MCP server configuration for Docker (local mode).

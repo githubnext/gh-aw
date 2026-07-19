@@ -228,6 +228,10 @@ func buildAction(actionsDir, actionName string) error {
 		return nil
 	}
 
+	return buildActionJavaScript(actionPath, actionName)
+}
+
+func buildActionJavaScript(actionPath, actionName string) error {
 	srcPath := filepath.Join(actionPath, "src", "index.js")
 	outputPath := filepath.Join(actionPath, "index.js")
 
@@ -246,6 +250,24 @@ func buildAction(actionsDir, actionName string) error {
 	dependencies := getActionDependencies(actionName)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Found %d dependencies", len(dependencies))))
 
+	files := buildActionDependencyFiles(dependencies)
+	outputContent, err := buildActionOutputContent(sourceContent, files)
+	if err != nil {
+		return err
+	}
+
+	// Write output file with restrictive permissions (0600 for security)
+	if err := os.WriteFile(outputPath, outputContent, constants.FilePermSensitive); err != nil {
+		return fmt.Errorf("failed to write output file: %w", err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Built "+outputPath))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Embedded %d files", len(files))))
+
+	return nil
+}
+
+func buildActionDependencyFiles(dependencies []string) map[string]string {
 	// Get all JavaScript sources
 	sources := workflow.GetJavaScriptSources()
 
@@ -259,11 +281,14 @@ func buildAction(actionsDir, actionName string) error {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("    ⚠ Warning: Could not find "+dep))
 		}
 	}
+	return files
+}
 
+func buildActionOutputContent(sourceContent []byte, files map[string]string) ([]byte, error) {
 	// Generate FILES object with embedded content
 	filesJSON, err := json.MarshalIndent(files, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal files: %w", err)
+		return nil, fmt.Errorf("failed to marshal files: %w", err)
 	}
 
 	// Indent the JSON for proper embedding
@@ -273,16 +298,7 @@ func buildAction(actionsDir, actionName string) error {
 	// Replace the FILES placeholder in source
 	// Match: const FILES = { ... };
 	outputContent := filesConstPattern.ReplaceAllString(string(sourceContent), fmt.Sprintf("const FILES = %s;", strings.TrimSpace(indentedJSON)))
-
-	// Write output file with restrictive permissions (0600 for security)
-	if err := os.WriteFile(outputPath, []byte(outputContent), constants.FilePermSensitive); err != nil {
-		return fmt.Errorf("failed to write output file: %w", err)
-	}
-
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Built "+outputPath))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Embedded %d files", len(files))))
-
-	return nil
+	return []byte(outputContent), nil
 }
 
 // isCompositeAction checks if an action uses the 'composite' runtime

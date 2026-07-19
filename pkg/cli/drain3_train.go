@@ -30,10 +30,31 @@ func TrainDrain3Weights(processedRuns []ProcessedRun, outputDir string, verbose 
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Training log pattern weights from %d run(s)...", len(processedRuns))))
 
+	weightsData, err := trainDrain3WeightsBuildWeights(processedRuns, verbose)
+	if err != nil {
+		return err
+	}
+
+	outputPath := filepath.Join(outputDir, drain3WeightsFilename)
+	if err := os.WriteFile(outputPath, weightsData, constants.FilePermPublic); err != nil {
+		return fmt.Errorf("log pattern training: write weights file: %w", err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Log pattern weights written to: "+outputPath))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+		"To embed these weights as default, copy the file and rebuild:\n"+
+			"  cp "+outputPath+" pkg/agentdrain/data/default_weights.json\n"+
+			"  make build",
+	))
+
+	return nil
+}
+
+func trainDrain3WeightsBuildWeights(processedRuns []ProcessedRun, verbose bool) ([]byte, error) {
 	cfg := agentdrain.DefaultConfig()
 	coordinator, err := agentdrain.NewCoordinator(cfg, defaultAgentDrainStages)
 	if err != nil {
-		return fmt.Errorf("log pattern training: create coordinator: %w", err)
+		return nil, fmt.Errorf("log pattern training: create coordinator: %w", err)
 	}
 
 	totalEvents := 0
@@ -66,9 +87,13 @@ func TrainDrain3Weights(processedRuns []ProcessedRun, outputDir string, verbose 
 
 	weightsData, err := coordinator.SaveWeightsJSON()
 	if err != nil {
-		return fmt.Errorf("log pattern training: serialize weights: %w", err)
+		return nil, fmt.Errorf("log pattern training: serialize weights: %w", err)
 	}
 
+	return trainDrain3WeightsPrettyPrintWeights(weightsData), nil
+}
+
+func trainDrain3WeightsPrettyPrintWeights(weightsData []byte) []byte {
 	// Pretty-print the weights for readability.
 	var raw map[string]any
 	if unmarshalErr := json.Unmarshal(weightsData, &raw); unmarshalErr != nil {
@@ -79,17 +104,5 @@ func TrainDrain3Weights(processedRuns []ProcessedRun, outputDir string, verbose 
 		weightsData = pretty
 	}
 
-	outputPath := filepath.Join(outputDir, drain3WeightsFilename)
-	if err := os.WriteFile(outputPath, weightsData, constants.FilePermPublic); err != nil {
-		return fmt.Errorf("log pattern training: write weights file: %w", err)
-	}
-
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Log pattern weights written to: "+outputPath))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-		"To embed these weights as default, copy the file and rebuild:\n"+
-			"  cp "+outputPath+" pkg/agentdrain/data/default_weights.json\n"+
-			"  make build",
-	))
-
-	return nil
+	return weightsData
 }

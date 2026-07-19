@@ -39,80 +39,108 @@ func ParseCopilotCodingAgentLogMetrics(logContent string, verbose bool) workflow
 	copilotCodingAgentLog.Printf("Parsing GitHub Copilot coding agent log metrics: %d bytes", len(logContent))
 
 	var metrics workflow.LogMetrics
-	var maxTokenUsage int
-
 	lines := strings.Split(logContent, "\n")
 	toolCallMap := make(map[string]*workflow.ToolCallInfo)
 	var currentSequence []string
 	turns := 0
+	maxTokenUsage := 0
 
 	for _, line := range lines {
-		// Skip empty lines
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		// Count turns based on agent iteration patterns
-		if agentTurnPattern.MatchString(line) {
-			turns++
-			// Start of a new turn, save previous sequence if any
-			if len(currentSequence) > 0 {
-				metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
-				currentSequence = []string{}
-			}
-		}
-
-		// Extract tool calls from agent logs
-		if agentToolCallPattern.MatchString(line) {
-			toolName := extractToolName(line)
-			if toolName != "" {
-				// Track tool call
-				if _, exists := toolCallMap[toolName]; !exists {
-					toolCallMap[toolName] = &workflow.ToolCallInfo{
-						Name:      toolName,
-						CallCount: 0,
-					}
-				}
-				toolCallMap[toolName].CallCount++
-
-				// Add to current sequence
-				currentSequence = append(currentSequence, toolName)
-
-				if verbose {
-					copilotCodingAgentLog.Printf("Found tool call: %s", toolName)
-				}
-			}
-		}
-
-		// Try to extract token usage from JSON format if available
-		jsonMetrics := workflow.ExtractJSONMetrics(line, verbose)
-		if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 {
-			if jsonMetrics.TokenUsage > maxTokenUsage {
-				maxTokenUsage = jsonMetrics.TokenUsage
-			}
-			if jsonMetrics.EstimatedCost > 0 {
-				metrics.EstimatedCost += jsonMetrics.EstimatedCost
-			}
-		}
+		parseCopilotCodingAgentLogMetricsLine(
+			line,
+			verbose,
+			&metrics,
+			toolCallMap,
+			&currentSequence,
+			&turns,
+			&maxTokenUsage,
+		)
 	}
 
-	// Add final sequence if any
-	if len(currentSequence) > 0 {
-		metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
-	}
-
-	// Convert tool call map to slice
-	for _, toolInfo := range toolCallMap {
-		metrics.ToolCalls = append(metrics.ToolCalls, *toolInfo)
-	}
-
-	metrics.TokenUsage = maxTokenUsage
-	metrics.Turns = turns
+	parseCopilotCodingAgentLogMetricsFinalize(&metrics, toolCallMap, currentSequence, maxTokenUsage, turns)
 
 	copilotCodingAgentLog.Printf("Parsed metrics: tokens=%d, cost=$%.4f, turns=%d",
 		metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns)
 
 	return metrics
+}
+
+func parseCopilotCodingAgentLogMetricsLine(
+	line string,
+	verbose bool,
+	metrics *workflow.LogMetrics,
+	toolCallMap map[string]*workflow.ToolCallInfo,
+	currentSequence *[]string,
+	turns *int,
+	maxTokenUsage *int,
+) {
+	if strings.TrimSpace(line) == "" {
+		return
+	}
+	parseCopilotCodingAgentLogMetricsTurn(line, metrics, currentSequence, turns)
+	parseCopilotCodingAgentLogMetricsTool(line, verbose, toolCallMap, currentSequence)
+	parseCopilotCodingAgentLogMetricsJSON(line, verbose, metrics, maxTokenUsage)
+}
+
+func parseCopilotCodingAgentLogMetricsTurn(line string, metrics *workflow.LogMetrics, currentSequence *[]string, turns *int) {
+	if agentTurnPattern.MatchString(line) {
+		(*turns)++
+		// Start of a new turn, save previous sequence if any
+		if len(*currentSequence) > 0 {
+			metrics.ToolSequences = append(metrics.ToolSequences, *currentSequence)
+			*currentSequence = []string{}
+		}
+	}
+}
+
+func parseCopilotCodingAgentLogMetricsTool(line string, verbose bool, toolCallMap map[string]*workflow.ToolCallInfo, currentSequence *[]string) {
+	if !agentToolCallPattern.MatchString(line) {
+		return
+	}
+	toolName := extractToolName(line)
+	if toolName == "" {
+		return
+	}
+	if _, exists := toolCallMap[toolName]; !exists {
+		toolCallMap[toolName] = &workflow.ToolCallInfo{
+			Name:      toolName,
+			CallCount: 0,
+		}
+	}
+	toolCallMap[toolName].CallCount++
+	*currentSequence = append(*currentSequence, toolName)
+	if verbose {
+		copilotCodingAgentLog.Printf("Found tool call: %s", toolName)
+	}
+}
+
+func parseCopilotCodingAgentLogMetricsJSON(line string, verbose bool, metrics *workflow.LogMetrics, maxTokenUsage *int) {
+	jsonMetrics := workflow.ExtractJSONMetrics(line, verbose)
+	if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 {
+		if jsonMetrics.TokenUsage > *maxTokenUsage {
+			*maxTokenUsage = jsonMetrics.TokenUsage
+		}
+		if jsonMetrics.EstimatedCost > 0 {
+			metrics.EstimatedCost += jsonMetrics.EstimatedCost
+		}
+	}
+}
+
+func parseCopilotCodingAgentLogMetricsFinalize(
+	metrics *workflow.LogMetrics,
+	toolCallMap map[string]*workflow.ToolCallInfo,
+	currentSequence []string,
+	maxTokenUsage int,
+	turns int,
+) {
+	if len(currentSequence) > 0 {
+		metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
+	}
+	for _, toolInfo := range toolCallMap {
+		metrics.ToolCalls = append(metrics.ToolCalls, *toolInfo)
+	}
+	metrics.TokenUsage = maxTokenUsage
+	metrics.Turns = turns
 }
 
 // extractToolName extracts a tool name from a log line

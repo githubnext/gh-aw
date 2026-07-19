@@ -85,76 +85,62 @@ func IsRunnable(markdownPath string) (bool, error) {
 // getWorkflowInputs extracts workflow_dispatch inputs from the compiled lock file
 // This function checks the .lock.yml file because that's what GitHub Actions uses.
 func getWorkflowInputs(markdownPath string) (map[string]*workflow.InputDefinition, error) {
-	// Convert markdown path to lock file path
+	workflowYAML, err := getWorkflowInputsYAML(markdownPath)
+	if err != nil {
+		return nil, err
+	}
+	workflowDispatchMap := getWorkflowInputsDispatchMap(workflowYAML)
+	if workflowDispatchMap == nil {
+		return nil, nil
+	}
+	inputsMap, ok := workflowDispatchMap["inputs"].(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+
+	parsed := workflow.ParseInputDefinitions(inputsMap)
+	delete(parsed, workflow.AwContextInputName)
+	return parsed, nil
+}
+
+func getWorkflowInputsYAML(markdownPath string) (map[string]any, error) {
 	lockPath := getLockFilePath(markdownPath)
 	cleanLockPath := filepath.Clean(lockPath)
-
 	validationLog.Printf("Extracting workflow inputs from lock file: %s", lockPath)
-
-	// Check if the lock file exists
 	if _, err := os.Stat(cleanLockPath); os.IsNotExist(err) {
 		validationLog.Printf("Lock file does not exist: %s", cleanLockPath)
 		return nil, errors.New("workflow has not been compiled yet - run 'gh aw compile' first")
 	}
-
-	// Read the lock file - path is sanitized using filepath.Clean() to prevent path traversal attacks.
-	// The lockPath is derived from markdownPath which comes from trusted sources (CLI arguments, validated workflow paths).
-	contentBytes, err := os.ReadFile(cleanLockPath) // #nosec G304 -- path is sanitized with filepath.Clean() and derived from trusted CLI argument
+	// #nosec G304 -- path is sanitized with filepath.Clean() and derived from trusted CLI argument
+	contentBytes, err := os.ReadFile(cleanLockPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read lock file: %w", err)
 	}
-
-	// Parse the YAML content
 	var workflowYAML map[string]any
 	if err := yaml.Unmarshal(contentBytes, &workflowYAML); err != nil {
 		return nil, fmt.Errorf("failed to parse lock file YAML: %w", err)
 	}
+	return workflowYAML, nil
+}
 
-	// Check if 'on' section is present
+func getWorkflowInputsDispatchMap(workflowYAML map[string]any) map[string]any {
 	onSection, exists := workflowYAML["on"]
 	if !exists {
-		return nil, nil
+		return nil
 	}
-
-	// Convert to map if possible
 	onMap, ok := onSection.(map[string]any)
 	if !ok {
-		return nil, nil
+		return nil
 	}
-
-	// Get workflow_dispatch section
 	workflowDispatch, exists := onMap["workflow_dispatch"]
 	if !exists {
-		return nil, nil
+		return nil
 	}
-
-	// Convert to map
 	workflowDispatchMap, ok := workflowDispatch.(map[string]any)
 	if !ok {
-		// workflow_dispatch might be null/empty
-		return nil, nil
+		return nil
 	}
-
-	// Get inputs section
-	inputsSection, exists := workflowDispatchMap["inputs"]
-	if !exists {
-		return nil, nil
-	}
-
-	// Convert to map
-	inputsMap, ok := inputsSection.(map[string]any)
-	if !ok {
-		return nil, nil
-	}
-
-	// Parse input definitions
-	parsed := workflow.ParseInputDefinitions(inputsMap)
-
-	// Remove aw_context from the returned inputs - it is an internal input managed by the
-	// agentic workflow system and should never be surfaced to users for prompting or display.
-	delete(parsed, workflow.AwContextInputName)
-
-	return parsed, nil
+	return workflowDispatchMap
 }
 
 // validateWorkflowInputs validates that required inputs are provided and checks for typos.
@@ -171,20 +157,32 @@ func getWorkflowInputs(markdownPath string) (map[string]*workflow.InputDefinitio
 //
 // This follows the principle that domain-specific validation belongs in domain files.
 func validateWorkflowInputs(markdownPath string, providedInputs []string) error {
-	// Extract workflow inputs
 	workflowInputs, err := getWorkflowInputs(markdownPath)
 	if err != nil {
-		// Don't fail validation if we can't extract inputs
 		validationLog.Printf("Failed to extract workflow inputs: %v", err)
 		return nil
 	}
-
-	// If no inputs are defined, no validation needed
 	if len(workflowInputs) == 0 {
 		return nil
 	}
 
-	// Parse provided inputs into a map
+	providedInputsMap := validateWorkflowInputsProvidedMap(providedInputs)
+	missingInputs := validateWorkflowInputsMissing(workflowInputs, providedInputsMap)
+	typos, suggestions := validateWorkflowInputsTypos(workflowInputs, providedInputsMap)
+	if len(missingInputs) == 0 && len(typos) == 0 {
+		return nil
+	}
+
+	errorParts := validateWorkflowInputsErrorParts(markdownPath, workflowInputs, missingInputs, typos, suggestions)
+	return workflow.NewValidationError(
+		"on.workflow_dispatch.inputs",
+		strings.Join(providedInputs, ", "),
+		strings.Join(errorParts, "\n\n"),
+		fmt.Sprintf("Define and provide valid workflow_dispatch inputs.\n\nExample workflow frontmatter:\n\non:\n  workflow_dispatch:\n    inputs:\n      issue_url:\n        description: \"Issue URL\"\n        required: true\n        type: string\n\nExample command:\n  gh aw run %s -F issue_url=https://github.com/org/repo/issues/123", strings.TrimSuffix(filepath.Base(markdownPath), ".md")),
+	)
+}
+
+func validateWorkflowInputsProvidedMap(providedInputs []string) map[string]string {
 	providedInputsMap := make(map[string]string)
 	for _, input := range providedInputs {
 		parts := strings.SplitN(input, "=", 2)
@@ -192,8 +190,10 @@ func validateWorkflowInputs(markdownPath string, providedInputs []string) error 
 			providedInputsMap[parts[0]] = parts[1]
 		}
 	}
+	return providedInputsMap
+}
 
-	// Check for required inputs that are missing (ignore inputs with a default value)
+func validateWorkflowInputsMissing(workflowInputs map[string]*workflow.InputDefinition, providedInputsMap map[string]string) []string {
 	var missingInputs []string
 	for inputName, inputDef := range workflowInputs {
 		if inputDef.Required && inputDef.Default == nil {
@@ -202,86 +202,69 @@ func validateWorkflowInputs(markdownPath string, providedInputs []string) error 
 			}
 		}
 	}
+	return missingInputs
+}
 
-	// Check for typos in provided input names
+func validateWorkflowInputsTypos(workflowInputs map[string]*workflow.InputDefinition, providedInputsMap map[string]string) ([]string, []string) {
 	var typos []string
 	var suggestions []string
 	validInputNames := slices.Collect(maps.Keys(workflowInputs))
-
 	for providedName := range providedInputsMap {
-		// Check if this is a valid input name
-		if _, exists := workflowInputs[providedName]; !exists {
-			// Find closest matches
-			matches := parser.FindClosestMatches(providedName, validInputNames, 3)
-			if len(matches) > 0 {
-				typos = append(typos, providedName)
-				suggestions = append(suggestions, fmt.Sprintf("'%s' -> did you mean '%s'?", providedName, strings.Join(matches, "', '")))
-			} else {
-				typos = append(typos, providedName)
-				suggestions = append(suggestions, fmt.Sprintf("'%s' is not a valid input name", providedName))
-			}
+		if _, exists := workflowInputs[providedName]; exists {
+			continue
+		}
+		matches := parser.FindClosestMatches(providedName, validInputNames, 3)
+		typos = append(typos, providedName)
+		if len(matches) > 0 {
+			suggestions = append(suggestions, fmt.Sprintf("'%s' -> did you mean '%s'?", providedName, strings.Join(matches, "', '")))
+		} else {
+			suggestions = append(suggestions, fmt.Sprintf("'%s' is not a valid input name", providedName))
 		}
 	}
+	return typos, suggestions
+}
 
-	// Build error message if there are validation errors
-	if len(missingInputs) > 0 || len(typos) > 0 {
-		var errorParts []string
-
-		if len(missingInputs) > 0 {
-			errorParts = append(errorParts, "Missing required input(s): "+strings.Join(missingInputs, ", "))
-		}
-
-		if len(typos) > 0 {
-			errorParts = append(errorParts, "Invalid input name(s):\n  "+strings.Join(suggestions, "\n  "))
-		}
-
-		// Add helpful information about valid inputs
-		if len(workflowInputs) > 0 {
-			var inputDescriptions []string
-			sortedNames := sliceutil.SortedKeys(workflowInputs)
-			for _, name := range sortedNames {
-				def := workflowInputs[name]
-				required := ""
-				if def.Required && def.Default == nil {
-					required = " (required)"
-				}
-				desc := ""
-				if def.Description != "" {
-					desc = ": " + def.Description
-				}
-				defaultStr := ""
-				if def.Default != nil {
-					defaultStr = fmt.Sprintf(" [default: %s]", def.GetDefaultAsString())
-				}
-				inputDescriptions = append(inputDescriptions, fmt.Sprintf("  %s%s%s%s", name, required, desc, defaultStr))
-			}
-
-			// Derive the workflow name for the syntax hint
-			workflowName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
-			var syntaxExamples []string
-			for _, name := range sortedNames {
-				def := workflowInputs[name]
-				if def.Required && def.Default == nil {
-					syntaxExamples = append(syntaxExamples, fmt.Sprintf("  gh aw run %s -F %s=<value>", workflowName, name))
-				}
-			}
-
-			validInputsMsg := "\nValid inputs:\n" + strings.Join(inputDescriptions, "\n")
-			if len(syntaxExamples) > 0 {
-				validInputsMsg += "\n\nTo set required inputs, use:\n" + strings.Join(syntaxExamples, "\n")
-			}
-			errorParts = append(errorParts, validInputsMsg)
-		}
-
-		return workflow.NewValidationError(
-			"on.workflow_dispatch.inputs",
-			strings.Join(providedInputs, ", "),
-			strings.Join(errorParts, "\n\n"),
-			fmt.Sprintf("Define and provide valid workflow_dispatch inputs.\n\nExample workflow frontmatter:\n\non:\n  workflow_dispatch:\n    inputs:\n      issue_url:\n        description: \"Issue URL\"\n        required: true\n        type: string\n\nExample command:\n  gh aw run %s -F issue_url=https://github.com/org/repo/issues/123", strings.TrimSuffix(filepath.Base(markdownPath), ".md")),
-		)
+func validateWorkflowInputsErrorParts(markdownPath string, workflowInputs map[string]*workflow.InputDefinition, missingInputs, typos, suggestions []string) []string {
+	var errorParts []string
+	if len(missingInputs) > 0 {
+		errorParts = append(errorParts, "Missing required input(s): "+strings.Join(missingInputs, ", "))
 	}
+	if len(typos) > 0 {
+		errorParts = append(errorParts, "Invalid input name(s):\n  "+strings.Join(suggestions, "\n  "))
+	}
+	if len(workflowInputs) > 0 {
+		errorParts = append(errorParts, validateWorkflowInputsValidInputsMessage(markdownPath, workflowInputs))
+	}
+	return errorParts
+}
 
-	return nil
+func validateWorkflowInputsValidInputsMessage(markdownPath string, workflowInputs map[string]*workflow.InputDefinition) string {
+	var inputDescriptions []string
+	var syntaxExamples []string
+	sortedNames := sliceutil.SortedKeys(workflowInputs)
+	workflowName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+	for _, name := range sortedNames {
+		def := workflowInputs[name]
+		required := ""
+		if def.Required && def.Default == nil {
+			required = " (required)"
+			syntaxExamples = append(syntaxExamples, fmt.Sprintf("  gh aw run %s -F %s=<value>", workflowName, name))
+		}
+		desc := ""
+		if def.Description != "" {
+			desc = ": " + def.Description
+		}
+		defaultStr := ""
+		if def.Default != nil {
+			defaultStr = fmt.Sprintf(" [default: %s]", def.GetDefaultAsString())
+		}
+		inputDescriptions = append(inputDescriptions, fmt.Sprintf("  %s%s%s%s", name, required, desc, defaultStr))
+	}
+	validInputsMsg := "\nValid inputs:\n" + strings.Join(inputDescriptions, "\n")
+	if len(syntaxExamples) > 0 {
+		validInputsMsg += "\n\nTo set required inputs, use:\n" + strings.Join(syntaxExamples, "\n")
+	}
+	return validInputsMsg
 }
 
 // validateRemoteWorkflow checks if a workflow exists in a remote repository and can be triggered.

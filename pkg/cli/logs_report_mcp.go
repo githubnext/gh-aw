@@ -53,15 +53,40 @@ func buildMCPFailuresSummary(processedRuns []ProcessedRun) []MCPFailureSummary {
 }
 
 // buildMCPToolUsageSummary aggregates MCP tool usage data across all runs
+type buildMCPToolUsageSummaryAggregation struct {
+	toolSummaryMap    map[string]*MCPToolSummary
+	serverStatsMap    map[string]*MCPServerStats
+	allToolCalls      []MCPToolCall
+	allFilteredEvents []DifcFilteredEvent
+}
+
 func buildMCPToolUsageSummary(processedRuns []ProcessedRun) *MCPToolUsageSummary {
 	reportLog.Printf("Building MCP tool usage summary from %d processed runs", len(processedRuns))
+	aggregation := buildMCPToolUsageSummaryAggregate(processedRuns)
 
-	// Maps for aggregating data
-	toolSummaryMap := make(map[string]*MCPToolSummary) // Key: serverName:toolName
-	serverStatsMap := make(map[string]*MCPServerStats) // Key: serverName
-	var allToolCalls []MCPToolCall
-	var allFilteredEvents []DifcFilteredEvent
+	// Return nil if no MCP tool usage data was found
+	if len(aggregation.toolSummaryMap) == 0 && len(aggregation.serverStatsMap) == 0 &&
+		len(aggregation.allToolCalls) == 0 && len(aggregation.allFilteredEvents) == 0 {
+		return nil
+	}
 
+	summaries, servers := buildMCPToolUsageSummarySortedSlices(aggregation)
+	reportLog.Printf("Built MCP tool usage summary: %d tool summaries, %d servers, %d total tool calls, %d DIFC filtered events",
+		len(summaries), len(servers), len(aggregation.allToolCalls), len(aggregation.allFilteredEvents))
+
+	return &MCPToolUsageSummary{
+		Summary:        summaries,
+		Servers:        servers,
+		ToolCalls:      aggregation.allToolCalls,
+		FilteredEvents: aggregation.allFilteredEvents,
+	}
+}
+
+func buildMCPToolUsageSummaryAggregate(processedRuns []ProcessedRun) buildMCPToolUsageSummaryAggregation {
+	aggregation := buildMCPToolUsageSummaryAggregation{
+		toolSummaryMap: make(map[string]*MCPToolSummary), // Key: serverName:toolName
+		serverStatsMap: make(map[string]*MCPServerStats), // Key: serverName
+	}
 	// Aggregate data from all runs
 	for _, pr := range processedRuns {
 		if pr.MCPToolUsage == nil {
@@ -69,101 +94,91 @@ func buildMCPToolUsageSummary(processedRuns []ProcessedRun) *MCPToolUsageSummary
 		}
 
 		// Aggregate tool calls
-		allToolCalls = append(allToolCalls, pr.MCPToolUsage.ToolCalls...)
+		aggregation.allToolCalls = append(aggregation.allToolCalls, pr.MCPToolUsage.ToolCalls...)
 
 		// Aggregate DIFC filtered events
-		allFilteredEvents = append(allFilteredEvents, pr.MCPToolUsage.FilteredEvents...)
+		aggregation.allFilteredEvents = append(aggregation.allFilteredEvents, pr.MCPToolUsage.FilteredEvents...)
 
 		// Aggregate tool summaries
 		for _, summary := range pr.MCPToolUsage.Summary {
-			key := summary.ServerName + ":" + summary.ToolName
-
-			if existing, exists := toolSummaryMap[key]; exists {
-				// Store previous count before updating
-				prevCallCount := existing.CallCount
-
-				// Merge with existing summary
-				existing.CallCount += summary.CallCount
-				existing.TotalInputSize += summary.TotalInputSize
-				existing.TotalOutputSize += summary.TotalOutputSize
-
-				// Update max sizes
-				if summary.MaxInputSize > existing.MaxInputSize {
-					existing.MaxInputSize = summary.MaxInputSize
-				}
-				if summary.MaxOutputSize > existing.MaxOutputSize {
-					existing.MaxOutputSize = summary.MaxOutputSize
-				}
-
-				// Update error count
-				existing.ErrorCount += summary.ErrorCount
-
-				// Recalculate average duration (weighted)
-				if summary.AvgDuration != "" && existing.CallCount > 0 {
-					existingDur := parseDurationString(existing.AvgDuration)
-					newDur := parseDurationString(summary.AvgDuration)
-					// Weight by call counts using previous count
-					weightedDur := (existingDur*time.Duration(prevCallCount) + newDur*time.Duration(summary.CallCount)) / time.Duration(existing.CallCount)
-					existing.AvgDuration = timeutil.FormatDuration(weightedDur)
-				}
-
-				// Update max duration
-				if summary.MaxDuration != "" {
-					maxDur := parseDurationString(summary.MaxDuration)
-					existingMaxDur := parseDurationString(existing.MaxDuration)
-					if maxDur > existingMaxDur {
-						existing.MaxDuration = summary.MaxDuration
-					}
-				}
-			} else {
-				// Create new summary entry (copy to avoid mutation)
-				newSummary := summary
-				toolSummaryMap[key] = &newSummary
-			}
+			buildMCPToolUsageSummaryMergeTool(aggregation.toolSummaryMap, summary)
 		}
 
 		// Aggregate server stats
 		for _, serverStats := range pr.MCPToolUsage.Servers {
-			if existing, exists := serverStatsMap[serverStats.ServerName]; exists {
-				// Store previous count before updating
-				prevRequestCount := existing.RequestCount
-
-				// Merge with existing stats
-				existing.RequestCount += serverStats.RequestCount
-				existing.ToolCallCount += serverStats.ToolCallCount
-				existing.TotalInputSize += serverStats.TotalInputSize
-				existing.TotalOutputSize += serverStats.TotalOutputSize
-				existing.ErrorCount += serverStats.ErrorCount
-
-				// Recalculate average duration (weighted)
-				if serverStats.AvgDuration != "" && existing.RequestCount > 0 {
-					existingDur := parseDurationString(existing.AvgDuration)
-					newDur := parseDurationString(serverStats.AvgDuration)
-					// Weight by request counts using previous count
-					weightedDur := (existingDur*time.Duration(prevRequestCount) + newDur*time.Duration(serverStats.RequestCount)) / time.Duration(existing.RequestCount)
-					existing.AvgDuration = timeutil.FormatDuration(weightedDur)
-				}
-			} else {
-				// Create new server stats entry (copy to avoid mutation)
-				newStats := serverStats
-				serverStatsMap[serverStats.ServerName] = &newStats
-			}
+			buildMCPToolUsageSummaryMergeServer(aggregation.serverStatsMap, serverStats)
 		}
 	}
+	return aggregation
+}
 
-	// Return nil if no MCP tool usage data was found
-	if len(toolSummaryMap) == 0 && len(serverStatsMap) == 0 && len(allToolCalls) == 0 && len(allFilteredEvents) == 0 {
-		return nil
+func buildMCPToolUsageSummaryMergeTool(toolSummaryMap map[string]*MCPToolSummary, summary MCPToolSummary) {
+	key := summary.ServerName + ":" + summary.ToolName
+	if existing, exists := toolSummaryMap[key]; exists {
+		prevCallCount := existing.CallCount
+		existing.CallCount += summary.CallCount
+		existing.TotalInputSize += summary.TotalInputSize
+		existing.TotalOutputSize += summary.TotalOutputSize
+		if summary.MaxInputSize > existing.MaxInputSize {
+			existing.MaxInputSize = summary.MaxInputSize
+		}
+		if summary.MaxOutputSize > existing.MaxOutputSize {
+			existing.MaxOutputSize = summary.MaxOutputSize
+		}
+		existing.ErrorCount += summary.ErrorCount
+		buildMCPToolUsageSummaryMergeToolDurations(existing, summary, prevCallCount)
+		return
 	}
+	newSummary := summary
+	toolSummaryMap[key] = &newSummary
+}
 
+func buildMCPToolUsageSummaryMergeToolDurations(existing *MCPToolSummary, summary MCPToolSummary, prevCallCount int) {
+	if summary.AvgDuration != "" && existing.CallCount > 0 {
+		existingDur := parseDurationString(existing.AvgDuration)
+		newDur := parseDurationString(summary.AvgDuration)
+		// Weight by call counts using previous count
+		weightedDur := (existingDur*time.Duration(prevCallCount) + newDur*time.Duration(summary.CallCount)) / time.Duration(existing.CallCount)
+		existing.AvgDuration = timeutil.FormatDuration(weightedDur)
+	}
+	if summary.MaxDuration != "" {
+		maxDur := parseDurationString(summary.MaxDuration)
+		existingMaxDur := parseDurationString(existing.MaxDuration)
+		if maxDur > existingMaxDur {
+			existing.MaxDuration = summary.MaxDuration
+		}
+	}
+}
+
+func buildMCPToolUsageSummaryMergeServer(serverStatsMap map[string]*MCPServerStats, serverStats MCPServerStats) {
+	if existing, exists := serverStatsMap[serverStats.ServerName]; exists {
+		prevRequestCount := existing.RequestCount
+		existing.RequestCount += serverStats.RequestCount
+		existing.ToolCallCount += serverStats.ToolCallCount
+		existing.TotalInputSize += serverStats.TotalInputSize
+		existing.TotalOutputSize += serverStats.TotalOutputSize
+		existing.ErrorCount += serverStats.ErrorCount
+		if serverStats.AvgDuration != "" && existing.RequestCount > 0 {
+			existingDur := parseDurationString(existing.AvgDuration)
+			newDur := parseDurationString(serverStats.AvgDuration)
+			weightedDur := (existingDur*time.Duration(prevRequestCount) + newDur*time.Duration(serverStats.RequestCount)) / time.Duration(existing.RequestCount)
+			existing.AvgDuration = timeutil.FormatDuration(weightedDur)
+		}
+		return
+	}
+	newStats := serverStats
+	serverStatsMap[serverStats.ServerName] = &newStats
+}
+
+func buildMCPToolUsageSummarySortedSlices(aggregation buildMCPToolUsageSummaryAggregation) ([]MCPToolSummary, []MCPServerStats) {
 	// Convert maps to slices
 	var summaries []MCPToolSummary
-	for _, summary := range toolSummaryMap {
+	for _, summary := range aggregation.toolSummaryMap {
 		summaries = append(summaries, *summary)
 	}
 
 	var servers []MCPServerStats
-	for _, stats := range serverStatsMap {
+	for _, stats := range aggregation.serverStatsMap {
 		servers = append(servers, *stats)
 	}
 
@@ -180,13 +195,5 @@ func buildMCPToolUsageSummary(processedRuns []ProcessedRun) *MCPToolUsageSummary
 		return cmp.Compare(a.ServerName, b.ServerName)
 	})
 
-	reportLog.Printf("Built MCP tool usage summary: %d tool summaries, %d servers, %d total tool calls, %d DIFC filtered events",
-		len(summaries), len(servers), len(allToolCalls), len(allFilteredEvents))
-
-	return &MCPToolUsageSummary{
-		Summary:        summaries,
-		Servers:        servers,
-		ToolCalls:      allToolCalls,
-		FilteredEvents: allFilteredEvents,
-	}
+	return summaries, servers
 }

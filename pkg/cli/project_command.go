@@ -114,12 +114,46 @@ Project Setup:
 func RunProjectNew(ctx context.Context, config ProjectConfig) error {
 	projectLog.Printf("Creating project: title=%s, owner=%s, repo=%s", config.Title, config.Owner, config.Repo)
 
-	// Resolve owner type
+	if err := runProjectNewResolveOwner(ctx, &config); err != nil {
+		return err
+	}
+	if err := validateOwner(ctx, config.OwnerType, config.Owner, config.Verbose); err != nil {
+		return fmt.Errorf("owner validation failed: %w", err)
+	}
+
+	ownerId, err := getOwnerNodeId(ctx, config.OwnerType, config.Owner, config.Verbose)
+	if err != nil {
+		return fmt.Errorf("failed to get owner ID: %w", err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Creating project '%s' for %s %s...", config.Title, config.OwnerType, config.Owner)))
+	project, err := createProject(ctx, ownerId, config.Title, config.Verbose)
+	if err != nil {
+		return fmt.Errorf("failed to create project: %w", err)
+	}
+
+	projectID, err := runProjectNewProjectID(project)
+	if err != nil {
+		return err
+	}
+	runProjectNewLinkRepository(ctx, config, projectID)
+
+	projectURL, projectNumber, err := runProjectNewProjectDetails(project)
+	if err != nil {
+		return err
+	}
+	runProjectNewSetupProject(ctx, config, projectURL, projectNumber)
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Created project #%v: %s", project["number"], config.Title)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  URL: %s", project["url"])))
+	return nil
+}
+
+func runProjectNewResolveOwner(ctx context.Context, config *ProjectConfig) error {
 	ownerType := "org"
 	ownerLogin := config.Owner
 	if config.Owner == "@me" {
 		ownerType = "user"
-		// Get current user
 		currentUser, err := getCurrentUser(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get current user: %w", err)
@@ -127,86 +161,67 @@ func RunProjectNew(ctx context.Context, config ProjectConfig) error {
 		ownerLogin = currentUser
 		console.LogVerbose(config.Verbose, "Resolved @me to user: "+ownerLogin)
 	}
-
 	config.OwnerType = ownerType
 	config.Owner = ownerLogin
+	return nil
+}
 
-	// Validate owner exists
-	if err := validateOwner(ctx, config.OwnerType, config.Owner, config.Verbose); err != nil {
-		return fmt.Errorf("owner validation failed: %w", err)
-	}
-
-	// Get owner ID
-	ownerId, err := getOwnerNodeId(ctx, config.OwnerType, config.Owner, config.Verbose)
-	if err != nil {
-		return fmt.Errorf("failed to get owner ID: %w", err)
-	}
-
-	// Create project
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Creating project '%s' for %s %s...", config.Title, config.OwnerType, config.Owner)))
-
-	project, err := createProject(ctx, ownerId, config.Title, config.Verbose)
-	if err != nil {
-		return fmt.Errorf("failed to create project: %w", err)
-	}
-
+func runProjectNewProjectID(project map[string]any) (string, error) {
 	projectID, ok := project["id"].(string)
 	if !ok || projectID == "" {
-		return errors.New("failed to get project ID from response")
+		return "", errors.New("failed to get project ID from response")
 	}
+	return projectID, nil
+}
 
-	// Link to repository if specified
-	if config.Repo != "" {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Linking project to repository %s...", config.Repo)))
-		if err := linkProjectToRepo(ctx, projectID, config.Repo, config.Verbose); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to link project to repository: %v", err)))
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Project linked to repository"))
-		}
+func runProjectNewLinkRepository(ctx context.Context, config ProjectConfig, projectID string) {
+	if config.Repo == "" {
+		return
 	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Linking project to repository %s...", config.Repo)))
+	if err := linkProjectToRepo(ctx, projectID, config.Repo, config.Verbose); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to link project to repository: %v", err)))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Project linked to repository"))
+	}
+}
 
-	// Create views and fields if requested
+func runProjectNewProjectDetails(project map[string]any) (string, int, error) {
 	projectURL, ok := project["url"].(string)
 	if !ok || projectURL == "" {
-		return errors.New("failed to get project URL from response")
+		return "", 0, errors.New("failed to get project URL from response")
 	}
-
 	projectNumberFloat, ok := project["number"].(float64)
 	if !ok || projectNumberFloat <= 0 {
-		return errors.New("failed to get valid project number from response")
+		return "", 0, errors.New("failed to get valid project number from response")
 	}
-	projectNumber := int(projectNumberFloat)
+	return projectURL, int(projectNumberFloat), nil
+}
 
-	if config.WithProjectSetup {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Creating standard project views..."))
-		if err := createStandardViews(ctx, projectURL, config.Verbose); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to create views: %v", err)))
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Created standard views"))
-		}
-
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Creating custom fields..."))
-		if err := createStandardFields(ctx, projectURL, projectNumber, config.Owner, config.Verbose); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to create fields: %v", err)))
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Created custom fields"))
-		}
+func runProjectNewSetupProject(ctx context.Context, config ProjectConfig, projectURL string, projectNumber int) {
+	if !config.WithProjectSetup {
+		return
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Creating standard project views..."))
+	if err := createStandardViews(ctx, projectURL, config.Verbose); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to create views: %v", err)))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Created standard views"))
 	}
 
-	if config.WithProjectSetup {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Enhancing Status field..."))
-		if err := ensureStatusOption(ctx, projectURL, "Review Required", config.Verbose); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update Status field: %v", err)))
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Added 'Review Required' status option"))
-		}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Creating custom fields..."))
+	if err := createStandardFields(ctx, projectURL, projectNumber, config.Owner, config.Verbose); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to create fields: %v", err)))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Created custom fields"))
 	}
 
-	// Output success
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Created project #%v: %s", project["number"], config.Title)))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  URL: %s", project["url"])))
-
-	return nil
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Enhancing Status field..."))
+	if err := ensureStatusOption(ctx, projectURL, "Review Required", config.Verbose); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update Status field: %v", err)))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Added 'Review Required' status option"))
+	}
 }
 
 // getCurrentUser gets the current authenticated user's login
@@ -325,29 +340,31 @@ func createProject(ctx context.Context, ownerId, title string, verbose bool) (ma
 		return nil, fmt.Errorf("GraphQL mutation failed: %w", err)
 	}
 
-	// Parse response
+	project, err := createProjectParseResponse(output)
+	if err != nil {
+		return nil, err
+	}
+	console.LogVerbose(verbose, fmt.Sprintf("✓ Project created: #%v", project["number"]))
+	return project, nil
+}
+
+func createProjectParseResponse(output []byte) (map[string]any, error) {
 	var response map[string]any
 	if err := json.Unmarshal(output, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse GraphQL response: %w", err)
 	}
-
-	// Extract project data
 	data, ok := response["data"].(map[string]any)
 	if !ok {
 		return nil, errors.New("invalid response: missing 'data' field")
 	}
-
 	createResult, ok := data["createProjectV2"].(map[string]any)
 	if !ok {
 		return nil, errors.New("invalid response: missing 'createProjectV2' field")
 	}
-
 	project, ok := createResult["projectV2"].(map[string]any)
 	if !ok {
 		return nil, errors.New("invalid response: missing 'projectV2' field")
 	}
-
-	console.LogVerbose(verbose, fmt.Sprintf("✓ Project created: #%v", project["number"]))
 	return project, nil
 }
 
@@ -356,38 +373,11 @@ func linkProjectToRepo(ctx context.Context, projectId, repoSlug string, verbose 
 	projectLog.Printf("Linking project %s to repository %s", projectId, repoSlug)
 	console.LogVerbose(verbose, "Linking project to repository: "+repoSlug)
 
-	// Parse repo slug
-	parts := strings.Split(repoSlug, "/")
-	if len(parts) != 2 {
-		return fmt.Errorf("invalid repository format. Expected 'owner/repo', got '%s'", repoSlug)
-	}
-	repoOwner := parts[0]
-	repoName := parts[1]
-
-	// Get repository ID
-	repoIdQuery := `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id } }`
-	repoIdBody := map[string]any{
-		"query": repoIdQuery,
-		"variables": map[string]any{
-			"owner": repoOwner,
-			"name":  repoName,
-		},
-	}
-	repoIdJSON, err := json.Marshal(repoIdBody)
+	repoId, err := linkProjectToRepoRepositoryID(ctx, repoSlug)
 	if err != nil {
-		return fmt.Errorf("failed to marshal repository ID GraphQL request: %w", err)
-	}
-	output, err := workflow.RunGHInputContext(ctx, "Getting repository ID...", bytes.NewReader(repoIdJSON), "api", "graphql", "--input", "-", "--jq", ".data.repository.id")
-	if err != nil {
-		return fmt.Errorf("repository '%s' not found: %w", repoSlug, err)
+		return err
 	}
 
-	repoId := strings.TrimSpace(string(output))
-	if repoId == "" {
-		return errors.New("failed to get repository ID")
-	}
-
-	// Link project to repository
 	mutation := `mutation($projectId: ID!, $repositoryId: ID!) {
 		linkProjectV2ToRepository(input: { projectId: $projectId, repositoryId: $repositoryId }) {
 			repository {
@@ -395,7 +385,6 @@ func linkProjectToRepo(ctx context.Context, projectId, repoSlug string, verbose 
 			}
 		}
 	}`
-
 	mutationBody := map[string]any{
 		"query": mutation,
 		"variables": map[string]any{
@@ -407,7 +396,6 @@ func linkProjectToRepo(ctx context.Context, projectId, repoSlug string, verbose 
 	if err != nil {
 		return fmt.Errorf("failed to marshal GraphQL request: %w", err)
 	}
-
 	_, err = workflow.RunGHInputContext(ctx, "Linking project to repository...", bytes.NewReader(mutationJSON), "api", "graphql", "--input", "-")
 	if err != nil {
 		return fmt.Errorf("failed to link project to repository: %w", err)
@@ -415,6 +403,34 @@ func linkProjectToRepo(ctx context.Context, projectId, repoSlug string, verbose 
 
 	console.LogVerbose(verbose, "✓ Linked project to repository "+repoSlug)
 	return nil
+}
+
+func linkProjectToRepoRepositoryID(ctx context.Context, repoSlug string) (string, error) {
+	parts := strings.Split(repoSlug, "/")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid repository format. Expected 'owner/repo', got '%s'", repoSlug)
+	}
+	repoIdQuery := `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id } }`
+	repoIdBody := map[string]any{
+		"query": repoIdQuery,
+		"variables": map[string]any{
+			"owner": parts[0],
+			"name":  parts[1],
+		},
+	}
+	repoIdJSON, err := json.Marshal(repoIdBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal repository ID GraphQL request: %w", err)
+	}
+	output, err := workflow.RunGHInputContext(ctx, "Getting repository ID...", bytes.NewReader(repoIdJSON), "api", "graphql", "--input", "-", "--jq", ".data.repository.id")
+	if err != nil {
+		return "", fmt.Errorf("repository '%s' not found: %w", repoSlug, err)
+	}
+	repoId := strings.TrimSpace(string(output))
+	if repoId == "" {
+		return "", errors.New("failed to get repository ID")
+	}
+	return repoId, nil
 }
 
 // escapeGraphQLString escapes special characters in GraphQL strings
@@ -640,102 +656,93 @@ type statusFieldInfo struct {
 
 // getStatusField retrieves the Status field information for a project
 func getStatusField(ctx context.Context, info projectURLInfo, verbose bool) (statusFieldInfo, error) {
-	var query string
-	var jqProjectID, jqFields string
-
+	query, jqProjectID, jqFields := getStatusFieldQuery(info)
 	projectNumberArg := "number=" + strconv.Itoa(info.projectNumber)
-	if info.scope == "orgs" {
-		query = `query($login: String!, $number: Int!) {
-			organization(login: $login) {
-				projectV2(number: $number) {
-					id
-					fields(first: 100) {
-						nodes {
-							... on ProjectV2SingleSelectField {
-								id
-								name
-								options { name color description }
-							}
-						}
-					}
-				}
-			}
-		}`
-		jqProjectID = ".data.organization.projectV2.id"
-		jqFields = ".data.organization.projectV2.fields.nodes"
-	} else {
-		query = `query($login: String!, $number: Int!) {
-			user(login: $login) {
-				projectV2(number: $number) {
-					id
-					fields(first: 100) {
-						nodes {
-							... on ProjectV2SingleSelectField {
-								id
-								name
-								options { name color description }
-							}
-						}
-					}
-				}
-			}
-		}`
-		jqProjectID = ".data.user.projectV2.id"
-		jqFields = ".data.user.projectV2.fields.nodes"
-	}
 
-	// Get project ID
-	projectIDOutput, err := projectCommandRunGH("Getting project info...", "api", "graphql", "-f", "query="+query, "-f", "login="+info.ownerLogin, "-F", projectNumberArg, "--jq", jqProjectID)
+	projectID, fieldsOutput, err := getStatusFieldRaw(query, jqProjectID, jqFields, info.ownerLogin, projectNumberArg)
 	if err != nil {
-		return statusFieldInfo{}, fmt.Errorf("failed to get project ID: %w", err)
-	}
-	projectID := strings.TrimSpace(string(projectIDOutput))
-
-	// Get fields
-	fieldsOutput, err := projectCommandRunGH("Getting project fields...", "api", "graphql", "-f", "query="+query, "-f", "login="+info.ownerLogin, "-F", projectNumberArg, "--jq", jqFields)
-	if err != nil {
-		return statusFieldInfo{}, fmt.Errorf("failed to get project fields: %w", err)
+		return statusFieldInfo{}, err
 	}
 
-	// Parse fields to find Status field
 	var fields []map[string]any
 	if err := json.Unmarshal(fieldsOutput, &fields); err != nil {
 		return statusFieldInfo{}, fmt.Errorf("failed to parse fields: %w", err)
 	}
+	return getStatusFieldFind(projectID, fields)
+}
 
+func getStatusFieldQuery(info projectURLInfo) (string, string, string) {
+	if info.scope == "orgs" {
+		return `query($login: String!, $number: Int!) {
+			organization(login: $login) {
+				projectV2(number: $number) {
+					id
+					fields(first: 100) {
+						nodes { ... on ProjectV2SingleSelectField { id name options { name color description } } }
+					}
+				}
+			}
+		}`, ".data.organization.projectV2.id", ".data.organization.projectV2.fields.nodes"
+	}
+	return `query($login: String!, $number: Int!) {
+		user(login: $login) {
+			projectV2(number: $number) {
+				id
+				fields(first: 100) {
+					nodes { ... on ProjectV2SingleSelectField { id name options { name color description } } }
+				}
+			}
+		}
+	}`, ".data.user.projectV2.id", ".data.user.projectV2.fields.nodes"
+}
+
+func getStatusFieldRaw(query, jqProjectID, jqFields, ownerLogin, projectNumberArg string) (string, []byte, error) {
+	projectIDOutput, err := projectCommandRunGH("Getting project info...", "api", "graphql", "-f", "query="+query, "-f", "login="+ownerLogin, "-F", projectNumberArg, "--jq", jqProjectID)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to get project ID: %w", err)
+	}
+	projectID := strings.TrimSpace(string(projectIDOutput))
+
+	fieldsOutput, err := projectCommandRunGH("Getting project fields...", "api", "graphql", "-f", "query="+query, "-f", "login="+ownerLogin, "-F", projectNumberArg, "--jq", jqFields)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to get project fields: %w", err)
+	}
+	return projectID, fieldsOutput, nil
+}
+
+func getStatusFieldFind(projectID string, fields []map[string]any) (statusFieldInfo, error) {
 	for _, field := range fields {
 		if fieldName, ok := field["name"].(string); ok && fieldName == "Status" {
 			fieldID, _ := field["id"].(string)
 			if fieldID == "" {
 				continue
 			}
-
-			// Parse options
-			var options []singleSelectOption
-			if optionsData, ok := field["options"].([]any); ok {
-				for _, optData := range optionsData {
-					if optMap, ok := optData.(map[string]any); ok {
-						opt := singleSelectOption{
-							Name:  getString(optMap, "name"),
-							Color: getString(optMap, "color"),
-						}
-						if desc := getString(optMap, "description"); desc != "" {
-							opt.Description = desc
-						}
-						options = append(options, opt)
-					}
-				}
-			}
-
 			return statusFieldInfo{
 				projectID: projectID,
 				fieldID:   fieldID,
-				options:   options,
+				options:   getStatusFieldOptions(field),
 			}, nil
 		}
 	}
-
 	return statusFieldInfo{}, errors.New("status field not found in project")
+}
+
+func getStatusFieldOptions(field map[string]any) []singleSelectOption {
+	var options []singleSelectOption
+	optionsData, ok := field["options"].([]any)
+	if !ok {
+		return options
+	}
+	for _, optData := range optionsData {
+		if optMap, ok := optData.(map[string]any); ok {
+			opt := singleSelectOption{Name: getString(optMap, "name"), Color: getString(optMap, "color")}
+			if desc := getString(optMap, "description"); desc != "" {
+				opt.Description = desc
+			}
+			options = append(options, opt)
+		}
+	}
+	return options
 }
 
 // getString safely extracts a string value from a map

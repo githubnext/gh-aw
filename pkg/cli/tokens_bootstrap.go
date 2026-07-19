@@ -43,85 +43,65 @@ Only required secrets are prompted for. Optional secrets are not shown.`,
 
 func runTokensBootstrap(engine, repo string, nonInteractive bool) error {
 	tokensBootstrapLog.Printf("Running tokens bootstrap: engine=%s, repo=%s, nonInteractive=%v", engine, repo, nonInteractive)
-
-	// Configure the gh CLI host from the git remote before any gh calls so that
-	// secret discovery and upload both target the correct host.
 	configureDefaultGHHostFromOriginRemoteIfUnset()
-
-	var repoSlug string
-	var err error
-
-	// Determine target repository
-	if repo != "" {
-		repoSlug = repo
-	} else {
-		repoSlug, err = GetCurrentRepoSlug()
-		if err != nil {
-			return fmt.Errorf("failed to detect current repository: %w", err)
-		}
+	repoSlug, err := runTokensBootstrapRepo(repo)
+	if err != nil {
+		return err
 	}
-
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Analyzing workflows in %s...", repoSlug)))
-
-	// Discover workflows in the repository
 	requirements, err := getSecretRequirements(engine)
 	if err != nil {
 		return fmt.Errorf("failed to analyze workflows: %w", err)
 	}
-
 	tokensBootstrapLog.Printf("Collected %d required secrets from workflows", len(requirements))
-
-	// Check existing secrets in repository
-	existingSecrets, err := getExistingSecretsInRepo(repoSlug)
-	if err != nil {
-		// If we can't check existing secrets (e.g., no gh auth), continue with empty map
-		tokensBootstrapLog.Printf("Could not check existing secrets: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Unable to check existing repository secrets. Will assume all secrets need to be configured."))
-		existingSecrets = make(map[string]struct {
-		})
-	}
-
-	// Filter to only required secrets that are missing
+	existingSecrets := runTokensBootstrapExistingSecrets(repoSlug)
 	missing := getMissingRequiredSecrets(requirements, existingSecrets)
-
-	// Always display summary table of all required secrets with their status
 	displaySecretsSummaryTable(requirements, existingSecrets)
-
 	if len(missing) == 0 {
 		tokensBootstrapLog.Print("All required secrets present")
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All required secrets are configured."))
 		return nil
 	}
-
 	tokensBootstrapLog.Printf("Found %d missing required secrets", len(missing))
-
-	// In non-interactive mode, just display what's missing
 	if nonInteractive {
 		displayMissingSecrets(missing, repoSlug, existingSecrets)
 		return nil
 	}
+	return runTokensBootstrapPrompt(repoSlug, existingSecrets, missing)
+}
 
-	// Interactive mode: prompt for missing secrets
+func runTokensBootstrapRepo(repo string) (string, error) {
+	if repo != "" {
+		return repo, nil
+	}
+	repoSlug, err := GetCurrentRepoSlug()
+	if err != nil {
+		return "", fmt.Errorf("failed to detect current repository: %w", err)
+	}
+	return repoSlug, nil
+}
+
+func runTokensBootstrapExistingSecrets(repoSlug string) map[string]struct{} {
+	existingSecrets, err := getExistingSecretsInRepo(repoSlug)
+	if err != nil {
+		tokensBootstrapLog.Printf("Could not check existing secrets: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Unable to check existing repository secrets. Will assume all secrets need to be configured."))
+		return make(map[string]struct{})
+	}
+	return existingSecrets
+}
+
+func runTokensBootstrapPrompt(repoSlug string, existingSecrets map[string]struct{}, missing []SecretRequirement) error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d missing required secret(s). You will be prompted to provide them.", len(missing))))
 	fmt.Fprintln(os.Stderr, "")
-
-	config := EngineSecretConfig{
-		RepoSlug:             repoSlug,
-		ExistingSecrets:      existingSecrets,
-		IncludeSystemSecrets: true,
-		IncludeOptional:      false,
-	}
-
-	// Prompt for each missing secret
+	config := EngineSecretConfig{RepoSlug: repoSlug, ExistingSecrets: existingSecrets, IncludeSystemSecrets: true, IncludeOptional: false}
 	for _, req := range missing {
 		if err := promptForSecret(req, config); err != nil {
 			return fmt.Errorf("failed to collect secret %s: %w", req.Name, err)
 		}
 	}
-
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All required secrets have been configured."))
-
 	return nil
 }
 

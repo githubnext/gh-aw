@@ -66,207 +66,194 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	var args []string
 	hasRestrictedBashAllowlist := false
 
-	// Check if bash has wildcard - if so, use --allow-all-tools instead
-	if bashConfig, hasBash := tools["bash"]; hasBash {
-		if bashCommands, ok := bashConfig.([]any); ok {
-			// Check for :* or * wildcard - if present, allow all tools
-			for _, cmd := range bashCommands {
-				if cmdStr, ok := cmd.(string); ok {
-					if cmdStr == ":*" || cmdStr == "*" {
-						// Use --allow-all-tools flag instead of individual tool permissions
-						copilotEngineToolsLog.Print("Bash wildcard detected, using --allow-all-tools")
-						return []string{"--allow-all-tools"}
-					}
-				}
-			}
-		}
+	if copilotHasBashWildcard(tools) {
+		copilotEngineToolsLog.Print("Bash wildcard detected, using --allow-all-tools")
+		return []string{"--allow-all-tools"}
 	}
 
-	// Handle bash/shell tools (when no wildcard)
-	if bashConfig, hasBash := tools["bash"]; hasBash {
-		if bashCommands, ok := bashConfig.([]any); ok {
-			hasRestrictedBashAllowlist = true
-			// Add specific shell commands
-			for _, cmd := range bashCommands {
-				if cmdStr, ok := cmd.(string); ok {
-					// Normalize trailing " *" wildcard (e.g. "jq *" → "jq") so that
-					// all engines emit the canonical prefix form (shell(jq)) regardless
-					// of whether the command was written with or without the wildcard.
-					cmdStr, _ = normalizeBashCommand(cmdStr)
-					// For stem commands (like dotnet, npm, cargo), Copilot CLI uses
-					// subcommand matching. When the user specifies just the base command
-					// (e.g., "dotnet"), append :* so "dotnet build", "dotnet test", etc.
-					// are all permitted. Skip if the command already has a colon (explicit
-					// matching) or a space (user already specified the subcommand).
-					if !strings.Contains(cmdStr, ":") && !strings.Contains(cmdStr, " ") && constants.CopilotStemCommands[cmdStr] {
-						args = append(args, "--allow-tool", fmt.Sprintf("shell(%s:*)", cmdStr))
-					} else {
-						sanitized, wasSanitized := sanitizeCopilotShellCommand(cmdStr)
-						if wasSanitized {
-							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-								fmt.Sprintf("bash tool %q contains single quotes that crash Copilot CLI; "+
-									"truncated to safe prefix %q for shell() prefix-matching. "+
-									"Use %q in your workflow to silence this warning.",
-									cmdStr, sanitized, sanitized)))
-						}
-						args = append(args, "--allow-tool", fmt.Sprintf("shell(%s)", sanitized))
-					}
-				}
-			}
-		} else {
-			// Bash with no specific commands or null value - allow all shell
-			args = append(args, "--allow-tool", "shell")
-		}
-	}
+	bashArgs, restrictedBash := copilotBashToolArgs(tools)
+	args = append(args, bashArgs...)
+	hasRestrictedBashAllowlist = restrictedBash
 
 	// When MCP tools are mounted as CLI commands and bash uses a restricted allowlist,
 	// ensure mounted MCP CLI commands are executable via shell(<server>:*).
 	// This avoids Copilot CLI permission blocks for mounted commands such as safeoutputs.
 	if hasRestrictedBashAllowlist {
-		effectiveWorkflowData := buildCLIWorkflowDataForMounts(workflowData, tools, safeOutputs, mcpScripts)
-
-		for _, serverName := range getMountedCLIServerNamesIfBashRestricted(effectiveWorkflowData, tools, safeOutputs, mcpScripts) {
-			args = append(args, "--allow-tool", fmt.Sprintf("shell(%s:*)", serverName))
-		}
-		// When playwright is configured in CLI mode, playwright-cli must be executable.
-		// Automatically add shell(playwright-cli:*) to the restricted bash allowlist.
-		if workflowData != nil && isPlaywrightCLIMode(workflowData.Tools) {
-			args = append(args, "--allow-tool", "shell(playwright-cli:*)")
-		}
-		// When GitHub CLI mode is enabled (tools.github.mode: gh-proxy), GitHub access
-		// goes through the gh CLI, so allow shell(gh:*).
-		if isGitHubCLIModeEnabled(effectiveWorkflowData) {
-			args = append(args, "--allow-tool", "shell(gh:*)")
-		}
+		args = append(args, e.copilotRestrictedBashMountArgs(tools, safeOutputs, mcpScripts, workflowData)...)
 	}
 
-	// Handle edit tools requirement for file write access
-	// Note: safe-outputs do not need write permission as they use MCP
+	args = append(args, copilotBuiltinToolArgs(tools, safeOutputs, mcpScripts)...)
+	args = append(args, copilotMCPServerToolArgs(tools)...)
+
+	args = sortAndDeduplicateCopilotToolArgs(args)
+
+	copilotEngineToolsLog.Printf("Computed %d tool arguments", len(args)/2)
+	return args
+}
+
+func copilotHasBashWildcard(tools map[string]any) bool {
+	bashCommands, ok := tools["bash"].([]any)
+	if !ok {
+		return false
+	}
+	for _, cmd := range bashCommands {
+		if cmdStr, ok := cmd.(string); ok && (cmdStr == ":*" || cmdStr == "*") {
+			return true
+		}
+	}
+	return false
+}
+
+func copilotBashToolArgs(tools map[string]any) ([]string, bool) {
+	bashConfig, hasBash := tools["bash"]
+	if !hasBash {
+		return nil, false
+	}
+	bashCommands, ok := bashConfig.([]any)
+	if !ok {
+		return []string{"--allow-tool", "shell"}, false
+	}
+	var args []string
+	for _, cmd := range bashCommands {
+		if cmdStr, ok := cmd.(string); ok {
+			args = append(args, "--allow-tool", copilotShellToolValue(cmdStr))
+		}
+	}
+	return args, true
+}
+
+func copilotShellToolValue(cmdStr string) string {
+	cmdStr, _ = normalizeBashCommand(cmdStr)
+	if !strings.Contains(cmdStr, ":") && !strings.Contains(cmdStr, " ") && constants.CopilotStemCommands[cmdStr] {
+		return fmt.Sprintf("shell(%s:*)", cmdStr)
+	}
+	sanitized, wasSanitized := sanitizeCopilotShellCommand(cmdStr)
+	if wasSanitized {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			fmt.Sprintf("bash tool %q contains single quotes that crash Copilot CLI; "+
+				"truncated to safe prefix %q for shell() prefix-matching. "+
+				"Use %q in your workflow to silence this warning.",
+				cmdStr, sanitized, sanitized)))
+	}
+	return fmt.Sprintf("shell(%s)", sanitized)
+}
+
+func (e *CopilotEngine) copilotRestrictedBashMountArgs(tools map[string]any, safeOutputs *SafeOutputsConfig, mcpScripts *MCPScriptsConfig, workflowData *WorkflowData) []string {
+	effectiveWorkflowData := buildCLIWorkflowDataForMounts(workflowData, tools, safeOutputs, mcpScripts)
+	var args []string
+	for _, serverName := range getMountedCLIServerNamesIfBashRestricted(effectiveWorkflowData, tools, safeOutputs, mcpScripts) {
+		args = append(args, "--allow-tool", fmt.Sprintf("shell(%s:*)", serverName))
+	}
+	if workflowData != nil && isPlaywrightCLIMode(workflowData.Tools) {
+		args = append(args, "--allow-tool", "shell(playwright-cli:*)")
+	}
+	if isGitHubCLIModeEnabled(effectiveWorkflowData) {
+		args = append(args, "--allow-tool", "shell(gh:*)")
+	}
+	return args
+}
+
+func copilotBuiltinToolArgs(tools map[string]any, safeOutputs *SafeOutputsConfig, mcpScripts *MCPScriptsConfig) []string {
+	var args []string
 	if _, hasEdit := tools["edit"]; hasEdit {
 		copilotEngineToolsLog.Print("Edit tool enabled, adding write permission")
 		args = append(args, "--allow-tool", "write")
 	}
-
-	// Handle safe_outputs MCP server - allow all tools if safe outputs are enabled
-	// This includes both safeOutputs config and safeOutputs.Jobs
 	if HasSafeOutputsEnabled(safeOutputs) {
 		copilotEngineToolsLog.Print("Safe-outputs enabled, adding MCP server permission")
 		args = append(args, "--allow-tool", constants.SafeOutputsMCPServerID.String())
 	}
-
-	// Handle mcp_scripts MCP server - allow the server if mcp-scripts are configured and feature flag is enabled
 	if IsMCPScriptsEnabled(mcpScripts) {
 		args = append(args, "--allow-tool", constants.MCPScriptsMCPServerID.String())
 	}
-
-	// Handle web-fetch builtin tool (Copilot CLI uses web_fetch with underscore)
 	if _, hasWebFetch := tools["web-fetch"]; hasWebFetch {
 		copilotEngineToolsLog.Print("Web-fetch tool enabled, adding web_fetch permission")
-		// web-fetch -> web_fetch
 		args = append(args, "--allow-tool", "web_fetch")
 	}
+	return args
+}
 
-	// Built-in tool names that should be skipped when processing MCP servers
-	// Note: GitHub is NOT included here because it needs MCP configuration in CLI mode
-	// Note: web-fetch is NOT included here because it needs explicit --allow-tool argument
-	builtInTools := map[string]struct {
-	}{
-		"bash":       {},
-		"edit":       {},
-		"web-search": {},
-		"playwright": {},
-	}
-
-	// Handle MCP server tools
+func copilotMCPServerToolArgs(tools map[string]any) []string {
+	builtInTools := map[string]struct{}{"bash": {}, "edit": {}, "web-search": {}, "playwright": {}}
+	var args []string
 	for toolName, toolConfig := range tools {
-		// Skip built-in tools we've already handled
 		if setutil.Contains(builtInTools, toolName) {
 			continue
 		}
-
-		// GitHub is a special case - it's an MCP server but doesn't have explicit MCP config in the workflow
-		// It gets MCP configuration through the parser's processBuiltinMCPTool
 		if toolName == "github" {
-			if toolConfigMap, ok := toolConfig.(map[string]any); ok {
-				if allowed, hasAllowed := toolConfigMap["allowed"]; hasAllowed {
-					if allowedList, ok := allowed.([]any); ok {
-						// Process allowed list in a single pass
-						hasWildcard := false
-						for _, allowedTool := range allowedList {
-							if toolStr, ok := allowedTool.(string); ok {
-								if toolStr == "*" {
-									// Wildcard means allow entire GitHub MCP server
-									hasWildcard = true
-								} else {
-									// Add individual tool permission
-									args = append(args, "--allow-tool", fmt.Sprintf("github(%s)", toolStr))
-								}
-							}
-						}
-
-						// Add server-level permission only if wildcard was present
-						if hasWildcard {
-							args = append(args, "--allow-tool", "github")
-						}
-					}
-				} else {
-					// No allowed field specified - allow entire GitHub MCP server
-					args = append(args, "--allow-tool", "github")
-				}
-			} else {
-				// GitHub tool exists but is not a map (e.g., github: null) - allow entire server
-				args = append(args, "--allow-tool", "github")
-			}
+			args = append(args, copilotGitHubToolArgs(toolConfig)...)
 			continue
 		}
-
-		// Check if this is an MCP server configuration
-		if toolConfigMap, ok := toolConfig.(map[string]any); ok {
-			if hasMcp, _ := hasMCPConfig(toolConfigMap); hasMcp {
-				copilotEngineToolsLog.Printf("Adding custom MCP server permission: %s", toolName)
-				// Allow the entire MCP server
-				args = append(args, "--allow-tool", toolName)
-
-				// If it has specific allowed tools, add them individually
-				if allowed, hasAllowed := toolConfigMap["allowed"]; hasAllowed {
-					if allowedList, ok := allowed.([]any); ok {
-						for _, allowedTool := range allowedList {
-							if toolStr, ok := allowedTool.(string); ok {
-								args = append(args, "--allow-tool", fmt.Sprintf("%s(%s)", toolName, toolStr))
-							}
-						}
-					}
-				}
-			}
-		}
+		args = append(args, copilotCustomMCPToolArgs(toolName, toolConfig)...)
 	}
-
-	// Sort and deduplicate values, then rebuild args.
-	// Deduplication is needed because sanitizeCopilotShellCommand can truncate
-	// multiple different commands to the same safe prefix (e.g. several jq filters
-	// all become "jq"), producing duplicate --allow-tool shell(jq) entries.
-	if len(args) > 0 {
-		var values []string
-		for i := 1; i < len(args); i += 2 {
-			values = append(values, args[i])
-		}
-		sort.Strings(values)
-
-		// Rebuild args with sorted, deduplicated values
-		newArgs := make([]string, 0, len(args))
-		prev := ""
-		for _, value := range values {
-			if value == prev {
-				continue
-			}
-			newArgs = append(newArgs, "--allow-tool", value)
-			prev = value
-		}
-		args = newArgs
-	}
-
-	copilotEngineToolsLog.Printf("Computed %d tool arguments", len(args)/2)
 	return args
+}
+
+func copilotGitHubToolArgs(toolConfig any) []string {
+	toolConfigMap, ok := toolConfig.(map[string]any)
+	if !ok {
+		return []string{"--allow-tool", "github"}
+	}
+	allowedList, ok := toolConfigMap["allowed"].([]any)
+	if !ok {
+		return []string{"--allow-tool", "github"}
+	}
+	var args []string
+	hasWildcard := false
+	for _, allowedTool := range allowedList {
+		if toolStr, ok := allowedTool.(string); ok {
+			if toolStr == "*" {
+				hasWildcard = true
+			} else {
+				args = append(args, "--allow-tool", fmt.Sprintf("github(%s)", toolStr))
+			}
+		}
+	}
+	if hasWildcard {
+		args = append(args, "--allow-tool", "github")
+	}
+	return args
+}
+
+func copilotCustomMCPToolArgs(toolName string, toolConfig any) []string {
+	toolConfigMap, ok := toolConfig.(map[string]any)
+	if !ok {
+		return nil
+	}
+	if hasMcp, _ := hasMCPConfig(toolConfigMap); !hasMcp {
+		return nil
+	}
+	copilotEngineToolsLog.Printf("Adding custom MCP server permission: %s", toolName)
+	args := []string{"--allow-tool", toolName}
+	if allowedList, ok := toolConfigMap["allowed"].([]any); ok {
+		for _, allowedTool := range allowedList {
+			if toolStr, ok := allowedTool.(string); ok {
+				args = append(args, "--allow-tool", fmt.Sprintf("%s(%s)", toolName, toolStr))
+			}
+		}
+	}
+	return args
+}
+
+func sortAndDeduplicateCopilotToolArgs(args []string) []string {
+	if len(args) == 0 {
+		return args
+	}
+	var values []string
+	for i := 1; i < len(args); i += 2 {
+		values = append(values, args[i])
+	}
+	sort.Strings(values)
+	newArgs := make([]string, 0, len(args))
+	prev := ""
+	for _, value := range values {
+		if value == prev {
+			continue
+		}
+		newArgs = append(newArgs, "--allow-tool", value)
+		prev = value
+	}
+	return newArgs
 }
 
 // generateCopilotToolArgumentsComment generates a multi-line comment showing each tool argument.

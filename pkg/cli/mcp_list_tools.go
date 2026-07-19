@@ -24,27 +24,17 @@ const (
 // ListToolsForMCP lists available tools for a specific MCP server
 func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) error {
 	mcpListToolsLog.Printf("Listing tools for MCP server: %s, workflow: %s", mcpServerName, workflowFile)
-	workflowsDir := getWorkflowsDir()
 
 	// If no workflow file specified, search for workflows containing the MCP server
 	if workflowFile == "" {
+		workflowsDir := getWorkflowsDir()
 		mcpListToolsLog.Printf("No workflow file specified, searching in: %s", workflowsDir)
 		return findWorkflowsWithMCPServer(workflowsDir, mcpServerName, verbose)
 	}
 
-	// Resolve the workflow file path
-	workflowPath, err := ResolveWorkflowPath(workflowFile)
+	workflowPath, err := listToolsForMCPWorkflowPath(workflowFile)
 	if err != nil {
 		return err
-	}
-
-	// Convert to absolute path if needed
-	if !filepath.IsAbs(workflowPath) {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return fmt.Errorf("failed to get current directory: %w", err)
-		}
-		workflowPath = filepath.Join(cwd, workflowPath)
 	}
 
 	if verbose {
@@ -59,24 +49,9 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 
 	mcpListToolsLog.Printf("Found %d MCP configs in workflow, searching for server: %s", len(mcpConfigs), mcpServerName)
 
-	// Find the specific MCP server
-	var targetConfig *parser.RegistryMCPServerConfig
-	for _, config := range mcpConfigs {
-		if strings.EqualFold(config.Name, mcpServerName) {
-			targetConfig = &config
-			break
-		}
-	}
-
+	targetConfig := listToolsForMCPFindConfig(mcpConfigs, mcpServerName)
 	if targetConfig == nil {
-		mcpListToolsLog.Printf("MCP server %q not found in workflow %q", mcpServerName, filepath.Base(workflowPath))
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("MCP server '%s' not found in workflow '%s'", mcpServerName, filepath.Base(workflowPath))))
-
-		// Show available servers
-		if len(mcpConfigs) > 0 {
-			serverNames := sliceutil.Map(mcpConfigs, func(config parser.RegistryMCPServerConfig) string { return config.Name })
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Available MCP servers: "+strings.Join(serverNames, ", ")))
-		}
+		listToolsForMCPDisplayMissingServer(workflowPath, mcpServerName, mcpConfigs)
 		return nil
 	}
 
@@ -102,6 +77,45 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 	displayToolsList(info, verbose)
 
 	return nil
+}
+
+func listToolsForMCPWorkflowPath(workflowFile string) (string, error) {
+	// Resolve the workflow file path
+	workflowPath, err := ResolveWorkflowPath(workflowFile)
+	if err != nil {
+		return "", err
+	}
+
+	// Convert to absolute path if needed
+	if !filepath.IsAbs(workflowPath) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("failed to get current directory: %w", err)
+		}
+		workflowPath = filepath.Join(cwd, workflowPath)
+	}
+
+	return workflowPath, nil
+}
+
+func listToolsForMCPFindConfig(mcpConfigs []parser.RegistryMCPServerConfig, mcpServerName string) *parser.RegistryMCPServerConfig {
+	for _, config := range mcpConfigs {
+		if strings.EqualFold(config.Name, mcpServerName) {
+			return &config
+		}
+	}
+	return nil
+}
+
+func listToolsForMCPDisplayMissingServer(workflowPath string, mcpServerName string, mcpConfigs []parser.RegistryMCPServerConfig) {
+	mcpListToolsLog.Printf("MCP server %q not found in workflow %q", mcpServerName, filepath.Base(workflowPath))
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("MCP server '%s' not found in workflow '%s'", mcpServerName, filepath.Base(workflowPath))))
+
+	// Show available servers
+	if len(mcpConfigs) > 0 {
+		serverNames := sliceutil.Map(mcpConfigs, func(config parser.RegistryMCPServerConfig) string { return config.Name })
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Available MCP servers: "+strings.Join(serverNames, ", ")))
+	}
 }
 
 // findWorkflowsWithMCPServer searches for workflows containing a specific MCP server
@@ -177,22 +191,7 @@ func NewMCPListToolsSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list-tools [workflow]",
 		Short: "List available tools for a specific MCP server, or find workflows using it",
-		Long: `List available tools for a specific MCP server, or find workflows using it.
-
-When no workflow argument is provided, this command searches workflows in .github/workflows
-for references to the specified MCP server and returns matching workflow IDs.
-When a workflow is provided, it connects to the specified MCP server and displays all
-available tools. It reuses the same infrastructure as 'mcp inspect' to establish
-connections and query server capabilities.
-
-The workflow-id-or-file can be:
-- A workflow ID (basename without .md extension, e.g., "weekly-research")
-- A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
-
-The command will:
-- Parse the workflow to find the specified MCP server configuration
-- Connect to the MCP server using the same logic as 'mcp inspect'
-- Display available tools with their descriptions and allowance status`,
+		Long:  newMCPListToolsSubcommandLong(),
 		Example: `  gh aw mcp list-tools --server github                    # Search for workflows containing the 'github' MCP server
   gh aw mcp list-tools weekly-research --server github    # List tools for 'github' server in weekly-research.md
   gh aw mcp list-tools issue-triage --server safe-outputs # List tools for 'safe-outputs' server in issue-triage.md
@@ -231,4 +230,23 @@ The command will:
 	cmd.Flags().StringVar(&serverFilter, "server", "", "MCP server name to list tools for (required)")
 
 	return cmd
+}
+
+func newMCPListToolsSubcommandLong() string {
+	return `List available tools for a specific MCP server, or find workflows using it.
+
+When no workflow argument is provided, this command searches workflows in .github/workflows
+for references to the specified MCP server and returns matching workflow IDs.
+When a workflow is provided, it connects to the specified MCP server and displays all
+available tools. It reuses the same infrastructure as 'mcp inspect' to establish
+connections and query server capabilities.
+
+The workflow-id-or-file can be:
+- A workflow ID (basename without .md extension, e.g., "weekly-research")
+- A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
+
+The command will:
+- Parse the workflow to find the specified MCP server configuration
+- Connect to the MCP server using the same logic as 'mcp inspect'
+- Display available tools with their descriptions and allowance status`
 }

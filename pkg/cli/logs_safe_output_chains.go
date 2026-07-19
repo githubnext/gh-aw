@@ -66,19 +66,7 @@ func buildSafeOutputChainMetrics(logsPath string) SafeOutputChainMetrics {
 	closedTargets := make(map[string]struct {
 	})
 	for _, item := range items {
-		if item.Repo == "" || item.Number <= 0 {
-			continue
-		}
-		key := safeOutputTargetKey(item.Repo, item.Number)
-		itemCounts[key]++
-		switch item.Type {
-		case "assign_to_agent", "create_agent_session":
-			delegatedTargets[key] = struct {
-			}{}
-		case "close_issue", "close_pull_request", "close_discussion", "merge_pull_request":
-			closedTargets[key] = struct {
-			}{}
-		}
+		buildSafeOutputChainMetricsClassifyItem(item, itemCounts, delegatedTargets, closedTargets)
 	}
 
 	for _, target := range resolvedTargets {
@@ -99,6 +87,20 @@ func buildSafeOutputChainMetrics(logsPath string) SafeOutputChainMetrics {
 	safeOutputChainsLog.Printf("Chain metrics computed: chained_targets=%d, followup_actions=%d, delegated=%d, closed=%d",
 		metrics.ChainedTargetCount, metrics.ChainedFollowupActionCount, metrics.DelegatedTempTargetCount, metrics.ClosedTempTargetCount)
 	return metrics
+}
+
+func buildSafeOutputChainMetricsClassifyItem(item CreatedItemReport, itemCounts map[string]int, delegatedTargets, closedTargets map[string]struct{}) {
+	if item.Repo == "" || item.Number <= 0 {
+		return
+	}
+	key := safeOutputTargetKey(item.Repo, item.Number)
+	itemCounts[key]++
+	switch item.Type {
+	case "assign_to_agent", "create_agent_session":
+		delegatedTargets[key] = struct{}{}
+	case "close_issue", "close_pull_request", "close_discussion", "merge_pull_request":
+		closedTargets[key] = struct{}{}
+	}
 }
 
 func loadResolvedTemporaryIDTargets(logsPath string) (map[string]resolvedTemporaryIDTarget, string) {

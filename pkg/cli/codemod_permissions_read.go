@@ -34,42 +34,46 @@ func getExpandPermissionsShorthandCodemod() Codemod {
 				return content, false, nil
 			}
 
-			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				var modified bool
-				result := make([]string, len(lines))
-				for i, line := range lines {
-					trimmedLine := strings.TrimSpace(line)
-
-					// Check for permissions line with shorthand
-					if strings.HasPrefix(trimmedLine, "permissions:") {
-						// Handle shorthand on same line: "permissions: read" or "permissions: write"
-						if strings.Contains(trimmedLine, ": read") && !strings.Contains(trimmedLine, "read-all") && !strings.Contains(trimmedLine, ": read\n") {
-							// Make sure it's "permissions: read" and not "contents: read"
-							if strings.TrimSpace(strings.Split(line, ":")[0]) == "permissions" {
-								result[i] = strings.Replace(line, ": read", ": read-all", 1)
-								modified = true
-								permissionsReadCodemodLog.Printf("Replaced 'permissions: read' with 'permissions: read-all' on line %d", i+1)
-								continue
-							}
-						} else if strings.Contains(trimmedLine, ": write") && !strings.Contains(trimmedLine, "write-all") {
-							// Make sure it's "permissions: write" and not "contents: write"
-							if strings.TrimSpace(strings.Split(line, ":")[0]) == "permissions" {
-								result[i] = strings.Replace(line, ": write", ": write-all", 1)
-								modified = true
-								permissionsReadCodemodLog.Printf("Replaced 'permissions: write' with 'permissions: write-all' on line %d", i+1)
-								continue
-							}
-						}
-					}
-
-					result[i] = line
-				}
-				return result, modified
-			})
+			newContent, applied, err := applyFrontmatterLineTransform(content, getExpandPermissionsShorthandCodemodLines)
 			if applied {
 				permissionsReadCodemodLog.Print("Applied permissions read/write to read-all/write-all migration")
 			}
 			return newContent, applied, err
 		},
 	}
+}
+
+func getExpandPermissionsShorthandCodemodLines(lines []string) ([]string, bool) {
+	var modified bool
+	result := make([]string, len(lines))
+	for i, line := range lines {
+		updatedLine, changed := getExpandPermissionsShorthandCodemodLine(line, i)
+		if changed {
+			modified = true
+		}
+		result[i] = updatedLine
+	}
+	return result, modified
+}
+
+func getExpandPermissionsShorthandCodemodLine(line string, index int) (string, bool) {
+	trimmedLine := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmedLine, "permissions:") {
+		return line, false
+	}
+
+	if strings.Contains(trimmedLine, ": read") && !strings.Contains(trimmedLine, "read-all") && !strings.Contains(trimmedLine, ": read\n") {
+		// Make sure it's "permissions: read" and not "contents: read"
+		if strings.TrimSpace(strings.Split(line, ":")[0]) == "permissions" {
+			permissionsReadCodemodLog.Printf("Replaced 'permissions: read' with 'permissions: read-all' on line %d", index+1)
+			return strings.Replace(line, ": read", ": read-all", 1), true
+		}
+	} else if strings.Contains(trimmedLine, ": write") && !strings.Contains(trimmedLine, "write-all") {
+		// Make sure it's "permissions: write" and not "contents: write"
+		if strings.TrimSpace(strings.Split(line, ":")[0]) == "permissions" {
+			permissionsReadCodemodLog.Printf("Replaced 'permissions: write' with 'permissions: write-all' on line %d", index+1)
+			return strings.Replace(line, ": write", ": write-all", 1), true
+		}
+	}
+	return line, false
 }

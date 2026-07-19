@@ -126,9 +126,19 @@ func buildDrain3InsightsMultiRun(processedRuns []ProcessedRun) []ObservabilityIn
 func buildAgentEventsFromProcessedRun(processedRun ProcessedRun, metrics MetricsData, toolUsage []ToolUsageInfo) []agentdrain.AgentEvent {
 	var events []agentdrain.AgentEvent
 
+	buildAgentEventsFromProcessedRunPlan(&events, metrics)
+	buildAgentEventsFromProcessedRunToolUsage(&events, toolUsage)
+	buildAgentEventsFromProcessedRunErrors(&events, processedRun)
+	buildAgentEventsFromProcessedRunNoops(&events, processedRun)
+	buildAgentEventsFromProcessedRunFinish(&events, processedRun, metrics)
+
+	return events
+}
+
+func buildAgentEventsFromProcessedRunPlan(events *[]agentdrain.AgentEvent, metrics MetricsData) {
 	// Synthesise a planning event from overall metrics.
 	if metrics.Turns > 0 {
-		events = append(events, agentdrain.AgentEvent{
+		*events = append(*events, agentdrain.AgentEvent{
 			Stage: "plan",
 			Fields: map[string]string{
 				"turns":  strconv.Itoa(metrics.Turns),
@@ -136,10 +146,11 @@ func buildAgentEventsFromProcessedRun(processedRun ProcessedRun, metrics Metrics
 			},
 		})
 	}
+}
 
-	// Tool-call events from the per-tool usage summary.
+func buildAgentEventsFromProcessedRunToolUsage(events *[]agentdrain.AgentEvent, toolUsage []ToolUsageInfo) {
 	for _, tu := range toolUsage {
-		events = append(events, agentdrain.AgentEvent{
+		*events = append(*events, agentdrain.AgentEvent{
 			Stage: "tool_call",
 			Fields: map[string]string{
 				"tool":  tu.Name,
@@ -147,10 +158,17 @@ func buildAgentEventsFromProcessedRun(processedRun ProcessedRun, metrics Metrics
 			},
 		})
 	}
+}
 
-	// MCP failures become error-stage events.
+func buildAgentEventsFromProcessedRunErrors(events *[]agentdrain.AgentEvent, processedRun ProcessedRun) {
+	buildAgentEventsFromProcessedRunMCPFailures(events, processedRun)
+	buildAgentEventsFromProcessedRunMissingTools(events, processedRun)
+	buildAgentEventsFromProcessedRunMissingData(events, processedRun)
+}
+
+func buildAgentEventsFromProcessedRunMCPFailures(events *[]agentdrain.AgentEvent, processedRun ProcessedRun) {
 	for _, f := range processedRun.MCPFailures {
-		events = append(events, agentdrain.AgentEvent{
+		*events = append(*events, agentdrain.AgentEvent{
 			Stage: "error",
 			Fields: map[string]string{
 				"type":   "mcp_failure",
@@ -159,10 +177,11 @@ func buildAgentEventsFromProcessedRun(processedRun ProcessedRun, metrics Metrics
 			},
 		})
 	}
+}
 
-	// Missing tools are capability-friction errors.
+func buildAgentEventsFromProcessedRunMissingTools(events *[]agentdrain.AgentEvent, processedRun ProcessedRun) {
 	for _, mt := range processedRun.MissingTools {
-		events = append(events, agentdrain.AgentEvent{
+		*events = append(*events, agentdrain.AgentEvent{
 			Stage: "error",
 			Fields: map[string]string{
 				"type":   "missing_tool",
@@ -171,10 +190,11 @@ func buildAgentEventsFromProcessedRun(processedRun ProcessedRun, metrics Metrics
 			},
 		})
 	}
+}
 
-	// Missing data is a different error class.
+func buildAgentEventsFromProcessedRunMissingData(events *[]agentdrain.AgentEvent, processedRun ProcessedRun) {
 	for _, md := range processedRun.MissingData {
-		events = append(events, agentdrain.AgentEvent{
+		*events = append(*events, agentdrain.AgentEvent{
 			Stage: "error",
 			Fields: map[string]string{
 				"type":      "missing_data",
@@ -183,10 +203,11 @@ func buildAgentEventsFromProcessedRun(processedRun ProcessedRun, metrics Metrics
 			},
 		})
 	}
+}
 
-	// No-ops map to tool_result stage.
+func buildAgentEventsFromProcessedRunNoops(events *[]agentdrain.AgentEvent, processedRun ProcessedRun) {
 	for _, n := range processedRun.Noops {
-		events = append(events, agentdrain.AgentEvent{
+		*events = append(*events, agentdrain.AgentEvent{
 			Stage: "tool_result",
 			Fields: map[string]string{
 				"status":  "noop",
@@ -194,14 +215,16 @@ func buildAgentEventsFromProcessedRun(processedRun ProcessedRun, metrics Metrics
 			},
 		})
 	}
+}
 
+func buildAgentEventsFromProcessedRunFinish(events *[]agentdrain.AgentEvent, processedRun ProcessedRun, metrics MetricsData) {
 	// Synthesise a finish event only when the run has a meaningful conclusion.
 	conclusion := processedRun.Run.Conclusion
 	if conclusion == "" {
 		conclusion = processedRun.Run.Status
 	}
 	if conclusion != "" || metrics.TokenUsage > 0 {
-		events = append(events, agentdrain.AgentEvent{
+		*events = append(*events, agentdrain.AgentEvent{
 			Stage: "finish",
 			Fields: map[string]string{
 				"status": conclusion,
@@ -209,8 +232,6 @@ func buildAgentEventsFromProcessedRun(processedRun ProcessedRun, metrics Metrics
 			},
 		})
 	}
-
-	return events
 }
 
 // buildInsightsFromDrain3Analysis converts drain3 coordinator analysis into

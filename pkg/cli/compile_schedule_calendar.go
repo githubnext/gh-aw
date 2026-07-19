@@ -231,15 +231,21 @@ func displayScheduleCalendar(statsList []*WorkflowStats) {
 	}
 
 	isTerminal := tty.IsStderrTerminal()
+	displayScheduleCalendarTitle()
+	displayScheduleCalendarHeader()
+	displayScheduleCalendarRows(grid, isTerminal)
+	displayScheduleCalendarLegend(isTerminal)
+}
 
-	// Title
+func displayScheduleCalendarTitle() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Schedule Heatmap (UTC)"))
 	fmt.Fprintln(os.Stderr)
+}
 
+func displayScheduleCalendarHeader() {
 	// Hour header row: each cell is 3 chars wide ("XX ").
 	// The day-label column is 5 chars: "Mon  " (3 + 2 spaces).
-	const cellWidth = 3
 	const dayLabelWidth = 5
 
 	var headerBuf strings.Builder
@@ -249,7 +255,11 @@ func displayScheduleCalendar(statsList []*WorkflowStats) {
 	}
 	header := headerBuf.String()
 	fmt.Fprintln(os.Stderr, console.FormatTableHeaderStderr(header))
+}
 
+func displayScheduleCalendarRows(grid *scheduleGrid, isTerminal bool) {
+	const cellWidth = 3
+	const dayLabelWidth = 5
 	// One row per day, ordered Mon through Sun.
 	for calendarIndex, dayLabel := range calendarDayNames {
 		cronDay := calendarDayIndex[calendarIndex]
@@ -268,7 +278,9 @@ func displayScheduleCalendar(statsList []*WorkflowStats) {
 
 		fmt.Fprintln(os.Stderr, row.String())
 	}
+}
 
+func displayScheduleCalendarLegend(isTerminal bool) {
 	// Legend
 	fmt.Fprintln(os.Stderr)
 	type legendEntry struct {

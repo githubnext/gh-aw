@@ -177,82 +177,78 @@ func isShellIdentifier(s string) bool {
 	return true
 }
 
+type runBlockWalkState struct {
+	inRunBlock       bool
+	runBlockIndent   int
+	inHeredoc        bool
+	heredocDelimiter string
+	visit            func(line string) bool
+}
+
 // walkRunBlockLines scans raw YAML text and visits each inline run value or line inside a
-// multiline run block. It recognizes plain run: keys as well as quoted and flow-style forms
-// so Path B stays aligned with the parsed-YAML validators.
-//
-// Heredoc content is skipped so that expressions embedded inside heredocs (which are written
-// to files and never executed directly by the shell) do not trigger false positives in the
-// caller's expression checks. This matches the behaviour of removeHeredocContent, which
-// validateNoGitHubExpressionsInRunScriptsFromParsed uses on the parsed path.
+// multiline run block. It recognizes plain run: keys as well as quoted and flow-style forms.
 func walkRunBlockLines(yamlContent string, visit func(line string) bool) bool {
-	inRunBlock := false
-	runBlockIndent := 0
-	inHeredoc := false
-	heredocDelimiter := ""
-
+	state := runBlockWalkState{visit: visit}
 	for line := range strings.SplitSeq(yamlContent, "\n") {
-		trimmed := strings.TrimLeft(line, " \t")
-		if trimmed == "" {
-			continue
-		}
-		indent := len(line) - len(trimmed)
-
-		if inRunBlock {
-			if indent <= runBlockIndent {
-				inRunBlock = false
-				inHeredoc = false
-				heredocDelimiter = ""
-				// Fall through: check whether this line starts a new run: block.
-			} else {
-				// If we are inside a heredoc, look for the closing delimiter.
-				if inHeredoc {
-					if strings.TrimSpace(line) == heredocDelimiter {
-						inHeredoc = false
-						heredocDelimiter = ""
-					}
-					continue // always skip heredoc content
-				}
-				// Check whether this line opens a heredoc.
-				if delim, ok := detectHeredocDelimiter(trimmed); ok {
-					inHeredoc = true
-					heredocDelimiter = delim
-					// The opening line itself is not heredoc body; visit it so callers
-					// can see the surrounding shell context, but do not recurse.
-					if visit(line) {
-						return true
-					}
-					continue
-				}
-				if visit(line) {
-					return true
-				}
-				continue
-			}
-		}
-
-		keyPart := trimmed
-		if strings.HasPrefix(keyPart, "-") {
-			keyPart = strings.TrimSpace(keyPart[1:])
-		}
-
-		rest, ok := findRunValue(keyPart)
-		if !ok {
-			continue
-		}
-
-		if rest == "" || rest[0] == '|' || rest[0] == '>' {
-			inRunBlock = true
-			runBlockIndent = indent
-			continue
-		}
-
-		if visit(rest) {
+		if state.processLine(line) {
 			return true
 		}
 	}
-
 	return false
+}
+
+func (s *runBlockWalkState) processLine(line string) bool {
+	trimmed := strings.TrimLeft(line, " \t")
+	if trimmed == "" {
+		return false
+	}
+	indent := len(line) - len(trimmed)
+	if s.inRunBlock {
+		handled, matched := s.processRunBlockLine(line, trimmed, indent)
+		if matched {
+			return handled
+		}
+	}
+	return s.processPotentialRunStart(trimmed, indent)
+}
+
+func (s *runBlockWalkState) processRunBlockLine(line, trimmed string, indent int) (bool, bool) {
+	if indent <= s.runBlockIndent {
+		s.inRunBlock = false
+		s.inHeredoc = false
+		s.heredocDelimiter = ""
+		return false, false
+	}
+	if s.inHeredoc {
+		if strings.TrimSpace(line) == s.heredocDelimiter {
+			s.inHeredoc = false
+			s.heredocDelimiter = ""
+		}
+		return false, true
+	}
+	if delim, ok := detectHeredocDelimiter(trimmed); ok {
+		s.inHeredoc = true
+		s.heredocDelimiter = delim
+		return s.visit(line), true
+	}
+	return s.visit(line), true
+}
+
+func (s *runBlockWalkState) processPotentialRunStart(trimmed string, indent int) bool {
+	keyPart := trimmed
+	if strings.HasPrefix(keyPart, "-") {
+		keyPart = strings.TrimSpace(keyPart[1:])
+	}
+	rest, ok := findRunValue(keyPart)
+	if !ok {
+		return false
+	}
+	if rest == "" || rest[0] == '|' || rest[0] == '>' {
+		s.inRunBlock = true
+		s.runBlockIndent = indent
+		return false
+	}
+	return s.visit(rest)
 }
 
 // scanRunContentExpressions performs a single pass over run: blocks to detect both

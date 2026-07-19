@@ -103,8 +103,31 @@ func (c *Compiler) validateEnvSecretsSection(config map[string]any, sectionName 
 		return nil
 	}
 
-	// Convert to map[string]string for secret extraction, skipping keys whose secrets
-	// are explicitly allowed (e.g. engine env var overrides in engine.env).
+	envStrings := envStringsForSecretValidation(envMap, sectionName, allowedEnvVarKeys)
+
+	// Extract secrets from env values
+	secrets := ExtractSecretsFromMap(envStrings)
+	if len(secrets) == 0 {
+		strictModeValidationLog.Printf("No secrets found in %s section", sectionName)
+		return nil
+	}
+
+	secretRefs := secretReferencesList(secrets)
+	strictModeValidationLog.Printf("Found %d secret(s) in %s section: %v", len(secrets), sectionName, secretRefs)
+
+	// In strict mode, this is an error
+	if c.strictMode {
+		return strictEnvSecretsError(sectionName, secretRefs)
+	}
+
+	// In non-strict mode, emit a warning
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(envSecretsWarningMessage(sectionName, secretRefs)))
+	c.IncrementWarningCount()
+
+	return nil
+}
+
+func envStringsForSecretValidation(envMap map[string]any, sectionName string, allowedEnvVarKeys map[string]struct{}) map[string]string {
 	envStrings := make(map[string]string)
 	for key, value := range envMap {
 		if allowedEnvVarKeys != nil && setutil.Contains(allowedEnvVarKeys, key) {
@@ -115,45 +138,27 @@ func (c *Compiler) validateEnvSecretsSection(config map[string]any, sectionName 
 			envStrings[key] = strValue
 		}
 	}
+	return envStrings
+}
 
-	// Extract secrets from env values
-	secrets := ExtractSecretsFromMap(envStrings)
-	if len(secrets) == 0 {
-		strictModeValidationLog.Printf("No secrets found in %s section", sectionName)
-		return nil
-	}
-
-	// Build list of secret references found
+func secretReferencesList(secrets map[string]string) []string {
 	var secretRefs []string
 	for _, secretExpr := range secrets {
 		secretRefs = append(secretRefs, secretExpr)
 	}
+	return secretRefs
+}
 
-	strictModeValidationLog.Printf("Found %d secret(s) in %s section: %v", len(secrets), sectionName, secretRefs)
-
-	// In strict mode, this is an error
-	if c.strictMode {
-		if sectionName == "engine.env" {
-			// engine.env secrets are excluded from the agent sandbox via awf --exclude-env
-			// (requires AWF v0.25.3+), so they are not leaked, but strict mode still requires
-			// engine-specific configuration.
-			return fmt.Errorf("strict mode: secrets detected in 'engine.env' section are excluded from the agent sandbox via awf --exclude-env (requires AWF %s+) and are not accessible to the agent when that version is in use. Found: %s. Use engine-specific secret configuration instead. See: https://github.github.com/gh-aw/reference/engines/", constants.AWFExcludeEnvMinVersion, strings.Join(secretRefs, ", "))
-		}
-		return fmt.Errorf("strict mode: secrets detected in '%s' section will be leaked to the agent container. Found: %s. Use engine-specific secret configuration instead. See: https://github.github.com/gh-aw/reference/engines/", sectionName, strings.Join(secretRefs, ", "))
-	}
-
-	// In non-strict mode, emit a warning
-	var warningMsg string
+func strictEnvSecretsError(sectionName string, secretRefs []string) error {
 	if sectionName == "engine.env" {
-		// engine.env secrets are excluded from the agent sandbox via awf --exclude-env
-		// (requires AWF v0.25.3+). On older AWF versions this protection is not applied and
-		// the values will reach the agent container.
-		warningMsg = fmt.Sprintf("Warning: secrets detected in 'engine.env' section will be excluded from the agent sandbox via awf --exclude-env (requires AWF %s+); on older AWF versions the agent process will see these values. Found: %s. Consider using engine-specific secret configuration instead.", constants.AWFExcludeEnvMinVersion, strings.Join(secretRefs, ", "))
-	} else {
-		warningMsg = fmt.Sprintf("Warning: secrets detected in '%s' section will be leaked to the agent container. Found: %s. Consider using engine-specific secret configuration instead.", sectionName, strings.Join(secretRefs, ", "))
+		return fmt.Errorf("strict mode: secrets detected in 'engine.env' section are excluded from the agent sandbox via awf --exclude-env (requires AWF %s+) and are not accessible to the agent when that version is in use. Found: %s. Use engine-specific secret configuration instead. See: https://github.github.com/gh-aw/reference/engines/", constants.AWFExcludeEnvMinVersion, strings.Join(secretRefs, ", "))
 	}
-	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
-	c.IncrementWarningCount()
+	return fmt.Errorf("strict mode: secrets detected in '%s' section will be leaked to the agent container. Found: %s. Use engine-specific secret configuration instead. See: https://github.github.com/gh-aw/reference/engines/", sectionName, strings.Join(secretRefs, ", "))
+}
 
-	return nil
+func envSecretsWarningMessage(sectionName string, secretRefs []string) string {
+	if sectionName == "engine.env" {
+		return fmt.Sprintf("Warning: secrets detected in 'engine.env' section will be excluded from the agent sandbox via awf --exclude-env (requires AWF %s+); on older AWF versions the agent process will see these values. Found: %s. Consider using engine-specific secret configuration instead.", constants.AWFExcludeEnvMinVersion, strings.Join(secretRefs, ", "))
+	}
+	return fmt.Sprintf("Warning: secrets detected in '%s' section will be leaked to the agent container. Found: %s. Consider using engine-specific secret configuration instead.", sectionName, strings.Join(secretRefs, ", "))
 }

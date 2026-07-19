@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -22,6 +23,13 @@ const updateTargetRepoCheckoutDir = ".github/aw/updates"
 
 // NewUpdateCommand creates the update command
 func NewUpdateCommand(validateEngine func(string) error) *cobra.Command {
+	cmd := newUpdateCommandBase(validateEngine)
+	newUpdateCommandFlags(cmd)
+	newUpdateCommandCompletions(cmd)
+	return cmd
+}
+
+func newUpdateCommandBase(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update [workflow]...",
 		Short: "Update agentic workflows from their source repositories",
@@ -67,101 +75,13 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
   ` + string(constants.CLIExtensionPrefix) + ` update --cool-down 0           # Disable cooldown and apply all pending releases immediately
   ` + string(constants.CLIExtensionPrefix) + ` update --cool-down 3d          # Apply a custom 3-day cooldown period`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			majorFlag, _ := cmd.Flags().GetBool("major")
-			forceFlag, _ := cmd.Flags().GetBool("force")
-			engineOverride, _ := cmd.Flags().GetString("engine")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			workflowDir, _ := cmd.Flags().GetString("dir")
-			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
-			stopAfter, _ := cmd.Flags().GetString("stop-after")
-			noMergeFlag, _ := cmd.Flags().GetBool("no-merge")
-			disableReleaseBump, _ := cmd.Flags().GetBool("no-release-bump")
-			disableReleaseBumpLegacy, _ := cmd.Flags().GetBool("disable-release-bump")
-			disableReleaseBump = disableReleaseBump || disableReleaseBumpLegacy
-			noCompile, _ := cmd.Flags().GetBool("no-compile")
-			noRedirect, _ := cmd.Flags().GetBool("no-redirect")
-			disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
-			disableSecurityScannerLegacy, _ := cmd.Flags().GetBool("disable-security-scanner")
-			disableSecurityScanner = disableSecurityScanner || disableSecurityScannerLegacy
-			approveFlag, _ := cmd.Flags().GetBool("approve")
-			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
-			prFlagAlias, _ := cmd.Flags().GetBool("pr")
-			createPR := createPRFlag || prFlagAlias
-			createIssue, _ := cmd.Flags().GetBool("create-issue")
-			yes, _ := cmd.Flags().GetBool("yes")
-			coolDownStr, _ := cmd.Flags().GetString("cool-down")
-			targetRepo, _ := cmd.Flags().GetString("repo")
-			targetOrg, _ := cmd.Flags().GetString("org")
-			repoGlobs, _ := cmd.Flags().GetStringSlice("repos")
-
-			if err := validateEngine(engineOverride); err != nil {
-				return err
-			}
-
-			coolDown, err := parseCoolDownFlag(coolDownStr)
-			if err != nil {
-				return fmt.Errorf("invalid --cool-down value: %w", err)
-			}
-
-			if targetRepo != "" && targetOrg != "" {
-				return errors.New("cannot specify both --repo and --org flags; use --repo for a single repository or --org for organization-wide updates")
-			}
-
-			if createIssue && targetOrg == "" {
-				return errors.New("--create-issue requires --org to be specified")
-			}
-
-			if createPR && createIssue {
-				return errors.New("cannot specify both --create-pull-request and --create-issue")
-			}
-
-			if createPR && targetRepo == "" && targetOrg == "" {
-				if err := PreflightCheckForCreatePR(verbose); err != nil {
-					return err
-				}
-			}
-
-			opts := UpdateWorkflowsOptions{
-				WorkflowNames:          args,
-				AllowMajor:             majorFlag,
-				Force:                  forceFlag,
-				Yes:                    yes,
-				Verbose:                verbose,
-				EngineOverride:         engineOverride,
-				WorkflowsDir:           workflowDir,
-				NoStopAfter:            noStopAfter,
-				StopAfter:              stopAfter,
-				NoMerge:                noMergeFlag,
-				DisableReleaseBump:     disableReleaseBump,
-				NoCompile:              noCompile,
-				NoRedirect:             noRedirect,
-				DisableSecurityScanner: disableSecurityScanner,
-				CoolDown:               coolDown,
-				Approve:                approveFlag,
-			}
-
-			if targetRepo != "" {
-				return runUpdateForTargetRepo(cmd.Context(), targetRepo, opts, createPR, verbose)
-			}
-
-			if targetOrg != "" {
-				return runUpdateForOrg(cmd.Context(), targetOrg, repoGlobs, opts, createPR, createIssue, verbose)
-			}
-
-			if err := RunUpdateWorkflows(cmd.Context(), opts); err != nil {
-				return err
-			}
-
-			if createPR {
-				prBody := "This PR updates agentic workflows from their source repositories."
-				_, err := CreatePRWithChanges("update-workflows", "chore: update workflows",
-					"Update workflows from source", prBody, verbose)
-				return err
-			}
-			return nil
+			return runUpdateCommand(cmd, args, validateEngine)
 		},
 	}
+	return cmd
+}
 
+func newUpdateCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("major", false, "Allow major version updates when updating tagged releases")
 	cmd.Flags().BoolP("force", "f", false, "Force update even if no changes are detected")
 	addEngineFlag(cmd)
@@ -187,13 +107,140 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 	cmd.Flags().BoolP("yes", "y", false, "Auto-accept org-mode update confirmations (required in CI)")
 	cmd.Flags().String("cool-down", "7d", coolDownFlagUsage)
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
+}
 
+func newUpdateCommandCompletions(cmd *cobra.Command) {
 	// Register completions for update command
 	cmd.ValidArgsFunction = CompleteWorkflowNames
 	RegisterEngineFlagCompletion(cmd)
 	RegisterDirFlagCompletion(cmd, "dir")
+}
 
-	return cmd
+type runUpdateCommandFlags struct {
+	majorFlag              bool
+	forceFlag              bool
+	engineOverride         string
+	verbose                bool
+	workflowDir            string
+	noStopAfter            bool
+	stopAfter              string
+	noMergeFlag            bool
+	disableReleaseBump     bool
+	noCompile              bool
+	noRedirect             bool
+	disableSecurityScanner bool
+	approveFlag            bool
+	createPR               bool
+	createIssue            bool
+	yes                    bool
+	coolDownStr            string
+	targetRepo             string
+	targetOrg              string
+	repoGlobs              []string
+}
+
+func runUpdateCommand(cmd *cobra.Command, args []string, validateEngine func(string) error) error {
+	flags := runUpdateCommandReadFlags(cmd)
+	if err := runUpdateCommandValidate(flags, validateEngine); err != nil {
+		return err
+	}
+	coolDown, err := parseCoolDownFlag(flags.coolDownStr)
+	if err != nil {
+		return fmt.Errorf("invalid --cool-down value: %w", err)
+	}
+
+	opts := runUpdateCommandOptions(args, flags, coolDown)
+	if flags.targetRepo != "" {
+		return runUpdateForTargetRepo(cmd.Context(), flags.targetRepo, opts, flags.createPR, flags.verbose)
+	}
+	if flags.targetOrg != "" {
+		return runUpdateForOrg(cmd.Context(), flags.targetOrg, flags.repoGlobs, opts, flags.createPR, flags.createIssue, flags.verbose)
+	}
+	return runUpdateCommandLocal(cmd.Context(), opts, flags.createPR, flags.verbose)
+}
+
+func runUpdateCommandReadFlags(cmd *cobra.Command) runUpdateCommandFlags {
+	flags := runUpdateCommandFlags{}
+	flags.majorFlag, _ = cmd.Flags().GetBool("major")
+	flags.forceFlag, _ = cmd.Flags().GetBool("force")
+	flags.engineOverride, _ = cmd.Flags().GetString("engine")
+	flags.verbose, _ = cmd.Flags().GetBool("verbose")
+	flags.workflowDir, _ = cmd.Flags().GetString("dir")
+	flags.noStopAfter, _ = cmd.Flags().GetBool("no-stop-after")
+	flags.stopAfter, _ = cmd.Flags().GetString("stop-after")
+	flags.noMergeFlag, _ = cmd.Flags().GetBool("no-merge")
+	flags.disableReleaseBump, _ = cmd.Flags().GetBool("no-release-bump")
+	disableReleaseBumpLegacy, _ := cmd.Flags().GetBool("disable-release-bump")
+	flags.disableReleaseBump = flags.disableReleaseBump || disableReleaseBumpLegacy
+	flags.noCompile, _ = cmd.Flags().GetBool("no-compile")
+	flags.noRedirect, _ = cmd.Flags().GetBool("no-redirect")
+	flags.disableSecurityScanner, _ = cmd.Flags().GetBool("no-security-scanner")
+	disableSecurityScannerLegacy, _ := cmd.Flags().GetBool("disable-security-scanner")
+	flags.disableSecurityScanner = flags.disableSecurityScanner || disableSecurityScannerLegacy
+	flags.approveFlag, _ = cmd.Flags().GetBool("approve")
+	createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
+	prFlagAlias, _ := cmd.Flags().GetBool("pr")
+	flags.createPR = createPRFlag || prFlagAlias
+	flags.createIssue, _ = cmd.Flags().GetBool("create-issue")
+	flags.yes, _ = cmd.Flags().GetBool("yes")
+	flags.coolDownStr, _ = cmd.Flags().GetString("cool-down")
+	flags.targetRepo, _ = cmd.Flags().GetString("repo")
+	flags.targetOrg, _ = cmd.Flags().GetString("org")
+	flags.repoGlobs, _ = cmd.Flags().GetStringSlice("repos")
+	return flags
+}
+
+func runUpdateCommandValidate(flags runUpdateCommandFlags, validateEngine func(string) error) error {
+	if err := validateEngine(flags.engineOverride); err != nil {
+		return err
+	}
+	if flags.targetRepo != "" && flags.targetOrg != "" {
+		return errors.New("cannot specify both --repo and --org flags; use --repo for a single repository or --org for organization-wide updates")
+	}
+	if flags.createIssue && flags.targetOrg == "" {
+		return errors.New("--create-issue requires --org to be specified")
+	}
+	if flags.createPR && flags.createIssue {
+		return errors.New("cannot specify both --create-pull-request and --create-issue")
+	}
+	if flags.createPR && flags.targetRepo == "" && flags.targetOrg == "" {
+		return PreflightCheckForCreatePR(flags.verbose)
+	}
+	return nil
+}
+
+func runUpdateCommandOptions(args []string, flags runUpdateCommandFlags, coolDown time.Duration) UpdateWorkflowsOptions {
+	return UpdateWorkflowsOptions{
+		WorkflowNames:          args,
+		AllowMajor:             flags.majorFlag,
+		Force:                  flags.forceFlag,
+		Yes:                    flags.yes,
+		Verbose:                flags.verbose,
+		EngineOverride:         flags.engineOverride,
+		WorkflowsDir:           flags.workflowDir,
+		NoStopAfter:            flags.noStopAfter,
+		StopAfter:              flags.stopAfter,
+		NoMerge:                flags.noMergeFlag,
+		DisableReleaseBump:     flags.disableReleaseBump,
+		NoCompile:              flags.noCompile,
+		NoRedirect:             flags.noRedirect,
+		DisableSecurityScanner: flags.disableSecurityScanner,
+		CoolDown:               coolDown,
+		Approve:                flags.approveFlag,
+	}
+}
+
+func runUpdateCommandLocal(ctx context.Context, opts UpdateWorkflowsOptions, createPR bool, verbose bool) error {
+	if err := RunUpdateWorkflows(ctx, opts); err != nil {
+		return err
+	}
+	if createPR {
+		prBody := "This PR updates agentic workflows from their source repositories."
+		_, err := CreatePRWithChanges("update-workflows", "chore: update workflows",
+			"Update workflows from source", prBody, verbose)
+		return err
+	}
+	return nil
 }
 
 // RunUpdateWorkflows updates workflows from their source repositories.
@@ -278,36 +325,16 @@ func recompileAllWorkflows(ctx context.Context, workflowsDir, engineOverride str
 }
 
 func runUpdateForTargetRepo(ctx context.Context, targetRepo string, opts UpdateWorkflowsOptions, createPR bool, verbose bool) error {
-	gitRoot, err := gitutil.FindGitRoot()
-	if err != nil {
-		return fmt.Errorf("--repo requires running inside a git repository: %w", err)
-	}
-
-	updatesDir, err := ensureUpdateTargetRepoGitignore(gitRoot)
+	checkoutDir, err := runUpdateForTargetRepoCheckout(ctx, targetRepo, verbose)
 	if err != nil {
 		return err
 	}
 
-	checkoutDir := filepath.Join(updatesDir, sanitizeRepoPath(targetRepo))
-	if err := shallowCloneTargetRepo(ctx, targetRepo, checkoutDir); err != nil {
+	restoreDir, err := runUpdateForTargetRepoChdir(checkoutDir)
+	if err != nil {
 		return err
 	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checked out "+targetRepo+" at "+checkoutDir))
-	}
-
-	originalDir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to read current directory: %w", err)
-	}
-	defer func() {
-		_ = os.Chdir(originalDir)
-	}()
-
-	if err := os.Chdir(checkoutDir); err != nil {
-		return fmt.Errorf("failed to change directory to checkout %s: %w", checkoutDir, err)
-	}
+	defer restoreDir()
 
 	if createPR {
 		if err := PreflightCheckForCreatePR(verbose); err != nil {
@@ -320,28 +347,64 @@ func runUpdateForTargetRepo(ctx context.Context, targetRepo string, opts UpdateW
 	}
 
 	if createPR {
-		releaseTag, releaseURL := getGhawReleaseInfo()
-		xmlMarker := buildOrgXMLMarker(ghawUpdateMarkerPrefix, releaseTag)
+		return runUpdateForTargetRepoCreatePR(ctx, targetRepo, verbose)
+	}
+	return nil
+}
 
-		// Close any stale update PRs in the target repo before creating the new one.
-		closeExistingOrgPRsByMarker(ctx, targetRepo, ghawUpdateMarkerPrefix, verbose)
+func runUpdateForTargetRepoCheckout(ctx context.Context, targetRepo string, verbose bool) (string, error) {
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return "", fmt.Errorf("--repo requires running inside a git repository: %w", err)
+	}
 
-		var releaseLine string
-		if releaseURL != "" {
-			releaseLine = fmt.Sprintf("\n[View gh-aw release %s](%s)\n", releaseTag, releaseURL)
-		}
-		prBody := "This PR updates agentic workflows from their source repositories." +
-			releaseLine + "\n" + xmlMarker
+	updatesDir, err := ensureUpdateTargetRepoGitignore(gitRoot)
+	if err != nil {
+		return "", err
+	}
 
-		prURL, err := CreatePRWithChanges("update-workflows", "chore: update workflows",
-			"Update workflows from source", prBody, verbose)
-		if err != nil {
-			return err
-		}
-		if prURL != "" {
-			addLabelToOrgPR(ctx, prURL, agenticWorkflowsLabel, verbose)
-		}
-		return nil
+	checkoutDir := filepath.Join(updatesDir, sanitizeRepoPath(targetRepo))
+	if err := shallowCloneTargetRepo(ctx, targetRepo, checkoutDir); err != nil {
+		return "", err
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checked out "+targetRepo+" at "+checkoutDir))
+	}
+	return checkoutDir, nil
+}
+
+func runUpdateForTargetRepoChdir(checkoutDir string) (func(), error) {
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read current directory: %w", err)
+	}
+	if err := os.Chdir(checkoutDir); err != nil {
+		return nil, fmt.Errorf("failed to change directory to checkout %s: %w", checkoutDir, err)
+	}
+	return func() {
+		_ = os.Chdir(originalDir)
+	}, nil
+}
+
+func runUpdateForTargetRepoCreatePR(ctx context.Context, targetRepo string, verbose bool) error {
+	releaseTag, releaseURL := getGhawReleaseInfo()
+	xmlMarker := buildOrgXMLMarker(ghawUpdateMarkerPrefix, releaseTag)
+	closeExistingOrgPRsByMarker(ctx, targetRepo, ghawUpdateMarkerPrefix, verbose)
+
+	var releaseLine string
+	if releaseURL != "" {
+		releaseLine = fmt.Sprintf("\n[View gh-aw release %s](%s)\n", releaseTag, releaseURL)
+	}
+	prBody := "This PR updates agentic workflows from their source repositories." +
+		releaseLine + "\n" + xmlMarker
+
+	prURL, err := CreatePRWithChanges("update-workflows", "chore: update workflows",
+		"Update workflows from source", prBody, verbose)
+	if err != nil {
+		return err
+	}
+	if prURL != "" {
+		addLabelToOrgPR(ctx, prURL, agenticWorkflowsLabel, verbose)
 	}
 	return nil
 }

@@ -250,60 +250,46 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 		return []string{fmt.Sprintf("      # Failed to resolve detection engine %q: %v\n", engineID, err)}
 	}
 
-	// Build detection WorkflowData for the external detector.
-	// The rw mount for ThreatDetectionDir allows the threat-detect binary to write
-	// detection_result.json from inside the AWF container to the host filesystem.
+	threatDetectionData := buildConfiguredExternalDetectorWorkflowData(data, engineID)
+	command := buildExternalDetectorAWFCommand(data, threatDetectionData, engineID)
+	steps := buildExternalDetectorStepLines(command)
+	steps = appendExternalDetectorEnvLines(steps, engine, threatDetectionData, engineID)
+	return steps
+}
+
+func buildConfiguredExternalDetectorWorkflowData(data *WorkflowData, engineID string) *WorkflowData {
 	threatDetectionData := buildExternalDetectorWorkflowData(data, engineID)
 	threatDetectionData.NetworkPermissions = &NetworkPermissions{
 		Allowed: getThreatDetectionAdditionalAllowedDomains(data),
 	}
-	// Add a read-write mount so the threat-detect binary can write
-	// detection_result.json inside the container and it becomes visible
-	// on the host through the bind mount.
 	threatDetectionData.SandboxConfig.Agent.Mounts = appendThreatDetectionRWMount(threatDetectionData.SandboxConfig.Agent.Mounts)
+	return threatDetectionData
+}
 
-	// Compute which env vars to exclude from the AWF container. The API proxy
-	// handles authentication, so the raw credentials must not reach the container.
+func buildExternalDetectorAWFCommand(data *WorkflowData, threatDetectionData *WorkflowData, engineID string) string {
 	excludeEnvVarNames := ComputeAWFExcludeEnvVarNames(threatDetectionData, engineCoreSecretVarNames(engineID))
-
-	// Compute allowed domains for the detection engine. The AWF firewall for the
-	// detection job must permit the engine's required API endpoints. Without this,
-	// engines such as Codex (which connects to api.openai.com and chatgpt.com) fail
-	// with "domain not in allowlist" and the detection job exits with code 1/2.
 	allowedDomains := GetAllowedDomainsForEngine(constants.EngineName(engineID), threatDetectionData.NetworkPermissions, data.Tools, data.Runtimes)
-	// Extend the allowlist with any custom API target domains when engine.api-target
-	// is set (e.g. GHE or a custom OpenAI-compatible endpoint).
 	if threatDetectionData.EngineConfig != nil && threatDetectionData.EngineConfig.APITarget != "" {
 		allowedDomains = mergeAPITargetDomains(allowedDomains, threatDetectionData.EngineConfig.APITarget)
 	}
-
-	// Build the threat-detect command. The binary reads the prepared detection
-	// artifacts directory from /tmp/gh-aw/threat-detection/ (set up by previous
-	// steps) and writes the structured verdict to detection_result.json there.
-	// Prepend npm PATH setup so that npm-installed engine CLIs (e.g. claude, codex)
-	// can be found inside the AWF container's chroot environment. threat-detect
-	// invokes the engine binary as a subprocess and relies on PATH to locate it.
-	npmPathSetup := GetNpmBinPathSetup()
 	threatDetectCmd := fmt.Sprintf(
 		"%s && threat-detect --engine %s --output %s %s",
-		npmPathSetup,
+		GetNpmBinPathSetup(),
 		engineID,
 		shellEscapeArg(constants.ThreatDetectionResultPath),
 		shellEscapeArg(constants.ThreatDetectionDir),
 	)
-
-	// Build the complete AWF command. BuildAWFCommand handles config file setup,
-	// ARC/DinD probes, tool cache mount, and the log tee pattern.
-	awfConfig := AWFCommandConfig{
+	return BuildAWFCommand(AWFCommandConfig{
 		EngineName:         engineID,
 		EngineCommand:      threatDetectCmd,
 		LogFile:            constants.ThreatDetectionLogPath,
 		WorkflowData:       threatDetectionData,
 		ExcludeEnvVarNames: excludeEnvVarNames,
 		AllowedDomains:     allowedDomains,
-	}
-	command := BuildAWFCommand(awfConfig)
+	})
+}
 
+func buildExternalDetectorStepLines(command string) []string {
 	steps := []string{
 		"      - name: Execute threat detection with AWF\n",
 		"        id: detection_agentic_execution\n",
@@ -321,22 +307,22 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 		}
 		steps = append(steps, prefixed)
 	}
+	return steps
+}
 
-	// Reuse the engine's own execution env block so the external detector path
-	// gets the same token/model/runtime environment configuration as the agent job.
+func appendExternalDetectorEnvLines(steps []string, engine CodingAgentEngine, threatDetectionData *WorkflowData, engineID string) []string {
 	executionSteps := engine.GetExecutionSteps(threatDetectionData, constants.ThreatDetectionLogPath)
-	if len(executionSteps) > 0 {
-		envLines := extractStepEnvLines(executionSteps[0])
-		if len(envLines) == 0 {
-			threatLog.Printf("Detection engine %q execution step did not expose env lines; external detector will run with minimal env", engineID)
-		}
-		for _, line := range envLines {
-			steps = append(steps, line+"\n")
-		}
-	} else {
+	if len(executionSteps) == 0 {
 		threatLog.Printf("Detection engine %q did not generate execution steps; external detector will run with minimal env", engineID)
+		return steps
 	}
-
+	envLines := extractStepEnvLines(executionSteps[0])
+	if len(envLines) == 0 {
+		threatLog.Printf("Detection engine %q execution step did not expose env lines; external detector will run with minimal env", engineID)
+	}
+	for _, line := range envLines {
+		steps = append(steps, line+"\n")
+	}
 	return steps
 }
 

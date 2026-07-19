@@ -80,203 +80,221 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, error) {
 func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 	cfg := &CheckoutConfig{}
 
+	if err := parseCheckoutIdentityFields(cfg, m); err != nil {
+		return nil, err
+	}
+	if err := parseCheckoutAuthFields(cfg, m); err != nil {
+		return nil, err
+	}
+	if cfg.GitHubToken != "" && cfg.GitHubApp != nil {
+		checkoutManagerLog.Print("Rejecting checkout config: github-token and github-app are mutually exclusive")
+		return nil, errors.New("checkout: github-token and github-app are mutually exclusive; use one or the other")
+	}
+	checkoutManagerLog.Printf("Parsed checkout config: repo=%q, ref=%q, path=%q, current=%v, hasToken=%v, hasApp=%v",
+		cfg.Repository, cfg.Ref, cfg.Path, cfg.Current, cfg.GitHubToken != "", cfg.GitHubApp != nil)
+	if err := parseCheckoutGitFields(cfg, m); err != nil {
+		return nil, err
+	}
+	if err := parseCheckoutBooleanFields(cfg, m); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
+}
+
+func parseCheckoutIdentityFields(cfg *CheckoutConfig, m map[string]any) error {
 	if v, ok := m["repository"]; ok {
 		s, ok := v.(string)
 		if !ok {
-			return nil, errors.New("checkout.repository must be a string")
+			return errors.New("checkout.repository must be a string")
 		}
 		cfg.Repository = s
 	}
-
 	if v, ok := m["ref"]; ok {
 		s, ok := v.(string)
 		if !ok {
-			return nil, errors.New("checkout.ref must be a string")
+			return errors.New("checkout.ref must be a string")
 		}
 		cfg.Ref = s
 	}
-
 	if v, ok := m["path"]; ok {
 		s, ok := v.(string)
 		if !ok {
-			return nil, errors.New("checkout.path must be a string")
+			return errors.New("checkout.path must be a string")
 		}
 		cfg.PathExplicit = true
-		// Normalize "." to empty string: both mean the workspace root and
-		// are treated identically by the checkout step generator.
 		if s == "." {
 			s = ""
 		}
 		cfg.Path = s
 	}
+	return nil
+}
 
-	// Support both "github-token" (preferred) and "token" (backward compat)
+func parseCheckoutAuthFields(cfg *CheckoutConfig, m map[string]any) error {
 	if v, ok := m["github-token"]; ok {
 		s, ok := v.(string)
 		if !ok {
-			return nil, errors.New("checkout.github-token must be a string")
+			return errors.New("checkout.github-token must be a string")
 		}
 		cfg.GitHubToken = s
 	} else if v, ok := m["token"]; ok {
-		// Backward compatibility: "token" is accepted but "github-token" is preferred
 		s, ok := v.(string)
 		if !ok {
-			return nil, errors.New("checkout.token must be a string")
+			return errors.New("checkout.token must be a string")
 		}
 		cfg.GitHubToken = s
 	}
-
-	// Parse app configuration for GitHub App-based authentication
 	if v, ok := m["github-app"]; ok {
-		appMap, ok := v.(map[string]any)
-		if !ok {
-			return nil, errors.New("checkout.github-app must be an object")
+		appConfig, err := parseCheckoutAppConfig("github-app", v)
+		if err != nil {
+			return err
 		}
-		cfg.GitHubApp = parseAppConfig(appMap)
-		if cfg.GitHubApp.AppID == "" || cfg.GitHubApp.PrivateKey == "" {
-			return nil, errors.New("checkout.github-app requires both client-id (or app-id) and private-key")
-		}
-	}
-
-	// Parse app configuration for safe_outputs-only GitHub App authentication.
-	parseSafeOutputAppConfig := func(fieldName string, value any) (*GitHubAppConfig, error) {
-		appMap, ok := value.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("checkout.%s must be an object", fieldName)
-		}
-		appConfig := parseAppConfig(appMap)
-		if appConfig.AppID == "" || appConfig.PrivateKey == "" {
-			return nil, fmt.Errorf("checkout.%s requires both client-id (or app-id) and private-key", fieldName)
-		}
-		return appConfig, nil
+		cfg.GitHubApp = appConfig
 	}
 	if v, ok := m["safe-outputs-github-app"]; ok {
-		appConfig, err := parseSafeOutputAppConfig("safe-outputs-github-app", v)
+		appConfig, err := parseCheckoutAppConfig("safe-outputs-github-app", v)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		cfg.SafeOutputGitHubApp = appConfig
 	}
 	if _, ok := m["safe-output-github-app"]; ok {
-		return nil, errors.New("checkout.safe-output-github-app is not supported; use checkout.safe-outputs-github-app")
+		return errors.New("checkout.safe-output-github-app is not supported; use checkout.safe-outputs-github-app")
 	}
+	return nil
+}
 
-	// Validate mutual exclusivity of github-token and github-app
-	if cfg.GitHubToken != "" && cfg.GitHubApp != nil {
-		checkoutManagerLog.Print("Rejecting checkout config: github-token and github-app are mutually exclusive")
-		return nil, errors.New("checkout: github-token and github-app are mutually exclusive; use one or the other")
+func parseCheckoutAppConfig(fieldName string, value any) (*GitHubAppConfig, error) {
+	appMap, ok := value.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("checkout.%s must be an object", fieldName)
 	}
+	appConfig := parseAppConfig(appMap)
+	if appConfig.AppID == "" || appConfig.PrivateKey == "" {
+		return nil, fmt.Errorf("checkout.%s requires both client-id (or app-id) and private-key", fieldName)
+	}
+	return appConfig, nil
+}
 
-	checkoutManagerLog.Printf("Parsed checkout config: repo=%q, ref=%q, path=%q, current=%v, hasToken=%v, hasApp=%v",
-		cfg.Repository, cfg.Ref, cfg.Path, cfg.Current, cfg.GitHubToken != "", cfg.GitHubApp != nil)
-
+func parseCheckoutGitFields(cfg *CheckoutConfig, m map[string]any) error {
 	if v, ok := m["fetch-depth"]; ok {
-		switch n := v.(type) {
-		case int:
-			depth := n
-			cfg.FetchDepth = &depth
-		case int64:
-			depth := int(n)
-			cfg.FetchDepth = &depth
-		case uint64:
-			depth := int(n)
-			cfg.FetchDepth = &depth
-		case float64:
-			if n != float64(int64(n)) {
-				return nil, errors.New("checkout.fetch-depth must be an integer")
-			}
-			depth := int(n)
-			cfg.FetchDepth = &depth
-		default:
-			return nil, errors.New("checkout.fetch-depth must be an integer")
+		depth, err := parseCheckoutFetchDepth(v)
+		if err != nil {
+			return err
 		}
-		if cfg.FetchDepth != nil && *cfg.FetchDepth < 0 {
-			return nil, errors.New("checkout.fetch-depth must be >= 0")
-		}
+		cfg.FetchDepth = depth
 	}
-
 	if v, ok := m["sparse-checkout"]; ok {
 		s, ok := v.(string)
 		if !ok {
-			return nil, errors.New("checkout.sparse-checkout must be a string")
+			return errors.New("checkout.sparse-checkout must be a string")
 		}
 		cfg.SparseCheckout = s
 	}
-
 	if v, ok := m["submodules"]; ok {
-		switch sv := v.(type) {
-		case string:
-			cfg.Submodules = sv
-		case bool:
-			if sv {
-				cfg.Submodules = "true"
-			} else {
-				cfg.Submodules = "false"
-			}
-		default:
-			return nil, errors.New("checkout.submodules must be a string or boolean")
+		submodules, err := parseCheckoutSubmodules(v)
+		if err != nil {
+			return err
 		}
+		cfg.Submodules = submodules
 	}
-
-	if v, ok := m["lfs"]; ok {
-		b, ok := v.(bool)
-		if !ok {
-			return nil, errors.New("checkout.lfs must be a boolean")
-		}
-		cfg.LFS = b
-	}
-
-	if v, ok := m["current"]; ok {
-		b, ok := v.(bool)
-		if !ok {
-			return nil, errors.New("checkout.current must be a boolean")
-		}
-		cfg.Current = b
-	}
-
 	if v, ok := m["fetch"]; ok {
-		switch fv := v.(type) {
-		case string:
-			// Single string shorthand: treat as a one-element list
-			if strings.TrimSpace(fv) == "" {
-				return nil, errors.New("checkout.fetch string value must not be empty")
-			}
-			cfg.Fetch = []string{fv}
-		case []any:
-			refs := make([]string, 0, len(fv))
-			for i, item := range fv {
-				s, ok := item.(string)
-				if !ok {
-					return nil, fmt.Errorf("checkout.fetch[%d] must be a string, got %T", i, item)
-				}
-				if strings.TrimSpace(s) == "" {
-					return nil, fmt.Errorf("checkout.fetch[%d] must not be empty", i)
-				}
-				refs = append(refs, s)
-			}
-			cfg.Fetch = refs
-		default:
-			return nil, errors.New("checkout.fetch must be a string or an array of strings")
+		refs, err := parseCheckoutFetchRefs(v)
+		if err != nil {
+			return err
 		}
+		cfg.Fetch = refs
 	}
+	return nil
+}
 
-	if v, ok := m["wiki"]; ok {
-		b, ok := v.(bool)
+func parseCheckoutFetchDepth(v any) (*int, error) {
+	var depth int
+	switch n := v.(type) {
+	case int:
+		depth = n
+	case int64:
+		depth = int(n)
+	case uint64:
+		depth = int(n)
+	case float64:
+		if n != float64(int64(n)) {
+			return nil, errors.New("checkout.fetch-depth must be an integer")
+		}
+		depth = int(n)
+	default:
+		return nil, errors.New("checkout.fetch-depth must be an integer")
+	}
+	if depth < 0 {
+		return nil, errors.New("checkout.fetch-depth must be >= 0")
+	}
+	return &depth, nil
+}
+
+func parseCheckoutSubmodules(v any) (string, error) {
+	switch sv := v.(type) {
+	case string:
+		return sv, nil
+	case bool:
+		if sv {
+			return "true", nil
+		}
+		return "false", nil
+	default:
+		return "", errors.New("checkout.submodules must be a string or boolean")
+	}
+}
+
+func parseCheckoutFetchRefs(v any) ([]string, error) {
+	switch fv := v.(type) {
+	case string:
+		if strings.TrimSpace(fv) == "" {
+			return nil, errors.New("checkout.fetch string value must not be empty")
+		}
+		return []string{fv}, nil
+	case []any:
+		return parseCheckoutFetchRefArray(fv)
+	default:
+		return nil, errors.New("checkout.fetch must be a string or an array of strings")
+	}
+}
+
+func parseCheckoutFetchRefArray(fv []any) ([]string, error) {
+	refs := make([]string, 0, len(fv))
+	for i, item := range fv {
+		s, ok := item.(string)
 		if !ok {
-			return nil, errors.New("checkout.wiki must be a boolean")
+			return nil, fmt.Errorf("checkout.fetch[%d] must be a string, got %T", i, item)
 		}
-		cfg.Wiki = b
-	}
-
-	if v, ok := m["force-clean-git-credentials"]; ok {
-		b, ok := v.(bool)
-		if !ok {
-			return nil, errors.New("checkout.force-clean-git-credentials must be a boolean")
+		if strings.TrimSpace(s) == "" {
+			return nil, fmt.Errorf("checkout.fetch[%d] must not be empty", i)
 		}
-		cfg.CleanGitCredentials = b
+		refs = append(refs, s)
 	}
+	return refs, nil
+}
 
-	return cfg, nil
+func parseCheckoutBooleanFields(cfg *CheckoutConfig, m map[string]any) error {
+	boolFields := []struct {
+		key string
+		set func(bool)
+	}{
+		{"lfs", func(v bool) { cfg.LFS = v }},
+		{"current", func(v bool) { cfg.Current = v }},
+		{"wiki", func(v bool) { cfg.Wiki = v }},
+		{"force-clean-git-credentials", func(v bool) { cfg.CleanGitCredentials = v }},
+	}
+	for _, field := range boolFields {
+		if v, ok := m[field.key]; ok {
+			b, ok := v.(bool)
+			if !ok {
+				return fmt.Errorf("checkout.%s must be a boolean", field.key)
+			}
+			field.set(b)
+		}
+	}
+	return nil
 }
 
 // buildCheckoutsPromptContent returns a markdown bullet list describing all user-configured
@@ -304,59 +322,7 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 			continue
 		}
 
-		// Build the full absolute path using $GITHUB_WORKSPACE as root.
-		// Normalize the path: strip "./" prefix; bare "." and "" both mean root.
-		relPath := strings.TrimPrefix(cfg.Path, "./")
-		if relPath == "." {
-			relPath = ""
-		}
-		isRoot := relPath == ""
-		absPath := "$GITHUB_WORKSPACE"
-		if !isRoot {
-			absPath += "/" + relPath
-		}
-
-		// Determine repo: use configured value or fall back to the triggering repository expression.
-		// For wiki checkouts, append the ".wiki" suffix so the prompt accurately reflects what was checked out.
-		repo := cfg.Repository
-		if repo == "" {
-			repo = "${{ github.repository }}"
-		}
-		if cfg.Wiki {
-			if !strings.HasSuffix(repo, ".wiki") {
-				repo += ".wiki"
-			}
-		}
-
-		line := fmt.Sprintf("  - repo `%s` → `%s`", repo, absPath)
-		if isRoot {
-			line += " (cwd)"
-		}
-		if cfg.Wiki {
-			line += " (wiki)"
-		}
-		if cfg.Current {
-			line += " (**current** - this is the repository you are working on; use this as the target for all GitHub operations unless otherwise specified)"
-		}
-
-		// Annotate fetch-depth so the agent knows how much history is available
-		if cfg.FetchDepth != nil && *cfg.FetchDepth == 0 {
-			line += " [full history, all branches available as remote-tracking refs]"
-		} else if cfg.FetchDepth != nil {
-			line += fmt.Sprintf(" [shallow clone, fetch-depth=%d]", *cfg.FetchDepth)
-		} else {
-			line += " [shallow clone, fetch-depth=1 (default)]"
-		}
-
-		// Annotate additionally fetched refs
-		if len(cfg.Fetch) > 0 {
-			line += fmt.Sprintf(" [additional refs fetched: %s]", strings.Join(cfg.Fetch, ", "))
-		}
-		if strings.TrimSpace(cfg.SparseCheckout) != "" {
-			line += " [sparse checkout enabled]"
-		}
-
-		sb.WriteString(line + "\n")
+		sb.WriteString(buildCheckoutPromptLine(cfg) + "\n")
 	}
 
 	// General guidance about unavailable branches
@@ -370,4 +336,59 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 	sb.WriteString(checkoutsNoCredentialsWarning)
 
 	return sb.String()
+}
+
+func buildCheckoutPromptLine(cfg *CheckoutConfig) string {
+	absPath, isRoot := checkoutPromptPath(cfg)
+	line := fmt.Sprintf("  - repo `%s` → `%s`", checkoutPromptRepo(cfg), absPath)
+	if isRoot {
+		line += " (cwd)"
+	}
+	if cfg.Wiki {
+		line += " (wiki)"
+	}
+	if cfg.Current {
+		line += " (**current** - this is the repository you are working on; use this as the target for all GitHub operations unless otherwise specified)"
+	}
+	line += checkoutPromptFetchDepth(cfg)
+	if len(cfg.Fetch) > 0 {
+		line += fmt.Sprintf(" [additional refs fetched: %s]", strings.Join(cfg.Fetch, ", "))
+	}
+	if strings.TrimSpace(cfg.SparseCheckout) != "" {
+		line += " [sparse checkout enabled]"
+	}
+	return line
+}
+
+func checkoutPromptPath(cfg *CheckoutConfig) (string, bool) {
+	relPath := strings.TrimPrefix(cfg.Path, "./")
+	if relPath == "." {
+		relPath = ""
+	}
+	isRoot := relPath == ""
+	if isRoot {
+		return "$GITHUB_WORKSPACE", true
+	}
+	return "$GITHUB_WORKSPACE/" + relPath, false
+}
+
+func checkoutPromptRepo(cfg *CheckoutConfig) string {
+	repo := cfg.Repository
+	if repo == "" {
+		repo = "${{ github.repository }}"
+	}
+	if cfg.Wiki && !strings.HasSuffix(repo, ".wiki") {
+		repo += ".wiki"
+	}
+	return repo
+}
+
+func checkoutPromptFetchDepth(cfg *CheckoutConfig) string {
+	if cfg.FetchDepth != nil && *cfg.FetchDepth == 0 {
+		return " [full history, all branches available as remote-tracking refs]"
+	}
+	if cfg.FetchDepth != nil {
+		return fmt.Sprintf(" [shallow clone, fetch-depth=%d]", *cfg.FetchDepth)
+	}
+	return " [shallow clone, fetch-depth=1 (default)]"
 }

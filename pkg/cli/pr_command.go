@@ -253,7 +253,9 @@ func createPatchFromPR(sourceOwner, sourceRepo string, prInfo *PRInfo, verbose b
 	}
 
 	return patchFile, nil
-} // applyPatchToRepo applies a patch to the target repository and returns the branch name
+}
+
+// applyPatchToRepo applies a patch to the target repository and returns the branch name
 func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo string, verbose bool) (string, error) {
 	// Get current branch to restore later
 	currentBranch, err := getCurrentBranch()
@@ -261,26 +263,9 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 		return "", fmt.Errorf("failed to get current branch: %w", err)
 	}
 
-	// Get the default branch of the target repository
-	defaultBranchOutput, err := workflow.RunGH("Fetching default branch...", "api", fmt.Sprintf("/repos/%s/%s", targetOwner, targetRepo), "--jq", ".default_branch")
+	_, err = applyPatchToRepoCheckoutDefault(targetOwner, targetRepo, verbose)
 	if err != nil {
-		return "", fmt.Errorf("failed to get default branch: %w", err)
-	}
-	defaultBranch := strings.TrimSpace(string(defaultBranchOutput))
-
-	// Ensure we're on the latest version of the default branch
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Checking out and updating %s branch...", defaultBranch)))
-	}
-
-	cmd := exec.Command("git", "checkout", defaultBranch)
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to checkout default branch %s: %w", defaultBranch, err)
-	}
-
-	cmd = exec.Command("git", "pull", "origin", defaultBranch)
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to pull latest %s: %w", defaultBranch, err)
+		return "", err
 	}
 
 	// Create a new branch for the transfer based on the updated default branch
@@ -296,16 +281,7 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 	// Apply the patch
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying patch..."))
-
-		// Show some info about the patch file
-		patchContent, err := os.ReadFile(patchFile)
-		if err == nil {
-			lines := strings.Split(string(patchContent), "\n")
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Patch file has %d lines", len(lines))))
-			if len(lines) > 0 {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("First line: "+lines[0]))
-			}
-		}
+		applyPatchToRepoVerbosePatchInfo(patchFile)
 	}
 
 	// Check if patch looks like a mailbox format (starts with "From ")
@@ -318,86 +294,127 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 	isMailboxFormat := strings.HasPrefix(string(patchContent), "From ")
 
 	if isMailboxFormat {
-		// Try git am for mailbox format patches
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying mailbox format patch with git am..."))
-		}
-
-		cmd = exec.Command("git", "am", patchFile)
-		if err := cmd.Run(); err == nil {
-			appliedWithAm = true
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Successfully applied patch with git am"))
-			}
-		} else {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("git am failed, trying git apply..."))
-			}
-			// Reset any partial am state
-			_ = exec.Command("git", "am", "--abort").Run()
-		}
+		appliedWithAm = applyPatchToRepoApplyMailbox(patchFile, verbose)
 	}
 
 	if !appliedWithAm {
-		// Try git apply for standard diff format or as fallback
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying patch with git apply..."))
+		if err := applyPatchToRepoApplyDiff(patchFile, currentBranch, branchName, verbose); err != nil {
+			return "", err
 		}
+	}
 
-		cmd = exec.Command("git", "apply", "--3way", patchFile)
-		if err := cmd.Run(); err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("3-way merge failed, trying with whitespace options..."))
-			}
-
-			// Try with --ignore-space-change and --ignore-whitespace
-			cmd = exec.Command("git", "apply", "--ignore-space-change", "--ignore-whitespace", patchFile)
-			if err := cmd.Run(); err != nil {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Standard apply failed, trying with --reject to see what failed..."))
-
-					// Try with --reject to see which parts fail
-					rejectCmd := exec.Command("git", "apply", "--reject", patchFile)
-					rejectOutput, _ := rejectCmd.CombinedOutput()
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Patch rejection details:"))
-					fmt.Fprintln(os.Stderr, string(rejectOutput))
-				}
-
-				// Try to reset back to original branch and clean up
-				_ = exec.Command("git", "checkout", currentBranch).Run()
-				_ = exec.Command("git", "branch", "-D", branchName).Run()
-				return "", fmt.Errorf("failed to apply patch: %w. You may need to resolve conflicts manually", err)
-			}
-		}
-
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Successfully applied patch with git apply"))
-		}
-	} // If we didn't use git am, we need to stage and commit manually
+	// If we didn't use git am, we need to stage and commit manually
 	if !appliedWithAm {
-		// Stage all changes
-		cmd = exec.Command("git", "add", ".")
-		if err := cmd.Run(); err != nil {
-			return "", fmt.Errorf("failed to stage changes: %w", err)
-		}
-
-		// Create commit with meaningful message
-		commitMsg := fmt.Sprintf("Transfer PR #%d from %s\n\n%s", prInfo.Number, prInfo.SourceRepo, prInfo.Title)
-		if prInfo.Body != "" {
-			commitMsg += "\n\n" + prInfo.Body
-		}
-		commitMsg += fmt.Sprintf("\n\nOriginal-PR: %s#%d", prInfo.SourceRepo, prInfo.Number)
-		commitMsg += "\nOriginal-Author: " + prInfo.AuthorLogin
-
-		cmd = exec.Command("git", "commit", "-m", commitMsg)
-		if err := cmd.Run(); err != nil {
-			return "", fmt.Errorf("failed to commit changes: %w", err)
+		if err := applyPatchToRepoCommit(prInfo); err != nil {
+			return "", err
 		}
 	} else if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applied patch using git am (includes commit)"))
 	}
 
 	return branchName, nil
+}
+
+func applyPatchToRepoCheckoutDefault(targetOwner string, targetRepo string, verbose bool) (string, error) {
+	defaultBranchOutput, err := workflow.RunGH("Fetching default branch...", "api", fmt.Sprintf("/repos/%s/%s", targetOwner, targetRepo), "--jq", ".default_branch")
+	if err != nil {
+		return "", fmt.Errorf("failed to get default branch: %w", err)
+	}
+	defaultBranch := strings.TrimSpace(string(defaultBranchOutput))
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Checking out and updating %s branch...", defaultBranch)))
+	}
+	cmd := exec.Command("git", "checkout", defaultBranch)
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("failed to checkout default branch %s: %w", defaultBranch, err)
+	}
+	cmd = exec.Command("git", "pull", "origin", defaultBranch)
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("failed to pull latest %s: %w", defaultBranch, err)
+	}
+	return defaultBranch, nil
+}
+
+func applyPatchToRepoVerbosePatchInfo(patchFile string) {
+	patchContent, err := os.ReadFile(patchFile)
+	if err != nil {
+		return
+	}
+	lines := strings.Split(string(patchContent), "\n")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Patch file has %d lines", len(lines))))
+	if len(lines) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("First line: "+lines[0]))
+	}
+}
+
+func applyPatchToRepoApplyMailbox(patchFile string, verbose bool) bool {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying mailbox format patch with git am..."))
+	}
+	cmd := exec.Command("git", "am", patchFile)
+	if err := cmd.Run(); err == nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Successfully applied patch with git am"))
+		}
+		return true
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("git am failed, trying git apply..."))
+	}
+	_ = exec.Command("git", "am", "--abort").Run()
+	return false
+}
+
+func applyPatchToRepoApplyDiff(patchFile string, currentBranch string, branchName string, verbose bool) error {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying patch with git apply..."))
+	}
+	cmd := exec.Command("git", "apply", "--3way", patchFile)
+	if err := cmd.Run(); err != nil {
+		return applyPatchToRepoApplyDiffFallback(patchFile, currentBranch, branchName, verbose)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Successfully applied patch with git apply"))
+	}
+	return nil
+}
+
+func applyPatchToRepoApplyDiffFallback(patchFile string, currentBranch string, branchName string, verbose bool) error {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("3-way merge failed, trying with whitespace options..."))
+	}
+	cmd := exec.Command("git", "apply", "--ignore-space-change", "--ignore-whitespace", patchFile)
+	if err := cmd.Run(); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Standard apply failed, trying with --reject to see what failed..."))
+			rejectCmd := exec.Command("git", "apply", "--reject", patchFile)
+			rejectOutput, _ := rejectCmd.CombinedOutput()
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Patch rejection details:"))
+			fmt.Fprintln(os.Stderr, string(rejectOutput))
+		}
+		_ = exec.Command("git", "checkout", currentBranch).Run()
+		_ = exec.Command("git", "branch", "-D", branchName).Run()
+		return fmt.Errorf("failed to apply patch: %w. You may need to resolve conflicts manually", err)
+	}
+	return nil
+}
+
+func applyPatchToRepoCommit(prInfo *PRInfo) error {
+	cmd := exec.Command("git", "add", ".")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to stage changes: %w", err)
+	}
+	commitMsg := fmt.Sprintf("Transfer PR #%d from %s\n\n%s", prInfo.Number, prInfo.SourceRepo, prInfo.Title)
+	if prInfo.Body != "" {
+		commitMsg += "\n\n" + prInfo.Body
+	}
+	commitMsg += fmt.Sprintf("\n\nOriginal-PR: %s#%d", prInfo.SourceRepo, prInfo.Number)
+	commitMsg += "\nOriginal-Author: " + prInfo.AuthorLogin
+	cmd = exec.Command("git", "commit", "-m", commitMsg)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to commit changes: %w", err)
+	}
+	return nil
 }
 
 // createTransferPR creates a new PR in the target repository
@@ -412,104 +429,24 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 	var needsFork bool
 
 	if !hasWriteAccess {
-		needsFork = true
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No write access to target repository, using fork workflow..."))
-		}
-
-		forkOwner, forkRepo, err = createForkIfNeeded(targetOwner, targetRepo, verbose)
+		forkOwner, forkRepo, err = createTransferPRFork(targetOwner, targetRepo, verbose)
 		if err != nil {
-			return fmt.Errorf("failed to create fork: %w", err)
+			return err
 		}
-
-		// Add fork as remote if not already present
-		remoteName := "fork"
-		githubHost := getGitHubHost()
-		forkRepoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, forkOwner, forkRepo)
-
-		// Check if fork remote exists
-		checkRemoteCmd := exec.Command("git", "remote", "get-url", remoteName)
-		if checkRemoteCmd.Run() != nil {
-			// Remote doesn't exist, add it
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Adding fork remote: "+forkRepoURL))
-			}
-			addRemoteCmd := exec.Command("git", "remote", "add", remoteName, forkRepoURL)
-			if err := addRemoteCmd.Run(); err != nil {
-				return fmt.Errorf("failed to add fork remote: %w", err)
-			}
-		}
-
-		// Also ensure target repository is set as upstream remote if not already present
-		upstreamRemote := "upstream"
-		targetRepoURL := fmt.Sprintf("https://github.com/%s/%s.git", targetOwner, targetRepo)
-
-		// Check if upstream remote exists and points to the right repo
-		checkUpstreamCmd := exec.Command("git", "remote", "get-url", upstreamRemote)
-		upstreamOutput, err := checkUpstreamCmd.Output()
-		if err != nil || strings.TrimSpace(string(upstreamOutput)) != targetRepoURL {
-			// Upstream doesn't exist or points to wrong repo, add/update it
-			if err != nil {
-				// Remote doesn't exist, add it
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Adding upstream remote: "+targetRepoURL))
-				}
-				addUpstreamCmd := exec.Command("git", "remote", "add", upstreamRemote, targetRepoURL)
-				if err := addUpstreamCmd.Run(); err != nil {
-					return fmt.Errorf("failed to add upstream remote: %w", err)
-				}
-			} else {
-				// Remote exists but points to wrong repo, update it
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating upstream remote: "+targetRepoURL))
-				}
-				setUpstreamCmd := exec.Command("git", "remote", "set-url", upstreamRemote, targetRepoURL)
-				if err := setUpstreamCmd.Run(); err != nil {
-					return fmt.Errorf("failed to update upstream remote: %w", err)
-				}
-			}
-		}
+		needsFork = true
 	}
 
 	// Push the branch
-	if verbose {
-		if needsFork {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pushing branch to fork..."))
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pushing branch to remote..."))
-		}
-	}
-
-	var pushCmd *exec.Cmd
-	if needsFork {
-		pushCmd = exec.Command("git", "push", "-u", "fork", branchName)
-	} else {
-		pushCmd = exec.Command("git", "push", "-u", "origin", branchName)
-	}
-
-	if err := pushCmd.Run(); err != nil {
-		if needsFork {
-			return fmt.Errorf("failed to push branch to fork: %w", err)
-		}
-		return fmt.Errorf("failed to push branch: %w", err)
+	if err := createTransferPRPush(branchName, needsFork, verbose); err != nil {
+		return err
 	}
 
 	// Create PR body with original info
-	prBody := prInfo.Body
-	if prBody != "" {
-		prBody += "\n\n---\n\n"
-	}
-	prBody += fmt.Sprintf("**Transferred from:** %s#%d\n", prInfo.SourceRepo, prInfo.Number)
-	prBody += "**Original Author:** @" + prInfo.AuthorLogin
+	prBody := createTransferPRBody(prInfo)
 
 	// Create the PR
 	repoFlag := fmt.Sprintf("%s/%s", targetOwner, targetRepo)
-	var headRef string
-	if needsFork {
-		headRef = fmt.Sprintf("%s:%s", forkOwner, branchName)
-	} else {
-		headRef = branchName
-	}
+	headRef := createTransferPRHeadRef(forkOwner, branchName, needsFork)
 
 	output, err := workflow.RunGH("Creating pull request...", "pr", "create",
 		"--repo", repoFlag,
@@ -527,6 +464,108 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("URL: "+strings.TrimSpace(string(output))))
 
 	return nil
+}
+
+func createTransferPRFork(targetOwner string, targetRepo string, verbose bool) (string, string, error) {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No write access to target repository, using fork workflow..."))
+	}
+	forkOwner, forkRepo, err := createForkIfNeeded(targetOwner, targetRepo, verbose)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create fork: %w", err)
+	}
+	if err := createTransferPRForkRemote(forkOwner, forkRepo, verbose); err != nil {
+		return "", "", err
+	}
+	if err := createTransferPRUpstreamRemote(targetOwner, targetRepo, verbose); err != nil {
+		return "", "", err
+	}
+	return forkOwner, forkRepo, nil
+}
+
+func createTransferPRForkRemote(forkOwner string, forkRepo string, verbose bool) error {
+	remoteName := "fork"
+	githubHost := getGitHubHost()
+	forkRepoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, forkOwner, forkRepo)
+	checkRemoteCmd := exec.Command("git", "remote", "get-url", remoteName)
+	if checkRemoteCmd.Run() == nil {
+		return nil
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Adding fork remote: "+forkRepoURL))
+	}
+	addRemoteCmd := exec.Command("git", "remote", "add", remoteName, forkRepoURL)
+	if err := addRemoteCmd.Run(); err != nil {
+		return fmt.Errorf("failed to add fork remote: %w", err)
+	}
+	return nil
+}
+
+func createTransferPRUpstreamRemote(targetOwner string, targetRepo string, verbose bool) error {
+	upstreamRemote := "upstream"
+	targetRepoURL := fmt.Sprintf("https://github.com/%s/%s.git", targetOwner, targetRepo)
+	checkUpstreamCmd := exec.Command("git", "remote", "get-url", upstreamRemote)
+	upstreamOutput, err := checkUpstreamCmd.Output()
+	if err == nil && strings.TrimSpace(string(upstreamOutput)) == targetRepoURL {
+		return nil
+	}
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Adding upstream remote: "+targetRepoURL))
+		}
+		addUpstreamCmd := exec.Command("git", "remote", "add", upstreamRemote, targetRepoURL)
+		if err := addUpstreamCmd.Run(); err != nil {
+			return fmt.Errorf("failed to add upstream remote: %w", err)
+		}
+		return nil
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating upstream remote: "+targetRepoURL))
+	}
+	setUpstreamCmd := exec.Command("git", "remote", "set-url", upstreamRemote, targetRepoURL)
+	if err := setUpstreamCmd.Run(); err != nil {
+		return fmt.Errorf("failed to update upstream remote: %w", err)
+	}
+	return nil
+}
+
+func createTransferPRPush(branchName string, needsFork bool, verbose bool) error {
+	if verbose {
+		if needsFork {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pushing branch to fork..."))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pushing branch to remote..."))
+		}
+	}
+	remote := "origin"
+	if needsFork {
+		remote = "fork"
+	}
+	pushCmd := exec.Command("git", "push", "-u", remote, branchName)
+	if err := pushCmd.Run(); err != nil {
+		if needsFork {
+			return fmt.Errorf("failed to push branch to fork: %w", err)
+		}
+		return fmt.Errorf("failed to push branch: %w", err)
+	}
+	return nil
+}
+
+func createTransferPRBody(prInfo *PRInfo) string {
+	prBody := prInfo.Body
+	if prBody != "" {
+		prBody += "\n\n---\n\n"
+	}
+	prBody += fmt.Sprintf("**Transferred from:** %s#%d\n", prInfo.SourceRepo, prInfo.Number)
+	prBody += "**Original Author:** @" + prInfo.AuthorLogin
+	return prBody
+}
+
+func createTransferPRHeadRef(forkOwner string, branchName string, needsFork bool) string {
+	if needsFork {
+		return fmt.Sprintf("%s:%s", forkOwner, branchName)
+	}
+	return branchName
 }
 
 // transferPR is the main function that orchestrates the PR transfer
@@ -549,28 +588,9 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Source: %s/%s PR #%d", sourceOwner, sourceRepoName, prNumber)))
 	}
 
-	// Determine target repository
-	var targetOwner, targetRepoName string
-	if targetRepo != "" {
-		repoSpec, err := parseRepoSpec(targetRepo)
-		if err != nil {
-			return fmt.Errorf("invalid target repository format: %w", err)
-		}
-		parts := strings.SplitN(repoSpec.RepoSlug, "/", 2)
-		if len(parts) != 2 {
-			return errors.New("invalid target repository format, expected: owner/repo")
-		}
-		targetOwner, targetRepoName = parts[0], parts[1]
-	} else {
-		// Use current repository as target
-		slug, err := GetCurrentRepoSlug()
-		if err != nil {
-			return fmt.Errorf("failed to determine target repository: %w", err)
-		}
-		targetOwner, targetRepoName, err = repoutil.SplitRepoSlug(slug)
-		if err != nil {
-			return fmt.Errorf("failed to parse target repository: %w", err)
-		}
+	targetOwner, targetRepoName, err := transferPRTarget(targetRepo)
+	if err != nil {
+		return err
 	}
 
 	prLog.Printf("Determined target repository: %s/%s", targetOwner, targetRepoName)
@@ -586,129 +606,94 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 	}
 
 	// Ensure we're in the correct git repository
-	var workingDir string
-	var needsCleanup bool
-
-	if targetRepo != "" {
-		// Check if we're already in the target repository
-		if isGitRepo() {
-			slug, err := GetCurrentRepoSlug()
-			if err == nil {
-				currentOwner, currentRepoName, err := repoutil.SplitRepoSlug(slug)
-				if err == nil && currentOwner == targetOwner && currentRepoName == targetRepoName {
-					// We're already in the target repo
-					workingDir = "."
-				} else {
-					// We need to clone the target repository
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Cloning target repository %s/%s...", targetOwner, targetRepoName)))
-					}
-					tempDir, err := os.MkdirTemp("", "gh-aw-pr-transfer-repo-")
-					if err != nil {
-						return fmt.Errorf("failed to create temp directory for repo: %w", err)
-					}
-
-					cloneCmd := workflow.ExecGH("repo", "clone", fmt.Sprintf("%s/%s", targetOwner, targetRepoName), tempDir)
-					if err := cloneCmd.Run(); err != nil {
-						// Clean up temporary directory on error
-						if rmErr := os.RemoveAll(tempDir); rmErr != nil && verbose {
-							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to clean up temporary directory %s: %v", tempDir, rmErr)))
-						}
-						return fmt.Errorf("failed to clone target repository: %w", err)
-					}
-
-					workingDir = tempDir
-					needsCleanup = true
-
-					// Change to the cloned repository directory
-					if err := os.Chdir(tempDir); err != nil {
-						// Clean up temporary directory on error
-						if rmErr := os.RemoveAll(tempDir); rmErr != nil && verbose {
-							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to clean up temporary directory %s: %v", tempDir, rmErr)))
-						}
-						return fmt.Errorf("failed to change to cloned repository directory: %w", err)
-					}
-				}
-			} else {
-				// Error getting current repo, clone anyway
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Cloning target repository %s/%s...", targetOwner, targetRepoName)))
-				}
-				tempDir, err := os.MkdirTemp("", "gh-aw-pr-transfer-repo-")
-				if err != nil {
-					return fmt.Errorf("failed to create temp directory for repo: %w", err)
-				}
-
-				cloneCmd := workflow.ExecGH("repo", "clone", fmt.Sprintf("%s/%s", targetOwner, targetRepoName), tempDir)
-				if err := cloneCmd.Run(); err != nil {
-					// Clean up temporary directory on error
-					if rmErr := os.RemoveAll(tempDir); rmErr != nil && verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to clean up temporary directory %s: %v", tempDir, rmErr)))
-					}
-					return fmt.Errorf("failed to clone target repository: %w", err)
-				}
-
-				workingDir = tempDir
-				needsCleanup = true
-
-				// Change to the cloned repository directory
-				if err := os.Chdir(tempDir); err != nil {
-					// Clean up temporary directory on error
-					if rmErr := os.RemoveAll(tempDir); rmErr != nil && verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to clean up temporary directory %s: %v", tempDir, rmErr)))
-					}
-					return fmt.Errorf("failed to change to cloned repository directory: %w", err)
-				}
-			}
-		} else {
-			// We're not in a git repository and need to clone
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Cloning target repository %s/%s...", targetOwner, targetRepoName)))
-			}
-			tempDir, err := os.MkdirTemp("", "gh-aw-pr-transfer-repo-")
-			if err != nil {
-				return fmt.Errorf("failed to create temp directory for repo: %w", err)
-			}
-
-			cloneCmd := workflow.ExecGH("repo", "clone", fmt.Sprintf("%s/%s", targetOwner, targetRepoName), tempDir)
-			if err := cloneCmd.Run(); err != nil {
-				// Clean up temporary directory on error
-				if rmErr := os.RemoveAll(tempDir); rmErr != nil && verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to clean up temporary directory %s: %v", tempDir, rmErr)))
-				}
-				return fmt.Errorf("failed to clone target repository: %w", err)
-			}
-
-			workingDir = tempDir
-			needsCleanup = true
-
-			// Change to the cloned repository directory
-			if err := os.Chdir(tempDir); err != nil {
-				// Clean up temporary directory on error
-				if rmErr := os.RemoveAll(tempDir); rmErr != nil && verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to clean up temporary directory %s: %v", tempDir, rmErr)))
-				}
-				return fmt.Errorf("failed to change to cloned repository directory: %w", err)
-			}
-		}
-	} else {
-		// Using current repository as target
-		if !isGitRepo() {
-			return errors.New("not in a git repository")
-		}
-		workingDir = "."
+	workingDir, needsCleanup, err := transferPRWorkingDir(targetRepo, targetOwner, targetRepoName, verbose)
+	if err != nil {
+		return err
 	}
 
 	// Cleanup function
 	defer func() {
-		if needsCleanup && workingDir != "" {
-			// Clean up temporary directory when done
-			if err := os.RemoveAll(workingDir); err != nil && verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to clean up temporary directory %s: %v", workingDir, err)))
-			}
-		}
+		transferPRCleanup(workingDir, needsCleanup, verbose)
 	}()
 
+	return transferPRCreate(targetOwner, targetRepoName, sourceOwner, sourceRepoName, prNumber, verbose)
+}
+
+func transferPRTarget(targetRepo string) (string, string, error) {
+	if targetRepo != "" {
+		repoSpec, err := parseRepoSpec(targetRepo)
+		if err != nil {
+			return "", "", fmt.Errorf("invalid target repository format: %w", err)
+		}
+		parts := strings.SplitN(repoSpec.RepoSlug, "/", 2)
+		if len(parts) != 2 {
+			return "", "", errors.New("invalid target repository format, expected: owner/repo")
+		}
+		return parts[0], parts[1], nil
+	}
+	slug, err := GetCurrentRepoSlug()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to determine target repository: %w", err)
+	}
+	owner, repo, err := repoutil.SplitRepoSlug(slug)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse target repository: %w", err)
+	}
+	return owner, repo, nil
+}
+
+func transferPRWorkingDir(targetRepo string, targetOwner string, targetRepoName string, verbose bool) (string, bool, error) {
+	if targetRepo == "" {
+		if !isGitRepo() {
+			return "", false, errors.New("not in a git repository")
+		}
+		return ".", false, nil
+	}
+	if isGitRepo() {
+		slug, err := GetCurrentRepoSlug()
+		if err == nil {
+			currentOwner, currentRepoName, err := repoutil.SplitRepoSlug(slug)
+			if err == nil && currentOwner == targetOwner && currentRepoName == targetRepoName {
+				return ".", false, nil
+			}
+		}
+	}
+	tempDir, err := transferPRCloneTarget(targetOwner, targetRepoName, verbose)
+	if err != nil {
+		return "", false, err
+	}
+	return tempDir, true, nil
+}
+
+func transferPRCloneTarget(targetOwner string, targetRepoName string, verbose bool) (string, error) {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Cloning target repository %s/%s...", targetOwner, targetRepoName)))
+	}
+	tempDir, err := os.MkdirTemp("", "gh-aw-pr-transfer-repo-")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp directory for repo: %w", err)
+	}
+	cloneCmd := workflow.ExecGH("repo", "clone", fmt.Sprintf("%s/%s", targetOwner, targetRepoName), tempDir)
+	if err := cloneCmd.Run(); err != nil {
+		transferPRCleanup(tempDir, true, verbose)
+		return "", fmt.Errorf("failed to clone target repository: %w", err)
+	}
+	if err := os.Chdir(tempDir); err != nil {
+		transferPRCleanup(tempDir, true, verbose)
+		return "", fmt.Errorf("failed to change to cloned repository directory: %w", err)
+	}
+	return tempDir, nil
+}
+
+func transferPRCleanup(workingDir string, needsCleanup bool, verbose bool) {
+	if needsCleanup && workingDir != "" {
+		if err := os.RemoveAll(workingDir); err != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to clean up temporary directory %s: %v", workingDir, err)))
+		}
+	}
+}
+
+func transferPRCreate(targetOwner string, targetRepoName string, sourceOwner string, sourceRepoName string, prNumber int, verbose bool) error {
 	// Fetch PR information
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching PR details..."))

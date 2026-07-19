@@ -22,72 +22,66 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	if codexMCPLog.Enabled() {
 		codexMCPLog.Printf("Rendering MCP config for Codex: mcp_tools=%v, tool_count=%d", mcpTools, len(tools))
 	}
+	mcpConfigContent := e.buildCodexMCPConfigContent(tools, mcpTools, workflowData)
+	writeCodexMCPConfigHeredoc(yaml, mcpConfigContent.String())
+	if err := e.writeCodexGatewayJSONConfig(yaml, tools, mcpTools, workflowData); err != nil {
+		return err
+	}
+	e.writeCodexConvertedConfigSync(yaml, tools, mcpTools, workflowData)
+	return nil
+}
 
-	// Create unified renderer with Codex-specific options
-	// Codex uses TOML format without Copilot-specific fields and multi-line args
+func (e *CodexEngine) buildCodexMCPConfigContent(tools map[string]any, mcpTools []string, workflowData *WorkflowData) strings.Builder {
 	createRenderer := func(isLast bool) *MCPConfigRendererUnified {
 		return NewMCPConfigRenderer(MCPRendererOptions{
-			IncludeCopilotFields:   false, // Codex doesn't use "type" and "tools" fields
-			InlineArgs:             false, // Codex uses multi-line args format
+			IncludeCopilotFields:   false,
+			InlineArgs:             false,
 			Format:                 "toml",
 			IsLast:                 isLast,
 			ActionMode:             GetActionModeFromWorkflowData(workflowData),
 			WriteSinkGuardPolicies: deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
 		})
 	}
-
-	// Build the heredoc content into a temporary buffer so we can derive the
-	// delimiter from a SHA-256 hash of the content before writing it to the YAML output.
 	var mcpConfigContent strings.Builder
-
-	// Add history configuration to disable persistence
 	mcpConfigContent.WriteString("          [history]\n")
 	mcpConfigContent.WriteString("          persistence = \"none\"\n")
-
-	// Add shell environment policy to control which environment variables are passed through
-	// This is a security feature to prevent accidental exposure of secrets
 	e.renderShellEnvironmentPolicy(&mcpConfigContent, tools, mcpTools)
-
-	// Expand neutral tools (like playwright: null) to include the copilot agent tools
 	expandedTools := e.expandNeutralToolsToCodexToolsFromMap(tools)
-
-	// Generate [mcp_servers] section
 	for _, toolName := range mcpTools {
-		renderer := createRenderer(false) // isLast is always false in TOML format
-		switch toolName {
-		case "github":
-			githubTool, _ := expandedTools["github"].(map[string]any)
-			renderer.RenderGitHubMCP(&mcpConfigContent, githubTool, workflowData)
-		case "playwright":
-			playwrightTool := expandedTools["playwright"]
-			renderer.RenderPlaywrightMCP(&mcpConfigContent, playwrightTool)
-		case "agentic-workflows":
-			renderer.RenderAgenticWorkflowsMCP(&mcpConfigContent)
-		case "safe-outputs":
-			// Add safe-outputs MCP server if safe-outputs are configured
-			hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
-			if hasSafeOutputs {
-				renderer.RenderSafeOutputsMCP(&mcpConfigContent, workflowData)
-			}
-		case "mcp-scripts":
-			// Add mcp-scripts MCP server if mcp-scripts are configured and feature flag is enabled
-			hasMCPScripts := workflowData != nil && IsMCPScriptsEnabled(workflowData.MCPScripts)
-			if hasMCPScripts {
-				renderer.RenderMCPScriptsMCP(&mcpConfigContent, workflowData.MCPScripts, workflowData)
-			}
-		default:
-			// Handle custom MCP tools using shared helper (with adapter for isLast parameter)
-			HandleCustomMCPToolInSwitch(&mcpConfigContent, toolName, expandedTools, false, func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
-				return e.renderCodexMCPConfigWithContext(yaml, toolName, toolConfig, workflowData)
-			})
-		}
+		e.renderCodexMCPTool(&mcpConfigContent, toolName, expandedTools, workflowData, createRenderer(false))
 	}
+	e.appendCodexCustomConfig(&mcpConfigContent, workflowData)
+	return mcpConfigContent
+}
 
-	// Append custom config if provided
+func (e *CodexEngine) renderCodexMCPTool(mcpConfigContent *strings.Builder, toolName string, expandedTools map[string]any, workflowData *WorkflowData, renderer *MCPConfigRendererUnified) {
+	switch toolName {
+	case "github":
+		githubTool, _ := expandedTools["github"].(map[string]any)
+		renderer.RenderGitHubMCP(mcpConfigContent, githubTool, workflowData)
+	case "playwright":
+		renderer.RenderPlaywrightMCP(mcpConfigContent, expandedTools["playwright"])
+	case "agentic-workflows":
+		renderer.RenderAgenticWorkflowsMCP(mcpConfigContent)
+	case "safe-outputs":
+		if workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+			renderer.RenderSafeOutputsMCP(mcpConfigContent, workflowData)
+		}
+	case "mcp-scripts":
+		if workflowData != nil && IsMCPScriptsEnabled(workflowData.MCPScripts) {
+			renderer.RenderMCPScriptsMCP(mcpConfigContent, workflowData.MCPScripts, workflowData)
+		}
+	default:
+		HandleCustomMCPToolInSwitch(mcpConfigContent, toolName, expandedTools, false, func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+			return e.renderCodexMCPConfigWithContext(yaml, toolName, toolConfig, workflowData)
+		})
+	}
+}
+
+func (e *CodexEngine) appendCodexCustomConfig(mcpConfigContent *strings.Builder, workflowData *WorkflowData) {
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Config != "" {
 		mcpConfigContent.WriteString("          \n")
 		mcpConfigContent.WriteString("          # Custom configuration\n")
-		// Write the custom config line by line with proper indentation
 		configLines := strings.SplitSeq(workflowData.EngineConfig.Config, "\n")
 		for line := range configLines {
 			if strings.TrimSpace(line) != "" {
@@ -97,23 +91,19 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			}
 		}
 	}
+}
 
-	// Derive the delimiter from the content so it is stable across builds.
-	delimiter := GenerateHeredocDelimiterFromContent("MCP_CONFIG", mcpConfigContent.String())
+func writeCodexMCPConfigHeredoc(yaml *strings.Builder, mcpConfigContent string) {
+	delimiter := GenerateHeredocDelimiterFromContent("MCP_CONFIG", mcpConfigContent)
 	yaml.WriteString("          cat > \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" << " + delimiter + "\n")
-	yaml.WriteString(mcpConfigContent.String())
-
-	// End the heredoc for config.toml
+	yaml.WriteString(mcpConfigContent)
 	yaml.WriteString("          " + delimiter + "\n")
+}
 
-	// Also generate JSON config for MCP gateway
-	// Per MCP Gateway Specification v1.0.0 section 4.1, the gateway requires JSON input
-	// This JSON config is used by the gateway, while the TOML config above is used by Codex
+func (e *CodexEngine) writeCodexGatewayJSONConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
 	yaml.WriteString("          \n")
 	yaml.WriteString("          # Generate JSON config for MCP gateway\n")
-
-	// Gateway uses JSON format without Copilot-specific fields and multi-line args
-	if err := renderStandardJSONMCPConfig(yaml, renderStandardJSONMCPConfigOptions{
+	return renderStandardJSONMCPConfig(yaml, renderStandardJSONMCPConfigOptions{
 		tools:        tools,
 		mcpTools:     mcpTools,
 		workflowData: workflowData,
@@ -121,20 +111,27 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		renderCustom: func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 			return e.renderCodexJSONMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
 		},
-	}); err != nil {
-		return err
-	}
+	})
+}
 
-	// start_mcp_gateway.cjs converts the gateway output and writes Codex config to
-	// ${RUNNER_TEMP}/gh-aw/mcp-config/config.toml. Codex reads config from
-	// $CODEX_HOME/config.toml, so copy the converted config into writable CODEX_HOME
-	// and prepend shell policy (converter output does not include this section).
+func (e *CodexEngine) writeCodexConvertedConfigSync(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	yaml.WriteString("          \n")
 	yaml.WriteString("          # Sync converter output to writable CODEX_HOME for Codex\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
+	e.writeCodexShellPolicyConfig(yaml, tools, mcpTools, workflowData)
+	if isFirewallEnabled(workflowData) {
+		e.renderAppendConvertedConfigWithoutOpenAIProxy(yaml)
+	} else {
+		yaml.WriteString("          cat \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"\n")
+	}
+	appendCodexEngineCustomConfig(yaml, workflowData)
+	yaml.WriteString("          chmod 600 \"/tmp/gh-aw/mcp-config/config.toml\"\n")
+	yaml.WriteString("          mkdir -p \"${CODEX_HOME}\"\n")
+	yaml.WriteString("          if [ \"/tmp/gh-aw/mcp-config/config.toml\" != \"${CODEX_HOME}/config.toml\" ]; then cp \"/tmp/gh-aw/mcp-config/config.toml\" \"${CODEX_HOME}/config.toml\"; fi\n")
+	yaml.WriteString("          chmod 600 \"${CODEX_HOME}/config.toml\"\n")
+}
 
-	// Build the shell-policy heredoc content into a temp buffer so the delimiter
-	// can be derived from a SHA-256 hash of the content for build stability.
+func (e *CodexEngine) writeCodexShellPolicyConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	var shellPolicyContent strings.Builder
 	if isFirewallEnabled(workflowData) {
 		e.renderOpenAIProxyProviderToml(&shellPolicyContent, "          ")
@@ -144,11 +141,9 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          cat > \"/tmp/gh-aw/mcp-config/config.toml\" << " + shellPolicyDelimiter + "\n")
 	yaml.WriteString(shellPolicyContent.String())
 	yaml.WriteString("          " + shellPolicyDelimiter + "\n")
-	if isFirewallEnabled(workflowData) {
-		e.renderAppendConvertedConfigWithoutOpenAIProxy(yaml)
-	} else {
-		yaml.WriteString("          cat \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"\n")
-	}
+}
+
+func appendCodexEngineCustomConfig(yaml *strings.Builder, workflowData *WorkflowData) {
 	if workflowData.EngineConfig != nil && strings.TrimSpace(workflowData.EngineConfig.Config) != "" {
 		customConfigDelimiter := GenerateHeredocDelimiterFromContent("CODEX_CUSTOM_CONFIG", workflowData.EngineConfig.Config)
 		yaml.WriteString("          \n")
@@ -160,12 +155,6 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		}
 		yaml.WriteString("          " + customConfigDelimiter + "\n")
 	}
-	yaml.WriteString("          chmod 600 \"/tmp/gh-aw/mcp-config/config.toml\"\n")
-	yaml.WriteString("          mkdir -p \"${CODEX_HOME}\"\n")
-	yaml.WriteString("          if [ \"/tmp/gh-aw/mcp-config/config.toml\" != \"${CODEX_HOME}/config.toml\" ]; then cp \"/tmp/gh-aw/mcp-config/config.toml\" \"${CODEX_HOME}/config.toml\"; fi\n")
-	yaml.WriteString("          chmod 600 \"${CODEX_HOME}/config.toml\"\n")
-
-	return nil
 }
 
 func (e *CodexEngine) renderOpenAIProxyProviderToml(yaml *strings.Builder, indent string) {

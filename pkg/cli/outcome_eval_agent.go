@@ -40,75 +40,88 @@ func evalAssignToAgent(item CreatedItemReport, repoOverride string) OutcomeRepor
 
 	// Search for linked PRs from copilot-swe-agent via timeline events
 	events, err := ghAPIGetArray(fmt.Sprintf("issues/%d/timeline", num), repo)
-	var agentPR map[string]any
 	if err == nil {
-		for _, event := range events {
-			eventType, _ := event["event"].(string)
-			if eventType != "cross-referenced" {
-				continue
-			}
-			source, _ := event["source"].(map[string]any)
-			if source == nil {
-				continue
-			}
-			issue, _ := source["issue"].(map[string]any)
-			if issue == nil {
-				continue
-			}
-			// Check if it's a PR (has pull_request field)
-			if _, hasPR := issue["pull_request"]; !hasPR {
-				continue
-			}
-			user, _ := issue["user"].(map[string]any)
-			login, _ := user["login"].(string)
-			if strings.Contains(login, "copilot") || strings.Contains(login, "github-actions") {
-				agentPR = issue
-				break
-			}
+		agentPR := evalAssignToAgentFindLinkedPR(events)
+		if prReport, ok := evalAssignToAgentEvaluateLinkedPR(agentPR, repo, item, report); ok {
+			return prReport
 		}
 	}
 
-	if agentPR != nil {
-		prNumber := 0
-		if n, ok := agentPR["number"].(float64); ok {
-			prNumber = int(n)
+	return evalAssignToAgentFallbackIssue(issueData, item, report, state, stateReason)
+}
+
+func evalAssignToAgentFindLinkedPR(events []map[string]any) map[string]any {
+	for _, event := range events {
+		eventType, _ := event["event"].(string)
+		if eventType != "cross-referenced" {
+			continue
 		}
-		outcomeEvalAgentLog.Printf("Found agent-linked PR for issue #%d: pr=%d", num, prNumber)
-
-		// Fetch the actual PR to check merge status
-		if prNumber > 0 {
-			prData, perr := ghAPIGet(fmt.Sprintf("pulls/%d", prNumber), repo)
-			if perr == nil {
-				merged, _ := prData["merged"].(bool)
-				prState, _ := prData["state"].(string)
-				mergedAt, _ := prData["merged_at"].(string)
-				closedAt, _ := prData["closed_at"].(string)
-
-				switch {
-				case merged:
-					report.Result = OutcomeAccepted
-					report.Detail = fmt.Sprintf("agent PR #%d merged", prNumber)
-					if mergedAt != "" && item.Timestamp != "" {
-						report.TimeToOutcomeHours = timeBetween(item.Timestamp, mergedAt)
-					}
-					return report
-				case prState == "closed":
-					report.Result = OutcomeRejected
-					report.Detail = fmt.Sprintf("agent PR #%d closed without merge", prNumber)
-					if closedAt != "" && item.Timestamp != "" {
-						report.TimeToOutcomeHours = timeBetween(item.Timestamp, closedAt)
-					}
-					return report
-				default:
-					report.Result = OutcomePending
-					report.Detail = fmt.Sprintf("agent PR #%d open", prNumber)
-					return report
-				}
-			}
+		source, _ := event["source"].(map[string]any)
+		if source == nil {
+			continue
+		}
+		issue, _ := source["issue"].(map[string]any)
+		if issue == nil {
+			continue
+		}
+		// Check if it's a PR (has pull_request field)
+		if _, hasPR := issue["pull_request"]; !hasPR {
+			continue
+		}
+		user, _ := issue["user"].(map[string]any)
+		login, _ := user["login"].(string)
+		if strings.Contains(login, "copilot") || strings.Contains(login, "github-actions") {
+			return issue
 		}
 	}
+	return nil
+}
 
-	// No agent PR found — check if issue was resolved by other means
+func evalAssignToAgentEvaluateLinkedPR(agentPR map[string]any, repo string, item CreatedItemReport, report OutcomeReport) (OutcomeReport, bool) {
+	if agentPR == nil {
+		return report, false
+	}
+	prNumber := 0
+	if n, ok := agentPR["number"].(float64); ok {
+		prNumber = int(n)
+	}
+	outcomeEvalAgentLog.Printf("Found agent-linked PR for issue #%d: pr=%d", report.ObjectNumber, prNumber)
+	if prNumber == 0 {
+		return report, false
+	}
+	prData, perr := ghAPIGet(fmt.Sprintf("pulls/%d", prNumber), repo)
+	if perr != nil {
+		return report, false
+	}
+	return evalAssignToAgentReportForPR(prData, prNumber, item, report), true
+}
+
+func evalAssignToAgentReportForPR(prData map[string]any, prNumber int, item CreatedItemReport, report OutcomeReport) OutcomeReport {
+	merged, _ := prData["merged"].(bool)
+	prState, _ := prData["state"].(string)
+	mergedAt, _ := prData["merged_at"].(string)
+	closedAt, _ := prData["closed_at"].(string)
+	switch {
+	case merged:
+		report.Result = OutcomeAccepted
+		report.Detail = fmt.Sprintf("agent PR #%d merged", prNumber)
+		if mergedAt != "" && item.Timestamp != "" {
+			report.TimeToOutcomeHours = timeBetween(item.Timestamp, mergedAt)
+		}
+	case prState == "closed":
+		report.Result = OutcomeRejected
+		report.Detail = fmt.Sprintf("agent PR #%d closed without merge", prNumber)
+		if closedAt != "" && item.Timestamp != "" {
+			report.TimeToOutcomeHours = timeBetween(item.Timestamp, closedAt)
+		}
+	default:
+		report.Result = OutcomePending
+		report.Detail = fmt.Sprintf("agent PR #%d open", prNumber)
+	}
+	return report
+}
+
+func evalAssignToAgentFallbackIssue(issueData map[string]any, item CreatedItemReport, report OutcomeReport, state string, stateReason string) OutcomeReport {
 	switch {
 	case state == "closed" && stateReason == "completed":
 		report.Result = OutcomeAccepted

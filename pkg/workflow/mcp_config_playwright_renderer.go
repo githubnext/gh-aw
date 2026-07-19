@@ -143,9 +143,12 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfi
 		entrypointArgs = append(entrypointArgs, customArgs...)
 	}
 	writeJSONStringArray(yaml, "                ", "entrypointArgs", entrypointArgs, inlineArgs)
+	writePlaywrightMountsAndGuards(yaml, guardPolicies)
+	writePlaywrightConfigEnd(yaml, isLast)
+	mcpPlaywrightLog.Printf("Playwright MCP config rendered: is_last=%t, entrypoint_args=%d", isLast, len(entrypointArgs))
+}
 
-	// Add volume mounts
-	// When guard policies follow, mounts is not the last field (add trailing comma)
+func writePlaywrightMountsAndGuards(yaml *strings.Builder, guardPolicies map[string]any) {
 	mcpPlaywrightLog.Printf("Adding volume mounts: guard_policies=%d", len(guardPolicies))
 	if len(guardPolicies) > 0 {
 		yaml.WriteString("                \"mounts\": [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw\"],\n")
@@ -153,14 +156,12 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfi
 	} else {
 		yaml.WriteString("                \"mounts\": [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw\"]\n")
 	}
+}
 
-	// Note: tools field is NOT included here - the converter script adds it back
-	// for Copilot. This keeps the gateway config compatible with the schema.
-
+func writePlaywrightConfigEnd(yaml *strings.Builder, isLast bool) {
 	if isLast {
 		yaml.WriteString("              }\n")
 	} else {
 		yaml.WriteString("              },\n")
 	}
-	mcpPlaywrightLog.Printf("Playwright MCP config rendered: is_last=%t, entrypoint_args=%d", isLast, len(entrypointArgs))
 }

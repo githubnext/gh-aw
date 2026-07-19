@@ -17,8 +17,23 @@ type execCmdFunc func(ctx context.Context, args ...string) *exec.Cmd
 
 // createMCPServer creates and configures the MCP server with all tools
 func createMCPServer(cmdPath string, actor string, validateActor bool, manifestCacheFile string, env []string) *mcp.Server {
-	// Helper function to execute command with proper path
-	execCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+	execCmd := createMCPServerExecCmd(cmdPath, env)
+	createMCPServerLogActor(actor, validateActor)
+	server := createMCPServerInstance()
+
+	if !createMCPServerRegisterTools(server, execCmd, actor, validateActor, manifestCacheFile) {
+		return server
+	}
+
+	// Add receiving middleware to transform raw JSON-schema "additional properties"
+	// validation errors into helpful messages with "Did you mean?" suggestions.
+	server.AddReceivingMiddleware(argumentValidationMiddleware(mcpToolParams()))
+
+	return server
+}
+
+func createMCPServerExecCmd(cmdPath string, env []string) execCmdFunc {
+	return func(ctx context.Context, args ...string) *exec.Cmd {
 		var cmd *exec.Cmd
 		if cmdPath != "" {
 			// Use custom command path
@@ -32,25 +47,25 @@ func createMCPServer(cmdPath string, actor string, validateActor bool, manifestC
 		}
 		return cmd
 	}
+}
 
+func createMCPServerLogActor(actor string, validateActor bool) {
 	// Log actor and validation settings
-	if validateActor {
-		if actor != "" {
-			mcpLog.Printf("Actor validation enabled: actor=%s (logs/audit tools will check permissions)", actor)
-		} else {
-			mcpLog.Print("Actor validation enabled: no actor specified (logs/audit tools will deny access)")
-		}
+	if validateActor && actor != "" {
+		mcpLog.Printf("Actor validation enabled: actor=%s (logs/audit tools will check permissions)", actor)
+	} else if validateActor {
+		mcpLog.Print("Actor validation enabled: no actor specified (logs/audit tools will deny access)")
+	} else if actor != "" {
+		mcpLog.Printf("Actor validation disabled: actor=%s (logs/audit tools will allow access)", actor)
 	} else {
-		if actor != "" {
-			mcpLog.Printf("Actor validation disabled: actor=%s (logs/audit tools will allow access)", actor)
-		} else {
-			mcpLog.Print("Actor validation disabled: no actor specified (logs/audit tools will allow access)")
-		}
+		mcpLog.Print("Actor validation disabled: no actor specified (logs/audit tools will allow access)")
 	}
+}
 
+func createMCPServerInstance() *mcp.Server {
 	// Create MCP server with capabilities and logging
 	// Note: Schema caching is automatic in go-sdk v1.3.0+ (eliminates repeated reflection overhead)
-	server := mcp.NewServer(&mcp.Implementation{
+	return mcp.NewServer(&mcp.Implementation{
 		Name:    "gh-aw",
 		Version: GetVersion(),
 	}, &mcp.ServerOptions{
@@ -61,25 +76,27 @@ func createMCPServer(cmdPath string, actor string, validateActor bool, manifestC
 		},
 		Logger: logger.NewSlogLoggerWithHandler(mcpLog),
 	})
+}
 
+func createMCPServerRegisterTools(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool, manifestCacheFile string) bool {
 	// Register read-only tools
 	registerStatusTool(server)
 
 	if err := registerCompileTool(server, execCmd, manifestCacheFile); err != nil {
-		return server
+		return false
 	}
 
 	// Register privileged tools (require write+ access)
 	if err := registerLogsTool(server, execCmd, actor, validateActor); err != nil {
-		return server
+		return false
 	}
 
 	if err := registerAuditTool(server, execCmd, actor, validateActor); err != nil {
-		return server
+		return false
 	}
 
 	if err := registerAuditDiffTool(server, execCmd, actor, validateActor); err != nil {
-		return server
+		return false
 	}
 
 	// Register remaining read-only tools
@@ -90,10 +107,5 @@ func createMCPServer(cmdPath string, actor string, validateActor bool, manifestC
 	registerAddTool(server, execCmd)
 	registerUpdateTool(server, execCmd)
 	registerFixTool(server, execCmd)
-
-	// Add receiving middleware to transform raw JSON-schema "additional properties"
-	// validation errors into helpful messages with "Did you mean?" suggestions.
-	server.AddReceivingMiddleware(argumentValidationMiddleware(mcpToolParams()))
-
-	return server
+	return true
 }

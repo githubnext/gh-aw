@@ -36,24 +36,10 @@ func evalRetainedUpdate(item CreatedItemReport, repoOverride string, objectKind 
 	}
 	if num == 0 || repo == "" {
 		outcomeEvalUpdateLog.Printf("Missing execution state: num=%d, repo=%s", num, repo)
-		report.Result = OutcomeUnknown
-		report.Detail = "missing execution state"
-		report.OutcomeEvaluation = OutcomeEvaluation{
-			OutcomeStatus:    OutcomeStatusUnknown,
-			EvidenceStrength: EvidenceNone,
-			Signal:           "missing_execution_state",
-		}
-		return report
+		return evalRetainedUpdateUnknown(report, "missing execution state", "missing_execution_state")
 	}
 	if item.BeforeState == nil || item.AfterState == nil {
-		report.Result = OutcomeUnknown
-		report.Detail = "missing execution state"
-		report.OutcomeEvaluation = OutcomeEvaluation{
-			OutcomeStatus:    OutcomeStatusUnknown,
-			EvidenceStrength: EvidenceNone,
-			Signal:           "missing_execution_state",
-		}
-		return report
+		return evalRetainedUpdateUnknown(report, "missing execution state", "missing_execution_state")
 	}
 
 	currentState, merged, err := load(repo, num)
@@ -67,16 +53,23 @@ func evalRetainedUpdate(item CreatedItemReport, repoOverride string, objectKind 
 	outcomeEvalUpdateLog.Printf("State comparison for %s #%d: changed=%d, retained=%d, reverted=%d, replaced=%d, merged=%v",
 		objectKind, num, len(comparison.Changed), len(comparison.Retained), len(comparison.Reverted), len(comparison.Replaced), merged)
 	if len(comparison.Changed) == 0 {
-		report.Result = OutcomeUnknown
-		report.Detail = "no persisted state delta"
-		report.OutcomeEvaluation = OutcomeEvaluation{
-			OutcomeStatus:    OutcomeStatusUnknown,
-			EvidenceStrength: EvidenceNone,
-			Signal:           "no_state_delta",
-		}
-		return report
+		return evalRetainedUpdateUnknown(report, "no persisted state delta", "no_state_delta")
 	}
+	return evalRetainedUpdateClassify(report, comparison, objectKind, strongOnMerge, merged)
+}
 
+func evalRetainedUpdateUnknown(report OutcomeReport, detail string, signal string) OutcomeReport {
+	report.Result = OutcomeUnknown
+	report.Detail = detail
+	report.OutcomeEvaluation = OutcomeEvaluation{
+		OutcomeStatus:    OutcomeStatusUnknown,
+		EvidenceStrength: EvidenceNone,
+		Signal:           signal,
+	}
+	return report
+}
+
+func evalRetainedUpdateClassify(report OutcomeReport, comparison retainedStateComparison, objectKind string, strongOnMerge bool, merged bool) OutcomeReport {
 	switch {
 	case len(comparison.Retained) == len(comparison.Changed):
 		report.Result = OutcomeAccepted

@@ -26,50 +26,7 @@ import (
 
 var logsParsingFirewallLog = logger.New("cli:logs_parsing_firewall")
 
-// parseFirewallLogs runs the JavaScript firewall log parser and writes markdown to firewall.md
-func parseFirewallLogs(runDir string, verbose bool) error {
-	logsParsingFirewallLog.Printf("Parsing firewall logs in: %s", runDir)
-	// Get the firewall log parser script
-	jsScript := workflow.GetLogParserScript("parse_firewall_logs")
-	if jsScript == "" {
-		logsParsingFirewallLog.Print("Failed to get firewall log parser script")
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to get firewall log parser script"))
-		}
-		return nil
-	}
-
-	// Check if squid logs directory exists in the run directory
-	// The logs could be in several locations depending on the AWF version and artifact structure.
-
-	logsDir, err := findFirewallLogsDir(runDir)
-	if err != nil {
-		return err
-	}
-	if logsDir == "" {
-		logsParsingFirewallLog.Print("No firewall logs found, skipping parsing")
-		// No firewall logs found - this is not an error, just skip parsing
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No firewall logs found in %s, skipping firewall log parsing", filepath.Base(runDir))))
-		}
-		return nil
-	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found firewall logs in "+logsDir))
-	}
-
-	// Create a temporary directory for running the parser
-	tempDir, err := os.MkdirTemp("", "firewall_log_parser")
-	if err != nil {
-		return fmt.Errorf("failed to create temp dir: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Create a Node.js script that mimics the GitHub Actions environment
-	// The firewall parser expects logs in /tmp/gh-aw/squid-logs-{workflow}/
-	// We'll set GITHUB_WORKFLOW to a value that makes the parser look in our temp directory
-	nodeScript := fmt.Sprintf(`
+const parseFirewallLogsNodeScriptTemplate = `
 const fs = require('fs');
 const path = require('path');
 
@@ -205,8 +162,60 @@ const originalMain = function() {
 
 // Replace main() call with our custom version
 originalMain();
-`, logsDir, jsScript)
+`
 
+// parseFirewallLogs runs the JavaScript firewall log parser and writes markdown to firewall.md
+func parseFirewallLogs(runDir string, verbose bool) error {
+	logsParsingFirewallLog.Printf("Parsing firewall logs in: %s", runDir)
+	// Get the firewall log parser script
+	jsScript := workflow.GetLogParserScript("parse_firewall_logs")
+	if jsScript == "" {
+		logsParsingFirewallLog.Print("Failed to get firewall log parser script")
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to get firewall log parser script"))
+		}
+		return nil
+	}
+
+	// Check if squid logs directory exists in the run directory
+	// The logs could be in several locations depending on the AWF version and artifact structure.
+
+	logsDir, err := findFirewallLogsDir(runDir)
+	if err != nil {
+		return err
+	}
+	if logsDir == "" {
+		logsParsingFirewallLog.Print("No firewall logs found, skipping parsing")
+		// No firewall logs found - this is not an error, just skip parsing
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No firewall logs found in %s, skipping firewall log parsing", filepath.Base(runDir))))
+		}
+		return nil
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found firewall logs in "+logsDir))
+	}
+
+	// Create a temporary directory for running the parser
+	tempDir, err := os.MkdirTemp("", "firewall_log_parser")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	nodeScript := parseFirewallLogsNodeScript(logsDir, jsScript)
+	return parseFirewallLogsRunNodeScript(runDir, tempDir, nodeScript)
+}
+
+func parseFirewallLogsNodeScript(logsDir, jsScript string) string {
+	// Create a Node.js script that mimics the GitHub Actions environment.
+	// The firewall parser expects logs in /tmp/gh-aw/squid-logs-{workflow}/;
+	// use GITHUB_WORKFLOW to make the parser look in our temp directory.
+	return fmt.Sprintf(parseFirewallLogsNodeScriptTemplate, logsDir, jsScript)
+}
+
+func parseFirewallLogsRunNodeScript(runDir, tempDir, nodeScript string) error {
 	// Write the Node.js script
 	nodeFile := filepath.Join(tempDir, "parser.js")
 	if err := os.WriteFile(nodeFile, []byte(nodeScript), constants.FilePermPublic); err != nil {

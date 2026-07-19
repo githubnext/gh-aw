@@ -150,77 +150,88 @@ func findUnsafeEngineEnvSecretKeys(envMap map[string]any, allowed map[string]str
 	return unsafe
 }
 
+type removeUnsafeEngineEnvKeysState struct {
+	inEngine          bool
+	engineIndent      string
+	inEnv             bool
+	envIndent         string
+	removingKey       bool
+	removingKeyIndent string
+}
+
 func removeUnsafeEngineEnvKeys(lines []string, unsafeKeys map[string]struct {
 }) ([]string, bool) {
 	result := make([]string, 0, len(lines))
 	modified := false
-
-	inEngine := false
-	engineIndent := ""
-	inEnv := false
-	envIndent := ""
-	removingKey := false
-	removingKeyIndent := ""
+	state := removeUnsafeEngineEnvKeysState{}
 
 	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		indent := getIndentation(line)
-
-		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "engine:") {
-			inEngine = true
-			engineIndent = indent
-			inEnv = false
-			removingKey = false
+		keepLine, lineModified := removeUnsafeEngineEnvKeysKeepLine(line, &state, unsafeKeys)
+		if lineModified {
+			modified = true
+		}
+		if keepLine {
 			result = append(result, line)
-			continue
 		}
-
-		if inEngine && trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(indent) <= len(engineIndent) {
-			inEngine = false
-			inEnv = false
-			removingKey = false
-		}
-
-		if inEngine && !inEnv && strings.HasPrefix(trimmed, "env:") && strings.TrimSpace(strings.TrimPrefix(trimmed, "env:")) == "" {
-			inEnv = true
-			envIndent = indent
-			removingKey = false
-			result = append(result, line)
-			continue
-		}
-
-		if inEnv && trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(indent) <= len(envIndent) {
-			inEnv = false
-			removingKey = false
-		}
-
-		if inEnv && removingKey {
-			if trimmed == "" {
-				continue
-			}
-			if strings.HasPrefix(trimmed, "#") && len(indent) > len(removingKeyIndent) {
-				continue
-			}
-			if len(indent) > len(removingKeyIndent) {
-				continue
-			}
-			removingKey = false
-		}
-
-		if inEnv && !removingKey && trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(indent) > len(envIndent) {
-			key := parseYAMLMapKey(trimmed)
-			if key != "" && setutil.Contains(unsafeKeys, key) {
-				modified = true
-				removingKey = true
-				removingKeyIndent = indent
-				continue
-			}
-		}
-
-		result = append(result, line)
 	}
 
 	return result, modified
+}
+
+func removeUnsafeEngineEnvKeysKeepLine(line string, state *removeUnsafeEngineEnvKeysState, unsafeKeys map[string]struct {
+}) (bool, bool) {
+	trimmed := strings.TrimSpace(line)
+	indent := getIndentation(line)
+
+	if isTopLevelKey(line) && strings.HasPrefix(trimmed, "engine:") {
+		state.inEngine = true
+		state.engineIndent = indent
+		state.inEnv = false
+		state.removingKey = false
+		return true, false
+	}
+
+	if state.inEngine && trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(indent) <= len(state.engineIndent) {
+		state.inEngine = false
+		state.inEnv = false
+		state.removingKey = false
+	}
+
+	if state.inEngine && !state.inEnv && strings.HasPrefix(trimmed, "env:") && strings.TrimSpace(strings.TrimPrefix(trimmed, "env:")) == "" {
+		state.inEnv = true
+		state.envIndent = indent
+		state.removingKey = false
+		return true, false
+	}
+
+	if state.inEnv && trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(indent) <= len(state.envIndent) {
+		state.inEnv = false
+		state.removingKey = false
+	}
+
+	if state.inEnv && state.removingKey {
+		if trimmed == "" {
+			return false, false
+		}
+		if strings.HasPrefix(trimmed, "#") && len(indent) > len(state.removingKeyIndent) {
+			return false, false
+		}
+		if len(indent) > len(state.removingKeyIndent) {
+			return false, false
+		}
+		state.removingKey = false
+	}
+
+	if state.inEnv && !state.removingKey && trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(indent) > len(state.envIndent) {
+		key := parseYAMLMapKey(trimmed)
+		if key != "" && setutil.Contains(unsafeKeys, key) {
+			state.removingKey = true
+			state.removingKeyIndent = indent
+			return false, true
+		}
+	}
+
+	return true, false
 }
 
 func removeEmptyEngineEnvBlock(lines []string) []string {

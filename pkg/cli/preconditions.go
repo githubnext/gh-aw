@@ -74,8 +74,11 @@ func checkActionsEnabledShared(repoSlug string, verbose bool) error {
 		return nil
 	}
 
-	// Check allowed actions setting
-	switch permissions.AllowedActions {
+	return checkActionsEnabledSharedAllowed(permissions.AllowedActions, permissions.SelectedActionsURL, verbose)
+}
+
+func checkActionsEnabledSharedAllowed(allowedActions string, selectedActionsURL string, verbose bool) error {
+	switch allowedActions {
 	case "all":
 		// All actions allowed - good to go
 		if verbose {
@@ -95,7 +98,7 @@ func checkActionsEnabledShared(repoSlug string, verbose bool) error {
 		return errors.New("repository action permissions prevent agentic workflows from running")
 	case "selected":
 		// Selected actions - need to check if GitHub-owned actions are allowed
-		if err := checkSelectedActionsPermissions(permissions.SelectedActionsURL, verbose); err != nil {
+		if err := checkSelectedActionsPermissions(selectedActionsURL, verbose); err != nil {
 			return err
 		}
 	default:

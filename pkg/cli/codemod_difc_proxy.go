@@ -146,17 +146,11 @@ func addIntegrityProxyFalseToToolsGitHub(lines []string) []string {
 		// Inside github block: inject integrity-proxy: false before the first sub-field
 		if inGitHub && !fieldInserted && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
 			if hasExitedBlock(line, githubIndent) {
-				// Exited github block without seeing any sub-fields; use default indentation
-				fieldIndent := githubIndent + "  "
-				result = append(result, fieldIndent+"integrity-proxy: false")
-				difcProxyCodemodLog.Printf("Added integrity-proxy: false to tools.github (before exit)")
+				result = addIntegrityProxyFalseToToolsGitHubAppend(result, githubIndent+"  ", "before exit")
 				fieldInserted = true
 				inGitHub = false
 			} else {
-				// Use the indentation of the first existing sub-field
-				fieldIndent := getIndentation(line)
-				result = append(result, fieldIndent+"integrity-proxy: false")
-				difcProxyCodemodLog.Printf("Added integrity-proxy: false to tools.github")
+				result = addIntegrityProxyFalseToToolsGitHubAppend(result, getIndentation(line), "")
 				fieldInserted = true
 				inGitHub = false
 			}
@@ -167,10 +161,18 @@ func addIntegrityProxyFalseToToolsGitHub(lines []string) []string {
 
 	// Edge case: github block was the last entry in the file
 	if inGitHub && !fieldInserted {
-		fieldIndent := githubIndent + "  "
-		result = append(result, fieldIndent+"integrity-proxy: false")
-		difcProxyCodemodLog.Printf("Added integrity-proxy: false to tools.github (end of file)")
+		result = addIntegrityProxyFalseToToolsGitHubAppend(result, githubIndent+"  ", "end of file")
 	}
 
+	return result
+}
+
+func addIntegrityProxyFalseToToolsGitHubAppend(result []string, fieldIndent string, detail string) []string {
+	result = append(result, fieldIndent+"integrity-proxy: false")
+	if detail == "" {
+		difcProxyCodemodLog.Printf("Added integrity-proxy: false to tools.github")
+	} else {
+		difcProxyCodemodLog.Printf("Added integrity-proxy: false to tools.github (%s)", detail)
+	}
 	return result
 }

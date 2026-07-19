@@ -329,88 +329,77 @@ func (c *Compiler) addCustomStepsAsIs(yaml *strings.Builder, customSteps string)
 // Like addCustomStepsAsIs it sanitizes any ${{ ... }} expressions found in run: fields before writing.
 func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, customSteps string, runtimeSetupSteps []GitHubActionStep, tools *ToolsConfig) {
 	customSteps = c.sanitizeAndWarnCustomSteps(customSteps)
-	// Remove "steps:" line and adjust indentation
 	lines := strings.Split(customSteps, "\n")
 	if len(lines) <= 1 {
 		return
 	}
 
 	insertedRuntime := false
-	i := 1 // Start from index 1 to skip "steps:" line
-
+	i := 1
 	for i < len(lines) {
 		line := lines[i]
 
-		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
 			yaml.WriteString("\n")
 			i++
 			continue
 		}
 
-		// Add the line with proper indentation
 		yaml.WriteString("      " + line + "\n")
 
-		// Check if this line starts a step with "- name:" or "- uses:"
 		trimmed := strings.TrimSpace(line)
-		isStepStart := strings.HasPrefix(trimmed, "- name:") || strings.HasPrefix(trimmed, "- uses:")
-
-		if isStepStart && !insertedRuntime {
-			// This is the start of a step, check if it's a checkout step
-			isCheckoutStep := false
-
-			// Look ahead to find "uses:" line with "checkout"
-			for j := i + 1; j < len(lines); j++ {
-				nextLine := lines[j]
-				nextTrimmed := strings.TrimSpace(nextLine)
-
-				// Stop if we hit the next step
-				if strings.HasPrefix(nextTrimmed, "- name:") || strings.HasPrefix(nextTrimmed, "- uses:") {
-					break
-				}
-
-				// Check if this is a uses line with checkout
-				if strings.Contains(nextTrimmed, "uses:") && strings.Contains(nextTrimmed, "checkout") {
-					isCheckoutStep = true
-					break
-				}
-			}
-
-			if isCheckoutStep {
-				// This is a checkout step, copy all its lines until the next step
-				i++
-				for i < len(lines) {
-					nextLine := lines[i]
-					nextTrimmed := strings.TrimSpace(nextLine)
-
-					// Stop if we hit the next step
-					if strings.HasPrefix(nextTrimmed, "- name:") || strings.HasPrefix(nextTrimmed, "- uses:") {
-						break
-					}
-
-					// Add the line
-					if nextTrimmed == "" {
-						yaml.WriteString("\n")
-					} else {
-						yaml.WriteString("      " + nextLine + "\n")
-					}
-					i++
-				}
-
-				// Now insert runtime steps after the checkout step
-				compilerYamlLog.Printf("Inserting %d runtime setup steps after checkout in custom steps", len(runtimeSetupSteps))
-				for _, step := range runtimeSetupSteps {
-					for _, stepLine := range step {
-						yaml.WriteString(stepLine + "\n")
-					}
-				}
-
-				insertedRuntime = true
-				continue // Continue with the next iteration (i is already advanced)
-			}
+		if isCustomStepStart(trimmed) && !insertedRuntime && customStepContainsCheckout(lines, i+1) {
+			i = copyCustomStepRemainder(yaml, lines, i+1)
+			writeRuntimeSetupSteps(yaml, runtimeSetupSteps)
+			insertedRuntime = true
+			continue
 		}
 
 		i++
+	}
+}
+
+func isCustomStepStart(trimmed string) bool {
+	return strings.HasPrefix(trimmed, "- name:") || strings.HasPrefix(trimmed, "- uses:")
+}
+
+func customStepContainsCheckout(lines []string, start int) bool {
+	for j := start; j < len(lines); j++ {
+		nextTrimmed := strings.TrimSpace(lines[j])
+		if isCustomStepStart(nextTrimmed) {
+			break
+		}
+		if strings.Contains(nextTrimmed, "uses:") && strings.Contains(nextTrimmed, "checkout") {
+			return true
+		}
+	}
+	return false
+}
+
+func copyCustomStepRemainder(yaml *strings.Builder, lines []string, start int) int {
+	i := start
+	for i < len(lines) {
+		nextLine := lines[i]
+		nextTrimmed := strings.TrimSpace(nextLine)
+		if isCustomStepStart(nextTrimmed) {
+			break
+		}
+		if nextTrimmed == "" {
+			yaml.WriteString("\n")
+		} else {
+			yaml.WriteString("      " + nextLine + "\n")
+		}
+		i++
+	}
+	return i
+}
+
+func writeRuntimeSetupSteps(yaml *strings.Builder, runtimeSetupSteps []GitHubActionStep) {
+	compilerYamlLog.Printf("Inserting %d runtime setup steps after checkout in custom steps", len(runtimeSetupSteps))
+	for _, step := range runtimeSetupSteps {
+		for _, stepLine := range step {
+			yaml.WriteString(stepLine + "\n")
+		}
 	}
 }
 

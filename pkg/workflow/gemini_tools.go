@@ -30,82 +30,66 @@ var geminiToolsLog = logger.New("workflow:gemini_tools")
 
 // computeGeminiToolsCore maps neutral tool names to Gemini CLI built-in tool names
 // for use in the tools.core allowlist in .gemini/settings.json.
-//
-// Neutral tool → Gemini CLI tool mapping:
-//   - bash: [cmd, ...]     → run_shell_command(cmd), ... (one entry per command)
-//   - bash: * or bash: nil → run_shell_command           (allow all shell commands)
-//   - edit: {}             → replace, write_file          (file write tools)
-//
-// Read-only file system tools are always included as they are essential for
-// agentic workflows: glob, grep_search, list_directory, read_file, read_many_files.
-//
-// See: https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/file-system.md
-// See: https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/shell.md
 func computeGeminiToolsCore(tools map[string]any) []string {
-	// Always include essential read-only file system tools
-	toolsCore := []string{
-		"glob",
-		"grep_search",
-		"list_directory",
-		"read_file",
-		"read_many_files",
-	}
-
+	toolsCore := defaultGeminiToolsCore()
 	if tools == nil {
 		return toolsCore
 	}
-
-	// Map bash neutral tool to run_shell_command
-	if bashConfig, hasBash := tools["bash"]; hasBash {
-		bashCommands, ok := bashConfig.([]any)
-		if !ok || len(bashCommands) == 0 {
-			// bash with no specific commands - allow all shell commands
-			geminiToolsLog.Print("bash (no specific commands) → run_shell_command")
-			toolsCore = append(toolsCore, "run_shell_command")
-		} else {
-			// Check for wildcard (* or :*)
-			hasWildcard := false
-			for _, cmd := range bashCommands {
-				if cmdStr, ok := cmd.(string); ok && (cmdStr == "*" || cmdStr == ":*") {
-					hasWildcard = true
-					break
-				}
-			}
-			if hasWildcard {
-				geminiToolsLog.Print("bash wildcard → run_shell_command")
-				toolsCore = append(toolsCore, "run_shell_command")
-			} else {
-				// Add an entry for each specific command: run_shell_command(cmd)
-				for _, cmd := range bashCommands {
-					if cmdStr, ok := cmd.(string); ok {
-						// Normalize trailing " *" wildcard (e.g. "jq *" → "jq") so that
-						// all engines emit the canonical prefix form (run_shell_command(jq))
-						// regardless of whether the command was written with or without the wildcard.
-						normalized, _ := normalizeBashCommand(cmdStr)
-						entry := fmt.Sprintf("run_shell_command(%s)", normalized)
-						geminiToolsLog.Printf("bash %q → %s", cmdStr, entry)
-						toolsCore = append(toolsCore, entry)
-					}
-				}
-			}
-		}
-	}
-
-	// Map edit neutral tool to write_file and replace (Gemini's file write tools)
+	toolsCore = append(toolsCore, geminiBashToolsCore(tools)...)
 	if _, hasEdit := tools["edit"]; hasEdit {
 		geminiToolsLog.Print("edit → replace, write_file")
-		toolsCore = append(toolsCore, "replace")
-		toolsCore = append(toolsCore, "write_file")
+		toolsCore = append(toolsCore, "replace", "write_file")
 	}
-
-	// Map web-fetch neutral tool to web_fetch (Gemini's native HTTP fetch tool)
-	// See: https://geminicli.com/docs/tools/web-fetch/
 	if _, hasWebFetch := tools["web-fetch"]; hasWebFetch {
 		geminiToolsLog.Print("web-fetch → web_fetch")
 		toolsCore = append(toolsCore, "web_fetch")
 	}
-
 	sort.Strings(toolsCore)
+	return toolsCore
+}
+
+func defaultGeminiToolsCore() []string {
+	return []string{"glob", "grep_search", "list_directory", "read_file", "read_many_files"}
+}
+
+func geminiBashToolsCore(tools map[string]any) []string {
+	bashConfig, hasBash := tools["bash"]
+	if !hasBash {
+		return nil
+	}
+	bashCommands, ok := bashConfig.([]any)
+	if !ok || len(bashCommands) == 0 {
+		geminiToolsLog.Print("bash (no specific commands) → run_shell_command")
+		return []string{"run_shell_command"}
+	}
+	if geminiBashHasWildcard(bashCommands) {
+		geminiToolsLog.Print("bash wildcard → run_shell_command")
+		return []string{"run_shell_command"}
+	}
+	return geminiSpecificBashTools(bashCommands)
+}
+
+func geminiBashHasWildcard(bashCommands []any) bool {
+	for _, cmd := range bashCommands {
+		if cmdStr, ok := cmd.(string); ok && (cmdStr == "*" || cmdStr == ":*") {
+			return true
+		}
+	}
+	return false
+}
+
+func geminiSpecificBashTools(bashCommands []any) []string {
+	var toolsCore []string
+	for _, cmd := range bashCommands {
+		cmdStr, ok := cmd.(string)
+		if !ok {
+			continue
+		}
+		normalized, _ := normalizeBashCommand(cmdStr)
+		entry := fmt.Sprintf("run_shell_command(%s)", normalized)
+		geminiToolsLog.Printf("bash %q → %s", cmdStr, entry)
+		toolsCore = append(toolsCore, entry)
+	}
 	return toolsCore
 }
 
@@ -133,11 +117,9 @@ func (e *GeminiEngine) generateGeminiSettingsStep(workflowData *WorkflowData) Gi
 	workflowDataWithEffectiveTools.Tools = tools
 	tools = withMountedCLIShellCommandsInRestrictedBash(&workflowDataWithEffectiveTools)
 
-	// Compute tools.core from neutral tool configuration
 	toolsCore := computeGeminiToolsCore(tools)
 	geminiToolsLog.Printf("tools.core entries: %d", len(toolsCore))
 
-	// Build the settings JSON object
 	config := map[string]any{
 		"context": map[string]any{
 			"includeDirectories": []string{"/tmp/"},

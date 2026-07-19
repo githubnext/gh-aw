@@ -30,9 +30,16 @@ func ComputeDomainBreakdowns(reports []OutcomeReport) []DomainBreakdown {
 		return []DomainBreakdown{}
 	}
 
-	// Map domain label → metrics
-	domains := make(map[string]*DomainBreakdown)
+	domains := computeDomainBreakdownsAggregate(reports)
+	result := computeDomainBreakdownsFinalize(domains)
+	computeDomainBreakdownsSort(result)
 
+	domainBreakdownLog.Printf("Computed domain breakdowns: domains=%d, total_attempted=%d", len(result), countTotalAttempted(result))
+	return result
+}
+
+func computeDomainBreakdownsAggregate(reports []OutcomeReport) map[string]*DomainBreakdown {
+	domains := make(map[string]*DomainBreakdown)
 	for _, report := range reports {
 		// If outcome has objective labels, aggregate by each label
 		for _, label := range report.ObjectiveLabels {
@@ -78,7 +85,10 @@ func ComputeDomainBreakdowns(reports []OutcomeReport) []DomainBreakdown {
 			}
 		}
 	}
+	return domains
+}
 
+func computeDomainBreakdownsFinalize(domains map[string]*DomainBreakdown) []DomainBreakdown {
 	// Compute efficiency metrics for each domain
 	result := make([]DomainBreakdown, 0, len(domains))
 	for _, domain := range domains {
@@ -90,7 +100,10 @@ func ComputeDomainBreakdowns(reports []OutcomeReport) []DomainBreakdown {
 		}
 		result = append(result, *domain)
 	}
+	return result
+}
 
+func computeDomainBreakdownsSort(result []DomainBreakdown) {
 	// Sort by total_objective_value descending
 	slices.SortFunc(result, func(a, b DomainBreakdown) int {
 		if a.TotalObjectiveValue != b.TotalObjectiveValue {
@@ -98,9 +111,6 @@ func ComputeDomainBreakdowns(reports []OutcomeReport) []DomainBreakdown {
 		}
 		return strings.Compare(a.Label, b.Label)
 	})
-
-	domainBreakdownLog.Printf("Computed domain breakdowns: domains=%d, total_attempted=%d", len(result), countTotalAttempted(result))
-	return result
 }
 
 func countTotalAttempted(breakdowns []DomainBreakdown) int {

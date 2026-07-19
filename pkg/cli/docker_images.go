@@ -148,73 +148,67 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 	pullState.downloading[image] = true
 
 	// Start the download in a goroutine with retry logic
-	go func() {
-		defer func() {
-			func() {
-				pullState.mu.Lock()
-				defer pullState.mu.Unlock()
-				delete(pullState.downloading, image)
-			}()
-			if r := recover(); r != nil {
-				dockerImagesLog.Printf("Panic in docker image download for %s (recovered): %v", image, r)
-			}
-		}()
-
-		dockerImagesLog.Printf("Starting download of image %s", image)
-
-		// Retry configuration
-		maxAttempts := 3
-		waitTime := 5 // seconds
-
-		var lastErr error
-		var lastOutput []byte
-
-		for attempt := 1; attempt <= maxAttempts; attempt++ {
-			// Check if context was cancelled
-			if ctx.Err() != nil {
-				dockerImagesLog.Printf("Download of image %s cancelled: %v", image, ctx.Err())
-				return
-			}
-
-			dockerImagesLog.Printf("Attempt %d of %d: Pulling image %s", attempt, maxAttempts, image)
-
-			cmd := exec.CommandContext(ctx, "docker", "pull", image)
-			output, err := cmd.CombinedOutput()
-
-			if err == nil {
-				// Success
-				dockerImagesLog.Printf("Successfully downloaded image %s", image)
-				return
-			}
-
-			lastErr = err
-			lastOutput = output
-
-			// If not the last attempt, wait and retry
-			if attempt < maxAttempts {
-				dockerImagesLog.Printf("Failed to download image %s (attempt %d/%d). Retrying in %ds...", image, attempt, maxAttempts, waitTime)
-
-				// Use context-aware sleep
-				timer := time.NewTimer(time.Duration(waitTime) * time.Second)
-				select {
-				case <-timer.C:
-					// Continue to next retry
-				case <-ctx.Done():
-					timer.Stop()
-					// Context cancelled during sleep
-					dockerImagesLog.Printf("Download of image %s cancelled during retry wait: %v", image, ctx.Err())
-					return
-				}
-
-				waitTime *= 2 // Exponential backoff
-			}
-		}
-
-		// All attempts failed
-		dockerImagesLog.Printf("Failed to download image %s after %d attempts: %v\nOutput: %s", image, maxAttempts, lastErr, string(lastOutput))
-	}()
+	go startDockerImageDownloadPull(ctx, image)
 
 	return true
+}
+
+func startDockerImageDownloadPull(ctx context.Context, image string) {
+	defer startDockerImageDownloadCleanup(image)
+	dockerImagesLog.Printf("Starting download of image %s", image)
+
+	maxAttempts := 3
+	waitTime := 5 // seconds
+	var lastErr error
+	var lastOutput []byte
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if ctx.Err() != nil {
+			dockerImagesLog.Printf("Download of image %s cancelled: %v", image, ctx.Err())
+			return
+		}
+
+		dockerImagesLog.Printf("Attempt %d of %d: Pulling image %s", attempt, maxAttempts, image)
+		cmd := exec.CommandContext(ctx, "docker", "pull", image)
+		output, err := cmd.CombinedOutput()
+		if err == nil {
+			dockerImagesLog.Printf("Successfully downloaded image %s", image)
+			return
+		}
+
+		lastErr = err
+		lastOutput = output
+		if attempt < maxAttempts && !startDockerImageDownloadWaitForRetry(ctx, image, attempt, maxAttempts, &waitTime) {
+			return
+		}
+	}
+
+	dockerImagesLog.Printf("Failed to download image %s after %d attempts: %v\nOutput: %s", image, maxAttempts, lastErr, string(lastOutput))
+}
+
+func startDockerImageDownloadCleanup(image string) {
+	func() {
+		pullState.mu.Lock()
+		defer pullState.mu.Unlock()
+		delete(pullState.downloading, image)
+	}()
+	if r := recover(); r != nil {
+		dockerImagesLog.Printf("Panic in docker image download for %s (recovered): %v", image, r)
+	}
+}
+
+func startDockerImageDownloadWaitForRetry(ctx context.Context, image string, attempt int, maxAttempts int, waitTime *int) bool {
+	dockerImagesLog.Printf("Failed to download image %s (attempt %d/%d). Retrying in %ds...", image, attempt, maxAttempts, *waitTime)
+	timer := time.NewTimer(time.Duration(*waitTime) * time.Second)
+	select {
+	case <-timer.C:
+		*waitTime *= 2 // Exponential backoff
+		return true
+	case <-ctx.Done():
+		timer.Stop()
+		dockerImagesLog.Printf("Download of image %s cancelled during retry wait: %v", image, ctx.Err())
+		return false
+	}
 }
 
 // CheckAndPrepareDockerImages checks if required Docker images are available
@@ -232,35 +226,7 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 
 	// Check if Docker daemon is available before attempting any image operations
 	if !IsDockerAvailable(ctx) {
-		var requestedTools []string
-		var paramsList []string
-		if useZizmor {
-			tool := "zizmor"
-			requestedTools = append(requestedTools, tool)
-			paramsList = append(paramsList, tool+": false")
-		}
-		if usePoutine {
-			tool := "poutine"
-			requestedTools = append(requestedTools, tool)
-			paramsList = append(paramsList, tool+": false")
-		}
-		if useActionlint {
-			tool := "actionlint"
-			requestedTools = append(requestedTools, tool)
-			paramsList = append(paramsList, tool+": false")
-		}
-		if useRunnerGuard {
-			tool := "runner-guard"
-			requestedTools = append(requestedTools, tool)
-			paramsList = append(paramsList, tool+": false")
-		}
-		verb := "requires"
-		if len(requestedTools) > 1 {
-			verb = "require"
-		}
-		return &DockerUnavailableError{
-			Message: fmt.Sprintf("docker is not available (cannot connect to Docker daemon). %s %s Docker. Please install and start Docker, or set %s to skip static analysis", strings.Join(requestedTools, " and "), verb, strings.Join(paramsList, " and ")),
-		}
+		return checkAndPrepareDockerImagesUnavailable(useZizmor, usePoutine, useActionlint, useRunnerGuard)
 	}
 
 	var missingImages []string
@@ -298,25 +264,48 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 
 	// If any images are downloading or were just started
 	if len(downloadingImages) > 0 || len(missingImages) > 0 {
-		var msg strings.Builder
-		msg.WriteString("Docker images are being downloaded. Please wait and retry the compile command.\n\n")
-
-		if len(missingImages) > 0 {
-			msg.WriteString("Started downloading: ")
-			msg.WriteString(strings.Join(missingImages, ", "))
-			msg.WriteString("\n")
-		}
-
-		if len(downloadingImages) > 0 {
-			msg.WriteString("Currently downloading: ")
-			msg.WriteString(strings.Join(downloadingImages, ", "))
-			msg.WriteString("\n")
-		}
-
-		msg.WriteString("\nRetry in 15-30 seconds.")
-
-		return errors.New(msg.String())
+		return errors.New(checkAndPrepareDockerImagesDownloadMessage(missingImages, downloadingImages))
 	}
 
 	return nil
+}
+
+func checkAndPrepareDockerImagesUnavailable(useZizmor, usePoutine, useActionlint, useRunnerGuard bool) error {
+	var requestedTools []string
+	var paramsList []string
+	checkAndPrepareDockerImagesAppendTool(useZizmor, "zizmor", &requestedTools, &paramsList)
+	checkAndPrepareDockerImagesAppendTool(usePoutine, "poutine", &requestedTools, &paramsList)
+	checkAndPrepareDockerImagesAppendTool(useActionlint, "actionlint", &requestedTools, &paramsList)
+	checkAndPrepareDockerImagesAppendTool(useRunnerGuard, "runner-guard", &requestedTools, &paramsList)
+	verb := "requires"
+	if len(requestedTools) > 1 {
+		verb = "require"
+	}
+	return &DockerUnavailableError{
+		Message: fmt.Sprintf("docker is not available (cannot connect to Docker daemon). %s %s Docker. Please install and start Docker, or set %s to skip static analysis", strings.Join(requestedTools, " and "), verb, strings.Join(paramsList, " and ")),
+	}
+}
+
+func checkAndPrepareDockerImagesAppendTool(use bool, tool string, requestedTools *[]string, paramsList *[]string) {
+	if use {
+		*requestedTools = append(*requestedTools, tool)
+		*paramsList = append(*paramsList, tool+": false")
+	}
+}
+
+func checkAndPrepareDockerImagesDownloadMessage(missingImages []string, downloadingImages []string) string {
+	var msg strings.Builder
+	msg.WriteString("Docker images are being downloaded. Please wait and retry the compile command.\n\n")
+	if len(missingImages) > 0 {
+		msg.WriteString("Started downloading: ")
+		msg.WriteString(strings.Join(missingImages, ", "))
+		msg.WriteString("\n")
+	}
+	if len(downloadingImages) > 0 {
+		msg.WriteString("Currently downloading: ")
+		msg.WriteString(strings.Join(downloadingImages, ", "))
+		msg.WriteString("\n")
+	}
+	msg.WriteString("\nRetry in 15-30 seconds.")
+	return msg.String()
 }

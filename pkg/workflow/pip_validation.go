@@ -144,50 +144,52 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 		return err
 	}
 
-	// Check if uv is available
-	_, err := exec.LookPath("uv")
-	if err != nil {
-		pipValidationLog.Print("uv command not found, falling back to pip validation")
-		// uv not available, but we can still validate using pip index
-		pipCmd := "pip"
-		_, pipErr := exec.LookPath("pip")
-		if pipErr != nil {
-			// Try pip3 as fallback
-			_, pip3Err := exec.LookPath("pip3")
-			if pip3Err != nil {
-				pipValidationLog.Print("Neither uv nor pip commands found, cannot validate")
-				return NewOperationError(
-					"validate",
-					"uv packages",
-					"",
-					pip3Err,
-					"Install uv or pip to enable package validation:\n\nInstall uv (recommended):\n$ curl -LsSf https://astral.sh/uv/install.sh | sh\n\nOr install pip:\n$ python -m ensurepip --upgrade\n\nAlternatively, disable validation by setting GH_AW_SKIP_UV_VALIDATION=true",
-				)
-			}
-			pipCmd = "pip3"
-			pipValidationLog.Print("Using pip3 for validation")
+	if pipCmd, shouldUsePip, err := findUVOrPipValidator(); shouldUsePip || err != nil {
+		if err != nil {
+			return err
 		}
-
 		return c.validateUvPackagesWithPip(packages, pipCmd)
 	}
 
 	pipValidationLog.Print("Using uv command for validation")
+	return c.validateUvPackagesWithUV(packages)
+}
 
-	// Validate with uv
+func findUVOrPipValidator() (string, bool, error) {
+	if _, err := exec.LookPath("uv"); err == nil {
+		return "", false, nil
+	}
+	pipValidationLog.Print("uv command not found, falling back to pip validation")
+	pipCmd := "pip"
+	if _, pipErr := exec.LookPath("pip"); pipErr == nil {
+		return pipCmd, true, nil
+	}
+	if _, pip3Err := exec.LookPath("pip3"); pip3Err == nil {
+		pipValidationLog.Print("Using pip3 for validation")
+		return "pip3", true, nil
+	} else {
+		pipValidationLog.Print("Neither uv nor pip commands found, cannot validate")
+		return "", false, NewOperationError(
+			"validate",
+			"uv packages",
+			"",
+			pip3Err,
+			"Install uv or pip to enable package validation:\n\nInstall uv (recommended):\n$ curl -LsSf https://astral.sh/uv/install.sh | sh\n\nOr install pip:\n$ python -m ensurepip --upgrade\n\nAlternatively, disable validation by setting GH_AW_SKIP_UV_VALIDATION=true",
+		)
+	}
+}
+
+func (c *Compiler) validateUvPackagesWithUV(packages []string) error {
 	var errors []string
 	for _, pkg := range packages {
-		// Extract package name without version specifier
 		pkgName := pkg
 		if eqIndex := strings.Index(pkg, "=="); eqIndex > 0 {
 			pkgName = pkg[:eqIndex]
 		}
 
-		// Use uv pip show to check if package exists on PyPI
 		cmd := exec.Command("uv", "pip", "show", pkgName, "--no-cache")
 		_, err := cmd.CombinedOutput()
-
 		if err != nil {
-			// Package not installed, try to check if it's available
 			errors = append(errors, fmt.Sprintf("uv package '%s' validation requires network access or local cache", pkg))
 		} else if c.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("✓ uv package validated: "+pkg))

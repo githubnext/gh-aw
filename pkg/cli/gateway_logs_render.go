@@ -32,157 +32,134 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 	output.WriteString("\n\n")
 
 	// Summary statistics
-	fmt.Fprintf(&output, "Total Requests: %d\n", metrics.TotalRequests)
-	fmt.Fprintf(&output, "Total Tool Calls: %d\n", metrics.TotalToolCalls)
-	fmt.Fprintf(&output, "Total Errors: %d\n", metrics.TotalErrors)
-	if metrics.TotalFiltered > 0 {
-		fmt.Fprintf(&output, "Total DIFC Filtered: %d\n", metrics.TotalFiltered)
-	}
-	if metrics.TotalGuardBlocked > 0 {
-		fmt.Fprintf(&output, "Total Guard Policy Blocked: %d\n", metrics.TotalGuardBlocked)
-	}
-	fmt.Fprintf(&output, "Servers: %d\n", len(metrics.Servers))
-
-	if !metrics.StartTime.IsZero() && !metrics.EndTime.IsZero() {
-		duration := metrics.EndTime.Sub(metrics.StartTime)
-		fmt.Fprintf(&output, "Time Range: %s\n", duration.Round(time.Second))
-	}
-
-	output.WriteString("\n")
+	renderGatewayMetricsTableSummary(&output, metrics)
 
 	// Server metrics table
 	if len(metrics.Servers) > 0 {
-		// Sort servers by request count
-		serverNames := getSortedServerNames(metrics)
-
-		hasFiltered := metrics.TotalFiltered > 0
-		hasGuardPolicy := metrics.TotalGuardBlocked > 0
-		serverRows := make([][]string, 0, len(serverNames))
-		for _, serverName := range serverNames {
-			server := metrics.Servers[serverName]
-			avgTime := 0.0
-			if server.RequestCount > 0 {
-				avgTime = server.TotalDuration / float64(server.RequestCount)
-			}
-			row := []string{
-				serverName,
-				strconv.Itoa(server.RequestCount),
-				strconv.Itoa(server.ToolCallCount),
-				fmt.Sprintf("%.0fms", avgTime),
-				strconv.Itoa(server.ErrorCount),
-			}
-			if hasFiltered {
-				row = append(row, strconv.Itoa(server.FilteredCount))
-			}
-			if hasGuardPolicy {
-				row = append(row, strconv.Itoa(server.GuardPolicyBlocked))
-			}
-			serverRows = append(serverRows, row)
-		}
-
-		headers := []string{"Server", "Requests", "Tool Calls", "Avg Time", "Errors"}
-		if hasFiltered {
-			headers = append(headers, "Filtered")
-		}
-		if hasGuardPolicy {
-			headers = append(headers, "Guard Blocked")
-		}
-		output.WriteString(console.RenderTable(console.TableConfig{
-			Title:   "Server Usage",
-			Headers: headers,
-			Rows:    serverRows,
-		}))
+		renderGatewayMetricsTableServers(&output, metrics)
 	}
 
 	// DIFC filtered events table
 	if len(metrics.FilteredEvents) > 0 {
-		output.WriteString("\n")
-		filteredRows := make([][]string, 0, len(metrics.FilteredEvents))
-		for _, fe := range metrics.FilteredEvents {
-			reason := stringutil.Truncate(fe.Reason, 80)
-			filteredRows = append(filteredRows, []string{
-				fe.ServerID,
-				fe.ToolName,
-				fe.AuthorLogin,
-				reason,
-			})
-		}
-		output.WriteString(console.RenderTable(console.TableConfig{
-			Title:   "DIFC Filtered Events",
-			Headers: []string{"Server", "Tool", "User", "Reason"},
-			Rows:    filteredRows,
-		}))
+		renderGatewayMetricsTableFiltered(&output, metrics)
 	}
 
 	// Guard policy events table
 	if len(metrics.GuardPolicyEvents) > 0 {
-		output.WriteString("\n")
-		guardRows := make([][]string, 0, len(metrics.GuardPolicyEvents))
-		for _, gpe := range metrics.GuardPolicyEvents {
-			message := stringutil.Truncate(gpe.Message, 60)
-			repo := gpe.Repository
-			if repo == "" {
-				repo = "-"
-			}
-			guardRows = append(guardRows, []string{
-				gpe.ServerID,
-				gpe.ToolName,
-				gpe.Reason,
-				message,
-				repo,
-			})
-		}
-		output.WriteString(console.RenderTable(console.TableConfig{
-			Title:   "Guard Policy Blocked Events",
-			Headers: []string{"Server", "Tool", "Reason", "Message", "Repository"},
-			Rows:    guardRows,
-		}))
+		renderGatewayMetricsTableGuardPolicy(&output, metrics)
 	}
 
 	// Tool metrics table (if verbose)
 	if verbose {
-		output.WriteString("\n")
-		output.WriteString("Tool Usage Details:\n")
-
-		for _, serverName := range getSortedServerNames(metrics) {
-			server := metrics.Servers[serverName]
-			if len(server.Tools) == 0 {
-				continue
-			}
-
-			// Sort tools by call count
-			toolNames := sliceutil.MapKeys(server.Tools)
-			slices.SortFunc(toolNames, func(a, b string) int {
-				if server.Tools[a].CallCount > server.Tools[b].CallCount {
-					return -1
-				}
-				if server.Tools[a].CallCount < server.Tools[b].CallCount {
-					return 1
-				}
-				return 0
-			})
-
-			toolRows := make([][]string, 0, len(toolNames))
-			for _, toolName := range toolNames {
-				tool := server.Tools[toolName]
-				toolRows = append(toolRows, []string{
-					toolName,
-					strconv.Itoa(tool.CallCount),
-					fmt.Sprintf("%.0fms", tool.AvgDuration),
-					fmt.Sprintf("%.0fms", tool.MaxDuration),
-					strconv.Itoa(tool.ErrorCount),
-				})
-			}
-
-			output.WriteString(console.RenderTable(console.TableConfig{
-				Title:   serverName,
-				Headers: []string{"Tool", "Calls", "Avg Time", "Max Time", "Errors"},
-				Rows:    toolRows,
-			}))
-		}
+		renderGatewayMetricsTableTools(&output, metrics)
 	}
 
 	return output.String()
+}
+
+func renderGatewayMetricsTableSummary(output *strings.Builder, metrics *GatewayMetrics) {
+	fmt.Fprintf(output, "Total Requests: %d\n", metrics.TotalRequests)
+	fmt.Fprintf(output, "Total Tool Calls: %d\n", metrics.TotalToolCalls)
+	fmt.Fprintf(output, "Total Errors: %d\n", metrics.TotalErrors)
+	if metrics.TotalFiltered > 0 {
+		fmt.Fprintf(output, "Total DIFC Filtered: %d\n", metrics.TotalFiltered)
+	}
+	if metrics.TotalGuardBlocked > 0 {
+		fmt.Fprintf(output, "Total Guard Policy Blocked: %d\n", metrics.TotalGuardBlocked)
+	}
+	fmt.Fprintf(output, "Servers: %d\n", len(metrics.Servers))
+	if !metrics.StartTime.IsZero() && !metrics.EndTime.IsZero() {
+		duration := metrics.EndTime.Sub(metrics.StartTime)
+		fmt.Fprintf(output, "Time Range: %s\n", duration.Round(time.Second))
+	}
+	output.WriteString("\n")
+}
+
+func renderGatewayMetricsTableServers(output *strings.Builder, metrics *GatewayMetrics) {
+	serverNames := getSortedServerNames(metrics)
+	hasFiltered := metrics.TotalFiltered > 0
+	hasGuardPolicy := metrics.TotalGuardBlocked > 0
+	serverRows := make([][]string, 0, len(serverNames))
+	for _, serverName := range serverNames {
+		serverRows = append(serverRows, renderGatewayMetricsTableServerRow(serverName, metrics.Servers[serverName], hasFiltered, hasGuardPolicy))
+	}
+
+	headers := []string{"Server", "Requests", "Tool Calls", "Avg Time", "Errors"}
+	if hasFiltered {
+		headers = append(headers, "Filtered")
+	}
+	if hasGuardPolicy {
+		headers = append(headers, "Guard Blocked")
+	}
+	output.WriteString(console.RenderTable(console.TableConfig{Title: "Server Usage", Headers: headers, Rows: serverRows}))
+}
+
+func renderGatewayMetricsTableServerRow(serverName string, server *GatewayServerMetrics, hasFiltered, hasGuardPolicy bool) []string {
+	avgTime := 0.0
+	if server.RequestCount > 0 {
+		avgTime = server.TotalDuration / float64(server.RequestCount)
+	}
+	row := []string{serverName, strconv.Itoa(server.RequestCount), strconv.Itoa(server.ToolCallCount), fmt.Sprintf("%.0fms", avgTime), strconv.Itoa(server.ErrorCount)}
+	if hasFiltered {
+		row = append(row, strconv.Itoa(server.FilteredCount))
+	}
+	if hasGuardPolicy {
+		row = append(row, strconv.Itoa(server.GuardPolicyBlocked))
+	}
+	return row
+}
+
+func renderGatewayMetricsTableFiltered(output *strings.Builder, metrics *GatewayMetrics) {
+	output.WriteString("\n")
+	filteredRows := make([][]string, 0, len(metrics.FilteredEvents))
+	for _, fe := range metrics.FilteredEvents {
+		filteredRows = append(filteredRows, []string{fe.ServerID, fe.ToolName, fe.AuthorLogin, stringutil.Truncate(fe.Reason, 80)})
+	}
+	output.WriteString(console.RenderTable(console.TableConfig{
+		Title: "DIFC Filtered Events", Headers: []string{"Server", "Tool", "User", "Reason"}, Rows: filteredRows,
+	}))
+}
+
+func renderGatewayMetricsTableGuardPolicy(output *strings.Builder, metrics *GatewayMetrics) {
+	output.WriteString("\n")
+	guardRows := make([][]string, 0, len(metrics.GuardPolicyEvents))
+	for _, gpe := range metrics.GuardPolicyEvents {
+		repo := gpe.Repository
+		if repo == "" {
+			repo = "-"
+		}
+		guardRows = append(guardRows, []string{gpe.ServerID, gpe.ToolName, gpe.Reason, stringutil.Truncate(gpe.Message, 60), repo})
+	}
+	output.WriteString(console.RenderTable(console.TableConfig{
+		Title: "Guard Policy Blocked Events", Headers: []string{"Server", "Tool", "Reason", "Message", "Repository"}, Rows: guardRows,
+	}))
+}
+
+func renderGatewayMetricsTableTools(output *strings.Builder, metrics *GatewayMetrics) {
+	output.WriteString("\n")
+	output.WriteString("Tool Usage Details:\n")
+	for _, serverName := range getSortedServerNames(metrics) {
+		server := metrics.Servers[serverName]
+		if len(server.Tools) == 0 {
+			continue
+		}
+		output.WriteString(console.RenderTable(console.TableConfig{
+			Title: serverName, Headers: []string{"Tool", "Calls", "Avg Time", "Max Time", "Errors"}, Rows: renderGatewayMetricsTableToolRows(server),
+		}))
+	}
+}
+
+func renderGatewayMetricsTableToolRows(server *GatewayServerMetrics) [][]string {
+	toolNames := sliceutil.MapKeys(server.Tools)
+	slices.SortFunc(toolNames, func(a, b string) int {
+		return server.Tools[b].CallCount - server.Tools[a].CallCount
+	})
+	toolRows := make([][]string, 0, len(toolNames))
+	for _, toolName := range toolNames {
+		tool := server.Tools[toolName]
+		toolRows = append(toolRows, []string{toolName, strconv.Itoa(tool.CallCount), fmt.Sprintf("%.0fms", tool.AvgDuration), fmt.Sprintf("%.0fms", tool.MaxDuration), strconv.Itoa(tool.ErrorCount)})
+	}
+	return toolRows
 }
 
 // getSortedServerNames returns server names sorted by request count
@@ -235,42 +212,7 @@ func displayAggregatedGatewayMetrics(processedRuns []ProcessedRun, outputDir str
 		aggregated.FilteredEvents = append(aggregated.FilteredEvents, runMetrics.FilteredEvents...)
 		aggregated.GuardPolicyEvents = append(aggregated.GuardPolicyEvents, runMetrics.GuardPolicyEvents...)
 
-		// Merge server metrics
-		for serverName, serverMetrics := range runMetrics.Servers {
-			aggServer := getOrCreateServer(aggregated, serverName)
-			aggServer.RequestCount += serverMetrics.RequestCount
-			aggServer.ToolCallCount += serverMetrics.ToolCallCount
-			aggServer.TotalDuration += serverMetrics.TotalDuration
-			aggServer.ErrorCount += serverMetrics.ErrorCount
-			aggServer.FilteredCount += serverMetrics.FilteredCount
-			aggServer.GuardPolicyBlocked += serverMetrics.GuardPolicyBlocked
-
-			// Merge tool metrics
-			for toolName, toolMetrics := range serverMetrics.Tools {
-				aggTool := getOrCreateTool(aggServer, toolName)
-				aggTool.CallCount += toolMetrics.CallCount
-				aggTool.TotalDuration += toolMetrics.TotalDuration
-				aggTool.ErrorCount += toolMetrics.ErrorCount
-				aggTool.TotalInputSize += toolMetrics.TotalInputSize
-				aggTool.TotalOutputSize += toolMetrics.TotalOutputSize
-
-				// Update max/min durations
-				if toolMetrics.MaxDuration > aggTool.MaxDuration {
-					aggTool.MaxDuration = toolMetrics.MaxDuration
-				}
-				if aggTool.MinDuration == 0 || (toolMetrics.MinDuration > 0 && toolMetrics.MinDuration < aggTool.MinDuration) {
-					aggTool.MinDuration = toolMetrics.MinDuration
-				}
-			}
-		}
-
-		// Update time range
-		if aggregated.StartTime.IsZero() || (!runMetrics.StartTime.IsZero() && runMetrics.StartTime.Before(aggregated.StartTime)) {
-			aggregated.StartTime = runMetrics.StartTime
-		}
-		if aggregated.EndTime.IsZero() || (!runMetrics.EndTime.IsZero() && runMetrics.EndTime.After(aggregated.EndTime)) {
-			aggregated.EndTime = runMetrics.EndTime
-		}
+		displayAggregatedGatewayMetricsMerge(aggregated, runMetrics)
 	}
 
 	// Only display if we found gateway metrics
@@ -290,6 +232,40 @@ func displayAggregatedGatewayMetrics(processedRuns []ProcessedRun, outputDir str
 		if runCount > 1 {
 			fmt.Fprintf(os.Stderr, "\n%s\n",
 				console.FormatInfoMessage(fmt.Sprintf("Gateway metrics aggregated from %d runs", runCount)))
+		}
+	}
+}
+
+func displayAggregatedGatewayMetricsMerge(aggregated, runMetrics *GatewayMetrics) {
+	for serverName, serverMetrics := range runMetrics.Servers {
+		aggServer := getOrCreateServer(aggregated, serverName)
+		aggServer.RequestCount += serverMetrics.RequestCount
+		aggServer.ToolCallCount += serverMetrics.ToolCallCount
+		aggServer.TotalDuration += serverMetrics.TotalDuration
+		aggServer.ErrorCount += serverMetrics.ErrorCount
+		aggServer.FilteredCount += serverMetrics.FilteredCount
+		aggServer.GuardPolicyBlocked += serverMetrics.GuardPolicyBlocked
+		displayAggregatedGatewayMetricsMergeTools(aggServer, serverMetrics)
+	}
+	if aggregated.StartTime.IsZero() || (!runMetrics.StartTime.IsZero() && runMetrics.StartTime.Before(aggregated.StartTime)) {
+		aggregated.StartTime = runMetrics.StartTime
+	}
+	if aggregated.EndTime.IsZero() || (!runMetrics.EndTime.IsZero() && runMetrics.EndTime.After(aggregated.EndTime)) {
+		aggregated.EndTime = runMetrics.EndTime
+	}
+}
+
+func displayAggregatedGatewayMetricsMergeTools(aggServer, serverMetrics *GatewayServerMetrics) {
+	for toolName, toolMetrics := range serverMetrics.Tools {
+		aggTool := getOrCreateTool(aggServer, toolName)
+		aggTool.CallCount += toolMetrics.CallCount
+		aggTool.TotalDuration += toolMetrics.TotalDuration
+		aggTool.ErrorCount += toolMetrics.ErrorCount
+		aggTool.TotalInputSize += toolMetrics.TotalInputSize
+		aggTool.TotalOutputSize += toolMetrics.TotalOutputSize
+		aggTool.MaxDuration = max(aggTool.MaxDuration, toolMetrics.MaxDuration)
+		if aggTool.MinDuration == 0 || (toolMetrics.MinDuration > 0 && toolMetrics.MinDuration < aggTool.MinDuration) {
+			aggTool.MinDuration = toolMetrics.MinDuration
 		}
 	}
 }

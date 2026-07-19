@@ -89,74 +89,85 @@ func (t *StepOrderTracker) RecordArtifactUpload(stepName string, uploadPaths []s
 // and that all uploaded paths are covered by secret redaction
 func (t *StepOrderTracker) ValidateStepOrdering() error {
 	stepOrderLog.Printf("Validating step ordering: %d total steps recorded", len(t.steps))
-	// If we haven't reached agent execution yet, no validation needed
 	if !t.afterAgentExecution {
 		stepOrderLog.Print("Validation skipped: not yet after agent execution")
 		return nil
 	}
 
-	// Find all artifact uploads
+	artifactUploads := t.artifactUploadSteps()
+	stepOrderLog.Printf("Found %d artifact upload steps", len(artifactUploads))
+
+	if len(artifactUploads) == 0 {
+		stepOrderLog.Print("Validation passed: no artifact uploads to validate")
+		return nil
+	}
+	if !t.secretRedactionAdded {
+		return missingSecretRedactionError()
+	}
+
+	stepOrderLog.Printf("Secret redaction step found at order %d", t.secretRedactionOrder)
+	if err := t.validateUploadsAfterRedaction(artifactUploads); err != nil {
+		return err
+	}
+	if err := t.validateUploadedPathsScannable(artifactUploads); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *StepOrderTracker) artifactUploadSteps() []StepRecord {
 	var artifactUploads []StepRecord
 	for _, step := range t.steps {
 		if step.Type == StepTypeArtifactUpload {
 			artifactUploads = append(artifactUploads, step)
 		}
 	}
+	return artifactUploads
+}
 
-	stepOrderLog.Printf("Found %d artifact upload steps", len(artifactUploads))
+func missingSecretRedactionError() error {
+	stepOrderLog.Print("Validation failed: artifact uploads found but no secret redaction step")
+	return NewOperationError(
+		"compile",
+		"workflow steps",
+		"artifact uploads without secret redaction",
+		errors.New("artifact uploads found but no secret redaction step was added"),
+		"This is a critical security issue - a compiler bug. Please report this issue to the gh-aw maintainers with your workflow file:\nhttps://github.com/github/gh-aw/issues/new",
+	)
+}
 
-	// If no artifact uploads, no validation needed
-	if len(artifactUploads) == 0 {
-		stepOrderLog.Print("Validation passed: no artifact uploads to validate")
-		return nil
-	}
-
-	// If there are artifact uploads but no secret redaction, that's a bug
-	if !t.secretRedactionAdded {
-		stepOrderLog.Print("Validation failed: artifact uploads found but no secret redaction step")
-		return NewOperationError(
-			"compile",
-			"workflow steps",
-			"artifact uploads without secret redaction",
-			errors.New("artifact uploads found but no secret redaction step was added"),
-			"This is a critical security issue - a compiler bug. Please report this issue to the gh-aw maintainers with your workflow file:\nhttps://github.com/github/gh-aw/issues/new",
-		)
-	}
-
-	stepOrderLog.Printf("Secret redaction step found at order %d", t.secretRedactionOrder)
-
-	// Check that secret redaction comes before all artifact uploads
+func (t *StepOrderTracker) validateUploadsAfterRedaction(artifactUploads []StepRecord) error {
 	var uploadsBeforeRedaction []string
 	for _, upload := range artifactUploads {
 		if upload.Order < t.secretRedactionOrder {
 			uploadsBeforeRedaction = append(uploadsBeforeRedaction, upload.Name)
 		}
 	}
-
-	if len(uploadsBeforeRedaction) > 0 {
-		return NewOperationError(
-			"compile",
-			"workflow steps",
-			"incorrect step ordering",
-			fmt.Errorf("found %d upload(s) before secret redaction: %s", len(uploadsBeforeRedaction), strings.Join(uploadsBeforeRedaction, ", ")),
-			"This is a compiler bug - secret redaction must happen before artifact uploads. Please report this issue to the gh-aw maintainers with your workflow file:\nhttps://github.com/github/gh-aw/issues/new",
-		)
+	if len(uploadsBeforeRedaction) == 0 {
+		return nil
 	}
+	return NewOperationError(
+		"compile",
+		"workflow steps",
+		"incorrect step ordering",
+		fmt.Errorf("found %d upload(s) before secret redaction: %s", len(uploadsBeforeRedaction), strings.Join(uploadsBeforeRedaction, ", ")),
+		"This is a compiler bug - secret redaction must happen before artifact uploads. Please report this issue to the gh-aw maintainers with your workflow file:\nhttps://github.com/github/gh-aw/issues/new",
+	)
+}
 
-	// Check that all uploaded paths are covered by secret redaction
-	// Secret redaction scans all files in /tmp/gh-aw/ with extensions .txt, .json, .log
+func (t *StepOrderTracker) validateUploadedPathsScannable(artifactUploads []StepRecord) error {
 	unscannable := t.findUnscannablePaths(artifactUploads)
-	if len(unscannable) > 0 {
-		return NewOperationError(
-			"compile",
-			"workflow steps",
-			"artifact paths not covered by secret redaction",
-			fmt.Errorf("paths not covered: %s", strings.Join(unscannable, ", ")),
-			"This is a compiler bug - all artifact uploads must be covered by secret redaction. Please report this issue to the gh-aw maintainers with your workflow file:\nhttps://github.com/github/gh-aw/issues/new",
-		)
+	if len(unscannable) == 0 {
+		return nil
 	}
-
-	return nil
+	return NewOperationError(
+		"compile",
+		"workflow steps",
+		"artifact paths not covered by secret redaction",
+		fmt.Errorf("paths not covered: %s", strings.Join(unscannable, ", ")),
+		"This is a compiler bug - all artifact uploads must be covered by secret redaction. Please report this issue to the gh-aw maintainers with your workflow file:\nhttps://github.com/github/gh-aw/issues/new",
+	)
 }
 
 // findUnscannablePaths finds paths that would be uploaded but not scanned by secret redaction

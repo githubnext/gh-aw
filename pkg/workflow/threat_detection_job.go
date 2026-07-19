@@ -33,36 +33,11 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	}
 
 	var steps []string
-
-	// Add setup action steps (same as agent job - installs the agentic engine)
-	setupActionRef := c.resolveActionReference("./actions/setup", data)
-	if setupActionRef != "" || c.actionMode.IsScript() {
-		// For dev mode (local action path), checkout the actions folder first
-		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
-		// Detection job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
-		detectionTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		detectionParentSpanID := setupParentSpanNeedsExpr(constants.ActivationJobName)
-		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, detectionTraceID, detectionParentSpanID)...)
-	}
-
-	// Download agent output artifact to access output files (prompt.txt, agent_output.json, patches).
-	// Use agent-downstream prefix since this job depends on the agent job.
-	agentArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
-	steps = append(steps, buildAgentOutputDownloadSteps(agentArtifactPrefix, c.getActionPin)...)
-
-	// Download experiment artifact so the detection agent can read the current variant assignments.
-	// The experiment artifact is uploaded by the activation job.
-	steps = append(steps, buildExperimentArtifactDownloadSteps(data, c.getActionPin)...)
-
-	// Conditionally checkout the target repository so the detection engine can
-	// analyze patches in the context of the surrounding codebase.
-	steps = append(steps, c.buildWorkspaceCheckoutForDetectionStep(data)...)
-
-	// Add all threat detection steps
+	steps = append(steps, c.buildDetectionJobSetupSteps(data)...)
+	steps = append(steps, c.buildDetectionJobArtifactSteps(data)...)
 	detectionStepsContent := c.buildDetectionJobSteps(data)
 	steps = append(steps, detectionStepsContent...)
 
-	// Build job outputs
 	outputs := map[string]string{
 		"detection_success":    "${{ steps.detection_conclusion.outputs.success }}",
 		"detection_conclusion": "${{ steps.detection_conclusion.outputs.conclusion }}",
@@ -70,14 +45,51 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 		"aic":                  "${{ steps.parse_detection_token_usage.outputs.aic }}",
 	}
 
-	// Detection job depends on agent job and activation job (for trace ID)
-	needs := []string{string(constants.AgentJobName), string(constants.ActivationJobName)}
+	needs := c.buildDetectionJobNeeds(data)
+	runsOn := buildDetectionJobRunsOn(data)
+	jobCondition := buildDetectionJobCondition(data)
+	permissions := buildDetectionJobPermissions(data)
+	environment := buildDetectionJobEnvironment(data)
 
-	// Scan the effective detection engine env values for needs.<customJob>.outputs.*
-	// expressions and add the referenced custom jobs as direct dependencies of the
-	// detection job. Use the merged env (main + detection-specific overrides) so
-	// that expressions from the main engine.env are not missed when a detection
-	// engine config exists.
+	job := &Job{
+		Name:        string(constants.DetectionJobName),
+		Needs:       needs,
+		If:          jobCondition,
+		RunsOn:      c.indentYAMLLines(runsOn, "    "),
+		Environment: c.indentYAMLLines(environment, "    "),
+		Permissions: permissions,
+		Steps:       steps,
+		Outputs:     outputs,
+	}
+
+	threatLog.Printf("Built detection job with %d steps, depends on: %v", len(steps), needs)
+	return job, nil
+}
+
+func (c *Compiler) buildDetectionJobSetupSteps(data *WorkflowData) []string {
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef == "" && !c.actionMode.IsScript() {
+		return nil
+	}
+	var steps []string
+	steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+	detectionTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
+	detectionParentSpanID := setupParentSpanNeedsExpr(constants.ActivationJobName)
+	steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, detectionTraceID, detectionParentSpanID)...)
+	return steps
+}
+
+func (c *Compiler) buildDetectionJobArtifactSteps(data *WorkflowData) []string {
+	var steps []string
+	agentArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
+	steps = append(steps, buildAgentOutputDownloadSteps(agentArtifactPrefix, c.getActionPin)...)
+	steps = append(steps, buildExperimentArtifactDownloadSteps(data, c.getActionPin)...)
+	steps = append(steps, c.buildWorkspaceCheckoutForDetectionStep(data)...)
+	return steps
+}
+
+func (c *Compiler) buildDetectionJobNeeds(data *WorkflowData) []string {
+	needs := []string{string(constants.AgentJobName), string(constants.ActivationJobName)}
 	var detectionSpecificEnv map[string]string
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.EngineConfig != nil {
 		detectionSpecificEnv = data.SafeOutputs.ThreatDetection.EngineConfig.Env
@@ -121,22 +133,18 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 			}
 		}
 	}
+	return needs
+}
 
-	// Determine runs-on: use threat detection override if set, otherwise ubuntu-latest.
-	// The detection job runs on a fresh runner separate from the agent job, so it does
-	// not need the same custom runner as safe-outputs.
+func buildDetectionJobRunsOn(data *WorkflowData) string {
 	runsOn := "runs-on: ubuntu-latest"
 	if data.SafeOutputs.ThreatDetection.RunsOn != "" {
 		runsOn = normalizeRunsOnSnippet(data.SafeOutputs.ThreatDetection.RunsOn)
 	}
+	return runsOn
+}
 
-	// Detection job condition: always run whenever the agent job was not skipped,
-	// regardless of whether the agent produced outputs (output_types) or a patch.
-	// This ensures detection is never bypassed even when the agent calls noop/boop —
-	// the detection_guard step inside the job handles the no-output case by setting
-	// run_detection=false, and detection_conclusion short-circuits with conclusion=skipped,
-	// success=true, so downstream jobs (safe_outputs, update_cache_memory) see
-	// needs.detection.result == 'success' and behave correctly.
+func buildDetectionJobCondition(data *WorkflowData) string {
 	alwaysFunc := BuildFunctionCall("always")
 	agentNotSkipped := BuildNotEquals(
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
@@ -151,23 +159,10 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 		jobConditionNode = BuildAnd(jobConditionNode, &ExpressionNode{Expression: rawExpr})
 		threatLog.Printf("Detection job condition includes runtime expression: %s", rawExpr)
 	}
+	return RenderCondition(jobConditionNode)
+}
 
-	jobCondition := RenderCondition(jobConditionNode)
-
-	// Determine permissions for the detection job.
-	// - Always grant contents: read because the workspace checkout (for patch context)
-	//   requires it, and contents: read is a minimal read-only permission.
-	//   The checkout is conditional on has_patch at runtime, but permissions cannot
-	//   be set conditionally in GitHub Actions.
-	// - In dev/script mode, contents: read is also needed for the actions folder checkout.
-	// - When permissions.copilot-requests is set to write, the detection job runs the Copilot CLI
-	//   and requires copilot-requests: write for authentication.
-	// - When the engine uses GitHub OIDC (WIF) auth, the detection job's api-proxy also needs
-	//   to mint a GitHub OIDC token for the token exchange. Without id-token: write,
-	//   ACTIONS_ID_TOKEN_REQUEST_URL/TOKEN are not set in the runner environment and the
-	//   api-proxy returns HTTP 401 on every request (mirrors validateOIDCPermissions logic).
-	// - When observability.otlp.github-app is configured without app-id/private-key
-	//   credentials, id-token: write is also needed (mirrors validateOIDCPermissions).
+func buildDetectionJobPermissions(data *WorkflowData) string {
 	copilotRequestsEnabled := hasCopilotRequestsWritePermission(data)
 	perms := NewPermissionsContentsRead()
 	if copilotRequestsEnabled {
@@ -179,29 +174,13 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
 		perms.Set(PermissionIdToken, PermissionWrite)
 	}
-	permissions := perms.RenderToYAML()
+	return perms.RenderToYAML()
+}
 
-	// Determine environment: use threat detection override if set, otherwise inherit from
-	// the top-level environment (matching the same unconditional fallback used by agent
-	// and safe-output jobs so that environment-scoped secrets are accessible).
+func buildDetectionJobEnvironment(data *WorkflowData) string {
 	environment := data.Environment
 	if data.SafeOutputs.ThreatDetection.Environment != "" {
-		// ThreatDetectionConfig.Environment holds the raw environment name; normalize it to
-		// a YAML field so Job.Environment renders as "environment: <name>" not just "<name>".
 		environment = "environment: " + data.SafeOutputs.ThreatDetection.Environment
 	}
-
-	job := &Job{
-		Name:        string(constants.DetectionJobName),
-		Needs:       needs,
-		If:          jobCondition,
-		RunsOn:      c.indentYAMLLines(runsOn, "    "),
-		Environment: c.indentYAMLLines(environment, "    "),
-		Permissions: permissions,
-		Steps:       steps,
-		Outputs:     outputs,
-	}
-
-	threatLog.Printf("Built detection job with %d steps, depends on: %v", len(steps), needs)
-	return job, nil
+	return environment
 }

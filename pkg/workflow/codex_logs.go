@@ -16,184 +16,168 @@ var codexLogsLog = logger.New("workflow:codex_logs")
 func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
 	codexLogsLog.Printf("Parsing Codex log metrics: log_size=%d bytes, lines=%d", len(logContent), strings.Count(logContent, "\n")+1)
 
-	var metrics LogMetrics
-	var totalTokenUsage int
-
 	lines := strings.Split(logContent, "\n")
-	turns := 0
-	inThinkingSection := false
-	toolCallMap := make(map[string]*ToolCallInfo) // Track tool calls
-	var currentSequence []string                  // Track tool sequence
-	var lastToolName string                       // Track most recent tool for output size extraction
+	state := &codexLogParseState{
+		toolCallMap: make(map[string]*ToolCallInfo),
+	}
 
 	for i := range lines {
-		line := lines[i]
-
-		// Skip empty lines
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		// Detect thinking sections as indicators of turns
-		// Support both old format: "] thinking" and new Rust format: "thinking" (standalone line)
-		trimmedLine := strings.TrimSpace(line)
-		if strings.Contains(line, "] thinking") || trimmedLine == "thinking" {
-			if !inThinkingSection {
-				turns++
-				inThinkingSection = true
-				// Start of a new thinking section, save previous sequence if any
-				if len(currentSequence) > 0 {
-					metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
-					currentSequence = []string{}
-				}
-			}
-		} else if strings.Contains(line, "] tool") || strings.Contains(line, "] exec") || strings.Contains(line, "] codex") ||
-			strings.HasPrefix(trimmedLine, "tool ") || strings.HasPrefix(trimmedLine, "exec ") {
-			inThinkingSection = false
-		}
-
-		// Extract tool calls from Codex logs and add to sequence
-		if toolName := e.parseCodexToolCallsWithSequence(line, toolCallMap); toolName != "" {
-			currentSequence = append(currentSequence, toolName)
-			lastToolName = toolName
-		}
-
-		// Extract output size from success/failure lines followed by JSON blocks
-		if outputSize := e.extractOutputSizeFromResult(line, lines, i); outputSize > 0 && lastToolName != "" {
-			if toolInfo, exists := toolCallMap[lastToolName]; exists {
-				if outputSize > toolInfo.MaxOutputSize {
-					toolInfo.MaxOutputSize = outputSize
-					codexLogsLog.Printf("Updated %s MaxOutputSize to %d characters", lastToolName, outputSize)
-				}
-			}
-		}
-
-		// Extract Codex-specific token usage (always sum for Codex)
-		if tokenUsage := e.extractCodexTokenUsage(line); tokenUsage > 0 {
-			totalTokenUsage += tokenUsage
-		}
-
-		// Basic processing - error/warning counting moved to end of function
+		e.processCodexLogLine(lines, i, state)
 	}
 
 	// Finalize metrics using shared helper
 	FinalizeToolMetrics(FinalizeToolMetricsOptions{
-		Metrics:         &metrics,
-		ToolCallMap:     toolCallMap,
-		CurrentSequence: currentSequence,
-		Turns:           turns,
-		TokenUsage:      totalTokenUsage,
+		Metrics:         &state.metrics,
+		ToolCallMap:     state.toolCallMap,
+		CurrentSequence: state.currentSequence,
+		Turns:           state.turns,
+		TokenUsage:      state.totalTokenUsage,
 	})
 
 	codexLogsLog.Printf("Parsed Codex metrics: turns=%d, token_usage=%d, tool_calls=%d",
-		metrics.Turns, metrics.TokenUsage, len(metrics.ToolCalls))
+		state.metrics.Turns, state.metrics.TokenUsage, len(state.metrics.ToolCalls))
 
-	return metrics
+	return state.metrics
+}
+
+type codexLogParseState struct {
+	metrics         LogMetrics
+	totalTokenUsage int
+	turns           int
+	inThinking      bool
+	toolCallMap     map[string]*ToolCallInfo
+	currentSequence []string
+	lastToolName    string
+}
+
+func (e *CodexEngine) processCodexLogLine(lines []string, index int, state *codexLogParseState) {
+	line := lines[index]
+	if strings.TrimSpace(line) == "" {
+		return
+	}
+
+	e.updateCodexThinkingState(line, state)
+	if toolName := e.parseCodexToolCallsWithSequence(line, state.toolCallMap); toolName != "" {
+		state.currentSequence = append(state.currentSequence, toolName)
+		state.lastToolName = toolName
+	}
+	e.updateCodexOutputSize(line, lines, index, state)
+	if tokenUsage := e.extractCodexTokenUsage(line); tokenUsage > 0 {
+		state.totalTokenUsage += tokenUsage
+	}
+}
+
+func (e *CodexEngine) updateCodexThinkingState(line string, state *codexLogParseState) {
+	trimmedLine := strings.TrimSpace(line)
+	if strings.Contains(line, "] thinking") || trimmedLine == "thinking" {
+		if !state.inThinking {
+			state.turns++
+			state.inThinking = true
+			if len(state.currentSequence) > 0 {
+				state.metrics.ToolSequences = append(state.metrics.ToolSequences, state.currentSequence)
+				state.currentSequence = []string{}
+			}
+		}
+	} else if strings.Contains(line, "] tool") || strings.Contains(line, "] exec") || strings.Contains(line, "] codex") ||
+		strings.HasPrefix(trimmedLine, "tool ") || strings.HasPrefix(trimmedLine, "exec ") {
+		state.inThinking = false
+	}
+}
+
+func (e *CodexEngine) updateCodexOutputSize(line string, lines []string, index int, state *codexLogParseState) {
+	outputSize := e.extractOutputSizeFromResult(line, lines, index)
+	if outputSize <= 0 || state.lastToolName == "" {
+		return
+	}
+	if toolInfo, exists := state.toolCallMap[state.lastToolName]; exists && outputSize > toolInfo.MaxOutputSize {
+		toolInfo.MaxOutputSize = outputSize
+		codexLogsLog.Printf("Updated %s MaxOutputSize to %d characters", state.lastToolName, outputSize)
+	}
 }
 
 // parseCodexToolCallsWithSequence extracts tool call information from Codex log lines and returns tool name
 func (e *CodexEngine) parseCodexToolCallsWithSequence(line string, toolCallMap map[string]*ToolCallInfo) string {
 	trimmedLine := strings.TrimSpace(line)
 
-	// Parse tool calls: "] tool provider.method(...)" (old format)
-	// or "tool provider.method(...)" (new Rust format)
-	var toolName string
+	if toolName := parseCodexToolName(line, trimmedLine); toolName != "" {
+		return recordCodexToolCall(toolName, toolCallMap)
+	}
+	if execCommand := parseCodexExecCommand(line, trimmedLine); execCommand != "" {
+		return recordCodexExecCommand(execCommand, toolCallMap)
+	}
+	e.updateCodexDuration(line, toolCallMap)
+	return "" // No tool call found
+}
 
-	// Try old format first: "] tool provider.method(...)"
+func parseCodexToolName(line, trimmedLine string) string {
 	if strings.Contains(line, "] tool ") && strings.Contains(line, "(") {
 		if match := codexToolCallOldFormat.FindStringSubmatch(line); len(match) > 1 {
-			toolName = strings.TrimSpace(match[1])
+			return strings.TrimSpace(match[1])
 		}
 	}
-
-	// Try new Rust format: "tool provider.method(...)"
-	if toolName == "" && strings.HasPrefix(trimmedLine, "tool ") && strings.Contains(trimmedLine, "(") {
+	if strings.HasPrefix(trimmedLine, "tool ") && strings.Contains(trimmedLine, "(") {
 		if match := codexToolCallNewFormat.FindStringSubmatch(trimmedLine); len(match) > 1 {
-			toolName = strings.TrimSpace(match[1])
+			return strings.TrimSpace(match[1])
 		}
 	}
+	return ""
+}
 
-	if toolName != "" {
-		prettifiedName := PrettifyToolName(toolName)
-
-		// For Codex, format provider.method as provider_method (avoiding colons)
-		if strings.Contains(toolName, ".") {
-			parts := strings.Split(toolName, ".")
-			if len(parts) >= 2 {
-				provider := parts[0]
-				method := strings.Join(parts[1:], "_")
-				prettifiedName = fmt.Sprintf("%s_%s", provider, method)
-			}
+func recordCodexToolCall(toolName string, toolCallMap map[string]*ToolCallInfo) string {
+	prettifiedName := PrettifyToolName(toolName)
+	if strings.Contains(toolName, ".") {
+		parts := strings.Split(toolName, ".")
+		if len(parts) >= 2 {
+			prettifiedName = fmt.Sprintf("%s_%s", parts[0], strings.Join(parts[1:], "_"))
 		}
-
-		// Initialize or update tool call info
-		if toolInfo, exists := toolCallMap[prettifiedName]; exists {
-			toolInfo.CallCount++
-		} else {
-			toolCallMap[prettifiedName] = &ToolCallInfo{
-				Name:          prettifiedName,
-				CallCount:     1,
-				MaxOutputSize: 0, // Will be updated when output is extracted from result lines
-				MaxDuration:   0, // Will be updated when duration is found
-			}
-		}
-
-		return prettifiedName
 	}
+	incrementCodexToolInfo(prettifiedName, toolCallMap)
+	return prettifiedName
+}
 
-	// Parse exec commands: "] exec command" (old format)
-	// or "exec command in" (new Rust format) - treat as bash calls
-	var execCommand string
-
-	// Try old format: "] exec command in"
+func parseCodexExecCommand(line, trimmedLine string) string {
 	if strings.Contains(line, "] exec ") {
 		if match := codexExecCommandOldFormat.FindStringSubmatch(line); len(match) > 1 {
-			execCommand = strings.TrimSpace(match[1])
+			return strings.TrimSpace(match[1])
 		}
 	}
-
-	// Try new Rust format: "exec command in"
-	if execCommand == "" && strings.HasPrefix(trimmedLine, "exec ") {
+	if strings.HasPrefix(trimmedLine, "exec ") {
 		if match := codexExecCommandNewFormat.FindStringSubmatch(trimmedLine); len(match) > 1 {
-			execCommand = strings.TrimSpace(match[1])
+			return strings.TrimSpace(match[1])
 		}
 	}
+	return ""
+}
 
-	if execCommand != "" {
-		// Create unique bash entry with command info, avoiding colons
-		uniqueBashName := "bash_" + ShortenCommand(execCommand)
+func recordCodexExecCommand(execCommand string, toolCallMap map[string]*ToolCallInfo) string {
+	uniqueBashName := "bash_" + ShortenCommand(execCommand)
+	incrementCodexToolInfo(uniqueBashName, toolCallMap)
+	return uniqueBashName
+}
 
-		// Initialize or update tool call info
-		if toolInfo, exists := toolCallMap[uniqueBashName]; exists {
-			toolInfo.CallCount++
-		} else {
-			toolCallMap[uniqueBashName] = &ToolCallInfo{
-				Name:          uniqueBashName,
-				CallCount:     1,
-				MaxOutputSize: 0,
-				MaxDuration:   0, // Will be updated when duration is found
-			}
-		}
-
-		return uniqueBashName
+func incrementCodexToolInfo(name string, toolCallMap map[string]*ToolCallInfo) {
+	if toolInfo, exists := toolCallMap[name]; exists {
+		toolInfo.CallCount++
+		return
 	}
+	toolCallMap[name] = &ToolCallInfo{
+		Name:          name,
+		CallCount:     1,
+		MaxOutputSize: 0,
+		MaxDuration:   0,
+	}
+}
 
-	// Parse duration from success/failure lines: "] success in 0.2s" or "] failure in 1.5s"
-	if strings.Contains(line, "success in") || strings.Contains(line, "failure in") || strings.Contains(line, "failed in") {
-		// Extract duration pattern like "in 0.2s", "in 1.5s"
-		if match := codexDurationPattern.FindStringSubmatch(line); len(match) > 1 {
-			if durationSeconds, err := strconv.ParseFloat(match[1], 64); err == nil {
-				duration := time.Duration(durationSeconds * float64(time.Second))
-
-				// Find the most recent tool call to associate with this duration
-				// Since we don't have direct association, we'll update the most recent entry
-				// This is a limitation of the log format, but it's the best we can do
-				e.updateMostRecentToolWithDuration(toolCallMap, duration)
-			}
+func (e *CodexEngine) updateCodexDuration(line string, toolCallMap map[string]*ToolCallInfo) {
+	if !strings.Contains(line, "success in") && !strings.Contains(line, "failure in") && !strings.Contains(line, "failed in") {
+		return
+	}
+	if match := codexDurationPattern.FindStringSubmatch(line); len(match) > 1 {
+		if durationSeconds, err := strconv.ParseFloat(match[1], 64); err == nil {
+			duration := time.Duration(durationSeconds * float64(time.Second))
+			e.updateMostRecentToolWithDuration(toolCallMap, duration)
 		}
 	}
-
-	return "" // No tool call found
 }
 
 // updateMostRecentToolWithDuration updates the tool with maximum duration

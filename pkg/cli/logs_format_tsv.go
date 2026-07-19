@@ -48,60 +48,64 @@ func renderLogsTSV(data LogsData) {
 	}
 	fmt.Fprintln(os.Stdout, strings.Join(headers, "\t"))
 
-	// Rows
 	for _, r := range data.Runs {
-		conclusion := r.Conclusion
-		if conclusion == "" {
-			conclusion = r.Status
-		}
-		duration := r.Duration
-		if duration == "" {
-			duration = "-"
-		}
-		classification := r.Classification
-		if classification == "" {
-			classification = "-"
-		}
-		// Shorten URL to just the run path for density
-		url := r.URL
-		if idx := strings.Index(url, "/actions/runs/"); idx > 0 {
-			url = url[idx:]
-		}
-
-		fields := []string{
-			strconv.FormatInt(r.RunID, 10),
-			r.WorkflowName,
-			r.EngineID,
-			conclusion,
-			duration,
-			strconv.Itoa(r.TokenUsage),
-			fmt.Sprintf("%.3f", r.AIC),
-			strconv.Itoa(r.Turns),
-			strconv.Itoa(r.ErrorCount),
-			r.Event,
-			r.Branch,
-			r.CreatedAt.Format("2006-01-02T15:04"),
-			classification,
-			url,
-		}
-		fmt.Fprintln(os.Stdout, strings.Join(fields, "\t"))
+		fmt.Fprintln(os.Stdout, strings.Join(renderLogsTSVFields(r), "\t"))
 	}
 
-	// Append observability insights as comments (high signal density)
+	renderLogsTSVAppendices(data)
+}
+
+func renderLogsTSVFields(r RunData) []string {
+	conclusion, duration, classification := renderLogsTSVRunStrings(r)
+	url := r.URL
+	if idx := strings.Index(url, "/actions/runs/"); idx > 0 {
+		url = url[idx:]
+	}
+	return []string{
+		strconv.FormatInt(r.RunID, 10),
+		r.WorkflowName,
+		r.EngineID,
+		conclusion,
+		duration,
+		strconv.Itoa(r.TokenUsage),
+		fmt.Sprintf("%.3f", r.AIC),
+		strconv.Itoa(r.Turns),
+		strconv.Itoa(r.ErrorCount),
+		r.Event,
+		r.Branch,
+		r.CreatedAt.Format("2006-01-02T15:04"),
+		classification,
+		url,
+	}
+}
+
+func renderLogsTSVRunStrings(r RunData) (string, string, string) {
+	conclusion := r.Conclusion
+	if conclusion == "" {
+		conclusion = r.Status
+	}
+	duration := r.Duration
+	if duration == "" {
+		duration = "-"
+	}
+	classification := r.Classification
+	if classification == "" {
+		classification = "-"
+	}
+	return conclusion, duration, classification
+}
+
+func renderLogsTSVAppendices(data LogsData) {
 	if len(data.Observability) > 0 {
 		fmt.Fprintln(os.Stdout, "# insights:")
 		for _, obs := range data.Observability {
 			fmt.Fprintf(os.Stdout, "# [%s] %s: %s\n", obs.Severity, obs.Title, obs.Summary)
 		}
 	}
-
-	// Append firewall summary if present
 	if data.FirewallLog != nil && data.FirewallLog.TotalRequests > 0 {
 		fmt.Fprintf(os.Stdout, "# firewall: %d requests (%d allowed, %d blocked)\n",
 			data.FirewallLog.TotalRequests, data.FirewallLog.AllowedRequests, data.FirewallLog.BlockedRequests)
 	}
-
-	// Append engine distribution if multiple engines
 	if len(data.Summary.EngineCounts) > 1 {
 		parts := make([]string, 0, len(data.Summary.EngineCounts))
 		for engine, count := range data.Summary.EngineCounts {
@@ -133,55 +137,51 @@ func renderLogsTSVVerbose(data LogsData) {
 	fmt.Fprintln(os.Stdout, strings.Join(headers, "\t"))
 
 	for _, r := range data.Runs {
-		conclusion := r.Conclusion
-		if conclusion == "" {
-			conclusion = r.Status
-		}
-		duration := r.Duration
-		if duration == "" {
-			duration = "-"
-		}
-		tbt := r.AvgTimeBetweenTurns
-		if tbt == "" {
-			tbt = "-"
-		}
-		classification := r.Classification
-		if classification == "" {
-			classification = "-"
-		}
-		displayTitle := stringutil.Truncate(r.DisplayTitle, 50)
-
-		fields := []string{
-			strconv.FormatInt(r.RunID, 10),
-			r.WorkflowName,
-			r.EngineID,
-			conclusion,
-			duration,
-			strconv.Itoa(r.TokenUsage),
-			fmt.Sprintf("%.3f", r.AIC),
-			strconv.Itoa(r.Turns),
-			strconv.Itoa(r.ErrorCount),
-			strconv.Itoa(r.WarningCount),
-			strconv.Itoa(r.MissingToolCount),
-			strconv.Itoa(r.MissingDataCount),
-			strconv.Itoa(r.GitHubAPICalls),
-			r.Event,
-			r.Branch,
-			r.Actor,
-			r.CreatedAt.Format("2006-01-02T15:04"),
-			tbt,
-			classification,
-			fmt.Sprintf("%.0f", r.ActionMinutes),
-			displayTitle,
-			r.URL,
-		}
-		fmt.Fprintln(os.Stdout, strings.Join(fields, "\t"))
+		fmt.Fprintln(os.Stdout, strings.Join(renderLogsTSVVerboseFields(r), "\t"))
 	}
 
-	if len(data.Observability) > 0 {
-		fmt.Fprintln(os.Stdout, "# insights:")
-		for _, obs := range data.Observability {
-			fmt.Fprintf(os.Stdout, "# [%s] %s: %s\n", obs.Severity, obs.Title, obs.Summary)
-		}
+	renderLogsTSVVerboseAppendices(data)
+}
+
+func renderLogsTSVVerboseFields(r RunData) []string {
+	conclusion, duration, classification := renderLogsTSVRunStrings(r)
+	tbt := r.AvgTimeBetweenTurns
+	if tbt == "" {
+		tbt = "-"
+	}
+	displayTitle := stringutil.Truncate(r.DisplayTitle, 50)
+	return []string{
+		strconv.FormatInt(r.RunID, 10),
+		r.WorkflowName,
+		r.EngineID,
+		conclusion,
+		duration,
+		strconv.Itoa(r.TokenUsage),
+		fmt.Sprintf("%.3f", r.AIC),
+		strconv.Itoa(r.Turns),
+		strconv.Itoa(r.ErrorCount),
+		strconv.Itoa(r.WarningCount),
+		strconv.Itoa(r.MissingToolCount),
+		strconv.Itoa(r.MissingDataCount),
+		strconv.Itoa(r.GitHubAPICalls),
+		r.Event,
+		r.Branch,
+		r.Actor,
+		r.CreatedAt.Format("2006-01-02T15:04"),
+		tbt,
+		classification,
+		fmt.Sprintf("%.0f", r.ActionMinutes),
+		displayTitle,
+		r.URL,
+	}
+}
+
+func renderLogsTSVVerboseAppendices(data LogsData) {
+	if len(data.Observability) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stdout, "# insights:")
+	for _, obs := range data.Observability {
+		fmt.Fprintf(os.Stdout, "# [%s] %s: %s\n", obs.Severity, obs.Title, obs.Summary)
 	}
 }

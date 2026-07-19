@@ -53,6 +53,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
@@ -63,156 +64,141 @@ var mcpEnvironmentLog = logger.New("workflow:mcp_environment")
 func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, workflowData *WorkflowData, hasAgenticWorkflows bool) map[string]string {
 	envVars := make(map[string]string)
 
-	// Check for GitHub MCP server token
-	hasGitHub := slices.Contains(mcpTools, "github")
-	if hasGitHub {
-		toolConfig, _ := tools["github"].(map[string]any)
-
-		// Check if GitHub App is configured for token minting
-		appConfigured := hasGitHubApp(toolConfig)
-
-		// If GitHub App is configured, use the app token minted directly in the agent job.
-		// The token cannot be passed via job outputs from the activation job because
-		// actions/create-github-app-token calls ::add-mask:: on the token, and the
-		// GitHub Actions runner silently drops masked values in job outputs (runner v2.308+).
-		if appConfigured {
-			mcpEnvironmentLog.Print("Using GitHub App token from agent job step for GitHub MCP server (overrides custom and default tokens)")
-			tokenExpression := "${{ steps.github-mcp-app-token.outputs.token }}"
-			if appMap, ok := toolConfig["github-app"].(map[string]any); ok {
-				if appConfig := parseAppConfig(appMap); appConfig.shouldIgnoreMissingKey() {
-					customGitHubToken := getGitHubToken(toolConfig)
-					tokenExpression = combineTokenExpressions(tokenExpression, getEffectiveGitHubToken(customGitHubToken))
-				}
-			}
-			envVars["GITHUB_MCP_SERVER_TOKEN"] = tokenExpression
-		} else {
-			// Otherwise, use custom token or default fallback
-			customGitHubToken := getGitHubToken(toolConfig)
-			effectiveToken := getEffectiveGitHubToken(customGitHubToken)
-			envVars["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
-		}
-
-		// Add guard policy env vars if the determine-automatic-lockdown step will be generated.
-		// Skip only when guard policy is already explicitly set — in that case, the
-		// determine-automatic-lockdown step is not generated.
-		// Security: Pass step outputs through environment variables to prevent template injection.
-		guardPoliciesExplicit := len(getGitHubGuardPolicies(toolConfig)) > 0
-		if !guardPoliciesExplicit {
-			envVars["GITHUB_MCP_GUARD_MIN_INTEGRITY"] = "${{ steps.determine-automatic-lockdown.outputs.min_integrity }}"
-			envVars["GITHUB_MCP_GUARD_REPOS"] = "${{ steps.determine-automatic-lockdown.outputs.repos }}"
-		}
-	}
-
-	// Check for safe-outputs env vars
-	hasSafeOutputs := slices.Contains(mcpTools, "safe-outputs")
-	if hasSafeOutputs {
-		envVars["GH_AW_SAFE_OUTPUTS"] = "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}"
-		// GH_AW_SAFE_OUTPUTS_CONFIG_PATH and GH_AW_SAFE_OUTPUTS_TOOLS_PATH are referenced as
-		// ${VAR} placeholders in the safeoutputs MCP container env block and must be resolvable
-		// by the gateway from process.env at startup time.
-		envVars["GH_AW_SAFE_OUTPUTS_CONFIG_PATH"] = "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS_CONFIG_PATH }}"
-		envVars["GH_AW_SAFE_OUTPUTS_TOOLS_PATH"] = "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS_TOOLS_PATH }}"
-		// PolicyAllowCreatePullRequest is sourced from vars.* (GitHub repository/environment
-		// configuration variables, not runner env) so that org admins can disable PR creation
-		// without modifying compiled workflow YAML. The || 'true' fallback preserves
-		// backward-compatible default behaviour when the variable is unset.
-		envVars[compilerenv.PolicyAllowCreatePullRequest] = fmt.Sprintf("${{ vars.%s || 'true' }}", compilerenv.PolicyAllowCreatePullRequest)
-		// GITHUB_TOKEN is needed by the safeoutputs container for GitHub API access.
-		// Only set if not already provided (e.g. by hasAgenticWorkflows below).
-		if _, ok := envVars["GITHUB_TOKEN"]; !ok {
-			envVars["GITHUB_TOKEN"] = "${{ secrets.GITHUB_TOKEN }}"
-		}
-		// Only add upload-assets env vars if upload-assets is configured
-		if workflowData.SafeOutputs.UploadAssets != nil {
-			envVars["GH_AW_ASSETS_BRANCH"] = "${{ env.GH_AW_ASSETS_BRANCH }}"
-			envVars["GH_AW_ASSETS_MAX_SIZE_KB"] = "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}"
-			envVars["GH_AW_ASSETS_ALLOWED_EXTS"] = "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}"
-		}
-	}
-
-	// Check for mcp-scripts env vars
-	// Only add env vars if mcp-scripts is actually enabled (has tools configured)
-	// This prevents referencing step outputs that don't exist when mcp-scripts isn't used
-	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
-		// Add server configuration env vars from step outputs
-		envVars["GH_AW_MCP_SCRIPTS_PORT"] = "${{ steps.mcp-scripts-start.outputs.port }}"
-		envVars["GH_AW_MCP_SCRIPTS_API_KEY"] = "${{ steps.mcp-scripts-start.outputs.api_key }}"
-
-		// Add tool-specific env vars (secrets passthrough)
-		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
-		maps.Copy(envVars, mcpScriptsSecrets)
-	}
+	collectGitHubMCPEnv(envVars, tools, mcpTools)
+	collectSafeOutputsMCPEnv(envVars, mcpTools, workflowData)
+	collectMCPScriptsEnv(envVars, workflowData)
 
 	// Check for agentic-workflows GITHUB_TOKEN
 	if hasAgenticWorkflows {
 		envVars["GITHUB_TOKEN"] = "${{ secrets.GITHUB_TOKEN }}"
 	}
 
-	// Check for Playwright domain secrets
-	hasPlaywright := slices.Contains(mcpTools, "playwright")
-	if hasPlaywright {
-		// Extract all expressions from playwright custom args using ExpressionExtractor
-		if playwrightTool, ok := tools["playwright"]; ok {
-			playwrightConfig := parsePlaywrightTool(playwrightTool)
-			customArgs := getPlaywrightCustomArgs(playwrightConfig)
-			playwrightArgSecrets := extractExpressionsFromPlaywrightArgs(customArgs)
-			maps.Copy(envVars, playwrightArgSecrets)
+	collectPlaywrightMCPEnv(envVars, tools, mcpTools)
+	collectHTTPMCPServerEnv(envVars, tools)
+	collectCodexMCPEnv(envVars, workflowData)
+
+	return envVars
+}
+
+func collectGitHubMCPEnv(envVars map[string]string, tools map[string]any, mcpTools []string) {
+	if !slices.Contains(mcpTools, "github") {
+		return
+	}
+	toolConfig, _ := tools["github"].(map[string]any)
+	if hasGitHubApp(toolConfig) {
+		envVars["GITHUB_MCP_SERVER_TOKEN"] = githubMCPAppTokenExpression(toolConfig)
+	} else {
+		customGitHubToken := getGitHubToken(toolConfig)
+		envVars["GITHUB_MCP_SERVER_TOKEN"] = getEffectiveGitHubToken(customGitHubToken)
+	}
+	if len(getGitHubGuardPolicies(toolConfig)) == 0 {
+		envVars["GITHUB_MCP_GUARD_MIN_INTEGRITY"] = "${{ steps.determine-automatic-lockdown.outputs.min_integrity }}"
+		envVars["GITHUB_MCP_GUARD_REPOS"] = "${{ steps.determine-automatic-lockdown.outputs.repos }}"
+	}
+}
+
+func githubMCPAppTokenExpression(toolConfig map[string]any) string {
+	mcpEnvironmentLog.Print("Using GitHub App token from agent job step for GitHub MCP server (overrides custom and default tokens)")
+	tokenExpression := "${{ steps.github-mcp-app-token.outputs.token }}"
+	if appMap, ok := toolConfig["github-app"].(map[string]any); ok {
+		if appConfig := parseAppConfig(appMap); appConfig.shouldIgnoreMissingKey() {
+			customGitHubToken := getGitHubToken(toolConfig)
+			tokenExpression = combineTokenExpressions(tokenExpression, getEffectiveGitHubToken(customGitHubToken))
 		}
 	}
+	return tokenExpression
+}
 
-	// Check for HTTP MCP servers with secrets in headers (e.g., Tavily)
-	// These need to be available as environment variables when the MCP gateway starts
+func collectSafeOutputsMCPEnv(envVars map[string]string, mcpTools []string, workflowData *WorkflowData) {
+	if !slices.Contains(mcpTools, "safe-outputs") {
+		return
+	}
+	envVars["GH_AW_SAFE_OUTPUTS"] = "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}"
+	envVars["GH_AW_SAFE_OUTPUTS_CONFIG_PATH"] = "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS_CONFIG_PATH }}"
+	envVars["GH_AW_SAFE_OUTPUTS_TOOLS_PATH"] = "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS_TOOLS_PATH }}"
+	envVars[compilerenv.PolicyAllowCreatePullRequest] = fmt.Sprintf("${{ vars.%s || 'true' }}", compilerenv.PolicyAllowCreatePullRequest)
+	if _, ok := envVars["GITHUB_TOKEN"]; !ok {
+		envVars["GITHUB_TOKEN"] = "${{ secrets.GITHUB_TOKEN }}"
+	}
+	if workflowData.SafeOutputs.UploadAssets != nil {
+		envVars["GH_AW_ASSETS_BRANCH"] = "${{ env.GH_AW_ASSETS_BRANCH }}"
+		envVars["GH_AW_ASSETS_MAX_SIZE_KB"] = "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}"
+		envVars["GH_AW_ASSETS_ALLOWED_EXTS"] = "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}"
+	}
+}
+
+func collectMCPScriptsEnv(envVars map[string]string, workflowData *WorkflowData) {
+	if !IsMCPScriptsEnabled(workflowData.MCPScripts) {
+		return
+	}
+	envVars["GH_AW_MCP_SCRIPTS_PORT"] = "${{ steps.mcp-scripts-start.outputs.port }}"
+	envVars["GH_AW_MCP_SCRIPTS_API_KEY"] = "${{ steps.mcp-scripts-start.outputs.api_key }}"
+	maps.Copy(envVars, collectMCPScriptsSecrets(workflowData.MCPScripts))
+}
+
+func collectPlaywrightMCPEnv(envVars map[string]string, tools map[string]any, mcpTools []string) {
+	if !slices.Contains(mcpTools, "playwright") {
+		return
+	}
+	if playwrightTool, ok := tools["playwright"]; ok {
+		playwrightConfig := parsePlaywrightTool(playwrightTool)
+		customArgs := getPlaywrightCustomArgs(playwrightConfig)
+		maps.Copy(envVars, extractExpressionsFromPlaywrightArgs(customArgs))
+	}
+}
+
+func collectHTTPMCPServerEnv(envVars map[string]string, tools map[string]any) {
 	for toolName, toolValue := range tools {
-		// Skip standard tools that are handled above
-		if toolName == "github" || toolName == "playwright" ||
-			toolName == "cache-memory" || toolName == "agentic-workflows" ||
-			toolName == "safe-outputs" || toolName == "mcp-scripts" {
+		if isStandardMCPEnvironmentTool(toolName) {
 			continue
 		}
-
-		// Check if this is an MCP tool
-		if toolConfig, ok := toolValue.(map[string]any); ok {
-			if hasMcp, _ := hasMCPConfig(toolConfig); !hasMcp {
-				continue
-			}
-
-			// Get MCP config and check if it's an HTTP type
-			mcpConfig, err := getMCPConfig(toolConfig, toolName)
-			if err != nil {
-				mcpEnvironmentLog.Printf("Failed to parse MCP config for tool %s: %v", toolName, err)
-				continue
-			}
-
-			// Extract secrets from headers for HTTP MCP servers
-			if mcpConfig.Type == "http" && len(mcpConfig.Headers) > 0 {
-				headerSecrets := ExtractSecretsFromMap(mcpConfig.Headers)
-				mcpEnvironmentLog.Printf("Extracted %d secrets from HTTP MCP server '%s'", len(headerSecrets), toolName)
-				maps.Copy(envVars, headerSecrets)
-			}
-
-			// Also extract secrets and env expressions from env section if present
-			if len(mcpConfig.Env) > 0 {
-				envSecrets := ExtractSecretsFromMap(mcpConfig.Env)
-				mcpEnvironmentLog.Printf("Extracted %d secrets from env section of MCP server '%s'", len(envSecrets), toolName)
-				maps.Copy(envVars, envSecrets)
-
-				// Also extract env var expressions in addition to secrets
-				// (e.g., ${{ env.SENTRY_HOST || 'https://sentry.io' }}) so the gateway container can resolve them
-				envExprs := ExtractEnvExpressionsFromMap(mcpConfig.Env)
-				mcpEnvironmentLog.Printf("Extracted %d env expressions from env section of MCP server '%s'", len(envExprs), toolName)
-				maps.Copy(envVars, envExprs)
-			}
+		toolConfig, ok := toolValue.(map[string]any)
+		if !ok {
+			continue
 		}
+		collectCustomMCPServerEnv(envVars, toolName, toolConfig)
 	}
+}
 
-	// Codex engine needs CODEX_HOME available in the gateway setup step so that
-	// the converted MCP config can be copied into the writable Codex home directory.
-	// This matches the value set on the agent step in codex_engine.go.
+func isStandardMCPEnvironmentTool(toolName string) bool {
+	return toolName == "github" || toolName == "playwright" ||
+		toolName == "cache-memory" || toolName == "agentic-workflows" ||
+		toolName == "safe-outputs" || toolName == "mcp-scripts"
+}
+
+func collectCustomMCPServerEnv(envVars map[string]string, toolName string, toolConfig map[string]any) {
+	if hasMcp, _ := hasMCPConfig(toolConfig); !hasMcp {
+		return
+	}
+	mcpConfig, err := getMCPConfig(toolConfig, toolName)
+	if err != nil {
+		mcpEnvironmentLog.Printf("Failed to parse MCP config for tool %s: %v", toolName, err)
+		return
+	}
+	if mcpConfig.Type == "http" && len(mcpConfig.Headers) > 0 {
+		headerSecrets := ExtractSecretsFromMap(mcpConfig.Headers)
+		mcpEnvironmentLog.Printf("Extracted %d secrets from HTTP MCP server '%s'", len(headerSecrets), toolName)
+		maps.Copy(envVars, headerSecrets)
+	}
+	collectCustomMCPEnvSection(envVars, toolName, mcpConfig)
+}
+
+func collectCustomMCPEnvSection(envVars map[string]string, toolName string, mcpConfig *parser.RegistryMCPServerConfig) {
+	if len(mcpConfig.Env) == 0 {
+		return
+	}
+	envSecrets := ExtractSecretsFromMap(mcpConfig.Env)
+	mcpEnvironmentLog.Printf("Extracted %d secrets from env section of MCP server '%s'", len(envSecrets), toolName)
+	maps.Copy(envVars, envSecrets)
+	envExprs := ExtractEnvExpressionsFromMap(mcpConfig.Env)
+	mcpEnvironmentLog.Printf("Extracted %d env expressions from env section of MCP server '%s'", len(envExprs), toolName)
+	maps.Copy(envVars, envExprs)
+}
+
+func collectCodexMCPEnv(envVars map[string]string, workflowData *WorkflowData) {
 	if workflowData != nil && workflowData.AI == string(constants.CodexEngine) {
 		envVars["CODEX_HOME"] = constants.TmpMcpConfigDir
 	}
-
-	return envVars
 }
 
 // hasGitHubOIDCAuthInTools checks if any HTTP MCP server in the tools configuration

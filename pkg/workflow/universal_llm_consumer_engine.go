@@ -247,120 +247,18 @@ func (e *UniversalLLMConsumerEngine) BuildCLIEngineExecutionSteps(
 		cfg.DefaultCommandName, workflowData.Name, isFirewallEnabled(workflowData))
 
 	var steps []GitHubActionStep
-
-	// Prepend the config step (writes permissions JSON to workspace).
 	if len(cfg.ConfigStep) > 0 {
 		steps = append(steps, cfg.ConfigStep)
 	}
-
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
-
-	// Build CLI command: <binary> run <extra-args> "<prompt-file>".
-	cliArgs := append([]string{}, cfg.ExtraCLIArgs...)
-	promptArg := fmt.Sprintf("\"$(cat %s)\"", constants.AwPromptsFile)
-	commandName := cfg.DefaultCommandName
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		commandName = workflowData.EngineConfig.Command
-	}
-	engineCommand := fmt.Sprintf("%s run %s %s", commandName, shellJoinArgs(cliArgs), promptArg)
-	engineCommand = getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + engineCommand
-
+	engineCommand := buildUniversalCLIEngineCommand(workflowData, cfg)
 	firewallEnabled := isFirewallEnabled(workflowData)
-	var command string
-	if firewallEnabled {
-		model := ""
-		if modelConfigured {
-			model = workflowData.EngineConfig.Model
-		}
-		// Get allowed domains: prefer the pre-warmed cache on WorkflowData to avoid
-		// re-running the expensive map+sort operation.
-		var allowedDomains string
-		if workflowData.CachedAllowedDomainsComputed {
-			allowedDomains = workflowData.CachedAllowedDomainsStr
-		} else {
-			// The model was validated before reaching here, so a malformed model
-			// (e.g. leading slash) must never occur. Panic is the correct response
-			// to an internal invariant violation.
-			allowedDomains = mustGetAllowedDomainsForEngineWithModel(
-				cfg.EngineConstant,
-				model,
-				workflowData.NetworkPermissions,
-				workflowData.Tools,
-				workflowData.Runtimes,
-			)
-		}
-
-		npmPathSetup := GetNpmBinPathSetup()
-		// Propagate no_proxy inside the AWF container.  --env-all forwards NO_PROXY
-		// from the YAML env block, but Bun (and other runtimes) also check the
-		// lowercase variant, so we export it explicitly from the uppercase value.
-		engineCommandWithPath := fmt.Sprintf("export no_proxy=\"${NO_PROXY:-}\" && %s && %s", npmPathSetup, engineCommand)
-		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
-			engineCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, engineCommandWithPath)
-		}
-
-		command = BuildAWFCommand(AWFCommandConfig{
-			EngineName:     cfg.DefaultCommandName,
-			EngineCommand:  engineCommandWithPath,
-			LogFile:        logFile,
-			WorkflowData:   workflowData,
-			UsesTTY:        false,
-			AllowedDomains: allowedDomains,
-		})
-	} else if cfg.WriteTimestamp {
-		command = fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\nprintf '%%s' \"$(date +%%s%%3N)\" > %s\n%s 2>&1 | tee -a %s",
-			AgentCLIStartMsPath, engineCommand, logFile)
-	} else {
-		command = fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\n%s 2>&1 | tee -a %s", engineCommand, logFile)
-	}
-
-	env := map[string]string{
-		"GH_AW_PROMPT":     constants.AwPromptsFile,
-		"GITHUB_WORKSPACE": "${{ github.workspace }}",
-		"RUNNER_TEMP":      "${{ runner.temp }}",
-		// Set NO_PROXY so that the AWF agent's HTTP client skips the squid proxy
-		// for local endpoints. The lowercase no_proxy variant is exported inside
-		// the run script rather than as a YAML env key because GitHub's workflow
-		// parser rejects case-insensitive duplicate env keys (NO_PROXY/no_proxy),
-		// which causes workflow_dispatch to fail with "failed to parse workflow".
-		"NO_PROXY": constants.AWFNoProxyHosts,
-	}
-	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
-	e.ApplyUniversalProviderEnv(env, workflowData, firewallEnabled)
-
-	if HasMCPServers(workflowData) {
-		env["GH_AW_MCP_CONFIG"] = "${{ github.workspace }}/" + cfg.MCPConfigFile
-	}
-
-	applySafeOutputEnvToMap(env, workflowData)
-
-	// Propagate W3C trace context so engine spans nest under the gh-aw.agent.setup span.
-	applyTraceContextEnvToMap(env)
-
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
-	} else {
-		env["GH_AW_MAX_TURNS"] = compilerenv.BuildDefaultMaxTurnsExpression()
-	}
-
-	// Model env var (only when explicitly configured and the engine supports it).
+	command := buildUniversalCLIExecutionCommand(workflowData, logFile, cfg, engineCommand, firewallEnabled, modelConfigured)
+	env := e.buildUniversalCLIExecutionEnv(workflowData, cfg, firewallEnabled)
 	if modelConfigured && cfg.ModelEnvVarName != "" {
 		universalLLMConsumerLog.Printf("Setting %s env var for model: %s", cfg.ModelEnvVarName, workflowData.EngineConfig.Model)
 		env[cfg.ModelEnvVarName] = workflowData.EngineConfig.Model
 	}
-
-	// Custom env from engine config (allows provider key override).
-	applyEngineCwdEnv(env, workflowData)
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		maps.Copy(env, workflowData.EngineConfig.Env)
-	}
-
-	// Agent config env.
-	agentConfig := getAgentConfig(workflowData)
-	if agentConfig != nil && len(agentConfig.Env) > 0 {
-		maps.Copy(env, agentConfig.Env)
-	}
-
 	stepLines := []string{
 		"      - name: " + cfg.StepName,
 		"        id: agentic_execution",
@@ -371,4 +269,91 @@ func (e *UniversalLLMConsumerEngine) BuildCLIEngineExecutionSteps(
 
 	steps = append(steps, GitHubActionStep(stepLines))
 	return steps
+}
+
+func buildUniversalCLIEngineCommand(workflowData *WorkflowData, cfg UniversalCLIEngineExecutionConfig) string {
+	cliArgs := append([]string{}, cfg.ExtraCLIArgs...)
+	promptArg := fmt.Sprintf("\"$(cat %s)\"", constants.AwPromptsFile)
+	commandName := cfg.DefaultCommandName
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		commandName = workflowData.EngineConfig.Command
+	}
+	engineCommand := fmt.Sprintf("%s run %s %s", commandName, shellJoinArgs(cliArgs), promptArg)
+	return getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + engineCommand
+}
+
+func buildUniversalCLIExecutionCommand(workflowData *WorkflowData, logFile string, cfg UniversalCLIEngineExecutionConfig, engineCommand string, firewallEnabled, modelConfigured bool) string {
+	if firewallEnabled {
+		return BuildAWFCommand(AWFCommandConfig{
+			EngineName:     cfg.DefaultCommandName,
+			EngineCommand:  buildUniversalCLIFirewallCommand(workflowData, engineCommand),
+			LogFile:        logFile,
+			WorkflowData:   workflowData,
+			UsesTTY:        false,
+			AllowedDomains: universalCLIAllowedDomains(workflowData, cfg, modelConfigured),
+		})
+	}
+	if cfg.WriteTimestamp {
+		return fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\nprintf '%%s' \"$(date +%%s%%3N)\" > %s\n%s 2>&1 | tee -a %s",
+			AgentCLIStartMsPath, engineCommand, logFile)
+	}
+	return fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\n%s 2>&1 | tee -a %s", engineCommand, logFile)
+}
+
+func universalCLIAllowedDomains(workflowData *WorkflowData, cfg UniversalCLIEngineExecutionConfig, modelConfigured bool) string {
+	if workflowData.CachedAllowedDomainsComputed {
+		return workflowData.CachedAllowedDomainsStr
+	}
+	model := ""
+	if modelConfigured {
+		model = workflowData.EngineConfig.Model
+	}
+	return mustGetAllowedDomainsForEngineWithModel(
+		cfg.EngineConstant,
+		model,
+		workflowData.NetworkPermissions,
+		workflowData.Tools,
+		workflowData.Runtimes,
+	)
+}
+
+func buildUniversalCLIFirewallCommand(workflowData *WorkflowData, engineCommand string) string {
+	engineCommandWithPath := fmt.Sprintf("export no_proxy=\"${NO_PROXY:-}\" && %s && %s", GetNpmBinPathSetup(), engineCommand)
+	if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
+		return fmt.Sprintf("%s && %s", mcpCLIPath, engineCommandWithPath)
+	}
+	return engineCommandWithPath
+}
+
+func (e *UniversalLLMConsumerEngine) buildUniversalCLIExecutionEnv(workflowData *WorkflowData, cfg UniversalCLIEngineExecutionConfig, firewallEnabled bool) map[string]string {
+	env := map[string]string{
+		"GH_AW_PROMPT":     constants.AwPromptsFile,
+		"GITHUB_WORKSPACE": "${{ github.workspace }}",
+		"RUNNER_TEMP":      "${{ runner.temp }}",
+		"NO_PROXY":         constants.AWFNoProxyHosts,
+	}
+	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
+	e.ApplyUniversalProviderEnv(env, workflowData, firewallEnabled)
+	if HasMCPServers(workflowData) {
+		env["GH_AW_MCP_CONFIG"] = "${{ github.workspace }}/" + cfg.MCPConfigFile
+	}
+	applySafeOutputEnvToMap(env, workflowData)
+	applyTraceContextEnvToMap(env)
+	applyUniversalCLIMaxTurnsEnv(env, workflowData)
+	applyEngineCwdEnv(env, workflowData)
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+		maps.Copy(env, workflowData.EngineConfig.Env)
+	}
+	if agentConfig := getAgentConfig(workflowData); agentConfig != nil && len(agentConfig.Env) > 0 {
+		maps.Copy(env, agentConfig.Env)
+	}
+	return env
+}
+
+func applyUniversalCLIMaxTurnsEnv(env map[string]string, workflowData *WorkflowData) {
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+	} else {
+		env["GH_AW_MAX_TURNS"] = compilerenv.BuildDefaultMaxTurnsExpression()
+	}
 }

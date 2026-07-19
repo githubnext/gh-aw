@@ -293,85 +293,16 @@ func (p *Permissions) Merge(other *Permissions) {
 		permissionsOpsLog.Printf("Merging permissions: current_perms_count=%d, other_perms_count=%d", len(p.permissions), len(other.permissions))
 	}
 
-	// Handle all permissions - convert to explicit first if needed
-	if p.hasAll || other.hasAll {
-		// Convert both to explicit maps
-		if p.hasAll {
-			if p.permissions == nil {
-				p.permissions = make(map[PermissionScope]PermissionLevel)
-			}
-			for _, scope := range GetAllPermissionScopes() {
-				if _, exists := p.permissions[scope]; !exists {
-					// Skip id-token when level is read since it doesn't support read
-					if scope == PermissionIdToken && p.allLevel == PermissionRead {
-						continue
-					}
-					p.permissions[scope] = p.allLevel
-				}
-			}
-			p.hasAll = false
-			p.allLevel = ""
-		}
-		if other.hasAll {
-			if other.permissions == nil {
-				// Create a temporary map for merging
-				tempPerms := make(map[PermissionScope]PermissionLevel)
-				for _, scope := range GetAllPermissionScopes() {
-					// Skip id-token when level is read since it doesn't support read
-					if scope == PermissionIdToken && other.allLevel == PermissionRead {
-						continue
-					}
-					tempPerms[scope] = other.allLevel
-				}
-				// Merge the temporary map
-				p.mergePermissionMaps(tempPerms)
-				// Also merge explicit permissions from other if any
-				p.mergePermissionMaps(other.permissions)
-				return
-			}
-		}
-	}
-
-	// If other has shorthand, we need to handle it specially
-	if other.shorthand != "" {
-		// If we also have shorthand, resolve the conflict
-		if p.shorthand != "" {
-			// Promote to the higher permission level
-			if other.shorthand == "write-all" || p.shorthand == "write-all" {
-				p.shorthand = "write-all"
-			} else if other.shorthand == "read-all" || p.shorthand == "read-all" {
-				p.shorthand = "read-all"
-			}
-			// none is lowest, so only keep if both are none
-			return
-		}
-		// We have map, other has shorthand - expand our map
-		// Apply other's shorthand as baseline, then our specific permissions override
-		otherLevel := PermissionNone
-		switch other.shorthand {
-		case "read-all":
-			otherLevel = PermissionRead
-		case "write-all":
-			otherLevel = PermissionWrite
-		}
-
-		// For all scopes we don't have, set to other's shorthand level
-		allScopes := GetAllPermissionScopes()
-		for _, scope := range allScopes {
-			if _, exists := p.permissions[scope]; !exists && otherLevel != PermissionNone {
-				// Skip id-token when level is read since it doesn't support read
-				if scope == PermissionIdToken && otherLevel == PermissionRead {
-					continue
-				}
-				p.permissions[scope] = otherLevel
-			}
-		}
+	if p.mergeAllPermissions(other) {
 		return
 	}
 
-	// Both have maps, merge them
+	if other.shorthand != "" {
+		p.mergeOtherShorthand(other.shorthand)
+		return
+	}
+
 	if p.shorthand != "" {
-		// We have shorthand, other has map - convert to map first
 		p.shorthand = ""
 		if p.permissions == nil {
 			p.permissions = make(map[PermissionScope]PermissionLevel)
@@ -380,6 +311,87 @@ func (p *Permissions) Merge(other *Permissions) {
 
 	// Merge permissions - write overrides read
 	p.mergePermissionMaps(other.permissions)
+}
+
+func (p *Permissions) mergeAllPermissions(other *Permissions) bool {
+	if !p.hasAll && !other.hasAll {
+		return false
+	}
+	if p.hasAll {
+		p.expandAllPermissions()
+	}
+	if other.hasAll && other.permissions == nil {
+		p.mergePermissionMaps(expandAllPermissionLevel(other.allLevel))
+		p.mergePermissionMaps(other.permissions)
+		return true
+	}
+	return false
+}
+
+func (p *Permissions) expandAllPermissions() {
+	if p.permissions == nil {
+		p.permissions = make(map[PermissionScope]PermissionLevel)
+	}
+	for _, scope := range GetAllPermissionScopes() {
+		if _, exists := p.permissions[scope]; exists {
+			continue
+		}
+		if scope == PermissionIdToken && p.allLevel == PermissionRead {
+			continue
+		}
+		p.permissions[scope] = p.allLevel
+	}
+	p.hasAll = false
+	p.allLevel = ""
+}
+
+func expandAllPermissionLevel(level PermissionLevel) map[PermissionScope]PermissionLevel {
+	tempPerms := make(map[PermissionScope]PermissionLevel)
+	for _, scope := range GetAllPermissionScopes() {
+		if scope == PermissionIdToken && level == PermissionRead {
+			continue
+		}
+		tempPerms[scope] = level
+	}
+	return tempPerms
+}
+
+func (p *Permissions) mergeOtherShorthand(otherShorthand string) {
+	if p.shorthand != "" {
+		p.shorthand = mergePermissionShorthands(p.shorthand, otherShorthand)
+		return
+	}
+	otherLevel := shorthandPermissionLevel(otherShorthand)
+	for _, scope := range GetAllPermissionScopes() {
+		if _, exists := p.permissions[scope]; exists || otherLevel == PermissionNone {
+			continue
+		}
+		if scope == PermissionIdToken && otherLevel == PermissionRead {
+			continue
+		}
+		p.permissions[scope] = otherLevel
+	}
+}
+
+func mergePermissionShorthands(left, right string) string {
+	if left == "write-all" || right == "write-all" {
+		return "write-all"
+	}
+	if left == "read-all" || right == "read-all" {
+		return "read-all"
+	}
+	return left
+}
+
+func shorthandPermissionLevel(shorthand string) PermissionLevel {
+	switch shorthand {
+	case "read-all":
+		return PermissionRead
+	case "write-all":
+		return PermissionWrite
+	default:
+		return PermissionNone
+	}
 }
 
 // RenderToYAML renders the Permissions to GitHub Actions YAML format
@@ -395,75 +407,15 @@ func (p *Permissions) RenderToYAML() string {
 		return "permissions: " + p.shorthand
 	}
 
-	// Collect all permissions to render
-	allPerms := make(map[PermissionScope]PermissionLevel)
-
-	if p.hasAll {
-		// Expand all: read/write to individual permissions
-		for _, scope := range GetAllPermissionScopes() {
-			// Skip id-token when expanding all: read since id-token doesn't support read level
-			if scope == PermissionIdToken && p.allLevel == PermissionRead {
-				continue
-			}
-			// Skip discussions when expanding all: read unless explicitly set
-			// This prevents issues in GitHub Enterprise where discussions might not be available
-			// Discussions permission should be added explicitly or via safe-outputs that need it
-			if scope == PermissionDiscussions && p.allLevel == PermissionRead {
-				// Only include if explicitly set in permissions map
-				if _, explicitlySet := p.permissions[PermissionDiscussions]; !explicitlySet {
-					continue
-				}
-			}
-			allPerms[scope] = p.allLevel
-		}
-	}
-
-	// Override with explicit permissions
-	maps.Copy(allPerms, p.permissions)
-
+	allPerms := p.permissionsForRendering()
 	if len(allPerms) == 0 {
-		// If explicitEmpty is true, render "permissions: {}"
 		if p.explicitEmpty {
 			return "permissions: {}"
 		}
 		return ""
 	}
 
-	// Sort scopes for consistent output
-	var scopes []string
-	for scope := range allPerms {
-		scopes = append(scopes, string(scope))
-	}
-	sort.Strings(scopes)
-
-	var lines []string
-	lines = append(lines, "permissions:")
-	hasRenderable := false
-	for _, scopeStr := range scopes {
-		scope := PermissionScope(scopeStr)
-		level := allPerms[scope]
-
-		// Skip GitHub App-only permissions - they are not valid GitHub Actions workflow permissions
-		// and cannot be set on the GITHUB_TOKEN. They are handled separately when minting
-		// GitHub App installation access tokens.
-		if IsGitHubAppOnlyScope(scope) {
-			continue
-		}
-
-		// Skip metadata - it's a built-in permission that is always available with read access
-		if scope == PermissionMetadata {
-			continue
-		}
-
-		hasRenderable = true
-		// Add 2 spaces for proper indentation under permissions:
-		// When rendered in a job, the job renderer adds 4 spaces to the first line only,
-		// so we need to pre-indent continuation lines with 4 additional spaces
-		// to get 6 total spaces (4 from job + 2 for being under permissions)
-		lines = append(lines, fmt.Sprintf("      %s: %s", scope, level))
-	}
-
-	// If everything was skipped (all App-only or metadata), return as if empty
+	lines, hasRenderable := renderPermissionLines(allPerms)
 	if !hasRenderable {
 		if p.explicitEmpty {
 			return "permissions: {}"
@@ -472,6 +424,51 @@ func (p *Permissions) RenderToYAML() string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+func (p *Permissions) permissionsForRendering() map[PermissionScope]PermissionLevel {
+	allPerms := make(map[PermissionScope]PermissionLevel)
+	if p.hasAll {
+		for _, scope := range GetAllPermissionScopes() {
+			if shouldSkipAllPermissionForRendering(scope, p.allLevel, p.permissions) {
+				continue
+			}
+			allPerms[scope] = p.allLevel
+		}
+	}
+	maps.Copy(allPerms, p.permissions)
+	return allPerms
+}
+
+func shouldSkipAllPermissionForRendering(scope PermissionScope, level PermissionLevel, explicit map[PermissionScope]PermissionLevel) bool {
+	if scope == PermissionIdToken && level == PermissionRead {
+		return true
+	}
+	if scope == PermissionDiscussions && level == PermissionRead {
+		_, explicitlySet := explicit[PermissionDiscussions]
+		return !explicitlySet
+	}
+	return false
+}
+
+func renderPermissionLines(allPerms map[PermissionScope]PermissionLevel) ([]string, bool) {
+	var scopes []string
+	for scope := range allPerms {
+		scopes = append(scopes, string(scope))
+	}
+	sort.Strings(scopes)
+
+	lines := []string{"permissions:"}
+	hasRenderable := false
+	for _, scopeStr := range scopes {
+		scope := PermissionScope(scopeStr)
+		if IsGitHubAppOnlyScope(scope) || scope == PermissionMetadata {
+			continue
+		}
+		hasRenderable = true
+		lines = append(lines, fmt.Sprintf("      %s: %s", scope, allPerms[scope]))
+	}
+	return lines, hasRenderable
 }
 
 // mergeInferredIntoPermissionsYAML merges a map of inferred permissions into an existing

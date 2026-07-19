@@ -61,32 +61,49 @@ func parseTimeDeltaForStopAfter(deltaStr string) (*TimeDelta, error) {
 func parseTimeDeltaWithMinutes(deltaStr string, allowMinutes bool) (*TimeDelta, error) {
 	timeDeltaLog.Printf("Parsing time delta: input=%s, allowMinutes=%v", deltaStr, allowMinutes)
 
-	if deltaStr == "" {
-		return nil, errors.New("empty time delta")
+	trimmedDelta, err := validateTimeDeltaInput(deltaStr)
+	if err != nil {
+		return nil, err
 	}
 
-	// Must start with '+'
+	matches, err := parseTimeDeltaMatches(trimmedDelta)
+	if err != nil {
+		return nil, err
+	}
+
+	delta, err := buildTimeDeltaFromMatches(matches, trimmedDelta, allowMinutes)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := validateTimeDeltaLimits(delta); err != nil {
+		return nil, err
+	}
+
+	timeDeltaLog.Printf("Parsed time delta successfully: %s", delta.String())
+	return delta, nil
+}
+
+func validateTimeDeltaInput(deltaStr string) (string, error) {
+	if deltaStr == "" {
+		return "", errors.New("empty time delta")
+	}
 	if !strings.HasPrefix(deltaStr, "+") {
 		timeDeltaLog.Printf("Time delta validation failed: missing '+' prefix")
-		return nil, fmt.Errorf("time delta must start with '+', got: %s. Example: +3d", deltaStr)
+		return "", fmt.Errorf("time delta must start with '+', got: %s. Example: +3d", deltaStr)
 	}
-
-	// Remove the '+' prefix
 	deltaStr = deltaStr[1:]
-
 	if deltaStr == "" {
-		return nil, errors.New("empty time delta after '+'")
+		return "", errors.New("empty time delta after '+'")
 	}
+	return deltaStr, nil
+}
 
-	// Parse components using regex
-	// Pattern matches: number followed by mo/w/d/h/m (months, weeks, days, hours, minutes)
+func parseTimeDeltaMatches(deltaStr string) ([][]string, error) {
 	matches := timeDeltaPattern.FindAllStringSubmatch(deltaStr, -1)
-
 	if len(matches) == 0 {
 		return nil, fmt.Errorf("invalid time delta format: +%s. Expected format like +25h, +3d, +1w, +1mo, +1d12h30m. Example: +1d12h30m", deltaStr)
 	}
-
-	// Check that all characters are consumed by matches
 	consumed := 0
 	for _, match := range matches {
 		consumed += len(match[0])
@@ -94,73 +111,77 @@ func parseTimeDeltaWithMinutes(deltaStr string, allowMinutes bool) (*TimeDelta, 
 	if consumed != len(deltaStr) {
 		return nil, fmt.Errorf("invalid time delta format: +%s. Extra characters detected. Example: +2w3d", deltaStr)
 	}
+	return matches, nil
+}
 
+func buildTimeDeltaFromMatches(matches [][]string, deltaStr string, allowMinutes bool) (*TimeDelta, error) {
 	delta := &TimeDelta{}
-	seenUnits := make(map[string]struct {
-	})
-
+	seenUnits := make(map[string]struct{})
 	for _, match := range matches {
 		if len(match) != 3 {
 			continue
 		}
-
-		valueStr := match[1]
-		unit := match[2]
-
-		// Check for duplicate units
-		if setutil.Contains(seenUnits, unit) {
-			return nil, fmt.Errorf("duplicate unit '%s' in time delta: +%s", unit, deltaStr)
-		}
-		seenUnits[unit] = struct {
-		}{}
-
-		value, err := strconv.Atoi(valueStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid number '%s' in time delta: +%s. Example: +3d", valueStr, deltaStr)
-		}
-
-		if value < 0 {
-			return nil, fmt.Errorf("negative values not allowed in time delta: +%s", deltaStr)
-		}
-
-		switch unit {
-		case "mo":
-			delta.Months = value
-		case "w":
-			delta.Weeks = value
-		case "d":
-			delta.Days = value
-		case "h":
-			delta.Hours = value
-		case "m":
-			if !allowMinutes {
-				return nil, fmt.Errorf("minute unit 'm' is not allowed for stop-after. Minimum unit is hours 'h'. Use +%dh instead of +%dm. Example: +90m -> +2h", (value+59)/60, value)
-			}
-			delta.Minutes = value
-		default:
-			return nil, fmt.Errorf("unsupported time unit '%s' in time delta: +%s. Example: +2w (supported units: mo, w, d, h, m)", unit, deltaStr)
+		if err := applyTimeDeltaMatch(delta, match, deltaStr, allowMinutes, seenUnits); err != nil {
+			return nil, err
 		}
 	}
+	return delta, nil
+}
 
-	// Validate reasonable limits
+func applyTimeDeltaMatch(delta *TimeDelta, match []string, deltaStr string, allowMinutes bool, seenUnits map[string]struct{}) error {
+	valueStr, unit := match[1], match[2]
+	if setutil.Contains(seenUnits, unit) {
+		return fmt.Errorf("duplicate unit '%s' in time delta: +%s", unit, deltaStr)
+	}
+	seenUnits[unit] = struct{}{}
+	value, err := strconv.Atoi(valueStr)
+	if err != nil {
+		return fmt.Errorf("invalid number '%s' in time delta: +%s. Example: +3d", valueStr, deltaStr)
+	}
+	if value < 0 {
+		return fmt.Errorf("negative values not allowed in time delta: +%s", deltaStr)
+	}
+	return assignTimeDeltaUnit(delta, unit, value, deltaStr, allowMinutes)
+}
+
+func assignTimeDeltaUnit(delta *TimeDelta, unit string, value int, deltaStr string, allowMinutes bool) error {
+	switch unit {
+	case "mo":
+		delta.Months = value
+	case "w":
+		delta.Weeks = value
+	case "d":
+		delta.Days = value
+	case "h":
+		delta.Hours = value
+	case "m":
+		if !allowMinutes {
+			return fmt.Errorf("minute unit 'm' is not allowed for stop-after. Minimum unit is hours 'h'. Use +%dh instead of +%dm. Example: +90m -> +2h", (value+59)/60, value)
+		}
+		delta.Minutes = value
+	default:
+		return fmt.Errorf("unsupported time unit '%s' in time delta: +%s. Example: +2w (supported units: mo, w, d, h, m)", unit, deltaStr)
+	}
+	return nil
+}
+
+func validateTimeDeltaLimits(delta *TimeDelta) error {
 	if delta.Months > MaxTimeDeltaMonths {
-		return nil, fmt.Errorf("time delta too large: %d months exceeds maximum of %d months", delta.Months, MaxTimeDeltaMonths)
+		return fmt.Errorf("time delta too large: %d months exceeds maximum of %d months", delta.Months, MaxTimeDeltaMonths)
 	}
 	if delta.Weeks > MaxTimeDeltaWeeks {
-		return nil, fmt.Errorf("time delta too large: %d weeks exceeds maximum of %d weeks", delta.Weeks, MaxTimeDeltaWeeks)
+		return fmt.Errorf("time delta too large: %d weeks exceeds maximum of %d weeks", delta.Weeks, MaxTimeDeltaWeeks)
 	}
 	if delta.Days > MaxTimeDeltaDays {
-		return nil, fmt.Errorf("time delta too large: %d days exceeds maximum of %d days", delta.Days, MaxTimeDeltaDays)
+		return fmt.Errorf("time delta too large: %d days exceeds maximum of %d days", delta.Days, MaxTimeDeltaDays)
 	}
 	if delta.Hours > MaxTimeDeltaHours {
-		return nil, fmt.Errorf("time delta too large: %d hours exceeds maximum of %d hours", delta.Hours, MaxTimeDeltaHours)
+		return fmt.Errorf("time delta too large: %d hours exceeds maximum of %d hours", delta.Hours, MaxTimeDeltaHours)
 	}
 	if delta.Minutes > MaxTimeDeltaMinutes {
-		return nil, fmt.Errorf("time delta too large: %d minutes exceeds maximum of %d minutes", delta.Minutes, MaxTimeDeltaMinutes)
+		return fmt.Errorf("time delta too large: %d minutes exceeds maximum of %d minutes", delta.Minutes, MaxTimeDeltaMinutes)
 	}
-
-	timeDeltaLog.Printf("Parsed time delta successfully: %s", delta.String())
-	return delta, nil
+	return nil
 }
 
 // String returns a human-readable representation of the TimeDelta
@@ -196,82 +217,69 @@ func isRelativeStopTime(stopTime string) bool {
 func parseAbsoluteDateTime(dateTimeStr string) (string, error) {
 	timeDeltaLog.Printf("Parsing absolute date-time: %s", dateTimeStr)
 
-	// Try multiple date-time formats in order of preference
-	formats := []string{
-		// Standard formats
-		"2006-01-02 15:04:05",  // YYYY-MM-DD HH:MM:SS
-		"2006-01-02T15:04:05",  // ISO 8601 without timezone
-		"2006-01-02T15:04:05Z", // ISO 8601 UTC
-		"2006-01-02 15:04",     // YYYY-MM-DD HH:MM
-		"2006-01-02",           // YYYY-MM-DD (defaults to start of day)
-
-		// Alternative formats
-		"01/02/2006 15:04:05", // MM/DD/YYYY HH:MM:SS
-		"01/02/2006 15:04",    // MM/DD/YYYY HH:MM
-		"01/02/2006",          // MM/DD/YYYY
-		"02/01/2006 15:04:05", // DD/MM/YYYY HH:MM:SS
-		"02/01/2006 15:04",    // DD/MM/YYYY HH:MM
-		"02/01/2006",          // DD/MM/YYYY
-
-		// Readable formats
-		"January 2, 2006 15:04:05", // January 2, 2006 15:04:05
-		"January 2, 2006 15:04",    // January 2, 2006 15:04
-		"January 2, 2006",          // January 2, 2006
-		"Jan 2, 2006 15:04:05",     // Jan 2, 2006 15:04:05
-		"Jan 2, 2006 15:04",        // Jan 2, 2006 15:04
-		"Jan 2, 2006",              // Jan 2, 2006
-		"2 January 2006 15:04:05",  // 2 January 2006 15:04:05
-		"2 January 2006 15:04",     // 2 January 2006 15:04
-		"2 January 2006",           // 2 January 2006
-		"2 Jan 2006 15:04:05",      // 2 Jan 2006 15:04:05
-		"2 Jan 2006 15:04",         // 2 Jan 2006 15:04
-		"2 Jan 2006",               // 2 Jan 2006
-		"January 2 2006 15:04:05",  // January 2 2006 15:04:05 (no comma)
-		"January 2 2006 15:04",     // January 2 2006 15:04 (no comma)
-		"January 2 2006",           // January 2 2006 (no comma)
-		"Jan 2 2006 15:04:05",      // Jan 2 2006 15:04:05 (no comma)
-		"Jan 2 2006 15:04",         // Jan 2 2006 15:04 (no comma)
-		"Jan 2 2006",               // Jan 2 2006 (no comma)
-
-		// RFC formats
-		time.RFC3339, // 2006-01-02T15:04:05Z07:00
-		time.RFC822,  // 02 Jan 06 15:04 MST
-		time.RFC850,  // Monday, 02-Jan-06 15:04:05 MST
-		time.RFC1123, // Mon, 02 Jan 2006 15:04:05 MST
-	}
-
-	// Clean up the input string
+	formats := absoluteDateTimeFormats()
 	dateTimeStr = strings.TrimSpace(dateTimeStr)
-
-	// Handle ordinal numbers (1st, 2nd, 3rd, 4th, etc.)
 	dateTimeStr = ordinalPattern.ReplaceAllString(dateTimeStr, "$1")
 
-	// Try to parse with each format
-	for _, format := range formats {
-		if parsed, err := time.Parse(format, dateTimeStr); err == nil {
-			// Successfully parsed, convert to UTC and return in standard format
-			result := parsed.UTC().Format("2006-01-02 15:04:05")
-			timeDeltaLog.Printf("Successfully parsed date-time using format, result: %s", result)
-			return result, nil
-		}
+	if result, ok := parseAbsoluteWithFormats(dateTimeStr, formats, "format"); ok {
+		return result, nil
 	}
 
 	// Try with more flexible ordinal handling - sometimes the ordinal removal creates double spaces
 	normalizedStr := strings.ReplaceAll(dateTimeStr, "  ", " ")
 	normalizedStr = strings.TrimSpace(normalizedStr)
 
-	for _, format := range formats {
-		if parsed, err := time.Parse(format, normalizedStr); err == nil {
-			// Successfully parsed, convert to UTC and return in standard format
-			result := parsed.UTC().Format("2006-01-02 15:04:05")
-			timeDeltaLog.Printf("Successfully parsed date-time using ordinal normalization, result: %s", result)
-			return result, nil
-		}
+	if result, ok := parseAbsoluteWithFormats(normalizedStr, formats, "ordinal normalization"); ok {
+		return result, nil
 	}
 
-	// If none of the standard formats work, try some smart parsing
-	// Handle formats like "June 1st 2025", "1st June 2025", etc.
-	smartFormats := []string{
+	if result, ok := parseAbsoluteWithFormatsNoLog(dateTimeStr, smartAbsoluteDateTimeFormats()); ok {
+		return result, nil
+	}
+
+	return "", fmt.Errorf("unable to parse date-time: %s. Supported formats include: YYYY-MM-DD HH:MM:SS, MM/DD/YYYY, January 2 2006, 1st June 2025, etc. Example: 2026-07-01 14:30:00", dateTimeStr)
+}
+
+func absoluteDateTimeFormats() []string {
+	return []string{
+		"2006-01-02 15:04:05",
+		"2006-01-02T15:04:05",
+		"2006-01-02T15:04:05Z",
+		"2006-01-02 15:04",
+		"2006-01-02",
+		"01/02/2006 15:04:05",
+		"01/02/2006 15:04",
+		"01/02/2006",
+		"02/01/2006 15:04:05",
+		"02/01/2006 15:04",
+		"02/01/2006",
+		"January 2, 2006 15:04:05",
+		"January 2, 2006 15:04",
+		"January 2, 2006",
+		"Jan 2, 2006 15:04:05",
+		"Jan 2, 2006 15:04",
+		"Jan 2, 2006",
+		"2 January 2006 15:04:05",
+		"2 January 2006 15:04",
+		"2 January 2006",
+		"2 Jan 2006 15:04:05",
+		"2 Jan 2006 15:04",
+		"2 Jan 2006",
+		"January 2 2006 15:04:05",
+		"January 2 2006 15:04",
+		"January 2 2006",
+		"Jan 2 2006 15:04:05",
+		"Jan 2 2006 15:04",
+		"Jan 2 2006",
+		time.RFC3339,
+		time.RFC822,
+		time.RFC850,
+		time.RFC1123,
+	}
+}
+
+func smartAbsoluteDateTimeFormats() []string {
+	return []string{
 		"January 2nd 2006",
 		"2nd January 2006",
 		"Jan 2nd 2006",
@@ -285,14 +293,26 @@ func parseAbsoluteDateTime(dateTimeStr string) (string, error) {
 		"Jan 2nd 2006 15:04:05",
 		"2nd Jan 2006 15:04:05",
 	}
+}
 
-	for _, format := range smartFormats {
+func parseAbsoluteWithFormats(dateTimeStr string, formats []string, logLabel string) (string, bool) {
+	for _, format := range formats {
 		if parsed, err := time.Parse(format, dateTimeStr); err == nil {
-			return parsed.UTC().Format("2006-01-02 15:04:05"), nil
+			result := parsed.UTC().Format("2006-01-02 15:04:05")
+			timeDeltaLog.Printf("Successfully parsed date-time using %s, result: %s", logLabel, result)
+			return result, true
 		}
 	}
+	return "", false
+}
 
-	return "", fmt.Errorf("unable to parse date-time: %s. Supported formats include: YYYY-MM-DD HH:MM:SS, MM/DD/YYYY, January 2 2006, 1st June 2025, etc. Example: 2026-07-01 14:30:00", dateTimeStr)
+func parseAbsoluteWithFormatsNoLog(dateTimeStr string, formats []string) (string, bool) {
+	for _, format := range formats {
+		if parsed, err := time.Parse(format, dateTimeStr); err == nil {
+			return parsed.UTC().Format("2006-01-02 15:04:05"), true
+		}
+	}
+	return "", false
 }
 
 // isRelativeDate checks if a date string is a relative time delta (starts with + or -)

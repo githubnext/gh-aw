@@ -92,9 +92,7 @@ func renameAppToGitHubApp(lines []string) ([]string, bool) {
 	var result []string
 	modified := false
 
-	// Block tracking
-	var inTools, inToolsGithub, inSafeOutputs, inCheckout bool
-	var toolsIndent, toolsGithubIndent, safeOutputsIndent, checkoutIndent string
+	state := renameAppToGitHubAppState{}
 
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -106,96 +104,109 @@ func renameAppToGitHubApp(lines []string) ([]string, bool) {
 		}
 
 		// Exit blocks when indentation signals we've left them
-		if !strings.HasPrefix(trimmed, "#") {
-			if inToolsGithub && hasExitedBlock(line, toolsGithubIndent) {
-				inToolsGithub = false
-			}
-			if inTools && hasExitedBlock(line, toolsIndent) {
-				inTools = false
-				inToolsGithub = false
-			}
-			if inSafeOutputs && hasExitedBlock(line, safeOutputsIndent) {
-				inSafeOutputs = false
-			}
-			if inCheckout && hasExitedBlock(line, checkoutIndent) {
-				inCheckout = false
-			}
-		}
+		renameAppToGitHubAppExitBlocks(line, trimmed, &state)
 
 		// Detect block entries at any indentation level
-		if strings.HasPrefix(trimmed, "tools:") {
-			inTools = true
-			inToolsGithub = false
-			toolsIndent = getIndentation(line)
+		if renameAppToGitHubAppEnterBlock(line, trimmed, &state) {
 			result = append(result, line)
 			continue
 		}
 
-		if inTools && strings.HasPrefix(trimmed, "github:") {
-			inToolsGithub = true
-			toolsGithubIndent = getIndentation(line)
-			result = append(result, line)
+		if newLine, replaced := renameAppToGitHubAppLine(line, trimmed, &state, i); replaced {
+			result = append(result, newLine)
+			modified = true
 			continue
-		}
-
-		if strings.HasPrefix(trimmed, "safe-outputs:") {
-			inSafeOutputs = true
-			safeOutputsIndent = getIndentation(line)
-			result = append(result, line)
-			continue
-		}
-
-		if strings.HasPrefix(trimmed, "checkout:") {
-			inCheckout = true
-			checkoutIndent = getIndentation(line)
-			result = append(result, line)
-			continue
-		}
-
-		// Rename a top-level 'app:' key.
-		if strings.HasPrefix(trimmed, "app:") && isTopLevelKey(line) {
-			newLine, replaced := findAndReplaceInLine(line, "app", "github-app")
-			if replaced {
-				result = append(result, newLine)
-				modified = true
-				githubAppCodemodLog.Printf("Renamed top-level 'app' to 'github-app' on line %d", i+1)
-				continue
-			}
-		}
-
-		// Rename nested 'app:' keys when inside a target block
-		if strings.HasPrefix(trimmed, "app:") {
-			lineIndent := getIndentation(line)
-			shouldRename := false
-
-			// Child of tools.github (inside github: block)
-			if inToolsGithub && isDescendant(lineIndent, toolsGithubIndent) {
-				shouldRename = true
-			}
-
-			// Child of safe-outputs
-			if inSafeOutputs && isDescendant(lineIndent, safeOutputsIndent) {
-				shouldRename = true
-			}
-
-			// Child of checkout (or a list item inside checkout)
-			if inCheckout && isDescendant(lineIndent, checkoutIndent) {
-				shouldRename = true
-			}
-
-			if shouldRename {
-				newLine, replaced := findAndReplaceInLine(line, "app", "github-app")
-				if replaced {
-					result = append(result, newLine)
-					modified = true
-					githubAppCodemodLog.Printf("Renamed 'app' to 'github-app' on line %d", i+1)
-					continue
-				}
-			}
 		}
 
 		result = append(result, line)
 	}
 
 	return result, modified
+}
+
+type renameAppToGitHubAppState struct {
+	inTools           bool
+	inToolsGithub     bool
+	inSafeOutputs     bool
+	inCheckout        bool
+	toolsIndent       string
+	toolsGithubIndent string
+	safeOutputsIndent string
+	checkoutIndent    string
+}
+
+func renameAppToGitHubAppExitBlocks(line string, trimmed string, state *renameAppToGitHubAppState) {
+	if strings.HasPrefix(trimmed, "#") {
+		return
+	}
+	if state.inToolsGithub && hasExitedBlock(line, state.toolsGithubIndent) {
+		state.inToolsGithub = false
+	}
+	if state.inTools && hasExitedBlock(line, state.toolsIndent) {
+		state.inTools = false
+		state.inToolsGithub = false
+	}
+	if state.inSafeOutputs && hasExitedBlock(line, state.safeOutputsIndent) {
+		state.inSafeOutputs = false
+	}
+	if state.inCheckout && hasExitedBlock(line, state.checkoutIndent) {
+		state.inCheckout = false
+	}
+}
+
+func renameAppToGitHubAppEnterBlock(line string, trimmed string, state *renameAppToGitHubAppState) bool {
+	if strings.HasPrefix(trimmed, "tools:") {
+		state.inTools = true
+		state.inToolsGithub = false
+		state.toolsIndent = getIndentation(line)
+		return true
+	}
+	if state.inTools && strings.HasPrefix(trimmed, "github:") {
+		state.inToolsGithub = true
+		state.toolsGithubIndent = getIndentation(line)
+		return true
+	}
+	if strings.HasPrefix(trimmed, "safe-outputs:") {
+		state.inSafeOutputs = true
+		state.safeOutputsIndent = getIndentation(line)
+		return true
+	}
+	if strings.HasPrefix(trimmed, "checkout:") {
+		state.inCheckout = true
+		state.checkoutIndent = getIndentation(line)
+		return true
+	}
+	return false
+}
+
+func renameAppToGitHubAppLine(line string, trimmed string, state *renameAppToGitHubAppState, index int) (string, bool) {
+	if !strings.HasPrefix(trimmed, "app:") {
+		return line, false
+	}
+	if isTopLevelKey(line) {
+		return renameAppToGitHubAppReplace(line, "top-level 'app' to 'github-app'", index)
+	}
+	if renameAppToGitHubAppShouldRenameNested(line, state) {
+		return renameAppToGitHubAppReplace(line, "'app' to 'github-app'", index)
+	}
+	return line, false
+}
+
+func renameAppToGitHubAppShouldRenameNested(line string, state *renameAppToGitHubAppState) bool {
+	lineIndent := getIndentation(line)
+	if state.inToolsGithub && isDescendant(lineIndent, state.toolsGithubIndent) {
+		return true
+	}
+	if state.inSafeOutputs && isDescendant(lineIndent, state.safeOutputsIndent) {
+		return true
+	}
+	return state.inCheckout && isDescendant(lineIndent, state.checkoutIndent)
+}
+
+func renameAppToGitHubAppReplace(line string, label string, index int) (string, bool) {
+	newLine, replaced := findAndReplaceInLine(line, "app", "github-app")
+	if replaced {
+		githubAppCodemodLog.Printf("Renamed %s on line %d", label, index+1)
+	}
+	return newLine, replaced
 }

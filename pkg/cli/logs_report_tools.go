@@ -90,29 +90,7 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 			toolRunTracker[displayKey] = struct {
 			}{}
 
-			if existing, exists := toolStats[displayKey]; exists {
-				existing.TotalCalls += toolCall.CallCount
-				if toolCall.MaxOutputSize > existing.MaxOutputSize {
-					existing.MaxOutputSize = toolCall.MaxOutputSize
-				}
-				if toolCall.MaxDuration > 0 {
-					maxDur := timeutil.FormatDuration(toolCall.MaxDuration)
-					if existing.MaxDuration == "" || toolCall.MaxDuration > parseDurationString(existing.MaxDuration) {
-						existing.MaxDuration = maxDur
-					}
-				}
-			} else {
-				info := &ToolUsageSummary{
-					Name:          displayKey,
-					TotalCalls:    toolCall.CallCount,
-					MaxOutputSize: toolCall.MaxOutputSize,
-					Runs:          0, // Will be incremented below
-				}
-				if toolCall.MaxDuration > 0 {
-					info.MaxDuration = timeutil.FormatDuration(toolCall.MaxDuration)
-				}
-				toolStats[displayKey] = info
-			}
+			buildToolUsageSummaryApplyToolCall(toolStats, displayKey, toolCall)
 		}
 
 		// Increment run count for tools used in this run
@@ -134,4 +112,30 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 	})
 
 	return result
+}
+
+func buildToolUsageSummaryApplyToolCall(toolStats map[string]*ToolUsageSummary, displayKey string, toolCall workflow.ToolCallInfo) {
+	if existing, exists := toolStats[displayKey]; exists {
+		existing.TotalCalls += toolCall.CallCount
+		if toolCall.MaxOutputSize > existing.MaxOutputSize {
+			existing.MaxOutputSize = toolCall.MaxOutputSize
+		}
+		if toolCall.MaxDuration > 0 {
+			maxDur := timeutil.FormatDuration(toolCall.MaxDuration)
+			if existing.MaxDuration == "" || toolCall.MaxDuration > parseDurationString(existing.MaxDuration) {
+				existing.MaxDuration = maxDur
+			}
+		}
+		return
+	}
+	info := &ToolUsageSummary{
+		Name:          displayKey,
+		TotalCalls:    toolCall.CallCount,
+		MaxOutputSize: toolCall.MaxOutputSize,
+		Runs:          0, // Will be incremented below
+	}
+	if toolCall.MaxDuration > 0 {
+		info.MaxDuration = timeutil.FormatDuration(toolCall.MaxDuration)
+	}
+	toolStats[displayKey] = info
 }

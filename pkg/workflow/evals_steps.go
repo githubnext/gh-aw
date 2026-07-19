@@ -138,21 +138,6 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 	// Determine engine ID (same resolution order as detection).
 	engineID := c.getEvalsEngineID(data)
 
-	// Build the evals engine config by shallow-copying the main engine config.
-	// This preserves all fields including Auth (OIDC/Azure), LLMProvider, permissions,
-	// token weights, and other engine settings that should apply to eval runs.
-	var evalsEngineConfig *EngineConfig
-	if data.EngineConfig == nil {
-		evalsEngineConfig = &EngineConfig{ID: engineID}
-	} else {
-		// Shallow copy all fields from the main engine config
-		copy := *data.EngineConfig
-		evalsEngineConfig = &copy
-		if evalsEngineConfig.ID == "" {
-			evalsEngineConfig.ID = engineID
-		}
-	}
-
 	// Apply engine and enterprise default detection model (cost-effective for Q&A tasks).
 	engine, err := c.getAgenticEngine(engineID)
 	if err != nil {
@@ -161,31 +146,44 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 		}
 	}
 
-	// Inherit APITarget from the main engine config for GHE/custom endpoints.
-	if evalsEngineConfig.APITarget == "" && data.EngineConfig != nil && data.EngineConfig.APITarget != "" {
-		evalsEngineConfig.APITarget = data.EngineConfig.APITarget
-	}
-
+	evalsEngineConfig := c.buildEvalsEngineConfig(data, engineID)
 	evalsEngineConfig.Model = c.resolveEvalsExecutionModel(data)
+	evalsData := buildEvalsWorkflowData(data, evalsEngineConfig, engineID)
 
-	// Build a minimal WorkflowData for evals engine execution.
-	// IsDetectionRun reuses detection-style network restrictions and MaxAI credits,
-	// which are appropriate for binary (YES/NO) evaluation tasks.
-	// RunnerConfig is propagated from the main workflow data so that arc-dind topology
-	// handling (daemon-visible Copilot staging step + daemon-visible spawn path) applies
-	// to the evals job the same way it applies to the agent job.
-	evalsData := &WorkflowData{
+	var steps []string
+	steps = append(steps, buildEvalsEngineInstallSteps(engine, evalsData)...)
+	steps = append(steps, c.buildEvalsMCPSetupSteps(engine, evalsData)...)
+	steps = append(steps, buildEvalsEngineExecutionSteps(engine, evalsData)...)
+
+	return steps
+}
+
+func (c *Compiler) buildEvalsEngineConfig(data *WorkflowData, engineID string) *EngineConfig {
+	if data.EngineConfig == nil {
+		return &EngineConfig{ID: engineID}
+	}
+	copy := *data.EngineConfig
+	if copy.ID == "" {
+		copy.ID = engineID
+	}
+	if copy.APITarget == "" && data.EngineConfig.APITarget != "" {
+		copy.APITarget = data.EngineConfig.APITarget
+	}
+	return &copy
+}
+
+func buildEvalsWorkflowData(data *WorkflowData, evalsEngineConfig *EngineConfig, engineID string) *WorkflowData {
+	return &WorkflowData{
 		Tools: map[string]any{
 			"bash": []any{"*"},
 		},
-		SafeOutputs:       nil,
 		EngineConfig:      evalsEngineConfig,
 		AI:                engineID,
 		Features:          data.Features,
 		Permissions:       data.Permissions,
 		CachedPermissions: data.CachedPermissions,
 		IsDetectionRun:    true,
-		RunnerConfig:      data.RunnerConfig, // propagate runner.topology (e.g. arc-dind) to the evals job
+		RunnerConfig:      data.RunnerConfig,
 		NetworkPermissions: &NetworkPermissions{
 			Allowed: getThreatDetectionAdditionalAllowedDomains(data),
 		},
@@ -195,14 +193,11 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 			},
 		},
 	}
+}
 
+func buildEvalsEngineInstallSteps(engine CodingAgentEngine, evalsData *WorkflowData) []string {
 	var steps []string
-
-	// Install the engine binary (fresh runner has no engine installed).
 	installSteps := engine.GetInstallationSteps(evalsData)
-
-	// Ensure Node.js is on PATH when the engine harness requires it.
-	// Guard against engines whose install steps already bundle Setup Node.js.
 	if engineRequiresNodeHarness(engine) && !installStepsContainNodeSetup(installSteps) {
 		for _, line := range GenerateNodeJsSetupStep() {
 			steps = append(steps, line+"\n")
@@ -213,8 +208,11 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 			steps = append(steps, line+"\n")
 		}
 	}
+	return steps
+}
 
-	// Codex requires MCP gateway config (OpenAI proxy provider in config.toml).
+func (c *Compiler) buildEvalsMCPSetupSteps(engine CodingAgentEngine, evalsData *WorkflowData) []string {
+	var steps []string
 	if engine.GetID() == "codex" {
 		var mcpSetup strings.Builder
 		if err := c.generateMCPSetup(&mcpSetup, evalsData.Tools, engine, evalsData); err == nil {
@@ -227,32 +225,30 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 			evalsStepsLog.Printf("Failed to generate MCP setup for Codex evals; OpenAI proxy configuration may be incomplete: %v", err)
 		}
 	}
+	return steps
+}
 
-	// Execute the engine through AWF; output is written to evalsLogPath.
+func buildEvalsEngineExecutionSteps(engine CodingAgentEngine, evalsData *WorkflowData) []string {
+	var steps []string
 	executionSteps := engine.GetExecutionSteps(evalsData, evalsLogPath)
 	for _, step := range executionSteps {
-		// Track whether we've injected the if/continue-on-error fields yet
-		injected := false
-		for _, line := range step {
-			// Prefix the agentic_execution step ID to avoid collisions with the agent job step
-			// IDs — job managers validate for duplicate step IDs across the compiled YAML.
-			// This mirrors the same pattern used in buildDetectionEngineExecutionStep (see
-			// threat_detection_inline_engine.go), where the ID is also a well-known literal
-			// produced by every engine's GetExecutionSteps implementation.
-			prefixed := strings.Replace(line, "id: agentic_execution", "id: evals_agentic_execution", 1)
-			steps = append(steps, prefixed+"\n")
-			// Inject always() condition and continue-on-error after the "- name:" line
-			// so that infrastructure failures do not block the parse step that follows.
-			// Search for the name field instead of assuming it's always at index 0 to handle
-			// engines that might emit comments or other fields before the name.
-			if !injected && strings.Contains(strings.TrimSpace(line), "- name:") {
-				steps = append(steps, "        if: always()\n")
-				steps = append(steps, "        continue-on-error: true\n")
-				injected = true
-			}
+		steps = append(steps, buildSingleEvalsExecutionStep(step)...)
+	}
+	return steps
+}
+
+func buildSingleEvalsExecutionStep(step []string) []string {
+	var steps []string
+	injected := false
+	for _, line := range step {
+		prefixed := strings.Replace(line, "id: agentic_execution", "id: evals_agentic_execution", 1)
+		steps = append(steps, prefixed+"\n")
+		if !injected && strings.Contains(strings.TrimSpace(line), "- name:") {
+			steps = append(steps, "        if: always()\n")
+			steps = append(steps, "        continue-on-error: true\n")
+			injected = true
 		}
 	}
-
 	return steps
 }
 

@@ -46,25 +46,32 @@ func detectRuntimeRequirementsCached(workflowData *WorkflowData) []RuntimeRequir
 func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement {
 	runtimeSetupLog.Print("Detecting runtime requirements from workflow data")
 	requirements := make(map[string]*RuntimeRequirement) // map of runtime ID -> requirement
+	detectConfiguredRuntimeRequirements(workflowData, requirements)
+	ensureCustomRunnerNodeRuntime(workflowData, requirements)
+	ensureHarnessNodeRuntime(workflowData, requirements)
+	if len(workflowData.LSP) > 0 {
+		detectFromLSPServers(workflowData.LSP, requirements)
+	}
+	if workflowData.Runtimes != nil {
+		applyRuntimeOverrides(workflowData.Runtimes, requirements)
+	}
+	ensureUVPythonRuntime(requirements)
+	return sortedRuntimeRequirements(requirements)
+}
 
-	// Detect from custom steps
+func detectConfiguredRuntimeRequirements(workflowData *WorkflowData, requirements map[string]*RuntimeRequirement) {
 	if workflowData.CustomSteps != "" {
 		detectFromCustomSteps(workflowData.CustomSteps, requirements)
 	}
-
-	// Detect from MCP server configurations
 	if workflowData.ParsedTools != nil {
 		detectFromMCPConfigs(workflowData.ParsedTools, requirements)
 	}
 	if workflowData.MCPScripts != nil {
 		detectFromMCPScripts(workflowData.MCPScripts, requirements)
 	}
+}
 
-	// When using a custom image runner, ensure Node.js is set up.
-	// Standard GitHub-hosted runners (ubuntu-*, windows-*) have Node.js pre-installed,
-	// but custom image runners (self-hosted, enterprise runners, non-standard labels) may not.
-	// Node.js is required for gh-aw scripts such as start_safe_outputs_server.sh and
-	// start_mcp_scripts_server.sh that invoke `node` directly.
+func ensureCustomRunnerNodeRuntime(workflowData *WorkflowData, requirements map[string]*RuntimeRequirement) {
 	if isCustomImageRunner(workflowData.RunsOn) {
 		runtimeSetupLog.Printf("Custom image runner detected (%q), ensuring Node.js is set up", workflowData.RunsOn)
 		nodeRuntime := findRuntimeByID("node")
@@ -72,32 +79,18 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 			updateRequiredRuntime(nodeRuntime, "", requirements)
 		}
 	}
+}
 
-	// When a custom harness script is configured for an engine that currently supports
-	// harness wrappers, require Node.js runtime setup with the default version so workflows
-	// consistently execute the harness with Node 24.
+func ensureHarnessNodeRuntime(workflowData *WorkflowData, requirements map[string]*RuntimeRequirement) {
 	if requiresNodeForEngineHarness(workflowData) {
 		nodeRuntime := findRuntimeByID("node")
 		if nodeRuntime != nil {
 			updateRequiredRuntime(nodeRuntime, string(constants.DefaultNodeVersion), requirements)
 		}
 	}
+}
 
-	// Detect runtimes required by LSP server configurations.
-	// Each known LSP server declares the runtime it needs (e.g. "go" for gopls,
-	// "ruby" for solargraph). Feeding these through the runtime manager ensures
-	// the runtime is set up via a properly SHA-pinned setup action rather than
-	// relying on whatever version happens to be pre-installed on the runner.
-	if len(workflowData.LSP) > 0 {
-		detectFromLSPServers(workflowData.LSP, requirements)
-	}
-
-	// Apply runtime overrides from frontmatter
-	if workflowData.Runtimes != nil {
-		applyRuntimeOverrides(workflowData.Runtimes, requirements)
-	}
-
-	// Add Python as dependency when uv is detected (uv requires Python)
+func ensureUVPythonRuntime(requirements map[string]*RuntimeRequirement) {
 	if _, hasUV := requirements["uv"]; hasUV {
 		if _, hasPython := requirements["python"]; !hasPython {
 			runtimeSetupLog.Print("UV detected without Python, automatically adding Python runtime")
@@ -107,20 +100,14 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 			}
 		}
 	}
+}
 
-	// NOTE: We intentionally DO NOT filter out runtimes that already have setup actions.
-	// Instead, we will deduplicate the setup actions from CustomSteps in the compiler.
-	// This ensures runtime setup steps are always added BEFORE custom steps.
-	// The deduplication happens in compiler_yaml.go to remove duplicate setup actions from custom steps.
-
-	// Convert map to sorted slice (alphabetically by runtime ID)
+func sortedRuntimeRequirements(requirements map[string]*RuntimeRequirement) []RuntimeRequirement {
 	var result []RuntimeRequirement
 	runtimeIDs := sliceutil.SortedKeys(requirements)
-
 	for _, id := range runtimeIDs {
 		result = append(result, *requirements[id])
 	}
-
 	if runtimeSetupLog.Enabled() {
 		runtimeSetupLog.Printf("Detected %d runtime requirements: %v", len(result), runtimeIDs)
 	}

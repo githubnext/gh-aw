@@ -780,35 +780,15 @@ func printExperimentDetails(d *ExperimentDetails) {
 	fmt.Fprintf(os.Stderr, "  Branch:     %s\n", d.Branch)
 	fmt.Fprintf(os.Stderr, "  Total runs: %d\n", d.TotalRuns)
 
+	printExperimentDetailsExperiments(d)
+	printExperimentAnalyses(d.Analyses)
+	printExperimentDetailsRecentRuns(d)
+}
+
+func printExperimentDetailsExperiments(d *ExperimentDetails) {
 	if len(d.Experiments) > 0 {
 		for _, exp := range d.Experiments {
-			// Sort variants for deterministic display.
-			type kv struct {
-				k string
-				v int
-			}
-			pairs := make([]kv, 0, len(exp.Variants))
-			for k, v := range exp.Variants {
-				pairs = append(pairs, kv{k, v})
-			}
-			slices.SortFunc(pairs, func(a, b kv) int {
-				switch {
-				case a.k < b.k:
-					return -1
-				case a.k > b.k:
-					return 1
-				default:
-					return 0
-				}
-			})
-			rows := make([][]string, 0, len(pairs))
-			for _, p := range pairs {
-				pct := 0
-				if exp.Total > 0 {
-					pct = p.v * 100 / exp.Total
-				}
-				rows = append(rows, []string{p.k, strconv.Itoa(p.v), strconv.Itoa(pct) + "%"})
-			}
+			rows := printExperimentDetailsVariantRows(exp)
 			if len(rows) > 0 {
 				fmt.Fprintf(os.Stderr, "\n%s", console.RenderTable(console.TableConfig{
 					Title:   fmt.Sprintf("%s (total: %d)", exp.Name, exp.Total),
@@ -821,9 +801,40 @@ func printExperimentDetails(d *ExperimentDetails) {
 	} else {
 		fmt.Fprintln(os.Stderr, "\nNo experiment data found (state.json not present or empty).")
 	}
+}
 
-	printExperimentAnalyses(d.Analyses)
+func printExperimentDetailsVariantRows(exp ExperimentVariantStats) [][]string {
+	// Sort variants for deterministic display.
+	type kv struct {
+		k string
+		v int
+	}
+	pairs := make([]kv, 0, len(exp.Variants))
+	for k, v := range exp.Variants {
+		pairs = append(pairs, kv{k, v})
+	}
+	slices.SortFunc(pairs, func(a, b kv) int {
+		switch {
+		case a.k < b.k:
+			return -1
+		case a.k > b.k:
+			return 1
+		default:
+			return 0
+		}
+	})
+	rows := make([][]string, 0, len(pairs))
+	for _, p := range pairs {
+		pct := 0
+		if exp.Total > 0 {
+			pct = p.v * 100 / exp.Total
+		}
+		rows = append(rows, []string{p.k, strconv.Itoa(p.v), strconv.Itoa(pct) + "%"})
+	}
+	return rows
+}
 
+func printExperimentDetailsRecentRuns(d *ExperimentDetails) {
 	if len(d.RecentRuns) > 0 {
 		rows := make([][]string, 0, len(d.RecentRuns))
 		for _, run := range d.RecentRuns {

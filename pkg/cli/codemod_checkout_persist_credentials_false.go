@@ -8,6 +8,21 @@ import (
 
 var checkoutPersistCredentialsFalseCodemodLog = logger.New("cli:codemod_checkout_persist_credentials_false")
 
+type checkoutPersistCredentialsBlock struct {
+	start  int
+	end    int
+	indent string
+}
+
+type checkoutPersistCredentialsStepScan struct {
+	usesIdx    int
+	usesIndent string
+	withStart  int
+	withEnd    int
+	withIndent string
+	persistIdx int
+}
+
 // getCheckoutPersistCredentialsFalseCodemod ensures checkout steps set with.persist-credentials: false.
 func getCheckoutPersistCredentialsFalseCodemod() Codemod {
 	return Codemod{
@@ -118,86 +133,90 @@ func transformSectionCheckoutPersistCredentials(lines []string, sectionName stri
 }
 
 func transformAgentJobCheckoutPersistCredentials(lines []string, sectionNames []string) ([]string, bool) {
-	jobsStart := -1
-	jobsIndent := ""
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "jobs:") {
-			jobsStart = i
-			jobsIndent = getIndentation(line)
-			break
-		}
-	}
-	if jobsStart == -1 {
+	jobsBlock, ok := transformAgentJobCheckoutPersistCredentialsFindJobs(lines)
+	if !ok {
 		return lines, false
 	}
 
-	jobsEnd := len(lines) - 1
-	for i := jobsStart + 1; i < len(lines); i++ {
+	jobsLines := lines[jobsBlock.start : jobsBlock.end+1]
+	agentBlock, ok := transformAgentJobCheckoutPersistCredentialsFindAgent(jobsLines, jobsBlock.indent)
+	if !ok {
+		return lines, false
+	}
+
+	agentLines := append([]string(nil), jobsLines[agentBlock.start:agentBlock.end+1]...)
+	agentLines, modified := transformAgentJobCheckoutPersistCredentialsSections(agentLines, sectionNames, agentBlock.indent)
+	if !modified {
+		return lines, false
+	}
+
+	updatedJobsLines := make([]string, 0, len(jobsLines))
+	updatedJobsLines = append(updatedJobsLines, jobsLines[:agentBlock.start]...)
+	updatedJobsLines = append(updatedJobsLines, agentLines...)
+	updatedJobsLines = append(updatedJobsLines, jobsLines[agentBlock.end+1:]...)
+
+	result := make([]string, 0, len(lines))
+	result = append(result, lines[:jobsBlock.start]...)
+	result = append(result, updatedJobsLines...)
+	result = append(result, lines[jobsBlock.end+1:]...)
+	return result, true
+}
+
+func transformAgentJobCheckoutPersistCredentialsFindJobs(lines []string) (checkoutPersistCredentialsBlock, bool) {
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "jobs:") {
+			return checkoutPersistCredentialsBlock{
+				start:  i,
+				end:    transformAgentJobCheckoutPersistCredentialsBlockEnd(lines, i, getIndentation(line)),
+				indent: getIndentation(line),
+			}, true
+		}
+	}
+	return checkoutPersistCredentialsBlock{}, false
+}
+
+func transformAgentJobCheckoutPersistCredentialsBlockEnd(lines []string, start int, indent string) int {
+	end := len(lines) - 1
+	for i := start + 1; i < len(lines); i++ {
 		trimmed := strings.TrimSpace(lines[i])
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
-		if len(getIndentation(lines[i])) <= len(jobsIndent) {
-			jobsEnd = i - 1
-			break
+		if len(getIndentation(lines[i])) <= len(indent) {
+			return i - 1
 		}
 	}
+	return end
+}
 
-	jobsLines := lines[jobsStart : jobsEnd+1]
+func transformAgentJobCheckoutPersistCredentialsFindAgent(jobsLines []string, jobsIndent string) (checkoutPersistCredentialsBlock, bool) {
 	jobsChildIndentLen, hasJobsChild := findDirectChildIndentLen(jobsLines, 0, len(jobsIndent))
 	if !hasJobsChild {
-		return lines, false
+		return checkoutPersistCredentialsBlock{}, false
 	}
-
-	agentStart := -1
-	agentIndent := ""
 	for i, line := range jobsLines {
 		trimmed := strings.TrimSpace(line)
 		indent := getIndentation(line)
 		if len(indent) == jobsChildIndentLen && parseYAMLMapKey(trimmed) == "agent" {
-			agentStart = i
-			agentIndent = indent
-			break
+			return checkoutPersistCredentialsBlock{
+				start:  i,
+				end:    transformAgentJobCheckoutPersistCredentialsBlockEnd(jobsLines, i, indent),
+				indent: indent,
+			}, true
 		}
 	}
-	if agentStart == -1 {
-		return lines, false
-	}
+	return checkoutPersistCredentialsBlock{}, false
+}
 
-	agentEnd := len(jobsLines) - 1
-	for i := agentStart + 1; i < len(jobsLines); i++ {
-		trimmed := strings.TrimSpace(jobsLines[i])
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		if len(getIndentation(jobsLines[i])) <= len(agentIndent) {
-			agentEnd = i - 1
-			break
-		}
-	}
-
-	agentLines := append([]string(nil), jobsLines[agentStart:agentEnd+1]...)
+func transformAgentJobCheckoutPersistCredentialsSections(agentLines []string, sectionNames []string, agentIndent string) ([]string, bool) {
 	modified := false
 	for _, sectionName := range sectionNames {
 		var sectionChanged bool
 		agentLines, sectionChanged = transformNestedSectionCheckoutPersistCredentials(agentLines, sectionName, agentIndent)
 		modified = modified || sectionChanged
 	}
-	if !modified {
-		return lines, false
-	}
-
-	updatedJobsLines := make([]string, 0, len(jobsLines))
-	updatedJobsLines = append(updatedJobsLines, jobsLines[:agentStart]...)
-	updatedJobsLines = append(updatedJobsLines, agentLines...)
-	updatedJobsLines = append(updatedJobsLines, jobsLines[agentEnd+1:]...)
-
-	result := make([]string, 0, len(lines))
-	result = append(result, lines[:jobsStart]...)
-	result = append(result, updatedJobsLines...)
-	result = append(result, lines[jobsEnd+1:]...)
-	return result, true
+	return agentLines, modified
 }
 
 func transformNestedSectionCheckoutPersistCredentials(lines []string, sectionName, parentIndent string) ([]string, bool) {
@@ -306,13 +325,28 @@ func transformCheckoutWithinSection(sectionLines []string, sectionIndent string)
 }
 
 func ensureStepCheckoutPersistCredentials(stepLines []string, stepIndent string) ([]string, bool) {
-	usesIdx := -1
-	usesIndent := ""
-	withStart := -1
-	withEnd := -1
-	withIndent := ""
-	persistIdx := -1
+	scan, skip := ensureStepCheckoutPersistCredentialsScan(stepLines, stepIndent)
+	if skip || scan.usesIdx == -1 {
+		return stepLines, false
+	}
 
+	if scan.persistIdx != -1 {
+		persistLine := strings.TrimSpace(stepLines[scan.persistIdx])
+		if persistExplicitTrue(persistLine) {
+			checkoutPersistCredentialsFalseCodemodLog.Print("Skipping checkout step update: explicit with.persist-credentials: true found")
+		}
+		return stepLines, false
+	}
+
+	if scan.withStart != -1 {
+		return ensureStepCheckoutPersistCredentialsInsertIntoWith(stepLines, scan)
+	}
+
+	return ensureStepCheckoutPersistCredentialsAddWith(stepLines, stepIndent, scan)
+}
+
+func ensureStepCheckoutPersistCredentialsScan(stepLines []string, stepIndent string) (checkoutPersistCredentialsStepScan, bool) {
+	scan := checkoutPersistCredentialsStepScan{usesIdx: -1, withStart: -1, withEnd: -1, persistIdx: -1}
 	for i := range stepLines {
 		line := stepLines[i]
 		trimmed := strings.TrimSpace(line)
@@ -320,65 +354,59 @@ func ensureStepCheckoutPersistCredentials(stepLines []string, stepIndent string)
 
 		usesMatch, usesValue, _ := parseStepKeyLine(trimmed, indent, stepIndent, "uses")
 		if usesMatch && isCheckoutUsesValue(usesValue) {
-			usesIdx = i
-			isUsesInline := strings.HasPrefix(trimmed, "- uses:") && len(indent) == len(stepIndent)
-			if isUsesInline {
-				usesIndent = stepIndent + "  "
-			} else {
-				usesIndent = indent
+			scan.usesIdx = i
+			scan.usesIndent = indent
+			if strings.HasPrefix(trimmed, "- uses:") && len(indent) == len(stepIndent) {
+				scan.usesIndent = stepIndent + "  "
 			}
 		}
 
 		withMatch, withValue, currentWithKeyIndentLen := parseStepKeyLine(trimmed, indent, stepIndent, "with")
+		if withMatch && withValue != "" && hasPersistKey(withValue) {
+			if persistExplicitTrue(withValue) {
+				checkoutPersistCredentialsFalseCodemodLog.Print("Skipping checkout step update: explicit with.persist-credentials: true found")
+			}
+			return scan, true
+		}
 		if withMatch {
-			if withValue != "" && hasPersistKey(withValue) {
-				if persistExplicitTrue(withValue) {
-					checkoutPersistCredentialsFalseCodemodLog.Print("Skipping checkout step update: explicit with.persist-credentials: true found")
-				}
-				return stepLines, false
-			}
-			withStart = i
-			withEnd = i
-			withIndent = indent
-			withKeyIndentLen := currentWithKeyIndentLen
-			for j := i + 1; j < len(stepLines); j++ {
-				t := strings.TrimSpace(stepLines[j])
-				if t == "" {
-					withEnd = j
-					continue
-				}
-				if effectiveStepLineIndentLen(t, getIndentation(stepLines[j]), stepIndent) <= withKeyIndentLen {
-					break
-				}
-				withEnd = j
-				if parseYAMLMapKey(t) == "persist-credentials" {
-					persistIdx = j
-				}
-			}
+			scan.withStart = i
+			scan.withEnd = i
+			scan.withIndent = indent
+			scan = ensureStepCheckoutPersistCredentialsScanWithBlock(stepLines, stepIndent, i, currentWithKeyIndentLen, scan)
 		}
 	}
+	return scan, false
+}
 
-	if usesIdx == -1 {
-		return stepLines, false
-	}
-
-	if persistIdx != -1 {
-		persistLine := strings.TrimSpace(stepLines[persistIdx])
-		if persistExplicitTrue(persistLine) {
-			checkoutPersistCredentialsFalseCodemodLog.Print("Skipping checkout step update: explicit with.persist-credentials: true found")
+func ensureStepCheckoutPersistCredentialsScanWithBlock(stepLines []string, stepIndent string, start int, withKeyIndentLen int, scan checkoutPersistCredentialsStepScan) checkoutPersistCredentialsStepScan {
+	for j := start + 1; j < len(stepLines); j++ {
+		t := strings.TrimSpace(stepLines[j])
+		if t == "" {
+			scan.withEnd = j
+			continue
 		}
-		return stepLines, false
+		if effectiveStepLineIndentLen(t, getIndentation(stepLines[j]), stepIndent) <= withKeyIndentLen {
+			break
+		}
+		scan.withEnd = j
+		if parseYAMLMapKey(t) == "persist-credentials" {
+			scan.persistIdx = j
+		}
 	}
+	return scan
+}
 
-	if withStart != -1 {
-		insertAt := withEnd + 1
-		insertLine := withIndent + "  persist-credentials: false"
-		updated := append([]string{}, stepLines[:insertAt]...)
-		updated = append(updated, insertLine)
-		updated = append(updated, stepLines[insertAt:]...)
-		return updated, true
-	}
+func ensureStepCheckoutPersistCredentialsInsertIntoWith(stepLines []string, scan checkoutPersistCredentialsStepScan) ([]string, bool) {
+	insertAt := scan.withEnd + 1
+	insertLine := scan.withIndent + "  persist-credentials: false"
+	updated := append([]string{}, stepLines[:insertAt]...)
+	updated = append(updated, insertLine)
+	updated = append(updated, stepLines[insertAt:]...)
+	return updated, true
+}
 
+func ensureStepCheckoutPersistCredentialsAddWith(stepLines []string, stepIndent string, scan checkoutPersistCredentialsStepScan) ([]string, bool) {
+	usesIndent := scan.usesIndent
 	if usesIndent == "" {
 		usesIndent = stepIndent + "  "
 	}
@@ -386,7 +414,7 @@ func ensureStepCheckoutPersistCredentials(stepLines []string, stepIndent string)
 		usesIndent + "with:",
 		usesIndent + "  persist-credentials: false",
 	}
-	insertAt := usesIdx + 1
+	insertAt := scan.usesIdx + 1
 	updated := append([]string{}, stepLines[:insertAt]...)
 	updated = append(updated, insertLines...)
 	updated = append(updated, stepLines[insertAt:]...)

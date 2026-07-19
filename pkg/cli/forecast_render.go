@@ -34,69 +34,83 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 	fmt.Fprintln(os.Stderr, "")
 
 	anyUnreliable := false
-	var totalWeeklyP50, totalMonthlyP50 float64
-	rows := make([]forecastTableRow, 0, len(output.Workflows)+1)
-	for _, wf := range output.Workflows {
-		unreliableMark := ""
-
-		weeklyP50 := wf.WeeklyProjectedAIC
-		if mc := wf.WeeklyMonteCarlo; mc != nil {
-			weeklyP50 = mc.P50ProjectedAIC
-			if !mc.IsReliable {
-				anyUnreliable = true
-				unreliableMark = "*"
-			}
-		}
-		monthlyP50 := wf.MonthlyProjectedAIC
-		if mc := wf.MonthlyMonteCarlo; mc != nil {
-			monthlyP50 = mc.P50ProjectedAIC
-		}
-		totalWeeklyP50 += weeklyP50
-		totalMonthlyP50 += monthlyP50
-
-		row := forecastTableRow{
-			Workflow:    wf.WorkflowID + unreliableMark,
-			Engines:     formatEngineList(wf.Engines),
-			Runs:        wf.SampledRuns,
-			P50PerRun:   formatForecastAIC(wf.P50AIC),
-			P95PerRun:   formatForecastAIC(wf.P95AIC),
-			WeeklyP50:   formatForecastAIC(weeklyP50),
-			MonthlyP50:  formatForecastAIC(monthlyP50),
-			SuccessRate: formatForecastPercent(wf.SuccessRate, wf.SampledRuns > 0),
-			Triggers:    formatTriggerList(wf.ActiveTriggers),
-		}
-		rows = append(rows, row)
-	}
+	rows, totalWeeklyP50, totalMonthlyP50, anyUnreliable := renderForecastTableRows(output.Workflows)
 
 	forecastRenderLog.Printf("Forecast aggregates: total_weekly_p50=%.3f, total_monthly_p50=%.3f, any_unreliable=%v", totalWeeklyP50, totalMonthlyP50, anyUnreliable)
 
 	// Append a totals row when more than one workflow is present.
-	if len(output.Workflows) > 1 {
-		rows = append(rows, forecastTableRow{
-			Workflow:   "TOTAL",
-			WeeklyP50:  formatForecastAIC(totalWeeklyP50),
-			MonthlyP50: formatForecastAIC(totalMonthlyP50),
-		})
-	}
+	rows = renderForecastTableAppendTotal(rows, len(output.Workflows), totalWeeklyP50, totalMonthlyP50)
 
 	fmt.Fprint(os.Stderr, console.RenderStruct(rows))
 	fmt.Fprintln(os.Stderr, "")
 
-	// Show detailed per-run samples section.
-	printRunSamplesSection(output.Workflows)
+	renderForecastTableDetails(output, anyUnreliable)
+	return nil
+}
 
-	// Show experiment variant details when present.
+func renderForecastTableRows(workflows []ForecastWorkflowResult) ([]forecastTableRow, float64, float64, bool) {
+	anyUnreliable := false
+	var totalWeeklyP50, totalMonthlyP50 float64
+	rows := make([]forecastTableRow, 0, len(workflows)+1)
+	for _, wf := range workflows {
+		row, weeklyP50, monthlyP50, unreliable := renderForecastTableRow(wf)
+		anyUnreliable = anyUnreliable || unreliable
+		totalWeeklyP50 += weeklyP50
+		totalMonthlyP50 += monthlyP50
+		rows = append(rows, row)
+	}
+	return rows, totalWeeklyP50, totalMonthlyP50, anyUnreliable
+}
+
+func renderForecastTableRow(wf ForecastWorkflowResult) (forecastTableRow, float64, float64, bool) {
+	unreliableMark := ""
+	weeklyP50 := wf.WeeklyProjectedAIC
+	unreliable := false
+	if mc := wf.WeeklyMonteCarlo; mc != nil {
+		weeklyP50 = mc.P50ProjectedAIC
+		if !mc.IsReliable {
+			unreliable = true
+			unreliableMark = "*"
+		}
+	}
+	monthlyP50 := wf.MonthlyProjectedAIC
+	if mc := wf.MonthlyMonteCarlo; mc != nil {
+		monthlyP50 = mc.P50ProjectedAIC
+	}
+	return forecastTableRow{
+		Workflow:    wf.WorkflowID + unreliableMark,
+		Engines:     formatEngineList(wf.Engines),
+		Runs:        wf.SampledRuns,
+		P50PerRun:   formatForecastAIC(wf.P50AIC),
+		P95PerRun:   formatForecastAIC(wf.P95AIC),
+		WeeklyP50:   formatForecastAIC(weeklyP50),
+		MonthlyP50:  formatForecastAIC(monthlyP50),
+		SuccessRate: formatForecastPercent(wf.SuccessRate, wf.SampledRuns > 0),
+		Triggers:    formatTriggerList(wf.ActiveTriggers),
+	}, weeklyP50, monthlyP50, unreliable
+}
+
+func renderForecastTableAppendTotal(rows []forecastTableRow, workflowCount int, totalWeeklyP50, totalMonthlyP50 float64) []forecastTableRow {
+	if workflowCount <= 1 {
+		return rows
+	}
+	return append(rows, forecastTableRow{
+		Workflow:   "TOTAL",
+		WeeklyP50:  formatForecastAIC(totalWeeklyP50),
+		MonthlyP50: formatForecastAIC(totalMonthlyP50),
+	})
+}
+
+func renderForecastTableDetails(output ForecastResult, anyUnreliable bool) {
+	printRunSamplesSection(output.Workflows)
 	for _, wf := range output.Workflows {
 		if len(wf.ExperimentVariants) > 0 {
 			printVariantBreakdown(wf)
 		}
 	}
-
-	// Show backtesting evaluation table in --eval mode.
 	if output.EvalMode {
 		printEvalBreakdown(output.Workflows)
 	}
-
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 		fmt.Sprintf("P50/Run = per-run median AIC; P95/Run = 95th-percentile per-run AIC; Weekly/Monthly = projected P50 from %d-trial Monte Carlo simulation.", monteCarloIterations)))
 	if anyUnreliable {
@@ -105,7 +119,6 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 	}
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 		fmt.Sprintf("Run '%s forecast --json' for full Monte Carlo output including P10/P90 confidence intervals.", string(constants.CLIExtensionPrefix))))
-	return nil
 }
 
 // printRunSamplesSection prints a detailed table of the sampled runs used in the forecast,

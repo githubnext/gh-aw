@@ -77,15 +77,7 @@ func getWorkflowDispatchRequiredFalseCodemod() Codemod {
 func rewriteWorkflowDispatchRequiredFalse(lines []string) ([]string, bool) {
 	result := make([]string, 0, len(lines))
 	modified := false
-
-	inOn := false
-	onIndent := ""
-	inWD := false
-	wdIndent := ""
-	inInputs := false
-	inputsIndent := ""
-	inInputEntry := false
-	inputEntryIndent := ""
+	state := rewriteWorkflowDispatchRequiredFalseState{}
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -97,97 +89,148 @@ func rewriteWorkflowDispatchRequiredFalse(lines []string) ([]string, bool) {
 			continue
 		}
 
-		// Exit deeper states first (order matters: deepest → shallowest).
-		if inInputEntry && len(indent) <= len(inputEntryIndent) {
-			inInputEntry = false
-		}
-		if inInputs && len(indent) <= len(inputsIndent) {
-			inInputs = false
-			inInputEntry = false
-		}
-		if inWD && len(indent) <= len(wdIndent) {
-			inWD = false
-			inInputs = false
-			inInputEntry = false
-		}
-		if inOn && len(indent) <= len(onIndent) {
-			inOn = false
-			inWD = false
-			inInputs = false
-			inInputEntry = false
-		}
+		rewriteWorkflowDispatchRequiredFalseExitBlocks(indent, &state)
 
 		// Enter on: block.
 		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "on:") {
-			inOn = true
-			onIndent = indent
+			state.inOn = true
+			state.onIndent = indent
 			result = append(result, line)
 			continue
 		}
 
-		// Enter workflow_dispatch: within on:.
-		if inOn && !inWD && strings.HasPrefix(trimmed, "workflow_dispatch:") {
-			inWD = true
-			wdIndent = indent
+		if rewriteWorkflowDispatchRequiredFalseEnterWorkflowDispatch(trimmed, indent, &state) {
 			result = append(result, line)
 			continue
 		}
 
-		// Enter inputs: within workflow_dispatch: (allow trailing comments).
-		if inWD && !inInputs && strings.HasPrefix(trimmed, "inputs:") {
-			remainder := strings.TrimSpace(strings.TrimPrefix(trimmed, "inputs:"))
-			if remainder == "" || strings.HasPrefix(remainder, "#") {
-				inInputs = true
-				inputsIndent = indent
-				result = append(result, line)
-				continue
-			}
-		}
-
-		// Handle inline inputs maps (for example: "inputs: { pr_number: { required: true } }").
-		if inWD && strings.HasPrefix(trimmed, "inputs:") && strings.Contains(trimmed, "required: true") {
-			newLine := strings.ReplaceAll(line, "required: true", "required: false")
-			if newLine != line {
-				result = append(result, newLine)
-				modified = true
-				workflowDispatchRequiredLog.Print("Rewrote inline workflow_dispatch input required: true to required: false")
-				continue
-			}
-		}
-
-		// Enter an individual input entry and handle inline input maps
-		// (for example: "pr_number: { required: true }").
-		if inInputs && !inInputEntry && len(indent) > len(inputsIndent) {
-			if strings.Contains(trimmed, "{") && strings.Contains(trimmed, "required: true") {
-				newLine := strings.ReplaceAll(line, "required: true", "required: false")
-				if newLine != line {
-					result = append(result, newLine)
-					modified = true
-					workflowDispatchRequiredLog.Print("Rewrote inline input entry required: true to required: false")
-					continue
-				}
-			}
-			inInputEntry = true
-			inputEntryIndent = indent
+		if rewriteWorkflowDispatchRequiredFalseEnterInputs(trimmed, indent, &state) {
 			result = append(result, line)
 			continue
 		}
 
-		// Within an input entry's properties: rewrite "required: true" → "required: false".
-		if inInputEntry && len(indent) > len(inputEntryIndent) {
-			if strings.HasPrefix(trimmed, "required: true") {
-				newLine := strings.Replace(line, "required: true", "required: false", 1)
-				if newLine != line {
-					result = append(result, newLine)
-					modified = true
-					workflowDispatchRequiredLog.Print("Rewrote workflow_dispatch input required: true to required: false")
-					continue
-				}
-			}
+		if newLine, replaced := rewriteWorkflowDispatchRequiredFalseInlineInputs(line, trimmed, &state); replaced {
+			result = append(result, newLine)
+			modified = true
+			continue
+		}
+
+		newLine, handled, changed := rewriteWorkflowDispatchRequiredFalseInputEntry(line, trimmed, indent, &state)
+		if handled {
+			result = append(result, newLine)
+			modified = modified || changed
+			continue
+		}
+
+		if newLine, replaced := rewriteWorkflowDispatchRequiredFalseInputRequired(line, trimmed, indent, &state); replaced {
+			result = append(result, newLine)
+			modified = true
+			continue
 		}
 
 		result = append(result, line)
 	}
 
 	return result, modified
+}
+
+type rewriteWorkflowDispatchRequiredFalseState struct {
+	inOn             bool
+	onIndent         string
+	inWD             bool
+	wdIndent         string
+	inInputs         bool
+	inputsIndent     string
+	inInputEntry     bool
+	inputEntryIndent string
+}
+
+func rewriteWorkflowDispatchRequiredFalseExitBlocks(indent string, state *rewriteWorkflowDispatchRequiredFalseState) {
+	// Exit deeper states first (order matters: deepest → shallowest).
+	if state.inInputEntry && len(indent) <= len(state.inputEntryIndent) {
+		state.inInputEntry = false
+	}
+	if state.inInputs && len(indent) <= len(state.inputsIndent) {
+		state.inInputs = false
+		state.inInputEntry = false
+	}
+	if state.inWD && len(indent) <= len(state.wdIndent) {
+		state.inWD = false
+		state.inInputs = false
+		state.inInputEntry = false
+	}
+	if state.inOn && len(indent) <= len(state.onIndent) {
+		state.inOn = false
+		state.inWD = false
+		state.inInputs = false
+		state.inInputEntry = false
+	}
+}
+
+func rewriteWorkflowDispatchRequiredFalseEnterWorkflowDispatch(trimmed, indent string, state *rewriteWorkflowDispatchRequiredFalseState) bool {
+	// Enter workflow_dispatch: within on:.
+	if !state.inOn || state.inWD || !strings.HasPrefix(trimmed, "workflow_dispatch:") {
+		return false
+	}
+	state.inWD = true
+	state.wdIndent = indent
+	return true
+}
+
+func rewriteWorkflowDispatchRequiredFalseEnterInputs(trimmed, indent string, state *rewriteWorkflowDispatchRequiredFalseState) bool {
+	// Enter inputs: within workflow_dispatch: (allow trailing comments).
+	if !state.inWD || state.inInputs || !strings.HasPrefix(trimmed, "inputs:") {
+		return false
+	}
+	remainder := strings.TrimSpace(strings.TrimPrefix(trimmed, "inputs:"))
+	if remainder != "" && !strings.HasPrefix(remainder, "#") {
+		return false
+	}
+	state.inInputs = true
+	state.inputsIndent = indent
+	return true
+}
+
+func rewriteWorkflowDispatchRequiredFalseInlineInputs(line, trimmed string, state *rewriteWorkflowDispatchRequiredFalseState) (string, bool) {
+	// Handle inline inputs maps (for example: "inputs: { pr_number: { required: true } }").
+	if !state.inWD || !strings.HasPrefix(trimmed, "inputs:") || !strings.Contains(trimmed, "required: true") {
+		return "", false
+	}
+	newLine := strings.ReplaceAll(line, "required: true", "required: false")
+	if newLine == line {
+		return "", false
+	}
+	workflowDispatchRequiredLog.Print("Rewrote inline workflow_dispatch input required: true to required: false")
+	return newLine, true
+}
+
+func rewriteWorkflowDispatchRequiredFalseInputEntry(line, trimmed, indent string, state *rewriteWorkflowDispatchRequiredFalseState) (string, bool, bool) {
+	// Enter an individual input entry and handle inline input maps
+	// (for example: "pr_number: { required: true }").
+	if !state.inInputs || state.inInputEntry || len(indent) <= len(state.inputsIndent) {
+		return "", false, false
+	}
+	if strings.Contains(trimmed, "{") && strings.Contains(trimmed, "required: true") {
+		newLine := strings.ReplaceAll(line, "required: true", "required: false")
+		if newLine != line {
+			workflowDispatchRequiredLog.Print("Rewrote inline input entry required: true to required: false")
+			return newLine, true, true
+		}
+	}
+	state.inInputEntry = true
+	state.inputEntryIndent = indent
+	return line, true, false
+}
+
+func rewriteWorkflowDispatchRequiredFalseInputRequired(line, trimmed, indent string, state *rewriteWorkflowDispatchRequiredFalseState) (string, bool) {
+	// Within an input entry's properties: rewrite "required: true" → "required: false".
+	if !state.inInputEntry || len(indent) <= len(state.inputEntryIndent) || !strings.HasPrefix(trimmed, "required: true") {
+		return "", false
+	}
+	newLine := strings.Replace(line, "required: true", "required: false", 1)
+	if newLine == line {
+		return "", false
+	}
+	workflowDispatchRequiredLog.Print("Rewrote workflow_dispatch input required: true to required: false")
+	return newLine, true
 }

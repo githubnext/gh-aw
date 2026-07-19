@@ -58,7 +58,15 @@ func removeConsecutiveEmptyLines(content string) string {
 func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 	var sections []PromptSection
 
-	// 0. XPia instructions (unless disabled by feature flag)
+	sections = appendBasePromptSections(sections, data)
+	sections = c.appendOptionalContextPromptSections(sections, data)
+	sections = appendSafeOutputPromptSections(sections, data)
+	sections = appendGitHubContextPromptSection(sections, data)
+	sections = appendGitHubToolGuidanceSection(sections, data)
+	return c.appendPRContextPromptSections(sections, data)
+}
+
+func appendBasePromptSections(sections []PromptSection, data *WorkflowData) []PromptSection {
 	if !isFeatureEnabled(constants.DisableXPIAPromptFeatureFlag, data) {
 		unifiedPromptLog.Print("Adding XPIA section")
 		sections = append(sections, PromptSection{
@@ -69,21 +77,18 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		unifiedPromptLog.Print("XPIA section disabled by feature flag")
 	}
 
-	// 1. Temporary folder instructions (always included)
 	unifiedPromptLog.Print("Adding temp folder section")
 	sections = append(sections, PromptSection{
 		Content: tempFolderPromptFile,
 		IsFile:  true,
 	})
 
-	// 2. Markdown generation instructions (always included)
 	unifiedPromptLog.Print("Adding markdown section")
 	sections = append(sections, PromptSection{
 		Content: markdownPromptFile,
 		IsFile:  true,
 	})
 
-	// 3. Playwright instructions (if playwright tool is enabled)
 	if hasPlaywrightTool(data.ParsedTools) {
 		unifiedPromptLog.Print("Adding playwright section")
 		sections = append(sections, PromptSection{
@@ -91,8 +96,10 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 			IsFile:  true,
 		})
 	}
+	return sections
+}
 
-	// 4. Trial mode note (if in trial mode)
+func (c *Compiler) appendOptionalContextPromptSections(sections []PromptSection, data *WorkflowData) []PromptSection {
 	if c.trialMode {
 		unifiedPromptLog.Print("Adding trial mode section")
 		trialContent := fmt.Sprintf("## Note\nThis workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.", c.trialLogicalRepoSlug)
@@ -102,7 +109,6 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		})
 	}
 
-	// 6. Cache memory instructions (if enabled)
 	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
 		unifiedPromptLog.Printf("Adding cache memory section: caches=%d", len(data.CacheMemoryConfig.Caches))
 		section := buildCacheMemoryPromptSection(data.CacheMemoryConfig)
@@ -111,7 +117,6 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		}
 	}
 
-	// 7. Repo memory instructions (if enabled)
 	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
 		unifiedPromptLog.Printf("Adding repo memory section: memories=%d", len(data.RepoMemoryConfig.Memories))
 		section := buildRepoMemoryPromptSection(data.RepoMemoryConfig)
@@ -119,69 +124,65 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 			sections = append(sections, *section)
 		}
 	}
-
-	// 8. Safe outputs instructions (if enabled)
-	if HasSafeOutputsEnabled(data.SafeOutputs) {
-		unifiedPromptLog.Print("Adding safe outputs section")
-		// Static intro from file (gh CLI warning, temporary ID rules, noop note)
-		sections = append(sections, PromptSection{
-			Content: safeOutputsPromptFile,
-			IsFile:  true,
-		})
-		// Per-tool sections: opening tag + tools list (inline), tool instruction files, closing tag
-		sections = append(sections, buildSafeOutputsSections(data.SafeOutputs)...)
-	}
-
-	// 8a. MCP CLI tools instructions (if any MCP servers are mounted as CLIs)
 	if section := buildMCPCLIPromptSection(data); section != nil {
 		unifiedPromptLog.Printf("Adding MCP CLI tools section: servers=%v", getMCPCLIServerNames(data))
 		sections = append(sections, *section)
 	}
+	return sections
+}
 
-	// 9. GitHub context (if GitHub tool is enabled)
-	if hasGitHubTool(data.ParsedTools) {
-		unifiedPromptLog.Print("Adding GitHub context section")
+func appendSafeOutputPromptSections(sections []PromptSection, data *WorkflowData) []PromptSection {
+	if HasSafeOutputsEnabled(data.SafeOutputs) {
+		unifiedPromptLog.Print("Adding safe outputs section")
+		sections = append(sections, PromptSection{
+			Content: safeOutputsPromptFile,
+			IsFile:  true,
+		})
+		sections = append(sections, buildSafeOutputsSections(data.SafeOutputs)...)
+	}
+	return sections
+}
 
-		// Build the combined prompt text: base github context + optional checkout list.
-		// The checkout list may contain ${{ github.repository }} which must go through
-		// the expression extractor so the placeholder substitution step can resolve it.
-		combinedPromptText := githubContextPromptText
-		if checkoutsContent := buildCheckoutsPromptContent(data.CheckoutConfigs); checkoutsContent != "" {
-			unifiedPromptLog.Printf("Injecting checkout list into GitHub context (%d checkouts)", len(data.CheckoutConfigs))
-			const closeTag = "</github-context>"
-			if idx := strings.LastIndex(combinedPromptText, closeTag); idx >= 0 {
-				combinedPromptText = combinedPromptText[:idx] + checkoutsContent + combinedPromptText[idx:]
-			} else {
-				combinedPromptText += "\n" + checkoutsContent
-			}
-		}
+func appendGitHubContextPromptSection(sections []PromptSection, data *WorkflowData) []PromptSection {
+	if !hasGitHubTool(data.ParsedTools) {
+		return sections
+	}
+	unifiedPromptLog.Print("Adding GitHub context section")
 
-		// Extract expressions from the combined content (includes any new expressions
-		// introduced by the checkout list, e.g. ${{ github.repository }}).
-		extractor := NewExpressionExtractor()
-		expressionMappings, err := extractor.ExtractExpressions(combinedPromptText)
-		if err == nil && len(expressionMappings) > 0 {
-			modifiedPromptText := extractor.ReplaceExpressionsWithEnvVars(combinedPromptText)
-
-			// Build environment variables map
-			envVars := make(map[string]string)
-			for _, mapping := range expressionMappings {
-				envVars[mapping.EnvVar] = fmt.Sprintf("${{ %s }}", mapping.Content)
-			}
-
-			sections = append(sections, PromptSection{
-				Content: modifiedPromptText,
-				IsFile:  false,
-				EnvVars: envVars,
-			})
-		}
+	combinedPromptText := githubContextPromptText
+	if checkoutsContent := buildCheckoutsPromptContent(data.CheckoutConfigs); checkoutsContent != "" {
+		unifiedPromptLog.Printf("Injecting checkout list into GitHub context (%d checkouts)", len(data.CheckoutConfigs))
+		combinedPromptText = insertBeforeClosingTag(combinedPromptText, "</github-context>", checkoutsContent)
 	}
 
-	// 10. GitHub tool-use guidance: directs the model to the correct mechanism for
-	// GitHub reads (and writes when safe-outputs is also enabled).
-	// When GitHub mode is gh-proxy, the agent uses the pre-authenticated gh CLI for reads
-	// instead of a GitHub MCP server (which is not registered). Otherwise, the GitHub
-	// MCP server is used for reads.
+	extractor := NewExpressionExtractor()
+	expressionMappings, err := extractor.ExtractExpressions(combinedPromptText)
+	if err == nil && len(expressionMappings) > 0 {
+		sections = append(sections, buildPromptSectionWithExpressionEnv(extractor, combinedPromptText, expressionMappings))
+	}
+	return sections
+}
+
+func insertBeforeClosingTag(content, closeTag, inserted string) string {
+	if idx := strings.LastIndex(content, closeTag); idx >= 0 {
+		return content[:idx] + inserted + content[idx:]
+	}
+	return content + "\n" + inserted
+}
+
+func buildPromptSectionWithExpressionEnv(extractor *ExpressionExtractor, content string, mappings []*ExpressionMapping) PromptSection {
+	envVars := make(map[string]string)
+	for _, mapping := range mappings {
+		envVars[mapping.EnvVar] = fmt.Sprintf("${{ %s }}", mapping.Content)
+	}
+	return PromptSection{
+		Content: extractor.ReplaceExpressionsWithEnvVars(content),
+		IsFile:  false,
+		EnvVars: envVars,
+	}
+}
+
+func appendGitHubToolGuidanceSection(sections []PromptSection, data *WorkflowData) []PromptSection {
 	if isGitHubCLIModeEnabled(data) {
 		unifiedPromptLog.Print("Adding cli-proxy tool-use guidance (gh CLI for reads, no GitHub MCP server)")
 		cliProxyFile := cliProxyPromptFile
@@ -207,8 +208,10 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 			IsFile:  true,
 		})
 	}
+	return sections
+}
 
-	// 11. PR context (if comment-related triggers and checkout is needed)
+func (c *Compiler) appendPRContextPromptSections(sections []PromptSection, data *WorkflowData) []PromptSection {
 	hasCommentTriggers := c.hasCommentRelatedTriggers(data)
 	needsCheckout := c.shouldAddCheckoutStep(data)
 	var hasContentsRead bool
@@ -267,8 +270,20 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	unifiedPromptLog.Print("Generating unified prompt creation step")
 	unifiedPromptLog.Printf("Built-in sections: %d, User prompt chunks: %d", len(builtinSections), len(userPromptChunks))
 
-	// Derive the heredoc delimiter from the combined prompt content so it is identical
-	// across builds for the same workflow and changes only when the prompt text changes.
+	delimiter := unifiedPromptDelimiter(builtinSections, userPromptChunks)
+	allEnvVars, allExpressionMappings := collectUnifiedPromptEnvAndMappings(builtinSections, expressionMappings)
+
+	writeUnifiedPromptStepHeader(yaml, allEnvVars, data)
+	inHeredoc := writeBuiltinPromptSections(yaml, builtinSections, delimiter)
+	inHeredoc = closeBuiltinSystemTag(yaml, delimiter, builtinSections, inHeredoc)
+	inHeredoc = writeUserPromptChunks(yaml, userPromptChunks, delimiter, inHeredoc)
+	closeUnifiedPromptHeredoc(yaml, delimiter, inHeredoc)
+
+	unifiedPromptLog.Print("Unified prompt creation step generated successfully")
+	return allExpressionMappings
+}
+
+func unifiedPromptDelimiter(builtinSections []PromptSection, userPromptChunks []string) string {
 	var promptContentForHash strings.Builder
 	for _, section := range builtinSections {
 		promptContentForHash.WriteString(section.Content)
@@ -276,253 +291,204 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	for _, chunk := range userPromptChunks {
 		promptContentForHash.WriteString(chunk)
 	}
-	delimiter := GenerateHeredocDelimiterFromContent("PROMPT", promptContentForHash.String())
+	return GenerateHeredocDelimiterFromContent("PROMPT", promptContentForHash.String())
+}
 
-	// Collect all environment variables from built-in sections and user prompt expressions
+func collectUnifiedPromptEnvAndMappings(
+	builtinSections []PromptSection,
+	expressionMappings []*ExpressionMapping,
+) (map[string]string, []*ExpressionMapping) {
 	allEnvVars := make(map[string]string)
-
-	// Also collect all expression mappings for the substitution step (using a map to avoid duplicates)
 	expressionMappingsMap := make(map[string]*ExpressionMapping)
-
-	// Add environment variables and expression mappings from built-in sections
 	for _, section := range builtinSections {
-		for key, value := range section.EnvVars {
-			// Extract the GitHub expression from the value (e.g., "${{ github.repository }}" -> "github.repository")
-			// This is needed for the substitution step
-			if strings.HasPrefix(value, "${{ ") && strings.HasSuffix(value, " }}") {
-				content := strings.TrimSpace(value[4 : len(value)-3])
-				// Add to both allEnvVars (for prompt creation step) and expressionMappingsMap (for substitution step)
-				allEnvVars[key] = value
-				// Only add if not already present (user prompt expressions take precedence)
-				if _, exists := expressionMappingsMap[key]; !exists {
-					expressionMappingsMap[key] = &ExpressionMapping{
-						EnvVar:  key,
-						Content: content,
-					}
-				}
-			} else {
-				// For static values (not GitHub Actions expressions), only add to expressionMappingsMap
-				// This ensures they're only available in the substitution step, not the prompt creation step
-				if _, exists := expressionMappingsMap[key]; !exists {
-					expressionMappingsMap[key] = &ExpressionMapping{
-						EnvVar:  key,
-						Content: fmt.Sprintf("'%s'", value), // Wrap in quotes for substitution
-					}
-				}
-			}
-		}
+		addPromptSectionEnvMappings(section, allEnvVars, expressionMappingsMap)
 	}
-
-	// Add environment variables from user prompt expressions (these override built-in ones)
 	for _, mapping := range expressionMappings {
 		allEnvVars[mapping.EnvVar] = fmt.Sprintf("${{ %s }}", mapping.Content)
 		expressionMappingsMap[mapping.EnvVar] = mapping
 	}
+	return allEnvVars, sortedExpressionMappings(expressionMappingsMap)
+}
 
-	// Convert map back to slice for the substitution step
-	allExpressionMappings := make([]*ExpressionMapping, 0, len(expressionMappingsMap))
-
-	// Sort the keys to ensure stable output
-	sortedKeys := sliceutil.SortedKeys(expressionMappingsMap)
-
-	// Add mappings in sorted order
-	for _, key := range sortedKeys {
-		allExpressionMappings = append(allExpressionMappings, expressionMappingsMap[key])
+func addPromptSectionEnvMappings(section PromptSection, allEnvVars map[string]string, mappings map[string]*ExpressionMapping) {
+	for key, value := range section.EnvVars {
+		if strings.HasPrefix(value, "${{ ") && strings.HasSuffix(value, " }}") {
+			allEnvVars[key] = value
+			if _, exists := mappings[key]; !exists {
+				mappings[key] = &ExpressionMapping{EnvVar: key, Content: strings.TrimSpace(value[4 : len(value)-3])}
+			}
+			continue
+		}
+		if _, exists := mappings[key]; !exists {
+			mappings[key] = &ExpressionMapping{EnvVar: key, Content: fmt.Sprintf("'%s'", value)}
+		}
 	}
+}
 
-	// Generate the step with all environment variables
+func sortedExpressionMappings(mappings map[string]*ExpressionMapping) []*ExpressionMapping {
+	result := make([]*ExpressionMapping, 0, len(mappings))
+	for _, key := range sliceutil.SortedKeys(mappings) {
+		result = append(result, mappings[key])
+	}
+	return result
+}
+
+func writeUnifiedPromptStepHeader(yaml *strings.Builder, allEnvVars map[string]string, data *WorkflowData) {
 	yaml.WriteString("      - name: Create prompt with built-in context\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-
 	if data.SafeOutputs != nil {
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl\n")
 	}
-
-	// Add all environment variables in sorted order for consistency
-	envKeys := sliceutil.SortedKeys(allEnvVars)
-	for _, key := range envKeys {
+	for _, key := range sliceutil.SortedKeys(allEnvVars) {
 		fmt.Fprintf(yaml, "          %s: %s\n", key, allEnvVars[key])
 	}
-
 	yaml.WriteString("        # poutine:ignore untrusted_checkout_exec\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          bash \"${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh\"\n")
 	yaml.WriteString("          {\n")
+}
 
-	// Track if we're inside a heredoc
+func writeBuiltinPromptSections(yaml *strings.Builder, builtinSections []PromptSection, delimiter string) bool {
 	inHeredoc := false
-
-	// 1. Write built-in sections first (prepended), wrapped in <system> tags.
-	// The <system> opening tag is deferred: it is written either as the first line
-	// of the first inline section's heredoc, or in its own block just before the
-	// first file or conditional section. This allows the opening tag to share a
-	// heredoc block with adjacent inline content, reducing the total number of blocks.
 	systemTagPending := len(builtinSections) > 0
-
 	for i, section := range builtinSections {
 		unifiedPromptLog.Printf("Writing built-in section %d/%d: hasCondition=%v, isFile=%v",
 			i+1, len(builtinSections), section.ShellCondition != "", section.IsFile)
-
-		if section.ShellCondition != "" {
-			// Close heredoc if open, add conditional
-			if inHeredoc {
-				yaml.WriteString("          " + delimiter + "\n")
-				inHeredoc = false
-			}
-			// Write <system> before conditional if still pending
-			if systemTagPending {
-				yaml.WriteString("          cat << '" + delimiter + "'\n")
-				yaml.WriteString("          <system>\n")
-				yaml.WriteString("          " + delimiter + "\n")
-				systemTagPending = false
-			}
-			fmt.Fprintf(yaml, "          if %s; then\n", section.ShellCondition)
-
-			if section.IsFile {
-				// File reference inside conditional
-				promptPath := fmt.Sprintf("%s/%s", promptsDir, section.Content)
-				yaml.WriteString("            " + fmt.Sprintf("cat \"%s\"\n", promptPath))
-			} else {
-				// Inline content inside conditional - open heredoc, write content, close
-				yaml.WriteString("            cat << '" + delimiter + "'\n")
-				normalizedContent := stringutil.NormalizeLeadingWhitespace(section.Content)
-				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
-				contentLines := strings.SplitSeq(cleanedContent, "\n")
-				for line := range contentLines {
-					yaml.WriteString("            " + line + "\n")
-				}
-				yaml.WriteString("            " + delimiter + "\n")
-			}
-
-			yaml.WriteString("          fi\n")
-		} else {
-			// Unconditional section
-			if section.IsFile {
-				// Close heredoc if open
-				if inHeredoc {
-					yaml.WriteString("          " + delimiter + "\n")
-					inHeredoc = false
-				}
-				// Write <system> before file if still pending
-				if systemTagPending {
-					yaml.WriteString("          cat << '" + delimiter + "'\n")
-					yaml.WriteString("          <system>\n")
-					yaml.WriteString("          " + delimiter + "\n")
-					systemTagPending = false
-				}
-				// Cat the file
-				promptPath := fmt.Sprintf("%s/%s", promptsDir, section.Content)
-				yaml.WriteString("          " + fmt.Sprintf("cat \"%s\"\n", promptPath))
-			} else {
-				// Inline content - open heredoc if not already open
-				if !inHeredoc {
-					yaml.WriteString("          cat << '" + delimiter + "'\n")
-					inHeredoc = true
-					// Write <system> as first line when opening the heredoc
-					if systemTagPending {
-						yaml.WriteString("          <system>\n")
-						systemTagPending = false
-					}
-				}
-				// Write content directly to open heredoc
-				normalizedContent := stringutil.NormalizeLeadingWhitespace(section.Content)
-				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
-				contentLines := strings.SplitSeq(cleanedContent, "\n")
-				for line := range contentLines {
-					yaml.WriteString("          " + line + "\n")
-				}
-			}
-		}
+		inHeredoc, systemTagPending = writeBuiltinPromptSection(yaml, section, delimiter, inHeredoc, systemTagPending)
 	}
+	return inHeredoc
+}
 
-	// Close </system> tag after all built-in sections.
-	// Merge with the open heredoc (if any) to minimise the total number of cat/heredoc
-	// blocks, which reduces the number of lines that change in the diff when the user
-	// prompt changes (each block boundary contributes two delimiter lines).
-	if len(builtinSections) > 0 {
+func writeBuiltinPromptSection(yaml *strings.Builder, section PromptSection, delimiter string, inHeredoc, systemTagPending bool) (bool, bool) {
+	if section.ShellCondition != "" {
+		return writeConditionalPromptSection(yaml, section, delimiter, inHeredoc, systemTagPending)
+	}
+	return writeUnconditionalPromptSection(yaml, section, delimiter, inHeredoc, systemTagPending)
+}
+
+func writeConditionalPromptSection(yaml *strings.Builder, section PromptSection, delimiter string, inHeredoc, systemTagPending bool) (bool, bool) {
+	if inHeredoc {
+		yaml.WriteString("          " + delimiter + "\n")
+		inHeredoc = false
+	}
+	if systemTagPending {
+		writeSystemTagBlock(yaml, delimiter, "          ")
+		systemTagPending = false
+	}
+	fmt.Fprintf(yaml, "          if %s; then\n", section.ShellCondition)
+	if section.IsFile {
+		yaml.WriteString("            " + fmt.Sprintf("cat \"%s/%s\"\n", promptsDir, section.Content))
+	} else {
+		yaml.WriteString("            cat << '" + delimiter + "'\n")
+		writeInlinePromptContent(yaml, section.Content, "            ")
+		yaml.WriteString("            " + delimiter + "\n")
+	}
+	yaml.WriteString("          fi\n")
+	return inHeredoc, systemTagPending
+}
+
+func writeUnconditionalPromptSection(yaml *strings.Builder, section PromptSection, delimiter string, inHeredoc, systemTagPending bool) (bool, bool) {
+	if section.IsFile {
 		if inHeredoc {
-			// Append </system> to the still-open heredoc and keep it open for
-			// the user content that follows.
-			yaml.WriteString("          </system>\n")
-		} else {
-			// No heredoc is open: start a new one for </system> and keep it
-			// open so the subsequent user content lands in the same block.
-			yaml.WriteString("          cat << '" + delimiter + "'\n")
-			yaml.WriteString("          </system>\n")
-			inHeredoc = true
+			yaml.WriteString("          " + delimiter + "\n")
+			inHeredoc = false
+		}
+		if systemTagPending {
+			writeSystemTagBlock(yaml, delimiter, "          ")
+			systemTagPending = false
+		}
+		yaml.WriteString("          " + fmt.Sprintf("cat \"%s/%s\"\n", promptsDir, section.Content))
+		return inHeredoc, systemTagPending
+	}
+	if !inHeredoc {
+		yaml.WriteString("          cat << '" + delimiter + "'\n")
+		inHeredoc = true
+		if systemTagPending {
+			yaml.WriteString("          <system>\n")
+			systemTagPending = false
 		}
 	}
+	writeInlinePromptContent(yaml, section.Content, "          ")
+	return inHeredoc, systemTagPending
+}
 
-	// 2. Write user prompt chunks (appended after built-in sections).
-	// All chunks are written into the same heredoc block (opened above or here)
-	// to minimise the number of delimiter lines in the compiled lock file.
-	//
-	// The heredoc payload is a YAML block scalar, so normalizeBlankLines preserves
-	// it verbatim (it must, since arbitrary block scalars can carry semantically
-	// significant trailing whitespace and blank runs). Prompt content is markdown
-	// text the compiler owns, where trailing whitespace is never meaningful and
-	// long blank runs are noise, so it is cleaned here instead: trailing whitespace
-	// is trimmed from every line and consecutive blank lines are capped at
-	// maxConsecutiveBlankLines. userBlankRun is tracked across chunks so a run that
-	// straddles a chunk boundary is still collapsed.
+func writeSystemTagBlock(yaml *strings.Builder, delimiter, indent string) {
+	yaml.WriteString(indent + "cat << '" + delimiter + "'\n")
+	yaml.WriteString(indent + "<system>\n")
+	yaml.WriteString(indent + delimiter + "\n")
+}
+
+func writeInlinePromptContent(yaml *strings.Builder, content, indent string) {
+	normalizedContent := stringutil.NormalizeLeadingWhitespace(content)
+	cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
+	for line := range strings.SplitSeq(cleanedContent, "\n") {
+		yaml.WriteString(indent + line + "\n")
+	}
+}
+
+func closeBuiltinSystemTag(yaml *strings.Builder, delimiter string, builtinSections []PromptSection, inHeredoc bool) bool {
+	if len(builtinSections) == 0 {
+		return inHeredoc
+	}
+	if inHeredoc {
+		yaml.WriteString("          </system>\n")
+		return inHeredoc
+	}
+	yaml.WriteString("          cat << '" + delimiter + "'\n")
+	yaml.WriteString("          </system>\n")
+	return true
+}
+
+func writeUserPromptChunks(yaml *strings.Builder, userPromptChunks []string, delimiter string, inHeredoc bool) bool {
 	userBlankRun := 0
 	for chunkIdx, chunk := range userPromptChunks {
 		unifiedPromptLog.Printf("Writing user prompt chunk %d/%d", chunkIdx+1, len(userPromptChunks))
+		inHeredoc, userBlankRun = writeUserPromptChunk(yaml, chunk, delimiter, inHeredoc, userBlankRun)
+	}
+	return inHeredoc
+}
 
-		// Check if this chunk is a runtime-import macro
-		if strings.HasPrefix(chunk, "{{#runtime-import ") && strings.HasSuffix(chunk, "}}") {
-			// Runtime-import macros are plain text lines processed by the
-			// interpolate-prompt step; they can live in the same heredoc block
-			// as surrounding content.
-			unifiedPromptLog.Print("Detected runtime-import macro, writing inline in heredoc")
-
-			if !inHeredoc {
-				yaml.WriteString("          cat << '" + delimiter + "'\n")
-				inHeredoc = true
-			}
-			yaml.WriteString("          " + chunk + "\n")
-			userBlankRun = 0
-			continue
-		}
-
-		// Regular chunk: write to the current heredoc (or open one).
+func writeUserPromptChunk(yaml *strings.Builder, chunk, delimiter string, inHeredoc bool, userBlankRun int) (bool, int) {
+	if strings.HasPrefix(chunk, "{{#runtime-import ") && strings.HasSuffix(chunk, "}}") {
+		unifiedPromptLog.Print("Detected runtime-import macro, writing inline in heredoc")
 		if !inHeredoc {
 			yaml.WriteString("          cat << '" + delimiter + "'\n")
 			inHeredoc = true
 		}
-
-		lines := strings.SplitSeq(chunk, "\n")
-		for line := range lines {
-			trimmed := strings.TrimRight(line, " \t")
-			if trimmed == "" {
-				// Collapse over-long blank runs; emit truly empty lines (no
-				// indentation) so they carry no trailing whitespace.
-				if userBlankRun >= maxConsecutiveBlankLines {
-					continue
-				}
-				userBlankRun++
-				yaml.WriteByte('\n')
-				continue
-			}
-			userBlankRun = 0
-			yaml.WriteString("          ")
-			yaml.WriteString(trimmed)
-			yaml.WriteByte('\n')
-		}
+		yaml.WriteString("          " + chunk + "\n")
+		return inHeredoc, 0
 	}
+	if !inHeredoc {
+		yaml.WriteString("          cat << '" + delimiter + "'\n")
+		inHeredoc = true
+	}
+	for line := range strings.SplitSeq(chunk, "\n") {
+		userBlankRun = writeUserPromptLine(yaml, line, userBlankRun)
+	}
+	return inHeredoc, userBlankRun
+}
 
-	// Close heredoc if still open
+func writeUserPromptLine(yaml *strings.Builder, line string, userBlankRun int) int {
+	trimmed := strings.TrimRight(line, " \t")
+	if trimmed == "" {
+		if userBlankRun >= maxConsecutiveBlankLines {
+			return userBlankRun
+		}
+		yaml.WriteByte('\n')
+		return userBlankRun + 1
+	}
+	yaml.WriteString("          ")
+	yaml.WriteString(trimmed)
+	yaml.WriteByte('\n')
+	return 0
+}
+
+func closeUnifiedPromptHeredoc(yaml *strings.Builder, delimiter string, inHeredoc bool) {
 	if inHeredoc {
 		yaml.WriteString("          " + delimiter + "\n")
 	}
 	yaml.WriteString("          } > \"$GH_AW_PROMPT\"\n")
-
-	unifiedPromptLog.Print("Unified prompt creation step generated successfully")
-
-	// Return all expression mappings for use in the placeholder substitution step
-	// This allows the substitution to happen AFTER runtime-import processing
-	return allExpressionMappings
 }
 
 var safeOutputsPromptLog = logger.New("workflow:safe_outputs_prompt")
@@ -559,8 +525,27 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 
 	safeOutputsPromptLog.Print("Building safe outputs sections")
 
-	// Build compact list of enabled tool names, annotated with max budget when > 1.
+	tools := buildSafeOutputToolNames(safeOutputs)
+	if len(tools) == 0 {
+		return nil
+	}
+
+	var sections []PromptSection
+	sections = append(sections, buildSafeOutputToolsOpeningSection(tools))
+	sections = appendSafeOutputInstructionSections(sections, safeOutputs)
+	sections = append(sections, PromptSection{Content: "</safe-output-tools>", IsFile: false})
+	return sections
+}
+
+func buildSafeOutputToolNames(safeOutputs *SafeOutputsConfig) []string {
 	var tools []string
+	tools = appendCoreSafeOutputToolNames(tools, safeOutputs)
+	tools = appendReviewSafeOutputToolNames(tools, safeOutputs)
+	tools = appendProjectSafeOutputToolNames(tools, safeOutputs)
+	return appendCustomSafeOutputToolNames(tools, safeOutputs)
+}
+
+func appendCoreSafeOutputToolNames(tools []string, safeOutputs *SafeOutputsConfig) []string {
 	if safeOutputs.AddComments != nil {
 		tools = append(tools, toolWithMaxBudget("add_comment", safeOutputs.AddComments.Max))
 	}
@@ -585,6 +570,10 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.CreateAgentSessions != nil {
 		tools = append(tools, toolWithMaxBudget("create_agent_session", safeOutputs.CreateAgentSessions.Max))
 	}
+	return tools
+}
+
+func appendReviewSafeOutputToolNames(tools []string, safeOutputs *SafeOutputsConfig) []string {
 	if safeOutputs.CreatePullRequests != nil {
 		tools = append(tools, toolWithMaxBudget("create_pull_request", safeOutputs.CreatePullRequests.Max))
 	}
@@ -612,6 +601,10 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.ResolvePullRequestReviewThread != nil {
 		tools = append(tools, toolWithMaxBudget("resolve_pull_request_review_thread", safeOutputs.ResolvePullRequestReviewThread.Max))
 	}
+	return tools
+}
+
+func appendProjectSafeOutputToolNames(tools []string, safeOutputs *SafeOutputsConfig) []string {
 	if safeOutputs.AddLabels != nil {
 		tools = append(tools, toolWithMaxBudget("add_labels", safeOutputs.AddLabels.Max))
 	}
@@ -639,6 +632,10 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.PushToPullRequestBranch != nil {
 		tools = append(tools, toolWithMaxBudget("push_to_pull_request_branch", safeOutputs.PushToPullRequestBranch.Max))
 	}
+	return appendAdvancedSafeOutputToolNames(tools, safeOutputs)
+}
+
+func appendAdvancedSafeOutputToolNames(tools []string, safeOutputs *SafeOutputsConfig) []string {
 	if safeOutputs.CreateCodeScanningAlerts != nil {
 		tools = append(tools, toolWithMaxBudget("create_code_scanning_alert", safeOutputs.CreateCodeScanningAlerts.Max))
 	}
@@ -675,11 +672,14 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.SetIssueField != nil {
 		tools = append(tools, toolWithMaxBudget("set_issue_field", safeOutputs.SetIssueField.Max))
 	}
+	return appendWorkflowSafeOutputToolNames(tools, safeOutputs)
+}
+
+func appendWorkflowSafeOutputToolNames(tools []string, safeOutputs *SafeOutputsConfig) []string {
 	if safeOutputs.DispatchWorkflow != nil {
 		tools = append(tools, toolWithMaxBudget("dispatch_workflow", safeOutputs.DispatchWorkflow.Max))
 	}
 	if safeOutputs.DispatchRepository != nil {
-		// dispatch_repository uses per-tool max values (map-of-tools pattern); no top-level max.
 		tools = append(tools, "dispatch_repository")
 	}
 	if safeOutputs.CallWorkflow != nil {
@@ -691,47 +691,26 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.MissingData != nil {
 		tools = append(tools, toolWithMaxBudget("missing_data", safeOutputs.MissingData.Max))
 	}
-	// noop is always included: it is auto-injected by extractSafeOutputsConfig and
-	// must always appear in the tools list so agents can signal no-op completion.
 	if safeOutputs.NoOp != nil {
 		tools = append(tools, toolWithMaxBudget("noop", safeOutputs.NoOp.Max))
 	}
+	return tools
+}
 
-	// Add custom job tools from SafeOutputs.Jobs (sorted for deterministic output).
-	if len(safeOutputs.Jobs) > 0 {
-		jobNames := sliceutil.SortedKeys(safeOutputs.Jobs)
-		for _, jobName := range jobNames {
-			tools = append(tools, stringutil.NormalizeSafeOutputIdentifier(jobName))
-		}
+func appendCustomSafeOutputToolNames(tools []string, safeOutputs *SafeOutputsConfig) []string {
+	for _, jobName := range sliceutil.SortedKeys(safeOutputs.Jobs) {
+		tools = append(tools, stringutil.NormalizeSafeOutputIdentifier(jobName))
 	}
-
-	// Add custom script tools from SafeOutputs.Scripts (sorted for deterministic output).
-	if len(safeOutputs.Scripts) > 0 {
-		scriptNames := sliceutil.SortedKeys(safeOutputs.Scripts)
-		for _, scriptName := range scriptNames {
-			tools = append(tools, stringutil.NormalizeSafeOutputIdentifier(scriptName))
-		}
+	for _, scriptName := range sliceutil.SortedKeys(safeOutputs.Scripts) {
+		tools = append(tools, stringutil.NormalizeSafeOutputIdentifier(scriptName))
 	}
-
-	// Add custom action tools from SafeOutputs.Actions (sorted for deterministic output).
-	if len(safeOutputs.Actions) > 0 {
-		actionNames := sliceutil.SortedKeys(safeOutputs.Actions)
-		for _, actionName := range actionNames {
-			tools = append(tools, stringutil.NormalizeSafeOutputIdentifier(actionName))
-		}
+	for _, actionName := range sliceutil.SortedKeys(safeOutputs.Actions) {
+		tools = append(tools, stringutil.NormalizeSafeOutputIdentifier(actionName))
 	}
+	return tools
+}
 
-	if len(tools) == 0 {
-		return nil
-	}
-
-	var sections []PromptSection
-
-	// Build the inline opening: XML tag + compact tools list.
-	// Extract any ${{ }} expressions from max: values so they do not appear in the
-	// run: heredoc (which is subject to GitHub Actions' 21KB expression-size limit).
-	// Expressions are replaced with __GH_AW_...__  placeholders and added to EnvVars
-	// so the placeholder substitution step can resolve them at runtime.
+func buildSafeOutputToolsOpeningSection(tools []string) PromptSection {
 	toolsContent := "<safe-output-tools>\nTools: " + strings.Join(tools, ", ")
 	envVars := make(map[string]string)
 	extractor := NewExpressionExtractor()
@@ -743,15 +722,10 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 			envVars[mapping.EnvVar] = fmt.Sprintf("${{ %s }}", mapping.Content)
 		}
 	}
+	return PromptSection{Content: toolsContent, IsFile: false, EnvVars: envVars}
+}
 
-	// Inline opening: XML tag + compact tools list (with placeholders for any expressions)
-	sections = append(sections, PromptSection{
-		Content: toolsContent,
-		IsFile:  false,
-		EnvVars: envVars,
-	})
-
-	// File sections for tools with multi-step instructions
+func appendSafeOutputInstructionSections(sections []PromptSection, safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.CreatePullRequests != nil {
 		sections = append(sections, PromptSection{Content: safeOutputsCreatePRFile, IsFile: true})
 	}
@@ -771,12 +745,5 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.CreateIssues != nil && safeOutputs.AutoInjectedCreateIssue {
 		sections = append(sections, PromptSection{Content: safeOutputsAutoCreateIssueFile, IsFile: true})
 	}
-
-	// Inline closing tag
-	sections = append(sections, PromptSection{
-		Content: "</safe-output-tools>",
-		IsFile:  false,
-	})
-
 	return sections
 }

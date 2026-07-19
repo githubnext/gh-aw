@@ -44,7 +44,15 @@ type CodemodResult struct {
 
 // GetAllCodemods returns all available codemods in the registry
 func GetAllCodemods() []Codemod {
-	codemods := []Codemod{
+	codemods := getAllCodemodsCore()
+	codemods = append(codemods, getAllCodemodsMigration()...)
+	codemods = append(codemods, getAllCodemodsRecent()...)
+	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))
+	return codemods
+}
+
+func getAllCodemodsCore() []Codemod {
+	return []Codemod{
 		getTimeoutMinutesCodemod(),
 		getNetworkFirewallCodemod(),
 		getCommandToSlashCommandCodemod(),
@@ -63,18 +71,23 @@ func GetAllCodemods() []Codemod {
 		getDiscussionTriggerCategoriesLowercaseCodemod(),
 		getMCPModeToTypeCodemod(),
 		getInstallScriptURLCodemod(),
-		getBashAnonymousRemovalCodemod(),                           // Replace bash: with bash: false
-		getBashSingleQuotedArgsCodemod(),                           // Rewrite single-quoted bash args to double-quoted form
-		getActivationOutputsCodemod(),                              // Transform needs.activation.outputs.* to steps.sanitized.outputs.*
-		getRolesToOnRolesCodemod(),                                 // Move top-level roles to on.roles
-		getBotsToOnBotsCodemod(),                                   // Move top-level bots to on.bots
-		getEngineStepsToTopLevelCodemod(),                          // Move engine.steps to top-level steps
-		getEngineMaxRunsToTopLevelCodemod(),                        // Move engine.max-runs to top-level max-turns
-		getMaxRunsToMaxTurnsCodemod(),                              // Rename top-level max-runs to max-turns
-		getEngineMaxTurnsToTopLevelCodemod(),                       // Move engine.max-turns to top-level max-turns
-		getStepsRunSecretsToEnvCodemod(),                           // Move all ${{ ... }} expressions in step run fields to step env bindings
-		getEngineEnvSecretsCodemod(),                               // Remove unsafe secret-bearing engine.env entries
-		getTopLevelEnvSecretsGuidedErrorCodemod(),                  // Detect secrets in top-level env: and emit guided error
+		getBashAnonymousRemovalCodemod(),          // Replace bash: with bash: false
+		getBashSingleQuotedArgsCodemod(),          // Rewrite single-quoted bash args to double-quoted form
+		getActivationOutputsCodemod(),             // Transform needs.activation.outputs.* to steps.sanitized.outputs.*
+		getRolesToOnRolesCodemod(),                // Move top-level roles to on.roles
+		getBotsToOnBotsCodemod(),                  // Move top-level bots to on.bots
+		getEngineStepsToTopLevelCodemod(),         // Move engine.steps to top-level steps
+		getEngineMaxRunsToTopLevelCodemod(),       // Move engine.max-runs to top-level max-turns
+		getMaxRunsToMaxTurnsCodemod(),             // Rename top-level max-runs to max-turns
+		getEngineMaxTurnsToTopLevelCodemod(),      // Move engine.max-turns to top-level max-turns
+		getStepsRunSecretsToEnvCodemod(),          // Move all ${{ ... }} expressions in step run fields to step env bindings
+		getEngineEnvSecretsCodemod(),              // Remove unsafe secret-bearing engine.env entries
+		getTopLevelEnvSecretsGuidedErrorCodemod(), // Detect secrets in top-level env: and emit guided error
+	}
+}
+
+func getAllCodemodsMigration() []Codemod {
+	return []Codemod{
 		getAssignToAgentDefaultAgentCodemod(),                      // Rename deprecated default-agent to name in assign-to-agent
 		getPlaywrightDomainsToNetworkAllowedCodemod(),              // Migrate tools.playwright.allowed_domains to network.allowed
 		getExpiresIntegerToDayStringCodemod(),                      // Convert expires integer (days) to string with 'd' suffix
@@ -95,21 +108,24 @@ func GetAllCodemods() []Codemod {
 		getDependabotPermissionsCodemod(),                          // Add vulnerability-alerts: read when dependabot toolset is used
 		getGitHubReposToAllowedReposCodemod(),                      // Rename deprecated tools.github.repos to tools.github.allowed-repos
 		getCopilotRequestsFeatureToPermissionsCodemod(),            // Migrate features.copilot-requests to permissions.copilot-requests
-		getByokCopilotFeatureRemovalCodemod(),                      // Remove deprecated features.byok-copilot (Copilot BYOK is default)
-		getInlineAgentsFeatureRemovalCodemod(),                     // Remove deprecated features.inline-agents (inline sub-agents now default)
-		getCliProxyFeatureToGitHubModeCodemod(),                    // Migrate features.cli-proxy: true to tools.github.mode: gh-proxy
-		getDIFCProxyToIntegrityProxyCodemod(),                      // Migrate deprecated features.difc-proxy to tools.github.integrity-proxy
-		getMountAsCLIsToCLIProxyCodemod(),                          // Rename tools.mount-as-clis to tools.cli-proxy and remove features.mcp-cli
-		getSandboxMCPContainerRemovalCodemod(),                     // Remove deprecated sandbox.mcp.container (now managed internally)
-		getSandboxMCPVersionRemovalCodemod(),                       // Remove deprecated sandbox.mcp.version (now managed internally)
-		getSandboxAgentFalseRemovalCodemod(),                       // Remove deprecated sandbox.agent: false (rejected in strict mode)
-		getInferToDisableModelInvocationCodemod(),                  // Migrate deprecated 'infer' to 'disable-model-invocation'
-		getRunInstallScriptsToRuntimesNodeCodemod(),                // Move top-level run-install-scripts under runtimes.node
-		getMentionsAllowTeamMembersCodemod(),                       // Rename allow-team-members to allowed-collaborators in safe-outputs.mentions
-		getEngineCopilotSDKDriverToDriverCodemod(),                 // Rename deprecated engine.copilot-sdk-driver to engine.driver
 	}
-	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))
-	return codemods
+}
+
+func getAllCodemodsRecent() []Codemod {
+	return []Codemod{
+		getByokCopilotFeatureRemovalCodemod(),       // Remove deprecated features.byok-copilot (Copilot BYOK is default)
+		getInlineAgentsFeatureRemovalCodemod(),      // Remove deprecated features.inline-agents (inline sub-agents now default)
+		getCliProxyFeatureToGitHubModeCodemod(),     // Migrate features.cli-proxy: true to tools.github.mode: gh-proxy
+		getDIFCProxyToIntegrityProxyCodemod(),       // Migrate deprecated features.difc-proxy to tools.github.integrity-proxy
+		getMountAsCLIsToCLIProxyCodemod(),           // Rename tools.mount-as-clis to tools.cli-proxy and remove features.mcp-cli
+		getSandboxMCPContainerRemovalCodemod(),      // Remove deprecated sandbox.mcp.container (now managed internally)
+		getSandboxMCPVersionRemovalCodemod(),        // Remove deprecated sandbox.mcp.version (now managed internally)
+		getSandboxAgentFalseRemovalCodemod(),        // Remove deprecated sandbox.agent: false (rejected in strict mode)
+		getInferToDisableModelInvocationCodemod(),   // Migrate deprecated 'infer' to 'disable-model-invocation'
+		getRunInstallScriptsToRuntimesNodeCodemod(), // Move top-level run-install-scripts under runtimes.node
+		getMentionsAllowTeamMembersCodemod(),        // Rename allow-team-members to allowed-collaborators in safe-outputs.mentions
+		getEngineCopilotSDKDriverToDriverCodemod(),  // Rename deprecated engine.copilot-sdk-driver to engine.driver
+	}
 }
 
 // GetCodemods returns all codemods except any explicitly disabled by ID.

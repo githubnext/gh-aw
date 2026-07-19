@@ -29,110 +29,114 @@ const maxConsecutiveBlankLines = 2
 // the input byte-by-byte and builds the result with a single pre-allocated strings.Builder.
 func normalizeBlankLines(yamlContent string) string {
 	compilerYAMLNormalizeLog.Printf("Normalizing blank lines in %d bytes of YAML", len(yamlContent))
-	var b strings.Builder
-	b.Grow(len(yamlContent))
 
-	// lastNonBlankEnd tracks the builder length immediately after writing the last
-	// non-blank line (including its trailing newline). It starts at 0 and is only
-	// advanced when a substantive line is written, so it stays 0 when all lines
-	// are whitespace-only or the input is empty. Every line — blank or not — still
-	// gets a '\n' written to b, so b.Len() and lastNonBlankEnd may diverge when
-	// there are trailing blank lines.
-	lastNonBlankEnd := 0
-	// blankRun counts consecutive blank lines emitted since the last non-blank
-	// structural line, so runs longer than maxConsecutiveBlankLines can be
-	// collapsed outside block scalars.
-	blankRun := 0
-	inBlockScalar := false
-	pendingBlockScalar := false
-	blockScalarHeaderIndent := 0
-	blockScalarIndent := 0
+	n := newBlankLineNormalizer(len(yamlContent))
 	pos := 0
 	for pos < len(yamlContent) {
-		// Find the end of the current line.
-		end := strings.IndexByte(yamlContent[pos:], '\n')
-		var line string
-		if end == -1 {
-			line = yamlContent[pos:]
-		} else {
-			line = yamlContent[pos : pos+end]
-		}
-
-		processStructuralLine := true
-		trimmed := strings.TrimRight(line, " \t")
-		if pendingBlockScalar || inBlockScalar {
-			if trimmed == "" {
-				// Whitespace-only lines inside block scalars are still semantically
-				// blank, so emit them as empty lines but never cap the run.
-				b.WriteByte('\n')
-				processStructuralLine = false
-			} else {
-				lineIndent := countLeadingSpaces(line)
-				if pendingBlockScalar {
-					if lineIndent <= blockScalarHeaderIndent {
-						pendingBlockScalar = false
-					} else {
-						blockScalarIndent = lineIndent
-						inBlockScalar = true
-						pendingBlockScalar = false
-					}
-				}
-				if inBlockScalar {
-					if lineIndent < blockScalarIndent {
-						inBlockScalar = false
-					} else {
-						b.WriteString(line)
-						b.WriteByte('\n')
-						lastNonBlankEnd = b.Len()
-						processStructuralLine = false
-					}
-				}
-			}
-		}
-
-		if processStructuralLine {
-			if trimmed == "" {
-				// Blank structural line: emit at most maxConsecutiveBlankLines in a
-				// row so yamllint's empty-lines rule is never exceeded. lastNonBlankEnd
-				// is NOT updated here so that trailing blank lines (including a blank
-				// final "line" produced by a file that ends with "\n\n" or by
-				// whitespace-only text after the last real line) are excluded from the
-				// returned slice.
-				if blankRun < maxConsecutiveBlankLines {
-					b.WriteByte('\n')
-					blankRun++
-				}
-			} else {
-				b.WriteString(trimmed)
-				b.WriteByte('\n')
-				lastNonBlankEnd = b.Len()
-				blankRun = 0
-				if headerIndent, ok := blockScalarHeaderIndentForLine(trimmed); ok {
-					pendingBlockScalar = true
-					blockScalarHeaderIndent = headerIndent
-				}
-			}
-		}
-
+		end, line := nextYAMLLine(yamlContent, pos)
+		n.writeLine(line)
 		if end == -1 {
 			break
 		}
 		pos += end + 1
 	}
 
+	return n.result()
+}
+
+type blankLineNormalizer struct {
+	b                       strings.Builder
+	lastNonBlankEnd         int
+	blankRun                int
+	inBlockScalar           bool
+	pendingBlockScalar      bool
+	blockScalarHeaderIndent int
+	blockScalarIndent       int
+}
+
+func newBlankLineNormalizer(size int) *blankLineNormalizer {
+	n := &blankLineNormalizer{}
+	n.b.Grow(size)
+	return n
+}
+
+func nextYAMLLine(content string, pos int) (int, string) {
+	end := strings.IndexByte(content[pos:], '\n')
+	if end == -1 {
+		return end, content[pos:]
+	}
+	return end, content[pos : pos+end]
+}
+
+func (n *blankLineNormalizer) writeLine(line string) {
+	processStructuralLine, trimmed := n.writeBlockScalarLine(line)
+	if !processStructuralLine {
+		return
+	}
+	n.writeStructuralLine(trimmed)
+}
+
+func (n *blankLineNormalizer) writeBlockScalarLine(line string) (bool, string) {
+	trimmed := strings.TrimRight(line, " \t")
+	if !n.pendingBlockScalar && !n.inBlockScalar {
+		return true, trimmed
+	}
+	if trimmed == "" {
+		n.b.WriteByte('\n')
+		return false, trimmed
+	}
+	lineIndent := countLeadingSpaces(line)
+	if n.pendingBlockScalar {
+		if lineIndent <= n.blockScalarHeaderIndent {
+			n.pendingBlockScalar = false
+		} else {
+			n.blockScalarIndent = lineIndent
+			n.inBlockScalar = true
+			n.pendingBlockScalar = false
+		}
+	}
+	if n.inBlockScalar && lineIndent >= n.blockScalarIndent {
+		n.b.WriteString(line)
+		n.b.WriteByte('\n')
+		n.lastNonBlankEnd = n.b.Len()
+		return false, trimmed
+	}
+	n.inBlockScalar = false
+	return true, trimmed
+}
+
+func (n *blankLineNormalizer) writeStructuralLine(trimmed string) {
+	if trimmed == "" {
+		if n.blankRun < maxConsecutiveBlankLines {
+			n.b.WriteByte('\n')
+			n.blankRun++
+		}
+		return
+	}
+	n.b.WriteString(trimmed)
+	n.b.WriteByte('\n')
+	n.lastNonBlankEnd = n.b.Len()
+	n.blankRun = 0
+	if headerIndent, ok := blockScalarHeaderIndentForLine(trimmed); ok {
+		n.pendingBlockScalar = true
+		n.blockScalarHeaderIndent = headerIndent
+	}
+}
+
+func (n *blankLineNormalizer) result() string {
 	// When lastNonBlankEnd is still 0 there were no non-blank lines at all
 	// (empty input or all-whitespace). Return a single newline, which matches
 	// the original strings.TrimRight(…, "\n") + "\n" behaviour for that case.
 	// NOTE: b.String()[:0] must NOT be used here; the early return is intentional.
-	if lastNonBlankEnd == 0 {
+	if n.lastNonBlankEnd == 0 {
 		compilerYAMLNormalizeLog.Print("Input contained no non-blank lines, returning single newline")
 		return "\n"
 	}
 	// Slice the builder string to drop trailing blank lines. b.String() copies
 	// the builder's internal buffer into a new string once; the slice avoids a
 	// second copy that a separate strings.Builder trim would incur.
-	compilerYAMLNormalizeLog.Printf("Normalized YAML to %d bytes", lastNonBlankEnd)
-	return b.String()[:lastNonBlankEnd]
+	compilerYAMLNormalizeLog.Printf("Normalized YAML to %d bytes", n.lastNonBlankEnd)
+	return n.b.String()[:n.lastNonBlankEnd]
 }
 
 func countLeadingSpaces(line string) int {

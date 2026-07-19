@@ -41,33 +41,42 @@ func (c *Compiler) validateStrictSandboxCustomization(sandboxConfig *SandboxConf
 		return nil
 	}
 
-	// Check agent sandbox fields
-	if agent := sandboxConfig.Agent; agent != nil {
-		// sandbox.agent.sudo: true is deprecated regardless of strict mode.
-		// It is an error in strict mode and a warning otherwise.
-		// Exception: docker-sbx fundamentally requires sudo for its install step, so
-		// the deprecation message is suppressed — sudo: true is mandatory for that runtime.
-		if agent.SudoExplicitlyEnabled && agent.Runtime != AgentRuntimeDockerSbx {
-			const sudoTrueMsg = "sandbox.agent.sudo: true re-enables host-access (sudo) mode. " +
-				"The default is now sudo: false (network isolation). " +
-				"Remove 'sudo: true' to use the secure default. " +
-				"See: https://github.github.com/gh-aw/reference/sandbox/"
-			if c.strictMode {
-				return fmt.Errorf("strict mode: %s", sudoTrueMsg)
-			}
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(sudoTrueMsg))
-			c.IncrementWarningCount()
-		}
+	if err := c.warnOrRejectDeprecatedSandboxSudo(sandboxConfig.Agent); err != nil {
+		return err
 	}
-
 	if !c.strictMode {
 		strictModeValidationLog.Printf("Strict mode disabled, skipping sandbox customization validation")
 		return nil
 	}
+	if err := validateStrictAgentSandboxFields(sandboxConfig.Agent); err != nil {
+		return err
+	}
+	if err := validateStrictMCPSandboxFields(sandboxConfig.MCP); err != nil {
+		return err
+	}
 
-	if agent := sandboxConfig.Agent; agent != nil {
-		// In strict mode, if sandbox.agent has no id/type set, explicitly default it to AWF
-		// so the sandbox configuration is always unambiguous.
+	strictModeValidationLog.Printf("Sandbox customization validation passed")
+	return nil
+}
+
+func (c *Compiler) warnOrRejectDeprecatedSandboxSudo(agent *AgentSandboxConfig) error {
+	if agent == nil || !agent.SudoExplicitlyEnabled || agent.Runtime == AgentRuntimeDockerSbx {
+		return nil
+	}
+	const sudoTrueMsg = "sandbox.agent.sudo: true re-enables host-access (sudo) mode. " +
+		"The default is now sudo: false (network isolation). " +
+		"Remove 'sudo: true' to use the secure default. " +
+		"See: https://github.github.com/gh-aw/reference/sandbox/"
+	if c.strictMode {
+		return fmt.Errorf("strict mode: %s", sudoTrueMsg)
+	}
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(sudoTrueMsg))
+	c.IncrementWarningCount()
+	return nil
+}
+
+func validateStrictAgentSandboxFields(agent *AgentSandboxConfig) error {
+	if agent != nil {
 		if !agent.Disabled && !isSupportedSandboxType(getAgentType(agent)) {
 			strictModeValidationLog.Printf("sandbox.agent has no id/type in strict mode, defaulting to awf")
 			agent.Type = SandboxTypeAWF
@@ -83,9 +92,11 @@ func (c *Compiler) validateStrictSandboxCustomization(sandboxConfig *SandboxConf
 			return internalSandboxFieldError("sandbox.agent.env")
 		}
 	}
+	return nil
+}
 
-	// Check MCP gateway internal fields
-	if mcp := sandboxConfig.MCP; mcp != nil {
+func validateStrictMCPSandboxFields(mcp *MCPGatewayRuntimeConfig) error {
+	if mcp != nil {
 		if mcp.Container != "" {
 			return internalSandboxFieldError("sandbox.mcp.container")
 		}
@@ -102,7 +113,5 @@ func (c *Compiler) validateStrictSandboxCustomization(sandboxConfig *SandboxConf
 			return internalSandboxFieldError("sandbox.mcp.entrypointArgs")
 		}
 	}
-
-	strictModeValidationLog.Printf("Sandbox customization validation passed")
 	return nil
 }

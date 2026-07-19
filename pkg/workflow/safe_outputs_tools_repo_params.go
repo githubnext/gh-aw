@@ -1,6 +1,9 @@
 package workflow
 
-import "fmt"
+import (
+	"fmt"
+	"reflect"
+)
 
 // addRepoParameterIfNeeded adds a "repo" parameter to the tool's inputSchema
 // if the safe output configuration has allowed-repos entries or a wildcard "*" target-repo
@@ -10,152 +13,7 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 		return
 	}
 
-	// Determine if this tool should have a repo parameter based on allowed-repos and target-repo configuration (including wildcard "*")
-	var hasAllowedRepos bool
-	var targetRepoSlug string
-
-	switch toolName {
-	case "create_issue":
-		if config := safeOutputs.CreateIssues; config != nil {
-			hasAllowedRepos = len(config.AllowedRepos) > 0
-			targetRepoSlug = config.TargetRepoSlug
-		}
-	case "create_discussion":
-		if config := safeOutputs.CreateDiscussions; config != nil {
-			hasAllowedRepos = len(config.AllowedRepos) > 0
-			targetRepoSlug = config.TargetRepoSlug
-		}
-	case "add_comment":
-		if config := safeOutputs.AddComments; config != nil {
-			hasAllowedRepos = len(config.AllowedRepos) > 0
-			targetRepoSlug = config.TargetRepoSlug
-		}
-	case "create_pull_request":
-		if config := safeOutputs.CreatePullRequests; config != nil {
-			hasAllowedRepos = len(config.AllowedRepos) > 0
-			targetRepoSlug = config.TargetRepoSlug
-		}
-	case "create_pull_request_review_comment":
-		if config := safeOutputs.CreatePullRequestReviewComments; config != nil {
-			hasAllowedRepos = len(config.AllowedRepos) > 0
-			targetRepoSlug = config.TargetRepoSlug
-		}
-	case "reply_to_pull_request_review_comment":
-		if config := safeOutputs.ReplyToPullRequestReviewComment; config != nil {
-			hasAllowedRepos = len(config.AllowedRepos) > 0
-			targetRepoSlug = config.TargetRepoSlug
-		}
-	case "dismiss_pull_request_review":
-		if config := safeOutputs.DismissPullRequestReview; config != nil {
-			hasAllowedRepos = len(config.AllowedRepos) > 0
-			targetRepoSlug = config.TargetRepoSlug
-		}
-	case "create_agent_session":
-		if config := safeOutputs.CreateAgentSessions; config != nil {
-			hasAllowedRepos = len(config.AllowedRepos) > 0
-			targetRepoSlug = config.TargetRepoSlug
-		}
-	case "close_issue", "update_issue":
-		if config := safeOutputs.CloseIssues; config != nil && toolName == "close_issue" {
-			hasAllowedRepos = len(config.AllowedRepos) > 0
-			targetRepoSlug = config.TargetRepoSlug
-		} else if config := safeOutputs.UpdateIssues; config != nil && toolName == "update_issue" {
-			hasAllowedRepos = len(config.AllowedRepos) > 0
-			targetRepoSlug = config.TargetRepoSlug
-		}
-	case "close_discussion", "update_discussion":
-		if config := safeOutputs.CloseDiscussions; config != nil && toolName == "close_discussion" {
-			hasAllowedRepos = len(config.AllowedRepos) > 0
-			targetRepoSlug = config.TargetRepoSlug
-		} else if config := safeOutputs.UpdateDiscussions; config != nil && toolName == "update_discussion" {
-			hasAllowedRepos = len(config.AllowedRepos) > 0
-			targetRepoSlug = config.TargetRepoSlug
-		}
-	case "close_pull_request", "update_pull_request":
-		if config := safeOutputs.ClosePullRequests; config != nil && toolName == "close_pull_request" {
-			hasAllowedRepos = len(config.AllowedRepos) > 0
-			targetRepoSlug = config.TargetRepoSlug
-		} else if config := safeOutputs.UpdatePullRequests; config != nil && toolName == "update_pull_request" {
-			hasAllowedRepos = len(config.AllowedRepos) > 0
-			targetRepoSlug = config.TargetRepoSlug
-		}
-	case "merge_pull_request":
-		if config := safeOutputs.MergePullRequest; config != nil {
-			hasAllowedRepos = len(config.AllowedRepos) > 0
-			targetRepoSlug = config.TargetRepoSlug
-		}
-	case "add_labels", "remove_labels", "replace_label", "hide_comment", "link_sub_issue", "mark_pull_request_as_ready_for_review",
-		"add_reviewer", "assign_milestone", "assign_to_agent", "assign_to_user", "unassign_from_user",
-		"set_issue_type", "set_issue_field":
-		// These use SafeOutputTargetConfig - check the appropriate config
-		switch toolName {
-		case "add_labels":
-			if config := safeOutputs.AddLabels; config != nil {
-				hasAllowedRepos = len(config.AllowedRepos) > 0
-				targetRepoSlug = config.TargetRepoSlug
-			}
-		case "remove_labels":
-			if config := safeOutputs.RemoveLabels; config != nil {
-				hasAllowedRepos = len(config.AllowedRepos) > 0
-				targetRepoSlug = config.TargetRepoSlug
-			}
-		case "replace_label":
-			if config := safeOutputs.ReplaceLabel; config != nil {
-				hasAllowedRepos = len(config.AllowedRepos) > 0
-				targetRepoSlug = config.TargetRepoSlug
-			}
-		case "hide_comment":
-			if config := safeOutputs.HideComment; config != nil {
-				hasAllowedRepos = len(config.AllowedRepos) > 0
-				targetRepoSlug = config.TargetRepoSlug
-			}
-		case "link_sub_issue":
-			if config := safeOutputs.LinkSubIssue; config != nil {
-				hasAllowedRepos = len(config.AllowedRepos) > 0
-				targetRepoSlug = config.TargetRepoSlug
-			}
-		case "mark_pull_request_as_ready_for_review":
-			if config := safeOutputs.MarkPullRequestAsReadyForReview; config != nil {
-				hasAllowedRepos = len(config.AllowedRepos) > 0
-				targetRepoSlug = config.TargetRepoSlug
-			}
-		case "add_reviewer":
-			if config := safeOutputs.AddReviewer; config != nil {
-				hasAllowedRepos = len(config.AllowedRepos) > 0
-				targetRepoSlug = config.TargetRepoSlug
-			}
-		case "assign_milestone":
-			if config := safeOutputs.AssignMilestone; config != nil {
-				hasAllowedRepos = len(config.AllowedRepos) > 0
-				targetRepoSlug = config.TargetRepoSlug
-			}
-		case "assign_to_agent":
-			if config := safeOutputs.AssignToAgent; config != nil {
-				hasAllowedRepos = len(config.AllowedRepos) > 0
-				targetRepoSlug = config.TargetRepoSlug
-			}
-		case "assign_to_user":
-			if config := safeOutputs.AssignToUser; config != nil {
-				hasAllowedRepos = len(config.AllowedRepos) > 0
-				targetRepoSlug = config.TargetRepoSlug
-			}
-		case "unassign_from_user":
-			if config := safeOutputs.UnassignFromUser; config != nil {
-				hasAllowedRepos = len(config.AllowedRepos) > 0
-				targetRepoSlug = config.TargetRepoSlug
-			}
-		case "set_issue_type":
-			if config := safeOutputs.SetIssueType; config != nil {
-				hasAllowedRepos = len(config.AllowedRepos) > 0
-				targetRepoSlug = config.TargetRepoSlug
-			}
-		case "set_issue_field":
-			if config := safeOutputs.SetIssueField; config != nil {
-				hasAllowedRepos = len(config.AllowedRepos) > 0
-				targetRepoSlug = config.TargetRepoSlug
-			}
-		}
-	}
+	hasAllowedRepos, targetRepoSlug := repoParameterConfigForTool(toolName, safeOutputs)
 
 	// Only add repo parameter if allowed-repos has entries or target-repo is wildcard ("*")
 	if !hasAllowedRepos && targetRepoSlug != "*" {
@@ -191,6 +49,57 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 	}
 
 	safeOutputsConfigLog.Printf("Added repo parameter to tool: %s (has allowed-repos or wildcard target-repo)", toolName)
+}
+
+func repoParameterConfigForTool(toolName string, safeOutputs *SafeOutputsConfig) (bool, string) {
+	fieldName, ok := repoParameterConfigFields()[toolName]
+	if !ok {
+		return false, ""
+	}
+	configValue := reflect.ValueOf(safeOutputs).Elem().FieldByName(fieldName)
+	if !configValue.IsValid() || configValue.IsNil() {
+		return false, ""
+	}
+	config := configValue.Elem()
+	allowedRepos := config.FieldByName("AllowedRepos")
+	targetRepoSlug := config.FieldByName("TargetRepoSlug")
+	if !allowedRepos.IsValid() || !targetRepoSlug.IsValid() {
+		return false, ""
+	}
+	return allowedRepos.Len() > 0, targetRepoSlug.String()
+}
+
+func repoParameterConfigFields() map[string]string {
+	return map[string]string{
+		"create_issue":                          "CreateIssues",
+		"create_discussion":                     "CreateDiscussions",
+		"add_comment":                           "AddComments",
+		"create_pull_request":                   "CreatePullRequests",
+		"create_pull_request_review_comment":    "CreatePullRequestReviewComments",
+		"reply_to_pull_request_review_comment":  "ReplyToPullRequestReviewComment",
+		"dismiss_pull_request_review":           "DismissPullRequestReview",
+		"create_agent_session":                  "CreateAgentSessions",
+		"close_issue":                           "CloseIssues",
+		"update_issue":                          "UpdateIssues",
+		"close_discussion":                      "CloseDiscussions",
+		"update_discussion":                     "UpdateDiscussions",
+		"close_pull_request":                    "ClosePullRequests",
+		"update_pull_request":                   "UpdatePullRequests",
+		"merge_pull_request":                    "MergePullRequest",
+		"add_labels":                            "AddLabels",
+		"remove_labels":                         "RemoveLabels",
+		"replace_label":                         "ReplaceLabel",
+		"hide_comment":                          "HideComment",
+		"link_sub_issue":                        "LinkSubIssue",
+		"mark_pull_request_as_ready_for_review": "MarkPullRequestAsReadyForReview",
+		"add_reviewer":                          "AddReviewer",
+		"assign_milestone":                      "AssignMilestone",
+		"assign_to_agent":                       "AssignToAgent",
+		"assign_to_user":                        "AssignToUser",
+		"unassign_from_user":                    "UnassignFromUser",
+		"set_issue_type":                        "SetIssueType",
+		"set_issue_field":                       "SetIssueField",
+	}
 }
 
 // computeRepoParamForTool returns the "repo" input parameter definition that should

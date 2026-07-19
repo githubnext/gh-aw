@@ -31,24 +31,7 @@ func evalDispatchWorkflow(item CreatedItemReport, repoOverride string) OutcomeRe
 	// Extract run_id from metadata if available.
 	// JSON numbers unmarshal as float64; convert carefully to int64 to avoid
 	// precision loss for large GitHub run IDs (which can exceed 2^32).
-	var runID int64
-	if item.Metadata != nil {
-		if v, ok := item.Metadata["run_id"]; ok {
-			switch id := v.(type) {
-			case float64:
-				// Guard against float64 values that cannot round-trip to int64.
-				// math.MaxInt64 is not representable exactly as float64; use 2^53
-				// (maxSafeFloat64Int) as the safe upper bound for lossless conversion.
-				if id > 0 && id <= maxSafeFloat64Int && id == math.Trunc(id) {
-					runID = int64(id)
-				}
-			case int:
-				runID = int64(id)
-			case int64:
-				runID = id
-			}
-		}
-	}
+	runID := evalDispatchWorkflowRunID(item.Metadata)
 
 	if runID <= 0 {
 		// No run ID available — workflow may not have been dispatched or ID not captured
@@ -67,7 +50,33 @@ func evalDispatchWorkflow(item CreatedItemReport, repoOverride string) OutcomeRe
 	status, _ := data["status"].(string)
 	conclusion, _ := data["conclusion"].(string)
 	outcomeEvalWorkflowLog.Printf("dispatch_workflow run %d: status=%s, conclusion=%s", runID, status, conclusion)
+	return evalDispatchWorkflowClassify(report, status, conclusion)
+}
 
+func evalDispatchWorkflowRunID(metadata map[string]any) int64 {
+	var runID int64
+	if metadata == nil {
+		return runID
+	}
+	if v, ok := metadata["run_id"]; ok {
+		switch id := v.(type) {
+		case float64:
+			// Guard against float64 values that cannot round-trip to int64.
+			// math.MaxInt64 is not representable exactly as float64; use 2^53
+			// (maxSafeFloat64Int) as the safe upper bound for lossless conversion.
+			if id > 0 && id <= maxSafeFloat64Int && id == math.Trunc(id) {
+				runID = int64(id)
+			}
+		case int:
+			runID = int64(id)
+		case int64:
+			runID = id
+		}
+	}
+	return runID
+}
+
+func evalDispatchWorkflowClassify(report OutcomeReport, status string, conclusion string) OutcomeReport {
 	switch {
 	case status == "completed" && conclusion == "success":
 		report.Result = OutcomeAccepted

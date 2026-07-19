@@ -177,83 +177,78 @@ func (c *Compiler) getCustomJobsReferencedInPromptWithNoActivationDep(data *Work
 func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	compilerJobsLog.Printf("Building jobs for workflow: %s", markdownPath)
 
-	// Use the already-parsed frontmatter from WorkflowData (populated by ParseWorkflowFile /
-	// ParseWorkflowString) instead of re-reading and re-parsing the file on every compilation.
-	// Note: RawFrontmatter has already been through preprocessScheduleFields, so shorthand
-	// triggers (e.g. "on: daily") are already expanded into their structured form.
-	// The consumers (needsRoleCheck, hasWorkflowRunTrigger) only inspect event keys in the
-	// "on" field, which is exactly what we need here.
 	frontmatter := data.RawFrontmatter
-
-	// Extract lock filename for timestamp check
 	lockFilename := filepath.Base(stringutil.MarkdownToLockFile(markdownPath))
 
-	// Resolve custom safe-output actions early so that tool schemas (derived from action.yml)
-	// are available when buildMainJobWrapper → generateMCPSetup → generateToolsMetaJSON →
-	// generateDynamicTools runs. Without this early resolution the dynamic_tools entry for
-	// each action tool would have an empty schema because Inputs/ActionDescription are nil.
-	if data.SafeOutputs != nil && len(data.SafeOutputs.Actions) > 0 {
-		c.resolveAllActions(data, markdownPath)
-	}
+	c.resolveSafeOutputActionsForJobBuild(data, markdownPath)
 
-	// Build pre-activation and activation jobs
 	_, activationJobCreated, err := c.buildPreActivationAndActivationJobs(data, frontmatter, lockFilename)
 	if err != nil {
 		return err
 	}
-
-	// Build main workflow job
-	if err := c.buildMainJobWrapper(data, activationJobCreated); err != nil {
+	if err := c.buildCoreWorkflowJobs(data, activationJobCreated, markdownPath); err != nil {
+		return err
+	}
+	if err := c.applyPostJobBuildAugmentations(data); err != nil {
 		return err
 	}
 
-	// Build safe outputs jobs if configured
+	compilerJobsLog.Print("Successfully built all jobs for workflow")
+	return nil
+}
+
+func (c *Compiler) buildCoreWorkflowJobs(data *WorkflowData, activationJobCreated bool, markdownPath string) error {
+	if err := c.buildMainJobWrapper(data, activationJobCreated); err != nil {
+		return err
+	}
 	if err := c.buildSafeOutputsJobs(data, string(constants.AgentJobName), markdownPath); err != nil {
 		return fmt.Errorf("failed to build safe outputs jobs: %w", err)
 	}
-
-	// Build BinEval evals job if evals are declared in frontmatter.
-	if evalsJob, err := c.buildEvalsJob(data); err != nil {
-		return fmt.Errorf("failed to build evals job: %w", err)
-	} else if evalsJob != nil {
-		if err := c.jobManager.AddJob(evalsJob); err != nil {
-			return fmt.Errorf("failed to add evals job: %w", err)
-		}
+	if err := c.addEvalsJobIfConfigured(data); err != nil {
+		return err
 	}
-
-	// Apply jobs.<builtin-job>.pre-steps customizations to already-created built-in jobs
-	// before processing non-built-in custom jobs.
 	if err := c.applyBuiltinJobPreSteps(data); err != nil {
 		return fmt.Errorf("failed to apply built-in job pre-steps: %w", err)
 	}
-
-	// Build additional custom jobs from frontmatter jobs section
 	if len(data.Jobs) > 0 {
 		compilerJobsLog.Printf("Building %d custom jobs from frontmatter", len(data.Jobs))
 	}
 	if err := c.buildCustomJobs(data, activationJobCreated); err != nil {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
 	}
-
-	// Build memory management jobs (repo-memory and cache-memory)
 	if err := c.buildMemoryManagementJobs(data); err != nil {
 		return err
 	}
+	return nil
+}
 
-	// Apply additive jobs.<built-in>.needs augmentations once all jobs are created,
-	// so referenced custom/imported jobs can be validated against the final job set.
+func (c *Compiler) applyPostJobBuildAugmentations(data *WorkflowData) error {
 	if err := c.applyBuiltinJobNeedsAugmentations(data); err != nil {
 		return fmt.Errorf("failed to apply built-in job needs augmentations: %w", err)
 	}
-
-	// Final pass: ensure conclusion job depends on ALL remaining workflow jobs.
-	// This guarantees conclusion always runs last, even for custom user-defined jobs
-	// (e.g. post-issue, super_linter) that were not explicitly added to its needs.
 	if err := c.ensureConclusionIsLastJob(); err != nil {
 		return err
 	}
+	return nil
+}
 
-	compilerJobsLog.Print("Successfully built all jobs for workflow")
+func (c *Compiler) resolveSafeOutputActionsForJobBuild(data *WorkflowData, markdownPath string) {
+	if data.SafeOutputs != nil && len(data.SafeOutputs.Actions) > 0 {
+		c.resolveAllActions(data, markdownPath)
+	}
+}
+
+func (c *Compiler) addEvalsJobIfConfigured(data *WorkflowData) error {
+	evalsJob, err := c.buildEvalsJob(data)
+	if err != nil {
+		return fmt.Errorf("failed to build evals job: %w", err)
+	}
+	if evalsJob == nil {
+		return nil
+	}
+	if err := c.jobManager.AddJob(evalsJob); err != nil {
+		return fmt.Errorf("failed to add evals job: %w", err)
+	}
 	return nil
 }
 

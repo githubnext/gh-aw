@@ -131,78 +131,19 @@ func startMCPScriptsHTTPServer(dir string, port int, verbose bool) (*exec.Cmd, e
 func startMCPScriptsServer(ctx context.Context, mcpScriptsConfig *workflow.MCPScriptsConfig, verbose bool) (*parser.RegistryMCPServerConfig, *exec.Cmd, string, error) {
 	mcpInspectLog.Printf("Starting mcp-scripts server with %d tools", len(mcpScriptsConfig.Tools))
 
-	// Check if node is available
-	if _, err := exec.LookPath("node"); err != nil {
-		errMsg := "node not found. Please install Node.js to run the mcp-scripts MCP server"
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-		return nil, nil, "", fmt.Errorf("node not found. Please install Node.js to run the mcp-scripts MCP server: %w", err)
-	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d mcp-script tool(s) to configure", len(mcpScriptsConfig.Tools))))
-	}
-
-	// Create temporary directory for mcp-scripts files
-	tmpDir, err := os.MkdirTemp("", "gh-aw-mcp-scripts-*")
+	tmpDir, err := startMCPScriptsServerPrepareFiles(mcpScriptsConfig, verbose)
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to create temporary directory: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-		return nil, nil, "", fmt.Errorf("failed to create temporary directory: %w", err)
+		return nil, nil, "", err
 	}
 
-	if verbose {
-		if _, err := fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Created temporary directory: "+tmpDir)); err != nil {
-			mcpInspectLog.Printf("Warning: failed to write to stderr: %v", err)
-		}
-	}
-
-	// Write mcp-scripts files to temporary directory
-	if err := writeMCPScriptsFiles(tmpDir, mcpScriptsConfig, verbose); err != nil {
-		// Clean up temporary directory on error
-		if err := os.RemoveAll(tmpDir); err != nil && verbose {
-			mcpInspectLog.Printf("Warning: failed to clean up temporary directory %s: %v", tmpDir, err)
-		}
-		errMsg := fmt.Sprintf("failed to write mcp-scripts files: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-		return nil, nil, "", fmt.Errorf("failed to write mcp-scripts files: %w", err)
-	}
-
-	// Find an available port for the HTTP server
-	port := findAvailablePort(mcpScriptsStartPort, verbose)
-	if port == 0 {
-		if err := os.RemoveAll(tmpDir); err != nil && verbose {
-			mcpInspectLog.Printf("Warning: failed to clean up temporary directory %s: %v", tmpDir, err)
-		}
-		errMsg := "failed to find an available port for the HTTP server"
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-		return nil, nil, "", errors.New("failed to find an available port for the HTTP server")
-	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using port %d for mcp-scripts HTTP server", port)))
-	}
-
-	// Start the HTTP server
-	serverCmd, err := startMCPScriptsHTTPServer(tmpDir, port, verbose)
+	serverCmd, port, err := startMCPScriptsServerLaunch(tmpDir, verbose)
 	if err != nil {
-		// Clean up temporary directory on error
-		if rmErr := os.RemoveAll(tmpDir); rmErr != nil && verbose {
-			mcpInspectLog.Printf("Warning: failed to clean up temporary directory %s: %v", tmpDir, rmErr)
-		}
-		return nil, nil, "", fmt.Errorf("failed to start mcp-scripts HTTP server: %w", err)
+		return nil, nil, "", err
 	}
 
 	// Wait for the server to start up
 	if err := waitForServerReady(ctx, port, 5*time.Second, verbose); err != nil {
-		if serverCmd.Process != nil {
-			// Kill the process and log warning if it fails
-			if err := serverCmd.Process.Kill(); err != nil && verbose {
-				mcpInspectLog.Printf("Warning: failed to kill server process %d: %v", serverCmd.Process.Pid, err)
-			}
-		}
-		if err := os.RemoveAll(tmpDir); err != nil && verbose {
-			mcpInspectLog.Printf("Warning: failed to clean up temporary directory %s: %v", tmpDir, err)
-		}
+		startMCPScriptsServerCleanupServer(serverCmd, tmpDir, verbose)
 		return nil, nil, "", err
 	}
 
@@ -222,4 +163,77 @@ func startMCPScriptsServer(ctx context.Context, mcpScriptsConfig *workflow.MCPSc
 	}
 
 	return config, serverCmd, tmpDir, nil
+}
+
+func startMCPScriptsServerPrepareFiles(mcpScriptsConfig *workflow.MCPScriptsConfig, verbose bool) (string, error) {
+	// Check if node is available
+	if _, err := exec.LookPath("node"); err != nil {
+		errMsg := "node not found. Please install Node.js to run the mcp-scripts MCP server"
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+		return "", fmt.Errorf("node not found. Please install Node.js to run the mcp-scripts MCP server: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d mcp-script tool(s) to configure", len(mcpScriptsConfig.Tools))))
+	}
+
+	// Create temporary directory for mcp-scripts files
+	tmpDir, err := os.MkdirTemp("", "gh-aw-mcp-scripts-*")
+	if err != nil {
+		errMsg := fmt.Sprintf("failed to create temporary directory: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+		return "", fmt.Errorf("failed to create temporary directory: %w", err)
+	}
+
+	if verbose {
+		if _, err := fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Created temporary directory: "+tmpDir)); err != nil {
+			mcpInspectLog.Printf("Warning: failed to write to stderr: %v", err)
+		}
+	}
+
+	if err := writeMCPScriptsFiles(tmpDir, mcpScriptsConfig, verbose); err != nil {
+		startMCPScriptsServerCleanupDir(tmpDir, verbose)
+		errMsg := fmt.Sprintf("failed to write mcp-scripts files: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+		return "", fmt.Errorf("failed to write mcp-scripts files: %w", err)
+	}
+	return tmpDir, nil
+}
+
+func startMCPScriptsServerLaunch(tmpDir string, verbose bool) (*exec.Cmd, int, error) {
+	// Find an available port for the HTTP server
+	port := findAvailablePort(mcpScriptsStartPort, verbose)
+	if port == 0 {
+		startMCPScriptsServerCleanupDir(tmpDir, verbose)
+		errMsg := "failed to find an available port for the HTTP server"
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+		return nil, 0, errors.New("failed to find an available port for the HTTP server")
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using port %d for mcp-scripts HTTP server", port)))
+	}
+
+	serverCmd, err := startMCPScriptsHTTPServer(tmpDir, port, verbose)
+	if err != nil {
+		startMCPScriptsServerCleanupDir(tmpDir, verbose)
+		return nil, 0, fmt.Errorf("failed to start mcp-scripts HTTP server: %w", err)
+	}
+	return serverCmd, port, nil
+}
+
+func startMCPScriptsServerCleanupServer(serverCmd *exec.Cmd, tmpDir string, verbose bool) {
+	if serverCmd.Process != nil {
+		// Kill the process and log warning if it fails
+		if err := serverCmd.Process.Kill(); err != nil && verbose {
+			mcpInspectLog.Printf("Warning: failed to kill server process %d: %v", serverCmd.Process.Pid, err)
+		}
+	}
+	startMCPScriptsServerCleanupDir(tmpDir, verbose)
+}
+
+func startMCPScriptsServerCleanupDir(tmpDir string, verbose bool) {
+	if err := os.RemoveAll(tmpDir); err != nil && verbose {
+		mcpInspectLog.Printf("Warning: failed to clean up temporary directory %s: %v", tmpDir, err)
+	}
 }

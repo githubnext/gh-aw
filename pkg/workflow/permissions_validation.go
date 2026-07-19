@@ -73,20 +73,7 @@ func ValidatePermissions(permissions *Permissions, githubTool ValidatableTool, p
 	result.ReadOnlyMode = readOnly
 
 	// Use pre-parsed toolsets when provided (avoids redundant ParseGitHubToolsets calls in hot paths).
-	var toolsets []string
-	if len(parsedToolsets) > 0 && parsedToolsets[0] != nil {
-		toolsets = parsedToolsets[0]
-		if permissionsValidationLog.Enabled() {
-			permissionsValidationLog.Printf("Validating with pre-parsed toolsets: %v, read-only: %v", toolsets, readOnly)
-		}
-	} else {
-		toolsetsStr := githubTool.GetToolsets()
-		if permissionsValidationLog.Enabled() {
-			permissionsValidationLog.Printf("Validating toolsets: %s, read-only: %v", toolsetsStr, readOnly)
-		}
-		toolsets = ParseGitHubToolsets(toolsetsStr)
-	}
-
+	toolsets := resolveValidationToolsets(githubTool, readOnly, parsedToolsets...)
 	if len(toolsets) == 0 {
 		if permissionsValidationLog.Enabled() {
 			permissionsValidationLog.Print("No toolsets to validate")
@@ -109,6 +96,21 @@ func ValidatePermissions(permissions *Permissions, githubTool ValidatableTool, p
 	}
 
 	return result
+}
+
+func resolveValidationToolsets(githubTool ValidatableTool, readOnly bool, parsedToolsets ...[]string) []string {
+	if len(parsedToolsets) > 0 && parsedToolsets[0] != nil {
+		toolsets := parsedToolsets[0]
+		if permissionsValidationLog.Enabled() {
+			permissionsValidationLog.Printf("Validating with pre-parsed toolsets: %v, read-only: %v", toolsets, readOnly)
+		}
+		return toolsets
+	}
+	toolsetsStr := githubTool.GetToolsets()
+	if permissionsValidationLog.Enabled() {
+		permissionsValidationLog.Printf("Validating toolsets: %s, read-only: %v", toolsetsStr, readOnly)
+	}
+	return ParseGitHubToolsets(toolsetsStr)
 }
 
 // checkMissingPermissions checks if all required permissions are granted
@@ -190,29 +192,7 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 	var lines []string
 
 	// Build permission list with toolset details inline
-	var permLines []string
-	for _, scopeStr := range scopes {
-		scope := PermissionScope(scopeStr)
-		level := result.MissingPermissions[scope]
-
-		// Find which toolsets need this permission
-		var requiredBy []string
-		if len(result.MissingToolsetDetails) > 0 {
-			for toolset, toolsetScopes := range result.MissingToolsetDetails {
-				if slices.Contains(toolsetScopes, scope) {
-					requiredBy = append(requiredBy, toolset)
-				}
-			}
-		}
-
-		// Format: "- scope: level (required by toolset1, toolset2)"
-		if len(requiredBy) > 0 {
-			sort.Strings(requiredBy)
-			permLines = append(permLines, fmt.Sprintf("  - %s: %s (required by %s)", scope, level, strings.Join(requiredBy, ", ")))
-		} else {
-			permLines = append(permLines, fmt.Sprintf("  - %s: %s", scope, level))
-		}
-	}
+	permLines := missingPermissionLines(result, scopes)
 
 	lines = append(lines, "Missing required permissions for GitHub toolsets:")
 	lines = append(lines, permLines...)
@@ -230,26 +210,55 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 	lines = append(lines, fmt.Sprintf("See: %s", constants.DocsPermissionsURL))
 
 	// Add suggestion to reduce toolsets if we have toolset details
-	if len(result.MissingToolsetDetails) > 0 {
-		lines = append(lines, "")
-		lines = append(lines, "Option 2: Reduce the required toolsets in your workflow:")
-		lines = append(lines, "Remove or adjust toolsets that require these permissions:")
-
-		// Get unique toolsets from MissingToolsetDetails
-		toolsetsMap := make(map[string]struct {
-		})
-		for toolset := range result.MissingToolsetDetails {
-			toolsetsMap[toolset] = struct {
-			}{}
-		}
-		toolsetsList := sliceutil.SortedKeys(toolsetsMap)
-
-		for _, toolset := range toolsetsList {
-			lines = append(lines, "  - "+toolset)
-		}
-	}
+	lines = appendMissingToolsetReductionSuggestion(lines, result)
 
 	return strings.Join(lines, "\n")
+}
+
+func missingPermissionLines(result *PermissionsValidationResult, scopes []string) []string {
+	var permLines []string
+	for _, scopeStr := range scopes {
+		scope := PermissionScope(scopeStr)
+		level := result.MissingPermissions[scope]
+		requiredBy := missingPermissionRequiredBy(result, scope)
+		if len(requiredBy) > 0 {
+			sort.Strings(requiredBy)
+			permLines = append(permLines, fmt.Sprintf("  - %s: %s (required by %s)", scope, level, strings.Join(requiredBy, ", ")))
+		} else {
+			permLines = append(permLines, fmt.Sprintf("  - %s: %s", scope, level))
+		}
+	}
+	return permLines
+}
+
+func missingPermissionRequiredBy(result *PermissionsValidationResult, scope PermissionScope) []string {
+	var requiredBy []string
+	if len(result.MissingToolsetDetails) == 0 {
+		return requiredBy
+	}
+	for toolset, toolsetScopes := range result.MissingToolsetDetails {
+		if slices.Contains(toolsetScopes, scope) {
+			requiredBy = append(requiredBy, toolset)
+		}
+	}
+	return requiredBy
+}
+
+func appendMissingToolsetReductionSuggestion(lines []string, result *PermissionsValidationResult) []string {
+	if len(result.MissingToolsetDetails) == 0 {
+		return lines
+	}
+	lines = append(lines, "")
+	lines = append(lines, "Option 2: Reduce the required toolsets in your workflow:")
+	lines = append(lines, "Remove or adjust toolsets that require these permissions:")
+	toolsetsMap := make(map[string]struct{})
+	for toolset := range result.MissingToolsetDetails {
+		toolsetsMap[toolset] = struct{}{}
+	}
+	for _, toolset := range sliceutil.SortedKeys(toolsetsMap) {
+		lines = append(lines, "  - "+toolset)
+	}
+	return lines
 }
 
 // ValidateIncludedPermissions validates that the main workflow permissions satisfy the imported
@@ -269,130 +278,144 @@ func (c *Compiler) ValidateIncludedPermissions(topPermissionsYAML string, import
 	}
 
 	// Parse top-level permissions
-	var topPerms *Permissions
-	if topPermissionsYAML != "" {
-		topPerms = NewPermissionsParser(topPermissionsYAML).ToPermissions()
-	} else {
-		topPerms = NewPermissions()
-	}
+	topPerms := parseTopPermissionsForInclude(topPermissionsYAML)
 
 	// Track missing permissions
 	missingPermissions := make(map[PermissionScope]PermissionLevel)
-	insufficientPermissions := make(map[PermissionScope]struct {
-		required PermissionLevel
-		current  PermissionLevel
-	})
+	insufficientPermissions := make(map[PermissionScope]includedPermissionGap)
 
 	// Split by newlines to handle multiple JSON objects from different imports
 	lines := strings.Split(importedPermissionsJSON, "\n")
 	permissionsValidationLog.Printf("Processing %d permission definition lines", len(lines))
 
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || line == "{}" {
-			continue
-		}
-
-		// Parse JSON line to permissions map
-		var importedPermsMap map[string]any
-		if err := json.Unmarshal([]byte(line), &importedPermsMap); err != nil {
-			permissionsValidationLog.Printf("Skipping malformed permission entry: %q (error: %v)", line, err)
-			continue
-		}
-
-		// Check each permission from the imported map
-		for scopeStr, levelValue := range importedPermsMap {
-			scope := PermissionScope(scopeStr)
-
-			// Parse the level - it might be a string or already unmarshaled
-			var requiredLevel PermissionLevel
-			if levelStr, ok := levelValue.(string); ok {
-				requiredLevel = PermissionLevel(levelStr)
-			} else {
-				// Skip invalid level values
-				continue
-			}
-
-			// Get current level for this scope
-			currentLevel, exists := topPerms.Get(scope)
-
-			// Validate that the main workflow has sufficient permissions
-			if !exists || currentLevel == PermissionNone {
-				// Permission is missing entirely
-				missingPermissions[scope] = requiredLevel
-				permissionsValidationLog.Printf("Missing permission: %s: %s", scope, requiredLevel)
-			} else if !isPermissionSufficient(currentLevel, requiredLevel) {
-				// Permission exists but is insufficient
-				insufficientPermissions[scope] = struct {
-					required PermissionLevel
-					current  PermissionLevel
-				}{requiredLevel, currentLevel}
-				permissionsValidationLog.Printf("Insufficient permission: %s: has %s, needs %s", scope, currentLevel, requiredLevel)
-			}
-		}
-	}
+	collectIncludedPermissionIssues(lines, topPerms, missingPermissions, insufficientPermissions)
 
 	// If there are missing or insufficient permissions, return an error
 	if len(missingPermissions) > 0 || len(insufficientPermissions) > 0 {
-		var errorMsg strings.Builder
-		errorMsg.WriteString("ERROR: Imported workflows require permissions that are not granted in the main workflow.\n\n")
-		errorMsg.WriteString("The permission set must be explicitly declared in the main workflow.\n\n")
-
-		if len(missingPermissions) > 0 {
-			errorMsg.WriteString("Missing permissions:\n")
-			// Sort for consistent output
-			var scopes []PermissionScope
-			for scope := range missingPermissions {
-				scopes = append(scopes, scope)
-			}
-			SortPermissionScopes(scopes)
-			for _, scope := range scopes {
-				level := missingPermissions[scope]
-				fmt.Fprintf(&errorMsg, "  - %s: %s\n", scope, level)
-			}
-			errorMsg.WriteString("\n")
-		}
-
-		if len(insufficientPermissions) > 0 {
-			errorMsg.WriteString("Insufficient permissions:\n")
-			// Sort for consistent output
-			var scopes []PermissionScope
-			for scope := range insufficientPermissions {
-				scopes = append(scopes, scope)
-			}
-			SortPermissionScopes(scopes)
-			for _, scope := range scopes {
-				info := insufficientPermissions[scope]
-				fmt.Fprintf(&errorMsg, "  - %s: has %s, requires %s\n", scope, info.current, info.required)
-			}
-			errorMsg.WriteString("\n")
-		}
-
-		errorMsg.WriteString("Suggested fix: Add the required permissions to your main workflow frontmatter:\n")
-		errorMsg.WriteString("permissions:\n")
-
-		// Combine all required permissions for the suggestion
-		allRequired := make(map[PermissionScope]PermissionLevel)
-		maps.Copy(allRequired, missingPermissions)
-		for scope, info := range insufficientPermissions {
-			allRequired[scope] = info.required
-		}
-
-		var scopes []PermissionScope
-		for scope := range allRequired {
-			scopes = append(scopes, scope)
-		}
-		SortPermissionScopes(scopes)
-		for _, scope := range scopes {
-			level := allRequired[scope]
-			fmt.Fprintf(&errorMsg, "  %s: %s\n", scope, level)
-		}
-
-		return errors.New(errorMsg.String())
+		return errors.New(buildIncludedPermissionsError(missingPermissions, insufficientPermissions))
 	}
 
 	permissionsValidationLog.Print("All included workflow permissions are satisfied by main workflow")
 	return nil
+}
+
+type includedPermissionGap struct {
+	required PermissionLevel
+	current  PermissionLevel
+}
+
+func parseTopPermissionsForInclude(topPermissionsYAML string) *Permissions {
+	if topPermissionsYAML != "" {
+		return NewPermissionsParser(topPermissionsYAML).ToPermissions()
+	}
+	return NewPermissions()
+}
+
+func collectIncludedPermissionIssues(lines []string, topPerms *Permissions, missing map[PermissionScope]PermissionLevel, insufficient map[PermissionScope]includedPermissionGap) {
+	for _, line := range lines {
+		importedPermsMap, ok := parseIncludedPermissionLine(line)
+		if !ok {
+			continue
+		}
+		for scopeStr, levelValue := range importedPermsMap {
+			requiredLevel, ok := includedRequiredLevel(levelValue)
+			if !ok {
+				continue
+			}
+			recordIncludedPermissionIssue(topPerms, PermissionScope(scopeStr), requiredLevel, missing, insufficient)
+		}
+	}
+}
+
+func parseIncludedPermissionLine(line string) (map[string]any, bool) {
+	line = strings.TrimSpace(line)
+	if line == "" || line == "{}" {
+		return nil, false
+	}
+	var importedPermsMap map[string]any
+	if err := json.Unmarshal([]byte(line), &importedPermsMap); err != nil {
+		permissionsValidationLog.Printf("Skipping malformed permission entry: %q (error: %v)", line, err)
+		return nil, false
+	}
+	return importedPermsMap, true
+}
+
+func includedRequiredLevel(levelValue any) (PermissionLevel, bool) {
+	levelStr, ok := levelValue.(string)
+	if !ok {
+		return "", false
+	}
+	return PermissionLevel(levelStr), true
+}
+
+func recordIncludedPermissionIssue(topPerms *Permissions, scope PermissionScope, required PermissionLevel, missing map[PermissionScope]PermissionLevel, insufficient map[PermissionScope]includedPermissionGap) {
+	currentLevel, exists := topPerms.Get(scope)
+	if !exists || currentLevel == PermissionNone {
+		missing[scope] = required
+		permissionsValidationLog.Printf("Missing permission: %s: %s", scope, required)
+		return
+	}
+	if !isPermissionSufficient(currentLevel, required) {
+		insufficient[scope] = includedPermissionGap{required: required, current: currentLevel}
+		permissionsValidationLog.Printf("Insufficient permission: %s: has %s, needs %s", scope, currentLevel, required)
+	}
+}
+
+func buildIncludedPermissionsError(missing map[PermissionScope]PermissionLevel, insufficient map[PermissionScope]includedPermissionGap) string {
+	var errorMsg strings.Builder
+	errorMsg.WriteString("ERROR: Imported workflows require permissions that are not granted in the main workflow.\n\n")
+	errorMsg.WriteString("The permission set must be explicitly declared in the main workflow.\n\n")
+	appendIncludedMissingPermissions(&errorMsg, missing)
+	appendIncludedInsufficientPermissions(&errorMsg, insufficient)
+	appendIncludedPermissionsSuggestion(&errorMsg, missing, insufficient)
+	return errorMsg.String()
+}
+
+func appendIncludedMissingPermissions(errorMsg *strings.Builder, missing map[PermissionScope]PermissionLevel) {
+	if len(missing) == 0 {
+		return
+	}
+	errorMsg.WriteString("Missing permissions:\n")
+	scopes := sortedPermissionScopeKeys(missing)
+	for _, scope := range scopes {
+		fmt.Fprintf(errorMsg, "  - %s: %s\n", scope, missing[scope])
+	}
+	errorMsg.WriteString("\n")
+}
+
+func appendIncludedInsufficientPermissions(errorMsg *strings.Builder, insufficient map[PermissionScope]includedPermissionGap) {
+	if len(insufficient) == 0 {
+		return
+	}
+	errorMsg.WriteString("Insufficient permissions:\n")
+	scopes := sortedPermissionScopeKeys(insufficient)
+	for _, scope := range scopes {
+		info := insufficient[scope]
+		fmt.Fprintf(errorMsg, "  - %s: has %s, requires %s\n", scope, info.current, info.required)
+	}
+	errorMsg.WriteString("\n")
+}
+
+func appendIncludedPermissionsSuggestion(errorMsg *strings.Builder, missing map[PermissionScope]PermissionLevel, insufficient map[PermissionScope]includedPermissionGap) {
+	errorMsg.WriteString("Suggested fix: Add the required permissions to your main workflow frontmatter:\n")
+	errorMsg.WriteString("permissions:\n")
+	allRequired := make(map[PermissionScope]PermissionLevel)
+	maps.Copy(allRequired, missing)
+	for scope, info := range insufficient {
+		allRequired[scope] = info.required
+	}
+	for _, scope := range sortedPermissionScopeKeys(allRequired) {
+		fmt.Fprintf(errorMsg, "  %s: %s\n", scope, allRequired[scope])
+	}
+}
+
+func sortedPermissionScopeKeys[V any](values map[PermissionScope]V) []PermissionScope {
+	var scopes []PermissionScope
+	for scope := range values {
+		scopes = append(scopes, scope)
+	}
+	SortPermissionScopes(scopes)
+	return scopes
 }
 
 // ValidatePermissionScopeNames validates that all permission scope names in the
@@ -409,18 +432,7 @@ func ValidatePermissionScopeNames(permissionsYAML string) error {
 	permissionsValidationLog.Print("Validating permission scope names")
 
 	// Collect all valid scope names for fuzzy matching
-	ghTokenScopes := GetAllPermissionScopes()
-	appOnlyScopes := GetAllGitHubAppOnlyScopes()
-	// +1 for copilot-requests which is not in GetAllPermissionScopes
-	allScopes := make([]string, 0, safeAllocationCapacity(len(ghTokenScopes), len(appOnlyScopes), 1))
-	for _, scope := range ghTokenScopes {
-		allScopes = append(allScopes, string(scope))
-	}
-	for _, scope := range appOnlyScopes {
-		allScopes = append(allScopes, string(scope))
-	}
-	// copilot-requests is valid even though not in GetAllPermissionScopes
-	allScopes = append(allScopes, string(PermissionCopilotRequests))
+	allScopes := validPermissionScopeNames()
 	// "all" is a meta-key that is always valid in shorthand contexts
 	validMeta := map[string]struct {
 	}{
@@ -431,15 +443,9 @@ func ValidatePermissionScopeNames(permissionsYAML string) error {
 	}
 
 	// Strip optional "permissions:" prefix so we can parse just the map content
-	content := strings.TrimSpace(permissionsYAML)
-	if strings.HasPrefix(content, "permissions:") {
-		lines := strings.SplitN(content, "\n", 2)
-		if len(lines) == 2 {
-			content = lines[1]
-		} else {
-			// Single-line shorthand like "permissions: read-all" – no scope keys to check
-			return nil
-		}
+	content, ok := stripPermissionsYAMLPrefix(permissionsYAML)
+	if !ok {
+		return nil
 	}
 
 	// Try to parse the content as a YAML map of scope → level
@@ -457,35 +463,73 @@ func ValidatePermissionScopeNames(permissionsYAML string) error {
 			continue
 		}
 
-		// Unknown scope key — check for a case-only difference first (e.g. "Contents" → "contents")
-		lowerScopeKey := strings.ToLower(scopeKey)
-		if lowerScopeKey != scopeKey {
-			if _, ok := validPermissionScopes[lowerScopeKey]; ok {
-				return fmt.Errorf(
-					"unknown permission scope %q.\n\nDid you mean: %s?\n\nValid permission scopes include: %s\n\nSee: %s",
-					scopeKey,
-					lowerScopeKey,
-					strings.Join(allScopes[:min(10, len(allScopes))], ", ")+"...",
-					constants.DocsPermissionsURL,
-				)
-			}
+		if err := unknownPermissionScopeError(scopeKey, allScopes); err != nil {
+			return err
 		}
-
-		// Check for a close fuzzy match
-		permissionsValidationLog.Printf("Unknown permission scope key: %q", scopeKey)
-		suggestions := stringutil.FindClosestMatches(scopeKey, allScopes, 3)
-		if len(suggestions) == 0 {
+		if len(stringutil.FindClosestMatches(scopeKey, allScopes, 3)) == 0 &&
+			!hasCaseOnlyPermissionScopeMatch(scopeKey) {
 			continue // too different to be a typo, ignore silently
 		}
-
-		return fmt.Errorf(
-			"unknown permission scope %q.\n\nDid you mean: %s?\n\nValid permission scopes include: %s\n\nSee: %s",
-			scopeKey,
-			strings.Join(suggestions, ", "),
-			strings.Join(allScopes[:min(10, len(allScopes))], ", ")+"...",
-			constants.DocsPermissionsURL,
-		)
 	}
 
 	return nil
+}
+
+func validPermissionScopeNames() []string {
+	ghTokenScopes := GetAllPermissionScopes()
+	appOnlyScopes := GetAllGitHubAppOnlyScopes()
+	allScopes := make([]string, 0, safeAllocationCapacity(len(ghTokenScopes), len(appOnlyScopes), 1))
+	for _, scope := range ghTokenScopes {
+		allScopes = append(allScopes, string(scope))
+	}
+	for _, scope := range appOnlyScopes {
+		allScopes = append(allScopes, string(scope))
+	}
+	return append(allScopes, string(PermissionCopilotRequests))
+}
+
+func stripPermissionsYAMLPrefix(permissionsYAML string) (string, bool) {
+	content := strings.TrimSpace(permissionsYAML)
+	if strings.HasPrefix(content, "permissions:") {
+		lines := strings.SplitN(content, "\n", 2)
+		if len(lines) != 2 {
+			return "", false
+		}
+		content = lines[1]
+	}
+	return content, true
+}
+
+func hasCaseOnlyPermissionScopeMatch(scopeKey string) bool {
+	lowerScopeKey := strings.ToLower(scopeKey)
+	if lowerScopeKey == scopeKey {
+		return false
+	}
+	_, ok := validPermissionScopes[lowerScopeKey]
+	return ok
+}
+
+func unknownPermissionScopeError(scopeKey string, allScopes []string) error {
+	lowerScopeKey := strings.ToLower(scopeKey)
+	if lowerScopeKey != scopeKey {
+		if _, ok := validPermissionScopes[lowerScopeKey]; ok {
+			return formatUnknownPermissionScopeError(scopeKey, lowerScopeKey, allScopes)
+		}
+	}
+	permissionsValidationLog.Printf("Unknown permission scope key: %q", scopeKey)
+	suggestions := stringutil.FindClosestMatches(scopeKey, allScopes, 3)
+	if len(suggestions) == 0 {
+		return nil
+	}
+	return formatUnknownPermissionScopeError(scopeKey, strings.Join(suggestions, ", "), allScopes)
+}
+
+func formatUnknownPermissionScopeError(scopeKey, suggestion string, allScopes []string) error {
+	return fmt.Errorf(
+		"unknown permission scope %q.\n\nDid you mean: %s?\n\nValid permission scopes include: %s\n\nSee: %s",
+		scopeKey,
+		suggestion,
+		strings.Join(allScopes[:min(10, len(allScopes))], ", ")+"...",
+		constants.DocsPermissionsURL,
+	)
 }

@@ -158,36 +158,16 @@ func mergeFirewallIntoExistingSandbox(lines []string, fieldValue any) ([]string,
 		return lines, false
 	}
 
-	sandboxIdx := -1
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "sandbox:") {
-			sandboxIdx = i
-			break
-		}
-	}
+	sandboxIdx := mergeFirewallIntoExistingSandboxFindSandbox(lines)
 	if sandboxIdx == -1 {
 		return lines, false
 	}
 
 	sandboxIndent := getIndentation(lines[sandboxIdx])
 	agentIndent := sandboxIndent + "  "
-	sandboxEnd := len(lines)
-	for i := sandboxIdx + 1; i < len(lines); i++ {
-		if isTopLevelKey(lines[i]) {
-			sandboxEnd = i
-			break
-		}
-	}
+	sandboxEnd := mergeFirewallIntoExistingSandboxFindSandboxEnd(lines, sandboxIdx)
 
-	agentStart := -1
-	for i := sandboxIdx + 1; i < sandboxEnd; i++ {
-		trimmed := strings.TrimSpace(lines[i])
-		if strings.HasPrefix(trimmed, "agent:") && getIndentation(lines[i]) == agentIndent {
-			agentStart = i
-			break
-		}
-	}
+	agentStart := mergeFirewallIntoExistingSandboxFindAgent(lines, sandboxIdx, sandboxEnd, agentIndent)
 
 	indentedAgentLines := indentLines(agentLines, agentIndent)
 	if agentStart == -1 {
@@ -198,6 +178,45 @@ func mergeFirewallIntoExistingSandbox(lines []string, fieldValue any) ([]string,
 		return newLines, true
 	}
 
+	agentEnd := mergeFirewallIntoExistingSandboxFindAgentEnd(lines, agentStart, sandboxEnd)
+
+	newLines := make([]string, 0, len(lines)-((agentEnd-agentStart)-len(indentedAgentLines)))
+	newLines = append(newLines, lines[:agentStart]...)
+	newLines = append(newLines, indentedAgentLines...)
+	newLines = append(newLines, lines[agentEnd:]...)
+	return newLines, true
+}
+
+func mergeFirewallIntoExistingSandboxFindSandbox(lines []string) int {
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "sandbox:") {
+			return i
+		}
+	}
+	return -1
+}
+
+func mergeFirewallIntoExistingSandboxFindSandboxEnd(lines []string, sandboxIdx int) int {
+	for i := sandboxIdx + 1; i < len(lines); i++ {
+		if isTopLevelKey(lines[i]) {
+			return i
+		}
+	}
+	return len(lines)
+}
+
+func mergeFirewallIntoExistingSandboxFindAgent(lines []string, sandboxIdx int, sandboxEnd int, agentIndent string) int {
+	for i := sandboxIdx + 1; i < sandboxEnd; i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(trimmed, "agent:") && getIndentation(lines[i]) == agentIndent {
+			return i
+		}
+	}
+	return -1
+}
+
+func mergeFirewallIntoExistingSandboxFindAgentEnd(lines []string, agentStart int, sandboxEnd int) int {
 	agentEnd := agentStart + 1
 	agentFieldIndent := getIndentation(lines[agentStart])
 	for agentEnd < sandboxEnd {
@@ -219,12 +238,7 @@ func mergeFirewallIntoExistingSandbox(lines []string, fieldValue any) ([]string,
 		}
 		break
 	}
-
-	newLines := make([]string, 0, len(lines)-((agentEnd-agentStart)-len(indentedAgentLines)))
-	newLines = append(newLines, lines[:agentStart]...)
-	newLines = append(newLines, indentedAgentLines...)
-	newLines = append(newLines, lines[agentEnd:]...)
-	return newLines, true
+	return agentEnd
 }
 
 func sandboxAgentLinesForExistingSandbox(fieldValue any) []string {

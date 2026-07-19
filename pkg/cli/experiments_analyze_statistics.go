@@ -115,33 +115,7 @@ func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.Experim
 		MinSamples:     defaultMinSamples,
 	}
 
-	// Extract metadata from config when available.
-	if cfg != nil {
-		a.Hypothesis = cfg.Hypothesis
-		a.AnalysisType = cfg.AnalysisType
-		if cfg.MinSamples > 0 {
-			a.MinSamples = cfg.MinSamples
-		}
-		for _, g := range cfg.GuardrailMetrics {
-			a.Guardrails = append(a.Guardrails, GuardrailStatus{
-				Name:      g.Name,
-				Threshold: g.Threshold,
-			})
-		}
-		// Populate metric and resolve any eval reference to its question text.
-		if cfg.Metric != "" {
-			a.Metric = cfg.Metric
-			evalID, isEval := workflow.ParseExperimentMetricEvalReference(cfg.Metric)
-			if isEval && evalID != "" && evals != nil {
-				for _, q := range evals.Questions {
-					if q.ID == evalID {
-						a.MetricQuestion = q.Question
-						break
-					}
-				}
-			}
-		}
-	}
+	computeExperimentAnalysisConfig(&a, cfg, evals)
 
 	// Degenerate: fewer than 2 variants cannot be meaningfully analysed.
 	if len(exp.Variants) < 2 {
@@ -159,41 +133,12 @@ func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.Experim
 	expectedPcts := expectedProportions(variantNames, cfg)
 
 	// Populate per-variant entries.
-	for i, name := range variantNames {
-		count := exp.Variants[name]
-		obsPct := safePercent(count, exp.Total)
-		a.Variants = append(a.Variants, VariantAnalysis{
-			Name:            name,
-			Count:           count,
-			ObservedPct:     obsPct,
-			ExpectedPct:     expectedPcts[i] * 100,
-			MinSamples:      a.MinSamples,
-			BelowMinSamples: count < a.MinSamples,
-		})
-	}
+	computeExperimentAnalysisVariants(&a, exp, variantNames, expectedPcts)
 
 	k := len(variantNames)
 
 	// Chi-square goodness-of-fit balance test.
-	if exp.Total > 0 && k >= 2 {
-		chi2 := 0.0
-		for i, name := range variantNames {
-			expected := float64(exp.Total) * expectedPcts[i]
-			if expected > 0 {
-				diff := float64(exp.Variants[name]) - expected
-				chi2 += (diff * diff) / expected
-			}
-		}
-		df := k - 1
-		pval := chiSquarePValue(chi2, df)
-		a.ChiSquare = chi2
-		a.DegreesOfFreedom = df
-		a.PValue = pval
-		a.IsBalanced = pval >= balanceSignificanceThreshold
-		experimentsStatsLog.Printf("Chi-square balance test for %q: χ²=%.3f df=%d p=%.3f balanced=%v", exp.Name, chi2, df, pval, a.IsBalanced)
-	} else {
-		a.IsBalanced = true // insufficient data to assess balance
-	}
+	computeExperimentAnalysisBalance(&a, exp, variantNames, expectedPcts)
 
 	// Bonferroni correction for K ≥ 3 variants (§11.3).
 	if k >= 3 {
@@ -201,6 +146,81 @@ func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.Experim
 	}
 
 	// Recommendation (R-STAT-007).
+	computeExperimentAnalysisRecommendation(&a, exp.Name, k)
+	return a
+}
+
+func computeExperimentAnalysisConfig(a *ExperimentAnalysis, cfg *workflow.ExperimentConfig, evals *workflow.EvalsConfig) {
+	// Extract metadata from config when available.
+	if cfg == nil {
+		return
+	}
+	a.Hypothesis = cfg.Hypothesis
+	a.AnalysisType = cfg.AnalysisType
+	if cfg.MinSamples > 0 {
+		a.MinSamples = cfg.MinSamples
+	}
+	for _, g := range cfg.GuardrailMetrics {
+		a.Guardrails = append(a.Guardrails, GuardrailStatus{Name: g.Name, Threshold: g.Threshold})
+	}
+	// Populate metric and resolve any eval reference to its question text.
+	if cfg.Metric != "" {
+		a.Metric = cfg.Metric
+		computeExperimentAnalysisMetricQuestion(a, cfg.Metric, evals)
+	}
+}
+
+func computeExperimentAnalysisMetricQuestion(a *ExperimentAnalysis, metric string, evals *workflow.EvalsConfig) {
+	evalID, isEval := workflow.ParseExperimentMetricEvalReference(metric)
+	if !isEval || evalID == "" || evals == nil {
+		return
+	}
+	for _, q := range evals.Questions {
+		if q.ID == evalID {
+			a.MetricQuestion = q.Question
+			return
+		}
+	}
+}
+
+func computeExperimentAnalysisVariants(a *ExperimentAnalysis, exp ExperimentVariantStats, variantNames []string, expectedPcts []float64) {
+	for i, name := range variantNames {
+		count := exp.Variants[name]
+		a.Variants = append(a.Variants, VariantAnalysis{
+			Name:            name,
+			Count:           count,
+			ObservedPct:     safePercent(count, exp.Total),
+			ExpectedPct:     expectedPcts[i] * 100,
+			MinSamples:      a.MinSamples,
+			BelowMinSamples: count < a.MinSamples,
+		})
+	}
+}
+
+func computeExperimentAnalysisBalance(a *ExperimentAnalysis, exp ExperimentVariantStats, variantNames []string, expectedPcts []float64) {
+	k := len(variantNames)
+	if exp.Total <= 0 || k < 2 {
+		a.IsBalanced = true // insufficient data to assess balance
+		return
+	}
+	chi2 := 0.0
+	for i, name := range variantNames {
+		expected := float64(exp.Total) * expectedPcts[i]
+		if expected > 0 {
+			diff := float64(exp.Variants[name]) - expected
+			chi2 += (diff * diff) / expected
+		}
+	}
+	df := k - 1
+	pval := chiSquarePValue(chi2, df)
+	a.ChiSquare = chi2
+	a.DegreesOfFreedom = df
+	a.PValue = pval
+	a.IsBalanced = pval >= balanceSignificanceThreshold
+	experimentsStatsLog.Printf("Chi-square balance test for %q: χ²=%.3f df=%d p=%.3f balanced=%v", exp.Name, chi2, df, pval, a.IsBalanced)
+}
+
+func computeExperimentAnalysisRecommendation(a *ExperimentAnalysis, experimentName string, k int) {
 	belowCount := 0
 	minObserved := math.MaxInt
 	for _, v := range a.Variants {
@@ -215,15 +235,13 @@ func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.Experim
 		a.Recommendation = "EXTEND"
 		a.Rationale = fmt.Sprintf("%d of %d variant(s) below min_samples threshold (min observed: %d / %d)",
 			belowCount, k, minObserved, a.MinSamples)
-		experimentsStatsLog.Printf("Experiment %q recommendation: EXTEND (%d/%d variants below min_samples=%d)", exp.Name, belowCount, k, a.MinSamples)
+		experimentsStatsLog.Printf("Experiment %q recommendation: EXTEND (%d/%d variants below min_samples=%d)", experimentName, belowCount, k, a.MinSamples)
 	} else {
 		a.Recommendation = "READY_FOR_ANALYSIS"
 		a.Rationale = fmt.Sprintf("all %d variants have reached min_samples (%d); proceed with outcome metric analysis",
 			k, a.MinSamples)
-		experimentsStatsLog.Printf("Experiment %q recommendation: READY_FOR_ANALYSIS (all %d variants above min_samples=%d)", exp.Name, k, a.MinSamples)
+		experimentsStatsLog.Printf("Experiment %q recommendation: READY_FOR_ANALYSIS (all %d variants above min_samples=%d)", experimentName, k, a.MinSamples)
 	}
-
-	return a
 }
 
 // expectedProportions returns the expected fraction (0.0–1.0) for each variant, in the
@@ -307,22 +325,46 @@ func printExperimentAnalyses(analyses []ExperimentAnalysis) {
 func printOneExperimentAnalysis(a ExperimentAnalysis) {
 	fmt.Fprintf(os.Stderr, "\n  [%s]\n", a.ExperimentName)
 
+	printOneExperimentAnalysisHeader(a)
+	fmt.Fprintf(os.Stderr, "  Min samples: %d per variant\n", a.MinSamples)
+
+	// Per-variant progress table.
+	printOneExperimentAnalysisVariants(a)
+
+	// Balance test.
+	printOneExperimentAnalysisBalance(a)
+
+	// Bonferroni correction.
+	if a.BonferroniAlpha > 0 {
+		fmt.Fprintf(os.Stderr, "  Bonferroni : α_adjusted = %.4f (for %d variants, K-1 comparisons)\n",
+			a.BonferroniAlpha, len(a.Variants))
+	}
+
+	// Guardrails.
+	printOneExperimentAnalysisGuardrails(a)
+
+	// Recommendation.
+	printOneExperimentAnalysisRecommendation(a)
+}
+
+func printOneExperimentAnalysisHeader(a ExperimentAnalysis) {
 	if a.Hypothesis != "" {
 		fmt.Fprintf(os.Stderr, "  Hypothesis : %s\n", a.Hypothesis)
 	}
 	if a.AnalysisType != "" {
 		fmt.Fprintf(os.Stderr, "  Test type  : %s\n", a.AnalysisType)
 	}
-	if a.Metric != "" {
-		if a.MetricQuestion != "" {
-			fmt.Fprintf(os.Stderr, "  Metric     : %s — %s\n", a.Metric, a.MetricQuestion)
-		} else {
-			fmt.Fprintf(os.Stderr, "  Metric     : %s\n", a.Metric)
-		}
+	if a.Metric == "" {
+		return
 	}
-	fmt.Fprintf(os.Stderr, "  Min samples: %d per variant\n", a.MinSamples)
+	if a.MetricQuestion != "" {
+		fmt.Fprintf(os.Stderr, "  Metric     : %s — %s\n", a.Metric, a.MetricQuestion)
+	} else {
+		fmt.Fprintf(os.Stderr, "  Metric     : %s\n", a.Metric)
+	}
+}
 
-	// Per-variant progress table.
+func printOneExperimentAnalysisVariants(a ExperimentAnalysis) {
 	fmt.Fprintf(os.Stderr, "\n  %-20s %6s  %7s  %7s  %s\n", "Variant", "Count", "Obs%", "Exp%", "Progress")
 	fmt.Fprintf(os.Stderr, "  %s\n", strings.Repeat("─", 62))
 	for _, v := range a.Variants {
@@ -333,27 +375,23 @@ func printOneExperimentAnalysis(a ExperimentAnalysis) {
 		fmt.Fprintf(os.Stderr, "  %-20s %6d  %6.1f%%  %6.1f%%  %s\n",
 			v.Name, v.Count, v.ObservedPct, v.ExpectedPct, progressStr)
 	}
+}
 
-	// Balance test.
+func printOneExperimentAnalysisBalance(a ExperimentAnalysis) {
 	fmt.Fprintln(os.Stderr)
-	if a.TotalRuns > 0 {
-		balancedStr := "balanced ✓"
-		if !a.IsBalanced {
-			balancedStr = "unbalanced ✗"
-		}
-		fmt.Fprintf(os.Stderr, "  Balance    : χ² = %.3f  df = %d  p = %.3f  (%s)\n",
-			a.ChiSquare, a.DegreesOfFreedom, a.PValue, balancedStr)
-	} else {
+	if a.TotalRuns == 0 {
 		fmt.Fprintln(os.Stderr, "  Balance    : no data")
+		return
 	}
-
-	// Bonferroni correction.
-	if a.BonferroniAlpha > 0 {
-		fmt.Fprintf(os.Stderr, "  Bonferroni : α_adjusted = %.4f (for %d variants, K-1 comparisons)\n",
-			a.BonferroniAlpha, len(a.Variants))
+	balancedStr := "balanced ✓"
+	if !a.IsBalanced {
+		balancedStr = "unbalanced ✗"
 	}
+	fmt.Fprintf(os.Stderr, "  Balance    : χ² = %.3f  df = %d  p = %.3f  (%s)\n",
+		a.ChiSquare, a.DegreesOfFreedom, a.PValue, balancedStr)
+}
 
-	// Guardrails.
+func printOneExperimentAnalysisGuardrails(a ExperimentAnalysis) {
 	if len(a.Guardrails) > 0 {
 		parts := make([]string, 0, len(a.Guardrails))
 		for _, g := range a.Guardrails {
@@ -362,8 +400,9 @@ func printOneExperimentAnalysis(a ExperimentAnalysis) {
 		fmt.Fprintf(os.Stderr, "  Guardrails : %s\n", strings.Join(parts, "  •  "))
 		fmt.Fprintln(os.Stderr, "               (pass/fail evaluation requires per-run outcome metric data)")
 	}
+}
 
-	// Recommendation.
+func printOneExperimentAnalysisRecommendation(a ExperimentAnalysis) {
 	fmt.Fprintln(os.Stderr)
 	switch a.Recommendation {
 	case "EXTEND":

@@ -48,18 +48,53 @@ import (
 // branch security, GitHub MCP toolset permissions, and the id-token write warning.
 // It returns the parsed *Permissions for reuse in subsequent validation steps.
 func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath string) (*Permissions, error) {
-	// Use the cached *Permissions object when available to avoid repeated YAML parsing.
-	// CachedPermissions is populated by applyDefaults after all permission mutations are applied.
-	// Fall back to parsing from the raw string for code paths that bypass applyDefaults
-	// (e.g., tests that construct WorkflowData directly).
-	var workflowPermissions *Permissions
-	if workflowData.CachedPermissions != nil {
-		workflowPermissions = workflowData.CachedPermissions
-	} else {
-		workflowPermissions = NewPermissionsParser(workflowData.Permissions).ToPermissions()
-	}
+	workflowPermissions := getWorkflowPermissions(workflowData)
 
-	// Validate permission scope names for typos (e.g. "contnts" → "contents")
+	if err := validatePermissionScopeNamesForWorkflow(workflowData, markdownPath); err != nil {
+		return nil, err
+	}
+	workflowLog.Printf("Validating dangerous permissions")
+	if err := validateDangerousPermissions(workflowData, workflowPermissions); err != nil {
+		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+	workflowLog.Printf("Validating GitHub App-only permissions")
+	if err := validateGitHubAppOnlyPermissions(workflowData, workflowPermissions); err != nil {
+		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+	workflowLog.Printf("Validating GitHub MCP app permissions (no write)")
+	if err := validateGitHubMCPAppPermissionsNoWrite(workflowData); err != nil {
+		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+	warnGitHubAppPermissionsUnsupportedContexts(workflowData)
+
+	workflowLog.Printf("Validating workflow_run triggers for branch restrictions")
+	if err := c.validateWorkflowRunBranches(workflowData, markdownPath); err != nil {
+		return nil, err
+	}
+	workflowLog.Printf("Validating pull_request_target trigger security")
+	if err := c.validatePullRequestTargetTrigger(workflowData, markdownPath); err != nil {
+		return nil, err
+	}
+	workflowLog.Printf("Validating permissions for GitHub MCP toolsets")
+	if err := c.validateGitHubToolsetPermissions(workflowData, workflowPermissions, markdownPath); err != nil {
+		return nil, err
+	}
+	if err := validateOIDCPermissions(workflowData, workflowPermissions); err != nil {
+		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+	c.emitPermissionTips(workflowData, workflowPermissions, markdownPath)
+
+	return workflowPermissions, nil
+}
+
+func getWorkflowPermissions(workflowData *WorkflowData) *Permissions {
+	if workflowData.CachedPermissions != nil {
+		return workflowData.CachedPermissions
+	}
+	return NewPermissionsParser(workflowData.Permissions).ToPermissions()
+}
+
+func validatePermissionScopeNamesForWorkflow(workflowData *WorkflowData, markdownPath string) error {
 	workflowLog.Printf("Validating permission scope names")
 	var scopeValidationErr error
 	if workflowData.CachedPermissionScopeNamesSet {
@@ -68,92 +103,40 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 		scopeValidationErr = ValidatePermissionScopeNames(workflowData.Permissions)
 	}
 	if scopeValidationErr != nil {
-		return nil, formatCompilerError(markdownPath, "error", scopeValidationErr.Error(), scopeValidationErr)
+		return formatCompilerError(markdownPath, "error", scopeValidationErr.Error(), scopeValidationErr)
 	}
+	return nil
+}
 
-	// Validate dangerous permissions
-	workflowLog.Printf("Validating dangerous permissions")
-	if err := validateDangerousPermissions(workflowData, workflowPermissions); err != nil {
-		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
+func (c *Compiler) validateGitHubToolsetPermissions(workflowData *WorkflowData, workflowPermissions *Permissions, markdownPath string) error {
+	if workflowData.ParsedTools == nil || workflowData.ParsedTools.GitHub == nil {
+		return nil
 	}
-
-	// Validate GitHub App-only permissions require a GitHub App to be configured
-	workflowLog.Printf("Validating GitHub App-only permissions")
-	if err := validateGitHubAppOnlyPermissions(workflowData, workflowPermissions); err != nil {
-		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
+	hasPermissions := workflowData.Permissions != ""
+	workflowLog.Printf("Permission validation check: hasExplicitGitHubTool=%v, hasPermissions=%v",
+		workflowData.HasExplicitGitHubTool, hasPermissions)
+	if hasPermissions && !workflowData.HasExplicitGitHubTool {
+		workflowLog.Printf("Skipping permission validation: permissions exist but tools.github not explicitly configured")
+		return nil
 	}
-
-	// Validate tools.github.github-app.permissions does not use "write"
-	workflowLog.Printf("Validating GitHub MCP app permissions (no write)")
-	if err := validateGitHubMCPAppPermissionsNoWrite(workflowData); err != nil {
-		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
+	validationResult := ValidatePermissions(workflowPermissions, workflowData.ParsedTools.GitHub, workflowData.CachedParsedToolsets)
+	if !validationResult.HasValidationIssues || len(validationResult.MissingPermissions) == 0 {
+		return nil
 	}
-
-	// Warn when github-app.permissions is set in contexts that don't support it
-	warnGitHubAppPermissionsUnsupportedContexts(workflowData)
-
-	// Validate workflow_run triggers have branch restrictions
-	workflowLog.Printf("Validating workflow_run triggers for branch restrictions")
-	if err := c.validateWorkflowRunBranches(workflowData, markdownPath); err != nil {
-		return nil, err
+	message := FormatValidationMessage(validationResult, c.strictMode)
+	downgradeToWarning := c.strictMode && shouldDowngradeDefaultToolsetPermissionError(workflowData.ParsedTools.GitHub)
+	if c.strictMode && !downgradeToWarning {
+		return formatCompilerError(markdownPath, "error", message, nil)
 	}
-
-	// Validate pull_request_target trigger security
-	workflowLog.Printf("Validating pull_request_target trigger security")
-	if err := c.validatePullRequestTargetTrigger(workflowData, markdownPath); err != nil {
-		return nil, err
+	if downgradeToWarning {
+		message += "\n\n" + missingPermissionsDefaultToolsetWarning
 	}
+	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
+	c.IncrementWarningCount()
+	return nil
+}
 
-	// Validate permissions against GitHub MCP toolsets
-	workflowLog.Printf("Validating permissions for GitHub MCP toolsets")
-	if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil {
-		// Check if GitHub tool was explicitly configured in frontmatter
-		// If permissions exist but tools.github was NOT explicitly configured,
-		// skip validation and let the GitHub MCP server handle permission issues
-		hasPermissions := workflowData.Permissions != ""
-
-		workflowLog.Printf("Permission validation check: hasExplicitGitHubTool=%v, hasPermissions=%v",
-			workflowData.HasExplicitGitHubTool, hasPermissions)
-
-		// Skip validation if permissions exist but GitHub tool was auto-added (not explicit)
-		if hasPermissions && !workflowData.HasExplicitGitHubTool {
-			workflowLog.Printf("Skipping permission validation: permissions exist but tools.github not explicitly configured")
-		} else {
-			// Validate permissions using the typed GitHub tool configuration.
-			// Pass the cached parsed toolsets from applyDefaults to avoid a redundant
-			// ParseGitHubToolsets call inside ValidatePermissions.
-			validationResult := ValidatePermissions(workflowPermissions, workflowData.ParsedTools.GitHub, workflowData.CachedParsedToolsets)
-
-			if validationResult.HasValidationIssues {
-				// Format the validation message
-				message := FormatValidationMessage(validationResult, c.strictMode)
-
-				if len(validationResult.MissingPermissions) > 0 {
-					downgradeToWarning := c.strictMode && shouldDowngradeDefaultToolsetPermissionError(workflowData.ParsedTools.GitHub)
-					if c.strictMode && !downgradeToWarning {
-						// In strict mode, missing permissions are errors
-						return nil, formatCompilerError(markdownPath, "error", message, nil)
-					}
-
-					if downgradeToWarning {
-						message += "\n\n" + missingPermissionsDefaultToolsetWarning
-					}
-
-					// In non-strict mode, missing permissions are warnings.
-					// In strict mode with default-only toolsets, this is intentionally downgraded to warning.
-					fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
-					c.IncrementWarningCount()
-				}
-			}
-		}
-	}
-
-	// Enforce required id-token: write permission for OIDC auth users.
-	if err := validateOIDCPermissions(workflowData, workflowPermissions); err != nil {
-		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
-	}
-
-	// Emit warning if id-token: write permission is detected
+func (c *Compiler) emitPermissionTips(workflowData *WorkflowData, workflowPermissions *Permissions, markdownPath string) {
 	workflowLog.Printf("Checking for id-token: write permission")
 	if level, exists := workflowPermissions.Get(PermissionIdToken); exists && level == PermissionWrite {
 		warningMsg := `This workflow grants id-token: write permission
@@ -163,14 +146,17 @@ Ensure proper audience validation and trust policies are configured.`
 		c.IncrementWarningCount()
 	}
 	if shouldEmitCopilotRequestsEnableTip(workflowData, workflowPermissions) && !c.repositoryOwnerIsIndividualUser() {
-		if !c.copilotRequestsTipShown[markdownPath] {
-			tipMsg := `Tip: set permissions.copilot-requests: write to use GitHub Actions token-based inference with the Copilot engine instead of a personal access token (COPILOT_GITHUB_TOKEN). This option requires that your organization has centralized Copilot billing enabled and may not be available in all organizations — see https://github.github.com/gh-aw/reference/billing/ for details.`
-			fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "info", tipMsg))
-			c.copilotRequestsTipShown[markdownPath] = true
-		}
+		c.emitCopilotRequestsEnableTip(markdownPath)
 	}
+}
 
-	return workflowPermissions, nil
+func (c *Compiler) emitCopilotRequestsEnableTip(markdownPath string) {
+	if c.copilotRequestsTipShown[markdownPath] {
+		return
+	}
+	tipMsg := `Tip: set permissions.copilot-requests: write to use GitHub Actions token-based inference with the Copilot engine instead of a personal access token (COPILOT_GITHUB_TOKEN). This option requires that your organization has centralized Copilot billing enabled and may not be available in all organizations — see https://github.github.com/gh-aw/reference/billing/ for details.`
+	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "info", tipMsg))
+	c.copilotRequestsTipShown[markdownPath] = true
 }
 
 // repositoryOwnerIsIndividualUser reports whether the repository owner is confirmed

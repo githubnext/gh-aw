@@ -24,17 +24,22 @@ func (c *Compiler) buildInitialWorkflowData(
 ) *WorkflowData {
 	workflowBuilderLog.Print("Building initial workflow data")
 
+	workflowData := c.newInitialWorkflowData(result, toolsResult, engineSetup, importsResult)
+
+	populateWorkflowDataCheckout(workflowData, result, toolsResult, importsResult)
+	populateWorkflowDataUpdateFlags(workflowData, result, toolsResult)
+	c.populateWorkflowDataModelConfig(workflowData, result, toolsResult, importsResult)
+	populateWorkflowDataExcludedEnv(workflowData, toolsResult, importsResult)
+
+	return workflowData
+}
+
+func (c *Compiler) newInitialWorkflowData(result *parser.FrontmatterResult, toolsResult *toolsProcessingResult, engineSetup *engineSetupResult, importsResult *parser.ImportsResult) *WorkflowData {
 	inlinedImports := resolveInlinedImports(result.Frontmatter)
-
-	// When inlined-imports is true, agent file content is already inlined via ImportPaths → step 1b.
-	// Clear AgentFile/AgentImportSpec so engines don't read it from disk separately at runtime.
-	agentFile := importsResult.AgentFile
-	agentImportSpec := importsResult.AgentImportSpec
+	agentFile, agentImportSpec := importsResult.AgentFile, importsResult.AgentImportSpec
 	if inlinedImports {
-		agentFile = ""
-		agentImportSpec = ""
+		agentFile, agentImportSpec = "", ""
 	}
-
 	workflowData := &WorkflowData{
 		Name:                       toolsResult.workflowName,
 		FrontmatterName:            toolsResult.frontmatterName,
@@ -51,9 +56,9 @@ func (c *Compiler) buildInitialWorkflowData(
 		ImportedFiles:              importsResult.ImportedFiles,
 		Skills:                     extractFrontmatterSkills(toolsResult.parsedFrontmatter, result.Frontmatter),
 		SkillReferences:            extractFrontmatterSkillReferences(toolsResult.parsedFrontmatter, result.Frontmatter),
-		ImportedMarkdown:           toolsResult.importedMarkdown, // Only imports WITH inputs
-		ImportPaths:                toolsResult.importPaths,      // Import paths for runtime-import macros (imports without inputs)
-		PromptImports:              toolsResult.promptImports,    // Ordered prompt contributions from imports
+		ImportedMarkdown:           toolsResult.importedMarkdown,
+		ImportPaths:                toolsResult.importPaths,
+		PromptImports:              toolsResult.promptImports,
 		MainWorkflowMarkdown:       toolsResult.mainWorkflowMarkdown,
 		IncludedFiles:              toolsResult.allIncludedFiles,
 		ImportInputs:               importsResult.ImportInputs,
@@ -74,25 +79,29 @@ func (c *Compiler) buildInitialWorkflowData(
 		NeedsTextOutput:            toolsResult.needsTextOutput,
 		ToolsTimeout:               toolsResult.toolsTimeout,
 		ToolsStartupTimeout:        toolsResult.toolsStartupTimeout,
-		TrialMode:                  c.trialMode,
-		TrialLogicalRepo:           c.trialLogicalRepoSlug,
-		UseSamples:                 c.useSamples,
-		StrictMode:                 c.strictMode,
-		AllowActionRefs:            c.allowActionRefs,
-		ValidateAWFConfig:          !c.skipValidation,
 		SecretMasking:              toolsResult.secretMasking,
 		ParsedFrontmatter:          toolsResult.parsedFrontmatter,
 		RawFrontmatter:             result.Frontmatter,
 		ResolvedMCPServers:         toolsResult.resolvedMCPServers,
 		HasExplicitGitHubTool:      toolsResult.hasExplicitGitHubTool,
-		ActionMode:                 c.actionMode,
 		InlinedImports:             inlinedImports,
 		EngineConfigSteps:          engineSetup.configSteps,
 	}
+	c.populateInitialWorkflowCompilerOptions(workflowData)
+	return workflowData
+}
 
-	// Populate checkout configs from parsed frontmatter.
-	// Fall back to raw frontmatter parsing when full ParseFrontmatterConfig fails
-	// (e.g. due to unrecognised tool config shapes like bash: ["*"]).
+func (c *Compiler) populateInitialWorkflowCompilerOptions(workflowData *WorkflowData) {
+	workflowData.TrialMode = c.trialMode
+	workflowData.TrialLogicalRepo = c.trialLogicalRepoSlug
+	workflowData.UseSamples = c.useSamples
+	workflowData.StrictMode = c.strictMode
+	workflowData.AllowActionRefs = c.allowActionRefs
+	workflowData.ValidateAWFConfig = !c.skipValidation
+	workflowData.ActionMode = c.actionMode
+}
+
+func populateWorkflowDataCheckout(workflowData *WorkflowData, result *parser.FrontmatterResult, toolsResult *toolsProcessingResult, importsResult *parser.ImportsResult) {
 	if toolsResult.parsedFrontmatter != nil {
 		workflowData.CheckoutConfigs = toolsResult.parsedFrontmatter.CheckoutConfigs
 		workflowData.CheckoutDisabled = toolsResult.parsedFrontmatter.CheckoutDisabled
@@ -103,31 +112,32 @@ func (c *Compiler) buildInitialWorkflowData(
 			workflowData.CheckoutConfigs = configs
 		}
 	}
+	mergeImportedCheckoutConfigs(workflowData, importsResult)
+}
 
-	// Merge checkout configs from imported shared workflows.
-	// Imported configs are appended after the main workflow's configs so that the main
-	// workflow's entries take precedence when CheckoutManager deduplicates by (repository, path).
-	// checkout: false in the main workflow disables all checkout (including imports).
-	if !workflowData.CheckoutDisabled && importsResult.MergedCheckout != "" {
-		for line := range strings.SplitSeq(strings.TrimSpace(importsResult.MergedCheckout), "\n") {
-			if line == "" {
-				continue
-			}
-			var raw any
-			if err := json.Unmarshal([]byte(line), &raw); err != nil {
-				workflowBuilderLog.Printf("Failed to unmarshal imported checkout JSON: %v", err)
-				continue
-			}
-			importedConfigs, err := ParseCheckoutConfigs(raw)
-			if err != nil {
-				workflowBuilderLog.Printf("Failed to parse imported checkout configs: %v", err)
-				continue
-			}
-			workflowData.CheckoutConfigs = append(workflowData.CheckoutConfigs, importedConfigs...)
-		}
+func mergeImportedCheckoutConfigs(workflowData *WorkflowData, importsResult *parser.ImportsResult) {
+	if workflowData.CheckoutDisabled || importsResult.MergedCheckout == "" {
+		return
 	}
+	for line := range strings.SplitSeq(strings.TrimSpace(importsResult.MergedCheckout), "\n") {
+		if line == "" {
+			continue
+		}
+		var raw any
+		if err := json.Unmarshal([]byte(line), &raw); err != nil {
+			workflowBuilderLog.Printf("Failed to unmarshal imported checkout JSON: %v", err)
+			continue
+		}
+		importedConfigs, err := ParseCheckoutConfigs(raw)
+		if err != nil {
+			workflowBuilderLog.Printf("Failed to parse imported checkout configs: %v", err)
+			continue
+		}
+		workflowData.CheckoutConfigs = append(workflowData.CheckoutConfigs, importedConfigs...)
+	}
+}
 
-	// Populate check-for-updates flag: disabled when check-for-updates: false is set in frontmatter.
+func populateWorkflowDataUpdateFlags(workflowData *WorkflowData, result *parser.FrontmatterResult, toolsResult *toolsProcessingResult) {
 	if toolsResult.parsedFrontmatter != nil && toolsResult.parsedFrontmatter.UpdateCheck != nil {
 		workflowData.UpdateCheckDisabled = !*toolsResult.parsedFrontmatter.UpdateCheck
 	} else if rawVal, ok := result.Frontmatter["check-for-updates"]; ok {
@@ -135,9 +145,6 @@ func (c *Compiler) buildInitialWorkflowData(
 			workflowData.UpdateCheckDisabled = true
 		}
 	}
-
-	// Populate stale-check flag: disabled when on.stale-check: false is set in frontmatter;
-	// full mode when on.stale-check: full is set.
 	if onVal, ok := result.Frontmatter["on"]; ok {
 		if onMap, ok := onVal.(map[string]any); ok {
 			if staleCheck, ok := onMap["stale-check"]; ok {
@@ -149,18 +156,15 @@ func (c *Compiler) buildInitialWorkflowData(
 			}
 		}
 	}
+}
 
-	// Populate model mappings: merge builtin aliases with any imported-workflow aliases.
+func (c *Compiler) populateWorkflowDataModelConfig(workflowData *WorkflowData, result *parser.FrontmatterResult, toolsResult *toolsProcessingResult, importsResult *parser.ImportsResult) {
 	workflowData.ModelMappings = MergeImportedModelAliases(importsResult.MergedModels, nil)
-
 	mainModelCosts := extractMainModelCostsOverlay(toolsResult, result.Frontmatter)
 	mergedModelCosts := mergeModelCostOverlays(importsResult.MergedModelCosts, mainModelCosts)
 	if len(mergedModelCosts) > 0 {
 		workflowData.ModelCosts = mergedModelCosts
 	}
-	// Attempt to resolve pricing for the workflow model from models.dev when it is absent
-	// from both the frontmatter overlay and the embedded models.json catalog.  The result
-	// is injected into ModelCosts so the runtime receives it via GH_AW_INFO_MODEL_COSTS.
 	workflowData.ModelCosts = c.resolveModelPricingIfMissing(workflowData.ModelCosts, workflowData.EngineConfig)
 	mainModelPolicy := extractMainModelPolicyOverlay(toolsResult, result.Frontmatter)
 	allowedModels, disallowedModels := mergeModelPolicyOverlays(importsResult.MergedModelPolicies, mainModelPolicy)
@@ -170,9 +174,9 @@ func (c *Compiler) buildInitialWorkflowData(
 	if len(disallowedModels) > 0 {
 		workflowData.ModelPolicyBlocked = disallowedModels
 	}
+}
 
-	// Populate explicitly excluded env var names: union of imported workflows' excluded-env
-	// and the main workflow's excluded-env. Deduplicate and sort for stability.
+func populateWorkflowDataExcludedEnv(workflowData *WorkflowData, toolsResult *toolsProcessingResult, importsResult *parser.ImportsResult) {
 	var mainExcludedEnv []string
 	if toolsResult.parsedFrontmatter != nil {
 		mainExcludedEnv = toolsResult.parsedFrontmatter.ExcludedEnv
@@ -180,8 +184,6 @@ func (c *Compiler) buildInitialWorkflowData(
 	if names := mergeExcludedEnvVarNames(importsResult.MergedExcludedEnv, mainExcludedEnv); len(names) > 0 {
 		workflowData.ExcludedEnv = names
 	}
-
-	return workflowData
 }
 
 func extractLSPConfig(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any) map[string]LSPServerConfig {
@@ -628,93 +630,93 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 
 	workflowData.CustomSteps = c.extractTopLevelYAMLSection(frontmatter, "steps")
 
-	// Parse copilot-setup-steps if present (these go at the start)
-	var copilotSetupSteps []any
-	if importsResult.CopilotSetupSteps != "" {
-		if err := yaml.Unmarshal([]byte(importsResult.CopilotSetupSteps), &copilotSetupSteps); err != nil {
-			workflowBuilderLog.Printf("Failed to unmarshal copilot-setup steps: %v", err)
-		} else {
-			// Convert to typed steps for action pinning
-			typedCopilotSteps, err := SliceToSteps(copilotSetupSteps)
-			if err != nil {
-				workflowBuilderLog.Printf("Failed to convert copilot-setup steps to typed steps: %v", err)
-			} else {
-				// Apply action pinning to copilot-setup steps
-				typedCopilotSteps, err = applyActionPinsToTypedSteps(typedCopilotSteps, workflowData)
-				if err != nil {
-					return fmt.Errorf("copilot-setup steps: %w", err)
-				}
-				// Convert back to []any for YAML marshaling
-				copilotSetupSteps = StepsToSlice(typedCopilotSteps)
-			}
-		}
+	copilotSetupSteps, err := parseCopilotSetupSteps(importsResult.CopilotSetupSteps, workflowData)
+	if err != nil {
+		return err
+	}
+	otherImportedSteps, err := parseImportedWorkflowSteps(importsResult.MergedSteps, workflowData)
+	if err != nil {
+		return err
+	}
+	mainSteps, err := parseMainWorkflowSteps(workflowData.CustomSteps, workflowData)
+	if err != nil {
+		return err
 	}
 
-	// Parse other imported steps if present (these go after copilot-setup but before main steps)
-	var otherImportedSteps []any
-	if importsResult.MergedSteps != "" {
-		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &otherImportedSteps); err != nil {
-			return fmt.Errorf("failed to parse imported steps: %w", err)
-		}
-		// Convert to typed steps for action pinning
-		typedOtherSteps, err := SliceToSteps(otherImportedSteps)
-		if err != nil {
-			return fmt.Errorf("failed to convert imported steps: %w", err)
-		}
-		// Apply action pinning to other imported steps
-		typedOtherSteps, err = applyActionPinsToTypedSteps(typedOtherSteps, workflowData)
-		if err != nil {
-			return fmt.Errorf("imported steps: %w", err)
-		}
-		// Convert back to []any for YAML marshaling
-		otherImportedSteps = StepsToSlice(typedOtherSteps)
-	}
-
-	// If there are main workflow steps, parse them
-	var mainSteps []any
-	if workflowData.CustomSteps != "" {
-		var mainStepsWrapper map[string]any
-		if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err != nil {
-			return fmt.Errorf("failed to parse custom steps: %w", err)
-		}
-		if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
-			if steps, ok := mainStepsVal.([]any); ok {
-				mainSteps = steps
-				// Convert to typed steps for action pinning
-				typedMainSteps, err := SliceToSteps(mainSteps)
-				if err != nil {
-					return fmt.Errorf("failed to convert main steps: %w", err)
-				}
-				// Apply action pinning to main steps
-				typedMainSteps, err = applyActionPinsToTypedSteps(typedMainSteps, workflowData)
-				if err != nil {
-					return fmt.Errorf("steps: %w", err)
-				}
-				// Convert back to []any for YAML marshaling
-				mainSteps = StepsToSlice(typedMainSteps)
-			}
-		}
-	}
-
-	// Merge steps in the correct order:
-	// 1. copilot-setup-steps (at start)
-	// 2. other imported steps (after copilot-setup)
-	// 3. main frontmatter steps (last)
-	var allSteps []any
 	if len(copilotSetupSteps) > 0 || len(mainSteps) > 0 || len(otherImportedSteps) > 0 {
-		allSteps = append(allSteps, copilotSetupSteps...)
-		allSteps = append(allSteps, otherImportedSteps...)
-		allSteps = append(allSteps, mainSteps...)
-
-		// Convert back to YAML with "steps:" wrapper
-		stepsWrapper := map[string]any{"steps": allSteps}
-		stepsYAML, err := yaml.Marshal(stepsWrapper)
-		if err == nil {
-			// Remove quotes from uses values with version comments
-			workflowData.CustomSteps = unquoteUsesWithComments(string(stepsYAML))
-		}
+		workflowData.CustomSteps = renderMergedWorkflowSteps(copilotSetupSteps, otherImportedSteps, mainSteps, workflowData.CustomSteps)
 	}
 	return nil
+}
+
+func parseCopilotSetupSteps(copilotSetupYAML string, workflowData *WorkflowData) ([]any, error) {
+	if copilotSetupYAML == "" {
+		return nil, nil
+	}
+	var steps []any
+	if err := yaml.Unmarshal([]byte(copilotSetupYAML), &steps); err != nil {
+		workflowBuilderLog.Printf("Failed to unmarshal copilot-setup steps: %v", err)
+		return steps, nil
+	}
+	pinnedSteps, err := pinWorkflowSteps(steps, workflowData, "copilot-setup steps", "copilot-setup steps", true)
+	return pinnedSteps, err
+}
+
+func parseImportedWorkflowSteps(stepsYAML string, workflowData *WorkflowData) ([]any, error) {
+	if stepsYAML == "" {
+		return nil, nil
+	}
+	var steps []any
+	if err := yaml.Unmarshal([]byte(stepsYAML), &steps); err != nil {
+		return nil, fmt.Errorf("failed to parse imported steps: %w", err)
+	}
+	return pinWorkflowSteps(steps, workflowData, "imported steps", "imported steps", false)
+}
+
+func parseMainWorkflowSteps(customSteps string, workflowData *WorkflowData) ([]any, error) {
+	if customSteps == "" {
+		return nil, nil
+	}
+	var mainStepsWrapper map[string]any
+	if err := yaml.Unmarshal([]byte(customSteps), &mainStepsWrapper); err != nil {
+		return nil, fmt.Errorf("failed to parse custom steps: %w", err)
+	}
+	mainStepsVal, hasSteps := mainStepsWrapper["steps"]
+	if !hasSteps {
+		return nil, nil
+	}
+	steps, ok := mainStepsVal.([]any)
+	if !ok {
+		return nil, nil
+	}
+	return pinWorkflowSteps(steps, workflowData, "main steps", "steps", false)
+}
+
+func pinWorkflowSteps(steps []any, workflowData *WorkflowData, convertContext, pinContext string, logOnlyConversion bool) ([]any, error) {
+	typedSteps, err := SliceToSteps(steps)
+	if err != nil {
+		if logOnlyConversion {
+			workflowBuilderLog.Printf("Failed to convert copilot-setup steps to typed steps: %v", err)
+			return steps, nil
+		}
+		return nil, fmt.Errorf("failed to convert %s: %w", convertContext, err)
+	}
+	typedSteps, err = applyActionPinsToTypedSteps(typedSteps, workflowData)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", pinContext, err)
+	}
+	return StepsToSlice(typedSteps), nil
+}
+
+func renderMergedWorkflowSteps(copilotSetupSteps, otherImportedSteps, mainSteps []any, fallback string) string {
+	allSteps := append([]any{}, copilotSetupSteps...)
+	allSteps = append(allSteps, otherImportedSteps...)
+	allSteps = append(allSteps, mainSteps...)
+	stepsYAML, err := yaml.Marshal(map[string]any{"steps": allSteps})
+	if err != nil {
+		return fallback
+	}
+	return unquoteUsesWithComments(string(stepsYAML))
 }
 
 // processAndMergePreSteps handles the processing and merging of pre-steps with action pinning.

@@ -36,40 +36,8 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	// at runtime with undefined step output errors.
 	githubConfigLog.Print("Generating automatic guard policy determination step for GitHub MCP server")
 
-	// Resolve the latest version of actions/github-script
-	actionRepo := "actions/github-script"
-	actionVersion := string(constants.DefaultGitHubScriptVersion)
-	pinnedAction, err := getActionPinWithData(actionRepo, actionVersion, data)
-	if err != nil {
-		githubConfigLog.Printf("Failed to resolve %s@%s: %v", actionRepo, actionVersion, err)
-		// In strict mode, this error would have been returned by getActionPinWithData
-		// In normal mode, we fall back to using the version tag without pinning
-		pinnedAction = fmt.Sprintf("%s@%s", actionRepo, actionVersion)
-	}
-
-	// Extract current guard policy configuration to pass as env vars so the step can
-	// detect whether each field is already configured and avoid overriding it.
-	configuredMinIntegrity := ""
-	configuredRepos := ""
-	privateToPublicFlowsAllow := false
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if v, exists := toolConfig["min-integrity"]; exists {
-			configuredMinIntegrity = serializeEnvStringValue(v)
-		}
-		// Support both 'allowed-repos' (preferred) and deprecated 'repos'
-		if v, exists := toolConfig["allowed-repos"]; exists {
-			configuredRepos = serializeEnvStringValue(v)
-		} else if v, exists := toolConfig["repos"]; exists {
-			configuredRepos = serializeEnvStringValue(v)
-		}
-		// Detect private-to-public-flows: allow to inform the default repos value.
-		// When set to "allow", the user has explicitly opted in to cross-visibility data
-		// flows, so the repos default should be "all" rather than "public" even for
-		// public repositories.
-		if ptpFlows, _ := toolConfig["private-to-public-flows"].(string); ptpFlows == "allow" {
-			privateToPublicFlowsAllow = true
-		}
-	}
+	pinnedAction := resolveGitHubScriptActionPinForMCP(data)
+	configuredMinIntegrity, configuredRepos, privateToPublicFlowsAllow := githubMCPGuardPolicyEnvValues(githubTool)
 
 	// Generate the step using the determine_automatic_lockdown.cjs action
 	yaml.WriteString("      - name: Determine automatic lockdown mode for GitHub MCP Server\n")
@@ -91,6 +59,37 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');\n")
 	yaml.WriteString("            await determineAutomaticLockdown(github, context, core);\n")
+}
+
+func resolveGitHubScriptActionPinForMCP(data *WorkflowData) string {
+	actionRepo := "actions/github-script"
+	actionVersion := string(constants.DefaultGitHubScriptVersion)
+	pinnedAction, err := getActionPinWithData(actionRepo, actionVersion, data)
+	if err != nil {
+		githubConfigLog.Printf("Failed to resolve %s@%s: %v", actionRepo, actionVersion, err)
+		return fmt.Sprintf("%s@%s", actionRepo, actionVersion)
+	}
+	return pinnedAction
+}
+
+func githubMCPGuardPolicyEnvValues(githubTool any) (string, string, bool) {
+	configuredMinIntegrity := ""
+	configuredRepos := ""
+	privateToPublicFlowsAllow := false
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if v, exists := toolConfig["min-integrity"]; exists {
+			configuredMinIntegrity = serializeEnvStringValue(v)
+		}
+		if v, exists := toolConfig["allowed-repos"]; exists {
+			configuredRepos = serializeEnvStringValue(v)
+		} else if v, exists := toolConfig["repos"]; exists {
+			configuredRepos = serializeEnvStringValue(v)
+		}
+		if ptpFlows, _ := toolConfig["private-to-public-flows"].(string); ptpFlows == "allow" {
+			privateToPublicFlowsAllow = true
+		}
+	}
+	return configuredMinIntegrity, configuredRepos, privateToPublicFlowsAllow
 }
 
 // serializeEnvStringValue converts a workflow config value to a string suitable for a
@@ -214,33 +213,7 @@ func (c *Compiler) generateParseGuardVarsStep(yaml *strings.Builder, data *Workf
 
 	githubConfigLog.Print("Generating parse-guard-vars step for blocked-users, trusted-users and approval-labels")
 
-	// Determine the compile-time static values (or user expression) for each field.
-	// These come from the parsed tools config so we don't lose data from the raw map.
-	var blockedUsersExtra, trustedUsersExtra, approvalLabelsExtra string
-
-	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil {
-		gh := data.ParsedTools.GitHub
-		switch {
-		case len(gh.BlockedUsers) > 0:
-			// Static list from frontmatter — join as comma-separated for the env var.
-			blockedUsersExtra = strings.Join(gh.BlockedUsers, ",")
-		case gh.BlockedUsersExpr != "":
-			// User-provided GitHub Actions expression — passed verbatim; GHA evaluates it.
-			blockedUsersExtra = gh.BlockedUsersExpr
-		}
-		switch {
-		case len(gh.TrustedUsers) > 0:
-			trustedUsersExtra = strings.Join(gh.TrustedUsers, ",")
-		case gh.TrustedUsersExpr != "":
-			trustedUsersExtra = gh.TrustedUsersExpr
-		}
-		switch {
-		case len(gh.ApprovalLabels) > 0:
-			approvalLabelsExtra = strings.Join(gh.ApprovalLabels, ",")
-		case gh.ApprovalLabelsExpr != "":
-			approvalLabelsExtra = gh.ApprovalLabelsExpr
-		}
-	}
+	blockedUsersExtra, trustedUsersExtra, approvalLabelsExtra := githubMCPGuardListExtraEnvValues(data)
 
 	yaml.WriteString("      - name: Parse integrity filter lists\n")
 	yaml.WriteString("        id: parse-guard-vars\n")
@@ -262,4 +235,25 @@ func (c *Compiler) generateParseGuardVarsStep(yaml *strings.Builder, data *Workf
 	fmt.Fprintf(yaml, "          GH_AW_APPROVAL_LABELS_VAR: ${{ vars.%s || '' }}\n", constants.EnvVarGitHubApprovalLabels)
 
 	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/parse_guard_list.sh\"\n")
+}
+
+func githubMCPGuardListExtraEnvValues(data *WorkflowData) (string, string, string) {
+	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil {
+		return "", "", ""
+	}
+	gh := data.ParsedTools.GitHub
+	return guardListExtraEnvValue(gh.BlockedUsers, gh.BlockedUsersExpr),
+		guardListExtraEnvValue(gh.TrustedUsers, gh.TrustedUsersExpr),
+		guardListExtraEnvValue(gh.ApprovalLabels, gh.ApprovalLabelsExpr)
+}
+
+func guardListExtraEnvValue(values []string, expr string) string {
+	switch {
+	case len(values) > 0:
+		return strings.Join(values, ",")
+	case expr != "":
+		return expr
+	default:
+		return ""
+	}
 }

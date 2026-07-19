@@ -102,6 +102,20 @@ type episodeSeed struct {
 
 func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeData, []EpisodeEdge) {
 	logsEpisodeLog.Printf("Building episode data: runs=%d processed_runs=%d", len(runs), len(processedRuns))
+	runsByID, processedByID, seedsByRunID, parents := buildEpisodeDataIndexes(runs, processedRuns)
+	edges := buildEpisodeDataEdges(runs, runsByID, parents)
+	rootMetadata := buildEpisodeDataRootMetadata(runs, parents, seedsByRunID)
+	episodeMap := buildEpisodeDataAccumulators(runs, processedByID, parents, rootMetadata)
+	buildEpisodeDataAssignEdgeEpisodes(edges, parents, rootMetadata)
+	episodes := buildEpisodeDataFinalizeEpisodes(episodeMap)
+
+	buildEpisodeDataSort(episodes, edges)
+
+	logsEpisodeLog.Printf("Built %d episodes and %d edges from %d runs", len(episodes), len(edges), len(runs))
+	return episodes, edges
+}
+
+func buildEpisodeDataIndexes(runs []RunData, processedRuns []ProcessedRun) (map[int64]RunData, map[int64]ProcessedRun, map[int64]episodeSeed, map[int64]int64) {
 	runsByID := make(map[int64]RunData, len(runs))
 	processedByID := make(map[int64]ProcessedRun, len(processedRuns))
 	seedsByRunID := make(map[int64]episodeSeed, len(runs))
@@ -115,7 +129,10 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 	for _, processedRun := range processedRuns {
 		processedByID[processedRun.Run.DatabaseID] = processedRun
 	}
+	return runsByID, processedByID, seedsByRunID, parents
+}
 
+func buildEpisodeDataEdges(runs []RunData, runsByID map[int64]RunData, parents map[int64]int64) []EpisodeEdge {
 	edges := make([]EpisodeEdge, 0)
 	for _, run := range runs {
 		if edge, ok := buildEpisodeEdge(run, runs, runsByID); ok {
@@ -123,8 +140,10 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 			unionEpisodes(parents, edge.SourceRunID, edge.TargetRunID)
 		}
 	}
+	return edges
+}
 
-	episodeMap := make(map[string]*episodeAccumulator)
+func buildEpisodeDataRootMetadata(runs []RunData, parents map[int64]int64, seedsByRunID map[int64]episodeSeed) map[int64]episodeSeed {
 	rootMetadata := make(map[int64]episodeSeed)
 	for _, run := range runs {
 		root := findEpisodeParent(parents, run.RunID)
@@ -134,154 +153,212 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 			rootMetadata[root] = seed
 		}
 	}
+	return rootMetadata
+}
 
+func buildEpisodeDataAccumulators(runs []RunData, processedByID map[int64]ProcessedRun, parents map[int64]int64, rootMetadata map[int64]episodeSeed) map[string]*episodeAccumulator {
+	episodeMap := make(map[string]*episodeAccumulator)
 	for _, run := range runs {
 		root := findEpisodeParent(parents, run.RunID)
-		selectedSeed := rootMetadata[root]
-		episodeID, kind, confidence, reasons := selectedSeed.EpisodeID, selectedSeed.Kind, selectedSeed.Confidence, selectedSeed.Reasons
-		acc, exists := episodeMap[episodeID]
-		if !exists {
-			acc = &episodeAccumulator{
-				metadata: EpisodeData{
-					EpisodeID:        episodeID,
-					Kind:             kind,
-					Confidence:       confidence,
-					Reasons:          append([]string(nil), reasons...),
-					RunIDs:           []int64{},
-					WorkflowNames:    []string{},
-					RiskDistribution: "none",
-				},
-				runSet:   make(map[int64]bool),
-				nameSet:  make(map[string]bool),
-				rootTime: run.CreatedAt,
-			}
-			episodeMap[episodeID] = acc
-		}
+		acc := buildEpisodeDataAccumulatorForRun(episodeMap, run, rootMetadata[root])
+		buildEpisodeDataAddRun(acc, run, processedByID)
+	}
+	return episodeMap
+}
 
-		if !acc.runSet[run.RunID] {
-			acc.runSet[run.RunID] = true
-			acc.metadata.RunIDs = append(acc.metadata.RunIDs, run.RunID)
-		}
-		if run.WorkflowName != "" && !acc.nameSet[run.WorkflowName] {
-			acc.nameSet[run.WorkflowName] = true
-			acc.metadata.WorkflowNames = append(acc.metadata.WorkflowNames, run.WorkflowName)
-		}
+func buildEpisodeDataAccumulatorForRun(episodeMap map[string]*episodeAccumulator, run RunData, selectedSeed episodeSeed) *episodeAccumulator {
+	acc, exists := episodeMap[selectedSeed.EpisodeID]
+	if exists {
+		return acc
+	}
+	acc = &episodeAccumulator{
+		metadata: EpisodeData{
+			EpisodeID:        selectedSeed.EpisodeID,
+			Kind:             selectedSeed.Kind,
+			Confidence:       selectedSeed.Confidence,
+			Reasons:          append([]string(nil), selectedSeed.Reasons...),
+			RunIDs:           []int64{},
+			WorkflowNames:    []string{},
+			RiskDistribution: "none",
+		},
+		runSet:   make(map[int64]bool),
+		nameSet:  make(map[string]bool),
+		rootTime: run.CreatedAt,
+	}
+	episodeMap[selectedSeed.EpisodeID] = acc
+	return acc
+}
 
-		acc.metadata.TotalRuns++
-		acc.metadata.TotalTokens += run.TokenUsage
-		acc.metadata.TotalAIC += run.AIC
-		acc.metadata.ManifestEntryCount += run.ManifestEntryCount
-		acc.metadata.TemporaryIDMappings += run.TemporaryIDMappings
-		acc.metadata.ChainedTargetCount += run.ChainedTargetCount
-		acc.metadata.ChainedFollowupActionCount += run.ChainedFollowupActionCount
-		acc.metadata.DelegatedTempTargetCount += run.DelegatedTempTargetCount
-		acc.metadata.ClosedTempTargetCount += run.ClosedTempTargetCount
-		if run.Comparison != nil && run.Comparison.Classification != nil && run.Comparison.Classification.Label == "risky" {
-			acc.metadata.RiskyNodeCount++
-		}
-		if run.Comparison != nil && run.Comparison.Classification != nil && run.Comparison.Classification.Label == "changed" {
-			acc.metadata.ChangedNodeCount++
-		}
-		if run.BehaviorFingerprint != nil && run.BehaviorFingerprint.ActuationStyle != "read_only" {
-			acc.metadata.WriteCapableNodeCount++
-		}
-		if run.Comparison != nil && run.Comparison.Baseline != nil && run.Comparison.Baseline.Selection == "latest_success" {
-			acc.metadata.LatestSuccessFallbackCount++
-		}
-		if hasComparisonReasonCode(run.Comparison, "new_mcp_failure") {
-			acc.metadata.NewMCPFailureRunCount++
-		}
-		if hasComparisonReasonCode(run.Comparison, "blocked_requests_increase") {
-			acc.metadata.BlockedRequestIncreaseRunCount++
-		}
-		if hasAssessmentKindAtLeast(run.AgenticAssessments, "resource_heavy_for_domain", "medium") {
-			acc.metadata.ResourceHeavyNodeCount++
-		}
-		if hasAssessmentKindAtLeast(run.AgenticAssessments, "poor_agentic_control", "medium") {
-			acc.metadata.PoorControlNodeCount++
-		}
-		acc.metadata.MissingToolCount += run.MissingToolCount
-		if pr, ok := processedByID[run.RunID]; ok {
-			acc.metadata.MCPFailureCount += len(pr.MCPFailures)
-			if pr.FirewallAnalysis != nil {
-				acc.metadata.BlockedRequestCount += pr.FirewallAnalysis.BlockedRequests
-				if pr.FirewallAnalysis.BlockedRequests >= firewallBlockedRequestCap {
-					acc.metadata.BlockedRequestAtCap = true
-				}
-			}
-			// Collect per-tool-call metrics for this run.
-			if pr.MCPToolUsage != nil {
-				for _, tc := range pr.MCPToolUsage.ToolCalls {
-					acc.toolCalls = append(acc.toolCalls, mcpToolCallToEpisodeToolCall(tc))
-				}
-			}
-		}
-		if !run.CreatedAt.IsZero() && (acc.metadata.RootRunID == 0 || run.CreatedAt.Before(acc.rootTime)) {
-			acc.rootTime = run.CreatedAt
-			acc.metadata.RootRunID = run.RunID
-			acc.metadata.PrimaryWorkflow = run.WorkflowName
-		}
-		if acc.metadata.PrimaryWorkflow == "" && run.WorkflowName != "" {
-			acc.metadata.PrimaryWorkflow = run.WorkflowName
-		}
-		if acc.metadata.Repository == "" && run.Repository != "" {
-			acc.metadata.Repository = run.Repository
-			if parts := strings.SplitN(run.Repository, "/", 2); len(parts) == 2 {
-				acc.metadata.Organization = parts[0]
-			}
-		}
-		if run.StartedAt.IsZero() && run.UpdatedAt.IsZero() {
-			acc.duration += run.CreatedAt.Sub(run.CreatedAt)
-		} else if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() && run.UpdatedAt.After(run.StartedAt) {
-			acc.duration += run.UpdatedAt.Sub(run.StartedAt)
-		} else if pr, ok := processedByID[run.RunID]; ok && pr.Run.Duration > 0 {
-			acc.duration += pr.Run.Duration
+func buildEpisodeDataAddRun(acc *episodeAccumulator, run RunData, processedByID map[int64]ProcessedRun) {
+	buildEpisodeDataAddIdentity(acc, run)
+	buildEpisodeDataAddMetrics(acc, run)
+	buildEpisodeDataAddProcessed(acc, run, processedByID)
+	buildEpisodeDataAddMetadata(acc, run, processedByID)
+}
+
+func buildEpisodeDataAddIdentity(acc *episodeAccumulator, run RunData) {
+	if !acc.runSet[run.RunID] {
+		acc.runSet[run.RunID] = true
+		acc.metadata.RunIDs = append(acc.metadata.RunIDs, run.RunID)
+	}
+	if run.WorkflowName != "" && !acc.nameSet[run.WorkflowName] {
+		acc.nameSet[run.WorkflowName] = true
+		acc.metadata.WorkflowNames = append(acc.metadata.WorkflowNames, run.WorkflowName)
+	}
+}
+
+func buildEpisodeDataAddMetrics(acc *episodeAccumulator, run RunData) {
+	acc.metadata.TotalRuns++
+	acc.metadata.TotalTokens += run.TokenUsage
+	acc.metadata.TotalAIC += run.AIC
+	acc.metadata.ManifestEntryCount += run.ManifestEntryCount
+	acc.metadata.TemporaryIDMappings += run.TemporaryIDMappings
+	acc.metadata.ChainedTargetCount += run.ChainedTargetCount
+	acc.metadata.ChainedFollowupActionCount += run.ChainedFollowupActionCount
+	acc.metadata.DelegatedTempTargetCount += run.DelegatedTempTargetCount
+	acc.metadata.ClosedTempTargetCount += run.ClosedTempTargetCount
+	acc.metadata.MissingToolCount += run.MissingToolCount
+}
+
+func buildEpisodeDataAddProcessed(acc *episodeAccumulator, run RunData, processedByID map[int64]ProcessedRun) {
+	if run.Comparison != nil && run.Comparison.Classification != nil && run.Comparison.Classification.Label == "risky" {
+		acc.metadata.RiskyNodeCount++
+	}
+	if run.Comparison != nil && run.Comparison.Classification != nil && run.Comparison.Classification.Label == "changed" {
+		acc.metadata.ChangedNodeCount++
+	}
+	if run.BehaviorFingerprint != nil && run.BehaviorFingerprint.ActuationStyle != "read_only" {
+		acc.metadata.WriteCapableNodeCount++
+	}
+	if run.Comparison != nil && run.Comparison.Baseline != nil && run.Comparison.Baseline.Selection == "latest_success" {
+		acc.metadata.LatestSuccessFallbackCount++
+	}
+	buildEpisodeDataAddAssessmentCounts(acc, run)
+	buildEpisodeDataAddProcessedRun(acc, run, processedByID)
+}
+
+func buildEpisodeDataAddAssessmentCounts(acc *episodeAccumulator, run RunData) {
+	if hasComparisonReasonCode(run.Comparison, "new_mcp_failure") {
+		acc.metadata.NewMCPFailureRunCount++
+	}
+	if hasComparisonReasonCode(run.Comparison, "blocked_requests_increase") {
+		acc.metadata.BlockedRequestIncreaseRunCount++
+	}
+	if hasAssessmentKindAtLeast(run.AgenticAssessments, "resource_heavy_for_domain", "medium") {
+		acc.metadata.ResourceHeavyNodeCount++
+	}
+	if hasAssessmentKindAtLeast(run.AgenticAssessments, "poor_agentic_control", "medium") {
+		acc.metadata.PoorControlNodeCount++
+	}
+}
+
+func buildEpisodeDataAddProcessedRun(acc *episodeAccumulator, run RunData, processedByID map[int64]ProcessedRun) {
+	pr, ok := processedByID[run.RunID]
+	if !ok {
+		return
+	}
+	acc.metadata.MCPFailureCount += len(pr.MCPFailures)
+	if pr.FirewallAnalysis != nil {
+		acc.metadata.BlockedRequestCount += pr.FirewallAnalysis.BlockedRequests
+		if pr.FirewallAnalysis.BlockedRequests >= firewallBlockedRequestCap {
+			acc.metadata.BlockedRequestAtCap = true
 		}
 	}
+	if pr.MCPToolUsage != nil {
+		for _, tc := range pr.MCPToolUsage.ToolCalls {
+			acc.toolCalls = append(acc.toolCalls, mcpToolCallToEpisodeToolCall(tc))
+		}
+	}
+}
 
+func buildEpisodeDataAddMetadata(acc *episodeAccumulator, run RunData, processedByID map[int64]ProcessedRun) {
+	if !run.CreatedAt.IsZero() && (acc.metadata.RootRunID == 0 || run.CreatedAt.Before(acc.rootTime)) {
+		acc.rootTime = run.CreatedAt
+		acc.metadata.RootRunID = run.RunID
+		acc.metadata.PrimaryWorkflow = run.WorkflowName
+	}
+	if acc.metadata.PrimaryWorkflow == "" && run.WorkflowName != "" {
+		acc.metadata.PrimaryWorkflow = run.WorkflowName
+	}
+	if acc.metadata.Repository == "" && run.Repository != "" {
+		acc.metadata.Repository = run.Repository
+		if parts := strings.SplitN(run.Repository, "/", 2); len(parts) == 2 {
+			acc.metadata.Organization = parts[0]
+		}
+	}
+	buildEpisodeDataAddDuration(acc, run, processedByID)
+}
+
+func buildEpisodeDataAddDuration(acc *episodeAccumulator, run RunData, processedByID map[int64]ProcessedRun) {
+	if run.StartedAt.IsZero() && run.UpdatedAt.IsZero() {
+		acc.duration += run.CreatedAt.Sub(run.CreatedAt)
+	} else if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() && run.UpdatedAt.After(run.StartedAt) {
+		acc.duration += run.UpdatedAt.Sub(run.StartedAt)
+	} else if pr, ok := processedByID[run.RunID]; ok && pr.Run.Duration > 0 {
+		acc.duration += pr.Run.Duration
+	}
+}
+
+func buildEpisodeDataAssignEdgeEpisodes(edges []EpisodeEdge, parents map[int64]int64, rootMetadata map[int64]episodeSeed) {
 	for index := range edges {
 		root := findEpisodeParent(parents, edges[index].TargetRunID)
 		if selectedSeed, ok := rootMetadata[root]; ok {
 			edges[index].EpisodeID = selectedSeed.EpisodeID
 		}
 	}
+}
 
+func buildEpisodeDataFinalizeEpisodes(episodeMap map[string]*episodeAccumulator) []EpisodeData {
 	episodes := make([]EpisodeData, 0, len(episodeMap))
 	for _, acc := range episodeMap {
-		slices.Sort(acc.metadata.RunIDs)
-		slices.Sort(acc.metadata.WorkflowNames)
-		if acc.duration > 0 {
-			acc.metadata.TotalDuration = timeutil.FormatDuration(acc.duration)
-		}
-		if acc.metadata.PrimaryWorkflow == "" && len(acc.metadata.WorkflowNames) > 0 {
-			acc.metadata.PrimaryWorkflow = acc.metadata.WorkflowNames[0]
-		}
-		switch acc.metadata.RiskyNodeCount {
-		case 0:
-			acc.metadata.RiskDistribution = "none"
-		case 1:
-			acc.metadata.RiskDistribution = "concentrated"
-		default:
-			acc.metadata.RiskDistribution = "distributed"
-		}
-		acc.metadata.EscalationEligible, acc.metadata.EscalationReason = classifyEpisodeEscalation(acc.metadata)
-		acc.metadata.SuggestedRoute = buildSuggestedRoute(acc.metadata)
-		if len(acc.toolCalls) > 0 {
-			// Sort tool calls for deterministic output (server, then tool name, then status).
-			slices.SortFunc(acc.toolCalls, func(a, b EpisodeToolCall) int {
-				if a.Server != b.Server {
-					return cmp.Compare(a.Server, b.Server)
-				}
-				if a.Tool != b.Tool {
-					return cmp.Compare(a.Tool, b.Tool)
-				}
-				return cmp.Compare(a.Status, b.Status)
-			})
-			acc.metadata.ToolCalls = acc.toolCalls
-		}
+		buildEpisodeDataFinalizeAccumulator(acc)
 		episodes = append(episodes, acc.metadata)
 	}
+	return episodes
+}
 
+func buildEpisodeDataFinalizeAccumulator(acc *episodeAccumulator) {
+	slices.Sort(acc.metadata.RunIDs)
+	slices.Sort(acc.metadata.WorkflowNames)
+	if acc.duration > 0 {
+		acc.metadata.TotalDuration = timeutil.FormatDuration(acc.duration)
+	}
+	if acc.metadata.PrimaryWorkflow == "" && len(acc.metadata.WorkflowNames) > 0 {
+		acc.metadata.PrimaryWorkflow = acc.metadata.WorkflowNames[0]
+	}
+	acc.metadata.RiskDistribution = buildEpisodeDataRiskDistribution(acc.metadata.RiskyNodeCount)
+	acc.metadata.EscalationEligible, acc.metadata.EscalationReason = classifyEpisodeEscalation(acc.metadata)
+	acc.metadata.SuggestedRoute = buildSuggestedRoute(acc.metadata)
+	if len(acc.toolCalls) > 0 {
+		buildEpisodeDataSortToolCalls(acc.toolCalls)
+		acc.metadata.ToolCalls = acc.toolCalls
+	}
+}
+
+func buildEpisodeDataRiskDistribution(riskyNodeCount int) string {
+	switch riskyNodeCount {
+	case 0:
+		return "none"
+	case 1:
+		return "concentrated"
+	default:
+		return "distributed"
+	}
+}
+
+func buildEpisodeDataSortToolCalls(toolCalls []EpisodeToolCall) {
+	slices.SortFunc(toolCalls, func(a, b EpisodeToolCall) int {
+		if a.Server != b.Server {
+			return cmp.Compare(a.Server, b.Server)
+		}
+		if a.Tool != b.Tool {
+			return cmp.Compare(a.Tool, b.Tool)
+		}
+		return cmp.Compare(a.Status, b.Status)
+	})
+}
+
+func buildEpisodeDataSort(episodes []EpisodeData, edges []EpisodeEdge) {
 	slices.SortFunc(episodes, func(a, b EpisodeData) int {
 		if a.RootRunID != b.RootRunID {
 			return cmp.Compare(a.RootRunID, b.RootRunID)
@@ -294,9 +371,6 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 		}
 		return cmp.Compare(a.TargetRunID, b.TargetRunID)
 	})
-
-	logsEpisodeLog.Printf("Built %d episodes and %d edges from %d runs", len(episodes), len(edges), len(runs))
-	return episodes, edges
 }
 
 // mcpToolCallToEpisodeToolCall converts an MCPToolCall record to the lightweight

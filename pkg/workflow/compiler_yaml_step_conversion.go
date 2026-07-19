@@ -106,9 +106,6 @@ func unquoteUsesWithComments(yamlStr string) string {
 
 // renderStepFromMap renders a GitHub Actions step from a map to YAML
 func (c *Compiler) renderStepFromMap(out *strings.Builder, step map[string]any, data *WorkflowData, indent string) {
-	// Before rendering, extract any ${{ ... }} expressions from the run: field into
-	// env: variables to prevent shell injection attacks.  A compiler warning is emitted
-	// for every expression that is moved so that authors know their script was changed.
 	if sanitized, warnings, changed := sanitizeRunStepExpressions(step); changed {
 		stepConversionLog.Printf("Sanitized run-step expressions: %d warning(s) emitted", len(warnings))
 		for _, w := range warnings {
@@ -131,78 +128,54 @@ func (c *Compiler) renderStepFromMap(out *strings.Builder, step map[string]any, 
 
 	for _, field := range fieldOrder {
 		if value, exists := step[field]; exists {
-			// Add proper indentation for non-first fields
-			if !firstField {
-				out.WriteString(indent + "  ")
-			}
-			firstField = false
-
-			// Render the field based on its type
-			switch v := value.(type) {
-			case string:
-				// Handle multi-line strings (especially for 'run' field)
-				if field == "run" && strings.Contains(v, "\n") {
-					fmt.Fprintf(out, "%s: |\n", field)
-					lines := strings.SplitSeq(v, "\n")
-					for line := range lines {
-						fmt.Fprintf(out, "%s    %s\n", indent, line)
-					}
-				} else {
-					fmt.Fprintf(out, "%s: %s\n", field, v)
-				}
-			case map[string]any:
-				// For complex fields like "with" or "env" — sort keys for stable output.
-				fmt.Fprintf(out, "%s:\n", field)
-				for _, key := range sliceutil.SortedKeys(v) {
-					if field == "env" {
-						fmt.Fprintf(out, "%s    %s: %s\n", indent, key, formatStepEnvValueForYAML(v[key]))
-					} else {
-						fmt.Fprintf(out, "%s    %s: %v\n", indent, key, v[key])
-					}
-				}
-			default:
-				fmt.Fprintf(out, "%s: %v\n", field, v)
-			}
+			renderStepField(out, field, value, indent, &firstField, field == "run")
 		}
 	}
 
-	// Add any remaining fields not in the predefined order
 	for field, value := range step {
-		// Skip fields we've already processed
 		skip := slices.Contains(fieldOrder, field)
 		if skip {
 			continue
 		}
+		renderStepField(out, field, value, indent, &firstField, true)
+	}
+}
 
-		if !firstField {
-			out.WriteString(indent + "  ")
+func renderStepField(out *strings.Builder, field string, value any, indent string, firstField *bool, multilineStrings bool) {
+	if !*firstField {
+		out.WriteString(indent + "  ")
+	}
+	*firstField = false
+
+	switch v := value.(type) {
+	case string:
+		renderStepStringField(out, field, v, indent, multilineStrings)
+	case map[string]any:
+		renderStepMapField(out, field, v, indent)
+	default:
+		fmt.Fprintf(out, "%s: %v\n", field, v)
+	}
+}
+
+func renderStepStringField(out *strings.Builder, field, value, indent string, multilineStrings bool) {
+	if multilineStrings && strings.Contains(value, "\n") {
+		fmt.Fprintf(out, "%s: |\n", field)
+		lines := strings.SplitSeq(value, "\n")
+		for line := range lines {
+			fmt.Fprintf(out, "%s    %s\n", indent, line)
 		}
-		firstField = false
+	} else {
+		fmt.Fprintf(out, "%s: %s\n", field, value)
+	}
+}
 
-		switch v := value.(type) {
-		case string:
-			// Handle multi-line strings
-			if strings.Contains(v, "\n") {
-				fmt.Fprintf(out, "%s: |\n", field)
-				lines := strings.SplitSeq(v, "\n")
-				for line := range lines {
-					fmt.Fprintf(out, "%s    %s\n", indent, line)
-				}
-			} else {
-				fmt.Fprintf(out, "%s: %s\n", field, v)
-			}
-		case map[string]any:
-			// Sort keys for stable output.
-			fmt.Fprintf(out, "%s:\n", field)
-			for _, key := range sliceutil.SortedKeys(v) {
-				if field == "env" {
-					fmt.Fprintf(out, "%s    %s: %s\n", indent, key, formatStepEnvValueForYAML(v[key]))
-				} else {
-					fmt.Fprintf(out, "%s    %s: %v\n", indent, key, v[key])
-				}
-			}
-		default:
-			fmt.Fprintf(out, "%s: %v\n", field, v)
+func renderStepMapField(out *strings.Builder, field string, value map[string]any, indent string) {
+	fmt.Fprintf(out, "%s:\n", field)
+	for _, key := range sliceutil.SortedKeys(value) {
+		if field == "env" {
+			fmt.Fprintf(out, "%s    %s: %s\n", indent, key, formatStepEnvValueForYAML(value[key]))
+		} else {
+			fmt.Fprintf(out, "%s    %s: %v\n", indent, key, value[key])
 		}
 	}
 }

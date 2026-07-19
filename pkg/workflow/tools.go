@@ -20,271 +20,280 @@ var toolsLog = logger.New("workflow:tools")
 // applyDefaults applies default values for missing workflow sections
 func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error {
 	toolsLog.Printf("Applying defaults to workflow: name=%s, path=%s", data.Name, markdownPath)
+	defer cacheWorkflowDefaultValues(data)
 
-	// Populate cached values after all mutations to Permissions and Concurrency have been applied.
-	// Using defer ensures the cache is always set on every return path, including early returns.
-	// applyDefaults is the final stage that mutates data.Permissions (setting defaults), so
-	// the values computed here represent the stable,
-	// final state that validateWorkflowData will use. These caches eliminate repeated
-	// YAML parsing, regex extraction, and expression parsing in the hot validateWorkflowData loop.
-	defer func() {
-		data.CachedPermissions = NewPermissionsParser(data.Permissions).ToPermissions()
-		data.CachedPermissionScopeNamesErr = ValidatePermissionScopeNames(data.Permissions)
-		data.CachedPermissionScopeNamesSet = true
-		data.ConcurrencyGroupExpr = extractConcurrencyGroupFromYAML(data.Concurrency)
-		// Pre-validate and cache the concurrency group expression so validateWorkflowData
-		// can short-circuit without re-running the expensive ExpressionParser on every call.
-		// CachedConcurrencyGroupExprSet is always true after applyDefaults regardless of whether
-		// a group expression exists, so callers can distinguish "already computed" from "not yet computed".
-		if data.ConcurrencyGroupExpr != "" {
-			data.CachedConcurrencyGroupExprErr = validateConcurrencyGroupExpression(data.ConcurrencyGroupExpr)
-		}
-		data.CachedConcurrencyGroupExprSet = true
-		// Cache the expanded + parsed toolsets for the GitHub tool so both
-		// ValidatePermissions and validateToolConfiguration reuse one result.
-		// Use GetToolsets() to stay aligned with the runtime normalization done by GitHubToolConfig.
-		if data.ParsedTools != nil && data.ParsedTools.GitHub != nil {
-			data.CachedParsedToolsets = ParseGitHubToolsets(data.ParsedTools.GitHub.GetToolsets())
-		}
-	}()
-
-	// Check if this is a command trigger workflow (by checking if user specified "on.command")
-	isCommandTrigger := false
-	isLabelCommandTrigger := false
+	isCommandTrigger, isLabelCommandTrigger := detectCommandTriggers(data, markdownPath)
 	if data.On == "" {
-		// parseOnSection may have already detected the command trigger and populated data.Command
-		// (this covers slash_command map format, slash_command shorthand "on: /name", and deprecated "command:")
-		if len(data.Command) > 0 {
-			isCommandTrigger = true
-		} else if len(data.LabelCommand) > 0 {
-			isLabelCommandTrigger = true
-		} else {
-			// Check the original frontmatter for command trigger
-			content, err := os.ReadFile(markdownPath)
-			if err == nil {
-				result, err := parser.ExtractFrontmatterFromContent(string(content))
-				if err == nil {
-					if onValue, exists := result.Frontmatter["on"]; exists {
-						// Check for slash_command or command (deprecated)
-						if onMap, ok := onValue.(map[string]any); ok {
-							if _, hasSlashCommand := onMap["slash_command"]; hasSlashCommand {
-								isCommandTrigger = true
-							} else if _, hasCommand := onMap["command"]; hasCommand {
-								isCommandTrigger = true
-							} else if _, hasLabelCommand := onMap["label_command"]; hasLabelCommand {
-								isLabelCommandTrigger = true
-							}
-						}
-					}
-				}
-			}
+		if err := c.applyDefaultOnSection(data, isCommandTrigger, isLabelCommandTrigger); err != nil {
+			return err
 		}
 	}
 
-	if data.On == "" {
-		if isCommandTrigger {
-			toolsLog.Print("Workflow is command trigger, configuring command events")
+	if c.trialMode && c.hasIssueTrigger(data.On) {
+		data.On = c.injectWorkflowDispatchForIssue(data.On)
+	}
 
-			commandEventsMap := make(map[string]any)
+	c.applyWorkflowExecutionDefaults(data, isCommandTrigger || isLabelCommandTrigger)
+	return c.applyPermissionDefaults(data)
+}
 
-			// In centralized slash-command mode, compile slash workflows as
-			// workflow_dispatch-centric targets and preserve only non-slash events.
-			var filteredEvents []CommentEventMapping
-			if data.CommandCentralized {
-				if len(data.CommandOtherEvents) > 0 {
-					maps.Copy(commandEventsMap, data.CommandOtherEvents)
-				}
-				if _, hasWorkflowDispatch := commandEventsMap["workflow_dispatch"]; !hasWorkflowDispatch {
-					commandEventsMap["workflow_dispatch"] = nil
-				}
-			} else {
-				// Get the filtered command events based on CommandEvents field
-				filteredEvents = FilterCommentEvents(data.CommandEvents)
+func cacheWorkflowDefaultValues(data *WorkflowData) {
+	data.CachedPermissions = NewPermissionsParser(data.Permissions).ToPermissions()
+	data.CachedPermissionScopeNamesErr = ValidatePermissionScopeNames(data.Permissions)
+	data.CachedPermissionScopeNamesSet = true
+	data.ConcurrencyGroupExpr = extractConcurrencyGroupFromYAML(data.Concurrency)
+	if data.ConcurrencyGroupExpr != "" {
+		data.CachedConcurrencyGroupExprErr = validateConcurrencyGroupExpression(data.ConcurrencyGroupExpr)
+	}
+	data.CachedConcurrencyGroupExprSet = true
+	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil {
+		data.CachedParsedToolsets = ParseGitHubToolsets(data.ParsedTools.GitHub.GetToolsets())
+	}
+}
 
-				// Merge events for YAML generation (combines pull_request_comment and issue_comment into issue_comment)
-				yamlEvents := MergeEventsForYAML(filteredEvents)
+func detectCommandTriggers(data *WorkflowData, markdownPath string) (bool, bool) {
+	if data.On != "" {
+		return false, false
+	}
+	if len(data.Command) > 0 {
+		return true, false
+	}
+	if len(data.LabelCommand) > 0 {
+		return false, true
+	}
+	return detectCommandTriggersFromFrontmatter(markdownPath)
+}
 
-				// Build command events map from merged events
-				for _, event := range yamlEvents {
-					commandEventsMap[event.EventName] = map[string]any{
-						"types": event.Types,
-					}
-				}
+func detectCommandTriggersFromFrontmatter(markdownPath string) (bool, bool) {
+	content, err := os.ReadFile(markdownPath)
+	if err != nil {
+		return false, false
+	}
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return false, false
+	}
+	onValue, exists := result.Frontmatter["on"]
+	if !exists {
+		return false, false
+	}
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return false, false
+	}
+	if _, hasSlashCommand := onMap["slash_command"]; hasSlashCommand {
+		return true, false
+	}
+	if _, hasCommand := onMap["command"]; hasCommand {
+		return true, false
+	}
+	if _, hasLabelCommand := onMap["label_command"]; hasLabelCommand {
+		return false, true
+	}
+	return false, false
+}
 
-				// Check if there are other events to merge
-				if len(data.CommandOtherEvents) > 0 {
-					// Merge other events into command events
-					maps.Copy(commandEventsMap, data.CommandOtherEvents)
-				}
-			}
+func (c *Compiler) applyDefaultOnSection(data *WorkflowData, isCommandTrigger, isLabelCommandTrigger bool) error {
+	switch {
+	case isCommandTrigger:
+		return c.configureCommandTriggerDefaults(data)
+	case isLabelCommandTrigger:
+		return c.configureLabelCommandTriggerDefaults(data)
+	default:
+		data.On = defaultWorkflowOnSection()
+		return nil
+	}
+}
 
-			// If label_command is also configured alongside non-centralized slash_command, merge
-			// label events into the existing command events map to avoid duplicate YAML keys.
-			if len(data.LabelCommand) > 0 && !data.CommandCentralized {
-				labelEventNames := FilterLabelCommandEvents(data.LabelCommandEvents)
-				for _, eventName := range labelEventNames {
-					if existingAny, ok := commandEventsMap[eventName]; ok {
-						if existingMap, ok := existingAny.(map[string]any); ok {
-							switch t := existingMap["types"].(type) {
-							case []string:
-								newTypes := make([]any, len(t)+1)
-								for i, s := range t {
-									newTypes[i] = s
-								}
-								newTypes[len(t)] = "labeled"
-								existingMap["types"] = newTypes
-							case []any:
-								existingMap["types"] = append(t, "labeled")
-							}
-						}
-					} else {
-						commandEventsMap[eventName] = map[string]any{
-							"types": []any{"labeled"},
-						}
-					}
-				}
-			}
+func (c *Compiler) configureCommandTriggerDefaults(data *WorkflowData) error {
+	toolsLog.Print("Workflow is command trigger, configuring command events")
+	commandEventsMap, filteredEvents := buildCommandTriggerEventsMap(data)
+	mergeLabelCommandEventsIntoCommandMap(commandEventsMap, data)
+	if err := c.setOnFromEventsMap(data, commandEventsMap, "command events"); err != nil {
+		return err
+	}
+	return c.applyCommandTriggerCondition(data, filteredEvents)
+}
 
-			// Convert merged events to YAML
-			mergedEventsYAML, err := yaml.MarshalWithOptions(map[string]any{"on": commandEventsMap}, yaml.IndentSequence(true))
-			if err == nil {
-				yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
-				// Post-process YAML to ensure cron expressions are quoted
-				yamlStr = parser.QuoteCronExpressions(yamlStr)
-				// Apply comment processing to filter fields (draft, forks, names)
-				// Pass empty frontmatter since this is for command triggers
-				yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr, map[string]any{})
-				// Keep "on" quoted as it's a YAML boolean keyword
-				data.On = yamlStr
-			} else {
-				return fmt.Errorf("failed to marshal command events: %w", err)
-			}
+func buildCommandTriggerEventsMap(data *WorkflowData) (map[string]any, []CommentEventMapping) {
+	commandEventsMap := make(map[string]any)
+	var filteredEvents []CommentEventMapping
+	if data.CommandCentralized {
+		if len(data.CommandOtherEvents) > 0 {
+			maps.Copy(commandEventsMap, data.CommandOtherEvents)
+		}
+		if _, hasWorkflowDispatch := commandEventsMap["workflow_dispatch"]; !hasWorkflowDispatch {
+			commandEventsMap["workflow_dispatch"] = nil
+		}
+		return commandEventsMap, filteredEvents
+	}
+	filteredEvents = FilterCommentEvents(data.CommandEvents)
+	for _, event := range MergeEventsForYAML(filteredEvents) {
+		commandEventsMap[event.EventName] = map[string]any{"types": event.Types}
+	}
+	if len(data.CommandOtherEvents) > 0 {
+		maps.Copy(commandEventsMap, data.CommandOtherEvents)
+	}
+	return commandEventsMap, filteredEvents
+}
 
-			// Add conditional logic for command workflows unless centralized mode is enabled.
-			if !data.CommandCentralized {
-				// Add conditional logic to check for command in issue content
-				// Use event-aware condition that only applies command checks to comment-related events
-				// Pass the filtered events to buildEventAwareCommandCondition
-				hasOtherEvents := len(data.CommandOtherEvents) > 0
-				commandConditionTree, err := buildEventAwareCommandCondition(data.Command, data.CommandEvents, hasOtherEvents)
-				if err != nil {
-					return fmt.Errorf("failed to build command condition: %w", err)
-				}
-
-				if data.If == "" {
-					if len(data.LabelCommand) > 0 {
-						// Combine: (slash_command condition) OR (label_command condition)
-						// This allows the workflow to activate via either mechanism.
-						labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, false)
-						if err != nil {
-							return fmt.Errorf("failed to build combined label-command condition: %w", err)
-						}
-						combined := &OrNode{Left: commandConditionTree, Right: labelConditionTree}
-						data.If = RenderCondition(combined)
-					} else {
-						data.If = RenderCondition(commandConditionTree)
-					}
-				}
-			} else if data.If == "" && len(data.LabelCommand) > 0 {
-				// Centralized command mode compiles slash-command workflows as workflow_dispatch
-				// targets. Label checks for dispatches must be derived from aw_context metadata.
-				labelConditionTree, err := buildDispatchLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents)
-				if err != nil {
-					return fmt.Errorf("failed to build label-command condition: %w", err)
-				} else {
-					data.If = RenderCondition(labelConditionTree)
-				}
-			}
-		} else if isLabelCommandTrigger {
-			toolsLog.Print("Workflow is label-command trigger, configuring label events")
-
-			// Build the label-command events map
-			labelEventsMap := make(map[string]any)
-			if data.LabelCommandDecentralized {
-				if len(data.LabelCommandOtherEvents) > 0 {
-					maps.Copy(labelEventsMap, data.LabelCommandOtherEvents)
-				}
-				if ensureWorkflowDispatchItemNumberInput(labelEventsMap) {
-					// Keep workflow_dispatch + item_number in decentralized mode so manual runs
-					// retain the same fallback/concurrency behavior as inline label_command mode.
-					data.HasDispatchItemNumber = true
-				}
-			} else {
-				// Generate events: issues, pull_request, discussion with types: [labeled]
-				filteredEvents := FilterLabelCommandEvents(data.LabelCommandEvents)
-				for _, eventName := range filteredEvents {
-					labelEventsMap[eventName] = map[string]any{
-						"types": []any{"labeled"},
-					}
-				}
-
-				if ensureWorkflowDispatchItemNumberInput(labelEventsMap) {
-					// Signal that this workflow has a dispatch item_number input so that
-					// applyWorkflowDispatchFallbacks and concurrency key building add the
-					// necessary inputs.item_number fallbacks for manual workflow_dispatch runs.
-					data.HasDispatchItemNumber = true
-				}
-
-				// Merge other events (if any) — this handles the no-clash requirement:
-				// if the user also has e.g. "issues: {types: [labeled], names: [bug]}" as a
-				// regular label trigger alongside label_command, merge the "types" arrays
-				// rather than generating a duplicate "issues:" block or silently dropping config.
-				if len(data.LabelCommandOtherEvents) > 0 {
-					for eventKey, eventVal := range data.LabelCommandOtherEvents {
-						if existing, exists := labelEventsMap[eventKey]; exists {
-							// Merge types arrays from user config into the label_command-generated entry.
-							existingMap, _ := existing.(map[string]any)
-							userMap, _ := eventVal.(map[string]any)
-							if existingMap != nil && userMap != nil {
-								existingTypes, _ := existingMap["types"].([]any)
-								userTypes, _ := userMap["types"].([]any)
-								merged := make([]any, 0, safeAllocationCapacity(len(existingTypes), len(userTypes)))
-								merged = append(merged, existingTypes...)
-								merged = append(merged, userTypes...)
-								existingMap["types"] = merged
-								// Other fields (names, branches, etc.) from the user config are preserved.
-								for k, v := range userMap {
-									if k != "types" {
-										existingMap[k] = v
-									}
-								}
-							}
-						} else {
-							labelEventsMap[eventKey] = eventVal
-						}
-					}
-				}
-			}
-
-			// Convert merged events to YAML
-			mergedEventsYAML, err := yaml.MarshalWithOptions(map[string]any{"on": labelEventsMap}, yaml.IndentSequence(true))
-			if err != nil {
-				return fmt.Errorf("failed to marshal label-command events: %w", err)
-			}
-			yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
-			yamlStr = parser.QuoteCronExpressions(yamlStr)
-			// Pass frontmatter so label names in "names:" fields get commented out
-			yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr, map[string]any{})
-			data.On = yamlStr
-
-			// Build the label-command condition
-			hasOtherEvents := len(data.LabelCommandOtherEvents) > 0
-			labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, hasOtherEvents)
-			if err != nil {
-				return fmt.Errorf("failed to build label-command condition: %w", err)
-			}
-
-			if data.If == "" {
-				if data.LabelCommandDecentralized {
-					labelConditionTree, err = buildDispatchLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents)
-					if err != nil {
-						return fmt.Errorf("failed to build decentralized label-command condition: %w", err)
-					}
-				}
-				data.If = RenderCondition(labelConditionTree)
-			}
+func mergeLabelCommandEventsIntoCommandMap(commandEventsMap map[string]any, data *WorkflowData) {
+	if len(data.LabelCommand) == 0 || data.CommandCentralized {
+		return
+	}
+	for _, eventName := range FilterLabelCommandEvents(data.LabelCommandEvents) {
+		if existingAny, ok := commandEventsMap[eventName]; ok {
+			mergeLabeledTypeIntoEvent(existingAny)
 		} else {
-			data.On = `on:
+			commandEventsMap[eventName] = map[string]any{"types": []any{"labeled"}}
+		}
+	}
+}
+
+func mergeLabeledTypeIntoEvent(existingAny any) {
+	existingMap, ok := existingAny.(map[string]any)
+	if !ok {
+		return
+	}
+	switch t := existingMap["types"].(type) {
+	case []string:
+		newTypes := make([]any, len(t)+1)
+		for i, s := range t {
+			newTypes[i] = s
+		}
+		newTypes[len(t)] = "labeled"
+		existingMap["types"] = newTypes
+	case []any:
+		existingMap["types"] = append(t, "labeled")
+	}
+}
+
+func (c *Compiler) setOnFromEventsMap(data *WorkflowData, eventsMap map[string]any, label string) error {
+	mergedEventsYAML, err := yaml.MarshalWithOptions(map[string]any{"on": eventsMap}, yaml.IndentSequence(true))
+	if err != nil {
+		return fmt.Errorf("failed to marshal %s: %w", label, err)
+	}
+	yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
+	yamlStr = parser.QuoteCronExpressions(yamlStr)
+	yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr, map[string]any{})
+	data.On = yamlStr
+	return nil
+}
+
+func (c *Compiler) applyCommandTriggerCondition(data *WorkflowData, _ []CommentEventMapping) error {
+	if !data.CommandCentralized {
+		return c.applyDecentralizedCommandCondition(data)
+	}
+	if data.If == "" && len(data.LabelCommand) > 0 {
+		labelConditionTree, err := buildDispatchLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents)
+		if err != nil {
+			return fmt.Errorf("failed to build label-command condition: %w", err)
+		}
+		data.If = RenderCondition(labelConditionTree)
+	}
+	return nil
+}
+
+func (c *Compiler) applyDecentralizedCommandCondition(data *WorkflowData) error {
+	hasOtherEvents := len(data.CommandOtherEvents) > 0
+	commandConditionTree, err := buildEventAwareCommandCondition(data.Command, data.CommandEvents, hasOtherEvents)
+	if err != nil {
+		return fmt.Errorf("failed to build command condition: %w", err)
+	}
+	if data.If != "" {
+		return nil
+	}
+	if len(data.LabelCommand) == 0 {
+		data.If = RenderCondition(commandConditionTree)
+		return nil
+	}
+	labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, false)
+	if err != nil {
+		return fmt.Errorf("failed to build combined label-command condition: %w", err)
+	}
+	data.If = RenderCondition(&OrNode{Left: commandConditionTree, Right: labelConditionTree})
+	return nil
+}
+
+func (c *Compiler) configureLabelCommandTriggerDefaults(data *WorkflowData) error {
+	toolsLog.Print("Workflow is label-command trigger, configuring label events")
+	labelEventsMap := buildLabelCommandEventsMap(data)
+	if err := c.setOnFromEventsMap(data, labelEventsMap, "label-command events"); err != nil {
+		return err
+	}
+	return c.applyLabelCommandCondition(data)
+}
+
+func buildLabelCommandEventsMap(data *WorkflowData) map[string]any {
+	labelEventsMap := make(map[string]any)
+	if data.LabelCommandDecentralized {
+		if len(data.LabelCommandOtherEvents) > 0 {
+			maps.Copy(labelEventsMap, data.LabelCommandOtherEvents)
+		}
+		if ensureWorkflowDispatchItemNumberInput(labelEventsMap) {
+			data.HasDispatchItemNumber = true
+		}
+		return labelEventsMap
+	}
+	for _, eventName := range FilterLabelCommandEvents(data.LabelCommandEvents) {
+		labelEventsMap[eventName] = map[string]any{"types": []any{"labeled"}}
+	}
+	if ensureWorkflowDispatchItemNumberInput(labelEventsMap) {
+		data.HasDispatchItemNumber = true
+	}
+	mergeLabelCommandOtherEvents(labelEventsMap, data.LabelCommandOtherEvents)
+	return labelEventsMap
+}
+
+func mergeLabelCommandOtherEvents(labelEventsMap, otherEvents map[string]any) {
+	for eventKey, eventVal := range otherEvents {
+		if existing, exists := labelEventsMap[eventKey]; exists {
+			mergeLabelCommandEventConfig(existing, eventVal)
+		} else {
+			labelEventsMap[eventKey] = eventVal
+		}
+	}
+}
+
+func mergeLabelCommandEventConfig(existing, eventVal any) {
+	existingMap, _ := existing.(map[string]any)
+	userMap, _ := eventVal.(map[string]any)
+	if existingMap == nil || userMap == nil {
+		return
+	}
+	existingTypes, _ := existingMap["types"].([]any)
+	userTypes, _ := userMap["types"].([]any)
+	merged := make([]any, 0, safeAllocationCapacity(len(existingTypes), len(userTypes)))
+	merged = append(merged, existingTypes...)
+	merged = append(merged, userTypes...)
+	existingMap["types"] = merged
+	for k, v := range userMap {
+		if k != "types" {
+			existingMap[k] = v
+		}
+	}
+}
+
+func (c *Compiler) applyLabelCommandCondition(data *WorkflowData) error {
+	hasOtherEvents := len(data.LabelCommandOtherEvents) > 0
+	labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, hasOtherEvents)
+	if err != nil {
+		return fmt.Errorf("failed to build label-command condition: %w", err)
+	}
+	if data.If == "" {
+		if data.LabelCommandDecentralized {
+			labelConditionTree, err = buildDispatchLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents)
+			if err != nil {
+				return fmt.Errorf("failed to build decentralized label-command condition: %w", err)
+			}
+		}
+		data.If = RenderCondition(labelConditionTree)
+	}
+	return nil
+}
+
+func defaultWorkflowOnSection() string {
+	return `on:
   # Start either every 10 minutes, or when some kind of human event occurs.
   # Because of the implicit "concurrency" section, only one instance of this
   # workflow will run at a time.
@@ -300,55 +309,31 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
     branches:
       - main
   workflow_dispatch:`
-		}
-	}
+}
 
-	// Check if this workflow has an issue trigger and we're in trial mode
-	// If so, inject workflow_dispatch with issue_number input
-	if c.trialMode && c.hasIssueTrigger(data.On) {
-		data.On = c.injectWorkflowDispatchForIssue(data.On)
-	}
-
-	// Generate concurrency configuration using the dedicated concurrency module
-	data.Concurrency = GenerateConcurrencyConfig(data, isCommandTrigger || isLabelCommandTrigger)
-
+func (c *Compiler) applyWorkflowExecutionDefaults(data *WorkflowData, isCommandOrLabelTrigger bool) {
+	data.Concurrency = GenerateConcurrencyConfig(data, isCommandOrLabelTrigger)
 	if data.RunName == "" {
 		data.RunName = fmt.Sprintf(`run-name: "%s"`, data.Name)
 	}
-
 	if data.TimeoutMinutes == "" {
 		defaultTimeoutMinutes := compilerenv.ResolveDefaultTimeoutMinutes(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
 		data.TimeoutMinutes = fmt.Sprintf("timeout-minutes: %d", defaultTimeoutMinutes)
 	}
-
 	if data.RunsOn == "" {
 		data.RunsOn = "runs-on: ubuntu-latest"
 	}
-	// Apply default tools
 	data.Tools = c.applyDefaultTools(data.Tools, data.SafeOutputs, data.SandboxConfig, data.NetworkPermissions)
-	// Update ParsedTools to reflect changes made by applyDefaultTools
 	data.ParsedTools = NewTools(data.Tools)
+}
 
-	// Check if permissions is explicitly empty ({}) - this means user wants no permissions
-	// and we should NOT apply defaults.
+func (c *Compiler) applyPermissionDefaults(data *WorkflowData) error {
 	if data.Permissions == "permissions: {}" {
-		// Explicitly empty permissions - preserve the empty state
-		// The agent job in dev mode will add contents: read if needed for local actions
 		return nil
 	}
-
 	if data.Permissions == "" {
-		// ============================================================================
-		// PERMISSIONS DEFAULTS
-		// ============================================================================
-		// When no permissions are specified, set default to contents: read.
-		// This provides minimal access needed for most workflows while following
-		// the principle of least privilege.
-		// ============================================================================
 		perms := NewPermissionsContentsRead()
 		yaml := perms.RenderToYAML()
-		// RenderToYAML uses job-friendly indentation (6 spaces). WorkflowData.Permissions
-		// is stored in workflow-level indentation (2 spaces) and later re-indented for jobs.
 		lines := strings.Split(yaml, "\n")
 		for i := 1; i < len(lines); i++ {
 			if strings.HasPrefix(lines[i], "      ") {
@@ -357,7 +342,6 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 		}
 		data.Permissions = strings.Join(lines, "\n")
 	}
-
 	return nil
 }
 
@@ -509,187 +493,160 @@ func (c *Compiler) replaceIssueNumberReferences(yamlContent string) string {
 // applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present
 func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutputsConfig, sandboxConfig *SandboxConfig, networkPermissions *NetworkPermissions) map[string]any {
 	toolsLog.Printf("Applying default tools: existingToolCount=%d", len(tools))
-	// Always apply default GitHub tools (create github section if it doesn't exist)
-
 	if tools == nil {
 		tools = make(map[string]any)
 	}
-
-	// Get existing github tool configuration
-	githubTool := tools["github"]
-
-	// Check if github is explicitly disabled (github: false)
-	if githubTool == false {
-		// Remove the github tool entirely when set to false
-		delete(tools, "github")
-	} else {
-		// Process github tool configuration
-		var githubConfig map[string]any
-
-		if toolConfig, ok := githubTool.(map[string]any); ok {
-			githubConfig = make(map[string]any)
-			maps.Copy(githubConfig, toolConfig)
-		} else {
-			githubConfig = make(map[string]any)
-		}
-
-		// Parse the existing GitHub tool configuration for type safety
-		parsedConfig := parseGitHubTool(githubTool)
-
-		// Create a set of existing tools for efficient lookup
-		existingToolsSet := make(map[string]struct{})
-		if parsedConfig != nil {
-			for _, tool := range parsedConfig.Allowed {
-				existingToolsSet[string(tool)] = struct{}{}
-			}
-		}
-
-		// Only set allowed tools if explicitly configured
-		// Don't add default tools - let the MCP server use all available tools
-		if len(existingToolsSet) > 0 {
-			// Convert back to []any for the map
-			existingAllowed := make([]any, 0, len(parsedConfig.Allowed))
-			for _, tool := range parsedConfig.Allowed {
-				existingAllowed = append(existingAllowed, string(tool))
-			}
-			githubConfig["allowed"] = existingAllowed
-		}
-		tools["github"] = githubConfig
-	}
-
-	// Enable edit and bash tools by default when sandbox is enabled
-	// The sandbox is enabled when:
-	// 1. Explicitly configured via sandbox.agent (awf)
-	// 2. Auto-enabled by firewall default enablement (when network restrictions are present)
-	if isSandboxEnabled(sandboxConfig, networkPermissions) {
-		toolsLog.Print("Sandbox enabled, applying default edit and bash tools")
-
-		// Add edit tool if not present
-		if _, exists := tools["edit"]; !exists {
-			tools["edit"] = true
-			toolsLog.Print("Added edit tool (sandbox enabled)")
-		}
-
-		// Add bash tool with wildcard if not present
-		if _, exists := tools["bash"]; !exists {
-			tools["bash"] = []any{"*"}
-			toolsLog.Print("Added bash tool with wildcard (sandbox enabled)")
-		}
-	}
-
-	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-pull-request-branch
-	if safeOutputs != nil && needsGitCommands(safeOutputs) {
-
-		// Add edit tool with null value
-		if _, exists := tools["edit"]; !exists {
-			tools["edit"] = nil
-		}
-		gitCommands := []any{
-			"git checkout:*",
-			"git branch:*",
-			"git switch:*",
-			"git add:*",
-			"git rm:*",
-			"git commit:*",
-			"git merge:*",
-			"git status",
-		}
-
-		// Add bash tool with Git commands if not already present
-		if _, exists := tools["bash"]; !exists {
-			// bash tool doesn't exist, add it with Git commands
-			tools["bash"] = gitCommands
-		} else {
-			// bash tool exists, merge Git commands with existing commands
-			existingBash := tools["bash"]
-			if existingCommands, ok := existingBash.([]any); ok {
-				// Convert existing commands to strings for comparison
-				existingSet := make(map[string]struct{})
-				for _, cmd := range existingCommands {
-					if cmdStr, ok := cmd.(string); ok {
-						existingSet[cmdStr] = struct{}{}
-						// If we see :* or *, all bash commands are already allowed
-						if cmdStr == ":*" || cmdStr == "*" {
-							// Don't add specific Git commands since all are already allowed
-							goto bashComplete
-						}
-					}
-				}
-
-				// Add Git commands that aren't already present
-				newCommands := append([]any(nil), existingCommands...)
-				for _, gitCmd := range gitCommands {
-					if gitCmdStr, ok := gitCmd.(string); ok {
-						if _, ok := existingSet[gitCmdStr]; !ok {
-							newCommands = append(newCommands, gitCmd)
-						}
-					}
-				}
-				tools["bash"] = newCommands
-			} else if existingBash == false {
-				// bash: false was set, but git commands are required for PR operations
-				// Override with git commands only (minimum needed for PR functionality)
-				toolsLog.Print("Overriding bash: false with git commands (required for PR operations)")
-				tools["bash"] = gitCommands
-			} else if existingBash == nil {
-				_ = existingBash // Keep the nil value as-is
-			}
-		}
-	bashComplete:
-	}
-
-	// Add default bash commands when bash is enabled but no specific commands are provided
-	// This runs after git commands logic, so it only applies when git commands weren't added
-	// Behavior:
-	//   - bash: true → All commands allowed (converted to ["*"])
-	//   - bash: false → Tool disabled (removed from tools), unless git commands were needed for PR operations
-	//   - bash: nil → Add default commands
-	//   - bash: [] → No commands (empty array means no tools allowed)
-	//   - bash: ["cmd1", "cmd2"] → Add default commands + specific commands
-	if bashTool, exists := tools["bash"]; exists {
-		// Check if bash was left as nil or true after git processing
-		if bashTool == nil {
-			// bash is nil - only add defaults if this wasn't processed by git commands
-			// If git commands were needed, bash would have been set to git commands or left as nil intentionally
-			if safeOutputs == nil || !needsGitCommands(safeOutputs) {
-				defaultCommands := make([]any, len(constants.DefaultBashTools))
-				for i, cmd := range constants.DefaultBashTools {
-					defaultCommands[i] = cmd
-				}
-				tools["bash"] = defaultCommands
-			}
-		} else if bashTool == true {
-			// bash is true - convert to wildcard (allow all commands)
-			tools["bash"] = []any{"*"}
-		} else if bashTool == false {
-			// bash is false - disable the tool by removing it
-			delete(tools, "bash")
-		} else if bashArray, ok := bashTool.([]any); ok {
-			// bash is an array - merge default commands with custom commands
-			if len(bashArray) > 0 {
-				// Create a set to track existing commands to avoid duplicates
-				existingCommands := make(map[string]struct{})
-				for _, cmd := range bashArray {
-					if cmdStr, ok := cmd.(string); ok {
-						existingCommands[cmdStr] = struct{}{}
-					}
-				}
-
-				// Start with default commands (append handles capacity automatically)
-				var mergedCommands []any
-				for _, cmd := range constants.DefaultBashTools {
-					if _, ok := existingCommands[cmd]; !ok {
-						mergedCommands = append(mergedCommands, cmd)
-					}
-				}
-
-				// Add the custom commands
-				mergedCommands = append(mergedCommands, bashArray...)
-				tools["bash"] = mergedCommands
-			}
-			// Note: bash with empty array (bash: []) means "no bash tools allowed" and is left as-is
-		}
-	}
-
+	applyDefaultGitHubTool(tools)
+	applySandboxDefaultTools(tools, sandboxConfig, networkPermissions)
+	applyGitCommandDefaultTools(tools, safeOutputs)
+	applyBashDefaultCommands(tools, safeOutputs)
 	return tools
+}
+
+func applyDefaultGitHubTool(tools map[string]any) {
+	githubTool := tools["github"]
+	if githubTool == false {
+		delete(tools, "github")
+		return
+	}
+	githubConfig := map[string]any{}
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		maps.Copy(githubConfig, toolConfig)
+	}
+	parsedConfig := parseGitHubTool(githubTool)
+	if parsedConfig != nil && len(parsedConfig.Allowed) > 0 {
+		existingAllowed := make([]any, 0, len(parsedConfig.Allowed))
+		for _, tool := range parsedConfig.Allowed {
+			existingAllowed = append(existingAllowed, string(tool))
+		}
+		githubConfig["allowed"] = existingAllowed
+	}
+	tools["github"] = githubConfig
+}
+
+func applySandboxDefaultTools(tools map[string]any, sandboxConfig *SandboxConfig, networkPermissions *NetworkPermissions) {
+	if !isSandboxEnabled(sandboxConfig, networkPermissions) {
+		return
+	}
+	toolsLog.Print("Sandbox enabled, applying default edit and bash tools")
+	if _, exists := tools["edit"]; !exists {
+		tools["edit"] = true
+		toolsLog.Print("Added edit tool (sandbox enabled)")
+	}
+	if _, exists := tools["bash"]; !exists {
+		tools["bash"] = []any{"*"}
+		toolsLog.Print("Added bash tool with wildcard (sandbox enabled)")
+	}
+}
+
+func applyGitCommandDefaultTools(tools map[string]any, safeOutputs *SafeOutputsConfig) {
+	if safeOutputs == nil || !needsGitCommands(safeOutputs) {
+		return
+	}
+	if _, exists := tools["edit"]; !exists {
+		tools["edit"] = nil
+	}
+	gitCommands := defaultGitCommands()
+	if _, exists := tools["bash"]; !exists {
+		tools["bash"] = gitCommands
+		return
+	}
+	mergeGitCommandsIntoBashTool(tools, gitCommands)
+}
+
+func defaultGitCommands() []any {
+	return []any{
+		"git checkout:*",
+		"git branch:*",
+		"git switch:*",
+		"git add:*",
+		"git rm:*",
+		"git commit:*",
+		"git merge:*",
+		"git status",
+	}
+}
+
+func mergeGitCommandsIntoBashTool(tools map[string]any, gitCommands []any) {
+	existingBash := tools["bash"]
+	if existingCommands, ok := existingBash.([]any); ok {
+		merged, complete := mergeGitCommands(existingCommands, gitCommands)
+		if !complete {
+			tools["bash"] = merged
+		}
+	} else if existingBash == false {
+		toolsLog.Print("Overriding bash: false with git commands (required for PR operations)")
+		tools["bash"] = gitCommands
+	} else if existingBash == nil {
+		_ = existingBash
+	}
+}
+
+func mergeGitCommands(existingCommands []any, gitCommands []any) ([]any, bool) {
+	existingSet := make(map[string]struct{})
+	for _, cmd := range existingCommands {
+		if cmdStr, ok := cmd.(string); ok {
+			existingSet[cmdStr] = struct{}{}
+			if cmdStr == ":*" || cmdStr == "*" {
+				return existingCommands, true
+			}
+		}
+	}
+	newCommands := append([]any(nil), existingCommands...)
+	for _, gitCmd := range gitCommands {
+		if gitCmdStr, ok := gitCmd.(string); ok {
+			if _, ok := existingSet[gitCmdStr]; !ok {
+				newCommands = append(newCommands, gitCmd)
+			}
+		}
+	}
+	return newCommands, false
+}
+
+func applyBashDefaultCommands(tools map[string]any, safeOutputs *SafeOutputsConfig) {
+	bashTool, exists := tools["bash"]
+	if !exists {
+		return
+	}
+	switch bashTool := bashTool.(type) {
+	case nil:
+		if safeOutputs == nil || !needsGitCommands(safeOutputs) {
+			tools["bash"] = defaultBashCommands()
+		}
+	case bool:
+		if bashTool {
+			tools["bash"] = []any{"*"}
+		} else {
+			delete(tools, "bash")
+		}
+	case []any:
+		if len(bashTool) > 0 {
+			tools["bash"] = mergeDefaultBashCommands(bashTool)
+		}
+	}
+}
+
+func defaultBashCommands() []any {
+	defaultCommands := make([]any, len(constants.DefaultBashTools))
+	for i, cmd := range constants.DefaultBashTools {
+		defaultCommands[i] = cmd
+	}
+	return defaultCommands
+}
+
+func mergeDefaultBashCommands(bashArray []any) []any {
+	existingCommands := make(map[string]struct{})
+	for _, cmd := range bashArray {
+		if cmdStr, ok := cmd.(string); ok {
+			existingCommands[cmdStr] = struct{}{}
+		}
+	}
+	var mergedCommands []any
+	for _, cmd := range constants.DefaultBashTools {
+		if _, ok := existingCommands[cmd]; !ok {
+			mergedCommands = append(mergedCommands, cmd)
+		}
+	}
+	mergedCommands = append(mergedCommands, bashArray...)
+	return mergedCommands
 }

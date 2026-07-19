@@ -69,42 +69,7 @@ func aggregateLogFiles[T MutableLogAnalysis](
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Analyzing %d log files from %s", len(files), logsDir)))
 	}
 
-	// Initialize aggregated analysis
-	aggregated := newAnalysis()
-
-	// Track unique domains across all files
-	allAllowedDomains := make(map[string]struct {
-	})
-	allBlockedDomains := make(map[string]struct {
-	})
-
-	// Parse each file and aggregate results
-	for _, file := range files {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Parsing "+filepath.Base(file)))
-		}
-
-		analysis, err := parser(file, verbose)
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse %s: %v", filepath.Base(file), err)))
-			}
-			continue
-		}
-
-		// Aggregate metrics
-		aggregated.AddMetrics(analysis)
-
-		// Collect unique domains
-		for _, domain := range analysis.GetAllowedDomains() {
-			allAllowedDomains[domain] = struct {
-			}{}
-		}
-		for _, domain := range analysis.GetBlockedDomains() {
-			allBlockedDomains[domain] = struct {
-			}{}
-		}
-	}
+	aggregated, allAllowedDomains, allBlockedDomains := aggregateLogFilesParse(files, verbose, parser, newAnalysis)
 
 	// Convert maps to sorted slices
 	allowedDomains := sliceutil.SortedKeys(allAllowedDomains)
@@ -119,4 +84,39 @@ func aggregateLogFiles[T MutableLogAnalysis](
 		len(files), len(allowedDomains), len(blockedDomains))
 
 	return aggregated, nil
+}
+
+func aggregateLogFilesParse[T MutableLogAnalysis](
+	files []string,
+	verbose bool,
+	parser LogParser[T],
+	newAnalysis func() T,
+) (T, map[string]struct{}, map[string]struct{}) {
+	aggregated := newAnalysis()
+	allAllowedDomains := make(map[string]struct{})
+	allBlockedDomains := make(map[string]struct{})
+	for _, file := range files {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Parsing "+filepath.Base(file)))
+		}
+		analysis, err := parser(file, verbose)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse %s: %v", filepath.Base(file), err)))
+			}
+			continue
+		}
+		aggregated.AddMetrics(analysis)
+		aggregateLogFilesDomains(analysis, allAllowedDomains, allBlockedDomains)
+	}
+	return aggregated, allAllowedDomains, allBlockedDomains
+}
+
+func aggregateLogFilesDomains[T MutableLogAnalysis](analysis T, allAllowedDomains, allBlockedDomains map[string]struct{}) {
+	for _, domain := range analysis.GetAllowedDomains() {
+		allAllowedDomains[domain] = struct{}{}
+	}
+	for _, domain := range analysis.GetBlockedDomains() {
+		allBlockedDomains[domain] = struct{}{}
+	}
 }

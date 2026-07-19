@@ -154,23 +154,55 @@ func transformStepsWithinSection(sectionLines []string, sectionIndent string) ([
 
 func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string, bool) {
 	modified := false
-	seen := make(map[string]struct {
-	})
-	orderedBindings := make([]string, 0)
-	bindingExprs := make(map[string]string)
-	firstRunLine := -1
-	envStart := -1
-	envEnd := -1
-	envIndent := ""
-	var envKeyIndentLen int
-	existingEnvKeys := make(map[string]struct {
-	})
+	state := rewriteStepRunSecretsToEnvState{
+		seen:            make(map[string]struct{}),
+		orderedBindings: make([]string, 0),
+		bindingExprs:    make(map[string]string),
+		firstRunLine:    -1,
+		envStart:        -1,
+		envEnd:          -1,
+		existingEnvKeys: make(map[string]struct{}),
+	}
 
 	// First pass: detect shell type so PowerShell steps get $env:VARNAME syntax.
 	// Restrict the scan to lines at the direct step-key indentation level so
 	// that a run-block body line that happens to contain a literal substring
 	// like "shell: pwsh" is not misclassified as PowerShell.
-	shellIsPowerShell := false
+	shellIsPowerShell := rewriteStepRunSecretsToEnvDetectPowerShell(stepLines, stepIndent)
+
+	for i := 0; i < len(stepLines); i++ {
+		changed := rewriteStepRunSecretsToEnvProcessLine(stepLines, i, stepIndent, shellIsPowerShell, &state)
+		modified = modified || changed
+	}
+
+	if len(state.orderedBindings) == 0 {
+		return stepLines, modified
+	}
+
+	stepsRunSecretsEnvCodemodLog.Printf("Found %d unique run expression references in step run commands", len(state.orderedBindings))
+
+	missingBindings := rewriteStepRunSecretsToEnvMissingBindings(&state)
+	if len(missingBindings) == 0 {
+		return stepLines, true
+	}
+
+	stepsRunSecretsEnvCodemodLog.Printf("Adding env bindings for %d missing expressions: %v", len(missingBindings), missingBindings)
+	return rewriteStepRunSecretsToEnvInsertMissingBindings(stepLines, stepIndent, missingBindings, modified, &state)
+}
+
+type rewriteStepRunSecretsToEnvState struct {
+	seen            map[string]struct{}
+	orderedBindings []string
+	bindingExprs    map[string]string
+	firstRunLine    int
+	envStart        int
+	envEnd          int
+	envIndent       string
+	envKeyIndentLen int
+	existingEnvKeys map[string]struct{}
+}
+
+func rewriteStepRunSecretsToEnvDetectPowerShell(stepLines []string, stepIndent string) bool {
 	directKeyIndent := stepIndent + "  "
 	for _, line := range stepLines {
 		trimmed := strings.TrimSpace(line)
@@ -183,137 +215,132 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 		shellMatch, shellValue, _ := parseStepKeyLine(trimmed, indent, stepIndent, "shell")
 		if shellMatch {
 			v := strings.ToLower(strings.TrimSpace(shellValue))
-			if v == "pwsh" || v == "powershell" { //nolint:tolowerequalfold
-				shellIsPowerShell = true
-			}
+			return v == "pwsh" || v == "powershell" //nolint:tolowerequalfold
+		}
+	}
+	return false
+}
+
+func rewriteStepRunSecretsToEnvProcessLine(stepLines []string, i int, stepIndent string, shellIsPowerShell bool, state *rewriteStepRunSecretsToEnvState) bool {
+	line := stepLines[i]
+	trimmed := strings.TrimSpace(line)
+	indent := getIndentation(line)
+
+	rewriteStepRunSecretsToEnvTrackEnvBlock(stepLines, i, stepIndent, trimmed, indent, state)
+	runMatch, runValue, runKeyIndentLen := parseStepKeyLine(trimmed, indent, stepIndent, "run")
+	if !runMatch {
+		return false
+	}
+	if state.firstRunLine == -1 {
+		state.firstRunLine = i
+	}
+	if runValue == "|" || runValue == "|-" || runValue == ">" || runValue == ">-" {
+		return rewriteStepRunSecretsToEnvProcessRunBlock(stepLines, i, stepIndent, runKeyIndentLen, shellIsPowerShell, state)
+	}
+
+	newLine, bindings := replaceStepExpressionRefs(line, shellIsPowerShell, state.bindingExprs)
+	if len(bindings) == 0 {
+		return false
+	}
+	stepLines[i] = newLine
+	rewriteStepRunSecretsToEnvRegisterBindings(bindings, state)
+	return true
+}
+
+func rewriteStepRunSecretsToEnvTrackEnvBlock(stepLines []string, i int, stepIndent, trimmed, indent string, state *rewriteStepRunSecretsToEnvState) {
+	envMatch, envValue, currentEnvKeyIndentLen := parseStepKeyLine(trimmed, indent, stepIndent, "env")
+	if !envMatch || envValue != "" {
+		return
+	}
+	state.envStart = i
+	state.envIndent = indent
+	state.envKeyIndentLen = currentEnvKeyIndentLen
+	state.envEnd = i
+	for j := i + 1; j < len(stepLines); j++ {
+		t := strings.TrimSpace(stepLines[j])
+		if t == "" {
+			state.envEnd = j
+			continue
+		}
+		if effectiveStepLineIndentLen(t, getIndentation(stepLines[j]), stepIndent) <= state.envKeyIndentLen {
 			break
 		}
+		state.envEnd = j
+		if key := parseYAMLMapKey(t); key != "" {
+			state.existingEnvKeys[key] = struct{}{}
+		}
 	}
+}
 
-	for i := 0; i < len(stepLines); i++ {
-		line := stepLines[i]
-		trimmed := strings.TrimSpace(line)
-		indent := getIndentation(line)
-
-		envMatch, envValue, currentEnvKeyIndentLen := parseStepKeyLine(trimmed, indent, stepIndent, "env")
-		if envMatch && envValue == "" {
-			envStart = i
-			envIndent = indent
-			envKeyIndentLen = currentEnvKeyIndentLen
-			envEnd = i
-			for j := i + 1; j < len(stepLines); j++ {
-				t := strings.TrimSpace(stepLines[j])
-				if t == "" {
-					envEnd = j
-					continue
-				}
-				if effectiveStepLineIndentLen(t, getIndentation(stepLines[j]), stepIndent) <= envKeyIndentLen {
-					break
-				}
-				envEnd = j
-				key := parseYAMLMapKey(t)
-				if key != "" {
-					existingEnvKeys[key] = struct {
-					}{}
-				}
-			}
-		}
-
-		runMatch, runValue, runKeyIndentLen := parseStepKeyLine(trimmed, indent, stepIndent, "run")
-		if !runMatch {
+func rewriteStepRunSecretsToEnvProcessRunBlock(stepLines []string, i int, stepIndent string, runKeyIndentLen int, shellIsPowerShell bool, state *rewriteStepRunSecretsToEnvState) bool {
+	modified := false
+	for j := i + 1; j < len(stepLines); j++ {
+		t := strings.TrimSpace(stepLines[j])
+		if t == "" {
 			continue
 		}
-		if firstRunLine == -1 {
-			firstRunLine = i
+		if effectiveStepLineIndentLen(t, getIndentation(stepLines[j]), stepIndent) <= runKeyIndentLen {
+			break
 		}
-
-		if runValue == "|" || runValue == "|-" || runValue == ">" || runValue == ">-" {
-			for j := i + 1; j < len(stepLines); j++ {
-				t := strings.TrimSpace(stepLines[j])
-				if t == "" {
-					continue
-				}
-				if effectiveStepLineIndentLen(t, getIndentation(stepLines[j]), stepIndent) <= runKeyIndentLen {
-					break
-				}
-				// Skip shell comment lines – expressions inside # comments are
-				// documentation-only and must not generate env bindings.
-				// NOTE: heredoc boundaries are not tracked; lines starting with
-				// '#' inside a heredoc body are also skipped (follow-up needed).
-				if strings.HasPrefix(t, "#") {
-					continue
-				}
-				updatedLine, bindings := replaceStepExpressionRefs(stepLines[j], shellIsPowerShell, bindingExprs)
-				if len(bindings) > 0 {
-					stepLines[j] = updatedLine
-					modified = true
-				}
-				for _, binding := range bindings {
-					if !setutil.Contains(seen, binding.Name) {
-						seen[binding.Name] = struct {
-						}{}
-						orderedBindings = append(orderedBindings, binding.Name)
-						bindingExprs[binding.Name] = binding.Expression
-					}
-				}
-			}
+		// Skip shell comment lines – expressions inside # comments are
+		// documentation-only and must not generate env bindings.
+		// NOTE: heredoc boundaries are not tracked; lines starting with
+		// '#' inside a heredoc body are also skipped (follow-up needed).
+		if strings.HasPrefix(t, "#") {
 			continue
 		}
-
-		newLine, bindings := replaceStepExpressionRefs(line, shellIsPowerShell, bindingExprs)
+		updatedLine, bindings := replaceStepExpressionRefs(stepLines[j], shellIsPowerShell, state.bindingExprs)
 		if len(bindings) > 0 {
-			stepLines[i] = newLine
+			stepLines[j] = updatedLine
 			modified = true
-		}
-		for _, binding := range bindings {
-			if !setutil.Contains(seen, binding.Name) {
-				seen[binding.Name] = struct {
-				}{}
-				orderedBindings = append(orderedBindings, binding.Name)
-				bindingExprs[binding.Name] = binding.Expression
-			}
+			rewriteStepRunSecretsToEnvRegisterBindings(bindings, state)
 		}
 	}
+	return modified
+}
 
-	if len(orderedBindings) == 0 {
-		return stepLines, modified
+func rewriteStepRunSecretsToEnvRegisterBindings(bindings []stepExpressionBinding, state *rewriteStepRunSecretsToEnvState) {
+	for _, binding := range bindings {
+		if !setutil.Contains(state.seen, binding.Name) {
+			state.seen[binding.Name] = struct{}{}
+			state.orderedBindings = append(state.orderedBindings, binding.Name)
+			state.bindingExprs[binding.Name] = binding.Expression
+		}
 	}
+}
 
-	stepsRunSecretsEnvCodemodLog.Printf("Found %d unique run expression references in step run commands", len(orderedBindings))
-
-	missingBindings := make([]string, 0, len(orderedBindings))
-	for _, name := range orderedBindings {
-		if !setutil.Contains(existingEnvKeys, name) {
+func rewriteStepRunSecretsToEnvMissingBindings(state *rewriteStepRunSecretsToEnvState) []string {
+	missingBindings := make([]string, 0, len(state.orderedBindings))
+	for _, name := range state.orderedBindings {
+		if !setutil.Contains(state.existingEnvKeys, name) {
 			missingBindings = append(missingBindings, name)
 		}
 	}
-	if len(missingBindings) == 0 {
-		return stepLines, true
-	}
+	return missingBindings
+}
 
-	stepsRunSecretsEnvCodemodLog.Printf("Adding env bindings for %d missing expressions: %v", len(missingBindings), missingBindings)
-
-	if envStart != -1 {
-		insertAt := envEnd + 1
-		envValueIndent := envIndent + "  "
+func rewriteStepRunSecretsToEnvInsertMissingBindings(stepLines []string, stepIndent string, missingBindings []string, modified bool, state *rewriteStepRunSecretsToEnvState) ([]string, bool) {
+	if state.envStart != -1 {
+		insertAt := state.envEnd + 1
+		envValueIndent := state.envIndent + "  "
 		insertLines := make([]string, 0, len(missingBindings))
 		for _, name := range missingBindings {
-			insertLines = append(insertLines, fmt.Sprintf("%s%s: %s", envValueIndent, name, bindingExprs[name]))
+			insertLines = append(insertLines, fmt.Sprintf("%s%s: %s", envValueIndent, name, state.bindingExprs[name]))
 		}
 		stepLines = append(stepLines[:insertAt], append(insertLines, stepLines[insertAt:]...)...)
 		return stepLines, true
 	}
 
-	if firstRunLine == -1 {
+	if state.firstRunLine == -1 {
 		return stepLines, modified
 	}
 
 	insertIndent := stepIndent + "  "
 	insertLines := []string{insertIndent + "env:"}
 	for _, name := range missingBindings {
-		insertLines = append(insertLines, fmt.Sprintf("%s  %s: %s", insertIndent, name, bindingExprs[name]))
+		insertLines = append(insertLines, fmt.Sprintf("%s  %s: %s", insertIndent, name, state.bindingExprs[name]))
 	}
-	stepLines = append(stepLines[:firstRunLine], append(insertLines, stepLines[firstRunLine:]...)...)
+	stepLines = append(stepLines[:state.firstRunLine], append(insertLines, stepLines[state.firstRunLine:]...)...)
 	return stepLines, true
 }
 
@@ -330,17 +357,12 @@ func replaceStepExpressionRefs(line string, shellIsPowerShell bool, existingBind
 
 	var result strings.Builder
 	last := 0
-	// bodyToName maps expression body → assigned env-var name for same-body dedup
-	// within this line (avoids re-computing the name for repeated occurrences).
-	bodyToName := make(map[string]string)
-	// localNames maps env-var name → canonical expression for within-line
-	// collision detection (two different bodies that sanitize to the same name).
-	localNames := make(map[string]string)
-	// registeredNames tracks which names already appear in ordered, so we never
-	// add a duplicate binding entry.
-	registeredNames := make(map[string]struct {
-	})
-	ordered := make([]stepExpressionBinding, 0, len(matches))
+	state := replaceStepExpressionRefsState{
+		bodyToName:      make(map[string]string),
+		localNames:      make(map[string]string),
+		registeredNames: make(map[string]struct{}),
+		ordered:         make([]stepExpressionBinding, 0, len(matches)),
+	}
 
 	for _, match := range matches {
 		if len(match) < 4 {
@@ -353,55 +375,77 @@ func replaceStepExpressionRefs(line string, shellIsPowerShell bool, existingBind
 
 		result.WriteString(line[last:fullStart])
 
-		// Same expression body already resolved in this line – reuse the name.
-		if cachedName, done := bodyToName[body]; done {
-			if shellIsPowerShell {
-				result.WriteString("$env:" + cachedName)
-			} else {
-				result.WriteString("$" + cachedName)
-			}
+		if cachedName, done := state.bodyToName[body]; done {
+			result.WriteString(replaceStepExpressionRefsVarRef(cachedName, shellIsPowerShell))
 			last = fullEnd
 			continue
 		}
 
-		envName, canonicalExpression, ok := mapRunExpressionToEnvBinding(body)
+		envName, canonicalExpression, ok := replaceStepExpressionRefsBinding(body, existingBindings, &state)
 		if !ok {
 			result.WriteString(fullExpression)
 			last = fullEnd
 			continue
 		}
 
-		// Collision guard: if this env-var name is already bound to a *different*
-		// expression (from a previous line in this step via existingBindings, or
-		// from an earlier occurrence within this line via localNames), fall back
-		// to a hash-based name so both expressions receive unique bindings.
-		if crossLine := existingBindings[envName]; (crossLine != "" && crossLine != canonicalExpression) ||
-			(localNames[envName] != "" && localNames[envName] != canonicalExpression) {
-			envName = hashedBindingName("EXPR", body)
-			canonicalExpression = fmt.Sprintf("${{ %s }}", body)
-		}
-
-		bodyToName[body] = envName
-		localNames[envName] = canonicalExpression
-
-		if shellIsPowerShell {
-			result.WriteString("$env:" + envName)
-		} else {
-			result.WriteString("$" + envName)
-		}
-		if !setutil.Contains(registeredNames, envName) {
-			registeredNames[envName] = struct {
-			}{}
-			ordered = append(ordered, stepExpressionBinding{
-				Name:       envName,
-				Expression: canonicalExpression,
-			})
-		}
+		state.bodyToName[body] = envName
+		state.localNames[envName] = canonicalExpression
+		result.WriteString(replaceStepExpressionRefsVarRef(envName, shellIsPowerShell))
+		replaceStepExpressionRefsRegisterBinding(envName, canonicalExpression, &state)
 		last = fullEnd
 	}
 
 	result.WriteString(line[last:])
-	return result.String(), ordered
+	return result.String(), state.ordered
+}
+
+type replaceStepExpressionRefsState struct {
+	// bodyToName maps expression body → assigned env-var name for same-body dedup
+	// within this line (avoids re-computing the name for repeated occurrences).
+	bodyToName map[string]string
+	// localNames maps env-var name → canonical expression for within-line
+	// collision detection (two different bodies that sanitize to the same name).
+	localNames map[string]string
+	// registeredNames tracks which names already appear in ordered, so we never
+	// add a duplicate binding entry.
+	registeredNames map[string]struct{}
+	ordered         []stepExpressionBinding
+}
+
+func replaceStepExpressionRefsBinding(body string, existingBindings map[string]string, state *replaceStepExpressionRefsState) (string, string, bool) {
+	envName, canonicalExpression, ok := mapRunExpressionToEnvBinding(body)
+	if !ok {
+		return "", "", false
+	}
+
+	// Collision guard: if this env-var name is already bound to a *different*
+	// expression (from a previous line in this step via existingBindings, or
+	// from an earlier occurrence within this line via localNames), fall back
+	// to a hash-based name so both expressions receive unique bindings.
+	if crossLine := existingBindings[envName]; (crossLine != "" && crossLine != canonicalExpression) ||
+		(state.localNames[envName] != "" && state.localNames[envName] != canonicalExpression) {
+		envName = hashedBindingName("EXPR", body)
+		canonicalExpression = fmt.Sprintf("${{ %s }}", body)
+	}
+	return envName, canonicalExpression, true
+}
+
+func replaceStepExpressionRefsVarRef(envName string, shellIsPowerShell bool) string {
+	if shellIsPowerShell {
+		return "$env:" + envName
+	}
+	return "$" + envName
+}
+
+func replaceStepExpressionRefsRegisterBinding(envName, canonicalExpression string, state *replaceStepExpressionRefsState) {
+	if setutil.Contains(state.registeredNames, envName) {
+		return
+	}
+	state.registeredNames[envName] = struct{}{}
+	state.ordered = append(state.ordered, stepExpressionBinding{
+		Name:       envName,
+		Expression: canonicalExpression,
+	})
 }
 
 func mapRunExpressionToEnvBinding(body string) (string, string, bool) {

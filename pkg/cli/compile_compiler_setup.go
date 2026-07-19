@@ -131,6 +131,14 @@ func createAndConfigureCompiler(config CompileConfig) *workflow.Compiler {
 func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 	compileCompilerSetupLog.Print("Configuring compiler flags")
 
+	configureCompilerFlagsValidation(compiler, config)
+	configureCompilerFlagsExecutionModes(compiler, config)
+	configureCompilerFlagsRefreshAndApprove(compiler, config)
+	configureCompilerFlagsImageAndGHES(compiler, config)
+	configureCompilerFlagsPriorManifest(compiler, config)
+}
+
+func configureCompilerFlagsValidation(compiler *workflow.Compiler, config CompileConfig) {
 	// Set validation based on the validate flag (false by default for compatibility)
 	compiler.SetSkipValidation(!config.Validate)
 	compileCompilerSetupLog.Printf("Validation enabled: %v", config.Validate)
@@ -145,7 +153,9 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 	compiler.SetStrictMode(config.Strict)
 	compiler.SetAllowActionRefs(config.AllowActionRefs)
 	compiler.SetForceStaged(config.Staged)
+}
 
+func configureCompilerFlagsExecutionModes(compiler *workflow.Compiler, config CompileConfig) {
 	// Set trial mode if specified
 	if config.TrialMode {
 		compileCompilerSetupLog.Printf("Enabling trial mode: repoSlug=%s", config.TrialLogicalRepoSlug)
@@ -160,7 +170,9 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 		compileCompilerSetupLog.Print("Enabling --use-samples: agentic step will be replaced by a deterministic replay driver")
 		compiler.SetUseSamples(true)
 	}
+}
 
+func configureCompilerFlagsRefreshAndApprove(compiler *workflow.Compiler, config CompileConfig) {
 	// Set refresh stop time flag
 	compiler.SetRefreshStopTime(config.RefreshStopTime)
 	if config.RefreshStopTime {
@@ -179,7 +191,9 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 	if config.Approve {
 		compileCompilerSetupLog.Print("Safe update changes approved via --approve flag: skipping safe update enforcement for new restricted secrets or unapproved action additions/removals")
 	}
+}
 
+func configureCompilerFlagsImageAndGHES(compiler *workflow.Compiler, config CompileConfig) {
 	// Set require docker flag: when set, container image validation fails instead of
 	// silently skipping when Docker is not available.
 	compiler.SetRequireDocker(config.ValidateImages)
@@ -193,7 +207,9 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 	if config.GHESCompat {
 		compileCompilerSetupLog.Print("GHES compatibility mode enabled via --ghes flag: artifact actions will use latest non-v3 pins")
 	}
+}
 
+func configureCompilerFlagsPriorManifest(compiler *workflow.Compiler, config CompileConfig) {
 	// Load pre-cached manifests from file (written by MCP server at startup).
 	// These take precedence over git HEAD / filesystem reads for safe update enforcement.
 	if config.PriorManifestFile != "" {

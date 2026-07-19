@@ -90,18 +90,43 @@ func ExtractJSONMetrics(line string, verbose bool) LogMetrics {
 // ExtractJSONTokenUsage extracts token usage from JSON data
 func ExtractJSONTokenUsage(data map[string]any) int {
 	// Prefer explicit input+output sums at the top-level
-	inputTop := typeutil.ConvertToInt(data["input_tokens"])
-	outputTop := typeutil.ConvertToInt(data["output_tokens"])
-	if inputTop > 0 || outputTop > 0 {
-		totalTokens := inputTop + outputTop
-		if metricsLog.Enabled() {
-			metricsLog.Printf("Token usage extracted: input=%d, output=%d, total=%d", inputTop, outputTop, totalTokens)
-		}
-		return totalTokens
+	if tokens := extractTopLevelInputOutputTokens(data); tokens > 0 {
+		return tokens
 	}
 
 	// Check top-level token fields that represent a single total value
 	tokenFields := []string{"tokens", "token_count", "total_tokens"}
+	if tokens := extractTokenFields(data, tokenFields); tokens > 0 {
+		return tokens
+	}
+
+	// Check nested usage objects (Claude and OpenAI API formats)
+	if tokens := extractNestedUsageTokens(data, tokenFields); tokens > 0 {
+		return tokens
+	}
+
+	// Check for delta structures (streaming format)
+	if tokens := extractDeltaUsageTokens(data); tokens > 0 {
+		return tokens
+	}
+
+	return 0
+}
+
+func extractTopLevelInputOutputTokens(data map[string]any) int {
+	inputTop := typeutil.ConvertToInt(data["input_tokens"])
+	outputTop := typeutil.ConvertToInt(data["output_tokens"])
+	if inputTop == 0 && outputTop == 0 {
+		return 0
+	}
+	totalTokens := inputTop + outputTop
+	if metricsLog.Enabled() {
+		metricsLog.Printf("Token usage extracted: input=%d, output=%d, total=%d", inputTop, outputTop, totalTokens)
+	}
+	return totalTokens
+}
+
+func extractTokenFields(data map[string]any, tokenFields []string) int {
 	for _, field := range tokenFields {
 		if val, exists := data[field]; exists {
 			if tokens := typeutil.ConvertToInt(val); tokens > 0 {
@@ -109,56 +134,57 @@ func ExtractJSONTokenUsage(data map[string]any) int {
 			}
 		}
 	}
+	return 0
+}
 
-	// Check nested usage objects (Claude and OpenAI API formats)
-	if usage, exists := data["usage"]; exists {
-		if usageMap, ok := usage.(map[string]any); ok {
-			// Claude format: {"usage": {"input_tokens": 10, "output_tokens": 5, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 200}}
-			inputTokens := typeutil.ConvertToInt(usageMap["input_tokens"])
-			outputTokens := typeutil.ConvertToInt(usageMap["output_tokens"])
-			cacheCreationTokens := typeutil.ConvertToInt(usageMap["cache_creation_input_tokens"])
-			cacheReadTokens := typeutil.ConvertToInt(usageMap["cache_read_input_tokens"])
-
-			// OpenAI format: {"usage": {"prompt_tokens": 100, "completion_tokens": 50}}
-			// If Claude fields are not present, try OpenAI fields
-			if inputTokens == 0 {
-				inputTokens = typeutil.ConvertToInt(usageMap["prompt_tokens"])
-			}
-			if outputTokens == 0 {
-				outputTokens = typeutil.ConvertToInt(usageMap["completion_tokens"])
-			}
-
-			totalTokens := inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens
-			if totalTokens > 0 {
-				return totalTokens
-			}
-
-			// Generic token count fields inside usage
-			for _, field := range tokenFields {
-				if val, exists := usageMap[field]; exists {
-					if tokens := typeutil.ConvertToInt(val); tokens > 0 {
-						return tokens
-					}
-				}
-			}
-		}
+func extractNestedUsageTokens(data map[string]any, tokenFields []string) int {
+	usage, exists := data["usage"]
+	if !exists {
+		return 0
 	}
-
-	// Check for delta structures (streaming format)
-	if delta, exists := data["delta"]; exists {
-		if deltaMap, ok := delta.(map[string]any); ok {
-			if usage, exists := deltaMap["usage"]; exists {
-				if usageMap, ok := usage.(map[string]any); ok {
-					inputTokens := typeutil.ConvertToInt(usageMap["input_tokens"])
-					outputTokens := typeutil.ConvertToInt(usageMap["output_tokens"])
-					if inputTokens > 0 || outputTokens > 0 {
-						return inputTokens + outputTokens
-					}
-				}
-			}
-		}
+	usageMap, ok := usage.(map[string]any)
+	if !ok {
+		return 0
 	}
+	inputTokens := typeutil.ConvertToInt(usageMap["input_tokens"])
+	outputTokens := typeutil.ConvertToInt(usageMap["output_tokens"])
+	cacheCreationTokens := typeutil.ConvertToInt(usageMap["cache_creation_input_tokens"])
+	cacheReadTokens := typeutil.ConvertToInt(usageMap["cache_read_input_tokens"])
+	if inputTokens == 0 {
+		inputTokens = typeutil.ConvertToInt(usageMap["prompt_tokens"])
+	}
+	if outputTokens == 0 {
+		outputTokens = typeutil.ConvertToInt(usageMap["completion_tokens"])
+	}
+	totalTokens := inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens
+	if totalTokens > 0 {
+		return totalTokens
+	}
+	return extractTokenFields(usageMap, tokenFields)
+}
 
+func extractDeltaUsageTokens(data map[string]any) int {
+	delta, exists := data["delta"]
+	if !exists {
+		return 0
+	}
+	deltaMap, ok := delta.(map[string]any)
+	if !ok {
+		return 0
+	}
+	usage, exists := deltaMap["usage"]
+	if !exists {
+		return 0
+	}
+	usageMap, ok := usage.(map[string]any)
+	if !ok {
+		return 0
+	}
+	inputTokens := typeutil.ConvertToInt(usageMap["input_tokens"])
+	outputTokens := typeutil.ConvertToInt(usageMap["output_tokens"])
+	if inputTokens > 0 || outputTokens > 0 {
+		return inputTokens + outputTokens
+	}
 	return 0
 }
 

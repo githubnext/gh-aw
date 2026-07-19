@@ -25,79 +25,7 @@ import (
 
 var logsParsingJsLog = logger.New("cli:logs_parsing_js")
 
-// parseAgentLog parses agent logs and generates a markdown summary
-func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose bool) error {
-	logsParsingJsLog.Printf("Parsing agent logs in: %s", runDir)
-	// Determine which parser script to use based on the engine
-	if engine == nil {
-		logsParsingJsLog.Print("No engine detected, skipping log parsing")
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No engine detected in %s, skipping log parsing", filepath.Base(runDir))))
-		return nil
-	}
-
-	// Find the agent log file - use engine.GetLogFileForParsing() to determine location
-	agentLogPath, found := findAgentLogFile(runDir, engine)
-	if !found {
-		logsParsingJsLog.Print("No agent log file found")
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No agent logs found in %s, skipping log parsing", filepath.Base(runDir))))
-		return nil
-	}
-
-	logsParsingJsLog.Printf("Found agent log file: %s", agentLogPath)
-
-	parserScriptName := engine.GetLogParserScriptId()
-	if parserScriptName == "" {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No log parser available for engine %s in %s, skipping", engine.GetID(), filepath.Base(runDir))))
-		return nil
-	}
-
-	jsScript := workflow.GetLogParserScript(parserScriptName)
-	if jsScript == "" {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to get log parser script "+parserScriptName))
-		}
-		return nil
-	}
-
-	// Read the log content
-	logContent, err := os.ReadFile(agentLogPath)
-	if err != nil {
-		return fmt.Errorf("failed to read agent log file: %w", err)
-	}
-
-	// Create a temporary directory for running the parser
-	tempDir, err := os.MkdirTemp("", "log_parser")
-	if err != nil {
-		return fmt.Errorf("failed to create temp dir: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Write the log content to a temporary file
-	logFile := filepath.Join(tempDir, "agent.log")
-	if err := os.WriteFile(logFile, logContent, constants.FilePermPublic); err != nil {
-		return fmt.Errorf("failed to write log file: %w", err)
-	}
-
-	// Write the bootstrap helper to the temp directory
-	bootstrapScript := workflow.GetLogParserBootstrap()
-	if bootstrapScript != "" {
-		bootstrapFile := filepath.Join(tempDir, "log_parser_bootstrap.cjs")
-		if err := os.WriteFile(bootstrapFile, []byte(bootstrapScript), constants.FilePermPublic); err != nil {
-			return fmt.Errorf("failed to write bootstrap file: %w", err)
-		}
-	}
-
-	// Write the shared helper to the temp directory
-	sharedScript := workflow.GetJavaScriptSources()["log_parser_shared.cjs"]
-	if sharedScript != "" {
-		sharedFile := filepath.Join(tempDir, "log_parser_shared.cjs")
-		if err := os.WriteFile(sharedFile, []byte(sharedScript), constants.FilePermPublic); err != nil {
-			return fmt.Errorf("failed to write shared helper file: %w", err)
-		}
-	}
-
-	// Create a Node.js script that mimics the GitHub Actions environment
-	nodeScript := fmt.Sprintf(`
+const parseAgentLogNodeScriptTemplate = `
 const fs = require('fs');
 
 // Mock @actions/core for the parser
@@ -129,14 +57,119 @@ process.env.GH_AW_AGENT_OUTPUT = '%s';
 
 // Execute the parser script
 %s
-`, logFile, jsScript)
+`
+
+// parseAgentLog parses agent logs and generates a markdown summary
+func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose bool) error {
+	logsParsingJsLog.Printf("Parsing agent logs in: %s", runDir)
+	agentLogPath, jsScript, ok, err := parseAgentLogInputs(runDir, engine, verbose)
+	if err != nil || !ok {
+		return err
+	}
+
+	tempDir, err := parseAgentLogTempDir(agentLogPath, jsScript)
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tempDir)
+
+	return parseAgentLogRunNodeScript(runDir, tempDir)
+}
+
+func parseAgentLogInputs(runDir string, engine workflow.CodingAgentEngine, verbose bool) (string, string, bool, error) {
+	// Determine which parser script to use based on the engine
+	if engine == nil {
+		logsParsingJsLog.Print("No engine detected, skipping log parsing")
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No engine detected in %s, skipping log parsing", filepath.Base(runDir))))
+		return "", "", false, nil
+	}
+
+	// Find the agent log file - use engine.GetLogFileForParsing() to determine location
+	agentLogPath, found := findAgentLogFile(runDir, engine)
+	if !found {
+		logsParsingJsLog.Print("No agent log file found")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No agent logs found in %s, skipping log parsing", filepath.Base(runDir))))
+		return "", "", false, nil
+	}
+
+	logsParsingJsLog.Printf("Found agent log file: %s", agentLogPath)
+
+	parserScriptName := engine.GetLogParserScriptId()
+	if parserScriptName == "" {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No log parser available for engine %s in %s, skipping", engine.GetID(), filepath.Base(runDir))))
+		return "", "", false, nil
+	}
+
+	jsScript := workflow.GetLogParserScript(parserScriptName)
+	if jsScript == "" {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to get log parser script "+parserScriptName))
+		}
+		return "", "", false, nil
+	}
+	return agentLogPath, jsScript, true, nil
+}
+
+func parseAgentLogTempDir(agentLogPath, jsScript string) (string, error) {
+	// Read the log content
+	logContent, err := os.ReadFile(agentLogPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read agent log file: %w", err)
+	}
+
+	// Create a temporary directory for running the parser
+	tempDir, err := os.MkdirTemp("", "log_parser")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	if err := parseAgentLogWriteParserFiles(tempDir, logContent, jsScript); err != nil {
+		_ = os.RemoveAll(tempDir)
+		return "", err
+	}
+	return tempDir, nil
+}
+
+func parseAgentLogWriteParserFiles(tempDir string, logContent []byte, jsScript string) error {
+	// Write the log content to a temporary file
+	logFile := filepath.Join(tempDir, "agent.log")
+	if err := os.WriteFile(logFile, logContent, constants.FilePermPublic); err != nil {
+		return fmt.Errorf("failed to write log file: %w", err)
+	}
+
+	// Write the bootstrap helper to the temp directory
+	bootstrapScript := workflow.GetLogParserBootstrap()
+	if bootstrapScript != "" {
+		bootstrapFile := filepath.Join(tempDir, "log_parser_bootstrap.cjs")
+		if err := os.WriteFile(bootstrapFile, []byte(bootstrapScript), constants.FilePermPublic); err != nil {
+			return fmt.Errorf("failed to write bootstrap file: %w", err)
+		}
+	}
+
+	// Write the shared helper to the temp directory
+	sharedScript := workflow.GetJavaScriptSources()["log_parser_shared.cjs"]
+	if sharedScript != "" {
+		sharedFile := filepath.Join(tempDir, "log_parser_shared.cjs")
+		if err := os.WriteFile(sharedFile, []byte(sharedScript), constants.FilePermPublic); err != nil {
+			return fmt.Errorf("failed to write shared helper file: %w", err)
+		}
+	}
+
+	nodeScript := parseAgentLogNodeScript(logFile, jsScript)
 
 	// Write the Node.js script
 	nodeFile := filepath.Join(tempDir, "parser.js")
 	if err := os.WriteFile(nodeFile, []byte(nodeScript), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write node script: %w", err)
 	}
+	return nil
+}
 
+func parseAgentLogNodeScript(logFile, jsScript string) string {
+	// Create a Node.js script that mimics the GitHub Actions environment
+	return fmt.Sprintf(parseAgentLogNodeScriptTemplate, logFile, jsScript)
+}
+
+func parseAgentLogRunNodeScript(runDir, tempDir string) error {
 	// Execute the Node.js script
 	cmd := exec.Command("node", "parser.js")
 	cmd.Dir = tempDir

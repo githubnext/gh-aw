@@ -26,8 +26,6 @@ type TrialArtifacts struct {
 // downloadAllArtifacts downloads and parses all available artifacts from a workflow run
 func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtifacts, error) {
 	trialSupportLog.Printf("Downloading artifacts: repo=%s, runID=%s", hostRepoSlug, runID)
-	// Use the repository slug directly (should already be in user/repo format)
-	repoSlug := hostRepoSlug
 
 	// Create temp directory for artifact download
 	tempDir, err := os.MkdirTemp("", "trial-artifacts-*")
@@ -36,26 +34,39 @@ func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtif
 	}
 	defer os.RemoveAll(tempDir)
 
-	// Download all artifacts for this run
-	output, err := workflow.RunGHCombined("Downloading artifacts...", "run", "download", runID, "--repo", repoSlug, "--dir", tempDir)
-	if err != nil {
-		// If no artifacts exist, that's okay - some workflows don't generate artifacts
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No artifacts found for run %s: %s", runID, string(output))))
-		}
+	if ok := downloadAllArtifactsRunDownload(hostRepoSlug, runID, tempDir, verbose); !ok {
 		return &TrialArtifacts{}, nil
-	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Downloaded all artifacts for run %s to %s", runID, tempDir)))
 	}
 
 	artifacts := &TrialArtifacts{
 		AdditionalArtifacts: make(map[string]any),
 	}
 
-	// Walk through all downloaded artifacts
-	err = filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
+	downloadAllArtifactsWalk(tempDir, artifacts, verbose)
+	return artifacts, nil
+}
+
+func downloadAllArtifactsRunDownload(hostRepoSlug, runID, tempDir string, verbose bool) bool {
+	// Use the repository slug directly (should already be in user/repo format)
+	repoSlug := hostRepoSlug
+
+	output, err := workflow.RunGHCombined("Downloading artifacts...", "run", "download", runID, "--repo", repoSlug, "--dir", tempDir)
+	if err != nil {
+		// If no artifacts exist, that's okay - some workflows don't generate artifacts
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No artifacts found for run %s: %s", runID, string(output))))
+		}
+		return false
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Downloaded all artifacts for run %s to %s", runID, tempDir)))
+	}
+	return true
+}
+
+func downloadAllArtifactsWalk(tempDir string, artifacts *TrialArtifacts, verbose bool) {
+	err := filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -73,41 +84,7 @@ func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtif
 			return nil
 		}
 
-		// Handle specific artifact types
-		switch {
-		case strings.HasSuffix(path, constants.AgentOutputFilename):
-			// Parse safe outputs
-			trialSupportLog.Printf("Processing safe outputs artifact: %s", relPath)
-			if safeOutputs := parseJSONArtifact(path, verbose); safeOutputs != nil {
-				artifacts.SafeOutputs = safeOutputs
-			}
-
-		case strings.HasSuffix(path, "aw_info.json"):
-			// Parse agentic run information
-			trialSupportLog.Printf("Processing agentic run info artifact: %s", relPath)
-			if runInfo := parseJSONArtifact(path, verbose); runInfo != nil {
-				artifacts.AgenticRunInfo = runInfo
-			}
-
-		// case strings.Contains(relPath, "agent") && strings.HasSuffix(path, ".log"):
-		// 	// Collect agent stdio logs
-		// 	if logContent := readTextArtifact(path, verbose); logContent != "" {
-		// 		artifacts.AgentStdioLogs = append(artifacts.AgentStdioLogs, logContent)
-		// 	}
-
-		case strings.HasSuffix(path, ".json") || strings.HasSuffix(path, ".jsonl") || strings.HasSuffix(path, ".log") || strings.HasSuffix(path, ".txt"):
-			// Handle other artifacts
-			if strings.HasSuffix(path, ".json") || strings.HasSuffix(path, ".jsonl") {
-				if content := parseJSONArtifact(path, verbose); content != nil {
-					artifacts.AdditionalArtifacts[relPath] = content
-				}
-			} else {
-				if content := readTextArtifact(path, verbose); content != "" {
-					artifacts.AdditionalArtifacts[relPath] = content
-				}
-			}
-		}
-
+		downloadAllArtifactsProcess(path, relPath, artifacts, verbose)
 		return nil
 	})
 
@@ -116,8 +93,45 @@ func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtif
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Error walking artifact directory: %v", err)))
 		}
 	}
+}
 
-	return artifacts, nil
+func downloadAllArtifactsProcess(path, relPath string, artifacts *TrialArtifacts, verbose bool) {
+	switch {
+	case strings.HasSuffix(path, constants.AgentOutputFilename):
+		// Parse safe outputs
+		trialSupportLog.Printf("Processing safe outputs artifact: %s", relPath)
+		if safeOutputs := parseJSONArtifact(path, verbose); safeOutputs != nil {
+			artifacts.SafeOutputs = safeOutputs
+		}
+
+	case strings.HasSuffix(path, "aw_info.json"):
+		// Parse agentic run information
+		trialSupportLog.Printf("Processing agentic run info artifact: %s", relPath)
+		if runInfo := parseJSONArtifact(path, verbose); runInfo != nil {
+			artifacts.AgenticRunInfo = runInfo
+		}
+
+	// case strings.Contains(relPath, "agent") && strings.HasSuffix(path, ".log"):
+	// 	// Collect agent stdio logs
+	// 	if logContent := readTextArtifact(path, verbose); logContent != "" {
+	// 		artifacts.AgentStdioLogs = append(artifacts.AgentStdioLogs, logContent)
+	// 	}
+
+	case strings.HasSuffix(path, ".json") || strings.HasSuffix(path, ".jsonl") || strings.HasSuffix(path, ".log") || strings.HasSuffix(path, ".txt"):
+		downloadAllArtifactsProcessAdditional(path, relPath, artifacts, verbose)
+	}
+}
+
+func downloadAllArtifactsProcessAdditional(path, relPath string, artifacts *TrialArtifacts, verbose bool) {
+	if strings.HasSuffix(path, ".json") || strings.HasSuffix(path, ".jsonl") {
+		if content := parseJSONArtifact(path, verbose); content != nil {
+			artifacts.AdditionalArtifacts[relPath] = content
+		}
+		return
+	}
+	if content := readTextArtifact(path, verbose); content != "" {
+		artifacts.AdditionalArtifacts[relPath] = content
+	}
 }
 
 // parseJSONArtifact parses a JSON artifact file and returns the parsed content

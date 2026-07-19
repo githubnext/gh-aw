@@ -42,9 +42,20 @@ func buildAuditObservabilityInsights(processedRun ProcessedRun, metrics MetricsD
 	insights := make([]ObservabilityInsight, 0, 5)
 	toolTypes := len(toolUsage)
 
+	insights = buildAuditObservabilityInsightsExecution(insights, metrics, toolTypes)
+	insights = buildAuditObservabilityInsightsActuation(insights, processedRun, createdItems)
+	insights = buildAuditObservabilityInsightsFriction(insights, processedRun)
+	insights = buildAuditObservabilityInsightsNetwork(insights, processedRun)
+	insights = buildAuditObservabilityInsightsPrivacy(insights, processedRun)
+
+	observabilityInsightsLog.Printf("Audit observability insights built: count=%d", len(insights))
+	return insights
+}
+
+func buildAuditObservabilityInsightsExecution(insights []ObservabilityInsight, metrics MetricsData, toolTypes int) []ObservabilityInsight {
 	switch {
 	case metrics.Turns >= 12 || toolTypes >= 6:
-		insights = append(insights, ObservabilityInsight{
+		return append(insights, ObservabilityInsight{
 			Category: "execution",
 			Severity: "medium",
 			Title:    "Exploratory execution path",
@@ -52,7 +63,7 @@ func buildAuditObservabilityInsights(processedRun ProcessedRun, metrics MetricsD
 			Evidence: fmt.Sprintf("turns=%d tool_types=%d", metrics.Turns, toolTypes),
 		})
 	case metrics.Turns >= 6 || toolTypes >= 4:
-		insights = append(insights, ObservabilityInsight{
+		return append(insights, ObservabilityInsight{
 			Category: "execution",
 			Severity: "info",
 			Title:    "Adaptive execution path",
@@ -60,7 +71,7 @@ func buildAuditObservabilityInsights(processedRun ProcessedRun, metrics MetricsD
 			Evidence: fmt.Sprintf("turns=%d tool_types=%d", metrics.Turns, toolTypes),
 		})
 	default:
-		insights = append(insights, ObservabilityInsight{
+		return append(insights, ObservabilityInsight{
 			Category: "execution",
 			Severity: "info",
 			Title:    "Directed execution path",
@@ -68,27 +79,30 @@ func buildAuditObservabilityInsights(processedRun ProcessedRun, metrics MetricsD
 			Evidence: fmt.Sprintf("turns=%d tool_types=%d", metrics.Turns, toolTypes),
 		})
 	}
+}
 
+func buildAuditObservabilityInsightsActuation(insights []ObservabilityInsight, processedRun ProcessedRun, createdItems []CreatedItemReport) []ObservabilityInsight {
 	createdCount := len(createdItems)
 	safeItemsCount := processedRun.Run.SafeItemsCount
 	if createdCount > 0 || safeItemsCount > 0 {
-		insights = append(insights, ObservabilityInsight{
+		return append(insights, ObservabilityInsight{
 			Category: "actuation",
 			Severity: "info",
 			Title:    "Write path executed",
 			Summary:  fmt.Sprintf("The workflow crossed from analysis into action, producing %d created item(s) and %d safe output action(s).", createdCount, safeItemsCount),
 			Evidence: fmt.Sprintf("created_items=%d safe_items=%d", createdCount, safeItemsCount),
 		})
-	} else {
-		insights = append(insights, ObservabilityInsight{
-			Category: "actuation",
-			Severity: "info",
-			Title:    "Read-only posture observed",
-			Summary:  "The workflow stayed in an analysis posture and did not emit any GitHub write actions.",
-			Evidence: "created_items=0 safe_items=0",
-		})
 	}
+	return append(insights, ObservabilityInsight{
+		Category: "actuation",
+		Severity: "info",
+		Title:    "Read-only posture observed",
+		Summary:  "The workflow stayed in an analysis posture and did not emit any GitHub write actions.",
+		Evidence: "created_items=0 safe_items=0",
+	})
+}
 
+func buildAuditObservabilityInsightsFriction(insights []ObservabilityInsight, processedRun ProcessedRun) []ObservabilityInsight {
 	frictionEvents := len(processedRun.MissingTools) + len(processedRun.MCPFailures) + len(processedRun.MissingData)
 	if frictionEvents > 0 {
 		severity := "medium"
@@ -103,7 +117,10 @@ func buildAuditObservabilityInsights(processedRun ProcessedRun, metrics MetricsD
 			Evidence: fmt.Sprintf("missing_tools=%d mcp_failures=%d missing_data=%d", len(processedRun.MissingTools), len(processedRun.MCPFailures), len(processedRun.MissingData)),
 		})
 	}
+	return insights
+}
 
+func buildAuditObservabilityInsightsNetwork(insights []ObservabilityInsight, processedRun ProcessedRun) []ObservabilityInsight {
 	if processedRun.FirewallAnalysis != nil && processedRun.FirewallAnalysis.TotalRequests > 0 {
 		blockedRate := float64(processedRun.FirewallAnalysis.BlockedRequests) / float64(processedRun.FirewallAnalysis.TotalRequests)
 		severity := "info"
@@ -125,7 +142,10 @@ func buildAuditObservabilityInsights(processedRun ProcessedRun, metrics MetricsD
 			Evidence: fmt.Sprintf("blocked=%d total=%d", processedRun.FirewallAnalysis.BlockedRequests, processedRun.FirewallAnalysis.TotalRequests),
 		})
 	}
+	return insights
+}
 
+func buildAuditObservabilityInsightsPrivacy(insights []ObservabilityInsight, processedRun ProcessedRun) []ObservabilityInsight {
 	if processedRun.RedactedDomainsAnalysis != nil && processedRun.RedactedDomainsAnalysis.TotalDomains > 0 {
 		insights = append(insights, ObservabilityInsight{
 			Category: "privacy",
@@ -135,8 +155,6 @@ func buildAuditObservabilityInsights(processedRun ProcessedRun, metrics MetricsD
 			Evidence: fmt.Sprintf("redacted_domains=%d", processedRun.RedactedDomainsAnalysis.TotalDomains),
 		})
 	}
-
-	observabilityInsightsLog.Printf("Audit observability insights built: count=%d", len(insights))
 	return insights
 }
 
@@ -147,40 +165,25 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 
 	observabilityInsightsLog.Printf("Building logs observability insights: processed_runs=%d tool_usage_entries=%d", len(processedRuns), len(toolUsage))
 	insights := make([]ObservabilityInsight, 0, 6)
+	workflowStats, writeRuns, readOnlyRuns := buildLogsObservabilityInsightsStats(processedRuns)
+
+	insights = buildLogsObservabilityInsightsFailure(insights, workflowStats)
+	insights = buildLogsObservabilityInsightsDrift(insights, workflowStats)
+	insights = buildLogsObservabilityInsightsTooling(insights, workflowStats)
+	insights = buildLogsObservabilityInsightsNetwork(insights, workflowStats)
+	insights = buildLogsObservabilityInsightsActuation(insights, processedRuns, writeRuns, readOnlyRuns)
+	insights = buildLogsObservabilityInsightsToolConcentration(insights, toolUsage)
+
+	observabilityInsightsLog.Printf("Logs observability insights built: count=%d write_runs=%d read_only_runs=%d", len(insights), writeRuns, readOnlyRuns)
+	return insights
+}
+
+func buildLogsObservabilityInsightsStats(processedRuns []ProcessedRun) (map[string]*workflowObservabilityStats, int, int) {
 	workflowStats := make(map[string]*workflowObservabilityStats)
 	writeRuns := 0
 	readOnlyRuns := 0
-
 	for _, pr := range processedRuns {
-		wfID := workflowIDFromRun(pr.Run.WorkflowPath, pr.Run.WorkflowName)
-		stats, exists := workflowStats[wfID]
-		if !exists {
-			stats = &workflowObservabilityStats{
-				workflowName: wfID,
-				minTurns:     pr.Run.Turns,
-				maxTurns:     pr.Run.Turns,
-			}
-			workflowStats[wfID] = stats
-		}
-
-		stats.runs++
-		stats.totalTurns += pr.Run.Turns
-		if stats.runs == 1 || pr.Run.Turns < stats.minTurns {
-			stats.minTurns = pr.Run.Turns
-		}
-		if pr.Run.Turns > stats.maxTurns {
-			stats.maxTurns = pr.Run.Turns
-		}
-		if pr.Run.Conclusion == "failure" {
-			stats.failures++
-		}
-		if pr.Run.Conclusion == "timed_out" {
-			stats.timedOuts++
-		}
-		stats.missingTools += len(pr.MissingTools)
-		stats.mcpFailures += len(pr.MCPFailures)
-		stats.missingData += len(pr.MissingData)
-		stats.safeItems += pr.Run.SafeItemsCount
+		stats := buildLogsObservabilityInsightsStatsForRun(workflowStats, pr)
 		if pr.Run.SafeItemsCount > 0 {
 			writeRuns++
 		} else {
@@ -194,16 +197,39 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 			}
 		}
 	}
+	return workflowStats, writeRuns, readOnlyRuns
+}
 
-	var failureHotspot *workflowObservabilityStats
-	for _, stats := range workflowStats {
-		if stats.failures == 0 {
-			continue
-		}
-		if failureHotspot == nil || stats.failures > failureHotspot.failures || (stats.failures == failureHotspot.failures && stats.workflowName < failureHotspot.workflowName) {
-			failureHotspot = stats
-		}
+func buildLogsObservabilityInsightsStatsForRun(workflowStats map[string]*workflowObservabilityStats, pr ProcessedRun) *workflowObservabilityStats {
+	wfID := workflowIDFromRun(pr.Run.WorkflowPath, pr.Run.WorkflowName)
+	stats, exists := workflowStats[wfID]
+	if !exists {
+		stats = &workflowObservabilityStats{workflowName: wfID, minTurns: pr.Run.Turns, maxTurns: pr.Run.Turns}
+		workflowStats[wfID] = stats
 	}
+	stats.runs++
+	stats.totalTurns += pr.Run.Turns
+	if stats.runs == 1 || pr.Run.Turns < stats.minTurns {
+		stats.minTurns = pr.Run.Turns
+	}
+	if pr.Run.Turns > stats.maxTurns {
+		stats.maxTurns = pr.Run.Turns
+	}
+	if pr.Run.Conclusion == "failure" {
+		stats.failures++
+	}
+	if pr.Run.Conclusion == "timed_out" {
+		stats.timedOuts++
+	}
+	stats.missingTools += len(pr.MissingTools)
+	stats.mcpFailures += len(pr.MCPFailures)
+	stats.missingData += len(pr.MissingData)
+	stats.safeItems += pr.Run.SafeItemsCount
+	return stats
+}
+
+func buildLogsObservabilityInsightsFailure(insights []ObservabilityInsight, workflowStats map[string]*workflowObservabilityStats) []ObservabilityInsight {
+	failureHotspot := buildLogsObservabilityInsightsFailureHotspot(workflowStats)
 	if failureHotspot != nil {
 		failureRate := float64(failureHotspot.failures) / float64(failureHotspot.runs)
 		severity := "medium"
@@ -219,19 +245,24 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 			Evidence: fmt.Sprintf("workflow=%s failures=%d runs=%d", failureHotspot.workflowName, failureHotspot.failures, failureHotspot.runs),
 		})
 	}
+	return insights
+}
 
-	var driftHotspot *workflowObservabilityStats
+func buildLogsObservabilityInsightsFailureHotspot(workflowStats map[string]*workflowObservabilityStats) *workflowObservabilityStats {
+	var failureHotspot *workflowObservabilityStats
 	for _, stats := range workflowStats {
-		if stats.runs < 2 {
+		if stats.failures == 0 {
 			continue
 		}
-		if stats.maxTurns-stats.minTurns < 4 {
-			continue
-		}
-		if driftHotspot == nil || (stats.maxTurns-stats.minTurns) > (driftHotspot.maxTurns-driftHotspot.minTurns) {
-			driftHotspot = stats
+		if failureHotspot == nil || stats.failures > failureHotspot.failures || (stats.failures == failureHotspot.failures && stats.workflowName < failureHotspot.workflowName) {
+			failureHotspot = stats
 		}
 	}
+	return failureHotspot
+}
+
+func buildLogsObservabilityInsightsDrift(insights []ObservabilityInsight, workflowStats map[string]*workflowObservabilityStats) []ObservabilityInsight {
+	driftHotspot := buildLogsObservabilityInsightsDriftHotspot(workflowStats)
 	if driftHotspot != nil {
 		avgTurns := float64(driftHotspot.totalTurns) / float64(driftHotspot.runs)
 		observabilityInsightsLog.Printf("Execution drift detected: workflow=%s min_turns=%d max_turns=%d avg_turns=%.1f", driftHotspot.workflowName, driftHotspot.minTurns, driftHotspot.maxTurns, avgTurns)
@@ -243,17 +274,23 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 			Evidence: fmt.Sprintf("workflow=%s min_turns=%d max_turns=%d", driftHotspot.workflowName, driftHotspot.minTurns, driftHotspot.maxTurns),
 		})
 	}
+	return insights
+}
 
-	var toolingHotspot *workflowObservabilityStats
+func buildLogsObservabilityInsightsDriftHotspot(workflowStats map[string]*workflowObservabilityStats) *workflowObservabilityStats {
+	var driftHotspot *workflowObservabilityStats
 	for _, stats := range workflowStats {
-		friction := stats.missingTools + stats.mcpFailures + stats.missingData
-		if friction == 0 {
-			continue
-		}
-		if toolingHotspot == nil || friction > (toolingHotspot.missingTools+toolingHotspot.mcpFailures+toolingHotspot.missingData) {
-			toolingHotspot = stats
+		if stats.runs >= 2 && stats.maxTurns-stats.minTurns >= 4 {
+			if driftHotspot == nil || (stats.maxTurns-stats.minTurns) > (driftHotspot.maxTurns-driftHotspot.minTurns) {
+				driftHotspot = stats
+			}
 		}
 	}
+	return driftHotspot
+}
+
+func buildLogsObservabilityInsightsTooling(insights []ObservabilityInsight, workflowStats map[string]*workflowObservabilityStats) []ObservabilityInsight {
+	toolingHotspot := buildLogsObservabilityInsightsToolingHotspot(workflowStats)
 	if toolingHotspot != nil {
 		friction := toolingHotspot.missingTools + toolingHotspot.mcpFailures + toolingHotspot.missingData
 		severity := "medium"
@@ -268,19 +305,25 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 			Evidence: fmt.Sprintf("workflow=%s missing_tools=%d mcp_failures=%d missing_data=%d", toolingHotspot.workflowName, toolingHotspot.missingTools, toolingHotspot.mcpFailures, toolingHotspot.missingData),
 		})
 	}
+	return insights
+}
 
-	var networkHotspot *workflowObservabilityStats
-	var networkRate float64
+func buildLogsObservabilityInsightsToolingHotspot(workflowStats map[string]*workflowObservabilityStats) *workflowObservabilityStats {
+	var toolingHotspot *workflowObservabilityStats
 	for _, stats := range workflowStats {
-		if stats.totalNet == 0 || stats.blocked == 0 {
+		friction := stats.missingTools + stats.mcpFailures + stats.missingData
+		if friction == 0 {
 			continue
 		}
-		rate := float64(stats.blocked) / float64(stats.totalNet)
-		if networkHotspot == nil || rate > networkRate {
-			networkHotspot = stats
-			networkRate = rate
+		if toolingHotspot == nil || friction > (toolingHotspot.missingTools+toolingHotspot.mcpFailures+toolingHotspot.missingData) {
+			toolingHotspot = stats
 		}
 	}
+	return toolingHotspot
+}
+
+func buildLogsObservabilityInsightsNetwork(insights []ObservabilityInsight, workflowStats map[string]*workflowObservabilityStats) []ObservabilityInsight {
+	networkHotspot, networkRate := buildLogsObservabilityInsightsNetworkHotspot(workflowStats)
 	if networkHotspot != nil {
 		severity := "medium"
 		if networkRate >= 0.5 || (networkHotspot.blocked >= 10 && !networkHotspot.blockedAtCap) {
@@ -294,7 +337,26 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 			Evidence: fmt.Sprintf("workflow=%s blocked=%d total=%d", networkHotspot.workflowName, networkHotspot.blocked, networkHotspot.totalNet),
 		})
 	}
+	return insights
+}
 
+func buildLogsObservabilityInsightsNetworkHotspot(workflowStats map[string]*workflowObservabilityStats) (*workflowObservabilityStats, float64) {
+	var networkHotspot *workflowObservabilityStats
+	var networkRate float64
+	for _, stats := range workflowStats {
+		if stats.totalNet == 0 || stats.blocked == 0 {
+			continue
+		}
+		rate := float64(stats.blocked) / float64(stats.totalNet)
+		if networkHotspot == nil || rate > networkRate {
+			networkHotspot = stats
+			networkRate = rate
+		}
+	}
+	return networkHotspot, networkRate
+}
+
+func buildLogsObservabilityInsightsActuation(insights []ObservabilityInsight, processedRuns []ProcessedRun, writeRuns int, readOnlyRuns int) []ObservabilityInsight {
 	if writeRuns > 0 || readOnlyRuns > 0 {
 		insights = append(insights, ObservabilityInsight{
 			Category: "actuation",
@@ -304,7 +366,10 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 			Evidence: fmt.Sprintf("write_runs=%d read_only_runs=%d", writeRuns, readOnlyRuns),
 		})
 	}
+	return insights
+}
 
+func buildLogsObservabilityInsightsToolConcentration(insights []ObservabilityInsight, toolUsage []ToolUsageSummary) []ObservabilityInsight {
 	totalToolCalls := 0
 	for _, tool := range toolUsage {
 		totalToolCalls += tool.TotalCalls
@@ -326,8 +391,6 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 			})
 		}
 	}
-
-	observabilityInsightsLog.Printf("Logs observability insights built: count=%d write_runs=%d read_only_runs=%d", len(insights), writeRuns, readOnlyRuns)
 	return insights
 }
 

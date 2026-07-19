@@ -22,73 +22,82 @@ func getBashSingleQuotedArgsCodemod() Codemod {
 		Description:  "Rewrites tools.bash entries like grep -n 'foo' to grep -n \"foo\" when safe, reducing Copilot shell() truncation warnings.",
 		IntroducedIn: "0.39.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
-			toolsValue, hasTools := frontmatter["tools"]
-			if !hasTools {
-				return content, false, nil
-			}
-
-			toolsMap, ok := toolsValue.(map[string]any)
-			if !ok {
-				return content, false, nil
-			}
-
-			bashValue, hasBash := toolsMap["bash"]
-			if !hasBash {
-				return content, false, nil
-			}
-
-			bashCommands, ok := bashValue.([]any)
-			if !ok {
-				return content, false, nil
-			}
-
-			updated := make([]any, len(bashCommands))
-			copy(updated, bashCommands)
-
-			changed := false
-			var unsafeCommands []string
-			for i, cmd := range bashCommands {
-				cmdStr, ok := cmd.(string)
-				if !ok {
-					continue
-				}
-
-				rewritten, safe, rewrittenChanged := rewriteSingleQuotedBashArgs(cmdStr)
-				if !safe {
-					unsafeCommands = append(unsafeCommands, cmdStr)
-					continue
-				}
-				if rewrittenChanged {
-					updated[i] = rewritten
-					changed = true
-				}
-			}
-
-			for _, cmd := range unsafeCommands {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-					fmt.Sprintf("tools.bash entry %q contains an unclosed single-quoted segment and could not be safely rewritten; left unchanged", cmd)))
-			}
-
-			if !changed {
-				return content, false, nil
-			}
-
-			toolsMap["bash"] = updated
-			frontmatter["tools"] = toolsMap
-
-			result, err := parser.ExtractFrontmatterFromContent(content)
-			if err != nil {
-				return content, false, fmt.Errorf("failed to parse frontmatter for rewrite: %w", err)
-			}
-
-			bashSingleQuotedArgsCodemodLog.Print("Rewrote single-quoted tools.bash arguments to safe double-quoted forms")
-			updatedContent, err := reconstructWorkflowFileFromMap(frontmatter, result.Markdown)
-			if err != nil {
-				return content, false, fmt.Errorf("failed to reconstruct workflow content after rewrite: %w", err)
-			}
-			return updatedContent, true, nil
+			return getBashSingleQuotedArgsCodemodApply(content, frontmatter)
 		},
 	}
+}
+
+func getBashSingleQuotedArgsCodemodApply(content string, frontmatter map[string]any) (string, bool, error) {
+	toolsValue, hasTools := frontmatter["tools"]
+	if !hasTools {
+		return content, false, nil
+	}
+
+	toolsMap, ok := toolsValue.(map[string]any)
+	if !ok {
+		return content, false, nil
+	}
+
+	bashValue, hasBash := toolsMap["bash"]
+	if !hasBash {
+		return content, false, nil
+	}
+
+	bashCommands, ok := bashValue.([]any)
+	if !ok {
+		return content, false, nil
+	}
+
+	updated, changed := getBashSingleQuotedArgsCodemodRewriteCommands(bashCommands)
+	if !changed {
+		return content, false, nil
+	}
+
+	toolsMap["bash"] = updated
+	frontmatter["tools"] = toolsMap
+
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return content, false, fmt.Errorf("failed to parse frontmatter for rewrite: %w", err)
+	}
+
+	bashSingleQuotedArgsCodemodLog.Print("Rewrote single-quoted tools.bash arguments to safe double-quoted forms")
+	updatedContent, err := reconstructWorkflowFileFromMap(frontmatter, result.Markdown)
+	if err != nil {
+		return content, false, fmt.Errorf("failed to reconstruct workflow content after rewrite: %w", err)
+	}
+	return updatedContent, true, nil
+}
+
+func getBashSingleQuotedArgsCodemodRewriteCommands(bashCommands []any) ([]any, bool) {
+	updated := make([]any, len(bashCommands))
+	copy(updated, bashCommands)
+
+	changed := false
+	var unsafeCommands []string
+	for i, cmd := range bashCommands {
+		cmdStr, ok := cmd.(string)
+		if !ok {
+			continue
+		}
+
+		rewritten, safe, rewrittenChanged := rewriteSingleQuotedBashArgs(cmdStr)
+		if !safe {
+			unsafeCommands = append(unsafeCommands, cmdStr)
+			continue
+		}
+		if rewrittenChanged {
+			updated[i] = rewritten
+			changed = true
+		}
+	}
+
+	for _, cmd := range unsafeCommands {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			fmt.Sprintf("tools.bash entry %q contains an unclosed single-quoted segment and could not be safely rewritten; left unchanged", cmd)))
+	}
+
+	return updated, changed
 }
 
 // rewriteSingleQuotedBashArgs rewrites single-quoted shell segments to
@@ -108,18 +117,7 @@ func rewriteSingleQuotedBashArgs(cmd string) (string, bool, bool) {
 	for i := 0; i < len(cmd); i++ {
 		ch := cmd[i]
 		if inDoubleQuotes {
-			b.WriteByte(ch)
-			if escaped {
-				escaped = false
-				continue
-			}
-			if ch == '\\' {
-				escaped = true
-				continue
-			}
-			if ch == '"' {
-				inDoubleQuotes = false
-			}
+			rewriteSingleQuotedBashArgsWriteDoubleQuotedByte(&b, ch, &escaped, &inDoubleQuotes)
 			continue
 		}
 
@@ -139,26 +137,12 @@ func rewriteSingleQuotedBashArgs(cmd string) (string, bool, bool) {
 			inDoubleQuotes = true
 			continue
 		case '\'':
-			j := i + 1
-			for j < len(cmd) && cmd[j] != '\'' {
-				j++
-			}
-			if j >= len(cmd) {
+			j, ok := rewriteSingleQuotedBashArgsFindClosingQuote(cmd, i+1)
+			if !ok {
 				return cmd, false, false
 			}
 
-			content := cmd[i+1 : j]
-			b.WriteByte('"')
-			for k := range len(content) {
-				contentCh := content[k]
-				switch contentCh {
-				case '\\', '"', '$', '`':
-					b.WriteByte('\\')
-				}
-				b.WriteByte(contentCh)
-			}
-			b.WriteByte('"')
-
+			rewriteSingleQuotedBashArgsWriteDoubleQuotedLiteral(&b, cmd[i+1:j])
 			changed = true
 			i = j
 			continue
@@ -172,4 +156,41 @@ func rewriteSingleQuotedBashArgs(cmd string) (string, bool, bool) {
 		return cmd, true, false
 	}
 	return rewritten, true, true
+}
+
+func rewriteSingleQuotedBashArgsWriteDoubleQuotedByte(b *strings.Builder, ch byte, escaped *bool, inDoubleQuotes *bool) {
+	b.WriteByte(ch)
+	if *escaped {
+		*escaped = false
+		return
+	}
+	if ch == '\\' {
+		*escaped = true
+		return
+	}
+	if ch == '"' {
+		*inDoubleQuotes = false
+	}
+}
+
+func rewriteSingleQuotedBashArgsFindClosingQuote(cmd string, start int) (int, bool) {
+	for i := start; i < len(cmd); i++ {
+		if cmd[i] == '\'' {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+func rewriteSingleQuotedBashArgsWriteDoubleQuotedLiteral(b *strings.Builder, content string) {
+	b.WriteByte('"')
+	for k := range len(content) {
+		contentCh := content[k]
+		switch contentCh {
+		case '\\', '"', '$', '`':
+			b.WriteByte('\\')
+		}
+		b.WriteByte(contentCh)
+	}
+	b.WriteByte('"')
 }

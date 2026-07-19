@@ -250,76 +250,80 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 	analysis := &FirewallAnalysis{
 		RequestsByDomain: make(map[string]DomainRequestStats),
 	}
-
 	allowedDomainsSet := make(map[string]struct{})
 	blockedDomainsSet := make(map[string]struct{})
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := scanner.Text()
-
-		entry := parseFirewallLogLine(line)
+		entry := parseFirewallLogLine(scanner.Text())
 		if entry == nil {
 			continue
 		}
-
-		// Skip internal Squid error entries (client IP ::1, no domain, no destination)
-		// These are internal Squid connection errors (e.g., error:transaction-end-before-headers)
-		// and are not actual external network requests.
-		// Example: 1773003472.027 ::1:52010 - -:- 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"
-		if strings.HasPrefix(entry.ClientIPPort, "::1:") && entry.Domain == "-" && (entry.DestIPPort == "-:-" || entry.DestIPPort == "-") {
-			continue
-		}
-
-		analysis.TotalRequests++
-
-		// Determine if request was allowed or blocked
-		isAllowed := isRequestAllowed(entry.Decision, entry.Status)
-
-		// Extract domain - when domain is "-" (iptables-dropped traffic not visible to Squid),
-		// fall back to dest IP:port so blocked requests show their actual destination instead of "-"
-		// Only fall back if destIPPort is a valid host:port (not "-" or "-:-" which are placeholder values)
-		domain := entry.Domain
-		if domain == "-" && entry.DestIPPort != "-" && entry.DestIPPort != "-:-" {
-			domain = entry.DestIPPort
-		} else if domain == "-" {
-			// Both domain and destIPPort are placeholders: iptables dropped the traffic before
-			// Squid could identify the destination. Use a sentinel so the entry appears in
-			// RequestsByDomain for informational purposes, but do NOT add it to the domain sets
-			// since "-" is not an actionable domain name.
-			domain = unknownDomain
-		}
-
-		if isAllowed {
-			analysis.AllowedRequests++
-			if domain != unknownDomain {
-				allowedDomainsSet[domain] = struct{}{}
-			}
-		} else {
-			analysis.BlockedRequests++
-			if domain != unknownDomain {
-				blockedDomainsSet[domain] = struct{}{}
-			}
-		}
-
-		// Track request count per domain
-		stats := analysis.RequestsByDomain[domain]
-		if isAllowed {
-			stats.Allowed++
-		} else {
-			stats.Blocked++
-		}
-		analysis.RequestsByDomain[domain] = stats
+		parseFirewallLogEntry(entry, analysis, allowedDomainsSet, blockedDomainsSet)
 	}
 
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error reading firewall log: %w", err)
 	}
 
+	parseFirewallLogFinalize(analysis, allowedDomainsSet, blockedDomainsSet)
+	return analysis, nil
+}
+
+func parseFirewallLogEntry(entry *FirewallLogEntry, analysis *FirewallAnalysis, allowedDomainsSet, blockedDomainsSet map[string]struct{}) {
+	// Skip internal Squid error entries (client IP ::1, no domain, no destination)
+	// These are internal Squid connection errors (e.g., error:transaction-end-before-headers)
+	// and are not actual external network requests.
+	// Example: 1773003472.027 ::1:52010 - -:- 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"
+	if strings.HasPrefix(entry.ClientIPPort, "::1:") && entry.Domain == "-" && (entry.DestIPPort == "-:-" || entry.DestIPPort == "-") {
+		return
+	}
+
+	analysis.TotalRequests++
+	isAllowed := isRequestAllowed(entry.Decision, entry.Status)
+	domain := parseFirewallLogDomain(entry)
+	if isAllowed {
+		analysis.AllowedRequests++
+		if domain != unknownDomain {
+			allowedDomainsSet[domain] = struct{}{}
+		}
+	} else {
+		analysis.BlockedRequests++
+		if domain != unknownDomain {
+			blockedDomainsSet[domain] = struct{}{}
+		}
+	}
+
+	stats := analysis.RequestsByDomain[domain]
+	if isAllowed {
+		stats.Allowed++
+	} else {
+		stats.Blocked++
+	}
+	analysis.RequestsByDomain[domain] = stats
+}
+
+func parseFirewallLogDomain(entry *FirewallLogEntry) string {
+	// Extract domain - when domain is "-" (iptables-dropped traffic not visible to Squid),
+	// fall back to dest IP:port so blocked requests show their actual destination instead of "-"
+	// Only fall back if destIPPort is a valid host:port (not "-" or "-:-" which are placeholder values)
+	if entry.Domain == "-" && entry.DestIPPort != "-" && entry.DestIPPort != "-:-" {
+		return entry.DestIPPort
+	}
+	if entry.Domain == "-" {
+		// Both domain and destIPPort are placeholders: iptables dropped the traffic before
+		// Squid could identify the destination. Use a sentinel so the entry appears in
+		// RequestsByDomain for informational purposes, but do NOT add it to the domain sets
+		// since "-" is not an actionable domain name.
+		return unknownDomain
+	}
+	return entry.Domain
+}
+
+func parseFirewallLogFinalize(analysis *FirewallAnalysis, allowedDomainsSet, blockedDomainsSet map[string]struct{}) {
 	// Convert sets to sorted slices
 	analysis.AllowedDomains = sliceutil.MapKeys(allowedDomainsSet)
 	analysis.BlockedDomains = sliceutil.MapKeys(blockedDomainsSet)
-
 	sort.Strings(analysis.AllowedDomains)
 	sort.Strings(analysis.BlockedDomains)
 
@@ -328,7 +332,6 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 			analysis.TotalRequests, analysis.AllowedRequests, analysis.BlockedRequests,
 			len(analysis.AllowedDomains), len(analysis.BlockedDomains))
 	}
-	return analysis, nil
 }
 
 // analyzeFirewallLogs analyzes firewall logs in a run directory
@@ -339,47 +342,52 @@ func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error)
 	// Look for firewall logs in the run directory
 	// The logs could be in several locations depending on how they were uploaded
 
+	if analysis, handled, err := analyzeFirewallLogsSandbox(runDir, verbose); handled || err != nil {
+		return analysis, err
+	}
+
+	if analysis, handled, err := analyzeFirewallLogsLegacyDirs(runDir, verbose); handled || err != nil {
+		return analysis, err
+	}
+
+	return analyzeFirewallLogsIndividual(runDir, verbose)
+}
+
+func analyzeFirewallLogsSandbox(runDir string, verbose bool) (*FirewallAnalysis, bool, error) {
 	// First, check for sandbox/firewall/logs/ directory (new path after artifact download)
 	// Firewall logs are uploaded from /tmp/gh-aw/sandbox/firewall/logs/ and the common parent
 	// /tmp/gh-aw/ is stripped during artifact upload, resulting in sandbox/firewall/logs/ after download.
 	// Within that directory, AWF writes Squid access logs to a squid-logs/ subdirectory.
 	sandboxFirewallLogsDir := filepath.Join(runDir, "sandbox", "firewall", "logs")
-	if fileutil.DirExists(sandboxFirewallLogsDir) {
-		// AWF writes the Squid access.log to a squid-logs/ subdirectory within --proxy-logs-dir.
-		// Check for that subdirectory first before falling back to the parent directory.
-		squidSubDir := filepath.Join(sandboxFirewallLogsDir, "squid-logs")
-		if fileutil.DirExists(squidSubDir) {
-			firewallLogLog.Printf("Found firewall logs directory: sandbox/firewall/logs/squid-logs")
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found firewall logs directory: sandbox/firewall/logs/squid-logs"))
-			}
-			analysis, err := analyzeMultipleFirewallLogs(squidSubDir, verbose)
-			if err != nil {
-				return nil, err
-			}
-			if analysis != nil {
-				return analysis, nil
-			}
-		}
-		// Fall back to direct *.log files at the sandbox/firewall/logs/ level (older AWF layout).
-		firewallLogLog.Printf("Found firewall logs directory: sandbox/firewall/logs")
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found firewall logs directory: sandbox/firewall/logs"))
-		}
-		return analyzeMultipleFirewallLogs(sandboxFirewallLogsDir, verbose)
+	if !fileutil.DirExists(sandboxFirewallLogsDir) {
+		return nil, false, nil
 	}
+	squidSubDir := filepath.Join(sandboxFirewallLogsDir, "squid-logs")
+	if fileutil.DirExists(squidSubDir) {
+		firewallLogLog.Printf("Found firewall logs directory: sandbox/firewall/logs/squid-logs")
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found firewall logs directory: sandbox/firewall/logs/squid-logs"))
+		}
+		analysis, err := analyzeMultipleFirewallLogs(squidSubDir, verbose)
+		if err != nil || analysis != nil {
+			return analysis, true, err
+		}
+	}
+	// Fall back to direct *.log files at the sandbox/firewall/logs/ level (older AWF layout).
+	firewallLogLog.Printf("Found firewall logs directory: sandbox/firewall/logs")
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found firewall logs directory: sandbox/firewall/logs"))
+	}
+	analysis, err := analyzeMultipleFirewallLogs(sandboxFirewallLogsDir, verbose)
+	return analysis, true, err
+}
 
-	// Second, check for directories starting with squid-logs or firewall-logs (legacy paths)
-	// The actual directories may have workflow-specific suffixes like:
-	// - squid-logs-smoke-copilot-firewall
-	// - squid-logs-changeset-generator
-	// - firewall-logs-{workflow-name}
+func analyzeFirewallLogsLegacyDirs(runDir string, verbose bool) (*FirewallAnalysis, bool, error) {
 	entries, err := os.ReadDir(runDir)
 	if err != nil {
 		firewallLogLog.Printf("Failed to read run directory: %v", err)
-		return nil, fmt.Errorf("failed to read run directory: %w", err)
+		return nil, false, fmt.Errorf("failed to read run directory: %w", err)
 	}
-
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -391,11 +399,14 @@ func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found firewall logs directory: "+name))
 			}
-			return analyzeMultipleFirewallLogs(logsDir, verbose)
+			analysis, err := analyzeMultipleFirewallLogs(logsDir, verbose)
+			return analysis, true, err
 		}
 	}
+	return nil, false, nil
+}
 
-	// Check for individual log files in the run directory
+func analyzeFirewallLogsIndividual(runDir string, verbose bool) (*FirewallAnalysis, error) {
 	files, err := filepath.Glob(filepath.Join(runDir, "*.log"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find firewall log files: %w", err)

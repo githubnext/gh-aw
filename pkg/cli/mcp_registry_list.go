@@ -18,6 +18,26 @@ func listAvailableServers(ctx context.Context, registryURL string, verbose bool)
 	// Create registry client
 	registryClient := NewMCPRegistryClient(registryURL)
 
+	servers, err := listAvailableServersFetch(ctx, registryClient, verbose)
+	if err != nil {
+		return err
+	}
+
+	mcpRegistryListLog.Printf("Retrieved %d servers from registry", len(servers))
+	listAvailableServersVerbose(servers, verbose)
+
+	if len(servers) == 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No MCP servers found in the registry"))
+		return nil
+	}
+
+	listAvailableServersRender(registryClient.registryURL, servers)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Usage: gh aw mcp add <workflow-file> <server-name>"))
+
+	return nil
+}
+
+func listAvailableServersFetch(ctx context.Context, registryClient *MCPRegistryClient, verbose bool) ([]MCPRegistryServerForProcessing, error) {
 	// Search for all servers (empty query)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching available MCP servers from registry: "+registryClient.registryURL))
@@ -26,25 +46,24 @@ func listAvailableServers(ctx context.Context, registryURL string, verbose bool)
 	servers, err := registryClient.SearchServers(ctx, "")
 	if err != nil {
 		mcpRegistryListLog.Printf("Failed to fetch MCP servers: %v", err)
-		return fmt.Errorf("failed to fetch MCP servers: %w", err)
+		return nil, fmt.Errorf("failed to fetch MCP servers: %w", err)
+	}
+	return servers, nil
+}
+
+func listAvailableServersVerbose(servers []MCPRegistryServerForProcessing, verbose bool) {
+	if !verbose {
+		return
 	}
 
-	mcpRegistryListLog.Printf("Retrieved %d servers from registry", len(servers))
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Retrieved %d servers from registry", len(servers))))
-		if len(servers) > 0 {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("First server example - Name: '%s', Description: '%s'",
-				servers[0].Name, servers[0].Description)))
-		}
+	fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Retrieved %d servers from registry", len(servers))))
+	if len(servers) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("First server example - Name: '%s', Description: '%s'",
+			servers[0].Name, servers[0].Description)))
 	}
+}
 
-	if len(servers) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No MCP servers found in the registry"))
-		return nil
-	}
-
-	// Prepare table data
+func listAvailableServersRender(registryURL string, servers []MCPRegistryServerForProcessing) {
 	headers := []string{"Name", "Description"}
 	rows := make([][]string, 0, len(servers))
 
@@ -69,7 +88,7 @@ func listAvailableServers(ctx context.Context, registryURL string, verbose bool)
 
 	// Create and render table
 	tableConfig := console.TableConfig{
-		Title:     "MCP registry: " + registryClient.registryURL,
+		Title:     "MCP registry: " + registryURL,
 		Headers:   headers,
 		Rows:      rows,
 		ShowTotal: true,
@@ -77,7 +96,4 @@ func listAvailableServers(ctx context.Context, registryURL string, verbose bool)
 	}
 
 	fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Usage: gh aw mcp add <workflow-file> <server-name>"))
-
-	return nil
 }

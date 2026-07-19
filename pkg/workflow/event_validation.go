@@ -112,12 +112,24 @@ func ValidateEventTypes(frontmatter map[string]any) error {
 		eventValidationLog.Print("No 'on' section found, skipping event type validation")
 		return nil
 	}
+	eventNames, ok := eventNamesFromOnSection(on)
+	if !ok {
+		eventValidationLog.Printf("'on' section has unexpected type %T, skipping event type validation", on)
+		return nil
+	}
+	for _, eventName := range eventNames {
+		if err := validateOneEventType(eventName); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-	// Extract event names from the on: section (handles string, []any, map formats)
+func eventNamesFromOnSection(on any) ([]string, bool) {
 	var eventNames []string
 	switch v := on.(type) {
 	case string:
-		eventNames = []string{v}
+		return []string{v}, true
 	case []any:
 		for _, item := range v {
 			if s, ok := item.(string); ok {
@@ -129,51 +141,39 @@ func ValidateEventTypes(frontmatter map[string]any) error {
 			eventNames = append(eventNames, key)
 		}
 	default:
-		eventValidationLog.Printf("'on' section has unexpected type %T, skipping event type validation", on)
+		return nil, false
+	}
+	return eventNames, true
+}
+
+func validateOneEventType(eventName string) error {
+	if isKnownGitHubEvent(eventName) {
 		return nil
 	}
-
-	// Check each event name against the list of known valid events
-	for _, eventName := range eventNames {
-		if isKnownGitHubEvent(eventName) {
-			continue
-		}
-
-		// Skip gh-aw-specific on: section extensions
-		if ghAwOnSectionKeys[eventName] {
-			eventValidationLog.Printf("Skipping gh-aw extension key: %q", eventName)
-			continue
-		}
-
-		eventValidationLog.Printf("Unknown event type: %q", eventName)
-
-		// Check for a case-only difference first (e.g. "Push" → "push")
-		lowerEventName := strings.ToLower(eventName)
-		if lowerEventName != eventName && isKnownGitHubEvent(lowerEventName) {
-			return fmt.Errorf(
-				"unknown event type %q in 'on:' section.\n\nDid you mean: %s?\n\nValid event types include: %s\n\nSee: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows",
-				eventName,
-				lowerEventName,
-				strings.Join(validGitHubEventTypes[:10], ", ")+"...",
-			)
-		}
-
-		// Only flag as a typo when there is a close match
-		suggestions := stringutil.FindClosestMatches(eventName, validGitHubEventTypes, 3)
-		if len(suggestions) == 0 {
-			eventValidationLog.Printf("No close matches found for unknown event %q, skipping", eventName)
-			continue
-		}
-
-		return fmt.Errorf(
-			"unknown event type %q in 'on:' section.\n\nDid you mean: %s?\n\nValid event types include: %s\n\nSee: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows",
-			eventName,
-			strings.Join(suggestions, ", "),
-			strings.Join(validGitHubEventTypes[:10], ", ")+"...",
-		)
+	if ghAwOnSectionKeys[eventName] {
+		eventValidationLog.Printf("Skipping gh-aw extension key: %q", eventName)
+		return nil
 	}
+	eventValidationLog.Printf("Unknown event type: %q", eventName)
+	lowerEventName := strings.ToLower(eventName)
+	if lowerEventName != eventName && isKnownGitHubEvent(lowerEventName) {
+		return unknownEventTypeError(eventName, lowerEventName)
+	}
+	suggestions := stringutil.FindClosestMatches(eventName, validGitHubEventTypes, 3)
+	if len(suggestions) == 0 {
+		eventValidationLog.Printf("No close matches found for unknown event %q, skipping", eventName)
+		return nil
+	}
+	return unknownEventTypeError(eventName, strings.Join(suggestions, ", "))
+}
 
-	return nil
+func unknownEventTypeError(eventName, suggestion string) error {
+	return fmt.Errorf(
+		"unknown event type %q in 'on:' section.\n\nDid you mean: %s?\n\nValid event types include: %s\n\nSee: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows",
+		eventName,
+		suggestion,
+		strings.Join(validGitHubEventTypes[:10], ", ")+"...",
+	)
 }
 
 // isKnownGitHubEvent returns true if the event name is in the list of valid GitHub Actions event types.

@@ -76,7 +76,38 @@ func compileWorkflowFile(
 ) compileWorkflowFileResult {
 	compileWorkflowProcessorLog.Printf("Processing workflow file: %s", resolvedFile)
 
-	result := compileWorkflowFileResult{
+	result := compileWorkflowFileNewResult(resolvedFile)
+
+	// Generate lock file name
+	lockFile := stringutil.MarkdownToLockFile(resolvedFile)
+	result.lockFile = lockFile
+
+	// Parse workflow file to get data
+	compileWorkflowProcessorLog.Printf("Parsing workflow file: %s", resolvedFile)
+	compileWorkflowFileConfigureCompiler(compiler, resolvedFile)
+
+	workflowData, handled := compileWorkflowFileParse(compiler, resolvedFile, opts, &result)
+	if handled {
+		return result
+	}
+	result.workflowData = workflowData
+
+	compileWorkflowProcessorLog.Printf("Starting compilation of %s", resolvedFile)
+	if err := compileWorkflowFileCompile(ctx, compiler, workflowData, resolvedFile, opts); err != nil {
+		// Don't print error here - it will be displayed in the compilation summary
+		// The error is stored in ValidationResult for JSON output and summary display
+		result.validationResult.Valid = false
+		result.validationResult.Errors = appendValidationErrors(result.validationResult.Errors, "compilation_error", err)
+		return result
+	}
+
+	compileWorkflowFileMarkSuccess(&result, opts, lockFile, workflowData)
+	compileWorkflowProcessorLog.Printf("Successfully processed workflow file: %s", resolvedFile)
+	return result
+}
+
+func compileWorkflowFileNewResult(resolvedFile string) compileWorkflowFileResult {
+	return compileWorkflowFileResult{
 		validationResult: ValidationResult{
 			Workflow: filepath.Base(resolvedFile),
 			Valid:    true,
@@ -85,14 +116,9 @@ func compileWorkflowFile(
 		},
 		success: false,
 	}
+}
 
-	// Generate lock file name
-	lockFile := stringutil.MarkdownToLockFile(resolvedFile)
-	result.lockFile = lockFile
-
-	// Parse workflow file to get data
-	compileWorkflowProcessorLog.Printf("Parsing workflow file: %s", resolvedFile)
-
+func compileWorkflowFileConfigureCompiler(compiler *workflow.Compiler, resolvedFile string) {
 	// Set workflow identifier for schedule scattering (use repository-relative path for stability)
 	relPath, err := getRepositoryRelativePath(resolvedFile)
 	if err != nil {
@@ -113,7 +139,14 @@ func compileWorkflowFile(
 			compileWorkflowProcessorLog.Printf("Repository slug for file set: %s", fileRepoSlug)
 		}
 	}
+}
 
+func compileWorkflowFileParse(
+	compiler *workflow.Compiler,
+	resolvedFile string,
+	opts compileWorkflowFileOptions,
+	result *compileWorkflowFileResult,
+) (*workflow.WorkflowData, bool) {
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(resolvedFile)
 	if err != nil {
@@ -131,7 +164,7 @@ func compileWorkflowFile(
 				Message: "Skipped: Shared workflow component (missing 'on' field)",
 			})
 			result.success = true // Consider it successful, just skipped
-			return result
+			return nil, true
 		}
 
 		// Check if this is a redirect-only workflow (not an error, just info)
@@ -148,19 +181,25 @@ func compileWorkflowFile(
 				Message: "Skipped: Redirect-only workflow (missing 'on' field, has redirect)",
 			})
 			result.success = true // Consider it successful, just skipped
-			return result
+			return nil, true
 		}
 
 		// Don't print error here - it will be displayed in the compilation summary
 		// The error is stored in ValidationResult for JSON output and summary display
 		result.validationResult.Valid = false
 		result.validationResult.Errors = appendValidationErrors(result.validationResult.Errors, "parse_error", err)
-		return result
+		return nil, true
 	}
-	result.workflowData = workflowData
+	return workflowData, false
+}
 
-	compileWorkflowProcessorLog.Printf("Starting compilation of %s", resolvedFile)
-
+func compileWorkflowFileCompile(
+	ctx context.Context,
+	compiler *workflow.Compiler,
+	workflowData *workflow.WorkflowData,
+	resolvedFile string,
+	opts compileWorkflowFileOptions,
+) error {
 	// Compile the workflow
 	// Per-file actionlint is always disabled here; actionlint runs in batch after all files are compiled.
 	if err := CompileWorkflowDataWithValidation(ctx, compiler, workflowData, resolvedFile, CompileValidationOptions{
@@ -170,13 +209,12 @@ func compileWorkflowFile(
 		Strict:             opts.strict,
 		ValidateActionSHAs: opts.validate && !opts.noEmit,
 	}); err != nil {
-		// Don't print error here - it will be displayed in the compilation summary
-		// The error is stored in ValidationResult for JSON output and summary display
-		result.validationResult.Valid = false
-		result.validationResult.Errors = appendValidationErrors(result.validationResult.Errors, "compilation_error", err)
-		return result
+		return err
 	}
+	return nil
+}
 
+func compileWorkflowFileMarkSuccess(result *compileWorkflowFileResult, opts compileWorkflowFileOptions, lockFile string, workflowData *workflow.WorkflowData) {
 	result.success = true
 	if !opts.noEmit {
 		result.validationResult.CompiledFile = lockFile
@@ -184,9 +222,6 @@ func compileWorkflowFile(
 
 	// Collect labels for JSON output (used by create-labels maintenance operation)
 	result.validationResult.Labels = extractSafeOutputLabels(workflowData)
-
-	compileWorkflowProcessorLog.Printf("Successfully processed workflow file: %s", resolvedFile)
-	return result
 }
 
 // extractSafeOutputLabels collects all unique labels referenced by workflow configuration

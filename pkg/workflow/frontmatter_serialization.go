@@ -64,7 +64,17 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	frontmatterTypesLog.Printf("Converting FrontmatterConfig to map: name=%s", fc.Name)
 	result := make(map[string]any)
 
-	// Core fields
+	fc.addCoreFieldsToMap(result)
+	fc.addConfigurationSectionsToMap(result)
+	fc.addEventAndTriggerFieldsToMap(result)
+	fc.addNetworkAndSandboxFieldsToMap(result)
+	fc.addFeatureAndEnvironmentFieldsToMap(result)
+	fc.addExecutionSettingsToMap(result)
+	fc.addImportAndMetadataFieldsToMap(result)
+	return result
+}
+
+func (fc *FrontmatterConfig) addCoreFieldsToMap(result map[string]any) {
 	if fc.Name != "" {
 		result["name"] = fc.Name
 	}
@@ -95,15 +105,15 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if len(fc.Labels) > 0 {
 		result["labels"] = fc.Labels
 	}
+}
 
-	// Configuration sections
+func (fc *FrontmatterConfig) addConfigurationSectionsToMap(result map[string]any) {
 	if fc.Tools != nil {
 		result["tools"] = fc.Tools.ToMap()
 	}
 	if fc.MCPServers != nil {
 		result["mcp-servers"] = fc.MCPServers
 	}
-	// Prefer RuntimesTyped over Runtimes for conversion
 	if fc.RuntimesTyped != nil {
 		result["runtimes"] = runtimesConfigToMap(fc.RuntimesTyped)
 	} else if fc.Runtimes != nil {
@@ -120,12 +130,12 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 		// Convert MCPScriptsConfig to map - would need a ToMap method
 		result["mcp-scripts"] = fc.MCPScripts
 	}
+}
 
-	// Event and trigger configuration
+func (fc *FrontmatterConfig) addEventAndTriggerFieldsToMap(result map[string]any) {
 	if fc.On != nil {
 		result["on"] = fc.On
 	}
-	// Prefer PermissionsTyped over Permissions for conversion
 	if fc.PermissionsTyped != nil {
 		result["permissions"] = permissionsConfigToMap(fc.PermissionsTyped)
 	} else if fc.Permissions != nil {
@@ -137,37 +147,41 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.If != "" {
 		result["if"] = fc.If
 	}
+}
 
-	// Network and sandbox
+func (fc *FrontmatterConfig) addNetworkAndSandboxFieldsToMap(result map[string]any) {
 	if fc.Network != nil {
-		// Convert NetworkPermissions to map format
-		// If allowed list is just ["defaults"], convert to string format "defaults"
-		if len(fc.Network.Allowed) == 1 && fc.Network.Allowed[0] == "defaults" && !fc.Network.AllowedInput && fc.Network.Firewall == nil && len(fc.Network.Blocked) == 0 {
-			result["network"] = "defaults"
-		} else {
-			networkMap := make(map[string]any)
-			if len(fc.Network.Allowed) > 0 {
-				networkMap["allowed"] = fc.Network.Allowed
-			}
-			if fc.Network.AllowedInput {
-				networkMap["allowed-input"] = true
-			}
-			if len(fc.Network.Blocked) > 0 {
-				networkMap["blocked"] = fc.Network.Blocked
-			}
-			if fc.Network.Firewall != nil {
-				networkMap["firewall"] = fc.Network.Firewall
-			}
-			if len(networkMap) > 0 {
-				result["network"] = networkMap
-			}
+		if networkValue, ok := networkPermissionsToMapValue(fc.Network); ok {
+			result["network"] = networkValue
 		}
 	}
 	if fc.Sandbox != nil {
 		result["sandbox"] = fc.Sandbox
 	}
+}
 
-	// Features and environment
+func networkPermissionsToMapValue(network *NetworkPermissions) (any, bool) {
+	if len(network.Allowed) == 1 && network.Allowed[0] == "defaults" &&
+		!network.AllowedInput && network.Firewall == nil && len(network.Blocked) == 0 {
+		return "defaults", true
+	}
+	networkMap := make(map[string]any)
+	if len(network.Allowed) > 0 {
+		networkMap["allowed"] = network.Allowed
+	}
+	if network.AllowedInput {
+		networkMap["allowed-input"] = true
+	}
+	if len(network.Blocked) > 0 {
+		networkMap["blocked"] = network.Blocked
+	}
+	if network.Firewall != nil {
+		networkMap["firewall"] = network.Firewall
+	}
+	return networkMap, len(networkMap) > 0
+}
+
+func (fc *FrontmatterConfig) addFeatureAndEnvironmentFieldsToMap(result map[string]any) {
 	if fc.Features != nil {
 		result["features"] = fc.Features
 	}
@@ -177,8 +191,9 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.Secrets != nil {
 		result["secrets"] = fc.Secrets
 	}
+}
 
-	// Execution settings
+func (fc *FrontmatterConfig) addExecutionSettingsToMap(result map[string]any) {
 	if !isNilValue(fc.RunsOn) {
 		result["runs-on"] = fc.RunsOn
 	}
@@ -212,8 +227,9 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.Cache != nil {
 		result["cache"] = fc.Cache
 	}
+}
 
-	// Import and inclusion
+func (fc *FrontmatterConfig) addImportAndMetadataFieldsToMap(result map[string]any) {
 	if fc.Imports != nil {
 		result["imports"] = fc.Imports
 	}
@@ -228,8 +244,6 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.SecretMasking != nil {
 		result["secret-masking"] = fc.SecretMasking
 	}
-
-	return result
 }
 
 func isNilValue(v any) bool {
@@ -326,149 +340,77 @@ func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
 	frontmatterTypesLog.Print("Converting detailed PermissionsConfig to map")
 	result := make(map[string]any)
 
-	// GitHub Actions permission scopes
-	if config.Actions != "" {
-		result["actions"] = config.Actions
-	}
-	if config.Checks != "" {
-		result["checks"] = config.Checks
-	}
-	if config.Contents != "" {
-		result["contents"] = config.Contents
-	}
-	if config.Deployments != "" {
-		result["deployments"] = config.Deployments
-	}
-	if config.IDToken != "" {
-		result["id-token"] = config.IDToken
-	}
-	if config.Issues != "" {
-		result["issues"] = config.Issues
-	}
-	if config.Discussions != "" {
-		result["discussions"] = config.Discussions
-	}
-	if config.Packages != "" {
-		result["packages"] = config.Packages
-	}
-	if config.Pages != "" {
-		result["pages"] = config.Pages
-	}
-	if config.PullRequests != "" {
-		result["pull-requests"] = config.PullRequests
-	}
-	if config.RepositoryProjects != "" {
-		result["repository-projects"] = config.RepositoryProjects
-	}
-	if config.SecurityEvents != "" {
-		result["security-events"] = config.SecurityEvents
-	}
-	if config.Statuses != "" {
-		result["statuses"] = config.Statuses
-	}
-	if config.VulnerabilityAlerts != "" {
-		result["vulnerability-alerts"] = config.VulnerabilityAlerts
-	}
-	if config.OrganizationProjects != "" {
-		result["organization-projects"] = config.OrganizationProjects
-	}
-
-	// GitHub App-only permission scopes - repository-level
-	if config.Administration != "" {
-		result["administration"] = config.Administration
-	}
-	if config.Environments != "" {
-		result["environments"] = config.Environments
-	}
-	if config.GitSigning != "" {
-		result["git-signing"] = config.GitSigning
-	}
-	if config.Workflows != "" {
-		result["workflows"] = config.Workflows
-	}
-	if config.RepositoryHooks != "" {
-		result["repository-hooks"] = config.RepositoryHooks
-	}
-	if config.SingleFile != "" {
-		result["single-file"] = config.SingleFile
-	}
-	if config.Codespaces != "" {
-		result["codespaces"] = config.Codespaces
-	}
-	if config.RepositoryCustomProperties != "" {
-		result["repository-custom-properties"] = config.RepositoryCustomProperties
-	}
-
-	// GitHub App-only permission scopes - organization-level
-	if config.Members != "" {
-		result["members"] = config.Members
-	}
-	if config.OrganizationAdministration != "" {
-		result["organization-administration"] = config.OrganizationAdministration
-	}
-	if config.TeamDiscussions != "" {
-		result["team-discussions"] = config.TeamDiscussions
-	}
-	if config.OrganizationHooks != "" {
-		result["organization-hooks"] = config.OrganizationHooks
-	}
-	if config.OrganizationMembers != "" {
-		result["organization-members"] = config.OrganizationMembers
-	}
-	if config.OrganizationPackages != "" {
-		result["organization-packages"] = config.OrganizationPackages
-	}
-	if config.OrganizationSelfHostedRunners != "" {
-		result["organization-self-hosted-runners"] = config.OrganizationSelfHostedRunners
-	}
-	if config.OrganizationCustomOrgRoles != "" {
-		result["organization-custom-org-roles"] = config.OrganizationCustomOrgRoles
-	}
-	if config.OrganizationCustomProperties != "" {
-		result["organization-custom-properties"] = config.OrganizationCustomProperties
-	}
-	if config.OrganizationCustomRepositoryRoles != "" {
-		result["organization-custom-repository-roles"] = config.OrganizationCustomRepositoryRoles
-	}
-	if config.OrganizationAnnouncementBanners != "" {
-		result["organization-announcement-banners"] = config.OrganizationAnnouncementBanners
-	}
-	if config.OrganizationEvents != "" {
-		result["organization-events"] = config.OrganizationEvents
-	}
-	if config.OrganizationPlan != "" {
-		result["organization-plan"] = config.OrganizationPlan
-	}
-	if config.OrganizationUserBlocking != "" {
-		result["organization-user-blocking"] = config.OrganizationUserBlocking
-	}
-	if config.OrganizationPersonalAccessTokenReqs != "" {
-		result["organization-personal-access-token-requests"] = config.OrganizationPersonalAccessTokenReqs
-	}
-	if config.OrganizationPersonalAccessTokens != "" {
-		result["organization-personal-access-tokens"] = config.OrganizationPersonalAccessTokens
-	}
-	if config.OrganizationCopilot != "" {
-		result["organization-copilot"] = config.OrganizationCopilot
-	}
-	if config.OrganizationCodespaces != "" {
-		result["organization-codespaces"] = config.OrganizationCodespaces
-	}
-
-	// GitHub App-only permission scopes - user-level
-	if config.EmailAddresses != "" {
-		result["email-addresses"] = config.EmailAddresses
-	}
-	if config.CodespacesLifecycleAdmin != "" {
-		result["codespaces-lifecycle-admin"] = config.CodespacesLifecycleAdmin
-	}
-	if config.CodespacesMetadata != "" {
-		result["codespaces-metadata"] = config.CodespacesMetadata
-	}
+	addPermissionScopeValues(result, permissionConfigScopeValues(config))
 
 	if len(result) == 0 {
 		return nil
 	}
 
 	return result
+}
+
+func addPermissionScopeValues(result map[string]any, values []struct {
+	key   string
+	value string
+}) {
+	for _, entry := range values {
+		if entry.value != "" {
+			result[entry.key] = entry.value
+		}
+	}
+}
+
+func permissionConfigScopeValues(config *PermissionsConfig) []struct {
+	key   string
+	value string
+} {
+	return []struct {
+		key   string
+		value string
+	}{
+		{"actions", config.Actions},
+		{"checks", config.Checks},
+		{"contents", config.Contents},
+		{"deployments", config.Deployments},
+		{"id-token", config.IDToken},
+		{"issues", config.Issues},
+		{"discussions", config.Discussions},
+		{"packages", config.Packages},
+		{"pages", config.Pages},
+		{"pull-requests", config.PullRequests},
+		{"repository-projects", config.RepositoryProjects},
+		{"security-events", config.SecurityEvents},
+		{"statuses", config.Statuses},
+		{"vulnerability-alerts", config.VulnerabilityAlerts},
+		{"organization-projects", config.OrganizationProjects},
+		{"administration", config.Administration},
+		{"environments", config.Environments},
+		{"git-signing", config.GitSigning},
+		{"workflows", config.Workflows},
+		{"repository-hooks", config.RepositoryHooks},
+		{"single-file", config.SingleFile},
+		{"codespaces", config.Codespaces},
+		{"repository-custom-properties", config.RepositoryCustomProperties},
+		{"members", config.Members},
+		{"organization-administration", config.OrganizationAdministration},
+		{"team-discussions", config.TeamDiscussions},
+		{"organization-hooks", config.OrganizationHooks},
+		{"organization-members", config.OrganizationMembers},
+		{"organization-packages", config.OrganizationPackages},
+		{"organization-self-hosted-runners", config.OrganizationSelfHostedRunners},
+		{"organization-custom-org-roles", config.OrganizationCustomOrgRoles},
+		{"organization-custom-properties", config.OrganizationCustomProperties},
+		{"organization-custom-repository-roles", config.OrganizationCustomRepositoryRoles},
+		{"organization-announcement-banners", config.OrganizationAnnouncementBanners},
+		{"organization-events", config.OrganizationEvents},
+		{"organization-plan", config.OrganizationPlan},
+		{"organization-user-blocking", config.OrganizationUserBlocking},
+		{"organization-personal-access-token-requests", config.OrganizationPersonalAccessTokenReqs},
+		{"organization-personal-access-tokens", config.OrganizationPersonalAccessTokens},
+		{"organization-copilot", config.OrganizationCopilot},
+		{"organization-codespaces", config.OrganizationCodespaces},
+		{"email-addresses", config.EmailAddresses},
+		{"codespaces-lifecycle-admin", config.CodespacesLifecycleAdmin},
+		{"codespaces-metadata", config.CodespacesMetadata},
+	}
 }

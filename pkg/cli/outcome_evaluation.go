@@ -55,48 +55,57 @@ func normalizeOutcomeEvaluation(report OutcomeReport) OutcomeEvaluation {
 	}
 
 	detail := strings.ToLower(strings.TrimSpace(report.Detail))
+	if eval, ok := normalizeOutcomeEvaluationFromDetail(report, detail); ok {
+		return eval
+	}
+	return normalizeOutcomeEvaluationFromResult(report.Result)
+}
 
+func normalizeOutcomeEvaluationFromDetail(report OutcomeReport, detail string) (OutcomeEvaluation, bool) {
 	switch {
 	case strings.Contains(detail, "object still exists"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusUnknown, EvidenceStrength: EvidenceWeak, Signal: "target_exists_only"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusUnknown, EvidenceStrength: EvidenceWeak, Signal: "target_exists_only"}, true
 	case strings.Contains(detail, "closed without merge"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceStrong, Signal: "closed_without_merge"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceStrong, Signal: "closed_without_merge"}, true
 	case strings.Contains(detail, "closed as not planned"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceStrong, Signal: "closed_not_planned"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceStrong, Signal: "closed_not_planned"}, true
 	case strings.Contains(detail, "closed by bot") && strings.Contains(detail, "lifecycle_close"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusLifecycleClose, EvidenceStrength: EvidenceMedium, Signal: "lifecycle_close"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusLifecycleClose, EvidenceStrength: EvidenceMedium, Signal: "lifecycle_close"}, true
 	case strings.Contains(detail, "closed by bot"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusLifecycle, EvidenceStrength: EvidenceMedium, Signal: "lifecycle"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusLifecycle, EvidenceStrength: EvidenceMedium, Signal: "lifecycle"}, true
 	case strings.Contains(detail, "merged"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted, EvidenceStrength: EvidenceStrong, Signal: "merged"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted, EvidenceStrength: EvidenceStrong, Signal: "merged"}, true
 	case strings.Contains(detail, "reopened"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceStrong, Signal: "reopened"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceStrong, Signal: "reopened"}, true
 	case strings.Contains(detail, "deleted"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceStrong, Signal: "deleted"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceStrong, Signal: "deleted"}, true
 	case strings.Contains(detail, "completed"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted, EvidenceStrength: EvidenceStrong, Signal: "completed"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted, EvidenceStrength: EvidenceStrong, Signal: "completed"}, true
 	case strings.Contains(detail, "milestone still assigned"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted, EvidenceStrength: EvidenceMedium, Signal: "milestone_assigned"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted, EvidenceStrength: EvidenceMedium, Signal: "milestone_assigned"}, true
 	case strings.Contains(detail, "milestone removed"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceMedium, Signal: "milestone_removed"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceMedium, Signal: "milestone_removed"}, true
 	case strings.Contains(detail, "reviews submitted"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted, EvidenceStrength: EvidenceMedium, Signal: "reviewed"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted, EvidenceStrength: EvidenceMedium, Signal: "reviewed"}, true
 	case strings.Contains(detail, "awaiting review"), strings.Contains(detail, "no reviews yet"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending, EvidenceStrength: EvidenceMedium, Signal: "awaiting_review"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending, EvidenceStrength: EvidenceMedium, Signal: "awaiting_review"}, true
 	case strings.Contains(detail, "no engagement"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusIgnored, EvidenceStrength: EvidenceMedium, Signal: "no_engagement"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusIgnored, EvidenceStrength: EvidenceMedium, Signal: "no_engagement"}, true
 	case strings.Contains(detail, "human comments"), strings.Contains(detail, "with comments"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending, EvidenceStrength: EvidenceMedium, Signal: "acted_on"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending, EvidenceStrength: EvidenceMedium, Signal: "acted_on"}, true
 	case strings.Contains(detail, "open"):
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending, EvidenceStrength: EvidenceMedium, Signal: "open"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending, EvidenceStrength: EvidenceMedium, Signal: "open"}, true
 	case strings.Contains(detail, "closed"):
 		if report.Result == OutcomeRejected {
-			return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceStrong, Signal: "closed"}
+			return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceStrong, Signal: "closed"}, true
 		}
-		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted, EvidenceStrength: EvidenceStrong, Signal: "closed"}
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted, EvidenceStrength: EvidenceStrong, Signal: "closed"}, true
 	}
+	return OutcomeEvaluation{}, false
+}
 
-	switch report.Result {
+func normalizeOutcomeEvaluationFromResult(result OutcomeResult) OutcomeEvaluation {
+	switch result {
 	case OutcomeAccepted:
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted, EvidenceStrength: EvidenceMedium, Signal: "acted_on"}
 	case OutcomeRejected:

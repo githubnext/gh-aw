@@ -18,225 +18,232 @@ func getMCPNetworkMigrationCodemod() Codemod {
 		Name:         "Migrate MCP network config to top-level",
 		Description:  "Moves per-server MCP 'network.allowed' configuration to top-level workflow 'network.allowed'. Per-server network configuration is deprecated.",
 		IntroducedIn: "0.6.0",
-		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
-			// Check if mcp-servers section exists
-			mcpServersValue, hasMCPServers := frontmatter["mcp-servers"]
-			if !hasMCPServers {
-				return content, false, nil
-			}
-
-			mcpServersMap, ok := mcpServersValue.(map[string]any)
-			if !ok {
-				return content, false, nil
-			}
-
-			// Collect all network.allowed domains from MCP servers
-			var allAllowedDomains []string
-			serversWithNetwork := make(map[string]struct {
-			})
-
-			for serverName, serverValue := range mcpServersMap {
-				serverConfig, ok := serverValue.(map[string]any)
-				if !ok {
-					continue
-				}
-
-				// Check if this server has a network configuration
-				networkValue, hasNetwork := serverConfig["network"]
-				if !hasNetwork {
-					continue
-				}
-
-				networkMap, ok := networkValue.(map[string]any)
-				if !ok {
-					continue
-				}
-
-				// Extract allowed domains
-				allowedValue, hasAllowed := networkMap["allowed"]
-				if !hasAllowed {
-					continue
-				}
-
-				// Convert allowed to []string
-				switch allowed := allowedValue.(type) {
-				case []any:
-					for _, domain := range allowed {
-						if domainStr, ok := domain.(string); ok {
-							allAllowedDomains = append(allAllowedDomains, domainStr)
-						}
-					}
-					// Only mark server as having network if it has domains
-					if len(allowed) > 0 {
-						serversWithNetwork[serverName] = struct {
-						}{}
-					}
-				case []string:
-					allAllowedDomains = append(allAllowedDomains, allowed...)
-					// Only mark server as having network if it has domains
-					if len(allowed) > 0 {
-						serversWithNetwork[serverName] = struct {
-						}{}
-					}
-				}
-			}
-
-			// If no servers have network configuration, nothing to do
-			if len(serversWithNetwork) == 0 {
-				return content, false, nil
-			}
-
-			// Remove duplicates from collected domains
-			allAllowedDomains = sliceutil.Deduplicate(allAllowedDomains)
-
-			// Check if top-level network configuration already exists
-			existingNetworkValue, hasTopLevelNetwork := frontmatter["network"]
-			var existingAllowed []string
-
-			if hasTopLevelNetwork {
-				if existingNetworkMap, ok := existingNetworkValue.(map[string]any); ok {
-					if existingAllowedValue, hasExistingAllowed := existingNetworkMap["allowed"]; hasExistingAllowed {
-						switch allowed := existingAllowedValue.(type) {
-						case []any:
-							for _, domain := range allowed {
-								if domainStr, ok := domain.(string); ok {
-									existingAllowed = append(existingAllowed, domainStr)
-								}
-							}
-						case []string:
-							existingAllowed = append(existingAllowed, allowed...)
-						}
-					}
-				}
-			}
-
-			// Merge existing and new domains, remove duplicates
-			mergedDomains := sliceutil.Deduplicate(append(existingAllowed, allAllowedDomains...))
-
-			return applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				// Remove network fields from all MCP servers
-				result := lines
-				var modified bool
-				for serverName := range serversWithNetwork {
-					var serverModified bool
-					result, serverModified = removeFieldFromMCPServer(result, serverName, "network")
-					if serverModified {
-						modified = true
-						mcpNetworkCodemodLog.Printf("Removed network configuration from MCP server '%s'", serverName)
-					}
-				}
-
-				if !modified {
-					return lines, false
-				}
-
-				// Add or update top-level network configuration
-				if hasTopLevelNetwork {
-					// Update existing network.allowed
-					result = updateNetworkAllowed(result, mergedDomains)
-					mcpNetworkCodemodLog.Printf("Updated top-level network.allowed with %d domains", len(mergedDomains))
-				} else {
-					// Add new top-level network configuration
-					result = addTopLevelNetwork(result, mergedDomains)
-					mcpNetworkCodemodLog.Printf("Added top-level network.allowed with %d domains", len(mergedDomains))
-				}
-
-				mcpNetworkCodemodLog.Print("Applied MCP network migration to top-level")
-				return result, true
-			})
-		},
+		Apply:        getMCPNetworkMigrationCodemodApply,
 	}
+}
+
+func getMCPNetworkMigrationCodemodApply(content string, frontmatter map[string]any) (string, bool, error) {
+	mcpServersMap, ok := getMCPNetworkMigrationCodemodServers(frontmatter)
+	if !ok {
+		return content, false, nil
+	}
+
+	allAllowedDomains, serversWithNetwork := getMCPNetworkMigrationCodemodServerDomains(mcpServersMap)
+	if len(serversWithNetwork) == 0 {
+		return content, false, nil
+	}
+	allAllowedDomains = sliceutil.Deduplicate(allAllowedDomains)
+
+	existingAllowed, hasTopLevelNetwork := getMCPNetworkMigrationCodemodExistingAllowed(frontmatter)
+	mergedDomains := sliceutil.Deduplicate(append(existingAllowed, allAllowedDomains...))
+
+	return applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+		return getMCPNetworkMigrationCodemodTransform(lines, serversWithNetwork, hasTopLevelNetwork, mergedDomains)
+	})
+}
+
+func getMCPNetworkMigrationCodemodServers(frontmatter map[string]any) (map[string]any, bool) {
+	mcpServersValue, hasMCPServers := frontmatter["mcp-servers"]
+	if !hasMCPServers {
+		return nil, false
+	}
+	mcpServersMap, ok := mcpServersValue.(map[string]any)
+	return mcpServersMap, ok
+}
+
+func getMCPNetworkMigrationCodemodServerDomains(mcpServersMap map[string]any) ([]string, map[string]struct{}) {
+	var allAllowedDomains []string
+	serversWithNetwork := make(map[string]struct{})
+	for serverName, serverValue := range mcpServersMap {
+		serverConfig, ok := serverValue.(map[string]any)
+		if !ok {
+			continue
+		}
+		networkMap, ok := getMCPNetworkMigrationCodemodNetworkMap(serverConfig)
+		if !ok {
+			continue
+		}
+		allowedValue, hasAllowed := networkMap["allowed"]
+		if !hasAllowed {
+			continue
+		}
+		domains, hasDomains := getMCPNetworkMigrationCodemodAllowedStrings(allowedValue)
+		allAllowedDomains = append(allAllowedDomains, domains...)
+		if hasDomains {
+			serversWithNetwork[serverName] = struct{}{}
+		}
+	}
+	return allAllowedDomains, serversWithNetwork
+}
+
+func getMCPNetworkMigrationCodemodNetworkMap(serverConfig map[string]any) (map[string]any, bool) {
+	networkValue, hasNetwork := serverConfig["network"]
+	if !hasNetwork {
+		return nil, false
+	}
+	networkMap, ok := networkValue.(map[string]any)
+	return networkMap, ok
+}
+
+func getMCPNetworkMigrationCodemodAllowedStrings(allowedValue any) ([]string, bool) {
+	var domains []string
+	switch allowed := allowedValue.(type) {
+	case []any:
+		for _, domain := range allowed {
+			if domainStr, ok := domain.(string); ok {
+				domains = append(domains, domainStr)
+			}
+		}
+		return domains, len(allowed) > 0
+	case []string:
+		domains = append(domains, allowed...)
+		return domains, len(allowed) > 0
+	}
+	return nil, false
+}
+
+func getMCPNetworkMigrationCodemodExistingAllowed(frontmatter map[string]any) ([]string, bool) {
+	existingNetworkValue, hasTopLevelNetwork := frontmatter["network"]
+	if !hasTopLevelNetwork {
+		return nil, false
+	}
+	existingNetworkMap, ok := existingNetworkValue.(map[string]any)
+	if !ok {
+		return nil, true
+	}
+	existingAllowedValue, hasExistingAllowed := existingNetworkMap["allowed"]
+	if !hasExistingAllowed {
+		return nil, true
+	}
+	existingAllowed, _ := getMCPNetworkMigrationCodemodAllowedStrings(existingAllowedValue)
+	return existingAllowed, true
+}
+
+func getMCPNetworkMigrationCodemodTransform(
+	lines []string,
+	serversWithNetwork map[string]struct{},
+	hasTopLevelNetwork bool,
+	mergedDomains []string,
+) ([]string, bool) {
+	result := lines
+	var modified bool
+	for serverName := range serversWithNetwork {
+		var serverModified bool
+		result, serverModified = removeFieldFromMCPServer(result, serverName, "network")
+		if serverModified {
+			modified = true
+			mcpNetworkCodemodLog.Printf("Removed network configuration from MCP server '%s'", serverName)
+		}
+	}
+	if !modified {
+		return lines, false
+	}
+	if hasTopLevelNetwork {
+		result = updateNetworkAllowed(result, mergedDomains)
+		mcpNetworkCodemodLog.Printf("Updated top-level network.allowed with %d domains", len(mergedDomains))
+	} else {
+		result = addTopLevelNetwork(result, mergedDomains)
+		mcpNetworkCodemodLog.Printf("Added top-level network.allowed with %d domains", len(mergedDomains))
+	}
+	mcpNetworkCodemodLog.Print("Applied MCP network migration to top-level")
+	return result, true
 }
 
 // removeFieldFromMCPServer removes a field from a specific MCP server configuration
 func removeFieldFromMCPServer(lines []string, serverName string, fieldName string) ([]string, bool) {
 	var result []string
 	var modified bool
-	var inMCPServers bool
-	var mcpServersIndent string
-	var inServerBlock bool
-	var serverIndent string
-	var inFieldBlock bool
-	var fieldIndent string
+	state := removeFieldFromMCPServerState{}
 
 	for i, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-
-		// Track if we're in mcp-servers block
-		if strings.HasPrefix(trimmedLine, "mcp-servers:") {
-			inMCPServers = true
-			mcpServersIndent = getIndentation(line)
-			result = append(result, line)
-			continue
-		}
-
-		// Check if we've left mcp-servers block
-		if inMCPServers && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
-			if hasExitedBlock(line, mcpServersIndent) {
-				inMCPServers = false
-				inServerBlock = false
-			}
-		}
-
-		// Track if we're in the specific server block
-		if inMCPServers && strings.HasPrefix(trimmedLine, serverName+":") {
-			inServerBlock = true
-			serverIndent = getIndentation(line)
-			result = append(result, line)
-			continue
-		}
-
-		// Check if we've left the server block
-		if inServerBlock && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
-			currentIndent := getIndentation(line)
-			// Exit if we're back at mcp-servers level or less
-			if len(currentIndent) <= len(serverIndent) && strings.Contains(line, ":") {
-				inServerBlock = false
-			}
-		}
-
-		// Remove field line if in server block
-		if inServerBlock && strings.HasPrefix(trimmedLine, fieldName+":") {
+		keepLine, lineModified := removeFieldFromMCPServerKeepLine(line, i, serverName, fieldName, &state)
+		if lineModified {
 			modified = true
-			inFieldBlock = true
-			fieldIndent = getIndentation(line)
-			mcpNetworkCodemodLog.Printf("Removed %s from mcp-server '%s' on line %d", fieldName, serverName, i+1)
-			continue
 		}
-
-		// Skip nested properties under the field
-		if inFieldBlock {
-			// Empty lines within the field block should be removed
-			if trimmedLine == "" {
-				continue
-			}
-
-			currentIndent := getIndentation(line)
-
-			// Comments need to check indentation
-			if strings.HasPrefix(trimmedLine, "#") {
-				if len(currentIndent) > len(fieldIndent) {
-					// Comment is nested under field, remove it
-					continue
-				}
-				// Comment is at same or less indentation, exit field block and keep it
-				inFieldBlock = false
-				result = append(result, line)
-				continue
-			}
-
-			// If this line has more indentation than field, it's a nested property
-			if len(currentIndent) > len(fieldIndent) {
-				continue
-			}
-			// We've exited the field block
-			inFieldBlock = false
+		if keepLine {
+			result = append(result, line)
 		}
-
-		result = append(result, line)
 	}
 
 	return result, modified
+}
+
+type removeFieldFromMCPServerState struct {
+	inMCPServers     bool
+	mcpServersIndent string
+	inServerBlock    bool
+	serverIndent     string
+	inFieldBlock     bool
+	fieldIndent      string
+}
+
+func removeFieldFromMCPServerKeepLine(line string, index int, serverName string, fieldName string, state *removeFieldFromMCPServerState) (bool, bool) {
+	trimmedLine := strings.TrimSpace(line)
+
+	// Track if we're in mcp-servers block
+	if strings.HasPrefix(trimmedLine, "mcp-servers:") {
+		state.inMCPServers = true
+		state.mcpServersIndent = getIndentation(line)
+		return true, false
+	}
+
+	removeFieldFromMCPServerExitBlocks(line, trimmedLine, state)
+
+	// Track if we're in the specific server block
+	if state.inMCPServers && strings.HasPrefix(trimmedLine, serverName+":") {
+		state.inServerBlock = true
+		state.serverIndent = getIndentation(line)
+		return true, false
+	}
+
+	// Remove field line if in server block
+	if state.inServerBlock && strings.HasPrefix(trimmedLine, fieldName+":") {
+		state.inFieldBlock = true
+		state.fieldIndent = getIndentation(line)
+		mcpNetworkCodemodLog.Printf("Removed %s from mcp-server '%s' on line %d", fieldName, serverName, index+1)
+		return false, true
+	}
+
+	if state.inFieldBlock {
+		return removeFieldFromMCPServerKeepAfterRemovedField(line, trimmedLine, state), false
+	}
+	return true, false
+}
+
+func removeFieldFromMCPServerExitBlocks(line string, trimmedLine string, state *removeFieldFromMCPServerState) {
+	if state.inMCPServers && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
+		if hasExitedBlock(line, state.mcpServersIndent) {
+			state.inMCPServers = false
+			state.inServerBlock = false
+		}
+	}
+	if state.inServerBlock && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
+		currentIndent := getIndentation(line)
+		if len(currentIndent) <= len(state.serverIndent) && strings.Contains(line, ":") {
+			state.inServerBlock = false
+		}
+	}
+}
+
+func removeFieldFromMCPServerKeepAfterRemovedField(line string, trimmedLine string, state *removeFieldFromMCPServerState) bool {
+	if trimmedLine == "" {
+		return false
+	}
+
+	currentIndent := getIndentation(line)
+	if strings.HasPrefix(trimmedLine, "#") {
+		if len(currentIndent) > len(state.fieldIndent) {
+			return false
+		}
+		state.inFieldBlock = false
+		return true
+	}
+
+	if len(currentIndent) > len(state.fieldIndent) {
+		return false
+	}
+	state.inFieldBlock = false
+	return true
 }
 
 // addTopLevelNetwork adds a new top-level network configuration
@@ -328,20 +335,7 @@ func updateNetworkAllowed(lines []string, domains []string) []string {
 
 		// Skip existing allowed array items
 		if inAllowedBlock {
-			currentIndent := getIndentation(line)
-
-			// Empty lines - skip
-			if trimmedLine == "" {
-				continue
-			}
-
-			// Comments at deeper indentation - skip
-			if strings.HasPrefix(trimmedLine, "#") && len(currentIndent) > len(allowedIndent) {
-				continue
-			}
-
-			// Array items (lines starting with -)
-			if strings.HasPrefix(trimmedLine, "-") && len(currentIndent) > len(allowedIndent) {
+			if updateNetworkAllowedShouldSkipAllowedLine(line, trimmedLine, allowedIndent) {
 				continue
 			}
 
@@ -354,11 +348,21 @@ func updateNetworkAllowed(lines []string, domains []string) []string {
 
 	// If we didn't find an allowed block, add it to the network block
 	if !replacedAllowed {
-		// Find the end of the network block and insert allowed
 		result = addAllowedToNetwork(result, domains)
 	}
 
 	return result
+}
+
+func updateNetworkAllowedShouldSkipAllowedLine(line string, trimmedLine string, allowedIndent string) bool {
+	currentIndent := getIndentation(line)
+	if trimmedLine == "" {
+		return true
+	}
+	if strings.HasPrefix(trimmedLine, "#") && len(currentIndent) > len(allowedIndent) {
+		return true
+	}
+	return strings.HasPrefix(trimmedLine, "-") && len(currentIndent) > len(allowedIndent)
 }
 
 // addAllowedToNetwork adds an allowed field to an existing network block

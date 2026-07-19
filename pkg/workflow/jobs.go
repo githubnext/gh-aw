@@ -208,15 +208,24 @@ func (jm *JobManager) WriteJobsYAML(b *strings.Builder) {
 // renderJobTo writes a single job to b directly, with no intermediate string allocation.
 func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 	jobLog.Printf("Rendering job: %s (steps=%d, needs=%d, reusable=%t)", job.Name, len(job.Steps), len(job.Needs), job.Uses != "")
-
 	fmt.Fprintf(b, "  %s:\n", job.Name)
-
-	// Add display name if present
 	if job.DisplayName != "" {
 		fmt.Fprintf(b, "    name: %s\n", job.DisplayName)
 	}
+	renderJobNeedsTo(b, job)
+	renderJobIfTo(b, job)
+	renderJobExecutionConfigTo(b, job)
+	renderJobSecurityAndLimitsTo(b, job)
+	renderJobEnvAndOutputsTo(b, job)
+	if job.Uses != "" {
+		renderReusableJobTo(b, job)
+	} else {
+		renderJobStepsTo(b, job)
+	}
+	b.WriteString("\n")
+}
 
-	// Add needs clause if there are dependencies
+func renderJobNeedsTo(b *strings.Builder, job *Job) {
 	if len(job.Needs) > 0 {
 		if len(job.Needs) == 1 {
 			fmt.Fprintf(b, "    needs: %s\n", job.Needs[0])
@@ -231,72 +240,57 @@ func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 			}
 		}
 	}
+}
 
-	// Add if condition if present
+func renderJobIfTo(b *strings.Builder, job *Job) {
 	if job.If != "" {
-		// Add zizmor ignore comment if this job has workflow_run safety checks
 		if job.HasWorkflowRunSafetyChecks {
 			b.WriteString("    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation\n")
 		}
-
-		// Check if expression is multiline or longer than MaxExpressionLineLength characters
 		if hasNewlineInStringLiteral(job.If) {
-			// The condition contains a literal newline inside a GitHub Actions expression string literal
-			// (e.g. startsWith(body, '/command\n') for matching bot comments with attribution metadata).
-			// Use a YAML double-quoted scalar so the \n escape is preserved as a real newline after
-			// YAML parsing, which GitHub Actions then evaluates correctly.
 			fmt.Fprintf(b, "    if: \"%s\"\n", escapeForYAMLDoubleQuoted(job.If))
 		} else if strings.Contains(job.If, "\n") || len(job.If) > int(constants.MaxExpressionLineLength) {
-			// Use YAML folded style for multiline expressions or long expressions
-			b.WriteString("    if: >\n")
-
-			if strings.Contains(job.If, "\n") {
-				// Already has newlines, use existing logic
-				lines := strings.SplitSeq(job.If, "\n")
-				for line := range lines {
-					if strings.TrimSpace(line) != "" {
-						fmt.Fprintf(b, "      %s\n", strings.TrimSpace(line))
-					}
-				}
-			} else {
-				// Long single-line expression, break it into logical lines
-				lines := BreakLongExpression(job.If)
-				for _, line := range lines {
-					fmt.Fprintf(b, "      %s\n", strings.TrimSpace(line))
-				}
-			}
+			renderFoldedJobIfTo(b, job.If)
 		} else {
-			// Single line expression that's not too long
 			fmt.Fprintf(b, "    if: %s\n", job.If)
 		}
 	}
+}
 
-	// Add runs-on
+func renderFoldedJobIfTo(b *strings.Builder, condition string) {
+	b.WriteString("    if: >\n")
+	if strings.Contains(condition, "\n") {
+		for line := range strings.SplitSeq(condition, "\n") {
+			if strings.TrimSpace(line) != "" {
+				fmt.Fprintf(b, "      %s\n", strings.TrimSpace(line))
+			}
+		}
+		return
+	}
+	for _, line := range BreakLongExpression(condition) {
+		fmt.Fprintf(b, "      %s\n", strings.TrimSpace(line))
+	}
+}
+
+func renderJobExecutionConfigTo(b *strings.Builder, job *Job) {
 	if job.RunsOn != "" {
 		fmt.Fprintf(b, "    %s\n", job.RunsOn)
 	}
-
-	// Add strategy section
 	if job.Strategy != "" {
 		fmt.Fprintf(b, "    %s\n", strings.TrimRight(job.Strategy, "\n"))
 	}
-
-	// Add environment section
 	if job.Environment != "" {
 		fmt.Fprintf(b, "    %s\n", job.Environment)
 	}
-
-	// Add container section
 	if job.Container != "" {
 		fmt.Fprintf(b, "    %s\n", job.Container)
 	}
-
-	// Add services section
 	if job.Services != "" {
 		fmt.Fprintf(b, "    %s\n", job.Services)
 	}
+}
 
-	// Add permissions section
+func renderJobSecurityAndLimitsTo(b *strings.Builder, job *Job) {
 	if job.PermissionsComment != "" {
 		for line := range strings.SplitSeq(strings.TrimRight(job.PermissionsComment, "\n"), "\n") {
 			fmt.Fprintf(b, "    %s\n", line)
@@ -305,101 +299,82 @@ func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 	if job.Permissions != "" {
 		fmt.Fprintf(b, "    %s\n", job.Permissions)
 	}
-
-	// Add concurrency section
 	if job.Concurrency != "" {
 		fmt.Fprintf(b, "    %s\n", job.Concurrency)
 	}
-
-	// Add timeout-minutes if specified
 	if job.TimeoutMinutesExpression != "" {
-		// TimeoutMinutesExpression is validated when parsed from frontmatter in compiler_jobs.go.
 		fmt.Fprintf(b, "    timeout-minutes: %s\n", job.TimeoutMinutesExpression)
 	} else if job.TimeoutMinutes > 0 {
 		fmt.Fprintf(b, "    timeout-minutes: %d\n", job.TimeoutMinutes)
 	}
-
-	// Add continue-on-error only when explicitly set
 	if job.ContinueOnError != nil {
 		fmt.Fprintf(b, "    continue-on-error: %t\n", *job.ContinueOnError)
 	}
+}
 
-	// Add environment variables section
+func renderJobEnvAndOutputsTo(b *strings.Builder, job *Job) {
 	env := buildRenderedJobEnv(job)
 	if len(env) > 0 {
 		b.WriteString("    env:\n")
-		// Sort environment variable keys for consistent output
 		envKeys := sliceutil.SortedKeys(env)
-
 		for _, key := range envKeys {
 			fmt.Fprintf(b, "      %s: %s\n", key, env[key])
 		}
 	}
-
-	// Add outputs section
 	if len(job.Outputs) > 0 {
 		b.WriteString("    outputs:\n")
-		// Sort output keys for consistent output
 		outputKeys := sliceutil.SortedKeys(job.Outputs)
-
 		for _, key := range outputKeys {
 			fmt.Fprintf(b, "      %s: %s\n", key, job.Outputs[key])
 		}
 	}
+}
 
-	// Check if this is a reusable workflow call
-	if job.Uses != "" {
-		jobLog.Printf("Rendering reusable workflow call: %s uses=%s with=%d secrets=%d", job.Name, job.Uses, len(job.With), len(job.Secrets))
-		// Add uses directive for reusable workflow
-		fmt.Fprintf(b, "    uses: %s\n", job.Uses)
+func renderReusableJobTo(b *strings.Builder, job *Job) {
+	jobLog.Printf("Rendering reusable workflow call: %s uses=%s with=%d secrets=%d", job.Name, job.Uses, len(job.With), len(job.Secrets))
+	fmt.Fprintf(b, "    uses: %s\n", job.Uses)
+	renderReusableJobWithTo(b, job)
+	renderReusableJobSecretsTo(b, job)
+}
 
-		// Add with parameters if present
-		if len(job.With) > 0 {
-			b.WriteString("    with:\n")
-			// Sort keys for consistent output
-			withKeys := sliceutil.SortedKeys(job.With)
-
-			for _, key := range withKeys {
-				value := job.With[key]
-				// Format the value based on its type
-				switch v := value.(type) {
-				case string:
-					fmt.Fprintf(b, "      %s: %s\n", key, v)
-				case int, int64, float64:
-					fmt.Fprintf(b, "      %s: %v\n", key, v)
-				case bool:
-					fmt.Fprintf(b, "      %s: %t\n", key, v)
-				default:
-					fmt.Fprintf(b, "      %s: %v\n", key, v)
-				}
-			}
-		}
-
-		// Add secrets if present
-		if job.SecretsInherit {
-			b.WriteString("    secrets: inherit\n")
-		} else if len(job.Secrets) > 0 {
-			b.WriteString("    secrets:\n")
-			// Sort secret keys for consistent output
-			secretKeys := sliceutil.SortedKeys(job.Secrets)
-
-			for _, key := range secretKeys {
-				fmt.Fprintf(b, "      %s: %s\n", key, job.Secrets[key])
-			}
-		}
-	} else {
-		// Add steps section (only for non-reusable workflow jobs)
-		if len(job.Steps) > 0 {
-			b.WriteString("    steps:\n")
-			for _, step := range job.Steps {
-				// Each step is already formatted with proper indentation
-				b.WriteString(step)
-			}
+func renderReusableJobWithTo(b *strings.Builder, job *Job) {
+	if len(job.With) == 0 {
+		return
+	}
+	b.WriteString("    with:\n")
+	for _, key := range sliceutil.SortedKeys(job.With) {
+		switch v := job.With[key].(type) {
+		case string:
+			fmt.Fprintf(b, "      %s: %s\n", key, v)
+		case int, int64, float64:
+			fmt.Fprintf(b, "      %s: %v\n", key, v)
+		case bool:
+			fmt.Fprintf(b, "      %s: %t\n", key, v)
+		default:
+			fmt.Fprintf(b, "      %s: %v\n", key, v)
 		}
 	}
+}
 
-	// Add newline after each job for proper formatting
-	b.WriteString("\n")
+func renderReusableJobSecretsTo(b *strings.Builder, job *Job) {
+	if job.SecretsInherit {
+		b.WriteString("    secrets: inherit\n")
+	} else if len(job.Secrets) > 0 {
+		b.WriteString("    secrets:\n")
+		for _, key := range sliceutil.SortedKeys(job.Secrets) {
+			fmt.Fprintf(b, "      %s: %s\n", key, job.Secrets[key])
+		}
+	}
+}
+
+func renderJobStepsTo(b *strings.Builder, job *Job) {
+	if len(job.Steps) == 0 {
+		return
+	}
+	b.WriteString("    steps:\n")
+	for _, step := range job.Steps {
+		b.WriteString(step)
+	}
 }
 
 func buildRenderedJobEnv(job *Job) map[string]string {

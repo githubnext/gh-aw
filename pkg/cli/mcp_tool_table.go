@@ -35,49 +35,12 @@ func renderMCPToolTable(info *parser.MCPServerInfo, opts MCPToolTableOptions) st
 		return ""
 	}
 
-	// Create a map for quick lookup of allowed tools from workflow configuration
-	allowedMap := make(map[string]struct {
-	})
-
-	// Check for wildcard "*" which means all tools are allowed
-	hasWildcard := false
-	for _, allowed := range info.Config.Allowed {
-		if allowed == "*" {
-			hasWildcard = true
-		}
-		allowedMap[allowed] = struct {
-		}{}
-	}
-
+	allowedMap, hasWildcard := renderMCPToolTableAllowedMap(info)
 	mcpToolTableLog.Printf("Tool permissions: has_wildcard=%v, allowed_count=%d", hasWildcard, len(allowedMap))
 
 	// Build table headers and rows
 	headers := []string{"Tool Name", "Allow", "Description"}
-	rows := make([][]string, 0, len(info.Tools))
-
-	for _, tool := range info.Tools {
-		description := tool.Description
-
-		// Apply truncation if requested
-		if opts.TruncateLength > 0 && len(description) > opts.TruncateLength {
-			// Leave room for "..."
-			truncateAt := opts.TruncateLength - 3
-			if truncateAt > 0 {
-				description = description[:truncateAt] + "..."
-			}
-		}
-
-		// Determine status
-		status := "🚫"
-		if len(info.Config.Allowed) == 0 || hasWildcard {
-			// If no allowed list is specified or "*" wildcard is present, assume all tools are allowed
-			status = "✅"
-		} else if setutil.Contains(allowedMap, tool.Name) {
-			status = "✅"
-		}
-
-		rows = append(rows, []string{tool.Name, status, description})
-	}
+	rows := renderMCPToolTableRows(info, opts, allowedMap, hasWildcard)
 
 	// Render the table
 	table := console.RenderTable(console.TableConfig{
@@ -89,20 +52,7 @@ func renderMCPToolTable(info *parser.MCPServerInfo, opts MCPToolTableOptions) st
 
 	// Add summary if requested
 	if opts.ShowSummary {
-		allowedCount := 0
-		for _, tool := range info.Tools {
-			if len(info.Config.Allowed) == 0 || hasWildcard || setutil.Contains(allowedMap, tool.Name) {
-				allowedCount++
-			}
-		}
-
-		summaryFormat := opts.SummaryFormat
-		if summaryFormat == "" {
-			summaryFormat = "\n📊 Summary: %d allowed, %d not allowed out of %d total tools\n"
-		}
-
-		result += fmt.Sprintf(summaryFormat,
-			allowedCount, len(info.Tools)-allowedCount, len(info.Tools))
+		result = renderMCPToolTableAppendSummary(result, info, opts, allowedMap, hasWildcard)
 	}
 
 	// Add verbose hint if requested
@@ -111,4 +61,63 @@ func renderMCPToolTable(info *parser.MCPServerInfo, opts MCPToolTableOptions) st
 	}
 
 	return result
+}
+
+func renderMCPToolTableAllowedMap(info *parser.MCPServerInfo) (map[string]struct{}, bool) {
+	// Create a map for quick lookup of allowed tools from workflow configuration.
+	allowedMap := make(map[string]struct{})
+	hasWildcard := false
+	for _, allowed := range info.Config.Allowed {
+		if allowed == "*" {
+			hasWildcard = true
+		}
+		allowedMap[allowed] = struct{}{}
+	}
+	return allowedMap, hasWildcard
+}
+
+func renderMCPToolTableRows(info *parser.MCPServerInfo, opts MCPToolTableOptions, allowedMap map[string]struct{}, hasWildcard bool) [][]string {
+	rows := make([][]string, 0, len(info.Tools))
+	for _, tool := range info.Tools {
+		description := renderMCPToolTableDescription(tool.Description, opts.TruncateLength)
+		status := renderMCPToolTableStatus(info, allowedMap, hasWildcard, tool.Name)
+		rows = append(rows, []string{tool.Name, status, description})
+	}
+	return rows
+}
+
+func renderMCPToolTableDescription(description string, truncateLength int) string {
+	if truncateLength > 0 && len(description) > truncateLength {
+		// Leave room for "..."
+		truncateAt := truncateLength - 3
+		if truncateAt > 0 {
+			return description[:truncateAt] + "..."
+		}
+	}
+	return description
+}
+
+func renderMCPToolTableStatus(info *parser.MCPServerInfo, allowedMap map[string]struct{}, hasWildcard bool, toolName string) string {
+	if len(info.Config.Allowed) == 0 || hasWildcard || setutil.Contains(allowedMap, toolName) {
+		// If no allowed list is specified or "*" wildcard is present, assume all tools are allowed
+		return "✅"
+	}
+	return "🚫"
+}
+
+func renderMCPToolTableAppendSummary(result string, info *parser.MCPServerInfo, opts MCPToolTableOptions, allowedMap map[string]struct{}, hasWildcard bool) string {
+	allowedCount := 0
+	for _, tool := range info.Tools {
+		if len(info.Config.Allowed) == 0 || hasWildcard || setutil.Contains(allowedMap, tool.Name) {
+			allowedCount++
+		}
+	}
+
+	summaryFormat := opts.SummaryFormat
+	if summaryFormat == "" {
+		summaryFormat = "\n📊 Summary: %d allowed, %d not allowed out of %d total tools\n"
+	}
+
+	return result + fmt.Sprintf(summaryFormat,
+		allowedCount, len(info.Tools)-allowedCount, len(info.Tools))
 }

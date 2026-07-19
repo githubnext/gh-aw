@@ -41,18 +41,13 @@ func executeTrialRun(ctx context.Context, parsedSpecs []*WorkflowSpec, hostRepoS
 
 	// Determine target repo slug for filenames once
 	// In direct trial mode, use hostRepoSlug; otherwise use logicalRepoSlug
-	targetRepoForFilename := logicalRepoSlug
-	if directTrialMode {
-		targetRepoForFilename = hostRepoSlug
-	}
+	targetRepoForFilename := executeTrialRunTargetRepoForFilename(hostRepoSlug, logicalRepoSlug, directTrialMode)
 
 	// Step 3: Clone host repository to local temp directory
-	trialLog.Printf("Cloning trial host repository: %s", hostRepoSlug)
-	tempDir, err := cloneTrialHostRepository(hostRepoSlug, opts.Verbose)
+	tempDir, err := executeTrialRunCloneHostRepo(hostRepoSlug, opts.Verbose)
 	if err != nil {
-		return fmt.Errorf("failed to clone host repository: %w", err)
+		return err
 	}
-	trialLog.Printf("Cloned repository to: %s", tempDir)
 	defer func() {
 		if err := os.RemoveAll(tempDir); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup local temp directory: %v", err)))
@@ -68,116 +63,26 @@ func executeTrialRun(ctx context.Context, parsedSpecs []*WorkflowSpec, hostRepoS
 	var workflowResults []WorkflowTrialResult
 
 	for _, parsedSpec := range parsedSpecs {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Running trial for workflow: %s ===", parsedSpec.WorkflowName)))
-
-		// Install workflow with trial mode compilation
-		if err := installWorkflowInTrialMode(ctx, tempDir, parsedSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, directTrialMode, &opts); err != nil {
-			return fmt.Errorf("failed to install workflow '%s' in trial mode: %w", parsedSpec.WorkflowName, err)
-		}
-
-		// Display workflow description if present
-		workflowPath := filepath.Join(tempDir, constants.GetWorkflowDir(), parsedSpec.WorkflowName+".md")
-		if description := ExtractWorkflowDescriptionFromFile(workflowPath); description != "" {
-			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(description))
-			fmt.Fprintln(os.Stderr, "")
-		}
-
-		// Run the workflow and wait for completion (with trigger context if provided)
-		runID, err := triggerWorkflowRun(hostRepoSlug, parsedSpec.WorkflowName, opts.TriggerContext, opts.Verbose)
+		result, err := executeTrialRunWorkflow(executeTrialRunWorkflowParams{
+			Ctx:                   ctx,
+			TempDir:               tempDir,
+			ParsedSpec:            parsedSpec,
+			HostRepoSlug:          hostRepoSlug,
+			LogicalRepoSlug:       logicalRepoSlug,
+			CloneRepoSlug:         cloneRepoSlug,
+			DirectTrialMode:       directTrialMode,
+			TargetRepoForFilename: targetRepoForFilename,
+			DateTimeID:            dateTimeID,
+			Opts:                  opts,
+		})
 		if err != nil {
-			return fmt.Errorf("failed to trigger workflow run for '%s': %w", parsedSpec.WorkflowName, err)
-		}
-
-		// Generate workflow run URL
-		githubHost := getGitHubHost()
-		workflowRunURL := fmt.Sprintf("%s/%s/actions/runs/%s", githubHost, hostRepoSlug, runID)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow run started with ID: %s (%s)", runID, workflowRunURL)))
-
-		// Wait for workflow completion
-		if err := WaitForWorkflowCompletion(ctx, hostRepoSlug, runID, opts.TimeoutMinutes, opts.Verbose); err != nil {
-			// If the context was canceled or its deadline was exceeded, return that directly
-			if ctxErr := ctx.Err(); ctxErr != nil {
-				return ctxErr
-			}
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				return err
-			}
-			return fmt.Errorf("workflow '%s' execution failed or timed out: %w", parsedSpec.WorkflowName, err)
-		}
-
-		// Auto-merge PRs if requested
-		if opts.AutoMergePRs {
-			if err := AutoMergePullRequestsLegacy(hostRepoSlug, opts.Verbose); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to auto-merge pull requests: %v", err)))
-			}
-		}
-
-		// Download and process all artifacts
-		artifacts, err := downloadAllArtifacts(hostRepoSlug, runID, opts.Verbose)
-		if err != nil {
-			return fmt.Errorf("failed to download artifacts for '%s': %w", parsedSpec.WorkflowName, err)
-		}
-
-		// Save individual workflow results
-		result := WorkflowTrialResult{
-			WorkflowName: parsedSpec.WorkflowName,
-			RunID:        runID,
-			SafeOutputs:  artifacts.SafeOutputs,
-			//AgentStdioLogs:      artifacts.AgentStdioLogs,
-			AgenticRunInfo:      artifacts.AgenticRunInfo,
-			AdditionalArtifacts: artifacts.AdditionalArtifacts,
-			Timestamp:           time.Now(),
+			return err
 		}
 		workflowResults = append(workflowResults, result)
-
-		// Save individual trial file
-		sanitizedTargetRepo := stringutil.SanitizeForFilename(targetRepoForFilename)
-		individualFilename := fmt.Sprintf("trials/%s-%s.%s.json", parsedSpec.WorkflowName, sanitizedTargetRepo, dateTimeID)
-		if err := saveTrialResult(individualFilename, result, opts.Verbose); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save individual trial result: %v", err)))
-		}
-
-		// Display safe outputs to stdout
-		if len(artifacts.SafeOutputs) > 0 {
-			outputBytes, _ := json.MarshalIndent(artifacts.SafeOutputs, "", "  ")
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("=== Safe Outputs from %s ===", parsedSpec.WorkflowName)))
-			fmt.Fprintln(os.Stdout, string(outputBytes))
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("=== End of Safe Outputs ==="))
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== No Safe Outputs Generated by %s ===", parsedSpec.WorkflowName)))
-		}
-
-		// Display additional artifact information if available
-		// if len(artifacts.AgentStdioLogs) > 0 {
-		// 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Agent Stdio Logs Available from %s (%d files) ===", parsedSpec.WorkflowName, len(artifacts.AgentStdioLogs))))
-		// }
-		if len(artifacts.AgenticRunInfo) > 0 {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Agentic Run Information Available from %s ===", parsedSpec.WorkflowName)))
-		}
-		if len(artifacts.AdditionalArtifacts) > 0 {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Additional Artifacts Available from %s (%d files) ===", parsedSpec.WorkflowName, len(artifacts.AdditionalArtifacts))))
-		}
-
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Trial completed for workflow: "+parsedSpec.WorkflowName))
 	}
 
 	// Step 6: Save combined results for multi-workflow trials
-	if len(parsedSpecs) > 1 {
-		workflowNames := sliceutil.Map(parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
-		workflowNamesStr := strings.Join(workflowNames, "-")
-		sanitizedTargetRepo := stringutil.SanitizeForFilename(targetRepoForFilename)
-		combinedFilename := fmt.Sprintf("trials/%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID)
-		combinedResult := CombinedTrialResult{
-			WorkflowNames: workflowNames,
-			Results:       workflowResults,
-			Timestamp:     time.Now(),
-		}
-		if err := saveTrialResult(combinedFilename, combinedResult, opts.Verbose); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save combined trial result: %v", err)))
-		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Combined results saved to: "+combinedFilename))
-	}
+	executeTrialRunSaveCombinedResults(parsedSpecs, workflowResults, targetRepoForFilename, dateTimeID, opts.Verbose)
 
 	// Step 6.5: Copy trial results to host repository and commit them
 	workflowNames := sliceutil.Map(parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
@@ -187,6 +92,171 @@ func executeTrialRun(ctx context.Context, parsedSpecs []*WorkflowSpec, hostRepoS
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All trials completed successfully"))
 	return nil
+}
+
+func executeTrialRunTargetRepoForFilename(hostRepoSlug, logicalRepoSlug string, directTrialMode bool) string {
+	if directTrialMode {
+		return hostRepoSlug
+	}
+	return logicalRepoSlug
+}
+
+func executeTrialRunCloneHostRepo(hostRepoSlug string, verbose bool) (string, error) {
+	trialLog.Printf("Cloning trial host repository: %s", hostRepoSlug)
+	tempDir, err := cloneTrialHostRepository(hostRepoSlug, verbose)
+	if err != nil {
+		return "", fmt.Errorf("failed to clone host repository: %w", err)
+	}
+	trialLog.Printf("Cloned repository to: %s", tempDir)
+	return tempDir, nil
+}
+
+type executeTrialRunWorkflowParams struct {
+	Ctx                   context.Context
+	TempDir               string
+	ParsedSpec            *WorkflowSpec
+	HostRepoSlug          string
+	LogicalRepoSlug       string
+	CloneRepoSlug         string
+	DirectTrialMode       bool
+	TargetRepoForFilename string
+	DateTimeID            string
+	Opts                  TrialOptions
+}
+
+func executeTrialRunWorkflow(p executeTrialRunWorkflowParams) (WorkflowTrialResult, error) {
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Running trial for workflow: %s ===", p.ParsedSpec.WorkflowName)))
+
+	// Install workflow with trial mode compilation
+	if err := installWorkflowInTrialMode(p.Ctx, p.TempDir, p.ParsedSpec, p.LogicalRepoSlug, p.CloneRepoSlug, p.HostRepoSlug, p.DirectTrialMode, &p.Opts); err != nil {
+		return WorkflowTrialResult{}, fmt.Errorf("failed to install workflow '%s' in trial mode: %w", p.ParsedSpec.WorkflowName, err)
+	}
+	executeTrialRunDisplayDescription(p.TempDir, p.ParsedSpec.WorkflowName)
+
+	runID, err := executeTrialRunTriggerAndWait(p.Ctx, p.HostRepoSlug, p.ParsedSpec.WorkflowName, p.Opts)
+	if err != nil {
+		return WorkflowTrialResult{}, err
+	}
+
+	// Auto-merge PRs if requested
+	if p.Opts.AutoMergePRs {
+		if err := AutoMergePullRequestsLegacy(p.HostRepoSlug, p.Opts.Verbose); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to auto-merge pull requests: %v", err)))
+		}
+	}
+
+	artifacts, err := downloadAllArtifacts(p.HostRepoSlug, runID, p.Opts.Verbose)
+	if err != nil {
+		return WorkflowTrialResult{}, fmt.Errorf("failed to download artifacts for '%s': %w", p.ParsedSpec.WorkflowName, err)
+	}
+
+	result := executeTrialRunResult(p.ParsedSpec.WorkflowName, runID, artifacts)
+	executeTrialRunSaveIndividualResult(result, p.TargetRepoForFilename, p.DateTimeID, p.Opts.Verbose)
+	executeTrialRunDisplayArtifacts(p.ParsedSpec.WorkflowName, artifacts)
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Trial completed for workflow: "+p.ParsedSpec.WorkflowName))
+	return result, nil
+}
+
+func executeTrialRunDisplayDescription(tempDir, workflowName string) {
+	// Display workflow description if present
+	workflowPath := filepath.Join(tempDir, constants.GetWorkflowDir(), workflowName+".md")
+	if description := ExtractWorkflowDescriptionFromFile(workflowPath); description != "" {
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(description))
+		fmt.Fprintln(os.Stderr, "")
+	}
+}
+
+func executeTrialRunTriggerAndWait(ctx context.Context, hostRepoSlug, workflowName string, opts TrialOptions) (string, error) {
+	// Run the workflow and wait for completion (with trigger context if provided)
+	runID, err := triggerWorkflowRun(hostRepoSlug, workflowName, opts.TriggerContext, opts.Verbose)
+	if err != nil {
+		return "", fmt.Errorf("failed to trigger workflow run for '%s': %w", workflowName, err)
+	}
+
+	// Generate workflow run URL
+	githubHost := getGitHubHost()
+	workflowRunURL := fmt.Sprintf("%s/%s/actions/runs/%s", githubHost, hostRepoSlug, runID)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow run started with ID: %s (%s)", runID, workflowRunURL)))
+
+	// Wait for workflow completion
+	if err := WaitForWorkflowCompletion(ctx, hostRepoSlug, runID, opts.TimeoutMinutes, opts.Verbose); err != nil {
+		// If the context was canceled or its deadline was exceeded, return that directly
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return "", ctxErr
+		}
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return "", err
+		}
+		return "", fmt.Errorf("workflow '%s' execution failed or timed out: %w", workflowName, err)
+	}
+
+	return runID, nil
+}
+
+func executeTrialRunResult(workflowName, runID string, artifacts *TrialArtifacts) WorkflowTrialResult {
+	return WorkflowTrialResult{
+		WorkflowName: workflowName,
+		RunID:        runID,
+		SafeOutputs:  artifacts.SafeOutputs,
+		//AgentStdioLogs:      artifacts.AgentStdioLogs,
+		AgenticRunInfo:      artifacts.AgenticRunInfo,
+		AdditionalArtifacts: artifacts.AdditionalArtifacts,
+		Timestamp:           time.Now(),
+	}
+}
+
+func executeTrialRunSaveIndividualResult(result WorkflowTrialResult, targetRepoForFilename, dateTimeID string, verbose bool) {
+	// Save individual trial file
+	sanitizedTargetRepo := stringutil.SanitizeForFilename(targetRepoForFilename)
+	individualFilename := fmt.Sprintf("trials/%s-%s.%s.json", result.WorkflowName, sanitizedTargetRepo, dateTimeID)
+	if err := saveTrialResult(individualFilename, result, verbose); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save individual trial result: %v", err)))
+	}
+}
+
+func executeTrialRunDisplayArtifacts(workflowName string, artifacts *TrialArtifacts) {
+	// Display safe outputs to stdout
+	if len(artifacts.SafeOutputs) > 0 {
+		outputBytes, _ := json.MarshalIndent(artifacts.SafeOutputs, "", "  ")
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("=== Safe Outputs from %s ===", workflowName)))
+		fmt.Fprintln(os.Stdout, string(outputBytes))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("=== End of Safe Outputs ==="))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== No Safe Outputs Generated by %s ===", workflowName)))
+	}
+
+	// Display additional artifact information if available
+	// if len(artifacts.AgentStdioLogs) > 0 {
+	// 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Agent Stdio Logs Available from %s (%d files) ===", workflowName, len(artifacts.AgentStdioLogs))))
+	// }
+	if len(artifacts.AgenticRunInfo) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Agentic Run Information Available from %s ===", workflowName)))
+	}
+	if len(artifacts.AdditionalArtifacts) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Additional Artifacts Available from %s (%d files) ===", workflowName, len(artifacts.AdditionalArtifacts))))
+	}
+}
+
+func executeTrialRunSaveCombinedResults(parsedSpecs []*WorkflowSpec, workflowResults []WorkflowTrialResult, targetRepoForFilename, dateTimeID string, verbose bool) {
+	if len(parsedSpecs) <= 1 {
+		return
+	}
+
+	workflowNames := sliceutil.Map(parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
+	workflowNamesStr := strings.Join(workflowNames, "-")
+	sanitizedTargetRepo := stringutil.SanitizeForFilename(targetRepoForFilename)
+	combinedFilename := fmt.Sprintf("trials/%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID)
+	combinedResult := CombinedTrialResult{
+		WorkflowNames: workflowNames,
+		Results:       workflowResults,
+		Timestamp:     time.Now(),
+	}
+	if err := saveTrialResult(combinedFilename, combinedResult, verbose); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save combined trial result: %v", err)))
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Combined results saved to: "+combinedFilename))
 }
 
 func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, verbose bool) (string, error) {
@@ -300,8 +370,24 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 		return fmt.Errorf("failed to create trials directory in repository: %w", err)
 	}
 
-	// Copy individual workflow result files
+	copyTrialResultsToHostRepoFiles(trialsDir, dateTimeID, workflowNames, targetRepoSlug, verbose)
+	if err := copyTrialResultsToHostRepoCommitAndPush(tempDir, dateTimeID, workflowNames, verbose); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Trial results copied to repository and pushed"))
+
+	return nil
+}
+
+func copyTrialResultsToHostRepoFiles(trialsDir, dateTimeID string, workflowNames []string, targetRepoSlug string, verbose bool) {
 	sanitizedTargetRepo := stringutil.SanitizeForFilename(targetRepoSlug)
+	copyTrialResultsToHostRepoIndividualFiles(trialsDir, dateTimeID, workflowNames, sanitizedTargetRepo, verbose)
+	copyTrialResultsToHostRepoCombinedFile(trialsDir, dateTimeID, workflowNames, sanitizedTargetRepo, verbose)
+}
+
+func copyTrialResultsToHostRepoIndividualFiles(trialsDir, dateTimeID string, workflowNames []string, sanitizedTargetRepo string, verbose bool) {
+	// Copy individual workflow result files
 	for _, workflowName := range workflowNames {
 		sourceFile := fmt.Sprintf("trials/%s-%s.%s.json", workflowName, sanitizedTargetRepo, dateTimeID)
 		destFile := filepath.Join(trialsDir, fmt.Sprintf("%s-%s.%s.json", workflowName, sanitizedTargetRepo, dateTimeID))
@@ -317,32 +403,33 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Copied %s to repository", sourceFile)))
 		}
 	}
+}
 
+func copyTrialResultsToHostRepoCombinedFile(trialsDir, dateTimeID string, workflowNames []string, sanitizedTargetRepo string, verbose bool) {
 	// Copy combined results file if it exists (for multi-workflow trials)
-	if len(workflowNames) > 1 {
-		workflowNamesStr := strings.Join(workflowNames, "-")
-		combinedSourceFile := fmt.Sprintf("trials/%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID)
-		combinedDestFile := filepath.Join(trialsDir, fmt.Sprintf("%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID))
+	if len(workflowNames) <= 1 {
+		return
+	}
 
-		if err := fileutil.CopyFile(combinedSourceFile, combinedDestFile); err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy combined results: %v", err)))
-			}
-		} else if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Copied %s to repository", combinedSourceFile)))
+	workflowNamesStr := strings.Join(workflowNames, "-")
+	combinedSourceFile := fmt.Sprintf("trials/%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID)
+	combinedDestFile := filepath.Join(trialsDir, fmt.Sprintf("%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID))
+
+	if err := fileutil.CopyFile(combinedSourceFile, combinedDestFile); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy combined results: %v", err)))
 		}
+	} else if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Copied %s to repository", combinedSourceFile)))
 	}
+}
 
-	// Change to temp directory to commit the changes
-	originalDir, err := os.Getwd()
+func copyTrialResultsToHostRepoCommitAndPush(tempDir, dateTimeID string, workflowNames []string, verbose bool) error {
+	restoreDir, err := copyTrialResultsToHostRepoChdir(tempDir)
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+		return err
 	}
-	defer os.Chdir(originalDir)
-
-	if err := os.Chdir(tempDir); err != nil {
-		return fmt.Errorf("failed to change to temp directory: %w", err)
-	}
+	defer restoreDir()
 
 	// Add trial results to git
 	cmd := exec.Command("git", "add", "trials/")
@@ -350,11 +437,41 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 		return fmt.Errorf("failed to add trial results: %w (output: %s)", err, string(output))
 	}
 
+	changed, err := copyTrialResultsToHostRepoHasChanges(verbose)
+	if err != nil || !changed {
+		return err
+	}
+
+	commitMsg := fmt.Sprintf("Add trial results for %s (%s)", strings.Join(workflowNames, ", "), dateTimeID)
+	cmd = exec.Command("git", "commit", "-m", commitMsg)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to commit trial results: %w (output: %s)", err, string(output))
+	}
+
+	return copyTrialResultsToHostRepoPullAndPush(tempDir, verbose)
+}
+
+func copyTrialResultsToHostRepoChdir(tempDir string) (func(), error) {
+	// Change to temp directory to commit the changes
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current directory: %w", err)
+	}
+
+	if err := os.Chdir(tempDir); err != nil {
+		return nil, fmt.Errorf("failed to change to temp directory: %w", err)
+	}
+	return func() {
+		_ = os.Chdir(originalDir)
+	}, nil
+}
+
+func copyTrialResultsToHostRepoHasChanges(verbose bool) (bool, error) {
 	// Check if there are any changes to commit
 	statusCmd := exec.Command("git", "status", "--porcelain", "trials/")
 	statusOutput, err := statusCmd.Output()
 	if err != nil {
-		return fmt.Errorf("failed to check git status: %w", err)
+		return false, fmt.Errorf("failed to check git status: %w", err)
 	}
 
 	// If no changes, skip commit and push
@@ -363,16 +480,12 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No new trial results to commit"))
 		}
-		return nil
+		return false, nil
 	}
+	return true, nil
+}
 
-	// Commit trial results
-	commitMsg := fmt.Sprintf("Add trial results for %s (%s)", strings.Join(workflowNames, ", "), dateTimeID)
-	cmd = exec.Command("git", "commit", "-m", commitMsg)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to commit trial results: %w (output: %s)", err, string(output))
-	}
-
+func copyTrialResultsToHostRepoPullAndPush(tempDir string, verbose bool) error {
 	branch, err := getCurrentBranchIn(tempDir)
 	if err != nil {
 		trialLog.Printf("Failed to detect branch in %s: %v, falling back to main", tempDir, err)
@@ -382,7 +495,7 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pulling latest changes from "+branch+" branch"))
 	}
-	cmd = exec.Command("git", "pull", "--rebase", "origin", branch)
+	cmd := exec.Command("git", "pull", "--rebase", "origin", branch)
 	cmd.Dir = tempDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to pull latest changes: %w (output: %s)", err, string(output))
@@ -394,8 +507,5 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to push trial results: %w (output: %s)", err, string(output))
 	}
-
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Trial results copied to repository and pushed"))
-
 	return nil
 }

@@ -105,64 +105,79 @@ func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []st
 		compilerActivationJobLog.Print("Prepending dedicated daily-AIC app-token mint step")
 		steps = append(steps, c.buildDailyAICAppTokenMintStep(data.MaxDailyAICreditsGitHubApp)...)
 	}
-	// Prepend cache restore step so cached AIC values from prior runs are available
-	// when the guardrail script runs, allowing it to skip artifact downloads.
 	if data.WorkflowID != "" {
-		sanitized := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
-		cacheKeyPrefix := fmt.Sprintf("agentic-workflow-usage-%s-", sanitized)
-		steps = append(steps, "      - name: Restore daily AIC usage cache\n")
-		steps = append(steps, "        id: restore-daily-aic-cache\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr))
-		steps = append(steps, "        continue-on-error: true\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/cache/restore", data)))
-		steps = append(steps, "        with:\n")
-		steps = append(steps, fmt.Sprintf("          key: %s${{ github.run_id }}\n", cacheKeyPrefix))
-		steps = append(steps, fmt.Sprintf("          restore-keys: %s\n", cacheKeyPrefix))
-		steps = append(steps, "          path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl\n")
-		// Artifact-based fallback for cross-branch cache misses.
-		// GitHub Actions actions/cache is branch-scoped: caches written by the conclusion job
-		// on one PR branch are invisible to the activation job running on a different PR branch.
-		// This step downloads the most recent aic-usage-cache artifact uploaded by a prior
-		// conclusion job so that the guardrail script can skip per-run artifact downloads.
-		// Cache-miss detection is performed inside restore_aic_usage_cache_fallback.cjs using
-		// the cache restore outputs forwarded via env vars.
-		steps = append(steps, "      - name: Restore daily AIC usage cache (artifact fallback)\n")
-		steps = append(steps, "        id: restore-daily-aic-cache-fallback\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr))
-		steps = append(steps, "        continue-on-error: true\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
-		steps = append(steps, "        env:\n")
-		steps = append(steps, "          GH_AW_RESTORE_DAILY_AIC_CACHE_HIT: ${{ steps.restore-daily-aic-cache.outputs.cache-hit }}\n")
-		steps = append(steps, "          GH_AW_RESTORE_DAILY_AIC_CACHE_MATCHED_KEY: ${{ steps.restore-daily-aic-cache.outputs.cache-matched-key }}\n")
-		steps = append(steps, "        with:\n")
-		steps = append(steps, fmt.Sprintf("          github-token: %s\n", c.resolveDailyAICToken(data)))
-		steps = append(steps, "          script: |\n")
-		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
-		steps = append(steps, "            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-		steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/restore_aic_usage_cache_fallback.cjs');\n")
-		steps = append(steps, "            await main();\n")
+		steps = append(steps, c.buildDailyAICCacheRestoreSteps(data)...)
 	}
-	steps = append(steps, "      - name: Check daily workflow token guardrail\n")
-	steps = append(steps, "        id: daily-effective-workflow-guardrail\n")
-	steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr))
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
-	steps = append(steps, "        env:\n")
-	steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
-	steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID))
-	steps = append(steps, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
-	steps = append(steps, "          GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}\n")
-	steps = append(steps, fmt.Sprintf("          GH_AW_HAS_SLASH_COMMAND: %q\n", strconv.FormatBool(len(data.Command) > 0)))
-	steps = append(steps, fmt.Sprintf("          GH_AW_HAS_LABEL_COMMAND: %q\n", strconv.FormatBool(len(data.LabelCommand) > 0)))
-	steps = append(steps, fmt.Sprintf("          GH_AW_GITHUB_TOKEN: %s\n", c.resolveDailyAICToken(data)))
-	steps = append(steps, buildTemplatableIntEnvVar(maxDailyAICreditsEnvVar, data.MaxDailyAICredits)...)
-	steps = append(steps, "        with:\n")
-	steps = append(steps, fmt.Sprintf("          github-token: %s\n", c.resolveDailyAICToken(data)))
-	steps = append(steps, "          script: |\n")
-	steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
-	steps = append(steps, "            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-	steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/check_daily_aic_workflow_guardrail.cjs');\n")
-	steps = append(steps, "            await main();\n")
+	steps = append(steps, c.buildDailyAICGuardrailScriptStep(data)...)
 	return steps
+}
+
+func (c *Compiler) buildDailyAICCacheRestoreSteps(data *WorkflowData) []string {
+	sanitized := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
+	cacheKeyPrefix := fmt.Sprintf("agentic-workflow-usage-%s-", sanitized)
+	steps := []string{
+		"      - name: Restore daily AIC usage cache\n",
+		"        id: restore-daily-aic-cache\n",
+		fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr),
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/cache/restore", data)),
+		"        with:\n",
+		fmt.Sprintf("          key: %s${{ github.run_id }}\n", cacheKeyPrefix),
+		fmt.Sprintf("          restore-keys: %s\n", cacheKeyPrefix),
+		"          path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl\n",
+	}
+	return append(steps, c.buildDailyAICCacheFallbackSteps(data)...)
+}
+
+func (c *Compiler) buildDailyAICCacheFallbackSteps(data *WorkflowData) []string {
+	return []string{
+		"      - name: Restore daily AIC usage cache (artifact fallback)\n",
+		"        id: restore-daily-aic-cache-fallback\n",
+		fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr),
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+		"        env:\n",
+		"          GH_AW_RESTORE_DAILY_AIC_CACHE_HIT: ${{ steps.restore-daily-aic-cache.outputs.cache-hit }}\n",
+		"          GH_AW_RESTORE_DAILY_AIC_CACHE_MATCHED_KEY: ${{ steps.restore-daily-aic-cache.outputs.cache-matched-key }}\n",
+		"        with:\n",
+		fmt.Sprintf("          github-token: %s\n", c.resolveDailyAICToken(data)),
+		"          script: |\n",
+		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n",
+		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
+		"            const { main } = require('" + SetupActionDestination + "/restore_aic_usage_cache_fallback.cjs');\n",
+		"            await main();\n",
+	}
+}
+
+func (c *Compiler) buildDailyAICGuardrailScriptStep(data *WorkflowData) []string {
+	steps := []string{
+		"      - name: Check daily workflow token guardrail\n",
+		"        id: daily-effective-workflow-guardrail\n",
+		fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr),
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+		"        env:\n",
+		fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name),
+		fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID),
+		"          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n",
+		"          GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}\n",
+		fmt.Sprintf("          GH_AW_HAS_SLASH_COMMAND: %q\n", strconv.FormatBool(len(data.Command) > 0)),
+		fmt.Sprintf("          GH_AW_HAS_LABEL_COMMAND: %q\n", strconv.FormatBool(len(data.LabelCommand) > 0)),
+		fmt.Sprintf("          GH_AW_GITHUB_TOKEN: %s\n", c.resolveDailyAICToken(data)),
+	}
+	steps = append(steps, buildTemplatableIntEnvVar(maxDailyAICreditsEnvVar, data.MaxDailyAICredits)...)
+	return append(steps, c.buildDailyAICGuardrailScriptWith(data)...)
+}
+
+func (c *Compiler) buildDailyAICGuardrailScriptWith(data *WorkflowData) []string {
+	return []string{
+		"        with:\n",
+		fmt.Sprintf("          github-token: %s\n", c.resolveDailyAICToken(data)),
+		"          script: |\n",
+		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n",
+		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
+		"            const { main } = require('" + SetupActionDestination + "/check_daily_aic_workflow_guardrail.cjs');\n",
+		"            await main();\n",
+	}
 }
 
 func buildDailyAICActivationJobEnv(data *WorkflowData) map[string]string {

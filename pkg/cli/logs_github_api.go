@@ -191,6 +191,31 @@ type ListWorkflowRunsOptions struct {
 // The processedCount and targetCount parameters are used to display progress in the spinner message.
 func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
 	logsGitHubAPILog.Printf("Listing workflow runs: workflow=%s, limit=%d, startDate=%s, endDate=%s, ref=%s", opts.WorkflowName, opts.Limit, opts.StartDate, opts.EndDate, opts.Ref)
+	args := listWorkflowRunsWithPaginationArgs(opts)
+	output, err := listWorkflowRunsWithPaginationRunCommand(opts, args)
+	if err != nil {
+		return nil, 0, listWorkflowRunsWithPaginationCommandError(opts, args, output, err)
+	}
+
+	var runs []WorkflowRun
+	if err := json.Unmarshal(output, &runs); err != nil {
+		return nil, 0, fmt.Errorf("failed to parse workflow runs: %w", err)
+	}
+
+	totalFetched := len(runs)
+	listWorkflowRunsWithPaginationStoreOldest(opts, runs)
+
+	agenticRuns, err := listWorkflowRunsWithPaginationAgenticRuns(opts, runs)
+	if err != nil {
+		return nil, 0, err
+	}
+	agenticRuns = listWorkflowRunsWithPaginationFilterRunIDs(opts, agenticRuns)
+	agenticRuns = listWorkflowRunsWithPaginationFilterUsefulRuns(agenticRuns)
+
+	return agenticRuns, totalFetched, nil
+}
+
+func listWorkflowRunsWithPaginationArgs(opts ListWorkflowRunsOptions) []string {
 	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
 	// Add filters
@@ -224,6 +249,10 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Executing: gh "+strings.Join(args, " ")))
 	}
 
+	return args
+}
+
+func listWorkflowRunsWithPaginationRunCommand(opts ListWorkflowRunsOptions, args []string) ([]byte, error) {
 	// Start spinner for network operation
 	spinnerMsg := workflowRunsSpinnerMessage(opts)
 	spinner := console.NewSpinner(spinnerMsg)
@@ -238,12 +267,15 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 	cmd := workflow.ExecGHContext(cmdCtx, args...)
 	output, err := cmd.CombinedOutput()
 
-	if err != nil {
-		// Stop spinner on error
-		if !opts.Verbose {
-			spinner.Stop()
-		}
+	if !opts.Verbose {
+		spinner.Stop()
+	}
 
+	return output, err
+}
+
+func listWorkflowRunsWithPaginationCommandError(opts ListWorkflowRunsOptions, args []string, output []byte, err error) error {
+	if err != nil {
 		// Extract detailed error information including exit code
 		var exitCode int
 		var exitErr *exec.ExitError
@@ -275,7 +307,7 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 			strings.Contains(combinedMsgLower, "unknown json") ||
 			strings.Contains(combinedMsgLower, "field not found") ||
 			strings.Contains(combinedMsgLower, "no such field") {
-			return nil, 0, fmt.Errorf("invalid field in JSON query (exit code %d): %s", exitCode, string(output))
+			return fmt.Errorf("invalid field in JSON query (exit code %d): %s", exitCode, string(output))
 		}
 
 		// Check for authentication errors.
@@ -283,29 +315,18 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 		// errors (e.g. unsupported JSON fields), so matching it caused misleading
 		// "authentication required" messages for unrelated failures.
 		if isPermissionErrorStr(combinedMsg) {
-			return nil, 0, errors.New("GitHub CLI authentication required. Run 'gh auth login' first")
+			return errors.New("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
 
 		if len(output) > 0 {
-			return nil, 0, fmt.Errorf("failed to list workflow runs (exit code %d): %s", exitCode, string(output))
+			return fmt.Errorf("failed to list workflow runs (exit code %d): %s", exitCode, string(output))
 		}
-		return nil, 0, fmt.Errorf("failed to list workflow runs (exit code %d): %w", exitCode, err)
+		return fmt.Errorf("failed to list workflow runs (exit code %d): %w", exitCode, err)
 	}
+	return nil
+}
 
-	var runs []WorkflowRun
-	if err := json.Unmarshal(output, &runs); err != nil {
-		// Stop spinner on parse error
-		if !opts.Verbose {
-			spinner.Stop()
-		}
-		return nil, 0, fmt.Errorf("failed to parse workflow runs: %w", err)
-	}
-
-	// Stop spinner silently - don't show per-iteration messages
-	if !opts.Verbose {
-		spinner.Stop()
-	}
-
+func listWorkflowRunsWithPaginationStoreOldest(opts ListWorkflowRunsOptions, runs []WorkflowRun) {
 	// Store the total count fetched from API before filtering
 	totalFetched := len(runs)
 	if opts.OldestFetchedCreatedAt != nil {
@@ -315,7 +336,9 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 		}
 		*opts.OldestFetchedCreatedAt = oldest
 	}
+}
 
+func listWorkflowRunsWithPaginationAgenticRuns(opts ListWorkflowRunsOptions, runs []WorkflowRun) ([]WorkflowRun, error) {
 	// Filter only agentic workflow runs when no specific workflow is specified
 	// If a workflow name was specified, we already filtered by it in the API call
 	var agenticRuns []WorkflowRun
@@ -324,7 +347,7 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 		// Get the list of agentic workflow names from .lock.yml files
 		agenticWorkflowNames, err := getAgenticWorkflowNames(opts.Verbose)
 		if err != nil {
-			return nil, 0, fmt.Errorf("failed to get agentic workflow names: %w", err)
+			return nil, fmt.Errorf("failed to get agentic workflow names: %w", err)
 		}
 
 		for _, run := range runs {
@@ -336,7 +359,10 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 		// Specific workflow requested, return all runs (they're already filtered by GitHub API)
 		agenticRuns = runs
 	}
+	return agenticRuns, nil
+}
 
+func listWorkflowRunsWithPaginationFilterRunIDs(opts ListWorkflowRunsOptions, agenticRuns []WorkflowRun) []WorkflowRun {
 	// Apply run ID filtering if specified
 	if opts.BeforeRunID > 0 || opts.AfterRunID > 0 {
 		var filteredRuns []WorkflowRun
@@ -353,7 +379,10 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 		}
 		agenticRuns = filteredRuns
 	}
+	return agenticRuns
+}
 
+func listWorkflowRunsWithPaginationFilterUsefulRuns(agenticRuns []WorkflowRun) []WorkflowRun {
 	// Filter out skipped and cancelled runs — they carry no useful agentic data
 	// and should not count toward the requested run count.
 	{
@@ -366,8 +395,7 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 		}
 		agenticRuns = filtered
 	}
-
-	return agenticRuns, totalFetched, nil
+	return agenticRuns
 }
 
 func workflowRunsSpinnerMessage(opts ListWorkflowRunsOptions) string {

@@ -73,7 +73,31 @@ func runMCPServer(ctx context.Context, port int, cmdPath string, validateActor b
 
 	// Get actor from environment variable
 	actor := os.Getenv("GITHUB_ACTOR") //nolint:osgetenvlibrary
+	runMCPServerLogStartup(actor, port, validateActor)
 
+	cmdPath = runMCPServerCommandPath(cmdPath)
+	runMCPServerLogWorkingDirectory()
+	runMCPServerValidateConfiguration(ctx, cmdPath, mcpServerEnv)
+
+	manifestCacheFile, cleanupManifestCache := runMCPServerManifestCache()
+	if cleanupManifestCache != nil {
+		defer cleanupManifestCache()
+	}
+
+	// Create the server configuration
+	server := createMCPServer(cmdPath, actor, validateActor, manifestCacheFile, mcpServerEnv)
+
+	if port > 0 {
+		// Run HTTP server with SSE transport
+		return runHTTPServer(server, port)
+	}
+
+	// Run stdio transport
+	mcpLog.Print("MCP server ready on stdio")
+	return server.Run(ctx, &mcp.StdioTransport{})
+}
+
+func runMCPServerLogStartup(actor string, port int, validateActor bool) {
 	if validateActor {
 		mcpLog.Printf("Actor validation enabled (--validate-actor flag)")
 	}
@@ -89,63 +113,59 @@ func runMCPServer(ctx context.Context, port int, cmdPath string, validateActor b
 	} else {
 		mcpLog.Print("Starting MCP server with stdio transport")
 	}
+}
 
+func runMCPServerCommandPath(cmdPath string) string {
 	// Determine, log, and validate the binary path only if --cmd flag is not provided
 	// When --cmd is provided, the user explicitly specified the binary path to use
-	if cmdPath == "" {
-		// Attempt to detect the binary path and assign it to cmdPath
-		// This ensures createMCPServer receives the actual binary path instead of falling back to "gh aw"
-		detectedPath, err := logAndValidateBinaryPath()
-		if err == nil && detectedPath != "" {
-			cmdPath = detectedPath
-			mcpLog.Printf("Using detected binary path: %s", cmdPath)
-		}
+	if cmdPath != "" {
+		return cmdPath
 	}
 
+	detectedPath, err := logAndValidateBinaryPath()
+	if err == nil && detectedPath != "" {
+		mcpLog.Printf("Using detected binary path: %s", detectedPath)
+		return detectedPath
+	}
+	return cmdPath
+}
+
+func runMCPServerLogWorkingDirectory() {
 	// Log current working directory
 	if cwd, err := os.Getwd(); err == nil {
 		mcpLog.Printf("Current working directory: %s", cwd)
 	} else {
 		mcpLog.Printf("WARNING: Failed to get current working directory: %v", err)
 	}
+}
 
-	// Validate that the CLI and secrets are properly configured
-	// Note: Validation failures are logged as warnings but don't prevent server startup
-	// This allows the server to start in test environments or non-repository directories
+func runMCPServerValidateConfiguration(ctx context.Context, cmdPath string, mcpServerEnv []string) {
+	// Validate that the CLI and secrets are properly configured.
+	// Validation failures are logged as warnings but don't prevent server startup.
 	if err := validateMCPServerConfiguration(ctx, cmdPath, mcpServerEnv); err != nil {
 		mcpLog.Printf("Configuration validation warning: %v", err)
 	}
+}
 
+func runMCPServerManifestCache() (string, func()) {
 	// Pre-cache lock-file manifests at startup, before any agent can modify the working tree.
 	// The cache is serialised to a temp file so that each compile subprocess invocation
 	// can reference it via --prior-manifest-file.
-	manifestCacheFile := ""
 	manifestCache := CollectLockFileManifests("")
-	if len(manifestCache) > 0 {
-		cacheFile, err := WritePriorManifestFile(manifestCache)
-		if err != nil {
-			mcpLog.Printf("Failed to write manifest cache file: %v (safe update will fall back to git HEAD / filesystem)", err)
-		} else {
-			manifestCacheFile = cacheFile
-			mcpLog.Printf("Manifest cache written to %s (%d entries)", cacheFile, len(manifestCache))
-			// Clean up the temp file when the server exits
-			defer func() {
-				if removeErr := os.Remove(cacheFile); removeErr != nil && !os.IsNotExist(removeErr) {
-					mcpLog.Printf("Failed to remove manifest cache file %s: %v", cacheFile, removeErr)
-				}
-			}()
+	if len(manifestCache) == 0 {
+		return "", nil
+	}
+
+	cacheFile, err := WritePriorManifestFile(manifestCache)
+	if err != nil {
+		mcpLog.Printf("Failed to write manifest cache file: %v (safe update will fall back to git HEAD / filesystem)", err)
+		return "", nil
+	}
+
+	mcpLog.Printf("Manifest cache written to %s (%d entries)", cacheFile, len(manifestCache))
+	return cacheFile, func() {
+		if removeErr := os.Remove(cacheFile); removeErr != nil && !os.IsNotExist(removeErr) {
+			mcpLog.Printf("Failed to remove manifest cache file %s: %v", cacheFile, removeErr)
 		}
 	}
-
-	// Create the server configuration
-	server := createMCPServer(cmdPath, actor, validateActor, manifestCacheFile, mcpServerEnv)
-
-	if port > 0 {
-		// Run HTTP server with SSE transport
-		return runHTTPServer(server, port)
-	}
-
-	// Run stdio transport
-	mcpLog.Print("MCP server ready on stdio")
-	return server.Run(ctx, &mcp.StdioTransport{})
 }

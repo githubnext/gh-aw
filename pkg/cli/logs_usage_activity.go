@@ -105,64 +105,11 @@ func applyUsageActivitySummaryToResult(summary *usageActivitySummary, result *Do
 	}
 
 	if summary.Firewall != nil && result.FirewallAnalysis == nil {
-		logsUsageActivityLog.Printf("applyUsageActivitySummaryToResult: backfilling firewall analysis (total=%d allowed=%d blocked=%d)", summary.Firewall.TotalRequests, summary.Firewall.AllowedRequests, summary.Firewall.BlockedRequests)
-		requestsByDomain := maps.Clone(summary.Firewall.RequestsByDomain)
-		if requestsByDomain == nil {
-			requestsByDomain = map[string]DomainRequestStats{}
-		}
-		allowedSet := map[string]struct{}{}
-		blockedSet := map[string]struct{}{}
-		for _, domain := range summary.Firewall.AllowedDomains {
-			allowedSet[domain] = struct{}{}
-		}
-		for _, domain := range summary.Firewall.BlockedDomains {
-			blockedSet[domain] = struct{}{}
-		}
-		for domain, stats := range requestsByDomain {
-			if stats.Allowed > 0 {
-				allowedSet[domain] = struct{}{}
-			}
-			if stats.Blocked > 0 {
-				blockedSet[domain] = struct{}{}
-			}
-		}
-		allowedDomains := sliceutil.SortedKeys(allowedSet)
-		blockedDomains := sliceutil.SortedKeys(blockedSet)
-
-		result.FirewallAnalysis = &FirewallAnalysis{
-			AnalysisBase: AnalysisBase{
-				DomainBuckets: DomainBuckets{
-					AllowedDomains: allowedDomains,
-					BlockedDomains: blockedDomains,
-				},
-				TotalRequests:   summary.Firewall.TotalRequests,
-				AllowedRequests: summary.Firewall.AllowedRequests,
-				BlockedRequests: summary.Firewall.BlockedRequests,
-			},
-			RequestsByDomain: requestsByDomain,
-		}
+		applyUsageActivitySummaryToResultFirewall(summary, result)
 	}
 
 	if summary.Gateway != nil && result.MCPToolUsage == nil {
-		logsUsageActivityLog.Printf("applyUsageActivitySummaryToResult: backfilling MCP tool usage from %d gateway server(s)", len(summary.Gateway.Servers))
-		servers := make([]MCPServerStats, 0, len(summary.Gateway.Servers))
-		for _, server := range summary.Gateway.Servers {
-			servers = append(servers, MCPServerStats{
-				ServerName: server.ServerName,
-				// Keep both RequestCount and ToolCallCount aligned because MCPServerStats
-				// distinguishes overall request volume (RequestCount) from tool-invocation
-				// volume (ToolCallCount). In usage-aggregate mode we only have per-server
-				// tool-call counts, so both fields are populated from that single source.
-				RequestCount:  server.ToolCallCount,
-				ToolCallCount: server.ToolCallCount,
-				ErrorCount:    server.FailedCalls,
-			})
-		}
-		result.MCPToolUsage = &MCPToolUsageData{
-			Summary:   []MCPToolSummary{},
-			ToolCalls: []MCPToolCall{},
-			Servers:   servers,
-		}
+		applyUsageActivitySummaryToResultGateway(summary, result)
 	}
 
 	// Backfill safe output item count from usage summary when the safe-outputs-items
@@ -171,5 +118,63 @@ func applyUsageActivitySummaryToResult(summary *usageActivitySummary, result *Do
 	if summary.SafeOutputs != nil && result.Run.SafeItemsCount == 0 && summary.SafeOutputs.TotalItems > 0 {
 		logsUsageActivityLog.Printf("applyUsageActivitySummaryToResult: backfilling safe output item count from usage summary (total=%d)", summary.SafeOutputs.TotalItems)
 		result.Run.SafeItemsCount = summary.SafeOutputs.TotalItems
+	}
+}
+
+func applyUsageActivitySummaryToResultFirewall(summary *usageActivitySummary, result *DownloadResult) {
+	logsUsageActivityLog.Printf("applyUsageActivitySummaryToResult: backfilling firewall analysis (total=%d allowed=%d blocked=%d)", summary.Firewall.TotalRequests, summary.Firewall.AllowedRequests, summary.Firewall.BlockedRequests)
+	requestsByDomain := maps.Clone(summary.Firewall.RequestsByDomain)
+	if requestsByDomain == nil {
+		requestsByDomain = map[string]DomainRequestStats{}
+	}
+	allowedSet := map[string]struct{}{}
+	blockedSet := map[string]struct{}{}
+	for _, domain := range summary.Firewall.AllowedDomains {
+		allowedSet[domain] = struct{}{}
+	}
+	for _, domain := range summary.Firewall.BlockedDomains {
+		blockedSet[domain] = struct{}{}
+	}
+	for domain, stats := range requestsByDomain {
+		if stats.Allowed > 0 {
+			allowedSet[domain] = struct{}{}
+		}
+		if stats.Blocked > 0 {
+			blockedSet[domain] = struct{}{}
+		}
+	}
+	result.FirewallAnalysis = &FirewallAnalysis{
+		AnalysisBase: AnalysisBase{
+			DomainBuckets: DomainBuckets{
+				AllowedDomains: sliceutil.SortedKeys(allowedSet),
+				BlockedDomains: sliceutil.SortedKeys(blockedSet),
+			},
+			TotalRequests:   summary.Firewall.TotalRequests,
+			AllowedRequests: summary.Firewall.AllowedRequests,
+			BlockedRequests: summary.Firewall.BlockedRequests,
+		},
+		RequestsByDomain: requestsByDomain,
+	}
+}
+
+func applyUsageActivitySummaryToResultGateway(summary *usageActivitySummary, result *DownloadResult) {
+	logsUsageActivityLog.Printf("applyUsageActivitySummaryToResult: backfilling MCP tool usage from %d gateway server(s)", len(summary.Gateway.Servers))
+	servers := make([]MCPServerStats, 0, len(summary.Gateway.Servers))
+	for _, server := range summary.Gateway.Servers {
+		servers = append(servers, MCPServerStats{
+			ServerName: server.ServerName,
+			// Keep both RequestCount and ToolCallCount aligned because MCPServerStats
+			// distinguishes overall request volume (RequestCount) from tool-invocation
+			// volume (ToolCallCount). In usage-aggregate mode we only have per-server
+			// tool-call counts, so both fields are populated from that single source.
+			RequestCount:  server.ToolCallCount,
+			ToolCallCount: server.ToolCallCount,
+			ErrorCount:    server.FailedCalls,
+		})
+	}
+	result.MCPToolUsage = &MCPToolUsageData{
+		Summary:   []MCPToolSummary{},
+		ToolCalls: []MCPToolCall{},
+		Servers:   servers,
 	}
 }

@@ -67,10 +67,7 @@ func CreateWorkflowMarkdownFile(workflowName string, verbose bool, force bool, e
 	}
 
 	// Create the template content
-	template := createWorkflowTemplate(workflowName, engine)
-
-	// Write the template to file with restrictive permissions (owner-only)
-	if err := os.WriteFile(destFile, []byte(template), constants.FilePermSensitive); err != nil {
+	if err := createWorkflowMarkdownFileWriteTemplate(destFile, workflowName, engine); err != nil {
 		return fmt.Errorf("failed to write workflow file '%s': %w", destFile, err)
 	}
 
@@ -78,6 +75,12 @@ func CreateWorkflowMarkdownFile(workflowName string, verbose bool, force bool, e
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Edit the file to customize your workflow, then run '%s compile' to generate the GitHub Actions workflow", string(constants.CLIExtensionPrefix))))
 
 	return nil
+}
+
+func createWorkflowMarkdownFileWriteTemplate(destFile, workflowName, engine string) error {
+	template := createWorkflowTemplate(workflowName, engine)
+	// Write the template to file with restrictive permissions (owner-only)
+	return os.WriteFile(destFile, []byte(template), constants.FilePermSensitive)
 }
 
 // createWorkflowTemplate generates a concise workflow template with essential options

@@ -73,141 +73,173 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 	if workflowData == nil {
 		return nil
 	}
-
 	if workflowData.SandboxConfig == nil {
 		return nil // No sandbox config is valid
 	}
 
 	sandboxConfig := workflowData.SandboxConfig
-
-	// Check if sandbox.agent: false was specified
-	// This requires the "dangerously-disable-sandbox-agent" feature to include a
-	// justification string. Without a valid justification, disabling the sandbox
-	// is a validation error.
-	if sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
-		justification, err := getSandboxDisableJustification(workflowData)
-		if err != nil {
-			flag := string(constants.DangerouslyDisableSandboxAgentFeatureFlag)
-			return NewValidationError(
-				"sandbox.agent",
-				"false",
-				fmt.Sprintf("disabling the agent sandbox removes a trust boundary: '%s' must be a literal justification string (%d+ chars, no expressions): %v", flag, minSandboxDisableJustificationLength, err),
-				fmt.Sprintf("Add the feature value to your workflow frontmatter:\n\nfeatures:\n  %s: \"controlled environment with no internet access\"\nsandbox:\n  agent: false\n\nSee: %s", flag, constants.DocsSandboxURL),
-			)
-		}
-		sandboxConfig.Agent.DisableReason = justification
-		sandboxValidationLog.Printf("sandbox.agent: false permitted by %s justification: %q", constants.DangerouslyDisableSandboxAgentFeatureFlag, justification)
+	if err := validateSandboxAgentDisabledJustification(workflowData, sandboxConfig.Agent); err != nil {
+		return err
 	}
-
-	// Validate mounts syntax if specified in agent config
 	agentConfig := getAgentConfig(workflowData)
-	if agentConfig != nil && len(agentConfig.Mounts) > 0 {
+	if err := validateAgentSandboxConfig(workflowData, agentConfig); err != nil {
+		return err
+	}
+	if err := validateDeprecatedSandboxConfig(sandboxConfig); err != nil {
+		return err
+	}
+	if err := validateSandboxMCPPort(sandboxConfig); err != nil {
+		return err
+	}
+	return validateSandboxRequiresMCP(workflowData, sandboxConfig)
+}
+
+func validateSandboxAgentDisabledJustification(workflowData *WorkflowData, agent *AgentSandboxConfig) error {
+	if agent == nil || !agent.Disabled {
+		return nil
+	}
+	justification, err := getSandboxDisableJustification(workflowData)
+	if err != nil {
+		flag := string(constants.DangerouslyDisableSandboxAgentFeatureFlag)
+		return NewValidationError(
+			"sandbox.agent",
+			"false",
+			fmt.Sprintf("disabling the agent sandbox removes a trust boundary: '%s' must be a literal justification string (%d+ chars, no expressions): %v", flag, minSandboxDisableJustificationLength, err),
+			fmt.Sprintf("Add the feature value to your workflow frontmatter:\n\nfeatures:\n  %s: \"controlled environment with no internet access\"\nsandbox:\n  agent: false\n\nSee: %s", flag, constants.DocsSandboxURL),
+		)
+	}
+	agent.DisableReason = justification
+	sandboxValidationLog.Printf("sandbox.agent: false permitted by %s justification: %q", constants.DangerouslyDisableSandboxAgentFeatureFlag, justification)
+	return nil
+}
+
+func validateAgentSandboxConfig(workflowData *WorkflowData, agentConfig *AgentSandboxConfig) error {
+	if agentConfig == nil {
+		return nil
+	}
+	if len(agentConfig.Mounts) > 0 {
 		if err := validateMountsSyntax(agentConfig.Mounts); err != nil {
 			return err
 		}
 	}
-
-	// Validate gVisor runtime compatibility
-	if agentConfig != nil && agentConfig.Runtime == AgentRuntimeGVisor {
-		// gVisor is incompatible with ARC/DinD topology: the runner has no access to the
-		// DinD sidecar's daemon config or systemd, so runsc install + systemctl restart
-		// cannot succeed.
-		if isArcDindTopology(workflowData) {
-			return NewValidationError(
-				"sandbox.agent.runtime",
-				string(AgentRuntimeGVisor),
-				"gvisor is incompatible with runner.topology: arc-dind",
-				"gVisor requires registering the runsc runtime with Docker via systemctl, which "+
-					"is not possible on ARC DinD runners where the Docker daemon runs in a sidecar. "+
-					"Remove sandbox.agent.runtime: gvisor or change runner.topology.",
-			)
-		}
-
-		sandboxValidationLog.Print("gVisor runtime configured -- topology check passed")
+	if err := validateGVisorRuntimeCompatibility(workflowData, agentConfig); err != nil {
+		return err
 	}
+	return validateDockerSbxRuntimeCompatibility(workflowData, agentConfig)
+}
 
-	// Validate docker-sbx runtime compatibility
-	if agentConfig != nil && agentConfig.Runtime == AgentRuntimeDockerSbx {
-		// docker-sbx is incompatible with ARC/DinD topology: sbx requires KVM which is
-		// not available on ARC DinD runners that typically lack nested virtualisation.
-		if isArcDindTopology(workflowData) {
-			return NewValidationError(
-				"sandbox.agent.runtime",
-				string(AgentRuntimeDockerSbx),
-				"docker-sbx is incompatible with runner.topology: arc-dind",
-				"docker-sbx requires KVM (nested virtualisation) which is typically unavailable "+
-					"on ARC DinD runners. Remove sandbox.agent.runtime: docker-sbx or change runner.topology.",
-			)
-		}
-
-		// docker-sbx install step requires root access; sudo: true is mandatory.
-		if !agentConfig.SudoExplicitlyEnabled {
-			return NewValidationError(
-				"sandbox.agent.runtime",
-				string(AgentRuntimeDockerSbx),
-				"docker-sbx requires sandbox.agent.sudo: true",
-				"The docker-sbx install step needs root access to install docker-sbx and fix KVM "+
-					"device permissions. Add 'sudo: true' to your sandbox.agent configuration:\n\n"+
-					"sandbox:\n  agent:\n    id: awf\n    runtime: docker-sbx\n    sudo: true",
-			)
-		}
-
-		firewallConfig := getFirewallConfig(workflowData)
-		var configuredVersion string
-		if firewallConfig != nil {
-			configuredVersion = firewallConfig.Version
-		}
-		if !versionAtLeast(configuredVersion, string(constants.DefaultFirewallVersion), string(constants.AWFContainerRuntimeMinVersion)) {
-			effectiveVersion := configuredVersion
-			if effectiveVersion == "" {
-				effectiveVersion = string(constants.DefaultFirewallVersion)
-			}
-			return NewValidationError(
-				"sandbox.agent.runtime",
-				string(AgentRuntimeDockerSbx),
-				fmt.Sprintf("docker-sbx requires AWF %s or newer", constants.AWFContainerRuntimeMinVersion),
-				fmt.Sprintf("docker-sbx emits 'awf --container-runtime sbx', which is only supported in AWF %s+.\n\nThe effective AWF version is %s. Set firewall.version or sandbox.agent.version to %s or newer.", constants.AWFContainerRuntimeMinVersion, effectiveVersion, constants.AWFContainerRuntimeMinVersion),
-			)
-		}
-
-		sandboxValidationLog.Print("docker-sbx runtime configured -- topology, sudo, and AWF version checks passed")
+func validateGVisorRuntimeCompatibility(workflowData *WorkflowData, agentConfig *AgentSandboxConfig) error {
+	if agentConfig.Runtime != AgentRuntimeGVisor {
+		return nil
 	}
-
-	// Validate config structure if provided (deprecated - was only for SRT)
-	if sandboxConfig.Config != nil {
-		// Config is no longer used - SRT removed
-		return NewConfigurationError(
-			"sandbox.config",
-			"deprecated",
-			"custom sandbox config is deprecated (was only for Sandbox Runtime which has been removed)",
-			"Remove sandbox.config from your workflow. AWF (Agent Workflow Firewall) is the only supported sandbox and does not use this configuration.",
+	if isArcDindTopology(workflowData) {
+		return NewValidationError(
+			"sandbox.agent.runtime",
+			string(AgentRuntimeGVisor),
+			"gvisor is incompatible with runner.topology: arc-dind",
+			"gVisor requires registering the runsc runtime with Docker via systemctl, which "+
+				"is not possible on ARC DinD runners where the Docker daemon runs in a sidecar. "+
+				"Remove sandbox.agent.runtime: gvisor or change runner.topology.",
 		)
 	}
+	sandboxValidationLog.Print("gVisor runtime configured -- topology check passed")
+	return nil
+}
 
-	// Validate MCP gateway port if configured
-	if sandboxConfig.MCP != nil && sandboxConfig.MCP.Port != 0 {
-		if err := validateIntRange(sandboxConfig.MCP.Port, constants.MinNetworkPort, constants.MaxNetworkPort, "sandbox.mcp.port"); err != nil {
-			return err
-		}
-		sandboxValidationLog.Printf("Validated MCP gateway port: %d", sandboxConfig.MCP.Port)
+func validateDockerSbxRuntimeCompatibility(workflowData *WorkflowData, agentConfig *AgentSandboxConfig) error {
+	if agentConfig.Runtime != AgentRuntimeDockerSbx {
+		return nil
 	}
-
-	// Validate that if agent sandbox is enabled, MCP gateway is always enabled.
-	// The MCP gateway is enabled when MCP servers are configured (tools that use MCP).
-	// Note: Even if agent sandbox is disabled (sandbox.agent: false), the MCP gateway
-	// must still be enabled. Agent sandbox and MCP gateway are now independent.
-	if sandboxConfig.Agent != nil && !sandboxConfig.Agent.Disabled {
-		if !HasMCPServers(workflowData) {
-			return NewConfigurationError(
-				"sandbox",
-				"enabled without MCP servers",
-				"agent sandbox requires MCP servers to be configured",
-				"Add MCP tools to your workflow:\n\ntools:\n  github:\n    mode: remote\n  playwright: null\n\nOr disable the agent sandbox:\nsandbox:\n  agent: false",
-			)
-		}
-		sandboxValidationLog.Print("Agent sandbox enabled with MCP gateway - validation passed")
+	if isArcDindTopology(workflowData) {
+		return NewValidationError(
+			"sandbox.agent.runtime",
+			string(AgentRuntimeDockerSbx),
+			"docker-sbx is incompatible with runner.topology: arc-dind",
+			"docker-sbx requires KVM (nested virtualisation) which is typically unavailable "+
+				"on ARC DinD runners. Remove sandbox.agent.runtime: docker-sbx or change runner.topology.",
+		)
 	}
+	if err := validateDockerSbxSudo(agentConfig); err != nil {
+		return err
+	}
+	if err := validateDockerSbxAWFVersion(workflowData); err != nil {
+		return err
+	}
+	sandboxValidationLog.Print("docker-sbx runtime configured -- topology, sudo, and AWF version checks passed")
+	return nil
+}
 
+func validateDockerSbxSudo(agentConfig *AgentSandboxConfig) error {
+	if agentConfig.SudoExplicitlyEnabled {
+		return nil
+	}
+	return NewValidationError(
+		"sandbox.agent.runtime",
+		string(AgentRuntimeDockerSbx),
+		"docker-sbx requires sandbox.agent.sudo: true",
+		"The docker-sbx install step needs root access to install docker-sbx and fix KVM "+
+			"device permissions. Add 'sudo: true' to your sandbox.agent configuration:\n\n"+
+			"sandbox:\n  agent:\n    id: awf\n    runtime: docker-sbx\n    sudo: true",
+	)
+}
+
+func validateDockerSbxAWFVersion(workflowData *WorkflowData) error {
+	firewallConfig := getFirewallConfig(workflowData)
+	var configuredVersion string
+	if firewallConfig != nil {
+		configuredVersion = firewallConfig.Version
+	}
+	if versionAtLeast(configuredVersion, string(constants.DefaultFirewallVersion), string(constants.AWFContainerRuntimeMinVersion)) {
+		return nil
+	}
+	effectiveVersion := configuredVersion
+	if effectiveVersion == "" {
+		effectiveVersion = string(constants.DefaultFirewallVersion)
+	}
+	return NewValidationError(
+		"sandbox.agent.runtime",
+		string(AgentRuntimeDockerSbx),
+		fmt.Sprintf("docker-sbx requires AWF %s or newer", constants.AWFContainerRuntimeMinVersion),
+		fmt.Sprintf("docker-sbx emits 'awf --container-runtime sbx', which is only supported in AWF %s+.\n\nThe effective AWF version is %s. Set firewall.version or sandbox.agent.version to %s or newer.", constants.AWFContainerRuntimeMinVersion, effectiveVersion, constants.AWFContainerRuntimeMinVersion),
+	)
+}
+
+func validateDeprecatedSandboxConfig(sandboxConfig *SandboxConfig) error {
+	if sandboxConfig.Config == nil {
+		return nil
+	}
+	return NewConfigurationError(
+		"sandbox.config",
+		"deprecated",
+		"custom sandbox config is deprecated (was only for Sandbox Runtime which has been removed)",
+		"Remove sandbox.config from your workflow. AWF (Agent Workflow Firewall) is the only supported sandbox and does not use this configuration.",
+	)
+}
+
+func validateSandboxMCPPort(sandboxConfig *SandboxConfig) error {
+	if sandboxConfig.MCP == nil || sandboxConfig.MCP.Port == 0 {
+		return nil
+	}
+	if err := validateIntRange(sandboxConfig.MCP.Port, constants.MinNetworkPort, constants.MaxNetworkPort, "sandbox.mcp.port"); err != nil {
+		return err
+	}
+	sandboxValidationLog.Printf("Validated MCP gateway port: %d", sandboxConfig.MCP.Port)
+	return nil
+}
+
+func validateSandboxRequiresMCP(workflowData *WorkflowData, sandboxConfig *SandboxConfig) error {
+	if sandboxConfig.Agent == nil || sandboxConfig.Agent.Disabled {
+		return nil
+	}
+	if !HasMCPServers(workflowData) {
+		return NewConfigurationError(
+			"sandbox",
+			"enabled without MCP servers",
+			"agent sandbox requires MCP servers to be configured",
+			"Add MCP tools to your workflow:\n\ntools:\n  github:\n    mode: remote\n  playwright: null\n\nOr disable the agent sandbox:\nsandbox:\n  agent: false",
+		)
+	}
+	sandboxValidationLog.Print("Agent sandbox enabled with MCP gateway - validation passed")
 	return nil
 }
 

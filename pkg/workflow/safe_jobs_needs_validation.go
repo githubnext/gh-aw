@@ -172,14 +172,7 @@ func detectSafeJobCycles(jobs map[string]*SafeJobConfig) error {
 	}
 	safeJobsNeedsValidationLog.Printf("Detecting dependency cycles among %d custom safe-jobs", len(jobs))
 
-	// Build normalized name mapping
-	normalized := make(map[string]*SafeJobConfig, len(jobs))
-	originalNames := make(map[string]string, len(jobs))
-	for name, cfg := range jobs {
-		n := stringutil.NormalizeSafeOutputIdentifier(name)
-		normalized[n] = cfg
-		originalNames[n] = name
-	}
+	normalized, originalNames := normalizeSafeJobNames(jobs)
 
 	const (
 		unvisited = 0
@@ -188,54 +181,60 @@ func detectSafeJobCycles(jobs map[string]*SafeJobConfig) error {
 	)
 	state := make(map[string]int, len(normalized))
 
-	var dfs func(node string, path []string) error
-	dfs = func(node string, path []string) error {
-		if state[node] == visited {
-			return nil
-		}
-		if state[node] == visiting {
-			// Build the cycle description using original names where available
-			cycleNodes := make([]string, 0, safeAllocationCapacity(len(path), 1))
-			for _, p := range path {
-				if orig, ok := originalNames[p]; ok {
-					cycleNodes = append(cycleNodes, orig)
-				} else {
-					cycleNodes = append(cycleNodes, p)
-				}
-			}
-			origNode := node
-			if orig, ok := originalNames[node]; ok {
-				origNode = orig
-			}
-			cycleNodes = append(cycleNodes, origNode)
-			return fmt.Errorf(
-				"safe-outputs.jobs: dependency cycle detected: %s",
-				strings.Join(cycleNodes, " → "),
-			)
-		}
-
-		state[node] = visiting
-		cfg, exists := normalized[node]
-		if exists && cfg != nil {
-			for _, dep := range cfg.Needs {
-				depNorm := stringutil.NormalizeSafeOutputIdentifier(dep)
-				// Only recurse into other custom safe-jobs; skip generated jobs
-				if _, isSafeJob := normalized[depNorm]; isSafeJob {
-					if err := dfs(depNorm, append(path, node)); err != nil {
-						return err
-					}
-				}
-			}
-		}
-		state[node] = visited
-		return nil
-	}
-
 	for node := range normalized {
-		if err := dfs(node, nil); err != nil {
+		if err := detectSafeJobCycleDFS(node, nil, normalized, originalNames, state, visiting, visited); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func normalizeSafeJobNames(jobs map[string]*SafeJobConfig) (map[string]*SafeJobConfig, map[string]string) {
+	normalized := make(map[string]*SafeJobConfig, len(jobs))
+	originalNames := make(map[string]string, len(jobs))
+	for name, cfg := range jobs {
+		n := stringutil.NormalizeSafeOutputIdentifier(name)
+		normalized[n] = cfg
+		originalNames[n] = name
+	}
+	return normalized, originalNames
+}
+
+func detectSafeJobCycleDFS(node string, path []string, normalized map[string]*SafeJobConfig, originalNames map[string]string, state map[string]int, visiting int, visited int) error {
+	if state[node] == visited {
+		return nil
+	}
+	if state[node] == visiting {
+		return safeJobCycleError(node, path, originalNames)
+	}
+	state[node] = visiting
+	if cfg, exists := normalized[node]; exists && cfg != nil {
+		for _, dep := range cfg.Needs {
+			depNorm := stringutil.NormalizeSafeOutputIdentifier(dep)
+			if _, isSafeJob := normalized[depNorm]; isSafeJob {
+				if err := detectSafeJobCycleDFS(depNorm, append(path, node), normalized, originalNames, state, visiting, visited); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	state[node] = visited
+	return nil
+}
+
+func safeJobCycleError(node string, path []string, originalNames map[string]string) error {
+	cycleNodes := make([]string, 0, safeAllocationCapacity(len(path), 1))
+	for _, p := range path {
+		cycleNodes = append(cycleNodes, originalSafeJobName(p, originalNames))
+	}
+	cycleNodes = append(cycleNodes, originalSafeJobName(node, originalNames))
+	return fmt.Errorf("safe-outputs.jobs: dependency cycle detected: %s", strings.Join(cycleNodes, " → "))
+}
+
+func originalSafeJobName(node string, originalNames map[string]string) string {
+	if orig, ok := originalNames[node]; ok {
+		return orig
+	}
+	return node
 }

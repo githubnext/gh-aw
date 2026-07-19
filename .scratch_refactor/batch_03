@@ -1,0 +1,14 @@
+pkg/cli/codemod_engine_env_secrets.go
+pkg/cli/codemod_engine_steps.go
+pkg/cli/codemod_engine_to_top_level_helpers.go
+pkg/cli/codemod_factory.go
+pkg/cli/codemod_github_app.go
+pkg/cli/codemod_github_repos.go
+pkg/cli/codemod_mcp_network.go
+pkg/cli/codemod_mentions_allow_team_members.go
+pkg/cli/codemod_messages_effective_tokens_suffix_to_ai_credits_suffix.go
+pkg/cli/codemod_network_firewall.go
+pkg/cli/codemod_permissions_read.go
+pkg/cli/codemod_permissions_write.go
+pkg/cli/codemod_playwright_domains.go
+pkg/cli/codemod_run_install_scripts.go

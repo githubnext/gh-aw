@@ -94,13 +94,24 @@ func findModelPricing(provider, model string) (map[string]float64, bool) {
 	}
 	comparableFullID := modelsdev.NormalizeComparableModelID(fullID)
 
+	if pricing, ok := findModelPricingExact(provider, model, fullID, comparableFullID); ok {
+		return pricing, true
+	}
+
+	return findModelPricingBest(provider, model, normalizedProvider, normalizedModel, comparableModel)
+}
+
+func findModelPricingExact(provider string, model string, fullID string, comparableFullID string) (map[string]float64, bool) {
 	for _, record := range modelPriceRecords {
 		if (fullID != "" && record.id == fullID) || (comparableFullID != "" && modelsdev.NormalizeComparableModelID(record.id) == comparableFullID) {
 			modelCostsLog.Printf("Exact pricing match: provider=%s, model=%s -> %s", provider, model, record.id)
 			return record.pricing, true
 		}
 	}
+	return nil, false
+}
 
+func findModelPricingBest(provider string, model string, normalizedProvider string, normalizedModel string, comparableModel string) (map[string]float64, bool) {
 	var bestProviderScoped map[string]float64
 	bestProviderScopedLen := -1
 	var bestGeneric map[string]float64

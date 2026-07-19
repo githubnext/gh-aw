@@ -135,21 +135,30 @@ var subagentDispatchPattern = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9._-]*)\(
 // parseTokenUsageFile parses a token-usage.jsonl file and returns the aggregated summary.
 func parseTokenUsageFile(filePath string) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Parsing token usage file: %s", filePath)
+	entries, lineNum, err := parseTokenUsageFileEntries(filePath)
+	if err != nil {
+		return nil, err
+	}
+	if len(entries) == 0 {
+		tokenUsageLog.Print("No token usage entries found")
+		return nil, nil
+	}
+	summary := &TokenUsageSummary{ByModel: make(map[string]*ModelTokenUsage)}
+	parseTokenUsageFileAggregate(summary, entries)
+	tokenUsageLog.Printf("Parsed %d entries: %d input, %d output, %d cache_read, %d cache_write, %d requests", lineNum, summary.TotalInputTokens, summary.TotalOutputTokens, summary.TotalCacheReadTokens, summary.TotalCacheWriteTokens, summary.TotalRequests)
+	populateAIC(summary)
+	summary.AmbientContext = extractAmbientContextMetrics(entries)
+	return summary, nil
+}
 
+func parseTokenUsageFileEntries(filePath string) ([]TokenUsageEntry, int, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open token usage file: %w", err)
+		return nil, 0, fmt.Errorf("failed to open token usage file: %w", err)
 	}
 	defer file.Close()
-
-	summary := &TokenUsageSummary{
-		ByModel: make(map[string]*ModelTokenUsage),
-	}
-
 	scanner := bufio.NewScanner(file)
-	// Increase buffer size for potentially large lines
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-
 	entries := make([]TokenUsageEntry, 0)
 	lineNum := 0
 	for scanner.Scan() {
@@ -158,7 +167,6 @@ func parseTokenUsageFile(filePath string) (*TokenUsageSummary, error) {
 		if line == "" {
 			continue
 		}
-
 		var entry TokenUsageEntry
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			tokenUsageLog.Printf("Skipping invalid JSON at line %d: %v", lineNum, err)
@@ -166,18 +174,14 @@ func parseTokenUsageFile(filePath string) (*TokenUsageSummary, error) {
 		}
 		entries = append(entries, entry)
 	}
-
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading token usage file: %w", err)
+		return nil, lineNum, fmt.Errorf("error reading token usage file: %w", err)
 	}
+	return entries, lineNum, nil
+}
 
-	if len(entries) == 0 {
-		tokenUsageLog.Print("No token usage entries found")
-		return nil, nil
-	}
-
+func parseTokenUsageFileAggregate(summary *TokenUsageSummary, entries []TokenUsageEntry) {
 	for _, entry := range entries {
-		// Aggregate totals
 		summary.TotalInputTokens += entry.InputTokens
 		summary.TotalOutputTokens += entry.OutputTokens
 		summary.TotalCacheReadTokens += entry.CacheReadTokens
@@ -185,36 +189,27 @@ func parseTokenUsageFile(filePath string) (*TokenUsageSummary, error) {
 		summary.TotalRequests++
 		summary.TotalDurationMs += entry.DurationMs
 		summary.TotalResponseBytes += entry.ResponseBytes
-
-		// Aggregate by model
-		model := entry.Model
-		if model == "" {
-			model = "unknown"
-		}
-		if _, exists := summary.ByModel[model]; !exists {
-			summary.ByModel[model] = &ModelTokenUsage{
-				Provider: entry.Provider,
-			}
-		}
-		m := summary.ByModel[model]
-		m.InputTokens += entry.InputTokens
-		m.OutputTokens += entry.OutputTokens
-		m.CacheReadTokens += entry.CacheReadTokens
-		m.CacheWriteTokens += entry.CacheWriteTokens
-		m.ReasoningTokens += entry.ReasoningTokens
-		m.Requests++
-		m.DurationMs += entry.DurationMs
-		m.ResponseBytes += entry.ResponseBytes
+		parseTokenUsageFileAggregateModel(summary, entry)
 	}
+}
 
-	tokenUsageLog.Printf("Parsed %d entries: %d input, %d output, %d cache_read, %d cache_write, %d requests",
-		lineNum, summary.TotalInputTokens, summary.TotalOutputTokens,
-		summary.TotalCacheReadTokens, summary.TotalCacheWriteTokens, summary.TotalRequests)
-
-	populateAIC(summary)
-	summary.AmbientContext = extractAmbientContextMetrics(entries)
-
-	return summary, nil
+func parseTokenUsageFileAggregateModel(summary *TokenUsageSummary, entry TokenUsageEntry) {
+	model := entry.Model
+	if model == "" {
+		model = "unknown"
+	}
+	if _, exists := summary.ByModel[model]; !exists {
+		summary.ByModel[model] = &ModelTokenUsage{Provider: entry.Provider}
+	}
+	m := summary.ByModel[model]
+	m.InputTokens += entry.InputTokens
+	m.OutputTokens += entry.OutputTokens
+	m.CacheReadTokens += entry.CacheReadTokens
+	m.CacheWriteTokens += entry.CacheWriteTokens
+	m.ReasoningTokens += entry.ReasoningTokens
+	m.Requests++
+	m.DurationMs += entry.DurationMs
+	m.ResponseBytes += entry.ResponseBytes
 }
 
 func extractAmbientContextMetrics(entries []TokenUsageEntry) *AmbientContextMetrics {
@@ -288,34 +283,39 @@ func parseTokenUsageTimestamp(value string) (time.Time, bool) {
 
 // findTokenUsageFile searches for token-usage.jsonl in the run directory
 func findTokenUsageFile(runDir string) string {
-	usageArtifactCandidate := filepath.Join(runDir, "usage", "agent", "token_usage.jsonl")
-	if fileutil.FileExists(usageArtifactCandidate) {
-		tokenUsageLog.Printf("Found token usage file in usage artifact: %s", usageArtifactCandidate)
-		return usageArtifactCandidate
+	if path := findTokenUsageFileKnown(runDir); path != "" {
+		return path
 	}
-
-	// Primary path: sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl
-	primary := filepath.Join(runDir, "sandbox", "firewall", "logs", tokenUsageJSONLPath)
-	if fileutil.FileExists(primary) {
-		tokenUsageLog.Printf("Found token usage file at primary path: %s", primary)
-		return primary
+	if path := findTokenUsageFileArtifact(runDir); path != "" {
+		return path
 	}
-
-	// AWF v0.27.7+ audit-dir path: sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl
-	// In newer AWF versions the proxy logs are written under --audit-dir rather than
-	// --proxy-logs-dir, so check this path explicitly before falling back to the walk.
-	awfAuditPath := filepath.Join(runDir, "sandbox", "firewall", "audit", tokenUsageJSONLPath)
-	if fileutil.FileExists(awfAuditPath) {
-		tokenUsageLog.Printf("Found token usage file at AWF audit path: %s", awfAuditPath)
-		return awfAuditPath
+	if path := findTokenUsageFileWalk(runDir); path != "" {
+		return path
 	}
+	tokenUsageLog.Print("No token usage file found")
+	return ""
+}
 
-	// Check legacy firewall-audit-logs artifact directory (backward compat for older runs)
+func findTokenUsageFileKnown(runDir string) string {
+	candidates := []struct{ path, label string }{
+		{filepath.Join(runDir, "usage", "agent", "token_usage.jsonl"), "usage artifact"},
+		{filepath.Join(runDir, "sandbox", "firewall", "logs", tokenUsageJSONLPath), "primary path"},
+		{filepath.Join(runDir, "sandbox", "firewall", "audit", tokenUsageJSONLPath), "AWF audit path"},
+	}
+	for _, candidate := range candidates {
+		if fileutil.FileExists(candidate.path) {
+			tokenUsageLog.Printf("Found token usage file at %s: %s", candidate.label, candidate.path)
+			return candidate.path
+		}
+	}
+	return ""
+}
+
+func findTokenUsageFileArtifact(runDir string) string {
 	entries, err := os.ReadDir(runDir)
 	if err != nil {
 		return ""
 	}
-
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -329,8 +329,11 @@ func findTokenUsageFile(runDir string) string {
 			}
 		}
 	}
+	return ""
+}
 
-	// Walk sandbox directory for any token-usage.jsonl
+func findTokenUsageFileWalk(runDir string) string {
+	var found string
 	if walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			tokenUsageLog.Printf("walk error at %s: %v", path, err)
@@ -340,20 +343,17 @@ func findTokenUsageFile(runDir string) string {
 			return nil
 		}
 		if info.Name() == "token-usage.jsonl" || info.Name() == "token_usage.jsonl" {
-			primary = path
+			found = path
 			return filepath.SkipAll
 		}
 		return nil
 	}); walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", runDir, walkErr)))
 	}
-	if primary != filepath.Join(runDir, "sandbox", "firewall", "logs", tokenUsageJSONLPath) {
-		tokenUsageLog.Printf("Found token usage file via walk: %s", primary)
-		return primary
+	if found != "" {
+		tokenUsageLog.Printf("Found token usage file via walk: %s", found)
 	}
-
-	tokenUsageLog.Print("No token usage file found")
-	return ""
+	return found
 }
 
 // findAgentUsageFile searches for agent_usage.json in the run directory.
@@ -413,18 +413,35 @@ type agentUsageEntry struct {
 }
 
 func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
+	entry, err := parseAgentUsageFileEntry(filePath)
+	if err != nil {
+		return nil, err
+	}
+	model, provider := parseAgentUsageFileModel(entry)
+	summary := parseAgentUsageFileSummary(entry, model, provider)
+	if entry.AICredits > 0 {
+		parseAgentUsageFileAIC(summary, entry, model, provider)
+	} else if parseAgentUsageFileHasRaw(entry) {
+		populateAIC(summary)
+	}
+	tokenUsageLog.Printf("Parsed agent usage file: input=%d, output=%d, cache_read=%d, cache_write=%d", summary.TotalInputTokens, summary.TotalOutputTokens, summary.TotalCacheReadTokens, summary.TotalCacheWriteTokens)
+	return summary, nil
+}
+
+func parseAgentUsageFileEntry(filePath string) (agentUsageEntry, error) {
 	cleanPath := filepath.Clean(filePath)
 	data, err := os.ReadFile(cleanPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read agent usage file: %w", err)
+		return agentUsageEntry{}, fmt.Errorf("failed to read agent usage file: %w", err)
 	}
-
 	var entry agentUsageEntry
 	if err := json.Unmarshal(data, &entry); err != nil {
-		return nil, fmt.Errorf("failed to parse agent usage file: %w", err)
+		return agentUsageEntry{}, fmt.Errorf("failed to parse agent usage file: %w", err)
 	}
+	return entry, nil
+}
 
-	// Prefer primary_model when set; fall back to model; default to "unknown".
+func parseAgentUsageFileModel(entry agentUsageEntry) (string, string) {
 	model := strings.TrimSpace(entry.PrimaryModel)
 	if model == "" {
 		model = strings.TrimSpace(entry.Model)
@@ -432,69 +449,39 @@ func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
 	if model == "" {
 		model = "unknown"
 	}
-	// Prefer provider from entry; primary_model entries may omit it.
-	provider := strings.TrimSpace(entry.Provider)
+	return model, strings.TrimSpace(entry.Provider)
+}
 
-	summary := &TokenUsageSummary{
-		TotalInputTokens:      entry.InputTokens,
-		TotalOutputTokens:     entry.OutputTokens,
-		TotalCacheReadTokens:  entry.CacheReadTokens,
-		TotalCacheWriteTokens: entry.CacheWriteTokens,
-		ByModel:               make(map[string]*ModelTokenUsage),
-	}
-
-	hasRawTokenData := summary.TotalInputTokens > 0 ||
-		summary.TotalOutputTokens > 0 ||
-		summary.TotalCacheReadTokens > 0 ||
-		summary.TotalCacheWriteTokens > 0 ||
-		entry.ReasoningTokens > 0
-	hasTokenData := hasRawTokenData
-	if hasTokenData {
+func parseAgentUsageFileSummary(entry agentUsageEntry, model, provider string) *TokenUsageSummary {
+	summary := &TokenUsageSummary{TotalInputTokens: entry.InputTokens, TotalOutputTokens: entry.OutputTokens, TotalCacheReadTokens: entry.CacheReadTokens, TotalCacheWriteTokens: entry.CacheWriteTokens, ByModel: make(map[string]*ModelTokenUsage)}
+	if parseAgentUsageFileHasRaw(entry) {
 		summary.TotalRequests = 1
-		summary.ByModel[model] = &ModelTokenUsage{
-			Provider: provider,
-			TokenCoreMetrics: TokenCoreMetrics{
-				InputTokens:      entry.InputTokens,
-				OutputTokens:     entry.OutputTokens,
-				CacheReadTokens:  entry.CacheReadTokens,
-				CacheWriteTokens: entry.CacheWriteTokens,
-				ReasoningTokens:  entry.ReasoningTokens,
-			},
-			Requests: 1,
-		}
+		summary.ByModel[model] = &ModelTokenUsage{Provider: provider, TokenCoreMetrics: TokenCoreMetrics{InputTokens: entry.InputTokens, OutputTokens: entry.OutputTokens, CacheReadTokens: entry.CacheReadTokens, CacheWriteTokens: entry.CacheWriteTokens, ReasoningTokens: entry.ReasoningTokens}, Requests: 1}
 	}
-
 	ambientInputTokens := entry.InputTokens
 	if entry.AmbientContextTokens != nil {
 		ambientInputTokens = *entry.AmbientContextTokens
 	}
-	summary.AmbientContext = &AmbientContextMetrics{
-		InputTokens:  ambientInputTokens,
-		CachedTokens: entry.CacheReadTokens,
-	}
+	summary.AmbientContext = &AmbientContextMetrics{InputTokens: ambientInputTokens, CachedTokens: entry.CacheReadTokens}
+	return summary
+}
 
-	if entry.AICredits > 0 {
-		// Use the pre-computed AI Credits value written by parse_token_usage.cjs.
-		// This is more accurate than recomputing from raw token counts because it
-		// was computed at the time the run completed with full per-request pricing.
-		summary.TotalAIC = entry.AICredits
-		if summary.ByModel[model] == nil {
-			summary.ByModel[model] = &ModelTokenUsage{}
-		}
-		summary.ByModel[model].Provider = provider
-		summary.ByModel[model].InputTokens = entry.InputTokens
-		summary.ByModel[model].OutputTokens = entry.OutputTokens
-		summary.ByModel[model].CacheReadTokens = entry.CacheReadTokens
-		summary.ByModel[model].CacheWriteTokens = entry.CacheWriteTokens
-		summary.ByModel[model].ReasoningTokens = entry.ReasoningTokens
-		summary.ByModel[model].AIC = entry.AICredits
-	} else if hasRawTokenData {
-		populateAIC(summary)
-	}
+func parseAgentUsageFileHasRaw(entry agentUsageEntry) bool {
+	return entry.InputTokens > 0 || entry.OutputTokens > 0 || entry.CacheReadTokens > 0 || entry.CacheWriteTokens > 0 || entry.ReasoningTokens > 0
+}
 
-	tokenUsageLog.Printf("Parsed agent usage file: input=%d, output=%d, cache_read=%d, cache_write=%d",
-		summary.TotalInputTokens, summary.TotalOutputTokens, summary.TotalCacheReadTokens, summary.TotalCacheWriteTokens)
-	return summary, nil
+func parseAgentUsageFileAIC(summary *TokenUsageSummary, entry agentUsageEntry, model, provider string) {
+	summary.TotalAIC = entry.AICredits
+	if summary.ByModel[model] == nil {
+		summary.ByModel[model] = &ModelTokenUsage{}
+	}
+	summary.ByModel[model].Provider = provider
+	summary.ByModel[model].InputTokens = entry.InputTokens
+	summary.ByModel[model].OutputTokens = entry.OutputTokens
+	summary.ByModel[model].CacheReadTokens = entry.CacheReadTokens
+	summary.ByModel[model].CacheWriteTokens = entry.CacheWriteTokens
+	summary.ByModel[model].ReasoningTokens = entry.ReasoningTokens
+	summary.ByModel[model].AIC = entry.AICredits
 }
 
 // analyzeTokenUsage finds and parses the token-usage.jsonl file from a run directory.
@@ -703,7 +690,6 @@ func processOneUsageJSONLFile(filePath string) (total float64, found bool, err e
 // It intentionally skips effective-token computation for callers that only need cost.
 func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Analyzing token usage (AIC only) in: %s", runDir)
-
 	usageJSONLFiles := findUsageJSONLFiles(runDir)
 	if len(usageJSONLFiles) > 0 {
 		console.LogVerbose(verbose, "  Found usage JSONL files: "+strings.Join(usageJSONLFiles, ", "))
@@ -715,48 +701,64 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 			return &TokenUsageSummary{TotalAIC: totalAIC}, nil
 		}
 	}
-
-	filePath := findTokenUsageFile(runDir)
-	if filePath != "" {
-		fileInfo, _ := os.Stat(filePath)
-		if fileInfo != nil {
-			console.LogVerbose(verbose, fmt.Sprintf("  Found token usage file: %s (%d bytes)", filepath.Base(filePath), fileInfo.Size()))
-		}
-
-		file, err := os.Open(filePath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open token usage file: %w", err)
-		}
-		defer file.Close()
-
-		totalAIC := 0.0
-		found := false
-		scanner := bufio.NewScanner(file)
-		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if line == "" {
-				continue
-			}
-			var entry TokenUsageEntry
-			if err := json.Unmarshal([]byte(line), &entry); err != nil {
-				continue
-			}
-			model := entry.Model
-			if model == "" {
-				model = "unknown"
-			}
-			totalAIC += computeModelInferenceAIC(entry.Provider, model, entry.InputTokens, entry.OutputTokens, entry.CacheReadTokens, entry.CacheWriteTokens, entry.ReasoningTokens)
-			found = true
-		}
-		if err := scanner.Err(); err != nil {
-			return nil, fmt.Errorf("error reading token usage file: %w", err)
-		}
-		if found {
-			return &TokenUsageSummary{TotalAIC: totalAIC}, nil
-		}
+	if summary, found, err := analyzeTokenUsageAICOnlyTokenFile(runDir, verbose); err != nil || found {
+		return summary, err
 	}
+	return analyzeTokenUsageAICOnlyAgentUsage(runDir, verbose)
+}
 
+func analyzeTokenUsageAICOnlyTokenFile(runDir string, verbose bool) (*TokenUsageSummary, bool, error) {
+	filePath := findTokenUsageFile(runDir)
+	if filePath == "" {
+		return nil, false, nil
+	}
+	fileInfo, _ := os.Stat(filePath)
+	if fileInfo != nil {
+		console.LogVerbose(verbose, fmt.Sprintf("  Found token usage file: %s (%d bytes)", filepath.Base(filePath), fileInfo.Size()))
+	}
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, true, fmt.Errorf("failed to open token usage file: %w", err)
+	}
+	defer file.Close()
+	totalAIC, found, err := analyzeTokenUsageAICOnlyScan(file)
+	if err != nil {
+		return nil, true, err
+	}
+	if found {
+		return &TokenUsageSummary{TotalAIC: totalAIC}, true, nil
+	}
+	return nil, false, nil
+}
+
+func analyzeTokenUsageAICOnlyScan(file *os.File) (float64, bool, error) {
+	totalAIC := 0.0
+	found := false
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var entry TokenUsageEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue
+		}
+		model := entry.Model
+		if model == "" {
+			model = "unknown"
+		}
+		totalAIC += computeModelInferenceAIC(entry.Provider, model, entry.InputTokens, entry.OutputTokens, entry.CacheReadTokens, entry.CacheWriteTokens, entry.ReasoningTokens)
+		found = true
+	}
+	if err := scanner.Err(); err != nil {
+		return 0, false, fmt.Errorf("error reading token usage file: %w", err)
+	}
+	return totalAIC, found, nil
+}
+
+func analyzeTokenUsageAICOnlyAgentUsage(runDir string, verbose bool) (*TokenUsageSummary, error) {
 	agentUsagePath := findAgentUsageFile(runDir)
 	if agentUsagePath == "" {
 		return nil, nil
@@ -765,14 +767,11 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 	if agentFileInfo != nil {
 		console.LogVerbose(verbose, fmt.Sprintf("  Found agent usage file: %s (%d bytes)", filepath.Base(agentUsagePath), agentFileInfo.Size()))
 	}
-
 	summary, err := parseAgentUsageFile(agentUsagePath)
 	if err != nil || summary == nil {
 		return summary, err
 	}
-	return &TokenUsageSummary{
-		TotalAIC: summary.TotalAIC,
-	}, nil
+	return &TokenUsageSummary{TotalAIC: summary.TotalAIC}, nil
 }
 
 func countAPIProxySteeringEvents(runDir string) int {
@@ -897,24 +896,26 @@ func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) 
 	if summary == nil {
 		return
 	}
-
 	requests := extractSubagentModelRequests(runDir)
 	if len(requests) == 0 {
 		return
 	}
 	addTokenUsageWarning(summary, subagentStdioWarning)
+	actuals, observedModels := augmentSubagentModelAttributionActuals(summary)
+	summary.SubagentModelActuals = actuals
+	requestRows, mismatchCount := augmentSubagentModelAttributionRequests(requests, observedModels)
+	summary.SubagentModelRequests = requestRows
+	summary.MismatchCount = mismatchCount
+}
 
+func augmentSubagentModelAttributionActuals(summary *TokenUsageSummary) ([]SubagentModelActual, map[string]string) {
 	actuals := make([]SubagentModelActual, 0, len(summary.ByModel))
 	observedModels := make(map[string]string, len(summary.ByModel))
 	for model, usage := range summary.ByModel {
 		if usage == nil || model == "" {
 			continue
 		}
-		actuals = append(actuals, SubagentModelActual{
-			Model:    model,
-			Provider: usage.Provider,
-			Requests: usage.Requests,
-		})
+		actuals = append(actuals, SubagentModelActual{Model: model, Provider: usage.Provider, Requests: usage.Requests})
 		observedModels[model] = usage.Provider
 	}
 	slices.SortStableFunc(actuals, func(a, b SubagentModelActual) int {
@@ -933,15 +934,16 @@ func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) 
 			return 0
 		}
 	})
-	summary.SubagentModelActuals = actuals
+	return actuals, observedModels
+}
 
-	var fallbackEffectiveModel string
+func augmentSubagentModelAttributionRequests(requests []SubagentModelRequest, observedModels map[string]string) ([]SubagentModelRequest, int) {
+	fallbackEffectiveModel := ""
 	if len(observedModels) == 1 {
 		for model := range observedModels {
 			fallbackEffectiveModel = model
 		}
 	}
-
 	requestRows := make([]SubagentModelRequest, 0, len(requests))
 	mismatchCount := 0
 	for _, row := range requests {
@@ -958,8 +960,7 @@ func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) 
 		}
 		requestRows = append(requestRows, row)
 	}
-	summary.SubagentModelRequests = requestRows
-	summary.MismatchCount = mismatchCount
+	return requestRows, mismatchCount
 }
 
 func addTokenUsageWarning(summary *TokenUsageSummary, warning string) {
@@ -977,53 +978,61 @@ func extractSubagentModelRequests(runDir string) []SubagentModelRequest {
 	if agentStdioPath == "" {
 		return nil
 	}
-
 	file, err := os.Open(agentStdioPath)
 	if err != nil {
 		return nil
 	}
 	defer file.Close()
-
-	type key struct {
-		agent string
-		model string
+	counts, ok := extractSubagentModelRequestsCounts(file)
+	if !ok {
+		return nil
 	}
-	counts := make(map[key]int)
+	return extractSubagentModelRequestsRows(counts)
+}
 
+type extractSubagentModelRequestsKey struct {
+	agent string
+	model string
+}
+
+func extractSubagentModelRequestsCounts(file *os.File) (map[extractSubagentModelRequestsKey]int, bool) {
+	counts := make(map[extractSubagentModelRequestsKey]int)
 	reader := bufio.NewReader(file)
 	for {
 		line, readErr := reader.ReadString('\n')
 		line = strings.TrimSpace(line)
 		if line != "" {
-			matches := subagentDispatchPattern.FindAllStringSubmatch(line, -1)
-			for _, m := range matches {
-				if len(m) < 3 {
-					continue
-				}
-				agentName := strings.TrimSpace(m[1])
-				requestedModel := strings.TrimSpace(m[2])
-				if agentName == "" || requestedModel == "" {
-					continue
-				}
-				counts[key{agent: agentName, model: requestedModel}]++
-			}
+			extractSubagentModelRequestsLine(counts, line)
 		}
-
 		if readErr == io.EOF {
 			break
 		}
 		if readErr != nil {
-			return nil
+			return nil, false
 		}
 	}
+	return counts, true
+}
 
+func extractSubagentModelRequestsLine(counts map[extractSubagentModelRequestsKey]int, line string) {
+	matches := subagentDispatchPattern.FindAllStringSubmatch(line, -1)
+	for _, m := range matches {
+		if len(m) < 3 {
+			continue
+		}
+		agentName := strings.TrimSpace(m[1])
+		requestedModel := strings.TrimSpace(m[2])
+		if agentName == "" || requestedModel == "" {
+			continue
+		}
+		counts[extractSubagentModelRequestsKey{agent: agentName, model: requestedModel}]++
+	}
+}
+
+func extractSubagentModelRequestsRows(counts map[extractSubagentModelRequestsKey]int) []SubagentModelRequest {
 	rows := make([]SubagentModelRequest, 0, len(counts))
 	for k, n := range counts {
-		rows = append(rows, SubagentModelRequest{
-			AgentName:       k.agent,
-			RequestedModel:  k.model,
-			InvocationCount: n,
-		})
+		rows = append(rows, SubagentModelRequest{AgentName: k.agent, RequestedModel: k.model, InvocationCount: n})
 	}
 	slices.SortStableFunc(rows, func(a, b SubagentModelRequest) int {
 		if a.AgentName != b.AgentName {

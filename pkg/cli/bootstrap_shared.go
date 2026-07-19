@@ -55,42 +55,11 @@ func isBootstrapInitMarkerSatisfied(baseDir string, marker string) (bool, error)
 
 	switch marker {
 	case ".gitattributes":
-		content, err := os.ReadFile(markerPath)
-		if err != nil {
-			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
-		}
-		return strings.Contains(string(content), constants.WorkflowsLockYmlGitAttributesEntry), nil
+		return isBootstrapInitMarkerSatisfiedGitAttributes(markerPath, marker)
 	case bootstrapMCPConfigPath:
-		content, err := os.ReadFile(markerPath)
-		if err != nil {
-			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
-		}
-		var config MCPConfig
-		if err := json.Unmarshal(content, &config); err != nil {
-			return false, nil
-		}
-		servers := config.MCPServers
-		if len(servers) == 0 {
-			servers = config.Servers
-		}
-		server, ok := servers["github-agentic-workflows"]
-		if !ok {
-			return false, nil
-		}
-		if strings.TrimSpace(server.Command) != "gh" {
-			return false, nil
-		}
-		return len(server.Args) >= 2 && server.Args[0] == "aw" && server.Args[1] == "mcp-server", nil
+		return isBootstrapInitMarkerSatisfiedMCPConfig(markerPath, marker)
 	case bootstrapCopilotSetupPath:
-		content, err := os.ReadFile(markerPath)
-		if err != nil {
-			return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
-		}
-		steps := string(content)
-		hasLegacyInstall := strings.Contains(steps, "install-gh-aw.sh") ||
-			(strings.Contains(steps, "Install gh-aw extension") && strings.Contains(steps, "curl -fsSL"))
-		hasActionInstall := strings.Contains(steps, "actions/setup-cli")
-		return hasLegacyInstall || hasActionInstall, nil
+		return isBootstrapInitMarkerSatisfiedCopilotSetup(markerPath, marker)
 	case bootstrapAgenticSkillPath:
 		expected, err := buildAgenticWorkflowsSkillContent()
 		if err != nil {
@@ -114,6 +83,49 @@ func isBootstrapInitMarkerSatisfied(baseDir string, marker string) (bool, error)
 	default:
 		return info.Size() > 0, nil
 	}
+}
+
+func isBootstrapInitMarkerSatisfiedGitAttributes(markerPath string, marker string) (bool, error) {
+	content, err := os.ReadFile(markerPath)
+	if err != nil {
+		return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
+	}
+	return strings.Contains(string(content), constants.WorkflowsLockYmlGitAttributesEntry), nil
+}
+
+func isBootstrapInitMarkerSatisfiedMCPConfig(markerPath string, marker string) (bool, error) {
+	content, err := os.ReadFile(markerPath)
+	if err != nil {
+		return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
+	}
+	var config MCPConfig
+	if err := json.Unmarshal(content, &config); err != nil {
+		return false, nil
+	}
+	servers := config.MCPServers
+	if len(servers) == 0 {
+		servers = config.Servers
+	}
+	server, ok := servers["github-agentic-workflows"]
+	if !ok {
+		return false, nil
+	}
+	if strings.TrimSpace(server.Command) != "gh" {
+		return false, nil
+	}
+	return len(server.Args) >= 2 && server.Args[0] == "aw" && server.Args[1] == "mcp-server", nil
+}
+
+func isBootstrapInitMarkerSatisfiedCopilotSetup(markerPath string, marker string) (bool, error) {
+	content, err := os.ReadFile(markerPath)
+	if err != nil {
+		return false, fmt.Errorf("failed to inspect %s: %w", marker, err)
+	}
+	steps := string(content)
+	hasLegacyInstall := strings.Contains(steps, "install-gh-aw.sh") ||
+		(strings.Contains(steps, "Install gh-aw extension") && strings.Contains(steps, "curl -fsSL"))
+	hasActionInstall := strings.Contains(steps, "actions/setup-cli")
+	return hasLegacyInstall || hasActionInstall, nil
 }
 
 func expectedBootstrapInitMarkers(engineOverride string) []string {

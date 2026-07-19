@@ -62,25 +62,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, c.generateScriptModeCleanupStep())
 	}
 	needs := buildConclusionJobNeeds(data, mainJobName, safeOutputJobNames)
-	// If any message template references needs.pre_activation.outputs.*, add pre_activation
-	// as a dependency so that GitHub Actions can resolve the expression at runtime.
-	if data.SafeOutputs != nil && messagesContainPreActivationRef(data.SafeOutputs.Messages) {
-		if _, exists := c.jobManager.GetJob(string(constants.PreActivationJobName)); exists {
-			preActName := string(constants.PreActivationJobName)
-			if !slices.Contains(needs, preActName) {
-				needs = append(needs, preActName)
-				notifyCommentLog.Print("Added pre_activation dependency to conclusion job (messages reference pre_activation outputs)")
-			}
-		}
-	}
+	needs = c.addConclusionPreActivationNeed(data, needs)
 	notifyCommentLog.Printf("Job built successfully: dependencies_count=%d", len(needs))
-	conclusionPerms := ComputePermissionsForSafeOutputs(data.SafeOutputs)
-	// When observability.otlp.github-app is configured without app-id/private-key
-	// credentials, id-token: write is needed so the conclusion job can mint the OTLP
-	// OIDC token via core.getIDToken(audience) (mirrors threat_detection_job.go).
-	if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
-		conclusionPerms.Set(PermissionIdToken, PermissionWrite)
-	}
+	conclusionPerms := conclusionJobPermissions(data)
 	return &Job{
 		Name:        "conclusion",
 		If:          RenderCondition(buildConclusionJobCondition(data, mainJobName, safeOutputJobNames)),
@@ -94,6 +78,29 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}, nil
 }
 
+func conclusionJobPermissions(data *WorkflowData) *Permissions {
+	conclusionPerms := ComputePermissionsForSafeOutputs(data.SafeOutputs)
+	if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
+		conclusionPerms.Set(PermissionIdToken, PermissionWrite)
+	}
+	return conclusionPerms
+}
+
+func (c *Compiler) addConclusionPreActivationNeed(data *WorkflowData, needs []string) []string {
+	if data.SafeOutputs == nil || !messagesContainPreActivationRef(data.SafeOutputs.Messages) {
+		return needs
+	}
+	if _, exists := c.jobManager.GetJob(string(constants.PreActivationJobName)); !exists {
+		return needs
+	}
+	preActName := string(constants.PreActivationJobName)
+	if !slices.Contains(needs, preActName) {
+		needs = append(needs, preActName)
+		notifyCommentLog.Print("Added pre_activation dependency to conclusion job (messages reference pre_activation outputs)")
+	}
+	return needs
+}
+
 // buildUsageArtifactUploadSteps creates steps that collect and upload a compact usage artifact.
 // The artifact includes aw_info.json, aw-info.jsonl, agent_usage.json, agent_usage.jsonl, detection_usage.jsonl,
 // evals.jsonl, and agent/detection token usage JSONL files (when present).
@@ -102,30 +109,43 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, pinAction func(string) string) []string {
 	usageArtifactName := prefix + "usage"
 	safeOutputsItemsArtifactName := prefix + constants.SafeOutputItemsArtifactName
-	steps := []string{
+	steps := buildSafeOutputsItemsDownloadSteps(safeOutputsItemsArtifactName, pinAction)
+	if hasEvals {
+		evalsArtifactName := prefix + constants.EvalsArtifactName
+		steps = append(steps, buildEvalsArtifactDownloadSteps(evalsArtifactName, pinAction)...)
+	}
+	steps = append(steps, buildUsageArtifactCollectSteps(pinAction, usageArtifactName)...)
+	return steps
+}
+
+func buildSafeOutputsItemsDownloadSteps(artifactName string, pinAction func(string) string) []string {
+	return []string{
 		"      - name: Download safe outputs items manifest\n",
 		"        id: download-safe-outputs-manifest\n",
 		"        if: always()\n",
 		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")),
 		"        with:\n",
-		fmt.Sprintf("          name: %s\n", safeOutputsItemsArtifactName),
+		fmt.Sprintf("          name: %s\n", artifactName),
 		"          path: /tmp/gh-aw/\n",
 	}
-	if hasEvals {
-		evalsArtifactName := prefix + constants.EvalsArtifactName
-		steps = append(steps,
-			"      - name: Download evals artifact\n",
-			"        id: download-evals-artifact\n",
-			"        if: always()\n",
-			"        continue-on-error: true\n",
-			fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")),
-			"        with:\n",
-			fmt.Sprintf("          name: %s\n", evalsArtifactName),
-			"          path: /tmp/gh-aw/evals/\n",
-		)
+}
+
+func buildEvalsArtifactDownloadSteps(artifactName string, pinAction func(string) string) []string {
+	return []string{
+		"      - name: Download evals artifact\n",
+		"        id: download-evals-artifact\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")),
+		"        with:\n",
+		fmt.Sprintf("          name: %s\n", artifactName),
+		"          path: /tmp/gh-aw/evals/\n",
 	}
-	steps = append(steps,
+}
+
+func buildUsageArtifactCollectSteps(pinAction func(string) string, usageArtifactName string) []string {
+	return []string{
 		"      - name: Collect usage artifact files\n",
 		"        if: always()\n",
 		"        continue-on-error: true\n",
@@ -176,8 +196,7 @@ func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, pinAction func(
 		"            /tmp/gh-aw/usage/detection/token_usage.jsonl\n",
 		"            /tmp/gh-aw/usage/activity/summary.json\n",
 		"          if-no-files-found: ignore\n",
-	)
-	return steps
+	}
 }
 
 // buildDailyAICUsageCacheSteps creates steps that compute AIC for the current run and persist

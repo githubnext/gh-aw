@@ -144,6 +144,15 @@ func querySecurityAdvisories(ctx context.Context, depVersions map[string]string,
 	url := "https://api.github.com/advisories?ecosystem=go&per_page=100"
 
 	depsSecurityLog.Printf("Querying GitHub Security Advisory API: url=%s, dep_count=%d", url, len(depVersions))
+	apiAdvisories, err := querySecurityAdvisoriesFetch(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+	depsSecurityLog.Printf("Received %d advisories from GitHub API", len(apiAdvisories))
+	return querySecurityAdvisoriesFilter(apiAdvisories, depVersions, verbose), nil
+}
+
+func querySecurityAdvisoriesFetch(ctx context.Context, url string) ([]GitHubAdvisoryResponse, error) {
 	client := &http.Client{Timeout: constants.DefaultHTTPClientTimeout}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -174,9 +183,10 @@ func querySecurityAdvisories(ctx context.Context, depVersions map[string]string,
 	if err := json.Unmarshal(body, &apiAdvisories); err != nil {
 		return nil, err
 	}
+	return apiAdvisories, nil
+}
 
-	depsSecurityLog.Printf("Received %d advisories from GitHub API", len(apiAdvisories))
-
+func querySecurityAdvisoriesFilter(apiAdvisories []GitHubAdvisoryResponse, depVersions map[string]string, verbose bool) []SecurityAdvisory {
 	// Filter advisories that match our dependencies
 	var matchingAdvisories []SecurityAdvisory
 	for _, apiAdv := range apiAdvisories {
@@ -212,7 +222,7 @@ func querySecurityAdvisories(ctx context.Context, depVersions map[string]string,
 		}
 	}
 
-	return matchingAdvisories, nil
+	return matchingAdvisories
 }
 
 // getSeverityIcon returns an emoji icon for the severity level

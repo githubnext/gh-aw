@@ -110,40 +110,39 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 // post-steps, runs-on, continue-on-error, and engine fields.
 func (c *Compiler) parseThreatDetectionObjectConfig(configMap map[string]any) *ThreatDetectionConfig {
 	threatConfig := &ThreatDetectionConfig{}
+	parseThreatDetectionPromptAndSteps(threatConfig, configMap)
+	parseThreatDetectionRuntimeFields(threatConfig, configMap)
+	c.parseThreatDetectionEngineField(threatConfig, configMap)
 
-	// Parse prompt field
+	threatLog.Printf("Threat detection configured with custom prompt: %v, custom pre-steps: %v, custom post-steps: %v", threatConfig.Prompt != "", len(threatConfig.Steps) > 0, len(threatConfig.PostSteps) > 0)
+	return threatConfig
+}
+
+func parseThreatDetectionPromptAndSteps(threatConfig *ThreatDetectionConfig, configMap map[string]any) {
 	if prompt, exists := configMap["prompt"]; exists {
 		if promptStr, ok := prompt.(string); ok {
 			threatConfig.Prompt = promptStr
 		}
 	}
-
-	// Parse steps field (pre-execution steps, run before engine execution)
 	if steps, exists := configMap["steps"]; exists {
 		if stepsArray, ok := steps.([]any); ok {
 			threatConfig.Steps = stepsArray
 		}
 	}
-
-	// Parse post-steps field (post-execution steps, run after engine execution)
 	if postSteps, exists := configMap["post-steps"]; exists {
 		if postStepsArray, ok := postSteps.([]any); ok {
 			threatConfig.PostSteps = postStepsArray
 		}
 	}
+}
 
-	// Parse max-ai-credits field
+func parseThreatDetectionRuntimeFields(threatConfig *ThreatDetectionConfig, configMap map[string]any) {
 	if maxAICredits, exists := configMap["max-ai-credits"]; exists {
 		threatConfig.MaxAICredits = parseMaxAICreditsValue(maxAICredits)
 	}
-
-	// Parse runs-on field
 	if runOn, exists := configMap["runs-on"]; exists {
 		threatConfig.RunsOn = renderRunsOnSnippet(runOn)
 	}
-
-	// Parse continue-on-error field (default: true).
-	// Accepts a literal bool or a GitHub Actions expression string.
 	if coe, exists := configMap["continue-on-error"]; exists {
 		switch v := coe.(type) {
 		case bool:
@@ -156,31 +155,25 @@ func (c *Compiler) parseThreatDetectionObjectConfig(configMap map[string]any) *T
 			}
 		}
 	}
+}
 
-	// Parse engine field (supports string, object, and boolean false formats)
+func (c *Compiler) parseThreatDetectionEngineField(threatConfig *ThreatDetectionConfig, configMap map[string]any) {
 	if engine, exists := configMap["engine"]; exists {
-		// Handle boolean false to disable AI engine
 		if engineBool, ok := engine.(bool); ok {
 			if !engineBool {
 				threatLog.Print("Threat detection AI engine disabled")
-				// engine: false means no AI engine steps
 				threatConfig.EngineConfig = nil
 				threatConfig.EngineDisabled = true
 			}
 		} else if engineStr, ok := engine.(string); ok {
 			threatLog.Printf("Threat detection engine set to: %s", engineStr)
-			// Handle string format
 			threatConfig.EngineConfig = &EngineConfig{ID: engineStr}
 		} else if engineObj, ok := engine.(map[string]any); ok {
 			threatLog.Print("Parsing threat detection engine configuration")
-			// Handle object format - use extractEngineConfig logic
 			_, engineConfig := c.ExtractEngineConfig(map[string]any{"engine": engineObj})
 			threatConfig.EngineConfig = engineConfig
 		}
 	}
-
-	threatLog.Printf("Threat detection configured with custom prompt: %v, custom pre-steps: %v, custom post-steps: %v", threatConfig.Prompt != "", len(threatConfig.Steps) > 0, len(threatConfig.PostSteps) > 0)
-	return threatConfig
 }
 
 // extractRawExpression strips the "${{" prefix and "}}" suffix from a GitHub Actions

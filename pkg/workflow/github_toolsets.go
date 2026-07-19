@@ -27,75 +27,64 @@ var GitHubToolsetsExcludedFromAll = []string{"dependabot"}
 // into their constituent toolsets. It handles comma-separated lists and deduplicates.
 func ParseGitHubToolsets(toolsetsStr string) []string {
 	toolsetsLog.Printf("Parsing GitHub toolsets: %q", toolsetsStr)
-
 	if toolsetsStr == "" {
 		toolsetsLog.Printf("Empty toolsets string, using defaults: %v", DefaultGitHubToolsets)
 		return DefaultGitHubToolsets
 	}
+	expander := githubToolsetExpander{seen: make(map[string]struct{})}
+	for _, toolset := range strings.Split(toolsetsStr, ",") {
+		expander.expand(strings.TrimSpace(toolset))
+	}
+	toolsetsLog.Printf("Parsed toolsets result: %d unique toolsets expanded from input", len(expander.expanded))
+	return expander.expanded
+}
 
-	toolsets := strings.Split(toolsetsStr, ",")
-	var expanded []string
-	seenToolsets := make(map[string]struct {
-	})
+type githubToolsetExpander struct {
+	expanded []string
+	seen     map[string]struct{}
+}
 
-	for _, toolset := range toolsets {
-		toolset = strings.TrimSpace(toolset)
-		if toolset == "" {
-			continue
-		}
+func (e *githubToolsetExpander) expand(toolset string) {
+	if toolset == "" {
+		return
+	}
+	switch toolset {
+	case "default":
+		toolsetsLog.Printf("Expanding 'default' to %d toolsets", len(DefaultGitHubToolsets))
+		e.addMany(DefaultGitHubToolsets)
+	case "action-friendly":
+		toolsetsLog.Printf("Expanding 'action-friendly' to %d toolsets", len(ActionFriendlyGitHubToolsets))
+		e.addMany(ActionFriendlyGitHubToolsets)
+	case "all":
+		e.expandAll()
+	default:
+		e.add(toolset)
+	}
+}
 
-		switch toolset {
-		case "default":
-			// Add default toolsets
-			toolsetsLog.Printf("Expanding 'default' to %d toolsets", len(DefaultGitHubToolsets))
-			for _, dt := range DefaultGitHubToolsets {
-				if !setutil.Contains(seenToolsets, dt) {
-					expanded = append(expanded, dt)
-					seenToolsets[dt] = struct {
-					}{}
-				}
-			}
-		case "action-friendly":
-			// Add action-friendly toolsets (excludes "users" which GitHub Actions tokens don't support)
-			toolsetsLog.Printf("Expanding 'action-friendly' to %d toolsets", len(ActionFriendlyGitHubToolsets))
-			for _, dt := range ActionFriendlyGitHubToolsets {
-				if !setutil.Contains(seenToolsets, dt) {
-					expanded = append(expanded, dt)
-					seenToolsets[dt] = struct {
-					}{}
-				}
-			}
-		case "all":
-			// Add all toolsets from the toolset permissions map, excluding those that
-			// require GitHub App-only permissions (see GitHubToolsetsExcludedFromAll).
-			toolsetsLog.Printf("Expanding 'all' to toolsets from permissions map (excluding %v)", GitHubToolsetsExcludedFromAll)
-			excludedMap := make(map[string]struct {
-			}, len(GitHubToolsetsExcludedFromAll))
-			for _, ex := range GitHubToolsetsExcludedFromAll {
-				excludedMap[ex] = struct {
-				}{}
-			}
-			toolsetPermissionsMap := getToolsetPermissionsMap()
-			for t := range toolsetPermissionsMap {
-				if setutil.Contains(excludedMap, t) {
-					continue
-				}
-				if !setutil.Contains(seenToolsets, t) {
-					expanded = append(expanded, t)
-					seenToolsets[t] = struct {
-					}{}
-				}
-			}
-		default:
-			// Add individual toolset
-			if !setutil.Contains(seenToolsets, toolset) {
-				expanded = append(expanded, toolset)
-				seenToolsets[toolset] = struct {
-				}{}
-			}
+func (e *githubToolsetExpander) expandAll() {
+	toolsetsLog.Printf("Expanding 'all' to toolsets from permissions map (excluding %v)", GitHubToolsetsExcludedFromAll)
+	excludedMap := make(map[string]struct{}, len(GitHubToolsetsExcludedFromAll))
+	for _, ex := range GitHubToolsetsExcludedFromAll {
+		excludedMap[ex] = struct{}{}
+	}
+	for t := range getToolsetPermissionsMap() {
+		if !setutil.Contains(excludedMap, t) {
+			e.add(t)
 		}
 	}
+}
 
-	toolsetsLog.Printf("Parsed toolsets result: %d unique toolsets expanded from input", len(expanded))
-	return expanded
+func (e *githubToolsetExpander) addMany(toolsets []string) {
+	for _, toolset := range toolsets {
+		e.add(toolset)
+	}
+}
+
+func (e *githubToolsetExpander) add(toolset string) {
+	if setutil.Contains(e.seen, toolset) {
+		return
+	}
+	e.expanded = append(e.expanded, toolset)
+	e.seen[toolset] = struct{}{}
 }

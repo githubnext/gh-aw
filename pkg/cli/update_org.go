@@ -166,18 +166,8 @@ func renderOrgPreviewReport(previewByRepo []orgRepoPreview, applying bool) {
 }
 
 func previewOrgRepoUpdates(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
-	gitRoot, err := gitutil.FindGitRoot()
+	checkoutDir, err := previewOrgRepoUpdatesCheckout(ctx, repo)
 	if err != nil {
-		return orgRepoPreview{}, fmt.Errorf("--org requires running inside a git repository: %w", err)
-	}
-
-	updatesDir, err := ensureUpdateTargetRepoGitignore(gitRoot)
-	if err != nil {
-		return orgRepoPreview{}, err
-	}
-
-	checkoutDir := filepath.Join(updatesDir, sanitizeRepoPath(repo))
-	if err := shallowCloneTargetRepo(ctx, repo, checkoutDir); err != nil {
 		return orgRepoPreview{}, err
 	}
 
@@ -193,44 +183,73 @@ func previewOrgRepoUpdates(ctx context.Context, repo string, opts UpdateWorkflow
 		Workflows:      make([]orgWorkflowPreview, 0, len(workflows)),
 	}
 	for _, wf := range workflows {
-		sourceSpec, err := parseSourceSpec(wf.SourceSpec)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: failed to parse source: %v", repo, wf.Name, err)))
-			orgUpdateLog.Printf("Failed to parse source for %s/%s: %v", repo, wf.Name, err)
+		item, ok := previewOrgRepoUpdatesWorkflow(ctx, repo, checkoutDir, wf, opts, verbose, &preview)
+		if !ok {
 			continue
 		}
-		name := normalizeWorkflowID(wf.Name)
-		resolved, err := resolveRedirectedUpdateLocation(ctx, name, sourceSpec, opts.AllowMajor, verbose, opts.NoRedirect, opts.CoolDown)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: %v", repo, wf.Name, err)))
-			orgUpdateLog.Printf("Failed to resolve update location for %s/%s: %v", repo, wf.Name, err)
-			continue
-		}
-		if resolved.currentRef == resolved.latestRef && len(resolved.redirectHistory) == 0 && !opts.Force {
-			continue
-		}
-
-		editedAt, err := getLatestWorkflowEditTimeFromCheckout(ctx, checkoutDir, wf.Path)
-		if err == nil {
-			if preview.OldestEdit.IsZero() || editedAt.Before(preview.OldestEdit) {
-				preview.OldestEdit = editedAt
-			}
-		}
-		// Resolve SHAs to version-tag labels so the preview shows human-readable
-		// identifiers (e.g. v1.2.3) instead of bare short SHAs when possible.
-		currentLabel := resolveVersionLabel(ctx, resolved.sourceSpec.Repo, resolved.currentRef)
-		latestLabel := resolveVersionLabel(ctx, resolved.sourceSpec.Repo, resolved.latestRef)
-		preview.Workflows = append(preview.Workflows, orgWorkflowPreview{
-			Name:       name,
-			Path:       wf.Path,
-			CurrentRef: currentLabel,
-			LatestRef:  latestLabel,
-			Redirected: len(resolved.redirectHistory) > 0,
-			EditedAt:   editedAt,
-		})
+		preview.Workflows = append(preview.Workflows, item)
 	}
 
 	return preview, nil
+}
+
+func previewOrgRepoUpdatesCheckout(ctx context.Context, repo string) (string, error) {
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return "", fmt.Errorf("--org requires running inside a git repository: %w", err)
+	}
+
+	updatesDir, err := ensureUpdateTargetRepoGitignore(gitRoot)
+	if err != nil {
+		return "", err
+	}
+
+	checkoutDir := filepath.Join(updatesDir, sanitizeRepoPath(repo))
+	if err := shallowCloneTargetRepo(ctx, repo, checkoutDir); err != nil {
+		return "", err
+	}
+	return checkoutDir, nil
+}
+
+func previewOrgRepoUpdatesWorkflow(ctx context.Context, repo, checkoutDir string, wf *workflowWithSource, opts UpdateWorkflowsOptions, verbose bool, preview *orgRepoPreview) (orgWorkflowPreview, bool) {
+	sourceSpec, err := parseSourceSpec(wf.SourceSpec)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: failed to parse source: %v", repo, wf.Name, err)))
+		orgUpdateLog.Printf("Failed to parse source for %s/%s: %v", repo, wf.Name, err)
+		return orgWorkflowPreview{}, false
+	}
+	name := normalizeWorkflowID(wf.Name)
+	resolved, err := resolveRedirectedUpdateLocation(ctx, name, sourceSpec, opts.AllowMajor, verbose, opts.NoRedirect, opts.CoolDown)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: %v", repo, wf.Name, err)))
+		orgUpdateLog.Printf("Failed to resolve update location for %s/%s: %v", repo, wf.Name, err)
+		return orgWorkflowPreview{}, false
+	}
+	if resolved.currentRef == resolved.latestRef && len(resolved.redirectHistory) == 0 && !opts.Force {
+		return orgWorkflowPreview{}, false
+	}
+
+	editedAt := previewOrgRepoUpdatesEditedAt(ctx, checkoutDir, wf.Path, preview)
+	currentLabel := resolveVersionLabel(ctx, resolved.sourceSpec.Repo, resolved.currentRef)
+	latestLabel := resolveVersionLabel(ctx, resolved.sourceSpec.Repo, resolved.latestRef)
+	return orgWorkflowPreview{
+		Name:       name,
+		Path:       wf.Path,
+		CurrentRef: currentLabel,
+		LatestRef:  latestLabel,
+		Redirected: len(resolved.redirectHistory) > 0,
+		EditedAt:   editedAt,
+	}, true
+}
+
+func previewOrgRepoUpdatesEditedAt(ctx context.Context, checkoutDir, workflowPath string, preview *orgRepoPreview) time.Time {
+	editedAt, err := getLatestWorkflowEditTimeFromCheckout(ctx, checkoutDir, workflowPath)
+	if err == nil {
+		if preview.OldestEdit.IsZero() || editedAt.Before(preview.OldestEdit) {
+			preview.OldestEdit = editedAt
+		}
+	}
+	return editedAt
 }
 
 func getLatestWorkflowEditTimeFromCheckout(ctx context.Context, checkoutDir, workflowPath string) (time.Time, error) {

@@ -56,68 +56,25 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 		return content, nil // No imports field, return original content
 	}
 
-	// processImportPaths converts a list of raw import paths to workflowspec format.
-	// Paths that already use the workflowspec format (contain "@") are left unchanged.
-	// When localWorkflowDir is set, relative paths whose files exist locally are also
-	// preserved as-is so that consumers who have copied shared files into their own repo
-	// are not forced onto cross-repo references after every `gh aw update`.
-	processImportPaths := func(imports []string) []string {
-		processed := make([]string, 0, len(imports))
-		for _, importPath := range imports {
-			if isWorkflowSpecFormat(importPath) {
-				importsLog.Printf("Import already in workflowspec format: %s", importPath)
-				processed = append(processed, importPath)
-				continue
-			}
-			// Preserve relative paths whose files exist in the local workflow directory.
-			// Absolute paths (starting with "/") are not checked — they are always resolved
-			// relative to the repo root and cannot be reliably tested here.
-			if localWorkflowDir != "" && !strings.HasPrefix(importPath, "/") {
-				if isLocalFileForUpdate(localWorkflowDir, importPath) {
-					importsLog.Printf("Import path exists locally, preserving relative path: %s", importPath)
-					processed = append(processed, importPath)
-					continue
-				}
-			}
-			resolvedPath := resolveImportPath(importPath, filepath.Dir(workflow.WorkflowPath), importPathImportsOpts)
-			importsLog.Printf("Resolved import path: %s -> %s (workflow: %s)", importPath, resolvedPath, workflow.WorkflowPath)
-			workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, resolvedPath, commitSHA, workflow.Version)
-			importsLog.Printf("Converted import: %s -> %s", importPath, workflowSpec)
-			processed = append(processed, workflowSpec)
-		}
-		return processed
-	}
-
-	// collectStringImports extracts string paths from a []any slice.
-	collectStringImports := func(items []any) []string {
-		var paths []string
-		for _, item := range items {
-			if str, ok := item.(string); ok {
-				paths = append(paths, str)
-			}
-		}
-		return paths
-	}
-
 	switch v := importsField.(type) {
 	case []any:
-		imports := collectStringImports(v)
+		imports := processImportsWithWorkflowSpecCollectStrings(v)
 		importsLog.Printf("Found %d imports (array form) to process", len(imports))
-		result.Frontmatter["imports"] = processImportPaths(imports)
+		result.Frontmatter["imports"] = processImportsWithWorkflowSpecPaths(imports, workflow, commitSHA, localWorkflowDir)
 	case []string:
 		importsLog.Printf("Found %d imports ([]string form) to process", len(v))
-		result.Frontmatter["imports"] = processImportPaths(v)
+		result.Frontmatter["imports"] = processImportsWithWorkflowSpecPaths(v, workflow, commitSHA, localWorkflowDir)
 	case map[string]any:
 		// Object form: process the 'aw' subfield if present
 		if awAny, hasAW := v["aw"]; hasAW {
 			switch aw := awAny.(type) {
 			case []any:
-				awImports := collectStringImports(aw)
+				awImports := processImportsWithWorkflowSpecCollectStrings(aw)
 				importsLog.Printf("Found %d imports (object form, aw subfield) to process", len(awImports))
-				v["aw"] = processImportPaths(awImports)
+				v["aw"] = processImportsWithWorkflowSpecPaths(awImports, workflow, commitSHA, localWorkflowDir)
 			case []string:
 				importsLog.Printf("Found %d imports (object form, aw []string) to process", len(aw))
-				v["aw"] = processImportPaths(aw)
+				v["aw"] = processImportsWithWorkflowSpecPaths(aw, workflow, commitSHA, localWorkflowDir)
 			}
 		}
 	default:
@@ -127,6 +84,43 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 
 	// Use helper function to reconstruct workflow file with proper field ordering
 	return reconstructWorkflowFileFromMap(result.Frontmatter, result.Markdown)
+}
+
+func processImportsWithWorkflowSpecPaths(imports []string, workflow *WorkflowSpec, commitSHA, localWorkflowDir string) []string {
+	// Converts raw import paths to workflowspec format. Paths that already use
+	// workflowspec format or exist under localWorkflowDir are preserved.
+	processed := make([]string, 0, len(imports))
+	for _, importPath := range imports {
+		if isWorkflowSpecFormat(importPath) {
+			importsLog.Printf("Import already in workflowspec format: %s", importPath)
+			processed = append(processed, importPath)
+			continue
+		}
+		if localWorkflowDir != "" && !strings.HasPrefix(importPath, "/") {
+			if isLocalFileForUpdate(localWorkflowDir, importPath) {
+				importsLog.Printf("Import path exists locally, preserving relative path: %s", importPath)
+				processed = append(processed, importPath)
+				continue
+			}
+		}
+		resolvedPath := resolveImportPath(importPath, filepath.Dir(workflow.WorkflowPath), importPathImportsOpts)
+		importsLog.Printf("Resolved import path: %s -> %s (workflow: %s)", importPath, resolvedPath, workflow.WorkflowPath)
+		workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, resolvedPath, commitSHA, workflow.Version)
+		importsLog.Printf("Converted import: %s -> %s", importPath, workflowSpec)
+		processed = append(processed, workflowSpec)
+	}
+	return processed
+}
+
+func processImportsWithWorkflowSpecCollectStrings(items []any) []string {
+	// Extracts string paths from a []any slice.
+	var paths []string
+	for _, item := range items {
+		if str, ok := item.(string); ok {
+			paths = append(paths, str)
+		}
+	}
+	return paths
 }
 
 // reconstructWorkflowFileFromMap reconstructs a workflow file from frontmatter map and markdown
@@ -156,146 +150,160 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Processing @include directives to replace with workflowspec"))
 	}
 
-	// Track visited includes to prevent cycles
-	visited := make(map[string]struct {
-	})
-
-	// Use a queue to process files iteratively instead of recursion
+	visited := make(map[string]struct{})
 	queue := []string{}
+	result, err := processIncludesWithWorkflowSpecContent(content, workflow, commitSHA, localWorkflowDir, visited, &queue, verbose)
+	if err != nil {
+		return "", err
+	}
+	processIncludesWithWorkflowSpecQueue(queue, visited, packagePath, verbose)
+	return result, nil
+}
 
-	// Process the main content first
+func processIncludesWithWorkflowSpecContent(
+	content string,
+	workflow *WorkflowSpec,
+	commitSHA, localWorkflowDir string,
+	visited map[string]struct{},
+	queue *[]string,
+	verbose bool,
+) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result strings.Builder
-
 	for scanner.Scan() {
 		line := scanner.Text()
-
-		// Parse import directive using the helper function that handles both syntaxes
 		directive := parser.ParseImportDirective(line)
-		if directive != nil {
-			isOptional := directive.IsOptional
-			includePath := directive.Path
-
-			// Skip if it's already a workflowspec (owner/repo/path@sha format)
-			if isWorkflowSpecFormat(includePath) {
-				result.WriteString(line + "\n")
-				continue
-			}
-
-			// Handle section references (file.md#Section)
-			filePath, sectionName := splitImportPath(includePath)
-
-			// Skip if filePath is empty (e.g., section-only reference like "#Section")
-			if filePath == "" {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Skipping include with empty file path: "+line))
-				}
-				result.WriteString(line + "\n")
-				continue
-			}
-
-			// Preserve relative {{#import}} paths whose files exist in the local workflow directory.
-			if localWorkflowDir != "" && !strings.HasPrefix(filePath, "/") {
-				if isLocalFileForUpdate(localWorkflowDir, filePath) {
-					importsLog.Printf("Include path exists locally, preserving: %s", filePath)
-					result.WriteString(line + "\n")
-					// Add file to queue for processing nested includes (first visit only)
-					if !setutil.Contains(visited, filePath) {
-						visited[filePath] = struct {
-						}{}
-						queue = append(queue, filePath)
-					}
-					continue
-				}
-			}
-
-			// Resolve the file path relative to the workflow file's directory
-			resolvedPath := resolveImportPath(filePath, filepath.Dir(workflow.WorkflowPath), importPathImportsOpts)
-
-			// Build workflowspec for this include
-			workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, resolvedPath, commitSHA, workflow.Version)
-
-			// Add section if present
-			if sectionName != "" {
-				workflowSpec += "#" + sectionName
-			}
-
-			// Write the updated @include directive (even for duplicate occurrences)
-			writeImportDirective(&result, workflowSpec, isOptional)
-
-			// Only enqueue for nested-include processing on the first visit to prevent cycles
-			if !setutil.Contains(visited, filePath) {
-				visited[filePath] = struct {
-				}{}
-				queue = append(queue, filePath)
-			}
-		} else {
+		if directive == nil {
 			// Regular line, pass through
 			result.WriteString(line + "\n")
+			continue
 		}
+		processIncludesWithWorkflowSpecDirective(processIncludesWithWorkflowSpecDirectiveParams{
+			Result:           &result,
+			Line:             line,
+			Directive:        directive,
+			Workflow:         workflow,
+			CommitSHA:        commitSHA,
+			LocalWorkflowDir: localWorkflowDir,
+			Visited:          visited,
+			Queue:            queue,
+			Verbose:          verbose,
+		})
 	}
-
 	if err := scanner.Err(); err != nil {
 		return "", err
 	}
+	return result.String(), nil
+}
 
+type processIncludesWithWorkflowSpecDirectiveParams struct {
+	Result           *strings.Builder
+	Line             string
+	Directive        *parser.ImportDirectiveMatch
+	Workflow         *WorkflowSpec
+	CommitSHA        string
+	LocalWorkflowDir string
+	Visited          map[string]struct{}
+	Queue            *[]string
+	Verbose          bool
+}
+
+func processIncludesWithWorkflowSpecDirective(p processIncludesWithWorkflowSpecDirectiveParams) {
+	includePath := p.Directive.Path
+	if isWorkflowSpecFormat(includePath) {
+		p.Result.WriteString(p.Line + "\n")
+		return
+	}
+	filePath, sectionName := splitImportPath(includePath)
+	if filePath == "" {
+		if p.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Skipping include with empty file path: "+p.Line))
+		}
+		p.Result.WriteString(p.Line + "\n")
+		return
+	}
+	if processIncludesWithWorkflowSpecPreserveLocal(p.Result, p.Line, filePath, p.LocalWorkflowDir, p.Visited, p.Queue) {
+		return
+	}
+	resolvedPath := resolveImportPath(filePath, filepath.Dir(p.Workflow.WorkflowPath), importPathImportsOpts)
+	workflowSpec := buildWorkflowSpecRef(p.Workflow.RepoSlug, resolvedPath, p.CommitSHA, p.Workflow.Version)
+	if sectionName != "" {
+		workflowSpec += "#" + sectionName
+	}
+	writeImportDirective(p.Result, workflowSpec, p.Directive.IsOptional)
+	processIncludesWithWorkflowSpecEnqueue(filePath, p.Visited, p.Queue)
+}
+
+func processIncludesWithWorkflowSpecPreserveLocal(result *strings.Builder, line, filePath, localWorkflowDir string, visited map[string]struct{}, queue *[]string) bool {
+	if localWorkflowDir == "" || strings.HasPrefix(filePath, "/") || !isLocalFileForUpdate(localWorkflowDir, filePath) {
+		return false
+	}
+	importsLog.Printf("Include path exists locally, preserving: %s", filePath)
+	result.WriteString(line + "\n")
+	processIncludesWithWorkflowSpecEnqueue(filePath, visited, queue)
+	return true
+}
+
+func processIncludesWithWorkflowSpecEnqueue(filePath string, visited map[string]struct{}, queue *[]string) {
+	if !setutil.Contains(visited, filePath) {
+		visited[filePath] = struct{}{}
+		*queue = append(*queue, filePath)
+	}
+}
+
+func processIncludesWithWorkflowSpecQueue(queue []string, visited map[string]struct{}, packagePath string, verbose bool) {
 	// Process queue of files to check for nested includes
 	for len(queue) > 0 {
-		// Dequeue the first file
 		filePath := queue[0]
 		queue = queue[1:]
-
-		fullSourcePath := filepath.Join(packagePath, filePath)
-		if _, err := os.Stat(fullSourcePath); err != nil {
-			continue // File doesn't exist, skip
-		}
-
-		includedContent, err := os.ReadFile(fullSourcePath)
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not read include file %s: %v", fullSourcePath, err)))
-			}
+		markdownContent, ok := processIncludesWithWorkflowSpecReadQueued(filePath, packagePath, verbose)
+		if !ok {
 			continue
 		}
-
-		// Extract markdown content from the included file
-		markdownContent, err := parser.ExtractMarkdownContent(string(includedContent))
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not extract markdown from %s: %v", fullSourcePath, err)))
-			}
-			continue
-		}
-
-		// Scan for nested includes
-		nestedScanner := bufio.NewScanner(strings.NewReader(markdownContent))
-		for nestedScanner.Scan() {
-			line := nestedScanner.Text()
-
-			directive := parser.ParseImportDirective(line)
-			if directive != nil {
-				includePath := directive.Path
-
-				// Handle section references
-				nestedFilePath, _ := splitImportPath(includePath)
-
-				// Check for cycle detection
-				if setutil.Contains(visited, nestedFilePath) {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cycle detected for include: %s, skipping", nestedFilePath)))
-					}
-					continue
-				}
-
-				// Mark as visited and add to queue
-				visited[nestedFilePath] = struct {
-				}{}
-				queue = append(queue, nestedFilePath)
-			}
-		}
+		queue = processIncludesWithWorkflowSpecNested(markdownContent, queue, visited, verbose)
 	}
+}
 
-	return result.String(), nil
+func processIncludesWithWorkflowSpecReadQueued(filePath, packagePath string, verbose bool) (string, bool) {
+	fullSourcePath := filepath.Join(packagePath, filePath)
+	if _, err := os.Stat(fullSourcePath); err != nil {
+		return "", false
+	}
+	includedContent, err := os.ReadFile(fullSourcePath)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not read include file %s: %v", fullSourcePath, err)))
+		}
+		return "", false
+	}
+	markdownContent, err := parser.ExtractMarkdownContent(string(includedContent))
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not extract markdown from %s: %v", fullSourcePath, err)))
+		}
+		return "", false
+	}
+	return markdownContent, true
+}
+
+func processIncludesWithWorkflowSpecNested(markdownContent string, queue []string, visited map[string]struct{}, verbose bool) []string {
+	nestedScanner := bufio.NewScanner(strings.NewReader(markdownContent))
+	for nestedScanner.Scan() {
+		directive := parser.ParseImportDirective(nestedScanner.Text())
+		if directive == nil {
+			continue
+		}
+		nestedFilePath, _ := splitImportPath(directive.Path)
+		if setutil.Contains(visited, nestedFilePath) {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cycle detected for include: %s, skipping", nestedFilePath)))
+			}
+			continue
+		}
+		visited[nestedFilePath] = struct{}{}
+		queue = append(queue, nestedFilePath)
+	}
+	return queue
 }
 
 // processIncludesInContent processes @include directives in workflow content for update command
@@ -322,57 +330,51 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 
 		// Parse import directive
 		directive := parser.ParseImportDirective(line)
-		if directive != nil {
-			isOptional := directive.IsOptional
-			includePath := directive.Path
-
-			// Skip if it's already a workflowspec (owner/repo/path@sha format)
-			if isWorkflowSpecFormat(includePath) {
-				result.WriteString(line + "\n")
-				continue
-			}
-
-			// Handle section references (file.md#Section)
-			filePath, sectionName := splitImportPath(includePath)
-
-			// Skip if filePath is empty (e.g., section-only reference like "#Section")
-			if filePath == "" {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Skipping include with empty file path: "+line))
-				}
-				result.WriteString(line + "\n")
-				continue
-			}
-
-			// Preserve relative {{#import}} paths whose files exist in the local workflow directory.
-			if localWorkflowDir != "" && !strings.HasPrefix(filePath, "/") {
-				if isLocalFileForUpdate(localWorkflowDir, filePath) {
-					importsLog.Printf("Include path exists locally, preserving: %s", filePath)
-					result.WriteString(line + "\n")
-					continue
-				}
-			}
-
-			// Resolve the file path relative to the workflow file's directory
-			resolvedPath := resolveImportPath(filePath, filepath.Dir(workflow.WorkflowPath), importPathImportsOpts)
-
-			// Build workflowspec for this include
-			workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, resolvedPath, commitSHA, workflow.Version)
-
-			// Add section if present
-			if sectionName != "" {
-				workflowSpec += "#" + sectionName
-			}
-
-			// Write the updated import directive
-			writeImportDirective(&result, workflowSpec, isOptional)
-		} else {
+		if directive == nil {
 			// Regular line, pass through
 			result.WriteString(line + "\n")
+			continue
 		}
+		processIncludesInContentDirective(&result, line, directive, workflow, commitSHA, localWorkflowDir, verbose)
 	}
 
 	return result.String(), scanner.Err()
+}
+
+func processIncludesInContentDirective(
+	result *strings.Builder,
+	line string,
+	directive *parser.ImportDirectiveMatch,
+	workflow *WorkflowSpec,
+	commitSHA, localWorkflowDir string,
+	verbose bool,
+) {
+	includePath := directive.Path
+	if isWorkflowSpecFormat(includePath) {
+		result.WriteString(line + "\n")
+		return
+	}
+	filePath, sectionName := splitImportPath(includePath)
+	if filePath == "" {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Skipping include with empty file path: "+line))
+		}
+		result.WriteString(line + "\n")
+		return
+	}
+	if localWorkflowDir != "" && !strings.HasPrefix(filePath, "/") {
+		if isLocalFileForUpdate(localWorkflowDir, filePath) {
+			importsLog.Printf("Include path exists locally, preserving: %s", filePath)
+			result.WriteString(line + "\n")
+			return
+		}
+	}
+	resolvedPath := resolveImportPath(filePath, filepath.Dir(workflow.WorkflowPath), importPathImportsOpts)
+	workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, resolvedPath, commitSHA, workflow.Version)
+	if sectionName != "" {
+		workflowSpec += "#" + sectionName
+	}
+	writeImportDirective(result, workflowSpec, directive.IsOptional)
 }
 
 // isLocalFileForUpdate returns true when importPath resolves to an existing file

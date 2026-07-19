@@ -62,10 +62,30 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 
 	safeOutputsMaxValidationLog.Print("Validating safe-outputs max fields")
 
-	// Direct field access — no reflection, no heap allocation.
-	// Fields are checked in the alphabetical order of their struct field names,
-	// matching the sort order of safeOutputFieldMapping keys for deterministic
-	// error reporting.
+	if err := validateSafeOutputsMaxCore(config); err != nil {
+		return err
+	}
+	if err := validateSafeOutputsMaxReview(config); err != nil {
+		return err
+	}
+	if err := validateSafeOutputsMaxIssueAndProject(config); err != nil {
+		return err
+	}
+	if err := validateSafeOutputsMaxPRReview(config); err != nil {
+		return err
+	}
+	if err := validateSafeOutputsMaxUpdates(config); err != nil {
+		return err
+	}
+	if err := validateDispatchRepositoryMax(config); err != nil {
+		return err
+	}
+
+	safeOutputsMaxValidationLog.Print("Safe-outputs max fields validation passed")
+	return nil
+}
+
+func validateSafeOutputsMaxCore(config *SafeOutputsConfig) error {
 	if config.AddComments != nil {
 		if err := checkMaxField("add_comment", config.AddComments.Max); err != nil {
 			return err
@@ -106,6 +126,10 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func validateSafeOutputsMaxReview(config *SafeOutputsConfig) error {
 	if config.CloseDiscussions != nil {
 		if err := checkMaxField("close_discussion", config.CloseDiscussions.Max); err != nil {
 			return err
@@ -156,6 +180,10 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	return validateSafeOutputsMaxCreatePullRequests(config)
+}
+
+func validateSafeOutputsMaxCreatePullRequests(config *SafeOutputsConfig) error {
 	if config.CreatePullRequestReviewComments != nil {
 		if err := checkMaxField("create_pull_request_review_comment", config.CreatePullRequestReviewComments.Max); err != nil {
 			return err
@@ -166,6 +194,10 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func validateSafeOutputsMaxIssueAndProject(config *SafeOutputsConfig) error {
 	if config.DispatchWorkflow != nil {
 		if err := checkMaxField("dispatch_workflow", config.DispatchWorkflow.Max); err != nil {
 			return err
@@ -211,6 +243,10 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func validateSafeOutputsMaxPRReview(config *SafeOutputsConfig) error {
 	if config.PushToPullRequestBranch != nil {
 		if err := checkMaxField("push_to_pull_request_branch", config.PushToPullRequestBranch.Max); err != nil {
 			return err
@@ -251,6 +287,10 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func validateSafeOutputsMaxUpdates(config *SafeOutputsConfig) error {
 	if config.UnassignFromUser != nil {
 		if err := checkMaxField("unassign_from_user", config.UnassignFromUser.Max); err != nil {
 			return err
@@ -291,9 +331,10 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	return nil
+}
 
-	// Validate max on dispatch_repository tools (different structure: map of tools).
-	// Use sorted tool names for deterministic error reporting.
+func validateDispatchRepositoryMax(config *SafeOutputsConfig) error {
 	if config.DispatchRepository != nil {
 		sortedToolNames := sliceutil.SortedKeys(config.DispatchRepository.Tools)
 
@@ -317,7 +358,5 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			}
 		}
 	}
-
-	safeOutputsMaxValidationLog.Print("Safe-outputs max fields validation passed")
 	return nil
 }

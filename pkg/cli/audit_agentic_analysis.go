@@ -105,59 +105,22 @@ func mergeMCPToolUsageInfo(toolUsage []ToolUsageInfo, mcpToolUsage *MCPToolUsage
 		toolStats[info.Name] = &cloned
 	}
 
-	addOrUpdateToolUsage := func(name string, callCount, maxInputSize, maxOutputSize int, maxDuration string) {
-		normalizedName := strings.TrimSpace(name)
-		if normalizedName == "" {
-			return
-		}
-		displayKey := workflow.PrettifyToolName(normalizedName)
-		if existing, exists := toolStats[displayKey]; exists {
-			existing.CallCount += callCount
-			if maxInputSize > existing.MaxInputSize {
-				existing.MaxInputSize = maxInputSize
-			}
-			if maxOutputSize > existing.MaxOutputSize {
-				existing.MaxOutputSize = maxOutputSize
-			}
-			if maxDuration != "" {
-				maxDurationValue := parseDurationString(maxDuration)
-				if existing.MaxDuration == "" {
-					existing.MaxDuration = maxDuration
-				} else {
-					existingMaxDurationValue := parseDurationString(existing.MaxDuration)
-					if maxDurationValue > existingMaxDurationValue {
-						existing.MaxDuration = maxDuration
-					}
-				}
-			}
-			return
-		}
-
-		toolStats[displayKey] = &ToolUsageInfo{
-			Name:          displayKey,
-			CallCount:     callCount,
-			MaxInputSize:  maxInputSize,
-			MaxOutputSize: maxOutputSize,
-			MaxDuration:   maxDuration,
-		}
-	}
-
 	if len(mcpToolUsage.Summary) > 0 {
 		for _, summary := range mcpToolUsage.Summary {
 			switch {
 			case summary.ServerName != "" && summary.ToolName != "":
-				addOrUpdateToolUsage(summary.ServerName+"."+summary.ToolName, summary.CallCount, summary.MaxInputSize, summary.MaxOutputSize, summary.MaxDuration)
+				mergeMCPToolUsageInfoAdd(toolStats, summary.ServerName+"."+summary.ToolName, summary.CallCount, summary.MaxInputSize, summary.MaxOutputSize, summary.MaxDuration)
 			case summary.ToolName != "":
-				addOrUpdateToolUsage(summary.ToolName, summary.CallCount, summary.MaxInputSize, summary.MaxOutputSize, summary.MaxDuration)
+				mergeMCPToolUsageInfoAdd(toolStats, summary.ToolName, summary.CallCount, summary.MaxInputSize, summary.MaxOutputSize, summary.MaxDuration)
 			}
 		}
 	} else {
 		for _, call := range mcpToolUsage.ToolCalls {
 			switch {
 			case call.ServerName != "" && call.ToolName != "":
-				addOrUpdateToolUsage(call.ServerName+"."+call.ToolName, 1, call.InputSize, call.OutputSize, call.Duration)
+				mergeMCPToolUsageInfoAdd(toolStats, call.ServerName+"."+call.ToolName, 1, call.InputSize, call.OutputSize, call.Duration)
 			case call.ToolName != "":
-				addOrUpdateToolUsage(call.ToolName, 1, call.InputSize, call.OutputSize, call.Duration)
+				mergeMCPToolUsageInfoAdd(toolStats, call.ToolName, 1, call.InputSize, call.OutputSize, call.Duration)
 			}
 		}
 	}
@@ -175,6 +138,43 @@ func mergeMCPToolUsageInfo(toolUsage []ToolUsageInfo, mcpToolUsage *MCPToolUsage
 	})
 
 	return mergedToolUsage
+}
+
+func mergeMCPToolUsageInfoAdd(toolStats map[string]*ToolUsageInfo, name string, callCount, maxInputSize, maxOutputSize int, maxDuration string) {
+	normalizedName := strings.TrimSpace(name)
+	if normalizedName == "" {
+		return
+	}
+	displayKey := workflow.PrettifyToolName(normalizedName)
+	if existing, exists := toolStats[displayKey]; exists {
+		mergeMCPToolUsageInfoUpdateExisting(existing, callCount, maxInputSize, maxOutputSize, maxDuration)
+		return
+	}
+
+	toolStats[displayKey] = &ToolUsageInfo{
+		Name:          displayKey,
+		CallCount:     callCount,
+		MaxInputSize:  maxInputSize,
+		MaxOutputSize: maxOutputSize,
+		MaxDuration:   maxDuration,
+	}
+}
+
+func mergeMCPToolUsageInfoUpdateExisting(existing *ToolUsageInfo, callCount, maxInputSize, maxOutputSize int, maxDuration string) {
+	existing.CallCount += callCount
+	if maxInputSize > existing.MaxInputSize {
+		existing.MaxInputSize = maxInputSize
+	}
+	if maxOutputSize > existing.MaxOutputSize {
+		existing.MaxOutputSize = maxOutputSize
+	}
+	if maxDuration == "" {
+		return
+	}
+	maxDurationValue := parseDurationString(maxDuration)
+	if existing.MaxDuration == "" || maxDurationValue > parseDurationString(existing.MaxDuration) {
+		existing.MaxDuration = maxDuration
+	}
 }
 
 func deriveRunAgenticAnalysis(processedRun ProcessedRun, metrics LogMetrics) (*AwContext, []ToolUsageInfo, []CreatedItemReport, *TaskDomainInfo, *BehaviorFingerprint, []AgenticAssessment) {
@@ -316,20 +316,33 @@ func buildAgenticAssessments(processedRun ProcessedRun, metrics MetricsData, too
 	frictionEvents := len(processedRun.MissingTools) + len(processedRun.MCPFailures) + len(processedRun.MissingData)
 	writeCount := len(createdItems) + processedRun.Run.SafeItemsCount
 
-	if fingerprint.ResourceProfile == "heavy" {
-		severity := "medium"
-		if metrics.Turns >= 14 || toolTypes >= 7 || processedRun.Run.Duration >= 20*time.Minute {
-			severity = "high"
-		}
-		assessments = append(assessments, AgenticAssessment{
-			Kind:           "resource_heavy_for_domain",
-			Severity:       severity,
-			Summary:        fmt.Sprintf("This %s run consumed a heavy execution profile for its task shape.", domain.Label),
-			Evidence:       fmt.Sprintf("turns=%d tool_types=%d duration=%s write_actions=%d", metrics.Turns, toolTypes, formatAssessmentDuration(processedRun.Run.Duration), writeCount),
-			Recommendation: "Compare this run to similar successful runs and trim unnecessary turns, tools, or write actions.",
-		})
-	}
+	assessments = buildAgenticAssessmentsResource(processedRun, metrics, domain, fingerprint, assessments, toolTypes, writeCount)
+	assessments = buildAgenticAssessmentsControl(processedRun, metrics, domain, fingerprint, assessments, toolTypes, frictionEvents, writeCount)
+	assessments = buildAgenticAssessmentsOptimization(metrics, domain, fingerprint, assessments)
+	assessments = buildAgenticAssessmentsDelegated(awContext, assessments)
 
+	auditAgenticLog.Printf("Built %d agentic assessments", len(assessments))
+	return assessments
+}
+
+func buildAgenticAssessmentsResource(processedRun ProcessedRun, metrics MetricsData, domain *TaskDomainInfo, fingerprint *BehaviorFingerprint, assessments []AgenticAssessment, toolTypes, writeCount int) []AgenticAssessment {
+	if fingerprint.ResourceProfile != "heavy" {
+		return assessments
+	}
+	severity := "medium"
+	if metrics.Turns >= 14 || toolTypes >= 7 || processedRun.Run.Duration >= 20*time.Minute {
+		severity = "high"
+	}
+	return append(assessments, AgenticAssessment{
+		Kind:           "resource_heavy_for_domain",
+		Severity:       severity,
+		Summary:        fmt.Sprintf("This %s run consumed a heavy execution profile for its task shape.", domain.Label),
+		Evidence:       fmt.Sprintf("turns=%d tool_types=%d duration=%s write_actions=%d", metrics.Turns, toolTypes, formatAssessmentDuration(processedRun.Run.Duration), writeCount),
+		Recommendation: "Compare this run to similar successful runs and trim unnecessary turns, tools, or write actions.",
+	})
+}
+
+func buildAgenticAssessmentsControl(processedRun ProcessedRun, metrics MetricsData, domain *TaskDomainInfo, fingerprint *BehaviorFingerprint, assessments []AgenticAssessment, toolTypes, frictionEvents, writeCount int) []AgenticAssessment {
 	if (domain.Name == "triage" || domain.Name == "repo_maintenance" || domain.Name == "issue_response") && fingerprint.ResourceProfile == "lean" && fingerprint.ExecutionStyle == "directed" && fingerprint.ToolBreadth == "narrow" {
 		assessments = append(assessments, AgenticAssessment{
 			Kind:           "overkill_for_agentic",
@@ -339,7 +352,6 @@ func buildAgenticAssessments(processedRun ProcessedRun, metrics MetricsData, too
 			Recommendation: "Consider whether a scripted rule or deterministic workflow step could replace this agentic path.",
 		})
 	}
-
 	if frictionEvents >= 3 || (frictionEvents > 0 && writeCount >= 3) || ((domain.Name == "triage" || domain.Name == "repo_maintenance" || domain.Name == "issue_response") && fingerprint.ExecutionStyle == "exploratory") {
 		severity := "medium"
 		if frictionEvents >= 4 || (frictionEvents > 0 && fingerprint.ActuationStyle == "write_heavy") {
@@ -353,29 +365,12 @@ func buildAgenticAssessments(processedRun ProcessedRun, metrics MetricsData, too
 			Recommendation: "Tighten instructions, reduce unnecessary tools, or delay write actions until the workflow has stronger evidence.",
 		})
 	}
+	_ = processedRun
+	return assessments
+}
 
-	// Partially reducible: the workflow has a low agentic fraction, meaning
-	// many turns are data-gathering that could be moved to deterministic steps:
-	// or post-steps: in the frontmatter. Only flag when there's substantive work
-	// (not lean/directed runs which overkill_for_agentic already covers).
-	if fingerprint.AgenticFraction > 0 && fingerprint.AgenticFraction < 0.6 &&
-		fingerprint.ResourceProfile != "lean" {
-		severity := "low"
-		if fingerprint.AgenticFraction < 0.4 {
-			severity = "medium"
-		}
-		deterministicPct := int((1.0 - fingerprint.AgenticFraction) * 100)
-		assessments = append(assessments, AgenticAssessment{
-			Kind:           "partially_reducible",
-			Severity:       severity,
-			Summary:        fmt.Sprintf("About %d%% of this run's turns appear to be data-gathering that could move to deterministic steps.", deterministicPct),
-			Evidence:       fmt.Sprintf("agentic_fraction=%.2f turns=%d", fingerprint.AgenticFraction, metrics.Turns),
-			Recommendation: "Move data-fetching work to frontmatter steps: (pre-agent) writing to /tmp/gh-aw/agent/ or post-steps: (post-agent) to reduce inference cost. See the DeterministicOps guide.",
-		})
-	}
-
-	// Model downgrade suggestion: the run uses a heavy resource profile but
-	// the task domain is simple enough that a smaller model would likely suffice.
+func buildAgenticAssessmentsOptimization(metrics MetricsData, domain *TaskDomainInfo, fingerprint *BehaviorFingerprint, assessments []AgenticAssessment) []AgenticAssessment {
+	assessments = buildAgenticAssessmentsReducible(metrics, fingerprint, assessments)
 	if fingerprint.ResourceProfile != "lean" &&
 		(domain.Name == "triage" || domain.Name == "repo_maintenance" || domain.Name == "issue_response") &&
 		fingerprint.ActuationStyle != "write_heavy" {
@@ -387,19 +382,42 @@ func buildAgenticAssessments(processedRun ProcessedRun, metrics MetricsData, too
 			Recommendation: "Try engine.model: gpt-4.1-mini or claude-haiku-4-5 in the workflow frontmatter.",
 		})
 	}
-
-	if awContext != nil {
-		assessments = append(assessments, AgenticAssessment{
-			Kind:           "delegated_context_present",
-			Severity:       "info",
-			Summary:        "The run preserved upstream dispatch context, which helps trace multi-workflow episodes.",
-			Evidence:       fmt.Sprintf("workflow_call_id=%s event_type=%s", awContext.WorkflowCallID, awContext.EventType),
-			Recommendation: "Use this context when comparing downstream runs so follow-up workflows are evaluated as part of one task chain.",
-		})
-	}
-
-	auditAgenticLog.Printf("Built %d agentic assessments", len(assessments))
 	return assessments
+}
+
+func buildAgenticAssessmentsReducible(metrics MetricsData, fingerprint *BehaviorFingerprint, assessments []AgenticAssessment) []AgenticAssessment {
+	// Partially reducible: the workflow has a low agentic fraction, meaning
+	// many turns are data-gathering that could be moved to deterministic steps:
+	// or post-steps: in the frontmatter. Only flag when there's substantive work
+	// (not lean/directed runs which overkill_for_agentic already covers).
+	if fingerprint.AgenticFraction <= 0 || fingerprint.AgenticFraction >= 0.6 || fingerprint.ResourceProfile == "lean" {
+		return assessments
+	}
+	severity := "low"
+	if fingerprint.AgenticFraction < 0.4 {
+		severity = "medium"
+	}
+	deterministicPct := int((1.0 - fingerprint.AgenticFraction) * 100)
+	return append(assessments, AgenticAssessment{
+		Kind:           "partially_reducible",
+		Severity:       severity,
+		Summary:        fmt.Sprintf("About %d%% of this run's turns appear to be data-gathering that could move to deterministic steps.", deterministicPct),
+		Evidence:       fmt.Sprintf("agentic_fraction=%.2f turns=%d", fingerprint.AgenticFraction, metrics.Turns),
+		Recommendation: "Move data-fetching work to frontmatter steps: (pre-agent) writing to /tmp/gh-aw/agent/ or post-steps: (post-agent) to reduce inference cost. See the DeterministicOps guide.",
+	})
+}
+
+func buildAgenticAssessmentsDelegated(awContext *AwContext, assessments []AgenticAssessment) []AgenticAssessment {
+	if awContext == nil {
+		return assessments
+	}
+	return append(assessments, AgenticAssessment{
+		Kind:           "delegated_context_present",
+		Severity:       "info",
+		Summary:        "The run preserved upstream dispatch context, which helps trace multi-workflow episodes.",
+		Evidence:       fmt.Sprintf("workflow_call_id=%s event_type=%s", awContext.WorkflowCallID, awContext.EventType),
+		Recommendation: "Use this context when comparing downstream runs so follow-up workflows are evaluated as part of one task chain.",
+	})
 }
 
 func generateAgenticAssessmentFindings(assessments []AgenticAssessment) []Finding {

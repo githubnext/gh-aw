@@ -115,26 +115,16 @@ has been closing or merging under the current objective mapping.`,
 }
 
 func RunOutcomesHistory(config OutcomesHistoryConfig) error {
-	repo := config.RepoOverride
-	if repo == "" {
-		slug, err := GetCurrentRepoSlug()
-		if err != nil {
-			return fmt.Errorf("could not determine repository: %w", err)
-		}
-		repo = slug
+	repo, err := runOutcomesHistoryRepo(config.RepoOverride)
+	if err != nil {
+		return err
 	}
-
-	if config.Limit <= 0 {
-		config.Limit = 200
+	limit := runOutcomesHistoryLimit(config.Limit)
+	source, err := runOutcomesHistorySource(config.Source)
+	if err != nil {
+		return err
 	}
-
-	source := strings.ToLower(strings.TrimSpace(config.Source))
-	if source == "" {
-		source = historySourceAll
-	}
-	if source != historySourceAll && source != historySourceIssues && source != historySourcePRs {
-		return fmt.Errorf("invalid --source %q: expected issues, prs, or all", config.Source)
-	}
+	config.Limit = limit
 
 	outcomesHistoryLog.Printf("Running outcomes history: repo=%s, source=%s, limit=%d, json=%v", repo, source, config.Limit, config.JSONOutput)
 
@@ -179,6 +169,35 @@ func RunOutcomesHistory(config OutcomesHistoryConfig) error {
 	return nil
 }
 
+func runOutcomesHistoryRepo(repoOverride string) (string, error) {
+	if repoOverride != "" {
+		return repoOverride, nil
+	}
+	slug, err := GetCurrentRepoSlug()
+	if err != nil {
+		return "", fmt.Errorf("could not determine repository: %w", err)
+	}
+	return slug, nil
+}
+
+func runOutcomesHistoryLimit(limit int) int {
+	if limit <= 0 {
+		return 200
+	}
+	return limit
+}
+
+func runOutcomesHistorySource(configSource string) (string, error) {
+	source := strings.ToLower(strings.TrimSpace(configSource))
+	if source == "" {
+		source = historySourceAll
+	}
+	if source != historySourceAll && source != historySourceIssues && source != historySourcePRs {
+		return "", fmt.Errorf("invalid --source %q: expected issues, prs, or all", configSource)
+	}
+	return source, nil
+}
+
 func fetchHistoricalGitHubItems(repo string, limit int, source string) ([]historicalGitHubItem, error) {
 	args := []string{"--repo", repo, "--limit", strconv.Itoa(limit), "--json", "number,title,labels,url"}
 	spinner := "Listing closed issues..."
@@ -212,46 +231,61 @@ func buildHistoricalObjectiveReport(source string, items []historicalGitHubItem,
 	scoredItems := 0
 
 	for _, item := range items {
-		labels := make([]string, 0, len(item.Labels))
-		for _, label := range item.Labels {
-			labels = append(labels, label.Name)
-		}
-
-		objectiveLabels := mapping.GetObjectiveLabels(labels)
-		objectiveValue := mapping.ComputeObjectiveValue(labels)
+		row, objectiveLabels, objectiveValue := buildHistoricalObjectiveReportRow(source, item, mapping)
 		if objectiveValue > 0 {
 			scoredItems++
 		}
 		totalObjectiveValue += objectiveValue
-
-		for _, label := range objectiveLabels {
-			normalized := strings.ToLower(strings.TrimSpace(label))
-			bucketCounts[normalized]++
-		}
-
-		rows = append(rows, historicalObjectiveItem{
-			Kind:            source,
-			Number:          item.Number,
-			Title:           item.Title,
-			URL:             item.URL,
-			ClosedAt:        item.ClosedAt,
-			MergedAt:        item.MergedAt,
-			ObjectiveLabels: objectiveLabels,
-			ObjectiveValue:  objectiveValue,
-		})
+		buildHistoricalObjectiveReportCountBuckets(bucketCounts, objectiveLabels)
+		rows = append(rows, row)
 	}
 
+	buckets := buildHistoricalObjectiveReportBuckets(bucketCounts, mapping)
+	buildHistoricalObjectiveReportSortRows(rows)
+	representative := buildHistoricalObjectiveReportRepresentative(rows)
+	outcomesHistoryLog.Printf("Built %s report: scored=%d/%d, totalValue=%d, buckets=%d", source, scoredItems, len(items), totalObjectiveValue, len(buckets))
+	return historicalObjectiveReport{
+		Source:              source,
+		SampleSize:          len(items),
+		ScoredItems:         scoredItems,
+		TotalObjectiveValue: totalObjectiveValue,
+		ObjectiveBuckets:    buckets,
+		RepresentativeItems: representative,
+	}
+}
+
+func buildHistoricalObjectiveReportRow(source string, item historicalGitHubItem, mapping *ghmapping.ObjectiveMapping) (historicalObjectiveItem, []string, int) {
+	labels := make([]string, 0, len(item.Labels))
+	for _, label := range item.Labels {
+		labels = append(labels, label.Name)
+	}
+	objectiveLabels := mapping.GetObjectiveLabels(labels)
+	objectiveValue := mapping.ComputeObjectiveValue(labels)
+	return historicalObjectiveItem{
+		Kind:            source,
+		Number:          item.Number,
+		Title:           item.Title,
+		URL:             item.URL,
+		ClosedAt:        item.ClosedAt,
+		MergedAt:        item.MergedAt,
+		ObjectiveLabels: objectiveLabels,
+		ObjectiveValue:  objectiveValue,
+	}, objectiveLabels, objectiveValue
+}
+
+func buildHistoricalObjectiveReportCountBuckets(bucketCounts map[string]int, objectiveLabels []string) {
+	for _, label := range objectiveLabels {
+		normalized := strings.ToLower(strings.TrimSpace(label))
+		bucketCounts[normalized]++
+	}
+}
+
+func buildHistoricalObjectiveReportBuckets(bucketCounts map[string]int, mapping *ghmapping.ObjectiveMapping) []historicalObjectiveBucket {
 	buckets := make([]historicalObjectiveBucket, 0, len(bucketCounts))
 	for label, count := range bucketCounts {
 		mappedValue := mapping.LabelToValue[label]
-		buckets = append(buckets, historicalObjectiveBucket{
-			Label:            label,
-			Count:            count,
-			MappedValue:      mappedValue,
-			ContributedValue: mappedValue * count,
-		})
+		buckets = append(buckets, historicalObjectiveBucket{Label: label, Count: count, MappedValue: mappedValue, ContributedValue: mappedValue * count})
 	}
-
 	slices.SortFunc(buckets, func(a, b historicalObjectiveBucket) int {
 		if a.ContributedValue != b.ContributedValue {
 			return cmp.Compare(b.ContributedValue, a.ContributedValue)
@@ -264,7 +298,10 @@ func buildHistoricalObjectiveReport(source string, items []historicalGitHubItem,
 		}
 		return strings.Compare(a.Label, b.Label)
 	})
+	return buckets
+}
 
+func buildHistoricalObjectiveReportSortRows(rows []historicalObjectiveItem) {
 	slices.SortFunc(rows, func(a, b historicalObjectiveItem) int {
 		if a.ObjectiveValue != b.ObjectiveValue {
 			return cmp.Compare(b.ObjectiveValue, a.ObjectiveValue)
@@ -279,7 +316,9 @@ func buildHistoricalObjectiveReport(source string, items []historicalGitHubItem,
 		}
 		return strings.Compare(leftTime, rightTime)
 	})
+}
 
+func buildHistoricalObjectiveReportRepresentative(rows []historicalObjectiveItem) []historicalObjectiveItem {
 	representative := make([]historicalObjectiveItem, 0, min(len(rows), 15))
 	for _, row := range rows {
 		if row.ObjectiveValue <= 0 {
@@ -290,16 +329,7 @@ func buildHistoricalObjectiveReport(source string, items []historicalGitHubItem,
 			break
 		}
 	}
-
-	outcomesHistoryLog.Printf("Built %s report: scored=%d/%d, totalValue=%d, buckets=%d", source, scoredItems, len(items), totalObjectiveValue, len(buckets))
-	return historicalObjectiveReport{
-		Source:              source,
-		SampleSize:          len(items),
-		ScoredItems:         scoredItems,
-		TotalObjectiveValue: totalObjectiveValue,
-		ObjectiveBuckets:    buckets,
-		RepresentativeItems: representative,
-	}
+	return representative
 }
 
 func renderHistoricalObjectiveReport(report historicalObjectiveReport) {

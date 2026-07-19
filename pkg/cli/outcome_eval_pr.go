@@ -58,14 +58,7 @@ func evalCreatePullRequest(item CreatedItemReport, repoOverride string) OutcomeR
 	}
 
 	// If no PR number, try to find the PR by searching recent PRs from github-actions
-	if num == 0 && repo != "" {
-		found := findPRByTimestamp(repo, item.Timestamp)
-		if found > 0 {
-			outcomeEvalPRLog.Printf("Resolved missing PR number via timestamp search: num=%d", found)
-			num = found
-			report.ObjectNumber = num
-		}
-	}
+	num = evalCreatePullRequestResolveNumber(num, repo, item.Timestamp, &report)
 
 	if num == 0 || repo == "" {
 		report.Result = OutcomeError
@@ -85,6 +78,38 @@ func evalCreatePullRequest(item CreatedItemReport, repoOverride string) OutcomeR
 	mergedAt, _ := data["merged_at"].(string)
 	closedAt, _ := data["closed_at"].(string)
 
+	evalCreatePullRequestClassify(&report, item, merged, state, mergedAt, closedAt)
+
+	// Count human comments (non-bot)
+	report.HumanComments = evalCreatePullRequestHumanComments(num, repo)
+
+	// Count reviews (used for ZeroTouch, stored separately from edits to avoid conflation)
+	reviews, err := ghAPIGetArray(fmt.Sprintf("pulls/%d/reviews", num), repo)
+	if err == nil {
+		report.HumanReviews = len(reviews)
+	}
+
+	if report.Result == OutcomeAccepted {
+		report.ZeroTouch = report.HumanComments == 0 && report.HumanReviews == 0
+	}
+
+	return report
+}
+
+func evalCreatePullRequestResolveNumber(num int, repo string, timestamp string, report *OutcomeReport) int {
+	if num != 0 || repo == "" {
+		return num
+	}
+	found := findPRByTimestamp(repo, timestamp)
+	if found > 0 {
+		outcomeEvalPRLog.Printf("Resolved missing PR number via timestamp search: num=%d", found)
+		report.ObjectNumber = found
+		return found
+	}
+	return num
+}
+
+func evalCreatePullRequestClassify(report *OutcomeReport, item CreatedItemReport, merged bool, state string, mergedAt string, closedAt string) {
 	switch {
 	case merged:
 		report.Result = OutcomeAccepted
@@ -102,28 +127,20 @@ func evalCreatePullRequest(item CreatedItemReport, repoOverride string) OutcomeR
 		report.Result = OutcomePending
 		report.Detail = "open"
 	}
+}
 
-	// Count human comments (non-bot)
+func evalCreatePullRequestHumanComments(num int, repo string) int {
 	comments, err := ghAPIGetArray(fmt.Sprintf("issues/%d/comments", num), repo)
-	if err == nil {
-		for _, c := range comments {
-			user, _ := c["user"].(map[string]any)
-			login, _ := user["login"].(string)
-			if !isBotUser(login) {
-				report.HumanComments++
-			}
+	if err != nil {
+		return 0
+	}
+	count := 0
+	for _, c := range comments {
+		user, _ := c["user"].(map[string]any)
+		login, _ := user["login"].(string)
+		if !isBotUser(login) {
+			count++
 		}
 	}
-
-	// Count reviews (used for ZeroTouch, stored separately from edits to avoid conflation)
-	reviews, err := ghAPIGetArray(fmt.Sprintf("pulls/%d/reviews", num), repo)
-	if err == nil {
-		report.HumanReviews = len(reviews)
-	}
-
-	if report.Result == OutcomeAccepted {
-		report.ZeroTouch = report.HumanComments == 0 && report.HumanReviews == 0
-	}
-
-	return report
+	return count
 }

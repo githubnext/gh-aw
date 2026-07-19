@@ -22,100 +22,22 @@ var mcpAddLog = logger.New("cli:mcp_add")
 func AddMCPTool(ctx context.Context, workflowFile string, mcpServerID string, registryURL string, transportType string, customToolID string, verbose bool) error {
 	mcpAddLog.Printf("Adding MCP tool: serverID=%s, registryURL=%s, transport=%s", mcpServerID, registryURL, transportType)
 
-	// Resolve the workflow file path
-	workflowPath, err := ResolveWorkflowPath(workflowFile)
+	workflowPath, err := addMCPToolResolveWorkflow(workflowFile, mcpServerID, verbose)
 	if err != nil {
-		mcpAddLog.Printf("Failed to resolve workflow path: %v", err)
 		return err
-	}
-	mcpAddLog.Printf("Resolved workflow path: %s", workflowPath)
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding MCP tool '%s' to workflow: %s", mcpServerID, console.ToRelativePath(workflowPath))))
 	}
 
 	// Create registry client
 	registryClient := NewMCPRegistryClient(registryURL)
-
-	// Search for the MCP server in the registry
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Searching for MCP server '%s' in registry: %s", mcpServerID, registryClient.registryURL)))
-	}
-
-	mcpAddLog.Printf("Searching MCP registry for server: %s", mcpServerID)
-	servers, err := registryClient.SearchServers(ctx, mcpServerID)
+	selectedServer, err := addMCPToolSelectServer(ctx, registryClient, mcpServerID, verbose)
 	if err != nil {
-		mcpAddLog.Printf("MCP registry search failed: %v", err)
-		return fmt.Errorf("failed to search MCP registry: %w", err)
-	}
-	mcpAddLog.Printf("Found %d matching servers in registry", len(servers))
-
-	if len(servers) == 0 {
-		return fmt.Errorf("no MCP servers found matching '%s'", mcpServerID)
-	}
-
-	// Find exact match by name first, then by partial match
-	var selectedServer *MCPRegistryServerForProcessing
-	for i, server := range servers {
-		// Prioritize name matches over ID matches
-		if server.Name == mcpServerID {
-			selectedServer = &servers[i]
-			break
-		}
-	}
-
-	// If no name match, try partial match
-	if selectedServer == nil {
-		for i, server := range servers {
-			if strings.Contains(strings.ToLower(server.Name), strings.ToLower(mcpServerID)) {
-				selectedServer = &servers[i]
-				break
-			}
-		}
-	}
-
-	// If still no exact match, use the first result if it looks like a partial match
-	if selectedServer == nil && len(servers) > 0 {
-		selectedServer = &servers[0]
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No exact match for '%s', using closest match: %s", mcpServerID, selectedServer.Name)))
-		}
-	}
-
-	if selectedServer == nil {
-		return fmt.Errorf("no MCP servers found matching '%s'", mcpServerID)
+		return err
 	}
 
 	// Determine tool ID (use custom if provided, otherwise use cleaned server name)
-	toolID := stringutil.SanitizeToolID(selectedServer.Name)
-	if customToolID != "" {
-		toolID = customToolID
-	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Selected server: %s (Transport: %s)", selectedServer.Name, selectedServer.Transport)))
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Will add as tool ID: "+toolID))
-	}
-
-	// Read the workflow file
-	content, err := os.ReadFile(workflowPath)
-	if err != nil {
-		return fmt.Errorf("failed to read workflow file: %w", err)
-	}
-
-	// Parse the workflow file
-	workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
-	if err != nil {
-		return fmt.Errorf("failed to parse workflow file: %w", err)
-	}
-
-	// Check if tool already exists
-	if workflowData.Frontmatter["tools"] != nil {
-		if tools, ok := workflowData.Frontmatter["tools"].(map[string]any); ok {
-			if _, exists := tools[toolID]; exists {
-				return fmt.Errorf("tool '%s' already exists in workflow", toolID)
-			}
-		}
+	toolID := addMCPToolToolID(selectedServer, customToolID, verbose)
+	if err := addMCPToolValidateWorkflow(workflowPath, toolID); err != nil {
+		return err
 	}
 
 	// Create MCP tool configuration based on server info and preferences
@@ -139,11 +61,103 @@ func AddMCPTool(ctx context.Context, workflowFile string, mcpServerID string, re
 		}
 	}
 
+	addMCPToolCompile(workflowPath, verbose)
+	return nil
+}
+
+func addMCPToolResolveWorkflow(workflowFile, mcpServerID string, verbose bool) (string, error) {
+	// Resolve the workflow file path
+	workflowPath, err := ResolveWorkflowPath(workflowFile)
+	if err != nil {
+		mcpAddLog.Printf("Failed to resolve workflow path: %v", err)
+		return "", err
+	}
+	mcpAddLog.Printf("Resolved workflow path: %s", workflowPath)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding MCP tool '%s' to workflow: %s", mcpServerID, console.ToRelativePath(workflowPath))))
+	}
+	return workflowPath, nil
+}
+
+func addMCPToolSelectServer(ctx context.Context, registryClient *MCPRegistryClient, mcpServerID string, verbose bool) (*MCPRegistryServerForProcessing, error) {
+	// Search for the MCP server in the registry
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Searching for MCP server '%s' in registry: %s", mcpServerID, registryClient.registryURL)))
+	}
+	mcpAddLog.Printf("Searching MCP registry for server: %s", mcpServerID)
+	servers, err := registryClient.SearchServers(ctx, mcpServerID)
+	if err != nil {
+		mcpAddLog.Printf("MCP registry search failed: %v", err)
+		return nil, fmt.Errorf("failed to search MCP registry: %w", err)
+	}
+	mcpAddLog.Printf("Found %d matching servers in registry", len(servers))
+	if len(servers) == 0 {
+		return nil, fmt.Errorf("no MCP servers found matching '%s'", mcpServerID)
+	}
+	if selectedServer := addMCPToolSelectServerMatch(servers, mcpServerID); selectedServer != nil {
+		return selectedServer, nil
+	}
+	selectedServer := &servers[0]
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No exact match for '%s', using closest match: %s", mcpServerID, selectedServer.Name)))
+	}
+	return selectedServer, nil
+}
+
+func addMCPToolSelectServerMatch(servers []MCPRegistryServerForProcessing, mcpServerID string) *MCPRegistryServerForProcessing {
+	for i, server := range servers {
+		// Prioritize name matches over ID matches
+		if server.Name == mcpServerID {
+			return &servers[i]
+		}
+	}
+	for i, server := range servers {
+		if strings.Contains(strings.ToLower(server.Name), strings.ToLower(mcpServerID)) {
+			return &servers[i]
+		}
+	}
+	return nil
+}
+
+func addMCPToolToolID(selectedServer *MCPRegistryServerForProcessing, customToolID string, verbose bool) string {
+	toolID := stringutil.SanitizeToolID(selectedServer.Name)
+	if customToolID != "" {
+		toolID = customToolID
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Selected server: %s (Transport: %s)", selectedServer.Name, selectedServer.Transport)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Will add as tool ID: "+toolID))
+	}
+	return toolID
+}
+
+func addMCPToolValidateWorkflow(workflowPath, toolID string) error {
+	// Read the workflow file
+	content, err := os.ReadFile(workflowPath)
+	if err != nil {
+		return fmt.Errorf("failed to read workflow file: %w", err)
+	}
+	// Parse the workflow file
+	workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return fmt.Errorf("failed to parse workflow file: %w", err)
+	}
+	// Check if tool already exists
+	if workflowData.Frontmatter["tools"] != nil {
+		if tools, ok := workflowData.Frontmatter["tools"].(map[string]any); ok {
+			if _, exists := tools[toolID]; exists {
+				return fmt.Errorf("tool '%s' already exists in workflow", toolID)
+			}
+		}
+	}
+	return nil
+}
+
+func addMCPToolCompile(workflowPath string, verbose bool) {
 	// Compile the workflow
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling workflow..."))
 	}
-
 	mcpAddLog.Print("Compiling workflow after adding MCP tool")
 	compiler := workflow.NewCompiler(
 		workflow.WithVerbose(verbose),
@@ -159,8 +173,6 @@ func AddMCPTool(ctx context.Context, workflowFile string, mcpServerID string, re
 		mcpAddLog.Print("Workflow compiled successfully")
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow compiled successfully"))
 	}
-
-	return nil
 }
 
 // createMCPToolConfig creates the MCP tool configuration based on registry server info
@@ -187,100 +199,92 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 		"registry": fmt.Sprintf("%s/servers/%s", registryURL, server.Name),
 	}
 
+	if err := createMCPToolConfigTransport(mcpSection, server, transport); err != nil {
+		return nil, err
+	}
+	config["mcp"] = mcpSection
+	return config, nil
+}
+
+func createMCPToolConfigTransport(mcpSection map[string]any, server *MCPRegistryServerForProcessing, transport string) error {
 	switch transport {
 	case "stdio":
-		// Handle container field (simplified Docker run)
-		if server.Config != nil {
-			if container, hasContainer := server.Config["container"]; hasContainer {
-				if containerStr, ok := container.(string); ok {
-					mcpSection["container"] = containerStr
+		createMCPToolConfigStdio(mcpSection, server)
+		return nil
+	case "http":
+		return createMCPToolConfigHTTP(mcpSection, server)
+	case "docker":
+		return createMCPToolConfigDocker(mcpSection, server)
+	default:
+		return fmt.Errorf("unsupported transport type: %s", transport)
+	}
+}
 
-					// Add environment variables for Docker container
-					if env, hasEnv := server.Config["env"]; hasEnv {
-						mcpSection["env"] = convertToGitHubActionsEnv(env, server.EnvironmentVariables)
-					}
-				}
-			} else {
-				// Handle regular command and args
-				// Use runtime_hint for command if available, otherwise fall back to Command
-				if server.RuntimeHint != "" {
-					mcpSection["command"] = server.RuntimeHint
-				} else if server.Command != "" {
-					mcpSection["command"] = server.Command
-				}
-
-				// Combine runtime_arguments and package arguments for args
-				var allArgs []string
-				allArgs = append(allArgs, server.RuntimeArguments...)
-				allArgs = append(allArgs, server.Args...)
-				if len(allArgs) > 0 {
-					mcpSection["args"] = allArgs
-				}
-
-				// Add environment variables if present
+func createMCPToolConfigStdio(mcpSection map[string]any, server *MCPRegistryServerForProcessing) {
+	if server.Config != nil {
+		if container, hasContainer := server.Config["container"]; hasContainer {
+			if containerStr, ok := container.(string); ok {
+				mcpSection["container"] = containerStr
 				if env, hasEnv := server.Config["env"]; hasEnv {
 					mcpSection["env"] = convertToGitHubActionsEnv(env, server.EnvironmentVariables)
 				}
 			}
-		} else {
-			// Handle command and args when no config
-			// Use runtime_hint for command if available, otherwise fall back to Command
-			if server.RuntimeHint != "" {
-				mcpSection["command"] = server.RuntimeHint
-			} else if server.Command != "" {
-				mcpSection["command"] = server.Command
-			}
-
-			// Combine runtime_arguments and package arguments for args
-			var allArgs []string
-			allArgs = append(allArgs, server.RuntimeArguments...)
-			allArgs = append(allArgs, server.Args...)
-			if len(allArgs) > 0 {
-				mcpSection["args"] = allArgs
-			}
+			return
 		}
-
-	case "http":
-		// For HTTP transport, we need a URL
-		if server.Config != nil {
-			if url, hasURL := server.Config["url"]; hasURL {
-				mcpSection["url"] = url
-			} else {
-				return nil, errors.New("HTTP transport requires URL configuration")
-			}
-
-			// Add headers if present
-			if headers, hasHeaders := server.Config["headers"]; hasHeaders {
-				mcpSection["headers"] = headers
-			}
-		} else {
-			return nil, errors.New("HTTP transport requires configuration")
+		createMCPToolConfigCommand(mcpSection, server)
+		if env, hasEnv := server.Config["env"]; hasEnv {
+			mcpSection["env"] = convertToGitHubActionsEnv(env, server.EnvironmentVariables)
 		}
+		return
+	}
+	createMCPToolConfigCommand(mcpSection, server)
+}
 
-	case "docker":
-		// For Docker transport, use container configuration
-		if server.Config != nil {
-			if container, hasContainer := server.Config["container"]; hasContainer {
-				mcpSection["container"] = container
-			} else {
-				return nil, errors.New("docker transport requires container configuration")
-			}
-
-			// Add environment variables if present
-			if env, hasEnv := server.Config["env"]; hasEnv {
-				mcpSection["env"] = convertToGitHubActionsEnv(env, server.EnvironmentVariables)
-			}
-		} else {
-			return nil, errors.New("docker transport requires configuration")
-		}
-
-	default:
-		return nil, fmt.Errorf("unsupported transport type: %s", transport)
+func createMCPToolConfigCommand(mcpSection map[string]any, server *MCPRegistryServerForProcessing) {
+	// Use runtime_hint for command if available, otherwise fall back to Command
+	if server.RuntimeHint != "" {
+		mcpSection["command"] = server.RuntimeHint
+	} else if server.Command != "" {
+		mcpSection["command"] = server.Command
 	}
 
-	config["mcp"] = mcpSection
+	// Combine runtime_arguments and package arguments for args
+	var allArgs []string
+	allArgs = append(allArgs, server.RuntimeArguments...)
+	allArgs = append(allArgs, server.Args...)
+	if len(allArgs) > 0 {
+		mcpSection["args"] = allArgs
+	}
+}
 
-	return config, nil
+func createMCPToolConfigHTTP(mcpSection map[string]any, server *MCPRegistryServerForProcessing) error {
+	if server.Config == nil {
+		return errors.New("HTTP transport requires configuration")
+	}
+	if url, hasURL := server.Config["url"]; hasURL {
+		mcpSection["url"] = url
+	} else {
+		return errors.New("HTTP transport requires URL configuration")
+	}
+	if headers, hasHeaders := server.Config["headers"]; hasHeaders {
+		mcpSection["headers"] = headers
+	}
+	return nil
+}
+
+func createMCPToolConfigDocker(mcpSection map[string]any, server *MCPRegistryServerForProcessing) error {
+	if server.Config == nil {
+		return errors.New("docker transport requires configuration")
+	}
+	if container, hasContainer := server.Config["container"]; hasContainer {
+		mcpSection["container"] = container
+	} else {
+		return errors.New("docker transport requires container configuration")
+	}
+	if env, hasEnv := server.Config["env"]; hasEnv {
+		mcpSection["env"] = convertToGitHubActionsEnv(env, server.EnvironmentVariables)
+	}
+	return nil
 }
 
 // addToolToWorkflow adds a tool configuration to the workflow file

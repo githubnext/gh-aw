@@ -123,13 +123,19 @@ func NewTools(toolsMap map[string]any) *Tools {
 	// Copy raw map
 	maps.Copy(tools.raw, toolsMap)
 
-	// Extract and parse known tools
+	parseKnownTools(tools, toolsMap)
+	customCount := parseCustomMCPTools(tools, toolsMap)
+
+	toolsParserLog.Printf("Parsed tools: github=%v, bash=%v, playwright=%v, custom=%d", tools.GitHub != nil, tools.Bash != nil, tools.Playwright != nil, customCount)
+	return tools
+}
+
+func parseKnownTools(tools *Tools, toolsMap map[string]any) {
 	if val, exists := toolsMap["github"]; exists {
 		tools.GitHub = parseGitHubTool(val)
 	}
 	if val, exists := toolsMap["bash"]; exists {
 		tools.Bash = parseBashTool(val)
-		// Check if parsing returned nil - this indicates invalid configuration
 		if tools.Bash == nil {
 			toolsParserLog.Print("Warning: bash tool configuration is invalid (nil/anonymous syntax not supported)")
 		}
@@ -146,6 +152,11 @@ func NewTools(toolsMap map[string]any) *Tools {
 	if val, exists := toolsMap["playwright"]; exists {
 		tools.Playwright = parsePlaywrightTool(val)
 	}
+	parseKnownMemoryAndTimingTools(tools, toolsMap)
+	parseCLIProxyTool(tools, toolsMap)
+}
+
+func parseKnownMemoryAndTimingTools(tools *Tools, toolsMap map[string]any) {
 	if val, exists := toolsMap["agentic-workflows"]; exists {
 		tools.AgenticWorkflows = parseAgenticWorkflowsTool(val)
 	}
@@ -164,16 +175,21 @@ func NewTools(toolsMap map[string]any) *Tools {
 	if val, exists := toolsMap["startup-timeout"]; exists {
 		tools.StartupTimeout = parseStartupTimeoutTool(val)
 	}
+}
 
-	if val, exists := toolsMap["cli-proxy"]; exists {
-		if b, ok := val.(bool); ok {
-			tools.CLIProxy = b
-		} else {
-			toolsParserLog.Printf("Warning: cli-proxy must be a boolean (true/false), ignoring value: %v", val)
-		}
+func parseCLIProxyTool(tools *Tools, toolsMap map[string]any) {
+	val, exists := toolsMap["cli-proxy"]
+	if !exists {
+		return
 	}
+	if b, ok := val.(bool); ok {
+		tools.CLIProxy = b
+		return
+	}
+	toolsParserLog.Printf("Warning: cli-proxy must be a boolean (true/false), ignoring value: %v", val)
+}
 
-	// Extract custom MCP tools (anything not in the known list)
+func parseCustomMCPTools(tools *Tools, toolsMap map[string]any) int {
 	customCount := 0
 	for name, config := range toolsMap {
 		if !setutil.Contains(knownTools, name) {
@@ -181,243 +197,186 @@ func NewTools(toolsMap map[string]any) *Tools {
 			customCount++
 		}
 	}
-
-	toolsParserLog.Printf("Parsed tools: github=%v, bash=%v, playwright=%v, custom=%d", tools.GitHub != nil, tools.Bash != nil, tools.Playwright != nil, customCount)
-	return tools
+	return customCount
 }
 
 // parseGitHubTool converts raw github tool configuration to GitHubToolConfig
 func parseGitHubTool(val any) *GitHubToolConfig {
 	if val == nil {
 		toolsParserLog.Print("GitHub tool enabled with default configuration")
-		return &GitHubToolConfig{
-			ReadOnly: true, // default to read-only for security
-		}
+		return defaultGitHubToolConfig()
 	}
 
-	// Handle string type (simple enable)
 	if _, ok := val.(string); ok {
 		toolsParserLog.Print("GitHub tool enabled with string configuration")
-		return &GitHubToolConfig{
-			ReadOnly: true, // default to read-only for security
-		}
+		return defaultGitHubToolConfig()
 	}
 
-	// Handle map type (detailed configuration)
 	if configMap, ok := val.(map[string]any); ok {
 		toolsParserLog.Print("Parsing GitHub tool detailed configuration")
-		config := &GitHubToolConfig{
-			ReadOnly: true, // default to read-only for security
-		}
-
-		if allowedSetting, ok := configMap["allowed"]; ok {
-			// Tool call limits are enforced by MCP guard policies; parser keeps only tool names.
-			allowedTools, _ := parseGitHubAllowedToolsAndLimits(allowedSetting)
-			config.Allowed = make(GitHubAllowedTools, 0, len(allowedTools))
-			for _, toolName := range allowedTools {
-				config.Allowed = append(config.Allowed, GitHubToolName(toolName))
-			}
-		}
-
-		if mode, ok := configMap["mode"].(string); ok {
-			config.Mode = GitHubMCPMode(mode)
-		}
-		if mcpType, ok := configMap["type"].(string); ok {
-			config.Type = mcpType
-		}
-
-		if version, ok := configMap["version"].(string); ok {
-			config.Version = version
-		}
-
-		if args, ok := configMap["args"].([]any); ok {
-			config.Args = make([]string, 0, len(args))
-			for _, item := range args {
-				if str, ok := item.(string); ok {
-					config.Args = append(config.Args, str)
-				}
-			}
-		}
-
-		if readOnly, ok := configMap["read-only"].(bool); ok {
-			config.ReadOnly = readOnly
-		}
-		// else: defaults to true (set above)
-
-		if token, ok := configMap["github-token"].(string); ok {
-			config.GitHubToken = token
-		}
-
-		// Check for both "toolset" and "toolsets" (plural is more common in user configs).
-		// Both fields accept either a single string (coerced to a one-element slice) or an
-		// array of strings, so that users can write either `toolsets: "default"` or
-		// `toolsets: [default]`.
-		if toolset, ok := configMap["toolsets"].([]any); ok {
-			config.Toolset = make(GitHubToolsets, 0, len(toolset))
-			for _, item := range toolset {
-				if str, ok := item.(string); ok {
-					config.Toolset = append(config.Toolset, GitHubToolset(str))
-				}
-			}
-		} else if toolsetStr, ok := configMap["toolsets"].(string); ok {
-			config.Toolset = GitHubToolsets{GitHubToolset(toolsetStr)}
-			// Normalize the raw map to an array so the compiled GitHub Actions YAML
-			// always emits an array, maintaining consistent output regardless of input form.
-			configMap["toolsets"] = []any{toolsetStr}
-		} else if toolset, ok := configMap["toolset"].([]any); ok {
-			config.Toolset = make(GitHubToolsets, 0, len(toolset))
-			for _, item := range toolset {
-				if str, ok := item.(string); ok {
-					config.Toolset = append(config.Toolset, GitHubToolset(str))
-				}
-			}
-		} else if toolsetStr, ok := configMap["toolset"].(string); ok {
-			config.Toolset = GitHubToolsets{GitHubToolset(toolsetStr)}
-			// Normalize the raw map to an array so the compiled GitHub Actions YAML
-			// always emits an array, maintaining consistent output regardless of input form.
-			configMap["toolset"] = []any{toolsetStr}
-		}
-
-		if lockdown, ok := configMap["lockdown"].(bool); ok {
-			config.Lockdown = lockdown
-		}
-
-		// Parse app configuration for GitHub App token minting
-		if rawApp, exists := configMap["github-app"]; exists {
-			if appMap, ok := rawApp.(map[string]any); ok {
-				config.GitHubApp = parseAppConfig(appMap)
-			}
-		}
-
-		// Parse guard policy fields (flat syntax: allowed-repos/repos and min-integrity directly under github:)
-		if allowedRepos, ok := configMap["allowed-repos"]; ok {
-			config.AllowedRepos = allowedRepos // Store as-is, validation will happen later
-		} else if repos, ok := configMap["repos"]; ok {
-			// Deprecated: use 'allowed-repos' instead of 'repos'.
-			// The deprecation warning is emitted by the generic schema-driven walker in
-			// warnDeprecatedFrontmatterFields; no extra hard-coded warning is needed here.
-			config.AllowedRepos = repos // Populate canonical field for validation
-		}
-		if integrity, ok := configMap["min-integrity"].(string); ok {
-			config.MinIntegrity = GitHubIntegrityLevel(integrity)
-		}
-		if blockedUsers, ok := configMap["blocked-users"].([]any); ok {
-			config.BlockedUsers = make([]string, 0, len(blockedUsers))
-			for _, item := range blockedUsers {
-				if str, ok := item.(string); ok {
-					config.BlockedUsers = append(config.BlockedUsers, str)
-				}
-			}
-		} else if blockedUsers, ok := configMap["blocked-users"].([]string); ok {
-			config.BlockedUsers = blockedUsers
-		} else if blockedUsersStr, ok := configMap["blocked-users"].(string); ok {
-			if hasExpressionMarker(blockedUsersStr) {
-				// GitHub Actions expression: store as-is; raw map retains the string for JSON rendering.
-				config.BlockedUsersExpr = blockedUsersStr
-			} else {
-				// Static comma/newline-separated string: parse at compile time.
-				parsed := parseCommaSeparatedOrNewlineList(blockedUsersStr)
-				config.BlockedUsers = parsed
-				configMap["blocked-users"] = toAnySlice(parsed) // normalize raw map for JSON rendering
-			}
-		}
-		if approvalLabels, ok := configMap["approval-labels"].([]any); ok {
-			config.ApprovalLabels = make([]string, 0, len(approvalLabels))
-			for _, item := range approvalLabels {
-				if str, ok := item.(string); ok {
-					config.ApprovalLabels = append(config.ApprovalLabels, str)
-				}
-			}
-		} else if approvalLabels, ok := configMap["approval-labels"].([]string); ok {
-			config.ApprovalLabels = approvalLabels
-		} else if approvalLabelsStr, ok := configMap["approval-labels"].(string); ok {
-			if hasExpressionMarker(approvalLabelsStr) {
-				// GitHub Actions expression: store as-is; raw map retains the string for JSON rendering.
-				config.ApprovalLabelsExpr = approvalLabelsStr
-			} else {
-				// Static comma/newline-separated string: parse at compile time.
-				parsed := parseCommaSeparatedOrNewlineList(approvalLabelsStr)
-				config.ApprovalLabels = parsed
-				configMap["approval-labels"] = toAnySlice(parsed) // normalize raw map for JSON rendering
-			}
-		}
-		if trustedUsers, ok := configMap["trusted-users"].([]any); ok {
-			config.TrustedUsers = make([]string, 0, len(trustedUsers))
-			for _, item := range trustedUsers {
-				if str, ok := item.(string); ok {
-					config.TrustedUsers = append(config.TrustedUsers, str)
-				}
-			}
-		} else if trustedUsers, ok := configMap["trusted-users"].([]string); ok {
-			config.TrustedUsers = trustedUsers
-		} else if trustedUsersStr, ok := configMap["trusted-users"].(string); ok {
-			if hasExpressionMarker(trustedUsersStr) {
-				// GitHub Actions expression: store as-is; raw map retains the string for JSON rendering.
-				config.TrustedUsersExpr = trustedUsersStr
-			} else {
-				// Static comma/newline-separated string: parse at compile time.
-				parsed := parseCommaSeparatedOrNewlineList(trustedUsersStr)
-				config.TrustedUsers = parsed
-				configMap["trusted-users"] = toAnySlice(parsed) // normalize raw map for JSON rendering
-			}
-		}
-
-		// Parse reaction-based integrity fields (requires integrity-reactions feature flag + MCPG >= v0.2.18)
-		if endorsementReactions, ok := configMap["endorsement-reactions"].([]any); ok {
-			config.EndorsementReactions = make([]string, 0, len(endorsementReactions))
-			for _, item := range endorsementReactions {
-				if str, ok := item.(string); ok {
-					config.EndorsementReactions = append(config.EndorsementReactions, str)
-				}
-			}
-		} else if endorsementReactions, ok := configMap["endorsement-reactions"].([]string); ok {
-			config.EndorsementReactions = endorsementReactions
-		}
-		if disapprovalReactions, ok := configMap["disapproval-reactions"].([]any); ok {
-			config.DisapprovalReactions = make([]string, 0, len(disapprovalReactions))
-			for _, item := range disapprovalReactions {
-				if str, ok := item.(string); ok {
-					config.DisapprovalReactions = append(config.DisapprovalReactions, str)
-				}
-			}
-		} else if disapprovalReactions, ok := configMap["disapproval-reactions"].([]string); ok {
-			config.DisapprovalReactions = disapprovalReactions
-		}
-		if disapprovalIntegrity, ok := configMap["disapproval-integrity"].(string); ok {
-			config.DisapprovalIntegrity = disapprovalIntegrity
-		}
-		if endorserMinIntegrity, ok := configMap["endorser-min-integrity"].(string); ok {
-			config.EndorserMinIntegrity = endorserMinIntegrity
-		}
-
-		// Parse private-to-public-flows: accepts "allow" (string) or []string of server IDs.
-		if rawPtP, ok := configMap["private-to-public-flows"]; ok {
-			switch v := rawPtP.(type) {
-			case string:
-				// "allow" is the only valid string value
-				config.PrivateToPublicFlows = v
-			case []any:
-				// Array of server ID strings
-				servers := make([]string, 0, len(v))
-				for _, item := range v {
-					if s, ok := item.(string); ok {
-						servers = append(servers, s)
-					}
-				}
-				config.PrivateToPublicFlows = servers
-			case []string:
-				config.PrivateToPublicFlows = v
-			default:
-				toolsParserLog.Printf("Warning: private-to-public-flows has unsupported type %T (expected string \"allow\" or array of server IDs), ignoring", rawPtP)
-			}
-		}
-
-		return config
+		return parseGitHubToolConfigMap(configMap)
 	}
 
-	return &GitHubToolConfig{
-		ReadOnly: true, // default to read-only for security
+	return defaultGitHubToolConfig()
+}
+
+func defaultGitHubToolConfig() *GitHubToolConfig {
+	return &GitHubToolConfig{ReadOnly: true}
+}
+
+func parseGitHubToolConfigMap(configMap map[string]any) *GitHubToolConfig {
+	config := defaultGitHubToolConfig()
+	parseGitHubBasicConfig(config, configMap)
+	parseGitHubToolsets(config, configMap)
+	parseGitHubAppAndGuardConfig(config, configMap)
+	parseGitHubListPolicyConfig(config, configMap)
+	parseGitHubReactionConfig(config, configMap)
+	parseGitHubPrivateToPublicFlows(config, configMap)
+	return config
+}
+
+func parseGitHubBasicConfig(config *GitHubToolConfig, configMap map[string]any) {
+	if allowedSetting, ok := configMap["allowed"]; ok {
+		allowedTools, _ := parseGitHubAllowedToolsAndLimits(allowedSetting)
+		config.Allowed = make(GitHubAllowedTools, 0, len(allowedTools))
+		for _, toolName := range allowedTools {
+			config.Allowed = append(config.Allowed, GitHubToolName(toolName))
+		}
 	}
+	if mode, ok := configMap["mode"].(string); ok {
+		config.Mode = GitHubMCPMode(mode)
+	}
+	if mcpType, ok := configMap["type"].(string); ok {
+		config.Type = mcpType
+	}
+	if version, ok := configMap["version"].(string); ok {
+		config.Version = version
+	}
+	if args, ok := configMap["args"].([]any); ok {
+		config.Args = stringSliceFromAnySlice(args)
+	}
+	if readOnly, ok := configMap["read-only"].(bool); ok {
+		config.ReadOnly = readOnly
+	}
+	if token, ok := configMap["github-token"].(string); ok {
+		config.GitHubToken = token
+	}
+	if lockdown, ok := configMap["lockdown"].(bool); ok {
+		config.Lockdown = lockdown
+	}
+}
+
+func parseGitHubToolsets(config *GitHubToolConfig, configMap map[string]any) {
+	if parseGitHubToolsetField(config, configMap, "toolsets") {
+		return
+	}
+	parseGitHubToolsetField(config, configMap, "toolset")
+}
+
+func parseGitHubToolsetField(config *GitHubToolConfig, configMap map[string]any, field string) bool {
+	if toolset, ok := configMap[field].([]any); ok {
+		config.Toolset = make(GitHubToolsets, 0, len(toolset))
+		for _, item := range toolset {
+			if str, ok := item.(string); ok {
+				config.Toolset = append(config.Toolset, GitHubToolset(str))
+			}
+		}
+		return true
+	}
+	if toolsetStr, ok := configMap[field].(string); ok {
+		config.Toolset = GitHubToolsets{GitHubToolset(toolsetStr)}
+		configMap[field] = []any{toolsetStr}
+		return true
+	}
+	return false
+}
+
+func parseGitHubAppAndGuardConfig(config *GitHubToolConfig, configMap map[string]any) {
+	if rawApp, exists := configMap["github-app"]; exists {
+		if appMap, ok := rawApp.(map[string]any); ok {
+			config.GitHubApp = parseAppConfig(appMap)
+		}
+	}
+	if allowedRepos, ok := configMap["allowed-repos"]; ok {
+		config.AllowedRepos = allowedRepos
+	} else if repos, ok := configMap["repos"]; ok {
+		config.AllowedRepos = repos
+	}
+	if integrity, ok := configMap["min-integrity"].(string); ok {
+		config.MinIntegrity = GitHubIntegrityLevel(integrity)
+	}
+}
+
+func parseGitHubListPolicyConfig(config *GitHubToolConfig, configMap map[string]any) {
+	config.BlockedUsers, config.BlockedUsersExpr = parseGitHubStringListSetting(configMap, "blocked-users")
+	config.ApprovalLabels, config.ApprovalLabelsExpr = parseGitHubStringListSetting(configMap, "approval-labels")
+	config.TrustedUsers, config.TrustedUsersExpr = parseGitHubStringListSetting(configMap, "trusted-users")
+}
+
+func parseGitHubStringListSetting(configMap map[string]any, field string) ([]string, string) {
+	if values, ok := configMap[field].([]any); ok {
+		return stringSliceFromAnySlice(values), ""
+	}
+	if values, ok := configMap[field].([]string); ok {
+		return values, ""
+	}
+	if value, ok := configMap[field].(string); ok {
+		if hasExpressionMarker(value) {
+			return nil, value
+		}
+		parsed := parseCommaSeparatedOrNewlineList(value)
+		configMap[field] = toAnySlice(parsed)
+		return parsed, ""
+	}
+	return nil, ""
+}
+
+func parseGitHubReactionConfig(config *GitHubToolConfig, configMap map[string]any) {
+	config.EndorsementReactions = parseStringListNoNormalize(configMap["endorsement-reactions"])
+	config.DisapprovalReactions = parseStringListNoNormalize(configMap["disapproval-reactions"])
+	if disapprovalIntegrity, ok := configMap["disapproval-integrity"].(string); ok {
+		config.DisapprovalIntegrity = disapprovalIntegrity
+	}
+	if endorserMinIntegrity, ok := configMap["endorser-min-integrity"].(string); ok {
+		config.EndorserMinIntegrity = endorserMinIntegrity
+	}
+}
+
+func parseStringListNoNormalize(raw any) []string {
+	if values, ok := raw.([]any); ok {
+		return stringSliceFromAnySlice(values)
+	}
+	if values, ok := raw.([]string); ok {
+		return values
+	}
+	return nil
+}
+
+func parseGitHubPrivateToPublicFlows(config *GitHubToolConfig, configMap map[string]any) {
+	rawPtP, ok := configMap["private-to-public-flows"]
+	if !ok {
+		return
+	}
+	switch v := rawPtP.(type) {
+	case string:
+		config.PrivateToPublicFlows = v
+	case []any:
+		config.PrivateToPublicFlows = stringSliceFromAnySlice(v)
+	case []string:
+		config.PrivateToPublicFlows = v
+	default:
+		toolsParserLog.Printf("Warning: private-to-public-flows has unsupported type %T (expected string \"allow\" or array of server IDs), ignoring", rawPtP)
+	}
+}
+
+func stringSliceFromAnySlice(values []any) []string {
+	result := make([]string, 0, len(values))
+	for _, item := range values {
+		if str, ok := item.(string); ok {
+			result = append(result, str)
+		}
+	}
+	return result
 }
 
 // parseBashTool converts raw bash tool configuration to BashToolConfig
@@ -635,116 +594,83 @@ func parseMCPServerConfig(val any) MCPServerConfig {
 		return config
 	}
 
-	// Parse common MCP server fields
+	parseMCPCommonFields(&config, configMap)
+	parseMCPHTTPFields(&config, configMap)
+	parseMCPContainerFields(&config, configMap)
+	storeCustomMCPFields(&config, configMap)
+
+	return config
+}
+
+func parseMCPCommonFields(config *MCPServerConfig, configMap map[string]any) {
 	if command, ok := configMap["command"].(string); ok {
 		config.Command = command
 	}
-
 	if args, ok := configMap["args"].([]any); ok {
-		config.Args = make([]string, 0, len(args))
-		for _, arg := range args {
-			if str, ok := arg.(string); ok {
-				config.Args = append(config.Args, str)
-			}
-		}
+		config.Args = stringSliceFromAnySlice(args)
 	}
-
 	if env, ok := configMap["env"].(map[string]any); ok {
-		config.Env = make(map[string]string)
-		for k, v := range env {
-			if str, ok := v.(string); ok {
-				config.Env[k] = str
-			}
-		}
+		config.Env = stringMapFromAnyMap(env)
 	}
-
 	if mode, ok := configMap["mode"].(string); ok {
 		config.Mode = mode
 	}
-
 	if mcpType, ok := configMap["type"].(string); ok {
 		config.Type = mcpType
 	}
-
 	if version, ok := configMap["version"].(string); ok {
 		config.Version = version
 	} else if versionNum, ok := configMap["version"].(float64); ok {
 		config.Version = fmt.Sprintf("%.0f", versionNum)
 	}
-
 	if toolsets, ok := configMap["toolsets"].([]any); ok {
-		config.Toolsets = make([]string, 0, len(toolsets))
-		for _, item := range toolsets {
-			if str, ok := item.(string); ok {
-				config.Toolsets = append(config.Toolsets, str)
-			}
-		}
+		config.Toolsets = stringSliceFromAnySlice(toolsets)
 	}
+}
 
-	// Parse HTTP-specific fields
+func parseMCPHTTPFields(config *MCPServerConfig, configMap map[string]any) {
 	if url, ok := configMap["url"].(string); ok {
 		config.URL = url
 	}
-
 	if headers, ok := configMap["headers"].(map[string]any); ok {
-		config.Headers = make(map[string]string)
-		for k, v := range headers {
-			if str, ok := v.(string); ok {
-				config.Headers[k] = str
-			}
-		}
+		config.Headers = stringMapFromAnyMap(headers)
 	}
+}
 
-	// Parse container-specific fields
+func parseMCPContainerFields(config *MCPServerConfig, configMap map[string]any) {
 	if container, ok := configMap["container"].(string); ok {
 		config.Container = container
 	}
-
 	if entrypoint, ok := configMap["entrypoint"].(string); ok {
 		config.Entrypoint = entrypoint
 	}
-
 	if entrypointArgs, ok := configMap["entrypointArgs"].([]any); ok {
-		config.EntrypointArgs = make([]string, 0, len(entrypointArgs))
-		for _, arg := range entrypointArgs {
-			if str, ok := arg.(string); ok {
-				config.EntrypointArgs = append(config.EntrypointArgs, str)
-			}
-		}
+		config.EntrypointArgs = stringSliceFromAnySlice(entrypointArgs)
 	}
-
 	if mounts, ok := configMap["mounts"].([]any); ok {
-		config.Mounts = make([]string, 0, len(mounts))
-		for _, mount := range mounts {
-			if str, ok := mount.(string); ok {
-				config.Mounts = append(config.Mounts, str)
-			}
-		}
+		config.Mounts = stringSliceFromAnySlice(mounts)
 	}
+}
 
-	// Store any unknown fields in CustomFields
-	knownFields := map[string]struct {
-	}{
-		"command":        {},
-		"args":           {},
-		"env":            {},
-		"mode":           {},
-		"type":           {},
-		"version":        {},
-		"toolsets":       {},
-		"url":            {},
-		"headers":        {},
-		"container":      {},
-		"entrypoint":     {},
-		"entrypointArgs": {},
-		"mounts":         {},
+func storeCustomMCPFields(config *MCPServerConfig, configMap map[string]any) {
+	knownFields := map[string]struct{}{
+		"command": {}, "args": {}, "env": {}, "mode": {}, "type": {}, "version": {},
+		"toolsets": {}, "url": {}, "headers": {}, "container": {}, "entrypoint": {},
+		"entrypointArgs": {}, "mounts": {},
 	}
-
 	for key, value := range configMap {
 		if !setutil.Contains(knownFields, key) {
 			config.CustomFields[key] = value
 		}
 	}
+}
 
-	return config
+func stringMapFromAnyMap(values map[string]any) map[string]string {
+	result := make(map[string]string)
+	for k, v := range values {
+		if str, ok := v.(string); ok {
+			result[k] = str
+		}
+	}
+	return result
 }

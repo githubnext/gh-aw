@@ -36,7 +36,6 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 	// global runtime knobs (e.g. "mentions") that safe_output_handler_manager.cjs forwards to
 	// specific handlers at startup. Handler names are the reserved keys defined in handlerRegistry;
 	// non-handler keys ("mentions") are documented in safe_outputs_config_generation.go.
-	config := make(map[string]any)
 
 	// Collect engine-specific manifest files and path prefixes (AgentFileProvider interface).
 	// These are merged with the global runtime-derived lists so that engine-specific
@@ -44,65 +43,9 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 	extraManifestFiles, extraPathPrefixes := c.getEngineAgentFileInfo(data)
 	fullManifestFiles := getAllManifestFiles(extraManifestFiles...)
 	fullPathPrefixes := getProtectedPathPrefixes(extraPathPrefixes...)
+	safeOutputs := safeOutputsForHandlerConfig(data)
+	config := buildHandlerManagerConfig(safeOutputs, data, fullManifestFiles, fullPathPrefixes)
 
-	// For workflow_call relay workflows, inject the resolved platform repo and ref into the
-	// dispatch_workflow handler config so dispatch targets the host repo, not the caller's.
-	safeOutputs := data.SafeOutputs
-	if hasWorkflowCallTrigger(data.On) && safeOutputs.DispatchWorkflow != nil {
-		if safeOutputs.DispatchWorkflow.TargetRepoSlug == "" {
-			safeOutputs = safeOutputsWithDispatchTargetRepo(safeOutputs, "${{ needs.activation.outputs.target_repo }}")
-			safeOutputsConfigLog.Print("Injecting target_repo into dispatch_workflow config for workflow_call relay")
-		}
-		if safeOutputs.DispatchWorkflow.TargetRef == "" {
-			safeOutputs = safeOutputsWithDispatchTargetRef(safeOutputs, "${{ needs.activation.outputs.target_ref }}")
-			safeOutputsConfigLog.Print("Injecting target_ref into dispatch_workflow config for workflow_call relay")
-		}
-	}
-
-	// Build configuration for each handler using the registry
-	for handlerName, builder := range handlerRegistry {
-		handlerConfig := builder(safeOutputs)
-		// Include handler if:
-		// 1. It returns a non-nil config (explicitly enabled, even if empty)
-		// 2. For auto-enabled handlers, include even with empty config
-		if handlerConfig != nil {
-			injectCurrentCheckoutPatchWorkspacePath(handlerName, handlerConfig, data)
-			injectCheckoutMapping(handlerName, handlerConfig, data)
-			// Augment protected-files protection with engine-specific files for handlers that use it.
-			if _, hasProtected := handlerConfig["protected_files"]; hasProtected {
-				// Extract per-handler exclusions set by the handler builder (sentinel key).
-				// These are compile-time overrides and must not be forwarded to the runtime.
-				excludeFiles := ParseStringArrayFromConfig(handlerConfig, "_protected_files_exclude", nil)
-				delete(handlerConfig, "_protected_files_exclude")
-
-				handlerConfig["protected_files"] = sliceutil.Exclude(fullManifestFiles, excludeFiles...)
-				filteredPrefixes := sliceutil.Exclude(fullPathPrefixes, excludeFiles...)
-				if len(filteredPrefixes) > 0 {
-					handlerConfig["protected_path_prefixes"] = filteredPrefixes
-				} else {
-					delete(handlerConfig, "protected_path_prefixes")
-				}
-				// Compute which top-level dot-folder prefixes are excluded so the runtime
-				// dot-folder check can skip them.
-				if dotFolderExcludes := getDotFolderExcludes(excludeFiles); len(dotFolderExcludes) > 0 {
-					handlerConfig["protected_dot_folder_excludes"] = dotFolderExcludes
-				}
-			}
-			safeOutputsConfigLog.Printf("Adding %s handler configuration", handlerName)
-			config[handlerName] = handlerConfig
-		}
-	}
-
-	// Include top-level mentions configuration so the handler manager can pass it to
-	// markdown-producing handlers that call sanitizeContent with allowed aliases.
-	if safeOutputs.Mentions != nil {
-		mentionsCfg := buildMentionsHandlerConfig(safeOutputs.Mentions)
-		if len(mentionsCfg) > 0 {
-			config["mentions"] = mentionsCfg
-		}
-	}
-
-	// Only add the env var if there are handlers to configure
 	if len(config) > 0 {
 		safeOutputsConfigLog.Printf("Marshaling handler config with %d handlers", len(config))
 		configJSON, err := json.Marshal(config)
@@ -116,6 +59,68 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		safeOutputsConfigLog.Printf("Added handler config env var: size=%d bytes", len(configStr))
 	} else {
 		safeOutputsConfigLog.Print("No handlers configured, skipping config env var")
+	}
+}
+
+func safeOutputsForHandlerConfig(data *WorkflowData) *SafeOutputsConfig {
+	safeOutputs := data.SafeOutputs
+	if !hasWorkflowCallTrigger(data.On) || safeOutputs.DispatchWorkflow == nil {
+		return safeOutputs
+	}
+	if safeOutputs.DispatchWorkflow.TargetRepoSlug == "" {
+		safeOutputs = safeOutputsWithDispatchTargetRepo(safeOutputs, "${{ needs.activation.outputs.target_repo }}")
+		safeOutputsConfigLog.Print("Injecting target_repo into dispatch_workflow config for workflow_call relay")
+	}
+	if safeOutputs.DispatchWorkflow.TargetRef == "" {
+		safeOutputs = safeOutputsWithDispatchTargetRef(safeOutputs, "${{ needs.activation.outputs.target_ref }}")
+		safeOutputsConfigLog.Print("Injecting target_ref into dispatch_workflow config for workflow_call relay")
+	}
+	return safeOutputs
+}
+
+func buildHandlerManagerConfig(safeOutputs *SafeOutputsConfig, data *WorkflowData, fullManifestFiles, fullPathPrefixes []string) map[string]any {
+	config := make(map[string]any)
+	for handlerName, builder := range handlerRegistry {
+		handlerConfig := builder(safeOutputs)
+		if handlerConfig == nil {
+			continue
+		}
+		injectCurrentCheckoutPatchWorkspacePath(handlerName, handlerConfig, data)
+		injectCheckoutMapping(handlerName, handlerConfig, data)
+		augmentProtectedFilesConfig(handlerConfig, fullManifestFiles, fullPathPrefixes)
+		safeOutputsConfigLog.Printf("Adding %s handler configuration", handlerName)
+		config[handlerName] = handlerConfig
+	}
+	addMentionsHandlerManagerConfig(config, safeOutputs)
+	return config
+}
+
+func augmentProtectedFilesConfig(handlerConfig map[string]any, fullManifestFiles, fullPathPrefixes []string) {
+	if _, hasProtected := handlerConfig["protected_files"]; !hasProtected {
+		return
+	}
+	excludeFiles := ParseStringArrayFromConfig(handlerConfig, "_protected_files_exclude", nil)
+	delete(handlerConfig, "_protected_files_exclude")
+
+	handlerConfig["protected_files"] = sliceutil.Exclude(fullManifestFiles, excludeFiles...)
+	filteredPrefixes := sliceutil.Exclude(fullPathPrefixes, excludeFiles...)
+	if len(filteredPrefixes) > 0 {
+		handlerConfig["protected_path_prefixes"] = filteredPrefixes
+	} else {
+		delete(handlerConfig, "protected_path_prefixes")
+	}
+	if dotFolderExcludes := getDotFolderExcludes(excludeFiles); len(dotFolderExcludes) > 0 {
+		handlerConfig["protected_dot_folder_excludes"] = dotFolderExcludes
+	}
+}
+
+func addMentionsHandlerManagerConfig(config map[string]any, safeOutputs *SafeOutputsConfig) {
+	if safeOutputs.Mentions == nil {
+		return
+	}
+	mentionsCfg := buildMentionsHandlerConfig(safeOutputs.Mentions)
+	if len(mentionsCfg) > 0 {
+		config["mentions"] = mentionsCfg
 	}
 }
 

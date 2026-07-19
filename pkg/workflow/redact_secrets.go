@@ -82,54 +82,9 @@ func CollectActionReferences(yamlContent string) []string {
 	})
 
 	for line := range strings.SplitSeq(yamlContent, "\n") {
-		// Quick check: line must contain "uses:" to avoid scanning every character
-		prefix, afterUses, found := strings.Cut(line, "uses:")
-		if !found {
+		entry, ok := parseActionReferenceLine(line)
+		if !ok {
 			continue
-		}
-
-		// Must start with whitespace — rejects bare top-level keys ("uses: action")
-		// or top-level list items like "- uses: action".
-		if line == "" || (line[0] != ' ' && line[0] != '\t') {
-			continue
-		}
-
-		// The prefix before "uses:" must be either:
-		//   - Only whitespace           (plain key-value: "    uses: action")
-		//   - "-" with leading spaces   (list item:       "    - uses: action")
-		trimmedPrefix := strings.TrimSpace(prefix)
-		if trimmedPrefix != "" && trimmedPrefix != "-" {
-			continue
-		}
-
-		// Extract the action reference: everything after "uses:" trimmed
-		rest := strings.TrimSpace(afterUses)
-		if rest == "" {
-			continue
-		}
-
-		// The action ref is the first whitespace-delimited token; anything after
-		// optional whitespace + "#" is treated as the inline tag comment.
-		spaceIdx := strings.IndexByte(rest, ' ')
-		var ref, comment string
-		if spaceIdx == -1 {
-			ref = rest
-		} else {
-			ref = rest[:spaceIdx]
-			afterRef := strings.TrimSpace(rest[spaceIdx:])
-			if strings.HasPrefix(afterRef, "#") {
-				comment = strings.TrimSpace(afterRef[1:])
-			}
-		}
-
-		// Skip local actions (e.g. "./actions/setup", "./.github/workflows/...")
-		if strings.HasPrefix(ref, "./") {
-			continue
-		}
-
-		entry := ref
-		if comment != "" {
-			entry = ref + " # " + comment
 		}
 		actionsMap[entry] = struct {
 		}{}
@@ -139,6 +94,45 @@ func CollectActionReferences(yamlContent string) []string {
 
 	secretMaskingLog.Printf("Found %d unique external action reference(s) in workflow", len(actions))
 	return actions
+}
+
+func parseActionReferenceLine(line string) (string, bool) {
+	prefix, afterUses, found := strings.Cut(line, "uses:")
+	if !found || line == "" || (line[0] != ' ' && line[0] != '\t') {
+		return "", false
+	}
+
+	trimmedPrefix := strings.TrimSpace(prefix)
+	if trimmedPrefix != "" && trimmedPrefix != "-" {
+		return "", false
+	}
+
+	rest := strings.TrimSpace(afterUses)
+	if rest == "" {
+		return "", false
+	}
+
+	ref, comment := splitActionReferenceAndComment(rest)
+	if strings.HasPrefix(ref, "./") {
+		return "", false
+	}
+	if comment != "" {
+		return ref + " # " + comment, true
+	}
+	return ref, true
+}
+
+func splitActionReferenceAndComment(rest string) (string, string) {
+	spaceIdx := strings.IndexByte(rest, ' ')
+	if spaceIdx == -1 {
+		return rest, ""
+	}
+	ref := rest[:spaceIdx]
+	afterRef := strings.TrimSpace(rest[spaceIdx:])
+	if strings.HasPrefix(afterRef, "#") {
+		return ref, strings.TrimSpace(afterRef[1:])
+	}
+	return ref, ""
 }
 
 func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlContent string, data *WorkflowData) {

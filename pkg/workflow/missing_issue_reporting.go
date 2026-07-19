@@ -65,76 +65,93 @@ func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, 
 		debugLog.Printf("%s configuration explicitly disabled", yamlKey)
 		return nil
 	}
-
 	cfg := &IssueReportingConfig{}
-
-	// Enabled with no value: missing-data: (nil)
 	if configData == nil {
-		debugLog.Printf("%s configuration enabled with defaults", yamlKey)
-		createIssueStr := strconv.FormatBool(defaultCreateIssue)
-		cfg.CreateIssue = &createIssueStr
-		if parseReportAsFailure {
-			trueVal := "true"
-			cfg.ReportAsFailure = &trueVal
-		}
-		cfg.TitlePrefix = defaultTitle
-		cfg.Labels = []string{}
+		applyIssueReportingDefaults(cfg, yamlKey, defaultTitle, defaultCreateIssue, parseReportAsFailure, debugLog)
 		return cfg
 	}
-
 	if configMap, ok := configData.(map[string]any); ok {
-		debugLog.Printf("Parsing %s configuration from map", yamlKey)
-		c.parseBaseSafeOutputConfig(configMap, &cfg.BaseSafeOutputConfig, 0)
-
-		// Pre-process create-issue to support literal booleans and GitHub Actions expressions.
-		if err := preprocessBoolFieldAsString(configMap, "create-issue", debugLog); err != nil {
-			debugLog.Printf("Invalid create-issue value for %s: %v", yamlKey, err)
+		if err := c.parseIssueReportingConfigMap(cfg, configMap, yamlKey, defaultTitle, defaultCreateIssue, parseReportAsFailure, debugLog); err != nil {
 			return nil
 		}
+	}
+	return cfg
+}
 
-		if createIssueVal, exists := configMap["create-issue"]; exists {
-			if createIssueStr, ok := createIssueVal.(string); ok {
-				cfg.CreateIssue = &createIssueStr
-				debugLog.Printf("create-issue: %s", createIssueStr)
-			}
-		} else {
-			createIssueStr := strconv.FormatBool(defaultCreateIssue)
-			cfg.CreateIssue = &createIssueStr
-		}
+func applyIssueReportingDefaults(cfg *IssueReportingConfig, yamlKey, defaultTitle string, defaultCreateIssue, parseReportAsFailure bool, debugLog *logger.Logger) {
+	debugLog.Printf("%s configuration enabled with defaults", yamlKey)
+	createIssueStr := strconv.FormatBool(defaultCreateIssue)
+	cfg.CreateIssue = &createIssueStr
+	if parseReportAsFailure {
+		trueVal := "true"
+		cfg.ReportAsFailure = &trueVal
+	}
+	cfg.TitlePrefix = defaultTitle
+	cfg.Labels = []string{}
+}
 
-		// Parse report-as-failure field (only for missing-tool and missing-data, not report-incomplete)
-		if parseReportAsFailure {
-			if err := preprocessBoolFieldAsString(configMap, "report-as-failure", debugLog); err != nil {
-				debugLog.Printf("Invalid report-as-failure value for %s: %v", yamlKey, err)
-				return nil
-			}
-			if reportAsFailureVal, exists := configMap["report-as-failure"]; exists {
-				if reportAsFailureStr, ok := reportAsFailureVal.(string); ok {
-					cfg.ReportAsFailure = &reportAsFailureStr
-					debugLog.Printf("report-as-failure: %s", reportAsFailureStr)
-				}
-			} else {
-				trueVal := "true"
-				cfg.ReportAsFailure = &trueVal
-			}
-		}
-
-		if titlePrefix, exists := configMap["title-prefix"]; exists {
-			if titlePrefixStr, ok := titlePrefix.(string); ok {
-				cfg.TitlePrefix = titlePrefixStr
-				debugLog.Printf("title-prefix: %s", titlePrefixStr)
-			}
-		} else {
-			cfg.TitlePrefix = defaultTitle
-		}
-
-		if _, exists := configMap["labels"]; exists {
-			cfg.Labels = ParseStringArrayFromConfig(configMap, "labels", debugLog)
-			debugLog.Printf("labels: %v", cfg.Labels)
-		} else {
-			cfg.Labels = []string{}
+func (c *Compiler) parseIssueReportingConfigMap(cfg *IssueReportingConfig, configMap map[string]any, yamlKey, defaultTitle string, defaultCreateIssue, parseReportAsFailure bool, debugLog *logger.Logger) error {
+	debugLog.Printf("Parsing %s configuration from map", yamlKey)
+	c.parseBaseSafeOutputConfig(configMap, &cfg.BaseSafeOutputConfig, 0)
+	if err := parseIssueReportingCreateIssue(cfg, configMap, yamlKey, defaultCreateIssue, debugLog); err != nil {
+		return err
+	}
+	if parseReportAsFailure {
+		if err := parseIssueReportingReportAsFailure(cfg, configMap, yamlKey, debugLog); err != nil {
+			return err
 		}
 	}
+	parseIssueReportingTitleAndLabels(cfg, configMap, defaultTitle, debugLog)
+	return nil
+}
 
-	return cfg
+func parseIssueReportingCreateIssue(cfg *IssueReportingConfig, configMap map[string]any, yamlKey string, defaultCreateIssue bool, debugLog *logger.Logger) error {
+	if err := preprocessBoolFieldAsString(configMap, "create-issue", debugLog); err != nil {
+		debugLog.Printf("Invalid create-issue value for %s: %v", yamlKey, err)
+		return err
+	}
+	if createIssueVal, exists := configMap["create-issue"]; exists {
+		if createIssueStr, ok := createIssueVal.(string); ok {
+			cfg.CreateIssue = &createIssueStr
+			debugLog.Printf("create-issue: %s", createIssueStr)
+		}
+	} else {
+		createIssueStr := strconv.FormatBool(defaultCreateIssue)
+		cfg.CreateIssue = &createIssueStr
+	}
+	return nil
+}
+
+func parseIssueReportingReportAsFailure(cfg *IssueReportingConfig, configMap map[string]any, yamlKey string, debugLog *logger.Logger) error {
+	if err := preprocessBoolFieldAsString(configMap, "report-as-failure", debugLog); err != nil {
+		debugLog.Printf("Invalid report-as-failure value for %s: %v", yamlKey, err)
+		return err
+	}
+	if reportAsFailureVal, exists := configMap["report-as-failure"]; exists {
+		if reportAsFailureStr, ok := reportAsFailureVal.(string); ok {
+			cfg.ReportAsFailure = &reportAsFailureStr
+			debugLog.Printf("report-as-failure: %s", reportAsFailureStr)
+		}
+	} else {
+		trueVal := "true"
+		cfg.ReportAsFailure = &trueVal
+	}
+	return nil
+}
+
+func parseIssueReportingTitleAndLabels(cfg *IssueReportingConfig, configMap map[string]any, defaultTitle string, debugLog *logger.Logger) {
+	if titlePrefix, exists := configMap["title-prefix"]; exists {
+		if titlePrefixStr, ok := titlePrefix.(string); ok {
+			cfg.TitlePrefix = titlePrefixStr
+			debugLog.Printf("title-prefix: %s", titlePrefixStr)
+		}
+	} else {
+		cfg.TitlePrefix = defaultTitle
+	}
+	if _, exists := configMap["labels"]; exists {
+		cfg.Labels = ParseStringArrayFromConfig(configMap, "labels", debugLog)
+		debugLog.Printf("labels: %v", cfg.Labels)
+	} else {
+		cfg.Labels = []string{}
+	}
 }

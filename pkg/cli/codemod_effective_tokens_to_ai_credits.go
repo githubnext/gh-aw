@@ -13,6 +13,13 @@ var effectiveTokensToAICreditsCodemodLog = logger.New("cli:codemod_effective_tok
 
 const effectiveTokensPerAICredit = 10000
 
+type getEffectiveTokensToAICreditsCodemodMigration struct {
+	maxAICredits                bool
+	maxAICreditsNormalized      string
+	maxDailyAICredits           bool
+	maxDailyAICreditsNormalized string
+}
+
 // getEffectiveTokensToAICreditsCodemod migrates obsolete ET-based budget fields
 // to AI Credits equivalents:
 //   - max-effective-tokens -> max-ai-credits
@@ -27,72 +34,75 @@ func getEffectiveTokensToAICreditsCodemod() Codemod {
 		Description:  "Migrates obsolete 'max-effective-tokens' and 'max-daily-effective-tokens' to AI Credits equivalents, normalizing numeric values and skipping expressions.",
 		IntroducedIn: "1.0.47",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
-			if frontmatter == nil {
-				return content, false, nil
-			}
-
-			_, hasMaxAICredits := frontmatter["max-ai-credits"]
-			_, hasMaxDailyAICredits := frontmatter["max-daily-ai-credits"]
-
-			var maxAICreditsNormalized string
-			migrateMaxAICredits := false
-			if !hasMaxAICredits {
-				if raw, exists := frontmatter["max-effective-tokens"]; exists {
-					if normalized, ok := normalizeLegacyBudgetValue(raw, true); ok {
-						maxAICreditsNormalized = normalized
-						migrateMaxAICredits = true
-					}
-				}
-			}
-
-			var maxDailyAICreditsNormalized string
-			migrateMaxDailyAICredits := false
-			if !hasMaxDailyAICredits {
-				if raw, exists := frontmatter["max-daily-effective-tokens"]; exists {
-					if normalized, ok := normalizeLegacyBudgetValue(raw, true); ok {
-						maxDailyAICreditsNormalized = normalized
-						migrateMaxDailyAICredits = true
-					}
-				}
-			}
-
-			if !migrateMaxAICredits && !migrateMaxDailyAICredits {
-				return content, false, nil
-			}
-
-			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				modified := false
-				result := make([]string, 0, len(lines))
-
-				for _, line := range lines {
-					trimmed := strings.TrimSpace(line)
-					if isTopLevelKey(line) {
-						if migrateMaxAICredits && strings.HasPrefix(trimmed, "max-effective-tokens:") {
-							result = append(result, rewriteTopLevelScalarLine(line, "max-ai-credits", maxAICreditsNormalized))
-							modified = true
-							continue
-						}
-						if migrateMaxDailyAICredits && strings.HasPrefix(trimmed, "max-daily-effective-tokens:") {
-							result = append(result, rewriteTopLevelScalarLine(line, "max-daily-ai-credits", maxDailyAICreditsNormalized))
-							modified = true
-							continue
-						}
-					}
-					result = append(result, line)
-				}
-
-				return result, modified
-			})
-			if applied {
-				effectiveTokensToAICreditsCodemodLog.Printf(
-					"Migrated effective-token legacy fields (max-ai-credits=%t max-daily-ai-credits=%t)",
-					migrateMaxAICredits,
-					migrateMaxDailyAICredits,
-				)
-			}
-			return newContent, applied, err
+			return getEffectiveTokensToAICreditsCodemodApply(content, frontmatter)
 		},
 	}
+}
+
+func getEffectiveTokensToAICreditsCodemodApply(content string, frontmatter map[string]any) (string, bool, error) {
+	if frontmatter == nil {
+		return content, false, nil
+	}
+
+	migration := getEffectiveTokensToAICreditsCodemodMigrationFromFrontmatter(frontmatter)
+	if !migration.maxAICredits && !migration.maxDailyAICredits {
+		return content, false, nil
+	}
+
+	newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+		return getEffectiveTokensToAICreditsCodemodTransformLines(lines, migration)
+	})
+	if applied {
+		effectiveTokensToAICreditsCodemodLog.Printf(
+			"Migrated effective-token legacy fields (max-ai-credits=%t max-daily-ai-credits=%t)",
+			migration.maxAICredits,
+			migration.maxDailyAICredits,
+		)
+	}
+	return newContent, applied, err
+}
+
+func getEffectiveTokensToAICreditsCodemodMigrationFromFrontmatter(frontmatter map[string]any) getEffectiveTokensToAICreditsCodemodMigration {
+	var migration getEffectiveTokensToAICreditsCodemodMigration
+	if _, hasMaxAICredits := frontmatter["max-ai-credits"]; !hasMaxAICredits {
+		if raw, exists := frontmatter["max-effective-tokens"]; exists {
+			if normalized, ok := normalizeLegacyBudgetValue(raw, true); ok {
+				migration.maxAICreditsNormalized = normalized
+				migration.maxAICredits = true
+			}
+		}
+	}
+	if _, hasMaxDailyAICredits := frontmatter["max-daily-ai-credits"]; !hasMaxDailyAICredits {
+		if raw, exists := frontmatter["max-daily-effective-tokens"]; exists {
+			if normalized, ok := normalizeLegacyBudgetValue(raw, true); ok {
+				migration.maxDailyAICreditsNormalized = normalized
+				migration.maxDailyAICredits = true
+			}
+		}
+	}
+	return migration
+}
+
+func getEffectiveTokensToAICreditsCodemodTransformLines(lines []string, migration getEffectiveTokensToAICreditsCodemodMigration) ([]string, bool) {
+	modified := false
+	result := make([]string, 0, len(lines))
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if isTopLevelKey(line) && migration.maxAICredits && strings.HasPrefix(trimmed, "max-effective-tokens:") {
+			result = append(result, rewriteTopLevelScalarLine(line, "max-ai-credits", migration.maxAICreditsNormalized))
+			modified = true
+			continue
+		}
+		if isTopLevelKey(line) && migration.maxDailyAICredits && strings.HasPrefix(trimmed, "max-daily-effective-tokens:") {
+			result = append(result, rewriteTopLevelScalarLine(line, "max-daily-ai-credits", migration.maxDailyAICreditsNormalized))
+			modified = true
+			continue
+		}
+		result = append(result, line)
+	}
+
+	return result, modified
 }
 
 func normalizeLegacyBudgetValue(raw any, allowNegativeOne bool) (string, bool) {

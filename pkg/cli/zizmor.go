@@ -55,57 +55,12 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 
 	zizmorLog.Printf("Running zizmor security scanner on %d file(s): %v (verbose=%t, strict=%t)", len(lockFiles), lockFiles, verbose, strict)
 
-	// Find git root to get the absolute path for Docker volume mount
-	gitRoot, err := gitutil.FindGitRoot()
+	gitRoot, relPaths, err := runZizmorOnFilesPaths(lockFiles)
 	if err != nil {
-		return fmt.Errorf("failed to find git root: %w", err)
+		return err
 	}
-
-	// Validate gitRoot is an absolute path before use in Docker volume mount
-	if !filepath.IsAbs(gitRoot) {
-		return fmt.Errorf("git root must be an absolute path, got: %s", gitRoot)
-	}
-
-	// Get relative paths from git root for all files
-	var relPaths []string
-	for _, lockFile := range lockFiles {
-		relPath, err := filepath.Rel(gitRoot, lockFile)
-		if err != nil {
-			return fmt.Errorf("failed to get relative path for %s: %w", lockFile, err)
-		}
-		relPaths = append(relPaths, relPath)
-	}
-
-	// Build the Docker command with JSON output for easier parsing
-	// docker run --rm -v "$(pwd)":/workdir -w /workdir ghcr.io/zizmorcore/zizmor:latest --format json <file1> <file2> ...
-	dockerArgs := []string{
-		"run",
-		"--rm",
-		"-v", gitRoot + ":/workdir",
-		"-w", "/workdir",
-		"ghcr.io/zizmorcore/zizmor:latest",
-		"--format", "json",
-	}
-	dockerArgs = append(dockerArgs, relPaths...)
-
-	// #nosec G204 -- exec.Command is used with separate args (not shell execution) to prevent shell injection.
-	// The gitRoot path is validated to be absolute, and relPaths are validated through filepath.Rel to be
-	// relative to gitRoot, preventing path traversal. The Docker container provides additional isolation.
-	cmd := exec.Command("docker", dockerArgs...)
-
-	// Always show that zizmor is running (regular verbosity)
-	if len(lockFiles) == 1 {
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running zizmor security scanner on "+relPaths[0]))
-	} else {
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running zizmor security scanner on %d files", len(lockFiles))))
-	}
-
-	// In verbose mode, also show the command that users can run directly
-	if verbose {
-		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir ghcr.io/zizmorcore/zizmor:latest --format json %s",
-			gitRoot, strings.Join(relPaths, " "))
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run zizmor directly: "+dockerCmd))
-	}
+	cmd := runZizmorOnFilesCommand(gitRoot, relPaths)
+	runZizmorOnFilesAnnounce(lockFiles, relPaths, gitRoot, verbose)
 
 	// Capture output
 	var stdout, stderr bytes.Buffer
@@ -114,7 +69,49 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 
 	// Run the command
 	err = cmd.Run()
+	return runZizmorOnFilesResult(err, lockFiles, stdout, stderr, verbose, strict)
+}
 
+func runZizmorOnFilesPaths(lockFiles []string) (string, []string, error) {
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to find git root: %w", err)
+	}
+	if !filepath.IsAbs(gitRoot) {
+		return "", nil, fmt.Errorf("git root must be an absolute path, got: %s", gitRoot)
+	}
+	var relPaths []string
+	for _, lockFile := range lockFiles {
+		relPath, err := filepath.Rel(gitRoot, lockFile)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to get relative path for %s: %w", lockFile, err)
+		}
+		relPaths = append(relPaths, relPath)
+	}
+	return gitRoot, relPaths, nil
+}
+
+func runZizmorOnFilesCommand(gitRoot string, relPaths []string) *exec.Cmd {
+	dockerArgs := []string{"run", "--rm", "-v", gitRoot + ":/workdir", "-w", "/workdir", "ghcr.io/zizmorcore/zizmor:latest", "--format", "json"}
+	dockerArgs = append(dockerArgs, relPaths...)
+	// #nosec G204 -- exec.Command is used with separate args (not shell execution) to prevent shell injection.
+	// The gitRoot path is validated to be absolute, and relPaths are validated through filepath.Rel.
+	return exec.Command("docker", dockerArgs...)
+}
+
+func runZizmorOnFilesAnnounce(lockFiles, relPaths []string, gitRoot string, verbose bool) {
+	if len(lockFiles) == 1 {
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running zizmor security scanner on "+relPaths[0]))
+	} else {
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running zizmor security scanner on %d files", len(lockFiles))))
+	}
+	if verbose {
+		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir ghcr.io/zizmorcore/zizmor:latest --format json %s", gitRoot, strings.Join(relPaths, " "))
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run zizmor directly: "+dockerCmd))
+	}
+}
+
+func runZizmorOnFilesResult(err error, lockFiles []string, stdout, stderr bytes.Buffer, verbose bool, strict bool) error {
 	// Parse and reformat the output, get total warning count
 	totalWarnings, parseErr := parseAndDisplayZizmorOutput(stdout.String(), stderr.String(), verbose)
 	if parseErr != nil {
@@ -180,123 +177,114 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, erro
 	fileFindings := make(map[string][]zizmorFinding)
 
 	// Parse stderr for "completed" messages to get list of files
+	completedFiles := parseAndDisplayZizmorOutputCompletedFiles(stderr, fileFindings)
+
+	// Parse JSON findings from stdout
+	totalWarnings, err := parseAndDisplayZizmorOutputFindings(stdout, fileFindings)
+	if err != nil {
+		return 0, err
+	}
+
+	// Display reformatted output for each completed file
+	for _, filePath := range completedFiles {
+		parseAndDisplayZizmorOutputFile(filePath, fileFindings[filePath])
+	}
+
+	return totalWarnings, nil
+}
+
+func parseAndDisplayZizmorOutputCompletedFiles(stderr string, fileFindings map[string][]zizmorFinding) []string {
 	completedFiles := []string{}
 	scanner := bufio.NewScanner(strings.NewReader(stderr))
 	for scanner.Scan() {
 		line := scanner.Text()
-		// Look for lines like: " INFO audit: zizmor: 🌈 completed ./.github/workflows/pdf-summary.lock.yml"
 		if strings.Contains(line, "INFO audit: zizmor: 🌈 completed") {
 			parts := strings.Split(line, "completed ")
 			if len(parts) == 2 {
 				filePath := strings.TrimSpace(parts[1])
 				completedFiles = append(completedFiles, filePath)
-				// Initialize empty findings slice
 				if _, exists := fileFindings[filePath]; !exists {
 					fileFindings[filePath] = []zizmorFinding{}
 				}
 			}
 		}
 	}
+	return completedFiles
+}
 
-	// Parse JSON findings from stdout
+func parseAndDisplayZizmorOutputFindings(stdout string, fileFindings map[string][]zizmorFinding) (int, error) {
 	var findings []zizmorFinding
 	totalWarnings := 0
-	if stdout != "" && strings.HasPrefix(strings.TrimSpace(stdout), "[") {
-		if err := json.Unmarshal([]byte(stdout), &findings); err != nil {
-			return 0, fmt.Errorf("failed to parse zizmor JSON output: %w", err)
-		}
-
-		// Organize findings by file
-		for _, finding := range findings {
-			// Track which files this finding affects (avoid duplicates)
-			affectedFiles := make(map[string]struct {
-			})
-			for _, location := range finding.Locations {
-				filePath := location.Symbolic.Key.Local.GivenPath
-				if filePath != "" && !setutil.Contains(affectedFiles, filePath) {
-					affectedFiles[filePath] = struct {
-					}{}
-					fileFindings[filePath] = append(fileFindings[filePath], finding)
-					totalWarnings++
-				}
+	if stdout == "" || !strings.HasPrefix(strings.TrimSpace(stdout), "[") {
+		return totalWarnings, nil
+	}
+	if err := json.Unmarshal([]byte(stdout), &findings); err != nil {
+		return 0, fmt.Errorf("failed to parse zizmor JSON output: %w", err)
+	}
+	for _, finding := range findings {
+		affectedFiles := make(map[string]struct{})
+		for _, location := range finding.Locations {
+			filePath := location.Symbolic.Key.Local.GivenPath
+			if filePath != "" && !setutil.Contains(affectedFiles, filePath) {
+				affectedFiles[filePath] = struct{}{}
+				fileFindings[filePath] = append(fileFindings[filePath], finding)
+				totalWarnings++
 			}
 		}
 	}
-
-	// Display reformatted output for each completed file
-	for _, filePath := range completedFiles {
-		findings := fileFindings[filePath]
-		count := len(findings)
-
-		// Skip files with 0 warnings
-		if count == 0 {
-			continue
-		}
-
-		// Read file content for context display
-		fileContent, err := os.ReadFile(filePath)
-		var fileLines []string
-		if err == nil {
-			fileLines = strings.Split(string(fileContent), "\n")
-		}
-
-		// Display detailed findings using CompilerError format
-		for _, finding := range findings {
-			severity := finding.Determinations.Severity
-			ident := finding.Ident
-			desc := finding.Desc
-			url := finding.URL
-
-			// Find the primary location (first location in the list)
-			if len(finding.Locations) > 0 {
-				loc := finding.Locations[0]
-				row := loc.Concrete.Location.StartPoint.Row
-				col := loc.Concrete.Location.StartPoint.Column
-				// Zizmor uses 0-based indexing, convert to 1-based for user display
-				lineNum := row + 1
-				colNum := col + 1
-
-				// Create context lines around the error
-				var context []string
-				if len(fileLines) > 0 && lineNum > 0 && lineNum <= len(fileLines) {
-					startLine := max(1, lineNum-2)
-					endLine := min(len(fileLines), lineNum+2)
-
-					for i := startLine; i <= endLine; i++ {
-						if i-1 < len(fileLines) {
-							context = append(context, fileLines[i-1])
-						}
-					}
-				}
-
-				// Map severity to error type
-				errorType := "warning"
-				if severity == "High" || severity == "Critical" {
-					errorType = "error"
-				}
-
-				// Build message with URL link if available
-				message := fmt.Sprintf("[%s] %s: %s", severity, ident, desc)
-				if url != "" {
-					message = fmt.Sprintf("%s (%s)", message, url)
-				}
-
-				// Create and format CompilerError
-				compilerErr := console.CompilerError{
-					Position: console.ErrorPosition{
-						File:   filePath,
-						Line:   lineNum,
-						Column: colNum,
-					},
-					Type:    errorType,
-					Message: message,
-					Context: context,
-				}
-
-				fmt.Fprint(os.Stderr, console.FormatError(compilerErr))
-			}
-		}
-	}
-
 	return totalWarnings, nil
+}
+
+func parseAndDisplayZizmorOutputFile(filePath string, findings []zizmorFinding) {
+	if len(findings) == 0 {
+		return
+	}
+	fileContent, err := os.ReadFile(filePath)
+	var fileLines []string
+	if err == nil {
+		fileLines = strings.Split(string(fileContent), "\n")
+	}
+	for _, finding := range findings {
+		parseAndDisplayZizmorOutputFinding(filePath, fileLines, finding)
+	}
+}
+
+func parseAndDisplayZizmorOutputFinding(filePath string, fileLines []string, finding zizmorFinding) {
+	if len(finding.Locations) == 0 {
+		return
+	}
+	loc := finding.Locations[0]
+	lineNum := loc.Concrete.Location.StartPoint.Row + 1
+	colNum := loc.Concrete.Location.StartPoint.Column + 1
+	context := parseAndDisplayZizmorOutputContext(fileLines, lineNum)
+	errorType := "warning"
+	if finding.Determinations.Severity == "High" || finding.Determinations.Severity == "Critical" {
+		errorType = "error"
+	}
+	message := fmt.Sprintf("[%s] %s: %s", finding.Determinations.Severity, finding.Ident, finding.Desc)
+	if finding.URL != "" {
+		message = fmt.Sprintf("%s (%s)", message, finding.URL)
+	}
+	compilerErr := console.CompilerError{
+		Position: console.ErrorPosition{File: filePath, Line: lineNum, Column: colNum},
+		Type:     errorType,
+		Message:  message,
+		Context:  context,
+	}
+	fmt.Fprint(os.Stderr, console.FormatError(compilerErr))
+}
+
+func parseAndDisplayZizmorOutputContext(fileLines []string, lineNum int) []string {
+	var context []string
+	if len(fileLines) == 0 || lineNum <= 0 || lineNum > len(fileLines) {
+		return context
+	}
+	startLine := max(1, lineNum-2)
+	endLine := min(len(fileLines), lineNum+2)
+	for i := startLine; i <= endLine; i++ {
+		if i-1 < len(fileLines) {
+			context = append(context, fileLines[i-1])
+		}
+	}
+	return context
 }

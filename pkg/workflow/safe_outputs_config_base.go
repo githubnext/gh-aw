@@ -9,23 +9,26 @@ import (
 // before parsing the max field from configMap. Supports both integer values and GitHub
 // Actions expression strings (e.g. "${{ inputs.max }}").
 func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *BaseSafeOutputConfig, defaultMax int) {
-	// Set default max if provided
+	parseBaseSafeOutputMax(configMap, config, defaultMax)
+	parseBaseSafeOutputAuth(configMap, config)
+	parseBaseSafeOutputStaged(configMap, config)
+	parseBaseSafeOutputSamples(configMap, config)
+}
+
+func parseBaseSafeOutputMax(configMap map[string]any, config *BaseSafeOutputConfig, defaultMax int) {
 	if defaultMax > 0 {
 		safeOutputsConfigLog.Printf("Setting default max: %d", defaultMax)
 		config.Max = defaultIntStr(defaultMax)
 	}
 
-	// Parse max (this will override the default if present in configMap)
 	if max, exists := configMap["max"]; exists {
 		switch v := max.(type) {
 		case string:
-			// Accept GitHub Actions expression strings
 			if isExpression(v) {
 				safeOutputsConfigLog.Printf("Parsed max as GitHub Actions expression: %s", v)
 				config.Max = &v
 			}
 		default:
-			// Convert integer/float64/etc to string via typeutil.ParseIntValue
 			if maxInt, ok := typeutil.ParseIntValue(max); ok {
 				safeOutputsConfigLog.Printf("Parsed max as integer: %d", maxInt)
 				s := defaultIntStr(maxInt)
@@ -33,8 +36,9 @@ func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *B
 			}
 		}
 	}
+}
 
-	// Parse github-token
+func parseBaseSafeOutputAuth(configMap map[string]any, config *BaseSafeOutputConfig) {
 	if githubToken, exists := configMap["github-token"]; exists {
 		if githubTokenStr, ok := githubToken.(string); ok {
 			safeOutputsConfigLog.Print("Parsed custom github-token from config")
@@ -49,8 +53,9 @@ func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *B
 			config.GitHubApp = parseAppConfig(appMap)
 		}
 	}
+}
 
-	// Parse staged flag (per-handler staged mode)
+func parseBaseSafeOutputStaged(configMap map[string]any, config *BaseSafeOutputConfig) {
 	if err := preprocessBoolFieldAsString(configMap, "staged", safeOutputsConfigLog); err != nil {
 		safeOutputsConfigLog.Printf("Invalid staged value: %v", err)
 	} else if staged, exists := configMap["staged"]; exists {
@@ -60,11 +65,9 @@ func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *B
 			config.Staged = &value
 		}
 	}
+}
 
-	// Parse samples list (hidden feature: deterministic replay samples for --use-samples).
-	// Accepts either a YAML list of objects, or a single object that is auto-wrapped
-	// into a one-element list. The JSON schema rejects scalar/string shapes so we
-	// don't need a defensive YAML-string branch here.
+func parseBaseSafeOutputSamples(configMap map[string]any, config *BaseSafeOutputConfig) {
 	if samples, exists := configMap["samples"]; exists {
 		parsed := parseSamplesValue(samples)
 		if len(parsed) > 0 {

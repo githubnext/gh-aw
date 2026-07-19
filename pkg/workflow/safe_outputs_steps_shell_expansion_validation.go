@@ -122,75 +122,73 @@ func validateRunScriptForShellExpansion(stepIndex int, script string) error {
 		return nil
 	}
 
-	// Scan all matches so we can skip false positives (e.g. arithmetic $((, GitHub
-	// Actions ${{ expressions) before reporting the first true violation.
 	groupNames := shellExpansionPattern.SubexpNames()
 	allMatches := shellExpansionPattern.FindAllStringSubmatchIndex(script, -1)
 
 	for _, match := range allMatches {
-		snippet := ""
-		patternDescription := "dangerous shell expansion"
-		groupName := ""
-		matchStart := match[0]
-
-		for gi, name := range groupNames {
-			if name == "" {
-				continue
-			}
-			start, end := match[gi*2], match[gi*2+1]
-			if start < 0 {
-				continue // group did not participate in this match
-			}
-			if _, known := dangerousPatternDescription[name]; known {
-				raw := script[start:end]
-				groupName = name
-				// For short patterns like $( or ${! that don't capture the full construct,
-				// extend the snippet to include context up to the end of the line or 60 chars.
-				if len(raw) < 10 {
-					lineEnd := strings.IndexByte(script[start:], '\n')
-					if lineEnd < 0 {
-						lineEnd = len(script) - start
-					}
-					raw = script[start : start+lineEnd]
-					// Remove any trailing control characters.
-					raw = strings.TrimRight(raw, "\r\t ")
-				}
-				// Clip the snippet to 60 characters to keep the error readable.
-				raw = stringutil.Truncate(raw, 60)
-				snippet = raw
-				patternDescription = dangerousPatternDescription[name]
-				break
-			}
-		}
-
-		if groupName == "" {
+		violation, ok := shellExpansionViolationFromMatch(script, match, groupNames)
+		if !ok {
 			continue
 		}
-
-		// Skip arithmetic expansion $((: it uses $(( not $(command).
-		if groupName == "commandSubst" {
-			// Check the two characters after $( to detect $((
-			if matchStart+3 <= len(script) && script[matchStart:matchStart+3] == "$((" {
-				continue
-			}
-		}
-
-		safeOutputsStepsShellExpansionLog.Printf("Dangerous pattern found in safe-outputs step %d: %s", stepIndex, patternDescription)
-
-		return fmt.Errorf(
-			"safe-outputs.steps[%d]: run script contains %s, which is blocked by the "+
-				"safe-outputs security harness at runtime\n\n"+
-				"  Offending snippet: %s\n\n"+
-				"Avoid command substitution, backticks, indirect expansion, and parameter "+
-				"transformation in safe-outputs run scripts. Write URL values and other "+
-				"dynamic content to files in /tmp/gh-aw/agent/ during the agent turn, then "+
-				"read the file contents in the safe-outputs step (e.g. with 'cat' or by "+
-				"passing a script argument)",
-			stepIndex,
-			patternDescription,
-			snippet,
-		)
+		return formatShellExpansionViolation(stepIndex, violation)
 	}
 
 	return nil
+}
+
+type shellExpansionViolation struct {
+	snippet            string
+	patternDescription string
+}
+
+func shellExpansionViolationFromMatch(script string, match []int, groupNames []string) (shellExpansionViolation, bool) {
+	for gi, name := range groupNames {
+		if name == "" {
+			continue
+		}
+		start, end := match[gi*2], match[gi*2+1]
+		if start < 0 {
+			continue
+		}
+		if _, known := dangerousPatternDescription[name]; !known {
+			continue
+		}
+		if name == "commandSubst" && match[0]+3 <= len(script) && script[match[0]:match[0]+3] == "$((" {
+			return shellExpansionViolation{}, false
+		}
+		return shellExpansionViolation{
+			snippet:            shellExpansionSnippet(script, start, end),
+			patternDescription: dangerousPatternDescription[name],
+		}, true
+	}
+	return shellExpansionViolation{}, false
+}
+
+func shellExpansionSnippet(script string, start, end int) string {
+	raw := script[start:end]
+	if len(raw) < 10 {
+		lineEnd := strings.IndexByte(script[start:], '\n')
+		if lineEnd < 0 {
+			lineEnd = len(script) - start
+		}
+		raw = strings.TrimRight(script[start:start+lineEnd], "\r\t ")
+	}
+	return stringutil.Truncate(raw, 60)
+}
+
+func formatShellExpansionViolation(stepIndex int, violation shellExpansionViolation) error {
+	safeOutputsStepsShellExpansionLog.Printf("Dangerous pattern found in safe-outputs step %d: %s", stepIndex, violation.patternDescription)
+	return fmt.Errorf(
+		"safe-outputs.steps[%d]: run script contains %s, which is blocked by the "+
+			"safe-outputs security harness at runtime\n\n"+
+			"  Offending snippet: %s\n\n"+
+			"Avoid command substitution, backticks, indirect expansion, and parameter "+
+			"transformation in safe-outputs run scripts. Write URL values and other "+
+			"dynamic content to files in /tmp/gh-aw/agent/ during the agent turn, then "+
+			"read the file contents in the safe-outputs step (e.g. with 'cat' or by "+
+			"passing a script argument)",
+		stepIndex,
+		violation.patternDescription,
+		violation.snippet,
+	)
 }

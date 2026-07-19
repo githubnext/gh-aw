@@ -223,49 +223,15 @@ func replaceOutsideShellLineComments(content, old, new string) string {
 	for i := 0; i < len(content); {
 		ch := content[i]
 
-		if ch == '\n' {
-			escaped = false
-			i++
-			continue
-		}
-
-		if escaped {
-			escaped = false
-			i++
-			continue
-		}
-
-		if ch == '\\' && !inSingleQuote {
-			escaped = true
-			i++
-			continue
-		}
-
-		if ch == '\'' && !inDoubleQuote {
-			inSingleQuote = !inSingleQuote
-			i++
-			continue
-		}
-
-		if ch == '"' && !inSingleQuote {
-			inDoubleQuote = !inDoubleQuote
+		if advance, newEscaped, newSingle, newDouble := updateShellQuoteScanState(ch, escaped, inSingleQuote, inDoubleQuote); advance {
+			escaped, inSingleQuote, inDoubleQuote = newEscaped, newSingle, newDouble
 			i++
 			continue
 		}
 
 		if ch == '#' && !inSingleQuote && !inDoubleQuote && isShellCommentStart(content, i) {
 			result.WriteString(strings.ReplaceAll(content[segmentStart:i], old, new))
-
-			commentEnd := i
-			for commentEnd < len(content) && content[commentEnd] != '\n' {
-				commentEnd++
-			}
-			result.WriteString(content[i:commentEnd])
-			if commentEnd < len(content) {
-				result.WriteByte('\n')
-				commentEnd++
-			}
-
+			commentEnd := writeShellLineComment(&result, content, i)
 			escaped = false
 			segmentStart = commentEnd
 			i = commentEnd
@@ -277,6 +243,38 @@ func replaceOutsideShellLineComments(content, old, new string) string {
 
 	result.WriteString(strings.ReplaceAll(content[segmentStart:], old, new))
 	return result.String()
+}
+
+func updateShellQuoteScanState(ch byte, escaped bool, inSingleQuote bool, inDoubleQuote bool) (bool, bool, bool, bool) {
+	if ch == '\n' {
+		return true, false, inSingleQuote, inDoubleQuote
+	}
+	if escaped {
+		return true, false, inSingleQuote, inDoubleQuote
+	}
+	if ch == '\\' && !inSingleQuote {
+		return true, true, inSingleQuote, inDoubleQuote
+	}
+	if ch == '\'' && !inDoubleQuote {
+		return true, escaped, !inSingleQuote, inDoubleQuote
+	}
+	if ch == '"' && !inSingleQuote {
+		return true, escaped, inSingleQuote, !inDoubleQuote
+	}
+	return false, escaped, inSingleQuote, inDoubleQuote
+}
+
+func writeShellLineComment(result *strings.Builder, content string, start int) int {
+	commentEnd := start
+	for commentEnd < len(content) && content[commentEnd] != '\n' {
+		commentEnd++
+	}
+	result.WriteString(content[start:commentEnd])
+	if commentEnd < len(content) {
+		result.WriteByte('\n')
+		commentEnd++
+	}
+	return commentEnd
 }
 
 // TemplateInjectionViolation represents a detected template injection risk

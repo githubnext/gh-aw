@@ -48,135 +48,127 @@ func (c *Compiler) parseSafeJobsConfig(jobsMap map[string]any) map[string]*SafeJ
 		if !ok {
 			continue
 		}
-
-		safeJob := &SafeJobConfig{}
-
-		// Parse name
-		if name, exists := jobConfig["name"]; exists {
-			if nameStr, ok := name.(string); ok {
-				safeJob.Name = nameStr
-			}
-		}
-
-		// Parse description
-		if description, exists := jobConfig["description"]; exists {
-			if descStr, ok := description.(string); ok {
-				safeJob.Description = descStr
-			}
-		}
-
-		// Parse runs-on (also accept "runner" as alias)
-		if runsOn, exists := jobConfig["runs-on"]; exists {
-			safeJob.RunsOn = runsOn
-		} else if runner, exists := jobConfig["runner"]; exists {
-			safeJob.RunsOn = runner
-		}
-
-		// Parse if condition
-		if ifCond, exists := jobConfig["if"]; exists {
-			if ifStr, ok := ifCond.(string); ok {
-				safeJob.If = c.extractExpressionFromIfString(ifStr)
-			}
-		}
-
-		// Parse needs
-		if needs, exists := jobConfig["needs"]; exists {
-			if needsList, ok := needs.([]any); ok {
-				for _, need := range needsList {
-					if needStr, ok := need.(string); ok {
-						safeJob.Needs = append(safeJob.Needs, needStr)
-					}
-				}
-			} else if needStr, ok := needs.(string); ok {
-				safeJob.Needs = append(safeJob.Needs, needStr)
-			}
-		}
-
-		// Parse steps
-		if steps, exists := jobConfig["steps"]; exists {
-			if stepsList, ok := steps.([]any); ok {
-				safeJob.Steps = stepsList
-			}
-		}
-
-		// Parse env
-		if env, exists := jobConfig["env"]; exists {
-			if envMap, ok := env.(map[string]any); ok {
-				safeJob.Env = make(map[string]string)
-				for key, value := range envMap {
-					if valueStr, ok := value.(string); ok {
-						safeJob.Env[key] = valueStr
-					}
-				}
-			}
-		}
-
-		// Parse permissions
-		if permissions, exists := jobConfig["permissions"]; exists {
-			if permMap, ok := permissions.(map[string]any); ok {
-				safeJob.Permissions = make(map[string]string)
-				for key, value := range permMap {
-					if valueStr, ok := value.(string); ok {
-						safeJob.Permissions[key] = valueStr
-					}
-				}
-			}
-		}
-
-		// Parse github-token
-		if token, exists := jobConfig["github-token"]; exists {
-			if tokenStr, ok := token.(string); ok {
-				safeJob.GitHubToken = tokenStr
-			}
-		}
-
-		// Parse output (also accept "agent-output" as alias)
-		if output, exists := jobConfig["output"]; exists {
-			if outputStr, ok := output.(string); ok {
-				safeJob.Output = outputStr
-			}
-		} else if agentOutput, exists := jobConfig["agent-output"]; exists {
-			if agentOutputStr, ok := agentOutput.(string); ok {
-				safeJob.Output = agentOutputStr
-			}
-		}
-
-		// Parse inputs using the unified parsing function
-		if inputs, exists := jobConfig["inputs"]; exists {
-			if inputsMap, ok := inputs.(map[string]any); ok {
-				safeJob.Inputs = ParseInputDefinitions(inputsMap)
-			}
-		}
-
-		// Parse max (optional; controls how many times this output type may be emitted per run)
-		if maxVal, exists := jobConfig["max"]; exists {
-			maxInt := 0
-			switch v := maxVal.(type) {
-			case int:
-				maxInt = v
-			case int64:
-				maxInt = int(v)
-			case uint64:
-				maxInt = int(v)
-			case float64:
-				if v != float64(int(v)) {
-					safeJobsLog.Printf("Warning: ignoring non-integer max for safe-job %q: %v", jobName, v)
-				} else {
-					maxInt = int(v)
-				}
-			default:
-				safeJobsLog.Printf("Warning: ignoring non-numeric max for safe-job %q: %T", jobName, maxVal)
-			}
-			if maxInt > 0 {
-				safeJob.Max = maxInt
-			}
-		}
+		safeJob := c.parseSafeJobConfig(jobName, jobConfig)
 
 		safeJobsLog.Printf("Parsed safe-job configuration: name=%s, has_steps=%v, has_inputs=%v, max=%d", jobName, len(safeJob.Steps) > 0, len(safeJob.Inputs) > 0, safeJob.Max)
 		result[jobName] = safeJob
 	}
 
 	return result
+}
+
+func (c *Compiler) parseSafeJobConfig(jobName string, jobConfig map[string]any) *SafeJobConfig {
+	safeJob := &SafeJobConfig{}
+	parseSafeJobStringFields(jobConfig, safeJob)
+	if runsOn, exists := jobConfig["runs-on"]; exists {
+		safeJob.RunsOn = runsOn
+	} else if runner, exists := jobConfig["runner"]; exists {
+		safeJob.RunsOn = runner
+	}
+	if ifCond, exists := jobConfig["if"]; exists {
+		if ifStr, ok := ifCond.(string); ok {
+			safeJob.If = c.extractExpressionFromIfString(ifStr)
+		}
+	}
+	safeJob.Needs = parseSafeJobNeeds(jobConfig["needs"])
+	if steps, exists := jobConfig["steps"]; exists {
+		if stepsList, ok := steps.([]any); ok {
+			safeJob.Steps = stepsList
+		}
+	}
+	safeJob.Env = parseStringMapField(jobConfig["env"])
+	safeJob.Permissions = parseStringMapField(jobConfig["permissions"])
+	if inputsMap, ok := jobConfig["inputs"].(map[string]any); ok {
+		safeJob.Inputs = ParseInputDefinitions(inputsMap)
+	}
+	parseSafeJobMax(jobName, jobConfig, safeJob)
+	return safeJob
+}
+
+func parseSafeJobStringFields(jobConfig map[string]any, safeJob *SafeJobConfig) {
+	if name, exists := jobConfig["name"]; exists {
+		if nameStr, ok := name.(string); ok {
+			safeJob.Name = nameStr
+		}
+	}
+	if description, exists := jobConfig["description"]; exists {
+		if descStr, ok := description.(string); ok {
+			safeJob.Description = descStr
+		}
+	}
+	if token, exists := jobConfig["github-token"]; exists {
+		if tokenStr, ok := token.(string); ok {
+			safeJob.GitHubToken = tokenStr
+		}
+	}
+	if output, exists := jobConfig["output"]; exists {
+		if outputStr, ok := output.(string); ok {
+			safeJob.Output = outputStr
+		}
+	} else if agentOutput, exists := jobConfig["agent-output"]; exists {
+		if agentOutputStr, ok := agentOutput.(string); ok {
+			safeJob.Output = agentOutputStr
+		}
+	}
+}
+
+func parseSafeJobNeeds(needs any) []string {
+	var result []string
+	if needsList, ok := needs.([]any); ok {
+		for _, need := range needsList {
+			if needStr, ok := need.(string); ok {
+				result = append(result, needStr)
+			}
+		}
+	} else if needStr, ok := needs.(string); ok {
+		result = append(result, needStr)
+	}
+	return result
+}
+
+func parseStringMapField(value any) map[string]string {
+	valueMap, ok := value.(map[string]any)
+	if !ok {
+		return nil
+	}
+	result := make(map[string]string)
+	for key, value := range valueMap {
+		if valueStr, ok := value.(string); ok {
+			result[key] = valueStr
+		}
+	}
+	return result
+}
+
+func parseSafeJobMax(jobName string, jobConfig map[string]any, safeJob *SafeJobConfig) {
+	maxVal, exists := jobConfig["max"]
+	if !exists {
+		return
+	}
+	maxInt := safeJobMaxInt(jobName, maxVal)
+	if maxInt > 0 {
+		safeJob.Max = maxInt
+	}
+}
+
+func safeJobMaxInt(jobName string, maxVal any) int {
+	switch v := maxVal.(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case uint64:
+		return int(v)
+	case float64:
+		if v != float64(int(v)) {
+			safeJobsLog.Printf("Warning: ignoring non-integer max for safe-job %q: %v", jobName, v)
+			return 0
+		}
+		return int(v)
+	default:
+		safeJobsLog.Printf("Warning: ignoring non-numeric max for safe-job %q: %T", jobName, maxVal)
+		return 0
+	}
 }
 
 // buildSafeJobs creates custom safe-output jobs defined in SafeOutputs.Jobs
@@ -188,178 +180,169 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 	safeJobsLog.Printf("Building %d safe-jobs, threatDetectionEnabled=%v", len(data.SafeOutputs.Jobs), threatDetectionEnabled)
 	var safeJobNames []string
 
-	// Collect normalized names and a config lookup map, then sort by normalized name.
-	// Sorting on the normalized form (rather than the raw key) guarantees that the
-	// returned safeJobNames slice and the conclusion job's needs: list are ordered
-	// consistently with the names that appear in the compiled YAML, even when raw
-	// names contain characters (e.g. '.', '-') that normalize differently from '_'.
-	type safeJobEntry struct {
-		normalizedName string
-		config         *SafeJobConfig
-	}
-	entries := make([]safeJobEntry, 0, len(data.SafeOutputs.Jobs))
-	for rawName, cfg := range data.SafeOutputs.Jobs {
-		entries = append(entries, safeJobEntry{stringutil.NormalizeSafeOutputIdentifier(rawName), cfg})
-	}
-	slices.SortFunc(entries, func(a, b safeJobEntry) int { return strings.Compare(a.normalizedName, b.normalizedName) })
+	entries := sortedSafeJobEntries(data.SafeOutputs.Jobs)
 
 	for _, entry := range entries {
-		jobConfig := entry.config
-		normalizedJobName := entry.normalizedName
-
-		job := &Job{
-			Name:        normalizedJobName,
-			Environment: c.indentYAMLLines(resolveSafeOutputsEnvironment(data), "    "),
+		job, err := c.buildSafeJob(entry, data, threatDetectionEnabled)
+		if err != nil {
+			return nil, err
 		}
-
-		// Set custom job name if specified
-		if jobConfig.Name != "" {
-			job.DisplayName = jobConfig.Name
-		}
-
-		// Safe-jobs depend on agent job
-		job.Needs = append(job.Needs, string(constants.AgentJobName))
-
-		// When threat detection is enabled, safe-jobs also depend on the detection job
-		// so that the condition can gate on needs.detection.result == 'success'
-		if threatDetectionEnabled {
-			job.Needs = append(job.Needs, string(constants.DetectionJobName))
-		}
-
-		// Add any additional dependencies from the config
-		job.Needs = append(job.Needs, jobConfig.Needs...)
-
-		// Set runs-on
-		if jobConfig.RunsOn != nil {
-			if runsOnStr, ok := jobConfig.RunsOn.(string); ok {
-				job.RunsOn = "runs-on: " + runsOnStr
-			} else if runsOnList, ok := jobConfig.RunsOn.([]any); ok {
-				// Handle array format
-				var runsOnItems []string
-				for _, item := range runsOnList {
-					if itemStr, ok := item.(string); ok {
-						runsOnItems = append(runsOnItems, "      - "+itemStr)
-					}
-				}
-				if len(runsOnItems) > 0 {
-					job.RunsOn = "runs-on:\n" + strings.Join(runsOnItems, "\n")
-				}
-			}
-		} else {
-			job.RunsOn = "runs-on: ubuntu-latest" // Default
-		}
-
-		// Set if condition - combine safe output type check with user-provided condition
-		// Custom safe jobs should only run if the agent output contains the job name (tool call)
-		// Use normalized job name to match the underscore format in output_types
-		safeOutputCondition := BuildSafeOutputType(normalizedJobName) // min=0 means check for the tool in output_types
-
-		// When detection is expression-controlled the detection job may be skipped at runtime.
-		// Wrap the condition with always() + detection-passed so the safe-job still runs when
-		// the caller disabled threat detection for this invocation via the expression.
-		baseCondition := safeOutputCondition
-		if IsConditionalDetection(data.SafeOutputs) {
-			baseCondition = BuildAnd(
-				BuildAnd(BuildFunctionCall("always"), safeOutputCondition),
-				buildDetectionPassedCondition(),
-			)
-		}
-
-		if jobConfig.If != "" {
-			// If user provided a custom condition, combine it with the base condition
-			userConditionStr := c.extractExpressionFromIfString(jobConfig.If)
-			userCondition := &ExpressionNode{Expression: userConditionStr}
-			job.If = RenderCondition(BuildAnd(baseCondition, userCondition))
-		} else {
-			job.If = RenderCondition(baseCondition)
-		}
-
-		// Build job steps
-		var steps []string
-
-		// Add step to download agent output artifact using shared helper.
-		// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
-		// Safe-jobs depend on the agent job, so the prefix comes from needs.agent.outputs.
-		agentArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
-		downloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
-			ArtifactName: agentArtifactPrefix + constants.AgentArtifactName,
-			DownloadPath: SafeJobsDownloadDirExpr,
-			SetupEnvStep: false, // We'll handle env vars separately to add job-specific ones
-			StepName:     "Download agent output artifact",
-		}, c.getActionPin)
-		steps = append(steps, downloadSteps...)
-
-		// the download artifacts always creates a folder, then unpacks in that folder
-
-		// Add custom steps from the job configuration, injecting env vars directly so
-		// user steps can access GH_AW_AGENT_OUTPUT and all job-specific env vars.
-		if len(jobConfig.Steps) > 0 {
-			// GH_AW_AGENT_OUTPUT uses the runner.temp Actions expression so the path is
-			// resolved by the runner without requiring a $GITHUB_OUTPUT write.
-			setupEnvVars := map[string]string{
-				"GH_AW_AGENT_OUTPUT": SafeJobsDownloadDirExpr + constants.AgentOutputFilename,
-			}
-			// All job-specific env vars (literal or expression-based) are injected with
-			// their original values. Nothing goes through $GITHUB_OUTPUT.
-			maps.Copy(setupEnvVars, jobConfig.Env)
-			for _, step := range jobConfig.Steps {
-				if stepMap, ok := step.(map[string]any); ok {
-					// Convert to typed step for action pinning
-					typedStep, err := MapToStep(stepMap)
-					if err != nil {
-						return nil, fmt.Errorf("failed to convert step to typed step for safe job %s: %w", normalizedJobName, err)
-					}
-
-					// Inject setup env vars so user steps can access GH_AW_AGENT_OUTPUT
-					// and job-specific env vars (previously available via GITHUB_ENV).
-					if typedStep.Env == nil {
-						typedStep.Env = make(map[string]string)
-					}
-					for k, v := range setupEnvVars {
-						if _, exists := typedStep.Env[k]; !exists {
-							typedStep.Env[k] = v
-						}
-					}
-
-					// Apply action pinning using type-safe version
-					pinnedStep, err := applyActionPinToTypedStep(typedStep, data)
-					if err != nil {
-						return nil, fmt.Errorf("failed to pin action for step in safe job %s: %w", normalizedJobName, err)
-					}
-
-					// Convert back to map for YAML generation
-					stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
-					if err != nil {
-						return nil, fmt.Errorf("failed to convert step to YAML for safe job %s: %w", normalizedJobName, err)
-					}
-					steps = append(steps, stepYAML)
-				}
-			}
-		}
-
-		job.Steps = steps
-
-		// Set permissions if specified
-		if len(jobConfig.Permissions) > 0 {
-			// Build Permissions struct from map
-			perms := NewPermissions()
-			for perm, level := range jobConfig.Permissions {
-				perms.Set(PermissionScope(perm), PermissionLevel(level))
-			}
-			job.Permissions = perms.RenderToYAML()
-		}
-
-		// Add the job to the job manager
 		if err := c.jobManager.AddJob(job); err != nil {
-			safeJobsLog.Printf("Failed to add safe-job %s: %v", normalizedJobName, err)
-			return nil, fmt.Errorf("failed to add safe job %s: %w", normalizedJobName, err)
+			safeJobsLog.Printf("Failed to add safe-job %s: %v", entry.normalizedName, err)
+			return nil, fmt.Errorf("failed to add safe job %s: %w", entry.normalizedName, err)
 		}
-		safeJobsLog.Printf("Created safe-job: %s with %d dependencies and %d steps", normalizedJobName, len(job.Needs), len(job.Steps))
-		safeJobNames = append(safeJobNames, normalizedJobName)
+		safeJobsLog.Printf("Created safe-job: %s with %d dependencies and %d steps", entry.normalizedName, len(job.Needs), len(job.Steps))
+		safeJobNames = append(safeJobNames, entry.normalizedName)
 	}
 
 	safeJobsLog.Printf("Successfully built %d safe-jobs", len(safeJobNames))
 	return safeJobNames, nil
+}
+
+type safeJobEntry struct {
+	normalizedName string
+	config         *SafeJobConfig
+}
+
+func sortedSafeJobEntries(jobs map[string]*SafeJobConfig) []safeJobEntry {
+	entries := make([]safeJobEntry, 0, len(jobs))
+	for rawName, cfg := range jobs {
+		entries = append(entries, safeJobEntry{stringutil.NormalizeSafeOutputIdentifier(rawName), cfg})
+	}
+	slices.SortFunc(entries, func(a, b safeJobEntry) int { return strings.Compare(a.normalizedName, b.normalizedName) })
+	return entries
+}
+
+func (c *Compiler) buildSafeJob(entry safeJobEntry, data *WorkflowData, threatDetectionEnabled bool) (*Job, error) {
+	jobConfig := entry.config
+	job := &Job{Name: entry.normalizedName, Environment: c.indentYAMLLines(resolveSafeOutputsEnvironment(data), "    ")}
+	if jobConfig.Name != "" {
+		job.DisplayName = jobConfig.Name
+	}
+	job.Needs = safeJobNeeds(jobConfig, threatDetectionEnabled)
+	job.RunsOn = renderSafeJobRunsOn(jobConfig.RunsOn)
+	job.If = c.renderSafeJobCondition(entry.normalizedName, jobConfig, data)
+	steps, err := c.buildSafeJobSteps(entry.normalizedName, jobConfig, data)
+	if err != nil {
+		return nil, err
+	}
+	job.Steps = steps
+	job.Permissions = renderSafeJobPermissions(jobConfig.Permissions)
+	return job, nil
+}
+
+func safeJobNeeds(jobConfig *SafeJobConfig, threatDetectionEnabled bool) []string {
+	needs := []string{string(constants.AgentJobName)}
+	if threatDetectionEnabled {
+		needs = append(needs, string(constants.DetectionJobName))
+	}
+	return append(needs, jobConfig.Needs...)
+}
+
+func renderSafeJobRunsOn(runsOn any) string {
+	if runsOn == nil {
+		return "runs-on: ubuntu-latest"
+	}
+	if runsOnStr, ok := runsOn.(string); ok {
+		return "runs-on: " + runsOnStr
+	}
+	runsOnList, ok := runsOn.([]any)
+	if !ok {
+		return ""
+	}
+	var runsOnItems []string
+	for _, item := range runsOnList {
+		if itemStr, ok := item.(string); ok {
+			runsOnItems = append(runsOnItems, "      - "+itemStr)
+		}
+	}
+	if len(runsOnItems) == 0 {
+		return ""
+	}
+	return "runs-on:\n" + strings.Join(runsOnItems, "\n")
+}
+
+func (c *Compiler) renderSafeJobCondition(normalizedJobName string, jobConfig *SafeJobConfig, data *WorkflowData) string {
+	safeOutputCondition := BuildSafeOutputType(normalizedJobName)
+	baseCondition := safeOutputCondition
+	if IsConditionalDetection(data.SafeOutputs) {
+		baseCondition = BuildAnd(BuildAnd(BuildFunctionCall("always"), safeOutputCondition), buildDetectionPassedCondition())
+	}
+	if jobConfig.If == "" {
+		return RenderCondition(baseCondition)
+	}
+	userCondition := &ExpressionNode{Expression: c.extractExpressionFromIfString(jobConfig.If)}
+	return RenderCondition(BuildAnd(baseCondition, userCondition))
+}
+
+func (c *Compiler) buildSafeJobSteps(normalizedJobName string, jobConfig *SafeJobConfig, data *WorkflowData) ([]string, error) {
+	steps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName: artifactPrefixExprForAgentDownstreamJob(data) + constants.AgentArtifactName,
+		DownloadPath: SafeJobsDownloadDirExpr,
+		SetupEnvStep: false,
+		StepName:     "Download agent output artifact",
+	}, c.getActionPin)
+	if len(jobConfig.Steps) == 0 {
+		return steps, nil
+	}
+	customSteps, err := buildSafeJobCustomSteps(normalizedJobName, jobConfig, data)
+	if err != nil {
+		return nil, err
+	}
+	return append(steps, customSteps...), nil
+}
+
+func buildSafeJobCustomSteps(normalizedJobName string, jobConfig *SafeJobConfig, data *WorkflowData) ([]string, error) {
+	setupEnvVars := map[string]string{"GH_AW_AGENT_OUTPUT": SafeJobsDownloadDirExpr + constants.AgentOutputFilename}
+	maps.Copy(setupEnvVars, jobConfig.Env)
+	var steps []string
+	for _, step := range jobConfig.Steps {
+		stepMap, ok := step.(map[string]any)
+		if !ok {
+			continue
+		}
+		stepYAML, err := buildSafeJobCustomStepYAML(normalizedJobName, stepMap, setupEnvVars, data)
+		if err != nil {
+			return nil, err
+		}
+		steps = append(steps, stepYAML)
+	}
+	return steps, nil
+}
+
+func buildSafeJobCustomStepYAML(normalizedJobName string, stepMap map[string]any, setupEnvVars map[string]string, data *WorkflowData) (string, error) {
+	typedStep, err := MapToStep(stepMap)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert step to typed step for safe job %s: %w", normalizedJobName, err)
+	}
+	if typedStep.Env == nil {
+		typedStep.Env = make(map[string]string)
+	}
+	for k, v := range setupEnvVars {
+		if _, exists := typedStep.Env[k]; !exists {
+			typedStep.Env[k] = v
+		}
+	}
+	pinnedStep, err := applyActionPinToTypedStep(typedStep, data)
+	if err != nil {
+		return "", fmt.Errorf("failed to pin action for step in safe job %s: %w", normalizedJobName, err)
+	}
+	stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
+	if err != nil {
+		return "", fmt.Errorf("failed to convert step to YAML for safe job %s: %w", normalizedJobName, err)
+	}
+	return stepYAML, nil
+}
+
+func renderSafeJobPermissions(config map[string]string) string {
+	if len(config) == 0 {
+		return ""
+	}
+	perms := NewPermissions()
+	for perm, level := range config {
+		perms.Set(PermissionScope(perm), PermissionLevel(level))
+	}
+	return perms.RenderToYAML()
 }
 
 // extractSafeJobsFromFrontmatter extracts safe-jobs configuration from frontmatter.

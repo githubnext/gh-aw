@@ -343,21 +343,7 @@ func isSerenaImportPath(path string) bool {
 }
 
 func addSerenaImport(lines []string, languages []string) []string {
-	var langLine string
-	if len(languages) == 0 {
-		// No languages were specified in the original workflow. Emit a placeholder so
-		// the user knows what to fill in. The empty array is valid per the import-schema
-		// (the field is present); Serena simply won't analyse any language until updated.
-		langLine = `      languages: []  # TODO: specify languages, e.g. ["TypeScript", "JavaScript"]`
-	} else {
-		langLine = "      languages: " + formatStringArrayInline(languages)
-	}
-	entry := []string{
-		"  - uses: shared/mcp/serena.md",
-		"    with:",
-		langLine,
-	}
-
+	entry := addSerenaImportEntry(languages)
 	importsIdx := -1
 	importsEnd := len(lines)
 	for i, line := range lines {
@@ -405,6 +391,23 @@ func addSerenaImport(lines []string, languages []string) []string {
 	result = append(result, importBlock...)
 	result = append(result, lines[insertAt:]...)
 	return result
+}
+
+func addSerenaImportEntry(languages []string) []string {
+	var langLine string
+	if len(languages) == 0 {
+		// No languages were specified in the original workflow. Emit a placeholder so
+		// the user knows what to fill in. The empty array is valid per the import-schema
+		// (the field is present); Serena simply won't analyse any language until updated.
+		langLine = `      languages: []  # TODO: specify languages, e.g. ["TypeScript", "JavaScript"]`
+	} else {
+		langLine = "      languages: " + formatStringArrayInline(languages)
+	}
+	return []string{
+		"  - uses: shared/mcp/serena.md",
+		"    with:",
+		langLine,
+	}
 }
 
 func formatStringArrayInline(values []string) string {

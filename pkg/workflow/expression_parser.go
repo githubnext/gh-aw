@@ -89,101 +89,101 @@ func (p *ExpressionParser) tokenize(expression string) ([]token, error) {
 	i := 0
 
 	for i < len(expression) {
-		// Skip whitespace
 		if unicode.IsSpace(rune(expression[i])) {
 			i++
 			continue
 		}
-
-		switch {
-		case i+1 < len(expression) && expression[i:i+2] == "&&":
-			tokens = append(tokens, token{tokenAnd, "&&", i})
-			i += 2
-		case i+1 < len(expression) && expression[i:i+2] == "||":
-			tokens = append(tokens, token{tokenOr, "||", i})
-			i += 2
-		case expression[i] == '!' && (i+1 >= len(expression) || expression[i+1] != '='):
-			// Only treat ! as NOT if not followed by = (to avoid conflicting with !=)
-			tokens = append(tokens, token{tokenNot, "!", i})
-			i++
-		case expression[i] == '(':
-			tokens = append(tokens, token{tokenLeftParen, "(", i})
-			i++
-		case expression[i] == ')':
-			tokens = append(tokens, token{tokenRightParen, ")", i})
-			i++
-		default:
-			// Parse literal expression - everything until we hit a logical operator or paren
-			start := i
-			parenCount := 0
-
-			for i < len(expression) {
-				ch := expression[i]
-
-				// Handle quoted strings - skip everything inside quotes
-				// Support single quotes ('), double quotes ("), and backticks (`)
-				if ch == '\'' || ch == '"' || ch == '`' {
-					quote := ch
-					i++ // skip opening quote
-					for i < len(expression) {
-						if expression[i] == quote {
-							i++ // skip closing quote
-							break
-						}
-						if expression[i] == '\\' && i+1 < len(expression) {
-							i += 2 // skip escaped character
-						} else {
-							i++
-						}
-					}
-					continue
-				}
-
-				// Track parentheses that are part of the expression (e.g., function calls)
-				if ch == '(' {
-					parenCount++
-					i++
-					continue
-				} else if ch == ')' {
-					if parenCount > 0 {
-						parenCount--
-						i++
-						continue
-					} else {
-						// This closes our group expression, stop here
-						break
-					}
-				}
-
-				// Check for logical operators when not inside parentheses
-				if parenCount == 0 {
-					// Check for && or ||
-					if i+1 < len(expression) {
-						next := expression[i : i+2]
-						if next == "&&" || next == "||" {
-							break
-						}
-					}
-
-					// Check for logical NOT that's not part of !=
-					if ch == '!' && (i+1 >= len(expression) || expression[i+1] != '=') {
-						break
-					}
-				}
-
-				i++
-			}
-
-			literal := strings.TrimSpace(expression[start:i])
-			if literal == "" {
-				return nil, fmt.Errorf("unexpected empty literal at position %d", start)
-			}
-			tokens = append(tokens, token{tokenLiteral, literal, start})
+		if tok, next, ok := tokenizeSimpleOperator(expression, i); ok {
+			tokens = append(tokens, tok)
+			i = next
+			continue
 		}
+		literal, next, err := p.tokenizeLiteral(expression, i)
+		if err != nil {
+			return nil, err
+		}
+		tokens = append(tokens, literal)
+		i = next
 	}
 
 	tokens = append(tokens, token{tokenEOF, "", i})
 	return tokens, nil
+}
+
+func tokenizeSimpleOperator(expression string, i int) (token, int, bool) {
+	switch {
+	case i+1 < len(expression) && expression[i:i+2] == "&&":
+		return token{tokenAnd, "&&", i}, i + 2, true
+	case i+1 < len(expression) && expression[i:i+2] == "||":
+		return token{tokenOr, "||", i}, i + 2, true
+	case expression[i] == '!' && (i+1 >= len(expression) || expression[i+1] != '='):
+		return token{tokenNot, "!", i}, i + 1, true
+	case expression[i] == '(':
+		return token{tokenLeftParen, "(", i}, i + 1, true
+	case expression[i] == ')':
+		return token{tokenRightParen, ")", i}, i + 1, true
+	default:
+		return token{}, i, false
+	}
+}
+
+func (p *ExpressionParser) tokenizeLiteral(expression string, start int) (token, int, error) {
+	i := start
+	parenCount := 0
+	for i < len(expression) {
+		ch := expression[i]
+		if ch == '\'' || ch == '"' || ch == '`' {
+			i = skipQuotedExpression(expression, i)
+			continue
+		}
+		if ch == '(' {
+			parenCount++
+			i++
+			continue
+		} else if ch == ')' {
+			if parenCount == 0 {
+				break
+			}
+			parenCount--
+			i++
+			continue
+		}
+		if parenCount == 0 && isExpressionTokenBoundary(expression, i) {
+			break
+		}
+		i++
+	}
+	literal := strings.TrimSpace(expression[start:i])
+	if literal == "" {
+		return token{}, i, fmt.Errorf("unexpected empty literal at position %d", start)
+	}
+	return token{tokenLiteral, literal, start}, i, nil
+}
+
+func skipQuotedExpression(expression string, i int) int {
+	quote := expression[i]
+	i++
+	for i < len(expression) {
+		if expression[i] == quote {
+			return i + 1
+		}
+		if expression[i] == '\\' && i+1 < len(expression) {
+			i += 2
+		} else {
+			i++
+		}
+	}
+	return i
+}
+
+func isExpressionTokenBoundary(expression string, i int) bool {
+	if i+1 < len(expression) {
+		next := expression[i : i+2]
+		if next == "&&" || next == "||" {
+			return true
+		}
+	}
+	return expression[i] == '!' && (i+1 >= len(expression) || expression[i+1] != '=')
 }
 
 // parseOrExpression parses OR expressions (lowest precedence)
@@ -339,25 +339,7 @@ func BreakLongExpression(expression string) []string {
 		// Handle quoted strings - don't break inside quotes
 		// Support single quotes ('), double quotes ("), and backticks (`)
 		if char == '\'' || char == '"' || char == '`' {
-			quote := char
-			current.WriteByte(char)
-			i++
-
-			// Continue until closing quote
-			for i < len(expression) {
-				current.WriteByte(expression[i])
-				if expression[i] == quote {
-					i++
-					break
-				}
-				if expression[i] == '\\' && i+1 < len(expression) {
-					i++ // Skip escaped character
-					if i < len(expression) {
-						current.WriteByte(expression[i])
-					}
-				}
-				i++
-			}
+			i = writeQuotedExpression(&current, expression, i)
 			continue
 		}
 
@@ -391,7 +373,30 @@ func BreakLongExpression(expression string) []string {
 		lines = append(lines, trimmed)
 	}
 
-	// If we still have very long lines, try to break at parentheses
+	return breakLongExpressionLinesAtParentheses(lines)
+}
+
+func writeQuotedExpression(current *strings.Builder, expression string, i int) int {
+	quote := expression[i]
+	current.WriteByte(expression[i])
+	i++
+	for i < len(expression) {
+		current.WriteByte(expression[i])
+		if expression[i] == quote {
+			return i + 1
+		}
+		if expression[i] == '\\' && i+1 < len(expression) {
+			i++
+			if i < len(expression) {
+				current.WriteByte(expression[i])
+			}
+		}
+		i++
+	}
+	return i
+}
+
+func breakLongExpressionLinesAtParentheses(lines []string) []string {
 	var finalLines []string
 	for _, line := range lines {
 		if len(line) > int(constants.MaxExpressionLineLength) {

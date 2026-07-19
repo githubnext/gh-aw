@@ -16,67 +16,40 @@ type CreateAgentSessionConfig struct {
 
 // parseAgentSessionConfig handles create-agent-session configuration
 func (c *Compiler) parseAgentSessionConfig(outputMap map[string]any) *CreateAgentSessionConfig {
-	// Try new key first
 	if configData, exists := outputMap["create-agent-session"]; exists {
 		createAgentSessionLog.Print("Parsing create-agent-session configuration")
-		agentSessionConfig := &CreateAgentSessionConfig{}
-
-		if configMap, ok := configData.(map[string]any); ok {
-			// Parse base branch
-			if base, exists := configMap["base"]; exists {
-				if baseStr, ok := base.(string); ok {
-					agentSessionConfig.Base = baseStr
-				}
-			}
-
-			// Parse target-repo using shared helper with validation
-			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
-			if isInvalid {
-				return nil // Invalid configuration, return nil to cause validation error
-			}
-			agentSessionConfig.TargetRepoSlug = targetRepoSlug
-
-			// Parse common base fields with default max of 1
-			c.parseBaseSafeOutputConfig(configMap, &agentSessionConfig.BaseSafeOutputConfig, 1)
-		} else {
-			// If configData is nil or not a map (e.g., "create-agent-session:" with no value),
-			// still set the default max
-			agentSessionConfig.Max = defaultIntStr(1)
-		}
-
-		return agentSessionConfig
+		return c.parseAgentSessionConfigData(configData)
 	}
 
-	// Fall back to deprecated key for backward compatibility
 	if configData, exists := outputMap["create-agent-task"]; exists {
 		createAgentSessionLog.Print("WARNING: Using deprecated 'create-agent-task' configuration. Please migrate to 'create-agent-session' using 'gh aw fix'")
-		agentSessionConfig := &CreateAgentSessionConfig{}
-
-		if configMap, ok := configData.(map[string]any); ok {
-			// Parse base branch
-			if base, exists := configMap["base"]; exists {
-				if baseStr, ok := base.(string); ok {
-					agentSessionConfig.Base = baseStr
-				}
-			}
-
-			// Parse target-repo using shared helper with validation
-			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
-			if isInvalid {
-				return nil // Invalid configuration, return nil to cause validation error
-			}
-			agentSessionConfig.TargetRepoSlug = targetRepoSlug
-
-			// Parse common base fields with default max of 1
-			c.parseBaseSafeOutputConfig(configMap, &agentSessionConfig.BaseSafeOutputConfig, 1)
-		} else {
-			// If configData is nil or not a map (e.g., "create-agent-task:" with no value),
-			// still set the default max
-			agentSessionConfig.Max = defaultIntStr(1)
-		}
-
-		return agentSessionConfig
+		return c.parseAgentSessionConfigData(configData)
 	}
 
 	return nil
+}
+
+func (c *Compiler) parseAgentSessionConfigData(configData any) *CreateAgentSessionConfig {
+	agentSessionConfig := &CreateAgentSessionConfig{}
+
+	configMap, ok := configData.(map[string]any)
+	if !ok {
+		agentSessionConfig.Max = defaultIntStr(1)
+		return agentSessionConfig
+	}
+
+	if base, exists := configMap["base"]; exists {
+		if baseStr, ok := base.(string); ok {
+			agentSessionConfig.Base = baseStr
+		}
+	}
+
+	targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
+	if isInvalid {
+		return nil
+	}
+	agentSessionConfig.TargetRepoSlug = targetRepoSlug
+	c.parseBaseSafeOutputConfig(configMap, &agentSessionConfig.BaseSafeOutputConfig, 1)
+
+	return agentSessionConfig
 }

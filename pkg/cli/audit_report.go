@@ -271,47 +271,123 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 	// to populate the Experiments section of the report.
 	expData := extractExperimentData(run.LogsPath)
 
-	// Build overview
-	overview := OverviewData{
-		RunID:        run.DatabaseID,
-		WorkflowName: run.WorkflowName,
-		Status:       run.Status,
-		Conclusion:   run.Conclusion,
-		CreatedAt:    run.CreatedAt,
-		StartedAt:    run.StartedAt,
-		UpdatedAt:    run.UpdatedAt,
-		Event:        run.Event,
-		Branch:       run.HeadBranch,
-		URL:          run.URL,
-		Experiment:   formatExperimentLabel(expData),
+	overview := buildAuditDataOverview(run, expData)
+	metricsData, inferredEngineID := buildAuditDataMetrics(processedRun, metrics)
+	jobs := buildAuditDataJobs(processedRun.JobDetails)
+
+	errors := buildAuditDataErrors(run)
+
+	toolUsage := buildToolUsageInfo(metrics)
+	toolUsage = mergeMCPToolUsageInfo(toolUsage, mcpToolUsage)
+
+	analysis := buildAuditDataAnalysis(processedRun, metricsData, toolUsage, errors, overview.AwContext)
+
+	expanded := buildAuditDataExpanded(processedRun, metrics, metricsData, toolUsage, analysis.createdItems, mcpToolUsage, inferredEngineID)
+
+	if auditReportLog.Enabled() {
+		auditReportLog.Printf("Built audit data: %d jobs, %d errors, %d tool types, %d findings, %d recommendations",
+			len(jobs), len(errors), len(toolUsage), len(analysis.findings), len(analysis.recommendations))
 	}
 
+	auditData := buildAuditDataAssemble(buildAuditDataAssembleParams{
+		ProcessedRun: processedRun,
+		Overview:     overview,
+		MetricsData:  metricsData,
+		Jobs:         jobs,
+		Errors:       errors,
+		ToolUsage:    toolUsage,
+		MCPToolUsage: mcpToolUsage,
+		ExpData:      expData,
+		Analysis:     analysis,
+		Expanded:     expanded,
+	})
+
+	// Evaluate outcomes for created items if any exist
+	buildAuditDataOutcomes(&auditData, analysis.createdItems)
+
+	return auditData
+}
+
+type buildAuditDataExpandedData struct {
+	downloadedFiles    []FileInfo
+	performanceMetrics *PerformanceMetrics
+	engineConfig       *AuditEngineConfig
+	promptAnalysis     *PromptAnalysis
+	sessionAnalysis    *SessionAnalysis
+	safeOutputSummary  *SafeOutputSummary
+	mcpServerHealth    *MCPServerHealth
+}
+
+func buildAuditDataExpanded(processedRun ProcessedRun, metrics LogMetrics, metricsData MetricsData, toolUsage []ToolUsageInfo, createdItems []CreatedItemReport, mcpToolUsage *MCPToolUsageData, inferredEngineID string) buildAuditDataExpandedData {
+	run := processedRun.Run
+	chainMetrics := buildSafeOutputChainMetrics(run.LogsPath)
+	return buildAuditDataExpandedData{
+		downloadedFiles:    extractDownloadedFiles(run.LogsPath),
+		performanceMetrics: generatePerformanceMetrics(processedRun, metricsData, toolUsage),
+		engineConfig:       extractEngineConfigWithInferredEngine(run.LogsPath, inferredEngineID),
+		promptAnalysis:     extractPromptAnalysis(run.LogsPath),
+		sessionAnalysis:    buildSessionAnalysis(processedRun, metrics),
+		safeOutputSummary:  buildSafeOutputSummary(createdItems, chainMetrics),
+		mcpServerHealth:    buildMCPServerHealth(mcpToolUsage, processedRun.MCPFailures),
+	}
+}
+
+type buildAuditDataAssembleParams struct {
+	ProcessedRun ProcessedRun
+	Overview     OverviewData
+	MetricsData  MetricsData
+	Jobs         []JobData
+	Errors       []ErrorInfo
+	ToolUsage    []ToolUsageInfo
+	MCPToolUsage *MCPToolUsageData
+	ExpData      *ExperimentData
+	Analysis     buildAuditDataAnalysisResult
+	Expanded     buildAuditDataExpandedData
+}
+
+func buildAuditDataAssemble(p buildAuditDataAssembleParams) AuditData {
+	return AuditData{
+		Overview: p.Overview, TaskDomain: p.Analysis.taskDomain, BehaviorFingerprint: p.Analysis.behaviorFingerprint,
+		AgenticAssessments: p.Analysis.agenticAssessments, Metrics: p.MetricsData, KeyFindings: p.Analysis.findings,
+		Recommendations: p.Analysis.recommendations, ObservabilityInsights: p.Analysis.observabilityInsights,
+		PerformanceMetrics: p.Expanded.performanceMetrics, EngineConfig: p.Expanded.engineConfig,
+		PromptAnalysis: p.Expanded.promptAnalysis, SessionAnalysis: p.Expanded.sessionAnalysis,
+		SafeOutputSummary: p.Expanded.safeOutputSummary, MCPServerHealth: p.Expanded.mcpServerHealth,
+		Jobs: p.Jobs, DownloadedFiles: p.Expanded.downloadedFiles, MissingTools: p.ProcessedRun.MissingTools,
+		MissingData: p.ProcessedRun.MissingData, Noops: p.ProcessedRun.Noops, MCPFailures: p.ProcessedRun.MCPFailures,
+		FirewallTokenUsage: p.ProcessedRun.TokenUsage, GitHubRateLimitUsage: p.ProcessedRun.GitHubRateLimitUsage,
+		FirewallAnalysis: p.ProcessedRun.FirewallAnalysis, PolicyAnalysis: p.ProcessedRun.PolicyAnalysis,
+		RedactedDomainsAnalysis: p.ProcessedRun.RedactedDomainsAnalysis, Errors: p.Errors, ToolUsage: p.ToolUsage,
+		MCPToolUsage: p.MCPToolUsage, CreatedItems: p.Analysis.createdItems, Experiments: p.ExpData,
+	}
+}
+
+func buildAuditDataOverview(run WorkflowRun, expData *ExperimentData) OverviewData {
+	overview := OverviewData{
+		RunID: run.DatabaseID, WorkflowName: run.WorkflowName, Status: run.Status,
+		Conclusion: run.Conclusion, CreatedAt: run.CreatedAt, StartedAt: run.StartedAt,
+		UpdatedAt: run.UpdatedAt, Event: run.Event, Branch: run.HeadBranch, URL: run.URL,
+		Experiment: formatExperimentLabel(expData),
+	}
 	if run.LogsPath != "" {
 		overview.LogsPath = run.LogsPath
-	}
-
-	if run.Duration > 0 {
-		overview.Duration = timeutil.FormatDuration(run.Duration)
-	}
-
-	if run.LogsPath != "" {
 		awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
 		if awInfo, err := parseAwInfo(awInfoPath, false); err == nil && awInfo != nil {
 			overview.AwContext = awInfo.Context
 		}
 	}
-
-	// Build metrics
-	metricsData := MetricsData{
-		TokenUsage:   run.TokenUsage,
-		Turns:        run.Turns,
-		ErrorCount:   run.ErrorCount,
-		WarningCount: run.WarningCount,
+	if run.Duration > 0 {
+		overview.Duration = timeutil.FormatDuration(run.Duration)
 	}
+	return overview
+}
+
+func buildAuditDataMetrics(processedRun ProcessedRun, metrics LogMetrics) (MetricsData, string) {
+	run := processedRun.Run
+	metricsData := MetricsData{TokenUsage: run.TokenUsage, Turns: run.Turns, ErrorCount: run.ErrorCount, WarningCount: run.WarningCount}
 	if run.Conclusion == "failure" && metricsData.ErrorCount == 0 {
 		metricsData.ErrorCount = 1
 	}
-
 	needsFallbackMetrics := metricsData.TokenUsage == 0 || metricsData.Turns == 0
 	needsFallbackEngineConfig := run.LogsPath != "" && findAwInfoPath(run.LogsPath) == ""
 	var fallbackMetrics LogMetrics
@@ -319,7 +395,11 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 	if run.LogsPath != "" && (needsFallbackMetrics || needsFallbackEngineConfig) {
 		fallbackMetrics, inferredEngineID = inferFallbackLogMetrics(run.LogsPath)
 	}
+	buildAuditDataApplyMetricFallbacks(&metricsData, processedRun, metrics, fallbackMetrics)
+	return metricsData, inferredEngineID
+}
 
+func buildAuditDataApplyMetricFallbacks(metricsData *MetricsData, processedRun ProcessedRun, metrics, fallbackMetrics LogMetrics) {
 	// Fallback token usage: when the run-level metric is missing/zero for older
 	// runs, use aggregated input+output tokens from agent_usage/token usage artifacts.
 	if metricsData.TokenUsage == 0 && processedRun.TokenUsage != nil {
@@ -337,129 +417,83 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 	if metricsData.Turns == 0 && fallbackMetrics.Turns > 0 {
 		metricsData.Turns = fallbackMetrics.Turns
 	}
+	buildAuditDataApplyTokenDetails(metricsData, processedRun)
+}
 
+func buildAuditDataApplyTokenDetails(metricsData *MetricsData, processedRun ProcessedRun) {
 	if processedRun.TokenUsage != nil && processedRun.TokenUsage.TotalAIC > 0 {
 		metricsData.AIC = processedRun.TokenUsage.TotalAIC
 	}
 	if processedRun.TokenUsage != nil && processedRun.TokenUsage.AmbientContext != nil {
 		metricsData.AmbientContext = processedRun.TokenUsage.AmbientContext
 	}
-
 	// Populate ActionMinutes from run duration so it is always visible even
 	// when token/turn metrics are zero (e.g. Codex runs that exit early).
 	// Use math.Ceil to match the billable-minute rounding used elsewhere.
-	if run.ActionMinutes > 0 {
-		metricsData.ActionMinutes = run.ActionMinutes
-	} else if run.Duration > 0 {
-		metricsData.ActionMinutes = math.Ceil(run.Duration.Minutes())
+	if processedRun.Run.ActionMinutes > 0 {
+		metricsData.ActionMinutes = processedRun.Run.ActionMinutes
+	} else if processedRun.Run.Duration > 0 {
+		metricsData.ActionMinutes = math.Ceil(processedRun.Run.Duration.Minutes())
 	}
+}
 
-	// Build job data
-	jobs := sliceutil.Map(processedRun.JobDetails, func(jobDetail JobInfoWithDuration) JobData {
+func buildAuditDataJobs(jobDetails []JobInfoWithDuration) []JobData {
+	return sliceutil.Map(jobDetails, func(jobDetail JobInfoWithDuration) JobData {
 		job := JobData{
-			Name:       jobDetail.Name,
-			Status:     jobDetail.Status,
-			Conclusion: jobDetail.Conclusion,
-			Steps: sliceutil.Map(jobDetail.Steps, func(step JobStep) JobStepData {
-				return JobStepData(step)
-			}),
+			Name: jobDetail.Name, Status: jobDetail.Status, Conclusion: jobDetail.Conclusion,
+			Steps: sliceutil.Map(jobDetail.Steps, func(step JobStep) JobStepData { return JobStepData(step) }),
 		}
 		if jobDetail.Duration > 0 {
 			job.Duration = timeutil.FormatDuration(jobDetail.Duration)
 		}
 		return job
 	})
+}
 
-	// Build downloaded files list
-	downloadedFiles := extractDownloadedFiles(run.LogsPath)
-
+func buildAuditDataErrors(run WorkflowRun) []ErrorInfo {
 	// For failed workflows where the agent never ran (no agent-stdio.log),
 	// extract errors from step log files to surface the actual failure reason.
-	var errors []ErrorInfo
 	if run.Conclusion == "failure" && run.LogsPath != "" {
 		if stepErrors := extractPreAgentStepErrors(run.LogsPath); len(stepErrors) > 0 {
-			errors = stepErrors
+			return stepErrors
 		}
 	}
+	return nil
+}
 
-	toolUsage := buildToolUsageInfo(metrics)
-	toolUsage = mergeMCPToolUsageInfo(toolUsage, mcpToolUsage)
+type buildAuditDataAnalysisResult struct {
+	createdItems          []CreatedItemReport
+	taskDomain            *TaskDomainInfo
+	behaviorFingerprint   *BehaviorFingerprint
+	agenticAssessments    []AgenticAssessment
+	findings              []Finding
+	recommendations       []Recommendation
+	observabilityInsights []ObservabilityInsight
+}
 
-	createdItems := extractCreatedItemsFromManifest(run.LogsPath)
-	taskDomain := detectTaskDomain(processedRun, createdItems, toolUsage, overview.AwContext)
-	behaviorFingerprint := buildBehaviorFingerprint(processedRun, metricsData, toolUsage, createdItems, overview.AwContext)
-	agenticAssessments := buildAgenticAssessments(processedRun, metricsData, toolUsage, createdItems, taskDomain, behaviorFingerprint, overview.AwContext)
-
-	// Generate key findings
+func buildAuditDataAnalysis(processedRun ProcessedRun, metricsData MetricsData, toolUsage []ToolUsageInfo, errors []ErrorInfo, awContext *AwContext) buildAuditDataAnalysisResult {
+	createdItems := extractCreatedItemsFromManifest(processedRun.Run.LogsPath)
+	taskDomain := detectTaskDomain(processedRun, createdItems, toolUsage, awContext)
+	behaviorFingerprint := buildBehaviorFingerprint(processedRun, metricsData, toolUsage, createdItems, awContext)
+	agenticAssessments := buildAgenticAssessments(processedRun, metricsData, toolUsage, createdItems, taskDomain, behaviorFingerprint, awContext)
 	findings := generateFindings(processedRun, metricsData, errors)
 	findings = append(findings, generateAgenticAssessmentFindings(agenticAssessments)...)
-
-	// Generate recommendations
 	recommendations := generateRecommendations(processedRun, metricsData, findings)
 	recommendations = append(recommendations, generateAgenticAssessmentRecommendations(agenticAssessments)...)
-
 	observabilityInsights := buildAuditObservabilityInsights(processedRun, metricsData, toolUsage, createdItems)
 	observabilityInsights = append(observabilityInsights, buildDrain3Insights(processedRun, metricsData, toolUsage)...)
+	return buildAuditDataAnalysisResult{createdItems, taskDomain, behaviorFingerprint, agenticAssessments, findings, recommendations, observabilityInsights}
+}
 
-	// Generate performance metrics
-	performanceMetrics := generatePerformanceMetrics(processedRun, metricsData, toolUsage)
-	chainMetrics := buildSafeOutputChainMetrics(run.LogsPath)
-
-	// Extract expanded audit data
-	engineConfig := extractEngineConfigWithInferredEngine(run.LogsPath, inferredEngineID)
-	promptAnalysis := extractPromptAnalysis(run.LogsPath)
-	sessionAnalysis := buildSessionAnalysis(processedRun, metrics)
-	safeOutputSummary := buildSafeOutputSummary(createdItems, chainMetrics)
-	mcpServerHealth := buildMCPServerHealth(mcpToolUsage, processedRun.MCPFailures)
-
-	if auditReportLog.Enabled() {
-		auditReportLog.Printf("Built audit data: %d jobs, %d errors, %d tool types, %d findings, %d recommendations",
-			len(jobs), len(errors), len(toolUsage), len(findings), len(recommendations))
+func buildAuditDataOutcomes(auditData *AuditData, createdItems []CreatedItemReport) {
+	if len(createdItems) == 0 {
+		return
 	}
-
-	auditData := AuditData{
-		Overview:                overview,
-		TaskDomain:              taskDomain,
-		BehaviorFingerprint:     behaviorFingerprint,
-		AgenticAssessments:      agenticAssessments,
-		Metrics:                 metricsData,
-		KeyFindings:             findings,
-		Recommendations:         recommendations,
-		ObservabilityInsights:   observabilityInsights,
-		PerformanceMetrics:      performanceMetrics,
-		EngineConfig:            engineConfig,
-		PromptAnalysis:          promptAnalysis,
-		SessionAnalysis:         sessionAnalysis,
-		SafeOutputSummary:       safeOutputSummary,
-		MCPServerHealth:         mcpServerHealth,
-		Jobs:                    jobs,
-		DownloadedFiles:         downloadedFiles,
-		MissingTools:            processedRun.MissingTools,
-		MissingData:             processedRun.MissingData,
-		Noops:                   processedRun.Noops,
-		MCPFailures:             processedRun.MCPFailures,
-		FirewallTokenUsage:      processedRun.TokenUsage,
-		GitHubRateLimitUsage:    processedRun.GitHubRateLimitUsage,
-		FirewallAnalysis:        processedRun.FirewallAnalysis,
-		PolicyAnalysis:          processedRun.PolicyAnalysis,
-		RedactedDomainsAnalysis: processedRun.RedactedDomainsAnalysis,
-		Errors:                  errors,
-		ToolUsage:               toolUsage,
-		MCPToolUsage:            mcpToolUsage,
-		CreatedItems:            createdItems,
-		Experiments:             expData,
-	}
-
-	// Evaluate outcomes for created items if any exist
-	if len(createdItems) > 0 {
-		mapping := github.LoadObjectiveMappingFromConfig()
-		outcomeReports := EvaluateOutcomes(createdItems, "", mapping)
-		auditData.Outcomes = outcomeReports
-		outcomeSummary := ComputeOutcomeSummary(outcomeReports, mapping)
-		auditData.OutcomeSummary = &outcomeSummary
-	}
-
-	return auditData
+	mapping := github.LoadObjectiveMappingFromConfig()
+	outcomeReports := EvaluateOutcomes(createdItems, "", mapping)
+	auditData.Outcomes = outcomeReports
+	outcomeSummary := ComputeOutcomeSummary(outcomeReports, mapping)
+	auditData.OutcomeSummary = &outcomeSummary
 }
 
 // extractDownloadedFiles scans the logs directory recursively and returns file information.
@@ -644,141 +678,10 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 	if _, err := os.Stat(workflowLogsDir); err != nil {
 		auditReportLog.Printf("workflow-logs directory not found, skipping step log extraction")
 		// Even without workflow-logs, fall back to agent-stdio.log if the agent ran.
-		if agentRan {
-			if agentExcerpt := extractAgentStdioFailureExcerpt(agentStdioPath, maxMessageLen); agentExcerpt != "" {
-				return []ErrorInfo{{
-					Type:    "agent_failure",
-					File:    "agent-stdio.log",
-					Message: agentExcerpt,
-				}}
-			}
-		}
-		return nil
+		return extractPreAgentStepErrorsAgentFallback(agentRan, agentStdioPath, maxMessageLen)
 	}
 
-	// Scan all job step log files in a single pass, collecting both ##[error] annotations
-	// and tracking the last step for fallback use.
-	// GitHub Actions log zip structure: {job_name}/{step_num}_{step_name}.txt
-	type stepLog struct {
-		path    string
-		num     int
-		stepKey string // job/step_name for display
-	}
-
-	var lastStep *stepLog
-	var errorAnnotations []ErrorInfo
-
-	jobDirs, err := os.ReadDir(workflowLogsDir)
-	if err != nil {
-		return nil
-	}
-
-	for _, jobEntry := range jobDirs {
-		if !jobEntry.IsDir() {
-			// Handle flat job-level log files (e.g., 3_activation.txt).
-			// GitHub Actions log zips may place per-job log files directly at the root of
-			// the zip (flat format) rather than in per-job subdirectories (hierarchical format).
-			if !strings.HasSuffix(jobEntry.Name(), ".txt") {
-				continue
-			}
-			num, jobName := parseStepFilename(jobEntry.Name())
-			if num <= 0 {
-				continue
-			}
-			flatFilePath := filepath.Join(workflowLogsDir, jobEntry.Name())
-
-			// Track the last flat job log (highest number) for fallback
-			if lastStep == nil || num > lastStep.num {
-				lastStep = &stepLog{
-					path:    flatFilePath,
-					num:     num,
-					stepKey: jobName,
-				}
-			}
-
-			// Scan this flat job log for ##[error] annotations
-			content, err := os.ReadFile(flatFilePath)
-			if err != nil {
-				auditReportLog.Printf("Failed to read job log %s: %v", flatFilePath, err)
-				continue
-			}
-
-			var errorLines []string
-			for line := range strings.SplitSeq(string(content), "\n") {
-				if strings.Contains(line, "##[error]") {
-					stripped := stripGHALogTimestamps(line)
-					if stripped != "" {
-						errorLines = append(errorLines, stripped)
-					}
-				}
-			}
-
-			if len(errorLines) > 0 {
-				message := strings.Join(errorLines, "\n")
-				message = stringutil.Truncate(message, maxMessageLen)
-				auditReportLog.Printf("Extracted ##[error] annotations from flat job log %s (job %d)", jobName, num)
-				errorAnnotations = append(errorAnnotations, ErrorInfo{
-					Type:    "step_failure",
-					File:    jobName,
-					Message: message,
-				})
-			}
-			continue
-		}
-		jobDir := filepath.Join(workflowLogsDir, jobEntry.Name())
-		stepFiles, err := os.ReadDir(jobDir)
-		if err != nil {
-			continue
-		}
-		for _, stepFile := range stepFiles {
-			if stepFile.IsDir() || !strings.HasSuffix(stepFile.Name(), ".txt") {
-				continue
-			}
-			num, stepName := parseStepFilename(stepFile.Name())
-			if num <= 0 {
-				continue
-			}
-			stepFilePath := filepath.Join(jobDir, stepFile.Name())
-			stepKey := jobEntry.Name() + "/" + stepName
-
-			// Track the last step (highest step number) for fallback
-			if lastStep == nil || num > lastStep.num {
-				lastStep = &stepLog{
-					path:    stepFilePath,
-					num:     num,
-					stepKey: stepKey,
-				}
-			}
-
-			// Scan this step for ##[error] annotations
-			content, err := os.ReadFile(stepFilePath)
-			if err != nil {
-				auditReportLog.Printf("Failed to read step log %s: %v", stepFilePath, err)
-				continue
-			}
-
-			var errorLines []string
-			for line := range strings.SplitSeq(string(content), "\n") {
-				if strings.Contains(line, "##[error]") {
-					stripped := stripGHALogTimestamps(line)
-					if stripped != "" {
-						errorLines = append(errorLines, stripped)
-					}
-				}
-			}
-
-			if len(errorLines) > 0 {
-				message := strings.Join(errorLines, "\n")
-				message = stringutil.Truncate(message, maxMessageLen)
-				auditReportLog.Printf("Extracted ##[error] annotations from %s (step %d)", stepKey, num)
-				errorAnnotations = append(errorAnnotations, ErrorInfo{
-					Type:    "step_failure",
-					File:    stepKey,
-					Message: message,
-				})
-			}
-		}
-	}
+	errorAnnotations, lastStep := extractPreAgentStepErrorsScanWorkflowLogs(workflowLogsDir, maxMessageLen)
 
 	// Prefer ##[error] annotations over generic last-step content
 	if len(errorAnnotations) > 0 {
@@ -788,17 +691,122 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 	// If the agent executed but no ##[error] annotations were present in workflow-logs,
 	// extract a concise excerpt from agent-stdio.log instead of returning a generic message.
 	if agentRan {
-		if agentExcerpt := extractAgentStdioFailureExcerpt(agentStdioPath, maxMessageLen); agentExcerpt != "" {
-			return []ErrorInfo{{
-				Type:    "agent_failure",
-				File:    "agent-stdio.log",
-				Message: agentExcerpt,
-			}}
-		}
-		return nil
+		return extractPreAgentStepErrorsAgentFallback(agentRan, agentStdioPath, maxMessageLen)
 	}
 
-	// Fallback: return the content of the last step that ran
+	return extractPreAgentStepErrorsLastStepFallback(lastStep, workflowLogsDir, maxMessageLen)
+}
+
+type extractPreAgentStepErrorsStepLog struct {
+	path    string
+	num     int
+	stepKey string // job/step_name for display
+}
+
+func extractPreAgentStepErrorsAgentFallback(agentRan bool, agentStdioPath string, maxMessageLen int) []ErrorInfo {
+	if !agentRan {
+		return nil
+	}
+	if agentExcerpt := extractAgentStdioFailureExcerpt(agentStdioPath, maxMessageLen); agentExcerpt != "" {
+		return []ErrorInfo{{Type: "agent_failure", File: "agent-stdio.log", Message: agentExcerpt}}
+	}
+	return nil
+}
+
+func extractPreAgentStepErrorsScanWorkflowLogs(workflowLogsDir string, maxMessageLen int) ([]ErrorInfo, *extractPreAgentStepErrorsStepLog) {
+	var lastStep *extractPreAgentStepErrorsStepLog
+	var errorAnnotations []ErrorInfo
+	jobDirs, err := os.ReadDir(workflowLogsDir)
+	if err != nil {
+		return nil, nil
+	}
+	for _, jobEntry := range jobDirs {
+		if !jobEntry.IsDir() {
+			annotations, step := extractPreAgentStepErrorsFlatLog(workflowLogsDir, jobEntry, maxMessageLen)
+			errorAnnotations = append(errorAnnotations, annotations...)
+			lastStep = extractPreAgentStepErrorsLaterStep(lastStep, step)
+			continue
+		}
+		annotations, step := extractPreAgentStepErrorsJobDir(workflowLogsDir, jobEntry, maxMessageLen)
+		errorAnnotations = append(errorAnnotations, annotations...)
+		lastStep = extractPreAgentStepErrorsLaterStep(lastStep, step)
+	}
+	return errorAnnotations, lastStep
+}
+
+func extractPreAgentStepErrorsFlatLog(workflowLogsDir string, jobEntry os.DirEntry, maxMessageLen int) ([]ErrorInfo, *extractPreAgentStepErrorsStepLog) {
+	// Handle flat job-level log files (e.g., 3_activation.txt).
+	if !strings.HasSuffix(jobEntry.Name(), ".txt") {
+		return nil, nil
+	}
+	num, jobName := parseStepFilename(jobEntry.Name())
+	if num <= 0 {
+		return nil, nil
+	}
+	flatFilePath := filepath.Join(workflowLogsDir, jobEntry.Name())
+	step := &extractPreAgentStepErrorsStepLog{path: flatFilePath, num: num, stepKey: jobName}
+	annotations := extractPreAgentStepErrorsAnnotations(flatFilePath, jobName, num, maxMessageLen)
+	return annotations, step
+}
+
+func extractPreAgentStepErrorsJobDir(workflowLogsDir string, jobEntry os.DirEntry, maxMessageLen int) ([]ErrorInfo, *extractPreAgentStepErrorsStepLog) {
+	jobDir := filepath.Join(workflowLogsDir, jobEntry.Name())
+	stepFiles, err := os.ReadDir(jobDir)
+	if err != nil {
+		return nil, nil
+	}
+	var lastStep *extractPreAgentStepErrorsStepLog
+	var annotations []ErrorInfo
+	for _, stepFile := range stepFiles {
+		if stepFile.IsDir() || !strings.HasSuffix(stepFile.Name(), ".txt") {
+			continue
+		}
+		num, stepName := parseStepFilename(stepFile.Name())
+		if num <= 0 {
+			continue
+		}
+		stepFilePath := filepath.Join(jobDir, stepFile.Name())
+		stepKey := jobEntry.Name() + "/" + stepName
+		lastStep = extractPreAgentStepErrorsLaterStep(lastStep, &extractPreAgentStepErrorsStepLog{path: stepFilePath, num: num, stepKey: stepKey})
+		annotations = append(annotations, extractPreAgentStepErrorsAnnotations(stepFilePath, stepKey, num, maxMessageLen)...)
+	}
+	return annotations, lastStep
+}
+
+func extractPreAgentStepErrorsAnnotations(filePath, stepKey string, num, maxMessageLen int) []ErrorInfo {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		auditReportLog.Printf("Failed to read step log %s: %v", filePath, err)
+		return nil
+	}
+	var errorLines []string
+	for line := range strings.SplitSeq(string(content), "\n") {
+		if strings.Contains(line, "##[error]") {
+			stripped := stripGHALogTimestamps(line)
+			if stripped != "" {
+				errorLines = append(errorLines, stripped)
+			}
+		}
+	}
+	if len(errorLines) == 0 {
+		return nil
+	}
+	message := stringutil.Truncate(strings.Join(errorLines, "\n"), maxMessageLen)
+	auditReportLog.Printf("Extracted ##[error] annotations from %s (step %d)", stepKey, num)
+	return []ErrorInfo{{Type: "step_failure", File: stepKey, Message: message}}
+}
+
+func extractPreAgentStepErrorsLaterStep(current, candidate *extractPreAgentStepErrorsStepLog) *extractPreAgentStepErrorsStepLog {
+	if candidate == nil {
+		return current
+	}
+	if current == nil || candidate.num > current.num {
+		return candidate
+	}
+	return current
+}
+
+func extractPreAgentStepErrorsLastStepFallback(lastStep *extractPreAgentStepErrorsStepLog, workflowLogsDir string, maxMessageLen int) []ErrorInfo {
 	if lastStep == nil {
 		auditReportLog.Printf("No step log files found in %s", workflowLogsDir)
 		return nil
@@ -833,24 +841,8 @@ func extractAgentStdioFailureExcerpt(agentStdioPath string, maxMessageLen int) s
 	}
 	defer f.Close()
 
-	// Read only the tail of the file to bound memory use for large logs.
-	const maxReadBytes int64 = 64 * 1024 // 64 KB tail window
-
-	fi, err := f.Stat()
+	tail, err := extractAgentStdioFailureExcerptTail(f, agentStdioPath)
 	if err != nil {
-		auditReportLog.Printf("Failed to stat %s: %v", agentStdioPath, err)
-		return ""
-	}
-	if fi.Size() > maxReadBytes {
-		if _, err := f.Seek(-maxReadBytes, io.SeekEnd); err != nil {
-			auditReportLog.Printf("Failed to seek in %s: %v", agentStdioPath, err)
-			return ""
-		}
-	}
-
-	tail, err := io.ReadAll(f)
-	if err != nil {
-		auditReportLog.Printf("Failed to read %s: %v", agentStdioPath, err)
 		return ""
 	}
 
@@ -887,6 +879,28 @@ func extractAgentStdioFailureExcerpt(agentStdioPath string, maxMessageLen int) s
 	const maxTailLines = 10
 	start := max(0, len(nonEmpty)-maxTailLines)
 	return stringutil.Truncate(strings.Join(nonEmpty[start:], "\n"), maxMessageLen)
+}
+
+func extractAgentStdioFailureExcerptTail(f *os.File, agentStdioPath string) ([]byte, error) {
+	// Read only the tail of the file to bound memory use for large logs.
+	const maxReadBytes int64 = 64 * 1024 // 64 KB tail window
+	fi, err := f.Stat()
+	if err != nil {
+		auditReportLog.Printf("Failed to stat %s: %v", agentStdioPath, err)
+		return nil, err
+	}
+	if fi.Size() > maxReadBytes {
+		if _, err := f.Seek(-maxReadBytes, io.SeekEnd); err != nil {
+			auditReportLog.Printf("Failed to seek in %s: %v", agentStdioPath, err)
+			return nil, err
+		}
+	}
+	tail, err := io.ReadAll(f)
+	if err != nil {
+		auditReportLog.Printf("Failed to read %s: %v", agentStdioPath, err)
+		return nil, err
+	}
+	return tail, nil
 }
 
 // parseStepFilename extracts the step number and name from a GitHub Actions step log

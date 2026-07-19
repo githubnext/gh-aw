@@ -317,18 +317,32 @@ func (c *Compiler) applyEngineImportDefaults(
 	if engineConfig == nil {
 		engineConfig = &EngineConfig{ID: engineSetting}
 	}
-	if preservedMaxTurns != "" {
-		engineConfig.MaxTurns = preservedMaxTurns
+	applyPreservedEngineLimits(engineConfig, preservedMaxTurns, preservedMaxAICredits, preservedMaxRuns, preservedMaxTurnCacheMisses)
+	applyImportedEngineLimits(engineConfig, importsResult)
+	applyImportedEngineMCPDefaults(engineConfig, importsResult)
+	if engineConfig.Model == "" && importsResult.MergedEngineModel != "" {
+		engineConfig.Model = importsResult.MergedEngineModel
+		orchestratorEngineLog.Printf("Applied engine.model preference from import: %s", engineConfig.Model)
 	}
-	if preservedMaxAICredits != 0 {
-		engineConfig.MaxAICredits = preservedMaxAICredits
+	return engineConfig
+}
+
+func applyPreservedEngineLimits(engineConfig *EngineConfig, maxTurns string, maxAICredits int64, maxRuns, maxTurnCacheMisses int) {
+	if maxTurns != "" {
+		engineConfig.MaxTurns = maxTurns
 	}
-	if preservedMaxRuns > 0 {
-		engineConfig.MaxRuns = preservedMaxRuns
+	if maxAICredits != 0 {
+		engineConfig.MaxAICredits = maxAICredits
 	}
-	if preservedMaxTurnCacheMisses > 0 {
-		engineConfig.MaxTurnCacheMisses = preservedMaxTurnCacheMisses
+	if maxRuns > 0 {
+		engineConfig.MaxRuns = maxRuns
 	}
+	if maxTurnCacheMisses > 0 {
+		engineConfig.MaxTurnCacheMisses = maxTurnCacheMisses
+	}
+}
+
+func applyImportedEngineLimits(engineConfig *EngineConfig, importsResult *parser.ImportsResult) {
 	if engineConfig.MaxTurns == "" && importsResult.MergedMaxTurns != "" {
 		var importedMaxTurns any
 		if err := json.Unmarshal([]byte(importsResult.MergedMaxTurns), &importedMaxTurns); err == nil {
@@ -374,6 +388,9 @@ func (c *Compiler) applyEngineImportDefaults(
 			}
 		}
 	}
+}
+
+func applyImportedEngineMCPDefaults(engineConfig *EngineConfig, importsResult *parser.ImportsResult) {
 	if engineConfig.MCPToolTimeout == "" && importsResult.MergedEngineMCPToolTimeout != "" {
 		engineConfig.MCPToolTimeout = importsResult.MergedEngineMCPToolTimeout
 		orchestratorEngineLog.Printf("Applied engine.mcp.tool-timeout from import: %s", engineConfig.MCPToolTimeout)
@@ -382,11 +399,6 @@ func (c *Compiler) applyEngineImportDefaults(
 		engineConfig.MCPSessionTimeout = importsResult.MergedEngineMCPSessionTimeout
 		orchestratorEngineLog.Printf("Applied engine.mcp.session-timeout from import: %s", engineConfig.MCPSessionTimeout)
 	}
-	if engineConfig.Model == "" && importsResult.MergedEngineModel != "" {
-		engineConfig.Model = importsResult.MergedEngineModel
-		orchestratorEngineLog.Printf("Applied engine.model preference from import: %s", engineConfig.Model)
-	}
-	return engineConfig
 }
 
 func (c *Compiler) resolveEngineRuntimeConfig(engineSetting string, engineConfig *EngineConfig) (CodingAgentEngine, []map[string]any, error) {

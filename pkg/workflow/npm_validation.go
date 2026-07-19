@@ -55,16 +55,37 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 
 	npmValidationLog.Printf("Validating %d npx packages", len(packages))
 
-	// Reject any package names starting with '-' before invoking npm.
-	// These would be interpreted as flags by the npm CLI (argument injection).
+	if err := validateNpxPackageNames(packages); err != nil {
+		return err
+	}
+
+	// Check if npm is available
+	_, err := exec.LookPath("npm")
+	if err != nil {
+		npmValidationLog.Print("npm command not found, cannot validate npx packages")
+		return ErrNpmNotAvailable
+	}
+
+	errors := c.validateNpxPackagesOnRegistry(packages)
+	if len(errors) > 0 {
+		npmValidationLog.Printf("npx package validation failed with %d errors", len(errors))
+		return NewValidationError(
+			"npx.packages",
+			fmt.Sprintf("%d packages not found", len(errors)),
+			"npx packages not found on npm registry",
+			fmt.Sprintf("Fix package names or verify they exist on npm:\n\n%s\n\nCheck package availability:\n$ npm view <package-name>\n\nSearch for similar packages:\n$ npm search <keyword>", strings.Join(errors, "\n")),
+		)
+	}
+
+	npmValidationLog.Print("All npx packages validated successfully")
+	return nil
+}
+
+func validateNpxPackageNames(packages []string) error {
 	if err := rejectHyphenPrefixPackages(packages, "npx"); err != nil {
 		npmValidationLog.Printf("npx package name validation failed: %v", err)
 		return err
 	}
-
-	// Validate each package name against the npm naming rules.
-	// This provides a second layer of defence against names that could be
-	// misinterpreted by the npm CLI even after the hyphen-prefix check.
 	for _, pkg := range packages {
 		if err := validateNpmPackageName(pkg); err != nil {
 			npmValidationLog.Printf("npm package name validation failed: %v", err)
@@ -76,14 +97,10 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 			)
 		}
 	}
+	return nil
+}
 
-	// Check if npm is available
-	_, err := exec.LookPath("npm")
-	if err != nil {
-		npmValidationLog.Print("npm command not found, cannot validate npx packages")
-		return ErrNpmNotAvailable
-	}
-
+func (c *Compiler) validateNpxPackagesOnRegistry(packages []string) []string {
 	var errors []string
 	for _, pkg := range packages {
 		npmValidationLog.Printf("Validating npm package: %s", pkg)
@@ -103,17 +120,5 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 			}
 		}
 	}
-
-	if len(errors) > 0 {
-		npmValidationLog.Printf("npx package validation failed with %d errors", len(errors))
-		return NewValidationError(
-			"npx.packages",
-			fmt.Sprintf("%d packages not found", len(errors)),
-			"npx packages not found on npm registry",
-			fmt.Sprintf("Fix package names or verify they exist on npm:\n\n%s\n\nCheck package availability:\n$ npm view <package-name>\n\nSearch for similar packages:\n$ npm search <keyword>", strings.Join(errors, "\n")),
-		)
-	}
-
-	npmValidationLog.Print("All npx packages validated successfully")
-	return nil
+	return errors
 }

@@ -362,84 +362,91 @@ func runSetupRepositoryCheckWithRuntime(opts SetupRepositoryCheckOptions, runtim
 	if err := validateSetupRepositoryCheckOptions(opts); err != nil {
 		return err
 	}
-
 	ctx := opts.Ctx
 	if ctx == nil {
 		ctx = context.Background()
 	}
-
 	configureDefaultGHHostFromOriginRemoteIfUnset()
-
 	if err := runtime.checkAuth(ctx); err != nil {
 		return fmt.Errorf("failed to verify GitHub CLI authentication: %w", err)
 	}
+	ownerType, err := runSetupRepositoryCheckWithRuntimeOwner(ctx, opts, runtime)
+	if err != nil {
+		return err
+	}
+	inspection, dir, err := runSetupRepositoryCheckWithRuntimeInspect(ctx, opts, runtime)
+	if err != nil {
+		return err
+	}
+	result := runSetupRepositoryCheckWithRuntimeResult(opts, ownerType, dir, inspection)
+	if opts.JSON {
+		return renderSetupJSON(result)
+	}
+	runSetupRepositoryCheckWithRuntimePrint(result, inspection)
+	return nil
+}
 
+func runSetupRepositoryCheckWithRuntimeOwner(ctx context.Context, opts SetupRepositoryCheckOptions, runtime setupRepositoryRuntime) (string, error) {
 	setupRepositoryLog.Printf("Running repository check: repo=%s, requireOwnerType=%s", opts.Repo, opts.RequireOwnerType)
-
 	owner := strings.Split(opts.Repo, "/")[0]
 	ownerType, err := runtime.ownerType(ctx, owner)
 	if err != nil {
-		return err
+		return "", err
 	}
 	ownerType = normalizeSetupOwnerType(ownerType)
 	setupRepositoryLog.Printf("Resolved owner type for %s: %s", owner, ownerType)
 	if opts.RequireOwnerType != "any" && ownerType != opts.RequireOwnerType {
-		return fmt.Errorf("owner %s is %s, but --require-owner-type=%s was requested", owner, ownerType, opts.RequireOwnerType)
+		return "", fmt.Errorf("owner %s is %s, but --require-owner-type=%s was requested", owner, ownerType, opts.RequireOwnerType)
 	}
+	return ownerType, nil
+}
 
+func runSetupRepositoryCheckWithRuntimeInspect(ctx context.Context, opts SetupRepositoryCheckOptions, runtime setupRepositoryRuntime) (setupCheckoutInspection, string, error) {
 	repoExists, err := runtime.repoExists(ctx, opts.Repo)
 	if err != nil {
-		return err
+		return setupCheckoutInspection{}, "", err
 	}
 	if !repoExists {
-		return fmt.Errorf("repository %s does not exist", opts.Repo)
+		return setupCheckoutInspection{}, "", fmt.Errorf("repository %s does not exist", opts.Repo)
 	}
-
 	dir := resolveSetupCheckoutDir(opts.Repo, opts.Dir)
 	inspection, err := inspectSetupCheckout(dir, opts.Repo, runtime.dirOriginRepo)
 	if err != nil {
-		return err
+		return setupCheckoutInspection{}, "", err
 	}
-
 	if inspection.attached {
-		if err := withWorkingDir(dir, func() error {
-			return runtime.checkCleanWorktree(opts.Verbose)
-		}); err != nil {
-			return err
+		if err := withWorkingDir(dir, func() error { return runtime.checkCleanWorktree(opts.Verbose) }); err != nil {
+			return setupCheckoutInspection{}, "", err
 		}
 	}
+	return *inspection, dir, nil
+}
 
+func runSetupRepositoryCheckWithRuntimeResult(opts SetupRepositoryCheckOptions, ownerType, dir string, inspection setupCheckoutInspection) SetupRepositoryCheckResult {
 	result := SetupRepositoryCheckResult{
-		Repository:        opts.Repo,
-		Directory:         dir,
-		Authenticated:     true,
-		RepositoryExists:  true,
-		OwnerType:         ownerType,
-		RequiredOwnerType: opts.RequireOwnerType,
-		CheckoutAttached:  inspection.attached,
-		CloneNeeded:       inspection.cloneNeeded,
+		Repository: opts.Repo, Directory: dir, Authenticated: true, RepositoryExists: true,
+		OwnerType: ownerType, RequiredOwnerType: opts.RequireOwnerType,
+		CheckoutAttached: inspection.attached, CloneNeeded: inspection.cloneNeeded,
 	}
 	if inspection.attached {
 		clean := true
 		result.CleanWorktree = &clean
 	}
+	return result
+}
 
-	if opts.JSON {
-		return renderSetupJSON(result)
-	}
-
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setup repository check for "+opts.Repo))
+func runSetupRepositoryCheckWithRuntimePrint(result SetupRepositoryCheckResult, inspection setupCheckoutInspection) {
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setup repository check for "+result.Repository))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("- GitHub CLI authenticated"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("- repository exists"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("- owner type: "+ownerType))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("- owner type: "+result.OwnerType))
 	if inspection.attached {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("- attached checkout at "+dir))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("- attached checkout at "+result.Directory))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("- working tree is clean"))
 	} else if inspection.cloneNeeded {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("- no checkout at %s; directory is ready for clone", dir)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("- no checkout at %s; directory is ready for clone", result.Directory)))
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Setup repository checks passed"))
-	return nil
 }
 
 func renderSetupJSON(output any) error {

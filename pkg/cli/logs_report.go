@@ -152,280 +152,336 @@ type RunData struct {
 }
 
 // buildLogsData creates structured logs data from processed runs
+type buildLogsDataTotals struct {
+	totalDuration                 time.Duration
+	totalAIC                      float64
+	totalTokens                   int
+	totalActionMinutes            float64
+	totalTurns                    int
+	totalSteeringEvents           int
+	totalErrors                   int
+	totalWarnings                 int
+	totalMissingTools             int
+	totalMissingData              int
+	totalSafeItems                int
+	runsWithTemporaryIDChains     int
+	runsWithDelegatedTempTargets  int
+	runsWithMissingTemporaryIDMap int
+	runsWithInvalidTemporaryIDMap int
+	totalTemporaryIDMappings      int
+	totalChainedTargets           int
+	totalChainedFollowupActions   int
+	totalClosedTempTargets        int
+	totalGitHubAPICalls           int
+	engineCounts                  map[string]int
+}
+
+type buildLogsDataRunContext struct {
+	chainMetrics   SafeOutputChainMetrics
+	gitHubAPICalls int
+	engineID       string
+	engineName     string
+	awContext      *AwContext
+	awInfo         *AwInfo
+	comparison     *AuditComparisonData
+	ambientContext *AmbientContextMetrics
+}
+
 func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation *ContinuationData) LogsData {
 	reportLog.Printf("Building logs data from %d processed runs", len(processedRuns))
 
-	// Build summary
-	var totalDuration time.Duration
-	var totalAIC float64
-	var totalTokens int
-	var totalActionMinutes float64
-	var totalTurns int
-	var totalSteeringEvents int
-	var totalErrors int
-	var totalWarnings int
-	var totalMissingTools int
-	var totalMissingData int
-	var totalSafeItems int
-	var runsWithTemporaryIDChains int
-	var runsWithDelegatedTempTargets int
-	var runsWithMissingTemporaryIDMap int
-	var runsWithInvalidTemporaryIDMap int
-	var totalTemporaryIDMappings int
-	var totalChainedTargets int
-	var totalChainedFollowupActions int
-	var totalClosedTempTargets int
-	var totalGitHubAPICalls int
 	// engineCounts tracks the number of runs per engine_id, sourced from aw_info.json.
 	// This is the authoritative engine classification — do not infer engine type from
 	// lock file contents, which contain "copilot" in allowed-domains and source paths
 	// regardless of which engine the workflow uses.
-	engineCounts := make(map[string]int)
+	totals := buildLogsDataTotals{engineCounts: make(map[string]int)}
 
 	// Build runs data
 	// Initialize as empty slice to ensure JSON marshals to [] instead of null
 	runs := make([]RunData, 0, len(processedRuns))
 	for _, pr := range processedRuns {
-		run := pr.Run
-
-		if run.Duration > 0 {
-			totalDuration += run.Duration
-		}
-		if pr.TokenUsage != nil {
-			totalAIC += pr.TokenUsage.TotalAIC
-		}
-		totalTokens += run.TokenUsage
-		totalActionMinutes += run.ActionMinutes
-		totalTurns += run.Turns
-		if pr.TokenUsage != nil {
-			totalSteeringEvents += pr.TokenUsage.TotalSteeringEvents
-		}
-		totalErrors += run.ErrorCount
-		totalWarnings += run.WarningCount
-		totalMissingTools += run.MissingToolCount
-		totalMissingData += run.MissingDataCount
-		totalSafeItems += run.SafeItemsCount
-
-		// Accumulate GitHub API call counts
-		var gitHubAPICalls int
-		if pr.GitHubRateLimitUsage != nil {
-			gitHubAPICalls = pr.GitHubRateLimitUsage.TotalRequestsMade
-		}
-		totalGitHubAPICalls += gitHubAPICalls
-
-		chainMetrics := buildSafeOutputChainMetrics(run.LogsPath)
-		totalTemporaryIDMappings += chainMetrics.TemporaryIDMappings
-		totalChainedTargets += chainMetrics.ChainedTargetCount
-		totalChainedFollowupActions += chainMetrics.ChainedFollowupActionCount
-		totalClosedTempTargets += chainMetrics.ClosedTempTargetCount
-		if chainMetrics.ChainedTargetCount > 0 {
-			runsWithTemporaryIDChains++
-		}
-		if chainMetrics.DelegatedTempTargetCount > 0 {
-			runsWithDelegatedTempTargets++
-		}
-		switch chainMetrics.TemporaryIDMapStatus {
-		case temporaryIDMapStatusMissing:
-			runsWithMissingTemporaryIDMap++
-		case temporaryIDMapStatusInvalid:
-			runsWithInvalidTemporaryIDMap++
-		}
-
-		// Extract engine ID and aw_context from aw_info.json.
-		engineID := ""
-		engineName := ""
-		var awContext *AwContext
-		var awInfo *AwInfo
-		awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
-		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
-			awInfo = info
-			engineID = info.EngineID
-			engineName = info.EngineName
-			awContext = info.Context
-		}
-		if engineName == "" {
-			engineName = engineID
-		}
-		if awContext == nil {
-			awContext = pr.AwContext
-		}
-		// Accumulate engine counts from aw_info.json data (authoritative source).
-		if engineID != "" {
-			engineCounts[engineID]++
-		}
-
-		comparison := buildAuditComparisonForProcessedRuns(pr, processedRuns)
-
-		var ambientContext *AmbientContextMetrics
-		if pr.TokenUsage != nil {
-			ambientContext = pr.TokenUsage.AmbientContext
-		}
-
-		runData := RunData{
-			RunID:                      run.DatabaseID,
-			Number:                     run.Number,
-			WorkflowName:               run.WorkflowName,
-			WorkflowPath:               run.WorkflowPath,
-			Agent:                      engineID,
-			Engine:                     engineName,
-			EngineID:                   engineID,
-			Status:                     run.Status,
-			Conclusion:                 run.Conclusion,
-			Classification:             deriveRunClassification(comparison),
-			TokenUsage:                 run.TokenUsage,
-			AIC:                        0,
-			AmbientContext:             ambientContext,
-			ActionMinutes:              run.ActionMinutes,
-			Turns:                      run.Turns,
-			ErrorCount:                 run.ErrorCount,
-			WarningCount:               run.WarningCount,
-			MissingToolCount:           run.MissingToolCount,
-			MissingDataCount:           run.MissingDataCount,
-			SafeItemsCount:             run.SafeItemsCount,
-			ManifestEntryCount:         chainMetrics.ManifestEntryCount,
-			TemporaryIDMapStatus:       chainMetrics.TemporaryIDMapStatus,
-			TemporaryIDMappings:        chainMetrics.TemporaryIDMappings,
-			ChainedTargetCount:         chainMetrics.ChainedTargetCount,
-			ChainedFollowupActionCount: chainMetrics.ChainedFollowupActionCount,
-			DelegatedTempTargetCount:   chainMetrics.DelegatedTempTargetCount,
-			ClosedTempTargetCount:      chainMetrics.ClosedTempTargetCount,
-			CreatedAt:                  run.CreatedAt,
-			StartedAt:                  run.StartedAt,
-			UpdatedAt:                  run.UpdatedAt,
-			URL:                        run.URL,
-			LogsPath:                   run.LogsPath,
-			Event:                      run.Event,
-			Branch:                     run.HeadBranch,
-			HeadSHA:                    run.HeadSha,
-			DisplayTitle:               run.DisplayTitle,
-			Comparison:                 comparison,
-			TaskDomain:                 pr.TaskDomain,
-			BehaviorFingerprint:        pr.BehaviorFingerprint,
-			AgenticAssessments:         pr.AgenticAssessments,
-			AwContext:                  awContext,
-			TokenUsageSummary:          pr.TokenUsage,
-			GitHubAPICalls:             gitHubAPICalls,
-			Experiments:                extractExperimentData(run.LogsPath),
-		}
-		if awInfo != nil {
-			runData.Repository = awInfo.Repository
-			if awInfo.Repository != "" {
-				if parts := strings.SplitN(awInfo.Repository, "/", 2); len(parts) == 2 {
-					runData.Organization = parts[0]
-				}
-			}
-			runData.Ref = awInfo.Ref
-			runData.SHA = awInfo.SHA
-			runData.Actor = awInfo.Actor
-			runData.RunAttempt = awInfo.RunAttempt
-			runData.TargetRepo = awInfo.TargetRepo
-			runData.EventName = awInfo.EventName
-			// Fall back to inferring the workflow path from the display name when the
-			// GitHub API returned an empty path (e.g. for scheduled agentic runs).
-			// This handles both fresh runs and old cached RunSummary entries whose
-			// run.WorkflowPath was persisted as empty before the fix in
-			// logs_run_processor.go was applied.
-			if runData.WorkflowPath == "" && awInfo.WorkflowName != "" {
-				runData.WorkflowPath = inferWorkflowPathFromDisplayName(awInfo.WorkflowName)
-			}
-		}
-		if run.Duration > 0 {
-			runData.Duration = timeutil.FormatDuration(run.Duration)
-		}
-		if pr.TokenUsage != nil && pr.TokenUsage.TotalAIC > 0 {
-			runData.AIC = pr.TokenUsage.TotalAIC
-		}
-		// Compute average TBT from metrics when available; fall back to wall-time / (turns - 1).
-		if run.AvgTimeBetweenTurns > 0 {
-			runData.AvgTimeBetweenTurns = timeutil.FormatDuration(run.AvgTimeBetweenTurns)
-		} else if run.Turns > 1 && run.Duration > 0 {
-			runData.AvgTimeBetweenTurns = timeutil.FormatDuration(run.Duration/time.Duration(run.Turns-1)) + " (estimated)"
-		}
-		runs = append(runs, runData)
+		runs = append(runs, buildLogsDataRunData(pr, processedRuns, &totals))
 	}
 
-	summary := LogsSummary{
-		TotalRuns:                     len(processedRuns),
-		TotalDuration:                 timeutil.FormatDuration(totalDuration),
-		TotalAIC:                      totalAIC,
-		TotalTokens:                   totalTokens,
-		TotalActionMinutes:            totalActionMinutes,
-		TotalTurns:                    totalTurns,
-		TotalSteeringEvents:           totalSteeringEvents,
-		TotalErrors:                   totalErrors,
-		TotalWarnings:                 totalWarnings,
-		TotalMissingTools:             totalMissingTools,
-		TotalMissingData:              totalMissingData,
-		TotalSafeItems:                totalSafeItems,
-		RunsWithTemporaryIDChains:     runsWithTemporaryIDChains,
-		RunsWithDelegatedTempTargets:  runsWithDelegatedTempTargets,
-		RunsWithMissingTemporaryIDMap: runsWithMissingTemporaryIDMap,
-		RunsWithInvalidTemporaryIDMap: runsWithInvalidTemporaryIDMap,
-		TotalTemporaryIDMappings:      totalTemporaryIDMappings,
-		TotalChainedTargets:           totalChainedTargets,
-		TotalChainedFollowupActions:   totalChainedFollowupActions,
-		TotalClosedTempTargets:        totalClosedTempTargets,
-		TotalGitHubAPICalls:           totalGitHubAPICalls,
-	}
-	if len(engineCounts) > 0 {
-		summary.EngineCounts = engineCounts
-	}
-
+	summary := buildLogsDataSummary(processedRuns, totals)
 	episodes, edges := buildEpisodeData(runs, processedRuns)
+	buildLogsDataAddEpisodeCounts(&summary, episodes)
+	summaries := buildLogsDataBuildSummaries(processedRuns)
+
+	absOutputDir, _ := filepath.Abs(outputDir)
+	return buildLogsDataResult(summary, runs, episodes, edges, continuation, absOutputDir, summaries)
+}
+
+func buildLogsDataAddEpisodeCounts(summary *LogsSummary, episodes []EpisodeData) {
 	for _, episode := range episodes {
 		summary.TotalEpisodes++
 		if episode.Confidence == "high" {
 			summary.HighConfidenceEpisodes++
 		}
 	}
+}
 
-	// Build tool usage summary
+func buildLogsDataRunData(pr ProcessedRun, processedRuns []ProcessedRun, totals *buildLogsDataTotals) RunData {
+	run := pr.Run
+	buildLogsDataAccumulateRun(pr, totals)
+	ctx := buildLogsDataRunContext{
+		chainMetrics:   buildLogsDataChainMetrics(run, totals),
+		gitHubAPICalls: buildLogsDataGitHubAPICalls(pr, totals),
+		comparison:     buildAuditComparisonForProcessedRuns(pr, processedRuns),
+	}
+	ctx.engineID, ctx.engineName, ctx.awContext, ctx.awInfo = buildLogsDataEngineInfo(run, pr, totals)
+	if pr.TokenUsage != nil {
+		ctx.ambientContext = pr.TokenUsage.AmbientContext
+	}
+
+	runData := buildLogsDataBaseRunData(pr, ctx)
+	buildLogsDataApplyAwInfo(&runData, ctx.awInfo)
+	buildLogsDataFinalizeRunData(&runData, pr)
+	return runData
+}
+
+func buildLogsDataAccumulateRun(pr ProcessedRun, totals *buildLogsDataTotals) {
+	run := pr.Run
+	if run.Duration > 0 {
+		totals.totalDuration += run.Duration
+	}
+	if pr.TokenUsage != nil {
+		totals.totalAIC += pr.TokenUsage.TotalAIC
+		totals.totalSteeringEvents += pr.TokenUsage.TotalSteeringEvents
+	}
+	totals.totalTokens += run.TokenUsage
+	totals.totalActionMinutes += run.ActionMinutes
+	totals.totalTurns += run.Turns
+	totals.totalErrors += run.ErrorCount
+	totals.totalWarnings += run.WarningCount
+	totals.totalMissingTools += run.MissingToolCount
+	totals.totalMissingData += run.MissingDataCount
+	totals.totalSafeItems += run.SafeItemsCount
+}
+
+func buildLogsDataGitHubAPICalls(pr ProcessedRun, totals *buildLogsDataTotals) int {
+	var gitHubAPICalls int
+	if pr.GitHubRateLimitUsage != nil {
+		gitHubAPICalls = pr.GitHubRateLimitUsage.TotalRequestsMade
+	}
+	totals.totalGitHubAPICalls += gitHubAPICalls
+	return gitHubAPICalls
+}
+
+func buildLogsDataChainMetrics(run WorkflowRun, totals *buildLogsDataTotals) SafeOutputChainMetrics {
+	chainMetrics := buildSafeOutputChainMetrics(run.LogsPath)
+	totals.totalTemporaryIDMappings += chainMetrics.TemporaryIDMappings
+	totals.totalChainedTargets += chainMetrics.ChainedTargetCount
+	totals.totalChainedFollowupActions += chainMetrics.ChainedFollowupActionCount
+	totals.totalClosedTempTargets += chainMetrics.ClosedTempTargetCount
+	if chainMetrics.ChainedTargetCount > 0 {
+		totals.runsWithTemporaryIDChains++
+	}
+	if chainMetrics.DelegatedTempTargetCount > 0 {
+		totals.runsWithDelegatedTempTargets++
+	}
+	switch chainMetrics.TemporaryIDMapStatus {
+	case temporaryIDMapStatusMissing:
+		totals.runsWithMissingTemporaryIDMap++
+	case temporaryIDMapStatusInvalid:
+		totals.runsWithInvalidTemporaryIDMap++
+	}
+	return chainMetrics
+}
+
+func buildLogsDataEngineInfo(run WorkflowRun, pr ProcessedRun, totals *buildLogsDataTotals) (string, string, *AwContext, *AwInfo) {
+	engineID := ""
+	engineName := ""
+	var awContext *AwContext
+	var awInfo *AwInfo
+	awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
+	if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
+		awInfo = info
+		engineID = info.EngineID
+		engineName = info.EngineName
+		awContext = info.Context
+	}
+	if engineName == "" {
+		engineName = engineID
+	}
+	if awContext == nil {
+		awContext = pr.AwContext
+	}
+	if engineID != "" {
+		totals.engineCounts[engineID]++
+	}
+	return engineID, engineName, awContext, awInfo
+}
+
+func buildLogsDataBaseRunData(pr ProcessedRun, ctx buildLogsDataRunContext) RunData {
+	run := pr.Run
+	return RunData{
+		RunID:                      run.DatabaseID,
+		Number:                     run.Number,
+		WorkflowName:               run.WorkflowName,
+		WorkflowPath:               run.WorkflowPath,
+		Agent:                      ctx.engineID,
+		Engine:                     ctx.engineName,
+		EngineID:                   ctx.engineID,
+		Status:                     run.Status,
+		Conclusion:                 run.Conclusion,
+		Classification:             deriveRunClassification(ctx.comparison),
+		TokenUsage:                 run.TokenUsage,
+		AIC:                        0,
+		AmbientContext:             ctx.ambientContext,
+		ActionMinutes:              run.ActionMinutes,
+		Turns:                      run.Turns,
+		ErrorCount:                 run.ErrorCount,
+		WarningCount:               run.WarningCount,
+		MissingToolCount:           run.MissingToolCount,
+		MissingDataCount:           run.MissingDataCount,
+		SafeItemsCount:             run.SafeItemsCount,
+		ManifestEntryCount:         ctx.chainMetrics.ManifestEntryCount,
+		TemporaryIDMapStatus:       ctx.chainMetrics.TemporaryIDMapStatus,
+		TemporaryIDMappings:        ctx.chainMetrics.TemporaryIDMappings,
+		ChainedTargetCount:         ctx.chainMetrics.ChainedTargetCount,
+		ChainedFollowupActionCount: ctx.chainMetrics.ChainedFollowupActionCount,
+		DelegatedTempTargetCount:   ctx.chainMetrics.DelegatedTempTargetCount,
+		ClosedTempTargetCount:      ctx.chainMetrics.ClosedTempTargetCount,
+		CreatedAt:                  run.CreatedAt,
+		StartedAt:                  run.StartedAt,
+		UpdatedAt:                  run.UpdatedAt,
+		URL:                        run.URL,
+		LogsPath:                   run.LogsPath,
+		Event:                      run.Event,
+		Branch:                     run.HeadBranch,
+		HeadSHA:                    run.HeadSha,
+		DisplayTitle:               run.DisplayTitle,
+		Comparison:                 ctx.comparison,
+		TaskDomain:                 pr.TaskDomain,
+		BehaviorFingerprint:        pr.BehaviorFingerprint,
+		AgenticAssessments:         pr.AgenticAssessments,
+		AwContext:                  ctx.awContext,
+		TokenUsageSummary:          pr.TokenUsage,
+		GitHubAPICalls:             ctx.gitHubAPICalls,
+		Experiments:                extractExperimentData(run.LogsPath),
+	}
+}
+
+func buildLogsDataApplyAwInfo(runData *RunData, awInfo *AwInfo) {
+	if awInfo == nil {
+		return
+	}
+	runData.Repository = awInfo.Repository
+	if awInfo.Repository != "" {
+		if parts := strings.SplitN(awInfo.Repository, "/", 2); len(parts) == 2 {
+			runData.Organization = parts[0]
+		}
+	}
+	runData.Ref = awInfo.Ref
+	runData.SHA = awInfo.SHA
+	runData.Actor = awInfo.Actor
+	runData.RunAttempt = awInfo.RunAttempt
+	runData.TargetRepo = awInfo.TargetRepo
+	runData.EventName = awInfo.EventName
+	// Fall back to inferring the workflow path from the display name when the
+	// GitHub API returned an empty path (e.g. for scheduled agentic runs).
+	// This handles both fresh runs and old cached RunSummary entries whose
+	// run.WorkflowPath was persisted as empty before the fix in
+	// logs_run_processor.go was applied.
+	if runData.WorkflowPath == "" && awInfo.WorkflowName != "" {
+		runData.WorkflowPath = inferWorkflowPathFromDisplayName(awInfo.WorkflowName)
+	}
+}
+
+func buildLogsDataFinalizeRunData(runData *RunData, pr ProcessedRun) {
+	run := pr.Run
+	if run.Duration > 0 {
+		runData.Duration = timeutil.FormatDuration(run.Duration)
+	}
+	if pr.TokenUsage != nil && pr.TokenUsage.TotalAIC > 0 {
+		runData.AIC = pr.TokenUsage.TotalAIC
+	}
+	// Compute average TBT from metrics when available; fall back to wall-time / (turns - 1).
+	if run.AvgTimeBetweenTurns > 0 {
+		runData.AvgTimeBetweenTurns = timeutil.FormatDuration(run.AvgTimeBetweenTurns)
+	} else if run.Turns > 1 && run.Duration > 0 {
+		runData.AvgTimeBetweenTurns = timeutil.FormatDuration(run.Duration/time.Duration(run.Turns-1)) + " (estimated)"
+	}
+}
+
+func buildLogsDataSummary(processedRuns []ProcessedRun, totals buildLogsDataTotals) LogsSummary {
+	summary := LogsSummary{
+		TotalRuns:                     len(processedRuns),
+		TotalDuration:                 timeutil.FormatDuration(totals.totalDuration),
+		TotalAIC:                      totals.totalAIC,
+		TotalTokens:                   totals.totalTokens,
+		TotalActionMinutes:            totals.totalActionMinutes,
+		TotalTurns:                    totals.totalTurns,
+		TotalSteeringEvents:           totals.totalSteeringEvents,
+		TotalErrors:                   totals.totalErrors,
+		TotalWarnings:                 totals.totalWarnings,
+		TotalMissingTools:             totals.totalMissingTools,
+		TotalMissingData:              totals.totalMissingData,
+		TotalSafeItems:                totals.totalSafeItems,
+		RunsWithTemporaryIDChains:     totals.runsWithTemporaryIDChains,
+		RunsWithDelegatedTempTargets:  totals.runsWithDelegatedTempTargets,
+		RunsWithMissingTemporaryIDMap: totals.runsWithMissingTemporaryIDMap,
+		RunsWithInvalidTemporaryIDMap: totals.runsWithInvalidTemporaryIDMap,
+		TotalTemporaryIDMappings:      totals.totalTemporaryIDMappings,
+		TotalChainedTargets:           totals.totalChainedTargets,
+		TotalChainedFollowupActions:   totals.totalChainedFollowupActions,
+		TotalClosedTempTargets:        totals.totalClosedTempTargets,
+		TotalGitHubAPICalls:           totals.totalGitHubAPICalls,
+	}
+	if len(totals.engineCounts) > 0 {
+		summary.EngineCounts = totals.engineCounts
+	}
+	return summary
+}
+
+type buildLogsDataSummaries struct {
+	toolUsage         []ToolUsageSummary
+	mcpToolUsage      *MCPToolUsageSummary
+	observability     []ObservabilityInsight
+	errorsAndWarnings []ErrorSummary
+	missingTools      []MissingToolSummary
+	missingData       []MissingDataSummary
+	mcpFailures       []MCPFailureSummary
+	accessLog         *AccessLogSummary
+	firewallLog       *FirewallLogSummary
+	redactedDomains   *RedactedDomainsLogSummary
+}
+
+func buildLogsDataBuildSummaries(processedRuns []ProcessedRun) buildLogsDataSummaries {
 	toolUsage := buildToolUsageSummary(processedRuns)
-
-	// Build combined error and warning summary
-	errorsAndWarnings := buildCombinedErrorsSummary(processedRuns)
-
-	// Build missing tools summary
-	missingTools := buildMissingToolsSummary(processedRuns)
-
-	// Build missing data summary
-	missingData := buildMissingDataSummary(processedRuns)
-
-	// Build MCP failures summary
-	mcpFailures := buildMCPFailuresSummary(processedRuns)
-
-	// Build MCP tool usage summary
-	mcpToolUsage := buildMCPToolUsageSummary(processedRuns)
-
-	// Build access log summary
-	accessLog := buildAccessLogSummary(processedRuns)
-
-	// Build firewall log summary
-	firewallLog := buildFirewallLogSummary(processedRuns)
-
-	// Build redacted domains summary
-	redactedDomains := buildRedactedDomainsSummary(processedRuns)
-
 	observability := buildLogsObservabilityInsights(processedRuns, toolUsage)
 	observability = append(observability, buildDrain3InsightsMultiRun(processedRuns)...)
+	return buildLogsDataSummaries{
+		toolUsage:         toolUsage,
+		mcpToolUsage:      buildMCPToolUsageSummary(processedRuns),
+		observability:     observability,
+		errorsAndWarnings: buildCombinedErrorsSummary(processedRuns),
+		missingTools:      buildMissingToolsSummary(processedRuns),
+		missingData:       buildMissingDataSummary(processedRuns),
+		mcpFailures:       buildMCPFailuresSummary(processedRuns),
+		accessLog:         buildAccessLogSummary(processedRuns),
+		firewallLog:       buildFirewallLogSummary(processedRuns),
+		redactedDomains:   buildRedactedDomainsSummary(processedRuns),
+	}
+}
 
-	absOutputDir, _ := filepath.Abs(outputDir)
-
+func buildLogsDataResult(summary LogsSummary, runs []RunData, episodes []EpisodeData, edges []EpisodeEdge, continuation *ContinuationData, absOutputDir string, summaries buildLogsDataSummaries) LogsData {
 	return LogsData{
 		Summary:           summary,
 		Runs:              runs,
 		Episodes:          episodes,
 		Edges:             edges,
-		ToolUsage:         toolUsage,
-		MCPToolUsage:      mcpToolUsage,
-		Observability:     observability,
-		ErrorsAndWarnings: errorsAndWarnings,
-		MissingTools:      missingTools,
-		MissingData:       missingData,
-		MCPFailures:       mcpFailures,
-		AccessLog:         accessLog,
-		FirewallLog:       firewallLog,
-		RedactedDomains:   redactedDomains,
+		ToolUsage:         summaries.toolUsage,
+		MCPToolUsage:      summaries.mcpToolUsage,
+		Observability:     summaries.observability,
+		ErrorsAndWarnings: summaries.errorsAndWarnings,
+		MissingTools:      summaries.missingTools,
+		MissingData:       summaries.missingData,
+		MCPFailures:       summaries.mcpFailures,
+		AccessLog:         summaries.accessLog,
+		FirewallLog:       summaries.firewallLog,
+		RedactedDomains:   summaries.redactedDomains,
 		Continuation:      continuation,
 		LogsLocation:      absOutputDir,
 	}

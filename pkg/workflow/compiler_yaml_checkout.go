@@ -12,140 +12,115 @@ import (
 // It returns the CheckoutManager (needed later for token invalidation and dev-mode restore)
 // and a flag indicating whether the default workspace checkout was emitted.
 func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *WorkflowData) (*CheckoutManager, bool, error) {
-	// Mask OTLP telemetry headers early so authentication tokens cannot leak in runner
-	// debug logs. The workflow-level OTEL_EXPORTER_OTLP_HEADERS env var is available
-	// from the very first step, so masking can happen before any other work.
+	writeEarlyMaskSteps(yaml, data)
+	c.generatePreSteps(yaml, data)
+
+	needsCheckout := c.shouldAddCheckoutStep(data)
+	compilerYamlLog.Printf("Checkout step needed: %t", needsCheckout)
+	checkoutMgr := c.prepareCheckoutManager(yaml, data)
+
+	if needsCheckout {
+		c.writeDefaultCheckoutAndDevSteps(yaml, data, checkoutMgr)
+	}
+
+	writeCheckoutManagerSteps(yaml, checkoutMgr, c.getActionPin)
+	c.writeImportCheckoutSteps(yaml, data)
+
+	if err := writeMergeRemoteGithubFolderStep(yaml, data); err != nil {
+		return nil, false, err
+	}
+
+	return checkoutMgr, needsCheckout, nil
+}
+
+func writeEarlyMaskSteps(yaml *strings.Builder, data *WorkflowData) {
 	if isOTLPHeadersPresent(data) {
 		yaml.WriteString(generateOTLPHeadersMaskStep())
 	}
-	// Mask custom OTLP attribute values so user-supplied values cannot leak into runner logs.
 	if isOTLPAttributesPresent(data) {
 		yaml.WriteString(generateOTLPAttributesMaskStep())
 	}
+}
 
-	// Add pre-steps before checkout and the subsequent built-in steps in this agent job.
-	// This allows users to mint short-lived tokens (via custom actions) in the same
-	// job as checkout, so the tokens are never dropped by the GitHub Actions runner's
-	// add-mask behaviour that silently suppresses masked values across job boundaries.
-	// Step outputs are available as ${{ steps.<id>.outputs.<name> }} and can be
-	// referenced directly in checkout.token. Some compiler-injected setup steps may
-	// still be emitted earlier than these pre-steps.
-	c.generatePreSteps(yaml, data)
-
-	// Determine if we need to add a checkout step
-	needsCheckout := c.shouldAddCheckoutStep(data)
-	compilerYamlLog.Printf("Checkout step needed: %t", needsCheckout)
-
-	// Build a CheckoutManager with any user-configured checkouts
+func (c *Compiler) prepareCheckoutManager(yaml *strings.Builder, data *WorkflowData) *CheckoutManager {
 	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
-
-	// Propagate the platform (host) repo resolved by the activation job so that
-	// checkout steps in this job and in safe_outputs can use the correct repository
-	// for .github/.agents sparse checkouts when called cross-repo.
-	// The activation job exposes this as needs.activation.outputs.target_repo.
 	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		checkoutMgr.SetCrossRepoTargetRepo("${{ needs.activation.outputs.target_repo }}")
 	}
-
-	// Mint checkout app tokens directly in the agent job before checkout steps are executed.
-	// Tokens cannot be passed via job outputs from the activation job because
-	// actions/create-github-app-token calls ::add-mask:: on the token, and the GitHub Actions
-	// runner silently drops masked values when used as job outputs (runner v2.308+).
-	// By minting here, the token is available as steps.checkout-app-token-{index}.outputs.token
-	// within the same job, just like the github-mcp-app-token pattern.
 	if checkoutMgr.HasAppAuth() {
 		compilerYamlLog.Print("Generating checkout app token minting steps in agent job")
 		for _, step := range checkoutMgr.GenerateCheckoutAppTokenSteps(c, resolveCheckoutPermissions(data)) {
 			yaml.WriteString(step)
 		}
 	}
+	return checkoutMgr
+}
 
-	// Add checkout step first if needed
-	if needsCheckout {
-		// Emit the default workspace checkout, applying any user-supplied overrides
-		defaultLines := checkoutMgr.GenerateDefaultCheckoutStep(
-			c.trialMode,
-			c.trialLogicalRepoSlug,
-			c.getActionPin,
-		)
-		for _, line := range defaultLines {
-			yaml.WriteString(line)
-		}
-
-		// Add CLI build steps in dev mode (after automatic checkout, before other steps)
-		// This builds the gh-aw CLI and Docker image for use by the agentic-workflows MCP server
-		// Only generate build steps if agentic-workflows tool is enabled
-		if c.actionMode.IsDev() {
-			if _, hasAgenticWorkflows := data.Tools["agentic-workflows"]; hasAgenticWorkflows {
-				compilerYamlLog.Printf("Generating CLI build steps for dev mode (agentic-workflows tool enabled)")
-				c.generateDevModeCLIBuildSteps(yaml)
-			} else {
-				compilerYamlLog.Printf("Skipping CLI build steps in dev mode (agentic-workflows tool not enabled)")
-			}
-		}
-	}
-
-	// Emit additional (non-default) user-configured checkouts
-	additionalLines := checkoutMgr.GenerateAdditionalCheckoutSteps(c.getActionPin)
-	for _, line := range additionalLines {
+func (c *Compiler) writeDefaultCheckoutAndDevSteps(yaml *strings.Builder, data *WorkflowData, checkoutMgr *CheckoutManager) {
+	for _, line := range checkoutMgr.GenerateDefaultCheckoutStep(c.trialMode, c.trialLogicalRepoSlug, c.getActionPin) {
 		yaml.WriteString(line)
 	}
+	if !c.actionMode.IsDev() {
+		return
+	}
+	if _, hasAgenticWorkflows := data.Tools["agentic-workflows"]; hasAgenticWorkflows {
+		compilerYamlLog.Printf("Generating CLI build steps for dev mode (agentic-workflows tool enabled)")
+		c.generateDevModeCLIBuildSteps(yaml)
+	} else {
+		compilerYamlLog.Printf("Skipping CLI build steps in dev mode (agentic-workflows tool not enabled)")
+	}
+}
 
-	// Emit a manifest step that records the path and resolved default branch for each
-	// non-default cross-repo checkout. The safe-outputs MCP server reads this file to
-	// resolve base branches without making any credentialed network calls.
-	for _, line := range checkoutMgr.GenerateCheckoutManifestStep(c.getActionPin) {
+func writeCheckoutManagerSteps(yaml *strings.Builder, checkoutMgr *CheckoutManager, getActionPin func(string) string) {
+	for _, line := range checkoutMgr.GenerateAdditionalCheckoutSteps(getActionPin) {
 		yaml.WriteString(line)
 	}
+	for _, line := range checkoutMgr.GenerateCheckoutManifestStep(getActionPin) {
+		yaml.WriteString(line)
+	}
+}
 
-	// Add checkout steps for repository imports
-	// Each repository import needs to be checked out into a temporary folder
-	// so the merge script can copy files from it
+func (c *Compiler) writeImportCheckoutSteps(yaml *strings.Builder, data *WorkflowData) {
 	if len(data.RepositoryImports) > 0 {
 		compilerYamlLog.Printf("Adding checkout steps for %d repository imports", len(data.RepositoryImports))
 		c.generateRepositoryImportCheckouts(yaml, data.RepositoryImports)
 	}
-
-	// Add checkout step for legacy agent import (if present)
-	// This handles the older import format where a specific agent file is imported
 	if data.AgentFile != "" && data.AgentImportSpec != "" {
 		compilerYamlLog.Printf("Adding checkout step for legacy agent import: %s", data.AgentImportSpec)
 		c.generateLegacyAgentImportCheckout(yaml, data.AgentImportSpec)
 	}
+}
 
-	// Add merge remote .github folder step for repository imports or agent imports
-	needsGithubMerge := (len(data.RepositoryImports) > 0) || (data.AgentFile != "" && data.AgentImportSpec != "")
-	if needsGithubMerge {
-		compilerYamlLog.Printf("Adding merge remote .github folder step")
-		yaml.WriteString("      - name: Merge remote .github folder\n")
-		fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
-		yaml.WriteString("        env:\n")
-
-		// Set repository imports if present
-		if len(data.RepositoryImports) > 0 {
-			// Convert to JSON array for the script
-			repoImportsJSON, err := json.Marshal(data.RepositoryImports)
-			if err != nil {
-				return nil, false, fmt.Errorf("failed to marshal repository imports for merge step: %w", err)
-			}
-			writeYAMLEnv(yaml, "          ", "GH_AW_REPOSITORY_IMPORTS", string(repoImportsJSON))
-		}
-
-		// Set agent import spec if present (legacy path)
-		if data.AgentFile != "" && data.AgentImportSpec != "" {
-			writeYAMLEnv(yaml, "          ", "GH_AW_AGENT_FILE", data.AgentFile)
-			writeYAMLEnv(yaml, "          ", "GH_AW_AGENT_IMPORT_SPEC", data.AgentImportSpec)
-		}
-
-		yaml.WriteString("        with:\n")
-		yaml.WriteString("          script: |\n")
-		yaml.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
-		yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-		yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/merge_remote_agent_github_folder.cjs');\n")
-		yaml.WriteString("            await main();\n")
+func writeMergeRemoteGithubFolderStep(yaml *strings.Builder, data *WorkflowData) error {
+	if len(data.RepositoryImports) == 0 && (data.AgentFile == "" || data.AgentImportSpec == "") {
+		return nil
 	}
+	compilerYamlLog.Printf("Adding merge remote .github folder step")
+	yaml.WriteString("      - name: Merge remote .github folder\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	yaml.WriteString("        env:\n")
+	if len(data.RepositoryImports) > 0 {
+		repoImportsJSON, err := json.Marshal(data.RepositoryImports)
+		if err != nil {
+			return fmt.Errorf("failed to marshal repository imports for merge step: %w", err)
+		}
+		writeYAMLEnv(yaml, "          ", "GH_AW_REPOSITORY_IMPORTS", string(repoImportsJSON))
+	}
+	if data.AgentFile != "" && data.AgentImportSpec != "" {
+		writeYAMLEnv(yaml, "          ", "GH_AW_AGENT_FILE", data.AgentFile)
+		writeYAMLEnv(yaml, "          ", "GH_AW_AGENT_IMPORT_SPEC", data.AgentImportSpec)
+	}
+	writeMergeRemoteGithubFolderScript(yaml)
+	return nil
+}
 
-	return checkoutMgr, needsCheckout, nil
+func writeMergeRemoteGithubFolderScript(yaml *strings.Builder) {
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/merge_remote_agent_github_folder.cjs');\n")
+	yaml.WriteString("            await main();\n")
 }
 
 // generateRepositoryImportCheckouts generates checkout steps for repository imports

@@ -77,127 +77,136 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 	}
 	devcontainerLog.Printf("Ensured directory exists: %s", devcontainerDir)
 
-	// Check if file already exists at default location
-	var existingConfig *DevcontainerConfig
-	if _, err := os.Stat(devcontainerPath); err == nil {
-		devcontainerLog.Printf("File already exists: %s", devcontainerPath)
-
-		// Read existing config to update it
-		existingData, err := os.ReadFile(devcontainerPath)
-		if err != nil {
-			devcontainerLog.Printf("Failed to read existing config: %v", err)
-			return fmt.Errorf("failed to read existing devcontainer.json: %w", err)
-		}
-
-		var config DevcontainerConfig
-		if err := json.Unmarshal(existingData, &config); err != nil {
-			devcontainerLog.Printf("Failed to parse existing config: %v", err)
-			return fmt.Errorf("failed to parse existing devcontainer.json: %w", err)
-		}
-		existingConfig = &config
-		devcontainerLog.Printf("Successfully parsed existing devcontainer.json")
+	existingConfig, err := ensureDevcontainerConfigLoadExisting(devcontainerPath)
+	if err != nil {
+		return err
 	}
-
-	// Get current repository name from git remote
-	repoName := getCurrentRepoName()
-	if repoName == "" {
-		repoName = "current-repo"
-	}
-
-	// Get the owner from the current repository
-	owner := getRepoOwner()
-
-	// Prepare gh-aw specific configuration
-	ghAwRepositories := buildRepositoryPermissions(repoName, owner, additionalRepos)
+	ghAwRepositories := ensureDevcontainerConfigRepositoryPermissions(additionalRepos)
 
 	var config DevcontainerConfig
-
 	if existingConfig != nil {
-		// Update existing configuration
-		devcontainerLog.Printf("Updating existing devcontainer.json")
-		config = *existingConfig
-
-		// Ensure customizations exists
-		if config.Customizations == nil {
-			config.Customizations = &DevcontainerCustomizations{}
-		}
-
-		// Merge VSCode extensions
-		if config.Customizations.VSCode == nil {
-			config.Customizations.VSCode = &DevcontainerVSCode{}
-		}
-		config.Customizations.VSCode.Extensions = mergeExtensions(
-			config.Customizations.VSCode.Extensions,
-			[]string{"GitHub.copilot", "GitHub.copilot-chat"},
-		)
-
-		// Merge Codespaces repositories
-		if config.Customizations.Codespaces == nil {
-			config.Customizations.Codespaces = &DevcontainerCodespaces{
-				Repositories: make(map[string]DevcontainerRepoPermissions),
-			}
-		}
-		if config.Customizations.Codespaces.Repositories == nil {
-			config.Customizations.Codespaces.Repositories = make(map[string]DevcontainerRepoPermissions)
-		}
-		for repo, perms := range ghAwRepositories {
-			config.Customizations.Codespaces.Repositories[repo] = perms
-			devcontainerLog.Printf("Updated permissions for repo: %s", repo)
-		}
-
-		// Merge features
-		if config.Features == nil {
-			config.Features = make(DevcontainerFeatures)
-		}
-		mergeFeatures(config.Features, map[string]any{
-			"ghcr.io/devcontainers/features/github-cli:1":       map[string]any{},
-			"ghcr.io/devcontainers/features/copilot-cli:latest": map[string]any{},
-		})
-
-		// Update postCreateCommand if not set or if it doesn't include gh-aw install
-		if config.PostCreateCommand == "" || !strings.Contains(config.PostCreateCommand, "install-gh-aw.sh") {
-			ghAwInstall := "curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh | bash"
-			if config.PostCreateCommand == "" {
-				config.PostCreateCommand = ghAwInstall
-			} else {
-				config.PostCreateCommand = config.PostCreateCommand + " && " + ghAwInstall
-			}
-			devcontainerLog.Printf("Updated postCreateCommand to include gh-aw installation")
-		}
-
+		config = ensureDevcontainerConfigUpdateExisting(existingConfig, ghAwRepositories)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr("Updated existing devcontainer at "+devcontainerPath))
 		}
 	} else {
-		// Create new configuration
-		devcontainerLog.Printf("Creating new devcontainer.json at default location")
-		config = DevcontainerConfig{
-			Name:  "Agentic Workflows Development",
-			Image: "mcr.microsoft.com/devcontainers/universal:latest",
-			Customizations: &DevcontainerCustomizations{
-				VSCode: &DevcontainerVSCode{
-					Extensions: []string{
-						"GitHub.copilot",
-						"GitHub.copilot-chat",
-					},
-				},
-				Codespaces: &DevcontainerCodespaces{
-					Repositories: ghAwRepositories,
-				},
-			},
-			Features: DevcontainerFeatures{
-				"ghcr.io/devcontainers/features/github-cli:1":       map[string]any{},
-				"ghcr.io/devcontainers/features/copilot-cli:latest": map[string]any{},
-			},
-			PostCreateCommand: "curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
-		}
-
+		config = ensureDevcontainerConfigCreateNew(ghAwRepositories)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr("Created new devcontainer at "+devcontainerPath))
 		}
 	}
 
-	// Write config file with proper indentation
+	return ensureDevcontainerConfigWrite(devcontainerPath, config)
+}
+
+func ensureDevcontainerConfigLoadExisting(devcontainerPath string) (*DevcontainerConfig, error) {
+	if _, err := os.Stat(devcontainerPath); err != nil {
+		return nil, nil
+	}
+	devcontainerLog.Printf("File already exists: %s", devcontainerPath)
+	existingData, err := os.ReadFile(devcontainerPath)
+	if err != nil {
+		devcontainerLog.Printf("Failed to read existing config: %v", err)
+		return nil, fmt.Errorf("failed to read existing devcontainer.json: %w", err)
+	}
+	var config DevcontainerConfig
+	if err := json.Unmarshal(existingData, &config); err != nil {
+		devcontainerLog.Printf("Failed to parse existing config: %v", err)
+		return nil, fmt.Errorf("failed to parse existing devcontainer.json: %w", err)
+	}
+	devcontainerLog.Printf("Successfully parsed existing devcontainer.json")
+	return &config, nil
+}
+
+func ensureDevcontainerConfigRepositoryPermissions(additionalRepos []string) map[string]DevcontainerRepoPermissions {
+	repoName := getCurrentRepoName()
+	if repoName == "" {
+		repoName = "current-repo"
+	}
+	return buildRepositoryPermissions(repoName, getRepoOwner(), additionalRepos)
+}
+
+func ensureDevcontainerConfigUpdateExisting(existingConfig *DevcontainerConfig, ghAwRepositories map[string]DevcontainerRepoPermissions) DevcontainerConfig {
+	devcontainerLog.Printf("Updating existing devcontainer.json")
+	config := *existingConfig
+	ensureDevcontainerConfigMergeCustomizations(&config, ghAwRepositories)
+	ensureDevcontainerConfigMergeFeatures(&config)
+	ensureDevcontainerConfigPostCreate(&config)
+	return config
+}
+
+func ensureDevcontainerConfigMergeCustomizations(config *DevcontainerConfig, ghAwRepositories map[string]DevcontainerRepoPermissions) {
+	if config.Customizations == nil {
+		config.Customizations = &DevcontainerCustomizations{}
+	}
+	if config.Customizations.VSCode == nil {
+		config.Customizations.VSCode = &DevcontainerVSCode{}
+	}
+	config.Customizations.VSCode.Extensions = mergeExtensions(
+		config.Customizations.VSCode.Extensions,
+		[]string{"GitHub.copilot", "GitHub.copilot-chat"},
+	)
+	if config.Customizations.Codespaces == nil {
+		config.Customizations.Codespaces = &DevcontainerCodespaces{
+			Repositories: make(map[string]DevcontainerRepoPermissions),
+		}
+	}
+	if config.Customizations.Codespaces.Repositories == nil {
+		config.Customizations.Codespaces.Repositories = make(map[string]DevcontainerRepoPermissions)
+	}
+	for repo, perms := range ghAwRepositories {
+		config.Customizations.Codespaces.Repositories[repo] = perms
+		devcontainerLog.Printf("Updated permissions for repo: %s", repo)
+	}
+}
+
+func ensureDevcontainerConfigMergeFeatures(config *DevcontainerConfig) {
+	if config.Features == nil {
+		config.Features = make(DevcontainerFeatures)
+	}
+	mergeFeatures(config.Features, map[string]any{
+		"ghcr.io/devcontainers/features/github-cli:1":       map[string]any{},
+		"ghcr.io/devcontainers/features/copilot-cli:latest": map[string]any{},
+	})
+}
+
+func ensureDevcontainerConfigPostCreate(config *DevcontainerConfig) {
+	if config.PostCreateCommand == "" || !strings.Contains(config.PostCreateCommand, "install-gh-aw.sh") {
+		ghAwInstall := "curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh | bash"
+		if config.PostCreateCommand == "" {
+			config.PostCreateCommand = ghAwInstall
+		} else {
+			config.PostCreateCommand = config.PostCreateCommand + " && " + ghAwInstall
+		}
+		devcontainerLog.Printf("Updated postCreateCommand to include gh-aw installation")
+	}
+}
+
+func ensureDevcontainerConfigCreateNew(ghAwRepositories map[string]DevcontainerRepoPermissions) DevcontainerConfig {
+	devcontainerLog.Printf("Creating new devcontainer.json at default location")
+	return DevcontainerConfig{
+		Name:  "Agentic Workflows Development",
+		Image: "mcr.microsoft.com/devcontainers/universal:latest",
+		Customizations: &DevcontainerCustomizations{
+			VSCode: &DevcontainerVSCode{
+				Extensions: []string{
+					"GitHub.copilot",
+					"GitHub.copilot-chat",
+				},
+			},
+			Codespaces: &DevcontainerCodespaces{
+				Repositories: ghAwRepositories,
+			},
+		},
+		Features: DevcontainerFeatures{
+			"ghcr.io/devcontainers/features/github-cli:1":       map[string]any{},
+			"ghcr.io/devcontainers/features/copilot-cli:latest": map[string]any{},
+		},
+		PostCreateCommand: "curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
+	}
+}
+
+func ensureDevcontainerConfigWrite(devcontainerPath string, config DevcontainerConfig) error {
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal devcontainer.json: %w", err)
@@ -243,44 +252,54 @@ func buildRepositoryPermissions(repoName, owner string, additionalRepos []string
 	// Since permissions must be in the same organization, we automatically prepend the owner.
 	// Reference: https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces#setting-additional-repository-permissions
 	for _, repo := range additionalRepos {
-		if repo == "" {
-			continue
-		}
-
-		// If repo already contains '/', validate that the owner matches
-		// Otherwise, prepend the owner
-		fullRepoName := repo
-		if strings.Contains(repo, "/") {
-			// Validate that the owner matches the current repo's owner
-			parts := strings.Split(repo, "/")
-			if len(parts) >= 2 {
-				repoOwner := parts[0]
-				if owner != "" && repoOwner != owner {
-					// Skip repos with different owners rather than error
-					devcontainerLog.Printf("Skipping repository '%s' - different owner than current repo (expected: '%s')", repo, owner)
-					continue
-				}
-			}
-		} else if owner != "" {
-			fullRepoName = owner + "/" + repo
-		}
-
+		fullRepoName := buildRepositoryPermissionsFullRepoName(repo, owner)
 		if fullRepoName != repoName {
-			repositories[fullRepoName] = DevcontainerRepoPermissions{
-				Permissions: map[string]string{
-					"actions":       "read",
-					"contents":      "read",
-					"discussions":   "read",
-					"issues":        "read",
-					"pull-requests": "read",
-					"workflows":     "read",
-				},
-			}
-			devcontainerLog.Printf("Added read permissions for additional repo: %s", fullRepoName)
+			buildRepositoryPermissionsAddReadRepository(repositories, fullRepoName)
 		}
 	}
 
 	return repositories
+}
+
+func buildRepositoryPermissionsFullRepoName(repo, owner string) string {
+	if repo == "" {
+		return ""
+	}
+
+	// If repo already contains '/', validate that the owner matches.
+	// Otherwise, prepend the owner.
+	if strings.Contains(repo, "/") {
+		parts := strings.Split(repo, "/")
+		if len(parts) >= 2 {
+			repoOwner := parts[0]
+			if owner != "" && repoOwner != owner {
+				devcontainerLog.Printf("Skipping repository '%s' - different owner than current repo (expected: '%s')", repo, owner)
+				return ""
+			}
+		}
+		return repo
+	}
+	if owner != "" {
+		return owner + "/" + repo
+	}
+	return repo
+}
+
+func buildRepositoryPermissionsAddReadRepository(repositories map[string]DevcontainerRepoPermissions, fullRepoName string) {
+	if fullRepoName == "" {
+		return
+	}
+	repositories[fullRepoName] = DevcontainerRepoPermissions{
+		Permissions: map[string]string{
+			"actions":       "read",
+			"contents":      "read",
+			"discussions":   "read",
+			"issues":        "read",
+			"pull-requests": "read",
+			"workflows":     "read",
+		},
+	}
+	devcontainerLog.Printf("Added read permissions for additional repo: %s", fullRepoName)
 }
 
 // mergeExtensions adds new extensions to existing list, avoiding duplicates

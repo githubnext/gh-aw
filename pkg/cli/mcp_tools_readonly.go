@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -86,15 +87,9 @@ type compileArgs struct {
 // enforcement.  An empty string disables this feature.
 // Returns an error if schema generation fails, which causes the server to stop registering tools.
 func registerCompileTool(server *mcp.Server, execCmd execCmdFunc, manifestCacheFile string) error {
-	// Generate schema with elicitation defaults
-	compileSchema, err := GenerateSchema[compileArgs]()
+	compileSchema, err := registerCompileToolSchema()
 	if err != nil {
-		mcpLog.Printf("Failed to generate compile tool schema: %v", err)
 		return err
-	}
-	// Add elicitation default: strict defaults to true (most common case)
-	if err := AddSchemaDefault(compileSchema, "strict", true); err != nil {
-		mcpLog.Printf("Failed to add default for strict: %v", err)
 	}
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -104,7 +99,30 @@ func registerCompileTool(server *mcp.Server, execCmd execCmdFunc, manifestCacheF
 			DestructiveHint: boolPtr(false),
 			OpenWorldHint:   boolPtr(false),
 		},
-		Description: `Compile Markdown workflows to GitHub Actions YAML with optional static analysis tools.
+		Description: registerCompileToolDescription(),
+		InputSchema: compileSchema,
+		Icons:       mcpToolIcons("📋"),
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args compileArgs) (*mcp.CallToolResult, any, error) {
+		return registerCompileToolHandler(ctx, execCmd, manifestCacheFile, args)
+	})
+
+	return nil
+}
+
+func registerCompileToolSchema() (*jsonschema.Schema, error) {
+	compileSchema, err := GenerateSchema[compileArgs]()
+	if err != nil {
+		mcpLog.Printf("Failed to generate compile tool schema: %v", err)
+		return nil, err
+	}
+	if err := AddSchemaDefault(compileSchema, "strict", true); err != nil {
+		mcpLog.Printf("Failed to add default for strict: %v", err)
+	}
+	return compileSchema, nil
+}
+
+func registerCompileToolDescription() string {
+	return `Compile Markdown workflows to GitHub Actions YAML with optional static analysis tools.
 
 ⚠️  IMPORTANT: Any change to .github/workflows/*.md files MUST be compiled using this tool.
 This tool generates .lock.yml files from .md workflow files. The .lock.yml files are what GitHub Actions
@@ -119,144 +137,113 @@ Returns JSON array with validation results for each workflow:
 - valid: Boolean indicating if compilation was successful
 - errors: Array of error objects with type, message, and optional line number
 - warnings: Array of warning objects
-- compiled_file: Path to the generated .lock.yml file`,
-		InputSchema: compileSchema,
-		Icons:       mcpToolIcons("📋"),
-	}, func(ctx context.Context, req *mcp.CallToolRequest, args compileArgs) (*mcp.CallToolResult, any, error) {
-		// Check for cancellation before starting
-		select {
-		case <-ctx.Done():
-			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
-		default:
+- compiled_file: Path to the generated .lock.yml file`
+}
+
+func registerCompileToolHandler(ctx context.Context, execCmd execCmdFunc, manifestCacheFile string, args compileArgs) (*mcp.CallToolResult, any, error) {
+	if err := registerCompileToolCheckCancelled(ctx); err != nil {
+		return nil, nil, err
+	}
+
+	dockerUnavailableWarning, dockerResult, err := registerCompileToolPrepareDocker(ctx, &args)
+	if dockerResult != nil || err != nil {
+		return dockerResult, nil, err
+	}
+
+	cmdArgs := registerCompileToolArgs(args, manifestCacheFile)
+	mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v, runner-guard=%v",
+		args.Workflows, args.Strict, args.Fix, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard)
+
+	stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
+	outputStr, mcpErr := registerCompileToolOutput(stdout, err)
+	if mcpErr != nil {
+		return nil, nil, mcpErr
+	}
+	if dockerUnavailableWarning != "" {
+		outputStr = injectDockerUnavailableWarning(outputStr, dockerUnavailableWarning)
+	}
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: outputStr}},
+	}, nil, nil
+}
+
+func registerCompileToolCheckCancelled(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
+	default:
+		return nil
+	}
+}
+
+func registerCompileToolPrepareDocker(ctx context.Context, args *compileArgs) (string, *mcp.CallToolResult, error) {
+	if !(args.Zizmor || args.Poutine || args.Actionlint || args.RunnerGuard) {
+		return "", nil, nil
+	}
+	if err := CheckAndPrepareDockerImages(ctx, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard); err != nil {
+		var dockerUnavailableErr *DockerUnavailableError
+		if errors.As(err, &dockerUnavailableErr) {
+			args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard = false, false, false, false
+			return err.Error(), nil, nil
 		}
+		dockerResult, dockerErr := registerCompileToolDockerError(args.Workflows, err)
+		return "", dockerResult, dockerErr
+	}
+	return "", nil, registerCompileToolCheckCancelled(ctx)
+}
 
-		// dockerUnavailableWarning is set when Docker is not accessible but the compile
-		// should still proceed without the static-analysis tools.  After the compile
-		// attempt, the warning is appended to workflow results in the JSON output so
-		// the caller knows linting was skipped, while preserving each workflow's
-		// valid/invalid status.
-		var dockerUnavailableWarning string
+func registerCompileToolDockerError(workflows []string, err error) (*mcp.CallToolResult, error) {
+	results := buildDockerErrorResults(workflows, err.Error())
+	jsonBytes, jsonErr := json.Marshal(results)
+	if jsonErr != nil {
+		return nil, newMCPError(jsonrpc.CodeInternalError, "failed to marshal docker error results", jsonErr.Error())
+	}
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
+	}, nil
+}
 
-		// Check if any static analysis tools are requested that require Docker images
-		if args.Zizmor || args.Poutine || args.Actionlint || args.RunnerGuard {
-			// Check if Docker images are available; if not, start downloading and return retry message
-			if err := CheckAndPrepareDockerImages(ctx, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard); err != nil {
-				var dockerUnavailableErr *DockerUnavailableError
-				if errors.As(err, &dockerUnavailableErr) {
-					// Docker daemon is not running.  Instead of failing every workflow,
-					// compile without the Docker-based tools and surface a warning so
-					// the caller knows static analysis was skipped.
-					dockerUnavailableWarning = err.Error()
-					args.Zizmor = false
-					args.Poutine = false
-					args.Actionlint = false
-					args.RunnerGuard = false
-				} else {
-					// Images are still downloading — ask the caller to retry.
-					// Build per-workflow validation errors instead of throwing an MCP protocol error,
-					// so callers always receive consistent JSON regardless of the failure mode.
-					results := buildDockerErrorResults(args.Workflows, err.Error())
-					jsonBytes, jsonErr := json.Marshal(results)
-					if jsonErr != nil {
-						return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to marshal docker error results", jsonErr.Error())
-					}
-					return &mcp.CallToolResult{
-						Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
-					}, nil, nil
-				}
-			}
+func registerCompileToolArgs(args compileArgs, manifestCacheFile string) []string {
+	cmdArgs := []string{"compile", "--validate", "--json"}
+	if args.Fix {
+		cmdArgs = append(cmdArgs, "--fix")
+	}
+	if args.Strict {
+		cmdArgs = append(cmdArgs, "--strict")
+	}
+	if args.Zizmor {
+		cmdArgs = append(cmdArgs, "--zizmor")
+	}
+	if args.Poutine {
+		cmdArgs = append(cmdArgs, "--poutine")
+	}
+	if args.Actionlint {
+		cmdArgs = append(cmdArgs, "--actionlint")
+	}
+	if args.RunnerGuard {
+		cmdArgs = append(cmdArgs, "--runner-guard")
+	}
+	cmdArgs = append(cmdArgs, args.Workflows...)
+	if manifestCacheFile != "" {
+		cmdArgs = append(cmdArgs, "--prior-manifest-file", manifestCacheFile)
+	}
+	return cmdArgs
+}
 
-			// Check for cancellation after Docker image preparation
-			select {
-			case <-ctx.Done():
-				return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
-			default:
-			}
-		}
-
-		// Build command arguments
-		// Always validate workflows during compilation and use JSON output for MCP
-		cmdArgs := []string{"compile", "--validate", "--json"}
-
-		// Add fix flag if requested
-		if args.Fix {
-			cmdArgs = append(cmdArgs, "--fix")
-		}
-
-		// Add strict flag if requested
-		if args.Strict {
-			cmdArgs = append(cmdArgs, "--strict")
-		}
-
-		// Add static analysis flags if requested
-		if args.Zizmor {
-			cmdArgs = append(cmdArgs, "--zizmor")
-		}
-		if args.Poutine {
-			cmdArgs = append(cmdArgs, "--poutine")
-		}
-		if args.Actionlint {
-			cmdArgs = append(cmdArgs, "--actionlint")
-		}
-		if args.RunnerGuard {
-			cmdArgs = append(cmdArgs, "--runner-guard")
-		}
-
-		cmdArgs = append(cmdArgs, args.Workflows...)
-
-		// Pass the pre-cached manifest file when available so the compiler uses
-		// the tamper-proof manifest baseline captured at server startup.
-		if manifestCacheFile != "" {
-			cmdArgs = append(cmdArgs, "--prior-manifest-file", manifestCacheFile)
-		}
-
-		mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v, runner-guard=%v",
-			args.Workflows, args.Strict, args.Fix, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard)
-
-		// Execute the CLI command
-		// Use separate stdout/stderr capture instead of CombinedOutput because:
-		// - Stdout contains JSON output (--json flag)
-		// - Stderr contains console messages that shouldn't be mixed with JSON
-		stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
-
-		// The compile command always outputs JSON to stdout when --json flag is used, even on error.
-		// We should return the JSON output to the LLM so it can see validation errors.
-		// Only return an MCP error if we cannot get any output at all.
-		outputStr := string(stdout)
-
-		// If the command failed but we have output, it's likely compilation errors
-		// which are included in the JSON output. Return the output, not an MCP error.
+func registerCompileToolOutput(stdout []byte, err error) (string, error) {
+	outputStr := string(stdout)
+	if err == nil || outputStr != "" {
 		if err != nil {
 			mcpLog.Printf("Compile command exited with error: %v (output length: %d)", err, len(outputStr))
-			// If we have no output, this is a real execution failure
-			if outputStr == "" {
-				// Try to get stderr for error details
-				var stderr string
-				var exitErr *exec.ExitError
-				if errors.As(err, &exitErr) {
-					stderr = string(exitErr.Stderr)
-				}
-				return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to compile workflows", map[string]any{"error": err.Error(), "stderr": stderr})
-			}
-			// Otherwise, we have output (likely validation errors in JSON), so continue
-			// and return it to the LLM
 		}
-
-		// When Docker was unavailable, inject a warning into every workflow result so the
-		// caller knows that static analysis was skipped — but does NOT mark valid
-		// workflows as invalid.
-		if dockerUnavailableWarning != "" {
-			outputStr = injectDockerUnavailableWarning(outputStr, dockerUnavailableWarning)
-		}
-
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: outputStr},
-			},
-		}, nil, nil
-	})
-
-	return nil
+		return outputStr, nil
+	}
+	var stderr string
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		stderr = string(exitErr.Stderr)
+	}
+	return "", newMCPError(jsonrpc.CodeInternalError, "failed to compile workflows", map[string]any{"error": err.Error(), "stderr": stderr})
 }
 
 // mcpInspectArgs holds the input parameters for the mcp-inspect tool.
@@ -275,7 +262,15 @@ func registerMCPInspectTool(server *mcp.Server, execCmd execCmdFunc) {
 			IdempotentHint: true,
 			OpenWorldHint:  boolPtr(true),
 		},
-		Description: `Inspect MCP servers used by a workflow and list available tools, resources, and roots.
+		Description: registerMCPInspectToolDescription(),
+		Icons:       mcpToolIcons("🔬"),
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args mcpInspectArgs) (*mcp.CallToolResult, any, error) {
+		return registerMCPInspectToolHandler(ctx, execCmd, args)
+	})
+}
+
+func registerMCPInspectToolDescription() string {
+	return `Inspect MCP servers used by a workflow and list available tools, resources, and roots.
 
 This tool starts each MCP server configured in the workflow, queries its capabilities,
 and displays the results. It supports stdio, Docker, and HTTP MCP servers.
@@ -293,47 +288,38 @@ Returns formatted text output showing:
 - Available MCP servers in the workflow
 - Tools, resources, and roots exposed by each server
 - Secret availability status (if GitHub token is available)
-- Detailed tool information when tool parameter is specified`,
-		Icons: mcpToolIcons("🔬"),
-	}, func(ctx context.Context, req *mcp.CallToolRequest, args mcpInspectArgs) (*mcp.CallToolResult, any, error) {
-		// Check for cancellation before starting
-		select {
-		case <-ctx.Done():
-			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
-		default:
-		}
+- Detailed tool information when tool parameter is specified`
+}
 
-		// Build command arguments
-		cmdArgs := []string{"mcp", "inspect"}
+func registerMCPInspectToolHandler(ctx context.Context, execCmd execCmdFunc, args mcpInspectArgs) (*mcp.CallToolResult, any, error) {
+	if err := registerCompileToolCheckCancelled(ctx); err != nil {
+		return nil, nil, err
+	}
 
-		if args.WorkflowFile != "" {
-			cmdArgs = append(cmdArgs, args.WorkflowFile)
-		}
+	cmdArgs := registerMCPInspectToolArgs(args)
+	output, err := runMCPExecCombinedOutput(ctx, execCmd, cmdArgs...)
+	if err != nil {
+		return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to inspect MCP servers", map[string]any{"error": err.Error(), "output": string(output)})
+	}
 
-		if args.Server != "" {
-			cmdArgs = append(cmdArgs, "--server", args.Server)
-		}
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: string(output)}},
+	}, nil, nil
+}
 
-		if args.Tool != "" {
-			cmdArgs = append(cmdArgs, "--tool", args.Tool)
-		}
-
-		// Always enable secret checking (will be silently ignored if GitHub token is not available)
-		cmdArgs = append(cmdArgs, "--check-secrets")
-
-		// Execute the CLI command
-		output, err := runMCPExecCombinedOutput(ctx, execCmd, cmdArgs...)
-
-		if err != nil {
-			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to inspect MCP servers", map[string]any{"error": err.Error(), "output": string(output)})
-		}
-
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: string(output)},
-			},
-		}, nil, nil
-	})
+func registerMCPInspectToolArgs(args mcpInspectArgs) []string {
+	cmdArgs := []string{"mcp", "inspect"}
+	if args.WorkflowFile != "" {
+		cmdArgs = append(cmdArgs, args.WorkflowFile)
+	}
+	if args.Server != "" {
+		cmdArgs = append(cmdArgs, "--server", args.Server)
+	}
+	if args.Tool != "" {
+		cmdArgs = append(cmdArgs, "--tool", args.Tool)
+	}
+	// Always enable secret checking (will be silently ignored if GitHub token is not available)
+	return append(cmdArgs, "--check-secrets")
 }
 
 // checksArgs holds the input parameters for the checks tool.
