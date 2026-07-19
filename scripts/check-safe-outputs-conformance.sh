@@ -178,7 +178,7 @@ check_cross_repo() {
         fi
         
         # Check if handler supports target-repo (match explicit config-surface identifiers only)
-        if grep -q "target-repo\|targetRepo\|target_repo" "$handler"; then
+        if grep -qE "\btarget-repo\b|\btargetRepo\b|\btarget_repo\b" "$handler"; then
             # Check for allowlist validation
             if ! grep -q "allowed.*[Rr]epos\|validateTargetRepo\|checkAllowedRepo" "$handler"; then
                 log_high "SEC-005: $handler supports target-repo but lacks allowlist check"
