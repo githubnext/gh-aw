@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { unified } from '@astrojs/markdown-remark';
 import remarkStripEmojis from './src/lib/remark/stripEmojis.js';
 import remarkTableDataLabels from './src/lib/remark/tableDataLabels.js';
+import remarkInlineMarkdownInHtml from './src/lib/remark/inlineMarkdownInHtml.js';
 import rehypeTableWrapper from './src/lib/rehype/tableWrapper.js';
 import { WORKSHOP_SLUGS } from './src/lib/workshop/config.ts';
 
@@ -40,7 +41,7 @@ export default defineConfig({
 	trailingSlash: 'always',
 	markdown: {
 		processor: unified({
-			remarkPlugins: [remarkStripEmojis, remarkTableDataLabels],
+			remarkPlugins: [remarkStripEmojis, remarkTableDataLabels, remarkInlineMarkdownInHtml],
 			rehypePlugins: [rehypeTableWrapper],
 		}),
 	},
