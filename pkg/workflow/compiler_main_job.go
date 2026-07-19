@@ -24,6 +24,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" || c.actionMode.IsScript() {
+		compilerMainJobLog.Printf("Adding actions-folder checkout and setup steps (ref=%q, scriptMode=%v)", setupActionRef, c.actionMode.IsScript())
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 		agentTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
 		agentParentSpanID := setupParentSpanNeedsExpr(constants.ActivationJobName)
@@ -33,6 +34,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// These cannot be set in job-level env: because the runner context is not
 	// available there (only in step-level env: and run: blocks).
 	if data.SafeOutputs != nil {
+		compilerMainJobLog.Print("Adding runtime-paths step for safe-outputs")
 		steps = append(steps, c.generateSetRuntimePathsStep()...)
 	}
 
@@ -59,9 +61,11 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	}
 
 	if c.actionMode.IsScript() {
+		compilerMainJobLog.Print("Adding script-mode cleanup step")
 		steps = append(steps, c.generateScriptModeCleanupStep())
 	}
 
+	compilerMainJobLog.Printf("Built main job: steps=%d, needs=%v, outputs=%d", len(steps), depends, len(outputs))
 	return &Job{
 		Name:        string(constants.AgentJobName),
 		If:          jobCondition,

@@ -2295,6 +2295,91 @@ process.exit(1);`,
     });
   });
 
+  describe("post-result watchdog suppression when terminal safe-output already produced", () => {
+    it("exits 0 without retrying when a terminal safe-output was already produced and run fails with partial_execution", () => {
+      const tempDir = makeHarnessTempDir("copilot-watchdog-suppression-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      // Stub writes a terminal safe-output, then remains alive until SIGTERM.
+      // This exercises the watchdog-fired partial_execution path end-to-end.
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.COPILOT_HARNESS_STUB_CALLS;
+const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+fs.appendFileSync(safeOutputsPath, JSON.stringify({type:"add_comment",body:"Daily report posted"}) + "\\n");
+process.stdout.write("Report uploaded. Checking logs...\\n");
+process.on("SIGTERM", () => process.exit(1));
+setInterval(() => {}, 1000);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "generate the report", "utf8");
+
+      const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+        env: {
+          ...process.env,
+          COPILOT_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "100",
+        },
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      // Only one attempt — no retries when watchdog suppression applies
+      expect(callCount).toBe(1);
+      // Harness exits 0 because the terminal safe-output was already produced
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("post-result watchdog fired after terminal safe-output was emitted");
+      expect(result.stderr).toContain("late-activity exit suppressed");
+    });
+
+    it("still retries partial_execution when no terminal safe-output was produced (watchdog not armed)", () => {
+      const tempDir = makeHarnessTempDir("copilot-watchdog-no-output-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      // Stub produces output but exits 1 without writing any safe-output.
+      // The watchdog cannot fire (no terminal safe-output to arm it), so this
+      // should fall through to the normal partial-execution retry path.
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.COPILOT_HARNESS_STUB_CALLS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+process.stdout.write("partial work done\\n");
+process.exit(1);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "generate the report", "utf8");
+
+      const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+        env: {
+          ...process.env,
+          COPILOT_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          // Override retry config to keep the test fast.
+          GH_AW_HARNESS_MAX_RETRIES: "1",
+          GH_AW_HARNESS_INITIAL_DELAY_MS: "1",
+        },
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      // Should retry (2 attempts total with max_retries=1)
+      expect(callCount).toBeGreaterThan(1);
+      // Harness exits 1 because retries are exhausted with no output
+      expect(result.status).toBe(1);
+      expect(result.stderr).not.toContain("late-activity exit suppressed");
+    });
+  });
+
   describe("applyCopilotWireAPI", () => {
     afterEach(() => {
       delete process.env.COPILOT_MODEL;

@@ -186,7 +186,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// This avoids embedding the value directly in the shell command (which fails template injection
 	// validation for GitHub Actions expressions like ${{ inputs.model }}).
 	// Fallback for unconfigured model uses GH_AW_MODEL_AGENT_CLAUDE with shell expansion.
-	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
+	modelConfigured := workflowData.Model != ""
 
 	// Add max_turns if specified (in CLI it's max-turns)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
@@ -474,8 +474,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// When model is not configured, fall back to GH_AW_MODEL_AGENT/DETECTION_CLAUDE so users
 	// can set a default via GitHub Actions variables.
 	if modelConfigured {
-		claudeLog.Printf("Setting %s env var for model: %s", constants.ClaudeCLIModelEnvVar, workflowData.EngineConfig.Model)
-		env[constants.ClaudeCLIModelEnvVar] = workflowData.EngineConfig.Model
+		claudeLog.Printf("Setting %s env var for model: %s", constants.ClaudeCLIModelEnvVar, workflowData.Model)
+		env[constants.ClaudeCLIModelEnvVar] = workflowData.Model
 	} else {
 		// No model configured - use fallback GitHub variable with shell expansion
 		isDetectionJob := workflowData.SafeOutputs == nil

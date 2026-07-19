@@ -170,7 +170,7 @@ func (e *AntigravityEngine) GetExecutionSteps(workflowData *WorkflowData, logFil
 	// configured. When not configured, the Antigravity CLI uses its built-in default model.
 	// This avoids embedding the value directly in the shell command (which fails template injection
 	// validation for GitHub Actions expressions like ${{ inputs.model }}).
-	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
+	modelConfigured := workflowData.Model != ""
 
 	// Antigravity CLI reads MCP config from .antigravity/settings.json (project-level)
 	// The conversion script (convert_gateway_config_antigravity.sh) writes settings.json
@@ -316,8 +316,8 @@ touch %s
 	// template injection validation for GitHub Actions expressions like ${{ inputs.model }}).
 	// When model is not configured, let the Antigravity CLI use its built-in default model.
 	if modelConfigured {
-		antigravityLog.Printf("Setting %s env var for model: %s", constants.AntigravityCLIModelEnvVar, workflowData.EngineConfig.Model)
-		env[constants.AntigravityCLIModelEnvVar] = workflowData.EngineConfig.Model
+		antigravityLog.Printf("Setting %s env var for model: %s", constants.AntigravityCLIModelEnvVar, workflowData.Model)
+		env[constants.AntigravityCLIModelEnvVar] = workflowData.Model
 	}
 
 	// Add custom environment variables from engine config.

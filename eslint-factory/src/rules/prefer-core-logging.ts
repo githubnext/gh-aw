@@ -2,12 +2,16 @@ import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils"
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
-// Maps console method → recommended core replacement
+// Maps console method → recommended core replacement.
+// NOTE: console.error and console.warn are intentionally excluded.
+// Those methods write to process.stderr, while core.error / core.warning emit
+// GitHub Actions workflow commands to process.stdout. For processes that own
+// stdout as a data/protocol channel (e.g. stdio MCP servers), rewriting
+// stderr logging to stdout would corrupt the stream. The substitution is not
+// behavior-preserving and must not be auto-applied.
 const CONSOLE_TO_CORE: Record<string, string> = {
   log: "core.info",
   info: "core.info",
-  warn: "core.warning",
-  error: "core.error",
   debug: "core.debug",
 };
 

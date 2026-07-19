@@ -27,9 +27,9 @@ checkout:
   fetch-depth: 0
 network:
   allowed: ["defaults", "go"]
+model: copilot/gpt-5.4
 engine:
   id: pi
-  model: copilot/gpt-5.4
 strict: true
 imports:
   - shared/otlp.md
