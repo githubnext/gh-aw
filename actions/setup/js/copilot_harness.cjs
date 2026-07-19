@@ -79,7 +79,16 @@ const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 const MAX_ENV_VAR_PREVIEW_LENGTH = 120;
 const OUTPUT_TAIL_MAX_CHARS = 600;
 const OUTPUT_TAIL_MAX_LINES = 12;
-const POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = 20 * 1000;
+const MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS = 50;
+const DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = 20 * 1000;
+function resolvePostResultWatchdogIdleTimeoutMs(env = process.env) {
+  const configuredTimeoutMs = Number(env.GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS);
+  if (!Number.isFinite(configuredTimeoutMs) || configuredTimeoutMs <= 0) {
+    return DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS;
+  }
+  return Math.max(MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS, configuredTimeoutMs);
+}
+const POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = resolvePostResultWatchdogIdleTimeoutMs();
 const COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_NAME = "copilot_requests_proxy_auth_403.md";
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
@@ -1166,6 +1175,20 @@ async function main() {
         // would not produce different results and could waste resources.
         if (safeOutputsPath && hasNoopInSafeOutputs(safeOutputsPath, { logger: log })) {
           log(`attempt ${attempt + 1}: noop message found in safe-outputs — not retrying (work is already complete or no work needed)`);
+          lastExitCode = 0;
+          break;
+        }
+
+        // When the run fails with partial_execution and the safe-outputs file already contains a
+        // terminal result, treat the run as a success-with-late-activity rather than a
+        // retryable failure.  This covers the common case where the post-result watchdog fires
+        // because the agent kept running exploratory commands after its deliverable was ready
+        // (watchdogFired=true), as well as any other partial_execution failure that occurs
+        // after the primary task output was already produced.  Retrying would reproduce the
+        // same pattern and exhaust the retry budget without ever posting a final safe-output.
+        if (failureClass === "partial_execution" && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath)) {
+          const reason = result.watchdogFired ? "post-result watchdog fired after terminal safe-output was emitted" : "partial execution after terminal safe-output was already produced";
+          log(`attempt ${attempt + 1}: ${reason} — treating as success (late-activity exit suppressed)`);
           lastExitCode = 0;
           break;
         }

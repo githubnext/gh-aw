@@ -392,6 +392,48 @@ test.describe('Workshop Astro rendering contract', () => {
 		await expect(page.locator('[data-workshop-step-position]')).not.toHaveText(positionBefore ?? '');
 	});
 
+	test('GFM task list items in step data are rendered as styled checklists, not raw bullet points', async ({ page }) => {
+		await startWorkshop(page);
+
+		// Check the embedded step-data JSON for GFM task list items. If any step's HTML
+		// still contains raw "[ ]" or "[x]" text inside <li> elements it means
+		// rewriteGfmTaskLists did not run or failed to match. If the content has no
+		// GFM task lists the test passes vacuously.
+		const result = await page.evaluate(() => {
+			const node = document.getElementById('aw-workshop-step-data');
+			if (!node) return { hasTaskLists: false, hasRawMarkers: false, firstTaskListStepKey: null as string | null };
+			const steps = JSON.parse(node.textContent?.trim() || '[]') as Array<{ key: string; html: string }>;
+			// Detect raw task-list markers that should have been transformed.
+			const rawMarkerPattern = /class="task-list-item"|class="contains-task-list"/i;
+			const checklistPattern = /class="aw-workshop-checklist"/i;
+			const hasRawMarkers = steps.some((s) => rawMarkerPattern.test(s.html));
+			const checklistStep = steps.find((s) => checklistPattern.test(s.html));
+			return {
+				hasTaskLists: !!checklistStep,
+				hasRawMarkers,
+				firstTaskListStepKey: checklistStep?.key ?? null,
+			};
+		});
+
+		// Raw remark-gfm classes must not appear in any step HTML — they should have been rewritten.
+		expect(result.hasRawMarkers).toBe(false);
+
+		// If the workshop content includes task lists, navigate to the step and verify the
+		// checklist is rendered with the expected workshop class. The bubble list reflects
+		// only the current route's visibleFlow, so the step may not be present; in that
+		// case the UI assertion is skipped rather than failing on missing navigation.
+		if (result.hasTaskLists && result.firstTaskListStepKey) {
+			const bubble = page.locator(
+				`[data-workshop-step-bubbles] .aw-workshop-step-bubble[data-workshop-step-link="${result.firstTaskListStepKey}"]`
+			);
+			if ((await bubble.count()) > 0) {
+				await bubble.first().click();
+				const checklist = page.locator('[data-workshop-step-content] ul.aw-workshop-checklist').first();
+				await expect(checklist).toBeVisible();
+			}
+		}
+	});
+
 	test('GFM alerts in step data are rendered as aside elements, not raw blockquotes', async ({ page }) => {
 		await startWorkshop(page);
 
