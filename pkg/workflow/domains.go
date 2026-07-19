@@ -908,7 +908,7 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 		constants.PiEngine, constants.OpenCodeEngine:
 		model := ""
 		if data.EngineConfig != nil {
-			model = data.EngineConfig.Model
+			model = data.Model
 		}
 		var err error
 		base, err = GetAllowedDomainsForEngineWithModel(engine, model, data.NetworkPermissions, data.Tools, data.Runtimes)

@@ -15,9 +15,9 @@ permissions:
   pull-requests: read
 tracker-id: avenger-ci
 max-turns: 50
+model: claude-haiku-4.5
 engine:
   id: claude
-  model: claude-haiku-4.5
 network:
   allowed:
     - defaults

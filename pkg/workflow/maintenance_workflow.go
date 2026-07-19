@@ -173,6 +173,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 			Version:         version,
 			ActionTag:       actionTag,
 			Resolver:        resolver,
+			CustomCron:      autoUpgradeCronFrom(repoConfig),
 		})
 	}
 
@@ -237,6 +238,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 			Version:         version,
 			ActionTag:       actionTag,
 			Resolver:        resolver,
+			CustomCron:      autoUpgradeCronFrom(repoConfig),
 		})
 	}
 
@@ -321,7 +323,17 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		Version:         version,
 		ActionTag:       actionTag,
 		Resolver:        resolver,
+		CustomCron:      autoUpgradeCronFrom(repoConfig),
 	})
+}
+
+// autoUpgradeCronFrom returns the custom cron expression from the repo config,
+// or an empty string if the config is nil or no custom cron is set.
+func autoUpgradeCronFrom(cfg *RepoConfig) string {
+	if cfg == nil {
+		return ""
+	}
+	return cfg.AutoUpgradeCron
 }
 
 // handleMaintenanceDisabled handles the case where maintenance is disabled in repo config.

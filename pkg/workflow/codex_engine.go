@@ -205,7 +205,7 @@ func (e *CodexEngine) GetHarnessScriptName() string {
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Codex
 func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
-	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
+	modelConfigured := workflowData.Model != ""
 	firewallEnabled := isFirewallEnabled(workflowData)
 	codexEngineLog.Printf("Building Codex execution steps: workflow=%s, modelConfigured=%v, firewall=%v",
 		workflowData.Name, modelConfigured, firewallEnabled)
@@ -487,8 +487,8 @@ mkdir -p "$CODEX_HOME/logs"
 	// When model is configured (static or GitHub Actions expression), set the env var directly.
 	// When not configured, use the GitHub variable fallback so users can set a default.
 	if modelConfigured {
-		codexEngineLog.Printf("Setting %s env var for model: %s", modelEnvVar, workflowData.EngineConfig.Model)
-		env[modelEnvVar] = workflowData.EngineConfig.Model
+		codexEngineLog.Printf("Setting %s env var for model: %s", modelEnvVar, workflowData.Model)
+		env[modelEnvVar] = workflowData.Model
 	} else {
 		env[modelEnvVar] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCodex, constants.CodexDefaultModel)
 	}

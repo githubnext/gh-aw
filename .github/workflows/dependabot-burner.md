@@ -29,9 +29,9 @@ sandbox:
 concurrency:
   group: dependabot-burner
   cancel-in-progress: false
+model: gpt-5.4-mini
 engine:
   id: copilot
-  model: gpt-5.4-mini
 strict: true
 network:
   allowed:

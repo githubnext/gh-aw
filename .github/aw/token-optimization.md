@@ -186,40 +186,11 @@ sub-agents:   → small model per item (cheap, parallelizable)
 main agent:   → synthesizes compact sub-agent results (one high-quality pass)
 ```
 
-### Example
+### Example (skeleton — see [subagents.md](subagents.md) for full syntax)
+
+A shell step splits issues into per-item files; the main prompt dispatches a `model: small` sub-agent per file and synthesizes the compact results:
 
 ```markdown
----
-engine: copilot
-tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-  bash: ["*"]
-
-steps:
-  - name: Split issues into per-item files
-    run: |
-      mkdir -p /tmp/gh-aw/issues
-      gh issue list --repo "${{ github.repository }}" \
-        --state open --limit 50 \
-        --json number,title,body,labels \
-        | jq -c '.[]' \
-        | while IFS= read -r issue; do
-            num=$(echo "$issue" | jq -r '.number')
-            echo "$issue" > /tmp/gh-aw/issues/issue-${num}.json
-          done
----
-
-## Step 1 — classify each issue
-
-For every `/tmp/gh-aw/issues/issue-*.json`, use the `classifier` agent.
-Write output to `/tmp/gh-aw/issues/cat-<number>.json`.
-
-## Step 2 — synthesize
-
-Read all `cat-*.json` files and create a triage report grouped by category.
-
 ## agent: `classifier`
 ---
 description: Classifies a GitHub issue into a single category
@@ -374,13 +345,9 @@ Treat the agent harness as six separate control surfaces rather than one prompt:
 | Memory management | `cache-memory`, `repo-memory`, summaries, and stale-context removal |
 | Output processing | Safe outputs, schema validation, fallbacks, and `noop` behavior |
 
-Start with the smallest known-good harness. For each experiment, record a compact entry containing task features, the configuration change, outcome quality, AIC/token cost, and the diagnosed failure dimension. Periodically distill repeated diagnoses into reusable patterns. For later cases, retrieve only relevant successes, failures, and patterns instead of repeating a broad search.
+Start with the smallest known-good harness. Per experiment, record a compact entry (task features, config change, outcome quality, AIC/token cost, diagnosed failure dimension), distill repeated diagnoses into reusable patterns, and retrieve only relevant cases later instead of re-searching broadly. Select changes **correctness first**: maximize the quality metric, then minimize AIC among equivalent-quality variants so a cheap but degraded result cannot win.
 
-Select changes **correctness first**: maximize the workflow's quality metric, then minimize AIC among variants with equivalent quality. This prevents a cheap but degraded result from winning.
-
-Prioritize this approach for long-horizon, tool-heavy workflows with measurable headroom. Keep retrieved experience stable and compact so prompt caching can offset its input-token overhead.
-
-These recommendations are based on [MemoHarness: Agent Harnesses That Learn from Experience](https://arxiv.org/pdf/2607.14159), which reports gains from experience-guided, case-adaptive harnesses across shell, code, and analytical tasks. Treat the results as directional: the primary held-out shell evaluation contains 18 tasks, component effects were not fully ablated, transfer was selective, and the reported cost advantage depended on a 93.9% prompt-cache hit rate.
+Prioritize this for long-horizon, tool-heavy workflows with measurable headroom; keep retrieved experience compact so prompt caching offsets its input-token overhead. Based on [MemoHarness](https://arxiv.org/pdf/2607.14159) — treat its gains as directional (small held-out set, unablated components, cache-dependent cost advantage).
 
 ---
 

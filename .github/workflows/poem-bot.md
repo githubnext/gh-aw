@@ -27,9 +27,9 @@ permissions:
   pull-requests: read
 
 # AI engine configuration
+model: copilot/gpt-5.4
 engine:
   id: pi
-  model: copilot/gpt-5.4
   bare: true
 
 # Import shared reporting guidelines

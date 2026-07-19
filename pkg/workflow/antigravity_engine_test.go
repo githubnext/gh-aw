@@ -164,10 +164,9 @@ func TestAntigravityEngineExecution(t *testing.T) {
 
 	t.Run("with model", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Name: "test-workflow",
-			EngineConfig: &EngineConfig{
-				Model: "antigravity-1.5-pro",
-			},
+			Name:         "test-workflow",
+			Model:        "antigravity-1.5-pro",
+			EngineConfig: &EngineConfig{},
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
@@ -251,10 +250,9 @@ func TestAntigravityEngineExecution(t *testing.T) {
 
 		// When model is configured, use the native ANTIGRAVITY_MODEL env var
 		modelWorkflow := &WorkflowData{
-			Name: "model-configured",
-			EngineConfig: &EngineConfig{
-				Model: "antigravity-2.0-flash",
-			},
+			Name:         "model-configured",
+			Model:        "antigravity-2.0-flash",
+			EngineConfig: &EngineConfig{},
 		}
 
 		steps = engine.GetExecutionSteps(modelWorkflow, "/tmp/test.log")
