@@ -262,3 +262,21 @@ func TestResolveModelPricingIfMissing_SkipsMalformedQualifiedModel(t *testing.T)
 	assert.Nil(t, c.resolveModelPricingIfMissing(nil, &WorkflowData{Model: "openai/", EngineConfig: &EngineConfig{}}))
 	assert.False(t, called)
 }
+
+func TestResolveModelPricingIfMissing_SkipsSentinelModels(t *testing.T) {
+	c := &Compiler{}
+	called := false
+	c.SetModelPricingResolver(func(_ context.Context, _, _ string) (map[string]float64, bool) {
+		called = true
+		return map[string]float64{"input": 1e-06}, true
+	})
+
+	// "auto" and "none" sentinels must not be looked up in models.dev — they are not real
+	// model identifiers and the lookup is non-deterministic (network-dependent).
+	sentinels := []string{"auto", "none", "Auto", "NONE", "AUTO"}
+	for _, s := range sentinels {
+		result := c.resolveModelPricingIfMissing(nil, &WorkflowData{Model: s, EngineConfig: &EngineConfig{ID: "copilot"}})
+		assert.Nil(t, result, "expected nil for sentinel %q", s)
+	}
+	assert.False(t, called, "resolver must not be called for sentinel model values")
+}
