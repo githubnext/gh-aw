@@ -141,7 +141,7 @@ If there are no meaningful changes, call `noop` instead.
 ## agent: `chunk-analyzer`
 ---
 description: Analyses one 400-line slice of a unified diff and extracts structured per-file change facts.
-model: small
+model: claude-haiku-4.5
 ---
 
 You receive a slice of a unified diff (`diff --git` format). Extract facts about every changed file found in this slice.
