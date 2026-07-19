@@ -162,8 +162,10 @@ export const noCoreErrorThenProcessExitRule = createRule({
                       const callee = errorCall.callee as TSESTree.MemberExpression;
                       const objectName = sourceCode.getText(callee.object);
 
-                      const isInsideFunction = enclosingFn !== null;
-                      const replacement = isInsideFunction ? `${objectName}.setFailed(${args}); return;` : `${objectName}.setFailed(${args});`;
+                      // At module top-level (enclosingFn === null) there is nothing to `return` from,
+                      // so we just replace with setFailed. Inside main() we append `return;` to exit
+                      // the entrypoint in the same way process.exit would.
+                      const replacement = enclosingFn !== null ? `${objectName}.setFailed(${args}); return;` : `${objectName}.setFailed(${args});`;
 
                       return [fixer.replaceText(current, replacement + "\n"), fixer.remove(next)];
                     },

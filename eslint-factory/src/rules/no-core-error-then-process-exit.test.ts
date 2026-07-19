@@ -37,6 +37,13 @@ describe("no-core-error-then-process-exit", () => {
       ],
       invalid: [
         {
+          // module top-level: no enclosing function (enclosingFn === null), autofix is safe because
+          // there is no caller that could continue after the replacement statement.
+          // The trailing space in the output is inter-statement whitespace left by the fixer.
+          code: `core.error("fatal"); process.exit(1);`,
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [{ messageId: "replaceWithSetFailed", output: 'core.setFailed("fatal");\n ' }] }],
+        },
+        {
           // The trailing space in each output is the whitespace between the two original
           // statements that is not part of either ExpressionStatement node's range. The
           // suggestion fixer removes the process.exit() node but leaves the inter-statement
