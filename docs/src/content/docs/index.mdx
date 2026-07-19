@@ -23,6 +23,7 @@ import FeatureGrid from '../../components/FeatureGrid.astro';
 import Video from '../../components/Video.astro';
 import BlogLinkSection from '../../components/BlogLinkSection.astro';
 import WorkflowHero from '../../components/WorkflowHero.astro';
+import { CURRENT_WORKSHOP_SLUG } from '../../lib/workshop/config';
 
 <WorkflowHero />
 
@@ -202,7 +203,7 @@ Create custom agentic workflows directly from the GitHub web interface using nat
 ## Workshop
 
 <FeatureGrid columns={2}>
-  <FeatureCard icon="workflow" title="Interactive workshop" href="/gh-aw/workshop/" badge="New">
+  <FeatureCard icon="workflow" title="Interactive workshop" href={`/gh-aw/workshops/${CURRENT_WORKSHOP_SLUG}/`} badge="New">
     Choose a terminal, browser, or Copilot path and work through the workshop directly in the docs with saved progress.
   </FeatureCard>
   <FeatureCard icon="mark-github" title="Source repository" href="https://github.com/githubnext/gh-aw-workshop">

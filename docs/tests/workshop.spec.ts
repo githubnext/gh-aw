@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
+import { CURRENT_WORKSHOP_SLUG } from '../src/lib/workshop/config';
 
+const WORKSHOP_URL = `/gh-aw/workshops/${CURRENT_WORKSHOP_SLUG}/`;
 const PIXEL_TOLERANCE = 1;
 const ZEN_MODE_MOBILE_BREAKPOINT = 800;
 
@@ -12,7 +14,7 @@ const workshopDevices = [
 ];
 
 async function startWorkshop(page: Page) {
-	await page.goto('/gh-aw/workshop/');
+	await page.goto(WORKSHOP_URL);
 	await page.waitForLoadState('networkidle');
 	await page.locator('[data-workshop-entry-path="ui-learner"]').click();
 	await page.locator('[data-workshop-scenario="daily-status"]').click();
@@ -188,7 +190,7 @@ test.describe('Workshop tutorial', () => {
 
 test.describe('Workshop URL hash navigation', () => {
 	test('encodes journey and scenario in the URL hash after setup', async ({ page }) => {
-		await page.goto('/gh-aw/workshop/');
+		await page.goto(WORKSHOP_URL);
 		await page.waitForLoadState('networkidle');
 
 		await page.locator('[data-workshop-journey="github"]').click();
@@ -220,7 +222,7 @@ test.describe('Workshop URL hash navigation', () => {
 		const stepPosition = await page.locator('[data-workshop-step-position]').textContent();
 
 		// Navigate away so storage would otherwise default back to step 1.
-		await page.goto('/gh-aw/workshop/');
+		await page.goto(WORKSHOP_URL);
 		await page.waitForLoadState('networkidle');
 		// Clear session storage so the only source of truth for the step is the URL hash.
 		await page.evaluate(() => sessionStorage.clear());
@@ -235,7 +237,7 @@ test.describe('Workshop URL hash navigation', () => {
 	});
 
 	test('supports browser back navigation from tutorial to setup', async ({ page }) => {
-		await page.goto('/gh-aw/workshop/');
+		await page.goto(WORKSHOP_URL);
 		await page.waitForLoadState('networkidle');
 
 		await page.locator('[data-workshop-journey="github"]').click();
@@ -250,7 +252,7 @@ test.describe('Workshop URL hash navigation', () => {
 	});
 
 	test('supports browser back navigation from scenario picker to workspace picker', async ({ page }) => {
-		await page.goto('/gh-aw/workshop/');
+		await page.goto(WORKSHOP_URL);
 		await page.waitForLoadState('networkidle');
 
 		await page.locator('[data-workshop-journey="github"]').click();
@@ -468,5 +470,104 @@ test.describe('Workshop Astro rendering contract', () => {
 				await expect(aside).toBeVisible();
 			}
 		}
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Flow filtering tests — verify that buildFlow correctly filters steps by
+// journey and scenario, removes hub pages, and applies the Copilot scenario-d
+// substitution.  These tests navigate to the workshop via URL hash so that the
+// client-side buildFlow runs for the requested journey+scenario, then inspect
+// the bubble-rail step keys that it produced.
+// ---------------------------------------------------------------------------
+
+async function getFlowStepKeys(page: Page, journeyId: string, scenarioId: string): Promise<string[]> {
+	// Clear any stale session state so only the hash URL drives the flow.
+	await page.goto('/gh-aw/workshop/');
+	await page.waitForLoadState('networkidle');
+	await page.evaluate(() => sessionStorage.clear());
+
+	// Hash URL encodes journey + scenario + a known first step so the tutorial
+	// screen is rendered immediately without additional clicks.
+	await page.goto(`/gh-aw/workshop/#j=${journeyId}&s=${scenarioId}&t=00-welcome`);
+	await page.waitForLoadState('networkidle');
+	await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
+
+	return page.evaluate((): string[] => {
+		const bubbles = document.querySelectorAll('[data-workshop-step-bubbles] [data-workshop-step-link]');
+		return [...bubbles].map(b => b.getAttribute('data-workshop-step-link') ?? '');
+	});
+}
+
+test.describe('Workshop flow filtering: scenario isolation', () => {
+	test('github+daily-status includes scenario-a build step and excludes scenario-b/c', async ({ page }) => {
+		const keys = await getFlowStepKeys(page, 'github', 'daily-status');
+		expect(keys).toContain('11a-build-daily-status-ui');
+		expect(keys).not.toContain('11b-build-daily-docs-ui');
+		expect(keys).not.toContain('11c-build-pr-reviewer-ui');
+	});
+
+	test('github+daily-docs includes scenario-b build step and excludes scenario-a/c', async ({ page }) => {
+		const keys = await getFlowStepKeys(page, 'github', 'daily-docs');
+		expect(keys).toContain('11b-build-daily-docs-ui');
+		expect(keys).not.toContain('11a-build-daily-status-ui');
+		expect(keys).not.toContain('11c-build-pr-reviewer-ui');
+	});
+
+	test('terminal+daily-status includes terminal build step and excludes ui build step', async ({ page }) => {
+		const keys = await getFlowStepKeys(page, 'terminal', 'daily-status');
+		expect(keys).toContain('11a-build-daily-status-terminal');
+		expect(keys).not.toContain('11a-build-daily-status-ui');
+	});
+
+	test('terminal+pr-reviewer includes terminal build step and excludes ui build step', async ({ page }) => {
+		const keys = await getFlowStepKeys(page, 'terminal', 'pr-reviewer');
+		expect(keys).toContain('11c-build-pr-reviewer-terminal');
+		expect(keys).not.toContain('11c-build-pr-reviewer-ui');
+	});
+});
+
+test.describe('Workshop flow filtering: hub page removal', () => {
+	test('github journey excludes numeric-prefix hub when letter-variant step exists', async ({ page }) => {
+		const keys = await getFlowStepKeys(page, 'github', 'daily-status');
+		// 06-install-gh-aw (all/core hub) should be replaced by 06c-install-ui
+		expect(keys).not.toContain('06-install-gh-aw');
+		expect(keys).toContain('06c-install-ui');
+	});
+
+	test('github journey excludes alphanumeric-prefix hub when journey-specific variant exists', async ({ page }) => {
+		const keys = await getFlowStepKeys(page, 'github', 'daily-status');
+		// 11a-build-daily-status (all/scenario-a hub) should be replaced by 11a-build-daily-status-ui
+		expect(keys).not.toContain('11a-build-daily-status');
+		expect(keys).toContain('11a-build-daily-status-ui');
+	});
+
+	test('terminal journey excludes all-journey hub when terminal-specific variant exists', async ({ page }) => {
+		const keys = await getFlowStepKeys(page, 'terminal', 'daily-status');
+		// 11a-build-daily-status (all/scenario-a hub) should be replaced by terminal variant
+		expect(keys).not.toContain('11a-build-daily-status');
+		expect(keys).toContain('11a-build-daily-status-terminal');
+	});
+});
+
+test.describe('Workshop flow filtering: Copilot scenario-d substitution', () => {
+	test('copilot+daily-status uses scenario-d build steps and excludes ui-journey scenario-a build step', async ({ page }) => {
+		const keys = await getFlowStepKeys(page, 'copilot', 'daily-status');
+		// scenario-d build step must be present
+		expect(keys).toContain('11d-build-copilot-agents');
+		// ui-journey scenario-a build step must be absent (copilot exclusion)
+		expect(keys).not.toContain('11a-build-daily-status-ui');
+	});
+
+	test('copilot+daily-docs uses scenario-d build steps and excludes ui-journey scenario-b build step', async ({ page }) => {
+		const keys = await getFlowStepKeys(page, 'copilot', 'daily-docs');
+		expect(keys).toContain('11d-build-copilot-agents');
+		expect(keys).not.toContain('11b-build-daily-docs-ui');
+	});
+
+	test('copilot+pr-reviewer uses scenario-d build steps and excludes ui-journey scenario-c build step', async ({ page }) => {
+		const keys = await getFlowStepKeys(page, 'copilot', 'pr-reviewer');
+		expect(keys).toContain('11d-build-copilot-agents');
+		expect(keys).not.toContain('11c-build-pr-reviewer-ui');
 	});
 });
