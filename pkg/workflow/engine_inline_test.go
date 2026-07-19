@@ -109,6 +109,57 @@ func TestExtractEngineConfig_InlineDefinition(t *testing.T) {
 			expectedEngineSetting: "claude",
 			expectInlineFlag:      true,
 		},
+		{
+			name: "top-level model overrides provider.model in inline engine",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"runtime": map[string]any{
+						"id": "codex",
+					},
+					"provider": map[string]any{
+						"id":    "openai",
+						"model": "gpt-4o",
+					},
+				},
+				"model": "gpt-5",
+			},
+			expectedID:            "codex",
+			expectedModel:         "gpt-5",
+			expectedProviderID:    "openai",
+			expectedEngineSetting: "codex",
+			expectInlineFlag:      true,
+		},
+		{
+			name: "top-level model overrides deprecated engine.model in inline engine",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"runtime": map[string]any{
+						"id": "codex",
+					},
+					"model": "gpt-4o",
+				},
+				"model": "gpt-5",
+			},
+			expectedID:            "codex",
+			expectedModel:         "gpt-5",
+			expectedEngineSetting: "codex",
+			expectInlineFlag:      true,
+		},
+		{
+			name: "deprecated engine.model in inline engine (no top-level model)",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"runtime": map[string]any{
+						"id": "codex",
+					},
+					"model": "gpt-4o",
+				},
+			},
+			expectedID:            "codex",
+			expectedModel:         "gpt-4o",
+			expectedEngineSetting: "codex",
+			expectInlineFlag:      true,
+		},
 	}
 
 	for _, tt := range tests {

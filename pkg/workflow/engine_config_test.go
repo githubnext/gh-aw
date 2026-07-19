@@ -103,6 +103,15 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        nil,
 		},
 		{
+			name: "top-level model without engine",
+			frontmatter: map[string]any{
+				"model": "gpt-4",
+			},
+			expectedEngineSetting: "",
+			expectedConfig:        &EngineConfig{},
+			expectedModel:         "gpt-4",
+		},
+		{
 			name:                  "string format - claude",
 			frontmatter:           map[string]any{"engine": "claude"},
 			expectedEngineSetting: "claude",
@@ -113,6 +122,16 @@ func TestExtractEngineConfig(t *testing.T) {
 			frontmatter:           map[string]any{"engine": "codex"},
 			expectedEngineSetting: "codex",
 			expectedConfig:        &EngineConfig{ID: "codex"},
+		},
+		{
+			name: "string format - top-level model returned",
+			frontmatter: map[string]any{
+				"engine": "copilot",
+				"model":  "claude-sonnet-4.5",
+			},
+			expectedEngineSetting: "copilot",
+			expectedConfig:        &EngineConfig{ID: "copilot"},
+			expectedModel:         "claude-sonnet-4.5",
 		},
 		{
 			name: "object format - minimal (id only)",
@@ -179,6 +198,31 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedEngineSetting: "codex",
 			expectedConfig:        &EngineConfig{ID: "codex"},
 			expectedModel:         "gpt-4o",
+		},
+		{
+			name: "object format - top-level model overrides engine.model",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":    "codex",
+					"model": "gpt-4o",
+				},
+				"model": "gpt-5",
+			},
+			expectedEngineSetting: "codex",
+			expectedConfig:        &EngineConfig{ID: "codex"},
+			expectedModel:         "gpt-5",
+		},
+		{
+			name: "object format - top-level model alone (no engine.model)",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "claude",
+				},
+				"model": "claude-sonnet-4.5",
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude"},
+			expectedModel:         "claude-sonnet-4.5",
 		},
 		{
 			name: "object format - with model-provider override",
