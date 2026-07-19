@@ -472,127 +472,175 @@ func TestGetModelEnvVarName(t *testing.T) {
 	}
 }
 
-// TestCopilotAutoModelSentinelSkipsCOPILOT_MODEL tests that setting model to "auto" or "none"
-// suppresses COPILOT_MODEL injection so the Copilot CLI uses automatic model selection.
-// This is required for Copilot Free plans that only allow automatic model selection.
-func TestCopilotAutoModelSentinelSkipsCOPILOT_MODEL(t *testing.T) {
-	tests := []struct {
-		name  string
-		model string
-	}{
-		{name: "auto sentinel skips COPILOT_MODEL injection", model: "auto"},
-		{name: "none sentinel skips COPILOT_MODEL injection", model: "none"},
+// TestCopilotAutoModelInjectsCOPILOT_MODEL tests that setting model to "auto"
+// emits COPILOT_MODEL=auto, letting the AWF proxy handle automatic model selection.
+func TestCopilotAutoModelInjectsCOPILOT_MODEL(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name:  "test-auto-model",
+		AI:    "copilot",
+		Model: "auto",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		Tools: map[string]any{
+			"bash": []any{"echo"},
+		},
+		SafeOutputs: &SafeOutputsConfig{},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			workflowData := &WorkflowData{
-				Name:  "test-auto-model",
-				AI:    "copilot",
-				Model: tt.model,
-				EngineConfig: &EngineConfig{
-					ID: "copilot",
-				},
-				Tools: map[string]any{
-					"bash": []any{"echo"},
-				},
-				SafeOutputs: &SafeOutputsConfig{},
-			}
+	engine, err := GetGlobalEngineRegistry().GetEngine("copilot")
+	if err != nil {
+		t.Fatalf("Failed to get engine: %v", err)
+	}
 
-			engine, err := GetGlobalEngineRegistry().GetEngine("copilot")
-			if err != nil {
-				t.Fatalf("Failed to get engine: %v", err)
-			}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-			steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	var stepsStr strings.Builder
+	for _, step := range steps {
+		for _, line := range step {
+			stepsStr.WriteString(line)
+			stepsStr.WriteString("\n")
+		}
+	}
+	stepsContent := stepsStr.String()
 
-			var stepsStr strings.Builder
-			for _, step := range steps {
-				for _, line := range step {
-					stepsStr.WriteString(line)
-					stepsStr.WriteString("\n")
-				}
-			}
-			stepsContent := stepsStr.String()
-
-			// COPILOT_MODEL must NOT appear in the env when the sentinel is set.
-			// The Copilot CLI must be free to use automatic model selection.
-			if strings.Contains(stepsContent, constants.CopilotCLIModelEnvVar+":") {
-				t.Errorf("COPILOT_MODEL should NOT be injected when model=%q (auto-select sentinel);\ngot:\n%s", tt.model, stepsContent)
-			}
-
-			// The sentinel value itself must not appear as a model anywhere.
-			if strings.Contains(stepsContent, "COPILOT_MODEL: "+tt.model) {
-				t.Errorf("Sentinel value %q must not appear as COPILOT_MODEL value;\ngot:\n%s", tt.model, stepsContent)
-			}
-		})
+	// COPILOT_MODEL=auto must be emitted — the proxy handles automatic model selection.
+	if !strings.Contains(stepsContent, constants.CopilotCLIModelEnvVar+": auto") {
+		t.Errorf("COPILOT_MODEL should be set to 'auto' when model=%q;\ngot:\n%s", "auto", stepsContent)
 	}
 }
 
-// TestCopilotAutoModelSentinelInBYOKModeUsesBYOKDefault tests that setting model to "auto" or "none"
-// when BYOK mode is active (COPILOT_PROVIDER_BASE_URL set via engine.env) injects the org-variable
-// expression with the BYOK default model, because BYOK providers require an explicit model id.
-func TestCopilotAutoModelSentinelInBYOKModeUsesBYOKDefault(t *testing.T) {
-	tests := []struct {
-		name  string
-		model string
-	}{
-		{name: "auto sentinel in BYOK mode uses BYOK default", model: "auto"},
-		{name: "none sentinel in BYOK mode uses BYOK default", model: "none"},
+// TestCopilotNoneModelSentinelSkipsCOPILOT_MODEL tests that setting model to "none"
+// suppresses COPILOT_MODEL injection so the Copilot CLI uses automatic model selection.
+func TestCopilotNoneModelSentinelSkipsCOPILOT_MODEL(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name:  "test-none-model",
+		AI:    "copilot",
+		Model: "none",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		Tools: map[string]any{
+			"bash": []any{"echo"},
+		},
+		SafeOutputs: &SafeOutputsConfig{},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			workflowData := &WorkflowData{
-				Name:  "test-auto-model-byok",
-				AI:    "copilot",
-				Model: tt.model,
-				EngineConfig: &EngineConfig{
-					ID: "copilot",
-					Env: map[string]string{
-						constants.CopilotProviderBaseURL: "https://api.example.com/v1",
-					},
-				},
-				Tools: map[string]any{
-					"bash": []any{"echo"},
-				},
-				SafeOutputs: &SafeOutputsConfig{},
-			}
+	engine, err := GetGlobalEngineRegistry().GetEngine("copilot")
+	if err != nil {
+		t.Fatalf("Failed to get engine: %v", err)
+	}
 
-			engine, err := GetGlobalEngineRegistry().GetEngine("copilot")
-			if err != nil {
-				t.Fatalf("Failed to get engine: %v", err)
-			}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-			steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	var stepsStr strings.Builder
+	for _, step := range steps {
+		for _, line := range step {
+			stepsStr.WriteString(line)
+			stepsStr.WriteString("\n")
+		}
+	}
+	stepsContent := stepsStr.String()
 
-			var stepsStr strings.Builder
-			for _, step := range steps {
-				for _, line := range step {
-					stepsStr.WriteString(line)
-					stepsStr.WriteString("\n")
-				}
-			}
-			stepsContent := stepsStr.String()
+	// COPILOT_MODEL must NOT appear when model="none" (sentinel suppresses injection).
+	if strings.Contains(stepsContent, constants.CopilotCLIModelEnvVar+":") {
+		t.Errorf("COPILOT_MODEL should NOT be injected when model=%q (auto-select sentinel);\ngot:\n%s", "none", stepsContent)
+	}
+}
 
-			// COPILOT_MODEL MUST be injected in BYOK mode even when the sentinel is set.
-			// BYOK providers require an explicit model id.
-			if !strings.Contains(stepsContent, constants.CopilotCLIModelEnvVar+":") {
-				t.Errorf("COPILOT_MODEL should be injected when model=%q in BYOK mode (BYOK requires a model id);\ngot:\n%s", tt.model, stepsContent)
-			}
+// TestCopilotAutoModelInBYOKModeEmitsAutoModel tests that setting model to "auto"
+// in BYOK mode emits COPILOT_MODEL=auto (auto is a real model id handled by the proxy).
+func TestCopilotAutoModelInBYOKModeEmitsAutoModel(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name:  "test-auto-model-byok",
+		AI:    "copilot",
+		Model: "auto",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+			Env: map[string]string{
+				constants.CopilotProviderBaseURL: "https://api.example.com/v1",
+			},
+		},
+		Tools: map[string]any{
+			"bash": []any{"echo"},
+		},
+		SafeOutputs: &SafeOutputsConfig{},
+	}
 
-			// The sentinel value itself must not appear as the COPILOT_MODEL value.
-			if strings.Contains(stepsContent, constants.CopilotCLIModelEnvVar+": "+tt.model) {
-				t.Errorf("Sentinel value %q must not appear as COPILOT_MODEL value in BYOK mode;\ngot:\n%s", tt.model, stepsContent)
-			}
+	engine, err := GetGlobalEngineRegistry().GetEngine("copilot")
+	if err != nil {
+		t.Fatalf("Failed to get engine: %v", err)
+	}
 
-			// The org-variable fallback expression must use the primary model var and BYOK default.
-			// Expected form: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'claude-sonnet-4.6' }}
-			expectedExpr := compilerenv.BuildModelOverrideExpression(constants.EnvVarModelAgentCopilot, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
-			if !strings.Contains(stepsContent, expectedExpr) {
-				t.Errorf("Expected COPILOT_MODEL to contain the org-variable fallback expression %q in BYOK mode;\ngot:\n%s", expectedExpr, stepsContent)
-			}
-		})
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	var stepsStr strings.Builder
+	for _, step := range steps {
+		for _, line := range step {
+			stepsStr.WriteString(line)
+			stepsStr.WriteString("\n")
+		}
+	}
+	stepsContent := stepsStr.String()
+
+	// COPILOT_MODEL=auto must be emitted — the proxy handles automatic model selection.
+	if !strings.Contains(stepsContent, constants.CopilotCLIModelEnvVar+": auto") {
+		t.Errorf("Expected COPILOT_MODEL=auto in BYOK mode when model=%q;\ngot:\n%s", "auto", stepsContent)
+	}
+}
+
+// TestCopilotNoneModelSentinelInBYOKModeUsesBYOKDefault tests that setting model to "none"
+// when BYOK mode is active injects the org-variable expression with the BYOK default model,
+// because BYOK providers require an explicit model id.
+func TestCopilotNoneModelSentinelInBYOKModeUsesBYOKDefault(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name:  "test-none-model-byok",
+		AI:    "copilot",
+		Model: "none",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+			Env: map[string]string{
+				constants.CopilotProviderBaseURL: "https://api.example.com/v1",
+			},
+		},
+		Tools: map[string]any{
+			"bash": []any{"echo"},
+		},
+		SafeOutputs: &SafeOutputsConfig{},
+	}
+
+	engine, err := GetGlobalEngineRegistry().GetEngine("copilot")
+	if err != nil {
+		t.Fatalf("Failed to get engine: %v", err)
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	var stepsStr strings.Builder
+	for _, step := range steps {
+		for _, line := range step {
+			stepsStr.WriteString(line)
+			stepsStr.WriteString("\n")
+		}
+	}
+	stepsContent := stepsStr.String()
+
+	// COPILOT_MODEL MUST be injected in BYOK mode even when "none" sentinel is set.
+	// BYOK providers require an explicit model id.
+	if !strings.Contains(stepsContent, constants.CopilotCLIModelEnvVar+":") {
+		t.Errorf("COPILOT_MODEL should be injected when model=%q in BYOK mode (BYOK requires a model id);\ngot:\n%s", "none", stepsContent)
+	}
+
+	// The "none" sentinel itself must not appear as the COPILOT_MODEL value.
+	if strings.Contains(stepsContent, constants.CopilotCLIModelEnvVar+": none") {
+		t.Errorf("Sentinel value %q must not appear as COPILOT_MODEL value in BYOK mode;\ngot:\n%s", "none", stepsContent)
+	}
+
+	// The org-variable fallback expression must use the primary model var and BYOK default.
+	// Expected form: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'claude-sonnet-4.6' }}
+	expectedExpr := compilerenv.BuildModelOverrideExpression(constants.EnvVarModelAgentCopilot, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
+	if !strings.Contains(stepsContent, expectedExpr) {
+		t.Errorf("Expected COPILOT_MODEL to contain the org-variable fallback expression %q in BYOK mode;\ngot:\n%s", expectedExpr, stepsContent)
 	}
 }
 

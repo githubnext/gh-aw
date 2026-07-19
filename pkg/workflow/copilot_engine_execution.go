@@ -589,16 +589,14 @@ func (e *CopilotEngine) addCopilotModelEnv(env map[string]string, workflowData *
 	// When model is not configured, map the GitHub org variable to COPILOT_MODEL so users can set a default.
 	if modelConfigured {
 		model := workflowData.Model
-		isSentinel := model == constants.CopilotAutoModelSentinel || model == constants.CopilotNoModelSentinel
-		if isSentinel && !isBYOKMode {
-			// "auto" and "none" are pass-through sentinels for non-BYOK mode: do not inject COPILOT_MODEL so that
-			// the Copilot CLI performs automatic model selection. This is required on plans limited
-			// to automatic selection (e.g. Copilot Free), where every explicit --model value is
-			// rejected by the gateway with HTTP 400.
+		isNoneSentinel := model == constants.CopilotNoModelSentinel
+		if isNoneSentinel && !isBYOKMode {
+			// "none" is a pass-through sentinel for non-BYOK mode: do not inject COPILOT_MODEL so that
+			// the Copilot CLI performs automatic model selection.
 			copilotExecLog.Printf("Skipping %s injection: model=%q is a pass-through sentinel; Copilot CLI will use automatic selection", constants.CopilotCLIModelEnvVar, model)
 			return
 		}
-		if isSentinel {
+		if isNoneSentinel {
 			// BYOK route requires an explicit model id — fall through to the org-variable expression.
 			copilotExecLog.Printf("Ignoring model=%q sentinel in BYOK mode: %s is required; using org-variable default", model, constants.CopilotCLIModelEnvVar)
 		} else {

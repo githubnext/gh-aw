@@ -309,9 +309,7 @@ function applyCopilotModelAliasResolution(options) {
   const configuredModel = typeof process.env.COPILOT_MODEL === "string" ? process.env.COPILOT_MODEL.trim() : "";
   if (!configuredModel) {
     // When COPILOT_MODEL is not set but BYOK mode is active, inject the default model.
-    // This handles the case where `model: auto` compiled to no COPILOT_MODEL env var
-    // (because COPILOT_PROVIDER_BASE_URL was a runtime secret, not in engine.env at
-    // compile time), but BYOK providers require an explicit model ID at runtime.
+    // BYOK providers require an explicit model ID at runtime.
     if (process.env.COPILOT_PROVIDER_BASE_URL) {
       const byokFallback = "claude-sonnet-4.6";
       logger(`COPILOT_MODEL unset in BYOK mode: injecting BYOK default model '${byokFallback}'`);
@@ -329,14 +327,14 @@ function applyCopilotModelAliasResolution(options) {
     reflectData: options.awfReflectData,
     logger,
   });
-  // resolveConfiguredCopilotModel returns "" for pass-through sentinels ("auto", "none").
+  // resolveConfiguredCopilotModel returns "" for the "none" pass-through sentinel.
   // In that case delete COPILOT_MODEL so the Copilot CLI uses automatic model selection
   // without any residual empty-string environment variable — UNLESS BYOK mode is active,
   // because BYOK providers require an explicit model id.
   if (resolvedModel === "") {
     if (process.env.COPILOT_PROVIDER_BASE_URL) {
       // Replace the sentinel with the BYOK default model so the provider receives
-      // a concrete model ID rather than the reserved "auto"/"none" string.
+      // a concrete model ID rather than the reserved "none" string.
       const byokFallback = "claude-sonnet-4.6";
       logger(`copilot model pass-through sentinel '${configuredModel}' ignored in BYOK mode: using BYOK default model '${byokFallback}'`);
       process.env.COPILOT_MODEL = byokFallback;

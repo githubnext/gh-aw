@@ -2588,10 +2588,11 @@ process.exit(1);`,
       delete process.env.COPILOT_PROVIDER_BASE_URL;
     });
 
-    it("deletes COPILOT_MODEL for 'auto' sentinel in non-BYOK mode", () => {
+    it("keeps COPILOT_MODEL=auto as-is (auto is a real model id, not a sentinel)", () => {
       process.env.COPILOT_MODEL = "auto";
-      applyCopilotModelAliasResolution({ awfReflectData: null });
-      expect(process.env.COPILOT_MODEL).toBeUndefined();
+      const result = applyCopilotModelAliasResolution({ awfReflectData: null });
+      expect(process.env.COPILOT_MODEL).toBe("auto");
+      expect(result).toBe("auto");
     });
 
     it("deletes COPILOT_MODEL for 'none' sentinel in non-BYOK mode", () => {
@@ -2601,8 +2602,6 @@ process.exit(1);`,
     });
 
     it("injects BYOK default model when COPILOT_MODEL is unset and BYOK mode is active", () => {
-      // COPILOT_MODEL not set (e.g. model: auto compiled to no env var when BYOK
-      // provider URL is a runtime secret, not in engine.env at compile time)
       delete process.env.COPILOT_MODEL;
       process.env.COPILOT_PROVIDER_BASE_URL = "https://api.example.com/v1";
       const logs = [];
@@ -2620,14 +2619,15 @@ process.exit(1);`,
       expect(result).toBe("");
     });
 
-    it("replaces 'auto' sentinel with BYOK default model in BYOK mode (COPILOT_PROVIDER_BASE_URL set)", () => {
+    it("passes COPILOT_MODEL=auto through in BYOK mode (auto is a real model id)", () => {
       process.env.COPILOT_MODEL = "auto";
       process.env.COPILOT_PROVIDER_BASE_URL = "https://api.example.com/v1";
       const logs = [];
-      applyCopilotModelAliasResolution({ awfReflectData: null, logger: msg => logs.push(msg) });
-      // BYOK requires a concrete model id — sentinel must be replaced with the BYOK default
-      expect(process.env.COPILOT_MODEL).toBe("claude-sonnet-4.6");
-      expect(logs.some(m => m.includes("BYOK"))).toBe(true);
+      const result = applyCopilotModelAliasResolution({ awfReflectData: null, logger: msg => logs.push(msg) });
+      // auto is a real model id — it should be passed through unchanged
+      expect(process.env.COPILOT_MODEL).toBe("auto");
+      expect(result).toBe("auto");
+      expect(logs.some(m => m.includes("BYOK"))).toBe(false);
     });
 
     it("replaces 'none' sentinel with BYOK default model in BYOK mode (COPILOT_PROVIDER_BASE_URL set)", () => {

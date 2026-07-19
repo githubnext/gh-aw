@@ -263,7 +263,7 @@ func TestResolveModelPricingIfMissing_SkipsMalformedQualifiedModel(t *testing.T)
 	assert.False(t, called)
 }
 
-func TestResolveModelPricingIfMissing_SkipsSentinelModels(t *testing.T) {
+func TestResolveModelPricingIfMissing_SkipsNoneSentinel(t *testing.T) {
 	c := &Compiler{}
 	called := false
 	c.SetModelPricingResolver(func(_ context.Context, _, _ string) (map[string]float64, bool) {
@@ -271,12 +271,34 @@ func TestResolveModelPricingIfMissing_SkipsSentinelModels(t *testing.T) {
 		return map[string]float64{"input": 1e-06}, true
 	})
 
-	// "auto" and "none" sentinels must not be looked up in models.dev — they are not real
-	// model identifiers and the lookup is non-deterministic (network-dependent).
-	sentinels := []string{"auto", "none", "Auto", "NONE", "AUTO"}
-	for _, s := range sentinels {
+	// "none" is the pass-through sentinel that suppresses model pinning; the resolver
+	// must not be called for it.
+	noneVariants := []string{"none", "NONE", "None"}
+	for _, s := range noneVariants {
 		result := c.resolveModelPricingIfMissing(nil, &WorkflowData{Model: s, EngineConfig: &EngineConfig{ID: "copilot"}})
 		assert.Nil(t, result, "expected nil for sentinel %q", s)
 	}
-	assert.False(t, called, "resolver must not be called for sentinel model values")
+	assert.False(t, called, "resolver must not be called for the none sentinel")
+}
+
+func TestResolveModelPricingIfMissing_AutoModelCallsResolver(t *testing.T) {
+	c := &Compiler{}
+	called := false
+	c.SetModelPricingResolver(func(_ context.Context, provider, model string) (map[string]float64, bool) {
+		called = true
+		assert.Equal(t, "github-copilot", provider)
+		assert.Equal(t, "auto", model)
+		// In production, FindOrFetchModelPricing returns (nil, false) for "auto"
+		// because it is present in the embedded models.json catalog.
+		return nil, false
+	})
+
+	// "auto" is a real model in models.json — the resolver is called (and in
+	// production returns nil/false because the embedded catalog already has it).
+	autoVariants := []string{"auto", "Auto", "AUTO"}
+	for _, s := range autoVariants {
+		result := c.resolveModelPricingIfMissing(nil, &WorkflowData{Model: s, EngineConfig: &EngineConfig{ID: "copilot"}})
+		assert.Nil(t, result, "expected nil for %q (resolver returns nil from embedded catalog)", s)
+	}
+	assert.True(t, called, "resolver must be called for auto model")
 }

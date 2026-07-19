@@ -29,10 +29,9 @@ func (c *Compiler) resolveModelPricingIfMissing(modelCosts map[string]any, workf
 		return modelCosts
 	}
 
-	// auto/none are pass-through sentinels that suppress model pinning; they do not
+	// "none" is a pass-through sentinel that suppresses model pinning; it does not
 	// correspond to a real model, so skip the pricing lookup entirely.
-	modelLower := strings.ToLower(strings.TrimSpace(workflowData.Model))
-	if modelLower == constants.CopilotAutoModelSentinel || modelLower == constants.CopilotNoModelSentinel {
+	if strings.EqualFold(strings.TrimSpace(workflowData.Model), constants.CopilotNoModelSentinel) {
 		compilerModelPricingLog.Printf("Skipping pricing lookup for sentinel model %q", workflowData.Model)
 		return modelCosts
 	}

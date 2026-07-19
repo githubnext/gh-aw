@@ -276,6 +276,15 @@
           "provider_type": "openai",
           "wire_api": "responses"
         },
+        "auto": {
+          "cost": {
+            "input": "3e-06",
+            "output": "1.5e-05",
+            "cache_read": "3e-07",
+            "cache_write": "3.75e-06"
+          },
+          "provider_type": "anthropic"
+        },
         "claude-sonnet-4.6": {
           "cost": {
             "input": "3e-06",

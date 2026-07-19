@@ -118,7 +118,7 @@ describe("resolve_model_alias", () => {
     expect(result).toBe("copilot/claude-haiku-4.5");
   });
 
-  it("resolveConfiguredCopilotModel returns empty string for 'auto' sentinel", () => {
+  it("resolveConfiguredCopilotModel passes 'auto' through as a real model id", () => {
     const messages = [];
     const resolved = resolveConfiguredCopilotModel({
       configuredModel: "auto",
@@ -126,8 +126,8 @@ describe("resolve_model_alias", () => {
       reflectData: null,
       logger: msg => messages.push(msg),
     });
-    expect(resolved).toBe("");
-    expect(messages.some(m => m.includes("pass-through sentinel"))).toBe(true);
+    expect(resolved).toBe("auto");
+    expect(messages.some(m => m.includes("pass-through sentinel"))).toBe(false);
   });
 
   it("resolveConfiguredCopilotModel returns empty string for 'none' sentinel", () => {
@@ -139,8 +139,8 @@ describe("resolve_model_alias", () => {
     expect(resolved).toBe("");
   });
 
-  it("resolveConfiguredCopilotModel returns empty string for uppercase sentinel variants", () => {
-    expect(resolveConfiguredCopilotModel({ configuredModel: "AUTO", aliasMap: ALIAS_MAP, reflectData: null })).toBe("");
+  it("resolveConfiguredCopilotModel passes uppercase AUTO through as a real model id", () => {
+    expect(resolveConfiguredCopilotModel({ configuredModel: "AUTO", aliasMap: ALIAS_MAP, reflectData: null })).toBe("AUTO");
     expect(resolveConfiguredCopilotModel({ configuredModel: "None", aliasMap: ALIAS_MAP, reflectData: null })).toBe("");
   });
 });
