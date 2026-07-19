@@ -146,18 +146,41 @@ safe-outputs:
   noop:
 ---
 
-# Sighthound Security Scan Triage
+### Sighthound Security Scan Triage
 
 The `sighthound_scan` job ran Sighthound and pre-filtered findings. Read the files:
 - `/tmp/gh-aw/agent/sighthound/actionable.json` — findings outside test/testdata paths (primary input)
 - `/tmp/gh-aw/agent/sighthound/summary.md` — scan summary
 
-## Task
+#### Task
 
 1. Read `/tmp/gh-aw/agent/sighthound/actionable.json` and `/tmp/gh-aw/agent/sighthound/summary.md`.
 2. Select up to 5 findings with the highest severity from `actionable.json`. If there are no findings, call `noop`.
 3. Call `create_issue` with:
    - title: `Security findings in ${{ github.repository }}`
    - body: concise summary listing the selected findings with file path, severity, and remediation guidance for each.
+
+<details>
+<summary><b>Issue body format</b></summary>
+
+Structure the issue body as:
+
+```markdown
+### Summary
+
+Brief description of the scan results.
+
+### Findings
+
+<details>
+<summary><b>View all findings (N items)</b></summary>
+
+- **[severity]** `file/path.go` — description and remediation guidance
+- (repeat for each finding)
+
+</details>
+```
+
+</details>
 
 Keep the issue body concise. Only report findings from `actionable.json`.

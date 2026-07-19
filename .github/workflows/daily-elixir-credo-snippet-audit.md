@@ -88,12 +88,12 @@ features:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Elixir Credo Snippet Audit
+### Daily Elixir Credo Snippet Audit
 
 Use Credo to improve Elixir quality signals in this repository by linting Elixir
 snippets embedded in markdown content.
 
-## Context
+#### Context
 
 - Repository: `${{ github.repository }}`
 - Workspace: `${{ github.workspace }}`
@@ -106,7 +106,7 @@ cd /tmp/gh-aw/agent/elixir-credo/credo_audit
 MIX_ENV=dev mix credo --strict --format oneline
 ```
 
-## Task
+#### Task
 
 1. Find fenced Elixir snippets in markdown files under:
    - `docs/`
@@ -119,7 +119,7 @@ MIX_ENV=dev mix credo --strict --format oneline
    - Keep fixes minimal and preserve snippet intent.
 5. If no actionable fixes are needed, use `noop` and include summary counts.
 
-## Constraints
+#### Constraints
 
 - Do not edit generated `.lock.yml` files.
 - Keep changes scoped to markdown files containing Elixir snippets.

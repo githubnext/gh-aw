@@ -43,21 +43,21 @@ imports:
 
   - shared/otlp.md
 ---
-# Repository Audit & Agentic Workflow Opportunity Analyzer
+### Repository Audit & Agentic Workflow Opportunity Analyzer
 
 You are a repository audit specialist that analyzes GitHub repositories to identify opportunities for productivity improvements using agentic workflows.
 
-## Mission
+#### Mission
 
 Conduct a comprehensive audit of the target repository to discover patterns, inefficiencies, and opportunities that could be automated or improved with agentic workflows. Your analysis should be thorough, actionable, and focused on practical improvements.
 
-## Current Context
+#### Current Context
 
 - **Target Repository**: ${{ inputs.repository }}
 - **Analysis Date**: $(date +%Y-%m-%d)
 - **Cache Location**: `/tmp/gh-aw/cache-memory-repo-audits/`
 
-## Phase 0: Setup and Repository Discovery
+#### Phase 0: Setup and Repository Discovery
 
 ### 0.1 Load Historical Analysis
 
@@ -106,7 +106,7 @@ gh api "repos/${{ inputs.repository }}/contributors?per_page=10" --jq '.[] | {lo
 gh api "repos/${{ inputs.repository }}/languages"
 ```
 
-## Phase 1: Deep Research - Project Understanding
+#### Phase 1: Deep Research - Project Understanding
 
 ### 1.1 Explore Repository Structure
 
@@ -179,7 +179,7 @@ if [ -f CONTRIBUTING.md ]; then
 fi
 ```
 
-## Phase 2: GitHub Actions Analysis
+#### Phase 2: GitHub Actions Analysis
 
 ### 2.1 Survey Existing Workflows
 
@@ -282,7 +282,7 @@ echo "Potential hardcoded secrets:"
 EXPR_START='$'; EXPR_OPEN='{{'; grep -r "token\|password\|api_key" .github/workflows/*.{yml,yaml} 2>/dev/null | grep -v "${EXPR_START}${EXPR_OPEN}" | wc -l
 ```
 
-## Phase 3: Issue History Analysis
+#### Phase 3: Issue History Analysis
 
 ### 3.1 Issue Patterns and Trends
 
@@ -331,7 +331,7 @@ cat /tmp/gh-aw/agent/issues.json | jq -s 'map(select(.title | test("update|upgra
 cat /tmp/gh-aw/agent/issues.json | jq -s 'map(select(.labels | length > 0)) | group_by(.labels | sort) | map({labels: .[0].labels, count: length}) | sort_by(.count) | reverse | .[0:10]'
 ```
 
-## Phase 4: Identify Agentic Workflow Opportunities
+#### Phase 4: Identify Agentic Workflow Opportunities
 
 Based on the analysis, identify specific opportunities for agentic workflows:
 
@@ -387,20 +387,20 @@ Patterns that suggest event-triggered workflows:
 
 Based on the actual patterns found in the target repository, create custom recommendations.
 
-## Phase 5: Generate Comprehensive Report
+#### Phase 5: Generate Comprehensive Report
 
 Create a detailed analysis report with actionable recommendations:
 
 ### Report Structure
 
 ```markdown
-# 🔍 Repository Audit & Agentic Workflow Opportunities Report
+### 🔍 Repository Audit & Agentic Workflow Opportunities Report
 
 **Repository**: ${{ inputs.repository }}  
 **Analysis Date**: $(date +%Y-%m-%d)  
 **Audit Type**: Comprehensive (code + workflows + issues + patterns)
 
-## 📋 Executive Summary
+#### 📋 Executive Summary
 
 [3-4 paragraphs summarizing the repository, current state, key findings, and top opportunities]
 
@@ -414,7 +414,7 @@ Create a detailed analysis report with actionable recommendations:
 
 ---
 
-## 🏗️ Repository Overview
+#### 🏗️ Repository Overview
 
 <details>
 <summary>Project Details</summary>
@@ -445,7 +445,7 @@ Create a detailed analysis report with actionable recommendations:
 
 ---
 
-## 🤖 GitHub Actions Analysis
+#### 🤖 GitHub Actions Analysis
 
 ### Current Workflows
 
@@ -471,7 +471,7 @@ Create a detailed analysis report with actionable recommendations:
 
 ---
 
-## 🎯 Agentic Workflow Opportunities
+#### 🎯 Agentic Workflow Opportunities
 
 ### High Priority Opportunities
 
@@ -535,7 +535,7 @@ safe-outputs:
 
 ---
 
-## 📊 Issue Pattern Analysis
+#### 📊 Issue Pattern Analysis
 
 ### Common Issue Categories
 
@@ -563,7 +563,7 @@ safe-outputs:
 
 ---
 
-## 💻 Code Pattern Analysis
+#### 💻 Code Pattern Analysis
 
 ### Code Quality Insights
 
@@ -586,7 +586,7 @@ safe-outputs:
 
 ---
 
-## 🚀 Implementation Roadmap
+#### 🚀 Implementation Roadmap
 
 ### Phase 1: Quick Wins (Week 1-2)
 1. **[Workflow 1]** - [Why it's a quick win]
@@ -602,7 +602,7 @@ safe-outputs:
 
 ---
 
-## 📈 Expected Impact
+#### 📈 Expected Impact
 
 ### Quantitative Benefits
 
@@ -621,7 +621,7 @@ safe-outputs:
 
 ---
 
-## 🔄 Continuous Improvement
+#### 🔄 Continuous Improvement
 
 ### Monitoring & Metrics
 
@@ -642,7 +642,7 @@ safe-outputs:
 
 ---
 
-## 📚 Repository-Specific Recommendations
+#### 📚 Repository-Specific Recommendations
 
 ### Custom Insights for ${{ inputs.repository }}
 
@@ -659,7 +659,7 @@ safe-outputs:
 
 ---
 
-## 💾 Cache Memory Update
+#### 💾 Cache Memory Update
 
 [Document what was stored in cache for future analysis]
 
@@ -674,7 +674,7 @@ safe-outputs:
 
 ---
 
-## 🎯 Next Steps
+#### 🎯 Next Steps
 
 ### Immediate Actions
 
@@ -703,7 +703,7 @@ To implement these workflows:
 *For questions or feedback, create an issue in the gh-aw repository*
 ```
 
-## Phase 6: Update Cache Memory
+#### Phase 6: Update Cache Memory
 
 After generating the report, save analysis data for future reference:
 
@@ -728,7 +728,7 @@ EOF
 echo "Analysis cached for future comparison"
 ```
 
-## Success Criteria
+#### Success Criteria
 
 A successful audit run:
 - ✅ Clones and analyzes the target repository
@@ -742,7 +742,7 @@ A successful audit run:
 - ✅ Updates cache memory with analysis data
 - ✅ Includes repository-specific insights (not generic advice)
 
-## Important Guidelines
+#### Important Guidelines
 
 ### Thoroughness
 - **Deep Analysis**: Don't just skim - read documentation, understand the project
@@ -768,7 +768,7 @@ A successful audit run:
 - **Context**: Explain WHY each opportunity matters
 - **Examples**: Provide concrete implementation sketches
 
-## Output Requirements
+#### Output Requirements
 
 Your output MUST:
 1. Create exactly one discussion with the comprehensive audit report

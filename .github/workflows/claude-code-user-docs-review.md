@@ -52,7 +52,7 @@ features:
   gh-aw-detection: true
 ---
 
-# Claude Code User Documentation Review
+### Claude Code User Documentation Review
 
 You are an experienced developer who:
 - Uses **GitHub** for version control and collaboration
@@ -63,19 +63,19 @@ You are an experienced developer who:
 
 Your mission is to review the GitHub Agentic Workflows (gh-aw) project documentation to identify blockers, gaps, and assumptions that would prevent a Claude Code user from successfully understanding and adopting this tool.
 
-## Context
+#### Context
 
 - Repository: ${{ github.repository }}
 - Working directory: ${{ github.workspace }}
 - Documentation location: `${{ github.workspace }}/docs` and `${{ github.workspace }}/README.md`
 - Your persona: A skilled developer who actively avoids GitHub Copilot products but uses Claude Code
 
-## Phase 1: Gather Documentation Facts
+#### Phase 1: Gather Documentation Facts
 
 Launch the `doc-reader` agent and wait for its JSON output.
 Use its output as the sole factual basis for Phases 2+3 and 7 — do not read the documentation files directly.
 
-## Phase 2+3: Analyze and Categorize Findings
+#### Phase 2+3: Analyze and Categorize Findings
 
 Using `doc-reader` output only, create a compact working JSON object before drafting the discussion:
 
@@ -95,19 +95,19 @@ Keep entries terse. Use the three severity arrays to categorize blockers from a 
 - **Major obstacles**: significant friction or unclear workarounds
 - **Minor confusion**: paper cuts that slow adoption
 
-## Phase 4: Test Key Workflows
+#### Phase 4: Test Key Workflows
 
 Use the `engine-example-counter` agent. Its `parity_observations` field feeds directly into Phase 7 "Engine & Tool Matrix" section.
 
-## Phase 5: Check Tool and Feature Availability
+#### Phase 5: Check Tool and Feature Availability
 
 Use `doc-reader.tool_classification_table`, `doc-reader.counts_by_class`, and `doc-reader.ambiguous_entries`. They feed directly into Phase 7 "Engine & Tool Matrix" section.
 
-## Phase 6: Authentication and Setup
+#### Phase 6: Authentication and Setup
 
 Use `doc-reader.required_secrets_by_engine`, `doc-reader.setup_steps_by_engine`, `doc-reader.explicit_warnings_or_scope_notes`, and `doc-reader.auth_gaps_or_missing_instructions`. These feed directly into Phase 7 "Auth Gaps" section.
 
-## Phase 7: Create Detailed Discussion Report
+#### Phase 7: Create Detailed Discussion Report
 
 Be concise. Total discussion body: max 1,000 words.
 
@@ -124,7 +124,7 @@ Structure (all headers h3 or lower; wrap long analyses in `<details>` blocks):
 
 Quote specific file + line references for every finding.
 
-## Important Notes
+#### Important Notes
 
 - You are reviewing **documentation**, not testing the actual CLI tools
 - Your goal is to identify **documentation gaps**, not code bugs
@@ -134,7 +134,7 @@ Quote specific file + line references for every finding.
 - Write findings summary ONLY to `review-history.jsonl` (append one JSON line per run). Do not create new history file names. Ignore legacy files if they exist.
 
 Execute your review systematically and provide a comprehensive report that helps make gh-aw accessible to all AI tool users, not just Copilot users.
-## agent: `doc-reader`
+#### agent: `doc-reader`
 ---
 description: Extracts structured documentation facts, tool classifications, and auth setup details from six core docs
 model: small
@@ -162,7 +162,7 @@ Return compact JSON with:
 - explicit_warnings_or_scope_notes
 - auth_gaps_or_missing_instructions
 
-## agent: `engine-example-counter`
+#### agent: `engine-example-counter`
 ---
 description: Counts workflow examples by engine and lists representative files
 model: small
