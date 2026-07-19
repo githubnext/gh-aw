@@ -38,6 +38,16 @@ describe("prefer-core-logging", () => {
             },
           ],
         },
+        {
+          code: "console.log(`hello`);",
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [{ messageId: "replaceWithCoreMethod", data: { replacement: "core.info", args: "`hello`" }, output: "core.info(`hello`);" }],
+            },
+          ],
+        },
       ],
     });
   });
@@ -186,6 +196,16 @@ describe("prefer-core-logging", () => {
         },
         {
           code: `const core = require("@actions/core"); const someVar = 1; console.log("value: %s", someVar);`,
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [],
+            },
+          ],
+        },
+        {
+          code: 'const core = require("@actions/core"); const someVar = 1; console.log(`value: ${someVar}`);',
           errors: [
             {
               messageId: "preferCoreLogging",

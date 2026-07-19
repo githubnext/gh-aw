@@ -39,16 +39,47 @@ function getStaticStringValue(node: TSESTree.CallExpressionArgument): string | n
     return null;
   }
 
-  return node.quasis.map(quasi => quasi.value.cooked ?? "").join("");
+  if (node.expressions.length > 0) {
+    return null;
+  }
+
+  const parts: string[] = [];
+  for (const quasi of node.quasis) {
+    if (quasi.value.cooked === null) {
+      return null;
+    }
+    parts.push(quasi.value.cooked);
+  }
+
+  return parts.join("");
 }
 
 function hasConsoleFormatSpecifier(node: TSESTree.CallExpressionArgument | undefined): boolean {
   const value = node ? getStaticStringValue(node) : null;
-  return value !== null && /(^|[^%])%(?:[sdifoOjO])/.test(value);
+  if (value === null) {
+    return false;
+  }
+
+  for (let i = 0; i < value.length - 1; i++) {
+    if (value[i] === "%" && value[i - 1] !== "%" && "sdifojO".includes(value[i + 1] ?? "")) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isInterpolatedTemplateLiteral(node: TSESTree.CallExpressionArgument): boolean {
+  return node.type === AST_NODE_TYPES.TemplateLiteral && node.expressions.length > 0;
 }
 
 function canSuggestCoreReplacement(node: TSESTree.CallExpression): boolean {
-  return node.arguments.length === 1 && !hasConsoleFormatSpecifier(node.arguments[0]);
+  const arg = node.arguments[0];
+  if (node.arguments.length !== 1 || !arg) {
+    return false;
+  }
+
+  return !isInterpolatedTemplateLiteral(arg) && !hasConsoleFormatSpecifier(arg);
 }
 
 export const preferCoreLoggingRule = createRule({
