@@ -55,6 +55,7 @@ function iconSvg(name: string, size = 20) {
 	return icon.toSVG({ width: size, height: size, 'aria-hidden': 'true' });
 }
 
+// Map the workshop's Primer icon names to the closest built-in Starlight card icons.
 const workshopCardIcons = {
 	browser: 'window',
 	'device-desktop': 'desktop',
@@ -1025,6 +1026,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 <style>
 	.aw-workshop {
+		--aw-workshop-card-min-width: 15.5rem;
 		display: grid;
 		gap: 1.5rem;
 		margin: 2rem 0 1rem;
@@ -1153,7 +1155,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 	.aw-workshop-card-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, 15.5rem), 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--aw-workshop-card-min-width)), 1fr));
 		gap: 0.85rem;
 	}
 
@@ -1172,7 +1174,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	}
 
 	.aw-workshop-card-grid-entry :global(.card-grid) {
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, 15.5rem), 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--aw-workshop-card-min-width)), 1fr));
 		gap: 0.85rem;
 	}
 
