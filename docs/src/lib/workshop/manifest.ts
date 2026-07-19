@@ -211,8 +211,8 @@ export function buildWorkshopFlow(
 			// Case 2: numeric-only prefix (e.g. '06'): hub if letter-variant specific entries exist ('06a', '06b').
 			const numericOnly = keyPrefix.match(/^(\d+)$/u);
 			if (numericOnly) {
-				const num = numericOnly[1];
-				return ![...hubPrefixes].some((p) => new RegExp(`^${num}[a-z]`, 'u').test(p));
+				const hubRe = new RegExp(`^${numericOnly[1]}[a-z]`, 'u');
+				return ![...hubPrefixes].some((p) => hubRe.test(p));
 			}
 			return true;
 		})
