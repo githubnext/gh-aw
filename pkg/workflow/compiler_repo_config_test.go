@@ -5,8 +5,50 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 )
+
+func assertInvalidAWJSONWarning(t *testing.T, content string) {
+	t.Helper()
+
+	gitRoot := t.TempDir()
+	workflowsDir := filepath.Join(gitRoot, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0o755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workflowsDir, "aw.json"), []byte(content), 0o600); err != nil {
+		t.Fatalf("Failed to write invalid aw.json: %v", err)
+	}
+
+	compiler := NewCompiler()
+	compiler.gitRoot = gitRoot
+
+	var (
+		cfg *RepoConfig
+		err error
+	)
+	stderr := captureStderr(func() {
+		cfg, err = compiler.loadRepoConfig()
+	})
+
+	if err == nil {
+		t.Fatal("Expected loadRepoConfig to fail for invalid config")
+	}
+	if cfg != nil {
+		t.Fatal("Expected nil config on loadRepoConfig error")
+	}
+	if !strings.Contains(stderr, RepoConfigFileName) {
+		t.Fatalf("Expected warning to mention %s, got: %s", RepoConfigFileName, stderr)
+	}
+	if !strings.Contains(stderr, strconv.Itoa(DefaultActionFailureIssueExpiresHours)) {
+		t.Fatalf("Expected warning to mention fallback %d, got: %s", DefaultActionFailureIssueExpiresHours, stderr)
+	}
+	if compiler.GetWarningCount() != 1 {
+		t.Fatalf("Expected warning count 1, got %d", compiler.GetWarningCount())
+	}
+}
 
 func TestCompilerLoadRepoConfig_CachesResult(t *testing.T) {
 	gitRoot := t.TempDir()
@@ -89,6 +131,14 @@ func TestCompilerLoadRepoConfig_CachesError(t *testing.T) {
 	if err2.Error() != err1.Error() {
 		t.Fatalf("Expected cached error to match first error, got %q vs %q", err2.Error(), err1.Error())
 	}
+}
+
+func TestCompilerLoadRepoConfig_InvalidAWJSONWarnsWithPathAndFallback(t *testing.T) {
+	assertInvalidAWJSONWarning(t, `{"maintenance":{"action_failure_issue_expires":0}}`)
+}
+
+func TestCompilerLoadRepoConfig_MalformedAWJSONWarnsWithPathAndFallback(t *testing.T) {
+	assertInvalidAWJSONWarning(t, `{"maintenance":`)
 }
 
 func TestCompilerLoadRepoConfig_EmptyGitRoot(t *testing.T) {
