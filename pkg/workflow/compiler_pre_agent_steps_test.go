@@ -59,7 +59,7 @@ Test pre-agent-steps.
 		t.Fatal("Could not find expected steps in generated workflow")
 	}
 	if cleanCheckoutCredentialsIndex >= preAgentStepIndex {
-		t.Errorf("Pre-agent-step (%d) should appear after Clean git credentials after checkout (%d)", preAgentStepIndex, cleanCheckoutCredentialsIndex)
+		t.Errorf("Clean git credentials after checkout (%d) should appear before pre-agent-step (%d)", cleanCheckoutCredentialsIndex, preAgentStepIndex)
 	}
 	if preAgentStepIndex >= startMCPGatewayIndex {
 		t.Errorf("Pre-agent-step (%d) should appear before Start MCP Gateway (%d)", preAgentStepIndex, startMCPGatewayIndex)
