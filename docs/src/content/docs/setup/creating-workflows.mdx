@@ -101,14 +101,7 @@ After merging the pull request, you can run the workflow to see it in action. Ei
 
 ## Choose the Right Step Lifecycle Hook
 
-When you add deterministic setup or cleanup to a workflow, use the smallest hook that matches the lifecycle point you need:
-
-1. `pre-steps:` — before checkout and the rest of the compiler-managed setup.
-2. `steps:` — after checkout and normal bootstrap, while the job is still in its general preprocessing phase.
-3. `pre-agent-steps:` — after checkout cleanup and base-branch restoration, immediately before MCP startup and engine execution.
-4. `post-steps:` — after the engine completes.
-
-Reach for `pre-agent-steps:` when you need a final preparation phase right before the agent starts, and `pre-steps:` when later checkout or setup needs outputs from an earlier step in the same job. See [Custom Steps and Jobs](/gh-aw/reference/steps-jobs/) for full examples.
+When you add deterministic setup or cleanup to a workflow, choose the smallest hook that matches the lifecycle point you need. See [Custom Steps and Jobs](/gh-aw/reference/steps-jobs/#choosing-the-right-step-hook) for the canonical ordering guide, including the distinction between pre-checkout `pre-steps:` and the later `pre-agent-steps:` phase.
 
 ## Initialize the Repository
 

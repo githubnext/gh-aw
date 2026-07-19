@@ -60,7 +60,7 @@ Setting `GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS` as a GitHub Actions repositor
 ### Compilation and Environment Variable Propagation
 
 1. The workflow compiler **MUST** read `action_failure_issue_expires` from `aw.json` (via `LoadRepoConfig`) during `buildConclusionJob` and inject the resolved value as the `GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS` environment variable into the generated conclusion-job YAML.
-2. If `.github/workflows/aw.json` exists but cannot be loaded or parsed, the compiler **MUST** emit a warning that identifies the file path and the fallback value (`168`) before continuing; it **MUST NOT** fail the build.
+2. If `.github/workflows/aw.json` exists but cannot be loaded, parsed, or validated, the compiler **MUST** emit a warning that identifies the file path and the fallback value (`168`) before continuing; it **MUST NOT** fail the build.
 3. The injected environment variable value **MUST** be a positive integer string representing hours.
 
 ### Runtime Handling

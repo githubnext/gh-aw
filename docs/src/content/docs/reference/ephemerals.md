@@ -140,7 +140,7 @@ Customize the runner:
 
 `action_failure_issue_expires` sets expiration, in hours, for failure issues opened by the conclusion job, including grouped parent issues when `group-reports: true`. The default is `168` (7 days).
 
-If `.github/workflows/aw.json` is present but contains invalid JSON or fails schema validation, compilation keeps the default `168`-hour expiration and emits a warning that identifies the config path and fallback value.
+If `.github/workflows/aw.json` is present but cannot be loaded, parsed, or validated, compilation keeps the default `168`-hour expiration and emits a warning that identifies the config path and fallback value.
 
 `disabled_jobs` lets you omit specific maintenance jobs from the generated workflow. Job IDs are case-insensitive, and `_` / `-` are treated equivalently.
 

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"gopkg.in/yaml.v3"
 )
 
 func TestPreAgentStepsGeneration(t *testing.T) {
@@ -67,8 +68,24 @@ Test pre-agent-steps.
 	if preAgentStepIndex >= aiStepIndex {
 		t.Errorf("Pre-agent-step (%d) should appear before AI execution step (%d)", preAgentStepIndex, aiStepIndex)
 	}
-	if strings.Contains(lockContent, "pre-agent-steps: []") || strings.Contains(lockContent, "post-steps: []") || strings.Contains(lockContent, "pre-steps: []") {
-		t.Error("Expected no empty steps block markers when only pre-agent-steps are configured")
+	var compiled struct {
+		Jobs map[string]map[string]any `yaml:"jobs"`
+	}
+	if err := yaml.Unmarshal(content, &compiled); err != nil {
+		t.Fatalf("Failed to parse generated lock file as YAML: %v", err)
+	}
+	for jobName, job := range compiled.Jobs {
+		rawSteps, hasSteps := job["steps"]
+		if !hasSteps {
+			continue
+		}
+		steps, ok := rawSteps.([]any)
+		if !ok {
+			t.Fatalf("Expected %s job steps to decode as a YAML sequence, got %T", jobName, rawSteps)
+		}
+		if len(steps) == 0 {
+			t.Fatalf("Expected %s job to omit empty steps blocks instead of emitting steps: []", jobName)
+		}
 	}
 }
 
