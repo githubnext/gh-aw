@@ -11,11 +11,6 @@ import {
 } from '../../lib/workshop/manifest';
 import { workshopContent, workshopSource, type WorkshopContentEntry } from '../../generated/workshop-content.ts';
 
-interface Props {
-	org: string;
-}
-
-const { org } = Astro.props;
 
 type WorkshopEntry = {
 	id: string;
@@ -45,7 +40,7 @@ type WorkshopMarkdownModule = {
 
 const workshopGithubBase = workshopSource.githubBaseUrl;
 const workshopImageBase = workshopSource.rawBaseUrl;
-const workshopLocalLinkPrefix = `/gh-aw/workshops/${org}/?__gh_aw_workshop_local__=`;
+const workshopLocalLinkPrefix = `/gh-aw/workshop/?__gh_aw_workshop_local__=`;
 const workshopMarkdownModules = import.meta.glob('../../generated/workshop-markdown/*.md', { eager: true }) as Record<string, WorkshopMarkdownModule>;
 const primerIcons = octicons as Record<string, { toSVG: (options: Record<string, string | number>) => string }>;
 

@@ -1,7 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { CURRENT_WORKSHOP_SLUG } from '../src/lib/workshop/config';
 
-const WORKSHOP_URL = `/gh-aw/workshops/${CURRENT_WORKSHOP_SLUG}/`;
+const WORKSHOP_URL = `/gh-aw/workshop/`;
 const PIXEL_TOLERANCE = 1;
 const ZEN_MODE_MOBILE_BREAKPOINT = 800;
 
