@@ -1,4 +1,4 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -30,6 +30,27 @@ function getConsoleMethod(node: TSESTree.CallExpression): string | null {
   return prop.name in CONSOLE_TO_CORE ? prop.name : null;
 }
 
+function getStaticStringValue(node: TSESTree.CallExpressionArgument): string | null {
+  if (node.type === AST_NODE_TYPES.Literal) {
+    return typeof node.value === "string" ? node.value : null;
+  }
+
+  if (node.type !== AST_NODE_TYPES.TemplateLiteral) {
+    return null;
+  }
+
+  return node.quasis.map(quasi => quasi.value.cooked ?? "").join("");
+}
+
+function hasConsoleFormatSpecifier(node: TSESTree.CallExpressionArgument | undefined): boolean {
+  const value = node ? getStaticStringValue(node) : null;
+  return value !== null && /(^|[^%])%(?:[sdifoOjO])/.test(value);
+}
+
+function canSuggestCoreReplacement(node: TSESTree.CallExpression): boolean {
+  return node.arguments.length === 1 && !hasConsoleFormatSpecifier(node.arguments[0]);
+}
+
 export const preferCoreLoggingRule = createRule({
   name: "prefer-core-logging",
   meta: {
@@ -57,23 +78,23 @@ export const preferCoreLoggingRule = createRule({
         if (!method) return;
 
         const replacement = CONSOLE_TO_CORE[method]!;
-
-        // Build replacement argument text from original call
-        const argsText = node.arguments.map(arg => sourceCode.getText(arg)).join(", ");
+        const suggest = canSuggestCoreReplacement(node)
+          ? [
+              {
+                messageId: "replaceWithCoreMethod" as const,
+                data: { replacement, args: sourceCode.getText(node.arguments[0]) },
+                fix(fixer: TSESLint.RuleFixer) {
+                  return fixer.replaceText(node, `${replacement}(${sourceCode.getText(node.arguments[0])})`);
+                },
+              },
+            ]
+          : undefined;
 
         context.report({
           node,
           messageId: "preferCoreLogging",
           data: { method, replacement },
-          suggest: [
-            {
-              messageId: "replaceWithCoreMethod",
-              data: { replacement, args: argsText },
-              fix(fixer) {
-                return fixer.replaceText(node, `${replacement}(${argsText})`);
-              },
-            },
-          ],
+          suggest,
         });
       },
     };
