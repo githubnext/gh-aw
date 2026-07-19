@@ -71,11 +71,27 @@ The AWF runtime could detect BYOK mode automatically (e.g., by the absence of a 
 
 1. Implicit feature enablement rules (such as `byok-copilot` enabling `cli-proxy`) **MUST** be implemented inside the `isFeatureEnabled` function in `pkg/workflow/features.go`.
 2. Each implicit enablement rule **MUST** be scoped to the specific engine or context for which it applies and **MUST NOT** affect unrelated engines or feature flags.
-3. Implementations **SHOULD** log a message when an implicit feature enablement rule is triggered, to aid in runtime diagnostics.
+3. ~~Implementations **MUST** log a message when an implicit feature enablement rule is triggered, to aid in runtime diagnostics. A corresponding test assertion **MUST** verify that this log line is emitted when `byok-copilot` implicitly activates `cli-proxy` on a Copilot engine workflow.~~
+
+   **Note (superseded by ADR-27902):** ADR-27902 ("Make Copilot BYOK Behavior Default") makes `features.byok-copilot` a no-op and enables `cli-proxy` unconditionally for all `engine: copilot` workflows, removing the implicit composition path described in item 3 above. The logging requirement in item 3 is therefore no longer applicable; conformance for `engine: copilot` is governed by ADR-27902 instead. The Status Promotion criteria for this ADR have been updated accordingly.
 
 ### Conformance
 
 An implementation is considered conformant with this ADR if it satisfies all **MUST** and **MUST NOT** requirements above. Failure to meet any **MUST** or **MUST NOT** requirement constitutes non-conformance.
+
+---
+
+### Status Promotion
+
+This ADR is currently **Draft**. To promote it to **Accepted**, all of the following criteria must be satisfied:
+
+- [ ] The PR implementing the `byok-copilot` feature flag has been merged to the default branch.
+- [ ] All CI checks (tests, linters, compilation) are green on the merged commit.
+- [ ] ~~A test asserts that the diagnostic log line is emitted when `byok-copilot` implicitly activates `cli-proxy` on a Copilot engine workflow.~~ **Superseded by ADR-27902**: the `byok-copilot` flag is a no-op and `cli-proxy` is now enabled unconditionally for Copilot; this test requirement no longer applies.
+- [ ] `byok-copilot` has been added to the end-user workflow authoring reference documentation as a deprecated, no-op flag (pointing to ADR-27902 for the current default behavior).
+- [ ] No open issues reference a conformance failure against this ADR (considering ADR-27902 as the governing spec for Copilot engine BYOK behavior).
+
+Once all boxes are checked, update the `**Status**` field at the top of this document from `Draft` to `Accepted`.
 
 ---
 

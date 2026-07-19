@@ -4,7 +4,11 @@ name: Semantic Function Refactoring
 description: Analyzes Go codebase daily to identify opportunities for semantic function extraction and refactoring
 on:
   workflow_dispatch:
-  schedule: daily
+  schedule:
+    - cron: "17 2 * * *" # Offset from the midnight/22:29 UTC workflow clusters
+max-daily-ai-credits: 300
+max-ai-credits: 300
+max-turns: 30
 
 permissions:
   contents: read
@@ -15,7 +19,9 @@ sandbox:
   agent:
     sudo: false
 
-engine: claude
+engine:
+  id: claude
+  model: claude-sonnet-4.6
 
 imports:
   - shared/go-source-analysis.md
@@ -39,6 +45,35 @@ tools:
     toolsets: [default, issues]
   edit:
 
+steps:
+  - name: Precompute semantic refactor slice
+    run: |
+      set -euo pipefail
+      mkdir -p /tmp/gh-aw/agent/semantic-function-refactor
+
+      mapfile -t packages < <(find pkg -mindepth 1 -maxdepth 1 -type d | sort)
+      if [ "${#packages[@]}" -eq 0 ]; then
+        : > /tmp/gh-aw/agent/semantic-function-refactor/targets.txt
+        : > /tmp/gh-aw/agent/semantic-function-refactor/go-files.txt
+        exit 0
+      fi
+
+      batch_size=2
+      day_of_year="$(date -u +%j)"
+      day_of_year="${day_of_year#0}"
+      day_of_year="${day_of_year#0}"
+      : "${day_of_year:=1}"
+      start_index=$(( ( (day_of_year - 1) * batch_size ) % ${#packages[@]} ))
+      : > /tmp/gh-aw/agent/semantic-function-refactor/targets.txt
+      : > /tmp/gh-aw/agent/semantic-function-refactor/go-files.txt
+
+      for offset in 0 1; do
+        idx=$(( (start_index + offset) % ${#packages[@]} ))
+        pkg_dir="${packages[$idx]}"
+        printf '%s\n' "$pkg_dir" >> /tmp/gh-aw/agent/semantic-function-refactor/targets.txt
+        find "$pkg_dir" -name "*.go" ! -name "*_test.go" -type f | sort >> /tmp/gh-aw/agent/semantic-function-refactor/go-files.txt
+      done
+
 timeout-minutes: 20
 strict: true
 
@@ -52,7 +87,14 @@ You are an AI agent that analyzes Go code to identify potential refactoring oppo
 
 **IMPORTANT: Before performing analysis, close any existing open issues with the title prefix `[refactor]` to avoid duplicate issues.**
 
-Analyze all Go source files (`.go` files, excluding test files) in the repository to:
+Analyze only the precomputed package slice for this run. The activation step has already written:
+
+- `/tmp/gh-aw/agent/semantic-function-refactor/targets.txt` — the package directories to inspect
+- `/tmp/gh-aw/agent/semantic-function-refactor/go-files.txt` — the non-test Go files in scope for this run
+
+Use those files as the source of truth for scope. Do **not** rescan the whole repository, and do **not** spawn subagents for duplicate-finding sweeps.
+
+Analyze the selected Go source files (`.go` files, excluding test files) to:
 1. **First, close existing open issues** with the `[refactor]` prefix
 2. Collect all function names per file
 3. Cluster functions semantically by name and purpose
@@ -62,11 +104,12 @@ Analyze all Go source files (`.go` files, excluding test files) in the repositor
 
 ## Important Constraints
 
-1. **Only analyze `.go` files** - Ignore all other file types
+1. **Only analyze the precomputed file list** - Ignore packages and files outside `/tmp/gh-aw/agent/semantic-function-refactor/go-files.txt`
 2. **Skip test files** - Never analyze files ending in `_test.go`
-3. **Focus on pkg/ directory** - Primary analysis area
+3. **Stay within the selected package slice** - Do not widen the sweep to all of `pkg/`
 4. **Use Serena for semantic analysis** - Leverage the MCP server's capabilities
-5. **One file per feature rule** - Files should be named after their primary purpose/feature
+5. **No subagent fan-out** - Perform the analysis in a single agent session
+6. **One file per feature rule** - Files should be named after their primary purpose/feature
 
 ## Serena Configuration
 
@@ -121,22 +164,22 @@ After closing existing issues, activate the project in Serena to enable semantic
 
 Use Serena's `activate_project` tool with the workspace path.
 
-### 3. Discover Go Source Files
+### 3. Load the Precomputed Go Source Files
 
-Find all non-test Go files in the repository:
+Read the package slice and file list prepared by the activation step:
 
 ```bash
-# Find all Go files excluding tests
-find pkg -name "*.go" ! -name "*_test.go" -type f | sort
+cat /tmp/gh-aw/agent/semantic-function-refactor/targets.txt
+cat /tmp/gh-aw/agent/semantic-function-refactor/go-files.txt
 ```
 
-Group files by package/directory to understand the organization.
+Group only those files by package/directory to understand the organization.
 
 When shell access is needed, keep each Bash command simple and single-purpose. Prefer Serena tools plus `Grep`/`Read` over shell pipelines, loops, `awk`, or command substitutions that may be blocked by approval policy.
 
 ### 4. Collect Function Names Per File
 
-For each discovered Go file:
+For each precomputed Go file:
 
 1. Use Serena's `get_symbols_overview` to get all symbols (functions, methods, types) in the file
 2. Use Serena's `read_file` if needed to understand context
@@ -478,7 +521,7 @@ Args: { "file_path": "pkg/workflow/compiler.go" }
 ## Success Criteria
 
 This analysis is successful when:
-1. ✅ All non-test Go files in pkg/ are analyzed
+1. ✅ All non-test Go files in the selected package slice are analyzed
 2. ✅ Function names and signatures are collected and organized
 3. ✅ Semantic clusters are identified based on naming and purpose
 4. ✅ Outliers (functions in wrong files) are detected

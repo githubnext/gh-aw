@@ -2,7 +2,8 @@
 emoji: "🔎"
 description: Daily analysis of detection jobs to identify misconfigured workflows and compare performance between regular runs and runs using the gh-aw detection feature
 on:
-  schedule: daily
+  schedule:
+    - cron: "05 23 * * *" # Offset from other nightly scheduled workflows
   workflow_dispatch:
 max-ai-credits: 1500
 max-daily-ai-credits: 10000

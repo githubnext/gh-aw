@@ -168,8 +168,8 @@ func buildCopilotSDKInstallStep(workflowData *WorkflowData) GitHubActionStep {
 
 // sdkDriverInstallCommand returns a synthetic command string for the given driver filename
 // that can be passed to getCopilotSDKInstallSpec/detectRuntimeFromCopilotCommand to select
-// the correct SDK package manager. Only non-JS language extensions need special handling;
-// JS drivers and arbitrary commands (no extension) fall back to the Node.js default.
+// the correct SDK package manager. Python, Ruby, and TypeScript extensions need special
+// handling; JS drivers and arbitrary commands (no extension) fall back to the Node.js default.
 func sdkDriverInstallCommand(driverName string) string {
 	ext := strings.ToLower(filepath.Ext(driverName))
 	switch ext {
