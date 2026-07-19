@@ -298,7 +298,7 @@ func TestRetryCriticalArtifactsSkipsExisting(t *testing.T) {
 	}
 
 	// Should complete without panic or error — all dirs exist so no gh CLI calls are made
-	retryCriticalArtifacts(context.Background(), 12345, tmpDir, false, "owner", "repo", "", nil)
+	retryCriticalArtifacts(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: tmpDir, verbose: false, owner: "owner", repo: "repo"})
 
 	// Verify the directories are still intact
 	for _, name := range criticalArtifactNames {
@@ -328,7 +328,7 @@ func TestDownloadArtifactsByName_LogsArtifactNamesInCI(t *testing.T) {
 		os.Stderr = originalStderr
 	})
 
-	err = downloadArtifactsByName(context.Background(), 12345, t.TempDir(), []string{"usage"}, false, "", "", "")
+	err = downloadArtifactsByName(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: t.TempDir()}, []string{"usage"})
 	require.NoError(t, err)
 
 	require.NoError(t, writer.Close())
@@ -384,7 +384,7 @@ func TestDownloadRunArtifacts_CachedUsageFallbackToActivation(t *testing.T) {
 	originalPath := os.Getenv("PATH")
 	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+originalPath)
 
-	err := downloadRunArtifacts(context.Background(), 12345, tmpDir, false, "github", "gh-aw", "", []string{"usage"})
+	err := downloadRunArtifacts(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: tmpDir, verbose: false, owner: "github", repo: "gh-aw", artifactFilter: []string{"usage"}})
 	require.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(tmpDir, "aw_info.json"))
@@ -398,6 +398,62 @@ func TestDownloadRunArtifacts_CachedUsageFallbackToActivation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(argsLog), "api --paginate repos/github/gh-aw/actions/runs/12345/artifacts")
 	assert.Contains(t, string(argsLog), "run download 12345 --name abc123-activation")
+}
+
+func TestDownloadRunArtifactsFallbackWhenListFails(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-download-fallback-*")
+
+	fakeBinDir := testutil.TempDir(t, "fake-gh-*")
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	argsLogPath := filepath.Join(fakeBinDir, "gh-args.log")
+	fakeGHScript := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$*\" >> \"" + argsLogPath + "\"\n" +
+		"if [ \"$1\" = \"api\" ]; then\n" +
+		"  echo \"list failed\" >&2\n" +
+		"  exit 1\n" +
+		"fi\n" +
+		"if [ \"$1\" = \"run\" ] && [ \"$2\" = \"download\" ]; then\n" +
+		"  name=\"\"\n" +
+		"  dir=\"\"\n" +
+		"  while [ $# -gt 0 ]; do\n" +
+		"    if [ \"$1\" = \"--name\" ]; then\n" +
+		"      name=\"$2\"\n" +
+		"      shift 2\n" +
+		"      continue\n" +
+		"    fi\n" +
+		"    if [ \"$1\" = \"--dir\" ]; then\n" +
+		"      dir=\"$2\"\n" +
+		"      shift 2\n" +
+		"      continue\n" +
+		"    fi\n" +
+		"    shift\n" +
+		"  done\n" +
+		"  if [ \"$name\" = \"usage\" ]; then\n" +
+		"    mkdir -p \"$dir/$name\"\n" +
+		"    printf '%s' '{\"tokens\":1}' > \"$dir/$name/usage.jsonl\"\n" +
+		"  fi\n" +
+		"  exit 0\n" +
+		"fi\n" +
+		"exit 1\n"
+	require.NoError(t, os.WriteFile(fakeGH, []byte(fakeGHScript), 0o755))
+
+	originalPath := os.Getenv("PATH")
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+originalPath)
+
+	err := downloadRunArtifacts(context.Background(), downloadArtifactsOptions{
+		runID:          12345,
+		outputDir:      tmpDir,
+		verbose:        false,
+		owner:          "github",
+		repo:           "gh-aw",
+		artifactFilter: []string{"usage"},
+	})
+	require.NoError(t, err)
+
+	argsLog, err := os.ReadFile(argsLogPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(argsLog), "api --paginate repos/github/gh-aw/actions/runs/12345/artifacts")
+	assert.Contains(t, string(argsLog), "run download 12345 --name usage")
 }
 
 func TestListWorkflowRunsWithPagination(t *testing.T) {
@@ -834,7 +890,76 @@ func TestFlattenActivationArtifact(t *testing.T) {
 	}
 }
 
-// TestCountParameterBehavior verifies that the count parameter limits matching results
+// TestFlattenSafeOutputsItemsArtifact verifies that the safe-outputs-items artifact
+// directory is correctly flattened so extractCreatedItemsFromManifest and
+// loadResolvedTemporaryIDTargets can find their files at the run directory root.
+// The artifact contains safe-output-items.jsonl and temporary-id-map.json.
+func TestFlattenSafeOutputsItemsArtifact(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-flatten-safe-outputs-items-*")
+
+	// Simulate the directory structure created by `gh run download` for the safe-outputs-items artifact.
+	safeOutputsDir := filepath.Join(tmpDir, "safe-outputs-items")
+	if err := os.MkdirAll(safeOutputsDir, 0o755); err != nil {
+		t.Fatalf("Failed to create safe-outputs-items dir: %v", err)
+	}
+
+	manifestContent := `{"id":"item1","safe":true}` + "\n"
+	if err := os.WriteFile(filepath.Join(safeOutputsDir, "safe-output-items.jsonl"), []byte(manifestContent), 0o644); err != nil {
+		t.Fatalf("Failed to create safe-output-items.jsonl: %v", err)
+	}
+	mapContent := `{"map":{"tmp-1":"real-1"}}`
+	if err := os.WriteFile(filepath.Join(safeOutputsDir, "temporary-id-map.json"), []byte(mapContent), 0o644); err != nil {
+		t.Fatalf("Failed to create temporary-id-map.json: %v", err)
+	}
+
+	if err := flattenSafeOutputsItemsArtifact(tmpDir, false); err != nil {
+		t.Fatalf("flattenSafeOutputsItemsArtifact failed: %v", err)
+	}
+
+	// safe-output-items.jsonl must be at the root for extractCreatedItemsFromManifest.
+	manifestPath := filepath.Join(tmpDir, "safe-output-items.jsonl")
+	if !fileutil.FileExists(manifestPath) {
+		t.Error("safe-output-items.jsonl should be at the root output directory after flattening")
+	} else {
+		content, err := os.ReadFile(manifestPath)
+		if err != nil {
+			t.Fatalf("Failed to read safe-output-items.jsonl: %v", err)
+		}
+		if string(content) != manifestContent {
+			t.Errorf("safe-output-items.jsonl content mismatch: got %q, want %q", string(content), manifestContent)
+		}
+	}
+
+	// temporary-id-map.json must also be at the root for loadResolvedTemporaryIDTargets.
+	mapPath := filepath.Join(tmpDir, "temporary-id-map.json")
+	if !fileutil.FileExists(mapPath) {
+		t.Error("temporary-id-map.json should be at the root output directory after flattening")
+	} else {
+		content, err := os.ReadFile(mapPath)
+		if err != nil {
+			t.Fatalf("Failed to read temporary-id-map.json: %v", err)
+		}
+		if string(content) != mapContent {
+			t.Errorf("temporary-id-map.json content mismatch: got %q, want %q", string(content), mapContent)
+		}
+	}
+
+	// The safe-outputs-items/ subdirectory should have been removed.
+	if fileutil.DirExists(filepath.Join(tmpDir, "safe-outputs-items")) {
+		t.Error("safe-outputs-items/ directory should have been removed after flattening")
+	}
+}
+
+// TestFlattenSafeOutputsItemsArtifactMissing verifies that flattenSafeOutputsItemsArtifact
+// is a no-op (returns nil) when no safe-outputs-items artifact directory is present.
+func TestFlattenSafeOutputsItemsArtifactMissing(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-flatten-safe-outputs-items-missing-*")
+
+	if err := flattenSafeOutputsItemsArtifact(tmpDir, false); err != nil {
+		t.Errorf("flattenSafeOutputsItemsArtifact should return nil when artifact is absent, got: %v", err)
+	}
+}
+
 // not the number of runs fetched when date filters are specified
 func TestCountParameterBehavior(t *testing.T) {
 	// This test documents the expected behavior:

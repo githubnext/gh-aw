@@ -28,6 +28,14 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function parseURL(url, base, errorMessage) {
+  try {
+    return base === undefined ? new URL(url) : new URL(url, base);
+  } catch {
+    throw new Error(errorMessage);
+  }
+}
+
 function decodeJWTPayload(token) {
   const parts = String(token || "").split(".");
   if (parts.length < 2 || !parts[1]) {
@@ -70,7 +78,7 @@ function getResultsServiceOrigin() {
   if (!url) {
     throw new Error("ACTIONS_RESULTS_URL is required for artifact upload");
   }
-  return new URL(url).origin;
+  return parseURL(url, undefined, `ACTIONS_RESULTS_URL is not a valid URL: ${url}`).origin;
 }
 
 async function twirpRequest(method, body) {
@@ -78,7 +86,8 @@ async function twirpRequest(method, body) {
   if (!runtimeToken) {
     throw new Error("ACTIONS_RUNTIME_TOKEN is required for artifact upload");
   }
-  const url = new URL(`/twirp/${TWIRP_ARTIFACT_SERVICE}/${method}`, getResultsServiceOrigin()).toString();
+  const resultsServiceOrigin = getResultsServiceOrigin();
+  const url = parseURL(`/twirp/${TWIRP_ARTIFACT_SERVICE}/${method}`, resultsServiceOrigin, `Failed to construct twirp URL for method: ${method}`).toString();
 
   let lastError;
   for (let attempt = 1; attempt <= DEFAULT_RETRY_ATTEMPTS; attempt++) {
@@ -145,7 +154,7 @@ function isZipResponse(url, contentType) {
     return true;
   }
   try {
-    return new URL(url).pathname.toLowerCase().endsWith(".zip");
+    return parseURL(url, undefined, `Invalid URL for zip detection: ${url}`).pathname.toLowerCase().endsWith(".zip");
   } catch {
     return false;
   }
@@ -161,6 +170,9 @@ async function streamToFile(response, filePath) {
 
 function ensureZipAvailable() {
   const result = spawnSync("zip", ["-v"], { stdio: "ignore" });
+  if (result.error) {
+    throw result.error;
+  }
   if (result.status !== 0) {
     throw new Error("zip command is required to upload artifacts (for example: apt-get install zip)");
   }
@@ -168,6 +180,9 @@ function ensureZipAvailable() {
 
 function ensureUnzipAvailable() {
   const result = spawnSync("unzip", ["-v"], { stdio: "ignore" });
+  if (result.error) {
+    throw result.error;
+  }
   if (result.status !== 0) {
     throw new Error("unzip command is required to download artifacts (for example: apt-get install unzip)");
   }
@@ -184,6 +199,9 @@ function createZipFromFiles(files, rootDirectory, outputPath) {
     cwd: rootDirectory,
     encoding: "utf8",
   });
+  if (result.error) {
+    throw result.error;
+  }
   if (result.status !== 0) {
     throw new Error(`zip command failed: ${result.stderr || result.stdout || "unknown error"}`);
   }
@@ -240,7 +258,7 @@ class DefaultArtifactClient {
     let page = 1;
     const maxPages = Math.ceil(MAX_ARTIFACTS / PAGE_SIZE);
     for (; page <= maxPages; page++) {
-      const url = new URL(`/repos/${findBy.repositoryOwner}/${findBy.repositoryName}/actions/runs/${findBy.workflowRunId}/artifacts`, serverUrl);
+      const url = parseURL(`/repos/${findBy.repositoryOwner}/${findBy.repositoryName}/actions/runs/${findBy.workflowRunId}/artifacts`, serverUrl, `Failed to construct artifacts URL for run ${findBy.workflowRunId}`);
       url.searchParams.set("per_page", String(PAGE_SIZE));
       url.searchParams.set("page", String(page));
       const response = await fetch(url.toString(), {
@@ -282,9 +300,17 @@ class DefaultArtifactClient {
     }
 
     const destination = options.path || process.env.GITHUB_WORKSPACE || process.cwd();
-    fs.mkdirSync(destination, { recursive: true });
+    try {
+      fs.mkdirSync(destination, { recursive: true });
+    } catch (err) {
+      throw new Error(`Failed to create directory ${destination}: ${String(err)}`, { cause: err });
+    }
 
-    const apiUrl = new URL(`/repos/${findBy.repositoryOwner}/${findBy.repositoryName}/actions/artifacts/${artifactId}/zip`, process.env.GITHUB_API_URL || "https://api.github.com");
+    const apiUrl = parseURL(
+      `/repos/${findBy.repositoryOwner}/${findBy.repositoryName}/actions/artifacts/${artifactId}/zip`,
+      process.env.GITHUB_API_URL || "https://api.github.com",
+      `Failed to construct download URL for artifact ${artifactId}`
+    );
     const redirectResponse = await fetch(apiUrl.toString(), {
       headers: {
         Authorization: "Bearer " + findBy.token,
@@ -314,6 +340,9 @@ class DefaultArtifactClient {
       const tempZip = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-artifact-download-")), "artifact.zip");
       digest = await streamToFile(blobResponse, tempZip);
       const unzipResult = spawnSync("unzip", ["-q", tempZip, "-d", destination], { encoding: "utf8" });
+      if (unzipResult.error) {
+        throw unzipResult.error;
+      }
       if (unzipResult.status !== 0) {
         throw new Error(`unzip failed: ${unzipResult.stderr || unzipResult.stdout || "unknown error"}`);
       }

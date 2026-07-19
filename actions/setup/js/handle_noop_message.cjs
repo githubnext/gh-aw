@@ -41,7 +41,7 @@ async function ensureAgentRunsIssue() {
       };
     }
   } catch (error) {
-    throw new Error(`${ERR_API}: Failed to search for existing no-op runs issue: ${getErrorMessage(error)}`);
+    throw new Error(`${ERR_API}: Failed to search for existing no-op runs issue: ${getErrorMessage(error)}`, { cause: error });
   }
 
   // Create no-op runs issue if it doesn't exist
@@ -49,7 +49,12 @@ async function ensureAgentRunsIssue() {
 
   // Load template from file
   const templatePath = getPromptPath("noop_runs_issue.md");
-  const parentBodyContent = fs.readFileSync(templatePath, "utf8");
+  let parentBodyContent;
+  try {
+    parentBodyContent = fs.readFileSync(templatePath, "utf8");
+  } catch (err) {
+    throw new Error(`Failed to read file ${templatePath}: ${String(err)}`, { cause: err });
+  }
 
   const parentBody = generateFooterWithExpiration({
     footerText: parentBodyContent,

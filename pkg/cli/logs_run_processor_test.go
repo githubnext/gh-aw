@@ -179,3 +179,44 @@ func TestTryLoadCachedRunResultUsesCacheWhenEvalsNotRequested(t *testing.T) {
 	require.NotNil(t, result)
 	assert.True(t, result.Cached)
 }
+
+// TestTryLoadCachedRunResultPersistsSafeItemsCountAfterBackfill verifies that when
+// tryLoadCachedRunResult heals a stale SafeItemsCount (0 → N) via backfillCacheHitIfNeeded,
+// the healed value is written back to run_summary.json on disk so downstream readers
+// (e.g. api-consumption-report) see the correct count without falling back to the
+// activity summary.
+func TestTryLoadCachedRunResultPersistsSafeItemsCountAfterBackfill(t *testing.T) {
+	runOutputDir := t.TempDir()
+
+	// Write a run_summary.json with SafeItemsCount=0 (stale cache).
+	summary := &RunSummary{
+		CLIVersion:  GetVersion(),
+		RunID:       200,
+		ProcessedAt: time.Now(),
+		Run: WorkflowRun{
+			DatabaseID:     200,
+			SafeItemsCount: 0,
+		},
+	}
+	require.NoError(t, saveRunSummary(runOutputDir, summary, false))
+
+	// Write a usage/activity/summary.json so backfill has something to pull from.
+	activityPath := filepath.Join(runOutputDir, "usage", "activity", "summary.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(activityPath), 0o755))
+	require.NoError(t, os.WriteFile(activityPath, []byte(`{
+		"schema":"usage-activity-summary/v1",
+		"safe_outputs":{"total_items":5,"items_by_type":{"create_issue":5}}
+	}`), 0o644))
+
+	result, ok := tryLoadCachedRunResult(context.Background(), WorkflowRun{DatabaseID: 200}, runOutputDir, concurrentRunDownloadParams{})
+	require.True(t, ok)
+	require.NotNil(t, result)
+
+	// In-memory value should be healed.
+	assert.Equal(t, 5, result.Run.SafeItemsCount, "in-memory SafeItemsCount should be backfilled")
+
+	// The on-disk run_summary.json must also reflect the healed value.
+	reloaded, ok := loadRunSummary(runOutputDir, false)
+	require.True(t, ok)
+	assert.Equal(t, 5, reloaded.Run.SafeItemsCount, "on-disk run_summary.json SafeItemsCount should be persisted after backfill")
+}

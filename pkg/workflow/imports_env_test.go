@@ -79,3 +79,16 @@ func TestMergeEnvWithInvalidJSON(t *testing.T) {
 	require.Error(t, err, "mergeEnv should return an error for invalid JSON")
 	assert.Contains(t, err.Error(), "failed to parse imported env JSON", "Error message should be descriptive")
 }
+
+func TestMergeEnvNormalizesImportedWorkflowEnvReferences(t *testing.T) {
+	importedJSON := `{"CENTRAL_AGENTIC_OPS_MODE":"${{ vars.CENTRAL_AGENTIC_OPS_MODE || '' }}","GH_AW_SAFE_OUTPUT_MODE":"${{ github.event.inputs.safe_output_mode || vars.CENTRAL_AGENTIC_OPS_MODE || 'preview' }}","REVIEW_OUTPUT_REPO":"${{ github.event.inputs.safe_output_repo || vars.CENTRAL_AGENTIC_OPS_REVIEW_REPO || '' }}","SAFE_OUTPUT_REPO":"${{ (github.event.inputs.safe_output_mode || vars.CENTRAL_AGENTIC_OPS_MODE || 'preview') == 'review' && env.REVIEW_OUTPUT_REPO || '' }}"}`
+
+	result, err := mergeEnv(nil, importedJSON)
+	require.NoError(t, err, "mergeEnv should inline references to other merged workflow env vars")
+	assert.Equal(
+		t,
+		"${{ (github.event.inputs.safe_output_mode || vars.CENTRAL_AGENTIC_OPS_MODE || 'preview') == 'review' && (github.event.inputs.safe_output_repo || vars.CENTRAL_AGENTIC_OPS_REVIEW_REPO || '') || '' }}",
+		result["SAFE_OUTPUT_REPO"],
+	)
+	assert.NotContains(t, result["SAFE_OUTPUT_REPO"], "env.REVIEW_OUTPUT_REPO")
+}

@@ -2,7 +2,8 @@
 emoji: "🔎"
 description: Daily analysis of detection jobs to identify misconfigured workflows and compare performance between regular runs and runs using the gh-aw detection feature
 on:
-  schedule: daily
+  schedule:
+    - cron: "05 23 * * *" # Offset from other nightly scheduled workflows
   workflow_dispatch:
 max-ai-credits: 1500
 max-daily-ai-credits: 10000
@@ -81,6 +82,10 @@ Collect per-run: `workflow_name`, `status`, `total_tokens`, `engine_id`, `detect
 2. Workflow name contains `audit`, `analyzer`, `report`, `detector`, `monitor`, or `inspector` but lacks `gh-aw-detection: true`
 3. Run has `gh-aw-detection: true` but detection-related steps failed
 4. Workflow alternates between detection-enabled and detection-disabled within the 24h window
+
+Before flagging a name-based mismatch from rule 2, check whether the workflow has an explicitly documented repository-level opt-out. Current documented opt-out:
+
+- `Daily Agentic Workflow AIC Usage Audit` (`.github/workflows/agentic-token-audit.md`) is source-managed from `githubnext/agentic-ops` and should not be reported as misconfigured solely because this repository mirrors the upstream file without adding a local `gh-aw-detection: true` override.
 
 For each misconfigured workflow, record: `workflow_name`, `misconfiguration_type`, `run_count`, `example_run_id`, `recommended_fix`.
 

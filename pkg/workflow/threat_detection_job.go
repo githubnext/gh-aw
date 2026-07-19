@@ -75,15 +75,17 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 
 	// Scan the effective detection engine env values for needs.<customJob>.outputs.*
 	// expressions and add the referenced custom jobs as direct dependencies of the
-	// detection job. safe-outputs.threat-detection.engine overrides the top-level
-	// engine config for detection execution, so its env map must win here as well.
-	detectionEngineConfig := data.EngineConfig
+	// detection job. Use the merged env (main + detection-specific overrides) so
+	// that expressions from the main engine.env are not missed when a detection
+	// engine config exists.
+	var detectionSpecificEnv map[string]string
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.EngineConfig != nil {
-		detectionEngineConfig = data.SafeOutputs.ThreatDetection.EngineConfig
+		detectionSpecificEnv = data.SafeOutputs.ThreatDetection.EngineConfig.Env
 	}
-	if detectionEngineConfig != nil && len(detectionEngineConfig.Env) > 0 {
+	effectiveDetectionEnv := mergeThreatDetectionEngineEnv(data, detectionSpecificEnv)
+	if len(effectiveDetectionEnv) > 0 {
 		var engineEnvBuilder strings.Builder
-		for _, envValue := range detectionEngineConfig.Env {
+		for _, envValue := range effectiveDetectionEnv {
 			engineEnvBuilder.WriteByte('\n')
 			engineEnvBuilder.WriteString(envValue)
 		}

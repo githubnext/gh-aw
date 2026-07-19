@@ -126,9 +126,11 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		version,
 		"Install Claude Code CLI",
 		"claude",
-		true,  // Include Node.js setup
-		true,  // Claude Code requires post-install scripts for native binaries
-		false, // Agentic engine installs should not apply npm release-age cooldown
+		NPMInstallOptions{
+			IncludeNodeSetup:  true,
+			RunInstallScripts: true,
+			CooldownEnabled:   false,
+		},
 	)
 	if isDockerSbxRuntime(workflowData) {
 		npmSteps = append(npmSteps, GenerateDockerSbxNpmCLIInstallStep(

@@ -532,7 +532,7 @@ dir := constants.GetWorkflowDir() // ".github/workflows"
 ## Dependencies
 
 **Internal**:
-- None
+- `github.com/github/gh-aw/pkg/setutil` — set membership helpers
 
 **External**:
 - None beyond the Go standard library (`io/fs`, `os`, `path/filepath`, `time`).
@@ -663,6 +663,10 @@ This appendix is generated from the current non-test Go source files in this pac
 | `job_constants.go` | `var` | `KnownBuiltInJobNames` | `var KnownBuiltInJobNames = map[string]struct{}{ string(AgentJobName): {}, string(ActivationJobName): {}, s…` | KnownBuiltInJobNames contains all known built-in workflow job names (including aliases). |
 
 <!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
+
+## Source Synchronization
+
+Reviewed against recent source updates on 2026-07-17; no additional public-contract deltas were identified beyond the sections above.
 
 ---
 

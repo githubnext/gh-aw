@@ -35,7 +35,7 @@ async function generateWorkflowOverview(core) {
   const summary = "<details>\n" + `<summary>${summaryLabel}</summary>\n\n` + details + "\n" + "</details>";
 
   await core.summary.addRaw(summary).write();
-  console.log("Generated workflow overview in step summary");
+  core.info("Generated workflow overview in step summary");
 }
 
 module.exports = {

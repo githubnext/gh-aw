@@ -38,6 +38,61 @@ const ADD_COMMENT_DISCUSSIONS_DISABLED_NOTE =
   "NOTE: Discussion comments are disabled for this workflow because discussions:write permission is not available. Set 'discussions: true' in the workflow's safe-outputs.add-comment configuration to enable discussion comments and request this permission.";
 const ADD_COMMENT_REPLY_SUPPORT_SENTENCE = "Supports reply_to_id for discussion threading.";
 const ADD_COMMENT_REPLY_SUPPORT_REGEX = /\s*Supports reply_to_id for discussion threading\./g;
+const ISSUE_INTENT_SUFFIX = "INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.";
+const ISSUE_INTENT_TOOL_NAMES = new Set(["set_issue_type", "set_issue_field", "add_labels", "close_issue", "assign_to_user", "assign_to_agent"]);
+const ISSUE_INTENT_SCHEMA_FIELDS = ["rationale", "confidence", "suggest"];
+
+/**
+ * Determine whether issue-intent guidance is enabled for a tool.
+ * Default is disabled; explicit issue_intent: true enables it.
+ *
+ * @param {string} toolName
+ * @param {unknown} toolConfig
+ * @returns {boolean}
+ */
+function isIssueIntentEnabledForTool(toolName, toolConfig) {
+  if (!ISSUE_INTENT_TOOL_NAMES.has(toolName)) {
+    return false;
+  }
+  return !!(toolConfig && typeof toolConfig === "object" && "issue_intent" in toolConfig && toolConfig.issue_intent === true);
+}
+
+/**
+ * Determine whether issue-intent schema fields should be omitted for a tool.
+ * Default is optional (present, not required); explicit issue_intent: false omits them.
+ *
+ * @param {string} toolName
+ * @param {unknown} toolConfig
+ * @returns {boolean}
+ */
+function isIssueIntentDisabledForTool(toolName, toolConfig) {
+  if (!ISSUE_INTENT_TOOL_NAMES.has(toolName)) {
+    return false;
+  }
+  return !!(toolConfig && typeof toolConfig === "object" && "issue_intent" in toolConfig && toolConfig.issue_intent === false);
+}
+
+/**
+ * Remove issue-intent properties from a tool schema.
+ * If this removes all required fields, the required array is omitted.
+ * @param {{inputSchema?: {properties?: Record<string, unknown>, required?: string[]}}} tool
+ */
+function stripIssueIntentSchemaFields(tool) {
+  if (!tool.inputSchema || !tool.inputSchema.properties) {
+    return;
+  }
+  for (const field of ISSUE_INTENT_SCHEMA_FIELDS) {
+    if (field in tool.inputSchema.properties) {
+      delete tool.inputSchema.properties[field];
+    }
+  }
+  if (Array.isArray(tool.inputSchema.required)) {
+    tool.inputSchema.required = tool.inputSchema.required.filter(f => !ISSUE_INTENT_SCHEMA_FIELDS.includes(f));
+    if (tool.inputSchema.required.length === 0) {
+      delete tool.inputSchema.required;
+    }
+  }
+}
 
 /**
  * Update add_comment description to match runtime-safe-output permissions.
@@ -78,11 +133,19 @@ async function main() {
 
   // Write JSON payloads from env vars if provided (replaces heredoc-based file writing)
   if (process.env.GH_AW_TOOLS_META_JSON) {
-    fs.writeFileSync(toolsMetaPath, process.env.GH_AW_TOOLS_META_JSON);
+    try {
+      fs.writeFileSync(toolsMetaPath, process.env.GH_AW_TOOLS_META_JSON);
+    } catch (err) {
+      throw new Error(`Failed to write file ${toolsMetaPath}: ${String(err)}`, { cause: err });
+    }
   }
   if (process.env.GH_AW_VALIDATION_JSON) {
     const validationPath = path.join(path.dirname(configPath), "validation.json");
-    fs.writeFileSync(validationPath, process.env.GH_AW_VALIDATION_JSON);
+    try {
+      fs.writeFileSync(validationPath, process.env.GH_AW_VALIDATION_JSON);
+    } catch (err) {
+      throw new Error(`Failed to write file ${validationPath}: ${String(err)}`, { cause: err });
+    }
   }
 
   // Load all source tools from the actions folder
@@ -148,8 +211,26 @@ async function main() {
       if (descSuffix) {
         enhancedTool.description = (enhancedTool.description || "") + descSuffix;
       }
-      if (["set_issue_type", "set_issue_field", "add_labels"].includes(tool.name)) {
-        enhancedTool.description = `${enhancedTool.description || ""} INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.`.trim();
+      if (isIssueIntentEnabledForTool(tool.name, config[tool.name])) {
+        enhancedTool.description = `${enhancedTool.description || ""} ${ISSUE_INTENT_SUFFIX}`.trim();
+        // For add_labels strict mode, replace the labels items schema with an object-only
+        // variant that requires name, rationale, and confidence.
+        if (tool.name === "add_labels") {
+          const labelsSchema = enhancedTool.inputSchema?.properties?.labels;
+          if (labelsSchema && labelsSchema.items && Array.isArray(labelsSchema.items.oneOf)) {
+            const objectSchema = labelsSchema.items.oneOf.find(/** @param {{type: string}} s */ s => s.type === "object");
+            if (objectSchema) {
+              labelsSchema.items = {
+                ...objectSchema,
+                required: ["name", "rationale", "confidence"],
+              };
+              delete labelsSchema.items.oneOf;
+            }
+          }
+        }
+      }
+      if (isIssueIntentDisabledForTool(tool.name, config[tool.name])) {
+        stripIssueIntentSchemaFields(enhancedTool);
       }
 
       if (tool.name === "add_comment") {
@@ -192,7 +273,11 @@ async function main() {
   const allFilteredTools = [...filteredTools, ...dynamicTools];
 
   // Write the result to the output path
-  fs.writeFileSync(outputPath, JSON.stringify(allFilteredTools, null, 2));
+  try {
+    fs.writeFileSync(outputPath, JSON.stringify(allFilteredTools, null, 2));
+  } catch (err) {
+    throw new Error(`Failed to write file ${outputPath}: ${String(err)}`, { cause: err });
+  }
 
   const debugEnabled = process.env.DEBUG === "*" || (process.env.DEBUG || "").includes("safe_outputs");
   if (debugEnabled) {

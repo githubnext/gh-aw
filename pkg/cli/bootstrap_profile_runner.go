@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -100,54 +101,19 @@ type bootstrapGitHubAppExchangeResponse struct {
 	Name     string `json:"name"`
 }
 
-type bootstrapGitHubAppRepositoryInstallation struct {
-	ClientID string `json:"client_id"`
-	AppID    int64  `json:"app_id"`
-	AppSlug  string `json:"app_slug"`
-	ID       int64  `json:"id"`
+type bootstrapGitHubAppUserInstallation struct {
+	ID                  int64
+	ClientID            string
+	AppID               string
+	AppSlug             string
+	RepositorySelection string
 }
 
-func buildBootstrapProfilePlan(ctx context.Context, repo string, profile *resolvedBootstrapProfile, sources []string, repoReady bool) (bool, []string, error) {
-	if profile == nil || profile.Profile == nil {
-		return false, nil, nil
-	}
-
-	lines := make([]string, 0, len(profile.Profile.Config))
-	if !repoReady {
-		for _, action := range profile.Profile.Config {
-			if err := validateBootstrapActionPreRepo(ctx, repo, action); err != nil {
-				return false, nil, err
-			}
-			if bootstrapActionCanMutate(action, sources) {
-				lines = append(lines, "- bootstrap profile will configure "+bootstrapActionPlanLabel(action))
-			}
-		}
-		return len(lines) > 0, lines, nil
-	}
-
-	state, err := bootstrapProfileState(ctx, repo)
-	if err != nil {
-		return false, nil, err
-	}
-	usesActionsToken, err := profileSourcesUseActionsTokenCopilotAuth(ctx, sources)
-	if err != nil {
-		return false, nil, err
-	}
-
-	needsMutation := false
-	for _, action := range profile.Profile.Config {
-		pending, err := bootstrapActionNeedsMutation(ctx, repo, action, state, usesActionsToken)
-		if err != nil {
-			return false, nil, err
-		}
-		if pending {
-			needsMutation = true
-			lines = append(lines, "- bootstrap profile will configure "+bootstrapActionPlanLabel(action))
-		}
-	}
-
-	bootstrapLog.Printf("Built bootstrap profile plan: repo=%s, needsMutation=%t, planLines=%d", repo, needsMutation, len(lines))
-	return needsMutation, lines, nil
+// bootstrapGitHubAppFlowChannels holds the send-only channels used to deliver results
+// from the HTTP callback handler back to the manifest-flow coordinator.
+type bootstrapGitHubAppFlowChannels struct {
+	resultCh chan<- *bootstrapCreatedGitHubApp
+	errCh    chan<- error
 }
 
 func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConfig) error {
@@ -177,53 +143,64 @@ func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConf
 		}
 
 		bootstrapLog.Printf("Applying bootstrap action: type=%s", action.Type)
-		switch action.Type {
-		case "require-owner-type":
-			if err := runBootstrapRequireOwnerType(ctx, config.Repo, action); err != nil {
-				return err
-			}
-		case "repo-variable":
-			applied, err := runBootstrapRepoVariableAction(ctx, config.Repo, action, state)
-			if err != nil {
-				return err
-			}
-			if applied {
-				state.variables[action.Name] = struct{}{}
-			}
-		case "repo-secret":
-			applied, err := runBootstrapRepoSecretAction(ctx, config.Repo, action, state)
-			if err != nil {
-				return err
-			}
-			if applied {
-				state.secrets[action.Name] = struct{}{}
-			}
-		case "github-app":
-			_, err := runBootstrapGitHubAppAction(ctx, config.Repo, action, state)
-			if err != nil {
-				return err
-			}
-			state.variables[action.AppIDVariable] = struct{}{}
-			state.secrets[action.PrivateKeySecret] = struct{}{}
-		case "copilot-auth":
-			if config.UseCopilotRequests {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping Copilot PAT setup because org Copilot billing is enabled."))
-				continue
-			}
-			applied, err := runBootstrapCopilotAuthAction(ctx, config.Repo, action, state, usesActionsToken)
-			if err != nil {
-				return err
-			}
-			if applied {
-				state.secrets[action.Secret] = struct{}{}
-			}
-		case "handoff":
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(action.Message))
-		default:
-			return fmt.Errorf("unsupported bootstrap action type %q. Example: use one of %s", action.Type, bootstrapActionTypeExample)
+		if err := applyBootstrapAction(ctx, config, action, state, usesActionsToken); err != nil {
+			return err
 		}
 	}
 
+	return nil
+}
+
+func applyBootstrapAction(ctx context.Context, config bootstrapProfileRunConfig, action repositoryPackageBootstrapAction, state *bootstrapProfileExistingState, usesActionsToken bool) error {
+	switch action.Type {
+	case "require-owner-type":
+		if err := runBootstrapRequireOwnerType(ctx, config.Repo, action); err != nil {
+			return err
+		}
+	case "repo-variable":
+		applied, err := runBootstrapRepoVariableAction(ctx, config.Repo, action, state)
+		if err != nil {
+			return err
+		}
+		if applied {
+			state.variables[action.Name] = struct{}{}
+		}
+	case "repo-secret":
+		applied, err := runBootstrapRepoSecretAction(ctx, config.Repo, action, state)
+		if err != nil {
+			return err
+		}
+		if applied {
+			state.secrets[action.Name] = struct{}{}
+		}
+	case "github-app":
+		_, err := runBootstrapGitHubAppAction(ctx, config.Repo, action, state)
+		if err != nil {
+			return err
+		}
+		state.variables[action.AppIDVariable] = struct{}{}
+		state.secrets[action.PrivateKeySecret] = struct{}{}
+	case "copilot-auth":
+		if config.UseCopilotRequests {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping Copilot PAT setup because org Copilot billing is enabled."))
+			return nil
+		}
+		applied, err := runBootstrapCopilotAuthAction(ctx, config.Repo, action, state, usesActionsToken)
+		if err != nil {
+			return err
+		}
+		if applied {
+			state.secrets[action.Secret] = struct{}{}
+		}
+	case "commit-and-push":
+		if err := runBootstrapCommitAndPushAction(ctx, config.RepoDir, action); err != nil {
+			return err
+		}
+	case "handoff":
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(action.Message))
+	default:
+		return fmt.Errorf("unsupported bootstrap action type %q. Example: use one of %s", action.Type, bootstrapActionTypeExample)
+	}
 	return nil
 }
 
@@ -267,6 +244,8 @@ func bootstrapActionNeedsMutation(ctx context.Context, repo string, action repos
 	case "copilot-auth":
 		_, hasSecret := state.secrets[action.Secret]
 		return !hasSecret && !usesActionsToken, nil
+	case "commit-and-push":
+		return true, nil
 	case "handoff":
 		return false, nil
 	default:
@@ -274,37 +253,54 @@ func bootstrapActionNeedsMutation(ctx context.Context, repo string, action repos
 	}
 }
 
-func validateBootstrapActionPreRepo(ctx context.Context, repo string, action repositoryPackageBootstrapAction) error {
-	if action.Type == "require-owner-type" {
-		return runBootstrapRequireOwnerType(ctx, repo, action)
+func runBootstrapCommitAndPushAction(ctx context.Context, repoDir string, action repositoryPackageBootstrapAction) error {
+	if repoDir == "" {
+		return errors.New("bootstrap commit-and-push requires a local checkout directory. Example: rerun from a git checkout and then rerun gh aw add from that checkout")
 	}
+
+	pending, err := bootstrapRepoHasPendingChanges(ctx, repoDir)
+	if err != nil {
+		return err
+	}
+	if !pending {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping commit and push because the local checkout is already clean."))
+		return nil
+	}
+
+	if _, err := runBootstrapGitCommand(ctx, repoDir, "add", "-A"); err != nil {
+		return err
+	}
+	if _, err := runBootstrapGitCommand(ctx, repoDir, "commit", "-m", action.Message); err != nil {
+		return err
+	}
+	branch, err := getCurrentBranchIn(repoDir)
+	if err != nil {
+		return fmt.Errorf("failed to determine current branch for bootstrap commit-and-push: %w", err)
+	}
+	if _, err := runBootstrapGitCommand(ctx, repoDir, "push", "-u", "origin", branch); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Committed and pushed bootstrap changes"))
 	return nil
 }
 
-func bootstrapActionCanMutate(action repositoryPackageBootstrapAction, sources []string) bool {
-	switch action.Type {
-	case "repo-variable", "repo-secret", "github-app":
-		return true
-	case "copilot-auth":
-		return true
-	default:
-		return false
+func bootstrapRepoHasPendingChanges(ctx context.Context, repoDir string) (bool, error) {
+	output, err := runBootstrapGitCommand(ctx, repoDir, "status", "--porcelain")
+	if err != nil {
+		return false, err
 	}
+	return strings.TrimSpace(string(output)) != "", nil
 }
 
-func bootstrapActionPlanLabel(action repositoryPackageBootstrapAction) string {
-	switch action.Type {
-	case "repo-variable":
-		return "repository variable " + action.Name
-	case "repo-secret":
-		return "repository secret " + action.Name
-	case "github-app":
-		return fmt.Sprintf("GitHub App credentials (%s, %s)", action.AppIDVariable, action.PrivateKeySecret)
-	case "copilot-auth":
-		return "Copilot secret " + action.Secret
-	default:
-		return action.Type
+func runBootstrapGitCommand(ctx context.Context, repoDir string, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Dir = repoDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return output, fmt.Errorf("failed to run git %s in %s: %w\n%s", strings.Join(args, " "), repoDir, err, strings.TrimSpace(string(output)))
 	}
+	return output, nil
 }
 
 func runBootstrapRequireOwnerType(ctx context.Context, repo string, action repositoryPackageBootstrapAction) error {
@@ -405,49 +401,22 @@ func runBootstrapGitHubAppAction(ctx context.Context, repo string, action reposi
 		return nil, err
 	}
 
-	var clientID string
-	var privateKey string
-	clientID = strings.TrimSpace(os.Getenv(bootstrapGitHubAppClientIDEnv))
-	privateKey = strings.TrimRight(os.Getenv(bootstrapGitHubAppPrivateKeyEnv), "\r\n")
-	if clientID != "" || privateKey != "" || action.Mode == "existing" || overrides.Mode == "existing" {
-		resolvedClientID, resolvedPrivateKey, err := completeExistingGitHubAppCredentials(clientID, privateKey, action, repo)
-		if err != nil {
-			return nil, err
-		}
-		if err := bootstrapUpsertVariable(ctx, repo, action.AppIDVariable, resolvedClientID); err != nil {
-			return nil, err
-		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Set repository variable "+action.AppIDVariable))
-		if err := bootstrapSetSecret(ctx, repo, action.PrivateKeySecret, resolvedPrivateKey); err != nil {
-			return nil, err
-		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Set repository secret "+action.PrivateKeySecret))
+	clientID := strings.TrimSpace(os.Getenv(bootstrapGitHubAppClientIDEnv))
+	privateKey := strings.TrimRight(os.Getenv(bootstrapGitHubAppPrivateKeyEnv), "\r\n")
+	handled, err := handleBootstrapGitHubAppExistingFlow(ctx, repo, action, overrides, clientID, privateKey)
+	if err != nil {
+		return nil, err
+	}
+	if handled {
 		return nil, nil
 	}
 
-	createNew := action.Mode == "create-or-existing" || overrides.Mode == "create"
-	if createNew {
-		choice := overrides.Mode
-		if choice == "" {
-			choice, err = chooseBootstrapGitHubAppMode()
-			if err != nil {
-				return nil, err
-			}
-		}
-		if choice == "existing" {
-			resolvedClientID, resolvedPrivateKey, err := completeExistingGitHubAppCredentials(clientID, privateKey, action, repo)
-			if err != nil {
-				return nil, err
-			}
-			if err := bootstrapUpsertVariable(ctx, repo, action.AppIDVariable, resolvedClientID); err != nil {
-				return nil, err
-			}
-			if err := bootstrapSetSecret(ctx, repo, action.PrivateKeySecret, resolvedPrivateKey); err != nil {
-				return nil, err
-			}
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured existing GitHub App credentials"))
-			return nil, nil
-		}
+	handled, err = handleBootstrapGitHubAppCreateOrExistingChoice(ctx, repo, action, overrides)
+	if err != nil {
+		return nil, err
+	}
+	if handled {
+		return nil, nil
 	}
 
 	if !bootstrapIsInteractive() && overrides.Mode != "create" {
@@ -471,6 +440,61 @@ func runBootstrapGitHubAppAction(ctx context.Context, repo string, action reposi
 		}
 	}
 	return createdApp, nil
+}
+
+// handleBootstrapGitHubAppExistingFlow handles the path where existing app credentials
+// are provided via environment variables or an explicit "existing" mode override.
+// Returns (true, nil) when credentials were applied and the caller should return, or
+// (false, nil) when no existing credentials were detected and the caller should proceed.
+func handleBootstrapGitHubAppExistingFlow(ctx context.Context, repo string, action repositoryPackageBootstrapAction, overrides bootstrapGitHubAppOverrides, clientID, privateKey string) (bool, error) {
+	if clientID == "" && privateKey == "" && action.Mode != "existing" && overrides.Mode != "existing" {
+		return false, nil
+	}
+	resolvedClientID, resolvedPrivateKey, err := completeExistingGitHubAppCredentials(clientID, privateKey, action, repo)
+	if err != nil {
+		return false, err
+	}
+	if err := bootstrapUpsertVariable(ctx, repo, action.AppIDVariable, resolvedClientID); err != nil {
+		return false, err
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Set repository variable "+action.AppIDVariable))
+	if err := bootstrapSetSecret(ctx, repo, action.PrivateKeySecret, resolvedPrivateKey); err != nil {
+		return false, err
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Set repository secret "+action.PrivateKeySecret))
+	return true, nil
+}
+
+// handleBootstrapGitHubAppCreateOrExistingChoice handles the "create-or-existing" action
+// mode, prompting interactively when needed. Returns (true, nil) when the user chose an
+// existing app and credentials were applied, or (false, nil) to proceed with creation.
+func handleBootstrapGitHubAppCreateOrExistingChoice(ctx context.Context, repo string, action repositoryPackageBootstrapAction, overrides bootstrapGitHubAppOverrides) (bool, error) {
+	if action.Mode != "create-or-existing" && overrides.Mode != "create" {
+		return false, nil
+	}
+	choice := overrides.Mode
+	var err error
+	if choice == "" {
+		choice, err = chooseBootstrapGitHubAppMode()
+		if err != nil {
+			return false, err
+		}
+	}
+	if choice != "existing" {
+		return false, nil
+	}
+	resolvedClientID, resolvedPrivateKey, err := completeExistingGitHubAppCredentials("", "", action, repo)
+	if err != nil {
+		return false, err
+	}
+	if err := bootstrapUpsertVariable(ctx, repo, action.AppIDVariable, resolvedClientID); err != nil {
+		return false, err
+	}
+	if err := bootstrapSetSecret(ctx, repo, action.PrivateKeySecret, resolvedPrivateKey); err != nil {
+		return false, err
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured existing GitHub App credentials"))
+	return true, nil
 }
 
 func chooseBootstrapGitHubAppMode() (string, error) {
@@ -526,29 +550,11 @@ func createBootstrapGitHubApp(ctx context.Context, repo, owner, repoName, ownerT
 	}
 	defer listener.Close()
 
-	appOwner := owner
-	appOwnerType := ownerType
-	if overrides.Owner != "" {
-		appOwner = overrides.Owner
-		appOwnerType, err = bootstrapCheckOwnerType(ctx, appOwner)
-		if err != nil {
-			return nil, err
-		}
+	appOwner, appOwnerType, appName, homepageURL, description, err := setupBootstrapGitHubAppDetails(ctx, repo, owner, ownerType, action, overrides)
+	if err != nil {
+		return nil, err
 	}
 
-	appName := deriveBootstrapAppName(repo, firstNonEmpty(overrides.Name, action.AppName))
-	homepageURL := strings.TrimSpace(firstNonEmpty(overrides.HomepageURL, action.HomepageURL))
-	if homepageURL == "" {
-		homepageURL = "https://github.com/" + repo
-	}
-	description := strings.TrimSpace(firstNonEmpty(overrides.Description, action.Description))
-	if description == "" {
-		description = "Bootstrap app for " + repo
-	}
-
-	resultCh := make(chan *bootstrapCreatedGitHubApp, 1)
-	errCh := make(chan error, 1)
-	server := &http.Server{}
 	redirectURL := fmt.Sprintf("http://%s/callback", listener.Addr().String())
 	manifest := buildBootstrapGitHubAppManifest(action, appName, homepageURL, redirectURL, description)
 	bootstrapLog.Printf("Creating GitHub App via browser manifest flow: appOwner=%s, appName=%s, redirectURL=%s", appOwner, appName, redirectURL)
@@ -558,51 +564,12 @@ func createBootstrapGitHubApp(ctx context.Context, repo, owner, repoName, ownerT
 		return nil, fmt.Errorf("failed to encode GitHub App registration manifest for browser handoff; report this issue if it persists: %w", err)
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(registrationPage))
-	})
-	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		returnedState := r.URL.Query().Get("state")
-		code := r.URL.Query().Get("code")
-		if code == "" {
-			http.Error(w, "Missing GitHub App manifest code.", http.StatusBadRequest)
-			select {
-			case errCh <- errors.New("GitHub did not return an app manifest code"):
-			default:
-			}
-			return
-		}
-		if returnedState != state {
-			http.Error(w, "State mismatch while creating the GitHub App.", http.StatusBadRequest)
-			select {
-			case errCh <- errors.New("state mismatch while creating the GitHub App"):
-			default:
-			}
-			return
-		}
-		createdApp, exchangeErr := exchangeBootstrapGitHubAppCode(ctx, code, owner, ownerType, appName, description)
-		if exchangeErr != nil {
-			http.Error(w, "GitHub App creation completed, but gh aw could not exchange the manifest code.", http.StatusInternalServerError)
-			select {
-			case errCh <- exchangeErr:
-			default:
-			}
-			return
-		}
-		if createdApp.InstallURL != "" {
-			http.Redirect(w, r, createdApp.InstallURL, http.StatusFound)
-		} else {
-			w.WriteHeader(http.StatusNoContent)
-		}
-		select {
-		case resultCh <- createdApp:
-		default:
-		}
-	})
-	server.Handler = mux
-
+	resultCh := make(chan *bootstrapCreatedGitHubApp, 1)
+	errCh := make(chan error, 1)
+	flowCh := bootstrapGitHubAppFlowChannels{resultCh: resultCh, errCh: errCh}
+	server := &http.Server{
+		Handler: buildBootstrapGitHubAppMux(ctx, state, appOwner, appOwnerType, appName, description, registrationPage, flowCh),
+	}
 	go func() {
 		_ = server.Serve(listener)
 	}()
@@ -612,10 +579,7 @@ func createBootstrapGitHubApp(ctx context.Context, repo, owner, repoName, ownerT
 
 	printBootstrapGitHubAppManifestReview(appOwner, manifest)
 	openURL := fmt.Sprintf("http://%s/register", listener.Addr().String())
-	opened := false
-	if overrides.OpenBrowser {
-		opened = openBootstrapBrowser(openURL)
-	}
+	opened := overrides.OpenBrowser && openBootstrapBrowser(openURL)
 	if !opened {
 		fmt.Fprintln(os.Stderr, console.FormatCommandMessage(openURL))
 	}
@@ -633,6 +597,80 @@ func createBootstrapGitHubApp(ctx context.Context, repo, owner, repoName, ownerT
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+// setupBootstrapGitHubAppDetails resolves the effective app owner (applying any override)
+// and derives the app name, homepage URL, and description from the action and overrides.
+func setupBootstrapGitHubAppDetails(ctx context.Context, repo, owner, ownerType string, action repositoryPackageBootstrapAction, overrides bootstrapGitHubAppOverrides) (string, string, string, string, string, error) {
+	appOwner := owner
+	appOwnerType := ownerType
+	if overrides.Owner != "" {
+		appOwner = overrides.Owner
+		var err error
+		appOwnerType, err = bootstrapCheckOwnerType(ctx, appOwner)
+		if err != nil {
+			return "", "", "", "", "", err
+		}
+	}
+	appName := deriveBootstrapAppName(repo, firstNonEmpty(overrides.Name, action.AppName))
+	homepageURL := strings.TrimSpace(firstNonEmpty(overrides.HomepageURL, action.HomepageURL))
+	if homepageURL == "" {
+		homepageURL = "https://github.com/" + repo
+	}
+	description := strings.TrimSpace(firstNonEmpty(overrides.Description, action.Description))
+	if description == "" {
+		description = "Bootstrap app for " + repo
+	}
+	return appOwner, appOwnerType, appName, homepageURL, description, nil
+}
+
+// buildBootstrapGitHubAppMux constructs the HTTP mux that handles the GitHub App manifest
+// registration flow, including the /register page and the /callback that exchanges the code.
+func buildBootstrapGitHubAppMux(ctx context.Context, csrfState, owner, ownerType, appName, description, registrationPage string, flowCh bootstrapGitHubAppFlowChannels) *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = io.WriteString(w, registrationPage)
+	})
+	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
+		returnedState := r.URL.Query().Get("state")
+		code := r.URL.Query().Get("code")
+		if code == "" {
+			http.Error(w, "Missing GitHub App manifest code.", http.StatusBadRequest)
+			select {
+			case flowCh.errCh <- errors.New("GitHub did not return an app manifest code"):
+			default:
+			}
+			return
+		}
+		if returnedState != csrfState {
+			http.Error(w, "State mismatch while creating the GitHub App.", http.StatusBadRequest)
+			select {
+			case flowCh.errCh <- errors.New("state mismatch while creating the GitHub App"):
+			default:
+			}
+			return
+		}
+		createdApp, exchangeErr := exchangeBootstrapGitHubAppCode(ctx, code, owner, ownerType, appName, description)
+		if exchangeErr != nil {
+			http.Error(w, "GitHub App creation completed, but gh aw could not exchange the manifest code.", http.StatusInternalServerError)
+			select {
+			case flowCh.errCh <- exchangeErr:
+			default:
+			}
+			return
+		}
+		if createdApp.InstallURL != "" {
+			http.Redirect(w, r, createdApp.InstallURL, http.StatusFound)
+		} else {
+			w.WriteHeader(http.StatusNoContent)
+		}
+		select {
+		case flowCh.resultCh <- createdApp:
+		default:
+		}
+	})
+	return mux
 }
 
 func loadBootstrapGitHubAppOverrides() (bootstrapGitHubAppOverrides, error) {
@@ -733,21 +771,97 @@ func waitForBootstrapGitHubAppInstallation(ctx context.Context, repo string, cre
 }
 
 func bootstrapGitHubAppInstalled(ctx context.Context, repo string, createdApp *bootstrapCreatedGitHubApp) (bool, error) {
-	output, err := runBootstrapGHContext(ctx, "Checking GitHub App installation...", "api", "/repos/"+repo+"/installation")
+	installations, err := listBootstrapUserInstallations(ctx)
 	if err != nil {
 		return false, err
 	}
-	var payload bootstrapGitHubAppRepositoryInstallation
-	if err := json.Unmarshal(output, &payload); err != nil {
-		return false, err
-	}
-	if payload.ClientID != "" && payload.ClientID == createdApp.ClientID {
-		return payload.ID > 0, nil
-	}
-	if payload.AppSlug == createdApp.Slug || strconv.FormatInt(payload.AppID, 10) == createdApp.AppID {
-		return payload.ID > 0, nil
+	for _, installation := range installations {
+		if !bootstrapGitHubAppInstallationMatches(installation, createdApp) {
+			continue
+		}
+		if installation.RepositorySelection != "selected" || repo == "" {
+			return installation.ID > 0, nil
+		}
+		repositories, err := listBootstrapUserInstallationRepositories(ctx, installation.ID)
+		if err != nil {
+			return false, err
+		}
+		for _, repository := range repositories {
+			if strings.EqualFold(repository, repo) {
+				return true, nil
+			}
+		}
+		return false, nil
 	}
 	return false, nil
+}
+
+func listBootstrapUserInstallations(ctx context.Context) ([]bootstrapGitHubAppUserInstallation, error) {
+	output, err := runBootstrapGHContext(
+		ctx,
+		"Checking GitHub App installation...",
+		"api",
+		"/user/installations?per_page=100",
+		"--paginate",
+		"--jq",
+		`.installations[] | [(.id|tostring), (.client_id // ""), (.app_id|tostring), .app_slug, .repository_selection] | @tsv`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	trimmed := strings.TrimSpace(string(output))
+	if trimmed == "" {
+		return nil, nil
+	}
+	lines := strings.Split(trimmed, "\n")
+	installations := make([]bootstrapGitHubAppUserInstallation, 0, len(lines))
+	for _, line := range lines {
+		fields := strings.Split(line, "\t")
+		if len(fields) != 5 {
+			return nil, fmt.Errorf("failed to parse user installation response line %q", line)
+		}
+		installationID, err := strconv.ParseInt(fields[0], 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse user installation id %q: %w", fields[0], err)
+		}
+		installations = append(installations, bootstrapGitHubAppUserInstallation{
+			ID:                  installationID,
+			ClientID:            fields[1],
+			AppID:               fields[2],
+			AppSlug:             fields[3],
+			RepositorySelection: fields[4],
+		})
+	}
+	return installations, nil
+}
+
+func listBootstrapUserInstallationRepositories(ctx context.Context, installationID int64) ([]string, error) {
+	output, err := runBootstrapGHContext(
+		ctx,
+		"Checking GitHub App installation repositories...",
+		"api",
+		fmt.Sprintf("/user/installations/%d/repositories?per_page=100", installationID),
+		"--paginate",
+		"--jq",
+		".repositories[].full_name",
+	)
+	if err != nil {
+		return nil, err
+	}
+	return parseBootstrapNames(output), nil
+}
+
+func bootstrapGitHubAppInstallationMatches(installation bootstrapGitHubAppUserInstallation, createdApp *bootstrapCreatedGitHubApp) bool {
+	if createdApp == nil {
+		return false
+	}
+	if installation.ClientID != "" && createdApp.ClientID != "" && installation.ClientID == createdApp.ClientID {
+		return true
+	}
+	if installation.AppSlug != "" && createdApp.Slug != "" && installation.AppSlug == createdApp.Slug {
+		return true
+	}
+	return installation.AppID != "" && createdApp.AppID != "" && installation.AppID == createdApp.AppID
 }
 
 func listBootstrapRepoVariableNames(ctx context.Context, repo string) ([]string, error) {

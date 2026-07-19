@@ -191,16 +191,16 @@ func TestFormatWarningMessage(t *testing.T) {
 
 func TestFormatHelpersWithTTYCheck(t *testing.T) {
 	t.Run("plain output when tty check is false", func(t *testing.T) {
-		if got := formatInfoMessageWithTTY("processing file", func() bool { return false }); got != "i processing file" {
+		if got := formatInfoMessageWithTTY("processing file", func() bool { return false }, nil); got != "i processing file" {
 			t.Fatalf("expected unstyled info message, got %q", got)
 		}
-		if got := formatSuccessMessageWithTTY("done", func() bool { return false }); got != "✓ done" {
+		if got := formatSuccessMessageWithTTY("done", func() bool { return false }, nil); got != "✓ done" {
 			t.Fatalf("expected unstyled success message, got %q", got)
 		}
-		if got := formatListItemWithTTY("item", func() bool { return false }); got != "  • item" {
+		if got := formatListItemWithTTY("item", func() bool { return false }, nil); got != "  • item" {
 			t.Fatalf("expected unstyled list item, got %q", got)
 		}
-		if got := formatSectionHeaderWithTTY("Header", func() bool { return false }); got != "Header" {
+		if got := formatSectionHeaderWithTTY("Header", func() bool { return false }, nil); got != "Header" {
 			t.Fatalf("expected unstyled header, got %q", got)
 		}
 	})
@@ -210,9 +210,27 @@ func TestFormatHelpersWithTTYCheck(t *testing.T) {
 		_ = formatInfoMessageWithTTY("x", func() bool {
 			calls++
 			return false
-		})
+		}, nil)
 		if calls != 1 {
 			t.Fatalf("expected tty check to be called once, got %d", calls)
+		}
+	})
+
+	t.Run("stdout helpers strip ansi when NO_COLOR is set", func(t *testing.T) {
+		environ := []string{"NO_COLOR=1", "TERM=xterm-256color"}
+		if got := formatInfoMessageWithTTY("processing file", func() bool { return true }, environ); got != "i processing file" {
+			t.Fatalf("expected info message without ANSI, got %q", got)
+		}
+		if got := formatSuccessMessageWithTTY("done", func() bool { return true }, environ); got != "✓ done" {
+			t.Fatalf("expected success message without ANSI, got %q", got)
+		}
+		if got := formatListItemWithTTY("item", func() bool { return true }, environ); got != "  • item" {
+			t.Fatalf("expected list item without ANSI, got %q", got)
+		}
+		if got := formatSectionHeaderWithTTY("Header", func() bool { return true }, environ); strings.Contains(got, "\x1b[") {
+			t.Fatalf("expected section header without ANSI, got %q", got)
+		} else if !strings.Contains(got, "Header") {
+			t.Fatalf("expected section header text to be preserved, got %q", got)
 		}
 	})
 }
@@ -293,6 +311,23 @@ func TestRenderTable(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestRenderTableWithTTY_StripsAnsiWhenNoColorIsSet(t *testing.T) {
+	output := renderTableWithTTY(TableConfig{
+		Title:   "Workflow Results",
+		Headers: []string{"Name", "Status"},
+		Rows:    [][]string{{"build", "success"}},
+	}, func() bool { return true }, []string{"NO_COLOR=1", "TERM=xterm-256color"}, true)
+
+	if strings.Contains(output, "\x1b[") {
+		t.Fatalf("expected NO_COLOR table output without ANSI escapes, got %q", output)
+	}
+	for _, want := range []string{"Workflow Results", "Name", "Status", "build", "success"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("expected output to contain %q, got %q", want, output)
+		}
 	}
 }
 

@@ -203,6 +203,25 @@ Remove deprecated `--old-flag` option
 **Reason**: The option was deprecated in v0.X.0 and has been removed to simplify the CLI.
 ```
 
+**Schema breaking change example** (removing a top-level frontmatter field):
+
+```markdown
+---
+"gh-aw": major
+---
+
+Remove deprecated top-level `defaults` field from workflow frontmatter schema
+
+**⚠️ Breaking Change**: The `defaults` field has been removed from the workflow frontmatter schema.
+
+**Migration guide:**
+- Workflows that declare `defaults:` at the top level must be updated.
+- Move any `defaults.run.shell` settings into the individual step definitions.
+- Run `gh aw compile` after updating; compilation will fail with a schema validation error if `defaults:` is still present, making affected workflows easy to identify.
+
+**Reason**: The `defaults` block was deprecated in v0.24.0 when per-step shell configuration was introduced. It is now removed to reduce schema surface area.
+```
+
 ### Changeset Format for Non-Breaking Changes
 
 For new features:
@@ -237,15 +256,21 @@ Reviewers should verify:
 
 ## Exit Code Standards
 
-The CLI uses standard exit codes:
+The CLI uses the following exit codes. Codes are defined in `pkg/cli/exit_code_error.go` (`ExitCodeError`) and set at specific call sites:
 
-| Exit Code | Meaning | Breaking to Change |
-|-----------|---------|-------------------|
-| 0 | Success | No (adding is fine) |
-| 1 | General error | No (for new errors) |
-| 2 | Invalid usage | No (for new checks) |
+| Exit Code | Meaning | Subcommand(s) | Source Reference | Breaking to Change |
+|-----------|---------|---------------|-----------------|-------------------|
+| 0 | Success — no action needed | `gh aw upgrade` (already up to date) | `pkg/cli/upgrade_command.go` | Yes — changing a success to non-zero breaks scripts |
+| 1 | General / processing error | `gh aw fix` (codemod processing failure) | `pkg/cli/fix_command.go` | Yes — changing an error scenario to 0 masks failures |
+| 2 | Manual intervention required | `gh aw fix` (issues require human fixes) | `pkg/cli/fix_command.go` | Yes — scripts may branch on code 2 vs 1 |
+| 124 | Timeout | `gh aw forecast` (computation deadline exceeded) | `pkg/cli/forecast.go` | Yes — timeout semantics are relied on by CI wrappers |
+| 130 | User cancellation (SIGINT) | Any interactive secret-collection prompt | `pkg/cli/engine_secrets.go` | Yes — shells use 130 to detect Ctrl-C; changing it breaks shell handlers |
 
-**Breaking**: Changing the exit code for an existing scenario (e.g., changing from 1 to 2 for a specific error type).
+> **Note:** Source references point to the Go files where these codes are set via `ExitCodeError`. Line numbers are not pinned here as they shift over time; search for `ExitCodeError{Code: <N>}` in the referenced file to locate the exact call site.
+
+**Breaking**: Changing the exit code for an *existing* scenario (e.g., changing from 1 to 2 for a specific error type already in production).
+
+**Not Breaking**: Adding a new exit code for a *new* scenario that did not previously exist.
 
 ## JSON Output Standards
 
@@ -264,6 +289,32 @@ Special consideration for strict mode changes:
 - **Making strict mode validation refuse instead of warn** is breaking (e.g., v0.30.0)
 - **Changing strict mode defaults** is breaking (e.g., v0.31.0)
 - **Adding new strict mode validations** is not breaking (strictness is opt-in initially)
+
+## Approvals / Norms
+
+### Who Approves Major-Version Bumps
+
+A changeset marked `major` (breaking change) requires explicit review and approval before merge:
+
+- **Minimum quorum:** At least **2 maintainer approvals** on the PR. A single maintainer approval is insufficient for breaking changes, regardless of how small the change appears.
+- **Maintainer role:** A maintainer is any contributor listed in `CODEOWNERS` with write or admin access to the repository. For internal contributors, this maps to the `@github/gh-aw-maintainers` team. External contributors can identify current maintainers via the `CODEOWNERS` file at the repository root.
+- **Author exclusion:** The PR author does not count toward the quorum even if they are a maintainer.
+- **Review window:** Breaking change PRs must remain open for a minimum of **48 hours** after the first maintainer approval to allow the team to surface objections.
+
+### Escalation Path
+
+If consensus cannot be reached within the normal review process:
+
+1. Open a discussion in the `gh-aw` repo tagged `breaking-change-decision`.
+2. Any maintainer may call a synchronous review meeting if the change is time-sensitive.
+3. The final decision rests with the repository owner if the team is deadlocked.
+
+### Documentation Requirements
+
+Every major changeset **must** include:
+- A CHANGELOG entry with migration guidance.
+- An updated help text (if the changed surface is user-visible).
+- A link to a tracking issue or discussion if the breaking change was previously discussed.
 
 ## References
 

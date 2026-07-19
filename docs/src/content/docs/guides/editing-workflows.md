@@ -117,10 +117,29 @@ Run this command: ${{ github.event.comment.body }}
 
 Use `steps.sanitized.outputs.text` for sanitized user input instead.
 
+## Recompiling with a Stable Schedule Seed
+
+If a workflow uses fuzzy schedules such as `daily`, `weekly`, or `every 2h`, recompilation can change the generated cron output when the compiler derives its scatter seed from repository metadata that differs across clones.
+
+For shared repositories, pass a canonical repository slug with `--schedule-seed` so every contributor generates the same cron expressions:
+
+```bash
+gh aw compile --schedule-seed github/gh-aw
+```
+
+The repository `Makefile` uses this pattern in `make recompile`:
+
+```bash
+make recompile
+```
+
+Use a fixed seed whenever deterministic schedule output matters, especially for workflows committed to version control.
+
 ## Quick Rule of Thumb
 
 - Edit the markdown body for instruction changes.
 - Recompile after any frontmatter change.
+- Use `--schedule-seed` or a project `make recompile` target when fuzzy schedules must compile deterministically across contributors.
 - Use sanitized step outputs instead of raw user input in expressions.
 
 ## Related Documentation

@@ -206,4 +206,16 @@ describe("model_costs.cjs", () => {
     // AIC  = 0.00336 / 0.01 = 0.336
     expect(aic).toBeCloseTo(0.336, 6);
   });
+
+  it("falls back to bundled models.json when GH_AW_MODELS_JSON_PATH points to a non-existent file", async () => {
+    // Simulate the detection/evals job scenario: GH_AW_MODELS_JSON_PATH is set to
+    // /tmp/gh-aw/models.json but that file was never downloaded from the activation artifact.
+    process.env.GH_AW_MODELS_JSON_PATH = "/tmp/gh-aw-test-nonexistent-path/models.json";
+    const { loadModelsJson } = await import("./model_costs.cjs");
+    const result = loadModelsJson();
+    // Should fall back to the bundled models.json and return a valid catalog, not null.
+    expect(result).not.toBeNull();
+    expect(typeof result).toBe("object");
+    expect(result).toHaveProperty("providers");
+  });
 });

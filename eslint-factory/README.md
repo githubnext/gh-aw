@@ -16,6 +16,28 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 
 ## Rules
 
+| Rule | Description |
+|---|---|
+| [`no-core-exportvariable-non-string`](#no-core-exportvariable-non-string) | Require explicit string values for `core.exportVariable` calls |
+| [`no-core-setoutput-non-string`](#no-core-setoutput-non-string) | Require explicit string values for `core.setOutput` calls |
+| [`no-github-request-interpolated-route`](#no-github-request-interpolated-route) | Disallow interpolated route arguments in Octokit `.request()` calls |
+| [`no-json-stringify-error`](#no-json-stringify-error) | Disallow `JSON.stringify()` on caught error variables |
+| [`no-throw-plain-object`](#no-throw-plain-object) | Disallow throwing plain object literals |
+| [`no-unsafe-catch-error-property`](#no-unsafe-catch-error-property) | Disallow unsafe property access on `catch` error bindings |
+| [`no-unsafe-promise-catch-error-property`](#no-unsafe-promise-catch-error-property) | Disallow unsafe property access in promise rejection handlers |
+| [`prefer-get-error-message`](#prefer-get-error-message) | Prefer `getErrorMessage(err)` over the inline ternary pattern |
+| [`prefer-number-isnan`](#prefer-number-isnan) | Prefer `Number.isNaN()` over global `isNaN()` |
+| [`require-async-entrypoint-catch`](#require-async-entrypoint-catch) | Require `.catch(...)` on bare async entrypoint calls |
+| [`require-await-core-summary-write`](#require-await-core-summary-write) | Require `await` on `core.summary.write()` calls |
+| [`require-error-cause-in-rethrow`](#require-error-cause-in-rethrow) | Require `{ cause: err }` when rethrowing inside a `catch` block |
+| [`require-fs-sync-try-catch`](#require-fs-sync-try-catch) | Require try/catch around `fs.readFileSync`, `writeFileSync`, and `appendFileSync` |
+| [`require-json-parse-try-catch`](#require-json-parse-try-catch) | Require try/catch around `JSON.parse(...)` calls |
+| [`require-mkdirsync-try-catch`](#require-mkdirsync-try-catch) | Require try/catch around `fs.mkdirSync` calls |
+| [`require-new-url-try-catch`](#require-new-url-try-catch) | Require try/catch around `new URL(variable)` calls |
+| [`require-parseInt-radix`](#require-parseInt-radix) | Require an explicit radix argument to `parseInt()` |
+| [`require-return-after-core-setfailed`](#require-return-after-core-setfailed) | Require a control-transfer statement after `core.setFailed()` |
+| [`require-spawnsync-error-check`](#require-spawnsync-error-check) | Require checking `result.error` after `spawnSync` calls |
+
 ### `no-github-request-interpolated-route`
 
 Disallow template literals with interpolations or string concatenation expressions as the route argument of Octokit `.request()` calls.
@@ -50,6 +72,29 @@ github.request("GET /repos/{owner}/{repo}", { owner, repo });
 
 For helpers that receive the entire route as a parameter, there is no mechanical `{owner}` / `{repo}` rewrite. Pass a typed route string from the caller instead of interpolating `POST ${endpoint}` or `"POST " + endpoint` at the helper call site.
 
+### `no-core-exportvariable-non-string`
+
+Require `core.exportVariable(name, value)` calls to pass an explicit string value for the targeted low-false-positive cases: numeric literals, boolean literals, `null`, `undefined`, and `.length` member accesses.
+
+Why: GitHub Actions environment variables exported by `core.exportVariable` are always strings. Relying on implicit coercion can silently emit `"null"`, `"undefined"`, `"true"`, or other unintended values into downstream expressions that read the variable.
+
+**Detected forms:**
+- `core.exportVariable("MY_VAR", 42)` — numeric literal value.
+- `core.exportVariable("MY_FLAG", true)` / `...false` — boolean literal value.
+- `core.exportVariable("MY_VAR", null)` / `...undefined` — null or undefined value.
+- `core.exportVariable("MY_COUNT", items.length)` — `.length` member access.
+- `core["exportVariable"]("MY_VAR", 42)` — computed string-literal property access.
+- `coreObj.exportVariable("MY_VAR", 42)` — the `coreObj` alias for `@actions/core`.
+
+**Out of scope:**
+- Variable references (e.g. `core.exportVariable("MY_VAR", someVariable)`) — the rule does not resolve variable types.
+- Methods other than `exportVariable` — use `no-core-setoutput-non-string` for `setOutput`.
+- Objects whose name is not in the known `@actions/core` alias list (`core`, `coreObj`).
+
+**Safe alternatives:**
+- `core.exportVariable("MY_COUNT", String(items.length))` — explicit coercion.
+- `core.exportVariable("MY_VAR", "")` — empty-string semantics when `null` / `undefined` is intended to mean "not set".
+
 ### `no-json-stringify-error`
 
 Disallow `JSON.stringify()` on caught error variables. `Error` properties (`message`, `stack`, etc.) are non-enumerable, so `JSON.stringify(err)` silently produces `{}`.
@@ -82,6 +127,29 @@ Flagged forms:
 - `global.isNaN(x)` / `global["isNaN"](x)`
 
 Locally shadowed bindings (e.g. `const isNaN = Number.isNaN`) are intentionally excluded.
+
+### `no-throw-plain-object`
+
+Disallow throwing plain object literals (`throw { ... }`). Plain objects lack a `.stack` trace and a meaningful `.message` string, making errors hard to debug and incompatible with catch-clause error utilities such as `getErrorMessage`.
+
+**Detected forms:**
+- `throw { message: "not found" }` — object literal with a `message` property.
+- `throw { code: 500, message: "internal" }` — object literal with extra fields.
+- `throw {}` — empty object literal.
+- `throw { ...base, code: 1 }` — spread elements or computed keys (no autofix suggestion, only an error).
+
+**Out of scope:**
+- `throw err` — identifier references are not checked.
+- `throw new Error(...)` — `Error` constructor calls are always accepted.
+- `throw Object.assign(new Error(...), { ... })` — already in the recommended form.
+
+**JSON-RPC exemption:** Objects that match the JSON-RPC error shape `{ code: <negative integer literal>, message: <any>, data?: <any> }` are intentionally exempt. These are deliberately thrown at protocol boundaries where the receiver reads `code`, `message`, and `data` directly rather than a stack trace. Only keys from `{ code, message, data }` are allowed; extra keys, a positive `code`, a fractional `code`, or a missing `message` disqualify the exemption.
+
+**Safe alternatives:**
+- `throw new Error(message)` — minimal form.
+- `throw Object.assign(new Error(message), { code, ... })` — attaches extra context while preserving the stack trace.
+
+The rule provides an autofix suggestion for plain-key objects: it extracts the `message` property as the `Error` argument and collects remaining properties into `Object.assign(...)`.
 
 ### `no-core-setoutput-non-string`
 
@@ -176,3 +244,141 @@ Flagged forms:
 - `globalThis.parseInt(value)`
 
 Why: omitting the radix allows implicit base detection, which can silently accept prefixes such as `0x`.
+
+### `require-mkdirsync-try-catch`
+
+Require `fs.mkdirSync` calls to be wrapped in `try/catch`.
+
+Why: `mkdirSync` throws synchronously on permission errors, invalid paths, or unexpected filesystem state. An unhandled throw crashes the action without surfacing a useful diagnostic.
+
+**Detected forms:**
+- `fs.mkdirSync(dir)` / `fs.mkdirSync(dir, { recursive: true })` — direct calls on a known `require("fs")` result.
+- `fs["mkdirSync"](dir, ...)` — computed string-literal property access.
+- `const { mkdirSync } = require("fs"); mkdirSync(dir)` — destructured binding from `require("fs")` or `require("node:fs")`.
+- ESM namespace imports: `import * as fs from "fs"; fs.mkdirSync(dir)`.
+- ESM named imports: `import { mkdirSync } from "fs"; mkdirSync(dir)`.
+
+**Out of scope:**
+- Objects whose `require` source is not the Node `fs` / `node:fs` module (e.g. `mockFs.mkdirSync`, `storage.mkdirSync`, or `const fs = require("mock-fs"); fs.mkdirSync`).
+- Other `fs` methods such as `existsSync`, `unlinkSync`, or `statSync` — use `require-fs-sync-try-catch` for `readFileSync`, `writeFileSync`, and `appendFileSync`.
+- `try { ... } finally { ... }` without a `catch` clause is still flagged.
+
+**Safe alternative:**
+```js
+try {
+  fs.mkdirSync(dir, { recursive: true });
+} catch (err) {
+  throw new Error("fs.mkdirSync failed: " + (err instanceof Error ? err.message : String(err)), { cause: err });
+}
+```
+
+### `require-new-url-try-catch`
+
+Require `new URL(variable)` calls to be wrapped in `try/catch`.
+
+Why: the `URL` constructor throws a `TypeError` when given an invalid or relative URL string, which crashes the action with an unhelpful uncaught exception.
+
+**Detected forms:**
+- `new URL(urlStr)` — first argument is a runtime-dynamic expression.
+- `new URL(process.env.GITHUB_SERVER_URL)` — environment variable reference.
+- `` new URL(`https://${host}/path`) `` — template literal with expressions.
+- `new URL(host + "/x")` — string concatenation containing a variable.
+- `new URL("/path", base)` — dynamic second (base) argument.
+- `new URL()` — zero arguments (always throws `TypeError` at runtime).
+
+**Out of scope (not flagged):**
+- `new URL("https://github.com")` — compile-time constant string literal or static concatenation.
+- `` new URL(`https://github.com/static`) `` — template literal with no expressions.
+- `new URL("https://github.com" + "/owner/repo")` — concatenation of string literals only.
+- `new URL(import.meta.url)` — `import.meta.url` is always a valid absolute URL in ES modules.
+- `new URL("./relative/path", import.meta.url)` — `import.meta.url` as the base is safe.
+- `function parse(URL, value) { return new URL(value); }` — `URL` shadowed by a local binding is not the global constructor.
+- Calls already inside a `try` block with a `catch` clause.
+
+**Known limitation — no autofix for `VariableDeclaration`:** when the flagged `new URL(...)` appears as the initializer of a variable declaration (`const u = new URL(urlStr)`), the rule reports the error but emits no autofix suggestion. Wrapping that statement in `try { ... } catch { ... }` would move subsequent uses of `u` outside the `try` block, leaving them referencing an undeclared binding. Only `ExpressionStatement` and `ReturnStatement` positions receive an autofix suggestion.
+
+**Safe alternative:**
+```js
+try {
+  const u = new URL(urlStr);
+  // use u here
+} catch (err) {
+  throw new Error("URL constructor call failed: " + (err instanceof Error ? err.message : String(err)), { cause: err });
+}
+```
+
+### `require-return-after-core-setfailed`
+
+Require a `return`, `throw`, `break`, `continue`, or `process.exit()` statement immediately after `core.setFailed()` to prevent execution from continuing after a failure is declared.
+
+Why: `core.setFailed()` only marks the action as failed at the end of the run — it does **not** stop execution. Any code that follows continues to run in a failed state, which can produce misleading output or unexpected side effects.
+
+**Detected forms:**
+- `core.setFailed(...)` — direct non-computed call on a known `@actions/core` alias (`core`, `coreObj`).
+- `core["setFailed"](...)` — computed string-literal property access.
+- `const c = core; c.setFailed(...)` — single-assignment alias for a core-like object.
+- `const { setFailed } = core; setFailed(...)` — destructured binding from a core-like object (including renamed destructuring such as `const { setFailed: sf } = core`).
+
+**Accepted control-transfer statements:**
+- `return` / `return value`
+- `throw new Error(...)`
+- `process.exit(...)`
+- `break` (inside a loop or switch body)
+- `continue` (inside a loop body)
+
+**Out of scope:**
+- Calls on unrecognized objects: `other.setFailed("bad")` is not flagged.
+- `setFailed("bad")` as a bare identifier call (not destructured from a core alias) is not flagged.
+
+**Known limitation:** `break` and `continue` are accepted as control-transfer statements within loop or switch bodies, but they do not prevent post-loop or post-switch statements from running in a failed state. Detecting that kind of continuation is out of scope.
+
+**Cross-block fall-through:** the rule also flags `core.setFailed(...)` that is the last statement of a nested block when the enclosing block has a subsequent statement that would execute unconditionally after the nested block exits:
+```js
+// Flagged — doMore() runs after setFailed even though they are in different blocks
+function f() {
+  if (!ok) {
+    core.setFailed("msg");
+  }
+  doMore();
+}
+```
+
+**Safe alternative:**
+```js
+if (!ok) {
+  core.setFailed("msg");
+  return;
+}
+doMore(); // only reached when ok is true
+```
+
+### `require-spawnsync-error-check`
+
+Require `spawnSync` result variables to check `result.error` in addition to `result.status`.
+
+Why: when `spawnSync` cannot spawn the child process (e.g. `ENOENT`, `ETIMEDOUT`), `result.status` is `null` and `result.error` holds the actual `Error`. Checking only `result.status` silently swallows spawn-level failures or reports a misleading "exit null" diagnostic.
+
+**Detected forms:**
+- `const result = spawnSync(cmd, args)` — unqualified `spawnSync` identifier.
+- `const result = childProcess.spawnSync(...)` — `childProcess` namespace alias.
+- `const result = child_process.spawnSync(...)` — `child_process` namespace alias.
+- Object-destructuring: `const { status, error } = spawnSync(...)` — the destructured `error` binding must appear in a guard position.
+- Renamed destructuring: `const { error: spawnError } = spawnSync(...)` — the renamed binding must appear in a guard position.
+- String-literal key: `const { "error": spawnError } = spawnSync(...)`.
+
+**Accepted guard positions for `.error`:**
+- `if (result.error) throw result.error;` — direct truthiness check as an `if` test.
+- `if (result.error !== undefined) throw result.error;` — binary comparison as an `if` test.
+- `if (result.status !== 0 || result.error) throw result.error;` — `.error` on the right side of `||` where the full expression is the `if` test.
+- `throw result.error;` / `return result.error;` — direct throw or return.
+- `const e = result.error; if (e) throw e;` — single-assignment immutable alias that is later guarded.
+
+**Out of scope (not recognized as valid guards):**
+- `result.error && result.error.message` — right-hand side of `&&` is not an independent guard.
+- `result.error || new Error("fallback")` — `||` right-hand operand is not a guard.
+- `result.error ?? null` — nullish coalescing is not a guard.
+- `core.info(String(result.error))` — logging without a conditional check does not count.
+- `AssignmentExpression` forms (`result = spawnSync(...)`) and inline chains (`spawnSync(...).status`) are not analyzed.
+- Passing the result object to a helper function that internally checks `.error` is not recognized.
+- Mutable aliases (`let e = result.error; e = undefined; if (e) throw e`) are rejected because the original value may have been discarded before the guard.
+

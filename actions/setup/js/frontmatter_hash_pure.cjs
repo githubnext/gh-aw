@@ -23,7 +23,11 @@ const MAX_SYMLINK_DEPTH = 5;
  * @returns {Promise<string>} File content
  */
 async function defaultFileReader(filePath) {
-  return fs.readFileSync(filePath, "utf8");
+  try {
+    return fs.readFileSync(filePath, "utf8");
+  } catch (err) {
+    throw new Error(`Failed to read file ${filePath}: ${String(err)}`, { cause: err });
+  }
 }
 
 /**
@@ -558,7 +562,8 @@ async function checkRemoteSymlink(github, owner, repo, dirPath, ref, symlinkLook
       }
       return null;
     } catch (err) {
-      const status = err.status || (err.response && err.response.status);
+      const errAny = /** @type {any} */ err;
+      const status = errAny?.status || (errAny?.response && errAny.response.status);
       if (status === HTTP_STATUS_NOT_FOUND || status === HTTP_STATUS_FORBIDDEN || status === HTTP_STATUS_UNAUTHORIZED) {
         return null;
       }

@@ -23,24 +23,31 @@ import (
 
 var tokenUsageLog = logger.New("cli:token_usage")
 
+// TokenCoreMetrics is the single source of truth for the token-usage quartet
+// shared across per-request, per-model, and per-run representations.
+// All JSON tags use snake_case to match the token-usage.jsonl file format.
+type TokenCoreMetrics struct {
+	InputTokens      int `json:"input_tokens" console:"header:Input,format:number"`
+	OutputTokens     int `json:"output_tokens" console:"header:Output,format:number"`
+	CacheReadTokens  int `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
+	CacheWriteTokens int `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
+	ReasoningTokens  int `json:"reasoning_tokens,omitempty"`
+	EffectiveTokens  int `json:"effective_tokens,omitempty"`
+}
+
 // TokenUsageEntry represents a single line from token-usage.jsonl
 type TokenUsageEntry struct {
-	Schema           string `json:"_schema,omitempty"` // Self-describing record type, e.g. "token-usage/v0.26.0"
-	Timestamp        string `json:"timestamp"`
-	RequestID        string `json:"request_id"`
-	Provider         string `json:"provider"`
-	Model            string `json:"model"`
-	Path             string `json:"path"`
-	Status           int    `json:"status"`
-	Streaming        bool   `json:"streaming"`
-	InputTokens      int    `json:"input_tokens"`
-	OutputTokens     int    `json:"output_tokens"`
-	CacheReadTokens  int    `json:"cache_read_tokens"`
-	CacheWriteTokens int    `json:"cache_write_tokens"`
-	ReasoningTokens  int    `json:"reasoning_tokens"`
-	EffectiveTokens  int    `json:"effective_tokens"`
-	DurationMs       int    `json:"duration_ms"`
-	ResponseBytes    int    `json:"response_bytes"`
+	Schema    string `json:"_schema,omitempty"` // Self-describing record type, e.g. "token-usage/v0.26.0"
+	Timestamp string `json:"timestamp"`
+	RequestID string `json:"request_id"`
+	Provider  string `json:"provider"`
+	Model     string `json:"model"`
+	Path      string `json:"path"`
+	Status    int    `json:"status"`
+	Streaming bool   `json:"streaming"`
+	TokenCoreMetrics
+	DurationMs    int `json:"duration_ms"`
+	ResponseBytes int `json:"response_bytes"`
 }
 
 // AmbientContextMetrics captures token footprint for the first LLM invocation.
@@ -73,20 +80,16 @@ type TokenUsageSummary struct {
 
 // ModelTokenUsage contains per-model token usage statistics
 type ModelTokenUsage struct {
-	Provider         string  `json:"provider"`
-	InputTokens      int     `json:"input_tokens" console:"header:Input,format:number"`
-	OutputTokens     int     `json:"output_tokens" console:"header:Output,format:number"`
-	CacheReadTokens  int     `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
-	CacheWriteTokens int     `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
-	ReasoningTokens  int     `json:"reasoning_tokens,omitempty"`
-	Requests         int     `json:"requests" console:"header:Requests"`
-	DurationMs       int     `json:"duration_ms"`
-	ResponseBytes    int     `json:"response_bytes"`
-	EffectiveTokens  int     `json:"effective_tokens,omitempty"`
-	AIC              float64 `json:"aic,omitempty"`
+	Provider string `json:"provider"`
+	TokenCoreMetrics
+	Requests      int     `json:"requests" console:"header:Requests"`
+	DurationMs    int     `json:"duration_ms"`
+	ResponseBytes int     `json:"response_bytes"`
+	AIC           float64 `json:"aic,omitempty"`
 }
 
-// ModelTokenUsageRow is a flattened version for console table rendering
+// ModelTokenUsageRow is a table-rendering view of per-model token statistics.
+// Keep this row schema limited to the token quartet to preserve output shape.
 type ModelTokenUsageRow struct {
 	Model            string  `json:"model" console:"header:Model"`
 	Provider         string  `json:"provider" console:"header:Provider"`
@@ -94,7 +97,6 @@ type ModelTokenUsageRow struct {
 	OutputTokens     int     `json:"output_tokens" console:"header:Output,format:number"`
 	CacheReadTokens  int     `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
 	CacheWriteTokens int     `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
-	EffectiveTokens  int     `json:"effective_tokens,omitempty"`
 	AIC              float64 `json:"aic,omitempty"`
 	Requests         int     `json:"requests" console:"header:Requests"`
 	AvgDuration      string  `json:"avg_duration" console:"header:Avg Duration"`
@@ -450,13 +452,15 @@ func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
 	if hasTokenData {
 		summary.TotalRequests = 1
 		summary.ByModel[model] = &ModelTokenUsage{
-			Provider:         provider,
-			InputTokens:      entry.InputTokens,
-			OutputTokens:     entry.OutputTokens,
-			CacheReadTokens:  entry.CacheReadTokens,
-			CacheWriteTokens: entry.CacheWriteTokens,
-			ReasoningTokens:  entry.ReasoningTokens,
-			Requests:         1,
+			Provider: provider,
+			TokenCoreMetrics: TokenCoreMetrics{
+				InputTokens:      entry.InputTokens,
+				OutputTokens:     entry.OutputTokens,
+				CacheReadTokens:  entry.CacheReadTokens,
+				CacheWriteTokens: entry.CacheWriteTokens,
+				ReasoningTokens:  entry.ReasoningTokens,
+			},
+			Requests: 1,
 		}
 	}
 

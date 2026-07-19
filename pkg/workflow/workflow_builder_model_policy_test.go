@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -129,4 +131,54 @@ func TestExtractMainModelCostsOverlay_ExtractsOnlyProvidersAndExcludesPolicyKeys
 	require.NotNil(t, costs)
 	assert.Contains(t, costs, "providers")
 	assert.NotContains(t, costs, "allowed")
+}
+
+func TestMergeExcludedEnvVarNames_UnionizesAndSorts(t *testing.T) {
+	got := mergeExcludedEnvVarNames(
+		[]string{"TOKEN_B", "TOKEN_A"},
+		[]string{"TOKEN_C", "TOKEN_A"},
+	)
+	assert.Equal(t, []string{"TOKEN_A", "TOKEN_B", "TOKEN_C"}, got)
+}
+
+func TestMergeExcludedEnvVarNames_ImportsOnly(t *testing.T) {
+	got := mergeExcludedEnvVarNames([]string{"IMPORT_TOKEN"}, nil)
+	assert.Equal(t, []string{"IMPORT_TOKEN"}, got)
+}
+
+func TestMergeExcludedEnvVarNames_MainOnly(t *testing.T) {
+	got := mergeExcludedEnvVarNames(nil, []string{"MAIN_TOKEN"})
+	assert.Equal(t, []string{"MAIN_TOKEN"}, got)
+}
+
+func TestMergeExcludedEnvVarNames_BothEmpty(t *testing.T) {
+	got := mergeExcludedEnvVarNames(nil, nil)
+	assert.Nil(t, got)
+}
+
+func TestMergeExcludedEnvVarNames_DeduplicatesAcrossSources(t *testing.T) {
+	got := mergeExcludedEnvVarNames(
+		[]string{"SHARED", "IMPORT_ONLY"},
+		[]string{"SHARED", "MAIN_ONLY"},
+	)
+	assert.Equal(t, []string{"IMPORT_ONLY", "MAIN_ONLY", "SHARED"}, got)
+}
+
+func TestMergeExcludedEnvVarNames_LargeInputs(t *testing.T) {
+	// Exercises the code path that triggered CWE-190 alerts #648/#649.
+	n := 100_000
+	fromImports := make([]string, n)
+	fromMain := make([]string, n)
+	for i := range fromImports {
+		fromImports[i] = fmt.Sprintf("IMPORT_%d", i)
+		fromMain[i] = fmt.Sprintf("MAIN_%d", i)
+	}
+	got := mergeExcludedEnvVarNames(fromImports, fromMain)
+	assert.Len(t, got, 2*n)
+	assert.True(t, sort.StringsAreSorted(got))
+	// Confirm both sources are represented in the result.
+	assert.Contains(t, got, "IMPORT_0")
+	assert.Contains(t, got, fmt.Sprintf("IMPORT_%d", n-1))
+	assert.Contains(t, got, "MAIN_0")
+	assert.Contains(t, got, fmt.Sprintf("MAIN_%d", n-1))
 }

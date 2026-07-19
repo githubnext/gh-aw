@@ -195,8 +195,17 @@ function buildMissingIssueHandler(options) {
 
       processedCount++;
 
+      // Resolve fields from message, falling back to environment variables for fields
+      // that the agent may not know (e.g. workflow_name is not part of the agent's context).
+      const workflowName = message.workflow_name || process.env.GH_AW_WORKFLOW_NAME || "";
+      const workflowSource = message.workflow_source || "";
+      const workflowSourceURL = message.workflow_source_url || process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+      const runUrl =
+        message.run_url || (process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : "");
+      const items = message[itemsField];
+
       // Validate required fields
-      if (!message.workflow_name) {
+      if (!workflowName) {
         core.warning(`Missing required field: workflow_name`);
         return {
           success: false,
@@ -204,20 +213,13 @@ function buildMissingIssueHandler(options) {
         };
       }
 
-      if (!message[itemsField] || !Array.isArray(message[itemsField]) || message[itemsField].length === 0) {
+      if (!items || !Array.isArray(items) || items.length === 0) {
         core.warning(`Missing or empty ${itemsField} array`);
         return {
           success: false,
           error: `Missing or empty ${itemsField} array`,
         };
       }
-
-      // Extract fields from message
-      const workflowName = message.workflow_name;
-      const workflowSource = message.workflow_source || "";
-      const workflowSourceURL = message.workflow_source_url || "";
-      const runUrl = message.run_url || "";
-      const items = message[itemsField];
 
       // Create or update the issue
       const result = await createOrUpdateIssue(workflowName, workflowSource, workflowSourceURL, runUrl, items);

@@ -4608,6 +4608,10 @@
                   "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
+                "issue-intent": {
+                  "type": "boolean",
+                  "description": "Enable issue-intent metadata support (rationale/confidence/suggest) for this output type."
+                },
                 "samples": {
                   "description": "Internal hidden feature. Optional list of declarative sample payloads that exercise this safe-output handler. Used by the hidden `gh aw compile --use-samples` flag to replace the agentic step with a deterministic replay through the safe-outputs MCP server. Each entry should conform to the corresponding MCP tool inputSchema; recognized sidecar keys (currently `patch` for create-pull-request and push-to-pull-request-branch) are stripped before schema validation and consumed by the replay driver.",
                   "oneOf": [
@@ -5262,6 +5266,10 @@
                   "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
+                "issue-intent": {
+                  "type": "boolean",
+                  "description": "Enable issue-intent metadata support (rationale/confidence/suggest) for this output type."
+                },
                 "samples": {
                   "description": "Internal hidden feature. Optional list of declarative sample payloads that exercise this safe-output handler. Used by the hidden `gh aw compile --use-samples` flag to replace the agentic step with a deterministic replay through the safe-outputs MCP server. Each entry should conform to the corresponding MCP tool inputSchema; recognized sidecar keys (currently `patch` for create-pull-request and push-to-pull-request-branch) are stripped before schema validation and consumed by the replay driver.",
                   "oneOf": [
@@ -5360,6 +5368,10 @@
                   "$ref": "#/$defs/templatable_boolean",
                   "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "issue-intent": {
+                  "type": "boolean",
+                  "description": "Enable issue-intent metadata support (rationale/confidence/suggest) for this output type."
                 },
                 "samples": {
                   "description": "Internal hidden feature. Optional list of declarative sample payloads that exercise this safe-output handler. Used by the hidden `gh aw compile --use-samples` flag to replace the agentic step with a deterministic replay through the safe-outputs MCP server. Each entry should conform to the corresponding MCP tool inputSchema; recognized sidecar keys (currently `patch` for create-pull-request and push-to-pull-request-branch) are stripped before schema validation and consumed by the replay driver.",
@@ -6244,6 +6256,10 @@
                   "$ref": "#/$defs/templatable_boolean",
                   "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "issue-intent": {
+                  "type": "boolean",
+                  "description": "Enable issue-intent metadata support (rationale/confidence/suggest) for this output type."
                 },
                 "samples": {
                   "description": "Internal hidden feature. Optional list of declarative sample payloads that exercise this safe-output handler. Used by the hidden `gh aw compile --use-samples` flag to replace the agentic step with a deterministic replay through the safe-outputs MCP server. Each entry should conform to the corresponding MCP tool inputSchema; recognized sidecar keys (currently `patch` for create-pull-request and push-to-pull-request-branch) are stripped before schema validation and consumed by the replay driver.",
@@ -7784,6 +7800,10 @@
                   "type": "string",
                   "description": "Title prefix constraint: the issue/PR title must start with this prefix for the operation to proceed."
                 },
+                "issue-intent": {
+                  "type": "boolean",
+                  "description": "Enable issue-intent metadata support (rationale/confidence/suggest) for this output type."
+                },
                 "staged": {
                   "$ref": "#/$defs/templatable_boolean",
                   "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
@@ -8228,6 +8248,10 @@
                   "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
+                "issue-intent": {
+                  "type": "boolean",
+                  "description": "Enable issue-intent metadata support (rationale/confidence/suggest) for this output type."
+                },
                 "samples": {
                   "description": "Internal hidden feature. Optional list of declarative sample payloads that exercise this safe-output handler. Used by the hidden `gh aw compile --use-samples` flag to replace the agentic step with a deterministic replay through the safe-outputs MCP server. Each entry should conform to the corresponding MCP tool inputSchema; recognized sidecar keys (currently `patch` for create-pull-request and push-to-pull-request-branch) are stripped before schema validation and consumed by the replay driver.",
                   "oneOf": [
@@ -8316,6 +8340,10 @@
                   "$ref": "#/$defs/templatable_boolean",
                   "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "issue-intent": {
+                  "type": "boolean",
+                  "description": "Enable issue-intent metadata support (rationale/confidence/suggest) for this output type."
                 },
                 "samples": {
                   "description": "Internal hidden feature. Optional list of declarative sample payloads that exercise this safe-output handler. Used by the hidden `gh aw compile --use-samples` flag to replace the agentic step with a deterministic replay through the safe-outputs MCP server. Each entry should conform to the corresponding MCP tool inputSchema; recognized sidecar keys (currently `patch` for create-pull-request and push-to-pull-request-branch) are stripped before schema validation and consumed by the replay driver.",
@@ -9270,6 +9298,10 @@
                   "$ref": "#/$defs/github_token",
                   "description": "Optional GitHub token used only for branch writes to head-repo. Use this when the upstream pull request repository and the fork head repository require different credentials."
                 },
+                "issue-intent": {
+                  "type": "boolean",
+                  "description": "Enable issue-intent metadata support (rationale/confidence/suggest) for this output type."
+                },
                 "staged": {
                   "$ref": "#/$defs/templatable_boolean",
                   "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
@@ -9357,6 +9389,10 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "issue-intent": {
+                  "type": "boolean",
+                  "description": "Enable issue-intent metadata support (rationale/confidence/suggest) for this output type."
                 },
                 "staged": {
                   "$ref": "#/$defs/templatable_boolean",
@@ -11308,6 +11344,16 @@
       "description": "Control whether the compile-agentic version update check runs in the activation job. When true (default), the activation job downloads config.json from the gh-aw repository and verifies the compiled version is not blocked and meets the minimum supported version. Set to false to disable the check (not allowed in strict mode). See: https://github.github.com/gh-aw/reference/frontmatter/#check-for-updates",
       "examples": [true, false]
     },
+    "excluded-env": {
+      "type": "array",
+      "description": "Optional list of environment variable names to unconditionally exclude from the AWF agent container via --exclude-env. Use when an env var is set from a source the compiler cannot auto-detect as credential-bearing (e.g. a workflow_dispatch input carrying a token). Names are deduplicated and merged with those auto-detected from secrets.* and needs.*.outputs.* references.",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Environment variable name to exclude from the agent container."
+      },
+      "examples": [["MY_DISPATCH_TOKEN", "ANOTHER_SENSITIVE_VAR"], ["GH_TOKEN"]]
+    },
     "mcp-scripts": {
       "type": "object",
       "description": "MCP Scripts configuration for defining custom lightweight MCP tools as JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server and have access to secrets specified by the user. Only one of 'script' (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.",
@@ -12744,12 +12790,24 @@
                 "capabilities": {
                   "type": "object",
                   "properties": {
-                    "tools-allowlist": { "type": "boolean" },
-                    "max-turns": { "type": "boolean" },
-                    "web-search": { "type": "boolean" },
-                    "max-continuations": { "type": "boolean" },
-                    "native-agent-file": { "type": "boolean" },
-                    "bare-mode": { "type": "boolean" }
+                    "tools-allowlist": {
+                      "type": "boolean"
+                    },
+                    "max-turns": {
+                      "type": "boolean"
+                    },
+                    "web-search": {
+                      "type": "boolean"
+                    },
+                    "max-continuations": {
+                      "type": "boolean"
+                    },
+                    "native-agent-file": {
+                      "type": "boolean"
+                    },
+                    "bare-mode": {
+                      "type": "boolean"
+                    }
                   },
                   "additionalProperties": false
                 },
@@ -12758,11 +12816,15 @@
                   "properties": {
                     "files": {
                       "type": "array",
-                      "items": { "type": "string" }
+                      "items": {
+                        "type": "string"
+                      }
                     },
                     "path-prefixes": {
                       "type": "array",
-                      "items": { "type": "string" }
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   },
                   "additionalProperties": false
@@ -12770,53 +12832,105 @@
                 "installation": {
                   "type": "object",
                   "properties": {
-                    "package-manager": { "type": "string" },
-                    "package-name": { "type": "string" },
-                    "version": { "type": "string" },
-                    "step-name": { "type": "string" },
-                    "binary-name": { "type": "string" },
-                    "include-node-setup": { "type": "boolean" },
-                    "post-install-scripts": { "type": "boolean" },
-                    "cooldown": { "type": "boolean" },
-                    "verify-command": { "type": "string" },
-                    "verify-step-name": { "type": "string" },
-                    "docs-url": { "type": "string" }
+                    "package-manager": {
+                      "type": "string"
+                    },
+                    "package-name": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "step-name": {
+                      "type": "string"
+                    },
+                    "binary-name": {
+                      "type": "string"
+                    },
+                    "include-node-setup": {
+                      "type": "boolean"
+                    },
+                    "post-install-scripts": {
+                      "type": "boolean"
+                    },
+                    "cooldown": {
+                      "type": "boolean"
+                    },
+                    "verify-command": {
+                      "type": "string"
+                    },
+                    "verify-step-name": {
+                      "type": "string"
+                    },
+                    "docs-url": {
+                      "type": "string"
+                    }
                   },
                   "additionalProperties": false
                 },
                 "config-file": {
                   "type": "object",
                   "properties": {
-                    "path": { "type": "string" },
-                    "step-name": { "type": "string" },
-                    "content": { "type": "string" },
-                    "merge-strategy": { "type": "string" }
+                    "path": {
+                      "type": "string"
+                    },
+                    "step-name": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "string"
+                    },
+                    "merge-strategy": {
+                      "type": "string"
+                    }
                   },
                   "additionalProperties": false
                 },
                 "execution": {
                   "type": "object",
                   "properties": {
-                    "command-name": { "type": "string" },
+                    "command-name": {
+                      "type": "string"
+                    },
                     "args": {
                       "type": "array",
-                      "items": { "type": "string" }
+                      "items": {
+                        "type": "string"
+                      }
                     },
-                    "step-name": { "type": "string" },
-                    "model-env-var": { "type": "string" },
-                    "model-env-provider-prefix": { "type": "string" },
-                    "model-flag": { "type": "string" },
-                    "mcp-config-env-var": { "type": "string" },
-                    "mcp-config-flag": { "type": "string" },
-                    "write-timestamp": { "type": "boolean" },
-                    "provider-env-mode": { "type": "string" }
+                    "step-name": {
+                      "type": "string"
+                    },
+                    "model-env-var": {
+                      "type": "string"
+                    },
+                    "model-env-provider-prefix": {
+                      "type": "string"
+                    },
+                    "model-flag": {
+                      "type": "string"
+                    },
+                    "mcp-config-env-var": {
+                      "type": "string"
+                    },
+                    "mcp-config-flag": {
+                      "type": "string"
+                    },
+                    "write-timestamp": {
+                      "type": "boolean"
+                    },
+                    "provider-env-mode": {
+                      "type": "string"
+                    }
                   },
                   "additionalProperties": false
                 },
                 "mcp": {
                   "type": "object",
                   "properties": {
-                    "config-path": { "type": "string" }
+                    "config-path": {
+                      "type": "string"
+                    }
                   },
                   "additionalProperties": false
                 },

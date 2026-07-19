@@ -138,7 +138,12 @@ function sumAICFromUsageJSONLFiles(filePaths) {
       continue;
     }
 
-    const content = fs.readFileSync(filePath, "utf8");
+    let content;
+    try {
+      content = fs.readFileSync(filePath, "utf8");
+    } catch (err) {
+      throw new Error(`Failed to read file ${filePath}: ${String(err)}`, { cause: err });
+    }
     if (!content.trim()) {
       continue;
     }

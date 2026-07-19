@@ -79,7 +79,16 @@ const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 const MAX_ENV_VAR_PREVIEW_LENGTH = 120;
 const OUTPUT_TAIL_MAX_CHARS = 600;
 const OUTPUT_TAIL_MAX_LINES = 12;
-const POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = 20 * 1000;
+const MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS = 50;
+const DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = 20 * 1000;
+function resolvePostResultWatchdogIdleTimeoutMs(env = process.env) {
+  const configuredTimeoutMs = Number(env.GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS);
+  if (!Number.isFinite(configuredTimeoutMs) || configuredTimeoutMs <= 0) {
+    return DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS;
+  }
+  return Math.max(MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS, configuredTimeoutMs);
+}
+const POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = resolvePostResultWatchdogIdleTimeoutMs();
 const COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_NAME = "copilot_requests_proxy_auth_403.md";
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
@@ -266,8 +275,9 @@ function loadAwfConfigData() {
   try {
     return JSON.parse(fs.readFileSync(AWF_CONFIG_PATH, "utf8"));
   } catch (err) {
-    if (err.code !== "ENOENT") {
-      log(`awf-config load error: ${err.message}`);
+    const errAny = /** @type {any} */ err;
+    if (errAny?.code !== "ENOENT") {
+      log(`awf-config load error: ${getErrorMessage(err)}`);
     }
     return null;
   }
@@ -300,6 +310,48 @@ function applyCopilotModelAliasResolution(options) {
     process.env.COPILOT_MODEL = resolvedModel;
   }
   return resolvedModel || configuredModel;
+}
+
+/**
+ * Auto-configure COPILOT_PROVIDER_WIRE_API based on the resolved COPILOT_MODEL.
+ *
+ * Skips configuration when COPILOT_PROVIDER_WIRE_API is already set so that
+ * explicit engine.env values always take precedence. Looks up the wire_api for
+ * the current COPILOT_MODEL in the github-copilot provider section of models.json.
+ *
+ * @param {{
+ *   modelsJson: Record<string, unknown> | null,
+ *   logger?: (msg: string) => void,
+ * }} options
+ */
+function applyCopilotWireAPI({ modelsJson, logger = log }) {
+  if (process.env.COPILOT_PROVIDER_WIRE_API) {
+    logger(`COPILOT_PROVIDER_WIRE_API already set to ${process.env.COPILOT_PROVIDER_WIRE_API} — skipping auto-configure`);
+    return; // User override wins — do not auto-configure.
+  }
+  const modelName = typeof process.env.COPILOT_MODEL === "string" ? process.env.COPILOT_MODEL.trim() : "";
+  if (!modelName) return;
+
+  // Look up wire_api for the resolved model in the github-copilot provider catalog.
+  const providers = modelsJson !== null && typeof modelsJson === "object" && "providers" in modelsJson ? modelsJson.providers : null;
+  const githubCopilotData = providers !== null && typeof providers === "object" && "github-copilot" in providers ? providers["github-copilot"] : null;
+  const models = githubCopilotData !== null && typeof githubCopilotData === "object" && "models" in githubCopilotData ? githubCopilotData.models : null;
+  if (!models || typeof models !== "object") return;
+
+  // Strip query parameters before catalog lookup (e.g. "gpt-5-mini?effort=high" → "gpt-5-mini").
+  const baseModelName = modelName.split("?")[0];
+  // Case-insensitive lookup.
+  const normalizedModelName = baseModelName.toLowerCase();
+  for (const [key, value] of Object.entries(models)) {
+    if (key.toLowerCase() === normalizedModelName) {
+      const wireApi = value !== null && typeof value === "object" && "wire_api" in value ? value.wire_api : null;
+      if (wireApi && typeof wireApi === "string") {
+        logger(`auto-configuring COPILOT_PROVIDER_WIRE_API=${wireApi} for model ${modelName}`);
+        process.env.COPILOT_PROVIDER_WIRE_API = wireApi;
+      }
+      return;
+    }
+  }
 }
 
 /**
@@ -658,7 +710,11 @@ function writeCopilotOutputs(results) {
     `model_not_supported_error=${results.modelNotSupportedError}`,
     `http_400_response_error=${results.http400ResponseError}`,
   ];
-  fs.appendFileSync(outputFile, lines.join("\n") + "\n");
+  try {
+    fs.appendFileSync(outputFile, lines.join("\n") + "\n");
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
@@ -862,6 +918,7 @@ async function main() {
   }
 
   applyCopilotModelAliasResolution({ awfReflectData, logger: log });
+  applyCopilotWireAPI({ modelsJson: loadModelsJson(), logger: log });
 
   // Resolve BYOK provider from live reflect data (SDK mode only).
   // Multi-provider BYOK is the only supported mode — fail immediately if the
@@ -1122,6 +1179,20 @@ async function main() {
           break;
         }
 
+        // When the run fails with partial_execution and the safe-outputs file already contains a
+        // terminal result, treat the run as a success-with-late-activity rather than a
+        // retryable failure.  This covers the common case where the post-result watchdog fires
+        // because the agent kept running exploratory commands after its deliverable was ready
+        // (watchdogFired=true), as well as any other partial_execution failure that occurs
+        // after the primary task output was already produced.  Retrying would reproduce the
+        // same pattern and exhaust the retry budget without ever posting a final safe-output.
+        if (failureClass === "partial_execution" && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath)) {
+          const reason = result.watchdogFired ? "post-result watchdog fired after terminal safe-output was emitted" : "partial execution after terminal safe-output was already produced";
+          log(`attempt ${attempt + 1}: ${reason} — treating as success (late-activity exit suppressed)`);
+          lastExitCode = 0;
+          break;
+        }
+
         if (nonRetryableGuard.aiCreditsExceeded || nonRetryableGuard.awfAPIProxyBlockingRequests || isInvocationCapExceeded) {
           const reasons = [];
           if (nonRetryableGuard.aiCreditsExceeded) reasons.push("AI credits budget exceeded");
@@ -1346,6 +1417,7 @@ if (typeof module !== "undefined" && module.exports) {
     isCAPIQuotaExceededError,
     hasTerminalSafeOutput,
     applyCopilotModelAliasResolution,
+    applyCopilotWireAPI,
     loadAwfConfigData,
   };
 }

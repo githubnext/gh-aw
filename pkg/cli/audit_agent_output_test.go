@@ -282,7 +282,7 @@ func TestPerformanceMetricsGeneration(t *testing.T) {
 				Duration: 5 * time.Minute,
 			},
 			firewallAnalysis: &FirewallAnalysis{
-				TotalRequests: 25,
+				AnalysisBase: AnalysisBase{TotalRequests: 25},
 			},
 			expectNetworkRequests: true,
 		},

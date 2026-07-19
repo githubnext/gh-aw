@@ -171,6 +171,16 @@ func (c *Compiler) buildInitialWorkflowData(
 		workflowData.ModelPolicyBlocked = disallowedModels
 	}
 
+	// Populate explicitly excluded env var names: union of imported workflows' excluded-env
+	// and the main workflow's excluded-env. Deduplicate and sort for stability.
+	var mainExcludedEnv []string
+	if toolsResult.parsedFrontmatter != nil {
+		mainExcludedEnv = toolsResult.parsedFrontmatter.ExcludedEnv
+	}
+	if names := mergeExcludedEnvVarNames(importsResult.MergedExcludedEnv, mainExcludedEnv); len(names) > 0 {
+		workflowData.ExcludedEnv = names
+	}
+
 	return workflowData
 }
 
@@ -454,6 +464,34 @@ func modelPolicyPatternMatches(pattern, value string) bool {
 // populated regardless of whether ParseFrontmatterConfig succeeded.
 func resolveInlinedImports(rawFrontmatter map[string]any) bool {
 	return ParseBoolFromConfig(rawFrontmatter, "inlined-imports", nil)
+}
+
+// mergeExcludedEnvVarNames unions the imported and main excluded-env name lists,
+// deduplicates entries across both sources, and returns a sorted slice for
+// deterministic output.
+func mergeExcludedEnvVarNames(fromImports, fromMain []string) []string {
+	if len(fromImports) == 0 && len(fromMain) == 0 {
+		return nil
+	}
+	// Use max() for capacity hints: overflow-safe (no addition) and a tighter
+	// lower-bound than either length alone.
+	hint := max(len(fromImports), len(fromMain))
+	seen := make(map[string]bool, hint)
+	merged := make([]string, 0, hint)
+	for _, name := range fromImports {
+		if !seen[name] {
+			seen[name] = true
+			merged = append(merged, name)
+		}
+	}
+	for _, name := range fromMain {
+		if !seen[name] {
+			seen[name] = true
+			merged = append(merged, name)
+		}
+	}
+	sort.Strings(merged)
+	return merged
 }
 
 // extractYAMLSections extracts YAML configuration sections from frontmatter

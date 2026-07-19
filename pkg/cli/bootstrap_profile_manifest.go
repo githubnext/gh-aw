@@ -1,16 +1,12 @@
 package cli
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 )
 
-const bootstrapActionTypeExample = "require-owner-type, repo-variable, repo-secret, github-app, copilot-auth, or handoff"
+const bootstrapActionTypeExample = "require-owner-type, repo-variable, repo-secret, github-app, copilot-auth, commit-and-push, or handoff"
 
 type repositoryPackageBootstrap struct {
 	Config []repositoryPackageBootstrapAction
@@ -49,138 +45,6 @@ type resolvedBootstrapProfile struct {
 	PackageID string
 	Source    string
 	Profile   *repositoryPackageBootstrap
-}
-
-func resolveBootstrapProfileFromSources(ctx context.Context, sources []string) (*resolvedBootstrapProfile, error) {
-	bootstrapLog.Printf("Resolving bootstrap profile from %d source(s)", len(sources))
-	profiles := make([]*resolvedBootstrapProfile, 0, 1)
-	seenPackageIDs := make(map[string]struct{})
-
-	for _, source := range sources {
-		if localProfile, err := resolveLocalBootstrapProfileFromSource(source); err != nil {
-			return nil, err
-		} else if localProfile != nil {
-			if _, exists := seenPackageIDs[localProfile.PackageID]; exists {
-				continue
-			}
-			seenPackageIDs[localProfile.PackageID] = struct{}{}
-			profiles = append(profiles, localProfile)
-			continue
-		}
-
-		repoSpec, ok, repoErr := parseRepositoryPackageSpec(source)
-		if !ok {
-			continue
-		}
-		if repoErr != nil {
-			return nil, repoErr
-		}
-
-		pkg, err := resolveRepositoryPackage(ctx, repoSpec, explicitHostForRepo(repoSpec.RepoSlug))
-		if err != nil {
-			if repoSpec.PackagePath == "" || !isRepositoryPackageManifestNotFound(err) {
-				return nil, err
-			}
-			continue
-		}
-		if pkg.Bootstrap == nil {
-			continue
-		}
-
-		packageID := repositoryPackageIdentifier(repoSpec.RepoSlug, repoSpec.PackagePath)
-		if _, exists := seenPackageIDs[packageID]; exists {
-			continue
-		}
-		seenPackageIDs[packageID] = struct{}{}
-
-		profiles = append(profiles, &resolvedBootstrapProfile{
-			PackageID: packageID,
-			Source:    source,
-			Profile:   pkg.Bootstrap,
-		})
-	}
-
-	if len(profiles) == 0 {
-		bootstrapLog.Print("No bootstrap profile matched the selected sources")
-		return nil, nil
-	}
-	if len(profiles) == 1 {
-		bootstrapLog.Printf("Resolved bootstrap profile: packageID=%s, actions=%d", profiles[0].PackageID, len(profiles[0].Profile.Config))
-		return profiles[0], nil
-	}
-
-	packageIDs := make([]string, 0, len(profiles))
-	for _, profile := range profiles {
-		packageIDs = append(packageIDs, profile.PackageID)
-	}
-	sort.Strings(packageIDs)
-
-	return nil, fmt.Errorf("multiple bootstrap profiles matched the selected sources: %s; select a single package profile or split the bootstrap into separate runs", strings.Join(packageIDs, ", "))
-}
-
-func resolveLocalBootstrapProfileFromSource(source string) (*resolvedBootstrapProfile, error) {
-	if !isLocalWorkflowPath(source) {
-		return nil, nil
-	}
-
-	resolvedPath, err := filepath.Abs(source)
-	if err != nil {
-		return nil, fmt.Errorf("resolve local bootstrap profile %q: %w", source, err)
-	}
-
-	manifestPath, packageID, err := localBootstrapManifestPath(resolvedPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	if manifestPath == "" {
-		return nil, nil
-	}
-
-	content, err := os.ReadFile(manifestPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("read local bootstrap manifest %q: %w", manifestPath, err)
-	}
-
-	manifest, _, err := parseRepositoryPackageManifest(manifestPath, content)
-	if err != nil {
-		return nil, err
-	}
-	if manifest.Bootstrap == nil {
-		return nil, nil
-	}
-
-	return &resolvedBootstrapProfile{
-		PackageID: packageID,
-		Source:    source,
-		Profile:   manifest.Bootstrap,
-	}, nil
-}
-
-func localBootstrapManifestPath(resolvedPath string) (string, string, error) {
-	info, err := os.Stat(resolvedPath)
-	if err != nil {
-		return "", "", err
-	}
-
-	if info.IsDir() {
-		manifestPath := filepath.Join(resolvedPath, repositoryPackageManifestFileName)
-		if _, err := os.Stat(manifestPath); err != nil {
-			return "", "", err
-		}
-		return manifestPath, filepath.Clean(resolvedPath), nil
-	}
-
-	if filepath.Base(resolvedPath) != repositoryPackageManifestFileName {
-		return "", "", nil
-	}
-
-	return resolvedPath, filepath.Clean(filepath.Dir(resolvedPath)), nil
 }
 
 func extractManifestConfig(value any, manifestPath string) (*repositoryPackageBootstrap, error) {
@@ -343,6 +207,10 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 		}
 		if action.Strategy != "prompt-if-actions-auth-unavailable" {
 			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].strategy must be 'prompt-if-actions-auth-unavailable'. Example: { type: copilot-auth, strategy: prompt-if-actions-auth-unavailable }", manifestPath, index)
+		}
+	case "commit-and-push":
+		if action.Message == "" {
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].message is required when type=commit-and-push. Example: { type: commit-and-push, message: Bootstrap repository changes }", manifestPath, index)
 		}
 	case "handoff":
 		if action.Message == "" {

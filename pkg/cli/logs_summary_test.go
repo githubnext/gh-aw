@@ -283,13 +283,15 @@ func TestRunSummaryJSONStructure(t *testing.T) {
 			Turns:      5,
 		},
 		AccessAnalysis: &DomainAnalysis{
-			DomainBuckets: DomainBuckets{
-				AllowedDomains: []string{"github.com", "api.github.com"},
-				BlockedDomains: []string{},
+			AnalysisBase: AnalysisBase{
+				DomainBuckets: DomainBuckets{
+					AllowedDomains: []string{"github.com", "api.github.com"},
+					BlockedDomains: []string{},
+				},
+				TotalRequests:   10,
+				AllowedRequests: 10,
+				BlockedRequests: 0,
 			},
-			TotalRequests: 10,
-			AllowedCount:  10,
-			BlockedCount:  0,
 		},
 		MissingTools: []MissingToolReport{
 			{
@@ -391,5 +393,31 @@ func TestSaveAndLoadRunSummary_SafeItemsCount(t *testing.T) {
 
 	if loaded.Run.SafeItemsCount != 4 {
 		t.Errorf("SafeItemsCount not persisted: got %d, want 4", loaded.Run.SafeItemsCount)
+	}
+}
+
+// TestSafeItemsCountJSONKey verifies that WorkflowRun.SafeItemsCount serializes to
+// "safe_items_count" (snake_case) in JSON so downstream audit tools (e.g. api-consumption-
+// report) can read it directly from run_summary.json without a fallback.
+func TestSafeItemsCountJSONKey(t *testing.T) {
+	run := WorkflowRun{SafeItemsCount: 7}
+	data, err := json.Marshal(run)
+	if err != nil {
+		t.Fatalf("json.Marshal failed: %v", err)
+	}
+	// The JSON must contain the snake_case key, not the Go field name.
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil {
+		t.Fatalf("json.Unmarshal failed: %v", err)
+	}
+	val, ok := m["safe_items_count"]
+	if !ok {
+		t.Errorf("expected JSON key 'safe_items_count' not found in %s", string(data))
+	}
+	if v, _ := val.(float64); int(v) != 7 {
+		t.Errorf("safe_items_count = %v, want 7", val)
+	}
+	if _, hasPascal := m["SafeItemsCount"]; hasPascal {
+		t.Errorf("unexpected PascalCase key 'SafeItemsCount' found in %s; must use snake_case", string(data))
 	}
 }
