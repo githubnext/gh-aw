@@ -396,16 +396,7 @@ describe("parse_copilot_log.cjs", () => {
       // Copilot CLI footer includes a "Resume   copilot --resume=<id>" line aligned in the
       // same column block as Changes/Duration/Tokens. It is CLI chrome, not agent reasoning,
       // and must not leak into the rendered reasoning/agent-text section.
-      const prettyLog = [
-        "● Bash",
-        "    └ ok",
-        "The work is done.",
-        "",
-        "Changes    +0 -0",
-        "Duration   1m 0s",
-        "Tokens     ↑ 195.4k (166.2k cached) • ↓ 2.9k",
-        "Resume     copilot --resume=d21d3356-9296-4d1b-a392-49e5069e4e3f",
-      ].join("\n");
+      const prettyLog = ["● Bash", "    └ ok", "The work is done.", "", "Changes    +0 -0", "Duration   1m 0s", "Tokens     ↑ 195.4k (166.2k cached) • ↓ 2.9k", "Resume     copilot --resume=d21d3356-9296-4d1b-a392-49e5069e4e3f"].join("\n");
 
       const result = parseCopilotLog(prettyLog);
 
