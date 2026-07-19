@@ -75,7 +75,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Copilot"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-copilot.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.70"
+          GH_AW_INFO_VERSION: "1.0.71"
           GH_AW_INFO_AWF_VERSION: "v0.27.35"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Generate agentic run info
@@ -84,8 +84,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'default' }}
-          GH_AW_INFO_VERSION: "1.0.70"
-          GH_AW_INFO_AGENT_VERSION: "1.0.70"
+          GH_AW_INFO_VERSION: "1.0.71"
+          GH_AW_INFO_AGENT_VERSION: "1.0.71"
           GH_AW_INFO_WORKFLOW_NAME: "Smoke Copilot"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -486,7 +486,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Copilot"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-copilot.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.70"
+          GH_AW_INFO_VERSION: "1.0.71"
           GH_AW_INFO_AWF_VERSION: "v0.27.35"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Checkout repository
@@ -562,7 +562,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.70
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.71
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -967,7 +967,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Copilot"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-copilot.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.70"
+          GH_AW_INFO_VERSION: "1.0.71"
           GH_AW_INFO_AWF_VERSION: "v0.27.35"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Check team membership for workflow

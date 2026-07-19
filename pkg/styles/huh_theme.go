@@ -61,16 +61,20 @@ var HuhTheme huh.ThemeFunc = func(isDark bool) *huh.Styles {
 	t.Focused.TextInput.Placeholder = t.Focused.TextInput.Placeholder.Foreground(comment)
 	t.Focused.TextInput.Prompt = t.Focused.TextInput.Prompt.Foreground(primary)
 
-	// Blurred styles mirror focused but hide the border
+	applyBlurredAndGroupStyles(t)
+
+	return t
+}
+
+// applyBlurredAndGroupStyles copies focused styles to blurred (hiding the
+// border) and wires up group header styles.
+func applyBlurredAndGroupStyles(t *huh.Styles) {
 	t.Blurred = t.Focused
 	t.Blurred.Base = t.Focused.Base.BorderStyle(lipgloss.HiddenBorder())
 	t.Blurred.Card = t.Blurred.Base
 	t.Blurred.NextIndicator = lipgloss.NewStyle()
 	t.Blurred.PrevIndicator = lipgloss.NewStyle()
 
-	// Group header styles
 	t.Group.Title = t.Focused.Title
 	t.Group.Description = t.Focused.Description
-
-	return t
 }
