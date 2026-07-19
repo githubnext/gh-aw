@@ -1,0 +1,19 @@
+package timenowsub
+
+import "time"
+
+func bad(t time.Time) {
+	_ = time.Now().Sub(t) // want `time\.Now\(\)\.Sub\(t\) can be simplified to time\.Since\(t\)`
+}
+
+func badAssign(start time.Time) time.Duration {
+	return time.Now().Sub(start) // want `time\.Now\(\)\.Sub\(start\) can be simplified to time\.Since\(start\)`
+}
+
+func good(t time.Time) {
+	_ = time.Since(t)
+}
+
+func goodOtherSub(a, b time.Time) {
+	_ = a.Sub(b)
+}
