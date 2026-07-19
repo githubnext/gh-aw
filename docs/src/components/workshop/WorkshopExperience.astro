@@ -9,6 +9,7 @@ import {
 	workshopRoutes,
 	workshopScenarios,
 } from '../../lib/workshop/manifest';
+import { WORKSHOP_ORG_SLUG } from '../../lib/workshop/config';
 import { workshopContent, workshopSource, type WorkshopContentEntry } from '../../generated/workshop-content.ts';
 
 type WorkshopEntry = {
@@ -35,7 +36,7 @@ type WorkshopMarkdownModule = {
 
 const workshopGithubBase = workshopSource.githubBaseUrl;
 const workshopImageBase = workshopSource.rawBaseUrl;
-const workshopLocalLinkPrefix = '/gh-aw/workshops/2026-07-24-hackathon-blue-bat-18/?__gh_aw_workshop_local__=';
+const workshopLocalLinkPrefix = `/gh-aw/workshops/${WORKSHOP_ORG_SLUG}/?__gh_aw_workshop_local__=`;
 const workshopMarkdownModules = import.meta.glob('../../generated/workshop-markdown/*.md', { eager: true }) as Record<string, WorkshopMarkdownModule>;
 const primerIcons = octicons as Record<string, { toSVG: (options: Record<string, string | number>) => string }>;
 

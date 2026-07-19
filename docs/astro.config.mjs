@@ -11,6 +11,7 @@ import { unified } from '@astrojs/markdown-remark';
 import remarkStripEmojis from './src/lib/remark/stripEmojis.js';
 import remarkTableDataLabels from './src/lib/remark/tableDataLabels.js';
 import rehypeTableWrapper from './src/lib/rehype/tableWrapper.js';
+import { WORKSHOP_ORG_SLUG } from './src/lib/workshop/config.ts';
 
 /**
  * Creates blog authors config with GitHub profile pictures
@@ -295,7 +296,7 @@ export default defineConfig({
 					errorOnLocalLinks: true,
 					exclude: ({ file, link }) =>
 						file.includes('/src/generated/workshop-markdown/')
-						&& link.startsWith('/gh-aw/workshops/2026-07-24-hackathon-blue-bat-18/?__gh_aw_workshop_local__='),
+						&& link.startsWith(`/gh-aw/workshops/${WORKSHOP_ORG_SLUG}/?__gh_aw_workshop_local__=`),
 				})
 			],
 			sidebar: [

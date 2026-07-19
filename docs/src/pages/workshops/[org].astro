@@ -1,9 +1,10 @@
 ---
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import WorkshopExperience from '../../components/workshop/WorkshopExperience.astro';
+import { WORKSHOP_ORG_SLUG } from '../../lib/workshop/config';
 
 export function getStaticPaths() {
-	return [{ params: { org: '2026-07-24-hackathon-blue-bat-18' } }];
+	return [{ params: { org: WORKSHOP_ORG_SLUG } }];
 }
 ---
 
