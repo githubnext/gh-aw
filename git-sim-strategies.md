@@ -1,7 +1,7 @@
 # Git Simulator Strategy Notes
 
 Z3 sweep of 3600 cells (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT, COMMIT innermost).
-**120/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
+**124/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
 `commit=i%3, branch=(i//3)%3, patch=(i//9)%5, files=(i//45)%4, history=(i//180)%4,
 size=(i//720)%5`. sizes[tiny,small,medium,large,huge] hist[none,shallow,medium,deep]
 files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]=
@@ -23,7 +23,14 @@ files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]
   200 KB payload → framing ~+8 KB (~405 B/file: header + `+`-prefix line tax scaling
   with payload lines → ~3.9% at 10 KB files). idx116 diverged-merge_msg two-dot 207.92
   vs three-dot 208.34 (+431 B phantom). All ff rc0, merge_msg leak reconfirmed.
-- **tiny-none-many-LARGE (idx 117-119, clean opened): PASS.** clean-single(117) 1.patch
+- **tiny-none-many-LARGE (idx 117-123): PASS.** ahead(120-122)/diverged(123) ~1004-
+  1018 KB two-dot, all clean ff (is-ancestor rc0), disjoint-multi(121) 1.019×, merge_msg
+  leak(122) reconfirmed. idx123 CLARIFIES the phantom: `git diff --name-only main..feature`
+  =21 (TWO-dot endpoint-tree compare pulls main's divergent history.md) vs three-dot=20
+  (merge-base→feature, clean) — OPPOSITE polarity from format-patch, where two-dot is the
+  clean 20-file/1018.42 KB cap set and three-dot adds the +0.47 KB phantom artifact. So:
+  format-patch→use TWO-dot; git-diff --name-only→use THREE-dot for the honest feature set.
+  clean-single(117) 1.patch
   1018.30 KB for 1000 KB payload → framing +18.30 KB (~0.915 KB/file, payload:total
   0.982, ~1.8%); bundle 762.24 KB = 25.2% smaller. clean-multi(118) 3.patch 1018.81 KB
   disjoint 7/7/6 → ~1.02× (per-commit From-header ~0.87-0.97 KB, ~2.8 KB/3 commits, NOT
@@ -105,8 +112,8 @@ first max-patch-FILES `rejected` needs batch under a default-100 config.
 
 ## Next
 
-Next index: **120** → tiny-none-many-large-AHEAD/DIVERGED (idx120-125), then many-
-xlarge (126-134). many-large clean DONE 117-119. many-medium COMPLETE 108-116. many-
+Next index: **124** → tiny-none-many-large-diverged-multi/merge_msg (idx124-125), then
+many-xlarge (126-134). many-large DONE 117-123. many-medium COMPLETE 108-116. many-
 small COMPLETE 99-107. many-micro COMPLETE 90-98. FILES=many runs 90-179, batch 180-269.
 **many-xlarge ~4058 KB still <4096 (safe).** batch-xlarge
 ~4080 KB <4096 BUT batch=100 files == max-patch-files default 100 (200 here) — watch
