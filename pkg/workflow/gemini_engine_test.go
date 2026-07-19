@@ -167,10 +167,9 @@ func TestGeminiEngineExecution(t *testing.T) {
 
 	t.Run("with model", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Name: "test-workflow",
-			EngineConfig: &EngineConfig{
-				Model: "gemini-1.5-pro",
-			},
+			Name:         "test-workflow",
+			Model:        "gemini-1.5-pro",
+			EngineConfig: &EngineConfig{},
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
@@ -253,10 +252,9 @@ func TestGeminiEngineExecution(t *testing.T) {
 
 		// When model is configured, use the native GEMINI_MODEL env var
 		modelWorkflow := &WorkflowData{
-			Name: "model-configured",
-			EngineConfig: &EngineConfig{
-				Model: "gemini-2.0-flash",
-			},
+			Name:         "model-configured",
+			Model:        "gemini-2.0-flash",
+			EngineConfig: &EngineConfig{},
 		}
 
 		steps = engine.GetExecutionSteps(modelWorkflow, "/tmp/test.log")

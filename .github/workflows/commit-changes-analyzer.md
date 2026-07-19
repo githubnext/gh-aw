@@ -16,9 +16,9 @@ permissions:
   issues: read
   pull-requests: read
 max-turns: 100
+model: copilot/gpt-5.4
 engine:
   id: pi
-  model: copilot/gpt-5.4
 sandbox:
   agent:
     sudo: false

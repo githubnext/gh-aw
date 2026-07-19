@@ -958,10 +958,10 @@ func TestBuildStandardSafeOutputEnvVars(t *testing.T) {
 			workflowData: &WorkflowData{
 				Name:        "Test Workflow",
 				SafeOutputs: &SafeOutputsConfig{},
+				Model:       "gpt-4",
 				EngineConfig: &EngineConfig{
 					ID:      "copilot",
 					Version: "1.0.0",
-					Model:   "gpt-4",
 				},
 			},
 			targetRepoSlug: "",

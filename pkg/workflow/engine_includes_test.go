@@ -595,7 +595,7 @@ func TestExtractEngineConfigFromJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config, err := compiler.extractEngineConfigFromJSON(tt.engineJSON)
+			config, _, err := compiler.extractEngineConfigFromJSON(tt.engineJSON)
 
 			if tt.expectError {
 				if err == nil {

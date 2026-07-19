@@ -16,9 +16,9 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: daily-model-resolution
+model: gpt-5.4-mini
 engine:
   id: copilot
-  model: gpt-5.4-mini
 strict: true
 tools:
   agentic-workflows: true

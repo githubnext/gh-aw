@@ -103,7 +103,7 @@ func TestEngineCatalog_Resolve_ConfigPassthrough(t *testing.T) {
 	registry := NewEngineRegistry()
 	catalog := NewEngineCatalog(registry)
 
-	cfg := &EngineConfig{ID: "copilot", Model: "gpt-4o", MaxTurns: "10"}
+	cfg := &EngineConfig{ID: "copilot", MaxTurns: "10"}
 	resolved, err := catalog.Resolve("copilot", cfg)
 	require.NoError(t, err, "copilot with config should resolve without error")
 	assert.Equal(t, cfg, resolved.Config, "resolved Config should be the same pointer passed in")

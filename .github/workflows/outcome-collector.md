@@ -14,9 +14,9 @@ permissions:
   actions: read
   discussions: read
 tracker-id: outcome-collector
+model: claude-haiku-4.5
 engine:
   id: copilot
-  model: claude-haiku-4.5
   bare: true
 strict: true
 timeout-minutes: 20

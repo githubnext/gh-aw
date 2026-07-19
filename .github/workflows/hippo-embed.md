@@ -11,9 +11,9 @@ permissions:
 
   copilot-requests: write
 tracker-id: hippo-embed
+model: copilot/gpt-5.4
 engine:
   id: pi
-  model: copilot/gpt-5.4
   bare: true
 
 timeout-minutes: 60

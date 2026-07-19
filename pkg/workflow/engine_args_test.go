@@ -18,7 +18,7 @@ func TestEngineArgsFieldExtraction(t *testing.T) {
 			},
 		}
 
-		_, config := compiler.ExtractEngineConfig(frontmatter)
+		_, config, _ := compiler.ExtractEngineConfig(frontmatter)
 		if config == nil {
 			t.Fatal("Expected config to be non-nil")
 		}
@@ -41,7 +41,7 @@ func TestEngineArgsFieldExtraction(t *testing.T) {
 			},
 		}
 
-		_, config := compiler.ExtractEngineConfig(frontmatter)
+		_, config, _ := compiler.ExtractEngineConfig(frontmatter)
 		if config == nil {
 			t.Fatal("Expected config to be non-nil")
 		}
@@ -60,7 +60,7 @@ func TestEngineArgsFieldExtraction(t *testing.T) {
 			},
 		}
 
-		_, config := compiler.ExtractEngineConfig(frontmatter)
+		_, config, _ := compiler.ExtractEngineConfig(frontmatter)
 		if config == nil {
 			t.Fatal("Expected config to be non-nil")
 		}
@@ -77,7 +77,7 @@ func TestEngineArgsFieldExtraction(t *testing.T) {
 			},
 		}
 
-		_, config := compiler.ExtractEngineConfig(frontmatter)
+		_, config, _ := compiler.ExtractEngineConfig(frontmatter)
 		if config == nil {
 			t.Fatal("Expected config to be non-nil")
 		}
@@ -97,7 +97,7 @@ func TestEngineArgsFieldExtraction(t *testing.T) {
 			},
 		}
 
-		_, config := compiler.ExtractEngineConfig(frontmatter)
+		_, config, _ := compiler.ExtractEngineConfig(frontmatter)
 		if config == nil {
 			t.Fatal("Expected config to be non-nil")
 		}
@@ -124,7 +124,7 @@ func TestEnginePermissionModeFieldExtraction(t *testing.T) {
 			},
 		}
 
-		_, config := compiler.ExtractEngineConfig(frontmatter)
+		_, config, _ := compiler.ExtractEngineConfig(frontmatter)
 		if config == nil {
 			t.Fatal("Expected config to be non-nil")
 		}
@@ -140,7 +140,7 @@ func TestEnginePermissionModeFieldExtraction(t *testing.T) {
 			},
 		}
 
-		_, config := compiler.ExtractEngineConfig(frontmatter)
+		_, config, _ := compiler.ExtractEngineConfig(frontmatter)
 		if config == nil {
 			t.Fatal("Expected config to be non-nil")
 		}
@@ -161,7 +161,7 @@ func TestEngineExtensionsFieldExtraction(t *testing.T) {
 			},
 		}
 
-		_, config := compiler.ExtractEngineConfig(frontmatter)
+		_, config, _ := compiler.ExtractEngineConfig(frontmatter)
 		if config == nil {
 			t.Fatal("Expected config to be non-nil")
 		}
@@ -181,7 +181,7 @@ func TestEngineExtensionsFieldExtraction(t *testing.T) {
 			},
 		}
 
-		_, config := compiler.ExtractEngineConfig(frontmatter)
+		_, config, _ := compiler.ExtractEngineConfig(frontmatter)
 		if config == nil {
 			t.Fatal("Expected config to be non-nil")
 		}
@@ -200,7 +200,7 @@ func TestEngineExtensionsFieldExtraction(t *testing.T) {
 			},
 		}
 
-		_, config := compiler.ExtractEngineConfig(frontmatter)
+		_, config, _ := compiler.ExtractEngineConfig(frontmatter)
 		if config == nil {
 			t.Fatal("Expected config to be non-nil")
 		}
@@ -217,7 +217,7 @@ func TestEngineExtensionsFieldExtraction(t *testing.T) {
 			},
 		}
 
-		_, config := compiler.ExtractEngineConfig(frontmatter)
+		_, config, _ := compiler.ExtractEngineConfig(frontmatter)
 		if config == nil {
 			t.Fatal("Expected config to be non-nil")
 		}

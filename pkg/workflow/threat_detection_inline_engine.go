@@ -52,7 +52,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		return []string{"      # Engine not found, skipping execution\n"}
 	}
 
-	// Build a detection engine config inheriting ID, Model, Version, Env, Config, Args, APITarget.
+	// Build a detection engine config inheriting ID, Version, Env, Config, Args, APITarget.
 	// MaxTurns, Concurrency, UserAgent, Firewall, Agent, and MaxAICredits are intentionally
 	// omitted — MaxAICredits is set independently below from safe-outputs.threat-detection
 	// so the detection budget is always resolved from its own default expression rather than
@@ -63,7 +63,6 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	} else {
 		detectionEngineConfig = &EngineConfig{
 			ID:            detectionEngineConfig.ID,
-			Model:         detectionEngineConfig.Model,
 			Version:       detectionEngineConfig.Version,
 			Env:           detectionEngineConfig.Env,
 			Config:        detectionEngineConfig.Config,
@@ -80,15 +79,20 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		detectionEngineConfig.MaxAICredits = data.SafeOutputs.ThreatDetection.MaxAICredits
 	}
 
+	resolvedDetectionModel := data.Model
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Model != "" {
+		resolvedDetectionModel = data.SafeOutputs.ThreatDetection.Model
+	}
+
 	// Apply enterprise and engine default detection models when no model was explicitly configured.
 	// GetDefaultDetectionModel() returns a cost-effective model optimised for detection
 	// (e.g. "gpt-5.1-codex-mini" for Copilot). Other engines return "" (no default).
 	// This was accidentally removed in commit a93e36ea4 while fixing engine.agent propagation.
-	if detectionEngineConfig.Model == "" {
+	if resolvedDetectionModel == "" {
 		if defaultModel := compilerenv.ResolveDefaultDetectionModel(""); defaultModel != "" {
-			detectionEngineConfig.Model = defaultModel
+			resolvedDetectionModel = defaultModel
 		} else if defaultModel := engine.GetDefaultDetectionModel(); defaultModel != "" {
-			detectionEngineConfig.Model = defaultModel
+			resolvedDetectionModel = defaultModel
 		}
 	}
 
@@ -103,7 +107,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		// Copilot CLI expects only the model ID. extractPiModelID preserves bare model
 		// names unchanged, so empty or already-normalized values keep their current
 		// fallback behavior while provider-scoped Pi models become Copilot-compatible.
-		detectionEngineConfig.Model = extractPiModelID(detectionEngineConfig.Model)
+		resolvedDetectionModel = extractPiModelID(resolvedDetectionModel)
 	}
 
 	// Create minimal WorkflowData for threat detection.
@@ -122,6 +126,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	threatDetectionData.Tools = map[string]any{
 		"bash": []any{"*"},
 	}
+	threatDetectionData.Model = resolvedDetectionModel
 	threatDetectionData.EngineConfig = detectionEngineConfig
 	threatDetectionData.ModelMappings = data.ModelMappings // propagate alias map so detection awf-config.json can resolve model aliases
 	threatDetectionData.NetworkPermissions = &NetworkPermissions{

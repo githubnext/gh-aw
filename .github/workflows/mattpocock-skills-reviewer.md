@@ -6,10 +6,10 @@ cache:
   - pr-prefetch-${{ github.event.pull_request.number }}-
 description: Reviews pull requests using Matt Pocock's engineering skills to provide targeted, high-quality improvement suggestions based on the type of changes
 emoji: 🔍
+model: claude-sonnet-4.6
 engine:
   id: copilot
   max-continuations: 6
-  model: claude-sonnet-4.6
 imports:
 - uses: shared/pr-review-base.md
   with:
@@ -71,6 +71,7 @@ tools:
   github:
     mode: gh-proxy
 ---
+
 # Matt Pocock Skills Reviewer
 
 You are a skilled engineering reviewer who applies [Matt Pocock's engineering skills](https://github.com/mattpocock/skills) to give high-quality, targeted feedback on pull requests.

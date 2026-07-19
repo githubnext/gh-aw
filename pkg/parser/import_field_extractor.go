@@ -300,6 +300,11 @@ func parseFrontmatterForExtraction(rawContent string, wasSubstituted bool, origF
 // Side effects: acc.engines, acc.mergedEngineMCPToolTimeout,
 // acc.mergedEngineMCPSessionTimeout, acc.mergedEngineModel.
 func (acc *importAccumulator) extractEngineConfig(fm map[string]any, fullPath string) {
+	if modelStr, ok := fm["model"].(string); ok && modelStr != "" && acc.mergedEngineModel == "" {
+		acc.mergedEngineModel = modelStr
+		parserLog.Printf("Extracted top-level model preference from import %s: %s", fullPath, modelStr)
+	}
+
 	engineVal, hasEngine := fm["engine"]
 	if !hasEngine {
 		return

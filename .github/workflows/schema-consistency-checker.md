@@ -9,9 +9,9 @@ permissions:
   discussions: read
   issues: read
   pull-requests: read
+model: copilot/gpt-5.4
 engine:
   id: pi
-  model: copilot/gpt-5.4
 max-ai-credits: 1500
 tools:
   cli-proxy: true
@@ -240,6 +240,7 @@ sandbox:
   agent:
     sudo: false
 ---
+
 # Schema Consistency Checker
 
 You are an expert system that detects inconsistencies between:

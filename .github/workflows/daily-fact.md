@@ -14,9 +14,9 @@ permissions:
   actions: read
   discussions: read
 tracker-id: daily-fact-thread
+model: gpt-5.4
 engine:
   id: codex
-  model: gpt-5.4
   bare: true
 strict: true
 experiments:

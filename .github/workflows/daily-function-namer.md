@@ -15,10 +15,9 @@ permissions:
 
 tracker-id: daily-function-namer
 
+model: copilot/gpt-5.4
 engine:
   id: pi
-  model: copilot/gpt-5.4
-
 imports:
   - uses: shared/daily-audit-base.md
     with:

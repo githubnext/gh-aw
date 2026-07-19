@@ -19,9 +19,9 @@ permissions:
   issues: read
   pull-requests: read
 name: Smoke Copilot MAI
+model: mai-code-1-flash-picker
 engine:
   id: copilot
-  model: mai-code-1-flash-picker
   bare: true
 network:
   allowed:
