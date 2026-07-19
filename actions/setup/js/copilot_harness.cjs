@@ -1095,7 +1095,7 @@ async function main() {
 
         // Redact --prompt / -p value from logs to avoid leaking prompt content
         const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
-        const attemptStartTime = Date.now();
+        const attemptStart = Date.now();
         // Driver mode: run copilot_sdk_driver.cjs as a normal subprocess. The harness has
         // already started the sidecar; the driver only opens an SDK client connection.
         const result = await runProcess({
@@ -1156,7 +1156,7 @@ async function main() {
         const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
         const isInvocationCapExceeded = nonRetryableGuard.maxRunsExceeded;
         const tokenCount = extractTokenCountFromOutput(result.output);
-        const attemptDurationMs = Date.now() - attemptStartTime;
+        const attemptDurationMs = Date.now() - attemptStart;
         const failureClass = classifyCopilotFailure({
           hasOutput: result.hasOutput,
           isAuthErr,
