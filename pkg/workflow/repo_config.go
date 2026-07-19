@@ -11,6 +11,7 @@
 //	  "help_command": false,      // disables builtin centralized /help comment handler
 //	  "utc": "-08:00", // project home UTC offset for rendered local times
 //	  "auto_upgrade": true, // set to true to generate agentic-auto-upgrade.yml with weekly schedule
+//	  "auto_upgrade": { "cron": "0 9 * * 1" }, // or object form: enable with custom cron (Monday 09:00 UTC)
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
 //	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
 //	    "action_failure_issue_expires": 72, // expiration (hours) for conclusion failure issues
@@ -34,6 +35,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -166,6 +168,11 @@ type RepoConfig struct {
 	// Opt-in: nil (omitted) or false both disable generation.
 	AutoUpgrade *bool
 
+	// AutoUpgradeCron is an optional custom cron expression for the
+	// agentic-auto-upgrade workflow schedule. When non-empty, it overrides
+	// the default fuzzy weekly schedule. Requires AutoUpgrade to be true.
+	AutoUpgradeCron string
+
 	// MaintenanceDisabled is true when maintenance has been explicitly set to false
 	// in aw.json, disabling agentic-maintenance generation and any features that
 	// depend on it (such as expires).
@@ -193,14 +200,17 @@ func (r *RepoConfig) IsAutoUpgradeEnabled() bool {
 }
 
 // UnmarshalJSON implements json.Unmarshaler to handle the polymorphic maintenance
-// field, which can be either the boolean false (disable) or a configuration object.
+// and auto_upgrade fields. maintenance can be either the boolean false (disable)
+// or a configuration object; auto_upgrade can be a boolean or an object with an
+// optional cron field.
 func (r *RepoConfig) UnmarshalJSON(data []byte) error {
-	// Use an intermediate struct with json.RawMessage to defer maintenance parsing.
+	// Use an intermediate struct with json.RawMessage to defer maintenance and
+	// auto_upgrade parsing.
 	var raw struct {
 		GHES        bool              `json:"ghes,omitempty"`
 		HelpCommand *bool             `json:"help_command,omitempty"` // nil = use default (enabled)
 		UTC         string            `json:"utc,omitempty"`
-		AutoUpgrade *bool             `json:"auto_upgrade,omitempty"`
+		AutoUpgrade json.RawMessage   `json:"auto_upgrade,omitempty"`
 		Maintenance json.RawMessage   `json:"maintenance,omitempty"`
 		ActionPins  map[string]string `json:"action_pins,omitempty"`
 	}
@@ -211,8 +221,26 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 	r.GHES = raw.GHES
 	r.HelpCommand = raw.HelpCommand
 	r.UTC = strings.TrimSpace(raw.UTC)
-	r.AutoUpgrade = raw.AutoUpgrade
 	r.ActionPins = raw.ActionPins
+
+	// Parse polymorphic auto_upgrade: boolean or { "cron": "..." } object.
+	if len(raw.AutoUpgrade) > 0 && string(raw.AutoUpgrade) != "null" {
+		var b bool
+		if err := json.Unmarshal(raw.AutoUpgrade, &b); err == nil {
+			r.AutoUpgrade = &b
+		} else {
+			// Object form: { "cron": "..." } — implies enabled.
+			var autoUpgradeObj struct {
+				Cron string `json:"cron,omitempty"`
+			}
+			if err := json.Unmarshal(raw.AutoUpgrade, &autoUpgradeObj); err != nil {
+				return fmt.Errorf("invalid auto_upgrade configuration: %w", err)
+			}
+			enabled := true
+			r.AutoUpgrade = &enabled
+			r.AutoUpgradeCron = strings.TrimSpace(autoUpgradeObj.Cron)
+		}
+	}
 
 	if len(raw.Maintenance) == 0 || string(raw.Maintenance) == "null" {
 		return nil
@@ -313,6 +341,11 @@ func validateRepoConfigValues(cfg *RepoConfig) error {
 		}
 		cfg.UTC = normalized
 	}
+	if cfg.AutoUpgradeCron != "" {
+		if err := validateCronExpression(cfg.AutoUpgradeCron); err != nil {
+			return fmt.Errorf("invalid %s: auto_upgrade.cron %w", RepoConfigFileName, err)
+		}
+	}
 	if cfg.Maintenance != nil {
 		seenDisabledJobs := map[string]string{}
 		for _, jobName := range cfg.Maintenance.DisabledJobs {
@@ -379,4 +412,87 @@ func (r *RepoConfig) ActionFailureIssueExpiresHours() int {
 		return r.Maintenance.ActionFailureIssueExpires
 	}
 	return DefaultActionFailureIssueExpiresHours
+}
+
+// cronFieldRange describes the allowed numeric range for a cron field.
+type cronFieldRange struct {
+	name string
+	min  int
+	max  int
+}
+
+var cronFieldRanges = []cronFieldRange{
+	{"minute", 0, 59},
+	{"hour", 0, 23},
+	{"day-of-month", 1, 31},
+	{"month", 1, 12},
+	{"day-of-week", 0, 7},
+}
+
+// validateCronExpression validates a 5-field POSIX cron expression.
+// It checks that the expression has exactly 5 space-separated fields and that
+// each field's numeric literals fall within the allowed range for that position.
+func validateCronExpression(expr string) error {
+	fields := strings.Split(expr, " ")
+	if len(fields) != 5 {
+		return fmt.Errorf("must have exactly 5 fields (got %d)", len(fields))
+	}
+	for i, field := range fields {
+		r := cronFieldRanges[i]
+		if err := validateCronField(field, r.min, r.max); err != nil {
+			return fmt.Errorf("field %d (%s): %w", i+1, r.name, err)
+		}
+	}
+	return nil
+}
+
+// validateCronField validates a single cron field value against an allowed range.
+// It supports the following forms: *, n, n-m, n/s, */s, n-m/s, and comma-separated combinations.
+func validateCronField(field string, min, max int) error {
+	for part := range strings.SplitSeq(field, ",") {
+		if err := validateCronPart(part, min, max); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateCronPart validates a single part of a cron field (before splitting on comma).
+func validateCronPart(part string, min, max int) error {
+	// Strip optional step value (e.g. "*/5" or "1-5/2").
+	base, step, hasStep := strings.Cut(part, "/")
+	if hasStep {
+		sv, err := strconv.Atoi(step)
+		if err != nil || sv < 1 {
+			return fmt.Errorf("invalid step value %q (must be a positive integer)", step)
+		}
+	}
+	part = base
+
+	if part == "*" {
+		return nil
+	}
+
+	// Range (e.g. "1-5").
+	if lo, hi, ok := strings.Cut(part, "-"); ok {
+		loN, err1 := strconv.Atoi(lo)
+		hiN, err2 := strconv.Atoi(hi)
+		if err1 != nil || err2 != nil {
+			return fmt.Errorf("invalid range %q", part)
+		}
+		if loN < min || hiN > max || loN > hiN {
+			return fmt.Errorf("range %d-%d out of bounds [%d-%d]", loN, hiN, min, max)
+		}
+		return nil
+	}
+
+	// Plain integer.
+	n, err := strconv.Atoi(part)
+	if err != nil {
+		return fmt.Errorf("invalid value %q", part)
+	}
+	if n < min || n > max {
+		return fmt.Errorf("value %d out of bounds [%d-%d]", n, min, max)
+	}
+	return nil
 }

@@ -177,11 +177,11 @@ func TestModelEnvVarInjectionForDetectionJob(t *testing.T) {
 // TestExplicitModelConfigOverridesEnvVar tests that explicit model configuration takes precedence
 func TestExplicitModelConfigOverridesEnvVar(t *testing.T) {
 	workflowData := &WorkflowData{
-		Name: "test-explicit-model",
-		AI:   "copilot",
+		Name:  "test-explicit-model",
+		AI:    "copilot",
+		Model: "gpt-4",
 		EngineConfig: &EngineConfig{
-			ID:    "copilot",
-			Model: "gpt-4",
+			ID: "copilot",
 		},
 		Tools: map[string]any{
 			"bash": []any{"echo"},
@@ -346,11 +346,11 @@ func TestExpressionModelUsesEnvVar(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{
-				Name: "test-expression-model",
-				AI:   tt.engine,
+				Name:  "test-expression-model",
+				AI:    tt.engine,
+				Model: tt.model,
 				EngineConfig: &EngineConfig{
-					ID:    tt.engine,
-					Model: tt.model,
+					ID: tt.engine,
 				},
 				Tools: map[string]any{
 					"bash": []any{"echo"},
@@ -402,11 +402,11 @@ func TestExpressionModelUsesEnvVar(t *testing.T) {
 // for Copilot use the native COPILOT_MODEL environment variable.
 func TestExpressionModelDetectionJobUsesEnvVar(t *testing.T) {
 	workflowData := &WorkflowData{
-		Name: "test-detection-expression-model",
-		AI:   "copilot",
+		Name:  "test-detection-expression-model",
+		AI:    "copilot",
+		Model: "${{ inputs.model }}",
 		EngineConfig: &EngineConfig{
-			ID:    "copilot",
-			Model: "${{ inputs.model }}",
+			ID: "copilot",
 		},
 		Tools: map[string]any{
 			"bash": []any{"cat", "grep"},

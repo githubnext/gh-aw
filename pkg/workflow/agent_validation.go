@@ -129,7 +129,7 @@ func validateCapabilitySupport(featureName string, featureSet bool, capabilitySu
 // validateMaxTurnsSupport validates that max-turns is only used with engines that support this feature
 func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine CodingAgentEngine) error {
 	// Check if max-turns is specified in the engine config
-	_, engineConfig := c.ExtractEngineConfig(frontmatter)
+	_, engineConfig, _ := c.ExtractEngineConfig(frontmatter)
 
 	hasMaxTurns := engineConfig != nil && engineConfig.MaxTurns != ""
 
@@ -142,7 +142,7 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 // validateMaxContinuationsSupport validates that max-continuations is only used with engines that support this feature
 func (c *Compiler) validateMaxContinuationsSupport(frontmatter map[string]any, engine CodingAgentEngine) error {
 	// Check if max-continuations is specified in the engine config
-	_, engineConfig := c.ExtractEngineConfig(frontmatter)
+	_, engineConfig, _ := c.ExtractEngineConfig(frontmatter)
 
 	hasMaxContinuations := engineConfig != nil && engineConfig.MaxContinuations != 0
 
@@ -155,7 +155,7 @@ func (c *Compiler) validateMaxContinuationsSupport(frontmatter map[string]any, e
 // validateMaxToolDenialsSupport validates that max-tool-denials is only used with
 // the Copilot engine in Copilot SDK mode.
 func (c *Compiler) validateMaxToolDenialsSupport(frontmatter map[string]any, engine CodingAgentEngine) error {
-	_, engineConfig := c.ExtractEngineConfig(frontmatter)
+	_, engineConfig, _ := c.ExtractEngineConfig(frontmatter)
 
 	if engineConfig == nil || engineConfig.MaxToolDenials == "" {
 		return nil
@@ -182,12 +182,12 @@ func (c *Compiler) validateUniversalLLMConsumerModel(frontmatter map[string]any,
 		return nil
 	}
 
-	_, engineConfig := c.ExtractEngineConfig(frontmatter)
-	if engineConfig == nil || strings.TrimSpace(engineConfig.Model) == "" {
+	_, engineConfig, model := c.ExtractEngineConfig(frontmatter)
+	if engineConfig == nil || strings.TrimSpace(model) == "" {
 		return fmt.Errorf("engine.model is required for engine '%s' and must use provider/model format (for example: copilot/gpt-5, anthropic/claude-sonnet-4, openai/gpt-4.1)", engine.GetID())
 	}
 
-	if _, err := resolveUniversalLLMBackendFromModel(engineConfig.Model); err != nil {
+	if _, err := resolveUniversalLLMBackendFromModel(model); err != nil {
 		return fmt.Errorf("invalid engine.model for engine '%s': %w", engine.GetID(), err)
 	}
 
@@ -235,7 +235,7 @@ func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingA
 // validateBareModeSupport validates that bare mode is only used with engines that support this feature.
 // Emits a warning and has no effect on engines that do not support bare mode.
 func (c *Compiler) validateBareModeSupport(frontmatter map[string]any, engine CodingAgentEngine) {
-	_, engineConfig := c.ExtractEngineConfig(frontmatter)
+	_, engineConfig, _ := c.ExtractEngineConfig(frontmatter)
 
 	if engineConfig == nil || !engineConfig.Bare {
 		// bare mode not requested, no validation needed

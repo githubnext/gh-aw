@@ -10,6 +10,55 @@ function isCoreLikeIdentifier(name: string): boolean {
   return CORE_ALIASES.has(name);
 }
 
+type FunctionNode = TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression;
+
+/**
+ * Returns the innermost enclosing function node for `node`, or null when
+ * `node` is at module top level (not inside any function).
+ */
+function getImmediateEnclosingFunction(node: TSESTree.Node, sourceCode: SourceCode): FunctionNode | null {
+  const ancestors = sourceCode.getAncestors(node);
+  for (let i = ancestors.length - 1; i >= 0; i--) {
+    const ancestor = ancestors[i];
+    // prettier-ignore
+    if (
+      ancestor.type === AST_NODE_TYPES.FunctionDeclaration ||
+      ancestor.type === AST_NODE_TYPES.FunctionExpression ||
+      ancestor.type === AST_NODE_TYPES.ArrowFunctionExpression
+    ) {
+      return ancestor as FunctionNode;
+    }
+  }
+  return null;
+}
+
+/**
+ * Returns true when `fn` is a conventional module entrypoint named `main`
+ * declared at module top level (not nested inside another function):
+ *   - `function main() {}` / `async function main() {}`  at Program scope
+ *   - `const main = function() {}` / `const main = async () => {}`  at Program scope
+ */
+function isFunctionNamedMain(fn: FunctionNode): boolean {
+  if (fn.type === AST_NODE_TYPES.FunctionDeclaration) {
+    // Must be named `main` and declared directly inside the Program (module top level)
+    return fn.id?.name === "main" && fn.parent?.type === AST_NODE_TYPES.Program;
+  }
+  // FunctionExpression or ArrowFunctionExpression assigned to a variable named `main`
+  const declarator = fn.parent;
+  // prettier-ignore
+  if (
+    declarator == null ||
+    declarator.type !== AST_NODE_TYPES.VariableDeclarator ||
+    declarator.id.type !== AST_NODE_TYPES.Identifier ||
+    declarator.id.name !== "main"
+  ) {
+    return false;
+  }
+  // The VariableDeclaration containing this declarator must be at module top level
+  const varDecl = declarator.parent;
+  return varDecl?.type === AST_NODE_TYPES.VariableDeclaration && varDecl.parent?.type === AST_NODE_TYPES.Program;
+}
+
 /**
  * Returns true when `node` is an expression statement containing a call to
  * `core.error(...)` (direct, computed, or aliased).
@@ -70,12 +119,16 @@ export const noCoreErrorThenProcessExitRule = createRule({
       description:
         "Disallow the pattern `core.error(msg); process.exit(nonzero)` in GitHub Actions scripts. " +
         "`core.error()` annotates the log but does not mark the action as failed. " +
-        "Using `process.exit(nonzero)` after it bypasses the proper GitHub Actions failure lifecycle. " +
-        "Use `core.setFailed(msg); return;` instead so the action is correctly marked as failed and all cleanup hooks run.",
+        "Prefer `core.setFailed(msg)` which correctly marks the action as failed and allows post-action " +
+        "cleanup hooks to run. Note: in a standalone `node` script, `process.exit(nonzero)` does fail the " +
+        "step, but `core.setFailed` is more portable and is still recommended.",
     },
     schema: [],
     messages: {
-      noCoreErrorThenProcessExit: "Avoid `core.error()` followed by `process.exit(nonzero)`. Use `core.setFailed(msg); return;` instead to correctly signal action failure without bypassing cleanup hooks.",
+      noCoreErrorThenProcessExit:
+        "Avoid `core.error()` followed by `process.exit(nonzero)`. Prefer `core.setFailed(msg)` to signal " +
+        "action failure; it marks the action failed and allows post-action cleanup hooks to run. " +
+        "In standalone `node` scripts, `process.exit(nonzero)` does fail the step, but `core.setFailed` is more portable.",
       replaceWithSetFailed: "Replace `core.error(msg); process.exit(...)` with `core.setFailed(msg); return;`.",
     },
   },
@@ -88,38 +141,37 @@ export const noCoreErrorThenProcessExitRule = createRule({
         const current = stmts[i];
         const next = stmts[i + 1];
         if (isCoreErrorStatement(current, sourceCode) && isProcessExitNonZero(next)) {
-          // Report on the pair (the core.error call)
+          // The autofix suggestion is only safe when the pair is at module top level or directly
+          // inside a `main()` entrypoint. Inside helper functions, `return;` only exits the helper
+          // and lets the caller continue — it does NOT abort the process like `process.exit` does.
+          const enclosingFn = getImmediateEnclosingFunction(current, sourceCode);
+          const safeToFix = enclosingFn === null || isFunctionNamedMain(enclosingFn);
+
           context.report({
             node: current,
             messageId: "noCoreErrorThenProcessExit",
-            suggest: [
-              {
-                messageId: "replaceWithSetFailed",
-                fix(fixer: TSESLint.RuleFixer) {
-                  const errorCall = (current as TSESTree.ExpressionStatement).expression as TSESTree.CallExpression;
-                  const args = errorCall.arguments.map(a => sourceCode.getText(a)).join(", ");
+            suggest: safeToFix
+              ? [
+                  {
+                    messageId: "replaceWithSetFailed",
+                    fix(fixer: TSESLint.RuleFixer) {
+                      const errorCall = (current as TSESTree.ExpressionStatement).expression as TSESTree.CallExpression;
+                      const args = errorCall.arguments.map(a => sourceCode.getText(a)).join(", ");
 
-                  // Detect the core object name (e.g. "core")
-                  const callee = errorCall.callee as TSESTree.MemberExpression;
-                  const objectName = sourceCode.getText(callee.object);
+                      // Detect the core object name (e.g. "core")
+                      const callee = errorCall.callee as TSESTree.MemberExpression;
+                      const objectName = sourceCode.getText(callee.object);
 
-                  const isInsideFunction = (() => {
-                    const ancestors = sourceCode.getAncestors(current);
-                    for (let j = ancestors.length - 1; j >= 0; j--) {
-                      const a = ancestors[j];
-                      if (a.type === AST_NODE_TYPES.FunctionDeclaration || a.type === AST_NODE_TYPES.FunctionExpression || a.type === AST_NODE_TYPES.ArrowFunctionExpression) {
-                        return true;
-                      }
-                    }
-                    return false;
-                  })();
+                      // At module top-level (enclosingFn === null) there is nothing to `return` from,
+                      // so we just replace with setFailed. Inside main() we append `return;` to exit
+                      // the entrypoint in the same way process.exit would.
+                      const replacement = enclosingFn !== null ? `${objectName}.setFailed(${args}); return;` : `${objectName}.setFailed(${args});`;
 
-                  const replacement = isInsideFunction ? `${objectName}.setFailed(${args}); return;` : `${objectName}.setFailed(${args});`;
-
-                  return [fixer.replaceText(current, replacement + "\n"), fixer.remove(next)];
-                },
-              },
-            ],
+                      return [fixer.replaceText(current, replacement + "\n"), fixer.remove(next)];
+                    },
+                  },
+                ]
+              : [],
           });
         }
       }

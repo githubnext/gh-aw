@@ -9,9 +9,9 @@ permissions:
   discussions: read
   issues: read
   pull-requests: read
+model: gpt-5.4
 engine:
   id: codex
-  model: gpt-5.4
 strict: true
 tracker-id: daily-observability-report
 tools:
@@ -36,6 +36,7 @@ sandbox:
   agent:
     sudo: false
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Observability Report for AWF Firewall and MCP Gateway

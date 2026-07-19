@@ -11,9 +11,9 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: daily-awf-spec-compiler-surfacing
+model: copilot/gpt-5.4
 engine:
   id: pi
-  model: copilot/gpt-5.4
 sandbox:
   agent:
     sudo: false
