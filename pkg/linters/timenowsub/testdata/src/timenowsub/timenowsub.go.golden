@@ -1,6 +1,9 @@
 package timenowsub
 
-import "time"
+import (
+	faketime "faketime/time"
+	"time"
+)
 
 func bad(t time.Time) {
 	_ = time.Since(t) // want `time\.Now\(\)\.Sub\(t\) can be simplified to time\.Since\(t\)`
@@ -16,4 +19,16 @@ func good(t time.Time) {
 
 func goodOtherSub(a, b time.Time) {
 	_ = a.Sub(b)
+}
+
+func goodCallExprArg() {
+	_ = time.Now().Sub(loadStart())
+}
+
+func goodOtherTimePackage(t faketime.Time) {
+	_ = faketime.Now().Sub(t)
+}
+
+func loadStart() time.Time {
+	return time.Now()
 }

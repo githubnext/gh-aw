@@ -62,7 +62,11 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
-		if !isTimeNow(pass, nowCall) {
+		qualifier, ok := timeNowQualifier(pass, nowCall)
+		if !ok {
+			return
+		}
+		if !isSafeSinceArg(outer.Args[0]) {
 			return
 		}
 
@@ -78,17 +82,18 @@ func run(pass *analysis.Pass) (any, error) {
 		if argText == "" {
 			return
 		}
+		sinceText := qualifier + ".Since(" + argText + ")"
 
 		pass.Report(analysis.Diagnostic{
 			Pos:     outer.Pos(),
 			End:     outer.End(),
-			Message: fmt.Sprintf("time.Now().Sub(%s) can be simplified to time.Since(%s)", argText, argText),
+			Message: fmt.Sprintf("%s.Now().Sub(%s) can be simplified to %s", qualifier, argText, sinceText),
 			SuggestedFixes: []analysis.SuggestedFix{{
-				Message: fmt.Sprintf("Replace time.Now().Sub(%s) with time.Since(%s)", argText, argText),
+				Message: fmt.Sprintf("Replace %s.Now().Sub(%s) with %s", qualifier, argText, sinceText),
 				TextEdits: []analysis.TextEdit{{
 					Pos:     outer.Pos(),
 					End:     outer.End(),
-					NewText: []byte("time.Since(" + argText + ")"),
+					NewText: []byte(sinceText),
 				}},
 			}},
 		})
@@ -97,22 +102,39 @@ func run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-// isTimeNow reports whether call is a call to time.Now().
-func isTimeNow(pass *analysis.Pass, call *ast.CallExpr) bool {
+// timeNowQualifier reports the imported identifier used for time.Now().
+func timeNowQualifier(pass *analysis.Pass, call *ast.CallExpr) (string, bool) {
 	if len(call.Args) != 0 {
-		return false
+		return "", false
 	}
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok || sel.Sel.Name != "Now" {
-		return false
+		return "", false
 	}
-	obj := pass.TypesInfo.ObjectOf(sel.Sel)
-	if obj == nil {
-		return false
-	}
-	fn, ok := obj.(*types.Func)
+	ident, ok := sel.X.(*ast.Ident)
 	if !ok {
+		return "", false
+	}
+	obj := pass.TypesInfo.ObjectOf(ident)
+	if obj == nil {
+		return "", false
+	}
+	pkgName, ok := obj.(*types.PkgName)
+	if !ok {
+		return "", false
+	}
+	return ident.Name, pkgName.Imported().Path() == "time"
+}
+
+// isSafeSinceArg reports whether expr can be evaluated before time.Now()
+// without introducing calls or other potentially observable behavior changes.
+func isSafeSinceArg(expr ast.Expr) bool {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		return true
+	case *ast.ParenExpr:
+		return isSafeSinceArg(e.X)
+	default:
 		return false
 	}
-	return fn.FullName() == "time.Now"
 }
