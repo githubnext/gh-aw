@@ -112,8 +112,10 @@ const main = createCountGatedHandler({
           const missingMetadataLabels = requestedLabelInputs.filter(label => typeof label === "object" && label !== null && (!label.rationale || !label.confidence));
           if (missingMetadataLabels.length > 0) {
             const missingMetadataLabelNames = missingMetadataLabels.map(l => {
-              const metadataLabel = /** @type {{name: string}} */ l;
-              return JSON.stringify(metadataLabel.name);
+              if (typeof l !== "object" || l === null || !("name" in l)) {
+                return JSON.stringify("");
+              }
+              return JSON.stringify(l.name ?? "");
             });
             const error = `Label objects must include both "rationale" and "confidence" when issue_intent is explicitly enabled. Missing metadata on: ${missingMetadataLabelNames.join(", ")}`;
             core.warning(error);
