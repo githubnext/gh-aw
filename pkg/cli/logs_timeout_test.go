@@ -117,56 +117,93 @@ func TestEffectiveMCPLogsToolTimeoutMinutes(t *testing.T) {
 		name             string
 		requestedTimeout int
 		count            int
+		workflowName     string
 		want             int
 	}{
 		{
 			name:             "explicit timeout is preserved",
 			requestedTimeout: 5,
 			count:            100,
+			workflowName:     "my-workflow",
 			want:             5,
 		},
 		{
-			name:             "small fetch window keeps one minute default",
+			name:             "explicit timeout is preserved even without workflow name",
+			requestedTimeout: 5,
+			count:            100,
+			workflowName:     "",
+			want:             5,
+		},
+		{
+			name:             "small fetch window keeps one minute default (named workflow)",
 			requestedTimeout: 0,
 			count:            40,
+			workflowName:     "my-workflow",
 			want:             1,
 		},
 		{
-			name:             "fetch window above forty runs gets two minutes",
+			name:             "fetch window above forty runs gets two minutes (named workflow)",
 			requestedTimeout: 0,
 			count:            41,
+			workflowName:     "my-workflow",
 			want:             2,
 		},
 		{
-			name:             "eighty run fetch window stays in two minute tier",
+			name:             "eighty run fetch window stays in two minute tier (named workflow)",
 			requestedTimeout: 0,
 			count:            80,
+			workflowName:     "my-workflow",
 			want:             2,
 		},
 		{
-			name:             "eighty one run fetch window enters three minute tier",
+			name:             "eighty one run fetch window enters three minute tier (named workflow)",
 			requestedTimeout: 0,
 			count:            81,
+			workflowName:     "my-workflow",
 			want:             3,
 		},
 		{
-			name:             "default hundred run window gets three minutes",
+			name:             "default hundred run window gets three minutes (named workflow)",
 			requestedTimeout: 0,
 			count:            100,
+			workflowName:     "my-workflow",
 			want:             3,
 		},
 		{
-			name:             "unspecified count falls back to default window size",
+			name:             "unspecified count falls back to default window size (named workflow)",
 			requestedTimeout: 0,
 			count:            0,
+			workflowName:     "my-workflow",
 			want:             3,
+		},
+		// All-workflow cases: minimum 5 minutes when no workflow_name is given
+		{
+			name:             "small count uses all-workflow minimum (no workflow name)",
+			requestedTimeout: 0,
+			count:            3,
+			workflowName:     "",
+			want:             defaultMCPLogsMinTimeoutMinutesAllWorkflows,
+		},
+		{
+			name:             "default count uses all-workflow minimum (no workflow name)",
+			requestedTimeout: 0,
+			count:            100,
+			workflowName:     "",
+			want:             defaultMCPLogsMinTimeoutMinutesAllWorkflows,
+		},
+		{
+			name:             "very large count exceeds all-workflow minimum (no workflow name)",
+			requestedTimeout: 0,
+			count:            250,
+			workflowName:     "",
+			want:             (250 + mcpLogsRunsPerDefaultTimeoutMinute - 1) / mcpLogsRunsPerDefaultTimeoutMinute, // ceil(250/mcpLogsRunsPerDefaultTimeoutMinute) > defaultMCPLogsMinTimeoutMinutesAllWorkflows
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := effectiveMCPLogsToolTimeoutMinutes(tt.requestedTimeout, tt.count); got != tt.want {
-				t.Errorf("effectiveMCPLogsToolTimeoutMinutes(%d, %d) = %d, want %d", tt.requestedTimeout, tt.count, got, tt.want)
+			if got := effectiveMCPLogsToolTimeoutMinutes(tt.requestedTimeout, tt.count, tt.workflowName); got != tt.want {
+				t.Errorf("effectiveMCPLogsToolTimeoutMinutes(%d, %d, %q) = %d, want %d", tt.requestedTimeout, tt.count, tt.workflowName, got, tt.want)
 			}
 		})
 	}

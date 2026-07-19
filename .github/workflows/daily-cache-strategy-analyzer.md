@@ -14,9 +14,9 @@ permissions:
   pull-requests: read
   discussions: read
 tracker-id: daily-cache-strategy-analyzer
+model: "${{ needs.activation.outputs.model_size }}"
 engine:
   id: codex
-  model: "${{ needs.activation.outputs.model_size }}"
 strict: true
 experiments:
   model_size:
@@ -65,6 +65,7 @@ imports:
 features:
   gh-aw-detection: true
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Cache Strategy Analyzer

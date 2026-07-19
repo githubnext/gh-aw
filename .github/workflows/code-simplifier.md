@@ -188,9 +188,9 @@ Code simplifier has nothing to process today.
 
 For each file in `source-files.json`:
 
-1. Use `scope-filter` (`model: small`) to confirm the file should be simplified and detect language.
+1. Use `scope-filter` (`model: claude-haiku-4.5`) to confirm the file should be simplified and detect language.
 2. Apply only the matching language skill guidance (do not load unrelated language guidance).
-3. Use `simplification-scout` (`model: small`) for extractive opportunity scoring.
+3. Use `simplification-scout` (`model: claude-haiku-4.5`) for extractive opportunity scoring.
 4. Make targeted edits that preserve behavior.
 
 Priorities:
@@ -260,7 +260,7 @@ Do not finish with plain text only. The safe-output tool call is required.
 ## agent: `scope-filter`
 ---
 description: Decides whether a candidate file should be simplified and labels its primary language
-model: small
+model: claude-haiku-4.5
 ---
 Input is a single file path string. Return strict JSON only:
 `{"path":"...","include":true|false,"language":"go|typescript|javascript|python|csharp|other","reason":"..."}`
@@ -270,7 +270,7 @@ Set `include` to false for tests, generated files, lockfiles, vendored code, or 
 ## agent: `simplification-scout`
 ---
 description: Extractive scout that proposes low-risk simplification opportunities per file
-model: small
+model: claude-haiku-4.5
 ---
 Given file content, return strict JSON only:
 `{"path":"...","opportunities":[{"kind":"clarity|duplication|complexity|naming","summary":"...","risk":"low|medium"}]}`

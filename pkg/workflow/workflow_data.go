@@ -83,6 +83,7 @@ type WorkflowData struct {
 	ParsedTools                    *Tools                     // Structured tools configuration (NEW: parsed from Tools map)
 	MarkdownContent                string
 	AI                             string        // "claude" or "codex" (for backwards compatibility)
+	Model                          string        // Top-level LLM model override (from frontmatter model: field or imports)
 	EngineConfig                   *EngineConfig // Extended engine configuration
 	AgentFile                      string        // Path to custom agent file (from imports)
 	AgentImportSpec                string        // Original import specification for agent file (e.g., "owner/repo/path@ref")

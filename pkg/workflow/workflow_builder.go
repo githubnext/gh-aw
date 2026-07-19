@@ -64,6 +64,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		RunInstallScripts:          toolsResult.runInstallScripts,
 		MarkdownContent:            toolsResult.markdownContent,
 		AI:                         engineSetup.engineSetting,
+		Model:                      engineSetup.model,
 		EngineConfig:               engineSetup.engineConfig,
 		AgentFile:                  agentFile,
 		AgentImportSpec:            agentImportSpec,
@@ -161,7 +162,7 @@ func (c *Compiler) buildInitialWorkflowData(
 	// Attempt to resolve pricing for the workflow model from models.dev when it is absent
 	// from both the frontmatter overlay and the embedded models.json catalog.  The result
 	// is injected into ModelCosts so the runtime receives it via GH_AW_INFO_MODEL_COSTS.
-	workflowData.ModelCosts = c.resolveModelPricingIfMissing(workflowData.ModelCosts, workflowData.EngineConfig)
+	workflowData.ModelCosts = c.resolveModelPricingIfMissing(workflowData.ModelCosts, workflowData)
 	mainModelPolicy := extractMainModelPolicyOverlay(toolsResult, result.Frontmatter)
 	allowedModels, disallowedModels := mergeModelPolicyOverlays(importsResult.MergedModelPolicies, mainModelPolicy)
 	if len(allowedModels) > 0 {

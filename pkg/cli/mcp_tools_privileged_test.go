@@ -263,7 +263,7 @@ func TestLogsToolPassesArtifactsArgument(t *testing.T) {
 }
 
 func TestLogsToolUsesEffectiveCountForTimeoutScaling(t *testing.T) {
-	t.Run("omitted count uses MCP default for both -c and --timeout", func(t *testing.T) {
+	t.Run("omitted count and no workflow name use all-workflow minimum timeout", func(t *testing.T) {
 		var capturedArgs []string
 		mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
 			capturedArgs = append([]string(nil), args...)
@@ -289,9 +289,16 @@ func TestLogsToolUsesEffectiveCountForTimeoutScaling(t *testing.T) {
 		timeoutIndex := slices.Index(capturedArgs, "--timeout")
 		require.NotEqual(t, -1, timeoutIndex, "logs tool should pass --timeout")
 		require.Less(t, timeoutIndex+1, len(capturedArgs), "--timeout should have a value")
-		assert.Equal(t, strconv.Itoa(defaultMCPLogsToolTimeoutMinutesForCount(defaultMCPLogsToolCount)), capturedArgs[timeoutIndex+1])
+		// Without a workflow_name the timeout uses the all-workflow minimum floor.
+		// The timeout schema default was intentionally removed so that args.Timeout == 0
+		// (the zero value) when the caller omits it, allowing the runtime to apply the floor.
+		expectedTimeout := effectiveMCPLogsToolTimeoutMinutes(0, defaultMCPLogsToolCount, "")
+		assert.Equal(t, strconv.Itoa(expectedTimeout), capturedArgs[timeoutIndex+1])
 	})
-
+	// Note: the named-workflow timeout behaviour (count-based, no all-workflow floor) is
+	// verified by TestEffectiveMCPLogsToolTimeoutMinutes in logs_timeout_test.go.
+	// An integration test is not feasible here because validateMCPWorkflowName rejects
+	// synthetic names that lack a corresponding .lock.yml file in the test environment.
 }
 
 // TestAuditToolPassesGithubRepositoryAsRepoFlag verifies that the audit MCP tool

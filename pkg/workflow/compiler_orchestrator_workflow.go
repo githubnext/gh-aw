@@ -132,7 +132,7 @@ func (c *Compiler) validateWorkflowBuildContext(ctx *workflowBuildContext) error
 func (c *Compiler) validateWorkflowModelAliasMap(ctx *workflowBuildContext) error {
 	var engineModel string
 	if ctx.workflowData.EngineConfig != nil {
-		engineModel = ctx.workflowData.EngineConfig.Model
+		engineModel = ctx.workflowData.Model
 	}
 	return c.validateModelAliasMap(ctx.workflowData.ModelMappings, nil, engineModel, ctx.cleanPath)
 }

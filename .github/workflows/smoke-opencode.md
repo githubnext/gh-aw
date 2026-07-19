@@ -18,9 +18,9 @@ permissions:
   issues: read
   pull-requests: read
 name: Smoke OpenCode
+model: copilot/claude-sonnet-4.5
 engine:
   id: opencode
-  model: copilot/claude-sonnet-4.5
 strict: true
 imports:
   - shared/gh.md

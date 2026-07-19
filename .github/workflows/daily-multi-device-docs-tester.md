@@ -22,9 +22,9 @@ sandbox:
 
 tracker-id: daily-multi-device-docs-tester
 max-turns: 80  # 10 devices × ~5 turns each + setup/report overhead
+model: copilot/gpt-5.4
 engine:
   id: pi
-  model: copilot/gpt-5.4
 strict: true
 timeout-minutes: 30
 runtimes:
