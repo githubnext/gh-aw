@@ -56,6 +56,7 @@ const {
   writeCopilotOutputs,
   parseCopilotSDKServerArgsFromEnv,
   applyCopilotWireAPI,
+  resolveLongRunTokenThreshold,
 } = require("./copilot_harness.cjs");
 
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard } = require("./harness_retry_guard.cjs");
@@ -595,6 +596,28 @@ describe("copilot_harness.cjs", () => {
 
         it("named error classes outrank long_run_exit: sdk_session_idle_timeout", () => {
           expect(classifyCopilotFailure({ hasOutput: true, isSDKSessionIdleTimeout: true, tokenCount: 50000 })).toBe("sdk_session_idle_timeout");
+        });
+      });
+
+      describe("resolveLongRunTokenThreshold", () => {
+        it("returns default 10000 when env var is unset", () => {
+          expect(resolveLongRunTokenThreshold({})).toBe(10000);
+        });
+
+        it("returns the configured value when GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD is set", () => {
+          expect(resolveLongRunTokenThreshold({ GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD: "5000" })).toBe(5000);
+        });
+
+        it("returns default when env var is not a number", () => {
+          expect(resolveLongRunTokenThreshold({ GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD: "abc" })).toBe(10000);
+        });
+
+        it("returns default when env var is negative", () => {
+          expect(resolveLongRunTokenThreshold({ GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD: "-1" })).toBe(10000);
+        });
+
+        it("returns 0 when env var is '0' (disables long_run_exit classification)", () => {
+          expect(resolveLongRunTokenThreshold({ GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD: "0" })).toBe(0);
         });
       });
     });

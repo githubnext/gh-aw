@@ -81,10 +81,19 @@ const OUTPUT_TAIL_MAX_CHARS = 600;
 const OUTPUT_TAIL_MAX_LINES = 12;
 const MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS = 50;
 const DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = 20 * 1000;
-// Token count threshold above which a 0-turn failure is classified as "long_run_exit"
+// Default token count threshold above which a 0-turn failure is classified as "long_run_exit"
 // rather than the generic "partial_execution". Corresponds to ~30+ minutes of Copilot
 // CLI work where the wrapper exits non-zero after the agent has completed substantial work.
-const LONG_RUN_TOKEN_THRESHOLD = 10000;
+// Override via GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD env var.
+const DEFAULT_LONG_RUN_TOKEN_THRESHOLD = 10000;
+function resolveLongRunTokenThreshold(env = process.env) {
+  const configured = Number(env.GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD);
+  if (!Number.isFinite(configured) || configured < 0) {
+    return DEFAULT_LONG_RUN_TOKEN_THRESHOLD;
+  }
+  return configured;
+}
+const LONG_RUN_TOKEN_THRESHOLD = resolveLongRunTokenThreshold();
 function resolvePostResultWatchdogIdleTimeoutMs(env = process.env) {
   const configuredTimeoutMs = Number(env.GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS);
   if (!Number.isFinite(configuredTimeoutMs) || configuredTimeoutMs <= 0) {
@@ -1450,6 +1459,7 @@ if (typeof module !== "undefined" && module.exports) {
     applyCopilotModelAliasResolution,
     applyCopilotWireAPI,
     loadAwfConfigData,
+    resolveLongRunTokenThreshold,
   };
 }
 
