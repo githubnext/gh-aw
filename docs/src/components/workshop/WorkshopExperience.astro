@@ -994,9 +994,9 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	.aw-workshop-picker,
 	.aw-workshop-panel-shell {
 		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-elevated);
-		border-radius: 1.25rem;
-		box-shadow: 0 10px 24px rgba(1, 4, 9, 0.1);
+		background: var(--aw-bg-subtle);
+		border-radius: 1rem;
+		box-shadow: none;
 	}
 
 	.aw-workshop-picker-kicker,
@@ -1040,7 +1040,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		padding: 0.95rem;
 		border-radius: 1rem;
 		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-subtle);
+		background: var(--aw-bg-page);
 	}
 
 	.aw-workshop-tunnel-panel h3,
@@ -1113,12 +1113,12 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		min-height: 0;
 		min-height: 15rem;
 		padding: 1rem;
-		border-radius: 0.9rem;
-		border: 1px solid color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 35%, transparent);
-		background: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 4%, var(--aw-bg-elevated));
+		border-radius: 0.85rem;
+		border: 1px solid var(--aw-border);
+		background: var(--aw-bg-page);
 		color: inherit;
 		cursor: pointer;
-		transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+		transition: border-color 0.2s ease, background 0.2s ease;
 	}
 
 	.aw-workshop-card-icon {
@@ -1138,8 +1138,8 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		align-self: start;
 		padding: 0.22rem 0.5rem;
 		border-radius: 999px;
-		border: 1px solid color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 24%, transparent);
-		background: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 14%, transparent);
+		border: 1px solid var(--aw-border);
+		background: color-mix(in srgb, var(--aw-bg-subtle) 85%, transparent);
 		color: var(--aw-text-muted);
 		font-size: 0.68rem;
 		font-weight: 700;
@@ -1184,9 +1184,8 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 	.aw-workshop-card:hover,
 	.aw-workshop-card.is-active {
-		transform: translateY(-1px);
 		border-color: var(--aw-workshop-card-accent, var(--sl-color-accent));
-		box-shadow: 0 8px 18px rgba(1, 4, 9, 0.12);
+		background: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 6%, var(--aw-bg-page));
 	}
 
 	.aw-workshop-card:hover .aw-workshop-card-fit,
@@ -1229,14 +1228,16 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		align-items: center;
 		justify-content: center;
 		gap: 0.45rem;
-		border-radius: 0.75rem;
-		min-height: 2.5rem;
-		padding: 0.6rem 0.9rem;
+		border-radius: 0.7rem;
+		min-height: 2.35rem;
+		padding: 0.55rem 0.85rem;
 		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-subtle);
+		background: var(--aw-bg-page);
 		color: inherit;
 		text-decoration: none;
 		font: inherit;
+		font-size: 0.95rem;
+		font-weight: 600;
 		cursor: pointer;
 		box-shadow: none;
 	}
@@ -1244,7 +1245,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	.aw-workshop-inline-button:hover,
 	.aw-workshop-nav-button:hover {
 		border-color: var(--aw-border-strong);
-		background: color-mix(in srgb, var(--aw-bg-subtle) 88%, var(--sl-color-accent) 12%);
+		background: var(--aw-bg-subtle);
 		text-decoration: none;
 	}
 
@@ -1253,7 +1254,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	}
 
 	.aw-workshop-inline-button-home {
-		font-weight: 600;
+		color: var(--aw-text-muted);
 	}
 
 	.aw-workshop-button-icon {
@@ -1291,7 +1292,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		padding: 1rem;
 		border-radius: 1rem;
 		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-subtle);
+		background: var(--aw-bg-page);
 	}
 
 	.aw-workshop-progress-overview {
@@ -1343,7 +1344,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		height: 0.5rem;
 		overflow: hidden;
 		border-radius: 999px;
-		background: color-mix(in srgb, var(--aw-border) 70%, transparent);
+		background: color-mix(in srgb, var(--aw-bg-subtle) 80%, var(--aw-border) 20%);
 	}
 
 	.aw-workshop-progress-track > span {
@@ -1362,7 +1363,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		padding: clamp(1rem, 2vw, 1.5rem);
 		border-radius: 1rem;
 		border: 1px solid var(--aw-border);
-		background: color-mix(in srgb, var(--aw-bg-subtle) 88%, transparent);
+		background: var(--aw-bg-page);
 	}
 
 	.aw-workshop-step-content :global(h2),
@@ -1404,7 +1405,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	.aw-workshop-step-content :global(code) {
 		padding: 0.1rem 0.3rem;
 		border-radius: 0.35rem;
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--aw-bg-subtle);
 	}
 
 	.aw-workshop-step-content :global(pre) {
@@ -1412,7 +1413,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		padding: 1rem;
 		border-radius: 0.8rem;
 		border: 1px solid var(--aw-border);
-		background: rgba(255, 255, 255, 0.04);
+		background: var(--aw-bg-subtle);
 		overflow-x: auto;
 	}
 
@@ -1491,7 +1492,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		padding: 1rem;
 		border-radius: 0.95rem;
 		border: 1px solid color-mix(in srgb, var(--aw-border) 88%, transparent);
-		background: color-mix(in srgb, var(--aw-bg-elevated) 92%, var(--sl-color-accent) 8%);
+		background: var(--aw-bg-subtle);
 	}
 
 	.aw-workshop-step-content :global(.aw-workshop-entry-card h4),
@@ -1581,7 +1582,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		padding: 1rem;
 		border-radius: 1rem;
 		border: 1px solid var(--aw-border);
-		background: rgba(255, 255, 255, 0.03);
+		background: var(--aw-bg-subtle);
 		overflow-x: auto;
 		white-space: pre-wrap;
 		font: 0.95rem/1.5 var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
@@ -1603,7 +1604,18 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		background: var(--sl-color-accent);
 		color: var(--sl-color-text-invert);
 		border-color: transparent;
-		box-shadow: 0 12px 28px rgba(var(--aw-accent-rgb), 0.22);
+		box-shadow: none;
+	}
+
+	:root[data-theme='light'] .aw-workshop-card,
+	:root[data-theme='light'] .aw-workshop-progress-card,
+	:root[data-theme='light'] .aw-workshop-step-content,
+	:root[data-theme='light'] .aw-workshop-step-content :global(.aw-workshop-entry-card),
+	:root[data-theme='light'] .aw-workshop-step-markdown,
+	:root[data-theme='light'] .aw-workshop-inline-button,
+	:root[data-theme='light'] .aw-workshop-nav-button,
+	:root[data-theme='light'] .aw-workshop-tunnel-panel {
+		box-shadow: none;
 	}
 
 	@media (max-width: 72rem) {
