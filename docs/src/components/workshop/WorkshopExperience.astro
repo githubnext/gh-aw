@@ -963,8 +963,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		gap: 0.9rem;
 	}
 
-	.aw-workshop-picker,
-	.aw-workshop-panel-shell {
+	.aw-workshop-picker {
 		border: 1px solid var(--aw-border);
 		background: var(--aw-bg-subtle);
 		border-radius: 1rem;
@@ -1238,10 +1237,10 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	.aw-workshop-panel-shell {
 		display: flex;
 		flex-direction: column;
+		gap: 1rem;
 		width: 100%;
 		min-width: 0;
 		min-height: calc(100svh - 10rem);
-		padding: 1.25rem;
 	}
 
 	.aw-workshop-panel-heading {
@@ -1261,11 +1260,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		display: block;
 		min-width: 0;
 		min-height: 22rem;
-		margin-top: 1rem;
-		padding: clamp(1rem, 2vw, 1.5rem);
-		border-radius: 1rem;
-		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-page);
 	}
 
 	.aw-workshop-step-content :global(h2),
@@ -1510,7 +1504,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	}
 
 	:root[data-theme='light'] .aw-workshop-card,
-	:root[data-theme='light'] .aw-workshop-step-content,
 	:root[data-theme='light'] .aw-workshop-step-content :global(.aw-workshop-entry-card),
 	:root[data-theme='light'] .aw-workshop-step-markdown,
 	:root[data-theme='light'] .aw-workshop-inline-button,
