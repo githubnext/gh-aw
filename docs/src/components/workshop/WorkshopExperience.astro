@@ -362,6 +362,27 @@ const workshopSteps: WorkshopStep[] = await Promise.all(workshopEntries.map(asyn
 const initialFlow = buildWorkshopFlow(workshopDefaults.journeyId, workshopDefaults.scenarioId);
 const initialStepKey = initialFlow[0] ?? workshopSteps[0]?.key ?? '';
 const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ?? workshopSteps[0];
+
+// Precompute step counts for entry path cards using the default scenario (estimate shown before scenario is selected).
+const entryPathStepCounts: Record<string, number> = Object.fromEntries(
+	workshopEntryPaths.map((path) => [
+		path.id,
+		buildWorkshopFlow(path.journeyId, workshopDefaults.scenarioId).length,
+	]),
+);
+
+// Precompute step counts for every journey + scenario combination for the scenario picker.
+const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Object.fromEntries(
+	workshopJourneys.map((journey) => [
+		journey.id,
+		Object.fromEntries(
+			workshopScenarios.map((scenario) => [
+				scenario.id,
+				buildWorkshopFlow(journey.id, scenario.id).length,
+			]),
+		),
+	]),
+);
 ---
 
 <section
@@ -390,7 +411,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 						>
 							<span class="aw-workshop-card-icon" set:html={iconSvg(path.icon)} />
 							<span class="aw-workshop-card-kicker">{path.kicker}</span>
-							<span class="aw-workshop-card-route">{journey.label}</span>
+							<span class="aw-workshop-card-route">{entryPathStepCounts[path.id]} steps</span>
 							<strong class="aw-workshop-card-title">{path.label}</strong>
 							<span class="aw-workshop-card-summary">{path.summary}</span>
 							<small class="aw-workshop-card-fit">{path.fit}</small>
@@ -416,6 +437,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 						>
 							<span class="aw-workshop-card-icon" set:html={iconSvg(scenario.icon)} />
 							<span class="aw-workshop-card-kicker">{scenario.kicker}</span>
+							<span class="aw-workshop-card-route" data-workshop-step-count></span>
 							<strong class="aw-workshop-card-title">{scenario.label}</strong>
 							<span class="aw-workshop-card-summary">{firstSentence(scenario.summary)}</span>
 						</button>
@@ -508,6 +530,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			journeys: workshopJourneys,
 			scenarios: workshopScenarios,
 			scenarioAdventures: workshopScenarioAdventures,
+			scenarioStepCountsByJourney,
 		})}
 	/>
 	<script is:inline>
@@ -835,6 +858,15 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 					const isActive = button.getAttribute('data-workshop-scenario') === state.scenarioId;
 					button.classList.toggle('is-active', isActive);
 					button.setAttribute('aria-pressed', String(isActive));
+
+					const stepCountEl = button.querySelector('[data-workshop-step-count]');
+					if (stepCountEl) {
+						const scenarioId = button.getAttribute('data-workshop-scenario');
+						const count = (manifest.scenarioStepCountsByJourney || {})[state.journeyId]?.[scenarioId];
+						if (count != null) {
+							stepCountEl.textContent = `${count} steps`;
+						}
+					}
 				});
 
 				const flowIndex = visibleFlow.indexOf(activeStep.key);
