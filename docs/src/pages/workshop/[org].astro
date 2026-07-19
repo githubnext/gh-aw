@@ -1,6 +1,10 @@
 ---
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import WorkshopExperience from '../../components/workshop/WorkshopExperience.astro';
+
+export function getStaticPaths() {
+	return [{ params: { org: 'hackathon-blue-bat-18' } }];
+}
 ---
 
 <StarlightPage
