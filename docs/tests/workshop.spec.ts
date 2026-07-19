@@ -434,7 +434,7 @@ test.describe('Workshop Astro rendering contract', () => {
 		}
 	});
 
-
+	test('GFM alerts in step data are rendered as aside elements, not raw blockquotes', async ({ page }) => {
 		await startWorkshop(page);
 
 		// Check the embedded step-data JSON for GFM alert markers. If any step's HTML
