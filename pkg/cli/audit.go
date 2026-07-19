@@ -286,8 +286,6 @@ func runAuditMulti(ctx context.Context, args []string, repoFlag, outputDir strin
 // isPermissionErrorStr checks if a string contains any known permission/authentication error marker.
 // This is the canonical union of all auth-error substrings used across the codebase; update here
 // rather than adding new inline strings.Contains checks in callers.
-//
-//nolint:errstringmatch // gh auth and gh api permission failures are intentionally classified from gh CLI text here.
 func isPermissionErrorStr(s string) bool {
 	return strings.Contains(s, "authentication required") ||
 		strings.Contains(s, "exit status 4") ||

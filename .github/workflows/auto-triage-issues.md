@@ -5,7 +5,8 @@ description: Automatically labels new and existing unlabeled issues to improve d
 on:
   issues:
     types: [opened, edited]
-  schedule: every 6h
+  schedule:
+    - cron: "11 */6 * * *" # Explicit offset to avoid the shared 22:29 UTC batch
   workflow_dispatch:
 max-daily-ai-credits: 10000
 user-rate-limit:

@@ -5,7 +5,8 @@ name: Duplicate Code Detector
 description: Identifies duplicate code patterns across the codebase and suggests refactoring opportunities
 on:
   workflow_dispatch:
-  schedule: daily
+  schedule:
+    - cron: "47 21 * * *" # Offset from other nightly scheduled workflows
 permissions:
   contents: read
   issues: read

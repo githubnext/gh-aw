@@ -65,6 +65,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/timeafterleak"
 	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
 	"github.com/github/gh-aw/pkg/linters/tolowerequalfold"
+	"github.com/github/gh-aw/pkg/linters/trimleftright"
 	"github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion"
 	"github.com/github/gh-aw/pkg/linters/wgdonenotdeferred"
 	"github.com/github/gh-aw/pkg/linters/writebytestring"
@@ -121,6 +122,7 @@ func main() {
 		timeafterleak.Analyzer,
 		timesleepnocontext.Analyzer,
 		tolowerequalfold.Analyzer,
+		trimleftright.Analyzer,
 		uncheckedtypeassertion.Analyzer,
 		wgdonenotdeferred.Analyzer,
 		writebytestring.Analyzer,

@@ -15,7 +15,7 @@ tracker-id: daily-skill-optimizer
 engine:
   id: copilot
   copilot-sdk: true
-  driver: .github/drivers/copilot_sdk_driver_sample_typescript.ts
+  driver: .github/drivers/copilot_sdk_driver_sample_node.cjs
 strict: true
 timeout-minutes: 45
 
