@@ -64,7 +64,7 @@ const workshopCardIcons = {
 } as const;
 
 function starlightIcon(name: string) {
-	return workshopCardIcons[name as keyof typeof workshopCardIcons] ?? 'information';
+	return workshopCardIcons[name as keyof typeof workshopCardIcons] ?? 'question-circle';
 }
 
 function escapeHtml(value: string) {
@@ -1027,6 +1027,12 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 <style>
 	.aw-workshop {
 		--aw-workshop-card-min-width: 15.5rem;
+		--aw-workshop-card-bg-strong: 18%;
+		--aw-workshop-card-bg-soft: 14%;
+		--aw-workshop-card-border-strong: 35%;
+		--aw-workshop-card-border-soft: 24%;
+		--aw-workshop-card-gradient-start: 12%;
+		--aw-workshop-card-surface-tint: 8%;
 		display: grid;
 		gap: 1.5rem;
 		margin: 2rem 0 1rem;
@@ -1167,6 +1173,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		color: inherit;
 		font: inherit;
 		cursor: pointer;
+		text-align: inherit;
 	}
 
 	.aw-workshop-card-entry {
@@ -1185,15 +1192,15 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	.aw-workshop-card-entry > :global(.card) {
 		--aw-workshop-card-color: var(--aw-workshop-card-accent, var(--sl-color-accent));
 		--sl-card-border: var(--aw-workshop-card-color);
-		--sl-card-bg: color-mix(in srgb, var(--aw-workshop-card-color) 18%, transparent);
+		--sl-card-bg: color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-bg-strong), transparent);
 		height: 100%;
 		min-height: 15rem;
 		padding: 1rem;
 		border-radius: 0.9rem;
-		border-color: color-mix(in srgb, var(--aw-workshop-card-color) 35%, transparent);
+		border-color: color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-border-strong), transparent);
 		background:
-			linear-gradient(180deg, color-mix(in srgb, var(--aw-workshop-card-color) 12%, transparent), transparent 72%),
-			color-mix(in srgb, var(--aw-workshop-card-color) 8%, var(--aw-bg-elevated));
+			linear-gradient(180deg, color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-gradient-start), transparent), transparent 72%),
+			color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-surface-tint), var(--aw-bg-elevated));
 		gap: 0.75rem;
 		transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 	}
@@ -1208,8 +1215,8 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 	.aw-workshop-card-entry > :global(.card .icon) {
 		margin-top: 0.04rem;
-		border-color: color-mix(in srgb, var(--aw-workshop-card-color) 24%, transparent);
-		background: color-mix(in srgb, var(--aw-workshop-card-color) 14%, transparent);
+		border-color: color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-border-soft), transparent);
+		background: color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-bg-soft), transparent);
 	}
 
 	.aw-workshop-card-entry > :global(.card .body) {
