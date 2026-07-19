@@ -6,6 +6,7 @@ import (
 	"maps"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -25,6 +26,14 @@ func (c *Compiler) resolveModelPricingIfMissing(modelCosts map[string]any, workf
 		return modelCosts
 	}
 	if workflowData == nil || workflowData.Model == "" {
+		return modelCosts
+	}
+
+	// auto/none are pass-through sentinels that suppress model pinning; they do not
+	// correspond to a real model, so skip the pricing lookup entirely.
+	modelLower := strings.ToLower(strings.TrimSpace(workflowData.Model))
+	if modelLower == constants.CopilotAutoModelSentinel || modelLower == constants.CopilotNoModelSentinel {
+		compilerModelPricingLog.Printf("Skipping pricing lookup for sentinel model %q", workflowData.Model)
 		return modelCosts
 	}
 
