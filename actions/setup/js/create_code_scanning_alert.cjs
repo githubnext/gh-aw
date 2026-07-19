@@ -8,6 +8,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { ERR_SYSTEM } = require("./error_codes.cjs");
 const fs = require("fs");
 const path = require("path");
 
@@ -89,7 +90,7 @@ async function main(config = {}) {
     try {
       fs.writeFileSync(sarifFilePath, JSON.stringify(sarifContent, null, 2));
     } catch (err) {
-      throw new Error(`Failed to write file ${sarifFilePath}: ${String(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to write file ${sarifFilePath}: ${String(err)}`, { cause: err });
     }
     core.info(`✓ Updated SARIF file with ${validFindings.length} finding(s): ${sarifFilePath}`);
   }
