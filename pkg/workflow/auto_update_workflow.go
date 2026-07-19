@@ -182,7 +182,8 @@ The schedule is pinned to the custom cron expression configured in aw.json.`
 Or use the gh-aw CLI directly:
   ./gh-aw compile --validate --verbose
 
-The workflow is generated when auto_upgrade is set to true in aw.json.
+The workflow is generated when auto_upgrade is enabled in aw.json (true or object form).
+When auto_upgrade is an object without a cron, the fuzzy weekly schedule is used.
 The weekly schedule is deterministically scattered based on the repository slug.`
 	}
 
