@@ -88,7 +88,7 @@ func run(pass *analysis.Pass) (any, error) {
 				TextEdits: []analysis.TextEdit{{
 					Pos:     outer.Pos(),
 					End:     outer.End(),
-					NewText: []byte(fmt.Sprintf("time.Since(%s)", argText)),
+					NewText: []byte("time.Since(" + argText + ")"),
 				}},
 			}},
 		})
