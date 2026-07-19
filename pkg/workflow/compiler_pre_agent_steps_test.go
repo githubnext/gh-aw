@@ -46,11 +46,11 @@ Test pre-agent-steps.
 	}
 
 	lockFile := filepath.Join(tmpDir, "test-pre-agent-steps.lock.yml")
-	content, err := os.ReadFile(lockFile)
+	lockBytes, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
 	}
-	lockContent := string(content)
+	lockContent := string(lockBytes)
 
 	if !strings.Contains(lockContent, "- name: Finalize prompt context") {
 		t.Error("Expected pre-agent-step to be in generated workflow")
@@ -73,7 +73,7 @@ Test pre-agent-steps.
 		t.Errorf("Pre-agent-step (%d) should appear before AI execution step (%d)", preAgentStepIndex, aiStepIndex)
 	}
 	var compiled compiledWorkflowJobs
-	if err := yaml.Unmarshal(content, &compiled); err != nil {
+	if err := yaml.Unmarshal(lockBytes, &compiled); err != nil {
 		t.Fatalf("Failed to parse generated lock file as YAML: %v", err)
 	}
 	for jobName, job := range compiled.Jobs {

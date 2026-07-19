@@ -25,16 +25,20 @@ func assertInvalidAWJSONWarning(t *testing.T, content string) {
 	compiler := NewCompiler()
 	compiler.gitRoot = gitRoot
 
+	var (
+		cfg *RepoConfig
+		err error
+	)
 	stderr := captureStderr(func() {
-		cfg, err := compiler.loadRepoConfig()
-		if err == nil {
-			t.Fatal("Expected loadRepoConfig to fail for invalid config")
-		}
-		if cfg != nil {
-			t.Fatal("Expected nil config on loadRepoConfig error")
-		}
+		cfg, err = compiler.loadRepoConfig()
 	})
 
+	if err == nil {
+		t.Fatal("Expected loadRepoConfig to fail for invalid config")
+	}
+	if cfg != nil {
+		t.Fatal("Expected nil config on loadRepoConfig error")
+	}
 	if !strings.Contains(stderr, RepoConfigFileName) {
 		t.Fatalf("Expected warning to mention %s, got: %s", RepoConfigFileName, stderr)
 	}

@@ -13,14 +13,14 @@ See [DeterministicOps](/gh-aw/patterns/deterministic-ops/) for patterns combinin
 
 Use these top-level step hooks in this order:
 
-1. `pre-steps:` — runs before checkout and most of the built-in agent-job setup, though compiler-injected OTLP masking steps may run earlier. Use this for short-lived token minting or anything that must happen before repository checkout.
+1. `pre-steps:` — runs before checkout and all later built-in agent-job setup; only compiler-injected OTLP masking steps may run earlier. Use this for short-lived token minting or anything that must happen before repository checkout.
 2. `steps:` — runs after checkout and the normal runtime/bootstrap steps, but before the final pre-agent phase. Use this for deterministic preprocessing that needs the checked-out repository.
 3. `pre-agent-steps:` — runs after framework-owned initialization such as checkout cleanup and base-branch restoration, and before MCP startup and engine execution. Use this for last-moment environment preparation immediately before the agent starts.
 4. `post-steps:` — runs after the engine finishes. Use this for cleanup, summaries, uploads, or follow-up automation.
 
 ## Custom Pre-Checkout Steps (`pre-steps:`)
 
-Add custom steps before checkout and the rest of the pre-checkout agent-job setup. Compiler-injected OTLP masking steps may still run earlier.
+Add custom steps before checkout and the later pre-checkout agent-job setup. Compiler-injected OTLP masking steps may still run earlier.
 
 ```yaml wrap
 pre-steps:
