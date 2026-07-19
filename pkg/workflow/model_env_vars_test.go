@@ -529,6 +529,7 @@ func TestCopilotAutoModelSentinelSkipsCOPILOT_MODEL(t *testing.T) {
 	}
 }
 
+// TestCodexModelFlagPositionAfterExec verifies that the --model flag appears after the exec
 // subcommand in the generated Codex command, not before it.
 // Regression test for: Codex lock compiler places --model flag before exec subcommand.
 func TestCodexModelFlagPositionAfterExec(t *testing.T) {

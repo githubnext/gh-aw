@@ -307,9 +307,10 @@ function applyCopilotModelAliasResolution(options) {
     logger,
   });
   // resolveConfiguredCopilotModel returns "" for pass-through sentinels ("auto", "none").
-  // In that case clear COPILOT_MODEL so the Copilot CLI uses automatic model selection.
+  // In that case delete COPILOT_MODEL so the Copilot CLI uses automatic model selection
+  // without any residual empty-string environment variable.
   if (resolvedModel === "") {
-    process.env.COPILOT_MODEL = "";
+    delete process.env.COPILOT_MODEL;
     return "";
   }
   if (resolvedModel && resolvedModel !== configuredModel) {
