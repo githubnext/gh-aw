@@ -65,6 +65,17 @@ describe("no-core-error-then-process-exit", () => {
           errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [] }],
         },
         {
+          // nested function main() inside another function: must NOT get autofix — `return` only
+          // exits the inner `main`, so the outer helper continues (module-scope restriction).
+          code: `function setup() { function main() { core.error("fatal"); process.exit(1); } main(); }`,
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [] }],
+        },
+        {
+          // nested const main = () => {} inside another function: must NOT get autofix.
+          code: `function setup() { const main = async () => { core.error("fatal"); process.exit(1); }; main(); }`,
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [] }],
+        },
+        {
           // pair inside async function main() entrypoint: autofix retained (acceptance criterion c).
           code: `async function main() { core.error("fatal"); process.exit(1); }`,
           errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [{ messageId: "replaceWithSetFailed", output: 'async function main() { core.setFailed("fatal"); return;\n  }' }] }],

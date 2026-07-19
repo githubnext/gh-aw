@@ -20,11 +20,7 @@ function getImmediateEnclosingFunction(node: TSESTree.Node, sourceCode: SourceCo
   const ancestors = sourceCode.getAncestors(node);
   for (let i = ancestors.length - 1; i >= 0; i--) {
     const ancestor = ancestors[i];
-    if (
-      ancestor.type === AST_NODE_TYPES.FunctionDeclaration ||
-      ancestor.type === AST_NODE_TYPES.FunctionExpression ||
-      ancestor.type === AST_NODE_TYPES.ArrowFunctionExpression
-    ) {
+    if (ancestor.type === AST_NODE_TYPES.FunctionDeclaration || ancestor.type === AST_NODE_TYPES.FunctionExpression || ancestor.type === AST_NODE_TYPES.ArrowFunctionExpression) {
       return ancestor as FunctionNode;
     }
   }
@@ -32,22 +28,24 @@ function getImmediateEnclosingFunction(node: TSESTree.Node, sourceCode: SourceCo
 }
 
 /**
- * Returns true when `fn` is a conventional module entrypoint named `main`:
- *   - `function main() {}` / `async function main() {}`
- *   - `const main = function() {}` / `const main = async () => {}`
+ * Returns true when `fn` is a conventional module entrypoint named `main`
+ * declared at module top level (not nested inside another function):
+ *   - `function main() {}` / `async function main() {}`  at Program scope
+ *   - `const main = function() {}` / `const main = async () => {}`  at Program scope
  */
 function isFunctionNamedMain(fn: FunctionNode): boolean {
   if (fn.type === AST_NODE_TYPES.FunctionDeclaration) {
-    return fn.id?.name === "main";
+    // Must be named `main` and declared directly inside the Program (module top level)
+    return fn.id?.name === "main" && fn.parent?.type === AST_NODE_TYPES.Program;
   }
   // FunctionExpression or ArrowFunctionExpression assigned to a variable named `main`
-  const parent = fn.parent;
-  return (
-    parent != null &&
-    parent.type === AST_NODE_TYPES.VariableDeclarator &&
-    parent.id.type === AST_NODE_TYPES.Identifier &&
-    parent.id.name === "main"
-  );
+  const declarator = fn.parent;
+  if (declarator == null || declarator.type !== AST_NODE_TYPES.VariableDeclarator || declarator.id.type !== AST_NODE_TYPES.Identifier || declarator.id.name !== "main") {
+    return false;
+  }
+  // The VariableDeclaration containing this declarator must be at module top level
+  const varDecl = declarator.parent;
+  return varDecl?.type === AST_NODE_TYPES.VariableDeclaration && varDecl.parent?.type === AST_NODE_TYPES.Program;
 }
 
 /**
