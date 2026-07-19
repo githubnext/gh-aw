@@ -143,7 +143,7 @@ func TestCopilotFirewallDefaultIntegration(t *testing.T) {
 		c.SetSkipValidation(true)
 
 		// Extract engine config
-		engineSetting, engineConfig := c.ExtractEngineConfig(frontmatter)
+		engineSetting, engineConfig, _ := c.ExtractEngineConfig(frontmatter)
 		if engineSetting != "copilot" {
 			t.Fatalf("Expected engine 'copilot', got '%s'", engineSetting)
 		}
@@ -212,7 +212,7 @@ func TestCopilotFirewallDefaultIntegration(t *testing.T) {
 		c.SetSkipValidation(true)
 
 		// Extract engine config
-		engineSetting, engineConfig := c.ExtractEngineConfig(frontmatter)
+		engineSetting, engineConfig, _ := c.ExtractEngineConfig(frontmatter)
 		if engineSetting != "copilot" {
 			t.Fatalf("Expected engine 'copilot', got '%s'", engineSetting)
 		}
@@ -272,7 +272,7 @@ func TestCopilotFirewallDefaultIntegration(t *testing.T) {
 		c.SetSkipValidation(true)
 
 		// Extract engine config
-		engineSetting, engineConfig := c.ExtractEngineConfig(frontmatter)
+		engineSetting, engineConfig, _ := c.ExtractEngineConfig(frontmatter)
 		if engineSetting != "claude" {
 			t.Fatalf("Expected engine 'claude', got '%s'", engineSetting)
 		}
@@ -310,7 +310,7 @@ func TestDailyTeamStatusFirewallEnabled(t *testing.T) {
 		c.SetSkipValidation(true)
 
 		// Extract engine config (should default to copilot)
-		_, engineConfig := c.ExtractEngineConfig(frontmatter)
+		_, engineConfig, _ := c.ExtractEngineConfig(frontmatter)
 
 		// If no engine is specified, it should default to copilot
 		var engineID string

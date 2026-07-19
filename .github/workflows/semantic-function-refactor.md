@@ -19,10 +19,9 @@ sandbox:
   agent:
     sudo: false
 
+model: claude-sonnet-4.6
 engine:
   id: claude
-  model: claude-sonnet-4.6
-
 imports:
   - shared/go-source-analysis.md
 

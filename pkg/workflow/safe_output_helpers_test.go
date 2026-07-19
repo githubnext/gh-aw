@@ -563,6 +563,7 @@ func TestBuildEngineMetadataEnvVars(t *testing.T) {
 	tests := []struct {
 		name         string
 		engineConfig *EngineConfig
+		model        string
 		expected     []string
 	}{
 		{
@@ -585,8 +586,8 @@ func TestBuildEngineMetadataEnvVars(t *testing.T) {
 			engineConfig: &EngineConfig{
 				ID:      "copilot",
 				Version: "1.0.0",
-				Model:   "gpt-5",
 			},
+			model: "gpt-5",
 			expected: []string{
 				"          GH_AW_ENGINE_ID: \"copilot\"\n",
 				"          GH_AW_ENGINE_VERSION: \"1.0.0\"\n",
@@ -608,9 +609,9 @@ func TestBuildEngineMetadataEnvVars(t *testing.T) {
 		{
 			name: "engine with model and no version",
 			engineConfig: &EngineConfig{
-				ID:    "copilot",
-				Model: "claude-sonnet-4",
+				ID: "copilot",
 			},
+			model: "claude-sonnet-4",
 			expected: []string{
 				"          GH_AW_ENGINE_ID: \"copilot\"\n",
 				"          GH_AW_ENGINE_MODEL: \"claude-sonnet-4\"\n",
@@ -627,7 +628,7 @@ func TestBuildEngineMetadataEnvVars(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildEngineMetadataEnvVars(tt.engineConfig)
+			result := buildEngineMetadataEnvVars(tt.engineConfig, tt.model)
 
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d env vars, got %d", len(tt.expected), len(result))

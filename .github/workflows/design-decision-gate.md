@@ -20,9 +20,9 @@ permissions:
   pull-requests: read
   issues: read
 max-turns: 20
+model: claude-sonnet-4-6
 engine:
   id: claude
-  model: claude-sonnet-4-6
 safe-outputs:
   add-comment:
     max: 2

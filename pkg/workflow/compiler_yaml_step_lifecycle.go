@@ -56,7 +56,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Model - explicit config or runtime env var via vars context
-	modelConfigured := data.EngineConfig != nil && data.EngineConfig.Model != ""
+	modelConfigured := data.Model != ""
 	var modelEnvVar string
 	if !modelConfigured {
 		switch engineID {
@@ -133,7 +133,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "          GH_AW_INFO_ENGINE_ID: \"%s\"\n", engineID)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_ENGINE_NAME: \"%s\"\n", engine.GetDisplayName())
 	if modelConfigured {
-		fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: \"%s\"\n", data.EngineConfig.Model)
+		fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: \"%s\"\n", data.Model)
 	} else {
 		// Use the engine's default model as fallback when neither explicit model nor
 		// model variable is configured, so the run details show "agent" rather than "(none)".
