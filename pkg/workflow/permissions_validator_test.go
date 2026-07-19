@@ -325,10 +325,10 @@ func TestToolsetPermissionsMapping(t *testing.T) {
 	// Verify that all toolsets are properly defined
 	expectedToolsets := []string{
 		"context", "repos", "issues", "pull_requests", "actions",
-		"code_security", "dependabot", "discussions", "experiments",
+		"code_security", "dependabot", "discussions",
 		"gists", "labels", "notifications", "orgs", "projects",
 		"secret_protection", "security_advisories", "stargazers",
-		"users", "search",
+		"users",
 	}
 
 	for _, toolset := range expectedToolsets {
