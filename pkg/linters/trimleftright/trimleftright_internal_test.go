@@ -45,7 +45,8 @@ func TestLooksSuspiciousCutset(t *testing.T) {
 		{name: "hex mixed case", cutset: "abcDEF", want: false},
 
 		// Suspicious: partial hex-letter subset (not the complete alphabet).
-		{name: "partial hex abc", cutset: "abc", want: true},
+		// "abc" is tested above via "abc prefix"; here we confirm the
+		// 5-letter subset also escapes the hex exception.
 		{name: "partial hex abce", cutset: "abce", want: true},
 	}
 

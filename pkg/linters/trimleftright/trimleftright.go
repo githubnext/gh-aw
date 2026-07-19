@@ -163,6 +163,8 @@ func looksSuspiciousCutset(cutset string) bool {
 }
 
 // isAllASCIIDigits reports whether every rune is an ASCII decimal digit.
+// An empty slice returns true (vacuous truth); callers must apply the length
+// guard in looksSuspiciousCutset before invoking this helper.
 func isAllASCIIDigits(runes []rune) bool {
 	for _, r := range runes {
 		if r < '0' || r > '9' {
@@ -174,6 +176,8 @@ func isAllASCIIDigits(runes []rune) bool {
 
 // isAllASCIIVowels reports whether every rune is an ASCII vowel (a e i o u),
 // case-insensitive.
+// An empty slice returns true (vacuous truth); callers must apply the length
+// guard in looksSuspiciousCutset before invoking this helper.
 func isAllASCIIVowels(runes []rune) bool {
 	for _, r := range runes {
 		switch unicode.ToLower(r) {
