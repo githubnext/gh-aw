@@ -52,6 +52,10 @@ type GenerateAutoUpdateWorkflowOptions struct {
 	ActionTag string
 	// Resolver optionally resolves setup-cli action tags to SHA-pinned refs.
 	Resolver SHAResolver
+	// CustomCron is an optional cron expression that overrides the default
+	// fuzzy weekly schedule. When non-empty, it is used as-is in the generated
+	// workflow without scattering. An empty string falls back to FUZZY:WEEKLY.
+	CustomCron string
 }
 
 // GenerateAutoUpdateWorkflow generates or removes the agentic-auto-upgrade.yml workflow
@@ -83,12 +87,19 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error {
 		actionMode = DetectActionMode(opts.Version)
 	}
 
-	seed := buildAutoUpdateSeed(opts.RepoSlug, actionMode)
-	cronSchedule, err := parser.ScatterSchedule("FUZZY:WEEKLY", seed)
-	if err != nil {
-		return fmt.Errorf("failed to scatter FUZZY:WEEKLY schedule for auto-update workflow: %w", err)
+	var cronSchedule string
+	if opts.CustomCron != "" {
+		cronSchedule = opts.CustomCron
+		autoUpdateWorkflowLog.Printf("Using custom cron schedule: %q", cronSchedule)
+	} else {
+		seed := buildAutoUpdateSeed(opts.RepoSlug, actionMode)
+		var err error
+		cronSchedule, err = parser.ScatterSchedule("FUZZY:WEEKLY", seed)
+		if err != nil {
+			return fmt.Errorf("failed to scatter FUZZY:WEEKLY schedule for auto-update workflow: %w", err)
+		}
+		autoUpdateWorkflowLog.Printf("Scattered FUZZY:WEEKLY to %q for seed %q", cronSchedule, seed)
 	}
-	autoUpdateWorkflowLog.Printf("Scattered FUZZY:WEEKLY to %q for seed %q", cronSchedule, seed)
 
 	setupActionRef := opts.SetupActionRef
 	if setupActionRef == "" {

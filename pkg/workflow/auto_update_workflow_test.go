@@ -247,3 +247,41 @@ func extractCronLine(content string) string {
 	}
 	return ""
 }
+
+func TestGenerateAutoUpdateWorkflow_CustomCron(t *testing.T) {
+	dir := t.TempDir()
+	const customCron = "0 9 * * 1"
+
+	err := GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
+		WorkflowDir: dir,
+		Enabled:     true,
+		RepoSlug:    "owner/repo",
+		CustomCron:  customCron,
+	})
+	require.NoError(t, err, "GenerateAutoUpdateWorkflow should succeed with custom cron")
+
+	content, err := os.ReadFile(filepath.Join(dir, AutoUpdateWorkflowFileName))
+	require.NoError(t, err)
+
+	assert.Contains(t, string(content), `cron: "0 9 * * 1"`, "should use the custom cron expression verbatim")
+}
+
+func TestGenerateAutoUpdateWorkflow_CustomCronOverridesFuzzy(t *testing.T) {
+	dir := t.TempDir()
+	const customCron = "30 5 * * 1-5"
+
+	err := GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
+		WorkflowDir: dir,
+		Enabled:     true,
+		RepoSlug:    "org/repo",
+		ActionMode:  ActionModeAction,
+		CustomCron:  customCron,
+	})
+	require.NoError(t, err)
+
+	content, err := os.ReadFile(filepath.Join(dir, AutoUpdateWorkflowFileName))
+	require.NoError(t, err)
+
+	cronLine := extractCronLine(string(content))
+	assert.Contains(t, cronLine, customCron, "custom cron should override the per-repo fuzzy weekly schedule")
+}

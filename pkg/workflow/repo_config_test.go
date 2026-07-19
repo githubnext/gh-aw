@@ -365,6 +365,34 @@ func TestIsAutoUpgradeEnabled_NilConfig(t *testing.T) {
 	assert.False(t, r.IsAutoUpgradeEnabled(), "IsAutoUpgradeEnabled should return false for nil RepoConfig")
 }
 
+func TestLoadRepoConfig_AutoUpgradeCron(t *testing.T) {
+	t.Run("loads auto_upgrade_cron", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"auto_upgrade": true, "auto_upgrade_cron": "0 9 * * 1"}`)
+
+		cfg, err := LoadRepoConfig(dir)
+		require.NoError(t, err, "valid aw.json with auto_upgrade_cron should load without error")
+		assert.Equal(t, "0 9 * * 1", cfg.AutoUpgradeCron, "auto_upgrade_cron should be set")
+	})
+
+	t.Run("auto_upgrade_cron omitted defaults to empty string", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"auto_upgrade": true}`)
+
+		cfg, err := LoadRepoConfig(dir)
+		require.NoError(t, err)
+		assert.Empty(t, cfg.AutoUpgradeCron, "AutoUpgradeCron should be empty when omitted")
+	})
+
+	t.Run("rejects invalid cron pattern", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"auto_upgrade": true, "auto_upgrade_cron": "not-a-cron"}`)
+
+		_, err := LoadRepoConfig(dir)
+		assert.Error(t, err, "invalid auto_upgrade_cron should return an error")
+	})
+}
+
 func TestLoadRepoConfig_ActionPins(t *testing.T) {
 	t.Run("loads action_pins mapping", func(t *testing.T) {
 		dir := t.TempDir()

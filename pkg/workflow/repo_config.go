@@ -11,6 +11,7 @@
 //	  "help_command": false,      // disables builtin centralized /help comment handler
 //	  "utc": "-08:00", // project home UTC offset for rendered local times
 //	  "auto_upgrade": true, // set to true to generate agentic-auto-upgrade.yml with weekly schedule
+//	  "auto_upgrade_cron": "0 9 * * 1", // optional: override the default fuzzy weekly schedule
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
 //	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
 //	    "action_failure_issue_expires": 72, // expiration (hours) for conclusion failure issues
@@ -166,6 +167,11 @@ type RepoConfig struct {
 	// Opt-in: nil (omitted) or false both disable generation.
 	AutoUpgrade *bool
 
+	// AutoUpgradeCron is an optional custom cron expression for the
+	// agentic-auto-upgrade workflow schedule. When non-empty, it overrides
+	// the default fuzzy weekly schedule. Requires AutoUpgrade to be true.
+	AutoUpgradeCron string
+
 	// MaintenanceDisabled is true when maintenance has been explicitly set to false
 	// in aw.json, disabling agentic-maintenance generation and any features that
 	// depend on it (such as expires).
@@ -197,12 +203,13 @@ func (r *RepoConfig) IsAutoUpgradeEnabled() bool {
 func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 	// Use an intermediate struct with json.RawMessage to defer maintenance parsing.
 	var raw struct {
-		GHES        bool              `json:"ghes,omitempty"`
-		HelpCommand *bool             `json:"help_command,omitempty"` // nil = use default (enabled)
-		UTC         string            `json:"utc,omitempty"`
-		AutoUpgrade *bool             `json:"auto_upgrade,omitempty"`
-		Maintenance json.RawMessage   `json:"maintenance,omitempty"`
-		ActionPins  map[string]string `json:"action_pins,omitempty"`
+		GHES            bool              `json:"ghes,omitempty"`
+		HelpCommand     *bool             `json:"help_command,omitempty"` // nil = use default (enabled)
+		UTC             string            `json:"utc,omitempty"`
+		AutoUpgrade     *bool             `json:"auto_upgrade,omitempty"`
+		AutoUpgradeCron string            `json:"auto_upgrade_cron,omitempty"`
+		Maintenance     json.RawMessage   `json:"maintenance,omitempty"`
+		ActionPins      map[string]string `json:"action_pins,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -212,6 +219,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 	r.HelpCommand = raw.HelpCommand
 	r.UTC = strings.TrimSpace(raw.UTC)
 	r.AutoUpgrade = raw.AutoUpgrade
+	r.AutoUpgradeCron = strings.TrimSpace(raw.AutoUpgradeCron)
 	r.ActionPins = raw.ActionPins
 
 	if len(raw.Maintenance) == 0 || string(raw.Maintenance) == "null" {
