@@ -156,6 +156,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/sprintfint"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
 	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
+	"github.com/github/gh-aw/pkg/linters/trimleftright"
 )
 
 // Use with multichecker, singlechecker, or custom go/analysis driver.
@@ -183,6 +184,7 @@ _ = sortslice.Analyzer
 _ = sprintfint.Analyzer
 _ = ssljson.Analyzer
 _ = timesleepnocontext.Analyzer
+_ = trimleftright.Analyzer
 ```
 
 ## Dependencies

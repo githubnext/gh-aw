@@ -15,6 +15,7 @@
 const fs = require("fs");
 const { loadConfig } = require("./safe_outputs_config.cjs");
 const { loadTools } = require("./safe_outputs_tools_loader.cjs");
+const { ERR_CONFIG } = require("./error_codes.cjs");
 
 /**
  * @typedef {Object} Logger
@@ -68,7 +69,7 @@ function enforceCreatePullRequestRuntimePolicy(config, logger) {
 
   const message = `create-pull-request is disabled by runtime policy: ${policyVarName}=false. ` + `Remove safe-outputs.create-pull-request or set ${policyVarName}=true.`;
   logger.debugError(message);
-  throw new Error(message);
+  throw new Error(`${ERR_CONFIG}: ${message}`);
 }
 
 /**
