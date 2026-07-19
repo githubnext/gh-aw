@@ -55,19 +55,15 @@ function iconSvg(name: string, size = 20) {
 	return icon.toSVG({ width: size, height: size, 'aria-hidden': 'true' });
 }
 
+const workshopCardIcons = {
+	browser: 'window',
+	'device-desktop': 'desktop',
+	hubot: 'github',
+	terminal: 'server',
+} as const;
+
 function starlightIcon(name: string) {
-	switch (name) {
-		case 'browser':
-			return 'window';
-		case 'device-desktop':
-			return 'desktop';
-		case 'hubot':
-			return 'github';
-		case 'terminal':
-			return 'server';
-		default:
-			return 'information';
-	}
+	return workshopCardIcons[name as keyof typeof workshopCardIcons] ?? 'information';
 }
 
 function escapeHtml(value: string) {
@@ -1185,16 +1181,17 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	}
 
 	.aw-workshop-card-entry > :global(.card) {
-		--sl-card-border: var(--aw-workshop-card-accent, var(--sl-color-accent));
-		--sl-card-bg: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 18%, transparent);
+		--aw-workshop-card-color: var(--aw-workshop-card-accent, var(--sl-color-accent));
+		--sl-card-border: var(--aw-workshop-card-color);
+		--sl-card-bg: color-mix(in srgb, var(--aw-workshop-card-color) 18%, transparent);
 		height: 100%;
 		min-height: 15rem;
 		padding: 1rem;
 		border-radius: 0.9rem;
-		border-color: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 35%, transparent);
+		border-color: color-mix(in srgb, var(--aw-workshop-card-color) 35%, transparent);
 		background:
-			linear-gradient(180deg, color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 12%, transparent), transparent 72%),
-			color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 8%, var(--aw-bg-elevated));
+			linear-gradient(180deg, color-mix(in srgb, var(--aw-workshop-card-color) 12%, transparent), transparent 72%),
+			color-mix(in srgb, var(--aw-workshop-card-color) 8%, var(--aw-bg-elevated));
 		gap: 0.75rem;
 		transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 	}
@@ -1209,8 +1206,8 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 	.aw-workshop-card-entry > :global(.card .icon) {
 		margin-top: 0.04rem;
-		border-color: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 24%, transparent);
-		background: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 14%, transparent);
+		border-color: color-mix(in srgb, var(--aw-workshop-card-color) 24%, transparent);
+		background: color-mix(in srgb, var(--aw-workshop-card-color) 14%, transparent);
 	}
 
 	.aw-workshop-card-entry > :global(.card .body) {
@@ -1231,12 +1228,12 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	.aw-workshop-card-entry:hover > :global(.card),
 	.aw-workshop-card-entry.is-active > :global(.card) {
 		transform: translateY(-1px);
-		border-color: var(--aw-workshop-card-accent, var(--sl-color-accent));
+		border-color: var(--aw-workshop-card-color);
 		box-shadow: 0 12px 30px rgba(1, 4, 9, 0.2);
 	}
 
 	.aw-workshop-card-entry:focus-visible {
-		outline: 2px solid var(--aw-workshop-card-accent, var(--sl-color-accent));
+		outline: 2px solid var(--aw-workshop-card-color);
 		outline-offset: 4px;
 	}
 
