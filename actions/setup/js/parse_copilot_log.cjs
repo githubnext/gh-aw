@@ -232,9 +232,9 @@ function parsePrettyPrintFormat(logContent) {
   // newer Copilot CLI footer ("Changes  +N -N", "Duration  Ns", "Tokens  ↑N ↓N (cached)",
   // "Resume  copilot --resume=…"). The newer footer omits a colon and uses arrow glyphs, so we
   // extend the regex rather than relying on the legacy "Total …:" prefix alone. The "Resume"
-  // hint is columnar CLI chrome (aligned with 2+ spaces); skip it so it does not leak into the
-  // rendered agent reasoning section.
-  const USAGE_LINES_RE = /^(?:Total usage est:|API time spent:|Total session time:|Total code changes:|Changes\s+[+-]?\d|Duration\s+\d|Tokens\s+[↑↓]|Resume\s{2,}\S)/;
+  // hint is matched against the exact CLI command syntax to avoid false-positives on prose
+  // that happens to start with "Resume  ".
+  const USAGE_LINES_RE = /^(?:Total usage est:|API time spent:|Total session time:|Total code changes:|Changes\s+[+-]?\d|Duration\s+\d|Tokens\s+[↑↓]|Resume\s{2,}copilot\s+--resume=)/;
 
   const parseTokenCount = s => {
     const n = parseFloat(s);
