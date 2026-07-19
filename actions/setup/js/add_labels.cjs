@@ -115,7 +115,7 @@ const main = createCountGatedHandler({
               continue;
             }
             if (!label.rationale || !label.confidence) {
-              missingMetadataLabelNames.push(JSON.stringify(label.name));
+              missingMetadataLabelNames.push(JSON.stringify(label.name ?? "<unnamed>"));
             }
           }
           if (missingMetadataLabelNames.length > 0) {
