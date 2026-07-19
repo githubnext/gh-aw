@@ -48,6 +48,11 @@ func TestLooksSuspiciousCutset(t *testing.T) {
 		// "abc" is tested above via "abc prefix"; here we confirm the
 		// 4-letter subset also escapes the hex exception.
 		{name: "partial hex abce", cutset: "abce", want: true},
+		// Boundary: all six hex letters plus a non-hex character.
+		{name: "almost hex abcdefg", cutset: "abcdefg", want: true},
+		// Regression: repeated hex letters look like a bug, not a character class.
+		{name: "repeated hex letters", cutset: "aabbccddeeff", want: true},
+		{name: "hex with duplicate letter", cutset: "aabcdef", want: true},
 	}
 
 	for _, tt := range tests {

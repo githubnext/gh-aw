@@ -194,12 +194,20 @@ func isAllASCIIVowels(runes []rune) bool {
 // code points (a b c d e f, case-insensitively). This matches intentional
 // hex-class trimming like "abcdef", "ABCDEF", or "0123456789abcdef".
 // Partial hex-letter subsets such as "abc" are not matched and return false.
+// Duplicate hex letters (e.g. "aabcdef") are also rejected and return false;
+// a repeated hex letter is almost certainly a bug rather than a character class.
 func isCompleteHexAlphabet(runes []rune) bool {
+	if len(runes) > 16 { // 6 unique hex letters (a–f, case-folded to lowercase) + 10 digits
+		return false
+	}
 	seen := make(map[rune]struct{})
 	for _, r := range runes {
 		lower := unicode.ToLower(r)
 		switch {
 		case lower >= 'a' && lower <= 'f':
+			if _, ok := seen[lower]; ok {
+				return false // repeated hex letter → suspicious
+			}
 			seen[lower] = struct{}{}
 		case r >= '0' && r <= '9':
 			// decimal digits are permissible alongside hex letters
