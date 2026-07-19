@@ -151,7 +151,7 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/456/reactions", expect.objectContaining({ content: "eyes" }));
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", expect.objectContaining({ content: "eyes", owner: "testowner", repo: "testrepo", issue_number: 456 }));
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "12345");
     });
 
@@ -180,7 +180,7 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/comments/789/reactions", expect.objectContaining({ content: "eyes" }));
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions", expect.objectContaining({ content: "eyes", owner: "testowner", repo: "testrepo", comment_id: 789 }));
     });
 
     it("should fail when comment ID is missing", async () => {
@@ -206,7 +206,7 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/999/reactions", expect.objectContaining({ content: "eyes" }));
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", expect.objectContaining({ content: "eyes", owner: "testowner", repo: "testrepo", issue_number: 999 }));
     });
 
     it("should fail when PR number is missing", async () => {
@@ -232,7 +232,7 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/pulls/comments/555/reactions", expect.objectContaining({ content: "eyes" }));
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions", expect.objectContaining({ content: "eyes", owner: "testowner", repo: "testrepo", comment_id: 555 }));
     });
 
     it("should fail when review comment ID is missing", async () => {
@@ -464,7 +464,7 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/target-owner/target-repo/issues/comments/456/reactions", expect.objectContaining({ content: "eyes" }));
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions", expect.objectContaining({ content: "eyes", owner: "target-owner", repo: "target-repo", comment_id: 456 }));
     });
 
     it("should fail for unsupported event types", async () => {
@@ -590,9 +590,12 @@ describe("add_reaction", () => {
       const { addReaction } = await importHelpers();
       mockGithub.request.mockResolvedValueOnce({ data: { id: 111 } });
 
-      await addReaction("/repos/owner/repo/issues/1/reactions", "+1");
+      await addReaction("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", { owner: "owner", repo: "repo", issue_number: 1 }, "+1");
 
-      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/owner/repo/issues/1/reactions", {
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", {
+        owner: "owner",
+        repo: "repo",
+        issue_number: 1,
         content: "+1",
         headers: { Accept: "application/vnd.github+json" },
       });
@@ -603,7 +606,7 @@ describe("add_reaction", () => {
       const { addReaction } = await importHelpers();
       mockGithub.request.mockResolvedValueOnce({ data: {} });
 
-      await addReaction("/repos/owner/repo/issues/1/reactions", "eyes");
+      await addReaction("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", { owner: "owner", repo: "repo", issue_number: 1 }, "eyes");
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "");
     });
@@ -612,7 +615,7 @@ describe("add_reaction", () => {
       const { addReaction } = await importHelpers();
       mockGithub.request.mockResolvedValueOnce({ data: { id: 777 } });
 
-      await addReaction("/repos/owner/repo/issues/1/reactions", "rocket");
+      await addReaction("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", { owner: "owner", repo: "repo", issue_number: 1 }, "rocket");
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("rocket"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("777"));
@@ -694,7 +697,7 @@ describe("add_reaction", () => {
     it("should return issues endpoint", async () => {
       global.context = { eventName: "issues", repo: { owner: "o", repo: "r" }, payload: { issue: { number: 1 } } };
       const { resolveRestEndpoint } = await importHelpers();
-      expect(resolveRestEndpoint("issues", "o", "r", global.context.payload)).toBe("/repos/o/r/issues/1/reactions");
+      expect(resolveRestEndpoint("issues", "o", "r", global.context.payload)).toEqual({ route: "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", params: { owner: "o", repo: "r", issue_number: 1 } });
     });
 
     it("should return null and setFailed when issue number is missing", async () => {
@@ -707,7 +710,7 @@ describe("add_reaction", () => {
     it("should return issue_comment endpoint", async () => {
       global.context = { eventName: "issue_comment", repo: { owner: "o", repo: "r" }, payload: { comment: { id: 42 } } };
       const { resolveRestEndpoint } = await importHelpers();
-      expect(resolveRestEndpoint("issue_comment", "o", "r", global.context.payload)).toBe("/repos/o/r/issues/comments/42/reactions");
+      expect(resolveRestEndpoint("issue_comment", "o", "r", global.context.payload)).toEqual({ route: "POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions", params: { owner: "o", repo: "r", comment_id: 42 } });
     });
 
     it("should return null and setFailed when comment id is missing", async () => {
@@ -720,7 +723,7 @@ describe("add_reaction", () => {
     it("should return pull_request endpoint using issues path", async () => {
       global.context = { eventName: "pull_request", repo: { owner: "o", repo: "r" }, payload: { pull_request: { number: 7 } } };
       const { resolveRestEndpoint } = await importHelpers();
-      expect(resolveRestEndpoint("pull_request", "o", "r", global.context.payload)).toBe("/repos/o/r/issues/7/reactions");
+      expect(resolveRestEndpoint("pull_request", "o", "r", global.context.payload)).toEqual({ route: "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", params: { owner: "o", repo: "r", issue_number: 7 } });
     });
 
     it("should return null and setFailed when PR number is missing", async () => {
@@ -733,7 +736,7 @@ describe("add_reaction", () => {
     it("should return pull_request_review_comment endpoint", async () => {
       global.context = { eventName: "pull_request_review_comment", repo: { owner: "o", repo: "r" }, payload: { comment: { id: 55 } } };
       const { resolveRestEndpoint } = await importHelpers();
-      expect(resolveRestEndpoint("pull_request_review_comment", "o", "r", global.context.payload)).toBe("/repos/o/r/pulls/comments/55/reactions");
+      expect(resolveRestEndpoint("pull_request_review_comment", "o", "r", global.context.payload)).toEqual({ route: "POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions", params: { owner: "o", repo: "r", comment_id: 55 } });
     });
 
     it("should return null without failure for pull_request_review events", async () => {

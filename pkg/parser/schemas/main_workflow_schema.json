@@ -7800,6 +7800,10 @@
                   "type": "string",
                   "description": "Title prefix constraint: the issue/PR title must start with this prefix for the operation to proceed."
                 },
+                "issue-intent": {
+                  "type": "boolean",
+                  "description": "Enable issue-intent metadata support (rationale/confidence/suggest) for this output type."
+                },
                 "staged": {
                   "$ref": "#/$defs/templatable_boolean",
                   "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
@@ -9294,6 +9298,10 @@
                   "$ref": "#/$defs/github_token",
                   "description": "Optional GitHub token used only for branch writes to head-repo. Use this when the upstream pull request repository and the fork head repository require different credentials."
                 },
+                "issue-intent": {
+                  "type": "boolean",
+                  "description": "Enable issue-intent metadata support (rationale/confidence/suggest) for this output type."
+                },
                 "staged": {
                   "$ref": "#/$defs/templatable_boolean",
                   "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
@@ -9381,6 +9389,10 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "issue-intent": {
+                  "type": "boolean",
+                  "description": "Enable issue-intent metadata support (rationale/confidence/suggest) for this output type."
                 },
                 "staged": {
                   "$ref": "#/$defs/templatable_boolean",
@@ -12778,12 +12790,24 @@
                 "capabilities": {
                   "type": "object",
                   "properties": {
-                    "tools-allowlist": { "type": "boolean" },
-                    "max-turns": { "type": "boolean" },
-                    "web-search": { "type": "boolean" },
-                    "max-continuations": { "type": "boolean" },
-                    "native-agent-file": { "type": "boolean" },
-                    "bare-mode": { "type": "boolean" }
+                    "tools-allowlist": {
+                      "type": "boolean"
+                    },
+                    "max-turns": {
+                      "type": "boolean"
+                    },
+                    "web-search": {
+                      "type": "boolean"
+                    },
+                    "max-continuations": {
+                      "type": "boolean"
+                    },
+                    "native-agent-file": {
+                      "type": "boolean"
+                    },
+                    "bare-mode": {
+                      "type": "boolean"
+                    }
                   },
                   "additionalProperties": false
                 },
@@ -12792,11 +12816,15 @@
                   "properties": {
                     "files": {
                       "type": "array",
-                      "items": { "type": "string" }
+                      "items": {
+                        "type": "string"
+                      }
                     },
                     "path-prefixes": {
                       "type": "array",
-                      "items": { "type": "string" }
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   },
                   "additionalProperties": false
@@ -12804,53 +12832,105 @@
                 "installation": {
                   "type": "object",
                   "properties": {
-                    "package-manager": { "type": "string" },
-                    "package-name": { "type": "string" },
-                    "version": { "type": "string" },
-                    "step-name": { "type": "string" },
-                    "binary-name": { "type": "string" },
-                    "include-node-setup": { "type": "boolean" },
-                    "post-install-scripts": { "type": "boolean" },
-                    "cooldown": { "type": "boolean" },
-                    "verify-command": { "type": "string" },
-                    "verify-step-name": { "type": "string" },
-                    "docs-url": { "type": "string" }
+                    "package-manager": {
+                      "type": "string"
+                    },
+                    "package-name": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "step-name": {
+                      "type": "string"
+                    },
+                    "binary-name": {
+                      "type": "string"
+                    },
+                    "include-node-setup": {
+                      "type": "boolean"
+                    },
+                    "post-install-scripts": {
+                      "type": "boolean"
+                    },
+                    "cooldown": {
+                      "type": "boolean"
+                    },
+                    "verify-command": {
+                      "type": "string"
+                    },
+                    "verify-step-name": {
+                      "type": "string"
+                    },
+                    "docs-url": {
+                      "type": "string"
+                    }
                   },
                   "additionalProperties": false
                 },
                 "config-file": {
                   "type": "object",
                   "properties": {
-                    "path": { "type": "string" },
-                    "step-name": { "type": "string" },
-                    "content": { "type": "string" },
-                    "merge-strategy": { "type": "string" }
+                    "path": {
+                      "type": "string"
+                    },
+                    "step-name": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "string"
+                    },
+                    "merge-strategy": {
+                      "type": "string"
+                    }
                   },
                   "additionalProperties": false
                 },
                 "execution": {
                   "type": "object",
                   "properties": {
-                    "command-name": { "type": "string" },
+                    "command-name": {
+                      "type": "string"
+                    },
                     "args": {
                       "type": "array",
-                      "items": { "type": "string" }
+                      "items": {
+                        "type": "string"
+                      }
                     },
-                    "step-name": { "type": "string" },
-                    "model-env-var": { "type": "string" },
-                    "model-env-provider-prefix": { "type": "string" },
-                    "model-flag": { "type": "string" },
-                    "mcp-config-env-var": { "type": "string" },
-                    "mcp-config-flag": { "type": "string" },
-                    "write-timestamp": { "type": "boolean" },
-                    "provider-env-mode": { "type": "string" }
+                    "step-name": {
+                      "type": "string"
+                    },
+                    "model-env-var": {
+                      "type": "string"
+                    },
+                    "model-env-provider-prefix": {
+                      "type": "string"
+                    },
+                    "model-flag": {
+                      "type": "string"
+                    },
+                    "mcp-config-env-var": {
+                      "type": "string"
+                    },
+                    "mcp-config-flag": {
+                      "type": "string"
+                    },
+                    "write-timestamp": {
+                      "type": "boolean"
+                    },
+                    "provider-env-mode": {
+                      "type": "string"
+                    }
                   },
                   "additionalProperties": false
                 },
                 "mcp": {
                   "type": "object",
                   "properties": {
-                    "config-path": { "type": "string" }
+                    "config-path": {
+                      "type": "string"
+                    }
                   },
                   "additionalProperties": false
                 },

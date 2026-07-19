@@ -771,6 +771,10 @@ This appendix is generated from the current non-test Go source files in this pac
 
 <!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
 
+## Source Synchronization
+
+Reviewed against recent source updates on 2026-07-17; no additional public-contract deltas were identified beyond the sections above.
+
 ---
 
 *This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

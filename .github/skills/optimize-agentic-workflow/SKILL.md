@@ -95,12 +95,14 @@ Priority checks:
 After measuring token usage, produce a prioritized plan:
 
 1. **Measure** — run `gh aw audit <run-id> --json` and summarize AI Credits and per-call token breakdown
-2. **Identify top cost drivers** — list the three most expensive phases/tool calls
-3. **Apply quick wins first** — DataOps pre-steps, `gh-proxy`, `cli-proxy`, prompt trimming
-4. **Sub-agent delegation** — identify repetitive per-item loops suitable for small-model workers
-5. **Prompt caching** — verify stable context appears before dynamic content
-6. **Experiment** — add an `experiments:` entry with `metric: "aic"` to measure the change
-7. **Validate quality** — confirm the optimized run produces equivalent safe outputs
+2. **Diagnose the harness** — classify failures across context assembly, tool interaction, generation control, orchestration, memory management, and output processing
+3. **Identify top cost drivers** — list the three most expensive phases/tool calls
+4. **Apply quick wins first** — DataOps pre-steps, `gh-proxy`, `cli-proxy`, prompt trimming
+5. **Sub-agent delegation** — identify repetitive per-item loops suitable for small-model workers
+6. **Reuse execution experience** — preserve compact task features, configuration deltas, outcomes, costs, and diagnoses in `cache-memory` when cross-run reuse is useful; apply relevant recurring patterns to similar cases
+7. **Prompt caching** — verify stable instructions and reusable experience appear before dynamic content
+8. **Experiment correctness first** — add an `experiments:` entry, compare output quality first, and use `metric: "aic"` to choose among equivalent-quality variants
+9. **Validate quality** — confirm the optimized run produces equivalent safe outputs
 
 Present the plan clearly before making any edits. Confirm with the user before applying changes.
 

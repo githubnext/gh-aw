@@ -135,13 +135,8 @@ describe("generate_workflow_overview.cjs", () => {
     };
     fs.writeFileSync(awInfoPath, JSON.stringify(awInfo));
 
-    // Capture console.log
-    const consoleSpy = vi.spyOn(console, "log");
-
     await generateWorkflowOverview(mockCore);
 
-    expect(consoleSpy).toHaveBeenCalledWith("Generated workflow overview in step summary");
-
-    consoleSpy.mockRestore();
+    expect(mockCore.info).toHaveBeenCalledWith("Generated workflow overview in step summary");
   });
 });

@@ -4,8 +4,9 @@ emoji: "📝"
 name: Documentation Unbloat
 description: Reviews and simplifies documentation by reducing verbosity while maintaining clarity and completeness
 on:
-  # Daily (scattered execution time)
-  schedule: daily
+  # Daily (explicitly staggered to avoid the 22:29 UTC batch)
+  schedule:
+    - cron: "18 0 * * *"
   
   # Command trigger for /unbloat in PR comments
   slash_command:
@@ -202,10 +203,7 @@ steps:
     working-directory: ./docs
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      npm run generate-agent-factory
-      npm run generate-model-tables
-      npx astro build
+    run: npm run build
 evals:
   - id: docs_analyzed
     question: Did the agent analyze documentation files for verbosity and unnecessary content?

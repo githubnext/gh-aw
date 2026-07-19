@@ -1457,6 +1457,8 @@ async function main() {
   // Detect staged mode before try/finally so it's accessible in the finally block.
   // In staged mode (🎭 Staged Mode Preview) no real items are created in GitHub so no manifest should be emitted.
   const isStaged = isStagedMode();
+  /** @type {string | null} */
+  let failedOutputsMessage = null;
 
   try {
     core.info("Safe Output Handler Manager starting...");
@@ -1641,7 +1643,7 @@ async function main() {
       core.warning(`${failureCount} message(s) failed to process`);
       const failedItemLines = fatalFailures.map(r => `  - ${r.type}: ${r.error || "Unknown error"}`);
       const failedItems = failedItemLines.join("\n");
-      core.setFailed(`${failureCount} safe output(s) failed:\n${failedItems}`);
+      failedOutputsMessage = `${failureCount} safe output(s) failed:\n${failedItems}`;
     }
     if (reportOnlyFailureCount > 0) {
       const reportOnlyTypes = [...new Set(reportOnlyFailures.map(r => r.type || "unknown"))];
@@ -1739,9 +1741,18 @@ async function main() {
     // so this is a safety net for cases where we never reached the logger creation.
     if (!isStaged) ensureManifestExists();
 
+    if (failedOutputsMessage !== null) {
+      core.setFailed(failedOutputsMessage);
+      return;
+    }
     core.info("Safe Output Handler Manager completed");
   } catch (error) {
-    core.setFailed(`${ERR_VALIDATION}: Handler manager failed: ${getErrorMessage(error)}`);
+    const handlerError = `${ERR_VALIDATION}: Handler manager failed: ${getErrorMessage(error)}`;
+    if (failedOutputsMessage !== null) {
+      core.setFailed(`${failedOutputsMessage}\n${handlerError}`);
+      return;
+    }
+    core.setFailed(handlerError);
   } finally {
     // Guarantee the manifest file exists for artifact upload even when the handler fails.
     // This is a no-op if the file was already created by createManifestLogger().

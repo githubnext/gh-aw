@@ -42,7 +42,7 @@ An alternative is to accept the tag-object SHA as the pin value and teach the di
 - The two-call strategy is sensitive to rate-limiting: a rate-limit hit on the second (peeling) call results in a hard failure, with no partial-result fallback.
 
 #### Neutral
-- The `ParseTagRefTSV` function is exported from `pkg/workflow`, creating a new public symbol that callers outside the package can depend on. Changing its signature in future is a breaking change for any consumers.
+- The `ParseTagRefTSV` function is exported from `pkg/workflow` (`github.com/github/gh-aw/pkg/workflow`), which is importable by external modules and is also documented in `pkg/workflow/README.md`. This means `ParseTagRefTSV` **is** a public symbol with SemVer implications: renaming or changing its signature without a major-version bump would be a breaking change for any external consumer that imports `pkg/workflow`. If the function is intended as an internal implementation detail, it should either be unexported (renamed to `parseTagRefTSV`) or moved to an `internal/` package. Until that refactoring occurs, any change to `ParseTagRefTSV`'s signature must be treated as a public API change.
 - Integration tests require network access to validate the full two-call flow; unit tests cover only the TSV parsing.
 
 ---
@@ -74,6 +74,26 @@ An alternative is to accept the tag-object SHA as the pin value and teach the di
 ### Conformance
 
 An implementation is considered conformant with this ADR if it satisfies all **MUST** and **MUST NOT** requirements above. Specifically: it always emits a commit SHA (never a tag-object SHA), it validates SHA length, it does not duplicate TSV parsing logic, and it applies the two-call strategy consistently across both resolution paths. Failure to meet any **MUST** or **MUST NOT** requirement constitutes non-conformance.
+
+### Rate-Limit Handling Norms
+
+1. When the second (peeling) API call to `GET /repos/{owner}/{repo}/git/tags/{tag-object-sha}` receives an HTTP 429 or a rate-limit-exceeded response, implementations **MUST** fail with a descriptive error rather than silently falling back to the tag-object SHA. Emitting a tag-object SHA as the pin value is explicitly prohibited by requirement 2 of the Tag Resolution section.
+2. Implementations **SHOULD NOT** perform automatic retries on rate-limit responses during a single compile invocation; callers are responsible for retry logic at a higher level (e.g., CI re-run).
+3. The error message produced on a rate-limit failure **MUST** include the tag reference and the HTTP status code so that operators can diagnose the cause without inspecting raw HTTP logs.
+
+---
+
+### Status Promotion
+
+This ADR is currently **Draft**. To promote it to **Accepted**, all of the following criteria must be satisfied:
+
+- [ ] The PR implementing annotated-tag peeling has been merged to the default branch.
+- [ ] All CI checks (tests, linters, compilation) are green on the merged commit.
+- [ ] An integration test for annotated-tag pinning exists in CI (`pkg/workflow/action_resolver_test.go` or equivalent).
+- [ ] The rate-limit error path is covered by at least one unit test asserting the descriptive error message.
+- [ ] No open issues reference a conformance failure against this ADR.
+
+Once all boxes are checked, update the `**Status**` field at the top of this document from `Draft` to `Accepted`.
 
 ---
 

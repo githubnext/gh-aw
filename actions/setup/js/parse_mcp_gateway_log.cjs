@@ -205,7 +205,12 @@ async function writeStepSummaryWithTokenUsage(coreObj) {
   if (!fs.existsSync(TOKEN_USAGE_PATH)) {
     coreObj.debug(`No token-usage.jsonl found at: ${TOKEN_USAGE_PATH}`);
   } else {
-    const content = fs.readFileSync(TOKEN_USAGE_PATH, "utf8");
+    let content;
+    try {
+      content = fs.readFileSync(TOKEN_USAGE_PATH, "utf8");
+    } catch (err) {
+      throw new Error(`Failed to read file ${TOKEN_USAGE_PATH}: ${String(err)}`, { cause: err });
+    }
     if (content?.trim()) {
       coreObj.info(`Found token-usage.jsonl (${content.length} bytes)`);
       const parsedSummary = parseTokenUsageJsonl(content);

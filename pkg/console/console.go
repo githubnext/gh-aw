@@ -5,17 +5,24 @@ package console
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	lipgloss "charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
+	"github.com/github/gh-aw/pkg/colorwriter"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
 )
 
 var consoleLog = logger.New("console:console")
+
+// stdoutEnviron caches the process environment on first use so stdout styling
+// helpers do not repeatedly copy and re-parse it while rendering output.
+var stdoutEnviron = sync.OnceValue(os.Environ)
 
 // isTTY checks if stdout is a terminal
 func isTTY() bool {
@@ -27,12 +34,24 @@ func isStderrTTY() bool {
 	return tty.IsStderrTerminal()
 }
 
-// applyStyle conditionally applies styling based on TTY status
+// applyStyle conditionally applies styling based on TTY status and color profile.
+// When stdout is a TTY the rendered ANSI is downgraded through the colorprofile
+// writer so that NO_COLOR, COLORTERM, and TERM are honored.
 func applyStyle(style lipgloss.Style, text string) string {
-	return applyStyleWithTTY(style, text, isTTY)
+	return applyStdoutStyleWithTTY(style, text, isTTY, stdoutEnviron())
 }
 
-// applyStyleWithTTY conditionally applies styling based on a provided TTY check.
+func applyStdoutStyleWithTTY(style lipgloss.Style, text string, ttyCheck func() bool, environ []string) string {
+	if !ttyCheck() {
+		return text
+	}
+	return colorwriter.Degrade(style.Render(text), environ)
+}
+
+// applyStyleWithTTY conditionally renders raw ANSI based on a provided TTY check.
+// Use this only for strings that will later be written through a color-profile-
+// aware writer (for example stderrWriter); stdout-facing helpers should use
+// applyStdoutStyleWithTTY so environment-based degradation happens here.
 func applyStyleWithTTY(style lipgloss.Style, text string, ttyCheck func() bool) string {
 	if ttyCheck() {
 		return style.Render(text)
@@ -154,29 +173,37 @@ func renderContext(err CompilerError) string {
 
 // FormatSuccessMessage formats a success message with styling
 func FormatSuccessMessage(message string) string {
-	return formatSuccessMessageWithTTY(message, isTTY)
+	return formatSuccessMessageWithTTY(message, isTTY, stdoutEnviron())
 }
 
 // FormatSuccessMessageStderr formats a success message for stderr output.
 func FormatSuccessMessageStderr(message string) string {
-	return formatSuccessMessageWithTTY(message, isStderrTTY)
+	return formatSuccessMessageStderrWithTTY(message, isStderrTTY)
 }
 
-func formatSuccessMessageWithTTY(message string, ttyCheck func() bool) string {
+func formatSuccessMessageWithTTY(message string, ttyCheck func() bool, environ []string) string {
+	return applyStdoutStyleWithTTY(styles.Success, "✓ ", ttyCheck, environ) + message
+}
+
+func formatSuccessMessageStderrWithTTY(message string, ttyCheck func() bool) string {
 	return applyStyleWithTTY(styles.Success, "✓ ", ttyCheck) + message
 }
 
 // FormatInfoMessage formats an informational message
 func FormatInfoMessage(message string) string {
-	return formatInfoMessageWithTTY(message, isTTY)
+	return formatInfoMessageWithTTY(message, isTTY, stdoutEnviron())
 }
 
 // FormatInfoMessageStderr formats an informational message for stderr output.
 func FormatInfoMessageStderr(message string) string {
-	return formatInfoMessageWithTTY(message, isStderrTTY)
+	return formatInfoMessageStderrWithTTY(message, isStderrTTY)
 }
 
-func formatInfoMessageWithTTY(message string, ttyCheck func() bool) string {
+func formatInfoMessageWithTTY(message string, ttyCheck func() bool, environ []string) string {
+	return applyStdoutStyleWithTTY(styles.Info, "i ", ttyCheck, environ) + message
+}
+
+func formatInfoMessageStderrWithTTY(message string, ttyCheck func() bool) string {
 	return applyStyleWithTTY(styles.Info, "i ", ttyCheck) + message
 }
 
@@ -206,41 +233,12 @@ func RenderTable(config TableConfig) string {
 	// Use caller-supplied TTY detector when provided (e.g. tty.IsStderrTerminal
 	// for tables written to stderr), otherwise fall back to stdout detection.
 	ttyCheck := isTTY
+	stdoutOutput := true
 	if config.TTYFunc != nil {
 		ttyCheck = config.TTYFunc
+		stdoutOutput = false
 	}
-
-	var output strings.Builder
-
-	if config.Title != "" {
-		output.WriteString(applyStyle(styles.TableTitle, config.Title))
-		output.WriteString("\n")
-	}
-
-	allRows := config.Rows
-	if config.ShowTotal && len(config.TotalRow) > 0 {
-		allRows = append(allRows, config.TotalRow)
-	}
-
-	dataRowCount := len(config.Rows)
-	styleFunc := buildTableStyleFunc(config, ttyCheck, dataRowCount)
-
-	borderStyle := lipgloss.NewStyle()
-	if ttyCheck() {
-		borderStyle = styles.TableBorder
-	}
-
-	t := table.New().
-		Headers(config.Headers...).
-		Rows(allRows...).
-		Border(styles.RoundedBorder).
-		BorderStyle(borderStyle).
-		StyleFunc(styleFunc)
-
-	output.WriteString(t.String())
-	output.WriteString("\n")
-
-	return output.String()
+	return renderTableWithTTY(config, ttyCheck, stdoutEnviron(), stdoutOutput)
 }
 
 // buildTableStyleFunc returns the lipgloss style function used by RenderTable.
@@ -268,6 +266,51 @@ func buildTableStyleFunc(config TableConfig, ttyCheck func() bool, dataRowCount 
 	}
 }
 
+func renderTableWithTTY(config TableConfig, ttyCheck func() bool, environ []string, degradeStdout bool) string {
+	var output strings.Builder
+
+	titleStyle := applyStyleWithTTY
+	if degradeStdout {
+		titleStyle = func(style lipgloss.Style, text string, ttyCheck func() bool) string {
+			return applyStdoutStyleWithTTY(style, text, ttyCheck, environ)
+		}
+	}
+
+	if config.Title != "" {
+		output.WriteString(titleStyle(styles.TableTitle, config.Title, ttyCheck))
+		output.WriteString("\n")
+	}
+
+	allRows := config.Rows
+	if config.ShowTotal && len(config.TotalRow) > 0 {
+		allRows = append(allRows, config.TotalRow)
+	}
+
+	dataRowCount := len(config.Rows)
+	styleFunc := buildTableStyleFunc(config, ttyCheck, dataRowCount)
+
+	borderStyle := lipgloss.NewStyle()
+	if ttyCheck() {
+		borderStyle = styles.TableBorder
+	}
+
+	t := table.New().
+		Headers(config.Headers...).
+		Rows(allRows...).
+		Border(styles.RoundedBorder).
+		BorderStyle(borderStyle).
+		StyleFunc(styleFunc)
+
+	output.WriteString(t.String())
+	output.WriteString("\n")
+
+	if degradeStdout && ttyCheck() {
+		return colorwriter.Degrade(output.String(), environ)
+	}
+
+	return output.String()
+}
+
 // FormatCommandMessage formats a command execution message
 func FormatCommandMessage(command string) string {
 	return applyStyle(styles.Command, "$ ") + command
@@ -290,15 +333,19 @@ func FormatVerboseMessage(message string) string {
 
 // FormatListItem formats an item in a list
 func FormatListItem(item string) string {
-	return formatListItemWithTTY(item, isTTY)
+	return formatListItemWithTTY(item, isTTY, stdoutEnviron())
 }
 
 // FormatListItemStderr formats a list item for stderr output.
 func FormatListItemStderr(item string) string {
-	return formatListItemWithTTY(item, isStderrTTY)
+	return formatListItemStderrWithTTY(item, isStderrTTY)
 }
 
-func formatListItemWithTTY(item string, ttyCheck func() bool) string {
+func formatListItemWithTTY(item string, ttyCheck func() bool, environ []string) string {
+	return applyStdoutStyleWithTTY(styles.ListItem, "  • "+item, ttyCheck, environ)
+}
+
+func formatListItemStderrWithTTY(item string, ttyCheck func() bool) string {
 	return applyStyleWithTTY(styles.ListItem, "  • "+item, ttyCheck)
 }
 
@@ -398,15 +445,19 @@ func formatMultilineError(msg string) string {
 
 // FormatSectionHeader formats a section header with proper styling
 func FormatSectionHeader(header string) string {
-	return formatSectionHeaderWithTTY(header, isTTY)
+	return formatSectionHeaderWithTTY(header, isTTY, stdoutEnviron())
 }
 
 // FormatSectionHeaderStderr formats a section header for stderr output.
 func FormatSectionHeaderStderr(header string) string {
-	return formatSectionHeaderWithTTY(header, isStderrTTY)
+	return formatSectionHeaderStderrWithTTY(header, isStderrTTY)
 }
 
-func formatSectionHeaderWithTTY(header string, ttyCheck func() bool) string {
+func formatSectionHeaderWithTTY(header string, ttyCheck func() bool, environ []string) string {
+	return applyStdoutStyleWithTTY(styles.Header, header, ttyCheck, environ)
+}
+
+func formatSectionHeaderStderrWithTTY(header string, ttyCheck func() bool) string {
 	return applyStyleWithTTY(styles.Header, header, ttyCheck)
 }
 

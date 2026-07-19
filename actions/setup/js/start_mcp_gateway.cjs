@@ -340,14 +340,26 @@ async function main() {
   const configDir = path.join(runnerTemp || "/tmp", "gh-aw/mcp-config");
   const cliDir = path.join(runnerTemp || "/tmp", "gh-aw/mcp-cli");
 
-  fs.mkdirSync("/tmp/gh-aw/mcp-logs", { recursive: true });
+  try {
+    fs.mkdirSync("/tmp/gh-aw/mcp-logs", { recursive: true });
+  } catch (err) {
+    throw new Error(`Failed to create directory /tmp/gh-aw/mcp-logs: ${String(err)}`, { cause: err });
+  }
 
   // Symlink attack prevention on the config directory
   assertNotSymlink(configDir);
-  fs.mkdirSync(configDir, { recursive: true });
+  try {
+    fs.mkdirSync(configDir, { recursive: true });
+  } catch (err) {
+    throw new Error(`Failed to create directory ${configDir}: ${String(err)}`, { cause: err });
+  }
   // Post-creation check
   assertNotSymlink(configDir);
-  fs.chmodSync(configDir, 0o700);
+  try {
+    fs.chmodSync(configDir, 0o700);
+  } catch (err) {
+    throw new Error(`Failed to set permissions on ${configDir}: ${String(err)}`, { cause: err });
+  }
 
   // -----------------------------------------------------------------------
   // Validate container syntax
@@ -378,7 +390,12 @@ async function main() {
 
   core.info("Reading MCP configuration from stdin...");
   const configReadStart = nowMs();
-  const mcpConfig = fs.readFileSync(0, "utf8"); // fd 0 = stdin
+  let mcpConfig;
+  try {
+    mcpConfig = fs.readFileSync(0, "utf8"); // fd 0 = stdin
+  } catch (err) {
+    throw new Error(`Failed to read MCP configuration from stdin: ${String(err)}`, { cause: err });
+  }
   printTiming(configReadStart, "Configuration read from stdin");
   core.info("");
 
@@ -741,7 +758,11 @@ async function main() {
   }
 
   // Restrict permissions
-  fs.chmodSync(outputPath, 0o600);
+  try {
+    fs.chmodSync(outputPath, 0o600);
+  } catch (err) {
+    throw new Error(`Failed to set permissions on ${outputPath}: ${String(err)}`, { cause: err });
+  }
 
   // Check for error payload
   let gatewayOutput;
@@ -812,7 +833,11 @@ async function main() {
     core.info(`No agent-specific converter found for engine: ${engineType}`);
     core.info("Using gateway output directly");
     // Default fallback – copy to most common location, filtering CLI-mounted servers
-    fs.mkdirSync(copilotConfigDir, { recursive: true });
+    try {
+      fs.mkdirSync(copilotConfigDir, { recursive: true });
+    } catch (err) {
+      throw new Error(`Failed to create directory ${copilotConfigDir}: ${String(err)}`, { cause: err });
+    }
     const cliServersRaw = process.env.GH_AW_MCP_CLI_SERVERS;
     if (cliServersRaw) {
       try {
@@ -830,12 +855,26 @@ async function main() {
       } catch {
         core.error("ERROR: Failed to filter CLI-mounted servers from agent MCP config");
         core.info("Falling back to unfiltered config");
-        fs.copyFileSync(outputPath, copilotConfigFile);
+        try {
+          fs.copyFileSync(outputPath, copilotConfigFile);
+        } catch (err) {
+          throw new Error(`Failed to copy file ${outputPath} to ${copilotConfigFile}: ${String(err)}`, { cause: err });
+        }
       }
     } else {
-      fs.copyFileSync(outputPath, copilotConfigFile);
+      try {
+        fs.copyFileSync(outputPath, copilotConfigFile);
+      } catch (err) {
+        throw new Error(`Failed to copy file ${outputPath} to ${copilotConfigFile}: ${String(err)}`, { cause: err });
+      }
     }
-    core.info(fs.readFileSync(copilotConfigFile, "utf8"));
+    let copilotConfigContent;
+    try {
+      copilotConfigContent = fs.readFileSync(copilotConfigFile, "utf8");
+    } catch (err) {
+      throw new Error(`Failed to read file ${copilotConfigFile}: ${String(err)}`, { cause: err });
+    }
+    core.info(copilotConfigContent);
   }
   printTiming(configConvertStart, "Configuration conversion");
   core.info("");
@@ -876,7 +915,11 @@ async function main() {
   // Save CLI manifest for mount_mcp_as_cli.cjs
   // -----------------------------------------------------------------------
   core.info("Saving MCP CLI manifest...");
-  fs.mkdirSync(cliDir, { recursive: true });
+  try {
+    fs.mkdirSync(cliDir, { recursive: true });
+  } catch (err) {
+    throw new Error(`Failed to create directory ${cliDir}: ${String(err)}`, { cause: err });
+  }
 
   try {
     const gwOut = JSON.parse(fs.readFileSync(outputPath, "utf8"));
@@ -937,7 +980,11 @@ async function main() {
   // -----------------------------------------------------------------------
   if (githubOutput) {
     const outputs = [`gateway-pid=${gatewayPid}`, `gateway-port=${gatewayPort}`, `gateway-api-key=${apiKey}`, `gateway-domain=${gatewayDomain}`].join("\n");
-    fs.appendFileSync(githubOutput, outputs + "\n");
+    try {
+      fs.appendFileSync(githubOutput, outputs + "\n");
+    } catch {
+      /* ignore */
+    }
   }
 }
 

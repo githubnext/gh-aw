@@ -20,6 +20,7 @@ package workflow
 
 import (
 	"embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -146,6 +147,21 @@ func loadBuiltinEngineDefinitions() []*EngineDefinition {
 		// Register the full .md content in the parser's builtin virtual FS so the
 		// file can be resolved and read during import processing.
 		parser.RegisterBuiltinVirtualFile(builtinEnginePath(def.ID), data)
+
+		// Register the JSON key that the import processor produces for this built-in
+		// so that parseEngineDefinitionFromJSON will cache it. The import processor
+		// marshals the raw "engine:" value (a map[string]any) to JSON; we replicate
+		// that here so the cache key matches exactly.
+		var rawFM map[string]any
+		if jsonErr := yaml.Unmarshal(frontmatterYAML, &rawFM); jsonErr != nil {
+			engineDefinitionLoaderLog.Printf("Warning: failed to unmarshal frontmatter for cache-key registration of %s: %v", path, jsonErr)
+		} else if engineVal, ok := rawFM["engine"]; ok {
+			if jsonKey, jsonErr := json.Marshal(engineVal); jsonErr != nil {
+				engineDefinitionLoaderLog.Printf("Warning: failed to marshal engine value to JSON for cache-key registration of %s: %v", path, jsonErr)
+			} else {
+				registerBuiltinEngineDefinitionJSON(string(jsonKey))
+			}
+		}
 
 		engineDefinitionLoaderLog.Printf("Loaded built-in engine definition: id=%s runtime-id=%s", def.ID, def.RuntimeID)
 		definitions = append(definitions, &def)

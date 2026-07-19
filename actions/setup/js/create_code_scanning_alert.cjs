@@ -86,7 +86,11 @@ async function main(config = {}) {
       ],
     };
 
-    fs.writeFileSync(sarifFilePath, JSON.stringify(sarifContent, null, 2));
+    try {
+      fs.writeFileSync(sarifFilePath, JSON.stringify(sarifContent, null, 2));
+    } catch (err) {
+      throw new Error(`Failed to write file ${sarifFilePath}: ${String(err)}`, { cause: err });
+    }
     core.info(`✓ Updated SARIF file with ${validFindings.length} finding(s): ${sarifFilePath}`);
   }
 
