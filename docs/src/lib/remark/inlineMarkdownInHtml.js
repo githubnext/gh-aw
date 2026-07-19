@@ -92,13 +92,17 @@ function processMarkdownLinksInHtml(html) {
 function convertMarkdownLinks(text) {
 	// Tokenise the input so that backtick code spans are excluded from link
 	// replacement while the rest of the text is processed normally.
-	const parts = text.split(/(`.+?`)/gs);
+	// Use [^`]+ (no dotAll) so a single code span cannot span multiple lines.
+	const parts = text.split(/(`[^`]+`)/g);
 	return parts
 		.map((part, index) => {
 			// Even-indexed parts are plain text; odd-indexed parts are code spans.
 			if (index % 2 !== 0) return part;
+			// Match standard markdown links.  The link text pattern [^\]\[]+ rejects
+			// unescaped `[` and `]` characters so we don't accidentally match nested
+			// brackets or partial link syntax.
 			return part.replace(
-				/\[([^\]]+)\]\(([^)]+)\)/g,
+				/\[([^\]\[]+)\]\(([^)]+)\)/g,
 				'<a href="$2">$1</a>',
 			);
 		})
